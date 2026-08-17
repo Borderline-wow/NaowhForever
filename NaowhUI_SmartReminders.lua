@@ -54,6 +54,7 @@ local DEFAULTS = {
     inRaids    = true,
     fallbackOn = true,
     aggroOnly  = false,
+    learnMode  = false,  -- unknown bosses: quiet by default, call-everything when authoring
     leadTime   = 3,     -- seconds before impact that the alert fires
     voiceOn   = false,
     voiceNone = "Call for external",
@@ -690,6 +691,7 @@ end
 -- right after the kill or the wipe, and by then ENCOUNTER_END has already cleared
 -- currentEncounter, which would file the entry under the wrong boss.
 local lastFingerprint, lastFingerprintEncounter
+local lastUnknownNotice
 
 -- For attributing a boss cast back to the timeline event that announced it, and for
 -- detecting when that attribution would be ambiguous. Written by ShowForEvent, read by the
@@ -1325,7 +1327,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0817c"
+local TRACE_BUILD = "0817i"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1502,6 +1504,32 @@ local function ShowForEvent(eventID)
     lastFingerprintAt = GetTime()
     lastFingerprint = FingerprintFor(eventID)
     lastFingerprintEncounter = currentEncounter
+
+    -- A boss with NO data at all used to call out on every timeline event, on the theory
+    -- that missing a buster is worse than noise. A live lair boss settled it: five abilities
+    -- on ten-second cycles is nonstop alerts, which players turn off, and off catches
+    -- nothing. Unknown bosses are now QUIET -- the engine beep still covers flagged and
+    -- curated busters -- and say so once, and learning mode brings the old behavior back
+    -- for exactly the person it was built for: whoever is authoring the boss.
+    do
+        local player = MarksTable(false, currentEncounter)
+        local covered = (player ~= nil and next(player) ~= nil)
+            or (ShippedMarks(currentEncounter) ~= nil)
+        if not covered and not t.learnMode then
+            if lastUnknownNotice ~= currentEncounter then
+                lastUnknownNotice = currentEncounter
+                ns.Print("this boss has no tank buster data yet, so callouts stay quiet "
+                    .. "here. The alert sound still covers known busters. Authoring it: "
+                    .. "/nutank learn, then /nutank tank on the real busters.")
+            end
+            if traceLeft > 0 then
+                traceLeft = traceLeft - 1
+                ns.Print(("|cffF0A830trace|r event=%s |cff80ff80quiet|r (unknown boss, "
+                    .. "learning mode off)"):format(tostring(eventID)))
+            end
+            return
+        end
+    end
 
     if IsUnmarkedEvent(eventID) then
         if traceLeft > 0 then
@@ -2172,6 +2200,18 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    if arg == "learn" then
+        local t2 = TRDB()
+        t2.learnMode = not t2.learnMode
+        if t2.learnMode then
+            ns.Print("learning mode ON: unknown bosses call out every timeline ability so "
+                .. "you can mark the real busters with /nutank tank. Turn it off when done.")
+        else
+            ns.Print("learning mode off: unknown bosses stay quiet again.")
+        end
+        return
+    end
+
     if arg == "marked" then
         local enc = lastFingerprintEncounter or currentEncounter
         local n = 0
@@ -2312,7 +2352,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
         tostring(canSelect and true or false), tostring(canGate and true or false),
         tostring(canBar and true or false), tostring(canSound and true or false)))
-    ns.Print("usage: /nutank trace | tank | untank | marked | export | mute | unmute | muted | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank trace | learn | tank | untank | marked | export | mute | unmute | muted | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
@@ -2910,7 +2950,13 @@ function ns.BuildSection(parent, y)
           .. "fires immediately.",
           getValue = function() return TRDB().leadTime or 3 end,
           setValue = function(v) TRDB().leadTime = v end },
-        { type = "label", text = "" }
+        { type = "toggle", text = "Call Out Unknown Bosses",
+          tooltip = "Bosses with no tank buster data stay quiet by default (the alert sound "
+          .. "still covers known busters). Turn this on while authoring a boss: every "
+          .. "timeline ability calls out so you can mark the real busters, then turn it "
+          .. "back off.",
+          getValue = function() return TRDB().learnMode end,
+          setValue = function(v) TRDB().learnMode = v end }
     ); y = y - h
 
     if TRDB().soundOn then
