@@ -1,29 +1,28 @@
-"""Build ns.TANK_FINGERPRINTS by joining community boss-timeline research with
-our own curated tank buster facts.
+"""Extract tank fingerprints and event names from community boss modules.
 
-What is taken and what is not: the source modules are another project's
-copyrighted code, so nothing here copies their expression. The script reads
-them as a database of FACTS -- encounter id, which base durations belong to
-which ability name, which spell id carries that name -- and re-expresses those
-facts in our own format. Tank classification itself comes from OUR curated
-list first (sheet-derived), with their explicit tank-hit markers as an
-additive second source.
+Two module dialects exist and both are handled:
 
-The join, per boss module:
-  SetEncounterID(N)                     -> encounter key
-  `duration == X ... -- Ability`        -> fingerprint(s) per ability name
-  `12345, -- Ability` (options/renames) -> ability name -> spell id
-  ns.TANK_ABILITIES[spell id]           -> is it a tank buster
-  => TANK_FINGERPRINTS[N] = { "X" = true, ... }
+  A. `if duration == 8 or duration == 24 then -- Triple Shot`
+     One-decimal durations, ability named in a trailing comment.
+  B. `elseif durationRounded == 17 or durationRounded == 29 then -- Mythic
+          barInfo = self:WaterJet()`
+     Whole-second durations, ability named by the method called on the next
+     line(s). The runtime filter matches whole seconds tolerantly, so both
+     dialects are emitted in "%.1f" form.
 
-Validation that this join is sound: encounter 3456 was measured live before
-this script existed. Our measured 8.0 (tank hit, called out) and 25.0/13.0/
-23.0 (non-tank, silenced) match the extracted facts exactly, and the
-extraction adds a 24.0 late-cast variant of the tank hit that live testing
-had not yet seen.
+Tank classification, in priority order:
+  1. Our curated sheet-derived list (spell ids).
+  2. `[id] = {CL.tank_hit...` renames and `note = CL.tank_hit` entries.
+  3. `{id, "TANK"}` / `{id, "TANK_HEALER"}` flags in GetOptions.
+  4. `(Tank Hit)` comments beside an id.
 
-Usage: python extract_fingerprints.py <littlewigs_season_dir> <bigwigs_raid_dir> <abilities_lua>
-Prints a report and the replacement TANK_FINGERPRINTS block to stdout.
+Facts only: encounter ids, durations, ability names, spell ids. No source
+expression is copied; the output is our own format.
+
+Usage:
+  python extract_fingerprints.py <our_abilities_lua> <module_dir> [<module_dir> ...]
+Prints stats plus three Lua sections (fingerprints, event names, tank spell
+additions) for splicing into the data file.
 """
 
 import re
@@ -31,103 +30,153 @@ import sys
 from pathlib import Path
 
 
+def norm(name):
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
 def parse_curated(abilities_lua):
-    """Spell ids our shipped list already classifies as tank busters."""
-    tank = {}
     body = Path(abilities_lua).read_text(encoding="ascii")
     m = re.search(r"ns\.TANK_ABILITIES = \{(.*?)\n\}", body, re.S)
-    for sid, dmg in re.findall(r'\[(\d+)\] = "(\w+)"', m.group(1)):
-        tank[int(sid)] = dmg
-    return tank
+    ids = set()
+    for mm in re.finditer(r"\[(\d+)\]", m.group(1)):
+        ids.add(int(mm.group(1)))
+    return ids
 
 
-def parse_module(path):
-    """One boss file -> (encounterID, name->ids, list of (durations, name))."""
+def parse_module(path, curated):
     text = path.read_text(encoding="utf-8", errors="replace")
-
-    m = re.search(r"SetEncounterID\((\d+)\)", text)
-    if not m:
+    me = re.search(r"SetEncounterID\((\d+)\)", text)
+    mb = re.search(r'NewBoss\("([^"]+)"', text)
+    if not (me and mb):
         return None
-    enc = int(m.group(1))
+    enc, bossname = int(me.group(1)), mb.group(1)
 
-    # Any numeric spell id with a trailing name comment maps name -> ids. Options
-    # and rename tables both follow this shape, and collecting every such line is
-    # deliberately loose: a name only has to resolve once.
-    name_ids = {}
+    # id -> proper name, from any id with a trailing comment. Loose on purpose:
+    # a name only has to resolve once somewhere in the file.
+    id_name = {}
     for sid, name in re.findall(r"(\d{6,9})[,}\]].*?--\s*([^\r\n(]+)", text):
-        key = name.strip().lower()
-        name_ids.setdefault(key, set()).add(int(sid))
+        nm = name.strip()
+        if nm and int(sid) not in id_name:
+            id_name[int(sid)] = nm
 
-    # Timeline branches: every `duration == X` on a line, with the trailing
-    # comment naming the ability the branch handles.
-    branches = []
-    for line in text.splitlines():
-        if "duration ==" not in line:
-            continue
-        durs = re.findall(r"duration == ([\d.]+)", line)
-        name = re.search(r"--\s*([^\r\n(]+)$", line.strip())
-        if durs and name:
-            branches.append(([float(d) for d in durs], name.group(1).strip().lower()))
-
-    # Explicit tank-hit markers are an additive classification source.
-    marked = set()
+    # Tank-marked spell ids from the module's own markers.
+    tank_ids = set()
     for sid in re.findall(r"\[(\d+)\] = \{CL\.tank_hit", text):
-        marked.add(int(sid))
+        tank_ids.add(int(sid))
+    for sid in re.findall(r"\{(\d+),[^}]*note = CL\.tank_hit", text):
+        tank_ids.add(int(sid))
+    for sid in re.findall(r'\{(\d+),\s*"TANK(?:_HEALER)?"', text):
+        tank_ids.add(int(sid))
     for sid in re.findall(r"(\d{6,9})[,}\]].*?--.*?\(Tank Hit\)", text):
-        marked.add(int(sid))
+        tank_ids.add(int(sid))
 
-    return enc, name_ids, branches, marked
+    # Which normalized ability names count as tank hits on this boss.
+    tank_names = set()
+    for sid in tank_ids | (curated & set(id_name)):
+        nm = id_name.get(sid)
+        if nm:
+            tank_names.add(norm(nm))
+    # Names whose id resolves to curated even without a module marker.
+    for sid, nm in id_name.items():
+        if sid in curated:
+            tank_names.add(norm(nm))
+
+    # Branches, both dialects.
+    branches = []  # (durations, display_name)
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        durs = re.findall(r"(?:durationRounded|duration|rounded) == ([\d.]+)", line)
+        if not durs:
+            continue
+        name = None
+        cm = re.search(r"--\s*([^\r\n(]+)$", line.strip())
+        if cm:
+            cand = cm.group(1).strip()
+            # A trailing comment that is just numbers or a difficulty tag names nothing.
+            if re.search(r"[A-Za-z]", cand) and not re.fullmatch(
+                    r"(?:[\d/ .]+)?(?:Mythic|Heroic|Normal)?", cand):
+                name = cand
+        if not name:
+            for j in range(i + 1, min(i + 4, len(lines))):
+                mcall = re.search(r"self:(\w+)\(", lines[j])
+                if mcall:
+                    method = re.sub(r"Timeline$", "", mcall.group(1))
+                    # Prefer the proper name whose normalization matches the method.
+                    for sid, nm in id_name.items():
+                        if norm(nm) == norm(method):
+                            name = nm
+                            break
+                    if not name:
+                        # CamelCase -> spaced words as the fallback display.
+                        name = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", method)
+                    break
+        if name:
+            branches.append(([float(d) for d in durs], name))
+
+    return {
+        "enc": enc, "boss": bossname, "id_name": id_name,
+        "tank_ids": tank_ids, "tank_names": tank_names, "branches": branches,
+    }
 
 
 def main():
-    season_dirs = [Path(sys.argv[1]), Path(sys.argv[2])]
-    curated = parse_curated(sys.argv[3])
-
-    out = {}          # enc -> { fingerprint-string: spell name }
-    new_tank = {}     # spell ids marked tank_hit upstream, missing from curated
-    unmatched = []    # tank branches whose name resolved to no spell id
-
-    files = []
-    for d in season_dirs:
-        files.extend(p for p in sorted(d.rglob("*.lua"))
-                     if p.name not in ("Trash.lua",) and not p.name.startswith("!"))
-
-    for path in files:
-        parsed = parse_module(path)
-        if not parsed:
-            continue
-        enc, name_ids, branches, marked = parsed
-
-        for sid in marked:
-            if sid not in curated:
-                new_tank[sid] = path.stem
-
-        for durs, name in branches:
-            ids = set()
-            for key, s in name_ids.items():
-                if key.startswith(name) or name.startswith(key):
-                    ids |= s
-            if not ids:
-                unmatched.append((path.stem, name))
+    curated = parse_curated(sys.argv[1])
+    mods = []
+    for arg in sys.argv[2:]:
+        for f in sorted(Path(arg).rglob("*.lua")):
+            if f.name.startswith("!") or f.name == "Trash.lua":
                 continue
-            if any(sid in curated or sid in marked for sid in ids):
-                for d in durs:
-                    out.setdefault(enc, {})["%.1f" % d] = name
+            parsed = parse_module(f, curated)
+            if parsed:
+                mods.append(parsed)
 
-    print("-- extracted %d encounters, %d with tank fingerprints" % (
-        len(files), len(out)))
-    for stem, name in unmatched:
-        print("-- UNMATCHED tank-name candidate: %s: %s" % (stem, name))
-    for sid, stem in sorted(new_tank.items()):
-        print('-- upstream tank_hit missing from curated: [%d] %s' % (sid, stem))
+    fingerprints = {}   # enc -> { fp: set(names) }
+    event_names = {}    # enc -> { fp: set(names) }
+    new_tank = {}       # sid -> (boss, name)
 
-    print("\nns.TANK_FINGERPRINTS = {")
-    for enc in sorted(out):
-        fps = out[enc]
+    for m in mods:
+        enc = m["enc"]
+        for sid in m["tank_ids"]:
+            if sid not in curated:
+                new_tank[sid] = (m["boss"], m["id_name"].get(sid, "?"))
+        for durs, name in m["branches"]:
+            for d in durs:
+                fp = "%.1f" % d
+                event_names.setdefault(enc, {}).setdefault(fp, set()).add(name)
+                if norm(name) in m["tank_names"]:
+                    fingerprints.setdefault(enc, {}).setdefault(fp, set()).add(name)
+
+    print("-- modules: %d | encounters with events: %d | with tank fingerprints: %d"
+          % (len(mods), len(event_names), len(fingerprints)))
+    for m in mods:
+        if m["enc"] not in fingerprints:
+            has = "no tank branch resolved"
+            if not (m["tank_ids"] or any(norm(n) in map(norm, m["id_name"].values())
+                                         for n in m["tank_names"])):
+                has = "module marks no tank hit"
+            print("--   uncovered: %s (%d): %s" % (m["boss"], m["enc"], has))
+
+    def esc(x):
+        return x.replace("\\", "").replace('"', "'")
+
+    print("\n--8<-- TANK_FINGERPRINTS")
+    for enc in sorted(fingerprints):
+        fps = fingerprints[enc]
         parts = ", ".join('["%s"] = true' % fp for fp in sorted(fps, key=float))
-        names = ", ".join(sorted(set(fps.values())))
+        names = ", ".join(sorted({esc(n) for s in fps.values() for n in s}))
         print("    [%d] = { %s },   -- %s" % (enc, parts, names))
-    print("}")
+
+    print("\n--8<-- EVENT_NAMES")
+    for enc in sorted(event_names):
+        fps = event_names[enc]
+        parts = ", ".join('["%s"] = "%s"' % (fp, esc(" / ".join(sorted(fps[fp]))))
+                          for fp in sorted(fps, key=float))
+        print("    [%d] = { %s }," % (enc, parts))
+
+    print("\n--8<-- NEW_TANK_ABILITIES")
+    for sid in sorted(new_tank):
+        boss, name = new_tank[sid]
+        print('    [%d] = "Unknown",   -- %s: %s' % (sid, esc(boss), esc(name)))
 
 
 if __name__ == "__main__":
