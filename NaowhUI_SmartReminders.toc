@@ -1,5 +1,5 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100
-## Title: |cff0091edNaowh|r|cffffa300UI|r_BossReminder
+## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders
 ## Notes: Calls out what to press when the boss timeline says an ability is coming. All specs.
 ## Author: NaowhUI
 ## Version: 1.0.0
@@ -11,15 +11,15 @@
 # Core first: it owns the DB and the settings-page injection the feature file hangs off.
 # NaowhUI_EUI is optional -- with it we add a section to the existing NaowhUI group, without
 # it we register that group ourselves, so this addon stands alone on EllesmereUI.
-NaowhUI_TankReminder_Core.lua
+NaowhUI_SmartReminders_Core.lua
 
 # Tank busters Blizzard's own TankRole bit does not carry. Additive to it, never a
 # replacement, so content this file has never heard of still works unchanged. Loads after
 # Core, which owns the namespace it hangs off.
-NaowhUI_TankReminder_Abilities.lua
+NaowhUI_SmartReminders_Abilities.lua
 
-NaowhUI_TankReminder.lua
+NaowhUI_SmartReminders.lua
 
 # Reads this season's bosses and their tank-flagged abilities out of the player's own
 # Dungeon Journal. Lazy: nothing is read until the page is opened.
-NaowhUI_TankReminder_Bosses.lua
+NaowhUI_SmartReminders_Bosses.lua

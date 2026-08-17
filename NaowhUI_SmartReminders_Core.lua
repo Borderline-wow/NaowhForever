@@ -10,7 +10,9 @@
 local ADDON_NAME = ...
 
 -- Must match the addon folder: EllesmereUI's sidebar and profile map both key off it.
-local MODULE_KEY = "NaowhUI_TankReminder"
+-- Renamed with the addon (was NaowhUI_TankReminder); SettingsRoot migrates the old
+-- profile key so nobody's lists are lost to the rename.
+local MODULE_KEY = "NaowhUI_SmartReminders"
 
 local NAOWH_BLUE = { r = 0x00 / 255, g = 0xCF / 255, b = 0xFF / 255 }
 
@@ -173,6 +175,15 @@ function ns.SettingsRoot()
         -- svName minus the trailing "DB" is the folder, so this lands under MODULE_KEY.
         _settingsDB = L.NewDB(MODULE_KEY .. "DB", { profile = {} })
         if _settingsDB and type(_settingsDB.profile) == "table" then
+            -- The addon shipped for a while as NaowhUI_TankReminder, and the profile map
+            -- keys by module, so a fresh key means every existing list would look wiped.
+            -- One-way copy, old left in place: harmless, and a downgrade still works.
+            if next(_settingsDB.profile) == nil then
+                local ok, old = pcall(L.NewDB, "NaowhUI_TankReminderDB", { profile = {} })
+                if ok and old and type(old.profile) == "table" and next(old.profile) ~= nil then
+                    for k, v in pairs(old.profile) do _settingsDB.profile[k] = v end
+                end
+            end
             return _settingsDB.profile
         end
     end
@@ -263,7 +274,7 @@ local function InjectSidebar()
     EUI._addonInfoByFolder[MODULE_KEY] = EUI._addonInfoByFolder[MODULE_KEY] or {
         folder       = MODULE_KEY,
         display      = "NaowhUI",
-        search_name  = "NaowhUI Naowh Boss Reminder Defensive Tank",
+        search_name  = "NaowhUI Naowh Smart Reminders Boss Defensive Tank",
         alwaysLoaded = true,
     }
 
@@ -300,7 +311,7 @@ local function InjectProfileAddon()
     for _, e in ipairs(map) do
         if e.folder == MODULE_KEY then return end   -- guard against a reload re-inserting us
     end
-    map[#map + 1] = { folder = MODULE_KEY, display = "NaowhUI Boss Reminder" }
+    map[#map + 1] = { folder = MODULE_KEY, display = "NaowhUI Smart Reminders" }
 end
 
 -------------------------------------------------------------------------------
@@ -336,7 +347,7 @@ boot:SetScript("OnEvent", function(self)
         RegisterModule({
             title       = "NaowhUI",
             description = "Naowh's boss ability reminder for EllesmereUI.",
-            pages       = { "Boss Reminder" },
+            pages       = { "Smart Reminders" },
             buildPage   = function(_, parent, yOffset)
                 return ns.BuildPage and ns.BuildPage(parent, yOffset) or math.abs(yOffset)
             end,

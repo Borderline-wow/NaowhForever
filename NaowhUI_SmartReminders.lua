@@ -41,7 +41,10 @@ if not ns then return end
 -- are built. Flat scalars only -- a nested default would hand out a live reference to
 -- DEFAULTS itself. `disabled` and `lists` are created on demand for the same reason.
 local DEFAULTS = {
-    enabled   = false,
+    -- On by default FOR THE TEST BUILD, at the owner's request: the tester should
+    -- install and see it work. Flip back to false before any public release; the house
+    -- rule is that features ship opt-in.
+    enabled   = true,
     showIcon  = true,
     showText  = false,
     showBar   = false,
@@ -1838,7 +1841,7 @@ local function RegisterUnlock()
     EUI:RegisterUnlockElements({
         EUI.MakeUnlockElement({
             key   = "NaowhUI_TankReminder",
-            label = "NaowhUI Boss Reminder",
+            label = "NaowhUI Smart Reminders",
             group = "NaowhUI",
             order = 3,
             -- Sized from the icon slider, so a resize handle would be overwritten by the
@@ -2722,10 +2725,10 @@ function ns.BuildSection(parent, y)
     local W   = EUI.Widgets
     local _, h
 
-    _, h = W:SectionHeader(parent, "BOSS REMINDER", y); y = y - h
+    _, h = W:SectionHeader(parent, "SMART REMINDERS", y); y = y - h
 
     _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Boss Reminder",
+        { type = "toggle", text = "Smart Reminders",
           tooltip = "Shows what to press when the boss timeline says an ability is about to land. "
           .. "It picks the highest entry on your own list that you have talented and off "
           .. "cooldown. Build that list below -- nothing is set up for you. Works on every "
@@ -3195,7 +3198,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             elseif activeSlots == 0 then why = "no priority list for this spec (or nothing on it is talented)"
             elseif not TimelineAvailable() then why = "the boss timeline feature is unavailable here"
             elseif not AllowedHere() then why = "dungeons/raids toggle excludes this instance"
-            elseif not BossAllowed() then why = "this boss is switched off in Boss Reminder"
+            elseif not BossAllowed() then why = "this boss is switched off in Smart Reminders"
             end
             if not why then
                 local t2 = TRDB()
