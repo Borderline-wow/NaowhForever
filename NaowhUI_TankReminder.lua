@@ -1,0 +1,3145 @@
+-------------------------------------------------------------------------------
+--  NaowhUI_TankReminder.lua -- shows which defensive to press when Blizzard's encounter
+--  timeline says a tank ability is about to land.
+--
+--  The core owns the DB and decides where this section renders: on NaowhUI_EUI's Gameplay
+--  page when the companion is installed, on our own page under the NaowhUI group when it
+--  is not. Nothing here needs to know which.
+--
+--  Both halves of this feature are secret on 12.1, and neither can be an `if`:
+--
+--    "is this a tank hit"  -- the TankRole bit of EncounterTimelineEventInfo.icons,
+--                             secret for every Encounter-source event.
+--    "is this spell ready" -- cooldown state, secret in instanced combat.
+--
+--  Comparing a secret, testing its truthiness, doing arithmetic on it or using it as a
+--  table key all raise. So nothing in this file decides anything. Every decision is
+--  handed to the engine and consumed as alpha:
+--
+--    * the tank gate rides C_EncounterTimeline.SetEventIconTextures, Blizzard's own
+--      pixels-only substitute for the bit.band(icons, TankRole) that only untainted
+--      code can do -- it sets alpha, never Shown, so geometry stays constant.
+--    * the priority pick rides a chain of C_CurveUtil.EvaluateColorValueFromBoolean, which
+--      is AllowedWhenTainted in ALL arguments and so composes: a secret may be both the
+--      condition and a branch value, and the result goes straight into SetAlpha.
+--
+--  A slot frame's alpha (did this defensive win the priority pick) multiplies with its
+--  icon texture's alpha (is this event a tank hit), so exactly one icon is visible and
+--  only on a tank ability -- without either answer ever reaching Lua.
+--
+--  The tank gate only reaches TEXTURES. A FontString cannot carry it, which is why the
+--  text channel is unavailable while the tank filter is on rather than silently firing
+--  on every ability.
+-------------------------------------------------------------------------------
+local ns = _G.NaowhUITankReminder
+if not ns then return end
+
+-------------------------------------------------------------------------------
+--  DB
+-------------------------------------------------------------------------------
+-- enabled defaults off: until the user opts in, no events are registered and no frames
+-- are built. Flat scalars only -- a nested default would hand out a live reference to
+-- DEFAULTS itself. `disabled` and `lists` are created on demand for the same reason.
+local DEFAULTS = {
+    enabled   = false,
+    tankOnly  = false,
+    showIcon  = true,
+    showText  = false,
+    showBar   = false,
+    soundOn   = false,
+    soundKey  = "none",
+    inDungeons = true,
+    inRaids    = true,
+    fallbackOn = true,
+    voiceOn   = false,
+    voiceNone = "Call for external",
+    voiceVol  = 100,
+    iconSize  = 64,
+    scale     = 1,       -- a multiplier; the slider shows it as a percentage
+    -- pos = { point, relPoint, x, y } once moved in Unlock Mode; nil = default centre.
+}
+
+local function TRDB()
+    local root = ns.SettingsRoot()
+    if type(root.tankReminder) ~= "table" then root.tankReminder = {} end
+    local t = root.tankReminder
+    for k, v in pairs(DEFAULTS) do if t[k] == nil then t[k] = v end end
+    return t
+end
+
+local function IsSpellDisabled(spellID)
+    local d = TRDB().disabled
+    return d ~= nil and d[spellID] == true
+end
+
+local function SetSpellDisabled(spellID, off)
+    local t = TRDB()
+    if off then
+        if type(t.disabled) ~= "table" then t.disabled = {} end
+        t.disabled[spellID] = true
+    elseif type(t.disabled) == "table" then
+        t.disabled[spellID] = nil
+        if next(t.disabled) == nil then t.disabled = nil end
+    end
+end
+
+-------------------------------------------------------------------------------
+--  The priority list is the user's, per spec
+-------------------------------------------------------------------------------
+-- This addon ships with NO ability data of its own -- no boss timers, no spell lists, no
+-- encounter knowledge. It is an engine: the player builds the priority order themselves
+-- (or imports one through an EllesmereUI profile string) and it drives whatever they put
+-- in it. Everything it reacts to at runtime comes from Blizzard's own encounter timeline.
+--
+-- Per spec rather than global, because a priority order is only meaningful within one spec
+-- and a tank who also heals should not rebuild it on every switch.
+local function UserList(forSpec, create)
+    local t = TRDB()
+    if type(t.lists) ~= "table" then
+        if not create then return nil end
+        t.lists = {}
+    end
+    local key = tostring(forSpec or 0)
+    if type(t.lists[key]) ~= "table" then
+        if not create then return nil end
+        t.lists[key] = {}
+    end
+    return t.lists[key]
+end
+
+-- Per-boss overrides live beside the spec default, keyed spec:encounter. The key is the
+-- dungeonEncounterID -- the same id ENCOUNTER_START reports and the same one the journal
+-- hands back -- so what the tree sets up and what fires in the fight are the same record.
+--
+-- Fallback is deliberate and one level deep: an empty or absent boss list means "use my spec
+-- default", so a tank sets their normal order once and only overrides the fights that need it.
+local function BossKey(forSpec, encounterID)
+    return tostring(forSpec or 0) .. ":" .. tostring(encounterID or 0)
+end
+
+local function BossList(forSpec, encounterID, create)
+    local t = TRDB()
+    if type(t.bossLists) ~= "table" then
+        if not create then return nil end
+        t.bossLists = {}
+    end
+    local key = BossKey(forSpec, encounterID)
+    if type(t.bossLists[key]) ~= "table" then
+        if not create then return nil end
+        t.bossLists[key] = {}
+    end
+    return t.bossLists[key]
+end
+
+local function ClearBossList(forSpec, encounterID)
+    local t = TRDB()
+    if type(t.bossLists) ~= "table" then return end
+    t.bossLists[BossKey(forSpec, encounterID)] = nil
+    if next(t.bossLists) == nil then t.bossLists = nil end
+end
+
+local function ListIndexOf(list, spellID)
+    for i = 1, #list do
+        if list[i] == spellID then return i end
+    end
+    return nil
+end
+
+-- Spoken line per spell. Defaults to "Use <name>"; the point of storing an override is that
+-- "Use Incarnation: Guardian of Ursoc" is not what anyone says out loud.
+local function CalloutFor(spellID, spellName)
+    local c = TRDB().callouts
+    local custom = c and c[spellID]
+    if type(custom) == "string" and custom ~= "" then return custom end
+    return "Use " .. (spellName or "")
+end
+
+local function SetCallout(spellID, text)
+    local t = TRDB()
+    if type(text) == "string" and text ~= "" then
+        if type(t.callouts) ~= "table" then t.callouts = {} end
+        t.callouts[spellID] = text
+    elseif type(t.callouts) == "table" then
+        t.callouts[spellID] = nil
+        if next(t.callouts) == nil then t.callouts = nil end
+    end
+end
+
+-- The encounter we are actually in, from ENCOUNTER_START. Plain: encounter ids are not
+-- secret. nil outside a boss fight, which is what makes the spec default apply everywhere else.
+local currentEncounter
+
+-- The list that actually drives the alert: this boss's override when it has one, otherwise
+-- the spec default.
+local function EffectiveList(forSpec, encounterID)
+    if encounterID then
+        local bl = BossList(forSpec, encounterID, false)
+        if bl and #bl > 0 then return bl, true end
+    end
+    return UserList(forSpec, false), false
+end
+
+-- Cap on built slots, and on how long a list the options page will accept. Nothing reads a
+-- secret to size this, and it must not: slot count, creation and layout are all driven by
+-- the saved list and talent state, which stay plain.
+local MAX_SLOTS = 8
+
+-------------------------------------------------------------------------------
+--  Capability gate
+-------------------------------------------------------------------------------
+-- Probed once rather than assumed. Every one of these is load-bearing, and on a client
+-- missing any of them the feature stays inert instead of erroring per boss ability.
+local canSelect, canGate, canSound, canBar
+
+local function ProbeCapabilities()
+    canSelect = (C_CurveUtil ~= nil and C_CurveUtil.EvaluateColorValueFromBoolean ~= nil
+        and C_Spell ~= nil and C_Spell.GetSpellCooldownDuration ~= nil)
+
+    canGate = (C_EncounterTimeline ~= nil and C_EncounterTimeline.SetEventIconTextures ~= nil
+        and Enum ~= nil and Enum.EncounterEventIconmask ~= nil
+        and Enum.EncounterEventIconmask.TankRole ~= nil)
+
+    canSound = (C_EncounterEvents ~= nil and C_EncounterEvents.SetEventSound ~= nil
+        and C_EncounterEvents.GetEventList ~= nil and C_EncounterEvents.GetEventInfo ~= nil
+        and Enum ~= nil and Enum.EncounterEventSoundTrigger ~= nil)
+
+    canBar = (C_EncounterTimeline ~= nil and C_EncounterTimeline.GetEventTimer ~= nil)
+end
+
+-- The feature exists on this client at all. This is the ONLY availability check that may
+-- gate event registration.
+--
+-- IsFeatureEnabled() must never be used for that: it folds in the player's CVars, and the
+-- events keep firing when those are off. A popular boss-mod addon ships with
+-- encounterTimelineEnabled forced to "0" and the timeline frame reparented away, and then
+-- drives its own bars from these very events -- so gating on IsFeatureEnabled would break
+-- this addon for that entire userbase while the data was flowing the whole time.
+local function TimelineAvailable()
+    return C_EncounterTimeline ~= nil
+        and C_EncounterTimeline.IsFeatureAvailable ~= nil
+        and C_EncounterTimeline.IsFeatureAvailable()
+end
+
+-- The master switch, which is a different thing from the timeline's own display toggle.
+-- We never write either one: two boss-mod addons already fight over the display CVar every
+-- pull, and a third writer would just make that worse. Detect, tell the user once, move on.
+-- Reported by the diagnostic command, never acted on. The CVar gates Blizzard's own
+-- timeline frame and nothing else: with it at 0 the events still arrive and a registered
+-- sound still plays, both measured on a live boss. Worth SHOWING when reading a bug
+-- report, worth never warning about.
+local function TimelineDisplayOff()
+    return C_CVar ~= nil and C_CVar.GetCVarBool ~= nil
+        and C_CVar.GetCVarBool("encounterTimelineEnabled") == false
+end
+
+local function CombatWarningsOff()
+    return C_CVar ~= nil and C_CVar.GetCVarBool ~= nil
+        and C_CVar.GetCVarBool("combatWarningsEnabled") == false
+end
+
+-------------------------------------------------------------------------------
+--  Can we legally NAME the defensive out loud?
+-------------------------------------------------------------------------------
+-- Every visual channel dodges the secret by handing the question to the engine and taking
+-- back pixels. A spoken line cannot: choosing which line to speak IS a Lua branch on
+-- readiness, and no sound or speech API accepts a secret in the argument that would select
+-- it. (C_VoiceChat.SpeakText does accept a secret string, but nothing hands us a
+-- pre-selected secret spell NAME, so that opening leads nowhere.)
+--
+-- So the callout is only lawful when the spell's cooldown is not classified. The predicate
+-- below returns a PLAIN boolean and is safe to branch on -- Blizzard's own code does the
+-- same shape in Blizzard_AuraContainerUtil.
+--
+-- Realistically that means out of combat, because SecretWhenCooldownsRestricted engages on
+-- combat, encounter, challenge mode OR pvp match -- which is precisely when a defensive
+-- callout is wanted. The one way it survives combat is a spell carrying the data-side
+-- NeverSecret flag, which overrides restrictions. Whether any real defensive is flagged that
+-- way is game data, not something the client source can answer: /nutank secrecy measures it.
+--
+-- Note HasSecretRestrictions() is NOT the check. It reports whether this client BUILD has
+-- the system compiled in, not whether restrictions are live, so it is constant true on
+-- retail and gates nothing.
+local function CanNameSpellAloud(spellID)
+    if not (C_Secrets and C_Secrets.ShouldSpellCooldownBeSecret) then return false end
+    local ok, secret = pcall(C_Secrets.ShouldSpellCooldownBeSecret, spellID)
+    return ok and secret == false
+end
+
+local function IsSpellAvailable(spellID)
+    if C_SpellBook and C_SpellBook.IsSpellKnownOrInSpellBook then
+        if C_SpellBook.IsSpellKnownOrInSpellBook(spellID) then return true end
+    end
+    return IsPlayerSpell ~= nil and IsPlayerSpell(spellID) == true
+end
+
+-------------------------------------------------------------------------------
+--  Spec and role
+-------------------------------------------------------------------------------
+-- One call answers both, and `role` is why this beats reading the spec ID alone:
+-- UnitGroupRolesAssigned returns "NONE" for an ungrouped player, so it cannot gate a
+-- feature that has to work while soloing a dummy.
+local specID, isTank = 0, false
+
+local function RefreshSpec()
+    specID, isTank = 0, false
+    if not (C_SpecializationInfo and C_SpecializationInfo.GetSpecialization) then return end
+    local index = C_SpecializationInfo.GetSpecialization()
+    if not index then return end
+    local id, _, _, _, role = C_SpecializationInfo.GetSpecializationInfo(index)
+    specID = id or 0
+    isTank = (role == "TANK")
+end
+
+-------------------------------------------------------------------------------
+--  The display
+-------------------------------------------------------------------------------
+local Reminder = {}
+local frame, slots = nil, {}
+local bar
+local activeSlots = 0           -- how many slots the current spec actually uses
+local hideTimer
+
+local function ApplyPosition()
+    if not frame then return end
+    local p = TRDB().pos
+    frame:ClearAllPoints()
+    if p then
+        frame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+    else
+        frame:SetPoint("CENTER", UIParent, "CENTER", 0, 160)
+    end
+end
+
+local function ApplyScale()
+    if frame then frame:SetScale(TRDB().scale or 1) end
+end
+
+-- An anchor offset is measured in the coordinate space of the frame it positions, so
+-- scaling moves it: the same saved x/y is a different number of screen pixels. Rescaling
+-- by the inverse keeps the icon where it was put while the slider changes only its size.
+local function SetIconScale(scale)
+    local t = TRDB()
+    local prev = t.scale or 1
+    if scale == prev then return end
+    t.scale = scale
+
+    if t.pos and scale > 0 then
+        local k = prev / scale
+        t.pos.x = (t.pos.x or 0) * k
+        t.pos.y = (t.pos.y or 0) * k
+    end
+
+    ApplyScale()
+    ApplyPosition()
+end
+
+local function AlertFont()
+    local EUI = _G.EllesmereUI
+    local path = EUI and EUI.GetFontPath and EUI.GetFontPath("extras")
+    return path or STANDARD_TEXT_FONT
+end
+
+-- Display only, never clickable. Alpha 0 hides the art but NOT hit-testing, so a losing
+-- slot left mouse-enabled would still be a live mouse target sitting over the screen.
+local function CreateSlot(index)
+    local slot = CreateFrame("Frame", nil, frame)
+    slot:SetPoint("TOP")                -- every slot stacks on the same spot: one wins, the
+    slot:EnableMouse(false)             -- rest sit at alpha 0 behind it
+    slot:SetAlpha(0)
+
+    slot.icon = slot:CreateTexture(nil, "ARTWORK")
+    slot.icon:SetAllPoints()
+    slot.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local T = ns.THEME
+
+    -- The spoken callout, written instead of said: "Use Barkskin". It lives INSIDE the slot,
+    -- so the priority alpha that picks the winning icon picks the winning line too -- one
+    -- stacked font string per spell, engine-revealed, no branch. That is why the text can
+    -- name the defensive in combat while the spoken version cannot.
+    --
+    -- A FontString still cannot carry the tank gate (that rides textures only), which is the
+    -- separate reason this channel is offered only while the tank filter is off.
+    slot.label = slot:CreateFontString(nil, "OVERLAY")
+    slot.label:SetPoint("TOP", slot, "BOTTOM", 0, -4)
+    slot.label:SetFont(AlertFont(), 16, "OUTLINE")
+    slot.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
+    slot.label:Hide()
+
+    slots[index] = slot
+    return slot
+end
+
+-- One bar for the whole alert, not one per slot: it counts down the incoming ability, which
+-- is the same fact whichever defensive wins. Built from textures throughout so the tank gate
+-- can reach every part of it.
+local function CreateBar()
+    if bar then return bar end
+    bar = CreateFrame("StatusBar", nil, frame)
+    bar:SetPoint("TOP", frame, "BOTTOM", 0, -26)
+    bar:SetHeight(10)
+    bar:EnableMouse(false)
+    bar:SetMinMaxValues(0, 1)
+    bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    bar.fill = bar:GetStatusBarTexture()
+    bar.bg = bar:CreateTexture(nil, "BACKGROUND")
+    bar.bg:SetPoint("TOPLEFT", bar, "TOPLEFT", -1, 1)
+    bar.bg:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 1, -1)
+    local T = ns.THEME
+    bar.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9)
+    if bar.fill then bar.fill:SetVertexColor(T.gold.r, T.gold.g, T.gold.b, 1) end
+    bar:Hide()
+    return bar
+end
+
+function Reminder.Create()
+    if frame then return frame end
+
+    frame = CreateFrame("Frame", "NaowhUITankReminder", UIParent)
+    frame:SetFrameStrata("HIGH")
+    frame:SetClampedToScreen(true)
+    frame:EnableMouse(false)
+    frame:Hide()
+
+    -- "Call for external". This one is not per-spell, so it sits on the container and takes
+    -- the accumulator LEFT OVER after the priority walk: that value is 1 only when nobody
+    -- won, which is exactly "nothing on your list is up". The engine works it out; we never
+    -- learn it.
+    frame.fallback = frame:CreateFontString(nil, "OVERLAY")
+    frame.fallback:SetPoint("TOP", frame, "BOTTOM", 0, -4)
+    frame.fallback:SetFont(AlertFont(), 16, "OUTLINE")
+    local T = ns.THEME
+    frame.fallback:SetTextColor(T.goldSoft.r, T.goldSoft.g, T.goldSoft.b, 1)
+    frame.fallback:SetAlpha(0)
+    frame.fallback:Hide()
+
+    ApplyScale()        -- a spec with no list never reaches RebuildSlots, and a zero-sized
+    ApplyPosition()     -- frame is one Unlock Mode cannot pick up
+    return frame
+end
+
+local function ApplySize()
+    if not frame then return end
+    local t = TRDB()
+    local size = t.iconSize or DEFAULTS.iconSize
+    local textOn = t.showText and not t.tankOnly
+    local fontSize = math.max(12, math.floor(size * 0.34))
+    frame:SetSize(size, size)
+    for i = 1, #slots do
+        slots[i]:SetSize(size, size)
+        slots[i].label:SetFont(AlertFont(), fontSize, "OUTLINE")
+        slots[i].label:SetShown(textOn)
+        slots[i].icon:SetShown(t.showIcon)
+    end
+    if frame.fallback then
+        frame.fallback:SetFont(AlertFont(), fontSize, "OUTLINE")
+        frame.fallback:SetText(t.voiceNone or "")
+        frame.fallback:SetShown(textOn and t.fallbackOn ~= false)
+    end
+    if bar then bar:SetWidth(math.max(size * 2, 120)) end
+end
+
+-------------------------------------------------------------------------------
+--  Rebuilding the slot list
+-------------------------------------------------------------------------------
+-- Talent state is plain, so everything here -- which spells qualify, how many slots exist,
+-- what icon each carries -- is decided in the clear and never mid-fight. The secret half
+-- only ever touches alpha.
+local function RebuildSlots()
+    activeSlots = 0
+    if not frame then return end
+
+    local list = EffectiveList(specID, currentEncounter)
+    if not list then
+        for i = 1, #slots do slots[i]:SetAlpha(0) end
+        return
+    end
+
+    for i = 1, #list do
+        local spellID = list[i]
+        if activeSlots < MAX_SLOTS and IsSpellAvailable(spellID) and not IsSpellDisabled(spellID) then
+            activeSlots = activeSlots + 1
+            local slot = slots[activeSlots] or CreateSlot(activeSlots)
+            slot.spellID = spellID
+            -- GetSpellInfo returns nothing for a spell the client has not cached, which is
+            -- the normal case right after someone types an ID in. GetSpellTexture answers from
+            -- a different path and usually has it; the question mark is the last resort.
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
+            local iconID = info and info.iconID
+            if not iconID and C_Spell and C_Spell.GetSpellTexture then
+                local ok, tex = pcall(C_Spell.GetSpellTexture, spellID)
+                if ok then iconID = tex end
+            end
+            slot.iconID = iconID or 134400
+            slot.icon:SetTexture(slot.iconID)
+            -- Same string the spoken callout uses, so editing it once changes both.
+            slot.label:SetText(CalloutFor(spellID, info and info.name))
+        end
+    end
+
+    -- Unused slots keep existing but never light up. Rebuilding on talent change rather
+    -- than releasing them keeps frame creation off the combat path entirely.
+    for i = 1, #slots do
+        slots[i]:SetAlpha(0)
+    end
+    ApplySize()
+end
+
+-------------------------------------------------------------------------------
+--  The priority pick
+-------------------------------------------------------------------------------
+-- N-way exclusive select with no branch on a secret anywhere.
+--
+--   ready     -- a possibly-secret boolean, never inspected
+--   eligible  -- "nobody above me has won yet"; plain 1 on the first pass, secret after
+--
+-- SetAlpha(ev(ready, eligible, 0)) lights this slot only when it is ready AND still
+-- eligible, and the accumulator then closes the door for everyone below. The evaluator is
+-- AllowedWhenTainted in every argument, which is what makes the secret `eligible` legal as a
+-- branch value. EllesmereUI already chains these two deep for the nameplate kick tick; this
+-- is the same primitive generalised to N.
+--
+-- The loop runs for EVERY slot on every pass, with no break and no early return: Blizzard's
+-- own comment in EncounterTimelineTemplates warns that skipping setters leaks the secret
+-- through the call count.
+local function ApplyPriorityAlpha()
+    local ev = C_CurveUtil.EvaluateColorValueFromBoolean
+    local eligible = 1
+
+    for i = 1, activeSlots do
+        local slot = slots[i]
+        local dur = C_Spell.GetSpellCooldownDuration(slot.spellID, true)
+        -- ignoreGCD=true is load-bearing. It defaults to FALSE, and the returned duration
+        -- then covers the global cooldown -- so mid-fight, with a GCD running almost
+        -- constantly, every defensive reported as unavailable and no icon ever appeared.
+        --
+        -- A duration object is a PLAIN handle wrapping secret state (unlike GetSpellCooldown,
+        -- which is flagged SecretWhenCooldownsRestricted), so testing the handle and its
+        -- method is legal. Calling IsZero() is what produces the secret.
+        if dur and dur.IsZero then
+            local ready = dur:IsZero()
+            -- SetAlpha with an engine-evaluated value rather than SetAlphaFromBoolean: the
+            -- latter documents its alpha default as 255, so its scale is ambiguous, and this
+            -- is the form EllesmereUI already ships for secret-driven alpha.
+            slot:SetAlpha(ev(ready, eligible, 0))
+            eligible = ev(ready, 0, eligible)
+        else
+            -- The API is MayReturnNothing and returns the ACTIVE cooldown, so a spell that is
+            -- READY hands back nothing at all. Treating that as unknown was why a defensive
+            -- sitting off cooldown never won the pick and everything fell through to the
+            -- fallback line. Nil-ness is plain, so branching on it is legal.
+            slot:SetAlpha(eligible)
+            eligible = 0
+        end
+    end
+
+    -- Whatever eligibility survived the walk IS "nobody was ready", so the fallback line
+    -- needs no extra check of its own. Set unconditionally, like every other slot: a
+    -- conditional setter here would leak the answer through the call count.
+    -- Switched off means never shown, so the alpha is forced rather than left to the
+    -- accumulator.
+    if frame and frame.fallback then
+        if TRDB().fallbackOn == false then
+            frame.fallback:SetAlpha(0)
+        else
+            frame.fallback:SetAlpha(eligible)
+        end
+    end
+end
+
+-------------------------------------------------------------------------------
+--  The tank gate
+-------------------------------------------------------------------------------
+-- SetEventIconTextures assigns atlases and alpha to the textures it is handed, from the
+-- event's secret icon mask. Passing a mask of only TankRole means a non-tank event leaves
+-- the texture at alpha 0 -- the answer arrives as pixels and is never readable.
+--
+-- One call per texture, each with a single-texture array, rather than one call with all of
+-- them: Blizzard passes fewer textures than its mask has bits and the fill order is not
+-- documented, so a shared array would leave textures 2..N at the mercy of an unspecified
+-- assignment rule. One bit, one texture, no ordering to get wrong.
+--
+-- SetTexture afterwards puts our own art back over whatever atlas the engine assigned. It
+-- is AllowedWhenTainted and touches the Texture aspect, not Alpha, so the gate survives.
+-- The tex coords have to go back too: an atlas carries its own and they outlive the swap.
+local function GateTexture(eventID, tex, restore)
+    if not tex then return end
+    C_EncounterTimeline.SetEventIconTextures(eventID, Enum.EncounterEventIconmask.TankRole, { tex })
+    if restore then restore(tex) end
+end
+
+-- Is this live event a boss ability, rather than a respawn timer or another addon's
+-- bar? `source` is NeverSecret on EncounterTimelineEventInfo, so reading it alone is
+-- legal even while the rest of the struct is sealed, and the comparison is plain.
+--
+-- Only ADDED carries the struct; HIGHLIGHT delivers a bare id. GetEventInfo is asked
+-- again here rather than caching, because this fires a handful of times per pull and a
+-- cache is another thing to invalidate.
+-- Source and base duration, captured when the event is ADDED and keyed by its id.
+--
+-- This has to be a cache. ADDED carries the whole struct; HIGHLIGHT carries a bare id and
+-- nothing else, and asking GetEventInfo again at highlight time is not reliable -- when it
+-- comes back empty the check below FAILS OPEN and every script event is treated as a boss
+-- ability. That is how a respawn timer, or another addon's bar, calls for a defensive while
+-- the boss is doing nothing but meleeing.
+--
+-- Both fields are NeverSecret on the struct, so this stays plain even though the event
+-- itself is flagged SecretWhenEncounterEvent. Duration is kept because it is the only plain
+-- handle on WHICH ability an event is, and any future filtering by ability has to ride it.
+local eventSource, eventDuration = {}, {}
+
+local function NoteEventAdded(info)
+    if type(info) ~= "table" then return end
+    pcall(function()
+        local id = info.id
+        if id == nil then return end
+        eventSource[id] = info.source
+        eventDuration[id] = info.duration
+    end)
+end
+
+local function ForgetEvent(eventID)
+    if eventID == nil then return end
+    eventSource[eventID] = nil
+    eventDuration[eventID] = nil
+end
+
+local function WipeEventCache()
+    wipe(eventSource)
+    wipe(eventDuration)
+end
+
+local function IsEncounterSourced(eventID)
+    local encounter = Enum and Enum.EncounterTimelineEventSource
+        and Enum.EncounterTimelineEventSource.Encounter or 0
+
+    -- What ADDED told us, which is the only reading taken while the struct was actually in
+    -- hand. Nothing else can contradict it.
+    local cached = eventSource[eventID]
+    if cached ~= nil then return cached == encounter end
+
+    if not (C_EncounterTimeline and C_EncounterTimeline.GetEventInfo) then return true end
+
+    local ok, info = pcall(C_EncounterTimeline.GetEventInfo, eventID)
+    if not ok or type(info) ~= "table" then return true end
+
+    local got, source = pcall(function() return info.source end)
+    if not got or source == nil then return true end
+
+    return source == encounter
+end
+
+-- Per-ability muting, keyed by base duration.
+--
+-- Measured on a live boss: spellID and icons come back SECRET on every event, so neither
+-- Blizzard's tank flag nor a curated spell list can name a live ability. `duration` is
+-- NeverSecret and differs between abilities in the same fight (8.0 and 25.0 on the same
+-- boss), which makes it the only thing a per-ability filter can key on.
+--
+-- It is a fingerprint, not an identity: it says "this is the same ability as that one", never
+-- which ability it is. That is enough to mute the one that does not need a defensive, and it
+-- keeps working in keys, where identity never will.
+--
+-- Scoped per encounter because durations collide freely across different bosses.
+-- The encounter is remembered alongside the fingerprint: a player usually types the command
+-- right after the kill or the wipe, and by then ENCOUNTER_END has already cleared
+-- currentEncounter, which would file the entry under the wrong boss.
+local lastFingerprint, lastFingerprintEncounter
+
+-- For attributing a boss cast back to the timeline event that announced it, and for
+-- detecting when that attribution would be ambiguous. Written by ShowForEvent, read by the
+-- cast watcher below it.
+local lastFingerprintAt, prevFingerprintAt = 0, 0
+local lastCalloutAt = 0
+
+-- What the cast probe has established about this content, for the trace: "unseen" until a
+-- boss casts, then "plain" or "secret". This is the whole question of whether automation
+-- is possible here, so it is worth a word in every report.
+local castIdentity = "unseen"
+
+local function FingerprintFor(eventID)
+    local d = eventDuration[eventID]
+    if type(d) ~= "number" then return nil end
+    return string.format("%.1f", d)
+end
+
+-- Both per-boss sets share one shape: profile.<field>[encounterID][fingerprint] = true.
+local function PerBossSet(field, create, enc)
+    local t = TRDB()
+    if type(t[field]) ~= "table" then
+        if not create then return nil end
+        t[field] = {}
+    end
+    local key = tostring(enc or 0)
+    if type(t[field][key]) ~= "table" then
+        if not create then return nil end
+        t[field][key] = {}
+    end
+    return t[field][key]
+end
+
+local function MutedTable(create, enc)
+    return PerBossSet("muted", create, enc)
+end
+
+-- The tank-buster allowlist. A blocklist was tried first and pointed the wrong way: a pull
+-- carries far more non-tank events than tank ones (8-20 measured), so the player was being
+-- asked to mute the many to keep the few. Marking is the same fingerprint data used in the
+-- right direction -- name the two that matter, silence the rest at once.
+--
+-- Empty means "not configured", not "block everything": a boss with no marks calls out every
+-- ability, exactly as before, so the feature works out of the box and gets sharper per boss
+-- as marks are added.
+local function MarksTable(create, enc)
+    return PerBossSet("tankMarks", create, enc)
+end
+
+local function IsMutedEvent(eventID)
+    local fp = FingerprintFor(eventID)
+    if not fp then return false end
+    local m = MutedTable(false, currentEncounter)
+    return m ~= nil and m[fp] == true
+end
+
+-- Shipped fingerprints for this encounter, or nil. Read per event rather than captured:
+-- the data file is optional and the feature must work identically without it.
+local function ShippedMarks(enc)
+    local d = ns.TANK_FINGERPRINTS
+    if not d or enc == nil then return nil end
+    -- Both key shapes: the file uses numbers, but nothing guarantees what type the event
+    -- handed us, and a silent type mismatch here disables the whole filter.
+    return d[enc] or d[tonumber(enc)] or d[tostring(enc)]
+end
+
+-- The filter players actually experience: shipped data covers the boss out of the box, and
+-- a player's own marks UNION with it rather than replacing it, so marking stays available
+-- as the authoring tool and as the escape hatch for a boss the data has not covered yet.
+--
+-- An event with NO fingerprint fails OPEN when marks exist. That happens when the ADDED was
+-- missed (a reload mid-fight), and staying silent on what might be the tank buster is the
+-- worse mistake -- an extra callout costs annoyance, a missing one costs a death. A wrong
+-- SHIPPED mark is recoverable in game: the mute check runs after this one.
+local function IsUnmarkedEvent(eventID)
+    local player = MarksTable(false, currentEncounter)
+    if player ~= nil and next(player) == nil then player = nil end
+    local shipped = ShippedMarks(currentEncounter)
+    if player == nil and shipped == nil then return false end
+
+    local fp = FingerprintFor(eventID)
+    if not fp then return false end
+    if player ~= nil and player[fp] == true then return false end
+    if shipped ~= nil and shipped[fp] == true then return false end
+    return true
+end
+
+local function ApplyTankGate(eventID)
+    for i = 1, activeSlots do
+        local slot = slots[i]
+
+        -- Cleared FIRST. The engine paints the alpha of textures whose bit is set and
+        -- leaves the others alone, so an icon lit by a tank buster stayed lit through the
+        -- next cast that was not one. Starting from hidden means an event that does not
+        -- match simply never turns it on.
+        slot.icon:SetAlpha(0)
+
+        GateTexture(eventID, slot.icon, function(tex)
+            tex:SetTexture(slot.iconID)
+            tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        end)
+    end
+    if bar and bar:IsShown() then
+        local T = ns.THEME
+        GateTexture(eventID, bar.fill, function(tex) tex:SetVertexColor(T.gold.r, T.gold.g, T.gold.b, 1) end)
+        GateTexture(eventID, bar.bg, function(tex) tex:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9) end)
+    end
+end
+
+-- Fallback, and the shipped behaviour when the user turns the tank filter off: every
+-- timeline event counts, so the art carries no gate and the priority pick alone decides.
+local function ClearTankGate()
+    for i = 1, activeSlots do
+        slots[i].icon:SetAlpha(1)
+    end
+    if bar then
+        if bar.fill then bar.fill:SetAlpha(1) end
+        if bar.bg then bar.bg:SetAlpha(1) end
+    end
+end
+
+-------------------------------------------------------------------------------
+--  Sound
+-------------------------------------------------------------------------------
+-- Sound is an ACTION, not a visual channel: there is no way to play one at alpha 0 and let
+-- the engine decide, and no sound API anywhere accepts a secret argument. So the alpha trick
+-- cannot carry it.
+--
+-- What CAN: C_EncounterEvents.SetEventSound registers a file against a static
+-- encounterEventID, and the client plays it when that event highlights. The static records
+-- (unlike the live timeline ones) carry NO secrecy at all, so their TankRole bit reads in the
+-- clear and we can register against exactly the tank-flagged abilities.
+--
+-- The limit this leaves, and it is worth being honest about in the UI: the sound knows the
+-- ability is a tank hit, but nothing can make it know whether YOUR defensive is ready. That
+-- half is secret and there is no operator that joins the two. Sound says when; the icon and
+-- bar say whether.
+local soundRegistered = false
+local soundError               -- surfaced on the options page; silence is the worst outcome
+
+local function ResolveSoundFile()
+    local key = TRDB().soundKey
+    if not key or key == "none" then return nil end
+    local EUI = _G.EllesmereUI
+    local paths = EUI and EUI._groupDeathSoundPaths
+    local value = paths and paths[key]
+    -- SetEventSound wants a file asset. A SoundKitID (LSM hands out either) is not one, so
+    -- a numeric entry is skipped rather than passed through and silently ignored.
+    if type(value) == "string" then return value end
+    return nil
+end
+
+-- Chunked: GetEventList is the whole encounter-event database, not the current pull, and
+-- registering it in one pass is a login hitch nobody asked for.
+-- MEASURED on a live boss, and worth recording because it cost five rounds of chasing
+-- to establish: the engine plays a registered sound AT MOST ONCE PER ENCOUNTER.
+--
+-- It is not a registration problem. After a fight where the same ability cast twice and
+-- sounded once, GetEventSound still returned our file for every sampled event, both casts
+-- had highlighted, and re-registering between them -- including clearing before setting --
+-- changed nothing. The engine simply will not replay it.
+--
+-- So this channel is a once-per-fight cue, not a per-cast one, and the tooltip says so.
+-- The ICON is unaffected: SetEventIconTextures paints every time, which is why the icon
+-- is the reliable per-cast signal and the sound is not.
+--
+-- Anything wanting a repeating, filtered, NAMED callout cannot be built on this API at
+-- all. That needs the ability identified in Lua, and the only route to that is recording
+-- a fight and matching on the plain ordinal and base duration.
+local function RegisterEventSounds()
+    soundError = nil
+    if not TRDB().soundOn then return end
+    if not canSound then
+        soundError = "This client does not support per-ability sounds."
+        return
+    end
+
+    -- There used to be a warning here that a registered sound will not play while
+    -- encounterTimelineEnabled is 0. It has been removed because it is MEASURED FALSE:
+    -- on a live boss with that CVar at 0, a registered sound played and the timeline
+    -- events kept arriving throughout. The CVar gates Blizzard's own frame and nothing
+    -- else.
+    --
+    -- It was also stale by construction. soundError is only recomputed when registration
+    -- re-runs, so once shown it stayed on the page after the player turned the CVar on,
+    -- which is how it came to be reported as wrong twice over.
+    --
+    -- The real limit of this channel is that the engine plays a registered sound at most
+    -- once per encounter, and that is on the option's own tooltip where it belongs.
+
+    local file = ResolveSoundFile()
+    if not file then
+        soundError = soundError or "Pick a sound file. Built-in game sounds cannot be used here."
+        return
+    end
+
+    local ids = C_EncounterEvents.GetEventList()
+    if not ids then
+        soundError = "No encounter ability data available yet."
+        return
+    end
+
+    local trigger = Enum.EncounterEventSoundTrigger.OnTimelineEventHighlight
+    local mask = Enum.EncounterEventIconmask.TankRole
+
+    -- Read here rather than captured at load: the data file is optional, and the feature
+    -- has to work identically when it is absent.
+    local curatedTank = ns.TANK_ABILITIES
+    local sound = { file = file, volume = 1 }
+    local i, total = 1, #ids
+
+    local function Step()
+        local stop = math.min(i + 199, total)
+        while i <= stop do
+            local info = C_EncounterEvents.GetEventInfo(ids[i])
+
+            -- Blizzard's bit OR our own list. Measured against a live 870-event
+            -- catalogue, the bit alone carries 13 of the 23 tank busters this season's
+            -- pool has in that catalogue, so on its own it is correctly silent on nearly
+            -- half of them -- which from the player's chair is indistinguishable from
+            -- the feature being broken.
+            --
+            -- Additive deliberately: an ability neither source knows about is still
+            -- handled the moment Blizzard flags it, with no update to this addon.
+            local flagged = info and info.icons and bit.band(info.icons, mask) ~= 0
+            local curated = info and info.spellID and curatedTank
+                and curatedTank[info.spellID] ~= nil
+
+            if flagged or curated then
+                pcall(C_EncounterEvents.SetEventSound, ids[i], trigger, sound)
+            end
+            i = i + 1
+        end
+        if i <= total then C_Timer.After(0, Step) end
+    end
+
+    soundRegistered = true
+    Step()
+end
+
+-------------------------------------------------------------------------------
+--  Self-tracked cooldowns (what lets the voice work in combat)
+-------------------------------------------------------------------------------
+-- The API's answer to "is this ready" is sealed in combat, but our OWN casts are not:
+-- cast queries only go secret for units other than the player or their pet. So this watches
+-- the player's UNIT_SPELLCAST_SUCCEEDED, writes down GetTime() + cooldown, and the voice
+-- pick branches on numbers the addon wrote itself -- plain Lua, legal anywhere.
+--
+-- Three layers keep it honest, each covering what the previous cannot:
+--   1. LEARNED totals. Base cooldowns do not include static talent reductions, so whenever a
+--      cast happens while this spell's cooldown is readable, the real total is recorded (per
+--      profile) and used instead of the base from then on -- including later, inside a key.
+--   2. The PLAIN nil signal. Whether the API returns a duration object at all is not sealed,
+--      only what is inside one -- and no object means no active cooldown. Every
+--      SPELL_UPDATE_COOLDOWN re-checks it, so spender-driven reduction (the kind no table
+--      can predict) corrects the model the moment a spell actually comes back.
+--   3. Full resync whenever cooldowns are readable (out of combat; between raid pulls).
+local readyAt = {}          -- [list spellID] = GetTime() at which it is back up
+
+-------------------------------------------------------------------------------
+--  Charges
+-------------------------------------------------------------------------------
+-- GetSpellCooldownDuration describes the COOLDOWN. A charge spell is gated by its
+-- RECHARGE, which is a separate clock, and the two disagree in both directions:
+--
+--   * Holding 1 of 2 charges, a recharge IS running, so the cooldown accessor hands
+--     back an object and the spell reads as unavailable while it is perfectly castable.
+--   * At ZERO charges the spell cooldown is not running at all, so the accessor can hand
+--     back nothing and the spell reads as ready when it is empty.
+--
+-- SpellChargeInfo marks exactly two fields NeverSecret, and they are the whole solution:
+--   maxCharges -- is this a charge spell, and how many
+--   isActive   -- FALSE means not recharging, which means AT MAXIMUM
+--
+-- currentCharges is NOT among them, so the count is never readable in a key and is
+-- tracked from the player's own casts, which are always plain. `isActive` going false is
+-- then a free correction back to full.
+local chargeState = {}
+
+local function ReadChargeShape(sid)
+    if not (C_Spell and C_Spell.GetSpellCharges) then return nil end
+
+    local ok, info = pcall(C_Spell.GetSpellCharges, sid)
+    if not ok or type(info) ~= "table" then return nil end
+
+    -- The two plain fields are read behind their own pcall. The rest of this struct is
+    -- secret in restricted content and a wrong field raises rather than returning nil.
+    local got, max, active = pcall(function() return info.maxCharges, info.isActive end)
+    if not got or type(max) ~= "number" or max < 2 then return nil end
+
+    return max, active == true
+end
+
+local function EnsureChargeState(sid)
+    local max = ReadChargeShape(sid)
+    if not max then
+        chargeState[sid] = nil
+        return nil
+    end
+
+    local st = chargeState[sid]
+    if not st or st.max ~= max then
+        local baseMs = GetSpellBaseCooldown and GetSpellBaseCooldown(sid)
+        st = {
+            max = max, count = max, tick = GetTime(),
+            -- Static data, readable when live state is not. On a charge spell the base
+            -- cooldown IS the time to regain one charge.
+            recharge = (type(baseMs) == "number" and baseMs > 0) and (baseMs / 1000) or 0,
+        }
+        chargeState[sid] = st
+    end
+    return st
+end
+
+local function ChargesAvailable(sid)
+    local st = chargeState[sid]
+    if not st then return nil end
+
+    local max, active = ReadChargeShape(sid)
+    if max and not active then
+        st.count, st.tick = st.max, GetTime()
+        return st.count
+    end
+
+    if st.recharge > 0 and st.count < st.max then
+        local gained = math.floor((GetTime() - st.tick) / st.recharge)
+        if gained > 0 then
+            st.count = math.min(st.max, st.count + gained)
+            st.tick  = st.tick + gained * st.recharge
+        end
+    end
+    return st.count
+end
+local castToBase = {}       -- cast-time override id -> the id the list stores
+
+local function RebuildCastMap()
+    wipe(castToBase)
+    for i = 1, activeSlots do
+        local sid = slots[i].spellID
+        castToBase[sid] = sid
+        if C_Spell and C_Spell.GetOverrideSpell then
+            local ok, ov = pcall(C_Spell.GetOverrideSpell, sid)
+            if ok and ov and ov ~= sid then castToBase[ov] = sid end
+        end
+    end
+end
+
+local function NoteOwnCast(castSpellID)
+    local sid = castSpellID and castToBase[castSpellID]
+    if not sid then return end
+
+    -- A charge spell never touches readyAt: a cast spends a charge, and holding one is
+    -- what makes it available, not the absence of a timer.
+    local st = chargeState[sid]
+    if st then
+        ChargesAvailable(sid)
+        -- The recharge clock starts on the drop FROM maximum. Restarting it on every
+        -- cast would push the next charge further away each time one was spent.
+        if st.count >= st.max then st.tick = GetTime() end
+        st.count = math.max(0, st.count - 1)
+        return
+    end
+
+    -- Learned beats base: a previously observed real total already includes every static
+    -- talent reduction, which the base number never does.
+    local t = TRDB()
+    local learned = type(t.learned) == "table" and t.learned[tostring(sid)] or nil
+    local baseMs = GetSpellBaseCooldown and GetSpellBaseCooldown(sid)
+    -- A cast whose length we cannot determine STILL put the spell on cooldown. Leaving
+    -- readyAt untouched left it reading as available forever, so a defensive that had
+    -- just been pressed kept being called for: GetSpellBaseCooldown reports 0 for plenty
+    -- of spells whose cooldown comes from a talent or an aura, and Divine Shield is one.
+    --
+    -- The placeholder only has to be wrong in the safe direction. ResyncModel clears it
+    -- the moment the cooldown object disappears, so an over-long guess costs nothing and
+    -- an absent one costs a wrong callout.
+    local UNKNOWN_COOLDOWN = 30
+
+    local secs = learned
+        or (type(baseMs) == "number" and baseMs > 0 and baseMs / 1000)
+        or UNKNOWN_COOLDOWN
+    readyAt[sid] = GetTime() + secs
+
+    -- And when the cooldown this cast just started is readable, record its real total for
+    -- every future cast -- the learning half of layer 1 above. The 1.5s floor keeps a
+    -- GCD-length reading from ever overwriting a real cooldown.
+    if CanNameSpellAloud(sid) then
+        local ok, total = pcall(function()
+            local dur = C_Spell.GetSpellCooldownDuration(sid, true)
+            return (dur and dur.GetTotalDuration and dur:GetTotalDuration()) or nil
+        end)
+        if ok and type(total) == "number" and total > 1.5 then
+            if type(t.learned) ~= "table" then t.learned = {} end
+            t.learned[tostring(sid)] = total
+            readyAt[sid] = GetTime() + total
+        end
+    end
+end
+
+local function ResyncModel()
+    for i = 1, activeSlots do
+        local sid = slots[i].spellID
+
+        -- Re-read the shape every pass. A talent swap can add or remove charges, and a
+        -- stale shape is what makes the model confidently wrong rather than absent.
+        EnsureChargeState(sid)
+
+        -- Everything below is the plain-cooldown model, which says nothing useful about
+        -- a charge spell: it holds a running recharge while still being castable.
+        if not chargeState[sid] then
+
+        -- Free correction, available even in restricted content: no duration object means no
+        -- active cooldown, so whatever the estimate believed is wrong and the spell is up.
+        -- This is what keeps the model from drifting through a fight as talent and resource
+        -- cooldown reductions shorten things it thinks are still running.
+        local live = C_Spell.GetSpellCooldownDuration(sid, true)
+        if not live then readyAt[sid] = 0 end
+
+        -- Only while the predicate says this spell's cooldown reads plainly; the pcall is
+        -- belt and braces against the classification changing under us mid-read.
+        if CanNameSpellAloud(sid) then
+            local ok, rem = pcall(function()
+                local dur = C_Spell.GetSpellCooldownDuration(sid, true)
+                -- Nothing back means nothing running, so zero remaining.
+                if not dur or not dur.GetRemainingDuration then return 0 end
+                return dur:GetRemainingDuration() or 0
+            end)
+            if ok and type(rem) == "number" then
+                readyAt[sid] = GetTime() + math.max(0, rem)
+            end
+            end
+        end
+    end
+end
+
+-------------------------------------------------------------------------------
+--  Spoken callouts
+-------------------------------------------------------------------------------
+-- The one channel that has to branch in Lua, and therefore the one that only works while
+-- the cooldowns it reads are unclassified. See CanNameSpellAloud for why.
+--
+-- The whole list is checked first and the walk is abandoned unless EVERY entry is readable.
+-- A partial read would silently skip the sealed entries and name a lower-priority defensive
+-- as though the better one were down, which is worse than saying nothing.
+local function Speak(text)
+    if not (C_VoiceChat and C_VoiceChat.SpeakText) or not text or text == "" then return end
+    -- The generated docs give (voiceID, text, rate, volume, overlap), but EllesmereUI carries
+    -- a field note that the live client treats the third argument as a destination that must
+    -- be 1. Passing 1 satisfies both readings -- it is a valid rate and the required
+    -- destination -- so this matches their proven call rather than the docs alone.
+    -- Only `text` may carry a secret; every other argument is NeverSecret, and ours are plain.
+    pcall(C_VoiceChat.SpeakText, 0, text, 1, TRDB().voiceVol or 100, true)
+end
+
+-- The single place a callout becomes audible, so the sound-or-speech choice is made once
+-- rather than at each of the call sites below.
+local function Announce(spellID, text)
+    local key = ns.SoundFor(spellID)
+    if key then
+        local EUI = _G.EllesmereUI
+        local paths = EUI and EUI._groupDeathSoundPaths
+        local value = paths and paths[key]
+        if value and EUI._PlayLSMSound then
+            EUI._PlayLSMSound(value)
+            return
+        end
+        -- The chosen file is gone (a SharedMedia pack removed, say). Speaking is better than
+        -- silence, since the callout still has its words.
+    end
+    Speak(text)
+end
+
+local function SpeakCallout()
+    local t = TRDB()
+    if not t.voiceOn or activeSlots == 0 then return end
+
+    -- NOTE: the tank filter cannot reach audio -- the engine applies it to artwork only. So
+    -- with that filter on, the voice speaks for every timeline ability while the icon shows
+    -- only tank ones. That is stated in the option's tooltip. Suppressing the voice instead
+    -- was tried and was worse: the feature simply went silent with no indication why.
+
+    -- The model is the last rung of the ladder below, for spells whose cooldown is sealed
+    -- and whose cast we have not witnessed. Resync first so it is current.
+    ResyncModel()
+    local now = GetTime()
+
+    -- The winner is chosen inside a pcall so that a throw cannot swallow the fallback.
+    -- That failure mode has already been seen once here: an error mid-loop skipped the
+    -- fallback line at the end, and the symptom was not an error message but SILENCE
+    -- exactly when the player most needed to be told nobody was up. A pick that errors
+    -- must degrade to "call for external", never to nothing.
+    local ok, picked = pcall(function()
+        for i = 1, activeSlots do
+            local sid = slots[i].spellID
+            local ready
+
+            -- MEASURED, after getting this wrong three times. Write down what is actually
+        -- true so the next attempt does not relitigate it:
+        --
+        --   * GetSpellCooldownDuration returns an OBJECT for a READY spell too. It is
+        --     IsZero() that separates ready from running. Testing `== nil` instead was
+        --     tried on a live boss and every defensive lost the pick, every pull, so the
+        --     player heard "call for external" while Ardent Defender sat off cooldown.
+        --     Nil comes back rarely, so nil-ness is a usable READY signal but never a
+        --     usable NOT-READY one.
+        --   * IsZero() returns a secret ONLY while cooldowns are restricted.
+        --     CanNameSpellAloud is exactly that question, so branching on IsZero behind
+        --     that predicate is legal. An earlier pass here removed it as an illegal
+        --     secret branch; that was wrong, and removing it is what broke the pick.
+        --   * Sealed and unwitnessed is genuinely unknowable. Defaulting to READY is the
+        --     right direction: at a pull start every defensive is up, and naming one that
+        --     turns out to be down costs less than staying silent when one was available.
+            local charges = ChargesAvailable(sid)
+            local dur = (not charges) and C_Spell.GetSpellCooldownDuration(sid, true) or nil
+
+            if charges then
+                ready = charges > 0
+            elseif not dur then
+                ready = true
+            elseif CanNameSpellAloud(sid) then
+                ready = dur.IsZero and dur:IsZero() and true or false
+            else
+                ready = (readyAt[sid] or 0) <= now
+            end
+
+            if ready then return sid end
+        end
+    end)
+
+    -- On failure pcall's second return is the error STRING, which is truthy and would be
+    -- announced as though it were the winning spell.
+    -- A thrown pick degrades to the fallback, which is right, but it must not do so
+    -- SILENTLY: "call for external" then looks identical to a genuine no-defensive-up and
+    -- hides the throw completely. Reported through the same guarded stringify used
+    -- elsewhere, because a secret-carrying error raises again on tostring.
+    if not ok then
+        local why = picked
+        if issecretvalue and issecretvalue(why) then
+            why = "the error itself carries a secret"
+        end
+        ns.Print("|cffff6060pick failed|r, using the fallback: " .. tostring(why))
+        picked = nil
+    end
+
+    if picked then
+        -- A muted winner means silence, not the next one down: the player deliberately
+        -- turned this entry's audio off and still wants it to win the pick.
+        if not ns.IsAudioOff(picked) then
+            local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
+            Announce(picked, CalloutFor(picked, info and info.name))
+        end
+        return
+    end
+
+    if t.fallbackOn ~= false and not ns.IsAudioOff(0) then Announce(0, t.voiceNone) end
+end
+
+-------------------------------------------------------------------------------
+--  Showing and hiding
+-------------------------------------------------------------------------------
+-- Visibility is driven by plain data only -- the event ID and a timer. It must never ride
+-- a secret: SetShown is AllowedWhenUntainted and would error, and hiding on a secret would
+-- leak the answer through frame state. A non-tank event still SHOWS this frame; everything
+-- inside it just sits at alpha 0.
+-- /nutank trace arms a one-shot report on the next timeline event. Printed rather than
+-- guessed at: this path runs mid-fight where nothing can be inspected by hand.
+-- A COUNT, not a one-shot. Arming for a single event meant every report described the
+-- first ability of the pull, which is almost never the tank buster being investigated.
+-- Narrowing it to tank events instead is not possible: that classification arrives as a
+-- secret icon mask, so Lua cannot ask "was this one a tank hit" at all. Covering the next
+-- several events is the only way to be sure the interesting one is in the report.
+local TRACE_EVENTS = 5
+local traceLeft = 0
+
+-- Bumped whenever this readout changes. Printed in the header so a report answers "is the
+-- current code even loaded" outright, instead of us inferring it from which lines are
+-- missing, which cost a pull to get wrong.
+local TRACE_BUILD = "0816s"
+
+-- Never tostring an error straight into a message. When a secret value is what raised, the
+-- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
+-- caught the original. That is how a report can vanish completely and silently: the row
+-- throws, printing the row's failure throws, printing THAT failure throws, and the whole
+-- thing unwinds out of the event handler with nothing on screen and nothing in the log.
+-- Reduces a possibly-secret value to a string that is always safe to display.
+--
+-- The guard that matters is issecretvalue(), not pcall. tostring() on a secret does NOT
+-- raise: it hands back a SECRET STRING, and secretness then rides through string.format
+-- and .. all the way to the display call, which silently drops the line. No error, nothing
+-- in the log, just a missing line. Four builds of this diagnostic went missing that way
+-- before the cause was found, each time looking like the code had not loaded.
+--
+-- issecretvalue() answers a PLAIN boolean about a value without reading it, which is why
+-- branching on it is legal where branching on the value is not. Blizzard's own Dump and
+-- EventTrace pick their formatting the same way.
+--
+-- The callback returns a RAW value. Formatting happens here, after the check, so no caller
+-- can reintroduce the bug by coercing early.
+local function Safe(fn, fmt)
+    local ok, v = pcall(fn)
+    if not ok then return "|cffff6060refused|r" end
+    if v == nil then return "nil" end
+    if issecretvalue and issecretvalue(v) then return "|cffF0A830secret|r" end
+    return fmt and string.format(fmt, v) or tostring(v)
+end
+
+local function ErrText(err)
+    if issecretvalue and issecretvalue(err) then
+        return "unreadable (the error itself carries a secret)"
+    end
+    local ok, text = pcall(function() return tostring(err) end)
+    return ok and text or "unreadable"
+end
+
+local function TraceEvent(eventID)
+    traceLeft = math.max(0, traceLeft - 1)
+    local t = TRDB()
+    ns.Print(("|cffF0A830trace %d/%d|r build=%s event=%s slots=%d tankOnly=%s gate=%s voice=%s icon=%s text=%s")
+        :format(TRACE_EVENTS - traceLeft, TRACE_EVENTS,
+                TRACE_BUILD, tostring(eventID), activeSlots, tostring(t.tankOnly),
+                tostring(canGate and true or false), tostring(t.voiceOn),
+                tostring(t.showIcon), tostring(t.showText)))
+
+    -- WHICH list built these slots. A per-boss override silently replaces the spec order,
+    -- so "it called them in the wrong order" and "it is using a different list than the one
+    -- I edited" look identical from the outside. Naming the source separates them.
+    local _, fromBoss = EffectiveList(specID, currentEncounter)
+    ns.Print(("  list=%s encounter=%s"):format(
+        fromBoss and "|cffF0A830per-boss override|r" or "spec default",
+        tostring(currentEncounter or "none")))
+
+    -- Is this event's IDENTITY readable? Everything about filtering text and voice to tank
+    -- abilities turns on this one answer. spellID and icons carry no NeverSecret annotation,
+    -- so they are plain OUTSIDE restricted content and sealed inside it. If they read here,
+    -- fingerprints can be learned automatically wherever identity is available and applied
+    -- by duration where it is not, and nobody has to record anything by hand.
+    -- castID is the cast-probe verdict: whether THE BOSS'S CAST BAR names its spell
+    -- plainly here. "plain" means learning and callouts are fully automatic in this
+    -- content; "secret" means shipped fingerprints are the only route; "unseen" means no
+    -- boss has cast since login.
+    ns.Print(("  identity: spellID=%s icons=%s duration=%s source=%s cachedDur=%s castID=%s"):format(
+        Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).spellID end),
+        Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).icons end),
+        Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).duration end, "%.1f"),
+        Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).source end),
+        Safe(function() return eventDuration[eventID] end, "%.1f"),
+        castIdentity))
+
+    -- Whether the authored data is loaded AT ALL. The fingerprints file is the newest in
+    -- the TOC, and a /reload does not pick up new files -- only a full client launch reads
+    -- the list. An unloaded file and an unmatched fingerprint produce identical symptoms,
+    -- and only this line can tell them apart.
+    if not ns.TANK_FINGERPRINTS then
+        ns.Print("  shipped data: |cffff6060table absent|r")
+    else
+        local m = ShippedMarks(currentEncounter)
+        local n = 0
+        if m then for _ in pairs(m) do n = n + 1 end end
+        ns.Print(("  shipped data: loaded, %d fingerprint(s) for this boss"):format(n))
+    end
+
+    if activeSlots == 0 then
+        ns.Print("  |cffff6060no slots built|r -- nothing on your list is talented, or the list is empty.")
+        return
+    end
+
+    -- The display side, so "picked correctly but nothing on screen" is answerable without
+    -- another round trip.
+    --
+    -- Every read of a value the engine may have made secret formats INSIDE its own pcall.
+    -- The guard used to wrap only the read, on the theory that reading a driven alpha would
+    -- refuse. It does not refuse: it hands back a secret VALUE quite happily, and it is
+    -- tostring/string.format that throw. Guarding the read and coercing outside the guard
+    -- therefore caught nothing, and this whole report died at its first slot -- which, since
+    -- the trace runs ahead of the callout, took the callout down with it.
+    if frame then
+        ns.Print(("  frame shown=%s alpha=%s size=%dx%d"):format(
+            tostring(frame:IsShown()),
+            Safe(function() return frame:GetAlpha() end, "%.2f"),
+            math.floor(frame:GetWidth() or 0), math.floor(frame:GetHeight() or 0)))
+    end
+
+    local now = GetTime()
+    for i = 1, activeSlots do
+      -- Identity first, on its own line, before anything that can refuse. Slot index, spell
+      -- id and name are all plain, so this prints even when every field after it raises --
+      -- and a report that at least names the spell in each slot beats one that dies before
+      -- saying anything, which is what the last three pulls produced.
+      local slotID = slots[i] and slots[i].spellID
+      local slotInfo = slotID and C_Spell and C_Spell.GetSpellInfo
+          and C_Spell.GetSpellInfo(slotID)
+      -- Every field is fetched and FORMATTED behind its own guard. One refusing call then
+      -- costs that one field, not the row and not the report. This is the whole point: the
+      -- report exists to say which call refuses, so it must survive a refusal to say it.
+      local readable = Safe(function() return CanNameSpellAloud(slotID) end)
+
+      local durState = Safe(function()
+          local dur = C_Spell.GetSpellCooldownDuration(slotID, true)
+          if not dur then return "nil (READY)" end
+          if not CanNameSpellAloud(slotID) then return "object (sealed)" end
+          return dur:IsZero()
+      end)
+
+      local model = Safe(function()
+          return math.max(0, (readyAt[slotID] or 0) - now)
+      end, "%.1fs")
+
+      local learned = Safe(function()
+          local t2 = TRDB()
+          local v = type(t2.learned) == "table" and t2.learned[tostring(slotID)] or nil
+          return v or "no"
+      end)
+
+      local alpha = Safe(function() return slots[i]:GetAlpha() end, "%.2f")
+      local iconShown = Safe(function()
+          return slots[i].icon and slots[i].icon:IsShown()
+      end)
+      local audio = ns.IsAudioOff(slotID) and "audioOFF" or "audioOn"
+
+      ns.Print(("  %d. %s (%s) readable=%s cd=%s model=%s learned=%s alpha=%s icon=%s %s")
+          :format(i, (slotInfo and slotInfo.name) or "?", tostring(slotID),
+                  readable, durState, model, learned, alpha, iconShown, audio))
+    end
+end
+
+local shownForEvent
+
+local function HideReminder()
+    if hideTimer then hideTimer:Cancel(); hideTimer = nil end
+    shownForEvent = nil
+    if frame then frame:Hide() end
+    if bar then bar:Hide() end
+end
+
+local function ShowForEvent(eventID)
+    if not frame then return end
+    local t = TRDB()
+
+    -- Remembered even when muted, so "that one was wrong" can still be acted on afterwards
+    -- without having to catch it live.
+    prevFingerprintAt = lastFingerprintAt
+    lastFingerprintAt = GetTime()
+    lastFingerprint = FingerprintFor(eventID)
+    lastFingerprintEncounter = currentEncounter
+
+    if IsUnmarkedEvent(eventID) then
+        if traceLeft > 0 then
+            traceLeft = traceLeft - 1
+            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80silenced|r (fingerprint %s is not "
+                .. "a marked tank buster)"):format(tostring(eventID), tostring(lastFingerprint)))
+        end
+        return
+    end
+
+    if IsMutedEvent(eventID) then
+        if traceLeft > 0 then
+            traceLeft = traceLeft - 1
+            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80muted|r (fingerprint %s)")
+                :format(tostring(eventID), tostring(lastFingerprint)))
+        end
+        return
+    end
+
+    ApplyPriorityAlpha()
+
+    -- The bar counts down the incoming ability. GetEventTimer hands back a duration object
+    -- that is PLAIN (only the descriptive event fields are secret), and the engine ticks it
+    -- against a clock that already accounts for encounter pauses -- so this is set once per
+    -- event and never polled.
+    if t.showBar and canBar then
+        CreateBar()
+        local durObj = C_EncounterTimeline.GetEventTimer(eventID)
+        if durObj and bar.SetTimerDuration then
+            bar:SetMinMaxValues(0, 1)
+            bar:SetTimerDuration(durObj, Enum.StatusBarInterpolation.Immediate,
+                Enum.StatusBarTimerDirection.RemainingTime)
+            bar:Show()
+        end
+    elseif bar then
+        bar:Hide()
+    end
+
+    if t.tankOnly and canGate then
+        ApplyTankGate(eventID)
+    else
+        ClearTankGate()
+    end
+
+    shownForEvent = eventID
+    frame:Show()
+    -- The callout happens BEFORE the report, and the report is guarded. Either alone would
+    -- do; both together mean no future change to the readout can cost the player an alert.
+    -- It already did once: an unguarded throw in here ran ahead of the callout and took the
+    -- audio with it on the exact pull being diagnosed.
+    SpeakCallout()
+    lastCalloutAt = GetTime()
+
+    if traceLeft > 0 then
+        local okT, err = pcall(TraceEvent, eventID)
+        if not okT then ns.Print("|cffff6060trace failed|r: " .. ErrText(err)) end
+    end
+
+    if hideTimer then hideTimer:Cancel() end
+    -- The highlight fires at the engine's own lead time, so that is exactly how long the
+    -- call-out stays up.
+    local lead = 5
+    if C_EncounterTimeline and C_EncounterTimeline.GetEventHighlightTime then
+        local v = C_EncounterTimeline.GetEventHighlightTime()
+        if type(v) == "number" and v > 0 then lead = v end
+    end
+    hideTimer = C_Timer.NewTimer(lead, HideReminder)
+end
+
+-- Used by /nutank test. Deliberately bypasses the tank gate so the two failure modes can
+-- be told apart.
+function ns.ForceShowTest()
+    if not frame then Reminder.Create() end
+    ApplyPriorityAlpha()
+    ClearTankGate()
+    if TRDB().showBar then
+        CreateBar()
+        bar:SetMinMaxValues(0, 1)
+        bar:SetValue(0.6)
+        if bar.fill then bar.fill:SetAlpha(1) end
+        if bar.bg then bar.bg:SetAlpha(1) end
+        bar:Show()
+    end
+    shownForEvent = nil
+    frame:Show()
+    -- The voice too: a test that skips a channel reports that channel broken when it is
+    -- merely untested. At the desk cooldowns read plainly, so this speaks whichever
+    -- defensive is genuinely up, exactly as a fight would.
+    SpeakCallout()
+
+    -- A test that can show nothing must SAY so. With every channel off this otherwise
+    -- reports success by displaying nothing, which reads as broken -- and the engine sound
+    -- cannot prove itself here at all, since it only fires on a real boss event.
+    local t2 = TRDB()
+    if not (t2.showIcon or t2.showText or t2.voiceOn) then
+        ns.Print("|cffff6060icon, text and voice are all switched off|r -- there is nothing "
+            .. "for this test to show. Play a Sound is engine-driven and only fires on a "
+            .. "real boss.")
+    end
+    if hideTimer then hideTimer:Cancel() end
+    hideTimer = C_Timer.NewTimer(5, HideReminder)
+end
+
+-------------------------------------------------------------------------------
+--  Events
+-------------------------------------------------------------------------------
+local watcher
+
+-- The All Dungeons / All Raids switches. Anywhere else (open world, delves, scenarios) is
+-- unaffected by them.
+local function AllowedHere()
+    local t = TRDB()
+    local _, instanceType = GetInstanceInfo()
+    if instanceType == "party" then return t.inDungeons ~= false end
+    if instanceType == "raid" then return t.inRaids ~= false end
+    return true
+end
+
+-- A boss switched off in the tree. Enforceable because the game tells us which encounter we
+-- are in, unlike which ability is incoming.
+local function BossAllowed()
+    local t = TRDB()
+    if not (currentEncounter and type(t.bossOff) == "table") then return true end
+    return t.bossOff[tostring(currentEncounter)] ~= true
+end
+
+-- The timeline carries more than boss abilities -- respawn timers and other non-encounter
+-- events ride it too, which is how a callout fired while standing at the instance entrance
+-- after a wipe. Gate on an encounter actually being underway.
+local function InEncounter()
+    if C_InstanceEncounter and C_InstanceEncounter.IsEncounterInProgress then
+        return C_InstanceEncounter.IsEncounterInProgress()
+    end
+    return currentEncounter ~= nil
+end
+
+-- Every specialization. The role is still resolved because the optional tank filter needs
+-- it, but it no longer gates whether the feature runs at all.
+local function ShouldRun()
+    return TRDB().enabled == true and canSelect
+        and activeSlots > 0 and TimelineAvailable() and AllowedHere() and BossAllowed()
+end
+
+-- The other door into the fight: the boss's own cast bar. Timeline events keep their spell
+-- identity secret (measured -- every event, every pull), but UnitCastingInfo is only
+-- SecretWhenUnitSpellCastRestricted, i.e. CONDITIONALLY. Where it reads plainly, the moment
+-- Triple Shot's cast starts we know it is Triple Shot by spell id, the curated list answers
+-- "tank buster" outright, and no shipped fingerprint or marking is needed at all.
+--
+-- Two jobs, both automatic:
+--
+--   1. LEARN. Pair the cast's spell id with the most recent timeline fingerprint, and mark
+--      that fingerprint as a tank buster for this boss. That is the same mark /nutank tank
+--      records by hand -- authored here by the game instead of a person. The pairing is
+--      skipped when TWO events announced within the window, because attributing the cast to
+--      the wrong one would poison the mark; an unambiguous pairing arrives within a cast or
+--      two and marks persist, so the filter converges and then holds.
+--   2. BACKSTOP. If no callout happened recently -- the event was silenced by a wrong or
+--      missing mark, or never made the timeline -- fire the callout now. Later than the
+--      timeline's five seconds, but on time beats silent.
+--
+-- Where cast identity turns out secret, issecretvalue answers plainly, the probe records it
+-- for the trace, and this whole path steps aside -- shipped fingerprints remain the answer
+-- in that content.
+local function OnBossCast(unit)
+    if not frame or activeSlots == 0 then return end
+    if not (ShouldRun() and InEncounter()) then return end
+
+    -- issecretvalue BEFORE anything else touches sid -- even `== nil` is a branch on the
+    -- value and raises when it is secret. The probe verdict must be recorded from the read
+    -- alone, not from a comparison that would never be reached.
+    local sid = select(9, UnitCastingInfo(unit))
+    if issecretvalue and issecretvalue(sid) then
+        castIdentity = "secret"
+        return
+    end
+    if sid == nil then return end
+    castIdentity = "plain"
+
+    local buster = ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid]
+
+    -- The learn path narrates itself while a trace is armed. Learning that silently
+    -- declines is indistinguishable from learning that is broken, and that ambiguity has
+    -- already cost full dungeon runs elsewhere in this file.
+    local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+    local castName = (si and si.name) or tostring(sid)
+    if traceLeft > 0 then
+        ns.Print(("|cffF0A830cast|r %s (%s) curated=%s"):format(
+            castName, tostring(sid), buster and "TANK BUSTER" or "no"))
+    end
+    if not buster then return end
+
+    local now = GetTime()
+
+    -- Learn: one recent announcement, and only one, else the attribution is a guess.
+    local skip
+    if not (lastFingerprint and currentEncounter) then
+        skip = "no timeline event announced this"
+    elseif lastFingerprintEncounter ~= currentEncounter then
+        skip = "last announcement was another encounter's"
+    elseif (now - lastFingerprintAt) >= 10 then
+        skip = ("last announcement was %.0fs ago, too old to attribute"):format(
+            now - lastFingerprintAt)
+    elseif (now - prevFingerprintAt) < 10 then
+        skip = "two events announced back to back, attribution would be a guess"
+    end
+
+    if not skip then
+        local m = MarksTable(true, currentEncounter)
+        if m[lastFingerprint] ~= true then
+            m[lastFingerprint] = true
+            ns.Print(("Learned: fingerprint %s on encounter %s is a tank buster (%s). "
+                .. "Other abilities on this boss will stop calling out."):format(
+                lastFingerprint, tostring(currentEncounter), castName))
+        end
+    elseif traceLeft > 0 then
+        ns.Print("  |cffF0A830not learned|r: " .. skip)
+    end
+
+    -- Backstop: the timeline path already spoke for this cast if anything did.
+    if (now - lastCalloutAt) < 6 then return end
+
+    ApplyPriorityAlpha()
+    frame:Show()
+    SpeakCallout()
+    lastCalloutAt = now
+    if hideTimer then hideTimer:Cancel() end
+    hideTimer = C_Timer.NewTimer(5, HideReminder)
+end
+
+
+local function UpdateEventRegistration()
+    if not watcher then return end
+
+    if not ShouldRun() then
+        watcher:UnregisterEvent("ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT")
+        watcher:UnregisterEvent("ENCOUNTER_TIMELINE_EVENT_REMOVED")
+        watcher:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+        watcher:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        watcher:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
+        watcher:UnregisterEvent("ENCOUNTER_START")
+        watcher:UnregisterEvent("ENCOUNTER_END")
+        watcher:UnregisterEvent("PLAYER_ALIVE")
+        watcher:UnregisterEvent("PLAYER_UNGHOST")
+        HideReminder()
+        return
+    end
+
+    -- Probed, not assumed: registering an event the client does not know throws.
+    if C_EventUtils and C_EventUtils.IsEventValid then
+        if C_EventUtils.IsEventValid("ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT") then
+            watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_ADDED")
+            -- The boss's own cast, for identity where the timeline has none.
+            -- RegisterUnitEvent takes two units at most, so this is the broad
+            -- registration filtered in the handler; the match is one string test.
+            watcher:RegisterEvent("UNIT_SPELLCAST_START")
+            watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT")
+        end
+        if C_EventUtils.IsEventValid("ENCOUNTER_TIMELINE_EVENT_REMOVED") then
+            watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_REMOVED")
+        end
+    end
+
+    -- The cooldown model's inputs. Unit-filtered, so the cast event fires only for the
+    -- player's own presses; regen feeds the resync. SPELL_UPDATE_COOLDOWN drives the plain
+    -- nil-signal correction -- event-driven, a handful of C calls per fire, no polling.
+    watcher:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+    watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
+    watcher:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+
+    -- Which boss we are on, so a per-boss override can take over from the spec default.
+    watcher:RegisterEvent("ENCOUNTER_START")
+    watcher:RegisterEvent("ENCOUNTER_END")
+    watcher:RegisterEvent("PLAYER_ALIVE")
+    watcher:RegisterEvent("PLAYER_UNGHOST")
+end
+
+-- Said once per session, not per pull. The master switch genuinely stops the data; the
+-- timeline's own display toggle does not, and warning about that one would nag every
+-- boss-mod user for no reason.
+local warnedCombatWarnings = false
+local saidAudioOnly = false
+
+local function WarnIfMuted()
+    if warnedCombatWarnings or not TRDB().enabled or not isTank then return end
+    if not CombatWarningsOff() then return end
+    warnedCombatWarnings = true
+    ns.Print("|cffff6060Boss Warnings are turned off|r, so the game sends no timeline data and "
+        .. "the tank reminder cannot fire. Turn it back on in Options, Advanced, Combat Warnings, "
+        .. "Enable Boss Warnings. Hiding the timeline itself is fine and changes nothing here.")
+end
+
+function ns.Apply()
+    -- Resolved even while switched off: the list is built BEFORE the feature is enabled, and
+    -- an unknown spec silently refuses every add. Two API calls, which is not a cost worth a
+    -- bug. Everything expensive still sits behind the gate below.
+    RefreshSpec()
+
+    if not TRDB().enabled then
+        activeSlots = 0
+        HideReminder()
+        UpdateEventRegistration()
+        return
+    end
+
+    ProbeCapabilities()
+    RefreshSpec()
+    Reminder.Create()
+    ApplyScale()
+    ApplyPosition()
+    RebuildSlots()
+    RebuildCastMap()
+    ResyncModel()
+    UpdateEventRegistration()
+    WarnIfMuted()
+
+    if TRDB().soundOn and not soundRegistered then RegisterEventSounds() end
+end
+
+-------------------------------------------------------------------------------
+--  Unlock Mode
+-------------------------------------------------------------------------------
+local function RegisterUnlock()
+    local EUI = _G.EllesmereUI
+    if not (EUI and EUI.RegisterUnlockElements and EUI.MakeUnlockElement) then return end
+
+    EUI:RegisterUnlockElements({
+        EUI.MakeUnlockElement({
+            key   = "NaowhUI_TankReminder",
+            label = "NaowhUI Boss Reminder",
+            group = "NaowhUI",
+            order = 3,
+            -- Sized from the icon slider, so a resize handle would be overwritten by the
+            -- next update.
+            noResize = true,
+            isHidden = function() return not TRDB().enabled end,
+            -- A getter and nothing more: Unlock Mode calls this while building its element
+            -- list, so anything shown from here would appear unasked.
+            getFrame = function() return frame or Reminder.Create() end,
+            getSize  = function()
+                local size = TRDB().iconSize or DEFAULTS.iconSize
+                return size, size
+            end,
+            savePos = function(_, point, relPoint, x, y)
+                TRDB().pos = { point = point, relPoint = relPoint, x = x, y = y }
+            end,
+            loadPos = function()
+                local p = TRDB().pos
+                if not p then return nil end
+                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
+            end,
+            clearPos = function() TRDB().pos = nil end,
+            applyPos = ApplyPosition,
+        }),
+    }, "NaowhUI_EUI")
+end
+
+-------------------------------------------------------------------------------
+--  Preview
+-------------------------------------------------------------------------------
+-- The settings panel is the only window in which anyone needs something to drag, so the
+-- stand-in lives exactly as long as it does. Alpha is set directly here rather than through
+-- the gate: out of an encounter there is no event to gate against.
+local previewing = false
+
+local function UpdatePreview()
+    if not previewing then
+        -- Never yank a live call-out off the screen because the settings panel closed.
+        if frame and not shownForEvent then frame:Hide() end
+        if bar and not shownForEvent then bar:Hide() end
+        return
+    end
+    if not TRDB().enabled then return end
+
+    Reminder.Create()
+    RebuildSlots()
+    if activeSlots > 0 then
+        slots[1]:SetAlpha(1)
+        slots[1].icon:SetAlpha(1)
+    end
+    -- The stand-in shows the winning line, not the fallback: a preview of "nothing is ready"
+    -- is not what anyone is trying to position.
+    if frame.fallback then frame.fallback:SetAlpha(0) end
+    if TRDB().showBar then
+        CreateBar()
+        bar:SetMinMaxValues(0, 1)
+        bar:SetValue(0.6)
+        if bar.fill then bar.fill:SetAlpha(1) end
+        if bar.bg then bar.bg:SetAlpha(1) end
+        bar:Show()
+    elseif bar then
+        bar:Hide()
+    end
+    frame:Show()
+end
+
+-------------------------------------------------------------------------------
+--  Diagnostics
+-------------------------------------------------------------------------------
+-- /nutank -- the two things that cannot be settled from Blizzard's source.
+--
+--   catalogue : C_EncounterEvents carries no secret annotations at all, so the full list of
+--               authored boss abilities and their TankRole bits should read in the clear.
+--               This is what tells a silent test apart from a broken one.
+--   gate      : what the engine actually does to a texture whose icon bit is absent is
+--               documented only as "atlases and alpha values" -- the absent case is not
+--               specified, and Blizzard never reads these textures back. Run this on a live
+--               boss with an ability on the timeline.
+SLASH_NAOWHUITANK1 = "/nutank"
+SlashCmdList["NAOWHUITANK"] = function(msg)
+    local arg = (msg or ""):lower():match("^%s*(%S*)")
+    ProbeCapabilities()
+    RefreshSpec()
+
+    if arg == "catalogue" or arg == "catalog" then
+        if not (C_EncounterEvents and C_EncounterEvents.GetEventList) then
+            ns.Print("C_EncounterEvents is not available on this client.")
+            return
+        end
+        local ids = C_EncounterEvents.GetEventList()
+        local total, tank, unreadable = 0, 0, 0
+        for i = 1, #ids do
+            local info = C_EncounterEvents.GetEventInfo(ids[i])
+            if info then
+                total = total + 1
+                -- bit.band on a secret raises, so the read is pcall'd rather than trusted:
+                -- the whole point of this probe is that the docs say these are plain and
+                -- only the client can confirm it.
+                -- Reduced to a plain number INSIDE the guard. Returning the comparison
+                -- itself hands back a secret boolean that the branch below then throws on,
+                -- outside the pcall, which is the guard catching nothing.
+                local ok, isTankFlag = pcall(function()
+                    return bit.band(info.icons, Enum.EncounterEventIconmask.TankRole) ~= 0
+                        and 1 or 0
+                end)
+                if not ok then
+                    unreadable = unreadable + 1
+                elseif isTankFlag == 1 then
+                    tank = tank + 1
+                end
+            end
+        end
+        ns.Print(("catalogue: %d events, %d tank-flagged, %d unreadable"):format(total, tank, unreadable))
+        return
+    end
+
+    -- The decisive test for spoken callouts. A spell whose cooldown secrecy is NeverSecret
+    -- keeps reading plainly THROUGH combat restrictions, because per-spell flags override
+    -- them -- so if your defensives come back NeverSecret, voice works everywhere. If they
+    -- are ContextuallySecret, voice is out-of-combat only and there is no way around it.
+    -- Run this once at rest and once mid-pull; the restriction lines should differ.
+    if arg == "secrecy" or arg == "voice" then
+        local list = UserList(specID, false)
+        if not (list and #list > 0) then
+            ns.Print("no priority list for this spec yet -- add a defensive first.")
+            return
+        end
+        if C_RestrictedActions and C_RestrictedActions.IsAddOnRestrictionActive and Enum.AddOnRestrictionType then
+            local parts = {}
+            for _, key in ipairs({ "Combat", "Encounter", "ChallengeMode", "PvPMatch" }) do
+                local rt = Enum.AddOnRestrictionType[key]
+                if rt then
+                    local on = C_RestrictedActions.IsAddOnRestrictionActive(rt)
+                    parts[#parts + 1] = ("%s=%s"):format(key, on and "ON" or "off")
+                end
+            end
+            ns.Print("restrictions: " .. table.concat(parts, "  "))
+        end
+        for i = 1, #list do
+            local sid = list[i]
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+            local level = "?"
+            if C_Secrets and C_Secrets.GetSpellCooldownSecrecy and Enum.SecrecyLevel then
+                local ok, lv = pcall(C_Secrets.GetSpellCooldownSecrecy, sid)
+                if ok then
+                    for name, value in pairs(Enum.SecrecyLevel) do
+                        if value == lv then level = name break end
+                    end
+                end
+            end
+            ns.Print(("%d. %s -- secrecy=%s speakable_now=%s"):format(
+                i, (info and info.name) or sid, level, tostring(CanNameSpellAloud(sid))))
+        end
+        return
+    end
+
+    -- Ahead of the status block, like every other subcommand: it sits in a separate file, so
+    -- saying plainly that the file is missing beats printing nothing and looking dead.
+    -- Does Blizzard actually flag YOUR defensives? The predicate is real, but which spell
+    -- ids carry the flag is client data no source can answer. This dumps it for the spells
+    -- the picker is offering, plus anything already on your list.
+    if arg == "defensives" then
+        local shown = 0
+        local CV = C_CooldownViewer
+        if CV and CV.GetCooldownViewerCategorySet and Enum and Enum.CooldownViewerCategory then
+            for _, cat in ipairs({ Enum.CooldownViewerCategory.Essential,
+                                  Enum.CooldownViewerCategory.Utility }) do
+                local ids = CV.GetCooldownViewerCategorySet(cat, false)
+                for i = 1, (ids and #ids or 0) do
+                    local info = CV.GetCooldownViewerCooldownInfo(ids[i])
+                    if info and info.isKnown then
+                        local sid = info.spellID
+                        local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+                        local flag = false
+                        if C_UnitAuras and C_UnitAuras.AuraIsBigDefensive then
+                            local ok, v = pcall(C_UnitAuras.AuraIsBigDefensive, sid)
+                            flag = ok and v and true or false
+                        end
+                        local ext = false
+                        if C_Spell and C_Spell.IsExternalDefensive then
+                            local ok2, v2 = pcall(C_Spell.IsExternalDefensive, sid)
+                            ext = ok2 and v2 and true or false
+                        end
+                        shown = shown + 1
+                        -- Everything the filter looks at, so a missing spell can be traced to
+                        -- the signal that failed rather than guessed at.
+                        ns.Print(("%s (%d) bigDef=%s ext=%s selfAura=%s hasAura=%s -> %s"):format(
+                            (si and si.name) or "?", sid, tostring(flag), tostring(ext),
+                            tostring(info.selfAura), tostring(info.hasAura),
+                            ns.InfoIsDefensive(info) and "|cff6DD09AINCLUDED|r" or "|cffff6060skipped|r"))
+                    end
+                end
+            end
+        end
+        if shown == 0 then
+            ns.Print("the Cooldown Manager returned nothing -- open it once, then retry.")
+        end
+        return
+    end
+
+    -- Shows the alert exactly as a fight would, minus the tank gate. If the icon appears
+    -- here but not on a boss, the display is fine and the gate is the variable. If it does
+    -- not appear here either, the problem is the display itself.
+    -- Mute and unmute act on the LAST callout rather than asking for a number, because the
+    -- player has no way to know an ability's fingerprint and should not have to. "That one
+    -- was wrong" is the whole interaction.
+    if arg == "mute" or arg == "unmute" then
+        if not lastFingerprint then
+            ns.Print("nothing to " .. arg .. " yet -- pull a boss and let a callout happen first.")
+            return
+        end
+        local m = MutedTable(true, lastFingerprintEncounter)
+        m[lastFingerprint] = (arg == "mute") or nil
+        ns.Print(("%s the ability with fingerprint %s on encounter %s."):format(
+            arg == "mute" and "Muted" or "Unmuted", lastFingerprint,
+            tostring(lastFingerprintEncounter or "none")))
+        ns.Print("Its callouts " .. (arg == "mute" and "will stop." or "are back on.")
+            .. " Only this ability on this boss is affected.")
+        return
+    end
+
+    -- The pair the player actually wants: name the tank busters once, per boss, and every
+    -- other ability goes quiet at the same moment. The cue for WHEN to type it is already
+    -- built: the game's own registered sound plays exactly once per pull, on the first tank
+    -- buster -- so "I just heard the sound" means "the ability that just called out is one".
+    if arg == "tank" or arg == "untank" then
+        if not lastFingerprint then
+            ns.Print("nothing to mark yet -- pull a boss and let a callout happen first.")
+            return
+        end
+        local m = MarksTable(true, lastFingerprintEncounter)
+        local had = next(m) ~= nil
+        m[lastFingerprint] = (arg == "tank") or nil
+        if arg == "tank" then
+            ns.Print(("Marked fingerprint %s as a tank buster on encounter %s."):format(
+                lastFingerprint, tostring(lastFingerprintEncounter or "none")))
+            if not had then
+                ns.Print("From now on ONLY marked abilities call out on this boss. Mark each "
+                    .. "tank buster the same way; the game's own alert sound is your cue, it "
+                    .. "plays once per pull on the first tank buster.")
+            end
+        else
+            ns.Print(("Unmarked fingerprint %s on encounter %s."):format(
+                lastFingerprint, tostring(lastFingerprintEncounter or "none")))
+            if next(m) == nil then
+                ns.Print("No marks left -- every ability calls out again on this boss.")
+            end
+        end
+        return
+    end
+
+    if arg == "marked" then
+        local enc = lastFingerprintEncounter or currentEncounter
+        local n = 0
+        local m = MarksTable(false, enc)
+        if m then
+            for fp in pairs(m) do
+                ns.Print(("  tank buster fingerprint %s (yours)"):format(fp))
+                n = n + 1
+            end
+        end
+        local shipped = ShippedMarks(enc)
+        if shipped then
+            for fp in pairs(shipped) do
+                ns.Print(("  tank buster fingerprint %s (shipped)"):format(fp))
+                n = n + 1
+            end
+        end
+        if n == 0 then
+            ns.Print("no marks on this boss -- every ability calls out. Type /nutank tank "
+                .. "right after a tank buster callout to start narrowing it.")
+        end
+        return
+    end
+
+    -- Prints every player mark in the data file's own format, so authoring a dungeon pool
+    -- is: run it, /nutank tank on each buster, /nutank export, paste.
+    if arg == "export" then
+        local t = TRDB()
+        local any = false
+        if type(t.tankMarks) == "table" then
+            for encKey, fps in pairs(t.tankMarks) do
+                if type(fps) == "table" and next(fps) ~= nil then
+                    local parts = {}
+                    for fp in pairs(fps) do
+                        parts[#parts + 1] = ('["%s"] = true'):format(fp)
+                    end
+                    table.sort(parts)
+                    ns.Print(("    [%s] = { %s },"):format(encKey, table.concat(parts, ", ")))
+                    any = true
+                end
+            end
+        end
+        if not any then
+            ns.Print("no marks to export yet -- /nutank tank on a tank buster callout first.")
+        end
+        return
+    end
+
+    if arg == "muted" then
+        local m = MutedTable(false, lastFingerprintEncounter or currentEncounter)
+        local n = 0
+        if m then
+            for fp in pairs(m) do
+                ns.Print(("  muted fingerprint %s"):format(fp))
+                n = n + 1
+            end
+        end
+        ns.Print(("%d muted on encounter %s. Fingerprints are base durations in seconds; "):format(
+            n, tostring(currentEncounter or "none"))
+            .. "they identify an ability WITHIN a fight, never across fights.")
+        return
+    end
+
+    if arg == "trace" then
+        traceLeft = TRACE_EVENTS
+        ns.Print(("armed for the next %d timeline events (build %s). The tank buster is "
+            .. "rarely the first one, so pull and let a few land."):format(
+            TRACE_EVENTS, TRACE_BUILD))
+        return
+    end
+
+    if arg == "test" then
+        if not TRDB().enabled then
+            ns.Print("switch the reminder on first.")
+            return
+        end
+        RefreshSpec()
+        ns.Apply()
+        if activeSlots == 0 then
+            ns.Print("nothing on your priority list is talented, so there is nothing to show.")
+            return
+        end
+        ns.ForceShowTest()
+        ns.Print(("showing %d slot(s) for 5s with the tank filter bypassed. If you see nothing, "
+            .. "the icon is hidden or off-screen -- try Reset Icon Position."):format(activeSlots))
+        return
+    end
+
+    if arg == "bosses" then
+        if ns.PrintBossSummary then
+            ns.PrintBossSummary()
+        else
+            ns.Print("|cffff6060the boss browser did not load|r -- "
+                .. "NaowhUI_TankReminder_Bosses.lua is missing from the addon folder.")
+        end
+        return
+    end
+
+    if arg == "gate" then
+        if not canGate then
+            ns.Print("SetEventIconTextures is not available on this client.")
+            return
+        end
+        local list = C_EncounterTimeline.GetEventList and C_EncounterTimeline.GetEventList()
+        if not (list and #list > 0) then
+            ns.Print("no timeline events right now -- run this during a boss encounter.")
+            return
+        end
+        local probe = UIParent:CreateTexture(nil, "BACKGROUND")
+        probe:SetSize(1, 1)
+        probe:SetPoint("CENTER")
+        probe:SetAlpha(1)
+        for i = 1, math.min(#list, 3) do
+            local id = list[i]
+            local set = pcall(C_EncounterTimeline.SetEventIconTextures, id,
+                Enum.EncounterEventIconmask.TankRole, { probe })
+            -- Reading back is expected to fail: GetAlpha is SecretReturnsForAspect once the
+            -- Alpha aspect is applied, and even issecretvalue/tostring may refuse a secret
+            -- from tainted code. A refusal here is the gate WORKING -- it means the engine
+            -- really did write the secret bit into our texture's alpha.
+            local read, alpha = pcall(function() return tostring(probe:GetAlpha()) end)
+            ns.Print(("gate: event %s -> set=%s read=%s"):format(
+                tostring(id),
+                set and "ok" or "REFUSED",
+                read and alpha or "SECRET/refused (gate is live)"))
+        end
+        probe:SetTexture(nil)
+        probe:Hide()
+        return
+    end
+
+    ns.Print(("tank reminder: enabled=%s spec=%d tank=%s slots=%d"):format(
+        tostring(TRDB().enabled), specID, tostring(isTank), activeSlots))
+    ns.Print(("timeline: available=%s bossWarnings=%s timelineDisplay=%s"):format(
+        tostring(TimelineAvailable()),
+        CombatWarningsOff() and "|cffff6060OFF|r" or "on",
+        TimelineDisplayOff() and "off (fine -- data still flows)" or "on"))
+    ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
+        tostring(canSelect and true or false), tostring(canGate and true or false),
+        tostring(canBar and true or false), tostring(canSound and true or false)))
+    ns.Print("usage: /nutank trace | tank | untank | marked | export | mute | unmute | muted | test | catalogue | gate | secrecy | bosses | defensives")
+end
+
+-------------------------------------------------------------------------------
+--  "Add a Defensive" picker
+-------------------------------------------------------------------------------
+-- Built from the player's OWN spellbook, not from any list we ship. Reading someone's
+-- spellbook is reading their character, not shipping ability data, so this stays inside the
+-- rule that the addon carries no encounter or class knowledge -- while sparing them from
+-- hunting spell IDs on a website.
+--
+-- The filter is a heuristic, not a database: non-passive, on the active spec, with a real
+-- base cooldown. GetSpellBaseCooldown is static data and stays readable when live cooldown
+-- state is secret.
+-- Blizzard classifies these for us, so the addon still ships no spell list of its own.
+-- Two client sources, each supplying half the answer:
+--
+--   * the Cooldown Manager's category sets give a spec-correct, Blizzard-authored,
+--     server-hotfixed list of the player's real cooldowns -- already free of passives,
+--     off-spec entries and trinket noise. But its taxonomy is essential/utility, not
+--     offensive/defensive: Barkskin and Berserk both sit in Essential.
+--   * C_UnitAuras.AuraIsBigDefensive supplies the missing axis. It is the same predicate
+--     Blizzard's own aura frames use to decide what counts as a big defensive, and its
+--     ordering code shows the set includes self-cast defensives, not just externals.
+--
+-- Note it is an AURA flag, so the id carrying it can differ from the id you press. Every
+-- candidate is tested on its cast id, its override, and its linked ids.
+local MIN_BASE_CD_MS = 30000          -- only used by the no-Cooldown-Manager fallback
+
+local bigDefCache = {}
+
+-- Externals are flagged big-defensive too (Pain Suppression comes back true), but they are
+-- cast on somebody else -- pressing one does not save you. C_Spell.IsExternalDefensive is
+-- Blizzard's own split between the two, so the list stays "what I press for myself".
+local function IsExternalDefensive(spellID)
+    if not (C_Spell and C_Spell.IsExternalDefensive) then return false end
+    local ok, v = pcall(C_Spell.IsExternalDefensive, spellID)
+    return ok and v == true
+end
+
+local function IsBigDefensive(spellID)
+    if not (spellID and spellID > 0) then return false end
+    if bigDefCache[spellID] == nil then
+        local ok, v = false, nil
+        if C_UnitAuras and C_UnitAuras.AuraIsBigDefensive then
+            ok, v = pcall(C_UnitAuras.AuraIsBigDefensive, spellID)
+        end
+        bigDefCache[spellID] = (ok and v and not IsExternalDefensive(spellID)) and true or false
+    end
+    return bigDefCache[spellID]
+end
+
+-- An external is cast on somebody else, so it never belongs in a "what do I press to save
+-- myself" list. Checked across every id the cooldown carries, because the flag sits on the
+-- aura and that is often not the id you press.
+local function InfoIsExternal(info)
+    if IsExternalDefensive(info.spellID) then return true end
+    if info.overrideSpellID and IsExternalDefensive(info.overrideSpellID) then return true end
+    local linked = info.linkedSpellIDs
+    if type(linked) == "table" then
+        for i = 1, #linked do
+            if IsExternalDefensive(linked[i]) then return true end
+        end
+    end
+    -- selfAura is false for anything whose aura lands on another player, which catches the
+    -- externals Blizzard's own flag misses.
+    if info.hasAura and info.selfAura == false then return true end
+    return false
+end
+
+local function InfoIsDefensive(info)
+    if InfoIsExternal(info) then return false end
+
+    if IsBigDefensive(info.spellID) or IsBigDefensive(info.overrideSpellID) then return true end
+    local linked = info.linkedSpellIDs
+    if type(linked) == "table" then
+        for i = 1, #linked do
+            if IsBigDefensive(linked[i]) then return true end
+        end
+    end
+
+    -- A selfAura+hasAura fallback was tried here and removed. Measured against a live
+    -- Protection Paladin it contributed nothing: the real defensives (Divine Shield, Ardent
+    -- Defender) both report hasAura=false, so the pair never fired, while loosening it to
+    -- selfAura alone would have pulled in Consecration and Divine Steed. Blizzard's flag plus
+    -- the external exclusion is what actually works; anything it misses (Lay on Hands, say)
+    -- is one spell ID away in the editor.
+    return false
+end
+
+-- Fallback for a client without the Cooldown Manager: the old spellbook sweep, still
+-- narrowed by the defensive predicate where it is available.
+local function CollectFromSpellbook(seen, list, out)
+    if not (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo
+        and C_SpellBook.GetSpellBookItemInfo and Enum and Enum.SpellBookSpellBank) then
+        return
+    end
+    local havePredicate = C_UnitAuras and C_UnitAuras.AuraIsBigDefensive
+    for line = 1, 12 do
+        local info = C_SpellBook.GetSpellBookSkillLineInfo(line)
+        if not info then break end
+        local offset, count = info.itemIndexOffset or 0, info.numSpellBookItems or 0
+        for i = 1, count do
+            local item = C_SpellBook.GetSpellBookItemInfo(offset + i, Enum.SpellBookSpellBank.Player)
+            local sid = item and item.spellID
+            if sid and not seen[sid] and not item.isPassive and not item.isOffSpec then
+                seen[sid] = true
+                local base = GetSpellBaseCooldown and GetSpellBaseCooldown(sid)
+                local keep
+                if pickerShowAll or not havePredicate then
+                    keep = type(base) == "number" and base >= MIN_BASE_CD_MS
+                else
+                    keep = IsBigDefensive(sid)
+                end
+                if keep and not (list and ns.ListIndexOf(list, sid)) then
+                    out[#out + 1] = {
+                        id = sid, name = item.name or ("Spell " .. sid),
+                        icon = item.iconID, cd = (type(base) == "number" and base) or 0,
+                    }
+                end
+            end
+        end
+    end
+end
+
+-- nil = the spec default; set = a per-boss override. The picker is otherwise identical, so
+-- one popup serves both rather than two that could drift apart.
+local pickerEncounter
+
+local function TargetList(create)
+    if pickerEncounter then return BossList(specID, pickerEncounter, create) end
+    return UserList(specID, create)
+end
+
+-- Set from the picker's own toggle. The defensive flag is Blizzard's data, and if it turns
+-- out thin for a spec the player must still be able to find their spell -- so the filter is
+-- the default, not a cage.
+local pickerShowAll = false
+
+-- When true the caller wants EVERY defensive, listed or not: the inline editor renders the
+-- full set and lets a toggle decide membership.
+local collectAll = false
+
+ns.InfoIsDefensive = InfoIsDefensive
+
+local function CollectCandidates()
+    local out, seen = {}, {}
+    local list = (not collectAll) and TargetList(false) or nil
+
+    local CV = C_CooldownViewer
+    if CV and CV.GetCooldownViewerCategorySet and CV.GetCooldownViewerCooldownInfo
+        and Enum and Enum.CooldownViewerCategory then
+        for _, cat in ipairs({ Enum.CooldownViewerCategory.Essential,
+                              Enum.CooldownViewerCategory.Utility }) do
+            local ids = CV.GetCooldownViewerCategorySet(cat, false)
+            for i = 1, (ids and #ids or 0) do
+                local info = CV.GetCooldownViewerCooldownInfo(ids[i])
+                if info and info.isKnown and (pickerShowAll or InfoIsDefensive(info)) then
+                    -- The pressable id, which is the override when one is active.
+                    local castID = info.overrideSpellID
+                    if not castID or castID == 0 then castID = info.spellID end
+                    if castID and not seen[castID] then
+                        seen[castID] = true
+                        local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(castID)
+                        local base = GetSpellBaseCooldown and GetSpellBaseCooldown(castID)
+                        if not (list and ns.ListIndexOf(list, castID)) then
+                            out[#out + 1] = {
+                                id   = castID,
+                                name = (si and si.name) or ("Spell " .. castID),
+                                icon = si and si.iconID,
+                                cd   = (type(base) == "number" and base) or 0,
+                            }
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Nothing from the Cooldown Manager (older client, or data not loaded yet): sweep the
+    -- spellbook instead rather than showing an empty picker.
+    if #out == 0 then
+        CollectFromSpellbook(seen, list, out)
+    end
+
+    table.sort(out, function(a, b)
+        if a.cd ~= b.cd then return a.cd > b.cd end   -- longest cooldown first: the big buttons
+        return a.name < b.name
+    end)
+    return out
+end
+
+local pickPopup
+local ShowPicker
+
+local function AddSpell(spellID)
+    -- Every refusal is reported. A silent false here reads as a broken button.
+    if specID == 0 then
+        RefreshSpec()
+        if specID == 0 then
+            ns.Print("cannot tell which specialization you are in yet -- try again in a moment.")
+            return false
+        end
+    end
+    local cur = TargetList(true)
+    if not cur then return false end
+    if ListIndexOf(cur, spellID) then return false end
+    if #cur >= MAX_SLOTS then
+        ns.Print(("your list is full (%d maximum) -- remove one first."):format(MAX_SLOTS))
+        return false
+    end
+    cur[#cur + 1] = spellID
+    RebuildSlots()
+    UpdateEventRegistration()
+    UpdatePreview()
+    return true
+end
+
+local function BuildPicker()
+    if pickPopup then return pickPopup end
+
+    local dimmer, panel = ns.MakeModal(380, 460)
+
+    local title = ns.Font(panel, 14, "OUTLINE")
+    title:SetPoint("TOP", panel, "TOP", 0, -16)
+    title:SetText("Add a Defensive")
+
+    local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+    hint:SetPoint("TOP", title, "BOTTOM", 0, -6)
+    hint:SetPoint("LEFT", panel, "LEFT", 14, 0)
+    hint:SetPoint("RIGHT", panel, "RIGHT", -14, 0)
+    hint:SetJustifyH("CENTER")
+
+    local toggle
+
+    local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -68)
+    scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -32, 52)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(300, 10)
+    scroll:SetScrollChild(content)
+
+    local rows = {}
+
+    local function Refresh()
+        local cands = CollectCandidates()
+        for i = 1, #rows do rows[i]:Hide() end
+        local y = 0
+        for i = 1, #cands do
+            local c = cands[i]
+            local row = rows[i]
+            if not row then
+                row = CreateFrame("Button", nil, content)
+                row:SetHeight(30)
+                row:SetPoint("LEFT", content, "LEFT", 0, 0)
+                row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+                row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.goldSoft, 0.10)
+                row.hl:SetAllPoints(); row.hl:Hide()
+                row.tex = row:CreateTexture(nil, "ARTWORK")
+                row.tex:SetSize(24, 24)
+                row.tex:SetPoint("LEFT", row, "LEFT", 2, 0)
+                row.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                row.name = ns.Font(row, 13, nil)
+                row.name:SetPoint("LEFT", row.tex, "RIGHT", 8, 0)
+                row.name:SetJustifyH("LEFT")
+                row.cd = ns.Font(row, 12, nil, ns.THEME.muted)
+                row.cd:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+                rows[i] = row
+            end
+            row:SetPoint("TOP", content, "TOP", 0, -y)
+            row.tex:SetTexture(c.icon)
+            row.name:SetText(c.name)
+            row.cd:SetText(("%ds"):format(math.floor(c.cd / 1000)))
+            row:SetScript("OnEnter", function(self) self.hl:Show() end)
+            row:SetScript("OnLeave", function(self) self.hl:Hide() end)
+            row:SetScript("OnClick", function()
+                if AddSpell(c.id) then
+                    Refresh()
+                    if pickPopup._onDone then pickPopup._onDone() end
+                end
+            end)
+            row:Show()
+            y = y + 30
+        end
+        content:SetHeight(math.max(y, 10))
+        if #cands == 0 then
+            hint:SetText(pickerShowAll
+                and "Nothing left to add."
+                or "No major defensives found. Try Show All Cooldowns.")
+        else
+            hint:SetText(pickerShowAll
+                and "Every cooldown you have. Click one to add it."
+                or "Your major defensives. Click one to add it to the bottom of the list.")
+        end
+    end
+
+    pickPopup = { dimmer = dimmer, refresh = Refresh }
+
+    toggle = ns.Button(panel, "Show All Cooldowns", 150, 22, function()
+        pickerShowAll = not pickerShowAll
+        Refresh()
+    end)
+    toggle:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 14, 14)
+    ns.Tooltip(toggle, "Show All Cooldowns",
+        "The list is filtered to what the game marks as a major defensive. Turn this on to "
+        .. "see every cooldown you have, in case something you want is not flagged.")
+
+    ns.Button(panel, "Done", 110, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 14)
+
+    return pickPopup
+end
+
+function ShowPicker(onDone)   -- forward-declared above; a global here would leak
+    RefreshSpec()
+    local p = BuildPicker()
+    p._onDone = onDone
+    p.refresh()
+    p.dimmer:Show()
+end
+
+-------------------------------------------------------------------------------
+--  Callout text editor
+-------------------------------------------------------------------------------
+-- A free-text box rather than a dropdown: the whole point is that the spoken line is
+-- shorter than the spell name.
+local textPopup
+
+-- Two ways to be heard: pick a sound from EllesmereUI's alert catalogue, or type what should
+-- be spoken. The dropdown carries a "Speak the text instead" entry, which is the no-sound
+-- state -- so the two live on one control rather than needing a mode switch.
+local function ShowCalloutEditor(title, current, onAccept, spellID)
+    if not textPopup then
+        local dimmer, panel = ns.MakeModal(400, 240)
+
+        local head = ns.Font(panel, 14, "OUTLINE")
+        head:SetPoint("TOP", panel, "TOP", 0, -16)
+
+        local modeHolder = CreateFrame("Frame", nil, panel)
+        modeHolder:SetPoint("TOPLEFT", panel, "TOPLEFT", 22, -46)
+        modeHolder:SetSize(356, 22)
+
+        -- The sound and text controls occupy the SAME slot: only one is ever shown, so
+        -- stacking them keeps the dialog the same height either way.
+        local soundLbl = ns.Font(panel, 11, nil, ns.THEME.muted)
+        soundLbl:SetPoint("TOPLEFT", modeHolder, "BOTTOMLEFT", 0, -16)
+        soundLbl:SetText("Sound")
+
+        local ddHolder = CreateFrame("Frame", nil, panel)
+        ddHolder:SetPoint("TOPLEFT", soundLbl, "BOTTOMLEFT", 0, -4)
+        ddHolder:SetSize(356, 30)
+
+        local textLbl = ns.Font(panel, 11, nil, ns.THEME.muted)
+        textLbl:SetPoint("TOPLEFT", modeHolder, "BOTTOMLEFT", 0, -16)
+        textLbl:SetText("Spoken text")
+
+        -- The one hand-built widget: EllesmereUI's factory has no text input.
+        local box = CreateFrame("EditBox", nil, panel)
+        box:SetPoint("TOPLEFT", textLbl, "BOTTOMLEFT", 0, -4)
+        box:SetSize(356, 28)
+        box:SetAutoFocus(false)
+        box:SetMaxLetters(60)
+        box:SetFontObject("GameFontHighlight")
+        box:SetTextInsets(6, 6, 0, 0)
+        local well = ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1)
+        well:SetAllPoints()
+        ns.Border(box)
+
+        textPopup = { dimmer = dimmer, panel = panel, box = box, head = head,
+                      ddHolder = ddHolder, textLbl = textLbl,
+                      modeHolder = modeHolder, soundLbl = soundLbl }
+
+        local function Accept()
+            -- Both halves land together on Save; picking a sound and then cancelling leaves
+            -- nothing behind. Text mode clears the sound, which is what makes the radio the
+            -- single source of truth for how this callout is heard.
+            ns.SetSoundFor(textPopup._spellID,
+                (textPopup._mode == "sound") and textPopup._soundKey or nil)
+            dimmer:Hide()
+            if textPopup._onAccept then textPopup._onAccept(box:GetText()) end
+        end
+
+        local hear = ns.Button(panel, "Hear it", 96, 26, function()
+            local key = (textPopup._mode == "sound") and textPopup._soundKey or nil
+            local EUI = _G.EllesmereUI
+            if key and textPopup._paths and EUI and EUI._PlayLSMSound then
+                EUI._PlayLSMSound(textPopup._paths[key])
+            else
+                Speak(box:GetText())
+            end
+        end)
+        hear:SetPoint("BOTTOM", panel, "BOTTOM", -114, 16)
+        ns.Tooltip(hear, "Hear it", "Plays it exactly as it will sound in a fight.")
+
+        ns.Button(panel, "Save", 96, 26, Accept):SetPoint("BOTTOM", panel, "BOTTOM", -6, 16)
+        ns.Button(panel, "Cancel", 96, 26, function() dimmer:Hide() end)
+            :SetPoint("BOTTOM", panel, "BOTTOM", 102, 16)
+
+        box:SetScript("OnEnterPressed", Accept)
+        box:SetScript("OnEscapePressed", function() dimmer:Hide() end)
+    end
+
+    local tp = textPopup
+    tp._onAccept = onAccept
+    tp._spellID = spellID or 0
+    tp.head:SetText(title or "Callout")
+    tp.box:SetText(current or "")
+
+    -- The dropdown is rebuilt per open: its choices depend on what SharedMedia has registered
+    -- by now, and its callbacks close over this particular spell.
+    if tp._dd then tp._dd:Hide(); tp._dd = nil end
+    local paths, names, order = ns.SoundChoices()
+    tp._paths = paths
+    -- nil, not "none": the mode below is derived from this being set, and a placeholder
+    -- string is truthy, which would open every callout in sound mode.
+    tp._soundKey = ns.SoundFor(tp._spellID)
+
+    -- Mode is explicit, so "I want a sound" and "I have not picked one yet" are different
+    -- states rather than both reading as empty.
+    tp._mode = tp._soundKey and "sound" or "text"
+    tp._firstSound = order and order[1] or nil
+
+    local EUI = _G.EllesmereUI
+    local segRefresh
+
+    local function Sync()
+        local speaking = (tp._mode == "text")
+        tp.box:SetShown(speaking)
+        tp.textLbl:SetShown(speaking)
+        if tp._dd then tp._dd:SetShown(not speaking) end
+        tp.soundLbl:SetShown(not speaking)
+        if segRefresh then segRefresh() end
+    end
+    tp._sync = Sync
+
+    -- One switch, built once. On means spoken text, off means a sound file -- and only the
+    -- control that actually applies is on screen, so there is never a dimmed widget inviting
+    -- a click that does nothing.
+    if not tp._modeToggle and EUI and EUI.BuildToggleControl then
+        local tg, _, tgSnap = EUI.BuildToggleControl(tp.modeHolder,
+            tp.modeHolder:GetFrameLevel() + 5,
+            function() return tp._mode == "text" end,
+            function(v)
+                tp._mode = v and "text" or "sound"
+                -- Switching to sound with nothing chosen takes the first one, so the mode is
+                -- never left meaning nothing.
+                if tp._mode == "sound" and not tp._soundKey then
+                    tp._soundKey = tp._firstSound
+                end
+                if tp._sync then tp._sync() end
+            end)
+        tg:SetPoint("LEFT", tp.modeHolder, "LEFT", 0, 0)
+        tp._modeToggle, tp._modeSnap = tg, tgSnap
+
+        tp.modeLbl = ns.Font(tp.modeHolder, 12, nil)
+        tp.modeLbl:SetPoint("LEFT", tg, "RIGHT", 10, 0)
+        tp.modeLbl:SetText("Speak Text")
+    end
+
+    segRefresh = function()
+        if tp._modeSnap then tp._modeSnap() end
+    end
+
+    if paths and EUI and EUI.BuildDropdownControl then
+        tp._dd = EUI.BuildDropdownControl(tp.ddHolder, 356, tp.panel:GetFrameLevel() + 8,
+            names, order,
+            function() return tp._soundKey or tp._firstSound end,
+            function(v)
+                tp._soundKey = v   -- held until Save
+                tp._mode = "sound"
+                Sync()
+            end)
+        tp._dd:SetPoint("TOPLEFT", tp.ddHolder, "TOPLEFT", 0, 0)
+    end
+    Sync()
+
+    tp.dimmer:Show()
+    tp.box:SetFocus()
+end
+
+-------------------------------------------------------------------------------
+--  Options (chained onto the companion's Gameplay page, or our own page standalone)
+-------------------------------------------------------------------------------
+-- Returns the raw running y, section-builder style, so the companion can chain us. Our own
+-- standalone page wrapper is what takes math.abs of it.
+function ns.BuildSection(parent, y)
+    local EUI = _G.EllesmereUI
+    local W   = EUI.Widgets
+    local _, h
+
+    _, h = W:SectionHeader(parent, "BOSS REMINDER", y); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Boss Reminder",
+          tooltip = "Shows what to press when the boss timeline says an ability is about to land. "
+          .. "It picks the highest entry on your own list that you have talented and off "
+          .. "cooldown. Build that list below -- nothing is set up for you. Works on every "
+          .. "specialization.",
+          getValue = function() return TRDB().enabled end,
+          setValue = function(v)
+              TRDB().enabled = v
+              ns.Apply()
+              UpdatePreview()
+              EUI:RefreshPage(true)
+          end },
+        { type = "toggle", text = "Only for Tank Abilities",
+          tooltip = "Optional. Limits the icon to abilities the encounter flags as aimed at "
+          .. "tanks. Which those are is information the game keeps sealed, so the filter is "
+          .. "applied by the engine rather than read by the addon -- which also means it cannot "
+          .. "reach the text or the audio. Off by default: most people want every ability.",
+          getValue = function() return TRDB().tankOnly end,
+          setValue = function(v)
+              TRDB().tankOnly = v
+              ApplySize()
+              UpdatePreview()
+              EUI:RefreshPage(true)
+          end }
+    ); y = y - h
+
+    -- Only worth saying when it is actually wrong. The timeline's own display toggle is
+    -- deliberately not mentioned: boss-mod addons turn it off as a matter of course and the
+    -- data keeps flowing, so flagging it would be a false alarm for a lot of people.
+    if TRDB().enabled and CombatWarningsOff() then
+        _, h = W:DualRow(parent, y,
+            { type = "label", text = "|cffff6060Boss Warnings are off in the game options.|r" },
+            { type = "label", text = "Options, Advanced, Enable Boss Warnings." }
+        ); y = y - h
+    end
+
+    _, h = W:SectionHeader(parent, "HOW IT TELLS YOU", y); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Show the Icon",
+          tooltip = "The icon of the defensive to press.",
+          getValue = function() return TRDB().showIcon end,
+          setValue = function(v) TRDB().showIcon = v; ApplySize(); UpdatePreview() end },
+        { type = "toggle", text = "Show a Countdown Bar",
+          tooltip = "A bar counting down to the moment the ability lands. The game hands over the "
+          .. "timing directly, so this costs nothing to keep on screen.",
+          getValue = function() return TRDB().showBar end,
+          setValue = function(v) TRDB().showBar = v; ApplySize(); UpdatePreview() end }
+    ); y = y - h
+
+    -- Greyed rather than removed, so the reason is visible instead of the option just being
+    -- missing. A FontString cannot carry the engine-applied tank filter; textures can.
+    local textBlocked = TRDB().tankOnly
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Show a Text Callout",
+          tooltip = textBlocked
+            and "Unavailable while Only for Tank Abilities is on. The tank filter is applied by "
+             .. "the game engine to artwork, and it cannot be applied to text -- so the callout "
+             .. "would appear on every ability rather than only the ones aimed at you."
+            or "Writes the callout on screen -- \"Use Barkskin\" -- for whichever defensive it "
+             .. "picked, and your fallback line when nothing is up. Unlike the spoken version "
+             .. "this works in combat, because the game reveals the right line itself instead of "
+             .. "the addon having to work it out. Set each line in the list below.",
+          -- A predicate, not a boolean: the widget calls this to decide when to dim.
+          disabled = function() return TRDB().tankOnly == true end,
+          disabledTooltip = "Turn off Only for Tank Abilities to use this.",
+          getValue = function() return TRDB().showText and not textBlocked end,
+          setValue = function(v)
+              if textBlocked then return end
+              TRDB().showText = v; ApplySize(); UpdatePreview()
+          end },
+        { type = "toggle", text = "Play a Sound",
+          tooltip = "Plays a sound when a tank ability is coming. The game plays this one itself, "
+          .. "which is the only way it can be limited to tank abilities -- but it also means the "
+          .. "sound cannot know whether your defensive is ready. Watch the icon for that.|n|n"
+          .. "|cffff6b5eIt plays at most ONCE per boss fight.|r The game will not repeat a "
+          .. "registered sound, so a second cast of the same ability is silent. The icon is "
+          .. "not affected and marks every cast.",
+          getValue = function() return TRDB().soundOn end,
+          setValue = function(v)
+              TRDB().soundOn = v
+              soundRegistered = false
+              if v then RegisterEventSounds() end
+              EUI:RefreshPage(true)
+          end }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Speak Which Defensive to Use",
+          tooltip = "Says the callout for the defensive it picked, and your fallback line when "
+          .. "nothing is up. On bosses with tank buster data this speaks only for tank "
+          .. "busters; on bosses without it yet, it speaks for every timeline ability. In "
+          .. "combat the pick comes from the addon's own tracking of your casts.",
+          getValue = function() return TRDB().voiceOn end,
+          setValue = function(v) TRDB().voiceOn = v; EUI:RefreshPage(true) end },
+        { type = "slider", text = "Voice Volume", min = 0, max = 100, step = 5,
+          tooltip = "Volume of the spoken callouts.",
+          getValue = function() return TRDB().voiceVol or 100 end,
+          setValue = function(v) TRDB().voiceVol = v end }
+    ); y = y - h
+
+    if TRDB().soundOn then
+        local paths, names, order = EUI.BuildAlertSoundTables()
+        if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
+        _, h = W:DualRow(parent, y,
+            { type = "dropdown", text = "Alert Sound",
+              values = names, order = order,
+              tooltip = "Sound files only. A few entries are built-in game sounds rather than "
+              .. "files, and the game will not accept those for this.",
+              getValue = function() return TRDB().soundKey or "none" end,
+              setValue = function(v)
+                  TRDB().soundKey = v
+                  soundRegistered = false
+                  if EUI._PlayLSMSound and paths[v] then EUI._PlayLSMSound(paths[v]) end
+                  RegisterEventSounds()
+              end },
+            { type = "label", text = "Re-registers when you change it." }
+        ); y = y - h
+
+        if soundError then
+            _, h = W:DualRow(parent, y,
+                { type = "label", text = "|cffff6060" .. soundError .. "|r" },
+                { type = "label", text = "" }
+            ); y = y - h
+        end
+    end
+
+    _, h = W:SectionHeader(parent, "SIZE AND PLACE", y); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "Icon Size", min = 32, max = 128, step = 1,
+          tooltip = "Size of the defensive icon.",
+          getValue = function() return TRDB().iconSize or DEFAULTS.iconSize end,
+          setValue = function(v)
+              TRDB().iconSize = v
+              ApplySize()
+              UpdatePreview()
+          end },
+        { type = "slider", text = "Scale (%)", min = 50, max = 200, step = 5,
+          tooltip = "Scales the icon and its border together. Icon Size changes the icon alone "
+          .. "and keeps the border crisp, so reach for that first and use this to fine-tune.",
+          getValue = function() return math.floor((TRDB().scale or 1) * 100 + 0.5) end,
+          setValue = function(v) SetIconScale(v / 100) end }
+    ); y = y - h
+
+    -- Escape hatch: a UI-scale change can strand a moved icon off-screen where Unlock Mode
+    -- cannot reach it.
+    _, h = W:Button(parent, "Reset Icon Position", y, function()
+        TRDB().pos = nil
+        ApplyPosition()
+    end)
+    y = y - h
+
+    -- The player's own list for the current spec, in priority order. This addon ships no
+    -- ability data, so an empty list here is the correct starting state -- the section says
+    -- so rather than looking broken.
+    _, h = W:SectionHeader(parent, "YOUR DEFAULT LIST (THIS SPEC)", y); y = y - h
+
+    -- The shared editor: every defensive you own, a switch for whether it is in play, and a
+    -- number for where it sits. No separate Add step -- the list is the picker.
+    if ns.RenderPriorityEditor then
+        y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, nil)
+    end
+
+    return y
+end
+
+-- The whole page: the alert settings above, then the dungeon and raid tree from the other
+-- file. Registered as its own sidebar entry rather than a section of Gameplay, so the tree
+-- has room to breathe.
+function ns.BuildPage(parent, yOffset)
+    local EUI = _G.EllesmereUI
+    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+    RefreshSpec()   -- the list editors below are all keyed on it
+
+    local y = ns.BuildSection(parent, yOffset)
+    if ns.BuildTreeSection then
+        y = ns.BuildTreeSection(parent, y)
+    end
+    return math.abs(y)
+end
+
+-- Shared with the boss tree page, which renders the same list editor for a per-boss
+-- override as this page does for the spec default.
+-- Every major defensive the player has, regardless of what is already on a list.
+function ns.AllDefensives(forSpec, encounterID)
+    RefreshSpec()
+    local prevEnc, prevAll = pickerEncounter, collectAll
+    pickerEncounter, collectAll = encounterID, true
+    local ok, out = pcall(CollectCandidates)
+    pickerEncounter, collectAll = prevEnc, prevAll
+    return ok and out or {}
+end
+
+-- Adds or removes a spell from whichever list the editor is pointed at.
+function ns.SetSpellOnList(forSpec, encounterID, spellID, on)
+    RefreshSpec()
+    local cur
+    if encounterID then cur = BossList(forSpec, encounterID, true)
+    else cur = UserList(forSpec, true) end
+    if not cur then return false end
+
+    local at = ListIndexOf(cur, spellID)
+    if on then
+        if at then return true end
+        if #cur >= MAX_SLOTS then
+            ns.Print(("that list is full (%d maximum) -- switch one off first."):format(MAX_SLOTS))
+            return false
+        end
+        cur[#cur + 1] = spellID
+    elseif at then
+        table.remove(cur, at)
+    end
+    RebuildSlots()
+    UpdateEventRegistration()
+    UpdatePreview()
+    return true
+end
+
+-- Moves an entry to a new position in its list.
+function ns.MoveOnList(forSpec, encounterID, spellID, dest)
+    local cur = encounterID and BossList(forSpec, encounterID, true) or UserList(forSpec, true)
+    if not cur then return end
+    local at = ListIndexOf(cur, spellID)
+    if not at then return end
+    table.remove(cur, at)
+    if dest < 1 then dest = 1 end
+    if dest > #cur + 1 then dest = #cur + 1 end
+    table.insert(cur, dest, spellID)
+    RebuildSlots()
+    UpdateEventRegistration()
+    UpdatePreview()
+end
+
+function ns.EffectiveListFor(forSpec, encounterID)
+    if encounterID then return BossList(forSpec, encounterID, false) end
+    return UserList(forSpec, false)
+end
+
+-- User-added spell IDs, per spec. The automatic list comes from Blizzard's classification;
+-- this is the escape hatch for anything it misses.
+function ns.CustomSpells(forSpec)
+    local t = TRDB()
+    if type(t.custom) ~= "table" then return nil end
+    return t.custom[tostring(forSpec or 0)]
+end
+
+function ns.AddCustomSpell(forSpec, spellID)
+    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
+    if not info then
+        ns.Print(("no spell with ID %s."):format(tostring(spellID)))
+        return false
+    end
+    local t = TRDB()
+    if type(t.custom) ~= "table" then t.custom = {} end
+    local key = tostring(forSpec or 0)
+    if type(t.custom[key]) ~= "table" then t.custom[key] = {} end
+    t.custom[key][tostring(spellID)] = true
+    ns.Print(("added %s (%d). Switch it on to put it in your priority."):format(
+        info.name or "?", spellID))
+    return true
+end
+
+function ns.RemoveCustomSpell(forSpec, spellID)
+    local t = TRDB()
+    local key = tostring(forSpec or 0)
+    if type(t.custom) ~= "table" or type(t.custom[key]) ~= "table" then return end
+    t.custom[key][tostring(spellID)] = nil
+    if next(t.custom[key]) == nil then t.custom[key] = nil end
+    if next(t.custom) == nil then t.custom = nil end
+end
+
+-- Removing an auto-populated ability cannot delete it -- Blizzard's classification will hand
+-- it straight back on the next rebuild -- so removal is recorded as a hide instead. User-added
+-- spells are deleted outright, since nothing regenerates those.
+function ns.HiddenSpells(forSpec)
+    local t = TRDB()
+    if type(t.hidden) ~= "table" then return nil end
+    return t.hidden[tostring(forSpec or 0)]
+end
+
+function ns.HideSpell(forSpec, spellID)
+    local t = TRDB()
+    if type(t.hidden) ~= "table" then t.hidden = {} end
+    local key = tostring(forSpec or 0)
+    if type(t.hidden[key]) ~= "table" then t.hidden[key] = {} end
+    t.hidden[key][tostring(spellID)] = true
+end
+
+function ns.UnhideAll(forSpec)
+    local t = TRDB()
+    if type(t.hidden) ~= "table" then return end
+    t.hidden[tostring(forSpec or 0)] = nil
+    if next(t.hidden) == nil then t.hidden = nil end
+end
+
+-- A spell ID resolves to a real spell. Used to gate the Add button as the user types.
+function ns.ResolveSpell(text)
+    local sid = tonumber(text and tostring(text):match("^%s*(%d+)%s*$"))
+    if not sid or sid <= 0 then return nil end
+    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+    if not info then return nil end
+    return sid, info
+end
+
+-- Per-spell audio. On unless switched off, so nothing has to be migrated and a fresh list
+-- speaks by default. Spell ID 0 is the "nothing is up" fallback line.
+function ns.IsAudioOff(spellID)
+    local a = TRDB().audioOff
+    return a ~= nil and a[tostring(spellID or 0)] == true
+end
+
+function ns.SetAudioOff(spellID, off)
+    local t = TRDB()
+    local key = tostring(spellID or 0)
+    if off then
+        if type(t.audioOff) ~= "table" then t.audioOff = {} end
+        t.audioOff[key] = true
+    elseif type(t.audioOff) == "table" then
+        t.audioOff[key] = nil
+        if next(t.audioOff) == nil then t.audioOff = nil end
+    end
+end
+
+-- A callout is either a sound file or spoken text. Storing only the sound key keeps the
+-- text intact underneath, so switching back to speech does not lose what was typed.
+function ns.SoundFor(spellID)
+    local t = TRDB().sounds
+    local key = t and t[tostring(spellID or 0)]
+    if key == nil or key == "none" then return nil end
+    return key
+end
+
+function ns.SetSoundFor(spellID, key)
+    local t = TRDB()
+    local id = tostring(spellID or 0)
+    if key and key ~= "none" then
+        if type(t.sounds) ~= "table" then t.sounds = {} end
+        t.sounds[id] = key
+    elseif type(t.sounds) == "table" then
+        t.sounds[id] = nil
+        if next(t.sounds) == nil then t.sounds = nil end
+    end
+end
+
+-- Fresh tables per call: EllesmereUI's SharedMedia appender mutates in place and caches by
+-- table identity, so handing the same tables to two dropdowns collapses them into one.
+function ns.SoundChoices()
+    local EUI = _G.EllesmereUI
+    if not (EUI and EUI.BuildAlertSoundTables) then return nil end
+    local paths, names, order = EUI.BuildAlertSoundTables()
+    if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
+    -- The speech option used to live in here as a pseudo-sound. It is a radio now, so the
+    -- dropdown lists sounds and nothing else.
+    names["none"] = nil
+    for i = #order, 1, -1 do
+        if order[i] == "none" then table.remove(order, i) end
+    end
+    return paths, names, order
+end
+
+ns.DB            = TRDB
+ns.UserList      = UserList
+ns.BossList      = BossList
+ns.ClearBossList = ClearBossList
+ns.ListIndexOf   = ListIndexOf
+ns.CalloutFor    = CalloutFor
+ns.SetCallout    = SetCallout
+ns.IsSpellDisabled  = IsSpellDisabled
+ns.SetSpellDisabled = SetSpellDisabled
+ns.IsSpellAvailable = IsSpellAvailable
+ns.ShowPicker    = function(onDone) pickerEncounter = nil; ShowPicker(onDone) end
+ns.ShowPickerFor = function(_, encounterID, onDone)
+    pickerEncounter = encounterID
+    ShowPicker(function()
+        pickerEncounter = nil
+        if onDone then onDone() end
+    end)
+end
+ns.ShowCalloutEditor = function(...) return ShowCalloutEditor(...) end
+ns.MAX_SLOTS     = MAX_SLOTS
+function ns.CurrentSpec() return specID, isTank end
+function ns.RefreshRuntime()
+    RebuildSlots()
+    RebuildCastMap()
+    UpdateEventRegistration()
+    UpdatePreview()
+end
+
+-------------------------------------------------------------------------------
+--  Reset / re-apply
+-------------------------------------------------------------------------------
+-- Re-apply is owned by the core's QueueReapply, which hooks EllesmereUI's own profile and
+-- spec-switch entry points. The companion's RegisterReapply chain is deliberately NOT used:
+-- it reapplies the companion's DB, and ours is a separate one it knows nothing about.
+
+function ns.Reset()
+    HideReminder()
+    activeSlots = 0
+    soundRegistered = false
+    ns.SettingsRoot().tankReminder = nil
+    ApplyScale()        -- the saved scale and position went with the table
+    ApplySize()
+    ApplyPosition()
+    UpdateEventRegistration()
+end
+
+-------------------------------------------------------------------------------
+--  Boot
+-------------------------------------------------------------------------------
+watcher = CreateFrame("Frame")
+watcher:RegisterEvent("PLAYER_LOGIN")
+watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+watcher:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+watcher:RegisterEvent("SPELLS_CHANGED")
+watcher:RegisterEvent("TRAIT_CONFIG_UPDATED")
+
+watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
+    if event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
+        -- Dying and running back resets much of a kit, and the model cannot see that. Drop
+        -- the estimates and re-read whatever is readable now.
+        wipe(readyAt)
+        ResyncModel()
+        return
+    end
+
+    if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
+        currentEncounter = (event == "ENCOUNTER_START") and arg1 or nil
+        -- A silent dungeon must cost one chat line to diagnose, not a run. If the feature
+        -- is on but any gate is closed when a boss starts, say WHICH, once. Every earlier
+        -- "nothing came up" report burned a full run because this line did not exist.
+        if event == "ENCOUNTER_START" and TRDB().enabled == true then
+            local why
+            if not canSelect then why = "this client lacks the cooldown API"
+            elseif activeSlots == 0 then why = "no priority list for this spec (or nothing on it is talented)"
+            elseif not TimelineAvailable() then why = "the boss timeline feature is unavailable here"
+            elseif not AllowedHere() then why = "dungeons/raids toggle excludes this instance"
+            elseif not BossAllowed() then why = "this boss is switched off in Boss Reminder"
+            end
+            if not why then
+                local t2 = TRDB()
+                if not (t2.showIcon or t2.showText or t2.voiceOn or t2.soundOn) then
+                    why = "icon, text, voice and sound are ALL switched off"
+                elseif not (t2.showIcon or t2.showText or t2.voiceOn)
+                    and not saidAudioOnly then
+                    -- A reminder for a legitimate configuration, so once per session; the
+                    -- true all-off state above stays per boss because it is always wrong.
+                    saidAudioOnly = true
+                    why = "only Play a Sound is on: expect one beep per ability per pull, "
+                        .. "nothing else"
+                end
+            end
+            if why then
+                ns.Print("|cffff6060not running this fight|r: " .. why)
+            end
+        end
+        -- Event ids are per-instance and get reused, so a stale entry would answer for a
+        -- different ability entirely on the next pull.
+        WipeEventCache()
+        if event == "ENCOUNTER_END" then wipe(readyAt) end
+        RebuildSlots()          -- swap to this boss's list before the first ability lands
+        RebuildCastMap()
+        UpdateEventRegistration()   -- this boss may be switched off entirely
+        return
+    end
+
+    if event == "UNIT_SPELLCAST_SUCCEEDED" then
+        NoteOwnCast(arg3)   -- (unit, castGUID, spellID); unit is always "player" here
+        return
+    end
+
+    if event == "PLAYER_REGEN_ENABLED" or event == "SPELL_UPDATE_COOLDOWN" then
+        ResyncModel()
+        return
+    end
+
+    if event == "UNIT_SPELLCAST_START" then
+        if type(arg1) == "string" and arg1:match("^boss%d+$") then
+            local okC, err = pcall(OnBossCast, arg1)
+            if not okC and traceLeft > 0 then
+                ns.Print("|cffff6060cast watch failed|r: " .. ErrText(err))
+            end
+        end
+        return
+    end
+
+    if event == "ENCOUNTER_TIMELINE_EVENT_ADDED" then
+        -- The one moment the struct is in hand. Recorded now so the highlight, which
+        -- arrives with nothing but an id, does not have to guess.
+        NoteEventAdded(arg1)
+        return
+    end
+
+    if event == "ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT" then
+        -- Boss abilities ONLY. The timeline also carries Script events, which is what a
+        -- respawn timer is and what other addons add through the scripting API, plus
+        -- EditMode layout previews. Reacting to those calls a defensive with no boss in
+        -- the room, which is exactly how it was reported.
+        --
+        -- `source` is one of the four NeverSecret fields on the event struct, so this is
+        -- a plain comparison. An unknown source is treated as an encounter event: the
+        -- only way to get one is a reload mid-pull, and being late to a real boss ability
+        -- is worse than being early to somebody else's timer.
+        if ShouldRun() and InEncounter() and IsEncounterSourced(arg1) then
+            ShowForEvent(arg1)
+        end
+        return
+    end
+
+    if event == "ENCOUNTER_TIMELINE_EVENT_REMOVED" then
+        -- Plain comparison: event IDs are NeverSecret.
+        if shownForEvent ~= nil and arg1 == shownForEvent then HideReminder() end
+        ForgetEvent(arg1)
+        return
+    end
+
+    if event == "PLAYER_LOGIN" then
+        RegisterUnlock()
+        local EUI = _G.EllesmereUI
+        if EUI and EUI.RegisterOnShow then
+            EUI:RegisterOnShow(function() previewing = true; UpdatePreview() end)
+        end
+        if EUI and EUI.RegisterOnHide then
+            EUI:RegisterOnHide(function() previewing = false; UpdatePreview() end)
+        end
+        -- The two CVars that decide whether data flows. Blizzard already marks them cachable,
+        -- so this piggybacks rather than polling. We only ever READ them.
+        if CVarCallbackRegistry and CVarCallbackRegistry.RegisterCallback then
+            for _, cvar in ipairs({ "combatWarningsEnabled", "encounterTimelineEnabled" }) do
+                pcall(function()
+                    CVarCallbackRegistry:RegisterCallback(cvar, function() ns.Apply() end, watcher)
+                end)
+            end
+        end
+        C_Timer.After(1, function() ns.Apply() end)
+        return
+    end
+
+    ns.Apply()
+end)
