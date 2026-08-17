@@ -365,3 +365,46 @@ ns.DAMAGE_NAMES = {
     ["winter's shroud"] = true,
     ["wretched discharge"] = true,
 }
+
+-------------------------------------------------------------------------------
+--  What each fingerprint is CALLED, per encounter -- every timeline event the
+--  community research names, tank buster or not. Extracted alongside the
+--  fingerprints; same provenance, same regeneration.
+--
+--  This is what turns "event 8.0 is coming" into "Triple Shot is coming": the
+--  authored-reminder editor lists a boss's events by these names, and the
+--  reminder text is keyed by the fingerprint underneath. Purely cosmetic to
+--  the FILTER -- an unnamed fingerprint still works, it just shows as its
+--  number in the editor.
+-------------------------------------------------------------------------------
+ns.EVENT_NAMES = {
+    [3056] = { ["6.0"] = "Flaming Updraft", ["10.0"] = "Searing Beak", ["13.0"] = "Searing Beak", ["15.0"] = "Burning Gale", ["15.5"] = "Flaming Updraft", ["30.0"] = "Burning Gale" },
+    [3057] = { ["8.0"] = "Splattering Spew", ["17.3"] = "Bone Hack", ["22.7"] = "Curse Of Darkness", ["27.3"] = "Splattering Spew", ["48.0"] = "Debilitating Shriek" },
+    [3058] = { ["0.0"] = "Bladestorm", ["3.0"] = "Rampage", ["8.0"] = "Bladestorm", ["10.0"] = "Reckless Leap", ["18.0"] = "Intimidating Shout", ["30.0"] = "Rampage", ["37.0"] = "Reckless Leap", ["45.0"] = "Intimidating Shout" },
+    [3059] = { ["9.0"] = "Arrow Rain", ["11.0"] = "Arrow Rain", ["21.0"] = "Tempest Slash", ["23.5"] = "Gust Shot", ["24.0"] = "Bullseye Windblast", ["39.0"] = "Bolt Gale", ["53.0"] = "Bullseye Windblast" },
+    [3071] = { ["5.0"] = "Repulsing Slam", ["15.0"] = "Arcane Expulsion", ["22.0"] = "Ethereal Shackles", ["22.5"] = "Repulsing Slam", ["23.0"] = "Arcane Expulsion", ["45.0"] = "Refueling Protocol", ["48.0"] = "Refueling Protocol" },
+    [3072] = { ["7.0"] = "Runic Mark", ["17.0"] = "Suppression Zone", ["26.0"] = "Hastening Ward", ["29.0"] = "Runic Mark", ["51.0"] = "Wave Of Silence" },
+    [3073] = { ["5.0"] = "Cosmic Sting", ["8.0"] = "Cosmic Sting", ["16.0"] = "Neural Link", ["29.0"] = "Astral Grasp" },
+    [3074] = { ["3.0"] = "Hulking Fragment", ["7.0"] = "Hulking Fragment", ["9.0"] = "Devouring Entropy", ["13.0"] = "Devouring Entropy", ["15.0"] = "Hulking Fragment", ["16.0"] = "Unstable Void Essence", ["20.0"] = "Devouring Entropy", ["22.0"] = "Unstable Void Essence", ["24.0"] = "Unstable Void Essence", ["31.0"] = "Unstable Void Essence" },
+    [3101] = { ["8.0"] = "Fel Spray", ["15.0"] = "Mirror Images", ["27.5"] = "Fel Spray", ["30.0"] = "Mirror Images" },
+    [3102] = { ["8.0"] = "Killing Spree", ["12.0"] = "Same-Day Delivery", ["16.0"] = "Same-Day Delivery", ["18.0"] = "Fire Bomb", ["26.0"] = "Envenom", ["36.0"] = "Murder In A Row" },
+    [3103] = { ["6.0"] = "Legion Strike", ["15.0"] = "Axe Toss", ["27.0"] = "Legion Strike", ["30.0"] = "Infernal Crush", ["35.0"] = "Demonic Rage" },
+    [3105] = { ["10.0"] = "Summon Vilefiend", ["15.0"] = "Fingers Of Gul'Dan", ["24.0"] = "Malefic Wave", ["55.0"] = "Fingers Of Gul'Dan", ["57.0"] = "Summon Vilefiend", ["59.0"] = "Malefic Wave" },
+    [3199] = { ["4.0"] = "Thornblade", ["5.0"] = "Bedrock Slam", ["8.0"] = "Thornblade", ["10.0"] = "Thornblade", ["20.0"] = "Lightsower Dash", ["35.0"] = "Lightblossom Beam" },
+    [3200] = { ["6.0"] = "Verdant Stomp", ["20.0"] = "Thorncaller Roar", ["22.0"] = "Thorncaller Roar", ["29.0"] = "Verdant Stomp", ["40.0"] = "Bloodthirsty Gaze", ["50.0"] = "Bloodthirsty Gaze" },
+    [3201] = { ["0.5"] = "Shapeshift: Moonkin", ["2.5"] = "Spirits Of The Vale" },
+    [3207] = { ["6.0"] = "Ravenous Bellow", ["16.0"] = "Earthshatter Slam", ["30.0"] = "Spoiled Supplies" },
+    [3208] = { ["7.0"] = "Glacial Torment", ["13.0"] = "Raging Squall", ["25.0"] = "Shattering Frostspike", ["50.0"] = "Frozen Tempest" },
+    [3209] = { ["5.0"] = "Echoing Maul", ["10.0"] = "Echoing Maul", ["13.0"] = "Overwhelming Onslaught", ["25.0"] = "Fury Of The War God", ["54.0"] = "Fury Of The War God" },
+    [3213] = { ["3.0"] = "Drain Soul", ["14.2"] = "Wrest Phantoms", ["25.3"] = "Unmake", ["33.5"] = "Unmake", ["70.0"] = "Necrotic Convergence" },
+    [3214] = { ["4.0"] = "Spiritbreaker", ["17.2"] = "Crush Souls", ["26.4"] = "Crush Souls", ["70.0"] = "Soulrending Roar" },
+    [3285] = { ["6.0"] = "Nether Dash", ["16.0"] = "Umbral Rupture", ["25.0"] = "Void Blast", ["31.0"] = "Dark Bloom" },
+    [3286] = { ["5.0"] = "Poison Splash", ["7.0"] = "Hulking Claw", ["10.0"] = "Hulking Claw", ["13.0"] = "Poison Splash", ["15.0"] = "Noxious Breath", ["17.0"] = "Provoke Creeper", ["20.0"] = "Hulking Claw", ["21.0"] = "Noxious Breath", ["23.0"] = "Poison Splash", ["25.0"] = "Hulking Claw", ["30.0"] = "Noxious Breath", ["35.0"] = "Monstrous Roar / Provoke Creeper", ["42.0"] = "Monstrous Stomp" },
+    [3287] = { ["5.0"] = "Unstable Singularity", ["17.0"] = "Cosmic Crash", ["19.0"] = "Cosmic Crash", ["28.0"] = "Gravitic Orbs", ["34.0"] = "Dark Waves", ["36.0"] = "Gravitic Orbs", ["40.0"] = "Unstable Singularity", ["43.0"] = "Void Cascade", ["44.0"] = "Gravitic Orbs", ["44.8"] = "Cosmic Crash" },
+    [3328] = { ["5.0"] = "Reflux Charge", ["12.0"] = "Reflux Charge" },
+    [3332] = { ["3.0"] = "Umbral Lash", ["5.0"] = "Eclipsing Step", ["15.0"] = "Devour The Unworthy", ["16.9"] = "Umbral Lash", ["18.0"] = "Eclipsing Step", ["28.0"] = "Lightscar Flare", ["61.0"] = "Lightscar Flare" },
+    [3333] = { ["2.0"] = "Searing Rend", ["10.0"] = "Flicker", ["11.0"] = "Brilliant Dispersion", ["24.0"] = "Flicker", ["25.0"] = "Brilliant Dispersion", ["26.0"] = "Searing Rend", ["52.0"] = "Divine Guile" },
+    [3456] = { ["8.0"] = "Triple Shot", ["13.0"] = "Regurgitate", ["23.0"] = "Ravenous Stomp", ["24.0"] = "Triple Shot", ["25.0"] = "Ssscavenging", ["45.0"] = "Ssscavenging" },
+    [3457] = { ["1.0"] = "Synchronized Venom", ["7.0"] = "Tail Scythe", ["10.0"] = "Toxic Atrophy", ["14.0"] = "Preparing Toxin", ["16.0"] = "Tail Scythe", ["23.0"] = "Preparing Toxin", ["25.0"] = "Assimilation", ["30.0"] = "Vindictive Onslaught", ["39.0"] = "Vindictive Onslaught", ["44.0"] = "Death Rattle", ["53.0"] = "Death Rattle" },
+    [3458] = { ["14.0"] = "Boneslicer", ["26.0"] = "Chop Down", ["30.0"] = "Chop Down", ["32.0"] = "Boneslicer", ["64.0"] = "Ritual Of The Fang" },
+}

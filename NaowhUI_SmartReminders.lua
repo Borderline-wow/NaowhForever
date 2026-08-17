@@ -422,6 +422,14 @@ function Reminder.Create()
     -- the accumulator LEFT OVER after the priority walk: that value is 1 only when nobody
     -- won, which is exactly "nothing on your list is up". The engine works it out; we never
     -- learn it.
+    -- The authored reminder line sits ABOVE the icon; the defensive callout text lives
+    -- below it, so the two never fight. Plain data only: fingerprints and authored text.
+    frame.reminder = frame:CreateFontString(nil, "OVERLAY")
+    frame.reminder:SetPoint("BOTTOM", frame, "TOP", 0, 6)
+    frame.reminder:SetFont(AlertFont(), 15, "OUTLINE")
+    frame.reminder:SetTextColor(1, 1, 1, 1)
+    frame.reminder:Hide()
+
     frame.fallback = frame:CreateFontString(nil, "OVERLAY")
     frame.fallback:SetPoint("TOP", frame, "BOTTOM", 0, -4)
     frame.fallback:SetFont(AlertFont(), 16, "OUTLINE")
@@ -731,6 +739,32 @@ end
 local function MarksTable(create, enc)
     return PerBossSet("tankMarks", create, enc)
 end
+
+-- Authored reminder text per boss ability: profile.reminders[encounterID][fingerprint].
+-- This is the phase-two content layer -- what a curator writes on an ability ("swap after
+-- this one", "stack for the barrage") -- shown and spoken alongside the defensive pick.
+local function RemindersTable(create, enc)
+    return PerBossSet("reminders", create, enc)
+end
+
+local function ReminderFor(enc, fp)
+    if not (enc and fp) then return nil end
+    local r = RemindersTable(false, enc)
+    local text = r and r[fp]
+    if type(text) == "string" and text ~= "" then return text end
+    return nil
+end
+
+-- The ability's display name, from authored data; the raw fingerprint as the fallback so
+-- an uncovered event is still addressable in the editor.
+local function EventNameFor(enc, fp)
+    if not (enc and fp) then return nil end
+    local names = ns.EVENT_NAMES and ns.EVENT_NAMES[enc]
+    return (names and names[fp]) or fp
+end
+ns.EventNameFor = EventNameFor
+ns.RemindersTable = RemindersTable
+ns.MarksTable = MarksTable
 
 local function IsMutedEvent(eventID)
     local fp = FingerprintFor(eventID)
@@ -1451,7 +1485,10 @@ local shownForEvent
 local function HideReminder()
     if hideTimer then hideTimer:Cancel(); hideTimer = nil end
     shownForEvent = nil
-    if frame then frame:Hide() end
+    if frame then
+        if frame.reminder then frame.reminder:Hide() end
+        frame:Hide()
+    end
     if bar then bar:Hide() end
 end
 
@@ -1525,6 +1562,28 @@ local function ShowForEvent(eventID)
     -- audio with it on the exact pull being diagnosed.
     SpeakCallout()
     lastCalloutAt = GetTime()
+
+    -- The authored layer: what the curator wrote on THIS ability, named when the data
+    -- knows it. Shown over the icon and spoken after the defensive, so the actionable
+    -- word still comes first.
+    if frame.reminder then
+        local reminder = ReminderFor(currentEncounter, lastFingerprint)
+        if reminder then
+            frame.reminder:SetText(reminder)
+            frame.reminder:Show()
+            if t.voiceOn then Speak(reminder) end
+        elseif t.showText and lastFingerprint then
+            local nm = EventNameFor(currentEncounter, lastFingerprint)
+            if nm and nm ~= lastFingerprint then
+                frame.reminder:SetText(nm)
+                frame.reminder:Show()
+            else
+                frame.reminder:Hide()
+            end
+        else
+            frame.reminder:Hide()
+        end
+    end
 
     if traceLeft > 0 then
         local okT, err = pcall(TraceEvent, eventID)

@@ -676,6 +676,61 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
         return y
     end
 
+    -- Authored reminders, one per timeline event this boss is known to have. The names
+    -- come from the shipped event data; a player-marked fingerprint the data has no name
+    -- for is still editable under its number. This is the curator surface: what gets
+    -- written here is shown and spoken when that ability fires, and it travels in packs.
+    do
+        local fps, seen = {}, {}
+        local named = ns.EVENT_NAMES and ns.EVENT_NAMES[encounterID]
+        if named then
+            for fp in pairs(named) do
+                seen[fp] = true
+                fps[#fps + 1] = fp
+            end
+        end
+        local marks = ns.MarksTable and ns.MarksTable(false, encounterID)
+        if marks then
+            for fp in pairs(marks) do
+                if not seen[fp] then fps[#fps + 1] = fp end
+            end
+        end
+        table.sort(fps, function(a, b) return (tonumber(a) or 0) < (tonumber(b) or 0) end)
+
+        for i = 1, #fps do
+            local fp = fps[i]
+            local nm = ns.EventNameFor(encounterID, fp)
+            local r = ns.RemindersTable(false, encounterID)
+            local current = r and r[fp]
+            local remRow
+            remRow, h = W:DualRow(parent, y,
+                { type = "label", text = ("         |cff8a99b5%s|r"):format(
+                    nm == fp and ("event " .. fp) or nm) },
+                { type = "label", text = (current and current ~= "")
+                    and ("|cffF0A830" .. current .. "|r") or "" }
+            ); y = y - h
+            if remRow then
+                AttachInline(remRow._rightRegion or remRow, "Edit", 46, function()
+                    ns.ShowCalloutEditor(
+                        ("Reminder for %s"):format(nm == fp and ("event " .. fp) or nm),
+                        current or "",
+                        function(v)
+                            local rw = ns.RemindersTable(true, encounterID)
+                            rw[fp] = (v ~= "" and v) or nil
+                            if next(rw) == nil then
+                                local db2 = ns.DB()
+                                if type(db2.reminders) == "table" then
+                                    db2.reminders[tostring(encounterID)] = nil
+                                end
+                            end
+                            EUI:RefreshPage(true)
+                        end, 0)
+                end, "Edit the reminder",
+                "Shown on screen and spoken when this ability fires. Empty removes it.")
+            end
+        end
+    end
+
     -- Per-boss switch. This one IS enforceable: the game tells us which encounter we are in,
     -- even though it will not tell us which ability is incoming.
     local db = ns.DB()
@@ -714,6 +769,32 @@ function ns.BuildTreeSection(parent, y)
     local _, h
     local specID = ns.CurrentSpec()
     local db = ns.DB()
+
+    _, h = W:SectionHeader(parent, "REMINDER PACKS", y); y = y - h
+    local packRow
+    packRow, h = W:DualRow(parent, y,
+        { type = "label", text = "      Share your lists, marks and reminders as one string." },
+        { type = "label", text = "" }
+    ); y = y - h
+    if packRow then
+        AttachInline(packRow._rightRegion or packRow, "Export", 60, function()
+            if ns.ShowPackExport then ns.ShowPackExport() end
+        end, "Export a Reminder Pack",
+        "Everything a curator sets up -- priority lists, per-boss orders, callouts, marks, "
+        .. "mutes and written reminders -- as one string to share.")
+    end
+    local packRow2
+    packRow2, h = W:DualRow(parent, y,
+        { type = "label", text = "      Install a curator's pack, with a preview first." },
+        { type = "label", text = "" }
+    ); y = y - h
+    if packRow2 then
+        AttachInline(packRow2._rightRegion or packRow2, "Import", 60, function()
+            if ns.ShowPackImport then ns.ShowPackImport() end
+        end, "Import a Reminder Pack",
+        "Paste a pack string. Nothing applies until you choose Replace or Merge, and a "
+        .. "damaged string is refused outright.")
+    end
 
     _, h = W:SectionHeader(parent, "WHERE IT RUNS", y); y = y - h
 
