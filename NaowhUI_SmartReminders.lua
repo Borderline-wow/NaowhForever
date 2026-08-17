@@ -832,8 +832,19 @@ local function IsUnmarkedEvent(eventID)
 
     local fp = FingerprintFor(eventID)
     if not fp then return false end
-    if player ~= nil and player[fp] == true then return false end
-    if shipped ~= nil and shipped[fp] == true then return false end
+    -- Exact first, whole-second second. Some community modules author their durations
+    -- rounded to integers, so a live 17.4 must still find a shipped "17.0". The tolerant
+    -- form only ever WIDENS what counts as marked -- it can admit a near-miss ability,
+    -- never silence a marked one -- which is the right direction to be wrong in.
+    local rounded
+    local n = tonumber(fp)
+    if n then rounded = string.format("%.1f", math.floor(n + 0.5)) end
+    local function marked(t)
+        if t == nil then return false end
+        if t[fp] == true then return true end
+        return rounded ~= nil and t[rounded] == true
+    end
+    if marked(player) or marked(shipped) then return false end
     return true
 end
 
@@ -1327,7 +1338,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0817i"
+local TRACE_BUILD = "0817j"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that

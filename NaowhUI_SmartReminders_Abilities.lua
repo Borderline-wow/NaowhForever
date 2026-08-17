@@ -70,9 +70,10 @@ ns.TANK_ABILITIES = {
     [1251023] = "Unknown",   -- Rak'tul: Spiritbreaker
     [1251554] = "Unknown",   -- Vor'daza: Drain Soul
     [1253950] = "Unknown",   -- Emberdawn: Searing Rend
+    [1268562] = "Unknown",   -- Nymrissa Wavecaller: Water Jet (Mythic only)
 }
 
-ns.TANK_ABILITIES_COUNT = 37
+ns.TANK_ABILITIES_COUNT = 38
 
 -------------------------------------------------------------------------------
 --  Tank-buster fingerprints per boss, authored once and shipped.
@@ -126,6 +127,14 @@ ns.TANK_FINGERPRINTS = {
     [3456] = { ["8.0"] = true, ["24.0"] = true },                  -- Triple Shot
     [3457] = { ["7.0"] = true, ["16.0"] = true },                  -- Tail Scythe
     [3458] = { ["26.0"] = true, ["30.0"] = true },                 -- Chop Down
+
+    -- Nymrissa Wavecaller (lair). HAND-extracted: her module rounds durations to whole
+    -- seconds and branches through a local, which the extraction script does not parse.
+    -- Water Jet is MYTHIC ONLY, so on other difficulties this boss correctly has no tank
+    -- fingerprints and stays quiet. Flagged for live verification: a live trace on this
+    -- boss showed durations (35/22/44) the community authoring does not list, so these
+    -- numbers may be pre-patch; learning mode is the correction path.
+    [3379] = { ["17.0"] = true, ["29.0"] = true, ["40.0"] = true },  -- Water Jet (Mythic)
 }
 
 -------------------------------------------------------------------------------
@@ -364,6 +373,7 @@ ns.DAMAGE_NAMES = {
     ["winds of change"] = true,
     ["winter's shroud"] = true,
     ["wretched discharge"] = true,
+    ["water jet"] = true,
 }
 
 -------------------------------------------------------------------------------
@@ -407,4 +417,5 @@ ns.EVENT_NAMES = {
     [3456] = { ["8.0"] = "Triple Shot", ["13.0"] = "Regurgitate", ["23.0"] = "Ravenous Stomp", ["24.0"] = "Triple Shot", ["25.0"] = "Ssscavenging", ["45.0"] = "Ssscavenging" },
     [3457] = { ["1.0"] = "Synchronized Venom", ["7.0"] = "Tail Scythe", ["10.0"] = "Toxic Atrophy", ["14.0"] = "Preparing Toxin", ["16.0"] = "Tail Scythe", ["23.0"] = "Preparing Toxin", ["25.0"] = "Assimilation", ["30.0"] = "Vindictive Onslaught", ["39.0"] = "Vindictive Onslaught", ["44.0"] = "Death Rattle", ["53.0"] = "Death Rattle" },
     [3458] = { ["14.0"] = "Boneslicer", ["26.0"] = "Chop Down", ["30.0"] = "Chop Down", ["32.0"] = "Boneslicer", ["64.0"] = "Ritual Of The Fang" },
+    [3379] = { ["3.0"] = "Abyssal Rain / Frost Barrage", ["9.0"] = "Abyssal Rain", ["13.0"] = "Water Flurry", ["30.0"] = "Water Flurry", ["49.0"] = "Water Flurry", ["27.0"] = "Alluring Bubble", ["20.0"] = "Frost Barrage", ["24.0"] = "Frost Barrage", ["31.0"] = "Frost Barrage", ["33.0"] = "Frost Barrage", ["46.0"] = "Frost Barrage", ["51.0"] = "Frost Barrage", ["64.0"] = "Tidepiercer's Rush", ["68.0"] = "Tidepiercer's Rush", ["17.0"] = "Water Jet", ["29.0"] = "Water Jet", ["40.0"] = "Water Jet" },
 }
