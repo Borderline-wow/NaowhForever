@@ -115,10 +115,19 @@ end
 function ns.Tooltip(frame, title, body)
     local EUI = _G.EllesmereUI
     if not (EUI and EUI.ShowWidgetTooltip) then return end
-    local text = (body and body ~= "")
-        and ("|cffF0A830" .. title .. "|r\n" .. body) or title
+    -- Composed at HOVER time, not attach time: the house tooltip accepts a function and
+    -- resolves it on show, and a body that is itself a function can answer from data that
+    -- did not exist yet when the row was built -- spell text loads async.
+    local function Compose()
+        local b = body
+        if type(b) == "function" then b = b() end
+        if b and b ~= "" then
+            return "|cffF0A830" .. title .. "|r\n" .. b
+        end
+        return title
+    end
     frame:SetScript("OnEnter", function(self)
-        EUI.ShowWidgetTooltip(self, text, { anchor = "cursor", justify = "LEFT" })
+        EUI.ShowWidgetTooltip(self, Compose, { anchor = "cursor", justify = "LEFT" })
     end)
     frame:SetScript("OnLeave", function() EUI.HideWidgetTooltip() end)
 end

@@ -645,11 +645,25 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
                 { type = "label", text = "         |cffF0A830" .. ab.title .. "|r" },
                 { type = "label", text = ab.extras or "" }
             ); y = y - h
-            -- What the ability actually does, on hover, in the journal's own words. Only
-            -- when the journal wrote any: an empty tooltip is worse than none.
-            if abilityRow and ab.description and ab.description ~= "" then
+            -- What the ability actually does, on hover. The journal's words first; the
+            -- spell's own description as the fallback, since plenty of journal rows carry
+            -- no text of their own. Spell text loads async, so the data is requested now
+            -- and the body is resolved at hover time, by which point it has arrived.
+            if abilityRow then
+                if ab.spellID and C_Spell and C_Spell.RequestLoadSpellData then
+                    pcall(C_Spell.RequestLoadSpellData, ab.spellID)
+                end
                 abilityRow:EnableMouse(true)
-                ns.Tooltip(abilityRow, ab.title, ab.description)
+                ns.Tooltip(abilityRow, ab.title, function()
+                    if ab.description and ab.description ~= "" then
+                        return ab.description
+                    end
+                    if ab.spellID and C_Spell and C_Spell.GetSpellDescription then
+                        local ok, d = pcall(C_Spell.GetSpellDescription, ab.spellID)
+                        if ok and type(d) == "string" and d ~= "" then return d end
+                    end
+                    return "The game has no description for this ability."
+                end)
             end
         end
     end
