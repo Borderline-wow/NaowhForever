@@ -334,14 +334,19 @@ boot:SetScript("OnEvent", function(self)
     -- The companion resolves its page builders at call time and guards every one, so handing
     -- it ours is the whole integration: its Gameplay page picks the section up and its
     -- ResetAll picks the reset up. Nothing in NaowhUI_EUI has to change.
+    -- The builders are handed over whenever the companion exists at all -- harmless on an
+    -- old one, forward-compatible on a new one. Page OWNERSHIP is the separate question:
+    -- only a companion that declares SUPPORTS_SMART_REMINDERS actually has a page entry
+    -- that will call these. Trusting mere presence was a live failure: an installed but
+    -- older companion made this addon defer to a page that did not exist, so it loaded
+    -- fine and appeared nowhere. No handshake means we own our own sidebar entry.
     local companion = _G.NaowhUIEUI
     if companion then
-        ns.companionMode = true
-        -- Its own sidebar entry after Blizz UI, not a section of Gameplay: the boss tree
-        -- needs a page of its own. The companion resolves this by name at render time, so
-        -- handing it the builder is the whole integration.
         companion.BuildTankReminderPage = ns.BuildPage
         companion.ResetTankReminder = ns.Reset
+    end
+    if companion and companion.SUPPORTS_SMART_REMINDERS then
+        ns.companionMode = true
     else
         InjectSidebar()
         RegisterModule({
