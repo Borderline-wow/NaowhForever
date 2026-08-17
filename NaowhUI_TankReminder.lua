@@ -422,7 +422,7 @@ local function ApplySize()
     if not frame then return end
     local t = TRDB()
     local size = t.iconSize or DEFAULTS.iconSize
-    local textOn = t.showText and not t.tankOnly
+    local textOn = t.showText
     local fontSize = math.max(12, math.floor(size * 0.34))
     frame:SetSize(size, size)
     for i = 1, #slots do
@@ -1223,7 +1223,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0816t"
+local TRACE_BUILD = "0816u"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -2695,25 +2695,20 @@ function ns.BuildSection(parent, y)
           setValue = function(v) TRDB().showBar = v; ApplySize(); UpdatePreview() end }
     ); y = y - h
 
-    -- Greyed rather than removed, so the reason is visible instead of the option just being
-    -- missing. A FontString cannot carry the engine-applied tank filter; textures can.
-    local textBlocked = TRDB().tankOnly
+    -- This toggle used to lock itself while the engine tank filter was on, because a
+    -- FontString cannot carry that filter and the text would have contradicted the icon.
+    -- The fingerprint filter made the lock obsolete: it silences whole events upstream, so
+    -- text is tank-only on covered bosses regardless -- and voice was never locked despite
+    -- having the identical limitation, so the lock bought inconsistency, not honesty.
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Show a Text Callout",
-          tooltip = textBlocked
-            and "Unavailable while Only for Tank Abilities is on. The tank filter is applied by "
-             .. "the game engine to artwork, and it cannot be applied to text -- so the callout "
-             .. "would appear on every ability rather than only the ones aimed at you."
-            or "Writes the callout on screen -- \"Use Barkskin\" -- for whichever defensive it "
-             .. "picked, and your fallback line when nothing is up. Unlike the spoken version "
-             .. "this works in combat, because the game reveals the right line itself instead of "
-             .. "the addon having to work it out. Set each line in the list below.",
-          -- A predicate, not a boolean: the widget calls this to decide when to dim.
-          disabled = function() return TRDB().tankOnly == true end,
-          disabledTooltip = "Turn off Only for Tank Abilities to use this.",
-          getValue = function() return TRDB().showText and not textBlocked end,
+          tooltip = "Writes the callout on screen -- \"Use Barkskin\" -- for whichever defensive "
+          .. "it picked, and your fallback line when nothing is up. On bosses with tank buster "
+          .. "data this appears only for tank busters. On bosses without data it appears for "
+          .. "every timeline ability, even with Only for Tank Abilities on -- that filter is "
+          .. "engine-applied artwork and cannot reach text. Set each line in the list below.",
+          getValue = function() return TRDB().showText end,
           setValue = function(v)
-              if textBlocked then return end
               TRDB().showText = v; ApplySize(); UpdatePreview()
           end },
         { type = "toggle", text = "Play a Sound",
