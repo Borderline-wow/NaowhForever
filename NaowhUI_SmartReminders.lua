@@ -1790,6 +1790,9 @@ end
 -- combat action on screen, and the handler must cost nothing outside the one window where
 -- it can learn something.
 local function OnCombatLog()
+    -- The price of static registration: this fires for every combat log line, so outside
+    -- an encounter it must cost one plain variable read and nothing else.
+    if currentEncounter == nil then return end
     local _, sub, _, _, _, _, _, _, _, _, _, spellId = CombatLogGetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId)) then
         cleuIdentity = "secret"
@@ -1806,6 +1809,13 @@ local function UpdateEventRegistration()
     if not watcher then return end
 
     if not ShouldRun() then
+        -- COMBAT_LOG_EVENT_UNFILTERED is a HasRestrictions event: toggling its
+        -- registration from insecure code IS PROTECTED IN COMBAT, and pcall cannot catch
+        -- a forbidden call. Toggle it only out of lockdown; the regen handler re-runs this
+        -- function, so a toggle deferred by combat lands seconds later.
+        if not InCombatLockdown() then
+            watcher:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        end
         watcher:UnregisterEvent("ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT")
         watcher:UnregisterEvent("ENCOUNTER_TIMELINE_EVENT_REMOVED")
         watcher:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
@@ -1840,6 +1850,14 @@ local function UpdateEventRegistration()
     watcher:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
     watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
     watcher:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+
+    -- Registered STATICALLY while the feature is on, never per encounter: this event's
+    -- registration is protected in combat (learned from a live forbidden-action error),
+    -- and ENCOUNTER_START is in combat by definition. The handler gates itself instead --
+    -- one plain nil-check per combat log line outside encounters.
+    if not InCombatLockdown() then
+        watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    end
 
     -- Which boss we are on, so a per-boss override can take over from the spec default.
     watcher:RegisterEvent("ENCOUNTER_START")
@@ -3220,22 +3238,8 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         return
     end
 
-    if event == "PLAYER_ENTERING_WORLD" then
-        -- A loading screen means whatever fight we were in is over, whether or not it sent
-        -- ENCOUNTER_END (a hearth mid-pull does not). The combat log watcher must never
-        -- outlive its window; it re-registers at the next ENCOUNTER_START. NO return here:
-        -- this event has always fallen through to ns.Apply() at the bottom, and the re-apply
-        -- after a loading screen is load-bearing.
-        watcher:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    end
-
     if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
         currentEncounter = (event == "ENCOUNTER_START") and arg1 or nil
-        if event == "ENCOUNTER_START" and TRDB().enabled == true then
-            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        else
-            watcher:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        end
         -- A silent dungeon must cost one chat line to diagnose, not a run. If the feature
         -- is on but any gate is closed when a boss starts, say WHICH, once. Every earlier
         -- "nothing came up" report burned a full run because this line did not exist.
@@ -3287,6 +3291,8 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "PLAYER_REGEN_ENABLED" or event == "SPELL_UPDATE_COOLDOWN" then
         ResyncModel()
+        -- A combat log toggle skipped because of combat lockdown lands here.
+        if event == "PLAYER_REGEN_ENABLED" then UpdateEventRegistration() end
         return
     end
 
