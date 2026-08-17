@@ -1825,13 +1825,20 @@ end
 -- nothing about the other. No source check is needed: the curated list holds boss tank
 -- busters only, so a matching spell id IS the answer regardless of who cast it.
 --
--- Registered only between ENCOUNTER_START and ENCOUNTER_END: this event fires for every
--- combat action on screen, and the handler must cost nothing outside the one window where
--- it can learn something.
+-- Registered for the whole session, not per encounter: its registration cannot be toggled
+-- from insecure code in restricted content at all. This event fires for every combat action
+-- on screen, so the handler must cost nothing outside the one window where it can learn
+-- something, which is what the two plain reads at the top of OnCombatLog are for.
+-- Mirrors the last ShouldRun() result so OnCombatLog can gate on a plain read. The event
+-- is now registered for the whole session (see UpdateEventRegistration), so "feature off
+-- during an encounter" is a state the handler must refuse cheaply; calling ShouldRun()
+-- itself per combat log line would mean several function calls a line instead of one read.
+local runActive = false
+
 local function OnCombatLog()
     -- The price of static registration: this fires for every combat log line, so outside
     -- an encounter it must cost one plain variable read and nothing else.
-    if currentEncounter == nil then return end
+    if not runActive or currentEncounter == nil then return end
     local _, sub, _, _, _, _, _, _, _, _, _, spellId = CombatLogGetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId)) then
         cleuIdentity = "secret"
@@ -1848,15 +1855,18 @@ local function UpdateEventRegistration()
     if not watcher then return end
 
     if not ShouldRun() then
-        -- COMBAT_LOG_EVENT_UNFILTERED is a HasRestrictions event: toggling its
-        -- registration from insecure code IS PROTECTED IN COMBAT, and pcall cannot catch
-        -- a forbidden call. Toggle it only out of lockdown; the regen handler re-runs this
-        -- function, so a toggle deferred by combat lands seconds later.
-        if not InCombatLockdown() then
-            watcher:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        end
-        watcher:UnregisterEvent("ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT")
-        watcher:UnregisterEvent("ENCOUNTER_TIMELINE_EVENT_REMOVED")
+        runActive = false
+        -- The three HasRestrictions events (COMBAT_LOG_EVENT_UNFILTERED and both
+        -- ENCOUNTER_TIMELINE_* ones) are NEVER unregistered, matching how the register
+        -- side already treats them. InCombatLockdown() was the wrong gate and produced a
+        -- live ADDON_ACTION_FORBIDDEN on UnregisterEvent from inside its own guard:
+        -- toggling a restricted event's registration is forbidden for insecure code in
+        -- restricted content generally, not only inside the secure-frame lockdown window,
+        -- and ENCOUNTER_START (which calls this) is exactly that context. pcall cannot
+        -- catch a forbidden call, so there is no window to find. Every one of these
+        -- handlers already self-gates -- OnCombatLog returns on `currentEncounter == nil`,
+        -- HIGHLIGHT tests ShouldRun(), REMOVED no-ops with nothing shown -- so leaving
+        -- them registered costs one plain read per event and changes no behaviour.
         watcher:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
         watcher:UnregisterEvent("PLAYER_REGEN_ENABLED")
         watcher:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
@@ -1903,6 +1913,8 @@ local function UpdateEventRegistration()
     watcher:RegisterEvent("ENCOUNTER_END")
     watcher:RegisterEvent("PLAYER_ALIVE")
     watcher:RegisterEvent("PLAYER_UNGHOST")
+
+    runActive = true
 end
 
 -- Said once per session, not per pull. The master switch genuinely stops the data; the
