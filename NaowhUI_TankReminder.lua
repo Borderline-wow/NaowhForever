@@ -51,6 +51,7 @@ local DEFAULTS = {
     inRaids    = true,
     fallbackOn = true,
     aggroOnly  = false,
+    leadTime   = 3,     -- seconds before impact that the alert fires
     voiceOn   = false,
     voiceNone = "Call for external",
     voiceVol  = 100,
@@ -611,13 +612,33 @@ local function NoteEventAdded(info)
     end)
 end
 
+-- Alerts waiting for their moment: the engine announces about five seconds out, and the
+-- player-chosen lead is usually shorter, so the show is scheduled rather than immediate.
+-- Every path that kills an event must kill its pending alert too, or a boss that dies in
+-- the gap gets a callout over its corpse.
+local pendingShow = {}
+
+local function CancelPendingShow(eventID)
+    local t = pendingShow[eventID]
+    if t then
+        t:Cancel()
+        pendingShow[eventID] = nil
+    end
+end
+
 local function ForgetEvent(eventID)
     if eventID == nil then return end
+    CancelPendingShow(eventID)
     eventSource[eventID] = nil
     eventDuration[eventID] = nil
 end
 
 local function WipeEventCache()
+    for id in pairs(pendingShow) do
+        local t = pendingShow[id]
+        if t then t:Cancel() end
+    end
+    wipe(pendingShow)
     wipe(eventSource)
     wipe(eventDuration)
 end
@@ -1267,7 +1288,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0817b"
+local TRACE_BUILD = "0817c"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1508,13 +1529,15 @@ local function ShowForEvent(eventID)
     end
 
     if hideTimer then hideTimer:Cancel() end
-    -- The highlight fires at the engine's own lead time, so that is exactly how long the
-    -- call-out stays up.
+    -- Up for exactly the window being shown: the player's lead when the alert was delayed
+    -- to it, the engine's when the engine announced later than the player asked for.
     local lead = 5
     if C_EncounterTimeline and C_EncounterTimeline.GetEventHighlightTime then
         local v = C_EncounterTimeline.GetEventHighlightTime()
         if type(v) == "number" and v > 0 then lead = v end
     end
+    local want = TRDB().leadTime or 3
+    if want > 0 and want < lead then lead = want end
     hideTimer = C_Timer.NewTimer(lead, HideReminder)
 end
 
@@ -2799,6 +2822,17 @@ function ns.BuildSection(parent, y)
           setValue = function(v) TRDB().voiceVol = v end }
     ); y = y - h
 
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "Warn This Many Seconds Early", min = 1, max = 5, step = 1,
+          tooltip = "How close to the hit the alert fires. The game announces abilities about "
+          .. "five seconds out; the alert waits and fires this many seconds before impact, so "
+          .. "lower is closer to the hit. When the game announces later than this, the alert "
+          .. "fires immediately.",
+          getValue = function() return TRDB().leadTime or 3 end,
+          setValue = function(v) TRDB().leadTime = v end },
+        { type = "label", text = "" }
+    ); y = y - h
+
     if TRDB().soundOn then
         local paths, names, order = EUI.BuildAlertSoundTables()
         if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
@@ -3230,7 +3264,28 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         -- only way to get one is a reload mid-pull, and being late to a real boss ability
         -- is worse than being early to somebody else's timer.
         if ShouldRun() and InEncounter() and IsEncounterSourced(arg1) then
-            ShowForEvent(arg1)
+            -- The engine announces at its own lead (about five seconds); the player picks
+            -- how close to the hit the alert fires. The wait is a timer rather than a
+            -- reread of the event clock, which accepts a small drift if the timeline
+            -- pauses inside the window -- rare, and a paused timeline usually means the
+            -- ability is not landing on schedule anyway.
+            local eventID = arg1
+            local engineLead = 5
+            if C_EncounterTimeline.GetEventHighlightTime then
+                local v = C_EncounterTimeline.GetEventHighlightTime()
+                if type(v) == "number" and v > 0 then engineLead = v end
+            end
+            local want = TRDB().leadTime or 3
+            local delay = (want > 0 and want < engineLead) and (engineLead - want) or 0
+            if delay > 0.1 then
+                CancelPendingShow(eventID)
+                pendingShow[eventID] = C_Timer.NewTimer(delay, function()
+                    pendingShow[eventID] = nil
+                    ShowForEvent(eventID)
+                end)
+            else
+                ShowForEvent(eventID)
+            end
         end
         return
     end

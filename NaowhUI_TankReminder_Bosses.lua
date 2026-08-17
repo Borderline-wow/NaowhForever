@@ -105,6 +105,14 @@ local function WalkSections(rootID, out, depth, seen)
         -- like "Tanks" and "Healers", and those carry the tank icon flag too -- but they have
         -- no spell behind them, which is what tells the two apart.
         local isAbility = info.spellID and info.spellID > 0
+        -- Casts only. The journal also lists passives -- auras that empower the boss's
+        -- melee, say -- and a passive is never an event: nothing announces it, nothing can
+        -- warn about it, and a reference list is for things a tank can react to. The spell
+        -- record itself knows, which beats any name list and covers every boss.
+        if isAbility and C_Spell and C_Spell.IsSpellPassive then
+            local okP, passive = pcall(C_Spell.IsSpellPassive, info.spellID)
+            if okP and passive == true then isAbility = false end
+        end
         if isAbility and info.title and info.title ~= "" then
             -- One row per spell. The journal repeats the same ability under its overview,
             -- its per-role advice and its stage sections, and rendering each occurrence
