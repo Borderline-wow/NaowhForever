@@ -1223,7 +1223,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0816u"
+local TRACE_BUILD = "0816v"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1618,6 +1618,9 @@ local function HandleIdentifiedCast(sid)
     if (now - lastCalloutAt) < 6 then return end
 
     ApplyPriorityAlpha()
+    -- The previous event may have left the engine gate's alpha 0 on these icons; this
+    -- callout is for a KNOWN tank buster, so they must be visible.
+    ClearTankGate()
     frame:Show()
     SpeakCallout()
     lastCalloutAt = now
@@ -1968,7 +1971,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- player has no way to know an ability's fingerprint and should not have to. "That one
     -- was wrong" is the whole interaction.
     if arg == "mute" or arg == "unmute" then
-        if not lastFingerprint then
+        if not lastFingerprint or not lastFingerprintEncounter then
             ns.Print("nothing to " .. arg .. " yet -- pull a boss and let a callout happen first.")
             return
         end
@@ -1987,7 +1990,9 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- built: the game's own registered sound plays exactly once per pull, on the first tank
     -- buster -- so "I just heard the sound" means "the ability that just called out is one".
     if arg == "tank" or arg == "untank" then
-        if not lastFingerprint then
+        -- Both halves checked: a fingerprint without its encounter would file the mark
+        -- under key 0, a boss that does not exist, where it silences nothing forever.
+        if not lastFingerprint or not lastFingerprintEncounter then
             ns.Print("nothing to mark yet -- pull a boss and let a callout happen first.")
             return
         end
@@ -3066,6 +3071,15 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         return
     end
 
+    if event == "PLAYER_ENTERING_WORLD" then
+        -- A loading screen means whatever fight we were in is over, whether or not it sent
+        -- ENCOUNTER_END (a hearth mid-pull does not). The combat log watcher must never
+        -- outlive its window; it re-registers at the next ENCOUNTER_START. NO return here:
+        -- this event has always fallen through to ns.Apply() at the bottom, and the re-apply
+        -- after a loading screen is load-bearing.
+        watcher:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    end
+
     if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
         currentEncounter = (event == "ENCOUNTER_START") and arg1 or nil
         if event == "ENCOUNTER_START" and TRDB().enabled == true then
@@ -3076,6 +3090,18 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         -- A silent dungeon must cost one chat line to diagnose, not a run. If the feature
         -- is on but any gate is closed when a boss starts, say WHICH, once. Every earlier
         -- "nothing came up" report burned a full run because this line did not exist.
+        -- Event ids are per-instance and get reused, so a stale entry would answer for a
+        -- different ability entirely on the next pull.
+        WipeEventCache()
+        if event == "ENCOUNTER_END" then wipe(readyAt) end
+        RebuildSlots()          -- swap to this boss's list before the first ability lands
+        RebuildCastMap()
+        UpdateEventRegistration()   -- this boss may be switched off entirely
+
+        -- The gate report BELOW the rebuild, never above it: it reads activeSlots, and
+        -- until RebuildSlots runs those are the previous list's. A spec whose default list
+        -- is empty but whose per-boss list is not was warned "no priority list" on every
+        -- pull, about a state that stopped being true one line later.
         if event == "ENCOUNTER_START" and TRDB().enabled == true then
             local why
             if not canSelect then why = "this client lacks the cooldown API"
@@ -3101,13 +3127,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
                 ns.Print("|cffff6060not running this fight|r: " .. why)
             end
         end
-        -- Event ids are per-instance and get reused, so a stale entry would answer for a
-        -- different ability entirely on the next pull.
-        WipeEventCache()
-        if event == "ENCOUNTER_END" then wipe(readyAt) end
-        RebuildSlots()          -- swap to this boss's list before the first ability lands
-        RebuildCastMap()
-        UpdateEventRegistration()   -- this boss may be switched off entirely
+
         return
     end
 
