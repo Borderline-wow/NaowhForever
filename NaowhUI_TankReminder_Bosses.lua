@@ -112,6 +112,10 @@ local function WalkSections(rootID, out, depth, seen)
             -- occurrences only contribute role labels the first one lacked.
             local prior = seen[info.spellID]
             if prior then
+                if (not prior.description or prior.description == "")
+                    and info.description and info.description ~= "" then
+                    prior.description = info.description
+                end
                 if extras and extras ~= "" then
                     if not prior.extras or prior.extras == "" then
                         prior.extras = extras
@@ -121,10 +125,13 @@ local function WalkSections(rootID, out, depth, seen)
                 end
             else
                 local entry = {
-                    title   = info.title,
-                    spellID = info.spellID,
-                    icon    = info.abilityIcon,
-                    extras  = extras,
+                    title       = info.title,
+                    spellID     = info.spellID,
+                    icon        = info.abilityIcon,
+                    extras      = extras,
+                    -- The journal's own explanation of what the ability does, for the
+                    -- hover tooltip. Blizzard's text, not ours.
+                    description = info.description,
                 }
                 seen[info.spellID] = entry
                 out[#out + 1] = entry
@@ -601,12 +608,17 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     -- classification sheet decides. When the sheet knows this boss, only abilities that
     -- damage somebody are shown; a boss the sheet has never heard of shows its full list,
     -- because an empty reference reads as broken rather than unclassified.
+    -- Matched by spell id OR by name. The id alone silently dropped real tank busters:
+    -- the classification data carries the CAST id while the journal row often carries the
+    -- ability's display record instead, and the two ids rarely agree.
     local shown = {}
     for a = 1, #boss.abilities do
         local ab = boss.abilities[a]
         local sid = ab.spellID
-        if sid and ((ns.DAMAGE_ABILITIES and ns.DAMAGE_ABILITIES[sid])
-            or (ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid])) then
+        local nm = ab.title and ab.title:lower()
+        if (sid and ((ns.DAMAGE_ABILITIES and ns.DAMAGE_ABILITIES[sid])
+                or (ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid])))
+            or (nm and ns.DAMAGE_NAMES and ns.DAMAGE_NAMES[nm]) then
             shown[#shown + 1] = ab
         end
     end
@@ -620,10 +632,17 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     else
         for a = 1, #shown do
             local ab = shown[a]
-            _, h = W:DualRow(parent, y,
+            local abilityRow
+            abilityRow, h = W:DualRow(parent, y,
                 { type = "label", text = "         |cffF0A830" .. ab.title .. "|r" },
                 { type = "label", text = ab.extras or "" }
             ); y = y - h
+            -- What the ability actually does, on hover, in the journal's own words. Only
+            -- when the journal wrote any: an empty tooltip is worse than none.
+            if abilityRow and ab.description and ab.description ~= "" then
+                abilityRow:EnableMouse(true)
+                ns.Tooltip(abilityRow, ab.title, ab.description)
+            end
         end
     end
 

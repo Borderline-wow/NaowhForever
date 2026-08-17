@@ -50,6 +50,7 @@ local DEFAULTS = {
     inDungeons = true,
     inRaids    = true,
     fallbackOn = true,
+    aggroOnly  = false,
     voiceOn   = false,
     voiceNone = "Call for external",
     voiceVol  = 100,
@@ -714,6 +715,37 @@ local function IsMutedEvent(eventID)
     return m ~= nil and m[fp] == true
 end
 
+-- Does any live boss consider ME its problem? For two-tank raids: the buster lands on
+-- whoever has the boss, and the other tank does not need to burn a cooldown for it.
+--
+-- Threat status first (>= 2 means highest threat), the boss's literal target second --
+-- threat survives the momentary retargets a boss does mid-cast, the target check catches
+-- fixates that never touch the threat table. Both reads are only CONDITIONALLY plain
+-- (SecretWhenUnitThreatStateRestricted / SecretWhenUnitComparisonRestricted), so every
+-- unknown fails OPEN: a spare callout costs a moment of attention, a suppressed one on the
+-- actual tank costs a death. No boss units at all also fails open, for the same reason.
+local function TankingSomeBoss()
+    local sawBoss, unknown = false, false
+    for i = 1, 5 do
+        local unit = "boss" .. i
+        if UnitExists(unit) then
+            sawBoss = true
+            local ok, verdict = pcall(function()
+                local status = UnitThreatSituation("player", unit)
+                if issecretvalue and issecretvalue(status) then return nil end
+                if type(status) == "number" and status >= 2 then return true end
+                local same = UnitIsUnit(unit .. "target", "player")
+                if issecretvalue and issecretvalue(same) then return nil end
+                return same == true
+            end)
+            if ok and verdict == true then return true end
+            if not ok or verdict == nil then unknown = true end
+        end
+    end
+    if not sawBoss or unknown then return true end
+    return false
+end
+
 -- Shipped fingerprints for this encounter, or nil. Read per event rather than captured:
 -- the data file is optional and the feature must work identically without it.
 local function ShippedMarks(enc)
@@ -1235,7 +1267,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0817a"
+local TRACE_BUILD = "0817b"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1424,6 +1456,15 @@ local function ShowForEvent(eventID)
             traceLeft = traceLeft - 1
             ns.Print(("|cffF0A830trace|r event=%s |cff80ff80muted|r (fingerprint %s)")
                 :format(tostring(eventID), tostring(lastFingerprint)))
+        end
+        return
+    end
+
+    if t.aggroOnly and not TankingSomeBoss() then
+        if traceLeft > 0 then
+            traceLeft = traceLeft - 1
+            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80off-tank|r (the boss is on the "
+                .. "other tank)"):format(tostring(eventID)))
         end
         return
     end
@@ -1626,6 +1667,7 @@ local function HandleIdentifiedCast(sid)
 
     -- Backstop: the timeline path already spoke for this cast if anything did.
     if (now - lastCalloutAt) < 6 then return end
+    if TRDB().aggroOnly and not TankingSomeBoss() then return end
 
     ApplyPriorityAlpha()
     -- The previous event may have left the engine gate's alpha 0 on these icons; this
@@ -2677,7 +2719,14 @@ function ns.BuildSection(parent, y)
         -- disagreed with each other, and on covered bosses the fingerprint filter now does
         -- the same job for every channel at once. The stored tankOnly flag is ignored, not
         -- migrated, so downgrading does not lose it.
-        { type = "label", text = "" }
+        { type = "toggle", text = "Only While I Have the Boss",
+          tooltip = "For raids with two tanks: stay quiet when the boss is on the other tank. "
+          .. "Checked at the moment the warning fires -- threat first, then the boss's actual "
+          .. "target -- and whenever the game keeps the answer sealed the alert plays anyway, "
+          .. "because a spare callout costs less than a silent tank buster. Solo content is "
+          .. "unaffected: the boss is always on you.",
+          getValue = function() return TRDB().aggroOnly end,
+          setValue = function(v) TRDB().aggroOnly = v end }
     ); y = y - h
 
     -- Only worth saying when it is actually wrong. The timeline's own display toggle is
