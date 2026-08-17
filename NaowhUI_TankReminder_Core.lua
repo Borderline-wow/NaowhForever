@@ -107,10 +107,19 @@ end
 
 -- Tooltips go through EllesmereUI's own, per its contributing rules -- never GameTooltip
 -- directly, so ours look and dismiss like every other tooltip in the suite.
+-- The house tooltip's real signature is (frame, TEXT, OPTS) -- one string, no title/body
+-- pair. The old call here put the body where opts belongs, and indexing a string for
+-- option fields quietly yields nothing, so every tooltip in this addon rendered its title
+-- alone and nobody got an error to notice. The two lines are now one string, and the
+-- cursor anchor is the house option made for hover-to-read rows.
 function ns.Tooltip(frame, title, body)
     local EUI = _G.EllesmereUI
     if not (EUI and EUI.ShowWidgetTooltip) then return end
-    frame:SetScript("OnEnter", function(self) EUI.ShowWidgetTooltip(self, title, body) end)
+    local text = (body and body ~= "")
+        and ("|cffF0A830" .. title .. "|r\n" .. body) or title
+    frame:SetScript("OnEnter", function(self)
+        EUI.ShowWidgetTooltip(self, text, { anchor = "cursor", justify = "LEFT" })
+    end)
     frame:SetScript("OnLeave", function() EUI.HideWidgetTooltip() end)
 end
 

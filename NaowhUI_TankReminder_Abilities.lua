@@ -52,7 +52,6 @@ ns.TANK_ABILITIES = {
     [1296220] = "Magical",   -- Rav'i: Triple Shot
     [1297017] = "Magical",   -- Taz'Rah: Void Blast
     [1297797] = "Physical",   -- Nalorakk: Forceful Slam
-    [1298683] = "Physical",   -- Rav'i: Hydrastrike
     [1298949] = "Physical",   -- The Writhing Coil: Tail Scythe
     [1301350] = "Physical",   -- Zul'jan: Chop Down
     [1303039] = "Physical",   -- Dazar, The First King: Hunting Leap
@@ -73,7 +72,7 @@ ns.TANK_ABILITIES = {
     [1253950] = "Unknown",   -- Emberdawn: Searing Rend
 }
 
-ns.TANK_ABILITIES_COUNT = 38
+ns.TANK_ABILITIES_COUNT = 37
 
 -------------------------------------------------------------------------------
 --  Tank-buster fingerprints per boss, authored once and shipped.
@@ -224,7 +223,6 @@ ns.DAMAGE_ABILITIES = {
     [1297792] = "party",   -- Nalorakk: Overwhelming Onslaught
     [1297797] = "tank",   -- Nalorakk: Forceful Slam
     [1298221] = "party",   -- Rav'i: Ssscavenging
-    [1298683] = "tank",   -- Rav'i: Hydrastrike
     [1298949] = "tank",   -- The Writhing Coil: Tail Scythe
     [1299053] = "party",   -- The Writhing Coil: Death Rattle
     [1299154] = "party",   -- The Writhing Coil: Synchronized Venom
@@ -244,7 +242,7 @@ ns.DAMAGE_ABILITIES = {
     [1312146] = "party",   -- Mchimba the Embalmer: Awakening Slam
 }
 
-ns.DAMAGE_ABILITIES_COUNT = 103
+ns.DAMAGE_ABILITIES_COUNT = 102
 
 -- The same damaging abilities, by NAME. The join key problem this solves: the sheet and
 -- the curated list carry the CAST spell id, but the journal's section rows often carry a
@@ -297,7 +295,10 @@ ns.DAMAGE_NAMES = {
     ["hailburst"] = true,
     ["hulking claw"] = true,
     ["hunting leap"] = true,
-    ["hydrastrike"] = true,
+    -- NOT here: "hydrastrike". The sheet classifies it as tank damage and it is, but it
+    -- is a PASSIVE -- the reference lists are casts only, and the journal's record for it
+    -- is not flagged passive, so the exclusion has to live in the data. Confirmed by the
+    -- reporter on the boss itself. Add future damaging-but-passive rows here the same way.
     ["induction"] = true,
     ["infernal crush"] = true,
     ["inferno"] = true,
