@@ -656,6 +656,7 @@ local lastCalloutAt = 0
 -- boss casts, then "plain" or "secret". This is the whole question of whether automation
 -- is possible here, so it is worth a word in every report.
 local castIdentity = "unseen"
+local cleuIdentity = "unseen"
 
 local function FingerprintFor(eventID)
     local d = eventDuration[eventID]
@@ -1222,7 +1223,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0816s"
+local TRACE_BUILD = "0816t"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1292,6 +1293,14 @@ local function TraceEvent(eventID)
         Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).source end),
         Safe(function() return eventDuration[eventID] end, "%.1f"),
         castIdentity))
+    ns.Print(("  identity channels: castbar=%s combatlog=%s restricted=%s"):format(
+        castIdentity, cleuIdentity,
+        Safe(function()
+            if C_CombatLog and C_CombatLog.IsCombatLogRestricted then
+                return tostring(C_CombatLog.IsCombatLogRestricted())
+            end
+            return "no probe"
+        end)))
 
     -- Whether the authored data is loaded AT ALL. The fingerprints file is the newest in
     -- the TOC, and a /reload does not pick up new files -- only a full client launch reads
@@ -1553,20 +1562,19 @@ end
 -- Where cast identity turns out secret, issecretvalue answers plainly, the probe records it
 -- for the trace, and this whole path steps aside -- shipped fingerprints remain the answer
 -- in that content.
-local function OnBossCast(unit)
+-- Both identity channels funnel here with a PLAIN spell id in hand. Everything after
+-- identification is channel-agnostic: check the curated list, learn the fingerprint,
+-- backstop the callout.
+local lastIdentifiedSid, lastIdentifiedAt = nil, 0
+
+local function HandleIdentifiedCast(sid)
     if not frame or activeSlots == 0 then return end
     if not (ShouldRun() and InEncounter()) then return end
 
-    -- issecretvalue BEFORE anything else touches sid -- even `== nil` is a branch on the
-    -- value and raises when it is secret. The probe verdict must be recorded from the read
-    -- alone, not from a comparison that would never be reached.
-    local sid = select(9, UnitCastingInfo(unit))
-    if issecretvalue and issecretvalue(sid) then
-        castIdentity = "secret"
-        return
-    end
-    if sid == nil then return end
-    castIdentity = "plain"
+    -- Both channels usually see the same cast; the second sighting adds nothing.
+    local now = GetTime()
+    if sid == lastIdentifiedSid and (now - lastIdentifiedAt) < 3 then return end
+    lastIdentifiedSid, lastIdentifiedAt = sid, now
 
     local buster = ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid]
 
@@ -1580,8 +1588,6 @@ local function OnBossCast(unit)
             castName, tostring(sid), buster and "TANK BUSTER" or "no"))
     end
     if not buster then return end
-
-    local now = GetTime()
 
     -- Learn: one recent announcement, and only one, else the attribution is a guess.
     local skip
@@ -1617,6 +1623,42 @@ local function OnBossCast(unit)
     lastCalloutAt = now
     if hideTimer then hideTimer:Cancel() end
     hideTimer = C_Timer.NewTimer(5, HideReminder)
+end
+
+-- Channel 1: the boss's cast bar. Sealed in the content measured so far, but the
+-- annotation is conditional, so the probe stays.
+local function OnBossCast(unit)
+    -- issecretvalue BEFORE anything else touches sid -- even `== nil` is a branch on the
+    -- value and raises when it is secret. The probe verdict must be recorded from the read
+    -- alone, not from a comparison that would never be reached.
+    local sid = select(9, UnitCastingInfo(unit))
+    if issecretvalue and issecretvalue(sid) then
+        castIdentity = "secret"
+        return
+    end
+    if sid == nil then return end
+    castIdentity = "plain"
+    HandleIdentifiedCast(sid)
+end
+
+-- Channel 2: the combat log. A different door than the cast bar, with its own probe
+-- (C_CombatLog.IsCombatLogRestricted) and its own secrecy rules, so one being sealed says
+-- nothing about the other. No source check is needed: the curated list holds boss tank
+-- busters only, so a matching spell id IS the answer regardless of who cast it.
+--
+-- Registered only between ENCOUNTER_START and ENCOUNTER_END: this event fires for every
+-- combat action on screen, and the handler must cost nothing outside the one window where
+-- it can learn something.
+local function OnCombatLog()
+    local _, sub, _, _, _, _, _, _, _, _, _, spellId = CombatLogGetCurrentEventInfo()
+    if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId)) then
+        cleuIdentity = "secret"
+        return
+    end
+    if sub ~= "SPELL_CAST_START" and sub ~= "SPELL_CAST_SUCCESS" then return end
+    if type(spellId) ~= "number" then return end
+    cleuIdentity = "plain"
+    HandleIdentifiedCast(spellId)
 end
 
 
@@ -3031,6 +3073,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
         currentEncounter = (event == "ENCOUNTER_START") and arg1 or nil
+        if event == "ENCOUNTER_START" and TRDB().enabled == true then
+            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        else
+            watcher:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        end
         -- A silent dungeon must cost one chat line to diagnose, not a run. If the feature
         -- is on but any gate is closed when a boss starts, say WHICH, once. Every earlier
         -- "nothing came up" report burned a full run because this line did not exist.
@@ -3076,6 +3123,14 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "PLAYER_REGEN_ENABLED" or event == "SPELL_UPDATE_COOLDOWN" then
         ResyncModel()
+        return
+    end
+
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        local okL, errL = pcall(OnCombatLog)
+        if not okL and traceLeft > 0 then
+            ns.Print("|cffff6060combat log watch failed|r: " .. ErrText(errL))
+        end
         return
     end
 
