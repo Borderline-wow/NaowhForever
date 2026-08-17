@@ -11,7 +11,7 @@ Three kinds of finding, and what each means:
   * Boss-name near-misses (printed alongside) catch the "Nalorakk Den" vs
     "Nalorakk" class of mismatch that would break any future per-boss scoping.
 
-Usage: python audit_abilities.py <nboss_abilities_lua> <littlewigs_season_dir> <bigwigs_raid_dir>
+Usage: python audit_abilities.py <nboss_abilities_lua> <module_dir> [<module_dir> ...]
 """
 
 import re
@@ -21,8 +21,7 @@ from pathlib import Path
 
 def main():
     body = Path(sys.argv[1]).read_text(encoding="ascii")
-    block = re.search(r"NB\.ABILITIES = \{(.*?)
-\}", body, re.S).group(1)
+    block = re.search(r"NB\.ABILITIES = \{(.*?)\n\}", body, re.S).group(1)
     sheet = {}
     for m in re.finditer(r"\[(\d+)\] = \{ (.*?) \},\s*--\s*([^:]+):\s*(.+)$", block, re.M):
         boss, ability = m.group(3).strip(), m.group(4).strip()
@@ -37,13 +36,12 @@ def main():
             if f.name.startswith("!") or f.name == "Trash.lua":
                 continue
             t = f.read_text(encoding="utf-8", errors="replace")
-            mb = re.search(r"NewBoss\(\"([^\"]+)\"", t)
+            mb = re.search(r'NewBoss\("([^"]+)"', t)
             me = re.search(r"SetEncounterID\((\d+)\)", t)
             if not (mb and me):
                 continue
             names = set()
-            for mm in re.finditer(r"\d{6,9}[,}\]].*?--\s*([^
-(]+)", t):
+            for mm in re.finditer(r"\d{6,9}[,}\]].*?--\s*([^\r\n(]+)", t):
                 names.add(mm.group(1).strip().lower())
             mods.append((mb.group(1), int(me.group(1)), names))
 
