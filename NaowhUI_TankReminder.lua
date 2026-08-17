@@ -42,7 +42,6 @@ if not ns then return end
 -- DEFAULTS itself. `disabled` and `lists` are created on demand for the same reason.
 local DEFAULTS = {
     enabled   = false,
-    tankOnly  = false,
     showIcon  = true,
     showText  = false,
     showBar   = false,
@@ -333,9 +332,21 @@ local function SetIconScale(scale)
     ApplyPosition()
 end
 
+-- The suite's own media, resolved through SharedMedia so the paths live in one place and
+-- locale variants (the Asia font files) resolve themselves. Everything degrades: no media
+-- addon means the companion font, then the client default.
+local function NaowhMedia(kind, name)
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if not LSM then return nil end
+    local ok, path = pcall(LSM.Fetch, LSM, kind, name, true)
+    return ok and path or nil
+end
+
 local function AlertFont()
+    local path = NaowhMedia("font", "Naowh")
+    if path then return path end
     local EUI = _G.EllesmereUI
-    local path = EUI and EUI.GetFontPath and EUI.GetFontPath("extras")
+    path = EUI and EUI.GetFontPath and EUI.GetFontPath("extras")
     return path or STANDARD_TEXT_FONT
 end
 
@@ -380,7 +391,8 @@ local function CreateBar()
     bar:SetHeight(10)
     bar:EnableMouse(false)
     bar:SetMinMaxValues(0, 1)
-    bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    bar:SetStatusBarTexture(NaowhMedia("statusbar", "NaowhGradient")
+        or "Interface\\TargetingFrame\\UI-StatusBar")
     bar.fill = bar:GetStatusBarTexture()
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetPoint("TOPLEFT", bar, "TOPLEFT", -1, 1)
@@ -1223,7 +1235,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0816v"
+local TRACE_BUILD = "0817a"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1263,10 +1275,9 @@ end
 local function TraceEvent(eventID)
     traceLeft = math.max(0, traceLeft - 1)
     local t = TRDB()
-    ns.Print(("|cffF0A830trace %d/%d|r build=%s event=%s slots=%d tankOnly=%s gate=%s voice=%s icon=%s text=%s")
+    ns.Print(("|cffF0A830trace %d/%d|r build=%s event=%s slots=%d voice=%s icon=%s text=%s")
         :format(TRACE_EVENTS - traceLeft, TRACE_EVENTS,
-                TRACE_BUILD, tostring(eventID), activeSlots, tostring(t.tankOnly),
-                tostring(canGate and true or false), tostring(t.voiceOn),
+                TRACE_BUILD, tostring(eventID), activeSlots, tostring(t.voiceOn),
                 tostring(t.showIcon), tostring(t.showText)))
 
     -- WHICH list built these slots. A per-boss override silently replaces the spec order,
@@ -1436,11 +1447,10 @@ local function ShowForEvent(eventID)
         bar:Hide()
     end
 
-    if t.tankOnly and canGate then
-        ApplyTankGate(eventID)
-    else
-        ClearTankGate()
-    end
+    -- Every event that reaches this point already passed the fingerprint filter, which is
+    -- the tank filter now -- and unlike the engine gate it covers text and voice too. The
+    -- gate machinery itself stays for the /nutank gate diagnostic.
+    ClearTankGate()
 
     shownForEvent = eventID
     frame:Show()
@@ -2662,18 +2672,12 @@ function ns.BuildSection(parent, y)
               UpdatePreview()
               EUI:RefreshPage(true)
           end },
-        { type = "toggle", text = "Only for Tank Abilities",
-          tooltip = "Optional. Limits the icon to abilities the encounter flags as aimed at "
-          .. "tanks. Which those are is information the game keeps sealed, so the filter is "
-          .. "applied by the engine rather than read by the addon -- which also means it cannot "
-          .. "reach the text or the audio. Off by default: most people want every ability.",
-          getValue = function() return TRDB().tankOnly end,
-          setValue = function(v)
-              TRDB().tankOnly = v
-              ApplySize()
-              UpdatePreview()
-              EUI:RefreshPage(true)
-          end }
+        -- "Only for Tank Abilities" lived here until the fingerprint data shipped. It was
+        -- the engine's icon-only filter: it could not reach text or audio, so the channels
+        -- disagreed with each other, and on covered bosses the fingerprint filter now does
+        -- the same job for every channel at once. The stored tankOnly flag is ignored, not
+        -- migrated, so downgrading does not lose it.
+        { type = "label", text = "" }
     ); y = y - h
 
     -- Only worth saying when it is actually wrong. The timeline's own display toggle is
@@ -2710,8 +2714,8 @@ function ns.BuildSection(parent, y)
           tooltip = "Writes the callout on screen -- \"Use Barkskin\" -- for whichever defensive "
           .. "it picked, and your fallback line when nothing is up. On bosses with tank buster "
           .. "data this appears only for tank busters. On bosses without data it appears for "
-          .. "every timeline ability, even with Only for Tank Abilities on -- that filter is "
-          .. "engine-applied artwork and cannot reach text. Set each line in the list below.",
+          .. "every timeline ability until the boss is learned or marked. Set each line in "
+          .. "the list below.",
           getValue = function() return TRDB().showText end,
           setValue = function(v)
               TRDB().showText = v; ApplySize(); UpdatePreview()

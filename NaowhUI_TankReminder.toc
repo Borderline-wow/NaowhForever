@@ -4,7 +4,7 @@
 ## Author: NaowhUI
 ## Version: 1.0.0
 ## Dependencies: EllesmereUI
-## OptionalDeps: NaowhUI_EUI
+## OptionalDeps: NaowhUI_EUI, NaowhUI_Media
 ## SavedVariables: NaowhUITankReminderDB
 ## Group: NaowhUI
 

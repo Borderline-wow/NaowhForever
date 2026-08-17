@@ -80,10 +80,11 @@ local scrapeFailed
 -- nothing rather than just looking broken. Read by /nutank bosses.
 local diag = {}
 
-local function WalkSections(rootID, out, depth)
+local function WalkSections(rootID, out, depth, seen)
     -- Depth-capped: the section tree is authored data and a malformed cycle would otherwise
     -- hang the client rather than produce a bad list.
     if not rootID or depth > 12 then return end
+    seen = seen or {}
     local id = rootID
     local guard = 0
     while id and guard < 200 do
@@ -105,15 +106,32 @@ local function WalkSections(rootID, out, depth)
         -- no spell behind them, which is what tells the two apart.
         local isAbility = info.spellID and info.spellID > 0
         if isAbility and info.title and info.title ~= "" then
-            out[#out + 1] = {
-                title   = info.title,
-                spellID = info.spellID,
-                icon    = info.abilityIcon,
-                extras  = extras,
-            }
+            -- One row per spell. The journal repeats the same ability under its overview,
+            -- its per-role advice and its stage sections, and rendering each occurrence
+            -- made every boss look like it had twice the abilities it does. Later
+            -- occurrences only contribute role labels the first one lacked.
+            local prior = seen[info.spellID]
+            if prior then
+                if extras and extras ~= "" then
+                    if not prior.extras or prior.extras == "" then
+                        prior.extras = extras
+                    elseif not prior.extras:find(extras, 1, true) then
+                        prior.extras = prior.extras .. ", " .. extras
+                    end
+                end
+            else
+                local entry = {
+                    title   = info.title,
+                    spellID = info.spellID,
+                    icon    = info.abilityIcon,
+                    extras  = extras,
+                }
+                seen[info.spellID] = entry
+                out[#out + 1] = entry
+            end
         end
 
-        WalkSections(info.firstChildSectionID, out, depth + 1)
+        WalkSections(info.firstChildSectionID, out, depth + 1, seen)
         id = info.siblingSectionID
     end
 end
@@ -576,16 +594,32 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     local _, h
     local encounterID = boss.encounterID
 
-    -- Every ability the journal lists for this fight, with who it is aimed at. Reference
-    -- only: see the options text for why these cannot each carry their own switch.
-    if #boss.abilities == 0 then
+    -- Every DAMAGING ability the journal lists for this fight, with who it is aimed at.
+    -- Reference only: see the options text for why these cannot each carry their own switch.
+    --
+    -- The journal itself does not say what hurts, so the damage set derived from the public
+    -- classification sheet decides. When the sheet knows this boss, only abilities that
+    -- damage somebody are shown; a boss the sheet has never heard of shows its full list,
+    -- because an empty reference reads as broken rather than unclassified.
+    local shown = {}
+    for a = 1, #boss.abilities do
+        local ab = boss.abilities[a]
+        local sid = ab.spellID
+        if sid and ((ns.DAMAGE_ABILITIES and ns.DAMAGE_ABILITIES[sid])
+            or (ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid])) then
+            shown[#shown + 1] = ab
+        end
+    end
+    if #shown == 0 then shown = boss.abilities end
+
+    if #shown == 0 then
         _, h = W:DualRow(parent, y,
             { type = "label", text = "         The journal lists no abilities for this boss." },
             { type = "label", text = "" }
         ); y = y - h
     else
-        for a = 1, #boss.abilities do
-            local ab = boss.abilities[a]
+        for a = 1, #shown do
+            local ab = shown[a]
             _, h = W:DualRow(parent, y,
                 { type = "label", text = "         |cffF0A830" .. ab.title .. "|r" },
                 { type = "label", text = ab.extras or "" }
