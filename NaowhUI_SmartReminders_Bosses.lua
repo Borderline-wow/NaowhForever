@@ -243,7 +243,7 @@ end
 -- Sets rather than one selection: this is a tree, and comparing two bosses side by side is
 -- the normal thing to want. Page-local and deliberately unsaved -- which node you last had
 -- open is not a setting.
-local expandedInst, expandedBoss = {}, {}
+-- Instance expansion state used to live here; instances open as modals now.
 
 local function InstanceOf(data, id)
     for i = 1, #data.instances do
@@ -836,10 +836,11 @@ function ns.BuildTreeSection(parent, y)
         if inst.isRaid then raids[#raids + 1] = inst else dungeons[#dungeons + 1] = inst end
     end
 
-    -- Level 1: the instance. A plus opens it, a minus closes it.
+    -- Each instance opens as a MODAL rather than expanding inline: the tree got long
+    -- enough that opening one dungeon scrolled everything else off the page. The modal
+    -- shows every boss of that instance expanded, in its own scroll region.
     local function InstanceSlot(inst)
         if not inst then return { type = "label", text = "" } end
-        local open = expandedInst[inst.id] == true
         local marked = 0
         for b = 1, #inst.bosses do
             local eid = inst.bosses[b].encounterID
@@ -847,55 +848,19 @@ function ns.BuildTreeSection(parent, y)
             if cl and #cl > 0 then marked = marked + 1 end
         end
         return { type = "toggle",
-            text = ("%s  %s"):format(open and "-" or "+", inst.name),
+            text = "+  " .. inst.name,
             tooltip = ("%d bosses%s. Click to open."):format(
                 #inst.bosses, marked > 0 and (", " .. marked .. " with their own list") or ""),
-            getValue = function() return open end,
+            getValue = function() return false end,
             setValue = function()
-                expandedInst[inst.id] = (not open) or nil
-                EUI:RefreshPage(true)
+                ns.ShowInstanceModal(inst, specID, EUI, W)
             end }
-    end
-
-    -- Levels 2 and 3: each boss gets its own plus, and opening it reveals that fight's
-    -- its abilities and its priority editor.
-    local function RenderInstanceBody(inst)
-        if not inst then return end
-        for b = 1, #inst.bosses do
-            local boss = inst.bosses[b]
-            local eid = boss.encounterID
-            local bOpen = eid ~= nil and expandedBoss[eid] == true
-            local custom = eid and ns.BossList(specID, eid, false)
-            local state = (custom and #custom > 0) and "own list" or "spec default"
-
-            _, h = W:DualRow(parent, y,
-                { type = "toggle",
-                  text = ("      %s  %s"):format(bOpen and "-" or "+", boss.name),
-                  tooltip = ("%d abilities in the journal."):format(#boss.abilities),
-                  getValue = function() return bOpen end,
-                  setValue = function()
-                      if not eid then return end
-                      expandedBoss[eid] = (not bOpen) or nil
-                      EUI:RefreshPage(true)
-                  end },
-                { type = "label", text = state }
-            ); y = y - h
-
-            if bOpen then
-                y = RenderBoss(parent, y, W, EUI, inst, boss, specID)
-            end
-        end
     end
 
     local rows = math.max(#dungeons, #raids)
     for i = 1, rows do
         local d, r = dungeons[i], raids[i]
         _, h = W:DualRow(parent, y, InstanceSlot(d), InstanceSlot(r)); y = y - h
-
-        -- Expanded bodies render under the row that owns them, left column first, so a pair
-        -- opened at once still reads in a sensible order.
-        if d and expandedInst[d.id] then RenderInstanceBody(d) end
-        if r and expandedInst[r.id] then RenderInstanceBody(r) end
     end
 
     _, h = W:Button(parent, "Refresh From the Dungeon Journal", y, function()
@@ -905,6 +870,59 @@ function ns.BuildTreeSection(parent, y)
     y = y - h
 
     return y
+end
+
+-- One dungeon or raid, every boss expanded, in its own scrollable modal. The widget
+-- factory renders into whatever parent it is handed, so the same row builders that drew
+-- the inline tree draw the modal body. Edits inside the rows refresh the options PAGE by
+-- calling EUI:RefreshPage -- the proxy below intercepts that so the modal body re-renders
+-- in the same breath and never shows stale state.
+function ns.ShowInstanceModal(inst, specID, EUI, W)
+    local dimmer, panel = ns.MakeModal(660, 540)
+
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", panel, "TOP", 0, -14)
+    title:SetText(inst.name)
+
+    local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -40)
+    scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -32, 52)
+
+    local content
+    local proxy
+    local function Render()
+        -- A fresh body per render: rows cannot be unbuilt individually, and edits are
+        -- rare enough that replacing the child frame outright stays cheap.
+        if content then content:Hide() end
+        content = CreateFrame("Frame", nil, scroll)
+        content:SetWidth(600)
+        scroll:SetScrollChild(content)
+
+        local yy = -4
+        local _, hh
+        for b = 1, #inst.bosses do
+            local boss = inst.bosses[b]
+            _, hh = W:DualRow(content, yy,
+                { type = "label", text = "|cffF0A830" .. boss.name .. "|r" },
+                { type = "label", text = ("%d abilities"):format(#boss.abilities) }
+            ); yy = yy - hh
+            yy = RenderBoss(content, yy, W, proxy, inst, boss, specID)
+        end
+        content:SetHeight(-yy + 20)
+    end
+
+    proxy = setmetatable({
+        RefreshPage = function(_, force)
+            EUI:RefreshPage(force)
+            Render()
+        end,
+    }, { __index = EUI })
+
+    ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+
+    Render()
+    dimmer:Show()
 end
 
 -- Kept so the old chain point still resolves; the tree replaced the standalone panel.
