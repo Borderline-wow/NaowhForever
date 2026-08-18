@@ -851,7 +851,7 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
 
                     local box = CreateFrame("EditBox", nil, rowF)
                     box:SetPoint("LEFT", rowF, "LEFT", 80, 0)
-                    box:SetPoint("RIGHT", rowF, "RIGHT", -20, 0)
+                    box:SetPoint("RIGHT", rowF, "RIGHT", -150, 0)
                     box:SetHeight(28)
                     box:SetAutoFocus(false)
                     box:SetMaxLetters(60)
@@ -875,6 +875,24 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                     end)
                     box:SetScript("OnEditFocusLost", SaveBox)
                     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
+                    -- Enter commits, and so does OK -- a visible commit for anyone who
+                    -- does not trust an edit box that saves silently. Preview delivers
+                    -- the line exactly as a fight would: shown over the alert, spoken.
+                    local okBtn = ns.Button(rowF, "OK", 44, 24, function()
+                        SaveBox(box)
+                        box:ClearFocus()
+                        EUI:RefreshPage(true)
+                    end)
+                    okBtn:SetPoint("RIGHT", rowF, "RIGHT", -86, 0)
+
+                    local prevBtn = ns.Button(rowF, "Preview", 62, 24, function()
+                        SaveBox(box)
+                        if ns.PreviewReminderLine then
+                            ns.PreviewReminderLine(box:GetText() or "")
+                        end
+                    end)
+                    prevBtn:SetPoint("RIGHT", rowF, "RIGHT", -18, 0)
                     y = y - ROW_H
                 else
                     _, h = W:DualRow(parent, y,

@@ -1388,7 +1388,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0818j"
+local TRACE_BUILD = "0818k"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1719,6 +1719,25 @@ local function ShowForEvent(eventID)
     local want = TRDB().leadTime or 3
     if want > 0 and want < lead then lead = want end
     hideTimer = C_Timer.NewTimer(lead, HideReminder)
+end
+
+-- Previews one custom line exactly as a fight would deliver it: the text over the alert
+-- frame for a few seconds, and the voice saying it. Used by the Says row's Preview button.
+function ns.PreviewReminderLine(text)
+    if type(text) ~= "string" or text == "" then return end
+    if not frame then Reminder.Create() end
+    if frame and frame.reminder then
+        frame.reminder:SetText(text)
+        frame.reminder:Show()
+        frame:Show()
+        C_Timer.After(3, function()
+            if frame and frame.reminder and not shownForEvent then
+                frame.reminder:Hide()
+                if not previewing then frame:Hide() end
+            end
+        end)
+    end
+    Speak(text)
 end
 
 -- Used by /nutank test. Deliberately bypasses the tank gate so the two failure modes can
