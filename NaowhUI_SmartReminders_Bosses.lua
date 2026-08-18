@@ -877,11 +877,13 @@ function ns.BuildTreeSection(parent, y)
     local function AttachCog(rgn, inst)
         if not (rgn and inst) then return end
         local cog = CreateFrame("Button", nil, rgn)
-        -- The suite's cog, matched: dim 0.4 resting, 0.7 hovered, COGS_ICON art, and
-        -- LEFT OF the checkbox -- it hangs into the row's content padding, which is what
-        -- that padding is for.
-        cog:SetSize(20, 20)
-        cog:SetPoint("RIGHT", rgn, "LEFT", 0, 0)
+        -- The suite's cog VERBATIM, anchor included: 26px, dim 0.4 resting, 0.7 hovered,
+        -- COGS_ICON art, sitting immediately LEFT OF THE TOGGLE PILL -- the same spot
+        -- every other cog in EllesmereUI occupies. The first two attempts parked it at
+        -- the row's far left, where a gray icon reads as a second, broken checkbox.
+        cog:SetSize(26, 26)
+        cog:SetPoint("RIGHT", rgn._lastInline or rgn._control or rgn, "LEFT", -8, 0)
+        rgn._lastInline = cog
         cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
         cog:SetAlpha(0.4)
         local tex = cog:CreateTexture(nil, "OVERLAY")
