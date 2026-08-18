@@ -1377,7 +1377,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0817p"
+local TRACE_BUILD = "0817q"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -2025,8 +2025,8 @@ local function RegisterUnlock()
 
     EUI:RegisterUnlockElements({
         EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminder",
-            label = "NaowhUI Smart Reminders",
+            key   = "NaowhUI_TankReminder",   -- storage key; renaming it would orphan saved positions
+            label = "Smart",
             group = "NaowhUI",
             order = 3,
             -- Sized from the icon slider, so a resize handle would be overwritten by the
@@ -2069,6 +2069,14 @@ local previewPin = true
 
 local function UpdatePreview()
     if not (previewing and previewPin) then
+        -- Strip the preview's drag affordances the moment it stops being a preview: a
+        -- mouse-enabled alert frame in a fight would sit invisibly over the screen
+        -- eating clicks.
+        if frame then
+            frame:EnableMouse(false)
+            frame:SetScript("OnDragStart", nil)
+            frame:SetScript("OnDragStop", nil)
+        end
         -- Never yank a live call-out off the screen because the settings panel closed.
         if frame and not shownForEvent then frame:Hide() end
         if bar and not shownForEvent then bar:Hide() end
@@ -2078,6 +2086,25 @@ local function UpdatePreview()
 
     Reminder.Create()
     RebuildSlots()
+
+    -- The preview doubles as the placement tool: drag it and the position saves to the
+    -- same slot Unlock Mode writes. Mouse and movability exist ONLY while the preview is
+    -- up -- the early-return branch below strips them -- so the fight-time alert stays a
+    -- pure display that can never eat a click.
+    frame:SetMovable(true)
+    frame:SetClampedToScreen(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    frame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local point, _, relPoint, x, y = self:GetPoint(1)
+        if point then
+            TRDB().pos = { point = point, relPoint = relPoint, x = x, y = y }
+        end
+        ApplyPosition()
+    end)
+
     if activeSlots > 0 then
         slots[1]:SetAlpha(1)
         slots[1].icon:SetAlpha(1)
@@ -3145,9 +3172,9 @@ function ns.BuildSection(parent, y)
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Show a Preview",
           tooltip = "Puts a stand-in of the alert on screen while these options are open -- "
-          .. "the icon and the text callout exactly as a fight would draw them -- so sizing "
-          .. "and placement are done against the real thing. It hides itself when the "
-          .. "options close.",
+          .. "the icon and the text callout exactly as a fight would draw them. DRAG IT to "
+          .. "move the alert; the position saves instantly and Unlock Mode edits the same "
+          .. "spot under the name Smart. It hides itself when the options close.",
           getValue = function() return previewPin end,
           setValue = function(v) previewPin = v; UpdatePreview() end },
         { type = "label", text = "" }
