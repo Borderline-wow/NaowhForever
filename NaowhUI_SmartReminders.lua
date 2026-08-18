@@ -54,7 +54,8 @@ local DEFAULTS = {
     inRaids    = true,
     fallbackOn = true,
     aggroOnly  = false,
-    learnMode  = false,  -- unknown bosses: quiet by default, call-everything when authoring
+    learnMode  = false,
+    coveredSkip = true,  -- a defensive already active 5s+ suppresses the next callout  -- unknown bosses: quiet by default, call-everything when authoring
     leadTime   = 3,     -- seconds before impact that the alert fires
     voiceOn   = false,
     voiceNone = "Call for external",
@@ -156,7 +157,9 @@ local function CalloutFor(spellID, spellName)
     local c = TRDB().callouts
     local custom = c and c[spellID]
     if type(custom) == "string" and custom ~= "" then return custom end
-    return "Use " .. (spellName or "")
+    -- The name alone. The "Use " prefix was cut on tester feedback: in a fight the extra
+    -- word is latency, and nobody hearing "Shield Wall" wonders what to do with it.
+    return spellName or ""
 end
 
 local function SetCallout(spellID, text)
@@ -476,6 +479,14 @@ local function RebuildSlots()
     if not frame then return end
 
     local list = EffectiveList(specID, currentEncounter)
+    -- No list for this spec yet: seed one from the same detection the picker uses, so the
+    -- addon works out of the box and what appears in the options is a REAL saved list the
+    -- player can reorder or prune, not an invisible default they cannot see. Tester
+    -- feedback: nobody should have to build a list before the addon does anything.
+    if (not list or #list == 0) and ns.SeedDefaultList then
+        local seeded = ns.SeedDefaultList(specID)
+        if seeded and #seeded > 0 then list = seeded end
+    end
     if not list then
         for i = 1, #slots do slots[i]:SetAlpha(0) end
         return
@@ -803,6 +814,34 @@ local function TankingSomeBoss()
         end
     end
     if not sawBoss or unknown then return true end
+    return false
+end
+
+-- Is one of the listed defensives ALREADY active with meaningful time left? A tank who
+-- just pressed Shield Wall does not need "Demoralizing Shout" shouted over it -- the next
+-- callout can wait for the next buster. Own buffs are the one aura set the client answers
+-- most freely, but every read is still guarded and every unknown fails OPEN: a redundant
+-- callout costs a shrug, a suppressed one on an uncovered tank costs a death.
+local COVERED_MIN_REMAINING = 5
+
+local function CoveredByActiveDefensive()
+    if not (C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID) then return false end
+    local now = GetTime()
+    for i = 1, activeSlots do
+        local sid = slots[i].spellID
+        local ok, remaining = pcall(function()
+            local aura = C_UnitAuras.GetPlayerAuraBySpellID(sid)
+            if type(aura) ~= "table" then return nil end
+            local exp = aura.expirationTime
+            if issecretvalue and issecretvalue(exp) then return nil end
+            if type(exp) ~= "number" then return nil end
+            -- A zero expiration is an aura with no clock; a defensive that does not
+            -- expire on its own counts as covering.
+            if exp == 0 then return COVERED_MIN_REMAINING end
+            return exp - now
+        end)
+        if ok and remaining and remaining >= COVERED_MIN_REMAINING then return true end
+    end
     return false
 end
 
@@ -1338,7 +1377,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0817m"
+local TRACE_BUILD = "0817n"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1569,6 +1608,16 @@ local function ShowForEvent(eventID)
         return
     end
 
+    if t.coveredSkip ~= false and CoveredByActiveDefensive() then
+        if traceLeft > 0 then
+            traceLeft = traceLeft - 1
+            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80covered|r (a defensive is "
+                .. "already active with %ds+ left)"):format(tostring(eventID),
+                COVERED_MIN_REMAINING))
+        end
+        return
+    end
+
     ApplyPriorityAlpha()
 
     -- The bar counts down the incoming ability. GetEventTimer hands back a duration object
@@ -1611,15 +1660,10 @@ local function ShowForEvent(eventID)
             frame.reminder:SetText(reminder)
             frame.reminder:Show()
             if t.voiceOn then Speak(reminder) end
-        elseif t.showText and lastFingerprint then
-            local nm = EventNameFor(currentEncounter, lastFingerprint)
-            if nm and nm ~= lastFingerprint then
-                frame.reminder:SetText(nm)
-                frame.reminder:Show()
-            else
-                frame.reminder:Hide()
-            end
         else
+            -- Authored text only. Showing the incoming ability's name here was tried and
+            -- cut on tester feedback: mid-pull, a second line of text above the icon is
+            -- noise unless a person chose the words.
             frame.reminder:Hide()
         end
     end
@@ -1792,6 +1836,7 @@ local function HandleIdentifiedCast(sid)
     -- Backstop: the timeline path already spoke for this cast if anything did.
     if (now - lastCalloutAt) < 6 then return end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
+    if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
 
     ApplyPriorityAlpha()
     -- The previous event may have left the engine gate's alpha 0 on these icons; this
@@ -2019,6 +2064,15 @@ local function UpdatePreview()
     if activeSlots > 0 then
         slots[1]:SetAlpha(1)
         slots[1].icon:SetAlpha(1)
+        slots[1].icon:SetShown(TRDB().showIcon)
+        -- The text channel previews too: the label carries exactly what a fight would show
+        -- for this slot, so moving and sizing is done against the real thing.
+        if slots[1].label then
+            local sid = slots[1].spellID
+            local si = sid and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+            slots[1].label:SetText(CalloutFor(sid, si and si.name))
+            slots[1].label:SetShown(TRDB().showText and true or false)
+        end
     end
     -- The stand-in shows the winning line, not the fallback: a preview of "nothing is ready"
     -- is not what anyone is trying to position.
@@ -2467,6 +2521,47 @@ end
 
 -- Fallback for a client without the Cooldown Manager: the old spellbook sweep, still
 -- narrowed by the defensive predicate where it is available.
+-- Builds and SAVES a first priority list for a spec that has none: the Cooldown
+-- Manager's big defensives, longest cooldown first, same classification the picker shows.
+-- Saved rather than computed-per-fight so the options page shows exactly what runs and
+-- the player's edits stick. Returns nil when the Cooldown Manager has nothing yet (early
+-- login), so the next rebuild simply tries again.
+function ns.SeedDefaultList(forSpec)
+    local CV = C_CooldownViewer
+    if not (CV and CV.GetCooldownViewerCategorySet and CV.GetCooldownViewerCooldownInfo
+        and Enum and Enum.CooldownViewerCategory) then return nil end
+
+    local found = {}
+    for _, cat in ipairs({ Enum.CooldownViewerCategory.Essential,
+                          Enum.CooldownViewerCategory.Utility }) do
+        local ok, ids = pcall(CV.GetCooldownViewerCategorySet, cat, false)
+        if ok and ids then
+            for i = 1, #ids do
+                local okI, info = pcall(CV.GetCooldownViewerCooldownInfo, ids[i])
+                if okI and info and info.isKnown and InfoIsDefensive(info) then
+                    local castID = info.overrideSpellID
+                    if not castID or castID == 0 then castID = info.spellID end
+                    if castID and not found[castID] then
+                        local base = GetSpellBaseCooldown and GetSpellBaseCooldown(castID)
+                        found[castID] = (type(base) == "number" and base) or 0
+                        found[#found + 1] = castID
+                    end
+                end
+            end
+        end
+    end
+    if #found == 0 then return nil end
+
+    table.sort(found, function(a, b) return (found[a] or 0) > (found[b] or 0) end)
+    local out = {}
+    for i = 1, #found do out[i] = found[i] end
+
+    local t = TRDB()
+    if type(t.lists) ~= "table" then t.lists = {} end
+    t.lists[tostring(forSpec or 0)] = out
+    return out
+end
+
 local function CollectFromSpellbook(seen, list, out)
     if not (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo
         and C_SpellBook.GetSpellBookItemInfo and Enum and Enum.SpellBookSpellBank) then
@@ -2907,16 +3002,20 @@ function ns.BuildSection(parent, y)
 
     _, h = W:SectionHeader(parent, "HOW IT TELLS YOU", y); y = y - h
 
+    -- The countdown bar toggle lived here and was removed on tester feedback; the bar
+    -- machinery stays for stored profiles that still have showBar set, it just cannot be
+    -- switched on from the UI anymore.
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Show the Icon",
           tooltip = "The icon of the defensive to press.",
           getValue = function() return TRDB().showIcon end,
           setValue = function(v) TRDB().showIcon = v; ApplySize(); UpdatePreview() end },
-        { type = "toggle", text = "Show a Countdown Bar",
-          tooltip = "A bar counting down to the moment the ability lands. The game hands over the "
-          .. "timing directly, so this costs nothing to keep on screen.",
-          getValue = function() return TRDB().showBar end,
-          setValue = function(v) TRDB().showBar = v; ApplySize(); UpdatePreview() end }
+        { type = "toggle", text = "Skip When Already Covered",
+          tooltip = "Stays quiet when one of your defensives is already active with five or "
+          .. "more seconds left as the warning fires -- you are covered, no need to stack "
+          .. "another. When the game hides a buff's timing, the callout plays anyway.",
+          getValue = function() return TRDB().coveredSkip ~= false end,
+          setValue = function(v) TRDB().coveredSkip = v end }
     ); y = y - h
 
     -- This toggle used to lock itself while the engine tank filter was on, because a
