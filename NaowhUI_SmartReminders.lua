@@ -179,7 +179,14 @@ local currentEncounter
 
 -- The list that actually drives the alert: this boss's override when it has one, otherwise
 -- the spec default.
-local function EffectiveList(forSpec, encounterID)
+-- Three layers, most specific first: this ability's own list (composite key
+-- "encounter#fingerprint", which rides the whole BossList machinery unchanged because the
+-- key was always a string), then the boss's list, then the spec default.
+local function EffectiveList(forSpec, encounterID, fp)
+    if encounterID and fp then
+        local al = BossList(forSpec, tostring(encounterID) .. "#" .. fp, false)
+        if al and #al > 0 then return al, true end
+    end
     if encounterID then
         local bl = BossList(forSpec, encounterID, false)
         if bl and #bl > 0 then return bl, true end
@@ -474,11 +481,11 @@ end
 -- Talent state is plain, so everything here -- which spells qualify, how many slots exist,
 -- what icon each carries -- is decided in the clear and never mid-fight. The secret half
 -- only ever touches alpha.
-local function RebuildSlots()
+local function RebuildSlots(fp)
     activeSlots = 0
     if not frame then return end
 
-    local list = EffectiveList(specID, currentEncounter)
+    local list = EffectiveList(specID, currentEncounter, fp)
     -- No list for this spec yet: seed one from the same detection the picker uses, so the
     -- addon works out of the box and what appears in the options is a REAL saved list the
     -- player can reorder or prune, not an invisible default they cannot see. Tester
@@ -778,6 +785,9 @@ end
 ns.EventNameFor = EventNameFor
 ns.RemindersTable = RemindersTable
 ns.MarksTable = MarksTable
+ns.MutedTable = MutedTable
+
+ns.ShippedMarksFor = function(enc) return ShippedMarks(enc) end
 
 local function IsMutedEvent(eventID)
     local fp = FingerprintFor(eventID)
@@ -1377,7 +1387,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0818d"
+local TRACE_BUILD = "0818f"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1617,6 +1627,12 @@ local function ShowForEvent(eventID)
         end
         return
     end
+
+    -- The defensive pick honors this ABILITY's own list when one exists: slots are
+    -- rebuilt against the fingerprint before anything reads them. Cheap, and the next
+    -- event or encounter start rebuilds again, so nothing needs restoring.
+    RebuildSlots(lastFingerprint)
+    RebuildCastMap()
 
     ApplyPriorityAlpha()
 

@@ -605,7 +605,35 @@ function ns.RenderPriorityEditor(parent, y, W, EUI, specID, encounterID)
     return y
 end
 
-local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
+-- The house cog on any row region: 26px, shared art, dim until hovered, anchored left of
+-- the region's control -- the same geometry as every cog in the suite.
+local function AttachRowCog(rgn, onClick, tipTitle, tipBody)
+    if not rgn then return end
+    local cog = CreateFrame("Button", nil, rgn)
+    cog:SetSize(26, 26)
+    cog:SetPoint("RIGHT", rgn._lastInline or rgn._control or rgn, "LEFT", -8, 0)
+    rgn._lastInline = cog
+    cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
+    cog:SetAlpha(0.4)
+    local tex = cog:CreateTexture(nil, "OVERLAY")
+    tex:SetAllPoints()
+    local EUIg = _G.EllesmereUI
+    if EUIg and EUIg.COGS_ICON then tex:SetTexture(EUIg.COGS_ICON) end
+    cog:SetScript("OnEnter", function(self)
+        self:SetAlpha(0.7)
+        if EUIg and EUIg.ShowWidgetTooltip and tipTitle then
+            EUIg.ShowWidgetTooltip(self, tipBody and (tipTitle .. ": " .. tipBody) or tipTitle)
+        end
+    end)
+    cog:SetScript("OnLeave", function(self)
+        self:SetAlpha(0.4)
+        if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
+    end)
+    cog:SetScript("OnClick", function() if onClick then onClick() end end)
+    return cog
+end
+
+local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
     local _, h
     local encounterID = boss.encounterID
 
@@ -627,98 +655,26 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
         return y
     end
 
-    -- Authored reminders: every timeline event this boss is known to have, two per row,
-    -- each slot clickable. The checkbox state doubles as the "has a reminder" marker, the
-    -- hover tooltip carries the journal's description of the ability, and clicking opens
-    -- the editor -- no inline buttons, which is what let the list collapse from a sparse
-    -- single column into a grid.
-    do
-        local fps, seen = {}, {}
-        local named = ns.EVENT_NAMES and ns.EVENT_NAMES[encounterID]
-        if named then
-            for fp in pairs(named) do
-                seen[fp] = true
-                fps[#fps + 1] = fp
-            end
-        end
-        local marks = ns.MarksTable and ns.MarksTable(false, encounterID)
-        if marks then
-            for fp in pairs(marks) do
-                if not seen[fp] then fps[#fps + 1] = fp end
-            end
-        end
-        table.sort(fps, function(x, z) return (tonumber(x) or 0) < (tonumber(z) or 0) end)
-
-        -- HAND-BUILT rows, not factory ones. The factory's DualRow builds against the
-        -- options page environment (parent width, search tagging, label clamps) and
-        -- rendered blank labels inside the modal's scroll child; a grid this simple is
-        -- better owned outright: stripe, name, star, Edit, tooltip, nothing inherited.
-        local function BuildCell(rowFrame, x, w, fp)
-            if not fp then return end
-            local nm = ns.EventNameFor(encounterID, fp)
-            local disp = (nm == fp) and ("event " .. fp) or nm
-            local r = ns.RemindersTable(false, encounterID)
-            local current = r and r[fp]
-            local hasText = (type(current) == "string" and current ~= "")
-
-            local cell = CreateFrame("Frame", nil, rowFrame)
-            cell:SetPoint("TOPLEFT", rowFrame, "TOPLEFT", x, 0)
-            cell:SetSize(w, rowFrame:GetHeight())
-
-            local name = ns.Font(cell, 13, nil)
-            name:SetPoint("LEFT", cell, "LEFT", 8, 0)
-            name:SetPoint("RIGHT", cell, "RIGHT", -58, 0)
-            name:SetJustifyH("LEFT")
-            name:SetWordWrap(false)
-            name:SetText(disp .. (hasText and "  |cffF0A830*|r" or ""))
-
-            local edit = ns.Button(cell, "Edit", 44, 20, function()
-                ns.ShowCalloutEditor(("Reminder for %s"):format(disp),
-                    current or "",
-                    function(v)
-                        local rw = ns.RemindersTable(true, encounterID)
-                        rw[fp] = (v ~= "" and v) or nil
-                        if next(rw) == nil then
-                            local db2 = ns.DB()
-                            if type(db2.reminders) == "table" then
-                                db2.reminders[tostring(encounterID)] = nil
-                            end
-                        end
-                        EUI:RefreshPage(true)
-                    end, 0)
-            end)
-            edit:SetPoint("RIGHT", cell, "RIGHT", -8, 0)
-
-            local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
-            if ab and type(ab.description) == "string" and ab.description ~= "" then
-                cell:EnableMouse(true)
-                ns.Tooltip(cell, disp, ab.description)
-            end
-        end
-
-        local GRID_H = 32
-        for i = 1, #fps, 2 do
-            local rowFrame = CreateFrame("Frame", nil, parent)
-            rowFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-            rowFrame:SetSize(parent:GetWidth() > 0 and parent:GetWidth() or 600, GRID_H)
-            if ((i + 1) / 2) % 2 == 1 then
-                ns.Solid(rowFrame, "BACKGROUND", ns.THEME.line, 0.18):SetAllPoints()
-            end
-            local half = math.floor(rowFrame:GetWidth() / 2)
-            BuildCell(rowFrame, 0, half, fps[i])
-            BuildCell(rowFrame, half, half, fps[i + 1])
-            y = y - GRID_H
-        end
-    end
-
-    -- Per-boss switch. This one IS enforceable: the game tells us which encounter we are in,
-    -- even though it will not tell us which ability is incoming.
+    -- The whole boss as one hierarchy, tester-specified:
+    --   Enable This Boss           (off = nothing below, no alerts of any kind)
+    --     > ability (accordion)    (collapsed row per timeline event)
+    --         Alert on This Ability     (off = that event stays quiet)
+    --           Use My Spec Default / Custom Alert with its cog
+    --           (spec default off -> that ability's own defensives editor)
+    -- Ability enablement maps onto the runtime's existing marks and mutes -- enabling a
+    -- non-buster writes a player mark, disabling a shipped buster writes a mute -- so the
+    -- UI and the filter can never tell different stories.
     local db = ns.DB()
-    local off = db.bossOff and db.bossOff[tostring(encounterID)]
+    local st = ui and (ui[encounterID] or {}) or {}
+    if ui then ui[encounterID] = st end
+    st.expanded = st.expanded or {}
+
+    local bossOn = not (db.bossOff and db.bossOff[tostring(encounterID)])
     _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Remind Me on This Boss",
-          tooltip = "Switch off to stay silent for this encounter without losing its list.",
-          getValue = function() return not off end,
+        { type = "toggle", text = "Enable This Boss",
+          tooltip = "Off means this boss makes no alerts at all -- no defensives, no "
+          .. "reminders, nothing -- and its options below disappear until it is back on.",
+          getValue = function() return bossOn end,
           setValue = function(v)
               if type(db.bossOff) ~= "table" then db.bossOff = {} end
               db.bossOff[tostring(encounterID)] = (not v) or nil
@@ -726,42 +682,184 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
               ns.RefreshRuntime()
               EUI:RefreshPage(true)
           end },
-        { type = "toggle", text = "Use My Spec Default",
-          tooltip = "On: this boss follows your normal list and the editor below disappears. "
-          .. "Off: the boss gets its own copy of that list to customize, and the ability "
-          .. "editor, spell ID entry and fallback row appear.",
-          getValue = function()
-              -- Existence, not emptiness: a just-seeded copy of an empty spec list must
-              -- still read as customizing, or the toggle can never visually flip off.
-              return ns.BossList(specID, encounterID, false) == nil
-          end,
-          setValue = function(v)
-              if v then
-                  ns.ClearBossList(specID, encounterID)
-              else
-                  -- Customizing starts FROM the spec default, not from nothing: turning
-                  -- the toggle off seeds the boss's own list as a copy, so the editor
-                  -- opens showing the order that was already running. The old one-way
-                  -- version could only clear, and the only path back to a custom list
-                  -- was ticking abilities one by one -- the complaint that drove this.
-                  local base = ns.DB().lists
-                  base = base and base[tostring(specID)]
-                  local bl = ns.BossList(specID, encounterID, true)
-                  wipe(bl)
-                  if base then
-                      for i = 1, #base do bl[i] = base[i] end
-                  end
-              end
-              ns.RefreshRuntime()
-              EUI:RefreshPage(true)
-          end }
+        { type = "label", text = "" }
     ); y = y - h
 
-    -- The whole editor -- ability rows, the spell ID entry and the fallback row -- exists
-    -- only while this boss has its own list. On spec default there is nothing here to
-    -- edit, and showing an editor for a list that is not in use taught people it was.
-    if ns.BossList(specID, encounterID, false) ~= nil then
-        y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, encounterID)
+    if not bossOn then return y end
+
+    local function AbilityEnabled(fp)
+        local sh = ns.ShippedMarksFor and ns.ShippedMarksFor(encounterID)
+        local pmk = ns.MarksTable(false, encounterID)
+        local covered = (sh and sh[fp] == true) or (pmk and pmk[fp] == true)
+        if not covered then return false end
+        local m = ns.MutedTable(false, encounterID)
+        return not (m and m[fp] == true)
+    end
+
+    local function SetAbilityEnabled(fp, on)
+        local sh = ns.ShippedMarksFor and ns.ShippedMarksFor(encounterID)
+        local shipped = sh and sh[fp] == true
+        if on then
+            if not shipped then ns.MarksTable(true, encounterID)[fp] = true end
+            local m = ns.MutedTable(false, encounterID)
+            if m then m[fp] = nil end
+        else
+            if shipped then
+                ns.MutedTable(true, encounterID)[fp] = true
+            else
+                local pmk = ns.MarksTable(false, encounterID)
+                if pmk then pmk[fp] = nil end
+                local m = ns.MutedTable(false, encounterID)
+                if m then m[fp] = nil end
+            end
+        end
+        ns.RefreshRuntime()
+    end
+
+    -- Every known event: named ones from the shipped data, plus anything marked by hand.
+    local fps, seen = {}, {}
+    local named = ns.EVENT_NAMES and ns.EVENT_NAMES[encounterID]
+    if named then
+        for fp in pairs(named) do
+            seen[fp] = true
+            fps[#fps + 1] = fp
+        end
+    end
+    local pmarks = ns.MarksTable and ns.MarksTable(false, encounterID)
+    if pmarks then
+        for fp in pairs(pmarks) do
+            if not seen[fp] then fps[#fps + 1] = fp end
+        end
+    end
+    table.sort(fps, function(x, z) return (tonumber(x) or 0) < (tonumber(z) or 0) end)
+
+    if #fps == 0 then
+        _, h = W:DualRow(parent, y,
+            { type = "label", text = "No timeline data for this boss yet. Learning mode "
+              .. "and /nutank tank are how it gets some." },
+            { type = "label", text = "" }
+        ); y = y - h
+        return y
+    end
+
+    local GRID_H = 28
+    for i = 1, #fps do
+        local fp = fps[i]
+        local nm = ns.EventNameFor(encounterID, fp)
+        local disp = (nm == fp) and ("event " .. fp) or nm
+        local open = st.expanded[fp] == true
+
+        -- Accordion header: hand-built (the factory rows misrender in this scroll child),
+        -- whole row clickable, arrow and name, description on hover.
+        local head = CreateFrame("Button", nil, parent)
+        head:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+        head:SetSize(parent:GetWidth() > 0 and parent:GetWidth() or 600, GRID_H)
+        ns.Solid(head, "BACKGROUND", ns.THEME.line, open and 0.35 or 0.18):SetAllPoints()
+
+        local arrow = ns.Font(head, 13, nil, ns.THEME.gold)
+        arrow:SetPoint("LEFT", head, "LEFT", 10, 0)
+        arrow:SetText(open and "-" or "+")
+
+        local name = ns.Font(head, 13, nil)
+        name:SetPoint("LEFT", head, "LEFT", 26, 0)
+        name:SetPoint("RIGHT", head, "RIGHT", -10, 0)
+        name:SetJustifyH("LEFT")
+        name:SetWordWrap(false)
+        local dim = not AbilityEnabled(fp)
+        name:SetText(dim and ("|cff8a99b5" .. disp .. "|r") or disp)
+
+        head:SetScript("OnClick", function()
+            st.expanded[fp] = (not open) or nil
+            EUI:RefreshPage(true)
+        end)
+        local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
+        if ab and type(ab.description) == "string" and ab.description ~= "" then
+            ns.Tooltip(head, disp, ab.description)
+        end
+        y = y - GRID_H
+
+        if open then
+            local enabled = AbilityEnabled(fp)
+            _, h = W:DualRow(parent, y,
+                { type = "toggle", text = "Alert on This Ability",
+                  tooltip = "Off keeps this ability silent: no defensive callout, no "
+                  .. "reminder. On alerts every cast of it.",
+                  getValue = function() return enabled end,
+                  setValue = function(v)
+                      SetAbilityEnabled(fp, v)
+                      EUI:RefreshPage(true)
+                  end },
+                { type = "label", text = "" }
+            ); y = y - h
+
+            if enabled then
+                local akey = tostring(encounterID) .. "#" .. fp
+                local custom = ns.BossList(specID, akey, false)
+                local r = ns.RemindersTable(false, encounterID)
+                local alertOn = r ~= nil and r[fp] ~= nil
+
+                local pairRow
+                pairRow, h = W:DualRow(parent, y,
+                    { type = "toggle", text = "Use My Spec Default",
+                      tooltip = "On: this ability calls from your normal priority list. "
+                      .. "Off: it gets its own copy of that list to reorder or prune, "
+                      .. "shown below.",
+                      getValue = function() return custom == nil end,
+                      setValue = function(v)
+                          if v then
+                              ns.ClearBossList(specID, akey)
+                          else
+                              local src = ns.EffectiveListFor(specID, encounterID)
+                              if not (src and #src > 0) then
+                                  local lists = ns.DB().lists
+                                  src = lists and lists[tostring(specID)]
+                              end
+                              local bl = ns.BossList(specID, akey, true)
+                              wipe(bl)
+                              if src then
+                                  for k = 1, #src do bl[k] = src[k] end
+                              end
+                          end
+                          ns.RefreshRuntime()
+                          EUI:RefreshPage(true)
+                      end },
+                    { type = "toggle", text = "Custom Alert",
+                      tooltip = "A line of your own said and shown when this ability "
+                      .. "fires, on top of the defensive callout. The cog sets the words.",
+                      getValue = function() return alertOn end,
+                      setValue = function(v)
+                          local rw = ns.RemindersTable(true, encounterID)
+                          -- true = switched on with no text yet; the cog writes the text.
+                          rw[fp] = v and (rw[fp] or true) or nil
+                          if next(rw) == nil then
+                              local db2 = ns.DB()
+                              if type(db2.reminders) == "table" then
+                                  db2.reminders[tostring(encounterID)] = nil
+                              end
+                          end
+                          ns.RefreshRuntime()
+                          EUI:RefreshPage(true)
+                      end }
+                ); y = y - h
+
+                if pairRow and alertOn then
+                    AttachRowCog(pairRow._rightRegion, function()
+                        local cur = type(r[fp]) == "string" and r[fp] or ""
+                        ns.ShowCalloutEditor(("Custom alert for %s"):format(disp), cur,
+                            function(v)
+                                local rw = ns.RemindersTable(true, encounterID)
+                                rw[fp] = (v ~= "" and v) or true
+                                EUI:RefreshPage(true)
+                            end, 0)
+                    end, "Set the custom alert",
+                    "What is said and shown when " .. disp .. " fires.")
+                end
+
+                if custom ~= nil then
+                    y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, akey)
+                end
+            end
+        end
     end
     return y
 end
@@ -952,6 +1050,8 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
     local selected = 1
     local Render
     local RenderBody
+    -- Accordion and per-ability state, keyed by encounter, surviving re-renders.
+    local uiState = {}
 
     -- The boss picker lives in the header's top-right corner, out of the body. A styled
     -- button opening the client's own context menu: the row factory only builds dropdowns
@@ -997,7 +1097,7 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
         title:SetText(("%s  |cffF0A830%s|r"):format(inst.name, boss and boss.name or ""))
 
         if boss then
-            yy = RenderBoss(content, yy, W, proxy, inst, boss, specID)
+            yy = RenderBoss(content, yy, W, proxy, inst, boss, specID, uiState)
         end
         content:SetHeight(-yy + 20)
         -- The window fits its boss: a three-row boss gets a compact dialog, a packed one
