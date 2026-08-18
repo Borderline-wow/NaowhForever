@@ -890,6 +890,16 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
 
     local content
     local proxy
+    -- One boss at a time, chosen from the dropdown in the modal's first row. Showing every
+    -- boss stacked was the inline tree's problem wearing a new frame.
+    local selected = 1
+
+    local bossValues, bossOrder = {}, {}
+    for b = 1, #inst.bosses do
+        bossValues[tostring(b)] = inst.bosses[b].name
+        bossOrder[#bossOrder + 1] = tostring(b)
+    end
+
     local function Render()
         -- A fresh body per render: rows cannot be unbuilt individually, and edits are
         -- rare enough that replacing the child frame outright stays cheap.
@@ -900,12 +910,22 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
 
         local yy = -4
         local _, hh
-        for b = 1, #inst.bosses do
-            local boss = inst.bosses[b]
-            _, hh = W:DualRow(content, yy,
-                { type = "label", text = "|cffF0A830" .. boss.name .. "|r" },
-                { type = "label", text = ("%d abilities"):format(#boss.abilities) }
-            ); yy = yy - hh
+        local boss = inst.bosses[selected] or inst.bosses[1]
+
+        _, hh = W:DualRow(content, yy,
+            { type = "label", text = ("|cffF0A830%s|r  (%d abilities)"):format(
+                boss and boss.name or "?", boss and #boss.abilities or 0) },
+            { type = "dropdown", text = "Boss",
+              values = bossValues, order = bossOrder,
+              tooltip = "Which boss's options to show.",
+              getValue = function() return tostring(selected) end,
+              setValue = function(v)
+                  selected = tonumber(v) or 1
+                  Render()
+              end }
+        ); yy = yy - hh
+
+        if boss then
             yy = RenderBoss(content, yy, W, proxy, inst, boss, specID)
         end
         content:SetHeight(-yy + 20)
