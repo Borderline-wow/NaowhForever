@@ -788,8 +788,9 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                   setValue = function(v)
                       SetAbilityEnabled(fp, v)
                       EUI:RefreshPage(true)
-                  end },
-                { type = "label", text = "" }
+                  end }
+                -- Full width, matching Alert Type below: mixed half and full rows in one
+                -- stack is what read as disjointed.
             ); y = y - h
 
             if enabled then
@@ -899,8 +900,7 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                               end
                               ns.RefreshRuntime()
                               EUI:RefreshPage(true)
-                          end },
-                        { type = "label", text = "" }
+                          end }
                     ); y = y - h
 
                     if custom ~= nil then
