@@ -553,13 +553,25 @@ end
 -- The loop runs for EVERY slot on every pass, with no break and no early return: Blizzard's
 -- own comment in EncounterTimelineTemplates warns that skipping setters leaks the secret
 -- through the call count.
+-- Defined further down alongside chargeState; forward-declared so ApplyPriorityAlpha can
+-- close over them.
+local EnsureChargeState, ChargesAvailable
+
 local function ApplyPriorityAlpha()
     local ev = C_CurveUtil.EvaluateColorValueFromBoolean
     local eligible = 1
 
     for i = 1, activeSlots do
         local slot = slots[i]
-        local dur = C_Spell.GetSpellCooldownDuration(slot.spellID, true)
+
+        -- Charges first, mirroring SpeakCallout below: holding 1 of 2 charges leaves a
+        -- recharge timer ACTIVE, so GetSpellCooldownDuration reads it as running even
+        -- though the spell is castable right now. Without this the icon lost the pick to
+        -- the next slot down while the voice, which already special-cased charges,
+        -- correctly called the held one -- a callout with the wrong icon lit.
+        EnsureChargeState(slot.spellID)
+        local charges = ChargesAvailable(slot.spellID)
+        local dur = (not charges) and C_Spell.GetSpellCooldownDuration(slot.spellID, true) or nil
         -- ignoreGCD=true is load-bearing. It defaults to FALSE, and the returned duration
         -- then covers the global cooldown -- so mid-fight, with a GCD running almost
         -- constantly, every defensive reported as unavailable and no icon ever appeared.
@@ -567,7 +579,14 @@ local function ApplyPriorityAlpha()
         -- A duration object is a PLAIN handle wrapping secret state (unlike GetSpellCooldown,
         -- which is flagged SecretWhenCooldownsRestricted), so testing the handle and its
         -- method is legal. Calling IsZero() is what produces the secret.
-        if dur and dur.IsZero then
+
+        if charges then
+            -- Tracked from the player's own casts, so this is plain even in restricted
+            -- content: no engine evaluator needed for this branch.
+            local ready = charges > 0
+            slot:SetAlpha(ready and eligible or 0)
+            if ready then eligible = 0 end
+        elseif dur and dur.IsZero then
             local ready = dur:IsZero()
             -- SetAlpha with an engine-evaluated value rather than SetAlphaFromBoolean: the
             -- latter documents its alpha default as 255, so its scale is ambiguous, and this
@@ -1126,7 +1145,7 @@ local function ReadChargeShape(sid)
     return max, active == true
 end
 
-local function EnsureChargeState(sid)
+function EnsureChargeState(sid)
     local max = ReadChargeShape(sid)
     if not max then
         chargeState[sid] = nil
@@ -1147,7 +1166,7 @@ local function EnsureChargeState(sid)
     return st
 end
 
-local function ChargesAvailable(sid)
+function ChargesAvailable(sid)
     local st = chargeState[sid]
     if not st then return nil end
 
@@ -1179,6 +1198,13 @@ local function RebuildCastMap()
         end
     end
 end
+
+-- GetSpellBaseCooldown reports 0 for these, so without this table the estimate falls
+-- through to UNKNOWN_COOLDOWN below and thinks a multi-minute defensive is back in 30
+-- seconds. Real totals, used only until a cast is actually learned.
+local KNOWN_BASE_COOLDOWN = {
+    [642] = 300,   -- Divine Shield
+}
 
 local function NoteOwnCast(castSpellID)
     local sid = castSpellID and castToBase[castSpellID]
@@ -1212,6 +1238,7 @@ local function NoteOwnCast(castSpellID)
     local UNKNOWN_COOLDOWN = 30
 
     local secs = learned
+        or KNOWN_BASE_COOLDOWN[sid]
         or (type(baseMs) == "number" and baseMs > 0 and baseMs / 1000)
         or UNKNOWN_COOLDOWN
     readyAt[sid] = GetTime() + secs
