@@ -832,31 +832,81 @@ function ns.BuildTreeSection(parent, y)
         if inst.isRaid then raids[#raids + 1] = inst else dungeons[#dungeons + 1] = inst end
     end
 
-    -- Each instance opens as a MODAL rather than expanding inline: the tree got long
-    -- enough that opening one dungeon scrolled everything else off the page. The modal
-    -- shows every boss of that instance expanded, in its own scroll region.
+    -- The toggle is the instance's ON/OFF switch -- it writes the per-boss switches in
+    -- bulk, so the two views can never disagree -- and the cog in its gutter is what opens
+    -- the options modal. The toggle used to open the modal itself, which made switching a
+    -- dungeon off impossible and opening it feel like a mis-click.
     local function InstanceSlot(inst)
         if not inst then return { type = "label", text = "" } end
-        local marked = 0
-        for b = 1, #inst.bosses do
-            local eid = inst.bosses[b].encounterID
-            local cl = eid and ns.BossList(specID, eid, false)
-            if cl and #cl > 0 then marked = marked + 1 end
-        end
         return { type = "toggle",
-            text = "+  " .. inst.name,
-            tooltip = ("%d bosses%s. Click to open."):format(
-                #inst.bosses, marked > 0 and (", " .. marked .. " with their own list") or ""),
-            getValue = function() return false end,
-            setValue = function()
-                ns.ShowInstanceModal(inst, specID, EUI, W)
+            text = "      " .. inst.name,
+            tooltip = ("Callouts for this %s, all %d bosses at once. Single bosses can still "
+                .. "be switched inside the cog."):format(
+                inst.isRaid and "raid" or "dungeon", #inst.bosses),
+            getValue = function()
+                local off = ns.DB().bossOff
+                if not off then return true end
+                for b = 1, #inst.bosses do
+                    local eid = inst.bosses[b].encounterID
+                    if eid and not off[tostring(eid)] then return true end
+                end
+                return #inst.bosses == 0
+            end,
+            setValue = function(v)
+                local db = ns.DB()
+                if type(db.bossOff) ~= "table" then db.bossOff = {} end
+                for b = 1, #inst.bosses do
+                    local eid = inst.bosses[b].encounterID
+                    if eid then db.bossOff[tostring(eid)] = (not v) or nil end
+                end
+                if next(db.bossOff) == nil then db.bossOff = nil end
+                ns.RefreshRuntime()
+                EUI:RefreshPage(true)
             end }
+    end
+
+    -- The house cog: dim until hovered, sitting in the gutter between the checkbox and
+    -- the instance name, same art as every other cog in the suite.
+    local function AttachCog(rgn, inst)
+        if not (rgn and inst) then return end
+        local cog = CreateFrame("Button", nil, rgn)
+        cog:SetSize(18, 18)
+        cog:SetPoint("LEFT", rgn, "LEFT", 22, 0)
+        cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
+        cog:SetAlpha(0.5)
+        local tex = cog:CreateTexture(nil, "OVERLAY")
+        tex:SetAllPoints()
+        local EUIg = _G.EllesmereUI
+        if EUIg and EUIg.COGS_ICON then
+            tex:SetTexture(EUIg.COGS_ICON)
+        else
+            tex:SetTexture("Interface" .. string.char(92) .. "Buttons"
+                .. string.char(92) .. "UI-OptionsButton")
+        end
+        cog:SetScript("OnEnter", function(self)
+            self:SetAlpha(0.9)
+            if EUIg and EUIg.ShowWidgetTooltip then
+                EUIg.ShowWidgetTooltip(self, "Bosses, reminders and lists for " .. inst.name)
+            end
+        end)
+        cog:SetScript("OnLeave", function(self)
+            self:SetAlpha(0.5)
+            if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
+        end)
+        cog:SetScript("OnClick", function()
+            ns.ShowInstanceModal(inst, specID, EUI, W)
+        end)
     end
 
     local rows = math.max(#dungeons, #raids)
     for i = 1, rows do
         local d, r = dungeons[i], raids[i]
-        _, h = W:DualRow(parent, y, InstanceSlot(d), InstanceSlot(r)); y = y - h
+        local instRow
+        instRow, h = W:DualRow(parent, y, InstanceSlot(d), InstanceSlot(r)); y = y - h
+        if instRow then
+            AttachCog(instRow._leftRegion, d)
+            AttachCog(instRow._rightRegion, r)
+        end
     end
 
     _, h = W:Button(parent, "Refresh From the Dungeon Journal", y, function()
