@@ -828,31 +828,37 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                           end
                           ns.RefreshRuntime()
                           EUI:RefreshPage(true)
-                      end },
-                    { type = "label", text = "" }
+                      end }
+                    -- nil right config = full-width row in the factory, right for a
+                    -- control that owns the whole decision.
                 ); y = y - h
 
                 if isCustom then
-                    -- The custom line, edited IN PLACE: a bordered box prefilled with
-                    -- the current text, saved on enter or on clicking away. The old
-                    -- cog-and-modal detour is gone with the dual-toggle design.
+                    -- The custom line, edited IN PLACE, dressed as a table row: factory
+                    -- row height and label metrics, faint row stripe, and the box in the
+                    -- same well-and-border the callout editor's input wears -- so it sits
+                    -- in the column like any defensives row instead of floating.
+                    local ROW_H = 50
                     local rowF = CreateFrame("Frame", nil, parent)
                     rowF:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-                    rowF:SetSize(parent:GetWidth() > 0 and parent:GetWidth() or 600, 34)
+                    rowF:SetSize(parent:GetWidth() > 0 and parent:GetWidth() or 600, ROW_H)
+                    ns.Solid(rowF, "BACKGROUND", ns.THEME.line, 0.12):SetAllPoints()
 
-                    local lbl = ns.Font(rowF, 12, nil, ns.THEME.muted)
+                    local lbl = ns.Font(rowF, 14, nil)
                     lbl:SetPoint("LEFT", rowF, "LEFT", 20, 0)
-                    lbl:SetText("Says:")
+                    lbl:SetText("Says")
 
                     local box = CreateFrame("EditBox", nil, rowF)
-                    box:SetPoint("LEFT", rowF, "LEFT", 64, 0)
+                    box:SetPoint("LEFT", rowF, "LEFT", 80, 0)
                     box:SetPoint("RIGHT", rowF, "RIGHT", -20, 0)
-                    box:SetHeight(24)
+                    box:SetHeight(28)
                     box:SetAutoFocus(false)
                     box:SetMaxLetters(60)
                     box:SetFontObject("GameFontHighlight")
                     box:SetTextInsets(6, 6, 0, 0)
-                    ns.Solid(box, "BACKGROUND", ns.THEME.panel, 0.9):SetAllPoints()
+                    local well = ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1)
+                    well:SetAllPoints()
+                    ns.Border(box)
                     box:SetText(type(r[fp]) == "string" and r[fp] or "")
 
                     local function SaveBox(self)
@@ -868,7 +874,7 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                     end)
                     box:SetScript("OnEditFocusLost", SaveBox)
                     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-                    y = y - 34
+                    y = y - ROW_H
                 else
                     _, h = W:DualRow(parent, y,
                         { type = "toggle", text = "Use My Spec Default",
