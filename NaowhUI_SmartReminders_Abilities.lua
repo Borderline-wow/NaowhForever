@@ -74,9 +74,10 @@ ns.TANK_ABILITIES = {
     [466091] = "Unknown",   -- Emberdawn: Searing Beak
     [1222085] = "Unknown",   -- Taz'Rah: Cosmic Spike
     [1267049] = "Unknown",   -- Midnight Falls: Heaven's Lance
+    [268007] = "Unknown",   -- Avatar of Sethraliss: Heart Attack
 }
 
-ns.TANK_ABILITIES_COUNT = 41
+ns.TANK_ABILITIES_COUNT = 42
 
 -------------------------------------------------------------------------------
 --  Tank-buster fingerprints per boss, authored once and shipped.
@@ -114,6 +115,15 @@ ns.TANK_FINGERPRINTS = {
     -- 3379 (Nymrissa) and 3183 (Midnight Falls) round to whole seconds upstream and carry
     -- stage-dependent duration reuse, so they lean on the tolerant whole-second match and
     -- may over-call on shared durations; /nutank mute is the correction.
+    -- 2143 (Dazar) reuses 10.0 for Hunting Leap and Deathly Roar on alternate casts,
+    -- and 2606 (Kokia) shares 40.0 with Ritual of Blazebinding; same over-call, same fix.
+    [2124] = { ["31.0"] = true, ["36.0"] = true },   -- Overload
+    [2125] = { ["5.0"] = true },   -- Lightning Bite
+    [2139] = { ["8.0"] = true, ["25.0"] = true },   -- Tail Thrash
+    [2140] = { ["2.0"] = true, ["7.0"] = true, ["14.0"] = true, ["22.0"] = true },   -- Arc Lightning, Debilitating Backhand
+    [2143] = { ["8.0"] = true, ["10.0"] = true, ["23.0"] = true, ["24.0"] = true, ["30.0"] = true, ["36.0"] = true, ["38.0"] = true },   -- Blade Combo, Gilded Destruction, Hunting Leap, Savage Maul
+    [2606] = { ["28.0"] = true, ["40.0"] = true },   -- Searing Blows
+    [2623] = { ["5.0"] = true, ["22.5"] = true },   -- Stormslam
     [3056] = { ["10.0"] = true, ["13.0"] = true },   -- Searing Beak
     [3057] = { ["17.3"] = true },   -- Bone Hack
     [3058] = { ["3.0"] = true, ["30.0"] = true },   -- Rampage
@@ -389,6 +399,17 @@ ns.DAMAGE_NAMES = {
 --  number in the editor.
 -------------------------------------------------------------------------------
 ns.EVENT_NAMES = {
+    [2124] = { ["1.0"] = "Gale Force", ["4.0"] = "Thunder and Lightning", ["5.0"] = "Gale Force", ["9.0"] = "Thunder and Lightning", ["12.0"] = "Tempest Winds", ["19.0"] = "Gale Force", ["21.0"] = "Tempest Winds", ["26.0"] = "Tempest Winds", ["31.0"] = "Overload", ["36.0"] = "Overload", ["42.0"] = "Gale Force" },
+    [2125] = { ["5.0"] = "Lightning Bite", ["13.0"] = "A Knot of Snakes", ["25.0"] = "Thunder Spit", ["36.0"] = "Serpentstorm", ["44.0"] = "Hatch", ["49.0"] = "Burrow" },
+    [2126] = { ["5.0"] = "Lightning Spire", ["20.0"] = "Induction", ["22.0"] = "Induction / Lightning Spire" },
+    [2127] = { ["15.0"] = "Defiling Taint", ["32.5"] = "Stage One" },
+    [2139] = { ["5.0"] = "Spit Gold", ["8.0"] = "Tail Thrash", ["14.0"] = "Serpentine Gust", ["25.0"] = "Spit Gold / Tail Thrash", ["28.0"] = "Serpentine Gust", ["54.0"] = "Lucre's Call" },
+    [2140] = { ["2.0"] = "Arc Lightning", ["5.0"] = "Barrel Through", ["7.0"] = "Arc Lightning", ["8.0"] = "Whirling Axes", ["10.0"] = "Poison Nova", ["14.0"] = "Debilitating Backhand", ["14.8"] = "Whirling Axes", ["15.0"] = "Severing Axe", ["16.5"] = "Severing Axe", ["20.0"] = "Barrel Through / Call of the Elements", ["22.0"] = "Debilitating Backhand", ["24.0"] = "Poison Nova", ["24.4"] = "Poison Nova", ["25.2"] = "Poison Nova", ["52.5"] = "Call of the Elements" },
+    [2142] = { ["5.0"] = "Drain Fluids", ["20.0"] = "Burn Corruption", ["30.0"] = "Awakening Slam / Burn Corruption", ["32.0"] = "Drain Fluids", ["60.0"] = "Entomb" },
+    [2143] = { ["8.0"] = "Hunting Leap", ["9.0"] = "Quaking Leap", ["10.0"] = "Deathly Roar / Hunting Leap", ["14.0"] = "Deathly Roar", ["15.0"] = "Aerial Smash", ["23.0"] = "Blade Combo", ["24.0"] = "Gilded Destruction", ["30.0"] = "Gilded Destruction", ["36.0"] = "Savage Maul", ["38.0"] = "Blade Combo" },
+    [2606] = { ["8.0"] = "Ritual of Blazebinding", ["19.0"] = "Molten Boulder", ["20.0"] = "Molten Boulder", ["28.0"] = "Searing Blows", ["40.0"] = "Ritual of Blazebinding / Searing Blows" },
+    [2609] = { ["6.0"] = "Hailburst", ["12.0"] = "Frost Overload", ["16.0"] = "Chillstorm", ["27.0"] = "Chillstorm / Hailburst" },
+    [2623] = { ["1.0"] = "Roaring Firebreath", ["5.0"] = "Stormslam", ["9.0"] = "Inferno Spit", ["10.0"] = "Winds of Change", ["12.0"] = "Inferno Spit", ["16.0"] = "Inferno Spit / Roaring Firebreath", ["20.0"] = "Inferno Spit / Roaring Firebreath", ["21.0"] = "Interrupting Cloudburst", ["21.5"] = "Winds of Change", ["22.5"] = "Stormslam", ["25.0"] = "Interrupting Cloudburst" },
     [3056] = { ["6.0"] = "Flaming Updraft", ["10.0"] = "Searing Beak", ["13.0"] = "Searing Beak", ["15.0"] = "Burning Gale", ["15.5"] = "Flaming Updraft", ["30.0"] = "Burning Gale" },
     [3057] = { ["8.0"] = "Splattering Spew", ["17.3"] = "Bone Hack", ["22.7"] = "Curse of Darkness", ["27.3"] = "Splattering Spew", ["48.0"] = "Debilitating Shriek" },
     [3058] = { ["0.0"] = "3x in a row on stage change / Bladestorm", ["3.0"] = "Rampage", ["8.0"] = "Bladestorm / Get Rename", ["10.0"] = "Reckless Leap", ["18.0"] = "Intimidating Shout", ["30.0"] = "Rampage", ["37.0"] = "Reckless Leap", ["45.0"] = "Intimidating Shout" },

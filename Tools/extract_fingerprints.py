@@ -11,7 +11,8 @@ Two module dialects exist and both are handled:
      dialects are emitted in "%.1f" form.
 
 Tank classification, in priority order:
-  1. Our curated sheet-derived list (spell ids).
+  1. Our curated sheet-derived list, by spell id and then by boss plus ability
+     name, since a module often carries the applied aura where we carry the cast.
   2. `[id] = {CL.tank_hit...` renames and `note = CL.tank_hit` entries.
   3. `{id, "TANK"}` / `{id, "TANK_HEALER"}` flags in GetOptions.
   4. `(Tank Hit)` comments beside an id.
@@ -40,10 +41,15 @@ def parse_curated(abilities_lua):
     ids = set()
     for mm in re.finditer(r"\[(\d+)\]", m.group(1)):
         ids.add(int(mm.group(1)))
-    return ids
+    # (boss, ability) out of the trailing comments, for the name fallback below.
+    pairs = set()
+    for boss, name in re.findall(
+            r"\[\d+\] = \"[^\"]*\",\s*--\s*([^:\r\n]+):\s*([^\r\n(]+)", m.group(1)):
+        pairs.add((norm(boss), norm(name)))
+    return ids, pairs
 
 
-def parse_module(path, curated):
+def parse_module(path, curated, curated_pairs):
     text = path.read_text(encoding="utf-8", errors="replace")
     me = re.search(r"SetEncounterID\((\d+)\)", text)
     mb = re.search(r'NewBoss\("([^"]+)"', text)
@@ -80,6 +86,14 @@ def parse_module(path, curated):
     for sid, nm in id_name.items():
         if sid in curated:
             tank_names.add(norm(nm))
+    # The curated list carries the CAST spell id while a module routinely carries the
+    # applied aura instead, so an id-only join drops real tank busters -- Hunting Leap
+    # and Savage Maul on the very boss whose branch comments name both. Boss plus
+    # ability name is the fallback key, the same one DAMAGE_NAMES settled on.
+    bkey = norm(bossname)
+    for cboss, cname in curated_pairs:
+        if cboss == bkey:
+            tank_names.add(cname)
 
     # Branches, both dialects.
     branches = []  # (durations, display_name)
@@ -92,13 +106,19 @@ def parse_module(path, curated):
         cm = re.search(r"--\s*([^\r\n(]+)$", line.strip())
         if cm:
             cand = cm.group(1).strip()
+            # A branch that exists to SUPPRESS an event names nothing; its comment
+            # describes the filter, not an ability.
+            if cand.lower().startswith("filter"):
+                continue
             # A trailing comment that is just numbers or a difficulty tag names nothing.
             if re.search(r"[A-Za-z]", cand) and not re.fullmatch(
                     r"(?:[\d/ .]+)?(?:Mythic|Heroic|Normal)?", cand):
                 name = cand
         if not name:
             for j in range(i + 1, min(i + 4, len(lines))):
-                mcall = re.search(r"self:(\w+)\(", lines[j])
+                # Only the call whose result becomes the bar names the ability; a bare
+                # self:EncounterEvent() inside a branch is stage plumbing.
+                mcall = re.search(r"barInfo = self:(\w+)\(", lines[j])
                 if mcall:
                     method = re.sub(r"Timeline$", "", mcall.group(1))
                     # Prefer the proper name whose normalization matches the method.
@@ -120,13 +140,13 @@ def parse_module(path, curated):
 
 
 def main():
-    curated = parse_curated(sys.argv[1])
+    curated, curated_pairs = parse_curated(sys.argv[1])
     mods = []
     for arg in sys.argv[2:]:
         for f in sorted(Path(arg).rglob("*.lua")):
             if f.name.startswith("!") or f.name == "Trash.lua":
                 continue
-            parsed = parse_module(f, curated)
+            parsed = parse_module(f, curated, curated_pairs)
             if parsed:
                 mods.append(parsed)
 
