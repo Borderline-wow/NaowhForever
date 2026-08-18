@@ -787,8 +787,6 @@ ns.RemindersTable = RemindersTable
 ns.MarksTable = MarksTable
 ns.MutedTable = MutedTable
 
-ns.ShippedMarksFor = function(enc) return ShippedMarks(enc) end
-
 local function IsMutedEvent(eventID)
     local fp = FingerprintFor(eventID)
     if not fp then return false end
@@ -864,6 +862,9 @@ local function ShippedMarks(enc)
     -- handed us, and a silent type mismatch here disables the whole filter.
     return d[enc] or d[tonumber(enc)] or d[tostring(enc)]
 end
+-- Exported HERE, below the definition: an export wrapper placed above it resolved
+-- ShippedMarks as a nil global inside the closure, and the boss window died on it.
+ns.ShippedMarksFor = function(enc) return ShippedMarks(enc) end
 
 -- The filter players actually experience: shipped data covers the boss out of the box, and
 -- a player's own marks UNION with it rather than replacing it, so marking stays available
@@ -1387,7 +1388,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0818f"
+local TRACE_BUILD = "0818g"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
