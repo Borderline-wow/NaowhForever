@@ -649,6 +649,10 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
         end
         table.sort(fps, function(x, z) return (tonumber(x) or 0) < (tonumber(z) or 0) end)
 
+        -- Label slots, never toggles: a checkbox that opens a popup read as a broken
+        -- checkbox, and the tester said so. The name carries a gold star when a reminder
+        -- exists, hovering the slot shows what the ability does, and the small Edit
+        -- button on each half is the one thing that opens the editor.
         local function ReminderSlot(fp)
             if not fp then return { type = "label", text = "" } end
             local nm = ns.EventNameFor(encounterID, fp)
@@ -656,39 +660,47 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
             local r = ns.RemindersTable(false, encounterID)
             local current = r and r[fp]
             local hasText = (type(current) == "string" and current ~= "")
+            return { type = "label",
+                text = disp .. (hasText and "  |cffF0A830*|r" or "") }
+        end
+
+        local function AttachSlotEdit(rgn, fp)
+            if not (rgn and fp) then return end
+            local nm = ns.EventNameFor(encounterID, fp)
+            local disp = (nm == fp) and ("event " .. fp) or nm
+            local r = ns.RemindersTable(false, encounterID)
+            local current = r and r[fp]
             local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
-            local tip = (ab and type(ab.description) == "string" and ab.description ~= "")
-                and (ab.description .. "  ") or ""
-            tip = tip .. "Click to edit the reminder said and shown when this ability fires."
-            return { type = "toggle",
-                text = "      " .. disp,
-                tooltip = tip,
-                getValue = function() return hasText end,
-                setValue = function()
-                    -- The checkbox flips visually the moment it is clicked, before any
-                    -- reminder exists. Refreshing right away snaps it back to the stored
-                    -- state; the editor floats above the rebuilt rows, and saving
-                    -- refreshes again through its own callback.
-                    EUI:RefreshPage(true)
-                    ns.ShowCalloutEditor(("Reminder for %s"):format(disp),
-                        current or "",
-                        function(v)
-                            local rw = ns.RemindersTable(true, encounterID)
-                            rw[fp] = (v ~= "" and v) or nil
-                            if next(rw) == nil then
-                                local db2 = ns.DB()
-                                if type(db2.reminders) == "table" then
-                                    db2.reminders[tostring(encounterID)] = nil
-                                end
+            if ab and type(ab.description) == "string" and ab.description ~= "" then
+                rgn:EnableMouse(true)
+                ns.Tooltip(rgn, disp, ab.description)
+            end
+            AttachInline(rgn, "Edit", 46, function()
+                ns.ShowCalloutEditor(("Reminder for %s"):format(disp),
+                    current or "",
+                    function(v)
+                        local rw = ns.RemindersTable(true, encounterID)
+                        rw[fp] = (v ~= "" and v) or nil
+                        if next(rw) == nil then
+                            local db2 = ns.DB()
+                            if type(db2.reminders) == "table" then
+                                db2.reminders[tostring(encounterID)] = nil
                             end
-                            EUI:RefreshPage(true)
-                        end, 0)
-                end }
+                        end
+                        EUI:RefreshPage(true)
+                    end, 0)
+            end, "Edit the reminder",
+            "Said and shown when this ability fires. Empty removes it.")
         end
 
         for i = 1, #fps, 2 do
-            _, h = W:DualRow(parent, y, ReminderSlot(fps[i]), ReminderSlot(fps[i + 1]))
+            local gridRow
+            gridRow, h = W:DualRow(parent, y, ReminderSlot(fps[i]), ReminderSlot(fps[i + 1]))
             y = y - h
+            if gridRow then
+                AttachSlotEdit(gridRow._leftRegion, fps[i])
+                AttachSlotEdit(gridRow._rightRegion, fps[i + 1])
+            end
         end
     end
 
@@ -697,7 +709,7 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     local db = ns.DB()
     local off = db.bossOff and db.bossOff[tostring(encounterID)]
     _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "         Remind Me on This Boss",
+        { type = "toggle", text = "Remind Me on This Boss",
           tooltip = "Switch off to stay silent for this encounter without losing its list.",
           getValue = function() return not off end,
           setValue = function(v)
