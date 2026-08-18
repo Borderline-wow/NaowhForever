@@ -1377,7 +1377,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0817n"
+local TRACE_BUILD = "0817o"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -2049,9 +2049,14 @@ end
 -- stand-in lives exactly as long as it does. Alpha is set directly here rather than through
 -- the gate: out of an encounter there is no event to gate against.
 local previewing = false
+-- The visible half of the preview switch: previewing says the options window is open,
+-- previewPin says the player wants the stand-in on screen. Both must hold. Pinned on by
+-- default so the preview appears the moment the page opens -- tester feedback was not
+-- "the preview is intrusive" but "I cannot find it".
+local previewPin = true
 
 local function UpdatePreview()
-    if not previewing then
+    if not (previewing and previewPin) then
         -- Never yank a live call-out off the screen because the settings panel closed.
         if frame and not shownForEvent then frame:Hide() end
         if bar and not shownForEvent then bar:Hide() end
@@ -3123,6 +3128,17 @@ function ns.BuildSection(parent, y)
           .. "and keeps the border crisp, so reach for that first and use this to fine-tune.",
           getValue = function() return math.floor((TRDB().scale or 1) * 100 + 0.5) end,
           setValue = function(v) SetIconScale(v / 100) end }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Show a Preview",
+          tooltip = "Puts a stand-in of the alert on screen while these options are open -- "
+          .. "the icon and the text callout exactly as a fight would draw them -- so sizing "
+          .. "and placement are done against the real thing. It hides itself when the "
+          .. "options close.",
+          getValue = function() return previewPin end,
+          setValue = function(v) previewPin = v; UpdatePreview() end },
+        { type = "label", text = "" }
     ); y = y - h
 
     -- Escape hatch: a UI-scale change can strand a moved icon off-screen where Unlock Mode
