@@ -649,33 +649,30 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
         end
         table.sort(fps, function(x, z) return (tonumber(x) or 0) < (tonumber(z) or 0) end)
 
-        -- Label slots, never toggles: a checkbox that opens a popup read as a broken
-        -- checkbox, and the tester said so. The name carries a gold star when a reminder
-        -- exists, hovering the slot shows what the ability does, and the small Edit
-        -- button on each half is the one thing that opens the editor.
-        local function ReminderSlot(fp)
-            if not fp then return { type = "label", text = "" } end
+        -- HAND-BUILT rows, not factory ones. The factory's DualRow builds against the
+        -- options page environment (parent width, search tagging, label clamps) and
+        -- rendered blank labels inside the modal's scroll child; a grid this simple is
+        -- better owned outright: stripe, name, star, Edit, tooltip, nothing inherited.
+        local function BuildCell(rowFrame, x, w, fp)
+            if not fp then return end
             local nm = ns.EventNameFor(encounterID, fp)
             local disp = (nm == fp) and ("event " .. fp) or nm
             local r = ns.RemindersTable(false, encounterID)
             local current = r and r[fp]
             local hasText = (type(current) == "string" and current ~= "")
-            return { type = "label",
-                text = disp .. (hasText and "  |cffF0A830*|r" or "") }
-        end
 
-        local function AttachSlotEdit(rgn, fp)
-            if not (rgn and fp) then return end
-            local nm = ns.EventNameFor(encounterID, fp)
-            local disp = (nm == fp) and ("event " .. fp) or nm
-            local r = ns.RemindersTable(false, encounterID)
-            local current = r and r[fp]
-            local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
-            if ab and type(ab.description) == "string" and ab.description ~= "" then
-                rgn:EnableMouse(true)
-                ns.Tooltip(rgn, disp, ab.description)
-            end
-            AttachInline(rgn, "Edit", 46, function()
+            local cell = CreateFrame("Frame", nil, rowFrame)
+            cell:SetPoint("TOPLEFT", rowFrame, "TOPLEFT", x, 0)
+            cell:SetSize(w, rowFrame:GetHeight())
+
+            local name = ns.Font(cell, 13, nil)
+            name:SetPoint("LEFT", cell, "LEFT", 8, 0)
+            name:SetPoint("RIGHT", cell, "RIGHT", -58, 0)
+            name:SetJustifyH("LEFT")
+            name:SetWordWrap(false)
+            name:SetText(disp .. (hasText and "  |cffF0A830*|r" or ""))
+
+            local edit = ns.Button(cell, "Edit", 44, 20, function()
                 ns.ShowCalloutEditor(("Reminder for %s"):format(disp),
                     current or "",
                     function(v)
@@ -689,18 +686,28 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
                         end
                         EUI:RefreshPage(true)
                     end, 0)
-            end, "Edit the reminder",
-            "Said and shown when this ability fires. Empty removes it.")
+            end)
+            edit:SetPoint("RIGHT", cell, "RIGHT", -8, 0)
+
+            local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
+            if ab and type(ab.description) == "string" and ab.description ~= "" then
+                cell:EnableMouse(true)
+                ns.Tooltip(cell, disp, ab.description)
+            end
         end
 
+        local GRID_H = 32
         for i = 1, #fps, 2 do
-            local gridRow
-            gridRow, h = W:DualRow(parent, y, ReminderSlot(fps[i]), ReminderSlot(fps[i + 1]))
-            y = y - h
-            if gridRow then
-                AttachSlotEdit(gridRow._leftRegion, fps[i])
-                AttachSlotEdit(gridRow._rightRegion, fps[i + 1])
+            local rowFrame = CreateFrame("Frame", nil, parent)
+            rowFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+            rowFrame:SetSize(parent:GetWidth() > 0 and parent:GetWidth() or 600, GRID_H)
+            if ((i + 1) / 2) % 2 == 1 then
+                ns.Solid(rowFrame, "BACKGROUND", ns.THEME.line, 0.18):SetAllPoints()
             end
+            local half = math.floor(rowFrame:GetWidth() / 2)
+            BuildCell(rowFrame, 0, half, fps[i])
+            BuildCell(rowFrame, half, half, fps[i + 1])
+            y = y - GRID_H
         end
     end
 
@@ -839,7 +846,7 @@ function ns.BuildTreeSection(parent, y)
     local function InstanceSlot(inst)
         if not inst then return { type = "label", text = "" } end
         return { type = "toggle",
-            text = "      " .. inst.name,
+            text = inst.name,
             tooltip = ("Callouts for this %s, all %d bosses at once. Single bosses can still "
                 .. "be switched inside the cog."):format(
                 inst.isRaid and "raid" or "dungeon", #inst.bosses),
@@ -870,10 +877,13 @@ function ns.BuildTreeSection(parent, y)
     local function AttachCog(rgn, inst)
         if not (rgn and inst) then return end
         local cog = CreateFrame("Button", nil, rgn)
-        cog:SetSize(18, 18)
-        cog:SetPoint("LEFT", rgn, "LEFT", 22, 0)
+        -- The suite's cog, matched: dim 0.4 resting, 0.7 hovered, COGS_ICON art, and
+        -- LEFT OF the checkbox -- it hangs into the row's content padding, which is what
+        -- that padding is for.
+        cog:SetSize(20, 20)
+        cog:SetPoint("RIGHT", rgn, "LEFT", 0, 0)
         cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
-        cog:SetAlpha(0.5)
+        cog:SetAlpha(0.4)
         local tex = cog:CreateTexture(nil, "OVERLAY")
         tex:SetAllPoints()
         local EUIg = _G.EllesmereUI
@@ -884,13 +894,13 @@ function ns.BuildTreeSection(parent, y)
                 .. string.char(92) .. "UI-OptionsButton")
         end
         cog:SetScript("OnEnter", function(self)
-            self:SetAlpha(0.9)
+            self:SetAlpha(0.7)
             if EUIg and EUIg.ShowWidgetTooltip then
                 EUIg.ShowWidgetTooltip(self, "Bosses, reminders and lists for " .. inst.name)
             end
         end)
         cog:SetScript("OnLeave", function(self)
-            self:SetAlpha(0.5)
+            self:SetAlpha(0.4)
             if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
         end)
         cog:SetScript("OnClick", function()
@@ -925,6 +935,7 @@ end
 -- in the same breath and never shows stale state.
 function ns.ShowInstanceModal(inst, specID, EUI, W)
     local dimmer, panel = ns.MakeModal(660, 540)
+    local MIN_H, MAX_H, CHROME = 220, 540, 96
 
     local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -16)
@@ -977,6 +988,9 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
             yy = RenderBoss(content, yy, W, proxy, inst, boss, specID)
         end
         content:SetHeight(-yy + 20)
+        -- The window fits its boss: a three-row boss gets a compact dialog, a packed one
+        -- caps at the old height and scrolls.
+        panel:SetHeight(math.max(MIN_H, math.min(MAX_H, (-yy + 20) + CHROME)))
     end
 
     proxy = setmetatable({
