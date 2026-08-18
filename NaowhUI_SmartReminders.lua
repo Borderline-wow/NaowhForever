@@ -186,6 +186,13 @@ local function EffectiveList(forSpec, encounterID, fp)
     if encounterID and fp then
         local al = BossList(forSpec, tostring(encounterID) .. "#" .. fp, false)
         if al and #al > 0 then return al, true end
+        -- The UI keys per-ability lists by NAME, since one ability can own several
+        -- fingerprints; the fingerprint form above stays honored for older saves.
+        local nm = ns.EventNameFor and ns.EventNameFor(encounterID, fp)
+        if nm and nm ~= fp then
+            local anl = BossList(forSpec, tostring(encounterID) .. "#" .. nm, false)
+            if anl and #anl > 0 then return anl, true end
+        end
     end
     if encounterID then
         local bl = BossList(forSpec, encounterID, false)
@@ -767,11 +774,26 @@ local function RemindersTable(create, enc)
     return PerBossSet("reminders", create, enc)
 end
 
-local function ReminderFor(enc, fp)
+-- One ability can own several fingerprints (a late-cast variant is a second duration of
+-- the same spell), and the UI configures by ABILITY. So reminder state is keyed by the
+-- ability's name, with fingerprint keys still honored for anything saved before the
+-- grouping existed. The raw entry can be true (custom mode, no text yet) or a string.
+local function ReminderEntry(enc, fp)
     if not (enc and fp) then return nil end
     local r = RemindersTable(false, enc)
-    local text = r and r[fp]
-    if type(text) == "string" and text ~= "" then return text end
+    if not r then return nil end
+    local v = r[fp]
+    if v == nil then
+        local nm = EventNameFor(enc, fp)
+        if nm and nm ~= fp then v = r[nm] end
+    end
+    return v
+end
+ns.ReminderEntry = ReminderEntry
+
+local function ReminderFor(enc, fp)
+    local v = ReminderEntry(enc, fp)
+    if type(v) == "string" and v ~= "" then return v end
     return nil
 end
 
@@ -1388,7 +1410,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0818k"
+local TRACE_BUILD = "0818l"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1634,11 +1656,7 @@ local function ShowForEvent(eventID)
     -- a defensive ability never carries custom text. The mode is simply whether reminder
     -- state exists for this fingerprint.
     local customText = ReminderFor(currentEncounter, lastFingerprint)
-    local customMode = customText ~= nil
-    do
-        local r = RemindersTable(false, currentEncounter)
-        if r and lastFingerprint and r[lastFingerprint] ~= nil then customMode = true end
-    end
+    local customMode = ReminderEntry(currentEncounter, lastFingerprint) ~= nil
 
     if customMode then
         -- Plain constant alpha is legal; only engine-driven values are not. The slots go

@@ -637,16 +637,6 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
     local _, h
     local encounterID = boss.encounterID
 
-    -- The journal reference list used to render here: every damaging ability with its
-    -- role labels. Cut on tester feedback -- the reminder rows below already name every
-    -- event that actually fires, which is the list anyone acts on. The journal data still
-    -- feeds the hover tooltips on those rows, matched by name.
-    local journalByName = {}
-    for a = 1, #boss.abilities do
-        local ab = boss.abilities[a]
-        if ab.title then journalByName[ab.title:lower()] = ab end
-    end
-
     if not encounterID then
         _, h = W:DualRow(parent, y,
             { type = "label", text = "         This boss has no encounter id, so it cannot hold a list." },
@@ -716,24 +706,41 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
         ns.RefreshRuntime()
     end
 
-    -- Every known event: named ones from the shipped data, plus anything marked by hand.
-    local fps, seen = {}, {}
+    -- Every known event, GROUPED BY ABILITY: one ability can own several fingerprints
+    -- (a late-cast variant is a second duration of the same spell), and listing one row
+    -- per fingerprint doubled names in the accordion. Every control on a group applies to
+    -- all of its fingerprints at once.
+    local groups, byName = {}, {}
+    local function AddFp(fp)
+        local nm = ns.EventNameFor(encounterID, fp)
+        local disp = (nm == fp) and ("event " .. fp) or nm
+        local g = byName[disp]
+        if not g then
+            g = { name = disp, fps = {}, first = tonumber(fp) or 0 }
+            byName[disp] = g
+            groups[#groups + 1] = g
+        end
+        g.fps[#g.fps + 1] = fp
+        local n = tonumber(fp) or 0
+        if n < g.first then g.first = n end
+    end
     local named = ns.EVENT_NAMES and ns.EVENT_NAMES[encounterID]
+    local seen = {}
     if named then
         for fp in pairs(named) do
             seen[fp] = true
-            fps[#fps + 1] = fp
+            AddFp(fp)
         end
     end
     local pmarks = ns.MarksTable and ns.MarksTable(false, encounterID)
     if pmarks then
         for fp in pairs(pmarks) do
-            if not seen[fp] then fps[#fps + 1] = fp end
+            if not seen[fp] then AddFp(fp) end
         end
     end
-    table.sort(fps, function(x, z) return (tonumber(x) or 0) < (tonumber(z) or 0) end)
+    table.sort(groups, function(x, z) return x.first < z.first end)
 
-    if #fps == 0 then
+    if #groups == 0 then
         _, h = W:DualRow(parent, y,
             { type = "label", text = "No timeline data for this boss yet. Learning mode "
               .. "and /nutank tank are how it gets some." },
@@ -743,11 +750,17 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
     end
 
     local GRID_H = 28
-    for i = 1, #fps do
-        local fp = fps[i]
-        local nm = ns.EventNameFor(encounterID, fp)
-        local disp = (nm == fp) and ("event " .. fp) or nm
-        local open = st.expanded[fp] == true
+    for i = 1, #groups do
+        local g = groups[i]
+        local disp = g.name
+        local open = st.expanded[disp] == true
+
+        local function AnyEnabled()
+            for k = 1, #g.fps do
+                if AbilityEnabled(g.fps[k]) then return true end
+            end
+            return false
+        end
 
         -- Accordion header: hand-built (the factory rows misrender in this scroll child),
         -- whole row clickable, arrow and name, description on hover.
@@ -765,28 +778,25 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
         name:SetPoint("RIGHT", head, "RIGHT", -10, 0)
         name:SetJustifyH("LEFT")
         name:SetWordWrap(false)
-        local dim = not AbilityEnabled(fp)
+        local dim = not AnyEnabled()
         name:SetText(dim and ("|cff8a99b5" .. disp .. "|r") or disp)
 
         head:SetScript("OnClick", function()
-            st.expanded[fp] = (not open) or nil
+            st.expanded[disp] = (not open) or nil
             EUI:RefreshPage(true)
         end)
-        local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
-        if ab and type(ab.description) == "string" and ab.description ~= "" then
-            ns.Tooltip(head, disp, ab.description)
-        end
+        -- No hover description, by request: the names carry enough.
         y = y - GRID_H
 
         if open then
-            local enabled = AbilityEnabled(fp)
+            local enabled = AnyEnabled()
             _, h = W:DualRow(parent, y,
                 { type = "toggle", text = "Alert on This Ability",
                   tooltip = "Off keeps this ability silent: no defensive callout, no "
                   .. "reminder. On alerts every cast of it.",
                   getValue = function() return enabled end,
                   setValue = function(v)
-                      SetAbilityEnabled(fp, v)
+                      for k = 1, #g.fps do SetAbilityEnabled(g.fps[k], v) end
                       EUI:RefreshPage(true)
                   end }
                 -- Full width, matching Alert Type below: mixed half and full rows in one
@@ -794,10 +804,18 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
             ); y = y - h
 
             if enabled then
-                local akey = tostring(encounterID) .. "#" .. fp
+                local akey = tostring(encounterID) .. "#" .. disp
                 local custom = ns.BossList(specID, akey, false)
                 local r = ns.RemindersTable(false, encounterID)
-                local isCustom = r ~= nil and r[fp] ~= nil
+                local function RawEntry()
+                    if not r then return nil end
+                    if r[disp] ~= nil then return r[disp] end
+                    for k = 1, #g.fps do
+                        if r[g.fps[k]] ~= nil then return r[g.fps[k]] end
+                    end
+                    return nil
+                end
+                local isCustom = RawEntry() ~= nil
 
                 -- One alert type, never both, per the tester's design: Defensive picks
                 -- from a priority list and names what to press; Custom says a line the
@@ -812,19 +830,19 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                       .. "never both.",
                       getValue = function() return isCustom and "custom" or "defensive" end,
                       setValue = function(v)
+                          local rw = ns.RemindersTable(true, encounterID)
+                          -- One entry per ability, keyed by name; any fingerprint keys
+                          -- from before the grouping are folded in and cleared.
                           if v == "custom" then
-                              local rw = ns.RemindersTable(true, encounterID)
-                              rw[fp] = rw[fp] or true
+                              rw[disp] = RawEntry() or true
                           else
-                              local rw = ns.RemindersTable(false, encounterID)
-                              if rw then
-                                  rw[fp] = nil
-                                  if next(rw) == nil then
-                                      local db2 = ns.DB()
-                                      if type(db2.reminders) == "table" then
-                                          db2.reminders[tostring(encounterID)] = nil
-                                      end
-                                  end
+                              rw[disp] = nil
+                          end
+                          for k = 1, #g.fps do rw[g.fps[k]] = nil end
+                          if next(rw) == nil then
+                              local db2 = ns.DB()
+                              if type(db2.reminders) == "table" then
+                                  db2.reminders[tostring(encounterID)] = nil
                               end
                           end
                           ns.RefreshRuntime()
@@ -860,12 +878,14 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                     local well = ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1)
                     well:SetAllPoints()
                     ns.Border(box)
-                    box:SetText(type(r[fp]) == "string" and r[fp] or "")
+                    local raw = RawEntry()
+                    box:SetText(type(raw) == "string" and raw or "")
 
                     local function SaveBox(self)
                         local v = self:GetText() or ""
                         local rw = ns.RemindersTable(true, encounterID)
-                        rw[fp] = (v ~= "" and v) or true
+                        rw[disp] = (v ~= "" and v) or true
+                        for k = 1, #g.fps do rw[g.fps[k]] = nil end
                         ns.RefreshRuntime()
                     end
                     box:SetScript("OnEnterPressed", function(self)
