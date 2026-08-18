@@ -1377,7 +1377,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0817o"
+local TRACE_BUILD = "0817p"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1896,6 +1896,10 @@ local function OnCombatLog()
 end
 
 
+-- The combat log registration latch: set the first time the event is successfully
+-- registered, never cleared, because the registration itself is never undone.
+local cleuRegistered = false
+
 local function UpdateEventRegistration()
     if not watcher then return end
 
@@ -1945,12 +1949,20 @@ local function UpdateEventRegistration()
     watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
     watcher:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 
-    -- Registered STATICALLY while the feature is on, never per encounter: this event's
-    -- registration is protected in combat (learned from a live forbidden-action error),
-    -- and ENCOUNTER_START is in combat by definition. The handler gates itself instead --
-    -- one plain nil-check per combat log line outside encounters.
-    if not InCombatLockdown() then
-        watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    -- ONCE, ever. Two live forbidden-action errors taught the full rule: toggling this
+    -- HasRestrictions event's registration from insecure code is forbidden in restricted
+    -- content, in either direction, and InCombatLockdown() is not the gate -- content is.
+    -- So the call happens exactly one time, only when Blizzard's own probe says the
+    -- combat log is unrestricted here, and after that the latch keeps every later Apply
+    -- from ever calling RegisterEvent again. Logging in inside restricted content just
+    -- means the latch waits for the first Apply that runs outside it.
+    if not cleuRegistered then
+        local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
+            and C_CombatLog.IsCombatLogRestricted()
+        if restricted == false or restricted == nil then
+            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+            cleuRegistered = true
+        end
     end
 
     -- Which boss we are on, so a per-boss override can take over from the spec default.
