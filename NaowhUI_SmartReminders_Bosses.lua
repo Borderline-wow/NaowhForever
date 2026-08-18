@@ -796,67 +796,110 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                 local akey = tostring(encounterID) .. "#" .. fp
                 local custom = ns.BossList(specID, akey, false)
                 local r = ns.RemindersTable(false, encounterID)
-                local alertOn = r ~= nil and r[fp] ~= nil
+                local isCustom = r ~= nil and r[fp] ~= nil
 
-                local pairRow
-                pairRow, h = W:DualRow(parent, y,
-                    { type = "toggle", text = "Use My Spec Default",
-                      tooltip = "On: this ability calls from your normal priority list. "
-                      .. "Off: it gets its own copy of that list to reorder or prune, "
-                      .. "shown below.",
-                      getValue = function() return custom == nil end,
+                -- One alert type, never both, per the tester's design: Defensive picks
+                -- from a priority list and names what to press; Custom says a line the
+                -- player wrote instead. The mode is whether reminder state exists, so
+                -- packs and exports carry it with no extra field.
+                _, h = W:DualRow(parent, y,
+                    { type = "dropdown", text = "Alert Type",
+                      values = { defensive = "Defensive", custom = "Custom" },
+                      order = { "defensive", "custom" },
+                      tooltip = "Defensive calls the right cooldown from a priority "
+                      .. "list. Custom says a line you write instead. One or the other, "
+                      .. "never both.",
+                      getValue = function() return isCustom and "custom" or "defensive" end,
                       setValue = function(v)
-                          if v then
-                              ns.ClearBossList(specID, akey)
+                          if v == "custom" then
+                              local rw = ns.RemindersTable(true, encounterID)
+                              rw[fp] = rw[fp] or true
                           else
-                              local src = ns.EffectiveListFor(specID, encounterID)
-                              if not (src and #src > 0) then
-                                  local lists = ns.DB().lists
-                                  src = lists and lists[tostring(specID)]
-                              end
-                              local bl = ns.BossList(specID, akey, true)
-                              wipe(bl)
-                              if src then
-                                  for k = 1, #src do bl[k] = src[k] end
+                              local rw = ns.RemindersTable(false, encounterID)
+                              if rw then
+                                  rw[fp] = nil
+                                  if next(rw) == nil then
+                                      local db2 = ns.DB()
+                                      if type(db2.reminders) == "table" then
+                                          db2.reminders[tostring(encounterID)] = nil
+                                      end
+                                  end
                               end
                           end
                           ns.RefreshRuntime()
                           EUI:RefreshPage(true)
                       end },
-                    { type = "toggle", text = "Custom Alert",
-                      tooltip = "A line of your own said and shown when this ability "
-                      .. "fires, on top of the defensive callout. The cog sets the words.",
-                      getValue = function() return alertOn end,
-                      setValue = function(v)
-                          local rw = ns.RemindersTable(true, encounterID)
-                          -- true = switched on with no text yet; the cog writes the text.
-                          rw[fp] = v and (rw[fp] or true) or nil
-                          if next(rw) == nil then
-                              local db2 = ns.DB()
-                              if type(db2.reminders) == "table" then
-                                  db2.reminders[tostring(encounterID)] = nil
-                              end
-                          end
-                          ns.RefreshRuntime()
-                          EUI:RefreshPage(true)
-                      end }
+                    { type = "label", text = "" }
                 ); y = y - h
 
-                if pairRow and alertOn then
-                    AttachRowCog(pairRow._rightRegion, function()
-                        local cur = type(r[fp]) == "string" and r[fp] or ""
-                        ns.ShowCalloutEditor(("Custom alert for %s"):format(disp), cur,
-                            function(v)
-                                local rw = ns.RemindersTable(true, encounterID)
-                                rw[fp] = (v ~= "" and v) or true
-                                EUI:RefreshPage(true)
-                            end, 0)
-                    end, "Set the custom alert",
-                    "What is said and shown when " .. disp .. " fires.")
-                end
+                if isCustom then
+                    -- The custom line, edited IN PLACE: a bordered box prefilled with
+                    -- the current text, saved on enter or on clicking away. The old
+                    -- cog-and-modal detour is gone with the dual-toggle design.
+                    local rowF = CreateFrame("Frame", nil, parent)
+                    rowF:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+                    rowF:SetSize(parent:GetWidth() > 0 and parent:GetWidth() or 600, 34)
 
-                if custom ~= nil then
-                    y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, akey)
+                    local lbl = ns.Font(rowF, 12, nil, ns.THEME.muted)
+                    lbl:SetPoint("LEFT", rowF, "LEFT", 20, 0)
+                    lbl:SetText("Says:")
+
+                    local box = CreateFrame("EditBox", nil, rowF)
+                    box:SetPoint("LEFT", rowF, "LEFT", 64, 0)
+                    box:SetPoint("RIGHT", rowF, "RIGHT", -20, 0)
+                    box:SetHeight(24)
+                    box:SetAutoFocus(false)
+                    box:SetMaxLetters(60)
+                    box:SetFontObject("GameFontHighlight")
+                    box:SetTextInsets(6, 6, 0, 0)
+                    ns.Solid(box, "BACKGROUND", ns.THEME.panel, 0.9):SetAllPoints()
+                    box:SetText(type(r[fp]) == "string" and r[fp] or "")
+
+                    local function SaveBox(self)
+                        local v = self:GetText() or ""
+                        local rw = ns.RemindersTable(true, encounterID)
+                        rw[fp] = (v ~= "" and v) or true
+                        ns.RefreshRuntime()
+                    end
+                    box:SetScript("OnEnterPressed", function(self)
+                        SaveBox(self)
+                        self:ClearFocus()
+                        EUI:RefreshPage(true)
+                    end)
+                    box:SetScript("OnEditFocusLost", SaveBox)
+                    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+                    y = y - 34
+                else
+                    _, h = W:DualRow(parent, y,
+                        { type = "toggle", text = "Use My Spec Default",
+                          tooltip = "On: this ability calls from your normal priority "
+                          .. "list. Off: it gets its own copy of that list to reorder "
+                          .. "or prune, shown below.",
+                          getValue = function() return custom == nil end,
+                          setValue = function(v)
+                              if v then
+                                  ns.ClearBossList(specID, akey)
+                              else
+                                  local src = ns.EffectiveListFor(specID, encounterID)
+                                  if not (src and #src > 0) then
+                                      local lists = ns.DB().lists
+                                      src = lists and lists[tostring(specID)]
+                                  end
+                                  local bl = ns.BossList(specID, akey, true)
+                                  wipe(bl)
+                                  if src then
+                                      for k = 1, #src do bl[k] = src[k] end
+                                  end
+                              end
+                              ns.RefreshRuntime()
+                              EUI:RefreshPage(true)
+                          end },
+                        { type = "label", text = "" }
+                    ); y = y - h
+
+                    if custom ~= nil then
+                        y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, akey)
+                    end
                 end
             end
         end

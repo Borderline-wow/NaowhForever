@@ -1388,7 +1388,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0818g"
+local TRACE_BUILD = "0818h"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1629,13 +1629,29 @@ local function ShowForEvent(eventID)
         return
     end
 
-    -- The defensive pick honors this ABILITY's own list when one exists: slots are
-    -- rebuilt against the fingerprint before anything reads them. Cheap, and the next
-    -- event or encounter start rebuilds again, so nothing needs restoring.
-    RebuildSlots(lastFingerprint)
-    RebuildCastMap()
+    -- The two alert types are EXCLUSIVE, per the tester's design: an ability set to a
+    -- custom alert says that line and nothing else -- no defensive pick, no icons -- and
+    -- a defensive ability never carries custom text. The mode is simply whether reminder
+    -- state exists for this fingerprint.
+    local customText = ReminderFor(currentEncounter, lastFingerprint)
+    local customMode = customText ~= nil
+    do
+        local r = RemindersTable(false, currentEncounter)
+        if r and lastFingerprint and r[lastFingerprint] ~= nil then customMode = true end
+    end
 
-    ApplyPriorityAlpha()
+    if customMode then
+        -- Plain constant alpha is legal; only engine-driven values are not. The slots go
+        -- dark rather than unbuilt so the frame keeps its size for placement.
+        for i = 1, activeSlots do slots[i]:SetAlpha(0) end
+    else
+        -- The defensive pick honors this ABILITY's own list when one exists: slots are
+        -- rebuilt against the fingerprint before anything reads them. Cheap, and the next
+        -- event or encounter start rebuilds again, so nothing needs restoring.
+        RebuildSlots(lastFingerprint)
+        RebuildCastMap()
+        ApplyPriorityAlpha()
+    end
 
     -- The bar counts down the incoming ability. GetEventTimer hands back a duration object
     -- that is PLAIN (only the descriptive event fields are secret), and the engine ticks it
@@ -1665,17 +1681,19 @@ local function ShowForEvent(eventID)
     -- do; both together mean no future change to the readout can cost the player an alert.
     -- It already did once: an unguarded throw in here ran ahead of the callout and took the
     -- audio with it on the exact pull being diagnosed.
-    SpeakCallout()
+    if not customMode then SpeakCallout() end
     lastCalloutAt = GetTime()
 
     -- The authored layer: what the curator wrote on THIS ability, named when the data
     -- knows it. Shown over the icon and spoken after the defensive, so the actionable
     -- word still comes first.
     if frame.reminder then
-        local reminder = ReminderFor(currentEncounter, lastFingerprint)
+        local reminder = customText
         if reminder then
-            frame.reminder:SetText(reminder)
-            frame.reminder:Show()
+            if t.showText then
+                frame.reminder:SetText(reminder)
+                frame.reminder:Show()
+            end
             if t.voiceOn then Speak(reminder) end
         else
             -- Authored text only. Showing the incoming ability's name here was tried and
