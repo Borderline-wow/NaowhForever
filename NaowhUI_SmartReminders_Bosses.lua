@@ -665,6 +665,11 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
                 tooltip = tip,
                 getValue = function() return hasText end,
                 setValue = function()
+                    -- The checkbox flips visually the moment it is clicked, before any
+                    -- reminder exists. Refreshing right away snaps it back to the stored
+                    -- state; the editor floats above the rebuilt rows, and saving
+                    -- refreshes again through its own callback.
+                    EUI:RefreshPage(true)
                     ns.ShowCalloutEditor(("Reminder for %s"):format(disp),
                         current or "",
                         function(v)
@@ -707,8 +712,9 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
           .. "Off: the boss gets its own copy of that list to customize, and the ability "
           .. "editor, spell ID entry and fallback row appear.",
           getValue = function()
-              local bl = ns.BossList(specID, encounterID, false)
-              return not (bl and #bl > 0)
+              -- Existence, not emptiness: a just-seeded copy of an empty spec list must
+              -- still read as customizing, or the toggle can never visually flip off.
+              return ns.BossList(specID, encounterID, false) == nil
           end,
           setValue = function(v)
               if v then
@@ -735,11 +741,8 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     -- The whole editor -- ability rows, the spell ID entry and the fallback row -- exists
     -- only while this boss has its own list. On spec default there is nothing here to
     -- edit, and showing an editor for a list that is not in use taught people it was.
-    do
-        local bl = ns.BossList(specID, encounterID, false)
-        if bl and #bl > 0 then
-            y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, encounterID)
-        end
+    if ns.BossList(specID, encounterID, false) ~= nil then
+        y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, encounterID)
     end
     return y
 end
