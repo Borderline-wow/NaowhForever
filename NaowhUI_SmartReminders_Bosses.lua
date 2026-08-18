@@ -627,10 +627,11 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
         return y
     end
 
-    -- Authored reminders, one per timeline event this boss is known to have. The names
-    -- come from the shipped event data; a player-marked fingerprint the data has no name
-    -- for is still editable under its number. This is the curator surface: what gets
-    -- written here is shown and spoken when that ability fires, and it travels in packs.
+    -- Authored reminders: every timeline event this boss is known to have, two per row,
+    -- each slot clickable. The checkbox state doubles as the "has a reminder" marker, the
+    -- hover tooltip carries the journal's description of the ability, and clicking opens
+    -- the editor -- no inline buttons, which is what let the list collapse from a sparse
+    -- single column into a grid.
     do
         local fps, seen = {}, {}
         local named = ns.EVENT_NAMES and ns.EVENT_NAMES[encounterID]
@@ -646,43 +647,25 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
                 if not seen[fp] then fps[#fps + 1] = fp end
             end
         end
-        table.sort(fps, function(a, b) return (tonumber(a) or 0) < (tonumber(b) or 0) end)
+        table.sort(fps, function(x, z) return (tonumber(x) or 0) < (tonumber(z) or 0) end)
 
-        for i = 1, #fps do
-            local fp = fps[i]
+        local function ReminderSlot(fp)
+            if not fp then return { type = "label", text = "" } end
             local nm = ns.EventNameFor(encounterID, fp)
+            local disp = (nm == fp) and ("event " .. fp) or nm
             local r = ns.RemindersTable(false, encounterID)
             local current = r and r[fp]
-            local remRow
-            remRow, h = W:DualRow(parent, y,
-                { type = "label", text = ("         |cff8a99b5%s|r"):format(
-                    nm == fp and ("event " .. fp) or nm) },
-                { type = "label", text = (current and current ~= "")
-                    and ("|cffF0A830" .. current .. "|r") or "" }
-            ); y = y - h
-            if remRow then
-                -- The journal's description of this ability, on hover, matched by name;
-                -- the spell record fills in when the journal has nothing.
-                local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
-                if ab then
-                    if ab.spellID and C_Spell and C_Spell.RequestLoadSpellData then
-                        pcall(C_Spell.RequestLoadSpellData, ab.spellID)
-                    end
-                    remRow:EnableMouse(true)
-                    ns.Tooltip(remRow, nm, function()
-                        if ab.description and ab.description ~= "" then
-                            return ab.description
-                        end
-                        if ab.spellID and C_Spell and C_Spell.GetSpellDescription then
-                            local ok, d = pcall(C_Spell.GetSpellDescription, ab.spellID)
-                            if ok and type(d) == "string" and d ~= "" then return d end
-                        end
-                        return "The game has no description for this ability."
-                    end)
-                end
-                AttachInline(remRow._rightRegion or remRow, "Edit", 46, function()
-                    ns.ShowCalloutEditor(
-                        ("Reminder for %s"):format(nm == fp and ("event " .. fp) or nm),
+            local hasText = (type(current) == "string" and current ~= "")
+            local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
+            local tip = (ab and type(ab.description) == "string" and ab.description ~= "")
+                and (ab.description .. "  ") or ""
+            tip = tip .. "Click to edit the reminder said and shown when this ability fires."
+            return { type = "toggle",
+                text = "      " .. disp,
+                tooltip = tip,
+                getValue = function() return hasText end,
+                setValue = function()
+                    ns.ShowCalloutEditor(("Reminder for %s"):format(disp),
                         current or "",
                         function(v)
                             local rw = ns.RemindersTable(true, encounterID)
@@ -695,9 +678,12 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
                             end
                             EUI:RefreshPage(true)
                         end, 0)
-                end, "Edit the reminder",
-                "Shown on screen and spoken when this ability fires. Empty removes it.")
-            end
+                end }
+        end
+
+        for i = 1, #fps, 2 do
+            _, h = W:DualRow(parent, y, ReminderSlot(fps[i]), ReminderSlot(fps[i + 1]))
+            y = y - h
         end
     end
 
@@ -851,8 +837,8 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
     local dimmer, panel = ns.MakeModal(660, 540)
 
     local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", panel, "TOP", 0, -14)
-    title:SetText(inst.name)
+    title:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -16)
+    title:SetJustifyH("LEFT")
 
     local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -40)
@@ -860,17 +846,32 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
 
     local content
     local proxy
-    -- One boss at a time, chosen from the dropdown in the modal's first row. Showing every
-    -- boss stacked was the inline tree's problem wearing a new frame.
     local selected = 1
+    local Render
 
-    local bossValues, bossOrder = {}, {}
-    for b = 1, #inst.bosses do
-        bossValues[tostring(b)] = inst.bosses[b].name
-        bossOrder[#bossOrder + 1] = tostring(b)
-    end
+    -- The boss picker lives in the header's top-right corner, out of the body. A styled
+    -- button opening the client's own context menu: the row factory only builds dropdowns
+    -- inside rows, and a body row for navigation was the complaint.
+    local pick = ns.Button(panel, "Select Boss", 130, 22, function()
+        if MenuUtil and MenuUtil.CreateContextMenu then
+            MenuUtil.CreateContextMenu(panel, function(_, root)
+                for b = 1, #inst.bosses do
+                    local idx = b
+                    root:CreateButton(inst.bosses[b].name, function()
+                        selected = idx
+                        Render()
+                    end)
+                end
+            end)
+        else
+            -- No menu API: the button cycles instead of dropping down.
+            selected = (selected % #inst.bosses) + 1
+            Render()
+        end
+    end)
+    pick:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -16, -12)
 
-    local function Render()
+    function Render()
         -- A fresh body per render: rows cannot be unbuilt individually, and edits are
         -- rare enough that replacing the child frame outright stays cheap.
         if content then content:Hide() end
@@ -879,21 +880,8 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
         scroll:SetScrollChild(content)
 
         local yy = -4
-        local _, hh
         local boss = inst.bosses[selected] or inst.bosses[1]
-
-        _, hh = W:DualRow(content, yy,
-            { type = "label", text = ("|cffF0A830%s|r  (%d abilities)"):format(
-                boss and boss.name or "?", boss and #boss.abilities or 0) },
-            { type = "dropdown", text = "Boss",
-              values = bossValues, order = bossOrder,
-              tooltip = "Which boss's options to show.",
-              getValue = function() return tostring(selected) end,
-              setValue = function(v)
-                  selected = tonumber(v) or 1
-                  Render()
-              end }
-        ); yy = yy - hh
+        title:SetText(("%s  |cffF0A830%s|r"):format(inst.name, boss and boss.name or ""))
 
         if boss then
             yy = RenderBoss(content, yy, W, proxy, inst, boss, specID)
