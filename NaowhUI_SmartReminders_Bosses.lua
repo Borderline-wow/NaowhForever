@@ -703,19 +703,44 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
               EUI:RefreshPage(true)
           end },
         { type = "toggle", text = "Use My Spec Default",
-          tooltip = "Clears this boss's own order so it follows your normal list again.",
+          tooltip = "On: this boss follows your normal list and the editor below disappears. "
+          .. "Off: the boss gets its own copy of that list to customize, and the ability "
+          .. "editor, spell ID entry and fallback row appear.",
           getValue = function()
               local bl = ns.BossList(specID, encounterID, false)
               return not (bl and #bl > 0)
           end,
-          setValue = function()
-              ns.ClearBossList(specID, encounterID)
+          setValue = function(v)
+              if v then
+                  ns.ClearBossList(specID, encounterID)
+              else
+                  -- Customizing starts FROM the spec default, not from nothing: turning
+                  -- the toggle off seeds the boss's own list as a copy, so the editor
+                  -- opens showing the order that was already running. The old one-way
+                  -- version could only clear, and the only path back to a custom list
+                  -- was ticking abilities one by one -- the complaint that drove this.
+                  local base = ns.DB().lists
+                  base = base and base[tostring(specID)]
+                  local bl = ns.BossList(specID, encounterID, true)
+                  wipe(bl)
+                  if base then
+                      for i = 1, #base do bl[i] = base[i] end
+                  end
+              end
               ns.RefreshRuntime()
               EUI:RefreshPage(true)
           end }
     ); y = y - h
 
-    y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, encounterID)
+    -- The whole editor -- ability rows, the spell ID entry and the fallback row -- exists
+    -- only while this boss has its own list. On spec default there is nothing here to
+    -- edit, and showing an editor for a list that is not in use taught people it was.
+    do
+        local bl = ns.BossList(specID, encounterID, false)
+        if bl and #bl > 0 then
+            y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, encounterID)
+        end
+    end
     return y
 end
 
