@@ -949,6 +949,7 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
     local proxy
     local selected = 1
     local Render
+    local RenderBody
 
     -- The boss picker lives in the header's top-right corner, out of the body. A styled
     -- button opening the client's own context menu: the row factory only builds dropdowns
@@ -972,7 +973,16 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
     end)
     pick:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -16, -12)
 
+    -- The body is pcall'd and failures PRINT. Two rounds of this modal silently eating
+    -- its own content taught the lesson: a UI that can fail must say where.
     function Render()
+        local ok, err = pcall(RenderBody)
+        if not ok then
+            ns.Print("|cffff6060boss window failed to draw|r: " .. tostring(err))
+        end
+    end
+
+    function RenderBody()
         -- A fresh body per render: rows cannot be unbuilt individually, and edits are
         -- rare enough that replacing the child frame outright stays cheap.
         if content then content:Hide() end
@@ -990,7 +1000,12 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
         content:SetHeight(-yy + 20)
         -- The window fits its boss: a three-row boss gets a compact dialog, a packed one
         -- caps at the old height and scrolls.
-        panel:SetHeight(math.max(MIN_H, math.min(MAX_H, (-yy + 20) + CHROME)))
+        local panelH = math.max(MIN_H, math.min(MAX_H, (-yy + 20) + CHROME))
+        panel:SetHeight(panelH)
+        -- The template's scrollbar is always-visible by default, which reads as broken
+        -- next to a window that just sized itself to need no scrolling.
+        local bar = scroll.ScrollBar
+        if bar then bar:SetShown((-yy + 20) > (panelH - CHROME)) end
     end
 
     proxy = setmetatable({
