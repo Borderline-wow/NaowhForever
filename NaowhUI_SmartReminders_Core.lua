@@ -141,6 +141,11 @@ function ns.MakeModal(width, height)
     dimmer:SetAllPoints(UIParent)
     dimmer:SetFrameStrata("FULLSCREEN_DIALOG")
     dimmer:EnableMouse(true)
+    -- Modals stack: the reminder editor opens from inside the instance modal, and with
+    -- both on the same strata, creation order decided who was on top -- an editor built
+    -- before the modal sat invisibly behind it. Raising on every show makes the newest
+    -- opened modal the visible one, whatever order they were built in.
+    dimmer:SetScript("OnShow", function(self) self:Raise() end)
     dimmer:Hide()
     local dim = ns.Solid(dimmer, "BACKGROUND", ns.THEME.bg, 0.55)
     dim:SetAllPoints()
