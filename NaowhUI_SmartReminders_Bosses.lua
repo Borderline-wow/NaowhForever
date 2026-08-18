@@ -609,63 +609,14 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     local _, h
     local encounterID = boss.encounterID
 
-    -- Every DAMAGING ability the journal lists for this fight, with who it is aimed at.
-    -- Reference only: see the options text for why these cannot each carry their own switch.
-    --
-    -- The journal itself does not say what hurts, so the damage set derived from the public
-    -- classification sheet decides. When the sheet knows this boss, only abilities that
-    -- damage somebody are shown; a boss the sheet has never heard of shows its full list,
-    -- because an empty reference reads as broken rather than unclassified.
-    -- Matched by spell id OR by name. The id alone silently dropped real tank busters:
-    -- the classification data carries the CAST id while the journal row often carries the
-    -- ability's display record instead, and the two ids rarely agree.
-    local shown = {}
+    -- The journal reference list used to render here: every damaging ability with its
+    -- role labels. Cut on tester feedback -- the reminder rows below already name every
+    -- event that actually fires, which is the list anyone acts on. The journal data still
+    -- feeds the hover tooltips on those rows, matched by name.
+    local journalByName = {}
     for a = 1, #boss.abilities do
         local ab = boss.abilities[a]
-        local sid = ab.spellID
-        local nm = ab.title and ab.title:lower()
-        if (sid and ((ns.DAMAGE_ABILITIES and ns.DAMAGE_ABILITIES[sid])
-                or (ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid])))
-            or (nm and ns.DAMAGE_NAMES and ns.DAMAGE_NAMES[nm]) then
-            shown[#shown + 1] = ab
-        end
-    end
-    if #shown == 0 then shown = boss.abilities end
-
-    if #shown == 0 then
-        _, h = W:DualRow(parent, y,
-            { type = "label", text = "         The journal lists no abilities for this boss." },
-            { type = "label", text = "" }
-        ); y = y - h
-    else
-        for a = 1, #shown do
-            local ab = shown[a]
-            local abilityRow
-            abilityRow, h = W:DualRow(parent, y,
-                { type = "label", text = "         |cffF0A830" .. ab.title .. "|r" },
-                { type = "label", text = ab.extras or "" }
-            ); y = y - h
-            -- What the ability actually does, on hover. The journal's words first; the
-            -- spell's own description as the fallback, since plenty of journal rows carry
-            -- no text of their own. Spell text loads async, so the data is requested now
-            -- and the body is resolved at hover time, by which point it has arrived.
-            if abilityRow then
-                if ab.spellID and C_Spell and C_Spell.RequestLoadSpellData then
-                    pcall(C_Spell.RequestLoadSpellData, ab.spellID)
-                end
-                abilityRow:EnableMouse(true)
-                ns.Tooltip(abilityRow, ab.title, function()
-                    if ab.description and ab.description ~= "" then
-                        return ab.description
-                    end
-                    if ab.spellID and C_Spell and C_Spell.GetSpellDescription then
-                        local ok, d = pcall(C_Spell.GetSpellDescription, ab.spellID)
-                        if ok and type(d) == "string" and d ~= "" then return d end
-                    end
-                    return "The game has no description for this ability."
-                end)
-            end
-        end
+        if ab.title then journalByName[ab.title:lower()] = ab end
     end
 
     if not encounterID then
@@ -710,6 +661,25 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
                     and ("|cffF0A830" .. current .. "|r") or "" }
             ); y = y - h
             if remRow then
+                -- The journal's description of this ability, on hover, matched by name;
+                -- the spell record fills in when the journal has nothing.
+                local ab = journalByName[type(nm) == "string" and nm:lower() or ""]
+                if ab then
+                    if ab.spellID and C_Spell and C_Spell.RequestLoadSpellData then
+                        pcall(C_Spell.RequestLoadSpellData, ab.spellID)
+                    end
+                    remRow:EnableMouse(true)
+                    ns.Tooltip(remRow, nm, function()
+                        if ab.description and ab.description ~= "" then
+                            return ab.description
+                        end
+                        if ab.spellID and C_Spell and C_Spell.GetSpellDescription then
+                            local ok, d = pcall(C_Spell.GetSpellDescription, ab.spellID)
+                            if ok and type(d) == "string" and d ~= "" then return d end
+                        end
+                        return "The game has no description for this ability."
+                    end)
+                end
                 AttachInline(remRow._rightRegion or remRow, "Edit", 46, function()
                     ns.ShowCalloutEditor(
                         ("Reminder for %s"):format(nm == fp and ("event " .. fp) or nm),
