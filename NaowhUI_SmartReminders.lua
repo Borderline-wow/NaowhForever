@@ -2293,7 +2293,11 @@ local function CreateCustomFrame()
     customFrame = CreateFrame("Frame", "NaowhUITankReminderCustom", UIParent)
     customFrame:SetSize(360, 40)
     customFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
-    customFrame:SetFrameStrata("HIGH")
+    -- FULLSCREEN_DIALOG, not HIGH: the editor's own Preview button fires this while its
+    -- modal is still open, and HIGH sits below the strata every modal in this addon uses,
+    -- so the preview rendered but was drawn entirely behind the editor.
+    customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+    customFrame:SetFrameLevel(250)
     customFrame:SetClampedToScreen(true)
     customFrame:EnableMouse(false)
     customFrame:Hide()

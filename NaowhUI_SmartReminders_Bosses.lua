@@ -1291,8 +1291,8 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     -- fingerprint at all, so a boss with nothing marked yet can still carry one.
     _, h = W:SectionHeader(parent, "CUSTOM REMINDERS", y); y = y - h
     _, h = W:DualRow(parent, y,
-        { type = "label", text = "      Boss pulls, spell casts and auras -- separate from "
-          .. "the tank-buster list above." },
+        { type = "label", text = "      Custom Reminder -- separate from the boss "
+          .. "abilities list above." },
         { type = "label", text = "" }
     ); y = y - h
 
@@ -1335,7 +1335,7 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
             ); y = y - h
             if row then
                 AttachInline(row._rightRegion, "Edit", 46, function()
-                    ns.ShowCustomReminderEditor(encounterID, uid)
+                    ns.ShowCustomReminderEditor(encounterID, uid, EUI)
                 end, "Edit", "Change this reminder's trigger, message or how long it lingers.")
                 AttachInline(row._rightRegion, "Delete", 56, function()
                     local writeSet = ns.CustomRemindersTable(false, encounterID)
@@ -1348,7 +1348,7 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     end
 
     _, h = W:Button(parent, "+ Add a Custom Reminder", y, function()
-        ns.ShowCustomReminderEditor(encounterID, nil)
+        ns.ShowCustomReminderEditor(encounterID, nil, EUI)
     end)
     y = y - h
 
@@ -1371,8 +1371,11 @@ local COUNTER_TIP = "Blank fires every time. Match a count with >N, >=N, <N, <=N
 -- Rebuilt fresh on every open, same as the instance/boss modal above: an occasional
 -- settings dialog is not worth the bookkeeping a cached singleton would need for a
 -- dropdown and text fields that all close over a different encounter/uid each time.
-function ns.ShowCustomReminderEditor(encounterID, uid)
-    local EUI = _G.EllesmereUI
+-- callerEUI, when given, is the boss modal's own EUI proxy (see ns.ShowInstanceModal) --
+-- its RefreshPage also re-renders the modal itself, not just the real options page, which
+-- is what actually makes a saved/edited reminder show up in the list without a reopen.
+function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
+    local EUI = callerEUI or _G.EllesmereUI
     local W = EUI.Widgets
 
     local dimmer, panel = ns.MakeModal(440, 620)
@@ -1433,17 +1436,17 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
     nameBox:SetText((existing and existing.name) or "")
 
     AddLabel("Message (shown on screen)")
-    local msgRowY = y
-    local msgBox = AddBox(200, false, 34)
+    local msgBox = AddBox(200, false, 40)
     msgBox:SetText((existing and existing.msg) or "")
 
     -- Inserts a WoW color escape around the current selection (or the whole message when
     -- nothing is selected), the same way a chat-frame color picker works. GetTextHighlight
     -- is a real EditBox method on retail, but is guarded anyway since nothing here is worth
-    -- an error over.
+    -- an error over. Anchored off msgBox itself, not independently off panel, so its own
+    -- right inset can never drift out of sync with where the box actually ends.
     local colorBtn = CreateFrame("Button", nil, panel)
     colorBtn:SetSize(24, 24)
-    colorBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, msgRowY - 1)
+    colorBtn:SetPoint("LEFT", msgBox, "RIGHT", 6, 0)
     ns.Solid(colorBtn, "OVERLAY", ns.THEME.gold, 1):SetAllPoints()
     ns.Border(colorBtn)
     HoverTip(colorBtn, "Color the message text")
@@ -1558,11 +1561,12 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
             delayBox:SetText(delayText)
         else
             DLabel("Spell ID")
-            local rowY = dy
-            spellBox = DBox(9, true, 60)
+            spellBox = DBox(9, true, 80)
             spellBox:SetText(spellIDText)
-            local ok = ns.Button(dynFrame, "OK", 54, 26, nil)
-            ok:SetPoint("TOPRIGHT", dynFrame, "TOPRIGHT", -PAD, rowY)
+            -- Anchored off spellBox itself so the reserved rightInset above only has to be
+            -- wide enough, not exactly right -- the same fix as the message color button.
+            local ok = ns.Button(dynFrame, "OK", 54, 26, function() spellBox:ClearFocus() end)
+            ok:SetPoint("LEFT", spellBox, "RIGHT", 6, 0)
             local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
             feedback:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy + 6)
             feedback:SetPoint("RIGHT", dynFrame, "RIGHT", -PAD, 0)
@@ -1582,7 +1586,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
             end
             spellBox:SetScript("OnTextChanged", Sync)
             spellBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-            ok:SetScript("OnClick", function() spellBox:ClearFocus() end)
             Sync()
 
             if trigVal == "bwtimer" then
