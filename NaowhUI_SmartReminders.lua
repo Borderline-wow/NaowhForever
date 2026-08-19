@@ -284,6 +284,25 @@ local function ClearBossList(forSpec, encounterID)
     if next(t.bossLists) == nil then t.bossLists = nil end
 end
 
+-- Which preset a boss draws its defensives from -- a persistent, per-boss choice, not a
+-- live mirror of the spec's active preset. nil means nothing was ever explicitly picked
+-- for this boss, at which point the active preset applies by fallback (see EffectiveList).
+local function BossPresetKey(forSpec, encounterID)
+    local t = TRDB()
+    local bp = type(t.bossPreset) == "table" and t.bossPreset[BossKey(forSpec, encounterID)]
+    local presets = PresetsTable(forSpec, false)
+    if bp and presets and presets[bp] then return bp end
+    return nil
+end
+ns.BossPresetKey = BossPresetKey
+
+local function SetBossPreset(forSpec, encounterID, presetKey)
+    local t = TRDB()
+    if type(t.bossPreset) ~= "table" then t.bossPreset = {} end
+    t.bossPreset[BossKey(forSpec, encounterID)] = presetKey
+end
+ns.SetBossPreset = SetBossPreset
+
 local function ListIndexOf(list, spellID)
     for i = 1, #list do
         if list[i] == spellID then return i end
@@ -320,14 +339,15 @@ local currentEncounter
 -- The list that actually drives the alert: this boss's override when it has one, otherwise
 -- the spec default.
 -- Three layers, most specific first: this ability's own list (composite key
--- "encounter#fingerprint", which rides the whole BossList machinery unchanged because the
--- key was always a string), then the boss's list, then the spec default.
+-- "encounter#fingerprint", from the older per-ability editor -- still honored for anyone
+-- who has one saved, though nothing writes new ones since the boss modal moved to picking
+-- a whole preset per boss instead), then the boss's chosen preset, then the spec default.
 local function EffectiveList(forSpec, encounterID, fp)
     if encounterID and fp then
         local al = BossList(forSpec, tostring(encounterID) .. "#" .. fp, false)
         if al and #al > 0 then return al, true end
-        -- The UI keys per-ability lists by NAME, since one ability can own several
-        -- fingerprints; the fingerprint form above stays honored for older saves.
+        -- The old UI keyed per-ability lists by NAME too, since one ability can own several
+        -- fingerprints; that form stays honored for older saves.
         local nm = ns.EventNameFor and ns.EventNameFor(encounterID, fp)
         if nm and nm ~= fp then
             local anl = BossList(forSpec, tostring(encounterID) .. "#" .. nm, false)
@@ -335,8 +355,15 @@ local function EffectiveList(forSpec, encounterID, fp)
         end
     end
     if encounterID then
-        local bl = BossList(forSpec, encounterID, false)
-        if bl and #bl > 0 then return bl, true end
+        local explicit = BossPresetKey(forSpec, encounterID)
+        local presetKey = explicit or ActivePresetKey(forSpec)
+        if presetKey then
+            local presets = PresetsTable(forSpec, false)
+            local p = presets and presets[presetKey]
+            if p and type(p.list) == "table" and #p.list > 0 then
+                return p.list, explicit ~= nil
+            end
+        end
     end
     return UserList(forSpec, false), false
 end

@@ -1135,7 +1135,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     return topY + math.min(ly, ry)
 end
 
-local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
+local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     local _, h
     local encounterID = boss.encounterID
 
@@ -1147,19 +1147,14 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
         return y
     end
 
-    -- The whole boss as one hierarchy, tester-specified:
-    --   Enable This Boss           (off = nothing below, no alerts of any kind)
-    --     > ability (accordion)    (collapsed row per timeline event)
-    --         Alert on This Ability     (off = that event stays quiet)
-    --           Use My Spec Default / Custom Alert with its cog
-    --           (spec default off -> that ability's own defensives editor)
+    -- The whole boss as one hierarchy:
+    --   Enable This Boss     (off = nothing below, no alerts of any kind)
+    --     Defensive Preset   (which of the spec's presets this boss draws from)
+    --     ability checkbox, one flat row per known cast (off = that cast stays quiet)
     -- Ability enablement maps onto the runtime's existing marks and mutes -- enabling a
     -- non-buster writes a player mark, disabling a shipped buster writes a mute -- so the
     -- UI and the filter can never tell different stories.
     local db = ns.DB()
-    local st = ui and (ui[encounterID] or {}) or {}
-    if ui then ui[encounterID] = st end
-    st.expanded = st.expanded or {}
 
     local bossOn = not (db.bossOff and db.bossOff[tostring(encounterID)])
     _, h = W:DualRow(parent, y,
@@ -1178,6 +1173,31 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
     ); y = y - h
 
     if not bossOn then return y end
+
+    -- Which of the spec's presets this boss calls its defensives from. Shows the spec's
+    -- active preset until the tank actually picks one for this boss -- nothing is written
+    -- just from opening the modal and looking at it.
+    local presets = ns.ListPresets(specID)
+    if #presets > 0 then
+        local presetValues, presetOrder = {}, {}
+        for i = 1, #presets do
+            presetValues[presets[i].key] = presets[i].name
+            presetOrder[i] = presets[i].key
+        end
+        _, h = W:DualRow(parent, y,
+            { type = "dropdown", text = "Defensive Preset",
+              values = presetValues, order = presetOrder,
+              tooltip = "Which of your spec's presets this boss calls its defensives from.",
+              getValue = function()
+                  return ns.BossPresetKey(specID, encounterID) or ns.ActivePresetKey(specID)
+              end,
+              setValue = function(v)
+                  ns.SetBossPreset(specID, encounterID, v)
+                  ns.RefreshRuntime()
+                  EUI:RefreshPage(true)
+              end }
+        ); y = y - h
+    end
 
     local function AbilityEnabled(fp)
         local sh = ns.ShippedMarksFor and ns.ShippedMarksFor(encounterID)
@@ -1244,56 +1264,22 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
 
     if #groups == 0 then
         _, h = W:DualRow(parent, y,
-            { type = "label", text = "No timeline data for this boss yet. Learning mode "
-              .. "and /nutank tank are how it gets some." },
-            { type = "label", text = "" }
+            { type = "label", text = "      No timeline data for this boss yet. Learning "
+              .. "mode and /nutank tank are how it gets some." }
         ); y = y - h
-        return y
-    end
-
-    local GRID_H = 28
-    for i = 1, #groups do
-        local g = groups[i]
-        local disp = g.name
-        local open = st.expanded[disp] == true
-
-        local function AnyEnabled()
+    else
+        -- Flat, one row per known cast: check to alert on it, uncheck to mute it. Which
+        -- defensive gets named when it fires comes from the preset above, not from here.
+        for i = 1, #groups do
+            local g = groups[i]
+            local disp = g.name
+            local enabled = false
             for k = 1, #g.fps do
-                if AbilityEnabled(g.fps[k]) then return true end
+                if AbilityEnabled(g.fps[k]) then enabled = true; break end
             end
-            return false
-        end
 
-        -- Accordion header: hand-built (the factory rows misrender in this scroll child),
-        -- whole row clickable, arrow and name, description on hover.
-        local head = CreateFrame("Button", nil, parent)
-        head:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-        head:SetSize(parent:GetWidth() > 0 and parent:GetWidth() or 600, GRID_H)
-        ns.Solid(head, "BACKGROUND", ns.THEME.line, open and 0.35 or 0.18):SetAllPoints()
-
-        local arrow = ns.Font(head, 13, nil, ns.THEME.gold)
-        arrow:SetPoint("LEFT", head, "LEFT", 10, 0)
-        arrow:SetText(open and "-" or "+")
-
-        local name = ns.Font(head, 13, nil)
-        name:SetPoint("LEFT", head, "LEFT", 26, 0)
-        name:SetPoint("RIGHT", head, "RIGHT", -10, 0)
-        name:SetJustifyH("LEFT")
-        name:SetWordWrap(false)
-        local dim = not AnyEnabled()
-        name:SetText(dim and ("|cff8a99b5" .. disp .. "|r") or disp)
-
-        head:SetScript("OnClick", function()
-            st.expanded[disp] = (not open) or nil
-            EUI:RefreshPage(true)
-        end)
-        -- No hover description, by request: the names carry enough.
-        y = y - GRID_H
-
-        if open then
-            local enabled = AnyEnabled()
             _, h = W:DualRow(parent, y,
-                { type = "toggle", text = "Alert on This Ability",
+                { type = "toggle", text = "      " .. disp,
                   tooltip = "Off keeps this ability silent: no defensive callout, no "
                   .. "reminder. On alerts every cast of it.",
                   getValue = function() return enabled end,
@@ -1301,157 +1287,7 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                       for k = 1, #g.fps do SetAbilityEnabled(g.fps[k], v) end
                       EUI:RefreshPage(true)
                   end }
-                -- Full width, matching Alert Type below: mixed half and full rows in one
-                -- stack is what read as disjointed.
             ); y = y - h
-
-            if enabled then
-                local akey = tostring(encounterID) .. "#" .. disp
-                local custom = ns.BossList(specID, akey, false)
-                local r = ns.RemindersTable(false, encounterID)
-                local function RawEntry()
-                    if not r then return nil end
-                    if r[disp] ~= nil then return r[disp] end
-                    for k = 1, #g.fps do
-                        if r[g.fps[k]] ~= nil then return r[g.fps[k]] end
-                    end
-                    return nil
-                end
-                local isCustom = RawEntry() ~= nil
-
-                -- One alert type, never both, per the tester's design: Defensive picks
-                -- from a priority list and names what to press; Custom says a line the
-                -- player wrote instead. The mode is whether reminder state exists, so
-                -- packs and exports carry it with no extra field.
-                _, h = W:DualRow(parent, y,
-                    { type = "dropdown", text = "Alert Type",
-                      values = { defensive = "Defensive", custom = "Custom" },
-                      order = { "defensive", "custom" },
-                      tooltip = "Defensive calls the right cooldown from a priority "
-                      .. "list. Custom says a line you write instead. One or the other, "
-                      .. "never both.",
-                      getValue = function() return isCustom and "custom" or "defensive" end,
-                      setValue = function(v)
-                          local rw = ns.RemindersTable(true, encounterID)
-                          -- One entry per ability, keyed by name; any fingerprint keys
-                          -- from before the grouping are folded in and cleared.
-                          if v == "custom" then
-                              rw[disp] = RawEntry() or true
-                          else
-                              rw[disp] = nil
-                          end
-                          for k = 1, #g.fps do rw[g.fps[k]] = nil end
-                          if next(rw) == nil then
-                              local db2 = ns.DB()
-                              if type(db2.reminders) == "table" then
-                                  db2.reminders[tostring(encounterID)] = nil
-                              end
-                          end
-                          ns.RefreshRuntime()
-                          EUI:RefreshPage(true)
-                      end }
-                    -- nil right config = full-width row in the factory, right for a
-                    -- control that owns the whole decision.
-                ); y = y - h
-
-                if isCustom then
-                    -- The custom line, edited IN PLACE, dressed as a table row: factory
-                    -- row height and label metrics, faint row stripe, and the box in the
-                    -- same well-and-border the callout editor's input wears -- so it sits
-                    -- in the column like any defensives row instead of floating.
-                    local ROW_H = 50
-                    local rowF = CreateFrame("Frame", nil, parent)
-                    rowF:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-                    rowF:SetSize(parent:GetWidth() > 0 and parent:GetWidth() or 600, ROW_H)
-                    ns.Solid(rowF, "BACKGROUND", ns.THEME.line, 0.12):SetAllPoints()
-
-                    local lbl = ns.Font(rowF, 14, nil)
-                    lbl:SetPoint("LEFT", rowF, "LEFT", 20, 0)
-                    lbl:SetText("Says")
-
-                    local box = CreateFrame("EditBox", nil, rowF)
-                    box:SetPoint("LEFT", rowF, "LEFT", 80, 0)
-                    box:SetPoint("RIGHT", rowF, "RIGHT", -150, 0)
-                    box:SetHeight(28)
-                    box:SetAutoFocus(false)
-                    box:SetMaxLetters(60)
-                    box:SetFontObject("GameFontHighlight")
-                    box:SetTextInsets(6, 6, 0, 0)
-                    local well = ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1)
-                    well:SetAllPoints()
-                    ns.Border(box)
-                    local raw = RawEntry()
-                    box:SetText(type(raw) == "string" and raw or "")
-
-                    local function SaveBox(self)
-                        local v = self:GetText() or ""
-                        local rw = ns.RemindersTable(true, encounterID)
-                        rw[disp] = (v ~= "" and v) or true
-                        for k = 1, #g.fps do rw[g.fps[k]] = nil end
-                        ns.RefreshRuntime()
-                    end
-                    box:SetScript("OnEnterPressed", function(self)
-                        SaveBox(self)
-                        self:ClearFocus()
-                        EUI:RefreshPage(true)
-                    end)
-                    box:SetScript("OnEditFocusLost", SaveBox)
-                    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-
-                    -- Enter commits, and so does OK -- a visible commit for anyone who
-                    -- does not trust an edit box that saves silently. Preview delivers
-                    -- the line exactly as a fight would: shown over the alert, spoken.
-                    local okBtn = ns.Button(rowF, "OK", 44, 24, function()
-                        SaveBox(box)
-                        box:ClearFocus()
-                        EUI:RefreshPage(true)
-                    end)
-                    okBtn:SetPoint("RIGHT", rowF, "RIGHT", -86, 0)
-
-                    local prevBtn = ns.Button(rowF, "Preview", 62, 24, function()
-                        SaveBox(box)
-                        if ns.PreviewReminderLine then
-                            ns.PreviewReminderLine(box:GetText() or "")
-                        end
-                    end)
-                    prevBtn:SetPoint("RIGHT", rowF, "RIGHT", -18, 0)
-                    y = y - ROW_H
-                else
-                    _, h = W:DualRow(parent, y,
-                        { type = "toggle", text = "Use My Spec Default",
-                          tooltip = "On: this ability calls from your normal priority "
-                          .. "list. Off: it gets its own copy of that list to reorder "
-                          .. "or prune, shown below.",
-                          getValue = function() return custom == nil end,
-                          setValue = function(v)
-                              if v then
-                                  ns.ClearBossList(specID, akey)
-                              else
-                                  local src = ns.EffectiveListFor(specID, encounterID)
-                                  if not (src and #src > 0) then
-                                      -- EffectiveListFor does not fall through to the spec
-                                      -- default when an encounterID is given (a boss with
-                                      -- no override of its own reads as empty, not "use
-                                      -- the default"), so ask for the default explicitly:
-                                      -- the active preset's list, same as everywhere else.
-                                      src = ns.EffectiveListFor(specID, nil)
-                                  end
-                                  local bl = ns.BossList(specID, akey, true)
-                                  wipe(bl)
-                                  if src then
-                                      for k = 1, #src do bl[k] = src[k] end
-                                  end
-                              end
-                              ns.RefreshRuntime()
-                              EUI:RefreshPage(true)
-                          end }
-                    ); y = y - h
-
-                    if custom ~= nil then
-                        y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, akey)
-                    end
-                end
-            end
         end
     end
 
@@ -1869,8 +1705,6 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
     local selected = 1
     local Render
     local RenderBody
-    -- Accordion and per-ability state, keyed by encounter, surviving re-renders.
-    local uiState = {}
 
     -- The boss picker lives in the header's top-right corner, out of the body. A styled
     -- button opening the client's own context menu: the row factory only builds dropdowns
@@ -1916,7 +1750,7 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
         title:SetText(("%s  |cffF0A830%s|r"):format(inst.name, boss and boss.name or ""))
 
         if boss then
-            yy = RenderBoss(content, yy, W, proxy, inst, boss, specID, uiState)
+            yy = RenderBoss(content, yy, W, proxy, inst, boss, specID)
         end
         content:SetHeight(-yy + 20)
         -- The window fits its boss: a three-row boss gets a compact dialog, a packed one
