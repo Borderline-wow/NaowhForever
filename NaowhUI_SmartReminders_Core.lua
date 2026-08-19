@@ -168,6 +168,17 @@ function ns.MakeModal(width, height)
     bg:SetAllPoints()
     ns.Border(panel)
 
+    -- Draggable from any empty background area, the same way EllesmereUI's own windows
+    -- move -- a click that lands on a button or edit box is intercepted by that child
+    -- first, so this only ever engages on the parts of the panel nothing else claimed.
+    -- Not saved: most of these popups are rebuilt fresh on every open (see their own
+    -- comments), so there is nowhere sensible to persist a position across that, and it
+    -- would look odd for a small popup to inherit wherever a much larger one was dragged.
+    panel:SetMovable(true)
+    panel:RegisterForDrag("LeftButton")
+    panel:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    panel:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+
     dimmer:SetScript("OnShow", function(self)
         nextModalLevel = nextModalLevel + 10
         self:SetFrameLevel(nextModalLevel)
