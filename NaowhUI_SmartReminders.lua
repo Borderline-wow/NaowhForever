@@ -83,13 +83,13 @@ local function TRDB()
         t.textScale = t.scale
     end
     -- One-way migration from the single flat list per spec this addon shipped with before
-    -- presets existed: every existing list becomes that spec's "Preset 1", so nobody's
+    -- presets existed: every existing list becomes that spec's "Default" preset, so nobody's
     -- configured priority order disappears the first time this loads.
     if type(t.lists) == "table" and next(t.lists) ~= nil and type(t.presets) ~= "table" then
         t.presets = {}
         t.activePreset = t.activePreset or {}
         for specKey, list in pairs(t.lists) do
-            t.presets[specKey] = { p1 = { name = "Preset 1", list = list } }
+            t.presets[specKey] = { p1 = { name = "Default", list = list } }
             t.activePreset[specKey] = "p1"
         end
         t.lists = nil
@@ -161,13 +161,13 @@ local function ActivePresetKey(forSpec)
 end
 ns.ActivePresetKey = ActivePresetKey
 
--- Same, but seeds an empty "Preset 1" the first time this spec is touched at all, so
+-- Same, but seeds an empty "Default" preset the first time this spec is touched at all, so
 -- there is always something selected to add spells to.
 local function EnsureActivePreset(forSpec)
     local a = ActivePresetKey(forSpec)
     if a then return a end
     local presets = PresetsTable(forSpec, true)
-    presets.p1 = { name = "Preset 1", list = {} }
+    presets.p1 = { name = "Default", list = {} }
     local t = TRDB()
     if type(t.activePreset) ~= "table" then t.activePreset = {} end
     t.activePreset[tostring(forSpec or 0)] = "p1"
@@ -232,7 +232,7 @@ function ns.RenamePreset(forSpec, presetKey, name)
 end
 
 -- Refuses to delete the last preset a spec has: EnsureActivePreset would just recreate an
--- empty "Preset 1" a moment later, so the button would look like it did nothing.
+-- empty "Default" preset a moment later, so the button would look like it did nothing.
 function ns.DeletePreset(forSpec, presetKey)
     local presets = PresetsTable(forSpec, false)
     if not presets or not presets[presetKey] then return false end

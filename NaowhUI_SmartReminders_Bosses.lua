@@ -825,7 +825,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     local topY = y
 
     if #ns.ListPresets(specID) == 0 then
-        ns.AddPreset(specID, nil)
+        ns.AddPreset(specID, "Default")
     end
     local presets = ns.ListPresets(specID)
     local activeKey = ns.ActivePresetKey(specID)
