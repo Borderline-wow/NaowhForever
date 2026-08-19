@@ -1311,16 +1311,28 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     else
         for i = 1, #crList do
             local uid, r = crList[i].uid, crList[i].r
+            local trig = r.trigger
             local trigDesc = "?"
-            if r.trigger and r.trigger.type == "pull" then
+            if trig and trig.type == "pull" then
                 trigDesc = "Pull"
-            elseif r.trigger and r.trigger.type == "spell" then
+            elseif trig and (trig.type == "bwmsg" or trig.type == "bwtimer") then
                 local info = C_Spell and C_Spell.GetSpellInfo
-                    and C_Spell.GetSpellInfo(r.trigger.spellID)
-                trigDesc = (r.trigger.kind == "aura" and "Aura: " or "Cast: ")
-                    .. ((info and info.name) or tostring(r.trigger.spellID))
+                    and C_Spell.GetSpellInfo(trig.spellID)
+                trigDesc = (trig.type == "bwtimer" and "Timer: " or "Message: ")
+                    .. ((info and info.name) or tostring(trig.spellID))
+            elseif trig and trig.type == "spell" then
+                local info = C_Spell and C_Spell.GetSpellInfo
+                    and C_Spell.GetSpellInfo(trig.spellID)
+                trigDesc = (trig.kind == "aura" and "Aura: " or "Cast: ")
+                    .. ((info and info.name) or tostring(trig.spellID))
             end
 
+            -- Full-width row: the right-hand slot on a two-column DualRow has no real
+            -- control for AttachInline to chain off of, so Edit/Delete would land right
+            -- on top of the toggle at the row's midpoint instead of the far right. The
+            -- toggle itself moves to the right edge on a full-width row, so Edit/Delete
+            -- chain off the LEFT region's control -- which now IS the toggle -- same fix
+            -- as the boss ability rows' settings cog above.
             local row
             row, h = W:DualRow(parent, y,
                 { type = "toggle",
@@ -1330,14 +1342,13 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
                   setValue = function(v)
                       r.enabled = v
                       ns.RefreshRuntime()
-                  end },
-                { type = "label", text = "" }
+                  end }
             ); y = y - h
             if row then
-                AttachInline(row._rightRegion, "Edit", 46, function()
+                AttachInline(row._leftRegion, "Edit", 46, function()
                     ns.ShowCustomReminderEditor(encounterID, uid, EUI)
                 end, "Edit", "Change this reminder's trigger, message or how long it lingers.")
-                AttachInline(row._rightRegion, "Delete", 56, function()
+                AttachInline(row._leftRegion, "Delete", 56, function()
                     local writeSet = ns.CustomRemindersTable(false, encounterID)
                     if writeSet then writeSet[uid] = nil end
                     ns.RefreshRuntime()
@@ -1440,9 +1451,13 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     msgBox:SetText((existing and existing.msg) or "")
 
     -- Inserts a WoW color escape around the current selection (or the whole message when
-    -- nothing is selected), the same way a chat-frame color picker works. GetTextHighlight
-    -- is a real EditBox method on retail, but is guarded anyway since nothing here is worth
-    -- an error over. Anchored off msgBox itself, not independently off panel, so its own
+    -- nothing is selected), the same way a chat-frame color picker works. Goes through
+    -- EllesmereUI's own color picker, not Blizzard's ColorPickerFrame directly -- that
+    -- global is not guaranteed loaded, which is exactly why EllesmereUI built a
+    -- self-contained replacement with the same info shape (swatchFunc/hasOpacity/r/g/b)
+    -- for every color swatch across its whole options system. GetTextHighlight is a real
+    -- EditBox method on retail, but is guarded anyway since nothing here is worth an
+    -- error over. Anchored off msgBox itself, not independently off panel, so its own
     -- right inset can never drift out of sync with where the box actually ends.
     local colorBtn = CreateFrame("Button", nil, panel)
     colorBtn:SetSize(24, 24)
@@ -1451,11 +1466,14 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     ns.Border(colorBtn)
     HoverTip(colorBtn, "Color the message text")
     colorBtn:SetScript("OnClick", function()
-        if not (ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow) then return end
-        ColorPickerFrame:SetupColorPickerAndShow({
+        local EUIg = _G.EllesmereUI
+        if not (EUIg and EUIg.ShowColorPicker) then return end
+        EUIg:ShowColorPicker({
             r = 1, g = 1, b = 1, hasOpacity = false,
             swatchFunc = function()
-                local r, g, b = ColorPickerFrame:GetColorRGB()
+                local popup = EUIg._colorPickerPopup
+                if not popup then return end
+                local r, g, b = popup:GetColorRGB()
                 local code = ("%02x%02x%02x"):format(r * 255, g * 255, b * 255)
                 local cur = msgBox:GetText() or ""
                 local s, e
@@ -1467,7 +1485,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
                 end
                 msgBox:SetText(cur)
             end,
-        })
+        }, colorBtn)
     end)
 
     AddLabel("Linger (seconds)")

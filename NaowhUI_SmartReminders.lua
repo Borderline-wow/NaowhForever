@@ -2288,11 +2288,23 @@ local function RefreshCustomRemindersFlag()
 end
 ns.RefreshCustomRemindersFlag = RefreshCustomRemindersFlag
 
+-- Same shape as ApplyPosition/ApplyTextPosition: nil = default centre, otherwise wherever
+-- Unlock Mode last saved it.
+local function ApplyCustomReminderPosition()
+    if not customFrame then return end
+    local p = TRDB().customPos
+    customFrame:ClearAllPoints()
+    if p then
+        customFrame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+    else
+        customFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
+    end
+end
+
 local function CreateCustomFrame()
     if customFrame then return customFrame end
     customFrame = CreateFrame("Frame", "NaowhUITankReminderCustom", UIParent)
     customFrame:SetSize(360, 40)
-    customFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
     -- FULLSCREEN_DIALOG, not HIGH: the editor's own Preview button fires this while its
     -- modal is still open, and HIGH sits below the strata every modal in this addon uses,
     -- so the preview rendered but was drawn entirely behind the editor.
@@ -2306,6 +2318,7 @@ local function CreateCustomFrame()
     customFrame.text:SetPoint("CENTER")
     customFrame.text:SetFont(AlertFont(), 18, "OUTLINE")
     customFrame.text:SetTextColor(1, 1, 1, 1)
+    ApplyCustomReminderPosition()
     return customFrame
 end
 
@@ -2768,6 +2781,29 @@ local function RegisterUnlock()
             clearPos = function() TRDB().textPos = nil end,
             applyPos = ApplyTextPosition,
         }),
+        EUI.MakeUnlockElement({
+            key   = "NaowhUI_TankReminderCustom",   -- storage key; renaming it would orphan saved positions
+            label = "Smart Custom Reminder",
+            group = "NaowhUI",
+            order = 5,
+            noResize = true,
+            isHidden = function() return not TRDB().enabled end,
+            getFrame = function()
+                if not customFrame then CreateCustomFrame() end
+                return customFrame
+            end,
+            getSize  = function() return 240, 10 end,
+            savePos = function(_, point, relPoint, x, y)
+                TRDB().customPos = { point = point, relPoint = relPoint, x = x, y = y }
+            end,
+            loadPos = function()
+                local p = TRDB().customPos
+                if not p then return nil end
+                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
+            end,
+            clearPos = function() TRDB().customPos = nil end,
+            applyPos = ApplyCustomReminderPosition,
+        }),
     }, "NaowhUI_EUI")
 end
 
@@ -2799,10 +2835,18 @@ local function UpdatePreview()
             textFrame:SetScript("OnDragStart", nil)
             textFrame:SetScript("OnDragStop", nil)
         end
+        if customFrame then
+            customFrame:EnableMouse(false)
+            customFrame:SetScript("OnDragStart", nil)
+            customFrame:SetScript("OnDragStop", nil)
+        end
         -- Never yank a live call-out off the screen because the settings panel closed.
         if frame and not shownForEvent then frame:Hide() end
         if textFrame and not shownForEvent then textFrame:Hide() end
         if bar and not shownForEvent then bar:Hide() end
+        -- Same rule for the custom reminder frame: customHideTimer is only running while
+        -- a real (or Preview-button) fire is actually on screen.
+        if customFrame and not customHideTimer then customFrame:Hide() end
         return
     end
     if not TRDB().enabled then return end
@@ -2842,6 +2886,29 @@ local function UpdatePreview()
         end
         ApplyTextPosition()
     end)
+
+    -- The custom reminder frame previews too, with a placeholder line rather than a real
+    -- fight message -- there is no "current" custom reminder the way there is a current
+    -- defensive slot. Skipped while a real (or Preview-button) fire is already showing its
+    -- own text, so dragging into place never stomps on an actual preview mid-display.
+    CreateCustomFrame()
+    if not customHideTimer then
+        customFrame.text:SetText("Custom Reminder")
+    end
+    customFrame:SetMovable(true)
+    customFrame:SetClampedToScreen(true)
+    customFrame:EnableMouse(true)
+    customFrame:RegisterForDrag("LeftButton")
+    customFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    customFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local point, _, relPoint, x, y = self:GetPoint(1)
+        if point then
+            TRDB().customPos = { point = point, relPoint = relPoint, x = x, y = y }
+        end
+        ApplyCustomReminderPosition()
+    end)
+    customFrame:Show()
 
     if activeSlots > 0 then
         slots[1]:SetAlpha(1)
@@ -3942,6 +4009,12 @@ function ns.BuildSection(parent, y)
     _, h = W:Button(parent, "Reset Text Position", y, function()
         TRDB().textPos = nil
         ApplyTextPosition()
+    end)
+    y = y - h
+
+    _, h = W:Button(parent, "Reset Custom Reminder Position", y, function()
+        TRDB().customPos = nil
+        ApplyCustomReminderPosition()
     end)
     y = y - h
 
