@@ -640,7 +640,6 @@ end
 
 local function ShowAddPresetPopup(specID, EUI)
     local dimmer, panel = ns.MakeModal(340, 150)
-    dimmer:SetFrameStrata("TOOLTIP")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -676,7 +675,6 @@ end
 
 local function ShowRenamePresetPopup(specID, presetKey, currentName, EUI)
     local dimmer, panel = ns.MakeModal(340, 150)
-    dimmer:SetFrameStrata("TOOLTIP")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -716,7 +714,6 @@ end
 local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     local W = EUI.Widgets
     local dimmer, panel = ns.MakeModal(360, 130)
-    dimmer:SetFrameStrata("TOOLTIP")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -759,7 +756,6 @@ local function ShowFallbackSettingsPopup(EUI)
     local W = EUI.Widgets
     local db = ns.DB()
     local dimmer, panel = ns.MakeModal(360, 130)
-    dimmer:SetFrameStrata("TOOLTIP")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -1380,7 +1376,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
     local W = EUI.Widgets
 
     local dimmer, panel = ns.MakeModal(440, 620)
-    dimmer:SetFrameStrata("TOOLTIP")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)

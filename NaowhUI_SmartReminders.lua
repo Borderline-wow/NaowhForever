@@ -3590,11 +3590,6 @@ local textPopup
 local function ShowCalloutEditor(title, current, onAccept, spellID)
     if not textPopup then
         local dimmer, panel = ns.MakeModal(400, 240)
-        -- A whole strata above the other modals, not a level within theirs: the editor
-        -- opens on top of the instance modal, whose factory-built rows carry their own
-        -- frame levels that a same-strata Raise() demonstrably lost to. Nothing ever
-        -- stacks on top of the editor, so the top strata is its honest home.
-        dimmer:SetFrameStrata("TOOLTIP")
 
         local head = ns.Font(panel, 14, "OUTLINE")
         head:SetPoint("TOP", panel, "TOP", 0, -16)

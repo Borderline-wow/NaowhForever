@@ -135,6 +135,20 @@ function ns.Tooltip(frame, title, body)
     frame:SetScript("OnLeave", function() EUI.HideWidgetTooltip() end)
 end
 
+-- Modals stack: the reminder editor opens from inside the instance modal, and with both
+-- on the same strata, creation order decided who was on top. Frame:Raise() looks like the
+-- fix, but it reorders a frame against ALL of UIParent's direct children -- the whole
+-- client's addon ecosystem, not just our own popups -- so the level it lands on is
+-- unbounded and can already sit well above any fixed number by the time a session has
+-- opened a few dialogs elsewhere. A dropdown's own drop-down menu (built by the shared
+-- widget factory) is one such fixed number: FULLSCREEN_DIALOG strata, level 200,
+-- hardcoded, independent of whatever frame opened it. A Raise()'d modal that happens to
+-- land above 200 wins the stacking fight against the OTHER modal, then promptly loses
+-- its own dropdowns' menus to that exact same win. A private counter, incremented only by
+-- our own modals and starting low, keeps every level this file ever hands out safely
+-- under that ceiling while still making each newly opened modal outrank the last one.
+local nextModalLevel = 10
+
 -- A dimmed modal shell: click-off to dismiss, house border and panel fill. Returns the
 -- dimmer (show/hide this) and the panel to fill.
 function ns.MakeModal(width, height)
@@ -145,22 +159,21 @@ function ns.MakeModal(width, height)
     -- anchor so the Dungeon Journal and everything else underneath is still clickable and
     -- undimmed while this is open. Only the panel itself (below) captures the mouse.
     dimmer:EnableMouse(false)
-    -- Modals stack: the reminder editor opens from inside the instance modal, and with
-    -- both on the same strata, creation order decided who was on top -- an editor built
-    -- before the modal sat invisibly behind it. Raising on every show makes the newest
-    -- opened modal the visible one, whatever order they were built in.
-    dimmer:SetScript("OnShow", function(self) self:Raise() end)
-    dimmer:Hide()
-
     local panel = CreateFrame("Frame", nil, dimmer)
     panel:SetSize(width, height)
     panel:SetPoint("CENTER")
     panel:SetFrameStrata("FULLSCREEN_DIALOG")
-    panel:SetFrameLevel(dimmer:GetFrameLevel() + 10)
     panel:EnableMouse(true)
     local bg = ns.Solid(panel, "BACKGROUND", ns.THEME.panel, 1)
     bg:SetAllPoints()
     ns.Border(panel)
+
+    dimmer:SetScript("OnShow", function(self)
+        nextModalLevel = nextModalLevel + 10
+        self:SetFrameLevel(nextModalLevel)
+        panel:SetFrameLevel(nextModalLevel + 5)
+    end)
+    dimmer:Hide()
 
     return dimmer, panel
 end
