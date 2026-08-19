@@ -61,14 +61,27 @@ local DEFAULTS = {
     voiceNone = "Call for external",
     voiceVol  = 100,
     iconSize  = 64,
-    scale     = 1,       -- a multiplier; the slider shows it as a percentage
+    -- 21 matches what the OLD derived formula (floor(iconSize * 0.34), floored at 12)
+    -- produced at the default iconSize of 64, so a first read after this shipped changed
+    -- nothing on screen for an existing install.
+    textSize   = 21,
+    iconScale  = 1,      -- a multiplier; the slider shows it as a percentage
+    textScale  = 1,
     -- pos = { point, relPoint, x, y } once moved in Unlock Mode; nil = default centre.
+    -- textPos = same shape, for the text callout's own anchor.
 }
 
 local function TRDB()
     local root = ns.SettingsRoot()
     if type(root.tankReminder) ~= "table" then root.tankReminder = {} end
     local t = root.tankReminder
+    -- One-way migration from the single shared "scale" this addon shipped with before
+    -- icon and text scaled independently: carries an existing customized value to BOTH
+    -- new sliders once, rather than silently resetting either to 100%.
+    if t.scale ~= nil and t.iconScale == nil and t.textScale == nil then
+        t.iconScale = t.scale
+        t.textScale = t.scale
+    end
     for k, v in pairs(DEFAULTS) do if t[k] == nil then t[k] = v end end
     return t
 end
@@ -352,35 +365,44 @@ local function ApplyTextPosition()
 end
 
 local function ApplyScale()
-    local s = TRDB().scale or 1
-    if frame then frame:SetScale(s) end
-    if textFrame then textFrame:SetScale(s) end
+    local t = TRDB()
+    if frame then frame:SetScale(t.iconScale or 1) end
+    if textFrame then textFrame:SetScale(t.textScale or 1) end
 end
 
 -- An anchor offset is measured in the coordinate space of the frame it positions, so
 -- scaling moves it: the same saved x/y is a different number of screen pixels. Rescaling
--- by the inverse keeps the icon and the text where they were put while the slider changes
--- only their size.
+-- by the inverse keeps the icon where it was put while the slider changes only its size.
+-- Icon and text scale (and rescale-compensate their own anchor) fully independently.
 local function SetIconScale(scale)
     local t = TRDB()
-    local prev = t.scale or 1
+    local prev = t.iconScale or 1
     if scale == prev then return end
-    t.scale = scale
+    t.iconScale = scale
 
-    if scale > 0 then
+    if scale > 0 and t.pos then
         local k = prev / scale
-        if t.pos then
-            t.pos.x = (t.pos.x or 0) * k
-            t.pos.y = (t.pos.y or 0) * k
-        end
-        if t.textPos then
-            t.textPos.x = (t.textPos.x or 0) * k
-            t.textPos.y = (t.textPos.y or 0) * k
-        end
+        t.pos.x = (t.pos.x or 0) * k
+        t.pos.y = (t.pos.y or 0) * k
     end
 
     ApplyScale()
     ApplyPosition()
+end
+
+local function SetTextScale(scale)
+    local t = TRDB()
+    local prev = t.textScale or 1
+    if scale == prev then return end
+    t.textScale = scale
+
+    if scale > 0 and t.textPos then
+        local k = prev / scale
+        t.textPos.x = (t.textPos.x or 0) * k
+        t.textPos.y = (t.textPos.y or 0) * k
+    end
+
+    ApplyScale()
     ApplyTextPosition()
 end
 
@@ -522,8 +544,11 @@ local function ApplySize()
     if not frame then return end
     local t = TRDB()
     local size = t.iconSize or DEFAULTS.iconSize
+    -- Independent of icon size: this used to be derived from it (floor(size * 0.34)), which
+    -- was the whole reason moving the icon and text apart still left them stuck at the same
+    -- size as each other.
+    local fontSize = t.textSize or DEFAULTS.textSize
     local textOn = t.showText
-    local fontSize = math.max(12, math.floor(size * 0.34))
     frame:SetSize(size, size)
     for i = 1, #slots do
         slots[i]:SetSize(size, size)
@@ -3504,18 +3529,36 @@ function ns.BuildSection(parent, y)
 
     _, h = W:DualRow(parent, y,
         { type = "slider", text = "Icon Size", min = 32, max = 128, step = 1,
-          tooltip = "Size of the defensive icon.",
+          tooltip = "Size of the defensive icon. Independent of the text callout's size.",
           getValue = function() return TRDB().iconSize or DEFAULTS.iconSize end,
           setValue = function(v)
               TRDB().iconSize = v
               ApplySize()
               UpdatePreview()
           end },
-        { type = "slider", text = "Scale (%)", min = 50, max = 200, step = 5,
-          tooltip = "Scales the icon and its border together. Icon Size changes the icon alone "
-          .. "and keeps the border crisp, so reach for that first and use this to fine-tune.",
-          getValue = function() return math.floor((TRDB().scale or 1) * 100 + 0.5) end,
-          setValue = function(v) SetIconScale(v / 100) end }
+        { type = "slider", text = "Text Size", min = 10, max = 40, step = 1,
+          tooltip = "Size of the text callout -- the defensive name and fallback line. "
+          .. "Independent of the icon's size.",
+          getValue = function() return TRDB().textSize or DEFAULTS.textSize end,
+          setValue = function(v)
+              TRDB().textSize = v
+              ApplySize()
+              UpdatePreview()
+          end }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "Icon Scale (%)", min = 50, max = 200, step = 5,
+          tooltip = "Scales the icon and its border together. Icon Size changes the icon "
+          .. "alone and keeps the border crisp, so reach for that first and use this to "
+          .. "fine-tune.",
+          getValue = function() return math.floor((TRDB().iconScale or 1) * 100 + 0.5) end,
+          setValue = function(v) SetIconScale(v / 100) end },
+        { type = "slider", text = "Text Scale (%)", min = 50, max = 200, step = 5,
+          tooltip = "Scales the text callout on top of Text Size, the same way Icon Scale "
+          .. "fine-tunes the icon.",
+          getValue = function() return math.floor((TRDB().textScale or 1) * 100 + 0.5) end,
+          setValue = function(v) SetTextScale(v / 100) end }
     ); y = y - h
 
     _, h = W:DualRow(parent, y,
