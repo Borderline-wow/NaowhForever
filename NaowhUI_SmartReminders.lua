@@ -840,6 +840,13 @@ local function MutedTable(create, enc)
     return PerBossSet("muted", create, enc)
 end
 
+-- Boss-scoped custom reminders, independent of the timeline-fingerprint system: each one
+-- carries its own trigger (pull, a spell cast/aura) rather than riding an existing marked
+-- ability. profile.customReminders[encounterID][uid] = { name, msg, trigger = {...}, dur }.
+local function CustomRemindersTable(create, enc)
+    return PerBossSet("customReminders", create, enc)
+end
+
 -- The tank-buster allowlist. A blocklist was tried first and pointed the wrong way: a pull
 -- carries far more non-tank events than tank ones (8-20 measured), so the player was being
 -- asked to mute the many to keep the few. Marking is the same fingerprint data used in the
@@ -893,6 +900,7 @@ ns.EventNameFor = EventNameFor
 ns.RemindersTable = RemindersTable
 ns.MarksTable = MarksTable
 ns.MutedTable = MutedTable
+ns.CustomRemindersTable = CustomRemindersTable
 
 local function IsMutedEvent(eventID)
     local fp = FingerprintFor(eventID)
@@ -2043,6 +2051,86 @@ local function HandleIdentifiedCast(sid)
     hideTimer = C_Timer.NewTimer(5, HideReminder)
 end
 
+-------------------------------------------------------------------------------
+--  Custom reminders: pull and spell triggers, own display
+-------------------------------------------------------------------------------
+-- Independent of the defensive-priority system entirely: a player with nothing on their
+-- priority list should still get these, so gating never touches ShouldRun()/activeSlots.
+local function CustomRemindersAllowed()
+    return TRDB().enabled == true and AllowedHere() and BossAllowed()
+end
+
+local customFrame
+local customHideTimer
+-- Per-uid occurrence count for the "Nth cast" counter, reset every pull.
+local customCounters = {}
+-- Cached at ENCOUNTER_START so OnCombatLog's hot path stays a single boolean read on a
+-- boss with nothing configured, the same reasoning runActive already uses below.
+local hasCustomReminders = false
+
+local function RefreshCustomRemindersFlag()
+    local set = currentEncounter and CustomRemindersTable(false, currentEncounter)
+    hasCustomReminders = set ~= nil and next(set) ~= nil
+end
+ns.RefreshCustomRemindersFlag = RefreshCustomRemindersFlag
+
+local function CreateCustomFrame()
+    if customFrame then return customFrame end
+    customFrame = CreateFrame("Frame", "NaowhUITankReminderCustom", UIParent)
+    customFrame:SetSize(360, 40)
+    customFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
+    customFrame:SetFrameStrata("HIGH")
+    customFrame:SetClampedToScreen(true)
+    customFrame:EnableMouse(false)
+    customFrame:Hide()
+
+    customFrame.text = customFrame:CreateFontString(nil, "OVERLAY")
+    customFrame.text:SetPoint("CENTER")
+    customFrame.text:SetFont(AlertFont(), 18, "OUTLINE")
+    customFrame.text:SetTextColor(1, 1, 1, 1)
+    return customFrame
+end
+
+local function HideCustomReminder()
+    if customHideTimer then customHideTimer:Cancel(); customHideTimer = nil end
+    if customFrame then customFrame:Hide() end
+end
+
+-- Bypasses trigger matching entirely -- used both by the real firing path below and by
+-- the editor's Preview button, so a preview shows exactly what a fight would.
+local function FireCustomReminder(r)
+    if not r then return end
+    local msg = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name
+    if not msg then return end
+    CreateCustomFrame()
+    customFrame.text:SetText(msg)
+    customFrame:Show()
+    if customHideTimer then customHideTimer:Cancel() end
+    local dur = (type(r.dur) == "number" and r.dur > 0) and r.dur or 3
+    customHideTimer = C_Timer.NewTimer(dur, HideCustomReminder)
+end
+ns.PreviewCustomReminder = FireCustomReminder
+
+-- kind: "pull" | "cast" | "aura". spellID is nil for a pull check.
+local function CheckCustomReminders(kind, spellID)
+    if not (hasCustomReminders and CustomRemindersAllowed()) then return end
+    local set = CustomRemindersTable(false, currentEncounter)
+    if not set then return end
+    for uid, r in pairs(set) do
+        local trig = r.trigger
+        if r.enabled ~= false and trig then
+            local hit = (kind == "pull" and trig.type == "pull")
+                or (trig.type == "spell" and trig.spellID == spellID
+                    and (trig.kind or "cast") == kind)
+            if hit and type(trig.counter) == "number" and trig.counter > 1 then
+                customCounters[uid] = (customCounters[uid] or 0) + 1
+                hit = customCounters[uid] >= trig.counter
+            end
+            if hit then FireCustomReminder(r) end
+        end
+    end
+end
+
 -- Channel 1: the boss's cast bar. Sealed in the content measured so far, but the
 -- annotation is conditional, so the probe stays.
 local function OnBossCast(unit)
@@ -2076,13 +2164,25 @@ local runActive = false
 
 local function OnCombatLog()
     -- The price of static registration: this fires for every combat log line, so outside
-    -- an encounter it must cost one plain variable read and nothing else.
-    if not runActive or currentEncounter == nil then return end
+    -- an encounter it must cost one plain variable read and nothing else. Custom reminders
+    -- ride the same registration under their own gate (hasCustomReminders), independent of
+    -- runActive: a defensive priority list is not a prerequisite for a boss-pull reminder.
+    if currentEncounter == nil or not (runActive or hasCustomReminders) then return end
     local _, sub, _, _, _, _, _, _, _, _, _, spellId = CombatLogGetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId)) then
         cleuIdentity = "secret"
         return
     end
+
+    if hasCustomReminders and type(spellId) == "number" then
+        if sub == "SPELL_CAST_SUCCESS" then
+            CheckCustomReminders("cast", spellId)
+        elseif sub == "SPELL_AURA_APPLIED" then
+            CheckCustomReminders("aura", spellId)
+        end
+    end
+
+    if not runActive then return end
     if sub ~= "SPELL_CAST_START" and sub ~= "SPELL_CAST_SUCCESS" then return end
     if type(spellId) ~= "number" then return end
     cleuIdentity = "plain"
@@ -3678,6 +3778,7 @@ function ns.RefreshRuntime()
     RebuildCastMap()
     UpdateEventRegistration()
     UpdatePreview()
+    RefreshCustomRemindersFlag()
 end
 
 -------------------------------------------------------------------------------
@@ -3730,6 +3831,12 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         RebuildSlots()          -- swap to this boss's list before the first ability lands
         RebuildCastMap()
         UpdateEventRegistration()   -- this boss may be switched off entirely
+
+        -- Custom reminders: a fresh pull means a fresh count for the "Nth cast" counter,
+        -- and the coverage flag has to catch up before the pull trigger itself can fire.
+        wipe(customCounters)
+        RefreshCustomRemindersFlag()
+        if event == "ENCOUNTER_START" then CheckCustomReminders("pull", nil) end
 
         -- The gate report BELOW the rebuild, never above it: it reads activeSlots, and
         -- until RebuildSlots runs those are the previous list's. A spec whose default list

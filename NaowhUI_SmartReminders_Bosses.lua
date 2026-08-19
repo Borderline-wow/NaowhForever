@@ -948,7 +948,239 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
             end
         end
     end
+
+    -- Independent of the accordion above: these don't ride an existing timeline
+    -- fingerprint at all, so a boss with nothing marked yet can still carry one.
+    _, h = W:SectionHeader(parent, "CUSTOM REMINDERS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "label", text = "      Boss pulls, spell casts and auras -- separate from "
+          .. "the tank-buster list above." },
+        { type = "label", text = "" }
+    ); y = y - h
+
+    local crSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, encounterID)
+    local crList = {}
+    if crSet then
+        for uid, r in pairs(crSet) do crList[#crList + 1] = { uid = uid, r = r } end
+        table.sort(crList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
+    end
+
+    if #crList == 0 then
+        _, h = W:DualRow(parent, y,
+            { type = "label", text = "      None yet for this boss." },
+            { type = "label", text = "" }
+        ); y = y - h
+    else
+        for i = 1, #crList do
+            local uid, r = crList[i].uid, crList[i].r
+            local trigDesc = "?"
+            if r.trigger and r.trigger.type == "pull" then
+                trigDesc = "Pull"
+            elseif r.trigger and r.trigger.type == "spell" then
+                local info = C_Spell and C_Spell.GetSpellInfo
+                    and C_Spell.GetSpellInfo(r.trigger.spellID)
+                trigDesc = (r.trigger.kind == "aura" and "Aura: " or "Cast: ")
+                    .. ((info and info.name) or tostring(r.trigger.spellID))
+            end
+
+            local row
+            row, h = W:DualRow(parent, y,
+                { type = "toggle",
+                  text = ("      %s  |cff8a99b5(%s)|r"):format(r.name or "Reminder", trigDesc),
+                  tooltip = "Untick to keep this reminder without deleting it.",
+                  getValue = function() return r.enabled ~= false end,
+                  setValue = function(v)
+                      r.enabled = v
+                      ns.RefreshRuntime()
+                  end },
+                { type = "label", text = "" }
+            ); y = y - h
+            if row then
+                AttachInline(row._rightRegion, "Edit", 46, function()
+                    ns.ShowCustomReminderEditor(encounterID, uid)
+                end, "Edit", "Change this reminder's trigger, message or how long it lingers.")
+                AttachInline(row._rightRegion, "Delete", 56, function()
+                    local writeSet = ns.CustomRemindersTable(false, encounterID)
+                    if writeSet then writeSet[uid] = nil end
+                    ns.RefreshRuntime()
+                    EUI:RefreshPage(true)
+                end, "Delete", "Removes this reminder.")
+            end
+        end
+    end
+
+    _, h = W:Button(parent, "+ Add a Custom Reminder", y, function()
+        ns.ShowCustomReminderEditor(encounterID, nil)
+    end)
+    y = y - h
+
     return y
+end
+
+-------------------------------------------------------------------------------
+--  Custom reminder editor: name, message, trigger, linger
+-------------------------------------------------------------------------------
+local TRIGGER_CHOICES = { pull = "Boss Pull", cast = "Spell Cast", aura = "Spell Aura Applied" }
+local TRIGGER_ORDER = { "pull", "cast", "aura" }
+
+local function TriggerKindOf(trig)
+    if not trig or trig.type == "pull" then return "pull" end
+    return trig.kind == "aura" and "aura" or "cast"
+end
+
+-- Rebuilt fresh on every open, same as the instance/boss modal above: an occasional
+-- settings dialog is not worth the bookkeeping a cached singleton would need for a
+-- dropdown and text fields that all close over a different encounter/uid each time.
+function ns.ShowCustomReminderEditor(encounterID, uid)
+    local EUI = _G.EllesmereUI
+    local W = EUI.Widgets
+
+    local dimmer, panel = ns.MakeModal(440, 480)
+    dimmer:SetFrameStrata("TOOLTIP")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText(uid and "Edit Reminder" or "New Reminder")
+
+    local set = ns.CustomRemindersTable(false, encounterID)
+    local existing = (set and uid) and set[uid] or nil
+    local trig = (existing and existing.trigger) or { type = "pull" }
+
+    local y = -46
+    local PAD = 20
+
+    local function AddLabel(text)
+        local l = ns.Font(panel, 11, nil, ns.THEME.muted)
+        l:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y)
+        l:SetText(text)
+        y = y - 16
+    end
+
+    local function AddBox(maxLetters, numeric)
+        local box = CreateFrame("EditBox", nil, panel)
+        box:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y)
+        box:SetPoint("RIGHT", panel, "RIGHT", -PAD, 0)
+        box:SetHeight(26)
+        box:SetAutoFocus(false)
+        box:SetMaxLetters(maxLetters or 60)
+        if numeric then box:SetNumeric(true) end
+        box:SetFontObject("GameFontHighlight")
+        box:SetTextInsets(6, 6, 0, 0)
+        ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+        ns.Border(box)
+        y = y - 32
+        return box
+    end
+
+    AddLabel("Name")
+    local nameBox = AddBox(40)
+    nameBox:SetText((existing and existing.name) or "")
+
+    AddLabel("Message (shown on screen)")
+    local msgBox = AddBox(120)
+    msgBox:SetText((existing and existing.msg) or "")
+
+    -- Forward-declared: the dropdown's setValue below closes over this, but the fields it
+    -- syncs (spellBox, spellFeedback) do not exist until after the dropdown row is built,
+    -- since the row's own Y position sits above them. The assignment happens later in this
+    -- same call, well before the dropdown is ever interactive.
+    local SyncSpellRow
+
+    local trigVal = TriggerKindOf(trig)
+    local _, rowH = W:DualRow(panel, y,
+        { type = "dropdown", text = "Trigger",
+          values = TRIGGER_CHOICES, order = TRIGGER_ORDER,
+          tooltip = "What starts this reminder.",
+          getValue = function() return trigVal end,
+          setValue = function(v)
+              trigVal = v
+              if SyncSpellRow then SyncSpellRow() end
+          end },
+        { type = "label", text = "" }
+    ); y = y - rowH
+
+    AddLabel("Spell ID (cast/aura triggers only)")
+    local spellBox = AddBox(9, true)
+    spellBox:SetText((trig.type == "spell" and trig.spellID) and tostring(trig.spellID) or "")
+    local spellFeedback = ns.Font(panel, 10, nil, ns.THEME.muted)
+    spellFeedback:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y + 6)
+    spellFeedback:SetPoint("RIGHT", panel, "RIGHT", -PAD, 0)
+    spellFeedback:SetJustifyH("LEFT")
+    y = y - 14
+
+    SyncSpellRow = function()
+        if trigVal == "pull" then
+            spellFeedback:SetText("|cff8a99b5not used for a pull trigger|r")
+            return
+        end
+        local sid, info = ns.ResolveSpell(spellBox:GetText())
+        if sid then
+            spellFeedback:SetText("|cff6DD09A" .. (info.name or "") .. "|r")
+        else
+            spellFeedback:SetText(
+                (spellBox:GetText() ~= "" and "|cffff6060not a spell ID|r") or "")
+        end
+    end
+    spellBox:SetScript("OnTextChanged", SyncSpellRow)
+    SyncSpellRow()
+
+    AddLabel("Fire on occurrence # (blank = every time)")
+    local counterBox = AddBox(3, true)
+    counterBox:SetText((trig.counter and trig.counter > 1) and tostring(trig.counter) or "")
+
+    AddLabel("Linger (seconds)")
+    local durBox = AddBox(3, true)
+    durBox:SetText(tostring((existing and existing.dur) or 3))
+
+    local enabledVal = (existing == nil) or existing.enabled ~= false
+    local _, rowH2 = W:DualRow(panel, y,
+        { type = "toggle", text = "Enabled",
+          getValue = function() return enabledVal end,
+          setValue = function(v) enabledVal = v end },
+        { type = "label", text = "" }
+    ); y = y - rowH2
+
+    local function BuildTrigger()
+        if trigVal == "pull" then return { type = "pull" } end
+        local sid = ns.ResolveSpell(spellBox:GetText())
+        if not sid then return nil end
+        local counter = tonumber(counterBox:GetText())
+        return { type = "spell", kind = trigVal, spellID = sid,
+                 counter = (counter and counter > 1) and math.floor(counter) or nil }
+    end
+
+    local function Save()
+        local newTrig = BuildTrigger()
+        if not newTrig then
+            ns.Print("|cffff6060need a valid spell ID for this trigger|r")
+            return
+        end
+        local name = nameBox:GetText()
+        if not name or name == "" then name = "Reminder" end
+        local dur = tonumber(durBox:GetText()) or 3
+        local writeSet = ns.CustomRemindersTable(true, encounterID)
+        local key = uid or ("r" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
+        writeSet[key] = {
+            name = name, msg = msgBox:GetText() or "", trigger = newTrig,
+            dur = math.max(1, dur), enabled = enabledVal,
+        }
+        ns.RefreshRuntime()
+        dimmer:Hide()
+        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+    end
+
+    y = y - 10
+    ns.Button(panel, "Preview", 90, 26, function()
+        ns.PreviewCustomReminder({
+            name = nameBox:GetText(), msg = msgBox:GetText(),
+            dur = tonumber(durBox:GetText()) or 3,
+        })
+    end):SetPoint("BOTTOM", panel, "BOTTOM", -110, 16)
+    ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
+    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 90, 16)
+
+    dimmer:Show()
 end
 
 function ns.BuildTreeSection(parent, y)
