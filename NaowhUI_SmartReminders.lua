@@ -456,6 +456,20 @@ function Reminder.Create()
     frame.fallback:SetAlpha(0)
     frame.fallback:Hide()
 
+    -- Call Out Unknown Bosses changes what every uncovered boss does -- quiet becomes
+    -- call-everything -- and shipped with no on-screen sign it was active at all. Twice
+    -- now, a callout that looked like wrong data was actually just this switch left on
+    -- from an earlier authoring session. The border and tag ride the alert itself, not a
+    -- settings page, because that is the one place a player is already looking.
+    frame.learnTag = frame:CreateFontString(nil, "OVERLAY")
+    frame.learnTag:SetPoint("BOTTOM", frame.reminder, "TOP", 0, 4)
+    frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE")
+    frame.learnTag:SetTextColor(1, 0.65, 0.2, 1)
+    frame.learnTag:SetText("AUTHORING MODE -- CALLING EVERY ABILITY")
+    frame.learnTag:Hide()
+    frame.learnBorder = ns.Border(frame, { r = 1, g = 0.65, b = 0.2 }, 1)
+    if frame.learnBorder and frame.learnBorder._frame then frame.learnBorder._frame:Hide() end
+
     ApplyScale()        -- a spec with no list never reaches RebuildSlots, and a zero-sized
     ApplyPosition()     -- frame is one Unlock Mode cannot pick up
     return frame
@@ -1745,6 +1759,12 @@ local function ShowForEvent(eventID)
 
     announced[eventID] = true
     shownForEvent = eventID
+    if frame.learnTag then
+        frame.learnTag:SetShown(t.learnMode == true)
+        if frame.learnBorder and frame.learnBorder._frame then
+            frame.learnBorder._frame:SetShown(t.learnMode == true)
+        end
+    end
     frame:Show()
     -- The callout happens BEFORE the report, and the report is guarded. Either alone would
     -- do; both together mean no future change to the readout can cost the player an alert.
