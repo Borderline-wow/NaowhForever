@@ -633,6 +633,446 @@ local function AttachRowCog(rgn, onClick, tipTitle, tipBody)
     return cog
 end
 
+-------------------------------------------------------------------------------
+--  Preset list editor: the spec-default page, one preset picker on the left
+--  and its condensed ability list on the right.
+-------------------------------------------------------------------------------
+
+local function ShowAddPresetPopup(specID, EUI)
+    local dimmer, panel = ns.MakeModal(340, 150)
+    dimmer:SetFrameStrata("TOOLTIP")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("New Preset")
+
+    local box = CreateFrame("EditBox", nil, panel)
+    box:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -50)
+    box:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+    box:SetHeight(26)
+    box:SetAutoFocus(true)
+    box:SetMaxLetters(40)
+    box:SetFontObject("GameFontHighlight")
+    box:SetTextInsets(6, 6, 0, 0)
+    ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+    ns.Border(box)
+    box:SetText(ns.NextPresetName(specID))
+    box:HighlightText()
+
+    local function Commit()
+        ns.AddPreset(specID, box:GetText())
+        dimmer:Hide()
+        EUI:RefreshPage(true)
+    end
+    box:SetScript("OnEnterPressed", Commit)
+    box:SetScript("OnEscapePressed", function(self) self:ClearFocus(); dimmer:Hide() end)
+
+    ns.Button(panel, "Create", 90, 26, Commit):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
+    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
+
+    dimmer:Show()
+end
+
+-- Audio settings for one ability. The cog is designed to grow -- text options and whatever
+-- else makes sense later -- so its content lives in its own small modal rather than crowding
+-- the row.
+local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
+    local W = EUI.Widgets
+    local dimmer, panel = ns.MakeModal(360, 130)
+    dimmer:SetFrameStrata("TOOLTIP")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText(name)
+
+    local editBtn
+    local y = -46
+    local _, h = W:DualRow(panel, y,
+        { type = "toggle", text = "Audio",
+          tooltip = "Speaks this one when it is the defensive to press. Switch it off to "
+          .. "keep it in your priority order but stay silent for it -- the icon and text "
+          .. "still show.",
+          getValue = function() return not ns.IsAudioOff(spellID) end,
+          setValue = function(v)
+              ns.SetAudioOff(spellID, not v)
+              if editBtn then editBtn:SetShown(v) end
+          end }
+    ); y = y - h
+
+    editBtn = ns.Button(panel, "Edit Callout", 120, 24, function()
+        ns.ShowCalloutEditor(("Audio callout for %s"):format(name),
+            ns.CalloutFor(spellID, name), function(text)
+                ns.SetCallout(spellID, text)
+                if EUI.RefreshPage then EUI:RefreshPage(true) end
+            end, spellID)
+    end)
+    editBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y - 6)
+    editBtn:SetShown(not ns.IsAudioOff(spellID))
+
+    ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+
+    dimmer:Show()
+end
+
+-- Same shape as the ability popup above, but the fallback step stores its audio flag under
+-- spellID 0 and its text directly on db.voiceNone rather than through the callout table, so
+-- it cannot share ShowAbilitySettingsPopup's storage calls.
+local function ShowFallbackSettingsPopup(EUI)
+    local W = EUI.Widgets
+    local db = ns.DB()
+    local dimmer, panel = ns.MakeModal(360, 130)
+    dimmer:SetFrameStrata("TOOLTIP")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Call for an External")
+
+    local editBtn
+    local y = -46
+    local _, h = W:DualRow(panel, y,
+        { type = "toggle", text = "Audio",
+          tooltip = "Speaks the fallback line when nothing on your list is up. This step is "
+          .. "always last and cannot be moved, but it can be silenced.",
+          disabled = function() return db.fallbackOn == false end,
+          disabledTooltip = "Switch the last step back on to use this.",
+          getValue = function() return db.fallbackOn ~= false and not ns.IsAudioOff(0) end,
+          setValue = function(v)
+              if db.fallbackOn == false then return end
+              ns.SetAudioOff(0, not v)
+              if editBtn then editBtn:SetShown(v) end
+          end }
+    ); y = y - h
+
+    editBtn = ns.Button(panel, "Edit Callout", 120, 24, function()
+        ns.ShowCalloutEditor("Said and shown when nothing on the list is up",
+            db.voiceNone, function(v)
+                db.voiceNone = v
+                ns.RefreshRuntime()
+            end, 0)
+    end)
+    editBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y - 6)
+    editBtn:SetShown(db.fallbackOn ~= false and not ns.IsAudioOff(0))
+
+    ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+
+    dimmer:Show()
+end
+
+-- A left-column entry: click to switch presets, x to delete. Hand-drawn rather than a
+-- DualRow toggle since it needs the active highlight and the delete affordance a checkbox
+-- row does not have.
+local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, canDelete, EUI)
+    local prow = CreateFrame("Button", nil, leftPane)
+    prow:SetSize(rowW, rowH)
+    prow:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, ly)
+
+    if isActive then
+        local bg = ns.Solid(prow, "BACKGROUND", ns.THEME.gold, 0.15)
+        bg:SetAllPoints()
+    end
+
+    local lbl = ns.Font(prow, 13, nil, isActive and ns.THEME.fg or ns.THEME.muted)
+    lbl:SetPoint("LEFT", prow, "LEFT", 8, 0)
+    lbl:SetPoint("RIGHT", prow, "RIGHT", canDelete and -24 or -8, 0)
+    lbl:SetJustifyH("LEFT")
+    lbl:SetWordWrap(false)
+    lbl:SetText(p.name)
+
+    prow:SetScript("OnClick", function()
+        ns.SelectPreset(specID, p.key)
+        EUI:RefreshPage(true)
+    end)
+
+    if canDelete then
+        local del = CreateFrame("Button", nil, prow)
+        del:SetSize(14, 14)
+        del:SetPoint("RIGHT", prow, "RIGHT", -6, 0)
+        local a = ns.Solid(del, "OVERLAY", ns.THEME.muted, 0.85)
+        a:SetSize(10, 2); a:SetPoint("CENTER"); a:SetRotation(math.rad(45))
+        local b = ns.Solid(del, "OVERLAY", ns.THEME.muted, 0.85)
+        b:SetSize(10, 2); b:SetPoint("CENTER"); b:SetRotation(math.rad(-45))
+        del:SetScript("OnEnter", function(self)
+            a:SetColorTexture(1, 0.35, 0.35, 1); b:SetColorTexture(1, 0.35, 0.35, 1)
+            local EUIg = _G.EllesmereUI
+            if EUIg and EUIg.ShowWidgetTooltip then
+                EUIg.ShowWidgetTooltip(self,
+                    "|cffF0A830Delete Preset|r\nRemoves this preset and its list. Cannot be undone.")
+            end
+        end)
+        del:SetScript("OnLeave", function()
+            local c = ns.THEME.muted
+            a:SetColorTexture(c.r, c.g, c.b, 0.85); b:SetColorTexture(c.r, c.g, c.b, 0.85)
+            local EUIg = _G.EllesmereUI
+            if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
+        end)
+        del:SetScript("OnClick", function()
+            ns.DeletePreset(specID, p.key)
+            EUI:RefreshPage(true)
+        end)
+    end
+
+    return prow
+end
+
+-- The spec-default page: a preset picker on the left, and the active preset's list -- every
+-- row condensed to one column, with a settings cog where the old layout had a second column
+-- -- on the right. Per-boss overrides still go through ns.RenderPriorityEditor unchanged.
+function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
+    local _, h, row
+    local topY = y
+
+    if #ns.ListPresets(specID) == 0 then
+        ns.AddPreset(specID, nil)
+    end
+    local presets = ns.ListPresets(specID)
+    local activeKey = ns.ActivePresetKey(specID)
+
+    local PRESET_ROW_H = 34
+    local LEFT_W = 190
+    local GAP = 16
+    local totalW = parent:GetWidth() - EUI.CONTENT_PAD * 2
+    local rightW = totalW - LEFT_W - GAP
+
+    local leftPane = CreateFrame("Frame", nil, parent)
+    leftPane:SetSize(LEFT_W, 10)
+    leftPane:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD, topY)
+
+    local rightPane = CreateFrame("Frame", nil, parent)
+    rightPane:SetSize(rightW, 10)
+    rightPane:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD + LEFT_W + GAP, topY)
+
+    -- Left column: one row per preset, then the add-preset row.
+    local ly = 0
+    for i = 1, #presets do
+        local p = presets[i]
+        BuildPresetRow(leftPane, ly, LEFT_W, PRESET_ROW_H, specID, p,
+            p.key == activeKey, #presets > 1, EUI)
+        ly = ly - PRESET_ROW_H
+    end
+
+    local addRow = CreateFrame("Button", nil, leftPane)
+    addRow:SetSize(LEFT_W, PRESET_ROW_H)
+    addRow:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, ly)
+    local addLbl = ns.Font(addRow, 13, nil, ns.THEME.muted)
+    addLbl:SetPoint("LEFT", addRow, "LEFT", 8, 0)
+    addLbl:SetText("+ Add Preset")
+    addRow:SetScript("OnEnter", function()
+        local c = ns.THEME.fg
+        addLbl:SetTextColor(c.r, c.g, c.b, 1)
+    end)
+    addRow:SetScript("OnLeave", function()
+        local c = ns.THEME.muted
+        addLbl:SetTextColor(c.r, c.g, c.b, 1)
+    end)
+    addRow:SetScript("OnClick", function() ShowAddPresetPopup(specID, EUI) end)
+    ly = ly - PRESET_ROW_H
+
+    -- Right column: the active preset's list, condensed to one control per row.
+    local ry = 0
+    local list = ns.EffectiveListFor(specID, nil) or {}
+    local auto = ns.AllDefensives(specID, nil)
+
+    wipe(dragRows)
+
+    local hidden = ns.HiddenSpells(specID)
+    local function IsHidden(id) return hidden ~= nil and hidden[tostring(id)] == true end
+
+    local pool, seen = {}, {}
+    for i = 1, #auto do
+        if not IsHidden(auto[i].id) then
+            pool[#pool + 1] = auto[i]
+            seen[auto[i].id] = true
+        end
+    end
+    local custom = ns.CustomSpells(specID)
+    if custom then
+        for key in pairs(custom) do
+            local sid = tonumber(key)
+            if sid and not seen[sid] and not IsHidden(sid) then
+                seen[sid] = true
+                local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+                pool[#pool + 1] = {
+                    id = sid, name = (si and si.name) or ("Spell " .. sid),
+                    icon = si and si.iconID, cd = 0, userAdded = true,
+                }
+            end
+        end
+    end
+
+    for i = 1, #list do
+        local spellID = list[i]
+        local idx = i
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
+        local name = (info and info.name) or ("Spell " .. spellID)
+        local label = ("      %d.  %s"):format(idx, name)
+        if not ns.IsSpellAvailable(spellID) then label = label .. "  (not talented)" end
+
+        row, h = W:DualRow(rightPane, ry,
+            { type = "toggle", text = label,
+              tooltip = ("Spell ID %d. Untick to drop it to the bottom of the list."):format(spellID),
+              getValue = function() return true end,
+              setValue = function()
+                  ns.SetSpellOnList(specID, nil, spellID, false)
+                  EUI:RefreshPage(true)
+              end }
+        ); ry = ry - h
+
+        if row then
+            dragRows[#dragRows + 1] = { frame = row, spellID = spellID, index = idx }
+            AttachGrabber(row, spellID, idx, specID, nil, EUI)
+            AttachRemove(row, { id = spellID, userAdded = false }, specID, EUI, function()
+                ns.SetSpellOnList(specID, nil, spellID, false)
+                ns.HideSpell(specID, spellID)
+            end)
+            -- The row is single-column (no rightCfg), so the toggle lives in the LEFT
+            -- region -- chain the cog off that region's control, not the empty right one,
+            -- or it would anchor off in the dead space past the toggle.
+            AttachRowCog(row._leftRegion, function()
+                ShowAbilitySettingsPopup(specID, spellID, name, EUI)
+            end, "Settings", "Audio, and anything added later.")
+        end
+    end
+
+    local spare = {}
+    for i = 1, #pool do
+        if not ns.ListIndexOf(list, pool[i].id) then spare[#spare + 1] = pool[i] end
+    end
+    table.sort(spare, function(a, b) return a.name < b.name end)
+
+    for i = 1, #spare do
+        local c = spare[i]
+        row, h = W:DualRow(rightPane, ry,
+            { type = "toggle",
+              text = "      |cff8a99b5" .. c.name .. (c.userAdded and " (added by you)" or "") .. "|r",
+              tooltip = ("Spell ID %d. Tick to put it into your priority order."):format(c.id),
+              getValue = function() return false end,
+              setValue = function()
+                  ns.SetSpellOnList(specID, nil, c.id, true)
+                  EUI:RefreshPage(true)
+              end }
+        ); ry = ry - h
+
+        if row then
+            AttachRemove(row, c, specID, EUI, function()
+                if c.userAdded then ns.RemoveCustomSpell(specID, c.id)
+                else ns.HideSpell(specID, c.id) end
+                ns.SetSpellOnList(specID, nil, c.id, false)
+            end)
+        end
+    end
+
+    if #list == 0 and #spare == 0 then
+        _, h = W:DualRow(rightPane, ry,
+            { type = "label", text = "      No major defensives found for this specialization." }
+        ); ry = ry - h
+    end
+
+    if hidden and next(hidden) ~= nil then
+        _, h = W:DualRow(rightPane, ry,
+            { type = "toggle", text = "      Restore Removed Abilities",
+              tooltip = "Brings back everything you removed from the choices for this spec.",
+              getValue = function() return false end,
+              setValue = function()
+                  ns.UnhideAll(specID)
+                  EUI:RefreshPage(true)
+              end }
+        ); ry = ry - h
+    end
+
+    -- The fallback step, condensed like everything above it: its own toggle plus a cog for
+    -- audio and text, matching the shape of an ability row even though it is not one.
+    local db = ns.DB()
+    row, h = W:DualRow(rightPane, ry,
+        { type = "toggle",
+          text = ("      |cffF0A830Last:  %s|r"):format(db.voiceNone or "Call for an External"),
+          tooltip = "The final step, used when nothing on your list is up. Switch it off to say "
+          .. "and show nothing at all in that case.",
+          getValue = function() return db.fallbackOn ~= false end,
+          setValue = function(v)
+              db.fallbackOn = v
+              ns.RefreshRuntime()
+              EUI:RefreshPage(true)
+          end }
+    ); ry = ry - h
+    if row then
+        AttachRowCog(row._leftRegion, function() ShowFallbackSettingsPopup(EUI) end,
+            "Settings", "Audio, and anything added later.")
+    end
+
+    -- The spell ID entry, last: the widget factory has no text input, so the box and its
+    -- button are built here and laid over the row's right half.
+    row, h = W:DualRow(rightPane, ry,
+        { type = "label", text = "      Add an Ability by Spell ID" },
+        { type = "label", text = "" }   -- overlaid below with the entry box and Add button
+    ); ry = ry - h
+
+    if row and row._rightRegion then
+        local rgn = row._rightRegion
+
+        local add = ns.Button(rgn, "Add", 54, 22, nil)
+        add:SetPoint("RIGHT", rgn, "RIGHT", -14, 0)
+
+        local box = CreateFrame("EditBox", nil, rgn)
+        box:SetPoint("LEFT", rgn, "LEFT", 6, 0)
+        box:SetPoint("RIGHT", add, "LEFT", -8, 0)
+        box:SetHeight(24)
+        box:SetAutoFocus(false)
+        box:SetNumeric(true)
+        box:SetMaxLetters(9)
+        box:SetFontObject("GameFontHighlight")
+        box:SetTextInsets(6, 6, 0, 0)
+        local well = ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1)
+        well:SetAllPoints()
+        ns.Border(box)
+
+        local placeholder = ns.Font(box, 12, nil, ns.THEME.muted)
+        placeholder:SetPoint("LEFT", box, "LEFT", 8, 0)
+        placeholder:SetText("Enter SpellID")
+
+        local feedback = ns.Font(rgn, 10, nil, ns.THEME.muted)
+        feedback:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 2, -1)
+        feedback:SetPoint("RIGHT", add, "LEFT", -8, 0)
+        feedback:SetJustifyH("LEFT")
+
+        local function Commit()
+            local sid = ns.ResolveSpell(box:GetText())
+            if not sid then return end
+            if ns.AddCustomSpell(specID, sid) then
+                ns.SetSpellOnList(specID, nil, sid, true)
+                box:SetText("")
+                box:ClearFocus()
+                EUI:RefreshPage(true)
+            end
+        end
+
+        local function Validate()
+            local text = box:GetText()
+            placeholder:SetShown(text == nil or text == "")
+            local sid, info = ns.ResolveSpell(text)
+            if sid then
+                add:Enable()
+                add:SetAlpha(1)
+                feedback:SetText("|cff6DD09A" .. (info.name or "") .. "|r")
+            else
+                add:Disable()
+                add:SetAlpha(0.35)
+                feedback:SetText((text ~= "" and text ~= nil) and "|cffff6060Not a spell ID|r" or "")
+            end
+        end
+
+        add:SetScript("OnClick", Commit)
+        box:SetScript("OnTextChanged", Validate)
+        box:SetScript("OnEnterPressed", Commit)
+        box:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+        Validate()
+    end
+
+    return topY + math.min(ly, ry)
+end
+
 local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
     local _, h
     local encounterID = boss.encounterID
@@ -927,8 +1367,12 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID, ui)
                               else
                                   local src = ns.EffectiveListFor(specID, encounterID)
                                   if not (src and #src > 0) then
-                                      local lists = ns.DB().lists
-                                      src = lists and lists[tostring(specID)]
+                                      -- EffectiveListFor does not fall through to the spec
+                                      -- default when an encounterID is given (a boss with
+                                      -- no override of its own reads as empty, not "use
+                                      -- the default"), so ask for the default explicitly:
+                                      -- the active preset's list, same as everywhere else.
+                                      src = ns.EffectiveListFor(specID, nil)
                                   end
                                   local bl = ns.BossList(specID, akey, true)
                                   wipe(bl)

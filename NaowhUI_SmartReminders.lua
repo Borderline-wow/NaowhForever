@@ -82,6 +82,18 @@ local function TRDB()
         t.iconScale = t.scale
         t.textScale = t.scale
     end
+    -- One-way migration from the single flat list per spec this addon shipped with before
+    -- presets existed: every existing list becomes that spec's "Preset 1", so nobody's
+    -- configured priority order disappears the first time this loads.
+    if type(t.lists) == "table" and next(t.lists) ~= nil and type(t.presets) ~= "table" then
+        t.presets = {}
+        t.activePreset = t.activePreset or {}
+        for specKey, list in pairs(t.lists) do
+            t.presets[specKey] = { p1 = { name = "Preset 1", list = list } }
+            t.activePreset[specKey] = "p1"
+        end
+        t.lists = nil
+    end
     for k, v in pairs(DEFAULTS) do if t[k] == nil then t[k] = v end end
     return t
 end
@@ -103,7 +115,7 @@ local function SetSpellDisabled(spellID, off)
 end
 
 -------------------------------------------------------------------------------
---  The priority list is the user's, per spec
+--  The priority list is the user's, per spec -- grouped into named presets
 -------------------------------------------------------------------------------
 -- This addon ships with NO ability data of its own -- no boss timers, no spell lists, no
 -- encounter knowledge. It is an engine: the player builds the priority order themselves
@@ -111,19 +123,143 @@ end
 -- in it. Everything it reacts to at runtime comes from Blizzard's own encounter timeline.
 --
 -- Per spec rather than global, because a priority order is only meaningful within one spec
--- and a tank who also heals should not rebuild it on every switch.
-local function UserList(forSpec, create)
+-- and a tank who also heals should not rebuild it on every switch. Within a spec, a player
+-- can keep more than one named list (an M+ set, a raid-CD set, ...) and switch which one is
+-- active; only the active preset's list is "the" spec default anywhere else in this file.
+-- profile.presets[specKey][presetKey] = { name = "...", list = { spellID, ... } }
+-- profile.activePreset[specKey] = presetKey
+local function PresetsTable(forSpec, create)
     local t = TRDB()
-    if type(t.lists) ~= "table" then
+    if type(t.presets) ~= "table" then
         if not create then return nil end
-        t.lists = {}
+        t.presets = {}
     end
     local key = tostring(forSpec or 0)
-    if type(t.lists[key]) ~= "table" then
+    if type(t.presets[key]) ~= "table" then
         if not create then return nil end
-        t.lists[key] = {}
+        t.presets[key] = {}
     end
-    return t.lists[key]
+    return t.presets[key]
+end
+
+-- Read-only: which preset is active for this spec, or nil if none exist yet.
+local function ActivePresetKey(forSpec)
+    local t = TRDB()
+    local presets = PresetsTable(forSpec, false)
+    if not presets then return nil end
+    local key = tostring(forSpec or 0)
+    local a = type(t.activePreset) == "table" and t.activePreset[key]
+    if a and presets[a] then return a end
+    -- The pointer is missing or points at a preset that got deleted: the first one that
+    -- still exists becomes active, rather than the spec silently reading as unconfigured.
+    a = next(presets)
+    if a then
+        if type(t.activePreset) ~= "table" then t.activePreset = {} end
+        t.activePreset[key] = a
+    end
+    return a
+end
+ns.ActivePresetKey = ActivePresetKey
+
+-- Same, but seeds an empty "Preset 1" the first time this spec is touched at all, so
+-- there is always something selected to add spells to.
+local function EnsureActivePreset(forSpec)
+    local a = ActivePresetKey(forSpec)
+    if a then return a end
+    local presets = PresetsTable(forSpec, true)
+    presets.p1 = { name = "Preset 1", list = {} }
+    local t = TRDB()
+    if type(t.activePreset) ~= "table" then t.activePreset = {} end
+    t.activePreset[tostring(forSpec or 0)] = "p1"
+    return "p1"
+end
+
+-- Every preset for this spec, name and key, in a stable creation-ish order (numerically by
+-- key where the key is one of ours -- "p1", "p2", ... -- which sorts sensibly since they
+-- are only ever appended, never renumbered).
+function ns.ListPresets(forSpec)
+    local presets = PresetsTable(forSpec, false)
+    local out = {}
+    if not presets then return out end
+    for key, p in pairs(presets) do
+        out[#out + 1] = { key = key, name = p.name or key }
+    end
+    table.sort(out, function(a, b) return a.key < b.key end)
+    return out
+end
+
+-- Default name is "Preset N" for the lowest N not already in use, so deleting one and
+-- adding another does not produce a duplicate label.
+function ns.NextPresetName(forSpec)
+    local presets = PresetsTable(forSpec, false)
+    local used = {}
+    if presets then
+        for _, p in pairs(presets) do used[p.name] = true end
+    end
+    local n = 1
+    while used["Preset " .. n] do n = n + 1 end
+    return "Preset " .. n
+end
+
+function ns.AddPreset(forSpec, name)
+    local presets = PresetsTable(forSpec, true)
+    local n = 1
+    while presets["p" .. n] do n = n + 1 end
+    local key = "p" .. n
+    presets[key] = { name = (name and name ~= "" and name) or ns.NextPresetName(forSpec),
+                      list = {} }
+    local t = TRDB()
+    if type(t.activePreset) ~= "table" then t.activePreset = {} end
+    t.activePreset[tostring(forSpec or 0)] = key
+    return key
+end
+
+function ns.SelectPreset(forSpec, presetKey)
+    local presets = PresetsTable(forSpec, false)
+    if not (presets and presets[presetKey]) then return false end
+    local t = TRDB()
+    if type(t.activePreset) ~= "table" then t.activePreset = {} end
+    t.activePreset[tostring(forSpec or 0)] = presetKey
+    return true
+end
+
+function ns.RenamePreset(forSpec, presetKey, name)
+    local presets = PresetsTable(forSpec, false)
+    local p = presets and presets[presetKey]
+    if not p then return false end
+    p.name = (name and name ~= "") and name or p.name
+    return true
+end
+
+-- Refuses to delete the last preset a spec has: EnsureActivePreset would just recreate an
+-- empty "Preset 1" a moment later, so the button would look like it did nothing.
+function ns.DeletePreset(forSpec, presetKey)
+    local presets = PresetsTable(forSpec, false)
+    if not presets or not presets[presetKey] then return false end
+    local count = 0
+    for _ in pairs(presets) do count = count + 1 end
+    if count <= 1 then return false end
+    presets[presetKey] = nil
+    local t = TRDB()
+    local key = tostring(forSpec or 0)
+    if type(t.activePreset) == "table" and t.activePreset[key] == presetKey then
+        t.activePreset[key] = nil
+    end
+    ActivePresetKey(forSpec)   -- re-pick immediately so nothing reads as unconfigured
+    return true
+end
+
+local function UserList(forSpec, create)
+    local presetKey = create and EnsureActivePreset(forSpec) or ActivePresetKey(forSpec)
+    if not presetKey then return nil end
+    local presets = PresetsTable(forSpec, create)
+    local p = presets and presets[presetKey]
+    if not p then return nil end
+    if type(p.list) ~= "table" then
+        if not create then return nil end
+        p.list = {}
+    end
+    return p.list
 end
 
 -- Per-boss overrides live beside the spec default, keyed spec:encounter. The key is the
@@ -2969,10 +3105,12 @@ function ns.SeedDefaultList(forSpec)
     local out = {}
     for i = 1, #found do out[i] = found[i] end
 
-    local t = TRDB()
-    if type(t.lists) ~= "table" then t.lists = {} end
-    t.lists[tostring(forSpec or 0)] = out
-    return out
+    -- Saved into the active preset (creating one if this spec has never been touched),
+    -- not a bare table, so the seed shows up as a real, editable list on the options page.
+    local list = UserList(forSpec, true)
+    wipe(list)
+    for i = 1, #out do list[i] = out[i] end
+    return list
 end
 
 local function CollectFromSpellbook(seen, list, out)
@@ -3590,12 +3728,12 @@ function ns.BuildSection(parent, y)
     -- The player's own list for the current spec, in priority order. This addon ships no
     -- ability data, so an empty list here is the correct starting state -- the section says
     -- so rather than looking broken.
-    _, h = W:SectionHeader(parent, "YOUR DEFAULT LIST (THIS SPEC)", y); y = y - h
+    _, h = W:SectionHeader(parent, "PRESET LIST (THIS SPEC)", y); y = y - h
 
-    -- The shared editor: every defensive you own, a switch for whether it is in play, and a
-    -- number for where it sits. No separate Add step -- the list is the picker.
-    if ns.RenderPriorityEditor then
-        y = ns.RenderPriorityEditor(parent, y, W, EUI, specID, nil)
+    -- Left: the presets you have for this spec, and a way to add more. Right: the active
+    -- one's list, every row condensed to a name, a switch, and a settings cog.
+    if ns.RenderPresetListEditor then
+        y = ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     end
 
     return y

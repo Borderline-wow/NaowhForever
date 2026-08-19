@@ -30,7 +30,7 @@ local PACK_FORMAT = 1
 -- Sections a pack may carry, in display order. Keyed by the profile field;
 -- label is what the preview calls it; count says how its size is measured.
 local SECTIONS = {
-    { field = "lists",     label = "spec priority lists",  count = "keys" },
+    { field = "presets",   label = "spec priority lists",  count = "nested" },
     { field = "bossLists", label = "per-boss orders",      count = "keys" },
     { field = "callouts",  label = "callout lines",        count = "keys" },
     { field = "reminders", label = "written reminders",    count = "nested" },
