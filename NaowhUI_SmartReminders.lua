@@ -658,6 +658,13 @@ end
 -- handle on WHICH ability an event is, and any future filtering by ability has to ride it.
 local eventSource, eventDuration = {}, {}
 
+-- Which event ids have already produced a full show/speak pass. Blizzard's own timeline
+-- view re-triggers ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT more than once per event with no
+-- dedup of its own (OnEventHighlight just replays the glow every time; harmless for a
+-- glow, not for a spoken callout), so without this an ability with a long lead time could
+-- get announced repeatedly while still the same single cast.
+local announced = {}
+
 local function NoteEventAdded(info)
     if type(info) ~= "table" then return end
     pcall(function()
@@ -687,6 +694,7 @@ local function ForgetEvent(eventID)
     CancelPendingShow(eventID)
     eventSource[eventID] = nil
     eventDuration[eventID] = nil
+    announced[eventID] = nil
 end
 
 local function WipeEventCache()
@@ -697,6 +705,7 @@ local function WipeEventCache()
     wipe(pendingShow)
     wipe(eventSource)
     wipe(eventDuration)
+    wipe(announced)
 end
 
 local function IsEncounterSourced(eventID)
@@ -1606,6 +1615,20 @@ end
 
 local function ShowForEvent(eventID)
     if not frame then return end
+
+    -- HIGHLIGHT is not one-shot: the engine replays it for the same event more than once
+    -- (Blizzard's own timeline view just re-triggers its glow animation every time, with
+    -- no dedup of its own), which without this repeated a callout for a single cast that
+    -- had a long lead time. Latched below, only once the event actually gets announced.
+    if announced[eventID] then
+        if traceLeft > 0 then
+            traceLeft = traceLeft - 1
+            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80repeat|r (already announced "
+                .. "this event)"):format(tostring(eventID)))
+        end
+        return
+    end
+
     local t = TRDB()
 
     -- Remembered even when muted, so "that one was wrong" can still be acted on afterwards
@@ -1720,6 +1743,7 @@ local function ShowForEvent(eventID)
     -- gate machinery itself stays for the /nutank gate diagnostic.
     ClearTankGate()
 
+    announced[eventID] = true
     shownForEvent = eventID
     frame:Show()
     -- The callout happens BEFORE the report, and the report is guarded. Either alone would
