@@ -674,6 +674,42 @@ local function ShowAddPresetPopup(specID, EUI)
     dimmer:Show()
 end
 
+local function ShowRenamePresetPopup(specID, presetKey, currentName, EUI)
+    local dimmer, panel = ns.MakeModal(340, 150)
+    dimmer:SetFrameStrata("TOOLTIP")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Rename Preset")
+
+    local box = CreateFrame("EditBox", nil, panel)
+    box:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -50)
+    box:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+    box:SetHeight(26)
+    box:SetAutoFocus(true)
+    box:SetMaxLetters(40)
+    box:SetFontObject("GameFontHighlight")
+    box:SetTextInsets(6, 6, 0, 0)
+    ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+    ns.Border(box)
+    box:SetText(currentName or "")
+    box:HighlightText()
+
+    local function Commit()
+        ns.RenamePreset(specID, presetKey, box:GetText())
+        dimmer:Hide()
+        EUI:RefreshPage(true)
+    end
+    box:SetScript("OnEnterPressed", Commit)
+    box:SetScript("OnEscapePressed", function(self) self:ClearFocus(); dimmer:Hide() end)
+
+    ns.Button(panel, "Save", 90, 26, Commit):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
+    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
+
+    dimmer:Show()
+end
+
 -- Audio settings for one ability. The cog is designed to grow -- text options and whatever
 -- else makes sense later -- so its content lives in its own small modal rather than crowding
 -- the row.
@@ -761,22 +797,22 @@ local function ShowFallbackSettingsPopup(EUI)
     dimmer:Show()
 end
 
--- A left-column entry: click to switch presets, x to delete. Hand-drawn rather than a
--- DualRow toggle since it needs the active highlight and the delete affordance a checkbox
--- row does not have.
+-- A left-column entry: click to switch presets, pencil to rename, x to delete. Hand-drawn
+-- rather than a DualRow toggle since it needs the active highlight and the rename/delete
+-- affordances a checkbox row does not have.
 local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, canDelete, EUI)
     local prow = CreateFrame("Button", nil, leftPane)
     prow:SetSize(rowW, rowH)
     prow:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, ly)
 
     if isActive then
-        local bg = ns.Solid(prow, "BACKGROUND", ns.THEME.gold, 0.15)
+        local bg = ns.Solid(prow, "BACKGROUND", ns.THEME.grey, 0.55)
         bg:SetAllPoints()
     end
 
-    local lbl = ns.Font(prow, 13, nil, isActive and ns.THEME.fg or ns.THEME.muted)
+    local lbl = ns.Font(prow, 13, nil, isActive and ns.THEME.blue or ns.THEME.muted)
     lbl:SetPoint("LEFT", prow, "LEFT", 8, 0)
-    lbl:SetPoint("RIGHT", prow, "RIGHT", canDelete and -24 or -8, 0)
+    lbl:SetPoint("RIGHT", prow, "RIGHT", canDelete and -56 or -34, 0)
     lbl:SetJustifyH("LEFT")
     lbl:SetWordWrap(false)
     lbl:SetText(p.name)
@@ -785,6 +821,32 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
         ns.SelectPreset(specID, p.key)
         EUI:RefreshPage(true)
     end)
+
+    local edit = ns.Font(prow, 11, nil, ns.THEME.muted)
+    edit:SetText("Edit")
+    local editHit = CreateFrame("Button", nil, prow)
+    editHit:SetSize(28, rowH)
+    if canDelete then
+        editHit:SetPoint("RIGHT", prow, "RIGHT", -26, 0)
+    else
+        editHit:SetPoint("RIGHT", prow, "RIGHT", -6, 0)
+    end
+    edit:SetPoint("CENTER", editHit, "CENTER", 0, 0)
+    editHit:SetScript("OnEnter", function(self)
+        local c = ns.THEME.blue
+        edit:SetTextColor(c.r, c.g, c.b, 1)
+        local EUIg = _G.EllesmereUI
+        if EUIg and EUIg.ShowWidgetTooltip then
+            EUIg.ShowWidgetTooltip(self, "Rename this preset.")
+        end
+    end)
+    editHit:SetScript("OnLeave", function()
+        local c = ns.THEME.muted
+        edit:SetTextColor(c.r, c.g, c.b, 1)
+        local EUIg = _G.EllesmereUI
+        if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
+    end)
+    editHit:SetScript("OnClick", function() ShowRenamePresetPopup(specID, p.key, p.name, EUI) end)
 
     if canDelete then
         local del = CreateFrame("Button", nil, prow)

@@ -32,6 +32,7 @@ ns.THEME = {
     gold  = { r = 0xf0 / 255, g = 0xa8 / 255, b = 0x30 / 255 },   -- --gold
     goldSoft = { r = 0xff / 255, g = 0xc7 / 255, b = 0x69 / 255 },-- --gold-soft
     blue  = { r = 0x2d / 255, g = 0xa6 / 255, b = 0xff / 255 },   -- --blue
+    grey  = { r = 0x46 / 255, g = 0x4c / 255, b = 0x58 / 255 },   -- neutral, not a stylesheet token: for a selected-row fill that reads against blue text
 }
 
 -- A secret-tainted message is DROPPED by the display, silently and with nothing logged, so
