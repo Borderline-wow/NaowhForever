@@ -1106,12 +1106,6 @@ function ns.BuildTreeSection(parent, y)
         end
     end
 
-    _, h = W:Button(parent, "Refresh From the Dungeon Journal", y, function()
-        ns.ScrapeBosses(true)
-        EUI:RefreshPage(true)
-    end)
-    y = y - h
-
     return y
 end
 
