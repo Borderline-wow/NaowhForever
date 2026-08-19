@@ -65,8 +65,6 @@ local DEFAULTS = {
     -- produced at the default iconSize of 64, so a first read after this shipped changed
     -- nothing on screen for an existing install.
     textSize   = 21,
-    iconScale  = 1,      -- a multiplier; the slider shows it as a percentage
-    textScale  = 1,
     -- pos = { point, relPoint, x, y } once moved in Unlock Mode; nil = default centre.
     -- textPos = same shape, for the text callout's own anchor.
 }
@@ -75,13 +73,6 @@ local function TRDB()
     local root = ns.SettingsRoot()
     if type(root.tankReminder) ~= "table" then root.tankReminder = {} end
     local t = root.tankReminder
-    -- One-way migration from the single shared "scale" this addon shipped with before
-    -- icon and text scaled independently: carries an existing customized value to BOTH
-    -- new sliders once, rather than silently resetting either to 100%.
-    if t.scale ~= nil and t.iconScale == nil and t.textScale == nil then
-        t.iconScale = t.scale
-        t.textScale = t.scale
-    end
     -- One-way migration from the single flat list per spec this addon shipped with before
     -- presets existed: every existing list becomes that spec's "Default" preset, so nobody's
     -- configured priority order disappears the first time this loads.
@@ -500,48 +491,6 @@ local function ApplyTextPosition()
     end
 end
 
-local function ApplyScale()
-    local t = TRDB()
-    if frame then frame:SetScale(t.iconScale or 1) end
-    if textFrame then textFrame:SetScale(t.textScale or 1) end
-end
-
--- An anchor offset is measured in the coordinate space of the frame it positions, so
--- scaling moves it: the same saved x/y is a different number of screen pixels. Rescaling
--- by the inverse keeps the icon where it was put while the slider changes only its size.
--- Icon and text scale (and rescale-compensate their own anchor) fully independently.
-local function SetIconScale(scale)
-    local t = TRDB()
-    local prev = t.iconScale or 1
-    if scale == prev then return end
-    t.iconScale = scale
-
-    if scale > 0 and t.pos then
-        local k = prev / scale
-        t.pos.x = (t.pos.x or 0) * k
-        t.pos.y = (t.pos.y or 0) * k
-    end
-
-    ApplyScale()
-    ApplyPosition()
-end
-
-local function SetTextScale(scale)
-    local t = TRDB()
-    local prev = t.textScale or 1
-    if scale == prev then return end
-    t.textScale = scale
-
-    if scale > 0 and t.textPos then
-        local k = prev / scale
-        t.textPos.x = (t.textPos.x or 0) * k
-        t.textPos.y = (t.textPos.y or 0) * k
-    end
-
-    ApplyScale()
-    ApplyTextPosition()
-end
-
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
 -- locale variants (the Asia font files) resolve themselves. Everything degrades: no media
 -- addon means the companion font, then the client default.
@@ -670,8 +619,9 @@ function Reminder.Create()
     frame.learnBorder = ns.Border(frame, { r = 1, g = 0.65, b = 0.2 }, 1)
     if frame.learnBorder and frame.learnBorder._frame then frame.learnBorder._frame:Hide() end
 
-    ApplyScale()        -- a spec with no list never reaches RebuildSlots, and a zero-sized
-    ApplyPosition()     -- frame is one Unlock Mode cannot pick up
+    -- A spec with no list never reaches RebuildSlots, and a zero-sized frame is one Unlock
+    -- Mode cannot pick up, so position it now regardless.
+    ApplyPosition()
     ApplyTextPosition()
     return frame
 end
@@ -2460,7 +2410,6 @@ function ns.Apply()
     ProbeCapabilities()
     RefreshSpec()
     Reminder.Create()
-    ApplyScale()
     ApplyPosition()
     RebuildSlots()
     RebuildCastMap()
@@ -3686,20 +3635,6 @@ function ns.BuildSection(parent, y)
     ); y = y - h
 
     _, h = W:DualRow(parent, y,
-        { type = "slider", text = "Icon Scale (%)", min = 50, max = 200, step = 5,
-          tooltip = "Scales the icon and its border together. Icon Size changes the icon "
-          .. "alone and keeps the border crisp, so reach for that first and use this to "
-          .. "fine-tune.",
-          getValue = function() return math.floor((TRDB().iconScale or 1) * 100 + 0.5) end,
-          setValue = function(v) SetIconScale(v / 100) end },
-        { type = "slider", text = "Text Scale (%)", min = 50, max = 200, step = 5,
-          tooltip = "Scales the text callout on top of Text Size, the same way Icon Scale "
-          .. "fine-tunes the icon.",
-          getValue = function() return math.floor((TRDB().textScale or 1) * 100 + 0.5) end,
-          setValue = function(v) SetTextScale(v / 100) end }
-    ); y = y - h
-
-    _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Show a Preview",
           tooltip = "Puts a stand-in of the alert on screen while these options are open -- "
           .. "the icon and the text callout exactly as a fight would draw them. DRAG EITHER "
@@ -3974,8 +3909,7 @@ function ns.Reset()
     activeSlots = 0
     soundRegistered = false
     ns.SettingsRoot().tankReminder = nil
-    ApplyScale()        -- the saved scale and position went with the table
-    ApplySize()
+    ApplySize()        -- the saved size and position went with the table
     ApplyPosition()
     ApplyTextPosition()
     UpdateEventRegistration()
