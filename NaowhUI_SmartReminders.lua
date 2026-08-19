@@ -317,6 +317,12 @@ end
 -------------------------------------------------------------------------------
 local Reminder = {}
 local frame, slots = nil, {}
+-- The text callout's own frame -- separate from the icon so the two can be dragged to
+-- different parts of the screen. slot.label stays PARENTED to its slot (nothing here
+-- touches ApplyPriorityAlpha's secret-driven alpha cascade, which slot.label still rides
+-- unchanged); only the anchor TARGET moves to textFrame. Parent and anchor target are
+-- independent in the frame API, which is what makes this safe to decouple at all.
+local textFrame
 local bar
 local activeSlots = 0           -- how many slots the current spec actually uses
 local hideTimer
@@ -332,27 +338,50 @@ local function ApplyPosition()
     end
 end
 
+-- Defaults to the SAME spot as the icon so an existing install looks identical until the
+-- text is actually dragged elsewhere in Unlock Mode.
+local function ApplyTextPosition()
+    if not textFrame then return end
+    local p = TRDB().textPos
+    textFrame:ClearAllPoints()
+    if p then
+        textFrame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+    else
+        textFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 160)
+    end
+end
+
 local function ApplyScale()
-    if frame then frame:SetScale(TRDB().scale or 1) end
+    local s = TRDB().scale or 1
+    if frame then frame:SetScale(s) end
+    if textFrame then textFrame:SetScale(s) end
 end
 
 -- An anchor offset is measured in the coordinate space of the frame it positions, so
 -- scaling moves it: the same saved x/y is a different number of screen pixels. Rescaling
--- by the inverse keeps the icon where it was put while the slider changes only its size.
+-- by the inverse keeps the icon and the text where they were put while the slider changes
+-- only their size.
 local function SetIconScale(scale)
     local t = TRDB()
     local prev = t.scale or 1
     if scale == prev then return end
     t.scale = scale
 
-    if t.pos and scale > 0 then
+    if scale > 0 then
         local k = prev / scale
-        t.pos.x = (t.pos.x or 0) * k
-        t.pos.y = (t.pos.y or 0) * k
+        if t.pos then
+            t.pos.x = (t.pos.x or 0) * k
+            t.pos.y = (t.pos.y or 0) * k
+        end
+        if t.textPos then
+            t.textPos.x = (t.textPos.x or 0) * k
+            t.textPos.y = (t.textPos.y or 0) * k
+        end
     end
 
     ApplyScale()
     ApplyPosition()
+    ApplyTextPosition()
 end
 
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
@@ -387,15 +416,17 @@ local function CreateSlot(index)
 
     local T = ns.THEME
 
-    -- The spoken callout, written instead of said: "Use Barkskin". It lives INSIDE the slot,
-    -- so the priority alpha that picks the winning icon picks the winning line too -- one
-    -- stacked font string per spell, engine-revealed, no branch. That is why the text can
-    -- name the defensive in combat while the spoken version cannot.
+    -- The spoken callout, written instead of said: "Use Barkskin". It stays PARENTED to the
+    -- slot, so the priority alpha that picks the winning icon still picks the winning line
+    -- too -- one stacked font string per spell, engine-revealed, no branch. That is why the
+    -- text can name the defensive in combat while the spoken version cannot. Only the ANCHOR
+    -- target moves to textFrame, which the frame API allows independent of parentage, so the
+    -- text can sit anywhere on screen without touching the secret-driven alpha at all.
     --
     -- A FontString still cannot carry the tank gate (that rides textures only), which is the
     -- separate reason this channel is offered only while the tank filter is off.
     slot.label = slot:CreateFontString(nil, "OVERLAY")
-    slot.label:SetPoint("TOP", slot, "BOTTOM", 0, -4)
+    slot.label:SetPoint("TOP", textFrame, "BOTTOM", 0, -4)
     slot.label:SetFont(AlertFont(), 16, "OUTLINE")
     slot.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
     slot.label:Hide()
@@ -436,20 +467,31 @@ function Reminder.Create()
     frame:EnableMouse(false)
     frame:Hide()
 
+    -- Independently positioned from the icon (Unlock Mode moves the two separately); a
+    -- fixed nominal size is all it needs since nothing draws on textFrame itself, only on
+    -- the font strings anchored to it.
+    textFrame = CreateFrame("Frame", "NaowhUITankReminderText", UIParent)
+    textFrame:SetSize(240, 10)
+    textFrame:SetFrameStrata("HIGH")
+    textFrame:SetClampedToScreen(true)
+    textFrame:EnableMouse(false)
+    textFrame:Hide()
+
     -- "Call for external". This one is not per-spell, so it sits on the container and takes
     -- the accumulator LEFT OVER after the priority walk: that value is 1 only when nobody
     -- won, which is exactly "nothing on your list is up". The engine works it out; we never
     -- learn it.
-    -- The authored reminder line sits ABOVE the icon; the defensive callout text lives
-    -- below it, so the two never fight. Plain data only: fingerprints and authored text.
-    frame.reminder = frame:CreateFontString(nil, "OVERLAY")
-    frame.reminder:SetPoint("BOTTOM", frame, "TOP", 0, 6)
+    -- The authored reminder line sits ABOVE textFrame; the defensive callout text (built in
+    -- CreateSlot, anchored to textFrame too) lives below it, so the two never fight. Plain
+    -- data only: fingerprints and authored text.
+    frame.reminder = textFrame:CreateFontString(nil, "OVERLAY")
+    frame.reminder:SetPoint("BOTTOM", textFrame, "TOP", 0, 6)
     frame.reminder:SetFont(AlertFont(), 15, "OUTLINE")
     frame.reminder:SetTextColor(1, 1, 1, 1)
     frame.reminder:Hide()
 
-    frame.fallback = frame:CreateFontString(nil, "OVERLAY")
-    frame.fallback:SetPoint("TOP", frame, "BOTTOM", 0, -4)
+    frame.fallback = textFrame:CreateFontString(nil, "OVERLAY")
+    frame.fallback:SetPoint("TOP", textFrame, "BOTTOM", 0, -4)
     frame.fallback:SetFont(AlertFont(), 16, "OUTLINE")
     local T = ns.THEME
     frame.fallback:SetTextColor(T.goldSoft.r, T.goldSoft.g, T.goldSoft.b, 1)
@@ -459,9 +501,9 @@ function Reminder.Create()
     -- Call Out Unknown Bosses changes what every uncovered boss does -- quiet becomes
     -- call-everything -- and shipped with no on-screen sign it was active at all. Twice
     -- now, a callout that looked like wrong data was actually just this switch left on
-    -- from an earlier authoring session. The border and tag ride the alert itself, not a
-    -- settings page, because that is the one place a player is already looking.
-    frame.learnTag = frame:CreateFontString(nil, "OVERLAY")
+    -- from an earlier authoring session. The tag rides the text callout; the border rides
+    -- the icon -- between the two, whichever one someone's eyes are on says so.
+    frame.learnTag = textFrame:CreateFontString(nil, "OVERLAY")
     frame.learnTag:SetPoint("BOTTOM", frame.reminder, "TOP", 0, 4)
     frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE")
     frame.learnTag:SetTextColor(1, 0.65, 0.2, 1)
@@ -472,6 +514,7 @@ function Reminder.Create()
 
     ApplyScale()        -- a spec with no list never reaches RebuildSlots, and a zero-sized
     ApplyPosition()     -- frame is one Unlock Mode cannot pick up
+    ApplyTextPosition()
     return frame
 end
 
@@ -1624,6 +1667,7 @@ local function HideReminder()
         if frame.reminder then frame.reminder:Hide() end
         frame:Hide()
     end
+    if textFrame then textFrame:Hide() end
     if bar then bar:Hide() end
 end
 
@@ -1766,6 +1810,7 @@ local function ShowForEvent(eventID)
         end
     end
     frame:Show()
+    if textFrame then textFrame:Show() end
     -- The callout happens BEFORE the report, and the report is guarded. Either alone would
     -- do; both together mean no future change to the readout can cost the player an alert.
     -- It already did once: an unguarded throw in here ran ahead of the callout and took the
@@ -1819,10 +1864,14 @@ function ns.PreviewReminderLine(text)
         frame.reminder:SetText(text)
         frame.reminder:Show()
         frame:Show()
+        if textFrame then textFrame:Show() end
         C_Timer.After(3, function()
             if frame and frame.reminder and not shownForEvent then
                 frame.reminder:Hide()
-                if not previewing then frame:Hide() end
+                if not previewing then
+                    frame:Hide()
+                    if textFrame then textFrame:Hide() end
+                end
             end
         end)
     end
@@ -1845,6 +1894,7 @@ function ns.ForceShowTest()
     end
     shownForEvent = nil
     frame:Show()
+    if textFrame then textFrame:Show() end
     -- The voice too: a test that skips a channel reports that channel broken when it is
     -- merely untested. At the desk cooldowns read plainly, so this speaks whichever
     -- defensive is genuinely up, exactly as a fight would.
@@ -1986,6 +2036,7 @@ local function HandleIdentifiedCast(sid)
     -- callout is for a KNOWN tank buster, so they must be visible.
     ClearTankGate()
     frame:Show()
+    if textFrame then textFrame:Show() end
     SpeakCallout()
     lastCalloutAt = now
     if hideTimer then hideTimer:Cancel() end
@@ -2194,6 +2245,29 @@ local function RegisterUnlock()
             clearPos = function() TRDB().pos = nil end,
             applyPos = ApplyPosition,
         }),
+        EUI.MakeUnlockElement({
+            key   = "NaowhUI_TankReminderText",   -- storage key; renaming it would orphan saved positions
+            label = "Smart Text",
+            group = "NaowhUI",
+            order = 4,
+            noResize = true,
+            isHidden = function() return not TRDB().enabled end,
+            getFrame = function()
+                if not textFrame then Reminder.Create() end
+                return textFrame
+            end,
+            getSize  = function() return 240, 10 end,
+            savePos = function(_, point, relPoint, x, y)
+                TRDB().textPos = { point = point, relPoint = relPoint, x = x, y = y }
+            end,
+            loadPos = function()
+                local p = TRDB().textPos
+                if not p then return nil end
+                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
+            end,
+            clearPos = function() TRDB().textPos = nil end,
+            applyPos = ApplyTextPosition,
+        }),
     }, "NaowhUI_EUI")
 end
 
@@ -2220,8 +2294,14 @@ local function UpdatePreview()
             frame:SetScript("OnDragStart", nil)
             frame:SetScript("OnDragStop", nil)
         end
+        if textFrame then
+            textFrame:EnableMouse(false)
+            textFrame:SetScript("OnDragStart", nil)
+            textFrame:SetScript("OnDragStop", nil)
+        end
         -- Never yank a live call-out off the screen because the settings panel closed.
         if frame and not shownForEvent then frame:Hide() end
+        if textFrame and not shownForEvent then textFrame:Hide() end
         if bar and not shownForEvent then bar:Hide() end
         return
     end
@@ -2232,8 +2312,9 @@ local function UpdatePreview()
 
     -- The preview doubles as the placement tool: drag it and the position saves to the
     -- same slot Unlock Mode writes. Mouse and movability exist ONLY while the preview is
-    -- up -- the early-return branch below strips them -- so the fight-time alert stays a
-    -- pure display that can never eat a click.
+    -- up -- the early-return branch above strips them -- so the fight-time alert stays a
+    -- pure display that can never eat a click. Icon and text drag independently, saving
+    -- to separate positions, since that is the whole point of splitting them.
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
@@ -2246,6 +2327,20 @@ local function UpdatePreview()
             TRDB().pos = { point = point, relPoint = relPoint, x = x, y = y }
         end
         ApplyPosition()
+    end)
+
+    textFrame:SetMovable(true)
+    textFrame:SetClampedToScreen(true)
+    textFrame:EnableMouse(true)
+    textFrame:RegisterForDrag("LeftButton")
+    textFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    textFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local point, _, relPoint, x, y = self:GetPoint(1)
+        if point then
+            TRDB().textPos = { point = point, relPoint = relPoint, x = x, y = y }
+        end
+        ApplyTextPosition()
     end)
 
     if activeSlots > 0 then
@@ -2275,6 +2370,7 @@ local function UpdatePreview()
         bar:Hide()
     end
     frame:Show()
+    textFrame:Show()
 end
 
 -------------------------------------------------------------------------------
@@ -3325,19 +3421,26 @@ function ns.BuildSection(parent, y)
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Show a Preview",
           tooltip = "Puts a stand-in of the alert on screen while these options are open -- "
-          .. "the icon and the text callout exactly as a fight would draw them. DRAG IT to "
-          .. "move the alert; the position saves instantly and Unlock Mode edits the same "
-          .. "spot under the name Smart. It hides itself when the options close.",
+          .. "the icon and the text callout exactly as a fight would draw them. DRAG EITHER "
+          .. "ONE to move it independently; each position saves instantly and Unlock Mode "
+          .. "edits the same two spots, under the names Smart (icon) and Smart Text. It "
+          .. "hides itself when the options close.",
           getValue = function() return previewPin end,
           setValue = function(v) previewPin = v; UpdatePreview() end },
         { type = "label", text = "" }
     ); y = y - h
 
-    -- Escape hatch: a UI-scale change can strand a moved icon off-screen where Unlock Mode
-    -- cannot reach it.
+    -- Escape hatch: a UI-scale change can strand a moved icon or text block off-screen
+    -- where Unlock Mode cannot reach it.
     _, h = W:Button(parent, "Reset Icon Position", y, function()
         TRDB().pos = nil
         ApplyPosition()
+    end)
+    y = y - h
+
+    _, h = W:Button(parent, "Reset Text Position", y, function()
+        TRDB().textPos = nil
+        ApplyTextPosition()
     end)
     y = y - h
 
@@ -3592,6 +3695,7 @@ function ns.Reset()
     ApplyScale()        -- the saved scale and position went with the table
     ApplySize()
     ApplyPosition()
+    ApplyTextPosition()
     UpdateEventRegistration()
 end
 
