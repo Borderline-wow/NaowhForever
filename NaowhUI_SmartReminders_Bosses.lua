@@ -1362,13 +1362,15 @@ end
 -------------------------------------------------------------------------------
 --  Custom reminder editor: name, message, trigger, linger
 -------------------------------------------------------------------------------
-local TRIGGER_CHOICES = { pull = "Boss Pull", cast = "Spell Cast", aura = "Spell Aura Applied" }
-local TRIGGER_ORDER = { "pull", "cast", "aura" }
+local TRIGGER_CHOICES = { pull = "Boss Pull", bwmsg = "BigWigs/DBM Message", bwtimer = "BigWigs/DBM Timer" }
+local TRIGGER_ORDER = { "pull", "bwmsg", "bwtimer" }
 
-local function TriggerKindOf(trig)
-    if not trig or trig.type == "pull" then return "pull" end
-    return trig.kind == "aura" and "aura" or "cast"
-end
+local SHOW_IN_TIP = "Blank fires immediately. A number is seconds; minute format works "
+    .. "too (1:30.5 = 90.5 seconds). Separate several with a comma to fire more than once."
+local COUNTER_TIP = "Blank fires every time. Match a count with >N, >=N, <N, <=N, !N (not "
+    .. "N) or a bare number (exactly N). Separate conditions with a comma to match any of "
+    .. "them, or add a leading + on the second one to require both -- example: >3,+<7 "
+    .. "fires between 4 and 6."
 
 -- Rebuilt fresh on every open, same as the instance/boss modal above: an occasional
 -- settings dialog is not worth the bookkeeping a cached singleton would need for a
@@ -1377,7 +1379,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
     local EUI = _G.EllesmereUI
     local W = EUI.Widgets
 
-    local dimmer, panel = ns.MakeModal(440, 480)
+    local dimmer, panel = ns.MakeModal(440, 620)
     dimmer:SetFrameStrata("TOOLTIP")
 
     local head = ns.Font(panel, 14, "OUTLINE")
@@ -1391,17 +1393,34 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
     local y = -46
     local PAD = 20
 
-    local function AddLabel(text)
+    local function HoverTip(hit, tooltip)
+        hit:SetScript("OnEnter", function(self)
+            local EUIg = _G.EllesmereUI
+            if EUIg and EUIg.ShowWidgetTooltip then EUIg.ShowWidgetTooltip(self, tooltip) end
+        end)
+        hit:SetScript("OnLeave", function()
+            local EUIg = _G.EllesmereUI
+            if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
+        end)
+    end
+
+    local function AddLabel(text, tooltip)
         local l = ns.Font(panel, 11, nil, ns.THEME.muted)
         l:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y)
         l:SetText(text)
+        if tooltip then
+            local hit = CreateFrame("Frame", nil, panel)
+            hit:SetPoint("TOPLEFT", l, "TOPLEFT", -4, 4)
+            hit:SetPoint("BOTTOMRIGHT", l, "BOTTOMRIGHT", 4, -4)
+            HoverTip(hit, tooltip)
+        end
         y = y - 16
     end
 
-    local function AddBox(maxLetters, numeric)
+    local function AddBox(maxLetters, numeric, rightInset)
         local box = CreateFrame("EditBox", nil, panel)
         box:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y)
-        box:SetPoint("RIGHT", panel, "RIGHT", -PAD, 0)
+        box:SetPoint("RIGHT", panel, "RIGHT", -(rightInset or PAD), 0)
         box:SetHeight(26)
         box:SetAutoFocus(false)
         box:SetMaxLetters(maxLetters or 60)
@@ -1419,60 +1438,176 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
     nameBox:SetText((existing and existing.name) or "")
 
     AddLabel("Message (shown on screen)")
-    local msgBox = AddBox(120)
+    local msgRowY = y
+    local msgBox = AddBox(200, false, 34)
     msgBox:SetText((existing and existing.msg) or "")
 
-    -- Forward-declared: the dropdown's setValue below closes over this, but the fields it
-    -- syncs (spellBox, spellFeedback) do not exist until after the dropdown row is built,
-    -- since the row's own Y position sits above them. The assignment happens later in this
-    -- same call, well before the dropdown is ever interactive.
-    local SyncSpellRow
+    -- Inserts a WoW color escape around the current selection (or the whole message when
+    -- nothing is selected), the same way a chat-frame color picker works. GetTextHighlight
+    -- is a real EditBox method on retail, but is guarded anyway since nothing here is worth
+    -- an error over.
+    local colorBtn = CreateFrame("Button", nil, panel)
+    colorBtn:SetSize(24, 24)
+    colorBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, msgRowY - 1)
+    ns.Solid(colorBtn, "OVERLAY", ns.THEME.gold, 1):SetAllPoints()
+    ns.Border(colorBtn)
+    HoverTip(colorBtn, "Color the message text")
+    colorBtn:SetScript("OnClick", function()
+        if not (ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow) then return end
+        ColorPickerFrame:SetupColorPickerAndShow({
+            r = 1, g = 1, b = 1, hasOpacity = false,
+            swatchFunc = function()
+                local r, g, b = ColorPickerFrame:GetColorRGB()
+                local code = ("%02x%02x%02x"):format(r * 255, g * 255, b * 255)
+                local cur = msgBox:GetText() or ""
+                local s, e
+                if msgBox.GetTextHighlight then s, e = msgBox:GetTextHighlight() end
+                if s and e and e > s then
+                    cur = cur:sub(1, s) .. "|cff" .. code .. cur:sub(s + 1, e) .. "|r" .. cur:sub(e + 1)
+                else
+                    cur = "|cff" .. code .. cur .. "|r"
+                end
+                msgBox:SetText(cur)
+            end,
+        })
+    end)
 
-    local trigVal = TriggerKindOf(trig)
+    AddLabel("Linger (seconds)")
+    local durBox = AddBox(3, true)
+    durBox:SetText(tostring((existing and existing.dur) or 3))
+
+    -- Seeded once from the trigger being edited; an older cast/aura reminder (the editor
+    -- no longer creates these, but existing ones still run -- see EffectiveList) maps its
+    -- spell id across into a BigWigs/DBM Message trigger as the closest equivalent, so
+    -- re-editing it is a starting point rather than a dead end.
+    local trigVal
+    if trig.type == "bwtimer" then trigVal = "bwtimer"
+    elseif trig.type == "bwmsg" or trig.type == "spell" then trigVal = "bwmsg"
+    else trigVal = "pull" end
+
+    local spellIDText = (trig.spellID and tostring(trig.spellID)) or ""
+    local counterText = (type(trig.counter) == "string" and trig.counter)
+        or (type(trig.counter) == "number" and tostring(trig.counter)) or ""
+    local timeleftText = (trig.timeleft and tostring(trig.timeleft)) or ""
+    local delayText = (type(trig.delay) == "string" and trig.delay) or ""
+
+    -- The dynamic block below the Trigger dropdown -- which fields it holds depends on
+    -- trigVal, so it is torn down and rebuilt on every change rather than show/hidden in
+    -- place. The current widgets (nil for whichever fields the active type does not use)
+    -- are read back into the *Text locals before a rebuild so switching types and back
+    -- does not lose what was typed.
+    local dynFrame, spellBox, counterBox, timeleftBox, delayBox
+    local DYN_Y   -- set below, once the Trigger dropdown row's height is known
+    local RebuildDynFields
+
+    local function SaveDynFieldsToText()
+        if spellBox then spellIDText = spellBox:GetText() or "" end
+        if counterBox then counterText = counterBox:GetText() or "" end
+        if timeleftBox then timeleftText = timeleftBox:GetText() or "" end
+        if delayBox then delayText = delayBox:GetText() or "" end
+    end
+
     local _, rowH = W:DualRow(panel, y,
         { type = "dropdown", text = "Trigger",
           values = TRIGGER_CHOICES, order = TRIGGER_ORDER,
           tooltip = "What starts this reminder.",
           getValue = function() return trigVal end,
           setValue = function(v)
+              SaveDynFieldsToText()
               trigVal = v
-              if SyncSpellRow then SyncSpellRow() end
+              RebuildDynFields()
           end },
         { type = "label", text = "" }
     ); y = y - rowH
+    DYN_Y = y
 
-    AddLabel("Spell ID (cast/aura triggers only)")
-    local spellBox = AddBox(9, true)
-    spellBox:SetText((trig.type == "spell" and trig.spellID) and tostring(trig.spellID) or "")
-    local spellFeedback = ns.Font(panel, 10, nil, ns.THEME.muted)
-    spellFeedback:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y + 6)
-    spellFeedback:SetPoint("RIGHT", panel, "RIGHT", -PAD, 0)
-    spellFeedback:SetJustifyH("LEFT")
-    y = y - 14
+    RebuildDynFields = function()
+        if dynFrame then dynFrame:Hide() end
+        dynFrame = CreateFrame("Frame", nil, panel)
+        dynFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, DYN_Y)
+        dynFrame:SetSize(440, 210)
+        spellBox, counterBox, timeleftBox, delayBox = nil, nil, nil, nil
 
-    SyncSpellRow = function()
-        if trigVal == "pull" then
-            spellFeedback:SetText("|cff8a99b5not used for a pull trigger|r")
-            return
+        local dy = 0
+        local function DLabel(text, tooltip)
+            local l = ns.Font(dynFrame, 11, nil, ns.THEME.muted)
+            l:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy)
+            l:SetText(text)
+            if tooltip then
+                local hit = CreateFrame("Frame", nil, dynFrame)
+                hit:SetPoint("TOPLEFT", l, "TOPLEFT", -4, 4)
+                hit:SetPoint("BOTTOMRIGHT", l, "BOTTOMRIGHT", 4, -4)
+                HoverTip(hit, tooltip)
+            end
+            dy = dy - 16
         end
-        local sid, info = ns.ResolveSpell(spellBox:GetText())
-        if sid then
-            spellFeedback:SetText("|cff6DD09A" .. (info.name or "") .. "|r")
+        local function DBox(maxLetters, numeric, rightInset)
+            local box = CreateFrame("EditBox", nil, dynFrame)
+            box:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy)
+            box:SetPoint("RIGHT", dynFrame, "RIGHT", -(rightInset or PAD), 0)
+            box:SetHeight(26)
+            box:SetAutoFocus(false)
+            box:SetMaxLetters(maxLetters or 60)
+            if numeric then box:SetNumeric(true) end
+            box:SetFontObject("GameFontHighlight")
+            box:SetTextInsets(6, 6, 0, 0)
+            ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+            ns.Border(box)
+            dy = dy - 32
+            return box
+        end
+
+        if trigVal == "pull" then
+            DLabel("Show in", SHOW_IN_TIP)
+            delayBox = DBox(60)
+            delayBox:SetText(delayText)
         else
-            spellFeedback:SetText(
-                (spellBox:GetText() ~= "" and "|cffff6060not a spell ID|r") or "")
+            DLabel("Spell ID")
+            local rowY = dy
+            spellBox = DBox(9, true, 60)
+            spellBox:SetText(spellIDText)
+            local ok = ns.Button(dynFrame, "OK", 54, 26, nil)
+            ok:SetPoint("TOPRIGHT", dynFrame, "TOPRIGHT", -PAD, rowY)
+            local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
+            feedback:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy + 6)
+            feedback:SetPoint("RIGHT", dynFrame, "RIGHT", -PAD, 0)
+            feedback:SetJustifyH("LEFT")
+            dy = dy - 14
+
+            local function Sync()
+                local sid, info = ns.ResolveSpell(spellBox:GetText())
+                if sid then
+                    feedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
+                elseif spellBox:GetText() ~= "" then
+                    feedback:SetText("|cff8a99b5no spell name found -- boss-mod keys "
+                        .. "aren't always real spell ids, that's fine|r")
+                else
+                    feedback:SetText("")
+                end
+            end
+            spellBox:SetScript("OnTextChanged", Sync)
+            spellBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+            ok:SetScript("OnClick", function() spellBox:ClearFocus() end)
+            Sync()
+
+            if trigVal == "bwtimer" then
+                DLabel("Timeleft (seconds)",
+                    "Fires when this many seconds are left on the bar.")
+                timeleftBox = DBox(6, true)
+                timeleftBox:SetText(timeleftText)
+            end
+
+            DLabel("Counter", COUNTER_TIP)
+            counterBox = DBox(40)
+            counterBox:SetText(counterText)
+
+            DLabel("Show in", SHOW_IN_TIP)
+            delayBox = DBox(60)
+            delayBox:SetText(delayText)
         end
     end
-    spellBox:SetScript("OnTextChanged", SyncSpellRow)
-    SyncSpellRow()
-
-    AddLabel("Fire on occurrence # (blank = every time)")
-    local counterBox = AddBox(3, true)
-    counterBox:SetText((trig.counter and trig.counter > 1) and tostring(trig.counter) or "")
-
-    AddLabel("Linger (seconds)")
-    local durBox = AddBox(3, true)
-    durBox:SetText(tostring((existing and existing.dur) or 3))
+    RebuildDynFields()
+    y = DYN_Y - 210
 
     local enabledVal = (existing == nil) or existing.enabled ~= false
     local _, rowH2 = W:DualRow(panel, y,
@@ -1483,18 +1618,27 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
     ); y = y - rowH2
 
     local function BuildTrigger()
-        if trigVal == "pull" then return { type = "pull" } end
-        local sid = ns.ResolveSpell(spellBox:GetText())
+        SaveDynFieldsToText()
+        if trigVal == "pull" then
+            return { type = "pull", delay = (delayText ~= "" and delayText) or nil }
+        end
+        local sid = tonumber(spellIDText)
         if not sid then return nil end
-        local counter = tonumber(counterBox:GetText())
-        return { type = "spell", kind = trigVal, spellID = sid,
-                 counter = (counter and counter > 1) and math.floor(counter) or nil }
+        local newTrig = { type = trigVal, spellID = sid,
+            counter = (counterText ~= "" and counterText) or nil,
+            delay = (delayText ~= "" and delayText) or nil }
+        if trigVal == "bwtimer" then
+            newTrig.timeleft = tonumber(timeleftText)
+            if not newTrig.timeleft then return nil end
+        end
+        return newTrig
     end
 
     local function Save()
         local newTrig = BuildTrigger()
         if not newTrig then
-            ns.Print("|cffff6060need a valid spell ID for this trigger|r")
+            ns.Print("|cffff6060need a valid spell ID"
+                .. (trigVal == "bwtimer" and " and timeleft" or "") .. " for this trigger|r")
             return
         end
         local name = nameBox:GetText()
@@ -1511,7 +1655,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid)
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end
 
-    y = y - 10
     ns.Button(panel, "Preview", 90, 26, function()
         ns.PreviewCustomReminder({
             name = nameBox:GetText(), msg = msgBox:GetText(),

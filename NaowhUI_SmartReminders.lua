@@ -2190,12 +2190,88 @@ local function HandleIdentifiedCast(sid)
 end
 
 -------------------------------------------------------------------------------
---  Custom reminders: pull and spell triggers, own display
+--  Custom reminders: pull, BigWigs/DBM message and BigWigs/DBM timer triggers
 -------------------------------------------------------------------------------
 -- Independent of the defensive-priority system entirely: a player with nothing on their
 -- priority list should still get these, so gating never touches ShouldRun()/activeSlots.
 local function CustomRemindersAllowed()
     return TRDB().enabled == true and AllowedHere() and BossAllowed()
+end
+
+-- "Show in" syntax: blank fires immediately. A plain number or MM:SS(.ms) (e.g. "1:30.5")
+-- is seconds; comma-separate several to fire more than once. Non-positive values are
+-- nudged up rather than treated as "now", so a scheduled fire never lands in the past.
+local function ParseDelayList(text)
+    if type(text) ~= "string" or text == "" then return nil end
+    local out = {}
+    for tok in text:gmatch("[^, ]+") do
+        local n = tonumber(tok)
+        if not n then
+            local m, s, frac = tok:match("^(%d+):(%d+)%.?(%d*)$")
+            if m then
+                local ms = (frac ~= "") and tonumber("0." .. frac) or 0
+                n = tonumber(m) * 60 + tonumber(s) + ms
+            end
+        end
+        if n then out[#out + 1] = math.max(n, 0.01) end
+    end
+    return #out > 0 and out or nil
+end
+
+-- Counter condition syntax: a bare number, >=N, >N, <=N, <N, !N or =N. Comma-separated
+-- terms are OR'd; a leading + on a term ANDs it with the one before it in the same group
+-- (comma still required) -- e.g. ">3,+<7" means "more than 3 and less than 7".
+local function ParseOnePred(tok)
+    local op, num = tok:match("^(>=)(%-?%d+%.?%d*)$")
+    if not num then op, num = tok:match("^(<=)(%-?%d+%.?%d*)$") end
+    if not num then op, num = tok:match("^(>)(%-?%d+%.?%d*)$") end
+    if not num then op, num = tok:match("^(<)(%-?%d+%.?%d*)$") end
+    if not num then op, num = tok:match("^(!)(%-?%d+%.?%d*)$") end
+    if not num then op, num = tok:match("^(=)(%-?%d+%.?%d*)$") end
+    if not num then op, num = "=", tok:match("^(%-?%d+%.?%d*)$") end
+    num = tonumber(num)
+    if not num then return nil end
+    return { op = op, num = num }
+end
+
+local function ParseCounterCondition(text)
+    if type(text) ~= "string" or text == "" then return nil end
+    local groups = {}
+    for tok in text:gmatch("[^,]+") do
+        tok = tok:gsub("^%s+", ""):gsub("%s+$", "")
+        local andWithPrev = tok:sub(1, 1) == "+"
+        local pred = ParseOnePred(andWithPrev and tok:sub(2) or tok)
+        if pred then
+            if andWithPrev and #groups > 0 then
+                local g = groups[#groups]
+                g[#g + 1] = pred
+            else
+                groups[#groups + 1] = { pred }
+            end
+        end
+    end
+    return #groups > 0 and groups or nil
+end
+
+local function CheckCounterCondition(groups, n)
+    if not groups then return true end
+    for i = 1, #groups do
+        local g = groups[i]
+        local allMatch = true
+        for k = 1, #g do
+            local p = g[k]
+            local ok
+            if p.op == ">=" then ok = n >= p.num
+            elseif p.op == "<=" then ok = n <= p.num
+            elseif p.op == ">" then ok = n > p.num
+            elseif p.op == "<" then ok = n < p.num
+            elseif p.op == "!" then ok = n ~= p.num
+            else ok = n == p.num end
+            if not ok then allMatch = false; break end
+        end
+        if allMatch then return true end
+    end
+    return false
 end
 
 local customFrame
@@ -2249,7 +2325,24 @@ local function FireCustomReminder(r)
 end
 ns.PreviewCustomReminder = FireCustomReminder
 
--- kind: "pull" | "cast" | "aura". spellID is nil for a pull check.
+-- The match decided a reminder should go off; this is where "Show in" (a raw string on
+-- the trigger, parsed fresh here rather than pre-compiled -- these fire rarely enough that
+-- the cost never matters) turns into either an immediate call or one timer per listed
+-- delay, so a comma list fires more than once from the same match.
+local function ActivateCustomReminder(r)
+    local delays = ParseDelayList(r.trigger and r.trigger.delay)
+    if not delays then
+        FireCustomReminder(r)
+        return
+    end
+    for i = 1, #delays do
+        C_Timer.NewTimer(delays[i], function() FireCustomReminder(r) end)
+    end
+end
+
+-- kind: "pull" | "cast" | "aura". spellID is nil for a pull check. "cast"/"aura" are the
+-- older combat-log triggers -- the editor no longer creates them, but anything already
+-- saved that way keeps working.
 local function CheckCustomReminders(kind, spellID)
     if not (hasCustomReminders and CustomRemindersAllowed()) then return end
     local set = CustomRemindersTable(false, currentEncounter)
@@ -2264,10 +2357,176 @@ local function CheckCustomReminders(kind, spellID)
                 customCounters[uid] = (customCounters[uid] or 0) + 1
                 hit = customCounters[uid] >= trig.counter
             end
-            if hit then FireCustomReminder(r) end
+            if hit then ActivateCustomReminder(r) end
         end
     end
 end
+
+-------------------------------------------------------------------------------
+--  Custom reminders: BigWigs/DBM message and timer triggers
+-------------------------------------------------------------------------------
+-- Which boss mod owns this pull, latched on its first message so a player running both
+-- BigWigs and DBM does not get every message/timer trigger firing twice. Reset every pull.
+local bwActiveMod
+
+-- Pending "timeleft" activations for bwtimer triggers, so a bar that stops or pauses
+-- early can cancel the reminder before it fires. Keyed by uid .. "|" .. mod .. ":" .. bar
+-- text, since a stop/pause event only ever carries the bar's text back, not its key.
+local bwPendingTimers = {}
+
+local function CancelBossModTimers(mod, text)
+    local prefix = mod .. ":" .. tostring(text)
+    for k, handle in pairs(bwPendingTimers) do
+        if k:find(prefix, 1, true) then
+            if handle.Cancel then handle:Cancel() end
+            bwPendingTimers[k] = nil
+        end
+    end
+end
+
+local function CheckBossModMessage(mod, key)
+    if bwActiveMod and bwActiveMod ~= mod then return end
+    if type(key) ~= "number" then return end
+    if not (hasCustomReminders and CustomRemindersAllowed()) then return end
+    local set = CustomRemindersTable(false, currentEncounter)
+    if not set then return end
+    local matched = false
+    for uid, r in pairs(set) do
+        local trig = r.trigger
+        if r.enabled ~= false and trig and trig.type == "bwmsg" and trig.spellID == key then
+            matched = true
+            local hit = true
+            if trig.counter and trig.counter ~= "" then
+                customCounters[uid] = (customCounters[uid] or 0) + 1
+                hit = CheckCounterCondition(ParseCounterCondition(trig.counter), customCounters[uid])
+            end
+            if hit then ActivateCustomReminder(r) end
+        end
+    end
+    if matched and not bwActiveMod then bwActiveMod = mod end
+end
+
+-- barIdentity is whatever the stop/pause event for this mod hands back later -- BigWigs
+-- only ever gives the bar TEXT back, DBM only ever gives the timer ID back, so the two
+-- mods key their pending timers differently even though everything else is shared. text
+-- carries the bar's own occurrence count when the boss mod prints one in parens (BigWigs'
+-- "(3)" ability-count suffix) -- that overrides our own tally for the counter check when
+-- present, matching what the number on screen actually says.
+local function CheckBossModTimerStart(mod, key, barIdentity, duration, text)
+    if bwActiveMod and bwActiveMod ~= mod then return end
+    if type(key) ~= "number" or type(duration) ~= "number" then return end
+    if not (hasCustomReminders and CustomRemindersAllowed()) then return end
+    local set = CustomRemindersTable(false, currentEncounter)
+    if not set then return end
+    local barCount = type(text) == "string" and tonumber(text:match("%((%d%d?)%)"))
+    local matched = false
+    for uid, r in pairs(set) do
+        local trig = r.trigger
+        if r.enabled ~= false and trig and trig.type == "bwtimer" and trig.spellID == key
+           and type(trig.timeleft) == "number" and duration >= trig.timeleft then
+            matched = true
+            customCounters[uid] = (customCounters[uid] or 0) + 1
+            local n = barCount or customCounters[uid]
+            local hit = true
+            if trig.counter and trig.counter ~= "" then
+                hit = CheckCounterCondition(ParseCounterCondition(trig.counter), n)
+            end
+            if hit then
+                local barKey = uid .. "|" .. mod .. ":" .. tostring(barIdentity)
+                local fireDelay = math.max(duration - trig.timeleft, 0.01)
+                bwPendingTimers[barKey] = C_Timer.NewTimer(fireDelay, function()
+                    bwPendingTimers[barKey] = nil
+                    ActivateCustomReminder(r)
+                end)
+            end
+        end
+    end
+    if matched and not bwActiveMod then bwActiveMod = mod end
+end
+
+-- Both dispatchers below register with a plain function, so the message name arrives as
+-- the FIRST argument -- confirmed against BigWigs' and DBM's own dispatch code, not
+-- assumed. issecretvalue guards the payload before anything touches it, the same rule
+-- every other identity channel in this file follows.
+local function OnBigWigsEvent(event, ...)
+    if not hasCustomReminders then return end
+    if event == "BigWigs_Message" then
+        local _, key, text = ...
+        if issecretvalue and (issecretvalue(key) or issecretvalue(text)) then return end
+        CheckBossModMessage("BW", key)
+    elseif event == "BigWigs_StartBar" then
+        local _, key, text, duration = ...
+        if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
+        -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
+        -- both the cancellation identity and the count-extraction source.
+        CheckBossModTimerStart("BW", key, text, duration, text)
+    elseif event == "BigWigs_Timer" then
+        -- The newer non-bar timer API; some modules fire this INSTEAD of StartBar. When
+        -- isBarEnabled (the last argument) is true, StartBar already fired for the same
+        -- bar and handling both would double the reminder.
+        local _, key, duration, _, text, _, _, _, isBarEnabled = ...
+        if isBarEnabled then return end
+        if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
+        CheckBossModTimerStart("BW", key, text, duration, text)
+    elseif event == "BigWigs_StopBar" or event == "BigWigs_PauseBar" then
+        local _, text = ...
+        if issecretvalue and issecretvalue(text) then return end
+        CancelBossModTimers("BW", text)
+    elseif event == "BigWigs_StopBars" or event == "BigWigs_OnBossDisable" then
+        CancelBossModTimers("BW", "")
+    end
+end
+
+local function OnDBMEvent(event, ...)
+    if not hasCustomReminders then return end
+    if event == "DBM_Announce" then
+        local _, _, _, spellId = ...
+        if issecretvalue and issecretvalue(spellId) then return end
+        CheckBossModMessage("DBM", spellId)
+    elseif event == "DBM_TimerBegin" or event == "DBM_TimerStart" then
+        local id, msg, duration, _, _, spellId = ...
+        if issecretvalue and (issecretvalue(spellId) or issecretvalue(id) or issecretvalue(duration)) then return end
+        -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
+        -- cancellation identity here; msg is only used for count extraction.
+        CheckBossModTimerStart("DBM", spellId, id, duration, msg)
+    elseif event == "DBM_TimerStop" or event == "DBM_TimerPause" then
+        local id = ...
+        if issecretvalue and issecretvalue(id) then return end
+        CancelBossModTimers("DBM", id)
+    end
+end
+
+local bwHooked, dbmHooked = false, false
+local function RegisterBossModHooks()
+    if _G.BigWigsLoader and not bwHooked then
+        local ok = pcall(function()
+            local BWL = _G.BigWigsLoader
+            BWL.RegisterMessage(ns, "BigWigs_Message", OnBigWigsEvent)
+            BWL.RegisterMessage(ns, "BigWigs_StartBar", OnBigWigsEvent)
+            BWL.RegisterMessage(ns, "BigWigs_Timer", OnBigWigsEvent)
+            BWL.RegisterMessage(ns, "BigWigs_StopBar", OnBigWigsEvent)
+            BWL.RegisterMessage(ns, "BigWigs_PauseBar", OnBigWigsEvent)
+            BWL.RegisterMessage(ns, "BigWigs_StopBars", OnBigWigsEvent)
+            BWL.RegisterMessage(ns, "BigWigs_OnBossDisable", OnBigWigsEvent)
+        end)
+        bwHooked = ok and true or false
+    end
+    if _G.DBM and not dbmHooked then
+        local ok = pcall(function()
+            local D = _G.DBM
+            -- Both event names registered defensively: the installed DBM fires
+            -- DBM_TimerBegin (verified against its own source), but registering the
+            -- older DBM_TimerStart name too costs nothing if some fork still sends it.
+            D:RegisterCallback("DBM_Announce", OnDBMEvent)
+            D:RegisterCallback("DBM_TimerBegin", OnDBMEvent)
+            D:RegisterCallback("DBM_TimerStart", OnDBMEvent)
+            D:RegisterCallback("DBM_TimerStop", OnDBMEvent)
+            D:RegisterCallback("DBM_TimerPause", OnDBMEvent)
+        end)
+        dbmHooked = ok and true or false
+    end
+end
+ns.RegisterBossModHooks = RegisterBossModHooks
 
 -- Channel 1: the boss's cast bar. Sealed in the content measured so far, but the
 -- annotation is conditional, so the probe stays.
@@ -3976,9 +4235,20 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
         -- Custom reminders: a fresh pull means a fresh count for the "Nth cast" counter,
         -- and the coverage flag has to catch up before the pull trigger itself can fire.
+        -- Boss-mod arbitration and any bar-timeleft activations scheduled on the last
+        -- pull reset the same way -- a stale pending timer must never survive into the
+        -- next attempt.
         wipe(customCounters)
+        bwActiveMod = nil
+        for k, handle in pairs(bwPendingTimers) do
+            if handle.Cancel then handle:Cancel() end
+            bwPendingTimers[k] = nil
+        end
         RefreshCustomRemindersFlag()
-        if event == "ENCOUNTER_START" then CheckCustomReminders("pull", nil) end
+        if event == "ENCOUNTER_START" then
+            RegisterBossModHooks()   -- in case BigWigs/DBM loaded after this addon did
+            CheckCustomReminders("pull", nil)
+        end
 
         -- The gate report BELOW the rebuild, never above it: it reads activeSlots, and
         -- until RebuildSlots runs those are the previous list's. A spec whose default list
@@ -4096,6 +4366,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "PLAYER_LOGIN" then
         RegisterUnlock()
+        RegisterBossModHooks()
         local EUI = _G.EllesmereUI
         if EUI and EUI.RegisterOnShow then
             EUI:RegisterOnShow(function() previewing = true; UpdatePreview() end)
