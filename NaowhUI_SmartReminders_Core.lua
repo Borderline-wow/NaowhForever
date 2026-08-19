@@ -140,16 +140,16 @@ function ns.MakeModal(width, height)
     local dimmer = CreateFrame("Frame", nil, UIParent)
     dimmer:SetAllPoints(UIParent)
     dimmer:SetFrameStrata("FULLSCREEN_DIALOG")
-    dimmer:EnableMouse(true)
+    -- A floating panel, not a screen-blocking modal: mouse stays off the full-screen
+    -- anchor so the Dungeon Journal and everything else underneath is still clickable and
+    -- undimmed while this is open. Only the panel itself (below) captures the mouse.
+    dimmer:EnableMouse(false)
     -- Modals stack: the reminder editor opens from inside the instance modal, and with
     -- both on the same strata, creation order decided who was on top -- an editor built
     -- before the modal sat invisibly behind it. Raising on every show makes the newest
     -- opened modal the visible one, whatever order they were built in.
     dimmer:SetScript("OnShow", function(self) self:Raise() end)
     dimmer:Hide()
-    local dim = ns.Solid(dimmer, "BACKGROUND", ns.THEME.bg, 0.55)
-    dim:SetAllPoints()
-    dimmer:SetScript("OnMouseDown", function(self) self:Hide() end)
 
     local panel = CreateFrame("Frame", nil, dimmer)
     panel:SetSize(width, height)
