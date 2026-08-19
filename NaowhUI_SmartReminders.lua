@@ -2590,8 +2590,9 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("tank reminder: enabled=%s spec=%d tank=%s slots=%d"):format(
         tostring(TRDB().enabled), specID, tostring(isTank), activeSlots))
     if TRDB().learnMode then
-        ns.Print("|cffF0A830learning mode is ON|r -- every uncovered boss calls out on EVERY "
-            .. "timeline ability, tank buster or not. /nutank learn turns it off.")
+        ns.Print("|cffF0A830Call Out Unknown Bosses is ON|r (Smart Reminders options page, "
+            .. "under How It Tells You) -- every uncovered boss calls out on EVERY timeline "
+            .. "ability, tank buster or not. /nutank learn turns it off.")
     end
     ns.Print(("timeline: available=%s bossWarnings=%s timelineDisplay=%s"):format(
         tostring(TimelineAvailable()),
