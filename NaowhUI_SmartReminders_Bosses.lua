@@ -1462,7 +1462,8 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     local colorBtn = CreateFrame("Button", nil, panel)
     colorBtn:SetSize(24, 24)
     colorBtn:SetPoint("LEFT", msgBox, "RIGHT", 6, 0)
-    ns.Solid(colorBtn, "OVERLAY", ns.THEME.gold, 1):SetAllPoints()
+    local colorSwatch = ns.Solid(colorBtn, "OVERLAY", ns.THEME.gold, 1)
+    colorSwatch:SetAllPoints()
     ns.Border(colorBtn)
     HoverTip(colorBtn, "Color the message text")
     colorBtn:SetScript("OnClick", function()
@@ -1474,6 +1475,9 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
                 local popup = EUIg._colorPickerPopup
                 if not popup then return end
                 local r, g, b = popup:GetColorRGB()
+                -- The button itself is just a static "click me" gold square otherwise --
+                -- update it to the picked color so it reads back what was last applied.
+                colorSwatch:SetColorTexture(r, g, b, 1)
                 local code = ("%02x%02x%02x"):format(r * 255, g * 255, b * 255)
                 local cur = msgBox:GetText() or ""
                 local s, e
