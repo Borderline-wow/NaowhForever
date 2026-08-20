@@ -1791,7 +1791,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820f"
+local TRACE_BUILD = "0820g"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -2045,14 +2045,21 @@ local function ShowForEvent(eventID)
         if not covered and not t.learnMode then
             if lastUnknownNotice ~= currentEncounter then
                 lastUnknownNotice = currentEncounter
-                ns.Print("this boss has no tank buster data yet, so callouts stay quiet "
-                    .. "here. The alert sound still covers known busters. Authoring it: "
-                    .. "/nutank learn, then /nutank tank on the real busters.")
+                -- The encounter id belongs in BOTH lines. This branch returns long before
+                -- the trace prints its "encounter=" header, so a report of a silent boss
+                -- said "unknown boss" and nothing else -- no way to tell WHICH boss was
+                -- missing without going and looking it up by hand.
+                ns.Print(("this boss (encounter %s) has no tank buster data yet, so "
+                    .. "callouts stay quiet here. The alert sound still covers known "
+                    .. "busters. Authoring it: /nutank learn, then /nutank tank on the "
+                    .. "real busters."):format(tostring(currentEncounter)))
             end
             if traceLeft > 0 then
                 traceLeft = traceLeft - 1
-                ns.Print(("|cffF0A830trace|r event=%s |cff80ff80quiet|r (unknown boss, "
-                    .. "learning mode off)"):format(tostring(eventID)))
+                ns.Print(("|cffF0A830trace|r event=%s |cff80ff80quiet|r (encounter %s is "
+                    .. "unknown, learning mode off, fingerprint %s)"):format(
+                        tostring(eventID), tostring(currentEncounter),
+                        tostring(lastFingerprint)))
             end
             return
         end
