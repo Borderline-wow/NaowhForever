@@ -2305,11 +2305,12 @@ local function CreateCustomFrame()
     if customFrame then return customFrame end
     customFrame = CreateFrame("Frame", "NaowhUITankReminderCustom", UIParent)
     customFrame:SetSize(360, 40)
-    -- FULLSCREEN_DIALOG, not HIGH: the editor's own Preview button fires this while its
-    -- modal is still open, and HIGH sits below the strata every modal in this addon uses,
-    -- so the preview rendered but was drawn entirely behind the editor.
-    customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
-    customFrame:SetFrameLevel(250)
+    -- HIGH, matching the icon and text callout (frame/textFrame) -- part of Smart
+    -- Reminders' own display, not something that should out-rank EllesmereUI's windows or
+    -- the rest of Smart Reminders' own alert. The editor's Preview button temporarily
+    -- raises this (see PreviewCustomReminder below) since it fires from inside a modal
+    -- that sits above HIGH; everything else leaves it here.
+    customFrame:SetFrameStrata("HIGH")
     customFrame:SetClampedToScreen(true)
     customFrame:EnableMouse(false)
     customFrame:Hide()
@@ -2324,7 +2325,11 @@ end
 
 local function HideCustomReminder()
     if customHideTimer then customHideTimer:Cancel(); customHideTimer = nil end
-    if customFrame then customFrame:Hide() end
+    if customFrame then
+        customFrame:Hide()
+        -- Undo any Preview-specific elevation so a real fight never inherits it.
+        customFrame:SetFrameStrata("HIGH")
+    end
 end
 
 -- Bypasses trigger matching entirely -- used both by the real firing path below and by
@@ -2340,7 +2345,17 @@ local function FireCustomReminder(r)
     local dur = (type(r.dur) == "number" and r.dur > 0) and r.dur or 3
     customHideTimer = C_Timer.NewTimer(dur, HideCustomReminder)
 end
-ns.PreviewCustomReminder = FireCustomReminder
+
+-- The editor's Preview button fires this from inside its own modal (FULLSCREEN_DIALOG),
+-- which HIGH sits well below, so it needs a taller strata just for this one showing --
+-- HideCustomReminder (above) drops it back to HIGH once the preview ends, so the elevation
+-- never leaks into how a real fight displays this frame.
+function ns.PreviewCustomReminder(r)
+    CreateCustomFrame()
+    customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+    customFrame:SetFrameLevel(250)
+    FireCustomReminder(r)
+end
 
 -- The match decided a reminder should go off; this is where "Show in" (a raw string on
 -- the trigger, parsed fresh here rather than pre-compiled -- these fire rarely enough that
