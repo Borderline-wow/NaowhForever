@@ -1050,12 +1050,17 @@ end
 -- Does any live boss consider ME its problem? For two-tank raids: the buster lands on
 -- whoever has the boss, and the other tank does not need to burn a cooldown for it.
 --
--- Threat status first (>= 2 means highest threat), the boss's literal target second --
--- threat survives the momentary retargets a boss does mid-cast, the target check catches
--- fixates that never touch the threat table. Both reads are only CONDITIONALLY plain
--- (SecretWhenUnitThreatStateRestricted / SecretWhenUnitComparisonRestricted), so every
--- unknown fails OPEN: a spare callout costs a moment of attention, a suppressed one on the
--- actual tank costs a death. No boss units at all also fails open, for the same reason.
+-- Threat status first (>= 2 means tanking), the boss's literal target second -- threat
+-- survives the momentary retargets a boss does mid-cast, the target check catches fixates
+-- that never touch the threat table. The two reads are gated by DIFFERENT restrictions
+-- (SecretWhenUnitThreatStateRestricted / SecretWhenUnitComparisonRestricted), so one being
+-- secret says nothing about the other -- a Mythic+ co-tank report of getting alerted with
+-- "Only Alert When Tanking" on is consistent with threat state reading secret there while
+-- the target comparison stays plain, and bailing out on the first secret read (the old
+-- code did) never even tried the second. Both are checked independently now; only "both
+-- secret" counts as unknown. An unknown still fails OPEN: a spare callout costs a moment
+-- of attention, a suppressed one on the actual tank costs a death. No boss units at all
+-- also fails open, for the same reason.
 local function TankingSomeBoss()
     local sawBoss, unknown = false, false
     for i = 1, 5 do
@@ -1064,11 +1069,15 @@ local function TankingSomeBoss()
             sawBoss = true
             local ok, verdict = pcall(function()
                 local status = UnitThreatSituation("player", unit)
-                if issecretvalue and issecretvalue(status) then return nil end
-                if type(status) == "number" and status >= 2 then return true end
+                local statusKnown = not (issecretvalue and issecretvalue(status))
+                if statusKnown and type(status) == "number" and status >= 2 then return true end
+
                 local same = UnitIsUnit(unit .. "target", "player")
-                if issecretvalue and issecretvalue(same) then return nil end
-                return same == true
+                local sameKnown = not (issecretvalue and issecretvalue(same))
+                if sameKnown and same == true then return true end
+
+                if statusKnown and sameKnown then return false end
+                return nil
             end)
             if ok and verdict == true then return true end
             if not ok or verdict == nil then unknown = true end
