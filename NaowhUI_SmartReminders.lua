@@ -1423,6 +1423,13 @@ function EnsureChargeState(sid)
             -- own, so an undercount here costs a few seconds of silence instead of a false
             -- callout for a defensive still on cooldown.
             max = max, count = active and 0 or max, tick = GetTime(),
+            -- Whether that count is a GUESS from isActive rather than something we watched
+            -- happen. It matters because with no measured recharge there is nothing to
+            -- climb back on, so a pessimistic guess would otherwise stand for the rest of
+            -- the run -- which is how a held Guardian of Ancient Kings lost the pick to
+            -- "call for external" on Xathuux. Cleared the moment a real cast is witnessed
+            -- or the stack reads full, after which the count is tracked, not assumed.
+            guessed = active or nil,
             -- Zero means no climb at all, which is a complete answer rather than a
             -- degraded one: the count still falls on every witnessed cast, and
             -- ChargesAvailable still snaps it back to full the moment isActive reports
@@ -1442,7 +1449,22 @@ function ChargesAvailable(sid)
 
     local max, active = ReadChargeShape(sid)
     if max and not active then
-        st.count, st.tick = st.max, GetTime()
+        -- Back to full, and if exactly one charge was out this is a free MEASUREMENT of
+        -- the recharge: the gap between the cast that broke the stack and the moment the
+        -- engine stopped reporting a recharge IS the per-charge time. Plain signals only,
+        -- so unlike reading the cooldown it works in restricted content, which is the only
+        -- place this matters. Restricted to the one-charge case on purpose -- with two out
+        -- the elapsed time covers two recharges and our own count is the thing in doubt.
+        if st.recharge <= 0 and st.missingSince and st.count == st.max - 1 then
+            local measured = GetTime() - st.missingSince
+            if measured > 1.5 then
+                st.recharge = measured
+                local t = TRDB()
+                if type(t.learned) ~= "table" then t.learned = {} end
+                t.learned[tostring(sid)] = measured
+            end
+        end
+        st.count, st.tick, st.missingSince, st.guessed = st.max, GetTime(), nil, nil
         return st.count
     end
 
@@ -1452,6 +1474,15 @@ function ChargesAvailable(sid)
             st.count = math.min(st.max, st.count + gained)
             st.tick  = st.tick + gained * st.recharge
         end
+    end
+
+    -- A guessed count with no recharge to climb on cannot recover, so it must not be the
+    -- pessimistic end of what isActive actually proved. isActive says at least one charge
+    -- is out -- on the two-charge defensives this list carries, the other one is up. Report
+    -- that instead of zero until a cast is actually witnessed, at which point the count is
+    -- tracked and this stops applying. Zero remains correct for a stack we WATCHED empty.
+    if st.guessed and st.recharge <= 0 and st.count < st.max - 1 then
+        st.count = st.max - 1
     end
 
     -- isActive is plain and exact, and it was only ever read in the one direction above.
@@ -1500,8 +1531,15 @@ local function NoteOwnCast(castSpellID)
         ChargesAvailable(sid)
         -- The recharge clock starts on the drop FROM maximum. Restarting it on every
         -- cast would push the next charge further away each time one was spent.
-        if st.count >= st.max then st.tick = GetTime() end
+        -- missingSince marks the same moment for the measurement in ChargesAvailable:
+        -- this cast is what put the stack below full, so the run back up starts here.
+        if st.count >= st.max then
+            st.tick = GetTime()
+            st.missingSince = GetTime()
+        end
         st.count = math.max(0, st.count - 1)
+        -- Watched, not assumed, from here on.
+        st.guessed = nil
         return
     end
 
@@ -1791,7 +1829,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820h"
+local TRACE_BUILD = "0820i"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
