@@ -1392,6 +1392,12 @@ function EnsureChargeState(sid)
     local st = chargeState[sid]
     if not st or st.max ~= max then
         local baseMs = GetSpellBaseCooldown and GetSpellBaseCooldown(sid)
+        -- A measured recharge beats the base number for exactly the reasons the cooldown
+        -- model stopped trusting it, and it matters more here: the count climbs back up
+        -- off this figure, so a recharge that is too SHORT hands back a charge the player
+        -- does not have and calls a defensive that is still down.
+        local t = TRDB()
+        local learned = type(t.learned) == "table" and t.learned[tostring(sid)] or nil
         st = {
             -- currentCharges is secret, so a spell seen for the first time cannot be read
             -- directly -- but isActive (a charge recharging right now) is plain, and it was
@@ -1406,9 +1412,13 @@ function EnsureChargeState(sid)
             -- own, so an undercount here costs a few seconds of silence instead of a false
             -- callout for a defensive still on cooldown.
             max = max, count = active and 0 or max, tick = GetTime(),
-            -- Static data, readable when live state is not. On a charge spell the base
-            -- cooldown IS the time to regain one charge.
-            recharge = (type(baseMs) == "number" and baseMs > 0) and (baseMs / 1000) or 0,
+            -- On a charge spell the cooldown IS the time to regain one charge. Measured
+            -- first, base only as the fallback, and 0 when neither is available -- which
+            -- stops the climb entirely rather than guessing a rate, so an unknown recharge
+            -- holds the count where it is instead of inventing charges.
+            recharge = learned
+                or ((type(baseMs) == "number" and baseMs > 0) and (baseMs / 1000))
+                or 0,
         }
         chargeState[sid] = st
     end
@@ -1536,7 +1546,27 @@ local function ResyncSpell(sid)
 
     -- Everything below is the plain-cooldown model, which says nothing useful about
     -- a charge spell: it holds a running recharge while still being castable.
-    if chargeState[sid] then return end
+    local cs = chargeState[sid]
+    if cs then
+        -- One thing here IS worth reading for a charge spell. Its running cooldown, when
+        -- it reads plainly, is the real recharge time, and the count climbs back up off
+        -- that figure -- so a base-derived guess that is too short resurrects charges the
+        -- player never got back. Learned into the same store the cooldown model uses, so
+        -- it survives the reload that wipes chargeState.
+        if CanNameSpellAloud(sid) then
+            local ok, total = pcall(function()
+                local dur = C_Spell.GetSpellCooldownDuration(sid, true)
+                return (dur and dur.GetTotalDuration and dur:GetTotalDuration()) or nil
+            end)
+            if ok and type(total) == "number" and total > 1.5 then
+                cs.recharge = total
+                local t = TRDB()
+                if type(t.learned) ~= "table" then t.learned = {} end
+                t.learned[tostring(sid)] = total
+            end
+        end
+        return
+    end
 
     -- Free correction, available even in restricted content: no duration object means no
     -- active cooldown, so whatever the estimate believed is wrong and the spell is up.
@@ -1741,7 +1771,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820c"
+local TRACE_BUILD = "0820d"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
