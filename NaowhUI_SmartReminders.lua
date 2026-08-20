@@ -2049,10 +2049,20 @@ local function ShowForEvent(eventID)
                 -- the trace prints its "encounter=" header, so a report of a silent boss
                 -- said "unknown boss" and nothing else -- no way to tell WHICH boss was
                 -- missing without going and looking it up by hand.
-                ns.Print(("this boss (encounter %s) has no tank buster data yet, so "
-                    .. "callouts stay quiet here. The alert sound still covers known "
-                    .. "busters. Authoring it: /nutank learn, then /nutank tank on the "
-                    .. "real busters."):format(tostring(currentEncounter)))
+                --
+                -- "No data yet" and "checked, and this boss has no tank buster" look
+                -- identical from the player's seat, and only the first is worth acting on.
+                -- Sending a tank to author an ability that does not exist wastes a pull.
+                if ns.TANK_NONE and ns.TANK_NONE[currentEncounter] then
+                    ns.Print(("this boss (encounter %s) has no tank buster to call -- "
+                        .. "checked against the boss mods, it does not have one. Silence "
+                        .. "here is correct."):format(tostring(currentEncounter)))
+                else
+                    ns.Print(("this boss (encounter %s) has no tank buster data yet, so "
+                        .. "callouts stay quiet here. The alert sound still covers known "
+                        .. "busters. Authoring it: /nutank learn, then /nutank tank on the "
+                        .. "real busters."):format(tostring(currentEncounter)))
+                end
             end
             if traceLeft > 0 then
                 traceLeft = traceLeft - 1
