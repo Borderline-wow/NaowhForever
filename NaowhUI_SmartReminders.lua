@@ -1373,7 +1373,7 @@ local function ReadChargeShape(sid)
 end
 
 function EnsureChargeState(sid)
-    local max, _, ok = ReadChargeShape(sid)
+    local max, active, ok = ReadChargeShape(sid)
     if not ok then
         -- The read itself failed -- keep whatever is already tracked rather than guessing.
         -- Wiping here on a single dropped read was the bug: the very next successful read
@@ -1391,7 +1391,14 @@ function EnsureChargeState(sid)
     if not st or st.max ~= max then
         local baseMs = GetSpellBaseCooldown and GetSpellBaseCooldown(sid)
         st = {
-            max = max, count = max, tick = GetTime(),
+            -- currentCharges is secret, so a spell seen for the first time cannot be read
+            -- directly -- but isActive (a charge recharging right now) is plain, and it was
+            -- being discarded here. Assuming a full stack regardless was the bug: a spell
+            -- already on cooldown before this pull, or before the addon got a chance to see
+            -- it, kept reading as fully charged for the rest of the session. isActive can
+            -- only say "at least one charge missing," not how many, but for the 2-charge
+            -- defensives this list actually carries that is the whole answer.
+            max = max, count = active and (max - 1) or max, tick = GetTime(),
             -- Static data, readable when live state is not. On a charge spell the base
             -- cooldown IS the time to regain one charge.
             recharge = (type(baseMs) == "number" and baseMs > 0) and (baseMs / 1000) or 0,
