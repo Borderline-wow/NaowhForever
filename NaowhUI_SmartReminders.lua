@@ -69,10 +69,21 @@ local DEFAULTS = {
     -- textPos = same shape, for the text callout's own anchor.
 }
 
+-- Which profile tables have already had the migration and the defaults fill run against
+-- them. Keyed by the table itself rather than a flag on it, so nothing lands in
+-- SavedVariables, and weak so a profile switched away from does not pin its table.
+--
+-- Per TABLE, not once at init: SettingsRoot() answers for the ACTIVE profile, so a single
+-- cached table would keep handing back the old profile's settings after a switch. This way
+-- each profile is prepared the first time it is touched and cheap on every call after.
+local prepared = setmetatable({}, { __mode = "k" })
+
 local function TRDB()
     local root = ns.SettingsRoot()
     if type(root.tankReminder) ~= "table" then root.tankReminder = {} end
     local t = root.tankReminder
+    if prepared[t] then return t end
+    prepared[t] = true
     -- One-way migration from the single flat list per spec this addon shipped with before
     -- presets existed: every existing list becomes that spec's "Default" preset, so nobody's
     -- configured priority order disappears the first time this loads.
@@ -1007,35 +1018,13 @@ local function MarksTable(create, enc)
     return PerBossSet("tankMarks", create, enc)
 end
 
--- Authored reminder text per boss ability: profile.reminders[encounterID][fingerprint].
--- This is the phase-two content layer -- what a curator writes on an ability ("swap after
--- this one", "stack for the barrage") -- shown and spoken alongside the defensive pick.
-local function RemindersTable(create, enc)
-    return PerBossSet("reminders", create, enc)
-end
-
--- One ability can own several fingerprints (a late-cast variant is a second duration of
--- the same spell), and the UI configures by ABILITY. So reminder state is keyed by the
--- ability's name, with fingerprint keys still honored for anything saved before the
--- grouping existed. The raw entry can be true (custom mode, no text yet) or a string.
-local function ReminderEntry(enc, fp)
-    if not (enc and fp) then return nil end
-    local r = RemindersTable(false, enc)
-    if not r then return nil end
-    local v = r[fp]
-    if v == nil then
-        local nm = EventNameFor(enc, fp)
-        if nm and nm ~= fp then v = r[nm] end
-    end
-    return v
-end
-ns.ReminderEntry = ReminderEntry
-
-local function ReminderFor(enc, fp)
-    local v = ReminderEntry(enc, fp)
-    if type(v) == "string" and v ~= "" then return v end
-    return nil
-end
+-- The `reminders` storage layer that used to live here is gone. Nothing ever called
+-- RemindersTable(true, ...), so the table was never created, ReminderEntry could only
+-- return nil, and the customMode branch in ShowForEvent was unreachable -- customReminders
+-- replaced all of it. It also carried a live landmine: ReminderEntry called EventNameFor
+-- from ABOVE its `local function` declaration, which compiles to a global lookup that is
+-- never assigned, so reviving the layer would have thrown on the first call in the show
+-- path rather than at load.
 
 -- The ability's display name, from authored data; the raw fingerprint as the fallback so
 -- an uncovered event is still addressable in the editor.
@@ -1045,7 +1034,6 @@ local function EventNameFor(enc, fp)
     return (names and names[fp]) or fp
 end
 ns.EventNameFor = EventNameFor
-ns.RemindersTable = RemindersTable
 ns.MarksTable = MarksTable
 ns.MutedTable = MutedTable
 ns.CustomRemindersTable = CustomRemindersTable
@@ -1868,7 +1856,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820k"
+local TRACE_BUILD = "0820l"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -2204,25 +2192,17 @@ local function ShowForEvent(eventID)
         return
     end
 
-    -- The two alert types are EXCLUSIVE, per the tester's design: an ability set to a
-    -- custom alert says that line and nothing else -- no defensive pick, no icons -- and
-    -- a defensive ability never carries custom text. The mode is simply whether reminder
-    -- state exists for this fingerprint.
-    local customText = ReminderFor(currentEncounter, lastFingerprint)
-    local customMode = ReminderEntry(currentEncounter, lastFingerprint) ~= nil
-
-    if customMode then
-        -- Plain constant alpha is legal; only engine-driven values are not. The slots go
-        -- dark rather than unbuilt so the frame keeps its size for placement.
-        for i = 1, activeSlots do slots[i]:SetAlpha(0) end
-    else
-        -- The defensive pick honors this ABILITY's own list when one exists: slots are
-        -- rebuilt against the fingerprint before anything reads them. Cheap, and the next
-        -- event or encounter start rebuilds again, so nothing needs restoring.
-        RebuildSlots(lastFingerprint)
-        RebuildCastMap()
-        ApplyPriorityAlpha()
-    end
+    -- There used to be an exclusive "custom alert" mode here, where an ability carrying
+    -- authored text said that line instead of a defensive pick. Its storage layer was
+    -- never written to, so the mode could never turn on, and the branch below is what
+    -- always ran. Custom reminders are their own frame and their own triggers now.
+    --
+    -- The defensive pick honors this ABILITY's own list when one exists: slots are
+    -- rebuilt against the fingerprint before anything reads them. Cheap, and the next
+    -- event or encounter start rebuilds again, so nothing needs restoring.
+    RebuildSlots(lastFingerprint)
+    RebuildCastMap()
+    ApplyPriorityAlpha()
 
     -- The bar counts down the incoming ability. GetEventTimer hands back a duration object
     -- that is PLAIN (only the descriptive event fields are secret), and the engine ticks it
@@ -2261,27 +2241,18 @@ local function ShowForEvent(eventID)
     -- do; both together mean no future change to the readout can cost the player an alert.
     -- It already did once: an unguarded throw in here ran ahead of the callout and took the
     -- audio with it on the exact pull being diagnosed.
-    if not customMode then SpeakCallout() end
+    SpeakCallout()
     lastCalloutAt = GetTime()
 
     -- The authored layer: what the curator wrote on THIS ability, named when the data
     -- knows it. Shown over the icon and spoken after the defensive, so the actionable
     -- word still comes first.
-    if frame.reminder then
-        local reminder = customText
-        if reminder then
-            if t.showText then
-                frame.reminder:SetText(reminder)
-                frame.reminder:Show()
-            end
-            if t.voiceOn then Speak(reminder) end
-        else
-            -- Authored text only. Showing the incoming ability's name here was tried and
-            -- cut on tester feedback: mid-pull, a second line of text above the icon is
-            -- noise unless a person chose the words.
-            frame.reminder:Hide()
-        end
-    end
+    -- Nothing authored per ability reaches this line any more -- the layer that fed it was
+    -- write-only and is gone. Kept hidden rather than removed: the fontstring is part of
+    -- the frame's layout, and showing the incoming ability's name here was already tried
+    -- and cut on tester feedback -- mid-pull, a second line of text above the icon is
+    -- noise unless a person chose the words.
+    if frame.reminder then frame.reminder:Hide() end
 
     if traceLeft > 0 then
         local okT, err = pcall(TraceEvent, eventID)
@@ -2296,7 +2267,7 @@ local function ShowForEvent(eventID)
         local v = C_EncounterTimeline.GetEventHighlightTime()
         if type(v) == "number" and v > 0 then lead = v end
     end
-    local want = TRDB().leadTime or 3
+    local want = t.leadTime or 3
     if want > 0 and want < lead then lead = want end
     hideTimer = C_Timer.NewTimer(lead, HideReminder)
 end
@@ -4853,7 +4824,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
                 local v = C_EncounterTimeline.GetEventHighlightTime()
                 if type(v) == "number" and v > 0 then engineLead = v end
             end
-            local want = TRDB().leadTime or 3
+            local want = t.leadTime or 3
             local delay = (want > 0 and want < engineLead) and (engineLead - want) or 0
             if delay > 0.1 then
                 CancelPendingShow(eventID)

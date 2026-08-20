@@ -180,6 +180,14 @@ function ns.MakeModal(width, height)
     panel:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
     dimmer:SetScript("OnShow", function(self)
+        -- The counter only ever climbed, so the panel level (this + 5) crossed 200 on the
+        -- nineteenth modal opened in a session -- and 200 is the hardcoded dropdown level
+        -- the comment above is about. Past that, dropdowns render BEHIND the panel that
+        -- opened them, which is the exact failure the counter exists to prevent. Stacking
+        -- only needs to order the modals currently on screen, and nesting never gets deep,
+        -- so winding back to the base is safe: anything still open sits below, and the one
+        -- being shown goes above it.
+        if nextModalLevel > 150 then nextModalLevel = 10 end
         nextModalLevel = nextModalLevel + 10
         self:SetFrameLevel(nextModalLevel)
         panel:SetFrameLevel(nextModalLevel + 5)

@@ -29,14 +29,24 @@ local PACK_FORMAT = 1
 
 -- Sections a pack may carry, in display order. Keyed by the profile field;
 -- label is what the preview calls it; count says how its size is measured.
+-- customReminders, not `reminders`. The latter is a storage layer nothing ever writes to,
+-- so the section it named could only ever be empty: a curator exported a pack and lost
+-- every custom reminder they had authored, silently, which is the one part of their work
+-- this file exists to carry.
+--
+-- activePreset rides along with presets because a pack that ships three lists and cannot
+-- say which is live lands the importer on whichever key next() happens to return, not the
+-- one the curator meant. Nothing breaks without it -- ActivePresetKey self-heals a stale
+-- pointer -- but the choice does not survive the trip.
 local SECTIONS = {
-    { field = "presets",   label = "spec priority lists",  count = "nested" },
-    { field = "bossLists", label = "per-boss orders",      count = "keys" },
-    { field = "callouts",  label = "callout lines",        count = "keys" },
-    { field = "reminders", label = "written reminders",    count = "nested" },
-    { field = "tankMarks", label = "tank buster marks",    count = "nested" },
-    { field = "muted",     label = "muted abilities",      count = "nested" },
-    { field = "audioOff",  label = "audio switches",       count = "keys" },
+    { field = "presets",         label = "spec priority lists",  count = "nested" },
+    { field = "activePreset",    label = "active preset choice", count = "keys" },
+    { field = "bossLists",       label = "per-boss orders",      count = "keys" },
+    { field = "callouts",        label = "callout lines",        count = "keys" },
+    { field = "customReminders", label = "custom reminders",     count = "nested" },
+    { field = "tankMarks",       label = "tank buster marks",    count = "nested" },
+    { field = "muted",           label = "muted abilities",      count = "nested" },
+    { field = "audioOff",        label = "audio switches",       count = "keys" },
 }
 
 local function CountSection(kind, t)
