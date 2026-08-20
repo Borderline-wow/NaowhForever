@@ -237,6 +237,39 @@ ns.TANK_FINGERPRINTS = {
     [3497] = { ["30.0"] = true },   -- Shredding Shards
 }
 
+-- Bosses checked against every community module and confirmed to have NO tank buster
+-- worth calling, as opposed to bosses nobody has looked at yet. The runtime says so in
+-- as many words, because the two are indistinguishable from where the player sits: the
+-- "no data yet, go author it" line sent a tank hunting for an ability that does not exist
+-- on Murder Row's second boss, twice.
+--
+-- Three reasons a boss lands here, all verified in the 2026-08-20 sweep. Most simply have
+-- no tank ability in any module. Avatar of Sethraliss (2127) has one the modules do flag,
+-- Heart Attack, that never produces a timeline event, so there is no duration to key on.
+-- Nekzali (3470) is the one where a mark would be WRONG rather than missing: Possession
+-- Barrage carries a tank icon, but the module's tank response is run and taunt-swap.
+-- Lithiel (3105) is the near-miss worth naming -- our damage sheet classes Summon Vilefiend
+-- as "tank", but the module cues it as an add spawn, and the tank hit is the add, not the
+-- summon, so calling a defensive on the timer would be early and pointed at nothing.
+ns.TANK_NONE = {
+    [2126] = true,   -- Galvazzt
+    [2127] = true,   -- Avatar of Sethraliss (Heart Attack has no timeline event)
+    [2142] = true,   -- Mchimba
+    [2609] = true,   -- Melidrussa Chillworn
+    [3072] = true,   -- Seranel Sunlash
+    [3073] = true,   -- Gemellus
+    [3101] = true,   -- Kystia Manaheart (Chaos Barrage has no timeline event)
+    [3105] = true,   -- Lithiel Cinderfury
+    [3176] = true,   -- Imperator Averzian
+    [3200] = true,   -- Ikuzz the Light Hunter
+    [3201] = true,   -- Lightwarden Ruia
+    [3207] = true,   -- The Hoardmonger
+    [3208] = true,   -- Sentinel of Winter
+    [3306] = true,   -- Chimaerus the Undreamt God
+    [3328] = true,   -- Chief Corewright Kasreth
+    [3470] = true,   -- Nekzali the Soulcoiler (tank response is taunt-swap, not a cooldown)
+}
+
 -------------------------------------------------------------------------------
 --  Every boss ability that damages SOMEBODY -- the tank, the party, or both --
 --  derived from the same public damage-classification sheet as the tank list.

@@ -1791,7 +1791,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820g"
+local TRACE_BUILD = "0820h"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -2933,10 +2933,24 @@ local function UpdateEventRegistration()
         watcher:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
         watcher:UnregisterEvent("PLAYER_REGEN_ENABLED")
         watcher:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
-        watcher:UnregisterEvent("ENCOUNTER_START")
-        watcher:UnregisterEvent("ENCOUNTER_END")
         watcher:UnregisterEvent("PLAYER_ALIVE")
         watcher:UnregisterEvent("PLAYER_UNGHOST")
+        -- ENCOUNTER_START and ENCOUNTER_END stay registered, always. Dropping them was a
+        -- LATCH: ShouldRun() tests activeSlots > 0 and BossAllowed(), and both of those
+        -- are answers about the boss we are on, which is what these two events establish.
+        -- Turning them off is the gate discarding the only thing that could tell it to
+        -- come back on.
+        --
+        -- It fires on a completely ordinary setup. A tank who keeps per-boss lists and an
+        -- empty spec default drops to activeSlots == 0 the moment a boss ENDS, because
+        -- RebuildSlots falls back to that empty default -- so ENCOUNTER_START is
+        -- unregistered on the first kill of the run, and every boss after it never sets
+        -- currentEncounter at all. The marks lookup then reads nil, and a boss we ship
+        -- data for reports "no tank buster data yet": Murder Row's Zaen, which carries a
+        -- mark, came back as an unknown boss for exactly this reason.
+        --
+        -- Leaving them on costs two plain assignments per pull and gates nothing: alerts
+        -- run off the timeline handlers, which test ShouldRun() themselves.
         HideReminder()
         return
     end
