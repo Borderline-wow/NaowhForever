@@ -88,9 +88,23 @@ ns.TANK_ABILITIES = {
     [1286573] = "Unknown",   -- The Coiled Altar: Soul Sever
     [1299680] = "Unknown",   -- The Coiled Altar: Sever
     [1307279] = "Unknown",   -- The Coiled Altar: Blighted Sever
+
+    -- Tank hits the community modules gate on a tank role check in code rather than
+    -- flagging on the ability, which is why the sheet-derived rows above never carried
+    -- them. Found by auditing every Midnight party module for that gate (2026-08-20)
+    -- after Den of Nalorakk called nothing at all for a whole dungeon.
+    [472662] = "Unknown",   -- The Restless Heart: Tempest Slash
+    [474496] = "Unknown",   -- Arcanotron Custos: Repulsing Slam
+    [1243569] = "Unknown",   -- Nalorakk: Overwhelming Onslaught
+    [1266480] = "Unknown",   -- Murojin and Nekraxx: Flanking Spear
+    [1280113] = "Unknown",   -- Degentrius: Hulking Fragment
+    -- Classified but NOT fingerprintable from the modules: Ula'tek drives this off
+    -- Blizzard event ids rather than bar durations, so there is no duration to key on.
+    -- Needs /nutank learn then /nutank tank on a real pull.
+    [1298367] = "Unknown",   -- Ula'tek: Mother's Wrath
 }
 
-ns.TANK_ABILITIES_COUNT = 55
+ns.TANK_ABILITIES_COUNT = 61
 
 -------------------------------------------------------------------------------
 --  Tank-buster fingerprints per boss, authored once and shipped.
@@ -139,6 +153,20 @@ ns.TANK_FINGERPRINTS = {
     -- (Galvazzt, Mchimba, Hoardmonger, Sentinel of Winter, Averzian, Chimaerus) or never
     -- produce a timeline event (Melidrussa's Frigid Shard, Ruia's Warden's Wrath, Kystia's
     -- Chaos Barrage, Nalorakk's Forceful Slam, Avatar of Sethraliss' add busters).
+    -- 2026-08-20, after Den of Nalorakk called nothing for an entire dungeon: re-audited
+    -- every community module against a second tank signal the extractor never looked for --
+    -- a warning raised only behind a tank-role check, and the dedicated defensive warning
+    -- type. That added 3059/3071/3074/3209/3212, all previously blank. Nalorakk's entry
+    -- above referred to Forceful Slam, which genuinely has no timeline event; the ability
+    -- that does is Overwhelming Onslaught, and nothing was looking for it.
+    -- Only durations that resolve to ONLY the tank ability are marked, so the recurring
+    -- rotation slots stay out: 3209's 25.0 alternates with Echoing Maul, 3074's 22.0/24.0
+    -- cycle three abilities, 3212's 45.0 cycles six. Openers are unambiguous and carry it.
+    -- Galvazzt stays blank deliberately and is the reason that check tests for an else --
+    -- its tank branch picks instructions for a shared mechanic (stay off the line vs soak
+    -- the beam), which is not a tank hit. Ula'tek (3492) has a real one, Mother's Wrath,
+    -- but the module keys it to Blizzard event ids rather than bar durations, so there is
+    -- nothing to fingerprint until it is authored in game.
     -- 3178 (Vaelgor & Ezzorak) was narrowed by hand from 18 marked durations to the 9 that
     -- resolve to ONLY a tank ability anywhere in the module (Grappling Maw, Nullbeam,
     -- Rakfang, Vaelwing); the other 9 each collided with a non-tank ability (Dread Breath,
@@ -159,6 +187,9 @@ ns.TANK_FINGERPRINTS = {
     [3056] = { ["10.0"] = true, ["13.0"] = true },   -- Searing Beak
     [3057] = { ["17.3"] = true },   -- Bone Hack
     [3058] = { ["3.0"] = true, ["30.0"] = true },   -- Rampage
+    [3059] = { ["21.0"] = true },   -- Tempest Slash
+    [3071] = { ["5.0"] = true, ["22.5"] = true },   -- Repulsing Slam
+    [3074] = { ["3.0"] = true },   -- Hulking Fragment
     [3102] = { ["26.0"] = true },   -- Envenom
     [3103] = { ["6.0"] = true, ["27.0"] = true },   -- Legion Strike
     [3159] = { ["12.0"] = true, ["24.0"] = true },   -- Putrid Fist
@@ -171,6 +202,8 @@ ns.TANK_FINGERPRINTS = {
     [3183] = { ["20.0"] = true, ["23.0"] = true },   -- Heaven's Lance
     [3199] = { ["5.0"] = true },   -- Bedrock Slam
     [3202] = { ["18.0"] = true, ["26.0"] = true },   -- Thornspike
+    [3209] = { ["13.0"] = true },   -- Overwhelming Onslaught
+    [3212] = { ["5.0"] = true },   -- Flanking Spear
     [3213] = { ["3.0"] = true, ["33.5"] = true },   -- Drain Soul
     [3214] = { ["4.0"] = true, ["26.4"] = true },   -- Spiritbreaker
     [3285] = { ["25.0"] = true },   -- Void Blast

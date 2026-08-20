@@ -76,6 +76,31 @@ def parse_module(path, curated, curated_pairs):
     for sid in re.findall(r"(\d{6,9})[,}\]].*?--.*?\(Tank Hit\)", text):
         tank_ids.add(int(sid))
 
+    # The other dialect's tank markers, neither of which is flagged on the ability itself,
+    # so nothing above sees them. Missing these is how five bosses -- all three of Den of
+    # Nalorakk's among them -- shipped with zero marks and called nothing for a whole
+    # dungeon.
+    warn_spell = {}
+    for local_name, sid in re.findall(
+            r"local\s+(\w+)\s*=\s*mod:New\w*Warning\w*\(\s*(\d{5,9})", text):
+        warn_spell[local_name] = int(sid)
+
+    # 1. The dedicated "press a defensive" warning type. Unambiguous by construction.
+    for sid in re.findall(r"mod:NewSpecialWarningDefensive\(\s*(\d{5,9})", text):
+        tank_ids.add(int(sid))
+
+    # 2. A warning raised only behind a tank-role check. An `else` on that check means the
+    #    branch is picking per-role INSTRUCTIONS for one shared mechanic, not naming a tank
+    #    hit -- Galvazzt splits "stay off the line" from "soak the beam" that way, and
+    #    counting it marked a boss that has no tank buster at all. Only a gate with no else
+    #    counts.
+    for m in re.finditer(r"if\s+self:IsTank\(\)\s+then(.*?)\n(\s*)(else\b|end\b)", text, re.S):
+        if m.group(3).startswith("else"):
+            continue
+        for local_name in re.findall(r"(\w+)\s*:", m.group(1)):
+            if local_name in warn_spell:
+                tank_ids.add(warn_spell[local_name])
+
     # Which normalized ability names count as tank hits on this boss.
     tank_names = set()
     for sid in tank_ids | (curated & set(id_name)):
