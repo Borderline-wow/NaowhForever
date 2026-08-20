@@ -1453,51 +1453,33 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     local nameBox = AddBox(40)
     nameBox:SetText((existing and existing.name) or "")
 
-    AddLabel("Message (shown on screen)")
-    local msgBox = AddBox(200, false, 40)
-    msgBox:SetText((existing and existing.msg) or "")
+    -- A preset rather than a typed line: the reminder announces whichever defensive in that
+    -- preset is actually still up when it fires. Free text could only ever name a fixed
+    -- spell, which is wrong the moment that spell is on cooldown -- the reason these are
+    -- called smart reminders at all.
+    local editorSpecID = ns.CurrentSpec()
+    if #ns.ListPresets(editorSpecID) == 0 then
+        ns.AddPreset(editorSpecID, "Default")
+    end
+    local presets = ns.ListPresets(editorSpecID)
+    local presetValues, presetOrder = {}, {}
+    for i = 1, #presets do
+        presetValues[presets[i].key] = presets[i].name
+        presetOrder[i] = presets[i].key
+    end
 
-    -- Inserts a WoW color escape around the current selection (or the whole message when
-    -- nothing is selected), the same way a chat-frame color picker works. Goes through
-    -- EllesmereUI's own color picker, not Blizzard's ColorPickerFrame directly -- that
-    -- global is not guaranteed loaded, which is exactly why EllesmereUI built a
-    -- self-contained replacement with the same info shape (swatchFunc/hasOpacity/r/g/b)
-    -- for every color swatch across its whole options system. GetTextHighlight is a real
-    -- EditBox method on retail, but is guarded anyway since nothing here is worth an
-    -- error over. Anchored off msgBox itself, not independently off panel, so its own
-    -- right inset can never drift out of sync with where the box actually ends.
-    local colorBtn = CreateFrame("Button", nil, panel)
-    colorBtn:SetSize(24, 24)
-    colorBtn:SetPoint("LEFT", msgBox, "RIGHT", 6, 0)
-    local colorSwatch = ns.Solid(colorBtn, "OVERLAY", ns.THEME.gold, 1)
-    colorSwatch:SetAllPoints()
-    ns.Border(colorBtn)
-    HoverTip(colorBtn, "Color the message text")
-    colorBtn:SetScript("OnClick", function()
-        local EUIg = _G.EllesmereUI
-        if not (EUIg and EUIg.ShowColorPicker) then return end
-        EUIg:ShowColorPicker({
-            r = 1, g = 1, b = 1, hasOpacity = false,
-            swatchFunc = function()
-                local popup = EUIg._colorPickerPopup
-                if not popup then return end
-                local r, g, b = popup:GetColorRGB()
-                -- The button itself is just a static "click me" gold square otherwise --
-                -- update it to the picked color so it reads back what was last applied.
-                colorSwatch:SetColorTexture(r, g, b, 1)
-                local code = ("%02x%02x%02x"):format(r * 255, g * 255, b * 255)
-                local cur = msgBox:GetText() or ""
-                local s, e
-                if msgBox.GetTextHighlight then s, e = msgBox:GetTextHighlight() end
-                if s and e and e > s then
-                    cur = cur:sub(1, s) .. "|cff" .. code .. cur:sub(s + 1, e) .. "|r" .. cur:sub(e + 1)
-                else
-                    cur = "|cff" .. code .. cur .. "|r"
-                end
-                msgBox:SetText(cur)
-            end,
-        }, colorBtn)
-    end)
+    local presetVal = (existing and existing.preset) or ns.ActivePresetKey(editorSpecID)
+        or presetOrder[1]
+
+    local _, presetRowH = W:DualRow(panel, y,
+        { type = "dropdown", text = "Preset Group",
+          values = presetValues, order = presetOrder,
+          tooltip = "Which of your spec's presets this reminder calls from. When it fires "
+              .. "it names the highest defensive on that list still off cooldown.",
+          getValue = function() return presetVal end,
+          setValue = function(v) presetVal = v end },
+        { type = "label", text = "" }
+    ); y = y - presetRowH
 
     AddLabel("Linger (seconds)")
     local durBox = AddBox(3, true)
@@ -1614,7 +1596,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
             spellBox = DBox(9, true, 80)
             spellBox:SetText(spellIDText)
             -- Anchored off spellBox itself so the reserved rightInset above only has to be
-            -- wide enough, not exactly right -- the same fix as the message color button.
+            -- wide enough, not exactly right.
             local ok = ns.Button(dynFrame, "OK", 54, 26, function() spellBox:ClearFocus() end)
             ok:SetPoint("LEFT", spellBox, "RIGHT", 6, 0)
             local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
@@ -1702,7 +1684,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         local writeSet = ns.CustomRemindersTable(true, encounterID)
         local key = uid or ("r" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
         writeSet[key] = {
-            name = name, msg = msgBox:GetText() or "", trigger = newTrig,
+            name = name, preset = presetVal, trigger = newTrig,
             dur = math.max(1, dur), enabled = enabledVal,
         }
         ns.RefreshRuntime()
@@ -1712,7 +1694,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
 
     ns.Button(panel, "Preview", 90, 26, function()
         ns.PreviewCustomReminder({
-            name = nameBox:GetText(), msg = msgBox:GetText(),
+            name = nameBox:GetText(), preset = presetVal,
             dur = tonumber(durBox:GetText()) or 3,
         })
     end):SetPoint("BOTTOM", panel, "BOTTOM", -110, 16)

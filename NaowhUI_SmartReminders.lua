@@ -980,7 +980,9 @@ end
 
 -- Boss-scoped custom reminders, independent of the timeline-fingerprint system: each one
 -- carries its own trigger (pull, a spell cast/aura) rather than riding an existing marked
--- ability. profile.customReminders[encounterID][uid] = { name, msg, trigger = {...}, dur }.
+-- ability. profile.customReminders[encounterID][uid] = { name, preset, trigger = {...}, dur }.
+-- `preset` names a spec preset to pick from at fire time; older entries carry a `msg` string
+-- instead and still display it verbatim.
 local function CustomRemindersTable(create, enc)
     return PerBossSet("customReminders", create, enc)
 end
@@ -1510,40 +1512,75 @@ local function NoteOwnCast(castSpellID)
     end
 end
 
-local function ResyncModel()
-    for i = 1, activeSlots do
-        local sid = slots[i].spellID
+local function ResyncSpell(sid)
+    -- Re-read the shape every pass. A talent swap can add or remove charges, and a
+    -- stale shape is what makes the model confidently wrong rather than absent.
+    EnsureChargeState(sid)
 
-        -- Re-read the shape every pass. A talent swap can add or remove charges, and a
-        -- stale shape is what makes the model confidently wrong rather than absent.
-        EnsureChargeState(sid)
+    -- Everything below is the plain-cooldown model, which says nothing useful about
+    -- a charge spell: it holds a running recharge while still being castable.
+    if chargeState[sid] then return end
 
-        -- Everything below is the plain-cooldown model, which says nothing useful about
-        -- a charge spell: it holds a running recharge while still being castable.
-        if not chargeState[sid] then
+    -- Free correction, available even in restricted content: no duration object means no
+    -- active cooldown, so whatever the estimate believed is wrong and the spell is up.
+    -- This is what keeps the model from drifting through a fight as talent and resource
+    -- cooldown reductions shorten things it thinks are still running.
+    local live = C_Spell.GetSpellCooldownDuration(sid, true)
+    if not live then readyAt[sid] = 0 end
 
-        -- Free correction, available even in restricted content: no duration object means no
-        -- active cooldown, so whatever the estimate believed is wrong and the spell is up.
-        -- This is what keeps the model from drifting through a fight as talent and resource
-        -- cooldown reductions shorten things it thinks are still running.
-        local live = C_Spell.GetSpellCooldownDuration(sid, true)
-        if not live then readyAt[sid] = 0 end
-
-        -- Only while the predicate says this spell's cooldown reads plainly; the pcall is
-        -- belt and braces against the classification changing under us mid-read.
-        if CanNameSpellAloud(sid) then
-            local ok, rem = pcall(function()
-                local dur = C_Spell.GetSpellCooldownDuration(sid, true)
-                -- Nothing back means nothing running, so zero remaining.
-                if not dur or not dur.GetRemainingDuration then return 0 end
-                return dur:GetRemainingDuration() or 0
-            end)
-            if ok and type(rem) == "number" then
-                readyAt[sid] = GetTime() + math.max(0, rem)
-            end
-            end
+    -- Only while the predicate says this spell's cooldown reads plainly; the pcall is
+    -- belt and braces against the classification changing under us mid-read.
+    if CanNameSpellAloud(sid) then
+        local ok, rem = pcall(function()
+            local dur = C_Spell.GetSpellCooldownDuration(sid, true)
+            -- Nothing back means nothing running, so zero remaining.
+            if not dur or not dur.GetRemainingDuration then return 0 end
+            return dur:GetRemainingDuration() or 0
+        end)
+        if ok and type(rem) == "number" then
+            readyAt[sid] = GetTime() + math.max(0, rem)
         end
     end
+end
+
+local function ResyncModel()
+    for i = 1, activeSlots do
+        ResyncSpell(slots[i].spellID)
+    end
+end
+
+-- Is this spell castable right now? Shared by the voice pick and by preset-bound custom
+-- reminders, deliberately in one place: a second copy of this ladder drifting out of step
+-- with the first is precisely the class of bug this file keeps producing.
+--
+-- MEASURED, after getting this wrong three times. Write down what is actually true so the
+-- next attempt does not relitigate it:
+--
+--   * GetSpellCooldownDuration returns an OBJECT for a READY spell too. It is IsZero() that
+--     separates ready from running. Testing `== nil` instead was tried on a live boss and
+--     every defensive lost the pick, every pull, so the player heard "call for external"
+--     while Ardent Defender sat off cooldown. Nil comes back rarely, so nil-ness is a
+--     usable READY signal but never a usable NOT-READY one.
+--   * IsZero() returns a secret ONLY while cooldowns are restricted. CanNameSpellAloud is
+--     exactly that question, so branching on IsZero behind that predicate is legal. An
+--     earlier pass here removed it as an illegal secret branch; that was wrong, and removing
+--     it is what broke the pick.
+--   * Sealed and unwitnessed is genuinely unknowable. Defaulting to READY is the right
+--     direction: at a pull start every defensive is up, and naming one that turns out to be
+--     down costs less than staying silent when one was available.
+--
+-- May raise on the IsZero branch if the classification changes mid-read, so every caller
+-- runs it inside a pcall.
+local function SpellReady(sid, now)
+    local charges = ChargesAvailable(sid)
+    if charges then return charges > 0 end
+
+    local dur = C_Spell.GetSpellCooldownDuration(sid, true)
+    if not dur then return true end
+    if CanNameSpellAloud(sid) then
+        return dur.IsZero and dur:IsZero() and true or false
+    end
+    return (readyAt[sid] or 0) <= now
 end
 
 -------------------------------------------------------------------------------
@@ -1618,38 +1655,7 @@ local function SpeakCallout()
     local ok, picked = pcall(function()
         for i = 1, activeSlots do
             local sid = slots[i].spellID
-            local ready
-
-            -- MEASURED, after getting this wrong three times. Write down what is actually
-        -- true so the next attempt does not relitigate it:
-        --
-        --   * GetSpellCooldownDuration returns an OBJECT for a READY spell too. It is
-        --     IsZero() that separates ready from running. Testing `== nil` instead was
-        --     tried on a live boss and every defensive lost the pick, every pull, so the
-        --     player heard "call for external" while Ardent Defender sat off cooldown.
-        --     Nil comes back rarely, so nil-ness is a usable READY signal but never a
-        --     usable NOT-READY one.
-        --   * IsZero() returns a secret ONLY while cooldowns are restricted.
-        --     CanNameSpellAloud is exactly that question, so branching on IsZero behind
-        --     that predicate is legal. An earlier pass here removed it as an illegal
-        --     secret branch; that was wrong, and removing it is what broke the pick.
-        --   * Sealed and unwitnessed is genuinely unknowable. Defaulting to READY is the
-        --     right direction: at a pull start every defensive is up, and naming one that
-        --     turns out to be down costs less than staying silent when one was available.
-            local charges = ChargesAvailable(sid)
-            local dur = (not charges) and C_Spell.GetSpellCooldownDuration(sid, true) or nil
-
-            if charges then
-                ready = charges > 0
-            elseif not dur then
-                ready = true
-            elseif CanNameSpellAloud(sid) then
-                ready = dur.IsZero and dur:IsZero() and true or false
-            else
-                ready = (readyAt[sid] or 0) <= now
-            end
-
-            if ready then return sid end
+            if SpellReady(sid, now) then return sid end
         end
     end)
 
@@ -2423,12 +2429,57 @@ local function HideCustomReminder()
     end
 end
 
+-- What a preset-bound reminder actually says: the best defensive still available in the
+-- chosen preset, decided at fire time by the same ladder the main callout uses. A line the
+-- player typed before the pull cannot know what is up, which is the whole reason these
+-- moved from free text to a preset.
+--
+-- Resolved against the CURRENT spec, like every other preset lookup here -- presets are
+-- per-spec and the stored key indexes into whichever spec is live.
+local function PickFromPreset(presetKey)
+    local presets = PresetsTable(specID, false)
+    local p = presets and presets[presetKey]
+    local list = p and p.list
+    if type(list) ~= "table" then return nil end
+
+    local now = GetTime()
+    -- SpellReady can raise if a cooldown's classification changes mid-read; the whole walk
+    -- is guarded so that degrades to the no-defensive line rather than to a Lua error.
+    local ok, picked = pcall(function()
+        for i = 1, #list do
+            local sid = list[i]
+            -- Untalented entries are skipped rather than called for, matching RebuildSlots.
+            if IsSpellAvailable(sid) then
+                ResyncSpell(sid)
+                if SpellReady(sid, now) then return sid end
+            end
+        end
+    end)
+    return ok and picked or nil
+end
+
 -- Bypasses trigger matching entirely -- used both by the real firing path below and by
 -- the editor's Preview button, so a preview shows exactly what a fight would.
 local function FireCustomReminder(r)
     if not r then return end
-    local msg = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name
-    if not msg then return end
+
+    local msg
+    if r.preset then
+        local picked = PickFromPreset(r.preset)
+        if picked then
+            local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
+            msg = CalloutFor(picked, info and info.name)
+        else
+            -- Nothing in the preset is up. Same line the main callout falls back to, so a
+            -- custom reminder never goes blank at the moment it matters most.
+            msg = TRDB().voiceNone
+        end
+    else
+        -- Reminders saved before preset binding existed still show their authored text.
+        msg = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name
+    end
+
+    if not msg or msg == "" then return end
     CreateCustomFrame()
     customFrame.text:SetText(msg)
     customFrame:Show()
