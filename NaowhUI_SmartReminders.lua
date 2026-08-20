@@ -1711,7 +1711,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820a"
+local TRACE_BUILD = "0820b"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1856,6 +1856,18 @@ local function TraceEvent(eventID)
           return dur:IsZero()
       end)
 
+      -- HasSecretValues is flagged ReturnsNeverSecret, so unlike IsZero it answers even
+      -- while cooldowns are sealed. Under test: if it reads false exactly when a spell is
+      -- off cooldown, it is a legal readiness signal and the voice could stop dead
+      -- reckoning in restricted content, which is what makes it disagree with the icon.
+      -- Printed next to the model's belief so the two can be compared against what the
+      -- spell was actually doing.
+      local secretVals = Safe(function()
+          local dur = C_Spell.GetSpellCooldownDuration(slotID, true)
+          if not dur or not dur.HasSecretValues then return "n/a" end
+          return dur:HasSecretValues()
+      end)
+
       -- A charge spell never touches readyAt (see NoteOwnCast), so the plain-cooldown
       -- model line would always read 0.0s for one regardless of its real charge count.
       -- That is what hid the Guardian of Ancient Kings state from the last two reports.
@@ -1895,9 +1907,9 @@ local function TraceEvent(eventID)
       end)
       local audio = ns.IsAudioOff(slotID) and "audioOFF" or "audioOn"
 
-      ns.Print(("  %d. %s (%s) readable=%s cd=%s model=%s learned=%s basecd=%s alpha=%s icon=%s %s")
+      ns.Print(("  %d. %s (%s) readable=%s cd=%s secretvals=%s model=%s learned=%s basecd=%s alpha=%s icon=%s %s")
           :format(i, (slotInfo and slotInfo.name) or "?", tostring(slotID),
-                  readable, durState, model, learned, baseCD, alpha, iconShown, audio))
+                  readable, durState, secretVals, model, learned, baseCD, alpha, iconShown, audio))
     end
 end
 
