@@ -1700,9 +1700,37 @@ end
 --
 -- May raise on the IsZero branch if the classification changes mid-read, so every caller
 -- runs it inside a pcall.
+-- Is this spell's cooldown actually running? Blizzard's own definition, lifted from
+-- CooldownViewer: isOnActualCooldown = not isOnGCD and cooldownIsActive. Both fields are
+-- flagged NeverSecret on SpellCooldownInfo, so unlike IsZero() this ANSWERS in restricted
+-- content -- which removes the reason the voice was dead reckoning off readyAt for a whole
+-- dungeon, and with it every way that estimate could drift out of step with the icon.
+--
+-- Operand order is Blizzard's, not incidental: the GCD test is the clean one and
+-- short-circuits, which is how their code stays legal. Written the other way round the
+-- same expression can raise.
+--
+-- Returns nil, not a guess, when the client cannot answer -- callers fall back to the
+-- older ladder rather than treating "no answer" as ready.
+local function CooldownRunning(sid)
+    if not (C_Spell and C_Spell.GetSpellCooldown) then return nil end
+    local ok, running = pcall(function()
+        local info = C_Spell.GetSpellCooldown(sid)
+        if type(info) ~= "table" then return nil end
+        return (not info.isOnGCD) and info.isActive
+    end)
+    if not ok or type(running) ~= "boolean" then return nil end
+    return running
+end
+
 local function SpellReady(sid, now)
     local charges = ChargesAvailable(sid)
     if charges then return charges > 0 end
+
+    -- The real answer first, whenever the client gives one. Everything below is what this
+    -- addon had to do before it turned out one was available.
+    local running = CooldownRunning(sid)
+    if running ~= nil then return not running end
 
     local dur = C_Spell.GetSpellCooldownDuration(sid, true)
     if not dur then return true end
@@ -1840,7 +1868,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820j"
+local TRACE_BUILD = "0820k"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1992,6 +2020,16 @@ local function TraceEvent(eventID)
       -- one mid-cooldown, so it reports only that the object CAN carry secret state, not
       -- whether a cooldown is running. Kept in the readout because it is free and confirms
       -- the sealing, but nothing may branch on it.
+      -- The plain truth, if the client answers: Blizzard's own not-isOnGCD-and-isActive.
+      -- "running" or "ready" here is the REAL cooldown state even while sealed; "nil" means
+      -- the client would not answer and the model below is what the pick actually used.
+      local realCD = Safe(function()
+          if not (C_Spell and C_Spell.GetSpellCooldown) then return nil end
+          local info = C_Spell.GetSpellCooldown(slotID)
+          if type(info) ~= "table" then return nil end
+          return ((not info.isOnGCD) and info.isActive) and "running" or "ready"
+      end)
+
       local secretVals = Safe(function()
           local dur = C_Spell.GetSpellCooldownDuration(slotID, true)
           if not dur or not dur.HasSecretValues then return "n/a" end
@@ -2037,9 +2075,9 @@ local function TraceEvent(eventID)
       end)
       local audio = ns.IsAudioOff(slotID) and "audioOFF" or "audioOn"
 
-      ns.Print(("  %d. %s (%s) readable=%s cd=%s secretvals=%s model=%s learned=%s basecd=%s alpha=%s icon=%s %s")
+      ns.Print(("  %d. %s (%s) readable=%s cd=%s realcd=%s secretvals=%s model=%s learned=%s basecd=%s alpha=%s icon=%s %s")
           :format(i, (slotInfo and slotInfo.name) or "?", tostring(slotID),
-                  readable, durState, secretVals, model, learned, baseCD, alpha, iconShown, audio))
+                  readable, durState, realCD, secretVals, model, learned, baseCD, alpha, iconShown, audio))
     end
 end
 
