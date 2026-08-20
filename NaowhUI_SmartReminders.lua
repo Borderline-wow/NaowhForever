@@ -1490,10 +1490,27 @@ local function NoteOwnCast(castSpellID)
     -- an absent one costs a wrong callout.
     local UNKNOWN_COOLDOWN = 30
 
-    local secs = learned
-        or KNOWN_BASE_COOLDOWN[sid]
-        or (type(baseMs) == "number" and baseMs > 0 and baseMs / 1000)
-        or UNKNOWN_COOLDOWN
+    local secs
+    if learned then
+        secs = learned
+    elseif KNOWN_BASE_COOLDOWN[sid] then
+        secs = KNOWN_BASE_COOLDOWN[sid]
+    elseif type(baseMs) == "number" and baseMs > 0 then
+        -- An UPPER bound, not a measurement. GetSpellBaseCooldown ignores talent cooldown
+        -- reduction -- Unbreakable Spirit alone takes 30% off Ardent Defender and Divine
+        -- Shield -- and it appears nowhere in Blizzard's current UI source or generated
+        -- docs, so nothing keeps it honest. Held at full length while cooldowns are sealed
+        -- it cannot self-correct (see ResyncSpell: the free correction needs a nil the API
+        -- almost never returns), so it keeps a defensive marked down long after it is back
+        -- and the callout falls through to "call for external" with two defensives up.
+        -- Trimmed by the largest common tank reduction so the residual error lands on the
+        -- side this file already documents as the cheaper one -- naming a defensive that
+        -- turns out to be down beats staying silent when one was available. A learned
+        -- total, once measured, replaces this outright.
+        secs = (baseMs / 1000) * 0.7
+    else
+        secs = UNKNOWN_COOLDOWN
+    end
     readyAt[sid] = GetTime() + secs
 
     -- And when the cooldown this cast just started is readable, record its real total for
@@ -1531,14 +1548,27 @@ local function ResyncSpell(sid)
     -- Only while the predicate says this spell's cooldown reads plainly; the pcall is
     -- belt and braces against the classification changing under us mid-read.
     if CanNameSpellAloud(sid) then
-        local ok, rem = pcall(function()
+        local ok, rem, total = pcall(function()
             local dur = C_Spell.GetSpellCooldownDuration(sid, true)
             -- Nothing back means nothing running, so zero remaining.
             if not dur or not dur.GetRemainingDuration then return 0 end
-            return dur:GetRemainingDuration() or 0
+            return dur:GetRemainingDuration() or 0,
+                (dur.GetTotalDuration and dur:GetTotalDuration()) or nil
         end)
         if ok and type(rem) == "number" then
             readyAt[sid] = GetTime() + math.max(0, rem)
+        end
+
+        -- A cooldown still running while this reads plainly IS the real total, talent
+        -- reductions and all. Captured here and not only at cast time: the cast almost
+        -- always happens inside an instance where this is sealed, while the tail of that
+        -- same cooldown is usually still running once the player is back outside, which
+        -- makes this a free measurement of a number the estimate can only guess at.
+        -- The 1.5s floor keeps a GCD-length reading from overwriting a real cooldown.
+        if ok and type(total) == "number" and total > 1.5 then
+            local t = TRDB()
+            if type(t.learned) ~= "table" then t.learned = {} end
+            t.learned[tostring(sid)] = total
         end
     end
 end
@@ -1711,7 +1741,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820b"
+local TRACE_BUILD = "0820c"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
