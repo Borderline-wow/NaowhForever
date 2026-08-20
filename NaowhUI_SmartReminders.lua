@@ -65,8 +65,9 @@ local DEFAULTS = {
     -- produced at the default iconSize of 64, so a first read after this shipped changed
     -- nothing on screen for an existing install.
     textSize   = 21,
+    -- Which side of the icon the text callout sits on: TOP, BOTTOM, LEFT or RIGHT.
+    textSide   = "BOTTOM",
     -- pos = { point, relPoint, x, y } once moved in Unlock Mode; nil = default centre.
-    -- textPos = same shape, for the text callout's own anchor.
 }
 
 -- Which profile tables have already had the migration and the defaults fill run against
@@ -96,6 +97,9 @@ local function TRDB()
         end
         t.lists = nil
     end
+    -- The text used to be dragged around on its own; it rides the icon now, so a stored
+    -- position for it is dead weight that would outlive every reset button.
+    t.textPos = nil
     for k, v in pairs(DEFAULTS) do if t[k] == nil then t[k] = v end end
     return t
 end
@@ -495,11 +499,11 @@ end
 -------------------------------------------------------------------------------
 local Reminder = {}
 local frame, slots = nil, {}
--- The text callout's own frame -- separate from the icon so the two can be dragged to
--- different parts of the screen. slot.label stays PARENTED to its slot (nothing here
--- touches ApplyPriorityAlpha's secret-driven alpha cascade, which slot.label still rides
--- unchanged); only the anchor TARGET moves to textFrame. Parent and anchor target are
--- independent in the frame API, which is what makes this safe to decouple at all.
+-- A 1x1 anchor the text callout hangs off, parked on whichever side of the icon the
+-- player picked. slot.label stays PARENTED to its slot (nothing here touches
+-- ApplyPriorityAlpha's secret-driven alpha cascade, which slot.label still rides
+-- unchanged); only the anchor TARGET is textFrame. Parent and anchor target are
+-- independent in the frame API, which is what makes this safe.
 local textFrame
 local bar
 local activeSlots = 0           -- how many slots the current spec actually uses
@@ -516,17 +520,55 @@ local function ApplyPosition()
     end
 end
 
--- Defaults to the SAME spot as the icon so an existing install looks identical until the
--- text is actually dragged elsewhere in Unlock Mode.
-local function ApplyTextPosition()
-    if not textFrame then return end
-    local p = TRDB().textPos
+-- Where the countdown bar sits under the icon, shared with the text layout below so the
+-- two cannot drift apart.
+local BAR_DROP, BAR_HEIGHT = 26, 10
+
+local TEXT_GAP = 6
+local REMINDER_SIZE = 15
+
+-- The icon is the one thing that moves; the text rides whichever side of it was chosen.
+-- Each line is placed off the same anchor point rather than off the line before it, so an
+-- empty authored reminder or a hidden authoring tag collapses to nothing instead of
+-- pushing the callout away from the icon.
+--
+-- The near edge is anchored, never the centre: a centred string grows in both directions,
+-- which is what made the text creep into the icon as the defensive name got longer and
+-- sit miles away from it when the name was short.
+local function ApplyTextLayout()
+    if not (frame and textFrame) then return end
+    local t = TRDB()
+    local side = t.textSide or DEFAULTS.textSide
+    local line = (t.textSize or DEFAULTS.textSize) + 4
+
     textFrame:ClearAllPoints()
-    if p then
-        textFrame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+    local point, dir
+    if side == "TOP" then
+        textFrame:SetPoint("BOTTOM", frame, "TOP", 0, TEXT_GAP)
+        point, dir = "BOTTOM", 1
+    elseif side == "LEFT" then
+        textFrame:SetPoint("RIGHT", frame, "LEFT", -TEXT_GAP, 0)
+        point, dir = "RIGHT", 1
+    elseif side == "RIGHT" then
+        textFrame:SetPoint("LEFT", frame, "RIGHT", TEXT_GAP, 0)
+        point, dir = "LEFT", 1
     else
-        textFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 160)
+        -- Clear of the countdown bar when a stored profile still has one: its toggle is
+        -- gone from the UI but the setting outlives it.
+        local drop = TEXT_GAP + (t.showBar and (BAR_DROP + BAR_HEIGHT) or 0)
+        textFrame:SetPoint("TOP", frame, "BOTTOM", 0, -drop)
+        point, dir = "TOP", -1
     end
+
+    local function place(fs, offset)
+        if not fs then return end
+        fs:ClearAllPoints()
+        fs:SetPoint(point, textFrame, point, 0, dir * offset)
+    end
+    for i = 1, #slots do place(slots[i].label, 0) end
+    place(frame.fallback, 0)
+    place(frame.reminder, line)
+    place(frame.learnTag, line + REMINDER_SIZE + 4)
 end
 
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
@@ -565,18 +607,18 @@ local function CreateSlot(index)
     -- slot, so the priority alpha that picks the winning icon still picks the winning line
     -- too -- one stacked font string per spell, engine-revealed, no branch. That is why the
     -- text can name the defensive in combat while the spoken version cannot. Only the ANCHOR
-    -- target moves to textFrame, which the frame API allows independent of parentage, so the
-    -- text can sit anywhere on screen without touching the secret-driven alpha at all.
+    -- target is textFrame, which the frame API allows independent of parentage, so the line
+    -- can sit on any side of the icon without touching the secret-driven alpha at all.
     --
     -- A FontString still cannot carry the tank gate (that rides textures only), which is the
     -- separate reason this channel is offered only while the tank filter is off.
     slot.label = slot:CreateFontString(nil, "OVERLAY")
-    slot.label:SetPoint("TOP", textFrame, "BOTTOM", 0, -4)
     slot.label:SetFont(AlertFont(), 16, "OUTLINE")
     slot.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
     slot.label:Hide()
 
     slots[index] = slot
+    ApplyTextLayout()
     return slot
 end
 
@@ -586,8 +628,8 @@ end
 local function CreateBar()
     if bar then return bar end
     bar = CreateFrame("StatusBar", nil, frame)
-    bar:SetPoint("TOP", frame, "BOTTOM", 0, -26)
-    bar:SetHeight(10)
+    bar:SetPoint("TOP", frame, "BOTTOM", 0, -BAR_DROP)
+    bar:SetHeight(BAR_HEIGHT)
     bar:EnableMouse(false)
     bar:SetMinMaxValues(0, 1)
     bar:SetStatusBarTexture(NaowhMedia("statusbar", "NaowhGradient")
@@ -612,13 +654,11 @@ function Reminder.Create()
     frame:EnableMouse(false)
     frame:Hide()
 
-    -- Independently positioned from the icon (Unlock Mode moves the two separately); a
-    -- fixed nominal size is all it needs since nothing draws on textFrame itself, only on
-    -- the font strings anchored to it.
+    -- Nothing draws on textFrame itself, only the font strings anchored to it, so it is
+    -- a bare anchor point parked against the icon by ApplyTextLayout.
     textFrame = CreateFrame("Frame", "NaowhUITankReminderText", UIParent)
-    textFrame:SetSize(240, 10)
+    textFrame:SetSize(1, 1)
     textFrame:SetFrameStrata("HIGH")
-    textFrame:SetClampedToScreen(true)
     textFrame:EnableMouse(false)
     textFrame:Hide()
 
@@ -626,17 +666,14 @@ function Reminder.Create()
     -- the accumulator LEFT OVER after the priority walk: that value is 1 only when nobody
     -- won, which is exactly "nothing on your list is up". The engine works it out; we never
     -- learn it.
-    -- The authored reminder line sits ABOVE textFrame; the defensive callout text (built in
-    -- CreateSlot, anchored to textFrame too) lives below it, so the two never fight. Plain
-    -- data only: fingerprints and authored text.
+    -- The authored reminder line sits one line further from the icon than the defensive
+    -- callout, so the two never fight. Plain data only: fingerprints and authored text.
     frame.reminder = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.reminder:SetPoint("BOTTOM", textFrame, "TOP", 0, 6)
-    frame.reminder:SetFont(AlertFont(), 15, "OUTLINE")
+    frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
     frame.reminder:SetTextColor(1, 1, 1, 1)
     frame.reminder:Hide()
 
     frame.fallback = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.fallback:SetPoint("TOP", textFrame, "BOTTOM", 0, -4)
     frame.fallback:SetFont(AlertFont(), 16, "OUTLINE")
     local T = ns.THEME
     frame.fallback:SetTextColor(T.goldSoft.r, T.goldSoft.g, T.goldSoft.b, 1)
@@ -649,7 +686,6 @@ function Reminder.Create()
     -- from an earlier authoring session. The tag rides the text callout; the border rides
     -- the icon -- between the two, whichever one someone's eyes are on says so.
     frame.learnTag = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.learnTag:SetPoint("BOTTOM", frame.reminder, "TOP", 0, 4)
     frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE")
     frame.learnTag:SetTextColor(1, 0.65, 0.2, 1)
     frame.learnTag:SetText("AUTHORING MODE -- CALLING EVERY ABILITY")
@@ -660,7 +696,7 @@ function Reminder.Create()
     -- A spec with no list never reaches RebuildSlots, and a zero-sized frame is one Unlock
     -- Mode cannot pick up, so position it now regardless.
     ApplyPosition()
-    ApplyTextPosition()
+    ApplyTextLayout()
     return frame
 end
 
@@ -686,6 +722,7 @@ local function ApplySize()
         frame.fallback:SetShown(textOn and t.fallbackOn ~= false)
     end
     if bar then bar:SetWidth(math.max(size * 2, 120)) end
+    ApplyTextLayout()
 end
 
 -------------------------------------------------------------------------------
@@ -2598,7 +2635,7 @@ local function RefreshCustomRemindersFlag()
 end
 ns.RefreshCustomRemindersFlag = RefreshCustomRemindersFlag
 
--- Same shape as ApplyPosition/ApplyTextPosition: nil = default centre, otherwise wherever
+-- Same shape as ApplyPosition: nil = default centre, otherwise wherever
 -- Unlock Mode last saved it.
 local function ApplyCustomReminderPosition()
     if not customFrame then return end
@@ -3186,29 +3223,6 @@ local function RegisterUnlock()
             applyPos = ApplyPosition,
         }),
         EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminderText",   -- storage key; renaming it would orphan saved positions
-            label = "Smart Text",
-            group = "NaowhUI",
-            order = 4,
-            noResize = true,
-            isHidden = function() return not TRDB().enabled end,
-            getFrame = function()
-                if not textFrame then Reminder.Create() end
-                return textFrame
-            end,
-            getSize  = function() return 240, 10 end,
-            savePos = function(_, point, relPoint, x, y)
-                TRDB().textPos = { point = point, relPoint = relPoint, x = x, y = y }
-            end,
-            loadPos = function()
-                local p = TRDB().textPos
-                if not p then return nil end
-                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-            end,
-            clearPos = function() TRDB().textPos = nil end,
-            applyPos = ApplyTextPosition,
-        }),
-        EUI.MakeUnlockElement({
             key   = "NaowhUI_TankReminderCustom",   -- storage key; renaming it would orphan saved positions
             label = "Smart Custom Reminder",
             group = "NaowhUI",
@@ -3257,11 +3271,6 @@ local function UpdatePreview()
             frame:SetScript("OnDragStart", nil)
             frame:SetScript("OnDragStop", nil)
         end
-        if textFrame then
-            textFrame:EnableMouse(false)
-            textFrame:SetScript("OnDragStart", nil)
-            textFrame:SetScript("OnDragStop", nil)
-        end
         if customFrame then
             customFrame:EnableMouse(false)
             customFrame:SetScript("OnDragStart", nil)
@@ -3284,8 +3293,8 @@ local function UpdatePreview()
     -- The preview doubles as the placement tool: drag it and the position saves to the
     -- same slot Unlock Mode writes. Mouse and movability exist ONLY while the preview is
     -- up -- the early-return branch above strips them -- so the fight-time alert stays a
-    -- pure display that can never eat a click. Icon and text drag independently, saving
-    -- to separate positions, since that is the whole point of splitting them.
+    -- pure display that can never eat a click. The text is not draggable: it rides the
+    -- icon, on the side the Text Position option picks.
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
@@ -3298,20 +3307,6 @@ local function UpdatePreview()
             TRDB().pos = { point = point, relPoint = relPoint, x = x, y = y }
         end
         ApplyPosition()
-    end)
-
-    textFrame:SetMovable(true)
-    textFrame:SetClampedToScreen(true)
-    textFrame:EnableMouse(true)
-    textFrame:RegisterForDrag("LeftButton")
-    textFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    textFrame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        local point, _, relPoint, x, y = self:GetPoint(1)
-        if point then
-            TRDB().textPos = { point = point, relPoint = relPoint, x = x, y = y }
-        end
-        ApplyTextPosition()
     end)
 
     -- The custom reminder frame previews too, with a placeholder line rather than a real
@@ -4452,28 +4447,33 @@ function ns.BuildSection(parent, y)
     ); y = y - h
 
     _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Text Position",
+          values = { TOP = "Above the Icon", BOTTOM = "Below the Icon",
+                     LEFT = "Left of the Icon", RIGHT = "Right of the Icon" },
+          order = { "TOP", "BOTTOM", "LEFT", "RIGHT" },
+          tooltip = "Which side of the icon the text callout sits on. The text is anchored "
+          .. "by its near edge, so it keeps the same gap from the icon however long the "
+          .. "defensive's name is.",
+          getValue = function() return TRDB().textSide or DEFAULTS.textSide end,
+          setValue = function(v)
+              TRDB().textSide = v
+              ApplyTextLayout()
+              UpdatePreview()
+          end },
         { type = "toggle", text = "Show a Preview",
           tooltip = "Puts a stand-in of the alert on screen while these options are open -- "
-          .. "the icon and the text callout exactly as a fight would draw them. DRAG EITHER "
-          .. "ONE to move it independently; each position saves instantly and Unlock Mode "
-          .. "edits the same two spots, under the names Smart (icon) and Smart Text. It "
-          .. "hides itself when the options close.",
+          .. "the icon and the text callout exactly as a fight would draw them. DRAG IT to "
+          .. "move the alert; the position saves instantly and Unlock Mode edits the same "
+          .. "spot, under the name Smart. It hides itself when the options close.",
           getValue = function() return previewPin end,
-          setValue = function(v) previewPin = v; UpdatePreview() end },
-        { type = "label", text = "" }
+          setValue = function(v) previewPin = v; UpdatePreview() end }
     ); y = y - h
 
-    -- Escape hatch: a UI-scale change can strand a moved icon or text block off-screen
-    -- where Unlock Mode cannot reach it.
+    -- Escape hatch: a UI-scale change can strand a moved alert off-screen where Unlock
+    -- Mode cannot reach it.
     _, h = W:Button(parent, "Reset Icon Position", y, function()
         TRDB().pos = nil
         ApplyPosition()
-    end)
-    y = y - h
-
-    _, h = W:Button(parent, "Reset Text Position", y, function()
-        TRDB().textPos = nil
-        ApplyTextPosition()
     end)
     y = y - h
 
@@ -4734,7 +4734,7 @@ function ns.Reset()
     ns.SettingsRoot().tankReminder = nil
     ApplySize()        -- the saved size and position went with the table
     ApplyPosition()
-    ApplyTextPosition()
+    ApplyTextLayout()
     UpdateEventRegistration()
 end
 
