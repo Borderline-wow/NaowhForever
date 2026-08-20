@@ -1229,17 +1229,21 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     -- per fingerprint doubled names in the accordion. Every control on a group applies to
     -- all of its fingerprints at once.
     local groups, byName = {}, {}
+    -- A fingerprint can carry a turn ("40.0#2"); the row still sorts on the duration.
+    local function Duration(fp)
+        return tonumber((fp:gsub("#.*$", ""))) or 0
+    end
     local function AddFp(fp)
         local nm = ns.EventNameFor(encounterID, fp)
         local disp = (nm == fp) and ("event " .. fp) or nm
         local g = byName[disp]
         if not g then
-            g = { name = disp, fps = {}, first = tonumber(fp) or 0 }
+            g = { name = disp, fps = {}, first = Duration(fp) }
             byName[disp] = g
             groups[#groups + 1] = g
         end
         g.fps[#g.fps + 1] = fp
-        local n = tonumber(fp) or 0
+        local n = Duration(fp)
         if n < g.first then g.first = n end
     end
     local named = ns.EVENT_NAMES and ns.EVENT_NAMES[encounterID]
@@ -1250,10 +1254,14 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
             AddFp(fp)
         end
     end
+    local cycles = ns.EVENT_CYCLES and ns.EVENT_CYCLES[encounterID]
     local pmarks = ns.MarksTable and ns.MarksTable(false, encounterID)
     if pmarks then
         for fp in pairs(pmarks) do
-            if not seen[fp] then AddFp(fp) end
+            -- A mark on the bare duration of what turned out to be a shared bar is left
+            -- over from before the turns were told apart, and no live event carries that
+            -- fingerprint any more. Listing it would offer a row that can never fire.
+            if not seen[fp] and not (cycles and cycles[fp]) then AddFp(fp) end
         end
     end
     table.sort(groups, function(x, z) return x.first < z.first end)

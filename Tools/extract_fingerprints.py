@@ -31,6 +31,41 @@ import sys
 from pathlib import Path
 
 
+DUR_RE = re.compile(
+    r"(?:durationRounded|duration|rounded) == ([\d.]+)"
+    r"(?:\s+and\s+(\w+)\s*%\s*(\d+)\s*(==|~=)\s*(\d+))?")
+
+# `count40 = count40 + 1` and, one or two lines above it, the duration that gates it.
+# A counter is only usable if it advances on exactly one duration: Ziekket runs both its
+# 45 and its 50 rotations off a single counter incremented by either, so counting one
+# duration's own events would answer for the wrong turn.
+INC_RE = re.compile(r"^\s*(\w+) = \1 \+ 1\s*$")
+GUARD_RE = re.compile(r"^\s*if (?:durationRounded|duration|rounded) == ([\d.]+) then\s*$")
+ONELINE_RE = re.compile(
+    r"^\s*if (?:durationRounded|duration|rounded) == ([\d.]+) then (\w+) = \2 \+ 1 end\s*$")
+
+
+def counter_durations(lines):
+    owned = {}
+    for i, line in enumerate(lines):
+        one = ONELINE_RE.match(line)
+        if one:
+            owned.setdefault(one.group(2), set()).add("%.1f" % float(one.group(1)))
+            continue
+        m = INC_RE.match(line)
+        if not m:
+            continue
+        for j in range(i - 1, max(i - 3, -1), -1):
+            g = GUARD_RE.match(lines[j])
+            if g:
+                owned.setdefault(m.group(1), set()).add("%.1f" % float(g.group(1)))
+                break
+            if "duration" in lines[j]:
+                owned.setdefault(m.group(1), set()).add(None)
+                break
+    return owned
+
+
 def norm(name):
     return re.sub(r"[^a-z0-9]", "", name.lower())
 
@@ -120,11 +155,22 @@ def parse_module(path, curated, curated_pairs):
         if cboss == bkey:
             tank_names.add(cname)
 
-    # Branches, both dialects.
+    # Branches, both dialects. A duration can carry a rotation counter as well --
+    # `duration == 40 and count40 % 2 == 1` -- which is the module saying two abilities
+    # share one duration and take turns. Captured as (duration, modulus, remainders) so
+    # the turns can be told apart later; a bare duration carries no cycle.
     branches = []  # (durations, display_name)
     lines = text.splitlines()
+    owned = counter_durations(lines)
     for i, line in enumerate(lines):
-        durs = re.findall(r"(?:durationRounded|duration|rounded) == ([\d.]+)", line)
+        durs = []
+        for d, counter, mod_n, op, rem in DUR_RE.findall(line):
+            if mod_n and owned.get(counter) == {"%.1f" % float(d)}:
+                n = int(mod_n)
+                rems = frozenset(range(n)) - {int(rem)} if op == "~=" else frozenset({int(rem)})
+                durs.append((float(d), n, rems))
+            else:
+                durs.append((float(d), None, None))
         if not durs:
             continue
         name = None
@@ -156,7 +202,7 @@ def parse_module(path, curated, curated_pairs):
                         name = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", method)
                     break
         if name:
-            branches.append(([float(d) for d in durs], name))
+            branches.append((durs, name))
 
     return {
         "enc": enc, "boss": bossname, "id_name": id_name,
@@ -178,18 +224,63 @@ def main():
     fingerprints = {}   # enc -> { fp: set(names) }
     event_names = {}    # enc -> { fp: set(names) }
     new_tank = {}       # sid -> (boss, name)
+    # enc -> dur -> modulus -> remainder -> set(names), before it is decided whether the
+    # cycle survives, plus the durations seen with no counter at all, which veto one.
+    turns = {}
+    plain_durs = {}
+    tank_by_enc = {}
 
     for m in mods:
         enc = m["enc"]
+        tank_by_enc.setdefault(enc, set()).update(m["tank_names"])
         for sid in m["tank_ids"]:
             if sid not in curated:
                 new_tank[sid] = (m["boss"], m["id_name"].get(sid, "?"))
         for durs, name in m["branches"]:
-            for d in durs:
+            for d, mod_n, rems in durs:
                 fp = "%.1f" % d
                 event_names.setdefault(enc, {}).setdefault(fp, set()).add(name)
                 if norm(name) in m["tank_names"]:
                     fingerprints.setdefault(enc, {}).setdefault(fp, set()).add(name)
+                if mod_n is None:
+                    plain_durs.setdefault(enc, set()).add(fp)
+                else:
+                    slot = turns.setdefault(enc, {}).setdefault(fp, {}).setdefault(mod_n, {})
+                    for r in rems:
+                        slot.setdefault(r, set()).add(name)
+
+    # A cycle survives only when the module tells the whole story about that duration:
+    # one counter, every turn accounted for, and no other branch claiming the duration
+    # without consulting it. Anything else stays one ambiguous fingerprint, as before.
+    cycles = {}
+    for enc in sorted(turns):
+        for fp in sorted(turns[enc]):
+            by_mod = turns[enc][fp]
+            if len(by_mod) != 1 or fp in plain_durs.get(enc, ()):
+                continue
+            n, slots = next(iter(by_mod.items()))
+            if len(slots) < 2:
+                continue
+            # Occurrence i of the duration is the branch for remainder i % n, so the turn
+            # order is 1, 2, ... n-1, 0.
+            order = [slots.get(r) for r in list(range(1, n)) + [0]]
+            if any(t is None for t in order):
+                continue
+            cycles.setdefault(enc, {})[fp] = [" / ".join(sorted(t)) for t in order]
+
+    # Split each cycled duration into its per-turn keys, in both tables.
+    for enc in cycles:
+        for fp, order in cycles[enc].items():
+            event_names[enc].pop(fp, None)
+            if enc in fingerprints:
+                fingerprints[enc].pop(fp, None)
+            for i, name in enumerate(order, 1):
+                key = "%s#%d" % (fp, i)
+                event_names[enc][key] = {name}
+                if any(norm(x) in tank_by_enc.get(enc, ()) for x in name.split(" / ")):
+                    fingerprints.setdefault(enc, {})[key] = {name}
+        if enc in fingerprints and not fingerprints[enc]:
+            del fingerprints[enc]
 
     print("-- modules: %d | encounters with events: %d | with tank fingerprints: %d"
           % (len(mods), len(event_names), len(fingerprints)))
@@ -204,10 +295,14 @@ def main():
     def esc(x):
         return x.replace("\\", "").replace('"', "'")
 
+    def fpsort(fp):
+        base, _, turn = fp.partition("#")
+        return (float(base), int(turn) if turn else 0)
+
     print("\n--8<-- TANK_FINGERPRINTS")
     for enc in sorted(fingerprints):
         fps = fingerprints[enc]
-        parts = ", ".join('["%s"] = true' % fp for fp in sorted(fps, key=float))
+        parts = ", ".join('["%s"] = true' % fp for fp in sorted(fps, key=fpsort))
         names = ", ".join(sorted({esc(n) for s in fps.values() for n in s}))
         print("    [%d] = { %s },   -- %s" % (enc, parts, names))
 
@@ -215,7 +310,14 @@ def main():
     for enc in sorted(event_names):
         fps = event_names[enc]
         parts = ", ".join('["%s"] = "%s"' % (fp, esc(" / ".join(sorted(fps[fp]))))
-                          for fp in sorted(fps, key=float))
+                          for fp in sorted(fps, key=fpsort))
+        print("    [%d] = { %s }," % (enc, parts))
+
+    print("\n--8<-- EVENT_CYCLES")
+    for enc in sorted(cycles):
+        parts = ", ".join('["%s"] = { %s }'
+                          % (fp, ", ".join('"%s"' % esc(n) for n in cycles[enc][fp]))
+                          for fp in sorted(cycles[enc], key=fpsort))
         print("    [%d] = { %s }," % (enc, parts))
 
     print("\n--8<-- NEW_TANK_ABILITIES")

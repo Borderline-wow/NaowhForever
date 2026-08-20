@@ -864,6 +864,29 @@ end
 -- handle on WHICH ability an event is, and any future filtering by ability has to ride it.
 local eventSource, eventDuration = {}, {}
 
+-- The turn-qualified fingerprint of each event on a duration two abilities take turns on
+-- (ns.EVENT_CYCLES), and how many of each such duration this pull has produced. Decided at
+-- ADDED, in arrival order, because that is the only moment the order is known -- the
+-- highlight arrives later and out of order. The authored key is used as the base rather
+-- than the live duration so a live 44.98 and a live 45.0 mark identically. Switching the
+-- feature on mid-pull starts the count late and names the wrong turn until the next pull;
+-- the source modules have the same exposure and there is nothing to resync against.
+local eventTurnFp, turnCount = {}, {}
+
+-- The cycle for a live duration, exact match first and whole seconds second, matching how
+-- IsUnmarkedEvent reads marks: a module authoring 45 has to find a live 44.98. The key it
+-- matched is returned as well, so every event of that duration counts on ONE counter.
+local function CycleFor(enc, dur)
+    local d = ns.EVENT_CYCLES
+    local t = d and enc ~= nil and (d[enc] or d[tonumber(enc)] or d[tostring(enc)])
+    if not t then return nil end
+    local fp = string.format("%.1f", dur)
+    if t[fp] then return t[fp], fp end
+    local rounded = string.format("%.1f", math.floor(dur + 0.5))
+    if t[rounded] then return t[rounded], rounded end
+    return nil
+end
+
 -- Which event ids have already produced a full show/speak pass. Blizzard's own timeline
 -- view re-triggers ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT more than once per event with no
 -- dedup of its own (OnEventHighlight just replays the glow every time; harmless for a
@@ -878,6 +901,17 @@ local function NoteEventAdded(info)
         if id == nil then return end
         eventSource[id] = info.source
         eventDuration[id] = info.duration
+
+        -- Encounter events only, matching the source module's own counter: script events
+        -- and other addons' bars share the timeline and would push the rotation along.
+        local encounter = Enum and Enum.EncounterTimelineEventSource
+            and Enum.EncounterTimelineEventSource.Encounter or 0
+        if info.source ~= encounter or type(info.duration) ~= "number" then return end
+        local cycle, key = CycleFor(currentEncounter, info.duration)
+        if not cycle then return end
+        local n = (turnCount[key] or 0) + 1
+        turnCount[key] = n
+        eventTurnFp[id] = key .. "#" .. (((n - 1) % #cycle) + 1)
     end)
 end
 
@@ -901,6 +935,7 @@ local function ForgetEvent(eventID)
     eventSource[eventID] = nil
     eventDuration[eventID] = nil
     announced[eventID] = nil
+    eventTurnFp[eventID] = nil
 end
 
 local function WipeEventCache()
@@ -912,6 +947,8 @@ local function WipeEventCache()
     wipe(eventSource)
     wipe(eventDuration)
     wipe(announced)
+    wipe(eventTurnFp)
+    wipe(turnCount)
 end
 
 local function IsEncounterSourced(eventID)
@@ -975,7 +1012,9 @@ local cleuIdentity = "unseen"
 local function FingerprintFor(eventID)
     local d = eventDuration[eventID]
     if type(d) ~= "number" then return nil end
-    return string.format("%.1f", d)
+    -- A duration two abilities take turns on is not one fingerprint but one per turn, or
+    -- marking it would call the tank buster on the ability sharing its bar as well.
+    return eventTurnFp[eventID] or string.format("%.1f", d)
 end
 
 -- Both per-boss sets share one shape: profile.<field>[encounterID][fingerprint] = true.
@@ -4740,7 +4779,8 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             noCalloutNotice[arg1 or 0] = true
             local list = {}
             for fp in pairs(silencedFingerprints) do list[#list + 1] = fp end
-            table.sort(list, function(a, b) return (tonumber(a) or 0) < (tonumber(b) or 0) end)
+            local function dur(fp) return tonumber((fp:gsub("#.*$", ""))) or 0 end
+            table.sort(list, function(a, b) return dur(a) < dur(b) end)
             ns.Print(("|cffff6060no callouts this fight|r. Abilities seen, none marked as "
                 .. "tank busters: %s. If one of those WAS the tank hit, /nutank tank marks "
                 .. "it."):format(table.concat(list, ", ")))

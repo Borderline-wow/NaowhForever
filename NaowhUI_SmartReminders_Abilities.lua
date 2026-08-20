@@ -140,11 +140,13 @@ ns.TANK_FINGERPRINTS = {
     -- Encounter 3456 doubles as the validation row: 8.0 was measured live as the tank hit
     -- and 25.0/13.0/23.0 as non-tank before the extraction existed; it agrees.
     -- Season 2 pool audited encounter by encounter against the community modules AND the
-    -- dungeon journal / Wowhead (2026-08-19). Standing rule from that audit: a duration the
-    -- source module disambiguates only by a cast-count parity or rotation counter can NOT be
-    -- marked -- a stateless fingerprint fires on the wrong ability half the time or worse.
-    -- Dropped for exactly that: 2139's 25.0, 2143's 10.0, 2606's 40.0, 3202's 45.0/50.0,
-    -- 3286's 20.0. Dropped as not tank hits: 2140's 2.0/7.0 (Arc Lightning chains to the
+    -- dungeon journal / Wowhead (2026-08-19). That audit dropped every duration the source
+    -- module disambiguates by a rotation counter, because a stateless fingerprint fires on
+    -- the wrong ability half the time or worse. Those are back as per-turn keys now -- see
+    -- EVENT_CYCLES below -- which is where 2139's 25.0#2, 2143's 10.0#1, 2606's 40.0#2,
+    -- 3212's 45.0#1, 3213's 33.5#1 and 3286's 20.0#2 come from. 3202's 45.0/50.0 and 3201
+    -- stay dropped: both run two rotations off ONE shared counter, so an ability's own
+    -- events do not say which turn it is. Dropped as not tank hits: 2140's 2.0/7.0 (Arc Lightning chains to the
     -- party), 2143's 24.0/30.0 (Gilded Destruction hits all players), 3103's 35.0 (Demonic
     -- Rage is a party-wide enrage), all of 3105 (Summon Vilefiend is an add spawn). 3285/3286
     -- were rebuilt outright: the old rows were stale PTR timings and Cosmic Spike no longer
@@ -159,9 +161,11 @@ ns.TANK_FINGERPRINTS = {
     -- type. That added 3059/3071/3074/3209/3212, all previously blank. Nalorakk's entry
     -- above referred to Forceful Slam, which genuinely has no timeline event; the ability
     -- that does is Overwhelming Onslaught, and nothing was looking for it.
-    -- Only durations that resolve to ONLY the tank ability are marked, so the recurring
-    -- rotation slots stay out: 3209's 25.0 alternates with Echoing Maul, 3074's 22.0/24.0
-    -- cycle three abilities, 3212's 45.0 cycles six. Openers are unambiguous and carry it.
+    -- Only durations that resolve to ONLY the tank ability are marked. 3209's 25.0 stays
+    -- out even though it alternates: a later stage casts Fury of the War God on the same
+    -- 25.0 bar without consulting the counter, so the rotation is not the whole story.
+    -- 3074's 22.0/24.0 stay out because one counter advances on both durations at once.
+    -- 3212's 45.0 does cycle cleanly and is now marked at its tank turn.
     -- Galvazzt stays blank deliberately and is the reason that check tests for an else --
     -- its tank branch picks instructions for a shared mechanic (stay off the line vs soak
     -- the beam), which is not a tank hit. Ula'tek (3492) has a real one, Mother's Wrath,
@@ -193,10 +197,10 @@ ns.TANK_FINGERPRINTS = {
     -- Dark Quasar) in every stage and difficulty, no tank usage anywhere in the module.
     [2124] = { ["15.0"] = true, ["35.0"] = true, ["39.0"] = true },   -- Overload
     [2125] = { ["5.0"] = true },   -- Lightning Bite
-    [2139] = { ["8.0"] = true },   -- Tail Thrash
+    [2139] = { ["8.0"] = true, ["25.0#2"] = true },   -- Tail Thrash
     [2140] = { ["14.0"] = true, ["22.0"] = true },   -- Debilitating Backhand
-    [2143] = { ["8.0"] = true, ["23.0"] = true, ["28.0"] = true, ["36.0"] = true, ["38.0"] = true },   -- Blade Combo, Hunting Leap, Savage Maul
-    [2606] = { ["28.0"] = true },   -- Searing Blows
+    [2143] = { ["8.0"] = true, ["10.0#1"] = true, ["23.0"] = true, ["28.0"] = true, ["36.0"] = true, ["38.0"] = true },   -- Blade Combo, Hunting Leap, Savage Maul
+    [2606] = { ["28.0"] = true, ["40.0#2"] = true },   -- Searing Blows
     [2623] = { ["5.0"] = true, ["22.5"] = true },   -- Stormslam
     [3056] = { ["10.0"] = true, ["13.0"] = true },   -- Searing Beak
     [3057] = { ["17.3"] = true },   -- Bone Hack
@@ -217,11 +221,11 @@ ns.TANK_FINGERPRINTS = {
     [3199] = { ["5.0"] = true },   -- Bedrock Slam
     [3202] = { ["18.0"] = true, ["26.0"] = true },   -- Thornspike
     [3209] = { ["13.0"] = true },   -- Overwhelming Onslaught
-    [3212] = { ["5.0"] = true },   -- Flanking Spear
-    [3213] = { ["3.0"] = true, ["33.5"] = true },   -- Drain Soul
+    [3212] = { ["5.0"] = true, ["45.0#1"] = true },   -- Flanking Spear
+    [3213] = { ["3.0"] = true, ["33.5#1"] = true },   -- Drain Soul
     [3214] = { ["4.0"] = true, ["26.4"] = true },   -- Spiritbreaker
     [3285] = { ["25.0"] = true },   -- Void Blast
-    [3286] = { ["10.0"] = true },   -- Hulking Claw
+    [3286] = { ["10.0"] = true, ["20.0#2"] = true },   -- Hulking Claw
     [3287] = { ["34.0"] = true },   -- Dark Waves
     [3332] = { ["3.0"] = true, ["16.9"] = true },   -- Umbral Lash
     [3333] = { ["2.0"] = true, ["26.0"] = true },   -- Searing Rend
@@ -525,15 +529,15 @@ ns.DAMAGE_NAMES = {
 ns.EVENT_NAMES = {
     [2124] = { ["1.0"] = "Gale Force", ["5.0"] = "Gale Force / Thunder and Lightning", ["9.0"] = "Thunder and Lightning", ["12.0"] = "Tempest Winds", ["15.0"] = "Overload", ["19.0"] = "Gale Force / Overload / Tempest Winds / Thunder and Lightning", ["22.0"] = "Thunder and Lightning", ["25.0"] = "Tempest Winds", ["29.0"] = "Tempest Winds", ["35.0"] = "Overload", ["39.0"] = "Overload", ["45.0"] = "Gale Force / Overload / Tempest Winds / Thunder and Lightning" },
     [2125] = { ["5.0"] = "Lightning Bite", ["13.0"] = "A Knot of Snakes", ["25.0"] = "Thunder Spit", ["36.0"] = "Serpentstorm", ["44.0"] = "Hatch", ["49.0"] = "Burrow" },
-    [2126] = { ["5.0"] = "Lightning Spire", ["20.0"] = "Induction", ["22.0"] = "Induction / Lightning Spire" },
+    [2126] = { ["5.0"] = "Lightning Spire", ["20.0"] = "Induction", ["22.0#1"] = "Lightning Spire", ["22.0#2"] = "Induction" },
     [2127] = { ["15.0"] = "Defiling Taint", ["32.5"] = "Stage One" },
-    [2139] = { ["5.0"] = "Spit Gold", ["8.0"] = "Tail Thrash", ["14.0"] = "Serpentine Gust", ["25.0"] = "Spit Gold / Tail Thrash", ["28.0"] = "Serpentine Gust", ["54.0"] = "Lucre's Call" },
+    [2139] = { ["5.0"] = "Spit Gold", ["8.0"] = "Tail Thrash", ["14.0"] = "Serpentine Gust", ["25.0#1"] = "Spit Gold", ["25.0#2"] = "Tail Thrash", ["28.0"] = "Serpentine Gust", ["54.0"] = "Lucre's Call" },
     [2140] = { ["2.0"] = "Arc Lightning", ["5.0"] = "Barrel Through", ["7.0"] = "Arc Lightning", ["8.0"] = "Whirling Axes", ["10.0"] = "Poison Nova", ["14.0"] = "Debilitating Backhand", ["14.8"] = "Whirling Axes", ["15.0"] = "Severing Axe", ["16.5"] = "Severing Axe", ["20.0"] = "Barrel Through / Call of the Elements", ["22.0"] = "Debilitating Backhand", ["24.0"] = "Poison Nova", ["24.4"] = "Poison Nova", ["25.2"] = "Poison Nova", ["52.5"] = "Call of the Elements" },
     [2142] = { ["5.0"] = "Drain Fluids", ["20.0"] = "Burn Corruption", ["30.0"] = "Awakening Slam / Burn Corruption", ["32.0"] = "Drain Fluids", ["60.0"] = "Entomb" },
-    [2143] = { ["8.0"] = "Hunting Leap", ["9.0"] = "Quaking Leap", ["10.0"] = "Deathly Roar / Hunting Leap", ["14.0"] = "Deathly Roar", ["15.0"] = "Aerial Smash", ["23.0"] = "Blade Combo", ["24.0"] = "Gilded Destruction", ["27.0"] = "Deathly Roar", ["28.0"] = "Hunting Leap", ["30.0"] = "Gilded Destruction", ["36.0"] = "Savage Maul", ["38.0"] = "Blade Combo" },
-    [2606] = { ["8.0"] = "Ritual of Blazebinding", ["19.0"] = "Molten Boulder", ["20.0"] = "Molten Boulder", ["28.0"] = "Searing Blows", ["40.0"] = "Ritual of Blazebinding / Searing Blows" },
-    [2609] = { ["6.0"] = "Hailburst", ["12.0"] = "Frost Overload", ["16.0"] = "Chillstorm", ["27.0"] = "Chillstorm / Hailburst" },
-    [2623] = { ["1.0"] = "Roaring Firebreath", ["5.0"] = "Stormslam", ["9.0"] = "Inferno Spit", ["10.0"] = "Winds of Change", ["12.0"] = "Inferno Spit", ["16.0"] = "Inferno Spit / Roaring Firebreath", ["20.0"] = "Inferno Spit / Roaring Firebreath", ["21.0"] = "Interrupting Cloudburst", ["21.5"] = "Winds of Change", ["22.5"] = "Stormslam", ["25.0"] = "Interrupting Cloudburst" },
+    [2143] = { ["8.0"] = "Hunting Leap", ["9.0"] = "Quaking Leap", ["10.0#1"] = "Hunting Leap", ["10.0#2"] = "Deathly Roar", ["14.0"] = "Deathly Roar", ["15.0"] = "Aerial Smash", ["23.0"] = "Blade Combo", ["24.0"] = "Gilded Destruction", ["27.0"] = "Deathly Roar", ["28.0"] = "Hunting Leap", ["30.0"] = "Gilded Destruction", ["36.0"] = "Savage Maul", ["38.0"] = "Blade Combo" },
+    [2606] = { ["8.0"] = "Ritual of Blazebinding", ["19.0"] = "Molten Boulder", ["20.0"] = "Molten Boulder", ["28.0"] = "Searing Blows", ["40.0#1"] = "Ritual of Blazebinding", ["40.0#2"] = "Searing Blows" },
+    [2609] = { ["5.0"] = "Hailburst", ["12.0"] = "Frost Overload", ["15.0"] = "Chillstorm", ["24.0#1"] = "Hailburst", ["24.0#2"] = "Chillstorm" },
+    [2623] = { ["1.0"] = "Roaring Firebreath", ["5.0"] = "Stormslam", ["9.0"] = "Inferno Spit", ["10.0"] = "Winds of Change", ["12.0"] = "Inferno Spit", ["16.0"] = "Inferno Spit / Roaring Firebreath", ["20.0#1"] = "Roaring Firebreath", ["20.0#2"] = "Inferno Spit", ["21.0"] = "Interrupting Cloudburst", ["21.5"] = "Winds of Change", ["22.5"] = "Stormslam", ["25.0"] = "Interrupting Cloudburst" },
     [3056] = { ["6.0"] = "Flaming Updraft", ["10.0"] = "Searing Beak", ["13.0"] = "Searing Beak", ["15.0"] = "Burning Gale", ["15.5"] = "Flaming Updraft", ["30.0"] = "Burning Gale" },
     [3057] = { ["8.0"] = "Splattering Spew", ["17.3"] = "Bone Hack", ["22.7"] = "Curse of Darkness", ["27.3"] = "Splattering Spew", ["48.0"] = "Debilitating Shriek" },
     [3058] = { ["0.0"] = "3x in a row on stage change / Bladestorm", ["3.0"] = "Rampage", ["8.0"] = "Bladestorm / Get Rename", ["10.0"] = "Reckless Leap", ["18.0"] = "Intimidating Shout", ["30.0"] = "Rampage", ["37.0"] = "Reckless Leap", ["45.0"] = "Intimidating Shout" },
@@ -562,15 +566,15 @@ ns.EVENT_NAMES = {
     [3207] = { ["6.0"] = "Ravenous Bellow", ["16.0"] = "Earthshatter Slam", ["30.0"] = "Spoiled Supplies" },
     [3208] = { ["7.0"] = "Glacial Torment", ["13.0"] = "Raging Squall", ["25.0"] = "Shattering Frostspike", ["50.0"] = "Frozen Tempest" },
     [3209] = { ["5.0"] = "Echoing Maul", ["10.0"] = "Echoing Maul", ["13.0"] = "Overwhelming Onslaught", ["25.0"] = "Echoing Maul / Fury of the War God / Overwhelming Onslaught", ["54.0"] = "Fury of the War God" },
-    [3212] = { ["5.0"] = "Flanking Spear", ["12.0"] = "Infected Pinions", ["20.0"] = "Freezing Trap", ["28.0"] = "Fetid Quillstorm", ["35.0"] = "Barrage", ["41.0"] = "Carrion Swoop", ["45.0"] = "Barrage / Carrion Swoop / Fetid Quillstorm / Flanking Spear / Freezing Trap / Infected Pinions" },
-    [3213] = { ["3.0"] = "Drain Soul", ["14.2"] = "Wrest Phantoms", ["25.3"] = "Unmake", ["33.5"] = "Drain Soul / Unmake / Wrest Phantoms", ["70.0"] = "Necrotic Convergence" },
+    [3212] = { ["5.0"] = "Flanking Spear", ["12.0"] = "Infected Pinions", ["20.0"] = "Freezing Trap", ["28.0"] = "Fetid Quillstorm", ["35.0"] = "Barrage", ["41.0"] = "Carrion Swoop", ["45.0#1"] = "Flanking Spear", ["45.0#2"] = "Infected Pinions", ["45.0#3"] = "Freezing Trap", ["45.0#4"] = "Fetid Quillstorm", ["45.0#5"] = "Barrage", ["45.0#6"] = "Carrion Swoop" },
+    [3213] = { ["3.0"] = "Drain Soul", ["14.2"] = "Wrest Phantoms", ["25.3"] = "Unmake", ["33.5#1"] = "Drain Soul", ["33.5#2"] = "Wrest Phantoms", ["33.5#3"] = "Unmake", ["70.0"] = "Necrotic Convergence" },
     [3214] = { ["4.0"] = "Spiritbreaker", ["17.2"] = "Crush Souls", ["26.4"] = "Crush Souls / Spiritbreaker", ["70.0"] = "Soulrending Roar" },
     [3285] = { ["6.0"] = "Nether Dash", ["16.0"] = "Umbral Rupture", ["25.0"] = "Void Blast", ["31.0"] = "Dark Bloom" },
-    [3286] = { ["5.0"] = "Poison Splash", ["10.0"] = "Hulking Claw", ["15.0"] = "Noxious Breath", ["20.0"] = "Hulking Claw / Poison Splash", ["30.0"] = "Noxious Breath", ["35.0"] = "Monstrous Roar" },
+    [3286] = { ["5.0"] = "Poison Splash", ["10.0"] = "Hulking Claw", ["15.0"] = "Noxious Breath", ["20.0#1"] = "Poison Splash", ["20.0#2"] = "Hulking Claw", ["30.0"] = "Noxious Breath", ["35.0"] = "Monstrous Roar" },
     [3287] = { ["5.0"] = "Unstable Singularity", ["17.0"] = "Cosmic Crash", ["19.0"] = "Cosmic Crash", ["28.0"] = "Gravitic Orbs", ["34.0"] = "Dark Waves", ["36.0"] = "Gravitic Orbs", ["40.0"] = "Unstable Singularity", ["43.0"] = "Void Cascade", ["44.0"] = "Gravitic Orbs", ["44.8"] = "Cosmic Crash" },
     [3306] = { ["1.0"] = "Ravenous Dive", ["2.0"] = "Corrupted Devastation / Easy and Heroic, when a breath gets restarted it's created with a new ID", ["3.0"] = "Caustic Phlegm", ["6.0"] = "Rift Emergence", ["7.0"] = "Rift Emergence", ["8.0"] = "Corrupted Devastation", ["9.0"] = "Caustic Phlegm", ["14.0"] = "Alndust Upheaval / Corrupted Devastation", ["16.0"] = "Alndust Upheaval", ["18.0"] = "Caustic Phlegm", ["20.0"] = "Ravenous Dive", ["22.0"] = "Caustic Phlegm", ["23.0"] = "Consuming Miasma", ["24.0"] = "Caustic Phlegm", ["26.0"] = "Caustic Phlegm", ["29.0"] = "Caustic Phlegm / Consuming Miasma", ["30.0"] = "Ravenous Dive", ["32.0"] = "Consuming Miasma", ["35.0"] = "Consuming Miasma", ["36.0"] = "Rending Tear", ["37.0"] = "Consuming Miasma", ["39.0"] = "Rift Madness", ["40.0"] = "Rending Tear", ["48.0"] = "Caustic Phlegm", ["50.0"] = "Consuming Miasma", ["51.0"] = "Consuming Miasma", ["53.0"] = "Caustic Phlegm", ["65.0"] = "Consume", ["72.0"] = "Consume", ["75.0"] = "Rift Emergence", ["81.0"] = "Alndust Upheaval", ["82.0"] = "Rift Emergence", ["148.0"] = "Stage 2", ["151.0"] = "Stage 2", ["165.0"] = "Stage 2", ["510.0"] = "Rift Cataclysm", ["720.0"] = "Rift Cataclysm" },
     [3328] = { ["1.0"] = "Leyline Array", ["5.0"] = "Reflux Charge", ["10.0"] = "Flux Collapse", ["11.0"] = "Leyline Array", ["12.0"] = "Reflux Charge", ["13.0"] = "Flux Collapse", ["38.0"] = "Corespark Detonation" },
-    [3332] = { ["3.0"] = "Umbral Lash", ["5.0"] = "Eclipsing Step", ["15.0"] = "Devour the Unworthy / Null Vanguard", ["16.9"] = "Umbral Lash", ["18.0"] = "Eclipsing Step", ["28.0"] = "Lightscar Flare", ["61.0"] = "Lightscar Flare / Null Vanguard" },
+    [3332] = { ["3.0"] = "Umbral Lash", ["5.0"] = "Eclipsing Step", ["15.0"] = "Devour the Unworthy / Null Vanguard", ["16.9"] = "Umbral Lash", ["18.0"] = "Eclipsing Step", ["28.0"] = "Lightscar Flare", ["61.0#1"] = "Null Vanguard", ["61.0#2"] = "Lightscar Flare" },
     [3333] = { ["2.0"] = "Searing Rend", ["10.0"] = "Flicker", ["11.0"] = "Brilliant Dispersion", ["24.0"] = "Flicker", ["25.0"] = "Brilliant Dispersion", ["26.0"] = "Searing Rend", ["52.0"] = "Divine Guile" },
     [3379] = { ["3.0"] = "Frost Barrage", ["9.0"] = "Abyssal Rain", ["13.0"] = "Water Flurry", ["17.0"] = "Water Jet", ["20.0"] = "Frost Barrage", ["24.0"] = "Frost Barrage", ["27.0"] = "Alluring Bubble", ["29.0"] = "Water Jet", ["30.0"] = "Water Flurry", ["31.0"] = "Frost Barrage", ["33.0"] = "Frost Barrage", ["40.0"] = "Water Jet", ["46.0"] = "Frost Barrage", ["49.0"] = "Water Flurry", ["51.0"] = "Frost Barrage", ["64.0"] = "Tidepiercer's Rush", ["68.0"] = "Tidepiercer's Rush" },
     [3420] = { ["5.0"] = "Apex Predator", ["6.0"] = "Apex Predator", ["29.0"] = "Venomous Surge", ["32.0"] = "Venomous Surge", ["36.0"] = "Venomous Surge", ["39.0"] = "Raging Crosswinds", ["43.0"] = "Raging Crosswinds", ["49.0"] = "Raging Crosswinds", ["100.0"] = "Howling Maelstrom", ["111.0"] = "Howling Maelstrom", ["125.0"] = "Howling Maelstrom" },
@@ -579,8 +583,44 @@ ns.EVENT_NAMES = {
     [3445] = { ["4.0"] = "Empowering Slam", ["6.0"] = "Bloodvenom Injection", ["8.0"] = "Venom Coagulation", ["10.0"] = "Venom Coagulation", ["12.0"] = "Toxic Droplets", ["16.0"] = "Unstable Miasma", ["20.0"] = "Shifting Protovenom", ["22.0"] = "Empowering Slam", ["32.0"] = "Toxic Droplets", ["40.0"] = "Blighted Blood", ["41.0"] = "Unstable Miasma", ["52.0"] = "Blighted Blood" },
     [3455] = { ["6.0"] = "Malignant Catalyst", ["8.0"] = "Dripping Fangs", ["10.0"] = "Plague Froth", ["11.0"] = "Dripping Fangs", ["16.0"] = "Plague Froth", ["20.0"] = "Imbibe", ["21.0"] = "Plague Froth", ["22.0"] = "Dripping Fangs", ["23.0"] = "Adaptive Infection", ["24.0"] = "Adaptive Infection", ["31.0"] = "Plague Froth", ["44.0"] = "Malignant Catalyst", ["80.0"] = "Imbibe" },
     [3456] = { ["8.0"] = "Triple Shot", ["13.0"] = "Regurgitate", ["23.0"] = "Ravenous Stomp", ["24.0"] = "Triple Shot", ["25.0"] = "Ssscavenging", ["45.0"] = "Ssscavenging" },
-    [3457] = { ["1.0"] = "Synchronized Venom", ["7.0"] = "Tail Scythe", ["10.0"] = "Synchronized Venom / Toxic Atrophy", ["14.0"] = "Preparing Toxin", ["16.0"] = "Tail Scythe", ["23.0"] = "Preparing Toxin", ["25.0"] = "Assimilation", ["30.0"] = "Vindictive Onslaught", ["39.0"] = "Vindictive Onslaught", ["44.0"] = "Death Rattle", ["53.0"] = "Death Rattle" },
-    [3458] = { ["14.0"] = "Axegrinder / Boneslicer", ["26.0"] = "Chop Down", ["30.0"] = "Chop Down", ["32.0"] = "Boneslicer", ["64.0"] = "Ritual of the Fang" },
+    [3457] = { ["1.0"] = "Synchronized Venom", ["7.0"] = "Tail Scythe", ["10.0#1"] = "Toxic Atrophy", ["10.0#2"] = "Synchronized Venom", ["14.0"] = "Preparing Toxin", ["16.0"] = "Tail Scythe", ["23.0"] = "Preparing Toxin", ["25.0"] = "Assimilation", ["30.0"] = "Vindictive Onslaught", ["39.0"] = "Vindictive Onslaught", ["44.0"] = "Death Rattle", ["53.0"] = "Death Rattle" },
+    [3458] = { ["14.0#1"] = "Axegrinder", ["14.0#2"] = "Boneslicer", ["26.0"] = "Chop Down", ["30.0"] = "Chop Down", ["32.0"] = "Boneslicer", ["64.0"] = "Ritual of the Fang" },
     [3470] = { ["6.0"] = "Invoke", ["8.0"] = "Invoke", ["11.0"] = "Hungering Pyre", ["15.0"] = "Essence Rend", ["16.0"] = "Hungering Pyre", ["20.0"] = "Restless Amani", ["28.0"] = "Possession Barrage", ["30.0"] = "Restless Amani", ["36.0"] = "Possession Barrage", ["40.0"] = "Possession Barrage", ["48.0"] = "Invoke", ["50.0"] = "Essence Rend / Invoke" },
     [3497] = { ["2.0"] = "Icebound Flames", ["3.0"] = "Mighty Thud / Mushroom Toss", ["4.0"] = "Throw Junk", ["5.0"] = "Icebound Flames", ["6.0"] = "Throw Junk", ["7.0"] = "Throw Junk", ["8.0"] = "Frostfire Volley", ["10.0"] = "Blink Nova", ["11.0"] = "Icebound Flames / Shell Spin / Throw Junk", ["13.0"] = "Explosive Surprise / Icebound Flames", ["15.0"] = "Shell Spin", ["16.0"] = "Icebound Flames / Shell Spin", ["17.0"] = "Shell Spin", ["18.0"] = "Shell Spin", ["20.0"] = "Throw Junk", ["21.0"] = "Blink Nova", ["22.0"] = "Icebound Flames", ["23.0"] = "Throw Junk", ["27.0"] = "Frostfire Volley / Throw Junk", ["28.0"] = "Fling Fish", ["30.0"] = "Shredding Shards", ["31.0"] = "Icebound Flames", ["32.0"] = "Mighty Thud / Mushroom Toss", ["60.0"] = "Final Ascension" },
+}
+
+-------------------------------------------------------------------------------
+--  Durations two or more abilities take turns on, per encounter.
+--
+--  A duration is normally one ability, which is what makes it a fingerprint at
+--  all. Some bosses reuse one: Kokia's 40 second bar is the add summon on odd
+--  casts and the tank buster on even ones. Community research disambiguates
+--  those with a rotation counter, and this table carries the same answer -- the
+--  ability at each turn, in the order the turns come round.
+--
+--  The runtime counts that duration's own timeline events since the pull and
+--  keys the marked/muted tables by "<duration>#<turn>", so a turn is markable
+--  on its own. Without this a player could only mark the whole duration, which
+--  fires on every ability sharing it -- reported on Kokia as the tank callout
+--  going off on the add as well, while the plain 28 second Searing Blows bar
+--  stayed silent because half of that ability lives on the 40 second slot.
+--
+--  Only counters the source module advances on ONE duration are carried.
+--  Ziekket and Lightwarden Ruia drive two rotations off a single shared
+--  counter, so counting one duration's own events would name the wrong turn,
+--  and both stay ambiguous on purpose.
+-------------------------------------------------------------------------------
+ns.EVENT_CYCLES = {
+    [2126] = { ["22.0"] = { "Lightning Spire", "Induction" } },
+    [2139] = { ["25.0"] = { "Spit Gold", "Tail Thrash" } },
+    [2143] = { ["10.0"] = { "Hunting Leap", "Deathly Roar" } },
+    [2606] = { ["40.0"] = { "Ritual of Blazebinding", "Searing Blows" } },
+    [2609] = { ["24.0"] = { "Hailburst", "Chillstorm" } },
+    [2623] = { ["20.0"] = { "Roaring Firebreath", "Inferno Spit" } },
+    [3212] = { ["45.0"] = { "Flanking Spear", "Infected Pinions", "Freezing Trap", "Fetid Quillstorm", "Barrage", "Carrion Swoop" } },
+    [3213] = { ["33.5"] = { "Drain Soul", "Wrest Phantoms", "Unmake" } },
+    [3286] = { ["20.0"] = { "Poison Splash", "Hulking Claw" } },
+    [3332] = { ["61.0"] = { "Null Vanguard", "Lightscar Flare" } },
+    [3457] = { ["10.0"] = { "Toxic Atrophy", "Synchronized Venom" } },
+    [3458] = { ["14.0"] = { "Axegrinder", "Boneslicer" } },
 }
