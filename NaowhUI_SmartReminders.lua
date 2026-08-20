@@ -1571,6 +1571,14 @@ local function Announce(spellID, text)
     Speak(text)
 end
 
+-- A second timeline event landing while the first is still on screen and picking the
+-- SAME defensive says nothing new -- the player was already told to press it. Multi-unit
+-- fights (several adds each telegraphing the same tank buster a couple seconds apart) hit
+-- this constantly. A DIFFERENT pick still announces normally: that genuinely is new
+-- information (the first choice went on cooldown, say). Window matches the alert's own
+-- 5-second display, so this only suppresses a repeat of what is still visibly up.
+local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
+
 local function SpeakCallout()
     local t = TRDB()
     if not t.voiceOn or activeSlots == 0 then return end
@@ -1647,6 +1655,10 @@ local function SpeakCallout()
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
         if not ns.IsAudioOff(picked) then
+            if picked == lastAnnouncedSpellID and (now - lastAnnouncedAt) < 5 then
+                return
+            end
+            lastAnnouncedSpellID, lastAnnouncedAt = picked, now
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
             Announce(picked, CalloutFor(picked, info and info.name))
         end
@@ -4386,6 +4398,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         -- different ability entirely on the next pull.
         WipeEventCache()
         if event == "ENCOUNTER_END" then wipe(readyAt) end
+        lastAnnouncedSpellID = nil
         RebuildSlots()          -- swap to this boss's list before the first ability lands
         RebuildCastMap()
         UpdateEventRegistration()   -- this boss may be switched off entirely
