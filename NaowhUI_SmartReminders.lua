@@ -1391,11 +1391,14 @@ function EnsureChargeState(sid)
 
     local st = chargeState[sid]
     if not st or st.max ~= max then
-        local baseMs = GetSpellBaseCooldown and GetSpellBaseCooldown(sid)
-        -- A measured recharge beats the base number for exactly the reasons the cooldown
-        -- model stopped trusting it, and it matters more here: the count climbs back up
-        -- off this figure, so a recharge that is too SHORT hands back a charge the player
-        -- does not have and calls a defensive that is still down.
+        -- MEASURED: GetSpellBaseCooldown reports 8 seconds for Guardian of Ancient Kings,
+        -- whose real cooldown is five minutes. Used as a recharge rate that regenerates a
+        -- charge every 8 seconds, so spending both charges put the model back at full
+        -- inside twenty seconds and it called the spell for the rest of the pull. The
+        -- number is not merely imprecise here, it is wrong by a factor of forty, and it is
+        -- the ONLY input that can invent a charge the player does not have. So it is not
+        -- used for charge spells at all: either the recharge has been measured from a
+        -- readable cooldown, or there is no climb.
         local t = TRDB()
         local learned = type(t.learned) == "table" and t.learned[tostring(sid)] or nil
         st = {
@@ -1412,13 +1415,13 @@ function EnsureChargeState(sid)
             -- own, so an undercount here costs a few seconds of silence instead of a false
             -- callout for a defensive still on cooldown.
             max = max, count = active and 0 or max, tick = GetTime(),
-            -- On a charge spell the cooldown IS the time to regain one charge. Measured
-            -- first, base only as the fallback, and 0 when neither is available -- which
-            -- stops the climb entirely rather than guessing a rate, so an unknown recharge
-            -- holds the count where it is instead of inventing charges.
-            recharge = learned
-                or ((type(baseMs) == "number" and baseMs > 0) and (baseMs / 1000))
-                or 0,
+            -- Zero means no climb at all, which is a complete answer rather than a
+            -- degraded one: the count still falls on every witnessed cast, and
+            -- ChargesAvailable still snaps it back to full the moment isActive reports
+            -- nothing recharging. What is lost is only the middle of the stack -- holding
+            -- 1 of 2 reads as 0 until the last charge lands -- and that is silence about a
+            -- spell that is up, never a call for one that is down.
+            recharge = learned or 0,
         }
         chargeState[sid] = st
     end
@@ -1441,6 +1444,15 @@ function ChargesAvailable(sid)
             st.count = math.min(st.max, st.count + gained)
             st.tick  = st.tick + gained * st.recharge
         end
+    end
+
+    -- isActive is plain and exact, and it was only ever read in the one direction above.
+    -- Read the other way it is a hard ceiling: something is recharging, so the stack CANNOT
+    -- be full, whatever the model believes. Catches an over-count from any source -- a
+    -- missed cast, a stale learned recharge, a talent swap mid-fight -- not just the base
+    -- cooldown that produced this one.
+    if active and st.count >= st.max then
+        st.count = st.max - 1
     end
     return st.count
 end
@@ -1771,7 +1783,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820d"
+local TRACE_BUILD = "0820e"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1917,11 +1929,12 @@ local function TraceEvent(eventID)
       end)
 
       -- HasSecretValues is flagged ReturnsNeverSecret, so unlike IsZero it answers even
-      -- while cooldowns are sealed. Under test: if it reads false exactly when a spell is
-      -- off cooldown, it is a legal readiness signal and the voice could stop dead
-      -- reckoning in restricted content, which is what makes it disagree with the icon.
-      -- Printed next to the model's belief so the two can be compared against what the
-      -- spell was actually doing.
+      -- while cooldowns are sealed. It was worth testing as a readiness signal that would
+      -- let the voice stop dead reckoning. REFUTED on a live pull (Ra'vi, 2026-08-20): it
+      -- read true for all three slots at once, including one the model had as ready and
+      -- one mid-cooldown, so it reports only that the object CAN carry secret state, not
+      -- whether a cooldown is running. Kept in the readout because it is free and confirms
+      -- the sealing, but nothing may branch on it.
       local secretVals = Safe(function()
           local dur = C_Spell.GetSpellCooldownDuration(slotID, true)
           if not dur or not dur.HasSecretValues then return "n/a" end
