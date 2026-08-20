@@ -1320,6 +1320,12 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
                     and C_Spell.GetSpellInfo(trig.spellID)
                 trigDesc = (trig.type == "bwtimer" and "Timer: " or "Message: ")
                     .. ((info and info.name) or tostring(trig.spellID))
+            elseif trig and trig.type == "aura" then
+                local info = C_Spell and C_Spell.GetSpellInfo
+                    and C_Spell.GetSpellInfo(trig.spellID)
+                trigDesc = (trig.auraEvent == "removed" and "Aura Removed: " or "Aura Applied: ")
+                    .. ((info and info.name) or tostring(trig.spellID))
+                    .. (trig.target == "player" and " (You)" or " (Boss)")
             elseif trig and trig.type == "spell" then
                 local info = C_Spell and C_Spell.GetSpellInfo
                     and C_Spell.GetSpellInfo(trig.spellID)
@@ -1369,8 +1375,9 @@ end
 -------------------------------------------------------------------------------
 --  Custom reminder editor: name, message, trigger, linger
 -------------------------------------------------------------------------------
-local TRIGGER_CHOICES = { pull = "Boss Pull", bwmsg = "BigWigs/DBM Message", bwtimer = "BigWigs/DBM Timer" }
-local TRIGGER_ORDER = { "pull", "bwmsg", "bwtimer" }
+local TRIGGER_CHOICES = { pull = "Boss Pull", bwmsg = "BigWigs/DBM Message",
+    bwtimer = "BigWigs/DBM Timer", aura = "Aura Applied" }
+local TRIGGER_ORDER = { "pull", "bwmsg", "bwtimer", "aura" }
 
 local SHOW_IN_TIP = "Blank fires immediately. A number is seconds; minute format works "
     .. "too (1:30.5 = 90.5 seconds). Separate several with a comma to fire more than once."
@@ -1502,6 +1509,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     -- re-editing it is a starting point rather than a dead end.
     local trigVal
     if trig.type == "bwtimer" then trigVal = "bwtimer"
+    elseif trig.type == "aura" then trigVal = "aura"
     elseif trig.type == "bwmsg" or trig.type == "spell" then trigVal = "bwmsg"
     else trigVal = "pull" end
 
@@ -1510,6 +1518,10 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         or (type(trig.counter) == "number" and tostring(trig.counter)) or ""
     local timeleftText = (trig.timeleft and tostring(trig.timeleft)) or ""
     local delayText = (type(trig.delay) == "string" and trig.delay) or ""
+    -- Dropdown values, not text -- their widgets write straight into these on selection,
+    -- so unlike the *Text fields there is no separate save-back step before a rebuild.
+    local targetVal = (trig.target == "player") and "player" or "boss"
+    local auraEventVal = (trig.auraEvent == "removed") and "removed" or "applied"
 
     -- The dynamic block below the Trigger dropdown -- which fields it holds depends on
     -- trigVal, so it is torn down and rebuilt on every change rather than show/hidden in
@@ -1582,6 +1594,22 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
             delayBox = DBox(60)
             delayBox:SetText(delayText)
         else
+            if trigVal == "aura" then
+                local _, rowHA = W:DualRow(dynFrame, dy,
+                    { type = "dropdown", text = "Target",
+                      values = { boss = "Boss", player = "You" }, order = { "boss", "player" },
+                      tooltip = "Which unit the aura has to land on.",
+                      getValue = function() return targetVal end,
+                      setValue = function(v) targetVal = v end },
+                    { type = "dropdown", text = "When",
+                      values = { applied = "Applied", removed = "Removed" },
+                      order = { "applied", "removed" },
+                      tooltip = "Fire when the aura lands, or when it falls off.",
+                      getValue = function() return auraEventVal end,
+                      setValue = function(v) auraEventVal = v end }
+                ); dy = dy - rowHA
+            end
+
             DLabel("Spell ID")
             spellBox = DBox(9, true, 80)
             spellBox:SetText(spellIDText)
@@ -1599,11 +1627,15 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
                 local sid, info = ns.ResolveSpell(spellBox:GetText())
                 if sid then
                     feedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
-                elseif spellBox:GetText() ~= "" then
+                elseif spellBox:GetText() == "" then
+                    feedback:SetText("")
+                elseif trigVal == "aura" then
+                    -- An aura id is a real spell, unlike a BigWigs/DBM message key, which
+                    -- can be an arbitrary number with no matching spell at all.
+                    feedback:SetText("|cffff6060not a spell ID|r")
+                else
                     feedback:SetText("|cff8a99b5no spell name found -- boss-mod keys "
                         .. "aren't always real spell ids, that's fine|r")
-                else
-                    feedback:SetText("")
                 end
             end
             spellBox:SetScript("OnTextChanged", Sync)
@@ -1650,6 +1682,9 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         if trigVal == "bwtimer" then
             newTrig.timeleft = tonumber(timeleftText)
             if not newTrig.timeleft then return nil end
+        elseif trigVal == "aura" then
+            newTrig.target = targetVal
+            newTrig.auraEvent = auraEventVal
         end
         return newTrig
     end

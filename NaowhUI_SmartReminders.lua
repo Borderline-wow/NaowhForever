@@ -2461,6 +2461,41 @@ local function CheckBossModTimerStart(mod, key, barIdentity, duration, text)
     if matched and not bwActiveMod then bwActiveMod = mod end
 end
 
+-- kind: "applied" | "removed". destGUID identifies whether the affected unit is a boss --
+-- cross-referenced against boss1-boss5, the same way OnBossCast already identifies a boss
+-- unit, rather than a destFlags hostile-NPC check that would also catch trash adds -- or
+-- the player. Reads directly off the combat log rather than through BigWigs/DBM, since
+-- SPELL_AURA_APPLIED/REMOVED fire for every aura on every unit regardless of whether any
+-- boss module's author chose to announce it, giving this broader coverage than a message
+-- trigger ever could for something as generic as "an aura landed."
+local function CheckAuraReminder(kind, destGUID, spellID)
+    if not (hasCustomReminders and CustomRemindersAllowed()) then return end
+    if type(spellID) ~= "number" or type(destGUID) ~= "string" then return end
+    local isPlayer = destGUID == UnitGUID("player")
+    local isBoss = false
+    if not isPlayer then
+        for i = 1, 5 do
+            if destGUID == UnitGUID("boss" .. i) then isBoss = true; break end
+        end
+    end
+    if not (isPlayer or isBoss) then return end
+    local set = CustomRemindersTable(false, currentEncounter)
+    if not set then return end
+    for uid, r in pairs(set) do
+        local trig = r.trigger
+        if r.enabled ~= false and trig and trig.type == "aura" and trig.spellID == spellID
+           and (trig.auraEvent or "applied") == kind
+           and (trig.target == "player") == isPlayer then
+            local hit = true
+            if trig.counter and trig.counter ~= "" then
+                customCounters[uid] = (customCounters[uid] or 0) + 1
+                hit = CheckCounterCondition(ParseCounterCondition(trig.counter), customCounters[uid])
+            end
+            if hit then ActivateCustomReminder(r) end
+        end
+    end
+end
+
 -- Both dispatchers below register with a plain function, so the message name arrives as
 -- the FIRST argument -- confirmed against BigWigs' and DBM's own dispatch code, not
 -- assumed. issecretvalue guards the payload before anything touches it, the same rule
@@ -2582,8 +2617,8 @@ local function OnCombatLog()
     -- ride the same registration under their own gate (hasCustomReminders), independent of
     -- runActive: a defensive priority list is not a prerequisite for a boss-pull reminder.
     if currentEncounter == nil or not (runActive or hasCustomReminders) then return end
-    local _, sub, _, _, _, _, _, _, _, _, _, spellId = CombatLogGetCurrentEventInfo()
-    if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId)) then
+    local _, sub, _, _, _, _, _, destGUID, _, _, _, spellId = CombatLogGetCurrentEventInfo()
+    if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)) then
         cleuIdentity = "secret"
         return
     end
@@ -2593,6 +2628,9 @@ local function OnCombatLog()
             CheckCustomReminders("cast", spellId)
         elseif sub == "SPELL_AURA_APPLIED" then
             CheckCustomReminders("aura", spellId)
+            CheckAuraReminder("applied", destGUID, spellId)
+        elseif sub == "SPELL_AURA_REMOVED" then
+            CheckAuraReminder("removed", destGUID, spellId)
         end
     end
 
