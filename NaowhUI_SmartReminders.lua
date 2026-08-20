@@ -1395,10 +1395,15 @@ function EnsureChargeState(sid)
             -- directly -- but isActive (a charge recharging right now) is plain, and it was
             -- being discarded here. Assuming a full stack regardless was the bug: a spell
             -- already on cooldown before this pull, or before the addon got a chance to see
-            -- it, kept reading as fully charged for the rest of the session. isActive can
-            -- only say "at least one charge missing," not how many, but for the 2-charge
-            -- defensives this list actually carries that is the whole answer.
-            max = max, count = active and (max - 1) or max, tick = GetTime(),
+            -- it, kept reading as fully charged for the rest of the session.
+            --
+            -- isActive only says "at least one charge missing," never how many. Guessing
+            -- max-1 was tried and is still wrong whenever more than one is actually missing
+            -- -- still a false ready, just a smaller one. Zero is the only guess with no way
+            -- to be an overcount: the recharge math below counts back up from there on its
+            -- own, so an undercount here costs a few seconds of silence instead of a false
+            -- callout for a defensive still on cooldown.
+            max = max, count = active and 0 or max, tick = GetTime(),
             -- Static data, readable when live state is not. On a charge spell the base
             -- cooldown IS the time to regain one charge.
             recharge = (type(baseMs) == "number" and baseMs > 0) and (baseMs / 1000) or 0,
@@ -1700,7 +1705,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0818l"
+local TRACE_BUILD = "0820a"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1852,7 +1857,12 @@ local function TraceEvent(eventID)
           local charges = ChargesAvailable(slotID)
           if charges then
               local st = chargeState[slotID]
-              return string.format("%d/%s charges", charges, tostring(st and st.max or "?"))
+              -- recharge=0.0s means GetSpellBaseCooldown reported nothing usable for this
+              -- spell, same as Divine Shield originally did -- the count cannot climb back
+              -- up on its own until a real cast is witnessed, only KNOWN_BASE_COOLDOWN or a
+              -- confirmed full recharge fixes that.
+              return string.format("%d/%s charges (recharge=%.1fs)",
+                  charges, tostring(st and st.max or "?"), st and st.recharge or 0)
           end
           return string.format("%.1fs", math.max(0, (readyAt[slotID] or 0) - now))
       end)
@@ -1863,15 +1873,25 @@ local function TraceEvent(eventID)
           return v or "no"
       end)
 
+      -- Static data, always readable regardless of sealing. A non-charge spell whose base
+      -- cooldown reads 0 or nil here falls through NoteOwnCast to KNOWN_BASE_COOLDOWN, or
+      -- failing that the 30s UNKNOWN_COOLDOWN placeholder -- which is nowhere close to a
+      -- multi-minute defensive's real cooldown and is the leading suspect for a defensive
+      -- reading ready long before it actually is.
+      local baseCD = Safe(function()
+          local ms = GetSpellBaseCooldown and GetSpellBaseCooldown(slotID)
+          return (type(ms) == "number") and (ms / 1000) or 0
+      end, "%.1fs")
+
       local alpha = Safe(function() return slots[i]:GetAlpha() end, "%.2f")
       local iconShown = Safe(function()
           return slots[i].icon and slots[i].icon:IsShown()
       end)
       local audio = ns.IsAudioOff(slotID) and "audioOFF" or "audioOn"
 
-      ns.Print(("  %d. %s (%s) readable=%s cd=%s model=%s learned=%s alpha=%s icon=%s %s")
+      ns.Print(("  %d. %s (%s) readable=%s cd=%s model=%s learned=%s basecd=%s alpha=%s icon=%s %s")
           :format(i, (slotInfo and slotInfo.name) or "?", tostring(slotID),
-                  readable, durState, model, learned, alpha, iconShown, audio))
+                  readable, durState, model, learned, baseCD, alpha, iconShown, audio))
     end
 end
 
