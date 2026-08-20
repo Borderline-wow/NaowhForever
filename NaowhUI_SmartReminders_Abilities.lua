@@ -167,6 +167,20 @@ ns.TANK_FINGERPRINTS = {
     -- the beam), which is not a tank hit. Ula'tek (3492) has a real one, Mother's Wrath,
     -- but the module keys it to Blizzard event ids rather than bar durations, so there is
     -- nothing to fingerprint until it is authored in game.
+    --
+    -- Same pass then swept the WHOLE season 2 pool, every dungeon and the raid, rather
+    -- than only the bosses some module already flagged: 60 encounters, 44 marked, 16 blank
+    -- and each blank confirmed against every source before being left that way. The blanks
+    -- divide into three kinds. No tank ability exists at all in any module: Melidrussa,
+    -- Gemellus, Kystia, Lithiel, Averzian, Ikuzz, Ruia, Hoardmonger, Sentinel of Winter,
+    -- Chimaerus, Kasreth. The ability exists but never produces a timeline event, so there
+    -- is no duration to key on: Avatar of Sethraliss' Heart Attack, which the community
+    -- modules do flag. And one where marking it would be WRONG rather than merely missing:
+    -- Nekzali's Possession Barrage carries a tank icon, but the module's tank response is
+    -- run and taunt-swap, not a defensive, so calling a cooldown there is bad advice.
+    -- Mchimba's Burn Corruption and Seranel's Hastening Ward carry a tank icon on a bar
+    -- and nothing else -- no tank-scoped warning in any module -- so a bar decoration is
+    -- not treated as a classification on its own.
     -- 3178 (Vaelgor & Ezzorak) was narrowed by hand from 18 marked durations to the 9 that
     -- resolve to ONLY a tank ability anywhere in the module (Grappling Maw, Nullbeam,
     -- Rakfang, Vaelwing); the other 9 each collided with a non-tank ability (Dread Breath,
