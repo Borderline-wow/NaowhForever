@@ -1856,7 +1856,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820l"
+local TRACE_BUILD = "0820m"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -3598,6 +3598,44 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    -- "It called for an external while I had cooldowns up" is the report this answers, and
+    -- it needs no boss and no armed trace: it prints what the pick would decide right now,
+    -- for every slot, from the same SpellReady the voice uses. If a spell reads ready here
+    -- and the fight still called for an external, the pick is not the problem -- the list
+    -- is, and the last line says whether the fallback would fire.
+    if arg == "cds" then
+        RefreshSpec()
+        ns.Apply()
+        if activeSlots == 0 then
+            ns.Print("nothing on your priority list is talented, so there is nothing to read. "
+                .. "Add defensives in Smart Reminders, or check you are on the right spec.")
+            return
+        end
+        ResyncModel()
+        local now, anyReady = GetTime(), false
+        ns.Print(("|cffF0A830cooldowns|r (build %s), in priority order:"):format(TRACE_BUILD))
+        for i = 1, activeSlots do
+            local sid = slots[i].spellID
+            local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+            local ok, ready = pcall(SpellReady, sid, now)
+            if ok and ready then anyReady = true end
+            local st = chargeState[sid]
+            local detail = st
+                and ("%d/%d charges"):format(ChargesAvailable(sid) or 0, st.max)
+                or (CooldownRunning(sid) == nil and "cooldown unreadable, using the estimate"
+                    or "cooldown read directly")
+            ns.Print(("  %d. %s -- %s (%s)"):format(i, (info and info.name) or tostring(sid),
+                ok and (ready and "|cff6DD09AREADY|r" or "|cffff6060on cooldown|r")
+                    or "|cffff6060read failed|r", detail))
+        end
+        if anyReady then
+            ns.Print("  at least one is up, so a callout now would name it, not an external.")
+        else
+            ns.Print("  nothing is up, so a callout now WOULD say " .. tostring(TRDB().voiceNone) .. ".")
+        end
+        return
+    end
+
     if arg == "test" then
         if not TRDB().enabled then
             ns.Print("switch the reminder on first.")
@@ -3672,7 +3710,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
         tostring(canSelect and true or false), tostring(canGate and true or false),
         tostring(canBar and true or false), tostring(canSound and true or false)))
-    ns.Print("usage: /nutank trace | learn | tank | untank | marked | export | mute | unmute | muted | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank cds | trace | learn | tank | untank | marked | export | mute | unmute | muted | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
