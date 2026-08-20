@@ -1343,23 +1343,37 @@ local readyAt = {}          -- [list spellID] = GetTime() at which it is back up
 -- then a free correction back to full.
 local chargeState = {}
 
+-- Third return is whether the read is trustworthy at all -- false means the API call or
+-- the field read itself failed (missing API, a thrown pcall), as opposed to a valid read
+-- that CONFIRMS max < 2. The distinction matters to the caller: a spell that genuinely
+-- lost its second charge (a talent swap) should wipe the tracked count, but a spell that
+-- simply could not be read THIS one time must not -- see EnsureChargeState.
 local function ReadChargeShape(sid)
-    if not (C_Spell and C_Spell.GetSpellCharges) then return nil end
+    if not (C_Spell and C_Spell.GetSpellCharges) then return nil, nil, false end
 
     local ok, info = pcall(C_Spell.GetSpellCharges, sid)
-    if not ok or type(info) ~= "table" then return nil end
+    if not ok or type(info) ~= "table" then return nil, nil, false end
 
     -- The two plain fields are read behind their own pcall. The rest of this struct is
     -- secret in restricted content and a wrong field raises rather than returning nil.
     local got, max, active = pcall(function() return info.maxCharges, info.isActive end)
-    if not got or type(max) ~= "number" or max < 2 then return nil end
+    if not got then return nil, nil, false end
+    if type(max) ~= "number" or max < 2 then return nil, nil, true end
 
-    return max, active == true
+    return max, active == true, true
 end
 
 function EnsureChargeState(sid)
-    local max = ReadChargeShape(sid)
+    local max, _, ok = ReadChargeShape(sid)
+    if not ok then
+        -- The read itself failed -- keep whatever is already tracked rather than guessing.
+        -- Wiping here on a single dropped read was the bug: the very next successful read
+        -- re-establishes a FRESH state at full charges, so a spell that had just spent its
+        -- last charge would read as ready again the moment one read hiccuped.
+        return chargeState[sid]
+    end
     if not max then
+        -- A confirmed read says this is not (or is no longer) a charge spell.
         chargeState[sid] = nil
         return nil
     end
@@ -1423,7 +1437,11 @@ local function NoteOwnCast(castSpellID)
     if not sid then return end
 
     -- A charge spell never touches readyAt: a cast spends a charge, and holding one is
-    -- what makes it available, not the absence of a timer.
+    -- what makes it available, not the absence of a timer. Established here too, not only
+    -- from ResyncModel/ApplyPriorityAlpha: a charge spell's very first cast of a session,
+    -- before either of those has run for it yet, would otherwise fall through to the
+    -- readyAt/base-cooldown model below and get tracked by the wrong clock entirely.
+    EnsureChargeState(sid)
     local st = chargeState[sid]
     if st then
         ChargesAvailable(sid)
