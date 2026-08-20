@@ -2483,6 +2483,11 @@ local function CheckBossModTimerStart(mod, key, barIdentity, duration, text)
             end
             if hit then
                 local barKey = uid .. "|" .. mod .. ":" .. tostring(barIdentity)
+                -- A re-announced bar (some modules resync a running bar rather than only
+                -- ever starting a fresh one) must not stack a second pending fire on top
+                -- of the first.
+                local old = bwPendingTimers[barKey]
+                if old and old.Cancel then old:Cancel() end
                 local fireDelay = math.max(duration - trig.timeleft, 0.01)
                 bwPendingTimers[barKey] = C_Timer.NewTimer(fireDelay, function()
                     bwPendingTimers[barKey] = nil
