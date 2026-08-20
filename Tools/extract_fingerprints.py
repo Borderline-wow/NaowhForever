@@ -31,18 +31,27 @@ import sys
 from pathlib import Path
 
 
-DUR_RE = re.compile(
-    r"(?:durationRounded|duration|rounded) == ([\d.]+)"
-    r"(?:\s+and\s+(\w+)\s*%\s*(\d+)\s*(==|~=)\s*(\d+))?")
+DUR_RE = re.compile(r"(?:durationRounded\w*|duration|rounded) == ([\d.]+)")
+# `durationRounded == (self:Easy() and 23 or 20)` -- the same ability on two timers, one
+# per difficulty. Both are real durations; reading neither is how a tank hit goes missing
+# on half the difficulties without anything looking wrong.
+EITHER_RE = re.compile(
+    r"(?:durationRounded\w*|duration|rounded) ==\s*\(\s*self:\w+\(\)"
+    r"\s+and\s+([\d.]+)\s+or\s+([\d.]+)\s*\)")
+# Every rotation-counter test on a line, wherever it sits relative to the duration it
+# qualifies. Read separately from the duration because a branch can carry more than one
+# turn -- Rak'tul takes turns 1 and 3 of a three-way rotation in a single branch --
+# and because the two are written in either order.
+REM_RE = re.compile(r"(\w+)\s*%\s*(\d+)\s*(==|~=)\s*(\d+)")
 
 # `count40 = count40 + 1` and, one or two lines above it, the duration that gates it.
 # A counter is only usable if it advances on exactly one duration: Ziekket runs both its
 # 45 and its 50 rotations off a single counter incremented by either, so counting one
 # duration's own events would answer for the wrong turn.
 INC_RE = re.compile(r"^\s*(\w+) = \1 \+ 1\s*$")
-GUARD_RE = re.compile(r"^\s*if (?:durationRounded|duration|rounded) == ([\d.]+) then\s*$")
+GUARD_RE = re.compile(r"^\s*if (?:durationRounded\w*|duration|rounded) == ([\d.]+) then\s*$")
 ONELINE_RE = re.compile(
-    r"^\s*if (?:durationRounded|duration|rounded) == ([\d.]+) then (\w+) = \2 \+ 1 end\s*$")
+    r"^\s*if (?:durationRounded\w*|duration|rounded) == ([\d.]+) then (\w+) = \2 \+ 1 end\s*$")
 
 
 def counter_durations(lines):
@@ -64,6 +73,16 @@ def counter_durations(lines):
                 owned.setdefault(m.group(1), set()).add(None)
                 break
     return owned
+
+
+# A trailing comment is usually the ability's name, but it is just as often a note to
+# the module's own author: "Stone Breaker timer is 22.5 exactly, dips round down to 22".
+# Taking those as ability names hides the real one behind them, and a duration whose only
+# name is a sentence can never be classified as a tank hit.
+def looks_like_prose(text):
+    if len(text.split()) > 5 or "," in text:
+        return True
+    return not text[:1].isupper()
 
 
 def norm(name):
@@ -163,12 +182,32 @@ def parse_module(path, curated, curated_pairs):
     lines = text.splitlines()
     owned = counter_durations(lines)
     for i, line in enumerate(lines):
+        # counter -> (modulus, remainders it claims on this line)
+        turns_here = {}
+        for counter, mod_n, op, rem in REM_RE.findall(line):
+            n, r = int(mod_n), int(rem)
+            got = frozenset(range(n)) - {r} if op == "~=" else frozenset({r})
+            prev = turns_here.get(counter)
+            if prev is None:
+                turns_here[counter] = (n, got)
+            elif prev[0] == n:
+                turns_here[counter] = (n, prev[1] | got)
+            else:
+                turns_here[counter] = (None, None)
+
         durs = []
-        for d, counter, mod_n, op, rem in DUR_RE.findall(line):
-            if mod_n and owned.get(counter) == {"%.1f" % float(d)}:
-                n = int(mod_n)
-                rems = frozenset(range(n)) - {int(rem)} if op == "~=" else frozenset({int(rem)})
-                durs.append((float(d), n, rems))
+        for a, b in EITHER_RE.findall(line):
+            durs.append((float(a), None, None))
+            durs.append((float(b), None, None))
+        for d in DUR_RE.findall(line):
+            fp = "%.1f" % float(d)
+            cycle = None
+            for counter, (n, rems) in turns_here.items():
+                if n and owned.get(counter) == {fp}:
+                    cycle = (n, rems)
+                    break
+            if cycle:
+                durs.append((float(d), cycle[0], cycle[1]))
             else:
                 durs.append((float(d), None, None))
         if not durs:
@@ -181,8 +220,9 @@ def parse_module(path, curated, curated_pairs):
             # describes the filter, not an ability.
             if cand.lower().startswith("filter"):
                 continue
-            # A trailing comment that is just numbers or a difficulty tag names nothing.
-            if re.search(r"[A-Za-z]", cand) and not re.fullmatch(
+            # A trailing comment that is just numbers or a difficulty tag names nothing,
+            # and neither does one that reads as a sentence.
+            if re.search(r"[A-Za-z]", cand) and not looks_like_prose(cand) and not re.fullmatch(
                     r"(?:[\d/ .]+)?(?:Mythic|Heroic|Normal)?", cand):
                 name = cand
         if not name:
