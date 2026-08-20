@@ -941,6 +941,14 @@ end
 local lastFingerprint, lastFingerprintEncounter
 local lastUnknownNotice
 
+-- Every fingerprint this fight that was seen and skipped as unmarked, and whether anything
+-- was announced at all. Read once at ENCOUNTER_END; see the report there. Latched per
+-- encounter because plenty of bosses have no tank hit at all by design -- Hoardmonger and
+-- Sentinel of Winter among them -- and those would otherwise report every single kill.
+local silencedFingerprints = {}
+local calloutsThisFight = 0
+local noCalloutNotice = {}
+
 -- For attributing a boss cast back to the timeline event that announced it, and for
 -- detecting when that attribution would be ambiguous. Written by ShowForEvent, read by the
 -- cast watcher below it.
@@ -1783,7 +1791,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820e"
+local TRACE_BUILD = "0820f"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -2051,6 +2059,11 @@ local function ShowForEvent(eventID)
     end
 
     if IsUnmarkedEvent(eventID) then
+        -- Kept for the end-of-fight report below. "I got no callouts on this boss" has cost
+        -- several pulls each time to answer, because the trace has to be armed BEFORE the
+        -- ability lands and the tank buster is rarely the first event. A fight that called
+        -- nothing can say what it saw instead, after the fact.
+        if lastFingerprint then silencedFingerprints[lastFingerprint] = true end
         if traceLeft > 0 then
             traceLeft = traceLeft - 1
             ns.Print(("|cffF0A830trace|r event=%s |cff80ff80silenced|r (fingerprint %s is not "
@@ -2130,6 +2143,7 @@ local function ShowForEvent(eventID)
     ClearTankGate()
 
     announced[eventID] = true
+    calloutsThisFight = calloutsThisFight + 1
     shownForEvent = eventID
     if frame.learnTag then
         frame.learnTag:SetShown(t.learnMode == true)
@@ -4585,7 +4599,28 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         -- Event ids are per-instance and get reused, so a stale entry would answer for a
         -- different ability entirely on the next pull.
         WipeEventCache()
+        -- A fight that had data for this boss, saw abilities, and called nothing is the
+        -- report that has been costing whole pulls to diagnose: the trace has to be armed
+        -- before the ability lands, and the tank buster is rarely the first event. Say it
+        -- after the fact instead, with the fingerprints it actually saw -- those are what
+        -- /nutank tank marks, so the message doubles as the fix.
+        if event == "ENCOUNTER_END" and TRDB().enabled == true
+            and calloutsThisFight == 0 and next(silencedFingerprints) ~= nil
+            -- arg1, not currentEncounter: the line above already cleared that to nil for
+            -- ENCOUNTER_END, so keying the latch off it would file every boss under 0 and
+            -- report exactly once per session for the whole game.
+            and activeSlots > 0 and not noCalloutNotice[arg1 or 0] then
+            noCalloutNotice[arg1 or 0] = true
+            local list = {}
+            for fp in pairs(silencedFingerprints) do list[#list + 1] = fp end
+            table.sort(list, function(a, b) return (tonumber(a) or 0) < (tonumber(b) or 0) end)
+            ns.Print(("|cffff6060no callouts this fight|r. Abilities seen, none marked as "
+                .. "tank busters: %s. If one of those WAS the tank hit, /nutank tank marks "
+                .. "it."):format(table.concat(list, ", ")))
+        end
         if event == "ENCOUNTER_END" then wipe(readyAt) end
+        wipe(silencedFingerprints)
+        calloutsThisFight = 0
         lastAnnouncedSpellID = nil
         RebuildSlots()          -- swap to this boss's list before the first ability lands
         RebuildCastMap()
