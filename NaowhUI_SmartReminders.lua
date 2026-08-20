@@ -1345,6 +1345,24 @@ local readyAt = {}          -- [list spellID] = GetTime() at which it is back up
 -------------------------------------------------------------------------------
 --  Charges
 -------------------------------------------------------------------------------
+-- Real cooldowns for spells GetSpellBaseCooldown misreports, in seconds. Both models read
+-- this: the plain-cooldown estimate treats it as the cooldown, and a charge spell treats it
+-- as the per-charge recharge, which is what the tooltip figure means on a charge spell.
+--
+-- Only ever measured or authoritative numbers here, never a scaled guess -- the whole point
+-- is to bypass an API that is not merely imprecise. It reports 0 for Divine Shield and 8
+-- SECONDS for Guardian of Ancient Kings, whose real cooldown is three minutes; used as a
+-- recharge rate that handed back a charge every 8 seconds and called the spell all fight.
+--
+-- Declared HERE, above the charge code rather than beside the cooldown model that used to
+-- own it: a local declared later in the file is not an upvalue to a function defined
+-- earlier, so referencing it from EnsureChargeState would have read a nil global and
+-- silently done nothing.
+local KNOWN_BASE_COOLDOWN = {
+    [642] = 300,      -- Divine Shield
+    [86659] = 180,    -- Guardian of Ancient Kings
+}
+
 -- GetSpellCooldownDuration describes the COOLDOWN. A charge spell is gated by its
 -- RECHARGE, which is a separate clock, and the two disagree in both directions:
 --
@@ -1436,7 +1454,7 @@ function EnsureChargeState(sid)
             -- nothing recharging. What is lost is only the middle of the stack -- holding
             -- 1 of 2 reads as 0 until the last charge lands -- and that is silence about a
             -- spell that is up, never a call for one that is down.
-            recharge = learned or 0,
+            recharge = learned or KNOWN_BASE_COOLDOWN[sid] or 0,
         }
         chargeState[sid] = st
     end
@@ -1508,13 +1526,6 @@ local function RebuildCastMap()
         end
     end
 end
-
--- GetSpellBaseCooldown reports 0 for these, so without this table the estimate falls
--- through to UNKNOWN_COOLDOWN below and thinks a multi-minute defensive is back in 30
--- seconds. Real totals, used only until a cast is actually learned.
-local KNOWN_BASE_COOLDOWN = {
-    [642] = 300,   -- Divine Shield
-}
 
 local function NoteOwnCast(castSpellID)
     local sid = castSpellID and castToBase[castSpellID]
@@ -1829,7 +1840,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820i"
+local TRACE_BUILD = "0820j"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
