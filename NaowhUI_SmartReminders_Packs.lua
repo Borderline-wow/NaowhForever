@@ -212,7 +212,10 @@ end
 
 function ns.ShowPackExport()
     local dimmer, panel = ns.MakeModal(560, 330)
-    local title = ns.MakeFontString and ns.MakeFontString(panel) or panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    -- ns.Font, not a guard on ns.MakeFontString: that name is defined nowhere in the addon,
+    -- so the guard was always false and this title alone skipped the shared helper every
+    -- other heading here uses.
+    local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Export a Reminder Pack")
 
