@@ -1571,12 +1571,17 @@ local function Announce(spellID, text)
     Speak(text)
 end
 
--- A second timeline event landing while the first is still on screen and picking the
--- SAME defensive says nothing new -- the player was already told to press it. Multi-unit
--- fights (several adds each telegraphing the same tank buster a couple seconds apart) hit
--- this constantly. A DIFFERENT pick still announces normally: that genuinely is new
--- information (the first choice went on cooldown, say). Window matches the alert's own
--- 5-second display, so this only suppresses a repeat of what is still visibly up.
+-- A second timeline event landing while the first is still fresh and picking the SAME
+-- defensive says nothing new -- the player was already told to press it. Multi-unit fights
+-- (several adds each telegraphing the same tank buster within a handful of seconds of each
+-- other) hit this constantly. A DIFFERENT pick still announces normally: that genuinely is
+-- new information (the first choice went on cooldown, say).
+--
+-- 5 seconds (the alert's own display window) measured too short on a live pull -- repeats
+-- of the same ability landed up to ~10s apart and still announced twice. 12s covers that
+-- with a little room, while staying well short of any real defensive's own cooldown, so a
+-- genuinely later need for the same one is never the thing being suppressed.
+local SUPPRESS_REPEAT_WINDOW = 12
 local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
 
 local function SpeakCallout()
@@ -1655,7 +1660,7 @@ local function SpeakCallout()
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
         if not ns.IsAudioOff(picked) then
-            if picked == lastAnnouncedSpellID and (now - lastAnnouncedAt) < 5 then
+            if picked == lastAnnouncedSpellID and (now - lastAnnouncedAt) < SUPPRESS_REPEAT_WINDOW then
                 return
             end
             lastAnnouncedSpellID, lastAnnouncedAt = picked, now
@@ -1732,6 +1737,18 @@ local function TraceEvent(eventID)
         :format(TRACE_EVENTS - traceLeft, TRACE_EVENTS,
                 TRACE_BUILD, tostring(eventID), activeSlots, tostring(t.voiceOn),
                 tostring(t.showIcon), tostring(t.showText)))
+
+    -- SpeakCallout already ran for this event by the time this prints (see ShowForEvent's
+    -- call order), so this is the actual pick, not a guess -- and whether the repeat
+    -- suppressor (SUPPRESS_REPEAT_WINDOW) is why nothing was heard.
+    if lastAnnouncedSpellID then
+        local sinceInfo = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(lastAnnouncedSpellID)
+        ns.Print(("  last announced: %s (%s), %.1fs ago%s"):format(
+            (sinceInfo and sinceInfo.name) or "?", tostring(lastAnnouncedSpellID),
+            GetTime() - lastAnnouncedAt,
+            (GetTime() - lastAnnouncedAt < SUPPRESS_REPEAT_WINDOW)
+                and "  |cff8a99b5(a repeat of this one would be suppressed)|r" or ""))
+    end
 
     -- WHICH list built these slots. A per-boss override silently replaces the spec order,
     -- so "it called them in the wrong order" and "it is using a different list than the one
