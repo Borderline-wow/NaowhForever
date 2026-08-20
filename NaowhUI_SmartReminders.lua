@@ -1838,9 +1838,17 @@ local function TraceEvent(eventID)
           return dur:IsZero()
       end)
 
+      -- A charge spell never touches readyAt (see NoteOwnCast), so the plain-cooldown
+      -- model line would always read 0.0s for one regardless of its real charge count.
+      -- That is what hid the Guardian of Ancient Kings state from the last two reports.
       local model = Safe(function()
-          return math.max(0, (readyAt[slotID] or 0) - now)
-      end, "%.1fs")
+          local charges = ChargesAvailable(slotID)
+          if charges then
+              local st = chargeState[slotID]
+              return string.format("%d/%s charges", charges, tostring(st and st.max or "?"))
+          end
+          return string.format("%.1fs", math.max(0, (readyAt[slotID] or 0) - now))
+      end)
 
       local learned = Safe(function()
           local t2 = TRDB()
