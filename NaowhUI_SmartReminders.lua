@@ -2146,6 +2146,10 @@ local function TraceEvent(eventID)
 end
 
 local shownForEvent
+-- Whether the options window is open, which every hide path has to respect so a preview
+-- is not yanked off the screen. Declared here rather than beside the rest of the preview
+-- state further down: the reads above that point compiled to a nil global.
+local previewing = false
 
 local function HideReminder()
     if hideTimer then hideTimer:Cancel(); hideTimer = nil end
@@ -3253,8 +3257,8 @@ end
 -------------------------------------------------------------------------------
 -- The settings panel is the only window in which anyone needs something to drag, so the
 -- stand-in lives exactly as long as it does. Alpha is set directly here rather than through
--- the gate: out of an encounter there is no event to gate against.
-local previewing = false
+-- the gate: out of an encounter there is no event to gate against. Declared far above,
+-- with the rest of the frame state, because the hide timers read it from there.
 -- The visible half of the preview switch: previewing says the options window is open,
 -- previewPin says the player wants the stand-in on screen. Both must hold. Pinned on by
 -- default so the preview appears the moment the page opens -- tester feedback was not
@@ -3773,6 +3777,12 @@ end
 -- candidate is tested on its cast id, its override, and its linked ids.
 local MIN_BASE_CD_MS = 30000          -- only used by the no-Cooldown-Manager fallback
 
+-- Set from the picker's own toggle. The defensive flag is Blizzard's data, and if it turns
+-- out thin for a spec the player must still be able to find their spell -- so the filter is
+-- the default, not a cage. Declared here because the fallback collector below reads it and
+-- is written before the picker itself.
+local pickerShowAll = false
+
 local bigDefCache = {}
 
 -- Externals are flagged big-defensive too (Pain Suppression comes back true), but they are
@@ -3920,11 +3930,6 @@ local function TargetList(create)
     if pickerEncounter then return BossList(specID, pickerEncounter, create) end
     return UserList(specID, create)
 end
-
--- Set from the picker's own toggle. The defensive flag is Blizzard's data, and if it turns
--- out thin for a spec the player must still be able to find their spell -- so the filter is
--- the default, not a cage.
-local pickerShowAll = false
 
 -- When true the caller wants EVERY defensive, listed or not: the inline editor renders the
 -- full set and lets a toggle decide membership.
@@ -4902,7 +4907,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
                 local v = C_EncounterTimeline.GetEventHighlightTime()
                 if type(v) == "number" and v > 0 then engineLead = v end
             end
-            local want = t.leadTime or 3
+            local want = TRDB().leadTime or 3
             local delay = (want > 0 and want < engineLead) and (engineLead - want) or 0
             if delay > 0.1 then
                 CancelPendingShow(eventID)
