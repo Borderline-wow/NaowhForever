@@ -719,7 +719,7 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText(name)
 
-    local editBtn
+    local editBtn, placeClose
     local y = -46
     local _, h = W:DualRow(panel, y,
         { type = "toggle", text = "Audio",
@@ -730,21 +730,26 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
           setValue = function(v)
               ns.SetAudioOff(spellID, not v)
               if editBtn then editBtn:SetShown(v) end
+              if placeClose then placeClose() end
           end }
     ); y = y - h
 
-    editBtn = ns.Button(panel, "Edit Callout", 120, 24, function()
+    editBtn = ns.Button(panel, "Edit Callout", 120, 26, function()
         ns.ShowCalloutEditor(("Audio callout for %s"):format(name),
             ns.CalloutFor(spellID, name), function(text)
                 ns.SetCallout(spellID, text)
                 if EUI.RefreshPage then EUI:RefreshPage(true) end
             end, spellID)
     end)
-    editBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y - 6)
+    editBtn:SetPoint("BOTTOM", panel, "BOTTOM", -55, 16)
     editBtn:SetShown(not ns.IsAudioOff(spellID))
 
-    ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    local closeBtn = ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+    placeClose = function()
+        closeBtn:ClearAllPoints()
+        closeBtn:SetPoint("BOTTOM", panel, "BOTTOM", editBtn:IsShown() and 65 or 0, 16)
+    end
+    placeClose()
 
     dimmer:Show()
 end
@@ -761,7 +766,7 @@ local function ShowFallbackSettingsPopup(EUI)
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText("Call for an External")
 
-    local editBtn
+    local editBtn, placeClose
     local y = -46
     local _, h = W:DualRow(panel, y,
         { type = "toggle", text = "Audio",
@@ -774,21 +779,26 @@ local function ShowFallbackSettingsPopup(EUI)
               if db.fallbackOn == false then return end
               ns.SetAudioOff(0, not v)
               if editBtn then editBtn:SetShown(v) end
+              if placeClose then placeClose() end
           end }
     ); y = y - h
 
-    editBtn = ns.Button(panel, "Edit Callout", 120, 24, function()
+    editBtn = ns.Button(panel, "Edit Callout", 120, 26, function()
         ns.ShowCalloutEditor("Said and shown when nothing on the list is up",
             db.voiceNone, function(v)
                 db.voiceNone = v
                 ns.RefreshRuntime()
             end, 0)
     end)
-    editBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y - 6)
+    editBtn:SetPoint("BOTTOM", panel, "BOTTOM", -55, 16)
     editBtn:SetShown(db.fallbackOn ~= false and not ns.IsAudioOff(0))
 
-    ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    local closeBtn = ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+    placeClose = function()
+        closeBtn:ClearAllPoints()
+        closeBtn:SetPoint("BOTTOM", panel, "BOTTOM", editBtn:IsShown() and 65 or 0, 16)
+    end
+    placeClose()
 
     dimmer:Show()
 end

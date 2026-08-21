@@ -100,6 +100,14 @@ local function TRDB()
     -- The text used to be dragged around on its own; it rides the icon now, so a stored
     -- position for it is dead weight that would outlive every reset button.
     t.textPos = nil
+    -- Older builds pre-filled the callout editor with "Use <name>", so saved callouts still
+    -- carry the prefix the spoken default dropped.
+    if type(t.callouts) == "table" then
+        for id, text in pairs(t.callouts) do
+            local bare = type(text) == "string" and text:match("^[Uu]se%s+(.+)$")
+            if bare then t.callouts[id] = bare end
+        end
+    end
     for k, v in pairs(DEFAULTS) do if t[k] == nil then t[k] = v end end
     return t
 end
@@ -325,13 +333,13 @@ local function ListIndexOf(list, spellID)
     return nil
 end
 
--- Spoken line per spell. Defaults to "Use <name>"; the point of storing an override is that
--- "Use Incarnation: Guardian of Ursoc" is not what anyone says out loud.
+-- Spoken line per spell. Defaults to the spell name; the point of storing an override is
+-- that "Incarnation: Guardian of Ursoc" is not what anyone says out loud.
 local function CalloutFor(spellID, spellName)
     local c = TRDB().callouts
     local custom = c and c[spellID]
     if type(custom) == "string" and custom ~= "" then return custom end
-    -- The name alone. The "Use " prefix was cut on tester feedback: in a fight the extra
+    -- The name alone, no "Use " prefix (cut on tester feedback): in a fight the extra
     -- word is latency, and nobody hearing "Shield Wall" wonders what to do with it.
     return spellName or ""
 end
@@ -603,7 +611,7 @@ local function CreateSlot(index)
 
     local T = ns.THEME
 
-    -- The spoken callout, written instead of said: "Use Barkskin". It stays PARENTED to the
+    -- The spoken callout, written instead of said: "Barkskin". It stays PARENTED to the
     -- slot, so the priority alpha that picks the winning icon still picks the winning line
     -- too -- one stacked font string per spell, engine-revealed, no branch. That is why the
     -- text can name the defensive in combat while the spoken version cannot. Only the ANCHOR
@@ -1941,7 +1949,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0820n"
+local TRACE_BUILD = "0821a"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -4388,7 +4396,7 @@ function ns.BuildSection(parent, y)
     -- having the identical limitation, so the lock bought inconsistency, not honesty.
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Show a Text Callout",
-          tooltip = "Writes the callout on screen -- \"Use Barkskin\" -- for whichever defensive "
+          tooltip = "Writes the callout on screen -- \"Barkskin\" -- for whichever defensive "
           .. "it picked, and your fallback line when nothing is up. On bosses with tank buster "
           .. "data this appears only for tank busters. On bosses without data it appears for "
           .. "every timeline ability until the boss is learned or marked. Set each line in "
