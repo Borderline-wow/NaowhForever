@@ -3734,6 +3734,12 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    -- The build, first, because every report that cost a run to diagnose started with not
+    -- knowing which one was loaded. A version string is weaker evidence than a stack line,
+    -- but it is the only thing a tester can read out without an error to paste.
+    ns.Print(("build: %s"):format(
+        (C_AddOns and C_AddOns.GetAddOnMetadata
+            and C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version")) or "unknown"))
     ns.Print(("tank reminder: enabled=%s spec=%d tank=%s slots=%d"):format(
         tostring(TRDB().enabled), specID, tostring(isTank), activeSlots))
     if TRDB().learnMode then
