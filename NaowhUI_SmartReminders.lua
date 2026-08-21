@@ -1234,6 +1234,15 @@ local function IsUnmarkedEvent(eventID)
     return true
 end
 
+-- Is this a KNOWN tank buster, rather than an ability on a boss nobody has covered yet?
+-- Both reach the callout, but only the first is a claim about WHO the hit lands on.
+local function IsMarkedBuster(eventID)
+    local player = MarksTable(false, currentEncounter)
+    if player ~= nil and next(player) == nil then player = nil end
+    if player == nil and ShippedMarks(currentEncounter) == nil then return false end
+    return not IsUnmarkedEvent(eventID)
+end
+
 local function ApplyTankGate(eventID)
     for i = 1, activeSlots do
         local slot = slots[i]
@@ -2253,6 +2262,25 @@ local function ShowForEvent(eventID)
         return
     end
 
+    -- A tank buster lands on whoever is holding the boss, and a spec that cannot tank
+    -- never is. Reported live: a Retribution paladin on Sszorak heard "call for an
+    -- external" for a hit that was never coming at him. Role comes from the spec rather
+    -- than from the fight, so this settles it without any of the threat reads the gate
+    -- below makes, and without their fail-open.
+    --
+    -- MARKED busters only. An uncovered boss calls out everything, which is the authoring
+    -- tool rather than a claim about who gets hit, and a DPS authoring a boss still needs
+    -- to see the events. The cost is a DPS soloing old content losing a callout that was
+    -- never aimed at them, which is the right way round to be wrong.
+    if not isTank and IsMarkedBuster(eventID) then
+        if traceLeft > 0 then
+            traceLeft = traceLeft - 1
+            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80not a tank|r (this is a tank "
+                .. "buster and your spec does not tank)"):format(tostring(eventID)))
+        end
+        return
+    end
+
     if t.aggroOnly and not TankingSomeBoss() then
         if traceLeft > 0 then
             traceLeft = traceLeft - 1
@@ -2525,6 +2553,9 @@ local function HandleIdentifiedCast(sid)
 
     -- Backstop: the timeline path already spoke for this cast if anything did.
     if (now - lastCalloutAt) < 6 then return end
+    -- Same rule as the timeline path: this is a curated tank buster by definition, so a
+    -- spec that cannot tank is not the one it hits. Learning above still ran.
+    if not isTank then return end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
     if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
 
@@ -3742,6 +3773,10 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             and C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version")) or "unknown"))
     ns.Print(("tank reminder: enabled=%s spec=%d tank=%s slots=%d"):format(
         tostring(TRDB().enabled), specID, tostring(isTank), activeSlots))
+    if not isTank then
+        ns.Print("|cffF0A830this spec does not tank|r, so known tank busters stay quiet "
+            .. "here. Custom reminders and uncovered bosses in authoring mode still call.")
+    end
     if TRDB().learnMode then
         ns.Print("|cffF0A830Call Out Unknown Bosses is ON|r (Smart Reminders options page, "
             .. "under How It Tells You) -- every uncovered boss calls out on EVERY timeline "
