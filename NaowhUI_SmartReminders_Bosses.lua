@@ -638,74 +638,72 @@ end
 --  and its condensed ability list on the right.
 -------------------------------------------------------------------------------
 
-local function ShowAddPresetPopup(specID, EUI)
-    local dimmer, panel = ns.MakeModal(340, 150)
+-- Frames are never garbage collected, so a dialog built from plain frames is built once and
+-- re-pointed on each open, with the per-open values held in a state table the widgets read
+-- rather than captured directly. Dialogs built from EllesmereUI's widget factory cannot do
+-- this -- see ShowAbilitySettingsPopup below for why.
+--
+-- Add and Rename are the same dialog: a name, a confirm and a cancel.
+local namePrompt
 
-    local head = ns.Font(panel, 14, "OUTLINE")
-    head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText("New Preset")
+local function ShowNamePrompt(title, confirmLabel, initial, onCommit)
+    if not namePrompt then
+        local dimmer, panel = ns.MakeModal(340, 150)
+        local np = { dimmer = dimmer }
 
-    local box = CreateFrame("EditBox", nil, panel)
-    box:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -50)
-    box:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
-    box:SetHeight(26)
-    box:SetAutoFocus(true)
-    box:SetMaxLetters(40)
-    box:SetFontObject("GameFontHighlight")
-    box:SetTextInsets(6, 6, 0, 0)
-    ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-    ns.Border(box)
-    box:SetText(ns.NextPresetName(specID))
-    box:HighlightText()
+        np.head = ns.Font(panel, 14, "OUTLINE")
+        np.head:SetPoint("TOP", panel, "TOP", 0, -16)
 
-    local function Commit()
-        ns.AddPreset(specID, box:GetText())
-        dimmer:Hide()
-        EUI:RefreshPage(true)
+        local box = CreateFrame("EditBox", nil, panel)
+        box:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -50)
+        box:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+        box:SetHeight(26)
+        box:SetAutoFocus(true)
+        box:SetMaxLetters(40)
+        box:SetFontObject("GameFontHighlight")
+        box:SetTextInsets(6, 6, 0, 0)
+        ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+        ns.Border(box)
+        np.box = box
+
+        local function Commit()
+            local fn = np.onCommit
+            dimmer:Hide()
+            if fn then fn(box:GetText()) end
+        end
+        box:SetScript("OnEnterPressed", Commit)
+        box:SetScript("OnEscapePressed", function(self) self:ClearFocus(); dimmer:Hide() end)
+
+        np.confirm = ns.Button(panel, "Save", 90, 26, Commit)
+        np.confirm:SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
+        ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+            :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
+
+        namePrompt = np
     end
-    box:SetScript("OnEnterPressed", Commit)
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus(); dimmer:Hide() end)
 
-    ns.Button(panel, "Create", 90, 26, Commit):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
+    local np = namePrompt
+    np.onCommit = onCommit
+    np.head:SetText(title)
+    ns.SetButtonText(np.confirm, confirmLabel)
+    np.box:SetText(initial or "")
+    np.dimmer:Show()
+    np.box:SetFocus()
+    np.box:HighlightText()
+end
 
-    dimmer:Show()
+local function ShowAddPresetPopup(specID, EUI)
+    ShowNamePrompt("New Preset", "Create", ns.NextPresetName(specID), function(text)
+        ns.AddPreset(specID, text)
+        EUI:RefreshPage(true)
+    end)
 end
 
 local function ShowRenamePresetPopup(specID, presetKey, currentName, EUI)
-    local dimmer, panel = ns.MakeModal(340, 150)
-
-    local head = ns.Font(panel, 14, "OUTLINE")
-    head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText("Rename Preset")
-
-    local box = CreateFrame("EditBox", nil, panel)
-    box:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -50)
-    box:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
-    box:SetHeight(26)
-    box:SetAutoFocus(true)
-    box:SetMaxLetters(40)
-    box:SetFontObject("GameFontHighlight")
-    box:SetTextInsets(6, 6, 0, 0)
-    ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-    ns.Border(box)
-    box:SetText(currentName or "")
-    box:HighlightText()
-
-    local function Commit()
-        ns.RenamePreset(specID, presetKey, box:GetText())
-        dimmer:Hide()
+    ShowNamePrompt("Rename Preset", "Save", currentName or "", function(text)
+        ns.RenamePreset(specID, presetKey, text)
         EUI:RefreshPage(true)
-    end
-    box:SetScript("OnEnterPressed", Commit)
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus(); dimmer:Hide() end)
-
-    ns.Button(panel, "Save", 90, 26, Commit):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
-
-    dimmer:Show()
+    end)
 end
 
 -- Audio settings for one ability. The cog is designed to grow -- text options and whatever
