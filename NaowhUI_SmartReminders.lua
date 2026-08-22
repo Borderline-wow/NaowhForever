@@ -12,24 +12,16 @@
 --                             secret for every Encounter-source event.
 --    "is this spell ready" -- cooldown state, secret in instanced combat.
 --
---  Comparing a secret, testing its truthiness, doing arithmetic on it or using it as a
---  table key all raise. So nothing in this file decides anything. Every decision is
---  handed to the engine and consumed as alpha:
+--  Comparing a secret, testing its truthiness, doing arithmetic on it or using it as a table
+--  key all raise. So nothing in this file decides anything: the decision is handed to the
+--  engine and consumed as alpha. The priority pick rides a chain of
+--  C_CurveUtil.EvaluateColorValueFromBoolean, which is AllowedWhenTainted in ALL arguments
+--  and therefore composes -- a secret may be both the condition and a branch value, and the
+--  result goes straight into SetAlpha. Exactly one icon ends up visible without the answer
+--  ever reaching Lua.
 --
---    * the tank gate rides C_EncounterTimeline.SetEventIconTextures, Blizzard's own
---      pixels-only substitute for the bit.band(icons, TankRole) that only untainted
---      code can do -- it sets alpha, never Shown, so geometry stays constant.
---    * the priority pick rides a chain of C_CurveUtil.EvaluateColorValueFromBoolean, which
---      is AllowedWhenTainted in ALL arguments and so composes: a secret may be both the
---      condition and a branch value, and the result goes straight into SetAlpha.
---
---  A slot frame's alpha (did this defensive win the priority pick) multiplies with its
---  icon texture's alpha (is this event a tank hit), so exactly one icon is visible and
---  only on a tank ability -- without either answer ever reaching Lua.
---
---  The tank gate only reaches TEXTURES. A FontString cannot carry it, which is why the
---  text channel is unavailable while the tank filter is on rather than silently firing
---  on every ability.
+--  The engine's own tank gate (SetEventIconTextures) reaches TEXTURES only, never a
+--  FontString, which is why the fingerprint filter replaced it -- see ClearTankGate.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhUITankReminder
 if not ns then return end
@@ -868,27 +860,6 @@ local function ApplyPriorityAlpha()
     end
 end
 
--------------------------------------------------------------------------------
---  The tank gate
--------------------------------------------------------------------------------
--- SetEventIconTextures assigns atlases and alpha to the textures it is handed, from the
--- event's secret icon mask. Passing a mask of only TankRole means a non-tank event leaves
--- the texture at alpha 0 -- the answer arrives as pixels and is never readable.
---
--- One call per texture, each with a single-texture array, rather than one call with all of
--- them: Blizzard passes fewer textures than its mask has bits and the fill order is not
--- documented, so a shared array would leave textures 2..N at the mercy of an unspecified
--- assignment rule. One bit, one texture, no ordering to get wrong.
---
--- SetTexture afterwards puts our own art back over whatever atlas the engine assigned. It
--- is AllowedWhenTainted and touches the Texture aspect, not Alpha, so the gate survives.
--- The tex coords have to go back too: an atlas carries its own and they outlive the swap.
-local function GateTexture(eventID, tex, restore)
-    if not tex then return end
-    C_EncounterTimeline.SetEventIconTextures(eventID, Enum.EncounterEventIconmask.TankRole, { tex })
-    if restore then restore(tex) end
-end
-
 -- Is this live event a boss ability, rather than a respawn timer or another addon's
 -- bar? `source` is NeverSecret on EncounterTimelineEventInfo, so reading it alone is
 -- legal even while the rest of the struct is sealed, and the comparison is plain.
@@ -1251,30 +1222,11 @@ local function IsMarkedBuster(eventID)
     return not IsUnmarkedEvent(eventID)
 end
 
-local function ApplyTankGate(eventID)
-    for i = 1, activeSlots do
-        local slot = slots[i]
-
-        -- Cleared FIRST. The engine paints the alpha of textures whose bit is set and
-        -- leaves the others alone, so an icon lit by a tank buster stayed lit through the
-        -- next cast that was not one. Starting from hidden means an event that does not
-        -- match simply never turns it on.
-        slot.icon:SetAlpha(0)
-
-        GateTexture(eventID, slot.icon, function(tex)
-            tex:SetTexture(slot.iconID)
-            tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        end)
-    end
-    if bar and bar:IsShown() then
-        local T = ns.THEME
-        GateTexture(eventID, bar.fill, function(tex) tex:SetVertexColor(T.gold.r, T.gold.g, T.gold.b, 1) end)
-        GateTexture(eventID, bar.bg, function(tex) tex:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9) end)
-    end
-end
-
--- Fallback, and the shipped behaviour when the user turns the tank filter off: every
--- timeline event counts, so the art carries no gate and the priority pick alone decides.
+-- The engine gate (SetEventIconTextures, which paints a secret TankRole bit straight into
+-- a texture's alpha) is no longer applied: the fingerprint filter silences whole events
+-- upstream and covers text and voice too, which the engine gate could never reach. It is
+-- still probed by `canGate` and exercised by /nutank gate. What remains here is the
+-- unconditional clear, so every event's art is left visible for the priority pick.
 local function ClearTankGate()
     for i = 1, activeSlots do
         slots[i].icon:SetAlpha(1)
@@ -2337,9 +2289,8 @@ local function ShowForEvent(eventID)
         bar:Hide()
     end
 
-    -- Every event that reaches this point already passed the fingerprint filter, which is
-    -- the tank filter now -- and unlike the engine gate it covers text and voice too. The
-    -- gate machinery itself stays for the /nutank gate diagnostic.
+    -- Everything reaching here already passed the fingerprint filter, which is the tank
+    -- filter now, so the art is simply revealed.
     ClearTankGate()
 
     announced[eventID] = true
