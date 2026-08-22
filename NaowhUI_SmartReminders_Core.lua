@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  NaowhUI_TankReminder_Core.lua -- DB, settings-page injection, profile plumbing.
+--  NaowhUI_SmartReminders_Core.lua -- DB, settings-page injection, profile plumbing.
 --
 --  Standalone: EllesmereUI is the only hard dependency. NaowhUI_EUI is optional and only
 --  changes WHERE the settings land -- with it we add a section to the existing NaowhUI
@@ -10,8 +10,7 @@
 local ADDON_NAME = ...
 
 -- Must match the addon folder: EllesmereUI's sidebar and profile map both key off it.
--- Renamed with the addon (was NaowhUI_TankReminder); SettingsRoot migrates the old
--- profile key so nobody's lists are lost to the rename.
+-- Renamed with the addon (was NaowhUI_TankReminder); RunMigrations moves the old key.
 local MODULE_KEY = "NaowhUI_SmartReminders"
 
 local NAOWH_BLUE = { r = 0x00 / 255, g = 0xCF / 255, b = 0xFF / 255 }
@@ -92,20 +91,33 @@ function ns.Solid(parent, layer, color, alpha)
     return t
 end
 
+-- btn.label is exposed so a reused button can be re-labelled on each open. Calling
+-- MakeStyledButton again would not do it: it builds a fresh background, border and
+-- fontstring every time and overwrites OnClick.
 function ns.Button(parent, text, w, h, onClick)
     local EUI = _G.EllesmereUI
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(w, h)
     if EUI and EUI.MakeStyledButton and EUI.WB_COLOURS then
-        EUI.MakeStyledButton(btn, text, 12, EUI.WB_COLOURS, onClick)
+        local _, _, lbl = EUI.MakeStyledButton(btn, text, 12, EUI.WB_COLOURS, onClick)
+        btn.label = lbl
     else
         local bg = ns.Solid(btn, "BACKGROUND", ns.THEME.line, 0.6)
         bg:SetAllPoints()
         local lbl = ns.Font(btn, 12, nil)
         lbl:SetPoint("CENTER"); lbl:SetText(text)
+        btn.label = lbl
         btn:SetScript("OnClick", function() if onClick then onClick() end end)
     end
     return btn
+end
+
+-- Re-label a button built by ns.Button, going through EllesmereUI's localiser the same way
+-- MakeStyledButton does.
+function ns.SetButtonText(btn, text)
+    if not (btn and btn.label) then return end
+    local EUI = _G.EllesmereUI
+    btn.label:SetText((EUI and EUI.L and EUI.L(text)) or text)
 end
 
 -- Tooltips go through EllesmereUI's own, per its contributing rules -- never GameTooltip
@@ -213,21 +225,55 @@ function ns.SettingsRoot()
         -- svName minus the trailing "DB" is the folder, so this lands under MODULE_KEY.
         _settingsDB = L.NewDB(MODULE_KEY .. "DB", { profile = {} })
         if _settingsDB and type(_settingsDB.profile) == "table" then
-            -- The addon shipped for a while as NaowhUI_TankReminder, and the profile map
-            -- keys by module, so a fresh key means every existing list would look wiped.
-            -- One-way copy, old left in place: harmless, and a downgrade still works.
-            if next(_settingsDB.profile) == nil then
-                local ok, old = pcall(L.NewDB, "NaowhUI_TankReminderDB", { profile = {} })
-                if ok and old and type(old.profile) == "table" and next(old.profile) ~= nil then
-                    for k, v in pairs(old.profile) do _settingsDB.profile[k] = v end
-                end
-            end
             return _settingsDB.profile
         end
     end
     -- EllesmereUI absent or too old: degrade to the account table rather than error.
     if type(_G.NaowhUITankReminderDB) ~= "table" then _G.NaowhUITankReminderDB = {} end
     return _G.NaowhUITankReminderDB
+end
+
+-------------------------------------------------------------------------------
+--  Reaching EllesmereUI's stored profiles
+-------------------------------------------------------------------------------
+-- The active profile's blob IS the table SettingsRoot hands back, so a write here is live.
+function ns.ForEachProfile(fn)
+    local euidb = _G.EllesmereUIDB
+    if not (euidb and type(euidb.profiles) == "table") then return end
+    for name, root in pairs(euidb.profiles) do
+        if type(root) == "table" then fn(name, root) end
+    end
+end
+
+-------------------------------------------------------------------------------
+--  Folder rename migration
+-------------------------------------------------------------------------------
+-- The profile map keys by addon folder, so the NaowhUI_TankReminder rename left every
+-- existing list under a key nothing reads. Every profile is walked, not just the active one:
+-- an untouched profile would otherwise keep its lists in the dead key and export empty.
+local OLD_KEY = "NaowhUI_TankReminder"
+
+function ns.RunMigrations()
+    ns.ForEachProfile(function(_, root)
+        local addons = root.addons
+        local src = type(addons) == "table" and addons[OLD_KEY]
+        if type(src) ~= "table" then return end
+
+        -- An empty blob is what the old lazy lookup created for itself: it read through
+        -- NewDB, which vivifies what it reads.
+        if next(src) == nil then
+            addons[OLD_KEY] = nil
+            return
+        end
+
+        -- Only into an untouched blob, so a migrated-then-edited profile is not handed its
+        -- deleted entries back. Filled in place: SettingsRoot may already hold this table.
+        local dst = addons[MODULE_KEY]
+        if type(dst) ~= "table" then dst = {}; addons[MODULE_KEY] = dst end
+        if next(dst) == nil then
+            for k, v in pairs(src) do dst[k] = v end
+        end
+    end)
 end
 
 -------------------------------------------------------------------------------
@@ -362,10 +408,14 @@ boot:SetScript("OnEvent", function(self)
 
     local EUI = _G.EllesmereUI
     if not (EUI and EUI.RegisterModule) then
-        ns.Print("|cffff6060EllesmereUI not found.|r NaowhUI_TankReminder requires EllesmereUI "
+        ns.Print("|cffff6060EllesmereUI not found.|r NaowhUI Smart Reminders requires EllesmereUI "
             .. "to be installed and enabled.")
         return
     end
+
+    -- Core is first in the toc and registers PLAYER_LOGIN first, so this runs before the
+    -- runtime's own handler and before anything has called SettingsRoot.
+    ns.RunMigrations()
 
     InjectProfileAddon()
 
