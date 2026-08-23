@@ -4414,6 +4414,23 @@ function ns.BuildCoreSettings(parent, y)
     ); y = y - h
 
     -- The player's own list for the current spec, in priority order. This addon ships no
+    return y
+end
+
+-- The priority list, split out from BuildCoreSettings and rendered LAST on the Setup
+-- page, after the tile sidebar rather than before it. RenderPresetListEditor's own
+-- returned height (topY + math.min(ly, ry) across two independently-tracked columns)
+-- runs a little short of its true rendered extent once the spare-defensives column gets
+-- long -- not something this pass introduced, but stacking new content directly under it
+-- is what turned "a little short" into a visible overlap. Putting it last means nothing
+-- downstream depends on that number being exact; at worst the page reports a little extra
+-- or missing empty space below it, never content drawn on top of content.
+function ns.BuildPresetListSettings(parent, y)
+    local EUI = _G.EllesmereUI
+    local W   = EUI.Widgets
+    local _, h
+
+    -- The player's own list for the current spec, in priority order. This addon ships no
     -- ability data, so an empty list here is the correct starting state -- the section says
     -- so rather than looking broken.
     _, h = W:SectionHeader(parent, "PRESET LIST (THIS SPEC)", y); y = y - h
@@ -4686,10 +4703,18 @@ function ns.BuildSetupPage(parent, yOffset)
         dy = ns.BuildBarsSettings and ns.BuildBarsSettings(detail, dy) or dy
     end
 
-    -- Whichever column ran longer decides the page's total height.
+    -- Whichever column ran longer decides where the priority list starts. It renders
+    -- LAST and nothing follows it, so its own returned height only affects trailing
+    -- empty space, never another section's position -- see BuildPresetListSettings.
     local sidebarBottom = sidebarTop - (#SETUP_TILES * TILE_H)
     local detailBottom  = sidebarTop + dy
-    return math.abs(math.min(sidebarBottom, detailBottom))
+    local y2 = math.min(sidebarBottom, detailBottom) - 16
+
+    if ns.BuildPresetListSettings then
+        y2 = ns.BuildPresetListSettings(parent, y2)
+    end
+
+    return math.abs(y2)
 end
 
 -- Dungeon Bosses / Raid Bosses tabs -- just the boss list now that Reminder
