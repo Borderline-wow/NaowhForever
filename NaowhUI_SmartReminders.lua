@@ -1061,6 +1061,36 @@ local function CustomRemindersTable(create, enc)
     return PerBossSet("customReminders", create, enc)
 end
 
+-- What BigWigs/DBM have actually broadcast for this boss, keyed by the same `key` the
+-- match functions below compare against. Recorded so the reminder editor can offer a
+-- PICK LIST instead of asking for a typed spell id -- BigWigs/DBM already resolved which
+-- ability this is using their own tuned data, and by the time a message crosses this bus
+-- it is a plain key and a plain string, nothing secret and nothing for us to identify.
+-- Recording it is only remembering what we were already handed.
+--
+-- This never grows past what a real pull has actually produced: a boss nobody here has
+-- pulled yet has an empty catalogue, same as the timeline-fingerprint system before it.
+local function BossModCatalogueTable(create, enc)
+    return PerBossSet("bwCatalogue", create, enc)
+end
+ns.BossModCatalogueTable = BossModCatalogueTable
+
+local function RecordBossModKey(mod, key, text, kind)
+    if type(key) ~= "number" then return end
+    local cat = BossModCatalogueTable(true, currentEncounter)
+    if not cat then return end
+    local entry = cat[key]
+    if not entry then
+        cat[key] = { mod = mod, kind = kind, text = text, seen = 1 }
+    else
+        entry.mod, entry.kind = mod, kind
+        -- The most recent text wins: a bar's "(3)" occurrence suffix drifts pull to
+        -- pull, and the freshest label is the one worth showing in the picker.
+        if type(text) == "string" and text ~= "" then entry.text = text end
+        entry.seen = (entry.seen or 0) + 1
+    end
+end
+
 -- The tank-buster allowlist. A blocklist was tried first and pointed the wrong way: a pull
 -- carries far more non-tank events than tank ones (8-20 measured), so the player was being
 -- asked to mute the many to keep the few. Marking is the same fingerprint data used in the
@@ -2907,14 +2937,23 @@ end
 -- assumed. issecretvalue guards the payload before anything touches it, the same rule
 -- every other identity channel in this file follows.
 local function OnBigWigsEvent(event, ...)
-    if not hasCustomReminders then return end
+    -- Cataloguing runs ahead of the hasCustomReminders gate below on purpose: that gate
+    -- means "does this boss already have a saved reminder", which is exactly backwards
+    -- for a picker whose whole job is helping someone create their FIRST one. It still
+    -- respects CustomRemindersAllowed -- the feature's own on/off switch and content
+    -- gate -- so a player with the feature off, or outside allowed content, records
+    -- nothing, matching what the rest of this bridge already treats as "not running".
     if event == "BigWigs_Message" then
         local _, key, text = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text)) then return end
+        if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "message") end
+        if not hasCustomReminders then return end
         CheckBossModMessage("BW", key)
     elseif event == "BigWigs_StartBar" then
         local _, key, text, duration = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
+        if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
+        if not hasCustomReminders then return end
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
         CheckBossModTimerStart("BW", key, text, duration, text)
@@ -2923,31 +2962,44 @@ local function OnBigWigsEvent(event, ...)
         -- isBarEnabled (the last argument) is true, StartBar already fired for the same
         -- bar and handling both would double the reminder.
         local _, key, duration, _, text, _, _, _, isBarEnabled = ...
-        if isBarEnabled then return end
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
+        if not isBarEnabled and CustomRemindersAllowed() then
+            RecordBossModKey("BW", key, text, "timer")
+        end
+        if isBarEnabled then return end
+        if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
     elseif event == "BigWigs_StopBar" or event == "BigWigs_PauseBar" then
+        if not hasCustomReminders then return end
         local _, text = ...
         if issecretvalue and issecretvalue(text) then return end
         CancelBossModTimers("BW", text)
     elseif event == "BigWigs_StopBars" or event == "BigWigs_OnBossDisable" then
+        if not hasCustomReminders then return end
         CancelBossModTimers("BW", "")
     end
 end
 
 local function OnDBMEvent(event, ...)
-    if not hasCustomReminders then return end
+    -- Same reasoning as OnBigWigsEvent above: cataloguing ignores hasCustomReminders,
+    -- since that gate is precisely what a picker needs to work around, and still
+    -- respects CustomRemindersAllowed.
     if event == "DBM_Announce" then
         local _, _, _, spellId = ...
         if issecretvalue and issecretvalue(spellId) then return end
+        if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, nil, "message") end
+        if not hasCustomReminders then return end
         CheckBossModMessage("DBM", spellId)
     elseif event == "DBM_TimerBegin" or event == "DBM_TimerStart" then
         local id, msg, duration, _, _, spellId = ...
         if issecretvalue and (issecretvalue(spellId) or issecretvalue(id) or issecretvalue(duration)) then return end
+        if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, msg, "timer") end
+        if not hasCustomReminders then return end
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
         CheckBossModTimerStart("DBM", spellId, id, duration, msg)
     elseif event == "DBM_TimerStop" or event == "DBM_TimerPause" then
+        if not hasCustomReminders then return end
         local id = ...
         if issecretvalue and issecretvalue(id) then return end
         CancelBossModTimers("DBM", id)
