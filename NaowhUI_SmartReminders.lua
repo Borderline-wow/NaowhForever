@@ -540,14 +540,25 @@ local function CustomTextColor()
     return (c and c.r) or 1, (c and c.g) or 1, (c and c.b) or 1, (c and c.a) or 1
 end
 
--- Both colors are opt-in ("as an option", not a forced restyle): TEXT_WHITE unless the
--- player has switched the toggle on, matching what every install has always shown.
+-- Both colors are opt-in ("as an option", not a forced restyle): white unless the player
+-- has switched the toggle on, matching what every install has always shown.
+--
+-- Two different font strings both count as "the defensive text": slots[i].label is the
+-- one actually seen in combat -- "Barkskin", stacked one per priority slot so the tank
+-- gate's per-icon alpha can pick the winning line the same way it picks the winning icon,
+-- see CreateSlot's own comment -- while frame.reminder is a separate authored-reminder
+-- line the Says/Preview path draws, one line further from the icon. Coloring only the
+-- latter is what shipped first and is why the toggle looked like it did nothing: the text
+-- someone actually watches during a pull never went through it.
 local function ApplyDefensiveTextColor()
-    if not frame or not frame.reminder then return end
-    if TRDB().defensiveTextColorOn then
-        frame.reminder:SetTextColor(DefensiveTextColor())
-    else
-        frame.reminder:SetTextColor(1, 1, 1, 1)
+    if not frame then return end
+    local on = TRDB().defensiveTextColorOn
+    local r, g, b, a = 1, 1, 1, 1
+    if on then r, g, b, a = DefensiveTextColor() end
+
+    if frame.reminder then frame.reminder:SetTextColor(r, g, b, a) end
+    for i = 1, #slots do
+        if slots[i].label then slots[i].label:SetTextColor(r, g, b, a) end
     end
 end
 
@@ -658,6 +669,8 @@ local function CreateSlot(index)
     slot.label:Hide()
 
     slots[index] = slot
+    ApplyDefensiveTextColor()  -- a freshly created slot starts at T.fg above; this corrects
+                               -- it to whatever the player has actually chosen, if anything.
     ApplyTextLayout()
     return slot
 end
