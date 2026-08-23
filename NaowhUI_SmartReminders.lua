@@ -4462,16 +4462,12 @@ function ns.BuildCoreSettings(parent, y)
           setValue = function(v) TRDB().leadTime = v end }
     ); y = y - h
 
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Call Out Unknown Bosses",
-          tooltip = "Bosses with no tank buster data stay quiet by default (the alert sound "
-          .. "still covers known busters). Turn this on while authoring a boss: every "
-          .. "timeline ability calls out so you can mark the real busters, then turn it "
-          .. "back off.",
-          getValue = function() return TRDB().learnMode end,
-          setValue = function(v) TRDB().learnMode = v end },
-        { type = "label", text = "" }
-    ); y = y - h
+    -- No UI row for learnMode anymore -- it was the authoring switch for curating our own
+    -- ns.TANK_ABILITIES/fingerprint database by hand, which stops being worth maintaining
+    -- once BigWigs/DBM/ExBoss identify abilities for us. The mechanism and its banner
+    -- ("AUTHORING MODE -- CALLING EVERY ABILITY") are untouched, still reachable with
+    -- /nutank learn for whoever still curates that data occasionally -- this only removes
+    -- it from the page every other player sees.
 
     -- The player's own list for the current spec, in priority order. This addon ships no
     return y
