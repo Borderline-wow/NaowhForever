@@ -4444,22 +4444,21 @@ function ns.BuildPresetListSettings(parent, y)
     return y
 end
 
--- Bars: what shows on the alert and how it's sized and placed. "Show the
--- Icon" and "Show a Text Callout" used to be paired with unrelated toggles
--- on the same row (Skip When Covered, Play a Sound) -- unpaired here since
--- each half of a row now belongs to a different panel.
+-- Visibility Options + Size and Location. "Show Icon" and "Show Text Call Out" used to be
+-- paired with unrelated toggles on the same row (Skip When Covered, Play a Sound) -- kept
+-- unpaired here now that they've settled into one section together.
 function ns.BuildBarsSettings(parent, y)
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
     local _, h
 
-    _, h = W:SectionHeader(parent, "WHAT SHOWS", y); y = y - h
+    _, h = W:SectionHeader(parent, "VISIBILITY OPTIONS", y); y = y - h
 
     -- The countdown bar toggle lived here and was removed on tester feedback; the bar
     -- machinery stays for stored profiles that still have showBar set, it just cannot be
     -- switched on from the UI anymore.
     _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Show the Icon",
+        { type = "toggle", text = "Show Icon",
           tooltip = "The icon of the defensive to press.",
           getValue = function() return TRDB().showIcon end,
           setValue = function(v) TRDB().showIcon = v; ApplySize(); UpdatePreview() end },
@@ -4468,7 +4467,7 @@ function ns.BuildBarsSettings(parent, y)
         -- The fingerprint filter made the lock obsolete: it silences whole events upstream, so
         -- text is tank-only on covered bosses regardless -- and voice was never locked despite
         -- having the identical limitation, so the lock bought inconsistency, not honesty.
-        { type = "toggle", text = "Show a Text Callout",
+        { type = "toggle", text = "Show Text Call Out",
           tooltip = "Writes the callout on screen -- \"Barkskin\" -- for whichever defensive "
           .. "it picked, and your fallback line when nothing is up. On bosses with tank buster "
           .. "data this appears only for tank busters. On bosses without data it appears for "
@@ -4480,7 +4479,7 @@ function ns.BuildBarsSettings(parent, y)
           end }
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "SIZE AND PLACE", y); y = y - h
+    _, h = W:SectionHeader(parent, "SIZE AND LOCATION", y); y = y - h
 
     _, h = W:DualRow(parent, y,
         { type = "slider", text = "Icon Size", min = 32, max = 128, step = 1,
@@ -4526,18 +4525,33 @@ function ns.BuildBarsSettings(parent, y)
     ); y = y - h
 
     -- Escape hatch: a UI-scale change can strand a moved alert off-screen where Unlock
-    -- Mode cannot reach it.
-    _, h = W:Button(parent, "Reset Icon Position", y, function()
-        TRDB().pos = nil
-        ApplyPosition()
-    end)
-    y = y - h
+    -- Mode cannot reach it. Side by side rather than stacked -- W:Button always claims a
+    -- full row of its own, so these are two ns.Button primitives chained off a blank
+    -- DualRow's two regions instead, the same way a settings cog attaches inline elsewhere
+    -- in this file.
+    local resetRow
+    resetRow, h = W:DualRow(parent, y,
+        { type = "label", text = "" },
+        { type = "label", text = "" }
+    ); y = y - h
 
-    _, h = W:Button(parent, "Reset Custom Reminder Position", y, function()
-        TRDB().customPos = nil
-        ApplyCustomReminderPosition()
-    end)
-    y = y - h
+    if resetRow then
+        if resetRow._leftRegion then
+            local btn = ns.Button(resetRow._leftRegion, "Reset Icon Position", 200, 26, function()
+                TRDB().pos = nil
+                ApplyPosition()
+            end)
+            btn:SetPoint("LEFT", resetRow._leftRegion, "LEFT", 8, 0)
+        end
+        if resetRow._rightRegion then
+            local btn = ns.Button(resetRow._rightRegion, "Reset Custom Reminder Position", 220, 26,
+                function()
+                    TRDB().customPos = nil
+                    ApplyCustomReminderPosition()
+                end)
+            btn:SetPoint("LEFT", resetRow._rightRegion, "LEFT", 8, 0)
+        end
+    end
 
     return y
 end
@@ -4632,89 +4646,35 @@ function ns.BuildColorsSettings(parent, y)
 end
 
 -------------------------------------------------------------------------------
---  Setup tab -- core settings always visible, then a BigWigs-style left tile
---  list (Bars / Colors / Sounds / Profile) switching a detail pane on the
---  right, hand-rolled the same way EUI_RaidFrames_ManagerPages.lua's own
---  sidebar+detail pattern works: selection lives in a module-local upvalue,
---  a click sets it and calls EllesmereUI:RefreshPage(true) to rebuild in
---  place. EllesmereUI's own module system has no sub-panel mechanism of its
---  own to plug into, so this follows the same convention rather than
---  inventing a second one.
+--  Setup tab -- one flat page again, no side navigation. The tile-list
+--  version (Bars / Colors / Sounds / Profile switching a detail pane) is
+--  gone -- didn't earn its keep for what's currently sparse per-topic
+--  content, and everything reads better as one page the way it always was.
+--
+--  Order: core settings, then Visibility Options + Size and Location
+--  (BuildBarsSettings, despite the name -- it still covers both, they just
+--  read as one section on a flat page instead of a tile of their own),
+--  then Sounds, then Colors, then Profile (Reminder Packs, Where It Runs),
+--  then the priority list LAST. That last placement is deliberate, not
+--  incidental: RenderPresetListEditor's own returned height runs a little
+--  short of its true rendered extent once the spare-defensives column gets
+--  long, and putting nothing after it means that imprecision only costs
+--  trailing empty space rather than another section overlapping it.
 -------------------------------------------------------------------------------
-local setupTile = "bars"
-
-local SETUP_TILES = {
-    { id = "bars",    label = "Bars" },
-    { id = "colors",  label = "Colors" },
-    { id = "sounds",  label = "Sounds" },
-    { id = "profile", label = "Profile" },
-}
-
 function ns.BuildSetupPage(parent, yOffset)
     local EUI = _G.EllesmereUI
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     RefreshSpec()   -- the list editors below are all keyed on it
 
-    local y = ns.BuildCoreSettings and ns.BuildCoreSettings(parent, yOffset) or yOffset
-    y = y - 10
+    local y = yOffset
+    if ns.BuildCoreSettings    then y = ns.BuildCoreSettings(parent, y) end
+    if ns.BuildBarsSettings    then y = ns.BuildBarsSettings(parent, y) end
+    if ns.BuildSoundsSettings  then y = ns.BuildSoundsSettings(parent, y) end
+    if ns.BuildColorsSettings  then y = ns.BuildColorsSettings(parent, y) end
+    if ns.BuildProfileSettings then y = ns.BuildProfileSettings(parent, y) end
+    if ns.BuildPresetListSettings then y = ns.BuildPresetListSettings(parent, y) end
 
-    local sidebarTop = y
-    local SIDEBAR_W, TILE_H = 150, 30
-
-    local sidebar = CreateFrame("Frame", nil, parent)
-    sidebar:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, sidebarTop)
-    sidebar:SetSize(SIDEBAR_W, #SETUP_TILES * TILE_H)
-
-    for i, tile in ipairs(SETUP_TILES) do
-        local row = CreateFrame("Button", nil, sidebar)
-        row:SetSize(SIDEBAR_W, TILE_H)
-        row:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, -(i - 1) * TILE_H)
-
-        local sel = (setupTile == tile.id)
-        local bg = ns.Solid(row, "BACKGROUND",
-            sel and ns.THEME.gold or ns.THEME.panel, sel and 0.16 or 1)
-        bg:SetAllPoints()
-        ns.Border(row, sel and ns.THEME.gold or ns.THEME.line)
-
-        local lbl = ns.Font(row, 12, nil, sel and ns.THEME.fg or ns.THEME.muted)
-        lbl:SetPoint("LEFT", 12, 0)
-        lbl:SetText(tile.label)
-
-        row:SetScript("OnClick", function()
-            if setupTile ~= tile.id then
-                setupTile = tile.id
-                EUI:RefreshPage(true)
-            end
-        end)
-    end
-
-    local detail = CreateFrame("Frame", nil, parent)
-    detail:SetPoint("TOPLEFT", parent, "TOPLEFT", SIDEBAR_W + 16, sidebarTop)
-    detail:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
-
-    local dy = 0
-    if setupTile == "colors" then
-        dy = ns.BuildColorsSettings and ns.BuildColorsSettings(detail, dy) or dy
-    elseif setupTile == "sounds" then
-        dy = ns.BuildSoundsSettings and ns.BuildSoundsSettings(detail, dy) or dy
-    elseif setupTile == "profile" then
-        dy = ns.BuildProfileSettings and ns.BuildProfileSettings(detail, dy) or dy
-    else -- "bars"
-        dy = ns.BuildBarsSettings and ns.BuildBarsSettings(detail, dy) or dy
-    end
-
-    -- Whichever column ran longer decides where the priority list starts. It renders
-    -- LAST and nothing follows it, so its own returned height only affects trailing
-    -- empty space, never another section's position -- see BuildPresetListSettings.
-    local sidebarBottom = sidebarTop - (#SETUP_TILES * TILE_H)
-    local detailBottom  = sidebarTop + dy
-    local y2 = math.min(sidebarBottom, detailBottom) - 16
-
-    if ns.BuildPresetListSettings then
-        y2 = ns.BuildPresetListSettings(parent, y2)
-    end
-
-    return math.abs(y2)
+    return math.abs(y)
 end
 
 -- Dungeon Bosses / Raid Bosses tabs -- just the boss list now that Reminder
