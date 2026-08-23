@@ -508,6 +508,11 @@ local textFrame
 local bar
 local activeSlots = 0           -- how many slots the current spec actually uses
 local hideTimer
+-- Hoisted from where it used to be declared, right before CreateCustomFrame: the new
+-- color-apply functions below need it in scope, and a bare `local customFrame` further
+-- down the file would shadow this one rather than reuse it -- every reader between the
+-- two points would silently split into two different variables.
+local customFrame
 
 local function ApplyPosition()
     if not frame then return end
@@ -517,6 +522,41 @@ local function ApplyPosition()
         frame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
     else
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 160)
+    end
+end
+
+-- Not in DEFAULTS: that table is filled into a profile with a plain `t[k] = v` shallow
+-- copy (see PrepareProfile below), which for a TABLE value would hand every profile the
+-- SAME table by reference -- one profile's color would silently move every other
+-- profile's too, and mutating it in place would corrupt the shared default itself. A
+-- fresh literal on every read/write here means nothing is ever shared.
+local function DefensiveTextColor()
+    local c = TRDB().defensiveTextColor
+    return (c and c.r) or 1, (c and c.g) or 1, (c and c.b) or 1, (c and c.a) or 1
+end
+
+local function CustomTextColor()
+    local c = TRDB().customTextColor
+    return (c and c.r) or 1, (c and c.g) or 1, (c and c.b) or 1, (c and c.a) or 1
+end
+
+-- Both colors are opt-in ("as an option", not a forced restyle): TEXT_WHITE unless the
+-- player has switched the toggle on, matching what every install has always shown.
+local function ApplyDefensiveTextColor()
+    if not frame or not frame.reminder then return end
+    if TRDB().defensiveTextColorOn then
+        frame.reminder:SetTextColor(DefensiveTextColor())
+    else
+        frame.reminder:SetTextColor(1, 1, 1, 1)
+    end
+end
+
+local function ApplyCustomTextColor()
+    if not customFrame or not customFrame.text then return end
+    if TRDB().customTextColorOn then
+        customFrame.text:SetTextColor(CustomTextColor())
+    else
+        customFrame.text:SetTextColor(1, 1, 1, 1)
     end
 end
 
@@ -670,7 +710,7 @@ function Reminder.Create()
     -- callout, so the two never fight. Plain data only: fingerprints and authored text.
     frame.reminder = textFrame:CreateFontString(nil, "OVERLAY")
     frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
-    frame.reminder:SetTextColor(1, 1, 1, 1)
+    ApplyDefensiveTextColor()
     frame.reminder:Hide()
 
     frame.fallback = textFrame:CreateFontString(nil, "OVERLAY")
@@ -2645,7 +2685,9 @@ local function CheckCounterCondition(groups, n)
     return false
 end
 
-local customFrame
+-- customFrame is declared much earlier, alongside frame/textFrame, so the color-apply
+-- functions up there can close over the same variable this file's other custom-reminder
+-- code writes to.
 local customHideTimer
 -- Per-uid occurrence count for the "Nth cast" counter, reset every pull.
 local customCounters = {}
@@ -2689,7 +2731,7 @@ local function CreateCustomFrame()
     customFrame.text = customFrame:CreateFontString(nil, "OVERLAY")
     customFrame.text:SetPoint("CENTER")
     customFrame.text:SetFont(AlertFont(), 18, "OUTLINE")
-    customFrame.text:SetTextColor(1, 1, 1, 1)
+    ApplyCustomTextColor()
     ApplyCustomReminderPosition()
     return customFrame
 end
@@ -3224,6 +3266,11 @@ function ns.Apply()
     RefreshSpec()
     Reminder.Create()
     ApplyPosition()
+    -- Reminder.Create() only sets the color the first time frame.reminder is built, so a
+    -- profile switch (which runs this without recreating an already-existing frame) needs
+    -- these called explicitly or it would keep showing the PREVIOUS profile's color.
+    ApplyDefensiveTextColor()
+    ApplyCustomTextColor()
     RebuildSlots()
     RebuildCastMap()
     ResyncModel()
@@ -4630,17 +4677,66 @@ end
 -- Colors: nothing built yet. There is no colour customisation anywhere in
 -- this addon today -- the icon and text callout use the defensive's own
 -- Blizzard colouring, unconfigurable. Said plainly rather than hidden.
+-- Both toggles are opt-in: off keeps the default white, matching every install before
+-- this existed. The color row under each is conditional on its own toggle, same idiom as
+-- the Alert Sound dropdown under Sounds -- so a toggle flip also calls RefreshPage to make
+-- that row appear or disappear immediately.
 function ns.BuildColorsSettings(parent, y)
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
     local _, h
 
     _, h = W:SectionHeader(parent, "COLORS", y); y = y - h
+
     _, h = W:DualRow(parent, y,
-        { type = "label", text = "|cff8a99b5Nothing to configure here yet -- the icon and text "
-          .. "callout use their own default colouring.|r" },
-        { type = "label", text = "" }
+        { type = "toggle", text = "Color the Defensive Text",
+          tooltip = "Recolor the defensive callout text -- the spell name shown by the "
+          .. "icon. Off uses the default white.",
+          getValue = function() return TRDB().defensiveTextColorOn end,
+          setValue = function(v)
+              TRDB().defensiveTextColorOn = v
+              ApplyDefensiveTextColor()
+              EUI:RefreshPage(true)
+          end },
+        { type = "toggle", text = "Color Custom Reminders Text",
+          tooltip = "Recolor custom reminder text -- BigWigs/DBM, Aura and Pull triggers. "
+          .. "Off uses the default white.",
+          getValue = function() return TRDB().customTextColorOn end,
+          setValue = function(v)
+              TRDB().customTextColorOn = v
+              ApplyCustomTextColor()
+              EUI:RefreshPage(true)
+          end }
     ); y = y - h
+
+    if TRDB().defensiveTextColorOn then
+        _, h = W:ColorPicker(parent, "Defensive Text Color", y,
+            DefensiveTextColor,
+            function(r, g, b, a)
+                TRDB().defensiveTextColor = { r = r, g = g, b = b, a = a }
+                ApplyDefensiveTextColor()
+            end,
+            true)
+        y = y - h
+    end
+
+    if TRDB().customTextColorOn then
+        _, h = W:ColorPicker(parent, "Custom Reminders Text Color", y,
+            CustomTextColor,
+            function(r, g, b, a)
+                TRDB().customTextColor = { r = r, g = g, b = b, a = a }
+                ApplyCustomTextColor()
+            end,
+            true)
+        y = y - h
+    end
+
+    if not (TRDB().defensiveTextColorOn or TRDB().customTextColorOn) then
+        _, h = W:DualRow(parent, y,
+            { type = "label", text = "|cff8a99b5Nothing else to configure here yet.|r" },
+            { type = "label", text = "" }
+        ); y = y - h
+    end
 
     return y
 end
