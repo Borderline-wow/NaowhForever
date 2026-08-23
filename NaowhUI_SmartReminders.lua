@@ -4329,7 +4329,19 @@ end
 -------------------------------------------------------------------------------
 -- Returns the raw running y, section-builder style, so the companion can chain us. Our own
 -- standalone page wrapper is what takes math.abs of it.
-function ns.BuildSection(parent, y)
+-------------------------------------------------------------------------------
+--  Setup tab panels
+-------------------------------------------------------------------------------
+-- Split out of what used to be one long ns.BuildSection. Core stays always
+-- visible on the Setup tab (master enable, behaviour toggles, and the
+-- priority list are not "Bars", "Colors", "Sounds" or "Profile" -- none of
+-- the four own "when this fires", only "how it looks or sounds" or "what
+-- profile owns it"), while the rest split into the four side-list panels.
+
+-- Core: master enable, boss-tanking scope, timing/behaviour, the priority
+-- list. Always shown at the top of the Setup tab regardless of which of the
+-- four side items is selected.
+function ns.BuildCoreSettings(parent, y)
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
     local _, h
@@ -4374,7 +4386,57 @@ function ns.BuildSection(parent, y)
         ); y = y - h
     end
 
-    _, h = W:SectionHeader(parent, "HOW IT TELLS YOU", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Skip When Already Covered",
+          tooltip = "Stays quiet when one of your defensives is already active with five or "
+          .. "more seconds left as the warning fires -- you are covered, no need to stack "
+          .. "another. When the game hides a buff's timing, the callout plays anyway.",
+          getValue = function() return TRDB().coveredSkip ~= false end,
+          setValue = function(v) TRDB().coveredSkip = v end },
+        { type = "slider", text = "Warn This Many Seconds Early", min = 1, max = 5, step = 1,
+          tooltip = "How close to the hit the alert fires. The game announces abilities about "
+          .. "five seconds out; the alert waits and fires this many seconds before impact, so "
+          .. "lower is closer to the hit. When the game announces later than this, the alert "
+          .. "fires immediately.",
+          getValue = function() return TRDB().leadTime or 3 end,
+          setValue = function(v) TRDB().leadTime = v end }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Call Out Unknown Bosses",
+          tooltip = "Bosses with no tank buster data stay quiet by default (the alert sound "
+          .. "still covers known busters). Turn this on while authoring a boss: every "
+          .. "timeline ability calls out so you can mark the real busters, then turn it "
+          .. "back off.",
+          getValue = function() return TRDB().learnMode end,
+          setValue = function(v) TRDB().learnMode = v end },
+        { type = "label", text = "" }
+    ); y = y - h
+
+    -- The player's own list for the current spec, in priority order. This addon ships no
+    -- ability data, so an empty list here is the correct starting state -- the section says
+    -- so rather than looking broken.
+    _, h = W:SectionHeader(parent, "PRESET LIST (THIS SPEC)", y); y = y - h
+
+    -- Left: the presets you have for this spec, and a way to add more. Right: the active
+    -- one's list, every row condensed to a name, a switch, and a settings cog.
+    if ns.RenderPresetListEditor then
+        y = ns.RenderPresetListEditor(parent, y, W, EUI, specID)
+    end
+
+    return y
+end
+
+-- Bars: what shows on the alert and how it's sized and placed. "Show the
+-- Icon" and "Show a Text Callout" used to be paired with unrelated toggles
+-- on the same row (Skip When Covered, Play a Sound) -- unpaired here since
+-- each half of a row now belongs to a different panel.
+function ns.BuildBarsSettings(parent, y)
+    local EUI = _G.EllesmereUI
+    local W   = EUI.Widgets
+    local _, h
+
+    _, h = W:SectionHeader(parent, "WHAT SHOWS", y); y = y - h
 
     -- The countdown bar toggle lived here and was removed on tester feedback; the bar
     -- machinery stays for stored profiles that still have showBar set, it just cannot be
@@ -4384,20 +4446,11 @@ function ns.BuildSection(parent, y)
           tooltip = "The icon of the defensive to press.",
           getValue = function() return TRDB().showIcon end,
           setValue = function(v) TRDB().showIcon = v; ApplySize(); UpdatePreview() end },
-        { type = "toggle", text = "Skip When Already Covered",
-          tooltip = "Stays quiet when one of your defensives is already active with five or "
-          .. "more seconds left as the warning fires -- you are covered, no need to stack "
-          .. "another. When the game hides a buff's timing, the callout plays anyway.",
-          getValue = function() return TRDB().coveredSkip ~= false end,
-          setValue = function(v) TRDB().coveredSkip = v end }
-    ); y = y - h
-
-    -- This toggle used to lock itself while the engine tank filter was on, because a
-    -- FontString cannot carry that filter and the text would have contradicted the icon.
-    -- The fingerprint filter made the lock obsolete: it silences whole events upstream, so
-    -- text is tank-only on covered bosses regardless -- and voice was never locked despite
-    -- having the identical limitation, so the lock bought inconsistency, not honesty.
-    _, h = W:DualRow(parent, y,
+        -- This toggle used to lock itself while the engine tank filter was on, because a
+        -- FontString cannot carry that filter and the text would have contradicted the icon.
+        -- The fingerprint filter made the lock obsolete: it silences whole events upstream, so
+        -- text is tank-only on covered bosses regardless -- and voice was never locked despite
+        -- having the identical limitation, so the lock bought inconsistency, not honesty.
         { type = "toggle", text = "Show a Text Callout",
           tooltip = "Writes the callout on screen -- \"Barkskin\" -- for whichever defensive "
           .. "it picked, and your fallback line when nothing is up. On bosses with tank buster "
@@ -4407,79 +4460,8 @@ function ns.BuildSection(parent, y)
           getValue = function() return TRDB().showText end,
           setValue = function(v)
               TRDB().showText = v; ApplySize(); UpdatePreview()
-          end },
-        { type = "toggle", text = "Play a Sound",
-          tooltip = "Plays a sound when a tank ability is coming. The game plays this one itself, "
-          .. "which is the only way it can be limited to tank abilities -- but it also means the "
-          .. "sound cannot know whether your defensive is ready. Watch the icon for that.|n|n"
-          .. "|cffff6b5eIt plays at most ONCE per boss fight.|r The game will not repeat a "
-          .. "registered sound, so a second cast of the same ability is silent. The icon is "
-          .. "not affected and marks every cast.",
-          getValue = function() return TRDB().soundOn end,
-          setValue = function(v)
-              TRDB().soundOn = v
-              soundRegistered = false
-              if v then RegisterEventSounds() end
-              EUI:RefreshPage(true)
           end }
     ); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Speak Which Defensive to Use",
-          tooltip = "Says the callout for the defensive it picked, and your fallback line when "
-          .. "nothing is up. On bosses with tank buster data this speaks only for tank "
-          .. "busters; on bosses without it yet, it speaks for every timeline ability. In "
-          .. "combat the pick comes from the addon's own tracking of your casts.",
-          getValue = function() return TRDB().voiceOn end,
-          setValue = function(v) TRDB().voiceOn = v; EUI:RefreshPage(true) end },
-        { type = "slider", text = "Voice Volume", min = 0, max = 100, step = 5,
-          tooltip = "Volume of the spoken callouts.",
-          getValue = function() return TRDB().voiceVol or 100 end,
-          setValue = function(v) TRDB().voiceVol = v end }
-    ); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "slider", text = "Warn This Many Seconds Early", min = 1, max = 5, step = 1,
-          tooltip = "How close to the hit the alert fires. The game announces abilities about "
-          .. "five seconds out; the alert waits and fires this many seconds before impact, so "
-          .. "lower is closer to the hit. When the game announces later than this, the alert "
-          .. "fires immediately.",
-          getValue = function() return TRDB().leadTime or 3 end,
-          setValue = function(v) TRDB().leadTime = v end },
-        { type = "toggle", text = "Call Out Unknown Bosses",
-          tooltip = "Bosses with no tank buster data stay quiet by default (the alert sound "
-          .. "still covers known busters). Turn this on while authoring a boss: every "
-          .. "timeline ability calls out so you can mark the real busters, then turn it "
-          .. "back off.",
-          getValue = function() return TRDB().learnMode end,
-          setValue = function(v) TRDB().learnMode = v end }
-    ); y = y - h
-
-    if TRDB().soundOn then
-        local paths, names, order = EUI.BuildAlertSoundTables()
-        if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
-        _, h = W:DualRow(parent, y,
-            { type = "dropdown", text = "Alert Sound",
-              values = names, order = order,
-              tooltip = "Sound files only. A few entries are built-in game sounds rather than "
-              .. "files, and the game will not accept those for this.",
-              getValue = function() return TRDB().soundKey or "none" end,
-              setValue = function(v)
-                  TRDB().soundKey = v
-                  soundRegistered = false
-                  if EUI._PlayLSMSound and paths[v] then EUI._PlayLSMSound(paths[v]) end
-                  RegisterEventSounds()
-              end },
-            { type = "label", text = "Re-registers when you change it." }
-        ); y = y - h
-
-        if soundError then
-            _, h = W:DualRow(parent, y,
-                { type = "label", text = "|cffff6060" .. soundError .. "|r" },
-                { type = "label", text = "" }
-            ); y = y - h
-        end
-    end
 
     _, h = W:SectionHeader(parent, "SIZE AND PLACE", y); y = y - h
 
@@ -4540,33 +4522,193 @@ function ns.BuildSection(parent, y)
     end)
     y = y - h
 
-    -- The player's own list for the current spec, in priority order. This addon ships no
-    -- ability data, so an empty list here is the correct starting state -- the section says
-    -- so rather than looking broken.
-    _, h = W:SectionHeader(parent, "PRESET LIST (THIS SPEC)", y); y = y - h
+    return y
+end
 
-    -- Left: the presets you have for this spec, and a way to add more. Right: the active
-    -- one's list, every row condensed to a name, a switch, and a settings cog.
-    if ns.RenderPresetListEditor then
-        y = ns.RenderPresetListEditor(parent, y, W, EUI, specID)
+-- Sounds: engine-played sound, spoken callout, and the alert sound file
+-- picker. "Play a Sound" used to share a row with "Show a Text Callout"
+-- (Bars); unpaired here for the same reason as above.
+function ns.BuildSoundsSettings(parent, y)
+    local EUI = _G.EllesmereUI
+    local W   = EUI.Widgets
+    local _, h
+
+    _, h = W:SectionHeader(parent, "SOUNDS AND VOICE", y); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Play a Sound",
+          tooltip = "Plays a sound when a tank ability is coming. The game plays this one itself, "
+          .. "which is the only way it can be limited to tank abilities -- but it also means the "
+          .. "sound cannot know whether your defensive is ready. Watch the icon for that.|n|n"
+          .. "|cffff6b5eIt plays at most ONCE per boss fight.|r The game will not repeat a "
+          .. "registered sound, so a second cast of the same ability is silent. The icon is "
+          .. "not affected and marks every cast.",
+          getValue = function() return TRDB().soundOn end,
+          setValue = function(v)
+              TRDB().soundOn = v
+              soundRegistered = false
+              if v then RegisterEventSounds() end
+              EUI:RefreshPage(true)
+          end },
+        { type = "toggle", text = "Speak Which Defensive to Use",
+          tooltip = "Says the callout for the defensive it picked, and your fallback line when "
+          .. "nothing is up. On bosses with tank buster data this speaks only for tank "
+          .. "busters; on bosses without it yet, it speaks for every timeline ability. In "
+          .. "combat the pick comes from the addon's own tracking of your casts.",
+          getValue = function() return TRDB().voiceOn end,
+          setValue = function(v) TRDB().voiceOn = v; EUI:RefreshPage(true) end }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "Voice Volume", min = 0, max = 100, step = 5,
+          tooltip = "Volume of the spoken callouts.",
+          getValue = function() return TRDB().voiceVol or 100 end,
+          setValue = function(v) TRDB().voiceVol = v end },
+        { type = "label", text = "" }
+    ); y = y - h
+
+    if TRDB().soundOn then
+        local paths, names, order = EUI.BuildAlertSoundTables()
+        if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
+        _, h = W:DualRow(parent, y,
+            { type = "dropdown", text = "Alert Sound",
+              values = names, order = order,
+              tooltip = "Sound files only. A few entries are built-in game sounds rather than "
+              .. "files, and the game will not accept those for this.",
+              getValue = function() return TRDB().soundKey or "none" end,
+              setValue = function(v)
+                  TRDB().soundKey = v
+                  soundRegistered = false
+                  if EUI._PlayLSMSound and paths[v] then EUI._PlayLSMSound(paths[v]) end
+                  RegisterEventSounds()
+              end },
+            { type = "label", text = "Re-registers when you change it." }
+        ); y = y - h
+
+        if soundError then
+            _, h = W:DualRow(parent, y,
+                { type = "label", text = "|cffff6060" .. soundError .. "|r" },
+                { type = "label", text = "" }
+            ); y = y - h
+        end
     end
 
     return y
 end
 
--- The whole page: the alert settings above, then the dungeon and raid tree from the other
--- file. Registered as its own sidebar entry rather than a section of Gameplay, so the tree
--- has room to breathe.
-function ns.BuildPage(parent, yOffset)
+-- Colors: nothing built yet. There is no colour customisation anywhere in
+-- this addon today -- the icon and text callout use the defensive's own
+-- Blizzard colouring, unconfigurable. Said plainly rather than hidden.
+function ns.BuildColorsSettings(parent, y)
+    local EUI = _G.EllesmereUI
+    local W   = EUI.Widgets
+    local _, h
+
+    _, h = W:SectionHeader(parent, "COLORS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "label", text = "|cff8a99b5Nothing to configure here yet -- the icon and text "
+          .. "callout use their own default colouring.|r" },
+        { type = "label", text = "" }
+    ); y = y - h
+
+    return y
+end
+
+-------------------------------------------------------------------------------
+--  Setup tab -- core settings always visible, then a BigWigs-style left tile
+--  list (Bars / Colors / Sounds / Profile) switching a detail pane on the
+--  right, hand-rolled the same way EUI_RaidFrames_ManagerPages.lua's own
+--  sidebar+detail pattern works: selection lives in a module-local upvalue,
+--  a click sets it and calls EllesmereUI:RefreshPage(true) to rebuild in
+--  place. EllesmereUI's own module system has no sub-panel mechanism of its
+--  own to plug into, so this follows the same convention rather than
+--  inventing a second one.
+-------------------------------------------------------------------------------
+local setupTile = "bars"
+
+local SETUP_TILES = {
+    { id = "bars",    label = "Bars" },
+    { id = "colors",  label = "Colors" },
+    { id = "sounds",  label = "Sounds" },
+    { id = "profile", label = "Profile" },
+}
+
+function ns.BuildSetupPage(parent, yOffset)
     local EUI = _G.EllesmereUI
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     RefreshSpec()   -- the list editors below are all keyed on it
 
-    local y = ns.BuildSection(parent, yOffset)
-    if ns.BuildTreeSection then
-        y = ns.BuildTreeSection(parent, y)
+    local y = ns.BuildCoreSettings and ns.BuildCoreSettings(parent, yOffset) or yOffset
+    y = y - 10
+
+    local sidebarTop = y
+    local SIDEBAR_W, TILE_H = 150, 30
+
+    local sidebar = CreateFrame("Frame", nil, parent)
+    sidebar:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, sidebarTop)
+    sidebar:SetSize(SIDEBAR_W, #SETUP_TILES * TILE_H)
+
+    for i, tile in ipairs(SETUP_TILES) do
+        local row = CreateFrame("Button", nil, sidebar)
+        row:SetSize(SIDEBAR_W, TILE_H)
+        row:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, -(i - 1) * TILE_H)
+
+        local sel = (setupTile == tile.id)
+        local bg = ns.Solid(row, "BACKGROUND",
+            sel and ns.THEME.gold or ns.THEME.panel, sel and 0.16 or 1)
+        bg:SetAllPoints()
+        ns.Border(row, sel and ns.THEME.gold or ns.THEME.line)
+
+        local lbl = ns.Font(row, 12, nil, sel and ns.THEME.fg or ns.THEME.muted)
+        lbl:SetPoint("LEFT", 12, 0)
+        lbl:SetText(tile.label)
+
+        row:SetScript("OnClick", function()
+            if setupTile ~= tile.id then
+                setupTile = tile.id
+                EUI:RefreshPage(true)
+            end
+        end)
+    end
+
+    local detail = CreateFrame("Frame", nil, parent)
+    detail:SetPoint("TOPLEFT", parent, "TOPLEFT", SIDEBAR_W + 16, sidebarTop)
+    detail:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+
+    local dy = 0
+    if setupTile == "colors" then
+        dy = ns.BuildColorsSettings and ns.BuildColorsSettings(detail, dy) or dy
+    elseif setupTile == "sounds" then
+        dy = ns.BuildSoundsSettings and ns.BuildSoundsSettings(detail, dy) or dy
+    elseif setupTile == "profile" then
+        dy = ns.BuildProfileSettings and ns.BuildProfileSettings(detail, dy) or dy
+    else -- "bars"
+        dy = ns.BuildBarsSettings and ns.BuildBarsSettings(detail, dy) or dy
+    end
+
+    -- Whichever column ran longer decides the page's total height.
+    local sidebarBottom = sidebarTop - (#SETUP_TILES * TILE_H)
+    local detailBottom  = sidebarTop + dy
+    return math.abs(math.min(sidebarBottom, detailBottom))
+end
+
+-- Dungeon Bosses / Raid Bosses tabs -- just the boss list now that Reminder
+-- Packs and the global switches moved to Setup's Profile tile.
+function ns.BuildBossTabPage(parent, yOffset, isRaid)
+    local EUI = _G.EllesmereUI
+    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+    RefreshSpec()
+
+    local y = yOffset
+    if ns.BuildBossListPage then
+        y = ns.BuildBossListPage(parent, y, isRaid)
     end
     return math.abs(y)
+end
+
+-- Kept so an external caller of the old single-page entry point still resolves.
+function ns.BuildPage(parent, yOffset)
+    return ns.BuildSetupPage(parent, yOffset)
 end
 
 -- Shared with the boss tree page, which renders the same list editor for a per-boss

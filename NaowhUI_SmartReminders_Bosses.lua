@@ -1932,11 +1932,14 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     dimmer:Show()
 end
 
-function ns.BuildTreeSection(parent, y)
+-- Profile tab: sharing (Reminder Packs) and the two global on/off switches.
+-- Global in scope -- neither is "which boss" or "how it looks", both are
+-- "what this profile does everywhere" -- so this is where they belong now
+-- that the boss list has its own two tabs.
+function ns.BuildProfileSettings(parent, y)
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
     local _, h
-    local specID = ns.CurrentSpec()
     local db = ns.DB()
 
     _, h = W:SectionHeader(parent, "REMINDER PACKS", y); y = y - h
@@ -1981,7 +1984,90 @@ function ns.BuildTreeSection(parent, y)
           setValue = function(v) db.inRaids = v; ns.RefreshRuntime() end }
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "DUNGEONS AND RAIDS", y); y = y - h
+    return y
+end
+
+-- The toggle is the instance's ON/OFF switch -- it writes the per-boss switches in bulk,
+-- so the two views can never disagree -- and the cog in its gutter is what opens the
+-- options modal. The toggle used to open the modal itself, which made switching a
+-- dungeon off impossible and opening it feel like a mis-click.
+local function InstanceSlot(inst)
+    if not inst then return { type = "label", text = "" } end
+    return { type = "toggle",
+        text = inst.name,
+        tooltip = ("Callouts for this %s, all %d bosses at once. Single bosses can still "
+            .. "be switched inside the cog."):format(
+            inst.isRaid and "raid" or "dungeon", #inst.bosses),
+        getValue = function()
+            local off = ns.DB().bossOff
+            if not off then return true end
+            for b = 1, #inst.bosses do
+                local eid = inst.bosses[b].encounterID
+                if eid and not off[tostring(eid)] then return true end
+            end
+            return #inst.bosses == 0
+        end,
+        setValue = function(v)
+            local db = ns.DB()
+            if type(db.bossOff) ~= "table" then db.bossOff = {} end
+            for b = 1, #inst.bosses do
+                local eid = inst.bosses[b].encounterID
+                if eid then db.bossOff[tostring(eid)] = (not v) or nil end
+            end
+            if next(db.bossOff) == nil then db.bossOff = nil end
+            ns.RefreshRuntime()
+            EUI:RefreshPage(true)
+        end }
+end
+
+-- The house cog: dim until hovered, sitting in the gutter between the checkbox and
+-- the instance name, same art as every other cog in the suite.
+local function AttachInstanceCog(rgn, inst, specID, EUI, W)
+    if not (rgn and inst) then return end
+    local cog = CreateFrame("Button", nil, rgn)
+    -- The suite's cog VERBATIM, anchor included: 26px, dim 0.4 resting, 0.7 hovered,
+    -- COGS_ICON art, sitting immediately LEFT OF THE TOGGLE PILL -- the same spot
+    -- every other cog in EllesmereUI occupies. The first two attempts parked it at
+    -- the row's far left, where a gray icon reads as a second, broken checkbox.
+    cog:SetSize(26, 26)
+    cog:SetPoint("RIGHT", rgn._lastInline or rgn._control or rgn, "LEFT", -8, 0)
+    rgn._lastInline = cog
+    cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
+    cog:SetAlpha(0.4)
+    local tex = cog:CreateTexture(nil, "OVERLAY")
+    tex:SetAllPoints()
+    local EUIg = _G.EllesmereUI
+    if EUIg and EUIg.COGS_ICON then
+        tex:SetTexture(EUIg.COGS_ICON)
+    else
+        tex:SetTexture("Interface" .. string.char(92) .. "Buttons"
+            .. string.char(92) .. "UI-OptionsButton")
+    end
+    cog:SetScript("OnEnter", function(self)
+        self:SetAlpha(0.7)
+        if EUIg and EUIg.ShowWidgetTooltip then
+            EUIg.ShowWidgetTooltip(self, "Bosses, reminders and lists for " .. inst.name)
+        end
+    end)
+    cog:SetScript("OnLeave", function(self)
+        self:SetAlpha(0.4)
+        if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
+    end)
+    cog:SetScript("OnClick", function()
+        ns.ShowInstanceModal(inst, specID, EUI, W)
+    end)
+end
+
+-- Dungeon Bosses / Raid Bosses tab. Was one combined two-column list (a dungeon paired
+-- with a raid on each row, purely to save vertical space); split by isRaid now that each
+-- kind has a tab of its own, still packed two-up within itself for the same reason.
+function ns.BuildBossListPage(parent, y, isRaid)
+    local EUI = _G.EllesmereUI
+    local W   = EUI.Widgets
+    local _, h
+    local specID = ns.CurrentSpec()
+
+    _, h = W:SectionHeader(parent, isRaid and "RAID BOSSES" or "DUNGEON BOSSES", y); y = y - h
 
     local data = ns.ScrapeBosses(false)
     if not data or #data.instances == 0 then
@@ -1999,91 +2085,19 @@ function ns.BuildTreeSection(parent, y)
         return y - h
     end
 
-    local dungeons, raids = {}, {}
+    local list = {}
     for i = 1, #data.instances do
         local inst = data.instances[i]
-        if inst.isRaid then raids[#raids + 1] = inst else dungeons[#dungeons + 1] = inst end
+        if (inst.isRaid or false) == isRaid then list[#list + 1] = inst end
     end
 
-    -- The toggle is the instance's ON/OFF switch -- it writes the per-boss switches in
-    -- bulk, so the two views can never disagree -- and the cog in its gutter is what opens
-    -- the options modal. The toggle used to open the modal itself, which made switching a
-    -- dungeon off impossible and opening it feel like a mis-click.
-    local function InstanceSlot(inst)
-        if not inst then return { type = "label", text = "" } end
-        return { type = "toggle",
-            text = inst.name,
-            tooltip = ("Callouts for this %s, all %d bosses at once. Single bosses can still "
-                .. "be switched inside the cog."):format(
-                inst.isRaid and "raid" or "dungeon", #inst.bosses),
-            getValue = function()
-                local off = ns.DB().bossOff
-                if not off then return true end
-                for b = 1, #inst.bosses do
-                    local eid = inst.bosses[b].encounterID
-                    if eid and not off[tostring(eid)] then return true end
-                end
-                return #inst.bosses == 0
-            end,
-            setValue = function(v)
-                local db = ns.DB()
-                if type(db.bossOff) ~= "table" then db.bossOff = {} end
-                for b = 1, #inst.bosses do
-                    local eid = inst.bosses[b].encounterID
-                    if eid then db.bossOff[tostring(eid)] = (not v) or nil end
-                end
-                if next(db.bossOff) == nil then db.bossOff = nil end
-                ns.RefreshRuntime()
-                EUI:RefreshPage(true)
-            end }
-    end
-
-    -- The house cog: dim until hovered, sitting in the gutter between the checkbox and
-    -- the instance name, same art as every other cog in the suite.
-    local function AttachCog(rgn, inst)
-        if not (rgn and inst) then return end
-        local cog = CreateFrame("Button", nil, rgn)
-        -- The suite's cog VERBATIM, anchor included: 26px, dim 0.4 resting, 0.7 hovered,
-        -- COGS_ICON art, sitting immediately LEFT OF THE TOGGLE PILL -- the same spot
-        -- every other cog in EllesmereUI occupies. The first two attempts parked it at
-        -- the row's far left, where a gray icon reads as a second, broken checkbox.
-        cog:SetSize(26, 26)
-        cog:SetPoint("RIGHT", rgn._lastInline or rgn._control or rgn, "LEFT", -8, 0)
-        rgn._lastInline = cog
-        cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
-        cog:SetAlpha(0.4)
-        local tex = cog:CreateTexture(nil, "OVERLAY")
-        tex:SetAllPoints()
-        local EUIg = _G.EllesmereUI
-        if EUIg and EUIg.COGS_ICON then
-            tex:SetTexture(EUIg.COGS_ICON)
-        else
-            tex:SetTexture("Interface" .. string.char(92) .. "Buttons"
-                .. string.char(92) .. "UI-OptionsButton")
-        end
-        cog:SetScript("OnEnter", function(self)
-            self:SetAlpha(0.7)
-            if EUIg and EUIg.ShowWidgetTooltip then
-                EUIg.ShowWidgetTooltip(self, "Bosses, reminders and lists for " .. inst.name)
-            end
-        end)
-        cog:SetScript("OnLeave", function(self)
-            self:SetAlpha(0.4)
-            if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
-        end)
-        cog:SetScript("OnClick", function()
-            ns.ShowInstanceModal(inst, specID, EUI, W)
-        end)
-    end
-
-    local rows = math.max(#dungeons, #raids)
-    for i = 1, rows do
-        local d, r = dungeons[i], raids[i]
+    for i = 1, #list, 2 do
+        local a, b = list[i], list[i + 1]
         local instRow
-        instRow, h = W:DualRow(parent, y, InstanceSlot(d), InstanceSlot(r)); y = y - h
+        instRow, h = W:DualRow(parent, y, InstanceSlot(a), InstanceSlot(b)); y = y - h
         if instRow then
-            AttachCog(instRow._leftRegion, d)
-            AttachCog(instRow._rightRegion, r)
+            AttachInstanceCog(instRow._leftRegion, a, specID, EUI, W)
+            AttachInstanceCog(instRow._rightRegion, b, specID, EUI, W)
         end
     end
 
@@ -2184,9 +2198,13 @@ function ns.ShowInstanceModal(inst, specID, EUI, W)
     dimmer:Show()
 end
 
--- Kept so the old chain point still resolves; the tree replaced the standalone panel.
+-- Kept so the old chain point still resolves; the tree replaced the standalone panel, and
+-- the tree itself later split into a Profile page and two boss-list pages (see above).
+-- Nothing in this repo calls this anymore -- kept only in case an external caller does.
 function ns.BuildBossSection(parent, y)
-    return ns.BuildTreeSection(parent, y)
+    y = ns.BuildProfileSettings(parent, y)
+    y = ns.BuildBossListPage(parent, y, false)
+    return ns.BuildBossListPage(parent, y, true)
 end
 
 -------------------------------------------------------------------------------
