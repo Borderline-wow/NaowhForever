@@ -1913,11 +1913,14 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
                       getValue = function() return targetVal end,
                       setValue = function(v) targetVal = v end },
                     { type = "dropdown", text = "When",
-                      values = { applied = "Applied", removed = "Removed" },
-                      order = { "applied", "removed" },
-                      tooltip = "Fire when the aura lands, or when it falls off.",
+                      values = { applied = "Applied", removed = "Removed", stacks = "Stacks" },
+                      order = { "applied", "removed", "stacks" },
+                      tooltip = "Fire when the aura lands, when it falls off, or when it "
+                          .. "gains a stack -- read straight off the combat log, since a "
+                          .. "boss unit's own aura data is blocked from every addon during "
+                          .. "restricted content, confirmed live.",
                       getValue = function() return auraEventVal end,
-                      setValue = function(v) auraEventVal = v end }
+                      setValue = function(v) auraEventVal = v; RebuildDynFields() end }
                 ); dy = dy - rowHA
             end
 
@@ -1960,7 +1963,14 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
                 timeleftBox:SetText(timeleftText)
             end
 
-            DLabel("Counter", COUNTER_TIP)
+            if trigVal == "aura" and auraEventVal == "stacks" then
+                DLabel("Stack Count", "Fires when the aura reaches this many stacks. Same "
+                    .. "syntax as Counter: blank fires on every stack gain, or match a "
+                    .. "threshold with >N, >=N, <N, <=N, !N (not N) or a bare number "
+                    .. "(exactly N).")
+            else
+                DLabel("Counter", COUNTER_TIP)
+            end
             counterBox = DBox(40)
             counterBox:SetText(counterText)
 

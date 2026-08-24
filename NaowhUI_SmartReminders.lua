@@ -3413,7 +3413,15 @@ end
 -- SPELL_AURA_APPLIED/REMOVED fire for every aura on every unit regardless of whether any
 -- boss module's author chose to announce it, giving this broader coverage than a message
 -- trigger ever could for something as generic as "an aura landed."
-local function CheckAuraReminder(kind, destGUID, spellID)
+-- kind "stacks" is SPELL_AURA_APPLIED_DOSE, not another SPELL_AURA_APPLIED occurrence --
+-- amount is that event's own new stack count, read straight off the combat log rather
+-- than the C_UnitAuras route this addon confirmed live is hard-blocked on a boss unit in
+-- restricted content (GetAuraDataByIndex/BySpellID error outright there, for any addon;
+-- this sidesteps it since dose count is a plain combat-log field, not an API read).
+-- trig.counter here is not the incrementing occurrence tally the other kinds use --
+-- CheckCounterCondition is reused as a plain threshold check against the live amount, so
+-- "fires at 3+ stacks" is trig.counter = ">=3" checked against amount directly.
+local function CheckAuraReminder(kind, destGUID, spellID, amount)
     if not (hasCustomReminders and CustomRemindersAllowed()) then return end
     if type(spellID) ~= "number" or type(destGUID) ~= "string" then return end
     local isPlayer = destGUID == UnitGUID("player")
@@ -3432,7 +3440,10 @@ local function CheckAuraReminder(kind, destGUID, spellID)
            and (trig.auraEvent or "applied") == kind
            and (trig.target == "player") == isPlayer then
             local hit = true
-            if trig.counter and trig.counter ~= "" then
+            if kind == "stacks" then
+                hit = type(amount) == "number"
+                    and CheckCounterCondition(ParseCounterCondition(trig.counter), amount)
+            elseif trig.counter and trig.counter ~= "" then
                 customCounters[uid] = (customCounters[uid] or 0) + 1
                 hit = CheckCounterCondition(ParseCounterCondition(trig.counter), customCounters[uid])
             end
@@ -3592,8 +3603,9 @@ local function OnCombatLog()
     -- ride the same registration under their own gate (hasCustomReminders), independent of
     -- runActive: a defensive priority list is not a prerequisite for a boss-pull reminder.
     if currentEncounter == nil or not (runActive or hasCustomReminders) then return end
-    local _, sub, _, _, _, _, _, destGUID, _, _, _, spellId = CombatLogGetCurrentEventInfo()
-    if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)) then
+    local _, sub, _, _, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = CombatLogGetCurrentEventInfo()
+    if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)
+        or issecretvalue(amount)) then
         cleuIdentity = "secret"
         return
     end
@@ -3606,6 +3618,8 @@ local function OnCombatLog()
             CheckAuraReminder("applied", destGUID, spellId)
         elseif sub == "SPELL_AURA_REMOVED" then
             CheckAuraReminder("removed", destGUID, spellId)
+        elseif sub == "SPELL_AURA_APPLIED_DOSE" then
+            CheckAuraReminder("stacks", destGUID, spellId, amount)
         end
     end
 
@@ -4045,36 +4059,6 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             end
         end
         ns.Print(("catalogue: %d events, %d tank-flagged, %d unreadable"):format(total, tank, unreadable))
-        return
-    end
-
-    -- TEMPORARY, Phase 6 groundwork: classify a live boss debuff's own fields
-    -- (duration/expirationTime/applications/sourceUnit), which C_UnitAuras' docs
-    -- carry no secrecy classification for at all. Remove once Phase 6 lands or the
-    -- answer is confirmed some other way -- this is a diagnostic, not a feature.
-    if arg == "auratest" then
-        if not UnitExists("boss1") then
-            ns.Print("no boss1 unit -- target/engage a boss first.")
-            return
-        end
-        local function classify(v)
-            if v == nil then return "nil" end
-            if issecretvalue and issecretvalue(v) then return "SECRET" end
-            return tostring(v)
-        end
-        local found = 0
-        for i = 1, 10 do
-            local ok, data = pcall(C_UnitAuras.GetAuraDataByIndex, "boss1", i, "HARMFUL")
-            if not ok then
-                ns.Print(("|cffff6060slot %d ERROR|r: %s"):format(i, tostring(data)))
-            elseif type(data) == "table" then
-                found = found + 1
-                ns.Print(("slot %d: name=%s dur=%s exp=%s stacks=%s source=%s"):format(
-                    i, classify(data.name), classify(data.duration), classify(data.expirationTime),
-                    classify(data.applications), classify(data.sourceUnit)))
-            end
-        end
-        if found == 0 then ns.Print("no debuffs found on boss1 -- make sure something is actually up.") end
         return
     end
 
