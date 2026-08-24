@@ -1615,6 +1615,67 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         { type = "label", text = "" }
     ); my = my - presetRowH
 
+    -- Icon/Color/Sound: same three fields ns.ShowAbilityReminderPicker's custom mode
+    -- already has, added here too -- this editor is the only place a bwtimer trigger (the
+    -- one with a real duration behind it) can be configured, so it needs the same reach.
+    AddLabelM("Icon Spell ID (optional)")
+    local iconBox = AddBoxM(9, true, PAD + 34)
+    local iconPreview = messageBody:CreateTexture(nil, "ARTWORK")
+    iconPreview:SetSize(24, 24)
+    iconPreview:SetPoint("LEFT", iconBox, "RIGHT", 6, 0)
+    iconPreview:Hide()
+    local iconFeedback = ns.Font(messageBody, 10, nil, ns.THEME.muted)
+    iconFeedback:SetPoint("TOPLEFT", messageBody, "TOPLEFT", PAD, my)
+    iconFeedback:SetPoint("RIGHT", messageBody, "RIGHT", -PAD, 0)
+    iconFeedback:SetJustifyH("LEFT")
+    my = my - 14
+    local function SyncIconM()
+        local sid, info = ns.ResolveSpell(iconBox:GetText())
+        if sid then
+            local tex = C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(sid)
+            if tex then iconPreview:SetTexture(tex); iconPreview:Show()
+            else iconPreview:Hide() end
+            iconFeedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
+        elseif iconBox:GetText() == "" then
+            iconPreview:Hide()
+            iconFeedback:SetText("")
+        else
+            iconPreview:Hide()
+            iconFeedback:SetText("|cffff6060not a spell id|r")
+        end
+    end
+    iconBox:SetScript("OnTextChanged", SyncIconM)
+    iconBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    iconBox:SetText((existing and existing.iconSpellID and tostring(existing.iconSpellID)) or "")
+    SyncIconM()
+
+    local existingColor = existing and existing.color
+    local pendingColor = { r = (existingColor and existingColor.r) or 1,
+        g = (existingColor and existingColor.g) or 1, b = (existingColor and existingColor.b) or 1,
+        a = (existingColor and existingColor.a) or 1 }
+    local _, colorRowH = W:DualRow(messageBody, my,
+        { type = "colorpicker", text = "Text Color", hasAlpha = false,
+          tooltip = "This reminder's text color.",
+          getValue = function() return pendingColor.r, pendingColor.g, pendingColor.b,
+              pendingColor.a end,
+          setValue = function(r, g, b, a) pendingColor = { r = r, g = g, b = b, a = a } end },
+        { type = "label", text = "" }
+    ); my = my - colorRowH
+
+    local pendingSoundKey = (existing and existing.sound) or "none"
+    local soundPaths, soundNames, soundOrder = EUI.BuildAlertSoundTables()
+    if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(soundPaths, soundNames, soundOrder) end
+    local _, soundRowH = W:DualRow(messageBody, my,
+        { type = "dropdown", text = "Sound", values = soundNames, order = soundOrder,
+          tooltip = "Plays once when this reminder fires.",
+          getValue = function() return pendingSoundKey end,
+          setValue = function(v)
+              pendingSoundKey = v
+              if EUI._PlayLSMSound and soundPaths[v] then EUI._PlayLSMSound(soundPaths[v]) end
+          end },
+        { type = "label", text = "" }
+    ); my = my - soundRowH
+
     AddLabelM("Linger (seconds)")
     local durBox = AddBoxM(3, true)
     durBox:SetText(tostring((existing and existing.dur) or 3))
@@ -1926,11 +1987,15 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         local name = nameBox:GetText()
         if not name or name == "" then name = "Reminder" end
         local dur = tonumber(durBox:GetText()) or 3
+        local iconSid = tonumber(iconBox:GetText())
         local writeSet = ns.CustomRemindersTable(true, encounterID)
         local key = uid or ("r" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
         writeSet[key] = {
             name = name, preset = presetVal, trigger = newTrig,
             dur = math.max(1, dur), enabled = enabledVal,
+            color = pendingColor,
+            iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
+            sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
         }
         ns.RefreshRuntime()
         dimmer:Hide()
@@ -1938,9 +2003,13 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     end
 
     ns.Button(panel, "Preview", 90, 26, function()
+        local iconSid = tonumber(iconBox:GetText())
         ns.PreviewCustomReminder({
             name = nameBox:GetText(), preset = presetVal,
             dur = tonumber(durBox:GetText()) or 3,
+            color = pendingColor,
+            iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
+            sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
         })
     end):SetPoint("BOTTOM", panel, "BOTTOM", -110, 16)
     ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
