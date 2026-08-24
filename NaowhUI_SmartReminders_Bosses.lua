@@ -2,9 +2,12 @@
 --  NaowhUI_TankReminder_Bosses.lua -- browse this season's bosses and every ability the
 --  journal lists for them, labelled by who each one is aimed at.
 --
---  Nothing here is shipped data. Every name, icon and tank marking is read out of the
---  player's own client at runtime, so it cannot go stale, it covers whatever season the
---  client is on, and the addon carries no encounter knowledge of its own.
+--  Every name, icon and tank marking is read out of the player's own client at runtime,
+--  so it cannot go stale, it covers whatever season the client is on, and the addon
+--  carries no encounter knowledge of its own. The one exception: when
+--  NaowhUI_SmartReminders_CuratedAbilities.lua has an entry for the boss, its abilities
+--  are filtered and grouped by that shipped phase list instead of showing everything the
+--  journal has; see that file for why.
 --
 --  The tank marking comes from the Encounter Journal, NOT from C_EncounterEvents. That is
 --  deliberate and worth recording, because the other route looks tempting and is wrong:
@@ -2129,6 +2132,28 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     return y - ABILITY_ROW_H
 end
 
+local PHASE_HEADER_H = 24
+
+local function RenderPhaseHeader(parent, y, text)
+    local h = ns.Font(parent, 12, nil, ns.THEME.gold)
+    h:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    h:SetJustifyH("LEFT")
+    h:SetText(text)
+    return y - PHASE_HEADER_H
+end
+
+-- Curated abilities carry only a spellID -- name/icon/description still come from the
+-- journal dump (ejByID) when it has the spell, since that is Blizzard's own text. Not
+-- every curated spellID is journal-indexed (role-tagged and submodule-only entries rarely
+-- are), so a miss falls back to C_Spell rather than dropping the row.
+local function ResolveCuratedAbility(ejByID, spellID)
+    local hit = ejByID[spellID]
+    if hit then return hit end
+    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
+    if not info or not info.name then return nil end
+    return { title = info.name, spellID = spellID, icon = info.iconID }
+end
+
 -- The selected instance's own view: Share Profile / Select Boss, the boss's own
 -- Enable/Preset header (RenderBossHeader, shared with the old fingerprint page), then
 -- every ability the Dungeon Journal lists for that boss, journal icon and description
@@ -2224,8 +2249,29 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         return y - 20
     end
 
-    for i = 1, #boss.abilities do
-        y = RenderAbilityRow(parent, y, boss.encounterID, boss.abilities[i], specID, EUI)
+    local curated = ns.CURATED_ABILITIES and ns.CURATED_ABILITIES[boss.encounterID]
+    if curated then
+        local ejByID = {}
+        for i = 1, #boss.abilities do
+            local a = boss.abilities[i]
+            if a.spellID then ejByID[a.spellID] = a end
+        end
+        for g = 1, #curated do
+            local group = curated[g]
+            local rendered = 0
+            for i = 1, #group.abilities do
+                local ability = ResolveCuratedAbility(ejByID, group.abilities[i])
+                if ability then
+                    if rendered == 0 then y = RenderPhaseHeader(parent, y, group.phase) end
+                    y = RenderAbilityRow(parent, y, boss.encounterID, ability, specID, EUI)
+                    rendered = rendered + 1
+                end
+            end
+        end
+    else
+        for i = 1, #boss.abilities do
+            y = RenderAbilityRow(parent, y, boss.encounterID, boss.abilities[i], specID, EUI)
+        end
     end
 
     return y

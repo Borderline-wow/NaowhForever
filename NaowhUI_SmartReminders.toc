@@ -24,6 +24,10 @@ NaowhUI_SmartReminders.lua
 # one string, with preview-before-apply. Loads after the runtime it packages.
 NaowhUI_SmartReminders_Packs.lua
 
+# Which journal abilities BigWigs itself tracks per boss, and their phase grouping.
+# Loads before Bosses.lua, which reads ns.CURATED_ABILITIES if present.
+NaowhUI_SmartReminders_CuratedAbilities.lua
+
 # Reads this season's bosses and their tank-flagged abilities out of the player's own
 # Dungeon Journal. Lazy: nothing is read until the page is opened.
 NaowhUI_SmartReminders_Bosses.lua
