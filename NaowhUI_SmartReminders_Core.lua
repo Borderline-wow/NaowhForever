@@ -191,6 +191,24 @@ function ns.MakeModal(width, height)
     panel:SetScript("OnDragStart", function(self) self:StartMoving() end)
     panel:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
+    -- Escape closes the topmost open modal, same as any other WoW window. Not
+    -- UISpecialFrames -- that needs a fixed global name per frame, and MakeModal hands out
+    -- a fresh nameless one on every call, with several stacking at once (the reminder
+    -- editor opens from inside the instance modal). Each dimmer's own OnKeyDown instead:
+    -- ESCAPE hides this one and stops there (SetPropagateKeyboardInput(false)), so a
+    -- second ESC press reaches whatever modal is stacked underneath rather than closing
+    -- both at once. Any other key falls through untouched.
+    dimmer:EnableKeyboard(true)
+    dimmer:SetPropagateKeyboardInput(true)
+    dimmer:SetScript("OnKeyDown", function(self, key)
+        if key == "ESCAPE" then
+            self:Hide()
+            self:SetPropagateKeyboardInput(false)
+        else
+            self:SetPropagateKeyboardInput(true)
+        end
+    end)
+
     dimmer:SetScript("OnShow", function(self)
         -- The counter only ever climbed, so the panel level (this + 5) crossed 200 on the
         -- nineteenth modal opened in a session -- and 200 is the hardcoded dropdown level
