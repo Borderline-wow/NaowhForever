@@ -2907,6 +2907,84 @@ function ns.HideCircleDisplay()
     end
 end
 
+-------------------------------------------------------------------------------
+--  Castbar display type -- a horizontal timer bar, third of Robin's three.
+--  Original widget: two textures (track/fill) and two FontStrings, no bar
+--  library embedded -- see the plan for why (LibCandyBar is BigWigs' own,
+--  not a generic shared library, and this addon has never carried a
+--  third-party dependency).
+-------------------------------------------------------------------------------
+local castbarState = {}
+
+function ns.ApplyCastbarPosition()
+    if not castbarState.frame then return end
+    local p = TRDB().castbarPos
+    castbarState.frame:ClearAllPoints()
+    if p then
+        castbarState.frame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+    else
+        castbarState.frame:SetPoint("CENTER", UIParent, "CENTER", 0, -160)
+    end
+end
+
+function ns.CreateCastbarFrame()
+    if castbarState.frame then return castbarState.frame end
+    local f = CreateFrame("Frame", "NaowhUITankReminderCastbar", UIParent)
+    f:SetSize(240, 28)
+    f:SetFrameStrata("HIGH")
+    f:SetClampedToScreen(true)
+    f:EnableMouse(false)
+    f:Hide()
+
+    f.track = f:CreateTexture(nil, "BACKGROUND")
+    f.track:SetAllPoints()
+    f.track:SetColorTexture(0, 0, 0, 0.6)
+
+    -- Left-anchored, width-driven: shrinking the width recedes the right edge inward,
+    -- which is the same "draining as time runs out" look the Circle's swipe already gives,
+    -- kept consistent across both display types.
+    f.fill = f:CreateTexture(nil, "ARTWORK")
+    f.fill:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+    f.fill:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
+    f.fill:SetWidth(240)
+    f.fill:SetColorTexture(0.85, 0.2, 0.2, 0.9)
+
+    -- Optional, off the bar's left edge -- shown/hidden without moving anything else, same
+    -- tolerance the popup display already accepts for its own optional icon.
+    f.icon = f:CreateTexture(nil, "OVERLAY")
+    f.icon:SetSize(24, 24)
+    f.icon:SetPoint("RIGHT", f, "LEFT", -4, 0)
+    f.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    f.icon:Hide()
+
+    f.label = f:CreateFontString(nil, "OVERLAY")
+    f.label:SetPoint("LEFT", f, "LEFT", 6, 0)
+    f.label:SetPoint("RIGHT", f, "CENTER", 0, 0)
+    f.label:SetJustifyH("LEFT")
+    f.label:SetFont(AlertFont(), 13, "OUTLINE")
+    f.label:SetTextColor(1, 1, 1, 1)
+
+    f.number = f:CreateFontString(nil, "OVERLAY")
+    f.number:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+    f.number:SetJustifyH("RIGHT")
+    f.number:SetFont(AlertFont(), 13, "OUTLINE")
+    f.number:SetTextColor(1, 1, 1, 1)
+
+    castbarState.frame = f
+    ns.ApplyCastbarPosition()
+    return f
+end
+
+function ns.HideCastbarDisplay()
+    if castbarState.ticker then castbarState.ticker:Cancel(); castbarState.ticker = nil end
+    if castbarState.hideTimer then castbarState.hideTimer:Cancel(); castbarState.hideTimer = nil end
+    if castbarState.frame then
+        castbarState.frame:SetScript("OnUpdate", nil)
+        castbarState.frame:Hide()
+        castbarState.frame:SetFrameStrata("HIGH")
+    end
+end
+
 -- What a preset-bound reminder actually says: the best defensive still available in the
 -- chosen preset, decided at fire time by the same ladder the main callout uses. A line the
 -- player typed before the pull cannot know what is up, which is the whole reason these
@@ -3093,6 +3171,61 @@ function ns.FireCircleDisplay(r, realDuration)
     ns.PlayReminderSound(r)
 end
 
+-- Castbar display type: the fill's width is driven every frame (OnUpdate, only while a bar
+-- is actually showing -- cleared in HideCastbarDisplay, never left running idle), the
+-- number ticks once a second like the other two display types.
+function ns.FireCastbarDisplay(r, realDuration)
+    local dur = (type(realDuration) == "number" and realDuration > 0) and realDuration
+        or ((type(r.dur) == "number" and r.dur > 0) and r.dur or 5)
+    local name = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name or "?"
+
+    local f = ns.CreateCastbarFrame()
+    if type(r.color) == "table" then
+        f.fill:SetColorTexture(r.color.r or 1, r.color.g or 1, r.color.b or 1, 0.9)
+    else
+        f.fill:SetColorTexture(0.85, 0.2, 0.2, 0.9)
+    end
+
+    local tex = r.iconSpellID and C_Spell and C_Spell.GetSpellTexture
+        and C_Spell.GetSpellTexture(r.iconSpellID)
+    if tex then
+        f.icon:SetTexture(tex)
+        f.icon:Show()
+    else
+        f.icon:Hide()
+    end
+
+    if castbarState.ticker then castbarState.ticker:Cancel(); castbarState.ticker = nil end
+    if castbarState.hideTimer then castbarState.hideTimer:Cancel(); castbarState.hideTimer = nil end
+
+    local remaining = math.max(math.floor(dur + 0.5), 1)
+    local startTime = GetTime()
+    local fullWidth = f:GetWidth()
+    f.label:SetText(name)
+    f.number:SetText(tostring(remaining))
+    f.fill:SetWidth(fullWidth)
+    f:SetAlpha(1)
+    f:Show()
+
+    f:SetScript("OnUpdate", function()
+        local frac = 1 - math.min((GetTime() - startTime) / dur, 1)
+        f.fill:SetWidth(math.max(fullWidth * frac, 0.01))
+    end)
+
+    castbarState.ticker = C_Timer.NewTicker(1, function()
+        remaining = remaining - 1
+        if remaining <= 0 then
+            castbarState.ticker:Cancel()
+            castbarState.ticker = nil
+            castbarState.hideTimer = C_Timer.NewTimer(0.8, ns.HideCastbarDisplay)
+            return
+        end
+        f.number:SetText(tostring(remaining))
+    end)
+
+    ns.PlayReminderSound(r)
+end
+
 -- Single branch point every display type funnels through -- ActivateCustomReminder (the
 -- real fire path) and PreviewCustomReminder (the editor's Preview button) both call this,
 -- so a preview always shows exactly what a fight would, not just the popup style.
@@ -3103,6 +3236,8 @@ function ns.DisplayReminder(r, realDuration)
         ns.FireCountdownDisplay(r, realDuration)
     elseif displayType == "circle" then
         ns.FireCircleDisplay(r, realDuration)
+    elseif displayType == "castbar" then
+        ns.FireCastbarDisplay(r, realDuration)
     else
         FireCustomReminder(r, realDuration)
     end
@@ -3110,8 +3245,9 @@ end
 
 -- The editor's Preview button fires this from inside its own modal (FULLSCREEN_DIALOG),
 -- which HIGH sits well below, so it needs a taller strata just for this one showing --
--- HideCustomReminder/HideCountdownDisplay/HideCircleDisplay drop it back to HIGH once the
--- preview ends, so the elevation never leaks into how a real fight displays this frame.
+-- HideCustomReminder/HideCountdownDisplay/HideCircleDisplay/HideCastbarDisplay drop it back
+-- to HIGH once the preview ends, so the elevation never leaks into how a real fight
+-- displays this frame.
 function ns.PreviewCustomReminder(r)
     local displayType = r and r.displayType
     if displayType == "countdown" then
@@ -3122,6 +3258,10 @@ function ns.PreviewCustomReminder(r)
         ns.CreateCircleFrame()
         circleState.frame:SetFrameStrata("FULLSCREEN_DIALOG")
         circleState.frame:SetFrameLevel(250)
+    elseif displayType == "castbar" then
+        ns.CreateCastbarFrame()
+        castbarState.frame:SetFrameStrata("FULLSCREEN_DIALOG")
+        castbarState.frame:SetFrameLevel(250)
     else
         CreateCustomFrame()
         customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -3720,6 +3860,26 @@ local function RegisterUnlock()
             end,
             clearPos = function() TRDB().circlePos = nil end,
             applyPos = ns.ApplyCirclePosition,
+        }),
+        EUI.MakeUnlockElement({
+            key   = "NaowhUI_TankReminderCastbar",   -- storage key; renaming it would orphan saved positions
+            label = "Smart Castbar",
+            group = "NaowhUI",
+            order = 8,
+            noResize = true,
+            isHidden = function() return not TRDB().enabled end,
+            getFrame = function() return ns.CreateCastbarFrame() end,
+            getSize  = function() return 240, 28 end,
+            savePos = function(_, point, relPoint, x, y)
+                TRDB().castbarPos = { point = point, relPoint = relPoint, x = x, y = y }
+            end,
+            loadPos = function()
+                local p = TRDB().castbarPos
+                if not p then return nil end
+                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
+            end,
+            clearPos = function() TRDB().castbarPos = nil end,
+            applyPos = ns.ApplyCastbarPosition,
         }),
     }, "NaowhUI_EUI")
 end

@@ -1594,8 +1594,9 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     local displayTypeVal = (existing and existing.displayType) or "popup"
     local _, displayTypeRowH = W:DualRow(messageBody, my,
         { type = "dropdown", text = "Display Type",
-          values = { popup = "Popup", countdown = "Countdown Text", circle = "Circle" },
-          order = { "popup", "countdown", "circle" },
+          values = { popup = "Popup", countdown = "Countdown Text", circle = "Circle",
+              castbar = "Castbar" },
+          order = { "popup", "countdown", "circle", "castbar" },
           tooltip = "How this reminder shows on screen when it fires.",
           getValue = function() return displayTypeVal end,
           setValue = function(v) displayTypeVal = v end },
@@ -2334,8 +2335,9 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             displayTypeVal = (boundReminder and boundReminder.displayType) or "popup"
             local _, displayTypeRowH = W:DualRow(body, by,
                 { type = "dropdown", text = "Display Type",
-                  values = { popup = "Popup", countdown = "Countdown Text", circle = "Circle" },
-                  order = { "popup", "countdown", "circle" },
+                  values = { popup = "Popup", countdown = "Countdown Text", circle = "Circle",
+                      castbar = "Castbar" },
+                  order = { "popup", "countdown", "circle", "castbar" },
                   tooltip = "How this reminder shows on screen when it fires.",
                   getValue = function() return displayTypeVal end,
                   setValue = function(v) displayTypeVal = v end },
