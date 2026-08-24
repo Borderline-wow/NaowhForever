@@ -2637,6 +2637,26 @@ local function HandleIdentifiedCast(sid)
         end
     end
 
+    -- The primary callout had to pick blind: the timeline event's only stable handle is a
+    -- duration (see TANK_FINGERPRINTS' own header on why spell identity is secret there),
+    -- so same-length variants of one ability (e.g. The Coiled Altar's Sever/Blighted
+    -- Sever/Soul Sever) share one generic pick regardless of which is actually coming. Now
+    -- that the cast is identified, swap to THIS spell's own ability-picker list if the
+    -- player set one up and a callout is already showing for it -- correcting the pick
+    -- before the hit lands, not after. Gated on a callout already being up: this only ever
+    -- corrects an existing display, never starts one from silence (the backstop below
+    -- still owns that, with its own isTank/aggroOnly/coveredSkip gates already applied to
+    -- whatever originally showed this frame).
+    if (now - lastCalloutAt) < 6 then
+        local ownList = ns.EffectiveListFor and ns.EffectiveListFor(specID,
+            tostring(currentEncounter) .. "#" .. tostring(sid))
+        if ownList and #ownList > 0 then
+            RebuildSlots(tostring(sid))
+            ApplyPriorityAlpha()
+            SpeakCallout()
+        end
+    end
+
     -- Backstop: the timeline path already spoke for this cast if anything did.
     if (now - lastCalloutAt) < 6 then return end
     -- Same rule as the timeline path: this is a curated tank buster by definition, so a
