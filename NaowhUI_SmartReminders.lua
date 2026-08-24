@@ -1128,6 +1128,17 @@ local function BossModCatalogueTable(create, enc)
 end
 ns.BossModCatalogueTable = BossModCatalogueTable
 
+-- Per-ability bindings, keyed by the Dungeon Journal's own spellID (the DISPLAY spell --
+-- see NaowhUI_SmartReminders_Bosses.lua's own header note on why that's a different
+-- identity than a fingerprint or a BigWigs/DBM key, and why the three don't join).
+-- profile.abilityBindings[encounterID][journalSpellID] = { enabled = bool, ... }. Stage 1
+-- only ever writes `enabled`; a per-ability defensive preset override and a bound custom
+-- reminder are the next things this carries, once that page exists.
+local function AbilityBindingsTable(create, enc)
+    return PerBossSet("abilityBindings", create, enc)
+end
+ns.AbilityBindingsTable = AbilityBindingsTable
+
 local function RecordBossModKey(mod, key, text, kind)
     if type(key) ~= "number" then return end
     local cat = BossModCatalogueTable(true, currentEncounter)

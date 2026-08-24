@@ -1139,25 +1139,14 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     return topY + math.min(ly, ry)
 end
 
-local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
+-- The whole boss's own hierarchy, top part: Enable This Boss (off = nothing below, no
+-- alerts of any kind), then which of the spec's presets it calls its defensives from.
+-- Shared between RenderBoss (the old fingerprint accordion, unchanged) and
+-- RenderInstanceDetail (the new journal-sourced ability list) -- both boss-level
+-- controls, neither belongs to only one or the other.
+-- Returns y, bossOn.
+local function RenderBossHeader(parent, y, W, EUI, encounterID, specID)
     local _, h
-    local encounterID = boss.encounterID
-
-    if not encounterID then
-        _, h = W:DualRow(parent, y,
-            { type = "label", text = "         This boss has no encounter id, so it cannot hold a list." },
-            { type = "label", text = "" }
-        ); y = y - h
-        return y
-    end
-
-    -- The whole boss as one hierarchy:
-    --   Enable This Boss     (off = nothing below, no alerts of any kind)
-    --     Defensive Preset   (which of the spec's presets this boss draws from)
-    --     ability checkbox, one flat row per known cast (off = that cast stays quiet)
-    -- Ability enablement maps onto the runtime's existing marks and mutes -- enabling a
-    -- non-buster writes a player mark, disabling a shipped buster writes a mute -- so the
-    -- UI and the filter can never tell different stories.
     local db = ns.DB()
 
     local bossOn = not (db.bossOff and db.bossOff[tostring(encounterID)])
@@ -1176,7 +1165,7 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
         { type = "label", text = "" }
     ); y = y - h
 
-    if not bossOn then return y end
+    if not bossOn then return y, false end
 
     -- Which of the spec's presets this boss calls its defensives from. Shows the spec's
     -- active preset until the tank actually picks one for this boss -- nothing is written
@@ -1202,6 +1191,32 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
               end }
         ); y = y - h
     end
+
+    return y, true
+end
+
+local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
+    local _, h
+    local encounterID = boss.encounterID
+
+    if not encounterID then
+        _, h = W:DualRow(parent, y,
+            { type = "label", text = "         This boss has no encounter id, so it cannot hold a list." },
+            { type = "label", text = "" }
+        ); y = y - h
+        return y
+    end
+
+    -- The whole boss as one hierarchy:
+    --   Enable This Boss     (off = nothing below, no alerts of any kind)
+    --     Defensive Preset   (which of the spec's presets this boss draws from)
+    --     ability checkbox, one flat row per known cast (off = that cast stays quiet)
+    -- Ability enablement maps onto the runtime's existing marks and mutes -- enabling a
+    -- non-buster writes a player mark, disabling a shipped buster writes a mute -- so the
+    -- UI and the filter can never tell different stories.
+    local bossOn
+    y, bossOn = RenderBossHeader(parent, y, W, EUI, encounterID, specID)
+    if not bossOn then return y end
 
     local function AbilityEnabled(fp)
         local sh = ns.ShippedMarksFor and ns.ShippedMarksFor(encounterID)
@@ -1987,80 +2002,161 @@ function ns.BuildProfileSettings(parent, y)
     return y
 end
 
--- The toggle is the instance's ON/OFF switch -- it writes the per-boss switches in bulk,
--- so the two views can never disagree -- and the cog in its gutter is what opens the
--- options modal. The toggle used to open the modal itself, which made switching a
--- dungeon off impossible and opening it feel like a mis-click.
-local function InstanceSlot(inst)
-    if not inst then return { type = "label", text = "" } end
-    return { type = "toggle",
-        text = inst.name,
-        tooltip = ("Callouts for this %s, all %d bosses at once. Single bosses can still "
-            .. "be switched inside the cog."):format(
-            inst.isRaid and "raid" or "dungeon", #inst.bosses),
-        getValue = function()
-            local off = ns.DB().bossOff
-            if not off then return true end
-            for b = 1, #inst.bosses do
-                local eid = inst.bosses[b].encounterID
-                if eid and not off[tostring(eid)] then return true end
-            end
-            return #inst.bosses == 0
-        end,
-        setValue = function(v)
-            local db = ns.DB()
-            if type(db.bossOff) ~= "table" then db.bossOff = {} end
-            for b = 1, #inst.bosses do
-                local eid = inst.bosses[b].encounterID
-                if eid then db.bossOff[tostring(eid)] = (not v) or nil end
-            end
-            if next(db.bossOff) == nil then db.bossOff = nil end
-            ns.RefreshRuntime()
-            EUI:RefreshPage(true)
-        end }
+-- InstanceSlot/AttachInstanceCog (the old bulk on/off toggle + cog opening
+-- ns.ShowInstanceModal) were here and are gone -- the left column is pure navigation now,
+-- ns.ShowInstanceModal has no callers left in this file, and the bulk on/off they wrote
+-- is still reachable, just relocated to the selected boss's own Enable This Boss row
+-- (RenderBossHeader) instead of a per-instance shortcut.
+
+-- Which instance is selected on each tab, and which boss within it -- both persist
+-- across a RefreshPage (module-level upvalues, not page-local), the same way the Setup
+-- tab's old tile selection did before that got removed. Independent per tab: picking a
+-- dungeon must not disturb whichever raid was showing.
+local selectedInst = { dungeon = nil, raid = nil }
+local selectedBossIdx = {}   -- keyed by instance.id
+
+-- One ability row: checkbox (this ability's binding, stored in AbilityBindingsTable by
+-- its journal spellID), icon, title, description, a cog on the right. Fixed height rather
+-- than measured from the wrapped description's real extent -- GetStringHeight() right
+-- after SetPoint/SetText depends on this row's own width having already resolved through
+-- its parent chain, which is exactly the kind of synchronous-layout assumption that
+-- produced the Setup-tab overlap earlier tonight. A long description clips instead;
+-- annoying, never wrong.
+local ABILITY_ROW_H = 62
+
+local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    row:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+    row:SetHeight(ABILITY_ROW_H)
+
+    local bindings = ns.AbilityBindingsTable(false, encounterID)
+    local bound = bindings and ability.spellID and bindings[ability.spellID]
+    local enabled = bound and bound.enabled ~= false
+
+    local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    check:SetSize(22, 22)
+    check:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -4)
+    check:SetChecked(enabled)
+    check:SetScript("OnClick", function(self)
+        if not ability.spellID then self:SetChecked(false); return end
+        local set = ns.AbilityBindingsTable(true, encounterID)
+        set[ability.spellID] = set[ability.spellID] or {}
+        set[ability.spellID].enabled = self:GetChecked() and true or false
+        ns.RefreshRuntime()
+    end)
+
+    local icon = row:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(30, 30)
+    icon:SetPoint("TOPLEFT", check, "TOPRIGHT", 6, 4)
+    if ability.icon then icon:SetTexture(ability.icon) end
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    -- Stage 1: opens a placeholder. Stage 2 replaces this with the real per-ability page
+    -- (bind a defensive preset override, or a custom reminder, to this exact ability).
+    local cog = ns.Button(row, "...", 30, 26, function()
+        ns.Print(("|cfff0a830%s|r -- per-ability setup lands next; for now this row's "
+            .. "checkbox is the only thing it does."):format(ability.title or "?"))
+    end)
+    cog:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
+
+    local title = ns.Font(row, 13, nil, ns.THEME.fg)
+    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
+    title:SetPoint("RIGHT", cog, "LEFT", -8, 0)
+    title:SetJustifyH("LEFT")
+    title:SetText(ability.title or "?")
+
+    local desc = ns.Font(row, 11, nil, ns.THEME.muted)
+    desc:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -20)
+    desc:SetPoint("RIGHT", cog, "LEFT", -8, 0)
+    desc:SetHeight(ABILITY_ROW_H - 24)
+    desc:SetJustifyH("LEFT")
+    desc:SetWordWrap(true)
+    desc:SetText(ability.description or "|cff8a99b5No description in the journal.|r")
+
+    local div = ns.Solid(row, "ARTWORK", ns.THEME.line, 1)
+    div:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+    div:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+    div:SetHeight(1)
+
+    return y - ABILITY_ROW_H
 end
 
--- The house cog: dim until hovered, sitting in the gutter between the checkbox and
--- the instance name, same art as every other cog in the suite.
-local function AttachInstanceCog(rgn, inst, specID, EUI, W)
-    if not (rgn and inst) then return end
-    local cog = CreateFrame("Button", nil, rgn)
-    -- The suite's cog VERBATIM, anchor included: 26px, dim 0.4 resting, 0.7 hovered,
-    -- COGS_ICON art, sitting immediately LEFT OF THE TOGGLE PILL -- the same spot
-    -- every other cog in EllesmereUI occupies. The first two attempts parked it at
-    -- the row's far left, where a gray icon reads as a second, broken checkbox.
-    cog:SetSize(26, 26)
-    cog:SetPoint("RIGHT", rgn._lastInline or rgn._control or rgn, "LEFT", -8, 0)
-    rgn._lastInline = cog
-    cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
-    cog:SetAlpha(0.4)
-    local tex = cog:CreateTexture(nil, "OVERLAY")
-    tex:SetAllPoints()
-    local EUIg = _G.EllesmereUI
-    if EUIg and EUIg.COGS_ICON then
-        tex:SetTexture(EUIg.COGS_ICON)
-    else
-        tex:SetTexture("Interface" .. string.char(92) .. "Buttons"
-            .. string.char(92) .. "UI-OptionsButton")
-    end
-    cog:SetScript("OnEnter", function(self)
-        self:SetAlpha(0.7)
-        if EUIg and EUIg.ShowWidgetTooltip then
-            EUIg.ShowWidgetTooltip(self, "Bosses, reminders and lists for " .. inst.name)
+-- The selected instance's own view: Share Profile / Select Boss, the boss's own
+-- Enable/Preset header (RenderBossHeader, shared with the old fingerprint page), then
+-- every ability the Dungeon Journal lists for that boss, journal icon and description
+-- included -- data ns.ScrapeBosses already collects (boss.abilities) but nothing
+-- rendered until now.
+local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
+    local _, h
+
+    local topRow = CreateFrame("Frame", nil, parent)
+    topRow:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    topRow:SetHeight(26)
+
+    local share = ns.Button(topRow, "Share Profile", 130, 26, function()
+        if ns.ShowPackExport then ns.ShowPackExport() end
+    end)
+    share:SetPoint("LEFT", topRow, "LEFT", 0, 0)
+
+    local pick = ns.Button(topRow, "Select Boss", 130, 26, function()
+        if MenuUtil and MenuUtil.CreateContextMenu then
+            MenuUtil.CreateContextMenu(topRow, function(_, root)
+                for b = 1, #inst.bosses do
+                    local idx = b
+                    root:CreateButton(inst.bosses[b].name, function()
+                        selectedBossIdx[inst.id] = idx
+                        EUI:RefreshPage(true)
+                    end)
+                end
+            end)
+        else
+            selectedBossIdx[inst.id] = ((selectedBossIdx[inst.id] or 1) % #inst.bosses) + 1
+            EUI:RefreshPage(true)
         end
     end)
-    cog:SetScript("OnLeave", function(self)
-        self:SetAlpha(0.4)
-        if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
-    end)
-    cog:SetScript("OnClick", function()
-        ns.ShowInstanceModal(inst, specID, EUI, W)
-    end)
+    pick:SetPoint("LEFT", share, "RIGHT", 10, 0)
+    y = y - 34
+
+    local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
+    if not boss then
+        local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
+        hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+        hint:SetText("This instance has no bosses in the journal yet.")
+        return y - 20
+    end
+
+    _, h = W:SectionHeader(parent, "GENERAL", y); y = y - h
+
+    local bossName = ns.Font(parent, 13, nil, ns.THEME.gold)
+    bossName:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    bossName:SetText(boss.name or "?")
+    y = y - 20
+
+    local bossOn
+    y, bossOn = RenderBossHeader(parent, y, W, EUI, boss.encounterID, specID)
+    if not bossOn then return y end
+
+    y = y - 10
+    if not (boss.abilities and #boss.abilities > 0) then
+        local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
+        hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+        hint:SetText("No abilities listed in the journal for this boss.")
+        return y - 20
+    end
+
+    for i = 1, #boss.abilities do
+        y = RenderAbilityRow(parent, y, boss.encounterID, boss.abilities[i], specID, EUI)
+    end
+
+    return y
 end
 
--- Dungeon Bosses / Raid Bosses tab. Was one combined two-column list (a dungeon paired
--- with a raid on each row, purely to save vertical space); split by isRaid now that each
--- kind has a tab of its own, still packed two-up within itself for the same reason.
+-- Dungeon Bosses / Raid Bosses tab: a pure navigation list on the left -- one row per
+-- instance, click to select, no per-row toggle here anymore (the old bulk on/off per
+-- instance is still reachable; it lives on the selected boss's own Enable This Boss row,
+-- same as it always did for a single boss) -- and the selected instance's detail on the
+-- right.
 function ns.BuildBossListPage(parent, y, isRaid)
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
@@ -2091,17 +2187,64 @@ function ns.BuildBossListPage(parent, y, isRaid)
         if (inst.isRaid or false) == isRaid then list[#list + 1] = inst end
     end
 
-    for i = 1, #list, 2 do
-        local a, b = list[i], list[i + 1]
-        local instRow
-        instRow, h = W:DualRow(parent, y, InstanceSlot(a), InstanceSlot(b)); y = y - h
-        if instRow then
-            AttachInstanceCog(instRow._leftRegion, a, specID, EUI, W)
-            AttachInstanceCog(instRow._rightRegion, b, specID, EUI, W)
-        end
+    local key = isRaid and "raid" or "dungeon"
+    local sel = selectedInst[key]
+    -- The scraped list is rebuilt fresh on every refresh (ns.ScrapeBosses is cached, but
+    -- a new table each call after a forced rescan) -- match the remembered selection back
+    -- up by id rather than by table identity, or picking an instance would un-pick itself
+    -- the moment anything else on the page forced a refresh.
+    if sel then
+        local found
+        for i = 1, #list do if list[i].id == sel.id then found = list[i]; break end end
+        sel = found
+        selectedInst[key] = found
     end
 
-    return y
+    local LEFT_W = 190
+    local topY = y
+
+    local leftPane = CreateFrame("Frame", nil, parent)
+    leftPane:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, topY)
+    leftPane:SetSize(LEFT_W, math.max(1, #list * 26))
+
+    for i = 1, #list do
+        local inst = list[i]
+        local row = CreateFrame("Button", nil, leftPane)
+        row:SetSize(LEFT_W, 26)
+        row:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, -(i - 1) * 26)
+
+        local isSel = (sel == inst)
+        local bg = ns.Solid(row, "BACKGROUND", ns.THEME.gold, isSel and 0.16 or 0)
+        bg:SetAllPoints()
+
+        local lbl = ns.Font(row, 12, nil, isSel and ns.THEME.fg or ns.THEME.muted)
+        lbl:SetPoint("LEFT", row, "LEFT", 6, 0)
+        lbl:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+        lbl:SetJustifyH("LEFT")
+        lbl:SetText(inst.name)
+
+        row:SetScript("OnClick", function()
+            selectedInst[key] = inst
+            EUI:RefreshPage(true)
+        end)
+    end
+
+    local rightPane = CreateFrame("Frame", nil, parent)
+    rightPane:SetPoint("TOPLEFT", parent, "TOPLEFT", LEFT_W + 16, topY)
+    rightPane:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+
+    local rightBottom = topY
+    if sel then
+        rightBottom = RenderInstanceDetail(rightPane, 0, W, EUI, sel, specID)
+    else
+        local hint = ns.Font(rightPane, 12, nil, ns.THEME.muted)
+        hint:SetPoint("TOPLEFT", rightPane, "TOPLEFT", 0, 0)
+        hint:SetText(("Pick a %s on the left."):format(isRaid and "raid" or "dungeon"))
+        rightBottom = -20
+    end
+
+    local leftBottom = topY - (#list * 26)
+    return math.min(leftBottom, topY + rightBottom)
 end
 
 -- One dungeon or raid, every boss expanded, in its own scrollable modal. The widget
