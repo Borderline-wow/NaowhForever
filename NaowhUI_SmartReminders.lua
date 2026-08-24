@@ -2793,6 +2793,54 @@ local function HideCustomReminder()
     end
 end
 
+-------------------------------------------------------------------------------
+--  Countdown display type -- an original widget (see the plan for why: no code
+--  from BigWigs or any other addon, only the general idea of a centered
+--  countdown). Same shape as customFrame's own create/position/hide trio above.
+-------------------------------------------------------------------------------
+-- Functions in this whole display-type feature go on ns rather than staying local: the
+-- main chunk sits at Lua's 200-local ceiling already (luac -p catches it directly), and
+-- ns.-scoped functions cost nothing there since a table field isn't a local. Same fix as
+-- the codebase's own prior brush with this limit.
+local countdownFrame, countdownTicker, countdownHideTimer
+
+function ns.ApplyCountdownPosition()
+    if not countdownFrame then return end
+    local p = TRDB().countdownPos
+    countdownFrame:ClearAllPoints()
+    if p then
+        countdownFrame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+    else
+        countdownFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
+    end
+end
+
+function ns.CreateCountdownFrame()
+    if countdownFrame then return countdownFrame end
+    countdownFrame = CreateFrame("Frame", "NaowhUITankReminderCountdown", UIParent)
+    countdownFrame:SetSize(400, 50)
+    countdownFrame:SetFrameStrata("HIGH")
+    countdownFrame:SetClampedToScreen(true)
+    countdownFrame:EnableMouse(false)
+    countdownFrame:Hide()
+
+    countdownFrame.text = countdownFrame:CreateFontString(nil, "OVERLAY")
+    countdownFrame.text:SetPoint("CENTER")
+    countdownFrame.text:SetFont(AlertFont(), 28, "OUTLINE")
+    countdownFrame.text:SetTextColor(1, 1, 1, 1)
+    ns.ApplyCountdownPosition()
+    return countdownFrame
+end
+
+function ns.HideCountdownDisplay()
+    if countdownTicker then countdownTicker:Cancel(); countdownTicker = nil end
+    if countdownHideTimer then countdownHideTimer:Cancel(); countdownHideTimer = nil end
+    if countdownFrame then
+        countdownFrame:Hide()
+        countdownFrame:SetFrameStrata("HIGH")
+    end
+end
+
 -- What a preset-bound reminder actually says: the best defensive still available in the
 -- chosen preset, decided at fire time by the same ladder the main callout uses. A line the
 -- player typed before the pull cannot know what is up, which is the whole reason these
@@ -2820,6 +2868,18 @@ local function PickFromPreset(presetKey)
         end
     end)
     return ok and picked or nil
+end
+
+-- Shared by every display type that carries an optional r.sound: one-shot, at the moment
+-- the display fires, same as popup always has.
+function ns.PlayReminderSound(r)
+    if not r.sound then return end
+    local EUI = _G.EllesmereUI
+    if EUI and EUI._PlayLSMSound and EUI.BuildAlertSoundTables then
+        local paths, names, order = EUI.BuildAlertSoundTables()
+        if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
+        if paths[r.sound] then EUI._PlayLSMSound(paths[r.sound]) end
+    end
 end
 
 -- Bypasses trigger matching entirely -- used both by the real firing path below and by
@@ -2877,14 +2937,7 @@ local function FireCustomReminder(r, realDuration)
         customFrame.text:SetPoint("CENTER")
     end
 
-    if r.sound then
-        local EUI = _G.EllesmereUI
-        if EUI and EUI._PlayLSMSound and EUI.BuildAlertSoundTables then
-            local paths, names, order = EUI.BuildAlertSoundTables()
-            if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
-            if paths[r.sound] then EUI._PlayLSMSound(paths[r.sound]) end
-        end
-    end
+    ns.PlayReminderSound(r)
 
     customFrame:Show()
     if customHideTimer then customHideTimer:Cancel() end
@@ -2892,15 +2945,75 @@ local function FireCustomReminder(r, realDuration)
     customHideTimer = C_Timer.NewTimer(dur, HideCustomReminder)
 end
 
+-- Text display type: one line, "<name> (<N>)", ticking down once a second. realDuration
+-- (see ActivateCustomReminder) wins when present -- it is the actual time left, where
+-- r.dur is only ever a typed guess -- and the countdown starts from whichever one applies,
+-- rounded to the nearest whole second since this counts in whole numbers, not a bar fill.
+function ns.FireCountdownDisplay(r, realDuration)
+    local dur = (type(realDuration) == "number" and realDuration > 0) and realDuration
+        or ((type(r.dur) == "number" and r.dur > 0) and r.dur or 5)
+    local name = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name or "?"
+
+    ns.CreateCountdownFrame()
+    if type(r.color) == "table" then
+        countdownFrame.text:SetTextColor(r.color.r or 1, r.color.g or 1, r.color.b or 1,
+            r.color.a or 1)
+    else
+        countdownFrame.text:SetTextColor(1, 1, 1, 1)
+    end
+
+    if countdownTicker then countdownTicker:Cancel(); countdownTicker = nil end
+    if countdownHideTimer then countdownHideTimer:Cancel(); countdownHideTimer = nil end
+
+    local remaining = math.max(math.floor(dur + 0.5), 1)
+    countdownFrame.text:SetText(("%s (%d)"):format(name, remaining))
+    countdownFrame:SetAlpha(1)
+    countdownFrame:Show()
+
+    countdownTicker = C_Timer.NewTicker(1, function()
+        remaining = remaining - 1
+        if remaining <= 0 then
+            countdownTicker:Cancel()
+            countdownTicker = nil
+            -- A short beat on "0" rather than vanishing the instant it hits zero -- the
+            -- moment the ability actually lands is the one time this display matters most.
+            countdownHideTimer = C_Timer.NewTimer(0.8, ns.HideCountdownDisplay)
+            return
+        end
+        countdownFrame.text:SetText(("%s (%d)"):format(name, remaining))
+    end)
+
+    ns.PlayReminderSound(r)
+end
+
+-- Single branch point every display type funnels through -- ActivateCustomReminder (the
+-- real fire path) and PreviewCustomReminder (the editor's Preview button) both call this,
+-- so a preview always shows exactly what a fight would, not just the popup style.
+function ns.DisplayReminder(r, realDuration)
+    if not r then return end
+    local displayType = r.displayType or "popup"
+    if displayType == "countdown" then
+        ns.FireCountdownDisplay(r, realDuration)
+    else
+        FireCustomReminder(r, realDuration)
+    end
+end
+
 -- The editor's Preview button fires this from inside its own modal (FULLSCREEN_DIALOG),
 -- which HIGH sits well below, so it needs a taller strata just for this one showing --
--- HideCustomReminder (above) drops it back to HIGH once the preview ends, so the elevation
--- never leaks into how a real fight displays this frame.
+-- HideCustomReminder/HideCountdownDisplay drop it back to HIGH once the preview ends, so
+-- the elevation never leaks into how a real fight displays this frame.
 function ns.PreviewCustomReminder(r)
-    CreateCustomFrame()
-    customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
-    customFrame:SetFrameLevel(250)
-    FireCustomReminder(r)
+    if r and r.displayType == "countdown" then
+        ns.CreateCountdownFrame()
+        countdownFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+        countdownFrame:SetFrameLevel(250)
+    else
+        CreateCustomFrame()
+        customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+        customFrame:SetFrameLevel(250)
+    end
+    ns.DisplayReminder(r)
 end
 
 -- The match decided a reminder should go off; this is where "Show in" (a raw string on
@@ -2912,11 +3025,12 @@ end
 -- reminder goes off -- not how it was scheduled. Only a bwtimer match has one (see
 -- CheckBossModTimerStart: the fire itself is already delayed to land trig.timeleft seconds
 -- before the cast, so trig.timeleft IS what's left when this runs). Every other trigger
--- passes nothing, and FireCustomReminder falls back to r.dur, same as before this existed.
+-- passes nothing, and DisplayReminder's targets fall back to r.dur, same as before this
+-- existed.
 local function ActivateCustomReminder(r, realDuration)
     local delays = ParseDelayList(r.trigger and r.trigger.delay)
     if not delays then
-        FireCustomReminder(r, realDuration)
+        ns.DisplayReminder(r, realDuration)
         return
     end
     -- An explicit "Show in" delay on top of a bwtimer match moves the fire further out,
@@ -2924,7 +3038,7 @@ local function ActivateCustomReminder(r, realDuration)
     -- down from the wrong number, this case falls back to r.dur (see the plan's note on
     -- this being a documented v1 limitation, not silently wrong).
     for i = 1, #delays do
-        C_Timer.NewTimer(delays[i], function() FireCustomReminder(r) end)
+        C_Timer.NewTimer(delays[i], function() ns.DisplayReminder(r) end)
     end
 end
 
@@ -3452,6 +3566,26 @@ local function RegisterUnlock()
             end,
             clearPos = function() TRDB().customPos = nil end,
             applyPos = ApplyCustomReminderPosition,
+        }),
+        EUI.MakeUnlockElement({
+            key   = "NaowhUI_TankReminderCountdown",   -- storage key; renaming it would orphan saved positions
+            label = "Smart Countdown Text",
+            group = "NaowhUI",
+            order = 6,
+            noResize = true,
+            isHidden = function() return not TRDB().enabled end,
+            getFrame = function() return ns.CreateCountdownFrame() end,
+            getSize  = function() return 400, 50 end,
+            savePos = function(_, point, relPoint, x, y)
+                TRDB().countdownPos = { point = point, relPoint = relPoint, x = x, y = y }
+            end,
+            loadPos = function()
+                local p = TRDB().countdownPos
+                if not p then return nil end
+                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
+            end,
+            clearPos = function() TRDB().countdownPos = nil end,
+            applyPos = ns.ApplyCountdownPosition,
         }),
     }, "NaowhUI_EUI")
 end
