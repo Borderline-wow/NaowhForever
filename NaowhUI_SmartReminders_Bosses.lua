@@ -2155,8 +2155,18 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         body = CreateFrame("Frame", nil, panel)
         body:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP - 34)
         body:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP - 34)
+        -- An explicit height, not just the two TOP anchors -- matching dynFrame in the full
+        -- custom reminder editor below (SetSize) and messageBody/triggerBody in the same
+        -- (SetHeight): a frame anchored on only one edge never resolves a height on its
+        -- own, and every rebuilt-body frame elsewhere in this file sets one for that reason.
+        body:SetHeight(300)
         msgBox, durBox, iconBox = nil, nil, nil
 
+        -- Wrapped: a blank body with no error anywhere on screen is the exact failure mode
+        -- that shipped once already (the tab buttons mispositioned so badly the whole
+        -- panel looked dead). If something in here throws, this says so instead of leaving
+        -- another silent blank panel.
+        local ok, err = pcall(function()
         local by = 0
         if modeVal == "defensive" then
             local l = ns.Font(body, 11, nil, ns.THEME.muted)
@@ -2306,6 +2316,16 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             Label("Linger (seconds)")
             durBox = Box(3, true)
             durBox:SetText(tostring((boundReminder and boundReminder.dur) or 3))
+        end
+        end)
+        if not ok then
+            local errText = ns.Font(body, 11, nil, { r = 1, g = 0.35, b = 0.35 })
+            errText:SetPoint("TOPLEFT", body, "TOPLEFT", 0, 0)
+            errText:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+            errText:SetJustifyH("LEFT")
+            errText:SetWordWrap(true)
+            errText:SetText("Failed to build this panel: " .. tostring(err))
+            ns.Print("|cffff6060ability reminder picker|r: " .. tostring(err))
         end
     end
 
