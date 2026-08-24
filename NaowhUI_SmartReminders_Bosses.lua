@@ -2197,7 +2197,9 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
     local W = EUI.Widgets
 
-    local dimmer, panel = ns.MakeModal(440, 480)
+    -- Tall enough for the worst case: Pre-Selected Defensives with a full 8-slot list
+    -- (MAX_SLOTS) plus every shared field below it, single column throughout.
+    local dimmer, panel = ns.MakeModal(440, 640)
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -2211,6 +2213,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     bindings[ability.spellID] = bindings[ability.spellID] or {}
     local binding = bindings[ability.spellID]
     local modeVal = (binding.mode == "custom") and "custom" or "defensive"
+    local specID = ns.CurrentSpec and ns.CurrentSpec()
 
     local defBtn = CreateFrame("Button", nil, panel)
     local defLabel = ns.Font(defBtn, 12, nil, ns.THEME.muted)
@@ -2256,7 +2259,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- custom reminder editor below (SetSize) and messageBody/triggerBody in the same
         -- (SetHeight): a frame anchored on only one edge never resolves a height on its
         -- own, and every rebuilt-body frame elsewhere in this file sets one for that reason.
-        body:SetHeight(300)
+        body:SetHeight(500)
         msgBox, durBox, iconBox = nil, nil, nil
 
         -- Wrapped: a blank body with no error anywhere on screen is the exact failure mode
@@ -2265,23 +2268,60 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- another silent blank panel.
         local ok, err = pcall(function()
         local by = 0
+
+        -- One-column helpers throughout -- W:DualRow's second slot always reserves the
+        -- full right half even fed a blank label, which is exactly the dead space this
+        -- popup does not have the width to spare (it is 440px, not a page-width column).
+        local function Label(text)
+            local lbl = ns.Font(body, 11, nil, ns.THEME.muted)
+            lbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            lbl:SetText(text)
+            by = by - 16
+        end
+        local function Box(maxLetters, numeric, rightInset)
+            local box = CreateFrame("EditBox", nil, body)
+            box:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            box:SetPoint("RIGHT", body, "RIGHT", -(rightInset or 0), 0)
+            box:SetHeight(26)
+            box:SetAutoFocus(false)
+            box:SetMaxLetters(maxLetters or 60)
+            if numeric then box:SetNumeric(true) end
+            box:SetFontObject("GameFontHighlight")
+            box:SetTextInsets(6, 6, 0, 0)
+            ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+            ns.Border(box)
+            by = by - 32
+            return box
+        end
+        -- A single dropdown row, full body width -- EllesmereUI.BuildDropdownControl is the
+        -- same primitive W:DualRow's own "dropdown" slot type calls, without the page-row
+        -- chrome (background band, hover-tag) that widget wraps it in, which is built for a
+        -- full-width options page rather than a small modal.
+        local function DropdownRow(values, order, getValue, setValue)
+            local ddBtn = EUI.BuildDropdownControl(body, body:GetWidth(),
+                body:GetFrameLevel() + 1, values, order, getValue, setValue)
+            ddBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            by = by - 32
+            return ddBtn
+        end
+
         if modeVal == "defensive" then
             local l = ns.Font(body, 11, nil, ns.THEME.muted)
             l:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             l:SetPoint("RIGHT", body, "RIGHT", 0, 0)
             l:SetJustifyH("LEFT")
             l:SetWordWrap(true)
-            l:SetText("This ability calls out from your normal defensive priority list -- "
-                .. "same list as everywhere else on this boss, in this order:")
-            by = by - 30
+            l:SetText("Calls out the best available defensive from your normal priority "
+                .. "list when this ability is cast -- same list as everywhere else on this "
+                .. "boss, in this order:")
+            by = by - 34
 
             -- ns.EffectiveList mirrors what actually fires: a boss-specific preset if one
             -- is chosen for this boss, else the spec's active preset, else the plain spec
-            -- default list -- the exact resolution order RebuildSlots uses. fp (the
-            -- timeline-fingerprint per-ability override layer) is left nil here: that
-            -- layer keys off a duration fingerprint, which a journal-sourced ability has
-            -- no way to produce, and nothing new is written to it any more regardless.
-            local specID = ns.CurrentSpec and ns.CurrentSpec()
+            -- default list -- the exact resolution order RebuildSlots uses, and the exact
+            -- preset Save() below binds this reminder to. fp (the timeline-fingerprint
+            -- per-ability override layer) is left nil here: that layer keys off a duration
+            -- fingerprint, which a journal-sourced ability has no way to produce.
             local list = ns.EffectiveList and select(1, ns.EffectiveList(specID, encounterID))
             if not (list and #list > 0) then
                 local hint = ns.Font(body, 11, nil, ns.THEME.muted)
@@ -2312,123 +2352,119 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     by = by - 24
                 end
             end
+            by = by - 6
         else
-            local function Label(text)
-                local lbl = ns.Font(body, 11, nil, ns.THEME.muted)
-                lbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-                lbl:SetText(text)
-                by = by - 16
-            end
-            local function Box(maxLetters, numeric, rightInset)
-                local box = CreateFrame("EditBox", nil, body)
-                box:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-                box:SetPoint("RIGHT", body, "RIGHT", -(rightInset or 0), 0)
-                box:SetHeight(26)
-                box:SetAutoFocus(false)
-                box:SetMaxLetters(maxLetters or 60)
-                if numeric then box:SetNumeric(true) end
-                box:SetFontObject("GameFontHighlight")
-                box:SetTextInsets(6, 6, 0, 0)
-                ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-                ns.Border(box)
-                by = by - 32
-                return box
-            end
-
             Label("Message")
             msgBox = Box(120)
             msgBox:SetText((boundReminder and boundReminder.msg) or "")
-
-            -- Display Type: only the options with a real renderer behind them are offered --
-            -- see ns.ShowCustomReminderEditor's own copy of this row for why Popup stays
-            -- the default.
-            displayTypeVal = (boundReminder and boundReminder.displayType) or "popup"
-            local _, displayTypeRowH = W:DualRow(body, by,
-                { type = "dropdown", text = "Display Type",
-                  values = { popup = "Popup", countdown = "Countdown Text", circle = "Circle",
-                      castbar = "Castbar" },
-                  order = { "popup", "countdown", "circle", "castbar" },
-                  tooltip = "How this reminder shows on screen when it fires.",
-                  getValue = function() return displayTypeVal end,
-                  setValue = function(v) displayTypeVal = v end },
-                { type = "label", text = "" }
-            ); by = by - displayTypeRowH
-
-            -- Icon: optional, looked up by spell id the same way the full custom reminder
-            -- editor resolves its Trigger tab's Spell ID field (ns.ResolveSpell) -- a live
-            -- preview and name confirm it before Save ever runs.
-            Label("Icon Spell ID (optional)")
-            iconBox = Box(9, true, 34)
-            local iconPreview = body:CreateTexture(nil, "ARTWORK")
-            iconPreview:SetSize(24, 24)
-            iconPreview:SetPoint("LEFT", iconBox, "RIGHT", 6, 0)
-            iconPreview:Hide()
-            local iconFeedback = ns.Font(body, 10, nil, ns.THEME.muted)
-            iconFeedback:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-            iconFeedback:SetPoint("RIGHT", body, "RIGHT", 0, 0)
-            iconFeedback:SetJustifyH("LEFT")
-            by = by - 14
-            local function SyncIcon()
-                local sid, info = ns.ResolveSpell(iconBox:GetText())
-                if sid then
-                    local tex = C_Spell and C_Spell.GetSpellTexture
-                        and C_Spell.GetSpellTexture(sid)
-                    if tex then iconPreview:SetTexture(tex); iconPreview:Show()
-                    else iconPreview:Hide() end
-                    iconFeedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
-                elseif iconBox:GetText() == "" then
-                    iconPreview:Hide()
-                    iconFeedback:SetText("")
-                else
-                    iconPreview:Hide()
-                    iconFeedback:SetText("|cffff6060not a spell id|r")
-                end
-            end
-            iconBox:SetScript("OnTextChanged", SyncIcon)
-            iconBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-            iconBox:SetText((boundReminder and boundReminder.iconSpellID
-                and tostring(boundReminder.iconSpellID)) or "")
-            SyncIcon()
-
-            -- Text color: an explicit per-reminder color, defaulting to white the same way
-            -- every other text color in this addon starts white until changed.
-            local c = boundReminder and boundReminder.color
-            pendingColor = { r = (c and c.r) or 1, g = (c and c.g) or 1, b = (c and c.b) or 1,
-                a = (c and c.a) or 1 }
-            local _, colorRowH = W:DualRow(body, by,
-                { type = "colorpicker", text = "Text Color", hasAlpha = false,
-                  tooltip = "This reminder's text color.",
-                  getValue = function() return pendingColor.r, pendingColor.g, pendingColor.b,
-                      pendingColor.a end,
-                  setValue = function(r, g, b, a) pendingColor = { r = r, g = g, b = b, a = a } end },
-                { type = "label", text = "" }
-            ); by = by - colorRowH
-
-            -- Sound: the same catalogue and SharedMedia appender the Setup > Sounds page's
-            -- own Alert Sound dropdown uses, so this list matches exactly.
-            pendingSoundKey = (boundReminder and boundReminder.sound) or "none"
-            local names, order
-            pendingSoundPaths, names, order = EUI.BuildAlertSoundTables()
-            if EUI.AppendSharedMediaSounds then
-                EUI.AppendSharedMediaSounds(pendingSoundPaths, names, order)
-            end
-            local _, soundRowH = W:DualRow(body, by,
-                { type = "dropdown", text = "Sound", values = names, order = order,
-                  tooltip = "Plays once when this reminder fires.",
-                  getValue = function() return pendingSoundKey end,
-                  setValue = function(v)
-                      pendingSoundKey = v
-                      if EUI._PlayLSMSound and pendingSoundPaths[v] then
-                          EUI._PlayLSMSound(pendingSoundPaths[v])
-                      end
-                  end },
-                { type = "label", text = "" }
-            ); by = by - soundRowH
-
-            Label("Linger (seconds)")
-            durBox = Box(3, true)
-            durBox:SetText(tostring((boundReminder and boundReminder.dur) or 3))
         end
+
+        -- Shared by both modes from here down: how it shows, not what it says.
+        displayTypeVal = (boundReminder and boundReminder.displayType) or "popup"
+        Label("Display Type")
+        DropdownRow(
+            { popup = "Popup", countdown = "Countdown Text", circle = "Circle",
+                castbar = "Castbar" },
+            { "popup", "countdown", "circle", "castbar" },
+            function() return displayTypeVal end,
+            function(v) displayTypeVal = v end)
+
+        -- Icon: optional, looked up by spell id the same way the full custom reminder
+        -- editor resolves its Trigger tab's Spell ID field (ns.ResolveSpell) -- a live
+        -- preview and name confirm it before Save ever runs.
+        Label("Icon Spell ID (optional)")
+        iconBox = Box(9, true, 34)
+        local iconPreview = body:CreateTexture(nil, "ARTWORK")
+        iconPreview:SetSize(24, 24)
+        iconPreview:SetPoint("LEFT", iconBox, "RIGHT", 6, 0)
+        iconPreview:Hide()
+        local iconFeedback = ns.Font(body, 10, nil, ns.THEME.muted)
+        iconFeedback:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+        iconFeedback:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+        iconFeedback:SetJustifyH("LEFT")
+        by = by - 14
+        local function SyncIcon()
+            local sid, info = ns.ResolveSpell(iconBox:GetText())
+            if sid then
+                local tex = C_Spell and C_Spell.GetSpellTexture
+                    and C_Spell.GetSpellTexture(sid)
+                if tex then iconPreview:SetTexture(tex); iconPreview:Show()
+                else iconPreview:Hide() end
+                iconFeedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
+            elseif iconBox:GetText() == "" then
+                iconPreview:Hide()
+                iconFeedback:SetText("")
+            else
+                iconPreview:Hide()
+                iconFeedback:SetText("|cffff6060not a spell id|r")
+            end
+        end
+        iconBox:SetScript("OnTextChanged", SyncIcon)
+        iconBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+        iconBox:SetText((boundReminder and boundReminder.iconSpellID
+            and tostring(boundReminder.iconSpellID)) or "")
+        SyncIcon()
+
+        -- Text color: an explicit per-reminder color, defaulting to white the same way
+        -- every other text color in this addon starts white until changed. Hand-rolled
+        -- swatch rather than W:ColorPicker/the DualRow colorpicker type -- both are built
+        -- for a full-width options row; this replicates just the swatch-plus-native-picker
+        -- core (EllesmereUI:ShowColorPicker, the same public entry point the shared swatch
+        -- helper itself calls) at the size this popup actually needs.
+        local existingColor = boundReminder and boundReminder.color
+        pendingColor = { r = (existingColor and existingColor.r) or 1,
+            g = (existingColor and existingColor.g) or 1,
+            b = (existingColor and existingColor.b) or 1, a = 1 }
+        Label("Text Color")
+        local swatch = CreateFrame("Button", nil, body)
+        swatch:SetSize(24, 24)
+        swatch:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+        local swatchFill = swatch:CreateTexture(nil, "ARTWORK")
+        swatchFill:SetAllPoints()
+        swatchFill:SetColorTexture(pendingColor.r, pendingColor.g, pendingColor.b, 1)
+        ns.Border(swatch)
+        swatch:SetScript("OnClick", function()
+            local snapR, snapG, snapB = pendingColor.r, pendingColor.g, pendingColor.b
+            local function Applied()
+                local popup = EUI._colorPickerPopup
+                if not popup then return end
+                local cr, cg, cb = popup:GetColorRGB()
+                pendingColor = { r = cr, g = cg, b = cb, a = 1 }
+                swatchFill:SetColorTexture(cr, cg, cb, 1)
+            end
+            EUI:ShowColorPicker({
+                swatchFunc = Applied,
+                hasOpacity = false,
+                cancelFunc = function()
+                    pendingColor = { r = snapR, g = snapG, b = snapB, a = 1 }
+                    swatchFill:SetColorTexture(snapR, snapG, snapB, 1)
+                end,
+                r = pendingColor.r, g = pendingColor.g, b = pendingColor.b,
+            }, swatch)
+        end)
+        by = by - 32
+
+        -- Sound: the same catalogue and SharedMedia appender the Setup > Sounds page's
+        -- own Alert Sound dropdown uses, so this list matches exactly.
+        pendingSoundKey = (boundReminder and boundReminder.sound) or "none"
+        local soundNames, soundOrder
+        pendingSoundPaths, soundNames, soundOrder = EUI.BuildAlertSoundTables()
+        if EUI.AppendSharedMediaSounds then
+            EUI.AppendSharedMediaSounds(pendingSoundPaths, soundNames, soundOrder)
+        end
+        Label("Sound")
+        DropdownRow(soundNames, soundOrder,
+            function() return pendingSoundKey end,
+            function(v)
+                pendingSoundKey = v
+                if EUI._PlayLSMSound and pendingSoundPaths[v] then
+                    EUI._PlayLSMSound(pendingSoundPaths[v])
+                end
+            end)
+
+        Label("Linger (seconds)")
+        durBox = Box(3, true)
+        durBox:SetText(tostring((boundReminder and boundReminder.dur) or 3))
         end)
         if not ok then
             local errText = ns.Font(body, 11, nil, { r = 1, g = 0.35, b = 0.35 })
@@ -2458,26 +2494,30 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
     local function Save()
         binding.mode = modeVal
+        local writeSet = ns.CustomRemindersTable(true, encounterID)
+        local key = boundUid or ("ab" .. ability.spellID)
+        local iconSid = iconBox and tonumber(iconBox:GetText())
+        local entry = {
+            name = ability.title,
+            trigger = { type = "spell", spellID = ability.spellID, kind = "cast" },
+            dur = math.max(1, tonumber(durBox and durBox:GetText()) or 3),
+            enabled = true,
+            displayType = displayTypeVal,
+            color = pendingColor,
+            iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
+            sound = (pendingSoundKey and pendingSoundKey ~= "none") and pendingSoundKey or nil,
+        }
         if modeVal == "custom" then
-            local writeSet = ns.CustomRemindersTable(true, encounterID)
-            local key = boundUid or ("ab" .. ability.spellID)
-            local iconSid = iconBox and tonumber(iconBox:GetText())
-            writeSet[key] = {
-                name = ability.title, msg = msgBox and msgBox:GetText() or "",
-                trigger = { type = "spell", spellID = ability.spellID, kind = "cast" },
-                dur = math.max(1, tonumber(durBox and durBox:GetText()) or 3),
-                enabled = true,
-                displayType = displayTypeVal,
-                color = pendingColor,
-                iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
-                sound = (pendingSoundKey and pendingSoundKey ~= "none") and pendingSoundKey or nil,
-            }
-        elseif boundUid then
-            -- Soft-disable rather than delete: switching back to Custom Reminder later
-            -- should not have lost what was typed.
-            local writeSet = ns.CustomRemindersTable(true, encounterID)
-            if writeSet[boundUid] then writeSet[boundUid].enabled = false end
+            entry.msg = msgBox and msgBox:GetText() or ""
+        else
+            -- Pre-Selected Defensives: bound to whichever preset ns.EffectiveList itself
+            -- would resolve for this boss (boss-specific choice if one is set, else the
+            -- spec's active preset) -- the same preset the read-only list above just
+            -- displayed, so what got shown is exactly what fires.
+            entry.preset = (ns.BossPresetKey and ns.BossPresetKey(specID, encounterID))
+                or (ns.ActivePresetKey and ns.ActivePresetKey(specID))
         end
+        writeSet[key] = entry
         ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
