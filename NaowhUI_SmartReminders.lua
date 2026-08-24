@@ -2403,30 +2403,12 @@ end
 -- sid here is a REAL spellID (BigWigs' key resolved positive, or DBM's own spellId) --
 -- never a fingerprint, so no learning/attribution step is needed: identity was handed to
 -- us directly, nothing to guess.
-function ns.HandleBigWigsAbility(sid)
-    if type(sid) ~= "number" or sid <= 0 then return end
-    if not (frame and TRDB().enabled) then return end
-    if not (ShouldRun() and InEncounter()) then return end
-
-    local now = GetTime()
-    if sid == lastBWSid and (now - lastBWAt) < 3 then return end
-    lastBWSid, lastBWAt = sid, now
-
-    -- TEMPORARY diagnostic: confirms whether this key genuinely means "this spell is
-    -- about to be cast" or is being reused by the module for something else (an opener,
-    -- a stage-start bar) that only coincidentally shares the same numeric key. Cross-
-    -- references the catalogue's own recorded text/kind for this exact key. Remove once
-    -- the Rav'i pull-time callout is explained.
-    if ns.AbilityEnabledForBinding(currentEncounter, sid) then
-        local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-        local cat = ns.BossModCatalogueTable and ns.BossModCatalogueTable(false, currentEncounter)
-        local entry = cat and cat[sid]
-        ns.Print(("|cffF0A830bw ability|r sid=%s (%s) mod=%s kind=%s text=%s"):format(
-            tostring(sid), (si and si.name) or "?",
-            (entry and entry.mod) or "?", (entry and entry.kind) or "?",
-            (entry and entry.text) or "?"))
-    end
-
+-- Everything that decides and shows the actual callout, re-evaluated at FIRE time rather
+-- than when the bar/message first arrived -- tanking status, an active defensive, even the
+-- ability's own enabled/mode choice can all change across a multi-second bar, and the
+-- moment that matters is the one right before the hit lands, not the one the warning
+-- started.
+local function FireBigWigsAbility(sid)
     if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     -- Mutually exclusive with Custom Reminder: when the ability picker's toggle is set to
     -- Custom Reminder for this exact ability, that reminder (matched separately off the
@@ -2453,9 +2435,39 @@ function ns.HandleBigWigsAbility(sid)
     frame:Show()
     if textFrame then textFrame:Show() end
     SpeakCallout()
-    lastCalloutAt = now
+    lastCalloutAt = GetTime()
     if hideTimer then hideTimer:Cancel() end
     hideTimer = C_Timer.NewTimer(5, HideReminder)
+end
+
+-- duration, when given, is how many seconds are left on BigWigs'/DBM's own bar (a
+-- StartBar/Timer event carries one; a plain Message does not, and fires immediately as it
+-- always has). Scheduled to land "Warn This Many Seconds Early" (the same slider the old
+-- native-timeline engine used) before the bar actually ends, matching how the custom
+-- reminder system's own bwtimer trigger already waits out a bar rather than firing at its
+-- start -- the primary engine just never got the same treatment until now.
+local pendingBWFires = {}
+function ns.HandleBigWigsAbility(sid, duration)
+    if type(sid) ~= "number" or sid <= 0 then return end
+    if not (frame and TRDB().enabled) then return end
+    if not (ShouldRun() and InEncounter()) then return end
+
+    local now = GetTime()
+    if sid == lastBWSid and (now - lastBWAt) < 3 then return end
+    lastBWSid, lastBWAt = sid, now
+
+    if type(duration) == "number" and duration > 0.5 then
+        local lead = TRDB().leadTime or 3
+        local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
+        local old = pendingBWFires[sid]
+        if old and old.Cancel then old:Cancel() end
+        pendingBWFires[sid] = C_Timer.NewTimer(delay, function()
+            pendingBWFires[sid] = nil
+            FireBigWigsAbility(sid)
+        end)
+    else
+        FireBigWigsAbility(sid)
+    end
 end
 
 -- Both dispatchers below register with a plain function, so the message name arrives as
@@ -2480,7 +2492,7 @@ local function OnBigWigsEvent(event, ...)
         local _, key, text, duration = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
-        ns.HandleBigWigsAbility(key)
+        ns.HandleBigWigsAbility(key, duration)
         if not hasCustomReminders then return end
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
@@ -2495,7 +2507,7 @@ local function OnBigWigsEvent(event, ...)
             RecordBossModKey("BW", key, text, "timer")
         end
         if isBarEnabled then return end
-        ns.HandleBigWigsAbility(key)
+        ns.HandleBigWigsAbility(key, duration)
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
     elseif event == "BigWigs_StopBar" or event == "BigWigs_PauseBar" then
@@ -2531,7 +2543,7 @@ local function OnDBMEvent(event, ...)
         local id, msg, duration, _, _, spellId = ...
         if issecretvalue and (issecretvalue(spellId) or issecretvalue(id) or issecretvalue(duration)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, msg, "timer") end
-        ns.HandleBigWigsAbility(spellId)
+        ns.HandleBigWigsAbility(spellId, duration)
         if not hasCustomReminders then return end
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
@@ -4404,6 +4416,10 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         for k, handle in pairs(bwPendingTimers) do
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
+        end
+        for k, handle in pairs(pendingBWFires) do
+            if handle.Cancel then handle:Cancel() end
+            pendingBWFires[k] = nil
         end
         RefreshCustomRemindersFlag()
         if event == "ENCOUNTER_START" then
