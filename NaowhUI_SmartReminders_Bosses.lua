@@ -1231,6 +1231,10 @@ local function RenderBoss(parent, y, W, EUI, inst, boss, specID)
     end
 
     local function SetAbilityEnabled(fp, on)
+        -- TEMPORARY diagnostic: confirms Setup is writing to the same encounterID the live
+        -- pull reports. Remove once the mismatch question is settled.
+        ns.Print(("|cffF0A830setup write|r fp=%s on=%s encounterID=%s"):format(
+            tostring(fp), tostring(on), tostring(encounterID)))
         local sh = ns.ShippedMarksFor and ns.ShippedMarksFor(encounterID)
         local shipped = sh and sh[fp] == true
         if on then
