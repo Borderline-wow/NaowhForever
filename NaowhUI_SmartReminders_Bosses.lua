@@ -2163,7 +2163,15 @@ function ns.BuildBossListPage(parent, y, isRaid)
     local _, h
     local specID = ns.CurrentSpec()
 
-    _, h = W:SectionHeader(parent, isRaid and "RAID BOSSES" or "DUNGEON BOSSES", y); y = y - h
+    -- W:SectionHeader is a fixed widget -- left-aligned, one set colour, a 40px band with
+    -- the label sitting near its bottom -- no centering or colour override exists on it.
+    -- Hand-built here instead: centered, Naowh's gold, and a fraction of that height, which
+    -- is most of what was leaving a gap between the tab strip and the content below.
+    local pageHead = ns.Font(parent, 14, nil, ns.THEME.gold)
+    pageHead:SetPoint("TOP", parent, "TOP", 0, y)
+    pageHead:SetJustifyH("CENTER")
+    pageHead:SetText(isRaid and "Raid Bosses" or "Dungeon Bosses")
+    y = y - 22
 
     local data = ns.ScrapeBosses(false)
     if not data or #data.instances == 0 then
@@ -2229,9 +2237,13 @@ function ns.BuildBossListPage(parent, y, isRaid)
         end)
     end
 
+    -- Right edge inset by CONTENT_PAD, same as RenderPresetListEditor's own right column
+    -- above -- without it, everything anchored to this pane's own RIGHT (the ability
+    -- rows' cog button in particular) sits under the scroll frame's scrollbar, both
+    -- visually clipped and unclickable since the scrollbar's hit region wins the click.
     local rightPane = CreateFrame("Frame", nil, parent)
     rightPane:SetPoint("TOPLEFT", parent, "TOPLEFT", LEFT_W + 16, topY)
-    rightPane:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+    rightPane:SetPoint("RIGHT", parent, "RIGHT", -(EUI.CONTENT_PAD or 16), 0)
 
     local rightBottom = topY
     if sel then
