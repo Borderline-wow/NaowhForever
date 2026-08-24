@@ -44,8 +44,7 @@ local SECTIONS = {
     { field = "bossLists",       label = "per-boss orders",      count = "keys" },
     { field = "callouts",        label = "callout lines",        count = "keys" },
     { field = "customReminders", label = "custom reminders",     count = "nested" },
-    { field = "tankMarks",       label = "tank buster marks",    count = "nested" },
-    { field = "muted",           label = "muted abilities",      count = "nested" },
+    { field = "abilityBindings", label = "ability on/off",       count = "nested" },
     { field = "audioOff",        label = "audio switches",       count = "keys" },
 }
 
@@ -198,14 +197,14 @@ end
 --  never be able to feed a whole-profile string into a boss import (or vice versa) and
 --  have it silently do something plausible-looking but wrong, and ApplyPack's own
 --  "replace" mode does db[field] = Copy(incoming) -- REPLACES THE ENTIRE SECTION. Fed a
---  payload scoped to one boss, that would wipe every OTHER boss's marks, mutes and
+--  payload scoped to one boss, that would wipe every OTHER boss's ability on/off state and
 --  custom reminders in the same section. A boss pack never goes anywhere near that
 --  function; ApplyBossPack below only ever writes the specific keys its own payload
 --  carries, which by construction belong to exactly one boss.
 --
 --  Two key shapes exist across the fields that carry boss data:
 --    "perboss"  profile[field][tostring(encounterID)] = {...}          (PerBossSet's own
---               convention -- customReminders, tankMarks, muted)
+--               convention -- customReminders, abilityBindings)
 --    "bosskey"  profile[field]["<specID>:<encounterID>"] = value       (bossLists,
 --               bossPreset -- a boss's per-boss list or preset choice is also keyed by
 --               WHICH SPEC set it, so a multi-spec player's setup for one boss can carry
@@ -218,8 +217,7 @@ local BOSS_PACK_FORMAT = 1
 
 local BOSS_SECTIONS = {
     { field = "customReminders", label = "custom reminders",         keyKind = "perboss" },
-    { field = "tankMarks",       label = "tank buster marks",        keyKind = "perboss" },
-    { field = "muted",           label = "muted abilities",          keyKind = "perboss" },
+    { field = "abilityBindings", label = "ability on/off",           keyKind = "perboss" },
     { field = "bossLists",       label = "priority order override",  keyKind = "bosskey" },
     { field = "bossPreset",      label = "preset choice",            keyKind = "bosskey" },
 }

@@ -925,178 +925,9 @@ local function ApplyPriorityAlpha()
     end
 end
 
--- Is this live event a boss ability, rather than a respawn timer or another addon's
--- bar? `source` is NeverSecret on EncounterTimelineEventInfo, so reading it alone is
--- legal even while the rest of the struct is sealed, and the comparison is plain.
---
--- Only ADDED carries the struct; HIGHLIGHT delivers a bare id. GetEventInfo is asked
--- again here rather than caching, because this fires a handful of times per pull and a
--- cache is another thing to invalidate.
--- Source and base duration, captured when the event is ADDED and keyed by its id.
---
--- This has to be a cache. ADDED carries the whole struct; HIGHLIGHT carries a bare id and
--- nothing else, and asking GetEventInfo again at highlight time is not reliable -- when it
--- comes back empty the check below FAILS OPEN and every script event is treated as a boss
--- ability. That is how a respawn timer, or another addon's bar, calls for a defensive while
--- the boss is doing nothing but meleeing.
---
--- Both fields are NeverSecret on the struct, so this stays plain even though the event
--- itself is flagged SecretWhenEncounterEvent. Duration is kept because it is the only plain
--- handle on WHICH ability an event is, and any future filtering by ability has to ride it.
-local eventSource, eventDuration = {}, {}
-
--- The turn-qualified fingerprint of each event on a duration two abilities take turns on
--- (ns.EVENT_CYCLES), and how many of each such duration this pull has produced. Decided at
--- ADDED, in arrival order, because that is the only moment the order is known -- the
--- highlight arrives later and out of order. The authored key is used as the base rather
--- than the live duration so a live 44.98 and a live 45.0 mark identically. Switching the
--- feature on mid-pull starts the count late and names the wrong turn until the next pull;
--- the source modules have the same exposure and there is nothing to resync against.
-local eventTurnFp, turnCount = {}, {}
-
--- The cycle for a live duration, exact match first and whole seconds second, matching how
--- IsUnmarkedEvent reads marks: a module authoring 45 has to find a live 44.98. The key it
--- matched is returned as well, so every event of that duration counts on ONE counter.
-local function CycleFor(enc, dur)
-    local d = ns.EVENT_CYCLES
-    local t = d and enc ~= nil and (d[enc] or d[tonumber(enc)] or d[tostring(enc)])
-    if not t then return nil end
-    local fp = string.format("%.1f", dur)
-    if t[fp] then return t[fp], fp end
-    local rounded = string.format("%.1f", math.floor(dur + 0.5))
-    if t[rounded] then return t[rounded], rounded end
-    return nil
-end
-
--- Which event ids have already produced a full show/speak pass. Blizzard's own timeline
--- view re-triggers ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT more than once per event with no
--- dedup of its own (OnEventHighlight just replays the glow every time; harmless for a
--- glow, not for a spoken callout), so without this an ability with a long lead time could
--- get announced repeatedly while still the same single cast.
-local announced = {}
-
-local function NoteEventAdded(info)
-    if type(info) ~= "table" then return end
-    pcall(function()
-        local id = info.id
-        if id == nil then return end
-        eventSource[id] = info.source
-        eventDuration[id] = info.duration
-
-        -- Encounter events only, matching the source module's own counter: script events
-        -- and other addons' bars share the timeline and would push the rotation along.
-        local encounter = Enum and Enum.EncounterTimelineEventSource
-            and Enum.EncounterTimelineEventSource.Encounter or 0
-        if info.source ~= encounter or type(info.duration) ~= "number" then return end
-        local cycle, key = CycleFor(currentEncounter, info.duration)
-        if not cycle then return end
-        local n = (turnCount[key] or 0) + 1
-        turnCount[key] = n
-        eventTurnFp[id] = key .. "#" .. (((n - 1) % #cycle) + 1)
-    end)
-end
-
--- Alerts waiting for their moment: the engine announces about five seconds out, and the
--- player-chosen lead is usually shorter, so the show is scheduled rather than immediate.
--- Every path that kills an event must kill its pending alert too, or a boss that dies in
--- the gap gets a callout over its corpse.
-local pendingShow = {}
-
-local function CancelPendingShow(eventID)
-    local t = pendingShow[eventID]
-    if t then
-        t:Cancel()
-        pendingShow[eventID] = nil
-    end
-end
-
-local function ForgetEvent(eventID)
-    if eventID == nil then return end
-    CancelPendingShow(eventID)
-    eventSource[eventID] = nil
-    eventDuration[eventID] = nil
-    announced[eventID] = nil
-    eventTurnFp[eventID] = nil
-end
-
-local function WipeEventCache()
-    for id in pairs(pendingShow) do
-        local t = pendingShow[id]
-        if t then t:Cancel() end
-    end
-    wipe(pendingShow)
-    wipe(eventSource)
-    wipe(eventDuration)
-    wipe(announced)
-    wipe(eventTurnFp)
-    wipe(turnCount)
-end
-
-local function IsEncounterSourced(eventID)
-    local encounter = Enum and Enum.EncounterTimelineEventSource
-        and Enum.EncounterTimelineEventSource.Encounter or 0
-
-    -- What ADDED told us, which is the only reading taken while the struct was actually in
-    -- hand. Nothing else can contradict it.
-    local cached = eventSource[eventID]
-    if cached ~= nil then return cached == encounter end
-
-    if not (C_EncounterTimeline and C_EncounterTimeline.GetEventInfo) then return true end
-
-    local ok, info = pcall(C_EncounterTimeline.GetEventInfo, eventID)
-    if not ok or type(info) ~= "table" then return true end
-
-    local got, source = pcall(function() return info.source end)
-    if not got or source == nil then return true end
-
-    return source == encounter
-end
-
--- Per-ability muting, keyed by base duration.
---
--- Measured on a live boss: spellID and icons come back SECRET on every event, so neither
--- Blizzard's tank flag nor a curated spell list can name a live ability. `duration` is
--- NeverSecret and differs between abilities in the same fight (8.0 and 25.0 on the same
--- boss), which makes it the only thing a per-ability filter can key on.
---
--- It is a fingerprint, not an identity: it says "this is the same ability as that one", never
--- which ability it is. That is enough to mute the one that does not need a defensive, and it
--- keeps working in keys, where identity never will.
---
--- Scoped per encounter because durations collide freely across different bosses.
--- The encounter is remembered alongside the fingerprint: a player usually types the command
--- right after the kill or the wipe, and by then ENCOUNTER_END has already cleared
--- currentEncounter, which would file the entry under the wrong boss.
-local lastFingerprint, lastFingerprintEncounter
-local lastUnknownNotice
-
--- Every fingerprint this fight that was seen and skipped as unmarked, and whether anything
--- was announced at all. Read once at ENCOUNTER_END; see the report there. Latched per
--- encounter because plenty of bosses have no tank hit at all by design -- Hoardmonger and
--- Sentinel of Winter among them -- and those would otherwise report every single kill.
-local silencedFingerprints = {}
-local calloutsThisFight = 0
-local noCalloutNotice = {}
-
--- For attributing a boss cast back to the timeline event that announced it, and for
--- detecting when that attribution would be ambiguous. Written by ShowForEvent, read by the
--- cast watcher below it.
-local lastFingerprintAt, prevFingerprintAt = 0, 0
+-- Timestamp of the last callout shown, of either engine (native or BigWigs/DBM) -- read by
+-- ns.HandleBigWigsAbility to correct an already-shown pick once identity resolves.
 local lastCalloutAt = 0
-
--- What the cast probe has established about this content, for the trace: "unseen" until a
--- boss casts, then "plain" or "secret". This is the whole question of whether automation
--- is possible here, so it is worth a word in every report.
-local castIdentity = "unseen"
-local cleuIdentity = "unseen"
-
-local function FingerprintFor(eventID)
-    local d = eventDuration[eventID]
-    if type(d) ~= "number" then return nil end
-    -- A duration two abilities take turns on is not one fingerprint but one per turn, or
-    -- marking it would call the tank buster on the ability sharing its bar as well.
-    return eventTurnFp[eventID] or string.format("%.1f", d)
-end
 
 -- Both per-boss sets share one shape: profile.<field>[encounterID][fingerprint] = true.
 local function PerBossSet(field, create, enc)
@@ -1111,10 +942,6 @@ local function PerBossSet(field, create, enc)
         t[field][key] = {}
     end
     return t[field][key]
-end
-
-local function MutedTable(create, enc)
-    return PerBossSet("muted", create, enc)
 end
 
 -- Boss-scoped custom reminders, independent of the timeline-fingerprint system: each one
@@ -1171,44 +998,7 @@ local function RecordBossModKey(mod, key, text, kind)
     end
 end
 
--- The tank-buster allowlist. A blocklist was tried first and pointed the wrong way: a pull
--- carries far more non-tank events than tank ones (8-20 measured), so the player was being
--- asked to mute the many to keep the few. Marking is the same fingerprint data used in the
--- right direction -- name the two that matter, silence the rest at once.
---
--- Empty means "not configured", not "block everything": a boss with no marks calls out every
--- ability, exactly as before, so the feature works out of the box and gets sharper per boss
--- as marks are added.
-local function MarksTable(create, enc)
-    return PerBossSet("tankMarks", create, enc)
-end
-
--- The `reminders` storage layer that used to live here is gone. Nothing ever called
--- RemindersTable(true, ...), so the table was never created, ReminderEntry could only
--- return nil, and the customMode branch in ShowForEvent was unreachable -- customReminders
--- replaced all of it. It also carried a live landmine: ReminderEntry called EventNameFor
--- from ABOVE its `local function` declaration, which compiles to a global lookup that is
--- never assigned, so reviving the layer would have thrown on the first call in the show
--- path rather than at load.
-
--- The ability's display name, from authored data; the raw fingerprint as the fallback so
--- an uncovered event is still addressable in the editor.
-local function EventNameFor(enc, fp)
-    if not (enc and fp) then return nil end
-    local names = ns.EVENT_NAMES and ns.EVENT_NAMES[enc]
-    return (names and names[fp]) or fp
-end
-ns.EventNameFor = EventNameFor
-ns.MarksTable = MarksTable
-ns.MutedTable = MutedTable
 ns.CustomRemindersTable = CustomRemindersTable
-
-local function IsMutedEvent(eventID)
-    local fp = FingerprintFor(eventID)
-    if not fp then return false end
-    local m = MutedTable(false, currentEncounter)
-    return m ~= nil and m[fp] == true
-end
 
 -- Does any live boss consider ME its problem? For two-tank raids: the buster lands on
 -- whoever has the boss, and the other tank does not need to burn a cooldown for it.
@@ -1278,59 +1068,6 @@ local function CoveredByActiveDefensive()
     return false
 end
 
--- Shipped fingerprints for this encounter, or nil. Read per event rather than captured:
--- the data file is optional and the feature must work identically without it.
-local function ShippedMarks(enc)
-    local d = ns.TANK_FINGERPRINTS
-    if not d or enc == nil then return nil end
-    -- Both key shapes: the file uses numbers, but nothing guarantees what type the event
-    -- handed us, and a silent type mismatch here disables the whole filter.
-    return d[enc] or d[tonumber(enc)] or d[tostring(enc)]
-end
--- Exported HERE, below the definition: an export wrapper placed above it resolved
--- ShippedMarks as a nil global inside the closure, and the boss window died on it.
-ns.ShippedMarksFor = function(enc) return ShippedMarks(enc) end
-
--- The filter players actually experience: shipped data covers the boss out of the box, and
--- a player's own marks UNION with it rather than replacing it, so marking stays available
--- as the authoring tool and as the escape hatch for a boss the data has not covered yet.
---
--- An event with NO fingerprint fails OPEN when marks exist. That happens when the ADDED was
--- missed (a reload mid-fight), and staying silent on what might be the tank buster is the
--- worse mistake -- an extra callout costs annoyance, a missing one costs a death. A wrong
--- SHIPPED mark is recoverable in game: the mute check runs after this one.
-local function IsUnmarkedEvent(eventID)
-    local player = MarksTable(false, currentEncounter)
-    if player ~= nil and next(player) == nil then player = nil end
-    local shipped = ShippedMarks(currentEncounter)
-    if player == nil and shipped == nil then return false end
-
-    local fp = FingerprintFor(eventID)
-    if not fp then return false end
-    -- Exact first, whole-second second. Some community modules author their durations
-    -- rounded to integers, so a live 17.4 must still find a shipped "17.0". The tolerant
-    -- form only ever WIDENS what counts as marked -- it can admit a near-miss ability,
-    -- never silence a marked one -- which is the right direction to be wrong in.
-    local rounded
-    local n = tonumber(fp)
-    if n then rounded = string.format("%.1f", math.floor(n + 0.5)) end
-    local function marked(t)
-        if t == nil then return false end
-        if t[fp] == true then return true end
-        return rounded ~= nil and t[rounded] == true
-    end
-    if marked(player) or marked(shipped) then return false end
-    return true
-end
-
--- Is this a KNOWN tank buster, rather than an ability on a boss nobody has covered yet?
--- Both reach the callout, but only the first is a claim about WHO the hit lands on.
-local function IsMarkedBuster(eventID)
-    local player = MarksTable(false, currentEncounter)
-    if player ~= nil and next(player) == nil then player = nil end
-    if player == nil and ShippedMarks(currentEncounter) == nil then return false end
-    return not IsUnmarkedEvent(eventID)
-end
 
 -- The engine gate (SetEventIconTextures, which paints a secret TankRole bit straight into
 -- a texture's alpha) is no longer applied: the fingerprint filter silences whole events
@@ -1994,19 +1731,9 @@ end
 -------------------------------------------------------------------------------
 --  Showing and hiding
 -------------------------------------------------------------------------------
--- Visibility is driven by plain data only -- the event ID and a timer. It must never ride
--- a secret: SetShown is AllowedWhenUntainted and would error, and hiding on a secret would
--- leak the answer through frame state. A non-tank event still SHOWS this frame; everything
--- inside it just sits at alpha 0.
--- /nutank trace arms a one-shot report on the next timeline event. Printed rather than
--- guessed at: this path runs mid-fight where nothing can be inspected by hand.
--- A COUNT, not a one-shot. Arming for a single event meant every report described the
--- first ability of the pull, which is almost never the tank buster being investigated.
--- Narrowing it to tank events instead is not possible: that classification arrives as a
--- secret icon mask, so Lua cannot ask "was this one a tank hit" at all. Covering the next
--- several events is the only way to be sure the interesting one is in the report.
-local TRACE_EVENTS = 5
-local traceLeft = 0
+-- Visibility is driven by plain data only. It must never ride a secret: SetShown is
+-- AllowedWhenUntainted and would error, and hiding on a secret would leak the answer
+-- through frame state.
 
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
@@ -2048,182 +1775,6 @@ local function ErrText(err)
     return ok and text or "unreadable"
 end
 
-local function TraceEvent(eventID)
-    traceLeft = math.max(0, traceLeft - 1)
-    local t = TRDB()
-    ns.Print(("|cffF0A830trace %d/%d|r build=%s event=%s slots=%d voice=%s icon=%s text=%s")
-        :format(TRACE_EVENTS - traceLeft, TRACE_EVENTS,
-                TRACE_BUILD, tostring(eventID), activeSlots, tostring(t.voiceOn),
-                tostring(t.showIcon), tostring(t.showText)))
-
-    -- SpeakCallout already ran for this event by the time this prints (see ShowForEvent's
-    -- call order), so this is the actual pick, not a guess -- and whether the repeat
-    -- suppressor (SUPPRESS_REPEAT_WINDOW) is why nothing was heard.
-    if lastAnnouncedSpellID then
-        local sinceInfo = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(lastAnnouncedSpellID)
-        ns.Print(("  last announced: %s (%s), %.1fs ago%s"):format(
-            (sinceInfo and sinceInfo.name) or "?", tostring(lastAnnouncedSpellID),
-            GetTime() - lastAnnouncedAt,
-            (GetTime() - lastAnnouncedAt < SUPPRESS_REPEAT_WINDOW)
-                and "  |cff8a99b5(a repeat of this one would be suppressed)|r" or ""))
-    end
-
-    -- WHICH list built these slots. A per-boss override silently replaces the spec order,
-    -- so "it called them in the wrong order" and "it is using a different list than the one
-    -- I edited" look identical from the outside. Naming the source separates them.
-    local _, fromBoss = EffectiveList(specID, currentEncounter)
-    ns.Print(("  list=%s encounter=%s"):format(
-        fromBoss and "|cffF0A830per-boss override|r" or "spec default",
-        tostring(currentEncounter or "none")))
-
-    -- Is this event's IDENTITY readable? Everything about filtering text and voice to tank
-    -- abilities turns on this one answer. spellID and icons carry no NeverSecret annotation,
-    -- so they are plain OUTSIDE restricted content and sealed inside it. If they read here,
-    -- fingerprints can be learned automatically wherever identity is available and applied
-    -- by duration where it is not, and nobody has to record anything by hand.
-    -- castID is the cast-probe verdict: whether THE BOSS'S CAST BAR names its spell
-    -- plainly here. "plain" means learning and callouts are fully automatic in this
-    -- content; "secret" means shipped fingerprints are the only route; "unseen" means no
-    -- boss has cast since login.
-    ns.Print(("  identity: spellID=%s icons=%s duration=%s source=%s cachedDur=%s castID=%s"):format(
-        Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).spellID end),
-        Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).icons end),
-        Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).duration end, "%.1f"),
-        Safe(function() return C_EncounterTimeline.GetEventInfo(eventID).source end),
-        Safe(function() return eventDuration[eventID] end, "%.1f"),
-        castIdentity))
-    ns.Print(("  identity channels: castbar=%s combatlog=%s restricted=%s"):format(
-        castIdentity, cleuIdentity,
-        Safe(function()
-            if C_CombatLog and C_CombatLog.IsCombatLogRestricted then
-                return tostring(C_CombatLog.IsCombatLogRestricted())
-            end
-            return "no probe"
-        end)))
-
-    -- Whether the authored data is loaded AT ALL. The fingerprints file is the newest in
-    -- the TOC, and a /reload does not pick up new files -- only a full client launch reads
-    -- the list. An unloaded file and an unmatched fingerprint produce identical symptoms,
-    -- and only this line can tell them apart.
-    if not ns.TANK_FINGERPRINTS then
-        ns.Print("  shipped data: |cffff6060table absent|r")
-    else
-        local m = ShippedMarks(currentEncounter)
-        local n = 0
-        if m then for _ in pairs(m) do n = n + 1 end end
-        ns.Print(("  shipped data: loaded, %d fingerprint(s) for this boss"):format(n))
-    end
-
-    if activeSlots == 0 then
-        ns.Print("  |cffff6060no slots built|r -- nothing on your list is talented, or the list is empty.")
-        return
-    end
-
-    -- The display side, so "picked correctly but nothing on screen" is answerable without
-    -- another round trip.
-    --
-    -- Every read of a value the engine may have made secret formats INSIDE its own pcall.
-    -- The guard used to wrap only the read, on the theory that reading a driven alpha would
-    -- refuse. It does not refuse: it hands back a secret VALUE quite happily, and it is
-    -- tostring/string.format that throw. Guarding the read and coercing outside the guard
-    -- therefore caught nothing, and this whole report died at its first slot -- which, since
-    -- the trace runs ahead of the callout, took the callout down with it.
-    if frame then
-        ns.Print(("  frame shown=%s alpha=%s size=%dx%d"):format(
-            tostring(frame:IsShown()),
-            Safe(function() return frame:GetAlpha() end, "%.2f"),
-            math.floor(frame:GetWidth() or 0), math.floor(frame:GetHeight() or 0)))
-    end
-
-    local now = GetTime()
-    for i = 1, activeSlots do
-      -- Identity first, on its own line, before anything that can refuse. Slot index, spell
-      -- id and name are all plain, so this prints even when every field after it raises --
-      -- and a report that at least names the spell in each slot beats one that dies before
-      -- saying anything, which is what the last three pulls produced.
-      local slotID = slots[i] and slots[i].spellID
-      local slotInfo = slotID and C_Spell and C_Spell.GetSpellInfo
-          and C_Spell.GetSpellInfo(slotID)
-      -- Every field is fetched and FORMATTED behind its own guard. One refusing call then
-      -- costs that one field, not the row and not the report. This is the whole point: the
-      -- report exists to say which call refuses, so it must survive a refusal to say it.
-      local readable = Safe(function() return CanNameSpellAloud(slotID) end)
-
-      local durState = Safe(function()
-          local dur = C_Spell.GetSpellCooldownDuration(slotID, true)
-          if not dur then return "nil (READY)" end
-          if not CanNameSpellAloud(slotID) then return "object (sealed)" end
-          return dur:IsZero()
-      end)
-
-      -- HasSecretValues is flagged ReturnsNeverSecret, so unlike IsZero it answers even
-      -- while cooldowns are sealed. It was worth testing as a readiness signal that would
-      -- let the voice stop dead reckoning. REFUTED on a live pull (Ra'vi, 2026-08-20): it
-      -- read true for all three slots at once, including one the model had as ready and
-      -- one mid-cooldown, so it reports only that the object CAN carry secret state, not
-      -- whether a cooldown is running. Kept in the readout because it is free and confirms
-      -- the sealing, but nothing may branch on it.
-      -- The plain truth, if the client answers: Blizzard's own not-isOnGCD-and-isActive.
-      -- "running" or "ready" here is the REAL cooldown state even while sealed; "nil" means
-      -- the client would not answer and the model below is what the pick actually used.
-      local realCD = Safe(function()
-          if not (C_Spell and C_Spell.GetSpellCooldown) then return nil end
-          local info = C_Spell.GetSpellCooldown(slotID)
-          if type(info) ~= "table" then return nil end
-          return ((not info.isOnGCD) and info.isActive) and "running" or "ready"
-      end)
-
-      local secretVals = Safe(function()
-          local dur = C_Spell.GetSpellCooldownDuration(slotID, true)
-          if not dur or not dur.HasSecretValues then return "n/a" end
-          return dur:HasSecretValues()
-      end)
-
-      -- A charge spell never touches readyAt (see NoteOwnCast), so the plain-cooldown
-      -- model line would always read 0.0s for one regardless of its real charge count.
-      -- That is what hid the Guardian of Ancient Kings state from the last two reports.
-      local model = Safe(function()
-          local charges = ChargesAvailable(slotID)
-          if charges then
-              local st = chargeState[slotID]
-              -- recharge=0.0s means GetSpellBaseCooldown reported nothing usable for this
-              -- spell, same as Divine Shield originally did -- the count cannot climb back
-              -- up on its own until a real cast is witnessed, only KNOWN_BASE_COOLDOWN or a
-              -- confirmed full recharge fixes that.
-              return string.format("%d/%s charges (recharge=%.1fs)",
-                  charges, tostring(st and st.max or "?"), st and st.recharge or 0)
-          end
-          return string.format("%.1fs", math.max(0, (readyAt[slotID] or 0) - now))
-      end)
-
-      local learned = Safe(function()
-          local t2 = TRDB()
-          local v = type(t2.learned) == "table" and t2.learned[tostring(slotID)] or nil
-          return v or "no"
-      end)
-
-      -- Static data, always readable regardless of sealing. A non-charge spell whose base
-      -- cooldown reads 0 or nil here falls through NoteOwnCast to KNOWN_BASE_COOLDOWN, or
-      -- failing that the 30s UNKNOWN_COOLDOWN placeholder -- which is nowhere close to a
-      -- multi-minute defensive's real cooldown and is the leading suspect for a defensive
-      -- reading ready long before it actually is.
-      local baseCD = Safe(function()
-          local ms = GetSpellBaseCooldown and GetSpellBaseCooldown(slotID)
-          return (type(ms) == "number") and (ms / 1000) or 0
-      end, "%.1fs")
-
-      local alpha = Safe(function() return slots[i]:GetAlpha() end, "%.2f")
-      local iconShown = Safe(function()
-          return slots[i].icon and slots[i].icon:IsShown()
-      end)
-      local audio = ns.IsAudioOff(slotID) and "audioOFF" or "audioOn"
-
-      ns.Print(("  %d. %s (%s) readable=%s cd=%s realcd=%s secretvals=%s model=%s learned=%s basecd=%s alpha=%s icon=%s %s")
-          :format(i, (slotInfo and slotInfo.name) or "?", tostring(slotID),
-                  readable, durState, realCD, secretVals, model, learned, baseCD, alpha, iconShown, audio))
-    end
-end
-
 local shownForEvent
 -- Whether the options window is open, which every hide path has to respect so a preview
 -- is not yanked off the screen. Declared here rather than beside the rest of the preview
@@ -2239,214 +1790,6 @@ local function HideReminder()
     end
     if textFrame then textFrame:Hide() end
     if bar then bar:Hide() end
-end
-
-local function ShowForEvent(eventID)
-    if not frame then return end
-
-    -- HIGHLIGHT is not one-shot: the engine replays it for the same event more than once
-    -- (Blizzard's own timeline view just re-triggers its glow animation every time, with
-    -- no dedup of its own), which without this repeated a callout for a single cast that
-    -- had a long lead time. Latched below, only once the event actually gets announced.
-    if announced[eventID] then
-        if traceLeft > 0 then
-            traceLeft = traceLeft - 1
-            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80repeat|r (already announced "
-                .. "this event)"):format(tostring(eventID)))
-        end
-        return
-    end
-
-    local t = TRDB()
-
-    -- Remembered even when muted, so "that one was wrong" can still be acted on afterwards
-    -- without having to catch it live.
-    prevFingerprintAt = lastFingerprintAt
-    lastFingerprintAt = GetTime()
-    lastFingerprint = FingerprintFor(eventID)
-    lastFingerprintEncounter = currentEncounter
-
-    -- A boss with NO data at all used to call out on every timeline event, on the theory
-    -- that missing a buster is worse than noise. A live lair boss settled it: five abilities
-    -- on ten-second cycles is nonstop alerts, which players turn off, and off catches
-    -- nothing. Unknown bosses are now QUIET -- the engine beep still covers flagged and
-    -- curated busters -- and say so once, and learning mode brings the old behavior back
-    -- for exactly the person it was built for: whoever is authoring the boss.
-    do
-        local player = MarksTable(false, currentEncounter)
-        local covered = (player ~= nil and next(player) ~= nil)
-            or (ShippedMarks(currentEncounter) ~= nil)
-        if not covered and not t.learnMode then
-            if lastUnknownNotice ~= currentEncounter then
-                lastUnknownNotice = currentEncounter
-                -- The encounter id belongs in BOTH lines. This branch returns long before
-                -- the trace prints its "encounter=" header, so a report of a silent boss
-                -- said "unknown boss" and nothing else -- no way to tell WHICH boss was
-                -- missing without going and looking it up by hand.
-                --
-                -- "No data yet" and "checked, and this boss has no tank buster" look
-                -- identical from the player's seat, and only the first is worth acting on.
-                -- Sending a tank to author an ability that does not exist wastes a pull.
-                if ns.TANK_NONE and ns.TANK_NONE[currentEncounter] then
-                    ns.Print(("this boss (encounter %s) has no tank buster to call -- "
-                        .. "checked against the boss mods, it does not have one. Silence "
-                        .. "here is correct."):format(tostring(currentEncounter)))
-                else
-                    ns.Print(("this boss (encounter %s) has no tank buster data yet, so "
-                        .. "callouts stay quiet here. The alert sound still covers known "
-                        .. "busters. Authoring it: /nutank learn, then /nutank tank on the "
-                        .. "real busters."):format(tostring(currentEncounter)))
-                end
-            end
-            if traceLeft > 0 then
-                traceLeft = traceLeft - 1
-                ns.Print(("|cffF0A830trace|r event=%s |cff80ff80quiet|r (encounter %s is "
-                    .. "unknown, learning mode off, fingerprint %s)"):format(
-                        tostring(eventID), tostring(currentEncounter),
-                        tostring(lastFingerprint)))
-            end
-            return
-        end
-    end
-
-    if IsUnmarkedEvent(eventID) then
-        -- Kept for the end-of-fight report below. "I got no callouts on this boss" has cost
-        -- several pulls each time to answer, because the trace has to be armed BEFORE the
-        -- ability lands and the tank buster is rarely the first event. A fight that called
-        -- nothing can say what it saw instead, after the fact.
-        if lastFingerprint then silencedFingerprints[lastFingerprint] = true end
-        if traceLeft > 0 then
-            traceLeft = traceLeft - 1
-            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80silenced|r (fingerprint %s is not "
-                .. "a marked tank buster)"):format(tostring(eventID), tostring(lastFingerprint)))
-        end
-        return
-    end
-
-    if IsMutedEvent(eventID) then
-        if traceLeft > 0 then
-            traceLeft = traceLeft - 1
-            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80muted|r (fingerprint %s)")
-                :format(tostring(eventID), tostring(lastFingerprint)))
-        end
-        return
-    end
-
-    -- A tank buster lands on whoever is holding the boss, and a spec that cannot tank
-    -- never is. Reported live: a Retribution paladin on Sszorak heard "call for an
-    -- external" for a hit that was never coming at him. Role comes from the spec rather
-    -- than from the fight, so this settles it without any of the threat reads the gate
-    -- below makes, and without their fail-open.
-    --
-    -- MARKED busters only. An uncovered boss calls out everything, which is the authoring
-    -- tool rather than a claim about who gets hit, and a DPS authoring a boss still needs
-    -- to see the events. The cost is a DPS soloing old content losing a callout that was
-    -- never aimed at them, which is the right way round to be wrong.
-    if not isTank and IsMarkedBuster(eventID) then
-        if traceLeft > 0 then
-            traceLeft = traceLeft - 1
-            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80not a tank|r (this is a tank "
-                .. "buster and your spec does not tank)"):format(tostring(eventID)))
-        end
-        return
-    end
-
-    if t.aggroOnly and not TankingSomeBoss() then
-        if traceLeft > 0 then
-            traceLeft = traceLeft - 1
-            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80off-tank|r (the boss is on the "
-                .. "other tank)"):format(tostring(eventID)))
-        end
-        return
-    end
-
-    if t.coveredSkip ~= false and CoveredByActiveDefensive() then
-        if traceLeft > 0 then
-            traceLeft = traceLeft - 1
-            ns.Print(("|cffF0A830trace|r event=%s |cff80ff80covered|r (a defensive is "
-                .. "already active with %ds+ left)"):format(tostring(eventID),
-                COVERED_MIN_REMAINING))
-        end
-        return
-    end
-
-    -- There used to be an exclusive "custom alert" mode here, where an ability carrying
-    -- authored text said that line instead of a defensive pick. Its storage layer was
-    -- never written to, so the mode could never turn on, and the branch below is what
-    -- always ran. Custom reminders are their own frame and their own triggers now.
-    --
-    -- The defensive pick honors this ABILITY's own list when one exists: slots are
-    -- rebuilt against the fingerprint before anything reads them. Cheap, and the next
-    -- event or encounter start rebuilds again, so nothing needs restoring.
-    RebuildSlots(lastFingerprint)
-    RebuildCastMap()
-    ApplyPriorityAlpha()
-
-    -- The bar counts down the incoming ability. GetEventTimer hands back a duration object
-    -- that is PLAIN (only the descriptive event fields are secret), and the engine ticks it
-    -- against a clock that already accounts for encounter pauses -- so this is set once per
-    -- event and never polled.
-    if t.showBar and canBar then
-        CreateBar()
-        local durObj = C_EncounterTimeline.GetEventTimer(eventID)
-        if durObj and bar.SetTimerDuration then
-            bar:SetMinMaxValues(0, 1)
-            bar:SetTimerDuration(durObj, Enum.StatusBarInterpolation.Immediate,
-                Enum.StatusBarTimerDirection.RemainingTime)
-            bar:Show()
-        end
-    elseif bar then
-        bar:Hide()
-    end
-
-    -- Everything reaching here already passed the fingerprint filter, which is the tank
-    -- filter now, so the art is simply revealed.
-    ClearTankGate()
-
-    announced[eventID] = true
-    calloutsThisFight = calloutsThisFight + 1
-    shownForEvent = eventID
-    if frame.learnTag then
-        frame.learnTag:SetShown(t.learnMode == true)
-        if frame.learnBorder and frame.learnBorder._frame then
-            frame.learnBorder._frame:SetShown(t.learnMode == true)
-        end
-    end
-    frame:Show()
-    if textFrame then textFrame:Show() end
-    -- The callout happens BEFORE the report, and the report is guarded. Either alone would
-    -- do; both together mean no future change to the readout can cost the player an alert.
-    -- It already did once: an unguarded throw in here ran ahead of the callout and took the
-    -- audio with it on the exact pull being diagnosed.
-    SpeakCallout()
-    lastCalloutAt = GetTime()
-
-    -- The authored layer: what the curator wrote on THIS ability, named when the data
-    -- knows it. Shown over the icon and spoken after the defensive, so the actionable
-    -- word still comes first.
-    -- Nothing authored per ability reaches this line any more -- the layer that fed it was
-    -- write-only and is gone. Kept hidden rather than removed: the fontstring is part of
-    -- the frame's layout, and showing the incoming ability's name here was already tried
-    -- and cut on tester feedback -- mid-pull, a second line of text above the icon is
-    -- noise unless a person chose the words.
-    if frame.reminder then frame.reminder:Hide() end
-
-    if traceLeft > 0 then
-        local okT, err = pcall(TraceEvent, eventID)
-        if not okT then ns.Print("|cffff6060trace failed|r: " .. ErrText(err)) end
-    end
-
-    if hideTimer then hideTimer:Cancel() end
-    -- Up for exactly the window being shown: the player's lead when the alert was delayed
-    -- to it, the engine's when the engine announced later than the player asked for.
-    local lead = 5
-    if C_EncounterTimeline and C_EncounterTimeline.GetEventHighlightTime then
-        local v = C_EncounterTimeline.GetEventHighlightTime()
-        if type(v) == "number" and v > 0 then lead = v end
-    end
-    local want = t.leadTime or 3
-    if want > 0 and want < lead then lead = want end
-    hideTimer = C_Timer.NewTimer(lead, HideReminder)
 end
 
 -- Previews one custom line exactly as a fight would deliver it: the text over the alert
@@ -2545,136 +1888,6 @@ end
 local function ShouldRun()
     return TRDB().enabled == true and canSelect
         and activeSlots > 0 and TimelineAvailable() and AllowedHere() and BossAllowed()
-end
-
--- The other door into the fight: the boss's own cast bar. Timeline events keep their spell
--- identity secret (measured -- every event, every pull), but UnitCastingInfo is only
--- SecretWhenUnitSpellCastRestricted, i.e. CONDITIONALLY. Where it reads plainly, the moment
--- Triple Shot's cast starts we know it is Triple Shot by spell id, the curated list answers
--- "tank buster" outright, and no shipped fingerprint or marking is needed at all.
---
--- Two jobs, both automatic:
---
---   1. LEARN. Pair the cast's spell id with the most recent timeline fingerprint, and mark
---      that fingerprint as a tank buster for this boss. That is the same mark /nutank tank
---      records by hand -- authored here by the game instead of a person. The pairing is
---      skipped when TWO events announced within the window, because attributing the cast to
---      the wrong one would poison the mark; an unambiguous pairing arrives within a cast or
---      two and marks persist, so the filter converges and then holds.
---   2. BACKSTOP. If no callout happened recently -- the event was silenced by a wrong or
---      missing mark, or never made the timeline -- fire the callout now. Later than the
---      timeline's five seconds, but on time beats silent.
---
--- Where cast identity turns out secret, issecretvalue answers plainly, the probe records it
--- for the trace, and this whole path steps aside -- shipped fingerprints remain the answer
--- in that content.
--- Both identity channels funnel here with a PLAIN spell id in hand. Everything after
--- identification is channel-agnostic: check the curated list, learn the fingerprint,
--- backstop the callout.
-local lastIdentifiedSid, lastIdentifiedAt = nil, 0
-
-local function HandleIdentifiedCast(sid)
-    if not frame or activeSlots == 0 then return end
-    if not (ShouldRun() and InEncounter()) then return end
-
-    -- Both channels usually see the same cast; the second sighting adds nothing.
-    local now = GetTime()
-    if sid == lastIdentifiedSid and (now - lastIdentifiedAt) < 3 then return end
-    lastIdentifiedSid, lastIdentifiedAt = sid, now
-
-    local buster = ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid]
-
-    -- The learn path narrates itself while a trace is armed. Learning that silently
-    -- declines is indistinguishable from learning that is broken, and that ambiguity has
-    -- already cost full dungeon runs elsewhere in this file.
-    local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-    local castName = (si and si.name) or tostring(sid)
-    if traceLeft > 0 then
-        ns.Print(("|cffF0A830cast|r %s (%s) curated=%s"):format(
-            castName, tostring(sid), buster and "TANK BUSTER" or "no"))
-    end
-    if not buster then return end
-
-    -- Learn: one recent announcement, and only one, else the attribution is a guess.
-    local skip
-    if not (lastFingerprint and currentEncounter) then
-        skip = "no timeline event announced this"
-    elseif lastFingerprintEncounter ~= currentEncounter then
-        skip = "last announcement was another encounter's"
-    elseif (now - lastFingerprintAt) >= 10 then
-        skip = ("last announcement was %.0fs ago, too old to attribute"):format(
-            now - lastFingerprintAt)
-    elseif (now - prevFingerprintAt) < 10 then
-        skip = "two events announced back to back, attribution would be a guess"
-    end
-
-    if not skip then
-        local m = MarksTable(true, currentEncounter)
-        if m[lastFingerprint] ~= true then
-            m[lastFingerprint] = true
-            ns.Print(("Learned: fingerprint %s on encounter %s is a tank buster (%s). "
-                .. "Other abilities on this boss will stop calling out."):format(
-                lastFingerprint, tostring(currentEncounter), castName))
-        end
-    elseif traceLeft > 0 then
-        ns.Print("  |cffF0A830not learned|r: " .. skip)
-    end
-
-    -- A confident attribution to a fingerprint the player has explicitly muted means the
-    -- timeline path's silence was deliberate, not a miss -- the backstop below exists to
-    -- catch the LATTER, and firing anyway here would defeat the player's own mute. Several
-    -- spell ids can share one fingerprint (duration alone cannot tell same-length variants
-    -- apart, e.g. The Coiled Altar's Sever/Blighted Sever/Soul Sever), so this is the same
-    -- attribution this cast would have been LEARNED under, reused to respect the mute too.
-    if not skip then
-        local m = MutedTable(false, currentEncounter)
-        if m and m[lastFingerprint] == true then
-            if traceLeft > 0 then
-                ns.Print("  |cffF0A830backstop skipped|r: fingerprint " .. lastFingerprint
-                    .. " is muted")
-            end
-            return
-        end
-    end
-
-    -- The primary callout had to pick blind: the timeline event's only stable handle is a
-    -- duration (see TANK_FINGERPRINTS' own header on why spell identity is secret there),
-    -- so same-length variants of one ability (e.g. The Coiled Altar's Sever/Blighted
-    -- Sever/Soul Sever) share one generic pick regardless of which is actually coming. Now
-    -- that the cast is identified, swap to THIS spell's own ability-picker list if the
-    -- player set one up and a callout is already showing for it -- correcting the pick
-    -- before the hit lands, not after. Gated on a callout already being up: this only ever
-    -- corrects an existing display, never starts one from silence (the backstop below
-    -- still owns that, with its own isTank/aggroOnly/coveredSkip gates already applied to
-    -- whatever originally showed this frame).
-    if (now - lastCalloutAt) < 6 then
-        local ownList = ns.EffectiveListFor and ns.EffectiveListFor(specID,
-            tostring(currentEncounter) .. "#" .. tostring(sid))
-        if ownList and #ownList > 0 then
-            RebuildSlots(tostring(sid))
-            ApplyPriorityAlpha()
-            SpeakCallout()
-        end
-    end
-
-    -- Backstop: the timeline path already spoke for this cast if anything did.
-    if (now - lastCalloutAt) < 6 then return end
-    -- Same rule as the timeline path: this is a curated tank buster by definition, so a
-    -- spec that cannot tank is not the one it hits. Learning above still ran.
-    if not isTank then return end
-    if TRDB().aggroOnly and not TankingSomeBoss() then return end
-    if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
-
-    ApplyPriorityAlpha()
-    -- The previous event may have left the engine gate's alpha 0 on these icons; this
-    -- callout is for a KNOWN tank buster, so they must be visible.
-    ClearTankGate()
-    frame:Show()
-    if textFrame then textFrame:Show() end
-    SpeakCallout()
-    lastCalloutAt = now
-    if hideTimer then hideTimer:Cancel() end
-    hideTimer = C_Timer.NewTimer(5, HideReminder)
 end
 
 -------------------------------------------------------------------------------
@@ -3106,8 +2319,8 @@ local function CheckBossModTimerStart(mod, key, barIdentity, duration, text)
 end
 
 -- kind: "applied" | "removed". destGUID identifies whether the affected unit is a boss --
--- cross-referenced against boss1-boss5, the same way OnBossCast already identifies a boss
--- unit, rather than a destFlags hostile-NPC check that would also catch trash adds -- or
+-- cross-referenced against boss1-boss5, rather than a destFlags hostile-NPC check that
+-- would also catch trash adds -- or
 -- the player. Reads directly off the combat log rather than through BigWigs/DBM, since
 -- SPELL_AURA_APPLIED/REMOVED fire for every aura on every unit regardless of whether any
 -- boss module's author chose to announce it, giving this broader coverage than a message
@@ -3177,8 +2390,7 @@ end
 
 -- sid here is a REAL spellID (BigWigs' key resolved positive, or DBM's own spellId) --
 -- never a fingerprint, so no learning/attribution step is needed: identity was handed to
--- us directly, nothing to guess. Same gates as the native engine's own backstop
--- (HandleIdentifiedCast above) so both paths agree on who a callout is even for.
+-- us directly, nothing to guess.
 function ns.HandleBigWigsAbility(sid)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
@@ -3187,16 +2399,6 @@ function ns.HandleBigWigsAbility(sid)
     local now = GetTime()
     if sid == lastBWSid and (now - lastBWAt) < 3 then return end
     lastBWSid, lastBWAt = sid, now
-
-    -- TEMPORARY diagnostic: confirms the sid this path actually receives matches the
-    -- Journal spellID Setup's checkbox writes to. Remove once the mismatch question is
-    -- settled.
-    do
-        local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-        ns.Print(("|cffF0A830bw ability|r sid=%s (%s) encounter=%s enabled=%s"):format(
-            tostring(sid), (si and si.name) or "?", tostring(currentEncounter),
-            tostring(ns.AbilityEnabledForBinding(currentEncounter, sid))))
-    end
 
     if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     if not isTank then return end
@@ -3207,6 +2409,11 @@ function ns.HandleBigWigsAbility(sid)
     if activeSlots == 0 then return end
     ApplyPriorityAlpha()
     ClearTankGate()
+    -- Marks a real callout as showing, same as the old timeline path did (just keyed by
+    -- spellID instead of an event id) -- the preview system and the options-panel-close
+    -- handler both check this before hiding anything, so it must be set before frame:Show()
+    -- or closing Setup mid-fight would yank a live callout off screen.
+    shownForEvent = sid
     frame:Show()
     if textFrame then textFrame:Show() end
     SpeakCallout()
@@ -3334,22 +2541,6 @@ local function RegisterBossModHooks()
 end
 ns.RegisterBossModHooks = RegisterBossModHooks
 
--- Channel 1: the boss's cast bar. Sealed in the content measured so far, but the
--- annotation is conditional, so the probe stays.
-local function OnBossCast(unit)
-    -- issecretvalue BEFORE anything else touches sid -- even `== nil` is a branch on the
-    -- value and raises when it is secret. The probe verdict must be recorded from the read
-    -- alone, not from a comparison that would never be reached.
-    local sid = select(9, UnitCastingInfo(unit))
-    if issecretvalue and issecretvalue(sid) then
-        castIdentity = "secret"
-        return
-    end
-    if sid == nil then return end
-    castIdentity = "plain"
-    HandleIdentifiedCast(sid)
-end
-
 -- Channel 2: the combat log. A different door than the cast bar, with its own probe
 -- (C_CombatLog.IsCombatLogRestricted) and its own secrecy rules, so one being sealed says
 -- nothing about the other. No source check is needed: the curated list holds boss tank
@@ -3374,7 +2565,6 @@ local function OnCombatLog()
     local _, sub, _, _, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = CombatLogGetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)
         or issecretvalue(amount)) then
-        cleuIdentity = "secret"
         return
     end
 
@@ -3391,11 +2581,6 @@ local function OnCombatLog()
         end
     end
 
-    if not runActive then return end
-    if sub ~= "SPELL_CAST_START" and sub ~= "SPELL_CAST_SUCCESS" then return end
-    if type(spellId) ~= "number" then return end
-    cleuIdentity = "plain"
-    HandleIdentifiedCast(spellId)
 end
 
 
@@ -3442,29 +2627,6 @@ local function UpdateEventRegistration()
         -- run off the timeline handlers, which test ShouldRun() themselves.
         HideReminder()
         return
-    end
-
-    -- Probed, not assumed: registering an event the client does not know throws.
-    if C_EventUtils and C_EventUtils.IsEventValid then
-        if C_EventUtils.IsEventValid("ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT") then
-            watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_ADDED")
-            -- The boss's own cast, for identity where the timeline has none.
-            -- RegisterUnitEvent takes two units at most, so this is the broad
-            -- registration filtered in the handler; the match is one string test.
-            watcher:RegisterEvent("UNIT_SPELLCAST_START")
-            watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT")
-        end
-        if C_EventUtils.IsEventValid("ENCOUNTER_TIMELINE_EVENT_REMOVED") then
-            watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_REMOVED")
-        end
-        -- A boss can cancel a timeline event after HIGHLIGHT already scheduled its callout --
-        -- an interrupted cast, a mechanic skipped by a phase change -- and REMOVED does not
-        -- reliably follow right away (BigWigs' own modules treat Canceled as a distinct state
-        -- from Removed for the same reason). Without this, the reminder plays over a cast
-        -- that never lands. See STATE_CHANGED below.
-        if C_EventUtils.IsEventValid("ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED") then
-            watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED")
-        end
     end
 
     -- The cooldown model's inputs. Unit-filtered, so the cast event fires only for the
@@ -3872,136 +3034,22 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Shows the alert exactly as a fight would, minus the tank gate. If the icon appears
     -- here but not on a boss, the display is fine and the gate is the variable. If it does
     -- not appear here either, the problem is the display itself.
-    -- Mute and unmute act on the LAST callout rather than asking for a number, because the
-    -- player has no way to know an ability's fingerprint and should not have to. "That one
-    -- was wrong" is the whole interaction.
-    if arg == "mute" or arg == "unmute" then
-        if not lastFingerprint or not lastFingerprintEncounter then
-            ns.Print("nothing to " .. arg .. " yet -- pull a boss and let a callout happen first.")
-            return
-        end
-        local m = MutedTable(true, lastFingerprintEncounter)
-        m[lastFingerprint] = (arg == "mute") or nil
-        ns.Print(("%s the ability with fingerprint %s on encounter %s."):format(
-            arg == "mute" and "Muted" or "Unmuted", lastFingerprint,
-            tostring(lastFingerprintEncounter or "none")))
-        ns.Print("Its callouts " .. (arg == "mute" and "will stop." or "are back on.")
-            .. " Only this ability on this boss is affected.")
-        return
-    end
-
-    -- The pair the player actually wants: name the tank busters once, per boss, and every
-    -- other ability goes quiet at the same moment. The cue for WHEN to type it is already
-    -- built: the game's own registered sound plays exactly once per pull, on the first tank
-    -- buster -- so "I just heard the sound" means "the ability that just called out is one".
-    if arg == "tank" or arg == "untank" then
-        -- Both halves checked: a fingerprint without its encounter would file the mark
-        -- under key 0, a boss that does not exist, where it silences nothing forever.
-        if not lastFingerprint or not lastFingerprintEncounter then
-            ns.Print("nothing to mark yet -- pull a boss and let a callout happen first.")
-            return
-        end
-        local m = MarksTable(true, lastFingerprintEncounter)
-        local had = next(m) ~= nil
-        m[lastFingerprint] = (arg == "tank") or nil
-        if arg == "tank" then
-            ns.Print(("Marked fingerprint %s as a tank buster on encounter %s."):format(
-                lastFingerprint, tostring(lastFingerprintEncounter or "none")))
-            if not had then
-                ns.Print("From now on ONLY marked abilities call out on this boss. Mark each "
-                    .. "tank buster the same way; the game's own alert sound is your cue, it "
-                    .. "plays once per pull on the first tank buster.")
-            end
-        else
-            ns.Print(("Unmarked fingerprint %s on encounter %s."):format(
-                lastFingerprint, tostring(lastFingerprintEncounter or "none")))
-            if next(m) == nil then
-                ns.Print("No marks left -- every ability calls out again on this boss.")
-            end
-        end
-        return
-    end
-
-    if arg == "learn" then
-        local t2 = TRDB()
-        t2.learnMode = not t2.learnMode
-        if t2.learnMode then
-            ns.Print("learning mode ON: unknown bosses call out every timeline ability so "
-                .. "you can mark the real busters with /nutank tank. Turn it off when done.")
-        else
-            ns.Print("learning mode off: unknown bosses stay quiet again.")
-        end
-        return
-    end
-
-    if arg == "marked" then
-        local enc = lastFingerprintEncounter or currentEncounter
-        local n = 0
-        local m = MarksTable(false, enc)
-        if m then
-            for fp in pairs(m) do
-                ns.Print(("  tank buster fingerprint %s (yours)"):format(fp))
-                n = n + 1
-            end
-        end
-        local shipped = ShippedMarks(enc)
-        if shipped then
-            for fp in pairs(shipped) do
-                ns.Print(("  tank buster fingerprint %s (shipped)"):format(fp))
-                n = n + 1
-            end
-        end
-        if n == 0 then
-            ns.Print("no marks on this boss -- every ability calls out. Type /nutank tank "
-                .. "right after a tank buster callout to start narrowing it.")
-        end
-        return
-    end
-
-    -- Prints every player mark in the data file's own format, so authoring a dungeon pool
-    -- is: run it, /nutank tank on each buster, /nutank export, paste.
-    if arg == "export" then
-        local t = TRDB()
-        local any = false
-        if type(t.tankMarks) == "table" then
-            for encKey, fps in pairs(t.tankMarks) do
-                if type(fps) == "table" and next(fps) ~= nil then
-                    local parts = {}
-                    for fp in pairs(fps) do
-                        parts[#parts + 1] = ('["%s"] = true'):format(fp)
-                    end
-                    table.sort(parts)
-                    ns.Print(("    [%s] = { %s },"):format(encKey, table.concat(parts, ", ")))
-                    any = true
-                end
-            end
-        end
-        if not any then
-            ns.Print("no marks to export yet -- /nutank tank on a tank buster callout first.")
-        end
-        return
-    end
-
-    if arg == "muted" then
-        local m = MutedTable(false, lastFingerprintEncounter or currentEncounter)
-        local n = 0
-        if m then
-            for fp in pairs(m) do
-                ns.Print(("  muted fingerprint %s"):format(fp))
-                n = n + 1
-            end
-        end
-        ns.Print(("%d muted on encounter %s. Fingerprints are base durations in seconds; "):format(
-            n, tostring(currentEncounter or "none"))
-            .. "they identify an ability WITHIN a fight, never across fights.")
+    -- mute/unmute/tank/untank/learn/marked/export/muted all worked against fingerprints
+    -- (a timeline bar's duration standing in for an ability's identity), and retired along
+    -- with that engine -- BigWigs/DBM hand over a real spellID now, so "which ability" is
+    -- never a guess to record by hand. Setup's own per-ability checklist is the on/off
+    -- switch these used to be.
+    if arg == "mute" or arg == "unmute" or arg == "tank" or arg == "untank"
+        or arg == "learn" or arg == "marked" or arg == "export" or arg == "muted" then
+        ns.Print("/nutank " .. arg .. " was part of the old fingerprint engine and has been "
+            .. "retired. Enable or disable an ability from Setup's own checklist instead.")
         return
     end
 
     if arg == "trace" then
-        traceLeft = TRACE_EVENTS
-        ns.Print(("armed for the next %d timeline events (build %s). The tank buster is "
-            .. "rarely the first one, so pull and let a few land."):format(
-            TRACE_EVENTS, TRACE_BUILD))
+        ns.Print(("build %s. The old timeline-fingerprint trace was retired with the "
+            .. "fingerprint engine -- a spellID-based replacement is coming. /nutank cds "
+            .. "shows your current priority list state in the meantime."):format(TRACE_BUILD))
         return
     end
 
@@ -4114,11 +3162,6 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     if not isTank then
         ns.Print("|cffF0A830this spec does not tank|r, so known tank busters stay quiet "
             .. "here. Custom reminders and uncovered bosses in authoring mode still call.")
-    end
-    if TRDB().learnMode then
-        ns.Print("|cffF0A830Call Out Unknown Bosses is ON|r (Smart Reminders options page, "
-            .. "under How It Tells You) -- every uncovered boss calls out on EVERY timeline "
-            .. "ability, tank buster or not. /nutank learn turns it off.")
     end
     ns.Print(("timeline: available=%s bossWarnings=%s timelineDisplay=%s"):format(
         tostring(TimelineAvailable()),
@@ -4729,13 +3772,6 @@ function ns.BuildCoreSettings(parent, y)
           setValue = function(v) TRDB().leadTime = v end }
     ); y = y - h
 
-    -- No UI row for learnMode anymore -- it was the authoring switch for curating our own
-    -- ns.TANK_ABILITIES/fingerprint database by hand, which stops being worth maintaining
-    -- once BigWigs/DBM/ExBoss identify abilities for us. The mechanism and its banner
-    -- ("AUTHORING MODE -- CALLING EVERY ABILITY") are untouched, still reachable with
-    -- /nutank learn for whoever still curates that data occasionally -- this only removes
-    -- it from the page every other player sees.
-
     -- The player's own list for the current spec, in priority order. This addon ships no
     return y
 end
@@ -5315,35 +4351,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
         currentEncounter = (event == "ENCOUNTER_START") and arg1 or nil
-        -- A silent dungeon must cost one chat line to diagnose, not a run. If the feature
-        -- is on but any gate is closed when a boss starts, say WHICH, once. Every earlier
-        -- "nothing came up" report burned a full run because this line did not exist.
-        -- Event ids are per-instance and get reused, so a stale entry would answer for a
-        -- different ability entirely on the next pull.
-        WipeEventCache()
-        -- A fight that had data for this boss, saw abilities, and called nothing is the
-        -- report that has been costing whole pulls to diagnose: the trace has to be armed
-        -- before the ability lands, and the tank buster is rarely the first event. Say it
-        -- after the fact instead, with the fingerprints it actually saw -- those are what
-        -- /nutank tank marks, so the message doubles as the fix.
-        if event == "ENCOUNTER_END" and TRDB().enabled == true
-            and calloutsThisFight == 0 and next(silencedFingerprints) ~= nil
-            -- arg1, not currentEncounter: the line above already cleared that to nil for
-            -- ENCOUNTER_END, so keying the latch off it would file every boss under 0 and
-            -- report exactly once per session for the whole game.
-            and activeSlots > 0 and not noCalloutNotice[arg1 or 0] then
-            noCalloutNotice[arg1 or 0] = true
-            local list = {}
-            for fp in pairs(silencedFingerprints) do list[#list + 1] = fp end
-            local function dur(fp) return tonumber((fp:gsub("#.*$", ""))) or 0 end
-            table.sort(list, function(a, b) return dur(a) < dur(b) end)
-            ns.Print(("|cffff6060no callouts this fight|r. Abilities seen, none marked as "
-                .. "tank busters: %s. If one of those WAS the tank hit, /nutank tank marks "
-                .. "it."):format(table.concat(list, ", ")))
-        end
         if event == "ENCOUNTER_END" then wipe(readyAt) end
-        wipe(silencedFingerprints)
-        calloutsThisFight = 0
         lastAnnouncedSpellID = nil
         RebuildSlots()          -- swap to this boss's list before the first ability lands
         RebuildCastMap()
@@ -5414,90 +4422,8 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "COMBAT_LOG_EVENT_UNFILTERED" then
         local okL, errL = pcall(OnCombatLog)
-        if not okL and traceLeft > 0 then
+        if not okL then
             ns.Print("|cffff6060combat log watch failed|r: " .. ErrText(errL))
-        end
-        return
-    end
-
-    if event == "UNIT_SPELLCAST_START" then
-        if type(arg1) == "string" and arg1:match("^boss%d+$") then
-            local okC, err = pcall(OnBossCast, arg1)
-            if not okC and traceLeft > 0 then
-                ns.Print("|cffff6060cast watch failed|r: " .. ErrText(err))
-            end
-        end
-        return
-    end
-
-    if event == "ENCOUNTER_TIMELINE_EVENT_ADDED" then
-        -- The one moment the struct is in hand. Recorded now so the highlight, which
-        -- arrives with nothing but an id, does not have to guess.
-        NoteEventAdded(arg1)
-        return
-    end
-
-    if event == "ENCOUNTER_TIMELINE_EVENT_HIGHLIGHT" then
-        -- Boss abilities ONLY. The timeline also carries Script events, which is what a
-        -- respawn timer is and what other addons add through the scripting API, plus
-        -- EditMode layout previews. Reacting to those calls a defensive with no boss in
-        -- the room, which is exactly how it was reported.
-        --
-        -- `source` is one of the four NeverSecret fields on the event struct, so this is
-        -- a plain comparison. An unknown source is treated as an encounter event: the
-        -- only way to get one is a reload mid-pull, and being late to a real boss ability
-        -- is worse than being early to somebody else's timer.
-        if ShouldRun() and InEncounter() and IsEncounterSourced(arg1) then
-            -- The engine announces at its own lead (about five seconds); the player picks
-            -- how close to the hit the alert fires. The wait is a timer rather than a
-            -- reread of the event clock, which accepts a small drift if the timeline
-            -- pauses inside the window -- rare, and a paused timeline usually means the
-            -- ability is not landing on schedule anyway.
-            local eventID = arg1
-            local engineLead = 5
-            if C_EncounterTimeline.GetEventHighlightTime then
-                local v = C_EncounterTimeline.GetEventHighlightTime()
-                if type(v) == "number" and v > 0 then engineLead = v end
-            end
-            local want = TRDB().leadTime or 3
-            local delay = (want > 0 and want < engineLead) and (engineLead - want) or 0
-            if delay > 0.1 then
-                CancelPendingShow(eventID)
-                pendingShow[eventID] = C_Timer.NewTimer(delay, function()
-                    pendingShow[eventID] = nil
-                    ShowForEvent(eventID)
-                end)
-            else
-                ShowForEvent(eventID)
-            end
-        end
-        return
-    end
-
-    if event == "ENCOUNTER_TIMELINE_EVENT_REMOVED" then
-        -- Plain comparison: event IDs are NeverSecret.
-        if shownForEvent ~= nil and arg1 == shownForEvent then HideReminder() end
-        ForgetEvent(arg1)
-        return
-    end
-
-    if event == "ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED" then
-        -- GetEventState is the same plain, NeverSecret call LittleWigs' own King's Rest
-        -- module uses (Council.lua) to tell a Canceled bar apart from one that finished on
-        -- schedule: Council of Tribes is three sequential mini-bosses, and killing Aka'ali
-        -- the Conqueror explicitly cancels his pending Debilitating Backhand bar. Kill speed
-        -- varies, so this can land at any point after HIGHLIGHT already scheduled (or
-        -- played) our own callout for it -- the reported bug, on this exact boss. This is
-        -- the only signal that catches it: cancel the pending show, and clear the reminder
-        -- if it is already up for this event.
-        if C_EncounterTimeline and C_EncounterTimeline.GetEventState then
-            local canceled = Enum and Enum.EncounterTimelineEventState
-                and Enum.EncounterTimelineEventState.Canceled or 3
-            local ok, state = pcall(C_EncounterTimeline.GetEventState, arg1)
-            if ok and state == canceled then
-                if shownForEvent ~= nil and arg1 == shownForEvent then HideReminder() end
-                ForgetEvent(arg1)
-            end
         end
         return
     end
