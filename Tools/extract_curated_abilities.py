@@ -15,11 +15,18 @@ This reads only spellIDs, phase groupings and BigWigs'/LittleWigs' own inline
 ability names -- structure, not their prose. Ability descriptions in the
 shipped addon come from Blizzard's own C_EncounterJournal data, not from here.
 
-Which dungeons to pass: cross-reference this season's pool (the encounterIDs
-already keyed in ns.TANK_FINGERPRINTS / ns.TANK_ABILITIES, audited separately)
-against `grep -rl "SetEncounterID(<id>)" .../LittleWigs_*` to find which
-expansion folder and sub-folder covers each one, since the pool rotates
-across expansions and is not a single BigWigs zone package.
+Which dungeons to pass: BigWigs' OWN Loader.lua names them, in
+`public.currentExpansion.currentSeason` (a `[journalInstanceID] = addonName`
+table for the "Retail" -- non-beta -- branch). That is the authoritative list,
+not our own TANK_FINGERPRINTS sheet: the pool rotates across expansions, a
+dungeon's addonName there does not always match the folder its modules
+actually ship in on disk (currentSeason can point at a bundled
+LittleWigs_CurrentSeason/LittleWigs_Midnight package that reuses per-expansion
+files), and cross-checking against our own sheet instead once silently missed
+5 of 8 current dungeons whose encounterIDs had simply never been added to it.
+Resolve each journalInstanceID to its real files with
+`grep -rl 'NewBoss([^,]*, <journalInstanceID>,' .../LittleWigs*` (that id is
+mod:NewBoss's second argument) rather than trusting the addonName string.
 
 Usage: python extract_curated_abilities.py <module_dir> [<module_dir> ...] > out.lua
 """

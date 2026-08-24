@@ -148,4 +148,56 @@ ns.CURATED_ABILITIES = {
 	[2609] = { -- Melidrussa Chillworn
 		{ phase = "General", abilities = { 373046, 372682, 372851, 396044, 372988, 373680 } },
 	},
+	[3101] = { -- Kystia Manaheart
+		{ phase = "General", abilities = { 1253811, 1264095, 474240, 1230304 } },
+	},
+	[3105] = { -- Lithiel Cinderfury
+		{ phase = "General", abilities = { 474408, 1218203, 1224478 } },
+	},
+	[3103] = { -- Xathuux the Annihilator
+		{ phase = "General", abilities = { 473898, 1214637, 1295453, 474197 } },
+	},
+	[3102] = { -- Zaen Bladesorrow
+		{ phase = "General", abilities = { 474478, 474765, 1214357, 1222795, 1218347 } },
+	},
+	[3209] = { -- Nalorakk Den
+		{ phase = "General", abilities = { 1242860, 1243569, 1243011 } },
+	},
+	[3208] = { -- Sentinel of Winter
+		{ phase = "General", abilities = { 1235548, 1235623, 1235783, 1235656 } },
+	},
+	[3207] = { -- The Hoardmonger
+		{ phase = "General", abilities = { 1235118, 1253268, 1234233 } },
+	},
+	[3200] = { -- Ikuzz the Light Hunter
+		{ phase = "General", abilities = { 1236746, 1236709, 1237090 } },
+	},
+	[3199] = { -- Lightblossom Trinity
+		{ phase = "General", abilities = { 1234753, 1235640, 1234850, 1235564 } },
+	},
+	[3201] = { -- Lightwarden Ruia
+		{ phase = "General", abilities = { 1239882, 1239824, 1240098, 1239885, 1241058, 1240210, 1239883 } },
+	},
+	[3202] = { -- Ziekket
+		{ phase = "General", abilities = { 1246372, 1246858, 1247685, 1246607 } },
+	},
+	[3286] = { -- Atroxus
+		{ phase = "General", abilities = { 1222642, 1226120, 1222721, 1262497, 1222371 } },
+	},
+	[3287] = { -- Charonus
+		{ phase = "General", abilities = { 1282770, 1227264, 1263982, 1311923, 1222755 } },
+	},
+	[3285] = { -- Taz'Rah
+		{ phase = "General", abilities = { 1222098, 1296963, 1297017, 1300259 } },
+	},
+	[3456] = { -- Rav'i
+		{ phase = "General", abilities = { 1296220, 1307703, 1296216, 1296050, 1307894 } },
+	},
+	[3457] = { -- The Writhing Coil
+		{ phase = "The Writhing Coil (Stage 1)", abilities = { 1299154, 1298949, 1310357, 1310547, 1299940, 1299130, 1300044, 1299053 } },
+		{ phase = "The Uncoiled Writhe (Stage 2)", abilities = { 1310358, 1300686 } },
+	},
+	[3458] = { -- Zul'jan
+		{ phase = "General", abilities = { 1300876, 1301111, 1301350, 1301413 } },
+	},
 }
