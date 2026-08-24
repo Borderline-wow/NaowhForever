@@ -1983,6 +1983,53 @@ function ns.BuildProfileSettings(parent, y)
         .. "damaged string is refused outright.")
     end
 
+    -- Just one boss, not the whole profile -- a separate wire format (ExportBossPack /
+    -- ApplyBossPack in NaowhUI_SmartReminders_Packs.lua), not a scoped mode on the pack
+    -- above: ApplyPack's replace mode replaces a WHOLE section, which fed a single boss's
+    -- slice would wipe every other boss's data in it.
+    local bossPackRow
+    bossPackRow, h = W:DualRow(parent, y,
+        { type = "label", text = "      Share just one boss's setup instead of the whole profile." },
+        { type = "label", text = "" }
+    ); y = y - h
+    if bossPackRow then
+        AttachInline(bossPackRow._rightRegion or bossPackRow, "Export", 60, function()
+            local data = ns.ScrapeBosses(false)
+            if not (data and #data.instances > 0) then
+                ns.Print("no bosses found yet -- open the Adventure Guide once first.")
+                return
+            end
+            if MenuUtil and MenuUtil.CreateContextMenu then
+                -- Flat rather than nested by instance: CreateButton's own submenu support
+                -- was not confirmed before writing this, and a long list that definitely
+                -- works beats a tidy one that might not.
+                MenuUtil.CreateContextMenu(parent, function(_, root)
+                    for i = 1, #data.instances do
+                        local inst = data.instances[i]
+                        for b = 1, #inst.bosses do
+                            local boss = inst.bosses[b]
+                            if boss.encounterID then
+                                root:CreateButton(("%s: %s"):format(inst.name, boss.name), function()
+                                    if ns.ShowBossPackExport then
+                                        ns.ShowBossPackExport(boss.encounterID, boss.name)
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                end)
+            end
+        end, "Export a Boss's Setup",
+        "Priority order, preset choice, tank buster marks, mutes and custom reminders -- "
+        .. "for one boss only, as its own string.")
+
+        AttachInline(bossPackRow._rightRegion or bossPackRow, "Import", 60, function()
+            if ns.ShowBossPackImport then ns.ShowBossPackImport() end
+        end, "Import a Boss's Setup",
+        "Paste a boss setup string. It always applies to whichever boss it was exported "
+        .. "from -- every other boss is untouched.")
+    end
+
     _, h = W:SectionHeader(parent, "WHERE IT RUNS", y); y = y - h
 
     -- The two master switches, side by side: dungeons on the left, raids on the right.
@@ -2095,20 +2142,28 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     topRow:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
     topRow:SetHeight(26)
 
-    -- One button, Export and Import behind it -- same context-menu mechanism as the boss
-    -- picker to its right, rather than two separate buttons for what one click covers.
-    -- Whole-profile only for now: a boss-scoped pack needs ApplyPack's Replace mode fixed
-    -- first (it currently does db[field] = incoming, which would wipe every OTHER boss's
-    -- data in that section if fed a pack scoped to just one) -- real enough to be its own
-    -- pass rather than folded in here.
+    -- One button, four choices behind it -- whole profile or just this boss, export or
+    -- import. Boss export needs to know which boss (this page already does); boss import
+    -- does not -- the pasted string's own encounterID says which boss it targets, so it
+    -- is offered here as a convenience, not because this page is required to reach it.
     local share = ns.Button(topRow, "Share Profile", 130, 26, function()
         if MenuUtil and MenuUtil.CreateContextMenu then
             MenuUtil.CreateContextMenu(topRow, function(_, root)
-                root:CreateButton("Export", function()
+                root:CreateButton("Export Whole Profile", function()
                     if ns.ShowPackExport then ns.ShowPackExport() end
                 end)
-                root:CreateButton("Import", function()
+                root:CreateButton("Import Whole Profile", function()
                     if ns.ShowPackImport then ns.ShowPackImport() end
+                end)
+                if boss and boss.encounterID then
+                    root:CreateButton("Export This Boss", function()
+                        if ns.ShowBossPackExport then
+                            ns.ShowBossPackExport(boss.encounterID, boss.name)
+                        end
+                    end)
+                end
+                root:CreateButton("Import a Boss", function()
+                    if ns.ShowBossPackImport then ns.ShowBossPackImport() end
                 end)
             end)
         elseif ns.ShowPackExport then
