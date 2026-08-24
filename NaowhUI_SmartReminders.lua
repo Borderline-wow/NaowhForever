@@ -3199,7 +3199,7 @@ local function UpdateEventRegistration()
 
     if not ShouldRun() then
         runActive = false
-        -- The three HasRestrictions events (COMBAT_LOG_EVENT_UNFILTERED and both
+        -- The HasRestrictions events (COMBAT_LOG_EVENT_UNFILTERED and the
         -- ENCOUNTER_TIMELINE_* ones) are NEVER unregistered, matching how the register
         -- side already treats them. InCombatLockdown() was the wrong gate and produced a
         -- live ADDON_ACTION_FORBIDDEN on UnregisterEvent from inside its own guard:
@@ -3247,6 +3247,14 @@ local function UpdateEventRegistration()
         end
         if C_EventUtils.IsEventValid("ENCOUNTER_TIMELINE_EVENT_REMOVED") then
             watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_REMOVED")
+        end
+        -- A boss can cancel a timeline event after HIGHLIGHT already scheduled its callout --
+        -- an interrupted cast, a mechanic skipped by a phase change -- and REMOVED does not
+        -- reliably follow right away (BigWigs' own modules treat Canceled as a distinct state
+        -- from Removed for the same reason). Without this, the reminder plays over a cast
+        -- that never lands. See STATE_CHANGED below.
+        if C_EventUtils.IsEventValid("ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED") then
+            watcher:RegisterEvent("ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED")
         end
     end
 
@@ -5246,6 +5254,27 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         -- Plain comparison: event IDs are NeverSecret.
         if shownForEvent ~= nil and arg1 == shownForEvent then HideReminder() end
         ForgetEvent(arg1)
+        return
+    end
+
+    if event == "ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED" then
+        -- GetEventState is the same plain, NeverSecret call LittleWigs' own King's Rest
+        -- module uses (Council.lua) to tell a Canceled bar apart from one that finished on
+        -- schedule: Council of Tribes is three sequential mini-bosses, and killing Aka'ali
+        -- the Conqueror explicitly cancels his pending Debilitating Backhand bar. Kill speed
+        -- varies, so this can land at any point after HIGHLIGHT already scheduled (or
+        -- played) our own callout for it -- the reported bug, on this exact boss. This is
+        -- the only signal that catches it: cancel the pending show, and clear the reminder
+        -- if it is already up for this event.
+        if C_EncounterTimeline and C_EncounterTimeline.GetEventState then
+            local canceled = Enum and Enum.EncounterTimelineEventState
+                and Enum.EncounterTimelineEventState.Canceled or 3
+            local ok, state = pcall(C_EncounterTimeline.GetEventState, arg1)
+            if ok and state == canceled then
+                if shownForEvent ~= nil and arg1 == shownForEvent then HideReminder() end
+                ForgetEvent(arg1)
+            end
+        end
         return
     end
 
