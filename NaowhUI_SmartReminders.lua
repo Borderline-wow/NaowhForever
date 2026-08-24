@@ -2620,6 +2620,23 @@ local function HandleIdentifiedCast(sid)
         ns.Print("  |cffF0A830not learned|r: " .. skip)
     end
 
+    -- A confident attribution to a fingerprint the player has explicitly muted means the
+    -- timeline path's silence was deliberate, not a miss -- the backstop below exists to
+    -- catch the LATTER, and firing anyway here would defeat the player's own mute. Several
+    -- spell ids can share one fingerprint (duration alone cannot tell same-length variants
+    -- apart, e.g. The Coiled Altar's Sever/Blighted Sever/Soul Sever), so this is the same
+    -- attribution this cast would have been LEARNED under, reused to respect the mute too.
+    if not skip then
+        local m = MutedTable(false, currentEncounter)
+        if m and m[lastFingerprint] == true then
+            if traceLeft > 0 then
+                ns.Print("  |cffF0A830backstop skipped|r: fingerprint " .. lastFingerprint
+                    .. " is muted")
+            end
+            return
+        end
+    end
+
     -- Backstop: the timeline path already spoke for this cast if anything did.
     if (now - lastCalloutAt) < 6 then return end
     -- Same rule as the timeline path: this is a curated tank buster by definition, so a
