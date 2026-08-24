@@ -351,6 +351,17 @@ end
 -- secret. nil outside a boss fight, which is what makes the spec default apply everywhere else.
 local currentEncounter
 
+-- BigWigs' own stage number, current for this pull, from its own BigWigs_SetStage
+-- broadcast -- not read from anything of theirs beyond the live message, same as
+-- everything else this bridge catalogues. Reset every pull, alongside bwActiveMod (both
+-- reset at the same ENCOUNTER_START/END handler, far below). Stamped onto each
+-- catalogued key by RecordBossModKey so the boss browser can group abilities by the
+-- stage they were actually seen in, once that display exists. Declared here rather than
+-- beside bwActiveMod itself: RecordBossModKey, which reads it, is defined well before
+-- that point in the file, and a bare local has to exist before its first use textually,
+-- not just before it runs.
+local currentStage
+
 -- The list that actually drives the alert: this boss's override when it has one, otherwise
 -- the spec default.
 -- Three layers, most specific first: this ability's own list (composite key
@@ -1145,12 +1156,16 @@ local function RecordBossModKey(mod, key, text, kind)
     if not cat then return end
     local entry = cat[key]
     if not entry then
-        cat[key] = { mod = mod, kind = kind, text = text, seen = 1 }
+        cat[key] = { mod = mod, kind = kind, text = text, seen = 1, stage = currentStage }
     else
         entry.mod, entry.kind = mod, kind
         -- The most recent text wins: a bar's "(3)" occurrence suffix drifts pull to
         -- pull, and the freshest label is the one worth showing in the picker.
         if type(text) == "string" and text ~= "" then entry.text = text end
+        -- Stage, likewise: an ability seen in two different stages across pulls (a
+        -- reused mechanic, or BigWigs itself correcting a stage late) keeps whichever
+        -- one was most recently confirmed rather than whatever happened to record first.
+        if currentStage then entry.stage = currentStage end
         entry.seen = (entry.seen or 0) + 1
     end
 end
@@ -2888,6 +2903,7 @@ local bwActiveMod
 -- text, since a stop/pause event only ever carries the bar's text back, not its key.
 local bwPendingTimers = {}
 
+
 local function CancelBossModTimers(mod, text)
     local prefix = mod .. ":" .. tostring(text)
     for k, handle in pairs(bwPendingTimers) do
@@ -3043,6 +3059,13 @@ local function OnBigWigsEvent(event, ...)
     elseif event == "BigWigs_StopBars" or event == "BigWigs_OnBossDisable" then
         if not hasCustomReminders then return end
         CancelBossModTimers("BW", "")
+    elseif event == "BigWigs_SetStage" then
+        -- (module, stage) -- read regardless of CustomRemindersAllowed/hasCustomReminders:
+        -- this only updates the ambient currentStage local RecordBossModKey stamps onto
+        -- catalogue entries above, not a reminder trigger, so none of those gates apply.
+        local _, stage = ...
+        if issecretvalue and issecretvalue(stage) then return end
+        if type(stage) == "number" then currentStage = stage end
     end
 end
 
@@ -3084,6 +3107,7 @@ local function RegisterBossModHooks()
             BWL.RegisterMessage(ns, "BigWigs_PauseBar", OnBigWigsEvent)
             BWL.RegisterMessage(ns, "BigWigs_StopBars", OnBigWigsEvent)
             BWL.RegisterMessage(ns, "BigWigs_OnBossDisable", OnBigWigsEvent)
+            BWL.RegisterMessage(ns, "BigWigs_SetStage", OnBigWigsEvent)
         end)
         bwHooked = ok and true or false
     end
@@ -5100,6 +5124,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         -- next attempt.
         wipe(customCounters)
         bwActiveMod = nil
+        currentStage = nil
         for k, handle in pairs(bwPendingTimers) do
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
