@@ -393,6 +393,7 @@ local function EffectiveList(forSpec, encounterID, fp)
     end
     return UserList(forSpec, false), false
 end
+ns.EffectiveList = EffectiveList
 
 -- Cap on built slots, and on how long a list the options page will accept. Nothing reads a
 -- secret to size this, and it must not: slot count, creation and layout are all driven by
@@ -2010,7 +2011,7 @@ local traceLeft = 0
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0821c"
+local TRACE_BUILD = "0823a"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that

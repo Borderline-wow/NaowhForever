@@ -2120,7 +2120,11 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     defLabel:SetText("Pre-Selected Defensives")
     defBtn:SetSize(defLabel:GetStringWidth() + 4, 24)
     defLabel:SetPoint("CENTER")
-    defBtn:SetPoint("LEFT", panel, "LEFT", PAD, TAB_TOP)
+    -- TOPLEFT, not LEFT: LEFT anchors to the panel's vertical CENTER, which put both tab
+    -- buttons well below the header, overlapping the body instead of sitting under it --
+    -- looked like clicking them did nothing, because the real hit region was somewhere
+    -- else on the panel.
+    defBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
     local defMarker = ns.Solid(defBtn, "OVERLAY", ns.THEME.gold, 1)
     defMarker:SetPoint("BOTTOMLEFT", 0, -3); defMarker:SetPoint("BOTTOMRIGHT", 0, -3)
     defMarker:SetHeight(2); defMarker:Hide()
@@ -2155,13 +2159,52 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
         local by = 0
         if modeVal == "defensive" then
-            local l = ns.Font(body, 12, nil, ns.THEME.muted)
+            local l = ns.Font(body, 11, nil, ns.THEME.muted)
             l:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             l:SetPoint("RIGHT", body, "RIGHT", 0, 0)
             l:SetJustifyH("LEFT")
             l:SetWordWrap(true)
-            l:SetText("This ability calls out from your normal defensive priority list, "
-                .. "the same as everything else here. Nothing extra to set.")
+            l:SetText("This ability calls out from your normal defensive priority list -- "
+                .. "same list as everywhere else on this boss, in this order:")
+            by = by - 30
+
+            -- ns.EffectiveList mirrors what actually fires: a boss-specific preset if one
+            -- is chosen for this boss, else the spec's active preset, else the plain spec
+            -- default list -- the exact resolution order RebuildSlots uses. fp (the
+            -- timeline-fingerprint per-ability override layer) is left nil here: that
+            -- layer keys off a duration fingerprint, which a journal-sourced ability has
+            -- no way to produce, and nothing new is written to it any more regardless.
+            local specID = ns.CurrentSpec and ns.CurrentSpec()
+            local list = ns.EffectiveList and select(1, ns.EffectiveList(specID, encounterID))
+            if not (list and #list > 0) then
+                local hint = ns.Font(body, 11, nil, ns.THEME.muted)
+                hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                hint:SetText("|cff8a99b5Nothing set up yet -- add defensives under "
+                    .. "Setup > Priority List.|r")
+                by = by - 20
+            else
+                for i = 1, #list do
+                    local sid = list[i]
+                    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+                    local row = CreateFrame("Frame", nil, body)
+                    row:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                    row:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+                    row:SetHeight(24)
+                    local rankLbl = ns.Font(row, 11, nil, ns.THEME.muted)
+                    rankLbl:SetPoint("LEFT", row, "LEFT", 0, 0)
+                    rankLbl:SetText(i .. ".")
+                    local icon = row:CreateTexture(nil, "ARTWORK")
+                    icon:SetSize(20, 20)
+                    icon:SetPoint("LEFT", rankLbl, "RIGHT", 6, 0)
+                    if info and info.iconID then icon:SetTexture(info.iconID) end
+                    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                    local nameLbl = ns.Font(row, 12, nil, ns.THEME.fg)
+                    nameLbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+                    nameLbl:SetJustifyH("LEFT")
+                    nameLbl:SetText((info and info.name) or ("Spell " .. sid))
+                    by = by - 24
+                end
+            end
         else
             local function Label(text)
                 local lbl = ns.Font(body, 11, nil, ns.THEME.muted)
