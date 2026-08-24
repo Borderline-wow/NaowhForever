@@ -3188,7 +3188,7 @@ function ns.HandleBigWigsAbility(sid)
     if sid == lastBWSid and (now - lastBWAt) < 3 then return end
     lastBWSid, lastBWAt = sid, now
 
-    if not AbilityEnabledForBinding(currentEncounter, sid) then return end
+    if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     if not isTank then return end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
     if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
