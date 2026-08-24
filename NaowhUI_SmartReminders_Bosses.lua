@@ -1587,22 +1587,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     local nameBox = AddBoxM(40)
     nameBox:SetText((existing and existing.name) or "")
 
-    -- Display Type: only the options with a real renderer behind them are offered --
-    -- Countdown Text is the first of Robin's three (Circle/Castbar land in later phases).
-    -- Popup stays default so every reminder saved before this field existed keeps behaving
-    -- exactly as it did.
-    local displayTypeVal = (existing and existing.displayType) or "popup"
-    local _, displayTypeRowH = W:DualRow(messageBody, my,
-        { type = "dropdown", text = "Display Type",
-          values = { popup = "Popup", countdown = "Countdown Text", circle = "Circle",
-              castbar = "Castbar" },
-          order = { "popup", "countdown", "circle", "castbar" },
-          tooltip = "How this reminder shows on screen when it fires.",
-          getValue = function() return displayTypeVal end,
-          setValue = function(v) displayTypeVal = v end },
-        { type = "label", text = "" }
-    ); my = my - displayTypeRowH
-
     -- A preset rather than a typed line: the reminder announces whichever defensive in that
     -- preset is actually still up when it fires. Free text could only ever name a fixed
     -- spell, which is wrong the moment that spell is on cooldown -- the reason these are
@@ -2019,7 +2003,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         writeSet[key] = {
             name = name, preset = presetVal, trigger = newTrig,
             dur = math.max(1, dur), enabled = enabledVal,
-            displayType = displayTypeVal,
             color = pendingColor,
             iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
             sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
@@ -2034,7 +2017,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         ns.PreviewCustomReminder({
             name = nameBox:GetText(), preset = presetVal,
             dur = tonumber(durBox:GetText()) or 3,
-            displayType = displayTypeVal,
             color = pendingColor,
             iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
             sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
@@ -2248,7 +2230,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     -- a color or sound pick must not be lost if something else on the panel forces a
     -- reflow later.
     local msgBox, durBox, iconBox
-    local pendingColor, pendingSoundKey, pendingSoundPaths, displayTypeVal
+    local pendingColor, pendingSoundKey, pendingSoundPaths
 
     local function RebuildBody()
         if body then body:Hide() end
@@ -2279,8 +2261,8 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             by = by - 16
         end
         -- Every field the same fixed width instead of stretching to the body's edge, so
-        -- Message/Icon/Display Type/Sound/Linger all line up on both edges together
-        -- rather than each field claiming whatever width its own row happens to need.
+        -- Message/Icon/Sound/Linger all line up on both edges together rather than each
+        -- field claiming whatever width its own row happens to need.
         local FIELD_W = 260
         local function Box(maxLetters, numeric, rightInset)
             local box = CreateFrame("EditBox", nil, body)
@@ -2434,14 +2416,6 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         end
 
         -- Shared by both modes from here down: how it shows, not what it says.
-        displayTypeVal = (boundReminder and boundReminder.displayType) or "popup"
-        Label("Display Type")
-        DropdownRow(
-            { popup = "Popup", countdown = "Countdown Text", circle = "Circle",
-                castbar = "Castbar" },
-            { "popup", "countdown", "circle", "castbar" },
-            function() return displayTypeVal end,
-            function(v) displayTypeVal = v end)
 
         -- Icon: optional, looked up by spell id the same way the full custom reminder
         -- editor resolves its Trigger tab's Spell ID field (ns.ResolveSpell) -- a live
@@ -2581,7 +2555,6 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             trigger = { type = "spell", spellID = ability.spellID, kind = "cast" },
             dur = math.max(1, tonumber(durBox and durBox:GetText()) or 3),
             enabled = true,
-            displayType = displayTypeVal,
             color = pendingColor,
             iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
             sound = (pendingSoundKey and pendingSoundKey ~= "none") and pendingSoundKey or nil,

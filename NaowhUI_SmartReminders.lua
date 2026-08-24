@@ -2810,198 +2810,6 @@ local function HideCustomReminder()
     end
 end
 
--------------------------------------------------------------------------------
---  Countdown display type -- an original widget (see the plan for why: no code
---  from BigWigs or any other addon, only the general idea of a centered
---  countdown). Same shape as customFrame's own create/position/hide trio above.
--------------------------------------------------------------------------------
--- Functions in this whole display-type feature go on ns rather than staying local: the
--- main chunk sits at Lua's 200-local ceiling already (luac -p catches it directly), and
--- ns.-scoped functions cost nothing there since a table field isn't a local. Same fix as
--- the codebase's own prior brush with this limit.
-local countdownState = {}
-
-function ns.ApplyCountdownPosition()
-    if not countdownState.frame then return end
-    local p = TRDB().countdownPos
-    countdownState.frame:ClearAllPoints()
-    if p then
-        countdownState.frame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
-    else
-        countdownState.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
-    end
-end
-
-function ns.CreateCountdownFrame()
-    if countdownState.frame then return countdownState.frame end
-    countdownState.frame = CreateFrame("Frame", "NaowhUITankReminderCountdown", UIParent)
-    countdownState.frame:SetSize(400, 50)
-    countdownState.frame:SetFrameStrata("HIGH")
-    countdownState.frame:SetClampedToScreen(true)
-    countdownState.frame:EnableMouse(false)
-    countdownState.frame:Hide()
-
-    countdownState.frame.text = countdownState.frame:CreateFontString(nil, "OVERLAY")
-    countdownState.frame.text:SetPoint("CENTER")
-    countdownState.frame.text:SetFont(AlertFont(), 28, "OUTLINE")
-    countdownState.frame.text:SetTextColor(1, 1, 1, 1)
-    ns.ApplyCountdownPosition()
-    return countdownState.frame
-end
-
-function ns.HideCountdownDisplay()
-    if countdownState.ticker then countdownState.ticker:Cancel(); countdownState.ticker = nil end
-    if countdownState.hideTimer then countdownState.hideTimer:Cancel(); countdownState.hideTimer = nil end
-    if countdownState.frame then
-        countdownState.frame:Hide()
-        countdownState.frame:SetFrameStrata("HIGH")
-    end
-end
-
--------------------------------------------------------------------------------
---  Circle display type -- a ring around the player that counts down to a
---  stacking mechanic. Original widget built on Blizzard's own standard
---  Cooldown-swipe API (CooldownFrameTemplate), the same confirmed call shape
---  already used, icon-anchored, in EllesmereUICooldownManager -- used here
---  standalone (no icon) instead. No code from BigWigs or any other addon.
--------------------------------------------------------------------------------
--- One table, not three bare locals: the main chunk is right at the 200-local ceiling (see
--- the comment above the Countdown block), and every additional display type's state needs
--- to cost as few slots as possible from here on.
-local circleState = {}
-
-function ns.ApplyCirclePosition()
-    if not circleState.frame then return end
-    local p = TRDB().circlePos
-    circleState.frame:ClearAllPoints()
-    if p then
-        circleState.frame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
-    else
-        circleState.frame:SetPoint("CENTER", UIParent, "CENTER", 0, -100)
-    end
-end
-
-function ns.CreateCircleFrame()
-    if circleState.frame then return circleState.frame end
-    circleState.frame = CreateFrame("Frame", "NaowhUITankReminderCircle", UIParent)
-    circleState.frame:SetSize(120, 90)
-    circleState.frame:SetFrameStrata("HIGH")
-    circleState.frame:SetClampedToScreen(true)
-    circleState.frame:EnableMouse(false)
-    circleState.frame:Hide()
-
-    -- The ring itself: a plain Cooldown swipe, no icon underneath it, matching the
-    -- reference screenshots. SetReverse is left at its default (false) on purpose -- that
-    -- is the same shrinking-swipe look every action bar cooldown already uses for "time
-    -- until this is available again", which reads immediately as a countdown without
-    -- needing an unfamiliar direction.
-    circleState.frame.cooldown = CreateFrame("Cooldown", nil, circleState.frame, "CooldownFrameTemplate")
-    circleState.frame.cooldown:SetSize(64, 64)
-    circleState.frame.cooldown:SetPoint("TOP", circleState.frame, "TOP", 0, 0)
-    circleState.frame.cooldown:SetDrawEdge(false)
-    circleState.frame.cooldown:SetDrawBling(false)
-    -- The swipe's own built-in number is hidden -- the label below carries "<name> (<N>)",
-    -- matching Countdown's own text so the two display types read consistently.
-    circleState.frame.cooldown:SetHideCountdownNumbers(true)
-    circleState.frame.cooldown:SetSwipeTexture("Interface\\Buttons\\WHITE8x8")
-    circleState.frame.cooldown:SetSwipeColor(1, 1, 1, 0.8)
-
-    circleState.frame.label = circleState.frame:CreateFontString(nil, "OVERLAY")
-    circleState.frame.label:SetPoint("TOP", circleState.frame.cooldown, "BOTTOM", 0, -4)
-    circleState.frame.label:SetFont(AlertFont(), 14, "OUTLINE")
-    circleState.frame.label:SetTextColor(1, 1, 1, 1)
-
-    ns.ApplyCirclePosition()
-    return circleState.frame
-end
-
-function ns.HideCircleDisplay()
-    if circleState.ticker then circleState.ticker:Cancel(); circleState.ticker = nil end
-    if circleState.hideTimer then circleState.hideTimer:Cancel(); circleState.hideTimer = nil end
-    if circleState.frame then
-        circleState.frame:Hide()
-        circleState.frame:SetFrameStrata("HIGH")
-    end
-end
-
--------------------------------------------------------------------------------
---  Castbar display type -- a horizontal timer bar, third of Robin's three.
---  Original widget: two textures (track/fill) and two FontStrings, no bar
---  library embedded -- see the plan for why (LibCandyBar is BigWigs' own,
---  not a generic shared library, and this addon has never carried a
---  third-party dependency).
--------------------------------------------------------------------------------
-local castbarState = {}
-
-function ns.ApplyCastbarPosition()
-    if not castbarState.frame then return end
-    local p = TRDB().castbarPos
-    castbarState.frame:ClearAllPoints()
-    if p then
-        castbarState.frame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
-    else
-        castbarState.frame:SetPoint("CENTER", UIParent, "CENTER", 0, -160)
-    end
-end
-
-function ns.CreateCastbarFrame()
-    if castbarState.frame then return castbarState.frame end
-    local f = CreateFrame("Frame", "NaowhUITankReminderCastbar", UIParent)
-    f:SetSize(240, 28)
-    f:SetFrameStrata("HIGH")
-    f:SetClampedToScreen(true)
-    f:EnableMouse(false)
-    f:Hide()
-
-    f.track = f:CreateTexture(nil, "BACKGROUND")
-    f.track:SetAllPoints()
-    f.track:SetColorTexture(0, 0, 0, 0.6)
-
-    -- Left-anchored, width-driven: shrinking the width recedes the right edge inward,
-    -- which is the same "draining as time runs out" look the Circle's swipe already gives,
-    -- kept consistent across both display types.
-    f.fill = f:CreateTexture(nil, "ARTWORK")
-    f.fill:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-    f.fill:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
-    f.fill:SetWidth(240)
-    f.fill:SetColorTexture(0.85, 0.2, 0.2, 0.9)
-
-    -- Optional, off the bar's left edge -- shown/hidden without moving anything else, same
-    -- tolerance the popup display already accepts for its own optional icon.
-    f.icon = f:CreateTexture(nil, "OVERLAY")
-    f.icon:SetSize(24, 24)
-    f.icon:SetPoint("RIGHT", f, "LEFT", -4, 0)
-    f.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    f.icon:Hide()
-
-    f.label = f:CreateFontString(nil, "OVERLAY")
-    f.label:SetPoint("LEFT", f, "LEFT", 6, 0)
-    f.label:SetPoint("RIGHT", f, "CENTER", 0, 0)
-    f.label:SetJustifyH("LEFT")
-    f.label:SetFont(AlertFont(), 13, "OUTLINE")
-    f.label:SetTextColor(1, 1, 1, 1)
-
-    f.number = f:CreateFontString(nil, "OVERLAY")
-    f.number:SetPoint("RIGHT", f, "RIGHT", -6, 0)
-    f.number:SetJustifyH("RIGHT")
-    f.number:SetFont(AlertFont(), 13, "OUTLINE")
-    f.number:SetTextColor(1, 1, 1, 1)
-
-    castbarState.frame = f
-    ns.ApplyCastbarPosition()
-    return f
-end
-
-function ns.HideCastbarDisplay()
-    if castbarState.ticker then castbarState.ticker:Cancel(); castbarState.ticker = nil end
-    if castbarState.hideTimer then castbarState.hideTimer:Cancel(); castbarState.hideTimer = nil end
-    if castbarState.frame then
-        castbarState.frame:SetScript("OnUpdate", nil)
-        castbarState.frame:Hide()
-        castbarState.frame:SetFrameStrata("HIGH")
-    end
-end
-
 -- The best still-available defensive in an ordered spellID list, decided at fire time by
 -- the same ladder the main callout uses -- shared by preset resolution below and by a
 -- per-ability override list (EffectiveList's own fp-keyed layer, see FireCustomReminder).
@@ -3070,13 +2878,7 @@ end
 
 -- Bypasses trigger matching entirely -- used both by the real firing path below and by
 -- the editor's Preview button, so a preview shows exactly what a fight would.
---
--- realDuration (see ActivateCustomReminder) is accepted and threaded through here for the
--- display types that count down to a moment rather than just show for a fixed linger --
--- unused by "popup" (the only display type that exists so far), which keeps reading r.dur
--- as it always has. r.displayType itself does not exist as a written value yet; only
--- "popup" behavior is implemented below.
-local function FireCustomReminder(r, realDuration)
+local function FireCustomReminder(r)
     if not r then return end
 
     local msg
@@ -3140,188 +2942,21 @@ local function FireCustomReminder(r, realDuration)
     customHideTimer = C_Timer.NewTimer(dur, HideCustomReminder)
 end
 
--- Text display type: one line, "<name> (<N>)", ticking down once a second. realDuration
--- (see ActivateCustomReminder) wins when present -- it is the actual time left, where
--- r.dur is only ever a typed guess -- and the countdown starts from whichever one applies,
--- rounded to the nearest whole second since this counts in whole numbers, not a bar fill.
-function ns.FireCountdownDisplay(r, realDuration)
-    local dur = (type(realDuration) == "number" and realDuration > 0) and realDuration
-        or ((type(r.dur) == "number" and r.dur > 0) and r.dur or 5)
-    local name = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name or "?"
-
-    ns.CreateCountdownFrame()
-    if type(r.color) == "table" then
-        countdownState.frame.text:SetTextColor(r.color.r or 1, r.color.g or 1, r.color.b or 1,
-            r.color.a or 1)
-    else
-        countdownState.frame.text:SetTextColor(1, 1, 1, 1)
-    end
-
-    if countdownState.ticker then countdownState.ticker:Cancel(); countdownState.ticker = nil end
-    if countdownState.hideTimer then countdownState.hideTimer:Cancel(); countdownState.hideTimer = nil end
-
-    local remaining = math.max(math.floor(dur + 0.5), 1)
-    countdownState.frame.text:SetText(("%s (%d)"):format(name, remaining))
-    countdownState.frame:SetAlpha(1)
-    countdownState.frame:Show()
-
-    countdownState.ticker = C_Timer.NewTicker(1, function()
-        remaining = remaining - 1
-        if remaining <= 0 then
-            countdownState.ticker:Cancel()
-            countdownState.ticker = nil
-            -- A short beat on "0" rather than vanishing the instant it hits zero -- the
-            -- moment the ability actually lands is the one time this display matters most.
-            countdownState.hideTimer = C_Timer.NewTimer(0.8, ns.HideCountdownDisplay)
-            return
-        end
-        countdownState.frame.text:SetText(("%s (%d)"):format(name, remaining))
-    end)
-
-    ns.PlayReminderSound(r)
-end
-
--- Circle display type: the ring's own swipe is driven by SetCooldown, which animates
--- itself every frame at no cost to us -- only the text label needs the once-a-second tick,
--- same technique as Countdown.
-function ns.FireCircleDisplay(r, realDuration)
-    local dur = (type(realDuration) == "number" and realDuration > 0) and realDuration
-        or ((type(r.dur) == "number" and r.dur > 0) and r.dur or 5)
-    local name = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name or "?"
-
-    ns.CreateCircleFrame()
-    if type(r.color) == "table" then
-        circleState.frame.label:SetTextColor(r.color.r or 1, r.color.g or 1, r.color.b or 1,
-            r.color.a or 1)
-        circleState.frame.cooldown:SetSwipeColor(r.color.r or 1, r.color.g or 1, r.color.b or 1, 0.8)
-    else
-        circleState.frame.label:SetTextColor(1, 1, 1, 1)
-        circleState.frame.cooldown:SetSwipeColor(1, 1, 1, 0.8)
-    end
-
-    if circleState.ticker then circleState.ticker:Cancel(); circleState.ticker = nil end
-    if circleState.hideTimer then circleState.hideTimer:Cancel(); circleState.hideTimer = nil end
-
-    local remaining = math.max(math.floor(dur + 0.5), 1)
-    circleState.frame.label:SetText(("%s (%d)"):format(name, remaining))
-    circleState.frame.cooldown:SetCooldown(GetTime(), dur)
-    circleState.frame:SetAlpha(1)
-    circleState.frame:Show()
-
-    circleState.ticker = C_Timer.NewTicker(1, function()
-        remaining = remaining - 1
-        if remaining <= 0 then
-            circleState.ticker:Cancel()
-            circleState.ticker = nil
-            circleState.hideTimer = C_Timer.NewTimer(0.8, ns.HideCircleDisplay)
-            return
-        end
-        circleState.frame.label:SetText(("%s (%d)"):format(name, remaining))
-    end)
-
-    ns.PlayReminderSound(r)
-end
-
--- Castbar display type: the fill's width is driven every frame (OnUpdate, only while a bar
--- is actually showing -- cleared in HideCastbarDisplay, never left running idle), the
--- number ticks once a second like the other two display types.
-function ns.FireCastbarDisplay(r, realDuration)
-    local dur = (type(realDuration) == "number" and realDuration > 0) and realDuration
-        or ((type(r.dur) == "number" and r.dur > 0) and r.dur or 5)
-    local name = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name or "?"
-
-    local f = ns.CreateCastbarFrame()
-    if type(r.color) == "table" then
-        f.fill:SetColorTexture(r.color.r or 1, r.color.g or 1, r.color.b or 1, 0.9)
-    else
-        f.fill:SetColorTexture(0.85, 0.2, 0.2, 0.9)
-    end
-
-    -- An explicit Icon Spell ID wins outright; otherwise a resolved defensive (Pre-Selected
-    -- Defensives / a preset-bound reminder from the full editor) uses its own icon, same
-    -- fallback the popup display uses.
-    local iconSid = r.iconSpellID or ns.ResolveReminderSpell(r)
-    local tex = iconSid and C_Spell and C_Spell.GetSpellTexture
-        and C_Spell.GetSpellTexture(iconSid)
-    if tex then
-        f.icon:SetTexture(tex)
-        f.icon:Show()
-    else
-        f.icon:Hide()
-    end
-
-    if castbarState.ticker then castbarState.ticker:Cancel(); castbarState.ticker = nil end
-    if castbarState.hideTimer then castbarState.hideTimer:Cancel(); castbarState.hideTimer = nil end
-
-    local remaining = math.max(math.floor(dur + 0.5), 1)
-    local startTime = GetTime()
-    local fullWidth = f:GetWidth()
-    f.label:SetText(name)
-    f.number:SetText(tostring(remaining))
-    f.fill:SetWidth(fullWidth)
-    f:SetAlpha(1)
-    f:Show()
-
-    f:SetScript("OnUpdate", function()
-        local frac = 1 - math.min((GetTime() - startTime) / dur, 1)
-        f.fill:SetWidth(math.max(fullWidth * frac, 0.01))
-    end)
-
-    castbarState.ticker = C_Timer.NewTicker(1, function()
-        remaining = remaining - 1
-        if remaining <= 0 then
-            castbarState.ticker:Cancel()
-            castbarState.ticker = nil
-            castbarState.hideTimer = C_Timer.NewTimer(0.8, ns.HideCastbarDisplay)
-            return
-        end
-        f.number:SetText(tostring(remaining))
-    end)
-
-    ns.PlayReminderSound(r)
-end
-
--- Single branch point every display type funnels through -- ActivateCustomReminder (the
--- real fire path) and PreviewCustomReminder (the editor's Preview button) both call this,
--- so a preview always shows exactly what a fight would, not just the popup style.
-function ns.DisplayReminder(r, realDuration)
+-- ActivateCustomReminder (the real fire path) and PreviewCustomReminder (the editor's
+-- Preview button) both call this, so a preview always shows exactly what a fight would.
+function ns.DisplayReminder(r)
     if not r then return end
-    local displayType = r.displayType or "popup"
-    if displayType == "countdown" then
-        ns.FireCountdownDisplay(r, realDuration)
-    elseif displayType == "circle" then
-        ns.FireCircleDisplay(r, realDuration)
-    elseif displayType == "castbar" then
-        ns.FireCastbarDisplay(r, realDuration)
-    else
-        FireCustomReminder(r, realDuration)
-    end
+    FireCustomReminder(r)
 end
 
 -- The editor's Preview button fires this from inside its own modal (FULLSCREEN_DIALOG),
 -- which HIGH sits well below, so it needs a taller strata just for this one showing --
--- HideCustomReminder/HideCountdownDisplay/HideCircleDisplay/HideCastbarDisplay drop it back
--- to HIGH once the preview ends, so the elevation never leaks into how a real fight
--- displays this frame.
+-- HideCustomReminder drops it back to HIGH once the preview ends, so the elevation never
+-- leaks into how a real fight displays this frame.
 function ns.PreviewCustomReminder(r)
-    local displayType = r and r.displayType
-    if displayType == "countdown" then
-        ns.CreateCountdownFrame()
-        countdownState.frame:SetFrameStrata("FULLSCREEN_DIALOG")
-        countdownState.frame:SetFrameLevel(250)
-    elseif displayType == "circle" then
-        ns.CreateCircleFrame()
-        circleState.frame:SetFrameStrata("FULLSCREEN_DIALOG")
-        circleState.frame:SetFrameLevel(250)
-    elseif displayType == "castbar" then
-        ns.CreateCastbarFrame()
-        castbarState.frame:SetFrameStrata("FULLSCREEN_DIALOG")
-        castbarState.frame:SetFrameLevel(250)
-    else
-        CreateCustomFrame()
-        customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
-        customFrame:SetFrameLevel(250)
-    end
+    CreateCustomFrame()
+    customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+    customFrame:SetFrameLevel(250)
     ns.DisplayReminder(r)
 end
 
@@ -3329,23 +2964,12 @@ end
 -- the trigger, parsed fresh here rather than pre-compiled -- these fire rarely enough that
 -- the cost never matters) turns into either an immediate call or one timer per listed
 -- delay, so a comma list fires more than once from the same match.
---
--- realDuration, when given, is how many seconds are ACTUALLY left at the moment this
--- reminder goes off -- not how it was scheduled. Only a bwtimer match has one (see
--- CheckBossModTimerStart: the fire itself is already delayed to land trig.timeleft seconds
--- before the cast, so trig.timeleft IS what's left when this runs). Every other trigger
--- passes nothing, and DisplayReminder's targets fall back to r.dur, same as before this
--- existed.
-local function ActivateCustomReminder(r, realDuration)
+local function ActivateCustomReminder(r)
     local delays = ParseDelayList(r.trigger and r.trigger.delay)
     if not delays then
-        ns.DisplayReminder(r, realDuration)
+        ns.DisplayReminder(r)
         return
     end
-    -- An explicit "Show in" delay on top of a bwtimer match moves the fire further out,
-    -- which makes realDuration stale by exactly that many seconds -- rather than count
-    -- down from the wrong number, this case falls back to r.dur (see the plan's note on
-    -- this being a documented v1 limitation, not silently wrong).
     for i = 1, #delays do
         C_Timer.NewTimer(delays[i], function() ns.DisplayReminder(r) end)
     end
@@ -3453,7 +3077,7 @@ local function CheckBossModTimerStart(mod, key, barIdentity, duration, text)
                 local fireDelay = math.max(duration - trig.timeleft, 0.01)
                 bwPendingTimers[barKey] = C_Timer.NewTimer(fireDelay, function()
                     bwPendingTimers[barKey] = nil
-                    ActivateCustomReminder(r, trig.timeleft)
+                    ActivateCustomReminder(r)
                 end)
             end
         end
@@ -3889,66 +3513,6 @@ local function RegisterUnlock()
             end,
             clearPos = function() TRDB().customPos = nil end,
             applyPos = ApplyCustomReminderPosition,
-        }),
-        EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminderCountdown",   -- storage key; renaming it would orphan saved positions
-            label = "Smart Countdown Text",
-            group = "NaowhUI",
-            order = 6,
-            noResize = true,
-            isHidden = function() return not TRDB().enabled end,
-            getFrame = function() return ns.CreateCountdownFrame() end,
-            getSize  = function() return 400, 50 end,
-            savePos = function(_, point, relPoint, x, y)
-                TRDB().countdownPos = { point = point, relPoint = relPoint, x = x, y = y }
-            end,
-            loadPos = function()
-                local p = TRDB().countdownPos
-                if not p then return nil end
-                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-            end,
-            clearPos = function() TRDB().countdownPos = nil end,
-            applyPos = ns.ApplyCountdownPosition,
-        }),
-        EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminderCircle",   -- storage key; renaming it would orphan saved positions
-            label = "Smart Circle",
-            group = "NaowhUI",
-            order = 7,
-            noResize = true,
-            isHidden = function() return not TRDB().enabled end,
-            getFrame = function() return ns.CreateCircleFrame() end,
-            getSize  = function() return 120, 90 end,
-            savePos = function(_, point, relPoint, x, y)
-                TRDB().circlePos = { point = point, relPoint = relPoint, x = x, y = y }
-            end,
-            loadPos = function()
-                local p = TRDB().circlePos
-                if not p then return nil end
-                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-            end,
-            clearPos = function() TRDB().circlePos = nil end,
-            applyPos = ns.ApplyCirclePosition,
-        }),
-        EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminderCastbar",   -- storage key; renaming it would orphan saved positions
-            label = "Smart Castbar",
-            group = "NaowhUI",
-            order = 8,
-            noResize = true,
-            isHidden = function() return not TRDB().enabled end,
-            getFrame = function() return ns.CreateCastbarFrame() end,
-            getSize  = function() return 240, 28 end,
-            savePos = function(_, point, relPoint, x, y)
-                TRDB().castbarPos = { point = point, relPoint = relPoint, x = x, y = y }
-            end,
-            loadPos = function()
-                local p = TRDB().castbarPos
-                if not p then return nil end
-                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-            end,
-            clearPos = function() TRDB().castbarPos = nil end,
-            applyPos = ns.ApplyCastbarPosition,
         }),
     }, "NaowhUI_EUI")
 end
