@@ -2072,6 +2072,165 @@ local selectedBossIdx = {}   -- keyed by instance.id
 -- its parent chain, which is exactly the kind of synchronous-layout assumption that
 -- produced the Setup-tab overlap earlier tonight. A long description clips instead;
 -- annoying, never wrong.
+-------------------------------------------------------------------------------
+--  Per-ability reminder picker: keep this ability on the normal defensive
+--  priority list, or bind a written reminder straight to its own cast.
+-------------------------------------------------------------------------------
+-- A bound reminder rides the same "spell" trigger type the old cast/aura editor used to
+-- write -- see CheckCustomReminders in the main file, which still matches it off the
+-- combat log against any cast of this exact journal spellID, no BigWigs/DBM message
+-- needed. Kept separate from the full custom-reminder editor (Trigger/Message tabs) on
+-- purpose: that editor's Trigger dropdown has no "spell" option and remaps one to
+-- "BigWigs/DBM Message" for display, which would silently swap this ability's direct-cast
+-- match for a broadcast-key match -- a different and less reliable trigger -- the moment
+-- it got re-saved there.
+local function FindBoundReminder(encounterID, spellID)
+    local set = ns.CustomRemindersTable(false, encounterID)
+    if not set then return nil, nil end
+    for uid, r in pairs(set) do
+        local t = r.trigger
+        if t and t.type == "spell" and t.spellID == spellID and (t.kind or "cast") == "cast" then
+            return uid, r
+        end
+    end
+    return nil, nil
+end
+
+function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
+    local EUI = callerEUI or _G.EllesmereUI
+
+    local dimmer, panel = ns.MakeModal(420, 300)
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText(ability.title or "Ability")
+
+    local PAD = 20
+    local TAB_TOP = -46
+
+    local boundUid, boundReminder = FindBoundReminder(encounterID, ability.spellID)
+    local bindings = ns.AbilityBindingsTable(true, encounterID)
+    bindings[ability.spellID] = bindings[ability.spellID] or {}
+    local binding = bindings[ability.spellID]
+    local modeVal = (binding.mode == "custom") and "custom" or "defensive"
+
+    local defBtn = CreateFrame("Button", nil, panel)
+    local defLabel = ns.Font(defBtn, 12, nil, ns.THEME.muted)
+    defLabel:SetText("Pre-Selected Defensives")
+    defBtn:SetSize(defLabel:GetStringWidth() + 4, 24)
+    defLabel:SetPoint("CENTER")
+    defBtn:SetPoint("LEFT", panel, "LEFT", PAD, TAB_TOP)
+    local defMarker = ns.Solid(defBtn, "OVERLAY", ns.THEME.gold, 1)
+    defMarker:SetPoint("BOTTOMLEFT", 0, -3); defMarker:SetPoint("BOTTOMRIGHT", 0, -3)
+    defMarker:SetHeight(2); defMarker:Hide()
+
+    local custBtn = CreateFrame("Button", nil, panel)
+    local custLabel = ns.Font(custBtn, 12, nil, ns.THEME.muted)
+    custLabel:SetText("Custom Reminder")
+    custBtn:SetSize(custLabel:GetStringWidth() + 4, 24)
+    custLabel:SetPoint("CENTER")
+    custBtn:SetPoint("LEFT", defBtn, "RIGHT", 18, 0)
+    local custMarker = ns.Solid(custBtn, "OVERLAY", ns.THEME.gold, 1)
+    custMarker:SetPoint("BOTTOMLEFT", 0, -3); custMarker:SetPoint("BOTTOMRIGHT", 0, -3)
+    custMarker:SetHeight(2); custMarker:Hide()
+
+    -- Same destroy-and-recreate idiom as the custom reminder editor's own dynFrame: the
+    -- old body is hidden and dropped rather than cleared field by field, since GetChildren
+    -- only ever returns child FRAMES, not the label FontStrings this also has to remove.
+    local body
+    local msgBox, durBox
+
+    local function RebuildBody()
+        if body then body:Hide() end
+        body = CreateFrame("Frame", nil, panel)
+        body:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP - 34)
+        body:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP - 34)
+        msgBox, durBox = nil, nil
+
+        local by = 0
+        if modeVal == "defensive" then
+            local l = ns.Font(body, 12, nil, ns.THEME.muted)
+            l:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            l:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+            l:SetJustifyH("LEFT")
+            l:SetWordWrap(true)
+            l:SetText("This ability calls out from your normal defensive priority list, "
+                .. "the same as everything else here. Nothing extra to set.")
+        else
+            local function Label(text)
+                local lbl = ns.Font(body, 11, nil, ns.THEME.muted)
+                lbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                lbl:SetText(text)
+                by = by - 16
+            end
+            local function Box(maxLetters, numeric)
+                local box = CreateFrame("EditBox", nil, body)
+                box:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                box:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+                box:SetHeight(26)
+                box:SetAutoFocus(false)
+                box:SetMaxLetters(maxLetters or 60)
+                if numeric then box:SetNumeric(true) end
+                box:SetFontObject("GameFontHighlight")
+                box:SetTextInsets(6, 6, 0, 0)
+                ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+                ns.Border(box)
+                by = by - 32
+                return box
+            end
+            Label("Message")
+            msgBox = Box(120)
+            msgBox:SetText((boundReminder and boundReminder.msg) or "")
+            Label("Linger (seconds)")
+            durBox = Box(3, true)
+            durBox:SetText(tostring((boundReminder and boundReminder.dur) or 3))
+        end
+    end
+
+    local function SelectMode(m)
+        modeVal = m
+        defMarker:SetShown(m == "defensive")
+        custMarker:SetShown(m == "custom")
+        local defC = (m == "defensive") and ns.THEME.fg or ns.THEME.muted
+        local custC = (m == "custom") and ns.THEME.fg or ns.THEME.muted
+        defLabel:SetTextColor(defC.r, defC.g, defC.b, 1)
+        custLabel:SetTextColor(custC.r, custC.g, custC.b, 1)
+        RebuildBody()
+    end
+
+    defBtn:SetScript("OnClick", function() SelectMode("defensive") end)
+    custBtn:SetScript("OnClick", function() SelectMode("custom") end)
+    SelectMode(modeVal)
+
+    local function Save()
+        binding.mode = modeVal
+        if modeVal == "custom" then
+            local writeSet = ns.CustomRemindersTable(true, encounterID)
+            local key = boundUid or ("ab" .. ability.spellID)
+            writeSet[key] = {
+                name = ability.title, msg = msgBox and msgBox:GetText() or "",
+                trigger = { type = "spell", spellID = ability.spellID, kind = "cast" },
+                dur = math.max(1, tonumber(durBox and durBox:GetText()) or 3),
+                enabled = true,
+            }
+        elseif boundUid then
+            -- Soft-disable rather than delete: switching back to Custom Reminder later
+            -- should not have lost what was typed.
+            local writeSet = ns.CustomRemindersTable(true, encounterID)
+            if writeSet[boundUid] then writeSet[boundUid].enabled = false end
+        end
+        ns.RefreshRuntime()
+        dimmer:Hide()
+        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+    end
+
+    ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
+    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
+
+    dimmer:Show()
+end
+
 local ABILITY_ROW_H = 62
 
 local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
@@ -2102,11 +2261,12 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     if ability.icon then icon:SetTexture(ability.icon) end
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    -- Stage 1: opens a placeholder. Stage 2 replaces this with the real per-ability page
-    -- (bind a defensive preset override, or a custom reminder, to this exact ability).
     local cog = ns.Button(row, "...", 30, 26, function()
-        ns.Print(("|cfff0a830%s|r -- per-ability setup lands next; for now this row's "
-            .. "checkbox is the only thing it does."):format(ability.title or "?"))
+        if not ability.spellID then
+            ns.Print("|cffff6060this journal entry has no spell id to bind to|r")
+            return
+        end
+        ns.ShowAbilityReminderPicker(encounterID, ability, EUI)
     end)
     cog:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
 
@@ -2336,8 +2496,17 @@ function ns.BuildBossListPage(parent, y, isRaid)
     local LEFT_W = 190
     local topY = y
 
+    -- The picker's own label, above the pool it picks from -- used to be a hint on the
+    -- right that only showed up once nothing was picked yet; moved here so it reads as
+    -- the list's heading instead of an empty-state message.
+    local leftHead = ns.Font(parent, 12, nil, ns.THEME.muted)
+    leftHead:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, topY)
+    leftHead:SetJustifyH("LEFT")
+    leftHead:SetText(isRaid and "Select a Raid" or "Select a Dungeon")
+    local listTop = topY - 18
+
     local leftPane = CreateFrame("Frame", nil, parent)
-    leftPane:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, topY)
+    leftPane:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, listTop)
     leftPane:SetSize(LEFT_W, math.max(1, #list * 26))
 
     for i = 1, #list do
@@ -2374,13 +2543,10 @@ function ns.BuildBossListPage(parent, y, isRaid)
     if sel then
         rightBottom = RenderInstanceDetail(rightPane, 0, W, EUI, sel, specID)
     else
-        local hint = ns.Font(rightPane, 12, nil, ns.THEME.muted)
-        hint:SetPoint("TOPLEFT", rightPane, "TOPLEFT", 0, 0)
-        hint:SetText(("Pick a %s on the left."):format(isRaid and "raid" or "dungeon"))
-        rightBottom = -20
+        rightBottom = 0
     end
 
-    local leftBottom = topY - (#list * 26)
+    local leftBottom = listTop - (#list * 26)
     return math.min(leftBottom, topY + rightBottom)
 end
 
