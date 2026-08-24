@@ -2412,6 +2412,21 @@ function ns.HandleBigWigsAbility(sid)
     if sid == lastBWSid and (now - lastBWAt) < 3 then return end
     lastBWSid, lastBWAt = sid, now
 
+    -- TEMPORARY diagnostic: confirms whether this key genuinely means "this spell is
+    -- about to be cast" or is being reused by the module for something else (an opener,
+    -- a stage-start bar) that only coincidentally shares the same numeric key. Cross-
+    -- references the catalogue's own recorded text/kind for this exact key. Remove once
+    -- the Rav'i pull-time callout is explained.
+    if ns.AbilityEnabledForBinding(currentEncounter, sid) then
+        local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+        local cat = ns.BossModCatalogueTable and ns.BossModCatalogueTable(false, currentEncounter)
+        local entry = cat and cat[sid]
+        ns.Print(("|cffF0A830bw ability|r sid=%s (%s) mod=%s kind=%s text=%s"):format(
+            tostring(sid), (si and si.name) or "?",
+            (entry and entry.mod) or "?", (entry and entry.kind) or "?",
+            (entry and entry.text) or "?"))
+    end
+
     if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     -- Mutually exclusive with Custom Reminder: when the ability picker's toggle is set to
     -- Custom Reminder for this exact ability, that reminder (matched separately off the
