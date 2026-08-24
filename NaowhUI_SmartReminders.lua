@@ -2767,6 +2767,14 @@ local function CreateCustomFrame()
     customFrame:EnableMouse(false)
     customFrame:Hide()
 
+    -- Icon is optional per reminder (see FireCustomReminder) -- hidden until one actually
+    -- carries an iconSpellID, at which point the text moves off CENTER to sit beside it.
+    customFrame.icon = customFrame:CreateTexture(nil, "ARTWORK")
+    customFrame.icon:SetSize(28, 28)
+    customFrame.icon:SetPoint("LEFT", customFrame, "LEFT", 4, 0)
+    customFrame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    customFrame.icon:Hide()
+
     customFrame.text = customFrame:CreateFontString(nil, "OVERLAY")
     customFrame.text:SetPoint("CENTER")
     customFrame.text:SetFont(AlertFont(), 18, "OUTLINE")
@@ -2837,6 +2845,40 @@ local function FireCustomReminder(r)
     if not msg or msg == "" then return end
     CreateCustomFrame()
     customFrame.text:SetText(msg)
+
+    -- An explicit per-reminder color wins outright; without one this falls back to the
+    -- existing global Custom Reminders Text Color setting, same as every reminder that
+    -- predates this field.
+    if type(r.color) == "table" then
+        customFrame.text:SetTextColor(r.color.r or 1, r.color.g or 1, r.color.b or 1,
+            r.color.a or 1)
+    else
+        ApplyCustomTextColor()
+    end
+
+    -- Icon is looked up fresh each fire rather than cached at save time: a spell's icon can
+    -- change (talent rework, a texture swap) and this stays correct without a migration.
+    local tex = r.iconSpellID and C_Spell and C_Spell.GetSpellTexture
+        and C_Spell.GetSpellTexture(r.iconSpellID)
+    customFrame.text:ClearAllPoints()
+    if tex then
+        customFrame.icon:SetTexture(tex)
+        customFrame.icon:Show()
+        customFrame.text:SetPoint("LEFT", customFrame.icon, "RIGHT", 6, 0)
+    else
+        customFrame.icon:Hide()
+        customFrame.text:SetPoint("CENTER")
+    end
+
+    if r.sound then
+        local EUI = _G.EllesmereUI
+        if EUI and EUI._PlayLSMSound and EUI.BuildAlertSoundTables then
+            local paths, names, order = EUI.BuildAlertSoundTables()
+            if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
+            if paths[r.sound] then EUI._PlayLSMSound(paths[r.sound]) end
+        end
+    end
+
     customFrame:Show()
     if customHideTimer then customHideTimer:Cancel() end
     local dur = (type(r.dur) == "number" and r.dur > 0) and r.dur or 3
