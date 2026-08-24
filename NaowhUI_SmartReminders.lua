@@ -2802,42 +2802,108 @@ end
 -- main chunk sits at Lua's 200-local ceiling already (luac -p catches it directly), and
 -- ns.-scoped functions cost nothing there since a table field isn't a local. Same fix as
 -- the codebase's own prior brush with this limit.
-local countdownFrame, countdownTicker, countdownHideTimer
+local countdownState = {}
 
 function ns.ApplyCountdownPosition()
-    if not countdownFrame then return end
+    if not countdownState.frame then return end
     local p = TRDB().countdownPos
-    countdownFrame:ClearAllPoints()
+    countdownState.frame:ClearAllPoints()
     if p then
-        countdownFrame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+        countdownState.frame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
     else
-        countdownFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
+        countdownState.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
     end
 end
 
 function ns.CreateCountdownFrame()
-    if countdownFrame then return countdownFrame end
-    countdownFrame = CreateFrame("Frame", "NaowhUITankReminderCountdown", UIParent)
-    countdownFrame:SetSize(400, 50)
-    countdownFrame:SetFrameStrata("HIGH")
-    countdownFrame:SetClampedToScreen(true)
-    countdownFrame:EnableMouse(false)
-    countdownFrame:Hide()
+    if countdownState.frame then return countdownState.frame end
+    countdownState.frame = CreateFrame("Frame", "NaowhUITankReminderCountdown", UIParent)
+    countdownState.frame:SetSize(400, 50)
+    countdownState.frame:SetFrameStrata("HIGH")
+    countdownState.frame:SetClampedToScreen(true)
+    countdownState.frame:EnableMouse(false)
+    countdownState.frame:Hide()
 
-    countdownFrame.text = countdownFrame:CreateFontString(nil, "OVERLAY")
-    countdownFrame.text:SetPoint("CENTER")
-    countdownFrame.text:SetFont(AlertFont(), 28, "OUTLINE")
-    countdownFrame.text:SetTextColor(1, 1, 1, 1)
+    countdownState.frame.text = countdownState.frame:CreateFontString(nil, "OVERLAY")
+    countdownState.frame.text:SetPoint("CENTER")
+    countdownState.frame.text:SetFont(AlertFont(), 28, "OUTLINE")
+    countdownState.frame.text:SetTextColor(1, 1, 1, 1)
     ns.ApplyCountdownPosition()
-    return countdownFrame
+    return countdownState.frame
 end
 
 function ns.HideCountdownDisplay()
-    if countdownTicker then countdownTicker:Cancel(); countdownTicker = nil end
-    if countdownHideTimer then countdownHideTimer:Cancel(); countdownHideTimer = nil end
-    if countdownFrame then
-        countdownFrame:Hide()
-        countdownFrame:SetFrameStrata("HIGH")
+    if countdownState.ticker then countdownState.ticker:Cancel(); countdownState.ticker = nil end
+    if countdownState.hideTimer then countdownState.hideTimer:Cancel(); countdownState.hideTimer = nil end
+    if countdownState.frame then
+        countdownState.frame:Hide()
+        countdownState.frame:SetFrameStrata("HIGH")
+    end
+end
+
+-------------------------------------------------------------------------------
+--  Circle display type -- a ring around the player that counts down to a
+--  stacking mechanic. Original widget built on Blizzard's own standard
+--  Cooldown-swipe API (CooldownFrameTemplate), the same confirmed call shape
+--  already used, icon-anchored, in EllesmereUICooldownManager -- used here
+--  standalone (no icon) instead. No code from BigWigs or any other addon.
+-------------------------------------------------------------------------------
+-- One table, not three bare locals: the main chunk is right at the 200-local ceiling (see
+-- the comment above the Countdown block), and every additional display type's state needs
+-- to cost as few slots as possible from here on.
+local circleState = {}
+
+function ns.ApplyCirclePosition()
+    if not circleState.frame then return end
+    local p = TRDB().circlePos
+    circleState.frame:ClearAllPoints()
+    if p then
+        circleState.frame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+    else
+        circleState.frame:SetPoint("CENTER", UIParent, "CENTER", 0, -100)
+    end
+end
+
+function ns.CreateCircleFrame()
+    if circleState.frame then return circleState.frame end
+    circleState.frame = CreateFrame("Frame", "NaowhUITankReminderCircle", UIParent)
+    circleState.frame:SetSize(120, 90)
+    circleState.frame:SetFrameStrata("HIGH")
+    circleState.frame:SetClampedToScreen(true)
+    circleState.frame:EnableMouse(false)
+    circleState.frame:Hide()
+
+    -- The ring itself: a plain Cooldown swipe, no icon underneath it, matching the
+    -- reference screenshots. SetReverse is left at its default (false) on purpose -- that
+    -- is the same shrinking-swipe look every action bar cooldown already uses for "time
+    -- until this is available again", which reads immediately as a countdown without
+    -- needing an unfamiliar direction.
+    circleState.frame.cooldown = CreateFrame("Cooldown", nil, circleState.frame, "CooldownFrameTemplate")
+    circleState.frame.cooldown:SetSize(64, 64)
+    circleState.frame.cooldown:SetPoint("TOP", circleState.frame, "TOP", 0, 0)
+    circleState.frame.cooldown:SetDrawEdge(false)
+    circleState.frame.cooldown:SetDrawBling(false)
+    -- The swipe's own built-in number is hidden -- the label below carries "<name> (<N>)",
+    -- matching Countdown's own text so the two display types read consistently.
+    circleState.frame.cooldown:SetHideCountdownNumbers(true)
+    circleState.frame.cooldown:SetSwipeTexture("Interface\\Buttons\\WHITE8x8")
+    circleState.frame.cooldown:SetSwipeColor(1, 1, 1, 0.8)
+
+    circleState.frame.label = circleState.frame:CreateFontString(nil, "OVERLAY")
+    circleState.frame.label:SetPoint("TOP", circleState.frame.cooldown, "BOTTOM", 0, -4)
+    circleState.frame.label:SetFont(AlertFont(), 14, "OUTLINE")
+    circleState.frame.label:SetTextColor(1, 1, 1, 1)
+
+    ns.ApplyCirclePosition()
+    return circleState.frame
+end
+
+function ns.HideCircleDisplay()
+    if circleState.ticker then circleState.ticker:Cancel(); circleState.ticker = nil end
+    if circleState.hideTimer then circleState.hideTimer:Cancel(); circleState.hideTimer = nil end
+    if circleState.frame then
+        circleState.frame:Hide()
+        circleState.frame:SetFrameStrata("HIGH")
     end
 end
 
@@ -2956,31 +3022,72 @@ function ns.FireCountdownDisplay(r, realDuration)
 
     ns.CreateCountdownFrame()
     if type(r.color) == "table" then
-        countdownFrame.text:SetTextColor(r.color.r or 1, r.color.g or 1, r.color.b or 1,
+        countdownState.frame.text:SetTextColor(r.color.r or 1, r.color.g or 1, r.color.b or 1,
             r.color.a or 1)
     else
-        countdownFrame.text:SetTextColor(1, 1, 1, 1)
+        countdownState.frame.text:SetTextColor(1, 1, 1, 1)
     end
 
-    if countdownTicker then countdownTicker:Cancel(); countdownTicker = nil end
-    if countdownHideTimer then countdownHideTimer:Cancel(); countdownHideTimer = nil end
+    if countdownState.ticker then countdownState.ticker:Cancel(); countdownState.ticker = nil end
+    if countdownState.hideTimer then countdownState.hideTimer:Cancel(); countdownState.hideTimer = nil end
 
     local remaining = math.max(math.floor(dur + 0.5), 1)
-    countdownFrame.text:SetText(("%s (%d)"):format(name, remaining))
-    countdownFrame:SetAlpha(1)
-    countdownFrame:Show()
+    countdownState.frame.text:SetText(("%s (%d)"):format(name, remaining))
+    countdownState.frame:SetAlpha(1)
+    countdownState.frame:Show()
 
-    countdownTicker = C_Timer.NewTicker(1, function()
+    countdownState.ticker = C_Timer.NewTicker(1, function()
         remaining = remaining - 1
         if remaining <= 0 then
-            countdownTicker:Cancel()
-            countdownTicker = nil
+            countdownState.ticker:Cancel()
+            countdownState.ticker = nil
             -- A short beat on "0" rather than vanishing the instant it hits zero -- the
             -- moment the ability actually lands is the one time this display matters most.
-            countdownHideTimer = C_Timer.NewTimer(0.8, ns.HideCountdownDisplay)
+            countdownState.hideTimer = C_Timer.NewTimer(0.8, ns.HideCountdownDisplay)
             return
         end
-        countdownFrame.text:SetText(("%s (%d)"):format(name, remaining))
+        countdownState.frame.text:SetText(("%s (%d)"):format(name, remaining))
+    end)
+
+    ns.PlayReminderSound(r)
+end
+
+-- Circle display type: the ring's own swipe is driven by SetCooldown, which animates
+-- itself every frame at no cost to us -- only the text label needs the once-a-second tick,
+-- same technique as Countdown.
+function ns.FireCircleDisplay(r, realDuration)
+    local dur = (type(realDuration) == "number" and realDuration > 0) and realDuration
+        or ((type(r.dur) == "number" and r.dur > 0) and r.dur or 5)
+    local name = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name or "?"
+
+    ns.CreateCircleFrame()
+    if type(r.color) == "table" then
+        circleState.frame.label:SetTextColor(r.color.r or 1, r.color.g or 1, r.color.b or 1,
+            r.color.a or 1)
+        circleState.frame.cooldown:SetSwipeColor(r.color.r or 1, r.color.g or 1, r.color.b or 1, 0.8)
+    else
+        circleState.frame.label:SetTextColor(1, 1, 1, 1)
+        circleState.frame.cooldown:SetSwipeColor(1, 1, 1, 0.8)
+    end
+
+    if circleState.ticker then circleState.ticker:Cancel(); circleState.ticker = nil end
+    if circleState.hideTimer then circleState.hideTimer:Cancel(); circleState.hideTimer = nil end
+
+    local remaining = math.max(math.floor(dur + 0.5), 1)
+    circleState.frame.label:SetText(("%s (%d)"):format(name, remaining))
+    circleState.frame.cooldown:SetCooldown(GetTime(), dur)
+    circleState.frame:SetAlpha(1)
+    circleState.frame:Show()
+
+    circleState.ticker = C_Timer.NewTicker(1, function()
+        remaining = remaining - 1
+        if remaining <= 0 then
+            circleState.ticker:Cancel()
+            circleState.ticker = nil
+            circleState.hideTimer = C_Timer.NewTimer(0.8, ns.HideCircleDisplay)
+            return
+        end
+        circleState.frame.label:SetText(("%s (%d)"):format(name, remaining))
     end)
 
     ns.PlayReminderSound(r)
@@ -2994,6 +3101,8 @@ function ns.DisplayReminder(r, realDuration)
     local displayType = r.displayType or "popup"
     if displayType == "countdown" then
         ns.FireCountdownDisplay(r, realDuration)
+    elseif displayType == "circle" then
+        ns.FireCircleDisplay(r, realDuration)
     else
         FireCustomReminder(r, realDuration)
     end
@@ -3001,13 +3110,18 @@ end
 
 -- The editor's Preview button fires this from inside its own modal (FULLSCREEN_DIALOG),
 -- which HIGH sits well below, so it needs a taller strata just for this one showing --
--- HideCustomReminder/HideCountdownDisplay drop it back to HIGH once the preview ends, so
--- the elevation never leaks into how a real fight displays this frame.
+-- HideCustomReminder/HideCountdownDisplay/HideCircleDisplay drop it back to HIGH once the
+-- preview ends, so the elevation never leaks into how a real fight displays this frame.
 function ns.PreviewCustomReminder(r)
-    if r and r.displayType == "countdown" then
+    local displayType = r and r.displayType
+    if displayType == "countdown" then
         ns.CreateCountdownFrame()
-        countdownFrame:SetFrameStrata("FULLSCREEN_DIALOG")
-        countdownFrame:SetFrameLevel(250)
+        countdownState.frame:SetFrameStrata("FULLSCREEN_DIALOG")
+        countdownState.frame:SetFrameLevel(250)
+    elseif displayType == "circle" then
+        ns.CreateCircleFrame()
+        circleState.frame:SetFrameStrata("FULLSCREEN_DIALOG")
+        circleState.frame:SetFrameLevel(250)
     else
         CreateCustomFrame()
         customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -3586,6 +3700,26 @@ local function RegisterUnlock()
             end,
             clearPos = function() TRDB().countdownPos = nil end,
             applyPos = ns.ApplyCountdownPosition,
+        }),
+        EUI.MakeUnlockElement({
+            key   = "NaowhUI_TankReminderCircle",   -- storage key; renaming it would orphan saved positions
+            label = "Smart Circle",
+            group = "NaowhUI",
+            order = 7,
+            noResize = true,
+            isHidden = function() return not TRDB().enabled end,
+            getFrame = function() return ns.CreateCircleFrame() end,
+            getSize  = function() return 120, 90 end,
+            savePos = function(_, point, relPoint, x, y)
+                TRDB().circlePos = { point = point, relPoint = relPoint, x = x, y = y }
+            end,
+            loadPos = function()
+                local p = TRDB().circlePos
+                if not p then return nil end
+                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
+            end,
+            clearPos = function() TRDB().circlePos = nil end,
+            applyPos = ns.ApplyCirclePosition,
         }),
     }, "NaowhUI_EUI")
 end
