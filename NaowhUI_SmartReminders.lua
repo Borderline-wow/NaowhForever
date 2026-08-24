@@ -3151,6 +3151,60 @@ local function CheckAuraReminder(kind, destGUID, spellID, amount)
     end
 end
 
+-------------------------------------------------------------------------------
+--  BigWigs/DBM-driven primary callout
+-------------------------------------------------------------------------------
+-- Unlike the native timeline, BigWigs/DBM hand over a real, non-secret identity (see
+-- OnBigWigsEvent/OnDBMEvent below), so this can decide directly rather than through the
+-- duration-fingerprint proxy. Runs ALONGSIDE the native-timeline engine for now: both can
+-- fire for the same ability, and the existing lastCalloutAt window already prevents a
+-- double-announce. The fingerprint engine is only removed once this path is proven live.
+local lastBWSid, lastBWAt = nil, 0
+
+-- Whether a given ability calls out, now that Setup's per-ability checklist
+-- (AbilityBindingsTable) is finally load-bearing instead of decorative. No explicit
+-- choice yet defaults to on for anything already curated, mirroring the old fingerprint
+-- filter's "shipped marks are on by default" so existing users see no coverage
+-- regression the moment this ships.
+-- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling
+-- (luac -p catches it directly), and a table field costs nothing there.
+function ns.AbilityEnabledForBinding(enc, sid)
+    local bindings = AbilityBindingsTable(false, enc)
+    local b = bindings and bindings[sid]
+    if b and b.enabled ~= nil then return b.enabled end
+    return (ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid]) and true or false
+end
+
+-- sid here is a REAL spellID (BigWigs' key resolved positive, or DBM's own spellId) --
+-- never a fingerprint, so no learning/attribution step is needed: identity was handed to
+-- us directly, nothing to guess. Same gates as the native engine's own backstop
+-- (HandleIdentifiedCast above) so both paths agree on who a callout is even for.
+function ns.HandleBigWigsAbility(sid)
+    if type(sid) ~= "number" or sid <= 0 then return end
+    if not (frame and TRDB().enabled) then return end
+    if not (ShouldRun() and InEncounter()) then return end
+
+    local now = GetTime()
+    if sid == lastBWSid and (now - lastBWAt) < 3 then return end
+    lastBWSid, lastBWAt = sid, now
+
+    if not AbilityEnabledForBinding(currentEncounter, sid) then return end
+    if not isTank then return end
+    if TRDB().aggroOnly and not TankingSomeBoss() then return end
+    if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
+
+    RebuildSlots(tostring(sid))
+    if activeSlots == 0 then return end
+    ApplyPriorityAlpha()
+    ClearTankGate()
+    frame:Show()
+    if textFrame then textFrame:Show() end
+    SpeakCallout()
+    lastCalloutAt = now
+    if hideTimer then hideTimer:Cancel() end
+    hideTimer = C_Timer.NewTimer(5, HideReminder)
+end
+
 -- Both dispatchers below register with a plain function, so the message name arrives as
 -- the FIRST argument -- confirmed against BigWigs' and DBM's own dispatch code, not
 -- assumed. issecretvalue guards the payload before anything touches it, the same rule
@@ -3166,12 +3220,14 @@ local function OnBigWigsEvent(event, ...)
         local _, key, text = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "message") end
+        ns.HandleBigWigsAbility(key)
         if not hasCustomReminders then return end
         CheckBossModMessage("BW", key)
     elseif event == "BigWigs_StartBar" then
         local _, key, text, duration = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
+        ns.HandleBigWigsAbility(key)
         if not hasCustomReminders then return end
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
@@ -3186,6 +3242,7 @@ local function OnBigWigsEvent(event, ...)
             RecordBossModKey("BW", key, text, "timer")
         end
         if isBarEnabled then return end
+        ns.HandleBigWigsAbility(key)
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
     elseif event == "BigWigs_StopBar" or event == "BigWigs_PauseBar" then
@@ -3214,12 +3271,14 @@ local function OnDBMEvent(event, ...)
         local _, _, _, spellId = ...
         if issecretvalue and issecretvalue(spellId) then return end
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, nil, "message") end
+        ns.HandleBigWigsAbility(spellId)
         if not hasCustomReminders then return end
         CheckBossModMessage("DBM", spellId)
     elseif event == "DBM_TimerBegin" or event == "DBM_TimerStart" then
         local id, msg, duration, _, _, spellId = ...
         if issecretvalue and (issecretvalue(spellId) or issecretvalue(id) or issecretvalue(duration)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, msg, "timer") end
+        ns.HandleBigWigsAbility(spellId)
         if not hasCustomReminders then return end
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
@@ -3445,6 +3504,20 @@ local function WarnIfMuted()
         .. "Enable Boss Warnings. Hiding the timeline itself is fine and changes nothing here.")
 end
 
+-- The BigWigs/DBM-driven callout (ns.HandleBigWigsAbility) has nothing to listen to
+-- without one of the two installed -- unlike the native-timeline engine, there is no
+-- fallback here by design (see the redesign plan). Said once per session, matching
+-- WarnIfMuted's own cadence.
+local warnedNoBossMod = false
+-- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling.
+function ns.WarnIfNoBossMod()
+    if warnedNoBossMod or not TRDB().enabled or not isTank then return end
+    if _G.BigWigsLoader or _G.DBM then return end
+    warnedNoBossMod = true
+    ns.Print("|cffff6060No BigWigs or DBM detected|r, so the tank reminder has nothing to "
+        .. "listen to and cannot fire. Install BigWigs or DBM for callouts to work.")
+end
+
 function ns.Apply()
     -- Resolved even while switched off: the list is built BEFORE the feature is enabled, and
     -- an unknown spec silently refuses every add. Two API calls, which is not a cost worth a
@@ -3472,6 +3545,7 @@ function ns.Apply()
     ResyncModel()
     UpdateEventRegistration()
     WarnIfMuted()
+    ns.WarnIfNoBossMod()
 
     if TRDB().soundOn and not soundRegistered then RegisterEventSounds() end
 end

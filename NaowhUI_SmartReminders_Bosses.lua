@@ -2595,9 +2595,10 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     row:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
     row:SetHeight(ABILITY_ROW_H)
 
-    local bindings = ns.AbilityBindingsTable(false, encounterID)
-    local bound = bindings and ability.spellID and bindings[ability.spellID]
-    local enabled = bound and bound.enabled ~= false
+    -- Single source of truth with the runtime's own default (ns.AbilityEnabledForBinding):
+    -- an explicit binding wins, otherwise this defaults to on for a curated tank buster,
+    -- same as the checkbox would otherwise silently disagree with what actually calls out.
+    local enabled = ability.spellID and ns.AbilityEnabledForBinding(encounterID, ability.spellID)
 
     local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     check:SetSize(22, 22)
