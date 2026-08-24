@@ -2824,7 +2824,13 @@ end
 
 -- Bypasses trigger matching entirely -- used both by the real firing path below and by
 -- the editor's Preview button, so a preview shows exactly what a fight would.
-local function FireCustomReminder(r)
+--
+-- realDuration (see ActivateCustomReminder) is accepted and threaded through here for the
+-- display types that count down to a moment rather than just show for a fixed linger --
+-- unused by "popup" (the only display type that exists so far), which keeps reading r.dur
+-- as it always has. r.displayType itself does not exist as a written value yet; only
+-- "popup" behavior is implemented below.
+local function FireCustomReminder(r, realDuration)
     if not r then return end
 
     local msg
@@ -2901,12 +2907,22 @@ end
 -- the trigger, parsed fresh here rather than pre-compiled -- these fire rarely enough that
 -- the cost never matters) turns into either an immediate call or one timer per listed
 -- delay, so a comma list fires more than once from the same match.
-local function ActivateCustomReminder(r)
+--
+-- realDuration, when given, is how many seconds are ACTUALLY left at the moment this
+-- reminder goes off -- not how it was scheduled. Only a bwtimer match has one (see
+-- CheckBossModTimerStart: the fire itself is already delayed to land trig.timeleft seconds
+-- before the cast, so trig.timeleft IS what's left when this runs). Every other trigger
+-- passes nothing, and FireCustomReminder falls back to r.dur, same as before this existed.
+local function ActivateCustomReminder(r, realDuration)
     local delays = ParseDelayList(r.trigger and r.trigger.delay)
     if not delays then
-        FireCustomReminder(r)
+        FireCustomReminder(r, realDuration)
         return
     end
+    -- An explicit "Show in" delay on top of a bwtimer match moves the fire further out,
+    -- which makes realDuration stale by exactly that many seconds -- rather than count
+    -- down from the wrong number, this case falls back to r.dur (see the plan's note on
+    -- this being a documented v1 limitation, not silently wrong).
     for i = 1, #delays do
         C_Timer.NewTimer(delays[i], function() FireCustomReminder(r) end)
     end
@@ -3014,7 +3030,7 @@ local function CheckBossModTimerStart(mod, key, barIdentity, duration, text)
                 local fireDelay = math.max(duration - trig.timeleft, 0.01)
                 bwPendingTimers[barKey] = C_Timer.NewTimer(fireDelay, function()
                     bwPendingTimers[barKey] = nil
-                    ActivateCustomReminder(r)
+                    ActivateCustomReminder(r, trig.timeleft)
                 end)
             end
         end
