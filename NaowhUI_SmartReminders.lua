@@ -3188,6 +3188,16 @@ function ns.HandleBigWigsAbility(sid)
     if sid == lastBWSid and (now - lastBWAt) < 3 then return end
     lastBWSid, lastBWAt = sid, now
 
+    -- TEMPORARY diagnostic: confirms the sid this path actually receives matches the
+    -- Journal spellID Setup's checkbox writes to. Remove once the mismatch question is
+    -- settled.
+    do
+        local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+        ns.Print(("|cffF0A830bw ability|r sid=%s (%s) encounter=%s enabled=%s"):format(
+            tostring(sid), (si and si.name) or "?", tostring(currentEncounter),
+            tostring(ns.AbilityEnabledForBinding(currentEncounter, sid))))
+    end
+
     if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     if not isTank then return end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
