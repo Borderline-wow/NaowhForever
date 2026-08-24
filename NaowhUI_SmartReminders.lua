@@ -3674,12 +3674,14 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     end
 
     if event == "ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED" then
-        -- GetEventState is the same plain, NeverSecret call BigWigs' own modules use to
-        -- tell a Canceled bar apart from one that finished on schedule. HIGHLIGHT already
-        -- scheduled (or played) this event's callout by the time a cancel can arrive -- an
-        -- interrupted cast, a mechanic skipped by a phase change -- so this is the only
-        -- signal that catches it: cancel the pending show, and clear the reminder if it is
-        -- already up for this event.
+        -- GetEventState is the same plain, NeverSecret call LittleWigs' own King's Rest
+        -- module uses (Council.lua) to tell a Canceled bar apart from one that finished on
+        -- schedule: Council of Tribes is three sequential mini-bosses, and killing Aka'ali
+        -- the Conqueror explicitly cancels his pending Debilitating Backhand bar. Kill speed
+        -- varies, so this can land at any point after HIGHLIGHT already scheduled (or
+        -- played) our own callout for it -- the reported bug, on this exact boss. This is
+        -- the only signal that catches it: cancel the pending show, and clear the reminder
+        -- if it is already up for this event.
         if C_EncounterTimeline and C_EncounterTimeline.GetEventState then
             local canceled = Enum and Enum.EncounterTimelineEventState
                 and Enum.EncounterTimelineEventState.Canceled or 3
