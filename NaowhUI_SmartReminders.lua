@@ -4048,6 +4048,36 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    -- TEMPORARY, Phase 6 groundwork: classify a live boss debuff's own fields
+    -- (duration/expirationTime/applications/sourceUnit), which C_UnitAuras' docs
+    -- carry no secrecy classification for at all. Remove once Phase 6 lands or the
+    -- answer is confirmed some other way -- this is a diagnostic, not a feature.
+    if arg == "auratest" then
+        if not UnitExists("boss1") then
+            ns.Print("no boss1 unit -- target/engage a boss first.")
+            return
+        end
+        local function classify(v)
+            if v == nil then return "nil" end
+            if issecretvalue and issecretvalue(v) then return "SECRET" end
+            return tostring(v)
+        end
+        local found = 0
+        for i = 1, 10 do
+            local ok, data = pcall(C_UnitAuras.GetAuraDataByIndex, "boss1", i, "HARMFUL")
+            if not ok then
+                ns.Print(("|cffff6060slot %d ERROR|r: %s"):format(i, tostring(data)))
+            elseif type(data) == "table" then
+                found = found + 1
+                ns.Print(("slot %d: name=%s dur=%s exp=%s stacks=%s source=%s"):format(
+                    i, classify(data.name), classify(data.duration), classify(data.expirationTime),
+                    classify(data.applications), classify(data.sourceUnit)))
+            end
+        end
+        if found == 0 then ns.Print("no debuffs found on boss1 -- make sure something is actually up.") end
+        return
+    end
+
     -- The decisive test for spoken callouts. A spell whose cooldown secrecy is NeverSecret
     -- keeps reading plainly THROUGH combat restrictions, because per-spell flags override
     -- them -- so if your defensives come back NeverSecret, voice works everywhere. If they
