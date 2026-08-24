@@ -2095,10 +2095,31 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     topRow:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
     topRow:SetHeight(26)
 
+    -- One button, Export and Import behind it -- same context-menu mechanism as the boss
+    -- picker to its right, rather than two separate buttons for what one click covers.
+    -- Whole-profile only for now: a boss-scoped pack needs ApplyPack's Replace mode fixed
+    -- first (it currently does db[field] = incoming, which would wipe every OTHER boss's
+    -- data in that section if fed a pack scoped to just one) -- real enough to be its own
+    -- pass rather than folded in here.
     local share = ns.Button(topRow, "Share Profile", 130, 26, function()
-        if ns.ShowPackExport then ns.ShowPackExport() end
+        if MenuUtil and MenuUtil.CreateContextMenu then
+            MenuUtil.CreateContextMenu(topRow, function(_, root)
+                root:CreateButton("Export", function()
+                    if ns.ShowPackExport then ns.ShowPackExport() end
+                end)
+                root:CreateButton("Import", function()
+                    if ns.ShowPackImport then ns.ShowPackImport() end
+                end)
+            end)
+        elseif ns.ShowPackExport then
+            ns.ShowPackExport()
+        end
     end)
-    share:SetPoint("LEFT", topRow, "LEFT", 0, 0)
+    -- CONTENT_PAD, matching every EllesmereUI-native widget's own left inset
+    -- (W:DualRow/W:Button/W:SectionHeader all apply it internally) -- without it this
+    -- hand-built row sits slightly left of where "Enable This Boss" and everything below
+    -- it actually starts.
+    share:SetPoint("LEFT", topRow, "LEFT", EUI.CONTENT_PAD or 16, 0)
 
     -- Doubles as the boss-name display: one control at the top right instead of a
     -- button plus a separate name label below. Styled and behaving like a dropdown --
