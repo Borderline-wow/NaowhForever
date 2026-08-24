@@ -2088,10 +2088,11 @@ end
 -- included -- data ns.ScrapeBosses already collects (boss.abilities) but nothing
 -- rendered until now.
 local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
-    local _, h
+    local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
 
     local topRow = CreateFrame("Frame", nil, parent)
     topRow:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    topRow:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
     topRow:SetHeight(26)
 
     local share = ns.Button(topRow, "Share Profile", 130, 26, function()
@@ -2099,7 +2100,13 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     end)
     share:SetPoint("LEFT", topRow, "LEFT", 0, 0)
 
-    local pick = ns.Button(topRow, "Select Boss", 130, 26, function()
+    -- Doubles as the boss-name display: one control at the top right instead of a
+    -- button plus a separate name label below. Styled and behaving like a dropdown --
+    -- current boss's name, a "v" -- on the same MenuUtil context-menu ShowInstanceModal
+    -- already proved out. Not a genuine UIDropDownMenu-style popup: BuildDropdownControl,
+    -- the primitive that would give one, is a private local inside
+    -- EllesmereUI_Widgets.lua, not something this addon can call.
+    local pick = ns.Button(topRow, "", 220, 26, function()
         if MenuUtil and MenuUtil.CreateContextMenu then
             MenuUtil.CreateContextMenu(topRow, function(_, root)
                 for b = 1, #inst.bosses do
@@ -2115,10 +2122,11 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
             EUI:RefreshPage(true)
         end
     end)
-    pick:SetPoint("LEFT", share, "RIGHT", 10, 0)
+    pick:SetPoint("RIGHT", topRow, "RIGHT", 0, 0)
+    ns.SetButtonText(pick, (boss and boss.name or "Select Boss") .. "  v")
+    if pick.label then pick.label:SetTextColor(ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b, 1) end
     y = y - 34
 
-    local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
     if not boss then
         local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
@@ -2126,13 +2134,8 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         return y - 20
     end
 
-    _, h = W:SectionHeader(parent, "GENERAL", y); y = y - h
-
-    local bossName = ns.Font(parent, 13, nil, ns.THEME.gold)
-    bossName:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-    bossName:SetText(boss.name or "?")
-    y = y - 20
-
+    -- No "General" header and no separate name line anymore -- the boss's name now
+    -- lives in the picker above, so Enable This Boss sits directly under the top row.
     local bossOn
     y, bossOn = RenderBossHeader(parent, y, W, EUI, boss.encounterID, specID)
     if not bossOn then return y end
