@@ -2340,6 +2340,11 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     .. "defensives under Setup > Priority List.|r")
                 by = by - 20
             else
+                -- Own list only: registered for the same drag-to-reorder grip the boss-wide
+                -- Setup > Priority List editor uses (AttachGrabber/dragRows, both shared
+                -- module state) -- wiped first so a stale row set from that other editor,
+                -- if it rendered earlier this session, can never be dropped onto here.
+                if hasOwnList then wipe(dragRows) end
                 for i = 1, #displayList do
                     local sid = displayList[i]
                     local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
@@ -2347,8 +2352,9 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     row:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
                     row:SetPoint("RIGHT", body, "RIGHT", 0, 0)
                     row:SetHeight(24)
+                    local leftEdge = hasOwnList and 18 or 0
                     local rankLbl = ns.Font(row, 11, nil, ns.THEME.muted)
-                    rankLbl:SetPoint("LEFT", row, "LEFT", 0, 0)
+                    rankLbl:SetPoint("LEFT", row, "LEFT", leftEdge, 0)
                     rankLbl:SetText(i .. ".")
                     local icon = row:CreateTexture(nil, "ARTWORK")
                     icon:SetSize(20, 20)
@@ -2356,32 +2362,29 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     if info and info.iconID then icon:SetTexture(info.iconID) end
                     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
                     local nameLbl = ns.Font(row, 12, nil, hasOwnList and ns.THEME.fg or ns.THEME.muted)
+                    nameLbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
                     nameLbl:SetJustifyH("LEFT")
                     nameLbl:SetText((info and info.name) or ("Spell " .. sid))
 
                     if hasOwnList then
                         -- Own list only: this row is a real, editable entry. The read-only
                         -- preview above (borrowed from the boss/spec default) never gets
-                        -- move/remove controls, so a click here can never edit the wrong list.
-                        nameLbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-                        nameLbl:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+                        -- grip/remove controls, so a drag or click here can never edit the
+                        -- wrong list.
+                        nameLbl:SetPoint("RIGHT", row, "RIGHT", -20, 0)
                         local remBtn = ns.Button(row, "x", 20, 20, function()
                             ns.SetSpellOnList(specID, abilityKey, sid, false)
                             RebuildBody()
                         end)
                         remBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-                        local downBtn = ns.Button(row, "v", 20, 20, function()
-                            ns.MoveOnList(specID, abilityKey, sid, i + 1)
-                            RebuildBody()
-                        end)
-                        downBtn:SetPoint("RIGHT", remBtn, "LEFT", -2, 0)
-                        local upBtn = ns.Button(row, "^", 20, 20, function()
-                            ns.MoveOnList(specID, abilityKey, sid, i - 1)
-                            RebuildBody()
-                        end)
-                        upBtn:SetPoint("RIGHT", downBtn, "LEFT", -2, 0)
+                        dragRows[#dragRows + 1] = { frame = row, spellID = sid, index = i }
+                        -- AttachGrabber calls EUI:RefreshPage(true) on drop, which redraws
+                        -- the options PAGE behind this modal, not the modal itself -- a
+                        -- small stand-in redirects that call to RebuildBody instead, so the
+                        -- reordered list shows immediately without needing the real EUI.
+                        AttachGrabber(row, sid, i, specID, abilityKey,
+                            { RefreshPage = function() RebuildBody() end })
                     else
-                        nameLbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
                         nameLbl:SetPoint("RIGHT", row, "RIGHT", 0, 0)
                     end
                     by = by - 24
@@ -2442,39 +2445,44 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
         -- Icon: optional, looked up by spell id the same way the full custom reminder
         -- editor resolves its Trigger tab's Spell ID field (ns.ResolveSpell) -- a live
-        -- preview and name confirm it before Save ever runs.
-        Label("Icon Spell ID (optional)")
-        iconBox = Box(9, true, 34)
-        local iconPreview = body:CreateTexture(nil, "ARTWORK")
-        iconPreview:SetSize(24, 24)
-        iconPreview:SetPoint("LEFT", iconBox, "RIGHT", 6, 0)
-        iconPreview:Hide()
-        local iconFeedback = ns.Font(body, 10, nil, ns.THEME.muted)
-        iconFeedback:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-        iconFeedback:SetPoint("RIGHT", body, "RIGHT", 0, 0)
-        iconFeedback:SetJustifyH("LEFT")
-        by = by - 14
-        local function SyncIcon()
-            local sid, info = ns.ResolveSpell(iconBox:GetText())
-            if sid then
-                local tex = C_Spell and C_Spell.GetSpellTexture
-                    and C_Spell.GetSpellTexture(sid)
-                if tex then iconPreview:SetTexture(tex); iconPreview:Show()
-                else iconPreview:Hide() end
-                iconFeedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
-            elseif iconBox:GetText() == "" then
-                iconPreview:Hide()
-                iconFeedback:SetText("")
-            else
-                iconPreview:Hide()
-                iconFeedback:SetText("|cffff6060not a spell id|r")
+        -- preview and name confirm it before Save ever runs. Defensive mode skips this
+        -- entirely: its icon auto-resolves to whichever defensive actually gets called
+        -- out (ns.ResolveReminderSpell), so a manual spell id would just go stale the
+        -- moment the picked defensive differs from what was typed here.
+        if modeVal ~= "defensive" then
+            Label("Icon Spell ID (optional)")
+            iconBox = Box(9, true, 34)
+            local iconPreview = body:CreateTexture(nil, "ARTWORK")
+            iconPreview:SetSize(24, 24)
+            iconPreview:SetPoint("LEFT", iconBox, "RIGHT", 6, 0)
+            iconPreview:Hide()
+            local iconFeedback = ns.Font(body, 10, nil, ns.THEME.muted)
+            iconFeedback:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            iconFeedback:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+            iconFeedback:SetJustifyH("LEFT")
+            by = by - 14
+            local function SyncIcon()
+                local sid, info = ns.ResolveSpell(iconBox:GetText())
+                if sid then
+                    local tex = C_Spell and C_Spell.GetSpellTexture
+                        and C_Spell.GetSpellTexture(sid)
+                    if tex then iconPreview:SetTexture(tex); iconPreview:Show()
+                    else iconPreview:Hide() end
+                    iconFeedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
+                elseif iconBox:GetText() == "" then
+                    iconPreview:Hide()
+                    iconFeedback:SetText("")
+                else
+                    iconPreview:Hide()
+                    iconFeedback:SetText("|cffff6060not a spell id|r")
+                end
             end
+            iconBox:SetScript("OnTextChanged", SyncIcon)
+            iconBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+            iconBox:SetText((boundReminder and boundReminder.iconSpellID
+                and tostring(boundReminder.iconSpellID)) or "")
+            SyncIcon()
         end
-        iconBox:SetScript("OnTextChanged", SyncIcon)
-        iconBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-        iconBox:SetText((boundReminder and boundReminder.iconSpellID
-            and tostring(boundReminder.iconSpellID)) or "")
-        SyncIcon()
 
         -- Text color: an explicit per-reminder color, defaulting to white the same way
         -- every other text color in this addon starts white until changed. Hand-rolled

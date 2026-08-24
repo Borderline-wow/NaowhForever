@@ -3030,6 +3030,27 @@ function ns.PlayReminderSound(r)
     end
 end
 
+-- Shared by every display type that can be bound to a defensive rather than free text
+-- (abilitySpellID from the ability picker's Pre-Selected Defensives mode, or preset from
+-- the full editor) -- resolves once to the actual spell that would be called, so the
+-- callout text and an auto-filled icon never have to re-derive it separately or disagree.
+-- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling.
+function ns.ResolveReminderSpell(r)
+    if not r then return nil end
+    if r.abilitySpellID then
+        -- EffectiveList's fp-keyed layer already does exactly what a per-ability override
+        -- needs: this exact ability's own list first (editable from the ability picker),
+        -- falling back to the boss's chosen preset, then the spec default -- the identical
+        -- three-layer resolution RebuildSlots uses for the live alert, just entered
+        -- through the ability's own spellID instead of a timeline fingerprint.
+        local list = EffectiveList(specID, currentEncounter, tostring(r.abilitySpellID))
+        local picked = ns.PickFromList(list)
+        if picked then return picked end
+    end
+    if r.preset then return PickFromPreset(r.preset) end
+    return nil
+end
+
 -- Bypasses trigger matching entirely -- used both by the real firing path below and by
 -- the editor's Preview button, so a preview shows exactly what a fight would.
 --
@@ -3042,24 +3063,16 @@ local function FireCustomReminder(r, realDuration)
     if not r then return end
 
     local msg
+    -- Set when the message resolved to a specific defensive (abilitySpellID/preset path),
+    -- so the icon below can default to that spell's own texture without needing a manually
+    -- typed Icon Spell ID for the one mode where the icon is already implied.
+    local resolvedSpellID
     if r.abilitySpellID or r.preset then
-        local picked
-        if r.abilitySpellID then
-            -- EffectiveList's fp-keyed layer already does exactly what a per-ability
-            -- override needs: this exact ability's own list first (editable from the
-            -- ability picker), falling back to the boss's chosen preset, then the spec
-            -- default -- the identical three-layer resolution RebuildSlots uses for the
-            -- live alert, just entered through the ability's own spellID instead of a
-            -- timeline fingerprint.
-            local list = EffectiveList(specID, currentEncounter, tostring(r.abilitySpellID))
-            picked = ns.PickFromList(list)
-        end
-        if not picked and r.preset then
-            picked = PickFromPreset(r.preset)
-        end
+        local picked = ns.ResolveReminderSpell(r)
         if picked then
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
             msg = CalloutFor(picked, info and info.name)
+            resolvedSpellID = picked
         else
             -- Nothing available is up. Same line the main callout falls back to, so a
             -- custom reminder never goes blank at the moment it matters most.
@@ -3086,8 +3099,12 @@ local function FireCustomReminder(r, realDuration)
 
     -- Icon is looked up fresh each fire rather than cached at save time: a spell's icon can
     -- change (talent rework, a texture swap) and this stays correct without a migration.
-    local tex = r.iconSpellID and C_Spell and C_Spell.GetSpellTexture
-        and C_Spell.GetSpellTexture(r.iconSpellID)
+    -- An explicit Icon Spell ID wins outright; otherwise a resolved defensive uses its own
+    -- icon automatically -- typing it a second time would just be duplicating what the
+    -- ability/preset resolution already picked.
+    local iconSid = r.iconSpellID or resolvedSpellID
+    local tex = iconSid and C_Spell and C_Spell.GetSpellTexture
+        and C_Spell.GetSpellTexture(iconSid)
     customFrame.text:ClearAllPoints()
     if tex then
         customFrame.icon:SetTexture(tex)
@@ -3203,8 +3220,12 @@ function ns.FireCastbarDisplay(r, realDuration)
         f.fill:SetColorTexture(0.85, 0.2, 0.2, 0.9)
     end
 
-    local tex = r.iconSpellID and C_Spell and C_Spell.GetSpellTexture
-        and C_Spell.GetSpellTexture(r.iconSpellID)
+    -- An explicit Icon Spell ID wins outright; otherwise a resolved defensive (Pre-Selected
+    -- Defensives / a preset-bound reminder from the full editor) uses its own icon, same
+    -- fallback the popup display uses.
+    local iconSid = r.iconSpellID or ns.ResolveReminderSpell(r)
+    local tex = iconSid and C_Spell and C_Spell.GetSpellTexture
+        and C_Spell.GetSpellTexture(iconSid)
     if tex then
         f.icon:SetTexture(tex)
         f.icon:Show()
