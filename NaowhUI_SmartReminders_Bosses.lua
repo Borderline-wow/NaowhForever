@@ -1971,9 +1971,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
     local W = EUI.Widgets
 
-    -- Tall enough for the worst case: Pre-Selected Defensives with a full 8-slot editable
-    -- list (MAX_SLOTS) plus its Add/Reset buttons plus every shared field below it.
-    local dimmer, panel = ns.MakeModal(440, 720)
+    local dimmer, panel = ns.MakeModal(440, 480)
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -1989,51 +1987,38 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local modeVal = (binding.mode == "custom") and "custom" or "defensive"
     local specID = ns.CurrentSpec and ns.CurrentSpec()
 
-    local defBtn = CreateFrame("Button", nil, panel)
-    local defLabel = ns.Font(defBtn, 12, nil, ns.THEME.muted)
-    defLabel:SetText("Pre-Selected Defensives")
-    defBtn:SetSize(defLabel:GetStringWidth() + 4, 24)
-    defLabel:SetPoint("CENTER")
-    -- TOPLEFT, not LEFT: LEFT anchors to the panel's vertical CENTER, which put both tab
-    -- buttons well below the header, overlapping the body instead of sitting under it --
-    -- looked like clicking them did nothing, because the real hit region was somewhere
-    -- else on the panel.
-    defBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
-    local defMarker = ns.Solid(defBtn, "OVERLAY", ns.THEME.gold, 1)
-    defMarker:SetPoint("BOTTOMLEFT", 0, -3); defMarker:SetPoint("BOTTOMRIGHT", 0, -3)
-    defMarker:SetHeight(2); defMarker:Hide()
-
-    local custBtn = CreateFrame("Button", nil, panel)
-    local custLabel = ns.Font(custBtn, 12, nil, ns.THEME.muted)
-    custLabel:SetText("Custom Reminder")
-    custBtn:SetSize(custLabel:GetStringWidth() + 4, 24)
-    custLabel:SetPoint("CENTER")
-    custBtn:SetPoint("LEFT", defBtn, "RIGHT", 18, 0)
-    local custMarker = ns.Solid(custBtn, "OVERLAY", ns.THEME.gold, 1)
-    custMarker:SetPoint("BOTTOMLEFT", 0, -3); custMarker:SetPoint("BOTTOMRIGHT", 0, -3)
-    custMarker:SetHeight(2); custMarker:Hide()
+    -- One toggle, not two tabs: Pre-Selected Defensives and Custom Reminder are mutually
+    -- exclusive for a given ability now (see Save) -- the primary callout steps aside for
+    -- this ability entirely when a custom reminder is what's configured, so there is only
+    -- ever one thing on screen for this ability, never both at once.
+    local toggleCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+    toggleCheck:SetSize(22, 22)
+    toggleCheck:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
+    local toggleLabel = ns.Font(panel, 12, nil, ns.THEME.fg)
+    toggleLabel:SetPoint("LEFT", toggleCheck, "RIGHT", 4, 0)
+    toggleLabel:SetText("Use Pre-Selected Defensives")
 
     -- Same destroy-and-recreate idiom as the custom reminder editor's own dynFrame: the
     -- old body is hidden and dropped rather than cleared field by field, since GetChildren
     -- only ever returns child FRAMES, not the label FontStrings this also has to remove.
     local body
-    -- pendingColor/pendingSoundKey/pendingSoundPaths are written by the widgets built in
-    -- RebuildBody and read back by Save() -- they have to outlive any single rebuild, since
-    -- a color or sound pick must not be lost if something else on the panel forces a
+    -- pendingColor/pendingSoundKey/pendingSoundPaths/presetVal are written by the widgets
+    -- built in RebuildBody and read back by Save() -- they have to outlive any single
+    -- rebuild, since a pick must not be lost if something else on the panel forces a
     -- reflow later.
-    local msgBox, durBox, iconBox
+    local msgBox, durBox, iconBox, presetVal
     local pendingColor, pendingSoundKey, pendingSoundPaths
 
     local function RebuildBody()
         if body then body:Hide() end
         body = CreateFrame("Frame", nil, panel)
-        body:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP - 34)
-        body:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP - 34)
+        body:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP - 30)
+        body:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP - 30)
         -- An explicit height, not just the two TOP anchors -- matching dynFrame in the full
         -- custom reminder editor below (SetSize) and messageBody/triggerBody in the same
         -- (SetHeight): a frame anchored on only one edge never resolves a height on its
         -- own, and every rebuilt-body frame elsewhere in this file sets one for that reason.
-        body:SetHeight(580)
+        body:SetHeight(320)
         msgBox, durBox, iconBox = nil, nil, nil
 
         -- Wrapped: a blank body with no error anywhere on screen is the exact failure mode
@@ -2083,139 +2068,52 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         end
 
         if modeVal == "defensive" then
-            -- The composite key EffectiveList's own legacy per-ability layer already
-            -- reads (tostring(encounterID) .. "#" .. fp) -- using the journal spellID as
-            -- fp reuses that dormant layer instead of inventing new storage. BossList
-            -- treats it as an opaque string key throughout, so this is safe.
-            local abilityKey = tostring(encounterID) .. "#" .. tostring(ability.spellID)
-            local ownList = ns.EffectiveListFor and ns.EffectiveListFor(specID, abilityKey)
-            local hasOwnList = ownList and #ownList > 0
-
-            local l = ns.Font(body, 11, nil, ns.THEME.muted)
-            l:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-            l:SetPoint("RIGHT", body, "RIGHT", 0, 0)
-            l:SetJustifyH("LEFT")
-            l:SetWordWrap(true)
-            l:SetText(hasOwnList
-                and "Defensives for this exact ability, in priority order -- calls out "
-                    .. "the highest one still ready when it's cast:"
-                or "Uses your normal priority list for this boss. Add one below to set "
-                    .. "defensives just for this ability instead:")
-            by = by - 34
-
-            -- Read-only preview of the normal list when there is no override yet, so the
-            -- "uses your normal list" claim above is not just a promise.
-            local displayList = hasOwnList and ownList
-                or (ns.EffectiveList and select(1, ns.EffectiveList(specID, encounterID)))
-            if not (displayList and #displayList > 0) then
+            -- One preset, not a hand-built list: this ability draws from whichever preset
+            -- is chosen here, the same way a boss or a custom reminder already draws from
+            -- one -- edited on the Setup page, not duplicated per ability.
+            local presets = ns.ListPresets(specID)
+            if #presets == 0 then
                 local hint = ns.Font(body, 11, nil, ns.THEME.muted)
                 hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-                hint:SetText("|cff8a99b5Nothing set up yet -- add one below, or add "
-                    .. "defensives under Setup > Priority List.|r")
-                by = by - 20
+                hint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+                hint:SetWordWrap(true)
+                hint:SetText("|cff8a99b5No presets yet -- add one on the Setup page "
+                    .. "first.|r")
+                by = by - 34
             else
-                -- Own list only: registered for the same drag-to-reorder grip the boss-wide
-                -- Setup > Priority List editor uses (AttachGrabber/dragRows, both shared
-                -- module state) -- wiped first so a stale row set from that other editor,
-                -- if it rendered earlier this session, can never be dropped onto here.
-                if hasOwnList then wipe(dragRows) end
-                for i = 1, #displayList do
-                    local sid = displayList[i]
-                    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-                    local row = CreateFrame("Frame", nil, body)
-                    row:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-                    row:SetPoint("RIGHT", body, "RIGHT", 0, 0)
-                    row:SetHeight(24)
-                    local leftEdge = hasOwnList and 18 or 0
-                    local rankLbl = ns.Font(row, 11, nil, ns.THEME.muted)
-                    rankLbl:SetPoint("LEFT", row, "LEFT", leftEdge, 0)
-                    rankLbl:SetText(i .. ".")
-                    local icon = row:CreateTexture(nil, "ARTWORK")
-                    icon:SetSize(20, 20)
-                    icon:SetPoint("LEFT", rankLbl, "RIGHT", 6, 0)
-                    if info and info.iconID then icon:SetTexture(info.iconID) end
-                    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-                    local nameLbl = ns.Font(row, 12, nil, hasOwnList and ns.THEME.fg or ns.THEME.muted)
-                    nameLbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-                    nameLbl:SetJustifyH("LEFT")
-                    nameLbl:SetText((info and info.name) or ("Spell " .. sid))
-
-                    if hasOwnList then
-                        -- Own list only: this row is a real, editable entry. The read-only
-                        -- preview above (borrowed from the boss/spec default) never gets
-                        -- grip/remove controls, so a drag or click here can never edit the
-                        -- wrong list.
-                        nameLbl:SetPoint("RIGHT", row, "RIGHT", -20, 0)
-                        local remBtn = ns.Button(row, "x", 20, 20, function()
-                            ns.SetSpellOnList(specID, abilityKey, sid, false)
-                            RebuildBody()
-                        end)
-                        remBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-                        dragRows[#dragRows + 1] = { frame = row, spellID = sid, index = i }
-                        -- AttachGrabber calls EUI:RefreshPage(true) on drop, which redraws
-                        -- the options PAGE behind this modal, not the modal itself -- a
-                        -- small stand-in redirects that call to RebuildBody instead, so the
-                        -- reordered list shows immediately without needing the real EUI.
-                        AttachGrabber(row, sid, i, specID, abilityKey,
-                            { RefreshPage = function() RebuildBody() end })
-                    else
-                        nameLbl:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-                    end
-                    by = by - 24
+                local presetValues, presetOrder = {}, {}
+                for i = 1, #presets do
+                    presetValues[presets[i].key] = presets[i].name
+                    presetOrder[i] = presets[i].key
                 end
+                -- Shows the effective default (this boss's preset, else the spec's active
+                -- one) until this ability actually gets its own pick, matching the same
+                -- fallback EffectiveList itself uses at runtime.
+                presetVal = binding.preset or ns.BossPresetKey(specID, encounterID)
+                    or ns.ActivePresetKey(specID) or presetOrder[1]
+                Label("Defensive Preset")
+                DropdownRow(presetValues, presetOrder,
+                    function() return presetVal end,
+                    function(v) presetVal = v end)
             end
-            by = by - 6
 
-            local addBtn = ns.Button(body, "+ Add Defensive", 150, 24, function()
-                local candidates = ns.AllDefensives and ns.AllDefensives(specID, abilityKey) or {}
-                if #candidates == 0 then
-                    ns.Print("no more defensives to add.")
-                    return
-                end
-                if MenuUtil and MenuUtil.CreateContextMenu then
-                    MenuUtil.CreateContextMenu(body, function(_, root)
-                        for i = 1, #candidates do
-                            local c = candidates[i]
-                            root:CreateButton(c.name, function()
-                                ns.SetSpellOnList(specID, abilityKey, c.id, true)
-                                RebuildBody()
-                            end)
-                        end
-                    end)
-                end
-            end)
-            addBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            local note = ns.Font(body, 10, nil, ns.THEME.muted)
+            note:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            note:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+            note:SetJustifyH("LEFT")
+            note:SetWordWrap(true)
+            note:SetText("Calls out the highest defensive on that preset still ready "
+                .. "when this ability is cast.")
             by = by - 30
-
-            if hasOwnList then
-                local resetBtn = ns.Button(body, "Reset to Normal List", 150, 24, function()
-                    local cur = ns.EffectiveListFor(specID, abilityKey)
-                    if cur then
-                        for i = #cur, 1, -1 do
-                            ns.SetSpellOnList(specID, abilityKey, cur[i], false)
-                        end
-                    end
-                    RebuildBody()
-                end)
-                resetBtn:SetPoint("TOPLEFT", addBtn, "BOTTOMLEFT", 0, -4)
-                by = by - 30
-            end
-            by = by - 6
         else
             Label("Message")
             msgBox = Box(120)
             msgBox:SetText((boundReminder and boundReminder.msg) or "")
-        end
 
-        -- Shared by both modes from here down: how it shows, not what it says.
-
-        -- Icon: optional, looked up by spell id the same way the full custom reminder
-        -- editor resolves its Trigger tab's Spell ID field (ns.ResolveSpell) -- a live
-        -- preview and name confirm it before Save ever runs. Defensive mode skips this
-        -- entirely: its icon auto-resolves to whichever defensive actually gets called
-        -- out (ns.ResolveReminderSpell), so a manual spell id would just go stale the
-        -- moment the picked defensive differs from what was typed here.
-        if modeVal ~= "defensive" then
+            -- Icon: optional, looked up by spell id the same way the full custom reminder
+            -- editor resolves its Trigger tab's Spell ID field (ns.ResolveSpell) -- a live
+            -- preview and name confirm it before Save ever runs. Only relevant here:
+            -- Pre-Selected Defensives mode has no message frame of its own to put one on.
             Label("Icon Spell ID (optional)")
             iconBox = Box(9, true, 34)
             local iconPreview = body:CreateTexture(nil, "ARTWORK")
@@ -2248,68 +2146,69 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             iconBox:SetText((boundReminder and boundReminder.iconSpellID
                 and tostring(boundReminder.iconSpellID)) or "")
             SyncIcon()
-        end
 
-        -- Text color: an explicit per-reminder color, defaulting to white the same way
-        -- every other text color in this addon starts white until changed. Hand-rolled
-        -- swatch rather than W:ColorPicker/the DualRow colorpicker type -- both are built
-        -- for a full-width options row; this replicates just the swatch-plus-native-picker
-        -- core (EllesmereUI:ShowColorPicker, the same public entry point the shared swatch
-        -- helper itself calls) at the size this popup actually needs.
-        local existingColor = boundReminder and boundReminder.color
-        pendingColor = { r = (existingColor and existingColor.r) or 1,
-            g = (existingColor and existingColor.g) or 1,
-            b = (existingColor and existingColor.b) or 1, a = 1 }
-        Label("Text Color")
-        local swatch = CreateFrame("Button", nil, body)
-        swatch:SetSize(24, 24)
-        swatch:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-        local swatchFill = swatch:CreateTexture(nil, "ARTWORK")
-        swatchFill:SetAllPoints()
-        swatchFill:SetColorTexture(pendingColor.r, pendingColor.g, pendingColor.b, 1)
-        ns.Border(swatch)
-        swatch:SetScript("OnClick", function()
-            local snapR, snapG, snapB = pendingColor.r, pendingColor.g, pendingColor.b
-            local function Applied()
-                local popup = EUI._colorPickerPopup
-                if not popup then return end
-                local cr, cg, cb = popup:GetColorRGB()
-                pendingColor = { r = cr, g = cg, b = cb, a = 1 }
-                swatchFill:SetColorTexture(cr, cg, cb, 1)
-            end
-            EUI:ShowColorPicker({
-                swatchFunc = Applied,
-                hasOpacity = false,
-                cancelFunc = function()
-                    pendingColor = { r = snapR, g = snapG, b = snapB, a = 1 }
-                    swatchFill:SetColorTexture(snapR, snapG, snapB, 1)
-                end,
-                r = pendingColor.r, g = pendingColor.g, b = pendingColor.b,
-            }, swatch)
-        end)
-        by = by - 32
-
-        -- Sound: the same catalogue and SharedMedia appender the Setup > Sounds page's
-        -- own Alert Sound dropdown uses, so this list matches exactly.
-        pendingSoundKey = (boundReminder and boundReminder.sound) or "none"
-        local soundNames, soundOrder
-        pendingSoundPaths, soundNames, soundOrder = EUI.BuildAlertSoundTables()
-        if EUI.AppendSharedMediaSounds then
-            EUI.AppendSharedMediaSounds(pendingSoundPaths, soundNames, soundOrder)
-        end
-        Label("Sound")
-        DropdownRow(soundNames, soundOrder,
-            function() return pendingSoundKey end,
-            function(v)
-                pendingSoundKey = v
-                if EUI._PlayLSMSound and pendingSoundPaths[v] then
-                    EUI._PlayLSMSound(pendingSoundPaths[v])
+            -- Text color: an explicit per-reminder color, defaulting to white the same way
+            -- every other text color in this addon starts white until changed. Hand-rolled
+            -- swatch rather than W:ColorPicker/the DualRow colorpicker type -- both are
+            -- built for a full-width options row; this replicates just the
+            -- swatch-plus-native-picker core (EllesmereUI:ShowColorPicker, the same public
+            -- entry point the shared swatch helper itself calls) at the size this popup
+            -- actually needs.
+            local existingColor = boundReminder and boundReminder.color
+            pendingColor = { r = (existingColor and existingColor.r) or 1,
+                g = (existingColor and existingColor.g) or 1,
+                b = (existingColor and existingColor.b) or 1, a = 1 }
+            Label("Text Color")
+            local swatch = CreateFrame("Button", nil, body)
+            swatch:SetSize(24, 24)
+            swatch:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            local swatchFill = swatch:CreateTexture(nil, "ARTWORK")
+            swatchFill:SetAllPoints()
+            swatchFill:SetColorTexture(pendingColor.r, pendingColor.g, pendingColor.b, 1)
+            ns.Border(swatch)
+            swatch:SetScript("OnClick", function()
+                local snapR, snapG, snapB = pendingColor.r, pendingColor.g, pendingColor.b
+                local function Applied()
+                    local popup = EUI._colorPickerPopup
+                    if not popup then return end
+                    local cr, cg, cb = popup:GetColorRGB()
+                    pendingColor = { r = cr, g = cg, b = cb, a = 1 }
+                    swatchFill:SetColorTexture(cr, cg, cb, 1)
                 end
+                EUI:ShowColorPicker({
+                    swatchFunc = Applied,
+                    hasOpacity = false,
+                    cancelFunc = function()
+                        pendingColor = { r = snapR, g = snapG, b = snapB, a = 1 }
+                        swatchFill:SetColorTexture(snapR, snapG, snapB, 1)
+                    end,
+                    r = pendingColor.r, g = pendingColor.g, b = pendingColor.b,
+                }, swatch)
             end)
+            by = by - 32
 
-        Label("Linger (seconds)")
-        durBox = Box(3, true)
-        durBox:SetText(tostring((boundReminder and boundReminder.dur) or 3))
+            -- Sound: the same catalogue and SharedMedia appender the Setup > Sounds page's
+            -- own Alert Sound dropdown uses, so this list matches exactly.
+            pendingSoundKey = (boundReminder and boundReminder.sound) or "none"
+            local soundNames, soundOrder
+            pendingSoundPaths, soundNames, soundOrder = EUI.BuildAlertSoundTables()
+            if EUI.AppendSharedMediaSounds then
+                EUI.AppendSharedMediaSounds(pendingSoundPaths, soundNames, soundOrder)
+            end
+            Label("Sound")
+            DropdownRow(soundNames, soundOrder,
+                function() return pendingSoundKey end,
+                function(v)
+                    pendingSoundKey = v
+                    if EUI._PlayLSMSound and pendingSoundPaths[v] then
+                        EUI._PlayLSMSound(pendingSoundPaths[v])
+                    end
+                end)
+
+            Label("Linger (seconds)")
+            durBox = Box(3, true)
+            durBox:SetText(tostring((boundReminder and boundReminder.dur) or 3))
+        end
         end)
         if not ok then
             local errText = ns.Font(body, 11, nil, { r = 1, g = 0.35, b = 0.35 })
@@ -2324,45 +2223,42 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
     local function SelectMode(m)
         modeVal = m
-        defMarker:SetShown(m == "defensive")
-        custMarker:SetShown(m == "custom")
-        local defC = (m == "defensive") and ns.THEME.fg or ns.THEME.muted
-        local custC = (m == "custom") and ns.THEME.fg or ns.THEME.muted
-        defLabel:SetTextColor(defC.r, defC.g, defC.b, 1)
-        custLabel:SetTextColor(custC.r, custC.g, custC.b, 1)
+        toggleCheck:SetChecked(m == "defensive")
         RebuildBody()
     end
 
-    defBtn:SetScript("OnClick", function() SelectMode("defensive") end)
-    custBtn:SetScript("OnClick", function() SelectMode("custom") end)
-    SelectMode(modeVal)
+    toggleCheck:SetChecked(modeVal == "defensive")
+    toggleCheck:SetScript("OnClick", function(self)
+        SelectMode(self:GetChecked() and "defensive" or "custom")
+    end)
+    RebuildBody()
 
     local function Save()
         binding.mode = modeVal
-        local writeSet = ns.CustomRemindersTable(true, encounterID)
-        local key = boundUid or ("ab" .. ability.spellID)
-        local iconSid = iconBox and tonumber(iconBox:GetText())
-        local entry = {
-            name = ability.title,
-            trigger = { type = "spell", spellID = ability.spellID, kind = "cast" },
-            dur = math.max(1, tonumber(durBox and durBox:GetText()) or 3),
-            enabled = true,
-            color = pendingColor,
-            iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
-            sound = (pendingSoundKey and pendingSoundKey ~= "none") and pendingSoundKey or nil,
-        }
-        if modeVal == "custom" then
-            entry.msg = msgBox and msgBox:GetText() or ""
+        if modeVal == "defensive" then
+            binding.preset = presetVal
+            -- Mutually exclusive per ability: switching to Pre-Selected Defensives drops
+            -- any custom reminder this ability had, so ns.HandleBigWigsAbility (which
+            -- skips its own pick entirely when mode is "custom") is never fighting a
+            -- leftover custom popup that's still configured to fire for the same cast.
+            local writeSet = ns.CustomRemindersTable(false, encounterID)
+            if writeSet then writeSet[boundUid or ("ab" .. ability.spellID)] = nil end
         else
-            -- Pre-Selected Defensives: fires through ns.EffectiveList's own fp-keyed layer
-            -- (see FireCustomReminder in the main file), which checks this exact ability's
-            -- own override list first, then the boss's chosen preset, then the spec
-            -- default -- the same three-layer resolution the read-only/editable list above
-            -- displays, so what's shown is exactly what fires. No preset field needed:
-            -- abilitySpellID alone drives the whole fallback chain.
-            entry.abilitySpellID = ability.spellID
+            local writeSet = ns.CustomRemindersTable(true, encounterID)
+            local key = boundUid or ("ab" .. ability.spellID)
+            local iconSid = iconBox and tonumber(iconBox:GetText())
+            writeSet[key] = {
+                name = ability.title,
+                trigger = { type = "spell", spellID = ability.spellID, kind = "cast" },
+                dur = math.max(1, tonumber(durBox and durBox:GetText()) or 3),
+                enabled = true,
+                color = pendingColor,
+                iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
+                sound = (pendingSoundKey and pendingSoundKey ~= "none") and pendingSoundKey
+                    or nil,
+                msg = msgBox and msgBox:GetText() or "",
+            }
         end
-        writeSet[key] = entry
         ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end

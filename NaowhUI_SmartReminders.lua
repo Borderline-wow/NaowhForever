@@ -362,14 +362,26 @@ local currentEncounter
 -- not just before it runs.
 local currentStage
 
--- The list that actually drives the alert: this boss's override when it has one, otherwise
--- the spec default.
--- Three layers, most specific first: this ability's own list (composite key
--- "encounter#fingerprint", from the older per-ability editor -- still honored for anyone
--- who has one saved, though nothing writes new ones since the boss modal moved to picking
--- a whole preset per boss instead), then the boss's chosen preset, then the spec default.
+-- The list that actually drives the alert: this ability's own preset choice when it has
+-- one, else this boss's chosen preset, else the spec default.
+-- fp, when given, is a spellID (as a string) from the ability picker's Pre-Selected
+-- Defensives dropdown -- checked first since it is the most specific, most recent choice
+-- for this exact ability.
 local function EffectiveList(forSpec, encounterID, fp)
     if encounterID and fp then
+        local sid = tonumber(fp)
+        local bindings = sid and ns.AbilityBindingsTable and ns.AbilityBindingsTable(false, encounterID)
+        local binding = bindings and bindings[sid]
+        if binding and binding.preset then
+            local presets = PresetsTable(forSpec, false)
+            local p = presets and presets[binding.preset]
+            if p and type(p.list) == "table" and #p.list > 0 then
+                return p.list, true
+            end
+        end
+        -- The older per-ability raw list (composite key "encounter#fingerprint"), from
+        -- before this moved to picking one whole preset per ability -- still honored for
+        -- anyone who has one saved, though nothing writes new ones.
         local al = BossList(forSpec, tostring(encounterID) .. "#" .. fp, false)
         if al and #al > 0 then return al, true end
         -- The old UI keyed per-ability lists by NAME too, since one ability can own several
@@ -2401,6 +2413,15 @@ function ns.HandleBigWigsAbility(sid)
     lastBWSid, lastBWAt = sid, now
 
     if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
+    -- Mutually exclusive with Custom Reminder: when the ability picker's toggle is set to
+    -- Custom Reminder for this exact ability, that reminder (matched separately off the
+    -- combat log, see CheckCustomReminders) is the only thing that fires for it -- the
+    -- generic priority pick steps aside rather than showing alongside it.
+    do
+        local bindings = AbilityBindingsTable(false, currentEncounter)
+        local binding = bindings and bindings[sid]
+        if binding and binding.mode == "custom" then return end
+    end
     if not isTank then return end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
     if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
