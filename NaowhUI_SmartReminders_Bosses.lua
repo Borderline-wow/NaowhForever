@@ -2197,9 +2197,9 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
     local W = EUI.Widgets
 
-    -- Tall enough for the worst case: Pre-Selected Defensives with a full 8-slot list
-    -- (MAX_SLOTS) plus every shared field below it, single column throughout.
-    local dimmer, panel = ns.MakeModal(440, 640)
+    -- Tall enough for the worst case: Pre-Selected Defensives with a full 8-slot editable
+    -- list (MAX_SLOTS) plus its Add/Reset buttons plus every shared field below it.
+    local dimmer, panel = ns.MakeModal(440, 720)
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -2259,7 +2259,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- custom reminder editor below (SetSize) and messageBody/triggerBody in the same
         -- (SetHeight): a frame anchored on only one edge never resolves a height on its
         -- own, and every rebuilt-body frame elsewhere in this file sets one for that reason.
-        body:SetHeight(500)
+        body:SetHeight(580)
         msgBox, durBox, iconBox = nil, nil, nil
 
         -- Wrapped: a blank body with no error anywhere on screen is the exact failure mode
@@ -2278,11 +2278,14 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             lbl:SetText(text)
             by = by - 16
         end
+        -- Every field the same fixed width instead of stretching to the body's edge, so
+        -- Message/Icon/Display Type/Sound/Linger all line up on both edges together
+        -- rather than each field claiming whatever width its own row happens to need.
+        local FIELD_W = 260
         local function Box(maxLetters, numeric, rightInset)
             local box = CreateFrame("EditBox", nil, body)
             box:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-            box:SetPoint("RIGHT", body, "RIGHT", -(rightInset or 0), 0)
-            box:SetHeight(26)
+            box:SetSize(FIELD_W - (rightInset or 0), 26)
             box:SetAutoFocus(false)
             box:SetMaxLetters(maxLetters or 60)
             if numeric then box:SetNumeric(true) end
@@ -2293,12 +2296,12 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             by = by - 32
             return box
         end
-        -- A single dropdown row, full body width -- EllesmereUI.BuildDropdownControl is the
-        -- same primitive W:DualRow's own "dropdown" slot type calls, without the page-row
-        -- chrome (background band, hover-tag) that widget wraps it in, which is built for a
-        -- full-width options page rather than a small modal.
+        -- A single dropdown row, fixed width to match Box -- EllesmereUI.BuildDropdownControl
+        -- is the same primitive W:DualRow's own "dropdown" slot type calls, without the
+        -- page-row chrome (background band, hover-tag) that widget wraps it in, which is
+        -- built for a full-width options page rather than a small modal.
         local function DropdownRow(values, order, getValue, setValue)
-            local ddBtn = EUI.BuildDropdownControl(body, body:GetWidth(),
+            local ddBtn = EUI.BuildDropdownControl(body, FIELD_W,
                 body:GetFrameLevel() + 1, values, order, getValue, setValue)
             ddBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             by = by - 32
@@ -2306,32 +2309,39 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         end
 
         if modeVal == "defensive" then
+            -- The composite key EffectiveList's own legacy per-ability layer already
+            -- reads (tostring(encounterID) .. "#" .. fp) -- using the journal spellID as
+            -- fp reuses that dormant layer instead of inventing new storage. BossList
+            -- treats it as an opaque string key throughout, so this is safe.
+            local abilityKey = tostring(encounterID) .. "#" .. tostring(ability.spellID)
+            local ownList = ns.EffectiveListFor and ns.EffectiveListFor(specID, abilityKey)
+            local hasOwnList = ownList and #ownList > 0
+
             local l = ns.Font(body, 11, nil, ns.THEME.muted)
             l:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             l:SetPoint("RIGHT", body, "RIGHT", 0, 0)
             l:SetJustifyH("LEFT")
             l:SetWordWrap(true)
-            l:SetText("Calls out the best available defensive from your normal priority "
-                .. "list when this ability is cast -- same list as everywhere else on this "
-                .. "boss, in this order:")
+            l:SetText(hasOwnList
+                and "Defensives for this exact ability, in priority order -- calls out "
+                    .. "the highest one still ready when it's cast:"
+                or "Uses your normal priority list for this boss. Add one below to set "
+                    .. "defensives just for this ability instead:")
             by = by - 34
 
-            -- ns.EffectiveList mirrors what actually fires: a boss-specific preset if one
-            -- is chosen for this boss, else the spec's active preset, else the plain spec
-            -- default list -- the exact resolution order RebuildSlots uses, and the exact
-            -- preset Save() below binds this reminder to. fp (the timeline-fingerprint
-            -- per-ability override layer) is left nil here: that layer keys off a duration
-            -- fingerprint, which a journal-sourced ability has no way to produce.
-            local list = ns.EffectiveList and select(1, ns.EffectiveList(specID, encounterID))
-            if not (list and #list > 0) then
+            -- Read-only preview of the normal list when there is no override yet, so the
+            -- "uses your normal list" claim above is not just a promise.
+            local displayList = hasOwnList and ownList
+                or (ns.EffectiveList and select(1, ns.EffectiveList(specID, encounterID)))
+            if not (displayList and #displayList > 0) then
                 local hint = ns.Font(body, 11, nil, ns.THEME.muted)
                 hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-                hint:SetText("|cff8a99b5Nothing set up yet -- add defensives under "
-                    .. "Setup > Priority List.|r")
+                hint:SetText("|cff8a99b5Nothing set up yet -- add one below, or add "
+                    .. "defensives under Setup > Priority List.|r")
                 by = by - 20
             else
-                for i = 1, #list do
-                    local sid = list[i]
+                for i = 1, #displayList do
+                    local sid = displayList[i]
                     local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
                     local row = CreateFrame("Frame", nil, body)
                     row:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
@@ -2345,12 +2355,73 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     icon:SetPoint("LEFT", rankLbl, "RIGHT", 6, 0)
                     if info and info.iconID then icon:SetTexture(info.iconID) end
                     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-                    local nameLbl = ns.Font(row, 12, nil, ns.THEME.fg)
-                    nameLbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+                    local nameLbl = ns.Font(row, 12, nil, hasOwnList and ns.THEME.fg or ns.THEME.muted)
                     nameLbl:SetJustifyH("LEFT")
                     nameLbl:SetText((info and info.name) or ("Spell " .. sid))
+
+                    if hasOwnList then
+                        -- Own list only: this row is a real, editable entry. The read-only
+                        -- preview above (borrowed from the boss/spec default) never gets
+                        -- move/remove controls, so a click here can never edit the wrong list.
+                        nameLbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+                        nameLbl:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+                        local remBtn = ns.Button(row, "x", 20, 20, function()
+                            ns.SetSpellOnList(specID, abilityKey, sid, false)
+                            RebuildBody()
+                        end)
+                        remBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+                        local downBtn = ns.Button(row, "v", 20, 20, function()
+                            ns.MoveOnList(specID, abilityKey, sid, i + 1)
+                            RebuildBody()
+                        end)
+                        downBtn:SetPoint("RIGHT", remBtn, "LEFT", -2, 0)
+                        local upBtn = ns.Button(row, "^", 20, 20, function()
+                            ns.MoveOnList(specID, abilityKey, sid, i - 1)
+                            RebuildBody()
+                        end)
+                        upBtn:SetPoint("RIGHT", downBtn, "LEFT", -2, 0)
+                    else
+                        nameLbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+                        nameLbl:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+                    end
                     by = by - 24
                 end
+            end
+            by = by - 6
+
+            local addBtn = ns.Button(body, "+ Add Defensive", 150, 24, function()
+                local candidates = ns.AllDefensives and ns.AllDefensives(specID, abilityKey) or {}
+                if #candidates == 0 then
+                    ns.Print("no more defensives to add.")
+                    return
+                end
+                if MenuUtil and MenuUtil.CreateContextMenu then
+                    MenuUtil.CreateContextMenu(body, function(_, root)
+                        for i = 1, #candidates do
+                            local c = candidates[i]
+                            root:CreateButton(c.name, function()
+                                ns.SetSpellOnList(specID, abilityKey, c.id, true)
+                                RebuildBody()
+                            end)
+                        end
+                    end)
+                end
+            end)
+            addBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            by = by - 30
+
+            if hasOwnList then
+                local resetBtn = ns.Button(body, "Reset to Normal List", 150, 24, function()
+                    local cur = ns.EffectiveListFor(specID, abilityKey)
+                    if cur then
+                        for i = #cur, 1, -1 do
+                            ns.SetSpellOnList(specID, abilityKey, cur[i], false)
+                        end
+                    end
+                    RebuildBody()
+                end)
+                resetBtn:SetPoint("TOPLEFT", addBtn, "BOTTOMLEFT", 0, -4)
+                by = by - 30
             end
             by = by - 6
         else
@@ -2510,12 +2581,13 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         if modeVal == "custom" then
             entry.msg = msgBox and msgBox:GetText() or ""
         else
-            -- Pre-Selected Defensives: bound to whichever preset ns.EffectiveList itself
-            -- would resolve for this boss (boss-specific choice if one is set, else the
-            -- spec's active preset) -- the same preset the read-only list above just
-            -- displayed, so what got shown is exactly what fires.
-            entry.preset = (ns.BossPresetKey and ns.BossPresetKey(specID, encounterID))
-                or (ns.ActivePresetKey and ns.ActivePresetKey(specID))
+            -- Pre-Selected Defensives: fires through ns.EffectiveList's own fp-keyed layer
+            -- (see FireCustomReminder in the main file), which checks this exact ability's
+            -- own override list first, then the boss's chosen preset, then the spec
+            -- default -- the same three-layer resolution the read-only/editable list above
+            -- displays, so what's shown is exactly what fires. No preset field needed:
+            -- abilitySpellID alone drives the whole fallback chain.
+            entry.abilitySpellID = ability.spellID
         end
         writeSet[key] = entry
         ns.RefreshRuntime()

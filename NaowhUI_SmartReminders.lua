@@ -2985,19 +2985,13 @@ function ns.HideCastbarDisplay()
     end
 end
 
--- What a preset-bound reminder actually says: the best defensive still available in the
--- chosen preset, decided at fire time by the same ladder the main callout uses. A line the
--- player typed before the pull cannot know what is up, which is the whole reason these
--- moved from free text to a preset.
---
--- Resolved against the CURRENT spec, like every other preset lookup here -- presets are
--- per-spec and the stored key indexes into whichever spec is live.
-local function PickFromPreset(presetKey)
-    local presets = PresetsTable(specID, false)
-    local p = presets and presets[presetKey]
-    local list = p and p.list
+-- The best still-available defensive in an ordered spellID list, decided at fire time by
+-- the same ladder the main callout uses -- shared by preset resolution below and by a
+-- per-ability override list (EffectiveList's own fp-keyed layer, see FireCustomReminder).
+-- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling
+-- (see the Countdown block's own comment on this), and a table field costs nothing there.
+function ns.PickFromList(list)
     if type(list) ~= "table" then return nil end
-
     local now = GetTime()
     -- SpellReady can raise if a cooldown's classification changes mid-read; the whole walk
     -- is guarded so that degrades to the no-defensive line rather than to a Lua error.
@@ -3012,6 +3006,16 @@ local function PickFromPreset(presetKey)
         end
     end)
     return ok and picked or nil
+end
+
+-- What a preset-bound reminder actually says. A line the player typed before the pull
+-- cannot know what is up, which is the whole reason these moved from free text to a
+-- preset. Resolved against the CURRENT spec, like every other preset lookup here --
+-- presets are per-spec and the stored key indexes into whichever spec is live.
+local function PickFromPreset(presetKey)
+    local presets = PresetsTable(specID, false)
+    local p = presets and presets[presetKey]
+    return ns.PickFromList(p and p.list)
 end
 
 -- Shared by every display type that carries an optional r.sound: one-shot, at the moment
@@ -3038,13 +3042,26 @@ local function FireCustomReminder(r, realDuration)
     if not r then return end
 
     local msg
-    if r.preset then
-        local picked = PickFromPreset(r.preset)
+    if r.abilitySpellID or r.preset then
+        local picked
+        if r.abilitySpellID then
+            -- EffectiveList's fp-keyed layer already does exactly what a per-ability
+            -- override needs: this exact ability's own list first (editable from the
+            -- ability picker), falling back to the boss's chosen preset, then the spec
+            -- default -- the identical three-layer resolution RebuildSlots uses for the
+            -- live alert, just entered through the ability's own spellID instead of a
+            -- timeline fingerprint.
+            local list = EffectiveList(specID, currentEncounter, tostring(r.abilitySpellID))
+            picked = ns.PickFromList(list)
+        end
+        if not picked and r.preset then
+            picked = PickFromPreset(r.preset)
+        end
         if picked then
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
             msg = CalloutFor(picked, info and info.name)
         else
-            -- Nothing in the preset is up. Same line the main callout falls back to, so a
+            -- Nothing available is up. Same line the main callout falls back to, so a
             -- custom reminder never goes blank at the moment it matters most.
             msg = TRDB().voiceNone
         end
