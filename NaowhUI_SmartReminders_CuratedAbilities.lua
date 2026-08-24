@@ -17,15 +17,15 @@ if not ns then return end
 
 ns.CURATED_ABILITIES = {
 	[3182] = { -- Belo'ren, Child of Al'ar
-		{ phase = "Stage 1", abilities = { 1242515, 1241282, 1241292, 1242981, 1260763, 1244344, 1242260, 1246709 } },
-		{ phase = "Stage 2", abilities = { 1241313 } },
+		{ phase = "Phase 1", abilities = { 1242515, 1241282, 1241292, 1242981, 1260763, 1244344, 1242260, 1246709 } },
+		{ phase = "Phase 2", abilities = { 1241313 } },
 	},
 	[3183] = { -- Midnight Falls
-		{ phase = "Stage 1", abilities = { 1253915, 1279420, 1249620, 1249609, 1251386, 1267049 } },
-		{ phase = "Mythic", abilities = { 1284980, 1284931 } },
+		{ phase = "Phase 1", abilities = { 1253915, 1279420, 1249620, 1249609, 1251386, 1267049 } },
 		{ phase = "Intermission", abilities = { 1282441, 1282469 } },
-		{ phase = "Stage 2", abilities = { 1284525, 1282412, 1281194 } },
-		{ phase = "Stage 3", abilities = { 1250898, 1266388, 1266897 } },
+		{ phase = "Phase 2", abilities = { 1284525, 1282412, 1281194 } },
+		{ phase = "Phase 3", abilities = { 1250898, 1266388, 1266897 } },
+		{ phase = "Mythic", abilities = { 1284980, 1284931 } },
 		{ phase = "Mythic", abilities = { 1273158, 1276525 } },
 	},
 	[3379] = { -- Nymrissa Wavecaller
@@ -36,13 +36,13 @@ ns.CURATED_ABILITIES = {
 		{ phase = "General", abilities = { 1221622, 1221637, 1222088, 1221787, 1221781 } },
 	},
 	[3306] = { -- Chimaerus the Undreamt God
-		{ phase = "Stage One: Insatiable Hunger", abilities = { 1262289, 1258610, 1257087, 1246653, 1272726, 1245396 } },
-		{ phase = "Stage Two: To The Skies", abilities = { 1245486, 1245406, 1246621, 1257085 } },
+		{ phase = "Phase One: Insatiable Hunger", abilities = { 1262289, 1258610, 1257087, 1246653, 1272726, 1245396 } },
+		{ phase = "Phase Two: To The Skies", abilities = { 1245486, 1245406, 1246621, 1257085 } },
 		{ phase = "Mythic", abilities = { 1264756 } },
 	},
 	[3429] = { -- The Coiled Altar
-		{ phase = "Stage One: Serpent's Bargain", abilities = { 1282487, 1299960, 1283489, 1299680, 1282281, 1283832 } },
-		{ phase = "Stage Two: Usurper's Reprisal", abilities = { 1289900, 1285911, 1286573, 1286918, 1286441, 1286895 } },
+		{ phase = "Phase One: Serpent's Bargain", abilities = { 1282487, 1299960, 1283489, 1299680, 1282281, 1283832 } },
+		{ phase = "Phase Two: Usurper's Reprisal", abilities = { 1289900, 1285911, 1286573, 1286918, 1286441, 1286895 } },
 		{ phase = "Zul'jan", abilities = { 1298381 } },
 		{ phase = "Toxic Deluge", abilities = { 1299266, 1307279 } },
 	},
@@ -53,10 +53,10 @@ ns.CURATED_ABILITIES = {
 		{ phase = "Trader Gebbo", abilities = { 1291933, 1295817, 1292104, 1296249 } },
 	},
 	[3470] = { -- Nek'zali the Soulcoiler
-		{ phase = "Mythic", abilities = { 1293212 } },
-		{ phase = "Stage One: Soulcoiler Initiation", abilities = { 1285681, 1287426, 1295397, 1287533, 1292036 } },
+		{ phase = "Phase One: Soulcoiler Initiation", abilities = { 1285681, 1287426, 1295397, 1287533, 1292036 } },
 		{ phase = "Intermission: Ritual of Awakening", abilities = { 1305421 } },
-		{ phase = "Stage Two: Uncoiling", abilities = { 1299673 } },
+		{ phase = "Phase Two: Uncoiling", abilities = { 1299673 } },
+		{ phase = "Mythic", abilities = { 1293212 } },
 	},
 	[3445] = { -- Entombed Sentinels
 		{ phase = "General", abilities = { 1284588 } },
@@ -74,9 +74,9 @@ ns.CURATED_ABILITIES = {
 		{ phase = "Ithraz", abilities = { 1303230, 1308356, 1290516, 1290809, 1288538, 1306872 } },
 	},
 	[3492] = { -- Ula'tek
-		{ phase = "Stage One: Fury of the Serpent Mother", abilities = { 1292188, 1300751, 1298367, 1298559, 1296301, 1300530, 1286860 } },
-		{ phase = "Stage Two: Children of the Doomscale", abilities = { 1302982 } },
-		{ phase = "Stage Three: Ula'tek's Ascension", abilities = { 1301510, 1292999 } },
+		{ phase = "Phase One: Fury of the Serpent Mother", abilities = { 1292188, 1300751, 1298367, 1298559, 1296301, 1300530, 1286860 } },
+		{ phase = "Phase Two: Children of the Doomscale", abilities = { 1302982 } },
+		{ phase = "Phase Three: Ula'tek's Ascension", abilities = { 1301510, 1292999 } },
 		{ phase = "Call of the Serpent", abilities = { 1295905 } },
 		{ phase = "Rage of the Shackled", abilities = { 1286905 } },
 	},
@@ -87,10 +87,10 @@ ns.CURATED_ABILITIES = {
 		{ phase = "General", abilities = { 1251361, 1262036, 1249262, 1280015, 1260712, 1258883, 1249251 } },
 	},
 	[3181] = { -- Crown of the Cosmos
-		{ phase = "Stage One: The Void's Spire", abilities = { 1233602, 1232467, 1255368, 1233865, 1233787, 1243743, 1243753 } },
+		{ phase = "Phase One: The Void's Spire", abilities = { 1233602, 1232467, 1255368, 1233865, 1233787, 1243743, 1243753 } },
 		{ phase = "Intermission: Crushing Singularity", abilities = { 1243982 } },
-		{ phase = "Stage Two: The Severed Rift", abilities = { 1237614, 1237038, 1237837, 1246918, 1246461, 1261016 } },
-		{ phase = "Stage Three: The End of the End", abilities = { 1238843, 1239080, 1261339 } },
+		{ phase = "Phase Two: The Severed Rift", abilities = { 1237614, 1237038, 1237837, 1246918, 1246461, 1261016 } },
+		{ phase = "Phase Three: The End of the End", abilities = { 1238843, 1239080, 1261339 } },
 	},
 	[3179] = { -- Fallen-King Salhadaar
 		{ phase = "General", abilities = { 1247738, 1246175, 1250803, 1254081, 1248697, 1250686 } },

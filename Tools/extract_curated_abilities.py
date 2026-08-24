@@ -22,6 +22,19 @@ from pathlib import Path
 HEADING_RE = re.compile(r"^--\s*([A-Za-z].*)$")
 ENTRY_NUM_RE = re.compile(r"^\{?\s*(\d{3,9})\b")
 STRING_KEY_RE = re.compile(r'^"')
+STAGE_WORD_RE = re.compile(r"^Stage(\s+(?:One|Two|Three|Four|Five|Six|\d+))\b")
+
+
+def rename_phase(phase):
+    return STAGE_WORD_RE.sub(lambda m: "Phase" + m.group(1), phase)
+
+
+def reorder_mythic_last(groups):
+    # BigWigs lists Mythic-only abilities wherever they happen to fall in the fight
+    # timeline; we want them called out separately, at the end, regardless of source order.
+    normal = [g for g in groups if g["phase"] != "Mythic"]
+    mythic = [g for g in groups if g["phase"] == "Mythic"]
+    return normal + mythic
 
 
 def find_options_block(text):
@@ -79,6 +92,9 @@ def parse_file(path):
     groups = parse_block(block)
     if not groups:
         return None
+    for g in groups:
+        g["phase"] = rename_phase(g["phase"] or "General")
+    groups = reorder_mythic_last(groups)
     return nb.group(1), int(enc.group(1)), groups
 
 
