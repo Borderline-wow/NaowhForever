@@ -190,9 +190,15 @@ ns.CURATED_ABILITIES = {
 	[3285] = { -- Taz'Rah
 		{ phase = "General", abilities = { 1222098, 1296963, 1297017, 1300259 } },
 	},
-	[3456] = { -- Rav'i
-		{ phase = "General", abilities = { 1296220, 1307703, 1296216, 1296050, 1307894 } },
-	},
+	-- Rav'i (3456) intentionally has no entry: BigWigs' own GetOptions() list for her
+	-- still keys several abilities by an older option id (1296220 for Triple Shot, etc)
+	-- that no longer matches what she actually casts live (1297876) -- Blizzard reworked
+	-- her kit after this file was last generated, and BigWigs kept the old option id for
+	-- save-data continuity rather than renaming it. The extractor faithfully reproduces
+	-- that stale id, so it cannot fix this on a rerun. Falls through to the full journal
+	-- listing instead, which reads live spellIDs directly and was confirmed correct for
+	-- all 10 of her abilities. Re-add a curated entry here only with ids confirmed live
+	-- (e.g. via a fresh /nutank-style scrape), not from a rerun of the extractor alone.
 	[3457] = { -- The Writhing Coil
 		{ phase = "The Writhing Coil (Stage 1)", abilities = { 1299154, 1298949, 1310357, 1310547, 1299940, 1299130, 1300044, 1299053 } },
 		{ phase = "The Uncoiled Writhe (Stage 2)", abilities = { 1310358, 1300686 } },
