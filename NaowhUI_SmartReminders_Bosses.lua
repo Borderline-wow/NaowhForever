@@ -1699,19 +1699,14 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local bindings = ns.AbilityBindingsTable(true, encounterID)
     bindings[ability.spellID] = bindings[ability.spellID] or {}
     local binding = bindings[ability.spellID]
-    local modeVal = (binding.mode == "custom") and "custom" or "defensive"
+    -- Custom Reminder mode is pulled from Setup for now (Robin: focus this test round on
+    -- Pre-Selected Defensives) -- forced on regardless of any existing binding.mode, and
+    -- the toggle that used to switch it is gone below. CustomRemindersTable/Save's custom
+    -- branch are untouched, so this is a quick revert (restore modeVal's old line and the
+    -- toggle) whenever Custom Reminders comes back, and anyone's already-saved custom
+    -- reminder still exists on disk even though this picker won't show or edit it.
+    local modeVal = "defensive"
     local specID = ns.CurrentSpec and ns.CurrentSpec()
-
-    -- One toggle, not two tabs: Pre-Selected Defensives and Custom Reminder are mutually
-    -- exclusive for a given ability now (see Save) -- the primary callout steps aside for
-    -- this ability entirely when a custom reminder is what's configured, so there is only
-    -- ever one thing on screen for this ability, never both at once.
-    local toggleCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-    toggleCheck:SetSize(22, 22)
-    toggleCheck:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
-    local toggleLabel = ns.Font(panel, 12, nil, ns.THEME.fg)
-    toggleLabel:SetPoint("LEFT", toggleCheck, "RIGHT", 4, 0)
-    toggleLabel:SetText("Use Pre-Selected Defensives")
 
     -- Same destroy-and-recreate idiom as the custom reminder editor's own dynFrame: the
     -- old body is hidden and dropped rather than cleared field by field, since GetChildren
@@ -1936,16 +1931,6 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         end
     end
 
-    local function SelectMode(m)
-        modeVal = m
-        toggleCheck:SetChecked(m == "defensive")
-        RebuildBody()
-    end
-
-    toggleCheck:SetChecked(modeVal == "defensive")
-    toggleCheck:SetScript("OnClick", function(self)
-        SelectMode(self:GetChecked() and "defensive" or "custom")
-    end)
     RebuildBody()
 
     local function Save()
@@ -2153,7 +2138,11 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     -- already editable from that ability's row; listing them here too would let this
     -- generic editor delete the reminder object while the ability's binding still says
     -- "custom", leaving that ability silently unable to fire either kind of callout.
-    do
+    --
+    -- Pulled from Setup for now (Robin: focus this test round on Pre-Selected Defensives).
+    -- `if false` rather than deleting the block: everything below still works exactly as
+    -- built, this just skips building it, so restoring it later is a one-line flip.
+    if false then
         y = y - 10
         local _, h = W:SectionHeader(parent, "CUSTOM REMINDERS", y); y = y - h
         local crSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, boss.encounterID)
