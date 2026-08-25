@@ -1857,63 +1857,6 @@ function ns.BuildProfileSettings(parent, y)
         .. "damaged string is refused outright.")
     end
 
-    -- Just one boss, not the whole profile -- a separate wire format (ExportBossPack /
-    -- ApplyBossPack in NaowhUI_SmartReminders_Packs.lua), not a scoped mode on the pack
-    -- above: ApplyPack's replace mode replaces a WHOLE section, which fed a single boss's
-    -- slice would wipe every other boss's data in it.
-    -- Two rows, not one with both buttons chained onto it -- matching the Export/Import
-    -- pair above this instead of sharing a row, since AttachInline's second call landed
-    -- on top of the first here rather than chaining beside it.
-    local bossPackRow
-    bossPackRow, h = W:DualRow(parent, y,
-        { type = "label", text = "      Share just one boss's setup instead of the whole profile." },
-        { type = "label", text = "" }
-    ); y = y - h
-    if bossPackRow then
-        AttachInline(bossPackRow._rightRegion or bossPackRow, "Export", 60, function()
-            local data = ns.ScrapeBosses(false)
-            if not (data and #data.instances > 0) then
-                ns.Print("no bosses found yet -- open the Adventure Guide once first.")
-                return
-            end
-            if MenuUtil and MenuUtil.CreateContextMenu then
-                -- Flat rather than nested by instance: CreateButton's own submenu support
-                -- was not confirmed before writing this, and a long list that definitely
-                -- works beats a tidy one that might not.
-                MenuUtil.CreateContextMenu(parent, function(_, root)
-                    for i = 1, #data.instances do
-                        local inst = data.instances[i]
-                        for b = 1, #inst.bosses do
-                            local boss = inst.bosses[b]
-                            if boss.encounterID then
-                                root:CreateButton(("%s: %s"):format(inst.name, boss.name), function()
-                                    if ns.ShowBossPackExport then
-                                        ns.ShowBossPackExport(boss.encounterID, boss.name)
-                                    end
-                                end)
-                            end
-                        end
-                    end
-                end)
-            end
-        end, "Export a Boss's Setup",
-        "Priority order, preset choice, tank buster marks, mutes and custom reminders -- "
-        .. "for one boss only, as its own string.")
-    end
-
-    local bossPackRow2
-    bossPackRow2, h = W:DualRow(parent, y,
-        { type = "label", text = "      Install a boss's setup someone shared with you." },
-        { type = "label", text = "" }
-    ); y = y - h
-    if bossPackRow2 then
-        AttachInline(bossPackRow2._rightRegion or bossPackRow2, "Import", 60, function()
-            if ns.ShowBossPackImport then ns.ShowBossPackImport() end
-        end, "Import a Boss's Setup",
-        "Paste a boss setup string. It always applies to whichever boss it was exported "
-        .. "from -- every other boss is untouched.")
-    end
-
     _, h = W:SectionHeader(parent, "WHERE IT RUNS", y); y = y - h
 
     -- The two master switches, side by side: dungeons on the left, raids on the right.
@@ -2378,39 +2321,22 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     topRow:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
     topRow:SetHeight(26)
 
-    -- One button, four choices behind it -- whole profile or just this boss, export or
-    -- import. Boss export needs to know which boss (this page already does); boss import
-    -- does not -- the pasted string's own encounterID says which boss it targets, so it
-    -- is offered here as a convenience, not because this page is required to reach it.
-    local share = ns.Button(topRow, "Share Profile", 130, 26, function()
-        if MenuUtil and MenuUtil.CreateContextMenu then
-            MenuUtil.CreateContextMenu(topRow, function(_, root)
-                root:CreateButton("Export Whole Profile", function()
-                    if ns.ShowPackExport then ns.ShowPackExport() end
-                end)
-                root:CreateButton("Import Whole Profile", function()
-                    if ns.ShowPackImport then ns.ShowPackImport() end
-                end)
-                if boss and boss.encounterID then
-                    root:CreateButton("Export This Boss", function()
-                        if ns.ShowBossPackExport then
-                            ns.ShowBossPackExport(boss.encounterID, boss.name)
-                        end
-                    end)
-                end
-                root:CreateButton("Import a Boss", function()
-                    if ns.ShowBossPackImport then ns.ShowBossPackImport() end
-                end)
-            end)
-        elseif ns.ShowPackExport then
-            ns.ShowPackExport()
-        end
+    -- Whole profile only -- sharing just one boss was removed as its own feature (the
+    -- Reminder Packs page dropped it too), so this is a plain Export/Import pair now
+    -- rather than a menu choosing between two scopes.
+    local exportBtn = ns.Button(topRow, "Export", 70, 26, function()
+        if ns.ShowPackExport then ns.ShowPackExport() end
     end)
     -- CONTENT_PAD, matching every EllesmereUI-native widget's own left inset
     -- (W:DualRow/W:Button/W:SectionHeader all apply it internally) -- without it this
     -- hand-built row sits slightly left of where "Enable This Boss" and everything below
     -- it actually starts.
-    share:SetPoint("LEFT", topRow, "LEFT", EUI.CONTENT_PAD or 16, 0)
+    exportBtn:SetPoint("LEFT", topRow, "LEFT", EUI.CONTENT_PAD or 16, 0)
+
+    local importBtn = ns.Button(topRow, "Import", 70, 26, function()
+        if ns.ShowPackImport then ns.ShowPackImport() end
+    end)
+    importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 8, 0)
 
     -- Doubles as the boss-name display: one control at the top right instead of a
     -- button plus a separate name label below. Styled and behaving like a dropdown --
