@@ -1587,11 +1587,11 @@ function ns.BuildProfileSettings(parent, y)
     _, h = W:SectionHeader(parent, "PROFILE", y); y = y - h
     local packRow
     packRow, h = W:DualRow(parent, y,
-        { type = "label", text = "      Share your lists, priorities and reminders as one string." },
+        { type = "label", text = "      Share your lists, priorities and reminders." },
         { type = "label", text = "" }
     ); y = y - h
     if packRow then
-        AttachInline(packRow._rightRegion or packRow, "Share your Profile", 150, function()
+        AttachInline(packRow._rightRegion or packRow, "Share your Profile", 130, function()
             if ns.ShowPackExport then ns.ShowPackExport() end
         end, "Share your Profile",
         "Everything a curator sets up -- priority lists, per-boss orders, callouts and "
