@@ -2075,22 +2075,9 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     topRow:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
     topRow:SetHeight(26)
 
-    -- Whole profile only -- sharing just one boss was removed as its own feature (the
-    -- Reminder Packs page dropped it too), so this is a plain Export/Import pair now
-    -- rather than a menu choosing between two scopes.
-    local exportBtn = ns.Button(topRow, "Export", 70, 26, function()
-        if ns.ShowPackExport then ns.ShowPackExport() end
-    end)
-    -- CONTENT_PAD, matching every EllesmereUI-native widget's own left inset
-    -- (W:DualRow/W:Button/W:SectionHeader all apply it internally) -- without it this
-    -- hand-built row sits slightly left of where "Enable This Boss" and everything below
-    -- it actually starts.
-    exportBtn:SetPoint("LEFT", topRow, "LEFT", EUI.CONTENT_PAD or 16, 0)
-
-    local importBtn = ns.Button(topRow, "Import", 70, 26, function()
-        if ns.ShowPackImport then ns.ShowPackImport() end
-    end)
-    importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 8, 0)
+    -- Export/Import used to be repeated here too; dropped in favor of the single
+    -- whole-profile pair on the Setup tab's Reminder Packs section (ns.BuildProfileSettings),
+    -- which is the only scope this addon shares at all now.
 
     -- Doubles as the boss-name display: one control at the top right instead of a
     -- button plus a separate name label below. Styled and behaving like a dropdown --
