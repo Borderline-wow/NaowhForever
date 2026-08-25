@@ -1035,13 +1035,15 @@ local function TankingSomeBoss()
             local ok, verdict = pcall(function()
                 local status = UnitThreatSituation("player", unit)
                 local statusKnown = not (issecretvalue and issecretvalue(status))
-                if statusKnown and type(status) == "number" and status >= 2 then return true end
+                if statusKnown then
+                    return type(status) == "number" and status >= 2
+                end
 
+                -- Threat status is secret in this content; fall back to the target-match
+                -- read, but it can be secret too, in which case we genuinely don't know.
                 local same = UnitIsUnit(unit .. "target", "player")
                 local sameKnown = not (issecretvalue and issecretvalue(same))
-                if sameKnown and same == true then return true end
-
-                if statusKnown and sameKnown then return false end
+                if sameKnown then return same == true end
                 return nil
             end)
             if ok and verdict == true then return true end
@@ -2420,52 +2422,11 @@ local function FireBigWigsAbility(sid)
         if binding and binding.mode == "custom" then return end
     end
     if not isTank then return end
-    -- TEMPORARY diagnostic: confirms why "Only While I Have the Boss" let this through,
-    -- and what the pick actually saw for this ability -- both reported wrong on Coiled
-    -- Altar. Remove once explained.
-    do
-        local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-        local tanking = TankingSomeBoss()
-        ns.Print(("|cffF0A830fire|r sid=%s (%s) aggroOnly=%s tanking=%s covered=%s"):format(
-            tostring(sid), (si and si.name) or "?", tostring(TRDB().aggroOnly),
-            tostring(tanking), tostring(CoveredByActiveDefensive())))
-        -- Per-unit breakdown: which boss1-5 slot is actually reporting the player as
-        -- tanking, and by which read (threat status vs the unit's own target). Every value
-        -- guarded with issecretvalue BEFORE formatting -- tostring/string.format on a
-        -- secret does not raise, it silently produces a secret STRING, which then makes
-        -- the whole formatted line secret and drops it from chat with no error at all.
-        local function SafeVal(v)
-            if issecretvalue and issecretvalue(v) then return "secret" end
-            return tostring(v)
-        end
-        for i = 1, 5 do
-            local unit = "boss" .. i
-            if UnitExists(unit) then
-                local ok, status, same, unitName = pcall(function()
-                    return UnitThreatSituation("player", unit), UnitIsUnit(unit .. "target", "player"), UnitName(unit)
-                end)
-                if ok then
-                    ns.Print(("  |cffF0A830%s|r name=%s status=%s target=%s"):format(
-                        unit, SafeVal(unitName), SafeVal(status), SafeVal(same)))
-                else
-                    ns.Print(("  |cffF0A830%s|r read failed"):format(unit))
-                end
-            end
-        end
-    end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
     if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
 
     RebuildSlots(tostring(sid))
     if activeSlots == 0 then return end
-    do
-        local parts = {}
-        for i = 1, activeSlots do
-            local sInfo = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(slots[i].spellID)
-            parts[#parts + 1] = (sInfo and sInfo.name) or tostring(slots[i].spellID)
-        end
-        ns.Print("  |cffF0A830list|r " .. table.concat(parts, " > "))
-    end
     ApplyPriorityAlpha()
     ClearTankGate()
     -- Marks a real callout as showing, same as the old timeline path did (just keyed by
