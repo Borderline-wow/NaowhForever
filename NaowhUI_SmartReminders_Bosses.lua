@@ -1590,24 +1590,33 @@ function ns.BuildProfileSettings(parent, y)
         { type = "label", text = "      Share your lists, priorities and reminders." },
         { type = "label", text = "" }
     ); y = y - h
-    if packRow then
-        AttachInline(packRow._rightRegion or packRow, "Share your Profile", 130, function()
+    -- Not AttachInline here: it chains off a region's existing control, and this right
+    -- half has none (its label field is blank) -- it fell back to anchoring off the
+    -- region's own LEFT edge (the row's midpoint) instead, so the button sat in the
+    -- row's LEFT half and overlapped the label text next to it regardless of width.
+    -- Anchored to the region's own RIGHT edge directly instead.
+    if packRow and packRow._rightRegion then
+        local btn = ns.Button(packRow._rightRegion, "Share your Profile", 130, 22, function()
             if ns.ShowPackExport then ns.ShowPackExport() end
-        end, "Share your Profile",
-        "Everything a curator sets up -- priority lists, per-boss orders, callouts and "
-        .. "written reminders -- as one string to share.")
+        end)
+        btn:SetPoint("RIGHT", packRow._rightRegion, "RIGHT", -14, 0)
+        ns.Tooltip(btn, "Share your Profile",
+            "Everything a curator sets up -- priority lists, per-boss orders, callouts and "
+            .. "written reminders -- as one string to share.")
     end
     local packRow2
     packRow2, h = W:DualRow(parent, y,
         { type = "label", text = "      Install a curator's profile, with a preview first." },
         { type = "label", text = "" }
     ); y = y - h
-    if packRow2 then
-        AttachInline(packRow2._rightRegion or packRow2, "Import Profile", 120, function()
+    if packRow2 and packRow2._rightRegion then
+        local btn = ns.Button(packRow2._rightRegion, "Import Profile", 120, 22, function()
             if ns.ShowPackImport then ns.ShowPackImport() end
-        end, "Import Profile",
-        "Paste a profile string. Nothing applies until you choose Replace or Merge, and a "
-        .. "damaged string is refused outright.")
+        end)
+        btn:SetPoint("RIGHT", packRow2._rightRegion, "RIGHT", -14, 0)
+        ns.Tooltip(btn, "Import Profile",
+            "Paste a profile string. Nothing applies until you choose Replace or Merge, and a "
+            .. "damaged string is refused outright.")
     end
 
     _, h = W:SectionHeader(parent, "WHERE IT RUNS", y); y = y - h
