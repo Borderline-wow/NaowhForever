@@ -2420,11 +2420,29 @@ local function FireBigWigsAbility(sid)
         if binding and binding.mode == "custom" then return end
     end
     if not isTank then return end
+    -- TEMPORARY diagnostic: confirms why "Only While I Have the Boss" let this through,
+    -- and what the pick actually saw for this ability -- both reported wrong on Coiled
+    -- Altar. Remove once explained.
+    do
+        local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+        local tanking = TankingSomeBoss()
+        ns.Print(("|cffF0A830fire|r sid=%s (%s) aggroOnly=%s tanking=%s covered=%s"):format(
+            tostring(sid), (si and si.name) or "?", tostring(TRDB().aggroOnly),
+            tostring(tanking), tostring(CoveredByActiveDefensive())))
+    end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
     if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
 
     RebuildSlots(tostring(sid))
     if activeSlots == 0 then return end
+    do
+        local parts = {}
+        for i = 1, activeSlots do
+            local sInfo = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(slots[i].spellID)
+            parts[#parts + 1] = (sInfo and sInfo.name) or tostring(slots[i].spellID)
+        end
+        ns.Print("  |cffF0A830list|r " .. table.concat(parts, " > "))
+    end
     ApplyPriorityAlpha()
     ClearTankGate()
     -- Marks a real callout as showing, same as the old timeline path did (just keyed by
