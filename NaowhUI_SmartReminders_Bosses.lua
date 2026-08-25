@@ -1861,6 +1861,9 @@ function ns.BuildProfileSettings(parent, y)
     -- ApplyBossPack in NaowhUI_SmartReminders_Packs.lua), not a scoped mode on the pack
     -- above: ApplyPack's replace mode replaces a WHOLE section, which fed a single boss's
     -- slice would wipe every other boss's data in it.
+    -- Two rows, not one with both buttons chained onto it -- matching the Export/Import
+    -- pair above this instead of sharing a row, since AttachInline's second call landed
+    -- on top of the first here rather than chaining beside it.
     local bossPackRow
     bossPackRow, h = W:DualRow(parent, y,
         { type = "label", text = "      Share just one boss's setup instead of the whole profile." },
@@ -1896,8 +1899,15 @@ function ns.BuildProfileSettings(parent, y)
         end, "Export a Boss's Setup",
         "Priority order, preset choice, tank buster marks, mutes and custom reminders -- "
         .. "for one boss only, as its own string.")
+    end
 
-        AttachInline(bossPackRow._rightRegion or bossPackRow, "Import", 60, function()
+    local bossPackRow2
+    bossPackRow2, h = W:DualRow(parent, y,
+        { type = "label", text = "      Install a boss's setup someone shared with you." },
+        { type = "label", text = "" }
+    ); y = y - h
+    if bossPackRow2 then
+        AttachInline(bossPackRow2._rightRegion or bossPackRow2, "Import", 60, function()
             if ns.ShowBossPackImport then ns.ShowBossPackImport() end
         end, "Import a Boss's Setup",
         "Paste a boss setup string. It always applies to whichever boss it was exported "
