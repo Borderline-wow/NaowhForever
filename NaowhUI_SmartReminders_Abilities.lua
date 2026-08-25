@@ -90,7 +90,10 @@ ns.TANK_ABILITIES = {
     [1299680] = "Unknown",   -- The Coiled Altar: Sever
     [1307279] = "Unknown",   -- The Coiled Altar: Blighted Sever
     [1284103] = "Unknown",   -- Nek'zali the Soulcoiler: Possession Barrage
-    [1284110] = "Unknown",   -- Nek'zali the Soulcoiler: Hollowing Strikes (stacking debuff)
+    -- Hollowing Strikes (1284110, stacking debuff) deliberately NOT here: still a real
+    -- tank mechanic (its own Tank role tag in Setup comes straight off the live journal
+    -- scrape, independent of this table), just default OFF rather than auto-enabled --
+    -- flip it on per-boss from Setup's own checkbox if wanted.
 
     -- Tank hits the community modules gate on a tank role check in code rather than
     -- flagging on the ability, which is why the sheet-derived rows above never carried
