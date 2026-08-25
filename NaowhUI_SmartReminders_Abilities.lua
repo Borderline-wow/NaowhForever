@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  NaowhUI_TankReminder_Abilities.lua -- tank busters the game does not flag.
+--  NaowhUI_SmartReminders_Abilities.lua -- tank busters the game does not flag.
 --
 --  GENERATED. Regenerate rather than hand-editing.
 --
@@ -105,16 +105,15 @@ ns.TANK_ABILITIES = {
     [1298367] = "Unknown",   -- Ula'tek: Mother's Wrath
 }
 
-ns.TANK_ABILITIES_COUNT = 61
-
 -------------------------------------------------------------------------------
 --  Every boss ability that damages SOMEBODY -- the tank, the party, or both --
 --  derived from the same public damage-classification sheet as the tank list.
 --
---  This is the Bosses tab's reference filter: the journal's section tree lists
---  the same spell under several headers and includes plenty of entries that
---  never hurt anyone, and this set is what separates "reference material" from
---  "noise". It gates DISPLAY only; the runtime never reads it.
+--  Intended as the Bosses tab's reference filter, to separate "reference
+--  material" from journal noise on bosses without a curated ability group --
+--  but nothing currently reads this table or ns.DAMAGE_NAMES below. Wire them
+--  into the uncurated-boss fallback in RenderInstanceDetail (Bosses.lua) if
+--  that filtering is still wanted, or delete both tables if not.
 -------------------------------------------------------------------------------
 ns.DAMAGE_ABILITIES = {
     [264172] = "party",   -- Merektha: Burrow
