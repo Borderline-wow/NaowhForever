@@ -2429,6 +2429,29 @@ local function FireBigWigsAbility(sid)
         ns.Print(("|cffF0A830fire|r sid=%s (%s) aggroOnly=%s tanking=%s covered=%s"):format(
             tostring(sid), (si and si.name) or "?", tostring(TRDB().aggroOnly),
             tostring(tanking), tostring(CoveredByActiveDefensive())))
+        -- Per-unit breakdown: which boss1-5 slot is actually reporting the player as
+        -- tanking, and by which read (threat status vs the unit's own target). Every value
+        -- guarded with issecretvalue BEFORE formatting -- tostring/string.format on a
+        -- secret does not raise, it silently produces a secret STRING, which then makes
+        -- the whole formatted line secret and drops it from chat with no error at all.
+        local function SafeVal(v)
+            if issecretvalue and issecretvalue(v) then return "secret" end
+            return tostring(v)
+        end
+        for i = 1, 5 do
+            local unit = "boss" .. i
+            if UnitExists(unit) then
+                local ok, status, same, unitName = pcall(function()
+                    return UnitThreatSituation("player", unit), UnitIsUnit(unit .. "target", "player"), UnitName(unit)
+                end)
+                if ok then
+                    ns.Print(("  |cffF0A830%s|r name=%s status=%s target=%s"):format(
+                        unit, SafeVal(unitName), SafeVal(status), SafeVal(same)))
+                else
+                    ns.Print(("  |cffF0A830%s|r read failed"):format(unit))
+                end
+            end
+        end
     end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
     if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
