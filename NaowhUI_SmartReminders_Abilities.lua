@@ -89,6 +89,7 @@ ns.TANK_ABILITIES = {
     [1286573] = "Unknown",   -- The Coiled Altar: Soul Sever
     [1299680] = "Unknown",   -- The Coiled Altar: Sever
     [1307279] = "Unknown",   -- The Coiled Altar: Blighted Sever
+    [1284103] = "Unknown",   -- Nek'zali the Soulcoiler: Possession Barrage
 
     -- Tank hits the community modules gate on a tank role check in code rather than
     -- flagging on the ability, which is why the sheet-derived rows above never carried
