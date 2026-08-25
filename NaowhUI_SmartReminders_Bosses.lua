@@ -2007,11 +2007,32 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     end)
     cog:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
 
+    -- Role/difficulty flags straight off the journal (FLAG_LABELS, same icon set the
+    -- in-game Adventure Guide shows) -- Tank/Dps/Healer first since those are the ones
+    -- worth a glance, the rest folded into the description line below instead of a
+    -- second row, which is what caused the Setup-tab overlap this row's fixed height
+    -- comment already warns about.
+    local ROLE_COLOR = { Tank = "|cffF0A830", Dps = "|cffFF6060", Healer = "|cff6DD09A" }
+    local roleTag, restTag
+    if ability.extras then
+        local roles, rest = {}, {}
+        for label in ability.extras:gmatch("[^,]+") do
+            label = label:match("^%s*(.-)%s*$")
+            if ROLE_COLOR[label] then
+                roles[#roles + 1] = ROLE_COLOR[label] .. label .. "|r"
+            elseif label ~= "" then
+                rest[#rest + 1] = label
+            end
+        end
+        if #roles > 0 then roleTag = table.concat(roles, " ") end
+        if #rest > 0 then restTag = table.concat(rest, ", ") end
+    end
+
     local title = ns.Font(row, 13, nil, ns.THEME.fg)
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
     title:SetPoint("RIGHT", cog, "LEFT", -8, 0)
     title:SetJustifyH("LEFT")
-    title:SetText(ability.title or "?")
+    title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or ""))
 
     local desc = ns.Font(row, 11, nil, ns.THEME.muted)
     desc:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -20)
@@ -2019,7 +2040,9 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     desc:SetHeight(ABILITY_ROW_H - 24)
     desc:SetJustifyH("LEFT")
     desc:SetWordWrap(true)
-    desc:SetText(ability.description or "|cff8a99b5No description in the journal.|r")
+    local descText = ability.description or "|cff8a99b5No description in the journal.|r"
+    if restTag then descText = ("|cff8a99b5[%s]|r  "):format(restTag) .. descText end
+    desc:SetText(descText)
 
     local div = ns.Solid(row, "ARTWORK", ns.THEME.line, 1)
     div:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
@@ -2053,9 +2076,9 @@ end
 
 -- The selected instance's own view: Share Profile / Select Boss, the boss's own
 -- Enable/Preset header (RenderBossHeader), then
--- every ability the Dungeon Journal lists for that boss, journal icon and description
--- included -- data ns.ScrapeBosses already collects (boss.abilities) but nothing
--- rendered until now.
+-- every ability the Dungeon Journal lists for that boss -- journal icon, description
+-- and role flags (Tank/Dps/Healer) included, all data ns.ScrapeBosses already collects
+-- (boss.abilities).
 local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
 
