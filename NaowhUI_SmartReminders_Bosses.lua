@@ -2079,8 +2079,24 @@ end
 -- every ability the Dungeon Journal lists for that boss -- journal icon, description
 -- and role flags (Tank/Dps/Healer) included, all data ns.ScrapeBosses already collects
 -- (boss.abilities).
+-- TEMPORARY diagnostic: Tank/Dps tags aren't showing (Healer does), and descriptions are
+-- often blank, in both Dungeon and Raid Bosses. One-shot per boss selection so switching
+-- boss/instance re-dumps rather than spamming every re-render. Remove once explained.
+local lastDiagBoss
 local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
+
+    if boss and boss.encounterID and lastDiagBoss ~= boss.encounterID then
+        lastDiagBoss = boss.encounterID
+        ns.Print(("|cffF0A830ability flags|r %s (%d abilities)"):format(
+            boss.name or "?", #(boss.abilities or {})))
+        for i = 1, #(boss.abilities or {}) do
+            local a = boss.abilities[i]
+            ns.Print(("  %s sid=%s extras=%s desc=%s"):format(
+                a.title or "?", tostring(a.spellID), a.extras or "nil",
+                (a.description and a.description ~= "") and "yes" or "no"))
+        end
+    end
 
     local topRow = CreateFrame("Frame", nil, parent)
     topRow:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
