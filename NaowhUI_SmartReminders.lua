@@ -2422,6 +2422,32 @@ local function FireBigWigsAbility(sid)
         if binding and binding.mode == "custom" then return end
     end
     if not isTank then return end
+    -- TEMPORARY diagnostic: Soul Sever (The Coiled Altar) still false-positives after the
+    -- TankingSomeBoss fix that resolved plain Sever -- need to see whether boss1-5 even
+    -- exist at the moment this ability fires. Remove once explained.
+    do
+        local function SafeVal(v)
+            if issecretvalue and issecretvalue(v) then return "secret" end
+            return tostring(v)
+        end
+        ns.Print(("|cffF0A830fire|r sid=%s tanking=%s"):format(tostring(sid), SafeVal(TankingSomeBoss())))
+        for i = 1, 5 do
+            local unit = "boss" .. i
+            local exists = UnitExists(unit)
+            if exists then
+                local ok, status, unitName = pcall(function()
+                    return UnitThreatSituation("player", unit), UnitName(unit)
+                end)
+                if ok then
+                    ns.Print(("  |cffF0A830%s|r exists name=%s status=%s"):format(unit, SafeVal(unitName), SafeVal(status)))
+                else
+                    ns.Print(("  |cffF0A830%s|r exists, read failed"):format(unit))
+                end
+            else
+                ns.Print(("  |cffF0A830%s|r does not exist"):format(unit))
+            end
+        end
+    end
     if TRDB().aggroOnly and not TankingSomeBoss() then return end
     if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
 
