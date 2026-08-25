@@ -246,23 +246,8 @@ end
 -- Sets rather than one selection: this is a tree, and comparing two bosses side by side is
 -- the normal thing to want. Page-local and deliberately unsaved -- which node you last had
 -- open is not a setting.
--- Instance expansion state used to live here; instances open as modals now.
-
-local function InstanceOf(data, id)
-    for i = 1, #data.instances do
-        if data.instances[i].id == id then return data.instances[i] end
-    end
-end
-
--- One editor, used for the spec default and for every per-boss override.
---
--- Enabled entries sit at the top in priority order, each with a grab handle you drag to
--- reorder. Disabled ones fall to the bottom, greyed, and a checkbox moves an entry between
--- the two halves. The automatic set comes from Blizzard's own defensive classification; the
--- Add by Spell ID row is the escape hatch for anything it misses.
---
--- "Call for an External" is pinned below everything and cannot be moved or switched off: it
--- is what happens when nothing above it is up, so by definition it is last.
+-- Instance expansion state used to live here; instances render inline via
+-- BuildBossListPage/RenderInstanceDetail now, not a modal.
 
 -- Rebuilt on every render. The drop target is worked out by comparing the cursor against
 -- these rows' real screen bounds, which is why they have to be captured rather than assumed.
@@ -365,247 +350,6 @@ local function AttachGrabber(row, spellID, index, specID, encounterID, EUI)
     ns.Tooltip(grab, "Drag to reorder", "Drag this onto another enabled ability to change the "
         .. "order it is called out in.")
     return grab
-end
-
-function ns.RenderPriorityEditor(parent, y, W, EUI, specID, encounterID)
-    local _, h, row
-    local list = ns.EffectiveListFor(specID, encounterID) or {}
-    local auto = ns.AllDefensives(specID, encounterID)
-
-    wipe(dragRows)
-
-    -- Everything the player could choose from: Blizzard's set plus their own additions.
-    local hidden = ns.HiddenSpells(specID)
-    local function IsHidden(id) return hidden ~= nil and hidden[tostring(id)] == true end
-
-    local pool, seen = {}, {}
-    for i = 1, #auto do
-        if not IsHidden(auto[i].id) then
-            pool[#pool + 1] = auto[i]
-            seen[auto[i].id] = true
-        end
-    end
-    local custom = ns.CustomSpells(specID)
-    if custom then
-        for key in pairs(custom) do
-            local sid = tonumber(key)
-            if sid and not seen[sid] and not IsHidden(sid) then
-                seen[sid] = true
-                local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-                pool[#pool + 1] = {
-                    id = sid, name = (si and si.name) or ("Spell " .. sid),
-                    icon = si and si.iconID, cd = 0, userAdded = true,
-                }
-            end
-        end
-    end
-
-    -- Enabled, in priority order, draggable.
-    for i = 1, #list do
-        local spellID = list[i]
-        local idx = i
-        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
-        local name = (info and info.name) or ("Spell " .. spellID)
-        local label = ("      %d.  %s"):format(idx, name)
-        if not ns.IsSpellAvailable(spellID) then label = label .. "  (not talented)" end
-
-        row, h = W:DualRow(parent, y,
-            { type = "toggle", text = label,
-              tooltip = ("Spell ID %d. Untick to drop it to the bottom of the list."):format(spellID),
-              getValue = function() return true end,
-              setValue = function()
-                  ns.SetSpellOnList(specID, encounterID, spellID, false)
-                  EUI:RefreshPage(true)
-              end },
-            { type = "toggle", text = "Audio",
-              tooltip = "Speaks this one when it is the defensive to press. Switch it off to "
-              .. "keep it in your priority order but stay silent for it -- the icon and text "
-              .. "still show.",
-              getValue = function() return not ns.IsAudioOff(spellID) end,
-              setValue = function(v)
-                  ns.SetAudioOff(spellID, not v)
-                  EUI:RefreshPage(true)
-              end }
-        ); y = y - h
-
-        -- The wording is only worth reaching when it will actually be spoken.
-        if row and not ns.IsAudioOff(spellID) then
-            AttachInline(row._rightRegion, "Edit", 46, function()
-                ns.ShowCalloutEditor(("Audio callout for %s"):format(name),
-                    ns.CalloutFor(spellID, name), function(text)
-                        ns.SetCallout(spellID, text)
-                        EUI:RefreshPage(true)
-                    end, spellID)
-            end, "Edit the callout", "What is spoken, and what the text alert shows, for this ability.")
-        end
-
-        if row then
-            dragRows[#dragRows + 1] = { frame = row, spellID = spellID, index = idx }
-            AttachGrabber(row, spellID, idx, specID, encounterID, EUI)
-            AttachRemove(row, { id = spellID, userAdded = false }, specID, EUI, function()
-                ns.SetSpellOnList(specID, encounterID, spellID, false)
-                ns.HideSpell(specID, spellID)
-            end)
-        end
-    end
-
-    -- Disabled, at the bottom, greyed.
-    local spare = {}
-    for i = 1, #pool do
-        if not ns.ListIndexOf(list, pool[i].id) then spare[#spare + 1] = pool[i] end
-    end
-    table.sort(spare, function(a, b) return a.name < b.name end)
-
-    for i = 1, #spare do
-        local c = spare[i]
-        row, h = W:DualRow(parent, y,
-            { type = "toggle", text = "      |cff8a99b5" .. c.name .. "|r",
-              tooltip = ("Spell ID %d. Tick to put it into your priority order."):format(c.id),
-              getValue = function() return false end,
-              setValue = function()
-                  ns.SetSpellOnList(specID, encounterID, c.id, true)
-                  EUI:RefreshPage(true)
-              end },
-            { type = "label", text = c.userAdded and "added by you" or "" }
-        ); y = y - h
-
-        if row then
-            AttachRemove(row, c, specID, EUI, function()
-                if c.userAdded then ns.RemoveCustomSpell(specID, c.id)
-                else ns.HideSpell(specID, c.id) end
-                ns.SetSpellOnList(specID, encounterID, c.id, false)
-            end)
-        end
-    end
-
-    if #list == 0 and #spare == 0 then
-        _, h = W:DualRow(parent, y,
-            { type = "label", text = "      No major defensives found for this specialization." },
-            { type = "label", text = "" }
-        ); y = y - h
-    end
-
-    -- Restoring what was removed. Only offered when there is something to restore.
-    if hidden and next(hidden) ~= nil then
-        _, h = W:DualRow(parent, y,
-            { type = "toggle", text = "      Restore Removed Abilities",
-              tooltip = "Brings back everything you removed from the choices for this spec.",
-              getValue = function() return false end,
-              setValue = function()
-                  ns.UnhideAll(specID)
-                  EUI:RefreshPage(true)
-              end },
-            { type = "label", text = "" }
-        ); y = y - h
-    end
-
-    -- The spell ID entry. The widget factory has no text input, so the box and its button are
-    -- built here and laid over the row's right half; the left slot carries the label so the
-    -- row still reads like every other one.
-    local db = ns.DB()
-    row, h = W:DualRow(parent, y,
-        { type = "label", text = "      Add an Ability by Spell ID" },
-        { type = "label", text = "" }   -- overlaid below with the entry box and Add button
-    ); y = y - h
-
-    if row and row._rightRegion then
-        local rgn = row._rightRegion
-
-        local add = ns.Button(rgn, "Add", 54, 22, nil)
-        add:SetPoint("RIGHT", rgn, "RIGHT", -14, 0)
-
-        local box = CreateFrame("EditBox", nil, rgn)
-        box:SetPoint("LEFT", rgn, "LEFT", 6, 0)
-        box:SetPoint("RIGHT", add, "LEFT", -8, 0)
-        box:SetHeight(24)
-        box:SetAutoFocus(false)
-        box:SetNumeric(true)
-        box:SetMaxLetters(9)
-        box:SetFontObject("GameFontHighlight")
-        box:SetTextInsets(6, 6, 0, 0)
-        local well = ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1)
-        well:SetAllPoints()
-        ns.Border(box)
-
-        local placeholder = ns.Font(box, 12, nil, ns.THEME.muted)
-        placeholder:SetPoint("LEFT", box, "LEFT", 8, 0)
-        placeholder:SetText("Enter SpellID")
-
-        -- Sits under the box: the resolved name, or why the ID is refused. Feedback as you
-        -- type is what stops a wrong ID being added and only failing later.
-        local feedback = ns.Font(rgn, 10, nil, ns.THEME.muted)
-        feedback:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 2, -1)
-        feedback:SetPoint("RIGHT", add, "LEFT", -8, 0)
-        feedback:SetJustifyH("LEFT")
-
-        local function Commit()
-            local sid = ns.ResolveSpell(box:GetText())
-            if not sid then return end                  -- the gate: invalid never adds
-            if ns.AddCustomSpell(specID, sid) then
-                box:SetText("")
-                box:ClearFocus()
-                EUI:RefreshPage(true)
-            end
-        end
-
-        local function Validate()
-            local text = box:GetText()
-            placeholder:SetShown(text == nil or text == "")
-            local sid, info = ns.ResolveSpell(text)
-            if sid then
-                add:Enable()
-                add:SetAlpha(1)
-                feedback:SetText("|cff6DD09A" .. (info.name or "") .. "|r")
-            else
-                add:Disable()
-                add:SetAlpha(0.35)
-                feedback:SetText((text ~= "" and text ~= nil) and "|cffff6060Not a spell ID|r" or "")
-            end
-        end
-
-        add:SetScript("OnClick", Commit)
-        box:SetScript("OnTextChanged", Validate)
-        box:SetScript("OnEnterPressed", Commit)
-        box:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
-        Validate()
-    end
-
-    row, h = W:DualRow(parent, y,
-        { type = "toggle",
-          text = ("      |cffF0A830Last:  %s|r"):format(db.voiceNone or "Call for an External"),
-          tooltip = "The final step, used when nothing on your list is up. Switch it off to say "
-          .. "and show nothing at all in that case.",
-          getValue = function() return db.fallbackOn ~= false end,
-          setValue = function(v)
-              db.fallbackOn = v
-              ns.RefreshRuntime()
-              EUI:RefreshPage(true)
-          end },
-        { type = "toggle", text = "Audio",
-          tooltip = "Speaks the fallback line when nothing on your list is up. This step is "
-          .. "always last and cannot be moved, but it can be silenced.",
-          disabled = function() return db.fallbackOn == false end,
-          disabledTooltip = "Switch the last step back on to use this.",
-          getValue = function() return db.fallbackOn ~= false and not ns.IsAudioOff(0) end,
-          setValue = function(v)
-              if db.fallbackOn == false then return end
-              ns.SetAudioOff(0, not v)
-              EUI:RefreshPage(true)
-          end }
-    ); y = y - h
-
-    if row and db.fallbackOn ~= false and not ns.IsAudioOff(0) then
-        AttachInline(row._rightRegion, "Edit", 46, function()
-            ns.ShowCalloutEditor("Said and shown when nothing on the list is up",
-                db.voiceNone, function(v)
-                    db.voiceNone = v
-                    ns.RefreshRuntime()
-                    EUI:RefreshPage(true)
-                end, 0)
-        end, "Edit the fallback", "What is spoken and shown when every defensive is down.")
-    end
-
-    return y
 end
 
 -- The house cog on any row region: 26px, shared art, dim until hovered, anchored left of
@@ -888,7 +632,8 @@ end
 
 -- The spec-default page: a preset picker on the left, and the active preset's list -- every
 -- row condensed to one column, with a settings cog where the old layout had a second column
--- -- on the right. Per-boss overrides still go through ns.RenderPriorityEditor unchanged.
+-- -- on the right. Per-boss overrides go through RenderInstanceDetail/RenderAbilityRow, keyed
+-- by spell id rather than a priority list.
 function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     local _, h, row
     local topY = y
@@ -1144,9 +889,7 @@ end
 
 -- The whole boss's own hierarchy, top part: Enable This Boss (off = nothing below, no
 -- alerts of any kind), then which of the spec's presets it calls its defensives from.
--- Shared between RenderBoss (the old fingerprint accordion, unchanged) and
--- RenderInstanceDetail (the new journal-sourced ability list) -- both boss-level
--- controls, neither belongs to only one or the other.
+-- Used by RenderInstanceDetail, the journal-sourced ability list.
 -- Returns y, bossOn.
 local function RenderBossHeader(parent, y, W, EUI, encounterID, specID)
     local _, h
@@ -2309,7 +2052,7 @@ local function ResolveCuratedAbility(ejByID, spellID)
 end
 
 -- The selected instance's own view: Share Profile / Select Boss, the boss's own
--- Enable/Preset header (RenderBossHeader, shared with the old fingerprint page), then
+-- Enable/Preset header (RenderBossHeader), then
 -- every ability the Dungeon Journal lists for that boss, journal icon and description
 -- included -- data ns.ScrapeBosses already collects (boss.abilities) but nothing
 -- rendered until now.
@@ -2409,6 +2152,83 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         for i = 1, #boss.abilities do
             y = RenderAbilityRow(parent, y, boss.encounterID, boss.abilities[i], specID, EUI)
         end
+    end
+
+    -- Independent of the ability list above: these aren't bound to one spell id, so a
+    -- boss can carry one even with nothing curated yet (a pull timer, an aura watch, a
+    -- raw BigWigs/DBM message or bar match). Excludes "spell"-triggered entries -- those
+    -- are the per-ability picker's own Custom Reminder mode (ShowAbilityReminderPicker),
+    -- already editable from that ability's row; listing them here too would let this
+    -- generic editor delete the reminder object while the ability's binding still says
+    -- "custom", leaving that ability silently unable to fire either kind of callout.
+    do
+        y = y - 10
+        local _, h = W:SectionHeader(parent, "CUSTOM REMINDERS", y); y = y - h
+        local crSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, boss.encounterID)
+        local crList = {}
+        if crSet then
+            for uid, r in pairs(crSet) do
+                if not (r.trigger and r.trigger.type == "spell") then
+                    crList[#crList + 1] = { uid = uid, r = r }
+                end
+            end
+            table.sort(crList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
+        end
+
+        if #crList == 0 then
+            _, h = W:DualRow(parent, y,
+                { type = "label", text = "      None yet for this boss." },
+                { type = "label", text = "" }
+            ); y = y - h
+        else
+            for i = 1, #crList do
+                local uid, r = crList[i].uid, crList[i].r
+                local trig = r.trigger
+                local trigDesc = "?"
+                if trig and trig.type == "pull" then
+                    trigDesc = "Pull"
+                elseif trig and (trig.type == "bwmsg" or trig.type == "bwtimer") then
+                    local info = C_Spell and C_Spell.GetSpellInfo
+                        and C_Spell.GetSpellInfo(trig.spellID)
+                    trigDesc = (trig.type == "bwtimer" and "Timer: " or "Message: ")
+                        .. ((info and info.name) or tostring(trig.spellID))
+                elseif trig and trig.type == "aura" then
+                    local info = C_Spell and C_Spell.GetSpellInfo
+                        and C_Spell.GetSpellInfo(trig.spellID)
+                    trigDesc = (trig.auraEvent == "removed" and "Aura Removed: " or "Aura Applied: ")
+                        .. ((info and info.name) or tostring(trig.spellID))
+                        .. (trig.target == "player" and " (You)" or " (Boss)")
+                end
+
+                local row
+                row, h = W:DualRow(parent, y,
+                    { type = "toggle",
+                      text = ("      %s  |cff8a99b5(%s)|r"):format(r.name or "Reminder", trigDesc),
+                      tooltip = "Untick to keep this reminder without deleting it.",
+                      getValue = function() return r.enabled ~= false end,
+                      setValue = function(v)
+                          r.enabled = v
+                          ns.RefreshRuntime()
+                      end }
+                ); y = y - h
+                if row then
+                    AttachInline(row._leftRegion, "Edit", 46, function()
+                        ns.ShowCustomReminderEditor(boss.encounterID, uid, EUI)
+                    end, "Edit", "Change this reminder's trigger, message or how long it lingers.")
+                    AttachInline(row._leftRegion, "Delete", 56, function()
+                        local writeSet = ns.CustomRemindersTable(false, boss.encounterID)
+                        if writeSet then writeSet[uid] = nil end
+                        ns.RefreshRuntime()
+                        EUI:RefreshPage(true)
+                    end, "Delete", "Removes this reminder.")
+                end
+            end
+        end
+
+        _, h = W:Button(parent, "+ Add a Custom Reminder", y, function()
+            ns.ShowCustomReminderEditor(boss.encounterID, nil, EUI)
+        end)
+        y = y - h
     end
 
     return y
@@ -2525,17 +2345,6 @@ function ns.BuildBossListPage(parent, y, isRaid)
 
     local leftBottom = listTop - (#list * 26)
     return math.min(leftBottom, topY + rightBottom)
-end
-
--- One dungeon or raid, every boss expanded, in its own scrollable modal. The widget
--- factory renders into whatever parent it is handed, so the same row builders that drew
--- the inline tree draw the modal body. Edits inside the rows refresh the options PAGE by
--- calling EUI:RefreshPage -- the proxy below intercepts that so the modal body re-renders
--- in the same breath and never shows stale state.
-function ns.BuildBossSection(parent, y)
-    y = ns.BuildProfileSettings(parent, y)
-    y = ns.BuildBossListPage(parent, y, false)
-    return ns.BuildBossListPage(parent, y, true)
 end
 
 -------------------------------------------------------------------------------
