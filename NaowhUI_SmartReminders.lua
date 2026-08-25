@@ -46,8 +46,7 @@ local DEFAULTS = {
     inRaids    = true,
     fallbackOn = true,
     aggroOnly  = false,
-    learnMode  = false,
-    coveredSkip = true,  -- a defensive already active 5s+ suppresses the next callout  -- unknown bosses: quiet by default, call-everything when authoring
+    coveredSkip = true,  -- a defensive already active 5s+ suppresses the next callout
     leadTime   = 3,     -- seconds before impact that the alert fires
     voiceOn   = false,
     voiceNone = "Call for external",
@@ -384,13 +383,6 @@ local function EffectiveList(forSpec, encounterID, fp)
         -- anyone who has one saved, though nothing writes new ones.
         local al = BossList(forSpec, tostring(encounterID) .. "#" .. fp, false)
         if al and #al > 0 then return al, true end
-        -- The old UI keyed per-ability lists by NAME too, since one ability can own several
-        -- fingerprints; that form stays honored for older saves.
-        local nm = ns.EventNameFor and ns.EventNameFor(encounterID, fp)
-        if nm and nm ~= fp then
-            local anl = BossList(forSpec, tostring(encounterID) .. "#" .. nm, false)
-            if anl and #anl > 0 then return anl, true end
-        end
     end
     if encounterID then
         local explicit = BossPresetKey(forSpec, encounterID)
@@ -1109,10 +1101,11 @@ end
 
 
 -- The engine gate (SetEventIconTextures, which paints a secret TankRole bit straight into
--- a texture's alpha) is no longer applied: the fingerprint filter silences whole events
--- upstream and covers text and voice too, which the engine gate could never reach. It is
--- still probed by `canGate` and exercised by /nutank gate. What remains here is the
--- unconditional clear, so every event's art is left visible for the priority pick.
+-- a texture's alpha) is no longer applied: ns.AbilityEnabledForBinding (checked in
+-- FireBigWigsAbility, before anything fires) silences whole abilities upstream and covers
+-- text and voice too, which the engine gate could never reach. It is still probed by
+-- `canGate` and exercised by /nutank gate. What remains here is the unconditional clear,
+-- so every event's art is left visible for the priority pick.
 local function ClearTankGate()
     for i = 1, activeSlots do
         slots[i].icon:SetAlpha(1)
@@ -2406,11 +2399,9 @@ end
 -------------------------------------------------------------------------------
 --  BigWigs/DBM-driven primary callout
 -------------------------------------------------------------------------------
--- Unlike the native timeline, BigWigs/DBM hand over a real, non-secret identity (see
--- OnBigWigsEvent/OnDBMEvent below), so this can decide directly rather than through the
--- duration-fingerprint proxy. Runs ALONGSIDE the native-timeline engine for now: both can
--- fire for the same ability, and the existing lastCalloutAt window already prevents a
--- double-announce. The fingerprint engine is only removed once this path is proven live.
+-- BigWigs/DBM hand over a real, non-secret identity (see OnBigWigsEvent/OnDBMEvent
+-- below), so this decides directly off the spell id rather than through a duration
+-- proxy -- the only detection path this addon has.
 local lastBWSid, lastBWAt = nil, 0
 
 -- Whether a given ability calls out, now that Setup's per-ability checklist
@@ -2677,17 +2668,15 @@ local function UpdateEventRegistration()
 
     if not ShouldRun() then
         runActive = false
-        -- The HasRestrictions events (COMBAT_LOG_EVENT_UNFILTERED and the
-        -- ENCOUNTER_TIMELINE_* ones) are NEVER unregistered, matching how the register
-        -- side already treats them. InCombatLockdown() was the wrong gate and produced a
-        -- live ADDON_ACTION_FORBIDDEN on UnregisterEvent from inside its own guard:
-        -- toggling a restricted event's registration is forbidden for insecure code in
-        -- restricted content generally, not only inside the secure-frame lockdown window,
-        -- and ENCOUNTER_START (which calls this) is exactly that context. pcall cannot
-        -- catch a forbidden call, so there is no window to find. Every one of these
-        -- handlers already self-gates -- OnCombatLog returns on `currentEncounter == nil`,
-        -- HIGHLIGHT tests ShouldRun(), REMOVED no-ops with nothing shown -- so leaving
-        -- them registered costs one plain read per event and changes no behaviour.
+        -- COMBAT_LOG_EVENT_UNFILTERED (a HasRestrictions event) is NEVER unregistered,
+        -- matching how the register side already treats it. InCombatLockdown() was the
+        -- wrong gate and produced a live ADDON_ACTION_FORBIDDEN on UnregisterEvent from
+        -- inside its own guard: toggling a restricted event's registration is forbidden
+        -- for insecure code in restricted content generally, not only inside the
+        -- secure-frame lockdown window, and ENCOUNTER_START (which calls this) is exactly
+        -- that context. pcall cannot catch a forbidden call, so there is no window to
+        -- find. OnCombatLog already self-gates on `currentEncounter == nil`, so leaving it
+        -- registered costs one plain read per event and changes no behaviour.
         watcher:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
         watcher:UnregisterEvent("PLAYER_REGEN_ENABLED")
         watcher:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
@@ -2708,7 +2697,7 @@ local function UpdateEventRegistration()
         -- mark, came back as an unknown boss for exactly this reason.
         --
         -- Leaving them on costs two plain assignments per pull and gates nothing: alerts
-        -- run off the timeline handlers, which test ShouldRun() themselves.
+        -- run off the BigWigs/DBM handlers, which test ShouldRun() themselves.
         HideReminder()
         return
     end
@@ -3254,7 +3243,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
         tostring(canSelect and true or false), tostring(canGate and true or false),
         tostring(canBar and true or false), tostring(canSound and true or false)))
-    ns.Print("usage: /nutank cds | trace | learn | tank | untank | marked | export | mute | unmute | muted | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank cds | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
@@ -3907,15 +3896,14 @@ function ns.BuildBarsSettings(parent, y)
           setValue = function(v) TRDB().showIcon = v; ApplySize(); UpdatePreview() end },
         -- This toggle used to lock itself while the engine tank filter was on, because a
         -- FontString cannot carry that filter and the text would have contradicted the icon.
-        -- The fingerprint filter made the lock obsolete: it silences whole events upstream, so
-        -- text is tank-only on covered bosses regardless -- and voice was never locked despite
+        -- ns.AbilityEnabledForBinding made the lock obsolete: it silences whole abilities
+        -- upstream, so text is tank-only regardless -- and voice was never locked despite
         -- having the identical limitation, so the lock bought inconsistency, not honesty.
         { type = "toggle", text = "Show Text Call Out",
           tooltip = "Writes the callout on screen -- \"Barkskin\" -- for whichever defensive "
-          .. "it picked, and your fallback line when nothing is up. On bosses with tank buster "
-          .. "data this appears only for tank busters. On bosses without data it appears for "
-          .. "every timeline ability until the boss is learned or marked. Set each line in "
-          .. "the list below.",
+          .. "it picked, and your fallback line when nothing is up. Only appears for "
+          .. "abilities enabled in that boss's ability list, in the Bosses tab. Set each "
+          .. "line's own wording in the list below.",
           getValue = function() return TRDB().showText end,
           setValue = function(v)
               TRDB().showText = v; ApplySize(); UpdatePreview()
