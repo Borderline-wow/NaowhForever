@@ -1584,29 +1584,29 @@ function ns.BuildProfileSettings(parent, y)
     local _, h
     local db = ns.DB()
 
-    _, h = W:SectionHeader(parent, "REMINDER PACKS", y); y = y - h
+    _, h = W:SectionHeader(parent, "PROFILE", y); y = y - h
     local packRow
     packRow, h = W:DualRow(parent, y,
-        { type = "label", text = "      Share your lists, marks and reminders as one string." },
+        { type = "label", text = "      Share your lists, priorities and reminders as one string." },
         { type = "label", text = "" }
     ); y = y - h
     if packRow then
-        AttachInline(packRow._rightRegion or packRow, "Export", 60, function()
+        AttachInline(packRow._rightRegion or packRow, "Share your Profile", 150, function()
             if ns.ShowPackExport then ns.ShowPackExport() end
-        end, "Export a Reminder Pack",
-        "Everything a curator sets up -- priority lists, per-boss orders, callouts, marks, "
-        .. "mutes and written reminders -- as one string to share.")
+        end, "Share your Profile",
+        "Everything a curator sets up -- priority lists, per-boss orders, callouts and "
+        .. "written reminders -- as one string to share.")
     end
     local packRow2
     packRow2, h = W:DualRow(parent, y,
-        { type = "label", text = "      Install a curator's pack, with a preview first." },
+        { type = "label", text = "      Install a curator's profile, with a preview first." },
         { type = "label", text = "" }
     ); y = y - h
     if packRow2 then
-        AttachInline(packRow2._rightRegion or packRow2, "Import", 60, function()
+        AttachInline(packRow2._rightRegion or packRow2, "Import Profile", 120, function()
             if ns.ShowPackImport then ns.ShowPackImport() end
-        end, "Import a Reminder Pack",
-        "Paste a pack string. Nothing applies until you choose Replace or Merge, and a "
+        end, "Import Profile",
+        "Paste a profile string. Nothing applies until you choose Replace or Merge, and a "
         .. "damaged string is refused outright.")
     end
 

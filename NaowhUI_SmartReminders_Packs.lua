@@ -216,7 +216,7 @@ function ns.ShowPackExport()
     -- other heading here uses.
     local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
-    title:SetText("Export a Reminder Pack")
+    title:SetText("Share your Profile")
 
     local nameBox = CreateFrame("EditBox", nil, panel)
     nameBox:SetAutoFocus(false)
@@ -259,7 +259,7 @@ function ns.ShowPackImport()
     local dimmer, panel = ns.MakeModal(560, 330)
     local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
-    title:SetText("Import a Reminder Pack")
+    title:SetText("Import Profile")
 
     local box = MakePackBox(panel, -40, 150)
     local preview = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
