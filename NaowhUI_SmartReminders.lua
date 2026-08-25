@@ -1012,46 +1012,71 @@ end
 
 ns.CustomRemindersTable = CustomRemindersTable
 
+-- Per-unit tanking verdict: true/false, or nil when both available reads come back
+-- secret. Threat status is checked first (>= 2 means tanking) and trusted on its own
+-- when it's readable -- confirmed live to be reliably plain even in raid content where
+-- the target-match fallback below is not. That fallback exists for the opposite case,
+-- content where threat status itself reads secret (SecretWhenUnitThreatStateRestricted
+-- vs SecretWhenUnitComparisonRestricted are different gates, so one being secret says
+-- nothing about the other).
+local function UnitTankedVerdict(unit)
+    local ok, verdict = pcall(function()
+        local status = UnitThreatSituation("player", unit)
+        local statusKnown = not (issecretvalue and issecretvalue(status))
+        if statusKnown then
+            return type(status) == "number" and status >= 2
+        end
+        local same = UnitIsUnit(unit .. "target", "player")
+        local sameKnown = not (issecretvalue and issecretvalue(same))
+        if sameKnown then return same == true end
+        return nil
+    end)
+    if not ok then return nil end
+    return verdict
+end
+
 -- Does any live boss consider ME its problem? For two-tank raids: the buster lands on
--- whoever has the boss, and the other tank does not need to burn a cooldown for it.
---
--- Threat status first (>= 2 means tanking), the boss's literal target second -- threat
--- survives the momentary retargets a boss does mid-cast, the target check catches fixates
--- that never touch the threat table. The two reads are gated by DIFFERENT restrictions
--- (SecretWhenUnitThreatStateRestricted / SecretWhenUnitComparisonRestricted), so one being
--- secret says nothing about the other -- a Mythic+ co-tank report of getting alerted with
--- "Only Alert When Tanking" on is consistent with threat state reading secret there while
--- the target comparison stays plain, and bailing out on the first secret read (the old
--- code did) never even tried the second. Both are checked independently now; only "both
--- secret" counts as unknown. An unknown still fails OPEN: a spare callout costs a moment
--- of attention, a suppressed one on the actual tank costs a death. No boss units at all
--- also fails open, for the same reason.
+-- whoever has the boss, and the other tank does not need to burn a cooldown for it. An
+-- unknown verdict still fails OPEN: a spare callout costs a moment of attention, a
+-- suppressed one on the actual tank costs a death. No boss units at all also fails open,
+-- for the same reason.
 local function TankingSomeBoss()
     local sawBoss, unknown = false, false
     for i = 1, 5 do
         local unit = "boss" .. i
         if UnitExists(unit) then
             sawBoss = true
-            local ok, verdict = pcall(function()
-                local status = UnitThreatSituation("player", unit)
-                local statusKnown = not (issecretvalue and issecretvalue(status))
-                if statusKnown then
-                    return type(status) == "number" and status >= 2
-                end
-
-                -- Threat status is secret in this content; fall back to the target-match
-                -- read, but it can be secret too, in which case we genuinely don't know.
-                local same = UnitIsUnit(unit .. "target", "player")
-                local sameKnown = not (issecretvalue and issecretvalue(same))
-                if sameKnown then return same == true end
-                return nil
-            end)
-            if ok and verdict == true then return true end
-            if not ok or verdict == nil then unknown = true end
+            local verdict = UnitTankedVerdict(unit)
+            if verdict == true then return true end
+            if verdict == nil then unknown = true end
         end
     end
     if not sawBoss or unknown then return true end
     return false
+end
+
+-- Fights that run more than one boss1-5 unit at once (adds, split forms sharing a
+-- spell id) make "tanking SOME boss" the wrong question -- the player can hold one
+-- unit securely while a different one, casting THIS ability, is the other tank's. When
+-- the combat log has told us which unit last cast this spell id, check tanking against
+-- that one unit specifically; otherwise fall back to the any-boss check (also what
+-- covers single-boss fights, where the two questions have the same answer).
+local castSourceGUID = {}
+local function TankingCaster(sid)
+    local guid = castSourceGUID[sid]
+    if not guid then return TankingSomeBoss() end
+    for i = 1, 5 do
+        local unit = "boss" .. i
+        if UnitExists(unit) then
+            local ok, unitGUID = pcall(UnitGUID, unit)
+            if ok and not (issecretvalue and issecretvalue(unitGUID)) and unitGUID == guid then
+                local verdict = UnitTankedVerdict(unit)
+                if verdict == nil then return true end
+                return verdict
+            end
+        end
+    end
+    return TankingSomeBoss()
 end
 
 -- Is one of the listed defensives ALREADY active with meaningful time left? A tank who
@@ -2422,33 +2447,7 @@ local function FireBigWigsAbility(sid)
         if binding and binding.mode == "custom" then return end
     end
     if not isTank then return end
-    -- TEMPORARY diagnostic: Soul Sever (The Coiled Altar) still false-positives after the
-    -- TankingSomeBoss fix that resolved plain Sever -- need to see whether boss1-5 even
-    -- exist at the moment this ability fires. Remove once explained.
-    do
-        local function SafeVal(v)
-            if issecretvalue and issecretvalue(v) then return "secret" end
-            return tostring(v)
-        end
-        ns.Print(("|cffF0A830fire|r sid=%s tanking=%s"):format(tostring(sid), SafeVal(TankingSomeBoss())))
-        for i = 1, 5 do
-            local unit = "boss" .. i
-            local exists = UnitExists(unit)
-            if exists then
-                local ok, status, unitName = pcall(function()
-                    return UnitThreatSituation("player", unit), UnitName(unit)
-                end)
-                if ok then
-                    ns.Print(("  |cffF0A830%s|r exists name=%s status=%s"):format(unit, SafeVal(unitName), SafeVal(status)))
-                else
-                    ns.Print(("  |cffF0A830%s|r exists, read failed"):format(unit))
-                end
-            else
-                ns.Print(("  |cffF0A830%s|r does not exist"):format(unit))
-            end
-        end
-    end
-    if TRDB().aggroOnly and not TankingSomeBoss() then return end
+    if TRDB().aggroOnly and not TankingCaster(sid) then return end
     if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
 
     RebuildSlots(tostring(sid))
@@ -2638,10 +2637,19 @@ local function OnCombatLog()
     -- ride the same registration under their own gate (hasCustomReminders), independent of
     -- runActive: a defensive priority list is not a prerequisite for a boss-pull reminder.
     if currentEncounter == nil or not (runActive or hasCustomReminders) then return end
-    local _, sub, _, _, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = CombatLogGetCurrentEventInfo()
+    local _, sub, _, sourceGUID, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = CombatLogGetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)
         or issecretvalue(amount)) then
         return
+    end
+
+    -- Feeds TankingCaster: which boss1-5 unit is actually behind a given spell id, for
+    -- fights running more than one boss unit at once. Checked on its own, not folded into
+    -- the early-return above, so a secret sourceGUID only skips this and never blocks
+    -- custom reminders on the same line.
+    if type(spellId) == "number" and (sub == "SPELL_CAST_START" or sub == "SPELL_CAST_SUCCESS")
+        and not (issecretvalue and issecretvalue(sourceGUID)) then
+        castSourceGUID[spellId] = sourceGUID
     end
 
     if hasCustomReminders and type(spellId) == "number" then
@@ -4448,6 +4456,9 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         for k, handle in pairs(pendingBWFires) do
             if handle.Cancel then handle:Cancel() end
             pendingBWFires[k] = nil
+        end
+        for k in pairs(castSourceGUID) do
+            castSourceGUID[k] = nil
         end
         RefreshCustomRemindersFlag()
         if event == "ENCOUNTER_START" then
