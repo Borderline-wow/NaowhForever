@@ -1077,18 +1077,27 @@ end
 -- the combat log has told us which unit last cast this spell id, check tanking against
 -- that one unit specifically; otherwise fall back to the any-boss check (also what
 -- covers single-boss fights, where the two questions have the same answer).
+-- Set by FireBigWigsAbility right where it calls TankingCaster, read by LogCallout so a
+-- wrong call ("tanking Zul'jan, got called for a Malacrass-only ability") can be
+-- diagnosed from /nutank calls after the fact -- reported live on The Coiled Altar P2,
+-- no way to react to it typed in the moment a pull is already past.
+local lastAggroCheck   -- { sid, verdict, path }
+
+-- Second return is which path answered -- "nocache" (never saw a cast for this sid),
+-- "boss:<unit>", "nameplate:<unit>", or "fallback" (matched neither) -- so a wrong call
+-- can be diagnosed after the fact (see LogCallout) instead of guessed at from a VOD.
 local castSourceGUID = {}
 local function TankingCaster(sid)
     local guid = castSourceGUID[sid]
-    if not guid then return TankingSomeBoss() end
+    if not guid then return TankingSomeBoss(), "nocache" end
     for i = 1, 5 do
         local unit = "boss" .. i
         if UnitExists(unit) then
             local ok, unitGUID = pcall(UnitGUID, unit)
             if ok and not (issecretvalue and issecretvalue(unitGUID)) and unitGUID == guid then
                 local verdict = UnitTankedVerdict(unit)
-                if verdict == nil then return true end
-                return verdict
+                if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
+                return verdict, "boss:" .. unit
             end
         end
     end
@@ -1107,12 +1116,12 @@ local function TankingCaster(sid)
             local ok, unitGUID = pcall(UnitGUID, unit)
             if ok and not (issecretvalue and issecretvalue(unitGUID)) and unitGUID == guid then
                 local verdict = UnitTankedVerdict(unit)
-                if verdict == nil then return true end
-                return verdict
+                if verdict == nil then return true, "nameplate:" .. unit .. ":unreadable" end
+                return verdict, "nameplate:" .. unit
             end
         end
     end
-    return TankingSomeBoss()
+    return TankingSomeBoss(), "fallback"
 end
 
 -- Is one of the listed defensives ALREADY active with meaningful time left? A tank who
@@ -1787,6 +1796,14 @@ local function LogCallout(sid)
         running = running == nil and "unreadable" or tostring(running),
         readyAtDelta = readyAt[sid] and (readyAt[sid] - GetTime()) or nil,
         secrecy = SecrecyLevelName(sid),
+        -- Only present when Only While I Have the Boss was actually the gate that let
+        -- this through -- how TankingCaster answered for the BOSS ABILITY that triggered
+        -- this pick, not the defensive itself. Test fires skip that gate entirely
+        -- (ns.testFiring), so lastAggroCheck there would only ever be stale leftover
+        -- data from an unrelated earlier real call -- excluded rather than shown as if
+        -- it were this fire's own answer.
+        tankSid = (not ns.testFiring) and lastAggroCheck and lastAggroCheck.sid or nil,
+        tankPath = (not ns.testFiring) and lastAggroCheck and lastAggroCheck.path or nil,
     })
 end
 
@@ -2599,7 +2616,13 @@ local function FireBigWigsAbility(sid)
     end
     if not ns.testFiring then
         if not isTank then return end
-        if TRDB().aggroOnly and not TankingCaster(sid) then return end
+        if TRDB().aggroOnly then
+            local verdict, path = TankingCaster(sid)
+            lastAggroCheck = { sid = sid, verdict = verdict, path = path }
+            if not verdict then return end
+        else
+            lastAggroCheck = nil
+        end
         if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
     end
 
@@ -3431,11 +3454,15 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
                 ns.Print(("%s enc=%s stage=%s -- CAST %s"):format(
                     e.stamp, tostring(e.enc), tostring(e.stage), name))
             else
-                ns.Print(("%s enc=%s stage=%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s"):format(
+                local tankInfo = e.tankSid
+                    and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.tankSid)
+                ns.Print(("%s enc=%s stage=%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s%s"):format(
                     e.stamp, tostring(e.enc), tostring(e.stage),
                     e.kind == "test" and "TEST-called" or "called", name,
                     e.running, e.charges and (" charges=" .. e.charges) or "",
-                    e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy))
+                    e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy,
+                    e.tankPath and (" tankCheck=%s(%s)"):format(
+                        e.tankPath, (tankInfo and tankInfo.name) or tostring(e.tankSid)) or ""))
             end
         end
         return
