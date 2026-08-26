@@ -1092,6 +1092,26 @@ local function TankingCaster(sid)
             end
         end
     end
+    -- The cast-log GUID can fail to match any boss1-5 slot even when Blizzard's own boss
+    -- mod confirms the caster is tracked as one from encounter start -- confirmed live on
+    -- The Coiled Altar: BigWigs registers "boss2" (Malacrass) from OnEncounterStart, yet
+    -- Zul'jan's tank still got called for Soul Sever (Malacrass-only, P2) while holding
+    -- Zul'jan the whole phase, meaning this loop above never found the match. Nameplates
+    -- reach the same GUID through an entirely different unit-token system, so they are
+    -- tried next rather than giving up straight to the blanket "tanking ANY boss" answer
+    -- below, which is exactly wrong the moment two boss units are alive at once and each
+    -- tank holds a different one.
+    for i = 1, 10 do
+        local unit = "nameplate" .. i
+        if UnitExists(unit) then
+            local ok, unitGUID = pcall(UnitGUID, unit)
+            if ok and not (issecretvalue and issecretvalue(unitGUID)) and unitGUID == guid then
+                local verdict = UnitTankedVerdict(unit)
+                if verdict == nil then return true end
+                return verdict
+            end
+        end
+    end
     return TankingSomeBoss()
 end
 
