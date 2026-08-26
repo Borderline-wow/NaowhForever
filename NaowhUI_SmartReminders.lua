@@ -1408,8 +1408,20 @@ function ChargesAvailable(sid)
                 t.learned[tostring(sid)] = measured
             end
         end
-        st.count, st.tick, st.missingSince, st.guessed = st.max, GetTime(), nil, nil
-        return st.count
+
+        -- MEASURED: Guardian of Ancient Kings' talent-granted second charge snapped this
+        -- straight to max 138 seconds after a real cast, against a ~180s known recharge.
+        -- Blizzard's own SpellChargeInfo docs say isActive reads false for two DIFFERENT
+        -- reasons -- "at maximum available charges" OR "start time or duration are zero" --
+        -- and an extra charge layered on top of native 1-charge spell data can hit the
+        -- second case while genuinely still short a charge. Once a real recharge rate is
+        -- known, only trust "at max" once that much time has actually passed; with no rate
+        -- known yet there is nothing to check against, so the original correction still
+        -- applies immediately (that is what recovers a wrongly pessimistic first guess).
+        if st.recharge <= 0 or (GetTime() - st.tick) >= st.recharge then
+            st.count, st.tick, st.missingSince, st.guessed = st.max, GetTime(), nil, nil
+            return st.count
+        end
     end
 
     if st.recharge > 0 and st.count < st.max then
