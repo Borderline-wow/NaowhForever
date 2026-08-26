@@ -369,8 +369,7 @@ local currentStage
 local function EffectiveList(forSpec, encounterID, fp)
     if encounterID and fp then
         local sid = tonumber(fp)
-        local bindings = sid and ns.AbilityBindingsTable and ns.AbilityBindingsTable(false, encounterID)
-        local binding = bindings and bindings[sid]
+        local binding = sid and ns.BindingForBossModKey and ns.BindingForBossModKey(encounterID, sid)
         if binding and binding.preset then
             local presets = PresetsTable(forSpec, false)
             local p = presets and presets[binding.preset]
@@ -2470,9 +2469,24 @@ local lastBWSid, lastBWAt = nil, 0
 -- regression the moment this ships.
 -- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling
 -- (luac -p catches it directly), and a table field costs nothing there.
-function ns.AbilityEnabledForBinding(enc, sid)
+-- Setup writes bindings under the JOURNAL spell id (its rows render from the journal
+-- scrape), while every sid reaching the engine is the BigWigs/DBM broadcast key -- not
+-- always the same id (ns.BOSSMOD_KEY_TO_JOURNAL has the confirmed mismatches). All
+-- engine-side binding reads go through this resolver so a mismatched pair still finds
+-- the player's Setup choice instead of silently falling back to defaults.
+function ns.BindingForBossModKey(enc, sid)
     local bindings = AbilityBindingsTable(false, enc)
-    local b = bindings and bindings[sid]
+    if not bindings then return nil end
+    local b = bindings[sid]
+    if b == nil and ns.BOSSMOD_KEY_TO_JOURNAL then
+        local jid = ns.BOSSMOD_KEY_TO_JOURNAL[sid]
+        if jid then b = bindings[jid] end
+    end
+    return b
+end
+
+function ns.AbilityEnabledForBinding(enc, sid)
+    local b = ns.BindingForBossModKey(enc, sid)
     if b and b.enabled ~= nil then return b.enabled end
     return (ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid]) and true or false
 end
@@ -2492,8 +2506,7 @@ local function FireBigWigsAbility(sid)
     -- combat log, see CheckCustomReminders) is the only thing that fires for it -- the
     -- generic priority pick steps aside rather than showing alongside it.
     do
-        local bindings = AbilityBindingsTable(false, currentEncounter)
-        local binding = bindings and bindings[sid]
+        local binding = ns.BindingForBossModKey(currentEncounter, sid)
         if binding and binding.mode == "custom" then return end
     end
     if not isTank then return end

@@ -114,3 +114,11 @@ ns.TANK_ABILITIES = {
     [1298367] = "Unknown",   -- Ula'tek: Mother's Wrath
 }
 
+-- BigWigs broadcasts its stable option key, which is not always the id the Dungeon
+-- Journal lists for the same mechanic -- and Setup's per-ability store is keyed by the
+-- journal id. Broadcast key -> journal id for the confirmed mismatches, so the engine
+-- can still find the player's Setup choices for them.
+ns.BOSSMOD_KEY_TO_JOURNAL = {
+    [1292036] = 1284103,   -- Nek'zali the Soulcoiler: Possession Barrage
+}
+
