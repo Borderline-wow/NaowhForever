@@ -14,9 +14,9 @@
 --  the tank-buster engine already uses, just with an extra yes/no check before
 --  showing anything.
 --
---  Phase 1: data model, scheduling, targeting, and a Text display only. No authoring
---  UI yet -- reminders are hand-authored via the /nrrtest command below until the
---  real editor (a later phase) lands. Icon/Bar/Circle displays are later phases too.
+--  Phases 1-4: data model, scheduling, targeting, and all four displays. No authoring
+--  UI yet -- reminders are hand-authored via the /nrrtest command below until the real
+--  editor (a later phase) lands.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhUITankReminder
 if not ns then return end
@@ -79,6 +79,8 @@ end
 local ANCHOR_DEFAULT_POS = {
     text = { x = 0, y = 40 },
     icon = { x = 120, y = 40 },
+    bar = { x = 0, y = -60 },
+    circle = { x = 120, y = -60 },
 }
 
 local anchors = {}   -- [displayType] = frame, .pool = {}, .active = {}
@@ -97,8 +99,9 @@ local function GetAnchor(displayType)
 end
 
 -- Stacks active regions top-to-bottom under the anchor, most-recently-added first --
--- fixed for Phase 1 (Text only ever has one slot in practice); Icon/Bar's own phase
--- will need a real grow-direction setting, not this hardcoded loop.
+-- same function for all four display types, since each has its own Anchor and never
+-- stacks against a different type. Fixed top-down for now; a real grow-direction
+-- setting (the authoring UI's per-anchor gear window) is a later phase, not this loop.
 local function RestackRegions(a)
     local y = 0
     for i = 1, #a.active do
@@ -145,7 +148,77 @@ local function CreateIconRegion(a)
     return r
 end
 
-local REGION_CTORS = { text = CreateTextRegion, icon = CreateIconRegion }
+-- LibSharedMedia lookup, same source NaowhMedia (NaowhUI_SmartReminders.lua) reads --
+-- duplicated rather than exported: six lines, no state, not worth a cross-file call for.
+local function StatusBarTexture()
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if not LSM then return nil end
+    local ok, path = pcall(LSM.Fetch, LSM, "statusbar", "NaowhGradient", true)
+    return ok and path or nil
+end
+
+-- Styled like the tank-buster CreateBar (NaowhUI_SmartReminders.lua) -- same texture,
+-- same bg/fill colors -- but genuinely counts down here (that bar is a static 1-slot
+-- display with nothing driving its value live). expirationTime/OnUpdate are this
+-- region's own; set fresh by ns.DisplayRaidReminder on every acquire, so a pooled
+-- region picked back up for a new reminder starts counting down from the new value the
+-- moment OnUpdate's next tick runs, never from whatever the last reminder left behind.
+local BAR_WIDTH, BAR_HEIGHT = 240, 16
+local function CreateBarRegion(a)
+    local r = CreateFrame("Frame", nil, a)
+    r:SetSize(BAR_WIDTH, BAR_HEIGHT + 16)
+
+    r.label = ns.Font(r, 12, "OUTLINE")
+    r.label:SetPoint("TOP", r, "TOP", 0, 0)
+
+    r.bar = CreateFrame("StatusBar", nil, r)
+    r.bar:SetSize(BAR_WIDTH, BAR_HEIGHT)
+    r.bar:SetPoint("BOTTOM", r, "BOTTOM", 0, 0)
+    r.bar:SetMinMaxValues(0, 1)
+    r.bar:SetStatusBarTexture(StatusBarTexture() or "Interface\\TargetingFrame\\UI-StatusBar")
+    local T = ns.THEME
+    local bg = r.bar:CreateTexture(nil, "BACKGROUND")
+    bg:SetPoint("TOPLEFT", r.bar, "TOPLEFT", -1, 1)
+    bg:SetPoint("BOTTOMRIGHT", r.bar, "BOTTOMRIGHT", 1, -1)
+    bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9)
+    local fill = r.bar:GetStatusBarTexture()
+    if fill then fill:SetVertexColor(T.gold.r, T.gold.g, T.gold.b, 1) end
+    ns.Border(r.bar)
+
+    r:Hide()
+    return r
+end
+
+-- The standard Blizzard cooldown-swipe widget -- the same primitive every action button
+-- uses, so the pie-wipe reads exactly like every other cooldown on screen instead of a
+-- hand-rolled lookalike. A plain square backdrop behind it is enough: the swipe texture
+-- itself is what makes a square frame read as a circle, same as any action button icon.
+local CIRCLE_SIZE = 56
+local function CreateCircleRegion(a)
+    local r = CreateFrame("Frame", nil, a)
+    r:SetSize(CIRCLE_SIZE, CIRCLE_SIZE + 18)
+
+    local backdrop = r:CreateTexture(nil, "ARTWORK")
+    backdrop:SetSize(CIRCLE_SIZE, CIRCLE_SIZE)
+    backdrop:SetPoint("TOP", r, "TOP", 0, 0)
+    local T = ns.THEME
+    backdrop:SetColorTexture(T.gold.r, T.gold.g, T.gold.b, 1)
+
+    r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
+    r.swipe:SetAllPoints(backdrop)
+    r.swipe:SetHideCountdownNumbers(false)
+
+    r.label = ns.Font(r, 12, "OUTLINE")
+    r.label:SetPoint("TOP", backdrop, "BOTTOM", 0, -2)
+
+    r:Hide()
+    return r
+end
+
+local REGION_CTORS = {
+    text = CreateTextRegion, icon = CreateIconRegion,
+    bar = CreateBarRegion, circle = CreateCircleRegion,
+}
 
 local function AcquireRegion(displayType)
     local a = GetAnchor(displayType)
@@ -169,6 +242,11 @@ function ns.DisplayRaidReminder(entry)
             tostring(display.type)))
         return
     end
+
+    -- Computed here, not after the type dispatch below: Bar/Circle need it to drive
+    -- their own live countdown, and the release timer at the bottom needs the SAME
+    -- value so a bar's visual countdown and the moment it actually disappears agree.
+    local dur = (type(display.dur) == "number" and display.dur > 0) and display.dur or 4
 
     if display.type == "text" then
         r.text:SetText(display.text or "")
@@ -198,13 +276,24 @@ function ns.DisplayRaidReminder(entry)
         else
             r.label:Hide()
         end
+    elseif display.type == "bar" then
+        r.label:SetText(display.text or "")
+        r.bar.expirationTime = GetTime() + dur
+        r.bar:SetMinMaxValues(0, dur)
+        r.bar:SetValue(dur)
+        r.bar:SetScript("OnUpdate", function(self)
+            local remain = self.expirationTime - GetTime()
+            self:SetValue(remain > 0 and remain or 0)
+        end)
+    elseif display.type == "circle" then
+        r.label:SetText(display.text or "")
+        r.swipe:SetCooldown(GetTime(), dur)
     end
 
     r:Show()
     RestackRegions(a)
     ns.PlayReminderSound(display)
 
-    local dur = (type(display.dur) == "number" and display.dur > 0) and display.dur or 4
     if r.hideTimer then r.hideTimer:Cancel() end
     r.hideTimer = C_Timer.NewTimer(dur, function() ReleaseRegion(a, r) end)
 end
@@ -273,14 +362,15 @@ SlashCmdList["NAOWHUIRAIDREMINDERTEST"] = function(msg)
     for w in msg:gmatch("%S+") do words[#words + 1] = w end
     local spellID = tonumber(words[1])
     if not spellID then
-        ns.Print("usage: /nrrtest <bigwigs spellid> [leadtime] [text|icon] [label]")
+        ns.Print("usage: /nrrtest <bigwigs spellid> [leadtime] [text|icon|bar|circle] [label]")
         return
     end
     local next_ = 2
     local leadTime = tonumber(words[2])
     if leadTime then next_ = 3 end
     local displayType = "text"
-    if words[next_] == "text" or words[next_] == "icon" then
+    if words[next_] == "text" or words[next_] == "icon"
+        or words[next_] == "bar" or words[next_] == "circle" then
         displayType = words[next_]
         next_ = next_ + 1
     end
