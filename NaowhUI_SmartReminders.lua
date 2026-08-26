@@ -2650,11 +2650,15 @@ local function OnDBMEvent(event, ...)
     -- Same reasoning as OnBigWigsEvent above: cataloguing ignores hasCustomReminders,
     -- since that gate is precisely what a picker needs to work around, and still
     -- respects CustomRemindersAllowed.
+    -- The primary engine, the curated list and Setup's rows all speak BigWigs ids, and
+    -- DBM keys several of the same warnings by a different id (ns.DBM_TO_BIGWIGS) --
+    -- normalized only for HandleBigWigsAbility, while cataloguing and custom-reminder
+    -- matching keep DBM's raw id, since that is what DBM actually broadcasts.
     if event == "DBM_Announce" then
         local _, _, _, spellId = ...
         if issecretvalue and issecretvalue(spellId) then return end
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, nil, "message") end
-        ns.HandleBigWigsAbility(spellId)
+        ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId)
         if not hasCustomReminders then return end
         CheckBossModMessage("DBM", spellId)
     elseif event == "DBM_TimerBegin" or event == "DBM_TimerStart" then
@@ -2663,7 +2667,7 @@ local function OnDBMEvent(event, ...)
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, msg, "timer") end
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
-        ns.HandleBigWigsAbility(spellId, duration, id)
+        ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
         if not hasCustomReminders then return end
         CheckBossModTimerStart("DBM", spellId, id, duration, msg)
     elseif event == "DBM_TimerStop" or event == "DBM_TimerPause" then

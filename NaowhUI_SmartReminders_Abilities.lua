@@ -30,29 +30,30 @@ local ns = _G.NaowhUITankReminder
 if not ns then return end
 
 ns.TANK_ABILITIES = {
+    -- Every id below was audited against the installed BigWigs/LittleWigs and DBM module
+    -- source on 2026-08-26. Ids NEITHER mod ever broadcasts were removed (Frigid Shard
+    -- 372808, Chaos Barrage 1230298, Warden's Wrath 1239821, Forceful Slam 1297797,
+    -- Heart Attack 268007, Tainted Strike 1303446 -- aura-sound only in BigWigs, a TODO
+    -- in DBM -- and Searing Beak's aura twin 466091), since the engine can only fire on
+    -- a broadcast key. Do not re-add them from the sheet without rechecking the modules.
     [265910] = "Physical",   -- The Golden Serpent: Tail Thrash
     [266237] = "Physical",   -- The Council of Tribes: Debilitating Backhand
     [268586] = "Physical",   -- Dazar, The First King: Blade Combo
-    [372808] = "Physical",   -- Melidrussa Chillworn: Frigid Shard
     [372858] = "Mixed",   -- Kokia Blazehoof: Searing Blows
     [381512] = "Mixed",   -- Kyrakka and Erkhart Stormvein: Stormslam
     [473898] = "Physical",   -- Xathuux the Annihilator: Legion Strike
     [1222642] = "Magical",   -- Atroxus: Hulking Claw
     [1222795] = "Mixed",   -- Zaen Bladesorrow: Envenom
-    [1230298] = "Magical",   -- Kystia Manaheart: Chaos Barrage
     [1234753] = "Mixed",   -- Lightblossom Trinity: Bedrock Slam
-    [1239821] = "Magical",   -- Lightwarden Ruia: Warden's Wrath
     [1247685] = "Mixed",   -- Ziekket: Thornspike
-    [1288428] = "Mixed",   -- Adderis and Aspix: Overload
+    [1311804] = "Mixed",   -- Adderis and Aspix: Overload (was 1288428; BigWigs bars 1311804)
     [1290797] = "Mixed",   -- Merektha: Lightning Bite
     [1296220] = "Magical",   -- Rav'i: Triple Shot
     [1297017] = "Magical",   -- Taz'Rah: Void Blast
-    [1297797] = "Physical",   -- Nalorakk: Forceful Slam
     [1298949] = "Physical",   -- The Writhing Coil: Tail Scythe
     [1301350] = "Physical",   -- Zul'jan: Chop Down
-    [1303039] = "Physical",   -- Dazar, The First King: Hunting Leap
-    [1303446] = "Mixed",   -- Avatar of Sethraliss: Tainted Strike
-    [1303490] = "Physical",   -- Dazar, The First King: Savage Maul
+    [269230] = "Physical",   -- Dazar, The First King: Hunting Leap (was aura id 1303039)
+    [1303488] = "Physical",   -- Dazar, The First King: Savage Maul (was aura id 1303490)
     [1311923] = "Magical",   -- Charonus: Dark Waves
 
     -- Marked as tank hits in publicly available community boss research; damage
@@ -66,9 +67,7 @@ ns.TANK_ABILITIES = {
     [1251554] = "Unknown",   -- Vor'daza: Drain Soul
     [1253950] = "Unknown",   -- Emberdawn: Searing Rend
     [1268562] = "Unknown",   -- Nymrissa Wavecaller: Water Jet (Mythic only)
-    [466091] = "Unknown",   -- Emberdawn: Searing Beak
     [1267049] = "Unknown",   -- Midnight Falls: Heaven's Lance
-    [268007] = "Unknown",   -- Avatar of Sethraliss: Heart Attack
     [1221781] = "Unknown",   -- Rotmire: Putrid Fist
     [1233787] = "Unknown",   -- Crown of the Cosmos: Dark Hand
     [1245645] = "Unknown",   -- Vaelgor & Ezzorak: Rakfang
@@ -120,5 +119,19 @@ ns.TANK_ABILITIES = {
 -- can still find the player's Setup choices for them.
 ns.BOSSMOD_KEY_TO_JOURNAL = {
     [1292036] = 1284103,   -- Nek'zali the Soulcoiler: Possession Barrage
+}
+
+-- DBM keys some of the same warnings by a different spell id than BigWigs, usually the
+-- debuff/aura id (Possession Barrage's is deliberate on DBM's side: 1292036 has no
+-- tooltip, their module says so). The engine, the curated list and Setup's rows all
+-- speak BigWigs ids, so DBM timer ids are normalized through this map before
+-- ns.HandleBigWigsAbility. DBM's Emberdawn module tracks no Searing Rend at all, so
+-- 1253950 stays BigWigs-only.
+ns.DBM_TO_BIGWIGS = {
+    [1241836] = 1241692,   -- Vorasius: Shadowclaw Slam
+    [1288484] = 1288538,   -- The Twin Fangs: Stone Breaker
+    [1253024] = 1250803,   -- Fallen-King Salhadaar: Shattering Twilight
+    [1287227] = 1307279,   -- The Coiled Altar: Blighted Sever
+    [1284103] = 1292036,   -- Nek'zali the Soulcoiler: Possession Barrage
 }
 
