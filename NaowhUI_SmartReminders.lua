@@ -969,6 +969,7 @@ local function PerBossSet(field, create, enc)
     end
     return t[field][key]
 end
+ns.PerBossSet = PerBossSet
 
 -- Boss-scoped custom reminders, independent of the timeline-fingerprint system: each one
 -- carries its own trigger (pull, a spell cast/aura) rather than riding an existing marked
@@ -2020,6 +2021,10 @@ local function InEncounter()
     end
     return currentEncounter ~= nil
 end
+ns.InEncounter = InEncounter
+ns.AllowedHere = AllowedHere
+ns.BossAllowed = BossAllowed
+function ns.CurrentEncounter() return currentEncounter end
 
 -- Every specialization. The role is still resolved because the optional tank filter needs
 -- it, but it no longer gates whether the feature runs at all.
@@ -2704,7 +2709,38 @@ end
 -- fire proximity check below it, which compares two NOT-YET-fired schedules against
 -- each other to catch a cross-mod duplicate of the same upcoming hit; that check alone
 -- is what lets Vorasius' two genuinely concurrent Slam bars both still schedule.
-local pendingBWFires = {}   -- [sid] = { [identity] = {fireAt, timer} }
+-- Channel-namespaced so the tank-buster engine and the raid-reminder engine (a separate
+-- feature, NaowhUI_SmartReminders_RaidReminders.lua) never collide when both have a
+-- pending fire for the same sid+barIdentity -- each channel's own timers are independent.
+local pendingBWFires = { tank = {} }   -- [channel][sid] = { [identity] = {fireAt, timer} }
+
+-- The scheduling primitive itself: waits out a BigWigs/DBM bar to fire `lead` seconds
+-- before it ends, same duplicate/resync handling regardless of which feature is calling.
+-- Exported (ns.ScheduleBWFire) so the raid-reminder engine gets the identical, proven
+-- concurrent-bar/cross-mod-duplicate handling instead of a second hand-rolled copy that
+-- could drift out of sync with this one on some BigWigs edge case only one of them hits.
+function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
+    local fires = pendingBWFires[channel]
+    if not fires then fires = {} pendingBWFires[channel] = fires end
+    local sidFires = fires[sid]
+    if not sidFires then sidFires = {} fires[sid] = sidFires end
+    local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
+    local key = barIdentity or false
+    local fireAt = GetTime() + delay
+    local old = sidFires[key]
+    if old then
+        if old.timer.Cancel then old.timer:Cancel() end   -- the same bar, resynced
+    else
+        for _, f in pairs(sidFires) do
+            if math.abs(f.fireAt - fireAt) < 2 then return end
+        end
+    end
+    sidFires[key] = { fireAt = fireAt, timer = C_Timer.NewTimer(delay, function()
+        sidFires[key] = nil
+        fireFn(sid)
+    end) }
+end
+
 function ns.HandleBigWigsAbility(sid, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
@@ -2713,24 +2749,10 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity)
 
     if type(duration) == "number" and duration > 0.5 then
         local lead = ns.LeadTimeFor(currentEncounter, sid)
-        local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
-        local fires = pendingBWFires[sid]
-        if not fires then fires = {} pendingBWFires[sid] = fires end
-        local key = barIdentity or false
-        local fireAt = GetTime() + delay
-        local old = fires[key]
-        if old then
-            if old.timer.Cancel then old.timer:Cancel() end   -- the same bar, resynced
-        else
-            for _, f in pairs(fires) do
-                if math.abs(f.fireAt - fireAt) < 2 then return end
-            end
-        end
-        fires[key] = { fireAt = fireAt, timer = C_Timer.NewTimer(delay, function()
-            fires[key] = nil
-            lastBWSid, lastBWAt = sid, GetTime()
-            FireBigWigsAbility(sid)
-        end) }
+        ns.ScheduleBWFire("tank", sid, duration, barIdentity, lead, function(fireSid)
+            lastBWSid, lastBWAt = fireSid, GetTime()
+            FireBigWigsAbility(fireSid)
+        end)
     else
         lastBWSid, lastBWAt = sid, GetTime()
         FireBigWigsAbility(sid)
@@ -2740,25 +2762,30 @@ end
 -- A bar that stops or pauses before its own scheduled fire has to cancel that fire too,
 -- the same as the custom-reminder bwtimer trigger already does for itself -- otherwise the
 -- callout lands seconds later for a cast that was interrupted or resynced away, which reads
--- as an unprompted call for an ability that was never actually coming.
+-- as an unprompted call for an ability that was never actually coming. Walks every
+-- channel: a bar stopping is real for every feature listening to it, not just tank busters.
 local function CancelPendingBWFire(barIdentity)
     if barIdentity == nil then return end
     for _, fires in pairs(pendingBWFires) do
-        local f = fires[barIdentity]
-        if f then
-            if f.timer.Cancel then f.timer:Cancel() end
-            fires[barIdentity] = nil
+        for _, sidFires in pairs(fires) do
+            local f = sidFires[barIdentity]
+            if f then
+                if f.timer.Cancel then f.timer:Cancel() end
+                sidFires[barIdentity] = nil
+            end
         end
     end
 end
 
 local function CancelAllPendingBWFires()
-    for sid, fires in pairs(pendingBWFires) do
-        for key, f in pairs(fires) do
-            if f.timer.Cancel then f.timer:Cancel() end
-            fires[key] = nil
+    for _, fires in pairs(pendingBWFires) do
+        for sid, sidFires in pairs(fires) do
+            for key, f in pairs(sidFires) do
+                if f.timer.Cancel then f.timer:Cancel() end
+                sidFires[key] = nil
+            end
+            fires[sid] = nil
         end
-        pendingBWFires[sid] = nil
     end
 end
 
@@ -2778,6 +2805,7 @@ local function OnBigWigsEvent(event, ...)
         if issecretvalue and (issecretvalue(key) or issecretvalue(text)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "message") end
         ns.HandleBigWigsAbility(key)
+        if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key) end
         if not hasCustomReminders then return end
         CheckBossModMessage("BW", key)
     elseif event == "BigWigs_StartBar" then
@@ -2787,6 +2815,7 @@ local function OnBigWigsEvent(event, ...)
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
         ns.HandleBigWigsAbility(key, duration, text)
+        if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
     elseif event == "BigWigs_Timer" then
@@ -2800,6 +2829,7 @@ local function OnBigWigsEvent(event, ...)
         end
         if isBarEnabled then return end
         ns.HandleBigWigsAbility(key, duration, text)
+        if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
     elseif event == "BigWigs_StopBar" or event == "BigWigs_PauseBar" then
@@ -2835,6 +2865,9 @@ local function OnDBMEvent(event, ...)
         if issecretvalue and issecretvalue(spellId) then return end
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, nil, "message") end
         ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId)
+        if ns.HandleRaidReminderAbility then
+            ns.HandleRaidReminderAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId)
+        end
         if not hasCustomReminders then return end
         CheckBossModMessage("DBM", spellId)
     elseif event == "DBM_TimerBegin" or event == "DBM_TimerStart" then
@@ -2844,6 +2877,9 @@ local function OnDBMEvent(event, ...)
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
         ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
+        if ns.HandleRaidReminderAbility then
+            ns.HandleRaidReminderAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
+        end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("DBM", spellId, id, duration, msg)
     elseif event == "DBM_TimerStop" or event == "DBM_TimerPause" then

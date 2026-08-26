@@ -20,6 +20,12 @@ NaowhUI_SmartReminders_Abilities.lua
 
 NaowhUI_SmartReminders.lua
 
+# Raid-wide external/CD reminders, assignable to a role/class/spec/name/subgroup rather
+# than the local player only -- built on the same BigWigs/DBM bar bridge the main file
+# already runs for tank busters (ns.ScheduleBWFire), not a second one. Loads after the
+# main file, which owns that bridge and the per-boss-set helper this hangs off.
+NaowhUI_SmartReminders_RaidReminders.lua
+
 # Shareable Reminder Packs: a curator's lists, priorities and written reminders as
 # one string, with preview-before-apply. Loads after the runtime it packages.
 NaowhUI_SmartReminders_Packs.lua
