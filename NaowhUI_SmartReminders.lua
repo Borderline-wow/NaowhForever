@@ -984,12 +984,14 @@ local function BossModCatalogueTable(create, enc)
 end
 ns.BossModCatalogueTable = BossModCatalogueTable
 
--- Per-ability bindings, keyed by the Dungeon Journal's own spellID (the DISPLAY spell --
--- see NaowhUI_SmartReminders_Bosses.lua's own header note on why that's a different
--- identity than a fingerprint or a BigWigs/DBM key, and why the three don't join).
--- profile.abilityBindings[encounterID][journalSpellID] = { enabled = bool, ... }. Stage 1
--- only ever writes `enabled`; a per-ability defensive preset override and a bound custom
--- reminder are the next things this carries, once that page exists.
+-- Per-ability bindings, keyed by whatever spell id Setup's row displays for that ability --
+-- the journal id for a boss with no BigWigs module installed, the BigWigs option id when
+-- one is (NaowhUI_SmartReminders_Bosses.lua's BigWigsAbilities). Never read or written
+-- directly outside this file's own resolvers, ns.BindingForBossModKey (read) and
+-- ns.EnsureBinding (write) -- both bridge the two id spaces via ns.BOSSMOD_KEY_TO_JOURNAL
+-- for the confirmed mismatches, so a stale binding from before an id correction is found
+-- (and migrated forward on write) instead of silently orphaned.
+-- profile.abilityBindings[encounterID][spellID] = { enabled = bool, mode, preset }.
 local function AbilityBindingsTable(create, enc)
     return PerBossSet("abilityBindings", create, enc)
 end
@@ -2469,11 +2471,14 @@ local lastBWSid, lastBWAt = nil, 0
 -- regression the moment this ships.
 -- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling
 -- (luac -p catches it directly), and a table field costs nothing there.
--- Setup writes bindings under the JOURNAL spell id (its rows render from the journal
--- scrape), while every sid reaching the engine is the BigWigs/DBM broadcast key -- not
--- always the same id (ns.BOSSMOD_KEY_TO_JOURNAL has the confirmed mismatches). All
--- engine-side binding reads go through this resolver so a mismatched pair still finds
--- the player's Setup choice instead of silently falling back to defaults.
+-- Setup's rows are keyed by whatever spell id the row displays -- the journal id for a
+-- boss with no BigWigs module installed, the BigWigs option id when one is (see
+-- BigWigsAbilities in Bosses.lua) -- and those two id spaces are not always the same
+-- (ns.BOSSMOD_KEY_TO_JOURNAL has the confirmed mismatches). Every sid reaching the
+-- engine is always the BigWigs/DBM broadcast key, so all engine-side binding reads go
+-- through this resolver, and Setup's own writes go through ns.EnsureBinding below, so a
+-- mismatched pair still finds the player's Setup choice instead of silently falling back
+-- to defaults.
 function ns.BindingForBossModKey(enc, sid)
     local bindings = AbilityBindingsTable(false, enc)
     if not bindings then return nil end
@@ -2483,6 +2488,25 @@ function ns.BindingForBossModKey(enc, sid)
         if jid then b = bindings[jid] end
     end
     return b
+end
+
+-- Write-side counterpart: Setup's checkbox and per-ability cog both need a binding
+-- table to write into for a row's spellID. A plain "or {}" there would shadow an
+-- existing binding still saved under the journal alias (e.g. anyone who had Possession
+-- Barrage configured before its curated id moved to BigWigs' 1292036) with a fresh,
+-- empty table the moment the row is touched, orphaning the old preset/mode/enabled
+-- choice with no error and no warning. This migrates it onto the new key instead.
+function ns.EnsureBinding(enc, sid)
+    local bindings = AbilityBindingsTable(true, enc)
+    if bindings[sid] then return bindings[sid] end
+    local jid = ns.BOSSMOD_KEY_TO_JOURNAL and ns.BOSSMOD_KEY_TO_JOURNAL[sid]
+    if jid and bindings[jid] then
+        bindings[sid] = bindings[jid]
+        bindings[jid] = nil
+        return bindings[sid]
+    end
+    bindings[sid] = {}
+    return bindings[sid]
 end
 
 function ns.AbilityEnabledForBinding(enc, sid)
@@ -2583,13 +2607,22 @@ end
 -- dropped one of the two hits. The same hit arriving from the OTHER boss mod carries a
 -- different identity but lands at the same moment, so a new fire landing within 2s of
 -- one already pending for the sid is the duplicate to skip; a genuinely staggered second
--- bar schedules alongside. The 3s repeat guard applies to immediate (no-duration) fires
--- against the last fire that actually happened, no longer to bar starts.
+-- bar schedules alongside. The 3s repeat guard against the last fire that ACTUALLY
+-- happened (lastBWSid/lastBWAt, only ever updated at the moment FireBigWigsAbility
+-- itself runs, never at schedule time) applies up front regardless of branch, so a
+-- module that broadcasts both an immediate Message and a StartBar for the one real
+-- cast -- confirmed as a real BigWigs pattern, e.g. Entombed Sentinels' Empowering
+-- Slam pairs a CDBar with a same-key Message -- does not schedule a second callout
+-- for the one that already fired. This is a different question from the 2s pending-
+-- fire proximity check below it, which compares two NOT-YET-fired schedules against
+-- each other to catch a cross-mod duplicate of the same upcoming hit; that check alone
+-- is what lets Vorasius' two genuinely concurrent Slam bars both still schedule.
 local pendingBWFires = {}   -- [sid] = { [identity] = {fireAt, timer} }
 function ns.HandleBigWigsAbility(sid, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if not (ShouldRun() and InEncounter()) then return end
+    if sid == lastBWSid and (GetTime() - lastBWAt) < 3 then return end
 
     if type(duration) == "number" and duration > 0.5 then
         local lead = TRDB().leadTime or 3
@@ -2612,9 +2645,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity)
             FireBigWigsAbility(sid)
         end) }
     else
-        local now = GetTime()
-        if sid == lastBWSid and (now - lastBWAt) < 3 then return end
-        lastBWSid, lastBWAt = sid, now
+        lastBWSid, lastBWAt = sid, GetTime()
         FireBigWigsAbility(sid)
     end
 end

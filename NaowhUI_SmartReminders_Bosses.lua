@@ -302,6 +302,11 @@ local function LoadBossModPacks()
 end
 
 local function BigWigsOptionList(encounterID)
+    -- Some journal rows carry no dungeonEncounterID (EJ_GetEncounterInfo's 7th return can
+    -- be nil) -- a nil TABLE WRITE below would throw, unlike the read just above, which
+    -- Lua allows. Nothing to look up without an id anyway; falls through to the journal
+    -- listing the same as "no module found" does.
+    if encounterID == nil then return nil end
     local cached = bwOptionCache[encounterID]
     if cached ~= nil then return cached or nil end
     LoadBossModPacks()
@@ -1834,9 +1839,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local TAB_TOP = -46
 
     local boundUid, boundReminder = FindBoundReminder(encounterID, ability.spellID)
-    local bindings = ns.AbilityBindingsTable(true, encounterID)
-    bindings[ability.spellID] = bindings[ability.spellID] or {}
-    local binding = bindings[ability.spellID]
+    local binding = ns.EnsureBinding(encounterID, ability.spellID)
     -- Custom Reminder mode is pulled from Setup for now (Robin: focus this test round on
     -- Pre-Selected Defensives) -- forced on regardless of any existing binding.mode, and
     -- the toggle that used to switch it is gone below. CustomRemindersTable/Save's custom
@@ -2128,9 +2131,7 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     check:SetChecked(enabled)
     check:SetScript("OnClick", function(self)
         if not ability.spellID then self:SetChecked(false); return end
-        local set = ns.AbilityBindingsTable(true, encounterID)
-        set[ability.spellID] = set[ability.spellID] or {}
-        set[ability.spellID].enabled = self:GetChecked() and true or false
+        ns.EnsureBinding(encounterID, ability.spellID).enabled = self:GetChecked() and true or false
         ns.RefreshRuntime()
     end)
 
