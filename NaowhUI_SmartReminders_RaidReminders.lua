@@ -78,6 +78,7 @@ end
 -------------------------------------------------------------------------------
 local ANCHOR_DEFAULT_POS = {
     text = { x = 0, y = 40 },
+    icon = { x = 120, y = 40 },
 }
 
 local anchors = {}   -- [displayType] = frame, .pool = {}, .active = {}
@@ -127,7 +128,24 @@ local function CreateTextRegion(a)
     return r
 end
 
-local REGION_CTORS = { text = CreateTextRegion }
+-- Icon inset matches CreateSlot's (NaowhUI_SmartReminders.lua) own texture coords --
+-- same reason: crops the icon's own border art rather than showing it doubled up
+-- against this region's border.
+local ICON_SIZE = 48
+local function CreateIconRegion(a)
+    local r = CreateFrame("Frame", nil, a)
+    r:SetSize(ICON_SIZE, ICON_SIZE + 18)
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.icon:SetSize(ICON_SIZE, ICON_SIZE)
+    r.icon:SetPoint("TOP", r, "TOP", 0, 0)
+    r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    r.label = ns.Font(r, 12, "OUTLINE")
+    r.label:SetPoint("TOP", r.icon, "BOTTOM", 0, -2)
+    r:Hide()
+    return r
+end
+
+local REGION_CTORS = { text = CreateTextRegion, icon = CreateIconRegion }
 
 local function AcquireRegion(displayType)
     local a = GetAnchor(displayType)
@@ -159,6 +177,26 @@ function ns.DisplayRaidReminder(entry)
                 display.color.b or 1, display.color.a or 1)
         else
             r.text:SetTextColor(1, 1, 1, 1)
+        end
+    elseif display.type == "icon" then
+        -- Same two-step icon resolution CreateSlot already uses: GetSpellInfo first
+        -- (nothing for a spell the client has not cached yet), GetSpellTexture as a
+        -- second try, the question mark as the last resort -- never a blank icon.
+        local iconID
+        if display.spellID then
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(display.spellID)
+            iconID = info and info.iconID
+            if not iconID and C_Spell and C_Spell.GetSpellTexture then
+                local ok, tex = pcall(C_Spell.GetSpellTexture, display.spellID)
+                if ok then iconID = tex end
+            end
+        end
+        r.icon:SetTexture(iconID or 134400)
+        if display.text and display.text ~= "" then
+            r.label:SetText(display.text)
+            r.label:Show()
+        else
+            r.label:Hide()
         end
     end
 
@@ -231,20 +269,31 @@ SlashCmdList["NAOWHUIRAIDREMINDERTEST"] = function(msg)
         ns.Print("not in an encounter -- pull the boss first, then run this.")
         return
     end
-    local spellID, leadTime, text = msg:match("^(%d+)%s*(%d*)%s*(.*)$")
-    spellID = tonumber(spellID)
+    local words = {}
+    for w in msg:gmatch("%S+") do words[#words + 1] = w end
+    local spellID = tonumber(words[1])
     if not spellID then
-        ns.Print("usage: /nrrtest <bigwigs spellid> [leadtime] [text]")
+        ns.Print("usage: /nrrtest <bigwigs spellid> [leadtime] [text|icon] [label]")
         return
     end
+    local next_ = 2
+    local leadTime = tonumber(words[2])
+    if leadTime then next_ = 3 end
+    local displayType = "text"
+    if words[next_] == "text" or words[next_] == "icon" then
+        displayType = words[next_]
+        next_ = next_ + 1
+    end
+    local label = table.concat(words, " ", next_)
+
     local reminders = RaidRemindersTable(true, enc)
     reminders["test1"] = {
         name = "test", enabled = true,
-        trigger = { type = "bwtimer", spellID = spellID, leadTime = tonumber(leadTime) or 3 },
+        trigger = { type = "bwtimer", spellID = spellID, leadTime = leadTime or 3 },
         target = { kind = "all" },
-        display = { type = "text", text = (text ~= "" and text) or ("Use externals! (" .. spellID .. ")"),
-            dur = 4 },
+        display = { type = displayType, spellID = spellID,
+            text = (label ~= "" and label) or ("Use externals! (" .. spellID .. ")"), dur = 4 },
     }
-    ns.Print(("test raid reminder set for spell %d, %ss before the bar ends."):format(
-        spellID, tostring(tonumber(leadTime) or 3)))
+    ns.Print(("test raid reminder set for spell %d, %ss before the bar ends, display=%s."):format(
+        spellID, tostring(leadTime or 3), displayType))
 end
