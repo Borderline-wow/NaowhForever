@@ -1954,11 +1954,21 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     presetValues[presets[i].key] = presets[i].name
                     presetOrder[i] = presets[i].key
                 end
-                -- Shows the effective default (this boss's preset, else the spec's active
-                -- one) until this ability actually gets its own pick, matching the same
-                -- fallback EffectiveList itself uses at runtime.
-                presetVal = binding.preset or ns.BossPresetKey(specID, encounterID)
-                    or ns.ActivePresetKey(specID) or presetOrder[1]
+                -- Derived from binding.preset ONLY the first time this body is ever
+                -- built (presetVal starts nil, and no real preset key is ever nil) --
+                -- shows the effective default (this boss's preset, else the spec's
+                -- active one) until this ability actually gets its own pick, matching
+                -- the same fallback EffectiveList itself uses at runtime. A rebuild
+                -- triggered by the dropdown's OWN change must never re-derive this: it
+                -- would re-read binding.preset, still the OLD value until Save() runs,
+                -- and stomp the pick right back to it -- which is exactly what made the
+                -- dropdown look stuck on the old preset the instant a different one was
+                -- clicked (the same trap leadTimeBySpell's own init above already has to
+                -- dodge, just missed here when RebuildBody() was added to this one).
+                if presetVal == nil then
+                    presetVal = binding.preset or ns.BossPresetKey(specID, encounterID)
+                        or ns.ActivePresetKey(specID) or presetOrder[1]
+                end
                 Label("Defensive Preset")
                 -- Rebuilds on change: the per-defensive rows below are drawn from
                 -- whichever preset is picked, so switching presets has to refresh them.
