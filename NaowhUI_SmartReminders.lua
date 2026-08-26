@@ -182,12 +182,18 @@ end
 -- Every preset for this spec, name and key, in a stable creation-ish order (numerically by
 -- key where the key is one of ours -- "p1", "p2", ... -- which sorts sensibly since they
 -- are only ever appended, never renumbered).
+-- p.name falls back to something visibly a placeholder, never the bare internal key --
+-- every preset created through AddPreset gets a real name ("Preset 1", with a space; the
+-- key itself never has one), so a dropdown showing literally "p2" is a malformed entry,
+-- not a real choice, and should read as one rather than pass for a preset the player made.
 function ns.ListPresets(forSpec)
     local presets = PresetsTable(forSpec, false)
     local out = {}
     if not presets then return out end
     for key, p in pairs(presets) do
-        out[#out + 1] = { key = key, name = p.name or key }
+        local name = p.name
+        if type(name) ~= "string" or name == "" then name = "(unnamed " .. key .. ")" end
+        out[#out + 1] = { key = key, name = name }
     end
     table.sort(out, function(a, b) return a.key < b.key end)
     return out
@@ -2503,6 +2509,15 @@ function ns.EnsureBinding(enc, sid)
     return bindings[sid]
 end
 
+-- Setup's own "Warn This Many Seconds Early" slider is the base every ability uses;
+-- a per-ability override (set from that ability's own cog, Setup's boss picker) wins
+-- when present. Same one-level fallback shape as EffectiveList's boss/spec preset chain.
+function ns.LeadTimeFor(enc, sid)
+    local b = ns.BindingForBossModKey(enc, sid)
+    if b and b.leadTime ~= nil then return b.leadTime end
+    return TRDB().leadTime or 3
+end
+
 function ns.AbilityEnabledForBinding(enc, sid)
     local b = ns.BindingForBossModKey(enc, sid)
     if b and b.enabled ~= nil then return b.enabled end
@@ -2619,7 +2634,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity)
     if sid == lastBWSid and (GetTime() - lastBWAt) < 3 then return end
 
     if type(duration) == "number" and duration > 0.5 then
-        local lead = TRDB().leadTime or 3
+        local lead = ns.LeadTimeFor(currentEncounter, sid)
         local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
         local fires = pendingBWFires[sid]
         if not fires then fires = {} pendingBWFires[sid] = fires end
@@ -4004,7 +4019,8 @@ function ns.BuildCoreSettings(parent, y)
           tooltip = "How close to the hit the alert fires. The game announces abilities about "
           .. "five seconds out; the alert waits and fires this many seconds before impact, so "
           .. "lower is closer to the hit. When the game announces later than this, the alert "
-          .. "fires immediately.",
+          .. "fires immediately. This is the BASE value every ability uses -- override it for "
+          .. "one specific ability from that ability's own cog on a boss's page.",
           getValue = function() return TRDB().leadTime or 3 end,
           setValue = function(v) TRDB().leadTime = v end }
     ); y = y - h
