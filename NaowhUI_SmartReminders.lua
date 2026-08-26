@@ -199,6 +199,15 @@ function ns.ListPresets(forSpec)
     return out
 end
 
+-- The actual priority list behind one preset key -- ns.ListPresets only hands back
+-- {key, name} pairs, not the list itself, which the per-defensive warning-time rows need
+-- to know which spells to show.
+function ns.PresetList(forSpec, presetKey)
+    local presets = PresetsTable(forSpec, false)
+    local p = presets and presetKey and presets[presetKey]
+    return p and type(p.list) == "table" and p.list or nil
+end
+
 -- Default name is "Preset N" for the lowest N not already in use, so deleting one and
 -- adding another does not produce a duplicate label.
 function ns.NextPresetName(forSpec)
@@ -2509,13 +2518,39 @@ function ns.EnsureBinding(enc, sid)
     return bindings[sid]
 end
 
--- Setup's own "Warn This Many Seconds Early" slider is the base every ability uses;
--- a per-ability override (set from that ability's own cog, Setup's boss picker) wins
--- when present. Same one-level fallback shape as EffectiveList's boss/spec preset chain.
+-- Setup's own "Warn This Many Seconds Early" slider is the base every ability uses; a
+-- per-DEFENSIVE override (set from that ability's own cog, next to that defensive on its
+-- preset list) wins when the defensive that would currently win the priority pick has
+-- one set.
+--
+-- The real pick only happens later, inside FireBigWigsAbility once the scheduled delay
+-- elapses -- re-evaluated then on purpose, since talents/cooldowns/an active defensive
+-- can all change across a multi-second bar. This runs the SAME winner search early
+-- (SpellReady, exactly what SpeakCallout's own pick uses) just to decide how long the
+-- schedule itself should wait; the preview can go stale between now and the real pick
+-- the same way the real pick can go stale relative to when the bar started, which is
+-- already an accepted characteristic of this whole design, not a new one.
+-- SpellReady is a PLAIN, non-secret readiness check (charges/CooldownRunning/readyAt),
+-- unlike ApplyPriorityAlpha's icon path, which is why this is legal to branch on here.
 function ns.LeadTimeFor(enc, sid)
-    local b = ns.BindingForBossModKey(enc, sid)
-    if b and b.leadTime ~= nil then return b.leadTime end
-    return TRDB().leadTime or 3
+    local base = TRDB().leadTime or 3
+    local binding = ns.BindingForBossModKey(enc, sid)
+    local perSpell = binding and binding.leadTimeBySpell
+    if type(perSpell) ~= "table" or not next(perSpell) then return base end
+
+    local list = EffectiveList(specID, enc, tostring(sid))
+    if type(list) == "table" then
+        local now = GetTime()
+        for i = 1, #list do
+            local spellID = list[i]
+            if IsSpellAvailable(spellID) and not IsSpellDisabled(spellID)
+                and SpellReady(spellID, now) then
+                if perSpell[spellID] ~= nil then return perSpell[spellID] end
+                break
+            end
+        end
+    end
+    return base
 end
 
 function ns.AbilityEnabledForBinding(enc, sid)
@@ -4019,8 +4054,9 @@ function ns.BuildCoreSettings(parent, y)
           tooltip = "How close to the hit the alert fires. The game announces abilities about "
           .. "five seconds out; the alert waits and fires this many seconds before impact, so "
           .. "lower is closer to the hit. When the game announces later than this, the alert "
-          .. "fires immediately. This is the BASE value every ability uses -- override it for "
-          .. "one specific ability from that ability's own cog on a boss's page.",
+          .. "fires immediately. This is the BASE value every defensive uses -- override "
+          .. "one specifically from an ability's own cog on a boss's page, next to that "
+          .. "defensive on its preset list.",
           getValue = function() return TRDB().leadTime or 3 end,
           setValue = function(v) TRDB().leadTime = v end }
     ); y = y - h
