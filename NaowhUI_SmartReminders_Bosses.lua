@@ -2061,8 +2061,26 @@ end
 -- every ability the Dungeon Journal lists for that boss -- journal icon, description
 -- and role flags (Tank/Dps/Healer) included, all data ns.ScrapeBosses already collects
 -- (boss.abilities).
+-- TEMPORARY diagnostic: raid boss abilities reportedly have no description at all now.
+-- One-shot per boss selection so switching boss/instance re-dumps rather than spamming
+-- every re-render. Remove once explained.
+local lastDescDiagBoss
 local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
+
+    if boss and boss.encounterID and lastDescDiagBoss ~= boss.encounterID then
+        lastDescDiagBoss = boss.encounterID
+        ns.Print(("|cffF0A830desc check|r %s (%d abilities)"):format(
+            boss.name or "?", #(boss.abilities or {})))
+        for i = 1, #(boss.abilities or {}) do
+            local a = boss.abilities[i]
+            local d = a.description
+            local sample = (type(d) == "string" and d ~= "") and d:sub(1, 30) or "EMPTY"
+            ns.Print(("  %s sid=%s len=%s [%s]"):format(
+                a.title or "?", tostring(a.spellID),
+                tostring(type(d) == "string" and #d or 0), sample))
+        end
+    end
 
     local topRow = CreateFrame("Frame", nil, parent)
     topRow:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
