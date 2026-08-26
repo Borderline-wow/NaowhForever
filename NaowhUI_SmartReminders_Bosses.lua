@@ -54,15 +54,22 @@ local FLAG_LABELS = {
 -- Blizzard_EncounterJournal is load-on-demand, so the EJ_ globals do not exist until
 -- something has opened it. We load it ourselves rather than telling the user to go and open
 -- the dungeon journal first.
+-- Second return is true only when THIS call is the one that just triggered the on-demand
+-- load -- confirmed live (raid boss descriptions came back empty on the session's first
+-- scrape, then correct after a reload) that scraping the instant the module loads can
+-- catch some of its data before the Journal has finished populating it. ScrapeBosses
+-- uses this to queue one silent re-scrape rather than leave a whole session stuck with
+-- whatever the cold first pass happened to catch.
 local function EnsureJournal()
     if EJ_GetCurrentTier and C_EncounterJournal and C_EncounterJournal.GetSectionInfo then
-        return true
+        return true, false
     end
     if C_AddOns and C_AddOns.LoadAddOn then
         pcall(C_AddOns.LoadAddOn, "Blizzard_EncounterJournal")
     end
-    return EJ_GetCurrentTier ~= nil and C_EncounterJournal ~= nil
+    local ok = EJ_GetCurrentTier ~= nil and C_EncounterJournal ~= nil
         and C_EncounterJournal.GetSectionInfo ~= nil
+    return ok, ok
 end
 
 -- EJ_SelectTier and EJ_SelectInstance mutate journal state that the Encounter Journal UI
@@ -80,6 +87,7 @@ end
 -- player who never opens this page pays nothing for it.
 local cache          -- { instances = { {id, name, isRaid, bosses = { {name, abilities} } } } }
 local scrapeFailed
+local rescrapeQueued
 -- Stage-by-stage record of the last scrape, so an empty panel can say WHICH step produced
 -- nothing rather than just looking broken. Read by /nutank bosses.
 local diag = {}
@@ -189,7 +197,8 @@ end
 
 function ns.ScrapeBosses(force)
     if cache and not force then return cache end
-    if not EnsureJournal() then scrapeFailed = "journal" return nil end
+    local journalOk, freshLoad = EnsureJournal()
+    if not journalOk then scrapeFailed = "journal" return nil end
     if JournalBusy() then scrapeFailed = "busy" return nil end
     scrapeFailed = nil
 
@@ -240,6 +249,23 @@ function ns.ScrapeBosses(force)
     if priorTier and EJ_SelectTier then EJ_SelectTier(priorTier) end
 
     cache = out
+
+    -- A module loaded on-demand this exact instant is not always fully populated yet.
+    -- One silent re-scrape a moment later catches up without the player needing to
+    -- notice or hit Refresh themselves. freshLoad is only ever true on the very first
+    -- scrape of a session (EnsureJournal reports the module as already loaded on any
+    -- later call, including this retry), so this can only ever queue once.
+    if freshLoad and not rescrapeQueued then
+        rescrapeQueued = true
+        C_Timer.After(2, function()
+            rescrapeQueued = false
+            if JournalBusy() then return end
+            ns.ScrapeBosses(true)
+            local EUI = _G.EllesmereUI
+            if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+        end)
+    end
+
     return cache
 end
 
@@ -2061,26 +2087,8 @@ end
 -- every ability the Dungeon Journal lists for that boss -- journal icon, description
 -- and role flags (Tank/Dps/Healer) included, all data ns.ScrapeBosses already collects
 -- (boss.abilities).
--- TEMPORARY diagnostic: raid boss abilities reportedly have no description at all now.
--- One-shot per boss selection so switching boss/instance re-dumps rather than spamming
--- every re-render. Remove once explained.
-local lastDescDiagBoss
 local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
-
-    if boss and boss.encounterID and lastDescDiagBoss ~= boss.encounterID then
-        lastDescDiagBoss = boss.encounterID
-        ns.Print(("|cffF0A830desc check|r %s (%d abilities)"):format(
-            boss.name or "?", #(boss.abilities or {})))
-        for i = 1, #(boss.abilities or {}) do
-            local a = boss.abilities[i]
-            local d = a.description
-            local sample = (type(d) == "string" and d ~= "") and d:sub(1, 30) or "EMPTY"
-            ns.Print(("  %s sid=%s len=%s [%s]"):format(
-                a.title or "?", tostring(a.spellID),
-                tostring(type(d) == "string" and #d or 0), sample))
-        end
-    end
 
     local topRow = CreateFrame("Frame", nil, parent)
     topRow:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
