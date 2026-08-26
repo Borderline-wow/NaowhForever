@@ -270,6 +270,118 @@ function ns.ScrapeBosses(force)
 end
 
 -------------------------------------------------------------------------------
+--  BigWigs ability lists
+-------------------------------------------------------------------------------
+-- The journal documents everything -- per-difficulty variants, sub-abilities, whole
+-- mechanics BigWigs never warns about -- so the flat journal listing carried rows whose
+-- checkbox could never do anything: the engine only ever receives what BigWigs actually
+-- broadcasts, and that set is the module's own option list. When a boss has a BigWigs
+-- module installed, the page lists exactly that (mod.toggleOptions, the same set
+-- BigWigs' own options UI shows), keyed by the ids the engine will receive. Bosses with
+-- no module keep the full journal listing.
+local bwOptionCache = {}   -- [dungeonEncounterID] = { {id, stage}, ... }, or false
+local bwPacksLoaded
+
+-- Content packs are LoadOnDemand and never loaded outside their own zone; BigWigs' own
+-- options UI force-loads them the same way when browsing. Core comes in through each
+-- pack's dependencies. First use only, from this page only -- the same lazy rule as the
+-- journal scrape. LittleWigs' expansion packs are included because the season's dungeon
+-- rotation reaches back into old expansions.
+local function LoadBossModPacks()
+    if bwPacksLoaded then return end
+    bwPacksLoaded = true
+    if not (C_AddOns and C_AddOns.LoadAddOn and C_AddOns.GetNumAddOns) then return end
+    for i = 1, C_AddOns.GetNumAddOns() do
+        local name = C_AddOns.GetAddOnInfo(i)
+        if type(name) == "string"
+            and (name:find("^BigWigs_") or name:find("^LittleWigs"))
+            and name ~= "BigWigs_Plugins" and name ~= "BigWigs_Options" then
+            C_AddOns.LoadAddOn(name)
+        end
+    end
+end
+
+local function BigWigsOptionList(encounterID)
+    local cached = bwOptionCache[encounterID]
+    if cached ~= nil then return cached or nil end
+    LoadBossModPacks()
+    local core = _G.BigWigs
+    if not (core and type(core.IterateBossModules) == "function") then
+        bwOptionCache[encounterID] = false
+        return nil
+    end
+    local target
+    for _, m in core:IterateBossModules() do
+        if m.IsEncounterID and m:IsEncounterID(encounterID) then target = m break end
+    end
+    -- BigWigs core resolves a module's GetOptions into toggleOptions/optionHeaders via
+    -- SetupOptions and drops GetOptions; its own options UI calls SetupOptions before
+    -- reading too, in case that has not run yet.
+    if target and target.SetupOptions then target:SetupOptions() end
+    local toggles = target and target.toggleOptions
+    if type(toggles) ~= "table" then
+        bwOptionCache[encounterID] = false
+        return nil
+    end
+    -- optionHeaders marks the option a group starts at, values already resolved by core
+    -- to display strings (stage names from the journal, "Mythic", ...). Carried onto
+    -- every following entry so the render loop only has to compare neighbours.
+    -- Entries can be plain ids or {id, flag, ...} tables; string options ("stages",
+    -- "berserk") are BigWigs UI plumbing, not abilities, and never broadcast as keys.
+    local headers = target.optionHeaders
+    local list, seen, stage = {}, {}, nil
+    for i = 1, #toggles do
+        local opt = toggles[i]
+        if type(opt) == "table" then opt = opt[1] end
+        if headers and headers[opt] ~= nil then stage = tostring(headers[opt]) end
+        if type(opt) == "number" and opt > 0 and not seen[opt] then
+            seen[opt] = true
+            list[#list + 1] = { id = opt, stage = stage }
+        end
+    end
+    if #list == 0 then
+        bwOptionCache[encounterID] = false
+        return nil
+    end
+    bwOptionCache[encounterID] = list
+    return list
+end
+
+-- Merged fresh per render rather than cached: the journal side can improve underneath
+-- (the cold-load re-scrape above), and the merge is a dozen table reads per boss.
+-- Row identity is ALWAYS the BigWigs id -- it is what the engine receives, so the
+-- checkbox/preset written under it is found at fire time directly. The journal entry
+-- for the same mechanic is matched by spell id, then by name (the two id spaces are
+-- not guaranteed to agree: Possession Barrage is 1292036 in BigWigs, 1284103 in the
+-- journal) and contributes description, icon and role tags.
+local function BigWigsAbilities(encounterID, journalAbilities)
+    local opts = BigWigsOptionList(encounterID)
+    if not opts then return nil end
+    local byId, byName = {}, {}
+    for i = 1, #(journalAbilities or {}) do
+        local a = journalAbilities[i]
+        byId[a.spellID] = a
+        if a.title and not byName[a.title] then byName[a.title] = a end
+    end
+    local list = {}
+    for i = 1, #opts do
+        local id = opts[i].id
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
+        local name = info and info.name
+        local j = byId[id] or (name and byName[name])
+        list[#list + 1] = {
+            title       = (j and j.title) or name or ("Spell " .. id),
+            spellID     = id,
+            icon        = (j and j.icon) or (info and info.iconID),
+            extras      = j and j.extras,
+            description = j and j.description,
+            stage       = opts[i].stage,
+        }
+    end
+    return list
+end
+
+-------------------------------------------------------------------------------
 --  The tree page
 -------------------------------------------------------------------------------
 -- Dungeons and raids as a collapsed tree: click an instance to open it, click a boss to set
@@ -2140,21 +2252,31 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     if not bossOn then return y end
 
     y = y - 10
-    if not (boss.abilities and #boss.abilities > 0) then
+    -- The shipped-data curated list (extracted from GetOptions with a script) was tried
+    -- and dropped in 0824t for systematically missing abilities; re-auditing its misses
+    -- against the module source showed the extractor's parsing was at fault ({id, flag}
+    -- table entries), plus abilities BigWigs does not track at all -- which the engine
+    -- can never fire anyway. Reading the installed modules at runtime has neither
+    -- problem, so this listing is exact by construction.
+    local abilities = BigWigsAbilities(boss.encounterID, boss.abilities) or boss.abilities
+    if not (abilities and #abilities > 0) then
         local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
         hint:SetText("No abilities listed in the journal for this boss.")
         return y - 20
     end
 
-    -- Curated (BigWigs-GetOptions()-derived) phase grouping was tried and dropped:
-    -- BigWigs exposes several tank-buster warnings as always-on rather than a toggleable
-    -- option, which GetOptions() never lists, so curation systematically dropped real
-    -- tank abilities from the page -- confirmed across 10+ bosses, not an isolated gap.
-    -- The full journal listing below is unfiltered but always complete and correctly
-    -- role-tagged, which matters more here than phase headers do.
-    for i = 1, #boss.abilities do
-        y = RenderAbilityRow(parent, y, boss.encounterID, boss.abilities[i], specID, EUI)
+    local lastStage
+    for i = 1, #abilities do
+        local a = abilities[i]
+        if a.stage and a.stage ~= lastStage then
+            lastStage = a.stage
+            local hdr = ns.Font(parent, 11, nil, ns.THEME.muted)
+            hdr:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y - 6)
+            hdr:SetText(a.stage)
+            y = y - 24
+        end
+        y = RenderAbilityRow(parent, y, boss.encounterID, a, specID, EUI)
     end
 
     -- Independent of the ability list above: these aren't bound to one spell id, so a
