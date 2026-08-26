@@ -485,6 +485,20 @@ local function CanNameSpellAloud(spellID)
     return ok and secret == false
 end
 
+-- Shared by /nutank secrecy and the automatic call log below, so a spell's classification
+-- reads the same both places.
+local function SecrecyLevelName(spellID)
+    if not (C_Secrets and C_Secrets.GetSpellCooldownSecrecy and Enum.SecrecyLevel) then
+        return "?"
+    end
+    local ok, lv = pcall(C_Secrets.GetSpellCooldownSecrecy, spellID)
+    if not ok then return "?" end
+    for name, value in pairs(Enum.SecrecyLevel) do
+        if value == lv then return name end
+    end
+    return "?"
+end
+
 local function IsSpellAvailable(spellID)
     if C_SpellBook and C_SpellBook.IsSpellKnownOrInSpellBook then
         if C_SpellBook.IsSpellKnownOrInSpellBook(spellID) then return true end
@@ -1702,6 +1716,29 @@ end
 local SUPPRESS_REPEAT_WINDOW = 12
 local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
 
+-- Snapshot of what SpellReady actually saw for the winning pick, so a wrong call --
+-- "it named X while X was on cooldown" -- can be diagnosed from what already happened,
+-- instead of needing /nutank secrecy typed in the moment, which a live pull never allows.
+-- Persisted (capped) so it survives the relog a bad pull often ends in.
+local CALL_LOG_MAX = 20
+local function LogCallout(sid)
+    local t = TRDB()
+    if type(t.callLog) ~= "table" then t.callLog = {} end
+    local log = t.callLog
+    local st = chargeState[sid]
+    local running = CooldownRunning(sid)
+    log[#log + 1] = {
+        stamp = date and date("%H:%M:%S") or "?",
+        enc = currentEncounter, stage = currentStage,
+        sid = sid,
+        charges = st and ("%d/%d"):format(ChargesAvailable(sid) or 0, st.max) or nil,
+        running = running == nil and "unreadable" or tostring(running),
+        readyAtDelta = readyAt[sid] and (readyAt[sid] - GetTime()) or nil,
+        secrecy = SecrecyLevelName(sid),
+    }
+    while #log > CALL_LOG_MAX do table.remove(log, 1) end
+end
+
 local function SpeakCallout()
     local t = TRDB()
     if not t.voiceOn or activeSlots == 0 then return end
@@ -1751,6 +1788,7 @@ local function SpeakCallout()
                 return
             end
             lastAnnouncedSpellID, lastAnnouncedAt = picked, now
+            LogCallout(picked)
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
             Announce(picked, CalloutFor(picked, info and info.name))
         end
@@ -3074,17 +3112,8 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         for i = 1, #list do
             local sid = list[i]
             local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-            local level = "?"
-            if C_Secrets and C_Secrets.GetSpellCooldownSecrecy and Enum.SecrecyLevel then
-                local ok, lv = pcall(C_Secrets.GetSpellCooldownSecrecy, sid)
-                if ok then
-                    for name, value in pairs(Enum.SecrecyLevel) do
-                        if value == lv then level = name break end
-                    end
-                end
-            end
             ns.Print(("%d. %s -- secrecy=%s speakable_now=%s"):format(
-                i, (info and info.name) or sid, level, tostring(CanNameSpellAloud(sid))))
+                i, (info and info.name) or sid, SecrecyLevelName(sid), tostring(CanNameSpellAloud(sid))))
         end
         return
     end
@@ -3193,6 +3222,26 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    -- Read after the fact, never typed in the moment: every real callout logs the same
+    -- signals /nutank cds prints live, so a call that turns out wrong -- named a defensive
+    -- that was actually on cooldown -- can be checked once the pull is over.
+    if arg == "calls" then
+        local log = TRDB().callLog
+        if not (log and #log > 0) then
+            ns.Print("no callouts logged yet this session.")
+            return
+        end
+        for i = 1, #log do
+            local e = log[i]
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.sid)
+            ns.Print(("%s enc=%s stage=%s -- %s -- running=%s%s readyIn=%s secrecy=%s"):format(
+                e.stamp, tostring(e.enc), tostring(e.stage), (info and info.name) or e.sid,
+                e.running, e.charges and (" charges=" .. e.charges) or "",
+                e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy))
+        end
+        return
+    end
+
     if arg == "test" then
         if not TRDB().enabled then
             ns.Print("switch the reminder on first.")
@@ -3272,7 +3321,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
         tostring(canSelect and true or false), tostring(canGate and true or false),
         tostring(canBar and true or false), tostring(canSound and true or false)))
-    ns.Print("usage: /nutank cds | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank cds | calls | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
