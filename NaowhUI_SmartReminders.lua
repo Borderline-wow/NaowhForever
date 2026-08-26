@@ -2576,29 +2576,45 @@ end
 -- native-timeline engine used) before the bar actually ends, matching how the custom
 -- reminder system's own bwtimer trigger already waits out a bar rather than firing at its
 -- start -- the primary engine just never got the same treatment until now.
-local pendingBWFires = {}
-local pendingBWFireBar = {}   -- [sid] = the stop/pause identity that should cancel this fire
+-- Keyed by sid AND the bar's own identity, not sid alone: timeline fights genuinely run
+-- two overlapping bars for one spell id (Vorasius' Shadowclaw Slam -- Blizzard schedules
+-- two concurrent timeline rows, DBM's module says so outright, and BigWigs bars both
+-- under its one option key with distinct texts), and a single slot per sid silently
+-- dropped one of the two hits. The same hit arriving from the OTHER boss mod carries a
+-- different identity but lands at the same moment, so a new fire landing within 2s of
+-- one already pending for the sid is the duplicate to skip; a genuinely staggered second
+-- bar schedules alongside. The 3s repeat guard applies to immediate (no-duration) fires
+-- against the last fire that actually happened, no longer to bar starts.
+local pendingBWFires = {}   -- [sid] = { [identity] = {fireAt, timer} }
 function ns.HandleBigWigsAbility(sid, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if not (ShouldRun() and InEncounter()) then return end
 
-    local now = GetTime()
-    if sid == lastBWSid and (now - lastBWAt) < 3 then return end
-    lastBWSid, lastBWAt = sid, now
-
     if type(duration) == "number" and duration > 0.5 then
         local lead = TRDB().leadTime or 3
         local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
-        local old = pendingBWFires[sid]
-        if old and old.Cancel then old:Cancel() end
-        pendingBWFireBar[sid] = barIdentity
-        pendingBWFires[sid] = C_Timer.NewTimer(delay, function()
-            pendingBWFires[sid] = nil
-            pendingBWFireBar[sid] = nil
+        local fires = pendingBWFires[sid]
+        if not fires then fires = {} pendingBWFires[sid] = fires end
+        local key = barIdentity or false
+        local fireAt = GetTime() + delay
+        local old = fires[key]
+        if old then
+            if old.timer.Cancel then old.timer:Cancel() end   -- the same bar, resynced
+        else
+            for _, f in pairs(fires) do
+                if math.abs(f.fireAt - fireAt) < 2 then return end
+            end
+        end
+        fires[key] = { fireAt = fireAt, timer = C_Timer.NewTimer(delay, function()
+            fires[key] = nil
+            lastBWSid, lastBWAt = sid, GetTime()
             FireBigWigsAbility(sid)
-        end)
+        end) }
     else
+        local now = GetTime()
+        if sid == lastBWSid and (now - lastBWAt) < 3 then return end
+        lastBWSid, lastBWAt = sid, now
         FireBigWigsAbility(sid)
     end
 end
@@ -2608,21 +2624,23 @@ end
 -- callout lands seconds later for a cast that was interrupted or resynced away, which reads
 -- as an unprompted call for an ability that was never actually coming.
 local function CancelPendingBWFire(barIdentity)
-    for sid, id in pairs(pendingBWFireBar) do
-        if id == barIdentity then
-            local handle = pendingBWFires[sid]
-            if handle and handle.Cancel then handle:Cancel() end
-            pendingBWFires[sid] = nil
-            pendingBWFireBar[sid] = nil
+    if barIdentity == nil then return end
+    for _, fires in pairs(pendingBWFires) do
+        local f = fires[barIdentity]
+        if f then
+            if f.timer.Cancel then f.timer:Cancel() end
+            fires[barIdentity] = nil
         end
     end
 end
 
 local function CancelAllPendingBWFires()
-    for sid, handle in pairs(pendingBWFires) do
-        if handle.Cancel then handle:Cancel() end
+    for sid, fires in pairs(pendingBWFires) do
+        for key, f in pairs(fires) do
+            if f.timer.Cancel then f.timer:Cancel() end
+            fires[key] = nil
+        end
         pendingBWFires[sid] = nil
-        pendingBWFireBar[sid] = nil
     end
 end
 
