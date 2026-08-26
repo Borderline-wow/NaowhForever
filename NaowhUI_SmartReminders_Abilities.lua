@@ -89,7 +89,11 @@ ns.TANK_ABILITIES = {
     [1286573] = "Unknown",   -- The Coiled Altar: Soul Sever
     [1299680] = "Unknown",   -- The Coiled Altar: Sever
     [1307279] = "Unknown",   -- The Coiled Altar: Blighted Sever
-    [1284103] = "Unknown",   -- Nek'zali the Soulcoiler: Possession Barrage
+    -- 1284103 (the debuff aura, BigWigs' own soundOnApplied trigger) never reaches
+    -- BigWigs_Message/StartBar -- confirmed against BigWigs_TheVenomousAbyss/Nekzali.lua.
+    -- The bar it actually fires (self:Bar) is keyed by 1292036, so that is the id this
+    -- addon has to match against.
+    [1292036] = "Unknown",   -- Nek'zali the Soulcoiler: Possession Barrage
     -- Hollowing Strikes (1284110, stacking debuff) deliberately NOT here: still a real
     -- tank mechanic (its own Tank role tag in Setup comes straight off the live journal
     -- scrape, independent of this table), just default OFF rather than auto-enabled --
