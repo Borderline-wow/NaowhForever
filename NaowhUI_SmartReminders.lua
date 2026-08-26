@@ -818,14 +818,8 @@ local function RebuildSlots(fp)
     if not frame then return end
 
     local list = EffectiveList(specID, currentEncounter, fp)
-    -- No list for this spec yet: seed one from the same detection the picker uses, so the
-    -- addon works out of the box and what appears in the options is a REAL saved list the
-    -- player can reorder or prune, not an invisible default they cannot see. Tester
-    -- feedback: nobody should have to build a list before the addon does anything.
-    if (not list or #list == 0) and ns.SeedDefaultList then
-        local seeded = ns.SeedDefaultList(specID)
-        if seeded and #seeded > 0 then list = seeded end
-    end
+    -- No auto-seeding: an untouched spec stays silent rather than calling out a list the
+    -- player never chose. Robin wants every preset built deliberately in Setup, per spec.
     if not list then
         for i = 1, #slots do slots[i]:SetAlpha(0) end
         return
@@ -3554,49 +3548,6 @@ end
 
 -- Fallback for a client without the Cooldown Manager: the old spellbook sweep, still
 -- narrowed by the defensive predicate where it is available.
--- Builds and SAVES a first priority list for a spec that has none: the Cooldown
--- Manager's big defensives, longest cooldown first, same classification the picker shows.
--- Saved rather than computed-per-fight so the options page shows exactly what runs and
--- the player's edits stick. Returns nil when the Cooldown Manager has nothing yet (early
--- login), so the next rebuild simply tries again.
-function ns.SeedDefaultList(forSpec)
-    local CV = C_CooldownViewer
-    if not (CV and CV.GetCooldownViewerCategorySet and CV.GetCooldownViewerCooldownInfo
-        and Enum and Enum.CooldownViewerCategory) then return nil end
-
-    local found = {}
-    for _, cat in ipairs({ Enum.CooldownViewerCategory.Essential,
-                          Enum.CooldownViewerCategory.Utility }) do
-        local ok, ids = pcall(CV.GetCooldownViewerCategorySet, cat, false)
-        if ok and ids then
-            for i = 1, #ids do
-                local okI, info = pcall(CV.GetCooldownViewerCooldownInfo, ids[i])
-                if okI and info and info.isKnown and InfoIsDefensive(info) then
-                    local castID = info.overrideSpellID
-                    if not castID or castID == 0 then castID = info.spellID end
-                    if castID and not found[castID] then
-                        local base = GetSpellBaseCooldown and GetSpellBaseCooldown(castID)
-                        found[castID] = (type(base) == "number" and base) or 0
-                        found[#found + 1] = castID
-                    end
-                end
-            end
-        end
-    end
-    if #found == 0 then return nil end
-
-    table.sort(found, function(a, b) return (found[a] or 0) > (found[b] or 0) end)
-    local out = {}
-    for i = 1, #found do out[i] = found[i] end
-
-    -- Saved into the active preset (creating one if this spec has never been touched),
-    -- not a bare table, so the seed shows up as a real, editable list on the options page.
-    local list = UserList(forSpec, true)
-    wipe(list)
-    for i = 1, #out do list[i] = out[i] end
-    return list
-end
-
 local function CollectFromSpellbook(seen, list, out)
     if not (C_SpellBook and C_SpellBook.GetSpellBookSkillLineInfo
         and C_SpellBook.GetSpellBookItemInfo and Enum and Enum.SpellBookSpellBank) then
