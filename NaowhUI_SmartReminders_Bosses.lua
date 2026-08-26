@@ -2149,6 +2149,15 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     end)
     cog:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
 
+    local test = ns.Button(row, "Test", 44, 26, function()
+        if not ability.spellID then
+            ns.Print("|cffff6060this journal entry has no spell id to bind to|r")
+            return
+        end
+        ns.TestFireAbility(encounterID, ability.spellID)
+    end)
+    test:SetPoint("TOPRIGHT", cog, "TOPLEFT", -4, 0)
+
     -- Role/difficulty flags straight off the journal (FLAG_LABELS, same icon set the
     -- in-game Adventure Guide shows) -- Tank/Dps/Healer first since those are the ones
     -- worth a glance, the rest folded into the description line below instead of a
@@ -2172,13 +2181,13 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
 
     local title = ns.Font(row, 13, nil, ns.THEME.fg)
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
-    title:SetPoint("RIGHT", cog, "LEFT", -8, 0)
+    title:SetPoint("RIGHT", test, "LEFT", -8, 0)
     title:SetJustifyH("LEFT")
     title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or ""))
 
     local desc = ns.Font(row, 11, nil, ns.THEME.muted)
     desc:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -20)
-    desc:SetPoint("RIGHT", cog, "LEFT", -8, 0)
+    desc:SetPoint("RIGHT", test, "LEFT", -8, 0)
     desc:SetHeight(ABILITY_ROW_H - 24)
     desc:SetJustifyH("LEFT")
     desc:SetWordWrap(true)

@@ -1750,7 +1750,7 @@ local function LogCallout(sid)
     local st = chargeState[sid]
     local running = CooldownRunning(sid)
     AppendLog({
-        kind = "call",
+        kind = ns.testFiring and "test" or "call",
         sid = sid,
         charges = st and ("%d/%d"):format(ChargesAvailable(sid) or 0, st.max) or nil,
         running = running == nil and "unreadable" or tostring(running),
@@ -2509,9 +2509,11 @@ local function FireBigWigsAbility(sid)
         local binding = ns.BindingForBossModKey(currentEncounter, sid)
         if binding and binding.mode == "custom" then return end
     end
-    if not isTank then return end
-    if TRDB().aggroOnly and not TankingCaster(sid) then return end
-    if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
+    if not ns.testFiring then
+        if not isTank then return end
+        if TRDB().aggroOnly and not TankingCaster(sid) then return end
+        if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
+    end
 
     RebuildSlots(tostring(sid))
     if activeSlots == 0 then return end
@@ -2528,6 +2530,44 @@ local function FireBigWigsAbility(sid)
     lastCalloutAt = GetTime()
     if hideTimer then hideTimer:Cancel() end
     hideTimer = C_Timer.NewTimer(5, HideReminder)
+end
+
+-- Setup's per-ability Test button. Fires the ability through FireBigWigsAbility itself --
+-- enablement, Custom Reminder exclusivity, the priority pick, voice, the 5s auto-hide --
+-- bypassing only the gates a test outside the fight cannot satisfy (tank spec, holding
+-- aggro, an active defensive), so what a test plays is what the pull plays. BigWigs' own
+-- test mode is no substitute: on retail it plays Blizzard's edit-mode timeline samples
+-- and never broadcasts real boss spell ids. On ns: the main chunk is at Lua's 200-local
+-- ceiling.
+function ns.TestFireAbility(enc, sid)
+    if not TRDB().enabled then
+        ns.Print("switch the reminder on first.")
+        return
+    end
+    if not ns.AbilityEnabledForBinding(enc, sid) then
+        ns.Print("this ability is toggled off for this boss, so it will not call out.")
+        return
+    end
+    local binding = ns.BindingForBossModKey(enc, sid)
+    if binding and binding.mode == "custom" then
+        ns.Print("this ability is set to Custom Reminder; the generic callout stays quiet for it.")
+        return
+    end
+    RefreshSpec()
+    ns.Apply()
+    local priorEnc = currentEncounter
+    currentEncounter = enc
+    ns.testFiring = true
+    lastAnnouncedSpellID = nil   -- repeat test clicks should not be eaten by the repeat window
+    local ok, err = pcall(FireBigWigsAbility, sid)
+    ns.testFiring = nil
+    currentEncounter = priorEnc
+    if not ok then error(err, 0) end
+    if shownForEvent ~= sid then
+        ns.Print("nothing on your priority list is talented for this spec, so there is nothing to call.")
+    elseif not TRDB().voiceOn then
+        ns.Print("voice is off, so the test shows the icon only.")
+    end
 end
 
 -- duration, when given, is how many seconds are left on BigWigs'/DBM's own bar (a
@@ -3278,8 +3318,9 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
                 ns.Print(("%s enc=%s stage=%s -- CAST %s"):format(
                     e.stamp, tostring(e.enc), tostring(e.stage), name))
             else
-                ns.Print(("%s enc=%s stage=%s -- called %s -- running=%s%s readyIn=%s secrecy=%s"):format(
-                    e.stamp, tostring(e.enc), tostring(e.stage), name,
+                ns.Print(("%s enc=%s stage=%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s"):format(
+                    e.stamp, tostring(e.enc), tostring(e.stage),
+                    e.kind == "test" and "TEST-called" or "called", name,
                     e.running, e.charges and (" charges=" .. e.charges) or "",
                     e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy))
             end
