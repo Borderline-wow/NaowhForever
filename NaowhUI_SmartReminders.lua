@@ -1453,9 +1453,24 @@ local function RebuildCastMap()
     end
 end
 
+-- Every actual cast or callout for a tracked defensive is appended here, capped and
+-- persisted, so a bad call ("it said X was ready right after I used X") can be checked
+-- against what actually happened instead of relying on memory mid-fight.
+local CALL_LOG_MAX = 30
+local function AppendLog(entry)
+    local t = TRDB()
+    if type(t.callLog) ~= "table" then t.callLog = {} end
+    local log = t.callLog
+    entry.stamp = date and date("%H:%M:%S") or "?"
+    entry.enc, entry.stage = currentEncounter, currentStage
+    log[#log + 1] = entry
+    while #log > CALL_LOG_MAX do table.remove(log, 1) end
+end
+
 local function NoteOwnCast(castSpellID)
     local sid = castSpellID and castToBase[castSpellID]
     if not sid then return end
+    AppendLog({ kind = "cast", sid = sid })
 
     -- A charge spell never touches readyAt: a cast spends a charge, and holding one is
     -- what makes it available, not the absence of a timer. Established here too, not only
@@ -1720,23 +1735,17 @@ local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
 -- "it named X while X was on cooldown" -- can be diagnosed from what already happened,
 -- instead of needing /nutank secrecy typed in the moment, which a live pull never allows.
 -- Persisted (capped) so it survives the relog a bad pull often ends in.
-local CALL_LOG_MAX = 20
 local function LogCallout(sid)
-    local t = TRDB()
-    if type(t.callLog) ~= "table" then t.callLog = {} end
-    local log = t.callLog
     local st = chargeState[sid]
     local running = CooldownRunning(sid)
-    log[#log + 1] = {
-        stamp = date and date("%H:%M:%S") or "?",
-        enc = currentEncounter, stage = currentStage,
+    AppendLog({
+        kind = "call",
         sid = sid,
         charges = st and ("%d/%d"):format(ChargesAvailable(sid) or 0, st.max) or nil,
         running = running == nil and "unreadable" or tostring(running),
         readyAtDelta = readyAt[sid] and (readyAt[sid] - GetTime()) or nil,
         secrecy = SecrecyLevelName(sid),
-    }
-    while #log > CALL_LOG_MAX do table.remove(log, 1) end
+    })
 end
 
 local function SpeakCallout()
@@ -1808,7 +1817,7 @@ end
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0825f"
+local TRACE_BUILD = "0825g"
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -3222,22 +3231,29 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
-    -- Read after the fact, never typed in the moment: every real callout logs the same
-    -- signals /nutank cds prints live, so a call that turns out wrong -- named a defensive
-    -- that was actually on cooldown -- can be checked once the pull is over.
+    -- Read after the fact, never typed in the moment: every real callout AND every actual
+    -- cast of a tracked defensive logs here, interleaved, so a call that turns out wrong --
+    -- named a defensive that was actually on cooldown -- can be checked against whether it
+    -- was really pressed beforehand, once the pull is over, with nothing to remember.
     if arg == "calls" then
         local log = TRDB().callLog
         if not (log and #log > 0) then
-            ns.Print("no callouts logged yet this session.")
+            ns.Print("nothing logged yet this session.")
             return
         end
         for i = 1, #log do
             local e = log[i]
             local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.sid)
-            ns.Print(("%s enc=%s stage=%s -- %s -- running=%s%s readyIn=%s secrecy=%s"):format(
-                e.stamp, tostring(e.enc), tostring(e.stage), (info and info.name) or e.sid,
-                e.running, e.charges and (" charges=" .. e.charges) or "",
-                e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy))
+            local name = (info and info.name) or e.sid
+            if e.kind == "cast" then
+                ns.Print(("%s enc=%s stage=%s -- CAST %s"):format(
+                    e.stamp, tostring(e.enc), tostring(e.stage), name))
+            else
+                ns.Print(("%s enc=%s stage=%s -- called %s -- running=%s%s readyIn=%s secrecy=%s"):format(
+                    e.stamp, tostring(e.enc), tostring(e.stage), name,
+                    e.running, e.charges and (" charges=" .. e.charges) or "",
+                    e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy))
+            end
         end
         return
     end
