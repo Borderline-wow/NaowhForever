@@ -422,17 +422,6 @@ local function DropIndexFromCursor()
     return nil
 end
 
--- Extra controls chain leftward from a row's main widget through _lastInline, which is the
--- same slot EllesmereUI's own cogs and swatches use -- so ours line up with theirs.
-local function AttachInline(rgn, text, width, onClick, tipTitle, tipBody)
-    if not rgn then return end
-    local btn = ns.Button(rgn, text, width or 46, 20, onClick)
-    btn:SetPoint("RIGHT", rgn._lastInline or rgn._control or rgn, "LEFT", -8, 0)
-    rgn._lastInline = btn
-    if tipTitle then ns.Tooltip(btn, tipTitle, tipBody) end
-    return btn
-end
-
 -- A small x on the row, left of the label. Takes the ability out of the choices entirely,
 -- as opposed to the checkbox which only moves it between in-play and not-in-play.
 local function AttachRemove(row, entry, specID, EUI, onGone)
@@ -1811,28 +1800,53 @@ local selectedBossIdx = {}   -- keyed by instance.id
 -- produced the Setup-tab overlap earlier tonight. A long description clips instead;
 -- annoying, never wrong.
 -------------------------------------------------------------------------------
---  Per-ability reminder picker: keep this ability on the normal defensive
---  priority list, or bind a written reminder straight to its own cast.
+--  Per-ability reminder picker: this ability's spot on the normal defensive
+--  priority list, and (Custom Reminder tab) a written note of its own bound
+--  straight to its own BigWigs cast/bar -- built on the Raid Reminder engine
+--  (NaowhUI_SmartReminders_RaidReminders.lua) so it can be assigned to a role/class/
+--  spec/name/subgroup too, the same NSRT/TimelineReminders-style tool
+--  ns.ShowBossReminderPicker's boss-wide reminders already are.
 -------------------------------------------------------------------------------
--- A bound reminder rides the same "spell" trigger type the old cast/aura editor used to
--- write -- see CheckCustomReminders in the main file, which still matches it off the
--- combat log against any cast of this exact journal spellID, no BigWigs/DBM message
--- needed. Kept separate from the full custom-reminder editor (Trigger/Message tabs) on
--- purpose: that editor's Trigger dropdown has no "spell" option and remaps one to
--- "BigWigs/DBM Message" for display, which would silently swap this ability's direct-cast
--- match for a broadcast-key match -- a different and less reliable trigger -- the moment
--- it got re-saved there.
-local function FindBoundReminder(encounterID, spellID)
-    local set = ns.CustomRemindersTable(false, encounterID)
+local function RaidReminderTargetDesc(target)
+    if not target or target.kind == "all" then return "Everyone" end
+    if target.kind == "role" then
+        local names = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
+        return "Role: " .. (names[target.value] or tostring(target.value))
+    elseif target.kind == "class" then
+        local names = _G.LOCALIZED_CLASS_NAMES_MALE
+        return "Class: " .. ((names and names[target.value]) or tostring(target.value))
+    elseif target.kind == "spec" then
+        local ok, _, name = pcall(GetSpecializationInfoByID, target.value)
+        return "Spec: " .. ((ok and name) or tostring(target.value))
+    elseif target.kind == "name" then
+        return "Player: " .. tostring(target.value)
+    elseif target.kind == "subgroup" then
+        return "Group " .. tostring(target.value)
+    end
+    return "?"
+end
+
+-- A reminder built from this ability's own cog carries abilitySpellID (the journal
+-- spellID, not necessarily the same value as trigger.spellID -- the BigWigs key the
+-- mechanic picker resolved it to) so it shows here instead of in the boss-wide list
+-- ns.ShowBossReminderPicker renders. One per ability, same as the old bound-reminder
+-- model this replaces -- first match wins.
+local function FindBoundRaidReminder(encounterID, spellID)
+    local set = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
     if not set then return nil, nil end
     for uid, r in pairs(set) do
-        local t = r.trigger
-        if t and t.type == "spell" and t.spellID == spellID and (t.kind or "cast") == "cast" then
-            return uid, r
-        end
+        if r.abilitySpellID == spellID then return uid, r end
     end
     return nil, nil
 end
+
+local RR_ROLE_VALUES = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
+local RR_ROLE_ORDER = { "TANK", "HEALER", "DAMAGER" }
+local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
+local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle" }
+local RR_TARGET_VALUES = { all = "Everyone", role = "Role", class = "Class",
+    spec = "Spec", name = "Player Name", subgroup = "Subgroup" }
+local RR_TARGET_ORDER = { "all", "role", "class", "spec", "name", "subgroup" }
 
 function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
@@ -1852,15 +1866,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local PAD = 20
     local TAB_TOP = -46
 
-    local boundUid, boundReminder = FindBoundReminder(encounterID, ability.spellID)
     local binding = ns.EnsureBinding(encounterID, ability.spellID)
-    -- Custom Reminder mode is pulled from Setup for now (Robin: focus this test round on
-    -- Pre-Selected Defensives) -- forced on regardless of any existing binding.mode, and
-    -- the toggle that used to switch it is gone below. CustomRemindersTable/Save's custom
-    -- branch are untouched, so this is a quick revert (restore modeVal's old line and the
-    -- toggle) whenever Custom Reminders comes back, and anyone's already-saved custom
-    -- reminder still exists on disk even though this picker won't show or edit it.
-    local modeVal = "defensive"
     local specID = ns.CurrentSpec and ns.CurrentSpec()
     -- Per DEFENSIVE, not per ability: [spellID] = seconds, one row per spell on whatever
     -- preset is currently selected. A shallow copy, not the live saved table -- Cancel
@@ -1879,14 +1885,58 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     -- old body is hidden and dropped rather than cleared field by field, since GetChildren
     -- only ever returns child FRAMES, not the label FontStrings this also has to remove.
     local body
-    -- pendingColor/pendingSoundKey/pendingSoundPaths/presetVal are written by the widgets
-    -- built in RebuildBody and read back by Save() -- they have to outlive any single
-    -- rebuild, since a pick must not be lost if something else on the panel forces a
-    -- reflow later.
-    local msgBox, durBox, iconBox, presetVal
-    local pendingColor, pendingSoundKey, pendingSoundPaths
+    -- presetVal is written by the dropdown built in RebuildBody and read back by Save()
+    -- -- it has to outlive any single rebuild, since a pick must not be lost if switching
+    -- tabs or presets forces a reflow later.
+    local presetVal
 
-    local function RebuildBody()
+    -- RebuildBody is assigned below (forward-declared here so SelectPageTab, built next,
+    -- can close over it) -- same forward-reference shape RebuildTriggerFields uses in
+    -- ShowRaidReminderEditor above.
+    local RebuildBody
+
+    -- Two tabs, independent of each other rather than mutually exclusive like the old
+    -- single-toggle model: Defensive Preset (unchanged) and Custom Reminder, a written
+    -- note bound straight to this ability's own BigWigs cast/bar. An ability can carry
+    -- both -- the defensive callout is always for you; a Custom Reminder can target
+    -- anyone, so silencing one when the other is set would be wrong as often as right.
+    local pageTab = "defensive"
+    local tabBtns = {}
+    local function SelectPageTab(id)
+        pageTab = id
+        for tid, btn in pairs(tabBtns) do
+            local on = (tid == id)
+            btn.marker:SetShown(on)
+            local c = on and ns.THEME.fg or ns.THEME.muted
+            btn.label:SetTextColor(c.r, c.g, c.b, 1)
+        end
+        RebuildBody()
+    end
+    local function AddPageTab(id, text, anchorTo)
+        local btn = CreateFrame("Button", nil, panel)
+        btn:SetHeight(22)
+        local lbl = ns.Font(btn, 12, nil, ns.THEME.muted)
+        lbl:SetText(text)
+        btn:SetSize(lbl:GetStringWidth() + 4, 22)
+        lbl:SetPoint("CENTER")
+        if anchorTo then btn:SetPoint("LEFT", anchorTo, "RIGHT", 18, 0)
+        else btn:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP) end
+        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.gold, 1)
+        marker:SetPoint("BOTTOMLEFT", 0, -3)
+        marker:SetPoint("BOTTOMRIGHT", 0, -3)
+        marker:SetHeight(2)
+        marker:Hide()
+        btn:SetScript("OnClick", function() SelectPageTab(id) end)
+        btn.label, btn.marker = lbl, marker
+        tabBtns[id] = btn
+        return btn
+    end
+    local defTabBtn = AddPageTab("defensive", "Defensive Preset")
+    AddPageTab("custom", "Custom Reminder", defTabBtn)
+    defTabBtn.marker:Show()
+    defTabBtn.label:SetTextColor(ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b, 1)
+
+    RebuildBody = function()
         if body then body:Hide() end
         body = CreateFrame("Frame", nil, panel)
         body:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP - 30)
@@ -1896,7 +1946,6 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- (SetHeight): a frame anchored on only one edge never resolves a height on its
         -- own, and every rebuilt-body frame elsewhere in this file sets one for that reason.
         body:SetHeight(480)
-        msgBox, durBox, iconBox = nil, nil, nil
 
         -- Wrapped: a blank body with no error anywhere on screen is the exact failure mode
         -- that shipped once already (the tab buttons mispositioned so badly the whole
@@ -1914,25 +1963,10 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             lbl:SetText(text)
             by = by - 16
         end
-        -- Every field the same fixed width instead of stretching to the body's edge, so
-        -- Message/Icon/Sound/Linger all line up on both edges together rather than each
-        -- field claiming whatever width its own row happens to need.
+        -- Fixed width instead of stretching to the body's edge, matching every other
+        -- field this popup lines up on both edges.
         local FIELD_W = 260
-        local function Box(maxLetters, numeric, rightInset)
-            local box = CreateFrame("EditBox", nil, body)
-            box:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-            box:SetSize(FIELD_W - (rightInset or 0), 26)
-            box:SetAutoFocus(false)
-            box:SetMaxLetters(maxLetters or 60)
-            if numeric then box:SetNumeric(true) end
-            box:SetFontObject("GameFontHighlight")
-            box:SetTextInsets(6, 6, 0, 0)
-            ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-            ns.Border(box)
-            by = by - 32
-            return box
-        end
-        -- A single dropdown row, fixed width to match Box -- EllesmereUI.BuildDropdownControl
+        -- A single dropdown row, fixed width to FIELD_W -- EllesmereUI.BuildDropdownControl
         -- is the same primitive W:DualRow's own "dropdown" slot type calls, without the
         -- page-row chrome (background band, hover-tag) that widget wraps it in, which is
         -- built for a full-width options page rather than a small modal.
@@ -1944,7 +1978,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             return ddBtn
         end
 
-        if modeVal == "defensive" then
+        if pageTab == "defensive" then
             -- One preset, not a hand-built list: this ability draws from whichever preset
             -- is chosen here, the same way a boss or a custom reminder already draws from
             -- one -- edited on the Setup page, not duplicated per ability.
@@ -2037,108 +2071,56 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 end
             end
         else
-            Label("Message")
-            msgBox = Box(120)
-            msgBox:SetText((boundReminder and boundReminder.msg) or "")
+            local hint = ns.Font(body, 11, nil, ns.THEME.muted)
+            hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            hint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+            hint:SetJustifyH("LEFT")
+            hint:SetWordWrap(true)
+            hint:SetText("A written note tied straight to this ability's own BigWigs "
+                .. "cast or bar -- assignable to a role, class, spec, player or "
+                .. "subgroup, not just you.")
+            by = by - 36
 
-            -- Icon: optional, looked up by spell id the same way the full custom reminder
-            -- editor resolves its Trigger tab's Spell ID field (ns.ResolveSpell) -- a live
-            -- preview and name confirm it before Save ever runs. Only relevant here:
-            -- Pre-Selected Defensives mode has no message frame of its own to put one on.
-            Label("Icon Spell ID (optional)")
-            iconBox = Box(9, true, 34)
-            local iconPreview = body:CreateTexture(nil, "ARTWORK")
-            iconPreview:SetSize(24, 24)
-            iconPreview:SetPoint("LEFT", iconBox, "RIGHT", 6, 0)
-            iconPreview:Hide()
-            local iconFeedback = ns.Font(body, 10, nil, ns.THEME.muted)
-            iconFeedback:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-            iconFeedback:SetPoint("RIGHT", body, "RIGHT", 0, 0)
-            iconFeedback:SetJustifyH("LEFT")
-            by = by - 14
-            local function SyncIcon()
-                local sid, info = ns.ResolveSpell(iconBox:GetText())
-                if sid then
-                    local tex = C_Spell and C_Spell.GetSpellTexture
-                        and C_Spell.GetSpellTexture(sid)
-                    if tex then iconPreview:SetTexture(tex); iconPreview:Show()
-                    else iconPreview:Hide() end
-                    iconFeedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
-                elseif iconBox:GetText() == "" then
-                    iconPreview:Hide()
-                    iconFeedback:SetText("")
-                else
-                    iconPreview:Hide()
-                    iconFeedback:SetText("|cffff6060not a spell id|r")
-                end
-            end
-            iconBox:SetScript("OnTextChanged", SyncIcon)
-            iconBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-            iconBox:SetText((boundReminder and boundReminder.iconSpellID
-                and tostring(boundReminder.iconSpellID)) or "")
-            SyncIcon()
+            local uid, entry = FindBoundRaidReminder(encounterID, ability.spellID)
+            if entry then
+                local nameLbl = ns.Font(body, 12, nil, ns.THEME.fg)
+                nameLbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                nameLbl:SetText(entry.name or "Reminder")
+                by = by - 18
 
-            -- Text color: an explicit per-reminder color, defaulting to white the same way
-            -- every other text color in this addon starts white until changed. Hand-rolled
-            -- swatch rather than W:ColorPicker/the DualRow colorpicker type -- both are
-            -- built for a full-width options row; this replicates just the
-            -- swatch-plus-native-picker core (EllesmereUI:ShowColorPicker, the same public
-            -- entry point the shared swatch helper itself calls) at the size this popup
-            -- actually needs.
-            local existingColor = boundReminder and boundReminder.color
-            pendingColor = { r = (existingColor and existingColor.r) or 1,
-                g = (existingColor and existingColor.g) or 1,
-                b = (existingColor and existingColor.b) or 1, a = 1 }
-            Label("Text Color")
-            local swatch = CreateFrame("Button", nil, body)
-            swatch:SetSize(24, 24)
-            swatch:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-            local swatchFill = swatch:CreateTexture(nil, "ARTWORK")
-            swatchFill:SetAllPoints()
-            swatchFill:SetColorTexture(pendingColor.r, pendingColor.g, pendingColor.b, 1)
-            ns.Border(swatch)
-            swatch:SetScript("OnClick", function()
-                local snapR, snapG, snapB = pendingColor.r, pendingColor.g, pendingColor.b
-                local function Applied()
-                    local popup = EUI._colorPickerPopup
-                    if not popup then return end
-                    local cr, cg, cb = popup:GetColorRGB()
-                    pendingColor = { r = cr, g = cg, b = cb, a = 1 }
-                    swatchFill:SetColorTexture(cr, cg, cb, 1)
-                end
-                EUI:ShowColorPicker({
-                    swatchFunc = Applied,
-                    hasOpacity = false,
-                    cancelFunc = function()
-                        pendingColor = { r = snapR, g = snapG, b = snapB, a = 1 }
-                        swatchFill:SetColorTexture(snapR, snapG, snapB, 1)
-                    end,
-                    r = pendingColor.r, g = pendingColor.g, b = pendingColor.b,
-                }, swatch)
-            end)
-            by = by - 32
+                local descLbl = ns.Font(body, 11, nil, ns.THEME.muted)
+                descLbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                descLbl:SetText(RaidReminderTargetDesc(entry.target) .. "  -- "
+                    .. (RR_DISPLAY_VALUES[entry.display and entry.display.type] or "Message"))
+                by = by - 30
 
-            -- Sound: the same catalogue and SharedMedia appender the Setup > Sounds page's
-            -- own Alert Sound dropdown uses, so this list matches exactly.
-            pendingSoundKey = (boundReminder and boundReminder.sound) or "none"
-            local soundNames, soundOrder
-            pendingSoundPaths, soundNames, soundOrder = EUI.BuildAlertSoundTables()
-            if EUI.AppendSharedMediaSounds then
-                EUI.AppendSharedMediaSounds(pendingSoundPaths, soundNames, soundOrder)
-            end
-            Label("Sound")
-            DropdownRow(soundNames, soundOrder,
-                function() return pendingSoundKey end,
-                function(v)
-                    pendingSoundKey = v
-                    if EUI._PlayLSMSound and pendingSoundPaths[v] then
-                        EUI._PlayLSMSound(pendingSoundPaths[v])
-                    end
+                local editBtn = ns.Button(body, "Edit", 100, 26, function()
+                    local nestedDimmer = ns.ShowRaidReminderEditor(
+                        encounterID, uid, EUI, nil, ability.spellID)
+                    if nestedDimmer then nestedDimmer:HookScript("OnHide", RebuildBody) end
                 end)
+                editBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                local removeBtn = ns.Button(body, "Remove", 100, 26, function()
+                    local writeSet = ns.RaidRemindersTable(false, encounterID)
+                    if writeSet then writeSet[uid] = nil end
+                    RebuildBody()
+                end)
+                removeBtn:SetPoint("LEFT", editBtn, "RIGHT", 10, 0)
+                by = by - 32
+            else
+                local noneLbl = ns.Font(body, 11, nil, ns.THEME.muted)
+                noneLbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                noneLbl:SetText("None yet for this ability.")
+                by = by - 26
 
-            Label("Linger (seconds)")
-            durBox = Box(3, true)
-            durBox:SetText(tostring((boundReminder and boundReminder.dur) or 3))
+                local addBtn = ns.Button(body, "+ Add a Custom Reminder", 200, 26, function()
+                    local nestedDimmer = ns.ShowRaidReminderEditor(
+                        encounterID, nil, EUI, nil, ability.spellID)
+                    if nestedDimmer then nestedDimmer:HookScript("OnHide", RebuildBody) end
+                end)
+                addBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+                by = by - 32
+            end
         end
         end)
         if not ok then
@@ -2154,37 +2136,22 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
     RebuildBody()
 
+    -- Only the Defensive Preset tab's settings -- the Custom Reminder tab saves
+    -- immediately through its own nested editor's Save button (ns.ShowRaidReminderEditor),
+    -- there's nothing of its deferred to this button.
     local function Save()
-        binding.mode = modeVal
-        if modeVal == "defensive" then
-            binding.preset = presetVal
-            -- Superseded by per-defensive leadTimeBySpell (0826h's ability-wide leadTime
-            -- was a one-day-old field with no other reader; safe to drop rather than
-            -- migrate).
-            binding.leadTime = nil
-            binding.leadTimeBySpell = next(leadTimeBySpell) and leadTimeBySpell or nil
-            -- Mutually exclusive per ability: switching to Pre-Selected Defensives drops
-            -- any custom reminder this ability had, so ns.HandleBigWigsAbility (which
-            -- skips its own pick entirely when mode is "custom") is never fighting a
-            -- leftover custom popup that's still configured to fire for the same cast.
-            local writeSet = ns.CustomRemindersTable(false, encounterID)
-            if writeSet then writeSet[boundUid or ("ab" .. ability.spellID)] = nil end
-        else
-            local writeSet = ns.CustomRemindersTable(true, encounterID)
-            local key = boundUid or ("ab" .. ability.spellID)
-            local iconSid = iconBox and tonumber(iconBox:GetText())
-            writeSet[key] = {
-                name = ability.title,
-                trigger = { type = "spell", spellID = ability.spellID, kind = "cast" },
-                dur = math.max(1, tonumber(durBox and durBox:GetText()) or 3),
-                enabled = true,
-                color = pendingColor,
-                iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
-                sound = (pendingSoundKey and pendingSoundKey ~= "none") and pendingSoundKey
-                    or nil,
-                msg = msgBox and msgBox:GetText() or "",
-            }
-        end
+        -- "defensive" unconditionally: nothing on this picker writes "custom" anymore
+        -- (the Custom Reminder tab is additive now, not a mode switch -- see the header
+        -- comment above), so this also self-heals a profile with a stale "custom" from
+        -- before that change, which would otherwise silently suppress this ability's
+        -- Pre-Selected Defensives pick forever (ns.HandleBigWigsAbility's own gate).
+        binding.mode = "defensive"
+        binding.preset = presetVal
+        -- Superseded by per-defensive leadTimeBySpell (0826h's ability-wide leadTime
+        -- was a one-day-old field with no other reader; safe to drop rather than
+        -- migrate).
+        binding.leadTime = nil
+        binding.leadTimeBySpell = next(leadTimeBySpell) and leadTimeBySpell or nil
         ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
@@ -2348,8 +2315,9 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         cog:SetScript("OnEnter", function(self)
             self:SetAlpha(0.7)
             if EUI.ShowWidgetTooltip then
-                EUI.ShowWidgetTooltip(self, "Reminders: Custom Reminders and "
-                    .. (inst.isRaid and "Raid" or "Dungeon") .. " Reminders for this boss.")
+                EUI.ShowWidgetTooltip(self, "Reminders: boss-wide Custom Reminders and "
+                    .. (inst.isRaid and "Raid" or "Dungeon")
+                    .. " Reminders (ability-bound ones live on that ability's own cog).")
             end
         end)
         cog:SetScript("OnLeave", function(self)
@@ -2534,33 +2502,15 @@ end
 --  the four displays) lives in NaowhUI_SmartReminders_RaidReminders.lua; this is the
 --  authoring UI on top of it, kept here since it needs the same tab/mechanic-picker/
 --  HoverTip scaffolding ShowCustomReminderEditor/ShowRaidReminderEditor already built.
+--  Ability-bound reminders (r.abilitySpellID set) are excluded below -- those live on
+--  their own ability's cog instead (ShowAbilityReminderPicker's Custom Reminder tab).
 -------------------------------------------------------------------------------
-local function RaidReminderTargetDesc(target)
-    if not target or target.kind == "all" then return "Everyone" end
-    if target.kind == "role" then
-        local names = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
-        return "Role: " .. (names[target.value] or tostring(target.value))
-    elseif target.kind == "class" then
-        local names = _G.LOCALIZED_CLASS_NAMES_MALE
-        return "Class: " .. ((names and names[target.value]) or tostring(target.value))
-    elseif target.kind == "spec" then
-        local ok, _, name = pcall(GetSpecializationInfoByID, target.value)
-        return "Spec: " .. ((ok and name) or tostring(target.value))
-    elseif target.kind == "name" then
-        return "Player: " .. tostring(target.value)
-    elseif target.kind == "subgroup" then
-        return "Group " .. tostring(target.value)
-    end
-    return "?"
-end
-
 -- Opened from the cog next to a boss's picker (RenderInstanceDetail). isRaid decides
 -- which of RaidRemindersTable's two kinds this boss's encounterID belongs to (the same
 -- split ns.BuildBossListPage's left column already keys instances on), not something
 -- picked here.
 function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
-    local W = EUI.Widgets
 
     local dimmer, panel = ns.MakeModal(480, 560)
 
@@ -2594,70 +2544,110 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
         -- Wrapped, same reason ShowRaidReminderEditor's own body is: a blank popup with
         -- no error on screen is undiagnosable from a screenshot alone.
         local ok, err = pcall(function()
-        local y, _, h = 0
+        local y = 0
 
-        if ns.ShowRaidReminderAnchorConfig then
-            _, h = W:Button(content, "Customize Anchors", y, function()
-                ns.ShowRaidReminderAnchorConfig()
-            end)
-            y = y - h - 10
+        -- Hand-rolled rows throughout, not W:SectionHeader/W:DualRow -- those are built
+        -- for a full-width options page (row backgrounds, hover-tags, a half-column each
+        -- slot always reserves) and look wrong crammed into a 480px floating popup, the
+        -- same reasoning ShowAbilityReminderPicker's own compact Label/Box helpers state.
+        local function Header(text)
+            local lbl = ns.Font(content, 12, nil, ns.THEME.gold)
+            lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+            lbl:SetText(text)
+            y = y - 20
         end
 
-        _, h = W:SectionHeader(content, (isRaid and "RAID" or "DUNGEON") .. " REMINDERS", y); y = y - h
+        local function NoneRow()
+            local lbl = ns.Font(content, 11, nil, ns.THEME.muted)
+            lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+            lbl:SetText("None yet for this boss.")
+            y = y - 20
+        end
+
+        -- One reminder: an enabled checkbox, name + description, Edit/Delete on the right.
+        local function ReminderRow(name, desc, getEnabled, setEnabled, editFn, deleteFn)
+            local row = CreateFrame("Frame", nil, content)
+            row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+            row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+            row:SetHeight(24)
+
+            local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+            check:SetSize(20, 20)
+            check:SetPoint("LEFT", row, "LEFT", 0, 0)
+            check:SetChecked(getEnabled())
+            check:SetScript("OnClick", function(self)
+                setEnabled(self:GetChecked() and true or false)
+            end)
+
+            local delBtn = ns.Button(row, "Delete", 56, 22, deleteFn)
+            delBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+            local editBtn = ns.Button(row, "Edit", 46, 22, editFn)
+            editBtn:SetPoint("RIGHT", delBtn, "LEFT", -4, 0)
+
+            local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
+            lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
+            lbl:SetPoint("RIGHT", editBtn, "LEFT", -8, 0)
+            lbl:SetJustifyH("LEFT")
+            lbl:SetText(name .. "  |cff8a99b5(" .. desc .. ")|r")
+
+            y = y - 26
+        end
+
+        if ns.ShowRaidReminderAnchorConfig then
+            local anchorBtn = ns.Button(content, "Customize Anchors", 160, 26, function()
+                ns.ShowRaidReminderAnchorConfig()
+            end)
+            anchorBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+            y = y - 34
+        end
+
+        Header((isRaid and "RAID" or "DUNGEON") .. " REMINDERS")
         local rrSet = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
         local rrList = {}
         if rrSet then
-            for uid, r in pairs(rrSet) do rrList[#rrList + 1] = { uid = uid, r = r } end
+            for uid, r in pairs(rrSet) do
+                if not r.abilitySpellID then rrList[#rrList + 1] = { uid = uid, r = r } end
+            end
             table.sort(rrList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
         end
-
         if #rrList == 0 then
-            _, h = W:DualRow(content, y,
-                { type = "label", text = "      None yet for this boss." },
-                { type = "label", text = "" }
-            ); y = y - h
+            NoneRow()
         else
             for i = 1, #rrList do
                 local uid, r = rrList[i].uid, rrList[i].r
-                local row
-                row, h = W:DualRow(content, y,
-                    { type = "toggle",
-                      text = ("      %s  |cff8a99b5(%s)|r"):format(
-                          r.name or "Reminder", RaidReminderTargetDesc(r.target)),
-                      tooltip = "Untick to keep this reminder without deleting it.",
-                      getValue = function() return r.enabled ~= false end,
-                      setValue = function(v) r.enabled = v end }
-                ); y = y - h
-                if row then
-                    AttachInline(row._leftRegion, "Edit", 46, function() EditRaidReminder(uid) end,
-                        "Edit", "Change this reminder's trigger, target or how it's shown.")
-                    AttachInline(row._leftRegion, "Delete", 56, function()
+                ReminderRow(r.name or "Reminder", RaidReminderTargetDesc(r.target),
+                    function() return r.enabled ~= false end,
+                    function(v) r.enabled = v end,
+                    function() EditRaidReminder(uid) end,
+                    function()
                         local writeSet = ns.RaidRemindersTable(false, encounterID)
                         if writeSet then writeSet[uid] = nil end
                         Rebuild()
-                    end, "Delete", "Removes this reminder.")
-                end
+                    end)
             end
         end
-        y = y - 8
+        y = y - 6
 
-        _, h = W:Button(content, isRaid and "+ Add a Raid Reminder" or "+ Add a Dungeon Reminder", y, function()
-            -- A thrown error here would otherwise be indistinguishable from a dead
-            -- button -- WoW hides script errors by default, so an uncaught throw looks
-            -- exactly like nothing happening at all.
-            local okClick, clickErr = pcall(EditRaidReminder, nil)
-            if not okClick then
-                ns.Print("|cffff6060could not open the raid reminder editor|r: " .. tostring(clickErr))
-            end
-        end)
-        y = y - h - 16
+        local addRRBtn = ns.Button(content,
+            isRaid and "+ Add a Raid Reminder" or "+ Add a Dungeon Reminder", 190, 26, function()
+                -- A thrown error here would otherwise be indistinguishable from a dead
+                -- button -- WoW hides script errors by default, so an uncaught throw looks
+                -- exactly like nothing happening at all.
+                local okClick, clickErr = pcall(EditRaidReminder, nil)
+                if not okClick then
+                    ns.Print("|cffff6060could not open the raid reminder editor|r: "
+                        .. tostring(clickErr))
+                end
+            end)
+        addRRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        y = y - 34
 
         -- Excludes "spell"-triggered entries -- those are the per-ability picker's own
         -- Custom Reminder mode (ShowAbilityReminderPicker), already editable from that
         -- ability's row; listing them here too would let this generic editor delete the
         -- reminder object while the ability's binding still says "custom", leaving that
         -- ability silently unable to fire either kind of callout.
-        _, h = W:SectionHeader(content, "CUSTOM REMINDERS", y); y = y - h
+        Header("CUSTOM REMINDERS")
         local crSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, encounterID)
         local crList = {}
         if crSet then
@@ -2668,12 +2658,8 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
             end
             table.sort(crList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
         end
-
         if #crList == 0 then
-            _, h = W:DualRow(content, y,
-                { type = "label", text = "      None yet for this boss." },
-                { type = "label", text = "" }
-            ); y = y - h
+            NoneRow()
         else
             for i = 1, #crList do
                 local uid, r = crList[i].uid, crList[i].r
@@ -2693,34 +2679,25 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
                         .. ((info and info.name) or tostring(trig.spellID))
                         .. (trig.target == "player" and " (You)" or " (Boss)")
                 end
-
-                local row
-                row, h = W:DualRow(content, y,
-                    { type = "toggle",
-                      text = ("      %s  |cff8a99b5(%s)|r"):format(r.name or "Reminder", trigDesc),
-                      tooltip = "Untick to keep this reminder without deleting it.",
-                      getValue = function() return r.enabled ~= false end,
-                      setValue = function(v)
-                          r.enabled = v
-                          ns.RefreshRuntime()
-                      end }
-                ); y = y - h
-                if row then
-                    AttachInline(row._leftRegion, "Edit", 46, function() EditCustomReminder(uid) end,
-                        "Edit", "Change this reminder's trigger, message or how long it lingers.")
-                    AttachInline(row._leftRegion, "Delete", 56, function()
+                ReminderRow(r.name or "Reminder", trigDesc,
+                    function() return r.enabled ~= false end,
+                    function(v) r.enabled = v; ns.RefreshRuntime() end,
+                    function() EditCustomReminder(uid) end,
+                    function()
                         local writeSet = ns.CustomRemindersTable(false, encounterID)
                         if writeSet then writeSet[uid] = nil end
                         ns.RefreshRuntime()
                         Rebuild()
-                    end, "Delete", "Removes this reminder.")
-                end
+                    end)
             end
         end
-        y = y - 8
+        y = y - 6
 
-        _, h = W:Button(content, "+ Add a Custom Reminder", y, function() EditCustomReminder(nil) end)
-        y = y - h
+        local addCRBtn = ns.Button(content, "+ Add a Custom Reminder", 190, 26, function()
+            EditCustomReminder(nil)
+        end)
+        addCRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        y = y - 34
 
         end)
         if not ok then
@@ -2742,20 +2719,17 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
     dimmer:Show()
 end
 
-local RR_ROLE_VALUES = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
-local RR_ROLE_ORDER = { "TANK", "HEALER", "DAMAGER" }
-local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
-local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle" }
-local RR_TARGET_VALUES = { all = "Everyone", role = "Role", class = "Class",
-    spec = "Spec", name = "Player Name", subgroup = "Subgroup" }
-local RR_TARGET_ORDER = { "all", "role", "class", "spec", "name", "subgroup" }
-
 -- ShowCustomReminderEditor's twin: same modal size, same tab/mechanic-picker/Save
 -- shape, restricted to BigWigs triggers only (no pull/aura, no DBM -- a raid reminder is
 -- always tied to a real BigWigs broadcast) and carrying the two things that editor has
 -- no concept of:
 -- who this is for (Target) and which of the four displays shows it.
-function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid)
+-- abilitySpellID, passed only from ShowAbilityReminderPicker's Custom Reminder tab,
+-- tags a brand-new entry as bound to that ability (so it shows on the ability's own
+-- cog instead of ShowBossReminderPicker's boss-wide list) and seeds the mechanic
+-- picker's Spell ID field with it -- still just a starting guess, not locked, since
+-- the real BigWigs key for an ability can differ from its journal spellID.
+function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilitySpellID)
     local EUI = callerEUI or _G.EllesmereUI
     local W = EUI.Widgets
     local kind = isRaid and "Raid" or "Dungeon"
@@ -2764,10 +2738,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid)
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText((uid and "Edit " or "New ") .. kind .. " Reminder")
+    head:SetText((uid and "Edit " or "New ")
+        .. (abilitySpellID and "Custom Reminder" or (kind .. " Reminder")))
 
     local set = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
     local existing = (set and uid) and set[uid] or nil
+    local boundAbilitySpellID = (existing and existing.abilitySpellID) or abilitySpellID
     local trig = (existing and existing.trigger) or { type = "bwtimer" }
     local target = (existing and existing.target) or { kind = "all" }
     local display = (existing and existing.display) or { type = "text" }
@@ -2888,7 +2864,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid)
 
     TLabel("Name")
     local nameBox = TBox(40)
-    nameBox:SetText((existing and existing.name) or "")
+    if existing then
+        nameBox:SetText(existing.name or "")
+    elseif abilitySpellID then
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(abilitySpellID)
+        nameBox:SetText((info and info.name) or "")
+    end
 
     -- The mechanic picker: every BigWigs/DBM key actually seen for this boss (recorded
     -- by RecordBossModKey the moment it fires live), sorted by how often it has come
@@ -2926,7 +2907,8 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid)
     local PICKER_TOP = ty
 
     local trigTypeVal = (trig.type == "bwmsg") and "bwmsg" or "bwtimer"
-    local spellIDText = (trig.spellID and tostring(trig.spellID)) or ""
+    local spellIDText = (trig.spellID and tostring(trig.spellID))
+        or (abilitySpellID and tostring(abilitySpellID)) or ""
     local leadTimeText = (trig.leadTime and tostring(trig.leadTime)) or "3"
 
     -- Declared here, assigned below: a picker row's OnClick (built by RebuildPicker,
@@ -3334,6 +3316,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid)
         return {
             name = (nameBox:GetText() ~= "" and nameBox:GetText()) or "Reminder",
             enabled = enabledVal, trigger = newTrig, target = newTarget, display = newDisplay,
+            abilitySpellID = boundAbilitySpellID,
         }
     end
 
