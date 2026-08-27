@@ -15,9 +15,10 @@
 --  showing anything.
 --
 --  Engine only -- data model, scheduling, targeting, and all four displays. The
---  authoring UI (ns.BuildRaidRemindersPage/ns.ShowRaidReminderEditor, the "Raid
---  Reminders" Setup tab) lives in NaowhUI_SmartReminders_Bosses.lua, which already had
---  the tab/mechanic-picker scaffolding this needed and loads after this file.
+--  authoring UI (ns.ShowRaidReminderEditor, reached through the boss-detail cog's
+--  ns.ShowBossReminderPicker rather than its own top-level tab) lives in
+--  NaowhUI_SmartReminders_Bosses.lua, which already had the tab/mechanic-picker
+--  scaffolding this needed and loads after this file.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhUITankReminder
 if not ns then return end
