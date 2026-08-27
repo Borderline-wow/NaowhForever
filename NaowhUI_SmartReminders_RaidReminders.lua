@@ -350,13 +350,17 @@ local RING_TICKS = 24
 -- the half-size, not a guess -- alpha-extracted the texture and sampled a horizontal
 -- line through the center to find the actual opaque band (x=10-17 and x=111-118 out of
 -- 128px, i.e. radius ~50.5px of a 64px half-width). Tick size is derived from that same
--- radius's own circumference divided by RING_TICKS, so segments cannot overlap into a
--- solid blob regardless of icon size -- what happened at the old fixed 0.22*size guess.
+-- radius's own circumference divided by RING_TICKS, so the overlap between neighbouring
+-- segments (a small, deliberate one -- see tickSize below) scales correctly with icon
+-- size instead of the old fixed 0.22*size guess, which overlapped by 30%+ regardless of
+-- spacing and swallowed most of the icon.
 local RING_RADIUS_FRAC = 0.395
 local function PositionCircleTicks(r, size)
     local radius = size * RING_RADIUS_FRAC
     local arcLen = (2 * math.pi * radius) / RING_TICKS
-    local tickSize = arcLen * 0.8
+    -- >1x on purpose: a wanted solid arc, not a dashed ring, so neighbouring segments
+    -- overlap slightly rather than leaving a gap between them.
+    local tickSize = arcLen * 1.15
     for i = 1, RING_TICKS do
         local t = r.ticks[i]
         t:SetSize(tickSize, tickSize)
