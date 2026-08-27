@@ -362,15 +362,19 @@ local function CreateCircleRegion(a)
     r.swipe:SetDrawSwipe(false)
     r.swipe:SetDrawEdge(false)
 
-    -- Ticking-down feel without a native swipe: a plain dark overlay, masked with the
-    -- SAME mask already proven to clip r.icon correctly (unlike the Cooldown widget's
-    -- own internal texture, a plain Texture's mask is reliable), fading from opaque to
+    -- Ticking-down feel without a native swipe: a plain dark overlay, masked to the
+    -- RING only (CIRCLE_BORDER_PATH itself, reused as a stencil rather than its usual
+    -- decorative job below -- a hollow ring shape, transparent everywhere else), so it
+    -- fades over the border, not across the icon's own face. Fading from opaque to
     -- clear over the reminder's duration -- driven by the same expirationTime/OnUpdate
     -- idiom CreateBarRegion already uses for its live fill.
+    local ringMask = r:CreateMaskTexture()
+    ringMask:SetAllPoints(r.icon)
+    ringMask:SetTexture(CIRCLE_BORDER_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     r.progress = r:CreateTexture(nil, "OVERLAY")
     r.progress:SetAllPoints(r.icon)
     r.progress:SetColorTexture(0, 0, 0, 1)
-    r.progress:AddMaskTexture(mask)
+    r.progress:AddMaskTexture(ringMask)
 
     r.border = r:CreateTexture(nil, "OVERLAY")
     r.border:SetAllPoints(r.icon)
@@ -630,10 +634,16 @@ local function RefreshConfigVisual(displayType)
     local a = GetAnchor(displayType)
     local h = EnsureConfigHandle(displayType, a)
 
+    -- Built directly from REGION_CTORS rather than AcquireRegion, deliberately NOT
+    -- tracked in a.active/a.pool: a real fire or Preview click while config mode is
+    -- open would otherwise pull this sample into RestackRegions' normal stacking and
+    -- reshuffle both it and the handle anchored off it. This way the sample always
+    -- sits still at the anchor's own TOP regardless of what else happens to fire.
     if not a._configSample then
-        local _, r = AcquireRegion(displayType)
-        a._configSample = r
+        a._configSample = REGION_CTORS[displayType](a)
     end
+    a._configSample:SetFrameStrata(a:GetFrameStrata())
+    a._configSample:SetFrameLevel(a:GetFrameLevel() + 1)
     PopulateSample(displayType, a._configSample)
     a._configSample:ClearAllPoints()
     a._configSample:SetPoint("TOP", a, "TOP", 0, 0)
@@ -651,10 +661,9 @@ local function HideConfigVisual(displayType)
     local a = anchors[displayType]
     if not a then return end
     if a._configHandle then a._configHandle:Hide() end
-    if a._configSample then
-        ReleaseRegion(a, a._configSample)
-        a._configSample = nil
-    end
+    -- Not pool-tracked (see RefreshConfigVisual), so just hidden and kept cached on the
+    -- anchor for next time rather than released back to a.pool.
+    if a._configSample then a._configSample:Hide() end
 end
 
 -- Rebuilds every checked type's visual -- called on entering config mode and after any
@@ -684,15 +693,20 @@ end
 -- shown/hidden rather than recreated.
 local configToolbar
 
+-- 2-column grid: 5 checkboxes fill the first 2.5 rows, Exit Config takes the otherwise
+-- empty slot next to Circle (last checkbox, alone in the left column) instead of a
+-- separate bottom row that overlapped it.
+local CONFIG_COL_W, CONFIG_ROW_H = 148, 24
+
 local function BuildConfigToolbar()
     if configToolbar then return configToolbar end
     local T = ns.THEME
     local f = CreateFrame("Frame", "NaowhUIRaidReminderAnchorConfig", UIParent)
-    f:SetSize(300, 112)
+    f:SetSize(300, 116)
     f:SetPoint("TOP", UIParent, "TOP", 0, -140)
     f:SetFrameStrata("HIGH")
     f:SetClampedToScreen(true)
-    ns.Solid(f, "BACKGROUND", { r = 0, g = 0, b = 0 }, 1)
+    ns.Solid(f, "BACKGROUND", { r = 0, g = 0, b = 0 }, 1):SetAllPoints()
     ns.Border(f)
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -705,12 +719,14 @@ local function BuildConfigToolbar()
     head:SetText("Reminder Anchors")
 
     local checks = {}
+    local lastRow = 0
     for i, displayType in ipairs(CONFIG_ORDER) do
         local col = (i - 1) % 2
         local row = math.floor((i - 1) / 2)
+        lastRow = row
         local chk = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         chk:SetSize(20, 20)
-        chk:SetPoint("TOPLEFT", f, "TOPLEFT", 14 + col * 148, -32 - row * 24)
+        chk:SetPoint("TOPLEFT", f, "TOPLEFT", 14 + col * CONFIG_COL_W, -32 - row * CONFIG_ROW_H)
         local lbl = ns.Font(f, 11, nil, T.fg)
         lbl:SetPoint("LEFT", chk, "RIGHT", 2, 1)
         lbl:SetText("Show " .. DISPLAY_TYPE_LABEL[displayType] .. " Anchor")
@@ -720,8 +736,12 @@ local function BuildConfigToolbar()
         checks[displayType] = chk
     end
 
-    ns.Button(f, "Exit Config", 110, 24, function() ns.HideRaidReminderAnchorConfig() end)
-        :SetPoint("BOTTOM", f, "BOTTOM", 0, 10)
+    -- 5 items leaves the right column of the last row open; an odd count would instead
+    -- fall after the last row entirely.
+    local exitCol = (#CONFIG_ORDER % 2 == 1) and 1 or 0
+    local exitRow = (#CONFIG_ORDER % 2 == 1) and lastRow or (lastRow + 1)
+    ns.Button(f, "Exit Config", CONFIG_COL_W - 14, 22, function() ns.HideRaidReminderAnchorConfig() end)
+        :SetPoint("TOPLEFT", f, "TOPLEFT", 14 + exitCol * CONFIG_COL_W, -31 - exitRow * CONFIG_ROW_H)
 
     f._checks = checks
     configToolbar = f
