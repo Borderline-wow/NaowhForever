@@ -1162,18 +1162,23 @@ local function CoveredByActiveDefensive()
     local now = GetTime()
     for i = 1, activeSlots do
         local sid = slots[i].spellID
-        local ok, remaining = pcall(function()
+        local ok, covered = pcall(function()
             local aura = C_UnitAuras.GetPlayerAuraBySpellID(sid)
-            if type(aura) ~= "table" then return nil end
+            if type(aura) ~= "table" then return false end
             local exp = aura.expirationTime
-            if issecretvalue and issecretvalue(exp) then return nil end
-            if type(exp) ~= "number" then return nil end
-            -- A zero expiration is an aura with no clock; a defensive that does not
-            -- expire on its own counts as covering.
-            if exp == 0 then return COVERED_MIN_REMAINING end
-            return exp - now
+            -- The aura's own EXISTENCE already answers "am I covered" -- reported live
+            -- on Mythic (secrecy tightens with difficulty): expirationTime read secret
+            -- while the buff was genuinely up 5s+, so this used to fall through to
+            -- "unknown" and fire the callout anyway. That was a deliberate fail-open
+            -- choice at the time, but it silently defeats the whole toggle exactly
+            -- where it matters most -- a buff Blizzard won't tell us the exact timing
+            -- of is still a buff, not a reason to give up on it. Same reasoning the
+            -- exp == 0 branch below already trusted.
+            if issecretvalue and issecretvalue(exp) then return true end
+            if type(exp) ~= "number" or exp == 0 then return true end
+            return (exp - now) >= COVERED_MIN_REMAINING
         end)
-        if ok and remaining and remaining >= COVERED_MIN_REMAINING then return true end
+        if ok and covered then return true end
     end
     return false
 end
@@ -4184,7 +4189,8 @@ function ns.BuildCoreSettings(parent, y)
         { type = "toggle", text = "Skip When Already Covered",
           tooltip = "Stays quiet when one of your defensives is already active with five or "
           .. "more seconds left as the warning fires -- you are covered, no need to stack "
-          .. "another. When the game hides a buff's timing, the callout plays anyway.",
+          .. "another. When the game hides exactly how much time is left (more common on "
+          .. "higher difficulties), the buff being up at all still counts as covered.",
           getValue = function() return TRDB().coveredSkip ~= false end,
           setValue = function(v) TRDB().coveredSkip = v end },
         { type = "slider", text = "Warn This Many Seconds Early", min = 1, max = 5, step = 1,
