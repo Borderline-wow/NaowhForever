@@ -2716,7 +2716,7 @@ function ns.BuildRaidRemindersPage(parent, y, isRaid)
             ); y = y - h
             if row then
                 AttachInline(row._leftRegion, "Edit", 46, function()
-                    ns.ShowRaidReminderEditor(encounterID, uid, EUI)
+                    ns.ShowRaidReminderEditor(encounterID, uid, EUI, isRaid)
                 end, "Edit", "Change this reminder's trigger, target or how it's shown.")
                 AttachInline(row._leftRegion, "Delete", 56, function()
                     local writeSet = ns.RaidRemindersTable(false, encounterID)
@@ -2729,12 +2729,12 @@ function ns.BuildRaidRemindersPage(parent, y, isRaid)
 
     y = y - 14   -- extra gap so the button reads as its own row, not glued to the list above
 
-    _, h = W:Button(parent, "+ Add a Raid Reminder", y, function()
+    _, h = W:Button(parent, isRaid and "+ Add a Raid Reminder" or "+ Add a Dungeon Reminder", y, function()
         -- A thrown error here would otherwise be indistinguishable from a dead button --
         -- WoW hides script errors by default, so an uncaught throw looks exactly like
         -- nothing happening at all.
         local okClick, clickErr = pcall(function()
-            ns.ShowRaidReminderEditor(encounterID, nil, EUI)
+            ns.ShowRaidReminderEditor(encounterID, nil, EUI, isRaid)
         end)
         if not okClick then
             ns.Print("|cffff6060could not open the raid reminder editor|r: " .. tostring(clickErr))
@@ -2771,15 +2771,16 @@ local RR_TARGET_ORDER = { "all", "role", "class", "spec", "name", "subgroup" }
 -- always tied to a real BigWigs broadcast) and carrying the two things that editor has
 -- no concept of:
 -- who this is for (Target) and which of the four displays shows it.
-function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
+function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid)
     local EUI = callerEUI or _G.EllesmereUI
     local W = EUI.Widgets
+    local kind = isRaid and "Raid" or "Dungeon"
 
     local dimmer, panel = ns.MakeModal(480, 620)
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText(uid and "Edit Raid Reminder" or "New Raid Reminder")
+    head:SetText((uid and "Edit " or "New ") .. kind .. " Reminder")
 
     local set = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
     local existing = (set and uid) and set[uid] or nil
@@ -2867,30 +2868,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     end
 
     local triggerTabBtn, triggerBody = AddTab("trigger", "Trigger & Target")
-    local displayTabBtn, displayBody = AddTab("display", "Display", triggerTabBtn)
-
-    -- TEMP diagnostic (build 0826z) -- remove once we have an answer. The previous
-    -- reading (0826y) queried position before dimmer:Show() ever ran (MakeModal hands
-    -- back a hidden frame; Show() happens at the very end of this function) -- GetLeft/
-    -- GetTop return nil for anything not actually shown yet, which is exactly what came
-    -- back, so that reading proved nothing either way. Deferred one frame so it runs
-    -- after Show() actually happened.
-    C_Timer.After(0, function()
-        local tbW, tbH = tabBar:GetWidth(), tabBar:GetHeight()
-        local tW, tH, tVis, tStrata, tAlpha = triggerTabBtn:GetWidth(), triggerTabBtn:GetHeight(),
-            triggerTabBtn:IsVisible(), triggerTabBtn:GetFrameStrata(), triggerTabBtn:GetAlpha()
-        local tLeft, tTop = triggerTabBtn:GetLeft(), triggerTabBtn:GetTop()
-        local lblVis, lblAlpha = triggerTabBtn.label:IsVisible(), triggerTabBtn.label:GetAlpha()
-        local dW, dH, dVis = displayTabBtn:GetWidth(), displayTabBtn:GetHeight(), displayTabBtn:IsVisible()
-        local dLeft, dTop = displayTabBtn:GetLeft(), displayTabBtn:GetTop()
-        local pVis, pLeft, pTop = panel:IsVisible(), panel:GetLeft(), panel:GetTop()
-        ns.Print(("|cff66ccff[RREditor2]|r panel vis=%s left=%s top=%s | tabBar w=%s h=%s | trigBtn w=%s h=%s left=%s top=%s vis=%s alpha=%s strata=%s lblVis=%s lblAlpha=%s | dispBtn w=%s h=%s left=%s top=%s vis=%s"):format(
-            tostring(pVis), tostring(pLeft), tostring(pTop),
-            tostring(tbW), tostring(tbH),
-            tostring(tW), tostring(tH), tostring(tLeft), tostring(tTop), tostring(tVis), tostring(tAlpha), tostring(tStrata),
-            tostring(lblVis), tostring(lblAlpha),
-            tostring(dW), tostring(dH), tostring(dLeft), tostring(dTop), tostring(dVis)))
-    end)
+    local _, displayBody = AddTab("display", "Display", triggerTabBtn)
 
     -------------------------------------------------------------------------
     --  Trigger & Target tab
