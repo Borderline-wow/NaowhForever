@@ -1807,23 +1807,40 @@ local selectedBossIdx = {}   -- keyed by instance.id
 --  spec/name/subgroup too, the same NSRT/TimelineReminders-style tool
 --  ns.ShowBossReminderPicker's boss-wide reminders already are.
 -------------------------------------------------------------------------------
+local RR_ROLE_VALUES = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
+local RR_ROLE_ORDER = { "TANK", "HEALER", "DAMAGER" }
+
+-- Categories join with " + " (AND, narrows), values within one category join with
+-- "/" (OR, widens) -- mirrors ns.RaidReminderTargetsMe's own semantics exactly, so
+-- what the summary says is what the targeting actually does.
 local function RaidReminderTargetDesc(target)
-    if not target or target.kind == "all" then return "Everyone" end
-    if target.kind == "role" then
-        local names = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
-        return "Role: " .. (names[target.value] or tostring(target.value))
-    elseif target.kind == "class" then
-        local names = _G.LOCALIZED_CLASS_NAMES_MALE
-        return "Class: " .. ((names and names[target.value]) or tostring(target.value))
-    elseif target.kind == "spec" then
-        local ok, _, name = pcall(GetSpecializationInfoByID, target.value)
-        return "Spec: " .. ((ok and name) or tostring(target.value))
-    elseif target.kind == "name" then
-        return "Player: " .. tostring(target.value)
-    elseif target.kind == "subgroup" then
-        return "Group " .. tostring(target.value)
+    target = ns.NormalizeRaidReminderTarget(target)
+    if target.all then return "Everyone" end
+
+    local function Joined(set, label, order)
+        if not (set and next(set)) then return nil end
+        local list = {}
+        for key in pairs(set) do list[#list + 1] = (label and label(key)) or tostring(key) end
+        table.sort(list)
+        return table.concat(list, order or "/")
     end
-    return "?"
+
+    local parts = {}
+    local p
+    p = Joined(target.roles, function(k) return RR_ROLE_VALUES[k] or k end); if p then parts[#parts + 1] = p end
+    p = Joined(target.classes, function(k)
+        local names = _G.LOCALIZED_CLASS_NAMES_MALE
+        return (names and names[k]) or k
+    end); if p then parts[#parts + 1] = p end
+    p = Joined(target.specs, function(k)
+        local ok, _, name = pcall(GetSpecializationInfoByID, k)
+        return (ok and name) or tostring(k)
+    end); if p then parts[#parts + 1] = p end
+    p = Joined(target.names, nil, ", "); if p then parts[#parts + 1] = p end
+    p = Joined(target.subgroups, function(k) return "Group " .. k end); if p then parts[#parts + 1] = p end
+
+    if #parts == 0 then return "Everyone" end
+    return table.concat(parts, " + ")
 end
 
 -- A reminder built from this ability's own cog carries abilitySpellID (the journal
@@ -1840,13 +1857,8 @@ local function FindBoundRaidReminder(encounterID, spellID)
     return nil, nil
 end
 
-local RR_ROLE_VALUES = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
-local RR_ROLE_ORDER = { "TANK", "HEALER", "DAMAGER" }
 local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
 local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle" }
-local RR_TARGET_VALUES = { all = "Everyone", role = "Role", class = "Class",
-    spec = "Spec", name = "Player Name", subgroup = "Subgroup" }
-local RR_TARGET_ORDER = { "all", "role", "class", "spec", "name", "subgroup" }
 
 function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
@@ -2700,7 +2712,10 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local W = EUI.Widgets
     local kind = isRaid and "Raid" or "Dungeon"
 
-    local dimmer, panel = ns.MakeModal(480, 620)
+    -- Taller than ShowCustomReminderEditor's 620: the Target tab now carries full
+    -- role/class/subgroup checkbox grids plus spec/name text fields instead of one
+    -- kind dropdown, and none of these tab bodies scroll.
+    local dimmer, panel = ns.MakeModal(480, 860)
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -2711,7 +2726,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local existing = (set and uid) and set[uid] or nil
     local boundAbilitySpellID = (existing and existing.abilitySpellID) or abilitySpellID
     local trig = (existing and existing.trigger) or { type = "bwtimer" }
-    local target = (existing and existing.target) or { kind = "all" }
+    local target = (existing and existing.target) or { all = true }
     local display = (existing and existing.display) or { type = "text" }
 
     local PAD = 20
@@ -2936,15 +2951,32 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local dynFrame, spellBox, leadTimeBox
     local triggerTypeRow
 
-    -- Target: who sees this. A flat kind+value pair -- one condition per reminder, same
-    -- tradeoff EffectiveList's own preset fallback already makes (simpler picker, make a
-    -- second reminder for a second target rather than one multi-select). Declared here,
-    -- built below: RebuildTriggerFields' own tail calls RebuildTargetSection so toggling
-    -- Message/Timer (which changes how tall the fields above it are) re-anchors the
-    -- whole Target section instead of leaving it frozen at its original position.
-    local targetKindVal = target.kind or "all"
-    local targetValueText = (target.value ~= nil) and tostring(target.value) or ""
-    local targetSection, targetValueGetter
+    -- Target: who sees this -- AND across categories (role/class/spec/name/subgroup),
+    -- OR within one, matching ns.RaidReminderTargetsMe exactly (see its own comment).
+    -- Declared here, built below: RebuildTriggerFields' own tail calls
+    -- RebuildTargetSection so toggling Message/Timer (which changes how tall the
+    -- fields above it are) re-anchors the whole Target section instead of leaving it
+    -- frozen at its original position.
+    local nTarget = ns.NormalizeRaidReminderTarget(target)
+    local targetAllVal = nTarget.all
+    local targetRoles, targetClasses, targetSubgroups = {}, {}, {}
+    for k in pairs(nTarget.roles or {}) do targetRoles[k] = true end
+    for k in pairs(nTarget.classes or {}) do targetClasses[k] = true end
+    for k in pairs(nTarget.subgroups or {}) do targetSubgroups[k] = true end
+    local targetSpecText, targetNameText
+    do
+        local list = {}
+        for id in pairs(nTarget.specs or {}) do list[#list + 1] = tostring(id) end
+        table.sort(list)
+        targetSpecText = table.concat(list, ", ")
+    end
+    do
+        local list = {}
+        for name in pairs(nTarget.names or {}) do list[#list + 1] = name end
+        table.sort(list)
+        targetNameText = table.concat(list, ", ")
+    end
+    local targetSection
     local RebuildTargetSection
 
     RebuildTriggerFields = function()
@@ -3041,117 +3073,126 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         if targetSection then targetSection:Hide() end
         targetSection = CreateFrame("Frame", nil, triggerBody)
         targetSection:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", 0, ty - 10)
-        targetSection:SetSize(440, 90)
+        targetSection:SetPoint("RIGHT", triggerBody, "RIGHT", 0, 0)
 
-        local targetKindRowH
-        _, targetKindRowH = W:DualRow(targetSection, 0,
-            { type = "dropdown", text = "Target",
-              values = RR_TARGET_VALUES, order = RR_TARGET_ORDER,
-              tooltip = "Who this reminder shows for. Evaluated on each raider's own "
-                  .. "client -- nothing is sent to anyone else.",
-              getValue = function() return targetKindVal end,
-              setValue = function(v) targetKindVal = v; RebuildTargetSection() end }
-        )
+        local tgy = 0
+        local function TargetLabel(text)
+            local l = ns.Font(targetSection, 11, nil, ns.THEME.muted)
+            l:SetPoint("TOPLEFT", targetSection, "TOPLEFT", PAD, tgy)
+            l:SetText(text)
+            tgy = tgy - 16
+        end
+        TargetLabel("Target")
 
-        local valueFrame = CreateFrame("Frame", nil, targetSection)
-        valueFrame:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 0, -targetKindRowH)
-        valueFrame:SetSize(440, 40)
+        local allCheck = CreateFrame("CheckButton", nil, targetSection, "UICheckButtonTemplate")
+        allCheck:SetSize(20, 20)
+        allCheck:SetPoint("TOPLEFT", targetSection, "TOPLEFT", PAD, tgy)
+        allCheck:SetChecked(targetAllVal)
+        local allLbl = ns.Font(targetSection, 11, nil, ns.THEME.fg)
+        allLbl:SetPoint("LEFT", allCheck, "RIGHT", 4, 0)
+        allLbl:SetText("Everyone")
+        tgy = tgy - 28
 
-        if targetKindVal == "all" then
-            targetValueGetter = function() return nil end
-        elseif targetKindVal == "role" then
-            local row = CreateFrame("Frame", nil, valueFrame)
-            row:SetPoint("TOPLEFT", valueFrame, "TOPLEFT", 0, 0)
-            row:SetPoint("RIGHT", valueFrame, "RIGHT", 0, 0)
-            row:SetHeight(32)
-            local ddBtn = EUI.BuildDropdownControl(row, 260, row:GetFrameLevel() + 1,
-                RR_ROLE_VALUES, RR_ROLE_ORDER,
-                function() return targetValueText end,
-                function(v) targetValueText = v end)
-            ddBtn:SetPoint("TOPLEFT", row, "TOPLEFT", PAD, 0)
-            if targetValueText == "" then targetValueText = "TANK" end
-            targetValueGetter = function() return targetValueText end
-        elseif targetKindVal == "class" then
-            local row = CreateFrame("Frame", nil, valueFrame)
-            row:SetPoint("TOPLEFT", valueFrame, "TOPLEFT", 0, 0)
-            row:SetPoint("RIGHT", valueFrame, "RIGHT", 0, 0)
-            row:SetHeight(32)
+        -- Greyed out (not just ignored) while Everyone is checked -- an irrelevant
+        -- control should read as irrelevant, same reasoning the boss cast-bar's own
+        -- AddCastBlock gating uses elsewhere in this addon suite.
+        local restFrame = CreateFrame("Frame", nil, targetSection)
+        restFrame:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 0, tgy)
+        restFrame:SetPoint("RIGHT", targetSection, "RIGHT", 0, 0)
+
+        local ry = 0
+        local function RestLabel(text)
+            local l = ns.Font(restFrame, 11, nil, ns.THEME.muted)
+            l:SetPoint("TOPLEFT", restFrame, "TOPLEFT", PAD, ry)
+            l:SetText(text)
+            ry = ry - 16
+        end
+        -- A fixed grid of small checkboxes -- shared shape for role/class/subgroup,
+        -- the three fixed-size enumerations. AND-across/OR-within (see
+        -- ns.RaidReminderTargetsMe) means checking two roles widens ("Tank OR
+        -- Healer"), while a role AND a class both checked narrows to their overlap.
+        local function CheckGrid(items, set, perRow, itemW, colorFn)
+            for i = 1, #items do
+                local key, label = items[i][1], items[i][2]
+                local col = (i - 1) % perRow
+                local row = math.floor((i - 1) / perRow)
+                local check = CreateFrame("CheckButton", nil, restFrame, "UICheckButtonTemplate")
+                check:SetSize(18, 18)
+                check:SetPoint("TOPLEFT", restFrame, "TOPLEFT", PAD + col * itemW, ry - row * 22)
+                check:SetChecked(set[key])
+                check:SetScript("OnClick", function(self)
+                    if self:GetChecked() then set[key] = true else set[key] = nil end
+                end)
+                local lbl = ns.Font(restFrame, 10, nil, ns.THEME.fg)
+                lbl:SetPoint("LEFT", check, "RIGHT", 2, 0)
+                lbl:SetWordWrap(false)
+                lbl:SetText(label)
+                if colorFn then
+                    local r, g, b = colorFn(key)
+                    if r then lbl:SetTextColor(r, g, b, 1) end
+                end
+            end
+            ry = ry - math.ceil(#items / perRow) * 22 - 8
+        end
+
+        RestLabel("Role")
+        do
+            local items = {}
+            for i = 1, #RR_ROLE_ORDER do items[i] = { RR_ROLE_ORDER[i], RR_ROLE_VALUES[RR_ROLE_ORDER[i]] } end
+            CheckGrid(items, targetRoles, 3, 140)
+        end
+
+        RestLabel("Class")
+        do
             local classNames = _G.LOCALIZED_CLASS_NAMES_MALE or {}
             local classOrder = {}
             for token in pairs(classNames) do classOrder[#classOrder + 1] = token end
             table.sort(classOrder)
-            local ddBtn = EUI.BuildDropdownControl(row, 260, row:GetFrameLevel() + 1,
-                classNames, classOrder,
-                function() return targetValueText end,
-                function(v) targetValueText = v end)
-            ddBtn:SetPoint("TOPLEFT", row, "TOPLEFT", PAD, 0)
-            if targetValueText == "" then targetValueText = classOrder[1] end
-            targetValueGetter = function() return targetValueText end
-        elseif targetKindVal == "spec" then
-            local l = ns.Font(valueFrame, 11, nil, ns.THEME.muted)
-            l:SetPoint("TOPLEFT", valueFrame, "TOPLEFT", PAD, 0)
-            l:SetText("Spec ID")
-            local box = CreateFrame("EditBox", nil, valueFrame)
-            box:SetPoint("TOPLEFT", valueFrame, "TOPLEFT", PAD, -16)
-            box:SetSize(80, 26)
-            box:SetAutoFocus(false)
-            box:SetNumeric(true)
-            box:SetMaxLetters(6)
-            box:SetFontObject("GameFontHighlight")
-            box:SetTextInsets(6, 6, 0, 0)
-            ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-            ns.Border(box)
-            box:SetText(targetValueText)
-            local feedback = ns.Font(valueFrame, 10, nil, ns.THEME.muted)
-            feedback:SetPoint("LEFT", box, "RIGHT", 8, 0)
-            local function Sync()
-                targetValueText = box:GetText() or ""
-                local id = tonumber(targetValueText)
-                if id then
-                    local ok, _, name = pcall(GetSpecializationInfoByID, id)
-                    feedback:SetText(ok and name and ("|cff6DD09A" .. name .. "|r") or "|cffff6060unknown spec id|r")
-                else
-                    feedback:SetText("")
-                end
-            end
-            box:SetScript("OnTextChanged", Sync)
-            Sync()
-            targetValueGetter = function() return tonumber(targetValueText) end
-        elseif targetKindVal == "name" then
-            local l = ns.Font(valueFrame, 11, nil, ns.THEME.muted)
-            l:SetPoint("TOPLEFT", valueFrame, "TOPLEFT", PAD, 0)
-            l:SetText("Player Name (exact, case-sensitive)")
-            local box = CreateFrame("EditBox", nil, valueFrame)
-            box:SetPoint("TOPLEFT", valueFrame, "TOPLEFT", PAD, -16)
-            box:SetPoint("RIGHT", valueFrame, "RIGHT", -PAD, 0)
+            local items = {}
+            for i = 1, #classOrder do items[i] = { classOrder[i], classNames[classOrder[i]] } end
+            local classColors = RAID_CLASS_COLORS or CUSTOM_CLASS_COLORS
+            CheckGrid(items, targetClasses, 3, 140, function(token)
+                local c = classColors and classColors[token]
+                if c then return c.r, c.g, c.b end
+            end)
+        end
+
+        RestLabel("Subgroup")
+        do
+            local items = {}
+            for i = 1, 8 do items[i] = { i, tostring(i) } end
+            CheckGrid(items, targetSubgroups, 8, 52)
+        end
+
+        local function RestBox(labelText, existingText, onChange)
+            RestLabel(labelText)
+            local box = CreateFrame("EditBox", nil, restFrame)
+            box:SetPoint("TOPLEFT", restFrame, "TOPLEFT", PAD, ry)
+            box:SetPoint("RIGHT", restFrame, "RIGHT", -PAD, 0)
             box:SetHeight(26)
             box:SetAutoFocus(false)
-            box:SetMaxLetters(24)
+            box:SetMaxLetters(200)
             box:SetFontObject("GameFontHighlight")
             box:SetTextInsets(6, 6, 0, 0)
             ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
             ns.Border(box)
-            box:SetText(targetValueText)
-            box:SetScript("OnTextChanged", function() targetValueText = box:GetText() or "" end)
-            targetValueGetter = function() return (targetValueText ~= "" and targetValueText) or nil end
-        elseif targetKindVal == "subgroup" then
-            local l = ns.Font(valueFrame, 11, nil, ns.THEME.muted)
-            l:SetPoint("TOPLEFT", valueFrame, "TOPLEFT", PAD, 0)
-            l:SetText("Subgroup (1-8)")
-            local box = CreateFrame("EditBox", nil, valueFrame)
-            box:SetPoint("TOPLEFT", valueFrame, "TOPLEFT", PAD, -16)
-            box:SetSize(60, 26)
-            box:SetAutoFocus(false)
-            box:SetNumeric(true)
-            box:SetMaxLetters(1)
-            box:SetFontObject("GameFontHighlight")
-            box:SetTextInsets(6, 6, 0, 0)
-            ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-            ns.Border(box)
-            box:SetText(targetValueText)
-            box:SetScript("OnTextChanged", function() targetValueText = box:GetText() or "" end)
-            targetValueGetter = function() return tonumber(targetValueText) end
+            box:SetText(existingText)
+            box:SetScript("OnTextChanged", function() onChange(box:GetText() or "") end)
+            ry = ry - 32
         end
+        RestBox("Spec IDs (comma-separated, optional)", targetSpecText,
+            function(v) targetSpecText = v end)
+        RestBox("Player Names (comma-separated, exact, optional)", targetNameText,
+            function(v) targetNameText = v end)
+
+        restFrame:SetHeight(-ry)
+        restFrame:SetShown(not targetAllVal)
+        allCheck:SetScript("OnClick", function(self)
+            targetAllVal = self:GetChecked() and true or false
+            restFrame:SetShown(not targetAllVal)
+        end)
+
+        targetSection:SetHeight(-tgy + (targetAllVal and 0 or -ry))
     end
     RebuildTriggerFields()
 
@@ -3269,7 +3310,24 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         if trigTypeVal == "bwtimer" then
             newTrig.leadTime = tonumber(leadTimeText) or 3
         end
-        local newTarget = { kind = targetKindVal, value = targetValueGetter and targetValueGetter() or nil }
+        local newTarget = { all = targetAllVal }
+        if not targetAllVal then
+            if next(targetRoles) then newTarget.roles = targetRoles end
+            if next(targetClasses) then newTarget.classes = targetClasses end
+            if next(targetSubgroups) then newTarget.subgroups = targetSubgroups end
+            local specs = {}
+            for numStr in targetSpecText:gmatch("[^,%s]+") do
+                local id = tonumber(numStr)
+                if id then specs[id] = true end
+            end
+            if next(specs) then newTarget.specs = specs end
+            local names = {}
+            for namePart in targetNameText:gmatch("[^,]+") do
+                namePart = namePart:match("^%s*(.-)%s*$")
+                if namePart ~= "" then names[namePart] = true end
+            end
+            if next(names) then newTarget.names = names end
+        end
         local iconSid = tonumber(iconBox:GetText())
         local newDisplay = {
             type = displayTypeVal,

@@ -28,9 +28,12 @@ if not ns then return end
 -------------------------------------------------------------------------------
 -- profile.raidReminders[encounterID][uid] = {
 --     name, enabled,
---     trigger = { type = "bwtimer"|"bwmsg", spellID, leadTime },
---     target  = { kind = "all"|"role"|"class"|"spec"|"name"|"subgroup", value },
---     display = { type = "text"|"icon"|"bar"|"circle", text, spellID, color, dur, sound },
+--     trigger = { type = "bwtimer"|"bwmsg"|"pull", spellID, leadTime },
+--     target  = { all = bool, roles = {TANK=true,...}, classes = {PALADIN=true,...},
+--                 specs = {[specID]=true,...}, names = {["Name"]=true,...},
+--                 subgroups = {[1]=true,...} },
+--     display = { type = "text"|"icon"|"bar"|"circle"|"chat"|"wa"|"nameplateGlow"|
+--                 "raidframeGlow", text, spellID, color, dur, sound, tts },
 -- }
 -- Same PerBossSet shape customReminders already uses (NaowhUI_SmartReminders.lua),
 -- reused rather than reimplemented -- one helper, every per-boss table goes through it.
@@ -54,22 +57,54 @@ local function MySubgroup()
     return 1   -- solo/party: no raid roster, only ever "group 1"
 end
 
-function ns.RaidReminderTargetsMe(target)
-    if not target or target.kind == "all" then return true end
-    if target.kind == "role" then
-        return UnitGroupRolesAssigned("player") == target.value
-    elseif target.kind == "class" then
-        local _, classToken = UnitClass("player")
-        return classToken == target.value
-    elseif target.kind == "spec" then
-        local id = ns.CurrentSpec and ns.CurrentSpec()
-        return id == target.value
-    elseif target.kind == "name" then
-        return UnitName("player") == target.value
-    elseif target.kind == "subgroup" then
-        return MySubgroup() == target.value
+-- Old single kind+value shape, normalized to the new multi-flag one on read rather
+-- than migrated in place -- this feature only shipped this session, so there is no
+-- real saved data to preserve, and a read-time fallback is simpler than a migration
+-- file for something this new. Every reader of a raid reminder's target (targeting
+-- itself, the editor, the summary description) goes through this.
+function ns.NormalizeRaidReminderTarget(target)
+    if not target then return { all = true } end
+    if target.kind then
+        local n = { all = target.kind == "all" }
+        if target.kind == "role" then n.roles = { [target.value] = true }
+        elseif target.kind == "class" then n.classes = { [target.value] = true }
+        elseif target.kind == "spec" then n.specs = { [target.value] = true }
+        elseif target.kind == "name" then n.names = { [target.value] = true }
+        elseif target.kind == "subgroup" then n.subgroups = { [target.value] = true }
+        end
+        return n
     end
-    return false
+    return target
+end
+
+-- Confirmed against MRT's own CheckPlayerCondition: AND across categories, OR within
+-- one. Multiple role flags OR together, multiple class flags OR together, but setting
+-- both Role=Healer AND Class=Priest narrows to their intersection, not their union --
+-- an empty/unset category is vacuously true rather than false, same as MRT's own
+-- pflitercount/cflitercount/rflitercount == 0 short-circuit, so picking only a role
+-- does not also require a class match by accident.
+function ns.RaidReminderTargetsMe(target)
+    target = ns.NormalizeRaidReminderTarget(target)
+    if target.all then return true end
+
+    if target.roles and next(target.roles) and not target.roles[UnitGroupRolesAssigned("player")] then
+        return false
+    end
+    if target.classes and next(target.classes) then
+        local _, classToken = UnitClass("player")
+        if not target.classes[classToken] then return false end
+    end
+    if target.specs and next(target.specs) then
+        local id = ns.CurrentSpec and ns.CurrentSpec()
+        if not target.specs[id] then return false end
+    end
+    if target.names and next(target.names) and not target.names[UnitName("player")] then
+        return false
+    end
+    if target.subgroups and next(target.subgroups) and not target.subgroups[MySubgroup()] then
+        return false
+    end
+    return true
 end
 
 -------------------------------------------------------------------------------
