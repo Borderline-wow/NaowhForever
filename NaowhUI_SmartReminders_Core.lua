@@ -430,10 +430,11 @@ boot:SetScript("OnEvent", function(self)
         RegisterModule({
             title       = "Naowh Smart Reminders",
             description = "Naowh's boss ability reminder for EllesmereUI.",
-            -- Four real tabs -- EllesmereUI's own module system renders these as the top
+            -- Six real tabs -- EllesmereUI's own module system renders these as the top
             -- tab strip (BuildTabs) and calls buildPage once per tab, lazily, on first
             -- visit. pageName is genuinely read now, not just accepted and ignored.
-            pages       = { "Setup", "Dungeon Bosses", "Raid Bosses", "Raid Reminders" },
+            pages       = { "Setup", "Dungeon Bosses", "Raid Bosses",
+                "Dungeon Reminders", "Raid Reminders" },
             buildPage   = function(pageName, parent, yOffset)
                 if pageName == "Dungeon Bosses" then
                     return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, yOffset, false)
@@ -441,8 +442,11 @@ boot:SetScript("OnEvent", function(self)
                 elseif pageName == "Raid Bosses" then
                     return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, yOffset, true)
                         or math.abs(yOffset)
+                elseif pageName == "Dungeon Reminders" then
+                    return ns.BuildRaidRemindersPage and ns.BuildRaidRemindersPage(parent, yOffset, false)
+                        or math.abs(yOffset)
                 elseif pageName == "Raid Reminders" then
-                    return ns.BuildRaidRemindersPage and ns.BuildRaidRemindersPage(parent, yOffset)
+                    return ns.BuildRaidRemindersPage and ns.BuildRaidRemindersPage(parent, yOffset, true)
                         or math.abs(yOffset)
                 else -- "Setup"
                     return ns.BuildSetupPage and ns.BuildSetupPage(parent, yOffset)

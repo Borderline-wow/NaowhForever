@@ -2592,13 +2592,16 @@ end
 
 -- Page-local, deliberately unsaved -- which boss's reminders you last had open is not a
 -- setting, same reasoning ns.BuildBossListPage's own selectedInst already documents.
-local selectedRRBoss   -- { id = encounterID, label = "Instance - Boss" }
+-- Keyed by "raid"/"dungeon" the same way selectedInst is, so picking a boss on one tab
+-- does not bleed into the other.
+local selectedRRBoss = { raid = nil, dungeon = nil }   -- [key] = { id = encounterID, label = "Instance - Boss" }
 
-function ns.BuildRaidRemindersPage(parent, y)
+function ns.BuildRaidRemindersPage(parent, y, isRaid)
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
     local _, h
     local startY = y
+    local key = isRaid and "raid" or "dungeon"
 
     -- Every other tab (BuildBossTabPage/BuildSetupPage) clears the non-scrolling content
     -- header before drawing -- this page is called directly from Core's buildPage
@@ -2616,7 +2619,7 @@ function ns.BuildRaidRemindersPage(parent, y)
     local pageHead = ns.Font(parent, 14, nil, ns.THEME.gold)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
     pageHead:SetJustifyH("CENTER")
-    pageHead:SetText("Raid Reminders")
+    pageHead:SetText(isRaid and "Raid Reminders" or "Dungeon Reminders")
     y = y - 22
 
     local hint = ns.Font(parent, 11, nil, ns.THEME.muted)
@@ -2633,10 +2636,12 @@ function ns.BuildRaidRemindersPage(parent, y)
     if data then
         for i = 1, #data.instances do
             local inst = data.instances[i]
-            for b = 1, #inst.bosses do
-                local boss = inst.bosses[b]
-                if boss.encounterID then
-                    list[#list + 1] = { id = boss.encounterID, label = inst.name .. " - " .. boss.name }
+            if (inst.isRaid or false) == isRaid then
+                for b = 1, #inst.bosses do
+                    local boss = inst.bosses[b]
+                    if boss.encounterID then
+                        list[#list + 1] = { id = boss.encounterID, label = inst.name .. " - " .. boss.name }
+                    end
                 end
             end
         end
@@ -2654,12 +2659,14 @@ function ns.BuildRaidRemindersPage(parent, y)
     -- Match the remembered selection back up by id, same reasoning
     -- ns.BuildBossListPage's own sel-matching already documents: the scraped list is a
     -- fresh table on every refresh, so matching by table identity would un-pick itself.
-    if selectedRRBoss then
+    local sel = selectedRRBoss[key]
+    if sel then
         local found
-        for i = 1, #list do if list[i].id == selectedRRBoss.id then found = list[i] break end end
-        selectedRRBoss = found
+        for i = 1, #list do if list[i].id == sel.id then found = list[i] break end end
+        sel = found
+        selectedRRBoss[key] = found
     end
-    if not selectedRRBoss then selectedRRBoss = list[1] end
+    if not sel then sel = list[1]; selectedRRBoss[key] = sel end
 
     local values, order = {}, {}
     for i = 1, #list do values[list[i].id] = list[i].label; order[i] = list[i].id end
@@ -2668,15 +2675,15 @@ function ns.BuildRaidRemindersPage(parent, y)
         { type = "dropdown", text = "Boss",
           values = values, order = order,
           tooltip = "Which boss this list of reminders is for.",
-          getValue = function() return selectedRRBoss.id end,
+          getValue = function() return sel.id end,
           setValue = function(v)
-              for i = 1, #list do if list[i].id == v then selectedRRBoss = list[i] break end end
+              for i = 1, #list do if list[i].id == v then selectedRRBoss[key] = list[i] break end end
               EUI:RefreshPage(true)
           end }
     ); y = y - h
     y = y - 10
 
-    local encounterID = selectedRRBoss.id
+    local encounterID = sel.id
     local rrSet = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
     local rrList = {}
     if rrSet then
