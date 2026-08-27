@@ -1183,6 +1183,12 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
 
     local tabBar = CreateFrame("Frame", nil, panel)
     tabBar:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
+    -- A single-corner anchor with no width ever set left tabBar's own geometry (and
+    -- everything anchored off its LEFT/RIGHT points transitively -- every tab button)
+    -- unresolvable: GetLeft/GetTop came back nil for the tab buttons even fully shown
+    -- with alpha 1, confirmed live via debug prints. A second anchor point gives it a
+    -- real width, same as every other full-width strip in this file already does.
+    tabBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP)
     tabBar:SetHeight(24)
 
     local tabDivider = ns.Solid(panel, "ARTWORK", ns.THEME.line, 1)
@@ -2809,6 +2815,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
 
     local tabBar = CreateFrame("Frame", nil, panel)
     tabBar:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
+    -- A single-corner anchor with no width ever set left tabBar's own geometry (and
+    -- everything anchored off its LEFT/RIGHT points transitively -- every tab button)
+    -- unresolvable: GetLeft/GetTop came back nil for the tab buttons even fully shown
+    -- with alpha 1, confirmed live via debug prints. A second anchor point gives it a
+    -- real width, same as every other full-width strip in this file already does.
+    tabBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP)
     tabBar:SetHeight(24)
 
     local tabDivider = ns.Solid(panel, "ARTWORK", ns.THEME.line, 1)
