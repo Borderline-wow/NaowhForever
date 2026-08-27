@@ -2586,38 +2586,12 @@ function ns.EnsureBinding(enc, sid)
 end
 
 -- Setup's own "Warn This Many Seconds Early" slider is the base every ability uses; a
--- per-DEFENSIVE override (set from that ability's own cog, next to that defensive on its
--- preset list) wins when the defensive that would currently win the priority pick has
--- one set.
---
--- The real pick only happens later, inside FireBigWigsAbility once the scheduled delay
--- elapses -- re-evaluated then on purpose, since talents/cooldowns/an active defensive
--- can all change across a multi-second bar. This runs the SAME winner search early
--- (SpellReady, exactly what SpeakCallout's own pick uses) just to decide how long the
--- schedule itself should wait; the preview can go stale between now and the real pick
--- the same way the real pick can go stale relative to when the bar started, which is
--- already an accepted characteristic of this whole design, not a new one.
--- SpellReady is a PLAIN, non-secret readiness check (charges/CooldownRunning/readyAt),
--- unlike ApplyPriorityAlpha's icon path, which is why this is legal to branch on here.
+-- per-ABILITY override (set from that ability's own cog, on the Defensive Preset tab)
+-- wins when it has one set -- one warning time for the whole preset, not broken out
+-- per defensive within it.
 function ns.LeadTimeFor(enc, sid)
-    local base = TRDB().leadTime or 3
     local binding = ns.BindingForBossModKey(enc, sid)
-    local perSpell = binding and binding.leadTimeBySpell
-    if type(perSpell) ~= "table" or not next(perSpell) then return base end
-
-    local list = EffectiveList(specID, enc, tostring(sid))
-    if type(list) == "table" then
-        local now = GetTime()
-        for i = 1, #list do
-            local spellID = list[i]
-            if IsSpellAvailable(spellID) and not IsSpellDisabled(spellID)
-                and SpellReady(spellID, now) then
-                if perSpell[spellID] ~= nil then return perSpell[spellID] end
-                break
-            end
-        end
-    end
-    return base
+    return (binding and binding.leadTime) or TRDB().leadTime or 3
 end
 
 function ns.AbilityEnabledForBinding(enc, sid)
@@ -2726,33 +2700,34 @@ end
 -- native-timeline engine used) before the bar actually ends, matching how the custom
 -- reminder system's own bwtimer trigger already waits out a bar rather than firing at its
 -- start -- the primary engine just never got the same treatment until now.
--- Keyed by sid AND the bar's own identity, not sid alone: timeline fights genuinely run
--- two overlapping bars for one spell id (Vorasius' Shadowclaw Slam -- Blizzard schedules
--- two concurrent timeline rows, DBM's module says so outright, and BigWigs bars both
--- under its one option key with distinct texts), and a single slot per sid silently
--- dropped one of the two hits. The same hit arriving from the OTHER boss mod carries a
--- different identity but lands at the same moment, so a new fire landing within 2s of
--- one already pending for the sid is the duplicate to skip; a genuinely staggered second
--- bar schedules alongside. The 3s repeat guard against the last fire that ACTUALLY
--- happened (lastBWSid/lastBWAt, only ever updated at the moment FireBigWigsAbility
--- itself runs, never at schedule time) applies up front regardless of branch, so a
--- module that broadcasts both an immediate Message and a StartBar for the one real
--- cast -- confirmed as a real BigWigs pattern, e.g. Entombed Sentinels' Empowering
--- Slam pairs a CDBar with a same-key Message -- does not schedule a second callout
--- for the one that already fired. This is a different question from the 2s pending-
--- fire proximity check below it, which compares two NOT-YET-fired schedules against
--- each other to catch a cross-mod duplicate of the same upcoming hit; that check alone
--- is what lets Vorasius' two genuinely concurrent Slam bars both still schedule.
+-- At most one pending fire per sid: a second bar for the same ability arriving while one
+-- is already scheduled CANCELS the first and replaces it, rather than the two schedules
+-- coexisting. Used to allow a second, far-enough-apart schedule to stand alongside the
+-- first (kept for Vorasius' genuinely concurrent double Shadowclaw Slam bar) -- dropped
+-- by request, since Vorasius isn't in this season's rotation, in favor of always
+-- collapsing to one: Nek'zali's Possession Barrage broadcasts twice for the SAME real
+-- cast (a rough predictive bar at each stage transition, self:Bar(1292036, 40+gap, ...),
+-- and the accurate one off Blizzard's own encounter timeline once it actually schedules
+-- the event) with durations far enough apart that the old 2s proximity check let both
+-- through, calling out twice for one hit. The later arrival -- normally the more accurate
+-- one, since a rough estimate is what shows up first and gets corrected once the real
+-- timeline event exists -- now wins outright.
+-- The 3s repeat guard against the last fire that ACTUALLY happened (lastBWSid/lastBWAt,
+-- only ever updated at the moment FireBigWigsAbility itself runs, never at schedule time)
+-- still applies up front regardless, so a module that broadcasts both an immediate
+-- Message and a StartBar for the one real cast -- confirmed as a real BigWigs pattern,
+-- e.g. Entombed Sentinels' Empowering Slam pairs a CDBar with a same-key Message -- does
+-- not schedule a second callout for the one that already fired.
 -- Channel-namespaced so the tank-buster engine and the raid-reminder engine (a separate
 -- feature, NaowhUI_SmartReminders_RaidReminders.lua) never collide when both have a
--- pending fire for the same sid+barIdentity -- each channel's own timers are independent.
+-- pending fire for the same sid -- each channel's own timers are independent.
 local pendingBWFires = { tank = {} }   -- [channel][sid] = { [identity] = {fireAt, timer} }
 
 -- The scheduling primitive itself: waits out a BigWigs/DBM bar to fire `lead` seconds
 -- before it ends, same duplicate/resync handling regardless of which feature is calling.
--- Exported (ns.ScheduleBWFire) so the raid-reminder engine gets the identical, proven
--- concurrent-bar/cross-mod-duplicate handling instead of a second hand-rolled copy that
--- could drift out of sync with this one on some BigWigs edge case only one of them hits.
+-- Exported (ns.ScheduleBWFire) so the raid-reminder engine gets the identical handling
+-- instead of a second hand-rolled copy that could drift out of sync with this one on some
+-- BigWigs edge case only one of them hits.
 function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     local fires = pendingBWFires[channel]
     if not fires then fires = {} pendingBWFires[channel] = fires end
@@ -2761,13 +2736,11 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
     local key = barIdentity or false
     local fireAt = GetTime() + delay
-    local old = sidFires[key]
-    if old then
-        if old.timer.Cancel then old.timer:Cancel() end   -- the same bar, resynced
-    else
-        for _, f in pairs(sidFires) do
-            if math.abs(f.fireAt - fireAt) < 2 then return end
-        end
+    -- Whatever else is pending for this sid -- the same bar resynced, or a different
+    -- bar entirely -- gets superseded by this one.
+    for otherKey, f in pairs(sidFires) do
+        if f.timer.Cancel then f.timer:Cancel() end
+        sidFires[otherKey] = nil
     end
     sidFires[key] = { fireAt = fireAt, timer = C_Timer.NewTimer(delay, function()
         sidFires[key] = nil

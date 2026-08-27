@@ -1868,18 +1868,12 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
     local binding = ns.EnsureBinding(encounterID, ability.spellID)
     local specID = ns.CurrentSpec and ns.CurrentSpec()
-    -- Per DEFENSIVE, not per ability: [spellID] = seconds, one row per spell on whatever
-    -- preset is currently selected. A shallow copy, not the live saved table -- Cancel
-    -- must not touch binding.leadTimeBySpell, and Save writes this whole copy back.
-    -- Set once, here, not inside RebuildBody: switching presets (or an edit to any one
-    -- slider) rebuilds the panel to refresh the row list, and re-deriving this table from
-    -- binding every rebuild would stomp whatever the player just changed right back to
-    -- the last SAVED state before Save ever runs -- same trap the old ability-wide
-    -- checkbox hit here before this became per-defensive.
-    local leadTimeBySpell = {}
-    if type(binding.leadTimeBySpell) == "table" then
-        for k, v in pairs(binding.leadTimeBySpell) do leadTimeBySpell[k] = v end
-    end
+    -- One warning time for the whole preset on this ability -- not per defensive within
+    -- it (that granularity was tried and dropped: too fiddly for what it bought). Lazily
+    -- initialized inside RebuildBody, same reasoning presetVal below documents: re-deriving
+    -- it on every rebuild would stomp an in-progress drag the instant switching tabs or
+    -- presets triggered one.
+    local leadTimeVal
 
     -- Same destroy-and-recreate idiom as the custom reminder editor's own dynFrame: the
     -- old body is hidden and dropped rather than cleared field by field, since GetChildren
@@ -2006,18 +2000,16 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 -- would re-read binding.preset, still the OLD value until Save() runs,
                 -- and stomp the pick right back to it -- which is exactly what made the
                 -- dropdown look stuck on the old preset the instant a different one was
-                -- clicked (the same trap leadTimeBySpell's own init above already has to
+                -- clicked (the same trap leadTimeVal's own init below already has to
                 -- dodge, just missed here when RebuildBody() was added to this one).
                 if presetVal == nil then
                     presetVal = binding.preset or ns.BossPresetKey(specID, encounterID)
                         or ns.ActivePresetKey(specID) or presetOrder[1]
                 end
                 Label("Defensive Preset")
-                -- Rebuilds on change: the per-defensive rows below are drawn from
-                -- whichever preset is picked, so switching presets has to refresh them.
                 DropdownRow(presetValues, presetOrder,
                     function() return presetVal end,
-                    function(v) presetVal = v; RebuildBody() end)
+                    function(v) presetVal = v end)
             end
 
             local note = ns.Font(body, 10, nil, ns.THEME.muted)
@@ -2026,50 +2018,23 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             note:SetJustifyH("LEFT")
             note:SetWordWrap(true)
             note:SetText("Calls out the highest defensive on that preset still ready "
-                .. "when this ability is cast. Each one's own warning time below.")
+                .. "when this ability is cast.")
             by = by - 30
 
-            -- One row per defensive on the selected preset, each with its own 0-10s
-            -- warning time -- ns.LeadTimeFor resolves this by previewing which defensive
-            -- would currently win the priority pick and using THAT one's value, since a
-            -- press that needs a cast time wants earlier warning than an instant one.
-            -- leadTimeBySpell is initialized once, above RebuildBody (see its own
-            -- comment) -- not re-derived here, so an edit that triggers a rebuild (or a
-            -- preset switch) does not stomp itself.
-            local list = presetVal and ns.PresetList(specID, presetVal)
-            if list and #list > 0 then
-                for i = 1, #list do
-                    local spellID = list[i]
-                    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
-                    local row = CreateFrame("Frame", nil, body)
-                    row:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-                    row:SetPoint("RIGHT", body, "RIGHT", 0, 0)
-                    row:SetHeight(26)
-
-                    local nameLbl = ns.Font(row, 11, nil, ns.THEME.fg)
-                    nameLbl:SetPoint("LEFT", row, "LEFT", 0, 0)
-                    nameLbl:SetPoint("RIGHT", row, "RIGHT", -166, 0)
-                    nameLbl:SetJustifyH("LEFT")
-                    nameLbl:SetText((info and info.name) or ("Spell " .. spellID))
-
-                    local trackFrame, valBox = EUI.BuildSliderCore(row, 96, 4, 12, 36, 22, 12,
-                        1, 0, 10, 1,
-                        function() return leadTimeBySpell[spellID] or (ns.DB().leadTime or 3) end,
-                        function(v)
-                            -- No override recorded when the dragged value just matches the
-                            -- current base -- otherwise every row a player merely glances
-                            -- at without meaning to change anything would save a pointless
-                            -- explicit override the moment BuildSliderCore's drag handler
-                            -- fires, contradicting today's own "nothing auto-set" rule.
-                            if v == (ns.DB().leadTime or 3) then leadTimeBySpell[spellID] = nil
-                            else leadTimeBySpell[spellID] = v end
-                        end)
-                    valBox:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-                    trackFrame:SetPoint("RIGHT", valBox, "LEFT", -10, 0)
-
-                    by = by - 28
-                end
+            -- Lazily initialized, not re-derived on every rebuild (see its own comment
+            -- above) -- an edit that triggers a rebuild (switching presets or tabs) must
+            -- not stomp a drag still in progress.
+            if leadTimeVal == nil then
+                leadTimeVal = binding.leadTime or (ns.DB().leadTime or 3)
             end
+            Label("Warning Time (seconds before impact)")
+            local trackFrame, valBox = EUI.BuildSliderCore(body, 200, 4, 12, 40, 22, 12,
+                1, 0, 10, 1,
+                function() return leadTimeVal end,
+                function(v) leadTimeVal = v end)
+            trackFrame:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            valBox:SetPoint("LEFT", trackFrame, "RIGHT", 10, 0)
+            by = by - 32
         else
             local hint = ns.Font(body, 11, nil, ns.THEME.muted)
             hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
@@ -2147,11 +2112,12 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- Pre-Selected Defensives pick forever (ns.HandleBigWigsAbility's own gate).
         binding.mode = "defensive"
         binding.preset = presetVal
-        -- Superseded by per-defensive leadTimeBySpell (0826h's ability-wide leadTime
-        -- was a one-day-old field with no other reader; safe to drop rather than
-        -- migrate).
-        binding.leadTime = nil
-        binding.leadTimeBySpell = next(leadTimeBySpell) and leadTimeBySpell or nil
+        -- Per-defensive leadTimeBySpell was tried and dropped -- too fiddly for what it
+        -- bought -- back to one warning time for the whole preset on this ability. No
+        -- migration: any leftover leadTimeBySpell from that build is simply never read
+        -- again once this saves.
+        binding.leadTimeBySpell = nil
+        binding.leadTime = (leadTimeVal ~= (ns.DB().leadTime or 3)) and leadTimeVal or nil
         ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
