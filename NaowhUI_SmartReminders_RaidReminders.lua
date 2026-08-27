@@ -354,13 +354,23 @@ local function CreateCircleRegion(a)
     -- internal swipe texture is not reliably supported across clients (confirmed live:
     -- it showed as an opaque black square sitting over the round icon, not a masked
     -- circle) -- so the fill and edge are turned off entirely rather than trusted to
-    -- clip correctly. Only the countdown number is kept; the round icon plus border
-    -- already read as a circle on their own without a pie-wipe on top.
+    -- clip correctly. The countdown number is kept, and progress is shown a different
+    -- way below (r.progress) instead of the native pie-wipe.
     r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
     r.swipe:SetAllPoints(r.icon)
     r.swipe:SetHideCountdownNumbers(false)
     r.swipe:SetDrawSwipe(false)
     r.swipe:SetDrawEdge(false)
+
+    -- Ticking-down feel without a native swipe: a plain dark overlay, masked with the
+    -- SAME mask already proven to clip r.icon correctly (unlike the Cooldown widget's
+    -- own internal texture, a plain Texture's mask is reliable), fading from opaque to
+    -- clear over the reminder's duration -- driven by the same expirationTime/OnUpdate
+    -- idiom CreateBarRegion already uses for its live fill.
+    r.progress = r:CreateTexture(nil, "OVERLAY")
+    r.progress:SetAllPoints(r.icon)
+    r.progress:SetColorTexture(0, 0, 0, 1)
+    r.progress:AddMaskTexture(mask)
 
     r.border = r:CreateTexture(nil, "OVERLAY")
     r.border:SetAllPoints(r.icon)
@@ -497,6 +507,15 @@ function ns.DisplayRaidReminder(entry)
         r.icon:SetTexture(ResolveDisplayIconID(display))
         r.label:SetText(display.text or "")
         r.swipe:SetCooldown(GetTime(), dur)
+        -- r.progress is a plain Texture, which has no OnUpdate of its own -- driven from
+        -- the region frame's, same as the Timer/Bar branches already do for their own
+        -- live values.
+        r.expirationTime = GetTime() + dur
+        r.progress:SetAlpha(1)
+        r:SetScript("OnUpdate", function(self)
+            local remain = self.expirationTime - GetTime()
+            self.progress:SetAlpha(remain > 0 and math.min(1, remain / dur) or 0)
+        end)
     end
 
     r:Show()
@@ -559,6 +578,8 @@ local function PopulateSample(displayType, r)
         r.icon:SetTexture(134400)
         r.label:SetText("Sample")
         r.swipe:SetCooldown(0, 0)
+        r:SetScript("OnUpdate", nil)
+        r.progress:SetAlpha(0.5)
     end
 end
 
@@ -605,18 +626,9 @@ local function EnsureConfigHandle(displayType, a)
     return h
 end
 
--- Handle sits a fixed distance below the anchor's own TOP, clear of the sample above
--- it at any size this addon's sliders allow (the largest is Circle/Icon's practical
--- ceiling around 160px plus its label strip) -- simpler and good enough than measuring
--- the live sample's exact height and re-anchoring on every resize.
-local CONFIG_HANDLE_DROP = 190
-
 local function RefreshConfigVisual(displayType)
     local a = GetAnchor(displayType)
     local h = EnsureConfigHandle(displayType, a)
-    h:ClearAllPoints()
-    h:SetPoint("TOP", a, "TOP", 0, -CONFIG_HANDLE_DROP)
-    h:Show()
 
     if not a._configSample then
         local _, r = AcquireRegion(displayType)
@@ -626,6 +638,13 @@ local function RefreshConfigVisual(displayType)
     a._configSample:ClearAllPoints()
     a._configSample:SetPoint("TOP", a, "TOP", 0, 0)
     a._configSample:Show()
+
+    -- Right under the sample's ACTUAL current height, not a fixed guess -- otherwise a
+    -- small type (Message, Timer) leaves a large gap to the handle below it, and a
+    -- large one could have the handle overlapping it.
+    h:ClearAllPoints()
+    h:SetPoint("TOP", a._configSample, "BOTTOM", 0, -4)
+    h:Show()
 end
 
 local function HideConfigVisual(displayType)
@@ -639,8 +658,8 @@ local function HideConfigVisual(displayType)
 end
 
 -- Rebuilds every checked type's visual -- called on entering config mode and after any
--- resize, since the fixed CONFIG_HANDLE_DROP does not itself react to a size change but
--- the sample's own dimensions do.
+-- resize, since the handle is anchored off the sample's own height and needs re-placing
+-- when that height changes.
 local function RefreshAllConfigVisuals()
     if not configActive then return end
     for _, displayType in ipairs(CONFIG_ORDER) do
@@ -673,7 +692,7 @@ local function BuildConfigToolbar()
     f:SetPoint("TOP", UIParent, "TOP", 0, -140)
     f:SetFrameStrata("HIGH")
     f:SetClampedToScreen(true)
-    ns.Solid(f, "BACKGROUND", T.panel, 0.95)
+    ns.Solid(f, "BACKGROUND", { r = 0, g = 0, b = 0 }, 1)
     ns.Border(f)
     f:SetMovable(true)
     f:EnableMouse(true)
