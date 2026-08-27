@@ -2857,15 +2857,20 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     local triggerTabBtn, triggerBody = AddTab("trigger", "Trigger & Target")
     local displayTabBtn, displayBody = AddTab("display", "Display", triggerTabBtn)
 
-    -- TEMP diagnostic (build 0826x) -- remove once we have an answer.
+    -- TEMP diagnostic (build 0826y) -- remove once we have an answer. Staged through
+    -- locals rather than inline calls: a WoW getter that returns NO values (not even
+    -- nil) makes an inline tostring(frame:Get...()) throw "value expected", which a
+    -- local assignment does not (Lua pads a short multi-return with nil there).
+    local tbW, tbH, tbShown = tabBar:GetWidth(), tabBar:GetHeight(), tabBar:IsShown()
+    local tW, tH, tShown, tStrata = triggerTabBtn:GetWidth(), triggerTabBtn:GetHeight(),
+        triggerTabBtn:IsShown(), triggerTabBtn:GetFrameStrata()
+    local tLeft, tTop = triggerTabBtn:GetLeft(), triggerTabBtn:GetTop()
+    local dW, dH, dShown = displayTabBtn:GetWidth(), displayTabBtn:GetHeight(), displayTabBtn:IsShown()
+    local dLeft, dTop = displayTabBtn:GetLeft(), displayTabBtn:GetTop()
     ns.Print(("|cff66ccff[RREditor]|r tabBar w=%s h=%s shown=%s | trigBtn w=%s h=%s left=%s top=%s shown=%s strata=%s | dispBtn w=%s h=%s left=%s top=%s shown=%s"):format(
-        tostring(tabBar:GetWidth()), tostring(tabBar:GetHeight()), tostring(tabBar:IsShown()),
-        tostring(triggerTabBtn:GetWidth()), tostring(triggerTabBtn:GetHeight()),
-        tostring(triggerTabBtn:GetLeft()), tostring(triggerTabBtn:GetTop()),
-        tostring(triggerTabBtn:IsShown()), tostring(triggerTabBtn:GetFrameStrata()),
-        tostring(displayTabBtn:GetWidth()), tostring(displayTabBtn:GetHeight()),
-        tostring(displayTabBtn:GetLeft()), tostring(displayTabBtn:GetTop()),
-        tostring(displayTabBtn:IsShown())))
+        tostring(tbW), tostring(tbH), tostring(tbShown),
+        tostring(tW), tostring(tH), tostring(tLeft), tostring(tTop), tostring(tShown), tostring(tStrata),
+        tostring(dW), tostring(dH), tostring(dLeft), tostring(dTop), tostring(dShown)))
 
     -------------------------------------------------------------------------
     --  Trigger & Target tab
