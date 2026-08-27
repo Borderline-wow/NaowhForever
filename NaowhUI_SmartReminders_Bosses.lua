@@ -2637,6 +2637,13 @@ function ns.BuildRaidRemindersPage(parent, y, isRaid)
         .. "fires off BigWigs' own live timer, same bridge the tank callouts use.")
     y = y - 34
 
+    if ns.ShowRaidReminderAnchorConfig then
+        _, h = W:Button(parent, "Customize Anchors", y, function()
+            ns.ShowRaidReminderAnchorConfig()
+        end)
+        y = y - h - 10
+    end
+
     local data = ns.ScrapeBosses(false)
     local list = {}
     if data then

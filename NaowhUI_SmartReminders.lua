@@ -3138,91 +3138,10 @@ end
 -------------------------------------------------------------------------------
 --  Unlock Mode
 -------------------------------------------------------------------------------
--- Square types (Circle, Icon): width and height both write the SAME TRDB() key, so
--- dragging either resize handle keeps the shape square instead of stretching it oval.
--- heightOffset is the fixed label-strip height (getSize's own "+18") subtracted back out
--- so a height-drag yields the same icon size a width-drag of the same handle position
--- would have.
-local function SquareResize(dbKey, minSize, heightOffset, resizeFnName)
-    return function(_, w)
-            TRDB()[dbKey] = math.max(minSize, math.floor(w + 0.5))
-            if ns[resizeFnName] then ns[resizeFnName]() end
-        end,
-        function(_, h)
-            TRDB()[dbKey] = math.max(minSize, math.floor(h + 0.5) - heightOffset)
-            if ns[resizeFnName] then ns[resizeFnName]() end
-        end
-end
-
--- Independent types (Bar, Text): width and height write DIFFERENT TRDB() keys, since
--- a bar's width/thickness (or a text box's width/font size) are not meant to move
--- together the way a square icon's would.
-local function IndependentResize(widthKey, heightKey, minW, minH, heightOffset, resizeFnName)
-    return function(_, w)
-            TRDB()[widthKey] = math.max(minW, math.floor(w + 0.5))
-            if ns[resizeFnName] then ns[resizeFnName]() end
-        end,
-        function(_, h)
-            TRDB()[heightKey] = math.max(minH, math.floor(h + 0.5) - heightOffset)
-            if ns[resizeFnName] then ns[resizeFnName]() end
-        end
-end
-
--- One of these per raid-reminder display type (text/timer/icon/bar/circle), each its own
--- Anchor (NaowhUI_SmartReminders_RaidReminders.lua) -- same TRDB()-backed savePos/loadPos
--- shape as the plain Unlock elements below, just parameterized since the five are
--- otherwise identical. Position lives at TRDB().raidReminderAnchorPos[displayType].
-local function MakeRaidReminderUnlockElement(EUI, displayType, label, order)
-    local opts = {
-        key   = "NaowhUI_RaidReminder_" .. displayType,   -- storage key; renaming it would orphan saved positions
-        label = label,
-        group = "NaowhUI",
-        order = order,
-        isHidden = function() return not TRDB().enabled end,
-        getFrame = function() return ns.GetRaidReminderAnchor and ns.GetRaidReminderAnchor(displayType) end,
-        getSize  = function()
-            if ns.RaidReminderAnchorSize then return ns.RaidReminderAnchorSize(displayType) end
-            return 10, 10
-        end,
-        savePos = function(_, point, relPoint, x, y)
-            local db = TRDB()
-            db.raidReminderAnchorPos = db.raidReminderAnchorPos or {}
-            db.raidReminderAnchorPos[displayType] = { point = point, relPoint = relPoint, x = x, y = y }
-        end,
-        loadPos = function()
-            local p = TRDB().raidReminderAnchorPos and TRDB().raidReminderAnchorPos[displayType]
-            if not p then return nil end
-            return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-        end,
-        clearPos = function()
-            if TRDB().raidReminderAnchorPos then TRDB().raidReminderAnchorPos[displayType] = nil end
-        end,
-        applyPos = function()
-            if ns.ApplyRaidReminderAnchorPosition then ns.ApplyRaidReminderAnchorPosition(displayType) end
-        end,
-    }
-    -- Icon/Message/Circle/Bar are resizable (what was actually asked for); Timer stays
-    -- fixed for now.
-    if displayType == "circle" then
-        opts.noResize = false
-        opts.setWidth, opts.setHeight = SquareResize("raidReminderCircleSize", 20, 18, "ResizeRaidReminderCircle")
-    elseif displayType == "icon" then
-        opts.noResize = false
-        opts.setWidth, opts.setHeight = SquareResize("raidReminderIconSize", 16, 18, "ResizeRaidReminderIcon")
-    elseif displayType == "bar" then
-        opts.noResize = false
-        opts.setWidth, opts.setHeight = IndependentResize(
-            "raidReminderBarWidth", "raidReminderBarHeight", 60, 6, 16, "ResizeRaidReminderBar")
-    elseif displayType == "text" then
-        opts.noResize = false
-        opts.setWidth, opts.setHeight = IndependentResize(
-            "raidReminderTextWidth", "raidReminderTextFontSize", 60, 8, 10, "ResizeRaidReminderText")
-    else
-        opts.noResize = true
-    end
-    return EUI.MakeUnlockElement(opts)
-end
-
+-- Raid Reminder anchors are NOT registered here -- they have their own move+resize
+-- surface (ns.ShowRaidReminderAnchorConfig, NaowhUI_SmartReminders_RaidReminders.lua),
+-- opened from the Raid/Dungeon Reminders page. TRDB().raidReminderAnchorPos and the
+-- per-type size keys are the same storage either way; only the input mechanism moved.
 local function RegisterUnlock()
     local EUI = _G.EllesmereUI
     if not (EUI and EUI.RegisterUnlockElements and EUI.MakeUnlockElement) then return end
@@ -3278,11 +3197,6 @@ local function RegisterUnlock()
             clearPos = function() TRDB().customPos = nil end,
             applyPos = ApplyCustomReminderPosition,
         }),
-        MakeRaidReminderUnlockElement(EUI, "text", "Raid Reminder: Message", 10),
-        MakeRaidReminderUnlockElement(EUI, "timer", "Raid Reminder: Timer", 11),
-        MakeRaidReminderUnlockElement(EUI, "icon", "Raid Reminder: Icon", 12),
-        MakeRaidReminderUnlockElement(EUI, "bar", "Raid Reminder: Bar", 13),
-        MakeRaidReminderUnlockElement(EUI, "circle", "Raid Reminder: Circle", 14),
     }, "NaowhUI_EUI")
 end
 
@@ -4924,7 +4838,13 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             EUI:RegisterOnShow(function() previewing = true; UpdatePreview() end)
         end
         if EUI and EUI.RegisterOnHide then
-            EUI:RegisterOnHide(function() previewing = false; UpdatePreview() end)
+            EUI:RegisterOnHide(function()
+                previewing = false
+                UpdatePreview()
+                -- Closing the settings panel should not leave the anchor-config toolbar
+                -- and its draggable handles orphaned on screen.
+                if ns.HideRaidReminderAnchorConfig then ns.HideRaidReminderAnchorConfig() end
+            end)
         end
         -- The two CVars that decide whether data flows. Blizzard already marks them cachable,
         -- so this piggybacks rather than polling. We only ever READ them.

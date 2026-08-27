@@ -350,18 +350,17 @@ local function CreateCircleRegion(a)
     mask:SetTexture(CIRCLE_MASK_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     r.icon:AddMaskTexture(mask)
 
-    -- Cooldown frames take a mask the same way a plain Texture does (confirmed against
-    -- EllesmereUIActionBars.lua's own btn.cooldown:AddMaskTexture call) -- pcall'd since
-    -- that same call site guards it too, rather than assuming every client build honors it.
-    -- Deliberately NOT SetSwipeTexture(CIRCLE_MASK_PATH): that mask is a plain white
-    -- shape meant to be read as an alpha stencil, not a display texture -- using it as
-    -- the swipe's own texture painted the whole circle solid white/opaque instead of
-    -- the expected transparent-when-idle dark wedge. AddMaskTexture alone already
-    -- crops the swipe's own default overlay into the circle shape.
+    -- The swipe's own dark fill/edge are square-bounded and masking a Cooldown frame's
+    -- internal swipe texture is not reliably supported across clients (confirmed live:
+    -- it showed as an opaque black square sitting over the round icon, not a masked
+    -- circle) -- so the fill and edge are turned off entirely rather than trusted to
+    -- clip correctly. Only the countdown number is kept; the round icon plus border
+    -- already read as a circle on their own without a pie-wipe on top.
     r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
     r.swipe:SetAllPoints(r.icon)
     r.swipe:SetHideCountdownNumbers(false)
-    if r.swipe.AddMaskTexture then pcall(r.swipe.AddMaskTexture, r.swipe, mask) end
+    r.swipe:SetDrawSwipe(false)
+    r.swipe:SetDrawEdge(false)
 
     r.border = r:CreateTexture(nil, "OVERLAY")
     r.border:SetAllPoints(r.icon)
@@ -522,6 +521,276 @@ function ns.PreviewRaidReminder(entry)
         a:SetFrameLevel(250)
     end
     ns.DisplayRaidReminder(entry)
+end
+
+-------------------------------------------------------------------------------
+--  Anchor config -- move and resize every anchor with a live sample shown for each,
+--  opened from the Raid/Dungeon Reminders page ("Customize Anchors" button). Same idea
+--  NSRT/TimelineReminders both offer, built on this addon's own existing pieces (the
+--  Anchor/pool system above, ns.MakeModal, ns.THEME) rather than copying either one's
+--  look: a plain in-house drag handle + gear popup instead of their green banner rows.
+-------------------------------------------------------------------------------
+local DISPLAY_TYPE_LABEL = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
+local CONFIG_ORDER = { "text", "timer", "icon", "bar", "circle" }
+
+local configShown = {}     -- [displayType] = true while its checkbox is on
+local configActive = false
+
+-- Fills a region with static placeholder content -- no live countdown, no hide timer --
+-- so it sits still on screen for as long as config mode has that type checked. Separate
+-- from ns.DisplayRaidReminder's dispatch, which is built around a live, expiring fire.
+local function PopulateSample(displayType, r)
+    if displayType == "text" then
+        r.text:SetText("Sample Reminder")
+        r.text:SetTextColor(1, 1, 1, 1)
+    elseif displayType == "icon" then
+        r.icon:SetTexture(134400)
+        r.label:SetText("Sample")
+        r.label:Show()
+    elseif displayType == "timer" then
+        r.label:SetText("Sample Timer")
+        r.number:SetText("5")
+    elseif displayType == "bar" then
+        r.label:SetText("Sample Bar")
+        r.bar:SetScript("OnUpdate", nil)
+        r.bar:SetMinMaxValues(0, 1)
+        r.bar:SetValue(0.6)
+    elseif displayType == "circle" then
+        r.icon:SetTexture(134400)
+        r.label:SetText("Sample")
+        r.swipe:SetCooldown(0, 0)
+    end
+end
+
+-- The draggable handle: a small labeled bar below the anchor's sample, carrying the
+-- gear button. Created once per anchor and reused; StartMoving/StopMovingOrSizing are
+-- called on the ANCHOR (the handle is just the visible grip), same idiom
+-- NaowhUI_SmartReminders.lua's own UpdatePreview already uses for the tank-buster frame.
+local function EnsureConfigHandle(displayType, a)
+    if a._configHandle then return a._configHandle end
+    local T = ns.THEME
+    local h = CreateFrame("Button", nil, a)
+    h:SetSize(150, 24)
+    ns.Solid(h, "BACKGROUND", T.panel, 0.95)
+    ns.Border(h)
+
+    local label = ns.Font(h, 12, "OUTLINE", T.gold)
+    label:SetPoint("LEFT", h, "LEFT", 8, 0)
+    label:SetText(DISPLAY_TYPE_LABEL[displayType])
+
+    local gear = CreateFrame("Button", nil, h)
+    gear:SetSize(18, 18)
+    gear:SetPoint("RIGHT", h, "RIGHT", -4, 0)
+    local gearTex = gear:CreateTexture(nil, "ARTWORK")
+    gearTex:SetAllPoints()
+    gearTex:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+    gear:SetScript("OnClick", function() ns.ShowRaidReminderAnchorSizePopup(displayType) end)
+
+    h:SetMovable(true)
+    a:SetMovable(true)
+    h:EnableMouse(true)
+    h:RegisterForDrag("LeftButton")
+    h:SetScript("OnDragStart", function() a:StartMoving() end)
+    h:SetScript("OnDragStop", function()
+        a:StopMovingOrSizing()
+        local point, _, relPoint, x, y = a:GetPoint(1)
+        if point then
+            local db = ns.DB()
+            db.raidReminderAnchorPos = db.raidReminderAnchorPos or {}
+            db.raidReminderAnchorPos[displayType] = { point = point, relPoint = relPoint, x = x, y = y }
+        end
+    end)
+
+    a._configHandle = h
+    return h
+end
+
+-- Handle sits a fixed distance below the anchor's own TOP, clear of the sample above
+-- it at any size this addon's sliders allow (the largest is Circle/Icon's practical
+-- ceiling around 160px plus its label strip) -- simpler and good enough than measuring
+-- the live sample's exact height and re-anchoring on every resize.
+local CONFIG_HANDLE_DROP = 190
+
+local function RefreshConfigVisual(displayType)
+    local a = GetAnchor(displayType)
+    local h = EnsureConfigHandle(displayType, a)
+    h:ClearAllPoints()
+    h:SetPoint("TOP", a, "TOP", 0, -CONFIG_HANDLE_DROP)
+    h:Show()
+
+    if not a._configSample then
+        local _, r = AcquireRegion(displayType)
+        a._configSample = r
+    end
+    PopulateSample(displayType, a._configSample)
+    a._configSample:ClearAllPoints()
+    a._configSample:SetPoint("TOP", a, "TOP", 0, 0)
+    a._configSample:Show()
+end
+
+local function HideConfigVisual(displayType)
+    local a = anchors[displayType]
+    if not a then return end
+    if a._configHandle then a._configHandle:Hide() end
+    if a._configSample then
+        ReleaseRegion(a, a._configSample)
+        a._configSample = nil
+    end
+end
+
+-- Rebuilds every checked type's visual -- called on entering config mode and after any
+-- resize, since the fixed CONFIG_HANDLE_DROP does not itself react to a size change but
+-- the sample's own dimensions do.
+local function RefreshAllConfigVisuals()
+    if not configActive then return end
+    for _, displayType in ipairs(CONFIG_ORDER) do
+        if configShown[displayType] then RefreshConfigVisual(displayType) end
+    end
+end
+ns.RefreshRaidReminderAnchorConfig = RefreshAllConfigVisuals
+
+function ns.SetRaidReminderAnchorConfigShown(displayType, shown)
+    configShown[displayType] = shown or nil
+    if not configActive then return end
+    if shown then RefreshConfigVisual(displayType) else HideConfigVisual(displayType) end
+end
+
+function ns.IsRaidReminderAnchorConfigShown(displayType)
+    return configShown[displayType] == true
+end
+
+-- The toolbar itself: a small draggable panel on UIParent (not inside the EllesmereUI
+-- options panel, so it stays put and usable while the panel is scrolled or another
+-- tab is open) with one checkbox per display type and an Exit button. Built once,
+-- shown/hidden rather than recreated.
+local configToolbar
+
+local function BuildConfigToolbar()
+    if configToolbar then return configToolbar end
+    local T = ns.THEME
+    local f = CreateFrame("Frame", "NaowhUIRaidReminderAnchorConfig", UIParent)
+    f:SetSize(300, 112)
+    f:SetPoint("TOP", UIParent, "TOP", 0, -140)
+    f:SetFrameStrata("HIGH")
+    f:SetClampedToScreen(true)
+    ns.Solid(f, "BACKGROUND", T.panel, 0.95)
+    ns.Border(f)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+
+    local head = ns.Font(f, 12, "OUTLINE", T.gold)
+    head:SetPoint("TOP", f, "TOP", 0, -10)
+    head:SetText("Reminder Anchors")
+
+    local checks = {}
+    for i, displayType in ipairs(CONFIG_ORDER) do
+        local col = (i - 1) % 2
+        local row = math.floor((i - 1) / 2)
+        local chk = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+        chk:SetSize(20, 20)
+        chk:SetPoint("TOPLEFT", f, "TOPLEFT", 14 + col * 148, -32 - row * 24)
+        local lbl = ns.Font(f, 11, nil, T.fg)
+        lbl:SetPoint("LEFT", chk, "RIGHT", 2, 1)
+        lbl:SetText("Show " .. DISPLAY_TYPE_LABEL[displayType] .. " Anchor")
+        chk:SetScript("OnClick", function(self)
+            ns.SetRaidReminderAnchorConfigShown(displayType, self:GetChecked() and true or false)
+        end)
+        checks[displayType] = chk
+    end
+
+    ns.Button(f, "Exit Config", 110, 24, function() ns.HideRaidReminderAnchorConfig() end)
+        :SetPoint("BOTTOM", f, "BOTTOM", 0, 10)
+
+    f._checks = checks
+    configToolbar = f
+    return f
+end
+
+function ns.ShowRaidReminderAnchorConfig()
+    configActive = true
+    local f = BuildConfigToolbar()
+    for _, displayType in ipairs(CONFIG_ORDER) do
+        if f._checks[displayType] then f._checks[displayType]:SetChecked(configShown[displayType] == true) end
+    end
+    f:Show()
+    RefreshAllConfigVisuals()
+end
+
+function ns.HideRaidReminderAnchorConfig()
+    configActive = false
+    if configToolbar then configToolbar:Hide() end
+    for _, displayType in ipairs(CONFIG_ORDER) do HideConfigVisual(displayType) end
+end
+
+function ns.IsRaidReminderAnchorConfigActive()
+    return configActive
+end
+
+-- Compact size popup for one anchor's gear button -- Width/Height for Bar and Message
+-- (independent axes), a single Size for Icon/Circle (kept square), nothing for Timer
+-- (not resizable, matching the Trigger/Target editor's own scope).
+local RESIZE_ROWS = {
+    circle = { { label = "Size", get = function() return CircleSize() end,
+        set = function(v) ns.DB().raidReminderCircleSize = math.max(20, math.floor(v)); ns.ResizeRaidReminderCircle() end } },
+    icon = { { label = "Size", get = function() return IconSize() end,
+        set = function(v) ns.DB().raidReminderIconSize = math.max(16, math.floor(v)); ns.ResizeRaidReminderIcon() end } },
+    bar = {
+        { label = "Width", get = function() return (BarSize()) end,
+            set = function(v) ns.DB().raidReminderBarWidth = math.max(60, math.floor(v)); ns.ResizeRaidReminderBar() end },
+        { label = "Height", get = function() local _, h = BarSize(); return h end,
+            set = function(v) ns.DB().raidReminderBarHeight = math.max(6, math.floor(v)); ns.ResizeRaidReminderBar() end },
+    },
+    text = {
+        { label = "Width", get = function() return (TextSize()) end,
+            set = function(v) ns.DB().raidReminderTextWidth = math.max(60, math.floor(v)); ns.ResizeRaidReminderText() end },
+        { label = "Font Size", get = function() local _, fs = TextSize(); return fs end,
+            set = function(v) ns.DB().raidReminderTextFontSize = math.max(8, math.floor(v)); ns.ResizeRaidReminderText() end },
+    },
+}
+
+function ns.ShowRaidReminderAnchorSizePopup(displayType)
+    local rows = RESIZE_ROWS[displayType]
+    if not rows then return end
+
+    local dimmer, panel = ns.MakeModal(240, 60 + #rows * 34)
+    local head = ns.Font(panel, 13, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -14)
+    head:SetText((DISPLAY_TYPE_LABEL[displayType] or displayType) .. " Size")
+
+    local PAD, y = 16, -42
+    for i = 1, #rows do
+        local row = rows[i]
+        local l = ns.Font(panel, 11, nil, ns.THEME.muted)
+        l:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y)
+        l:SetText(row.label)
+
+        local box = CreateFrame("EditBox", nil, panel)
+        box:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, y + 5)
+        box:SetSize(70, 24)
+        box:SetAutoFocus(false)
+        box:SetNumeric(true)
+        box:SetMaxLetters(4)
+        box:SetFontObject("GameFontHighlight")
+        box:SetTextInsets(6, 6, 0, 0)
+        ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+        ns.Border(box)
+        box:SetText(tostring(math.floor(row.get() or 0)))
+        local function Commit(self)
+            local v = tonumber(self:GetText())
+            if v then row.set(v); RefreshAllConfigVisuals() end
+            self:ClearFocus()
+        end
+        box:SetScript("OnEnterPressed", Commit)
+        box:SetScript("OnEditFocusLost", Commit)
+        y = y - 34
+    end
+
+    ns.Button(panel, "Done", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+    dimmer:Show()
 end
 
 -------------------------------------------------------------------------------
