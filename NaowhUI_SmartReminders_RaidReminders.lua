@@ -93,6 +93,10 @@ local function GetAnchor(displayType)
     a = CreateFrame("Frame", "NaowhUIRaidReminder" .. displayType .. "Anchor", UIParent)
     a:SetSize(10, 10)
     a:SetClampedToScreen(true)
+    -- Matches the tank-buster callout's own baseline (NaowhUI_SmartReminders.lua) --
+    -- HIGH normally, bumped to FULLSCREEN_DIALOG only while ns.PreviewRaidReminder has
+    -- the editor modal open (see below).
+    a:SetFrameStrata("HIGH")
     local pos = ANCHOR_DEFAULT_POS[displayType]
     a:SetPoint("CENTER", UIParent, "CENTER", pos and pos.x or 0, pos and pos.y or 0)
     a.pool, a.active = {}, {}
@@ -121,6 +125,11 @@ local function ReleaseRegion(a, r)
     r:Hide()
     if r.hideTimer then r.hideTimer:Cancel(); r.hideTimer = nil end
     a.pool[#a.pool + 1] = r
+    -- Undo any Preview-specific elevation (ns.PreviewRaidReminder) so a real fight never
+    -- inherits it -- same reset-on-hide shape HideCustomReminder already uses for the
+    -- tank-buster editor's own Preview button.
+    a:SetFrameStrata("HIGH")
+    a:SetFrameLevel(1)
     RestackRegions(a)
 end
 
@@ -243,6 +252,11 @@ local function AcquireRegion(displayType)
     if not ctor then return nil end
     local r = table.remove(a.pool)
     if not r then r = ctor(a) end
+    -- Set explicitly rather than left to inherit from the parent at creation time --
+    -- a pooled region can be reused long after the anchor's own strata/level last
+    -- changed (e.g. a preview elevation from an earlier open of the editor).
+    r:SetFrameStrata(a:GetFrameStrata())
+    r:SetFrameLevel(a:GetFrameLevel() + 1)
     a.active[#a.active + 1] = r
     return a, r
 end
@@ -321,6 +335,22 @@ function ns.DisplayRaidReminder(entry)
 
     if r.hideTimer then r.hideTimer:Cancel() end
     r.hideTimer = C_Timer.NewTimer(dur, function() ReleaseRegion(a, r) end)
+end
+
+-- The editor's Preview button fires this from inside its own modal (FULLSCREEN_DIALOG),
+-- which the anchor's normal HIGH strata sits well below -- same problem and same fix
+-- ns.PreviewCustomReminder (NaowhUI_SmartReminders.lua) already solved for the
+-- tank-buster editor's own Preview button. ReleaseRegion drops the anchor back to HIGH
+-- once the preview ends, so the elevation never leaks into a real fight's display.
+function ns.PreviewRaidReminder(entry)
+    local display = entry and entry.display
+    if not display then return end
+    local a = GetAnchor(display.type)
+    if a then
+        a:SetFrameStrata("FULLSCREEN_DIALOG")
+        a:SetFrameLevel(250)
+    end
+    ns.DisplayRaidReminder(entry)
 end
 
 -------------------------------------------------------------------------------

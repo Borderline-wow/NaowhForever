@@ -2611,6 +2611,8 @@ function ns.BuildRaidRemindersPage(parent, y)
     -- nothing with no error on screen is undiagnosable from a screenshot alone.
     local ok, result = pcall(function()
 
+    y = y - 16   -- extra breathing room under the tab strip before the page title
+
     local pageHead = ns.Font(parent, 14, nil, ns.THEME.gold)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
     pageHead:SetJustifyH("CENTER")
@@ -2711,6 +2713,8 @@ function ns.BuildRaidRemindersPage(parent, y)
             end
         end
     end
+
+    y = y - 14   -- extra gap so the button reads as its own row, not glued to the list above
 
     _, h = W:Button(parent, "+ Add a Raid Reminder", y, function()
         ns.ShowRaidReminderEditor(encounterID, nil, EUI)
@@ -3340,7 +3344,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
         -- regardless of whether they personally match the target they just chose.
         local entry, buildErr = BuildEntry()
         if entry then
-            if ns.DisplayRaidReminder then ns.DisplayRaidReminder(entry) end
+            if ns.PreviewRaidReminder then ns.PreviewRaidReminder(entry) end
         else
             ns.Print("|cffff6060" .. (buildErr or "could not preview this reminder") .. "|r")
         end
