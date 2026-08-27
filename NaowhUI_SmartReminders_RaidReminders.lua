@@ -335,6 +335,30 @@ local function CircleSize()
     return (type(s) == "number" and s > 0) and s or CIRCLE_SIZE_DEFAULT
 end
 
+-- Masking the swipe with the ring shape (CIRCLE_BORDER_PATH) came back an opaque black
+-- square, same as the full disc mask did before it -- confirmed live twice now with two
+-- different mask shapes, so the Cooldown widget's own masking just does not work on
+-- this client, full stop. The ring sweep below is built from scratch instead: RING_TICKS
+-- small dark segments arranged clockwise from 12 o'clock, each individually masked with
+-- the SAME ring mask already proven reliable on a plain Texture (it clips r.icon
+-- correctly) -- shown/hidden progressively as time passes rather than relying on
+-- anything the Cooldown widget draws itself. Cooldown is kept only for the countdown
+-- number (SetDrawSwipe/SetDrawEdge false, so it contributes no visual fill).
+local RING_TICKS = 16
+
+local function PositionCircleTicks(r, size)
+    local tickSize = size * 0.22
+    local radius = size / 2 - tickSize * 0.3
+    for i = 1, RING_TICKS do
+        local t = r.ticks[i]
+        t:SetSize(tickSize, tickSize)
+        local theta = (i - 1) / RING_TICKS * (2 * math.pi)
+        t:ClearAllPoints()
+        t:SetPoint("CENTER", r.icon, "CENTER", radius * math.sin(theta), radius * math.cos(theta))
+        t:SetRotation(-theta)
+    end
+end
+
 local function CreateCircleRegion(a)
     local size = CircleSize()
     local r = CreateFrame("Frame", nil, a)
@@ -350,16 +374,6 @@ local function CreateCircleRegion(a)
     mask:SetTexture(CIRCLE_MASK_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     r.icon:AddMaskTexture(mask)
 
-    -- Masking the swipe with the FULL DISC mask (same shape as the icon) rendered as an
-    -- opaque black square -- confirmed live, that combination does not work. This masks
-    -- it with the RING shape instead (CIRCLE_BORDER_PATH, reused as a stencil rather
-    -- than its usual decorative job below -- a hollow ring, transparent everywhere
-    -- else), a genuinely different, smaller mask never tried before. If the Cooldown
-    -- widget's masking is broken outright rather than just failing on a disc-sized
-    -- mask, this will show the same symptom and needs a from-scratch angular wipe
-    -- instead (2 rotating wedge textures, no native Cooldown widget) -- worth
-    -- confirming live before building that, since it is real extra work this may not
-    -- need. Edge highlight (Cooldown's separate rotating line) stays off regardless.
     local ringMask = r:CreateMaskTexture()
     ringMask:SetAllPoints(r.icon)
     ringMask:SetTexture(CIRCLE_BORDER_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
@@ -368,7 +382,17 @@ local function CreateCircleRegion(a)
     r.swipe:SetAllPoints(r.icon)
     r.swipe:SetHideCountdownNumbers(false)
     r.swipe:SetDrawEdge(false)
-    if r.swipe.AddMaskTexture then pcall(r.swipe.AddMaskTexture, r.swipe, ringMask) end
+    r.swipe:SetDrawSwipe(false)
+
+    r.ticks = {}
+    for i = 1, RING_TICKS do
+        local t = r:CreateTexture(nil, "OVERLAY")
+        t:SetColorTexture(0, 0, 0, 1)
+        t:AddMaskTexture(ringMask)
+        t:Hide()
+        r.ticks[i] = t
+    end
+    PositionCircleTicks(r, size)
 
     r.border = r:CreateTexture(nil, "OVERLAY")
     r.border:SetAllPoints(r.icon)
@@ -382,16 +406,21 @@ local function CreateCircleRegion(a)
     return r
 end
 
--- Re-sizes every pooled/active Circle region to the current CircleSize() -- mask/swipe/
--- border/label all anchor off r.icon rather than carrying their own fixed size, so
--- resizing r/r.icon is the only work needed. Called from Unlock Mode's setWidth/
--- setHeight (NaowhUI_SmartReminders.lua) after a drag-resize.
+-- Re-sizes every pooled/active Circle region to the current CircleSize() -- border/label
+-- anchor off r.icon rather than carrying their own fixed size, so resizing r/r.icon
+-- covers them; the ring ticks need their own positions/sizes recomputed since they are
+-- placed by absolute offset, not anchored proportionally. Called from Unlock Mode's
+-- setWidth/setHeight (NaowhUI_SmartReminders.lua) after a drag-resize.
 function ns.ResizeRaidReminderCircle()
     local a = anchors.circle
     if not a then return end
     local size = CircleSize()
-    for _, r in ipairs(a.pool) do r:SetSize(size, size + 18); r.icon:SetSize(size, size) end
-    for _, r in ipairs(a.active) do r:SetSize(size, size + 18); r.icon:SetSize(size, size) end
+    for _, r in ipairs(a.pool) do
+        r:SetSize(size, size + 18); r.icon:SetSize(size, size); PositionCircleTicks(r, size)
+    end
+    for _, r in ipairs(a.active) do
+        r:SetSize(size, size + 18); r.icon:SetSize(size, size); PositionCircleTicks(r, size)
+    end
     RestackRegions(a)
 end
 
@@ -504,8 +533,17 @@ function ns.DisplayRaidReminder(entry)
         -- look for a Circle reminder with no spell ID set, not a placeholder icon.
         r.icon:SetTexture(ResolveDisplayIconID(display))
         r.label:SetText(display.text or "")
-        r:SetScript("OnUpdate", nil)   -- in case this region was last used as a config sample
-        r.swipe:SetCooldown(GetTime(), dur)
+        r.swipe:SetCooldown(GetTime(), dur)   -- countdown number only, no visual fill (see CreateCircleRegion)
+        r.expirationTime = GetTime() + dur
+        for i = 1, RING_TICKS do r.ticks[i]:Show() end
+        r:SetScript("OnUpdate", function(self)
+            local remain = self.expirationTime - GetTime()
+            local frac = remain > 0 and (remain / dur) or 0
+            local visible = math.ceil(frac * RING_TICKS)
+            for i = 1, RING_TICKS do
+                if i <= visible then self.ticks[i]:Show() else self.ticks[i]:Hide() end
+            end
+        end)
     end
 
     r:Show()
@@ -567,8 +605,11 @@ local function PopulateSample(displayType, r)
     elseif displayType == "circle" then
         r.icon:SetTexture(134400)
         r.label:SetText("Sample")
+        r.swipe:SetCooldown(0, 0)
         r:SetScript("OnUpdate", nil)
-        r.swipe:SetCooldown(GetTime() - 3, 8)   -- static-ish partial wipe for reference
+        for i = 1, RING_TICKS do
+            if i <= math.floor(RING_TICKS * 0.6) then r.ticks[i]:Show() else r.ticks[i]:Hide() end
+        end
     end
 end
 
