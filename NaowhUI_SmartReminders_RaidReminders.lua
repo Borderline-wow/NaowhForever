@@ -265,15 +265,24 @@ end
 -- SHAPE_MASKS/SHAPE_BORDERS.circle) -- same file this addon already hard-depends on,
 -- so a Circle reminder reads as the same circle shape the rest of the suite uses
 -- rather than a second lookalike asset.
-local CIRCLE_SIZE = 56
+local CIRCLE_SIZE_DEFAULT = 56
 local CIRCLE_MASK_PATH = "Interface\\AddOns\\EllesmereUI\\media\\portraits\\circle_mask.tga"
 local CIRCLE_BORDER_PATH = "Interface\\AddOns\\EllesmereUI\\media\\portraits\\circle_border.tga"
+
+-- User-resizable via Unlock Mode's own resize handle (see MakeRaidReminderUnlockElement
+-- in NaowhUI_SmartReminders.lua), stored at TRDB().raidReminderCircleSize.
+local function CircleSize()
+    local s = ns.DB().raidReminderCircleSize
+    return (type(s) == "number" and s > 0) and s or CIRCLE_SIZE_DEFAULT
+end
+
 local function CreateCircleRegion(a)
+    local size = CircleSize()
     local r = CreateFrame("Frame", nil, a)
-    r:SetSize(CIRCLE_SIZE, CIRCLE_SIZE + 18)
+    r:SetSize(size, size + 18)
 
     r.icon = r:CreateTexture(nil, "ARTWORK")
-    r.icon:SetSize(CIRCLE_SIZE, CIRCLE_SIZE)
+    r.icon:SetSize(size, size)
     r.icon:SetPoint("TOP", r, "TOP", 0, 0)
     r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
@@ -303,17 +312,35 @@ local function CreateCircleRegion(a)
     return r
 end
 
+-- Re-sizes every pooled/active Circle region to the current CircleSize() -- mask/swipe/
+-- border/label all anchor off r.icon rather than carrying their own fixed size, so
+-- resizing r/r.icon is the only work needed. Called from Unlock Mode's setWidth/
+-- setHeight (NaowhUI_SmartReminders.lua) after a drag-resize.
+function ns.ResizeRaidReminderCircle()
+    local a = anchors.circle
+    if not a then return end
+    local size = CircleSize()
+    for _, r in ipairs(a.pool) do r:SetSize(size, size + 18); r.icon:SetSize(size, size) end
+    for _, r in ipairs(a.active) do r:SetSize(size, size + 18); r.icon:SetSize(size, size) end
+    RestackRegions(a)
+end
+
 -- Anchor sizes for Unlock Mode's mover box (ns.GetRaidReminderAnchor's caller) -- the
 -- anchor frame itself is a bare 10x10 point, so without this the mover would draw far
--- smaller than what actually appears there.
+-- smaller than what actually appears there. Floored at 64 in both dimensions (matching
+-- the tank-buster "Smart" element's own default iconSize) so every anchor is at least as
+-- easy to click and drag as that one, even where the real content is thinner (Text/Bar
+-- are only ~26-32px tall when actually showing something).
+local MOVER_MIN = 64
 function ns.RaidReminderAnchorSize(displayType)
-    if displayType == "text" then return 320, 26
-    elseif displayType == "timer" then return 120, 46
-    elseif displayType == "icon" then return ICON_SIZE, ICON_SIZE + 18
-    elseif displayType == "bar" then return BAR_WIDTH, BAR_HEIGHT + 16
-    elseif displayType == "circle" then return CIRCLE_SIZE, CIRCLE_SIZE + 18
-    end
-    return 10, 10
+    local w, h
+    if displayType == "text" then w, h = 320, 26
+    elseif displayType == "timer" then w, h = 120, 46
+    elseif displayType == "icon" then w, h = ICON_SIZE, ICON_SIZE + 18
+    elseif displayType == "bar" then w, h = BAR_WIDTH, BAR_HEIGHT + 16
+    elseif displayType == "circle" then local s = CircleSize(); w, h = s, s + 18
+    else w, h = MOVER_MIN, MOVER_MIN end
+    return math.max(w, MOVER_MIN), math.max(h, MOVER_MIN)
 end
 
 local REGION_CTORS = {
@@ -403,7 +430,9 @@ function ns.DisplayRaidReminder(entry)
             self:SetValue(remain > 0 and remain or 0)
         end)
     elseif display.type == "circle" then
-        r.icon:SetTexture(ResolveDisplayIconID(display) or 134400)
+        -- No question-mark fallback here (unlike Icon): an empty ring is the wanted
+        -- look for a Circle reminder with no spell ID set, not a placeholder icon.
+        r.icon:SetTexture(ResolveDisplayIconID(display))
         r.label:SetText(display.text or "")
         r.swipe:SetCooldown(GetTime(), dur)
     end

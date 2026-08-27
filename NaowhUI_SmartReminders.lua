@@ -3143,12 +3143,11 @@ end
 -- shape as the plain Unlock elements below, just parameterized since the five are
 -- otherwise identical. Position lives at TRDB().raidReminderAnchorPos[displayType].
 local function MakeRaidReminderUnlockElement(EUI, displayType, label, order)
-    return EUI.MakeUnlockElement({
+    local opts = {
         key   = "NaowhUI_RaidReminder_" .. displayType,   -- storage key; renaming it would orphan saved positions
         label = label,
         group = "NaowhUI",
         order = order,
-        noResize = true,
         isHidden = function() return not TRDB().enabled end,
         getFrame = function() return ns.GetRaidReminderAnchor and ns.GetRaidReminderAnchor(displayType) end,
         getSize  = function()
@@ -3171,7 +3170,25 @@ local function MakeRaidReminderUnlockElement(EUI, displayType, label, order)
         applyPos = function()
             if ns.ApplyRaidReminderAnchorPosition then ns.ApplyRaidReminderAnchorPosition(displayType) end
         end,
-    })
+    }
+    if displayType == "circle" then
+        -- Only Circle is resizable for now (what was actually asked for) -- width and
+        -- height both write the same square raidReminderCircleSize, so dragging either
+        -- handle keeps it round instead of stretching it oval. Height carries the +18
+        -- label strip ResizeRaidReminderCircle/getSize already account for elsewhere.
+        opts.noResize = false
+        opts.setWidth = function(_, w)
+            TRDB().raidReminderCircleSize = math.max(20, math.floor(w + 0.5))
+            if ns.ResizeRaidReminderCircle then ns.ResizeRaidReminderCircle() end
+        end
+        opts.setHeight = function(_, h)
+            TRDB().raidReminderCircleSize = math.max(20, math.floor(h + 0.5) - 18)
+            if ns.ResizeRaidReminderCircle then ns.ResizeRaidReminderCircle() end
+        end
+    else
+        opts.noResize = true
+    end
+    return EUI.MakeUnlockElement(opts)
 end
 
 local function RegisterUnlock()
