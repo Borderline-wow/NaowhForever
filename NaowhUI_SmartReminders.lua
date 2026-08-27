@@ -2761,6 +2761,19 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity)
             FireBigWigsAbility(fireSid)
         end)
     else
+        -- A plain Message never goes through ScheduleBWFire (no duration to wait out), so
+        -- it never touched pendingBWFires -- a module that pairs a StartBar with a same-key
+        -- Message for the one real cast (confirmed: Entombed Sentinels' Empowering Slam)
+        -- left the StartBar's delayed fire pending regardless of which order the two
+        -- arrived in, and it fired again seconds later on top of this immediate one. Same
+        -- "whichever arrives last wins" rule ScheduleBWFire itself now follows.
+        local sidFires = pendingBWFires.tank and pendingBWFires.tank[sid]
+        if sidFires then
+            for key, f in pairs(sidFires) do
+                if f.timer.Cancel then f.timer:Cancel() end
+                sidFires[key] = nil
+            end
+        end
         lastBWSid, lastBWAt = sid, GetTime()
         FireBigWigsAbility(sid)
     end
