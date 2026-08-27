@@ -350,31 +350,25 @@ local function CreateCircleRegion(a)
     mask:SetTexture(CIRCLE_MASK_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     r.icon:AddMaskTexture(mask)
 
-    -- The swipe's own dark fill/edge are square-bounded and masking a Cooldown frame's
-    -- internal swipe texture is not reliably supported across clients (confirmed live:
-    -- it showed as an opaque black square sitting over the round icon, not a masked
-    -- circle) -- so the fill and edge are turned off entirely rather than trusted to
-    -- clip correctly. The countdown number is kept, and progress is shown a different
-    -- way below (r.progress) instead of the native pie-wipe.
-    r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
-    r.swipe:SetAllPoints(r.icon)
-    r.swipe:SetHideCountdownNumbers(false)
-    r.swipe:SetDrawSwipe(false)
-    r.swipe:SetDrawEdge(false)
-
-    -- Ticking-down feel without a native swipe: a plain dark overlay, masked to the
-    -- RING only (CIRCLE_BORDER_PATH itself, reused as a stencil rather than its usual
-    -- decorative job below -- a hollow ring shape, transparent everywhere else), so it
-    -- fades over the border, not across the icon's own face. Fading from opaque to
-    -- clear over the reminder's duration -- driven by the same expirationTime/OnUpdate
-    -- idiom CreateBarRegion already uses for its live fill.
+    -- Masking the swipe with the FULL DISC mask (same shape as the icon) rendered as an
+    -- opaque black square -- confirmed live, that combination does not work. This masks
+    -- it with the RING shape instead (CIRCLE_BORDER_PATH, reused as a stencil rather
+    -- than its usual decorative job below -- a hollow ring, transparent everywhere
+    -- else), a genuinely different, smaller mask never tried before. If the Cooldown
+    -- widget's masking is broken outright rather than just failing on a disc-sized
+    -- mask, this will show the same symptom and needs a from-scratch angular wipe
+    -- instead (2 rotating wedge textures, no native Cooldown widget) -- worth
+    -- confirming live before building that, since it is real extra work this may not
+    -- need. Edge highlight (Cooldown's separate rotating line) stays off regardless.
     local ringMask = r:CreateMaskTexture()
     ringMask:SetAllPoints(r.icon)
     ringMask:SetTexture(CIRCLE_BORDER_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    r.progress = r:CreateTexture(nil, "OVERLAY")
-    r.progress:SetAllPoints(r.icon)
-    r.progress:SetColorTexture(0, 0, 0, 1)
-    r.progress:AddMaskTexture(ringMask)
+
+    r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
+    r.swipe:SetAllPoints(r.icon)
+    r.swipe:SetHideCountdownNumbers(false)
+    r.swipe:SetDrawEdge(false)
+    if r.swipe.AddMaskTexture then pcall(r.swipe.AddMaskTexture, r.swipe, ringMask) end
 
     r.border = r:CreateTexture(nil, "OVERLAY")
     r.border:SetAllPoints(r.icon)
@@ -510,16 +504,8 @@ function ns.DisplayRaidReminder(entry)
         -- look for a Circle reminder with no spell ID set, not a placeholder icon.
         r.icon:SetTexture(ResolveDisplayIconID(display))
         r.label:SetText(display.text or "")
+        r:SetScript("OnUpdate", nil)   -- in case this region was last used as a config sample
         r.swipe:SetCooldown(GetTime(), dur)
-        -- r.progress is a plain Texture, which has no OnUpdate of its own -- driven from
-        -- the region frame's, same as the Timer/Bar branches already do for their own
-        -- live values.
-        r.expirationTime = GetTime() + dur
-        r.progress:SetAlpha(1)
-        r:SetScript("OnUpdate", function(self)
-            local remain = self.expirationTime - GetTime()
-            self.progress:SetAlpha(remain > 0 and math.min(1, remain / dur) or 0)
-        end)
     end
 
     r:Show()
@@ -581,9 +567,8 @@ local function PopulateSample(displayType, r)
     elseif displayType == "circle" then
         r.icon:SetTexture(134400)
         r.label:SetText("Sample")
-        r.swipe:SetCooldown(0, 0)
         r:SetScript("OnUpdate", nil)
-        r.progress:SetAlpha(0.5)
+        r.swipe:SetCooldown(GetTime() - 3, 8)   -- static-ish partial wipe for reference
     end
 end
 
