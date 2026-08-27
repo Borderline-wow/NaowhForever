@@ -79,6 +79,7 @@ end
 -------------------------------------------------------------------------------
 local ANCHOR_DEFAULT_POS = {
     text = { x = 0, y = 40 },
+    timer = { x = -120, y = 40 },
     icon = { x = 120, y = 40 },
     bar = { x = 0, y = -60 },
     circle = { x = 120, y = -60 },
@@ -128,6 +129,21 @@ local function CreateTextRegion(a)
     r:SetSize(320, 26)
     r.text = ns.Font(r, 16, "OUTLINE")
     r.text:SetPoint("CENTER")
+    r:Hide()
+    return r
+end
+
+-- A big ticking number, distinct from the static Message display -- what NSRT and
+-- TimelineReminders call a Timer. label is the optional caption above it (what the
+-- countdown is FOR); the number itself is driven by the same expirationTime/OnUpdate
+-- idiom CreateBarRegion already uses, just formatted as whole seconds instead of a fill.
+local function CreateTimerRegion(a)
+    local r = CreateFrame("Frame", nil, a)
+    r:SetSize(120, 46)
+    r.label = ns.Font(r, 11, "OUTLINE")
+    r.label:SetPoint("TOP", r, "TOP", 0, 0)
+    r.number = ns.Font(r, 26, "OUTLINE")
+    r.number:SetPoint("TOP", r.label, "BOTTOM", 0, -2)
     r:Hide()
     return r
 end
@@ -217,7 +233,7 @@ local function CreateCircleRegion(a)
 end
 
 local REGION_CTORS = {
-    text = CreateTextRegion, icon = CreateIconRegion,
+    text = CreateTextRegion, timer = CreateTimerRegion, icon = CreateIconRegion,
     bar = CreateBarRegion, circle = CreateCircleRegion,
 }
 
@@ -277,6 +293,14 @@ function ns.DisplayRaidReminder(entry)
         else
             r.label:Hide()
         end
+    elseif display.type == "timer" then
+        r.label:SetText(display.text or "")
+        r.expirationTime = GetTime() + dur
+        r.number:SetText(tostring(math.ceil(dur)))
+        r:SetScript("OnUpdate", function(self)
+            local remain = self.expirationTime - GetTime()
+            self.number:SetText(remain > 0 and tostring(math.ceil(remain)) or "0")
+        end)
     elseif display.type == "bar" then
         r.label:SetText(display.text or "")
         r.bar.expirationTime = GetTime() + dur
@@ -315,8 +339,9 @@ local function RaidRemindersAllowed()
     return ns.DB().enabled == true and ns.AllowedHere() and ns.BossAllowed()
 end
 
--- sid/duration/barIdentity are exactly what OnBigWigsEvent/OnDBMEvent already extracted
--- and issecretvalue-checked for ns.HandleBigWigsAbility -- reused as-is, no new secret
+-- BigWigs only, deliberately -- OnBigWigsEvent is the only caller (OnDBMEvent never
+-- calls this). sid/duration/barIdentity are exactly what it already extracted and
+-- issecretvalue-checked for ns.HandleBigWigsAbility -- reused as-is, no new secret
 -- handling needed. Every raidReminders entry for the current encounter whose trigger
 -- matches this exact broadcast gets scheduled independently (a pull can reasonably want
 -- more than one reminder off the same bar, e.g. one for the tank and one for the healer).

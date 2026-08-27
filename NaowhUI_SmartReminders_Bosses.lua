@@ -2600,6 +2600,13 @@ function ns.BuildRaidRemindersPage(parent, y)
     local _, h
     local startY = y
 
+    -- Every other tab (BuildBossTabPage/BuildSetupPage) clears the non-scrolling content
+    -- header before drawing -- this page is called directly from Core's buildPage
+    -- dispatch with no such wrapper, so a header left over from whichever tab was open
+    -- before it stays reserved above the scroll area and crowds this page's own content
+    -- up against the tab strip.
+    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+
     -- Wrapped for the same reason ShowRaidReminderEditor is: a page that renders
     -- nothing with no error on screen is undiagnosable from a screenshot alone.
     local ok, result = pcall(function()
@@ -2616,7 +2623,7 @@ function ns.BuildRaidRemindersPage(parent, y)
     hint:SetJustifyH("LEFT")
     hint:SetWordWrap(true)
     hint:SetText("Assign a countdown reminder to a role, class, spec, player or subgroup -- "
-        .. "fires off BigWigs' or DBM's own live timer, same bridge the tank callouts use.")
+        .. "fires off BigWigs' own live timer, same bridge the tank callouts use.")
     y = y - 34
 
     local data = ns.ScrapeBosses(false)
@@ -2728,15 +2735,16 @@ end
 
 local RR_ROLE_VALUES = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
 local RR_ROLE_ORDER = { "TANK", "HEALER", "DAMAGER" }
-local RR_DISPLAY_VALUES = { text = "Text", icon = "Icon", bar = "Bar", circle = "Circle" }
-local RR_DISPLAY_ORDER = { "text", "icon", "bar", "circle" }
+local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
+local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle" }
 local RR_TARGET_VALUES = { all = "Everyone", role = "Role", class = "Class",
     spec = "Spec", name = "Player Name", subgroup = "Subgroup" }
 local RR_TARGET_ORDER = { "all", "role", "class", "spec", "name", "subgroup" }
 
 -- ShowCustomReminderEditor's twin: same modal size, same tab/mechanic-picker/Save
--- shape, restricted to BigWigs/DBM triggers (no pull/aura -- a raid reminder is always
--- tied to a real broadcast) and carrying the two things that editor has no concept of:
+-- shape, restricted to BigWigs triggers only (no pull/aura, no DBM -- a raid reminder is
+-- always tied to a real BigWigs broadcast) and carrying the two things that editor has
+-- no concept of:
 -- who this is for (Target) and which of the four displays shows it.
 function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
@@ -2917,14 +2925,20 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
         local cat = ns.BossModCatalogueTable and ns.BossModCatalogueTable(false, encounterID)
         local list = {}
         if cat then
-            for key, entry in pairs(cat) do list[#list + 1] = { key = key, entry = entry } end
+            -- BigWigs only: a raid reminder's trigger is always "BigWigs Message/Timer"
+            -- now (see the Trigger Type dropdown above), so a DBM-only catalogue entry
+            -- would just be a dead pick here -- the catalogue itself stays shared with
+            -- ShowCustomReminderEditor, which still wants both.
+            for key, entry in pairs(cat) do
+                if entry.mod ~= "DBM" then list[#list + 1] = { key = key, entry = entry } end
+            end
         end
         table.sort(list, function(a, b) return (a.entry.seen or 0) > (b.entry.seen or 0) end)
 
         if #list == 0 then
             pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, PICKER_TOP)
             pickerHint:SetText("|cff8a99b5Nothing recorded for this boss yet -- pull it with "
-                .. "BigWigs or DBM running, or type a Spell ID below.|r")
+                .. "BigWigs running, or type a Spell ID below.|r")
             pickerHint:SetHeight(28)
             return 28
         end
@@ -2936,7 +2950,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
             local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(item.key)
             row.icon:SetTexture((info and info.iconID) or 134400)
             row.name:SetText((info and info.name) or (item.entry.text or ("Spell " .. item.key)))
-            row.tag:SetText(item.entry.mod == "DBM" and "|cff2da6ffDBM|r" or "|cfff0a830BW|r")
+            row.tag:SetText("|cfff0a830BW|r")
             row:SetScript("OnClick", function()
                 trigTypeVal = (item.entry.kind == "timer") and "bwtimer" or "bwmsg"
                 spellIDText = tostring(item.key)
@@ -2981,9 +2995,9 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
         local typeRowH
         _, typeRowH = W:DualRow(triggerBody, ty,
             { type = "dropdown", text = "Trigger Type",
-              values = { bwmsg = "BigWigs/DBM Message", bwtimer = "BigWigs/DBM Timer" },
+              values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer" },
               order = { "bwmsg", "bwtimer" },
-              tooltip = "Message fires the instant BigWigs/DBM announces it. Timer waits "
+              tooltip = "Message fires the instant BigWigs announces it. Timer waits "
                   .. "out the bar and fires this many seconds before it ends.",
               getValue = function() return trigTypeVal end,
               setValue = function(v) trigTypeVal = v; RebuildTriggerFields() end }
@@ -3207,7 +3221,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     local _, dispRowH = W:DualRow(displayBody, dsy,
         { type = "dropdown", text = "Display As",
           values = RR_DISPLAY_VALUES, order = RR_DISPLAY_ORDER,
-          tooltip = "Text/Icon/Bar/Circle -- each has its own fixed on-screen spot for now.",
+          tooltip = "Message/Timer/Icon/Bar/Circle -- each has its own fixed on-screen spot for now.",
           getValue = function() return displayTypeVal end,
           setValue = function(v) displayTypeVal = v end }
     ); dsy = dsy - dispRowH
@@ -3324,8 +3338,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
         -- Bypasses ns.RaidReminderTargetsMe entirely, same as ShowCustomReminderEditor's
         -- own Preview button bypasses trigger matching -- a curator previewing sees it
         -- regardless of whether they personally match the target they just chose.
-        local entry = BuildEntry()
-        if entry and ns.DisplayRaidReminder then ns.DisplayRaidReminder(entry) end
+        local entry, buildErr = BuildEntry()
+        if entry then
+            if ns.DisplayRaidReminder then ns.DisplayRaidReminder(entry) end
+        else
+            ns.Print("|cffff6060" .. (buildErr or "could not preview this reminder") .. "|r")
+        end
     end):SetPoint("BOTTOM", panel, "BOTTOM", -110, 16)
     ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
     ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)

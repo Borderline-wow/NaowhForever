@@ -2890,9 +2890,8 @@ local function OnDBMEvent(event, ...)
         if issecretvalue and issecretvalue(spellId) then return end
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, nil, "message") end
         ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId)
-        if ns.HandleRaidReminderAbility then
-            ns.HandleRaidReminderAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId)
-        end
+        -- Raid Reminders are BigWigs-only by design (see ShowRaidReminderEditor) --
+        -- deliberately no ns.HandleRaidReminderAbility call here.
         if not hasCustomReminders then return end
         CheckBossModMessage("DBM", spellId)
     elseif event == "DBM_TimerBegin" or event == "DBM_TimerStart" then
@@ -2902,9 +2901,8 @@ local function OnDBMEvent(event, ...)
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
         ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
-        if ns.HandleRaidReminderAbility then
-            ns.HandleRaidReminderAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
-        end
+        -- Raid Reminders are BigWigs-only by design (see ShowRaidReminderEditor) --
+        -- deliberately no ns.HandleRaidReminderAbility call here.
         if not hasCustomReminders then return end
         CheckBossModTimerStart("DBM", spellId, id, duration, msg)
     elseif event == "DBM_TimerStop" or event == "DBM_TimerPause" then
