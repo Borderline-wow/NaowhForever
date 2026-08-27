@@ -1857,8 +1857,9 @@ local function FindBoundRaidReminder(encounterID, spellID)
     return nil, nil
 end
 
-local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
-local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle" }
+local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar",
+    circle = "Circle", chat = "Chat Line" }
+local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle", "chat" }
 
 function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
@@ -3315,6 +3316,16 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
           end }
     ); dsy = dsy - soundRowH
 
+    local ttsVal = display.tts == true
+    local _, ttsRowH = W:DualRow(displayBody, dsy,
+        { type = "toggle", text = "Speak (Text-to-Speech)",
+          tooltip = "Reads the Text field aloud through your own client's built-in "
+              .. "text-to-speech, using whatever voice/rate you set in the "
+              .. "Accessibility panel.",
+          getValue = function() return ttsVal end,
+          setValue = function(v) ttsVal = v end }
+    ); dsy = dsy - ttsRowH
+
     DsLabel("Linger (seconds)")
     local durBox = DsBox(3, true)
     durBox:SetText(tostring(display.dur or 4))
@@ -3399,6 +3410,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             dur = math.max(1, tonumber(durBox:GetText()) or 4),
             sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
             hideAfterCastID = (hideCastSid and hideCastSid > 0) and hideCastSid or nil,
+            tts = ttsVal or nil,
         }
         return {
             name = (nameBox:GetText() ~= "" and nameBox:GetText()) or "Reminder",

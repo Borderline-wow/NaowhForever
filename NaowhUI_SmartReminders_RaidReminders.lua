@@ -537,6 +537,16 @@ end
 function ns.DisplayRaidReminder(entry)
     local display = entry and entry.display
     if not display then return end
+
+    -- Chat has no on-screen Region at all -- a local chat line, same sound/TTS as
+    -- every other type, no pooled frame or hide timer to manage.
+    if display.type == "chat" then
+        if display.text and display.text ~= "" then ns.Print(display.text) end
+        ns.PlayReminderSound(display)
+        ns.SpeakReminderTTS(display)
+        return
+    end
+
     local a, r = AcquireRegion(display.type)
     if not r then
         ns.Print(("|cffff6060raid reminder|r: display type %q not built yet."):format(
@@ -610,6 +620,7 @@ function ns.DisplayRaidReminder(entry)
     r:Show()
     RestackRegions(a)
     ns.PlayReminderSound(display)
+    ns.SpeakReminderTTS(display)
 
     if r.hideTimer then r.hideTimer:Cancel() end
     r.hideTimer = C_Timer.NewTimer(dur, function() ReleaseRegion(a, r) end)
@@ -623,7 +634,9 @@ end
 function ns.PreviewRaidReminder(entry)
     local display = entry and entry.display
     if not display then return end
-    local a = GetAnchor(display.type)
+    -- Chat has no anchor to elevate -- ns.DisplayRaidReminder's own chat branch
+    -- handles it below with nothing extra needed here.
+    local a = (display.type ~= "chat") and GetAnchor(display.type) or nil
     if a then
         a:SetFrameStrata("FULLSCREEN_DIALOG")
         a:SetFrameLevel(250)

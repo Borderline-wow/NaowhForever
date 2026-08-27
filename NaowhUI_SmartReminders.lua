@@ -2256,6 +2256,31 @@ function ns.PlayReminderSound(r)
     end
 end
 
+-- Same optional r.tts flag PlayReminderSound's r.sound is -- speaks r.text through the
+-- client's own built-in TTS (C_VoiceChat), not a bespoke voice/rate/volume picker: MRT's
+-- own version is a dropdown plus two sliders on top of this exact API, skipped here in
+-- favor of whatever the player already set in the Accessibility panel, one less thing to
+-- configure for what is meant to stay the simple version.
+function ns.SpeakReminderTTS(r)
+    if not (r and r.tts) then return end
+    local text = r.text
+    if not (text and text ~= "") then return end
+    if not (C_VoiceChat and C_VoiceChat.SpeakText and C_VoiceChat.GetTtsVoices) then return end
+    local voiceID
+    if TextToSpeech_GetSelectedVoice then
+        local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
+        voiceID = ok and voice and voice.voiceID
+    end
+    if not voiceID then
+        local voices = C_VoiceChat.GetTtsVoices()
+        voiceID = voices and voices[1] and voices[1].voiceID
+    end
+    if not voiceID then return end
+    local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate and C_TTSSettings.GetSpeechRate()) or 0
+    local volume = (C_TTSSettings and C_TTSSettings.GetSpeechVolume and C_TTSSettings.GetSpeechVolume()) or 100
+    C_VoiceChat.SpeakText(voiceID, text, Enum.VoiceTtsDestination.LocalPlayback, rate, volume)
+end
+
 -- Shared by every display type that can be bound to a defensive rather than free text
 -- (abilitySpellID from the ability picker's Pre-Selected Defensives mode, or preset from
 -- the full editor) -- resolves once to the actual spell that would be called, so the
