@@ -2595,10 +2595,6 @@ end
 local selectedRRBoss   -- { id = encounterID, label = "Instance - Boss" }
 
 function ns.BuildRaidRemindersPage(parent, y)
-    -- TEMP diagnostic (build 0826u) -- unconditional, no gate, remove once we have an
-    -- answer. Confirms whether this exact code is the thing actually running.
-    ns.Print("|cff66ccff[RRPage]|r 0826u entered, y=" .. tostring(y))
-
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
     local _, h
@@ -2621,9 +2617,6 @@ function ns.BuildRaidRemindersPage(parent, y)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
     pageHead:SetJustifyH("CENTER")
     pageHead:SetText("Raid Reminders")
-    ns.Print("|cff66ccff[RRPage]|r title created at y=" .. tostring(y)
-        .. ", shown=" .. tostring(pageHead:IsShown())
-        .. ", parentW=" .. tostring(parent:GetWidth()) .. " parentH=" .. tostring(parent:GetHeight()))
     y = y - 22
 
     local hint = ns.Font(parent, 11, nil, ns.THEME.muted)
@@ -2655,7 +2648,7 @@ function ns.BuildRaidRemindersPage(parent, y)
             { type = "label", text = "Nothing found yet. Open the Adventure Guide once." },
             { type = "label", text = "" }
         ); y = y - h
-        return y
+        return math.abs(y)
     end
 
     -- Match the remembered selection back up by id, same reasoning
@@ -2723,24 +2716,20 @@ function ns.BuildRaidRemindersPage(parent, y)
 
     y = y - 14   -- extra gap so the button reads as its own row, not glued to the list above
 
-    ns.Print("|cff66ccff[RRPage]|r Add button about to be created at y=" .. tostring(y))
     _, h = W:Button(parent, "+ Add a Raid Reminder", y, function()
-        -- TEMP diagnostic (0826u): "nothing happens" on click is otherwise
-        -- indistinguishable from a swallowed error -- WoW hides script errors by
-        -- default, so an uncaught throw here looks exactly like a dead button.
+        -- A thrown error here would otherwise be indistinguishable from a dead button --
+        -- WoW hides script errors by default, so an uncaught throw looks exactly like
+        -- nothing happening at all.
         local okClick, clickErr = pcall(function()
             ns.ShowRaidReminderEditor(encounterID, nil, EUI)
         end)
         if not okClick then
-            ns.Print("|cffff6060[RRPage] Add button click failed|r: " .. tostring(clickErr))
-        else
-            ns.Print("|cff66ccff[RRPage]|r Add button click ran ShowRaidReminderEditor with no error")
+            ns.Print("|cffff6060could not open the raid reminder editor|r: " .. tostring(clickErr))
         end
     end)
-    ns.Print("|cff66ccff[RRPage]|r Add button created, h=" .. tostring(h))
     y = y - h
 
-    return y
+    return math.abs(y)
     end)
 
     if not ok then
@@ -2751,7 +2740,7 @@ function ns.BuildRaidRemindersPage(parent, y)
         errText:SetWordWrap(true)
         errText:SetText("Failed to build this page: " .. tostring(result))
         ns.Print("|cffff6060raid reminders page|r: " .. tostring(result))
-        return startY - 40
+        return math.abs(startY) + 40
     end
     return result
 end
