@@ -4770,6 +4770,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         if event == "ENCOUNTER_START" then
             RegisterBossModHooks()   -- in case BigWigs/DBM loaded after this addon did
             CheckCustomReminders("pull", nil)
+            if ns.CheckRaidReminderPullTriggers then ns.CheckRaidReminderPullTriggers() end
         end
 
         -- The gate report BELOW the rebuild, never above it: it reads activeSlots, and

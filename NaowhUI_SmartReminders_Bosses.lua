@@ -2887,10 +2887,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local PICKER_ROW_H = 22
     local PICKER_TOP = ty
 
-    local trigTypeVal = (trig.type == "bwmsg") and "bwmsg" or "bwtimer"
+    local trigTypeVal = (trig.type == "bwmsg" and "bwmsg")
+        or (trig.type == "pull" and "pull") or "bwtimer"
     local spellIDText = (trig.spellID and tostring(trig.spellID))
         or (abilitySpellID and tostring(abilitySpellID)) or ""
     local leadTimeText = (trig.leadTime and tostring(trig.leadTime)) or "3"
+    local pullDelayText = (trig.delay and tostring(trig.delay)) or "5"
 
     -- Declared here, assigned below: a picker row's OnClick (built by RebuildPicker,
     -- called from inside RebuildTriggerFields itself) has to reach the rebuild function
@@ -2948,7 +2950,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         return shown * PICKER_ROW_H + 4
     end
 
-    local dynFrame, spellBox, leadTimeBox
+    local dynFrame, spellBox, leadTimeBox, pullDelayBox
     local triggerTypeRow
 
     -- Target: who sees this -- AND across categories (role/class/spec/name/subgroup),
@@ -2985,7 +2987,15 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         -- other "ty = ty - rowHeight" line in this function already uses. Written as +
         -- originally, which flipped ty positive and threw everything after the picker
         -- back above it -- the overlap seen live.
-        ty = PICKER_TOP - RebuildPicker()
+        -- Skipped entirely for "pull": that trigger isn't anchored to any BigWigs
+        -- mechanic, so there's nothing here to pick.
+        if trigTypeVal == "pull" then
+            for i = 1, MECHANIC_ROWS do pickerRows[i]:Hide() end
+            pickerHint:SetText("")
+            ty = PICKER_TOP
+        else
+            ty = PICKER_TOP - RebuildPicker()
+        end
         -- Every call rebuilds this row from scratch (picking a mechanic off the
         -- picker, or switching Message/Timer itself, both call RebuildTriggerFields
         -- again) -- the previous one has to be hidden first or picking two different
@@ -2996,10 +3006,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         local typeRowH
         triggerTypeRow, typeRowH = W:DualRow(triggerBody, ty,
             { type = "dropdown", text = "Trigger Type",
-              values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer" },
-              order = { "bwmsg", "bwtimer" },
+              values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer", pull = "Time After Pull" },
+              order = { "bwmsg", "bwtimer", "pull" },
               tooltip = "Message fires the instant BigWigs announces it. Timer waits "
-                  .. "out the bar and fires this many seconds before it ends.",
+                  .. "out the bar and fires this many seconds before it ends. Time "
+                  .. "After Pull fires a fixed number of seconds into the encounter, "
+                  .. "with no BigWigs mechanic involved.",
               getValue = function() return trigTypeVal end,
               setValue = function(v) trigTypeVal = v; RebuildTriggerFields() end }
         )
@@ -3032,38 +3044,49 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             return box
         end
 
-        DLabel("Spell ID")
-        spellBox = DBox(9, true, 80)
-        spellBox:SetText(spellIDText)
-        local okBtn = ns.Button(dynFrame, "OK", 54, 26, function() spellBox:ClearFocus() end)
-        okBtn:SetPoint("LEFT", spellBox, "RIGHT", 6, 0)
-        local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
-        feedback:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy + 6)
-        feedback:SetPoint("RIGHT", dynFrame, "RIGHT", -PAD, 0)
-        feedback:SetJustifyH("LEFT")
-        dy = dy - 14
-        local function Sync()
-            local sid, info = ns.ResolveSpell(spellBox:GetText())
-            if sid then
-                feedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
-            elseif spellBox:GetText() == "" then
-                feedback:SetText("")
-            else
-                feedback:SetText("|cff8a99b5no spell name found -- boss-mod keys aren't "
-                    .. "always real spell ids, that's fine|r")
-            end
-        end
-        spellBox:SetScript("OnTextChanged", function() spellIDText = spellBox:GetText() or ""; Sync() end)
-        spellBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-        Sync()
-
-        if trigTypeVal == "bwtimer" then
-            DLabel("Warning Time (seconds before it lands)")
-            leadTimeBox = DBox(4, true)
-            leadTimeBox:SetText(leadTimeText)
-            leadTimeBox:SetScript("OnTextChanged", function() leadTimeText = leadTimeBox:GetText() or "" end)
+        if trigTypeVal == "pull" then
+            spellBox, leadTimeBox = nil, nil
+            DLabel("Delay After Pull (seconds)")
+            pullDelayBox = DBox(6, true)
+            pullDelayBox:SetText(pullDelayText)
+            pullDelayBox:SetScript("OnTextChanged", function()
+                pullDelayText = pullDelayBox:GetText() or ""
+            end)
         else
-            leadTimeBox = nil
+            pullDelayBox = nil
+            DLabel("Spell ID")
+            spellBox = DBox(9, true, 80)
+            spellBox:SetText(spellIDText)
+            local okBtn = ns.Button(dynFrame, "OK", 54, 26, function() spellBox:ClearFocus() end)
+            okBtn:SetPoint("LEFT", spellBox, "RIGHT", 6, 0)
+            local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
+            feedback:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy + 6)
+            feedback:SetPoint("RIGHT", dynFrame, "RIGHT", -PAD, 0)
+            feedback:SetJustifyH("LEFT")
+            dy = dy - 14
+            local function Sync()
+                local sid, info = ns.ResolveSpell(spellBox:GetText())
+                if sid then
+                    feedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
+                elseif spellBox:GetText() == "" then
+                    feedback:SetText("")
+                else
+                    feedback:SetText("|cff8a99b5no spell name found -- boss-mod keys aren't "
+                        .. "always real spell ids, that's fine|r")
+                end
+            end
+            spellBox:SetScript("OnTextChanged", function() spellIDText = spellBox:GetText() or ""; Sync() end)
+            spellBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+            Sync()
+
+            if trigTypeVal == "bwtimer" then
+                DLabel("Warning Time (seconds before it lands)")
+                leadTimeBox = DBox(4, true)
+                leadTimeBox:SetText(leadTimeText)
+                leadTimeBox:SetScript("OnTextChanged", function() leadTimeText = leadTimeBox:GetText() or "" end)
+            else
+                leadTimeBox = nil
+            end
         end
 
         -- dynFrame's own dy cursor is local to this closure and never reaches the outer
@@ -3309,11 +3332,18 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     --  Save / Preview
     -------------------------------------------------------------------------
     local function BuildEntry()
-        local sid = tonumber(spellIDText)
-        if not sid then return nil, "need a valid Spell ID" end
-        local newTrig = { type = trigTypeVal, spellID = sid }
-        if trigTypeVal == "bwtimer" then
-            newTrig.leadTime = tonumber(leadTimeText) or 3
+        local newTrig
+        if trigTypeVal == "pull" then
+            local delay = tonumber(pullDelayText)
+            if not delay or delay < 0 then return nil, "need a valid delay in seconds" end
+            newTrig = { type = "pull", delay = delay }
+        else
+            local sid = tonumber(spellIDText)
+            if not sid then return nil, "need a valid Spell ID" end
+            newTrig = { type = trigTypeVal, spellID = sid }
+            if trigTypeVal == "bwtimer" then
+                newTrig.leadTime = tonumber(leadTimeText) or 3
+            end
         end
         local newTarget = { all = targetAllVal }
         if not targetAllVal then

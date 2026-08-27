@@ -975,3 +975,25 @@ function ns.HandleRaidReminderAbility(sid, duration, barIdentity)
         end
     end
 end
+
+-- "pull" triggers aren't anchored to any BigWigs broadcast, so they never reach
+-- ns.HandleRaidReminderAbility above -- called once from ENCOUNTER_START instead
+-- (NaowhUI_SmartReminders.lua), the exact same moment CheckCustomReminders' own
+-- "pull" trigger already answers to, rather than a second concept of "when did we
+-- pull."
+function ns.CheckRaidReminderPullTriggers()
+    if not (ns.InEncounter and ns.InEncounter()) then return end
+    if not RaidRemindersAllowed() then return end
+    local enc = ns.CurrentEncounter and ns.CurrentEncounter()
+    if not enc then return end
+    local reminders = RaidRemindersTable(false, enc)
+    if not reminders then return end
+
+    for _, entry in pairs(reminders) do
+        local trig = entry.trigger
+        if trig and trig.type == "pull" then
+            local delay = (type(trig.delay) == "number" and trig.delay >= 0) and trig.delay or 0.01
+            C_Timer.NewTimer(math.max(delay, 0.01), function() FireRaidReminder(entry) end)
+        end
+    end
+end
