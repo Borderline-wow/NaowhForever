@@ -392,6 +392,16 @@ local function CreateCircleRegion(a)
     r.swipe:SetDrawEdge(false)
     r.swipe:SetDrawSwipe(false)
 
+    -- Border MUST be created before the ticks: same OVERLAY layer, and a later-created
+    -- texture draws on top of an earlier one at the same layer -- with border created
+    -- after (as it was before), its own always-opaque ring sat on top of every tick and
+    -- completely hid them regardless of color or show/hide state, which is why nothing
+    -- ever appeared to change. Confirmed live: what looked like "the ring, unchanging"
+    -- across the whole cooldown was just this static decoration the whole time.
+    r.border = r:CreateTexture(nil, "OVERLAY")
+    r.border:SetAllPoints(r.icon)
+    r.border:SetTexture(CIRCLE_BORDER_PATH)
+
     r.ticks = {}
     for i = 1, RING_TICKS do
         local t = r:CreateTexture(nil, "OVERLAY")
@@ -401,10 +411,6 @@ local function CreateCircleRegion(a)
         r.ticks[i] = t
     end
     PositionCircleTicks(r, size)
-
-    r.border = r:CreateTexture(nil, "OVERLAY")
-    r.border:SetAllPoints(r.icon)
-    r.border:SetTexture(CIRCLE_BORDER_PATH)
 
     r.label = ns.Font(r, 12, "OUTLINE")
     r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
@@ -578,6 +584,14 @@ function ns.PreviewRaidReminder(entry)
     if a then
         a:SetFrameStrata("FULLSCREEN_DIALOG")
         a:SetFrameLevel(250)
+        -- Clicking Preview again before the last one finished lingering was stacking a
+        -- brand new region on top of it each time (AcquireRegion has no reason to know
+        -- a previous preview of this exact type is still up) -- release whatever is
+        -- still active on this anchor first so a preview replaces the last one instead
+        -- of piling up. Only Preview does this; a real fire never should, since two
+        -- genuinely different reminders of the same display type stacking together is
+        -- correct there.
+        while #a.active > 0 do ReleaseRegion(a, a.active[#a.active]) end
     end
     ns.DisplayRaidReminder(entry)
 end
