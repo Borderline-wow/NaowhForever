@@ -2595,6 +2595,10 @@ end
 local selectedRRBoss   -- { id = encounterID, label = "Instance - Boss" }
 
 function ns.BuildRaidRemindersPage(parent, y)
+    -- TEMP diagnostic (build 0826u) -- unconditional, no gate, remove once we have an
+    -- answer. Confirms whether this exact code is the thing actually running.
+    ns.Print("|cff66ccff[RRPage]|r 0826u entered, y=" .. tostring(y))
+
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
     local _, h
@@ -2617,6 +2621,9 @@ function ns.BuildRaidRemindersPage(parent, y)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
     pageHead:SetJustifyH("CENTER")
     pageHead:SetText("Raid Reminders")
+    ns.Print("|cff66ccff[RRPage]|r title created at y=" .. tostring(y)
+        .. ", shown=" .. tostring(pageHead:IsShown())
+        .. ", parentW=" .. tostring(parent:GetWidth()) .. " parentH=" .. tostring(parent:GetHeight()))
     y = y - 22
 
     local hint = ns.Font(parent, 11, nil, ns.THEME.muted)
@@ -2716,9 +2723,21 @@ function ns.BuildRaidRemindersPage(parent, y)
 
     y = y - 14   -- extra gap so the button reads as its own row, not glued to the list above
 
+    ns.Print("|cff66ccff[RRPage]|r Add button about to be created at y=" .. tostring(y))
     _, h = W:Button(parent, "+ Add a Raid Reminder", y, function()
-        ns.ShowRaidReminderEditor(encounterID, nil, EUI)
+        -- TEMP diagnostic (0826u): "nothing happens" on click is otherwise
+        -- indistinguishable from a swallowed error -- WoW hides script errors by
+        -- default, so an uncaught throw here looks exactly like a dead button.
+        local okClick, clickErr = pcall(function()
+            ns.ShowRaidReminderEditor(encounterID, nil, EUI)
+        end)
+        if not okClick then
+            ns.Print("|cffff6060[RRPage] Add button click failed|r: " .. tostring(clickErr))
+        else
+            ns.Print("|cff66ccff[RRPage]|r Add button click ran ShowRaidReminderEditor with no error")
+        end
     end)
+    ns.Print("|cff66ccff[RRPage]|r Add button created, h=" .. tostring(h))
     y = y - h
 
     return y
