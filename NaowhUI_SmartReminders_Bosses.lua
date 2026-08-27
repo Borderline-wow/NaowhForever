@@ -2986,10 +2986,15 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         -- originally, which flipped ty positive and threw everything after the picker
         -- back above it -- the overlap seen live.
         ty = PICKER_TOP - RebuildPicker()
-        if triggerTypeRow then triggerTypeRow = nil end
+        -- Every call rebuilds this row from scratch (picking a mechanic off the
+        -- picker, or switching Message/Timer itself, both call RebuildTriggerFields
+        -- again) -- the previous one has to be hidden first or picking two different
+        -- mechanics in a row stacks a second "Trigger Type" dropdown exactly on top
+        -- of the first, both drawing their own label text into the same spot.
+        if triggerTypeRow then triggerTypeRow:Hide() end
 
         local typeRowH
-        _, typeRowH = W:DualRow(triggerBody, ty,
+        triggerTypeRow, typeRowH = W:DualRow(triggerBody, ty,
             { type = "dropdown", text = "Trigger Type",
               values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer" },
               order = { "bwmsg", "bwtimer" },
