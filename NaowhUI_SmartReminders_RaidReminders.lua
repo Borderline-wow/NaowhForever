@@ -57,6 +57,27 @@ local function MySubgroup()
     return 1   -- solo/party: no raid roster, only ever "group 1"
 end
 
+-- Which unit token a player name currently answers to -- needed for the glow display
+-- types (nameplate/raid-frame), which target a SPECIFIC other raider's frame rather
+-- than deciding whether the local client should show anything at all. nil when the
+-- name isn't found (out of group, typo, or just not visible in the roster this frame).
+local function UnitTokenForName(name)
+    if not name or name == "" then return nil end
+    if UnitName("player") == name then return "player" end
+    if IsInRaid and IsInRaid() then
+        for i = 1, 40 do
+            local unit = "raid" .. i
+            if UnitExists(unit) and UnitName(unit) == name then return unit end
+        end
+    elseif IsInGroup and IsInGroup() then
+        for i = 1, 4 do
+            local unit = "party" .. i
+            if UnitExists(unit) and UnitName(unit) == name then return unit end
+        end
+    end
+    return nil
+end
+
 -- Old single kind+value shape, normalized to the new multi-flag one on read rather
 -- than migrated in place -- this feature only shipped this session, so there is no
 -- real saved data to preserve, and a read-time fallback is simpler than a migration
@@ -516,6 +537,83 @@ local function AcquireRegion(displayType)
     return a, r
 end
 
+-------------------------------------------------------------------------------
+--  Glow display types -- nameplate/raid-frame, a highlight on an EXISTING unit frame
+--  rather than a floating on-screen widget, so they don't fit the Anchor/Region pool
+--  above (that pool always renders at one fixed screen spot; a glow's location is
+--  wherever the target's frame happens to be this instant, resolved fresh on every
+--  fire). Own small pool of dedicated overlay wrapper frames instead: EllesmereUI's
+--  glow engine (EllesmereUI.Glows) hides its glow via SetAlpha(0) on the frame it was
+--  given (StopGlow), so that frame has to be a dedicated overlay parented over the
+--  target, never the nameplate/raid-frame's own display frame -- gluing a glow
+--  directly onto that would blank the whole frame the instant the glow ends.
+-------------------------------------------------------------------------------
+local glowPool, activeGlows = {}, {}
+
+local function AcquireGlowWrapper()
+    local w = table.remove(glowPool)
+    if not w then
+        w = CreateFrame("Frame", nil, UIParent)
+        w:SetFrameStrata("HIGH")
+    end
+    activeGlows[#activeGlows + 1] = w
+    return w
+end
+
+local function ReleaseGlowWrapper(w)
+    local Glows = _G.EllesmereUI and _G.EllesmereUI.Glows
+    if Glows and Glows.StopGlow then Glows.StopGlow(w) end
+    if w.hideTimer then w.hideTimer:Cancel(); w.hideTimer = nil end
+    w:Hide()
+    w:ClearAllPoints()
+    w:SetParent(UIParent)
+    w.hideAfterCastID = nil
+    for i = 1, #activeGlows do
+        if activeGlows[i] == w then table.remove(activeGlows, i) break end
+    end
+    glowPool[#glowPool + 1] = w
+end
+
+-- nameplate reads the live Blizzard nameplate directly (C_NamePlate); raidframe reads
+-- EllesmereUI's own raid frame accessor (a small addition to EllesmereUIRaidFrames.lua
+-- -- that frame keeps its unit->button map private otherwise). Either can come back
+-- nil (unit not currently visible on any frame of that kind), in which case the glow
+-- is silently skipped for this fire -- same behavior confirmed from MRT's own
+-- raid-frame glow, which no-ops the same way when LibGetFrame finds nothing.
+local function ResolveGlowFrame(displayType, unit)
+    if displayType == "nameplateGlow" then
+        local plate = C_NamePlate and C_NamePlate.GetNamePlateForUnit and C_NamePlate.GetNamePlateForUnit(unit)
+        return plate and (plate.UnitFrame or plate)
+    elseif displayType == "raidframeGlow" then
+        local EUIg = _G.EllesmereUI
+        return EUIg and EUIg.RaidFrames_GetFrameForUnit and EUIg.RaidFrames_GetFrameForUnit(unit)
+    end
+    return nil
+end
+
+local function FireGlowReminder(display, dur)
+    local unit = UnitTokenForName(display.glowTarget)
+    local frame = unit and ResolveGlowFrame(display.type, unit)
+    if not frame then return end
+
+    local w = AcquireGlowWrapper()
+    w:SetParent(frame)
+    w:ClearAllPoints()
+    w:SetAllPoints(frame)
+    w:Show()
+    w.hideAfterCastID = display.hideAfterCastID
+
+    local Glows = _G.EllesmereUI and _G.EllesmereUI.Glows
+    if Glows and Glows.StartButtonGlow then
+        local c = display.color
+        Glows.StartButtonGlow(w, frame:GetWidth() or 40,
+            (c and c.r) or 1, (c and c.g) or 0.82, (c and c.b) or 0, nil, frame:GetHeight() or 40)
+    end
+
+    if w.hideTimer then w.hideTimer:Cancel() end
+    w.hideTimer = C_Timer.NewTimer(dur, function() ReleaseGlowWrapper(w) end)
+end
+
 -- Same two-step icon resolution CreateSlot (NaowhUI_SmartReminders.lua) already uses:
 -- GetSpellInfo first (nothing for a spell the client has not cached yet), GetSpellTexture
 -- as a second try, the question mark as the last resort -- never a blank icon. Shared by
@@ -542,6 +640,18 @@ function ns.DisplayRaidReminder(entry)
     -- every other type, no pooled frame or hide timer to manage.
     if display.type == "chat" then
         if display.text and display.text ~= "" then ns.Print(display.text) end
+        ns.PlayReminderSound(display)
+        ns.SpeakReminderTTS(display)
+        return
+    end
+
+    -- Glow types highlight an existing unit frame instead of the Anchor/Region pool
+    -- below -- FireGlowReminder owns their whole lifecycle (frame resolution, the
+    -- dedicated overlay wrapper, the hide timer), same sound/TTS tacked on same as
+    -- every other type.
+    if display.type == "nameplateGlow" or display.type == "raidframeGlow" then
+        local dur = (type(display.dur) == "number" and display.dur > 0) and display.dur or 4
+        FireGlowReminder(display, dur)
         ns.PlayReminderSound(display)
         ns.SpeakReminderTTS(display)
         return
@@ -634,9 +744,10 @@ end
 function ns.PreviewRaidReminder(entry)
     local display = entry and entry.display
     if not display then return end
-    -- Chat has no anchor to elevate -- ns.DisplayRaidReminder's own chat branch
-    -- handles it below with nothing extra needed here.
-    local a = (display.type ~= "chat") and GetAnchor(display.type) or nil
+    -- Chat and the glow types have no anchor to elevate -- ns.DisplayRaidReminder's
+    -- own branches for them handle everything needed below with nothing extra here.
+    local NO_ANCHOR_TYPES = { chat = true, nameplateGlow = true, raidframeGlow = true }
+    local a = (not NO_ANCHOR_TYPES[display.type]) and GetAnchor(display.type) or nil
     if a then
         a:SetFrameStrata("FULLSCREEN_DIALOG")
         a:SetFrameLevel(250)
@@ -665,6 +776,10 @@ castGateWatcher:SetScript("OnEvent", function(_, _, _, _, spellID)
             local r = a.active[i]
             if r.hideAfterCastID == spellID then ReleaseRegion(a, r) end
         end
+    end
+    for i = #activeGlows, 1, -1 do
+        local w = activeGlows[i]
+        if w.hideAfterCastID == spellID then ReleaseGlowWrapper(w) end
     end
 end)
 

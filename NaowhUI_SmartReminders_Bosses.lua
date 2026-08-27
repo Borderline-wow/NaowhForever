@@ -1858,8 +1858,10 @@ local function FindBoundRaidReminder(encounterID, spellID)
 end
 
 local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar",
-    circle = "Circle", chat = "Chat Line" }
-local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle", "chat" }
+    circle = "Circle", chat = "Chat Line", nameplateGlow = "Nameplate Glow",
+    raidframeGlow = "Raid-Frame Glow" }
+local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle", "chat",
+    "nameplateGlow", "raidframeGlow" }
 
 function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
@@ -3255,10 +3257,17 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local _, dispRowH = W:DualRow(displayBody, dsy,
         { type = "dropdown", text = "Display As",
           values = RR_DISPLAY_VALUES, order = RR_DISPLAY_ORDER,
-          tooltip = "Message/Timer/Icon/Bar/Circle -- each has its own fixed on-screen spot for now.",
+          tooltip = "Message/Timer/Icon/Bar/Circle each have their own fixed on-screen "
+              .. "spot. Chat Line prints instead of showing anything. Nameplate/"
+              .. "Raid-Frame Glow highlight another raider's own frame -- set who "
+              .. "below.",
           getValue = function() return displayTypeVal end,
           setValue = function(v) displayTypeVal = v end }
     ); dsy = dsy - dispRowH
+
+    DsLabel("Glow Player Name (Nameplate/Raid-Frame Glow only)")
+    local glowTargetBox = DsBox(24)
+    glowTargetBox:SetText(display.glowTarget or "")
 
     DsLabel("Text")
     local textBox = DsBox(60)
@@ -3411,6 +3420,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
             hideAfterCastID = (hideCastSid and hideCastSid > 0) and hideCastSid or nil,
             tts = ttsVal or nil,
+            glowTarget = (glowTargetBox:GetText() ~= "" and glowTargetBox:GetText()) or nil,
         }
         return {
             name = (nameBox:GetText() ~= "" and nameBox:GetText()) or "Reminder",
