@@ -14,9 +14,10 @@
 --  the tank-buster engine already uses, just with an extra yes/no check before
 --  showing anything.
 --
---  Phases 1-4: data model, scheduling, targeting, and all four displays. No authoring
---  UI yet -- reminders are hand-authored via the /nrrtest command below until the real
---  editor (a later phase) lands.
+--  Engine only -- data model, scheduling, targeting, and all four displays. The
+--  authoring UI (ns.BuildRaidRemindersPage/ns.ShowRaidReminderEditor, the "Raid
+--  Reminders" Setup tab) lives in NaowhUI_SmartReminders_Bosses.lua, which already had
+--  the tab/mechanic-picker scaffolding this needed and loads after this file.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhUITankReminder
 if not ns then return end
@@ -344,46 +345,4 @@ function ns.HandleRaidReminderAbility(sid, duration, barIdentity)
             end
         end
     end
-end
-
--------------------------------------------------------------------------------
---  Phase 1 test aid -- NOT the real authoring UI (a later phase). Creates one sample
---  raid reminder for the boss currently being fought, so the engine can be proven live
---  before anything is built to author these by hand. Remove once the real editor ships.
--------------------------------------------------------------------------------
-SLASH_NAOWHUIRAIDREMINDERTEST1 = "/nrrtest"
-SlashCmdList["NAOWHUIRAIDREMINDERTEST"] = function(msg)
-    local enc = ns.CurrentEncounter and ns.CurrentEncounter()
-    if not enc then
-        ns.Print("not in an encounter -- pull the boss first, then run this.")
-        return
-    end
-    local words = {}
-    for w in msg:gmatch("%S+") do words[#words + 1] = w end
-    local spellID = tonumber(words[1])
-    if not spellID then
-        ns.Print("usage: /nrrtest <bigwigs spellid> [leadtime] [text|icon|bar|circle] [label]")
-        return
-    end
-    local next_ = 2
-    local leadTime = tonumber(words[2])
-    if leadTime then next_ = 3 end
-    local displayType = "text"
-    if words[next_] == "text" or words[next_] == "icon"
-        or words[next_] == "bar" or words[next_] == "circle" then
-        displayType = words[next_]
-        next_ = next_ + 1
-    end
-    local label = table.concat(words, " ", next_)
-
-    local reminders = RaidRemindersTable(true, enc)
-    reminders["test1"] = {
-        name = "test", enabled = true,
-        trigger = { type = "bwtimer", spellID = spellID, leadTime = leadTime or 3 },
-        target = { kind = "all" },
-        display = { type = displayType, spellID = spellID,
-            text = (label ~= "" and label) or ("Use externals! (" .. spellID .. ")"), dur = 4 },
-    }
-    ns.Print(("test raid reminder set for spell %d, %ss before the bar ends, display=%s."):format(
-        spellID, tostring(leadTime or 3), displayType))
 end
