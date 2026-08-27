@@ -344,11 +344,19 @@ end
 -- correctly) -- shown/hidden progressively as time passes rather than relying on
 -- anything the Cooldown widget draws itself. Cooldown is kept only for the countdown
 -- number (SetDrawSwipe/SetDrawEdge false, so it contributes no visual fill).
-local RING_TICKS = 16
+local RING_TICKS = 24
 
+-- Measured directly from circle_border.tga (128x128): its ring sits at radius 0.395 of
+-- the half-size, not a guess -- alpha-extracted the texture and sampled a horizontal
+-- line through the center to find the actual opaque band (x=10-17 and x=111-118 out of
+-- 128px, i.e. radius ~50.5px of a 64px half-width). Tick size is derived from that same
+-- radius's own circumference divided by RING_TICKS, so segments cannot overlap into a
+-- solid blob regardless of icon size -- what happened at the old fixed 0.22*size guess.
+local RING_RADIUS_FRAC = 0.395
 local function PositionCircleTicks(r, size)
-    local tickSize = size * 0.22
-    local radius = size / 2 - tickSize * 0.3
+    local radius = size * RING_RADIUS_FRAC
+    local arcLen = (2 * math.pi * radius) / RING_TICKS
+    local tickSize = arcLen * 0.8
     for i = 1, RING_TICKS do
         local t = r.ticks[i]
         t:SetSize(tickSize, tickSize)
@@ -536,12 +544,16 @@ function ns.DisplayRaidReminder(entry)
         r.swipe:SetCooldown(GetTime(), dur)   -- countdown number only, no visual fill (see CreateCircleRegion)
         r.expirationTime = GetTime() + dur
         for i = 1, RING_TICKS do r.ticks[i]:Show() end
+        -- Confirmed against TimelineReminders' own CircleRegion.lua: the cleared
+        -- (elapsed) wedge starts AT 12 o'clock and grows CLOCKWISE as time passes, so
+        -- the ticks nearest 12 (low index, small theta) are what should hide FIRST --
+        -- the previous version hid high-index ticks first instead, sweeping backwards.
         r:SetScript("OnUpdate", function(self)
             local remain = self.expirationTime - GetTime()
-            local frac = remain > 0 and (remain / dur) or 0
-            local visible = math.ceil(frac * RING_TICKS)
+            local elapsedFrac = remain > 0 and (1 - remain / dur) or 1
+            local hideCount = math.floor(elapsedFrac * RING_TICKS)
             for i = 1, RING_TICKS do
-                if i <= visible then self.ticks[i]:Show() else self.ticks[i]:Hide() end
+                if i <= hideCount then self.ticks[i]:Hide() else self.ticks[i]:Show() end
             end
         end)
     end
@@ -607,8 +619,11 @@ local function PopulateSample(displayType, r)
         r.label:SetText("Sample")
         r.swipe:SetCooldown(0, 0)
         r:SetScript("OnUpdate", nil)
+        -- 40% elapsed for reference -- ticks near 12 o'clock (low index) hide first,
+        -- matching the real fire's own direction (see ns.DisplayRaidReminder).
+        local hideCount = math.floor(RING_TICKS * 0.4)
         for i = 1, RING_TICKS do
-            if i <= math.floor(RING_TICKS * 0.6) then r.ticks[i]:Show() else r.ticks[i]:Hide() end
+            if i <= hideCount then r.ticks[i]:Hide() else r.ticks[i]:Show() end
         end
     end
 end
