@@ -629,6 +629,61 @@ local function ResolveDisplayIconID(display)
     return iconID
 end
 
+-- Curated subset of MRT's own placeholder language (MRT's version runs to roughly 40
+-- distinct constructs -- a math evaluator, regex find/replace, a class/role/subgroup
+-- filter-query language; deliberately not reproduced here, see this session's own MRT
+-- research). %name is always the VIEWER's own name and class color, never anyone
+-- else's -- a reminder can target more than one person, and each client only ever
+-- needs to say its own. {spell:ID} skips the hover tooltip MRT's version has: nothing
+-- in this addon's display widgets are hoverable, so a tooltip would never be reachable.
+local function FormatReminderMsg(text, display)
+    if type(text) ~= "string" or text == "" then return text end
+
+    if text:find("%%name") then
+        local name = UnitName("player") or ""
+        local _, classToken = UnitClass("player")
+        local colors = RAID_CLASS_COLORS or CUSTOM_CLASS_COLORS
+        local c = classToken and colors and colors[classToken]
+        if c and c.colorStr then name = "|c" .. c.colorStr .. name .. "|r" end
+        text = text:gsub("%%name", name)
+    end
+
+    if text:find("%%specicon") then
+        local icon = ""
+        if C_SpecializationInfo and C_SpecializationInfo.GetSpecialization then
+            local index = C_SpecializationInfo.GetSpecialization()
+            if index then
+                local _, _, _, iconTex = C_SpecializationInfo.GetSpecializationInfo(index)
+                if iconTex then icon = "|T" .. iconTex .. ":16|t" end
+            end
+        end
+        text = text:gsub("%%specicon", icon)
+    end
+
+    if text:find("%%time") then
+        local dur = (type(display.dur) == "number" and display.dur > 0) and display.dur or 4
+        text = text:gsub("%%time", tostring(math.floor(dur + 0.5)))
+    end
+
+    if text:find("{spell:") then
+        text = text:gsub("{spell:(%-?%d+)}", function(idStr)
+            local sid = tonumber(idStr)
+            if not sid then return "" end
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+            local name = (info and info.name) or ("Spell " .. sid)
+            local iconID = info and info.iconID
+            if not iconID and C_Spell and C_Spell.GetSpellTexture then
+                local ok, tex = pcall(C_Spell.GetSpellTexture, sid)
+                if ok then iconID = tex end
+            end
+            return (iconID and ("|T" .. iconID .. ":16|t") or "") .. name
+        end)
+    end
+
+    return text
+end
+ns.FormatReminderMsg = FormatReminderMsg
+
 -- The one place every real fire (and, once the editor exists, every Preview click)
 -- routes through -- same "one dispatcher" shape as the existing ns.DisplayReminder for
 -- Custom Reminders.
@@ -636,12 +691,18 @@ function ns.DisplayRaidReminder(entry)
     local display = entry and entry.display
     if not display then return end
 
+    -- Resolved once, used everywhere below (every display widget, chat, and TTS) --
+    -- display.text itself stays the raw saved template, since Preview/every future
+    -- fire has to re-resolve it fresh (the viewer's own name can change between
+    -- fires even within one pull, e.g. a raid reminder that fires more than once).
+    local formattedText = FormatReminderMsg(display.text, display)
+
     -- Chat has no on-screen Region at all -- a local chat line, same sound/TTS as
     -- every other type, no pooled frame or hide timer to manage.
     if display.type == "chat" then
-        if display.text and display.text ~= "" then ns.Print(display.text) end
+        if formattedText and formattedText ~= "" then ns.Print(formattedText) end
         ns.PlayReminderSound(display)
-        ns.SpeakReminderTTS(display)
+        ns.SpeakReminderTTS(display, formattedText)
         return
     end
 
@@ -653,7 +714,7 @@ function ns.DisplayRaidReminder(entry)
         local dur = (type(display.dur) == "number" and display.dur > 0) and display.dur or 4
         FireGlowReminder(display, dur)
         ns.PlayReminderSound(display)
-        ns.SpeakReminderTTS(display)
+        ns.SpeakReminderTTS(display, formattedText)
         return
     end
 
@@ -673,7 +734,7 @@ function ns.DisplayRaidReminder(entry)
     local dur = (type(display.dur) == "number" and display.dur > 0) and display.dur or 4
 
     if display.type == "text" then
-        r.text:SetText(display.text or "")
+        r.text:SetText(formattedText or "")
         if display.color then
             r.text:SetTextColor(display.color.r or 1, display.color.g or 1,
                 display.color.b or 1, display.color.a or 1)
@@ -682,14 +743,14 @@ function ns.DisplayRaidReminder(entry)
         end
     elseif display.type == "icon" then
         r.icon:SetTexture(ResolveDisplayIconID(display) or 134400)
-        if display.text and display.text ~= "" then
-            r.label:SetText(display.text)
+        if formattedText and formattedText ~= "" then
+            r.label:SetText(formattedText)
             r.label:Show()
         else
             r.label:Hide()
         end
     elseif display.type == "timer" then
-        r.label:SetText(display.text or "")
+        r.label:SetText(formattedText or "")
         r.expirationTime = GetTime() + dur
         r.number:SetText(tostring(math.ceil(dur)))
         r:SetScript("OnUpdate", function(self)
@@ -697,7 +758,7 @@ function ns.DisplayRaidReminder(entry)
             self.number:SetText(remain > 0 and tostring(math.ceil(remain)) or "0")
         end)
     elseif display.type == "bar" then
-        r.label:SetText(display.text or "")
+        r.label:SetText(formattedText or "")
         r.bar.expirationTime = GetTime() + dur
         r.bar:SetMinMaxValues(0, dur)
         r.bar:SetValue(dur)
@@ -709,7 +770,7 @@ function ns.DisplayRaidReminder(entry)
         -- No question-mark fallback here (unlike Icon): an empty ring is the wanted
         -- look for a Circle reminder with no spell ID set, not a placeholder icon.
         r.icon:SetTexture(ResolveDisplayIconID(display))
-        r.label:SetText(display.text or "")
+        r.label:SetText(formattedText or "")
         r.swipe:SetCooldown(GetTime(), dur)   -- countdown number only, no visual fill (see CreateCircleRegion)
         r.expirationTime = GetTime() + dur
         for i = 1, RING_TICKS do r.ticks[i]:Show() end
@@ -730,7 +791,7 @@ function ns.DisplayRaidReminder(entry)
     r:Show()
     RestackRegions(a)
     ns.PlayReminderSound(display)
-    ns.SpeakReminderTTS(display)
+    ns.SpeakReminderTTS(display, formattedText)
 
     if r.hideTimer then r.hideTimer:Cancel() end
     r.hideTimer = C_Timer.NewTimer(dur, function() ReleaseRegion(a, r) end)

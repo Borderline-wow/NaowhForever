@@ -3269,8 +3269,8 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local glowTargetBox = DsBox(24)
     glowTargetBox:SetText(display.glowTarget or "")
 
-    DsLabel("Text")
-    local textBox = DsBox(60)
+    DsLabel("Text -- %name (your name), %specicon, %time (linger seconds), {spell:ID}")
+    local textBox = DsBox(120)
     textBox:SetText(display.text or "")
 
     DsLabel("Icon Spell ID (used for Icon display; optional otherwise)")

@@ -2261,9 +2261,12 @@ end
 -- own version is a dropdown plus two sliders on top of this exact API, skipped here in
 -- favor of whatever the player already set in the Accessibility panel, one less thing to
 -- configure for what is meant to stay the simple version.
-function ns.SpeakReminderTTS(r)
+-- overrideText, when given, is spoken instead of r.text -- the raid-reminder engine
+-- passes its already-%placeholder-resolved copy through here rather than the raw
+-- saved template, same reasoning every display widget reads the resolved copy too.
+function ns.SpeakReminderTTS(r, overrideText)
     if not (r and r.tts) then return end
-    local text = r.text
+    local text = overrideText or r.text
     if not (text and text ~= "") then return end
     if not (C_VoiceChat and C_VoiceChat.SpeakText and C_VoiceChat.GetTtsVoices) then return end
     local voiceID
