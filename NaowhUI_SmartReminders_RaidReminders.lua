@@ -258,11 +258,16 @@ local function CreateBarRegion(a)
     return r
 end
 
--- A real spell icon with the standard Blizzard cooldown-swipe widget on top -- the same
--- two primitives every action button combines, so this reads exactly like every other
--- cooldown on screen instead of a flat colour swatch (what this used to be: a plain
--- gold square with no icon at all, which is what did not "look good").
+-- A real spell icon, circularly cropped, with the standard Blizzard cooldown-swipe
+-- widget on top -- a square icon plus a swipe is what every action button does, but
+-- reads as a square with a pie-wipe, not "an actual circle". The mask/border pair is
+-- EllesmereUI's own "Circle" action-button shape asset (EllesmereUIActionBars.lua's
+-- SHAPE_MASKS/SHAPE_BORDERS.circle) -- same file this addon already hard-depends on,
+-- so a Circle reminder reads as the same circle shape the rest of the suite uses
+-- rather than a second lookalike asset.
 local CIRCLE_SIZE = 56
+local CIRCLE_MASK_PATH = "Interface\\AddOns\\EllesmereUI\\media\\portraits\\circle_mask.tga"
+local CIRCLE_BORDER_PATH = "Interface\\AddOns\\EllesmereUI\\media\\portraits\\circle_border.tga"
 local function CreateCircleRegion(a)
     local r = CreateFrame("Frame", nil, a)
     r:SetSize(CIRCLE_SIZE, CIRCLE_SIZE + 18)
@@ -272,9 +277,23 @@ local function CreateCircleRegion(a)
     r.icon:SetPoint("TOP", r, "TOP", 0, 0)
     r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
+    local mask = r:CreateMaskTexture()
+    mask:SetAllPoints(r.icon)
+    mask:SetTexture(CIRCLE_MASK_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    r.icon:AddMaskTexture(mask)
+
+    -- Cooldown frames take a mask the same way a plain Texture does (confirmed against
+    -- EllesmereUIActionBars.lua's own btn.cooldown:AddMaskTexture call) -- pcall'd since
+    -- that same call site guards it too, rather than assuming every client build honors it.
     r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
     r.swipe:SetAllPoints(r.icon)
     r.swipe:SetHideCountdownNumbers(false)
+    if r.swipe.AddMaskTexture then pcall(r.swipe.AddMaskTexture, r.swipe, mask) end
+    if r.swipe.SetSwipeTexture then pcall(r.swipe.SetSwipeTexture, r.swipe, CIRCLE_MASK_PATH) end
+
+    r.border = r:CreateTexture(nil, "OVERLAY")
+    r.border:SetAllPoints(r.icon)
+    r.border:SetTexture(CIRCLE_BORDER_PATH)
 
     r.label = ns.Font(r, 12, "OUTLINE")
     r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
