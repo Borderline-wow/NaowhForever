@@ -2891,11 +2891,13 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local PICKER_TOP = ty
 
     local trigTypeVal = (trig.type == "bwmsg" and "bwmsg")
-        or (trig.type == "pull" and "pull") or "bwtimer"
+        or (trig.type == "pull" and "pull") or (trig.type == "aura" and "aura") or "bwtimer"
     local spellIDText = (trig.spellID and tostring(trig.spellID))
         or (abilitySpellID and tostring(abilitySpellID)) or ""
     local leadTimeText = (trig.leadTime and tostring(trig.leadTime)) or "3"
     local pullDelayText = (trig.delay and tostring(trig.delay)) or "5"
+    local auraEventVal = (trig.auraEvent == "removed") and "removed" or "applied"
+    local auraTargetVal = (trig.target == "boss") and "boss" or "player"
 
     -- Declared here, assigned below: a picker row's OnClick (built by RebuildPicker,
     -- called from inside RebuildTriggerFields itself) has to reach the rebuild function
@@ -2990,9 +2992,10 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         -- other "ty = ty - rowHeight" line in this function already uses. Written as +
         -- originally, which flipped ty positive and threw everything after the picker
         -- back above it -- the overlap seen live.
-        -- Skipped entirely for "pull": that trigger isn't anchored to any BigWigs
-        -- mechanic, so there's nothing here to pick.
-        if trigTypeVal == "pull" then
+        -- Skipped entirely for "pull"/"aura": neither is anchored to a BigWigs
+        -- mechanic (pull is a flat delay, aura is a plain spell id + apply/remove),
+        -- so there's nothing on the boss-mod catalogue to pick from either way.
+        if trigTypeVal == "pull" or trigTypeVal == "aura" then
             for i = 1, MECHANIC_ROWS do pickerRows[i]:Hide() end
             pickerHint:SetText("")
             ty = PICKER_TOP
@@ -3009,12 +3012,15 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         local typeRowH
         triggerTypeRow, typeRowH = W:DualRow(triggerBody, ty,
             { type = "dropdown", text = "Trigger Type",
-              values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer", pull = "Time After Pull" },
-              order = { "bwmsg", "bwtimer", "pull" },
+              values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer",
+                  pull = "Time After Pull", aura = "Gain/Lose a Buff or Debuff" },
+              order = { "bwmsg", "bwtimer", "pull", "aura" },
               tooltip = "Message fires the instant BigWigs announces it. Timer waits "
                   .. "out the bar and fires this many seconds before it ends. Time "
                   .. "After Pull fires a fixed number of seconds into the encounter, "
-                  .. "with no BigWigs mechanic involved.",
+                  .. "with no BigWigs mechanic involved. Gain/Lose a Buff or Debuff "
+                  .. "fires off the combat log directly, reliable even when BigWigs "
+                  .. "says nothing about it.",
               getValue = function() return trigTypeVal end,
               setValue = function(v) trigTypeVal = v; RebuildTriggerFields() end }
         )
@@ -3055,6 +3061,46 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             pullDelayBox:SetScript("OnTextChanged", function()
                 pullDelayText = pullDelayBox:GetText() or ""
             end)
+        elseif trigTypeVal == "aura" then
+            pullDelayBox, leadTimeBox = nil, nil
+            DLabel("Spell ID")
+            spellBox = DBox(9, true, 80)
+            spellBox:SetText(spellIDText)
+            local okBtn = ns.Button(dynFrame, "OK", 54, 26, function() spellBox:ClearFocus() end)
+            okBtn:SetPoint("LEFT", spellBox, "RIGHT", 6, 0)
+            local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
+            feedback:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy + 6)
+            feedback:SetPoint("RIGHT", dynFrame, "RIGHT", -PAD, 0)
+            feedback:SetJustifyH("LEFT")
+            dy = dy - 14
+            local function Sync()
+                local sid, info = ns.ResolveSpell(spellBox:GetText())
+                if sid then
+                    feedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
+                elseif spellBox:GetText() == "" then
+                    feedback:SetText("")
+                else
+                    feedback:SetText("|cffff6060not a spell id|r")
+                end
+            end
+            spellBox:SetScript("OnTextChanged", function() spellIDText = spellBox:GetText() or ""; Sync() end)
+            spellBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+            Sync()
+
+            local auraRowH
+            _, auraRowH = W:DualRow(dynFrame, dy,
+                { type = "dropdown", text = "Event",
+                  values = { applied = "Gained", removed = "Lost" }, order = { "applied", "removed" },
+                  getValue = function() return auraEventVal end,
+                  setValue = function(v) auraEventVal = v end },
+                { type = "dropdown", text = "On",
+                  values = { player = "You", boss = "The Boss" }, order = { "player", "boss" },
+                  tooltip = "Watch YOUR OWN aura (a defensive/buff you gain or lose) or "
+                      .. "one applied TO the boss (a debuff you or the raid puts on it).",
+                  getValue = function() return auraTargetVal end,
+                  setValue = function(v) auraTargetVal = v end }
+            )
+            dy = dy - auraRowH
         else
             pullDelayBox = nil
             DLabel("Spell ID")
@@ -3389,6 +3435,9 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             newTrig = { type = trigTypeVal, spellID = sid }
             if trigTypeVal == "bwtimer" then
                 newTrig.leadTime = tonumber(leadTimeText) or 3
+            elseif trigTypeVal == "aura" then
+                newTrig.auraEvent = auraEventVal
+                newTrig.target = auraTargetVal
             end
         end
         local newTarget = { all = targetAllVal }

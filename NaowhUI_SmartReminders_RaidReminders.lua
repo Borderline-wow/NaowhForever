@@ -1205,3 +1205,38 @@ function ns.CheckRaidReminderPullTriggers()
         end
     end
 end
+
+-- "aura" triggers aren't anchored to a BigWigs broadcast either -- called directly
+-- from OnCombatLog (NaowhUI_SmartReminders.lua) on the same SPELL_AURA_APPLIED/
+-- SPELL_AURA_REMOVED lines Custom Reminders' own aura trigger (CheckAuraReminder)
+-- already answers to, same signature and same reasoning: reading straight off the
+-- combat log reaches an aura on ANY tracked unit, including in restricted content
+-- where C_UnitAuras' RequiresNonSecretAura gate can go quiet on exactly the aura this
+-- needs to see. destGUID/spellID are already issecretvalue-checked by OnCombatLog
+-- before this is ever called, same as every other reader on that line.
+function ns.CheckRaidReminderAuraTriggers(kind, destGUID, spellID)
+    if not (ns.InEncounter and ns.InEncounter()) then return end
+    if not RaidRemindersAllowed() then return end
+    local enc = ns.CurrentEncounter and ns.CurrentEncounter()
+    if not enc then return end
+    local reminders = RaidRemindersTable(false, enc)
+    if not reminders then return end
+
+    local isPlayer = destGUID == UnitGUID("player")
+    local isBoss = false
+    if not isPlayer then
+        for i = 1, 5 do
+            if destGUID == UnitGUID("boss" .. i) then isBoss = true; break end
+        end
+    end
+    if not (isPlayer or isBoss) then return end
+
+    for _, entry in pairs(reminders) do
+        local trig = entry.trigger
+        if trig and trig.type == "aura" and trig.spellID == spellID
+           and (trig.auraEvent or "applied") == kind
+           and (trig.target == "player") == isPlayer then
+            FireRaidReminder(entry)
+        end
+    end
+end

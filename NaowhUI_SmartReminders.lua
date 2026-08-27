@@ -1150,35 +1150,40 @@ local function TankingCaster(sid)
     return TankingSomeBoss(), "fallback"
 end
 
--- Is one of the listed defensives ALREADY active with meaningful time left? A tank who
--- just pressed Shield Wall does not need "Demoralizing Shout" shouted over it -- the next
--- callout can wait for the next buster. Own buffs are the one aura set the client answers
--- most freely, but every read is still guarded and every unknown fails OPEN: a redundant
--- callout costs a shrug, a suppressed one on an uncovered tank costs a death.
-local COVERED_MIN_REMAINING = 5
+-- Is one of the listed defensives ALREADY active? A tank who just pressed Shield Wall
+-- does not need "Demoralizing Shout" shouted over it -- the next callout can wait for
+-- the next buster.
+--
+-- Tracked from the combat log (playerAuraUp, populated in OnCombatLog below) rather
+-- than polled from C_UnitAuras.GetPlayerAuraBySpellID -- that call carries
+-- RequiresNonSecretAura, so it can return NOTHING for an aura the game has decided to
+-- treat as secret, not just a secret expirationTime field on an otherwise-normal
+-- table. Reported live on Mythic (secrecy tightens with difficulty): Ardent Defender
+-- was genuinely up 5s+ and the callout fired anyway. Combat log aura events are not
+-- gated the same way -- the same reasoning CheckAuraReminder's own aura trigger
+-- already relies on for boss auras in restricted content.
+--
+-- No remaining-time threshold anymore either (the old COVERED_MIN_REMAINING >= 5s
+-- check) -- there turns out to be no secret-safe way to read exactly how much is
+-- left (confirmed against the aura/cooldown/curve API surface: every duration-typed
+-- return can be secret, and arithmetic on a secret value throws, so nothing can
+-- compare it to a threshold). A defensive genuinely up counts as covering outright,
+-- matching the exp==0 "no clock" case the old check already trusted the same way.
+local playerAuraUp = {}   -- [spellID] = true while up, per our own combat-log tracking
 
 local function CoveredByActiveDefensive()
-    if not (C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID) then return false end
-    local now = GetTime()
     for i = 1, activeSlots do
         local sid = slots[i].spellID
-        local ok, covered = pcall(function()
-            local aura = C_UnitAuras.GetPlayerAuraBySpellID(sid)
-            if type(aura) ~= "table" then return false end
-            local exp = aura.expirationTime
-            -- The aura's own EXISTENCE already answers "am I covered" -- reported live
-            -- on Mythic (secrecy tightens with difficulty): expirationTime read secret
-            -- while the buff was genuinely up 5s+, so this used to fall through to
-            -- "unknown" and fire the callout anyway. That was a deliberate fail-open
-            -- choice at the time, but it silently defeats the whole toggle exactly
-            -- where it matters most -- a buff Blizzard won't tell us the exact timing
-            -- of is still a buff, not a reason to give up on it. Same reasoning the
-            -- exp == 0 branch below already trusted.
-            if issecretvalue and issecretvalue(exp) then return true end
-            if type(exp) ~= "number" or exp == 0 then return true end
-            return (exp - now) >= COVERED_MIN_REMAINING
-        end)
-        if ok and covered then return true end
+        if playerAuraUp[sid] then return true end
+        -- Fallback for a buff that was already up before tracking could see it apply
+        -- (addon just enabled, UI just reloaded, pre-popped before pull) -- existence
+        -- only, not exact timing, same as playerAuraUp itself answers.
+        if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+            local ok, exists = pcall(function()
+                return type(C_UnitAuras.GetPlayerAuraBySpellID(sid)) == "table"
+            end)
+            if ok and exists then return true end
+        end
     end
     return false
 end
@@ -2996,10 +3001,19 @@ local runActive = false
 
 local function OnCombatLog()
     -- The price of static registration: this fires for every combat log line, so outside
-    -- an encounter it must cost one plain variable read and nothing else. Custom reminders
-    -- ride the same registration under their own gate (hasCustomReminders), independent of
-    -- runActive: a defensive priority list is not a prerequisite for a boss-pull reminder.
-    if currentEncounter == nil or not (runActive or hasCustomReminders) then return end
+    -- an encounter it must cost one plain variable read and nothing else -- the
+    -- currentEncounter check short-circuits everything after it, including the
+    -- RaidRemindersTable lookup, so that lookup's cost is confined to real pulls.
+    -- Custom reminders ride the same registration under their own gate
+    -- (hasCustomReminders), independent of runActive: a defensive priority list is
+    -- not a prerequisite for a boss-pull reminder. Raid reminders' own aura triggers
+    -- get the same treatment -- checked directly rather than through a synced cache
+    -- flag, since a raid reminder can be added/removed from several different UI
+    -- entry points and a stale flag would silently stop firing until the next one.
+    if currentEncounter == nil or not (runActive or hasCustomReminders
+        or (ns.RaidRemindersTable and next(ns.RaidRemindersTable(false, currentEncounter) or {}))) then
+        return
+    end
     local _, sub, _, sourceGUID, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = CombatLogGetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)
         or issecretvalue(amount)) then
@@ -3013,6 +3027,29 @@ local function OnCombatLog()
     if type(spellId) == "number" and (sub == "SPELL_CAST_START" or sub == "SPELL_CAST_SUCCESS")
         and not (issecretvalue and issecretvalue(sourceGUID)) then
         castSourceGUID[spellId] = sourceGUID
+    end
+
+    -- Feeds CoveredByActiveDefensive: own-buff uptime tracked from these events rather
+    -- than polled later, since C_UnitAuras.GetPlayerAuraBySpellID can go quiet on
+    -- exactly the aura this needs to see (RequiresNonSecretAura). Gated on runActive,
+    -- not hasCustomReminders -- this is core tank-buster behavior, not a custom-
+    -- reminders-specific one.
+    if runActive and type(spellId) == "number" and destGUID == UnitGUID("player") then
+        if sub == "SPELL_AURA_APPLIED" or sub == "SPELL_AURA_REFRESH" then
+            playerAuraUp[spellId] = true
+        elseif sub == "SPELL_AURA_REMOVED" then
+            playerAuraUp[spellId] = nil
+        end
+    end
+
+    -- Raid Reminders' own "aura" trigger -- independent of hasCustomReminders, which
+    -- only ever reflects the older CustomRemindersTable.
+    if ns.CheckRaidReminderAuraTriggers and type(spellId) == "number" then
+        if sub == "SPELL_AURA_APPLIED" then
+            ns.CheckRaidReminderAuraTriggers("applied", destGUID, spellId)
+        elseif sub == "SPELL_AURA_REMOVED" then
+            ns.CheckRaidReminderAuraTriggers("removed", destGUID, spellId)
+        end
     end
 
     if hasCustomReminders and type(spellId) == "number" then
@@ -4187,10 +4224,8 @@ function ns.BuildCoreSettings(parent, y)
 
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Skip When Already Covered",
-          tooltip = "Stays quiet when one of your defensives is already active with five or "
-          .. "more seconds left as the warning fires -- you are covered, no need to stack "
-          .. "another. When the game hides exactly how much time is left (more common on "
-          .. "higher difficulties), the buff being up at all still counts as covered.",
+          tooltip = "Stays quiet when one of your defensives is already active as the "
+          .. "warning fires -- you are covered, no need to stack another.",
           getValue = function() return TRDB().coveredSkip ~= false end,
           setValue = function(v) TRDB().coveredSkip = v end },
         { type = "slider", text = "Warn This Many Seconds Early", min = 1, max = 5, step = 1,
@@ -4803,6 +4838,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         CancelAllPendingBWFires()
         for k in pairs(castSourceGUID) do
             castSourceGUID[k] = nil
+        end
+        -- A missed SPELL_AURA_REMOVED (addon toggled off mid-buff, reload mid-fight)
+        -- must not leave a stale "still covered" reading into the next pull.
+        for k in pairs(playerAuraUp) do
+            playerAuraUp[k] = nil
         end
         RefreshCustomRemindersFlag()
         if event == "ENCOUNTER_START" then
