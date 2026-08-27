@@ -2653,11 +2653,20 @@ local function FireBigWigsAbility(sid)
         else
             lastAggroCheck = nil
         end
-        if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
     end
 
     RebuildSlots(tostring(sid))
     if activeSlots == 0 then return end
+
+    -- Checked only after the rebuild above, not before: CoveredByActiveDefensive reads
+    -- slots[], and this ability's own effective list -- a per-ability preset override can
+    -- differ from whatever the previous ability left loaded -- has to be current, or the
+    -- check compares an already-active defensive against the wrong ability's list and
+    -- misses the cover entirely.
+    if not ns.testFiring and TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then
+        return
+    end
+
     ApplyPriorityAlpha()
     ClearTankGate()
     -- Marks a real callout as showing, same as the old timeline path did (just keyed by
