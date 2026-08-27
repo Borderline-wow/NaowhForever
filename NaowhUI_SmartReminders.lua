@@ -3138,6 +3138,36 @@ end
 -------------------------------------------------------------------------------
 --  Unlock Mode
 -------------------------------------------------------------------------------
+-- Square types (Circle, Icon): width and height both write the SAME TRDB() key, so
+-- dragging either resize handle keeps the shape square instead of stretching it oval.
+-- heightOffset is the fixed label-strip height (getSize's own "+18") subtracted back out
+-- so a height-drag yields the same icon size a width-drag of the same handle position
+-- would have.
+local function SquareResize(dbKey, minSize, heightOffset, resizeFnName)
+    return function(_, w)
+            TRDB()[dbKey] = math.max(minSize, math.floor(w + 0.5))
+            if ns[resizeFnName] then ns[resizeFnName]() end
+        end,
+        function(_, h)
+            TRDB()[dbKey] = math.max(minSize, math.floor(h + 0.5) - heightOffset)
+            if ns[resizeFnName] then ns[resizeFnName]() end
+        end
+end
+
+-- Independent types (Bar, Text): width and height write DIFFERENT TRDB() keys, since
+-- a bar's width/thickness (or a text box's width/font size) are not meant to move
+-- together the way a square icon's would.
+local function IndependentResize(widthKey, heightKey, minW, minH, heightOffset, resizeFnName)
+    return function(_, w)
+            TRDB()[widthKey] = math.max(minW, math.floor(w + 0.5))
+            if ns[resizeFnName] then ns[resizeFnName]() end
+        end,
+        function(_, h)
+            TRDB()[heightKey] = math.max(minH, math.floor(h + 0.5) - heightOffset)
+            if ns[resizeFnName] then ns[resizeFnName]() end
+        end
+end
+
 -- One of these per raid-reminder display type (text/timer/icon/bar/circle), each its own
 -- Anchor (NaowhUI_SmartReminders_RaidReminders.lua) -- same TRDB()-backed savePos/loadPos
 -- shape as the plain Unlock elements below, just parameterized since the five are
@@ -3171,20 +3201,22 @@ local function MakeRaidReminderUnlockElement(EUI, displayType, label, order)
             if ns.ApplyRaidReminderAnchorPosition then ns.ApplyRaidReminderAnchorPosition(displayType) end
         end,
     }
+    -- Icon/Message/Circle/Bar are resizable (what was actually asked for); Timer stays
+    -- fixed for now.
     if displayType == "circle" then
-        -- Only Circle is resizable for now (what was actually asked for) -- width and
-        -- height both write the same square raidReminderCircleSize, so dragging either
-        -- handle keeps it round instead of stretching it oval. Height carries the +18
-        -- label strip ResizeRaidReminderCircle/getSize already account for elsewhere.
         opts.noResize = false
-        opts.setWidth = function(_, w)
-            TRDB().raidReminderCircleSize = math.max(20, math.floor(w + 0.5))
-            if ns.ResizeRaidReminderCircle then ns.ResizeRaidReminderCircle() end
-        end
-        opts.setHeight = function(_, h)
-            TRDB().raidReminderCircleSize = math.max(20, math.floor(h + 0.5) - 18)
-            if ns.ResizeRaidReminderCircle then ns.ResizeRaidReminderCircle() end
-        end
+        opts.setWidth, opts.setHeight = SquareResize("raidReminderCircleSize", 20, 18, "ResizeRaidReminderCircle")
+    elseif displayType == "icon" then
+        opts.noResize = false
+        opts.setWidth, opts.setHeight = SquareResize("raidReminderIconSize", 16, 18, "ResizeRaidReminderIcon")
+    elseif displayType == "bar" then
+        opts.noResize = false
+        opts.setWidth, opts.setHeight = IndependentResize(
+            "raidReminderBarWidth", "raidReminderBarHeight", 60, 6, 16, "ResizeRaidReminderBar")
+    elseif displayType == "text" then
+        opts.noResize = false
+        opts.setWidth, opts.setHeight = IndependentResize(
+            "raidReminderTextWidth", "raidReminderTextFontSize", 60, 8, 10, "ResizeRaidReminderText")
     else
         opts.noResize = true
     end

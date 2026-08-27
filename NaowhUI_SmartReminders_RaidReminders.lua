@@ -171,14 +171,36 @@ local function AlertFontPath()
     return path or STANDARD_TEXT_FONT
 end
 
+-- User-resizable via Unlock Mode (see MakeRaidReminderUnlockElement in
+-- NaowhUI_SmartReminders.lua): width is the text box's own width, font size drives how
+-- big the text itself reads -- independent axes, unlike Circle/Icon which stay square.
+local TEXT_WIDTH_DEFAULT, TEXT_FONTSIZE_DEFAULT = 320, 16
+local function TextSize()
+    local w = ns.DB().raidReminderTextWidth
+    local fs = ns.DB().raidReminderTextFontSize
+    w = (type(w) == "number" and w > 0) and w or TEXT_WIDTH_DEFAULT
+    fs = (type(fs) == "number" and fs > 0) and fs or TEXT_FONTSIZE_DEFAULT
+    return w, fs
+end
+
 local function CreateTextRegion(a)
+    local w, fs = TextSize()
     local r = CreateFrame("Frame", nil, a)
-    r:SetSize(320, 26)
-    r.text = ns.Font(r, 16, "OUTLINE")
-    r.text:SetFont(AlertFontPath(), 16, "OUTLINE")
+    r:SetSize(w, fs + 10)
+    r.text = ns.Font(r, fs, "OUTLINE")
+    r.text:SetFont(AlertFontPath(), fs, "OUTLINE")
     r.text:SetPoint("CENTER")
     r:Hide()
     return r
+end
+
+function ns.ResizeRaidReminderText()
+    local a = anchors.text
+    if not a then return end
+    local w, fs = TextSize()
+    for _, r in ipairs(a.pool) do r:SetSize(w, fs + 10); r.text:SetFont(AlertFontPath(), fs, "OUTLINE") end
+    for _, r in ipairs(a.active) do r:SetSize(w, fs + 10); r.text:SetFont(AlertFontPath(), fs, "OUTLINE") end
+    RestackRegions(a)
 end
 
 -- A big ticking number, distinct from the static Message display -- what NSRT and
@@ -201,12 +223,20 @@ end
 -- Icon inset matches CreateSlot's (NaowhUI_SmartReminders.lua) own texture coords --
 -- same reason: crops the icon's own border art rather than showing it doubled up
 -- against this region's border.
-local ICON_SIZE = 48
+-- User-resizable via Unlock Mode, stored at TRDB().raidReminderIconSize (see
+-- CircleSize's own comment for the shape).
+local ICON_SIZE_DEFAULT = 48
+local function IconSize()
+    local s = ns.DB().raidReminderIconSize
+    return (type(s) == "number" and s > 0) and s or ICON_SIZE_DEFAULT
+end
+
 local function CreateIconRegion(a)
+    local size = IconSize()
     local r = CreateFrame("Frame", nil, a)
-    r:SetSize(ICON_SIZE, ICON_SIZE + 18)
+    r:SetSize(size, size + 18)
     r.icon = r:CreateTexture(nil, "ARTWORK")
-    r.icon:SetSize(ICON_SIZE, ICON_SIZE)
+    r.icon:SetSize(size, size)
     r.icon:SetPoint("TOP", r, "TOP", 0, 0)
     r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     r.label = ns.Font(r, 12, "OUTLINE")
@@ -214,6 +244,15 @@ local function CreateIconRegion(a)
     r.label:SetPoint("TOP", r.icon, "BOTTOM", 0, -2)
     r:Hide()
     return r
+end
+
+function ns.ResizeRaidReminderIcon()
+    local a = anchors.icon
+    if not a then return end
+    local size = IconSize()
+    for _, r in ipairs(a.pool) do r:SetSize(size, size + 18); r.icon:SetSize(size, size) end
+    for _, r in ipairs(a.active) do r:SetSize(size, size + 18); r.icon:SetSize(size, size) end
+    RestackRegions(a)
 end
 
 -- LibSharedMedia lookup, same source NaowhMedia (NaowhUI_SmartReminders.lua) reads --
@@ -231,17 +270,28 @@ end
 -- region's own; set fresh by ns.DisplayRaidReminder on every acquire, so a pooled
 -- region picked back up for a new reminder starts counting down from the new value the
 -- moment OnUpdate's next tick runs, never from whatever the last reminder left behind.
-local BAR_WIDTH, BAR_HEIGHT = 240, 16
+-- User-resizable via Unlock Mode, stored at TRDB().raidReminderBarWidth/Height --
+-- independent axes (unlike Circle/Icon), since a bar naturally has separate width and
+-- thickness.
+local BAR_WIDTH_DEFAULT, BAR_HEIGHT_DEFAULT = 240, 16
+local function BarSize()
+    local w, h = ns.DB().raidReminderBarWidth, ns.DB().raidReminderBarHeight
+    w = (type(w) == "number" and w > 0) and w or BAR_WIDTH_DEFAULT
+    h = (type(h) == "number" and h > 0) and h or BAR_HEIGHT_DEFAULT
+    return w, h
+end
+
 local function CreateBarRegion(a)
+    local w, h = BarSize()
     local r = CreateFrame("Frame", nil, a)
-    r:SetSize(BAR_WIDTH, BAR_HEIGHT + 16)
+    r:SetSize(w, h + 16)
 
     r.label = ns.Font(r, 12, "OUTLINE")
     r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
     r.label:SetPoint("TOP", r, "TOP", 0, 0)
 
     r.bar = CreateFrame("StatusBar", nil, r)
-    r.bar:SetSize(BAR_WIDTH, BAR_HEIGHT)
+    r.bar:SetSize(w, h)
     r.bar:SetPoint("BOTTOM", r, "BOTTOM", 0, 0)
     r.bar:SetMinMaxValues(0, 1)
     r.bar:SetStatusBarTexture(StatusBarTexture() or "Interface\\TargetingFrame\\UI-StatusBar")
@@ -256,6 +306,15 @@ local function CreateBarRegion(a)
 
     r:Hide()
     return r
+end
+
+function ns.ResizeRaidReminderBar()
+    local a = anchors.bar
+    if not a then return end
+    local w, h = BarSize()
+    for _, r in ipairs(a.pool) do r:SetSize(w, h + 16); r.bar:SetSize(w, h) end
+    for _, r in ipairs(a.active) do r:SetSize(w, h + 16); r.bar:SetSize(w, h) end
+    RestackRegions(a)
 end
 
 -- A real spell icon, circularly cropped, with the standard Blizzard cooldown-swipe
@@ -294,11 +353,15 @@ local function CreateCircleRegion(a)
     -- Cooldown frames take a mask the same way a plain Texture does (confirmed against
     -- EllesmereUIActionBars.lua's own btn.cooldown:AddMaskTexture call) -- pcall'd since
     -- that same call site guards it too, rather than assuming every client build honors it.
+    -- Deliberately NOT SetSwipeTexture(CIRCLE_MASK_PATH): that mask is a plain white
+    -- shape meant to be read as an alpha stencil, not a display texture -- using it as
+    -- the swipe's own texture painted the whole circle solid white/opaque instead of
+    -- the expected transparent-when-idle dark wedge. AddMaskTexture alone already
+    -- crops the swipe's own default overlay into the circle shape.
     r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
     r.swipe:SetAllPoints(r.icon)
     r.swipe:SetHideCountdownNumbers(false)
     if r.swipe.AddMaskTexture then pcall(r.swipe.AddMaskTexture, r.swipe, mask) end
-    if r.swipe.SetSwipeTexture then pcall(r.swipe.SetSwipeTexture, r.swipe, CIRCLE_MASK_PATH) end
 
     r.border = r:CreateTexture(nil, "OVERLAY")
     r.border:SetAllPoints(r.icon)
@@ -327,17 +390,17 @@ end
 
 -- Anchor sizes for Unlock Mode's mover box (ns.GetRaidReminderAnchor's caller) -- the
 -- anchor frame itself is a bare 10x10 point, so without this the mover would draw far
--- smaller than what actually appears there. Floored at 64 in both dimensions (matching
--- the tank-buster "Smart" element's own default iconSize) so every anchor is at least as
--- easy to click and drag as that one, even where the real content is thinner (Text/Bar
--- are only ~26-32px tall when actually showing something).
-local MOVER_MIN = 64
+-- smaller than what actually appears there. Floored at MOVER_MIN in both dimensions
+-- (well past the tank-buster "Smart" element's own default iconSize of 64) so every
+-- anchor is comfortably easier to click and drag than that one, even where the real
+-- content is thinner (Text/Bar are only ~16-32px tall by default).
+local MOVER_MIN = 100
 function ns.RaidReminderAnchorSize(displayType)
     local w, h
-    if displayType == "text" then w, h = 320, 26
+    if displayType == "text" then local tw, fs = TextSize(); w, h = tw, fs + 10
     elseif displayType == "timer" then w, h = 120, 46
-    elseif displayType == "icon" then w, h = ICON_SIZE, ICON_SIZE + 18
-    elseif displayType == "bar" then w, h = BAR_WIDTH, BAR_HEIGHT + 16
+    elseif displayType == "icon" then local s = IconSize(); w, h = s, s + 18
+    elseif displayType == "bar" then local bw, bh = BarSize(); w, h = bw, bh + 16
     elseif displayType == "circle" then local s = CircleSize(); w, h = s, s + 18
     else w, h = MOVER_MIN, MOVER_MIN end
     return math.max(w, MOVER_MIN), math.max(h, MOVER_MIN)
