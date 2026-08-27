@@ -2598,6 +2598,11 @@ function ns.BuildRaidRemindersPage(parent, y)
     local EUI = _G.EllesmereUI
     local W   = EUI.Widgets
     local _, h
+    local startY = y
+
+    -- Wrapped for the same reason ShowRaidReminderEditor is: a page that renders
+    -- nothing with no error on screen is undiagnosable from a screenshot alone.
+    local ok, result = pcall(function()
 
     local pageHead = ns.Font(parent, 14, nil, ns.THEME.gold)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
@@ -2706,6 +2711,19 @@ function ns.BuildRaidRemindersPage(parent, y)
     y = y - h
 
     return y
+    end)
+
+    if not ok then
+        local errText = ns.Font(parent, 11, nil, { r = 1, g = 0.35, b = 0.35 })
+        errText:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, startY)
+        errText:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+        errText:SetJustifyH("LEFT")
+        errText:SetWordWrap(true)
+        errText:SetText("Failed to build this page: " .. tostring(result))
+        ns.Print("|cffff6060raid reminders page|r: " .. tostring(result))
+        return startY - 40
+    end
+    return result
 end
 
 local RR_ROLE_VALUES = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
@@ -2737,6 +2755,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     local display = (existing and existing.display) or { type = "text" }
 
     local PAD = 20
+
+    -- Wrapped, matching ShowAbilityReminderPicker's own RebuildBody: a blank panel with
+    -- no error anywhere on screen is a failure mode this codebase has already shipped
+    -- once, so anything that throws here shows up as text on the panel instead of an
+    -- empty modal nobody can diagnose from a screenshot alone.
+    local ok, err = pcall(function()
 
     local function HoverTip(hit, tooltip)
         hit:SetScript("OnEnter", function(self)
@@ -2946,7 +2970,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     local RebuildTargetSection
 
     RebuildTriggerFields = function()
-        ty = PICKER_TOP + RebuildPicker()
+        -- RebuildPicker returns a POSITIVE height consumed; SUBTRACT it from PICKER_TOP
+        -- (already negative) to move further down the panel, same sign convention every
+        -- other "ty = ty - rowHeight" line in this function already uses. Written as +
+        -- originally, which flipped ty positive and threw everything after the picker
+        -- back above it -- the overlap seen live.
+        ty = PICKER_TOP - RebuildPicker()
         if triggerTypeRow then triggerTypeRow = nil end
 
         local typeRowH
@@ -3301,6 +3330,19 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
     ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 90, 16)
+
+    end)
+    if not ok then
+        -- Fixed offset, not TAB_TOP -- that local only exists inside the pcall'd
+        -- closure above, out of scope here precisely because it failed to run.
+        local errText = ns.Font(panel, 11, nil, { r = 1, g = 0.35, b = 0.35 })
+        errText:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, -70)
+        errText:SetPoint("RIGHT", panel, "RIGHT", -PAD, 0)
+        errText:SetJustifyH("LEFT")
+        errText:SetWordWrap(true)
+        errText:SetText("Failed to build this panel: " .. tostring(err))
+        ns.Print("|cffff6060raid reminder editor|r: " .. tostring(err))
+    end
 
     dimmer:Show()
 end
