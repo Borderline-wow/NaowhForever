@@ -2857,20 +2857,28 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     local triggerTabBtn, triggerBody = AddTab("trigger", "Trigger & Target")
     local displayTabBtn, displayBody = AddTab("display", "Display", triggerTabBtn)
 
-    -- TEMP diagnostic (build 0826y) -- remove once we have an answer. Staged through
-    -- locals rather than inline calls: a WoW getter that returns NO values (not even
-    -- nil) makes an inline tostring(frame:Get...()) throw "value expected", which a
-    -- local assignment does not (Lua pads a short multi-return with nil there).
-    local tbW, tbH, tbShown = tabBar:GetWidth(), tabBar:GetHeight(), tabBar:IsShown()
-    local tW, tH, tShown, tStrata = triggerTabBtn:GetWidth(), triggerTabBtn:GetHeight(),
-        triggerTabBtn:IsShown(), triggerTabBtn:GetFrameStrata()
-    local tLeft, tTop = triggerTabBtn:GetLeft(), triggerTabBtn:GetTop()
-    local dW, dH, dShown = displayTabBtn:GetWidth(), displayTabBtn:GetHeight(), displayTabBtn:IsShown()
-    local dLeft, dTop = displayTabBtn:GetLeft(), displayTabBtn:GetTop()
-    ns.Print(("|cff66ccff[RREditor]|r tabBar w=%s h=%s shown=%s | trigBtn w=%s h=%s left=%s top=%s shown=%s strata=%s | dispBtn w=%s h=%s left=%s top=%s shown=%s"):format(
-        tostring(tbW), tostring(tbH), tostring(tbShown),
-        tostring(tW), tostring(tH), tostring(tLeft), tostring(tTop), tostring(tShown), tostring(tStrata),
-        tostring(dW), tostring(dH), tostring(dLeft), tostring(dTop), tostring(dShown)))
+    -- TEMP diagnostic (build 0826z) -- remove once we have an answer. The previous
+    -- reading (0826y) queried position before dimmer:Show() ever ran (MakeModal hands
+    -- back a hidden frame; Show() happens at the very end of this function) -- GetLeft/
+    -- GetTop return nil for anything not actually shown yet, which is exactly what came
+    -- back, so that reading proved nothing either way. Deferred one frame so it runs
+    -- after Show() actually happened.
+    C_Timer.After(0, function()
+        local tbW, tbH = tabBar:GetWidth(), tabBar:GetHeight()
+        local tW, tH, tVis, tStrata, tAlpha = triggerTabBtn:GetWidth(), triggerTabBtn:GetHeight(),
+            triggerTabBtn:IsVisible(), triggerTabBtn:GetFrameStrata(), triggerTabBtn:GetAlpha()
+        local tLeft, tTop = triggerTabBtn:GetLeft(), triggerTabBtn:GetTop()
+        local lblVis, lblAlpha = triggerTabBtn.label:IsVisible(), triggerTabBtn.label:GetAlpha()
+        local dW, dH, dVis = displayTabBtn:GetWidth(), displayTabBtn:GetHeight(), displayTabBtn:IsVisible()
+        local dLeft, dTop = displayTabBtn:GetLeft(), displayTabBtn:GetTop()
+        local pVis, pLeft, pTop = panel:IsVisible(), panel:GetLeft(), panel:GetTop()
+        ns.Print(("|cff66ccff[RREditor2]|r panel vis=%s left=%s top=%s | tabBar w=%s h=%s | trigBtn w=%s h=%s left=%s top=%s vis=%s alpha=%s strata=%s lblVis=%s lblAlpha=%s | dispBtn w=%s h=%s left=%s top=%s vis=%s"):format(
+            tostring(pVis), tostring(pLeft), tostring(pTop),
+            tostring(tbW), tostring(tbH),
+            tostring(tW), tostring(tH), tostring(tLeft), tostring(tTop), tostring(tVis), tostring(tAlpha), tostring(tStrata),
+            tostring(lblVis), tostring(lblAlpha),
+            tostring(dW), tostring(dH), tostring(dLeft), tostring(dTop), tostring(dVis)))
+    end)
 
     -------------------------------------------------------------------------
     --  Trigger & Target tab
