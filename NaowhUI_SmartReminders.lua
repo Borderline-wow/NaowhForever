@@ -1087,10 +1087,35 @@ local lastAggroCheck   -- { sid, verdict, path }
 -- Second return is which path answered -- "nocache" (never saw a cast for this sid),
 -- "boss:<unit>", "nameplate:<unit>", or "fallback" (matched neither) -- so a wrong call
 -- can be diagnosed after the fact (see LogCallout) instead of guessed at from a VOD.
+-- Extracts the creature id out of a unit's GUID (Creature-0-...-<npcID>-...), the only
+-- way to identify a specific boss unit for an ability whose bar never carries a caster
+-- (see ns.TANK_ABILITY_OWNER_NPCID).
+local function UnitNpcID(unit)
+    local ok, guid = pcall(UnitGUID, unit)
+    if not ok or type(guid) ~= "string" or (issecretvalue and issecretvalue(guid)) then return nil end
+    local kind, _, _, _, _, npcID = strsplit("-", guid)
+    if kind ~= "Creature" and kind ~= "Vehicle" then return nil end
+    return tonumber(npcID)
+end
+
 local castSourceGUID = {}
 local function TankingCaster(sid)
     local guid = castSourceGUID[sid]
-    if not guid then return TankingSomeBoss(), "nocache" end
+    if not guid then
+        local ownerNpcID = ns.TANK_ABILITY_OWNER_NPCID and ns.TANK_ABILITY_OWNER_NPCID[sid]
+        if ownerNpcID then
+            for i = 1, 5 do
+                local unit = "boss" .. i
+                if UnitExists(unit) and UnitNpcID(unit) == ownerNpcID then
+                    local verdict = UnitTankedVerdict(unit)
+                    if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
+                    return verdict, "boss:" .. unit .. ":npcid"
+                end
+            end
+            return TankingSomeBoss(), "npcid-no-match"
+        end
+        return TankingSomeBoss(), "nocache"
+    end
     for i = 1, 5 do
         local unit = "boss" .. i
         if UnitExists(unit) then

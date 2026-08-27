@@ -135,3 +135,20 @@ ns.DBM_TO_BIGWIGS = {
     [1284103] = 1292036,   -- Nek'zali the Soulcoiler: Possession Barrage
 }
 
+-- Some BigWigs bars are driven purely by the encounter timeline (a scripted countdown
+-- matched by rounded duration, ENCOUNTER_TIMELINE_EVENT_ADDED) rather than any spell
+-- cast -- confirmed against BigWigs_TheVenomousAbyss/TwinFangs.lua and CoiledAltar.lua,
+-- both self:CDBar(barInfo.key, ...) off duration matching alone, no cast involved at
+-- all. castSourceGUID (fed only by SPELL_CAST_START/SUCCESS) can never learn a caster
+-- for these, so TankingCaster's "nocache" path always fell back to "tanking ANY boss" --
+-- wrong the moment two boss units are alive at once and each tank holds a different one
+-- (reported live on both The Twin Fangs and The Coiled Altar P2/P3). Mapped to the real
+-- npcID straight off BigWigs' own RegisterEnableMob instead, since there is no cast
+-- event to key a GUID capture off in the first place.
+ns.TANK_ABILITY_OWNER_NPCID = {
+    [1288538] = 257368,   -- The Twin Fangs: Stone Breaker (Ithraz)
+    [1299680] = 257911,   -- The Coiled Altar: Sever (Zul'jan)
+    [1286573] = 259854,   -- The Coiled Altar: Soul Sever (Hex Lord Malacrass)
+    [1307279] = 259854,   -- The Coiled Altar: Blighted Sever (Hex Lord Malacrass)
+}
+
