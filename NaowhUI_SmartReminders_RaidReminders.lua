@@ -85,6 +85,21 @@ local ANCHOR_DEFAULT_POS = {
     circle = { x = 120, y = -60 },
 }
 
+-- profile.raidReminderAnchorPos[displayType] = { point, relPoint, x, y }, written by
+-- Unlock Mode (ns.GetRaidReminderAnchor/ns.ApplyRaidReminderAnchorPosition, wired up in
+-- NaowhUI_SmartReminders.lua's RegisterUnlock) the same way the tank-buster frame's own
+-- TRDB().pos already works. Falls back to ANCHOR_DEFAULT_POS when nothing is saved.
+local function ApplyAnchorPosition(a, displayType)
+    local p = ns.DB().raidReminderAnchorPos and ns.DB().raidReminderAnchorPos[displayType]
+    a:ClearAllPoints()
+    if p then
+        a:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
+    else
+        local def = ANCHOR_DEFAULT_POS[displayType]
+        a:SetPoint("CENTER", UIParent, "CENTER", def and def.x or 0, def and def.y or 0)
+    end
+end
+
 local anchors = {}   -- [displayType] = frame, .pool = {}, .active = {}
 
 local function GetAnchor(displayType)
@@ -97,11 +112,20 @@ local function GetAnchor(displayType)
     -- HIGH normally, bumped to FULLSCREEN_DIALOG only while ns.PreviewRaidReminder has
     -- the editor modal open (see below).
     a:SetFrameStrata("HIGH")
-    local pos = ANCHOR_DEFAULT_POS[displayType]
-    a:SetPoint("CENTER", UIParent, "CENTER", pos and pos.x or 0, pos and pos.y or 0)
     a.pool, a.active = {}, {}
     anchors[displayType] = a
+    ApplyAnchorPosition(a, displayType)
     return a
+end
+
+-- Unlock Mode's getFrame: lazily creates the anchor the first time Unlock Mode itself
+-- is opened, same as a real/preview fire would, so there is always something to drag
+-- even if this display type has never fired this session.
+ns.GetRaidReminderAnchor = GetAnchor
+
+function ns.ApplyRaidReminderAnchorPosition(displayType)
+    local a = anchors[displayType]
+    if a then ApplyAnchorPosition(a, displayType) end
 end
 
 -- Stacks active regions top-to-bottom under the anchor, most-recently-added first --
@@ -133,10 +157,25 @@ local function ReleaseRegion(a, r)
     RestackRegions(a)
 end
 
+-- LibSharedMedia lookup, same source NaowhMedia/AlertFont (NaowhUI_SmartReminders.lua)
+-- read -- duplicated rather than exported, same reasoning StatusBarTexture below
+-- already gives: a few lines, no state, not worth a cross-file call for.
+local function AlertFontPath()
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if LSM then
+        local ok, path = pcall(LSM.Fetch, LSM, "font", "Naowh", true)
+        if ok and path then return path end
+    end
+    local EUI = _G.EllesmereUI
+    local path = EUI and EUI.GetFontPath and EUI.GetFontPath("extras")
+    return path or STANDARD_TEXT_FONT
+end
+
 local function CreateTextRegion(a)
     local r = CreateFrame("Frame", nil, a)
     r:SetSize(320, 26)
     r.text = ns.Font(r, 16, "OUTLINE")
+    r.text:SetFont(AlertFontPath(), 16, "OUTLINE")
     r.text:SetPoint("CENTER")
     r:Hide()
     return r
@@ -150,8 +189,10 @@ local function CreateTimerRegion(a)
     local r = CreateFrame("Frame", nil, a)
     r:SetSize(120, 46)
     r.label = ns.Font(r, 11, "OUTLINE")
+    r.label:SetFont(AlertFontPath(), 11, "OUTLINE")
     r.label:SetPoint("TOP", r, "TOP", 0, 0)
     r.number = ns.Font(r, 26, "OUTLINE")
+    r.number:SetFont(AlertFontPath(), 26, "OUTLINE")
     r.number:SetPoint("TOP", r.label, "BOTTOM", 0, -2)
     r:Hide()
     return r
@@ -169,6 +210,7 @@ local function CreateIconRegion(a)
     r.icon:SetPoint("TOP", r, "TOP", 0, 0)
     r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     r.label = ns.Font(r, 12, "OUTLINE")
+    r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
     r.label:SetPoint("TOP", r.icon, "BOTTOM", 0, -2)
     r:Hide()
     return r
@@ -195,6 +237,7 @@ local function CreateBarRegion(a)
     r:SetSize(BAR_WIDTH, BAR_HEIGHT + 16)
 
     r.label = ns.Font(r, 12, "OUTLINE")
+    r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
     r.label:SetPoint("TOP", r, "TOP", 0, 0)
 
     r.bar = CreateFrame("StatusBar", nil, r)
@@ -215,30 +258,43 @@ local function CreateBarRegion(a)
     return r
 end
 
--- The standard Blizzard cooldown-swipe widget -- the same primitive every action button
--- uses, so the pie-wipe reads exactly like every other cooldown on screen instead of a
--- hand-rolled lookalike. A plain square backdrop behind it is enough: the swipe texture
--- itself is what makes a square frame read as a circle, same as any action button icon.
+-- A real spell icon with the standard Blizzard cooldown-swipe widget on top -- the same
+-- two primitives every action button combines, so this reads exactly like every other
+-- cooldown on screen instead of a flat colour swatch (what this used to be: a plain
+-- gold square with no icon at all, which is what did not "look good").
 local CIRCLE_SIZE = 56
 local function CreateCircleRegion(a)
     local r = CreateFrame("Frame", nil, a)
     r:SetSize(CIRCLE_SIZE, CIRCLE_SIZE + 18)
 
-    local backdrop = r:CreateTexture(nil, "ARTWORK")
-    backdrop:SetSize(CIRCLE_SIZE, CIRCLE_SIZE)
-    backdrop:SetPoint("TOP", r, "TOP", 0, 0)
-    local T = ns.THEME
-    backdrop:SetColorTexture(T.gold.r, T.gold.g, T.gold.b, 1)
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.icon:SetSize(CIRCLE_SIZE, CIRCLE_SIZE)
+    r.icon:SetPoint("TOP", r, "TOP", 0, 0)
+    r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
     r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
-    r.swipe:SetAllPoints(backdrop)
+    r.swipe:SetAllPoints(r.icon)
     r.swipe:SetHideCountdownNumbers(false)
 
     r.label = ns.Font(r, 12, "OUTLINE")
-    r.label:SetPoint("TOP", backdrop, "BOTTOM", 0, -2)
+    r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
+    r.label:SetPoint("TOP", r.icon, "BOTTOM", 0, -2)
 
     r:Hide()
     return r
+end
+
+-- Anchor sizes for Unlock Mode's mover box (ns.GetRaidReminderAnchor's caller) -- the
+-- anchor frame itself is a bare 10x10 point, so without this the mover would draw far
+-- smaller than what actually appears there.
+function ns.RaidReminderAnchorSize(displayType)
+    if displayType == "text" then return 320, 26
+    elseif displayType == "timer" then return 120, 46
+    elseif displayType == "icon" then return ICON_SIZE, ICON_SIZE + 18
+    elseif displayType == "bar" then return BAR_WIDTH, BAR_HEIGHT + 16
+    elseif displayType == "circle" then return CIRCLE_SIZE, CIRCLE_SIZE + 18
+    end
+    return 10, 10
 end
 
 local REGION_CTORS = {
@@ -259,6 +315,21 @@ local function AcquireRegion(displayType)
     r:SetFrameLevel(a:GetFrameLevel() + 1)
     a.active[#a.active + 1] = r
     return a, r
+end
+
+-- Same two-step icon resolution CreateSlot (NaowhUI_SmartReminders.lua) already uses:
+-- GetSpellInfo first (nothing for a spell the client has not cached yet), GetSpellTexture
+-- as a second try, the question mark as the last resort -- never a blank icon. Shared by
+-- Icon and Circle, the two display types that show a real spell icon.
+local function ResolveDisplayIconID(display)
+    if not display.spellID then return nil end
+    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(display.spellID)
+    local iconID = info and info.iconID
+    if not iconID and C_Spell and C_Spell.GetSpellTexture then
+        local ok, tex = pcall(C_Spell.GetSpellTexture, display.spellID)
+        if ok then iconID = tex end
+    end
+    return iconID
 end
 
 -- The one place every real fire (and, once the editor exists, every Preview click)
@@ -288,19 +359,7 @@ function ns.DisplayRaidReminder(entry)
             r.text:SetTextColor(1, 1, 1, 1)
         end
     elseif display.type == "icon" then
-        -- Same two-step icon resolution CreateSlot already uses: GetSpellInfo first
-        -- (nothing for a spell the client has not cached yet), GetSpellTexture as a
-        -- second try, the question mark as the last resort -- never a blank icon.
-        local iconID
-        if display.spellID then
-            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(display.spellID)
-            iconID = info and info.iconID
-            if not iconID and C_Spell and C_Spell.GetSpellTexture then
-                local ok, tex = pcall(C_Spell.GetSpellTexture, display.spellID)
-                if ok then iconID = tex end
-            end
-        end
-        r.icon:SetTexture(iconID or 134400)
+        r.icon:SetTexture(ResolveDisplayIconID(display) or 134400)
         if display.text and display.text ~= "" then
             r.label:SetText(display.text)
             r.label:Show()
@@ -325,6 +384,7 @@ function ns.DisplayRaidReminder(entry)
             self:SetValue(remain > 0 and remain or 0)
         end)
     elseif display.type == "circle" then
+        r.icon:SetTexture(ResolveDisplayIconID(display) or 134400)
         r.label:SetText(display.text or "")
         r.swipe:SetCooldown(GetTime(), dur)
     end

@@ -3138,6 +3138,42 @@ end
 -------------------------------------------------------------------------------
 --  Unlock Mode
 -------------------------------------------------------------------------------
+-- One of these per raid-reminder display type (text/timer/icon/bar/circle), each its own
+-- Anchor (NaowhUI_SmartReminders_RaidReminders.lua) -- same TRDB()-backed savePos/loadPos
+-- shape as the plain Unlock elements below, just parameterized since the five are
+-- otherwise identical. Position lives at TRDB().raidReminderAnchorPos[displayType].
+local function MakeRaidReminderUnlockElement(EUI, displayType, label, order)
+    return EUI.MakeUnlockElement({
+        key   = "NaowhUI_RaidReminder_" .. displayType,   -- storage key; renaming it would orphan saved positions
+        label = label,
+        group = "NaowhUI",
+        order = order,
+        noResize = true,
+        isHidden = function() return not TRDB().enabled end,
+        getFrame = function() return ns.GetRaidReminderAnchor and ns.GetRaidReminderAnchor(displayType) end,
+        getSize  = function()
+            if ns.RaidReminderAnchorSize then return ns.RaidReminderAnchorSize(displayType) end
+            return 10, 10
+        end,
+        savePos = function(_, point, relPoint, x, y)
+            local db = TRDB()
+            db.raidReminderAnchorPos = db.raidReminderAnchorPos or {}
+            db.raidReminderAnchorPos[displayType] = { point = point, relPoint = relPoint, x = x, y = y }
+        end,
+        loadPos = function()
+            local p = TRDB().raidReminderAnchorPos and TRDB().raidReminderAnchorPos[displayType]
+            if not p then return nil end
+            return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
+        end,
+        clearPos = function()
+            if TRDB().raidReminderAnchorPos then TRDB().raidReminderAnchorPos[displayType] = nil end
+        end,
+        applyPos = function()
+            if ns.ApplyRaidReminderAnchorPosition then ns.ApplyRaidReminderAnchorPosition(displayType) end
+        end,
+    })
+end
+
 local function RegisterUnlock()
     local EUI = _G.EllesmereUI
     if not (EUI and EUI.RegisterUnlockElements and EUI.MakeUnlockElement) then return end
@@ -3193,6 +3229,11 @@ local function RegisterUnlock()
             clearPos = function() TRDB().customPos = nil end,
             applyPos = ApplyCustomReminderPosition,
         }),
+        MakeRaidReminderUnlockElement(EUI, "text", "Raid Reminder: Message", 10),
+        MakeRaidReminderUnlockElement(EUI, "timer", "Raid Reminder: Timer", 11),
+        MakeRaidReminderUnlockElement(EUI, "icon", "Raid Reminder: Icon", 12),
+        MakeRaidReminderUnlockElement(EUI, "bar", "Raid Reminder: Bar", 13),
+        MakeRaidReminderUnlockElement(EUI, "circle", "Raid Reminder: Circle", 14),
     }, "NaowhUI_EUI")
 end
 
