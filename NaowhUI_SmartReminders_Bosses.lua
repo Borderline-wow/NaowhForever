@@ -3319,6 +3319,32 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local durBox = DsBox(3, true)
     durBox:SetText(tostring(display.dur or 4))
 
+    -- MRT's event-13 "hide after use" gate -- once YOU successfully cast this spell,
+    -- whatever's currently on screen for this reminder disappears immediately instead
+    -- of waiting out its own Linger. Optional: blank means it only ever hides on its
+    -- own timer, same as before this existed.
+    DsLabel("Hide Once I Cast (Spell ID, optional)")
+    local hideCastBox = DsBox(9, true, PAD + 34)
+    local hideCastFeedback = ns.Font(displayBody, 10, nil, ns.THEME.muted)
+    hideCastFeedback:SetPoint("TOPLEFT", displayBody, "TOPLEFT", PAD, dsy)
+    hideCastFeedback:SetPoint("RIGHT", displayBody, "RIGHT", -PAD, 0)
+    hideCastFeedback:SetJustifyH("LEFT")
+    dsy = dsy - 14
+    local function SyncHideCast()
+        local sid, info = ns.ResolveSpell(hideCastBox:GetText())
+        if sid then
+            hideCastFeedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
+        elseif hideCastBox:GetText() == "" then
+            hideCastFeedback:SetText("")
+        else
+            hideCastFeedback:SetText("|cffff6060not a spell id|r")
+        end
+    end
+    hideCastBox:SetScript("OnTextChanged", SyncHideCast)
+    hideCastBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    hideCastBox:SetText((display.hideAfterCastID and tostring(display.hideAfterCastID)) or "")
+    SyncHideCast()
+
     local enabledVal = (existing == nil) or existing.enabled ~= false
     W:DualRow(displayBody, dsy,
         { type = "toggle", text = "Enabled",
@@ -3364,6 +3390,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             if next(names) then newTarget.names = names end
         end
         local iconSid = tonumber(iconBox:GetText())
+        local hideCastSid = tonumber(hideCastBox:GetText())
         local newDisplay = {
             type = displayTypeVal,
             text = textBox:GetText(),
@@ -3371,6 +3398,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             color = pendingColor,
             dur = math.max(1, tonumber(durBox:GetText()) or 4),
             sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
+            hideAfterCastID = (hideCastSid and hideCastSid > 0) and hideCastSid or nil,
         }
         return {
             name = (nameBox:GetText() ~= "" and nameBox:GetText()) or "Reminder",

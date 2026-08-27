@@ -543,6 +543,9 @@ function ns.DisplayRaidReminder(entry)
             tostring(display.type)))
         return
     end
+    -- Read by the UNIT_SPELLCAST_SUCCEEDED watcher below -- nil for the vast majority
+    -- of reminders, which never carry this optional field.
+    r.hideAfterCastID = display.hideAfterCastID
 
     -- Computed here, not after the type dispatch below: Bar/Circle need it to drive
     -- their own live countdown, and the release timer at the bottom needs the SAME
@@ -635,6 +638,22 @@ function ns.PreviewRaidReminder(entry)
     end
     ns.DisplayRaidReminder(entry)
 end
+
+-- MRT's event-13 "hide after use" gate: a reminder with display.hideAfterCastID set
+-- disappears the instant you successfully cast that spell, instead of waiting out its
+-- own Linger. RegisterUnitEvent("player") rather than parsing the combat log --
+-- lighter, and there is no need to know about anyone else's casts here.
+local castGateWatcher = CreateFrame("Frame")
+castGateWatcher:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+castGateWatcher:SetScript("OnEvent", function(_, _, _, _, spellID)
+    if not spellID then return end
+    for _, a in pairs(anchors) do
+        for i = #a.active, 1, -1 do
+            local r = a.active[i]
+            if r.hideAfterCastID == spellID then ReleaseRegion(a, r) end
+        end
+    end
+end)
 
 -------------------------------------------------------------------------------
 --  Anchor config -- move and resize every anchor with a live sample shown for each,
