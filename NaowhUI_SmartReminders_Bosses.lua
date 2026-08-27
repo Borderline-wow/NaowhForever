@@ -2855,7 +2855,17 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI)
     end
 
     local triggerTabBtn, triggerBody = AddTab("trigger", "Trigger & Target")
-    local _, displayBody = AddTab("display", "Display", triggerTabBtn)
+    local displayTabBtn, displayBody = AddTab("display", "Display", triggerTabBtn)
+
+    -- TEMP diagnostic (build 0826x) -- remove once we have an answer.
+    ns.Print(("|cff66ccff[RREditor]|r tabBar w=%s h=%s shown=%s | trigBtn w=%s h=%s left=%s top=%s shown=%s strata=%s | dispBtn w=%s h=%s left=%s top=%s shown=%s"):format(
+        tostring(tabBar:GetWidth()), tostring(tabBar:GetHeight()), tostring(tabBar:IsShown()),
+        tostring(triggerTabBtn:GetWidth()), tostring(triggerTabBtn:GetHeight()),
+        tostring(triggerTabBtn:GetLeft()), tostring(triggerTabBtn:GetTop()),
+        tostring(triggerTabBtn:IsShown()), tostring(triggerTabBtn:GetFrameStrata()),
+        tostring(displayTabBtn:GetWidth()), tostring(displayTabBtn:GetHeight()),
+        tostring(displayTabBtn:GetLeft()), tostring(displayTabBtn:GetTop()),
+        tostring(displayTabBtn:IsShown())))
 
     -------------------------------------------------------------------------
     --  Trigger & Target tab
