@@ -149,6 +149,31 @@ ns.TANK_ABILITY_OWNER_NPCID = {
     [1288538] = 257368,   -- The Twin Fangs: Stone Breaker (Ithraz)
     [1299680] = 257911,   -- The Coiled Altar: Sever (Zul'jan)
     [1286573] = 259854,   -- The Coiled Altar: Soul Sever (Hex Lord Malacrass)
-    [1307279] = 259854,   -- The Coiled Altar: Blighted Sever (Hex Lord Malacrass)
+    [1307279] = 257911,   -- The Coiled Altar: Blighted Sever (Zul'jan) -- CHANGED from
+    -- 259854 (Malacrass) 2026-08-27: BigWigs' own GetOptions groups 1307279 under its
+    -- "-- Zul'jan" Stage 3 comment block alongside two confirmed Zul'jan-continuation
+    -- abilities, and Malacrass's Sever analog (SoulSever) never fires in any Stage 3
+    -- branch at all. Source-structure evidence only, not a live-pull confirmation --
+    -- verify against a real Stage 3 pull's Blighted Sever cast before trusting this
+    -- fully; if it misfires for the Zul'jan tank while Malacrass's tank stays silent
+    -- (or vice versa), that confirms which way it actually goes.
+    [1295854] = 261848,   -- The Lost Explorers: Shredding Shards (Scrollsage Iku) --
+    -- Gebbo/Nama/Iku are concurrently alive the whole fight (RegisterEnableMob 261835,
+    -- 261843, 261848; ShreddingShards scheduled from all 4 Timeline() stage branches).
+    -- No ThreatTarget gate on its onFinished Message, unlike Sentinels below -- every
+    -- client sees the bar regardless of who's tanking Iku specifically. Confirmed by
+    -- DBM's own module needing the identical fix (IsTanking("player","boss4")) for the
+    -- same ability, boss4 == Iku in both mods' own unit-slot naming.
+    [1284458] = 258557,   -- Entombed Sentinels: Empowering Slam (Breath of Ula'tek) --
+    [1284487] = 258556,   -- Entombed Sentinels: Bloodvenom Injection (Blood of Ula'tek)
+    -- Both concurrently alive (RegisterEnableMob 258557, 258556). BigWigs gates the
+    -- Message itself per-boss (self:ThreatTarget("player","boss1"/"boss2")), but
+    -- self:CDBar -- what actually drives BigWigs_StartBar, the broadcast the engine's
+    -- scheduling path reacts to -- is unconditional regardless of that gate, so a tank
+    -- holding the WRONG Sentinels unit could still get scheduled a fire and, with no
+    -- owner npcID to check against, fall through to the any-boss fallback and get
+    -- called anyway. npcID<->boss1/boss2 order inferred from RegisterEnableMob's own
+    -- registration order (258557 first, same convention Twin Fangs' entry already
+    -- relies on) -- not independently confirmed, verify live.
 }
 
