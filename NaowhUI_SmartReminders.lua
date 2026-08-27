@@ -2278,7 +2278,11 @@ function ns.SpeakReminderTTS(r)
     if not voiceID then return end
     local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate and C_TTSSettings.GetSpeechRate()) or 0
     local volume = (C_TTSSettings and C_TTSSettings.GetSpeechVolume and C_TTSSettings.GetSpeechVolume()) or 100
-    C_VoiceChat.SpeakText(voiceID, text, Enum.VoiceTtsDestination.LocalPlayback, rate, volume)
+    -- No destination/enum argument -- confirmed against Blizzard's own
+    -- TextToSpeechFrame.lua (Blizzard_ChatFrame), which calls this exact 4-argument
+    -- form. Enum.VoiceTtsDestination does not exist; assuming it did was the bug
+    -- reported live (attempt to index a nil field).
+    C_VoiceChat.SpeakText(voiceID, text, rate, volume)
 end
 
 -- Shared by every display type that can be bound to a defensive rather than free text
