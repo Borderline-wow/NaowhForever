@@ -2539,7 +2539,7 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
         if content then content:Hide() end
         content = CreateFrame("Frame", nil, panel)
         content:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, -46)
-        content:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, 0)
+        content:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, -46)
 
         -- Wrapped, same reason ShowRaidReminderEditor's own body is: a blank popup with
         -- no error on screen is undiagnosable from a screenshot alone.
