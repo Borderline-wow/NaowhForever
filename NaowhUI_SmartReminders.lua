@@ -2978,9 +2978,8 @@ local function RegisterBossModHooks()
 end
 ns.RegisterBossModHooks = RegisterBossModHooks
 
--- Channel 2: the combat log. A different door than the cast bar, with its own probe
--- (C_CombatLog.IsCombatLogRestricted) and its own secrecy rules, so one being sealed says
--- nothing about the other. No source check is needed: the curated list holds boss tank
+-- Channel 2: the combat log. A different door than the cast bar, with its own secrecy
+-- rules, so one being sealed says nothing about the other. No source check is needed: the curated list holds boss tank
 -- busters only, so a matching spell id IS the answer regardless of who cast it.
 --
 -- Registered for the whole session, not per encounter: its registration cannot be toggled
@@ -3084,10 +3083,6 @@ local function OnCombatLog()
 end
 
 
--- The combat log registration latch: set the first time the event is successfully
--- registered, never cleared, because the registration itself is never undone.
-local cleuRegistered = false
-
 local function UpdateEventRegistration()
     if not watcher then return end
 
@@ -3133,22 +3128,6 @@ local function UpdateEventRegistration()
     watcher:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
     watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
     watcher:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-
-    -- ONCE, ever. Two live forbidden-action errors taught the full rule: toggling this
-    -- HasRestrictions event's registration from insecure code is forbidden in restricted
-    -- content, in either direction, and InCombatLockdown() is not the gate -- content is.
-    -- So the call happens exactly one time, only when Blizzard's own probe says the
-    -- combat log is unrestricted here, and after that the latch keeps every later Apply
-    -- from ever calling RegisterEvent again. Logging in inside restricted content just
-    -- means the latch waits for the first Apply that runs outside it.
-    if not cleuRegistered then
-        local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
-            and C_CombatLog.IsCombatLogRestricted()
-        if restricted == false or restricted == nil then
-            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-            cleuRegistered = true
-        end
-    end
 
     -- Which boss we are on, so a per-boss override can take over from the spec default.
     watcher:RegisterEvent("ENCOUNTER_START")
@@ -3696,8 +3675,8 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
         tostring(canSelect and true or false), tostring(canGate and true or false),
         tostring(canBar and true or false), tostring(canSound and true or false)))
-    ns.Print(("combat log: registered=%s lines=%d ownAuras=%d playerGUID=%s"):format(
-        tostring(cleuRegistered), cleuLines, cleuOwnAuras,
+    ns.Print(("combat log: lines=%d ownAuras=%d playerGUID=%s"):format(
+        cleuLines, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
     ns.Print("usage: /nutank cds | calls | test | catalogue | gate | secrecy | bosses | defensives")
 end
@@ -4820,6 +4799,18 @@ end
 --  Boot
 -------------------------------------------------------------------------------
 watcher = CreateFrame("Frame")
+-- STATICALLY, at load, and never unregistered. COMBAT_LOG_EVENT_UNFILTERED is a
+-- HasRestrictions event, and toggling one of those from insecure code inside restricted
+-- content throws ADDON_ACTION_FORBIDDEN, which pcall cannot catch -- so there is no
+-- moment during play at which the registration can be decided. Gating it behind
+-- C_CombatLog.IsCombatLogRestricted() looked like the safe version of that and was
+-- worse: the probe answers true inside a raid, so a session that never ran Apply outside
+-- one registered nothing at all, and Skip When Already Covered spent whole nights
+-- reading an empty aura table. Confirmed live at /nutank: registered=false, lines=0.
+-- Every damage meter and boss mod registers this at load for the same reason.
+-- OnCombatLog self-gates on currentEncounter and runActive, so this costs one plain read
+-- per line outside a pull.
+watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 watcher:RegisterEvent("PLAYER_LOGIN")
 watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
 watcher:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
