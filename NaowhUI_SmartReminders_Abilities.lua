@@ -140,40 +140,38 @@ ns.DBM_TO_BIGWIGS = {
 -- cast -- confirmed against BigWigs_TheVenomousAbyss/TwinFangs.lua and CoiledAltar.lua,
 -- both self:CDBar(barInfo.key, ...) off duration matching alone, no cast involved at
 -- all. castSourceGUID (fed only by SPELL_CAST_START/SUCCESS) can never learn a caster
--- for these, so TankingCaster's "nocache" path always fell back to "tanking ANY boss" --
--- wrong the moment two boss units are alive at once and each tank holds a different one
--- (reported live on both The Twin Fangs and The Coiled Altar P2/P3). Mapped to the real
--- npcID straight off BigWigs' own RegisterEnableMob instead, since there is no cast
--- event to key a GUID capture off in the first place.
-ns.TANK_ABILITY_OWNER_NPCID = {
-    [1288538] = 257368,   -- The Twin Fangs: Stone Breaker (Ithraz)
-    [1299680] = 257911,   -- The Coiled Altar: Sever (Zul'jan)
-    [1286573] = 259854,   -- The Coiled Altar: Soul Sever (Hex Lord Malacrass)
-    [1307279] = 257911,   -- The Coiled Altar: Blighted Sever (Zul'jan) -- CHANGED from
-    -- 259854 (Malacrass) 2026-08-27: BigWigs' own GetOptions groups 1307279 under its
-    -- "-- Zul'jan" Stage 3 comment block alongside two confirmed Zul'jan-continuation
-    -- abilities, and Malacrass's Sever analog (SoulSever) never fires in any Stage 3
-    -- branch at all. Source-structure evidence only, not a live-pull confirmation --
-    -- verify against a real Stage 3 pull's Blighted Sever cast before trusting this
-    -- fully; if it misfires for the Zul'jan tank while Malacrass's tank stays silent
-    -- (or vice versa), that confirms which way it actually goes.
-    [1295854] = 261848,   -- The Lost Explorers: Shredding Shards (Scrollsage Iku) --
-    -- Gebbo/Nama/Iku are concurrently alive the whole fight (RegisterEnableMob 261835,
-    -- 261843, 261848; ShreddingShards scheduled from all 4 Timeline() stage branches).
-    -- No ThreatTarget gate on its onFinished Message, unlike Sentinels below -- every
-    -- client sees the bar regardless of who's tanking Iku specifically. Confirmed by
-    -- DBM's own module needing the identical fix (IsTanking("player","boss4")) for the
-    -- same ability, boss4 == Iku in both mods' own unit-slot naming.
-    [1284458] = 258557,   -- Entombed Sentinels: Empowering Slam (Breath of Ula'tek) --
-    [1284487] = 258556,   -- Entombed Sentinels: Bloodvenom Injection (Blood of Ula'tek)
-    -- Both concurrently alive (RegisterEnableMob 258557, 258556). BigWigs gates the
-    -- Message itself per-boss (self:ThreatTarget("player","boss1"/"boss2")), but
-    -- self:CDBar -- what actually drives BigWigs_StartBar, the broadcast the engine's
-    -- scheduling path reacts to -- is unconditional regardless of that gate, so a tank
-    -- holding the WRONG Sentinels unit could still get scheduled a fire and, with no
-    -- owner npcID to check against, fall through to the any-boss fallback and get
-    -- called anyway. npcID<->boss1/boss2 order inferred from RegisterEnableMob's own
-    -- registration order (258557 first, same convention Twin Fangs' entry already
-    -- relies on) -- not independently confirmed, verify live.
+-- for these, so TankingCaster fell back to "tanking ANY boss" -- wrong the moment two
+-- boss units are alive at once and each tank holds a different one (reported live on
+-- both The Twin Fangs and The Coiled Altar P2/P3).
+--
+-- The boss SLOT, not the npcID: UnitGUID is SecretWhenUnitIdentityRestricted, so in a
+-- raid it hands back a secret for boss1-5 and nameplate units alike and nothing can be
+-- identified by GUID at all. An npcID-keyed version of this map shipped first and
+-- missed on every single callout of a live Coiled Altar night, both phases, both
+-- severs. Slot tokens are what BigWigs and DBM gate their own tank warnings on for
+-- exactly these abilities, and they need no identity read.
+ns.TANK_ABILITY_OWNER_UNIT = {
+    -- boss2 per DBM's TheTwinFangs ("--ALways boss2, unless boss1 is dead" on the same
+    -- Stone Breaker warning); Caustic Deluge is its boss1 counterpart.
+    [1288538] = 2,   -- The Twin Fangs: Stone Breaker (Ithraz)
+
+    -- BigWigs registers Malacrass's Soulbinding channel on "boss2" from OnEncounterStart,
+    -- leaving Zul'jan boss1.
+    [1299680] = 1,   -- The Coiled Altar: Sever (Zul'jan)
+    [1286573] = 2,   -- The Coiled Altar: Soul Sever (Hex Lord Malacrass)
+    -- BigWigs' GetOptions files Blighted Sever under its "-- Zul'jan" Stage 3 heading,
+    -- next to Defilement of the Coiled Altar, which its own journal-section map keys to
+    -- Zul'jan (-35063); the Malacrass half of that heading lists no sever at all.
+    [1307279] = 1,   -- The Coiled Altar: Blighted Sever (Zul'jan)
+
+    -- BigWigs' Explorers.lua names the slots outright: boss1 Gebbo, boss3 Nama, boss4
+    -- Iku. DBM gates the same ability on IsTanking("player","boss4").
+    [1295854] = 4,   -- The Lost Explorers: Shredding Shards (Scrollsage Iku)
+
+    -- BigWigs gates each Message with ThreatTarget("player","boss1"/"boss2"), but
+    -- self:CDBar -- what actually drives BigWigs_StartBar, the broadcast the engine
+    -- schedules off -- runs unconditionally, so both tanks get a bar either way.
+    [1284458] = 1,   -- Entombed Sentinels: Empowering Slam (Breath of Ula'tek)
+    [1284487] = 2,   -- Entombed Sentinels: Bloodvenom Injection (Blood of Ula'tek)
 }
 

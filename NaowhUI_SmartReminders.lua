@@ -1084,38 +1084,34 @@ end
 -- no way to react to it typed in the moment a pull is already past.
 local lastAggroCheck   -- { sid, verdict, path }
 
--- Second return is which path answered -- "nocache" (never saw a cast for this sid),
--- "boss:<unit>", "nameplate:<unit>", or "fallback" (matched neither) -- so a wrong call
--- can be diagnosed after the fact (see LogCallout) instead of guessed at from a VOD.
--- Extracts the creature id out of a unit's GUID (Creature-0-...-<npcID>-...), the only
--- way to identify a specific boss unit for an ability whose bar never carries a caster
--- (see ns.TANK_ABILITY_OWNER_NPCID).
-local function UnitNpcID(unit)
-    local ok, guid = pcall(UnitGUID, unit)
-    if not ok or type(guid) ~= "string" or (issecretvalue and issecretvalue(guid)) then return nil end
-    local kind, _, _, _, _, npcID = strsplit("-", guid)
-    if kind ~= "Creature" and kind ~= "Vehicle" then return nil end
-    return tonumber(npcID)
-end
-
+-- Second return is which path answered -- "boss:<unit>", "owner-gone", "nocache" or
+-- "fallback" -- so a wrong call can be diagnosed after the fact (see LogCallout)
+-- instead of guessed at from a VOD.
+--
+-- UnitGUID is SecretWhenUnitIdentityRestricted, so inside a raid every GUID read off a
+-- boss1-5 or nameplate unit comes back secret and no comparison against a combat-log
+-- sourceGUID can ever match. That is why the curated owner map, which names the boss
+-- SLOT and needs no identity read at all, is consulted first: it is the only one of
+-- these paths that works in the content the gate exists for. Confirmed live on The
+-- Coiled Altar with the whole map populated -- every single callout logged the
+-- no-match path, in both phases, for both severs.
 local castSourceGUID = {}
 local function TankingCaster(sid)
-    local guid = castSourceGUID[sid]
-    if not guid then
-        local ownerNpcID = ns.TANK_ABILITY_OWNER_NPCID and ns.TANK_ABILITY_OWNER_NPCID[sid]
-        if ownerNpcID then
-            for i = 1, 5 do
-                local unit = "boss" .. i
-                if UnitExists(unit) and UnitNpcID(unit) == ownerNpcID then
-                    local verdict = UnitTankedVerdict(unit)
-                    if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
-                    return verdict, "boss:" .. unit .. ":npcid"
-                end
-            end
-            return TankingSomeBoss(), "npcid-no-match"
+    local ownerSlot = ns.TANK_ABILITY_OWNER_UNIT and ns.TANK_ABILITY_OWNER_UNIT[sid]
+    if ownerSlot then
+        local unit = "boss" .. ownerSlot
+        if UnitExists(unit) then
+            local verdict = UnitTankedVerdict(unit)
+            if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
+            return verdict, "boss:" .. unit
         end
-        return TankingSomeBoss(), "nocache"
+        -- Slot empty: the owner is dead or not out yet and someone else is taking the
+        -- hit. DBM's own Twin Fangs module handles the same case the same way.
+        return TankingSomeBoss(), "owner-gone"
     end
+
+    local guid = castSourceGUID[sid]
+    if not guid then return TankingSomeBoss(), "nocache" end
     for i = 1, 5 do
         local unit = "boss" .. i
         if UnitExists(unit) then
@@ -1124,26 +1120,6 @@ local function TankingCaster(sid)
                 local verdict = UnitTankedVerdict(unit)
                 if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
                 return verdict, "boss:" .. unit
-            end
-        end
-    end
-    -- The cast-log GUID can fail to match any boss1-5 slot even when Blizzard's own boss
-    -- mod confirms the caster is tracked as one from encounter start -- confirmed live on
-    -- The Coiled Altar: BigWigs registers "boss2" (Malacrass) from OnEncounterStart, yet
-    -- Zul'jan's tank still got called for Soul Sever (Malacrass-only, P2) while holding
-    -- Zul'jan the whole phase, meaning this loop above never found the match. Nameplates
-    -- reach the same GUID through an entirely different unit-token system, so they are
-    -- tried next rather than giving up straight to the blanket "tanking ANY boss" answer
-    -- below, which is exactly wrong the moment two boss units are alive at once and each
-    -- tank holds a different one.
-    for i = 1, 10 do
-        local unit = "nameplate" .. i
-        if UnitExists(unit) then
-            local ok, unitGUID = pcall(UnitGUID, unit)
-            if ok and not (issecretvalue and issecretvalue(unitGUID)) and unitGUID == guid then
-                local verdict = UnitTankedVerdict(unit)
-                if verdict == nil then return true, "nameplate:" .. unit .. ":unreadable" end
-                return verdict, "nameplate:" .. unit
             end
         end
     end
