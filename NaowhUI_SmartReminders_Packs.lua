@@ -283,6 +283,40 @@ function ns.ShowPackExport()
     dimmer:Show()
 end
 
+-- The diagnostic trace, in the same copyable box the pack export uses. There is no way
+-- for an addon to write a file, and asking a tester to find and attach SavedVariables has
+-- its own failure modes, so the trace leaves as text they select and paste.
+local diagExport
+
+function ns.ShowDiagExport(text)
+    if not diagExport then
+        local dimmer, panel = ns.MakeModal(620, 420, "diagExport")
+        local title = ns.Font(panel, 14, "OUTLINE")
+        title:SetPoint("TOP", panel, "TOP", 0, -14)
+        title:SetText("Diagnostic Trace")
+
+        local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        hint:SetPoint("TOP", title, "BOTTOM", 0, -6)
+        hint:SetText("Click the text, then Ctrl+A Ctrl+C, and paste it to whoever asked.")
+
+        local box = MakePackBox(panel, -56, 300)
+        box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+        -- Display only: an edit here would just corrupt the paste, so any change puts the
+        -- captured text straight back.
+        box:SetScript("OnTextChanged", function(self, user)
+            if user then self:SetText(diagExport.text or "") end
+        end)
+
+        ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
+            :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+        diagExport = { dimmer = dimmer, box = box }
+    end
+    diagExport.text = text or ""
+    diagExport.box:SetText(diagExport.text)
+    diagExport.dimmer:Show()
+    diagExport.box:SetFocus()
+end
+
 function ns.ShowPackImport()
     if packImport then
         packImport.box:SetText("")

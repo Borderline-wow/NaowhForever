@@ -1014,6 +1014,10 @@ local function RecordBossModKey(mod, key, text, kind)
     local entry = cat[key]
     if not entry then
         cat[key] = { mod = mod, kind = kind, text = text, seen = 1, stage = currentStage }
+        -- First time this pull only. Every repeat would bury the callouts in bar traffic.
+        if TRDB().trace then
+            AppendLog({ kind = "key", sid = key, mod = mod, tankPath = kind })
+        end
     else
         entry.mod, entry.kind = mod, kind
         -- The most recent text wins: a bar's "(3)" occurrence suffix drifts pull to
@@ -1649,7 +1653,11 @@ end
 -- Every actual cast or callout for a tracked defensive is appended here, capped and
 -- persisted, so a bad call ("it said X was ready right after I used X") can be checked
 -- against what actually happened instead of relying on memory mid-fight.
+-- 30 is enough to read back a bad pull in chat. A trace covers a whole key, so it keeps
+-- far more -- still capped, because this lives in SavedVariables and an uncapped list
+-- would grow without bound on a long session.
 local CALL_LOG_MAX = 30
+local TRACE_LOG_MAX = 600
 local function AppendLog(entry)
     local t = TRDB()
     if type(t.callLog) ~= "table" then t.callLog = {} end
@@ -1657,7 +1665,35 @@ local function AppendLog(entry)
     entry.stamp = date and date("%H:%M:%S") or "?"
     entry.enc, entry.stage = currentEncounter, currentStage
     log[#log + 1] = entry
-    while #log > CALL_LOG_MAX do table.remove(log, 1) end
+    local cap = t.trace and TRACE_LOG_MAX or CALL_LOG_MAX
+    while #log > cap do table.remove(log, 1) end
+end
+
+-- One renderer for both /nutank calls and the export, so a line never says two different
+-- things depending on where it is read. Plain text: the export has to survive a paste.
+local function LogLine(e)
+    local function nameOf(id)
+        local info = id and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
+        return (info and info.name) or tostring(id)
+    end
+    local head = ("%s enc=%s stage=%s"):format(e.stamp, tostring(e.enc), tostring(e.stage))
+    if e.kind == "cast" then
+        return head .. " -- CAST " .. nameOf(e.sid)
+    elseif e.kind == "enc" then
+        return head .. " -- ENCOUNTER " .. tostring(e.text)
+    elseif e.kind == "key" then
+        return ("%s -- KEY %s %s (%s/%s)"):format(head, tostring(e.sid), nameOf(e.sid),
+            tostring(e.mod), tostring(e.tankPath))
+    elseif e.kind == "skip" then
+        return ("%s -- skipped %s -- already covered by %s (%s)"):format(head,
+            nameOf(e.tankSid), nameOf(e.sid), tostring(e.tankPath))
+    end
+    return ("%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s%s%s"):format(head,
+        e.kind == "test" and "TEST-called" or "called", nameOf(e.sid),
+        tostring(e.running), e.charges and (" charges=" .. e.charges) or "",
+        e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", tostring(e.secrecy),
+        e.tankPath and (" tankCheck=%s(%s)"):format(e.tankPath, nameOf(e.tankSid)) or "",
+        e.auraUp and (" auraUp=" .. e.auraUp) or "")
 end
 
 local function NoteOwnCast(castSpellID)
@@ -3599,6 +3635,47 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- ignored it". RecordBossModKey has been storing exactly that all along with no way to
     -- read it back. Per encounter, so it answers for whichever boss is being complained
     -- about rather than only the current one.
+    -- Recording is a persisted flag, not a session one: a key run can span a reload, and a
+    -- trace that silently stopped at the first loading screen would be worse than none.
+    if arg == "trace" then
+        local t = TRDB()
+        t.trace = not t.trace and true or nil
+        if t.trace then
+            if type(t.callLog) == "table" then wipe(t.callLog) end
+            ns.Print("|cff6DD09Atrace ON|r -- run your key, then /nutank trace again to stop "
+                .. "and /nutank export to get the text to send.")
+        else
+            ns.Print(("|cffF0A830trace OFF|r -- %d entries recorded. /nutank export opens them "
+                .. "in a copyable box."):format(type(t.callLog) == "table" and #t.callLog or 0))
+        end
+        return
+    end
+
+    if arg == "export" then
+        local t = TRDB()
+        local log = type(t.callLog) == "table" and t.callLog or {}
+        local out = {}
+        out[#out + 1] = ("build %s | spec %d | tank %s | slots %d | trace %s"):format(
+            BuildString(), specID, tostring(isTank), activeSlots, tostring(t.trace and true or false))
+        out[#out + 1] = ("combat log registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d"):format(
+            tostring(watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED")),
+            tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
+                and C_CombatLog.IsCombatLogRestricted()),
+            cleuLines, cleuUsable, cleuOwnAuras)
+        out[#out + 1] = ("timeline=%s aggroOnly=%s coveredSkip=%s leadTime=%s"):format(
+            tostring(TimelineAvailable()), tostring(t.aggroOnly), tostring(t.coveredSkip ~= false),
+            tostring(t.leadTime))
+        out[#out + 1] = ("%d entries"):format(#log)
+        for i = 1, #log do out[#out + 1] = LogLine(log[i]) end
+        local text = table.concat(out, "\n")
+        if ns.ShowDiagExport then
+            ns.ShowDiagExport(text)
+        else
+            ns.Print(text)
+        end
+        return
+    end
+
     if arg == "keys" then
         local enc = currentEncounter
         local cat = enc and BossModCatalogueTable(false, enc)
@@ -3806,31 +3883,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             return
         end
         for i = 1, #log do
-            local e = log[i]
-            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.sid)
-            local name = (info and info.name) or e.sid
-            if e.kind == "cast" then
-                ns.Print(("%s enc=%s stage=%s -- CAST %s"):format(
-                    e.stamp, tostring(e.enc), tostring(e.stage), name))
-            elseif e.kind == "skip" then
-                local bossInfo = e.tankSid
-                    and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.tankSid)
-                ns.Print(("%s enc=%s stage=%s -- |cff8a99b5skipped|r %s -- already covered by %s (%s)"):format(
-                    e.stamp, tostring(e.enc), tostring(e.stage),
-                    (bossInfo and bossInfo.name) or tostring(e.tankSid),
-                    name, tostring(e.tankPath)))
-            else
-                local tankInfo = e.tankSid
-                    and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.tankSid)
-                ns.Print(("%s enc=%s stage=%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s%s%s"):format(
-                    e.stamp, tostring(e.enc), tostring(e.stage),
-                    e.kind == "test" and "TEST-called" or "called", name,
-                    e.running, e.charges and (" charges=" .. e.charges) or "",
-                    e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy,
-                    e.tankPath and (" tankCheck=%s(%s)"):format(
-                        e.tankPath, (tankInfo and tankInfo.name) or tostring(e.tankSid)) or "",
-                    e.auraUp and (" auraUp=" .. e.auraUp) or ""))
-            end
+            ns.Print(LogLine(log[i]))
         end
         return
     end
@@ -3925,7 +3978,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
-    ns.Print("usage: /nutank cds | calls | keys | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank cds | calls | keys | trace | export | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
@@ -5063,6 +5116,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
         currentEncounter = (event == "ENCOUNTER_START") and arg1 or nil
+        if TRDB().trace then
+            AppendLog({ kind = "enc", text = ("%s %s %s"):format(
+                event == "ENCOUNTER_START" and "START" or "END",
+                tostring(arg1), tostring(arg2)) })
+        end
         if event == "ENCOUNTER_END" then wipe(readyAt) end
         lastAnnouncedSpellID = nil
         RebuildSlots()          -- swap to this boss's list before the first ability lands
