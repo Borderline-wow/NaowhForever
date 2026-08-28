@@ -2812,6 +2812,11 @@ local pendingBWFires = { tank = {} }   -- [channel][sid] = { [identity] = {fireA
 -- Exported (ns.ScheduleBWFire) so the raid-reminder engine gets the identical handling
 -- instead of a second hand-rolled copy that could drift out of sync with this one on some
 -- BigWigs edge case only one of them hits.
+-- How close two scheduled fires must be to count as the same real cast. Two boss mods
+-- timing one cast land within a frame of each other; the next occurrence of the same
+-- buster is a full cooldown away.
+local SAME_CAST_WINDOW = 2
+
 function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     local fires = pendingBWFires[channel]
     if not fires then fires = {} pendingBWFires[channel] = fires end
@@ -2820,16 +2825,38 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
     local key = barIdentity or false
     local fireAt = GetTime() + delay
+
     -- Whatever else is pending for this sid -- the same bar resynced, or a different
-    -- bar entirely -- gets superseded by this one.
+    -- bar entirely -- gets superseded by this one, but the survivor INHERITS the
+    -- superseded entry's identities when both are aimed at the same cast.
+    --
+    -- A stop event only ever hands back one mod's own name for the bar: BigWigs returns
+    -- the bar TEXT, DBM returns a numeric timer id. With both installed, one cast is
+    -- timed twice and only the later arrival's identity survived, so a stop from the
+    -- other mod matched nothing and the callout still landed for a cast that had been
+    -- interrupted or resynced away. Only visible in dungeons, where running both mods is
+    -- normal. One entry now answers to every identity that has named it.
+    --
+    -- Gated on the fire times matching, NOT inherited unconditionally: aliases carried
+    -- across to the NEXT occurrence would let the previous bar's ordinary stop cancel the
+    -- callout for the cast after it, which is the silent-buster direction.
+    local aliases = { [key] = true }
     for otherKey, f in pairs(sidFires) do
         if f.timer.Cancel then f.timer:Cancel() end
+        if math.abs(f.fireAt - fireAt) <= SAME_CAST_WINDOW then
+            for k in pairs(f.aliases) do aliases[k] = true end
+        end
         sidFires[otherKey] = nil
     end
-    sidFires[key] = { fireAt = fireAt, timer = C_Timer.NewTimer(delay, function()
-        sidFires[key] = nil
+
+    local entry = { fireAt = fireAt, aliases = aliases }
+    entry.timer = C_Timer.NewTimer(delay, function()
+        for k in pairs(aliases) do
+            if sidFires[k] == entry then sidFires[k] = nil end
+        end
         fireFn(sid)
-    end) }
+    end)
+    for k in pairs(aliases) do sidFires[k] = entry end
 end
 
 function ns.HandleBigWigsAbility(sid, duration, barIdentity)
@@ -2890,7 +2917,12 @@ local function CancelPendingBWFire(barIdentity)
             local f = sidFires[barIdentity]
             if f then
                 if f.timer.Cancel then f.timer:Cancel() end
-                sidFires[barIdentity] = nil
+                -- Clear every identity this one entry answers to, not just the name the
+                -- stop happened to arrive under, or the other mod's alias would be left
+                -- pointing at a cancelled timer.
+                for k in pairs(f.aliases) do
+                    if sidFires[k] == f then sidFires[k] = nil end
+                end
             end
         end
     end
