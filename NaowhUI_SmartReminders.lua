@@ -3843,22 +3843,16 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Shows the alert exactly as a fight would, minus the tank gate. If the icon appears
     -- here but not on a boss, the display is fine and the gate is the variable. If it does
     -- not appear here either, the problem is the display itself.
-    -- mute/unmute/tank/untank/learn/marked/export/muted all worked against fingerprints
+    -- mute/unmute/tank/untank/learn/marked/muted all worked against fingerprints
     -- (a timeline bar's duration standing in for an ability's identity), and retired along
     -- with that engine -- BigWigs/DBM hand over a real spellID now, so "which ability" is
     -- never a guess to record by hand. Setup's own per-ability checklist is the on/off
-    -- switch these used to be.
+    -- switch these used to be. trace and export came BACK as spellID-based recorders and
+    -- are handled above; leaving them listed here made their retirement notice look live.
     if arg == "mute" or arg == "unmute" or arg == "tank" or arg == "untank"
-        or arg == "learn" or arg == "marked" or arg == "export" or arg == "muted" then
+        or arg == "learn" or arg == "marked" or arg == "muted" then
         ns.Print("/nutank " .. arg .. " was part of the old fingerprint engine and has been "
             .. "retired. Enable or disable an ability from Setup's own checklist instead.")
-        return
-    end
-
-    if arg == "trace" then
-        ns.Print("the old timeline-fingerprint trace was retired with the fingerprint "
-            .. "engine -- a spellID-based replacement is coming. /nutank cds shows your "
-            .. "current priority list state in the meantime.")
         return
     end
 
