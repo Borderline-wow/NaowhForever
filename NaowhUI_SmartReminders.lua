@@ -3638,6 +3638,33 @@ end
 --               documented only as "atlases and alpha values" -- the absent case is not
 --               specified, and Blizzard never reads these textures back. Run this on a live
 --               boss with an ability on the timeline.
+-- Everything that can make a capture worthless, checked in one place. A tester who sends
+-- back "0 entries" has learned nothing and neither has the person reading it, and that has
+-- now happened -- trace on, no priority list, not a tank, Pretend Tank off, so there was
+-- never anything to record. Every one of those is stated up front instead.
+local function DiagProblems()
+    local t, out = TRDB(), {}
+    if t.enabled ~= true then
+        out[#out + 1] = "the reminder is switched OFF -- turn it on in Smart Reminders"
+    end
+    if activeSlots == 0 then
+        out[#out + 1] = "priority list is EMPTY for this spec, so nothing can ever be "
+            .. "called -- add defensives in Smart Reminders first"
+    end
+    if not isTank and not t.pretendTank then
+        out[#out + 1] = "not a tank spec and Pretend Tank is off, so tank busters will "
+            .. "never call -- run /nutank pretendtank"
+    end
+    if watcher and not watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") then
+        out[#out + 1] = "combat log was never hooked, so Skip When Already Covered has no "
+            .. "aura data -- step OUTSIDE the instance once, it can only register there"
+    end
+    if not TimelineAvailable() then
+        out[#out + 1] = "the boss timeline feature is unavailable here"
+    end
+    return out
+end
+
 SLASH_NAOWHUITANK1 = "/nutank"
 SlashCmdList["NAOWHUITANK"] = function(msg)
     local arg = (msg or ""):lower():match("^%s*(%S*)")
@@ -3658,10 +3685,8 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             ns.Print("|cffF0A830PRETEND TANK ON|r -- callouts now fire for tank busters even "
                 .. "though you are not tanking. For testing only; turn it back off before "
                 .. "playing normally. The aggro check still records what it WOULD have said.")
-            if activeSlots == 0 then
-                ns.Print("  note: your priority list is empty for this spec, so there is still "
-                    .. "nothing to call. Add defensives in Smart Reminders first.")
-            end
+            local problems = DiagProblems()
+            for i = 1, #problems do ns.Print("  |cffff6060still blocked:|r " .. problems[i]) end
         else
             ns.Print("|cff6DD09APretend Tank off|r -- back to normal tank-only behaviour.")
         end
@@ -3675,6 +3700,10 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             if type(t.callLog) == "table" then wipe(t.callLog) end
             ns.Print("|cff6DD09Atrace ON|r -- run your key, then /nutank trace again to stop "
                 .. "and /nutank export to get the text to send.")
+            local problems = DiagProblems()
+            for i = 1, #problems do
+                ns.Print("  |cffff6060this trace will capture nothing:|r " .. problems[i])
+            end
         else
             ns.Print(("|cffF0A830trace OFF|r -- %d entries recorded. /nutank export opens them "
                 .. "in a copyable box."):format(type(t.callLog) == "table" and #t.callLog or 0))
@@ -3698,6 +3727,13 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             tostring(TimelineAvailable()), tostring(t.aggroOnly), tostring(t.coveredSkip ~= false),
             tostring(t.leadTime))
         out[#out + 1] = ("%d entries"):format(#log)
+        local problems = DiagProblems()
+        for i = 1, #problems do out[#out + 1] = "PROBLEM: " .. problems[i] end
+        if #log == 0 and #problems == 0 then
+            out[#out + 1] = "PROBLEM: nothing recorded, but the setup looks able to call -- "
+                .. "either no pull happened while tracing, or no boss mod broadcast a "
+                .. "curated ability (check /nutank keys during a pull)"
+        end
         for i = 1, #log do out[#out + 1] = LogLine(log[i]) end
         local text = table.concat(out, "\n")
         if ns.ShowDiagExport then
