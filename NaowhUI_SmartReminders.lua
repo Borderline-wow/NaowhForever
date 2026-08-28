@@ -2993,6 +2993,22 @@ ns.RegisterBossModHooks = RegisterBossModHooks
 -- itself per combat log line would mean several function calls a line instead of one read.
 local runActive = false
 
+-- UnitGUID is SecretWhenUnitIdentityRestricted, and that already cost days once on the
+-- tank gate (see TankingCaster). Read once from wherever it comes back plainly and kept,
+-- rather than called fresh on every combat log line inside a raid, where the answer may
+-- not be readable at all. A GUID does not change for the life of the character.
+local playerGUID
+local function PlayerGUID()
+    if playerGUID then return playerGUID end
+    local ok, guid = pcall(UnitGUID, "player")
+    if ok and not (issecretvalue and issecretvalue(guid)) and type(guid) == "string" then
+        playerGUID = guid
+    end
+    return playerGUID
+end
+
+local cleuLines, cleuOwnAuras = 0, 0
+
 local function OnCombatLog()
     -- The price of static registration: this fires for every combat log line, so outside
     -- an encounter it must cost one plain variable read and nothing else -- the
@@ -3013,6 +3029,11 @@ local function OnCombatLog()
         or issecretvalue(amount)) then
         return
     end
+    -- Counted so /nutank can tell "the combat log never reached us at all" (the
+    -- registration latch below never fired, or every line came back secret) apart from
+    -- "it reached us but the own-buff branch never matched". Skip When Already Covered
+    -- failing has both of those as causes and they need opposite fixes.
+    cleuLines = cleuLines + 1
 
     -- Feeds TankingCaster: which boss1-5 unit is actually behind a given spell id, for
     -- fights running more than one boss unit at once. Checked on its own, not folded into
@@ -3028,9 +3049,10 @@ local function OnCombatLog()
     -- exactly the aura this needs to see (RequiresNonSecretAura). Gated on runActive,
     -- not hasCustomReminders -- this is core tank-buster behavior, not a custom-
     -- reminders-specific one.
-    if runActive and type(spellId) == "number" and destGUID == UnitGUID("player") then
+    if runActive and type(spellId) == "number" and destGUID == PlayerGUID() then
         if sub == "SPELL_AURA_APPLIED" or sub == "SPELL_AURA_REFRESH" then
             playerAuraUp[spellId] = true
+            cleuOwnAuras = cleuOwnAuras + 1
         elseif sub == "SPELL_AURA_REMOVED" then
             playerAuraUp[spellId] = nil
         end
@@ -3674,6 +3696,9 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
         tostring(canSelect and true or false), tostring(canGate and true or false),
         tostring(canBar and true or false), tostring(canSound and true or false)))
+    ns.Print(("combat log: registered=%s lines=%d ownAuras=%d playerGUID=%s"):format(
+        tostring(cleuRegistered), cleuLines, cleuOwnAuras,
+        PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
     ns.Print("usage: /nutank cds | calls | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
