@@ -1387,8 +1387,10 @@ local readyAt = {}          -- [list spellID] = GetTime() at which it is back up
 -- own it: a local declared later in the file is not an upvalue to a function defined
 -- earlier, so referencing it from EnsureChargeState would have read a nil global and
 -- silently done nothing.
--- Only a STARTING guess for the per-charge recharge, replaced by the first real
--- measurement on this character (see ChargesAvailable). Deliberately the ability's full
+-- Only a STARTING guess for the per-charge recharge, used until the client hands over the
+-- real one: ChargesAvailable reads that from GetSpellChargeDuration the moment a recharge
+-- is actually running, which needs no table and is right for every build. This is what
+-- answers before the first recharge of a session. Deliberately the ability's full
 -- cooldown rather than a shorter number observed on one build: talents move the real
 -- figure, and one hardcoded value cannot be right for everyone. 180 sat here for
 -- Guardian of Ancient Kings and handed a second charge back two minutes early on a build
@@ -1438,6 +1440,33 @@ local function ReadChargeShape(sid)
     if type(max) ~= "number" or max < 2 then return nil, nil, true end
 
     return max, active == true, true
+end
+
+-- The real per-charge recharge, from the client, for THIS character and THIS build.
+--
+-- C_Spell.GetSpellChargeDuration hands back a LuaDurationObject describing the ACTIVE
+-- recharge, and unlike GetSpellCharges it carries no SecretWhenCooldownsRestricted --
+-- nor do the duration object's own getters, which are annotated only on their arguments.
+-- So the one number the charge model could never obtain is readable after all, and the
+-- addon was modelling around a gap that had an API the whole time. Its sibling
+-- GetSpellCooldownDuration was already trusted for the non-charge path here; the charge
+-- path simply never got the same treatment.
+--
+-- MayReturnNothing: at full charges there is no active recharge to describe, so this only
+-- answers while one is running. That is exactly when it is needed and the value is cached.
+local function ReadChargeRecharge(sid)
+    if not (C_Spell and C_Spell.GetSpellChargeDuration) then return nil end
+    -- Indexed without a type check, the same way the cooldown path already treats the
+    -- object GetSpellCooldownDuration returns: a duration object is not necessarily a Lua
+    -- table, and demanding one would reject every real answer.
+    local ok, dur = pcall(C_Spell.GetSpellChargeDuration, sid)
+    if not ok or not dur then return nil end
+    local hasGetter = pcall(function() return dur.GetTotalDuration end)
+    if not hasGetter or not dur.GetTotalDuration then return nil end
+    local got, total = pcall(dur.GetTotalDuration, dur)
+    if not got or (issecretvalue and issecretvalue(total)) then return nil end
+    if type(total) ~= "number" or total <= 1.5 then return nil end
+    return total
 end
 
 function EnsureChargeState(sid)
@@ -1512,6 +1541,20 @@ function ChargesAvailable(sid)
     if not st then return nil end
 
     local max, active = ReadChargeShape(sid)
+
+    -- A running recharge is the client telling us the real rate outright, so take it over
+    -- anything seeded or measured. Persisted because it can only be read WHILE recharging,
+    -- and the pick has to answer between pulls too.
+    if active then
+        local real = ReadChargeRecharge(sid)
+        if real and real ~= st.recharge then
+            st.recharge = real
+            local t = TRDB()
+            if type(t.learned) ~= "table" then t.learned = {} end
+            t.learned[tostring(sid)] = real
+        end
+    end
+
     if max and not active then
         -- Back to full, and if exactly one charge was out this is a free MEASUREMENT of
         -- the recharge: the gap between the cast that broke the stack and the moment the
