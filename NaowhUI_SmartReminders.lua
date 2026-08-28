@@ -1801,7 +1801,17 @@ local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
 local function LogCallout(sid)
     local st = chargeState[sid]
     local running = CooldownRunning(sid)
+    -- Which of the player's own defensives the combat-log tracking believed were up at the
+    -- moment this went out. A callout naming a second defensive seconds after the first one
+    -- was actually pressed means Skip When Already Covered did not see the buff land, and
+    -- this says so outright instead of leaving it a guess between that and a double fire.
+    local auraUp
+    for i = 1, activeSlots do
+        local s = slots[i].spellID
+        if playerAuraUp[s] then auraUp = (auraUp and auraUp .. "," or "") .. s end
+    end
     AppendLog({
+        auraUp = auraUp,
         kind = ns.testFiring and "test" or "call",
         sid = sid,
         charges = st and ("%d/%d"):format(ChargesAvailable(sid) or 0, st.max) or nil,
@@ -2770,7 +2780,15 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if not (ShouldRun() and InEncounter()) then return end
-    if sid == lastBWSid and (GetTime() - lastBWAt) < 3 then return end
+    -- The scheduled fire deliberately lands `lead` seconds BEFORE the bar ends, and plenty
+    -- of BigWigs modules Message the same key from that bar's own onFinished (Coiled
+    -- Altar's Sever does, key 1299680 on both the CDBar and the Message). So the Message
+    -- arrives almost exactly `lead` seconds after the callout already went out. A flat 3s
+    -- window sat exactly on that boundary at the default 3s lead and let it through as a
+    -- second callout for the one hit -- reported live as "Ardent Defender, then Guardian
+    -- of Ancient Kings right after".
+    local repeatWindow = ns.LeadTimeFor(currentEncounter, sid) + 1
+    if sid == lastBWSid and (GetTime() - lastBWAt) < repeatWindow then return end
 
     if type(duration) == "number" and duration > 0.5 then
         local lead = ns.LeadTimeFor(currentEncounter, sid)
@@ -3564,13 +3582,14 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             else
                 local tankInfo = e.tankSid
                     and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.tankSid)
-                ns.Print(("%s enc=%s stage=%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s%s"):format(
+                ns.Print(("%s enc=%s stage=%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s%s%s"):format(
                     e.stamp, tostring(e.enc), tostring(e.stage),
                     e.kind == "test" and "TEST-called" or "called", name,
                     e.running, e.charges and (" charges=" .. e.charges) or "",
                     e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy,
                     e.tankPath and (" tankCheck=%s(%s)"):format(
-                        e.tankPath, (tankInfo and tankInfo.name) or tostring(e.tankSid)) or ""))
+                        e.tankPath, (tankInfo and tankInfo.name) or tostring(e.tankSid)) or "",
+                    e.auraUp and (" auraUp=" .. e.auraUp) or ""))
             end
         end
         return
