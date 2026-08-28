@@ -52,8 +52,19 @@ ns.TANK_ABILITIES = {
     [1297017] = "Magical",   -- Taz'Rah: Void Blast
     [1298949] = "Physical",   -- The Writhing Coil: Tail Scythe
     [1301350] = "Physical",   -- Zul'jan: Chop Down
-    [269230] = "Physical",   -- Dazar, The First King: Hunting Leap (was aura id 1303039)
-    [1303488] = "Physical",   -- Dazar, The First King: Savage Maul (was aura id 1303490)
+    -- Dazar's Hunting Leap (269230) and Savage Maul (1303488) are deliberately NOT here,
+    -- the same call already made for Hollowing Strikes below. Both are tank BLEEDS, not
+    -- busters: each was originally listed by its aura id (1303039, 1303490), LittleWigs
+    -- tags exactly one Dazar ability "TANK_HEALER" and it is Blade Combo, and DBM makes
+    -- only Blade Combo a NewSpecialWarningDefensive while these two are plain
+    -- NewCountAnnounce backed by a "bleedyou" aura sound. Neither mod thinks they warrant
+    -- a cooldown.
+    --
+    -- Live evidence they must not auto-fire: on a real pull Savage Maul called at 10:57:35
+    -- and Blade Combo at 10:57:37, so the tank pressed a defensive for the first and was
+    -- immediately told to press a second one for the hit two seconds later. Reported as
+    -- "it's asking me to press my defensives twice back to back" on Blade Combo. Both stay
+    -- available from Setup's own per-boss checkbox for anyone who wants them.
     [1311923] = "Magical",   -- Charonus: Dark Waves
 
     -- Marked as tank hits in publicly available community boss research; damage
