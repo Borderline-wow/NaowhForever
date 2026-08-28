@@ -4566,14 +4566,11 @@ function ns.BuildCoreSettings(parent, y)
         -- disagreed with each other, and on covered bosses the fingerprint filter now does
         -- the same job for every channel at once. The stored tankOnly flag is ignored, not
         -- migrated, so downgrading does not lose it.
-        { type = "toggle", text = "Only While I Have the Boss",
-          tooltip = "For raids with two tanks: stay quiet when the boss is on the other tank. "
-          .. "Checked at the moment the warning fires -- threat first, then the boss's actual "
-          .. "target -- and whenever the game keeps the answer sealed the alert plays anyway, "
-          .. "because a spare callout costs less than a silent tank buster. Solo content is "
-          .. "unaffected: the boss is always on you.",
-          getValue = function() return TRDB().aggroOnly end,
-          setValue = function(v) TRDB().aggroOnly = v end }
+        -- "Only While I Have the Boss" moved to the Raid Bosses tab: it only ever changes
+        -- anything with two tanks, and a five-man has one who holds every boss unit, so on
+        -- the Setup tab it read as a global behaviour switch that does nothing in half the
+        -- content. Same stored key, so nobody loses their choice.
+        { type = "label", text = "" }
     ); y = y - h
 
     -- Only worth saying when it is actually wrong. The timeline's own display toggle is

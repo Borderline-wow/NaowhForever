@@ -2381,6 +2381,26 @@ function ns.BuildBossListPage(parent, y, isRaid)
     pageHead:SetText(isRaid and "Raid Bosses" or "Dungeon Bosses")
     y = y - 22
 
+    -- Raid-only on purpose. The gate asks whether the OTHER tank has the boss, and that
+    -- question only exists with two of them -- a five-man has one tank holding every boss
+    -- unit, so the check always answers yes there and changes nothing. It sat on the Setup
+    -- tab looking like a global behaviour switch.
+    if isRaid then
+        _, h = W:DualRow(parent, y,
+            { type = "toggle", text = "Only While I Have the Boss",
+              tooltip = "For raids with two tanks: stay quiet when the boss is on the other "
+              .. "tank. Checked at the moment the warning fires -- threat first, then the "
+              .. "boss's actual target -- and whenever the game keeps the answer sealed the "
+              .. "alert plays anyway, because a spare callout costs less than a silent tank "
+              .. "buster. It lives here because it only matters with two tanks -- in a "
+              .. "dungeon you normally hold every boss yourself, so it rarely changes "
+              .. "anything there.",
+              getValue = function() return ns.DB().aggroOnly end,
+              setValue = function(v) ns.DB().aggroOnly = v end },
+            { type = "label", text = "" }
+        ); y = y - h
+    end
+
     local data = ns.ScrapeBosses(false)
     if not data or #data.instances == 0 then
         local why = (scrapeFailed == "busy")
