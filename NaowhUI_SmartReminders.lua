@@ -3089,8 +3089,28 @@ local function OnCombatLog()
 end
 
 
+local cleuRegistered = false
+
 local function UpdateEventRegistration()
     if not watcher then return end
+
+    -- ABOVE the ShouldRun gate, and that placement is the whole point. Registering this
+    -- HasRestrictions event from insecure code inside restricted content throws
+    -- ADDON_ACTION_FORBIDDEN (confirmed live from the main chunk, 11x, on a raid login),
+    -- and pcall cannot catch it, so the one legal moment is while standing outside such
+    -- content. But ShouldRun() requires TimelineAvailable(), which is false out there --
+    -- so with this below that gate the attempt could only ever run in the one place it
+    -- cannot succeed, and a whole raid night reported registered=false, lines=0 with the
+    -- own-buff tracking never receiving a line. Latched, because unregistering is
+    -- forbidden the same way and there is nothing to undo.
+    if not cleuRegistered then
+        local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
+            and C_CombatLog.IsCombatLogRestricted()
+        if restricted == false or restricted == nil then
+            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+            cleuRegistered = true
+        end
+    end
 
     if not ShouldRun() then
         runActive = false
@@ -3683,9 +3703,11 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- code that is actually loaded. The two counters only move during an encounter (the
     -- handler returns on currentEncounter == nil before reaching them), so a zero outside
     -- a pull says nothing -- registered= is the one that answers on its own.
-    ns.Print(("combat log: registered=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
+    ns.Print(("combat log: registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
         watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") and "true"
             or "|cffff6060false|r",
+        tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
+            and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
     ns.Print("usage: /nutank cds | calls | test | catalogue | gate | secrecy | bosses | defensives")
@@ -4809,18 +4831,6 @@ end
 --  Boot
 -------------------------------------------------------------------------------
 watcher = CreateFrame("Frame")
--- STATICALLY, at load, and never unregistered. COMBAT_LOG_EVENT_UNFILTERED is a
--- HasRestrictions event, and toggling one of those from insecure code inside restricted
--- content throws ADDON_ACTION_FORBIDDEN, which pcall cannot catch -- so there is no
--- moment during play at which the registration can be decided. Gating it behind
--- C_CombatLog.IsCombatLogRestricted() looked like the safe version of that and was
--- worse: the probe answers true inside a raid, so a session that never ran Apply outside
--- one registered nothing at all, and Skip When Already Covered spent whole nights
--- reading an empty aura table. Confirmed live at /nutank: registered=false, lines=0.
--- Every damage meter and boss mod registers this at load for the same reason.
--- OnCombatLog self-gates on currentEncounter and runActive, so this costs one plain read
--- per line outside a pull.
-watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 watcher:RegisterEvent("PLAYER_LOGIN")
 watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
 watcher:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
