@@ -3675,7 +3675,13 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
         tostring(canSelect and true or false), tostring(canGate and true or false),
         tostring(canBar and true or false), tostring(canSound and true or false)))
-    ns.Print(("combat log: lines=%d ownAuras=%d playerGUID=%s"):format(
+    -- Asked of the frame rather than tracked in a flag of our own, so it answers for the
+    -- code that is actually loaded. The two counters only move during an encounter (the
+    -- handler returns on currentEncounter == nil before reaching them), so a zero outside
+    -- a pull says nothing -- registered= is the one that answers on its own.
+    ns.Print(("combat log: registered=%s lines=%d ownAuras=%d playerGUID=%s"):format(
+        watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") and "true"
+            or "|cffff6060false|r",
         cleuLines, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
     ns.Print("usage: /nutank cds | calls | test | catalogue | gate | secrecy | bosses | defensives")
