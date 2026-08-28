@@ -2815,11 +2815,23 @@ local function FireBigWigsAbility(sid)
         if binding and binding.mode == "custom" then return end
     end
     if not ns.testFiring then
-        if not isTank then return end
+        -- Pretend Tank lets someone who is not tanking run the whole engine for real, on a
+        -- live pull, so a DPS can reproduce and trace a report instead of the fix waiting
+        -- on the one person who has the boss. Both gates it lifts are about whether the
+        -- hit is coming at YOU; everything downstream -- ability enablement, the priority
+        -- pick, cooldown state, covered-skip, the voice -- runs exactly as it would for a
+        -- tank, which is the point.
+        --
+        -- The aggro check still RUNS and still records its verdict, it just does not stop
+        -- the callout. A trace taken this way therefore still shows what the gate would
+        -- have answered, which is usually the thing being investigated.
+        local pretend = TRDB().pretendTank
+        if not isTank and not pretend then return end
         if TRDB().aggroOnly then
             local verdict, path = TankingCaster(sid)
-            lastAggroCheck = { sid = sid, verdict = verdict, path = path }
-            if not verdict then return end
+            lastAggroCheck = { sid = sid, verdict = verdict, path = pretend and not verdict
+                and ("pretend/" .. tostring(path)) or path }
+            if not verdict and not pretend then return end
         else
             lastAggroCheck = nil
         end
@@ -3379,7 +3391,8 @@ local warnedCombatWarnings = false
 local saidAudioOnly = false
 
 local function WarnIfMuted()
-    if warnedCombatWarnings or not TRDB().enabled or not isTank then return end
+    if warnedCombatWarnings or not TRDB().enabled
+        or not (isTank or TRDB().pretendTank) then return end
     if not CombatWarningsOff() then return end
     warnedCombatWarnings = true
     ns.Print("|cffff6060Boss Warnings are turned off|r, so the game sends no timeline data and "
@@ -3394,7 +3407,8 @@ end
 local warnedNoBossMod = false
 -- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling.
 function ns.WarnIfNoBossMod()
-    if warnedNoBossMod or not TRDB().enabled or not isTank then return end
+    if warnedNoBossMod or not TRDB().enabled
+        or not (isTank or TRDB().pretendTank) then return end
     if _G.BigWigsLoader or _G.DBM then return end
     warnedNoBossMod = true
     ns.Print("|cffff6060No BigWigs or DBM detected|r, so the tank reminder has nothing to "
@@ -3637,6 +3651,23 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- about rather than only the current one.
     -- Recording is a persisted flag, not a session one: a key run can span a reload, and a
     -- trace that silently stopped at the first loading screen would be worse than none.
+    if arg == "pretendtank" then
+        local t = TRDB()
+        t.pretendTank = not t.pretendTank and true or nil
+        if t.pretendTank then
+            ns.Print("|cffF0A830PRETEND TANK ON|r -- callouts now fire for tank busters even "
+                .. "though you are not tanking. For testing only; turn it back off before "
+                .. "playing normally. The aggro check still records what it WOULD have said.")
+            if activeSlots == 0 then
+                ns.Print("  note: your priority list is empty for this spec, so there is still "
+                    .. "nothing to call. Add defensives in Smart Reminders first.")
+            end
+        else
+            ns.Print("|cff6DD09APretend Tank off|r -- back to normal tank-only behaviour.")
+        end
+        return
+    end
+
     if arg == "trace" then
         local t = TRDB()
         t.trace = not t.trace and true or nil
@@ -3655,8 +3686,9 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         local t = TRDB()
         local log = type(t.callLog) == "table" and t.callLog or {}
         local out = {}
-        out[#out + 1] = ("build %s | spec %d | tank %s | slots %d | trace %s"):format(
-            BuildString(), specID, tostring(isTank), activeSlots, tostring(t.trace and true or false))
+        out[#out + 1] = ("build %s | spec %d | tank %s | pretendTank %s | slots %d | trace %s"):format(
+            BuildString(), specID, tostring(isTank), tostring(t.pretendTank and true or false),
+            activeSlots, tostring(t.trace and true or false))
         out[#out + 1] = ("combat log registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d"):format(
             tostring(watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED")),
             tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
@@ -3954,7 +3986,10 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("build: %s"):format(BuildString()))
     ns.Print(("tank reminder: enabled=%s spec=%d tank=%s slots=%d"):format(
         tostring(TRDB().enabled), specID, tostring(isTank), activeSlots))
-    if not isTank then
+    if TRDB().pretendTank then
+        ns.Print("|cffF0A830PRETEND TANK IS ON|r -- tank busters call for you regardless of "
+            .. "spec or aggro. /nutank pretendtank turns it off.")
+    elseif not isTank then
         ns.Print("|cffF0A830this spec does not tank|r, so known tank busters stay quiet "
             .. "here. Custom reminders and uncovered bosses in authoring mode still call.")
     end
@@ -3978,7 +4013,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
-    ns.Print("usage: /nutank cds | calls | keys | trace | export | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank cds | calls | keys | trace | export | pretendtank | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
