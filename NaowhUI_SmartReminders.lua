@@ -1387,9 +1387,20 @@ local readyAt = {}          -- [list spellID] = GetTime() at which it is back up
 -- own it: a local declared later in the file is not an upvalue to a function defined
 -- earlier, so referencing it from EnsureChargeState would have read a nil global and
 -- silently done nothing.
+-- Only a STARTING guess for the per-charge recharge, replaced by the first real
+-- measurement on this character (see ChargesAvailable). Deliberately the ability's full
+-- cooldown rather than a shorter number observed on one build: talents move the real
+-- figure, and one hardcoded value cannot be right for everyone. 180 sat here for
+-- Guardian of Ancient Kings and handed a second charge back two minutes early on a build
+-- that did not have that reduction -- the callout named a defensive that was visibly on
+-- cooldown, reported live off Robin's stream on Kings Rest.
+--
+-- Too LONG is the safe direction here, unlike the bar dedupe: an understated charge count
+-- makes the pick name a different defensive that IS up, which is a worse choice, not
+-- silence. Too short names one that is down, which is worthless at the moment it matters.
 local KNOWN_BASE_COOLDOWN = {
     [642] = 300,      -- Divine Shield
-    [86659] = 180,    -- Guardian of Ancient Kings
+    [86659] = 300,    -- Guardian of Ancient Kings
 }
 
 -- GetSpellCooldownDuration describes the COOLDOWN. A charge spell is gated by its
@@ -1483,7 +1494,13 @@ function EnsureChargeState(sid)
             -- nothing recharging. What is lost is only the middle of the stack -- holding
             -- 1 of 2 reads as 0 until the last charge lands -- and that is silence about a
             -- spell that is up, never a call for one that is down.
-            recharge = learned or KNOWN_BASE_COOLDOWN[sid] or 0,
+            -- The larger of the two, not the learned one outright. Learned values for
+            -- charge spells were measured off isActive, which lies for a talent-granted
+            -- extra charge, so a stored figure BELOW the ability's real cooldown is more
+            -- likely that lie than a genuine talent reduction -- and it hands back a
+            -- charge that is not there. The seed is a floor for the spells it names;
+            -- everything else still takes the measurement, which is all it has.
+            recharge = math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0),
         }
         chargeState[sid] = st
     end
@@ -1502,6 +1519,12 @@ function ChargesAvailable(sid)
         -- so unlike reading the cooldown it works in restricted content, which is the only
         -- place this matters. Restricted to the one-charge case on purpose -- with two out
         -- the elapsed time covers two recharges and our own count is the thing in doubt.
+        -- Still only from zero, deliberately. Letting a measurement correct a SEEDED
+        -- recharge was tried and reverted: this measurement is timed off isActive, and
+        -- isActive is exactly the signal known to lie for a talent-granted extra charge
+        -- (see the snap below). Using it to overwrite a seed would let that lie become the
+        -- stored rate, which is the bug being fixed here rather than a cure for it. With no
+        -- seed at all there is nothing better available, so it still runs there.
         if st.recharge <= 0 and st.missingSince and st.count == st.max - 1 then
             local measured = GetTime() - st.missingSince
             if measured > 1.5 then
