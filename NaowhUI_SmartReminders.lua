@@ -3594,6 +3594,36 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ProbeCapabilities()
     RefreshSpec()
 
+    -- "It did not work at all on that boss" has now cost three separate investigations,
+    -- because nothing distinguished "the ability never broadcast" from "it broadcast and we
+    -- ignored it". RecordBossModKey has been storing exactly that all along with no way to
+    -- read it back. Per encounter, so it answers for whichever boss is being complained
+    -- about rather than only the current one.
+    if arg == "keys" then
+        local enc = currentEncounter
+        local cat = enc and BossModCatalogueTable(false, enc)
+        if not cat or not next(cat) then
+            ns.Print(enc
+                and ("nothing recorded for encounter %s yet. Either no boss mod broadcast "
+                    .. "anything, or this ran outside a pull."):format(tostring(enc))
+                or "not in an encounter, so there is nothing to attribute keys to. Run this "
+                    .. "during or right after a pull.")
+            return
+        end
+        ns.Print(("|cffF0A830boss mod keys|r seen this pull (encounter %s):"):format(tostring(enc)))
+        for key, e in pairs(cat) do
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(key)
+            local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[key]
+            local on = ns.AbilityEnabledForBinding(enc, key)
+            ns.Print(("  %d %s -- %s/%s x%d -- %s, %s"):format(
+                key, (info and info.name) or "?", tostring(e.mod), tostring(e.kind),
+                e.seen or 0,
+                curated and "in the tank list" or "|cff8a99b5not a tank ability|r",
+                on and "|cff6DD09Awould call|r" or "|cffff6060OFF for this boss|r"))
+        end
+        return
+    end
+
     if arg == "catalogue" or arg == "catalog" then
         if not (C_EncounterEvents and C_EncounterEvents.GetEventList) then
             ns.Print("C_EncounterEvents is not available on this client.")
@@ -3895,7 +3925,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
-    ns.Print("usage: /nutank cds | calls | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank cds | calls | keys | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
