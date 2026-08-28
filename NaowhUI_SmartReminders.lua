@@ -2783,23 +2783,30 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if not (ShouldRun() and InEncounter()) then return end
-    -- The scheduled fire deliberately lands `lead` seconds BEFORE the bar ends, and plenty
-    -- of BigWigs modules Message the same key from that bar's own onFinished (Coiled
-    -- Altar's Sever does, key 1299680 on both the CDBar and the Message). So the Message
-    -- arrives almost exactly `lead` seconds after the callout already went out. A flat 3s
-    -- window sat exactly on that boundary at the default 3s lead and let it through as a
-    -- second callout for the one hit -- reported live as "Ardent Defender, then Guardian
-    -- of Ancient Kings right after".
-    local repeatWindow = ns.LeadTimeFor(currentEncounter, sid) + 1
-    if sid == lastBWSid and (GetTime() - lastBWAt) < repeatWindow then return end
+    -- Both duplicates and next occurrences arrive `lead` seconds after our own fire, so
+    -- timing alone cannot separate them -- the presence of a duration can. See each branch.
+    local lead = ns.LeadTimeFor(currentEncounter, sid)
 
     if type(duration) == "number" and duration > 0.5 then
-        local lead = ns.LeadTimeFor(currentEncounter, sid)
+        -- Deliberately NOT repeat-guarded. A repeating tank buster's NEXT bar starts the
+        -- instant the current one lands, which is `lead` seconds after we already fired
+        -- for it -- indistinguishable by timing alone from the duplicate this guard is
+        -- for. Widening the guard to span the lead time swallowed that next bar instead,
+        -- and the callout for the following hit never got scheduled at all: reported on
+        -- Kings Rest's Golden Serpent as "then it's not calling anything on the next tank
+        -- hit". A duplicate costs a moment of attention; a silent buster costs the tank.
+        -- ScheduleBWFire already collapses genuine duplicates on this path by superseding
+        -- whatever is pending for the sid, so nothing here needs the guard anyway.
         ns.ScheduleBWFire("tank", sid, duration, barIdentity, lead, function(fireSid)
             lastBWSid, lastBWAt = fireSid, GetTime()
             FireBigWigsAbility(fireSid)
         end)
     else
+        -- No duration means this is the cast itself landing, not a countdown to one, and
+        -- ours already fired `lead` seconds ago for exactly this cast. The guard belongs
+        -- here and only here: a Message cannot be the next occurrence announcing itself.
+        if sid == lastBWSid and (GetTime() - lastBWAt) < lead + 1 then return end
+
         -- A plain Message never goes through ScheduleBWFire (no duration to wait out), so
         -- it never touched pendingBWFires -- a module that pairs a StartBar with a same-key
         -- Message for the one real cast (confirmed: Entombed Sentinels' Empowering Slam)
