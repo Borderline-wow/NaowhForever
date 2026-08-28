@@ -537,7 +537,7 @@ local namePrompt
 
 local function ShowNamePrompt(title, confirmLabel, initial, onCommit)
     if not namePrompt then
-        local dimmer, panel = ns.MakeModal(340, 150)
+        local dimmer, panel = ns.MakeModal(340, 150, "namePrompt")
         local np = { dimmer = dimmer }
 
         np.head = ns.Font(panel, 14, "OUTLINE")
@@ -600,7 +600,7 @@ end
 -- the row.
 local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     local W = EUI.Widgets
-    local dimmer, panel = ns.MakeModal(360, 130)
+    local dimmer, panel = ns.MakeModal(360, 130, "abilitySettings")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -647,7 +647,7 @@ end
 local function ShowFallbackSettingsPopup(EUI)
     local W = EUI.Widgets
     local db = ns.DB()
-    local dimmer, panel = ns.MakeModal(360, 130)
+    local dimmer, panel = ns.MakeModal(360, 130, "fallbackSettings")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -1139,7 +1139,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
     local W = EUI.Widgets
 
-    local dimmer, panel = ns.MakeModal(480, 620)
+    local dimmer, panel = ns.MakeModal(480, 620, "customReminderEditor")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -1872,7 +1872,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     -- amount panel and body both, preserving the original's ~84px margin above Save/
     -- Cancel -- matches the 480x620 precedent this file already uses for its other,
     -- taller modal (the full custom reminder editor).
-    local dimmer, panel = ns.MakeModal(440, 640)
+    local dimmer, panel = ns.MakeModal(440, 640, "abilityReminderPicker")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -2493,7 +2493,7 @@ end
 function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
     local EUI = callerEUI or _G.EllesmereUI
 
-    local dimmer, panel = ns.MakeModal(480, 560)
+    local dimmer, panel = ns.MakeModal(480, 560, "bossReminderPicker")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -2718,7 +2718,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     -- Taller than ShowCustomReminderEditor's 620: the Target tab now carries full
     -- role/class/subgroup checkbox grids plus spec/name text fields instead of one
     -- kind dropdown, and none of these tab bodies scroll.
-    local dimmer, panel = ns.MakeModal(480, 860)
+    local dimmer, panel = ns.MakeModal(480, 860, "raidReminderEditor")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)

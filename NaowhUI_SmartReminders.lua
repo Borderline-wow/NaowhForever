@@ -3994,7 +3994,7 @@ end
 local function BuildPicker()
     if pickPopup then return pickPopup end
 
-    local dimmer, panel = ns.MakeModal(380, 460)
+    local dimmer, panel = ns.MakeModal(380, 460, "defensivePicker")
 
     local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -4106,7 +4106,7 @@ local textPopup
 -- state -- so the two live on one control rather than needing a mode switch.
 local function ShowCalloutEditor(title, current, onAccept, spellID)
     if not textPopup then
-        local dimmer, panel = ns.MakeModal(400, 240)
+        local dimmer, panel = ns.MakeModal(400, 240, "calloutEditor")
 
         local head = ns.Font(panel, 14, "OUTLINE")
         head:SetPoint("TOP", panel, "TOP", 0, -16)

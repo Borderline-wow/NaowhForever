@@ -161,9 +161,24 @@ end
 -- under that ceiling while still making each newly opened modal outrank the last one.
 local nextModalLevel = 10
 
+-- One live modal per key. Callers build their contents fresh on every open, so without
+-- an identity the same button pressed twice leaves two live copies stacked on screen --
+-- reported on the pack importer, but true of every dialog here. Retiring the previous
+-- copy under the same key is all that is needed: WoW frames cannot be destroyed, and
+-- hiding an orphaned one is as close to releasing it as the API allows.
+--
+-- Nested dialogs keep DIFFERENT keys (the reminder editor opens from inside the instance
+-- modal and both must stay up), so this never closes a parent to open its child.
+local liveModals = {}
+
 -- A dimmed modal shell: click-off to dismiss, house border and panel fill. Returns the
--- dimmer (show/hide this) and the panel to fill.
-function ns.MakeModal(width, height)
+-- dimmer (show/hide this) and the panel to fill. `key` names the dialog; pass one unless
+-- several copies are genuinely meant to coexist.
+function ns.MakeModal(width, height, key)
+    if key and liveModals[key] then
+        liveModals[key]:Hide()
+        liveModals[key] = nil
+    end
     local dimmer = CreateFrame("Frame", nil, UIParent)
     dimmer:SetAllPoints(UIParent)
     dimmer:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -224,6 +239,7 @@ function ns.MakeModal(width, height)
     end)
     dimmer:Hide()
 
+    if key then liveModals[key] = dimmer end
     return dimmer, panel
 end
 

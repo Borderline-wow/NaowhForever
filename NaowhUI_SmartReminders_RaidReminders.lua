@@ -1097,7 +1097,7 @@ function ns.ShowRaidReminderAnchorSizePopup(displayType)
     local rows = RESIZE_ROWS[displayType]
     if not rows then return end
 
-    local dimmer, panel = ns.MakeModal(240, 60 + #rows * 34)
+    local dimmer, panel = ns.MakeModal(240, 60 + #rows * 34, "raidReminderAnchorSize")
     local head = ns.Font(panel, 13, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -14)
     head:SetText((DISPLAY_TYPE_LABEL[displayType] or displayType) .. " Size")

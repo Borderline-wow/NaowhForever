@@ -236,7 +236,7 @@ function ns.ShowPackExport()
         packExport.dimmer:Show()
         return
     end
-    local dimmer, panel = ns.MakeModal(560, 330)
+    local dimmer, panel = ns.MakeModal(560, 330, "packExport")
     -- ns.Font, not a guard on ns.MakeFontString: that name is defined nowhere in the addon,
     -- so the guard was always false and this title alone skipped the shared helper every
     -- other heading here uses.
@@ -291,7 +291,7 @@ function ns.ShowPackImport()
         packImport.box:SetFocus()
         return
     end
-    local dimmer, panel = ns.MakeModal(560, 330)
+    local dimmer, panel = ns.MakeModal(560, 330, "packImport")
     local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Import Profile")
