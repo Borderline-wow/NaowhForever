@@ -198,18 +198,44 @@ local function MakePackBox(panel, topOffset, height)
     scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, topOffset)
     scroll:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -34, topOffset)
     scroll:SetHeight(height)
+    -- Given the same field treatment as every other edit box here. Without it there is
+    -- nothing on screen marking where the text goes, which on the import side reads as a
+    -- dialog with no input at all.
+    ns.Solid(scroll, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+    ns.Border(scroll)
+
     local box = CreateFrame("EditBox", nil, scroll)
     box:SetMultiLine(true)
     box:SetAutoFocus(false)
     box:SetFontObject("GameFontHighlightSmall")
     box:SetWidth(1)
+    -- A multiline edit box sizes itself to its CONTENT, so an empty one is zero pixels
+    -- tall and cannot be clicked into -- which is why the export box worked (it opens
+    -- full of text) and the import box did not. Start it at the full scroll height; text
+    -- longer than that still grows it from here.
+    box:SetHeight(height)
     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     scroll:SetScrollChild(box)
     scroll:SetScript("OnSizeChanged", function(self, w) box:SetWidth(w) end)
+
+    -- Clicking anywhere in the field focuses the text, not just the exact glyph run.
+    scroll:EnableMouse(true)
+    scroll:SetScript("OnMouseDown", function() box:SetFocus() end)
     return box
 end
 
+-- Built once and reused. ns.MakeModal hands out a fresh dimmer and panel on every call
+-- and never releases the old one, so rebuilding these per open stacked a new copy on the
+-- screen each time the button was pressed -- reported as spawning infinite boxes. Same
+-- cached-dialog shape ShowNamePrompt in Bosses.lua already uses.
+local packExport, packImport
+
 function ns.ShowPackExport()
+    if packExport then
+        packExport.Regenerate()
+        packExport.dimmer:Show()
+        return
+    end
     local dimmer, panel = ns.MakeModal(560, 330)
     -- ns.Font, not a guard on ns.MakeFontString: that name is defined nowhere in the addon,
     -- so the guard was always false and this title alone skipped the shared helper every
@@ -251,13 +277,22 @@ function ns.ShowPackExport()
 
     ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+
+    packExport = { dimmer = dimmer, Regenerate = Regenerate }
     Regenerate()
     dimmer:Show()
 end
 
 function ns.ShowPackImport()
+    if packImport then
+        packImport.box:SetText("")
+        packImport.Revalidate()
+        packImport.dimmer:Show()
+        packImport.box:SetFocus()
+        return
+    end
     local dimmer, panel = ns.MakeModal(560, 330)
-    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Import Profile")
 
@@ -309,6 +344,9 @@ function ns.ShowPackImport()
     ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 14)
 
+    packImport = { dimmer = dimmer, box = box, Revalidate = Revalidate }
     Revalidate()
     dimmer:Show()
+    -- Focused on open: the only thing anyone does with this dialog is paste.
+    box:SetFocus()
 end
