@@ -66,6 +66,11 @@ ns.TANK_ABILITIES = {
     [1251023] = "Unknown",   -- Rak'tul: Spiritbreaker
     [1251554] = "Unknown",   -- Vor'daza: Drain Soul
     [1253950] = "Unknown",   -- Emberdawn: Searing Rend
+    -- LittleWigs carries this one as an aura option only (soundOnApplied, no bar), so it
+    -- never reaches the engine from that side -- but DBM runs a real 26s CD timer for it
+    -- under the same id, and its note is CL.tank_hit outright. DBM-driven only, the mirror
+    -- of Emberdawn's Searing Rend above being BigWigs-only.
+    [1255335] = "Unknown",   -- Lothraxion: Searing Rend
     [1268562] = "Unknown",   -- Nymrissa Wavecaller: Water Jet (Mythic only)
     [1267049] = "Unknown",   -- Midnight Falls: Heaven's Lance
     [1221781] = "Unknown",   -- Rotmire: Putrid Fist
