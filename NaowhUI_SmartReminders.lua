@@ -1898,7 +1898,10 @@ end
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0825i"
+local function BuildString()
+    return (C_AddOns and C_AddOns.GetAddOnMetadata
+        and C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version")) or "unknown"
+end
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -3006,7 +3009,7 @@ local function PlayerGUID()
     return playerGUID
 end
 
-local cleuLines, cleuOwnAuras = 0, 0
+local cleuLines, cleuUsable, cleuOwnAuras = 0, 0, 0
 
 local function OnCombatLog()
     -- The price of static registration: this fires for every combat log line, so outside
@@ -3023,16 +3026,19 @@ local function OnCombatLog()
         or (ns.RaidRemindersTable and next(ns.RaidRemindersTable(false, currentEncounter) or {}))) then
         return
     end
+    -- Counted here, ABOVE the secrecy filter, so /nutank can separate three different
+    -- reasons Skip When Already Covered can read an empty table: the event never arrived
+    -- (lines stays 0), it arrived but every line carried a secret and was discarded
+    -- (usable stays 0), or lines survived and the own-buff branch still never matched.
+    -- They need opposite fixes. Both counters sit below the currentEncounter gate, so
+    -- nothing here costs anything outside a pull.
+    cleuLines = cleuLines + 1
     local _, sub, _, sourceGUID, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = CombatLogGetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)
         or issecretvalue(amount)) then
         return
     end
-    -- Counted so /nutank can tell "the combat log never reached us at all" (the
-    -- registration latch below never fired, or every line came back secret) apart from
-    -- "it reached us but the own-buff branch never matched". Skip When Already Covered
-    -- failing has both of those as causes and they need opposite fixes.
-    cleuLines = cleuLines + 1
+    cleuUsable = cleuUsable + 1
 
     -- Feeds TankingCaster: which boss1-5 unit is actually behind a given spell id, for
     -- fights running more than one boss unit at once. Checked on its own, not folded into
@@ -3519,9 +3525,9 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     end
 
     if arg == "trace" then
-        ns.Print(("build %s. The old timeline-fingerprint trace was retired with the "
-            .. "fingerprint engine -- a spellID-based replacement is coming. /nutank cds "
-            .. "shows your current priority list state in the meantime."):format(TRACE_BUILD))
+        ns.Print("the old timeline-fingerprint trace was retired with the fingerprint "
+            .. "engine -- a spellID-based replacement is coming. /nutank cds shows your "
+            .. "current priority list state in the meantime.")
         return
     end
 
@@ -3540,7 +3546,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         end
         ResyncModel()
         local now, anyReady = GetTime(), false
-        ns.Print(("|cffF0A830cooldowns|r (build %s), in priority order:"):format(TRACE_BUILD))
+        ns.Print(("|cffF0A830cooldowns|r (build %s), in priority order:"):format(BuildString()))
         for i = 1, activeSlots do
             local sid = slots[i].spellID
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
@@ -3659,9 +3665,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- The build, first, because every report that cost a run to diagnose started with not
     -- knowing which one was loaded. A version string is weaker evidence than a stack line,
     -- but it is the only thing a tester can read out without an error to paste.
-    ns.Print(("build: %s"):format(
-        (C_AddOns and C_AddOns.GetAddOnMetadata
-            and C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version")) or "unknown"))
+    ns.Print(("build: %s"):format(BuildString()))
     ns.Print(("tank reminder: enabled=%s spec=%d tank=%s slots=%d"):format(
         tostring(TRDB().enabled), specID, tostring(isTank), activeSlots))
     if not isTank then
@@ -3679,10 +3683,10 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- code that is actually loaded. The two counters only move during an encounter (the
     -- handler returns on currentEncounter == nil before reaching them), so a zero outside
     -- a pull says nothing -- registered= is the one that answers on its own.
-    ns.Print(("combat log: registered=%s lines=%d ownAuras=%d playerGUID=%s"):format(
+    ns.Print(("combat log: registered=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
         watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") and "true"
             or "|cffff6060false|r",
-        cleuLines, cleuOwnAuras,
+        cleuLines, cleuUsable, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
     ns.Print("usage: /nutank cds | calls | test | catalogue | gate | secrecy | bosses | defensives")
 end
