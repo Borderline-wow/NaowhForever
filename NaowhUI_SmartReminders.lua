@@ -1196,13 +1196,19 @@ local function BigDefensiveUp()
     return false
 end
 
+-- Second and third returns name the covering spell and which rung answered. A skip is
+-- otherwise completely invisible -- the callout simply does not happen, which looks
+-- identical to the engine never firing at all, and that ambiguity has already cost a round
+-- of guessing about whether this gate runs.
 local function CoveredByActiveDefensive()
     local now = GetTime()
-    if BigDefensiveUp() then return true end
+    if BigDefensiveUp() then return true, nil, "bigdef" end
     for i = 1, activeSlots do
         local sid = slots[i].spellID
-        if playerAuraUp[sid] then return true end
-        if ownCastAt[sid] and (now - ownCastAt[sid]) < OWN_CAST_COVER_WINDOW then return true end
+        if playerAuraUp[sid] then return true, sid, "aura" end
+        if ownCastAt[sid] and (now - ownCastAt[sid]) < OWN_CAST_COVER_WINDOW then
+            return true, sid, "cast"
+        end
         -- Fallback for a buff that was already up before tracking could see it apply
         -- (addon just enabled, UI just reloaded, pre-popped before pull) -- existence
         -- only, not exact timing, same as playerAuraUp itself answers.
@@ -1210,7 +1216,7 @@ local function CoveredByActiveDefensive()
             local ok, exists = pcall(function()
                 return type(C_UnitAuras.GetPlayerAuraBySpellID(sid)) == "table"
             end)
-            if ok and exists then return true end
+            if ok and exists then return true, sid, "poll" end
         end
     end
     return false
@@ -2791,8 +2797,12 @@ local function FireBigWigsAbility(sid)
     -- differ from whatever the previous ability left loaded -- has to be current, or the
     -- check compares an already-active defensive against the wrong ability's list and
     -- misses the cover entirely.
-    if not ns.testFiring and TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then
-        return
+    if not ns.testFiring and TRDB().coveredSkip ~= false then
+        local covered, bySid, how = CoveredByActiveDefensive()
+        if covered then
+            AppendLog({ kind = "skip", sid = bySid or sid, tankSid = sid, tankPath = how })
+            return
+        end
     end
 
     ApplyPriorityAlpha()
@@ -3772,6 +3782,13 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             if e.kind == "cast" then
                 ns.Print(("%s enc=%s stage=%s -- CAST %s"):format(
                     e.stamp, tostring(e.enc), tostring(e.stage), name))
+            elseif e.kind == "skip" then
+                local bossInfo = e.tankSid
+                    and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.tankSid)
+                ns.Print(("%s enc=%s stage=%s -- |cff8a99b5skipped|r %s -- already covered by %s (%s)"):format(
+                    e.stamp, tostring(e.enc), tostring(e.stage),
+                    (bossInfo and bossInfo.name) or tostring(e.tankSid),
+                    name, tostring(e.tankPath)))
             else
                 local tankInfo = e.tankSid
                     and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.tankSid)
