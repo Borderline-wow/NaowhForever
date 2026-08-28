@@ -1147,10 +1147,28 @@ end
 -- matching the exp==0 "no clock" case the old check already trusted the same way.
 local playerAuraUp = {}   -- [spellID] = true while up, per our own combat-log tracking
 
+-- Last rung, and the only one that survives with no combat log at all. Registering
+-- COMBAT_LOG_EVENT_UNFILTERED is only legal outside restricted content, so a session that
+-- logs straight into an instance and never leaves has no aura tracking for its whole
+-- length -- and that is exactly a raid night. UNIT_SPELLCAST_SUCCEEDED is unit-filtered to
+-- the player, carries no identity read, and is never restricted, so "I pressed one of these
+-- a moment ago" is answerable when "one of these is on me" is not.
+--
+-- A flat window rather than each defensive's real duration: the addon ships no class
+-- knowledge by design, and a buff's length cannot be read before it exists. 6s is chosen to
+-- be longer than the whole press-to-hit window (the callout leads the cast by 3s by
+-- default, and a tank who pre-pops does so as the cast begins) while staying far short of
+-- any real tank buster's cycle, so it cannot reach forward and silence the NEXT hit. That
+-- direction matters more than covering every case: see ns.HandleBigWigsAbility.
+local OWN_CAST_COVER_WINDOW = 6
+local ownCastAt = {}   -- [spellID] = GetTime() of our own last cast of it
+
 local function CoveredByActiveDefensive()
+    local now = GetTime()
     for i = 1, activeSlots do
         local sid = slots[i].spellID
         if playerAuraUp[sid] then return true end
+        if ownCastAt[sid] and (now - ownCastAt[sid]) < OWN_CAST_COVER_WINDOW then return true end
         -- Fallback for a buff that was already up before tracking could see it apply
         -- (addon just enabled, UI just reloaded, pre-popped before pull) -- existence
         -- only, not exact timing, same as playerAuraUp itself answers.
@@ -1534,6 +1552,7 @@ local function NoteOwnCast(castSpellID)
     local sid = castSpellID and castToBase[castSpellID]
     if not sid then return end
     AppendLog({ kind = "cast", sid = sid })
+    ownCastAt[sid] = GetTime()
 
     -- A charge spell never touches readyAt: a cast spends a charge, and holding one is
     -- what makes it available, not the absence of a timer. Established here too, not only
