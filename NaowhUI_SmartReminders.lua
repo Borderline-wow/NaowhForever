@@ -1160,11 +1160,45 @@ local playerAuraUp = {}   -- [spellID] = true while up, per our own combat-log t
 -- default, and a tank who pre-pops does so as the cast begins) while staying far short of
 -- any real tank buster's cycle, so it cannot reach forward and silence the NEXT hit. That
 -- direction matters more than covering every case: see ns.HandleBigWigsAbility.
+local bigDefSeen = 0
 local OWN_CAST_COVER_WINDOW = 6
 local ownCastAt = {}   -- [spellID] = GetTime() of our own last cast of it
 
+-- The one question the client will still answer about an aura it has made secret.
+-- Every by-spellID aura read carries RequiresNonSecretAura, so it returns NOTHING rather
+-- than a secret -- that is deliberate on Blizzard's side and cannot be worked around from
+-- that direction. C_UnitAuras.AuraIsBigDefensive is the exception: it accepts a SECRET
+-- spellID (SecretArguments = "AllowedWhenTainted") and hands back a plain boolean, so
+-- Blizzard's own classification of the aura crosses the boundary even when its identity
+-- does not. AuraUtil.IsBigDefensive is Blizzard's cached wrapper around it.
+--
+-- Whether the ENUMERATION is allowed for us is the part the source cannot settle
+-- (GetAuraDataByIndex is RequiresUnitAuraAccess). If it is refused, this throws or comes
+-- back empty and the rungs below still answer -- hence the pcall and the plain false.
+-- bigDefSeen counts successes so /nutank can say whether this path ever worked.
+local function BigDefensiveUp()
+    if not (AuraUtil and AuraUtil.IsBigDefensive
+        and C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then
+        return false
+    end
+    local ok, found = pcall(function()
+        for i = 1, 40 do
+            local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
+            if type(aura) ~= "table" then return false end
+            if AuraUtil.IsBigDefensive(aura) == true then return true end
+        end
+        return false
+    end)
+    if ok and found == true then
+        bigDefSeen = bigDefSeen + 1
+        return true
+    end
+    return false
+end
+
 local function CoveredByActiveDefensive()
     local now = GetTime()
+    if BigDefensiveUp() then return true end
     for i = 1, activeSlots do
         local sid = slots[i].spellID
         if playerAuraUp[sid] then return true end
@@ -3729,6 +3763,8 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- code that is actually loaded. The two counters only move during an encounter (the
     -- handler returns on currentEncounter == nil before reaching them), so a zero outside
     -- a pull says nothing -- registered= is the one that answers on its own.
+    ns.Print(("aura cover: bigDefensiveHits=%d (Blizzard's own classification; 0 all pull "
+        .. "means the aura enumeration is refused here)"):format(bigDefSeen))
     ns.Print(("combat log: registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
         watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") and "true"
             or "|cffff6060false|r",
