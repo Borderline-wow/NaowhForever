@@ -1530,6 +1530,12 @@ function EnsureChargeState(sid)
             -- charge that is not there. The seed is a floor for the spells it names;
             -- everything else still takes the measurement, which is all it has.
             recharge = math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0),
+            -- Where that number came from, for /nutank cds. A wrong recharge is invisible
+            -- from the callout itself -- it just names a spell that is down -- so the
+            -- source has to be readable directly rather than inferred from behaviour.
+            rechargeSrc = (math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0) <= 0
+                and "none")
+                or ((learned or 0) >= (KNOWN_BASE_COOLDOWN[sid] or 0) and "learned" or "seed"),
         }
         chargeState[sid] = st
     end
@@ -1548,7 +1554,7 @@ function ChargesAvailable(sid)
     if active then
         local real = ReadChargeRecharge(sid)
         if real and real ~= st.recharge then
-            st.recharge = real
+            st.recharge, st.rechargeSrc = real, "client"
             local t = TRDB()
             if type(t.learned) ~= "table" then t.learned = {} end
             t.learned[tostring(sid)] = real
@@ -1571,7 +1577,7 @@ function ChargesAvailable(sid)
         if st.recharge <= 0 and st.missingSince and st.count == st.max - 1 then
             local measured = GetTime() - st.missingSince
             if measured > 1.5 then
-                st.recharge = measured
+                st.recharge, st.rechargeSrc = measured, "measured"
                 local t = TRDB()
                 if type(t.learned) ~= "table" then t.learned = {} end
                 t.learned[tostring(sid)] = measured
@@ -3732,7 +3738,11 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             if ok and ready then anyReady = true end
             local st = chargeState[sid]
             local detail = st
-                and ("%d/%d charges"):format(ChargesAvailable(sid) or 0, st.max)
+                and ("%d/%d charges, recharge %s (%s)"):format(
+                    ChargesAvailable(sid) or 0, st.max,
+                    st.recharge > 0 and ("%.0fs"):format(st.recharge) or "unknown",
+                    st.rechargeSrc == "client" and "|cff6DD09Aclient|r"
+                        or ("|cffF0A830" .. tostring(st.rechargeSrc) .. "|r"))
                 or (CooldownRunning(sid) == nil and "cooldown unreadable, using the estimate"
                     or "cooldown read directly")
             ns.Print(("  %d. %s -- %s (%s)"):format(i, (info and info.name) or tostring(sid),
