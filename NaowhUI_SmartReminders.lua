@@ -1510,13 +1510,6 @@ function EnsureChargeState(sid)
             -- own, so an undercount here costs a few seconds of silence instead of a false
             -- callout for a defensive still on cooldown.
             max = max, count = active and 0 or max, tick = GetTime(),
-            -- Whether that count is a GUESS from isActive rather than something we watched
-            -- happen. It matters because with no measured recharge there is nothing to
-            -- climb back on, so a pessimistic guess would otherwise stand for the rest of
-            -- the run -- which is how a held Guardian of Ancient Kings lost the pick to
-            -- "call for external" on Xathuux. Cleared the moment a real cast is witnessed
-            -- or the stack reads full, after which the count is tracked, not assumed.
-            guessed = active or nil,
             -- Zero means no climb at all, which is a complete answer rather than a
             -- degraded one: the count still falls on every witnessed cast, and
             -- ChargesAvailable still snaps it back to full the moment isActive reports
@@ -1594,7 +1587,7 @@ function ChargesAvailable(sid)
         -- known yet there is nothing to check against, so the original correction still
         -- applies immediately (that is what recovers a wrongly pessimistic first guess).
         if st.recharge <= 0 or (GetTime() - st.tick) >= st.recharge then
-            st.count, st.tick, st.missingSince, st.guessed = st.max, GetTime(), nil, nil
+            st.count, st.tick, st.missingSince = st.max, GetTime(), nil
             return st.count
         end
     end
@@ -1607,14 +1600,21 @@ function ChargesAvailable(sid)
         end
     end
 
-    -- A guessed count with no recharge to climb on cannot recover, so it must not be the
-    -- pessimistic end of what isActive actually proved. isActive says at least one charge
-    -- is out -- on the two-charge defensives this list carries, the other one is up. Report
-    -- that instead of zero until a cast is actually witnessed, at which point the count is
-    -- tracked and this stops applying. Zero remains correct for a stack we WATCHED empty.
-    if st.guessed and st.recharge <= 0 and st.count < st.max - 1 then
-        st.count = st.max - 1
-    end
+    -- No optimistic floor here, deliberately. One used to raise a guessed count to max-1,
+    -- because isActive proves at least one charge is out and on a two-charge spell that
+    -- was read as "the other one is up" -- but isActive says the same thing when BOTH are
+    -- out, so it claimed a charge that did not exist and called a defensive that was down.
+    --
+    -- It existed only because a guessed count could not recover: with `recharge <= 0`
+    -- there is no climb, so the pessimistic zero stood for the rest of the run and a held
+    -- Guardian of Ancient Kings lost the pick to "call for external" on Xathuux. The
+    -- client's own recharge (ReadChargeRecharge) removes that condition -- it answers
+    -- precisely when a recharge is running, which is exactly when the count is guessed --
+    -- so zero now climbs back on its own and the floor has nothing left to fix.
+    --
+    -- Where no rate can be had at all, zero stands, and that is the right answer: the
+    -- count is genuinely unknown, and for charges an undercount names a DIFFERENT
+    -- defensive that is up rather than one that is down.
 
     -- isActive is plain and exact, and it was only ever read in the one direction above.
     -- Read the other way it is a hard ceiling: something is recharging, so the stack CANNOT
@@ -1678,8 +1678,6 @@ local function NoteOwnCast(castSpellID)
             st.missingSince = GetTime()
         end
         st.count = math.max(0, st.count - 1)
-        -- Watched, not assumed, from here on.
-        st.guessed = nil
         return
     end
 
