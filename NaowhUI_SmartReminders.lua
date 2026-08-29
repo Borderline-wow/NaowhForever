@@ -1062,6 +1062,21 @@ local function UnitTankedVerdict(unit)
     return verdict
 end
 
+-- What the boss slots actually said, for the refusal log. "I am not tanking any boss" and
+-- "threat came back secret" both reach the gate as a plain false, and they call for
+-- different fixes, so the per-slot verdicts are recorded rather than the conclusion.
+local function BossThreatSummary()
+    local out
+    for i = 1, 5 do
+        local unit = "boss" .. i
+        if UnitExists(unit) then
+            out = (out and out .. "," or "")
+                .. ("%s=%s"):format(unit, tostring(UnitTankedVerdict(unit)))
+        end
+    end
+    return out or "no boss units"
+end
+
 -- Does any live boss consider ME its problem? For two-tank raids: the buster lands on
 -- whoever has the boss, and the other tank does not need to burn a cooldown for it. An
 -- unknown verdict still fails OPEN: a spare callout costs a moment of attention, a
@@ -1121,7 +1136,18 @@ local function TankingCaster(sid)
     end
 
     local guid = castSourceGUID[sid]
-    if not guid then return TankingSomeBoss(), "nocache" end
+    -- No idea WHO cast this, so fail open rather than asking a question about different
+    -- units. castSourceGUID is fed only by COMBAT_LOG_EVENT_UNFILTERED, which cannot be
+    -- registered from inside restricted content -- so a session that logs straight into an
+    -- instance has an empty cache for its whole length and every ability lands here.
+    -- TankingSomeBoss then answers "am I tanking any boss1-5 unit", which is the wrong
+    -- question when the caster is an add: it returns a confident false while the player is
+    -- correctly tanking the thing about to hit them, and the callout is suppressed. Seen on
+    -- Midnight Falls, where 37 broadcasts of a curated tank ability produced nothing.
+    -- Matches this file's own stated rule for an unknown verdict, which the old delegation
+    -- quietly contradicted: a spare callout costs a moment of attention, a suppressed one
+    -- on the actual tank costs a death.
+    if not guid then return true, "nocache-open" end
     for i = 1, 5 do
         local unit = "boss" .. i
         if UnitExists(unit) then
@@ -1769,6 +1795,9 @@ local function LogLine(e)
     elseif e.kind == "key" then
         return ("%s -- KEY %s %s (%s/%s)"):format(head, tostring(e.sid), nameOf(e.sid),
             tostring(e.mod), tostring(e.tankPath))
+    elseif e.kind == "aggro" then
+        return ("%s -- BLOCKED %s -- not tanking the caster (%s) -- %s"):format(head,
+            nameOf(e.sid), tostring(e.tankPath), tostring(e.text))
     elseif e.kind == "skip" then
         return ("%s -- skipped %s -- already covered by %s (%s)"):format(head,
             nameOf(e.tankSid), nameOf(e.sid), tostring(e.tankPath))
@@ -2942,7 +2971,16 @@ local function FireBigWigsAbility(sid)
             local verdict, path = TankingCaster(sid)
             lastAggroCheck = { sid = sid, verdict = verdict, path = pretend and not verdict
                 and ("pretend/" .. tostring(path)) or path }
-            if not verdict and not pretend then return end
+            if not verdict and not pretend then
+                -- Refusing SILENTLY was the whole problem: 37 broadcasts of a curated tank
+                -- ability produced no callout and no log line, so a trace of the pull looked
+                -- identical to one where the boss mod never spoke. The threat readings go in
+                -- too, since "not tanking any boss" and "threat unreadable" are different
+                -- answers that both arrive here as false.
+                AppendLog({ kind = "aggro", sid = sid, tankPath = path,
+                    tankSid = sid, text = BossThreatSummary() })
+                return
+            end
         else
             lastAggroCheck = nil
         end
