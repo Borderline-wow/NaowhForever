@@ -1438,6 +1438,11 @@ local KNOWN_BASE_COOLDOWN = {
 -- then a free correction back to full.
 local chargeState = {}
 
+-- Defined below with the rest of the cooldown reads; forward-declared because the charge
+-- model needs it and sits above it. It answers the one question the charge fields cannot:
+-- isActive says a charge is missing, never how many.
+local CooldownRunning
+
 -- Third return is whether the read is trustworthy at all -- false means the API call or
 -- the field read itself failed (missing API, a thrown pcall), as opposed to a valid read
 -- that CONFIRMS max < 2. The distinction matters to the caller: a spell that genuinely
@@ -1701,6 +1706,19 @@ function ChargesAvailable(sid)
     if active and st.count >= st.max then
         st.count = st.max - 1
     end
+
+    -- The floor, and the only readable answer to what isActive cannot say. A spell whose
+    -- cooldown is NOT running is castable, and on a charge spell castable means at least
+    -- one charge is in hand, whatever the model believes. Without this a state built while
+    -- a recharge was already going seeds zero and stays exactly one behind for as long as
+    -- the stack never refills -- the count climbs 0 to 1 as the real one goes 1 to 2 -- and
+    -- that is the Divine Shield callout with a charge in hand, reproduced on Rav'i.
+    --
+    -- Both fields behind it are NeverSecret, so it answers in restricted content, and the
+    -- non-charge path in this file has trusted the same call all along.
+    if st.count < 1 and CooldownRunning(sid) == false then
+        st.count = 1
+    end
     return st.count
 end
 local castToBase = {}       -- cast-time override id -> the id the list stores
@@ -1952,7 +1970,7 @@ end
 --
 -- Returns nil, not a guess, when the client cannot answer -- callers fall back to the
 -- older ladder rather than treating "no answer" as ready.
-local function CooldownRunning(sid)
+function CooldownRunning(sid)
     if not (C_Spell and C_Spell.GetSpellCooldown) then return nil end
     local ok, running = pcall(function()
         local info = C_Spell.GetSpellCooldown(sid)
@@ -2046,9 +2064,10 @@ local function ChargeModelSnapshot()
         local s = slots[i] and slots[i].spellID
         local st = s and chargeState[s]
         if st then
-            out = (out and out .. " " or "") .. ("%d=%d/%d %ds(%s) age=%ds"):format(
+            out = (out and out .. " " or "") .. ("%d=%d/%d %ds(%s) age=%ds cdRunning=%s"):format(
                 s, ChargesAvailable(s) or 0, st.max, st.recharge or 0,
-                tostring(st.rechargeSrc), GetTime() - (st.tick or GetTime()))
+                tostring(st.rechargeSrc), GetTime() - (st.tick or GetTime()),
+                tostring(CooldownRunning(s)))
         end
     end
     return out
