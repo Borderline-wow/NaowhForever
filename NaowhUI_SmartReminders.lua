@@ -1737,7 +1737,8 @@ local function LogLine(e)
         tostring(e.running), e.charges and (" charges=" .. e.charges) or "",
         e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", tostring(e.secrecy),
         e.tankPath and (" tankCheck=%s(%s)"):format(e.tankPath, nameOf(e.tankSid)) or "",
-        e.auraUp and (" auraUp=" .. e.auraUp) or "")
+        (e.auraUp and (" auraUp=" .. e.auraUp) or "")
+            .. (e.chargeModel and ("\n    charges: " .. e.chargeModel) or ""))
 end
 
 local function NoteOwnCast(castSpellID)
@@ -2007,6 +2008,26 @@ local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
 -- "it named X while X was on cooldown" -- can be diagnosed from what already happened,
 -- instead of needing /nutank secrecy typed in the moment, which a live pull never allows.
 -- Persisted (capped) so it survives the relog a bad pull often ends in.
+-- Every charge spell on the list, not just the one that won the pick. A charge spell that
+-- LOSES leaves no trace otherwise, which is exactly the case worth reading: Guardian of
+-- Ancient Kings dropping out of the walk is invisible in a log that only records the
+-- winner. Anchor age is included because a rebuilt charge state is not visible from the
+-- count alone -- it reseeds the count to zero AND resets the anchor, so an age that falls
+-- back to roughly zero between two entries with no cast in between is the tell.
+local function ChargeModelSnapshot()
+    local out
+    for i = 1, activeSlots do
+        local s = slots[i] and slots[i].spellID
+        local st = s and chargeState[s]
+        if st then
+            out = (out and out .. " " or "") .. ("%d=%d/%d %ds(%s) age=%ds"):format(
+                s, ChargesAvailable(s) or 0, st.max, st.recharge or 0,
+                tostring(st.rechargeSrc), GetTime() - (st.tick or GetTime()))
+        end
+    end
+    return out
+end
+
 local function LogCallout(sid)
     local st = chargeState[sid]
     local running = CooldownRunning(sid)
@@ -2024,6 +2045,7 @@ local function LogCallout(sid)
         kind = ns.testFiring and "test" or "call",
         sid = sid,
         charges = st and ("%d/%d"):format(ChargesAvailable(sid) or 0, st.max) or nil,
+        chargeModel = ChargeModelSnapshot(),
         running = running == nil and "unreadable" or tostring(running),
         readyAtDelta = readyAt[sid] and (readyAt[sid] - GetTime()) or nil,
         secrecy = SecrecyLevelName(sid),
