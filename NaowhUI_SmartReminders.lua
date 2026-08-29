@@ -1606,11 +1606,26 @@ function ChargesAvailable(sid)
         local t = TRDB()
         if type(t.clientRecharge) ~= "table" then t.clientRecharge = {} end
         t.clientRecharge[tostring(sid)] = real
-        -- With no witnessed cast to anchor to, the client's own recharge start is the only
-        -- correct one. Only adopted while the model still sits at its pessimistic seed,
-        -- since re-anchoring a tracked count on every read would stop the climb entirely.
-        if remaining and st.count <= 0 and not st.missingSince then
-            st.tick = GetTime() - (real - remaining)
+        -- A charge landing IS the client's recharge start jumping forward by one recharge,
+        -- and that is a far better signal than the elapsed-time climb below: it needs no
+        -- anchor of our own and no witnessed cast, so a state rebuilt mid-fight recovers on
+        -- the next landing instead of guessing.
+        --
+        -- This replaces re-anchoring st.tick while the count sat at zero. That was written
+        -- to fix a rebuilt state's anchor and did the opposite: zero is exactly when the
+        -- climb has to run, so moving the anchor to the running recharge's start on every
+        -- read held `gained` at zero forever and pinned the count. Live capture, Rav'i
+        -- 15:26:54 -- Divine Shield named on 0/2 with a charge in hand two seconds later.
+        if remaining then
+            local start = GetTime() - (real - remaining)
+            if st.rechargeStart then
+                local landed = math.floor((start - st.rechargeStart) / real + 0.5)
+                if landed > 0 then st.count = math.min(st.max, st.count + landed) end
+            end
+            st.rechargeStart = start
+            -- Kept in step so the elapsed-time climb stays quiet while the client is
+            -- answering, and picks up from the right place if it stops.
+            st.tick = start
         end
     end
 
@@ -1647,7 +1662,9 @@ function ChargesAvailable(sid)
         -- known yet there is nothing to check against, so the original correction still
         -- applies immediately (that is what recovers a wrongly pessimistic first guess).
         if st.recharge <= 0 or (GetTime() - st.tick) >= st.recharge then
-            st.count, st.tick, st.missingSince = st.max, GetTime(), nil
+            -- rechargeStart goes with it: the next recharge is a new one, and a stale start
+            -- left here would read as several landings at once the next time one runs.
+            st.count, st.tick, st.missingSince, st.rechargeStart = st.max, GetTime(), nil, nil
             return st.count
         end
     end
@@ -1769,6 +1786,9 @@ local function NoteOwnCast(castSpellID)
         if st.count >= st.max then
             st.tick = GetTime()
             st.missingSince = GetTime()
+            -- This cast starts a fresh recharge, so the next read establishes its own
+            -- baseline rather than reading the gap since an older one as landings.
+            st.rechargeStart = nil
         end
         st.count = math.max(0, st.count - 1)
         return
