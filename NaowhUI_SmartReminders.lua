@@ -1571,16 +1571,6 @@ function EnsureChargeState(sid)
                 and "none")
                 or ((learned or 0) >= (KNOWN_BASE_COOLDOWN[sid] or 0) and "learned" or "seed"),
         }
-        -- Anchor the climb where the running recharge actually began, not where this state
-        -- happened to be built. Only at creation: re-reading it on every pick would keep
-        -- moving the anchor forward and the count could never climb at all.
-        if active then
-            local total, remaining = ReadChargeRecharge(sid)
-            if total and remaining then
-                st.recharge, st.rechargeSrc = total, "client"
-                st.tick = GetTime() - (total - remaining)
-            end
-        end
         chargeState[sid] = st
     end
     return st
@@ -1595,13 +1585,26 @@ function ChargesAvailable(sid)
     -- A running recharge is the client telling us the real rate outright, so take it over
     -- anything seeded or measured. Persisted because it can only be read WHILE recharging,
     -- and the pick has to answer between pulls too.
-    if active then
-        local real = ReadChargeRecharge(sid)
-        if real then
-            st.recharge, st.rechargeSrc = real, "client"
-            local t = TRDB()
-            if type(t.clientRecharge) ~= "table" then t.clientRecharge = {} end
-            t.clientRecharge[tostring(sid)] = real
+    --
+    -- Read WITHOUT consulting isActive first. GetSpellCharges is SecretWhenCooldownsRestricted
+    -- and in a real key it declines outright, so `active` comes back nil there and gating on
+    -- it skipped this read exactly where it was needed -- the rate stayed at the 300s seed
+    -- while GetSpellChargeDuration, which carries no such restriction, would have answered
+    -- 180. That is the whole Kings Rest failure: at a dummy the sealed accessor answers and
+    -- the rate is right, in the key it does not and the count runs two minutes behind.
+    -- An answer here also PROVES a recharge is running, so it stands in for isActive.
+    local real, remaining = ReadChargeRecharge(sid)
+    if real then
+        active = true
+        st.recharge, st.rechargeSrc = real, "client"
+        local t = TRDB()
+        if type(t.clientRecharge) ~= "table" then t.clientRecharge = {} end
+        t.clientRecharge[tostring(sid)] = real
+        -- With no witnessed cast to anchor to, the client's own recharge start is the only
+        -- correct one. Only adopted while the model still sits at its pessimistic seed,
+        -- since re-anchoring a tracked count on every read would stop the climb entirely.
+        if remaining and st.count <= 0 and not st.missingSince then
+            st.tick = GetTime() - (real - remaining)
         end
     end
 
