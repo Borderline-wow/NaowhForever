@@ -1007,6 +1007,12 @@ local function AbilityBindingsTable(create, enc)
 end
 ns.AbilityBindingsTable = AbilityBindingsTable
 
+-- Defined with the rest of the logging further down; forward-declared because the boss-mod
+-- key recorder below logs too and runs earlier in the file. Without this the call there
+-- read a nil global and threw on every bar a boss mod broadcast, but only ever with the
+-- trace switched on, which is why it sat unnoticed.
+local AppendLog
+
 local function RecordBossModKey(mod, key, text, kind)
     if type(key) ~= "number" then return end
     local cat = BossModCatalogueTable(true, currentEncounter)
@@ -1702,7 +1708,7 @@ end
 -- would grow without bound on a long session.
 local CALL_LOG_MAX = 30
 local TRACE_LOG_MAX = 600
-local function AppendLog(entry)
+function AppendLog(entry)
     local t = TRDB()
     if type(t.callLog) ~= "table" then t.callLog = {} end
     local log = t.callLog
