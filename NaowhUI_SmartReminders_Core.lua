@@ -213,16 +213,24 @@ function ns.MakeModal(width, height, key)
     -- ESCAPE hides this one and stops there (SetPropagateKeyboardInput(false)), so a
     -- second ESC press reaches whatever modal is stacked underneath rather than closing
     -- both at once. Any other key falls through untouched.
-    dimmer:EnableKeyboard(true)
-    dimmer:SetPropagateKeyboardInput(true)
-    dimmer:SetScript("OnKeyDown", function(self, key)
-        if key == "ESCAPE" then
-            self:Hide()
-            self:SetPropagateKeyboardInput(false)
-        else
-            self:SetPropagateKeyboardInput(true)
-        end
-    end)
+    -- SetPropagateKeyboardInput is protected, so a modal opened in combat is refused it and
+    -- the addon is flagged for calling a protected function. The keyboard is not taken at
+    -- all there rather than taken without propagation control, which would swallow every
+    -- keybind for as long as the modal stayed open. The cost is that ESC will not close a
+    -- modal opened mid-fight; its close button still does.
+    if not InCombatLockdown() then
+        dimmer:EnableKeyboard(true)
+        dimmer:SetPropagateKeyboardInput(true)
+        dimmer:SetScript("OnKeyDown", function(self, key)
+            if InCombatLockdown() then return end
+            if key == "ESCAPE" then
+                self:Hide()
+                self:SetPropagateKeyboardInput(false)
+            else
+                self:SetPropagateKeyboardInput(true)
+            end
+        end)
+    end
 
     dimmer:SetScript("OnShow", function(self)
         -- The counter only ever climbed, so the panel level (this + 5) crossed 200 on the
