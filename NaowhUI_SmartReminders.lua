@@ -1136,18 +1136,7 @@ local function TankingCaster(sid)
     end
 
     local guid = castSourceGUID[sid]
-    -- No idea WHO cast this, so fail open rather than asking a question about different
-    -- units. castSourceGUID is fed only by COMBAT_LOG_EVENT_UNFILTERED, which cannot be
-    -- registered from inside restricted content -- so a session that logs straight into an
-    -- instance has an empty cache for its whole length and every ability lands here.
-    -- TankingSomeBoss then answers "am I tanking any boss1-5 unit", which is the wrong
-    -- question when the caster is an add: it returns a confident false while the player is
-    -- correctly tanking the thing about to hit them, and the callout is suppressed. Seen on
-    -- Midnight Falls, where 37 broadcasts of a curated tank ability produced nothing.
-    -- Matches this file's own stated rule for an unknown verdict, which the old delegation
-    -- quietly contradicted: a spare callout costs a moment of attention, a suppressed one
-    -- on the actual tank costs a death.
-    if not guid then return true, "nocache-open" end
+    if not guid then return TankingSomeBoss(), "nocache" end
     for i = 1, 5 do
         local unit = "boss" .. i
         if UnitExists(unit) then
