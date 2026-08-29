@@ -1464,19 +1464,41 @@ end
 --
 -- MayReturnNothing: at full charges there is no active recharge to describe, so this only
 -- answers while one is running. That is exactly when it is needed and the value is cached.
-local function ReadChargeRecharge(sid)
-    if not (C_Spell and C_Spell.GetSpellChargeDuration) then return nil end
-    -- Indexed without a type check, the same way the cooldown path already treats the
-    -- object GetSpellCooldownDuration returns: a duration object is not necessarily a Lua
-    -- table, and demanding one would reject every real answer.
-    local ok, dur = pcall(C_Spell.GetSpellChargeDuration, sid)
+-- GetSpellChargeDuration appears nowhere in Blizzard's own UI, so it is the less proven of
+-- the two. While exactly one charge is out a recharge IS running and the cooldown accessor
+-- describes it, and that one the non-charge path here has trusted all along -- so it stands
+-- in when the charge-specific call declines to answer. Neither is derived from isActive,
+-- which is the whole point: the seeded rate cannot be right for every build, and a
+-- protection paladin's Guardian of Ancient Kings recharges in 180s against a 300s seed.
+-- Indexed without a type check, the same way the cooldown path already treats the object
+-- GetSpellCooldownDuration returns: a duration object is not necessarily a Lua table, and
+-- demanding one would reject every real answer.
+--
+-- GetRemainingDuration is annotated exactly as GetTotalDuration is, so the client will also
+-- say how far through the running recharge it is. That fixes the anchor as well as the
+-- rate: the climb counts from st.tick, and without this the tick can only be the moment the
+-- addon happened to witness the drop from maximum. A spell first seen mid-recharge -- a
+-- cast before login, or before the first callout of the session -- anchored a full recharge
+-- late and read as empty while a charge was up.
+local function ReadDurationObject(fn, ...)
+    if not fn then return nil end
+    local ok, dur = pcall(fn, ...)
     if not ok or not dur then return nil end
-    local hasGetter = pcall(function() return dur.GetTotalDuration end)
-    if not hasGetter or not dur.GetTotalDuration then return nil end
-    local got, total = pcall(dur.GetTotalDuration, dur)
+    local got, total = pcall(function() return dur:GetTotalDuration() end)
     if not got or (issecretvalue and issecretvalue(total)) then return nil end
     if type(total) ~= "number" or total <= 1.5 then return nil end
-    return total
+
+    local okRem, remaining = pcall(function() return dur:GetRemainingDuration() end)
+    if not okRem or (issecretvalue and issecretvalue(remaining)) then return total end
+    if type(remaining) ~= "number" or remaining < 0 or remaining > total then return total end
+    return total, remaining
+end
+
+local function ReadChargeRecharge(sid)
+    if not C_Spell then return nil end
+    local total, remaining = ReadDurationObject(C_Spell.GetSpellChargeDuration, sid)
+    if total then return total, remaining end
+    return ReadDurationObject(C_Spell.GetSpellCooldownDuration, sid, true)
 end
 
 function EnsureChargeState(sid)
@@ -1506,6 +1528,14 @@ function EnsureChargeState(sid)
         -- readable cooldown, or there is no climb.
         local t = TRDB()
         local learned = type(t.learned) == "table" and t.learned[tostring(sid)] or nil
+        -- Kept apart from `learned` because the seed floor below must not touch it. The
+        -- floor exists for figures measured off isActive, which lies for a talent-granted
+        -- extra charge; a number the client stated outright is not that, and floors were
+        -- silently discarding it. Guardian of Ancient Kings recharges in 180s for a
+        -- protection paladin against a 300s seed, so every rebuild of this state threw the
+        -- real figure away and put the count two minutes behind -- the callout then named
+        -- Divine Shield with a charge in hand, twice in one Kings Rest key.
+        local fromClient = type(t.clientRecharge) == "table" and t.clientRecharge[tostring(sid)] or nil
         st = {
             -- currentCharges is secret, so a spell seen for the first time cannot be read
             -- directly -- but isActive (a charge recharging right now) is plain, and it was
@@ -1532,14 +1562,25 @@ function EnsureChargeState(sid)
             -- likely that lie than a genuine talent reduction -- and it hands back a
             -- charge that is not there. The seed is a floor for the spells it names;
             -- everything else still takes the measurement, which is all it has.
-            recharge = math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0),
+            recharge = fromClient or math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0),
             -- Where that number came from, for /nutank cds. A wrong recharge is invisible
             -- from the callout itself -- it just names a spell that is down -- so the
             -- source has to be readable directly rather than inferred from behaviour.
-            rechargeSrc = (math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0) <= 0
+            rechargeSrc = fromClient and "client"
+                or (math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0) <= 0
                 and "none")
                 or ((learned or 0) >= (KNOWN_BASE_COOLDOWN[sid] or 0) and "learned" or "seed"),
         }
+        -- Anchor the climb where the running recharge actually began, not where this state
+        -- happened to be built. Only at creation: re-reading it on every pick would keep
+        -- moving the anchor forward and the count could never climb at all.
+        if active then
+            local total, remaining = ReadChargeRecharge(sid)
+            if total and remaining then
+                st.recharge, st.rechargeSrc = total, "client"
+                st.tick = GetTime() - (total - remaining)
+            end
+        end
         chargeState[sid] = st
     end
     return st
@@ -1556,11 +1597,11 @@ function ChargesAvailable(sid)
     -- and the pick has to answer between pulls too.
     if active then
         local real = ReadChargeRecharge(sid)
-        if real and real ~= st.recharge then
+        if real then
             st.recharge, st.rechargeSrc = real, "client"
             local t = TRDB()
-            if type(t.learned) ~= "table" then t.learned = {} end
-            t.learned[tostring(sid)] = real
+            if type(t.clientRecharge) ~= "table" then t.clientRecharge = {} end
+            t.clientRecharge[tostring(sid)] = real
         end
     end
 
