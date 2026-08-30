@@ -1786,6 +1786,11 @@ local function LogLine(e)
     elseif e.kind == "key" then
         return ("%s -- KEY %s %s (%s/%s)"):format(head, tostring(e.sid), nameOf(e.sid),
             tostring(e.mod), tostring(e.tankPath))
+    elseif e.kind == "aside" then
+        return head .. " -- " .. nameOf(e.sid) .. " stepped aside to its Custom Reminder"
+    elseif e.kind == "cancel" then
+        return ("%s -- cancelled pending callout for %s (bar '%s' stopped early)"):format(
+            head, nameOf(e.sid), tostring(e.text))
     elseif e.kind == "aggro" then
         return ("%s -- BLOCKED %s -- not tanking the caster (%s) -- %s"):format(head,
             nameOf(e.sid), tostring(e.tankPath), tostring(e.text))
@@ -2976,7 +2981,10 @@ local function FireBigWigsAbility(sid)
     -- generic priority pick steps aside rather than showing alongside it.
     do
         local binding = ns.BindingForBossModKey(currentEncounter, sid)
-        if binding and binding.mode == "custom" then return end
+        if binding and binding.mode == "custom" then
+            AppendLog({ kind = "aside", sid = sid })
+            return
+        end
     end
     if not ns.testFiring then
         -- Pretend Tank lets someone who is not tanking run the whole engine for real, on a
@@ -3214,10 +3222,14 @@ end
 local function CancelPendingBWFire(barIdentity)
     if barIdentity == nil then return end
     for _, fires in pairs(pendingBWFires) do
-        for _, sidFires in pairs(fires) do
+        for sid, sidFires in pairs(fires) do
             local f = sidFires[barIdentity]
             if f then
                 if f.timer.Cancel then f.timer:Cancel() end
+                -- A cancelled fire is a callout that will now never happen, which from the
+                -- outside is indistinguishable from one that was never scheduled -- exactly
+                -- the shape that has cost multiple investigations. Logged for the trace.
+                AppendLog({ kind = "cancel", sid = sid, text = tostring(barIdentity) })
                 -- Clear every identity this one entry answers to, not just the name the
                 -- stop happened to arrive under, or the other mod's alias would be left
                 -- pointing at a cancelled timer.
@@ -3899,11 +3911,20 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(key)
             local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[key]
             local on = ns.AbilityEnabledForBinding(enc, key)
+            local binding = ns.BindingForBossModKey(enc, key)
+            local verdict
+            if on and binding and binding.mode == "custom" then
+                verdict = "|cff9a9ea6steps aside to its Custom Reminder|r"
+            elseif on then
+                verdict = "|cff6DD09Awould call|r"
+            else
+                verdict = "|cffff6060OFF for this boss|r"
+            end
             ns.Print(("  %d %s -- %s/%s x%d -- %s, %s"):format(
                 key, (info and info.name) or "?", tostring(e.mod), tostring(e.kind),
                 e.seen or 0,
                 curated and "in the tank list" or "|cff9a9ea6not a tank ability|r",
-                on and "|cff6DD09Awould call|r" or "|cffff6060OFF for this boss|r"))
+                verdict))
         end
         return
     end
