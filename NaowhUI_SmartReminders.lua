@@ -377,6 +377,12 @@ local currentEncounter
 -- that point in the file, and a bare local has to exist before its first use textually,
 -- not just before it runs.
 local currentStage
+-- When the current stage began, and when the pull did. Both are plain GetTime() stamps;
+-- observed-timing recording measures against them, and a phase-relative time is the only
+-- trustworthy one for later phases, whose start is health-gated rather than scheduled.
+local currentStageAt
+local currentEncounterStartedAt
+local currentDifficultyID
 
 -- The list that actually drives the alert: this ability's own preset choice when it has
 -- one, else this boss's chosen preset, else the spec default.
@@ -3367,6 +3373,7 @@ local function OnBigWigsEvent(event, ...)
         -- stage it reported is over; a stale value or an armed phase timer must not
         -- survive into that gap.
         currentStage = nil
+        currentStageAt = nil
         ns.CancelTrackedReminderTimers("stage")
         if not hasCustomReminders then return end
         CancelBossModTimers("BW", "")
@@ -3379,6 +3386,7 @@ local function OnBigWigsEvent(event, ...)
         if issecretvalue and issecretvalue(stage) then return end
         if type(stage) == "number" and stage ~= currentStage then
             currentStage = stage
+            currentStageAt = GetTime()
             ns.CancelTrackedReminderTimers("stage")
             if ns.CheckRaidReminderStageTriggers then
                 ns.CheckRaidReminderStageTriggers(stage)
@@ -3430,6 +3438,7 @@ local function OnDBMEvent(event, ...)
         if issecretvalue and issecretvalue(stage) then return end
         if type(stage) == "number" and stage ~= currentStage then
             currentStage = stage
+            currentStageAt = GetTime()
             ns.CancelTrackedReminderTimers("stage")
             if ns.CheckRaidReminderStageTriggers then
                 ns.CheckRaidReminderStageTriggers(stage)
@@ -4250,6 +4259,16 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             .. "here. Custom reminders and uncovered bosses in authoring mode still call.")
     end
     ns.Print(("boss addon: %s"):format(ns.BossSource()))
+    if currentEncounter then
+        local diffName = currentDifficultyID and GetDifficultyInfo
+            and GetDifficultyInfo(currentDifficultyID)
+        ns.Print(("pull: enc=%s elapsed=%.1fs difficulty=%s(%s) stage=%s%s"):format(
+            tostring(currentEncounter),
+            currentEncounterStartedAt and (GetTime() - currentEncounterStartedAt) or -1,
+            tostring(diffName or "?"), tostring(currentDifficultyID),
+            tostring(currentStage),
+            currentStageAt and (" stageElapsed=%.1fs"):format(GetTime() - currentStageAt) or ""))
+    end
     ns.Print(("timeline: available=%s bossWarnings=%s timelineDisplay=%s"):format(
         tostring(TimelineAvailable()),
         CombatWarningsOff() and "|cffff6060OFF|r" or "on",
@@ -5433,7 +5452,12 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     end
 
     if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
-        currentEncounter = (event == "ENCOUNTER_START") and arg1 or nil
+        local starting = (event == "ENCOUNTER_START")
+        currentEncounter = starting and arg1 or nil
+        -- arg3 is difficultyID (payload is encounterID, name, difficultyID, groupSize).
+        -- Timings genuinely differ between difficulties, so observed data is keyed by it.
+        currentEncounterStartedAt = starting and GetTime() or nil
+        currentDifficultyID = starting and arg3 or nil
         if TRDB().trace then
             AppendLog({ kind = "enc", text = ("%s %s %s"):format(
                 event == "ENCOUNTER_START" and "START" or "END",
@@ -5453,6 +5477,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         wipe(customCounters)
         bwActiveMod = nil
         currentStage = nil
+        currentStageAt = nil
         ns.CancelTrackedReminderTimers()
         for k, handle in pairs(bwPendingTimers) do
             if handle.Cancel then handle:Cancel() end
