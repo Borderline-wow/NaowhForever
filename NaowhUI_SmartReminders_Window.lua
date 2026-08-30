@@ -186,16 +186,26 @@ local function CreateWindow()
     end)
 end
 
-function ns.OpenOptionsWindow()
+-- pageName, when given, is which tab the window opens on; OnShow renders currentPage,
+-- so setting it before Show() is the whole mechanism.
+function ns.OpenOptionsWindow(pageName)
+    if pageName then
+        for _, name in ipairs(PAGES) do
+            if name == pageName then currentPage = pageName break end
+        end
+    end
     if not window then CreateWindow() end
+    if window:IsShown() and pageName then
+        ShowPage(currentPage)
+    end
     window:Show()
 end
 
-function ns.ToggleOptionsWindow()
+function ns.ToggleOptionsWindow(pageName)
     if window and window:IsShown() then
         window:Hide()
     else
-        ns.OpenOptionsWindow()
+        ns.OpenOptionsWindow(pageName)
     end
 end
 

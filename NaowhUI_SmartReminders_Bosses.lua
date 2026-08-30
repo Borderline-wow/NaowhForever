@@ -2349,7 +2349,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         bossValues[b] = inst.bosses[b].name
         bossOrder[b] = b
     end
-    local headRow, h = W:DualRow(parent, y,
+    local _, h = W:DualRow(parent, y,
         { type = "dropdown", text = "Boss", width = 220,
           values = bossValues, order = bossOrder,
           tooltip = "Which of this instance's bosses the options below apply to.",
@@ -2370,13 +2370,6 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
               EUI:RefreshPage(true)
           end }
     ); y = y - h
-    if headRow and headRow._leftRegion then
-        AttachRowCog(headRow._leftRegion, function()
-            ns.ShowBossReminderPicker(boss.encounterID, inst.isRaid or false, boss.name, EUI)
-        end, "Reminders", "Boss-wide Custom Reminders and "
-            .. (inst.isRaid and "Raid" or "Dungeon")
-            .. " Reminders (ability-bound ones live on that ability's own cog).")
-    end
     if not bossOn then return y end
 
     y = RenderBossHeader(parent, y, W, EUI, boss.encounterID, specID)
@@ -2752,51 +2745,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
     return y
 end
 
-function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
-    local EUI = callerEUI or ns.UI
-
-    local dimmer, panel = ns.MakeModal(480, 560, "bossReminderPicker")
-
-    local head = ns.Font(panel, 14, "OUTLINE")
-    head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText(bossName or "Boss Reminders")
-
-    local PAD = 20
-    local content
-
-    -- Destroy-and-recreate on every open/edit/delete, same idiom ShowAbilityReminderPicker's
-    -- own RebuildBody uses: simpler than tracking and clearing individual rows, and this
-    -- list is short enough that a full rebuild is never noticeable.
-    local Rebuild
-
-    Rebuild = function()
-        if content then content:Hide() end
-        content = CreateFrame("Frame", nil, panel)
-        content:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, -46)
-        content:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, -46)
-
-        -- Wrapped, same reason ShowRaidReminderEditor's own body is: a blank popup with
-        -- no error on screen is undiagnosable from a screenshot alone.
-        local ok, err = pcall(ns.BuildBossReminderSections, content, encounterID, isRaid, 0,
-            { EUI = EUI, onChanged = Rebuild })
-        if not ok then
-            local errText = ns.Font(content, 11, nil, { r = 1, g = 0.35, b = 0.35 })
-            errText:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
-            errText:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-            errText:SetJustifyH("LEFT")
-            errText:SetWordWrap(true)
-            errText:SetText("Failed to build this: " .. tostring(err))
-            ns.Print("|cffff6060boss reminder picker|r: " .. tostring(err))
-        end
-    end
-
-    Rebuild()
-
-    local closeBtn = ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
-    closeBtn:SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
-
-    dimmer:Show()
-end
 
 -- ShowCustomReminderEditor's twin: same modal size, same tab/mechanic-picker/Save
 -- shape, restricted to BigWigs triggers only (no pull/aura, no DBM -- a raid reminder is

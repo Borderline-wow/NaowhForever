@@ -4214,7 +4214,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Bare command opens the options; the diagnostic dump that used to live here moved
     -- under "status" when the addon got its own window.
     if arg == "" and ns.ToggleOptionsWindow then
-        ns.ToggleOptionsWindow()
+        ns.ToggleOptionsWindow("Setup")
         return
     end
     if arg ~= "status" then
