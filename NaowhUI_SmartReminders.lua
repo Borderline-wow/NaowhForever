@@ -1313,7 +1313,7 @@ local function RegisterEventSounds()
     soundError = nil
     if not TRDB().soundOn then return end
     if ns.BossSource() ~= "timeline" then
-        soundError = "Per-ability sounds ride the Blizzard timeline. Hook Into is set to "
+        soundError = "Per-ability sounds ride the Blizzard timeline. Boss Addon is set to "
             .. "a boss mod, so they are off."
         return
     end
@@ -3614,8 +3614,8 @@ function ns.WarnIfNoBossMod()
     if source == "timeline" then return end
     if (source == "bigwigs" and _G.BigWigsLoader) or (source == "dbm" and _G.DBM) then return end
     warnedNoBossMod = true
-    ns.Print(("|cffff6060Hook Into is set to %s, but it is not loaded|r -- callouts have "
-        .. "nothing to listen to. Install it, or switch Hook Into on the Setup page."):format(
+    ns.Print(("|cffff6060Boss Addon is set to %s, but it is not loaded|r -- callouts have "
+        .. "nothing to listen to. Install it, or switch Boss Addon on the Setup page."):format(
         source == "bigwigs" and "BigWigs" or "DBM"))
 end
 
@@ -4172,7 +4172,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         ns.Print("|cffF0A830this spec does not tank|r, so known tank busters stay quiet "
             .. "here. Custom reminders and uncovered bosses in authoring mode still call.")
     end
-    ns.Print(("hook into: %s"):format(ns.BossSource()))
+    ns.Print(("boss addon: %s"):format(ns.BossSource()))
     ns.Print(("timeline: available=%s bossWarnings=%s timelineDisplay=%s"):format(
         tostring(TimelineAvailable()),
         CombatWarningsOff() and "|cffff6060OFF|r" or "on",
@@ -4724,7 +4724,7 @@ function ns.BuildCoreSettings(parent, y)
     ); y = y - h
 
     _, h = W:DualRow(parent, y,
-        { type = "dropdown", text = "Hook Into", width = 180,
+        { type = "dropdown", text = "Boss Addon", width = 180,
           values = { timeline = "Blizzard Timeline", bigwigs = "BigWigs", dbm = "DBM" },
           order = { "timeline", "bigwigs", "dbm" },
           tooltip = "Which single source drives the callouts. Blizzard Timeline is the "
