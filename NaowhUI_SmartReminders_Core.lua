@@ -1,16 +1,13 @@
 -------------------------------------------------------------------------------
---  NaowhUI_SmartReminders_Core.lua -- DB, settings-page injection, profile plumbing.
+--  NaowhUI_SmartReminders_Core.lua -- theme, chrome primitives, DB and profile plumbing.
 --
---  Standalone: EllesmereUI is the only hard dependency. NaowhUI_EUI is optional and only
---  changes WHERE the settings land -- with it we add a section to the existing NaowhUI
---  group's Gameplay page, without it we register that group ourselves. Either way the
---  settings live under our OWN profile key, so uninstalling the companion never orphans
---  them and a profile string carries this addon on its own.
+--  Standalone addon: no EllesmereUI dependency. The options window, widget kit and
+--  profile system are all its own (Widgets and Window files).
 -------------------------------------------------------------------------------
 local ADDON_NAME = ...
 
--- Must match the addon folder: EllesmereUI's sidebar and profile map both key off it.
--- Renamed with the addon (was NaowhUI_TankReminder); RunMigrations moves the old key.
+-- Must match the addon folder; the DB and saved positions key off it.
+-- Renamed with the addon (was NaowhUI_TankReminder).
 local MODULE_KEY = "NaowhUI_SmartReminders"
 
 local ns = {}
@@ -42,9 +39,6 @@ function ns.Print(msg)
     end
     print("|cff0091edNaowhUI|r " .. tostring(msg))
 end
-
--- Set at login. Companion mode rides NaowhUI_EUI's page; standalone mode owns one.
-ns.companionMode = false
 
 -------------------------------------------------------------------------------
 --  House chrome
@@ -350,84 +344,6 @@ function ns.QueueReapply()
 end
 
 -------------------------------------------------------------------------------
---  EllesmereUI registration
--------------------------------------------------------------------------------
--- RegisterModule whitelists callers by their "AddOns/<folder>/" path via debugstack, and
--- only EllesmereUI's own folders are on the list. From a loadstring chunk the caller reads
--- as `[string ...]`, so the match fails and the guard falls through -- the same route the
--- suite already uses. EllesmereUI expects external pages: it marks them non-core and hides
--- the core-only toolbar controls for them.
-local function RegisterModule(config)
-    local EUI = _G.EllesmereUI
-    if not (EUI and EUI.RegisterModule) then return end
-
-    _G.__NaowhUITR_pendingReg = { key = MODULE_KEY, config = config }
-    local trampoline = loadstring([[
-        local r = _G.__NaowhUITR_pendingReg
-        if r and EllesmereUI and EllesmereUI.RegisterModule then
-            EllesmereUI:RegisterModule(r.key, r.config)
-        end
-    ]], "NaowhUITR-register")
-    local ok = trampoline and pcall(trampoline)
-    _G.__NaowhUITR_pendingReg = nil
-
-    if not ok then
-        pcall(function() EUI:RegisterModule(MODULE_KEY, config) end)
-    end
-end
-
--- Standalone only. With the companion loaded, its own row already carries our section and a
--- second one would just be a duplicate NaowhUI entry in the sidebar.
-local function InjectSidebar()
-    local EUI = _G.EllesmereUI
-    if not EUI then return end
-
-    -- alwaysLoaded hides the power toggle and marks the row loaded and clickable.
-    EUI._addonInfoByFolder = EUI._addonInfoByFolder or {}
-    EUI._addonInfoByFolder[MODULE_KEY] = EUI._addonInfoByFolder[MODULE_KEY] or {
-        folder       = MODULE_KEY,
-        display      = "NaowhUI",
-        search_name  = "NaowhUI Naowh Smart Reminders Boss Defensive Tank",
-        alwaysLoaded = true,
-    }
-
-    EUI._syncExempt = EUI._syncExempt or {}
-    EUI._syncExempt[MODULE_KEY] = true   -- no cross-module profile sync
-
-    -- Guard against double-insertion on reload, and against the companion having already
-    -- made the group -- in which case we join it rather than add a second NaowhUI heading.
-    EUI.ADDON_GROUPS = EUI.ADDON_GROUPS or {}
-    for _, group in ipairs(EUI.ADDON_GROUPS) do
-        if group.key == "naowhui" then
-            for _, member in ipairs(group.members) do
-                if member == MODULE_KEY then return end
-            end
-            group.members[#group.members + 1] = MODULE_KEY
-            return
-        end
-    end
-    table.insert(EUI.ADDON_GROUPS, 1, {
-        key     = "naowhui",
-        label   = "NaowhUI",
-        members = { MODULE_KEY },
-    })
-end
-
--- Our settings already sit in the profile blob via Lite.NewDB, so they switch with profiles
--- for free. Export/import, though, walks EllesmereUI's own _ADDON_DB_MAP rather than the DB
--- registry, so an external addon is skipped unless it registers here. Both modes need this:
--- the DB is ours in either one.
-local function InjectProfileAddon()
-    local EUI = _G.EllesmereUI
-    local map = EUI and EUI._ADDON_DB_MAP
-    if type(map) ~= "table" then return end
-    for _, e in ipairs(map) do
-        if e.folder == MODULE_KEY then return end   -- guard against a reload re-inserting us
-    end
-    map[#map + 1] = { folder = MODULE_KEY, display = "NaowhUI Smart Reminders" }
-end
-
--------------------------------------------------------------------------------
 --  Boot
 -------------------------------------------------------------------------------
 local boot = CreateFrame("Frame")
@@ -435,67 +351,16 @@ boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
 
-    local EUI = _G.EllesmereUI
-    if not (EUI and EUI.RegisterModule) then
-        ns.Print("|cffff6060EllesmereUI not found.|r NaowhUI Smart Reminders requires EllesmereUI "
-            .. "to be installed and enabled.")
-        return
-    end
-
     -- Core is first in the toc and registers PLAYER_LOGIN first, so this runs before the
     -- runtime's own handler and before anything has called SettingsRoot.
     ns.RunMigrations()
 
-    InjectProfileAddon()
-
-    -- The companion resolves its page builders at call time and guards every one, so handing
-    -- it ours is the whole integration: its Gameplay page picks the section up and its
-    -- ResetAll picks the reset up. Nothing in NaowhUI_EUI has to change.
-    -- The builders are handed over whenever the companion exists at all -- harmless on an
-    -- old one, forward-compatible on a new one. Page OWNERSHIP is the separate question:
-    -- only a companion that declares SUPPORTS_SMART_REMINDERS actually has a page entry
-    -- that will call these. Trusting mere presence was a live failure: an installed but
-    -- older companion made this addon defer to a page that did not exist, so it loaded
-    -- fine and appeared nowhere. No handshake means we own our own sidebar entry.
-    local companion = _G.NaowhUIEUI
-    if companion then
-        companion.BuildTankReminderPage = ns.BuildPage
-        companion.ResetTankReminder = ns.Reset
+    -- Until the addon owns its DB, the settings still live in EllesmereUI's profiles, so
+    -- anything that swaps the active profile swaps our settings out from under us.
+    local EUI = _G.EllesmereUI
+    if EUI then
+        if EUI.SwitchProfile then hooksecurefunc(EUI, "SwitchProfile", ns.QueueReapply) end
+        if EUI.OnSpecSwitchComplete then hooksecurefunc(EUI, "OnSpecSwitchComplete", ns.QueueReapply) end
+        if EUI.ApplyProfileData then hooksecurefunc(EUI, "ApplyProfileData", ns.QueueReapply) end
     end
-    if companion and companion.SUPPORTS_SMART_REMINDERS then
-        ns.companionMode = true
-    else
-        InjectSidebar()
-        RegisterModule({
-            title       = "Naowh Smart Reminders",
-            description = "Naowh's boss ability reminder for EllesmereUI.",
-            -- Three real tabs -- EllesmereUI's own module system renders these as the top
-            -- tab strip (BuildTabs) and calls buildPage once per tab, lazily, on first
-            -- visit. pageName is genuinely read now, not just accepted and ignored.
-            -- Raid/Dungeon Reminders used to be their own tabs here, each with its own
-            -- boss picker duplicating the one already on Dungeon/Raid Bosses -- folded
-            -- into that page's boss-detail cog instead (ns.ShowBossReminderPicker), so a
-            -- boss is only ever picked once.
-            pages       = { "Setup", "Dungeon Bosses", "Raid Bosses" },
-            buildPage   = function(pageName, parent, yOffset)
-                if pageName == "Dungeon Bosses" then
-                    return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, yOffset, false)
-                        or math.abs(yOffset)
-                elseif pageName == "Raid Bosses" then
-                    return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, yOffset, true)
-                        or math.abs(yOffset)
-                else -- "Setup"
-                    return ns.BuildSetupPage and ns.BuildSetupPage(parent, yOffset)
-                        or math.abs(yOffset)
-                end
-            end,
-            onReset     = ns.Reset,
-        })
-    end
-
-    -- Anything that swaps the active settings out from under us. The companion runs its own
-    -- reapply chain, but ours is a different DB and it does not know about it.
-    if EUI.SwitchProfile then hooksecurefunc(EUI, "SwitchProfile", ns.QueueReapply) end
-    if EUI.OnSpecSwitchComplete then hooksecurefunc(EUI, "OnSpecSwitchComplete", ns.QueueReapply) end
-    if EUI.ApplyProfileData then hooksecurefunc(EUI, "ApplyProfileData", ns.QueueReapply) end
 end)

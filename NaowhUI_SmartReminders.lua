@@ -678,9 +678,6 @@ end
 
 local function AlertFont()
     local path = NaowhMedia("font", "Naowh")
-    if path then return path end
-    local EUI = _G.EllesmereUI
-    path = EUI and EUI.GetFontPath and EUI.GetFontPath("extras")
     return path or STANDARD_TEXT_FONT
 end
 
@@ -1286,9 +1283,7 @@ local soundError               -- surfaced on the options page; silence is the w
 local function ResolveSoundFile()
     local key = TRDB().soundKey
     if not key or key == "none" then return nil end
-    local EUI = _G.EllesmereUI
-    local paths = EUI and EUI._groupDeathSoundPaths
-    local value = paths and paths[key]
+    local value = ns.UI.SoundPathFor(key)
     -- SetEventSound wants a file asset. A SoundKitID (LSM hands out either) is not one, so
     -- a numeric entry is skipped rather than passed through and silently ignored.
     if type(value) == "string" then return value end
@@ -2040,11 +2035,9 @@ end
 local function Announce(spellID, text)
     local key = ns.SoundFor(spellID)
     if key then
-        local EUI = _G.EllesmereUI
-        local paths = EUI and EUI._groupDeathSoundPaths
-        local value = paths and paths[key]
-        if value and EUI._PlayLSMSound then
-            EUI._PlayLSMSound(value)
+        local value = ns.UI.SoundPathFor(key)
+        if value then
+            ns.UI._PlayLSMSound(value)
             return
         end
         -- The chosen file is gone (a SharedMedia pack removed, say). Speaking is better than
@@ -2541,7 +2534,7 @@ end
 -- the display fires, same as popup always has.
 function ns.PlayReminderSound(r)
     if not r.sound then return end
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     if EUI and EUI._PlayLSMSound and EUI.BuildAlertSoundTables then
         local paths, names, order = EUI.BuildAlertSoundTables()
         if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
@@ -3586,71 +3579,6 @@ function ns.Apply()
 end
 
 -------------------------------------------------------------------------------
---  Unlock Mode
--------------------------------------------------------------------------------
--- Raid Reminder anchors are NOT registered here -- they have their own move+resize
--- surface (ns.ShowRaidReminderAnchorConfig, NaowhUI_SmartReminders_RaidReminders.lua),
--- opened from the Raid/Dungeon Reminders page. TRDB().raidReminderAnchorPos and the
--- per-type size keys are the same storage either way; only the input mechanism moved.
-local function RegisterUnlock()
-    local EUI = _G.EllesmereUI
-    if not (EUI and EUI.RegisterUnlockElements and EUI.MakeUnlockElement) then return end
-
-    EUI:RegisterUnlockElements({
-        EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminder",   -- storage key; renaming it would orphan saved positions
-            label = "Smart",
-            group = "NaowhUI",
-            order = 3,
-            -- Sized from the icon slider, so a resize handle would be overwritten by the
-            -- next update.
-            noResize = true,
-            isHidden = function() return not TRDB().enabled end,
-            -- A getter and nothing more: Unlock Mode calls this while building its element
-            -- list, so anything shown from here would appear unasked.
-            getFrame = function() return frame or Reminder.Create() end,
-            getSize  = function()
-                local size = TRDB().iconSize or DEFAULTS.iconSize
-                return size, size
-            end,
-            savePos = function(_, point, relPoint, x, y)
-                TRDB().pos = { point = point, relPoint = relPoint, x = x, y = y }
-            end,
-            loadPos = function()
-                local p = TRDB().pos
-                if not p then return nil end
-                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-            end,
-            clearPos = function() TRDB().pos = nil end,
-            applyPos = ApplyPosition,
-        }),
-        EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminderCustom",   -- storage key; renaming it would orphan saved positions
-            label = "Smart Custom Reminder",
-            group = "NaowhUI",
-            order = 5,
-            noResize = true,
-            isHidden = function() return not TRDB().enabled end,
-            getFrame = function()
-                if not customFrame then CreateCustomFrame() end
-                return customFrame
-            end,
-            getSize  = function() return 240, 10 end,
-            savePos = function(_, point, relPoint, x, y)
-                TRDB().customPos = { point = point, relPoint = relPoint, x = x, y = y }
-            end,
-            loadPos = function()
-                local p = TRDB().customPos
-                if not p then return nil end
-                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-            end,
-            clearPos = function() TRDB().customPos = nil end,
-            applyPos = ApplyCustomReminderPosition,
-        }),
-    }, "NaowhUI_EUI")
-end
-
--------------------------------------------------------------------------------
 --  Preview
 -------------------------------------------------------------------------------
 -- The settings panel is the only window in which anyone needs something to drag, so the
@@ -4148,6 +4076,16 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    -- Bare command opens the options; the diagnostic dump that used to live here moved
+    -- under "status" when the addon got its own window.
+    if arg == "" and ns.ToggleOptionsWindow then
+        ns.ToggleOptionsWindow()
+        return
+    end
+    if arg ~= "status" then
+        ns.Print("unknown command '" .. arg .. "' -- /nutank status for diagnostics, or see below.")
+    end
+
     -- The build, first, because every report that cost a run to diagnose started with not
     -- knowing which one was loaded. A version string is weaker evidence than a stack line,
     -- but it is the only thing a tester can read out without an error to paste.
@@ -4181,7 +4119,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
-    ns.Print("usage: /nutank cds | calls | keys | trace | export | pretendtank | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank status | cds | calls | keys | trace | export | pretendtank | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
@@ -4566,7 +4504,7 @@ local function ShowCalloutEditor(title, current, onAccept, spellID)
 
         local hear = ns.Button(panel, "Hear it", 96, 26, function()
             local key = (textPopup._mode == "sound") and textPopup._soundKey or nil
-            local EUI = _G.EllesmereUI
+            local EUI = ns.UI
             if key and textPopup._paths and EUI and EUI._PlayLSMSound then
                 EUI._PlayLSMSound(textPopup._paths[key])
             else
@@ -4604,7 +4542,7 @@ local function ShowCalloutEditor(title, current, onAccept, spellID)
     tp._mode = tp._soundKey and "sound" or "text"
     tp._firstSound = order and order[1] or nil
 
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local segRefresh
 
     local function Sync()
@@ -4680,7 +4618,7 @@ end
 -- list. Always shown at the top of the Setup tab regardless of which of the
 -- four side items is selected.
 function ns.BuildCoreSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -4751,7 +4689,7 @@ end
 -- downstream depends on that number being exact; at worst the page reports a little extra
 -- or missing empty space below it, never content drawn on top of content.
 function ns.BuildPresetListSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -4773,7 +4711,7 @@ end
 -- paired with unrelated toggles on the same row (Skip When Covered, Play a Sound) -- kept
 -- unpaired here now that they've settled into one section together.
 function ns.BuildBarsSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -4842,14 +4780,14 @@ function ns.BuildBarsSettings(parent, y)
         { type = "toggle", text = "Show a Preview",
           tooltip = "Puts a stand-in of the alert on screen while these options are open -- "
           .. "the icon and the text callout exactly as a fight would draw them. DRAG IT to "
-          .. "move the alert; the position saves instantly and Unlock Mode edits the same "
-          .. "spot, under the name Smart. It hides itself when the options close.",
+          .. "move the alert; the position saves instantly. It hides itself when the "
+          .. "options close.",
           getValue = function() return previewPin end,
           setValue = function(v) previewPin = v; UpdatePreview() end }
     ); y = y - h
 
-    -- Escape hatch: a UI-scale change can strand a moved alert off-screen where Unlock
-    -- Mode cannot reach it. Side by side rather than stacked -- W:Button always claims a
+    -- Escape hatch: a UI-scale change can strand a moved alert off-screen where the
+    -- preview drag cannot reach it. Side by side rather than stacked -- W:Button always claims a
     -- full row of its own, so these are two ns.Button primitives chained off a blank
     -- DualRow's two regions instead, the same way a settings cog attaches inline elsewhere
     -- in this file.
@@ -4884,7 +4822,7 @@ end
 -- picker. "Play a Sound" used to share a row with "Show a Text Callout"
 -- (Bars); unpaired here for the same reason as above.
 function ns.BuildSoundsSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -4959,7 +4897,7 @@ end
 -- the Alert Sound dropdown under Sounds -- so a toggle flip also calls RefreshPage to make
 -- that row appear or disappear immediately.
 function ns.BuildColorsSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -5035,7 +4973,7 @@ end
 --  trailing empty space rather than another section overlapping it.
 -------------------------------------------------------------------------------
 function ns.BuildSetupPage(parent, yOffset)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     RefreshSpec()   -- the list editors below are all keyed on it
 
@@ -5053,7 +4991,7 @@ end
 -- Dungeon Bosses / Raid Bosses tabs -- just the boss list now that Reminder
 -- Packs and the global switches moved to Setup's Profile tile.
 function ns.BuildBossTabPage(parent, yOffset, isRaid)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     RefreshSpec()
 
@@ -5235,7 +5173,7 @@ end
 -- Fresh tables per call: EllesmereUI's SharedMedia appender mutates in place and caches by
 -- table identity, so handing the same tables to two dropdowns collapses them into one.
 function ns.SoundChoices()
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     if not (EUI and EUI.BuildAlertSoundTables) then return nil end
     local paths, names, order = EUI.BuildAlertSoundTables()
     if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
@@ -5409,9 +5347,8 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     end
 
     if event == "PLAYER_LOGIN" then
-        RegisterUnlock()
         RegisterBossModHooks()
-        local EUI = _G.EllesmereUI
+        local EUI = ns.UI
         if EUI and EUI.RegisterOnShow then
             EUI:RegisterOnShow(function() previewing = true; UpdatePreview() end)
         end

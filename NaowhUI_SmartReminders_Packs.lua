@@ -362,7 +362,7 @@ function ns.ShowPackImport()
         if ns.ApplyPack(decoded, mode) then
             ns.Print(("pack applied (%s)."):format(mode))
             dimmer:Hide()
-            local EUI = _G.EllesmereUI
+            local EUI = ns.UI
             if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
         else
             preview:SetText("|cffff6060The pack could not be applied.|r")

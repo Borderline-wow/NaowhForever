@@ -261,7 +261,7 @@ function ns.ScrapeBosses(force)
             rescrapeQueued = false
             if JournalBusy() then return end
             ns.ScrapeBosses(true)
-            local EUI = _G.EllesmereUI
+            local EUI = ns.UI
             if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
         end)
     end
@@ -437,7 +437,7 @@ local function AttachRemove(row, entry, specID, EUI, onGone)
 
     btn:SetScript("OnEnter", function()
         a:SetColorTexture(1, 0.35, 0.35, 1); b:SetColorTexture(1, 0.35, 0.35, 1)
-        local EUIg = _G.EllesmereUI
+        local EUIg = ns.UI
         if EUIg and EUIg.ShowWidgetTooltip then
             EUIg.ShowWidgetTooltip(btn, "Remove",
                 entry.userAdded and "Deletes this spell you added."
@@ -447,7 +447,7 @@ local function AttachRemove(row, entry, specID, EUI, onGone)
     btn:SetScript("OnLeave", function()
         local c = ns.THEME.muted
         a:SetColorTexture(c.r, c.g, c.b, 0.85); b:SetColorTexture(c.r, c.g, c.b, 0.85)
-        local EUIg = _G.EllesmereUI
+        local EUIg = ns.UI
         if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
     end)
     btn:SetScript("OnClick", function()
@@ -506,7 +506,7 @@ local function AttachRowCog(rgn, onClick, tipTitle, tipBody)
     cog:SetAlpha(0.4)
     local tex = cog:CreateTexture(nil, "OVERLAY")
     tex:SetAllPoints()
-    local EUIg = _G.EllesmereUI
+    local EUIg = ns.UI
     if EUIg and EUIg.COGS_ICON then tex:SetTexture(EUIg.COGS_ICON) end
     cog:SetScript("OnEnter", function(self)
         self:SetAlpha(0.7)
@@ -728,7 +728,7 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
     editHit:SetScript("OnEnter", function(self)
         local c = ns.THEME.accent
         edit:SetTextColor(c.r, c.g, c.b, 1)
-        local EUIg = _G.EllesmereUI
+        local EUIg = ns.UI
         if EUIg and EUIg.ShowWidgetTooltip then
             EUIg.ShowWidgetTooltip(self, "Rename this preset.")
         end
@@ -736,7 +736,7 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
     editHit:SetScript("OnLeave", function()
         local c = ns.THEME.muted
         edit:SetTextColor(c.r, c.g, c.b, 1)
-        local EUIg = _G.EllesmereUI
+        local EUIg = ns.UI
         if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
     end)
     editHit:SetScript("OnClick", function() ShowRenamePresetPopup(specID, p.key, p.name, EUI) end)
@@ -751,7 +751,7 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
         b:SetSize(10, 2); b:SetPoint("CENTER"); b:SetRotation(math.rad(-45))
         del:SetScript("OnEnter", function(self)
             a:SetColorTexture(1, 0.35, 0.35, 1); b:SetColorTexture(1, 0.35, 0.35, 1)
-            local EUIg = _G.EllesmereUI
+            local EUIg = ns.UI
             if EUIg and EUIg.ShowWidgetTooltip then
                 EUIg.ShowWidgetTooltip(self,
                     "|cffF0A830Delete Preset|r\nRemoves this preset and its list. Cannot be undone.")
@@ -760,7 +760,7 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
         del:SetScript("OnLeave", function()
             local c = ns.THEME.muted
             a:SetColorTexture(c.r, c.g, c.b, 0.85); b:SetColorTexture(c.r, c.g, c.b, 0.85)
-            local EUIg = _G.EllesmereUI
+            local EUIg = ns.UI
             if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
         end)
         del:SetScript("OnClick", function()
@@ -1136,7 +1136,7 @@ end
 local MECHANIC_PICKER_ROWS = 8
 
 function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
-    local EUI = callerEUI or _G.EllesmereUI
+    local EUI = callerEUI or ns.UI
     local W = EUI.Widgets
 
     local dimmer, panel = ns.MakeModal(480, 620, "customReminderEditor")
@@ -1153,11 +1153,11 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
 
     local function HoverTip(hit, tooltip)
         hit:SetScript("OnEnter", function(self)
-            local EUIg = _G.EllesmereUI
+            local EUIg = ns.UI
             if EUIg and EUIg.ShowWidgetTooltip then EUIg.ShowWidgetTooltip(self, tooltip) end
         end)
         hit:SetScript("OnLeave", function()
-            local EUIg = _G.EllesmereUI
+            local EUIg = ns.UI
             if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
         end)
     end
@@ -1720,7 +1720,7 @@ end
 -- "what this profile does everywhere" -- so this is where they belong now
 -- that the boss list has its own two tabs.
 function ns.BuildProfileSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
     local db = ns.DB()
@@ -1864,7 +1864,7 @@ local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle", "chat",
     "nameplateGlow", "raidframeGlow" }
 
 function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
-    local EUI = callerEUI or _G.EllesmereUI
+    local EUI = callerEUI or ns.UI
     local W = EUI.Widgets
 
     -- Taller than before (was 440x480/body 320): a preset can carry up to MAX_SLOTS
@@ -2366,7 +2366,7 @@ end
 -- same as it always did for a single boss) -- and the selected instance's detail on the
 -- right.
 function ns.BuildBossListPage(parent, y, isRaid)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
     local specID = ns.CurrentSpec()
@@ -2511,7 +2511,7 @@ end
 -- split ns.BuildBossListPage's left column already keys instances on), not something
 -- picked here.
 function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
-    local EUI = callerEUI or _G.EllesmereUI
+    local EUI = callerEUI or ns.UI
 
     local dimmer, panel = ns.MakeModal(480, 560, "bossReminderPicker")
 
@@ -2731,7 +2731,7 @@ end
 -- picker's Spell ID field with it -- still just a starting guess, not locked, since
 -- the real BigWigs key for an ability can differ from its journal spellID.
 function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilitySpellID)
-    local EUI = callerEUI or _G.EllesmereUI
+    local EUI = callerEUI or ns.UI
     local W = EUI.Widgets
     local kind = isRaid and "Raid" or "Dungeon"
 
@@ -2762,11 +2762,11 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
 
     local function HoverTip(hit, tooltip)
         hit:SetScript("OnEnter", function(self)
-            local EUIg = _G.EllesmereUI
+            local EUIg = ns.UI
             if EUIg and EUIg.ShowWidgetTooltip then EUIg.ShowWidgetTooltip(self, tooltip) end
         end)
         hit:SetScript("OnLeave", function()
-            local EUIg = _G.EllesmereUI
+            local EUIg = ns.UI
             if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
         end)
     end

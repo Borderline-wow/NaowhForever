@@ -1,8 +1,8 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100
-## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders |cff8a99b5[test 0829m]|r
+## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders |cff8a99b5[test 0830a]|r
 ## Notes: Calls out what to press when the boss timeline says an ability is coming. All specs.
 ## Author: NaowhUI
-## Version: 1.1.0-test-0829m
+## Version: 1.1.0-test-0830a
 ## Dependencies: EllesmereUI
 ## OptionalDeps: NaowhUI_EUI, NaowhUI_Media
 ## SavedVariables: NaowhUITankReminderDB
@@ -18,6 +18,10 @@ NaowhUI_SmartReminders_Core.lua
 # The widget kit: ns.UI, the shim every options page calls in place of EllesmereUI's
 # factory. Needs ns.THEME and the Core primitives.
 NaowhUI_SmartReminders_Widgets.lua
+
+# The standalone options window: tabs, scroll, RefreshPage, slash/compartment entry.
+# The page builders it dispatches to live in the later files, resolved at open time.
+NaowhUI_SmartReminders_Window.lua
 
 # Tank busters Blizzard's own TankRole bit does not carry. Additive to it, never a
 # replacement, so content this file has never heard of still works unchanged. Loads after

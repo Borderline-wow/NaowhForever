@@ -352,8 +352,10 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
 
     local w = row:GetWidth()
     if w <= 0 then
-        -- Anchored-both-sides width is not resolved until layout runs; derive it.
+        -- Anchored-both-sides width is not resolved until layout runs; derive it. The
+        -- final fallback is the options window's content width.
         w = (parent:GetWidth() or 0) - UI.CONTENT_PAD * 2
+        if w <= 0 then w = 910 end
     end
     if rightCfg then
         local half = w / 2
