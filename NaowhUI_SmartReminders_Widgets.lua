@@ -239,9 +239,21 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
         Paint()
     end
 
+    -- The drag ends when the BUTTON comes up, wherever the cursor happens to be. Relying
+    -- on OnMouseUp alone strands the drag when the release lands outside the track, which
+    -- for a 120px slider is most of the time -- the value would keep following the mouse
+    -- around the screen until the next click.
+    local function OnDragUpdate()
+        if not IsMouseButtonDown("LeftButton") then
+            track:SetScript("OnUpdate", nil)
+            Paint()
+            return
+        end
+        FromCursor()
+    end
     track:SetScript("OnMouseDown", function()
         FromCursor()
-        track:SetScript("OnUpdate", FromCursor)
+        track:SetScript("OnUpdate", OnDragUpdate)
     end)
     track:SetScript("OnMouseUp", function()
         track:SetScript("OnUpdate", nil)
