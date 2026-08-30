@@ -1,8 +1,8 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100
-## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders |cff9a9ea6[test 0830g]|r
+## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders |cff9a9ea6[test 0830h]|r
 ## Notes: Calls out what to press when the boss timeline says an ability is coming. All specs.
 ## Author: NaowhUI
-## Version: 1.1.0-test-0830g
+## Version: 1.1.0-test-0830h
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhUI_SmartRemindersDB
 ## Group: NaowhUI
@@ -43,3 +43,7 @@ NaowhUI_SmartReminders_Packs.lua
 # Reads this season's bosses and their tank-flagged abilities out of the player's own
 # Dungeon Journal. Lazy: nothing is read until the page is opened.
 NaowhUI_SmartReminders_Bosses.lua
+
+# The Custom Reminders tab and the MRT note format behind it. Loads last: the page
+# renders through the shared section builder and editors Bosses.lua defines.
+NaowhUI_SmartReminders_Note.lua

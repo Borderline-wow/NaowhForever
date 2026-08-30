@@ -203,7 +203,8 @@ end
 --  The two modals. Both are the house modal shell with a multiline box; the
 --  difference is direction. Neither touches settings until Apply.
 -------------------------------------------------------------------------------
-local function MakePackBox(panel, topOffset, height)
+-- Promoted to ns: the Custom Reminders tab's note box is the same widget.
+function ns.MakeMultilineBox(panel, topOffset, height)
     local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, topOffset)
     scroll:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -34, topOffset)
@@ -265,7 +266,7 @@ function ns.ShowPackExport()
     hint:SetPoint("LEFT", nameBox, "RIGHT", 10, 0)
     hint:SetText("pack name, shown on import")
 
-    local box = MakePackBox(panel, -78, 180)
+    local box = ns.MakeMultilineBox(panel, -78, 180)
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 46)
 
@@ -309,7 +310,7 @@ function ns.ShowDiagExport(text)
         hint:SetPoint("TOP", title, "BOTTOM", 0, -6)
         hint:SetText("Click the text, then Ctrl+A Ctrl+C, and paste it to whoever asked.")
 
-        local box = MakePackBox(panel, -56, 300)
+        local box = ns.MakeMultilineBox(panel, -56, 300)
         box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
         -- Display only: an edit here would just corrupt the paste, so any change puts the
         -- captured text straight back.
@@ -340,7 +341,7 @@ function ns.ShowPackImport()
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Import Profile")
 
-    local box = MakePackBox(panel, -40, 150)
+    local box = ns.MakeMultilineBox(panel, -40, 150)
     local preview = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     preview:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -200)
     preview:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, -200)

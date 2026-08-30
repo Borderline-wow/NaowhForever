@@ -13,7 +13,7 @@ local UI = ns.UI
 local WINDOW_W, WINDOW_H = 1000, 640
 local TITLE_H, TAB_H = 28, 30
 
-local PAGES = { "Setup", "Dungeon Bosses", "Raid Bosses" }
+local PAGES = { "Setup", "Dungeon Bosses", "Raid Bosses", "Custom Reminders" }
 
 local window, scrollFrame, scrollChild
 local tabButtons = {}
@@ -33,6 +33,8 @@ local function BuildPageInto(pageName, parent)
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, false) or -6
     elseif pageName == "Raid Bosses" then
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, true) or -6
+    elseif pageName == "Custom Reminders" then
+        return ns.BuildCustomRemindersPage and ns.BuildCustomRemindersPage(parent, -6) or -6
     else
         return ns.BuildSetupPage and ns.BuildSetupPage(parent, -6) or -6
     end
