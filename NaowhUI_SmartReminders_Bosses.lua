@@ -280,25 +280,65 @@ end
 -- BigWigs' own options UI shows), keyed by the ids the engine will receive. Bosses with
 -- no module keep the full journal listing.
 local bwOptionCache = {}   -- [dungeonEncounterID] = { {id, stage}, ... }, or false
-local bwPacksLoaded
+local bwPacksLoaded, bwPacksLoading, bwPackNames
 
 -- Content packs are LoadOnDemand and never loaded outside their own zone; BigWigs' own
 -- options UI force-loads them the same way when browsing. Core comes in through each
--- pack's dependencies. First use only, from this page only -- the same lazy rule as the
--- journal scrape. LittleWigs' expansion packs are included because the season's dungeon
--- rotation reaches back into old expansions.
-local function LoadBossModPacks()
-    if bwPacksLoaded then return end
-    bwPacksLoaded = true
-    if not (C_AddOns and C_AddOns.LoadAddOn and C_AddOns.GetNumAddOns) then return end
+-- pack's dependencies. Once per session, and only for someone who opens the options
+-- window. LittleWigs' expansion packs are included because the season's dungeon rotation
+-- reaches back into old expansions.
+local function BossModPackNames()
+    if bwPackNames then return bwPackNames end
+    bwPackNames = {}
+    if not (C_AddOns and C_AddOns.GetNumAddOns and C_AddOns.GetAddOnInfo) then
+        return bwPackNames
+    end
     for i = 1, C_AddOns.GetNumAddOns() do
         local name = C_AddOns.GetAddOnInfo(i)
         if type(name) == "string"
             and (name:find("^BigWigs_") or name:find("^LittleWigs"))
             and name ~= "BigWigs_Plugins" and name ~= "BigWigs_Options" then
-            C_AddOns.LoadAddOn(name)
+            bwPackNames[#bwPackNames + 1] = name
         end
     end
+    return bwPackNames
+end
+
+-- Loading every installed BigWigs/LittleWigs pack in one go froze the client for about
+-- five seconds the first time a boss page wanted an option list -- 22 synchronous
+-- LoadAddOn calls on this machine. Same work, one pack per frame, so the client keeps
+-- drawing through it and the page refreshes itself when the last one lands.
+--
+-- Kicked off when the options window opens rather than when a dungeon is picked, so it is
+-- usually finished before anyone navigates to a boss.
+local function LoadBossModPacks()
+    if bwPacksLoaded or bwPacksLoading then return end
+    if not (C_AddOns and C_AddOns.LoadAddOn and C_Timer and C_Timer.NewTicker) then
+        bwPacksLoaded = true
+        return
+    end
+    local names = BossModPackNames()
+    if #names == 0 then bwPacksLoaded = true return end
+    bwPacksLoading = true
+    local i = 0
+    C_Timer.NewTicker(0, function(ticker)
+        i = i + 1
+        if i > #names then
+            ticker:Cancel()
+            bwPacksLoading, bwPacksLoaded = false, true
+            local EUI = ns.UI
+            if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+            return
+        end
+        C_AddOns.LoadAddOn(names[i])
+    end)
+end
+ns.LoadBossModPacks = LoadBossModPacks
+
+-- Opening the window is the earliest honest signal that boss data is about to be wanted,
+-- and it costs nothing for a player who never opens it.
+if ns.UI and ns.UI.RegisterOnShow then
+    ns.UI:RegisterOnShow(LoadBossModPacks)
 end
 
 local function BigWigsOptionList(encounterID)
@@ -310,6 +350,9 @@ local function BigWigsOptionList(encounterID)
     local cached = bwOptionCache[encounterID]
     if cached ~= nil then return cached or nil end
     LoadBossModPacks()
+    -- Nothing is recorded as "no module for this boss" until every pack has actually
+    -- landed, or the first look during the load pins an empty answer for the session.
+    if bwPacksLoading then return nil end
     local core = _G.BigWigs
     if not (core and type(core.IterateBossModules) == "function") then
         bwOptionCache[encounterID] = false
