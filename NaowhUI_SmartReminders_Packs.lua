@@ -98,6 +98,11 @@ function ns.ExportPack(packName, author)
     if not Ser then return nil, "The serializer libraries are missing from this build." end
 
     local db = ns.DB()
+    if type(db.importedPack) == "table" then
+        return nil, ("This profile contains an imported pack (%s by %s), so it cannot "
+            .. "be shared onward. Build your own profile to share one."):format(
+            db.importedPack.name, db.importedPack.author)
+    end
     local data, any = {}, false
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
@@ -189,6 +194,14 @@ function ns.ApplyPack(payload, mode)
     end
 
     for field, value in pairs(staged) do db[field] = value end
+    -- The profile now carries someone else's pack, so it stops being shareable: a
+    -- curator's string must not be re-exported by an importer. The mark lives in the
+    -- profile (Reset clears it, Copy carries it) and is never itself exported --
+    -- ExportPack only walks SECTIONS.
+    db.importedPack = {
+        name = tostring(payload.name or "a pack"),
+        author = tostring(payload.author or "its curator"),
+    }
     if type(payload.data.leadTime) == "number" and mode ~= "merge" then
         db.leadTime = payload.data.leadTime
     end

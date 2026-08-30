@@ -1746,7 +1746,7 @@ function ns.BuildProfileSettings(parent, y)
         newBtn:SetPoint("LEFT", profRow._leftRegion, "LEFT", 20, 0)
         ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings; this "
             .. "character switches to it.")
-        local copyBtn = ns.Button(profRow._leftRegion, "Copy Current", 110, 22, function()
+        local copyBtn = ns.Button(profRow._leftRegion, "Copy Profile", 110, 22, function()
             ShowNamePrompt("Copy Profile", "Copy", "", function(text)
                 local ok, err = ns.CopyProfile(ns.ActiveProfileName(), text)
                 if not ok then ns.Print(err) return end
@@ -1755,7 +1755,7 @@ function ns.BuildProfileSettings(parent, y)
             end)
         end)
         copyBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
-        ns.Tooltip(copyBtn, "Copy Current", "Duplicates this profile under a new name and "
+        ns.Tooltip(copyBtn, "Copy Profile", "Duplicates this profile under a new name and "
             .. "switches to the copy.")
         local delBtn = ns.Button(profRow._rightRegion, "Delete", 90, 22, function()
             local name = ns.ActiveProfileName()
@@ -1786,7 +1786,7 @@ function ns.BuildProfileSettings(parent, y)
     -- addon standalone this row is its only door.
     local resetRow
     resetRow, h = W:DualRow(parent, y,
-        { type = "label", text = "      Wipe the active profile back to defaults." },
+        { type = "label", text = "      Reset the active profile to default." },
         { type = "label", text = "" }
     ); y = y - h
     if resetRow and resetRow._rightRegion then
@@ -1814,7 +1814,7 @@ function ns.BuildProfileSettings(parent, y)
     end
     local packRow
     packRow, h = W:DualRow(parent, y,
-        { type = "label", text = "      Share your lists, priorities and reminders." },
+        { type = "label", text = "      Share your Smart Reminders" },
         { type = "label", text = "" }
     ); y = y - h
     -- Not AttachInline here: it chains off a region's existing control, and this right
@@ -1827,13 +1827,14 @@ function ns.BuildProfileSettings(parent, y)
             if ns.ShowPackExport then ns.ShowPackExport() end
         end)
         btn:SetPoint("RIGHT", packRow._rightRegion, "RIGHT", -14, 0)
-        ns.Tooltip(btn, "Share your Profile",
+        ns.Tooltip(btn, "Share your Smart Reminders",
             "Everything a curator sets up -- priority lists, per-boss orders, callouts and "
-            .. "written reminders -- as one string to share.")
+            .. "written reminders -- as one string to share. A profile built from someone "
+            .. "else's imported pack cannot be shared onward.")
     end
     local packRow2
     packRow2, h = W:DualRow(parent, y,
-        { type = "label", text = "      Install a curator's profile, with a preview first." },
+        { type = "label", text = "      Import Smart Reminder Profile" },
         { type = "label", text = "" }
     ); y = y - h
     if packRow2 and packRow2._rightRegion then
