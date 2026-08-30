@@ -2280,6 +2280,14 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     end)
     test:SetPoint("TOPRIGHT", cog, "TOPLEFT", -4, 0)
 
+    local remove = ns.Button(row, "X", 26, 26, function()
+        ns.ConfirmRemoveAbility(encounterID, ability, EUI)
+    end)
+    remove:SetPoint("TOPRIGHT", test, "TOPLEFT", -4, 0)
+    remove.label:SetTextColor(1, 0.38, 0.38, 1)
+    ns.Tooltip(remove, "Remove Ability",
+        "Take this ability off the boss. Its preset and warning time go with it.")
+
     -- Role/difficulty flags straight off the journal (FLAG_LABELS, same icon set the
     -- in-game Adventure Guide shows) -- Tank/Dps/Healer first since those are the ones
     -- worth a glance, the rest folded into the description line below instead of a
@@ -2303,13 +2311,13 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
 
     local title = ns.Font(row, 13, nil, ns.THEME.fg)
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
-    title:SetPoint("RIGHT", test, "LEFT", -8, 0)
+    title:SetPoint("RIGHT", remove, "LEFT", -8, 0)
     title:SetJustifyH("LEFT")
     title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or ""))
 
     local desc = ns.Font(row, 11, nil, ns.THEME.muted)
     desc:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -20)
-    desc:SetPoint("RIGHT", test, "LEFT", -8, 0)
+    desc:SetPoint("RIGHT", remove, "LEFT", -8, 0)
     desc:SetHeight(ABILITY_ROW_H - 24)
     desc:SetJustifyH("LEFT")
     desc:SetWordWrap(true)
@@ -2402,18 +2410,9 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     end
 
     local addBtn = ns.Button(parent, "+ Add Ability", 130, 24, function()
-        ns.ShowAbilityPicker(boss.encounterID, abilities, EUI, false)
+        ns.ShowAbilityPicker(boss.encounterID, abilities, EUI)
     end)
     addBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-
-    -- Only with something to remove: the picker would otherwise open on its own empty
-    -- state, which is a worse answer than the button not being there.
-    if #added > 0 then
-        local removeBtn = ns.Button(parent, "- Remove Ability", 130, 24, function()
-            ns.ShowAbilityPicker(boss.encounterID, abilities, EUI, true)
-        end)
-        removeBtn:SetPoint("LEFT", addBtn, "RIGHT", 8, 0)
-    end
     y = y - 30
 
     if #added == 0 then
@@ -2581,32 +2580,77 @@ function ns.BuildBossListPage(parent, y, isRaid)
     return math.min(leftBottom, topY + rightBottom)
 end
 
+-- Removing an ability drops its binding, and the preset and warning time saved on it go
+-- too, so it asks first. Named in the question rather than a bare "are you sure": the
+-- button that opens this sits on a row among several near-identical ones.
+function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
+    local EUI = callerEUI or ns.UI
+    local dimmer, panel = ns.MakeModal(400, 190, "abilityRemoveConfirm")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Remove Ability")
+
+    local body = ns.Font(panel, 12, nil, ns.THEME.fg)
+    body:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -48)
+    body:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+    body:SetJustifyH("LEFT")
+    body:SetWordWrap(true)
+    body:SetText(("Remove |cff0091ed%s|r from this boss?"):format(ability.title or "this ability"))
+
+    local warn = ns.Font(panel, 11, nil, ns.THEME.muted)
+    warn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -84)
+    warn:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+    warn:SetJustifyH("LEFT")
+    warn:SetWordWrap(true)
+    warn:SetText("Its defensive preset and warning time go with it. Adding it back later "
+        .. "starts that ability fresh.")
+
+    local remove = ns.Button(panel, "Remove", 110, 26, function()
+        -- EnsureBinding first: a binding saved under this ability's journal alias reads
+        -- back fine but would survive a delete keyed on the current id. Ensuring migrates
+        -- the alias onto that id, so the nil below actually removes it.
+        ns.EnsureBinding(encounterID, ability.spellID)
+        local set = ns.AbilityBindingsTable(false, encounterID)
+        if set then set[ability.spellID] = nil end
+        ns.RefreshRuntime()
+        dimmer:Hide()
+        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+    end)
+    remove:SetPoint("BOTTOMRIGHT", panel, "BOTTOM", -6, 16)
+    remove.label:SetTextColor(1, 0.38, 0.38, 1)
+
+    local cancel = ns.Button(panel, "Cancel", 110, 26, function() dimmer:Hide() end)
+    cancel:SetPoint("BOTTOMLEFT", panel, "BOTTOM", 6, 16)
+
+    dimmer:Show()
+    return dimmer
+end
+
 -- Choose which of a boss's abilities get reminders; the boss page lists exactly these.
 -- The curated tank list marks rows here instead of pre-selecting them, so it still says
 -- which hits are the real tank busters without choosing for the player.
 --
--- removeMode narrows the list to what is already on the boss. Same rows and the same
--- checkbox in both directions, so unticking in either one is the single way an ability
--- comes off a boss.
-function ns.ShowAbilityPicker(encounterID, abilities, callerEUI, removeMode)
+-- Additive only. An ability already on the boss shows ticked and inert here; removing one
+-- is the X on its own row, which confirms first (ns.ConfirmRemoveAbility), so a binding is
+-- never destroyed by an untick that reads like a filter.
+function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
     local EUI = callerEUI or ns.UI
     local PANEL_W = 460
     local dimmer, panel = ns.MakeModal(PANEL_W, 560, "abilityPicker")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText(removeMode and "Remove Abilities" or "Add Abilities")
+    head:SetText("Add Abilities")
 
     local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
     hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -42)
     hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
     hint:SetJustifyH("LEFT")
     hint:SetWordWrap(true)
-    hint:SetText(removeMode
-        and "Untick an ability to take it off this boss. Its preset and warning time go "
-            .. "with it; ticking it again starts that ability fresh."
-        or "Tick the abilities you want reminders for. Marked ones are what the "
-            .. "addon knows to be tank hits on this boss.")
+    hint:SetText("Tick the abilities you want reminders for. Marked ones are what the "
+        .. "addon knows to be tank hits on this boss. Already-added abilities are ticked "
+        .. "and stay put; remove one with the X on its row.")
 
     -- Scrolled rather than capped: a journal boss can list well past a screenful, and this
     -- is the only place an ability can be switched on, so a row that does not fit still has
@@ -2624,34 +2668,27 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI, removeMode)
         local y, shown = 0, 0
         for i = 1, #abilities do
             local a = abilities[i]
-            local listed = a.spellID
-                and (not removeMode or ns.AbilityAdded(encounterID, a.spellID))
-            if listed then
+            if a.spellID then
                 shown = shown + 1
                 local row = CreateFrame("Frame", nil, content)
                 row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
                 row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
                 row:SetHeight(26)
 
+                local already = ns.AbilityAdded(encounterID, a.spellID)
                 local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
                 check:SetSize(22, 22)
                 check:SetPoint("LEFT", row, "LEFT", 0, 0)
-                check:SetChecked(ns.AbilityAdded(encounterID, a.spellID))
-                check:SetScript("OnClick", function(self)
-                    if self:GetChecked() then
+                check:SetChecked(already)
+                if already then
+                    check:Disable()
+                else
+                    check:SetScript("OnClick", function()
                         ns.EnsureBinding(encounterID, a.spellID).enabled = true
-                    else
-                        -- EnsureBinding first: a binding saved under this ability's
-                        -- journal alias reads back fine but would survive a delete keyed
-                        -- on the current id. Ensuring migrates the alias onto that id, so
-                        -- the nil below actually removes it.
-                        ns.EnsureBinding(encounterID, a.spellID)
-                        local set = ns.AbilityBindingsTable(false, encounterID)
-                        if set then set[a.spellID] = nil end
-                    end
-                    ns.RefreshRuntime()
-                    if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
-                end)
+                        ns.RefreshRuntime()
+                        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+                    end)
+                end
 
                 local icon = row:CreateTexture(nil, "ARTWORK")
                 icon:SetSize(20, 20)
@@ -2666,7 +2703,8 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI, removeMode)
                 lbl:SetJustifyH("LEFT")
                 lbl:SetWordWrap(false)
                 lbl:SetText((a.name or ("Spell " .. a.spellID))
-                    .. (curated and "  |cff0091ed[tank hit]|r" or ""))
+                    .. (curated and "  |cff0091ed[tank hit]|r" or "")
+                    .. (already and "  |cff9a9ea6added|r" or ""))
 
                 y = y - 28
             end
@@ -2674,9 +2712,7 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI, removeMode)
         if shown == 0 then
             local none = ns.Font(content, 11, nil, ns.THEME.muted)
             none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
-            none:SetText(removeMode
-                and "Nothing has been added to this boss yet."
-                or "Nothing in the journal for this boss carries a spell id.")
+            none:SetText("Nothing in the journal for this boss carries a spell id.")
         end
         content:SetHeight(math.max(1, math.abs(y)))
     end)
