@@ -14,8 +14,7 @@ local UI = {}
 ns.UI = UI
 
 UI.CONTENT_PAD = 45
--- Placeholder until the addon ships its own art; a bad path renders blank, not an error.
-UI.COGS_ICON = "Interface\\WorldMap\\Gear_64Grey"
+UI.COGS_ICON = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\cog.tga"
 
 function UI.L(text) return text end
 

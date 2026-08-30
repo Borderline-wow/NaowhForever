@@ -223,9 +223,7 @@ local function AlertFontPath()
         local ok, path = pcall(LSM.Fetch, LSM, "font", "Naowh", true)
         if ok and path then return path end
     end
-    local EUI = _G.EllesmereUI
-    local path = EUI and EUI.GetFontPath and EUI.GetFontPath("extras")
-    return path or STANDARD_TEXT_FONT
+    return STANDARD_TEXT_FONT
 end
 
 -- User-resizable via Unlock Mode (see MakeRaidReminderUnlockElement in
@@ -376,14 +374,12 @@ end
 
 -- A real spell icon, circularly cropped, with the standard Blizzard cooldown-swipe
 -- widget on top -- a square icon plus a swipe is what every action button does, but
--- reads as a square with a pie-wipe, not "an actual circle". The mask/border pair is
--- EllesmereUI's own "Circle" action-button shape asset (EllesmereUIActionBars.lua's
--- SHAPE_MASKS/SHAPE_BORDERS.circle) -- same file this addon already hard-depends on,
--- so a Circle reminder reads as the same circle shape the rest of the suite uses
--- rather than a second lookalike asset.
+-- reads as a square with a pie-wipe, not "an actual circle". The mask/ring pair is the
+-- addon's own (Tools/make_media.py): shape in the alpha channel, since masks read alpha,
+-- and the ring doubles as the drawn border.
 local CIRCLE_SIZE_DEFAULT = 56
-local CIRCLE_MASK_PATH = "Interface\\AddOns\\EllesmereUI\\media\\portraits\\circle_mask.tga"
-local CIRCLE_BORDER_PATH = "Interface\\AddOns\\EllesmereUI\\media\\portraits\\circle_border.tga"
+local CIRCLE_MASK_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_mask.tga"
+local CIRCLE_BORDER_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_ring.tga"
 
 -- User-resizable via Unlock Mode's own resize handle (see MakeRaidReminderUnlockElement
 -- in NaowhUI_SmartReminders.lua), stored at TRDB().raidReminderCircleSize.
@@ -542,11 +538,10 @@ end
 --  rather than a floating on-screen widget, so they don't fit the Anchor/Region pool
 --  above (that pool always renders at one fixed screen spot; a glow's location is
 --  wherever the target's frame happens to be this instant, resolved fresh on every
---  fire). Own small pool of dedicated overlay wrapper frames instead: EllesmereUI's
---  glow engine (EllesmereUI.Glows) hides its glow via SetAlpha(0) on the frame it was
---  given (StopGlow), so that frame has to be a dedicated overlay parented over the
---  target, never the nameplate/raid-frame's own display frame -- gluing a glow
---  directly onto that would blank the whole frame the instant the glow ends.
+--  fire). Own small pool of dedicated overlay wrapper frames instead: the glow engine
+--  parks its textures on whatever frame it is handed, so that frame has to be a
+--  dedicated overlay parented over the target, never the nameplate/raid-frame's own
+--  display frame -- a stray leftover on that would outlive the reminder.
 -------------------------------------------------------------------------------
 local glowPool, activeGlows = {}, {}
 
@@ -561,8 +556,8 @@ local function AcquireGlowWrapper()
 end
 
 local function ReleaseGlowWrapper(w)
-    local Glows = _G.EllesmereUI and _G.EllesmereUI.Glows
-    if Glows and Glows.StopGlow then Glows.StopGlow(w) end
+    local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
+    if LCG then LCG.PixelGlow_Stop(w) end
     if w.hideTimer then w.hideTimer:Cancel(); w.hideTimer = nil end
     w:Hide()
     w:ClearAllPoints()
@@ -574,19 +569,17 @@ local function ReleaseGlowWrapper(w)
     glowPool[#glowPool + 1] = w
 end
 
--- nameplate reads the live Blizzard nameplate directly (C_NamePlate); raidframe reads
--- EllesmereUI's own raid frame accessor (a small addition to EllesmereUIRaidFrames.lua
--- -- that frame keeps its unit->button map private otherwise). Either can come back
--- nil (unit not currently visible on any frame of that kind), in which case the glow
--- is silently skipped for this fire -- same behavior confirmed from MRT's own
--- raid-frame glow, which no-ops the same way when LibGetFrame finds nothing.
+-- nameplate reads the live Blizzard nameplate directly (C_NamePlate); raidframe goes
+-- through LibGetFrame, which resolves the unit's frame on whichever raid-frame addon is
+-- actually drawing it. Either can come back nil (unit not currently visible on any frame
+-- of that kind), in which case the glow is silently skipped for this fire.
 local function ResolveGlowFrame(displayType, unit)
     if displayType == "nameplateGlow" then
         local plate = C_NamePlate and C_NamePlate.GetNamePlateForUnit and C_NamePlate.GetNamePlateForUnit(unit)
         return plate and (plate.UnitFrame or plate)
     elseif displayType == "raidframeGlow" then
-        local EUIg = _G.EllesmereUI
-        return EUIg and EUIg.RaidFrames_GetFrameForUnit and EUIg.RaidFrames_GetFrameForUnit(unit)
+        local LGF = LibStub and LibStub("LibGetFrame-1.0", true)
+        return LGF and LGF.GetUnitFrame and LGF.GetUnitFrame(unit)
     end
     return nil
 end
@@ -603,11 +596,10 @@ local function FireGlowReminder(display, dur)
     w:Show()
     w.hideAfterCastID = display.hideAfterCastID
 
-    local Glows = _G.EllesmereUI and _G.EllesmereUI.Glows
-    if Glows and Glows.StartButtonGlow then
+    local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
+    if LCG then
         local c = display.color
-        Glows.StartButtonGlow(w, frame:GetWidth() or 40,
-            (c and c.r) or 1, (c and c.g) or 0.82, (c and c.b) or 0, nil, frame:GetHeight() or 40)
+        LCG.PixelGlow_Start(w, { (c and c.r) or 1, (c and c.g) or 0.82, (c and c.b) or 0, 1 })
     end
 
     if w.hideTimer then w.hideTimer:Cancel() end

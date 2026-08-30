@@ -3,8 +3,8 @@
 --
 --  A pack is a curator's judgment as data: priority lists per spec, per-boss
 --  orders, callout lines, tank-buster marks, mutes, and authored reminders,
---  in one paste-able string. The wire format is EllesmereUI's own profile
---  machinery (serializer + LibDeflate + print encoding) under a distinct
+--  in one paste-able string. The wire format is LibSerialize + LibDeflate + print
+--  encoding under a distinct
 --  prefix, so a pack can never be mistaken for a profile string or vice
 --  versa.
 --
@@ -24,7 +24,7 @@
 local ns = _G.NaowhUITankReminder
 if not ns then return end
 
-local PREFIX = "NSRPACK1:"
+local PREFIX = "NSRPACK2:"
 local PACK_FORMAT = 1
 
 -- Sections a pack may carry, in display order. Keyed by the profile field;
@@ -63,12 +63,22 @@ local function CountSection(kind, t)
     return n
 end
 
+-- LibSerialize's Deserialize returns (ok, value); the adapter re-raises the failure so the
+-- existing pcall call sites keep their one contract: Serialize/Deserialize either answer
+-- or throw.
 local function Codec()
-    local EUI = _G.EllesmereUI
-    local Ser = EUI and EUI._Serializer
+    local LS = LibStub and LibStub("LibSerialize", true)
     local LD = LibStub and LibStub("LibDeflate", true)
-    if Ser and Ser.Serialize and Ser.Deserialize and LD then return Ser, LD end
-    return nil
+    if not (LS and LD) then return nil end
+    local Ser = {
+        Serialize = function(v) return LS:Serialize(v) end,
+        Deserialize = function(s)
+            local ok, v = LS:Deserialize(s)
+            if not ok then error(v, 0) end
+            return v
+        end,
+    }
+    return Ser, LD
 end
 
 -- Deep copy, so a pack never aliases live settings tables: an exported pack
@@ -83,7 +93,7 @@ end
 
 function ns.ExportPack(packName, author)
     local Ser, LD = Codec()
-    if not Ser then return nil, "EllesmereUI's serializer is not available." end
+    if not Ser then return nil, "The serializer libraries are missing from this build." end
 
     local db = ns.DB()
     local data, any = {}, false
@@ -118,7 +128,7 @@ end
 -- and a reason. Applies nothing.
 function ns.DecodePack(str)
     local Ser, LD = Codec()
-    if not Ser then return nil, "EllesmereUI's serializer is not available." end
+    if not Ser then return nil, "The serializer libraries are missing from this build." end
     if type(str) ~= "string" then return nil, "Nothing to read." end
     str = str:gsub("%s+", "")
     if str == "" then return nil, "Nothing to read." end

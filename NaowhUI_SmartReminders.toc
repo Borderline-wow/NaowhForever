@@ -1,18 +1,18 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100
-## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders |cff8a99b5[test 0830b]|r
+## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders |cff8a99b5[test 0830c]|r
 ## Notes: Calls out what to press when the boss timeline says an ability is coming. All specs.
 ## Author: NaowhUI
-## Version: 1.1.0-test-0830b
-## Dependencies: EllesmereUI
-## OptionalDeps: NaowhUI_EUI, NaowhUI_Media
+## Version: 1.1.0-test-0830c
+## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhUI_SmartRemindersDB
 ## Group: NaowhUI
+## IconTexture: Interface\AddOns\NaowhUI_SmartReminders\Media\icon.tga
+## AddonCompartmentFunc: NaowhUI_SmartReminders_OnCompartmentClick
 
 Libs\embeds.xml
 
-# Core first: it owns the DB and the settings-page injection the feature file hangs off.
-# NaowhUI_EUI is optional -- with it we add a section to the existing NaowhUI group, without
-# it we register that group ourselves, so this addon stands alone on EllesmereUI.
+# Core first: theme, chrome primitives, the DB and profiles -- everything later files
+# hang off.
 NaowhUI_SmartReminders_Core.lua
 
 # The widget kit: ns.UI, the shim every options page calls in place of EllesmereUI's
