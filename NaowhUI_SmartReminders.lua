@@ -737,7 +737,7 @@ local function CreateBar()
     bar.bg:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 1, -1)
     local T = ns.THEME
     bar.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9)
-    if bar.fill then bar.fill:SetVertexColor(T.gold.r, T.gold.g, T.gold.b, 1) end
+    if bar.fill then bar.fill:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1) end
     bar:Hide()
     return bar
 end
@@ -773,7 +773,7 @@ function Reminder.Create()
     frame.fallback = textFrame:CreateFontString(nil, "OVERLAY")
     frame.fallback:SetFont(AlertFont(), 16, "OUTLINE")
     local T = ns.THEME
-    frame.fallback:SetTextColor(T.goldSoft.r, T.goldSoft.g, T.goldSoft.b, 1)
+    frame.fallback:SetTextColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1)
     frame.fallback:SetAlpha(0)
     frame.fallback:Hide()
 
@@ -4438,7 +4438,7 @@ local function BuildPicker()
                 row:SetHeight(30)
                 row:SetPoint("LEFT", content, "LEFT", 0, 0)
                 row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-                row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.goldSoft, 0.10)
+                row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.accentSoft, 0.10)
                 row.hl:SetAllPoints(); row.hl:Hide()
                 row.tex = row:CreateTexture(nil, "ARTWORK")
                 row.tex:SetSize(24, 24)

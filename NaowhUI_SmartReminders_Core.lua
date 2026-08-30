@@ -13,25 +13,20 @@ local ADDON_NAME = ...
 -- Renamed with the addon (was NaowhUI_TankReminder); RunMigrations moves the old key.
 local MODULE_KEY = "NaowhUI_SmartReminders"
 
-local NAOWH_BLUE = { r = 0x00 / 255, g = 0xCF / 255, b = 0xFF / 255 }
-
 local ns = {}
 _G.NaowhUITankReminder = ns
 ns.MODULE_KEY = MODULE_KEY
-ns.BLUE = NAOWH_BLUE
 
--- naowh.gg's own palette (lifted from its live stylesheet tokens), so everything this addon
--- draws reads as his brand: navy panels, gold primary accent, blue secondary.
+-- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
-    bg    = { r = 0x07 / 255, g = 0x10 / 255, b = 0x1e / 255 },   -- --bg
-    panel = { r = 0x0d / 255, g = 0x18 / 255, b = 0x28 / 255 },   -- --bg-elev
-    line  = { r = 0x1c / 255, g = 0x2a / 255, b = 0x44 / 255 },   -- --line
-    fg    = { r = 0xe7 / 255, g = 0xec / 255, b = 0xf5 / 255 },   -- --fg
-    muted = { r = 0x8a / 255, g = 0x99 / 255, b = 0xb5 / 255 },   -- --muted
-    gold  = { r = 0xf0 / 255, g = 0xa8 / 255, b = 0x30 / 255 },   -- --gold
-    goldSoft = { r = 0xff / 255, g = 0xc7 / 255, b = 0x69 / 255 },-- --gold-soft
-    blue  = { r = 0x2d / 255, g = 0xa6 / 255, b = 0xff / 255 },   -- --blue
-    grey  = { r = 0x46 / 255, g = 0x4c / 255, b = 0x58 / 255 },   -- neutral, not a stylesheet token: for a selected-row fill that reads against blue text
+    bg     = { r = 0x0e / 255, g = 0x0f / 255, b = 0x11 / 255 },  -- window backdrop
+    panel  = { r = 0x1a / 255, g = 0x1c / 255, b = 0x1f / 255 },  -- panels, modals, controls
+    line   = { r = 0x2e / 255, g = 0x31 / 255, b = 0x36 / 255 },  -- borders, dividers, tracks
+    fg     = { r = 0xf0 / 255, g = 0xf1 / 255, b = 0xf3 / 255 },  -- primary text
+    muted  = { r = 0x9a / 255, g = 0x9e / 255, b = 0xa6 / 255 },  -- secondary text
+    grey   = { r = 0x34 / 255, g = 0x37 / 255, b = 0x3d / 255 },  -- selected-row neutral fill
+    accent     = { r = 0x00 / 255, g = 0x91 / 255, b = 0xed / 255 },
+    accentSoft = { r = 0x4d / 255, g = 0xb5 / 255, b = 0xf5 / 255 },
 }
 
 -- A secret-tainted message is DROPPED by the display, silently and with nothing logged, so
@@ -43,9 +38,9 @@ ns.THEME = {
 -- the only thing that answers plainly, and it must be asked BEFORE the value is coerced.
 function ns.Print(msg)
     if issecretvalue and issecretvalue(msg) then
-        msg = "|cffF0A830(withheld: this line contained a secret value)|r"
+        msg = "|cff0091ed(withheld: this line contained a secret value)|r"
     end
-    print("|cff00cfffNaowhUI|r " .. tostring(msg))
+    print("|cff0091edNaowhUI|r " .. tostring(msg))
 end
 
 -- Set at login. Companion mode rides NaowhUI_EUI's page; standalone mode owns one.
@@ -54,97 +49,117 @@ ns.companionMode = false
 -------------------------------------------------------------------------------
 --  House chrome
 -------------------------------------------------------------------------------
--- Everything this addon draws outside EllesmereUI's own options rows is built from ITS
--- primitives -- MakeFont, MakeBorder, SolidTex, MakeStyledButton, ShowWidgetTooltip -- rather
--- than hand-rolled frames. That is what makes a panel of ours read as part of the same UI
--- instead of a lookalike, and it means an EllesmereUI theme or accent change carries here for
--- free. The one exception is a text input: the widget factory has none, so the EditBox is
--- ours, dressed in the same border and font.
-function ns.Font(parent, size, flags, color)
-    local EUI = _G.EllesmereUI
-    local c = color or ns.THEME.fg
-    if EUI and EUI.MakeFont then
-        return EUI.MakeFont(parent, size, flags, c.r, c.g, c.b, 1)
+-- Every panel this addon draws is built from these primitives, so the whole look is
+-- decided here and in ns.THEME. The widget factory in the Widgets file builds its rows
+-- from the same pieces.
+
+-- The UI font: the Naowh face when NaowhUI_Media (or anything else) has registered it
+-- with LibSharedMedia, the client default otherwise. Resolved once -- media addons load
+-- before us via OptionalDeps, and nothing builds UI before login.
+local uiFontPath
+function ns.UIFontPath()
+    if not uiFontPath then
+        local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+        uiFontPath = (LSM and LSM:Fetch("font", "Naowh", true)) or STANDARD_TEXT_FONT
     end
+    return uiFontPath
+end
+
+function ns.Font(parent, size, flags, color)
+    local c = color or ns.THEME.fg
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    fs:SetFont(STANDARD_TEXT_FONT, size, flags or "")
+    fs:SetFont(ns.UIFontPath(), size, flags or "")
     fs:SetTextColor(c.r, c.g, c.b, 1)
     return fs
 end
 
+-- Four 1px edges on a child frame one level up, so the border draws over the panel's own
+-- background but under its content. Returns { _frame, SetColor } -- _frame so a caller can
+-- hide the whole border (the learn-tag does), SetColor for hover restyles.
 function ns.Border(frame, color, alpha)
-    local EUI = _G.EllesmereUI
     local c = color or ns.THEME.line
-    if EUI and EUI.MakeBorder then
-        return EUI.MakeBorder(frame, c.r, c.g, c.b, alpha or 1, EUI.PanelPP)
+    local a = alpha or 1
+    local bf = CreateFrame("Frame", nil, frame)
+    bf:SetAllPoints()
+    bf:SetFrameLevel(math.min(frame:GetFrameLevel() + 1, 9999))
+    local edges = {}
+    for i = 1, 4 do
+        local t = bf:CreateTexture(nil, "OVERLAY")
+        t:SetColorTexture(c.r, c.g, c.b, a)
+        edges[i] = t
     end
+    edges[1]:SetPoint("TOPLEFT"); edges[1]:SetPoint("TOPRIGHT"); edges[1]:SetHeight(1)
+    edges[2]:SetPoint("BOTTOMLEFT"); edges[2]:SetPoint("BOTTOMRIGHT"); edges[2]:SetHeight(1)
+    edges[3]:SetPoint("TOPLEFT"); edges[3]:SetPoint("BOTTOMLEFT"); edges[3]:SetWidth(1)
+    edges[4]:SetPoint("TOPRIGHT"); edges[4]:SetPoint("BOTTOMRIGHT"); edges[4]:SetWidth(1)
+    return {
+        _frame = bf,
+        SetColor = function(_, r, g, b, a2)
+            for i = 1, 4 do edges[i]:SetColorTexture(r, g, b, a2 or 1) end
+        end,
+    }
 end
 
 function ns.Solid(parent, layer, color, alpha)
-    local EUI = _G.EllesmereUI
     local c = color or ns.THEME.panel
-    if EUI and EUI.SolidTex then
-        return EUI.SolidTex(parent, layer, c.r, c.g, c.b, alpha or 1)
-    end
     local t = parent:CreateTexture(nil, layer or "BACKGROUND")
     t:SetColorTexture(c.r, c.g, c.b, alpha or 1)
     return t
 end
 
--- btn.label is exposed so a reused button can be re-labelled on each open. Calling
--- MakeStyledButton again would not do it: it builds a fresh background, border and
--- fontstring every time and overwrites OnClick.
+-- btn.label is exposed so a reused button can be re-labelled on each open.
 function ns.Button(parent, text, w, h, onClick)
-    local EUI = _G.EllesmereUI
+    local T = ns.THEME
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(w, h)
-    if EUI and EUI.MakeStyledButton and EUI.WB_COLOURS then
-        local _, _, lbl = EUI.MakeStyledButton(btn, text, 12, EUI.WB_COLOURS, onClick)
-        btn.label = lbl
-    else
-        local bg = ns.Solid(btn, "BACKGROUND", ns.THEME.line, 0.6)
-        bg:SetAllPoints()
-        local lbl = ns.Font(btn, 12, nil)
-        lbl:SetPoint("CENTER"); lbl:SetText(text)
-        btn.label = lbl
-        btn:SetScript("OnClick", function() if onClick then onClick() end end)
-    end
+    local bg = ns.Solid(btn, "BACKGROUND", T.panel, 0.9)
+    bg:SetAllPoints()
+    local border = ns.Border(btn)
+    local lbl = ns.Font(btn, 12, nil)
+    lbl:SetPoint("CENTER")
+    lbl:SetText(text)
+    btn.label = lbl
+    btn:SetScript("OnClick", function() if onClick then onClick() end end)
+    btn:SetScript("OnEnter", function()
+        bg:SetColorTexture(T.panel.r, T.panel.g, T.panel.b, 1)
+        border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    end)
+    btn:SetScript("OnLeave", function()
+        bg:SetColorTexture(T.panel.r, T.panel.g, T.panel.b, 0.9)
+        border:SetColor(T.line.r, T.line.g, T.line.b, 1)
+    end)
     return btn
 end
 
--- Re-label a button built by ns.Button, going through EllesmereUI's localiser the same way
--- MakeStyledButton does.
 function ns.SetButtonText(btn, text)
     if not (btn and btn.label) then return end
-    local EUI = _G.EllesmereUI
-    btn.label:SetText((EUI and EUI.L and EUI.L(text)) or text)
+    btn.label:SetText(text)
 end
 
--- Tooltips go through EllesmereUI's own, per its contributing rules -- never GameTooltip
--- directly, so ours look and dismiss like every other tooltip in the suite.
--- The house tooltip's real signature is (frame, TEXT, OPTS) -- one string, no title/body
--- pair. The old call here put the body where opts belongs, and indexing a string for
--- option fields quietly yields nothing, so every tooltip in this addon rendered its title
--- alone and nobody got an error to notice. The two lines are now one string, and the
--- cursor anchor is the house option made for hover-to-read rows.
+-- The house tooltip lives in the Widgets file (ns.UI); resolved at hover time since that
+-- file loads after this one.
 function ns.Tooltip(frame, title, body)
-    local EUI = _G.EllesmereUI
-    if not (EUI and EUI.ShowWidgetTooltip) then return end
-    -- Composed at HOVER time, not attach time: the house tooltip accepts a function and
+    -- Composed at HOVER time, not attach time: the tooltip accepts a function and
     -- resolves it on show, and a body that is itself a function can answer from data that
     -- did not exist yet when the row was built -- spell text loads async.
     local function Compose()
         local b = body
         if type(b) == "function" then b = b() end
         if b and b ~= "" then
-            return "|cffF0A830" .. title .. "|r\n" .. b
+            return "|cff0091ed" .. title .. "|r\n" .. b
         end
         return title
     end
     frame:SetScript("OnEnter", function(self)
-        EUI.ShowWidgetTooltip(self, Compose, { anchor = "cursor", justify = "LEFT" })
+        local UI = ns.UI
+        if UI and UI.ShowWidgetTooltip then
+            UI.ShowWidgetTooltip(self, Compose, { anchor = "cursor", justify = "LEFT" })
+        end
     end)
-    frame:SetScript("OnLeave", function() EUI.HideWidgetTooltip() end)
+    frame:SetScript("OnLeave", function()
+        local UI = ns.UI
+        if UI and UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
+    end)
 end
 
 -- Modals stack: the reminder editor opens from inside the instance modal, and with both

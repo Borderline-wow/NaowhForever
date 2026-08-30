@@ -358,7 +358,7 @@ local function CreateBarRegion(a)
     bg:SetPoint("BOTTOMRIGHT", r.bar, "BOTTOMRIGHT", 1, -1)
     bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9)
     local fill = r.bar:GetStatusBarTexture()
-    if fill then fill:SetVertexColor(T.gold.r, T.gold.g, T.gold.b, 1) end
+    if fill then fill:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1) end
     ns.Border(r.bar)
 
     r:Hide()
@@ -902,7 +902,7 @@ local function EnsureConfigHandle(displayType, a)
     ns.Solid(h, "BACKGROUND", T.panel, 0.95)
     ns.Border(h)
 
-    local label = ns.Font(h, 12, "OUTLINE", T.gold)
+    local label = ns.Font(h, 12, "OUTLINE", T.accent)
     label:SetPoint("LEFT", h, "LEFT", 8, 0)
     label:SetText(DISPLAY_TYPE_LABEL[displayType])
 
@@ -1017,7 +1017,7 @@ local function BuildConfigToolbar()
     f:SetScript("OnDragStart", function(self) self:StartMoving() end)
     f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
-    local head = ns.Font(f, 12, "OUTLINE", T.gold)
+    local head = ns.Font(f, 12, "OUTLINE", T.accent)
     head:SetPoint("TOP", f, "TOP", 0, -10)
     head:SetText("Reminder Anchors")
 

@@ -703,7 +703,7 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
         bg:SetAllPoints()
     end
 
-    local lbl = ns.Font(prow, 13, nil, isActive and ns.THEME.blue or ns.THEME.muted)
+    local lbl = ns.Font(prow, 13, nil, isActive and ns.THEME.accent or ns.THEME.muted)
     lbl:SetPoint("LEFT", prow, "LEFT", 8, 0)
     lbl:SetPoint("RIGHT", prow, "RIGHT", canDelete and -56 or -34, 0)
     lbl:SetJustifyH("LEFT")
@@ -726,7 +726,7 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
     end
     edit:SetPoint("CENTER", editHit, "CENTER", 0, 0)
     editHit:SetScript("OnEnter", function(self)
-        local c = ns.THEME.blue
+        local c = ns.THEME.accent
         edit:SetTextColor(c.r, c.g, c.b, 1)
         local EUIg = _G.EllesmereUI
         if EUIg and EUIg.ShowWidgetTooltip then
@@ -1211,7 +1211,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         else
             btn:SetPoint("LEFT", tabBar, "LEFT", 0, 0)
         end
-        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.gold, 1)
+        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.accent, 1)
         marker:SetPoint("BOTTOMLEFT", 0, -3)
         marker:SetPoint("BOTTOMRIGHT", 0, -3)
         marker:SetHeight(2)
@@ -1445,7 +1445,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, 0)
         row:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
 
-        row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.gold, 0.14)
+        row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.accent, 0.14)
         row.hl:SetAllPoints()
         row.hl:Hide()
         row:SetScript("OnEnter", function(s) s.hl:Show() end)
@@ -1930,7 +1930,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         lbl:SetPoint("CENTER")
         if anchorTo then btn:SetPoint("LEFT", anchorTo, "RIGHT", 18, 0)
         else btn:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP) end
-        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.gold, 1)
+        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.accent, 1)
         marker:SetPoint("BOTTOMLEFT", 0, -3)
         marker:SetPoint("BOTTOMRIGHT", 0, -3)
         marker:SetHeight(2)
@@ -2375,7 +2375,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- the label sitting near its bottom -- no centering or colour override exists on it.
     -- Hand-built here instead: centered, Naowh's gold, and a fraction of that height, which
     -- is most of what was leaving a gap between the tab strip and the content below.
-    local pageHead = ns.Font(parent, 14, nil, ns.THEME.gold)
+    local pageHead = ns.Font(parent, 14, nil, ns.THEME.accent)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
     pageHead:SetJustifyH("CENTER")
     pageHead:SetText(isRaid and "Raid Bosses" or "Dungeon Bosses")
@@ -2459,7 +2459,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
         row:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, -(i - 1) * 26)
 
         local isSel = (sel == inst)
-        local bg = ns.Solid(row, "BACKGROUND", ns.THEME.gold, isSel and 0.16 or 0)
+        local bg = ns.Solid(row, "BACKGROUND", ns.THEME.accent, isSel and 0.16 or 0)
         bg:SetAllPoints()
 
         local lbl = ns.Font(row, 12, nil, isSel and ns.THEME.fg or ns.THEME.muted)
@@ -2552,7 +2552,7 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
         -- slot always reserves) and look wrong crammed into a 480px floating popup, the
         -- same reasoning ShowAbilityReminderPicker's own compact Label/Box helpers state.
         local function Header(text)
-            local lbl = ns.Font(content, 12, nil, ns.THEME.gold)
+            local lbl = ns.Font(content, 12, nil, ns.THEME.accent)
             lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
             lbl:SetText(text)
             y = y - 20
@@ -2814,7 +2814,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         lbl:SetPoint("CENTER")
         if anchorTo then btn:SetPoint("LEFT", anchorTo, "RIGHT", 18, 0)
         else btn:SetPoint("LEFT", tabBar, "LEFT", 0, 0) end
-        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.gold, 1)
+        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.accent, 1)
         marker:SetPoint("BOTTOMLEFT", 0, -3)
         marker:SetPoint("BOTTOMRIGHT", 0, -3)
         marker:SetHeight(2)
@@ -2886,7 +2886,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         row:SetHeight(22)
         row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, 0)
         row:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
-        row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.gold, 0.14)
+        row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.accent, 0.14)
         row.hl:SetAllPoints()
         row.hl:Hide()
         row:SetScript("OnEnter", function(s) s.hl:Show() end)
