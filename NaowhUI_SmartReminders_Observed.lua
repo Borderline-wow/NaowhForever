@@ -39,6 +39,15 @@ local MAX_BUFFER = 200        -- bounds what accumulates outside an encounter
 local pending = {}   -- [barIdentity] = { sid, mod, landing, stage, stageAt }
 local landed = {}    -- array of { sid, mod, at, stage, stageAt }
 
+-- The last pull this session committed, kept because ENCOUNTER_END clears the main file's
+-- currentEncounter before anyone can type a slash command -- which left /nutank observed
+-- answering "not in an encounter" at exactly the moment it was worth asking.
+local lastPullEnc, lastPullDiff
+
+function ns.ObservedLastPull()
+    return lastPullEnc, lastPullDiff
+end
+
 -------------------------------------------------------------------------------
 --  Storage
 -------------------------------------------------------------------------------
@@ -173,6 +182,9 @@ end
 function ns.ObserveCommitPull(encounterID, difficultyID)
     local startedAt = ns.PullContext()
     local endedAt = GetTime()
+    if encounterID then
+        lastPullEnc, lastPullDiff = encounterID, difficultyID
+    end
     if not (startedAt and encounterID) then
         wipe(pending); wipe(landed)
         return

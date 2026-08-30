@@ -3985,17 +3985,26 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     end
 
     if arg == "observed" then
+        -- Falls back to the last pull committed this session: ENCOUNTER_END nils
+        -- currentEncounter, so without this the command is unusable in the one moment
+        -- anyone actually runs it -- right after the boss dies.
         local enc = currentEncounter
+        if not enc and ns.ObservedLastPull then enc = ns.ObservedLastPull() end
         if not enc then
-            ns.Print("not in an encounter. Run this during or right after a pull, or open "
-                .. "the Custom Reminders tab to browse what has been recorded.")
+            ns.Print("no pull to report yet. Fight a boss with BigWigs or DBM running, or "
+                .. "open the Custom Reminders tab to browse what has been recorded.")
             return
         end
         local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(enc) or {}
         if #diffs == 0 then
             ns.Print(("nothing recorded for encounter %s yet. Recording rides the boss "
-                .. "mods, so it needs Boss Addon set to BigWigs or DBM."):format(tostring(enc)))
+                .. "mods, so it needs Boss Addon set to BigWigs or DBM (currently %s), and "
+                .. "a real boss encounter -- trash fires no encounter events."):format(
+                tostring(enc), ns.BossSource()))
             return
+        end
+        if not currentEncounter then
+            ns.Print(("|cff9a9ea6last pull, encounter %s|r"):format(tostring(enc)))
         end
         for _, d in ipairs(diffs) do
             local block = ns.ObservedFor(enc, tonumber(d.key))

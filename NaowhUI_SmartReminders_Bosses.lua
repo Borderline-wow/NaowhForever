@@ -2904,6 +2904,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
     -- reminder lists because it is the raw material they are built from: pick a time here
     -- and the editor opens already pointed at it.
     local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(encounterID) or {}
+    Header("OBSERVED TIMINGS")
     if #diffs > 0 then
         local pick = observedDiffPick[encounterID]
         local chosen
@@ -2912,8 +2913,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         end
         chosen = chosen or diffs[1]
         local block = ns.ObservedFor(encounterID, tonumber(chosen.key))
-
-        Header("OBSERVED TIMINGS")
 
         if #diffs > 1 then
             -- Only when there is a choice to make: the same boss on two difficulties casts
@@ -2958,6 +2957,27 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
             .. "reminder from it"):format(block and block.pulls or 0,
             math.floor((block and block.longest or 0) / 60), (block and block.longest or 0) % 60))
         y = y - 22
+    else
+        -- Says which of the two reasons it is. They need different actions from the
+        -- player, and neither is guessable from an empty list.
+        local src = ns.BossSource and ns.BossSource() or "timeline"
+        local why = ns.Font(content, 11, nil, ns.THEME.muted)
+        why:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        why:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        why:SetJustifyH("LEFT")
+        why:SetWordWrap(true)
+        if src ~= "bigwigs" and src ~= "dbm" then
+            why:SetText("Recording rides the boss mods, and Boss Addon is set to Blizzard "
+                .. "Timeline -- which keeps ability identity secret, so there is nothing "
+                .. "to record from. Switch it to BigWigs or DBM on the Setup tab.")
+        else
+            why:SetText(("Nothing recorded for this boss yet. Pull it with %s running and "
+                .. "its timings appear here once the fight ends. It has to be a real boss "
+                .. "encounter -- trash fires no encounter events, so it records nothing.")
+                :format(src == "dbm" and "DBM" or "BigWigs"))
+        end
+        why:SetHeight(math.max(16, why:GetStringHeight() + 4))
+        y = y - why:GetHeight() - 10
     end
 
     Header((isRaid and "RAID" or "DUNGEON") .. " REMINDERS")
