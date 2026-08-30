@@ -57,6 +57,9 @@ local DEFAULTS = {
     textSize   = 21,
     -- Which side of the icon the text callout sits on: TOP, BOTTOM, LEFT or RIGHT.
     textSide   = "BOTTOM",
+    -- Which single source drives the callouts: "timeline" (Blizzard's own encounter
+    -- timeline), "bigwigs" or "dbm". Exclusive by design -- the other two are ignored.
+    bossSource = "timeline",
     -- pos = { point, relPoint, x, y } once moved in Unlock Mode; nil = default centre.
 }
 
@@ -1309,6 +1312,11 @@ end
 local function RegisterEventSounds()
     soundError = nil
     if not TRDB().soundOn then return end
+    if ns.BossSource() ~= "timeline" then
+        soundError = "Per-ability sounds ride the Blizzard timeline. Hook Into is set to "
+            .. "a boss mod, so they are off."
+        return
+    end
     if not canSound then
         soundError = "This client does not support per-ability sounds."
         return
@@ -2722,6 +2730,12 @@ local function ActivateCustomReminder(r)
     end
 end
 
+-- Which single source drives callouts this session. Read at event time, never cached:
+-- the Setup dropdown changes it live.
+function ns.BossSource()
+    return TRDB().bossSource or "timeline"
+end
+
 -- kind: "pull" | "cast" | "aura". spellID is nil for a pull check. "cast"/"aura" are the
 -- older combat-log triggers -- the editor no longer creates them, but anything already
 -- saved that way keeps working.
@@ -3232,6 +3246,7 @@ end
 -- assumed. issecretvalue guards the payload before anything touches it, the same rule
 -- every other identity channel in this file follows.
 local function OnBigWigsEvent(event, ...)
+    if ns.BossSource() ~= "bigwigs" then return end
     -- Cataloguing runs ahead of the hasCustomReminders gate below on purpose: that gate
     -- means "does this boss already have a saved reminder", which is exactly backwards
     -- for a picker whose whole job is helping someone create their FIRST one. It still
@@ -3303,6 +3318,7 @@ local function OnBigWigsEvent(event, ...)
 end
 
 local function OnDBMEvent(event, ...)
+    if ns.BossSource() ~= "dbm" then return end
     -- Same reasoning as OnBigWigsEvent above: cataloguing ignores hasCustomReminders,
     -- since that gate is precisely what a picker needs to work around, and still
     -- respects CustomRemindersAllowed.
@@ -3594,10 +3610,13 @@ local warnedNoBossMod = false
 function ns.WarnIfNoBossMod()
     if warnedNoBossMod or not TRDB().enabled
         or not (isTank or TRDB().pretendTank) then return end
-    if _G.BigWigsLoader or _G.DBM then return end
+    local source = ns.BossSource()
+    if source == "timeline" then return end
+    if (source == "bigwigs" and _G.BigWigsLoader) or (source == "dbm" and _G.DBM) then return end
     warnedNoBossMod = true
-    ns.Print("|cffff6060No BigWigs or DBM detected|r, so the tank reminder has nothing to "
-        .. "listen to and cannot fire. Install BigWigs or DBM for callouts to work.")
+    ns.Print(("|cffff6060Hook Into is set to %s, but it is not loaded|r -- callouts have "
+        .. "nothing to listen to. Install it, or switch Hook Into on the Setup page."):format(
+        source == "bigwigs" and "BigWigs" or "DBM"))
 end
 
 function ns.Apply()
@@ -4153,6 +4172,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         ns.Print("|cffF0A830this spec does not tank|r, so known tank busters stay quiet "
             .. "here. Custom reminders and uncovered bosses in authoring mode still call.")
     end
+    ns.Print(("hook into: %s"):format(ns.BossSource()))
     ns.Print(("timeline: available=%s bossWarnings=%s timelineDisplay=%s"):format(
         tostring(TimelineAvailable()),
         CombatWarningsOff() and "|cffff6060OFF|r" or "on",
@@ -4701,6 +4721,24 @@ function ns.BuildCoreSettings(parent, y)
         -- the Setup tab it read as a global behaviour switch that does nothing in half the
         -- content. Same stored key, so nobody loses their choice.
         { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Hook Into", width = 180,
+          values = { timeline = "Blizzard Timeline", bigwigs = "BigWigs", dbm = "DBM" },
+          order = { "timeline", "bigwigs", "dbm" },
+          tooltip = "Which single source drives the callouts. Blizzard Timeline is the "
+          .. "game's own encounter feed -- no addons needed, and per-ability sounds only "
+          .. "work here. BigWigs or DBM instead ride that mod's bars and messages -- "
+          .. "what powers timer/message reminders and phase (p2) note lines. Ability-timer "
+          .. "Raid Reminders are BigWigs only. The other two sources are ignored entirely.",
+          getValue = function() return TRDB().bossSource or "timeline" end,
+          setValue = function(v)
+              TRDB().bossSource = v
+              ns.Apply()
+              EUI:RefreshPage(true)
+          end },
+        { type = "label", text = "      Callouts follow exactly one source." }
     ); y = y - h
 
     -- Only worth saying when it is actually wrong. The timeline's own display toggle is
