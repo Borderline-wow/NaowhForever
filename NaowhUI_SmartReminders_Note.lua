@@ -62,6 +62,17 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
                 end
             end
         end
+        -- Observed timings live at the SavedVariables root, not in the profile, so they
+        -- need their own pass or an old tier's recordings become unreachable here.
+        local sv = _G.NaowhUI_SmartRemindersDB
+        if type(sv) == "table" and type(sv.observed) == "table" then
+            for encStr in pairs(sv.observed) do
+                if encStr ~= "v" and not known[encStr]
+                    and tonumber(encStr) and tonumber(encStr) > 0 then
+                    extras[encStr] = true
+                end
+            end
+        end
         local extraBosses = {}
         for encStr in pairs(extras) do
             extraBosses[#extraBosses + 1] =
