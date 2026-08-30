@@ -32,20 +32,20 @@ if not ns then return end
 -- are built. Flat scalars only -- a nested default would hand out a live reference to
 -- DEFAULTS itself. `disabled` and `lists` are created on demand for the same reason.
 local DEFAULTS = {
-    -- On by default FOR THE TEST BUILD, at the owner's request: the tester should
-    -- install and see it work. Flip back to false before any public release; the house
-    -- rule is that features ship opt-in.
-    enabled   = true,
-    showIcon  = true,
+    -- Everything ships OFF, at the owner's direction: a fresh install does nothing and
+    -- shows nothing until each switch -- the master, a display channel, and where it
+    -- runs -- is deliberately turned on.
+    enabled   = false,
+    showIcon  = false,
     showText  = false,
     showBar   = false,
     soundOn   = false,
     soundKey  = "none",
-    inDungeons = true,
-    inRaids    = true,
-    fallbackOn = true,
+    inDungeons = false,
+    inRaids    = false,
+    fallbackOn = false,
     aggroOnly  = false,
-    coveredSkip = true,  -- a defensive already active 5s+ suppresses the next callout
+    coveredSkip = false,
     leadTime   = 3,     -- seconds before impact that the alert fires
     voiceOn   = false,
     voiceNone = "Call for external",
