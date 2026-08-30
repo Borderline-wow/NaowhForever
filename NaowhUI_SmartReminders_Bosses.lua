@@ -2672,7 +2672,16 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
         else
             for i = 1, #rrList do
                 local uid, r = rrList[i].uid, rrList[i].r
-                ReminderRow(r.name or "Reminder", RaidReminderTargetDesc(r.target),
+                local rowName = r.name or "Reminder"
+                if r.fromNote then rowName = "|cff0091ed[note]|r " .. rowName end
+                local desc = RaidReminderTargetDesc(r.target)
+                local trig = r.trigger
+                if trig and trig.type == "pull" and trig.delay then
+                    desc = ("+%gs  %s"):format(trig.delay, desc)
+                elseif trig and trig.type == "stage" and trig.delay then
+                    desc = ("P%d +%gs  %s"):format(trig.stage or 0, trig.delay, desc)
+                end
+                ReminderRow(rowName, desc,
                     function() return r.enabled ~= false end,
                     function(v) r.enabled = v end,
                     function() EditRaidReminder(uid) end,
@@ -2967,11 +2976,17 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local PICKER_TOP = ty
 
     local trigTypeVal = (trig.type == "bwmsg" and "bwmsg")
-        or (trig.type == "pull" and "pull") or (trig.type == "aura" and "aura") or "bwtimer"
+        or (trig.type == "pull" and "pull") or (trig.type == "aura" and "aura")
+        or (trig.type == "stage" and "stage") or "bwtimer"
     local spellIDText = (trig.spellID and tostring(trig.spellID))
         or (abilitySpellID and tostring(abilitySpellID)) or ""
     local leadTimeText = (trig.leadTime and tostring(trig.leadTime)) or "3"
     local pullDelayText = (trig.delay and tostring(trig.delay)) or "5"
+    local stageNumText = (trig.stage and tostring(trig.stage)) or "2"
+    -- The early-fire lead for pull/stage (bwtimer has its own leadTimeText with different
+    -- semantics); blank means fire exactly at the noted time.
+    local earlyLeadText = ((trig.type == "pull" or trig.type == "stage") and trig.leadTime
+        and tostring(trig.leadTime)) or ""
     local auraEventVal = (trig.auraEvent == "removed") and "removed" or "applied"
     local auraTargetVal = (trig.target == "boss") and "boss" or "player"
 
@@ -3089,14 +3104,17 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         triggerTypeRow, typeRowH = W:DualRow(triggerBody, ty,
             { type = "dropdown", text = "Trigger Type",
               values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer",
-                  pull = "Time After Pull", aura = "Gain/Lose a Buff or Debuff" },
-              order = { "bwmsg", "bwtimer", "pull", "aura" },
+                  pull = "Time After Pull", aura = "Gain/Lose a Buff or Debuff",
+                  stage = "Phase Start" },
+              order = { "bwmsg", "bwtimer", "pull", "aura", "stage" },
               tooltip = "Message fires the instant BigWigs announces it. Timer waits "
                   .. "out the bar and fires this many seconds before it ends. Time "
                   .. "After Pull fires a fixed number of seconds into the encounter, "
                   .. "with no BigWigs mechanic involved. Gain/Lose a Buff or Debuff "
                   .. "fires off the combat log directly, reliable even when BigWigs "
-                  .. "says nothing about it.",
+                  .. "says nothing about it. Phase Start fires a fixed number of seconds "
+                  .. "after the boss mod announces that phase -- it needs BigWigs or DBM, "
+                  .. "and only fires on bosses whose module announces phases.",
               getValue = function() return trigTypeVal end,
               setValue = function(v) trigTypeVal = v; RebuildTriggerFields() end }
         )
@@ -3132,10 +3150,37 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         if trigTypeVal == "pull" then
             spellBox, leadTimeBox = nil, nil
             DLabel("Delay After Pull (seconds)")
-            pullDelayBox = DBox(6, true)
+            -- Not a numeric box: note-born entries carry fractional times (1:09.1).
+            pullDelayBox = DBox(8)
             pullDelayBox:SetText(pullDelayText)
             pullDelayBox:SetScript("OnTextChanged", function()
                 pullDelayText = pullDelayBox:GetText() or ""
+            end)
+            DLabel("Show This Many Seconds Early (blank = at that time)")
+            local leadBox = DBox(4)
+            leadBox:SetText(earlyLeadText)
+            leadBox:SetScript("OnTextChanged", function()
+                earlyLeadText = leadBox:GetText() or ""
+            end)
+        elseif trigTypeVal == "stage" then
+            spellBox, leadTimeBox, pullDelayBox = nil, nil, nil
+            DLabel("Phase Number")
+            local stageBox = DBox(2, true)
+            stageBox:SetText(stageNumText)
+            stageBox:SetScript("OnTextChanged", function()
+                stageNumText = stageBox:GetText() or ""
+            end)
+            DLabel("Seconds After the Phase Starts")
+            local sdBox = DBox(8)
+            sdBox:SetText(pullDelayText)
+            sdBox:SetScript("OnTextChanged", function()
+                pullDelayText = sdBox:GetText() or ""
+            end)
+            DLabel("Show This Many Seconds Early (blank = at that time)")
+            local leadBox = DBox(4)
+            leadBox:SetText(earlyLeadText)
+            leadBox:SetScript("OnTextChanged", function()
+                earlyLeadText = leadBox:GetText() or ""
             end)
         elseif trigTypeVal == "aura" then
             pullDelayBox, leadTimeBox = nil, nil
@@ -3504,7 +3549,14 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         if trigTypeVal == "pull" then
             local delay = tonumber(pullDelayText)
             if not delay or delay < 0 then return nil, "need a valid delay in seconds" end
-            newTrig = { type = "pull", delay = delay }
+            newTrig = { type = "pull", delay = delay, leadTime = tonumber(earlyLeadText) }
+        elseif trigTypeVal == "stage" then
+            local stageN = tonumber(stageNumText)
+            local delay = tonumber(pullDelayText)
+            if not stageN or stageN < 1 then return nil, "need a phase number of 1 or more" end
+            if not delay or delay < 0 then return nil, "need a valid delay in seconds" end
+            newTrig = { type = "stage", stage = stageN, delay = delay,
+                leadTime = tonumber(earlyLeadText) }
         else
             local sid = tonumber(spellIDText)
             if not sid then return nil, "need a valid Spell ID" end
@@ -3560,6 +3612,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             ns.Print("|cffff6060" .. (err or "could not save this reminder") .. "|r")
             return
         end
+        if existing and existing.fromNote then entry.fromNote = true end
         local writeSet = ns.RaidRemindersTable(true, encounterID)
         local key = uid or ("rr" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
         writeSet[key] = entry
