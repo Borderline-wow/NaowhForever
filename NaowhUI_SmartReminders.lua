@@ -1786,6 +1786,9 @@ local function LogLine(e)
     elseif e.kind == "key" then
         return ("%s -- KEY %s %s (%s/%s)"):format(head, tostring(e.sid), nameOf(e.sid),
             tostring(e.mod), tostring(e.tankPath))
+    elseif e.kind == "drop" then
+        return ("%s -- dropped broadcast for %s (%s)"):format(head, nameOf(e.sid),
+            tostring(e.text))
     elseif e.kind == "aside" then
         return head .. " -- " .. nameOf(e.sid) .. " stepped aside to its Custom Reminder"
     elseif e.kind == "cancel" then
@@ -3171,7 +3174,17 @@ end
 function ns.HandleBigWigsAbility(sid, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
-    if not (ShouldRun() and InEncounter()) then return end
+    if not (ShouldRun() and InEncounter()) then
+        -- Under trace, say WHY a broadcast went nowhere: a bar arriving before our own
+        -- ENCOUNTER_START lands (boss mods get the event first and broadcast during it)
+        -- reads as InEncounter()==false here and was previously indistinguishable from
+        -- the bar never arriving at all.
+        if TRDB().trace then
+            AppendLog({ kind = "drop", sid = sid,
+                text = not InEncounter() and "not in encounter yet" or "engine gated" })
+        end
+        return
+    end
     -- Both duplicates and next occurrences arrive `lead` seconds after our own fire, so
     -- timing alone cannot separate them -- the presence of a duration can. See each branch.
     local lead = ns.LeadTimeFor(currentEncounter, sid)
@@ -3244,8 +3257,16 @@ end
 local function CancelAllPendingBWFires()
     for _, fires in pairs(pendingBWFires) do
         for sid, sidFires in pairs(fires) do
+            local logged
             for key, f in pairs(sidFires) do
                 if f.timer.Cancel then f.timer:Cancel() end
+                -- One line per sid, not per alias, and only under trace: boundary cancels
+                -- are routine, but a fire still pending when the pull dies is exactly the
+                -- "it never called" report shape and must be readable afterward.
+                if not logged and TRDB().trace then
+                    logged = true
+                    AppendLog({ kind = "cancel", sid = sid, text = "encounter reset" })
+                end
                 sidFires[key] = nil
             end
             fires[sid] = nil
