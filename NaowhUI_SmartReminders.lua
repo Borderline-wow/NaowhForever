@@ -2781,8 +2781,21 @@ function ns.PullContext()
     return currentEncounterStartedAt, currentDifficultyID, currentStage, currentStageAt
 end
 
+-- No saved pick follows whatever boss mod is actually installed. Sitting on "timeline"
+-- instead meant a player who never opened Setup recorded nothing, ever, and the observed
+-- timeline is meant to build itself in the background rather than be switched on.
+--
+-- Resolved live, never written into the profile: an explicit pick still wins, and
+-- uninstalling a boss mod moves the fallback with it instead of stranding a saved value
+-- pointing at something that is no longer there. This decides WHICH engine drives
+-- callouts, not whether they fire -- TRDB().enabled is that switch and is still off by
+-- default -- so nothing starts talking because of this.
 function ns.BossSource()
-    return TRDB().bossSource or "timeline"
+    local saved = TRDB().bossSource
+    if saved then return saved end
+    if _G.BigWigsLoader then return "bigwigs" end
+    if _G.DBM then return "dbm" end
+    return "timeline"
 end
 
 -- kind: "pull" | "cast" | "aura". spellID is nil for a pull check. "cast"/"aura" are the

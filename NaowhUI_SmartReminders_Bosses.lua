@@ -2967,9 +2967,17 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         why:SetJustifyH("LEFT")
         why:SetWordWrap(true)
         if src ~= "bigwigs" and src ~= "dbm" then
-            why:SetText("Recording rides the boss mods, and Boss Addon is set to Blizzard "
-                .. "Timeline -- which keeps ability identity secret, so there is nothing "
-                .. "to record from. Switch it to BigWigs or DBM on the Setup tab.")
+            -- Boss Addon only lands on Timeline now by an explicit pick or with no boss
+            -- mod installed at all, and those need different things from the player.
+            if not (_G.BigWigsLoader or _G.DBM) then
+                why:SetText("Recording rides BigWigs or DBM broadcasts and neither is "
+                    .. "installed. With one of them running, every boss you pull records "
+                    .. "itself here -- there is nothing to switch on.")
+            else
+                why:SetText("Boss Addon is set to Blizzard Timeline, which keeps ability "
+                    .. "identity secret, so there is nothing to record from. Switch it to "
+                    .. "BigWigs or DBM on the Setup tab.")
+            end
         else
             why:SetText(("Nothing recorded for this boss yet. Pull it with %s running and "
                 .. "its timings appear here once the fight ends. It has to be a real boss "
