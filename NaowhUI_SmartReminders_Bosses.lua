@@ -2566,6 +2566,191 @@ end
 -- which of RaidRemindersTable's two kinds this boss's encounterID belongs to (the same
 -- split ns.BuildBossListPage's left column already keys instances on), not something
 -- picked here.
+-- The boss-scoped reminder lists -- RAID/DUNGEON REMINDERS, CUSTOM REMINDERS, the
+-- anchors button and both Add buttons -- shared verbatim by the cog picker modal and
+-- the Custom Reminders tab, so the two surfaces cannot drift. Renders into `content`
+-- starting at startY (negative running offset) and returns the final y. opts.onChanged
+-- runs after any edit/delete/add closes, and nested editors hook it onto their OnHide.
+function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts)
+    local EUI = (opts and opts.EUI) or ns.UI
+    local onChanged = (opts and opts.onChanged) or function() end
+
+    local function EditRaidReminder(uid)
+        local nestedDimmer = ns.ShowRaidReminderEditor(encounterID, uid, EUI, isRaid)
+        if nestedDimmer then nestedDimmer:HookScript("OnHide", onChanged) end
+    end
+    local function EditCustomReminder(uid)
+        local nestedDimmer = ns.ShowCustomReminderEditor(encounterID, uid, EUI)
+        if nestedDimmer then nestedDimmer:HookScript("OnHide", onChanged) end
+    end
+
+    local y = startY or 0
+
+    -- Hand-rolled rows throughout, not W:SectionHeader/W:DualRow -- those are built
+    -- for a full-width options page (row backgrounds, hover-tags, a half-column each
+    -- slot always reserves) and look wrong crammed into a 480px floating popup, the
+    -- same reasoning ShowAbilityReminderPicker's own compact Label/Box helpers state.
+    local function Header(text)
+        local lbl = ns.Font(content, 12, nil, ns.THEME.accent)
+        lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        lbl:SetText(text)
+        y = y - 20
+    end
+
+    local function NoneRow()
+        local lbl = ns.Font(content, 11, nil, ns.THEME.muted)
+        lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        lbl:SetText("None yet for this boss.")
+        y = y - 20
+    end
+
+    -- One reminder: an enabled checkbox, name + description, Edit/Delete on the right.
+    local function ReminderRow(name, desc, getEnabled, setEnabled, editFn, deleteFn)
+        local row = CreateFrame("Frame", nil, content)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        row:SetHeight(24)
+
+        local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+        check:SetSize(20, 20)
+        check:SetPoint("LEFT", row, "LEFT", 0, 0)
+        check:SetChecked(getEnabled())
+        check:SetScript("OnClick", function(self)
+            setEnabled(self:GetChecked() and true or false)
+        end)
+
+        local delBtn = ns.Button(row, "Delete", 56, 22, deleteFn)
+        delBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+        local editBtn = ns.Button(row, "Edit", 46, 22, editFn)
+        editBtn:SetPoint("RIGHT", delBtn, "LEFT", -4, 0)
+
+        local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
+        lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
+        lbl:SetPoint("RIGHT", editBtn, "LEFT", -8, 0)
+        lbl:SetJustifyH("LEFT")
+        lbl:SetText(name .. "  |cff9a9ea6(" .. desc .. ")|r")
+
+        y = y - 26
+    end
+
+    if ns.ShowRaidReminderAnchorConfig then
+        local anchorBtn = ns.Button(content, "Customize Anchors", 160, 26, function()
+            ns.ShowRaidReminderAnchorConfig()
+        end)
+        anchorBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        y = y - 34
+    end
+
+    Header((isRaid and "RAID" or "DUNGEON") .. " REMINDERS")
+    local rrSet = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
+    local rrList = {}
+    if rrSet then
+        for uid, r in pairs(rrSet) do
+            if not r.abilitySpellID then rrList[#rrList + 1] = { uid = uid, r = r } end
+        end
+        table.sort(rrList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
+    end
+    if #rrList == 0 then
+        NoneRow()
+    else
+        for i = 1, #rrList do
+            local uid, r = rrList[i].uid, rrList[i].r
+            local rowName = r.name or "Reminder"
+            if r.fromNote then rowName = "|cff0091ed[note]|r " .. rowName end
+            local desc = RaidReminderTargetDesc(r.target)
+            local trig = r.trigger
+            if trig and trig.type == "pull" and trig.delay then
+                desc = ("+%gs  %s"):format(trig.delay, desc)
+            elseif trig and trig.type == "stage" and trig.delay then
+                desc = ("P%d +%gs  %s"):format(trig.stage or 0, trig.delay, desc)
+            end
+            ReminderRow(rowName, desc,
+                function() return r.enabled ~= false end,
+                function(v) r.enabled = v end,
+                function() EditRaidReminder(uid) end,
+                function()
+                    local writeSet = ns.RaidRemindersTable(false, encounterID)
+                    if writeSet then writeSet[uid] = nil end
+                    onChanged()
+                end)
+        end
+    end
+    y = y - 6
+
+    local addRRBtn = ns.Button(content,
+        isRaid and "+ Add a Raid Reminder" or "+ Add a Dungeon Reminder", 190, 26, function()
+            -- A thrown error here would otherwise be indistinguishable from a dead
+            -- button -- WoW hides script errors by default, so an uncaught throw looks
+            -- exactly like nothing happening at all.
+            local okClick, clickErr = pcall(EditRaidReminder, nil)
+            if not okClick then
+                ns.Print("|cffff6060could not open the raid reminder editor|r: "
+                    .. tostring(clickErr))
+            end
+        end)
+    addRRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+    y = y - 34
+
+    -- Excludes "spell"-triggered entries -- those are the per-ability picker's own
+    -- Custom Reminder mode (ShowAbilityReminderPicker), already editable from that
+    -- ability's row; listing them here too would let this generic editor delete the
+    -- reminder object while the ability's binding still says "custom", leaving that
+    -- ability silently unable to fire either kind of callout.
+    Header("CUSTOM REMINDERS")
+    local crSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, encounterID)
+    local crList = {}
+    if crSet then
+        for uid, r in pairs(crSet) do
+            if not (r.trigger and r.trigger.type == "spell") then
+                crList[#crList + 1] = { uid = uid, r = r }
+            end
+        end
+        table.sort(crList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
+    end
+    if #crList == 0 then
+        NoneRow()
+    else
+        for i = 1, #crList do
+            local uid, r = crList[i].uid, crList[i].r
+            local trig = r.trigger
+            local trigDesc = "?"
+            if trig and trig.type == "pull" then
+                trigDesc = "Pull"
+            elseif trig and (trig.type == "bwmsg" or trig.type == "bwtimer") then
+                local info = C_Spell and C_Spell.GetSpellInfo
+                    and C_Spell.GetSpellInfo(trig.spellID)
+                trigDesc = (trig.type == "bwtimer" and "Timer: " or "Message: ")
+                    .. ((info and info.name) or tostring(trig.spellID))
+            elseif trig and trig.type == "aura" then
+                local info = C_Spell and C_Spell.GetSpellInfo
+                    and C_Spell.GetSpellInfo(trig.spellID)
+                trigDesc = (trig.auraEvent == "removed" and "Aura Removed: " or "Aura Applied: ")
+                    .. ((info and info.name) or tostring(trig.spellID))
+                    .. (trig.target == "player" and " (You)" or " (Boss)")
+            end
+            ReminderRow(r.name or "Reminder", trigDesc,
+                function() return r.enabled ~= false end,
+                function(v) r.enabled = v; ns.RefreshRuntime() end,
+                function() EditCustomReminder(uid) end,
+                function()
+                    local writeSet = ns.CustomRemindersTable(false, encounterID)
+                    if writeSet then writeSet[uid] = nil end
+                    ns.RefreshRuntime()
+                    onChanged()
+                end)
+        end
+    end
+    y = y - 6
+
+    local addCRBtn = ns.Button(content, "+ Add a Custom Reminder", 190, 26, function()
+        EditCustomReminder(nil)
+    end)
+    addCRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+    y = y - 34
+
+    return y
+end
+
 function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
     local EUI = callerEUI or ns.UI
 
@@ -2583,15 +2768,6 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
     -- list is short enough that a full rebuild is never noticeable.
     local Rebuild
 
-    local function EditRaidReminder(uid)
-        local nestedDimmer = ns.ShowRaidReminderEditor(encounterID, uid, EUI, isRaid)
-        if nestedDimmer then nestedDimmer:HookScript("OnHide", Rebuild) end
-    end
-    local function EditCustomReminder(uid)
-        local nestedDimmer = ns.ShowCustomReminderEditor(encounterID, uid, EUI)
-        if nestedDimmer then nestedDimmer:HookScript("OnHide", Rebuild) end
-    end
-
     Rebuild = function()
         if content then content:Hide() end
         content = CreateFrame("Frame", nil, panel)
@@ -2600,172 +2776,8 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
 
         -- Wrapped, same reason ShowRaidReminderEditor's own body is: a blank popup with
         -- no error on screen is undiagnosable from a screenshot alone.
-        local ok, err = pcall(function()
-        local y = 0
-
-        -- Hand-rolled rows throughout, not W:SectionHeader/W:DualRow -- those are built
-        -- for a full-width options page (row backgrounds, hover-tags, a half-column each
-        -- slot always reserves) and look wrong crammed into a 480px floating popup, the
-        -- same reasoning ShowAbilityReminderPicker's own compact Label/Box helpers state.
-        local function Header(text)
-            local lbl = ns.Font(content, 12, nil, ns.THEME.accent)
-            lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-            lbl:SetText(text)
-            y = y - 20
-        end
-
-        local function NoneRow()
-            local lbl = ns.Font(content, 11, nil, ns.THEME.muted)
-            lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-            lbl:SetText("None yet for this boss.")
-            y = y - 20
-        end
-
-        -- One reminder: an enabled checkbox, name + description, Edit/Delete on the right.
-        local function ReminderRow(name, desc, getEnabled, setEnabled, editFn, deleteFn)
-            local row = CreateFrame("Frame", nil, content)
-            row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-            row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-            row:SetHeight(24)
-
-            local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-            check:SetSize(20, 20)
-            check:SetPoint("LEFT", row, "LEFT", 0, 0)
-            check:SetChecked(getEnabled())
-            check:SetScript("OnClick", function(self)
-                setEnabled(self:GetChecked() and true or false)
-            end)
-
-            local delBtn = ns.Button(row, "Delete", 56, 22, deleteFn)
-            delBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-            local editBtn = ns.Button(row, "Edit", 46, 22, editFn)
-            editBtn:SetPoint("RIGHT", delBtn, "LEFT", -4, 0)
-
-            local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
-            lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
-            lbl:SetPoint("RIGHT", editBtn, "LEFT", -8, 0)
-            lbl:SetJustifyH("LEFT")
-            lbl:SetText(name .. "  |cff9a9ea6(" .. desc .. ")|r")
-
-            y = y - 26
-        end
-
-        if ns.ShowRaidReminderAnchorConfig then
-            local anchorBtn = ns.Button(content, "Customize Anchors", 160, 26, function()
-                ns.ShowRaidReminderAnchorConfig()
-            end)
-            anchorBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-            y = y - 34
-        end
-
-        Header((isRaid and "RAID" or "DUNGEON") .. " REMINDERS")
-        local rrSet = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
-        local rrList = {}
-        if rrSet then
-            for uid, r in pairs(rrSet) do
-                if not r.abilitySpellID then rrList[#rrList + 1] = { uid = uid, r = r } end
-            end
-            table.sort(rrList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
-        end
-        if #rrList == 0 then
-            NoneRow()
-        else
-            for i = 1, #rrList do
-                local uid, r = rrList[i].uid, rrList[i].r
-                local rowName = r.name or "Reminder"
-                if r.fromNote then rowName = "|cff0091ed[note]|r " .. rowName end
-                local desc = RaidReminderTargetDesc(r.target)
-                local trig = r.trigger
-                if trig and trig.type == "pull" and trig.delay then
-                    desc = ("+%gs  %s"):format(trig.delay, desc)
-                elseif trig and trig.type == "stage" and trig.delay then
-                    desc = ("P%d +%gs  %s"):format(trig.stage or 0, trig.delay, desc)
-                end
-                ReminderRow(rowName, desc,
-                    function() return r.enabled ~= false end,
-                    function(v) r.enabled = v end,
-                    function() EditRaidReminder(uid) end,
-                    function()
-                        local writeSet = ns.RaidRemindersTable(false, encounterID)
-                        if writeSet then writeSet[uid] = nil end
-                        Rebuild()
-                    end)
-            end
-        end
-        y = y - 6
-
-        local addRRBtn = ns.Button(content,
-            isRaid and "+ Add a Raid Reminder" or "+ Add a Dungeon Reminder", 190, 26, function()
-                -- A thrown error here would otherwise be indistinguishable from a dead
-                -- button -- WoW hides script errors by default, so an uncaught throw looks
-                -- exactly like nothing happening at all.
-                local okClick, clickErr = pcall(EditRaidReminder, nil)
-                if not okClick then
-                    ns.Print("|cffff6060could not open the raid reminder editor|r: "
-                        .. tostring(clickErr))
-                end
-            end)
-        addRRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        y = y - 34
-
-        -- Excludes "spell"-triggered entries -- those are the per-ability picker's own
-        -- Custom Reminder mode (ShowAbilityReminderPicker), already editable from that
-        -- ability's row; listing them here too would let this generic editor delete the
-        -- reminder object while the ability's binding still says "custom", leaving that
-        -- ability silently unable to fire either kind of callout.
-        Header("CUSTOM REMINDERS")
-        local crSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, encounterID)
-        local crList = {}
-        if crSet then
-            for uid, r in pairs(crSet) do
-                if not (r.trigger and r.trigger.type == "spell") then
-                    crList[#crList + 1] = { uid = uid, r = r }
-                end
-            end
-            table.sort(crList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
-        end
-        if #crList == 0 then
-            NoneRow()
-        else
-            for i = 1, #crList do
-                local uid, r = crList[i].uid, crList[i].r
-                local trig = r.trigger
-                local trigDesc = "?"
-                if trig and trig.type == "pull" then
-                    trigDesc = "Pull"
-                elseif trig and (trig.type == "bwmsg" or trig.type == "bwtimer") then
-                    local info = C_Spell and C_Spell.GetSpellInfo
-                        and C_Spell.GetSpellInfo(trig.spellID)
-                    trigDesc = (trig.type == "bwtimer" and "Timer: " or "Message: ")
-                        .. ((info and info.name) or tostring(trig.spellID))
-                elseif trig and trig.type == "aura" then
-                    local info = C_Spell and C_Spell.GetSpellInfo
-                        and C_Spell.GetSpellInfo(trig.spellID)
-                    trigDesc = (trig.auraEvent == "removed" and "Aura Removed: " or "Aura Applied: ")
-                        .. ((info and info.name) or tostring(trig.spellID))
-                        .. (trig.target == "player" and " (You)" or " (Boss)")
-                end
-                ReminderRow(r.name or "Reminder", trigDesc,
-                    function() return r.enabled ~= false end,
-                    function(v) r.enabled = v; ns.RefreshRuntime() end,
-                    function() EditCustomReminder(uid) end,
-                    function()
-                        local writeSet = ns.CustomRemindersTable(false, encounterID)
-                        if writeSet then writeSet[uid] = nil end
-                        ns.RefreshRuntime()
-                        Rebuild()
-                    end)
-            end
-        end
-        y = y - 6
-
-        local addCRBtn = ns.Button(content, "+ Add a Custom Reminder", 190, 26, function()
-            EditCustomReminder(nil)
-        end)
-        addCRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        y = y - 34
-
-        end)
+        local ok, err = pcall(ns.BuildBossReminderSections, content, encounterID, isRaid, 0,
+            { EUI = EUI, onChanged = Rebuild })
         if not ok then
             local errText = ns.Font(content, 11, nil, { r = 1, g = 0.35, b = 0.35 })
             errText:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
