@@ -1197,8 +1197,8 @@ function ns.CheckRaidReminderPullTriggers()
             -- leadTime pulls the fire earlier so the display counts down TO the noted
             -- moment rather than starting at it.
             local lead = type(trig.leadTime) == "number" and trig.leadTime or 0
-            ns.TrackReminderTimer("pull", C_Timer.NewTimer(math.max(delay - lead, 0.01),
-                function() FireRaidReminder(entry) end))
+            ns.TrackReminderTimer("pull", math.max(delay - lead, 0.01),
+                function() FireRaidReminder(entry) end)
         end
     end
 end
@@ -1219,8 +1219,8 @@ function ns.CheckRaidReminderStageTriggers(stage)
         if trig and trig.type == "stage" and trig.stage == stage then
             local delay = (type(trig.delay) == "number" and trig.delay >= 0) and trig.delay or 0.01
             local lead = type(trig.leadTime) == "number" and trig.leadTime or 0
-            ns.TrackReminderTimer("stage", C_Timer.NewTimer(math.max(delay - lead, 0.01),
-                function() FireRaidReminder(entry) end))
+            ns.TrackReminderTimer("stage", math.max(delay - lead, 0.01),
+                function() FireRaidReminder(entry) end)
         end
     end
 end

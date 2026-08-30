@@ -2715,12 +2715,20 @@ end
 -- ceiling.
 ns.trackedReminderTimers = {}
 
-function ns.TrackReminderTimer(scope, handle)
-    if handle then
-        ns.trackedReminderTimers[#ns.trackedReminderTimers + 1] =
-            { scope = scope, handle = handle }
-    end
-    return handle
+-- Owns the timer creation rather than taking a ready-made handle, so a timer that fires
+-- normally can drop its own entry: tracked-but-fired entries would otherwise pile up for
+-- the length of a pull and every later cancel sweep would walk them.
+function ns.TrackReminderTimer(scope, delay, fn)
+    local list = ns.trackedReminderTimers
+    local entry = { scope = scope }
+    entry.handle = C_Timer.NewTimer(delay, function()
+        for i = #list, 1, -1 do
+            if list[i] == entry then table.remove(list, i) break end
+        end
+        fn()
+    end)
+    list[#list + 1] = entry
+    return entry.handle
 end
 
 function ns.CancelTrackedReminderTimers(scope)
@@ -2745,8 +2753,7 @@ local function ActivateCustomReminder(r)
         return
     end
     for i = 1, #delays do
-        ns.TrackReminderTimer("pull",
-            C_Timer.NewTimer(delays[i], function() ns.DisplayReminder(r) end))
+        ns.TrackReminderTimer("pull", delays[i], function() ns.DisplayReminder(r) end)
     end
 end
 

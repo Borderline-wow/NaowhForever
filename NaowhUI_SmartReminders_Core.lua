@@ -144,13 +144,16 @@ function ns.Tooltip(frame, title, body)
         end
         return title
     end
-    frame:SetScript("OnEnter", function(self)
+    -- Hooked, not set: ns.Button already owns OnEnter/OnLeave for its hover highlight, and
+    -- SetScript here silently replaced it -- every button carrying a tooltip stopped
+    -- lighting up on hover.
+    frame:HookScript("OnEnter", function(self)
         local UI = ns.UI
         if UI and UI.ShowWidgetTooltip then
             UI.ShowWidgetTooltip(self, Compose, { anchor = "cursor", justify = "LEFT" })
         end
     end)
-    frame:SetScript("OnLeave", function()
+    frame:HookScript("OnLeave", function()
         local UI = ns.UI
         if UI and UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
     end)

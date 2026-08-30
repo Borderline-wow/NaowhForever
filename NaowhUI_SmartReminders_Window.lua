@@ -78,6 +78,9 @@ function UI:RefreshPage(force)
         pendingRefresh = true
         return
     end
+    -- A tooltip anchored to a row we are about to destroy would hang on screen with its
+    -- anchor orphaned; changing a setting while hovering its label is the ordinary way in.
+    if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
     local scroll = scrollFrame:GetVerticalScroll()
     local old = wrappers[currentPage]
     if old then
@@ -182,6 +185,7 @@ local function CreateWindow()
         for i = 1, #onShowCallbacks do onShowCallbacks[i]() end
     end)
     window:SetScript("OnHide", function()
+        if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
         for i = 1, #onHideCallbacks do onHideCallbacks[i]() end
     end)
 end
