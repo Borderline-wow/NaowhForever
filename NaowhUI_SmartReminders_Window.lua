@@ -101,8 +101,23 @@ local function CreateWindow()
     ns.Solid(window, "BACKGROUND", T.bg, 1):SetAllPoints()
     ns.Border(window)
 
-    -- ESC closes via Blizzard's own special-frames path: combat-safe, no keyboard grab.
-    tinsert(UISpecialFrames, "NaowhUISmartRemindersOptions")
+    -- ESC via our own keyboard handler, NOT UISpecialFrames: a named addon frame in that
+    -- table is a convicted taint injector (Blizzard's CloseAllWindows enumerates it inside
+    -- secure execution). Same combat-guarded pattern MakeModal uses; opened in combat the
+    -- window keeps its close button and ESC simply does not bind.
+    if not InCombatLockdown() then
+        window:EnableKeyboard(true)
+        window:SetPropagateKeyboardInput(true)
+        window:SetScript("OnKeyDown", function(self, key)
+            if InCombatLockdown() then return end
+            if key == "ESCAPE" then
+                self:Hide()
+                self:SetPropagateKeyboardInput(false)
+            else
+                self:SetPropagateKeyboardInput(true)
+            end
+        end)
+    end
 
     local titleBar = CreateFrame("Button", nil, window)
     titleBar:SetPoint("TOPLEFT")
