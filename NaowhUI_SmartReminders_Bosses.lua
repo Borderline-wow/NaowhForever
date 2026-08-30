@@ -2402,9 +2402,18 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     end
 
     local addBtn = ns.Button(parent, "+ Add Ability", 130, 24, function()
-        ns.ShowAbilityAddPicker(boss.encounterID, abilities, EUI)
+        ns.ShowAbilityPicker(boss.encounterID, abilities, EUI, false)
     end)
     addBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+
+    -- Only with something to remove: the picker would otherwise open on its own empty
+    -- state, which is a worse answer than the button not being there.
+    if #added > 0 then
+        local removeBtn = ns.Button(parent, "- Remove Ability", 130, 24, function()
+            ns.ShowAbilityPicker(boss.encounterID, abilities, EUI, true)
+        end)
+        removeBtn:SetPoint("LEFT", addBtn, "RIGHT", 8, 0)
+    end
     y = y - 30
 
     if #added == 0 then
@@ -2575,22 +2584,29 @@ end
 -- Choose which of a boss's abilities get reminders; the boss page lists exactly these.
 -- The curated tank list marks rows here instead of pre-selecting them, so it still says
 -- which hits are the real tank busters without choosing for the player.
-function ns.ShowAbilityAddPicker(encounterID, abilities, callerEUI)
+--
+-- removeMode narrows the list to what is already on the boss. Same rows and the same
+-- checkbox in both directions, so unticking in either one is the single way an ability
+-- comes off a boss.
+function ns.ShowAbilityPicker(encounterID, abilities, callerEUI, removeMode)
     local EUI = callerEUI or ns.UI
     local PANEL_W = 460
-    local dimmer, panel = ns.MakeModal(PANEL_W, 560, "abilityAddPicker")
+    local dimmer, panel = ns.MakeModal(PANEL_W, 560, "abilityPicker")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText("Add Abilities")
+    head:SetText(removeMode and "Remove Abilities" or "Add Abilities")
 
     local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
     hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -42)
     hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
     hint:SetJustifyH("LEFT")
     hint:SetWordWrap(true)
-    hint:SetText("Tick the abilities you want reminders for. Marked ones are what the "
-        .. "addon knows to be tank hits on this boss.")
+    hint:SetText(removeMode
+        and "Untick an ability to take it off this boss. Its preset and warning time go "
+            .. "with it; ticking it again starts that ability fresh."
+        or "Tick the abilities you want reminders for. Marked ones are what the "
+            .. "addon knows to be tank hits on this boss.")
 
     -- Scrolled rather than capped: a journal boss can list well past a screenful, and this
     -- is the only place an ability can be switched on, so a row that does not fit still has
@@ -2608,7 +2624,9 @@ function ns.ShowAbilityAddPicker(encounterID, abilities, callerEUI)
         local y, shown = 0, 0
         for i = 1, #abilities do
             local a = abilities[i]
-            if a.spellID then
+            local listed = a.spellID
+                and (not removeMode or ns.AbilityAdded(encounterID, a.spellID))
+            if listed then
                 shown = shown + 1
                 local row = CreateFrame("Frame", nil, content)
                 row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
@@ -2656,7 +2674,9 @@ function ns.ShowAbilityAddPicker(encounterID, abilities, callerEUI)
         if shown == 0 then
             local none = ns.Font(content, 11, nil, ns.THEME.muted)
             none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
-            none:SetText("Nothing in the journal for this boss carries a spell id.")
+            none:SetText(removeMode
+                and "Nothing has been added to this boss yet."
+                or "Nothing in the journal for this boss carries a spell id.")
         end
         content:SetHeight(math.max(1, math.abs(y)))
     end)
