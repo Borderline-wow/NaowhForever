@@ -2650,7 +2650,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         for i = 1, #rrList do
             local uid, r = rrList[i].uid, rrList[i].r
             local rowName = r.name or "Reminder"
-            if r.fromNote then rowName = "|cff0091ed[note]|r " .. rowName end
             local desc = RaidReminderTargetDesc(r.target)
             local trig = r.trigger
             if trig and trig.type == "pull" and trig.delay then
@@ -3573,7 +3572,6 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             ns.Print("|cffff6060" .. (err or "could not save this reminder") .. "|r")
             return
         end
-        if existing and existing.fromNote then entry.fromNote = true end
         local writeSet = ns.RaidRemindersTable(true, encounterID)
         local key = uid or ("rr" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
         writeSet[key] = entry

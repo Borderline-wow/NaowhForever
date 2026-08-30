@@ -27,7 +27,7 @@ if not ns then return end
 --  Data
 -------------------------------------------------------------------------------
 -- profile.raidReminders[encounterID][uid] = {
---     name, enabled, fromNote (true on entries born from an MRT note import),
+--     name, enabled,
 --     trigger = { type = "bwtimer"|"bwmsg"|"pull"|"stage", spellID, leadTime,
 --                 delay (pull/stage: seconds after the anchor), stage (stage only) },
 --     target  = { all = bool, roles = {TANK=true,...}, classes = {PALADIN=true,...},
