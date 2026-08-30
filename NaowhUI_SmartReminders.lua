@@ -3171,17 +3171,25 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     for k in pairs(aliases) do sidFires[k] = entry end
 end
 
-function ns.HandleBigWigsAbility(sid, duration, barIdentity)
+function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if not (ShouldRun() and InEncounter()) then
-        -- Under trace, say WHY a broadcast went nowhere: a bar arriving before our own
-        -- ENCOUNTER_START lands (boss mods get the event first and broadcast during it)
-        -- reads as InEncounter()==false here and was previously indistinguishable from
-        -- the bar never arriving at all.
+        -- Boss mods receive ENCOUNTER_START before our watcher does and broadcast their
+        -- engage bars DURING their own handler, so a bar can arrive here while
+        -- currentEncounter is still nil. Confirmed live: Fresh Meat's engage bar was
+        -- dropped at the same second as ENCOUNTER START. One next-frame retry is enough
+        -- -- by then our own handler has run -- and one only, so a broadcast outside any
+        -- encounter does not loop.
+        if not InEncounter() and not isRetry then
+            C_Timer.After(0, function()
+                ns.HandleBigWigsAbility(sid, duration, barIdentity, true)
+            end)
+            return
+        end
         if TRDB().trace then
             AppendLog({ kind = "drop", sid = sid,
-                text = not InEncounter() and "not in encounter yet" or "engine gated" })
+                text = not InEncounter() and "not in encounter" or "engine gated" })
         end
         return
     end
