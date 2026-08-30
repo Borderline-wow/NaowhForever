@@ -2560,6 +2560,69 @@ end
 -- which of RaidRemindersTable's two kinds this boss's encounterID belongs to (the same
 -- split ns.BuildBossListPage's left column already keys instances on), not something
 -- picked here.
+-- Which difficulty's recording the observed section is showing, per encounter. Page-local
+-- rather than saved: it is a viewing choice, not a setting.
+local observedDiffPick = {}
+
+-- One recorded ability: icon, name, then each observed occurrence as a clickable time.
+-- Clicking opens the reminder editor already pointed at that moment.
+local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChanged, y)
+    local row = CreateFrame("Frame", nil, content)
+    row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+    row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    row:SetHeight(24)
+
+    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+    local icon = row:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(18, 18)
+    icon:SetPoint("LEFT", row, "LEFT", 0, 0)
+    icon:SetTexture((info and info.iconID) or 134400)
+
+    local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
+    lbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+    lbl:SetWidth(150)
+    lbl:SetJustifyH("LEFT")
+    lbl:SetWordWrap(false)
+    lbl:SetText((info and info.name) or ("Spell " .. sid))
+
+    local anchor = lbl
+    for i = 1, #list do
+        local slot = list[i]
+        if slot and slot.t then
+            local phased = slot.stage and slot.stage > 1 and slot.ts
+            local shown = phased and slot.ts or slot.t
+            local label = ("%d:%02d"):format(math.floor(shown / 60), math.floor(shown % 60))
+            if phased then label = "P" .. slot.stage .. " " .. label end
+            local chip = ns.Button(row, label, phased and 62 or 46, 20, function()
+                -- A phase-anchored observation seeds a phase trigger, since a pull-relative
+                -- time for a later phase is only true for a pull of the same speed.
+                local seed
+                if phased then
+                    seed = { trigger = { type = "stage", stage = slot.stage,
+                        delay = math.floor(slot.ts * 10 + 0.5) / 10 },
+                        name = (info and info.name) or nil }
+                else
+                    seed = { trigger = { type = "pull",
+                        delay = math.floor(slot.t * 10 + 0.5) / 10 },
+                        name = (info and info.name) or nil }
+                end
+                local d = ns.ShowRaidReminderEditor(encounterID, nil, EUI, isRaid, nil, seed)
+                if d then d:HookScript("OnHide", onChanged) end
+            end)
+            chip:SetPoint("LEFT", anchor, "RIGHT", 6, 0)
+            local spread = (slot.hi and slot.lo) and (slot.hi - slot.lo) or 0
+            local spreadNote = (spread > 3)
+                and ("Varies by %.0fs across pulls -- treat it as approximate."):format(spread)
+                or "Consistent across pulls."
+            ns.Tooltip(chip, label,
+                ("Occurrence %d, averaged over %d pull(s). %s Click to build a reminder "
+                .. "for this moment."):format(i, slot.n or 1, spreadNote))
+            anchor = chip
+        end
+    end
+    return row
+end
+
 -- The boss-scoped reminder lists -- RAID/DUNGEON REMINDERS, CUSTOM REMINDERS, the
 -- anchors button and both Add buttons -- shared verbatim by the cog picker modal and
 -- the Custom Reminders tab, so the two surfaces cannot drift. Renders into `content`
@@ -2633,6 +2696,66 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         end)
         anchorBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
         y = y - 34
+    end
+
+    -- What this boss actually did, from the player's own pulls. Rendered above the
+    -- reminder lists because it is the raw material they are built from: pick a time here
+    -- and the editor opens already pointed at it.
+    local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(encounterID) or {}
+    if #diffs > 0 then
+        local pick = observedDiffPick[encounterID]
+        local chosen
+        for _, d in ipairs(diffs) do
+            if d.key == pick then chosen = d break end
+        end
+        chosen = chosen or diffs[1]
+        local block = ns.ObservedFor(encounterID, tonumber(chosen.key))
+
+        Header("OBSERVED TIMINGS")
+
+        if #diffs > 1 then
+            -- Only when there is a choice to make: the same boss on two difficulties casts
+            -- on genuinely different schedules and the two must never be read as one.
+            local dvalues, dorder = {}, {}
+            for _, d in ipairs(diffs) do
+                local dn = GetDifficultyInfo and GetDifficultyInfo(tonumber(d.key))
+                dvalues[d.key] = ("%s (%d pulls)"):format(tostring(dn or d.key), d.pulls or 0)
+                dorder[#dorder + 1] = d.key
+            end
+            local ddBtn = EUI.BuildDropdownControl(content, 220, content:GetFrameLevel() + 4,
+                dvalues, dorder,
+                function() return chosen.key end,
+                function(v) observedDiffPick[encounterID] = v; onChanged() end)
+            ddBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+            y = y - 30
+        end
+
+        local rows = {}
+        for sid, list in pairs(block and block.casts or {}) do
+            rows[#rows + 1] = { sid = sid, list = list }
+        end
+        table.sort(rows, function(a, b)
+            local at = a.list[1] and a.list[1].t or 0
+            local bt = b.list[1] and b.list[1].t or 0
+            return at < bt
+        end)
+
+        if #rows == 0 then
+            NoneRow()
+        else
+            for i = 1, #rows do
+                ObservedRow(content, rows[i].sid, rows[i].list, encounterID, isRaid, EUI,
+                    onChanged, y)
+                y = y - 26
+            end
+        end
+
+        local cover = ns.Font(content, 10, nil, ns.THEME.muted)
+        cover:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        cover:SetText(("from %d pull(s), longest %d:%02d -- click a time to build a "
+            .. "reminder from it"):format(block and block.pulls or 0,
+            math.floor((block and block.longest or 0) / 60), (block and block.longest or 0) % 60))
+        y = y - 22
     end
 
     Header((isRaid and "RAID" or "DUNGEON") .. " REMINDERS")
@@ -2755,7 +2878,10 @@ end
 -- cog instead of ShowBossReminderPicker's boss-wide list) and seeds the mechanic
 -- picker's Spell ID field with it -- still just a starting guess, not locked, since
 -- the real BigWigs key for an ability can differ from its journal spellID.
-function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilitySpellID)
+-- seed (optional): { trigger = {...}, name = "..." } -- a starting point for a brand-new
+-- reminder, used by the observed-timings rows so a recorded moment opens the editor
+-- already pointed at it. Ignored when editing an existing entry.
+function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilitySpellID, seed)
     local EUI = callerEUI or ns.UI
     local W = EUI.Widgets
     local kind = isRaid and "Raid" or "Dungeon"
@@ -2773,7 +2899,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local set = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
     local existing = (set and uid) and set[uid] or nil
     local boundAbilitySpellID = (existing and existing.abilitySpellID) or abilitySpellID
-    local trig = (existing and existing.trigger) or { type = "bwtimer" }
+    local trig = (existing and existing.trigger) or (seed and seed.trigger) or { type = "bwtimer" }
     local target = (existing and existing.target) or { all = true }
     local display = (existing and existing.display) or { type = "text" }
 
@@ -2895,6 +3021,8 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local nameBox = TBox(40)
     if existing then
         nameBox:SetText(existing.name or "")
+    elseif seed and seed.name then
+        nameBox:SetText(seed.name)
     elseif abilitySpellID then
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(abilitySpellID)
         nameBox:SetText((info and info.name) or "")
