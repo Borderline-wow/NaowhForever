@@ -1725,7 +1725,113 @@ function ns.BuildProfileSettings(parent, y)
     local _, h
     local db = ns.DB()
 
-    _, h = W:SectionHeader(parent, "PROFILE", y); y = y - h
+    _, h = W:SectionHeader(parent, "PROFILES", y); y = y - h
+
+    -- Values/order rebuilt per page build; a create/copy/delete refreshes the page, so the
+    -- dropdown never shows a stale list.
+    local profNames = ns.ListProfiles()
+    local profValues = {}
+    for _, name in ipairs(profNames) do profValues[name] = name end
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Active Profile",
+          values = profValues, order = profNames,
+          tooltip = "Which settings profile this character uses. Everything on these pages "
+          .. "-- priority lists, per-boss orders, callouts, positions -- lives in the "
+          .. "profile.",
+          getValue = function() return ns.ActiveProfileName() end,
+          setValue = function(v)
+              ns.SwitchProfile(v)
+              EUI:RefreshPage(true)
+          end },
+        { type = "label", text = "      Profiles are chosen per character." }
+    ); y = y - h
+
+    local profRow
+    profRow, h = W:DualRow(parent, y,
+        { type = "label", text = "" },
+        { type = "label", text = "" }
+    ); y = y - h
+    if profRow then
+        local function AfterChange()
+            EUI:RefreshPage(true)
+        end
+        local newBtn = ns.Button(profRow._leftRegion, "New Profile", 110, 22, function()
+            ShowNamePrompt("New Profile", "Create", "", function(text)
+                local ok, err = ns.CreateProfile(text)
+                if not ok then ns.Print(err) return end
+                ns.SwitchProfile(text:match("^%s*(.-)%s*$"))
+                AfterChange()
+            end)
+        end)
+        newBtn:SetPoint("LEFT", profRow._leftRegion, "LEFT", 20, 0)
+        ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings; this "
+            .. "character switches to it.")
+        local copyBtn = ns.Button(profRow._leftRegion, "Copy Current", 110, 22, function()
+            ShowNamePrompt("Copy Profile", "Copy", "", function(text)
+                local ok, err = ns.CopyProfile(ns.ActiveProfileName(), text)
+                if not ok then ns.Print(err) return end
+                ns.SwitchProfile(text:match("^%s*(.-)%s*$"))
+                AfterChange()
+            end)
+        end)
+        copyBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
+        ns.Tooltip(copyBtn, "Copy Current", "Duplicates this profile under a new name and "
+            .. "switches to the copy.")
+        local delBtn = ns.Button(profRow._rightRegion, "Delete", 90, 22, function()
+            local name = ns.ActiveProfileName()
+            local dimmer, panel = ns.MakeModal(340, 130, "profileDeleteConfirm")
+            local head = ns.Font(panel, 14, "OUTLINE")
+            head:SetPoint("TOP", panel, "TOP", 0, -16)
+            head:SetText("Delete '" .. name .. "'?")
+            local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+            hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
+            hint:SetText("Cannot be undone.")
+            local yes = ns.Button(panel, "Delete", 100, 24, function()
+                local ok, err = ns.DeleteProfile(name)
+                if not ok then ns.Print(err) end
+                dimmer:Hide()
+                AfterChange()
+            end)
+            yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
+            local no = ns.Button(panel, "Cancel", 100, 24, function() dimmer:Hide() end)
+            no:SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
+            dimmer:Show()
+        end)
+        delBtn:SetPoint("RIGHT", profRow._rightRegion, "RIGHT", -14, 0)
+        ns.Tooltip(delBtn, "Delete", "Removes the active profile. Characters using it fall "
+            .. "back to Default. The last profile cannot be deleted.")
+    end
+
+    -- ns.Reset used to be reachable through the host window's own reset control; with the
+    -- addon standalone this row is its only door.
+    local resetRow
+    resetRow, h = W:DualRow(parent, y,
+        { type = "label", text = "      Wipe the active profile back to defaults." },
+        { type = "label", text = "" }
+    ); y = y - h
+    if resetRow and resetRow._rightRegion then
+        local btn = ns.Button(resetRow._rightRegion, "Reset Profile", 110, 22, function()
+            local dimmer, panel = ns.MakeModal(340, 130, "profileResetConfirm")
+            local head = ns.Font(panel, 14, "OUTLINE")
+            head:SetPoint("TOP", panel, "TOP", 0, -16)
+            head:SetText("Reset '" .. tostring(ns.ActiveProfileName()) .. "'?")
+            local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+            hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
+            hint:SetText("Every setting in it returns to default. Cannot be undone.")
+            local yes = ns.Button(panel, "Reset", 100, 24, function()
+                if ns.Reset then ns.Reset() end
+                dimmer:Hide()
+                EUI:RefreshPage(true)
+            end)
+            yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
+            local no = ns.Button(panel, "Cancel", 100, 24, function() dimmer:Hide() end)
+            no:SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
+            dimmer:Show()
+        end)
+        btn:SetPoint("RIGHT", resetRow._rightRegion, "RIGHT", -14, 0)
+        ns.Tooltip(btn, "Reset Profile", "Wipes the active profile's settings back to "
+            .. "defaults. Other profiles are untouched.")
+    end
     local packRow
     packRow, h = W:DualRow(parent, y,
         { type = "label", text = "      Share your lists, priorities and reminders." },

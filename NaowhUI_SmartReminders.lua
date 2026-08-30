@@ -5002,11 +5002,6 @@ function ns.BuildBossTabPage(parent, yOffset, isRaid)
     return math.abs(y)
 end
 
--- Kept so an external caller of the old single-page entry point still resolves.
-function ns.BuildPage(parent, yOffset)
-    return ns.BuildSetupPage(parent, yOffset)
-end
-
 -- Shared with the boss tree page, which renders the same list editor for a per-boss
 -- override as this page does for the spec default.
 -- Every major defensive the player has, regardless of what is already on a list.

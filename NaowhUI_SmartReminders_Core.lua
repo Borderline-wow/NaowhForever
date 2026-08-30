@@ -261,77 +261,120 @@ function ns.MakeModal(width, height, key)
 end
 
 -------------------------------------------------------------------------------
---  SavedVariables
+--  SavedVariables and profiles
 -------------------------------------------------------------------------------
--- Going through EllesmereUI's NewDB lands us in profiles[name].addons[MODULE_KEY], so our
--- settings switch with profiles for free and stay ours rather than the companion's.
-local _settingsDB
+-- The addon's own DB. Profiles are account-wide with a per-character active pointer;
+-- SettingsRoot hands back the active profile's root, and TRDB layers its defaults onto
+-- root.tankReminder from there. A switch hands TRDB a different table identity, which is
+-- what re-runs its weak-keyed defaults fill.
+local activeRoot
+
+local function CharKey()
+    return UnitName("player") .. "-" .. GetRealmName()
+end
+
+local function DB()
+    local sv = _G.NaowhUI_SmartRemindersDB
+    if type(sv) ~= "table" then
+        sv = { dbVersion = 1 }
+        _G.NaowhUI_SmartRemindersDB = sv
+    end
+    if type(sv.profiles) ~= "table" then sv.profiles = {} end
+    if type(sv.charActive) ~= "table" then sv.charActive = {} end
+    return sv
+end
 
 function ns.SettingsRoot()
-    if _settingsDB and type(_settingsDB.profile) == "table" then
-        return _settingsDB.profile
+    if activeRoot then return activeRoot end
+    local sv = DB()
+    local name = sv.charActive[CharKey()]
+    if type(name) ~= "string" or type(sv.profiles[name]) ~= "table" then
+        name = type(name) == "string" and name or "Default"
+        sv.charActive[CharKey()] = name
     end
-    local L = _G.EllesmereUI and _G.EllesmereUI.Lite
-    if L and L.NewDB then
-        -- svName minus the trailing "DB" is the folder, so this lands under MODULE_KEY.
-        _settingsDB = L.NewDB(MODULE_KEY .. "DB", { profile = {} })
-        if _settingsDB and type(_settingsDB.profile) == "table" then
-            return _settingsDB.profile
-        end
-    end
-    -- EllesmereUI absent or too old: degrade to the account table rather than error.
-    if type(_G.NaowhUITankReminderDB) ~= "table" then _G.NaowhUITankReminderDB = {} end
-    return _G.NaowhUITankReminderDB
+    if type(sv.profiles[name]) ~= "table" then sv.profiles[name] = {} end
+    activeRoot = sv.profiles[name]
+    return activeRoot
 end
 
--------------------------------------------------------------------------------
---  Reaching EllesmereUI's stored profiles
--------------------------------------------------------------------------------
--- The active profile's blob IS the table SettingsRoot hands back, so a write here is live.
-function ns.ForEachProfile(fn)
-    local euidb = _G.EllesmereUIDB
-    if not (euidb and type(euidb.profiles) == "table") then return end
-    for name, root in pairs(euidb.profiles) do
-        if type(root) == "table" then fn(name, root) end
-    end
+function ns.ActiveProfileName()
+    ns.SettingsRoot()
+    return DB().charActive[CharKey()]
 end
 
--------------------------------------------------------------------------------
---  Folder rename migration
--------------------------------------------------------------------------------
--- The profile map keys by addon folder, so the NaowhUI_TankReminder rename left every
--- existing list under a key nothing reads. Every profile is walked, not just the active one:
--- an untouched profile would otherwise keep its lists in the dead key and export empty.
-local OLD_KEY = "NaowhUI_TankReminder"
+function ns.ListProfiles()
+    local out = {}
+    for name in pairs(DB().profiles) do out[#out + 1] = name end
+    table.sort(out, function(a, b) return a:lower() < b:lower() end)
+    return out
+end
 
-function ns.RunMigrations()
-    ns.ForEachProfile(function(_, root)
-        local addons = root.addons
-        local src = type(addons) == "table" and addons[OLD_KEY]
-        if type(src) ~= "table" then return end
+function ns.SwitchProfile(name)
+    local sv = DB()
+    if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
+    sv.charActive[CharKey()] = name
+    activeRoot = nil
+    ns.QueueReapply()
+    return true
+end
 
-        -- An empty blob is what the old lazy lookup created for itself: it read through
-        -- NewDB, which vivifies what it reads.
-        if next(src) == nil then
-            addons[OLD_KEY] = nil
-            return
-        end
+local function ValidName(name)
+    name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
+    if name == "" then return nil, "the name is empty" end
+    if DB().profiles[name] then return nil, "that name is taken" end
+    return name
+end
 
-        -- Only into an untouched blob, so a migrated-then-edited profile is not handed its
-        -- deleted entries back. Filled in place: SettingsRoot may already hold this table.
-        local dst = addons[MODULE_KEY]
-        if type(dst) ~= "table" then dst = {}; addons[MODULE_KEY] = dst end
-        if next(dst) == nil then
-            for k, v in pairs(src) do dst[k] = v end
-        end
-    end)
+function ns.CreateProfile(name)
+    local err
+    name, err = ValidName(name)
+    if not name then return false, err end
+    DB().profiles[name] = {}
+    return true
+end
+
+local function DeepCopy(t)
+    local out = {}
+    for k, v in pairs(t) do
+        out[k] = type(v) == "table" and DeepCopy(v) or v
+    end
+    return out
+end
+
+function ns.CopyProfile(src, name)
+    local sv = DB()
+    if type(sv.profiles[src]) ~= "table" then return false, "no such profile" end
+    local err
+    name, err = ValidName(name)
+    if not name then return false, err end
+    sv.profiles[name] = DeepCopy(sv.profiles[src])
+    return true
+end
+
+function ns.DeleteProfile(name)
+    local sv = DB()
+    if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
+    local count = 0
+    for _ in pairs(sv.profiles) do count = count + 1 end
+    if count <= 1 then return false, "the last profile cannot be deleted" end
+    local wasMine = sv.charActive[CharKey()] == name
+    sv.profiles[name] = nil
+    -- Every character pointed at it falls back to Default, vivified on next read.
+    for char, active in pairs(sv.charActive) do
+        if active == name then sv.charActive[char] = "Default" end
+    end
+    if wasMine then
+        activeRoot = nil
+        ns.QueueReapply()
+    end
+    return true
 end
 
 -------------------------------------------------------------------------------
 --  Re-apply on anything that swaps the active settings out from under us
 -------------------------------------------------------------------------------
--- Coalesced: a profile switch can fire several of these hooks in one go, and re-running the
--- rebuild per hook would rebuild the slot list three times for one user action.
+-- Coalesced: one user action can request several reapplies in one go, and re-running the
+-- rebuild per request would rebuild the slot list three times for one click.
 local reapplyPending
 
 function ns.QueueReapply()
@@ -342,25 +385,3 @@ function ns.QueueReapply()
         if ns.Apply then ns.Apply() end
     end)
 end
-
--------------------------------------------------------------------------------
---  Boot
--------------------------------------------------------------------------------
-local boot = CreateFrame("Frame")
-boot:RegisterEvent("PLAYER_LOGIN")
-boot:SetScript("OnEvent", function(self)
-    self:UnregisterEvent("PLAYER_LOGIN")
-
-    -- Core is first in the toc and registers PLAYER_LOGIN first, so this runs before the
-    -- runtime's own handler and before anything has called SettingsRoot.
-    ns.RunMigrations()
-
-    -- Until the addon owns its DB, the settings still live in EllesmereUI's profiles, so
-    -- anything that swaps the active profile swaps our settings out from under us.
-    local EUI = _G.EllesmereUI
-    if EUI then
-        if EUI.SwitchProfile then hooksecurefunc(EUI, "SwitchProfile", ns.QueueReapply) end
-        if EUI.OnSpecSwitchComplete then hooksecurefunc(EUI, "OnSpecSwitchComplete", ns.QueueReapply) end
-        if EUI.ApplyProfileData then hooksecurefunc(EUI, "ApplyProfileData", ns.QueueReapply) end
-    end
-end)
