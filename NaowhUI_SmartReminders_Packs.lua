@@ -46,6 +46,8 @@ local SECTIONS = {
     { field = "customReminders", label = "custom reminders",     count = "nested" },
     { field = "abilityBindings", label = "ability on/off",       count = "nested" },
     { field = "audioOff",        label = "audio switches",       count = "keys" },
+    { field = "raidReminders",   label = "raid reminders",       count = "nested" },
+    { field = "bossNotes",       label = "boss notes",           count = "keys" },
 }
 
 local function CountSection(kind, t)
