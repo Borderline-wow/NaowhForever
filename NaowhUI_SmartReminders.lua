@@ -2775,6 +2775,12 @@ end
 
 -- Which single source drives callouts this session. Read at event time, never cached:
 -- the Setup dropdown changes it live.
+-- The pull clocks, for the observed-timing recorder in its own file. One accessor rather
+-- than six exported fields, and read rarely (once per broadcast).
+function ns.PullContext()
+    return currentEncounterStartedAt, currentDifficultyID, currentStage, currentStageAt
+end
+
 function ns.BossSource()
     return TRDB().bossSource or "timeline"
 end
@@ -3333,6 +3339,7 @@ local function OnBigWigsEvent(event, ...)
         local _, key, text = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "message") end
+        if ns.ObserveCast then ns.ObserveCast(key, "BW", nil, nil) end
         ns.HandleBigWigsAbility(key)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key) end
         if not hasCustomReminders then return end
@@ -3343,6 +3350,7 @@ local function OnBigWigsEvent(event, ...)
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
+        if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
         ns.HandleBigWigsAbility(key, duration, text)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
@@ -3357,6 +3365,7 @@ local function OnBigWigsEvent(event, ...)
             RecordBossModKey("BW", key, text, "timer")
         end
         if isBarEnabled then return end
+        if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
         ns.HandleBigWigsAbility(key, duration, text)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
@@ -3364,6 +3373,7 @@ local function OnBigWigsEvent(event, ...)
     elseif event == "BigWigs_StopBar" or event == "BigWigs_PauseBar" then
         local _, text = ...
         if issecretvalue and issecretvalue(text) then return end
+        if ns.ObserveCancel then ns.ObserveCancel(text) end
         CancelPendingBWFire(text)
         if not hasCustomReminders then return end
         CancelBossModTimers("BW", text)
@@ -3374,6 +3384,7 @@ local function OnBigWigsEvent(event, ...)
         -- survive into that gap.
         currentStage = nil
         currentStageAt = nil
+        if ns.ObserveCancelAll then ns.ObserveCancelAll() end
         ns.CancelTrackedReminderTimers("stage")
         if not hasCustomReminders then return end
         CancelBossModTimers("BW", "")
@@ -3408,6 +3419,7 @@ local function OnDBMEvent(event, ...)
         local _, _, _, spellId = ...
         if issecretvalue and issecretvalue(spellId) then return end
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, nil, "message") end
+        if ns.ObserveCast then ns.ObserveCast(spellId, "DBM", nil, nil) end
         ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId)
         -- Raid Reminders are BigWigs-only by design (see ShowRaidReminderEditor) --
         -- deliberately no ns.HandleRaidReminderAbility call here.
@@ -3419,6 +3431,7 @@ local function OnDBMEvent(event, ...)
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, msg, "timer") end
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
+        if ns.ObserveCast then ns.ObserveCast(spellId, "DBM", duration, id) end
         ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
         -- Raid Reminders are BigWigs-only by design (see ShowRaidReminderEditor) --
         -- deliberately no ns.HandleRaidReminderAbility call here.
@@ -3427,6 +3440,7 @@ local function OnDBMEvent(event, ...)
     elseif event == "DBM_TimerStop" or event == "DBM_TimerPause" then
         local id = ...
         if issecretvalue and issecretvalue(id) then return end
+        if ns.ObserveCancel then ns.ObserveCancel(id) end
         CancelPendingBWFire(id)
         if not hasCustomReminders then return end
         CancelBossModTimers("DBM", id)
@@ -3960,6 +3974,41 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    if arg == "observed" then
+        local enc = currentEncounter
+        if not enc then
+            ns.Print("not in an encounter. Run this during or right after a pull, or open "
+                .. "the Custom Reminders tab to browse what has been recorded.")
+            return
+        end
+        local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(enc) or {}
+        if #diffs == 0 then
+            ns.Print(("nothing recorded for encounter %s yet. Recording rides the boss "
+                .. "mods, so it needs Boss Addon set to BigWigs or DBM."):format(tostring(enc)))
+            return
+        end
+        for _, d in ipairs(diffs) do
+            local block = ns.ObservedFor(enc, tonumber(d.key))
+            local name = GetDifficultyInfo and GetDifficultyInfo(tonumber(d.key))
+            ns.Print(("|cff0091edobserved|r %s (%s): %d pull(s), longest %.0fs"):format(
+                tostring(name or "?"), d.key, block.pulls or 0, block.longest or 0))
+            for sid, list in pairs(block.casts or {}) do
+                local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+                local parts = {}
+                for i = 1, #list do
+                    local s = list[i]
+                    if s and s.t then
+                        parts[#parts + 1] = ("%d:%04.1f%s"):format(math.floor(s.t / 60),
+                            s.t % 60, (s.stage and s.stage > 1) and ("(P" .. s.stage .. ")") or "")
+                    end
+                end
+                ns.Print(("  %d %s -- %s"):format(sid, (info and info.name) or "?",
+                    table.concat(parts, ", ")))
+            end
+        end
+        return
+    end
+
     if arg == "keys" then
         local enc = currentEncounter
         local cat = enc and BossModCatalogueTable(false, enc)
@@ -4289,7 +4338,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
-    ns.Print("usage: /nutank status | cds | calls | keys | trace | export | pretendtank | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank status | observed | cds | calls | keys | trace | export | pretendtank | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
@@ -5458,6 +5507,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         -- Timings genuinely differ between difficulties, so observed data is keyed by it.
         currentEncounterStartedAt = starting and GetTime() or nil
         currentDifficultyID = starting and arg3 or nil
+        if starting then
+            if ns.ObserveBeginPull then ns.ObserveBeginPull() end
+        elseif ns.ObserveCommitPull then
+            ns.ObserveCommitPull(arg1, arg3)
+        end
         if TRDB().trace then
             AppendLog({ kind = "enc", text = ("%s %s %s"):format(
                 event == "ENCOUNTER_START" and "START" or "END",
@@ -5547,6 +5601,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "PLAYER_LOGIN" then
         RegisterBossModHooks()
+        if ns.ObservedPrune then ns.ObservedPrune() end
         local EUI = ns.UI
         if EUI and EUI.RegisterOnShow then
             EUI:RegisterOnShow(function() previewing = true; UpdatePreview() end)
