@@ -205,43 +205,49 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
         local v = get()
         lbl:SetText(values[v] or tostring(v or ""))
     end
-    -- OnMouseDown, not OnClick, and it closes its own menu itself.
+    -- An anchored dropdown, not a context menu, and it closes itself.
     --
-    -- Two separate things bite here. The manager closes menus on GLOBAL_MOUSE_DOWN, which
-    -- lands after this script, so an OnClick toggle on the way up always found the menu
-    -- already gone and opened a fresh one. And the manager only auto-closes when the
-    -- cursor is NOT over a menu (MenuManagerMixin:ContainsCursor) -- a context menu
-    -- anchored to this button sits over it, so pressing the button closes nothing at all.
-    -- Assuming either behaviour is what left the dropdown reopening, then sticking.
+    -- Three separate things had to line up here, and each one alone looked like the whole
+    -- bug, which is why this took three passes:
     --
-    -- So ask the manager what is actually open and close it here. The menu proxy carries
-    -- the region it was opened for, which is what tells our menu from anyone else's.
-    local function OpenMenuHere()
-        local mgr = Menu and Menu.GetManager and Menu.GetManager()
-        if not (mgr and mgr.GetOpenMenu) then return nil end
-        local open = mgr:GetOpenMenu()
-        if open and open.ownerRegion == btn then return mgr, open end
-        return nil
+    --   * MenuManagerMixin:OpenContextMenu positions with InputUtil.AnchorRegionToCursor,
+    --     so the list opened wherever the pointer happened to be and appeared to follow it
+    --     around. OpenMenu with an anchor is the dropdown case.
+    --   * The manager closes menus on GLOBAL_MOUSE_DOWN, and that lands AFTER this script,
+    --     so toggling on OnClick always found the menu already gone and opened a fresh one.
+    --   * It skips that close only when the moused-over frame answers
+    --     HandlesGlobalMouseEvent (Menu.lua). That is how Blizzard's own DropdownButton
+    --     keeps the press for itself; without it the manager and this handler fight over
+    --     the same click and the menu either reopens or sticks.
+    btn.HandlesGlobalMouseEvent = function(_, buttonName, event)
+        return event == "GLOBAL_MOUSE_DOWN" and buttonName == "LeftButton"
+    end
+
+    local function MenuOpen()
+        return btn._menu and btn._menu.IsShown and btn._menu:IsShown()
     end
 
     btn:SetScript("OnMouseDown", function()
-        local mgr, open = OpenMenuHere()
-        if open then
-            if mgr.CloseMenu then mgr:CloseMenu(open) else mgr:CloseMenus() end
+        if MenuOpen() then
+            btn._menu:Close()
+            btn._menu = nil
             return
         end
-        if not (MenuUtil and MenuUtil.CreateContextMenu) then return end
-        MenuUtil.CreateContextMenu(btn, function(_, root)
-            for _, k in ipairs(Keys()) do
-                local key = k
-                root:CreateRadio(values[key] or tostring(key),
-                    function() return get() == key end,
-                    function()
-                        set(key)
-                        btn._refreshLabel()
-                    end)
-            end
-        end)
+        if not (MenuUtil and MenuUtil.CreateRootMenuDescription and MenuVariants
+            and Menu and Menu.GetManager and AnchorUtil) then return end
+        local desc = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
+        if not desc then return end
+        for _, k in ipairs(Keys()) do
+            local key = k
+            desc:CreateRadio(values[key] or tostring(key),
+                function() return get() == key end,
+                function()
+                    set(key)
+                    btn._refreshLabel()
+                end)
+        end
+        btn._menu = Menu.GetManager():OpenMenu(btn, desc,
+            AnchorUtil.CreateAnchor("TOPLEFT", btn, "BOTTOMLEFT", 0, -2))
     end)
     btn:SetScript("OnEnter", function()
         border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
