@@ -2465,10 +2465,20 @@ local customCounters = {}
 -- Cached at ENCOUNTER_START so OnCombatLog's hot path stays a single boolean read on a
 -- boss with nothing configured, the same reasoning runActive already uses below.
 local hasCustomReminders = false
+local hasRaidReminders = false
 
 local function RefreshCustomRemindersFlag()
     local set = currentEncounter and CustomRemindersTable(false, currentEncounter)
     hasCustomReminders = set ~= nil and next(set) ~= nil
+    -- Raid reminders were read LIVE out of the DB on every combat log line, because a
+    -- stale flag would have silently stopped them firing after an edit. The real fix was
+    -- to make every edit path refresh -- the raid editor's own Save did not -- so this
+    -- can be a cached boolean like its neighbour. The live read cost a settings-chain
+    -- walk, a tostring() and, on the common no-raid-reminders boss, a throwaway table,
+    -- thousands of times a second in a raid.
+    local rr = currentEncounter and ns.RaidRemindersTable
+        and ns.RaidRemindersTable(false, currentEncounter)
+    hasRaidReminders = rr ~= nil and next(rr) ~= nil
 end
 ns.RefreshCustomRemindersFlag = RefreshCustomRemindersFlag
 
@@ -3503,10 +3513,8 @@ local function OnCombatLog()
     -- get the same treatment -- checked directly rather than through a synced cache
     -- flag, since a raid reminder can be added/removed from several different UI
     -- entry points and a stale flag would silently stop firing until the next one.
-    if currentEncounter == nil or not (runActive or hasCustomReminders
-        or (ns.RaidRemindersTable and next(ns.RaidRemindersTable(false, currentEncounter) or {}))) then
-        return
-    end
+    -- The dispatcher gates this before the pcall; kept as the function's own contract.
+    if currentEncounter == nil then return end
     -- Counted here, ABOVE the secrecy filter, so /nutank can separate three different
     -- reasons Skip When Already Covered can read an empty table: the event never arrived
     -- (lines stays 0), it arrived but every line carried a secret and was discarded
@@ -5399,6 +5407,23 @@ watcher:RegisterEvent("SPELLS_CHANGED")
 watcher:RegisterEvent("TRAIT_CONFIG_UPDATED")
 
 watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
+    -- FIRST in the chain, and gated before the pcall: this is by far the most frequent
+    -- event in the game (thousands a second in a raid), every other branch below it was
+    -- a string compare it had to walk past, and a protected-call frame per line is not
+    -- free either. Out of an encounter, or on a boss with nothing configured, the whole
+    -- handler is now three plain boolean reads.
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        if currentEncounter == nil
+            or not (runActive or hasCustomReminders or hasRaidReminders) then
+            return
+        end
+        local okL, errL = pcall(OnCombatLog)
+        if not okL then
+            ns.Print("|cffff6060combat log watch failed|r: " .. ErrText(errL))
+        end
+        return
+    end
+
     if event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
         -- Dying and running back resets much of a kit, and the model cannot see that. Drop
         -- the estimates and re-read whatever is readable now.
@@ -5494,13 +5519,6 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         return
     end
 
-    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local okL, errL = pcall(OnCombatLog)
-        if not okL then
-            ns.Print("|cffff6060combat log watch failed|r: " .. ErrText(errL))
-        end
-        return
-    end
 
     if event == "PLAYER_LOGIN" then
         RegisterBossModHooks()

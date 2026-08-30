@@ -746,9 +746,17 @@ function ns.DisplayRaidReminder(entry)
         r.label:SetText(formattedText or "")
         r.expirationTime = GetTime() + dur
         r.number:SetText(tostring(math.ceil(dur)))
+        r.shownSecond = math.ceil(dur)
+        -- Only when the displayed second actually changes: SetText plus the tostring it
+        -- needs was allocating a string every frame for a number that changes once a
+        -- second, and several reminders can be on screen at once.
         r:SetScript("OnUpdate", function(self)
             local remain = self.expirationTime - GetTime()
-            self.number:SetText(remain > 0 and tostring(math.ceil(remain)) or "0")
+            local sec = remain > 0 and math.ceil(remain) or 0
+            if sec ~= self.shownSecond then
+                self.shownSecond = sec
+                self.number:SetText(tostring(sec))
+            end
         end)
     elseif display.type == "bar" then
         r.label:SetText(formattedText or "")
@@ -771,13 +779,21 @@ function ns.DisplayRaidReminder(entry)
         -- (elapsed) wedge starts AT 12 o'clock and grows CLOCKWISE as time passes, so
         -- the ticks nearest 12 (low index, small theta) are what should hide FIRST --
         -- the previous version hid high-index ticks first instead, sweeping backwards.
+        r.hiddenTicks = 0
+        -- Only the ticks that actually changed state this frame. The full sweep re-issued
+        -- Show/Hide on every tick every frame, for a ring that loses one tick every few
+        -- tenths of a second.
         r:SetScript("OnUpdate", function(self)
             local remain = self.expirationTime - GetTime()
             local elapsedFrac = remain > 0 and (1 - remain / dur) or 1
             local hideCount = math.floor(elapsedFrac * RING_TICKS)
-            for i = 1, RING_TICKS do
-                if i <= hideCount then self.ticks[i]:Hide() else self.ticks[i]:Show() end
+            if hideCount == self.hiddenTicks then return end
+            if hideCount > self.hiddenTicks then
+                for i = self.hiddenTicks + 1, hideCount do self.ticks[i]:Hide() end
+            else
+                for i = hideCount + 1, self.hiddenTicks do self.ticks[i]:Show() end
             end
+            self.hiddenTicks = hideCount
         end)
     end
 

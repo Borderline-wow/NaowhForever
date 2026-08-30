@@ -3575,6 +3575,9 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         local writeSet = ns.RaidRemindersTable(true, encounterID)
         local key = uid or ("rr" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
         writeSet[key] = entry
+        -- Takes effect now, and refreshes the cached has-reminders flags the combat log
+        -- hot path reads.
+        ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end
