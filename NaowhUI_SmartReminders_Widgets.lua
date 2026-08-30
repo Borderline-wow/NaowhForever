@@ -100,27 +100,77 @@ end
 -------------------------------------------------------------------------------
 --  Bare controls
 -------------------------------------------------------------------------------
+-- A pill switch: round knob in a rounded track. WoW has no rounded-rectangle primitive,
+-- so the track is two circle-masked end caps with a plain rectangle bridging them, and
+-- the knob is a third masked circle. Blizzard's own portrait mask does the rounding --
+-- 12.1 still uses it in ~90 places, so it is not going anywhere.
+local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+
+-- CLAMPTOBLACKADDITIVE on both axes, not the default: a mask that tiles or extends leaves
+-- the corners opaque and the pill comes out square. One mask per texture, well inside the
+-- three-per-texture cap.
+local function RoundOff(frame, tex)
+    local mask = frame:CreateMaskTexture()
+    mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(tex)
+    tex:AddMaskTexture(mask)
+end
+
 function UI.BuildToggleControl(parent, frameLevel, get, set)
+    local W, H, KNOB = 40, 20, 14
     local t = CreateFrame("Button", nil, parent)
-    t:SetSize(40, 20)
+    t:SetSize(W, H)
     if frameLevel then t:SetFrameLevel(frameLevel) end
-    local track = ns.Solid(t, "BACKGROUND", T.line, 1)
-    track:SetAllPoints()
-    ns.Border(t)
+
+    local capL = ns.Solid(t, "BACKGROUND", T.line, 1)
+    capL:SetSize(H, H)
+    capL:SetPoint("LEFT", t, "LEFT", 0, 0)
+    RoundOff(t, capL)
+
+    local capR = ns.Solid(t, "BACKGROUND", T.line, 1)
+    capR:SetSize(H, H)
+    capR:SetPoint("RIGHT", t, "RIGHT", 0, 0)
+    RoundOff(t, capR)
+
+    local mid = ns.Solid(t, "BACKGROUND", T.line, 1)
+    mid:SetPoint("LEFT", t, "LEFT", H / 2, 0)
+    mid:SetPoint("RIGHT", t, "RIGHT", -H / 2, 0)
+    mid:SetHeight(H)
+
     local knob = ns.Solid(t, "ARTWORK", T.muted, 1)
-    knob:SetSize(14, 14)
+    knob:SetSize(KNOB, KNOB)
+    RoundOff(t, knob)
+
+    local on = false
+    local function PaintTrack(c, a)
+        capL:SetColorTexture(c.r, c.g, c.b, a)
+        capR:SetColorTexture(c.r, c.g, c.b, a)
+        mid:SetColorTexture(c.r, c.g, c.b, a)
+    end
+
     local function Paint(state)
+        on = state and true or false
         knob:ClearAllPoints()
-        if state then
-            track:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
+        if on then
+            PaintTrack(T.accent, 1)
             knob:SetColorTexture(1, 1, 1, 1)
             knob:SetPoint("RIGHT", t, "RIGHT", -3, 0)
         else
-            track:SetColorTexture(T.line.r, T.line.g, T.line.b, 1)
+            PaintTrack(T.line, 1)
             knob:SetColorTexture(T.muted.r, T.muted.g, T.muted.b, 1)
             knob:SetPoint("LEFT", t, "LEFT", 3, 0)
         end
     end
+
+    -- Off has no border to light up the way ns.Button's hover does, so the track itself
+    -- carries it: the lighter accent when on, the neutral row fill when off.
+    t:SetScript("OnEnter", function()
+        PaintTrack(on and T.accentSoft or T.grey, 1)
+    end)
+    t:SetScript("OnLeave", function()
+        PaintTrack(on and T.accent or T.line, 1)
+    end)
+
     local function Snap() Paint(get() and true or false) end
     t:SetScript("OnClick", function()
         set(not (get() and true or false))
@@ -129,7 +179,6 @@ function UI.BuildToggleControl(parent, frameLevel, get, set)
     Snap()
     return t, Paint, Snap
 end
-
 function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(ddW or 160, 24)
