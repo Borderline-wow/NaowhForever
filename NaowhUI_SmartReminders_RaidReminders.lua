@@ -27,8 +27,9 @@ if not ns then return end
 --  Data
 -------------------------------------------------------------------------------
 -- profile.raidReminders[encounterID][uid] = {
---     name, enabled,
---     trigger = { type = "bwtimer"|"bwmsg"|"pull", spellID, leadTime },
+--     name, enabled, fromNote (true on entries born from an MRT note import),
+--     trigger = { type = "bwtimer"|"bwmsg"|"pull"|"stage", spellID, leadTime,
+--                 delay (pull/stage: seconds after the anchor), stage (stage only) },
 --     target  = { all = bool, roles = {TANK=true,...}, classes = {PALADIN=true,...},
 --                 specs = {[specID]=true,...}, names = {["Name"]=true,...},
 --                 subgroups = {[1]=true,...} },
@@ -1193,7 +1194,33 @@ function ns.CheckRaidReminderPullTriggers()
         local trig = entry.trigger
         if trig and trig.type == "pull" then
             local delay = (type(trig.delay) == "number" and trig.delay >= 0) and trig.delay or 0.01
-            C_Timer.NewTimer(math.max(delay, 0.01), function() FireRaidReminder(entry) end)
+            -- leadTime pulls the fire earlier so the display counts down TO the noted
+            -- moment rather than starting at it.
+            local lead = type(trig.leadTime) == "number" and trig.leadTime or 0
+            ns.TrackReminderTimer("pull", C_Timer.NewTimer(math.max(delay - lead, 0.01),
+                function() FireRaidReminder(entry) end))
+        end
+    end
+end
+
+-- Same walk for stage triggers, run every time the boss mods report a NEW stage number
+-- (the main file's SetStage branches own the change detection and the cancel of any
+-- timers still pending from the previous stage).
+function ns.CheckRaidReminderStageTriggers(stage)
+    if not (ns.InEncounter and ns.InEncounter()) then return end
+    if not RaidRemindersAllowed() then return end
+    local enc = ns.CurrentEncounter and ns.CurrentEncounter()
+    if not enc then return end
+    local reminders = RaidRemindersTable(false, enc)
+    if not reminders then return end
+
+    for _, entry in pairs(reminders) do
+        local trig = entry.trigger
+        if trig and trig.type == "stage" and trig.stage == stage then
+            local delay = (type(trig.delay) == "number" and trig.delay >= 0) and trig.delay or 0.01
+            local lead = type(trig.leadTime) == "number" and trig.leadTime or 0
+            ns.TrackReminderTimer("stage", C_Timer.NewTimer(math.max(delay - lead, 0.01),
+                function() FireRaidReminder(entry) end))
         end
     end
 end

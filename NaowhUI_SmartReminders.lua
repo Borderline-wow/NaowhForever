@@ -2678,6 +2678,34 @@ function ns.PreviewCustomReminder(r)
     ns.DisplayReminder(r)
 end
 
+-- Every reminder timer scheduled against a moment in the fight is tracked here so it can
+-- be cancelled when that moment stops existing. Untracked timers were a live bug: a
+-- reminder set for 4:30 still fired after a wipe at 0:40, into the corpse run. Two
+-- scopes: "pull" timers die on the encounter boundaries, "stage" timers additionally die
+-- whenever the stage changes or the boss module disables -- a phase that ended takes its
+-- scheduled callouts with it. ns fields, not chunk locals: this chunk is at the 200-local
+-- ceiling.
+ns.trackedReminderTimers = {}
+
+function ns.TrackReminderTimer(scope, handle)
+    if handle then
+        ns.trackedReminderTimers[#ns.trackedReminderTimers + 1] =
+            { scope = scope, handle = handle }
+    end
+    return handle
+end
+
+function ns.CancelTrackedReminderTimers(scope)
+    local t = ns.trackedReminderTimers
+    for i = #t, 1, -1 do
+        if scope == nil or t[i].scope == scope then
+            local h = t[i].handle
+            if h.Cancel then h:Cancel() end
+            table.remove(t, i)
+        end
+    end
+end
+
 -- The match decided a reminder should go off; this is where "Show in" (a raw string on
 -- the trigger, parsed fresh here rather than pre-compiled -- these fire rarely enough that
 -- the cost never matters) turns into either an immediate call or one timer per listed
@@ -2689,7 +2717,8 @@ local function ActivateCustomReminder(r)
         return
     end
     for i = 1, #delays do
-        C_Timer.NewTimer(delays[i], function() ns.DisplayReminder(r) end)
+        ns.TrackReminderTimer("pull",
+            C_Timer.NewTimer(delays[i], function() ns.DisplayReminder(r) end))
     end
 end
 
@@ -3249,15 +3278,27 @@ local function OnBigWigsEvent(event, ...)
         CancelBossModTimers("BW", text)
     elseif event == "BigWigs_StopBars" or event == "BigWigs_OnBossDisable" then
         CancelAllPendingBWFires()
+        -- The module disabling mid-run (a wipe, before ENCOUNTER_END lands) means the
+        -- stage it reported is over; a stale value or an armed phase timer must not
+        -- survive into that gap.
+        currentStage = nil
+        ns.CancelTrackedReminderTimers("stage")
         if not hasCustomReminders then return end
         CancelBossModTimers("BW", "")
     elseif event == "BigWigs_SetStage" then
         -- (module, stage) -- read regardless of CustomRemindersAllowed/hasCustomReminders:
-        -- this only updates the ambient currentStage local RecordBossModKey stamps onto
-        -- catalogue entries above, not a reminder trigger, so none of those gates apply.
+        -- the ambient currentStage is stamped onto catalogue entries above whether or not
+        -- any reminder cares. Only a CHANGE arms stage triggers -- that is also the
+        -- dual-mod arbitration, since the second mod reporting the same stage is a no-op.
         local _, stage = ...
         if issecretvalue and issecretvalue(stage) then return end
-        if type(stage) == "number" then currentStage = stage end
+        if type(stage) == "number" and stage ~= currentStage then
+            currentStage = stage
+            ns.CancelTrackedReminderTimers("stage")
+            if ns.CheckRaidReminderStageTriggers then
+                ns.CheckRaidReminderStageTriggers(stage)
+            end
+        end
     end
 end
 
@@ -3295,6 +3336,19 @@ local function OnDBMEvent(event, ...)
         CancelPendingBWFire(id)
         if not hasCustomReminders then return end
         CancelBossModTimers("DBM", id)
+    elseif event == "DBM_SetStage" then
+        -- (mod, modId, stage, encounterID, stageTotality). Same change-detected block as
+        -- the BigWigs branch; the shared currentStage is what keeps a dual-mod setup from
+        -- arming the same phase twice.
+        local _, _, stage = ...
+        if issecretvalue and issecretvalue(stage) then return end
+        if type(stage) == "number" and stage ~= currentStage then
+            currentStage = stage
+            ns.CancelTrackedReminderTimers("stage")
+            if ns.CheckRaidReminderStageTriggers then
+                ns.CheckRaidReminderStageTriggers(stage)
+            end
+        end
     end
 end
 
@@ -3325,6 +3379,7 @@ local function RegisterBossModHooks()
             D:RegisterCallback("DBM_TimerStart", OnDBMEvent)
             D:RegisterCallback("DBM_TimerStop", OnDBMEvent)
             D:RegisterCallback("DBM_TimerPause", OnDBMEvent)
+            D:RegisterCallback("DBM_SetStage", OnDBMEvent)
         end)
         dbmHooked = ok and true or false
     end
@@ -5266,6 +5321,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         wipe(customCounters)
         bwActiveMod = nil
         currentStage = nil
+        ns.CancelTrackedReminderTimers()
         for k, handle in pairs(bwPendingTimers) do
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
