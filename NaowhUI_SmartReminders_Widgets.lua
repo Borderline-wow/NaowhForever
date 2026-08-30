@@ -205,9 +205,21 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
         local v = get()
         lbl:SetText(values[v] or tostring(v or ""))
     end
-    btn:SetScript("OnClick", function()
+    -- OnMouseDown, not OnClick, and it tracks whether its own menu is up. The menu
+    -- manager closes on GLOBAL_MOUSE_DOWN whenever the cursor is not over a menu, and it
+    -- does NOT exclude the owner button -- so clicking an open dropdown closed it on the
+    -- way down and the OnClick that followed on the way up opened it straight back, which
+    -- read as a dropdown that could not be dismissed except by picking something.
+    -- Blizzard's own DropdownButtonMixin toggles on mouse-down for this reason; frame
+    -- mouse-down runs before the global event, so the flag is still true here.
+    local menuOpen = false
+    btn:SetScript("OnMouseDown", function()
+        if menuOpen then
+            menuOpen = false
+            return      -- this same click closes it via GLOBAL_MOUSE_DOWN
+        end
         if not (MenuUtil and MenuUtil.CreateContextMenu) then return end
-        MenuUtil.CreateContextMenu(btn, function(_, root)
+        local menu = MenuUtil.CreateContextMenu(btn, function(_, root)
             for _, k in ipairs(Keys()) do
                 local key = k
                 root:CreateRadio(values[key] or tostring(key),
@@ -218,6 +230,14 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
                     end)
             end
         end)
+        if menu then
+            menuOpen = true
+            -- Covers every other way it can close -- picking an option, clicking away,
+            -- ESC -- so the next press on the button opens rather than swallowing itself.
+            if menu.HookScript then
+                menu:HookScript("OnHide", function() menuOpen = false end)
+            end
+        end
     end)
     btn:SetScript("OnEnter", function()
         border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
