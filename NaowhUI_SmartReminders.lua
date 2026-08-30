@@ -5502,16 +5502,17 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
         local starting = (event == "ENCOUNTER_START")
+        -- Commit BEFORE the clocks are cleared: the recorder measures against them, and
+        -- clearing first left it with no pull start, so it bailed and discarded the pull.
+        if not starting and ns.ObserveCommitPull then
+            ns.ObserveCommitPull(arg1, arg3)
+        end
         currentEncounter = starting and arg1 or nil
         -- arg3 is difficultyID (payload is encounterID, name, difficultyID, groupSize).
         -- Timings genuinely differ between difficulties, so observed data is keyed by it.
         currentEncounterStartedAt = starting and GetTime() or nil
         currentDifficultyID = starting and arg3 or nil
-        if starting then
-            if ns.ObserveBeginPull then ns.ObserveBeginPull() end
-        elseif ns.ObserveCommitPull then
-            ns.ObserveCommitPull(arg1, arg3)
-        end
+        if starting and ns.ObserveBeginPull then ns.ObserveBeginPull() end
         if TRDB().trace then
             AppendLog({ kind = "enc", text = ("%s %s %s"):format(
                 event == "ENCOUNTER_START" and "START" or "END",

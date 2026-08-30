@@ -30,6 +30,10 @@ local MAX_SAMPLES = 10        -- mean stops averaging past this, so recent pulls
 local MAX_OCCURRENCES = 12    -- per ability; later casts of a long fight drift too far to be useful
 local MAX_ABILITIES = 40      -- per encounter and difficulty
 local SAME_CAST = 2           -- a message landing this close to a prediction is that same cast
+local ENGAGE_GRACE = 3        -- boss mods broadcast their engage bars before our own
+                              -- ENCOUNTER_START lands; casts this far ahead of the pull
+                              -- still belong to it
+local MAX_BUFFER = 200        -- bounds what accumulates outside an encounter
 
 -- Live for the current pull only.
 local pending = {}   -- [barIdentity] = { sid, mod, landing, stage, stageAt }
@@ -96,9 +100,18 @@ end
 -------------------------------------------------------------------------------
 --  Recording
 -------------------------------------------------------------------------------
+-- Not a wipe: the boss mods receive ENCOUNTER_START before we do and broadcast their
+-- engage bars inside their own handler, so the opening cast -- usually the one worth
+-- recording most -- arrives just BEFORE this runs. Anything older than the grace window
+-- belonged to a previous pull or to trash and is dropped.
 function ns.ObserveBeginPull()
-    wipe(pending)
-    wipe(landed)
+    local cutoff = GetTime() - ENGAGE_GRACE
+    for key, p in pairs(pending) do
+        if p.at < cutoff then pending[key] = nil end
+    end
+    for i = #landed, 1, -1 do
+        if landed[i].at < cutoff then table.remove(landed, i) end
+    end
 end
 
 function ns.ObserveCancel(barIdentity)
@@ -111,19 +124,21 @@ end
 
 -- duration present means a bar: a countdown to a cast that has not happened yet.
 -- duration absent means a message: the cast is landing right now.
+-- Times are recorded ABSOLUTE and made pull-relative at commit, so a cast that arrives
+-- before our own ENCOUNTER_START (see ObserveBeginPull) is not lost for want of a clock.
 function ns.ObserveCast(sid, mod, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
-    local startedAt, _, stage, stageAt = ns.PullContext()
-    if not startedAt then return end
+    local _, _, stage, stageAt = ns.PullContext()
     local now = GetTime()
 
     if type(duration) == "number" and duration > 0.5 then
         local key = barIdentity
         if key == nil then key = "sid:" .. sid end
-        pending[key] = { sid = sid, mod = mod, landing = now + duration,
+        pending[key] = { sid = sid, mod = mod, at = now, landing = now + duration,
             stage = stage, stageAt = stageAt }
         return
     end
+    if #landed >= MAX_BUFFER then return end
 
     -- A module that pairs a bar with a message for the same cast would otherwise record
     -- it twice; the bar's own prediction is the one already accounted for.
@@ -170,6 +185,7 @@ function ns.ObserveCommitPull(encounterID, difficultyID)
         if p.landing <= endedAt then
             landed[#landed + 1] = { sid = p.sid, mod = p.mod, at = p.landing,
                 stage = p.stage, stageAt = p.stageAt }
+            if #landed >= MAX_BUFFER then break end
         end
     end
     wipe(pending)
@@ -193,9 +209,7 @@ function ns.ObserveCommitPull(encounterID, difficultyID)
     for i = 1, #landed do
         local e = landed[i]
         local slotList = block.casts[e.sid]
-        if not slotList and abilityCount >= MAX_ABILITIES then
-            slotList = nil   -- full: ignore abilities first seen this late
-        elseif not slotList then
+        if not slotList and abilityCount < MAX_ABILITIES then
             slotList = { mod = e.mod }
             block.casts[e.sid] = slotList
             abilityCount = abilityCount + 1
@@ -206,8 +220,11 @@ function ns.ObserveCommitPull(encounterID, difficultyID)
             if idx <= MAX_OCCURRENCES then
                 local slot = slotList[idx]
                 if type(slot) ~= "table" then slot = {}; slotList[idx] = slot end
-                MergeSample(slot, e.at - startedAt, e.stage,
-                    e.stageAt and (e.at - e.stageAt) or nil)
+                -- Clamped: an engage bar caught inside the grace window is a fraction of
+                -- a second before the pull officially started, and a negative time would
+                -- read as nonsense in the list.
+                MergeSample(slot, math.max(0, e.at - startedAt), e.stage,
+                    e.stageAt and math.max(0, e.at - e.stageAt) or nil)
             end
         end
     end

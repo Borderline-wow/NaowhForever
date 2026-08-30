@@ -2585,8 +2585,16 @@ local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChang
     lbl:SetWordWrap(false)
     lbl:SetText((info and info.name) or ("Spell " .. sid))
 
+    -- How many time chips actually fit. This row renders on two very different surfaces --
+    -- the 480px cog modal and the much wider options tab -- and a boss with a dozen
+    -- recorded occurrences would run straight off the narrow one.
+    local avail = content:GetWidth()
+    if avail <= 0 then avail = 440 end
+    local fits = math.max(1, math.floor((avail - 190) / 70))
+    local shownCount = math.min(#list, fits)
+
     local anchor = lbl
-    for i = 1, #list do
+    for i = 1, shownCount do
         local slot = list[i]
         if slot and slot.t then
             local phased = slot.stage and slot.stage > 1 and slot.ts
@@ -2619,6 +2627,11 @@ local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChang
                 .. "for this moment."):format(i, slot.n or 1, spreadNote))
             anchor = chip
         end
+    end
+    if #list > shownCount then
+        local more = ns.Font(row, 10, nil, ns.THEME.muted)
+        more:SetPoint("LEFT", anchor, "RIGHT", 6, 0)
+        more:SetText(("+%d more"):format(#list - shownCount))
     end
     return row
 end
