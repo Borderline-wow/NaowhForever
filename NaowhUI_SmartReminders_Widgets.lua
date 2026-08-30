@@ -288,7 +288,7 @@ local function BuildRegionControl(rgn, cfg)
         end
         return toggle, disabled
     elseif cfg.type == "dropdown" then
-        local dd = UI.BuildDropdownControl(rgn, 160, rgn:GetFrameLevel() + 2,
+        local dd = UI.BuildDropdownControl(rgn, cfg.width or 160, rgn:GetFrameLevel() + 2,
             cfg.values, cfg.order, cfg.getValue, cfg.setValue)
         dd:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         return dd

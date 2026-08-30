@@ -1028,31 +1028,12 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     return topY + math.min(ly, ry)
 end
 
--- The whole boss's own hierarchy, top part: Enable This Boss (off = nothing below, no
--- alerts of any kind), then which of the spec's presets it calls its defensives from.
--- Used by RenderInstanceDetail, the journal-sourced ability list.
--- Returns y, bossOn.
+-- The boss's own preset choice: which of the spec's presets it calls its defensives
+-- from. The Enable This Boss toggle lives on the boss-picker row in
+-- RenderInstanceDetail, which gates this whole section.
+-- Used by RenderInstanceDetail, the journal-sourced ability list. Returns y.
 local function RenderBossHeader(parent, y, W, EUI, encounterID, specID)
     local _, h
-    local db = ns.DB()
-
-    local bossOn = not (db.bossOff and db.bossOff[tostring(encounterID)])
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Enable This Boss",
-          tooltip = "Off means this boss makes no alerts at all -- no defensives, no "
-          .. "reminders, nothing -- and its options below disappear until it is back on.",
-          getValue = function() return bossOn end,
-          setValue = function(v)
-              if type(db.bossOff) ~= "table" then db.bossOff = {} end
-              db.bossOff[tostring(encounterID)] = (not v) or nil
-              if next(db.bossOff) == nil then db.bossOff = nil end
-              ns.RefreshRuntime()
-              EUI:RefreshPage(true)
-          end },
-        { type = "label", text = "" }
-    ); y = y - h
-
-    if not bossOn then return y, false end
 
     -- Which of the spec's presets this boss calls its defensives from. Shows the spec's
     -- active preset until the tank actually picks one for this boss -- nothing is written
@@ -1079,7 +1060,7 @@ local function RenderBossHeader(parent, y, W, EUI, encounterID, specID)
         ); y = y - h
     end
 
-    return y, true
+    return y
 end
 
 -------------------------------------------------------------------------------
@@ -1887,8 +1868,8 @@ end
 -- InstanceSlot/AttachInstanceCog (the old bulk on/off toggle + cog opening the old
 -- fingerprint-accordion boss modal, both since removed) were here and are gone -- the left
 -- column is pure navigation now, and the bulk on/off they wrote is still reachable, just
--- relocated to the selected boss's own Enable This Boss row (RenderBossHeader) instead of
--- a per-instance shortcut.
+-- relocated to the selected boss's own Enable This Boss toggle (on the boss-picker row
+-- in RenderInstanceDetail) instead of a per-instance shortcut.
 
 -- Which instance is selected on each tab, and which boss within it -- both persist
 -- across a RefreshPage (module-level upvalues, not page-local), the same way the Setup
@@ -2350,71 +2331,6 @@ end
 local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
 
-    local topRow = CreateFrame("Frame", nil, parent)
-    topRow:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-    topRow:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
-    topRow:SetHeight(26)
-
-    -- Export/Import used to be repeated here too; dropped in favor of the single
-    -- whole-profile pair on the Setup tab's Reminder Packs section (ns.BuildProfileSettings),
-    -- which is the only scope this addon shares at all now.
-
-    -- Doubles as the boss-name display: one control at the top right instead of a
-    -- button plus a separate name label below. Styled and behaving like a dropdown --
-    -- current boss's name, a "v" -- via the same MenuUtil context-menu approach used
-    -- elsewhere in this file, and the same menu primitive the widget kit's own
-    -- dropdowns ride.
-    local pick = ns.Button(topRow, "", 220, 26, function()
-        if MenuUtil and MenuUtil.CreateContextMenu then
-            MenuUtil.CreateContextMenu(topRow, function(_, root)
-                for b = 1, #inst.bosses do
-                    local idx = b
-                    root:CreateButton(inst.bosses[b].name, function()
-                        selectedBossIdx[inst.id] = idx
-                        EUI:RefreshPage(true)
-                    end)
-                end
-            end)
-        else
-            selectedBossIdx[inst.id] = ((selectedBossIdx[inst.id] or 1) % #inst.bosses) + 1
-            EUI:RefreshPage(true)
-        end
-    end)
-    pick:SetPoint("RIGHT", topRow, "RIGHT", 0, 0)
-    ns.SetButtonText(pick, (boss and boss.name or "Select Boss") .. "  v")
-    if pick.label then pick.label:SetTextColor(ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b, 1) end
-
-    if boss then
-        -- Custom Reminders and Raid/Dungeon Reminders for THIS boss, one click away
-        -- instead of each needing its own top-level tab with its own duplicate boss
-        -- picker -- see ns.ShowBossReminderPicker. Same house-cog art as every other
-        -- cog in the suite (AttachRowCog), built by hand here since this row isn't a
-        -- W:DualRow region and has no rgn._control for AttachRowCog to chain off of.
-        local cog = CreateFrame("Button", nil, topRow)
-        cog:SetSize(26, 26)
-        cog:SetPoint("RIGHT", pick, "LEFT", -8, 0)
-        cog:SetAlpha(0.4)
-        local cogTex = cog:CreateTexture(nil, "OVERLAY")
-        cogTex:SetAllPoints()
-        if EUI.COGS_ICON then cogTex:SetTexture(EUI.COGS_ICON) end
-        cog:SetScript("OnEnter", function(self)
-            self:SetAlpha(0.7)
-            if EUI.ShowWidgetTooltip then
-                EUI.ShowWidgetTooltip(self, "Reminders: boss-wide Custom Reminders and "
-                    .. (inst.isRaid and "Raid" or "Dungeon")
-                    .. " Reminders (ability-bound ones live on that ability's own cog).")
-            end
-        end)
-        cog:SetScript("OnLeave", function(self)
-            self:SetAlpha(0.4)
-            if EUI.HideWidgetTooltip then EUI.HideWidgetTooltip() end
-        end)
-        cog:SetScript("OnClick", function()
-            ns.ShowBossReminderPicker(boss.encounterID, inst.isRaid or false, boss.name, EUI)
-        end)
-    end
-    y = y - 34
-
     if not boss then
         local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
@@ -2422,11 +2338,47 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         return y - 20
     end
 
-    -- No "General" header and no separate name line anymore -- the boss's name now
-    -- lives in the picker above, so Enable This Boss sits directly under the top row.
-    local bossOn
-    y, bossOn = RenderBossHeader(parent, y, W, EUI, boss.encounterID, specID)
+    -- One row carries the whole boss selection state: the picker on the left (with the
+    -- boss-wide reminders cog chained inline), Enable This Boss on the right. The picker
+    -- is a real dropdown slot keyed by boss index.
+    local db = ns.DB()
+    local bossOn = not (db.bossOff and db.bossOff[tostring(boss.encounterID)])
+    local bossValues, bossOrder = {}, {}
+    for b = 1, #inst.bosses do
+        bossValues[b] = inst.bosses[b].name
+        bossOrder[b] = b
+    end
+    local headRow, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Boss", width = 220,
+          values = bossValues, order = bossOrder,
+          tooltip = "Which of this instance's bosses the options below apply to.",
+          getValue = function() return selectedBossIdx[inst.id] or 1 end,
+          setValue = function(v)
+              selectedBossIdx[inst.id] = v
+              EUI:RefreshPage(true)
+          end },
+        { type = "toggle", text = "Enable This Boss",
+          tooltip = "Off means this boss makes no alerts at all -- no defensives, no "
+          .. "reminders, nothing -- and its options below disappear until it is back on.",
+          getValue = function() return bossOn end,
+          setValue = function(v)
+              if type(db.bossOff) ~= "table" then db.bossOff = {} end
+              db.bossOff[tostring(boss.encounterID)] = (not v) or nil
+              if next(db.bossOff) == nil then db.bossOff = nil end
+              ns.RefreshRuntime()
+              EUI:RefreshPage(true)
+          end }
+    ); y = y - h
+    if headRow and headRow._leftRegion then
+        AttachRowCog(headRow._leftRegion, function()
+            ns.ShowBossReminderPicker(boss.encounterID, inst.isRaid or false, boss.name, EUI)
+        end, "Reminders", "Boss-wide Custom Reminders and "
+            .. (inst.isRaid and "Raid" or "Dungeon")
+            .. " Reminders (ability-bound ones live on that ability's own cog).")
+    end
     if not bossOn then return y end
+
+    y = RenderBossHeader(parent, y, W, EUI, boss.encounterID, specID)
 
     y = y - 10
     -- The shipped-data curated list (extracted from GetOptions with a script) was tried
