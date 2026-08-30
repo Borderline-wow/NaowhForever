@@ -2,9 +2,8 @@
 --  NaowhUI_TankReminder.lua -- shows which defensive to press when Blizzard's encounter
 --  timeline says a tank ability is about to land.
 --
---  The core owns the DB and decides where this section renders: on NaowhUI_EUI's Gameplay
---  page when the companion is installed, on our own page under the NaowhUI group when it
---  is not. Nothing here needs to know which.
+--  The core owns the DB and profiles; the Window file owns the options window the pages
+--  here render into.
 --
 --  Both halves of this feature are secret on 12.1, and neither can be an `if`:
 --
@@ -668,7 +667,7 @@ end
 
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
 -- locale variants (the Asia font files) resolve themselves. Everything degrades: no media
--- addon means the companion font, then the client default.
+-- addon means the client default font.
 local function NaowhMedia(kind, name)
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     if not LSM then return nil end
@@ -3821,7 +3820,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
                     .. "during or right after a pull.")
             return
         end
-        ns.Print(("|cffF0A830boss mod keys|r seen this pull (encounter %s):"):format(tostring(enc)))
+        ns.Print(("|cff0091edboss mod keys|r seen this pull (encounter %s):"):format(tostring(enc)))
         for key, e in pairs(cat) do
             local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(key)
             local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[key]
@@ -3829,7 +3828,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             ns.Print(("  %d %s -- %s/%s x%d -- %s, %s"):format(
                 key, (info and info.name) or "?", tostring(e.mod), tostring(e.kind),
                 e.seen or 0,
-                curated and "in the tank list" or "|cff8a99b5not a tank ability|r",
+                curated and "in the tank list" or "|cff9a9ea6not a tank ability|r",
                 on and "|cff6DD09Awould call|r" or "|cffff6060OFF for this boss|r"))
         end
         return
@@ -3973,7 +3972,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         end
         ResyncModel()
         local now, anyReady = GetTime(), false
-        ns.Print(("|cffF0A830cooldowns|r (build %s), in priority order:"):format(BuildString()))
+        ns.Print(("|cff0091edcooldowns|r (build %s), in priority order:"):format(BuildString()))
         for i = 1, activeSlots do
             local sid = slots[i].spellID
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
@@ -4448,7 +4447,7 @@ end
 -- shorter than the spell name.
 local textPopup
 
--- Two ways to be heard: pick a sound from EllesmereUI's alert catalogue, or type what should
+-- Two ways to be heard: pick a SharedMedia sound, or type what should
 -- be spoken. The dropdown carries a "Speak the text instead" entry, which is the no-sound
 -- state -- so the two live on one control rather than needing a mode switch.
 local function ShowCalloutEditor(title, current, onAccept, spellID)
@@ -4476,7 +4475,7 @@ local function ShowCalloutEditor(title, current, onAccept, spellID)
         textLbl:SetPoint("TOPLEFT", modeHolder, "BOTTOMLEFT", 0, -16)
         textLbl:SetText("Spoken text")
 
-        -- The one hand-built widget: EllesmereUI's factory has no text input.
+        -- The one hand-built widget: the factory has no text input.
         local box = CreateFrame("EditBox", nil, panel)
         box:SetPoint("TOPLEFT", textLbl, "BOTTOMLEFT", 0, -4)
         box:SetSize(356, 28)
@@ -4601,10 +4600,10 @@ local function ShowCalloutEditor(title, current, onAccept, spellID)
 end
 
 -------------------------------------------------------------------------------
---  Options (chained onto the companion's Gameplay page, or our own page standalone)
+--  Options
 -------------------------------------------------------------------------------
--- Returns the raw running y, section-builder style, so the companion can chain us. Our own
--- standalone page wrapper is what takes math.abs of it.
+-- Every builder returns the raw running y, section-builder style; the window's page
+-- wrapper is what takes math.abs of it.
 -------------------------------------------------------------------------------
 --  Setup tab panels
 -------------------------------------------------------------------------------
@@ -4948,7 +4947,7 @@ function ns.BuildColorsSettings(parent, y)
 
     if not (TRDB().defensiveTextColorOn or TRDB().customTextColorOn) then
         _, h = W:DualRow(parent, y,
-            { type = "label", text = "|cff8a99b5Nothing else to configure here yet.|r" },
+            { type = "label", text = "|cff9a9ea6Nothing else to configure here yet.|r" },
             { type = "label", text = "" }
         ); y = y - h
     end
@@ -5165,7 +5164,7 @@ function ns.SetSoundFor(spellID, key)
     end
 end
 
--- Fresh tables per call: EllesmereUI's SharedMedia appender mutates in place and caches by
+-- Fresh tables per call: the SharedMedia appender mutates in place and caches by
 -- table identity, so handing the same tables to two dropdowns collapses them into one.
 function ns.SoundChoices()
     local EUI = ns.UI
@@ -5213,9 +5212,8 @@ end
 -------------------------------------------------------------------------------
 --  Reset / re-apply
 -------------------------------------------------------------------------------
--- Re-apply is owned by the core's QueueReapply, which hooks EllesmereUI's own profile and
--- spec-switch entry points. The companion's RegisterReapply chain is deliberately NOT used:
--- it reapplies the companion's DB, and ours is a separate one it knows nothing about.
+-- Re-apply is owned by the core's QueueReapply, called by our own profile switch and the
+-- spec-change handler below.
 
 function ns.Reset()
     HideReminder()

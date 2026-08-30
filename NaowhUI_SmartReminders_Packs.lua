@@ -156,7 +156,7 @@ function ns.DecodePack(str)
     end
     if #parts == 0 then return nil, "The pack is empty." end
 
-    local desc = ("|cffF0A830%s|r by %s%s|n%s"):format(
+    local desc = ("|cff0091ed%s|r by %s%s|n%s"):format(
         tostring(payload.name), tostring(payload.author),
         payload.made ~= "" and (" (" .. payload.made .. ")") or "",
         table.concat(parts, ", "))

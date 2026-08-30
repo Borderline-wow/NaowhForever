@@ -390,9 +390,8 @@ end
 --  The tree page
 -------------------------------------------------------------------------------
 -- Dungeons and raids as a collapsed tree: click an instance to open it, click a boss to set
--- a priority just for that boss. Everything renders through EllesmereUI's widget factory, so
--- this is a real options page rather than a custom window pretending to be one, and it
--- inherits the suite's look and its search indexing for free.
+-- a priority just for that boss. Everything renders through the shared widget factory, so
+-- this page reads like every other one rather than a custom window pretending to be one.
 --
 -- State is page-local and deliberately not saved: which node you last had open is not a
 -- setting, and persisting it would make the page open somewhere surprising.
@@ -529,7 +528,7 @@ end
 
 -- Frames are never garbage collected, so a dialog built from plain frames is built once and
 -- re-pointed on each open, with the per-open values held in a state table the widgets read
--- rather than captured directly. Dialogs built from EllesmereUI's widget factory cannot do
+-- rather than captured directly. Dialogs built from the widget factory's rows cannot do
 -- this -- see ShowAbilitySettingsPopup below for why.
 --
 -- Add and Rename are the same dialog: a name, a confirm and a cancel.
@@ -754,7 +753,7 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
             local EUIg = ns.UI
             if EUIg and EUIg.ShowWidgetTooltip then
                 EUIg.ShowWidgetTooltip(self,
-                    "|cffF0A830Delete Preset|r\nRemoves this preset and its list. Cannot be undone.")
+                    "|cff0091edDelete Preset|r\nRemoves this preset and its list. Cannot be undone.")
             end
         end)
         del:SetScript("OnLeave", function()
@@ -902,7 +901,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         local c = spare[i]
         row, h = W:DualRow(rightPane, ry,
             { type = "toggle",
-              text = "      |cff8a99b5" .. c.name .. (c.userAdded and " (added by you)" or "") .. "|r",
+              text = "      |cff9a9ea6" .. c.name .. (c.userAdded and " (added by you)" or "") .. "|r",
               tooltip = ("Spell ID %d. Tick to put it into your priority order."):format(c.id),
               getValue = function() return false end,
               setValue = function()
@@ -943,7 +942,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     local db = ns.DB()
     row, h = W:DualRow(rightPane, ry,
         { type = "toggle",
-          text = ("      |cffF0A830Last:  %s|r"):format(db.voiceNone or "Call for an External"),
+          text = ("      |cff0091edLast:  %s|r"):format(db.voiceNone or "Call for an External"),
           tooltip = "The final step, used when nothing on your list is up. Switch it off to say "
           .. "and show nothing at all in that case.",
           getValue = function() return db.fallbackOn ~= false end,
@@ -1494,7 +1493,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
         table.sort(list, function(a, b) return (a.entry.seen or 0) > (b.entry.seen or 0) end)
 
         if #list == 0 then
-            pickerHint:SetText("|cff8a99b5Nothing recorded for this boss yet -- pull it with "
+            pickerHint:SetText("|cff9a9ea6Nothing recorded for this boss yet -- pull it with "
                 .. "BigWigs or DBM running, or type a Spell ID below.|r")
             pickerHint:SetHeight(28)
             PICKER_HEIGHT = 28
@@ -1520,7 +1519,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
 
         pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, -(shown * PICKER_ROW_H))
         if #list > shown then
-            pickerHint:SetText(("|cff8a99b5+%d more not shown -- type the Spell ID below.|r")
+            pickerHint:SetText(("|cff9a9ea6+%d more not shown -- type the Spell ID below.|r")
                 :format(#list - shown))
             pickerHint:SetHeight(16)
         else
@@ -1615,7 +1614,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
                     -- can be an arbitrary number with no matching spell at all.
                     feedback:SetText("|cffff6060not a spell ID|r")
                 else
-                    feedback:SetText("|cff8a99b5no spell name found -- boss-mod keys "
+                    feedback:SetText("|cff9a9ea6no spell name found -- boss-mod keys "
                         .. "aren't always real spell ids, that's fine|r")
                 end
             end
@@ -2081,7 +2080,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- Fixed width instead of stretching to the body's edge, matching every other
         -- field this popup lines up on both edges.
         local FIELD_W = 260
-        -- A single dropdown row, fixed width to FIELD_W -- EllesmereUI.BuildDropdownControl
+        -- A single dropdown row, fixed width to FIELD_W -- BuildDropdownControl
         -- is the same primitive W:DualRow's own "dropdown" slot type calls, without the
         -- page-row chrome (background band, hover-tag) that widget wraps it in, which is
         -- built for a full-width options page rather than a small modal.
@@ -2103,7 +2102,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
                 hint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
                 hint:SetWordWrap(true)
-                hint:SetText("|cff8a99b5No presets yet -- add one on the Setup page "
+                hint:SetText("|cff9a9ea6No presets yet -- add one on the Setup page "
                     .. "first.|r")
                 by = by - 34
             else
@@ -2331,8 +2330,8 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     desc:SetHeight(ABILITY_ROW_H - 24)
     desc:SetJustifyH("LEFT")
     desc:SetWordWrap(true)
-    local descText = ability.description or "|cff8a99b5No description in the journal.|r"
-    if restTag then descText = ("|cff8a99b5[%s]|r  "):format(restTag) .. descText end
+    local descText = ability.description or "|cff9a9ea6No description in the journal.|r"
+    if restTag then descText = ("|cff9a9ea6[%s]|r  "):format(restTag) .. descText end
     desc:SetText(descText)
 
     local div = ns.Solid(row, "ARTWORK", ns.THEME.line, 1)
@@ -2363,9 +2362,8 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     -- Doubles as the boss-name display: one control at the top right instead of a
     -- button plus a separate name label below. Styled and behaving like a dropdown --
     -- current boss's name, a "v" -- via the same MenuUtil context-menu approach used
-    -- elsewhere in this file. Not a genuine UIDropDownMenu-style popup: BuildDropdownControl,
-    -- the primitive that would give one, is a private local inside
-    -- EllesmereUI_Widgets.lua, not something this addon can call.
+    -- elsewhere in this file, and the same menu primitive the widget kit's own
+    -- dropdowns ride.
     local pick = ns.Button(topRow, "", 220, 26, function()
         if MenuUtil and MenuUtil.CreateContextMenu then
             MenuUtil.CreateContextMenu(topRow, function(_, root)
@@ -2695,7 +2693,7 @@ function ns.ShowBossReminderPicker(encounterID, isRaid, bossName, callerEUI)
             lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
             lbl:SetPoint("RIGHT", editBtn, "LEFT", -8, 0)
             lbl:SetJustifyH("LEFT")
-            lbl:SetText(name .. "  |cff8a99b5(" .. desc .. ")|r")
+            lbl:SetText(name .. "  |cff9a9ea6(" .. desc .. ")|r")
 
             y = y - 26
         end
@@ -3049,7 +3047,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
 
         if #list == 0 then
             pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, PICKER_TOP)
-            pickerHint:SetText("|cff8a99b5Nothing recorded for this boss yet -- pull it with "
+            pickerHint:SetText("|cff9a9ea6Nothing recorded for this boss yet -- pull it with "
                 .. "BigWigs running, or type a Spell ID below.|r")
             pickerHint:SetHeight(28)
             return 28
@@ -3072,7 +3070,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         end
         pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, PICKER_TOP - shown * PICKER_ROW_H)
         if #list > shown then
-            pickerHint:SetText(("|cff8a99b5+%d more not shown -- type the Spell ID below.|r")
+            pickerHint:SetText(("|cff9a9ea6+%d more not shown -- type the Spell ID below.|r")
                 :format(#list - shown))
             pickerHint:SetHeight(16)
             return shown * PICKER_ROW_H + 20
@@ -3246,7 +3244,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
                 elseif spellBox:GetText() == "" then
                     feedback:SetText("")
                 else
-                    feedback:SetText("|cff8a99b5no spell name found -- boss-mod keys aren't "
+                    feedback:SetText("|cff9a9ea6no spell name found -- boss-mod keys aren't "
                         .. "always real spell ids, that's fine|r")
                 end
             end

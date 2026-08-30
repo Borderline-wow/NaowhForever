@@ -161,13 +161,10 @@ end
 -- fix, but it reorders a frame against ALL of UIParent's direct children -- the whole
 -- client's addon ecosystem, not just our own popups -- so the level it lands on is
 -- unbounded and can already sit well above any fixed number by the time a session has
--- opened a few dialogs elsewhere. A dropdown's own drop-down menu (built by the shared
--- widget factory) is one such fixed number: FULLSCREEN_DIALOG strata, level 200,
--- hardcoded, independent of whatever frame opened it. A Raise()'d modal that happens to
--- land above 200 wins the stacking fight against the OTHER modal, then promptly loses
--- its own dropdowns' menus to that exact same win. A private counter, incremented only by
--- our own modals and starting low, keeps every level this file ever hands out safely
--- under that ceiling while still making each newly opened modal outrank the last one.
+-- opened a few dialogs elsewhere. A private counter, incremented only by our own modals
+-- and starting low, makes each newly opened modal outrank the last one at a level this
+-- file controls. The 150 ceiling predates the move to MenuUtil menus (which Blizzard
+-- hosts on its own strata, above any of this); it stays because bounded is the point.
 local nextModalLevel = 10
 
 -- One live modal per key. Callers build their contents fresh on every open, so without
