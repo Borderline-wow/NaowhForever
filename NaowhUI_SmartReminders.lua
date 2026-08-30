@@ -1786,6 +1786,9 @@ local function LogLine(e)
     elseif e.kind == "key" then
         return ("%s -- KEY %s %s (%s/%s)"):format(head, tostring(e.sid), nameOf(e.sid),
             tostring(e.mod), tostring(e.tankPath))
+    elseif e.kind == "quiet" then
+        return ("%s -- icon-only for %s (voice repeat-muted, trigger %s)"):format(head,
+            nameOf(e.sid), nameOf(e.tankSid))
     elseif e.kind == "drop" then
         return ("%s -- dropped broadcast for %s (%s)"):format(head, nameOf(e.sid),
             tostring(e.text))
@@ -2073,6 +2076,7 @@ end
 -- genuinely later need for the same one is never the thing being suppressed.
 local SUPPRESS_REPEAT_WINDOW = 12
 local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
+local lastAnnouncedTrigger
 
 -- Snapshot of what SpellReady actually saw for the winning pick, so a wrong call --
 -- "it named X while X was on cooldown" -- can be diagnosed from what already happened,
@@ -2131,7 +2135,12 @@ local function LogCallout(sid)
     })
 end
 
-local function SpeakCallout()
+-- triggerSid: the boss ability this callout is FOR, so the repeat window only mutes a
+-- re-announcement of the same defensive for the SAME incoming hit (a resynced or
+-- double-reported bar). Two different busters seconds apart each deserve their own
+-- audio even when the pick lands on the same defensive -- suppressing the second read
+-- as "the icon came up but not the sound alert", reported live on Rav'i.
+local function SpeakCallout(triggerSid)
     local t = TRDB()
     if not t.voiceOn or activeSlots == 0 then return end
 
@@ -2176,10 +2185,13 @@ local function SpeakCallout()
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
         if not ns.IsAudioOff(picked) then
-            if picked == lastAnnouncedSpellID and (now - lastAnnouncedAt) < SUPPRESS_REPEAT_WINDOW then
+            if picked == lastAnnouncedSpellID and triggerSid == lastAnnouncedTrigger
+                and (now - lastAnnouncedAt) < SUPPRESS_REPEAT_WINDOW then
+                -- Icon-only fires were invisible in the trace, which cost a hunt.
+                if t.trace then AppendLog({ kind = "quiet", sid = picked, tankSid = triggerSid }) end
                 return
             end
-            lastAnnouncedSpellID, lastAnnouncedAt = picked, now
+            lastAnnouncedSpellID, lastAnnouncedTrigger, lastAnnouncedAt = picked, triggerSid, now
             LogCallout(picked)
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
             Announce(picked, CalloutFor(picked, info and info.name))
@@ -3046,7 +3058,7 @@ local function FireBigWigsAbility(sid)
     shownForEvent = sid
     frame:Show()
     if textFrame then textFrame:Show() end
-    SpeakCallout()
+    SpeakCallout(sid)
     lastCalloutAt = GetTime()
     if hideTimer then hideTimer:Cancel() end
     hideTimer = C_Timer.NewTimer(5, HideReminder)
