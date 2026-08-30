@@ -1,6 +1,6 @@
 # Generates the addon's Media/ textures as uncompressed 32-bit TGAs.
-# WoW mask textures read the alpha channel, so the disc and ring carry their shape in
-# alpha; the ring is also drawn directly as border art, so its RGB is a neutral dark grey.
+# WoW mask textures read the alpha channel, so every shape here lives in alpha over white
+# RGB, which lets the same file serve as a mask or be tinted and drawn directly.
 # Run from the repo root: python Tools/make_media.py
 import math
 import os
@@ -41,15 +41,23 @@ def disc(x, y, size):
     return (255, 255, 255, v)
 
 
-def ring(x, y, size):
+def half_disc(x, y, size):
+    # Right half of a disc: the sweep piece. Two of these, each clipped to one half of
+    # the ring and rotated, draw any arc without per-frame geometry.
     c = size / 2.0
-    outer = c - 0.5
-    inner = outer - size * 0.055
     d = math.hypot(x - c, y - c)
-    # alpha = inside the outer edge AND outside the inner edge
-    a = smooth(outer, d) * (1.0 - smooth(inner, d))
-    v = int(round(255 * a))
-    return (0x2E, 0x31, 0x36, v)
+    a = smooth(c - 0.5, d) if x >= c else 0.0
+    return (255, 255, 255, int(round(255 * a)))
+
+
+def hole(x, y, size):
+    # Thickness mask: transparent inside the inscribed disc, opaque outside it. Drawn
+    # smaller than the ring and wrapped CLAMPTOWHITE, so it punches the centre out and
+    # leaves everything beyond its own rect visible.
+    c = size / 2.0
+    d = math.hypot(x - c, y - c)
+    a = 1.0 - smooth(c - 0.5, d)
+    return (255, 255, 255, int(round(255 * a)))
 
 
 def gear(x, y, size):
@@ -99,6 +107,7 @@ def icon(x, y, size):
 
 os.makedirs(OUT, exist_ok=True)
 write_tga(os.path.join(OUT, "circle_mask.tga"), 128, disc)
-write_tga(os.path.join(OUT, "circle_ring.tga"), 128, ring)
+write_tga(os.path.join(OUT, "circle_half.tga"), 256, half_disc)
+write_tga(os.path.join(OUT, "circle_hole.tga"), 256, hole)
 write_tga(os.path.join(OUT, "cog.tga"), 64, gear)
 write_tga(os.path.join(OUT, "icon.tga"), 64, icon)

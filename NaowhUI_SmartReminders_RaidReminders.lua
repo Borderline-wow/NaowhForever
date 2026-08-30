@@ -430,121 +430,113 @@ end
 -- and the ring doubles as the drawn border.
 local CIRCLE_SIZE_DEFAULT = 56
 local CIRCLE_MASK_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_mask.tga"
-local CIRCLE_BORDER_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_ring.tga"
 
--- User-resizable via Unlock Mode's own resize handle (see MakeRaidReminderUnlockElement
--- in NaowhUI_SmartReminders.lua), stored at TRDB().raidReminderCircleSize.
+-- Set from the anchor's gear popup, stored at TRDB().raidReminderCircleSize.
 local function CircleSize()
     local s = ns.DB().raidReminderCircleSize
     return (type(s) == "number" and s > 0) and s or CIRCLE_SIZE_DEFAULT
 end
 
--- Masking the swipe with the ring shape (CIRCLE_BORDER_PATH) came back an opaque black
--- square, same as the full disc mask did before it -- confirmed live twice now with two
--- different mask shapes, so the Cooldown widget's own masking just does not work on
--- this client, full stop. The ring sweep below is built from scratch instead: RING_TICKS
--- small dark segments arranged clockwise from 12 o'clock, each individually masked with
--- the SAME ring mask already proven reliable on a plain Texture (it clips r.icon
--- correctly) -- shown/hidden progressively as time passes rather than relying on
--- anything the Cooldown widget draws itself. Cooldown is kept only for the countdown
--- number (SetDrawSwipe/SetDrawEdge false, so it contributes no visual fill).
-local RING_TICKS = 24
+-- The ring is two half-disc textures, each clipped to one half of the circle and
+-- rotated so its straight edge lands on the sweep angle -- the remaining arc is
+-- whatever survives the clip. No per-frame geometry, and the edge is exact at any
+-- angle rather than quantised. It replaces a 24-segment tick ring, which existed
+-- because masking the Cooldown widget's swipe returns an opaque black square on this
+-- client (confirmed live twice, with two different mask shapes -- do not retry it).
+-- Thickness is a centred mask that punches the middle out, so it is a live setting
+-- rather than baked into the art.
+local CIRCLE_HALF_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_half.tga"
+local CIRCLE_HOLE_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_hole.tga"
+local CIRCLE_THICKNESS_DEFAULT = 10
 
--- Measured directly from circle_border.tga (128x128): its ring sits at radius 0.395 of
--- the half-size, not a guess -- alpha-extracted the texture and sampled a horizontal
--- line through the center to find the actual opaque band (x=10-17 and x=111-118 out of
--- 128px, i.e. radius ~50.5px of a 64px half-width). Tick size is derived from that same
--- radius's own circumference divided by RING_TICKS, so the overlap between neighbouring
--- segments (a small, deliberate one -- see tickSize below) scales correctly with icon
--- size instead of the old fixed 0.22*size guess, which overlapped by 30%+ regardless of
--- spacing and swallowed most of the icon.
-local RING_RADIUS_FRAC = 0.395
-local function PositionCircleTicks(r, size)
-    local radius = size * RING_RADIUS_FRAC
-    local arcLen = (2 * math.pi * radius) / RING_TICKS
-    -- >1x on purpose: a wanted solid arc, not a dashed ring, so neighbouring segments
-    -- overlap slightly rather than leaving a gap between them.
-    local tickSize = arcLen * 1.15
-    for i = 1, RING_TICKS do
-        local t = r.ticks[i]
-        t:SetSize(tickSize, tickSize)
-        local theta = (i - 1) / RING_TICKS * (2 * math.pi)
-        t:ClearAllPoints()
-        t:SetPoint("CENTER", r.icon, "CENTER", radius * math.sin(theta), radius * math.cos(theta))
-        t:SetRotation(-theta)
+local function CircleThickness()
+    local t = ns.DB().raidReminderCircleThickness
+    t = (type(t) == "number" and t > 0) and t or CIRCLE_THICKNESS_DEFAULT
+    -- A hole at least 2px across, or the mask stops reading as a ring at all.
+    return math.min(t, CircleSize() / 2 - 1)
+end
+
+-- circle_half.tga carries the RIGHT half of a disc, which is the clockwise span 0-180
+-- from twelve o'clock. Rotating it clockwise by A moves that span to A..180+A, and the
+-- half it is clipped to shows only what still falls inside -- so the right piece draws
+-- A..180 and the left piece, based one half-turn round, draws A..360. Positive rotation
+-- is counter-clockwise (Blizzard's own arrow rotations), hence the negated angles.
+local function SetCircleSweep(r, elapsedDeg)
+    if elapsedDeg >= 360 then
+        r.fillR:Hide(); r.fillL:Hide()
+        return
     end
+    r.fillR:SetShown(elapsedDeg < 180)
+    r.fillR:SetRotation(-math.rad(math.min(elapsedDeg, 180)))
+    r.fillL:Show()
+    r.fillL:SetRotation(-math.pi - math.rad(math.max(elapsedDeg - 180, 0)))
+end
+
+local function LayoutCircle(r, size, thickness, fs)
+    r:SetSize(size, size + fs + 6)
+    r.ring:SetSize(size, size)
+    r.bg:SetSize(size, size)
+    r.clipL:SetSize(size / 2, size)
+    r.clipR:SetSize(size / 2, size)
+    r.fillL:SetSize(size, size)
+    r.fillR:SetSize(size, size)
+    r.hole:SetSize(size - 2 * thickness, size - 2 * thickness)
+    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
 end
 
 local function CreateCircleRegion(a)
-    local size = CircleSize()
-    local r = CreateFrame("Frame", nil, a)
-    r:SetSize(size, size + LabelSize("raidReminderCircleTextSize") + 6)
-
-    r.icon = r:CreateTexture(nil, "ARTWORK")
-    r.icon:SetSize(size, size)
-    r.icon:SetPoint("TOP", r, "TOP", 0, 0)
-    r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    local mask = r:CreateMaskTexture()
-    mask:SetAllPoints(r.icon)
-    mask:SetTexture(CIRCLE_MASK_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    r.icon:AddMaskTexture(mask)
-
-    local ringMask = r:CreateMaskTexture()
-    ringMask:SetAllPoints(r.icon)
-    ringMask:SetTexture(CIRCLE_BORDER_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-
-    r.swipe = CreateFrame("Cooldown", nil, r, "CooldownFrameTemplate")
-    r.swipe:SetAllPoints(r.icon)
-    r.swipe:SetHideCountdownNumbers(false)
-    r.swipe:SetDrawEdge(false)
-    r.swipe:SetDrawSwipe(false)
-
-    -- Border MUST be created before the ticks: same OVERLAY layer, and a later-created
-    -- texture draws on top of an earlier one at the same layer -- with border created
-    -- after (as it was before), its own always-opaque ring sat on top of every tick and
-    -- completely hid them regardless of color or show/hide state, which is why nothing
-    -- ever appeared to change. Confirmed live: what looked like "the ring, unchanging"
-    -- across the whole cooldown was just this static decoration the whole time.
-    r.border = r:CreateTexture(nil, "OVERLAY")
-    r.border:SetAllPoints(r.icon)
-    r.border:SetTexture(CIRCLE_BORDER_PATH)
-
-    r.ticks = {}
-    for i = 1, RING_TICKS do
-        local t = r:CreateTexture(nil, "OVERLAY")
-        t:SetColorTexture(0, 0, 0, 1)
-        t:AddMaskTexture(ringMask)
-        t:Hide()
-        r.ticks[i] = t
-    end
-    PositionCircleTicks(r, size)
-
+    local size, thickness = CircleSize(), CircleThickness()
     local fs = LabelSize("raidReminderCircleTextSize")
-    r.label = ns.Font(r, fs, "OUTLINE")
-    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
-    r.label:SetPoint("TOP", r.icon, "BOTTOM", 0, -2)
+    local r = CreateFrame("Frame", nil, a)
 
+    r.ring = CreateFrame("Frame", nil, r)
+    r.ring:SetPoint("BOTTOM", r, "BOTTOM", 0, 0)
+
+    r.hole = r.ring:CreateMaskTexture()
+    r.hole:SetPoint("CENTER", r.ring, "CENTER")
+    r.hole:SetTexture(CIRCLE_HOLE_PATH, "CLAMPTOWHITE", "CLAMPTOWHITE")
+
+    r.bg = r.ring:CreateTexture(nil, "BACKGROUND")
+    r.bg:SetPoint("CENTER", r.ring, "CENTER")
+    r.bg:SetTexture(CIRCLE_MASK_PATH)
+    r.bg:SetVertexColor(0, 0, 0, 0.5)
+    r.bg:AddMaskTexture(r.hole)
+
+    -- The clip frames are what turn a rotating half-disc into an arc; without
+    -- SetClipsChildren each piece would spill into the other half.
+    r.clipL = CreateFrame("Frame", nil, r.ring)
+    r.clipL:SetPoint("TOPLEFT", r.ring, "TOPLEFT")
+    r.clipL:SetClipsChildren(true)
+    r.clipR = CreateFrame("Frame", nil, r.ring)
+    r.clipR:SetPoint("TOPRIGHT", r.ring, "TOPRIGHT")
+    r.clipR:SetClipsChildren(true)
+
+    for _, side in ipairs({ "L", "R" }) do
+        local clip = (side == "L") and r.clipL or r.clipR
+        local t = clip:CreateTexture(nil, "ARTWORK")
+        t:SetTexture(CIRCLE_HALF_PATH)
+        t:SetPoint("CENTER", r.ring, "CENTER")
+        t:AddMaskTexture(r.hole)
+        r["fill" .. side] = t
+    end
+
+    r.label = ns.Font(r, fs, "OUTLINE")
+    r.label:SetPoint("BOTTOM", r.ring, "TOP", 0, 4)
+
+    LayoutCircle(r, size, thickness, fs)
+    SetCircleSweep(r, 0)
     r:Hide()
     return r
 end
 
--- Re-sizes every pooled/active Circle region to the current CircleSize() -- border/label
--- anchor off r.icon rather than carrying their own fixed size, so resizing r/r.icon
--- covers them; the ring ticks need their own positions/sizes recomputed since they are
--- placed by absolute offset, not anchored proportionally. Called from Unlock Mode's
--- setWidth/setHeight (NaowhUI_SmartReminders.lua) after a drag-resize.
+-- Re-sizes every pooled/active Circle region, from the gear popup's Size, Thickness
+-- and Text Size sliders.
 function ns.ResizeRaidReminderCircle()
     local a = anchors.circle
     if not a then return end
-    local size = CircleSize()
+    local size, thickness = CircleSize(), CircleThickness()
     local fs = LabelSize("raidReminderCircleTextSize")
-    local function Apply(r)
-        r:SetSize(size, size + fs + 6)
-        r.icon:SetSize(size, size)
-        r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
-        PositionCircleTicks(r, size)
-    end
+    local function Apply(r) LayoutCircle(r, size, thickness, fs) end
     for _, r in ipairs(a.pool) do Apply(r) end
     for _, r in ipairs(a.active) do Apply(r) end
     RestackRegions(a)
@@ -825,32 +817,34 @@ function ns.DisplayRaidReminder(entry)
             self:SetValue(remain > 0 and remain or 0)
         end)
     elseif display.type == "circle" then
-        -- No question-mark fallback here (unlike Icon): an empty ring is the wanted
-        -- look for a Circle reminder with no spell ID set, not a placeholder icon.
-        r.icon:SetTexture(ResolveDisplayIconID(display))
-        r.label:SetText(formattedText or "")
-        r.swipe:SetCooldown(GetTime(), dur)   -- countdown number only, no visual fill (see CreateCircleRegion)
+        -- The spell icon rides inline in the caption rather than filling the ring, so a
+        -- reminder with no spell ID reads as text over an empty ring instead of a
+        -- question mark.
+        local iconID = ResolveDisplayIconID(display)
+        local caption = formattedText or ""
+        if iconID then caption = ("|T%s:0|t %s"):format(tostring(iconID), caption) end
+        local color = display.color
+        if color then
+            r.fillL:SetVertexColor(color.r, color.g, color.b)
+            r.fillR:SetVertexColor(color.r, color.g, color.b)
+            r.label:SetTextColor(color.r, color.g, color.b)
+        else
+            local T = ns.THEME
+            r.fillL:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
+            r.fillR:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
+            r.label:SetTextColor(1, 1, 1)
+        end
+        r.caption = caption
         r.expirationTime = GetTime() + dur
-        for i = 1, RING_TICKS do r.ticks[i]:Show() end
-        -- Confirmed against TimelineReminders' own CircleRegion.lua: the cleared
-        -- (elapsed) wedge starts AT 12 o'clock and grows CLOCKWISE as time passes, so
-        -- the ticks nearest 12 (low index, small theta) are what should hide FIRST --
-        -- the previous version hid high-index ticks first instead, sweeping backwards.
-        r.hiddenTicks = 0
-        -- Only the ticks that actually changed state this frame. The full sweep re-issued
-        -- Show/Hide on every tick every frame, for a ring that loses one tick every few
-        -- tenths of a second.
+        SetCircleSweep(r, 0)
+        r.label:SetText(caption)
+        -- One decimal, matching how the ring reads: the arc visibly moves between whole
+        -- seconds, so a whole-second number beside it looks stuck.
         r:SetScript("OnUpdate", function(self)
             local remain = self.expirationTime - GetTime()
-            local elapsedFrac = remain > 0 and (1 - remain / dur) or 1
-            local hideCount = math.floor(elapsedFrac * RING_TICKS)
-            if hideCount == self.hiddenTicks then return end
-            if hideCount > self.hiddenTicks then
-                for i = self.hiddenTicks + 1, hideCount do self.ticks[i]:Hide() end
-            else
-                for i = hideCount + 1, self.hiddenTicks do self.ticks[i]:Show() end
-            end
-            self.hiddenTicks = hideCount
+            if remain < 0 then remain = 0 end
+            SetCircleSweep(self, (1 - remain / dur) * 360)
+            self.label:SetFormattedText("%s (%.1f)", self.caption, remain)
         end)
     end
 
@@ -943,16 +937,14 @@ local function PopulateSample(displayType, r)
         r.bar:SetMinMaxValues(0, 1)
         r.bar:SetValue(0.6)
     elseif displayType == "circle" then
-        r.icon:SetTexture(134400)
-        r.label:SetText("Sample")
-        r.swipe:SetCooldown(0, 0)
         r:SetScript("OnUpdate", nil)
-        -- 40% elapsed for reference -- ticks near 12 o'clock (low index) hide first,
-        -- matching the real fire's own direction (see ns.DisplayRaidReminder).
-        local hideCount = math.floor(RING_TICKS * 0.4)
-        for i = 1, RING_TICKS do
-            if i <= hideCount then r.ticks[i]:Hide() else r.ticks[i]:Show() end
-        end
+        r.label:SetText("|T134400:0|t Sample (3.4)")
+        r.label:SetTextColor(1, 1, 1)
+        local T = ns.THEME
+        r.fillL:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
+        r.fillR:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
+        -- Parked 40% through so the sweep's direction is visible while placing it.
+        SetCircleSweep(r, 0.4 * 360)
     end
 end
 
@@ -1152,6 +1144,8 @@ local RESIZE_ROWS = {
     circle = {
         { label = "Size", min = 20, max = 200, get = function() return CircleSize() end,
             set = function(v) ns.DB().raidReminderCircleSize = math.max(20, math.floor(v)); ns.ResizeRaidReminderCircle() end },
+        { label = "Thickness", min = 2, max = 40, get = function() return CircleThickness() end,
+            set = function(v) ns.DB().raidReminderCircleThickness = math.max(2, math.floor(v)); ns.ResizeRaidReminderCircle() end },
         TextSizeRow("Text Size", "raidReminderCircleTextSize", function() ns.ResizeRaidReminderCircle() end),
     },
     icon = {
