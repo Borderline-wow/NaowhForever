@@ -5084,6 +5084,26 @@ function ns.BuildBarsSettings(parent, y)
         end
     end
 
+    -- The five reminder anchors are profile-wide, so they belong beside the other
+    -- placement controls. This used to render inside each boss's reminder sections,
+    -- which drew the same global button once per boss.
+    local anchorRow
+    anchorRow, h = W:DualRow(parent, y,
+        { type = "label", text = "" },
+        { type = "label", text = "" }
+    ); y = y - h
+
+    if anchorRow and anchorRow._leftRegion and ns.ShowRaidReminderAnchorConfig then
+        local btn = ns.Button(anchorRow._leftRegion, "Customize Anchors", 200, 26, function()
+            ns.ShowRaidReminderAnchorConfig()
+        end)
+        btn:SetPoint("LEFT", anchorRow._leftRegion, "LEFT", 8, 0)
+        ns.Tooltip(btn, "Customize Anchors",
+            "Place and size each reminder display -- Message, Timer, Icon, Bar and Circle. "
+            .. "This window steps aside while you are in there, and comes back when you "
+            .. "press Exit Config.")
+    end
+
     return y
 end
 

@@ -914,7 +914,7 @@ end)
 
 -------------------------------------------------------------------------------
 --  Anchor config -- move and resize every anchor with a live sample shown for each,
---  opened from the Raid/Dungeon Reminders page ("Customize Anchors" button). Same idea
+--  opened from the Setup page ("Customize Anchors" button). Same idea
 --  NSRT/TimelineReminders both offer, built on this addon's own existing pieces (the
 --  Anchor/pool system above, ns.MakeModal, ns.THEME) rather than copying either one's
 --  look: a plain in-house drag handle + gear popup instead of their green banner rows.
@@ -924,6 +924,7 @@ local CONFIG_ORDER = { "text", "timer", "icon", "bar", "circle" }
 
 local configShown = {}     -- [displayType] = true while its checkbox is on
 local configActive = false
+local reopenWindowOnExit = false
 
 -- Fills a region with static placeholder content -- no live countdown, no hide timer --
 -- so it sits still on screen for as long as config mode has that type checked. Separate
@@ -1119,6 +1120,9 @@ end
 
 function ns.ShowRaidReminderAnchorConfig()
     configActive = true
+    -- Reopened on Exit Config only if it was open when we started, so entering config
+    -- mode from a slash command does not conjure the window on the way out.
+    reopenWindowOnExit = ns.StashOptionsWindow and ns.StashOptionsWindow() or false
     local f = BuildConfigToolbar()
     for _, displayType in ipairs(CONFIG_ORDER) do
         if f._checks[displayType] then f._checks[displayType]:SetChecked(configShown[displayType] == true) end
@@ -1131,6 +1135,10 @@ function ns.HideRaidReminderAnchorConfig()
     configActive = false
     if configToolbar then configToolbar:Hide() end
     for _, displayType in ipairs(CONFIG_ORDER) do HideConfigVisual(displayType) end
+    if reopenWindowOnExit then
+        reopenWindowOnExit = false
+        if ns.OpenOptionsWindow then ns.OpenOptionsWindow() end
+    end
 end
 
 function ns.IsRaidReminderAnchorConfigActive()

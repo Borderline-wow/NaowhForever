@@ -2935,14 +2935,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         y = y - 26
     end
 
-    if ns.ShowRaidReminderAnchorConfig then
-        local anchorBtn = ns.Button(content, "Customize Anchors", 160, 26, function()
-            ns.ShowRaidReminderAnchorConfig()
-        end)
-        anchorBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        y = y - 34
-    end
-
     -- What this boss actually did, from the player's own pulls. Rendered above the
     -- reminder lists because it is the raw material they are built from: pick a time here
     -- and the editor opens already pointed at it.

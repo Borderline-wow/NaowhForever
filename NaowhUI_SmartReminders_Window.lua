@@ -205,6 +205,17 @@ function ns.OpenOptionsWindow(pageName)
     window:Show()
 end
 
+-- Anchor config mode draws its movers and its own toolbar at HIGH, and this window is
+-- DIALOG, so the two cannot share the screen. Config mode steps the window out of the
+-- way and puts it back on exit.
+function ns.StashOptionsWindow()
+    if window and window:IsShown() then
+        window:Hide()
+        return true
+    end
+    return false
+end
+
 function ns.ToggleOptionsWindow(pageName)
     if window and window:IsShown() then
         window:Hide()
