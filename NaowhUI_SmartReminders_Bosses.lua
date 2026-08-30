@@ -2240,9 +2240,10 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     row:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
     row:SetHeight(ABILITY_ROW_H)
 
-    -- Single source of truth with the runtime's own default (ns.AbilityEnabledForBinding):
-    -- an explicit binding wins, otherwise this defaults to on for a curated tank buster,
-    -- same as the checkbox would otherwise silently disagree with what actually calls out.
+    -- Single source of truth with the runtime's own default (ns.AbilityEnabledForBinding),
+    -- so the checkbox can never disagree with what actually calls out. Unticking here keeps
+    -- the ability on the page but silent; removing it from the page is the Add Ability
+    -- picker's job.
     local enabled = ability.spellID and ns.AbilityEnabledForBinding(encounterID, ability.spellID)
 
     local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
@@ -2389,9 +2390,37 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         return y - 20
     end
 
-    local lastStage
+    -- Only what the player has actually added. A boss starts blank: the journal lists
+    -- everything a fight does, most of which is not a tank hit, and a page of rows that
+    -- are all off by default reads as broken rather than as a choice.
+    local added = {}
     for i = 1, #abilities do
         local a = abilities[i]
+        if a.spellID and ns.AbilityAdded(boss.encounterID, a.spellID) then
+            added[#added + 1] = a
+        end
+    end
+
+    local addBtn = ns.Button(parent, "+ Add Ability", 130, 24, function()
+        ns.ShowAbilityAddPicker(boss.encounterID, abilities, EUI)
+    end)
+    addBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    y = y - 30
+
+    if #added == 0 then
+        local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
+        hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+        hint:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+        hint:SetJustifyH("LEFT")
+        hint:SetWordWrap(true)
+        hint:SetText("No abilities picked for this boss yet. Add Ability lists everything "
+            .. "the journal has for the fight, with the known tank hits marked.")
+        return y - 34
+    end
+
+    local lastStage
+    for i = 1, #added do
+        local a = added[i]
         if a.stage and a.stage ~= lastStage then
             lastStage = a.stage
             local hdr = ns.Font(parent, 11, nil, ns.THEME.muted)
@@ -2541,6 +2570,110 @@ function ns.BuildBossListPage(parent, y, isRaid)
 
     local leftBottom = listTop - (#list * 26)
     return math.min(leftBottom, topY + rightBottom)
+end
+
+-- Choose which of a boss's abilities get reminders; the boss page lists exactly these.
+-- The curated tank list marks rows here instead of pre-selecting them, so it still says
+-- which hits are the real tank busters without choosing for the player.
+function ns.ShowAbilityAddPicker(encounterID, abilities, callerEUI)
+    local EUI = callerEUI or ns.UI
+    local PANEL_W = 460
+    local dimmer, panel = ns.MakeModal(PANEL_W, 560, "abilityAddPicker")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Add Abilities")
+
+    local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+    hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -42)
+    hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+    hint:SetJustifyH("LEFT")
+    hint:SetWordWrap(true)
+    hint:SetText("Tick the abilities you want reminders for. Marked ones are what the "
+        .. "addon knows to be tank hits on this boss.")
+
+    -- Scrolled rather than capped: a journal boss can list well past a screenful, and this
+    -- is the only place an ability can be switched on, so a row that does not fit still has
+    -- to be reachable.
+    local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -82)
+    scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -40, 54)
+    local content = CreateFrame("Frame", nil, scroll)
+    -- Sized off the panel, not scroll:GetWidth(): the scroll frame is anchor-derived and
+    -- still reads 0 wide until a layout pass has run.
+    content:SetSize(PANEL_W - 62, 1)
+    scroll:SetScrollChild(content)
+
+    local ok, err = pcall(function()
+        local y, shown = 0, 0
+        for i = 1, #abilities do
+            local a = abilities[i]
+            if a.spellID then
+                shown = shown + 1
+                local row = CreateFrame("Frame", nil, content)
+                row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+                row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+                row:SetHeight(26)
+
+                local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+                check:SetSize(22, 22)
+                check:SetPoint("LEFT", row, "LEFT", 0, 0)
+                check:SetChecked(ns.AbilityAdded(encounterID, a.spellID))
+                check:SetScript("OnClick", function(self)
+                    if self:GetChecked() then
+                        ns.EnsureBinding(encounterID, a.spellID).enabled = true
+                    else
+                        -- EnsureBinding first: a binding saved under this ability's
+                        -- journal alias reads back fine but would survive a delete keyed
+                        -- on the current id. Ensuring migrates the alias onto that id, so
+                        -- the nil below actually removes it.
+                        ns.EnsureBinding(encounterID, a.spellID)
+                        local set = ns.AbilityBindingsTable(false, encounterID)
+                        if set then set[a.spellID] = nil end
+                    end
+                    ns.RefreshRuntime()
+                    if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+                end)
+
+                local icon = row:CreateTexture(nil, "ARTWORK")
+                icon:SetSize(20, 20)
+                icon:SetPoint("LEFT", check, "RIGHT", 4, 0)
+                if a.icon then icon:SetTexture(a.icon) end
+                icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+                local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[a.spellID]
+                local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
+                lbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+                lbl:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+                lbl:SetJustifyH("LEFT")
+                lbl:SetWordWrap(false)
+                lbl:SetText((a.name or ("Spell " .. a.spellID))
+                    .. (curated and "  |cff0091ed[tank hit]|r" or ""))
+
+                y = y - 28
+            end
+        end
+        if shown == 0 then
+            local none = ns.Font(content, 11, nil, ns.THEME.muted)
+            none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+            none:SetText("Nothing in the journal for this boss carries a spell id.")
+        end
+        content:SetHeight(math.max(1, math.abs(y)))
+    end)
+    if not ok then
+        local errText = ns.Font(content, 11, nil, { r = 1, g = 0.35, b = 0.35 })
+        errText:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+        errText:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        errText:SetJustifyH("LEFT")
+        errText:SetWordWrap(true)
+        errText:SetText("Failed to build this: " .. tostring(err))
+        ns.Print("|cffff6060ability add picker|r: " .. tostring(err))
+    end
+
+    ns.Button(panel, "Close", 100, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    dimmer:Show()
+    return dimmer
 end
 
 -------------------------------------------------------------------------------

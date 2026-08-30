@@ -3003,10 +3003,20 @@ function ns.LeadTimeFor(enc, sid)
     return (binding and binding.leadTime) or TRDB().leadTime or 3
 end
 
+-- Nothing calls out until the player has deliberately added it to the boss. The curated
+-- tank list no longer switches abilities on by itself -- it marks them in the Add Ability
+-- picker instead, so it still says which hits are the real tank busters without choosing
+-- for anyone.
 function ns.AbilityEnabledForBinding(enc, sid)
     local b = ns.BindingForBossModKey(enc, sid)
     if b and b.enabled ~= nil then return b.enabled end
-    return (ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid]) and true or false
+    return false
+end
+
+-- Has the player added this ability to this boss at all? A binding is what "added" means;
+-- the boss page lists exactly these.
+function ns.AbilityAdded(enc, sid)
+    return ns.BindingForBossModKey(enc, sid) ~= nil
 end
 
 -- sid here is a REAL spellID (BigWigs' key resolved positive, or DBM's own spellId) --
