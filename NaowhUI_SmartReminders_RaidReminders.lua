@@ -239,6 +239,21 @@ local function TextSize()
     return w, fs
 end
 
+-- Caption size for the four displays that draw a label beside their content (Message
+-- carries its own, above). Stored per display type so a big Bar caption does not drag
+-- the Icon's along with it.
+local LABEL_SIZE_DEFAULTS = {
+    raidReminderIconTextSize = 12,
+    raidReminderCircleTextSize = 12,
+    raidReminderBarTextSize = 12,
+    raidReminderTimerTextSize = 11,
+    raidReminderTimerNumberSize = 26,
+}
+local function LabelSize(key)
+    local s = ns.DB()[key]
+    return (type(s) == "number" and s > 0) and s or LABEL_SIZE_DEFAULTS[key]
+end
+
 local function CreateTextRegion(a)
     local w, fs = TextSize()
     local r = CreateFrame("Frame", nil, a)
@@ -263,17 +278,38 @@ end
 -- TimelineReminders call a Timer. label is the optional caption above it (what the
 -- countdown is FOR); the number itself is driven by the same expirationTime/OnUpdate
 -- idiom CreateBarRegion already uses, just formatted as whole seconds instead of a fill.
+local function TimerSize()
+    local cap = LabelSize("raidReminderTimerTextSize")
+    local num = LabelSize("raidReminderTimerNumberSize")
+    return cap, num, math.max(120, num * 3), cap + num + 8
+end
+
 local function CreateTimerRegion(a)
+    local cap, num, w, h = TimerSize()
     local r = CreateFrame("Frame", nil, a)
-    r:SetSize(120, 46)
-    r.label = ns.Font(r, 11, "OUTLINE")
-    r.label:SetFont(AlertFontPath(), 11, "OUTLINE")
+    r:SetSize(w, h)
+    r.label = ns.Font(r, cap, "OUTLINE")
+    r.label:SetFont(AlertFontPath(), cap, "OUTLINE")
     r.label:SetPoint("TOP", r, "TOP", 0, 0)
-    r.number = ns.Font(r, 26, "OUTLINE")
-    r.number:SetFont(AlertFontPath(), 26, "OUTLINE")
+    r.number = ns.Font(r, num, "OUTLINE")
+    r.number:SetFont(AlertFontPath(), num, "OUTLINE")
     r.number:SetPoint("TOP", r.label, "BOTTOM", 0, -2)
     r:Hide()
     return r
+end
+
+function ns.ResizeRaidReminderTimer()
+    local a = anchors.timer
+    if not a then return end
+    local cap, num, w, h = TimerSize()
+    local function Apply(r)
+        r:SetSize(w, h)
+        r.label:SetFont(AlertFontPath(), cap, "OUTLINE")
+        r.number:SetFont(AlertFontPath(), num, "OUTLINE")
+    end
+    for _, r in ipairs(a.pool) do Apply(r) end
+    for _, r in ipairs(a.active) do Apply(r) end
+    RestackRegions(a)
 end
 
 -- Icon inset matches CreateSlot's (NaowhUI_SmartReminders.lua) own texture coords --
@@ -290,13 +326,14 @@ end
 local function CreateIconRegion(a)
     local size = IconSize()
     local r = CreateFrame("Frame", nil, a)
-    r:SetSize(size, size + 18)
+    r:SetSize(size, size + LabelSize("raidReminderIconTextSize") + 6)
     r.icon = r:CreateTexture(nil, "ARTWORK")
     r.icon:SetSize(size, size)
     r.icon:SetPoint("TOP", r, "TOP", 0, 0)
     r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    r.label = ns.Font(r, 12, "OUTLINE")
-    r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
+    local fs = LabelSize("raidReminderIconTextSize")
+    r.label = ns.Font(r, fs, "OUTLINE")
+    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
     r.label:SetPoint("TOP", r.icon, "BOTTOM", 0, -2)
     r:Hide()
     return r
@@ -306,8 +343,14 @@ function ns.ResizeRaidReminderIcon()
     local a = anchors.icon
     if not a then return end
     local size = IconSize()
-    for _, r in ipairs(a.pool) do r:SetSize(size, size + 18); r.icon:SetSize(size, size) end
-    for _, r in ipairs(a.active) do r:SetSize(size, size + 18); r.icon:SetSize(size, size) end
+    local fs = LabelSize("raidReminderIconTextSize")
+    local function Apply(r)
+        r:SetSize(size, size + fs + 6)
+        r.icon:SetSize(size, size)
+        r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+    end
+    for _, r in ipairs(a.pool) do Apply(r) end
+    for _, r in ipairs(a.active) do Apply(r) end
     RestackRegions(a)
 end
 
@@ -339,11 +382,12 @@ end
 
 local function CreateBarRegion(a)
     local w, h = BarSize()
+    local fs = LabelSize("raidReminderBarTextSize")
     local r = CreateFrame("Frame", nil, a)
-    r:SetSize(w, h + 16)
+    r:SetSize(w, h + fs + 4)
 
-    r.label = ns.Font(r, 12, "OUTLINE")
-    r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
+    r.label = ns.Font(r, fs, "OUTLINE")
+    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
     r.label:SetPoint("TOP", r, "TOP", 0, 0)
 
     r.bar = CreateFrame("StatusBar", nil, r)
@@ -368,8 +412,14 @@ function ns.ResizeRaidReminderBar()
     local a = anchors.bar
     if not a then return end
     local w, h = BarSize()
-    for _, r in ipairs(a.pool) do r:SetSize(w, h + 16); r.bar:SetSize(w, h) end
-    for _, r in ipairs(a.active) do r:SetSize(w, h + 16); r.bar:SetSize(w, h) end
+    local fs = LabelSize("raidReminderBarTextSize")
+    local function Apply(r)
+        r:SetSize(w, h + fs + 4)
+        r.bar:SetSize(w, h)
+        r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+    end
+    for _, r in ipairs(a.pool) do Apply(r) end
+    for _, r in ipairs(a.active) do Apply(r) end
     RestackRegions(a)
 end
 
@@ -428,7 +478,7 @@ end
 local function CreateCircleRegion(a)
     local size = CircleSize()
     local r = CreateFrame("Frame", nil, a)
-    r:SetSize(size, size + 18)
+    r:SetSize(size, size + LabelSize("raidReminderCircleTextSize") + 6)
 
     r.icon = r:CreateTexture(nil, "ARTWORK")
     r.icon:SetSize(size, size)
@@ -470,8 +520,9 @@ local function CreateCircleRegion(a)
     end
     PositionCircleTicks(r, size)
 
-    r.label = ns.Font(r, 12, "OUTLINE")
-    r.label:SetFont(AlertFontPath(), 12, "OUTLINE")
+    local fs = LabelSize("raidReminderCircleTextSize")
+    r.label = ns.Font(r, fs, "OUTLINE")
+    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
     r.label:SetPoint("TOP", r.icon, "BOTTOM", 0, -2)
 
     r:Hide()
@@ -487,12 +538,15 @@ function ns.ResizeRaidReminderCircle()
     local a = anchors.circle
     if not a then return end
     local size = CircleSize()
-    for _, r in ipairs(a.pool) do
-        r:SetSize(size, size + 18); r.icon:SetSize(size, size); PositionCircleTicks(r, size)
+    local fs = LabelSize("raidReminderCircleTextSize")
+    local function Apply(r)
+        r:SetSize(size, size + fs + 6)
+        r.icon:SetSize(size, size)
+        r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+        PositionCircleTicks(r, size)
     end
-    for _, r in ipairs(a.active) do
-        r:SetSize(size, size + 18); r.icon:SetSize(size, size); PositionCircleTicks(r, size)
-    end
+    for _, r in ipairs(a.pool) do Apply(r) end
+    for _, r in ipairs(a.active) do Apply(r) end
     RestackRegions(a)
 end
 
@@ -506,10 +560,13 @@ local MOVER_MIN = 100
 function ns.RaidReminderAnchorSize(displayType)
     local w, h
     if displayType == "text" then local tw, fs = TextSize(); w, h = tw, fs + 10
-    elseif displayType == "timer" then w, h = 120, 46
-    elseif displayType == "icon" then local s = IconSize(); w, h = s, s + 18
-    elseif displayType == "bar" then local bw, bh = BarSize(); w, h = bw, bh + 16
-    elseif displayType == "circle" then local s = CircleSize(); w, h = s, s + 18
+    elseif displayType == "timer" then local _, _, tw, th = TimerSize(); w, h = tw, th
+    elseif displayType == "icon" then local s = IconSize()
+        w, h = s, s + LabelSize("raidReminderIconTextSize") + 6
+    elseif displayType == "bar" then local bw, bh = BarSize()
+        w, h = bw, bh + LabelSize("raidReminderBarTextSize") + 4
+    elseif displayType == "circle" then local s = CircleSize()
+        w, h = s, s + LabelSize("raidReminderCircleTextSize") + 6
     else w, h = MOVER_MIN, MOVER_MIN end
     return math.max(w, MOVER_MIN), math.max(h, MOVER_MIN)
 end
@@ -1081,24 +1138,46 @@ function ns.IsRaidReminderAnchorConfigActive()
 end
 
 -- Compact size popup for one anchor's gear button -- Width/Height for Bar and Message
--- (independent axes), a single Size for Icon/Circle (kept square), nothing for Timer
--- (not resizable, matching the Trigger/Target editor's own scope).
+-- (independent axes), a single Size for Icon/Circle (kept square), and a text size
+-- everywhere, since every display draws a caption someone may need to read across the
+-- room. Timer has no box to size, so its two font sizes ARE its rows -- without them its
+-- gear opened nothing at all.
+local TEXT_SIZE_MIN, TEXT_SIZE_MAX = 8, 48
+local function TextSizeRow(label, key, resize)
+    return { label = label, min = TEXT_SIZE_MIN, max = TEXT_SIZE_MAX,
+        get = function() return LabelSize(key) end,
+        set = function(v) ns.DB()[key] = math.floor(v); resize() end }
+end
 local RESIZE_ROWS = {
-    circle = { { label = "Size", get = function() return CircleSize() end,
-        set = function(v) ns.DB().raidReminderCircleSize = math.max(20, math.floor(v)); ns.ResizeRaidReminderCircle() end } },
-    icon = { { label = "Size", get = function() return IconSize() end,
-        set = function(v) ns.DB().raidReminderIconSize = math.max(16, math.floor(v)); ns.ResizeRaidReminderIcon() end } },
+    circle = {
+        { label = "Size", min = 20, max = 200, get = function() return CircleSize() end,
+            set = function(v) ns.DB().raidReminderCircleSize = math.max(20, math.floor(v)); ns.ResizeRaidReminderCircle() end },
+        TextSizeRow("Text Size", "raidReminderCircleTextSize", function() ns.ResizeRaidReminderCircle() end),
+    },
+    icon = {
+        { label = "Size", min = 16, max = 200, get = function() return IconSize() end,
+            set = function(v) ns.DB().raidReminderIconSize = math.max(16, math.floor(v)); ns.ResizeRaidReminderIcon() end },
+        TextSizeRow("Text Size", "raidReminderIconTextSize", function() ns.ResizeRaidReminderIcon() end),
+    },
     bar = {
-        { label = "Width", get = function() return (BarSize()) end,
+        { label = "Width", min = 60, max = 600, get = function() return (BarSize()) end,
             set = function(v) ns.DB().raidReminderBarWidth = math.max(60, math.floor(v)); ns.ResizeRaidReminderBar() end },
-        { label = "Height", get = function() local _, h = BarSize(); return h end,
+        { label = "Height", min = 6, max = 60, get = function() local _, h = BarSize(); return h end,
             set = function(v) ns.DB().raidReminderBarHeight = math.max(6, math.floor(v)); ns.ResizeRaidReminderBar() end },
+        TextSizeRow("Text Size", "raidReminderBarTextSize", function() ns.ResizeRaidReminderBar() end),
     },
     text = {
-        { label = "Width", get = function() return (TextSize()) end,
+        { label = "Width", min = 60, max = 800, get = function() return (TextSize()) end,
             set = function(v) ns.DB().raidReminderTextWidth = math.max(60, math.floor(v)); ns.ResizeRaidReminderText() end },
-        { label = "Font Size", get = function() local _, fs = TextSize(); return fs end,
+        { label = "Text Size", min = TEXT_SIZE_MIN, max = TEXT_SIZE_MAX,
+            get = function() local _, fs = TextSize(); return fs end,
             set = function(v) ns.DB().raidReminderTextFontSize = math.max(8, math.floor(v)); ns.ResizeRaidReminderText() end },
+    },
+    timer = {
+        TextSizeRow("Caption Size", "raidReminderTimerTextSize", function() ns.ResizeRaidReminderTimer() end),
+        { label = "Number Size", min = 12, max = 96,
+            get = function() return LabelSize("raidReminderTimerNumberSize") end,
+            set = function(v) ns.DB().raidReminderTimerNumberSize = math.floor(v); ns.ResizeRaidReminderTimer() end },
     },
 }
 
@@ -1106,7 +1185,8 @@ function ns.ShowRaidReminderAnchorSizePopup(displayType)
     local rows = RESIZE_ROWS[displayType]
     if not rows then return end
 
-    local dimmer, panel = ns.MakeModal(240, 60 + #rows * 34, "raidReminderAnchorSize")
+    -- Wide enough for label + 120px track + value box; the old numeric-box layout fit in 240.
+    local dimmer, panel = ns.MakeModal(340, 60 + #rows * 34, "raidReminderAnchorSize")
     local head = ns.Font(panel, 13, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -14)
     head:SetText((DISPLAY_TYPE_LABEL[displayType] or displayType) .. " Size")
@@ -1118,24 +1198,11 @@ function ns.ShowRaidReminderAnchorSizePopup(displayType)
         l:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y)
         l:SetText(row.label)
 
-        local box = CreateFrame("EditBox", nil, panel)
-        box:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, y + 5)
-        box:SetSize(70, 24)
-        box:SetAutoFocus(false)
-        box:SetNumeric(true)
-        box:SetMaxLetters(4)
-        box:SetFontObject("GameFontHighlight")
-        box:SetTextInsets(6, 6, 0, 0)
-        ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-        ns.Border(box)
-        box:SetText(tostring(math.floor(row.get() or 0)))
-        local function Commit(self)
-            local v = tonumber(self:GetText())
-            if v then row.set(v); RefreshAllConfigVisuals() end
-            self:ClearFocus()
-        end
-        box:SetScript("OnEnterPressed", Commit)
-        box:SetScript("OnEditFocusLost", Commit)
+        local track, valBox = ns.UI.BuildSliderCore(panel, 120, 4, 12, 44, 22, 12, 1,
+            row.min or 8, row.max or 200, 1, row.get,
+            function(v) row.set(v); RefreshAllConfigVisuals() end)
+        valBox:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, y + 4)
+        track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
         y = y - 34
     end
 
