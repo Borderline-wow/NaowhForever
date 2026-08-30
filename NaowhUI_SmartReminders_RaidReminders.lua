@@ -190,6 +190,16 @@ end
 -- same function for all four display types, since each has its own Anchor and never
 -- stacks against a different type. Fixed top-down for now; a real grow-direction
 -- setting (the authoring UI's per-anchor gear window) is a later phase, not this loop.
+-- Every region an anchor owns, which is NOT just pool + active: config mode's sample
+-- (a._configSample, see RefreshConfigVisual) is built off-pool on purpose, and it is the
+-- one region actually on screen while you drag a size slider. Resizing only the tracked
+-- lists is why the sliders looked dead.
+local function ForEachRegion(a, fn)
+    for _, r in ipairs(a.pool) do fn(r) end
+    for _, r in ipairs(a.active) do fn(r) end
+    if a._configSample then fn(a._configSample) end
+end
+
 local function RestackRegions(a)
     local y = 0
     for i = 1, #a.active do
@@ -269,8 +279,10 @@ function ns.ResizeRaidReminderText()
     local a = anchors.text
     if not a then return end
     local w, fs = TextSize()
-    for _, r in ipairs(a.pool) do r:SetSize(w, fs + 10); r.text:SetFont(AlertFontPath(), fs, "OUTLINE") end
-    for _, r in ipairs(a.active) do r:SetSize(w, fs + 10); r.text:SetFont(AlertFontPath(), fs, "OUTLINE") end
+    ForEachRegion(a, function(r)
+        r:SetSize(w, fs + 10)
+        r.text:SetFont(AlertFontPath(), fs, "OUTLINE")
+    end)
     RestackRegions(a)
 end
 
@@ -307,8 +319,7 @@ function ns.ResizeRaidReminderTimer()
         r.label:SetFont(AlertFontPath(), cap, "OUTLINE")
         r.number:SetFont(AlertFontPath(), num, "OUTLINE")
     end
-    for _, r in ipairs(a.pool) do Apply(r) end
-    for _, r in ipairs(a.active) do Apply(r) end
+    ForEachRegion(a, Apply)
     RestackRegions(a)
 end
 
@@ -349,8 +360,7 @@ function ns.ResizeRaidReminderIcon()
         r.icon:SetSize(size, size)
         r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
     end
-    for _, r in ipairs(a.pool) do Apply(r) end
-    for _, r in ipairs(a.active) do Apply(r) end
+    ForEachRegion(a, Apply)
     RestackRegions(a)
 end
 
@@ -418,8 +428,7 @@ function ns.ResizeRaidReminderBar()
         r.bar:SetSize(w, h)
         r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
     end
-    for _, r in ipairs(a.pool) do Apply(r) end
-    for _, r in ipairs(a.active) do Apply(r) end
+    ForEachRegion(a, Apply)
     RestackRegions(a)
 end
 
@@ -537,8 +546,7 @@ function ns.ResizeRaidReminderCircle()
     local size, thickness = CircleSize(), CircleThickness()
     local fs = LabelSize("raidReminderCircleTextSize")
     local function Apply(r) LayoutCircle(r, size, thickness, fs) end
-    for _, r in ipairs(a.pool) do Apply(r) end
-    for _, r in ipairs(a.active) do Apply(r) end
+    ForEachRegion(a, Apply)
     RestackRegions(a)
 end
 
