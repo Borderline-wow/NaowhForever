@@ -2286,7 +2286,7 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     -- Single source of truth with the runtime's own default (ns.AbilityEnabledForBinding),
     -- so the checkbox can never disagree with what actually calls out. Unticking here keeps
     -- the ability on the page but silent; removing it from the page is the Add Ability
-    -- picker's job.
+    -- picker's untick.
     local enabled = ability.spellID and ns.AbilityEnabledForBinding(encounterID, ability.spellID)
 
     local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
@@ -2692,8 +2692,8 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
     hint:SetJustifyH("LEFT")
     hint:SetWordWrap(true)
     hint:SetText("Tick the abilities you want reminders for. Marked ones are what the "
-        .. "addon knows to be tank hits on this boss. Already-added abilities are ticked "
-        .. "and stay put; remove one with the X on its row.")
+        .. "addon knows to be tank hits on this boss. Unticking one drops it from the "
+        .. "boss, along with any warning time or reminder set up on it.")
 
     -- Scrolled rather than capped: a journal boss can list well past a screenful, and this
     -- is the only place an ability can be switched on, so a row that does not fit still has
@@ -2718,20 +2718,25 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
                 row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
                 row:SetHeight(26)
 
-                local already = ns.AbilityAdded(encounterID, a.spellID)
+                -- Two-way: the box IS whether this boss has the ability, so unticking
+                -- drops it. Reading the box's own state rather than assuming the click
+                -- means "add" -- an already-added row used to be disabled, which left one
+                -- ticked in this same session (built before it was added) live but
+                -- one-directional, so unticking it silently re-added and the ability
+                -- stayed on the boss.
                 local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
                 check:SetSize(22, 22)
                 check:SetPoint("LEFT", row, "LEFT", 0, 0)
-                check:SetChecked(already)
-                if already then
-                    check:Disable()
-                else
-                    check:SetScript("OnClick", function()
+                check:SetChecked(ns.AbilityAdded(encounterID, a.spellID))
+                check:SetScript("OnClick", function(self)
+                    if self:GetChecked() then
                         ns.EnsureBinding(encounterID, a.spellID).enabled = true
-                        ns.RefreshRuntime()
-                        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
-                    end)
-                end
+                    else
+                        ns.RemoveBinding(encounterID, a.spellID)
+                    end
+                    ns.RefreshRuntime()
+                    if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+                end)
 
                 local icon = row:CreateTexture(nil, "ARTWORK")
                 icon:SetSize(20, 20)

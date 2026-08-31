@@ -3007,6 +3007,17 @@ function ns.EnsureBinding(enc, sid)
     return bindings[sid]
 end
 
+--- Drops an ability from a boss entirely -- the picker's untick, and the counterpart to
+--- EnsureBinding above. Clears the journal alias too, or a binding saved under the old id
+--- would keep AbilityAdded answering true and the row would come straight back.
+function ns.RemoveBinding(enc, sid)
+    local bindings = ns.AbilityBindingsTable(false, enc)
+    if not bindings then return end
+    bindings[sid] = nil
+    local jid = ns.BOSSMOD_KEY_TO_JOURNAL and ns.BOSSMOD_KEY_TO_JOURNAL[sid]
+    if jid then bindings[jid] = nil end
+end
+
 -- Setup's own "Warn This Many Seconds Early" slider is the base every ability uses; a
 -- per-ABILITY override (set from that ability's own cog, on the Defensive Preset tab)
 -- wins when it has one set -- one warning time for the whole preset, not broken out
