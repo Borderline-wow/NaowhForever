@@ -1310,7 +1310,9 @@ function ns.HandleRaidReminderAbility(sid, duration, barIdentity)
             local wantsBar = trig.type == "bwtimer"
             local haveBar = type(duration) == "number" and duration > 0.5
             if wantsBar and haveBar then
-                local lead = (type(trig.leadTime) == "number" and trig.leadTime > 0)
+                -- 0 is a real answer ("at the end of the bar"), so only a missing or
+                -- negative lead falls back to the 3s default.
+                local lead = (type(trig.leadTime) == "number" and trig.leadTime >= 0)
                     and trig.leadTime or 3
                 ns.ScheduleBWFire("raid", sid, duration, barIdentity, lead, function()
                     FireRaidReminder(entry)

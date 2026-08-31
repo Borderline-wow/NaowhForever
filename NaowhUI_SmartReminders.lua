@@ -3198,7 +3198,12 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     if not fires then fires = {} pendingBWFires[channel] = fires end
     local sidFires = fires[sid]
     if not sidFires then sidFires = {} fires[sid] = sidFires end
-    local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
+    -- lead 0 means "fire when the bar reaches 0", so the wait is the WHOLE bar. Only a
+    -- lead at or past the bar's own length is already inside its window and fires now;
+    -- treating 0 that way fired every such reminder the instant its bar started, which
+    -- for a boss's opening bar is the moment you enter combat.
+    if type(lead) ~= "number" or lead < 0 then lead = 0 end
+    local delay = (lead < duration) and (duration - lead) or 0.01
     local key = barIdentity or false
     local fireAt = GetTime() + delay
 
