@@ -1119,10 +1119,15 @@ local function BuildConfigToolbar()
 end
 
 function ns.ShowRaidReminderAnchorConfig()
-    configActive = true
+    -- Stash BEFORE arming config mode: hiding the window fires the options OnHide
+    -- callback, which calls HideRaidReminderAnchorConfig -- armed first, that callback
+    -- disarmed the mode in the same click, leaving the toolbar up with its checkboxes
+    -- checked and no sample ever drawn.
     -- Reopened on Exit Config only if it was open when we started, so entering config
     -- mode from a slash command does not conjure the window on the way out.
-    reopenWindowOnExit = ns.StashOptionsWindow and ns.StashOptionsWindow() or false
+    local reopen = ns.StashOptionsWindow and ns.StashOptionsWindow() or false
+    configActive = true
+    reopenWindowOnExit = reopen
     local f = BuildConfigToolbar()
     for _, displayType in ipairs(CONFIG_ORDER) do
         if f._checks[displayType] then f._checks[displayType]:SetChecked(configShown[displayType] == true) end
