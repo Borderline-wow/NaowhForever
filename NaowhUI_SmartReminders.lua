@@ -3849,18 +3849,29 @@ local function UpdatePreview()
     end)
     customFrame:Show()
 
-    if activeSlots > 0 then
-        slots[1]:SetAlpha(1)
-        slots[1].icon:SetAlpha(1)
-        slots[1].icon:SetShown(TRDB().showIcon)
-        -- The text channel previews too: the label carries exactly what a fight would show
-        -- for this slot, so moving and sizing is done against the real thing.
-        if slots[1].label then
-            local sid = slots[1].spellID
+    -- An empty or fully switched-off list previews a stand-in in slot 1, so Show Icon
+    -- and the size/position tools work before any ability has been enabled.
+    local slot = slots[1]
+    if activeSlots == 0 then
+        slot = slot or CreateSlot(1)
+        slot.spellID = nil
+        slot.iconID = 134400
+        slot.icon:SetTexture(134400)
+        slot.label:SetText("Defensive")
+        ApplySize()
+    end
+    slot:SetAlpha(1)
+    slot.icon:SetAlpha(1)
+    slot.icon:SetShown(TRDB().showIcon)
+    -- The text channel previews too: the label carries exactly what a fight would show
+    -- for this slot, so moving and sizing is done against the real thing.
+    if slot.label then
+        if activeSlots > 0 then
+            local sid = slot.spellID
             local si = sid and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-            slots[1].label:SetText(CalloutFor(sid, si and si.name))
-            slots[1].label:SetShown(TRDB().showText and true or false)
+            slot.label:SetText(CalloutFor(sid, si and si.name))
         end
+        slot.label:SetShown(TRDB().showText and true or false)
     end
     -- The stand-in shows the winning line, not the fallback: a preview of "nothing is ready"
     -- is not what anyone is trying to position.
