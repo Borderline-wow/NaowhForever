@@ -2506,6 +2506,93 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     return y
 end
 
+-- The Time In Combat list, at the foot of both boss tabs. Its reminders count from
+-- entering combat rather than from a pull, so they belong to no boss and none of them is
+-- filtered by the instance selected above: the same list renders on both pages, and on
+-- the Custom Reminders tab's own Any Combat entry.
+local function RenderTimeInCombatSection(parent, y, EUI)
+    local PADR = EUI.CONTENT_PAD or 16
+    local function Refresh() EUI:RefreshPage(true) end
+    local function Edit(uid)
+        local d = ns.ShowCustomReminderEditor(0, uid, EUI)
+        if d then d:HookScript("OnHide", Refresh) end
+    end
+
+    local head = ns.Font(parent, 12, nil, ns.THEME.accent)
+    head:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    head:SetText("TIME IN COMBAT")
+    y = y - 20
+
+    local note = ns.Font(parent, 11, nil, ns.THEME.muted)
+    note:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    note:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
+    note:SetJustifyH("LEFT")
+    note:SetWordWrap(true)
+    note:SetText("Counted from entering combat rather than from a pull, so these are not "
+        .. "tied to a boss -- they fire on trash and out in the world too.")
+    note:SetHeight(math.max(16, note:GetStringHeight() + 4))
+    y = y - note:GetHeight() - 8
+
+    local set = ns.CustomRemindersTable and ns.CustomRemindersTable(false, 0)
+    local list = {}
+    if set then
+        for uid, r in pairs(set) do
+            if r.trigger and r.trigger.type == "combat" then
+                list[#list + 1] = { uid = uid, r = r }
+            end
+        end
+        table.sort(list, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
+    end
+
+    if #list == 0 then
+        local none = ns.Font(parent, 11, nil, ns.THEME.muted)
+        none:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+        none:SetText("None yet.")
+        y = y - 20
+    else
+        for i = 1, #list do
+            local uid, r = list[i].uid, list[i].r
+            local row = CreateFrame("Frame", nil, parent)
+            row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+            row:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
+            row:SetHeight(24)
+
+            local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+            check:SetSize(20, 20)
+            check:SetPoint("LEFT", row, "LEFT", 0, 0)
+            check:SetChecked(r.enabled ~= false)
+            check:SetScript("OnClick", function(self)
+                r.enabled = self:GetChecked() and true or false
+            end)
+
+            local del = ns.Button(row, "Delete", 56, 22, function()
+                local writeSet = ns.CustomRemindersTable(false, 0)
+                if writeSet then writeSet[uid] = nil end
+                Refresh()
+            end)
+            del:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+            local edit = ns.Button(row, "Edit", 46, 22, function() Edit(uid) end)
+            edit:SetPoint("RIGHT", del, "LEFT", -4, 0)
+
+            local delay = r.trigger.delay
+            local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
+            lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
+            lbl:SetPoint("RIGHT", edit, "LEFT", -8, 0)
+            lbl:SetJustifyH("LEFT")
+            lbl:SetText((r.name or "Reminder") .. "  |cff9a9ea6("
+                .. (delay and ("In Combat +" .. tostring(delay) .. "s") or "In Combat")
+                .. ")|r")
+            y = y - 26
+        end
+    end
+    y = y - 6
+
+    local add = ns.Button(parent, "+ Add a Time In Combat Trigger", 230, 26,
+        function() Edit(nil) end)
+    add:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    return y - 34
+end
+
 -- Dungeon Bosses / Raid Bosses tab: a pure navigation list on the left -- one row per
 -- instance, click to select, no per-row toggle here anymore (the old bulk on/off per
 -- instance is still reachable; it lives on the selected boss's own Enable This Boss row,
@@ -2636,7 +2723,10 @@ function ns.BuildBossListPage(parent, y, isRaid)
     end
 
     local leftBottom = listTop - (#list * 26)
-    return math.min(leftBottom, topY + rightBottom)
+    -- Under both panes, not inside the detail one: it is not part of the selected boss,
+    -- and RenderInstanceDetail returns early in several states this must survive.
+    return RenderTimeInCombatSection(parent,
+        math.min(leftBottom, topY + rightBottom) - 16, EUI)
 end
 
 -- Choose which of a boss's abilities get reminders; the boss page lists exactly these.
@@ -2858,10 +2948,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         local nestedDimmer = ns.ShowCustomReminderEditor(encounterID, uid, EUI)
         if nestedDimmer then nestedDimmer:HookScript("OnHide", onChanged) end
     end
-    local function EditCombatReminder(uid)
-        local nestedDimmer = ns.ShowCustomReminderEditor(0, uid, EUI)
-        if nestedDimmer then nestedDimmer:HookScript("OnHide", onChanged) end
-    end
 
     -- The boss-less bucket the Custom Reminders tab's "Any Combat" entry writes to. Only
     -- the custom list applies there: observed timings come from encounter events, and a
@@ -2881,10 +2967,10 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         y = y - 20
     end
 
-    local function NoneRow(text)
+    local function NoneRow()
         local lbl = ns.Font(content, 11, nil, ns.THEME.muted)
         lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        lbl:SetText(text or (anyCombat and "None yet." or "None yet for this boss."))
+        lbl:SetText(anyCombat and "None yet." or "None yet for this boss.")
         y = y - 20
     end
 
@@ -3117,58 +3203,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         end)
     addCRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
     y = y - 34
-
-    -- The encounter-0 bucket, listed under every boss as well as under its own Any Combat
-    -- entry: a combat clock is not boss-scoped, but the boss page is where a tank looks
-    -- for everything that can call out during the fight, so hiding it there loses it.
-    if not anyCombat then
-        Header("TIME IN COMBAT")
-        local note = ns.Font(content, 11, nil, ns.THEME.muted)
-        note:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        note:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-        note:SetJustifyH("LEFT")
-        note:SetWordWrap(true)
-        note:SetText("Counted from entering combat rather than from the pull, so these are "
-            .. "not tied to this boss -- the same list shows under every one of them, and "
-            .. "on trash and out in the world.")
-        note:SetHeight(math.max(16, note:GetStringHeight() + 4))
-        y = y - note:GetHeight() - 8
-
-        local tcSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, 0)
-        local tcList = {}
-        if tcSet then
-            for uid, r in pairs(tcSet) do
-                if r.trigger and r.trigger.type == "combat" then
-                    tcList[#tcList + 1] = { uid = uid, r = r }
-                end
-            end
-            table.sort(tcList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
-        end
-        if #tcList == 0 then
-            NoneRow("None yet.")
-        else
-            for i = 1, #tcList do
-                local uid, r = tcList[i].uid, tcList[i].r
-                local delay = r.trigger.delay
-                ReminderRow(r.name or "Reminder",
-                    delay and ("In Combat +" .. tostring(delay) .. "s") or "In Combat",
-                    function() return r.enabled ~= false end,
-                    function(v) r.enabled = v end,
-                    function() EditCombatReminder(uid) end,
-                    function()
-                        local writeSet = ns.CustomRemindersTable(false, 0)
-                        if writeSet then writeSet[uid] = nil end
-                        onChanged()
-                    end)
-            end
-        end
-        y = y - 6
-
-        local addTCBtn = ns.Button(content, "+ Add a Time In Combat Trigger", 230, 26,
-            function() EditCombatReminder(nil) end)
-        addTCBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        y = y - 34
-    end
 
     return y
 end
