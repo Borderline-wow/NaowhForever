@@ -2674,9 +2674,9 @@ end
 -- The curated tank list marks rows here instead of pre-selecting them, so it still says
 -- which hits are the real tank busters without choosing for the player.
 --
--- Additive only. An ability already on the boss shows ticked and inert here; removing one
--- is the X on its own row, which confirms first (ns.ConfirmRemoveAbility), so a binding is
--- never destroyed by an untick that reads like a filter.
+-- Two-way: the tick is whether the boss has the ability, so unticking one drops it along
+-- with the preset and warning time saved on it. The X on the boss page's own row does the
+-- same thing behind a confirmation (ns.ConfirmRemoveAbility).
 function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
     local EUI = callerEUI or ns.UI
     local PANEL_W = 460
