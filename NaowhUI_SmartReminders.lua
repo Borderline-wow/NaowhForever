@@ -3802,7 +3802,8 @@ local function UpdatePreview()
         if customFrame and not customHideTimer then customFrame:Hide() end
         return
     end
-    if not TRDB().enabled then return end
+    -- No gate on the master switch here: everything ships OFF, so the addon is still
+    -- disabled at exactly the moment someone is placing and sizing the alert.
 
     Reminder.Create()
     RebuildSlots()
