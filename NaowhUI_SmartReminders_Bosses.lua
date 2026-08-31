@@ -1111,10 +1111,9 @@ end
 -------------------------------------------------------------------------------
 local TRIGGER_CHOICES = { pull = "Boss Pull", bwmsg = "BigWigs/DBM Message",
     bwtimer = "BigWigs/DBM Timer", aura = "Aura Applied", combat = "Time In Combat" }
-local TRIGGER_ORDER = { "pull", "bwmsg", "bwtimer", "aura" }
--- Time In Combat is the only trigger offered for the boss-less bucket, and the only one
--- withheld from a boss: the other four all need an encounter underway, and on a boss it
--- would land within a second of Boss Pull while racing ENCOUNTER_START for the clock.
+local TRIGGER_ORDER = { "pull", "combat", "bwmsg", "bwtimer", "aura" }
+-- The boss-less bucket takes Time In Combat and nothing else: the other four all need an
+-- encounter underway.
 local COMBAT_TRIGGER_ORDER = { "combat" }
 
 local IN_COMBAT_TIP = "Seconds after you enter combat. Blank fires the moment combat "
@@ -1167,7 +1166,9 @@ end
 -- Never a silent cap -- MECHANIC_PICKER_ROWS worth show, and a hint discloses the rest.
 local MECHANIC_PICKER_ROWS = 8
 
-function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
+-- initialTrigger seeds the type for a NEW reminder (the boss page's Time In Combat
+-- button opens straight onto it); the dropdown is still free to change it.
+function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger)
     local EUI = callerEUI or ns.UI
     local W = EUI.Widgets
 
@@ -1183,7 +1184,8 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
 
     local set = ns.CustomRemindersTable(false, encounterID)
     local existing = (set and uid) and set[uid] or nil
-    local trig = (existing and existing.trigger) or { type = anyCombat and "combat" or "pull" }
+    local trig = (existing and existing.trigger)
+        or { type = initialTrigger or (anyCombat and "combat" or "pull") }
 
     local PAD = 20
 
@@ -1415,7 +1417,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     -- spell id across into a BigWigs/DBM Message trigger as the closest equivalent, so
     -- re-editing it is a starting point rather than a dead end.
     local trigVal
-    if anyCombat then trigVal = "combat"
+    if anyCombat or trig.type == "combat" then trigVal = "combat"
     elseif trig.type == "bwtimer" then trigVal = "bwtimer"
     elseif trig.type == "aura" then trigVal = "aura"
     elseif trig.type == "bwmsg" or trig.type == "spell" then trigVal = "bwmsg"
@@ -2393,6 +2395,95 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
 end
 
 -- The selected instance's own view: Share Profile / Select Boss, the boss's own
+-- A boss's own Time In Combat reminders, under its ability rows. The clock is combat
+-- entry, not ENCOUNTER_START, so trash the boss is pulled out of counts toward it --
+-- ns.CheckBossCombatReminders schedules the remainder when the encounter starts.
+local function RenderTimeInCombatSection(parent, y, EUI, encounterID)
+    local PADR = EUI.CONTENT_PAD or 16
+    local function Refresh() EUI:RefreshPage(true) end
+    local function Edit(uid)
+        local d = ns.ShowCustomReminderEditor(encounterID, uid, EUI, "combat")
+        if d then d:HookScript("OnHide", Refresh) end
+    end
+
+    local head = ns.Font(parent, 12, nil, ns.THEME.accent)
+    head:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    head:SetText("TIME IN COMBAT")
+    y = y - 20
+
+    local note = ns.Font(parent, 11, nil, ns.THEME.muted)
+    note:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    note:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
+    note:SetJustifyH("LEFT")
+    note:SetWordWrap(true)
+    note:SetText("Fires a set number of seconds into the fight, with nothing to bind it "
+        .. "to -- for a mechanic the boss does on a clock. Counted from entering combat, "
+        .. "so trash you pull this boss out of counts toward it.")
+    note:SetHeight(math.max(16, note:GetStringHeight() + 4))
+    y = y - note:GetHeight() - 8
+
+    local set = ns.CustomRemindersTable and ns.CustomRemindersTable(false, encounterID)
+    local list = {}
+    if set then
+        for uid, r in pairs(set) do
+            if r.trigger and r.trigger.type == "combat" then
+                list[#list + 1] = { uid = uid, r = r }
+            end
+        end
+        table.sort(list, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
+    end
+
+    if #list == 0 then
+        local none = ns.Font(parent, 11, nil, ns.THEME.muted)
+        none:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+        none:SetText("None yet for this boss.")
+        y = y - 20
+    else
+        for i = 1, #list do
+            local uid, r = list[i].uid, list[i].r
+            local row = CreateFrame("Frame", nil, parent)
+            row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+            row:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
+            row:SetHeight(24)
+
+            local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+            check:SetSize(20, 20)
+            check:SetPoint("LEFT", row, "LEFT", 0, 0)
+            check:SetChecked(r.enabled ~= false)
+            check:SetScript("OnClick", function(self)
+                r.enabled = self:GetChecked() and true or false
+                ns.RefreshRuntime()
+            end)
+
+            local del = ns.Button(row, "Delete", 56, 22, function()
+                local writeSet = ns.CustomRemindersTable(false, encounterID)
+                if writeSet then writeSet[uid] = nil end
+                ns.RefreshRuntime()
+                Refresh()
+            end)
+            del:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+            local edit = ns.Button(row, "Edit", 46, 22, function() Edit(uid) end)
+            edit:SetPoint("RIGHT", del, "LEFT", -4, 0)
+
+            local delay = r.trigger.delay
+            local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
+            lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
+            lbl:SetPoint("RIGHT", edit, "LEFT", -8, 0)
+            lbl:SetJustifyH("LEFT")
+            lbl:SetText((r.name or "Reminder") .. "  |cff9a9ea6("
+                .. (delay and ("In Combat +" .. tostring(delay) .. "s") or "In Combat")
+                .. ")|r")
+            y = y - 26
+        end
+    end
+    y = y - 6
+
+    local add = ns.Button(parent, "+ Add a Time In Combat Trigger", 230, 26,
+        function() Edit(nil) end)
+    add:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+    return y - 34
+end
+
 -- Enable/Preset header (RenderBossHeader), then
 -- every ability the Dungeon Journal lists for that boss -- journal icon, description
 -- and role flags (Tank/Dps/Healer) included, all data ns.ScrapeBosses already collects
@@ -2454,7 +2545,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
         hint:SetText("No abilities listed in the journal for this boss.")
-        return y - 20
+        return RenderTimeInCombatSection(parent, y - 26, EUI, boss.encounterID)
     end
 
     -- Only what the player has actually added. A boss starts blank: the journal lists
@@ -2482,7 +2573,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         hint:SetWordWrap(true)
         hint:SetText("No abilities picked for this boss yet. Add Ability lists everything "
             .. "the journal has for the fight, with the known tank hits marked.")
-        return y - 34
+        return RenderTimeInCombatSection(parent, y - 40, EUI, boss.encounterID)
     end
 
     local lastStage
@@ -2499,98 +2590,10 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     end
 
     -- Custom Reminders and Raid/Dungeon Reminders for this boss used to render inline
-    -- here; both moved behind the cog next to the boss picker above
-    -- (ns.ShowBossReminderPicker) so picking a boss once covers everything about it,
-    -- rather than each kind of reminder needing its own scroll down this list.
+    -- here; both moved to the Custom Reminders tab, which pairs an instance and boss
+    -- picker with the same lists, so picking a boss once covers everything about it.
 
-    return y
-end
-
--- The Time In Combat list, at the foot of both boss tabs. Its reminders count from
--- entering combat rather than from a pull, so they belong to no boss and none of them is
--- filtered by the instance selected above: the same list renders on both pages, and on
--- the Custom Reminders tab's own Any Combat entry.
-local function RenderTimeInCombatSection(parent, y, EUI)
-    local PADR = EUI.CONTENT_PAD or 16
-    local function Refresh() EUI:RefreshPage(true) end
-    local function Edit(uid)
-        local d = ns.ShowCustomReminderEditor(0, uid, EUI)
-        if d then d:HookScript("OnHide", Refresh) end
-    end
-
-    local head = ns.Font(parent, 12, nil, ns.THEME.accent)
-    head:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-    head:SetText("TIME IN COMBAT")
-    y = y - 20
-
-    local note = ns.Font(parent, 11, nil, ns.THEME.muted)
-    note:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-    note:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
-    note:SetJustifyH("LEFT")
-    note:SetWordWrap(true)
-    note:SetText("Counted from entering combat rather than from a pull, so these are not "
-        .. "tied to a boss -- they fire on trash and out in the world too.")
-    note:SetHeight(math.max(16, note:GetStringHeight() + 4))
-    y = y - note:GetHeight() - 8
-
-    local set = ns.CustomRemindersTable and ns.CustomRemindersTable(false, 0)
-    local list = {}
-    if set then
-        for uid, r in pairs(set) do
-            if r.trigger and r.trigger.type == "combat" then
-                list[#list + 1] = { uid = uid, r = r }
-            end
-        end
-        table.sort(list, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
-    end
-
-    if #list == 0 then
-        local none = ns.Font(parent, 11, nil, ns.THEME.muted)
-        none:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-        none:SetText("None yet.")
-        y = y - 20
-    else
-        for i = 1, #list do
-            local uid, r = list[i].uid, list[i].r
-            local row = CreateFrame("Frame", nil, parent)
-            row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-            row:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
-            row:SetHeight(24)
-
-            local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-            check:SetSize(20, 20)
-            check:SetPoint("LEFT", row, "LEFT", 0, 0)
-            check:SetChecked(r.enabled ~= false)
-            check:SetScript("OnClick", function(self)
-                r.enabled = self:GetChecked() and true or false
-            end)
-
-            local del = ns.Button(row, "Delete", 56, 22, function()
-                local writeSet = ns.CustomRemindersTable(false, 0)
-                if writeSet then writeSet[uid] = nil end
-                Refresh()
-            end)
-            del:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-            local edit = ns.Button(row, "Edit", 46, 22, function() Edit(uid) end)
-            edit:SetPoint("RIGHT", del, "LEFT", -4, 0)
-
-            local delay = r.trigger.delay
-            local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
-            lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
-            lbl:SetPoint("RIGHT", edit, "LEFT", -8, 0)
-            lbl:SetJustifyH("LEFT")
-            lbl:SetText((r.name or "Reminder") .. "  |cff9a9ea6("
-                .. (delay and ("In Combat +" .. tostring(delay) .. "s") or "In Combat")
-                .. ")|r")
-            y = y - 26
-        end
-    end
-    y = y - 6
-
-    local add = ns.Button(parent, "+ Add a Time In Combat Trigger", 230, 26,
-        function() Edit(nil) end)
-    add:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-    return y - 34
+    return RenderTimeInCombatSection(parent, y - 6, EUI, boss.encounterID)
 end
 
 -- Dungeon Bosses / Raid Bosses tab: a pure navigation list on the left -- one row per
@@ -2723,10 +2726,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
     end
 
     local leftBottom = listTop - (#list * 26)
-    -- Under both panes, not inside the detail one: it is not part of the selected boss,
-    -- and RenderInstanceDetail returns early in several states this must survive.
-    return RenderTimeInCombatSection(parent,
-        math.min(leftBottom, topY + rightBottom) - 16, EUI)
+    return math.min(leftBottom, topY + rightBottom)
 end
 
 -- Choose which of a boss's abilities get reminders; the boss page lists exactly these.

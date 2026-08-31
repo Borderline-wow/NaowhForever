@@ -2847,6 +2847,35 @@ function ns.CheckCombatReminders()
     end
 end
 
+-- The same trigger saved on a boss. Which boss it is only becomes known at
+-- ENCOUNTER_START, so the schedule is worked out here and the time already spent in
+-- combat comes off it -- the clock the player set is combat entry, not the pull.
+function ns.CheckBossCombatReminders()
+    ns.CancelTrackedReminderTimers("bosscombat")
+    local enc = currentEncounter
+    if not (enc and CustomRemindersAllowed()) then return end
+    local set = CustomRemindersTable(false, enc)
+    if not set then return end
+    local elapsed = 0
+    if ns.combatStartedAt and InCombatLockdown() then
+        elapsed = GetTime() - ns.combatStartedAt
+    end
+    for _, r in pairs(set) do
+        local trig = r.trigger
+        if r.enabled ~= false and trig and trig.type == "combat" then
+            local delays = ParseDelayList(trig.delay)
+            if not delays then
+                ns.DisplayReminder(r)
+            else
+                for i = 1, #delays do
+                    ns.TrackReminderTimer("bosscombat", math.max(delays[i] - elapsed, 0.01),
+                        function() ns.DisplayReminder(r) end)
+                end
+            end
+        end
+    end
+end
+
 -------------------------------------------------------------------------------
 --  Custom reminders: BigWigs/DBM message and timer triggers
 -------------------------------------------------------------------------------
@@ -5724,6 +5753,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         -- pulling a boss out of the trash in front of it does not restart that clock.
         ns.CancelTrackedReminderTimers("pull")
         ns.CancelTrackedReminderTimers("stage")
+        ns.CancelTrackedReminderTimers("bosscombat")
         for k, handle in pairs(bwPendingTimers) do
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
@@ -5742,6 +5772,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         if event == "ENCOUNTER_START" then
             RegisterBossModHooks()   -- in case BigWigs/DBM loaded after this addon did
             CheckCustomReminders("pull", nil)
+            ns.CheckBossCombatReminders()
             if ns.CheckRaidReminderPullTriggers then ns.CheckRaidReminderPullTriggers() end
         end
 
@@ -5784,6 +5815,8 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     end
 
     if event == "PLAYER_REGEN_DISABLED" then
+        -- An ns field, not a chunk local: this chunk is at the 200-local ceiling.
+        ns.combatStartedAt = GetTime()
         ns.CheckCombatReminders()
         return
     end
