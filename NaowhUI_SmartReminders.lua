@@ -3777,9 +3777,12 @@ end
 -- default so the preview appears the moment the page opens -- tester feedback was not
 -- "the preview is intrusive" but "I cannot find it".
 local previewPin = true
+-- Held true by anchor config mode (Customize Anchors), where the defensive alert is
+-- one of the placeable displays -- independent of the window being open.
+local configPreview = false
 
 local function UpdatePreview()
-    if not (previewing and previewPin) then
+    if not ((previewing and previewPin) or configPreview) then
         -- Strip the preview's drag affordances the moment it stops being a preview: a
         -- mouse-enabled alert frame in a fight would sit invisibly over the screen
         -- eating clicks.
@@ -3863,7 +3866,10 @@ local function UpdatePreview()
     end
     slot:SetAlpha(1)
     slot.icon:SetAlpha(1)
-    slot.icon:SetShown(TRDB().showIcon)
+    -- Config mode forces every channel visible, matching the other anchors' samples:
+    -- on a fresh install each channel still ships off, and that is exactly when the
+    -- alert is being placed.
+    slot.icon:SetShown((TRDB().showIcon or configPreview) and true or false)
     -- The text channel previews too: the label carries exactly what a fight would show
     -- for this slot, so moving and sizing is done against the real thing.
     if slot.label then
@@ -3872,12 +3878,12 @@ local function UpdatePreview()
             local si = sid and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
             slot.label:SetText(CalloutFor(sid, si and si.name))
         end
-        slot.label:SetShown(TRDB().showText and true or false)
+        slot.label:SetShown((TRDB().showText or configPreview) and true or false)
     end
     -- The stand-in shows the winning line, not the fallback: a preview of "nothing is ready"
     -- is not what anyone is trying to position.
     if frame.fallback then frame.fallback:SetAlpha(0) end
-    if TRDB().showBar then
+    if TRDB().showBar or configPreview then
         CreateBar()
         bar:SetMinMaxValues(0, 1)
         bar:SetValue(0.6)
@@ -3889,6 +3895,28 @@ local function UpdatePreview()
     end
     frame:Show()
     textFrame:Show()
+end
+
+-- The anchor-config half of the defensive alert: config mode shows it through the
+-- preview machinery above, so dragging and the saved position slot are shared.
+function ns.SetDefensiveAnchorConfigShown(shown)
+    configPreview = shown and true or false
+    UpdatePreview()
+end
+
+function ns.GetDefensiveAlertFrame()
+    return frame, bar
+end
+
+function ns.RefreshDefensivePreview()
+    ApplySize()
+    UpdatePreview()
+end
+
+-- Re-seat the alert from its saved slot after a config-mode drag, the same call the
+-- preview's own drag handler makes.
+function ns.ApplyDefensiveAlertPosition()
+    ApplyPosition()
 end
 
 -------------------------------------------------------------------------------

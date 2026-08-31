@@ -919,10 +919,13 @@ end)
 --  Anchor/pool system above, ns.MakeModal, ns.THEME) rather than copying either one's
 --  look: a plain in-house drag handle + gear popup instead of their green banner rows.
 -------------------------------------------------------------------------------
-local DISPLAY_TYPE_LABEL = { text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
-local CONFIG_ORDER = { "text", "timer", "icon", "bar", "circle" }
+local DISPLAY_TYPE_LABEL = { defensive = "Defensive", text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
+local CONFIG_ORDER = { "defensive", "text", "timer", "icon", "bar", "circle" }
 
-local configShown = {}     -- [displayType] = true while its checkbox is on
+-- All checked by default, so entering config mode shows everything; unticking is the
+-- session-local way to declutter while placing one display.
+local configShown = {}
+for _, dt in ipairs(CONFIG_ORDER) do configShown[dt] = true end
 local configActive = false
 local reopenWindowOnExit = false
 
@@ -991,8 +994,14 @@ local function EnsureConfigHandle(displayType, a)
         local point, _, relPoint, x, y = a:GetPoint(1)
         if point then
             local db = ns.DB()
-            db.raidReminderAnchorPos = db.raidReminderAnchorPos or {}
-            db.raidReminderAnchorPos[displayType] = { point = point, relPoint = relPoint, x = x, y = y }
+            if displayType == "defensive" then
+                -- The alert's own position slot, shared with the preview drag.
+                db.pos = { point = point, relPoint = relPoint, x = x, y = y }
+                if ns.ApplyDefensiveAlertPosition then ns.ApplyDefensiveAlertPosition() end
+            else
+                db.raidReminderAnchorPos = db.raidReminderAnchorPos or {}
+                db.raidReminderAnchorPos[displayType] = { point = point, relPoint = relPoint, x = x, y = y }
+            end
         end
     end)
 
@@ -1001,6 +1010,21 @@ local function EnsureConfigHandle(displayType, a)
 end
 
 local function RefreshConfigVisual(displayType)
+    -- The defensive alert is not a pooled anchor: its sample is the alert's own preview,
+    -- forced visible by the main file while config mode holds it. Only the drag handle
+    -- comes from here, seated under the lowest visible piece (the bar, when shown).
+    if displayType == "defensive" then
+        if not (ns.SetDefensiveAnchorConfigShown and ns.GetDefensiveAlertFrame) then return end
+        ns.SetDefensiveAnchorConfigShown(true)
+        local f, alertBar = ns.GetDefensiveAlertFrame()
+        if not f then return end
+        local h = EnsureConfigHandle("defensive", f)
+        h:ClearAllPoints()
+        local below = (alertBar and alertBar:IsShown()) and alertBar or f
+        h:SetPoint("TOP", below, "BOTTOM", 0, -4)
+        h:Show()
+        return
+    end
     local a = GetAnchor(displayType)
     local h = EnsureConfigHandle(displayType, a)
 
@@ -1028,6 +1052,12 @@ local function RefreshConfigVisual(displayType)
 end
 
 local function HideConfigVisual(displayType)
+    if displayType == "defensive" then
+        local f = ns.GetDefensiveAlertFrame and ns.GetDefensiveAlertFrame()
+        if f and f._configHandle then f._configHandle:Hide() end
+        if ns.SetDefensiveAnchorConfigShown then ns.SetDefensiveAnchorConfigShown(false) end
+        return
+    end
     local a = anchors[displayType]
     if not a then return end
     if a._configHandle then a._configHandle:Hide() end
@@ -1063,16 +1093,18 @@ end
 -- shown/hidden rather than recreated.
 local configToolbar
 
--- 2-column grid: 5 checkboxes fill the first 2.5 rows, Exit Config takes the otherwise
--- empty slot next to Circle (last checkbox, alone in the left column) instead of a
--- separate bottom row that overlapped it.
-local CONFIG_COL_W, CONFIG_ROW_H = 148, 24
+-- 2-column grid, two checkboxes per row; Exit Config takes the slot after the last
+-- checkbox -- beside it when the count is odd, on its own row when even -- and the
+-- panel height is derived from whichever row that lands on.
+-- Column width fits the longest label ("Show Defensive Anchor") without running into
+-- the next column; the panel is two columns plus the outer margins.
+local CONFIG_COL_W, CONFIG_ROW_H = 162, 24
 
 local function BuildConfigToolbar()
     if configToolbar then return configToolbar end
     local T = ns.THEME
     local f = CreateFrame("Frame", "NaowhUIRaidReminderAnchorConfig", UIParent)
-    f:SetSize(300, 116)
+    f:SetSize(14 + CONFIG_COL_W * 2 + 14, 116)
     f:SetPoint("TOP", UIParent, "TOP", 0, -140)
     f:SetFrameStrata("HIGH")
     f:SetClampedToScreen(true)
@@ -1112,6 +1144,7 @@ local function BuildConfigToolbar()
     local exitRow = (#CONFIG_ORDER % 2 == 1) and lastRow or (lastRow + 1)
     ns.Button(f, "Exit Config", CONFIG_COL_W - 14, 22, function() ns.HideRaidReminderAnchorConfig() end)
         :SetPoint("TOPLEFT", f, "TOPLEFT", 14 + exitCol * CONFIG_COL_W, -31 - exitRow * CONFIG_ROW_H)
+    f:SetHeight(44 + (exitRow + 1) * CONFIG_ROW_H)
 
     f._checks = checks
     configToolbar = f
@@ -1162,6 +1195,20 @@ local function TextSizeRow(label, key, resize)
         set = function(v) ns.DB()[key] = math.floor(v); resize() end }
 end
 local RESIZE_ROWS = {
+    defensive = {
+        { label = "Icon Size", min = 16, max = 200,
+            get = function() return ns.DB().iconSize or 64 end,
+            set = function(v)
+                ns.DB().iconSize = math.max(16, math.floor(v))
+                if ns.RefreshDefensivePreview then ns.RefreshDefensivePreview() end
+            end },
+        { label = "Text Size", min = TEXT_SIZE_MIN, max = TEXT_SIZE_MAX,
+            get = function() return ns.DB().textSize or 21 end,
+            set = function(v)
+                ns.DB().textSize = math.floor(v)
+                if ns.RefreshDefensivePreview then ns.RefreshDefensivePreview() end
+            end },
+    },
     circle = {
         { label = "Size", min = 20, max = 200, get = function() return CircleSize() end,
             set = function(v) ns.DB().raidReminderCircleSize = math.max(20, math.floor(v)); ns.ResizeRaidReminderCircle() end },
