@@ -2302,10 +2302,10 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     row:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
     row:SetHeight(ABILITY_ROW_H)
 
-    -- Single source of truth with the runtime's own default (ns.AbilityEnabledForBinding),
-    -- so the checkbox can never disagree with what actually calls out. Unticking here keeps
-    -- the ability on the page but silent; removing it from the page is the Add Ability
-    -- picker's untick.
+    -- The tick is whether the boss has the ability, same as the Add Ability picker's, so
+    -- unticking drops it off the page along with the preset and warning time saved on it.
+    -- A row only renders for an added ability, so it starts ticked; an untick left over
+    -- from the build where this box only silenced a row re-ticks back to enabled.
     local enabled = ability.spellID and ns.AbilityEnabledForBinding(encounterID, ability.spellID)
 
     local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
@@ -2314,8 +2314,13 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     check:SetChecked(enabled)
     check:SetScript("OnClick", function(self)
         if not ability.spellID then self:SetChecked(false); return end
-        ns.EnsureBinding(encounterID, ability.spellID).enabled = self:GetChecked() and true or false
+        if self:GetChecked() then
+            ns.EnsureBinding(encounterID, ability.spellID).enabled = true
+        else
+            ns.RemoveBinding(encounterID, ability.spellID)
+        end
         ns.RefreshRuntime()
+        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end)
 
     local icon = row:CreateTexture(nil, "ARTWORK")
@@ -2639,8 +2644,8 @@ end
 -- which hits are the real tank busters without choosing for the player.
 --
 -- Two-way: the tick is whether the boss has the ability, so unticking one drops it along
--- with the preset and warning time saved on it, and this picker is the only place that
--- happens -- the boss page's own tick only silences a row.
+-- with the preset and warning time saved on it -- the same thing the boss page's own row
+-- tick does.
 function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
     local EUI = callerEUI or ns.UI
     local PANEL_W = 460

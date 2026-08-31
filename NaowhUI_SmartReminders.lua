@@ -3034,7 +3034,7 @@ function ns.EnsureBinding(enc, sid)
     return bindings[sid]
 end
 
---- Drops an ability from a boss entirely -- the picker's untick, and the counterpart to
+--- Drops an ability from a boss entirely -- either untick, and the counterpart to
 --- EnsureBinding above. Clears the journal alias too, or a binding saved under the old id
 --- would keep AbilityAdded answering true and the row would come straight back.
 function ns.RemoveBinding(enc, sid)
