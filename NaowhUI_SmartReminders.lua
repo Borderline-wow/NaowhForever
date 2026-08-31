@@ -3355,6 +3355,32 @@ end
 -- the FIRST argument -- confirmed against BigWigs' and DBM's own dispatch code, not
 -- assumed. issecretvalue guards the payload before anything touches it, the same rule
 -- every other identity channel in this file follows.
+-- BigWigs tags every bar with the length's reliability: only :CDBar -- the cooldown
+-- until the NEXT cast, whose length is an estimate -- passes true, while :Bar and
+-- :CastBar (exact durations) pass false. That is the only thing separating a repeating
+-- ability's next cooldown bar from the UPTIME bar a module starts for the buff the cast
+-- just applied, since both begin at the same instant: the moment the cooldown bar ended.
+-- Without it every reminder on such an ability fired a second time when the buff expired.
+--
+-- Deliberately narrow, because dropping a real next-cast bar is the direction that costs
+-- someone a wipe: a bar is only read as an uptime when it is unflagged AND a flagged
+-- cooldown bar for the SAME key is expiring right now. An ability whose module never
+-- uses CDBar records nothing here and keeps today's behaviour.
+local bwCdEndsAt = {}
+local UPTIME_MATCH_WINDOW = 1.5
+
+local function NoteBossModBar(key, duration, isApprox)
+    if isApprox and type(duration) == "number" and duration > 0 then
+        bwCdEndsAt[key] = GetTime() + duration
+    end
+end
+
+local function IsUptimeBar(key, isApprox)
+    if isApprox then return false end
+    local endsAt = bwCdEndsAt[key]
+    return endsAt ~= nil and math.abs(GetTime() - endsAt) <= UPTIME_MATCH_WINDOW
+end
+
 local function OnBigWigsEvent(event, ...)
     if ns.BossSource() ~= "bigwigs" then return end
     -- Cataloguing runs ahead of the hasCustomReminders gate below on purpose: that gate
@@ -3373,9 +3399,16 @@ local function OnBigWigsEvent(event, ...)
         if not hasCustomReminders then return end
         CheckBossModMessage("BW", key)
     elseif event == "BigWigs_StartBar" then
-        local _, key, text, duration = ...
+        local _, key, text, duration, _, isApprox = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
+        if IsUptimeBar(key, isApprox) then
+            if TRDB().trace then
+                AppendLog({ kind = "drop", sid = key, text = "uptime bar" })
+            end
+            return
+        end
+        NoteBossModBar(key, duration, isApprox)
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
         if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
@@ -3387,12 +3420,19 @@ local function OnBigWigsEvent(event, ...)
         -- The newer non-bar timer API; some modules fire this INSTEAD of StartBar. When
         -- isBarEnabled (the last argument) is true, StartBar already fired for the same
         -- bar and handling both would double the reminder.
-        local _, key, duration, _, text, _, _, _, isBarEnabled = ...
+        local _, key, duration, _, text, _, _, isApprox, isBarEnabled = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
         if not isBarEnabled and CustomRemindersAllowed() then
             RecordBossModKey("BW", key, text, "timer")
         end
         if isBarEnabled then return end
+        if IsUptimeBar(key, isApprox) then
+            if TRDB().trace then
+                AppendLog({ kind = "drop", sid = key, text = "uptime bar" })
+            end
+            return
+        end
+        NoteBossModBar(key, duration, isApprox)
         if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
         ns.HandleBigWigsAbility(key, duration, text)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
@@ -5642,6 +5682,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
         end
+        wipe(bwCdEndsAt)
         CancelAllPendingBWFires()
         for k in pairs(castSourceGUID) do
             castSourceGUID[k] = nil
