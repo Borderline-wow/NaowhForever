@@ -190,6 +190,12 @@ local function CreateWindow()
         if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
         for i = 1, #onHideCallbacks do onHideCallbacks[i]() end
     end)
+
+    -- CreateFrame hands back a SHOWN frame, so without this the first Show() is a no-op
+    -- and OnShow never runs: the page renders (OpenOptionsWindow calls ShowPage itself)
+    -- but nothing that rides the open callback -- the preview above all -- ever arms,
+    -- until something genuinely hides the window and the next Show() is a real edge.
+    window:Hide()
 end
 
 -- pageName, when given, is which tab the window opens on; OnShow renders currentPage,
