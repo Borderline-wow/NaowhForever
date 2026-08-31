@@ -4319,7 +4319,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Bare command opens the options; the diagnostic dump that used to live here moved
     -- under "status" when the addon got its own window.
     if arg == "" and ns.ToggleOptionsWindow then
-        ns.ToggleOptionsWindow("Setup")
+        ns.ToggleOptionsWindow("Addon Setup")
         return
     end
     if arg ~= "status" then
@@ -4949,14 +4949,11 @@ function ns.BuildCoreSettings(parent, y)
     return y
 end
 
--- The priority list, split out from BuildCoreSettings and rendered LAST on the Setup
--- page, after the tile sidebar rather than before it. RenderPresetListEditor's own
+-- The priority list, on the Defensive Presets tab by itself. RenderPresetListEditor's own
 -- returned height (topY + math.min(ly, ry) across two independently-tracked columns)
 -- runs a little short of its true rendered extent once the spare-defensives column gets
--- long -- not something this pass introduced, but stacking new content directly under it
--- is what turned "a little short" into a visible overlap. Putting it last means nothing
--- downstream depends on that number being exact; at worst the page reports a little extra
--- or missing empty space below it, never content drawn on top of content.
+-- long, so nothing may ever stack below it; alone on its page, the inexact number costs
+-- at worst a little extra or missing empty space, never content drawn on top of content.
 function ns.BuildPresetListSettings(parent, y)
     local EUI = ns.UI
     local W   = EUI.Widgets
@@ -5272,8 +5269,18 @@ function ns.BuildSetupPage(parent, yOffset)
     if ns.BuildSoundsSettings  then y = ns.BuildSoundsSettings(parent, y) end
     if ns.BuildColorsSettings  then y = ns.BuildColorsSettings(parent, y) end
     if ns.BuildProfileSettings then y = ns.BuildProfileSettings(parent, y) end
-    if ns.BuildPresetListSettings then y = ns.BuildPresetListSettings(parent, y) end
 
+    return math.abs(y)
+end
+
+-- Defensive Presets tab: the preset list editor, alone on its own page.
+function ns.BuildPresetsPage(parent, yOffset)
+    local EUI = ns.UI
+    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+    RefreshSpec()   -- the preset editor is keyed on it
+
+    local y = yOffset
+    if ns.BuildPresetListSettings then y = ns.BuildPresetListSettings(parent, y) end
     return math.abs(y)
 end
 
