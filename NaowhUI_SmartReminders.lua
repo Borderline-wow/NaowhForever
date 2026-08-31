@@ -2762,14 +2762,21 @@ end
 -- the trigger, parsed fresh here rather than pre-compiled -- these fire rarely enough that
 -- the cost never matters) turns into either an immediate call or one timer per listed
 -- delay, so a comma list fires more than once from the same match.
-local function ActivateCustomReminder(r)
+local function ActivateCustomReminder(r, scope)
     local delays = ParseDelayList(r.trigger and r.trigger.delay)
     if not delays then
         ns.DisplayReminder(r)
         return
     end
+    -- PLAYER_REGEN_ENABLED is registered under ShouldRun(), which custom reminders
+    -- deliberately do not require, so the cancel on leaving combat is not guaranteed to
+    -- have run and a combat-scoped timer can outlive the fight it was set in.
+    local combat = (scope == "combat")
     for i = 1, #delays do
-        ns.TrackReminderTimer("pull", delays[i], function() ns.DisplayReminder(r) end)
+        ns.TrackReminderTimer(scope or "pull", delays[i], function()
+            if combat and not InCombatLockdown() then return end
+            ns.DisplayReminder(r)
+        end)
     end
 end
 
@@ -2816,6 +2823,26 @@ local function CheckCustomReminders(kind, spellID)
                 hit = customCounters[uid] >= trig.counter
             end
             if hit then ActivateCustomReminder(r) end
+        end
+    end
+end
+
+-- Time In Combat is the one trigger that is not boss-scoped: it counts from entering
+-- combat, so it has to work on trash and in the open world, where there is no encounter
+-- at all. Those reminders live in PerBossSet's own `enc or 0` bucket, which nothing else
+-- writes -- every other reader nil-guards currentEncounter before it can reach key "0".
+-- Read live rather than through hasCustomReminders: that flag is cached at
+-- ENCOUNTER_START and so is false for exactly the fights this trigger exists for. An ns
+-- function, not a chunk local -- this chunk is at the 200-local ceiling.
+function ns.CheckCombatReminders()
+    ns.CancelTrackedReminderTimers("combat")
+    if not CustomRemindersAllowed() then return end
+    local set = CustomRemindersTable(false, 0)
+    if not set then return end
+    for _, r in pairs(set) do
+        local trig = r.trigger
+        if r.enabled ~= false and trig and trig.type == "combat" then
+            ActivateCustomReminder(r, "combat")
         end
     end
 end
@@ -5628,6 +5655,10 @@ watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
 watcher:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 watcher:RegisterEvent("SPELLS_CHANGED")
 watcher:RegisterEvent("TRAIT_CONFIG_UPDATED")
+-- Not in UpdateEventRegistration with the others: everything it toggles sits under
+-- ShouldRun(), and a Time In Combat reminder has to fire for a player with no defensive
+-- priority list at all (CustomRemindersAllowed is the gate instead).
+watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     -- FIRST in the chain, and gated before the pcall: this is by far the most frequent
@@ -5688,7 +5719,10 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         bwActiveMod = nil
         currentStage = nil
         currentStageAt = nil
-        ns.CancelTrackedReminderTimers()
+        -- By scope, not everything: a combat trigger counts from entering combat, and
+        -- pulling a boss out of the trash in front of it does not restart that clock.
+        ns.CancelTrackedReminderTimers("pull")
+        ns.CancelTrackedReminderTimers("stage")
         for k, handle in pairs(bwPendingTimers) do
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
@@ -5748,10 +5782,18 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         return
     end
 
+    if event == "PLAYER_REGEN_DISABLED" then
+        ns.CheckCombatReminders()
+        return
+    end
+
     if event == "PLAYER_REGEN_ENABLED" or event == "SPELL_UPDATE_COOLDOWN" then
         ResyncModel()
-        -- A combat log toggle skipped because of combat lockdown lands here.
-        if event == "PLAYER_REGEN_ENABLED" then UpdateEventRegistration() end
+        if event == "PLAYER_REGEN_ENABLED" then
+            ns.CancelTrackedReminderTimers("combat")
+            -- A combat log toggle skipped because of combat lockdown lands here.
+            UpdateEventRegistration()
+        end
         return
     end
 

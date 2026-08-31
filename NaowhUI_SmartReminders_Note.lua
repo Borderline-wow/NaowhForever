@@ -31,7 +31,9 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
     hint:SetWordWrap(true)
     hint:SetText("Every reminder for the selected boss in one place. Phase Start "
         .. "triggers need BigWigs or DBM and only fire on bosses whose module "
-        .. "announces phases.")
+        .. "announces phases. Any Combat, at the end of the Instance list, is for "
+        .. "reminders that count from entering combat instead of from a boss, so they "
+        .. "work on trash and out in the world too.")
     y = y - 36
 
     local data = ns.ScrapeBosses and ns.ScrapeBosses()
@@ -46,6 +48,11 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
     -- saved data (an old season's boss with reminders still stored).
     local instList = {}
     for i = 1, #data.instances do instList[#instList + 1] = data.instances[i] end
+    -- Not a journal instance: encounter 0 is the boss-less bucket a Time In Combat
+    -- reminder lives in (ns.CheckCombatReminders reads it on entering combat). Appended
+    -- rather than put first so the tab still opens on a real instance.
+    instList[#instList + 1] = { id = "anyCombat", name = "Any Combat (no boss)",
+        bosses = { { name = "Any Combat", encounterID = 0 } } }
     do
         local known = {}
         for _, inst in ipairs(instList) do

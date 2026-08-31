@@ -1110,8 +1110,17 @@ end
 --  Custom reminder editor: name, message, trigger, linger
 -------------------------------------------------------------------------------
 local TRIGGER_CHOICES = { pull = "Boss Pull", bwmsg = "BigWigs/DBM Message",
-    bwtimer = "BigWigs/DBM Timer", aura = "Aura Applied" }
+    bwtimer = "BigWigs/DBM Timer", aura = "Aura Applied", combat = "Time In Combat" }
 local TRIGGER_ORDER = { "pull", "bwmsg", "bwtimer", "aura" }
+-- Time In Combat is the only trigger offered for the boss-less bucket, and the only one
+-- withheld from a boss: the other four all need an encounter underway, and on a boss it
+-- would land within a second of Boss Pull while racing ENCOUNTER_START for the clock.
+local COMBAT_TRIGGER_ORDER = { "combat" }
+
+local IN_COMBAT_TIP = "Seconds after you enter combat. Blank fires the moment combat "
+    .. "starts; minute format works too (1:30.5 = 90.5 seconds). Separate several with a "
+    .. "comma to fire more than once. The clock runs from the first thing you pull, so a "
+    .. "boss engaged out of the trash in front of it does not restart it."
 
 local SHOW_IN_TIP = "Blank fires immediately. A number is seconds; minute format works "
     .. "too (1:30.5 = 90.5 seconds). Separate several with a comma to fire more than once."
@@ -1168,9 +1177,13 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText(uid and "Edit Reminder" or "New Reminder")
 
+    -- encounterID 0 is the boss-less bucket the Custom Reminders tab's "Any Combat" entry
+    -- writes to (ns.CheckCombatReminders reads it on entering combat).
+    local anyCombat = (encounterID == 0)
+
     local set = ns.CustomRemindersTable(false, encounterID)
     local existing = (set and uid) and set[uid] or nil
-    local trig = (existing and existing.trigger) or { type = "pull" }
+    local trig = (existing and existing.trigger) or { type = anyCombat and "combat" or "pull" }
 
     local PAD = 20
 
@@ -1402,7 +1415,8 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     -- spell id across into a BigWigs/DBM Message trigger as the closest equivalent, so
     -- re-editing it is a starting point rather than a dead end.
     local trigVal
-    if trig.type == "bwtimer" then trigVal = "bwtimer"
+    if anyCombat then trigVal = "combat"
+    elseif trig.type == "bwtimer" then trigVal = "bwtimer"
     elseif trig.type == "aura" then trigVal = "aura"
     elseif trig.type == "bwmsg" or trig.type == "spell" then trigVal = "bwmsg"
     else trigVal = "pull" end
@@ -1445,7 +1459,8 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
     local triggerRowH
     triggerRow, triggerRowH = W:DualRow(triggerBody, 0,
         { type = "dropdown", text = "Trigger",
-          values = TRIGGER_CHOICES, order = TRIGGER_ORDER,
+          values = TRIGGER_CHOICES,
+          order = anyCombat and COMBAT_TRIGGER_ORDER or TRIGGER_ORDER,
           tooltip = "What starts this reminder.",
           getValue = function() return trigVal end,
           setValue = function(v)
@@ -1590,7 +1605,11 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
             return box
         end
 
-        if trigVal == "pull" then
+        if trigVal == "combat" then
+            DLabel("Seconds In Combat", IN_COMBAT_TIP)
+            delayBox = DBox(60)
+            delayBox:SetText(delayText)
+        elseif trigVal == "pull" then
             DLabel("Show in", SHOW_IN_TIP)
             delayBox = DBox(60)
             delayBox:SetText(delayText)
@@ -1675,8 +1694,8 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI)
 
     local function BuildTrigger()
         SaveDynFieldsToText()
-        if trigVal == "pull" then
-            return { type = "pull", delay = (delayText ~= "" and delayText) or nil }
+        if trigVal == "pull" or trigVal == "combat" then
+            return { type = trigVal, delay = (delayText ~= "" and delayText) or nil }
         end
         local sid = tonumber(spellIDText)
         if not sid then return nil end
@@ -2834,6 +2853,15 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         local nestedDimmer = ns.ShowCustomReminderEditor(encounterID, uid, EUI)
         if nestedDimmer then nestedDimmer:HookScript("OnHide", onChanged) end
     end
+    local function EditCombatReminder(uid)
+        local nestedDimmer = ns.ShowCustomReminderEditor(0, uid, EUI)
+        if nestedDimmer then nestedDimmer:HookScript("OnHide", onChanged) end
+    end
+
+    -- The boss-less bucket the Custom Reminders tab's "Any Combat" entry writes to. Only
+    -- the custom list applies there: observed timings come from encounter events, and a
+    -- raid reminder reads currentEncounter, so neither has anything to say without a boss.
+    local anyCombat = (encounterID == 0)
 
     local y = startY or 0
 
@@ -2848,10 +2876,10 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         y = y - 20
     end
 
-    local function NoneRow()
+    local function NoneRow(text)
         local lbl = ns.Font(content, 11, nil, ns.THEME.muted)
         lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        lbl:SetText("None yet for this boss.")
+        lbl:SetText(text or (anyCombat and "None yet." or "None yet for this boss."))
         y = y - 20
     end
 
@@ -2884,142 +2912,144 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         y = y - 26
     end
 
-    -- What this boss actually did, from the player's own pulls. Rendered above the
-    -- reminder lists because it is the raw material they are built from: pick a time here
-    -- and the editor opens already pointed at it.
-    local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(encounterID) or {}
-    Header("OBSERVED TIMINGS")
-    if #diffs > 0 then
-        local pick = observedDiffPick[encounterID]
-        local chosen
-        for _, d in ipairs(diffs) do
-            if d.key == pick then chosen = d break end
-        end
-        chosen = chosen or diffs[1]
-        local block = ns.ObservedFor(encounterID, tonumber(chosen.key))
-
-        if #diffs > 1 then
-            -- Only when there is a choice to make: the same boss on two difficulties casts
-            -- on genuinely different schedules and the two must never be read as one.
-            local dvalues, dorder = {}, {}
+    if not anyCombat then
+        -- What this boss actually did, from the player's own pulls. Rendered above the
+        -- reminder lists because it is the raw material they are built from: pick a time here
+        -- and the editor opens already pointed at it.
+        local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(encounterID) or {}
+        Header("OBSERVED TIMINGS")
+        if #diffs > 0 then
+            local pick = observedDiffPick[encounterID]
+            local chosen
             for _, d in ipairs(diffs) do
-                local dn = GetDifficultyInfo and GetDifficultyInfo(tonumber(d.key))
-                dvalues[d.key] = ("%s (%d pulls)"):format(tostring(dn or d.key), d.pulls or 0)
-                dorder[#dorder + 1] = d.key
+                if d.key == pick then chosen = d break end
             end
-            local ddBtn = EUI.BuildDropdownControl(content, 220, content:GetFrameLevel() + 4,
-                dvalues, dorder,
-                function() return chosen.key end,
-                function(v) observedDiffPick[encounterID] = v; onChanged() end)
-            ddBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-            y = y - 30
+            chosen = chosen or diffs[1]
+            local block = ns.ObservedFor(encounterID, tonumber(chosen.key))
+
+            if #diffs > 1 then
+                -- Only when there is a choice to make: the same boss on two difficulties casts
+                -- on genuinely different schedules and the two must never be read as one.
+                local dvalues, dorder = {}, {}
+                for _, d in ipairs(diffs) do
+                    local dn = GetDifficultyInfo and GetDifficultyInfo(tonumber(d.key))
+                    dvalues[d.key] = ("%s (%d pulls)"):format(tostring(dn or d.key), d.pulls or 0)
+                    dorder[#dorder + 1] = d.key
+                end
+                local ddBtn = EUI.BuildDropdownControl(content, 220, content:GetFrameLevel() + 4,
+                    dvalues, dorder,
+                    function() return chosen.key end,
+                    function(v) observedDiffPick[encounterID] = v; onChanged() end)
+                ddBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+                y = y - 30
+            end
+
+            local rows = {}
+            for sid, list in pairs(block and block.casts or {}) do
+                rows[#rows + 1] = { sid = sid, list = list }
+            end
+            table.sort(rows, function(a, b)
+                local at = a.list[1] and a.list[1].t or 0
+                local bt = b.list[1] and b.list[1].t or 0
+                return at < bt
+            end)
+
+            if #rows == 0 then
+                NoneRow()
+            else
+                for i = 1, #rows do
+                    ObservedRow(content, rows[i].sid, rows[i].list, encounterID, isRaid, EUI,
+                        onChanged, y)
+                    y = y - 26
+                end
+            end
+
+            local cover = ns.Font(content, 10, nil, ns.THEME.muted)
+            cover:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+            cover:SetText(("from %d pull(s), longest %d:%02d -- click a time to build a "
+                .. "reminder from it"):format(block and block.pulls or 0,
+                math.floor((block and block.longest or 0) / 60), (block and block.longest or 0) % 60))
+            y = y - 22
+        else
+            -- Says which of the two reasons it is. They need different actions from the
+            -- player, and neither is guessable from an empty list.
+            local src = ns.BossSource and ns.BossSource() or "timeline"
+            local why = ns.Font(content, 11, nil, ns.THEME.muted)
+            why:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+            why:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+            why:SetJustifyH("LEFT")
+            why:SetWordWrap(true)
+            if src ~= "bigwigs" and src ~= "dbm" then
+                -- Boss Addon only lands on Timeline now by an explicit pick or with no boss
+                -- mod installed at all, and those need different things from the player.
+                if not (_G.BigWigsLoader or _G.DBM) then
+                    why:SetText("Recording rides BigWigs or DBM broadcasts and neither is "
+                        .. "installed. With one of them running, every boss you pull records "
+                        .. "itself here -- there is nothing to switch on.")
+                else
+                    why:SetText("Boss Addon is set to Blizzard Timeline, which keeps ability "
+                        .. "identity secret, so there is nothing to record from. Switch it to "
+                        .. "BigWigs or DBM on the Setup tab.")
+                end
+            else
+                why:SetText(("Nothing recorded for this boss yet. Pull it with %s running and "
+                    .. "its timings appear here once the fight ends. It has to be a real boss "
+                    .. "encounter -- trash fires no encounter events, so it records nothing.")
+                    :format(src == "dbm" and "DBM" or "BigWigs"))
+            end
+            why:SetHeight(math.max(16, why:GetStringHeight() + 4))
+            y = y - why:GetHeight() - 10
         end
 
-        local rows = {}
-        for sid, list in pairs(block and block.casts or {}) do
-            rows[#rows + 1] = { sid = sid, list = list }
+        Header((isRaid and "RAID" or "DUNGEON") .. " REMINDERS")
+        local rrSet = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
+        local rrList = {}
+        if rrSet then
+            for uid, r in pairs(rrSet) do
+                if not r.abilitySpellID then rrList[#rrList + 1] = { uid = uid, r = r } end
+            end
+            table.sort(rrList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
         end
-        table.sort(rows, function(a, b)
-            local at = a.list[1] and a.list[1].t or 0
-            local bt = b.list[1] and b.list[1].t or 0
-            return at < bt
-        end)
-
-        if #rows == 0 then
+        if #rrList == 0 then
             NoneRow()
         else
-            for i = 1, #rows do
-                ObservedRow(content, rows[i].sid, rows[i].list, encounterID, isRaid, EUI,
-                    onChanged, y)
-                y = y - 26
+            for i = 1, #rrList do
+                local uid, r = rrList[i].uid, rrList[i].r
+                local rowName = r.name or "Reminder"
+                local desc = RaidReminderTargetDesc(r.target)
+                local trig = r.trigger
+                if trig and trig.type == "pull" and trig.delay then
+                    desc = ("+%gs  %s"):format(trig.delay, desc)
+                elseif trig and trig.type == "stage" and trig.delay then
+                    desc = ("P%d +%gs  %s"):format(trig.stage or 0, trig.delay, desc)
+                end
+                ReminderRow(rowName, desc,
+                    function() return r.enabled ~= false end,
+                    function(v) r.enabled = v end,
+                    function() EditRaidReminder(uid) end,
+                    function()
+                        local writeSet = ns.RaidRemindersTable(false, encounterID)
+                        if writeSet then writeSet[uid] = nil end
+                        onChanged()
+                    end)
             end
         end
+        y = y - 6
 
-        local cover = ns.Font(content, 10, nil, ns.THEME.muted)
-        cover:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        cover:SetText(("from %d pull(s), longest %d:%02d -- click a time to build a "
-            .. "reminder from it"):format(block and block.pulls or 0,
-            math.floor((block and block.longest or 0) / 60), (block and block.longest or 0) % 60))
-        y = y - 22
-    else
-        -- Says which of the two reasons it is. They need different actions from the
-        -- player, and neither is guessable from an empty list.
-        local src = ns.BossSource and ns.BossSource() or "timeline"
-        local why = ns.Font(content, 11, nil, ns.THEME.muted)
-        why:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-        why:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-        why:SetJustifyH("LEFT")
-        why:SetWordWrap(true)
-        if src ~= "bigwigs" and src ~= "dbm" then
-            -- Boss Addon only lands on Timeline now by an explicit pick or with no boss
-            -- mod installed at all, and those need different things from the player.
-            if not (_G.BigWigsLoader or _G.DBM) then
-                why:SetText("Recording rides BigWigs or DBM broadcasts and neither is "
-                    .. "installed. With one of them running, every boss you pull records "
-                    .. "itself here -- there is nothing to switch on.")
-            else
-                why:SetText("Boss Addon is set to Blizzard Timeline, which keeps ability "
-                    .. "identity secret, so there is nothing to record from. Switch it to "
-                    .. "BigWigs or DBM on the Setup tab.")
-            end
-        else
-            why:SetText(("Nothing recorded for this boss yet. Pull it with %s running and "
-                .. "its timings appear here once the fight ends. It has to be a real boss "
-                .. "encounter -- trash fires no encounter events, so it records nothing.")
-                :format(src == "dbm" and "DBM" or "BigWigs"))
-        end
-        why:SetHeight(math.max(16, why:GetStringHeight() + 4))
-        y = y - why:GetHeight() - 10
+        local addRRBtn = ns.Button(content,
+            isRaid and "+ Add a Raid Reminder" or "+ Add a Dungeon Reminder", 190, 26, function()
+                -- A thrown error here would otherwise be indistinguishable from a dead
+                -- button -- WoW hides script errors by default, so an uncaught throw looks
+                -- exactly like nothing happening at all.
+                local okClick, clickErr = pcall(EditRaidReminder, nil)
+                if not okClick then
+                    ns.Print("|cffff6060could not open the raid reminder editor|r: "
+                        .. tostring(clickErr))
+                end
+            end)
+        addRRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        y = y - 34
     end
-
-    Header((isRaid and "RAID" or "DUNGEON") .. " REMINDERS")
-    local rrSet = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
-    local rrList = {}
-    if rrSet then
-        for uid, r in pairs(rrSet) do
-            if not r.abilitySpellID then rrList[#rrList + 1] = { uid = uid, r = r } end
-        end
-        table.sort(rrList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
-    end
-    if #rrList == 0 then
-        NoneRow()
-    else
-        for i = 1, #rrList do
-            local uid, r = rrList[i].uid, rrList[i].r
-            local rowName = r.name or "Reminder"
-            local desc = RaidReminderTargetDesc(r.target)
-            local trig = r.trigger
-            if trig and trig.type == "pull" and trig.delay then
-                desc = ("+%gs  %s"):format(trig.delay, desc)
-            elseif trig and trig.type == "stage" and trig.delay then
-                desc = ("P%d +%gs  %s"):format(trig.stage or 0, trig.delay, desc)
-            end
-            ReminderRow(rowName, desc,
-                function() return r.enabled ~= false end,
-                function(v) r.enabled = v end,
-                function() EditRaidReminder(uid) end,
-                function()
-                    local writeSet = ns.RaidRemindersTable(false, encounterID)
-                    if writeSet then writeSet[uid] = nil end
-                    onChanged()
-                end)
-        end
-    end
-    y = y - 6
-
-    local addRRBtn = ns.Button(content,
-        isRaid and "+ Add a Raid Reminder" or "+ Add a Dungeon Reminder", 190, 26, function()
-            -- A thrown error here would otherwise be indistinguishable from a dead
-            -- button -- WoW hides script errors by default, so an uncaught throw looks
-            -- exactly like nothing happening at all.
-            local okClick, clickErr = pcall(EditRaidReminder, nil)
-            if not okClick then
-                ns.Print("|cffff6060could not open the raid reminder editor|r: "
-                    .. tostring(clickErr))
-            end
-        end)
-    addRRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-    y = y - 34
 
     -- Excludes "spell"-triggered entries -- those are the per-ability picker's own
     -- Custom Reminder mode (ShowAbilityReminderPicker), already editable from that
@@ -3046,6 +3076,9 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
             local trigDesc = "?"
             if trig and trig.type == "pull" then
                 trigDesc = "Pull"
+            elseif trig and trig.type == "combat" then
+                trigDesc = trig.delay and ("In Combat +" .. tostring(trig.delay) .. "s")
+                    or "In Combat"
             elseif trig and (trig.type == "bwmsg" or trig.type == "bwtimer") then
                 local info = C_Spell and C_Spell.GetSpellInfo
                     and C_Spell.GetSpellInfo(trig.spellID)
@@ -3072,11 +3105,65 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
     end
     y = y - 6
 
-    local addCRBtn = ns.Button(content, "+ Add a Custom Reminder", 190, 26, function()
-        EditCustomReminder(nil)
-    end)
+    local addCRBtn = ns.Button(content,
+        anyCombat and "+ Add a Time In Combat Trigger" or "+ Add a Custom Reminder",
+        anyCombat and 230 or 190, 26, function()
+            EditCustomReminder(nil)
+        end)
     addCRBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
     y = y - 34
+
+    -- The encounter-0 bucket, listed under every boss as well as under its own Any Combat
+    -- entry: a combat clock is not boss-scoped, but the boss page is where a tank looks
+    -- for everything that can call out during the fight, so hiding it there loses it.
+    if not anyCombat then
+        Header("TIME IN COMBAT")
+        local note = ns.Font(content, 11, nil, ns.THEME.muted)
+        note:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        note:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        note:SetJustifyH("LEFT")
+        note:SetWordWrap(true)
+        note:SetText("Counted from entering combat rather than from the pull, so these are "
+            .. "not tied to this boss -- the same list shows under every one of them, and "
+            .. "on trash and out in the world.")
+        note:SetHeight(math.max(16, note:GetStringHeight() + 4))
+        y = y - note:GetHeight() - 8
+
+        local tcSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, 0)
+        local tcList = {}
+        if tcSet then
+            for uid, r in pairs(tcSet) do
+                if r.trigger and r.trigger.type == "combat" then
+                    tcList[#tcList + 1] = { uid = uid, r = r }
+                end
+            end
+            table.sort(tcList, function(a, b) return (a.r.name or "") < (b.r.name or "") end)
+        end
+        if #tcList == 0 then
+            NoneRow("None yet.")
+        else
+            for i = 1, #tcList do
+                local uid, r = tcList[i].uid, tcList[i].r
+                local delay = r.trigger.delay
+                ReminderRow(r.name or "Reminder",
+                    delay and ("In Combat +" .. tostring(delay) .. "s") or "In Combat",
+                    function() return r.enabled ~= false end,
+                    function(v) r.enabled = v end,
+                    function() EditCombatReminder(uid) end,
+                    function()
+                        local writeSet = ns.CustomRemindersTable(false, 0)
+                        if writeSet then writeSet[uid] = nil end
+                        onChanged()
+                    end)
+            end
+        end
+        y = y - 6
+
+        local addTCBtn = ns.Button(content, "+ Add a Time In Combat Trigger", 230, 26,
+            function() EditCombatReminder(nil) end)
+        addTCBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        y = y - 34
+    end
 
     return y
 end
