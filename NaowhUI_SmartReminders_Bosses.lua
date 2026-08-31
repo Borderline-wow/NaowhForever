@@ -2994,7 +2994,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
                 else
                     why:SetText("Boss Addon is set to Blizzard Timeline, which keeps ability "
                         .. "identity secret, so there is nothing to record from. Switch it to "
-                        .. "BigWigs or DBM on the Setup tab.")
+                        .. "BigWigs or DBM on the Smart Reminders Setup tab.")
                 end
             else
                 why:SetText(("Nothing recorded for this boss yet. Pull it with %s running and "

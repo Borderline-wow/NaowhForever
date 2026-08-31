@@ -3812,7 +3812,8 @@ function ns.WarnIfNoBossMod()
     if (source == "bigwigs" and _G.BigWigsLoader) or (source == "dbm" and _G.DBM) then return end
     warnedNoBossMod = true
     ns.Print(("|cffff6060Boss Addon is set to %s, but it is not loaded|r -- callouts have "
-        .. "nothing to listen to. Install it, or switch Boss Addon on the Setup page."):format(
+        .. "nothing to listen to. Install it, or switch Boss Addon on the Smart "
+        .. "Reminders Setup tab."):format(
         source == "bigwigs" and "BigWigs" or "DBM"))
 end
 
@@ -4442,7 +4443,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Bare command opens the options; the diagnostic dump that used to live here moved
     -- under "status" when the addon got its own window.
     if arg == "" and ns.ToggleOptionsWindow then
-        ns.ToggleOptionsWindow("Addon Setup")
+        ns.ToggleOptionsWindow("Smart Reminders Setup")
         return
     end
     if arg ~= "status" then

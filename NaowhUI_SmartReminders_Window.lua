@@ -13,7 +13,8 @@ local UI = ns.UI
 local WINDOW_W, WINDOW_H = 1000, 640
 local TITLE_H, TAB_H = 28, 30
 
-local PAGES = { "Addon Setup", "Defensive Presets", "Dungeon Bosses", "Raid Bosses", "Custom Reminders" }
+local PAGES = { "Smart Reminders Setup", "Defensive Presets", "Dungeon Bosses",
+    "Raid Bosses", "Custom Reminders" }
 
 local window, scrollFrame, scrollChild
 local tabButtons = {}
@@ -145,7 +146,7 @@ local function CreateWindow()
     local tx = 10
     for _, name in ipairs(PAGES) do
         local btn = CreateFrame("Button", nil, window)
-        btn:SetSize(130, TAB_H)
+        btn:SetSize(150, TAB_H)
         btn:SetPoint("TOPLEFT", window, "TOPLEFT", tx, -TITLE_H)
         btn.label = ns.Font(btn, 12, nil, T.muted)
         btn.label:SetPoint("CENTER")
@@ -157,7 +158,7 @@ local function CreateWindow()
         btn.marker:Hide()
         btn:SetScript("OnClick", function() ShowPage(name) end)
         tabButtons[name] = btn
-        tx = tx + 134
+        tx = tx + 154
     end
     local tabLine = ns.Solid(window, "ARTWORK", T.line, 1)
     tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -(TITLE_H + TAB_H))
