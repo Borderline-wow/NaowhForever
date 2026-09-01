@@ -47,8 +47,11 @@ local DEFAULTS = {
     aggroOnly  = false,
     coveredSkip = false,
     leadTime   = 3,     -- seconds before impact that the alert fires
+    lingerSec  = 5,     -- how long the icon stays up when the cast is never pressed
+    cdmGlow    = false, -- glow the called defensive on the Cooldown Manager bar
     voiceOn   = false,
     voiceNone = "Call for external",
+    externalChat = false,
     voiceVol  = 100,
     iconSize  = 64,
     -- 21 matches what the OLD derived formula (floor(iconSize * 0.34), floored at 12)
@@ -2106,6 +2109,43 @@ end
 -- The whole list is checked first and the walk is abandoned unless EVERY entry is readable.
 -- A partial read would silently skip the sealed entries and name a lower-priority defensive
 -- as though the better one were down, which is worse than saying nothing.
+-- Which voice both spoken paths use. The addon's own pick wins; "Game Default" stores no id
+-- and follows whatever the player chose in Blizzard's Text to Speech panel. A stored id for
+-- a voice that is no longer installed falls back rather than going silent, which is what
+-- would otherwise happen after a Windows voice pack is removed.
+function ns.TTSVoiceID()
+    if not (C_VoiceChat and C_VoiceChat.GetTtsVoices) then return 0 end
+    local voices = C_VoiceChat.GetTtsVoices()
+    local want = TRDB().ttsVoiceID
+    if want and voices then
+        for i = 1, #voices do
+            if voices[i].voiceID == want then return want end
+        end
+    end
+    if TextToSpeech_GetSelectedVoice then
+        local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
+        if ok and voice and voice.voiceID then return voice.voiceID end
+    end
+    return (voices and voices[1] and voices[1].voiceID) or 0
+end
+
+-- Voice list for the options dropdown: values keyed by voiceID, plus a Game Default entry
+-- keyed "" since a dropdown cannot carry nil as a value.
+function ns.TTSVoiceChoices()
+    local values, order = { [""] = "Game Default" }, { "" }
+    if C_VoiceChat and C_VoiceChat.GetTtsVoices then
+        local voices = C_VoiceChat.GetTtsVoices()
+        for i = 1, #(voices or {}) do
+            local v = voices[i]
+            if v and v.voiceID and v.name then
+                values[v.voiceID] = v.name
+                order[#order + 1] = v.voiceID
+            end
+        end
+    end
+    return values, order
+end
+
 local function Speak(text)
     if not (C_VoiceChat and C_VoiceChat.SpeakText) or not text or text == "" then return end
     -- The generated docs give (voiceID, text, rate, volume, overlap), but EllesmereUI carries
@@ -2113,11 +2153,42 @@ local function Speak(text)
     -- be 1. Passing 1 satisfies both readings -- it is a valid rate and the required
     -- destination -- so this matches their proven call rather than the docs alone.
     -- Only `text` may carry a secret; every other argument is NeverSecret, and ours are plain.
-    pcall(C_VoiceChat.SpeakText, 0, text, 1, TRDB().voiceVol or 100, true)
+    pcall(C_VoiceChat.SpeakText, ns.TTSVoiceID(), text, 1, TRDB().voiceVol or 100, true)
 end
 
 -- The single place a callout becomes audible, so the sound-or-speech choice is made once
 -- rather than at each of the call sites below.
+-- When the priority list has nothing of your own left to press, say so in chat so whoever
+-- is watching for it can react. Group channels only: an external call means nothing solo,
+-- and SAY would carry it to strangers out in the world.
+--
+-- The timestamp lives in this block rather than as a file local -- the main chunk is close
+-- enough to Lua's 200-local ceiling that one more stops the addon compiling. It survives as
+-- an upvalue, and the slot is released when the block ends.
+do
+    local lastAt = 0
+    function ns.AnnounceExternalToChat()
+        if not TRDB().externalChat then return end
+        local now = GetTime()
+        -- Several telegraphs landing together are still one call for help.
+        if now - lastAt < 3 then return end
+        local channel
+        if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then channel = "INSTANCE_CHAT"
+        elseif IsInRaid() then channel = "RAID"
+        elseif IsInGroup() then channel = "PARTY" end
+        if not channel then return end
+        lastAt = now
+        -- C_ChatInfo, not the bare SendChatMessage: that global now only exists as a
+        -- deprecation shim behind the loadDeprecationFallbacks CVar, so on a client with it
+        -- off the call is nil and this would quietly do nothing forever.
+        if C_ChatInfo and C_ChatInfo.SendChatMessage then
+            pcall(C_ChatInfo.SendChatMessage, "EXTERNAL!", channel)
+        elseif SendChatMessage then
+            pcall(SendChatMessage, "EXTERNAL!", channel)
+        end
+    end
+end
+
 local function Announce(spellID, text)
     local key = ns.SoundFor(spellID)
     if key then
@@ -2250,6 +2321,9 @@ local function SpeakCallout(triggerSid)
     end
 
     if picked then
+        -- Outside the audio gate below: a muted entry still wins the pick and still shows,
+        -- so it should still light up its Cooldown Manager button.
+        ns.StartCDMGlow(picked)
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
         if not ns.IsAudioOff(picked) then
@@ -2267,7 +2341,11 @@ local function SpeakCallout(triggerSid)
         return
     end
 
-    if t.fallbackOn ~= false and not ns.IsAudioOff(0) then Announce(0, t.voiceNone) end
+    if t.fallbackOn ~= false then
+        if not ns.IsAudioOff(0) then Announce(0, t.voiceNone) end
+        -- Outside the audio gate: silencing the callout should not silence the chat call.
+        ns.AnnounceExternalToChat()
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -2326,9 +2404,77 @@ local shownForEvent
 -- state further down: the reads above that point compiled to a nil global.
 local previewing = false
 
+-- Glowing the Cooldown Manager button for the defensive being called, so the answer lands
+-- on the bar the player is already watching and not only on this addon's own icon.
+--
+-- GetSpellID can come back secret in restricted content and comparing a secret raises, so
+-- every read is pcall'd and screened with issecretvalue before it reaches a comparison.
+function ns.CDMButtonForSpell(spellID)
+    if not spellID then return nil end
+    local viewers = { "EssentialCooldownViewer", "UtilityCooldownViewer",
+                      "BuffIconCooldownViewer", "BuffBarCooldownViewer" }
+    for i = 1, #viewers do
+        local viewer = _G[viewers[i]]
+        if viewer and viewer.GetItemFrames then
+            local ok, items = pcall(viewer.GetItemFrames, viewer)
+            if ok and type(items) == "table" then
+                for j = 1, #items do
+                    local item = items[j]
+                    if item and item.GetSpellID then
+                        local ok2, sid = pcall(item.GetSpellID, item)
+                        if ok2 and not (issecretvalue and issecretvalue(sid))
+                            and type(sid) == "number" and sid == spellID then
+                            return item
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- The glow rides our own frame anchored over the button, never a texture parented onto
+-- Blizzard's. CooldownViewerSecure keeps tables that refuse tainted access, and adding
+-- children or scripts to those frames is the kind of thing that turns a cosmetic feature
+-- into a combat bug. SetAllPoints only reads their geometry; it changes nothing of theirs.
+do
+    local glowing
+    local GLOW_COLOR = { 1, 0.82, 0, 1 }
+
+    function ns.StopCDMGlow()
+        if not glowing then return end
+        local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
+        if LCG then pcall(LCG.PixelGlow_Stop, glowing) end
+        glowing:Hide()
+        glowing = nil
+    end
+
+    function ns.StartCDMGlow(spellID)
+        if not TRDB().cdmGlow then return end
+        ns.StopCDMGlow()
+        local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
+        if not LCG then return end
+        local btn = ns.CDMButtonForSpell(spellID)
+        if not btn then return end
+        local anchor = ns.cdmGlowFrame
+        if not anchor then
+            anchor = CreateFrame("Frame", nil, UIParent)
+            anchor:SetFrameStrata("HIGH")
+            ns.cdmGlowFrame = anchor
+        end
+        anchor:ClearAllPoints()
+        anchor:SetAllPoints(btn)
+        anchor:Show()
+        glowing = anchor
+        LCG.PixelGlow_Start(anchor, GLOW_COLOR)
+    end
+end
+
 local function HideReminder()
     if hideTimer then hideTimer:Cancel(); hideTimer = nil end
     shownForEvent = nil
+    ns.StopCDMGlow()
     if frame then
         if frame.reminder then frame.reminder:Hide() end
         frame:Hide()
@@ -2336,6 +2482,17 @@ local function HideReminder()
     if textFrame then textFrame:Hide() end
     if bar then bar:Hide() end
 end
+
+-- Pressing the defensive the callout asked for answers it, so the icon goes now rather
+-- than sitting out the rest of its linger. Resolved through castToBase exactly as
+-- NoteOwnCast does, so the comparison is against a plain base id and never the raw event
+-- argument, which can be a secret in restricted content.
+function ns.HideIfCalloutPressed(castSpellID)
+    if not shownForEvent or not lastAnnouncedSpellID then return end
+    local sid = castSpellID and castToBase[castSpellID]
+    if sid and sid == lastAnnouncedSpellID then HideReminder() end
+end
+
 
 -- Previews one custom line exactly as a fight would deliver it: the text over the alert
 -- frame for a few seconds, and the voice saying it. Used by the Says row's Preview button.
@@ -2392,7 +2549,7 @@ function ns.ForceShowTest()
             .. "real boss.")
     end
     if hideTimer then hideTimer:Cancel() end
-    hideTimer = C_Timer.NewTimer(5, HideReminder)
+    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or 5, HideReminder)
 end
 
 -------------------------------------------------------------------------------
@@ -2660,15 +2817,7 @@ function ns.SpeakReminderTTS(r, overrideText)
     local text = overrideText or r.text
     if not (text and text ~= "") then return end
     if not (C_VoiceChat and C_VoiceChat.SpeakText and C_VoiceChat.GetTtsVoices) then return end
-    local voiceID
-    if TextToSpeech_GetSelectedVoice then
-        local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
-        voiceID = ok and voice and voice.voiceID
-    end
-    if not voiceID then
-        local voices = C_VoiceChat.GetTtsVoices()
-        voiceID = voices and voices[1] and voices[1].voiceID
-    end
+    local voiceID = ns.TTSVoiceID()
     if not voiceID then return end
     local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate and C_TTSSettings.GetSpeechRate()) or 0
     local volume = (C_TTSSettings and C_TTSSettings.GetSpeechVolume and C_TTSSettings.GetSpeechVolume()) or 100
@@ -3203,6 +3352,85 @@ end
 -- Barrage configured before its curated id moved to BigWigs' 1292036) with a fresh,
 -- empty table the moment the row is touched, orphaning the old preset/mode/enabled
 -- choice with no error and no warning. This migrates it onto the new key instead.
+-- Which other specs have ability bindings saved, with how many. Feeds the Copy From Spec
+-- picker: per-spec storage means a fresh spec starts empty, and rebuilding a whole boss
+-- list by hand on every alt is not a reasonable ask.
+function ns.SpecsWithBindings(encounterID)
+    local t = TRDB()
+    local all = type(t.abilityBindings) == "table" and t.abilityBindings or {}
+    local mine, out = tostring(specID), {}
+    local encKey = tostring(encounterID or 0)
+    for specKey, byEnc in pairs(all) do
+        if specKey ~= mine and type(byEnc) == "table" then
+            local total, here = 0, 0
+            for eKey, bySpell in pairs(byEnc) do
+                if type(bySpell) == "table" then
+                    for _ in pairs(bySpell) do
+                        total = total + 1
+                        if eKey == encKey then here = here + 1 end
+                    end
+                end
+            end
+            if total > 0 then
+                local id = tonumber(specKey)
+                local ok, _, name = pcall(GetSpecializationInfoByID, id)
+                out[#out + 1] = {
+                    key = specKey,
+                    name = (ok and name) or ("Spec " .. specKey),
+                    here = here,
+                    total = total,
+                }
+            end
+        end
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
+-- Copies another spec's bindings into this one. Additive: an ability this spec already has
+-- is left alone, so copying can never overwrite work already done here. encounterID limits
+-- it to one boss; nil takes everything.
+--
+-- Each binding is copied, never shared by reference -- two specs pointing at one table is
+-- the exact aliasing the per-spec split exists to end.
+function ns.CopyBindingsFromSpec(fromSpecKey, encounterID)
+    if specID == 0 then return 0, 0 end
+    local t = TRDB()
+    local all = type(t.abilityBindings) == "table" and t.abilityBindings or nil
+    local src = all and all[fromSpecKey]
+    if type(src) ~= "table" then return 0, 0 end
+
+    local mine = tostring(specID)
+    all[mine] = all[mine] or {}
+    local dst = all[mine]
+    local encKey = encounterID and tostring(encounterID) or nil
+    local copied, skipped = 0, 0
+
+    for eKey, bySpell in pairs(src) do
+        if (not encKey or eKey == encKey) and type(bySpell) == "table" then
+            dst[eKey] = dst[eKey] or {}
+            for sid, b in pairs(bySpell) do
+                if type(b) == "table" then
+                    if dst[eKey][sid] ~= nil then
+                        skipped = skipped + 1
+                    else
+                        local copy = {}
+                        for k, v in pairs(b) do copy[k] = v end
+                        if type(b.scope) == "table" then
+                            local sc = {}
+                            for k, v in pairs(b.scope) do sc[k] = v end
+                            copy.scope = sc
+                        end
+                        dst[eKey][sid] = copy
+                        copied = copied + 1
+                    end
+                end
+            end
+        end
+    end
+    return copied, skipped
+end
+
 function ns.EnsureBinding(enc, sid)
     local bindings = AbilityBindingsTable(true, enc)
     -- Storage is keyed by spec now, so there is nowhere to file a binding until the spec
@@ -3337,7 +3565,7 @@ local function FireBigWigsAbility(sid)
     SpeakCallout(sid)
     lastCalloutAt = GetTime()
     if hideTimer then hideTimer:Cancel() end
-    hideTimer = C_Timer.NewTimer(5, HideReminder)
+    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or 5, HideReminder)
 end
 
 -- Setup's per-ability Test button. Fires the ability through FireBigWigsAbility itself --
@@ -5317,6 +5545,30 @@ function ns.BuildBarsSettings(parent, y)
           end }
     ); y = y - h
 
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Glow It on the Cooldown Manager",
+          tooltip = "Also glows the called defensive on Blizzard's Cooldown Manager bar, so "
+          .. "the answer appears on the bar you are already watching. Needs the Cooldown "
+          .. "Manager turned on and that defensive placed on it.|n|n"
+          .. "|cffff6b5eOff by default:|r this reaches across to Blizzard's own frames, so it "
+          .. "is the first thing to switch off if anything misbehaves in combat.",
+          getValue = function() return TRDB().cdmGlow == true end,
+          setValue = function(v)
+              TRDB().cdmGlow = v and true or false
+              if not v then ns.StopCDMGlow() end
+          end },
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "How Long It Stays Up", min = 1, max = 15, step = 1,
+          tooltip = "How many seconds the callout stays on screen when the ability is never "
+          .. "pressed. Pressing the defensive it asked for clears it straight away whatever "
+          .. "this is set to.",
+          getValue = function() return TRDB().lingerSec or DEFAULTS.lingerSec end,
+          setValue = function(v) TRDB().lingerSec = v end }
+    ); y = y - h
+
     _, h = W:SectionHeader(parent, "SIZE AND LOCATION", y); y = y - h
 
     _, h = W:DualRow(parent, y,
@@ -5391,26 +5643,6 @@ function ns.BuildBarsSettings(parent, y)
         end
     end
 
-    -- The five reminder anchors are profile-wide, so they belong beside the other
-    -- placement controls. This used to render inside each boss's reminder sections,
-    -- which drew the same global button once per boss.
-    local anchorRow
-    anchorRow, h = W:DualRow(parent, y,
-        { type = "label", text = "" },
-        { type = "label", text = "" }
-    ); y = y - h
-
-    if anchorRow and anchorRow._leftRegion and ns.ShowRaidReminderAnchorConfig then
-        local btn = ns.Button(anchorRow._leftRegion, "Customize Anchors", 200, 26, function()
-            ns.ShowRaidReminderAnchorConfig()
-        end)
-        btn:SetPoint("LEFT", anchorRow._leftRegion, "LEFT", 8, 0)
-        ns.Tooltip(btn, "Customize Anchors",
-            "Place and size each reminder display -- Message, Timer, Icon, Bar and Circle. "
-            .. "This window steps aside while you are in there, and comes back when you "
-            .. "press Exit Config.")
-    end
-
     return y
 end
 
@@ -5448,12 +5680,22 @@ function ns.BuildSoundsSettings(parent, y)
           setValue = function(v) TRDB().voiceOn = v; EUI:RefreshPage(true) end }
     ); y = y - h
 
+    local voiceValues, voiceOrder = ns.TTSVoiceChoices()
     _, h = W:DualRow(parent, y,
         { type = "slider", text = "Voice Volume", min = 0, max = 100, step = 5,
           tooltip = "Volume of the spoken callouts.",
           getValue = function() return TRDB().voiceVol or 100 end,
           setValue = function(v) TRDB().voiceVol = v end },
-        { type = "label", text = "" }
+        { type = "dropdown", text = "Voice", width = 180,
+          values = voiceValues, order = voiceOrder,
+          tooltip = "Which text-to-speech voice speaks the callouts. Game Default follows "
+          .. "whatever is picked in the game's own Text to Speech options; anything else is "
+          .. "this addon's alone and does not change the game's setting. The list is the "
+          .. "voices your system has installed.",
+          getValue = function() return TRDB().ttsVoiceID or "" end,
+          setValue = function(v)
+              TRDB().ttsVoiceID = (v ~= "" and v) or nil
+          end }
     ); y = y - h
 
     if TRDB().soundOn then
@@ -5968,6 +6210,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "UNIT_SPELLCAST_SUCCEEDED" then
         NoteOwnCast(arg3)   -- (unit, castGUID, spellID); unit is always "player" here
+        ns.HideIfCalloutPressed(arg3)
         return
     end
 

@@ -21,7 +21,7 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
 
     local pageHead = ns.Font(parent, 14, nil, ns.THEME.accent)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
-    pageHead:SetText("CUSTOM REMINDERS")
+    pageHead:SetText("ABILITY REMINDERS")
     y = y - 24
 
     local hint = ns.Font(parent, 11, nil, ns.THEME.muted)
@@ -35,6 +35,21 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
         .. "reminders that count from entering combat instead of from a boss, so they "
         .. "work on trash and out in the world too.")
     y = y - 36
+
+    -- The five reminder anchors are profile-wide rather than per boss, so this sits above
+    -- the boss list and before the journal check -- it stays reachable even on the first
+    -- open, when the Dungeon Journal has not answered yet.
+    if ns.ShowRaidReminderAnchorConfig then
+        local anchorBtn = ns.Button(parent, "Customize Anchors", 200, 26, function()
+            ns.ShowRaidReminderAnchorConfig()
+        end)
+        anchorBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADX, y)
+        ns.Tooltip(anchorBtn, "Customize Anchors",
+            "Place and size each reminder display -- Message, Timer, Icon, Bar and Circle. "
+            .. "An alignment grid appears while you are in there. This window steps aside "
+            .. "and comes back when you press Exit Config.")
+        y = y - 36
+    end
 
     local data = ns.ScrapeBosses and ns.ScrapeBosses()
     if not (data and data.instances and #data.instances > 0) then

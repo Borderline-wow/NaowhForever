@@ -663,6 +663,20 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
           end }
     ); y = y - h
 
+    _, h = W:DualRow(panel, y,
+        { type = "toggle", text = "Announce in Chat",
+          tooltip = "Sends |cff0091edEXTERNAL!|r to party, raid or instance chat when nothing on "
+          .. "your list is up, so whoever is watching for it can react. Group chat only, and at "
+          .. "most once every three seconds however many telegraphs land together.",
+          disabled = function() return db.fallbackOn == false end,
+          disabledTooltip = "Switch the last step back on to use this.",
+          getValue = function() return db.externalChat == true end,
+          setValue = function(v)
+              if db.fallbackOn == false then return end
+              db.externalChat = v and true or false
+          end }
+    ); y = y - h
+
     editBtn = ns.Button(panel, "Edit Callout", 120, 26, function()
         ns.ShowCalloutEditor(("Audio callout for %s"):format(name),
             ns.CalloutFor(spellID, name), function(text)
@@ -689,7 +703,7 @@ end
 local function ShowFallbackSettingsPopup(EUI)
     local W = EUI.Widgets
     local db = ns.DB()
-    local dimmer, panel = ns.MakeModal(360, 130, "fallbackSettings")
+    local dimmer, panel = ns.MakeModal(360, 178, "fallbackSettings")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -2720,6 +2734,15 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         ns.ShowAbilityPicker(boss.encounterID, abilities, EUI)
     end)
     addBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+
+    local copyBtn = ns.Button(parent, "Copy From Spec", 130, 24, function()
+        ns.ShowCopyBindingsPopup(boss.encounterID, boss.name, EUI)
+    end)
+    copyBtn:SetPoint("LEFT", addBtn, "RIGHT", 8, 0)
+    ns.Tooltip(copyBtn, "Copy From Spec",
+        "Brings another spec's abilities for this boss over to this one. Abilities are saved "
+        .. "per spec, so a spec you have not set up yet starts empty. Anything already set up "
+        .. "here is left alone.")
     y = y - 30
 
     if #added == 0 then
@@ -2937,6 +2960,70 @@ end
 -- Two-way: the tick is whether the boss has the ability, so unticking one drops it along
 -- with the preset and warning time saved on it -- the same thing the boss page's own row
 -- tick does.
+-- Copy another spec's bindings for this boss into the current one. Per-spec storage means
+-- every alt starts empty; this is how a spec gets a working list without rebuilding it by
+-- hand. Additive only -- anything already set up here survives untouched.
+function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI)
+    local EUI = callerEUI or ns.UI
+    local specs = ns.SpecsWithBindings(encounterID)
+
+    local dimmer, panel = ns.MakeModal(420, 150 + math.max(1, #specs) * 30, "copyBindings")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Copy Abilities From")
+
+    local y = -46
+    if #specs == 0 then
+        local none = ns.Font(panel, 12, nil, ns.THEME.muted)
+        none:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+        none:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+        none:SetJustifyH("LEFT")
+        none:SetWordWrap(true)
+        none:SetText("No other spec has any abilities saved yet.")
+    else
+        local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+        hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+        hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+        hint:SetJustifyH("LEFT")
+        hint:SetWordWrap(true)
+        hint:SetText("Anything this spec already has is left alone.")
+        y = y - 26
+
+        local allBosses = false
+        local chk = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+        chk:SetSize(20, 20)
+        chk:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+        chk:SetScript("OnClick", function(self) allBosses = self:GetChecked() and true or false end)
+        local chkLbl = ns.Font(panel, 11, nil, ns.THEME.fg)
+        chkLbl:SetPoint("LEFT", chk, "RIGHT", 4, 0)
+        chkLbl:SetText("Every boss, not just " .. (bossName or "this one"))
+        y = y - 28
+
+        for i = 1, #specs do
+            local s = specs[i]
+            local btn = ns.Button(panel, s.name, 200, 24, function()
+                local copied, skipped = ns.CopyBindingsFromSpec(s.key, (not allBosses) and encounterID or nil)
+                ns.Print(("copied |cff0091ed%d|r abilities from %s%s.")
+                    :format(copied, s.name,
+                        skipped > 0 and (", left " .. skipped .. " already here alone") or ""))
+                ns.RefreshRuntime()
+                dimmer:Hide()
+                if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+            end)
+            btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+            local count = ns.Font(panel, 11, nil, ns.THEME.muted)
+            count:SetPoint("LEFT", btn, "RIGHT", 10, 0)
+            count:SetText(("%d here, %d total"):format(s.here, s.total))
+            y = y - 30
+        end
+    end
+
+    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    dimmer:Show()
+end
+
 function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
     local EUI = callerEUI or ns.UI
     local PANEL_W = 460
@@ -3132,7 +3219,7 @@ local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChang
     return row
 end
 
--- The boss-scoped reminder lists -- RAID/DUNGEON REMINDERS, CUSTOM REMINDERS, the
+-- The boss-scoped reminder lists -- RAID/DUNGEON REMINDERS, ABILITY REMINDERS, the
 -- anchors button and both Add buttons -- shared verbatim by the cog picker modal and
 -- the Custom Reminders tab, so the two surfaces cannot drift. Renders into `content`
 -- starting at startY (negative running offset) and returns the final y. opts.onChanged
@@ -3348,7 +3435,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
     -- ability's row; listing them here too would let this generic editor delete the
     -- reminder object while the ability's binding still says "custom", leaving that
     -- ability silently unable to fire either kind of callout.
-    Header("CUSTOM REMINDERS")
+    Header("ABILITY REMINDERS")
     local crSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, encounterID)
     local crList = {}
     if crSet then

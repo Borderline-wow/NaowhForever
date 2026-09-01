@@ -964,6 +964,109 @@ end
 -- gear button. Created once per anchor and reused; StartMoving/StopMovingOrSizing are
 -- called on the ANCHOR (the handle is just the visible grip), same idiom
 -- NaowhUI_SmartReminders.lua's own UpdatePreview already uses for the tank-buster frame.
+-- Shared by the drag and the snap grid, so both land in the same slot. The defensive alert
+-- keeps its own position field, which the preview drag in the main file also writes.
+local function SaveAnchorPos(displayType, point, relPoint, x, y)
+    if not point then return end
+    local db = ns.DB()
+    if displayType == "defensive" then
+        db.pos = { point = point, relPoint = relPoint, x = x, y = y }
+        if ns.ApplyDefensiveAlertPosition then ns.ApplyDefensiveAlertPosition() end
+    else
+        db.raidReminderAnchorPos = db.raidReminderAnchorPos or {}
+        db.raidReminderAnchorPos[displayType] = { point = point, relPoint = relPoint, x = x, y = y }
+    end
+end
+
+-- The alignment grid, matching EllesmereUI's unlock mode: 32px spacing measured outward
+-- from screen centre so the centre always lands on a line, a full-length accent crosshair
+-- marking it, and everything on BACKGROUND strata so it sits behind the real UI rather
+-- than over the anchors being placed. Alphas sit above EUI's own bright pair (0.30/0.50),
+-- which still read faint here -- this grid competes with the game world behind it rather
+-- than the flat options background EUI's sits on.
+local GRID_SPACING = 32
+local GRID_LINE_ALPHA = 0.45
+local GRID_CENTER_ALPHA = 0.70
+local gridOverlay
+
+-- One physical pixel, whatever the UI scale. Lines drawn at a fractional width land on a
+-- blurred pair of pixels instead, which is what makes a grid look dirty.
+local function PixelMult()
+    local _, screenH = GetPhysicalScreenSize()
+    local scale = UIParent:GetEffectiveScale()
+    if not screenH or screenH <= 0 or not scale or scale <= 0 then return 1 end
+    return (768 / screenH) / scale
+end
+
+local function BuildGridOverlay()
+    if gridOverlay then return gridOverlay end
+    gridOverlay = CreateFrame("Frame", nil, UIParent)
+    gridOverlay:SetFrameStrata("BACKGROUND")
+    gridOverlay:SetFrameLevel(1)
+    gridOverlay:SetAllPoints(UIParent)
+    gridOverlay._lines = {}
+    gridOverlay:Hide()
+
+    function gridOverlay:Rebuild()
+        for i = 1, #self._lines do self._lines[i]:Hide() end
+        local w, h = UIParent:GetWidth(), UIParent:GetHeight()
+        local c = ns.THEME.accent
+        local mult = PixelMult()
+        local spacing = GRID_SPACING * mult
+        local function Snap(v) return math.floor(v / mult + 0.5) * mult end
+        local centerX, centerY = Snap(w / 2), Snap(h / 2)
+        local idx = 0
+
+        local function Line(isVert, pos, alpha)
+            idx = idx + 1
+            local tex = self._lines[idx]
+            if not tex then
+                tex = self:CreateTexture(nil, "BACKGROUND", nil, -7)
+                if tex.SetSnapToPixelGrid then
+                    tex:SetSnapToPixelGrid(false)
+                    tex:SetTexelSnappingBias(0)
+                end
+                self._lines[idx] = tex
+            end
+            tex:SetColorTexture(c.r, c.g, c.b, alpha)
+            tex:ClearAllPoints()
+            if isVert then
+                tex:SetSize(mult, h)
+                tex:SetPoint("TOPLEFT", UIParent, "TOPLEFT", pos, 0)
+            else
+                tex:SetSize(w, mult)
+                tex:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -pos)
+            end
+            tex:Show()
+        end
+
+        local x = centerX - spacing
+        while x > 0 do Line(true, Snap(x), GRID_LINE_ALPHA); x = x - spacing end
+        x = centerX + spacing
+        while x < w do Line(true, Snap(x), GRID_LINE_ALPHA); x = x + spacing end
+
+        local y = centerY - spacing
+        while y > 0 do Line(false, Snap(y), GRID_LINE_ALPHA); y = y - spacing end
+        y = centerY + spacing
+        while y < h do Line(false, Snap(y), GRID_LINE_ALPHA); y = y + spacing end
+
+        Line(true, centerX, GRID_CENTER_ALPHA)
+        Line(false, centerY, GRID_CENTER_ALPHA)
+    end
+
+    return gridOverlay
+end
+
+function ns.SetAnchorGridShown(shown)
+    if not shown then
+        if gridOverlay then gridOverlay:Hide() end
+        return
+    end
+    local g = BuildGridOverlay()
+    g:Rebuild()
+    g:Show()
+end
+
 local function EnsureConfigHandle(displayType, a)
     if a._configHandle then return a._configHandle end
     local T = ns.THEME
@@ -992,17 +1095,7 @@ local function EnsureConfigHandle(displayType, a)
     h:SetScript("OnDragStop", function()
         a:StopMovingOrSizing()
         local point, _, relPoint, x, y = a:GetPoint(1)
-        if point then
-            local db = ns.DB()
-            if displayType == "defensive" then
-                -- The alert's own position slot, shared with the preview drag.
-                db.pos = { point = point, relPoint = relPoint, x = x, y = y }
-                if ns.ApplyDefensiveAlertPosition then ns.ApplyDefensiveAlertPosition() end
-            else
-                db.raidReminderAnchorPos = db.raidReminderAnchorPos or {}
-                db.raidReminderAnchorPos[displayType] = { point = point, relPoint = relPoint, x = x, y = y }
-            end
-        end
+        SaveAnchorPos(displayType, point, relPoint, x, y)
     end)
 
     a._configHandle = h
@@ -1166,11 +1259,13 @@ function ns.ShowRaidReminderAnchorConfig()
         if f._checks[displayType] then f._checks[displayType]:SetChecked(configShown[displayType] == true) end
     end
     f:Show()
+    ns.SetAnchorGridShown(true)
     RefreshAllConfigVisuals()
 end
 
 function ns.HideRaidReminderAnchorConfig()
     configActive = false
+    ns.SetAnchorGridShown(false)
     if configToolbar then configToolbar:Hide() end
     for _, displayType in ipairs(CONFIG_ORDER) do HideConfigVisual(displayType) end
     if reopenWindowOnExit then
