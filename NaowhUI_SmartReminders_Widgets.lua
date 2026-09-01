@@ -100,21 +100,17 @@ end
 -------------------------------------------------------------------------------
 --  Bare controls
 -------------------------------------------------------------------------------
--- A pill switch: round knob in a rounded track. WoW has no rounded-rectangle primitive,
--- so the track is two circle-masked end caps with a plain rectangle bridging them, and
--- the knob is a third masked circle. Blizzard's own portrait mask does the rounding --
--- 12.1 still uses it in ~90 places, so it is not going anywhere.
-local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
-
--- CLAMPTOBLACKADDITIVE on both axes, not the default: a mask that tiles or extends leaves
--- the corners opaque and the pill comes out square. One mask per texture, well inside the
--- three-per-texture cap.
-local function RoundOff(frame, tex)
-    local mask = frame:CreateMaskTexture()
-    mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    mask:SetAllPoints(tex)
-    tex:AddMaskTexture(mask)
-end
+-- A pill switch: round knob in a rounded track. WoW has no rounded-rectangle primitive, so
+-- the pill and the knob are drawn art, tinted with SetVertexColor, not flat colour
+-- rectangles cut to shape with a mask. Masking was the original approach and could not
+-- work at this size: a mask gets roughly one pixel of gradient at 20px, so the ends came
+-- out stepped no matter which mask texture fed it. These carry their own antialiased edge,
+-- rendered 4x-supersampled and inset far enough that the ramp fits inside the texture.
+--
+-- toggle_track.tga is drawn 128x64, the same 2:1 ratio as W:H below, so it scales without
+-- distorting the round ends. Changing W/H away from 2:1 means redrawing it.
+local TRACK_TEX = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\toggle_track.tga"
+local KNOB_TEX = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\toggle_knob.tga"
 
 function UI.BuildToggleControl(parent, frameLevel, get, set)
     local W, H, KNOB = 40, 20, 14
@@ -122,30 +118,28 @@ function UI.BuildToggleControl(parent, frameLevel, get, set)
     t:SetSize(W, H)
     if frameLevel then t:SetFrameLevel(frameLevel) end
 
-    local capL = ns.Solid(t, "BACKGROUND", T.line, 1)
-    capL:SetSize(H, H)
-    capL:SetPoint("LEFT", t, "LEFT", 0, 0)
-    RoundOff(t, capL)
+    -- Textures snap to the pixel grid by default, which forces these curved edges onto
+    -- whole pixels and throws away the antialiasing the art carries -- the actual reason
+    -- the switch read as jagged, not the mask or the art it went through before. Blizzard's
+    -- own NineSlice does the same two calls on every piece for the same reason.
+    local function Smooth(tex)
+        tex:SetTexelSnappingBias(0)
+        tex:SetSnapToPixelGrid(false)
+    end
 
-    local capR = ns.Solid(t, "BACKGROUND", T.line, 1)
-    capR:SetSize(H, H)
-    capR:SetPoint("RIGHT", t, "RIGHT", 0, 0)
-    RoundOff(t, capR)
+    local track = t:CreateTexture(nil, "BACKGROUND")
+    track:SetTexture(TRACK_TEX)
+    track:SetAllPoints()
+    Smooth(track)
 
-    local mid = ns.Solid(t, "BACKGROUND", T.line, 1)
-    mid:SetPoint("LEFT", t, "LEFT", H / 2, 0)
-    mid:SetPoint("RIGHT", t, "RIGHT", -H / 2, 0)
-    mid:SetHeight(H)
-
-    local knob = ns.Solid(t, "ARTWORK", T.muted, 1)
+    local knob = t:CreateTexture(nil, "ARTWORK")
+    knob:SetTexture(KNOB_TEX)
     knob:SetSize(KNOB, KNOB)
-    RoundOff(t, knob)
+    Smooth(knob)
 
     local on = false
     local function PaintTrack(c, a)
-        capL:SetColorTexture(c.r, c.g, c.b, a)
-        capR:SetColorTexture(c.r, c.g, c.b, a)
-        mid:SetColorTexture(c.r, c.g, c.b, a)
+        track:SetVertexColor(c.r, c.g, c.b, a)
     end
 
     local function Paint(state)
@@ -153,11 +147,11 @@ function UI.BuildToggleControl(parent, frameLevel, get, set)
         knob:ClearAllPoints()
         if on then
             PaintTrack(T.accent, 1)
-            knob:SetColorTexture(1, 1, 1, 1)
+            knob:SetVertexColor(1, 1, 1, 1)
             knob:SetPoint("RIGHT", t, "RIGHT", -3, 0)
         else
             PaintTrack(T.line, 1)
-            knob:SetColorTexture(T.muted.r, T.muted.g, T.muted.b, 1)
+            knob:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
             knob:SetPoint("LEFT", t, "LEFT", 3, 0)
         end
     end
@@ -179,6 +173,7 @@ function UI.BuildToggleControl(parent, frameLevel, get, set)
     Snap()
     return t, Paint, Snap
 end
+
 function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(ddW or 160, 24)

@@ -14,7 +14,7 @@ local WINDOW_W, WINDOW_H = 1000, 640
 local TITLE_H, TAB_H = 28, 30
 
 local PAGES = { "Smart Reminders Setup", "Defensive Presets", "Dungeon Bosses",
-    "Raid Bosses", "Custom Reminders" }
+    "Raid Bosses", "Ability Reminders" }
 
 local window, scrollFrame, scrollChild
 local tabButtons = {}
@@ -36,7 +36,7 @@ local function BuildPageInto(pageName, parent)
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, false) or -6
     elseif pageName == "Raid Bosses" then
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, true) or -6
-    elseif pageName == "Custom Reminders" then
+    elseif pageName == "Ability Reminders" then
         return ns.BuildCustomRemindersPage and ns.BuildCustomRemindersPage(parent, -6) or -6
     else
         return ns.BuildSetupPage and ns.BuildSetupPage(parent, -6) or -6
@@ -239,4 +239,7 @@ function _G.NaowhUI_SmartReminders_OnCompartmentClick()
 end
 
 SLASH_NAOWHUISMARTREM1 = "/smartreminders"
+SLASH_NAOWHUISMARTREM2 = "/naowh"
+SLASH_NAOWHUISMARTREM3 = "/nao"
+SLASH_NAOWHUISMARTREM4 = "/nsr"
 SlashCmdList["NAOWHUISMARTREM"] = function() ns.ToggleOptionsWindow() end

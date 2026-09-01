@@ -2013,6 +2013,133 @@ local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", ba
     raidframeGlow = "Raid-Frame Glow" }
 local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle", "chat",
     "nameplateGlow", "raidframeGlow" }
+-- LOCALIZED_CLASS_NAMES_MALE carries every class token the client knows, including ones
+-- nobody plays -- Adventurer and Traveler both show up in it and were landing in the class
+-- grids. GetClassInfo bounded by GetNumClasses walks only the real playable set, which is
+-- how Blizzard's own class filter menu builds its list.
+-- Returns { token, displayName } pairs sorted by display name.
+function ns.PlayableClasses()
+    local out = {}
+    if GetNumClasses and GetClassInfo then
+        for i = 1, GetNumClasses() do
+            local displayName, token = GetClassInfo(i)
+            if token and displayName then out[#out + 1] = { token, displayName } end
+        end
+    end
+    if #out == 0 then
+        for token, displayName in pairs(_G.LOCALIZED_CLASS_NAMES_MALE or {}) do
+            out[#out + 1] = { token, displayName }
+        end
+    end
+    table.sort(out, function(a, b) return a[2] < b[2] end)
+    return out
+end
+
+-- Human-readable summary of who loads a binding. Its own spec always does -- that is the
+-- table it is stored in -- so this only ever describes the extra role/class shares.
+function ns.DescribeBindingScope(scope)
+    if type(scope) ~= "table" or not next(scope) then return "this spec only" end
+    local parts = { "this spec" }
+
+    local roles = {}
+    for role in pairs(scope.roles or {}) do
+        roles[#roles + 1] = (role == "DAMAGER" and "DPS") or (role:sub(1, 1) .. role:sub(2):lower())
+    end
+    table.sort(roles)
+    if #roles > 0 then parts[#parts + 1] = "any " .. table.concat(roles, "/") end
+
+    local classes = {}
+    local names = _G.LOCALIZED_CLASS_NAMES_MALE or {}
+    for token in pairs(scope.classes or {}) do
+        classes[#classes + 1] = names[token] or token
+    end
+    table.sort(classes)
+    if #classes > 0 then parts[#parts + 1] = "any " .. table.concat(classes, "/") end
+
+    return table.concat(parts, " + ")
+end
+
+-- Shares one binding with specs other than the one that owns it. There is no spec list:
+-- the owning spec always loads it, and naming other specs individually is what the role
+-- and class rows cover without a 39-entry matrix in a 400-wide modal.
+function ns.ShowBindingScopePicker(scope, onAccept)
+    local dimmer, panel = ns.MakeModal(400, 470, "bindingScopePicker")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Loads for")
+
+    local hint = ns.Font(panel, 10, nil, ns.THEME.muted)
+    hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -40)
+    hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+    hint:SetJustifyH("LEFT")
+    hint:SetWordWrap(true)
+    hint:SetText("The spec that made this always loads it. Tick anything here to share it with other specs as well.")
+
+    -- Working copies, so Cancel leaves the saved scope untouched.
+    local roles, classes = {}, {}
+    for k in pairs(type(scope) == "table" and scope.roles or {}) do roles[k] = true end
+    for k in pairs(type(scope) == "table" and scope.classes or {}) do classes[k] = true end
+
+    local y = -74
+    local function Label(text)
+        local l = ns.Font(panel, 11, nil, ns.THEME.muted)
+        l:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+        l:SetText(text)
+        y = y - 18
+    end
+    local function Grid(items, set, perRow, itemW, colorFn)
+        for i = 1, #items do
+            local key, label = items[i][1], items[i][2]
+            local col, row = (i - 1) % perRow, math.floor((i - 1) / perRow)
+            local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+            check:SetSize(18, 18)
+            check:SetPoint("TOPLEFT", panel, "TOPLEFT", 20 + col * itemW, y - row * 22)
+            check:SetChecked(set[key])
+            check:SetScript("OnClick", function(self)
+                set[key] = self:GetChecked() and true or nil
+            end)
+            local lbl = ns.Font(panel, 10, nil, ns.THEME.fg)
+            lbl:SetPoint("LEFT", check, "RIGHT", 2, 0)
+            lbl:SetWordWrap(false)
+            lbl:SetText(label)
+            if colorFn then
+                local r, g, b = colorFn(key)
+                if r then lbl:SetTextColor(r, g, b, 1) end
+            end
+        end
+        y = y - math.ceil(#items / perRow) * 22 - 10
+    end
+
+    Label("Also load for any of these roles")
+    Grid({ { "TANK", "Tank" }, { "HEALER", "Healer" }, { "DAMAGER", "DPS" } }, roles, 3, 110)
+
+    Label("...or any of these classes")
+    do
+        local items = ns.PlayableClasses()
+        local colors = RAID_CLASS_COLORS or CUSTOM_CLASS_COLORS
+        Grid(items, classes, 3, 120, function(token)
+            local c = colors and colors[token]
+            if c then return c.r, c.g, c.b end
+        end)
+    end
+
+    ns.Button(panel, "Accept", 90, 26, function()
+        local out = {}
+        if next(roles) then out.roles = roles end
+        if next(classes) then out.classes = classes end
+        -- Nothing ticked means private to the owning spec, which is nil rather than an
+        -- empty table so it never lands in SavedVariables as noise.
+        onAccept(next(out) and out or nil)
+        dimmer:Hide()
+    end):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
+    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
+
+    dimmer:Show()
+end
+
+
 
 function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or ns.UI
@@ -2034,6 +2161,9 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
     local binding = ns.EnsureBinding(encounterID, ability.spellID)
     local specID = ns.CurrentSpec and ns.CurrentSpec()
+    -- Held rather than written straight through, so Cancel discards a scope change the
+    -- same way it discards a preset pick.
+    local scopeVal = binding.scope
     -- One warning time for the whole preset on this ability -- not per defensive within
     -- it (that granularity was tried and dropped: too fiddly for what it bought). Lazily
     -- initialized inside RebuildBody, same reasoning presetVal below documents: re-deriving
@@ -2092,7 +2222,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         return btn
     end
     local defTabBtn = AddPageTab("defensive", "Defensive Preset")
-    AddPageTab("custom", "Custom Reminder", defTabBtn)
+    AddPageTab("custom", "Ability Reminder", defTabBtn)
     defTabBtn.marker:Show()
     defTabBtn.label:SetTextColor(ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b, 1)
 
@@ -2244,7 +2374,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 noneLbl:SetText("None yet for this ability.")
                 by = by - 26
 
-                local addBtn = ns.Button(body, "+ Add a Custom Reminder", 200, 26, function()
+                local addBtn = ns.Button(body, "+ Add a Ability Reminder", 200, 26, function()
                     local nestedDimmer = ns.ShowRaidReminderEditor(
                         encounterID, nil, EUI, nil, ability.spellID)
                     if nestedDimmer then nestedDimmer:HookScript("OnHide", RebuildBody) end
@@ -2284,10 +2414,30 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- again once this saves.
         binding.leadTimeBySpell = nil
         binding.leadTime = (leadTimeVal ~= (ns.DB().leadTime or 3)) and leadTimeVal or nil
+        binding.scope = scopeVal
         ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end
+
+    -- Sits above Save/Cancel rather than in either tab: the scope is the binding's, not
+    -- the Defensive Preset's or the Custom Reminder's, so it must not move with the tabs.
+    local scopeText = ns.Font(panel, 10, nil, ns.THEME.muted)
+    scopeText:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", PAD, 52)
+    scopeText:SetPoint("RIGHT", panel, "RIGHT", -PAD - 76, 0)
+    scopeText:SetJustifyH("LEFT")
+    scopeText:SetWordWrap(false)
+    local function RefreshScopeText()
+        scopeText:SetText("Loads for: " .. ns.DescribeBindingScope(scopeVal))
+    end
+    RefreshScopeText()
+
+    ns.Button(panel, "Change", 70, 22, function()
+        ns.ShowBindingScopePicker(scopeVal, function(newScope)
+            scopeVal = newScope
+            RefreshScopeText()
+        end)
+    end):SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -PAD, 48)
 
     ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
     ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
@@ -2305,29 +2455,28 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     row:SetHeight(ABILITY_ROW_H)
 
     -- The tick is whether the boss has the ability, same as the Add Ability picker's, so
-    -- unticking drops it off the page along with the preset and warning time saved on it.
-    -- A row only renders for an added ability, so it starts ticked; an untick left over
-    -- from the build where this box only silenced a row re-ticks back to enabled.
+    -- unticking silences the ability but keeps it, along with its preset and warning time.
+    -- Taking it off the boss entirely is the X, which asks first -- an untick is reversible
+    -- with the same click, a delete is not, so they are deliberately different controls.
     local enabled = ability.spellID and ns.AbilityEnabledForBinding(encounterID, ability.spellID)
 
-    local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-    check:SetSize(22, 22)
-    check:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -4)
-    check:SetChecked(enabled)
-    check:SetScript("OnClick", function(self)
-        if not ability.spellID then self:SetChecked(false); return end
-        if self:GetChecked() then
-            ns.EnsureBinding(encounterID, ability.spellID).enabled = true
-        else
-            ns.RemoveBinding(encounterID, ability.spellID)
-        end
-        ns.RefreshRuntime()
-        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
-    end)
+    -- The addon's own toggle rather than a Blizzard checkbox, matching every other on/off
+    -- control in here. `enabled` backs the getter so the widget reads its own state without
+    -- another binding lookup per repaint.
+    local check = (EUI or ns.UI).BuildToggleControl(row, row:GetFrameLevel() + 1,
+        function() return enabled end,
+        function(v)
+            if not ability.spellID then return end
+            enabled = v and true or false
+            ns.EnsureBinding(encounterID, ability.spellID).enabled = enabled
+            ns.RefreshRuntime()
+            if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+        end)
+    check:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -6)
 
     local icon = row:CreateTexture(nil, "ARTWORK")
     icon:SetSize(30, 30)
-    icon:SetPoint("TOPLEFT", check, "TOPRIGHT", 6, 4)
+    icon:SetPoint("TOPLEFT", check, "TOPRIGHT", 8, 6)
     if ability.icon then icon:SetTexture(ability.icon) end
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
@@ -2348,6 +2497,14 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
         ns.TestFireAbility(encounterID, ability.spellID)
     end)
     test:SetPoint("TOPRIGHT", cog, "TOPLEFT", -4, 0)
+
+    local remove = ns.Button(row, "X", 26, 26, function()
+        ns.ConfirmRemoveAbility(encounterID, ability, EUI)
+    end)
+    remove:SetPoint("TOPRIGHT", test, "TOPLEFT", -4, 0)
+    remove.label:SetTextColor(1, 0.38, 0.38, 1)
+    ns.Tooltip(remove, "Remove Ability",
+        "Take this ability off the boss. Its preset and warning time go with it.")
 
     -- Role/difficulty flags straight off the journal (FLAG_LABELS, same icon set the
     -- in-game Adventure Guide shows) -- Tank/Dps/Healer first since those are the ones
@@ -2372,13 +2529,13 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
 
     local title = ns.Font(row, 13, nil, ns.THEME.fg)
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
-    title:SetPoint("RIGHT", test, "LEFT", -8, 0)
+    title:SetPoint("RIGHT", remove, "LEFT", -8, 0)
     title:SetJustifyH("LEFT")
     title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or ""))
 
     local desc = ns.Font(row, 11, nil, ns.THEME.muted)
     desc:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -20)
-    desc:SetPoint("RIGHT", test, "LEFT", -8, 0)
+    desc:SetPoint("RIGHT", remove, "LEFT", -8, 0)
     desc:SetHeight(ABILITY_ROW_H - 24)
     desc:SetJustifyH("LEFT")
     desc:SetWordWrap(true)
@@ -2601,6 +2758,50 @@ end
 -- instance is still reachable; it lives on the selected boss's own Enable This Boss row,
 -- same as it always did for a single boss) -- and the selected instance's detail on the
 -- right.
+function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
+    local EUI = callerEUI or ns.UI
+    local dimmer, panel = ns.MakeModal(400, 190, "abilityRemoveConfirm")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Remove Ability")
+
+    local body = ns.Font(panel, 12, nil, ns.THEME.fg)
+    body:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -48)
+    body:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+    body:SetJustifyH("LEFT")
+    body:SetWordWrap(true)
+    body:SetText(("Remove |cff0091ed%s|r from this boss?"):format(ability.title or "this ability"))
+
+    local warn = ns.Font(panel, 11, nil, ns.THEME.muted)
+    warn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -84)
+    warn:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+    warn:SetJustifyH("LEFT")
+    warn:SetWordWrap(true)
+    warn:SetText("Its defensive preset and warning time go with it. Adding it back later "
+        .. "starts that ability fresh.")
+
+    local remove = ns.Button(panel, "Remove", 110, 26, function()
+        -- EnsureBinding first: a binding saved under this ability's journal alias reads
+        -- back fine but would survive a delete keyed on the current id. Ensuring migrates
+        -- the alias onto that id, so the nil below actually removes it.
+        ns.EnsureBinding(encounterID, ability.spellID)
+        local set = ns.AbilityBindingsTable(false, encounterID)
+        if set then set[ability.spellID] = nil end
+        ns.RefreshRuntime()
+        dimmer:Hide()
+        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+    end)
+    remove:SetPoint("BOTTOMRIGHT", panel, "BOTTOM", -6, 16)
+    remove.label:SetTextColor(1, 0.38, 0.38, 1)
+
+    local cancel = ns.Button(panel, "Cancel", 110, 26, function() dimmer:Hide() end)
+    cancel:SetPoint("BOTTOMLEFT", panel, "BOTTOM", 6, 16)
+
+    dimmer:Show()
+    return dimmer
+end
+
 function ns.BuildBossListPage(parent, y, isRaid)
     local EUI = ns.UI
     local W   = EUI.Widgets
@@ -3197,7 +3398,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
     y = y - 6
 
     local addCRBtn = ns.Button(content,
-        anyCombat and "+ Add a Time In Combat Trigger" or "+ Add a Custom Reminder",
+        anyCombat and "+ Add a Time In Combat Trigger" or "+ Add a Ability Reminder",
         anyCombat and 230 or 190, 26, function()
             EditCustomReminder(nil)
         end)
@@ -3234,13 +3435,17 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText((uid and "Edit " or "New ")
-        .. (abilitySpellID and "Custom Reminder" or (kind .. " Reminder")))
+        .. (abilitySpellID and "Ability Reminder" or (kind .. " Reminder")))
 
     local set = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
     local existing = (set and uid) and set[uid] or nil
     local boundAbilitySpellID = (existing and existing.abilitySpellID) or abilitySpellID
     local trig = (existing and existing.trigger) or (seed and seed.trigger) or { type = "bwtimer" }
-    local target = (existing and existing.target) or { all = true }
+    -- New reminders open with Everyone unticked and the role/class grid already showing:
+    -- assigning to somebody specific is the common case, and starting on Everyone hid the
+    -- controls that do it. Only the editor's starting state -- a saved reminder with no
+    -- target of its own still means everyone, which is what NormalizeRaidReminderTarget says.
+    local target = (existing and existing.target) or { all = false }
     local display = (existing and existing.display) or { type = "text" }
 
     local PAD = 20
@@ -3770,12 +3975,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
 
         RestLabel("Class")
         do
-            local classNames = _G.LOCALIZED_CLASS_NAMES_MALE or {}
-            local classOrder = {}
-            for token in pairs(classNames) do classOrder[#classOrder + 1] = token end
-            table.sort(classOrder)
-            local items = {}
-            for i = 1, #classOrder do items[i] = { classOrder[i], classNames[classOrder[i]] } end
+            local items = ns.PlayableClasses()
             local classColors = RAID_CLASS_COLORS or CUSTOM_CLASS_COLORS
             CheckGrid(items, targetClasses, 3, 140, function(token)
                 local c = classColors and classColors[token]
@@ -3783,10 +3983,16 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             end)
         end
 
-        RestLabel("Subgroup")
+        RestLabel("Raid Group")
         do
             local items = {}
-            for i = 1, 8 do items[i] = { i, tostring(i) } end
+            for i = 1, 4 do items[i] = { i, tostring(i) } end
+            -- Four covers a 20-man mythic roster. A flex raid can still run to eight, so
+            -- groups above four appear only when something is already assigned to one --
+            -- an older assignment stays editable without cluttering the usual case.
+            for i = 5, 8 do
+                if targetSubgroups[i] then items[#items + 1] = { i, tostring(i) } end
+            end
             CheckGrid(items, targetSubgroups, 8, 52)
         end
 

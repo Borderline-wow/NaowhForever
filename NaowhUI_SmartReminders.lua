@@ -536,15 +536,28 @@ end
 -- feature that has to work while soloing a dummy.
 local specID, isTank = 0, false
 
+-- Role and class are the two axes a binding can load on besides the spec itself, so an
+-- assignment can read "every healer" or "every paladin" without naming four specs. They
+-- live on ns rather than as file locals: this chunk is close enough to Lua's 200-local
+-- ceiling that adding two here stops the whole addon compiling.
 local function RefreshSpec()
     specID, isTank = 0, false
+    ns.playerRole = nil
+    ns.playerClass = select(2, UnitClass("player"))
     if not (C_SpecializationInfo and C_SpecializationInfo.GetSpecialization) then return end
     local index = C_SpecializationInfo.GetSpecialization()
     if not index then return end
     local id, _, _, _, role = C_SpecializationInfo.GetSpecializationInfo(index)
     specID = id or 0
     isTank = (role == "TANK")
+    ns.playerRole = role
+    -- Resolved through ns rather than called directly: this runs before the migration is
+    -- defined further down the file. It no-ops once the profile is stamped.
+    if ns.MigrateBindingScopes then ns.MigrateBindingScopes() end
 end
+
+function ns.CurrentRole() return ns.playerRole end
+function ns.CurrentClass() return ns.playerClass end
 
 -------------------------------------------------------------------------------
 --  The display
@@ -700,6 +713,11 @@ local function CreateSlot(index)
     slot.icon = slot:CreateTexture(nil, "ARTWORK")
     slot.icon:SetAllPoints()
     slot.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    -- 1px black edge so a bright spell icon reads as its own object against whatever is
+    -- behind it in the world. Parented to the slot, so it rides the same priority alpha
+    -- the icon does rather than hanging around on a slot that lost.
+    ns.Border(slot, { r = 0, g = 0, b = 0 }, 1)
 
     local T = ns.THEME
 
@@ -1007,10 +1025,54 @@ ns.BossModCatalogueTable = BossModCatalogueTable
 -- for the confirmed mismatches, so a stale binding from before an id correction is found
 -- (and migrated forward on write) instead of silently orphaned.
 -- profile.abilityBindings[encounterID][spellID] = { enabled = bool, mode, preset }.
+-- Bindings are stored under the spec that made them: abilityBindings[specKey][enc][sid].
+-- One shared entry per encounter+spell was the old shape, and it could not work -- enabled,
+-- preset and leadTime are all spec-local (a preset key only means anything inside
+-- presets[specKey]), so two specs sharing one entry meant the second to touch an ability
+-- silently overwrote the first's settings.
 local function AbilityBindingsTable(create, enc)
-    return PerBossSet("abilityBindings", create, enc)
+    local t = TRDB()
+    if type(t.abilityBindings) ~= "table" then
+        if not create then return nil end
+        t.abilityBindings = {}
+    end
+    if specID == 0 then return nil end
+    local specKey = tostring(specID)
+    local bySpec = t.abilityBindings[specKey]
+    if type(bySpec) ~= "table" then
+        if not create then return nil end
+        bySpec = {}
+        t.abilityBindings[specKey] = bySpec
+    end
+    local encKey = tostring(enc or 0)
+    if type(bySpec[encKey]) ~= "table" then
+        if not create then return nil end
+        bySpec[encKey] = {}
+    end
+    return bySpec[encKey]
 end
 ns.AbilityBindingsTable = AbilityBindingsTable
+
+-- A binding another spec owns, offered to this one because its scope names our role or
+-- class. Spec ownership is the storage key now, so scope only ever carries roles/classes.
+function ns.InheritedBinding(enc, sid)
+    local t = TRDB()
+    local all = t.abilityBindings
+    if type(all) ~= "table" then return nil end
+    local encKey, mySpec = tostring(enc or 0), tostring(specID)
+    for specKey, bySpec in pairs(all) do
+        if specKey ~= mySpec and type(bySpec) == "table" then
+            local byEnc = bySpec[encKey]
+            local b = type(byEnc) == "table" and byEnc[sid]
+            if b == nil and type(byEnc) == "table" and ns.BOSSMOD_KEY_TO_JOURNAL then
+                local jid = ns.BOSSMOD_KEY_TO_JOURNAL[sid]
+                if jid then b = byEnc[jid] end
+            end
+            if type(b) == "table" and ns.BindingSharedToMe(b) then return b end
+        end
+    end
+    return nil
+end
 
 -- Defined with the rest of the logging further down; forward-declared because the boss-mod
 -- key recorder below logs too and runs earlier in the file. Without this the call there
@@ -1799,7 +1861,7 @@ local function LogLine(e)
         return ("%s -- dropped broadcast for %s (%s)"):format(head, nameOf(e.sid),
             tostring(e.text))
     elseif e.kind == "aside" then
-        return head .. " -- " .. nameOf(e.sid) .. " stepped aside to its Custom Reminder"
+        return head .. " -- " .. nameOf(e.sid) .. " stepped aside to its Ability Reminder"
     elseif e.kind == "cancel" then
         return ("%s -- cancelled pending callout for %s (bar '%s' stopped early)"):format(
             head, nameOf(e.sid), tostring(e.text))
@@ -3018,6 +3080,93 @@ end
 -- proxy -- the only detection path this addon has.
 local lastBWSid, lastBWAt = nil, 0
 
+-- Whether a binding owned by ANOTHER spec is offered to this one. The two axes are OR'd,
+-- so "any healer" covers every healing spec without naming them. A binding with no scope
+-- is private to the spec that owns it, which is the default and the common case.
+function ns.BindingSharedToMe(b)
+    local scope = b and b.scope
+    if type(scope) ~= "table" then return false end
+    if type(scope.roles) == "table" and ns.playerRole and scope.roles[ns.playerRole] then return true end
+    if type(scope.classes) == "table" and ns.playerClass and scope.classes[ns.playerClass] then return true end
+    return false
+end
+
+-- Bindings used to live at abilityBindings[enc][sid], one entry shared by every character
+-- on the account. They move under the spec that owns them here. Two shapes arrive:
+-- genuinely old entries with no scope, and build 0901a's entries carrying scope.specs --
+-- that build stamped ownership but still stored one shared entry, so a second spec touching
+-- an ability overwrote the first spec's preset and warning time.
+--
+-- Ownership comes from scope.specs when 0901a recorded it, otherwise from whoever logs in
+-- first. scope.specs is dropped afterwards: the storage key carries that now, and scope is
+-- left holding only the role/class shares.
+--
+-- Deferred to login rather than run inside TRDB: the profile table is often prepared before
+-- the spec is known, and filing every binding under spec 0 would be worse than the bug.
+function ns.MigrateBindingScopes()
+    if specID == 0 then return end
+    local t = TRDB()
+    if t.bindingsBySpec then return end
+    local all = t.abilityBindings
+    if type(all) ~= "table" then
+        t.bindingsBySpec = true
+        return
+    end
+
+    local backup, moved, rebuilt = {}, 0, {}
+    for encKey, bySpell in pairs(all) do
+        if type(bySpell) == "table" then
+            local encCopy = {}
+            for sid, b in pairs(bySpell) do
+                if type(b) == "table" then
+                    local copy = {}
+                    for k, v in pairs(b) do copy[k] = v end
+                    encCopy[sid] = copy
+
+                    -- Which specs this entry belongs to. More than one only happens if
+                    -- 0901a's picker was used to name several before this shipped.
+                    local owners = {}
+                    if type(b.scope) == "table" and type(b.scope.specs) == "table" then
+                        for id in pairs(b.scope.specs) do owners[#owners + 1] = tostring(id) end
+                    end
+                    if #owners == 0 then owners[1] = tostring(specID) end
+
+                    if type(b.scope) == "table" then
+                        b.scope.specs = nil
+                        if not next(b.scope) then b.scope = nil end
+                    end
+
+                    for _, specKey in ipairs(owners) do
+                        rebuilt[specKey] = rebuilt[specKey] or {}
+                        rebuilt[specKey][encKey] = rebuilt[specKey][encKey] or {}
+                        -- Each owner gets its own table: sharing one would restore the very
+                        -- aliasing this migration exists to end.
+                        local own = {}
+                        for k, v in pairs(b) do own[k] = v end
+                        if type(b.scope) == "table" then
+                            local sc = {}
+                            for k, v in pairs(b.scope) do sc[k] = v end
+                            own.scope = sc
+                        end
+                        rebuilt[specKey][encKey][sid] = own
+                        moved = moved + 1
+                    end
+                end
+            end
+            backup[encKey] = encCopy
+        end
+    end
+
+    t.abilityBindings = rebuilt
+    if moved > 0 and t.preSpecBindings == nil then t.preSpecBindings = backup end
+    t.bindingsBySpec = true
+    t.scopeMigrated = nil
+    if moved > 0 then
+        ns.Print(("|cffffa300%d saved abilities|r now belong to the spec that made them. Other specs start clean -- your originals are kept if this guessed wrong.")
+            :format(moved))
+    end
+end
+
 -- Whether a given ability calls out, now that Setup's per-ability checklist
 -- (AbilityBindingsTable) is finally load-bearing instead of decorative. No explicit
 -- choice yet defaults to on for anything already curated, mirroring the old fingerprint
@@ -3035,12 +3184,16 @@ local lastBWSid, lastBWAt = nil, 0
 -- to defaults.
 function ns.BindingForBossModKey(enc, sid)
     local bindings = AbilityBindingsTable(false, enc)
-    if not bindings then return nil end
-    local b = bindings[sid]
-    if b == nil and ns.BOSSMOD_KEY_TO_JOURNAL then
-        local jid = ns.BOSSMOD_KEY_TO_JOURNAL[sid]
-        if jid then b = bindings[jid] end
+    local b
+    if bindings then
+        b = bindings[sid]
+        if b == nil and ns.BOSSMOD_KEY_TO_JOURNAL then
+            local jid = ns.BOSSMOD_KEY_TO_JOURNAL[sid]
+            if jid then b = bindings[jid] end
+        end
     end
+    -- Our own spec's binding wins; a share from another spec only fills the gap.
+    if b == nil then b = ns.InheritedBinding(enc, sid) end
     return b
 end
 
@@ -3052,6 +3205,10 @@ end
 -- choice with no error and no warning. This migrates it onto the new key instead.
 function ns.EnsureBinding(enc, sid)
     local bindings = AbilityBindingsTable(true, enc)
+    -- Storage is keyed by spec now, so there is nowhere to file a binding until the spec
+    -- resolves. A throwaway table keeps the editor's writes from erroring; they are simply
+    -- not persisted, which beats filing them under a spec we would have to guess.
+    if not bindings then return {} end
     if bindings[sid] then return bindings[sid] end
     local jid = ns.BOSSMOD_KEY_TO_JOURNAL and ns.BOSSMOD_KEY_TO_JOURNAL[sid]
     if jid and bindings[jid] then
@@ -3201,7 +3358,7 @@ function ns.TestFireAbility(enc, sid)
     end
     local binding = ns.BindingForBossModKey(enc, sid)
     if binding and binding.mode == "custom" then
-        ns.Print("this ability is set to Custom Reminder; the generic callout stays quiet for it.")
+        ns.Print("this ability is set to Ability Reminder; the generic callout stays quiet for it.")
         return
     end
     RefreshSpec()
@@ -3949,7 +4106,7 @@ local function UpdatePreview()
     -- own text, so dragging into place never stomps on an actual preview mid-display.
     CreateCustomFrame()
     if not customHideTimer then
-        customFrame.text:SetText("Custom Reminder")
+        customFrame.text:SetText("Ability Reminder")
     end
     customFrame:SetMovable(true)
     customFrame:SetClampedToScreen(true)
@@ -4158,7 +4315,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         if not enc and ns.ObservedLastPull then enc = ns.ObservedLastPull() end
         if not enc then
             ns.Print("no pull to report yet. Fight a boss with BigWigs or DBM running, or "
-                .. "open the Custom Reminders tab to browse what has been recorded.")
+                .. "open the Ability Reminders tab to browse what has been recorded.")
             return
         end
         local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(enc) or {}
@@ -4213,7 +4370,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             local binding = ns.BindingForBossModKey(enc, key)
             local verdict
             if on and binding and binding.mode == "custom" then
-                verdict = "|cff9a9ea6steps aside to its Custom Reminder|r"
+                verdict = "|cff9a9ea6steps aside to its Ability Reminder|r"
             elseif on then
                 verdict = "|cff6DD09Awould call|r"
             else
@@ -5225,7 +5382,7 @@ function ns.BuildBarsSettings(parent, y)
             btn:SetPoint("LEFT", resetRow._leftRegion, "LEFT", 8, 0)
         end
         if resetRow._rightRegion then
-            local btn = ns.Button(resetRow._rightRegion, "Reset Custom Reminder Position", 220, 26,
+            local btn = ns.Button(resetRow._rightRegion, "Reset Ability Reminder Position", 220, 26,
                 function()
                     TRDB().customPos = nil
                     ApplyCustomReminderPosition()
@@ -5352,7 +5509,7 @@ function ns.BuildColorsSettings(parent, y)
               ApplyDefensiveTextColor()
               EUI:RefreshPage(true)
           end },
-        { type = "toggle", text = "Color Custom Reminders Text",
+        { type = "toggle", text = "Color Ability Reminders Text",
           tooltip = "Recolor custom reminder text -- BigWigs/DBM, Aura and Pull triggers. "
           .. "Off uses the default white.",
           getValue = function() return TRDB().customTextColorOn end,
@@ -5375,7 +5532,7 @@ function ns.BuildColorsSettings(parent, y)
     end
 
     if TRDB().customTextColorOn then
-        _, h = W:ColorPicker(parent, "Custom Reminders Text Color", y,
+        _, h = W:ColorPicker(parent, "Ability Reminders Text Color", y,
             CustomTextColor,
             function(r, g, b, a)
                 TRDB().customTextColor = { r = r, g = g, b = b, a = a }
