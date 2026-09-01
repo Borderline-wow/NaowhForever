@@ -1,8 +1,8 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100
-## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders |cff9a9ea6[test 0901p]|r
+## Title: |cff0091edNaowh|r|cffffa300UI|r_SmartReminders |cff9a9ea6[test 0901q]|r
 ## Notes: Calls out what to press when the boss timeline says an ability is coming. All specs.
 ## Author: NaowhUI
-## Version: 1.1.0-test-0901p
+## Version: 1.1.0-test-0901q
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhUI_SmartRemindersDB
 ## Group: NaowhUI

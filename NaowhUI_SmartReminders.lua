@@ -1863,6 +1863,9 @@ local function LogLine(e)
     elseif e.kind == "drop" then
         return ("%s -- dropped broadcast for %s (%s)"):format(head, nameOf(e.sid),
             tostring(e.text))
+    elseif e.kind == "bosscast" then
+        return ("%s -- BOSS CAST %s on %s (%s)"):format(head,
+            e.sid and nameOf(e.sid) or "secret id", tostring(e.unit), e.text or "?")
     elseif e.kind == "aside" then
         return head .. " -- " .. nameOf(e.sid) .. " stepped aside to its Ability Reminder"
     elseif e.kind == "cancel" then
@@ -2704,6 +2707,8 @@ local function RefreshCustomRemindersFlag()
     local rr = currentEncounter and ns.RaidRemindersTable
         and ns.RaidRemindersTable(false, currentEncounter)
     hasRaidReminders = rr ~= nil and next(rr) ~= nil
+    -- Resolved through ns: defined further down the file, and it no-ops before then.
+    if ns.RefreshCastWatch then ns.RefreshCastWatch() end
 end
 ns.RefreshCustomRemindersFlag = RefreshCustomRemindersFlag
 
@@ -2988,6 +2993,89 @@ local function ActivateCustomReminder(r, scope)
             if combat and not InCombatLockdown() then return end
             ns.DisplayReminder(r)
         end)
+    end
+end
+
+-- Boss cast triggers. UNIT_SPELLCAST_* rather than the combat log: CLEU is unavailable in
+-- restricted content (status reports registered=false restrictedHere=true on a raid boss),
+-- which is why the old combat-log "spell" trigger stopped being offered.
+--
+-- The index is keyed by spell id and holds the reminders waiting on it, so the handler
+-- NEVER compares the event's spellID -- UNIT_SPELLCAST_START is
+-- SecretWhenUnitSpellCastRestricted, and comparing a secret raises where a table lookup
+-- does not. Same shape castToBase[castSpellID] already uses for the player's own casts.
+-- Everything read back out is ours and plain, so no secret spreads past this point.
+function ns.RefreshCastWatch()
+    local index, any = {}, false
+    local set = currentEncounter and CustomRemindersTable(false, currentEncounter)
+    if set then
+        for uid, r in pairs(set) do
+            local trig = r.trigger
+            local kind = trig and trig.type
+            if r.enabled ~= false and (kind == "caststart" or kind == "castend")
+               and type(trig.spellID) == "number" then
+                local entry = index[trig.spellID]
+                if not entry then entry = {}; index[trig.spellID] = entry end
+                entry[kind] = entry[kind] or {}
+                entry[kind][#entry[kind] + 1] = { uid = uid, r = r }
+                any = true
+            end
+        end
+    end
+    ns.watchedCasts = index
+
+    if any and not ns.castWatcher then
+        ns.castWatcher = CreateFrame("Frame")
+        ns.castWatcher:SetScript("OnEvent", function(_, event, unit, _, spellID)
+            ns.OnBossCast(event, unit, spellID)
+        end)
+    end
+    if ns.castWatcher then
+        if any then
+            -- Plain RegisterEvent, not RegisterUnitEvent: that takes only a couple of
+            -- units and this needs boss1-5 plus every nameplate. The unit filter below
+            -- does the same job.
+            ns.castWatcher:RegisterEvent("UNIT_SPELLCAST_START")
+            ns.castWatcher:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+        else
+            ns.castWatcher:UnregisterAllEvents()
+        end
+    end
+end
+
+-- Cast end is SUCCEEDED only. An interrupted or cancelled cast fires nothing: the mechanic
+-- never happened, and calling "move" after a kicked cast is worse than saying nothing.
+function ns.OnBossCast(event, unit, spellID)
+    if not (hasCustomReminders and CustomRemindersAllowed()) then return end
+    if type(unit) ~= "string" then return end
+    if not (unit:match("^boss%d") or unit:match("^nameplate%d")) then return end
+    local index = ns.watchedCasts
+    if not index then return end
+    local entry = index[spellID]
+    -- Traced on BOTH paths on purpose. If the spell id arrives secret in restricted
+    -- content this lookup misses, and a miss is indistinguishable in play from the boss
+    -- never casting -- exactly the ambiguity /nutank keys exists to end elsewhere.
+    if TRDB().trace then
+        -- Never the raw id: a secret must not reach callLog, which is written to
+        -- SavedVariables. Screened first, and logged as "secret" when it is one -- which
+        -- is itself the answer worth having.
+        local plain = not (issecretvalue and issecretvalue(spellID)) and spellID or nil
+        AppendLog({ kind = "bosscast", sid = plain, unit = unit,
+            text = entry and "matched" or "not watched" })
+    end
+    if not entry then return end
+    local list = entry[event == "UNIT_SPELLCAST_START" and "caststart" or "castend"]
+    if not list then return end
+
+    for i = 1, #list do
+        local uid, r = list[i].uid, list[i].r
+        local hit = true
+        if r.trigger.counter and r.trigger.counter ~= "" then
+            customCounters[uid] = (customCounters[uid] or 0) + 1
+            hit = CheckCounterCondition(ParseCounterCondition(r.trigger.counter),
+                customCounters[uid])
+        end
+        if hit then ActivateCustomReminder(r) end
     end
 end
 

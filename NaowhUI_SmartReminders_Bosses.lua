@@ -1124,8 +1124,10 @@ end
 --  Custom reminder editor: name, message, trigger, linger
 -------------------------------------------------------------------------------
 local TRIGGER_CHOICES = { pull = "Boss Pull", bwmsg = "BigWigs/DBM Message",
-    bwtimer = "BigWigs/DBM Timer", aura = "Aura Applied", combat = "Time In Combat" }
-local TRIGGER_ORDER = { "pull", "combat", "bwmsg", "bwtimer", "aura" }
+    bwtimer = "BigWigs/DBM Timer", aura = "Aura Applied", combat = "Time In Combat",
+    caststart = "Boss Cast Starts", castend = "Boss Cast Finishes" }
+local TRIGGER_ORDER = { "pull", "combat", "bwmsg", "bwtimer", "aura",
+    "caststart", "castend" }
 -- The boss-less bucket takes Time In Combat and nothing else: the other four all need an
 -- encounter underway.
 local COMBAT_TRIGGER_ORDER = { "combat" }
@@ -1434,6 +1436,8 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     if anyCombat or trig.type == "combat" then trigVal = "combat"
     elseif trig.type == "bwtimer" then trigVal = "bwtimer"
     elseif trig.type == "aura" then trigVal = "aura"
+    elseif trig.type == "caststart" then trigVal = "caststart"
+    elseif trig.type == "castend" then trigVal = "castend"
     elseif trig.type == "bwmsg" or trig.type == "spell" then trigVal = "bwmsg"
     else trigVal = "pull" end
 
@@ -1668,9 +1672,11 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
                     feedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
                 elseif spellBox:GetText() == "" then
                     feedback:SetText("")
-                elseif trigVal == "aura" then
-                    -- An aura id is a real spell, unlike a BigWigs/DBM message key, which
-                    -- can be an arbitrary number with no matching spell at all.
+                elseif trigVal == "aura" or trigVal == "caststart"
+                    or trigVal == "castend" then
+                    -- These carry a real spell id -- an aura, or what the boss is casting.
+                    -- Only a BigWigs/DBM message key can be an arbitrary number with no
+                    -- matching spell at all.
                     feedback:SetText("|cffff6060not a spell ID|r")
                 else
                     feedback:SetText("|cff9a9ea6no spell name found -- boss-mod keys "
@@ -3469,6 +3475,11 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
                 trigDesc = (trig.auraEvent == "removed" and "Aura Removed: " or "Aura Applied: ")
                     .. ((info and info.name) or tostring(trig.spellID))
                     .. (trig.target == "player" and " (You)" or " (Boss)")
+            elseif trig and (trig.type == "caststart" or trig.type == "castend") then
+                local info = C_Spell and C_Spell.GetSpellInfo
+                    and C_Spell.GetSpellInfo(trig.spellID)
+                trigDesc = (trig.type == "castend" and "Cast Finishes: " or "Cast Starts: ")
+                    .. ((info and info.name) or tostring(trig.spellID))
             end
             ReminderRow(r.name or "Reminder", trigDesc,
                 function() return r.enabled ~= false end,
