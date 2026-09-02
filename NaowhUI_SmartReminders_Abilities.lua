@@ -76,11 +76,11 @@ ns.TANK_ABILITIES = {
     [1247937] = "Unknown",   -- Nysarra: Void Gash
     [1251023] = "Unknown",   -- Rak'tul: Spiritbreaker
     [1251554] = "Unknown",   -- Vor'daza: Drain Soul
-    [1253950] = "Unknown",   -- Emberdawn: Searing Rend
+    [1253950] = "Unknown",   -- Lothraxion: Searing Rend (Nexus Point Xenas)
     -- LittleWigs carries this one as an aura option only (soundOnApplied, no bar), so it
     -- never reaches the engine from that side -- but DBM runs a real 26s CD timer for it
     -- under the same id, and its note is CL.tank_hit outright. DBM-driven only, the mirror
-    -- of Emberdawn's Searing Rend above being BigWigs-only.
+    -- of 1253950 above, the same boss's other Searing Rend, being BigWigs-only.
     [1255335] = "Unknown",   -- Lothraxion: Searing Rend
     [1268562] = "Unknown",   -- Nymrissa Wavecaller: Water Jet (Mythic only)
     [1267049] = "Unknown",   -- Midnight Falls: Heaven's Lance
@@ -141,7 +141,7 @@ ns.BOSSMOD_KEY_TO_JOURNAL = {
 -- debuff/aura id (Possession Barrage's is deliberate on DBM's side: 1292036 has no
 -- tooltip, their module says so). The engine, the curated list and Setup's rows all
 -- speak BigWigs ids, so DBM timer ids are normalized through this map before
--- ns.HandleBigWigsAbility. DBM's Emberdawn module tracks no Searing Rend at all, so
+-- ns.HandleBigWigsAbility. DBM's Lothraxion module carries 1255335 but not 1253950, so
 -- 1253950 stays BigWigs-only.
 ns.DBM_TO_BIGWIGS = {
     [1241836] = 1241692,   -- Vorasius: Shadowclaw Slam
@@ -220,7 +220,7 @@ ns.TANK_ABILITY_OWNER_UNIT = {
     [1247937] = 1, -- Nysarra: Void Gash
     [1251023] = 1, -- Rak'tul: Spiritbreaker
     [1251554] = 1, -- Vor'daza: Drain Soul
-    [1253950] = 1, -- Emberdawn: Searing Rend
+    [1253950] = 1, -- Lothraxion: Searing Rend (Nexus Point Xenas)
     [1255335] = 1, -- Lothraxion: Searing Rend
     [1280113] = 1, -- Degentrius: Hulking Fragment
     [1290797] = 1, -- Merektha: Lightning Bite
