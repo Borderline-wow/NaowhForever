@@ -1256,7 +1256,12 @@ local playerAuraUp = {}   -- [spellID] = true while up, per our own combat-log t
 -- any real tank buster's cycle, so it cannot reach forward and silence the NEXT hit. That
 -- direction matters more than covering every case: see ns.HandleBigWigsAbility.
 local bigDefSeen = 0
-local OWN_CAST_COVER_WINDOW = 6
+-- 10, not the 6 this shipped with. 6 covered the press-to-hit window and nothing else, so
+-- it ran out while the defensive was still up: Ardent Defender lasts 10 seconds and a call
+-- 7 seconds after casting it named Divine Shield over the top. Still far short of any real
+-- buster cycle, so it cannot reach forward and silence the next hit -- which is the reason
+-- the number stays a flat one rather than growing with each defensive it has to cover.
+local OWN_CAST_COVER_WINDOW = 10
 local ownCastAt = {}   -- [spellID] = GetTime() of our own last cast of it
 
 -- The one question the client will still answer about an aura it has made secret.
@@ -1276,11 +1281,20 @@ local function BigDefensiveUp()
         and C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then
         return false
     end
+    -- An unreadable entry is skipped, not treated as the end of the list. Stopping at the
+    -- first non-table aborted the scan at whichever index the client had made secret, so a
+    -- defensive sitting behind one was never reached -- and restricted content, where that
+    -- happens, is the only place this rung is the one still answering. Only a plain nil ends
+    -- the list. Reported live on Rav'i: Ardent Defender up 7 seconds and Divine Shield named
+    -- over it.
     local ok, found = pcall(function()
         for i = 1, 40 do
             local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
-            if type(aura) ~= "table" then return false end
-            if AuraUtil.IsBigDefensive(aura) == true then return true end
+            if type(aura) == "table" then
+                if AuraUtil.IsBigDefensive(aura) == true then return true end
+            elseif not (issecretvalue and issecretvalue(aura)) then
+                return false
+            end
         end
         return false
     end)
