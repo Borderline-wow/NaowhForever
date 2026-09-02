@@ -3963,8 +3963,17 @@ end
 --
 -- Deliberately narrow, because dropping a real next-cast bar is the direction that costs
 -- someone a wipe: a bar is only read as an uptime when it is unflagged AND a flagged
--- cooldown bar for the SAME key is expiring right now. An ability whose module never
--- uses CDBar records nothing here and keeps today's behaviour.
+-- cooldown bar for the SAME key is expiring right now, or is already waiting on a callout
+-- of its own. An ability whose module never uses CDBar records nothing here and keeps
+-- today's behaviour.
+--
+-- That second test is the timing-free one, and it is the one that matters: an unflagged bar
+-- cannot be the next cast when a flagged bar for the same key is already counting down to
+-- one. Rav'i starts a "Debuffs (1)" bar under Triple Shot's own key partway through that
+-- countdown -- too early for the window above -- so it was taken for a fresh cooldown,
+-- superseded the pending callout, and then cancelled it outright when the debuff bar
+-- stopped. Trace of a live pull, 17:49:42: "cancelled pending callout for Triple Shot (bar
+-- 'Debuffs (1)' stopped early)", and no callout for that cast at all.
 local bwCdEndsAt = {}
 local UPTIME_MATCH_WINDOW = 1.5
 
@@ -3976,6 +3985,9 @@ end
 
 local function IsUptimeBar(key, isApprox)
     if isApprox then return false end
+    for _, fires in pairs(pendingBWFires) do
+        if next(fires[key] or {}) then return true end
+    end
     local endsAt = bwCdEndsAt[key]
     return endsAt ~= nil and math.abs(GetTime() - endsAt) <= UPTIME_MATCH_WINDOW
 end
