@@ -3862,8 +3862,16 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
     else
         -- No duration means this is the cast itself landing, not a countdown to one, and
         -- ours already fired `lead` seconds ago for exactly this cast. The guard belongs
-        -- here and only here: a Message cannot be the next occurrence announcing itself.
-        if sid == lastBWSid and (GetTime() - lastBWAt) < lead + 1 then return end
+        -- here and only here: a Message cannot be the next occurrence announcing itself,
+        -- so widening it cannot swallow the next bar the way it would on the branch above.
+        --
+        -- Floored at 4 seconds rather than left at lead + 1. A module can send a second
+        -- message for the same cast well after the bar ends -- Rav'i's Triple Shot has one
+        -- at the end of its 2 second cast -- and at leadTime 1 the window was 2 seconds, so
+        -- that follow-up read as a fresh cast and called a second time. A tank buster does
+        -- not repeat inside 4 seconds, so nothing real is lost. Short leads are deliberate:
+        -- a tank who wants the callout as the hit lands sets one.
+        if sid == lastBWSid and (GetTime() - lastBWAt) < math.max(lead + 1, 4) then return end
 
         -- A plain Message never goes through ScheduleBWFire (no duration to wait out), so
         -- it never touched pendingBWFires -- a module that pairs a StartBar with a same-key
