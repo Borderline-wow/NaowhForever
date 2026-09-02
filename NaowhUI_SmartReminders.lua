@@ -3857,11 +3857,23 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
         -- left the StartBar's delayed fire pending regardless of which order the two
         -- arrived in, and it fired again seconds later on top of this immediate one. Same
         -- "whichever arrives last wins" rule ScheduleBWFire itself now follows.
+        --
+        -- Only fires aimed at THIS cast, which is the rule ScheduleBWFire already applies to
+        -- its aliases and this branch did not: a pending fire tens of seconds out belongs to
+        -- the NEXT occurrence, and cancelling it is the silent-buster direction. Rav'i sends
+        -- Triple Shot twice -- the bar's own Message as it lands, then a PersonalMessage at
+        -- the end of the 2s cast -- and the second one arrives lead+2 seconds after our fire.
+        -- Past the guard above once the lead is short, so at leadTime 1 it fell through here
+        -- and cancelled the next Triple Shot's callout, every other cast. Reported as calling
+        -- on some casts and not others, with one tank holding threat throughout.
         local sidFires = pendingBWFires.tank and pendingBWFires.tank[sid]
         if sidFires then
+            local thisCastUntil = GetTime() + lead + SAME_CAST_WINDOW
             for key, f in pairs(sidFires) do
-                if f.timer.Cancel then f.timer:Cancel() end
-                sidFires[key] = nil
+                if f.fireAt <= thisCastUntil then
+                    if f.timer.Cancel then f.timer:Cancel() end
+                    sidFires[key] = nil
+                end
             end
         end
         lastBWSid, lastBWAt = sid, GetTime()
