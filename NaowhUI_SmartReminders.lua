@@ -1985,13 +1985,23 @@ local function ResyncSpell(sid)
         -- that figure -- so a base-derived guess that is too short resurrects charges the
         -- player never got back. Learned into the same store the cooldown model uses, so
         -- it survives the reload that wipes chargeState.
+        --
+        -- Under the seed floor, and for the same reason EnsureChargeState applies it: a
+        -- charge spell is gated by its RECHARGE and this reads its COOLDOWN, which for
+        -- Guardian of Ancient Kings is 8 seconds against a ~180s recharge. Unfloored it
+        -- wrote 8 into both cs.recharge and the persisted store, so the climb handed a
+        -- charge back every 8 seconds and the pick named it all fight with none in hand.
+        -- Reported live on The Coiled Altar; /nutank cds read "1/2 charges, recharge 8s".
+        -- The real rate still arrives, from ReadChargeRecharge, which reads the recharge
+        -- clock itself and is not floored.
         if CanNameSpellAloud(sid) then
             local ok, total = pcall(function()
                 local dur = C_Spell.GetSpellCooldownDuration(sid, true)
                 return (dur and dur.GetTotalDuration and dur:GetTotalDuration()) or nil
             end)
-            if ok and type(total) == "number" and total > 1.5 then
-                cs.recharge = total
+            if ok and type(total) == "number" and total > 1.5
+                and total >= (KNOWN_BASE_COOLDOWN[sid] or 0) then
+                cs.recharge, cs.rechargeSrc = total, "learned"
                 local t = TRDB()
                 if type(t.learned) ~= "table" then t.learned = {} end
                 t.learned[tostring(sid)] = total
