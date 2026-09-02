@@ -224,7 +224,6 @@ ns.TANK_ABILITY_OWNER_UNIT = {
     [1255335] = 1, -- Lothraxion: Searing Rend
     [1280113] = 1, -- Degentrius: Hulking Fragment
     [1290797] = 1, -- Merektha: Lightning Bite
-    [1296220] = 1, -- Rav'i: Triple Shot
     [1297017] = 1, -- Taz'Rah: Void Blast
     [1298949] = 1, -- The Writhing Coil: Tail Scythe
     [1301350] = 1, -- Zul'jan: Chop Down
@@ -249,6 +248,11 @@ ns.TANK_ABILITY_OWNER_UNIT = {
     [1265131] = 1, -- Vaelgor & Ezzorak: Vaelwing
     -- The same check for Ezzorak, boss2, sits commented out beside Rakfang's Message.
     [1245645] = 2, -- Vaelgor & Ezzorak: Rakfang
+    -- Triple Shot is out for a different reason: Rav'i casts it, but BigWigs announces it
+    -- through ENCOUNTER_WARNING as a PersonalMessage at whoever it picked, so it is not an
+    -- aggro-driven hit. Gating it on holding the boss would silence it for the tank it is
+    -- actually aimed at, which the any-boss fallback at least does not do.
+
     -- Deliberately absent, all multi-unit fights whose slots the modules do not settle:
     -- Grappling Maw (shared, above both dragons' headings), Adderis and Aspix' Overload
     -- (the module resolves the slot by GUID at fire time, so it is not fixed), Stormslam,
