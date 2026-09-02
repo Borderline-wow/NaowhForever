@@ -172,8 +172,11 @@ local function WalkSections(rootID, out, depth, seen)
     end
 end
 
-local function ScrapeInstance(instanceID, name, isRaid)
-    local entry = { id = instanceID, name = name, isRaid = isRaid, bosses = {} }
+-- mapID is the instance map id (GetInstanceInfo's 8th return; what pack TOCs declare in
+-- X-BigWigs-LoadOn-InstanceId), kept so a boss page can ask BigWigs for just this
+-- instance's pack rather than every pack installed.
+local function ScrapeInstance(instanceID, name, isRaid, mapID)
+    local entry = { id = instanceID, name = name, isRaid = isRaid, mapID = mapID, bosses = {} }
 
     EJ_SelectInstance(instanceID)
     for i = 1, 40 do
@@ -222,7 +225,7 @@ function ns.ScrapeBosses(force)
             local journalID = gameMapID and C_EncounterJournal.GetInstanceForGameMap(gameMapID)
             if journalID then
                 diag.mapped = diag.mapped + 1
-                out.instances[#out.instances + 1] = ScrapeInstance(journalID, mapName or "?", false)
+                out.instances[#out.instances + 1] = ScrapeInstance(journalID, mapName or "?", false, gameMapID)
             end
         end
     else
@@ -238,7 +241,10 @@ function ns.ScrapeBosses(force)
             local instanceID, rname = EJ_GetInstanceByIndex(i, true)
             if not instanceID then break end
             diag.raids = diag.raids + 1
-            out.instances[#out.instances + 1] = ScrapeInstance(instanceID, rname or "?", true)
+            -- The instance map id is EJ_GetInstanceInfo's 10th return; Blizzard's own journal
+            -- destructures past it to covenantID at 11.
+            local _, _, _, _, _, _, _, _, _, raidMapID = EJ_GetInstanceInfo(instanceID)
+            out.instances[#out.instances + 1] = ScrapeInstance(instanceID, rname or "?", true, raidMapID)
         end
     end
 
@@ -309,8 +315,10 @@ end
 -- LoadAddOn calls on this machine. Same work, one pack per frame, so the client keeps
 -- drawing through it and the page refreshes itself when the last one lands.
 --
--- Kicked off when the options window opens rather than when a dungeon is picked, so it is
--- usually finished before anyone navigates to a boss.
+-- Fallback only, now that BigWigsOptionList asks BigWigs to load the one pack an instance
+-- needs. Reached when there is no map id for the instance or the installed BigWigs is too
+-- old to have LoadZone. Never runs on window open any more: doing so held the client at
+-- single-digit FPS through all 22 loads, on a tab that used none of them.
 local function LoadBossModPacks()
     if bwPacksLoaded or bwPacksLoading then return end
     if not (C_AddOns and C_AddOns.LoadAddOn and C_Timer and C_Timer.NewTicker) then
@@ -335,13 +343,8 @@ local function LoadBossModPacks()
 end
 ns.LoadBossModPacks = LoadBossModPacks
 
--- Opening the window is the earliest honest signal that boss data is about to be wanted,
--- and it costs nothing for a player who never opens it.
-if ns.UI and ns.UI.RegisterOnShow then
-    ns.UI:RegisterOnShow(LoadBossModPacks)
-end
 
-local function BigWigsOptionList(encounterID)
+local function BigWigsOptionList(encounterID, mapID)
     -- Some journal rows carry no dungeonEncounterID (EJ_GetEncounterInfo's 7th return can
     -- be nil) -- a nil TABLE WRITE below would throw, unlike the read just above, which
     -- Lua allows. Nothing to look up without an id anyway; falls through to the journal
@@ -349,10 +352,21 @@ local function BigWigsOptionList(encounterID)
     if encounterID == nil then return nil end
     local cached = bwOptionCache[encounterID]
     if cached ~= nil then return cached or nil end
-    LoadBossModPacks()
-    -- Nothing is recorded as "no module for this boss" until every pack has actually
-    -- landed, or the first look during the load pins an empty answer for the session.
-    if bwPacksLoading then return nil end
+    -- BigWigs' own loader knows which pack covers an instance, so ask it for that one
+    -- pack: a single synchronous load the first time this instance's page opens. Loading
+    -- all 22 installed packs one per frame -- the old approach, kicked off on ANY window
+    -- open -- held the client at single-digit FPS for the whole run of them, on the Setup
+    -- tab where none of it was even used. LoadZone is a no-op for an unknown zone.
+    if mapID and BigWigsLoader and BigWigsLoader.LoadZone then
+        pcall(BigWigsLoader.LoadZone, BigWigsLoader, mapID)
+    else
+        -- No map id or an old BigWigs without LoadZone: fall back to the sweep, but only
+        -- from here, where the result is actually wanted.
+        LoadBossModPacks()
+        -- Nothing is recorded as "no module for this boss" until every pack has actually
+        -- landed, or the first look during the load pins an empty answer for the session.
+        if bwPacksLoading then return nil end
+    end
     local core = _G.BigWigs
     if not (core and type(core.IterateBossModules) == "function") then
         bwOptionCache[encounterID] = false
@@ -402,8 +416,8 @@ end
 -- for the same mechanic is matched by spell id, then by name (the two id spaces are
 -- not guaranteed to agree: Possession Barrage is 1292036 in BigWigs, 1284103 in the
 -- journal) and contributes description, icon and role tags.
-local function BigWigsAbilities(encounterID, journalAbilities)
-    local opts = BigWigsOptionList(encounterID)
+local function BigWigsAbilities(encounterID, journalAbilities, mapID)
+    local opts = BigWigsOptionList(encounterID, mapID)
     if not opts then return nil end
     local byId, byName = {}, {}
     for i = 1, #(journalAbilities or {}) do
@@ -2717,7 +2731,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     -- table entries), plus abilities BigWigs does not track at all -- which the engine
     -- can never fire anyway. Reading the installed modules at runtime has neither
     -- problem, so this listing is exact by construction.
-    local abilities = BigWigsAbilities(boss.encounterID, boss.abilities) or boss.abilities
+    local abilities = BigWigsAbilities(boss.encounterID, boss.abilities, inst.mapID) or boss.abilities
     if not (abilities and #abilities > 0) then
         local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
