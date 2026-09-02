@@ -170,6 +170,10 @@ ns.TANK_ABILITY_OWNER_UNIT = {
     -- boss2 per DBM's TheTwinFangs ("--ALways boss2, unless boss1 is dead" on the same
     -- Stone Breaker warning); Caustic Deluge is its boss1 counterpart.
     [1288538] = 2,   -- The Twin Fangs: Stone Breaker (Ithraz)
+    -- BigWigs' GetOptions files Caustic Deluge under its "-- Vexhul" heading, leaving
+    -- Ithraz boss2 above; its own Message carries "always the tank?" beside the Blizzard
+    -- message it stops. Reported live: called for both tanks on every cast.
+    [1289192] = 1,   -- The Twin Fangs: Caustic Deluge (Vexhul)
 
     -- BigWigs registers Malacrass's Soulbinding channel on "boss2" from OnEncounterStart,
     -- leaving Zul'jan boss1.
