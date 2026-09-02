@@ -76,11 +76,11 @@ ns.TANK_ABILITIES = {
     [1247937] = "Unknown",   -- Nysarra: Void Gash
     [1251023] = "Unknown",   -- Rak'tul: Spiritbreaker
     [1251554] = "Unknown",   -- Vor'daza: Drain Soul
-    [1253950] = "Unknown",   -- Emberdawn: Searing Rend
+    [1253950] = "Unknown",   -- Lothraxion: Searing Rend (Nexus Point Xenas)
     -- LittleWigs carries this one as an aura option only (soundOnApplied, no bar), so it
     -- never reaches the engine from that side -- but DBM runs a real 26s CD timer for it
     -- under the same id, and its note is CL.tank_hit outright. DBM-driven only, the mirror
-    -- of Emberdawn's Searing Rend above being BigWigs-only.
+    -- of 1253950 above, the same boss's other Searing Rend, being BigWigs-only.
     [1255335] = "Unknown",   -- Lothraxion: Searing Rend
     [1268562] = "Unknown",   -- Nymrissa Wavecaller: Water Jet (Mythic only)
     [1267049] = "Unknown",   -- Midnight Falls: Heaven's Lance
@@ -141,7 +141,7 @@ ns.BOSSMOD_KEY_TO_JOURNAL = {
 -- debuff/aura id (Possession Barrage's is deliberate on DBM's side: 1292036 has no
 -- tooltip, their module says so). The engine, the curated list and Setup's rows all
 -- speak BigWigs ids, so DBM timer ids are normalized through this map before
--- ns.HandleBigWigsAbility. DBM's Emberdawn module tracks no Searing Rend at all, so
+-- ns.HandleBigWigsAbility. DBM's Lothraxion module carries 1255335 but not 1253950, so
 -- 1253950 stays BigWigs-only.
 ns.DBM_TO_BIGWIGS = {
     [1241836] = 1241692,   -- Vorasius: Shadowclaw Slam
@@ -170,6 +170,10 @@ ns.TANK_ABILITY_OWNER_UNIT = {
     -- boss2 per DBM's TheTwinFangs ("--ALways boss2, unless boss1 is dead" on the same
     -- Stone Breaker warning); Caustic Deluge is its boss1 counterpart.
     [1288538] = 2,   -- The Twin Fangs: Stone Breaker (Ithraz)
+    -- BigWigs' GetOptions files Caustic Deluge under its "-- Vexhul" heading, leaving
+    -- Ithraz boss2 above; its own Message carries "always the tank?" beside the Blizzard
+    -- message it stops. Reported live: called for both tanks on every cast.
+    [1289192] = 1,   -- The Twin Fangs: Caustic Deluge (Vexhul)
 
     -- BigWigs registers Malacrass's Soulbinding channel on "boss2" from OnEncounterStart,
     -- leaving Zul'jan boss1.
@@ -189,5 +193,68 @@ ns.TANK_ABILITY_OWNER_UNIT = {
     -- schedules off -- runs unconditionally, so both tanks get a bar either way.
     [1284458] = 1,   -- Entombed Sentinels: Empowering Slam (Breath of Ula'tek)
     [1284487] = 2,   -- Entombed Sentinels: Bloodvenom Injection (Blood of Ula'tek)
+
+    -- Ula'tek is the only mob BigWigs enables on and every unit event in the module is
+    -- boss1, but the fight puts big adds in the other boss frames. Tanking one of those
+    -- satisfied TankingSomeBoss, so Mother's Wrath -- flagged TANK in BigWigs' own
+    -- options -- called at the tank who did not have the boss. Reported live.
+    [1298367] = 1,   -- Ula'tek: Mother's Wrath
+
+    -- Swept from the BigWigs and LittleWigs modules for the whole pool. One boss unit in
+    -- the encounter means the ability is boss1's, and an add holding another frame is not
+    -- the thing being called -- the Ula'tek case above, which the fallback got wrong.
+    --
+    -- Dungeons.
+    [265910] = 1,  -- The Golden Serpent: Tail Thrash
+    [268586] = 1,  -- Dazar, The First King: Blade Combo
+    [372858] = 1,  -- Kokia Blazehoof: Searing Blows
+    [466064] = 1,  -- Emberdawn: Searing Beak
+    [467620] = 1,  -- Commander Kro'luk: Rampage
+    [472662] = 1,  -- The Restless Heart: Tempest Slash
+    [473898] = 1,  -- Xathuux the Annihilator: Legion Strike
+    [474496] = 1,  -- Arcanotron Custos: Repulsing Slam
+    [1222642] = 1, -- Atroxus: Hulking Claw
+    [1222795] = 1, -- Zaen Bladesorrow: Envenom
+    [1243569] = 1, -- Nalorakk: Overwhelming Onslaught
+    [1247685] = 1, -- Ziekket: Thornspike
+    [1247937] = 1, -- Nysarra: Void Gash
+    [1251023] = 1, -- Rak'tul: Spiritbreaker
+    [1251554] = 1, -- Vor'daza: Drain Soul
+    [1253950] = 1, -- Lothraxion: Searing Rend (Nexus Point Xenas)
+    [1255335] = 1, -- Lothraxion: Searing Rend
+    [1280113] = 1, -- Degentrius: Hulking Fragment
+    [1290797] = 1, -- Merektha: Lightning Bite
+    [1296220] = 1, -- Rav'i: Triple Shot
+    [1297017] = 1, -- Taz'Rah: Void Blast
+    [1298949] = 1, -- The Writhing Coil: Tail Scythe
+    [1301350] = 1, -- Zul'jan: Chop Down
+    [1311923] = 1, -- Charonus: Dark Waves
+
+    -- Raid, lairs and world.
+    [1221781] = 1, -- Rotmire: Putrid Fist
+    [1241692] = 1, -- Vorasius: Shadowclaw Slam
+    [1250803] = 1, -- Fallen-King Salhadaar: Shattering Twilight
+    [1260763] = 1, -- Belo'ren, Child of Al'ar: Guardian's Edict
+    [1268562] = 1, -- Nymrissa Wavecaller: Water Jet (Mythic only)
+    [1277025] = 1, -- Sszorak: Apex Predator
+    [1280935] = 1, -- Vashnik the Malignant: Dripping Fangs
+    [1292036] = 1, -- Nek'zali the Soulcoiler: Possession Barrage
+
+    -- Multi-boss fights the modules pin to a slot themselves.
+    -- BigWigs gates Heaven's Lance on ThreatTarget(unit, "boss1").
+    [1267049] = 1, -- Midnight Falls: Heaven's Lance
+    -- GetOptions files it under "-- Vaelgor", boss1 per the module's own note.
+    [1262623] = 1, -- Vaelgor & Ezzorak: Nullbeam
+    -- BigWigs gates its sound on ThreatTarget("player", "boss1") -- Vaelgor.
+    [1265131] = 1, -- Vaelgor & Ezzorak: Vaelwing
+    -- The same check for Ezzorak, boss2, sits commented out beside Rakfang's Message.
+    [1245645] = 2, -- Vaelgor & Ezzorak: Rakfang
+    -- Deliberately absent, all multi-unit fights whose slots the modules do not settle:
+    -- Grappling Maw (shared, above both dragons' headings), Adderis and Aspix' Overload
+    -- (the module resolves the slot by GUID at fire time, so it is not fixed), Stormslam,
+    -- Debilitating Backhand (Council rotates whoever is active into boss1), Bedrock Slam,
+    -- Bone Hack, Flanking Spear, both Judgements and both Crown of the Cosmos abilities.
+    -- Each names an owner but never a slot, and a wrong slot silences a real call, so they
+    -- keep the any-boss fallback until a live capture says which frame the caster holds.
 }
 

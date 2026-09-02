@@ -1593,11 +1593,32 @@ local function ReadDurationObject(fn, ...)
     return total, remaining
 end
 
+-- The COOLDOWN stand-in takes the seed floor, the same one EnsureChargeState applies and
+-- for the same reason: it describes a different clock. Guardian of Ancient Kings reads 8
+-- seconds there against a ~180s recharge, and unfloored that 8 reached st.recharge
+-- through both callers -- persisted as clientRecharge, which EnsureChargeState prefers
+-- ahead of the seed, so it survived the reload too. The climb then handed a charge back
+-- every 8 seconds and the pick named the spell all fight with none in hand. Reported live
+-- on The Coiled Altar; /nutank cds read "recharge 8s".
+--
+-- Floored rather than rejected: the same call returns the real recharge while one is
+-- running, and Guardian's 180s is under its own 300s seed, so a rejection would throw
+-- away the true figure along with the false one. Too long costs silence about a spell
+-- that is up; too short calls one that is down.
+--
+-- GetSpellChargeDuration describes the recharge itself, so it is taken as it comes.
 local function ReadChargeRecharge(sid)
     if not C_Spell then return nil end
     local total, remaining = ReadDurationObject(C_Spell.GetSpellChargeDuration, sid)
     if total then return total, remaining end
-    return ReadDurationObject(C_Spell.GetSpellCooldownDuration, sid, true)
+    total, remaining = ReadDurationObject(C_Spell.GetSpellCooldownDuration, sid, true)
+    if not total then return nil end
+    local seed = KNOWN_BASE_COOLDOWN[sid] or 0
+    -- remaining goes with the reading it came from: it anchors rechargeStart, and pairing
+    -- 3 seconds left with a 300 second total puts that anchor five minutes in the past and
+    -- reads as several charge landings at once.
+    if total < seed then return seed end
+    return total, remaining
 end
 
 function EnsureChargeState(sid)
@@ -1980,22 +2001,18 @@ local function ResyncSpell(sid)
     -- a charge spell: it holds a running recharge while still being castable.
     local cs = chargeState[sid]
     if cs then
-        -- One thing here IS worth reading for a charge spell. Its running cooldown, when
-        -- it reads plainly, is the real recharge time, and the count climbs back up off
-        -- that figure -- so a base-derived guess that is too short resurrects charges the
-        -- player never got back. Learned into the same store the cooldown model uses, so
-        -- it survives the reload that wipes chargeState.
-        if CanNameSpellAloud(sid) then
-            local ok, total = pcall(function()
-                local dur = C_Spell.GetSpellCooldownDuration(sid, true)
-                return (dur and dur.GetTotalDuration and dur:GetTotalDuration()) or nil
-            end)
-            if ok and type(total) == "number" and total > 1.5 then
-                cs.recharge = total
-                local t = TRDB()
-                if type(t.learned) ~= "table" then t.learned = {} end
-                t.learned[tostring(sid)] = total
-            end
+        -- One thing here IS worth reading for a charge spell: the real recharge time, so
+        -- the count climbs back up off that figure rather than a base-derived guess that
+        -- is too short and resurrects charges the player never got back. Learned into the
+        -- same store the cooldown model uses, so it survives the reload that wipes
+        -- chargeState. Through ReadChargeRecharge for the seed floor it applies -- this
+        -- read is where Guardian of Ancient Kings' 8 second cooldown got in.
+        local total = ReadChargeRecharge(sid)
+        if total then
+            cs.recharge, cs.rechargeSrc = total, "learned"
+            local t = TRDB()
+            if type(t.learned) ~= "table" then t.learned = {} end
+            t.learned[tostring(sid)] = total
         end
         return
     end
