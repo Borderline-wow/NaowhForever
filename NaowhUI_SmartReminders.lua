@@ -2,9 +2,8 @@
 --  NaowhUI_TankReminder.lua -- shows which defensive to press when Blizzard's encounter
 --  timeline says a tank ability is about to land.
 --
---  The core owns the DB and decides where this section renders: on NaowhUI_EUI's Gameplay
---  page when the companion is installed, on our own page under the NaowhUI group when it
---  is not. Nothing here needs to know which.
+--  The core owns the DB and profiles; the Window file owns the options window the pages
+--  here render into.
 --
 --  Both halves of this feature are secret on 12.1, and neither can be an `if`:
 --
@@ -33,23 +32,26 @@ if not ns then return end
 -- are built. Flat scalars only -- a nested default would hand out a live reference to
 -- DEFAULTS itself. `disabled` and `lists` are created on demand for the same reason.
 local DEFAULTS = {
-    -- On by default FOR THE TEST BUILD, at the owner's request: the tester should
-    -- install and see it work. Flip back to false before any public release; the house
-    -- rule is that features ship opt-in.
-    enabled   = true,
-    showIcon  = true,
+    -- Everything ships OFF, at the owner's direction: a fresh install does nothing and
+    -- shows nothing until each switch -- the master, a display channel, and where it
+    -- runs -- is deliberately turned on.
+    enabled   = false,
+    showIcon  = false,
     showText  = false,
     showBar   = false,
     soundOn   = false,
     soundKey  = "none",
-    inDungeons = true,
-    inRaids    = true,
-    fallbackOn = true,
+    inDungeons = false,
+    inRaids    = false,
+    fallbackOn = false,
     aggroOnly  = false,
-    coveredSkip = true,  -- a defensive already active 5s+ suppresses the next callout
+    coveredSkip = false,
     leadTime   = 3,     -- seconds before impact that the alert fires
+    lingerSec  = 5,     -- how long the icon stays up when the cast is never pressed
+    cdmGlow    = false, -- glow the called defensive on the Cooldown Manager bar
     voiceOn   = false,
     voiceNone = "Call for external",
+    externalChat = false,
     voiceVol  = 100,
     iconSize  = 64,
     -- 21 matches what the OLD derived formula (floor(iconSize * 0.34), floored at 12)
@@ -58,6 +60,9 @@ local DEFAULTS = {
     textSize   = 21,
     -- Which side of the icon the text callout sits on: TOP, BOTTOM, LEFT or RIGHT.
     textSide   = "BOTTOM",
+    -- Which single source drives the callouts: "timeline" (Blizzard's own encounter
+    -- timeline), "bigwigs" or "dbm". Exclusive by design -- the other two are ignored.
+    bossSource = "timeline",
     -- pos = { point, relPoint, x, y } once moved in Unlock Mode; nil = default centre.
 }
 
@@ -182,15 +187,30 @@ end
 -- Every preset for this spec, name and key, in a stable creation-ish order (numerically by
 -- key where the key is one of ours -- "p1", "p2", ... -- which sorts sensibly since they
 -- are only ever appended, never renumbered).
+-- p.name falls back to something visibly a placeholder, never the bare internal key --
+-- every preset created through AddPreset gets a real name ("Preset 1", with a space; the
+-- key itself never has one), so a dropdown showing literally "p2" is a malformed entry,
+-- not a real choice, and should read as one rather than pass for a preset the player made.
 function ns.ListPresets(forSpec)
     local presets = PresetsTable(forSpec, false)
     local out = {}
     if not presets then return out end
     for key, p in pairs(presets) do
-        out[#out + 1] = { key = key, name = p.name or key }
+        local name = p.name
+        if type(name) ~= "string" or name == "" then name = "(unnamed " .. key .. ")" end
+        out[#out + 1] = { key = key, name = name }
     end
     table.sort(out, function(a, b) return a.key < b.key end)
     return out
+end
+
+-- The actual priority list behind one preset key -- ns.ListPresets only hands back
+-- {key, name} pairs, not the list itself, which the per-defensive warning-time rows need
+-- to know which spells to show.
+function ns.PresetList(forSpec, presetKey)
+    local presets = PresetsTable(forSpec, false)
+    local p = presets and presetKey and presets[presetKey]
+    return p and type(p.list) == "table" and p.list or nil
 end
 
 -- Default name is "Preset N" for the lowest N not already in use, so deleting one and
@@ -360,6 +380,12 @@ local currentEncounter
 -- that point in the file, and a bare local has to exist before its first use textually,
 -- not just before it runs.
 local currentStage
+-- When the current stage began, and when the pull did. Both are plain GetTime() stamps;
+-- observed-timing recording measures against them, and a phase-relative time is the only
+-- trustworthy one for later phases, whose start is health-gated rather than scheduled.
+local currentStageAt
+local currentEncounterStartedAt
+local currentDifficultyID
 
 -- The list that actually drives the alert: this ability's own preset choice when it has
 -- one, else this boss's chosen preset, else the spec default.
@@ -513,15 +539,28 @@ end
 -- feature that has to work while soloing a dummy.
 local specID, isTank = 0, false
 
+-- Role and class are the two axes a binding can load on besides the spec itself, so an
+-- assignment can read "every healer" or "every paladin" without naming four specs. They
+-- live on ns rather than as file locals: this chunk is close enough to Lua's 200-local
+-- ceiling that adding two here stops the whole addon compiling.
 local function RefreshSpec()
     specID, isTank = 0, false
+    ns.playerRole = nil
+    ns.playerClass = select(2, UnitClass("player"))
     if not (C_SpecializationInfo and C_SpecializationInfo.GetSpecialization) then return end
     local index = C_SpecializationInfo.GetSpecialization()
     if not index then return end
     local id, _, _, _, role = C_SpecializationInfo.GetSpecializationInfo(index)
     specID = id or 0
     isTank = (role == "TANK")
+    ns.playerRole = role
+    -- Resolved through ns rather than called directly: this runs before the migration is
+    -- defined further down the file. It no-ops once the profile is stamped.
+    if ns.MigrateBindingScopes then ns.MigrateBindingScopes() end
 end
+
+function ns.CurrentRole() return ns.playerRole end
+function ns.CurrentClass() return ns.playerClass end
 
 -------------------------------------------------------------------------------
 --  The display
@@ -653,7 +692,7 @@ end
 
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
 -- locale variants (the Asia font files) resolve themselves. Everything degrades: no media
--- addon means the companion font, then the client default.
+-- addon means the client default font.
 local function NaowhMedia(kind, name)
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     if not LSM then return nil end
@@ -663,9 +702,6 @@ end
 
 local function AlertFont()
     local path = NaowhMedia("font", "Naowh")
-    if path then return path end
-    local EUI = _G.EllesmereUI
-    path = EUI and EUI.GetFontPath and EUI.GetFontPath("extras")
     return path or STANDARD_TEXT_FONT
 end
 
@@ -680,6 +716,11 @@ local function CreateSlot(index)
     slot.icon = slot:CreateTexture(nil, "ARTWORK")
     slot.icon:SetAllPoints()
     slot.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    -- 1px black edge so a bright spell icon reads as its own object against whatever is
+    -- behind it in the world. Parented to the slot, so it rides the same priority alpha
+    -- the icon does rather than hanging around on a slot that lost.
+    ns.Border(slot, { r = 0, g = 0, b = 0 }, 1)
 
     local T = ns.THEME
 
@@ -722,7 +763,7 @@ local function CreateBar()
     bar.bg:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 1, -1)
     local T = ns.THEME
     bar.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9)
-    if bar.fill then bar.fill:SetVertexColor(T.gold.r, T.gold.g, T.gold.b, 1) end
+    if bar.fill then bar.fill:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1) end
     bar:Hide()
     return bar
 end
@@ -758,7 +799,7 @@ function Reminder.Create()
     frame.fallback = textFrame:CreateFontString(nil, "OVERLAY")
     frame.fallback:SetFont(AlertFont(), 16, "OUTLINE")
     local T = ns.THEME
-    frame.fallback:SetTextColor(T.goldSoft.r, T.goldSoft.g, T.goldSoft.b, 1)
+    frame.fallback:SetTextColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1)
     frame.fallback:SetAlpha(0)
     frame.fallback:Hide()
 
@@ -954,6 +995,7 @@ local function PerBossSet(field, create, enc)
     end
     return t[field][key]
 end
+ns.PerBossSet = PerBossSet
 
 -- Boss-scoped custom reminders, independent of the timeline-fingerprint system: each one
 -- carries its own trigger (pull, a spell cast/aura) rather than riding an existing marked
@@ -986,10 +1028,60 @@ ns.BossModCatalogueTable = BossModCatalogueTable
 -- for the confirmed mismatches, so a stale binding from before an id correction is found
 -- (and migrated forward on write) instead of silently orphaned.
 -- profile.abilityBindings[encounterID][spellID] = { enabled = bool, mode, preset }.
+-- Bindings are stored under the spec that made them: abilityBindings[specKey][enc][sid].
+-- One shared entry per encounter+spell was the old shape, and it could not work -- enabled,
+-- preset and leadTime are all spec-local (a preset key only means anything inside
+-- presets[specKey]), so two specs sharing one entry meant the second to touch an ability
+-- silently overwrote the first's settings.
 local function AbilityBindingsTable(create, enc)
-    return PerBossSet("abilityBindings", create, enc)
+    local t = TRDB()
+    if type(t.abilityBindings) ~= "table" then
+        if not create then return nil end
+        t.abilityBindings = {}
+    end
+    if specID == 0 then return nil end
+    local specKey = tostring(specID)
+    local bySpec = t.abilityBindings[specKey]
+    if type(bySpec) ~= "table" then
+        if not create then return nil end
+        bySpec = {}
+        t.abilityBindings[specKey] = bySpec
+    end
+    local encKey = tostring(enc or 0)
+    if type(bySpec[encKey]) ~= "table" then
+        if not create then return nil end
+        bySpec[encKey] = {}
+    end
+    return bySpec[encKey]
 end
 ns.AbilityBindingsTable = AbilityBindingsTable
+
+-- A binding another spec owns, offered to this one because its scope names our role or
+-- class. Spec ownership is the storage key now, so scope only ever carries roles/classes.
+function ns.InheritedBinding(enc, sid)
+    local t = TRDB()
+    local all = t.abilityBindings
+    if type(all) ~= "table" then return nil end
+    local encKey, mySpec = tostring(enc or 0), tostring(specID)
+    for specKey, bySpec in pairs(all) do
+        if specKey ~= mySpec and type(bySpec) == "table" then
+            local byEnc = bySpec[encKey]
+            local b = type(byEnc) == "table" and byEnc[sid]
+            if b == nil and type(byEnc) == "table" and ns.BOSSMOD_KEY_TO_JOURNAL then
+                local jid = ns.BOSSMOD_KEY_TO_JOURNAL[sid]
+                if jid then b = byEnc[jid] end
+            end
+            if type(b) == "table" and ns.BindingSharedToMe(b) then return b end
+        end
+    end
+    return nil
+end
+
+-- Defined with the rest of the logging further down; forward-declared because the boss-mod
+-- key recorder below logs too and runs earlier in the file. Without this the call there
+-- read a nil global and threw on every bar a boss mod broadcast, but only ever with the
+-- trace switched on, which is why it sat unnoticed.
+local AppendLog
 
 local function RecordBossModKey(mod, key, text, kind)
     if type(key) ~= "number" then return end
@@ -998,6 +1090,10 @@ local function RecordBossModKey(mod, key, text, kind)
     local entry = cat[key]
     if not entry then
         cat[key] = { mod = mod, kind = kind, text = text, seen = 1, stage = currentStage }
+        -- First time this pull only. Every repeat would bury the callouts in bar traffic.
+        if TRDB().trace then
+            AppendLog({ kind = "key", sid = key, mod = mod, tankPath = kind })
+        end
     else
         entry.mod, entry.kind = mod, kind
         -- The most recent text wins: a bar's "(3)" occurrence suffix drifts pull to
@@ -1036,6 +1132,21 @@ local function UnitTankedVerdict(unit)
     return verdict
 end
 
+-- What the boss slots actually said, for the refusal log. "I am not tanking any boss" and
+-- "threat came back secret" both reach the gate as a plain false, and they call for
+-- different fixes, so the per-slot verdicts are recorded rather than the conclusion.
+local function BossThreatSummary()
+    local out
+    for i = 1, 5 do
+        local unit = "boss" .. i
+        if UnitExists(unit) then
+            out = (out and out .. "," or "")
+                .. ("%s=%s"):format(unit, tostring(UnitTankedVerdict(unit)))
+        end
+    end
+    return out or "no boss units"
+end
+
 -- Does any live boss consider ME its problem? For two-tank raids: the buster lands on
 -- whoever has the boss, and the other tank does not need to burn a cooldown for it. An
 -- unknown verdict still fails OPEN: a spare callout costs a moment of attention, a
@@ -1062,48 +1173,146 @@ end
 -- the combat log has told us which unit last cast this spell id, check tanking against
 -- that one unit specifically; otherwise fall back to the any-boss check (also what
 -- covers single-boss fights, where the two questions have the same answer).
+-- Set by FireBigWigsAbility right where it calls TankingCaster, read by LogCallout so a
+-- wrong call ("tanking Zul'jan, got called for a Malacrass-only ability") can be
+-- diagnosed from /nutank calls after the fact -- reported live on The Coiled Altar P2,
+-- no way to react to it typed in the moment a pull is already past.
+local lastAggroCheck   -- { sid, verdict, path }
+
+-- Second return is which path answered -- "boss:<unit>", "owner-gone", "nocache" or
+-- "fallback" -- so a wrong call can be diagnosed after the fact (see LogCallout)
+-- instead of guessed at from a VOD.
+--
+-- UnitGUID is SecretWhenUnitIdentityRestricted, so inside a raid every GUID read off a
+-- boss1-5 or nameplate unit comes back secret and no comparison against a combat-log
+-- sourceGUID can ever match. That is why the curated owner map, which names the boss
+-- SLOT and needs no identity read at all, is consulted first: it is the only one of
+-- these paths that works in the content the gate exists for. Confirmed live on The
+-- Coiled Altar with the whole map populated -- every single callout logged the
+-- no-match path, in both phases, for both severs.
 local castSourceGUID = {}
 local function TankingCaster(sid)
+    local ownerSlot = ns.TANK_ABILITY_OWNER_UNIT and ns.TANK_ABILITY_OWNER_UNIT[sid]
+    if ownerSlot then
+        local unit = "boss" .. ownerSlot
+        if UnitExists(unit) then
+            local verdict = UnitTankedVerdict(unit)
+            if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
+            return verdict, "boss:" .. unit
+        end
+        -- Slot empty: the owner is dead or not out yet and someone else is taking the
+        -- hit. DBM's own Twin Fangs module handles the same case the same way.
+        return TankingSomeBoss(), "owner-gone"
+    end
+
     local guid = castSourceGUID[sid]
-    if not guid then return TankingSomeBoss() end
+    if not guid then return TankingSomeBoss(), "nocache" end
     for i = 1, 5 do
         local unit = "boss" .. i
         if UnitExists(unit) then
             local ok, unitGUID = pcall(UnitGUID, unit)
             if ok and not (issecretvalue and issecretvalue(unitGUID)) and unitGUID == guid then
                 local verdict = UnitTankedVerdict(unit)
-                if verdict == nil then return true end
-                return verdict
+                if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
+                return verdict, "boss:" .. unit
             end
         end
     end
-    return TankingSomeBoss()
+    return TankingSomeBoss(), "fallback"
 end
 
--- Is one of the listed defensives ALREADY active with meaningful time left? A tank who
--- just pressed Shield Wall does not need "Demoralizing Shout" shouted over it -- the next
--- callout can wait for the next buster. Own buffs are the one aura set the client answers
--- most freely, but every read is still guarded and every unknown fails OPEN: a redundant
--- callout costs a shrug, a suppressed one on an uncovered tank costs a death.
-local COVERED_MIN_REMAINING = 5
+-- Is one of the listed defensives ALREADY active? A tank who just pressed Shield Wall
+-- does not need "Demoralizing Shout" shouted over it -- the next callout can wait for
+-- the next buster.
+--
+-- Tracked from the combat log (playerAuraUp, populated in OnCombatLog below) rather
+-- than polled from C_UnitAuras.GetPlayerAuraBySpellID -- that call carries
+-- RequiresNonSecretAura, so it can return NOTHING for an aura the game has decided to
+-- treat as secret, not just a secret expirationTime field on an otherwise-normal
+-- table. Reported live on Mythic (secrecy tightens with difficulty): Ardent Defender
+-- was genuinely up 5s+ and the callout fired anyway. Combat log aura events are not
+-- gated the same way -- the same reasoning CheckAuraReminder's own aura trigger
+-- already relies on for boss auras in restricted content.
+--
+-- No remaining-time threshold anymore either (the old COVERED_MIN_REMAINING >= 5s
+-- check) -- there turns out to be no secret-safe way to read exactly how much is
+-- left (confirmed against the aura/cooldown/curve API surface: every duration-typed
+-- return can be secret, and arithmetic on a secret value throws, so nothing can
+-- compare it to a threshold). A defensive genuinely up counts as covering outright,
+-- matching the exp==0 "no clock" case the old check already trusted the same way.
+local playerAuraUp = {}   -- [spellID] = true while up, per our own combat-log tracking
 
+-- Last rung, and the only one that survives with no combat log at all. Registering
+-- COMBAT_LOG_EVENT_UNFILTERED is only legal outside restricted content, so a session that
+-- logs straight into an instance and never leaves has no aura tracking for its whole
+-- length -- and that is exactly a raid night. UNIT_SPELLCAST_SUCCEEDED is unit-filtered to
+-- the player, carries no identity read, and is never restricted, so "I pressed one of these
+-- a moment ago" is answerable when "one of these is on me" is not.
+--
+-- A flat window rather than each defensive's real duration: the addon ships no class
+-- knowledge by design, and a buff's length cannot be read before it exists. 6s is chosen to
+-- be longer than the whole press-to-hit window (the callout leads the cast by 3s by
+-- default, and a tank who pre-pops does so as the cast begins) while staying far short of
+-- any real tank buster's cycle, so it cannot reach forward and silence the NEXT hit. That
+-- direction matters more than covering every case: see ns.HandleBigWigsAbility.
+local bigDefSeen = 0
+local OWN_CAST_COVER_WINDOW = 6
+local ownCastAt = {}   -- [spellID] = GetTime() of our own last cast of it
+
+-- The one question the client will still answer about an aura it has made secret.
+-- Every by-spellID aura read carries RequiresNonSecretAura, so it returns NOTHING rather
+-- than a secret -- that is deliberate on Blizzard's side and cannot be worked around from
+-- that direction. C_UnitAuras.AuraIsBigDefensive is the exception: it accepts a SECRET
+-- spellID (SecretArguments = "AllowedWhenTainted") and hands back a plain boolean, so
+-- Blizzard's own classification of the aura crosses the boundary even when its identity
+-- does not. AuraUtil.IsBigDefensive is Blizzard's cached wrapper around it.
+--
+-- Whether the ENUMERATION is allowed for us is the part the source cannot settle
+-- (GetAuraDataByIndex is RequiresUnitAuraAccess). If it is refused, this throws or comes
+-- back empty and the rungs below still answer -- hence the pcall and the plain false.
+-- bigDefSeen counts successes so /nutank can say whether this path ever worked.
+local function BigDefensiveUp()
+    if not (AuraUtil and AuraUtil.IsBigDefensive
+        and C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then
+        return false
+    end
+    local ok, found = pcall(function()
+        for i = 1, 40 do
+            local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
+            if type(aura) ~= "table" then return false end
+            if AuraUtil.IsBigDefensive(aura) == true then return true end
+        end
+        return false
+    end)
+    if ok and found == true then
+        bigDefSeen = bigDefSeen + 1
+        return true
+    end
+    return false
+end
+
+-- Second and third returns name the covering spell and which rung answered. A skip is
+-- otherwise completely invisible -- the callout simply does not happen, which looks
+-- identical to the engine never firing at all, and that ambiguity has already cost a round
+-- of guessing about whether this gate runs.
 local function CoveredByActiveDefensive()
-    if not (C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID) then return false end
     local now = GetTime()
+    if BigDefensiveUp() then return true, nil, "bigdef" end
     for i = 1, activeSlots do
         local sid = slots[i].spellID
-        local ok, remaining = pcall(function()
-            local aura = C_UnitAuras.GetPlayerAuraBySpellID(sid)
-            if type(aura) ~= "table" then return nil end
-            local exp = aura.expirationTime
-            if issecretvalue and issecretvalue(exp) then return nil end
-            if type(exp) ~= "number" then return nil end
-            -- A zero expiration is an aura with no clock; a defensive that does not
-            -- expire on its own counts as covering.
-            if exp == 0 then return COVERED_MIN_REMAINING end
-            return exp - now
-        end)
-        if ok and remaining and remaining >= COVERED_MIN_REMAINING then return true end
+        if playerAuraUp[sid] then return true, sid, "aura" end
+        if ownCastAt[sid] and (now - ownCastAt[sid]) < OWN_CAST_COVER_WINDOW then
+            return true, sid, "cast"
+        end
+        -- Fallback for a buff that was already up before tracking could see it apply
+        -- (addon just enabled, UI just reloaded, pre-popped before pull) -- existence
+        -- only, not exact timing, same as playerAuraUp itself answers.
+        if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+            local ok, exists = pcall(function()
+                return type(C_UnitAuras.GetPlayerAuraBySpellID(sid)) == "table"
+            end)
+            if ok and exists then return true, sid, "poll" end
+        end
     end
     return false
 end
@@ -1147,9 +1356,7 @@ local soundError               -- surfaced on the options page; silence is the w
 local function ResolveSoundFile()
     local key = TRDB().soundKey
     if not key or key == "none" then return nil end
-    local EUI = _G.EllesmereUI
-    local paths = EUI and EUI._groupDeathSoundPaths
-    local value = paths and paths[key]
+    local value = ns.UI.SoundPathFor(key)
     -- SetEventSound wants a file asset. A SoundKitID (LSM hands out either) is not one, so
     -- a numeric entry is skipped rather than passed through and silently ignored.
     if type(value) == "string" then return value end
@@ -1176,6 +1383,11 @@ end
 local function RegisterEventSounds()
     soundError = nil
     if not TRDB().soundOn then return end
+    if ns.BossSource() ~= "timeline" then
+        soundError = "Per-ability sounds ride the Blizzard timeline. Boss Addon is set to "
+            .. "a boss mod, so they are off."
+        return
+    end
     if not canSound then
         soundError = "This client does not support per-ability sounds."
         return
@@ -1279,9 +1491,22 @@ local readyAt = {}          -- [list spellID] = GetTime() at which it is back up
 -- own it: a local declared later in the file is not an upvalue to a function defined
 -- earlier, so referencing it from EnsureChargeState would have read a nil global and
 -- silently done nothing.
+-- Only a STARTING guess for the per-charge recharge, used until the client hands over the
+-- real one: ChargesAvailable reads that from GetSpellChargeDuration the moment a recharge
+-- is actually running, which needs no table and is right for every build. This is what
+-- answers before the first recharge of a session. Deliberately the ability's full
+-- cooldown rather than a shorter number observed on one build: talents move the real
+-- figure, and one hardcoded value cannot be right for everyone. 180 sat here for
+-- Guardian of Ancient Kings and handed a second charge back two minutes early on a build
+-- that did not have that reduction -- the callout named a defensive that was visibly on
+-- cooldown, reported live off Robin's stream on Kings Rest.
+--
+-- Too LONG is the safe direction here, unlike the bar dedupe: an understated charge count
+-- makes the pick name a different defensive that IS up, which is a worse choice, not
+-- silence. Too short names one that is down, which is worthless at the moment it matters.
 local KNOWN_BASE_COOLDOWN = {
     [642] = 300,      -- Divine Shield
-    [86659] = 180,    -- Guardian of Ancient Kings
+    [86659] = 300,    -- Guardian of Ancient Kings
 }
 
 -- GetSpellCooldownDuration describes the COOLDOWN. A charge spell is gated by its
@@ -1301,6 +1526,11 @@ local KNOWN_BASE_COOLDOWN = {
 -- then a free correction back to full.
 local chargeState = {}
 
+-- Defined below with the rest of the cooldown reads; forward-declared because the charge
+-- model needs it and sits above it. It answers the one question the charge fields cannot:
+-- isActive says a charge is missing, never how many.
+local CooldownRunning
+
 -- Third return is whether the read is trustworthy at all -- false means the API call or
 -- the field read itself failed (missing API, a thrown pcall), as opposed to a valid read
 -- that CONFIRMS max < 2. The distinction matters to the caller: a spell that genuinely
@@ -1319,6 +1549,55 @@ local function ReadChargeShape(sid)
     if type(max) ~= "number" or max < 2 then return nil, nil, true end
 
     return max, active == true, true
+end
+
+-- The real per-charge recharge, from the client, for THIS character and THIS build.
+--
+-- C_Spell.GetSpellChargeDuration hands back a LuaDurationObject describing the ACTIVE
+-- recharge, and unlike GetSpellCharges it carries no SecretWhenCooldownsRestricted --
+-- nor do the duration object's own getters, which are annotated only on their arguments.
+-- So the one number the charge model could never obtain is readable after all, and the
+-- addon was modelling around a gap that had an API the whole time. Its sibling
+-- GetSpellCooldownDuration was already trusted for the non-charge path here; the charge
+-- path simply never got the same treatment.
+--
+-- MayReturnNothing: at full charges there is no active recharge to describe, so this only
+-- answers while one is running. That is exactly when it is needed and the value is cached.
+-- GetSpellChargeDuration appears nowhere in Blizzard's own UI, so it is the less proven of
+-- the two. While exactly one charge is out a recharge IS running and the cooldown accessor
+-- describes it, and that one the non-charge path here has trusted all along -- so it stands
+-- in when the charge-specific call declines to answer. Neither is derived from isActive,
+-- which is the whole point: the seeded rate cannot be right for every build, and a
+-- protection paladin's Guardian of Ancient Kings recharges in 180s against a 300s seed.
+-- Indexed without a type check, the same way the cooldown path already treats the object
+-- GetSpellCooldownDuration returns: a duration object is not necessarily a Lua table, and
+-- demanding one would reject every real answer.
+--
+-- GetRemainingDuration is annotated exactly as GetTotalDuration is, so the client will also
+-- say how far through the running recharge it is. That fixes the anchor as well as the
+-- rate: the climb counts from st.tick, and without this the tick can only be the moment the
+-- addon happened to witness the drop from maximum. A spell first seen mid-recharge -- a
+-- cast before login, or before the first callout of the session -- anchored a full recharge
+-- late and read as empty while a charge was up.
+local function ReadDurationObject(fn, ...)
+    if not fn then return nil end
+    local ok, dur = pcall(fn, ...)
+    if not ok or not dur then return nil end
+    local got, total = pcall(function() return dur:GetTotalDuration() end)
+    if not got or (issecretvalue and issecretvalue(total)) then return nil end
+    if type(total) ~= "number" or total <= 1.5 then return nil end
+
+    local okRem, remaining = pcall(function() return dur:GetRemainingDuration() end)
+    if not okRem or (issecretvalue and issecretvalue(remaining)) then return total end
+    if type(remaining) ~= "number" or remaining < 0 or remaining > total then return total end
+    return total, remaining
+end
+
+local function ReadChargeRecharge(sid)
+    if not C_Spell then return nil end
+    local total, remaining = ReadDurationObject(C_Spell.GetSpellChargeDuration, sid)
+    if total then return total, remaining end
+    return ReadDurationObject(C_Spell.GetSpellCooldownDuration, sid, true)
 end
 
 function EnsureChargeState(sid)
@@ -1348,6 +1627,14 @@ function EnsureChargeState(sid)
         -- readable cooldown, or there is no climb.
         local t = TRDB()
         local learned = type(t.learned) == "table" and t.learned[tostring(sid)] or nil
+        -- Kept apart from `learned` because the seed floor below must not touch it. The
+        -- floor exists for figures measured off isActive, which lies for a talent-granted
+        -- extra charge; a number the client stated outright is not that, and floors were
+        -- silently discarding it. Guardian of Ancient Kings recharges in 180s for a
+        -- protection paladin against a 300s seed, so every rebuild of this state threw the
+        -- real figure away and put the count two minutes behind -- the callout then named
+        -- Divine Shield with a charge in hand, twice in one Kings Rest key.
+        local fromClient = type(t.clientRecharge) == "table" and t.clientRecharge[tostring(sid)] or nil
         st = {
             -- currentCharges is secret, so a spell seen for the first time cannot be read
             -- directly -- but isActive (a charge recharging right now) is plain, and it was
@@ -1362,20 +1649,26 @@ function EnsureChargeState(sid)
             -- own, so an undercount here costs a few seconds of silence instead of a false
             -- callout for a defensive still on cooldown.
             max = max, count = active and 0 or max, tick = GetTime(),
-            -- Whether that count is a GUESS from isActive rather than something we watched
-            -- happen. It matters because with no measured recharge there is nothing to
-            -- climb back on, so a pessimistic guess would otherwise stand for the rest of
-            -- the run -- which is how a held Guardian of Ancient Kings lost the pick to
-            -- "call for external" on Xathuux. Cleared the moment a real cast is witnessed
-            -- or the stack reads full, after which the count is tracked, not assumed.
-            guessed = active or nil,
             -- Zero means no climb at all, which is a complete answer rather than a
             -- degraded one: the count still falls on every witnessed cast, and
             -- ChargesAvailable still snaps it back to full the moment isActive reports
             -- nothing recharging. What is lost is only the middle of the stack -- holding
             -- 1 of 2 reads as 0 until the last charge lands -- and that is silence about a
             -- spell that is up, never a call for one that is down.
-            recharge = learned or KNOWN_BASE_COOLDOWN[sid] or 0,
+            -- The larger of the two, not the learned one outright. Learned values for
+            -- charge spells were measured off isActive, which lies for a talent-granted
+            -- extra charge, so a stored figure BELOW the ability's real cooldown is more
+            -- likely that lie than a genuine talent reduction -- and it hands back a
+            -- charge that is not there. The seed is a floor for the spells it names;
+            -- everything else still takes the measurement, which is all it has.
+            recharge = fromClient or math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0),
+            -- Where that number came from, for /nutank cds. A wrong recharge is invisible
+            -- from the callout itself -- it just names a spell that is down -- so the
+            -- source has to be readable directly rather than inferred from behaviour.
+            rechargeSrc = fromClient and "client"
+                or (math.max(learned or 0, KNOWN_BASE_COOLDOWN[sid] or 0) <= 0
+                and "none")
+                or ((learned or 0) >= (KNOWN_BASE_COOLDOWN[sid] or 0) and "learned" or "seed"),
         }
         chargeState[sid] = st
     end
@@ -1387,6 +1680,48 @@ function ChargesAvailable(sid)
     if not st then return nil end
 
     local max, active = ReadChargeShape(sid)
+
+    -- A running recharge is the client telling us the real rate outright, so take it over
+    -- anything seeded or measured. Persisted because it can only be read WHILE recharging,
+    -- and the pick has to answer between pulls too.
+    --
+    -- Read WITHOUT consulting isActive first. GetSpellCharges is SecretWhenCooldownsRestricted
+    -- and in a real key it declines outright, so `active` comes back nil there and gating on
+    -- it skipped this read exactly where it was needed -- the rate stayed at the 300s seed
+    -- while GetSpellChargeDuration, which carries no such restriction, would have answered
+    -- 180. That is the whole Kings Rest failure: at a dummy the sealed accessor answers and
+    -- the rate is right, in the key it does not and the count runs two minutes behind.
+    -- An answer here also PROVES a recharge is running, so it stands in for isActive.
+    local real, remaining = ReadChargeRecharge(sid)
+    if real then
+        active = true
+        st.recharge, st.rechargeSrc = real, "client"
+        local t = TRDB()
+        if type(t.clientRecharge) ~= "table" then t.clientRecharge = {} end
+        t.clientRecharge[tostring(sid)] = real
+        -- A charge landing IS the client's recharge start jumping forward by one recharge,
+        -- and that is a far better signal than the elapsed-time climb below: it needs no
+        -- anchor of our own and no witnessed cast, so a state rebuilt mid-fight recovers on
+        -- the next landing instead of guessing.
+        --
+        -- This replaces re-anchoring st.tick while the count sat at zero. That was written
+        -- to fix a rebuilt state's anchor and did the opposite: zero is exactly when the
+        -- climb has to run, so moving the anchor to the running recharge's start on every
+        -- read held `gained` at zero forever and pinned the count. Live capture, Rav'i
+        -- 15:26:54 -- Divine Shield named on 0/2 with a charge in hand two seconds later.
+        if remaining then
+            local start = GetTime() - (real - remaining)
+            if st.rechargeStart then
+                local landed = math.floor((start - st.rechargeStart) / real + 0.5)
+                if landed > 0 then st.count = math.min(st.max, st.count + landed) end
+            end
+            st.rechargeStart = start
+            -- Kept in step so the elapsed-time climb stays quiet while the client is
+            -- answering, and picks up from the right place if it stops.
+            st.tick = start
+        end
+    end
+
     if max and not active then
         -- Back to full, and if exactly one charge was out this is a free MEASUREMENT of
         -- the recharge: the gap between the cast that broke the stack and the moment the
@@ -1394,10 +1729,16 @@ function ChargesAvailable(sid)
         -- so unlike reading the cooldown it works in restricted content, which is the only
         -- place this matters. Restricted to the one-charge case on purpose -- with two out
         -- the elapsed time covers two recharges and our own count is the thing in doubt.
+        -- Still only from zero, deliberately. Letting a measurement correct a SEEDED
+        -- recharge was tried and reverted: this measurement is timed off isActive, and
+        -- isActive is exactly the signal known to lie for a talent-granted extra charge
+        -- (see the snap below). Using it to overwrite a seed would let that lie become the
+        -- stored rate, which is the bug being fixed here rather than a cure for it. With no
+        -- seed at all there is nothing better available, so it still runs there.
         if st.recharge <= 0 and st.missingSince and st.count == st.max - 1 then
             local measured = GetTime() - st.missingSince
             if measured > 1.5 then
-                st.recharge = measured
+                st.recharge, st.rechargeSrc = measured, "measured"
                 local t = TRDB()
                 if type(t.learned) ~= "table" then t.learned = {} end
                 t.learned[tostring(sid)] = measured
@@ -1414,7 +1755,9 @@ function ChargesAvailable(sid)
         -- known yet there is nothing to check against, so the original correction still
         -- applies immediately (that is what recovers a wrongly pessimistic first guess).
         if st.recharge <= 0 or (GetTime() - st.tick) >= st.recharge then
-            st.count, st.tick, st.missingSince, st.guessed = st.max, GetTime(), nil, nil
+            -- rechargeStart goes with it: the next recharge is a new one, and a stale start
+            -- left here would read as several landings at once the next time one runs.
+            st.count, st.tick, st.missingSince, st.rechargeStart = st.max, GetTime(), nil, nil
             return st.count
         end
     end
@@ -1427,14 +1770,21 @@ function ChargesAvailable(sid)
         end
     end
 
-    -- A guessed count with no recharge to climb on cannot recover, so it must not be the
-    -- pessimistic end of what isActive actually proved. isActive says at least one charge
-    -- is out -- on the two-charge defensives this list carries, the other one is up. Report
-    -- that instead of zero until a cast is actually witnessed, at which point the count is
-    -- tracked and this stops applying. Zero remains correct for a stack we WATCHED empty.
-    if st.guessed and st.recharge <= 0 and st.count < st.max - 1 then
-        st.count = st.max - 1
-    end
+    -- No optimistic floor here, deliberately. One used to raise a guessed count to max-1,
+    -- because isActive proves at least one charge is out and on a two-charge spell that
+    -- was read as "the other one is up" -- but isActive says the same thing when BOTH are
+    -- out, so it claimed a charge that did not exist and called a defensive that was down.
+    --
+    -- It existed only because a guessed count could not recover: with `recharge <= 0`
+    -- there is no climb, so the pessimistic zero stood for the rest of the run and a held
+    -- Guardian of Ancient Kings lost the pick to "call for external" on Xathuux. The
+    -- client's own recharge (ReadChargeRecharge) removes that condition -- it answers
+    -- precisely when a recharge is running, which is exactly when the count is guessed --
+    -- so zero now climbs back on its own and the floor has nothing left to fix.
+    --
+    -- Where no rate can be had at all, zero stands, and that is the right answer: the
+    -- count is genuinely unknown, and for charges an undercount names a DIFFERENT
+    -- defensive that is up rather than one that is down.
 
     -- isActive is plain and exact, and it was only ever read in the one direction above.
     -- Read the other way it is a hard ceiling: something is recharging, so the stack CANNOT
@@ -1443,6 +1793,19 @@ function ChargesAvailable(sid)
     -- cooldown that produced this one.
     if active and st.count >= st.max then
         st.count = st.max - 1
+    end
+
+    -- The floor, and the only readable answer to what isActive cannot say. A spell whose
+    -- cooldown is NOT running is castable, and on a charge spell castable means at least
+    -- one charge is in hand, whatever the model believes. Without this a state built while
+    -- a recharge was already going seeds zero and stays exactly one behind for as long as
+    -- the stack never refills -- the count climbs 0 to 1 as the real one goes 1 to 2 -- and
+    -- that is the Divine Shield callout with a charge in hand, reproduced on Rav'i.
+    --
+    -- Both fields behind it are NeverSecret, so it answers in restricted content, and the
+    -- non-charge path in this file has trusted the same call all along.
+    if st.count < 1 and CooldownRunning(sid) == false then
+        st.count = 1
     end
     return st.count
 end
@@ -1463,21 +1826,72 @@ end
 -- Every actual cast or callout for a tracked defensive is appended here, capped and
 -- persisted, so a bad call ("it said X was ready right after I used X") can be checked
 -- against what actually happened instead of relying on memory mid-fight.
+-- 30 is enough to read back a bad pull in chat. A trace covers a whole key, so it keeps
+-- far more -- still capped, because this lives in SavedVariables and an uncapped list
+-- would grow without bound on a long session.
 local CALL_LOG_MAX = 30
-local function AppendLog(entry)
+local TRACE_LOG_MAX = 600
+function AppendLog(entry)
     local t = TRDB()
     if type(t.callLog) ~= "table" then t.callLog = {} end
     local log = t.callLog
     entry.stamp = date and date("%H:%M:%S") or "?"
     entry.enc, entry.stage = currentEncounter, currentStage
     log[#log + 1] = entry
-    while #log > CALL_LOG_MAX do table.remove(log, 1) end
+    local cap = t.trace and TRACE_LOG_MAX or CALL_LOG_MAX
+    while #log > cap do table.remove(log, 1) end
+end
+
+-- One renderer for both /nutank calls and the export, so a line never says two different
+-- things depending on where it is read. Plain text: the export has to survive a paste.
+local function LogLine(e)
+    local function nameOf(id)
+        local info = id and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
+        return (info and info.name) or tostring(id)
+    end
+    local head = ("%s enc=%s stage=%s"):format(e.stamp, tostring(e.enc), tostring(e.stage))
+    if e.kind == "cast" then
+        return head .. " -- CAST " .. nameOf(e.sid)
+    elseif e.kind == "enc" then
+        return head .. " -- ENCOUNTER " .. tostring(e.text)
+    elseif e.kind == "key" then
+        return ("%s -- KEY %s %s (%s/%s)"):format(head, tostring(e.sid), nameOf(e.sid),
+            tostring(e.mod), tostring(e.tankPath))
+    elseif e.kind == "quiet" then
+        return ("%s -- icon-only for %s (voice repeat-muted, trigger %s)"):format(head,
+            nameOf(e.sid), nameOf(e.tankSid))
+    elseif e.kind == "drop" then
+        return ("%s -- dropped broadcast for %s (%s)"):format(head, nameOf(e.sid),
+            tostring(e.text))
+    elseif e.kind == "bosscast" then
+        return ("%s -- BOSS CAST %s on %s (%s)"):format(head,
+            e.sid and nameOf(e.sid) or "secret id", tostring(e.unit), e.text or "?")
+    elseif e.kind == "aside" then
+        return head .. " -- " .. nameOf(e.sid) .. " stepped aside to its Ability Reminder"
+    elseif e.kind == "cancel" then
+        return ("%s -- cancelled pending callout for %s (bar '%s' stopped early)"):format(
+            head, nameOf(e.sid), tostring(e.text))
+    elseif e.kind == "aggro" then
+        return ("%s -- BLOCKED %s -- not tanking the caster (%s) -- %s"):format(head,
+            nameOf(e.sid), tostring(e.tankPath), tostring(e.text))
+    elseif e.kind == "skip" then
+        return ("%s -- skipped %s -- already covered by %s (%s)"):format(head,
+            nameOf(e.tankSid), nameOf(e.sid), tostring(e.tankPath))
+    end
+    return ("%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s%s%s"):format(head,
+        e.kind == "test" and "TEST-called" or "called", nameOf(e.sid),
+        tostring(e.running), e.charges and (" charges=" .. e.charges) or "",
+        e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", tostring(e.secrecy),
+        e.tankPath and (" tankCheck=%s(%s)"):format(e.tankPath, nameOf(e.tankSid)) or "",
+        (e.auraUp and (" auraUp=" .. e.auraUp) or "")
+            .. (e.chargeModel and ("\n    charges: " .. e.chargeModel) or ""))
 end
 
 local function NoteOwnCast(castSpellID)
     local sid = castSpellID and castToBase[castSpellID]
     if not sid then return end
     AppendLog({ kind = "cast", sid = sid })
+    ownCastAt[sid] = GetTime()
 
     -- A charge spell never touches readyAt: a cast spends a charge, and holding one is
     -- what makes it available, not the absence of a timer. Established here too, not only
@@ -1495,10 +1909,11 @@ local function NoteOwnCast(castSpellID)
         if st.count >= st.max then
             st.tick = GetTime()
             st.missingSince = GetTime()
+            -- This cast starts a fresh recharge, so the next read establishes its own
+            -- baseline rather than reading the gap since an older one as landings.
+            st.rechargeStart = nil
         end
         st.count = math.max(0, st.count - 1)
-        -- Watched, not assumed, from here on.
-        st.guessed = nil
         return
     end
 
@@ -1660,7 +2075,7 @@ end
 --
 -- Returns nil, not a guess, when the client cannot answer -- callers fall back to the
 -- older ladder rather than treating "no answer" as ready.
-local function CooldownRunning(sid)
+function CooldownRunning(sid)
     if not (C_Spell and C_Spell.GetSpellCooldown) then return nil end
     local ok, running = pcall(function()
         local info = C_Spell.GetSpellCooldown(sid)
@@ -1697,6 +2112,43 @@ end
 -- The whole list is checked first and the walk is abandoned unless EVERY entry is readable.
 -- A partial read would silently skip the sealed entries and name a lower-priority defensive
 -- as though the better one were down, which is worse than saying nothing.
+-- Which voice both spoken paths use. The addon's own pick wins; "Game Default" stores no id
+-- and follows whatever the player chose in Blizzard's Text to Speech panel. A stored id for
+-- a voice that is no longer installed falls back rather than going silent, which is what
+-- would otherwise happen after a Windows voice pack is removed.
+function ns.TTSVoiceID()
+    if not (C_VoiceChat and C_VoiceChat.GetTtsVoices) then return 0 end
+    local voices = C_VoiceChat.GetTtsVoices()
+    local want = TRDB().ttsVoiceID
+    if want and voices then
+        for i = 1, #voices do
+            if voices[i].voiceID == want then return want end
+        end
+    end
+    if TextToSpeech_GetSelectedVoice then
+        local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
+        if ok and voice and voice.voiceID then return voice.voiceID end
+    end
+    return (voices and voices[1] and voices[1].voiceID) or 0
+end
+
+-- Voice list for the options dropdown: values keyed by voiceID, plus a Game Default entry
+-- keyed "" since a dropdown cannot carry nil as a value.
+function ns.TTSVoiceChoices()
+    local values, order = { [""] = "Game Default" }, { "" }
+    if C_VoiceChat and C_VoiceChat.GetTtsVoices then
+        local voices = C_VoiceChat.GetTtsVoices()
+        for i = 1, #(voices or {}) do
+            local v = voices[i]
+            if v and v.voiceID and v.name then
+                values[v.voiceID] = v.name
+                order[#order + 1] = v.voiceID
+            end
+        end
+    end
+    return values, order
+end
+
 local function Speak(text)
     if not (C_VoiceChat and C_VoiceChat.SpeakText) or not text or text == "" then return end
     -- The generated docs give (voiceID, text, rate, volume, overlap), but EllesmereUI carries
@@ -1704,19 +2156,48 @@ local function Speak(text)
     -- be 1. Passing 1 satisfies both readings -- it is a valid rate and the required
     -- destination -- so this matches their proven call rather than the docs alone.
     -- Only `text` may carry a secret; every other argument is NeverSecret, and ours are plain.
-    pcall(C_VoiceChat.SpeakText, 0, text, 1, TRDB().voiceVol or 100, true)
+    pcall(C_VoiceChat.SpeakText, ns.TTSVoiceID(), text, 1, TRDB().voiceVol or 100, true)
 end
 
 -- The single place a callout becomes audible, so the sound-or-speech choice is made once
 -- rather than at each of the call sites below.
+-- When the priority list has nothing of your own left to press, say so in chat so whoever
+-- is watching for it can react. Group channels only: an external call means nothing solo,
+-- and SAY would carry it to strangers out in the world.
+--
+-- The timestamp lives in this block rather than as a file local -- the main chunk is close
+-- enough to Lua's 200-local ceiling that one more stops the addon compiling. It survives as
+-- an upvalue, and the slot is released when the block ends.
+do
+    local lastAt = 0
+    function ns.AnnounceExternalToChat()
+        if not TRDB().externalChat then return end
+        local now = GetTime()
+        -- Several telegraphs landing together are still one call for help.
+        if now - lastAt < 3 then return end
+        local channel
+        if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then channel = "INSTANCE_CHAT"
+        elseif IsInRaid() then channel = "RAID"
+        elseif IsInGroup() then channel = "PARTY" end
+        if not channel then return end
+        lastAt = now
+        -- C_ChatInfo, not the bare SendChatMessage: that global now only exists as a
+        -- deprecation shim behind the loadDeprecationFallbacks CVar, so on a client with it
+        -- off the call is nil and this would quietly do nothing forever.
+        if C_ChatInfo and C_ChatInfo.SendChatMessage then
+            pcall(C_ChatInfo.SendChatMessage, "EXTERNAL!", channel)
+        elseif SendChatMessage then
+            pcall(SendChatMessage, "EXTERNAL!", channel)
+        end
+    end
+end
+
 local function Announce(spellID, text)
     local key = ns.SoundFor(spellID)
     if key then
-        local EUI = _G.EllesmereUI
-        local paths = EUI and EUI._groupDeathSoundPaths
-        local value = paths and paths[key]
-        if value and EUI._PlayLSMSound then
-            EUI._PlayLSMSound(value)
+        local value = ns.UI.SoundPathFor(key)
+        if value then
+            ns.UI._PlayLSMSound(value)
             return
         end
         -- The chosen file is gone (a SharedMedia pack removed, say). Speaking is better than
@@ -1737,25 +2218,71 @@ end
 -- genuinely later need for the same one is never the thing being suppressed.
 local SUPPRESS_REPEAT_WINDOW = 12
 local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
+local lastAnnouncedTrigger
 
 -- Snapshot of what SpellReady actually saw for the winning pick, so a wrong call --
 -- "it named X while X was on cooldown" -- can be diagnosed from what already happened,
 -- instead of needing /nutank secrecy typed in the moment, which a live pull never allows.
 -- Persisted (capped) so it survives the relog a bad pull often ends in.
+-- Every charge spell on the list, not just the one that won the pick. A charge spell that
+-- LOSES leaves no trace otherwise, which is exactly the case worth reading: Guardian of
+-- Ancient Kings dropping out of the walk is invisible in a log that only records the
+-- winner. Anchor age is included because a rebuilt charge state is not visible from the
+-- count alone -- it reseeds the count to zero AND resets the anchor, so an age that falls
+-- back to roughly zero between two entries with no cast in between is the tell.
+local function ChargeModelSnapshot()
+    local out
+    for i = 1, activeSlots do
+        local s = slots[i] and slots[i].spellID
+        local st = s and chargeState[s]
+        if st then
+            out = (out and out .. " " or "") .. ("%d=%d/%d %ds(%s) age=%ds cdRunning=%s"):format(
+                s, ChargesAvailable(s) or 0, st.max, st.recharge or 0,
+                tostring(st.rechargeSrc), GetTime() - (st.tick or GetTime()),
+                tostring(CooldownRunning(s)))
+        end
+    end
+    return out
+end
+
 local function LogCallout(sid)
     local st = chargeState[sid]
     local running = CooldownRunning(sid)
+    -- Which of the player's own defensives the combat-log tracking believed were up at the
+    -- moment this went out. A callout naming a second defensive seconds after the first one
+    -- was actually pressed means Skip When Already Covered did not see the buff land, and
+    -- this says so outright instead of leaving it a guess between that and a double fire.
+    local auraUp
+    for i = 1, activeSlots do
+        local s = slots[i].spellID
+        if playerAuraUp[s] then auraUp = (auraUp and auraUp .. "," or "") .. s end
+    end
     AppendLog({
+        auraUp = auraUp,
         kind = ns.testFiring and "test" or "call",
         sid = sid,
         charges = st and ("%d/%d"):format(ChargesAvailable(sid) or 0, st.max) or nil,
+        chargeModel = ChargeModelSnapshot(),
         running = running == nil and "unreadable" or tostring(running),
         readyAtDelta = readyAt[sid] and (readyAt[sid] - GetTime()) or nil,
         secrecy = SecrecyLevelName(sid),
+        -- Only present when Only While I Have the Boss was actually the gate that let
+        -- this through -- how TankingCaster answered for the BOSS ABILITY that triggered
+        -- this pick, not the defensive itself. Test fires skip that gate entirely
+        -- (ns.testFiring), so lastAggroCheck there would only ever be stale leftover
+        -- data from an unrelated earlier real call -- excluded rather than shown as if
+        -- it were this fire's own answer.
+        tankSid = (not ns.testFiring) and lastAggroCheck and lastAggroCheck.sid or nil,
+        tankPath = (not ns.testFiring) and lastAggroCheck and lastAggroCheck.path or nil,
     })
 end
 
-local function SpeakCallout()
+-- triggerSid: the boss ability this callout is FOR, so the repeat window only mutes a
+-- re-announcement of the same defensive for the SAME incoming hit (a resynced or
+-- double-reported bar). Two different busters seconds apart each deserve their own
+-- audio even when the pick lands on the same defensive -- suppressing the second read
+-- as "the icon came up but not the sound alert", reported live on Rav'i.
+local function SpeakCallout(triggerSid)
     local t = TRDB()
     if not t.voiceOn or activeSlots == 0 then return end
 
@@ -1797,13 +2324,19 @@ local function SpeakCallout()
     end
 
     if picked then
+        -- Outside the audio gate below: a muted entry still wins the pick and still shows,
+        -- so it should still light up its Cooldown Manager button.
+        ns.StartCDMGlow(picked)
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
         if not ns.IsAudioOff(picked) then
-            if picked == lastAnnouncedSpellID and (now - lastAnnouncedAt) < SUPPRESS_REPEAT_WINDOW then
+            if picked == lastAnnouncedSpellID and triggerSid == lastAnnouncedTrigger
+                and (now - lastAnnouncedAt) < SUPPRESS_REPEAT_WINDOW then
+                -- Icon-only fires were invisible in the trace, which cost a hunt.
+                if t.trace then AppendLog({ kind = "quiet", sid = picked, tankSid = triggerSid }) end
                 return
             end
-            lastAnnouncedSpellID, lastAnnouncedAt = picked, now
+            lastAnnouncedSpellID, lastAnnouncedTrigger, lastAnnouncedAt = picked, triggerSid, now
             LogCallout(picked)
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
             Announce(picked, CalloutFor(picked, info and info.name))
@@ -1811,7 +2344,11 @@ local function SpeakCallout()
         return
     end
 
-    if t.fallbackOn ~= false and not ns.IsAudioOff(0) then Announce(0, t.voiceNone) end
+    if t.fallbackOn ~= false then
+        if not ns.IsAudioOff(0) then Announce(0, t.voiceNone) end
+        -- Outside the audio gate: silencing the callout should not silence the chat call.
+        ns.AnnounceExternalToChat()
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -1824,7 +2361,10 @@ end
 -- Bumped whenever this readout changes. Printed in the header so a report answers "is the
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
-local TRACE_BUILD = "0825i"
+local function BuildString()
+    return (C_AddOns and C_AddOns.GetAddOnMetadata
+        and C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version")) or "unknown"
+end
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
 -- error object carries one, and tostring() on it raises in turn -- OUTSIDE the guard that
@@ -1867,9 +2407,77 @@ local shownForEvent
 -- state further down: the reads above that point compiled to a nil global.
 local previewing = false
 
+-- Glowing the Cooldown Manager button for the defensive being called, so the answer lands
+-- on the bar the player is already watching and not only on this addon's own icon.
+--
+-- GetSpellID can come back secret in restricted content and comparing a secret raises, so
+-- every read is pcall'd and screened with issecretvalue before it reaches a comparison.
+function ns.CDMButtonForSpell(spellID)
+    if not spellID then return nil end
+    local viewers = { "EssentialCooldownViewer", "UtilityCooldownViewer",
+                      "BuffIconCooldownViewer", "BuffBarCooldownViewer" }
+    for i = 1, #viewers do
+        local viewer = _G[viewers[i]]
+        if viewer and viewer.GetItemFrames then
+            local ok, items = pcall(viewer.GetItemFrames, viewer)
+            if ok and type(items) == "table" then
+                for j = 1, #items do
+                    local item = items[j]
+                    if item and item.GetSpellID then
+                        local ok2, sid = pcall(item.GetSpellID, item)
+                        if ok2 and not (issecretvalue and issecretvalue(sid))
+                            and type(sid) == "number" and sid == spellID then
+                            return item
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- The glow rides our own frame anchored over the button, never a texture parented onto
+-- Blizzard's. CooldownViewerSecure keeps tables that refuse tainted access, and adding
+-- children or scripts to those frames is the kind of thing that turns a cosmetic feature
+-- into a combat bug. SetAllPoints only reads their geometry; it changes nothing of theirs.
+do
+    local glowing
+    local GLOW_COLOR = { 1, 0.82, 0, 1 }
+
+    function ns.StopCDMGlow()
+        if not glowing then return end
+        local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
+        if LCG then pcall(LCG.PixelGlow_Stop, glowing) end
+        glowing:Hide()
+        glowing = nil
+    end
+
+    function ns.StartCDMGlow(spellID)
+        if not TRDB().cdmGlow then return end
+        ns.StopCDMGlow()
+        local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
+        if not LCG then return end
+        local btn = ns.CDMButtonForSpell(spellID)
+        if not btn then return end
+        local anchor = ns.cdmGlowFrame
+        if not anchor then
+            anchor = CreateFrame("Frame", nil, UIParent)
+            anchor:SetFrameStrata("HIGH")
+            ns.cdmGlowFrame = anchor
+        end
+        anchor:ClearAllPoints()
+        anchor:SetAllPoints(btn)
+        anchor:Show()
+        glowing = anchor
+        LCG.PixelGlow_Start(anchor, GLOW_COLOR)
+    end
+end
+
 local function HideReminder()
     if hideTimer then hideTimer:Cancel(); hideTimer = nil end
     shownForEvent = nil
+    ns.StopCDMGlow()
     if frame then
         if frame.reminder then frame.reminder:Hide() end
         frame:Hide()
@@ -1877,6 +2485,17 @@ local function HideReminder()
     if textFrame then textFrame:Hide() end
     if bar then bar:Hide() end
 end
+
+-- Pressing the defensive the callout asked for answers it, so the icon goes now rather
+-- than sitting out the rest of its linger. Resolved through castToBase exactly as
+-- NoteOwnCast does, so the comparison is against a plain base id and never the raw event
+-- argument, which can be a secret in restricted content.
+function ns.HideIfCalloutPressed(castSpellID)
+    if not shownForEvent or not lastAnnouncedSpellID then return end
+    local sid = castSpellID and castToBase[castSpellID]
+    if sid and sid == lastAnnouncedSpellID then HideReminder() end
+end
+
 
 -- Previews one custom line exactly as a fight would deliver it: the text over the alert
 -- frame for a few seconds, and the voice saying it. Used by the Says row's Preview button.
@@ -1933,7 +2552,7 @@ function ns.ForceShowTest()
             .. "real boss.")
     end
     if hideTimer then hideTimer:Cancel() end
-    hideTimer = C_Timer.NewTimer(5, HideReminder)
+    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or 5, HideReminder)
 end
 
 -------------------------------------------------------------------------------
@@ -1968,6 +2587,10 @@ local function InEncounter()
     end
     return currentEncounter ~= nil
 end
+ns.InEncounter = InEncounter
+ns.AllowedHere = AllowedHere
+ns.BossAllowed = BossAllowed
+function ns.CurrentEncounter() return currentEncounter end
 
 -- Every specialization. The role is still resolved because the optional tank filter needs
 -- it, but it no longer gates whether the feature runs at all.
@@ -2070,10 +2693,22 @@ local customCounters = {}
 -- Cached at ENCOUNTER_START so OnCombatLog's hot path stays a single boolean read on a
 -- boss with nothing configured, the same reasoning runActive already uses below.
 local hasCustomReminders = false
+local hasRaidReminders = false
 
 local function RefreshCustomRemindersFlag()
     local set = currentEncounter and CustomRemindersTable(false, currentEncounter)
     hasCustomReminders = set ~= nil and next(set) ~= nil
+    -- Raid reminders were read LIVE out of the DB on every combat log line, because a
+    -- stale flag would have silently stopped them firing after an edit. The real fix was
+    -- to make every edit path refresh -- the raid editor's own Save did not -- so this
+    -- can be a cached boolean like its neighbour. The live read cost a settings-chain
+    -- walk, a tostring() and, on the common no-raid-reminders boss, a throwaway table,
+    -- thousands of times a second in a raid.
+    local rr = currentEncounter and ns.RaidRemindersTable
+        and ns.RaidRemindersTable(false, currentEncounter)
+    hasRaidReminders = rr ~= nil and next(rr) ~= nil
+    -- Resolved through ns: defined further down the file, and it no-ops before then.
+    if ns.RefreshCastWatch then ns.RefreshCastWatch() end
 end
 ns.RefreshCustomRemindersFlag = RefreshCustomRemindersFlag
 
@@ -2166,12 +2801,36 @@ end
 -- the display fires, same as popup always has.
 function ns.PlayReminderSound(r)
     if not r.sound then return end
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     if EUI and EUI._PlayLSMSound and EUI.BuildAlertSoundTables then
         local paths, names, order = EUI.BuildAlertSoundTables()
         if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
         if paths[r.sound] then EUI._PlayLSMSound(paths[r.sound]) end
     end
+end
+
+-- Same optional r.tts flag PlayReminderSound's r.sound is -- speaks r.text through the
+-- client's own built-in TTS (C_VoiceChat), not a bespoke voice/rate/volume picker: MRT's
+-- own version is a dropdown plus two sliders on top of this exact API, skipped here in
+-- favor of whatever the player already set in the Accessibility panel, one less thing to
+-- configure for what is meant to stay the simple version.
+-- overrideText, when given, is spoken instead of r.text -- the raid-reminder engine
+-- passes its already-%placeholder-resolved copy through here rather than the raw
+-- saved template, same reasoning every display widget reads the resolved copy too.
+function ns.SpeakReminderTTS(r, overrideText)
+    if not (r and r.tts) then return end
+    local text = overrideText or r.text
+    if not (text and text ~= "") then return end
+    if not (C_VoiceChat and C_VoiceChat.SpeakText and C_VoiceChat.GetTtsVoices) then return end
+    local voiceID = ns.TTSVoiceID()
+    if not voiceID then return end
+    local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate and C_TTSSettings.GetSpeechRate()) or 0
+    local volume = (C_TTSSettings and C_TTSSettings.GetSpeechVolume and C_TTSSettings.GetSpeechVolume()) or 100
+    -- No destination/enum argument -- confirmed against Blizzard's own
+    -- TextToSpeechFrame.lua (Blizzard_ChatFrame), which calls this exact 4-argument
+    -- form. Enum.VoiceTtsDestination does not exist; assuming it did was the bug
+    -- reported live (attempt to index a nil field).
+    C_VoiceChat.SpeakText(voiceID, text, rate, volume)
 end
 
 -- Shared by every display type that can be bound to a defensive rather than free text
@@ -2279,19 +2938,170 @@ function ns.PreviewCustomReminder(r)
     ns.DisplayReminder(r)
 end
 
+-- Every reminder timer scheduled against a moment in the fight is tracked here so it can
+-- be cancelled when that moment stops existing. Untracked timers were a live bug: a
+-- reminder set for 4:30 still fired after a wipe at 0:40, into the corpse run. Two
+-- scopes: "pull" timers die on the encounter boundaries, "stage" timers additionally die
+-- whenever the stage changes or the boss module disables -- a phase that ended takes its
+-- scheduled callouts with it. ns fields, not chunk locals: this chunk is at the 200-local
+-- ceiling.
+ns.trackedReminderTimers = {}
+
+-- Owns the timer creation rather than taking a ready-made handle, so a timer that fires
+-- normally can drop its own entry: tracked-but-fired entries would otherwise pile up for
+-- the length of a pull and every later cancel sweep would walk them.
+function ns.TrackReminderTimer(scope, delay, fn)
+    local list = ns.trackedReminderTimers
+    local entry = { scope = scope }
+    entry.handle = C_Timer.NewTimer(delay, function()
+        for i = #list, 1, -1 do
+            if list[i] == entry then table.remove(list, i) break end
+        end
+        fn()
+    end)
+    list[#list + 1] = entry
+    return entry.handle
+end
+
+function ns.CancelTrackedReminderTimers(scope)
+    local t = ns.trackedReminderTimers
+    for i = #t, 1, -1 do
+        if scope == nil or t[i].scope == scope then
+            local h = t[i].handle
+            if h.Cancel then h:Cancel() end
+            table.remove(t, i)
+        end
+    end
+end
+
 -- The match decided a reminder should go off; this is where "Show in" (a raw string on
 -- the trigger, parsed fresh here rather than pre-compiled -- these fire rarely enough that
 -- the cost never matters) turns into either an immediate call or one timer per listed
 -- delay, so a comma list fires more than once from the same match.
-local function ActivateCustomReminder(r)
+local function ActivateCustomReminder(r, scope)
     local delays = ParseDelayList(r.trigger and r.trigger.delay)
     if not delays then
         ns.DisplayReminder(r)
         return
     end
+    -- PLAYER_REGEN_ENABLED is registered under ShouldRun(), which custom reminders
+    -- deliberately do not require, so the cancel on leaving combat is not guaranteed to
+    -- have run and a combat-scoped timer can outlive the fight it was set in.
+    local combat = (scope == "combat")
     for i = 1, #delays do
-        C_Timer.NewTimer(delays[i], function() ns.DisplayReminder(r) end)
+        ns.TrackReminderTimer(scope or "pull", delays[i], function()
+            if combat and not InCombatLockdown() then return end
+            ns.DisplayReminder(r)
+        end)
     end
+end
+
+-- Boss cast triggers. UNIT_SPELLCAST_* rather than the combat log: CLEU is unavailable in
+-- restricted content (status reports registered=false restrictedHere=true on a raid boss),
+-- which is why the old combat-log "spell" trigger stopped being offered.
+--
+-- The index is keyed by spell id and holds the reminders waiting on it, so the handler
+-- NEVER compares the event's spellID -- UNIT_SPELLCAST_START is
+-- SecretWhenUnitSpellCastRestricted, and comparing a secret raises where a table lookup
+-- does not. Same shape castToBase[castSpellID] already uses for the player's own casts.
+-- Everything read back out is ours and plain, so no secret spreads past this point.
+function ns.RefreshCastWatch()
+    local index, any = {}, false
+    local set = currentEncounter and CustomRemindersTable(false, currentEncounter)
+    if set then
+        for uid, r in pairs(set) do
+            local trig = r.trigger
+            local kind = trig and trig.type
+            if r.enabled ~= false and (kind == "caststart" or kind == "castend")
+               and type(trig.spellID) == "number" then
+                local entry = index[trig.spellID]
+                if not entry then entry = {}; index[trig.spellID] = entry end
+                entry[kind] = entry[kind] or {}
+                entry[kind][#entry[kind] + 1] = { uid = uid, r = r }
+                any = true
+            end
+        end
+    end
+    ns.watchedCasts = index
+
+    if any and not ns.castWatcher then
+        ns.castWatcher = CreateFrame("Frame")
+        ns.castWatcher:SetScript("OnEvent", function(_, event, unit, _, spellID)
+            ns.OnBossCast(event, unit, spellID)
+        end)
+    end
+    if ns.castWatcher then
+        if any then
+            -- Plain RegisterEvent, not RegisterUnitEvent: that takes only a couple of
+            -- units and this needs boss1-5 plus every nameplate. The unit filter below
+            -- does the same job.
+            ns.castWatcher:RegisterEvent("UNIT_SPELLCAST_START")
+            ns.castWatcher:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+        else
+            ns.castWatcher:UnregisterAllEvents()
+        end
+    end
+end
+
+-- Cast end is SUCCEEDED only. An interrupted or cancelled cast fires nothing: the mechanic
+-- never happened, and calling "move" after a kicked cast is worse than saying nothing.
+function ns.OnBossCast(event, unit, spellID)
+    if not (hasCustomReminders and CustomRemindersAllowed()) then return end
+    if type(unit) ~= "string" then return end
+    if not (unit:match("^boss%d") or unit:match("^nameplate%d")) then return end
+    local index = ns.watchedCasts
+    if not index then return end
+    local entry = index[spellID]
+    -- Traced on BOTH paths on purpose. If the spell id arrives secret in restricted
+    -- content this lookup misses, and a miss is indistinguishable in play from the boss
+    -- never casting -- exactly the ambiguity /nutank keys exists to end elsewhere.
+    if TRDB().trace then
+        -- Never the raw id: a secret must not reach callLog, which is written to
+        -- SavedVariables. Screened first, and logged as "secret" when it is one -- which
+        -- is itself the answer worth having.
+        local plain = not (issecretvalue and issecretvalue(spellID)) and spellID or nil
+        AppendLog({ kind = "bosscast", sid = plain, unit = unit,
+            text = entry and "matched" or "not watched" })
+    end
+    if not entry then return end
+    local list = entry[event == "UNIT_SPELLCAST_START" and "caststart" or "castend"]
+    if not list then return end
+
+    for i = 1, #list do
+        local uid, r = list[i].uid, list[i].r
+        local hit = true
+        if r.trigger.counter and r.trigger.counter ~= "" then
+            customCounters[uid] = (customCounters[uid] or 0) + 1
+            hit = CheckCounterCondition(ParseCounterCondition(r.trigger.counter),
+                customCounters[uid])
+        end
+        if hit then ActivateCustomReminder(r) end
+    end
+end
+
+-- Which single source drives callouts this session. Read at event time, never cached:
+-- the Setup dropdown changes it live.
+-- The pull clocks, for the observed-timing recorder in its own file. One accessor rather
+-- than six exported fields, and read rarely (once per broadcast).
+function ns.PullContext()
+    return currentEncounterStartedAt, currentDifficultyID, currentStage, currentStageAt
+end
+
+-- No saved pick follows whatever boss mod is actually installed. Sitting on "timeline"
+-- instead meant a player who never opened Setup recorded nothing, ever, and the observed
+-- timeline is meant to build itself in the background rather than be switched on.
+--
+-- Resolved live, never written into the profile: an explicit pick still wins, and
+-- uninstalling a boss mod moves the fallback with it instead of stranding a saved value
+-- pointing at something that is no longer there. This decides WHICH engine drives
+-- callouts, not whether they fire -- TRDB().enabled is that switch and is still off by
+-- default -- so nothing starts talking because of this.
+function ns.BossSource()
+    local saved = TRDB().bossSource
+    if saved then return saved end
+    if _G.BigWigsLoader then return "bigwigs" end
+    if _G.DBM then return "dbm" end
+    return "timeline"
 end
 
 -- kind: "pull" | "cast" | "aura". spellID is nil for a pull check. "cast"/"aura" are the
@@ -2312,6 +3122,55 @@ local function CheckCustomReminders(kind, spellID)
                 hit = customCounters[uid] >= trig.counter
             end
             if hit then ActivateCustomReminder(r) end
+        end
+    end
+end
+
+-- Time In Combat is the one trigger that is not boss-scoped: it counts from entering
+-- combat, so it has to work on trash and in the open world, where there is no encounter
+-- at all. Those reminders live in PerBossSet's own `enc or 0` bucket, which nothing else
+-- writes -- every other reader nil-guards currentEncounter before it can reach key "0".
+-- Read live rather than through hasCustomReminders: that flag is cached at
+-- ENCOUNTER_START and so is false for exactly the fights this trigger exists for. An ns
+-- function, not a chunk local -- this chunk is at the 200-local ceiling.
+function ns.CheckCombatReminders()
+    ns.CancelTrackedReminderTimers("combat")
+    if not CustomRemindersAllowed() then return end
+    local set = CustomRemindersTable(false, 0)
+    if not set then return end
+    for _, r in pairs(set) do
+        local trig = r.trigger
+        if r.enabled ~= false and trig and trig.type == "combat" then
+            ActivateCustomReminder(r, "combat")
+        end
+    end
+end
+
+-- The same trigger saved on a boss. Which boss it is only becomes known at
+-- ENCOUNTER_START, so the schedule is worked out here and the time already spent in
+-- combat comes off it -- the clock the player set is combat entry, not the pull.
+function ns.CheckBossCombatReminders()
+    ns.CancelTrackedReminderTimers("bosscombat")
+    local enc = currentEncounter
+    if not (enc and CustomRemindersAllowed()) then return end
+    local set = CustomRemindersTable(false, enc)
+    if not set then return end
+    local elapsed = 0
+    if ns.combatStartedAt and InCombatLockdown() then
+        elapsed = GetTime() - ns.combatStartedAt
+    end
+    for _, r in pairs(set) do
+        local trig = r.trigger
+        if r.enabled ~= false and trig and trig.type == "combat" then
+            local delays = ParseDelayList(trig.delay)
+            if not delays then
+                ns.DisplayReminder(r)
+            else
+                for i = 1, #delays do
+                    ns.TrackReminderTimer("bosscombat", math.max(delays[i] - elapsed, 0.01),
+                        function() ns.DisplayReminder(r) end)
+                end
+            end
         end
     end
 end
@@ -2458,6 +3317,93 @@ end
 -- proxy -- the only detection path this addon has.
 local lastBWSid, lastBWAt = nil, 0
 
+-- Whether a binding owned by ANOTHER spec is offered to this one. The two axes are OR'd,
+-- so "any healer" covers every healing spec without naming them. A binding with no scope
+-- is private to the spec that owns it, which is the default and the common case.
+function ns.BindingSharedToMe(b)
+    local scope = b and b.scope
+    if type(scope) ~= "table" then return false end
+    if type(scope.roles) == "table" and ns.playerRole and scope.roles[ns.playerRole] then return true end
+    if type(scope.classes) == "table" and ns.playerClass and scope.classes[ns.playerClass] then return true end
+    return false
+end
+
+-- Bindings used to live at abilityBindings[enc][sid], one entry shared by every character
+-- on the account. They move under the spec that owns them here. Two shapes arrive:
+-- genuinely old entries with no scope, and build 0901a's entries carrying scope.specs --
+-- that build stamped ownership but still stored one shared entry, so a second spec touching
+-- an ability overwrote the first spec's preset and warning time.
+--
+-- Ownership comes from scope.specs when 0901a recorded it, otherwise from whoever logs in
+-- first. scope.specs is dropped afterwards: the storage key carries that now, and scope is
+-- left holding only the role/class shares.
+--
+-- Deferred to login rather than run inside TRDB: the profile table is often prepared before
+-- the spec is known, and filing every binding under spec 0 would be worse than the bug.
+function ns.MigrateBindingScopes()
+    if specID == 0 then return end
+    local t = TRDB()
+    if t.bindingsBySpec then return end
+    local all = t.abilityBindings
+    if type(all) ~= "table" then
+        t.bindingsBySpec = true
+        return
+    end
+
+    local backup, moved, rebuilt = {}, 0, {}
+    for encKey, bySpell in pairs(all) do
+        if type(bySpell) == "table" then
+            local encCopy = {}
+            for sid, b in pairs(bySpell) do
+                if type(b) == "table" then
+                    local copy = {}
+                    for k, v in pairs(b) do copy[k] = v end
+                    encCopy[sid] = copy
+
+                    -- Which specs this entry belongs to. More than one only happens if
+                    -- 0901a's picker was used to name several before this shipped.
+                    local owners = {}
+                    if type(b.scope) == "table" and type(b.scope.specs) == "table" then
+                        for id in pairs(b.scope.specs) do owners[#owners + 1] = tostring(id) end
+                    end
+                    if #owners == 0 then owners[1] = tostring(specID) end
+
+                    if type(b.scope) == "table" then
+                        b.scope.specs = nil
+                        if not next(b.scope) then b.scope = nil end
+                    end
+
+                    for _, specKey in ipairs(owners) do
+                        rebuilt[specKey] = rebuilt[specKey] or {}
+                        rebuilt[specKey][encKey] = rebuilt[specKey][encKey] or {}
+                        -- Each owner gets its own table: sharing one would restore the very
+                        -- aliasing this migration exists to end.
+                        local own = {}
+                        for k, v in pairs(b) do own[k] = v end
+                        if type(b.scope) == "table" then
+                            local sc = {}
+                            for k, v in pairs(b.scope) do sc[k] = v end
+                            own.scope = sc
+                        end
+                        rebuilt[specKey][encKey][sid] = own
+                        moved = moved + 1
+                    end
+                end
+            end
+            backup[encKey] = encCopy
+        end
+    end
+
+    t.abilityBindings = rebuilt
+    if moved > 0 and t.preSpecBindings == nil then t.preSpecBindings = backup end
+    t.bindingsBySpec = true
+    t.scopeMigrated = nil
+    if moved > 0 then
+        ns.Print(("|cffffa300%d saved abilities|r now belong to the spec that made them. Other specs start clean -- your originals are kept if this guessed wrong.")
+            :format(moved))
+    end
+end
+
 -- Whether a given ability calls out, now that Setup's per-ability checklist
 -- (AbilityBindingsTable) is finally load-bearing instead of decorative. No explicit
 -- choice yet defaults to on for anything already curated, mirroring the old fingerprint
@@ -2475,12 +3421,16 @@ local lastBWSid, lastBWAt = nil, 0
 -- to defaults.
 function ns.BindingForBossModKey(enc, sid)
     local bindings = AbilityBindingsTable(false, enc)
-    if not bindings then return nil end
-    local b = bindings[sid]
-    if b == nil and ns.BOSSMOD_KEY_TO_JOURNAL then
-        local jid = ns.BOSSMOD_KEY_TO_JOURNAL[sid]
-        if jid then b = bindings[jid] end
+    local b
+    if bindings then
+        b = bindings[sid]
+        if b == nil and ns.BOSSMOD_KEY_TO_JOURNAL then
+            local jid = ns.BOSSMOD_KEY_TO_JOURNAL[sid]
+            if jid then b = bindings[jid] end
+        end
     end
+    -- Our own spec's binding wins; a share from another spec only fills the gap.
+    if b == nil then b = ns.InheritedBinding(enc, sid) end
     return b
 end
 
@@ -2490,8 +3440,91 @@ end
 -- Barrage configured before its curated id moved to BigWigs' 1292036) with a fresh,
 -- empty table the moment the row is touched, orphaning the old preset/mode/enabled
 -- choice with no error and no warning. This migrates it onto the new key instead.
+-- Which other specs have ability bindings saved, with how many. Feeds the Copy From Spec
+-- picker: per-spec storage means a fresh spec starts empty, and rebuilding a whole boss
+-- list by hand on every alt is not a reasonable ask.
+function ns.SpecsWithBindings(encounterID)
+    local t = TRDB()
+    local all = type(t.abilityBindings) == "table" and t.abilityBindings or {}
+    local mine, out = tostring(specID), {}
+    local encKey = tostring(encounterID or 0)
+    for specKey, byEnc in pairs(all) do
+        if specKey ~= mine and type(byEnc) == "table" then
+            local total, here = 0, 0
+            for eKey, bySpell in pairs(byEnc) do
+                if type(bySpell) == "table" then
+                    for _ in pairs(bySpell) do
+                        total = total + 1
+                        if eKey == encKey then here = here + 1 end
+                    end
+                end
+            end
+            if total > 0 then
+                local id = tonumber(specKey)
+                local ok, _, name = pcall(GetSpecializationInfoByID, id)
+                out[#out + 1] = {
+                    key = specKey,
+                    name = (ok and name) or ("Spec " .. specKey),
+                    here = here,
+                    total = total,
+                }
+            end
+        end
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
+-- Copies another spec's bindings into this one. Additive: an ability this spec already has
+-- is left alone, so copying can never overwrite work already done here. encounterID limits
+-- it to one boss; nil takes everything.
+--
+-- Each binding is copied, never shared by reference -- two specs pointing at one table is
+-- the exact aliasing the per-spec split exists to end.
+function ns.CopyBindingsFromSpec(fromSpecKey, encounterID)
+    if specID == 0 then return 0, 0 end
+    local t = TRDB()
+    local all = type(t.abilityBindings) == "table" and t.abilityBindings or nil
+    local src = all and all[fromSpecKey]
+    if type(src) ~= "table" then return 0, 0 end
+
+    local mine = tostring(specID)
+    all[mine] = all[mine] or {}
+    local dst = all[mine]
+    local encKey = encounterID and tostring(encounterID) or nil
+    local copied, skipped = 0, 0
+
+    for eKey, bySpell in pairs(src) do
+        if (not encKey or eKey == encKey) and type(bySpell) == "table" then
+            dst[eKey] = dst[eKey] or {}
+            for sid, b in pairs(bySpell) do
+                if type(b) == "table" then
+                    if dst[eKey][sid] ~= nil then
+                        skipped = skipped + 1
+                    else
+                        local copy = {}
+                        for k, v in pairs(b) do copy[k] = v end
+                        if type(b.scope) == "table" then
+                            local sc = {}
+                            for k, v in pairs(b.scope) do sc[k] = v end
+                            copy.scope = sc
+                        end
+                        dst[eKey][sid] = copy
+                        copied = copied + 1
+                    end
+                end
+            end
+        end
+    end
+    return copied, skipped
+end
+
 function ns.EnsureBinding(enc, sid)
     local bindings = AbilityBindingsTable(true, enc)
+    -- Storage is keyed by spec now, so there is nowhere to file a binding until the spec
+    -- resolves. A throwaway table keeps the editor's writes from erroring; they are simply
+    -- not persisted, which beats filing them under a spec we would have to guess.
+    if not bindings then return {} end
     if bindings[sid] then return bindings[sid] end
     local jid = ns.BOSSMOD_KEY_TO_JOURNAL and ns.BOSSMOD_KEY_TO_JOURNAL[sid]
     if jid and bindings[jid] then
@@ -2503,10 +3536,40 @@ function ns.EnsureBinding(enc, sid)
     return bindings[sid]
 end
 
+--- Drops an ability from a boss entirely -- either untick, and the counterpart to
+--- EnsureBinding above. Clears the journal alias too, or a binding saved under the old id
+--- would keep AbilityAdded answering true and the row would come straight back.
+function ns.RemoveBinding(enc, sid)
+    local bindings = ns.AbilityBindingsTable(false, enc)
+    if not bindings then return end
+    bindings[sid] = nil
+    local jid = ns.BOSSMOD_KEY_TO_JOURNAL and ns.BOSSMOD_KEY_TO_JOURNAL[sid]
+    if jid then bindings[jid] = nil end
+end
+
+-- Setup's own "Warn This Many Seconds Early" slider is the base every ability uses; a
+-- per-ABILITY override (set from that ability's own cog, on the Defensive Preset tab)
+-- wins when it has one set -- one warning time for the whole preset, not broken out
+-- per defensive within it.
+function ns.LeadTimeFor(enc, sid)
+    local binding = ns.BindingForBossModKey(enc, sid)
+    return (binding and binding.leadTime) or TRDB().leadTime or 3
+end
+
+-- Nothing calls out until the player has deliberately added it to the boss. The curated
+-- tank list no longer switches abilities on by itself -- it marks them in the Add Ability
+-- picker instead, so it still says which hits are the real tank busters without choosing
+-- for anyone.
 function ns.AbilityEnabledForBinding(enc, sid)
     local b = ns.BindingForBossModKey(enc, sid)
     if b and b.enabled ~= nil then return b.enabled end
-    return (ns.TANK_ABILITIES and ns.TANK_ABILITIES[sid]) and true or false
+    return false
+end
+
+-- Has the player added this ability to this boss at all? A binding is what "added" means;
+-- the boss page lists exactly these.
+function ns.AbilityAdded(enc, sid)
+    return ns.BindingForBossModKey(enc, sid) ~= nil
 end
 
 -- sid here is a REAL spellID (BigWigs' key resolved positive, or DBM's own spellId) --
@@ -2525,16 +3588,59 @@ local function FireBigWigsAbility(sid)
     -- generic priority pick steps aside rather than showing alongside it.
     do
         local binding = ns.BindingForBossModKey(currentEncounter, sid)
-        if binding and binding.mode == "custom" then return end
+        if binding and binding.mode == "custom" then
+            AppendLog({ kind = "aside", sid = sid })
+            return
+        end
     end
     if not ns.testFiring then
-        if not isTank then return end
-        if TRDB().aggroOnly and not TankingCaster(sid) then return end
-        if TRDB().coveredSkip ~= false and CoveredByActiveDefensive() then return end
+        -- Pretend Tank lets someone who is not tanking run the whole engine for real, on a
+        -- live pull, so a DPS can reproduce and trace a report instead of the fix waiting
+        -- on the one person who has the boss. Both gates it lifts are about whether the
+        -- hit is coming at YOU; everything downstream -- ability enablement, the priority
+        -- pick, cooldown state, covered-skip, the voice -- runs exactly as it would for a
+        -- tank, which is the point.
+        --
+        -- The aggro check still RUNS and still records its verdict, it just does not stop
+        -- the callout. A trace taken this way therefore still shows what the gate would
+        -- have answered, which is usually the thing being investigated.
+        local pretend = TRDB().pretendTank
+        if not isTank and not pretend then return end
+        if TRDB().aggroOnly then
+            local verdict, path = TankingCaster(sid)
+            lastAggroCheck = { sid = sid, verdict = verdict, path = pretend and not verdict
+                and ("pretend/" .. tostring(path)) or path }
+            if not verdict and not pretend then
+                -- Refusing SILENTLY was the whole problem: 37 broadcasts of a curated tank
+                -- ability produced no callout and no log line, so a trace of the pull looked
+                -- identical to one where the boss mod never spoke. The threat readings go in
+                -- too, since "not tanking any boss" and "threat unreadable" are different
+                -- answers that both arrive here as false.
+                AppendLog({ kind = "aggro", sid = sid, tankPath = path,
+                    tankSid = sid, text = BossThreatSummary() })
+                return
+            end
+        else
+            lastAggroCheck = nil
+        end
     end
 
     RebuildSlots(tostring(sid))
     if activeSlots == 0 then return end
+
+    -- Checked only after the rebuild above, not before: CoveredByActiveDefensive reads
+    -- slots[], and this ability's own effective list -- a per-ability preset override can
+    -- differ from whatever the previous ability left loaded -- has to be current, or the
+    -- check compares an already-active defensive against the wrong ability's list and
+    -- misses the cover entirely.
+    if not ns.testFiring and TRDB().coveredSkip ~= false then
+        local covered, bySid, how = CoveredByActiveDefensive()
+        if covered then
+            AppendLog({ kind = "skip", sid = bySid or sid, tankSid = sid, tankPath = how })
+            return
+        end
+    end
+
     ApplyPriorityAlpha()
     ClearTankGate()
     -- Marks a real callout as showing, same as the old timeline path did (just keyed by
@@ -2544,10 +3650,10 @@ local function FireBigWigsAbility(sid)
     shownForEvent = sid
     frame:Show()
     if textFrame then textFrame:Show() end
-    SpeakCallout()
+    SpeakCallout(sid)
     lastCalloutAt = GetTime()
     if hideTimer then hideTimer:Cancel() end
-    hideTimer = C_Timer.NewTimer(5, HideReminder)
+    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or 5, HideReminder)
 end
 
 -- Setup's per-ability Test button. Fires the ability through FireBigWigsAbility itself --
@@ -2568,7 +3674,7 @@ function ns.TestFireAbility(enc, sid)
     end
     local binding = ns.BindingForBossModKey(enc, sid)
     if binding and binding.mode == "custom" then
-        ns.Print("this ability is set to Custom Reminder; the generic callout stays quiet for it.")
+        ns.Print("this ability is set to Ability Reminder; the generic callout stays quiet for it.")
         return
     end
     RefreshSpec()
@@ -2594,51 +3700,145 @@ end
 -- native-timeline engine used) before the bar actually ends, matching how the custom
 -- reminder system's own bwtimer trigger already waits out a bar rather than firing at its
 -- start -- the primary engine just never got the same treatment until now.
--- Keyed by sid AND the bar's own identity, not sid alone: timeline fights genuinely run
--- two overlapping bars for one spell id (Vorasius' Shadowclaw Slam -- Blizzard schedules
--- two concurrent timeline rows, DBM's module says so outright, and BigWigs bars both
--- under its one option key with distinct texts), and a single slot per sid silently
--- dropped one of the two hits. The same hit arriving from the OTHER boss mod carries a
--- different identity but lands at the same moment, so a new fire landing within 2s of
--- one already pending for the sid is the duplicate to skip; a genuinely staggered second
--- bar schedules alongside. The 3s repeat guard against the last fire that ACTUALLY
--- happened (lastBWSid/lastBWAt, only ever updated at the moment FireBigWigsAbility
--- itself runs, never at schedule time) applies up front regardless of branch, so a
--- module that broadcasts both an immediate Message and a StartBar for the one real
--- cast -- confirmed as a real BigWigs pattern, e.g. Entombed Sentinels' Empowering
--- Slam pairs a CDBar with a same-key Message -- does not schedule a second callout
--- for the one that already fired. This is a different question from the 2s pending-
--- fire proximity check below it, which compares two NOT-YET-fired schedules against
--- each other to catch a cross-mod duplicate of the same upcoming hit; that check alone
--- is what lets Vorasius' two genuinely concurrent Slam bars both still schedule.
-local pendingBWFires = {}   -- [sid] = { [identity] = {fireAt, timer} }
-function ns.HandleBigWigsAbility(sid, duration, barIdentity)
+-- At most one pending fire per sid: a second bar for the same ability arriving while one
+-- is already scheduled CANCELS the first and replaces it, rather than the two schedules
+-- coexisting. Used to allow a second, far-enough-apart schedule to stand alongside the
+-- first (kept for Vorasius' genuinely concurrent double Shadowclaw Slam bar) -- dropped
+-- by request, since Vorasius isn't in this season's rotation, in favor of always
+-- collapsing to one: Nek'zali's Possession Barrage broadcasts twice for the SAME real
+-- cast (a rough predictive bar at each stage transition, self:Bar(1292036, 40+gap, ...),
+-- and the accurate one off Blizzard's own encounter timeline once it actually schedules
+-- the event) with durations far enough apart that the old 2s proximity check let both
+-- through, calling out twice for one hit. The later arrival -- normally the more accurate
+-- one, since a rough estimate is what shows up first and gets corrected once the real
+-- timeline event exists -- now wins outright.
+-- The 3s repeat guard against the last fire that ACTUALLY happened (lastBWSid/lastBWAt,
+-- only ever updated at the moment FireBigWigsAbility itself runs, never at schedule time)
+-- still applies up front regardless, so a module that broadcasts both an immediate
+-- Message and a StartBar for the one real cast -- confirmed as a real BigWigs pattern,
+-- e.g. Entombed Sentinels' Empowering Slam pairs a CDBar with a same-key Message -- does
+-- not schedule a second callout for the one that already fired.
+-- Channel-namespaced so the tank-buster engine and the raid-reminder engine (a separate
+-- feature, NaowhUI_SmartReminders_RaidReminders.lua) never collide when both have a
+-- pending fire for the same sid -- each channel's own timers are independent.
+local pendingBWFires = { tank = {} }   -- [channel][sid] = { [identity] = {fireAt, timer} }
+
+-- The scheduling primitive itself: waits out a BigWigs/DBM bar to fire `lead` seconds
+-- before it ends, same duplicate/resync handling regardless of which feature is calling.
+-- Exported (ns.ScheduleBWFire) so the raid-reminder engine gets the identical handling
+-- instead of a second hand-rolled copy that could drift out of sync with this one on some
+-- BigWigs edge case only one of them hits.
+-- How close two scheduled fires must be to count as the same real cast. Two boss mods
+-- timing one cast land within a frame of each other; the next occurrence of the same
+-- buster is a full cooldown away.
+local SAME_CAST_WINDOW = 2
+
+function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
+    local fires = pendingBWFires[channel]
+    if not fires then fires = {} pendingBWFires[channel] = fires end
+    local sidFires = fires[sid]
+    if not sidFires then sidFires = {} fires[sid] = sidFires end
+    -- lead 0 means "fire when the bar reaches 0", so the wait is the WHOLE bar. Only a
+    -- lead at or past the bar's own length is already inside its window and fires now;
+    -- treating 0 that way fired every such reminder the instant its bar started, which
+    -- for a boss's opening bar is the moment you enter combat.
+    if type(lead) ~= "number" or lead < 0 then lead = 0 end
+    local delay = (lead < duration) and (duration - lead) or 0.01
+    local key = barIdentity or false
+    local fireAt = GetTime() + delay
+
+    -- Whatever else is pending for this sid -- the same bar resynced, or a different
+    -- bar entirely -- gets superseded by this one, but the survivor INHERITS the
+    -- superseded entry's identities when both are aimed at the same cast.
+    --
+    -- A stop event only ever hands back one mod's own name for the bar: BigWigs returns
+    -- the bar TEXT, DBM returns a numeric timer id. With both installed, one cast is
+    -- timed twice and only the later arrival's identity survived, so a stop from the
+    -- other mod matched nothing and the callout still landed for a cast that had been
+    -- interrupted or resynced away. Only visible in dungeons, where running both mods is
+    -- normal. One entry now answers to every identity that has named it.
+    --
+    -- Gated on the fire times matching, NOT inherited unconditionally: aliases carried
+    -- across to the NEXT occurrence would let the previous bar's ordinary stop cancel the
+    -- callout for the cast after it, which is the silent-buster direction.
+    local aliases = { [key] = true }
+    for otherKey, f in pairs(sidFires) do
+        if f.timer.Cancel then f.timer:Cancel() end
+        if math.abs(f.fireAt - fireAt) <= SAME_CAST_WINDOW then
+            for k in pairs(f.aliases) do aliases[k] = true end
+        end
+        sidFires[otherKey] = nil
+    end
+
+    local entry = { fireAt = fireAt, aliases = aliases }
+    entry.timer = C_Timer.NewTimer(delay, function()
+        for k in pairs(aliases) do
+            if sidFires[k] == entry then sidFires[k] = nil end
+        end
+        fireFn(sid)
+    end)
+    for k in pairs(aliases) do sidFires[k] = entry end
+end
+
+function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
-    if not (ShouldRun() and InEncounter()) then return end
-    if sid == lastBWSid and (GetTime() - lastBWAt) < 3 then return end
+    if not (ShouldRun() and InEncounter()) then
+        -- Boss mods receive ENCOUNTER_START before our watcher does and broadcast their
+        -- engage bars DURING their own handler, so a bar can arrive here while
+        -- currentEncounter is still nil. Confirmed live: Fresh Meat's engage bar was
+        -- dropped at the same second as ENCOUNTER START. One next-frame retry is enough
+        -- -- by then our own handler has run -- and one only, so a broadcast outside any
+        -- encounter does not loop.
+        if not InEncounter() and not isRetry then
+            C_Timer.After(0, function()
+                ns.HandleBigWigsAbility(sid, duration, barIdentity, true)
+            end)
+            return
+        end
+        if TRDB().trace then
+            AppendLog({ kind = "drop", sid = sid,
+                text = not InEncounter() and "not in encounter" or "engine gated" })
+        end
+        return
+    end
+    -- Both duplicates and next occurrences arrive `lead` seconds after our own fire, so
+    -- timing alone cannot separate them -- the presence of a duration can. See each branch.
+    local lead = ns.LeadTimeFor(currentEncounter, sid)
 
     if type(duration) == "number" and duration > 0.5 then
-        local lead = TRDB().leadTime or 3
-        local delay = (lead > 0 and lead < duration) and (duration - lead) or 0.01
-        local fires = pendingBWFires[sid]
-        if not fires then fires = {} pendingBWFires[sid] = fires end
-        local key = barIdentity or false
-        local fireAt = GetTime() + delay
-        local old = fires[key]
-        if old then
-            if old.timer.Cancel then old.timer:Cancel() end   -- the same bar, resynced
-        else
-            for _, f in pairs(fires) do
-                if math.abs(f.fireAt - fireAt) < 2 then return end
+        -- Deliberately NOT repeat-guarded. A repeating tank buster's NEXT bar starts the
+        -- instant the current one lands, which is `lead` seconds after we already fired
+        -- for it -- indistinguishable by timing alone from the duplicate this guard is
+        -- for. Widening the guard to span the lead time swallowed that next bar instead,
+        -- and the callout for the following hit never got scheduled at all: reported on
+        -- Kings Rest's Golden Serpent as "then it's not calling anything on the next tank
+        -- hit". A duplicate costs a moment of attention; a silent buster costs the tank.
+        -- ScheduleBWFire already collapses genuine duplicates on this path by superseding
+        -- whatever is pending for the sid, so nothing here needs the guard anyway.
+        ns.ScheduleBWFire("tank", sid, duration, barIdentity, lead, function(fireSid)
+            lastBWSid, lastBWAt = fireSid, GetTime()
+            FireBigWigsAbility(fireSid)
+        end)
+    else
+        -- No duration means this is the cast itself landing, not a countdown to one, and
+        -- ours already fired `lead` seconds ago for exactly this cast. The guard belongs
+        -- here and only here: a Message cannot be the next occurrence announcing itself.
+        if sid == lastBWSid and (GetTime() - lastBWAt) < lead + 1 then return end
+
+        -- A plain Message never goes through ScheduleBWFire (no duration to wait out), so
+        -- it never touched pendingBWFires -- a module that pairs a StartBar with a same-key
+        -- Message for the one real cast (confirmed: Entombed Sentinels' Empowering Slam)
+        -- left the StartBar's delayed fire pending regardless of which order the two
+        -- arrived in, and it fired again seconds later on top of this immediate one. Same
+        -- "whichever arrives last wins" rule ScheduleBWFire itself now follows.
+        local sidFires = pendingBWFires.tank and pendingBWFires.tank[sid]
+        if sidFires then
+            for key, f in pairs(sidFires) do
+                if f.timer.Cancel then f.timer:Cancel() end
+                sidFires[key] = nil
             end
         end
-        fires[key] = { fireAt = fireAt, timer = C_Timer.NewTimer(delay, function()
-            fires[key] = nil
-            lastBWSid, lastBWAt = sid, GetTime()
-            FireBigWigsAbility(sid)
-        end) }
-    else
         lastBWSid, lastBWAt = sid, GetTime()
         FireBigWigsAbility(sid)
     end
@@ -2647,25 +3847,47 @@ end
 -- A bar that stops or pauses before its own scheduled fire has to cancel that fire too,
 -- the same as the custom-reminder bwtimer trigger already does for itself -- otherwise the
 -- callout lands seconds later for a cast that was interrupted or resynced away, which reads
--- as an unprompted call for an ability that was never actually coming.
+-- as an unprompted call for an ability that was never actually coming. Walks every
+-- channel: a bar stopping is real for every feature listening to it, not just tank busters.
 local function CancelPendingBWFire(barIdentity)
     if barIdentity == nil then return end
     for _, fires in pairs(pendingBWFires) do
-        local f = fires[barIdentity]
-        if f then
-            if f.timer.Cancel then f.timer:Cancel() end
-            fires[barIdentity] = nil
+        for sid, sidFires in pairs(fires) do
+            local f = sidFires[barIdentity]
+            if f then
+                if f.timer.Cancel then f.timer:Cancel() end
+                -- A cancelled fire is a callout that will now never happen, which from the
+                -- outside is indistinguishable from one that was never scheduled -- exactly
+                -- the shape that has cost multiple investigations. Logged for the trace.
+                AppendLog({ kind = "cancel", sid = sid, text = tostring(barIdentity) })
+                -- Clear every identity this one entry answers to, not just the name the
+                -- stop happened to arrive under, or the other mod's alias would be left
+                -- pointing at a cancelled timer.
+                for k in pairs(f.aliases) do
+                    if sidFires[k] == f then sidFires[k] = nil end
+                end
+            end
         end
     end
 end
 
 local function CancelAllPendingBWFires()
-    for sid, fires in pairs(pendingBWFires) do
-        for key, f in pairs(fires) do
-            if f.timer.Cancel then f.timer:Cancel() end
-            fires[key] = nil
+    for _, fires in pairs(pendingBWFires) do
+        for sid, sidFires in pairs(fires) do
+            local logged
+            for key, f in pairs(sidFires) do
+                if f.timer.Cancel then f.timer:Cancel() end
+                -- One line per sid, not per alias, and only under trace: boundary cancels
+                -- are routine, but a fire still pending when the pull dies is exactly the
+                -- "it never called" report shape and must be readable afterward.
+                if not logged and TRDB().trace then
+                    logged = true
+                    AppendLog({ kind = "cancel", sid = sid, text = "encounter reset" })
+                end
+                sidFires[key] = nil
+            end
+            fires[sid] = nil
         end
-        pendingBWFires[sid] = nil
     end
 end
 
@@ -2673,7 +3895,34 @@ end
 -- the FIRST argument -- confirmed against BigWigs' and DBM's own dispatch code, not
 -- assumed. issecretvalue guards the payload before anything touches it, the same rule
 -- every other identity channel in this file follows.
+-- BigWigs tags every bar with the length's reliability: only :CDBar -- the cooldown
+-- until the NEXT cast, whose length is an estimate -- passes true, while :Bar and
+-- :CastBar (exact durations) pass false. That is the only thing separating a repeating
+-- ability's next cooldown bar from the UPTIME bar a module starts for the buff the cast
+-- just applied, since both begin at the same instant: the moment the cooldown bar ended.
+-- Without it every reminder on such an ability fired a second time when the buff expired.
+--
+-- Deliberately narrow, because dropping a real next-cast bar is the direction that costs
+-- someone a wipe: a bar is only read as an uptime when it is unflagged AND a flagged
+-- cooldown bar for the SAME key is expiring right now. An ability whose module never
+-- uses CDBar records nothing here and keeps today's behaviour.
+local bwCdEndsAt = {}
+local UPTIME_MATCH_WINDOW = 1.5
+
+local function NoteBossModBar(key, duration, isApprox)
+    if isApprox and type(duration) == "number" and duration > 0 then
+        bwCdEndsAt[key] = GetTime() + duration
+    end
+end
+
+local function IsUptimeBar(key, isApprox)
+    if isApprox then return false end
+    local endsAt = bwCdEndsAt[key]
+    return endsAt ~= nil and math.abs(GetTime() - endsAt) <= UPTIME_MATCH_WINDOW
+end
+
 local function OnBigWigsEvent(event, ...)
+    if ns.BossSource() ~= "bigwigs" then return end
     -- Cataloguing runs ahead of the hasCustomReminders gate below on purpose: that gate
     -- means "does this boss already have a saved reminder", which is exactly backwards
     -- for a picker whose whole job is helping someone create their FIRST one. It still
@@ -2684,52 +3933,89 @@ local function OnBigWigsEvent(event, ...)
         local _, key, text = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "message") end
+        if ns.ObserveCast then ns.ObserveCast(key, "BW", nil, nil) end
         ns.HandleBigWigsAbility(key)
+        if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key) end
         if not hasCustomReminders then return end
         CheckBossModMessage("BW", key)
     elseif event == "BigWigs_StartBar" then
-        local _, key, text, duration = ...
+        local _, key, text, duration, _, isApprox = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
+        if IsUptimeBar(key, isApprox) then
+            if TRDB().trace then
+                AppendLog({ kind = "drop", sid = key, text = "uptime bar" })
+            end
+            return
+        end
+        NoteBossModBar(key, duration, isApprox)
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
+        if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
         ns.HandleBigWigsAbility(key, duration, text)
+        if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
     elseif event == "BigWigs_Timer" then
         -- The newer non-bar timer API; some modules fire this INSTEAD of StartBar. When
         -- isBarEnabled (the last argument) is true, StartBar already fired for the same
         -- bar and handling both would double the reminder.
-        local _, key, duration, _, text, _, _, _, isBarEnabled = ...
+        local _, key, duration, _, text, _, _, isApprox, isBarEnabled = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
         if not isBarEnabled and CustomRemindersAllowed() then
             RecordBossModKey("BW", key, text, "timer")
         end
         if isBarEnabled then return end
+        if IsUptimeBar(key, isApprox) then
+            if TRDB().trace then
+                AppendLog({ kind = "drop", sid = key, text = "uptime bar" })
+            end
+            return
+        end
+        NoteBossModBar(key, duration, isApprox)
+        if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
         ns.HandleBigWigsAbility(key, duration, text)
+        if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
     elseif event == "BigWigs_StopBar" or event == "BigWigs_PauseBar" then
         local _, text = ...
         if issecretvalue and issecretvalue(text) then return end
+        if ns.ObserveCancel then ns.ObserveCancel(text) end
         CancelPendingBWFire(text)
         if not hasCustomReminders then return end
         CancelBossModTimers("BW", text)
     elseif event == "BigWigs_StopBars" or event == "BigWigs_OnBossDisable" then
         CancelAllPendingBWFires()
+        -- The module disabling mid-run (a wipe, before ENCOUNTER_END lands) means the
+        -- stage it reported is over; a stale value or an armed phase timer must not
+        -- survive into that gap.
+        currentStage = nil
+        currentStageAt = nil
+        if ns.ObserveCancelAll then ns.ObserveCancelAll() end
+        ns.CancelTrackedReminderTimers("stage")
         if not hasCustomReminders then return end
         CancelBossModTimers("BW", "")
     elseif event == "BigWigs_SetStage" then
         -- (module, stage) -- read regardless of CustomRemindersAllowed/hasCustomReminders:
-        -- this only updates the ambient currentStage local RecordBossModKey stamps onto
-        -- catalogue entries above, not a reminder trigger, so none of those gates apply.
+        -- the ambient currentStage is stamped onto catalogue entries above whether or not
+        -- any reminder cares. Only a CHANGE arms stage triggers -- that is also the
+        -- dual-mod arbitration, since the second mod reporting the same stage is a no-op.
         local _, stage = ...
         if issecretvalue and issecretvalue(stage) then return end
-        if type(stage) == "number" then currentStage = stage end
+        if type(stage) == "number" and stage ~= currentStage then
+            currentStage = stage
+            currentStageAt = GetTime()
+            ns.CancelTrackedReminderTimers("stage")
+            if ns.CheckRaidReminderStageTriggers then
+                ns.CheckRaidReminderStageTriggers(stage)
+            end
+        end
     end
 end
 
 local function OnDBMEvent(event, ...)
+    if ns.BossSource() ~= "dbm" then return end
     -- Same reasoning as OnBigWigsEvent above: cataloguing ignores hasCustomReminders,
     -- since that gate is precisely what a picker needs to work around, and still
     -- respects CustomRemindersAllowed.
@@ -2741,7 +4027,10 @@ local function OnDBMEvent(event, ...)
         local _, _, _, spellId = ...
         if issecretvalue and issecretvalue(spellId) then return end
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, nil, "message") end
+        if ns.ObserveCast then ns.ObserveCast(spellId, "DBM", nil, nil) end
         ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId)
+        -- Raid Reminders are BigWigs-only by design (see ShowRaidReminderEditor) --
+        -- deliberately no ns.HandleRaidReminderAbility call here.
         if not hasCustomReminders then return end
         CheckBossModMessage("DBM", spellId)
     elseif event == "DBM_TimerBegin" or event == "DBM_TimerStart" then
@@ -2750,15 +4039,33 @@ local function OnDBMEvent(event, ...)
         if CustomRemindersAllowed() then RecordBossModKey("DBM", spellId, msg, "timer") end
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
+        if ns.ObserveCast then ns.ObserveCast(spellId, "DBM", duration, id) end
         ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
+        -- Raid Reminders are BigWigs-only by design (see ShowRaidReminderEditor) --
+        -- deliberately no ns.HandleRaidReminderAbility call here.
         if not hasCustomReminders then return end
         CheckBossModTimerStart("DBM", spellId, id, duration, msg)
     elseif event == "DBM_TimerStop" or event == "DBM_TimerPause" then
         local id = ...
         if issecretvalue and issecretvalue(id) then return end
+        if ns.ObserveCancel then ns.ObserveCancel(id) end
         CancelPendingBWFire(id)
         if not hasCustomReminders then return end
         CancelBossModTimers("DBM", id)
+    elseif event == "DBM_SetStage" then
+        -- (mod, modId, stage, encounterID, stageTotality). Same change-detected block as
+        -- the BigWigs branch; the shared currentStage is what keeps a dual-mod setup from
+        -- arming the same phase twice.
+        local _, _, stage = ...
+        if issecretvalue and issecretvalue(stage) then return end
+        if type(stage) == "number" and stage ~= currentStage then
+            currentStage = stage
+            currentStageAt = GetTime()
+            ns.CancelTrackedReminderTimers("stage")
+            if ns.CheckRaidReminderStageTriggers then
+                ns.CheckRaidReminderStageTriggers(stage)
+            end
+        end
     end
 end
 
@@ -2789,15 +4096,15 @@ local function RegisterBossModHooks()
             D:RegisterCallback("DBM_TimerStart", OnDBMEvent)
             D:RegisterCallback("DBM_TimerStop", OnDBMEvent)
             D:RegisterCallback("DBM_TimerPause", OnDBMEvent)
+            D:RegisterCallback("DBM_SetStage", OnDBMEvent)
         end)
         dbmHooked = ok and true or false
     end
 end
 ns.RegisterBossModHooks = RegisterBossModHooks
 
--- Channel 2: the combat log. A different door than the cast bar, with its own probe
--- (C_CombatLog.IsCombatLogRestricted) and its own secrecy rules, so one being sealed says
--- nothing about the other. No source check is needed: the curated list holds boss tank
+-- Channel 2: the combat log. A different door than the cast bar, with its own secrecy
+-- rules, so one being sealed says nothing about the other. No source check is needed: the curated list holds boss tank
 -- busters only, so a matching spell id IS the answer regardless of who cast it.
 --
 -- Registered for the whole session, not per encounter: its registration cannot be toggled
@@ -2810,17 +4117,48 @@ ns.RegisterBossModHooks = RegisterBossModHooks
 -- itself per combat log line would mean several function calls a line instead of one read.
 local runActive = false
 
+-- UnitGUID is SecretWhenUnitIdentityRestricted, and that already cost days once on the
+-- tank gate (see TankingCaster). Read once from wherever it comes back plainly and kept,
+-- rather than called fresh on every combat log line inside a raid, where the answer may
+-- not be readable at all. A GUID does not change for the life of the character.
+local playerGUID
+local function PlayerGUID()
+    if playerGUID then return playerGUID end
+    local ok, guid = pcall(UnitGUID, "player")
+    if ok and not (issecretvalue and issecretvalue(guid)) and type(guid) == "string" then
+        playerGUID = guid
+    end
+    return playerGUID
+end
+
+local cleuLines, cleuUsable, cleuOwnAuras = 0, 0, 0
+
 local function OnCombatLog()
     -- The price of static registration: this fires for every combat log line, so outside
-    -- an encounter it must cost one plain variable read and nothing else. Custom reminders
-    -- ride the same registration under their own gate (hasCustomReminders), independent of
-    -- runActive: a defensive priority list is not a prerequisite for a boss-pull reminder.
-    if currentEncounter == nil or not (runActive or hasCustomReminders) then return end
+    -- an encounter it must cost one plain variable read and nothing else -- the
+    -- currentEncounter check short-circuits everything after it, including the
+    -- RaidRemindersTable lookup, so that lookup's cost is confined to real pulls.
+    -- Custom reminders ride the same registration under their own gate
+    -- (hasCustomReminders), independent of runActive: a defensive priority list is
+    -- not a prerequisite for a boss-pull reminder. Raid reminders' own aura triggers
+    -- get the same treatment -- checked directly rather than through a synced cache
+    -- flag, since a raid reminder can be added/removed from several different UI
+    -- entry points and a stale flag would silently stop firing until the next one.
+    -- The dispatcher gates this before the pcall; kept as the function's own contract.
+    if currentEncounter == nil then return end
+    -- Counted here, ABOVE the secrecy filter, so /nutank can separate three different
+    -- reasons Skip When Already Covered can read an empty table: the event never arrived
+    -- (lines stays 0), it arrived but every line carried a secret and was discarded
+    -- (usable stays 0), or lines survived and the own-buff branch still never matched.
+    -- They need opposite fixes. Both counters sit below the currentEncounter gate, so
+    -- nothing here costs anything outside a pull.
+    cleuLines = cleuLines + 1
     local _, sub, _, sourceGUID, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = CombatLogGetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)
         or issecretvalue(amount)) then
         return
     end
+    cleuUsable = cleuUsable + 1
 
     -- Feeds TankingCaster: which boss1-5 unit is actually behind a given spell id, for
     -- fights running more than one boss unit at once. Checked on its own, not folded into
@@ -2829,6 +4167,30 @@ local function OnCombatLog()
     if type(spellId) == "number" and (sub == "SPELL_CAST_START" or sub == "SPELL_CAST_SUCCESS")
         and not (issecretvalue and issecretvalue(sourceGUID)) then
         castSourceGUID[spellId] = sourceGUID
+    end
+
+    -- Feeds CoveredByActiveDefensive: own-buff uptime tracked from these events rather
+    -- than polled later, since C_UnitAuras.GetPlayerAuraBySpellID can go quiet on
+    -- exactly the aura this needs to see (RequiresNonSecretAura). Gated on runActive,
+    -- not hasCustomReminders -- this is core tank-buster behavior, not a custom-
+    -- reminders-specific one.
+    if runActive and type(spellId) == "number" and destGUID == PlayerGUID() then
+        if sub == "SPELL_AURA_APPLIED" or sub == "SPELL_AURA_REFRESH" then
+            playerAuraUp[spellId] = true
+            cleuOwnAuras = cleuOwnAuras + 1
+        elseif sub == "SPELL_AURA_REMOVED" then
+            playerAuraUp[spellId] = nil
+        end
+    end
+
+    -- Raid Reminders' own "aura" trigger -- independent of hasCustomReminders, which
+    -- only ever reflects the older CustomRemindersTable.
+    if ns.CheckRaidReminderAuraTriggers and type(spellId) == "number" then
+        if sub == "SPELL_AURA_APPLIED" then
+            ns.CheckRaidReminderAuraTriggers("applied", destGUID, spellId)
+        elseif sub == "SPELL_AURA_REMOVED" then
+            ns.CheckRaidReminderAuraTriggers("removed", destGUID, spellId)
+        end
     end
 
     if hasCustomReminders and type(spellId) == "number" then
@@ -2847,12 +4209,28 @@ local function OnCombatLog()
 end
 
 
--- The combat log registration latch: set the first time the event is successfully
--- registered, never cleared, because the registration itself is never undone.
 local cleuRegistered = false
 
 local function UpdateEventRegistration()
     if not watcher then return end
+
+    -- ABOVE the ShouldRun gate, and that placement is the whole point. Registering this
+    -- HasRestrictions event from insecure code inside restricted content throws
+    -- ADDON_ACTION_FORBIDDEN (confirmed live from the main chunk, 11x, on a raid login),
+    -- and pcall cannot catch it, so the one legal moment is while standing outside such
+    -- content. But ShouldRun() requires TimelineAvailable(), which is false out there --
+    -- so with this below that gate the attempt could only ever run in the one place it
+    -- cannot succeed, and a whole raid night reported registered=false, lines=0 with the
+    -- own-buff tracking never receiving a line. Latched, because unregistering is
+    -- forbidden the same way and there is nothing to undo.
+    if not cleuRegistered then
+        local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
+            and C_CombatLog.IsCombatLogRestricted()
+        if restricted == false or restricted == nil then
+            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+            cleuRegistered = true
+        end
+    end
 
     if not ShouldRun() then
         runActive = false
@@ -2897,22 +4275,6 @@ local function UpdateEventRegistration()
     watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
     watcher:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 
-    -- ONCE, ever. Two live forbidden-action errors taught the full rule: toggling this
-    -- HasRestrictions event's registration from insecure code is forbidden in restricted
-    -- content, in either direction, and InCombatLockdown() is not the gate -- content is.
-    -- So the call happens exactly one time, only when Blizzard's own probe says the
-    -- combat log is unrestricted here, and after that the latch keeps every later Apply
-    -- from ever calling RegisterEvent again. Logging in inside restricted content just
-    -- means the latch waits for the first Apply that runs outside it.
-    if not cleuRegistered then
-        local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
-            and C_CombatLog.IsCombatLogRestricted()
-        if restricted == false or restricted == nil then
-            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-            cleuRegistered = true
-        end
-    end
-
     -- Which boss we are on, so a per-boss override can take over from the spec default.
     watcher:RegisterEvent("ENCOUNTER_START")
     watcher:RegisterEvent("ENCOUNTER_END")
@@ -2929,7 +4291,8 @@ local warnedCombatWarnings = false
 local saidAudioOnly = false
 
 local function WarnIfMuted()
-    if warnedCombatWarnings or not TRDB().enabled or not isTank then return end
+    if warnedCombatWarnings or not TRDB().enabled
+        or not (isTank or TRDB().pretendTank) then return end
     if not CombatWarningsOff() then return end
     warnedCombatWarnings = true
     ns.Print("|cffff6060Boss Warnings are turned off|r, so the game sends no timeline data and "
@@ -2944,11 +4307,16 @@ end
 local warnedNoBossMod = false
 -- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling.
 function ns.WarnIfNoBossMod()
-    if warnedNoBossMod or not TRDB().enabled or not isTank then return end
-    if _G.BigWigsLoader or _G.DBM then return end
+    if warnedNoBossMod or not TRDB().enabled
+        or not (isTank or TRDB().pretendTank) then return end
+    local source = ns.BossSource()
+    if source == "timeline" then return end
+    if (source == "bigwigs" and _G.BigWigsLoader) or (source == "dbm" and _G.DBM) then return end
     warnedNoBossMod = true
-    ns.Print("|cffff6060No BigWigs or DBM detected|r, so the tank reminder has nothing to "
-        .. "listen to and cannot fire. Install BigWigs or DBM for callouts to work.")
+    ns.Print(("|cffff6060Boss Addon is set to %s, but it is not loaded|r -- callouts have "
+        .. "nothing to listen to. Install it, or switch Boss Addon on the Smart "
+        .. "Reminders Setup tab."):format(
+        source == "bigwigs" and "BigWigs" or "DBM"))
 end
 
 function ns.Apply()
@@ -2984,67 +4352,6 @@ function ns.Apply()
 end
 
 -------------------------------------------------------------------------------
---  Unlock Mode
--------------------------------------------------------------------------------
-local function RegisterUnlock()
-    local EUI = _G.EllesmereUI
-    if not (EUI and EUI.RegisterUnlockElements and EUI.MakeUnlockElement) then return end
-
-    EUI:RegisterUnlockElements({
-        EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminder",   -- storage key; renaming it would orphan saved positions
-            label = "Smart",
-            group = "NaowhUI",
-            order = 3,
-            -- Sized from the icon slider, so a resize handle would be overwritten by the
-            -- next update.
-            noResize = true,
-            isHidden = function() return not TRDB().enabled end,
-            -- A getter and nothing more: Unlock Mode calls this while building its element
-            -- list, so anything shown from here would appear unasked.
-            getFrame = function() return frame or Reminder.Create() end,
-            getSize  = function()
-                local size = TRDB().iconSize or DEFAULTS.iconSize
-                return size, size
-            end,
-            savePos = function(_, point, relPoint, x, y)
-                TRDB().pos = { point = point, relPoint = relPoint, x = x, y = y }
-            end,
-            loadPos = function()
-                local p = TRDB().pos
-                if not p then return nil end
-                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-            end,
-            clearPos = function() TRDB().pos = nil end,
-            applyPos = ApplyPosition,
-        }),
-        EUI.MakeUnlockElement({
-            key   = "NaowhUI_TankReminderCustom",   -- storage key; renaming it would orphan saved positions
-            label = "Smart Custom Reminder",
-            group = "NaowhUI",
-            order = 5,
-            noResize = true,
-            isHidden = function() return not TRDB().enabled end,
-            getFrame = function()
-                if not customFrame then CreateCustomFrame() end
-                return customFrame
-            end,
-            getSize  = function() return 240, 10 end,
-            savePos = function(_, point, relPoint, x, y)
-                TRDB().customPos = { point = point, relPoint = relPoint, x = x, y = y }
-            end,
-            loadPos = function()
-                local p = TRDB().customPos
-                if not p then return nil end
-                return { point = p.point, relPoint = p.relPoint, x = p.x, y = p.y }
-            end,
-            clearPos = function() TRDB().customPos = nil end,
-            applyPos = ApplyCustomReminderPosition,
-        }),
-    }, "NaowhUI_EUI")
-end
-
--------------------------------------------------------------------------------
 --  Preview
 -------------------------------------------------------------------------------
 -- The settings panel is the only window in which anyone needs something to drag, so the
@@ -3056,9 +4363,12 @@ end
 -- default so the preview appears the moment the page opens -- tester feedback was not
 -- "the preview is intrusive" but "I cannot find it".
 local previewPin = true
+-- Held true by anchor config mode (Customize Anchors), where the defensive alert is
+-- one of the placeable displays -- independent of the window being open.
+local configPreview = false
 
 local function UpdatePreview()
-    if not (previewing and previewPin) then
+    if not ((previewing and previewPin) or configPreview) then
         -- Strip the preview's drag affordances the moment it stops being a preview: a
         -- mouse-enabled alert frame in a fight would sit invisibly over the screen
         -- eating clicks.
@@ -3081,7 +4391,8 @@ local function UpdatePreview()
         if customFrame and not customHideTimer then customFrame:Hide() end
         return
     end
-    if not TRDB().enabled then return end
+    -- No gate on the master switch here: everything ships OFF, so the addon is still
+    -- disabled at exactly the moment someone is placing and sizing the alert.
 
     Reminder.Create()
     RebuildSlots()
@@ -3111,7 +4422,7 @@ local function UpdatePreview()
     -- own text, so dragging into place never stomps on an actual preview mid-display.
     CreateCustomFrame()
     if not customHideTimer then
-        customFrame.text:SetText("Custom Reminder")
+        customFrame.text:SetText("Ability Reminder")
     end
     customFrame:SetMovable(true)
     customFrame:SetClampedToScreen(true)
@@ -3128,23 +4439,37 @@ local function UpdatePreview()
     end)
     customFrame:Show()
 
-    if activeSlots > 0 then
-        slots[1]:SetAlpha(1)
-        slots[1].icon:SetAlpha(1)
-        slots[1].icon:SetShown(TRDB().showIcon)
-        -- The text channel previews too: the label carries exactly what a fight would show
-        -- for this slot, so moving and sizing is done against the real thing.
-        if slots[1].label then
-            local sid = slots[1].spellID
+    -- An empty or fully switched-off list previews a stand-in in slot 1, so Show Icon
+    -- and the size/position tools work before any ability has been enabled.
+    local slot = slots[1]
+    if activeSlots == 0 then
+        slot = slot or CreateSlot(1)
+        slot.spellID = nil
+        slot.iconID = 134400
+        slot.icon:SetTexture(134400)
+        slot.label:SetText("Defensive")
+        ApplySize()
+    end
+    slot:SetAlpha(1)
+    slot.icon:SetAlpha(1)
+    -- Config mode forces every channel visible, matching the other anchors' samples:
+    -- on a fresh install each channel still ships off, and that is exactly when the
+    -- alert is being placed.
+    slot.icon:SetShown((TRDB().showIcon or configPreview) and true or false)
+    -- The text channel previews too: the label carries exactly what a fight would show
+    -- for this slot, so moving and sizing is done against the real thing.
+    if slot.label then
+        if activeSlots > 0 then
+            local sid = slot.spellID
             local si = sid and C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-            slots[1].label:SetText(CalloutFor(sid, si and si.name))
-            slots[1].label:SetShown(TRDB().showText and true or false)
+            slot.label:SetText(CalloutFor(sid, si and si.name))
         end
+        slot.label:SetShown((TRDB().showText or configPreview) and true or false)
     end
     -- The stand-in shows the winning line, not the fallback: a preview of "nothing is ready"
     -- is not what anyone is trying to position.
     if frame.fallback then frame.fallback:SetAlpha(0) end
-    if TRDB().showBar then
+    if TRDB().showBar or configPreview then
         CreateBar()
         bar:SetMinMaxValues(0, 1)
         bar:SetValue(0.6)
@@ -3156,6 +4481,28 @@ local function UpdatePreview()
     end
     frame:Show()
     textFrame:Show()
+end
+
+-- The anchor-config half of the defensive alert: config mode shows it through the
+-- preview machinery above, so dragging and the saved position slot are shared.
+function ns.SetDefensiveAnchorConfigShown(shown)
+    configPreview = shown and true or false
+    UpdatePreview()
+end
+
+function ns.GetDefensiveAlertFrame()
+    return frame, bar
+end
+
+function ns.RefreshDefensivePreview()
+    ApplySize()
+    UpdatePreview()
+end
+
+-- Re-seat the alert from its saved slot after a config-mode drag, the same call the
+-- preview's own drag handler makes.
+function ns.ApplyDefensiveAlertPosition()
+    ApplyPosition()
 end
 
 -------------------------------------------------------------------------------
@@ -3170,11 +4517,189 @@ end
 --               documented only as "atlases and alpha values" -- the absent case is not
 --               specified, and Blizzard never reads these textures back. Run this on a live
 --               boss with an ability on the timeline.
+-- Everything that can make a capture worthless, checked in one place. A tester who sends
+-- back "0 entries" has learned nothing and neither has the person reading it, and that has
+-- now happened -- trace on, no priority list, not a tank, Pretend Tank off, so there was
+-- never anything to record. Every one of those is stated up front instead.
+local function DiagProblems()
+    local t, out = TRDB(), {}
+    if t.enabled ~= true then
+        out[#out + 1] = "the reminder is switched OFF -- turn it on in Smart Reminders"
+    end
+    if activeSlots == 0 then
+        out[#out + 1] = "priority list is EMPTY for this spec, so nothing can ever be "
+            .. "called -- add defensives in Smart Reminders first"
+    end
+    if not isTank and not t.pretendTank then
+        out[#out + 1] = "not a tank spec and Pretend Tank is off, so tank busters will "
+            .. "never call -- run /nutank pretendtank"
+    end
+    if watcher and not watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") then
+        out[#out + 1] = "combat log was never hooked, so Skip When Already Covered has no "
+            .. "aura data -- step OUTSIDE the instance once, it can only register there"
+    end
+    if not TimelineAvailable() then
+        out[#out + 1] = "the boss timeline feature is unavailable here"
+    end
+    return out
+end
+
 SLASH_NAOWHUITANK1 = "/nutank"
 SlashCmdList["NAOWHUITANK"] = function(msg)
     local arg = (msg or ""):lower():match("^%s*(%S*)")
     ProbeCapabilities()
     RefreshSpec()
+
+    -- "It did not work at all on that boss" has now cost three separate investigations,
+    -- because nothing distinguished "the ability never broadcast" from "it broadcast and we
+    -- ignored it". RecordBossModKey has been storing exactly that all along with no way to
+    -- read it back. Per encounter, so it answers for whichever boss is being complained
+    -- about rather than only the current one.
+    -- Recording is a persisted flag, not a session one: a key run can span a reload, and a
+    -- trace that silently stopped at the first loading screen would be worse than none.
+    if arg == "pretendtank" then
+        local t = TRDB()
+        t.pretendTank = not t.pretendTank and true or nil
+        if t.pretendTank then
+            ns.Print("|cffF0A830PRETEND TANK ON|r -- callouts now fire for tank busters even "
+                .. "though you are not tanking. For testing only; turn it back off before "
+                .. "playing normally. The aggro check still records what it WOULD have said.")
+            local problems = DiagProblems()
+            for i = 1, #problems do ns.Print("  |cffff6060still blocked:|r " .. problems[i]) end
+        else
+            ns.Print("|cff6DD09APretend Tank off|r -- back to normal tank-only behaviour.")
+        end
+        return
+    end
+
+    if arg == "trace" then
+        local t = TRDB()
+        t.trace = not t.trace and true or nil
+        if t.trace then
+            if type(t.callLog) == "table" then wipe(t.callLog) end
+            ns.Print("|cff6DD09Atrace ON|r -- run your key, then /nutank trace again to stop "
+                .. "and /nutank export to get the text to send.")
+            local problems = DiagProblems()
+            for i = 1, #problems do
+                ns.Print("  |cffff6060this trace will capture nothing:|r " .. problems[i])
+            end
+        else
+            ns.Print(("|cffF0A830trace OFF|r -- %d entries recorded. /nutank export opens them "
+                .. "in a copyable box."):format(type(t.callLog) == "table" and #t.callLog or 0))
+        end
+        return
+    end
+
+    if arg == "export" then
+        local t = TRDB()
+        local log = type(t.callLog) == "table" and t.callLog or {}
+        local out = {}
+        out[#out + 1] = ("build %s | spec %d | tank %s | pretendTank %s | slots %d | trace %s"):format(
+            BuildString(), specID, tostring(isTank), tostring(t.pretendTank and true or false),
+            activeSlots, tostring(t.trace and true or false))
+        out[#out + 1] = ("combat log registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d"):format(
+            tostring(watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED")),
+            tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
+                and C_CombatLog.IsCombatLogRestricted()),
+            cleuLines, cleuUsable, cleuOwnAuras)
+        out[#out + 1] = ("timeline=%s aggroOnly=%s coveredSkip=%s leadTime=%s"):format(
+            tostring(TimelineAvailable()), tostring(t.aggroOnly), tostring(t.coveredSkip ~= false),
+            tostring(t.leadTime))
+        out[#out + 1] = ("%d entries"):format(#log)
+        local problems = DiagProblems()
+        for i = 1, #problems do out[#out + 1] = "PROBLEM: " .. problems[i] end
+        if #log == 0 and #problems == 0 then
+            out[#out + 1] = "PROBLEM: nothing recorded, but the setup looks able to call -- "
+                .. "either no pull happened while tracing, or no boss mod broadcast a "
+                .. "curated ability (check /nutank keys during a pull)"
+        end
+        for i = 1, #log do out[#out + 1] = LogLine(log[i]) end
+        local text = table.concat(out, "\n")
+        if ns.ShowDiagExport then
+            ns.ShowDiagExport(text)
+        else
+            ns.Print(text)
+        end
+        return
+    end
+
+    if arg == "observed" then
+        -- Falls back to the last pull committed this session: ENCOUNTER_END nils
+        -- currentEncounter, so without this the command is unusable in the one moment
+        -- anyone actually runs it -- right after the boss dies.
+        local enc = currentEncounter
+        if not enc and ns.ObservedLastPull then enc = ns.ObservedLastPull() end
+        if not enc then
+            ns.Print("no pull to report yet. Fight a boss with BigWigs or DBM running, or "
+                .. "open the Ability Reminders tab to browse what has been recorded.")
+            return
+        end
+        local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(enc) or {}
+        if #diffs == 0 then
+            ns.Print(("nothing recorded for encounter %s yet. Recording rides the boss "
+                .. "mods, so it needs Boss Addon set to BigWigs or DBM (currently %s), and "
+                .. "a real boss encounter -- trash fires no encounter events."):format(
+                tostring(enc), ns.BossSource()))
+            return
+        end
+        if not currentEncounter then
+            ns.Print(("|cff9a9ea6last pull, encounter %s|r"):format(tostring(enc)))
+        end
+        for _, d in ipairs(diffs) do
+            local block = ns.ObservedFor(enc, tonumber(d.key))
+            local name = GetDifficultyInfo and GetDifficultyInfo(tonumber(d.key))
+            ns.Print(("|cff0091edobserved|r %s (%s): %d pull(s), longest %.0fs"):format(
+                tostring(name or "?"), d.key, block.pulls or 0, block.longest or 0))
+            for sid, list in pairs(block.casts or {}) do
+                local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+                local parts = {}
+                for i = 1, #list do
+                    local s = list[i]
+                    if s and s.t then
+                        parts[#parts + 1] = ("%d:%04.1f%s"):format(math.floor(s.t / 60),
+                            s.t % 60, (s.stage and s.stage > 1) and ("(P" .. s.stage .. ")") or "")
+                    end
+                end
+                ns.Print(("  %d %s -- %s"):format(sid, (info and info.name) or "?",
+                    table.concat(parts, ", ")))
+            end
+        end
+        return
+    end
+
+    if arg == "keys" then
+        local enc = currentEncounter
+        local cat = enc and BossModCatalogueTable(false, enc)
+        if not cat or not next(cat) then
+            ns.Print(enc
+                and ("nothing recorded for encounter %s yet. Either no boss mod broadcast "
+                    .. "anything, or this ran outside a pull."):format(tostring(enc))
+                or "not in an encounter, so there is nothing to attribute keys to. Run this "
+                    .. "during or right after a pull.")
+            return
+        end
+        ns.Print(("|cff0091edboss mod keys|r seen this pull (encounter %s):"):format(tostring(enc)))
+        for key, e in pairs(cat) do
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(key)
+            local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[key]
+            local on = ns.AbilityEnabledForBinding(enc, key)
+            local binding = ns.BindingForBossModKey(enc, key)
+            local verdict
+            if on and binding and binding.mode == "custom" then
+                verdict = "|cff9a9ea6steps aside to its Ability Reminder|r"
+            elseif on then
+                verdict = "|cff6DD09Awould call|r"
+            else
+                verdict = "|cffff6060OFF for this boss|r"
+            end
+            ns.Print(("  %d %s -- %s/%s x%d -- %s, %s"):format(
+                key, (info and info.name) or "?", tostring(e.mod), tostring(e.kind),
+                e.seen or 0,
+                curated and "in the tank list" or "|cff9a9ea6not a tank ability|r",
+                verdict))
+        end
+        return
+    end
 
     if arg == "catalogue" or arg == "catalog" then
         if not (C_EncounterEvents and C_EncounterEvents.GetEventList) then
@@ -3286,22 +4811,16 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Shows the alert exactly as a fight would, minus the tank gate. If the icon appears
     -- here but not on a boss, the display is fine and the gate is the variable. If it does
     -- not appear here either, the problem is the display itself.
-    -- mute/unmute/tank/untank/learn/marked/export/muted all worked against fingerprints
+    -- mute/unmute/tank/untank/learn/marked/muted all worked against fingerprints
     -- (a timeline bar's duration standing in for an ability's identity), and retired along
     -- with that engine -- BigWigs/DBM hand over a real spellID now, so "which ability" is
     -- never a guess to record by hand. Setup's own per-ability checklist is the on/off
-    -- switch these used to be.
+    -- switch these used to be. trace and export came BACK as spellID-based recorders and
+    -- are handled above; leaving them listed here made their retirement notice look live.
     if arg == "mute" or arg == "unmute" or arg == "tank" or arg == "untank"
-        or arg == "learn" or arg == "marked" or arg == "export" or arg == "muted" then
+        or arg == "learn" or arg == "marked" or arg == "muted" then
         ns.Print("/nutank " .. arg .. " was part of the old fingerprint engine and has been "
             .. "retired. Enable or disable an ability from Setup's own checklist instead.")
-        return
-    end
-
-    if arg == "trace" then
-        ns.Print(("build %s. The old timeline-fingerprint trace was retired with the "
-            .. "fingerprint engine -- a spellID-based replacement is coming. /nutank cds "
-            .. "shows your current priority list state in the meantime."):format(TRACE_BUILD))
         return
     end
 
@@ -3320,7 +4839,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         end
         ResyncModel()
         local now, anyReady = GetTime(), false
-        ns.Print(("|cffF0A830cooldowns|r (build %s), in priority order:"):format(TRACE_BUILD))
+        ns.Print(("|cff0091edcooldowns|r (build %s), in priority order:"):format(BuildString()))
         for i = 1, activeSlots do
             local sid = slots[i].spellID
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
@@ -3328,7 +4847,11 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             if ok and ready then anyReady = true end
             local st = chargeState[sid]
             local detail = st
-                and ("%d/%d charges"):format(ChargesAvailable(sid) or 0, st.max)
+                and ("%d/%d charges, recharge %s (%s)"):format(
+                    ChargesAvailable(sid) or 0, st.max,
+                    st.recharge > 0 and ("%.0fs"):format(st.recharge) or "unknown",
+                    st.rechargeSrc == "client" and "|cff6DD09Aclient|r"
+                        or ("|cffF0A830" .. tostring(st.rechargeSrc) .. "|r"))
                 or (CooldownRunning(sid) == nil and "cooldown unreadable, using the estimate"
                     or "cooldown read directly")
             ns.Print(("  %d. %s -- %s (%s)"):format(i, (info and info.name) or tostring(sid),
@@ -3354,19 +4877,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             return
         end
         for i = 1, #log do
-            local e = log[i]
-            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(e.sid)
-            local name = (info and info.name) or e.sid
-            if e.kind == "cast" then
-                ns.Print(("%s enc=%s stage=%s -- CAST %s"):format(
-                    e.stamp, tostring(e.enc), tostring(e.stage), name))
-            else
-                ns.Print(("%s enc=%s stage=%s -- %s %s -- running=%s%s readyIn=%s secrecy=%s"):format(
-                    e.stamp, tostring(e.enc), tostring(e.stage),
-                    e.kind == "test" and "TEST-called" or "called", name,
-                    e.running, e.charges and (" charges=" .. e.charges) or "",
-                    e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", e.secrecy))
-            end
+            ns.Print(LogLine(log[i]))
         end
         return
     end
@@ -3431,17 +4942,39 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    -- Bare command opens the options; the diagnostic dump that used to live here moved
+    -- under "status" when the addon got its own window.
+    if arg == "" and ns.ToggleOptionsWindow then
+        ns.ToggleOptionsWindow("Smart Reminders Setup")
+        return
+    end
+    if arg ~= "status" then
+        ns.Print("unknown command '" .. arg .. "' -- /nutank status for diagnostics, or see below.")
+    end
+
     -- The build, first, because every report that cost a run to diagnose started with not
     -- knowing which one was loaded. A version string is weaker evidence than a stack line,
     -- but it is the only thing a tester can read out without an error to paste.
-    ns.Print(("build: %s"):format(
-        (C_AddOns and C_AddOns.GetAddOnMetadata
-            and C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version")) or "unknown"))
+    ns.Print(("build: %s"):format(BuildString()))
     ns.Print(("tank reminder: enabled=%s spec=%d tank=%s slots=%d"):format(
         tostring(TRDB().enabled), specID, tostring(isTank), activeSlots))
-    if not isTank then
+    if TRDB().pretendTank then
+        ns.Print("|cffF0A830PRETEND TANK IS ON|r -- tank busters call for you regardless of "
+            .. "spec or aggro. /nutank pretendtank turns it off.")
+    elseif not isTank then
         ns.Print("|cffF0A830this spec does not tank|r, so known tank busters stay quiet "
             .. "here. Custom reminders and uncovered bosses in authoring mode still call.")
+    end
+    ns.Print(("boss addon: %s"):format(ns.BossSource()))
+    if currentEncounter then
+        local diffName = currentDifficultyID and GetDifficultyInfo
+            and GetDifficultyInfo(currentDifficultyID)
+        ns.Print(("pull: enc=%s elapsed=%.1fs difficulty=%s(%s) stage=%s%s"):format(
+            tostring(currentEncounter),
+            currentEncounterStartedAt and (GetTime() - currentEncounterStartedAt) or -1,
+            tostring(diffName or "?"), tostring(currentDifficultyID),
+            tostring(currentStage),
+            currentStageAt and (" stageElapsed=%.1fs"):format(GetTime() - currentStageAt) or ""))
     end
     ns.Print(("timeline: available=%s bossWarnings=%s timelineDisplay=%s"):format(
         tostring(TimelineAvailable()),
@@ -3450,7 +4983,20 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("engine: select=%s gate=%s bar=%s sound=%s"):format(
         tostring(canSelect and true or false), tostring(canGate and true or false),
         tostring(canBar and true or false), tostring(canSound and true or false)))
-    ns.Print("usage: /nutank cds | calls | test | catalogue | gate | secrecy | bosses | defensives")
+    -- Asked of the frame rather than tracked in a flag of our own, so it answers for the
+    -- code that is actually loaded. The two counters only move during an encounter (the
+    -- handler returns on currentEncounter == nil before reaching them), so a zero outside
+    -- a pull says nothing -- registered= is the one that answers on its own.
+    ns.Print(("aura cover: bigDefensiveHits=%d (Blizzard's own classification; 0 all pull "
+        .. "means the aura enumeration is refused here)"):format(bigDefSeen))
+    ns.Print(("combat log: registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
+        watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") and "true"
+            or "|cffff6060false|r",
+        tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
+            and C_CombatLog.IsCombatLogRestricted()),
+        cleuLines, cleuUsable, cleuOwnAuras,
+        PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
+    ns.Print("usage: /nutank status | observed | cds | calls | keys | trace | export | pretendtank | test | catalogue | gate | secrecy | bosses | defensives")
 end
 
 -------------------------------------------------------------------------------
@@ -3672,7 +5218,7 @@ end
 local function BuildPicker()
     if pickPopup then return pickPopup end
 
-    local dimmer, panel = ns.MakeModal(380, 460)
+    local dimmer, panel = ns.MakeModal(380, 460, "defensivePicker")
 
     local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -3707,7 +5253,7 @@ local function BuildPicker()
                 row:SetHeight(30)
                 row:SetPoint("LEFT", content, "LEFT", 0, 0)
                 row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-                row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.goldSoft, 0.10)
+                row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.accentSoft, 0.10)
                 row.hl:SetAllPoints(); row.hl:Hide()
                 row.tex = row:CreateTexture(nil, "ARTWORK")
                 row.tex:SetSize(24, 24)
@@ -3779,12 +5325,12 @@ end
 -- shorter than the spell name.
 local textPopup
 
--- Two ways to be heard: pick a sound from EllesmereUI's alert catalogue, or type what should
+-- Two ways to be heard: pick a SharedMedia sound, or type what should
 -- be spoken. The dropdown carries a "Speak the text instead" entry, which is the no-sound
 -- state -- so the two live on one control rather than needing a mode switch.
 local function ShowCalloutEditor(title, current, onAccept, spellID)
     if not textPopup then
-        local dimmer, panel = ns.MakeModal(400, 240)
+        local dimmer, panel = ns.MakeModal(400, 240, "calloutEditor")
 
         local head = ns.Font(panel, 14, "OUTLINE")
         head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -3807,7 +5353,7 @@ local function ShowCalloutEditor(title, current, onAccept, spellID)
         textLbl:SetPoint("TOPLEFT", modeHolder, "BOTTOMLEFT", 0, -16)
         textLbl:SetText("Spoken text")
 
-        -- The one hand-built widget: EllesmereUI's factory has no text input.
+        -- The one hand-built widget: the factory has no text input.
         local box = CreateFrame("EditBox", nil, panel)
         box:SetPoint("TOPLEFT", textLbl, "BOTTOMLEFT", 0, -4)
         box:SetSize(356, 28)
@@ -3835,7 +5381,7 @@ local function ShowCalloutEditor(title, current, onAccept, spellID)
 
         local hear = ns.Button(panel, "Hear it", 96, 26, function()
             local key = (textPopup._mode == "sound") and textPopup._soundKey or nil
-            local EUI = _G.EllesmereUI
+            local EUI = ns.UI
             if key and textPopup._paths and EUI and EUI._PlayLSMSound then
                 EUI._PlayLSMSound(textPopup._paths[key])
             else
@@ -3873,7 +5419,7 @@ local function ShowCalloutEditor(title, current, onAccept, spellID)
     tp._mode = tp._soundKey and "sound" or "text"
     tp._firstSound = order and order[1] or nil
 
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local segRefresh
 
     local function Sync()
@@ -3932,10 +5478,10 @@ local function ShowCalloutEditor(title, current, onAccept, spellID)
 end
 
 -------------------------------------------------------------------------------
---  Options (chained onto the companion's Gameplay page, or our own page standalone)
+--  Options
 -------------------------------------------------------------------------------
--- Returns the raw running y, section-builder style, so the companion can chain us. Our own
--- standalone page wrapper is what takes math.abs of it.
+-- Every builder returns the raw running y, section-builder style; the window's page
+-- wrapper is what takes math.abs of it.
 -------------------------------------------------------------------------------
 --  Setup tab panels
 -------------------------------------------------------------------------------
@@ -3949,7 +5495,7 @@ end
 -- list. Always shown at the top of the Setup tab regardless of which of the
 -- four side items is selected.
 function ns.BuildCoreSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -3973,14 +5519,29 @@ function ns.BuildCoreSettings(parent, y)
         -- disagreed with each other, and on covered bosses the fingerprint filter now does
         -- the same job for every channel at once. The stored tankOnly flag is ignored, not
         -- migrated, so downgrading does not lose it.
-        { type = "toggle", text = "Only While I Have the Boss",
-          tooltip = "For raids with two tanks: stay quiet when the boss is on the other tank. "
-          .. "Checked at the moment the warning fires -- threat first, then the boss's actual "
-          .. "target -- and whenever the game keeps the answer sealed the alert plays anyway, "
-          .. "because a spare callout costs less than a silent tank buster. Solo content is "
-          .. "unaffected: the boss is always on you.",
-          getValue = function() return TRDB().aggroOnly end,
-          setValue = function(v) TRDB().aggroOnly = v end }
+        -- "Only While I Have the Boss" moved to the Raid Bosses tab: it only ever changes
+        -- anything with two tanks, and a five-man has one who holds every boss unit, so on
+        -- the Setup tab it read as a global behaviour switch that does nothing in half the
+        -- content. Same stored key, so nobody loses their choice.
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Boss Addon", width = 180,
+          values = { timeline = "Blizzard Timeline", bigwigs = "BigWigs", dbm = "DBM" },
+          order = { "timeline", "bigwigs", "dbm" },
+          tooltip = "Which single source drives the callouts. Blizzard Timeline is the "
+          .. "game's own encounter feed -- no addons needed, and per-ability sounds only "
+          .. "work here. BigWigs or DBM instead ride that mod's bars and messages -- "
+          .. "what powers timer/message reminders and phase (p2) note lines. Ability-timer "
+          .. "Raid Reminders are BigWigs only. The other two sources are ignored entirely.",
+          getValue = function() return TRDB().bossSource or "timeline" end,
+          setValue = function(v)
+              TRDB().bossSource = v
+              ns.Apply()
+              EUI:RefreshPage(true)
+          end },
+        { type = "label", text = "      Callouts follow exactly one source." }
     ); y = y - h
 
     -- Only worth saying when it is actually wrong. The timeline's own display toggle is
@@ -3995,16 +5556,17 @@ function ns.BuildCoreSettings(parent, y)
 
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Skip When Already Covered",
-          tooltip = "Stays quiet when one of your defensives is already active with five or "
-          .. "more seconds left as the warning fires -- you are covered, no need to stack "
-          .. "another. When the game hides a buff's timing, the callout plays anyway.",
+          tooltip = "Stays quiet when one of your defensives is already active as the "
+          .. "warning fires -- you are covered, no need to stack another.",
           getValue = function() return TRDB().coveredSkip ~= false end,
           setValue = function(v) TRDB().coveredSkip = v end },
         { type = "slider", text = "Warn This Many Seconds Early", min = 1, max = 5, step = 1,
           tooltip = "How close to the hit the alert fires. The game announces abilities about "
           .. "five seconds out; the alert waits and fires this many seconds before impact, so "
           .. "lower is closer to the hit. When the game announces later than this, the alert "
-          .. "fires immediately.",
+          .. "fires immediately. This is the BASE value every defensive uses -- override "
+          .. "one specifically from an ability's own cog on a boss's page, next to that "
+          .. "defensive on its preset list.",
           getValue = function() return TRDB().leadTime or 3 end,
           setValue = function(v) TRDB().leadTime = v end }
     ); y = y - h
@@ -4013,16 +5575,13 @@ function ns.BuildCoreSettings(parent, y)
     return y
 end
 
--- The priority list, split out from BuildCoreSettings and rendered LAST on the Setup
--- page, after the tile sidebar rather than before it. RenderPresetListEditor's own
+-- The priority list, on the Defensive Presets tab by itself. RenderPresetListEditor's own
 -- returned height (topY + math.min(ly, ry) across two independently-tracked columns)
 -- runs a little short of its true rendered extent once the spare-defensives column gets
--- long -- not something this pass introduced, but stacking new content directly under it
--- is what turned "a little short" into a visible overlap. Putting it last means nothing
--- downstream depends on that number being exact; at worst the page reports a little extra
--- or missing empty space below it, never content drawn on top of content.
+-- long, so nothing may ever stack below it; alone on its page, the inexact number costs
+-- at worst a little extra or missing empty space, never content drawn on top of content.
 function ns.BuildPresetListSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -4044,7 +5603,7 @@ end
 -- paired with unrelated toggles on the same row (Skip When Covered, Play a Sound) -- kept
 -- unpaired here now that they've settled into one section together.
 function ns.BuildBarsSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -4072,6 +5631,30 @@ function ns.BuildBarsSettings(parent, y)
           setValue = function(v)
               TRDB().showText = v; ApplySize(); UpdatePreview()
           end }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Glow It on the Cooldown Manager",
+          tooltip = "Also glows the called defensive on Blizzard's Cooldown Manager bar, so "
+          .. "the answer appears on the bar you are already watching. Needs the Cooldown "
+          .. "Manager turned on and that defensive placed on it.|n|n"
+          .. "|cffff6b5eOff by default:|r this reaches across to Blizzard's own frames, so it "
+          .. "is the first thing to switch off if anything misbehaves in combat.",
+          getValue = function() return TRDB().cdmGlow == true end,
+          setValue = function(v)
+              TRDB().cdmGlow = v and true or false
+              if not v then ns.StopCDMGlow() end
+          end },
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "How Long It Stays Up", min = 1, max = 15, step = 1,
+          tooltip = "How many seconds the callout stays on screen when the ability is never "
+          .. "pressed. Pressing the defensive it asked for clears it straight away whatever "
+          .. "this is set to.",
+          getValue = function() return TRDB().lingerSec or DEFAULTS.lingerSec end,
+          setValue = function(v) TRDB().lingerSec = v end }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "SIZE AND LOCATION", y); y = y - h
@@ -4113,14 +5696,14 @@ function ns.BuildBarsSettings(parent, y)
         { type = "toggle", text = "Show a Preview",
           tooltip = "Puts a stand-in of the alert on screen while these options are open -- "
           .. "the icon and the text callout exactly as a fight would draw them. DRAG IT to "
-          .. "move the alert; the position saves instantly and Unlock Mode edits the same "
-          .. "spot, under the name Smart. It hides itself when the options close.",
+          .. "move the alert; the position saves instantly. It hides itself when the "
+          .. "options close.",
           getValue = function() return previewPin end,
           setValue = function(v) previewPin = v; UpdatePreview() end }
     ); y = y - h
 
-    -- Escape hatch: a UI-scale change can strand a moved alert off-screen where Unlock
-    -- Mode cannot reach it. Side by side rather than stacked -- W:Button always claims a
+    -- Escape hatch: a UI-scale change can strand a moved alert off-screen where the
+    -- preview drag cannot reach it. Side by side rather than stacked -- W:Button always claims a
     -- full row of its own, so these are two ns.Button primitives chained off a blank
     -- DualRow's two regions instead, the same way a settings cog attaches inline elsewhere
     -- in this file.
@@ -4139,7 +5722,7 @@ function ns.BuildBarsSettings(parent, y)
             btn:SetPoint("LEFT", resetRow._leftRegion, "LEFT", 8, 0)
         end
         if resetRow._rightRegion then
-            local btn = ns.Button(resetRow._rightRegion, "Reset Custom Reminder Position", 220, 26,
+            local btn = ns.Button(resetRow._rightRegion, "Reset Ability Reminder Position", 220, 26,
                 function()
                     TRDB().customPos = nil
                     ApplyCustomReminderPosition()
@@ -4155,7 +5738,7 @@ end
 -- picker. "Play a Sound" used to share a row with "Show a Text Callout"
 -- (Bars); unpaired here for the same reason as above.
 function ns.BuildSoundsSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -4185,12 +5768,22 @@ function ns.BuildSoundsSettings(parent, y)
           setValue = function(v) TRDB().voiceOn = v; EUI:RefreshPage(true) end }
     ); y = y - h
 
+    local voiceValues, voiceOrder = ns.TTSVoiceChoices()
     _, h = W:DualRow(parent, y,
         { type = "slider", text = "Voice Volume", min = 0, max = 100, step = 5,
           tooltip = "Volume of the spoken callouts.",
           getValue = function() return TRDB().voiceVol or 100 end,
           setValue = function(v) TRDB().voiceVol = v end },
-        { type = "label", text = "" }
+        { type = "dropdown", text = "Voice", width = 180,
+          values = voiceValues, order = voiceOrder,
+          tooltip = "Which text-to-speech voice speaks the callouts. Game Default follows "
+          .. "whatever is picked in the game's own Text to Speech options; anything else is "
+          .. "this addon's alone and does not change the game's setting. The list is the "
+          .. "voices your system has installed.",
+          getValue = function() return TRDB().ttsVoiceID or "" end,
+          setValue = function(v)
+              TRDB().ttsVoiceID = (v ~= "" and v) or nil
+          end }
     ); y = y - h
 
     if TRDB().soundOn then
@@ -4230,7 +5823,7 @@ end
 -- the Alert Sound dropdown under Sounds -- so a toggle flip also calls RefreshPage to make
 -- that row appear or disappear immediately.
 function ns.BuildColorsSettings(parent, y)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
 
@@ -4246,7 +5839,7 @@ function ns.BuildColorsSettings(parent, y)
               ApplyDefensiveTextColor()
               EUI:RefreshPage(true)
           end },
-        { type = "toggle", text = "Color Custom Reminders Text",
+        { type = "toggle", text = "Color Ability Reminders Text",
           tooltip = "Recolor custom reminder text -- BigWigs/DBM, Aura and Pull triggers. "
           .. "Off uses the default white.",
           getValue = function() return TRDB().customTextColorOn end,
@@ -4269,7 +5862,7 @@ function ns.BuildColorsSettings(parent, y)
     end
 
     if TRDB().customTextColorOn then
-        _, h = W:ColorPicker(parent, "Custom Reminders Text Color", y,
+        _, h = W:ColorPicker(parent, "Ability Reminders Text Color", y,
             CustomTextColor,
             function(r, g, b, a)
                 TRDB().customTextColor = { r = r, g = g, b = b, a = a }
@@ -4281,7 +5874,7 @@ function ns.BuildColorsSettings(parent, y)
 
     if not (TRDB().defensiveTextColorOn or TRDB().customTextColorOn) then
         _, h = W:DualRow(parent, y,
-            { type = "label", text = "|cff8a99b5Nothing else to configure here yet.|r" },
+            { type = "label", text = "|cff9a9ea6Nothing else to configure here yet.|r" },
             { type = "label", text = "" }
         ); y = y - h
     end
@@ -4306,7 +5899,7 @@ end
 --  trailing empty space rather than another section overlapping it.
 -------------------------------------------------------------------------------
 function ns.BuildSetupPage(parent, yOffset)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     RefreshSpec()   -- the list editors below are all keyed on it
 
@@ -4316,15 +5909,25 @@ function ns.BuildSetupPage(parent, yOffset)
     if ns.BuildSoundsSettings  then y = ns.BuildSoundsSettings(parent, y) end
     if ns.BuildColorsSettings  then y = ns.BuildColorsSettings(parent, y) end
     if ns.BuildProfileSettings then y = ns.BuildProfileSettings(parent, y) end
-    if ns.BuildPresetListSettings then y = ns.BuildPresetListSettings(parent, y) end
 
+    return math.abs(y)
+end
+
+-- Defensive Presets tab: the preset list editor, alone on its own page.
+function ns.BuildPresetsPage(parent, yOffset)
+    local EUI = ns.UI
+    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+    RefreshSpec()   -- the preset editor is keyed on it
+
+    local y = yOffset
+    if ns.BuildPresetListSettings then y = ns.BuildPresetListSettings(parent, y) end
     return math.abs(y)
 end
 
 -- Dungeon Bosses / Raid Bosses tabs -- just the boss list now that Reminder
 -- Packs and the global switches moved to Setup's Profile tile.
 function ns.BuildBossTabPage(parent, yOffset, isRaid)
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     RefreshSpec()
 
@@ -4333,11 +5936,6 @@ function ns.BuildBossTabPage(parent, yOffset, isRaid)
         y = ns.BuildBossListPage(parent, y, isRaid)
     end
     return math.abs(y)
-end
-
--- Kept so an external caller of the old single-page entry point still resolves.
-function ns.BuildPage(parent, yOffset)
-    return ns.BuildSetupPage(parent, yOffset)
 end
 
 -- Shared with the boss tree page, which renders the same list editor for a per-boss
@@ -4503,10 +6101,10 @@ function ns.SetSoundFor(spellID, key)
     end
 end
 
--- Fresh tables per call: EllesmereUI's SharedMedia appender mutates in place and caches by
+-- Fresh tables per call: the SharedMedia appender mutates in place and caches by
 -- table identity, so handing the same tables to two dropdowns collapses them into one.
 function ns.SoundChoices()
-    local EUI = _G.EllesmereUI
+    local EUI = ns.UI
     if not (EUI and EUI.BuildAlertSoundTables) then return nil end
     local paths, names, order = EUI.BuildAlertSoundTables()
     if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
@@ -4551,9 +6149,8 @@ end
 -------------------------------------------------------------------------------
 --  Reset / re-apply
 -------------------------------------------------------------------------------
--- Re-apply is owned by the core's QueueReapply, which hooks EllesmereUI's own profile and
--- spec-switch entry points. The companion's RegisterReapply chain is deliberately NOT used:
--- it reapplies the companion's DB, and ours is a separate one it knows nothing about.
+-- Re-apply is owned by the core's QueueReapply, called by our own profile switch and the
+-- spec-change handler below.
 
 function ns.Reset()
     HideReminder()
@@ -4575,8 +6172,29 @@ watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
 watcher:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 watcher:RegisterEvent("SPELLS_CHANGED")
 watcher:RegisterEvent("TRAIT_CONFIG_UPDATED")
+-- Not in UpdateEventRegistration with the others: everything it toggles sits under
+-- ShouldRun(), and a Time In Combat reminder has to fire for a player with no defensive
+-- priority list at all (CustomRemindersAllowed is the gate instead).
+watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
+    -- FIRST in the chain, and gated before the pcall: this is by far the most frequent
+    -- event in the game (thousands a second in a raid), every other branch below it was
+    -- a string compare it had to walk past, and a protected-call frame per line is not
+    -- free either. Out of an encounter, or on a boss with nothing configured, the whole
+    -- handler is now three plain boolean reads.
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        if currentEncounter == nil
+            or not (runActive or hasCustomReminders or hasRaidReminders) then
+            return
+        end
+        local okL, errL = pcall(OnCombatLog)
+        if not okL then
+            ns.Print("|cffff6060combat log watch failed|r: " .. ErrText(errL))
+        end
+        return
+    end
+
     if event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
         -- Dying and running back resets much of a kit, and the model cannot see that. Drop
         -- the estimates and re-read whatever is readable now.
@@ -4586,7 +6204,23 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     end
 
     if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
-        currentEncounter = (event == "ENCOUNTER_START") and arg1 or nil
+        local starting = (event == "ENCOUNTER_START")
+        -- Commit BEFORE the clocks are cleared: the recorder measures against them, and
+        -- clearing first left it with no pull start, so it bailed and discarded the pull.
+        if not starting and ns.ObserveCommitPull then
+            ns.ObserveCommitPull(arg1, arg3)
+        end
+        currentEncounter = starting and arg1 or nil
+        -- arg3 is difficultyID (payload is encounterID, name, difficultyID, groupSize).
+        -- Timings genuinely differ between difficulties, so observed data is keyed by it.
+        currentEncounterStartedAt = starting and GetTime() or nil
+        currentDifficultyID = starting and arg3 or nil
+        if starting and ns.ObserveBeginPull then ns.ObserveBeginPull() end
+        if TRDB().trace then
+            AppendLog({ kind = "enc", text = ("%s %s %s"):format(
+                event == "ENCOUNTER_START" and "START" or "END",
+                tostring(arg1), tostring(arg2)) })
+        end
         if event == "ENCOUNTER_END" then wipe(readyAt) end
         lastAnnouncedSpellID = nil
         RebuildSlots()          -- swap to this boss's list before the first ability lands
@@ -4601,18 +6235,32 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         wipe(customCounters)
         bwActiveMod = nil
         currentStage = nil
+        currentStageAt = nil
+        -- By scope, not everything: a combat trigger counts from entering combat, and
+        -- pulling a boss out of the trash in front of it does not restart that clock.
+        ns.CancelTrackedReminderTimers("pull")
+        ns.CancelTrackedReminderTimers("stage")
+        ns.CancelTrackedReminderTimers("bosscombat")
         for k, handle in pairs(bwPendingTimers) do
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
         end
+        wipe(bwCdEndsAt)
         CancelAllPendingBWFires()
         for k in pairs(castSourceGUID) do
             castSourceGUID[k] = nil
+        end
+        -- A missed SPELL_AURA_REMOVED (addon toggled off mid-buff, reload mid-fight)
+        -- must not leave a stale "still covered" reading into the next pull.
+        for k in pairs(playerAuraUp) do
+            playerAuraUp[k] = nil
         end
         RefreshCustomRemindersFlag()
         if event == "ENCOUNTER_START" then
             RegisterBossModHooks()   -- in case BigWigs/DBM loaded after this addon did
             CheckCustomReminders("pull", nil)
+            ns.CheckBossCombatReminders()
+            if ns.CheckRaidReminderPullTriggers then ns.CheckRaidReminderPullTriggers() end
         end
 
         -- The gate report BELOW the rebuild, never above it: it reads activeSlots, and
@@ -4650,33 +6298,43 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "UNIT_SPELLCAST_SUCCEEDED" then
         NoteOwnCast(arg3)   -- (unit, castGUID, spellID); unit is always "player" here
+        ns.HideIfCalloutPressed(arg3)
+        return
+    end
+
+    if event == "PLAYER_REGEN_DISABLED" then
+        -- An ns field, not a chunk local: this chunk is at the 200-local ceiling.
+        ns.combatStartedAt = GetTime()
+        ns.CheckCombatReminders()
         return
     end
 
     if event == "PLAYER_REGEN_ENABLED" or event == "SPELL_UPDATE_COOLDOWN" then
         ResyncModel()
-        -- A combat log toggle skipped because of combat lockdown lands here.
-        if event == "PLAYER_REGEN_ENABLED" then UpdateEventRegistration() end
-        return
-    end
-
-    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local okL, errL = pcall(OnCombatLog)
-        if not okL then
-            ns.Print("|cffff6060combat log watch failed|r: " .. ErrText(errL))
+        if event == "PLAYER_REGEN_ENABLED" then
+            ns.CancelTrackedReminderTimers("combat")
+            -- A combat log toggle skipped because of combat lockdown lands here.
+            UpdateEventRegistration()
         end
         return
     end
 
+
     if event == "PLAYER_LOGIN" then
-        RegisterUnlock()
         RegisterBossModHooks()
-        local EUI = _G.EllesmereUI
+        if ns.ObservedPrune then ns.ObservedPrune() end
+        local EUI = ns.UI
         if EUI and EUI.RegisterOnShow then
             EUI:RegisterOnShow(function() previewing = true; UpdatePreview() end)
         end
         if EUI and EUI.RegisterOnHide then
-            EUI:RegisterOnHide(function() previewing = false; UpdatePreview() end)
+            EUI:RegisterOnHide(function()
+                previewing = false
+                UpdatePreview()
+                -- Closing the settings panel should not leave the anchor-config toolbar
+                -- and its draggable handles orphaned on screen.
+                if ns.HideRaidReminderAnchorConfig then ns.HideRaidReminderAnchorConfig() end
+            end)
         end
         -- The two CVars that decide whether data flows. Blizzard already marks them cachable,
         -- so this piggybacks rather than polling. We only ever READ them.

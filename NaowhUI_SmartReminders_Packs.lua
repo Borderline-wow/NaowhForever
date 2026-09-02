@@ -3,8 +3,8 @@
 --
 --  A pack is a curator's judgment as data: priority lists per spec, per-boss
 --  orders, callout lines, tank-buster marks, mutes, and authored reminders,
---  in one paste-able string. The wire format is EllesmereUI's own profile
---  machinery (serializer + LibDeflate + print encoding) under a distinct
+--  in one paste-able string. The wire format is LibSerialize + LibDeflate + print
+--  encoding under a distinct
 --  prefix, so a pack can never be mistaken for a profile string or vice
 --  versa.
 --
@@ -24,7 +24,7 @@
 local ns = _G.NaowhUITankReminder
 if not ns then return end
 
-local PREFIX = "NSRPACK1:"
+local PREFIX = "NSRPACK2:"
 local PACK_FORMAT = 1
 
 -- Sections a pack may carry, in display order. Keyed by the profile field;
@@ -46,6 +46,7 @@ local SECTIONS = {
     { field = "customReminders", label = "custom reminders",     count = "nested" },
     { field = "abilityBindings", label = "ability on/off",       count = "nested" },
     { field = "audioOff",        label = "audio switches",       count = "keys" },
+    { field = "raidReminders",   label = "raid reminders",       count = "nested" },
 }
 
 local function CountSection(kind, t)
@@ -63,12 +64,22 @@ local function CountSection(kind, t)
     return n
 end
 
+-- LibSerialize's Deserialize returns (ok, value); the adapter re-raises the failure so the
+-- existing pcall call sites keep their one contract: Serialize/Deserialize either answer
+-- or throw.
 local function Codec()
-    local EUI = _G.EllesmereUI
-    local Ser = EUI and EUI._Serializer
+    local LS = LibStub and LibStub("LibSerialize", true)
     local LD = LibStub and LibStub("LibDeflate", true)
-    if Ser and Ser.Serialize and Ser.Deserialize and LD then return Ser, LD end
-    return nil
+    if not (LS and LD) then return nil end
+    local Ser = {
+        Serialize = function(v) return LS:Serialize(v) end,
+        Deserialize = function(s)
+            local ok, v = LS:Deserialize(s)
+            if not ok then error(v, 0) end
+            return v
+        end,
+    }
+    return Ser, LD
 end
 
 -- Deep copy, so a pack never aliases live settings tables: an exported pack
@@ -83,9 +94,14 @@ end
 
 function ns.ExportPack(packName, author)
     local Ser, LD = Codec()
-    if not Ser then return nil, "EllesmereUI's serializer is not available." end
+    if not Ser then return nil, "The serializer libraries are missing from this build." end
 
     local db = ns.DB()
+    if type(db.importedPack) == "table" then
+        return nil, ("This profile contains an imported pack (%s by %s), so it cannot "
+            .. "be shared onward. Build your own profile to share one."):format(
+            db.importedPack.name, db.importedPack.author)
+    end
     local data, any = {}, false
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
@@ -118,7 +134,7 @@ end
 -- and a reason. Applies nothing.
 function ns.DecodePack(str)
     local Ser, LD = Codec()
-    if not Ser then return nil, "EllesmereUI's serializer is not available." end
+    if not Ser then return nil, "The serializer libraries are missing from this build." end
     if type(str) ~= "string" then return nil, "Nothing to read." end
     str = str:gsub("%s+", "")
     if str == "" then return nil, "Nothing to read." end
@@ -146,7 +162,7 @@ function ns.DecodePack(str)
     end
     if #parts == 0 then return nil, "The pack is empty." end
 
-    local desc = ("|cffF0A830%s|r by %s%s|n%s"):format(
+    local desc = ("|cff0091ed%s|r by %s%s|n%s"):format(
         tostring(payload.name), tostring(payload.author),
         payload.made ~= "" and (" (" .. payload.made .. ")") or "",
         table.concat(parts, ", "))
@@ -177,6 +193,14 @@ function ns.ApplyPack(payload, mode)
     end
 
     for field, value in pairs(staged) do db[field] = value end
+    -- The profile now carries someone else's pack, so it stops being shareable: a
+    -- curator's string must not be re-exported by an importer. The mark lives in the
+    -- profile (Reset clears it, Copy carries it) and is never itself exported --
+    -- ExportPack only walks SECTIONS.
+    db.importedPack = {
+        name = tostring(payload.name or "a pack"),
+        author = tostring(payload.author or "its curator"),
+    }
     if type(payload.data.leadTime) == "number" and mode ~= "merge" then
         db.leadTime = payload.data.leadTime
     end
@@ -193,24 +217,51 @@ end
 --  The two modals. Both are the house modal shell with a multiline box; the
 --  difference is direction. Neither touches settings until Apply.
 -------------------------------------------------------------------------------
-local function MakePackBox(panel, topOffset, height)
+-- Promoted to ns: the Custom Reminders tab's note box is the same widget.
+function ns.MakeMultilineBox(panel, topOffset, height)
     local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, topOffset)
     scroll:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -34, topOffset)
     scroll:SetHeight(height)
+    -- Given the same field treatment as every other edit box here. Without it there is
+    -- nothing on screen marking where the text goes, which on the import side reads as a
+    -- dialog with no input at all.
+    ns.Solid(scroll, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+    ns.Border(scroll)
+
     local box = CreateFrame("EditBox", nil, scroll)
     box:SetMultiLine(true)
     box:SetAutoFocus(false)
     box:SetFontObject("GameFontHighlightSmall")
     box:SetWidth(1)
+    -- A multiline edit box sizes itself to its CONTENT, so an empty one is zero pixels
+    -- tall and cannot be clicked into -- which is why the export box worked (it opens
+    -- full of text) and the import box did not. Start it at the full scroll height; text
+    -- longer than that still grows it from here.
+    box:SetHeight(height)
     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     scroll:SetScrollChild(box)
     scroll:SetScript("OnSizeChanged", function(self, w) box:SetWidth(w) end)
+
+    -- Clicking anywhere in the field focuses the text, not just the exact glyph run.
+    scroll:EnableMouse(true)
+    scroll:SetScript("OnMouseDown", function() box:SetFocus() end)
     return box
 end
 
+-- Built once and reused. ns.MakeModal hands out a fresh dimmer and panel on every call
+-- and never releases the old one, so rebuilding these per open stacked a new copy on the
+-- screen each time the button was pressed -- reported as spawning infinite boxes. Same
+-- cached-dialog shape ShowNamePrompt in Bosses.lua already uses.
+local packExport, packImport
+
 function ns.ShowPackExport()
-    local dimmer, panel = ns.MakeModal(560, 330)
+    if packExport then
+        packExport.Regenerate()
+        packExport.dimmer:Show()
+        return
+    end
+    local dimmer, panel = ns.MakeModal(560, 330, "packExport")
     -- ns.Font, not a guard on ns.MakeFontString: that name is defined nowhere in the addon,
     -- so the guard was always false and this title alone skipped the shared helper every
     -- other heading here uses.
@@ -229,7 +280,7 @@ function ns.ShowPackExport()
     hint:SetPoint("LEFT", nameBox, "RIGHT", 10, 0)
     hint:SetText("pack name, shown on import")
 
-    local box = MakePackBox(panel, -78, 180)
+    local box = ns.MakeMultilineBox(panel, -78, 180)
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 46)
 
@@ -251,17 +302,60 @@ function ns.ShowPackExport()
 
     ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+
+    packExport = { dimmer = dimmer, Regenerate = Regenerate }
     Regenerate()
     dimmer:Show()
 end
 
+-- The diagnostic trace, in the same copyable box the pack export uses. There is no way
+-- for an addon to write a file, and asking a tester to find and attach SavedVariables has
+-- its own failure modes, so the trace leaves as text they select and paste.
+local diagExport
+
+function ns.ShowDiagExport(text)
+    if not diagExport then
+        local dimmer, panel = ns.MakeModal(620, 420, "diagExport")
+        local title = ns.Font(panel, 14, "OUTLINE")
+        title:SetPoint("TOP", panel, "TOP", 0, -14)
+        title:SetText("Diagnostic Trace")
+
+        local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        hint:SetPoint("TOP", title, "BOTTOM", 0, -6)
+        hint:SetText("Click the text, then Ctrl+A Ctrl+C, and paste it to whoever asked.")
+
+        local box = ns.MakeMultilineBox(panel, -56, 300)
+        box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+        -- Display only: an edit here would just corrupt the paste, so any change puts the
+        -- captured text straight back.
+        box:SetScript("OnTextChanged", function(self, user)
+            if user then self:SetText(diagExport.text or "") end
+        end)
+
+        ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
+            :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+        diagExport = { dimmer = dimmer, box = box }
+    end
+    diagExport.text = text or ""
+    diagExport.box:SetText(diagExport.text)
+    diagExport.dimmer:Show()
+    diagExport.box:SetFocus()
+end
+
 function ns.ShowPackImport()
-    local dimmer, panel = ns.MakeModal(560, 330)
-    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    if packImport then
+        packImport.box:SetText("")
+        packImport.Revalidate()
+        packImport.dimmer:Show()
+        packImport.box:SetFocus()
+        return
+    end
+    local dimmer, panel = ns.MakeModal(560, 330, "packImport")
+    local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Import Profile")
 
-    local box = MakePackBox(panel, -40, 150)
+    local box = ns.MakeMultilineBox(panel, -40, 150)
     local preview = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     preview:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -200)
     preview:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, -200)
@@ -293,7 +387,7 @@ function ns.ShowPackImport()
         if ns.ApplyPack(decoded, mode) then
             ns.Print(("pack applied (%s)."):format(mode))
             dimmer:Hide()
-            local EUI = _G.EllesmereUI
+            local EUI = ns.UI
             if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
         else
             preview:SetText("|cffff6060The pack could not be applied.|r")
@@ -309,6 +403,9 @@ function ns.ShowPackImport()
     ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 14)
 
+    packImport = { dimmer = dimmer, box = box, Revalidate = Revalidate }
     Revalidate()
     dimmer:Show()
+    -- Focused on open: the only thing anyone does with this dialog is paste.
+    box:SetFocus()
 end

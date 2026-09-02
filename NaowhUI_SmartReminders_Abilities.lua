@@ -52,8 +52,19 @@ ns.TANK_ABILITIES = {
     [1297017] = "Magical",   -- Taz'Rah: Void Blast
     [1298949] = "Physical",   -- The Writhing Coil: Tail Scythe
     [1301350] = "Physical",   -- Zul'jan: Chop Down
-    [269230] = "Physical",   -- Dazar, The First King: Hunting Leap (was aura id 1303039)
-    [1303488] = "Physical",   -- Dazar, The First King: Savage Maul (was aura id 1303490)
+    -- Dazar's Hunting Leap (269230) and Savage Maul (1303488) are deliberately NOT here,
+    -- the same call already made for Hollowing Strikes below. Both are tank BLEEDS, not
+    -- busters: each was originally listed by its aura id (1303039, 1303490), LittleWigs
+    -- tags exactly one Dazar ability "TANK_HEALER" and it is Blade Combo, and DBM makes
+    -- only Blade Combo a NewSpecialWarningDefensive while these two are plain
+    -- NewCountAnnounce backed by a "bleedyou" aura sound. Neither mod thinks they warrant
+    -- a cooldown.
+    --
+    -- Live evidence they must not auto-fire: on a real pull Savage Maul called at 10:57:35
+    -- and Blade Combo at 10:57:37, so the tank pressed a defensive for the first and was
+    -- immediately told to press a second one for the hit two seconds later. Reported as
+    -- "it's asking me to press my defensives twice back to back" on Blade Combo. Both stay
+    -- available from Setup's own per-boss checkbox for anyone who wants them.
     [1311923] = "Magical",   -- Charonus: Dark Waves
 
     -- Marked as tank hits in publicly available community boss research; damage
@@ -66,6 +77,11 @@ ns.TANK_ABILITIES = {
     [1251023] = "Unknown",   -- Rak'tul: Spiritbreaker
     [1251554] = "Unknown",   -- Vor'daza: Drain Soul
     [1253950] = "Unknown",   -- Emberdawn: Searing Rend
+    -- LittleWigs carries this one as an aura option only (soundOnApplied, no bar), so it
+    -- never reaches the engine from that side -- but DBM runs a real 26s CD timer for it
+    -- under the same id, and its note is CL.tank_hit outright. DBM-driven only, the mirror
+    -- of Emberdawn's Searing Rend above being BigWigs-only.
+    [1255335] = "Unknown",   -- Lothraxion: Searing Rend
     [1268562] = "Unknown",   -- Nymrissa Wavecaller: Water Jet (Mythic only)
     [1267049] = "Unknown",   -- Midnight Falls: Heaven's Lance
     [1221781] = "Unknown",   -- Rotmire: Putrid Fist
@@ -133,5 +149,45 @@ ns.DBM_TO_BIGWIGS = {
     [1253024] = 1250803,   -- Fallen-King Salhadaar: Shattering Twilight
     [1287227] = 1307279,   -- The Coiled Altar: Blighted Sever
     [1284103] = 1292036,   -- Nek'zali the Soulcoiler: Possession Barrage
+}
+
+-- Some BigWigs bars are driven purely by the encounter timeline (a scripted countdown
+-- matched by rounded duration, ENCOUNTER_TIMELINE_EVENT_ADDED) rather than any spell
+-- cast -- confirmed against BigWigs_TheVenomousAbyss/TwinFangs.lua and CoiledAltar.lua,
+-- both self:CDBar(barInfo.key, ...) off duration matching alone, no cast involved at
+-- all. castSourceGUID (fed only by SPELL_CAST_START/SUCCESS) can never learn a caster
+-- for these, so TankingCaster fell back to "tanking ANY boss" -- wrong the moment two
+-- boss units are alive at once and each tank holds a different one (reported live on
+-- both The Twin Fangs and The Coiled Altar P2/P3).
+--
+-- The boss SLOT, not the npcID: UnitGUID is SecretWhenUnitIdentityRestricted, so in a
+-- raid it hands back a secret for boss1-5 and nameplate units alike and nothing can be
+-- identified by GUID at all. An npcID-keyed version of this map shipped first and
+-- missed on every single callout of a live Coiled Altar night, both phases, both
+-- severs. Slot tokens are what BigWigs and DBM gate their own tank warnings on for
+-- exactly these abilities, and they need no identity read.
+ns.TANK_ABILITY_OWNER_UNIT = {
+    -- boss2 per DBM's TheTwinFangs ("--ALways boss2, unless boss1 is dead" on the same
+    -- Stone Breaker warning); Caustic Deluge is its boss1 counterpart.
+    [1288538] = 2,   -- The Twin Fangs: Stone Breaker (Ithraz)
+
+    -- BigWigs registers Malacrass's Soulbinding channel on "boss2" from OnEncounterStart,
+    -- leaving Zul'jan boss1.
+    [1299680] = 1,   -- The Coiled Altar: Sever (Zul'jan)
+    [1286573] = 2,   -- The Coiled Altar: Soul Sever (Hex Lord Malacrass)
+    -- BigWigs' GetOptions files Blighted Sever under its "-- Zul'jan" Stage 3 heading,
+    -- next to Defilement of the Coiled Altar, which its own journal-section map keys to
+    -- Zul'jan (-35063); the Malacrass half of that heading lists no sever at all.
+    [1307279] = 1,   -- The Coiled Altar: Blighted Sever (Zul'jan)
+
+    -- BigWigs' Explorers.lua names the slots outright: boss1 Gebbo, boss3 Nama, boss4
+    -- Iku. DBM gates the same ability on IsTanking("player","boss4").
+    [1295854] = 4,   -- The Lost Explorers: Shredding Shards (Scrollsage Iku)
+
+    -- BigWigs gates each Message with ThreatTarget("player","boss1"/"boss2"), but
+    -- self:CDBar -- what actually drives BigWigs_StartBar, the broadcast the engine
+    -- schedules off -- runs unconditionally, so both tanks get a bar either way.
+    [1284458] = 1,   -- Entombed Sentinels: Empowering Slam (Breath of Ula'tek)
+    [1284487] = 2,   -- Entombed Sentinels: Bloodvenom Injection (Blood of Ula'tek)
 }
 
