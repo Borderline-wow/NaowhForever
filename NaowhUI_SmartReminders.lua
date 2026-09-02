@@ -3783,6 +3783,14 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
         if f.timer.Cancel then f.timer:Cancel() end
         if math.abs(f.fireAt - fireAt) <= SAME_CAST_WINDOW then
             for k in pairs(f.aliases) do aliases[k] = true end
+        -- A supersede that is not the same cast throws away a callout nobody hears about:
+        -- the nearer hit loses its fire to a bar timing one further out. Logged rather than
+        -- changed, because whether the near one should survive depends on why the second bar
+        -- arrived, and the trace has never had to answer that question before.
+        elseif f.fireAt < fireAt and TRDB().trace then
+            AppendLog({ kind = "drop", sid = sid,
+                text = ("superseded, %.1fs early, by a bar %.1fs out"):format(
+                    fireAt - f.fireAt, delay) })
         end
         sidFires[otherKey] = nil
     end
