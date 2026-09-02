@@ -1103,7 +1103,7 @@ local function RenderBossHeader(parent, y, W, EUI, encounterID, specID)
             presetOrder[i] = presets[i].key
         end
         _, h = W:DualRow(parent, y,
-            { type = "dropdown", text = "Defensive Preset",
+            { type = "dropdown", text = "Cooldown Preset",
               values = presetValues, order = presetOrder,
               tooltip = "Which of your spec's presets this boss calls its defensives from.",
               getValue = function()
@@ -2241,7 +2241,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         tabBtns[id] = btn
         return btn
     end
-    local defTabBtn = AddPageTab("defensive", "Defensive Preset")
+    local defTabBtn = AddPageTab("defensive", "Cooldown Preset")
     AddPageTab("custom", "Ability Reminder", defTabBtn)
     defTabBtn.marker:Show()
     defTabBtn.label:SetTextColor(ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b, 1)
@@ -2322,7 +2322,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     presetVal = binding.preset or ns.BossPresetKey(specID, encounterID)
                         or ns.ActivePresetKey(specID) or presetOrder[1]
                 end
-                Label("Defensive Preset")
+                Label("Cooldown Preset")
                 DropdownRow(presetValues, presetOrder,
                     function() return presetVal end,
                     function(v) presetVal = v end)
@@ -2807,7 +2807,7 @@ function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
     warn:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
     warn:SetJustifyH("LEFT")
     warn:SetWordWrap(true)
-    warn:SetText("Its defensive preset and warning time go with it. Adding it back later "
+    warn:SetText("Its cooldown preset and warning time go with it. Adding it back later "
         .. "starts that ability fresh.")
 
     local remove = ns.Button(panel, "Remove", 110, 26, function()

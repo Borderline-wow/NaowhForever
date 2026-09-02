@@ -13,7 +13,7 @@ local UI = ns.UI
 local WINDOW_W, WINDOW_H = 1000, 640
 local TITLE_H, TAB_H = 28, 30
 
-local PAGES = { "Smart Reminders Setup", "Defensive Presets", "Dungeon Bosses",
+local PAGES = { "Smart Reminders Setup", "Cooldown Presets", "Dungeon Bosses",
     "Raid Bosses", "Ability Reminders" }
 
 local window, scrollFrame, scrollChild
@@ -30,7 +30,7 @@ function UI:ClearContentHeader() end
 -- The dispatch the pages were registered with when EllesmereUI hosted them; the builders
 -- return their raw running y (negative), and the wrapper takes math.abs of it.
 local function BuildPageInto(pageName, parent)
-    if pageName == "Defensive Presets" then
+    if pageName == "Cooldown Presets" then
         return ns.BuildPresetsPage and ns.BuildPresetsPage(parent, -6) or -6
     elseif pageName == "Dungeon Bosses" then
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, false) or -6
