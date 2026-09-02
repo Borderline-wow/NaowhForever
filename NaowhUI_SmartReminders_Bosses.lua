@@ -663,20 +663,6 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
           end }
     ); y = y - h
 
-    _, h = W:DualRow(panel, y,
-        { type = "toggle", text = "Announce in Chat",
-          tooltip = "Sends |cff0091edEXTERNAL!|r to party, raid or instance chat when nothing on "
-          .. "your list is up, so whoever is watching for it can react. Group chat only, and at "
-          .. "most once every three seconds however many telegraphs land together.",
-          disabled = function() return db.fallbackOn == false end,
-          disabledTooltip = "Switch the last step back on to use this.",
-          getValue = function() return db.externalChat == true end,
-          setValue = function(v)
-              if db.fallbackOn == false then return end
-              db.externalChat = v and true or false
-          end }
-    ); y = y - h
-
     editBtn = ns.Button(panel, "Edit Callout", 120, 26, function()
         ns.ShowCalloutEditor(("Audio callout for %s"):format(name),
             ns.CalloutFor(spellID, name), function(text)
@@ -723,6 +709,20 @@ local function ShowFallbackSettingsPopup(EUI)
               ns.SetAudioOff(0, not v)
               if editBtn then editBtn:SetShown(v) end
               if placeClose then placeClose() end
+          end }
+    ); y = y - h
+
+    _, h = W:DualRow(panel, y,
+        { type = "toggle", text = "Announce in Chat",
+          tooltip = "Sends |cff0091edEXTERNAL!|r to party, raid or instance chat when nothing on "
+          .. "your list is up, so whoever is watching for it can react. Group chat only, and at "
+          .. "most once every three seconds however many telegraphs land together.",
+          disabled = function() return db.fallbackOn == false end,
+          disabledTooltip = "Switch the last step back on to use this.",
+          getValue = function() return db.externalChat == true end,
+          setValue = function(v)
+              if db.fallbackOn == false then return end
+              db.externalChat = v and true or false
           end }
     ); y = y - h
 
