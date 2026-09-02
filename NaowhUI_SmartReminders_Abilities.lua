@@ -193,5 +193,11 @@ ns.TANK_ABILITY_OWNER_UNIT = {
     -- schedules off -- runs unconditionally, so both tanks get a bar either way.
     [1284458] = 1,   -- Entombed Sentinels: Empowering Slam (Breath of Ula'tek)
     [1284487] = 2,   -- Entombed Sentinels: Bloodvenom Injection (Blood of Ula'tek)
+
+    -- Ula'tek is the only mob BigWigs enables on and every unit event in the module is
+    -- boss1, but the fight puts big adds in the other boss frames. Tanking one of those
+    -- satisfied TankingSomeBoss, so Mother's Wrath -- flagged TANK in BigWigs' own
+    -- options -- called at the tank who did not have the boss. Reported live.
+    [1298367] = 1,   -- Ula'tek: Mother's Wrath
 }
 
