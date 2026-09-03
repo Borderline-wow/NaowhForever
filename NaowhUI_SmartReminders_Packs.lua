@@ -353,7 +353,7 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings)
     return true, landed
 end
 
-function ns.ApplyPack(payload, mode, wantSpecs, wantSettings)
+function ns.ApplyPack(payload, mode, wantSpecs, wantSettings, remapSpec)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
     local db = ns.DB()
 
@@ -378,6 +378,32 @@ function ns.ApplyPack(payload, mode, wantSpecs, wantSettings)
                 staged[sec.field] = taken
             end
         end
+    end
+
+    -- Boss ability choices are the one spec-keyed thing whose CONTENTS are not class
+    -- specific: encounter ids and the boss's own spell ids, which mean the same on every
+    -- character. They are stored per spec because two specs of one class want different
+    -- abilities, and that is right -- but it also means a pack built on a Paladin lands
+    -- under 66 and a Death Knight reading 250 finds nothing, which is what "the ability
+    -- settings did not copy over" has meant every time it has been reported.
+    --
+    -- Asked for, not automatic: someone importing a curator's Blood profile onto their Blood
+    -- DK wants no remap at all, and silently folding four specs into one would be worse than
+    -- the gap. Only abilityBindings moves -- presets are that class's own spells and cannot.
+    if remapSpec and type(staged.abilityBindings) == "table" then
+        local target = staged.abilityBindings[remapSpec]
+        if type(target) ~= "table" then target = {} end
+        for specKey, byEncounter in pairs(staged.abilityBindings) do
+            if specKey ~= remapSpec and type(byEncounter) == "table" then
+                for enc, abilities in pairs(byEncounter) do
+                    if type(target[enc]) ~= "table" then target[enc] = {} end
+                    for sid, binding in pairs(abilities) do
+                        target[enc][sid] = Copy(binding)
+                    end
+                end
+            end
+        end
+        staged.abilityBindings[remapSpec] = target
     end
 
     for field, value in pairs(staged) do db[field] = value end
@@ -607,6 +633,7 @@ function ns.ShowPackImport()
     -- rows have to survive pasting a different string into the same window.
     local specRows, specWanted = {}, {}
     local settingsWanted, settingsBtn = true, nil
+    local remapWanted, remapBtn = false, nil
     local specHead = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     specHead:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -226)
     specHead:SetJustifyH("LEFT")
@@ -615,6 +642,7 @@ function ns.ShowPackImport()
     local function BuildSpecRows(payload)
         for i = 1, #specRows do specRows[i]:Hide() end
         if settingsBtn then settingsBtn:Hide() end
+        if remapBtn then remapBtn:Hide() end
         wipe(specWanted)
         -- A whole-file pack is a list of PROFILES; a single-profile one is a list of specs
         -- inside it. Same rows either way, and the same wanted set drives the apply.
@@ -676,6 +704,37 @@ function ns.ShowPackImport()
         elseif settingsBtn then
             settingsBtn:Hide()
         end
+
+        -- Offered only when it would actually do something: the pack has boss ability
+        -- choices, and none of them are already under the spec being played.
+        local mySpec = ns.CurrentSpec and ns.CurrentSpec()
+        local bindings = (not multi) and payload and type(payload.data) == "table"
+            and payload.data.abilityBindings
+        local elsewhere = false
+        if type(bindings) == "table" and mySpec and mySpec > 0 then
+            for specKey in pairs(bindings) do
+                if tostring(specKey) ~= tostring(mySpec) then elsewhere = true end
+            end
+        end
+        if elsewhere then
+            if not remapBtn then
+                remapBtn = ns.Button(panel, "", 380, 22, nil)
+            end
+            remapBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20,
+                -246 - (#specs * 26) - 32)
+            local function PaintRemap()
+                remapBtn.label:SetText((remapWanted and "|cff0091ed[x]|r  " or "[  ]  ")
+                    .. "Use their boss ability choices on my " .. ns.SpecName(mySpec))
+            end
+            remapBtn:SetScript("OnClick", function()
+                remapWanted = not remapWanted
+                PaintRemap()
+            end)
+            PaintRemap()
+            remapBtn:Show()
+        elseif remapBtn then
+            remapBtn:Hide()
+        end
     end
 
     local function Revalidate()
@@ -734,7 +793,9 @@ function ns.ShowPackImport()
             return
         end
         if #specs > 0 and not all then want = specWanted end
-        if ns.ApplyPack(decoded, mode, want, settingsWanted) then
+        local mine = ns.CurrentSpec and ns.CurrentSpec()
+        local remap = (remapWanted and mine and mine > 0) and tostring(mine) or nil
+        if ns.ApplyPack(decoded, mode, want, settingsWanted, remap) then
             ns.Print(("pack applied (%s)."):format(mode))
             dimmer:Hide()
             local EUI = ns.UI
