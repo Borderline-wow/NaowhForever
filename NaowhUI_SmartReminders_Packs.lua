@@ -146,6 +146,57 @@ function ns.ExportPack(packName, author)
     return PREFIX .. LD:EncodeForPrint(compressed)
 end
 
+-- The one call an installer needs. NaowhUI's own installer offers Smart Reminders as a
+-- step: it hands the curator's string here and everything else is done.
+--
+--   local SR = _G.NaowhUITankReminder
+--   if SR and SR.InstallProfilePack then
+--       local ok, err = SR.InstallProfilePack(str, { accountProfile = "Naowh" })
+--   end
+--
+-- Guard on the global: this addon is optional and may not be installed at all. Call it after
+-- our ADDON_LOADED -- saved variables do not exist before that, and a profile written into
+-- nothing is lost at logout.
+--
+-- opts, all optional:
+--   accountProfile  point every character at this profile once the pack has landed. The
+--                   name must be one the pack carries, or the call fails and says so.
+--   bindSpecs       bind each landed profile to the specs it covers and switch on the
+--                   matching, so an alt lands on the right one without being told. Default
+--                   true for a whole-file pack.
+--   settings        take the curator's display, sound and behaviour settings. Default true,
+--                   since an installer offering a UI is asking for exactly that.
+--
+-- Returns true plus the number of profiles landed, or false and a reason. Never throws: an
+-- installer step failing should report, not break the install.
+function ns.InstallProfilePack(str, opts)
+    opts = type(opts) == "table" and opts or {}
+    local payload, err = ns.DecodePack(str)
+    if not payload then return false, err or "the string could not be read" end
+
+    local settings = opts.settings ~= false
+    local ok, landed
+    if type(payload.profiles) == "table" then
+        local bind = opts.bindSpecs ~= false
+        ok, landed = ns.ApplyProfiles(payload, nil, settings, bind)
+        if ok and bind then ns.AutoSpecProfile(true) end
+    else
+        ok, landed = ns.ImportPackAsProfile(payload, nil, settings, nil)
+    end
+    if not ok then return false, "the pack could not be applied" end
+
+    if opts.accountProfile then
+        local set, why = ns.SetAccountProfile(opts.accountProfile)
+        if not set then
+            return false, ("imported, but %s is not a profile in this pack (%s)"):format(
+                tostring(opts.accountProfile), tostring(why))
+        end
+    end
+
+    if ns.ApplySpecProfile and ns.CurrentSpec then ns.ApplySpecProfile((ns.CurrentSpec())) end
+    return true, landed
+end
+
 -- Every profile in one string, for a curator who keeps a profile per class rather than one
 -- profile holding every spec. Both shapes are legitimate -- a profile accumulates specs, so
 -- ten classes fit in one -- but a seller building them separately would otherwise have to

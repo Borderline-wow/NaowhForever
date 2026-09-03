@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0903k"
+ns.CODE_BUILD = "0903l"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -421,6 +421,20 @@ end
 --
 -- Per-character choices are still possible: switching a character afterwards moves only that
 -- one, and only until the next profile is created.
+-- Point the whole account at one profile: every character now, and any logged into later.
+-- What an installer wants after landing a curator's pack, and what CreateProfile does for a
+-- profile it just made.
+function ns.SetAccountProfile(name)
+    local sv = DB()
+    if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
+    sv.defaultProfile = name
+    for char in pairs(sv.charActive) do sv.charActive[char] = name end
+    sv.charActive[CharKey()] = name
+    activeRoot = nil
+    ns.QueueReapply()
+    return true
+end
+
 function ns.CreateProfile(name)
     local err
     name, err = ValidName(name)
