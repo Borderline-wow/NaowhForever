@@ -3650,11 +3650,9 @@ function ns.SpecsWithBindings(encounterID)
                 end
             end
             if total > 0 then
-                local id = tonumber(specKey)
-                local ok, _, name = pcall(GetSpecializationInfoByID, id)
                 out[#out + 1] = {
                     key = specKey,
-                    name = (ok and name) or ("Spec " .. specKey),
+                    name = ns.SpecName(specKey),
                     here = here,
                     total = total,
                 }

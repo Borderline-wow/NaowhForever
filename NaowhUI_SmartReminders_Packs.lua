@@ -212,13 +212,7 @@ function ns.PackSpecs(payload)
     end
     local out = {}
     for key in pairs(seen) do
-        local id = tonumber(key)
-        local name
-        if id then
-            local ok, _, n = pcall(GetSpecializationInfoByID, id)
-            name = (ok and n) or nil
-        end
-        out[#out + 1] = { key = key, name = name or ("Spec " .. key) }
+        out[#out + 1] = { key = key, name = ns.SpecName(key) }
     end
     table.sort(out, function(a, b) return a.name < b.name end)
     return out

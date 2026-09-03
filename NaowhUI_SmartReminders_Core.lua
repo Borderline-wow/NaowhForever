@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0903b"
+ns.CODE_BUILD = "0903c"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -140,6 +140,19 @@ end
 
 -- The house tooltip lives in the Widgets file (ns.UI); resolved at hover time since that
 -- file loads after this one.
+-- "Protection" alone names two classes, and a list that mixes them -- a pack covering every
+-- class, the raid reminder target picker -- reads as a puzzle. GetSpecializationInfoByID's
+-- seventh return is the localized class name, which is what Blizzard's own ClubFinder pairs
+-- it with. Falls back to the bare spec name, then to the id, so an unknown id still prints.
+function ns.SpecName(specID)
+    local id = tonumber(specID)
+    if not id then return tostring(specID) end
+    local ok, _, name, _, _, _, _, className = pcall(GetSpecializationInfoByID, id)
+    if not (ok and name) then return "Spec " .. id end
+    if className and className ~= "" then return name .. " " .. className end
+    return name
+end
+
 function ns.Tooltip(frame, title, body)
     -- Composed at HOVER time, not attach time: the tooltip accepts a function and
     -- resolves it on show, and a body that is itself a function can answer from data that

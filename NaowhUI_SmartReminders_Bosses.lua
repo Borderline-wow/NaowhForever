@@ -2149,10 +2149,7 @@ local function RaidReminderTargetDesc(target)
         local names = _G.LOCALIZED_CLASS_NAMES_MALE
         return (names and names[k]) or k
     end); if p then parts[#parts + 1] = p end
-    p = Joined(target.specs, function(k)
-        local ok, _, name = pcall(GetSpecializationInfoByID, k)
-        return (ok and name) or tostring(k)
-    end); if p then parts[#parts + 1] = p end
+    p = Joined(target.specs, ns.SpecName); if p then parts[#parts + 1] = p end
     p = Joined(target.names, nil, ", "); if p then parts[#parts + 1] = p end
     p = Joined(target.subgroups, function(k) return "Group " .. k end); if p then parts[#parts + 1] = p end
 
