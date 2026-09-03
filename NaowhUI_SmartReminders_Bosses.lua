@@ -1953,7 +1953,7 @@ function ns.BuildProfileSettings(parent, y)
               ns.SwitchProfile(v)
               EUI:RefreshPage(true)
           end },
-        { type = "label", text = "      Profiles are chosen per character." }
+        { type = "label", text = "      Per character. Changes save as you make them." }
     ); y = y - h
 
     local profRow
@@ -1976,8 +1976,12 @@ function ns.BuildProfileSettings(parent, y)
         newBtn:SetPoint("LEFT", profRow._leftRegion, "LEFT", 20, 0)
         ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings; this "
             .. "character switches to it.")
-        local copyBtn = ns.Button(profRow._leftRegion, "Copy Profile", 110, 22, function()
-            ShowNamePrompt("Copy Profile", "Copy", "", function(text)
+        -- "Save As", not "Copy": what it does is store what you have set up under a name of
+        -- your choosing, which is what someone looks for a Save button to do. There is no
+        -- plain Save because there is nothing to save -- every change is written into the
+        -- profile as it is made, and a button that did nothing would only suggest otherwise.
+        local copyBtn = ns.Button(profRow._leftRegion, "Save As New Profile", 150, 22, function()
+            ShowNamePrompt("Save As New Profile", "Save", "", function(text)
                 local ok, err = ns.CopyProfile(ns.ActiveProfileName(), text)
                 if not ok then ns.Print(err) return end
                 ns.SwitchProfile(text:match("^%s*(.-)%s*$"))
@@ -1985,8 +1989,9 @@ function ns.BuildProfileSettings(parent, y)
             end)
         end)
         copyBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
-        ns.Tooltip(copyBtn, "Copy Profile", "Duplicates this profile under a new name and "
-            .. "switches to the copy.")
+        ns.Tooltip(copyBtn, "Save As New Profile", "Stores everything set up right now as a "
+            .. "new profile under a name you choose, and switches to it. Your current "
+            .. "profile is left as it was.")
     end
 
     -- Reset and Delete pick their target rather than acting on whatever is loaded. Having to
