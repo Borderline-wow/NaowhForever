@@ -288,28 +288,31 @@ local function UserList(forSpec, create)
     return p.list
 end
 
--- Which entries are called TOGETHER with the one below them. A flag on the earlier of the
--- pair rather than a named partner: the list is a plain array of spell ids that drag-reorder
--- rewrites freely, so anything holding a second id would have to be repaired on every move.
--- Chaining a run of three is then just two ticks.
+-- The entries on this preset that are called TOGETHER. One group per preset, ticked per
+-- entry: when the pick lands on any member, every other member that is ready is named
+-- alongside it. Order is not part of it -- an earlier version chained each entry to the one
+-- below and the ordering was the confusing part, since what the player wants to say is
+-- simply "these go together".
+--
+-- Keyed by spell id rather than by list position, so drag-reorder needs no repair.
 --
 -- ns functions rather than chunk locals: this file is at the 200-local ceiling.
-function ns.ChainedWithNext(forSpec, spellID)
+function ns.CalledTogether(forSpec, spellID)
     local presetKey = ActivePresetKey(forSpec)
     if not presetKey then return false end
     local presets = PresetsTable(forSpec, false)
     local p = presets and presets[presetKey]
-    return (p and type(p.chain) == "table" and p.chain[tostring(spellID)]) == true
+    return (p and type(p.together) == "table" and p.together[tostring(spellID)]) == true
 end
 
-function ns.SetChainedWithNext(forSpec, spellID, on)
+function ns.SetCalledTogether(forSpec, spellID, on)
     local presetKey = EnsureActivePreset(forSpec)
     if not presetKey then return end
     local presets = PresetsTable(forSpec, true)
     local p = presets and presets[presetKey]
     if not p then return end
-    if type(p.chain) ~= "table" then p.chain = {} end
-    p.chain[tostring(spellID)] = on and true or nil
+    if type(p.together) ~= "table" then p.together = {} end
+    p.together[tostring(spellID)] = on and true or nil
 end
 
 -- Per-boss overrides live beside the spec default, keyed spec:encounter. The key is the
@@ -2426,26 +2429,24 @@ local function SpeakCallout(triggerSid)
     end
 
     if picked then
-        -- Entries the player marked as going WITH the winner: the run continues from it
-        -- while each is chained and the one below is ready. A partner that is down is not
-        -- waited for and does not stop the call -- a pairing must never be able to silence
-        -- a callout, which is the failure this engine keeps having to unlearn.
+        -- Only when the winner is itself in the group: a group the pick never reached says
+        -- nothing about this hit. Every other member that is ready is then named with it, in
+        -- list order. A member that is down is skipped rather than waited for -- being in a
+        -- group must never be able to silence a callout, which is the failure this engine
+        -- keeps having to unlearn.
         --
         -- Its own pcall for the same reason the pick has one: a throw here would otherwise
         -- take the callout with it.
         local okChain, partners = pcall(function()
-            local at
-            for i = 1, activeSlots do
-                if slots[i].spellID == picked then at = i break end
-            end
-            if not at then return nil end
+            if not ns.CalledTogether(specID, picked) then return nil end
             local out
-            while at < activeSlots and ns.ChainedWithNext(specID, slots[at].spellID) do
-                local nextSid = slots[at + 1].spellID
-                if not SpellReady(nextSid, now) then break end
-                out = out or {}
-                out[#out + 1] = nextSid
-                at = at + 1
+            for i = 1, activeSlots do
+                local sid = slots[i].spellID
+                if sid ~= picked and ns.CalledTogether(specID, sid)
+                    and SpellReady(sid, now) then
+                    out = out or {}
+                    out[#out + 1] = sid
+                end
             end
             return out
         end)

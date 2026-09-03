@@ -677,23 +677,15 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
           end }
     ); y = y - h
 
-    -- Chained to whatever sits BELOW it, so the last row has nothing to pair with. The
-    -- flag lives on the earlier of the two: see ns.SetChainedWithNext for why a named
-    -- partner would not survive a drag-reorder.
-    local list = ns.EffectiveListFor(specID, nil) or {}
-    local idx = ns.ListIndexOf(list, spellID)
-    local isLast = (not idx) or idx >= #list
     _, h = W:DualRow(panel, y,
-        { type = "toggle", text = "Call With The Next One",
-          tooltip = "Names this one and the entry below it together -- \"Vampiric Blood "
-          .. "and Icebound Fortitude\" -- for hits that want both. Tick the second one too "
-          .. "to chain a third. If a partner is on cooldown the callout still happens and "
-          .. "just names what is up.",
-          disabled = function() return isLast end,
-          disabledTooltip = "Nothing below this one to call it with. Move it up the list first.",
-          getValue = function() return ns.ChainedWithNext(specID, spellID) end,
+        { type = "toggle", text = "Call Together",
+          tooltip = "Tick this on every cooldown that should be called as a set. When one "
+          .. "of them comes up, the rest that are ready are named with it -- \"Vampiric "
+          .. "Blood and Icebound Fortitude\". Order does not matter, and one on cooldown "
+          .. "is simply left out rather than holding the callout back.",
+          getValue = function() return ns.CalledTogether(specID, spellID) end,
           setValue = function(v)
-              ns.SetChainedWithNext(specID, spellID, v)
+              ns.SetCalledTogether(specID, spellID, v)
               if EUI.RefreshPage then EUI:RefreshPage(true) end
           end }
     ); y = y - h
@@ -955,9 +947,9 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
         local name = (info and info.name) or ("Spell " .. spellID)
         local label = ("      %d.  %s"):format(idx, name)
-        -- Otherwise a pairing is invisible until the cog is opened, one row at a time.
-        if ns.ChainedWithNext(specID, spellID) then
-            label = label .. "  |cff0091ed+ next|r"
+        -- Otherwise the set is invisible until the cog is opened, one row at a time.
+        if ns.CalledTogether(specID, spellID) then
+            label = label .. "  |cff0091edtogether|r"
         end
         if not ns.IsSpellAvailable(spellID) then label = label .. "  (not talented)" end
 
