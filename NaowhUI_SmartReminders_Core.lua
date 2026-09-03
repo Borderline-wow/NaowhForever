@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0903c"
+ns.CODE_BUILD = "0903d"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -369,6 +369,21 @@ function ns.CopyProfile(src, name)
     name, err = ValidName(name)
     if not name then return false, err end
     sv.profiles[name] = DeepCopy(sv.profiles[src])
+    return true
+end
+
+-- Reset any profile, not only the one in use. The live half -- hiding the alert, dropping
+-- the slot cache, re-registering events -- only applies when the profile being reset is the
+-- one this character is standing in; for any other, clearing its stored settings is the
+-- whole job and it rebuilds from defaults the next time it is loaded.
+function ns.ResetProfileNamed(name)
+    local sv = DB()
+    if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
+    if name == sv.charActive[CharKey()] then
+        if ns.Reset then ns.Reset() end
+        return true
+    end
+    sv.profiles[name].tankReminder = nil
     return true
 end
 

@@ -1987,61 +1987,66 @@ function ns.BuildProfileSettings(parent, y)
         copyBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
         ns.Tooltip(copyBtn, "Copy Profile", "Duplicates this profile under a new name and "
             .. "switches to the copy.")
-        local delBtn = ns.Button(profRow._rightRegion, "Delete", 90, 22, function()
-            local name = ns.ActiveProfileName()
-            local dimmer, panel = ns.MakeModal(340, 130, "profileDeleteConfirm")
-            local head = ns.Font(panel, 14, "OUTLINE")
-            head:SetPoint("TOP", panel, "TOP", 0, -16)
-            head:SetText("Delete '" .. name .. "'?")
-            local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
-            hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
-            hint:SetText("Cannot be undone.")
-            local yes = ns.Button(panel, "Delete", 100, 24, function()
-                local ok, err = ns.DeleteProfile(name)
-                if not ok then ns.Print(err) end
-                dimmer:Hide()
-                AfterChange()
-            end)
-            yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
-            local no = ns.Button(panel, "Cancel", 100, 24, function() dimmer:Hide() end)
-            no:SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
-            dimmer:Show()
-        end)
-        delBtn:SetPoint("RIGHT", profRow._rightRegion, "RIGHT", -14, 0)
-        ns.Tooltip(delBtn, "Delete", "Removes the active profile. Characters using it fall "
-            .. "back to Default. The last profile cannot be deleted.")
     end
 
-    -- ns.Reset used to be reachable through the host window's own reset control; with the
-    -- addon standalone this row is its only door.
-    local resetRow
-    resetRow, h = W:DualRow(parent, y,
-        { type = "label", text = "      Reset the active profile to default." },
-        { type = "label", text = "" }
-    ); y = y - h
-    if resetRow and resetRow._rightRegion then
-        local btn = ns.Button(resetRow._rightRegion, "Reset Profile", 110, 22, function()
-            local dimmer, panel = ns.MakeModal(340, 130, "profileResetConfirm")
-            local head = ns.Font(panel, 14, "OUTLINE")
-            head:SetPoint("TOP", panel, "TOP", 0, -16)
-            head:SetText("Reset '" .. tostring(ns.ActiveProfileName()) .. "'?")
-            local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
-            hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
-            hint:SetText("Every setting in it returns to default. Cannot be undone.")
-            local yes = ns.Button(panel, "Reset", 100, 24, function()
-                if ns.Reset then ns.Reset() end
-                dimmer:Hide()
-                EUI:RefreshPage(true)
-            end)
-            yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
-            local no = ns.Button(panel, "Cancel", 100, 24, function() dimmer:Hide() end)
-            no:SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
-            dimmer:Show()
-        end)
-        btn:SetPoint("RIGHT", resetRow._rightRegion, "RIGHT", -14, 0)
-        ns.Tooltip(btn, "Reset Profile", "Wipes the active profile's settings back to "
-            .. "defaults. Other profiles are untouched.")
+    -- Reset and Delete pick their target rather than acting on whatever is loaded. Having to
+    -- switch to a profile before you could delete it meant loading the thing you were trying
+    -- to get rid of, and reading the confirm dialog as the only clue you were on the right
+    -- one. Northern Sky drives both from dropdowns; these do the same.
+    local pickValues, pickOrder = { [""] = "Choose a profile..." }, { "" }
+    for i = 1, #profNames do
+        pickValues[profNames[i]] = profNames[i]
+        pickOrder[#pickOrder + 1] = profNames[i]
     end
+
+    -- Confirms name the profile CHOSEN, not the one in use -- the whole point is that they
+    -- differ. Both reset to the placeholder afterwards through the page refresh.
+    local function ConfirmOn(title, hintText, verb, chosen, act)
+        local dimmer, panel = ns.MakeModal(360, 140, "profileActConfirm")
+        local head = ns.Font(panel, 14, "OUTLINE")
+        head:SetPoint("TOP", panel, "TOP", 0, -16)
+        head:SetText(("%s '%s'?"):format(title, chosen))
+        local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+        hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
+        hint:SetPoint("LEFT", panel, "LEFT", 16, 0)
+        hint:SetPoint("RIGHT", panel, "RIGHT", -16, 0)
+        hint:SetText(hintText)
+        local yes = ns.Button(panel, verb, 100, 24, function()
+            local ok, err = act(chosen)
+            if not ok and err then ns.Print(err) end
+            dimmer:Hide()
+            EUI:RefreshPage(true)
+        end)
+        yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
+        ns.Button(panel, "Cancel", 100, 24, function()
+            dimmer:Hide()
+            EUI:RefreshPage(true)
+        end):SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
+        dimmer:Show()
+    end
+
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Reset Profile",
+          values = pickValues, order = pickOrder,
+          tooltip = "Wipes the chosen profile's settings back to defaults. Every other "
+          .. "profile is untouched, and you do not have to be standing in it.",
+          getValue = function() return "" end,
+          setValue = function(v)
+              if v == "" then return end
+              ConfirmOn("Reset", "Every setting in it returns to default. Cannot be undone.",
+                  "Reset", v, ns.ResetProfileNamed)
+          end },
+        { type = "dropdown", text = "Delete Profile",
+          values = pickValues, order = pickOrder,
+          tooltip = "Removes the chosen profile. Characters using it fall back to Default, "
+          .. "and the last profile cannot be deleted.",
+          getValue = function() return "" end,
+          setValue = function(v)
+              if v == "" then return end
+              ConfirmOn("Delete", "Cannot be undone. Characters using it fall back to "
+                  .. "Default.", "Delete", v, ns.DeleteProfile)
+          end }
+    ); y = y - h
     local packRow
     packRow, h = W:DualRow(parent, y,
         { type = "label", text = "      Share your Smart Reminders" },
