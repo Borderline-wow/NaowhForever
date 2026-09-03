@@ -1642,11 +1642,16 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     -- RecordBossModKey the moment it fires live -- see the bridge above), sorted by how
     -- often it has come up. Picking one fills the Spell ID field below exactly the way
     -- typing it in would, so nothing downstream (BuildTrigger, Save) needed to change.
+    -- Every row below anchors at DYN_Y (the bottom of the Trigger dropdown), not at 0 --
+    -- 0 is triggerBody's own top, which is where the dropdown ITSELF starts. Anchored
+    -- there, the picker's first row and its "nothing recorded" hint sat directly on top of
+    -- the Trigger dropdown rather than below it, for BigWigs/DBM Message and Timer -- the
+    -- two trigger types that show the picker at all.
     local pickerRows = {}
     for i = 1, MECHANIC_PICKER_ROWS do
         local row = CreateFrame("Button", nil, triggerBody)
         row:SetHeight(24)
-        row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, 0)
+        row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y)
         row:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
 
         row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.accent, 0.14)
@@ -1672,7 +1677,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     end
 
     local pickerHint = ns.Font(triggerBody, 10, nil, ns.THEME.muted)
-    pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, 0)
+    pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y)
     pickerHint:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
     pickerHint:SetJustifyH("LEFT")
 
@@ -1698,6 +1703,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         table.sort(list, function(a, b) return (a.entry.seen or 0) > (b.entry.seen or 0) end)
 
         if #list == 0 then
+            pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y)
             pickerHint:SetText("|cff9a9ea6Nothing recorded for this boss yet -- pull it with "
                 .. "BigWigs or DBM running, or type a Spell ID below.|r")
             pickerHint:SetHeight(28)
@@ -1708,7 +1714,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         local shown = math.min(#list, MECHANIC_PICKER_ROWS)
         for i = 1, shown do
             local row, item = pickerRows[i], list[i]
-            row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, -((i - 1) * PICKER_ROW_H))
+            row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y - ((i - 1) * PICKER_ROW_H))
             row.icon:SetTexture(ResolveMechanicIcon(item.key))
             row.name:SetText(ResolveMechanicName(item.key, item.entry))
             row.tag:SetText(item.entry.mod == "DBM" and "|cff2da6ffDBM|r" or "|cfff0a830BW|r")
@@ -1722,7 +1728,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
             row:Show()
         end
 
-        pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, -(shown * PICKER_ROW_H))
+        pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y - (shown * PICKER_ROW_H))
         if #list > shown then
             pickerHint:SetText(("|cff9a9ea6+%d more not shown -- type the Spell ID below.|r")
                 :format(#list - shown))
@@ -2508,14 +2514,31 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             if leadTimeVal == nil then
                 leadTimeVal = binding.leadTime or (ns.DB().leadTime or 3)
             end
-            Label("Warning Time (seconds before impact)")
+            Label("Warning Time (+before / -after impact)")
+            -- -30 to 10, not 0 to 10: requested for Rav'i's Triple Shot, called out a beat
+            -- AFTER the volley lands rather than before it. Negative is what that is --
+            -- ScheduleBWFire already reads a lead past the bar's own length as "wait this
+            -- much further" once the sign flips, so this is the one place that needed to
+            -- change, not a second mode alongside it. -30 comfortably covers a delayed call
+            -- on anything shorter than a boss's longest bars; the spec-wide default stays
+            -- positive-only on its own slider on the Setup page.
             local trackFrame, valBox = EUI.BuildSliderCore(body, 200, 4, 12, 40, 22, 12,
-                1, 0, 10, 1,
+                1, -30, 10, 1,
                 function() return leadTimeVal end,
                 function(v) leadTimeVal = v end)
             trackFrame:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             valBox:SetPoint("LEFT", trackFrame, "RIGHT", 10, 0)
             by = by - 32
+
+            local leadHint = ns.Font(body, 10, nil, ns.THEME.muted)
+            leadHint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            leadHint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+            leadHint:SetJustifyH("LEFT")
+            leadHint:SetWordWrap(true)
+            leadHint:SetText("Positive calls out before the hit lands, as usual. Negative "
+                .. "waits until that many seconds AFTER it lands instead -- for a defensive "
+                .. "that only matters once the mechanic is over.")
+            by = by - 28
         else
             local hint = ns.Font(body, 11, nil, ns.THEME.muted)
             hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
