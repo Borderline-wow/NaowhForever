@@ -659,7 +659,10 @@ end
 -- editing what each one is called above all, since the row's own name is built from them.
 local function ShowSetSettingsPopup(specID, members, EUI)
     local W = EUI.Widgets
-    local dimmer, panel = ns.MakeModal(400, 96 + (#members * 34), "setSettings")
+    -- Height is set from the rows once they are laid out, below: a guessed one had the last
+    -- member overlapping the buttons. The panel's backdrop and border are SetAllPoints, and
+    -- the buttons anchor to its BOTTOM, so all three follow the resize.
+    local dimmer, panel = ns.MakeModal(400, 160, "setSettings")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -683,6 +686,9 @@ local function ShowSetSettingsPopup(specID, members, EUI)
               end }
         ); y = y - h
     end
+
+    -- 26 for the button row, 16 for the bottom inset, and a gap so they do not touch.
+    panel:SetHeight(math.abs(y) + 58)
 
     -- The row's name IS the callouts joined, so editing one renames the row.
     local editBtn = ns.Button(panel, "Edit Callouts", 130, 26, function()
