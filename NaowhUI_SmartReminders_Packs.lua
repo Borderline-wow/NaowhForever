@@ -631,8 +631,11 @@ function ns.ShowPackImport()
     local settingsWanted, settingsBtn = true, nil
     local remapWanted, remapBtn = false, nil
     local bindWanted, bindBtn = true, nil
+    -- Anchored under the preview rather than at a fixed offset: the preview grows a line per
+    -- profile in the pack, and at a fixed offset the two ran into each other the moment a
+    -- string carried more than one.
     local specHead = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    specHead:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -226)
+    specHead:SetPoint("TOPLEFT", preview, "BOTTOMLEFT", 0, -12)
     specHead:SetJustifyH("LEFT")
     specHead:Hide()
 
@@ -666,13 +669,15 @@ function ns.ShowPackImport()
             local btn = specRows[i]
             if not btn then
                 btn = ns.Button(panel, "", 250, 22, nil)
-                btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -246 - ((i - 1) * 26))
                 -- Above the paste box: it is an EditBox that grows with its content, and
                 -- a whole-file string is long enough to reach down over these rows and
                 -- take their clicks. The export tick lost every click to exactly that.
                 btn:SetFrameLevel(panel:GetFrameLevel() + 10)
                 specRows[i] = btn
             end
+            btn:ClearAllPoints()
+            btn:SetPoint("TOPLEFT", i == 1 and specHead or specRows[i - 1],
+                i == 1 and "BOTTOMLEFT" or "BOTTOMLEFT", i == 1 and 6 or 0, -6)
             local function Paint()
                 -- ns.Button keeps its own font string; the frame has none of its own.
                 btn.label:SetText((specWanted[spec.key] and "|cff0091ed[x]|r  " or "[  ]  ")
@@ -692,8 +697,9 @@ function ns.ShowPackImport()
                 settingsBtn = ns.Button(panel, "", 320, 22, nil)
                 settingsBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
             end
-            settingsBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20,
-                -246 - (#specs * 26) - 6)
+            settingsBtn:ClearAllPoints()
+            settingsBtn:SetPoint("TOPLEFT", specRows[#specs] or specHead, "BOTTOMLEFT",
+                specRows[#specs] and 0 or 6, -10)
             local function PaintSettings()
                 settingsBtn.label:SetText((settingsWanted and "|cff0091ed[x]|r  " or "[  ]  ")
                     .. "Their display, sound and behaviour settings")
@@ -724,8 +730,11 @@ function ns.ShowPackImport()
                 remapBtn = ns.Button(panel, "", 380, 22, nil)
                 remapBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
             end
-            remapBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20,
-                -246 - (#specs * 26) - 32)
+            remapBtn:ClearAllPoints()
+            remapBtn:SetPoint("TOPLEFT", (settingsBtn and settingsBtn:IsShown())
+                and settingsBtn or (specRows[#specs] or specHead), "BOTTOMLEFT",
+                (settingsBtn and settingsBtn:IsShown()) and 0
+                    or (specRows[#specs] and 0 or 6), -6)
             local function PaintRemap()
                 remapBtn.label:SetText((remapWanted and "|cff0091ed[x]|r  " or "[  ]  ")
                     .. "Use their boss ability choices on my " .. ns.SpecName(mySpec))
@@ -747,7 +756,11 @@ function ns.ShowPackImport()
                 bindBtn = ns.Button(panel, "", 380, 22, nil)
                 bindBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
             end
-            bindBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -246 - (#specs * 26) - 32)
+            bindBtn:ClearAllPoints()
+            bindBtn:SetPoint("TOPLEFT", (settingsBtn and settingsBtn:IsShown())
+                and settingsBtn or (specRows[#specs] or specHead), "BOTTOMLEFT",
+                (settingsBtn and settingsBtn:IsShown()) and 0
+                    or (specRows[#specs] and 0 or 6), -6)
             local function PaintBind()
                 bindBtn.label:SetText((bindWanted and "|cff0091ed[x]|r  " or "[  ]  ")
                     .. "Use each on the character whose spec it covers")
@@ -760,6 +773,18 @@ function ns.ShowPackImport()
             bindBtn:Show()
         elseif bindBtn then
             bindBtn:Hide()
+        end
+
+        -- The panel takes whatever the rows came to. A pack covering ten classes is ten rows
+        -- longer than one covering one, and a fixed height either wasted half the dialog or
+        -- ran the last rows under the Import button.
+        local last = (bindBtn and bindBtn:IsShown() and bindBtn)
+            or (remapBtn and remapBtn:IsShown() and remapBtn)
+            or (settingsBtn and settingsBtn:IsShown() and settingsBtn)
+            or specRows[#specs]
+        if last then
+            local used = panel:GetTop() - last:GetBottom()
+            panel:SetHeight(math.max(470, used + 74))
         end
     end
 

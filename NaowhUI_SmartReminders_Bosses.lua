@@ -1985,8 +1985,9 @@ function ns.BuildProfileSettings(parent, y)
             end)
         end)
         newBtn:SetPoint("LEFT", profRow._leftRegion, "LEFT", 20, 0)
-        ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings; this "
-            .. "character switches to it.")
+        ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings. It becomes "
+            .. "the one every character on this account uses, including any you log into "
+            .. "later. Switch a single character afterwards if you want it on its own.")
         -- "Save As", not "Copy": what it does is store what you have set up under a name of
         -- your choosing, which is what someone looks for a Save button to do. There is no
         -- plain Save because there is nothing to save -- every change is written into the

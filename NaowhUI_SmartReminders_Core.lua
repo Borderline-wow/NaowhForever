@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0903j"
+ns.CODE_BUILD = "0903k"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -310,7 +310,14 @@ function ns.SettingsRoot()
     local sv = DB()
     local name = sv.charActive[CharKey()]
     if type(name) ~= "string" or type(sv.profiles[name]) ~= "table" then
-        name = type(name) == "string" and name or "Default"
+        -- A character with no assignment, or one pointing at a deleted profile, takes the
+        -- account default. That is "Default" until a new profile is made, which claims it --
+        -- so a character logged into for the first time afterwards joins the rest rather
+        -- than landing on an empty profile nobody chose.
+        name = type(name) == "string" and name or sv.defaultProfile or "Default"
+        if type(sv.profiles[name]) ~= "table" and type(sv.defaultProfile) == "string" then
+            name = sv.defaultProfile
+        end
         sv.charActive[CharKey()] = name
     end
     if type(sv.profiles[name]) ~= "table" then sv.profiles[name] = {} end
@@ -407,11 +414,23 @@ local function ValidName(name)
     return name
 end
 
+-- A new profile becomes the account's: every character switches to it, and any logged into
+-- later starts there too. Asked for outright -- making a profile on one character and then
+-- finding the other nine still on the old one is the kind of thing that has cost real
+-- confusion tonight, twice, with an export taken from the wrong profile each time.
+--
+-- Per-character choices are still possible: switching a character afterwards moves only that
+-- one, and only until the next profile is created.
 function ns.CreateProfile(name)
     local err
     name, err = ValidName(name)
     if not name then return false, err end
-    DB().profiles[name] = {}
+    local sv = DB()
+    sv.profiles[name] = {}
+    sv.defaultProfile = name
+    for char in pairs(sv.charActive) do sv.charActive[char] = name end
+    activeRoot = nil
+    ns.QueueReapply()
     return true
 end
 
@@ -456,9 +475,14 @@ function ns.DeleteProfile(name)
     if count <= 1 then return false, "the last profile cannot be deleted" end
     local wasMine = sv.charActive[CharKey()] == name
     sv.profiles[name] = nil
-    -- Every character pointed at it falls back to Default, vivified on next read.
+    -- Every character pointed at it falls back to the account default, or to any surviving
+    -- profile if that was the one deleted -- "Default" may not exist at all once profiles
+    -- have been renamed around.
+    if sv.defaultProfile == name then sv.defaultProfile = nil end
+    local fallback = (type(sv.profiles[sv.defaultProfile or ""]) == "table")
+        and sv.defaultProfile or next(sv.profiles)
     for char, active in pairs(sv.charActive) do
-        if active == name then sv.charActive[char] = "Default" end
+        if active == name then sv.charActive[char] = fallback end
     end
     if wasMine then
         activeRoot = nil
