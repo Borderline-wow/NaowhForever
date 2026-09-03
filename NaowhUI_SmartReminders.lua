@@ -1206,6 +1206,18 @@ local castSourceGUID = {}
 ns.TANKED_GRACE = 6
 ns.lastTankedAt = {}
 
+-- Sampled off bar traffic, not only when a callout is due. Written solely at fire time the
+-- grace was useless: busters come 25 to 30 seconds apart, so the one stored sample was
+-- always older than the grace and every threat dip still refused. Boss mods broadcast bars
+-- for the whole encounter every few seconds, which is well inside it.
+function ns.SampleTanking()
+    local now = GetTime()
+    for i = 1, 5 do
+        local unit = "boss" .. i
+        if UnitExists(unit) and UnitTankedVerdict(unit) then ns.lastTankedAt[unit] = now end
+    end
+end
+
 local function TankingCaster(sid)
     local ownerSlot = ns.TANK_ABILITY_OWNER_UNIT and ns.TANK_ABILITY_OWNER_UNIT[sid]
     if ownerSlot then
@@ -1655,8 +1667,13 @@ local function ReadChargeRecharge(sid)
     -- remaining goes with the reading it came from: it anchors rechargeStart, and pairing
     -- 3 seconds left with a 300 second total puts that anchor five minutes in the past and
     -- reads as several charge landings at once.
-    if total < seed then return seed end
-    return total, remaining
+    -- Third return says the figure is the seed standing in, not something the client
+    -- stated. clientRecharge means "the client said so" and EnsureChargeState prefers it
+    -- ahead of the seed floor for exactly that reason, so a floored value written there
+    -- would round a real 180s recharge up to its 300s seed permanently, across reloads --
+    -- the regression clientRecharge exists to prevent.
+    if total < seed then return seed, nil, true end
+    return total, remaining, false
 end
 
 function EnsureChargeState(sid)
@@ -1751,13 +1768,15 @@ function ChargesAvailable(sid)
     -- 180. That is the whole Kings Rest failure: at a dummy the sealed accessor answers and
     -- the rate is right, in the key it does not and the count runs two minutes behind.
     -- An answer here also PROVES a recharge is running, so it stands in for isActive.
-    local real, remaining = ReadChargeRecharge(sid)
+    local real, remaining, floored = ReadChargeRecharge(sid)
     if real then
         active = true
-        st.recharge, st.rechargeSrc = real, "client"
-        local t = TRDB()
-        if type(t.clientRecharge) ~= "table" then t.clientRecharge = {} end
-        t.clientRecharge[tostring(sid)] = real
+        st.recharge, st.rechargeSrc = real, floored and "seed" or "client"
+        if not floored then
+            local t = TRDB()
+            if type(t.clientRecharge) ~= "table" then t.clientRecharge = {} end
+            t.clientRecharge[tostring(sid)] = real
+        end
         -- A charge landing IS the client's recharge start jumping forward by one recharge,
         -- and that is a far better signal than the elapsed-time climb below: it needs no
         -- anchor of our own and no witnessed cast, so a state rebuilt mid-fight recovers on
@@ -3877,6 +3896,7 @@ end
 function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
+    if InEncounter() then ns.SampleTanking() end
     if not (ShouldRun() and InEncounter()) then
         -- Boss mods receive ENCOUNTER_START before our watcher does and broadcast their
         -- engage bars DURING their own handler, so a bar can arrive here while
@@ -4038,10 +4058,18 @@ local function NoteBossModBar(key, duration, isApprox)
     end
 end
 
+-- The pending test asks for a COOLDOWN callout specifically. Any pending entry at all was
+-- too broad by a wide margin: ScheduleBWFire runs before the enablement check, so nearly
+-- every timed key has one, and dropping the bar here returns before NoteBossModBar, the
+-- raid engine and the custom-reminder catalogue ever see it -- none of which this was
+-- meant to touch. An entry born of a descriptive bar proves nothing either; only a
+-- cooldown bar counting down to a cast does.
 local function IsUptimeBar(key, isApprox)
     if isApprox then return false end
     for _, fires in pairs(pendingBWFires) do
-        if next(fires[key] or {}) then return true end
+        for _, f in pairs(fires[key] or {}) do
+            if not f.uptime then return true end
+        end
     end
     local endsAt = bwCdEndsAt[key]
     return endsAt ~= nil and math.abs(GetTime() - endsAt) <= UPTIME_MATCH_WINDOW
@@ -6381,6 +6409,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
                 tostring(arg1), tostring(arg2)) })
         end
         if event == "ENCOUNTER_END" then wipe(readyAt) end
+        wipe(ns.lastTankedAt)
         lastAnnouncedSpellID = nil
         RebuildSlots()          -- swap to this boss's list before the first ability lands
         RebuildCastMap()
