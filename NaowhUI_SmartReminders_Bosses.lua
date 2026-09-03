@@ -2514,14 +2514,31 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             if leadTimeVal == nil then
                 leadTimeVal = binding.leadTime or (ns.DB().leadTime or 3)
             end
-            Label("Warning Time (seconds before impact)")
+            Label("Warning Time (+before / -after impact)")
+            -- -30 to 10, not 0 to 10: requested for Rav'i's Triple Shot, called out a beat
+            -- AFTER the volley lands rather than before it. Negative is what that is --
+            -- ScheduleBWFire already reads a lead past the bar's own length as "wait this
+            -- much further" once the sign flips, so this is the one place that needed to
+            -- change, not a second mode alongside it. -30 comfortably covers a delayed call
+            -- on anything shorter than a boss's longest bars; the spec-wide default stays
+            -- positive-only on its own slider on the Setup page.
             local trackFrame, valBox = EUI.BuildSliderCore(body, 200, 4, 12, 40, 22, 12,
-                1, 0, 10, 1,
+                1, -30, 10, 1,
                 function() return leadTimeVal end,
                 function(v) leadTimeVal = v end)
             trackFrame:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             valBox:SetPoint("LEFT", trackFrame, "RIGHT", 10, 0)
             by = by - 32
+
+            local leadHint = ns.Font(body, 10, nil, ns.THEME.muted)
+            leadHint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            leadHint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+            leadHint:SetJustifyH("LEFT")
+            leadHint:SetWordWrap(true)
+            leadHint:SetText("Positive calls out before the hit lands, as usual. Negative "
+                .. "waits until that many seconds AFTER it lands instead -- for a defensive "
+                .. "that only matters once the mechanic is over.")
+            by = by - 28
         else
             local hint = ns.Font(body, 11, nil, ns.THEME.muted)
             hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
