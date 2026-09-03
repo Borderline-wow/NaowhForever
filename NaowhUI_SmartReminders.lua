@@ -288,6 +288,33 @@ local function UserList(forSpec, create)
     return p.list
 end
 
+-- The entries on this preset that are called TOGETHER. One group per preset, ticked per
+-- entry: when the pick lands on any member, every other member that is ready is named
+-- alongside it. Order is not part of it -- an earlier version chained each entry to the one
+-- below and the ordering was the confusing part, since what the player wants to say is
+-- simply "these go together".
+--
+-- Keyed by spell id rather than by list position, so drag-reorder needs no repair.
+--
+-- ns functions rather than chunk locals: this file is at the 200-local ceiling.
+function ns.CalledTogether(forSpec, spellID)
+    local presetKey = ActivePresetKey(forSpec)
+    if not presetKey then return false end
+    local presets = PresetsTable(forSpec, false)
+    local p = presets and presets[presetKey]
+    return (p and type(p.together) == "table" and p.together[tostring(spellID)]) == true
+end
+
+function ns.SetCalledTogether(forSpec, spellID, on)
+    local presetKey = EnsureActivePreset(forSpec)
+    if not presetKey then return end
+    local presets = PresetsTable(forSpec, true)
+    local p = presets and presets[presetKey]
+    if not p then return end
+    if type(p.together) ~= "table" then p.together = {} end
+    p.together[tostring(spellID)] = on and true or nil
+end
+
 -- Per-boss overrides live beside the spec default, keyed spec:encounter. The key is the
 -- dungeonEncounterID -- the same id ENCOUNTER_START reports and the same one the journal
 -- hands back -- so what the tree sets up and what fires in the fight are the same record.
@@ -1961,7 +1988,8 @@ local function LogLine(e)
         tostring(e.running), e.charges and (" charges=" .. e.charges) or "",
         e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", tostring(e.secrecy),
         e.tankPath and (" tankCheck=%s(%s)"):format(e.tankPath, nameOf(e.tankSid)) or "",
-        (e.auraUp and (" auraUp=" .. e.auraUp) or "")
+        (e.withSids and (" with=" .. e.withSids) or "")
+            .. (e.auraUp and (" auraUp=" .. e.auraUp) or "")
             .. (e.chargeModel and ("\n    charges: " .. e.chargeModel) or ""))
 end
 
@@ -2319,7 +2347,7 @@ local function ChargeModelSnapshot()
     return out
 end
 
-local function LogCallout(sid)
+local function LogCallout(sid, partners)
     local st = chargeState[sid]
     local running = CooldownRunning(sid)
     -- Which of the player's own defensives the combat-log tracking believed were up at the
@@ -2348,6 +2376,9 @@ local function LogCallout(sid)
         -- it were this fire's own answer.
         tankSid = (not ns.testFiring) and lastAggroCheck and lastAggroCheck.sid or nil,
         tankPath = (not ns.testFiring) and lastAggroCheck and lastAggroCheck.path or nil,
+        -- Named, not counted: "with Icebound Fortitude" is the whole question when a pair
+        -- reads wrong, and a bare 2 would send the next look at the preset instead of here.
+        withSids = partners and table.concat(partners, ",") or nil,
     })
 end
 
@@ -2398,9 +2429,35 @@ local function SpeakCallout(triggerSid)
     end
 
     if picked then
+        -- Only when the winner is itself in the group: a group the pick never reached says
+        -- nothing about this hit. Every other member that is ready is then named with it, in
+        -- list order. A member that is down is skipped rather than waited for -- being in a
+        -- group must never be able to silence a callout, which is the failure this engine
+        -- keeps having to unlearn.
+        --
+        -- Its own pcall for the same reason the pick has one: a throw here would otherwise
+        -- take the callout with it.
+        local okChain, partners = pcall(function()
+            if not ns.CalledTogether(specID, picked) then return nil end
+            local out
+            for i = 1, activeSlots do
+                local sid = slots[i].spellID
+                if sid ~= picked and ns.CalledTogether(specID, sid)
+                    and SpellReady(sid, now) then
+                    out = out or {}
+                    out[#out + 1] = sid
+                end
+            end
+            return out
+        end)
+        if not okChain then partners = nil end
+
         -- Outside the audio gate below: a muted entry still wins the pick and still shows,
         -- so it should still light up its Cooldown Manager button.
         ns.StartCDMGlow(picked)
+        if partners then
+            for i = 1, #partners do ns.StartCDMGlow(partners[i]) end
+        end
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
         if not ns.IsAudioOff(picked) then
@@ -2411,9 +2468,32 @@ local function SpeakCallout(triggerSid)
                 return
             end
             lastAnnouncedSpellID, lastAnnouncedTrigger, lastAnnouncedAt = picked, triggerSid, now
-            LogCallout(picked)
+            LogCallout(picked, partners)
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
-            Announce(picked, CalloutFor(picked, info and info.name))
+            local said = CalloutFor(picked, info and info.name)
+            -- Spoken in LIST order, not winner-first, so the line matches the one the preset
+            -- row shows for the set -- "Guardian and Ardent" reads the same in both places
+            -- whichever half happened to win the pick. A per-spell SOUND FILE still belongs
+            -- to the winner alone: two files cannot be run together into one announcement,
+            -- and the voice is the channel where a set reads as a set.
+            if partners then
+                said = nil
+                for i = 1, activeSlots do
+                    local sid = slots[i].spellID
+                    local part = sid == picked
+                    if not part then
+                        for j = 1, #partners do
+                            if partners[j] == sid then part = true break end
+                        end
+                    end
+                    if part then
+                        local si = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+                        local one = CalloutFor(sid, si and si.name)
+                        said = said and (said .. " and " .. one) or one
+                    end
+                end
+            end
+            Announce(picked, said)
         end
         return
     end

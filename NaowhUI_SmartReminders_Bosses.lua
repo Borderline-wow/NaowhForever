@@ -654,9 +654,62 @@ end
 -- Audio settings for one ability. The cog is designed to grow -- text options and whatever
 -- else makes sense later -- so its content lives in its own small modal rather than crowding
 -- the row.
+-- A set renders as ONE row named for the whole call, so its members no longer have a cog
+-- each. Everything that lived on those rows has to be reachable from here instead --
+-- editing what each one is called above all, since the row's own name is built from them.
+local function ShowSetSettingsPopup(specID, members, EUI)
+    local W = EUI.Widgets
+    -- Height is set from the rows once they are laid out, below: a guessed one had the last
+    -- member overlapping the buttons. The panel's backdrop and border are SetAllPoints, and
+    -- the buttons anchor to its BOTTOM, so all three follow the resize.
+    local dimmer, panel = ns.MakeModal(400, 160, "setSettings")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Called Together")
+
+    local y = -46
+    for i = 1, #members do
+        local sid = members[i]
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+        local nm = (info and info.name) or ("Spell " .. sid)
+        local _, h = W:DualRow(panel, y,
+            { type = "toggle", text = ns.CalloutFor(sid, nm),
+              tooltip = ("%s. Untick to take it out of the set -- it keeps its place on the "
+              .. "list and is called on its own again."):format(nm),
+              rawTooltip = true,
+              getValue = function() return true end,
+              setValue = function()
+                  ns.SetCalledTogether(specID, sid, false)
+                  dimmer:Hide()
+                  if EUI.RefreshPage then EUI:RefreshPage(true) end
+              end }
+        ); y = y - h
+    end
+
+    -- 26 for the button row, 16 for the bottom inset, and a gap so they do not touch.
+    panel:SetHeight(math.abs(y) + 58)
+
+    -- The row's name IS the callouts joined, so editing one renames the row.
+    local editBtn = ns.Button(panel, "Edit Callouts", 130, 26, function()
+        dimmer:Hide()
+        ns.ShowCalloutEditor("Audio callout for " .. ((C_Spell.GetSpellInfo(members[1])
+            or {}).name or members[1]), ns.CalloutFor(members[1]), function(text)
+                ns.SetCallout(members[1], text)
+                if EUI.RefreshPage then EUI:RefreshPage(true) end
+            end, members[1])
+    end)
+    editBtn:SetPoint("BOTTOM", panel, "BOTTOM", -70, 16)
+
+    ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 60, 16)
+
+    dimmer:Show()
+end
+
 local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     local W = EUI.Widgets
-    local dimmer, panel = ns.MakeModal(360, 130, "abilitySettings")
+    local dimmer, panel = ns.MakeModal(360, 172, "abilitySettings")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
@@ -674,6 +727,19 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
               ns.SetAudioOff(spellID, not v)
               if editBtn then editBtn:SetShown(v) end
               if placeClose then placeClose() end
+          end }
+    ); y = y - h
+
+    _, h = W:DualRow(panel, y,
+        { type = "toggle", text = "Call Together",
+          tooltip = "Tick this on every cooldown that should be called as a set. When one "
+          .. "of them comes up, the rest that are ready are named with it -- \"Vampiric "
+          .. "Blood and Icebound Fortitude\". Order does not matter, and one on cooldown "
+          .. "is simply left out rather than holding the callout back.",
+          getValue = function() return ns.CalledTogether(specID, spellID) end,
+          setValue = function(v)
+              ns.SetCalledTogether(specID, spellID, v)
+              if EUI.RefreshPage then EUI:RefreshPage(true) end
           end }
     ); y = y - h
 
@@ -928,37 +994,81 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         end
     end
 
+    -- The set is drawn as ONE row, at the position of its first member, named for the whole
+    -- call -- "Guardian and Ardent". Later members are skipped rather than repeated: the
+    -- point of ticking them together is that they are one thing to press, so they should read
+    -- as one line. Their own settings move to the set popup, which is what the merged row's
+    -- cog opens.
+    local setMembers
+    for i = 1, #list do
+        if ns.CalledTogether(specID, list[i]) then
+            setMembers = setMembers or {}
+            setMembers[#setMembers + 1] = list[i]
+        end
+    end
+    -- A set of one is not a set; it renders as an ordinary row until a second is ticked.
+    if setMembers and #setMembers < 2 then setMembers = nil end
+
+    local setDrawn = false
     for i = 1, #list do
         local spellID = list[i]
         local idx = i
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
         local name = (info and info.name) or ("Spell " .. spellID)
-        local label = ("      %d.  %s"):format(idx, name)
-        if not ns.IsSpellAvailable(spellID) then label = label .. "  (not talented)" end
+        local inSet = setMembers and ns.CalledTogether(specID, spellID)
+        local skip = inSet and setDrawn
 
-        row, h = W:DualRow(rightPane, ry,
-            { type = "toggle", text = label,
-              tooltip = ("Spell ID %d. Untick to drop it to the bottom of the list."):format(spellID),
-              getValue = function() return true end,
-              setValue = function()
-                  ns.SetSpellOnList(specID, nil, spellID, false)
-                  EUI:RefreshPage(true)
-              end }
-        ); ry = ry - h
+        if not skip then
+            local label
+            if inSet then
+                setDrawn = true
+                local said
+                for m = 1, #setMembers do
+                    local mi = C_Spell and C_Spell.GetSpellInfo
+                        and C_Spell.GetSpellInfo(setMembers[m])
+                    local one = ns.CalloutFor(setMembers[m], mi and mi.name)
+                    said = said and (said .. " and " .. one) or one
+                end
+                label = ("      %d.  %s"):format(idx, said)
+            else
+                label = ("      %d.  %s"):format(idx, name)
+                if not ns.IsSpellAvailable(spellID) then
+                    label = label .. "  (not talented)"
+                end
+            end
 
-        if row then
-            dragRows[#dragRows + 1] = { frame = row, spellID = spellID, index = idx }
-            AttachGrabber(row, spellID, idx, specID, nil, EUI)
-            AttachRemove(row, { id = spellID, userAdded = false }, specID, EUI, function()
-                ns.SetSpellOnList(specID, nil, spellID, false)
-                ns.HideSpell(specID, spellID)
-            end)
-            -- The row is single-column (no rightCfg), so the toggle lives in the LEFT
-            -- region -- chain the cog off that region's control, not the empty right one,
-            -- or it would anchor off in the dead space past the toggle.
-            AttachRowCog(row._leftRegion, function()
-                ShowAbilitySettingsPopup(specID, spellID, name, EUI)
-            end, "Settings", "Audio, and anything added later.")
+            row, h = W:DualRow(rightPane, ry,
+                { type = "toggle", text = label,
+                  tooltip = inSet
+                      and "Called as one. Open the cog to rename either half or take one out."
+                      or ("Spell ID %d. Untick to drop it to the bottom of the list."):format(spellID),
+                  rawTooltip = inSet or nil,
+                  getValue = function() return true end,
+                  setValue = function()
+                      ns.SetSpellOnList(specID, nil, spellID, false)
+                      EUI:RefreshPage(true)
+                  end }
+            ); ry = ry - h
+
+            if row then
+                dragRows[#dragRows + 1] = { frame = row, spellID = spellID, index = idx }
+                AttachGrabber(row, spellID, idx, specID, nil, EUI)
+                AttachRemove(row, { id = spellID, userAdded = false }, specID, EUI, function()
+                    ns.SetSpellOnList(specID, nil, spellID, false)
+                    ns.HideSpell(specID, spellID)
+                end)
+                -- The row is single-column (no rightCfg), so the toggle lives in the LEFT
+                -- region -- chain the cog off that region's control, not the empty right one,
+                -- or it would anchor off in the dead space past the toggle.
+                AttachRowCog(row._leftRegion, function()
+                    if inSet then
+                        ShowSetSettingsPopup(specID, setMembers, EUI)
+                    else
+                        ShowAbilitySettingsPopup(specID, spellID, name, EUI)
+                    end
+                end, "Settings", inSet and "What each half is called, and leaving the set."
+                    or "Audio, and anything added later.")
+            end
         end
     end
 
