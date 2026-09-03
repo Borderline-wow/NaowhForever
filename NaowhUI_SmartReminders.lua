@@ -297,12 +297,16 @@ end
 -- Keyed by spell id rather than by list position, so drag-reorder needs no repair.
 --
 -- ns functions rather than chunk locals: this file is at the 200-local ceiling.
-function ns.CalledTogether(forSpec, spellID)
-    local presetKey = ActivePresetKey(forSpec)
+function ns.CalledTogetherInPreset(forSpec, presetKey, spellID)
     if not presetKey then return false end
     local presets = PresetsTable(forSpec, false)
     local p = presets and presets[presetKey]
     return (p and type(p.together) == "table" and p.together[tostring(spellID)]) == true
+end
+
+-- The editor always edits the ACTIVE preset, so this is the one the options pages want.
+function ns.CalledTogether(forSpec, spellID)
+    return ns.CalledTogetherInPreset(forSpec, ActivePresetKey(forSpec), spellID)
 end
 
 function ns.SetCalledTogether(forSpec, spellID, on)
@@ -428,14 +432,14 @@ local function EffectiveList(forSpec, encounterID, fp)
             local presets = PresetsTable(forSpec, false)
             local p = presets and presets[binding.preset]
             if p and type(p.list) == "table" and #p.list > 0 then
-                return p.list, true
+                return p.list, true, binding.preset
             end
         end
         -- The older per-ability raw list (composite key "encounter#fingerprint"), from
         -- before this moved to picking one whole preset per ability -- still honored for
         -- anyone who has one saved, though nothing writes new ones.
         local al = BossList(forSpec, tostring(encounterID) .. "#" .. fp, false)
-        if al and #al > 0 then return al, true end
+        if al and #al > 0 then return al, true, nil end
     end
     if encounterID then
         local explicit = BossPresetKey(forSpec, encounterID)
@@ -444,11 +448,11 @@ local function EffectiveList(forSpec, encounterID, fp)
             local presets = PresetsTable(forSpec, false)
             local p = presets and presets[presetKey]
             if p and type(p.list) == "table" and #p.list > 0 then
-                return p.list, explicit ~= nil
+                return p.list, explicit ~= nil, presetKey
             end
         end
     end
-    return UserList(forSpec, false), false
+    return UserList(forSpec, false), false, ActivePresetKey(forSpec)
 end
 ns.EffectiveList = EffectiveList
 
@@ -886,7 +890,13 @@ local function RebuildSlots(fp)
     activeSlots = 0
     if not frame then return end
 
-    local list = EffectiveList(specID, currentEncounter, fp)
+    -- Which preset these slots came from. Call Together is stored per preset, and the
+    -- list in play is not always the spec's ACTIVE one -- a boss or a single ability can
+    -- bind its own -- so the set has to be read from the same preset the slots were built
+    -- from, or it leaks into presets it was never configured on and is ignored on the one
+    -- actually running.
+    local list, _, presetKey = EffectiveList(specID, currentEncounter, fp)
+    ns.slotsPreset = presetKey
     -- No auto-seeding: an untouched spec stays silent rather than calling out a list the
     -- player never chose. Robin wants every preset built deliberately in Setup, per spec.
     if not list then
@@ -2438,11 +2448,11 @@ local function SpeakCallout(triggerSid)
         -- Its own pcall for the same reason the pick has one: a throw here would otherwise
         -- take the callout with it.
         local okChain, partners = pcall(function()
-            if not ns.CalledTogether(specID, picked) then return nil end
+            if not ns.CalledTogetherInPreset(specID, ns.slotsPreset, picked) then return nil end
             local out
             for i = 1, activeSlots do
                 local sid = slots[i].spellID
-                if sid ~= picked and ns.CalledTogether(specID, sid)
+                if sid ~= picked and ns.CalledTogetherInPreset(specID, ns.slotsPreset, sid)
                     and SpellReady(sid, now) then
                     out = out or {}
                     out[#out + 1] = sid
@@ -2456,7 +2466,7 @@ local function SpeakCallout(triggerSid)
         -- so it should still light up its Cooldown Manager button.
         ns.StartCDMGlow(picked)
         if partners then
-            for i = 1, #partners do ns.StartCDMGlow(partners[i]) end
+            for i = 1, #partners do ns.StartCDMGlow(partners[i], true) end
         end
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
@@ -2486,14 +2496,17 @@ local function SpeakCallout(triggerSid)
                             if partners[j] == sid then part = true break end
                         end
                     end
-                    if part then
+                    -- A member the player muted stays out of the spoken line. It still
+                    -- glows, the same way a muted winner does -- muting an entry means
+                    -- "do not say this one", not "drop it from the set".
+                    if part and not ns.IsAudioOff(sid) then
                         local si = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
                         local one = CalloutFor(sid, si and si.name)
                         said = said and (said .. " and " .. one) or one
                     end
                 end
             end
-            Announce(picked, said)
+            Announce(picked, said or CalloutFor(picked, info and info.name))
         end
         return
     end
@@ -2597,35 +2610,45 @@ end
 -- Blizzard's. CooldownViewerSecure keeps tables that refuse tainted access, and adding
 -- children or scripts to those frames is the kind of thing that turns a cosmetic feature
 -- into a combat bug. SetAllPoints only reads their geometry; it changes nothing of theirs.
+-- A set is called as one and every member of it should light up, so this holds a list of
+-- anchors rather than the single one it started with. With one anchor, glowing a second
+-- spell stopped the first: StartCDMGlow clears whatever is lit before it starts, so a paired
+-- callout left only the last member glowing -- or nothing at all, if that member had no
+-- button on the bar.
 do
-    local glowing
+    local glowing = {}
     local GLOW_COLOR = { 1, 0.82, 0, 1 }
 
     function ns.StopCDMGlow()
-        if not glowing then return end
         local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
-        if LCG then pcall(LCG.PixelGlow_Stop, glowing) end
-        glowing:Hide()
-        glowing = nil
+        for i = #glowing, 1, -1 do
+            local anchor = glowing[i]
+            if LCG then pcall(LCG.PixelGlow_Stop, anchor) end
+            anchor:Hide()
+            glowing[i] = nil
+        end
     end
 
-    function ns.StartCDMGlow(spellID)
+    -- keep = add to what is already lit, for the rest of a set. Without it every call
+    -- clears first, which is what a fresh callout wants.
+    function ns.StartCDMGlow(spellID, keep)
         if not TRDB().cdmGlow then return end
-        ns.StopCDMGlow()
+        if not keep then ns.StopCDMGlow() end
         local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
         if not LCG then return end
         local btn = ns.CDMButtonForSpell(spellID)
         if not btn then return end
-        local anchor = ns.cdmGlowFrame
+        if type(ns.cdmGlowFrames) ~= "table" then ns.cdmGlowFrames = {} end
+        local anchor = ns.cdmGlowFrames[#glowing + 1]
         if not anchor then
             anchor = CreateFrame("Frame", nil, UIParent)
             anchor:SetFrameStrata("HIGH")
-            ns.cdmGlowFrame = anchor
+            ns.cdmGlowFrames[#glowing + 1] = anchor
         end
         anchor:ClearAllPoints()
         anchor:SetAllPoints(btn)
         anchor:Show()
-        glowing = anchor
+        glowing[#glowing + 1] = anchor
         LCG.PixelGlow_Start(anchor, GLOW_COLOR)
     end
 end

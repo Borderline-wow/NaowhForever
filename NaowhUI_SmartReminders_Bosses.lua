@@ -654,59 +654,6 @@ end
 -- Audio settings for one ability. The cog is designed to grow -- text options and whatever
 -- else makes sense later -- so its content lives in its own small modal rather than crowding
 -- the row.
--- A set renders as ONE row named for the whole call, so its members no longer have a cog
--- each. Everything that lived on those rows has to be reachable from here instead --
--- editing what each one is called above all, since the row's own name is built from them.
-local function ShowSetSettingsPopup(specID, members, EUI)
-    local W = EUI.Widgets
-    -- Height is set from the rows once they are laid out, below: a guessed one had the last
-    -- member overlapping the buttons. The panel's backdrop and border are SetAllPoints, and
-    -- the buttons anchor to its BOTTOM, so all three follow the resize.
-    local dimmer, panel = ns.MakeModal(400, 160, "setSettings")
-
-    local head = ns.Font(panel, 14, "OUTLINE")
-    head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText("Called Together")
-
-    local y = -46
-    for i = 1, #members do
-        local sid = members[i]
-        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-        local nm = (info and info.name) or ("Spell " .. sid)
-        local _, h = W:DualRow(panel, y,
-            { type = "toggle", text = ns.CalloutFor(sid, nm),
-              tooltip = ("%s. Untick to take it out of the set -- it keeps its place on the "
-              .. "list and is called on its own again."):format(nm),
-              rawTooltip = true,
-              getValue = function() return true end,
-              setValue = function()
-                  ns.SetCalledTogether(specID, sid, false)
-                  dimmer:Hide()
-                  if EUI.RefreshPage then EUI:RefreshPage(true) end
-              end }
-        ); y = y - h
-    end
-
-    -- 26 for the button row, 16 for the bottom inset, and a gap so they do not touch.
-    panel:SetHeight(math.abs(y) + 58)
-
-    -- The row's name IS the callouts joined, so editing one renames the row.
-    local editBtn = ns.Button(panel, "Edit Callouts", 130, 26, function()
-        dimmer:Hide()
-        ns.ShowCalloutEditor("Audio callout for " .. ((C_Spell.GetSpellInfo(members[1])
-            or {}).name or members[1]), ns.CalloutFor(members[1]), function(text)
-                ns.SetCallout(members[1], text)
-                if EUI.RefreshPage then EUI:RefreshPage(true) end
-            end, members[1])
-    end)
-    editBtn:SetPoint("BOTTOM", panel, "BOTTOM", -70, 16)
-
-    ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 60, 16)
-
-    dimmer:Show()
-end
-
 local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     local W = EUI.Widgets
     local dimmer, panel = ns.MakeModal(360, 172, "abilitySettings")
@@ -759,6 +706,42 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
         closeBtn:SetPoint("BOTTOM", panel, "BOTTOM", editBtn:IsShown() and 65 or 0, 16)
     end
     placeClose()
+
+    dimmer:Show()
+end
+
+-- A set renders as ONE row named for the whole call, so its members no longer have a cog
+-- each. This is where they get one back: a row per member that opens that member's own
+-- settings, which is where audio, its spoken name and leaving the set already live. Written
+-- as a chooser rather than a second copy of those controls so there is one place each of
+-- them can be edited.
+local function ShowSetSettingsPopup(specID, members, EUI)
+    local dimmer, panel = ns.MakeModal(400, 160, "setSettings")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Called Together")
+
+    local y = -44
+    for i = 1, #members do
+        local sid = members[i]
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+        local nm = (info and info.name) or ("Spell " .. sid)
+        local btn = ns.Button(panel, ns.CalloutFor(sid, nm), 340, 26, function()
+            dimmer:Hide()
+            ShowAbilitySettingsPopup(specID, sid, nm, EUI)
+        end)
+        btn:SetPoint("TOP", panel, "TOP", 0, y)
+        ns.Tooltip(btn, nm, "Its audio, what it is called out loud, and taking it back "
+            .. "out of the set.")
+        y = y - 32
+    end
+
+    -- 26 for the button row, 16 for the bottom inset, and a gap so they do not touch.
+    panel:SetHeight(math.abs(y) + 58)
+
+    ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
 
     dimmer:Show()
 end
@@ -999,9 +982,13 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     -- point of ticking them together is that they are one thing to press, so they should read
     -- as one line. Their own settings move to the set popup, which is what the merged row's
     -- cog opens.
+    -- Talented members only. RebuildSlots drops anything untalented before the engine ever
+    -- sees it, so an untalented half can never actually be called with the other one, and
+    -- folding it into the merged name would promise a callout that cannot happen. It falls
+    -- back to its own row, carrying the usual "(not talented)".
     local setMembers
     for i = 1, #list do
-        if ns.CalledTogether(specID, list[i]) then
+        if ns.CalledTogether(specID, list[i]) and ns.IsSpellAvailable(list[i]) then
             setMembers = setMembers or {}
             setMembers[#setMembers + 1] = list[i]
         end
@@ -1016,6 +1003,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
         local name = (info and info.name) or ("Spell " .. spellID)
         local inSet = setMembers and ns.CalledTogether(specID, spellID)
+            and ns.IsSpellAvailable(spellID)
         local skip = inSet and setDrawn
 
         if not skip then
@@ -1042,10 +1030,18 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
                   tooltip = inSet
                       and "Called as one. Open the cog to rename either half or take one out."
                       or ("Spell ID %d. Untick to drop it to the bottom of the list."):format(spellID),
-                  rawTooltip = inSet or nil,
                   getValue = function() return true end,
+                  -- The whole set leaves together: it is drawn as one entry, so dropping it
+                  -- has to take every member with it or the other half reappears on its own
+                  -- row a line later.
                   setValue = function()
-                      ns.SetSpellOnList(specID, nil, spellID, false)
+                      if inSet then
+                          for m = 1, #setMembers do
+                              ns.SetSpellOnList(specID, nil, setMembers[m], false)
+                          end
+                      else
+                          ns.SetSpellOnList(specID, nil, spellID, false)
+                      end
                       EUI:RefreshPage(true)
                   end }
             ); ry = ry - h
@@ -1054,8 +1050,11 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
                 dragRows[#dragRows + 1] = { frame = row, spellID = spellID, index = idx }
                 AttachGrabber(row, spellID, idx, specID, nil, EUI)
                 AttachRemove(row, { id = spellID, userAdded = false }, specID, EUI, function()
-                    ns.SetSpellOnList(specID, nil, spellID, false)
-                    ns.HideSpell(specID, spellID)
+                    for m = 1, (inSet and #setMembers or 1) do
+                        local rid = inSet and setMembers[m] or spellID
+                        ns.SetSpellOnList(specID, nil, rid, false)
+                        ns.HideSpell(specID, rid)
+                    end
                 end)
                 -- The row is single-column (no rightCfg), so the toggle lives in the LEFT
                 -- region -- chain the cog off that region's control, not the empty right one,
