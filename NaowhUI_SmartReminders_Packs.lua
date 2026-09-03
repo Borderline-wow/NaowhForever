@@ -479,7 +479,10 @@ function ns.ShowPackExport()
         packExport.dimmer:Show()
         return
     end
-    local dimmer, panel = ns.MakeModal(560, 330, "packExport")
+    -- 392, not 330: the text box runs to -258 and the "every profile" tick has to sit clear
+    -- BELOW it. At the old height it landed inside the box, which swallowed every click on
+    -- it -- the box is an EditBox that grows with its content and takes the mouse.
+    local dimmer, panel = ns.MakeModal(560, 392, "packExport")
     -- ns.Font, not a guard on ns.MakeFontString: that name is defined nowhere in the addon,
     -- so the guard was always false and this title alone skipped the shared helper every
     -- other heading here uses.
@@ -500,7 +503,7 @@ function ns.ShowPackExport()
 
     local box = ns.MakeMultilineBox(panel, -78, 180)
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 46)
+    status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 62)
 
     local everyProfile, allBtn = false, nil
 
@@ -545,7 +548,9 @@ function ns.ShowPackExport()
             .. "Every profile, not just this one")
         Regenerate()
     end)
-    allBtn:SetPoint("BOTTOM", panel, "BOTTOM", 0, 74)
+    allBtn:SetPoint("BOTTOM", panel, "BOTTOM", 0, 108)
+    -- Above the scroll frame either way, so a box grown by a long string cannot cover it.
+    allBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
     allBtn.label:SetText("[  ]  Every profile, not just this one")
 
     box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
@@ -555,7 +560,7 @@ function ns.ShowPackExport()
     nameBox:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
 
     ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
 
     packExport = { dimmer = dimmer, Regenerate = Regenerate }
     Regenerate()
@@ -662,6 +667,10 @@ function ns.ShowPackImport()
             if not btn then
                 btn = ns.Button(panel, "", 250, 22, nil)
                 btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -246 - ((i - 1) * 26))
+                -- Above the paste box: it is an EditBox that grows with its content, and
+                -- a whole-file string is long enough to reach down over these rows and
+                -- take their clicks. The export tick lost every click to exactly that.
+                btn:SetFrameLevel(panel:GetFrameLevel() + 10)
                 specRows[i] = btn
             end
             local function Paint()
@@ -681,6 +690,7 @@ function ns.ShowPackImport()
         if type(payload.data) == "table" and type(payload.data.settings) == "table" then
             if not settingsBtn then
                 settingsBtn = ns.Button(panel, "", 320, 22, nil)
+                settingsBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
             end
             settingsBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20,
                 -246 - (#specs * 26) - 6)
@@ -712,6 +722,7 @@ function ns.ShowPackImport()
         if elsewhere then
             if not remapBtn then
                 remapBtn = ns.Button(panel, "", 380, 22, nil)
+                remapBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
             end
             remapBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20,
                 -246 - (#specs * 26) - 32)
@@ -734,6 +745,7 @@ function ns.ShowPackImport()
         if multi then
             if not bindBtn then
                 bindBtn = ns.Button(panel, "", 380, 22, nil)
+                bindBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
             end
             bindBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -246 - (#specs * 26) - 32)
             local function PaintBind()
