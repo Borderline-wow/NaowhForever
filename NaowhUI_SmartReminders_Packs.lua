@@ -13,9 +13,10 @@
 --      version, what is inside, counts -- before anything applies.
 --    * NEVER PARTIAL. The payload is validated and staged whole; a bad
 --      string is refused outright rather than half-applied.
---    * MERGE OR REPLACE is the importer's explicit choice. Merge keeps the
---      player's own entries where the pack has none; replace makes the
---      player's copy match the pack for every section the pack carries.
+--    * NEVER OVERWRITES. An import lands in a NEW profile and switches to it,
+--      so the importer's own profile is untouched and going back to it restores
+--      everything they had. There is no merge-or-replace to get wrong, and no
+--      way for a pack to take a preset, a spec or a profile with it.
 --
 --  There is deliberately no license check, expiry, or key. A string is text
 --  and always will be; what a subscription buys is the next version. The
@@ -131,7 +132,6 @@ function ns.ExportPack(packName, author)
     end
     local data, any = DataFromProfile(db)
     if not any then return nil, "There is nothing to export yet." end
-
 
     local payload = {
         format  = PACK_FORMAT,
@@ -283,11 +283,6 @@ end
 -- wantSpecs, when given, is a set of spec keys to take; the spec-keyed sections are filtered
 -- to it and everything else comes across whole. Nil means the whole pack, which is what an
 -- older caller and the merge path both expect.
--- The sections keyed by spec, one way or another: three by the spec id itself, bossLists by
--- "spec:encounter". Everything else in a pack belongs to no spec in particular.
-local SPEC_KEYED = {
-    presets = true, activePreset = true, abilityBindings = true, bossLists = true,
-}
 
 local function FilterToSpecs(field, incoming, wantSpecs)
     if not wantSpecs then return Copy(incoming) end
@@ -363,47 +358,43 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
     return true, landed
 end
 
-function ns.ApplyPack(payload, mode, wantSpecs, wantSettings, remapSpec)
-    if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
-    local db = ns.DB()
+-- A name no existing profile has. "Naowh Raid", then "Naowh Raid 2", and so on.
+local function FreeProfileName(base)
+    base = (type(base) == "string" and base ~= "") and base or "Imported Profile"
+    local taken = {}
+    local names = ns.ListProfiles and ns.ListProfiles() or {}
+    for i = 1, #names do taken[names[i]] = true end
+    if not taken[base] then return base end
+    local n = 2
+    while taken[base .. " " .. n] do n = n + 1 end
+    return base .. " " .. n
+end
 
-    local staged = {}
+-- Import as a NEW profile, always. Nothing the importer already has is touched, so there is
+-- no merge-or-replace to get wrong and no way for a pack to take a spec, a preset or a whole
+-- profile with it -- which is what replace did on this account, twice. Their own profile is
+-- still there; switching back to it restores everything exactly as it was.
+--
+-- The profile is fresh, so the sections copy in wholesale: there is nothing underneath to
+-- merge with, which is the other half of why this is simpler than what it replaces.
+function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, remapSpec)
+    if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
+    local name = FreeProfileName(payload.name)
+    local tr = ns.EnsureProfile and ns.EnsureProfile(name)
+    if not tr then return false end
+
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
         local incoming = payload.data[sec.field]
         if type(incoming) == "table" then
-            local taken = FilterToSpecs(sec.field, incoming, wantSpecs)
-            -- A spec-keyed section always merges, whatever the button said, and whether or
-            -- not specs were picked. Replace means "match the curator", but replacing one of
-            -- these wholesale drops every spec the pack does not mention: importing a pack
-            -- built on a Paladin took a Warrior list with it, on this account, tonight. The
-            -- specs the pack DOES carry are still replaced outright, so matching the curator
-            -- still holds for everything the pack has an opinion about.
-            if SPEC_KEYED[sec.field] or wantSpecs
-                or (mode == "merge" and type(db[sec.field]) == "table") then
-                local merged = type(db[sec.field]) == "table" and Copy(db[sec.field]) or {}
-                for k, v in pairs(taken) do merged[k] = v end
-                staged[sec.field] = merged
-            else
-                staged[sec.field] = taken
-            end
+            tr[sec.field] = FilterToSpecs(sec.field, incoming, wantSpecs)
         end
     end
 
-    -- Boss ability choices are the one spec-keyed thing whose CONTENTS are not class
-    -- specific: encounter ids and the boss's own spell ids, which mean the same on every
-    -- character. They are stored per spec because two specs of one class want different
-    -- abilities, and that is right -- but it also means a pack built on a Paladin lands
-    -- under 66 and a Death Knight reading 250 finds nothing, which is what "the ability
-    -- settings did not copy over" has meant every time it has been reported.
-    --
-    -- Asked for, not automatic: someone importing a curator's Blood profile onto their Blood
-    -- DK wants no remap at all, and silently folding four specs into one would be worse than
-    -- the gap. Only abilityBindings moves -- presets are that class's own spells and cannot.
-    if remapSpec and type(staged.abilityBindings) == "table" then
-        local target = staged.abilityBindings[remapSpec]
+    if remapSpec and type(tr.abilityBindings) == "table" then
+        local target = tr.abilityBindings[remapSpec]
         if type(target) ~= "table" then target = {} end
-        for specKey, byEncounter in pairs(staged.abilityBindings) do
+        for specKey, byEncounter in pairs(tr.abilityBindings) do
             if specKey ~= remapSpec and type(byEncounter) == "table" then
                 for enc, abilities in pairs(byEncounter) do
                     if type(target[enc]) ~= "table" then target[enc] = {} end
@@ -413,41 +404,31 @@ function ns.ApplyPack(payload, mode, wantSpecs, wantSettings, remapSpec)
                 end
             end
         end
-        staged.abilityBindings[remapSpec] = target
+        tr.abilityBindings[remapSpec] = target
     end
 
-    for field, value in pairs(staged) do db[field] = value end
-    -- The profile now carries someone else's pack, so it stops being shareable: a
-    -- curator's string must not be re-exported by an importer. The mark lives in the
-    -- profile (Reset clears it, Copy carries it) and is never itself exported --
-    -- ExportPack only walks SECTIONS.
-    db.importedPack = {
-        name = tostring(payload.name or "a pack"),
-        author = tostring(payload.author or "its curator"),
-    }
-    if type(payload.data.leadTime) == "number" and mode ~= "merge" then
-        db.leadTime = payload.data.leadTime
-    end
-    if type(payload.data.voiceNone) == "string" and payload.data.voiceNone ~= ""
-        and mode ~= "merge" then
-        db.voiceNone = payload.data.voiceNone
-    end
-
-    -- Opt-in, because a pack is shared: taking someone's lists should not silently move
-    -- your alert, resize it, change its sound or switch the addon on. The import dialog
-    -- offers it ticked, since matching the curator is what most people importing a UI want.
     if wantSettings and type(payload.data.settings) == "table" then
         for k, v in pairs(payload.data.settings) do
             if k == "pos" then
-                if type(v) == "table" then db.pos = Copy(v) end
+                if type(v) == "table" then tr.pos = Copy(v) end
             else
-                db[k] = v
+                tr[k] = v
             end
         end
     end
+    if type(payload.data.leadTime) == "number" then tr.leadTime = payload.data.leadTime end
+    if type(payload.data.voiceNone) == "string" and payload.data.voiceNone ~= "" then
+        tr.voiceNone = payload.data.voiceNone
+    end
 
+    tr.importedPack = {
+        name = tostring(payload.name or "a pack"),
+        author = tostring(payload.author or "its curator"),
+    }
+
+    if ns.SwitchProfile then ns.SwitchProfile(name) end
     ns.RefreshRuntime()
-    return true
+    return true, name
 end
 
 -------------------------------------------------------------------------------
@@ -636,7 +617,7 @@ function ns.ShowPackImport()
     preview:SetText("Paste a pack string above.")
 
     local decoded
-    local applyBtn, mergeBtn
+    local applyBtn
 
     -- One row per spec the pack carries, so a curator's ten-class string can be taken a
     -- class at a time. Built once and reused: this dialog is cached between opens, and the
@@ -780,7 +761,7 @@ function ns.ShowPackImport()
         end
         BuildSpecRows(payload)
         local on = payload ~= nil
-        for _, b in ipairs({ applyBtn, mergeBtn }) do
+        for _, b in ipairs({ applyBtn }) do
             if b then
                 if on then b:Enable(); b:SetAlpha(1) else b:Disable(); b:SetAlpha(0.35) end
             end
@@ -788,7 +769,7 @@ function ns.ShowPackImport()
     end
     box:SetScript("OnTextChanged", function(_, user) if user then Revalidate() end end)
 
-    local function Finish(mode)
+    local function Finish()
         if not decoded then return end
         -- Nil rather than an empty set when every spec is ticked, so a pack whose specs are
         -- all wanted still takes the plain replace path and matches the curator exactly.
@@ -836,8 +817,10 @@ function ns.ShowPackImport()
         if #specs > 0 and not all then want = specWanted end
         local mine = ns.CurrentSpec and ns.CurrentSpec()
         local remap = (remapWanted and mine and mine > 0) and tostring(mine) or nil
-        if ns.ApplyPack(decoded, mode, want, settingsWanted, remap) then
-            ns.Print(("pack applied (%s)."):format(mode))
+        local ok, newName = ns.ImportPackAsProfile(decoded, want, settingsWanted, remap)
+        if ok then
+            ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
+                .. "is untouched -- switch back to it any time."):format(tostring(newName)))
             dimmer:Hide()
             local EUI = ns.UI
             if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
@@ -846,14 +829,13 @@ function ns.ShowPackImport()
         end
     end
 
-    -- Replace makes you match the curator; merge keeps your own entries where
-    -- the pack has none. Both stated on the buttons rather than in a manual.
-    applyBtn = ns.Button(panel, "Replace Mine", 130, 26, function() Finish("replace") end)
-    applyBtn:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 100, 14)
-    mergeBtn = ns.Button(panel, "Merge Into Mine", 130, 26, function() Finish("merge") end)
-    mergeBtn:SetPoint("BOTTOM", panel, "BOTTOM", 60, 14)
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 14)
+    -- Import or Cancel, and nothing else to weigh up. Merge and Replace were a choice about
+    -- what a pack should do to the profile you were standing in; now it never touches it, so
+    -- there is no question to put.
+    applyBtn = ns.Button(panel, "Import", 130, 26, function() Finish() end)
+    applyBtn:SetPoint("BOTTOM", panel, "BOTTOM", -70, 14)
+    ns.Button(panel, "Cancel", 110, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 70, 14)
 
     packImport = { dimmer = dimmer, box = box, Revalidate = Revalidate }
     Revalidate()
