@@ -1191,6 +1191,20 @@ local lastAggroCheck   -- { sid, verdict, path }
 -- Coiled Altar with the whole map populated -- every single callout logged the
 -- no-match path, in both phases, for both severs.
 local castSourceGUID = {}
+-- Threat is read at the instant the callout is due, and it does not hold steady for a tank
+-- who has the boss the whole time: UnitThreatSituation drops below 2 while the boss is
+-- mid-cast with no melee target, across a stage change, and while it is untargetable. Live
+-- capture on Ula'tek, one tank on the boss for the whole pull: three callouts went through
+-- on boss:boss1 and two were refused seconds later with boss1=false.
+--
+-- So a refusal is only believed if we have not just seen the player tanking that unit. The
+-- grace is short enough that a real taunt swap starts calling for the other tank within a
+-- few seconds, and the direction is the safe one: an extra call costs a moment, a swallowed
+-- tank buster costs the pull.
+-- ns fields, not chunk locals: this chunk is at the 200-local ceiling.
+ns.TANKED_GRACE = 6
+ns.lastTankedAt = {}
+
 local function TankingCaster(sid)
     local ownerSlot = ns.TANK_ABILITY_OWNER_UNIT and ns.TANK_ABILITY_OWNER_UNIT[sid]
     if ownerSlot then
@@ -1198,7 +1212,14 @@ local function TankingCaster(sid)
         if UnitExists(unit) then
             local verdict = UnitTankedVerdict(unit)
             if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
-            return verdict, "boss:" .. unit
+            if verdict then
+                ns.lastTankedAt[unit] = GetTime()
+                return true, "boss:" .. unit
+            end
+            if (GetTime() - (ns.lastTankedAt[unit] or 0)) <= ns.TANKED_GRACE then
+                return true, "boss:" .. unit .. ":recent"
+            end
+            return false, "boss:" .. unit
         end
         -- Slot empty: the owner is dead or not out yet and someone else is taking the
         -- hit. DBM's own Twin Fangs module handles the same case the same way.
