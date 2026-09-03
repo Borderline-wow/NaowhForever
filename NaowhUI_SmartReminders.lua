@@ -3650,11 +3650,9 @@ function ns.SpecsWithBindings(encounterID)
                 end
             end
             if total > 0 then
-                local id = tonumber(specKey)
-                local ok, _, name = pcall(GetSpecializationInfoByID, id)
                 out[#out + 1] = {
                     key = specKey,
-                    name = (ok and name) or ("Spec " .. specKey),
+                    name = ns.SpecName(specKey),
                     here = here,
                     total = total,
                 }
@@ -6418,6 +6416,17 @@ function ns.SoundChoices()
     return paths, names, order
 end
 
+-- The plain settings a profile carries, for the pack exporter: everything DEFAULTS names,
+-- which is display, sound, voice, scope and behaviour. A fresh list rather than DEFAULTS
+-- itself so nothing can write back through it. `pos` is not in DEFAULTS -- it is a table and
+-- only exists once the alert has been moved -- so the exporter takes it separately.
+function ns.SettingKeys()
+    local out = {}
+    for k in pairs(DEFAULTS) do out[#out + 1] = k end
+    table.sort(out)
+    return out
+end
+
 ns.DB            = TRDB
 ns.UserList      = UserList
 ns.BossList      = BossList
@@ -6602,6 +6611,17 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         NoteOwnCast(arg3)   -- (unit, castGUID, spellID); unit is always "player" here
         ns.HideIfCalloutPressed(arg3)
         return
+    end
+
+    -- Login and spec change are where a profile bound to a spec takes effect. It runs before
+    -- everything below rather than returning: PLAYER_LOGIN has its own handler further down
+    -- that registers the boss mod hooks and the CVar callbacks, and returning here would skip
+    -- them. SwitchProfile clears the cached root, so whatever reads settings after this --
+    -- including that handler -- already sees the new profile.
+    if event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_LOGIN"
+        or event == "PLAYER_ENTERING_WORLD" then
+        RefreshSpec()
+        if ns.ApplySpecProfile then ns.ApplySpecProfile(specID) end
     end
 
     if event == "PLAYER_REGEN_DISABLED" then

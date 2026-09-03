@@ -13,9 +13,10 @@
 --      version, what is inside, counts -- before anything applies.
 --    * NEVER PARTIAL. The payload is validated and staged whole; a bad
 --      string is refused outright rather than half-applied.
---    * MERGE OR REPLACE is the importer's explicit choice. Merge keeps the
---      player's own entries where the pack has none; replace makes the
---      player's copy match the pack for every section the pack carries.
+--    * NEVER OVERWRITES. An import lands in a NEW profile and switches to it,
+--      so the importer's own profile is untouched and going back to it restores
+--      everything they had. There is no merge-or-replace to get wrong, and no
+--      way for a pack to take a preset, a spec or a profile with it.
 --
 --  There is deliberately no license check, expiry, or key. A string is text
 --  and always will be; what a subscription buys is the next version. The
@@ -92,6 +93,33 @@ local function Copy(v)
     return out
 end
 
+-- One profile's worth of pack data. Split out of ExportPack so a whole-file export can run
+-- it over every profile without loading each one in turn: profiles other than the active one
+-- are read straight from saved variables and never become the live table.
+local function DataFromProfile(tr)
+    local data, any = {}, false
+    for i = 1, #SECTIONS do
+        local sec = SECTIONS[i]
+        local t = tr[sec.field]
+        if type(t) == "table" and next(t) ~= nil then
+            data[sec.field] = Copy(t)
+            any = true
+        end
+    end
+    data.leadTime = tr.leadTime
+    data.voiceNone = tr.voiceNone
+    local settings = {}
+    local keys = ns.SettingKeys and ns.SettingKeys() or {}
+    for i = 1, #keys do
+        local v = tr[keys[i]]
+        local vt = type(v)
+        if vt == "number" or vt == "string" or vt == "boolean" then settings[keys[i]] = v end
+    end
+    if type(tr.pos) == "table" then settings.pos = Copy(tr.pos) end
+    if next(settings) ~= nil then data.settings = settings end
+    return data, any
+end
+
 function ns.ExportPack(packName, author)
     local Ser, LD = Codec()
     if not Ser then return nil, "The serializer libraries are missing from this build." end
@@ -102,20 +130,8 @@ function ns.ExportPack(packName, author)
             .. "be shared onward. Build your own profile to share one."):format(
             db.importedPack.name, db.importedPack.author)
     end
-    local data, any = {}, false
-    for i = 1, #SECTIONS do
-        local sec = SECTIONS[i]
-        local t = db[sec.field]
-        if type(t) == "table" and next(t) ~= nil then
-            data[sec.field] = Copy(t)
-            any = true
-        end
-    end
+    local data, any = DataFromProfile(db)
     if not any then return nil, "There is nothing to export yet." end
-
-    -- Carried but never required: an importer on defaults keeps their own.
-    data.leadTime = db.leadTime
-    data.voiceNone = db.voiceNone
 
     local payload = {
         format  = PACK_FORMAT,
@@ -123,6 +139,49 @@ function ns.ExportPack(packName, author)
         author  = (author and author ~= "") and author or (UnitName and UnitName("player")) or "unknown",
         made    = date and date("%Y-%m-%d") or "",
         data    = data,
+    }
+    local ok, serialized = pcall(Ser.Serialize, payload)
+    if not ok then return nil, "The pack could not be serialized." end
+    local compressed = LD:CompressDeflate(serialized)
+    return PREFIX .. LD:EncodeForPrint(compressed)
+end
+
+-- Every profile in one string, for a curator who keeps a profile per class rather than one
+-- profile holding every spec. Both shapes are legitimate -- a profile accumulates specs, so
+-- ten classes fit in one -- but a seller building them separately would otherwise have to
+-- hand out ten strings and talk the buyer through ten imports.
+--
+-- Reads the stored settings of each profile directly; only the active one is ever the live
+-- table, and loading each in turn to export it would switch the player around their own
+-- characters.
+function ns.ExportAllProfiles(packName, author)
+    local Ser, LD = Codec()
+    if not Ser then return nil, "The serializer libraries are missing from this build." end
+
+    local profiles, count = {}, 0
+    local names = ns.ListProfiles and ns.ListProfiles() or {}
+    for i = 1, #names do
+        local tr = ns.ProfileSettings and ns.ProfileSettings(names[i])
+        if tr then
+            -- An imported profile is not the exporter's to pass on, the same rule the
+            -- single-profile export follows; it is skipped rather than failing the lot.
+            if type(tr.importedPack) ~= "table" then
+                local data, any = DataFromProfile(tr)
+                if any then
+                    profiles[names[i]] = data
+                    count = count + 1
+                end
+            end
+        end
+    end
+    if count == 0 then return nil, "None of your profiles have anything in them yet." end
+
+    local payload = {
+        format   = PACK_FORMAT,
+        name     = (packName and packName ~= "") and packName or "Reminder Pack",
+        author   = (author and author ~= "") and author or (UnitName and UnitName("player")) or "unknown",
+        made     = date and date("%Y-%m-%d") or "",
+        profiles = profiles,
     }
     local ok, serialized = pcall(Ser.Serialize, payload)
     if not ok then return nil, "The pack could not be serialized." end
@@ -152,20 +211,38 @@ function ns.DecodePack(str)
     if payload.format ~= PACK_FORMAT then
         return nil, "This pack needs a newer version of the addon."
     end
-    if type(payload.data) ~= "table" then return nil, "The pack is empty." end
+    local multi = type(payload.profiles) == "table" and next(payload.profiles) ~= nil
+    if not multi and type(payload.data) ~= "table" then return nil, "The pack is empty." end
 
     local parts = {}
-    for i = 1, #SECTIONS do
-        local sec = SECTIONS[i]
-        local n = CountSection(sec.count, payload.data[sec.field])
-        if n > 0 then parts[#parts + 1] = ("%d %s"):format(n, sec.label) end
+    if multi then
+        -- Named, with what each carries, so the preview says what is about to land rather
+        -- than a count of profiles.
+        local names = {}
+        for name in pairs(payload.profiles) do names[#names + 1] = name end
+        table.sort(names, function(a, b) return a:lower() < b:lower() end)
+        for i = 1, #names do
+            local specs = ns.PackSpecs({ data = payload.profiles[names[i]] })
+            local specText
+            for j = 1, #specs do
+                specText = specText and (specText .. ", " .. specs[j].name) or specs[j].name
+            end
+            parts[#parts + 1] = ("|cff0091ed%s|r%s"):format(names[i],
+                specText and (" -- " .. specText) or "")
+        end
+    else
+        for i = 1, #SECTIONS do
+            local sec = SECTIONS[i]
+            local n = CountSection(sec.count, payload.data[sec.field])
+            if n > 0 then parts[#parts + 1] = ("%d %s"):format(n, sec.label) end
+        end
     end
     if #parts == 0 then return nil, "The pack is empty." end
 
     local desc = ("|cff0091ed%s|r by %s%s|n%s"):format(
         tostring(payload.name), tostring(payload.author),
         payload.made ~= "" and (" (" .. payload.made .. ")") or "",
-        table.concat(parts, ", "))
+        table.concat(parts, multi and "|n" or ", "))
     return payload, desc
 end
 
@@ -173,44 +250,185 @@ end
 -- overwrites the local one. mode "merge": pack entries win per key, local
 -- entries the pack lacks survive. Either way the write happens LAST, after
 -- everything staged cleanly, so a failure cannot leave a half-applied pack.
-function ns.ApplyPack(payload, mode)
-    if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
-    local db = ns.DB()
+-- Which specs a pack carries, named. presets, activePreset and abilityBindings are keyed by
+-- spec outright; bossLists keys are "spec:encounter". Everything else in a pack -- callout
+-- lines, audio switches, custom and raid reminders -- is keyed by spell or encounter and
+-- belongs to no spec in particular.
+--
+-- A profile accumulates a spec the first time it is configured there, and every character on
+-- an account shares one profile unless it is changed, so a curator who plays ten classes
+-- ends up with all ten in a single string.
+function ns.PackSpecs(payload)
+    if type(payload) ~= "table" or type(payload.data) ~= "table" then return {} end
+    local d, seen = payload.data, {}
+    for _, field in ipairs({ "presets", "activePreset", "abilityBindings" }) do
+        if type(d[field]) == "table" then
+            for k in pairs(d[field]) do seen[tostring(k)] = true end
+        end
+    end
+    if type(d.bossLists) == "table" then
+        for k in pairs(d.bossLists) do
+            local spec = tostring(k):match("^(%d+):")
+            if spec then seen[spec] = true end
+        end
+    end
+    local out = {}
+    for key in pairs(seen) do
+        out[#out + 1] = { key = key, name = ns.SpecName(key) }
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
 
-    local staged = {}
+-- wantSpecs, when given, is a set of spec keys to take; the spec-keyed sections are filtered
+-- to it and everything else comes across whole. Nil means the whole pack, which is what an
+-- older caller and the merge path both expect.
+
+local function FilterToSpecs(field, incoming, wantSpecs)
+    if not wantSpecs then return Copy(incoming) end
+    local out = {}
+    if field == "bossLists" then
+        for k, v in pairs(incoming) do
+            local spec = tostring(k):match("^(%d+):")
+            if spec and wantSpecs[spec] then out[k] = Copy(v) end
+        end
+    elseif field == "presets" or field == "activePreset" or field == "abilityBindings" then
+        for k, v in pairs(incoming) do
+            if wantSpecs[tostring(k)] then out[k] = Copy(v) end
+        end
+    else
+        return Copy(incoming)
+    end
+    return out
+end
+
+-- A whole-file pack: several named profiles at once. Each lands in a profile of that name,
+-- created if it is new, and the importer stays where they are -- switching them into a
+-- stranger's profile as a side effect of importing would be its own surprise. They pick
+-- one from Active Profile afterwards.
+--
+-- Existing profiles of the same name are merged into per key rather than replaced, so a
+-- buyer who already has a "Default" keeps whatever the seller's does not mention.
+function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
+    if type(payload) ~= "table" or type(payload.profiles) ~= "table" then return false end
+    local landed = 0
+    for name, data in pairs(payload.profiles) do
+        if (not wantProfiles or wantProfiles[name]) and type(data) == "table" then
+            local tr = ns.EnsureProfile and ns.EnsureProfile(name)
+            if tr then
+                for i = 1, #SECTIONS do
+                    local sec = SECTIONS[i]
+                    local incoming = data[sec.field]
+                    if type(incoming) == "table" then
+                        if type(tr[sec.field]) ~= "table" then tr[sec.field] = {} end
+                        for k, v in pairs(incoming) do tr[sec.field][k] = Copy(v) end
+                    end
+                end
+                if wantSettings and type(data.settings) == "table" then
+                    for k, v in pairs(data.settings) do
+                        if k == "pos" then
+                            if type(v) == "table" then tr.pos = Copy(v) end
+                        else
+                            tr[k] = v
+                        end
+                    end
+                end
+                -- Marked the same way a single-profile import is: what arrived from someone
+                -- else is not the importer's to sell on.
+                tr.importedPack = {
+                    name = tostring(payload.name or "a pack"),
+                    author = tostring(payload.author or "its curator"),
+                }
+                -- Bind each landed profile to the specs it carries, so the character that
+                -- plays one lands on it without being told which is theirs. A profile
+                -- covering several specs claims each of them; the last profile to claim a
+                -- spec wins, which is the same rule a curator applies by naming them.
+                if bindSpecs then
+                    local specs = ns.PackSpecs({ data = data })
+                    for si = 1, #specs do
+                        ns.SetSpecProfile(tonumber(specs[si].key), name)
+                    end
+                end
+                landed = landed + 1
+            end
+        end
+    end
+    if landed == 0 then return false end
+    ns.RefreshRuntime()
+    return true, landed
+end
+
+-- A name no existing profile has. "Naowh Raid", then "Naowh Raid 2", and so on.
+local function FreeProfileName(base)
+    base = (type(base) == "string" and base ~= "") and base or "Imported Profile"
+    local taken = {}
+    local names = ns.ListProfiles and ns.ListProfiles() or {}
+    for i = 1, #names do taken[names[i]] = true end
+    if not taken[base] then return base end
+    local n = 2
+    while taken[base .. " " .. n] do n = n + 1 end
+    return base .. " " .. n
+end
+
+-- Import as a NEW profile, always. Nothing the importer already has is touched, so there is
+-- no merge-or-replace to get wrong and no way for a pack to take a spec, a preset or a whole
+-- profile with it -- which is what replace did on this account, twice. Their own profile is
+-- still there; switching back to it restores everything exactly as it was.
+--
+-- The profile is fresh, so the sections copy in wholesale: there is nothing underneath to
+-- merge with, which is the other half of why this is simpler than what it replaces.
+function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, remapSpec)
+    if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
+    local name = FreeProfileName(payload.name)
+    local tr = ns.EnsureProfile and ns.EnsureProfile(name)
+    if not tr then return false end
+
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
         local incoming = payload.data[sec.field]
         if type(incoming) == "table" then
-            if mode == "merge" and type(db[sec.field]) == "table" then
-                local merged = Copy(db[sec.field])
-                for k, v in pairs(incoming) do merged[k] = Copy(v) end
-                staged[sec.field] = merged
-            else
-                staged[sec.field] = Copy(incoming)
-            end
+            tr[sec.field] = FilterToSpecs(sec.field, incoming, wantSpecs)
         end
     end
 
-    for field, value in pairs(staged) do db[field] = value end
-    -- The profile now carries someone else's pack, so it stops being shareable: a
-    -- curator's string must not be re-exported by an importer. The mark lives in the
-    -- profile (Reset clears it, Copy carries it) and is never itself exported --
-    -- ExportPack only walks SECTIONS.
-    db.importedPack = {
+    if remapSpec and type(tr.abilityBindings) == "table" then
+        local target = tr.abilityBindings[remapSpec]
+        if type(target) ~= "table" then target = {} end
+        for specKey, byEncounter in pairs(tr.abilityBindings) do
+            if specKey ~= remapSpec and type(byEncounter) == "table" then
+                for enc, abilities in pairs(byEncounter) do
+                    if type(target[enc]) ~= "table" then target[enc] = {} end
+                    for sid, binding in pairs(abilities) do
+                        target[enc][sid] = Copy(binding)
+                    end
+                end
+            end
+        end
+        tr.abilityBindings[remapSpec] = target
+    end
+
+    if wantSettings and type(payload.data.settings) == "table" then
+        for k, v in pairs(payload.data.settings) do
+            if k == "pos" then
+                if type(v) == "table" then tr.pos = Copy(v) end
+            else
+                tr[k] = v
+            end
+        end
+    end
+    if type(payload.data.leadTime) == "number" then tr.leadTime = payload.data.leadTime end
+    if type(payload.data.voiceNone) == "string" and payload.data.voiceNone ~= "" then
+        tr.voiceNone = payload.data.voiceNone
+    end
+
+    tr.importedPack = {
         name = tostring(payload.name or "a pack"),
         author = tostring(payload.author or "its curator"),
     }
-    if type(payload.data.leadTime) == "number" and mode ~= "merge" then
-        db.leadTime = payload.data.leadTime
-    end
-    if type(payload.data.voiceNone) == "string" and payload.data.voiceNone ~= ""
-        and mode ~= "merge" then
-        db.voiceNone = payload.data.voiceNone
-    end
 
+    if ns.SwitchProfile then ns.SwitchProfile(name) end
     ns.RefreshRuntime()
-    return true
+    return true, name
 end
 
 -------------------------------------------------------------------------------
@@ -261,7 +479,10 @@ function ns.ShowPackExport()
         packExport.dimmer:Show()
         return
     end
-    local dimmer, panel = ns.MakeModal(560, 330, "packExport")
+    -- 392, not 330: the text box runs to -258 and the "every profile" tick has to sit clear
+    -- BELOW it. At the old height it landed inside the box, which swallowed every click on
+    -- it -- the box is an EditBox that grows with its content and takes the mouse.
+    local dimmer, panel = ns.MakeModal(560, 392, "packExport")
     -- ns.Font, not a guard on ns.MakeFontString: that name is defined nowhere in the addon,
     -- so the guard was always false and this title alone skipped the shared helper every
     -- other heading here uses.
@@ -282,18 +503,56 @@ function ns.ShowPackExport()
 
     local box = ns.MakeMultilineBox(panel, -78, 180)
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 46)
+    status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 62)
+
+    local everyProfile, allBtn = false, nil
 
     local function Regenerate()
-        local str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
+        local str, err
+        if everyProfile then
+            str, err = ns.ExportAllProfiles(nameBox:GetText(), UnitName and UnitName("player"))
+        else
+            str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
+        end
         if str then
             box:SetText(str)
-            status:SetText(("%d characters. Click the text, then Ctrl+A Ctrl+C."):format(#str))
+            -- Named, not counted. A curator sharing a set for ten classes wants to see that
+            -- all ten went in, and the only way to be sure was to import it somewhere.
+            local names
+            if everyProfile then
+                local profs = ns.ListProfiles and ns.ListProfiles() or {}
+                for i = 1, #profs do
+                    names = names and (names .. ", " .. profs[i]) or profs[i]
+                end
+            else
+                local specs = ns.PackSpecs({ data = { presets = ns.DB().presets,
+                    activePreset = ns.DB().activePreset, bossLists = ns.DB().bossLists,
+                    abilityBindings = ns.DB().abilityBindings } })
+                for i = 1, #specs do
+                    names = names and (names .. ", " .. specs[i].name) or specs[i].name
+                end
+            end
+            status:SetText(("%d characters%s. Click the text, then Ctrl+A Ctrl+C."):format(
+                #str, names and (" covering " .. names) or ""))
         else
             box:SetText("")
             status:SetText("|cffff6060" .. tostring(err) .. "|r")
         end
     end
+
+    -- A curator keeping a profile per class needs one string, not ten. Off by default: the
+    -- usual case is sharing the setup you are standing in.
+    allBtn = ns.Button(panel, "", 300, 22, function()
+        everyProfile = not everyProfile
+        allBtn.label:SetText((everyProfile and "|cff0091ed[x]|r  " or "[  ]  ")
+            .. "Every profile, not just this one")
+        Regenerate()
+    end)
+    allBtn:SetPoint("BOTTOM", panel, "BOTTOM", 0, 108)
+    -- Above the scroll frame either way, so a box grown by a long string cannot cover it.
+    allBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
+    allBtn.label:SetText("[  ]  Every profile, not just this one")
+
     box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     -- The string is display-only: retyping into it produces nothing valid, so
     -- any edit just regenerates from the real settings.
@@ -301,7 +560,7 @@ function ns.ShowPackExport()
     nameBox:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
 
     ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
 
     packExport = { dimmer = dimmer, Regenerate = Regenerate }
     Regenerate()
@@ -350,7 +609,7 @@ function ns.ShowPackImport()
         packImport.box:SetFocus()
         return
     end
-    local dimmer, panel = ns.MakeModal(560, 330, "packImport")
+    local dimmer, panel = ns.MakeModal(560, 470, "packImport")
     local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Import Profile")
@@ -363,7 +622,171 @@ function ns.ShowPackImport()
     preview:SetText("Paste a pack string above.")
 
     local decoded
-    local applyBtn, mergeBtn
+    local applyBtn
+
+    -- One row per spec the pack carries, so a curator's ten-class string can be taken a
+    -- class at a time. Built once and reused: this dialog is cached between opens, and the
+    -- rows have to survive pasting a different string into the same window.
+    local specRows, specWanted = {}, {}
+    local settingsWanted, settingsBtn = true, nil
+    local remapWanted, remapBtn = false, nil
+    local bindWanted, bindBtn = true, nil
+    -- Anchored under the preview rather than at a fixed offset: the preview grows a line per
+    -- profile in the pack, and at a fixed offset the two ran into each other the moment a
+    -- string carried more than one.
+    local specHead = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    specHead:SetPoint("TOPLEFT", preview, "BOTTOMLEFT", 0, -12)
+    specHead:SetJustifyH("LEFT")
+    specHead:Hide()
+
+    local function BuildSpecRows(payload)
+        for i = 1, #specRows do specRows[i]:Hide() end
+        if settingsBtn then settingsBtn:Hide() end
+        if remapBtn then remapBtn:Hide() end
+        if bindBtn then bindBtn:Hide() end
+        wipe(specWanted)
+        -- A whole-file pack is a list of PROFILES; a single-profile one is a list of specs
+        -- inside it. Same rows either way, and the same wanted set drives the apply.
+        local multi = payload and type(payload.profiles) == "table"
+        local specs = {}
+        if multi then
+            local names = {}
+            for name in pairs(payload.profiles) do names[#names + 1] = name end
+            table.sort(names, function(a, b) return a:lower() < b:lower() end)
+            for i = 1, #names do specs[i] = { key = names[i], name = names[i] } end
+        elseif payload then
+            specs = ns.PackSpecs(payload)
+        end
+        if #specs == 0 then
+            specHead:Hide()
+            return
+        end
+        specHead:SetText(multi and "Bring in which profiles:" or "Bring in which of these:")
+        specHead:Show()
+        for i = 1, #specs do
+            local spec = specs[i]
+            specWanted[spec.key] = true
+            local btn = specRows[i]
+            if not btn then
+                btn = ns.Button(panel, "", 250, 22, nil)
+                -- Above the paste box: it is an EditBox that grows with its content, and
+                -- a whole-file string is long enough to reach down over these rows and
+                -- take their clicks. The export tick lost every click to exactly that.
+                btn:SetFrameLevel(panel:GetFrameLevel() + 10)
+                specRows[i] = btn
+            end
+            btn:ClearAllPoints()
+            btn:SetPoint("TOPLEFT", i == 1 and specHead or specRows[i - 1],
+                i == 1 and "BOTTOMLEFT" or "BOTTOMLEFT", i == 1 and 6 or 0, -6)
+            local function Paint()
+                -- ns.Button keeps its own font string; the frame has none of its own.
+                btn.label:SetText((specWanted[spec.key] and "|cff0091ed[x]|r  " or "[  ]  ")
+                    .. spec.name)
+            end
+            btn:SetScript("OnClick", function()
+                specWanted[spec.key] = not specWanted[spec.key] or nil
+                Paint()
+            end)
+            Paint()
+            btn:Show()
+        end
+
+        -- Offered only when the pack has them: an older string carries none.
+        if type(payload.data) == "table" and type(payload.data.settings) == "table" then
+            if not settingsBtn then
+                settingsBtn = ns.Button(panel, "", 320, 22, nil)
+                settingsBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
+            end
+            settingsBtn:ClearAllPoints()
+            settingsBtn:SetPoint("TOPLEFT", specRows[#specs] or specHead, "BOTTOMLEFT",
+                specRows[#specs] and 0 or 6, -10)
+            local function PaintSettings()
+                settingsBtn.label:SetText((settingsWanted and "|cff0091ed[x]|r  " or "[  ]  ")
+                    .. "Their display, sound and behaviour settings")
+            end
+            settingsBtn:SetScript("OnClick", function()
+                settingsWanted = not settingsWanted
+                PaintSettings()
+            end)
+            PaintSettings()
+            settingsBtn:Show()
+        elseif settingsBtn then
+            settingsBtn:Hide()
+        end
+
+        -- Offered only when it would actually do something: the pack has boss ability
+        -- choices, and none of them are already under the spec being played.
+        local mySpec = ns.CurrentSpec and ns.CurrentSpec()
+        local bindings = (not multi) and payload and type(payload.data) == "table"
+            and payload.data.abilityBindings
+        local elsewhere = false
+        if type(bindings) == "table" and mySpec and mySpec > 0 then
+            for specKey in pairs(bindings) do
+                if tostring(specKey) ~= tostring(mySpec) then elsewhere = true end
+            end
+        end
+        if elsewhere then
+            if not remapBtn then
+                remapBtn = ns.Button(panel, "", 380, 22, nil)
+                remapBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
+            end
+            remapBtn:ClearAllPoints()
+            remapBtn:SetPoint("TOPLEFT", (settingsBtn and settingsBtn:IsShown())
+                and settingsBtn or (specRows[#specs] or specHead), "BOTTOMLEFT",
+                (settingsBtn and settingsBtn:IsShown()) and 0
+                    or (specRows[#specs] and 0 or 6), -6)
+            local function PaintRemap()
+                remapBtn.label:SetText((remapWanted and "|cff0091ed[x]|r  " or "[  ]  ")
+                    .. "Use their boss ability choices on my " .. ns.SpecName(mySpec))
+            end
+            remapBtn:SetScript("OnClick", function()
+                remapWanted = not remapWanted
+                PaintRemap()
+            end)
+            PaintRemap()
+            remapBtn:Show()
+        elseif remapBtn then
+            remapBtn:Hide()
+        end
+
+        -- Only for a whole-file pack: binding one profile to its own specs would just
+        -- describe where the importer already is.
+        if multi then
+            if not bindBtn then
+                bindBtn = ns.Button(panel, "", 380, 22, nil)
+                bindBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
+            end
+            bindBtn:ClearAllPoints()
+            bindBtn:SetPoint("TOPLEFT", (settingsBtn and settingsBtn:IsShown())
+                and settingsBtn or (specRows[#specs] or specHead), "BOTTOMLEFT",
+                (settingsBtn and settingsBtn:IsShown()) and 0
+                    or (specRows[#specs] and 0 or 6), -6)
+            local function PaintBind()
+                bindBtn.label:SetText((bindWanted and "|cff0091ed[x]|r  " or "[  ]  ")
+                    .. "Use each on the character whose spec it covers")
+            end
+            bindBtn:SetScript("OnClick", function()
+                bindWanted = not bindWanted
+                PaintBind()
+            end)
+            PaintBind()
+            bindBtn:Show()
+        elseif bindBtn then
+            bindBtn:Hide()
+        end
+
+        -- The panel takes whatever the rows came to. A pack covering ten classes is ten rows
+        -- longer than one covering one, and a fixed height either wasted half the dialog or
+        -- ran the last rows under the Import button.
+        local last = (bindBtn and bindBtn:IsShown() and bindBtn)
+            or (remapBtn and remapBtn:IsShown() and remapBtn)
+            or (settingsBtn and settingsBtn:IsShown() and settingsBtn)
+            or specRows[#specs]
+        if last then
+            local used = panel:GetTop() - last:GetBottom()
+            panel:SetHeight(math.max(470, used + 74))
+        end
+    end
 
     local function Revalidate()
         local payload, descOrErr = ns.DecodePack(box:GetText())
@@ -373,8 +796,9 @@ function ns.ShowPackImport()
         else
             preview:SetText("|cffff6060" .. tostring(descOrErr) .. "|r")
         end
+        BuildSpecRows(payload)
         local on = payload ~= nil
-        for _, b in ipairs({ applyBtn, mergeBtn }) do
+        for _, b in ipairs({ applyBtn }) do
             if b then
                 if on then b:Enable(); b:SetAlpha(1) else b:Disable(); b:SetAlpha(0.35) end
             end
@@ -382,10 +806,58 @@ function ns.ShowPackImport()
     end
     box:SetScript("OnTextChanged", function(_, user) if user then Revalidate() end end)
 
-    local function Finish(mode)
+    local function Finish()
         if not decoded then return end
-        if ns.ApplyPack(decoded, mode) then
-            ns.Print(("pack applied (%s)."):format(mode))
+        -- Nil rather than an empty set when every spec is ticked, so a pack whose specs are
+        -- all wanted still takes the plain replace path and matches the curator exactly.
+        -- A whole-file pack lands its profiles and leaves the importer where they are; the
+        -- merge/replace choice is about one profile's sections and does not apply.
+        if type(decoded.profiles) == "table" then
+            local wantP, anyP = {}, false
+            for name in pairs(decoded.profiles) do
+                if specWanted[name] then wantP[name] = true; anyP = true end
+            end
+            if not anyP then
+                preview:SetText("|cffff6060Pick at least one profile to bring in.|r")
+                return
+            end
+            local ok, landed = ns.ApplyProfiles(decoded, wantP, settingsWanted, bindWanted)
+            if ok then
+                -- Turning the switching on is part of asking for the binding: a map nothing
+                -- consults would leave the tick looking broken.
+                if bindWanted then ns.AutoSpecProfile(true) end
+                ns.Print(("%d profile%s imported.%s"):format(landed,
+                    landed == 1 and "" or "s",
+                    bindWanted and " Each character will load the one for its spec."
+                        or " Pick one under Active Profile."))
+                if bindWanted and ns.ApplySpecProfile and ns.CurrentSpec then
+                    ns.ApplySpecProfile((ns.CurrentSpec()))
+                end
+                dimmer:Hide()
+                local EUIm = ns.UI
+                if EUIm and EUIm.RefreshPage then EUIm:RefreshPage(true) end
+            else
+                preview:SetText("|cffff6060The pack could not be applied.|r")
+            end
+            return
+        end
+
+        local want, all, any = nil, true, false
+        local specs = ns.PackSpecs(decoded)
+        for i = 1, #specs do
+            if specWanted[specs[i].key] then any = true else all = false end
+        end
+        if #specs > 0 and not any then
+            preview:SetText("|cffff6060Pick at least one to bring in.|r")
+            return
+        end
+        if #specs > 0 and not all then want = specWanted end
+        local mine = ns.CurrentSpec and ns.CurrentSpec()
+        local remap = (remapWanted and mine and mine > 0) and tostring(mine) or nil
+        local ok, newName = ns.ImportPackAsProfile(decoded, want, settingsWanted, remap)
+        if ok then
+            ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
+                .. "is untouched -- switch back to it any time."):format(tostring(newName)))
             dimmer:Hide()
             local EUI = ns.UI
             if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
@@ -394,14 +866,13 @@ function ns.ShowPackImport()
         end
     end
 
-    -- Replace makes you match the curator; merge keeps your own entries where
-    -- the pack has none. Both stated on the buttons rather than in a manual.
-    applyBtn = ns.Button(panel, "Replace Mine", 130, 26, function() Finish("replace") end)
-    applyBtn:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 100, 14)
-    mergeBtn = ns.Button(panel, "Merge Into Mine", 130, 26, function() Finish("merge") end)
-    mergeBtn:SetPoint("BOTTOM", panel, "BOTTOM", 60, 14)
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 14)
+    -- Import or Cancel, and nothing else to weigh up. Merge and Replace were a choice about
+    -- what a pack should do to the profile you were standing in; now it never touches it, so
+    -- there is no question to put.
+    applyBtn = ns.Button(panel, "Import", 130, 26, function() Finish() end)
+    applyBtn:SetPoint("BOTTOM", panel, "BOTTOM", -70, 14)
+    ns.Button(panel, "Cancel", 110, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 70, 14)
 
     packImport = { dimmer = dimmer, box = box, Revalidate = Revalidate }
     Revalidate()

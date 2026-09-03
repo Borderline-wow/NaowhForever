@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0902z"
+ns.CODE_BUILD = "0903k"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -140,6 +140,19 @@ end
 
 -- The house tooltip lives in the Widgets file (ns.UI); resolved at hover time since that
 -- file loads after this one.
+-- "Protection" alone names two classes, and a list that mixes them -- a pack covering every
+-- class, the raid reminder target picker -- reads as a puzzle. GetSpecializationInfoByID's
+-- seventh return is the localized class name, which is what Blizzard's own ClubFinder pairs
+-- it with. Falls back to the bare spec name, then to the id, so an unknown id still prints.
+function ns.SpecName(specID)
+    local id = tonumber(specID)
+    if not id then return tostring(specID) end
+    local ok, _, name, _, _, _, _, className = pcall(GetSpecializationInfoByID, id)
+    if not (ok and name) then return "Spec " .. id end
+    if className and className ~= "" then return name .. " " .. className end
+    return name
+end
+
 function ns.Tooltip(frame, title, body)
     -- Composed at HOVER time, not attach time: the tooltip accepts a function and
     -- resolves it on show, and a body that is itself a function can answer from data that
@@ -297,7 +310,14 @@ function ns.SettingsRoot()
     local sv = DB()
     local name = sv.charActive[CharKey()]
     if type(name) ~= "string" or type(sv.profiles[name]) ~= "table" then
-        name = type(name) == "string" and name or "Default"
+        -- A character with no assignment, or one pointing at a deleted profile, takes the
+        -- account default. That is "Default" until a new profile is made, which claims it --
+        -- so a character logged into for the first time afterwards joins the rest rather
+        -- than landing on an empty profile nobody chose.
+        name = type(name) == "string" and name or sv.defaultProfile or "Default"
+        if type(sv.profiles[name]) ~= "table" and type(sv.defaultProfile) == "string" then
+            name = sv.defaultProfile
+        end
         sv.charActive[CharKey()] = name
     end
     if type(sv.profiles[name]) ~= "table" then sv.profiles[name] = {} end
@@ -317,11 +337,72 @@ function ns.ListProfiles()
     return out
 end
 
+-- The stored settings of any profile, loaded or not, for the exporter. Read-only by
+-- intent: the caller copies out of it. Returns nil for a profile that has never been
+-- written to, which is a profile carrying nothing rather than an error.
+-- Which profile belongs to which spec, account-wide rather than inside a profile: it has to
+-- survive switching away from whichever profile is loaded, and it describes the whole set.
+-- Written by a whole-file import that was told to, and by a manual switch, so the map learns
+-- what the player actually chooses rather than fighting them.
+function ns.SpecProfileMap()
+    local sv = DB()
+    if type(sv.specProfile) ~= "table" then sv.specProfile = {} end
+    return sv.specProfile
+end
+
+function ns.SetSpecProfile(specID, name)
+    if not specID or specID == 0 then return end
+    ns.SpecProfileMap()[tostring(specID)] = name
+end
+
+-- Off unless asked for. Switching someone's profile out from under them on a spec change is
+-- the kind of helpfulness that reads as a bug, so it stays a choice.
+function ns.AutoSpecProfile(set)
+    local sv = DB()
+    if set ~= nil then sv.autoSpecProfile = set and true or nil end
+    return sv.autoSpecProfile == true
+end
+
+-- Called on login and on a spec change. Returns true when it actually switched, so a caller
+-- can tell whether the settings underneath it have moved.
+function ns.ApplySpecProfile(specID)
+    if not ns.AutoSpecProfile() then return false end
+    if not specID or specID == 0 then return false end
+    local sv = DB()
+    local want = ns.SpecProfileMap()[tostring(specID)]
+    -- A map entry pointing at a profile that has since been deleted is ignored rather than
+    -- recreating it: the player deleted it on purpose.
+    if not want or type(sv.profiles[want]) ~= "table" then return false end
+    if sv.charActive[CharKey()] == want then return false end
+    return (ns.SwitchProfile(want)) and true or false
+end
+
+function ns.ProfileSettings(name)
+    local p = DB().profiles[name]
+    return type(p) == "table" and type(p.tankReminder) == "table" and p.tankReminder or nil
+end
+
+-- Creates the profile if it is new. Used by a whole-file import, which has to land several
+-- profiles at once without switching to each in turn.
+function ns.EnsureProfile(name)
+    local sv = DB()
+    if type(sv.profiles[name]) ~= "table" then sv.profiles[name] = {} end
+    if type(sv.profiles[name].tankReminder) ~= "table" then
+        sv.profiles[name].tankReminder = {}
+    end
+    return sv.profiles[name].tankReminder
+end
+
 function ns.SwitchProfile(name)
     local sv = DB()
     if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
     sv.charActive[CharKey()] = name
     activeRoot = nil
+    -- The map learns from a deliberate switch, so choosing a profile while auto-switching is
+    -- on means "this one, for this spec" rather than a choice that is undone at the next
+    -- spec change. Recorded even with auto off, so turning it on later already knows.
+    local spec = ns.CurrentSpec and ns.CurrentSpec()
+    if spec and spec > 0 then ns.SetSpecProfile(spec, name) end
     ns.QueueReapply()
     return true
 end
@@ -333,11 +414,23 @@ local function ValidName(name)
     return name
 end
 
+-- A new profile becomes the account's: every character switches to it, and any logged into
+-- later starts there too. Asked for outright -- making a profile on one character and then
+-- finding the other nine still on the old one is the kind of thing that has cost real
+-- confusion tonight, twice, with an export taken from the wrong profile each time.
+--
+-- Per-character choices are still possible: switching a character afterwards moves only that
+-- one, and only until the next profile is created.
 function ns.CreateProfile(name)
     local err
     name, err = ValidName(name)
     if not name then return false, err end
-    DB().profiles[name] = {}
+    local sv = DB()
+    sv.profiles[name] = {}
+    sv.defaultProfile = name
+    for char in pairs(sv.charActive) do sv.charActive[char] = name end
+    activeRoot = nil
+    ns.QueueReapply()
     return true
 end
 
@@ -359,6 +452,21 @@ function ns.CopyProfile(src, name)
     return true
 end
 
+-- Reset any profile, not only the one in use. The live half -- hiding the alert, dropping
+-- the slot cache, re-registering events -- only applies when the profile being reset is the
+-- one this character is standing in; for any other, clearing its stored settings is the
+-- whole job and it rebuilds from defaults the next time it is loaded.
+function ns.ResetProfileNamed(name)
+    local sv = DB()
+    if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
+    if name == sv.charActive[CharKey()] then
+        if ns.Reset then ns.Reset() end
+        return true
+    end
+    sv.profiles[name].tankReminder = nil
+    return true
+end
+
 function ns.DeleteProfile(name)
     local sv = DB()
     if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
@@ -367,9 +475,14 @@ function ns.DeleteProfile(name)
     if count <= 1 then return false, "the last profile cannot be deleted" end
     local wasMine = sv.charActive[CharKey()] == name
     sv.profiles[name] = nil
-    -- Every character pointed at it falls back to Default, vivified on next read.
+    -- Every character pointed at it falls back to the account default, or to any surviving
+    -- profile if that was the one deleted -- "Default" may not exist at all once profiles
+    -- have been renamed around.
+    if sv.defaultProfile == name then sv.defaultProfile = nil end
+    local fallback = (type(sv.profiles[sv.defaultProfile or ""]) == "table")
+        and sv.defaultProfile or next(sv.profiles)
     for char, active in pairs(sv.charActive) do
-        if active == name then sv.charActive[char] = "Default" end
+        if active == name then sv.charActive[char] = fallback end
     end
     if wasMine then
         activeRoot = nil

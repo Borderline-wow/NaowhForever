@@ -1953,7 +1953,18 @@ function ns.BuildProfileSettings(parent, y)
               ns.SwitchProfile(v)
               EUI:RefreshPage(true)
           end },
-        { type = "label", text = "      Profiles are chosen per character." }
+        { type = "toggle", text = "Match My Spec",
+          tooltip = "Loads the profile bound to whatever spec you switch to, on login and on "
+          .. "every spec change. A whole-file import sets those bindings up; after that, "
+          .. "picking a profile yourself binds it to the spec you are playing.",
+          getValue = function() return ns.AutoSpecProfile() end,
+          setValue = function(v)
+              ns.AutoSpecProfile(v)
+              if v and ns.ApplySpecProfile and ns.CurrentSpec then
+                  ns.ApplySpecProfile((ns.CurrentSpec()))
+              end
+              EUI:RefreshPage(true)
+          end }
     ); y = y - h
 
     local profRow
@@ -1974,10 +1985,15 @@ function ns.BuildProfileSettings(parent, y)
             end)
         end)
         newBtn:SetPoint("LEFT", profRow._leftRegion, "LEFT", 20, 0)
-        ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings; this "
-            .. "character switches to it.")
-        local copyBtn = ns.Button(profRow._leftRegion, "Copy Profile", 110, 22, function()
-            ShowNamePrompt("Copy Profile", "Copy", "", function(text)
+        ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings. It becomes "
+            .. "the one every character on this account uses, including any you log into "
+            .. "later. Switch a single character afterwards if you want it on its own.")
+        -- "Save As", not "Copy": what it does is store what you have set up under a name of
+        -- your choosing, which is what someone looks for a Save button to do. There is no
+        -- plain Save because there is nothing to save -- every change is written into the
+        -- profile as it is made, and a button that did nothing would only suggest otherwise.
+        local copyBtn = ns.Button(profRow._leftRegion, "Save As New Profile", 150, 22, function()
+            ShowNamePrompt("Save As New Profile", "Save", "", function(text)
                 local ok, err = ns.CopyProfile(ns.ActiveProfileName(), text)
                 if not ok then ns.Print(err) return end
                 ns.SwitchProfile(text:match("^%s*(.-)%s*$"))
@@ -1985,63 +2001,69 @@ function ns.BuildProfileSettings(parent, y)
             end)
         end)
         copyBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
-        ns.Tooltip(copyBtn, "Copy Profile", "Duplicates this profile under a new name and "
-            .. "switches to the copy.")
-        local delBtn = ns.Button(profRow._rightRegion, "Delete", 90, 22, function()
-            local name = ns.ActiveProfileName()
-            local dimmer, panel = ns.MakeModal(340, 130, "profileDeleteConfirm")
-            local head = ns.Font(panel, 14, "OUTLINE")
-            head:SetPoint("TOP", panel, "TOP", 0, -16)
-            head:SetText("Delete '" .. name .. "'?")
-            local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
-            hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
-            hint:SetText("Cannot be undone.")
-            local yes = ns.Button(panel, "Delete", 100, 24, function()
-                local ok, err = ns.DeleteProfile(name)
-                if not ok then ns.Print(err) end
-                dimmer:Hide()
-                AfterChange()
-            end)
-            yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
-            local no = ns.Button(panel, "Cancel", 100, 24, function() dimmer:Hide() end)
-            no:SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
-            dimmer:Show()
-        end)
-        delBtn:SetPoint("RIGHT", profRow._rightRegion, "RIGHT", -14, 0)
-        ns.Tooltip(delBtn, "Delete", "Removes the active profile. Characters using it fall "
-            .. "back to Default. The last profile cannot be deleted.")
+        ns.Tooltip(copyBtn, "Save As New Profile", "Stores everything set up right now as a "
+            .. "new profile under a name you choose, and switches to it. Your current "
+            .. "profile is left as it was.")
     end
 
-    -- ns.Reset used to be reachable through the host window's own reset control; with the
-    -- addon standalone this row is its only door.
-    local resetRow
-    resetRow, h = W:DualRow(parent, y,
-        { type = "label", text = "      Reset the active profile to default." },
-        { type = "label", text = "" }
-    ); y = y - h
-    if resetRow and resetRow._rightRegion then
-        local btn = ns.Button(resetRow._rightRegion, "Reset Profile", 110, 22, function()
-            local dimmer, panel = ns.MakeModal(340, 130, "profileResetConfirm")
-            local head = ns.Font(panel, 14, "OUTLINE")
-            head:SetPoint("TOP", panel, "TOP", 0, -16)
-            head:SetText("Reset '" .. tostring(ns.ActiveProfileName()) .. "'?")
-            local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
-            hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
-            hint:SetText("Every setting in it returns to default. Cannot be undone.")
-            local yes = ns.Button(panel, "Reset", 100, 24, function()
-                if ns.Reset then ns.Reset() end
-                dimmer:Hide()
-                EUI:RefreshPage(true)
-            end)
-            yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
-            local no = ns.Button(panel, "Cancel", 100, 24, function() dimmer:Hide() end)
-            no:SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
-            dimmer:Show()
-        end)
-        btn:SetPoint("RIGHT", resetRow._rightRegion, "RIGHT", -14, 0)
-        ns.Tooltip(btn, "Reset Profile", "Wipes the active profile's settings back to "
-            .. "defaults. Other profiles are untouched.")
+    -- Reset and Delete pick their target rather than acting on whatever is loaded. Having to
+    -- switch to a profile before you could delete it meant loading the thing you were trying
+    -- to get rid of, and reading the confirm dialog as the only clue you were on the right
+    -- one. Northern Sky drives both from dropdowns; these do the same.
+    local pickValues, pickOrder = { [""] = "Choose a profile..." }, { "" }
+    for i = 1, #profNames do
+        pickValues[profNames[i]] = profNames[i]
+        pickOrder[#pickOrder + 1] = profNames[i]
     end
+
+    -- Confirms name the profile CHOSEN, not the one in use -- the whole point is that they
+    -- differ. Both reset to the placeholder afterwards through the page refresh.
+    local function ConfirmOn(title, hintText, verb, chosen, act)
+        local dimmer, panel = ns.MakeModal(360, 140, "profileActConfirm")
+        local head = ns.Font(panel, 14, "OUTLINE")
+        head:SetPoint("TOP", panel, "TOP", 0, -16)
+        head:SetText(("%s '%s'?"):format(title, chosen))
+        local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+        hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
+        hint:SetPoint("LEFT", panel, "LEFT", 16, 0)
+        hint:SetPoint("RIGHT", panel, "RIGHT", -16, 0)
+        hint:SetText(hintText)
+        local yes = ns.Button(panel, verb, 100, 24, function()
+            local ok, err = act(chosen)
+            if not ok and err then ns.Print(err) end
+            dimmer:Hide()
+            EUI:RefreshPage(true)
+        end)
+        yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
+        ns.Button(panel, "Cancel", 100, 24, function()
+            dimmer:Hide()
+            EUI:RefreshPage(true)
+        end):SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
+        dimmer:Show()
+    end
+
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Reset Profile",
+          values = pickValues, order = pickOrder,
+          tooltip = "Wipes the chosen profile's settings back to defaults. Every other "
+          .. "profile is untouched, and you do not have to be standing in it.",
+          getValue = function() return "" end,
+          setValue = function(v)
+              if v == "" then return end
+              ConfirmOn("Reset", "Every setting in it returns to default. Cannot be undone.",
+                  "Reset", v, ns.ResetProfileNamed)
+          end },
+        { type = "dropdown", text = "Delete Profile",
+          values = pickValues, order = pickOrder,
+          tooltip = "Removes the chosen profile. Characters using it fall back to Default, "
+          .. "and the last profile cannot be deleted.",
+          getValue = function() return "" end,
+          setValue = function(v)
+              if v == "" then return end
+              ConfirmOn("Delete", "Cannot be undone. Characters using it fall back to "
+                  .. "Default.", "Delete", v, ns.DeleteProfile)
+          end }
+    ); y = y - h
     local packRow
     packRow, h = W:DualRow(parent, y,
         { type = "label", text = "      Share your Smart Reminders" },
@@ -2149,10 +2171,7 @@ local function RaidReminderTargetDesc(target)
         local names = _G.LOCALIZED_CLASS_NAMES_MALE
         return (names and names[k]) or k
     end); if p then parts[#parts + 1] = p end
-    p = Joined(target.specs, function(k)
-        local ok, _, name = pcall(GetSpecializationInfoByID, k)
-        return (ok and name) or tostring(k)
-    end); if p then parts[#parts + 1] = p end
+    p = Joined(target.specs, ns.SpecName); if p then parts[#parts + 1] = p end
     p = Joined(target.names, nil, ", "); if p then parts[#parts + 1] = p end
     p = Joined(target.subgroups, function(k) return "Group " .. k end); if p then parts[#parts + 1] = p end
 
