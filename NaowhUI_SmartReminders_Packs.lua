@@ -314,7 +314,7 @@ end
 --
 -- Existing profiles of the same name are merged into per key rather than replaced, so a
 -- buyer who already has a "Default" keeps whatever the seller's does not mention.
-function ns.ApplyProfiles(payload, wantProfiles, wantSettings)
+function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
     if type(payload) ~= "table" or type(payload.profiles) ~= "table" then return false end
     local landed = 0
     for name, data in pairs(payload.profiles) do
@@ -344,6 +344,16 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings)
                     name = tostring(payload.name or "a pack"),
                     author = tostring(payload.author or "its curator"),
                 }
+                -- Bind each landed profile to the specs it carries, so the character that
+                -- plays one lands on it without being told which is theirs. A profile
+                -- covering several specs claims each of them; the last profile to claim a
+                -- spec wins, which is the same rule a curator applies by naming them.
+                if bindSpecs then
+                    local specs = ns.PackSpecs({ data = data })
+                    for si = 1, #specs do
+                        ns.SetSpecProfile(tonumber(specs[si].key), name)
+                    end
+                end
                 landed = landed + 1
             end
         end
@@ -634,6 +644,7 @@ function ns.ShowPackImport()
     local specRows, specWanted = {}, {}
     local settingsWanted, settingsBtn = true, nil
     local remapWanted, remapBtn = false, nil
+    local bindWanted, bindBtn = true, nil
     local specHead = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     specHead:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -226)
     specHead:SetJustifyH("LEFT")
@@ -643,6 +654,7 @@ function ns.ShowPackImport()
         for i = 1, #specRows do specRows[i]:Hide() end
         if settingsBtn then settingsBtn:Hide() end
         if remapBtn then remapBtn:Hide() end
+        if bindBtn then bindBtn:Hide() end
         wipe(specWanted)
         -- A whole-file pack is a list of PROFILES; a single-profile one is a list of specs
         -- inside it. Same rows either way, and the same wanted set drives the apply.
@@ -735,6 +747,27 @@ function ns.ShowPackImport()
         elseif remapBtn then
             remapBtn:Hide()
         end
+
+        -- Only for a whole-file pack: binding one profile to its own specs would just
+        -- describe where the importer already is.
+        if multi then
+            if not bindBtn then
+                bindBtn = ns.Button(panel, "", 380, 22, nil)
+            end
+            bindBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -246 - (#specs * 26) - 32)
+            local function PaintBind()
+                bindBtn.label:SetText((bindWanted and "|cff0091ed[x]|r  " or "[  ]  ")
+                    .. "Use each on the character whose spec it covers")
+            end
+            bindBtn:SetScript("OnClick", function()
+                bindWanted = not bindWanted
+                PaintBind()
+            end)
+            PaintBind()
+            bindBtn:Show()
+        elseif bindBtn then
+            bindBtn:Hide()
+        end
     end
 
     local function Revalidate()
@@ -770,10 +803,18 @@ function ns.ShowPackImport()
                 preview:SetText("|cffff6060Pick at least one profile to bring in.|r")
                 return
             end
-            local ok, landed = ns.ApplyProfiles(decoded, wantP, settingsWanted)
+            local ok, landed = ns.ApplyProfiles(decoded, wantP, settingsWanted, bindWanted)
             if ok then
-                ns.Print(("%d profile%s imported. Pick one under Active Profile."):format(
-                    landed, landed == 1 and "" or "s"))
+                -- Turning the switching on is part of asking for the binding: a map nothing
+                -- consults would leave the tick looking broken.
+                if bindWanted then ns.AutoSpecProfile(true) end
+                ns.Print(("%d profile%s imported.%s"):format(landed,
+                    landed == 1 and "" or "s",
+                    bindWanted and " Each character will load the one for its spec."
+                        or " Pick one under Active Profile."))
+                if bindWanted and ns.ApplySpecProfile and ns.CurrentSpec then
+                    ns.ApplySpecProfile((ns.CurrentSpec()))
+                end
                 dimmer:Hide()
                 local EUIm = ns.UI
                 if EUIm and EUIm.RefreshPage then EUIm:RefreshPage(true) end

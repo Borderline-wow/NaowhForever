@@ -6613,6 +6613,17 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         return
     end
 
+    -- Login and spec change are where a profile bound to a spec takes effect. It runs before
+    -- everything below rather than returning: PLAYER_LOGIN has its own handler further down
+    -- that registers the boss mod hooks and the CVar callbacks, and returning here would skip
+    -- them. SwitchProfile clears the cached root, so whatever reads settings after this --
+    -- including that handler -- already sees the new profile.
+    if event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_LOGIN"
+        or event == "PLAYER_ENTERING_WORLD" then
+        RefreshSpec()
+        if ns.ApplySpecProfile then ns.ApplySpecProfile(specID) end
+    end
+
     if event == "PLAYER_REGEN_DISABLED" then
         -- An ns field, not a chunk local: this chunk is at the 200-local ceiling.
         ns.combatStartedAt = GetTime()

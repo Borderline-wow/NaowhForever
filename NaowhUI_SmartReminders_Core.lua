@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0903g"
+ns.CODE_BUILD = "0903h"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -333,6 +333,43 @@ end
 -- The stored settings of any profile, loaded or not, for the exporter. Read-only by
 -- intent: the caller copies out of it. Returns nil for a profile that has never been
 -- written to, which is a profile carrying nothing rather than an error.
+-- Which profile belongs to which spec, account-wide rather than inside a profile: it has to
+-- survive switching away from whichever profile is loaded, and it describes the whole set.
+-- Written by a whole-file import that was told to, and by a manual switch, so the map learns
+-- what the player actually chooses rather than fighting them.
+function ns.SpecProfileMap()
+    local sv = DB()
+    if type(sv.specProfile) ~= "table" then sv.specProfile = {} end
+    return sv.specProfile
+end
+
+function ns.SetSpecProfile(specID, name)
+    if not specID or specID == 0 then return end
+    ns.SpecProfileMap()[tostring(specID)] = name
+end
+
+-- Off unless asked for. Switching someone's profile out from under them on a spec change is
+-- the kind of helpfulness that reads as a bug, so it stays a choice.
+function ns.AutoSpecProfile(set)
+    local sv = DB()
+    if set ~= nil then sv.autoSpecProfile = set and true or nil end
+    return sv.autoSpecProfile == true
+end
+
+-- Called on login and on a spec change. Returns true when it actually switched, so a caller
+-- can tell whether the settings underneath it have moved.
+function ns.ApplySpecProfile(specID)
+    if not ns.AutoSpecProfile() then return false end
+    if not specID or specID == 0 then return false end
+    local sv = DB()
+    local want = ns.SpecProfileMap()[tostring(specID)]
+    -- A map entry pointing at a profile that has since been deleted is ignored rather than
+    -- recreating it: the player deleted it on purpose.
+    if not want or type(sv.profiles[want]) ~= "table" then return false end
+    if sv.charActive[CharKey()] == want then return false end
+    return (ns.SwitchProfile(want)) and true or false
+end
+
 function ns.ProfileSettings(name)
     local p = DB().profiles[name]
     return type(p) == "table" and type(p.tankReminder) == "table" and p.tankReminder or nil
@@ -354,6 +391,11 @@ function ns.SwitchProfile(name)
     if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
     sv.charActive[CharKey()] = name
     activeRoot = nil
+    -- The map learns from a deliberate switch, so choosing a profile while auto-switching is
+    -- on means "this one, for this spec" rather than a choice that is undone at the next
+    -- spec change. Recorded even with auto off, so turning it on later already knows.
+    local spec = ns.CurrentSpec and ns.CurrentSpec()
+    if spec and spec > 0 then ns.SetSpecProfile(spec, name) end
     ns.QueueReapply()
     return true
 end
