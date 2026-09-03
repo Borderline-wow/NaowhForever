@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0903p"
+ns.CODE_BUILD = "0903q"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -330,6 +330,20 @@ function ns.ActiveProfileName()
     return DB().charActive[CharKey()]
 end
 
+-- Every character this account has logged in with the addon loaded, and which profile each
+-- is on right now. For a preview shown before a change is made -- "this account profile move
+-- will affect these characters" -- there is nothing more current to read: a character never
+-- logged into on this account is not in charActive yet and cannot be named in advance.
+function ns.KnownCharacters()
+    local sv = DB()
+    local out = {}
+    for char, profile in pairs(sv.charActive) do
+        out[#out + 1] = { char = char, profile = profile }
+    end
+    table.sort(out, function(a, b) return a.char:lower() < b.char:lower() end)
+    return out
+end
+
 function ns.ListProfiles()
     local out = {}
     for name in pairs(DB().profiles) do out[#out + 1] = name end
@@ -421,6 +435,20 @@ end
 --
 -- Per-character choices are still possible: switching a character afterwards moves only that
 -- one, and only until the next profile is created.
+-- Point the whole account at one profile: every character now, and any logged into later.
+-- What an installer wants after landing a curator's pack, and what CreateProfile does for a
+-- profile it just made.
+function ns.SetAccountProfile(name)
+    local sv = DB()
+    if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
+    sv.defaultProfile = name
+    for char in pairs(sv.charActive) do sv.charActive[char] = name end
+    sv.charActive[CharKey()] = name
+    activeRoot = nil
+    ns.QueueReapply()
+    return true
+end
+
 function ns.CreateProfile(name)
     local err
     name, err = ValidName(name)

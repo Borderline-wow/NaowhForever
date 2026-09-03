@@ -146,6 +146,166 @@ function ns.ExportPack(packName, author)
     return PREFIX .. LD:EncodeForPrint(compressed)
 end
 
+-- The one call an installer needs, paired with the one call that describes it first.
+-- NaowhUI's own installer offers Smart Reminders as a step:
+--
+--   local SR = _G.NaowhUITankReminder
+--   if SR and SR.InstallProfilePack then
+--       local opts = { accountProfile = "Naowh" }
+--       local text = SR.DescribeProfilePack(str, opts)
+--       -- show `text` and get the player's confirmation before this next line runs --
+--       -- accountProfile in particular moves every character on the account, and that has
+--       -- to be said plainly before it happens, not discovered afterwards.
+--       local ok, err = SR.InstallProfilePack(str, opts)
+--   end
+--
+-- Guard on the global: this addon is optional and may not be installed at all. Call it after
+-- our ADDON_LOADED -- saved variables do not exist before that, and a profile written into
+-- nothing is lost at logout.
+--
+-- opts, all optional, shared by both calls so the description matches what actually runs:
+--   accountProfile  point every character at this profile once the pack has landed. The
+--                   name must be one the pack carries, or the call fails and says so.
+--   bindSpecs       bind each landed profile to the specs it covers and switch on the
+--                   matching, so an alt lands on the right one without being told. Default
+--                   true for a whole-file pack.
+--   settings        take the curator's display, sound and behaviour settings. Default true,
+--                   since an installer offering a UI is asking for exactly that.
+--
+-- Returns true plus the number of profiles landed, or false and a reason. Never throws: an
+-- installer step failing should report, not break the install.
+-- What InstallProfilePack is ABOUT to do, in plain language, without doing any of it. Meant
+-- for an installer to show before the step runs -- "this will do X" read on a confirmation
+-- screen, not discovered afterwards from what changed. Same opts as InstallProfilePack, since
+-- the answer depends on them (accountProfile in particular is the one worth confirming: it
+-- moves every character on the account, not just the one running the installer).
+--
+-- Returns text, info: text is a ready-to-show multi-line string (|n between lines, matching
+-- DecodePack's own preview); info is the same facts as a plain table, for an installer that
+-- wants to build its own layout instead. Neither call mutates anything -- info.accountProfileOK
+-- says whether accountProfile names a profile the pack actually carries, checked the same way
+-- InstallProfilePack itself would fail if it does not.
+function ns.DescribeProfilePack(str, opts)
+    opts = type(opts) == "table" and opts or {}
+    local payload, err = ns.DecodePack(str)
+    if not payload then return nil, nil, err or "the string could not be read" end
+
+    local multi = type(payload.profiles) == "table"
+    local wantSettings = opts.settings ~= false
+    local wantBind = opts.bindSpecs ~= false
+
+    -- One row per profile the pack will create, named, with the specs it covers -- the same
+    -- pairing an import dialog already shows, so a curator checking their own export sees the
+    -- identical picture an installer would show a buyer.
+    local profiles = {}
+    if multi then
+        local names = {}
+        for name in pairs(payload.profiles) do names[#names + 1] = name end
+        table.sort(names, function(a, b) return a:lower() < b:lower() end)
+        for i = 1, #names do
+            local specs = ns.PackSpecs({ data = payload.profiles[names[i]] })
+            local specNames = {}
+            for j = 1, #specs do specNames[j] = specs[j].name end
+            profiles[#profiles + 1] = { name = names[i], specs = specNames }
+        end
+    else
+        local specs = ns.PackSpecs(payload)
+        local specNames = {}
+        for j = 1, #specs do specNames[j] = specs[j].name end
+        profiles[1] = {
+            name = (payload.name and payload.name ~= "") and payload.name or "Reminder Pack",
+            specs = specNames,
+        }
+    end
+
+    local accountProfileOK = nil
+    if opts.accountProfile then
+        accountProfileOK = false
+        for i = 1, #profiles do
+            if profiles[i].name == opts.accountProfile then accountProfileOK = true break end
+        end
+    end
+
+    local movedChars = (opts.accountProfile and accountProfileOK) and ns.KnownCharacters() or {}
+
+    local info = {
+        packName = payload.name, packAuthor = payload.author,
+        profiles = profiles,
+        willApplySettings = wantSettings,
+        willBindSpecs = multi and wantBind or false,
+        accountProfile = opts.accountProfile,
+        accountProfileOK = accountProfileOK,
+        movedCharacters = movedChars,
+    }
+
+    local lines = {}
+    lines[#lines + 1] = ("|cff0091ed%s|r by %s"):format(
+        tostring(payload.name), tostring(payload.author))
+    lines[#lines + 1] = ("Will create %d new profile%s:"):format(
+        #profiles, #profiles == 1 and "" or "s")
+    for i = 1, #profiles do
+        local p = profiles[i]
+        local specText = #p.specs > 0 and (" -- " .. table.concat(p.specs, ", ")) or ""
+        lines[#lines + 1] = ("  |cff0091ed%s|r%s"):format(p.name, specText)
+    end
+    lines[#lines + 1] = "Your own existing profiles are not changed."
+    if wantSettings then
+        lines[#lines + 1] = "Includes display, sound and behaviour settings, which will be "
+            .. "applied."
+    end
+    if info.willBindSpecs then
+        lines[#lines + 1] = "Each profile is bound to the specs it covers, and spec-matching "
+            .. "is switched on: changing spec, on ANY character, auto-loads the matching one."
+    end
+    if opts.accountProfile then
+        if accountProfileOK then
+            lines[#lines + 1] = ("|cffff6060Every character on this account will be switched "
+                .. "to '%s'|r, including any not yet listed below."):format(opts.accountProfile)
+            if #movedChars > 0 then
+                local names = {}
+                for i = 1, #movedChars do
+                    names[i] = ("%s (was %s)"):format(movedChars[i].char, movedChars[i].profile)
+                end
+                lines[#lines + 1] = "  Known characters: " .. table.concat(names, ", ")
+            end
+        else
+            lines[#lines + 1] = ("|cffff6060'%s' is not one of the profiles this pack "
+                .. "carries -- the account switch would fail.|r"):format(
+                tostring(opts.accountProfile))
+        end
+    end
+
+    return table.concat(lines, "|n"), info
+end
+
+function ns.InstallProfilePack(str, opts)
+    opts = type(opts) == "table" and opts or {}
+    local payload, err = ns.DecodePack(str)
+    if not payload then return false, err or "the string could not be read" end
+
+    local settings = opts.settings ~= false
+    local ok, landed
+    if type(payload.profiles) == "table" then
+        local bind = opts.bindSpecs ~= false
+        ok, landed = ns.ApplyProfiles(payload, nil, settings, bind)
+        if ok and bind then ns.AutoSpecProfile(true) end
+    else
+        ok, landed = ns.ImportPackAsProfile(payload, nil, settings, nil)
+    end
+    if not ok then return false, "the pack could not be applied" end
+
+    if opts.accountProfile then
+        local set, why = ns.SetAccountProfile(opts.accountProfile)
+        if not set then
+            return false, ("imported, but %s is not a profile in this pack (%s)"):format(
+                tostring(opts.accountProfile), tostring(why))
+        end
+    end
+
+    if ns.ApplySpecProfile and ns.CurrentSpec then ns.ApplySpecProfile((ns.CurrentSpec())) end
+    return true, landed
+end
+
 -- Every profile in one string, for a curator who keeps a profile per class rather than one
 -- profile holding every spec. Both shapes are legitimate -- a profile accumulates specs, so
 -- ten classes fit in one -- but a seller building them separately would otherwise have to
