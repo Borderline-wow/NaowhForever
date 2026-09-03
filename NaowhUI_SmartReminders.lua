@@ -3799,22 +3799,37 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
     -- Gated on the fire times matching, NOT inherited unconditionally: aliases carried
     -- across to the NEXT occurrence would let the previous bar's ordinary stop cancel the
     -- callout for the cast after it, which is the silent-buster direction.
+    -- Three cases, and only the first two end the pending fire.
+    --
+    -- Same cast: collapse them, and the survivor answers to both identities.
+    --
+    -- Pending fire is LATER: this bar times the same ability nearer, so the far one is a
+    -- stale estimate and goes.
+    --
+    -- Pending fire is EARLIER: it belongs to a cast still coming, and this bar times the one
+    -- after it. Cancelling it was silently dropping that callout -- the next cooldown bar
+    -- starts as the current cast lands, which at a short lead is the same moment the fire is
+    -- due, so the hit you needed the defensive for lost its call to a bar 24 seconds out.
+    -- Captured with the log line this replaces: 18:20:48 "superseded, 24.0s early, by a bar
+    -- 24.0s out", one call on the first cast and nothing on the second. Both entries stand;
+    -- sidFires is keyed by identity and each clears itself when it fires.
     local uptime = (isApprox == false)
     local aliases = { [key] = true }
     for otherKey, f in pairs(sidFires) do
-        if f.timer.Cancel then f.timer:Cancel() end
-        if f.uptime == uptime and math.abs(f.fireAt - fireAt) <= SAME_CAST_WINDOW then
-            for k in pairs(f.aliases) do aliases[k] = true end
-        -- A supersede that is not the same cast throws away a callout nobody hears about:
-        -- the nearer hit loses its fire to a bar timing one further out. Logged rather than
-        -- changed, because whether the near one should survive depends on why the second bar
-        -- arrived, and the trace has never had to answer that question before.
-        elseif f.fireAt < fireAt and TRDB().trace then
+        if math.abs(f.fireAt - fireAt) <= SAME_CAST_WINDOW then
+            if f.timer.Cancel then f.timer:Cancel() end
+            if f.uptime == uptime then
+                for k in pairs(f.aliases) do aliases[k] = true end
+            end
+            sidFires[otherKey] = nil
+        elseif f.fireAt > fireAt then
+            if f.timer.Cancel then f.timer:Cancel() end
+            sidFires[otherKey] = nil
+        elseif TRDB().trace then
             AppendLog({ kind = "drop", sid = sid,
-                text = ("superseded, %.1fs early, by a bar %.1fs out"):format(
-                    fireAt - f.fireAt, delay) })
+                text = ("kept a fire %.1fs out, this bar is %.1fs out"):format(
+                    f.fireAt - GetTime(), delay) })
         end
-        sidFires[otherKey] = nil
     end
 
     local entry = { fireAt = fireAt, aliases = aliases, uptime = uptime }
@@ -3824,7 +3839,13 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
         end
         fireFn(sid)
     end)
-    for k in pairs(aliases) do sidFires[k] = entry end
+    -- A kept entry under one of these identities means the module reused the bar text, so it
+    -- is the same bar after all: end it rather than orphan a timer that still fires.
+    for k in pairs(aliases) do
+        local prev = sidFires[k]
+        if prev and prev ~= entry and prev.timer.Cancel then prev.timer:Cancel() end
+        sidFires[k] = entry
+    end
 end
 
 function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
