@@ -232,6 +232,15 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
             and Menu and Menu.GetManager and AnchorUtil) then return end
         local desc = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
         if not desc then return end
+        -- Scrolling is opt-in on Blizzard's own menu (BaseMenuDescriptionMixin:IsScrollable
+        -- reads false until something calls this): unset, the menu just grows to fit every
+        -- entry with nothing to scroll it, which for a long list -- every LibSharedMedia
+        -- sound, every spec across an account -- ran off the bottom of the screen with no
+        -- way to reach the rest. Below this height it is a no-op (useScroll only engages
+        -- once content actually exceeds it), so a five-entry dropdown looks exactly as it
+        -- did; every dropdown in the addon goes through this one control, so fixed once here
+        -- rather than per call site.
+        if desc.SetScrollMode then desc:SetScrollMode(420) end
         for _, k in ipairs(Keys()) do
             local key = k
             desc:CreateRadio(values[key] or tostring(key),
@@ -384,6 +393,16 @@ local function BuildRegionControl(rgn, cfg)
         valBox:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
         return track
+    elseif cfg.type == "colorpicker" then
+        -- Never actually wired up: two callers already pass this exact shape (Text Color
+        -- in both the custom and Ability Reminder editors), getValue returning r,g,b,a and
+        -- setValue taking the same, matching W:ColorPicker's own signature -- but nothing
+        -- in this switch ever matched "colorpicker", so BuildRegionControl fell through and
+        -- returned nil: no control, just the bare "Text Color" label with nothing under it
+        -- to click.
+        local swatch = UI.BuildColorSwatchControl(rgn, cfg.getValue, cfg.setValue, cfg.hasAlpha)
+        swatch:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+        return swatch
     end
 end
 
@@ -482,26 +501,12 @@ function W:Button(parent, text, yOffset, onClick)
     return row, ROW_H
 end
 
-function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
-    local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(ROW_H)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
-    row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
-
-    local count = (parent._nsuiRowCount or 0) + 1
-    parent._nsuiRowCount = count
-    if count % 2 == 1 then
-        local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
-        band:SetAllPoints()
-    end
-
-    local lbl = ns.Font(row, 14, nil)
-    lbl:SetPoint("LEFT", row, "LEFT", 20, 0)
-    lbl:SetText(text)
-
-    local swatchBtn = CreateFrame("Button", nil, row)
+-- The swatch alone, sized to drop into either a full row (W:ColorPicker below) or a
+-- DualRow region (BuildRegionControl's "colorpicker" slot) -- one Blizzard color picker
+-- wiring, not two copies of it drifting apart.
+function UI.BuildColorSwatchControl(parent, get, set, hasAlpha)
+    local swatchBtn = CreateFrame("Button", nil, parent)
     swatchBtn:SetSize(40, 20)
-    swatchBtn:SetPoint("RIGHT", row, "RIGHT", -20, 0)
     ns.Border(swatchBtn)
     local swatch = ns.Solid(swatchBtn, "BACKGROUND", T.fg, 1)
     swatch:SetAllPoints()
@@ -531,6 +536,28 @@ function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
             end,
         })
     end)
+    return swatchBtn
+end
+
+function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(ROW_H)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
+    row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
+
+    local count = (parent._nsuiRowCount or 0) + 1
+    parent._nsuiRowCount = count
+    if count % 2 == 1 then
+        local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
+        band:SetAllPoints()
+    end
+
+    local lbl = ns.Font(row, 14, nil)
+    lbl:SetPoint("LEFT", row, "LEFT", 20, 0)
+    lbl:SetText(text)
+
+    local swatchBtn = UI.BuildColorSwatchControl(row, get, set, hasAlpha)
+    swatchBtn:SetPoint("RIGHT", row, "RIGHT", -20, 0)
     return row, ROW_H
 end
 
