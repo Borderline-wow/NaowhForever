@@ -14,6 +14,14 @@ local ns = {}
 _G.NaowhUITankReminder = ns
 ns.MODULE_KEY = MODULE_KEY
 
+-- Bumped by hand on every code change that goes to a tester, and printed beside the TOC
+-- version everywhere a build is reported. The TOC version only moves on release, so it
+-- cannot tell a working checkout from the release it was branched off -- which cost two
+-- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
+-- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
+-- not sent means the files changed under a running client and the capture predates them.
+ns.CODE_BUILD = "0902r"
+
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
     bg     = { r = 0x0e / 255, g = 0x0f / 255, b = 0x11 / 255 },  -- window backdrop

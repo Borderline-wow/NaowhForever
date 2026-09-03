@@ -46,6 +46,7 @@ local DEFAULTS = {
     fallbackOn = false,
     aggroOnly  = false,
     coveredSkip = false,
+    coveredCastWindow = 6,   -- how long your own cast counts as cover
     leadTime   = 3,     -- seconds before impact that the alert fires
     lingerSec  = 5,     -- how long the icon stays up when the cast is never pressed
     cdmGlow    = false, -- glow the called defensive on the Cooldown Manager bar
@@ -1191,6 +1192,20 @@ local lastAggroCheck   -- { sid, verdict, path }
 -- Coiled Altar with the whole map populated -- every single callout logged the
 -- no-match path, in both phases, for both severs.
 local castSourceGUID = {}
+-- Threat is read at the instant the callout is due, and it does not hold steady for a tank
+-- who has the boss the whole time: UnitThreatSituation drops below 2 while the boss is
+-- mid-cast with no melee target, across a stage change, and while it is untargetable. Live
+-- capture on Ula'tek, one tank on the boss for the whole pull: three callouts went through
+-- on boss:boss1 and two were refused seconds later with boss1=false.
+--
+-- So a refusal is only believed if we have not just seen the player tanking that unit. The
+-- grace is short enough that a real taunt swap starts calling for the other tank within a
+-- few seconds, and the direction is the safe one: an extra call costs a moment, a swallowed
+-- tank buster costs the pull.
+-- ns fields, not chunk locals: this chunk is at the 200-local ceiling.
+ns.TANKED_GRACE = 6
+ns.lastTankedAt = {}
+
 local function TankingCaster(sid)
     local ownerSlot = ns.TANK_ABILITY_OWNER_UNIT and ns.TANK_ABILITY_OWNER_UNIT[sid]
     if ownerSlot then
@@ -1198,7 +1213,14 @@ local function TankingCaster(sid)
         if UnitExists(unit) then
             local verdict = UnitTankedVerdict(unit)
             if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
-            return verdict, "boss:" .. unit
+            if verdict then
+                ns.lastTankedAt[unit] = GetTime()
+                return true, "boss:" .. unit
+            end
+            if (GetTime() - (ns.lastTankedAt[unit] or 0)) <= ns.TANKED_GRACE then
+                return true, "boss:" .. unit .. ":recent"
+            end
+            return false, "boss:" .. unit
         end
         -- Slot empty: the owner is dead or not out yet and someone else is taking the
         -- hit. DBM's own Twin Fangs module handles the same case the same way.
@@ -1256,7 +1278,13 @@ local playerAuraUp = {}   -- [spellID] = true while up, per our own combat-log t
 -- any real tank buster's cycle, so it cannot reach forward and silence the NEXT hit. That
 -- direction matters more than covering every case: see ns.HandleBigWigsAbility.
 local bigDefSeen = 0
-local OWN_CAST_COVER_WINDOW = 6
+-- The player's, because the right answer depends on how they play and the addon cannot see
+-- enough to choose. Raising it to 10 covered Ardent Defender's own duration, after a call
+-- named Divine Shield over one 7 seconds in -- and then swallowed the pull callout for a
+-- tank who pre-pops Sentinel as the boss engages, twice on Ula'tek, because the hit landed
+-- 5 seconds after the press. Both are the same window disagreeing about what a press meant.
+-- Back to the 6 that shipped, with the setting for anyone who wants either edge.
+local OWN_CAST_COVER_DEFAULT = 6
 local ownCastAt = {}   -- [spellID] = GetTime() of our own last cast of it
 
 -- The one question the client will still answer about an aura it has made secret.
@@ -1276,11 +1304,20 @@ local function BigDefensiveUp()
         and C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then
         return false
     end
+    -- An unreadable entry is skipped, not treated as the end of the list. Stopping at the
+    -- first non-table aborted the scan at whichever index the client had made secret, so a
+    -- defensive sitting behind one was never reached -- and restricted content, where that
+    -- happens, is the only place this rung is the one still answering. Only a plain nil ends
+    -- the list. Reported live on Rav'i: Ardent Defender up 7 seconds and Divine Shield named
+    -- over it.
     local ok, found = pcall(function()
         for i = 1, 40 do
             local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
-            if type(aura) ~= "table" then return false end
-            if AuraUtil.IsBigDefensive(aura) == true then return true end
+            if type(aura) == "table" then
+                if AuraUtil.IsBigDefensive(aura) == true then return true end
+            elseif not (issecretvalue and issecretvalue(aura)) then
+                return false
+            end
         end
         return false
     end)
@@ -1301,7 +1338,8 @@ local function CoveredByActiveDefensive()
     for i = 1, activeSlots do
         local sid = slots[i].spellID
         if playerAuraUp[sid] then return true, sid, "aura" end
-        if ownCastAt[sid] and (now - ownCastAt[sid]) < OWN_CAST_COVER_WINDOW then
+        local window = TRDB().coveredCastWindow or OWN_CAST_COVER_DEFAULT
+        if window > 0 and ownCastAt[sid] and (now - ownCastAt[sid]) < window then
             return true, sid, "cast"
         end
         -- Fallback for a buff that was already up before tracking could see it apply
@@ -2379,8 +2417,10 @@ end
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
 local function BuildString()
-    return (C_AddOns and C_AddOns.GetAddOnMetadata
+    local toc = (C_AddOns and C_AddOns.GetAddOnMetadata
         and C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version")) or "unknown"
+    -- The TOC half only moves on release; ns.CODE_BUILD moves whenever the Lua does.
+    return ns.CODE_BUILD and (toc .. " code " .. ns.CODE_BUILD) or toc
 end
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
@@ -3750,7 +3790,14 @@ local pendingBWFires = { tank = {} }   -- [channel][sid] = { [identity] = {fireA
 -- buster is a full cooldown away.
 local SAME_CAST_WINDOW = 2
 
-function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
+-- isApprox is the bar's own flavour, straight from BigWigs: true for :CDBar, the countdown
+-- to the NEXT cast, false for :Bar and :CastBar, which describe something already happening.
+-- Only entries of the same flavour share identities. A module that starts a debuff bar under
+-- the ability's own key -- Rav'i's "Debuffs (N)" under Triple Shot's -- otherwise has that
+-- name welded onto the real callout by the inheritance below, and the debuff expiring then
+-- cancels a cast that was still coming. Nil counts as a cooldown: DBM sends no flavour and
+-- its timers are cooldowns, and pairing its id with BigWigs' text is what aliases are for.
+function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, isApprox)
     local fires = pendingBWFires[channel]
     if not fires then fires = {} pendingBWFires[channel] = fires end
     local sidFires = fires[sid]
@@ -3778,26 +3825,56 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     -- Gated on the fire times matching, NOT inherited unconditionally: aliases carried
     -- across to the NEXT occurrence would let the previous bar's ordinary stop cancel the
     -- callout for the cast after it, which is the silent-buster direction.
+    -- Three cases, and only the first two end the pending fire.
+    --
+    -- Same cast: collapse them, and the survivor answers to both identities.
+    --
+    -- Pending fire is LATER: this bar times the same ability nearer, so the far one is a
+    -- stale estimate and goes.
+    --
+    -- Pending fire is EARLIER: it belongs to a cast still coming, and this bar times the one
+    -- after it. Cancelling it was silently dropping that callout -- the next cooldown bar
+    -- starts as the current cast lands, which at a short lead is the same moment the fire is
+    -- due, so the hit you needed the defensive for lost its call to a bar 24 seconds out.
+    -- Captured with the log line this replaces: 18:20:48 "superseded, 24.0s early, by a bar
+    -- 24.0s out", one call on the first cast and nothing on the second. Both entries stand;
+    -- sidFires is keyed by identity and each clears itself when it fires.
+    local uptime = (isApprox == false)
     local aliases = { [key] = true }
     for otherKey, f in pairs(sidFires) do
-        if f.timer.Cancel then f.timer:Cancel() end
         if math.abs(f.fireAt - fireAt) <= SAME_CAST_WINDOW then
-            for k in pairs(f.aliases) do aliases[k] = true end
+            if f.timer.Cancel then f.timer:Cancel() end
+            if f.uptime == uptime then
+                for k in pairs(f.aliases) do aliases[k] = true end
+            end
+            sidFires[otherKey] = nil
+        elseif f.fireAt > fireAt then
+            if f.timer.Cancel then f.timer:Cancel() end
+            sidFires[otherKey] = nil
+        elseif TRDB().trace then
+            AppendLog({ kind = "drop", sid = sid,
+                text = ("kept a fire %.1fs out, this bar is %.1fs out"):format(
+                    f.fireAt - GetTime(), delay) })
         end
-        sidFires[otherKey] = nil
     end
 
-    local entry = { fireAt = fireAt, aliases = aliases }
+    local entry = { fireAt = fireAt, aliases = aliases, uptime = uptime }
     entry.timer = C_Timer.NewTimer(delay, function()
         for k in pairs(aliases) do
             if sidFires[k] == entry then sidFires[k] = nil end
         end
         fireFn(sid)
     end)
-    for k in pairs(aliases) do sidFires[k] = entry end
+    -- A kept entry under one of these identities means the module reused the bar text, so it
+    -- is the same bar after all: end it rather than orphan a timer that still fires.
+    for k in pairs(aliases) do
+        local prev = sidFires[k]
+        if prev and prev ~= entry and prev.timer.Cancel then prev.timer:Cancel() end
+        sidFires[k] = entry
+    end
 end
 
-function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
+function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if not (ShouldRun() and InEncounter()) then
@@ -3809,7 +3886,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
         -- encounter does not loop.
         if not InEncounter() and not isRetry then
             C_Timer.After(0, function()
-                ns.HandleBigWigsAbility(sid, duration, barIdentity, true)
+                ns.HandleBigWigsAbility(sid, duration, barIdentity, true, isApprox)
             end)
             return
         end
@@ -3836,12 +3913,20 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
         ns.ScheduleBWFire("tank", sid, duration, barIdentity, lead, function(fireSid)
             lastBWSid, lastBWAt = fireSid, GetTime()
             FireBigWigsAbility(fireSid)
-        end)
+        end, isApprox)
     else
         -- No duration means this is the cast itself landing, not a countdown to one, and
         -- ours already fired `lead` seconds ago for exactly this cast. The guard belongs
-        -- here and only here: a Message cannot be the next occurrence announcing itself.
-        if sid == lastBWSid and (GetTime() - lastBWAt) < lead + 1 then return end
+        -- here and only here: a Message cannot be the next occurrence announcing itself,
+        -- so widening it cannot swallow the next bar the way it would on the branch above.
+        --
+        -- Floored at 4 seconds rather than left at lead + 1. A module can send a second
+        -- message for the same cast well after the bar ends -- Rav'i's Triple Shot has one
+        -- at the end of its 2 second cast -- and at leadTime 1 the window was 2 seconds, so
+        -- that follow-up read as a fresh cast and called a second time. A tank buster does
+        -- not repeat inside 4 seconds, so nothing real is lost. Short leads are deliberate:
+        -- a tank who wants the callout as the hit lands sets one.
+        if sid == lastBWSid and (GetTime() - lastBWAt) < math.max(lead + 1, 4) then return end
 
         -- A plain Message never goes through ScheduleBWFire (no duration to wait out), so
         -- it never touched pendingBWFires -- a module that pairs a StartBar with a same-key
@@ -3849,11 +3934,23 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
         -- left the StartBar's delayed fire pending regardless of which order the two
         -- arrived in, and it fired again seconds later on top of this immediate one. Same
         -- "whichever arrives last wins" rule ScheduleBWFire itself now follows.
+        --
+        -- Only fires aimed at THIS cast, which is the rule ScheduleBWFire already applies to
+        -- its aliases and this branch did not: a pending fire tens of seconds out belongs to
+        -- the NEXT occurrence, and cancelling it is the silent-buster direction. Rav'i sends
+        -- Triple Shot twice -- the bar's own Message as it lands, then a PersonalMessage at
+        -- the end of the 2s cast -- and the second one arrives lead+2 seconds after our fire.
+        -- Past the guard above once the lead is short, so at leadTime 1 it fell through here
+        -- and cancelled the next Triple Shot's callout, every other cast. Reported as calling
+        -- on some casts and not others, with one tank holding threat throughout.
         local sidFires = pendingBWFires.tank and pendingBWFires.tank[sid]
         if sidFires then
+            local thisCastUntil = GetTime() + lead + SAME_CAST_WINDOW
             for key, f in pairs(sidFires) do
-                if f.timer.Cancel then f.timer:Cancel() end
-                sidFires[key] = nil
+                if f.fireAt <= thisCastUntil then
+                    if f.timer.Cancel then f.timer:Cancel() end
+                    sidFires[key] = nil
+                end
             end
         end
         lastBWSid, lastBWAt = sid, GetTime()
@@ -3921,8 +4018,17 @@ end
 --
 -- Deliberately narrow, because dropping a real next-cast bar is the direction that costs
 -- someone a wipe: a bar is only read as an uptime when it is unflagged AND a flagged
--- cooldown bar for the SAME key is expiring right now. An ability whose module never
--- uses CDBar records nothing here and keeps today's behaviour.
+-- cooldown bar for the SAME key is expiring right now, or is already waiting on a callout
+-- of its own. An ability whose module never uses CDBar records nothing here and keeps
+-- today's behaviour.
+--
+-- That second test is the timing-free one, and it is the one that matters: an unflagged bar
+-- cannot be the next cast when a flagged bar for the same key is already counting down to
+-- one. Rav'i starts a "Debuffs (1)" bar under Triple Shot's own key partway through that
+-- countdown -- too early for the window above -- so it was taken for a fresh cooldown,
+-- superseded the pending callout, and then cancelled it outright when the debuff bar
+-- stopped. Trace of a live pull, 17:49:42: "cancelled pending callout for Triple Shot (bar
+-- 'Debuffs (1)' stopped early)", and no callout for that cast at all.
 local bwCdEndsAt = {}
 local UPTIME_MATCH_WINDOW = 1.5
 
@@ -3934,6 +4040,9 @@ end
 
 local function IsUptimeBar(key, isApprox)
     if isApprox then return false end
+    for _, fires in pairs(pendingBWFires) do
+        if next(fires[key] or {}) then return true end
+    end
     local endsAt = bwCdEndsAt[key]
     return endsAt ~= nil and math.abs(GetTime() - endsAt) <= UPTIME_MATCH_WINDOW
 end
@@ -3969,7 +4078,7 @@ local function OnBigWigsEvent(event, ...)
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
         if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
-        ns.HandleBigWigsAbility(key, duration, text)
+        ns.HandleBigWigsAbility(key, duration, text, nil, isApprox)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
@@ -3991,7 +4100,7 @@ local function OnBigWigsEvent(event, ...)
         end
         NoteBossModBar(key, duration, isApprox)
         if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
-        ns.HandleBigWigsAbility(key, duration, text)
+        ns.HandleBigWigsAbility(key, duration, text, nil, isApprox)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
@@ -4240,6 +4349,17 @@ local function UpdateEventRegistration()
     -- cannot succeed, and a whole raid night reported registered=false, lines=0 with the
     -- own-buff tracking never receiving a line. Latched, because unregistering is
     -- forbidden the same way and there is nothing to undo.
+    -- MEASURED, and it settles what the probe means: IsCombatLogRestricted() returns true in
+    -- a capital city as well as in a Mythic+ dungeon, and registering from the city anyway --
+    -- gated on IsInInstance, which reads false there -- raised ADDON_ACTION_FORBIDDEN 13
+    -- times off this exact line. The two agree. The combat log is restricted for an insecure
+    -- addon everywhere in this build, not merely inside instances, so the probe is accurate
+    -- rather than broken and "step outside once" was never going to work.
+    --
+    -- Kept as the gate for that reason, and because it is self-correcting: if the restriction
+    -- is ever relaxed the probe reads false and registration resumes with no change here.
+    -- Nothing else can be substituted for it -- a gate that guesses instead throws, and pcall
+    -- cannot catch a forbidden call.
     if not cleuRegistered then
         local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
             and C_CombatLog.IsCombatLogRestricted()
@@ -4551,9 +4671,14 @@ local function DiagProblems()
         out[#out + 1] = "not a tank spec and Pretend Tank is off, so tank busters will "
             .. "never call -- run /nutank pretendtank"
     end
+    -- No instruction any more: the client refuses the registration everywhere in this build,
+    -- so there is nothing a tester can do about it and the old "step outside once" line sent
+    -- several of them on a walk that could not have worked.
     if watcher and not watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") then
-        out[#out + 1] = "combat log was never hooked, so Skip When Already Covered has no "
-            .. "aura data -- step OUTSIDE the instance once, it can only register there"
+        out[#out + 1] = "the client refuses the combat log to addons in this build, so Skip "
+            .. "When Already Covered has no aura data -- it runs on your own casts instead, "
+            .. "for " .. tostring(TRDB().coveredCastWindow or OWN_CAST_COVER_DEFAULT)
+            .. "s after you press one"
     end
     if not TimelineAvailable() then
         out[#out + 1] = "the boss timeline feature is unavailable here"
@@ -4614,8 +4739,11 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         out[#out + 1] = ("build %s | spec %d | tank %s | pretendTank %s | slots %d | trace %s"):format(
             BuildString(), specID, tostring(isTank), tostring(t.pretendTank and true or false),
             activeSlots, tostring(t.trace and true or false))
-        out[#out + 1] = ("combat log registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d"):format(
+        -- inInstance is the one that decides whether registering can happen; restrictedHere
+        -- reads true everywhere and is kept only so a future report can show it still does.
+        out[#out + 1] = ("combat log registered=%s inInstance=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d"):format(
             tostring(watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED")),
+            tostring(IsInInstance()),
             tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
                 and C_CombatLog.IsCombatLogRestricted()),
             cleuLines, cleuUsable, cleuOwnAuras)
@@ -5006,9 +5134,10 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- a pull says nothing -- registered= is the one that answers on its own.
     ns.Print(("aura cover: bigDefensiveHits=%d (Blizzard's own classification; 0 all pull "
         .. "means the aura enumeration is refused here)"):format(bigDefSeen))
-    ns.Print(("combat log: registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
+    ns.Print(("combat log: registered=%s inInstance=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
         watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") and "true"
             or "|cffff6060false|r",
+        tostring(IsInInstance()),
         tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
             and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
@@ -5586,6 +5715,19 @@ function ns.BuildCoreSettings(parent, y)
           .. "defensive on its preset list.",
           getValue = function() return TRDB().leadTime or 3 end,
           setValue = function(v) TRDB().leadTime = v end }
+    ); y = y - h
+
+    -- Its own row: the two above are a settled pair and the slider is long-labelled.
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "Your Own Cast Covers You For", min = 0, max = 15, step = 1,
+          tooltip = "The client refuses addons the combat log in this build, so a defensive "
+          .. "you press cannot be watched landing -- the press itself is all there is. This "
+          .. "is how long after one the callout stays quiet. Set it to the length of what "
+          .. "you actually press, or to 0 to hear about every hit even while covered. A "
+          .. "tank who pre-pops as the boss engages wants it low: at 10 seconds, a hit "
+          .. "five seconds after the press says nothing at all.",
+          getValue = function() return TRDB().coveredCastWindow or 6 end,
+          setValue = function(v) TRDB().coveredCastWindow = v end }
     ); y = y - h
 
     -- The player's own list for the current spec, in priority order. This addon ships no
