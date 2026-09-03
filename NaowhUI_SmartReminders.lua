@@ -46,6 +46,7 @@ local DEFAULTS = {
     fallbackOn = false,
     aggroOnly  = false,
     coveredSkip = false,
+    coveredCastWindow = 6,   -- how long your own cast counts as cover
     leadTime   = 3,     -- seconds before impact that the alert fires
     lingerSec  = 5,     -- how long the icon stays up when the cast is never pressed
     cdmGlow    = false, -- glow the called defensive on the Cooldown Manager bar
@@ -1277,12 +1278,13 @@ local playerAuraUp = {}   -- [spellID] = true while up, per our own combat-log t
 -- any real tank buster's cycle, so it cannot reach forward and silence the NEXT hit. That
 -- direction matters more than covering every case: see ns.HandleBigWigsAbility.
 local bigDefSeen = 0
--- 10, not the 6 this shipped with. 6 covered the press-to-hit window and nothing else, so
--- it ran out while the defensive was still up: Ardent Defender lasts 10 seconds and a call
--- 7 seconds after casting it named Divine Shield over the top. Still far short of any real
--- buster cycle, so it cannot reach forward and silence the next hit -- which is the reason
--- the number stays a flat one rather than growing with each defensive it has to cover.
-local OWN_CAST_COVER_WINDOW = 10
+-- The player's, because the right answer depends on how they play and the addon cannot see
+-- enough to choose. Raising it to 10 covered Ardent Defender's own duration, after a call
+-- named Divine Shield over one 7 seconds in -- and then swallowed the pull callout for a
+-- tank who pre-pops Sentinel as the boss engages, twice on Ula'tek, because the hit landed
+-- 5 seconds after the press. Both are the same window disagreeing about what a press meant.
+-- Back to the 6 that shipped, with the setting for anyone who wants either edge.
+local OWN_CAST_COVER_DEFAULT = 6
 local ownCastAt = {}   -- [spellID] = GetTime() of our own last cast of it
 
 -- The one question the client will still answer about an aura it has made secret.
@@ -1336,7 +1338,8 @@ local function CoveredByActiveDefensive()
     for i = 1, activeSlots do
         local sid = slots[i].spellID
         if playerAuraUp[sid] then return true, sid, "aura" end
-        if ownCastAt[sid] and (now - ownCastAt[sid]) < OWN_CAST_COVER_WINDOW then
+        local window = TRDB().coveredCastWindow or OWN_CAST_COVER_DEFAULT
+        if window > 0 and ownCastAt[sid] and (now - ownCastAt[sid]) < window then
             return true, sid, "cast"
         end
         -- Fallback for a buff that was already up before tracking could see it apply
@@ -4674,7 +4677,8 @@ local function DiagProblems()
     if watcher and not watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") then
         out[#out + 1] = "the client refuses the combat log to addons in this build, so Skip "
             .. "When Already Covered has no aura data -- it runs on your own casts instead, "
-            .. "for " .. tostring(OWN_CAST_COVER_WINDOW) .. "s after you press one"
+            .. "for " .. tostring(TRDB().coveredCastWindow or OWN_CAST_COVER_DEFAULT)
+            .. "s after you press one"
     end
     if not TimelineAvailable() then
         out[#out + 1] = "the boss timeline feature is unavailable here"
@@ -5711,6 +5715,19 @@ function ns.BuildCoreSettings(parent, y)
           .. "defensive on its preset list.",
           getValue = function() return TRDB().leadTime or 3 end,
           setValue = function(v) TRDB().leadTime = v end }
+    ); y = y - h
+
+    -- Its own row: the two above are a settled pair and the slider is long-labelled.
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "Your Own Cast Covers You For", min = 0, max = 15, step = 1,
+          tooltip = "The client refuses addons the combat log in this build, so a defensive "
+          .. "you press cannot be watched landing -- the press itself is all there is. This "
+          .. "is how long after one the callout stays quiet. Set it to the length of what "
+          .. "you actually press, or to 0 to hear about every hit even while covered. A "
+          .. "tank who pre-pops as the boss engages wants it low: at 10 seconds, a hit "
+          .. "five seconds after the press says nothing at all.",
+          getValue = function() return TRDB().coveredCastWindow or 6 end,
+          setValue = function(v) TRDB().coveredCastWindow = v end }
     ); y = y - h
 
     -- The player's own list for the current spec, in priority order. This addon ships no
