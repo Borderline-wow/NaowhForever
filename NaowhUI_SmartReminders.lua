@@ -6418,6 +6418,17 @@ function ns.SoundChoices()
     return paths, names, order
 end
 
+-- The plain settings a profile carries, for the pack exporter: everything DEFAULTS names,
+-- which is display, sound, voice, scope and behaviour. A fresh list rather than DEFAULTS
+-- itself so nothing can write back through it. `pos` is not in DEFAULTS -- it is a table and
+-- only exists once the alert has been moved -- so the exporter takes it separately.
+function ns.SettingKeys()
+    local out = {}
+    for k in pairs(DEFAULTS) do out[#out + 1] = k end
+    table.sort(out)
+    return out
+end
+
 ns.DB            = TRDB
 ns.UserList      = UserList
 ns.BossList      = BossList

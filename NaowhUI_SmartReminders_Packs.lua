@@ -117,6 +117,21 @@ function ns.ExportPack(packName, author)
     data.leadTime = db.leadTime
     data.voiceNone = db.voiceNone
 
+    -- Everything else the profile holds: display sizes and which channels show, the sound
+    -- and voice choices, where it runs, the behaviour switches, and where the alert sits.
+    -- Without these a pack carried the lists and nothing that made them look or sound like
+    -- the curator's -- 22 of the 24 settings a profile stores were left behind, which for a
+    -- UI shared as a product is most of what "import my setup" means.
+    local settings = {}
+    local keys = ns.SettingKeys and ns.SettingKeys() or {}
+    for i = 1, #keys do
+        local v = db[keys[i]]
+        local vt = type(v)
+        if vt == "number" or vt == "string" or vt == "boolean" then settings[keys[i]] = v end
+    end
+    if type(db.pos) == "table" then settings.pos = Copy(db.pos) end
+    if next(settings) ~= nil then data.settings = settings end
+
     local payload = {
         format  = PACK_FORMAT,
         name    = (packName and packName ~= "") and packName or "Reminder Pack",
@@ -230,7 +245,7 @@ local function FilterToSpecs(field, incoming, wantSpecs)
     return out
 end
 
-function ns.ApplyPack(payload, mode, wantSpecs)
+function ns.ApplyPack(payload, mode, wantSpecs, wantSettings)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
     local db = ns.DB()
 
@@ -268,6 +283,19 @@ function ns.ApplyPack(payload, mode, wantSpecs)
     if type(payload.data.voiceNone) == "string" and payload.data.voiceNone ~= ""
         and mode ~= "merge" then
         db.voiceNone = payload.data.voiceNone
+    end
+
+    -- Opt-in, because a pack is shared: taking someone's lists should not silently move
+    -- your alert, resize it, change its sound or switch the addon on. The import dialog
+    -- offers it ticked, since matching the curator is what most people importing a UI want.
+    if wantSettings and type(payload.data.settings) == "table" then
+        for k, v in pairs(payload.data.settings) do
+            if k == "pos" then
+                if type(v) == "table" then db.pos = Copy(v) end
+            else
+                db[k] = v
+            end
+        end
     end
 
     ns.RefreshRuntime()
@@ -439,6 +467,7 @@ function ns.ShowPackImport()
     -- class at a time. Built once and reused: this dialog is cached between opens, and the
     -- rows have to survive pasting a different string into the same window.
     local specRows, specWanted = {}, {}
+    local settingsWanted, settingsBtn = true, nil
     local specHead = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     specHead:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -226)
     specHead:SetJustifyH("LEFT")
@@ -446,6 +475,7 @@ function ns.ShowPackImport()
 
     local function BuildSpecRows(payload)
         for i = 1, #specRows do specRows[i]:Hide() end
+        if settingsBtn then settingsBtn:Hide() end
         wipe(specWanted)
         local specs = payload and ns.PackSpecs(payload) or {}
         if #specs == 0 then
@@ -474,6 +504,27 @@ function ns.ShowPackImport()
             end)
             Paint()
             btn:Show()
+        end
+
+        -- Offered only when the pack has them: an older string carries none.
+        if type(payload.data) == "table" and type(payload.data.settings) == "table" then
+            if not settingsBtn then
+                settingsBtn = ns.Button(panel, "", 320, 22, nil)
+            end
+            settingsBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20,
+                -246 - (#specs * 26) - 6)
+            local function PaintSettings()
+                settingsBtn.label:SetText((settingsWanted and "|cff0091ed[x]|r  " or "[  ]  ")
+                    .. "Their display, sound and behaviour settings")
+            end
+            settingsBtn:SetScript("OnClick", function()
+                settingsWanted = not settingsWanted
+                PaintSettings()
+            end)
+            PaintSettings()
+            settingsBtn:Show()
+        elseif settingsBtn then
+            settingsBtn:Hide()
         end
     end
 
@@ -509,7 +560,7 @@ function ns.ShowPackImport()
             return
         end
         if #specs > 0 and not all then want = specWanted end
-        if ns.ApplyPack(decoded, mode, want) then
+        if ns.ApplyPack(decoded, mode, want, settingsWanted) then
             ns.Print(("pack applied (%s)."):format(mode))
             dimmer:Hide()
             local EUI = ns.UI
