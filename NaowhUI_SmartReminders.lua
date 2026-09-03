@@ -3739,9 +3739,15 @@ end
 -- per-ABILITY override (set from that ability's own cog, on the Defensive Preset tab)
 -- wins when it has one set -- one warning time for the whole preset, not broken out
 -- per defensive within it.
+--
+-- Positive: warn this many seconds before the hit, as the base slider always does.
+-- Negative is the override's alone -- the base slider stops at 1 -- and calls out this
+-- many seconds AFTER the hit instead, for a mechanic where the useful moment is once it
+-- is over rather than while it is coming (requested for Rav'i's Triple Shot).
 function ns.LeadTimeFor(enc, sid)
     local binding = ns.BindingForBossModKey(enc, sid)
-    return (binding and binding.leadTime) or TRDB().leadTime or 3
+    if binding and binding.leadTime then return binding.leadTime end
+    return TRDB().leadTime or 3
 end
 
 -- Nothing calls out until the player has deliberately added it to the boss. The curated
@@ -3934,10 +3940,19 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
     local sidFires = fires[sid]
     if not sidFires then sidFires = {} fires[sid] = sidFires end
     -- lead 0 means "fire when the bar reaches 0", so the wait is the WHOLE bar. Only a
-    -- lead at or past the bar's own length is already inside its window and fires now;
-    -- treating 0 that way fired every such reminder the instant its bar started, which
-    -- for a boss's opening bar is the moment you enter combat.
-    if type(lead) ~= "number" or lead < 0 then lead = 0 end
+    -- lead PAST the bar's own length is already inside its window and fires now; treating
+    -- 0 that way fired every such reminder the instant its bar started, which for a
+    -- boss's opening bar is the moment you enter combat.
+    --
+    -- Requested for mechanics where the useful moment is after the hit lands, not before
+    -- it -- Rav'i's Triple Shot named as the case, called a beat once the volley is over
+    -- rather than while it is incoming. A NEGATIVE lead is what that is: the formula below
+    -- already reads as "how far past the bar's own end to wait" once lead goes below
+    -- zero, so delaying past impact needed no separate mode, only letting the sign through
+    -- instead of clamping it away. Per-ability only (the boss page's own Warning Time
+    -- slider) -- the spec-wide default stays a positive warning, and the raid-reminder
+    -- engine keeps its own explicit floor at zero, unasked-for and untouched here.
+    if type(lead) ~= "number" then lead = 0 end
     local delay = (lead < duration) and (duration - lead) or 0.01
     local key = barIdentity or false
     local fireAt = GetTime() + delay
@@ -4076,6 +4091,22 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
         -- and cancelled the next Triple Shot's callout, every other cast. Reported as calling
         -- on some casts and not others, with one tank holding threat throughout.
         local sidFires = pendingBWFires.tank and pendingBWFires.tank[sid]
+
+        -- A genuine (non-uptime) bar still pending for this sid IS the delayed callout a
+        -- negative lead asked for -- ScheduleBWFire already scheduled it to land past the
+        -- bar's own end. This Message is that same bar completing: Rav'i's own "the bar's
+        -- own Message as it lands" above is exactly that CDBar's completion echo, which
+        -- reaches HERE with no duration attached and would otherwise fire immediately --
+        -- AT impact, defeating the delay -- and then the bar's timer would fire it AGAIN
+        -- when the real delay elapses. Skipped in that case; the bar owns firing. Only
+        -- falls through and fires now when NO bar is pending, since a Message-only ability
+        -- configured with a negative lead has no bar duration to delay past.
+        if lead < 0 and sidFires then
+            for _, f in pairs(sidFires) do
+                if not f.uptime then return end
+            end
+        end
+
         if sidFires then
             local thisCastUntil = GetTime() + lead + SAME_CAST_WINDOW
             for key, f in pairs(sidFires) do
@@ -5852,7 +5883,8 @@ function ns.BuildCoreSettings(parent, y)
           .. "lower is closer to the hit. When the game announces later than this, the alert "
           .. "fires immediately. This is the BASE value every defensive uses -- override "
           .. "one specifically from an ability's own cog on a boss's page, next to that "
-          .. "defensive on its preset list.",
+          .. "defensive on its preset list. That override can go negative too, to call out "
+          .. "AFTER the hit instead of before it.",
           getValue = function() return TRDB().leadTime or 3 end,
           setValue = function(v) TRDB().leadTime = v end }
     ); y = y - h
