@@ -4294,20 +4294,24 @@ local function UpdateEventRegistration()
     -- cannot succeed, and a whole raid night reported registered=false, lines=0 with the
     -- own-buff tracking never receiving a line. Latched, because unregistering is
     -- forbidden the same way and there is nothing to undo.
-    -- MEASURED, and not what this gate was built on: C_CombatLog.IsCombatLogRestricted()
-    -- returns true in a capital city and true in a Mythic+ dungeon, on the same character
-    -- minutes apart. It is not a statement about where you are standing, so gating on it
-    -- meant the registration never ran ANYWHERE and every session reported lines=0 with the
-    -- own-aura tracking dead -- while the status line told the tester to step outside, which
-    -- could never have helped. Blizzard's own UI never calls it, so there is nothing to copy.
+    -- MEASURED, and it settles what the probe means: IsCombatLogRestricted() returns true in
+    -- a capital city as well as in a Mythic+ dungeon, and registering from the city anyway --
+    -- gated on IsInInstance, which reads false there -- raised ADDON_ACTION_FORBIDDEN 13
+    -- times off this exact line. The two agree. The combat log is restricted for an insecure
+    -- addon everywhere in this build, not merely inside instances, so the probe is accurate
+    -- rather than broken and "step outside once" was never going to work.
     --
-    -- IsInInstance is the readable question that matches what actually throws: registering
-    -- this event from insecure code inside restricted content raises ADDON_ACTION_FORBIDDEN
-    -- (confirmed live, 11x, on a raid login) and pcall cannot catch it, so the open world is
-    -- where it is legal. Latched, because unregistering is forbidden the same way.
-    if not cleuRegistered and not IsInInstance() then
-        watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        cleuRegistered = true
+    -- Kept as the gate for that reason, and because it is self-correcting: if the restriction
+    -- is ever relaxed the probe reads false and registration resumes with no change here.
+    -- Nothing else can be substituted for it -- a gate that guesses instead throws, and pcall
+    -- cannot catch a forbidden call.
+    if not cleuRegistered then
+        local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
+            and C_CombatLog.IsCombatLogRestricted()
+        if restricted == false or restricted == nil then
+            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+            cleuRegistered = true
+        end
     end
 
     if not ShouldRun() then
@@ -4612,9 +4616,13 @@ local function DiagProblems()
         out[#out + 1] = "not a tank spec and Pretend Tank is off, so tank busters will "
             .. "never call -- run /nutank pretendtank"
     end
+    -- No instruction any more: the client refuses the registration everywhere in this build,
+    -- so there is nothing a tester can do about it and the old "step outside once" line sent
+    -- several of them on a walk that could not have worked.
     if watcher and not watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") then
-        out[#out + 1] = "combat log was never hooked, so Skip When Already Covered has no "
-            .. "aura data -- step OUTSIDE the instance once, it can only register there"
+        out[#out + 1] = "the client refuses the combat log to addons in this build, so Skip "
+            .. "When Already Covered has no aura data -- it runs on your own casts instead, "
+            .. "for " .. tostring(OWN_CAST_COVER_WINDOW) .. "s after you press one"
     end
     if not TimelineAvailable() then
         out[#out + 1] = "the boss timeline feature is unavailable here"
@@ -6251,7 +6259,6 @@ end
 watcher = CreateFrame("Frame")
 watcher:RegisterEvent("PLAYER_LOGIN")
 watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
-watcher:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 watcher:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 watcher:RegisterEvent("SPELLS_CHANGED")
 watcher:RegisterEvent("TRAIT_CONFIG_UPDATED")
@@ -6383,21 +6390,6 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         NoteOwnCast(arg3)   -- (unit, castGUID, spellID); unit is always "player" here
         ns.HideIfCalloutPressed(arg3)
         return
-    end
-
-    -- Both arrive while the world is still settling, and the one attempt ns.Apply makes
-    -- below reads C_CombatLog.IsCombatLogRestricted mid-transition. Stepping outside an
-    -- instance is the only moment registering the combat log is legal, so an attempt that
-    -- reads the state it is leaving misses that window entirely and the next one is back
-    -- inside, where it cannot succeed: reported after stepping out and back with the status
-    -- line still reading registered=false, lines=0 for the whole session.
-    --
-    -- Retried once the zone has settled, and only while the latch is still open, so it stops
-    -- the moment it takes. ZONE_CHANGED_NEW_AREA returns rather than falling through: it is
-    -- here for the retry alone and a full ns.Apply on every zone change is not free.
-    if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
-        if not cleuRegistered then C_Timer.After(3, UpdateEventRegistration) end
-        if event == "ZONE_CHANGED_NEW_AREA" then return end
     end
 
     if event == "PLAYER_REGEN_DISABLED" then
