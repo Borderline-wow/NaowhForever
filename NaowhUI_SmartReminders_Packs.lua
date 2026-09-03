@@ -173,7 +173,64 @@ end
 -- overwrites the local one. mode "merge": pack entries win per key, local
 -- entries the pack lacks survive. Either way the write happens LAST, after
 -- everything staged cleanly, so a failure cannot leave a half-applied pack.
-function ns.ApplyPack(payload, mode)
+-- Which specs a pack carries, named. presets, activePreset and abilityBindings are keyed by
+-- spec outright; bossLists keys are "spec:encounter". Everything else in a pack -- callout
+-- lines, audio switches, custom and raid reminders -- is keyed by spell or encounter and
+-- belongs to no spec in particular.
+--
+-- A profile accumulates a spec the first time it is configured there, and every character on
+-- an account shares one profile unless it is changed, so a curator who plays ten classes
+-- ends up with all ten in a single string.
+function ns.PackSpecs(payload)
+    if type(payload) ~= "table" or type(payload.data) ~= "table" then return {} end
+    local d, seen = payload.data, {}
+    for _, field in ipairs({ "presets", "activePreset", "abilityBindings" }) do
+        if type(d[field]) == "table" then
+            for k in pairs(d[field]) do seen[tostring(k)] = true end
+        end
+    end
+    if type(d.bossLists) == "table" then
+        for k in pairs(d.bossLists) do
+            local spec = tostring(k):match("^(%d+):")
+            if spec then seen[spec] = true end
+        end
+    end
+    local out = {}
+    for key in pairs(seen) do
+        local id = tonumber(key)
+        local name
+        if id then
+            local ok, _, n = pcall(GetSpecializationInfoByID, id)
+            name = (ok and n) or nil
+        end
+        out[#out + 1] = { key = key, name = name or ("Spec " .. key) }
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
+-- wantSpecs, when given, is a set of spec keys to take; the spec-keyed sections are filtered
+-- to it and everything else comes across whole. Nil means the whole pack, which is what an
+-- older caller and the merge path both expect.
+local function FilterToSpecs(field, incoming, wantSpecs)
+    if not wantSpecs then return Copy(incoming) end
+    local out = {}
+    if field == "bossLists" then
+        for k, v in pairs(incoming) do
+            local spec = tostring(k):match("^(%d+):")
+            if spec and wantSpecs[spec] then out[k] = Copy(v) end
+        end
+    elseif field == "presets" or field == "activePreset" or field == "abilityBindings" then
+        for k, v in pairs(incoming) do
+            if wantSpecs[tostring(k)] then out[k] = Copy(v) end
+        end
+    else
+        return Copy(incoming)
+    end
+    return out
+end
+
+function ns.ApplyPack(payload, mode, wantSpecs)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
     local db = ns.DB()
 
@@ -182,12 +239,16 @@ function ns.ApplyPack(payload, mode)
         local sec = SECTIONS[i]
         local incoming = payload.data[sec.field]
         if type(incoming) == "table" then
-            if mode == "merge" and type(db[sec.field]) == "table" then
-                local merged = Copy(db[sec.field])
-                for k, v in pairs(incoming) do merged[k] = Copy(v) end
+            local taken = FilterToSpecs(sec.field, incoming, wantSpecs)
+            -- Picking specs always merges, whatever the button said. Replacing the section
+            -- outright would take the importer's OTHER specs with it -- bringing in a Blood
+            -- list would wipe the Havoc one that was never part of the choice.
+            if wantSpecs or (mode == "merge" and type(db[sec.field]) == "table") then
+                local merged = type(db[sec.field]) == "table" and Copy(db[sec.field]) or {}
+                for k, v in pairs(taken) do merged[k] = v end
                 staged[sec.field] = merged
             else
-                staged[sec.field] = Copy(incoming)
+                staged[sec.field] = taken
             end
         end
     end
@@ -288,7 +349,16 @@ function ns.ShowPackExport()
         local str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
         if str then
             box:SetText(str)
-            status:SetText(("%d characters. Click the text, then Ctrl+A Ctrl+C."):format(#str))
+            -- Named, not counted. A curator sharing a set for ten classes wants to see that
+            -- all ten went in, and the only way to be sure was to import it somewhere.
+            local specs, names = ns.PackSpecs({ data = { presets = ns.DB().presets,
+                activePreset = ns.DB().activePreset, bossLists = ns.DB().bossLists,
+                abilityBindings = ns.DB().abilityBindings } }), nil
+            for i = 1, #specs do
+                names = names and (names .. ", " .. specs[i].name) or specs[i].name
+            end
+            status:SetText(("%d characters%s. Click the text, then Ctrl+A Ctrl+C."):format(
+                #str, names and (" covering " .. names) or ""))
         else
             box:SetText("")
             status:SetText("|cffff6060" .. tostring(err) .. "|r")
@@ -350,7 +420,7 @@ function ns.ShowPackImport()
         packImport.box:SetFocus()
         return
     end
-    local dimmer, panel = ns.MakeModal(560, 330, "packImport")
+    local dimmer, panel = ns.MakeModal(560, 470, "packImport")
     local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Import Profile")
@@ -365,6 +435,48 @@ function ns.ShowPackImport()
     local decoded
     local applyBtn, mergeBtn
 
+    -- One row per spec the pack carries, so a curator's ten-class string can be taken a
+    -- class at a time. Built once and reused: this dialog is cached between opens, and the
+    -- rows have to survive pasting a different string into the same window.
+    local specRows, specWanted = {}, {}
+    local specHead = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    specHead:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -226)
+    specHead:SetJustifyH("LEFT")
+    specHead:Hide()
+
+    local function BuildSpecRows(payload)
+        for i = 1, #specRows do specRows[i]:Hide() end
+        wipe(specWanted)
+        local specs = payload and ns.PackSpecs(payload) or {}
+        if #specs == 0 then
+            specHead:Hide()
+            return
+        end
+        specHead:SetText("Bring in which of these:")
+        specHead:Show()
+        for i = 1, #specs do
+            local spec = specs[i]
+            specWanted[spec.key] = true
+            local btn = specRows[i]
+            if not btn then
+                btn = ns.Button(panel, "", 250, 22, nil)
+                btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -246 - ((i - 1) * 26))
+                specRows[i] = btn
+            end
+            local function Paint()
+                -- ns.Button keeps its own font string; the frame has none of its own.
+                btn.label:SetText((specWanted[spec.key] and "|cff0091ed[x]|r  " or "[  ]  ")
+                    .. spec.name)
+            end
+            btn:SetScript("OnClick", function()
+                specWanted[spec.key] = not specWanted[spec.key] or nil
+                Paint()
+            end)
+            Paint()
+            btn:Show()
+        end
+    end
+
     local function Revalidate()
         local payload, descOrErr = ns.DecodePack(box:GetText())
         decoded = payload
@@ -373,6 +485,7 @@ function ns.ShowPackImport()
         else
             preview:SetText("|cffff6060" .. tostring(descOrErr) .. "|r")
         end
+        BuildSpecRows(payload)
         local on = payload ~= nil
         for _, b in ipairs({ applyBtn, mergeBtn }) do
             if b then
@@ -384,7 +497,19 @@ function ns.ShowPackImport()
 
     local function Finish(mode)
         if not decoded then return end
-        if ns.ApplyPack(decoded, mode) then
+        -- Nil rather than an empty set when every spec is ticked, so a pack whose specs are
+        -- all wanted still takes the plain replace path and matches the curator exactly.
+        local want, all, any = nil, true, false
+        local specs = ns.PackSpecs(decoded)
+        for i = 1, #specs do
+            if specWanted[specs[i].key] then any = true else all = false end
+        end
+        if #specs > 0 and not any then
+            preview:SetText("|cffff6060Pick at least one to bring in.|r")
+            return
+        end
+        if #specs > 0 and not all then want = specWanted end
+        if ns.ApplyPack(decoded, mode, want) then
             ns.Print(("pack applied (%s)."):format(mode))
             dimmer:Hide()
             local EUI = ns.UI
