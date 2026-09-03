@@ -288,6 +288,30 @@ local function UserList(forSpec, create)
     return p.list
 end
 
+-- Which entries are called TOGETHER with the one below them. A flag on the earlier of the
+-- pair rather than a named partner: the list is a plain array of spell ids that drag-reorder
+-- rewrites freely, so anything holding a second id would have to be repaired on every move.
+-- Chaining a run of three is then just two ticks.
+--
+-- ns functions rather than chunk locals: this file is at the 200-local ceiling.
+function ns.ChainedWithNext(forSpec, spellID)
+    local presetKey = ActivePresetKey(forSpec)
+    if not presetKey then return false end
+    local presets = PresetsTable(forSpec, false)
+    local p = presets and presets[presetKey]
+    return (p and type(p.chain) == "table" and p.chain[tostring(spellID)]) == true
+end
+
+function ns.SetChainedWithNext(forSpec, spellID, on)
+    local presetKey = EnsureActivePreset(forSpec)
+    if not presetKey then return end
+    local presets = PresetsTable(forSpec, true)
+    local p = presets and presets[presetKey]
+    if not p then return end
+    if type(p.chain) ~= "table" then p.chain = {} end
+    p.chain[tostring(spellID)] = on and true or nil
+end
+
 -- Per-boss overrides live beside the spec default, keyed spec:encounter. The key is the
 -- dungeonEncounterID -- the same id ENCOUNTER_START reports and the same one the journal
 -- hands back -- so what the tree sets up and what fires in the fight are the same record.
@@ -1961,7 +1985,8 @@ local function LogLine(e)
         tostring(e.running), e.charges and (" charges=" .. e.charges) or "",
         e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", tostring(e.secrecy),
         e.tankPath and (" tankCheck=%s(%s)"):format(e.tankPath, nameOf(e.tankSid)) or "",
-        (e.auraUp and (" auraUp=" .. e.auraUp) or "")
+        (e.withSids and (" with=" .. e.withSids) or "")
+            .. (e.auraUp and (" auraUp=" .. e.auraUp) or "")
             .. (e.chargeModel and ("\n    charges: " .. e.chargeModel) or ""))
 end
 
@@ -2319,7 +2344,7 @@ local function ChargeModelSnapshot()
     return out
 end
 
-local function LogCallout(sid)
+local function LogCallout(sid, partners)
     local st = chargeState[sid]
     local running = CooldownRunning(sid)
     -- Which of the player's own defensives the combat-log tracking believed were up at the
@@ -2348,6 +2373,9 @@ local function LogCallout(sid)
         -- it were this fire's own answer.
         tankSid = (not ns.testFiring) and lastAggroCheck and lastAggroCheck.sid or nil,
         tankPath = (not ns.testFiring) and lastAggroCheck and lastAggroCheck.path or nil,
+        -- Named, not counted: "with Icebound Fortitude" is the whole question when a pair
+        -- reads wrong, and a bare 2 would send the next look at the preset instead of here.
+        withSids = partners and table.concat(partners, ",") or nil,
     })
 end
 
@@ -2398,9 +2426,37 @@ local function SpeakCallout(triggerSid)
     end
 
     if picked then
+        -- Entries the player marked as going WITH the winner: the run continues from it
+        -- while each is chained and the one below is ready. A partner that is down is not
+        -- waited for and does not stop the call -- a pairing must never be able to silence
+        -- a callout, which is the failure this engine keeps having to unlearn.
+        --
+        -- Its own pcall for the same reason the pick has one: a throw here would otherwise
+        -- take the callout with it.
+        local okChain, partners = pcall(function()
+            local at
+            for i = 1, activeSlots do
+                if slots[i].spellID == picked then at = i break end
+            end
+            if not at then return nil end
+            local out
+            while at < activeSlots and ns.ChainedWithNext(specID, slots[at].spellID) do
+                local nextSid = slots[at + 1].spellID
+                if not SpellReady(nextSid, now) then break end
+                out = out or {}
+                out[#out + 1] = nextSid
+                at = at + 1
+            end
+            return out
+        end)
+        if not okChain then partners = nil end
+
         -- Outside the audio gate below: a muted entry still wins the pick and still shows,
         -- so it should still light up its Cooldown Manager button.
         ns.StartCDMGlow(picked)
+        if partners then
+            for i = 1, #partners do ns.StartCDMGlow(partners[i]) end
+        end
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
         if not ns.IsAudioOff(picked) then
@@ -2411,9 +2467,19 @@ local function SpeakCallout(triggerSid)
                 return
             end
             lastAnnouncedSpellID, lastAnnouncedTrigger, lastAnnouncedAt = picked, triggerSid, now
-            LogCallout(picked)
+            LogCallout(picked, partners)
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
-            Announce(picked, CalloutFor(picked, info and info.name))
+            local said = CalloutFor(picked, info and info.name)
+            -- One line, spoken in list order. A per-spell SOUND FILE still belongs to the
+            -- winner alone: two files cannot be run together into one announcement, and the
+            -- voice is the channel where a pair reads as a pair.
+            if partners then
+                for i = 1, #partners do
+                    local pi = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(partners[i])
+                    said = said .. " and " .. CalloutFor(partners[i], pi and pi.name)
+                end
+            end
+            Announce(picked, said)
         end
         return
     end
