@@ -48,7 +48,15 @@ ns.TANK_ABILITIES = {
     [1247685] = "Mixed",   -- Ziekket: Thornspike
     [1311804] = "Mixed",   -- Adderis and Aspix: Overload (was 1288428; BigWigs bars 1311804)
     [1290797] = "Mixed",   -- Merektha: Lightning Bite
-    [1296220] = "Magical",   -- Rav'i: Triple Shot
+    -- 1296220 (Rav'i: Triple Shot) deliberately NOT here. Blizzard's own Dungeon Journal
+    -- flags it Healer, not Tank -- visible on the boss page, which reads the journal
+    -- directly -- and everything independently found about it this week agrees: it fires
+    -- as a PersonalMessage BigWigs targets by the mechanic itself, never by threat, and
+    -- it was already pulled out of the owner-slot map for exactly that reason. Being on
+    -- this list is what put the wrong |cff0091ed[tank hit]|r tag on it in the Add Ability
+    -- picker -- and, more than cosmetic, is what registered the tank-hit SOUND for it too
+    -- (NaowhUI_SmartReminders.lua, RegisterEventSounds's "curated" check): anyone with that
+    -- feature on has been hearing a tank-incoming cue for a healer mechanic.
     [1297017] = "Magical",   -- Taz'Rah: Void Blast
     [1298949] = "Physical",   -- The Writhing Coil: Tail Scythe
     [1301350] = "Physical",   -- Zul'jan: Chop Down
