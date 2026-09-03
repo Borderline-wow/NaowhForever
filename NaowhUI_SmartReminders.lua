@@ -2471,13 +2471,26 @@ local function SpeakCallout(triggerSid)
             LogCallout(picked, partners)
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
             local said = CalloutFor(picked, info and info.name)
-            -- One line, spoken in list order. A per-spell SOUND FILE still belongs to the
-            -- winner alone: two files cannot be run together into one announcement, and the
-            -- voice is the channel where a pair reads as a pair.
+            -- Spoken in LIST order, not winner-first, so the line matches the one the preset
+            -- row shows for the set -- "Guardian and Ardent" reads the same in both places
+            -- whichever half happened to win the pick. A per-spell SOUND FILE still belongs
+            -- to the winner alone: two files cannot be run together into one announcement,
+            -- and the voice is the channel where a set reads as a set.
             if partners then
-                for i = 1, #partners do
-                    local pi = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(partners[i])
-                    said = said .. " and " .. CalloutFor(partners[i], pi and pi.name)
+                said = nil
+                for i = 1, activeSlots do
+                    local sid = slots[i].spellID
+                    local part = sid == picked
+                    if not part then
+                        for j = 1, #partners do
+                            if partners[j] == sid then part = true break end
+                        end
+                    end
+                    if part then
+                        local si = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+                        local one = CalloutFor(sid, si and si.name)
+                        said = said and (said .. " and " .. one) or one
+                    end
                 end
             end
             Announce(picked, said)
