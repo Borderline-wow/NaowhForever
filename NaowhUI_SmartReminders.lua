@@ -4294,13 +4294,20 @@ local function UpdateEventRegistration()
     -- cannot succeed, and a whole raid night reported registered=false, lines=0 with the
     -- own-buff tracking never receiving a line. Latched, because unregistering is
     -- forbidden the same way and there is nothing to undo.
-    if not cleuRegistered then
-        local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
-            and C_CombatLog.IsCombatLogRestricted()
-        if restricted == false or restricted == nil then
-            watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-            cleuRegistered = true
-        end
+    -- MEASURED, and not what this gate was built on: C_CombatLog.IsCombatLogRestricted()
+    -- returns true in a capital city and true in a Mythic+ dungeon, on the same character
+    -- minutes apart. It is not a statement about where you are standing, so gating on it
+    -- meant the registration never ran ANYWHERE and every session reported lines=0 with the
+    -- own-aura tracking dead -- while the status line told the tester to step outside, which
+    -- could never have helped. Blizzard's own UI never calls it, so there is nothing to copy.
+    --
+    -- IsInInstance is the readable question that matches what actually throws: registering
+    -- this event from insecure code inside restricted content raises ADDON_ACTION_FORBIDDEN
+    -- (confirmed live, 11x, on a raid login) and pcall cannot catch it, so the open world is
+    -- where it is legal. Latched, because unregistering is forbidden the same way.
+    if not cleuRegistered and not IsInInstance() then
+        watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        cleuRegistered = true
     end
 
     if not ShouldRun() then
@@ -4668,8 +4675,11 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         out[#out + 1] = ("build %s | spec %d | tank %s | pretendTank %s | slots %d | trace %s"):format(
             BuildString(), specID, tostring(isTank), tostring(t.pretendTank and true or false),
             activeSlots, tostring(t.trace and true or false))
-        out[#out + 1] = ("combat log registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d"):format(
+        -- inInstance is the one that decides whether registering can happen; restrictedHere
+        -- reads true everywhere and is kept only so a future report can show it still does.
+        out[#out + 1] = ("combat log registered=%s inInstance=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d"):format(
             tostring(watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED")),
+            tostring(IsInInstance()),
             tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
                 and C_CombatLog.IsCombatLogRestricted()),
             cleuLines, cleuUsable, cleuOwnAuras)
@@ -5060,9 +5070,10 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- a pull says nothing -- registered= is the one that answers on its own.
     ns.Print(("aura cover: bigDefensiveHits=%d (Blizzard's own classification; 0 all pull "
         .. "means the aura enumeration is refused here)"):format(bigDefSeen))
-    ns.Print(("combat log: registered=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
+    ns.Print(("combat log: registered=%s inInstance=%s restrictedHere=%s lines=%d usable=%d ownAuras=%d playerGUID=%s"):format(
         watcher:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") and "true"
             or "|cffff6060false|r",
+        tostring(IsInInstance()),
         tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
             and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
