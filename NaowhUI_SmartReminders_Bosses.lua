@@ -319,8 +319,25 @@ end
 -- needs. Reached when there is no map id for the instance or the installed BigWigs is too
 -- old to have LoadZone. Never runs on window open any more: doing so held the client at
 -- single-digit FPS through all 22 loads, on a tab that used none of them.
+-- A content pack's own !Options.lua indexes the BigWigs global while it loads, so loading
+-- one before the core is up throws inside BigWigs' loader -- out of reach of any pcall of
+-- ours, since it happens in their event handler. Reported from the options window with
+-- BigWigs installed but not yet loaded: "BigWigs_TheVenomousAbyss/!Options.lua:3: attempt
+-- to index global 'BigWigs' (a nil value)", twice.
+--
+-- The core is load-on-demand as well, so ask for it first. If it will not come up there is
+-- nothing to read anyway and the caller falls back to the journal listing.
+local function BossModCoreUp()
+    if _G.BigWigs then return true end
+    if C_AddOns and C_AddOns.LoadAddOn then pcall(C_AddOns.LoadAddOn, "BigWigs_Core") end
+    return _G.BigWigs ~= nil
+end
+
 local function LoadBossModPacks()
     if bwPacksLoaded or bwPacksLoading then return end
+    -- Returns without latching bwPacksLoaded: the core comes up by itself on zoning into an
+    -- instance, and marking the sweep done here would stop it ever being tried again.
+    if not BossModCoreUp() then return end
     if not (C_AddOns and C_AddOns.LoadAddOn and C_Timer and C_Timer.NewTicker) then
         bwPacksLoaded = true
         return
@@ -357,8 +374,14 @@ local function BigWigsOptionList(encounterID, mapID)
     -- all 22 installed packs one per frame -- the old approach, kicked off on ANY window
     -- open -- held the client at single-digit FPS for the whole run of them, on the Setup
     -- tab where none of it was even used. LoadZone is a no-op for an unknown zone.
-    if mapID and BigWigsLoader and BigWigsLoader.LoadZone then
+    if mapID and BigWigsLoader and BigWigsLoader.LoadZone and BossModCoreUp() then
         pcall(BigWigsLoader.LoadZone, BigWigsLoader, mapID)
+    elseif mapID and BigWigsLoader and BigWigsLoader.LoadZone then
+        -- Core refused to load: nothing to look up, and the sweep below would hit the same
+        -- wall one pack at a time. NOT cached -- the core comes up on its own when the
+        -- player zones into an instance, and a false pinned here would say "no module for
+        -- this boss" for the rest of the session.
+        return nil
     else
         -- No map id or an old BigWigs without LoadZone: fall back to the sweep, but only
         -- from here, where the result is actually wanted.
