@@ -2393,8 +2393,10 @@ end
 -- current code even loaded" outright, instead of us inferring it from which lines are
 -- missing, which cost a pull to get wrong.
 local function BuildString()
-    return (C_AddOns and C_AddOns.GetAddOnMetadata
+    local toc = (C_AddOns and C_AddOns.GetAddOnMetadata
         and C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version")) or "unknown"
+    -- The TOC half only moves on release; ns.CODE_BUILD moves whenever the Lua does.
+    return ns.CODE_BUILD and (toc .. " code " .. ns.CODE_BUILD) or toc
 end
 
 -- Never tostring an error straight into a message. When a secret value is what raised, the
