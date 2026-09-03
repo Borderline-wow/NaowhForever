@@ -6240,6 +6240,7 @@ end
 watcher = CreateFrame("Frame")
 watcher:RegisterEvent("PLAYER_LOGIN")
 watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+watcher:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 watcher:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 watcher:RegisterEvent("SPELLS_CHANGED")
 watcher:RegisterEvent("TRAIT_CONFIG_UPDATED")
@@ -6371,6 +6372,21 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         NoteOwnCast(arg3)   -- (unit, castGUID, spellID); unit is always "player" here
         ns.HideIfCalloutPressed(arg3)
         return
+    end
+
+    -- Both arrive while the world is still settling, and the one attempt ns.Apply makes
+    -- below reads C_CombatLog.IsCombatLogRestricted mid-transition. Stepping outside an
+    -- instance is the only moment registering the combat log is legal, so an attempt that
+    -- reads the state it is leaving misses that window entirely and the next one is back
+    -- inside, where it cannot succeed: reported after stepping out and back with the status
+    -- line still reading registered=false, lines=0 for the whole session.
+    --
+    -- Retried once the zone has settled, and only while the latch is still open, so it stops
+    -- the moment it takes. ZONE_CHANGED_NEW_AREA returns rather than falling through: it is
+    -- here for the retry alone and a full ns.Apply on every zone change is not free.
+    if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
+        if not cleuRegistered then C_Timer.After(3, UpdateEventRegistration) end
+        if event == "ZONE_CHANGED_NEW_AREA" then return end
     end
 
     if event == "PLAYER_REGEN_DISABLED" then
