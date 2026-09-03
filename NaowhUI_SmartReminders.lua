@@ -3764,7 +3764,14 @@ local pendingBWFires = { tank = {} }   -- [channel][sid] = { [identity] = {fireA
 -- buster is a full cooldown away.
 local SAME_CAST_WINDOW = 2
 
-function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
+-- isApprox is the bar's own flavour, straight from BigWigs: true for :CDBar, the countdown
+-- to the NEXT cast, false for :Bar and :CastBar, which describe something already happening.
+-- Only entries of the same flavour share identities. A module that starts a debuff bar under
+-- the ability's own key -- Rav'i's "Debuffs (N)" under Triple Shot's -- otherwise has that
+-- name welded onto the real callout by the inheritance below, and the debuff expiring then
+-- cancels a cast that was still coming. Nil counts as a cooldown: DBM sends no flavour and
+-- its timers are cooldowns, and pairing its id with BigWigs' text is what aliases are for.
+function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, isApprox)
     local fires = pendingBWFires[channel]
     if not fires then fires = {} pendingBWFires[channel] = fires end
     local sidFires = fires[sid]
@@ -3792,10 +3799,11 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     -- Gated on the fire times matching, NOT inherited unconditionally: aliases carried
     -- across to the NEXT occurrence would let the previous bar's ordinary stop cancel the
     -- callout for the cast after it, which is the silent-buster direction.
+    local uptime = (isApprox == false)
     local aliases = { [key] = true }
     for otherKey, f in pairs(sidFires) do
         if f.timer.Cancel then f.timer:Cancel() end
-        if math.abs(f.fireAt - fireAt) <= SAME_CAST_WINDOW then
+        if f.uptime == uptime and math.abs(f.fireAt - fireAt) <= SAME_CAST_WINDOW then
             for k in pairs(f.aliases) do aliases[k] = true end
         -- A supersede that is not the same cast throws away a callout nobody hears about:
         -- the nearer hit loses its fire to a bar timing one further out. Logged rather than
@@ -3809,7 +3817,7 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
         sidFires[otherKey] = nil
     end
 
-    local entry = { fireAt = fireAt, aliases = aliases }
+    local entry = { fireAt = fireAt, aliases = aliases, uptime = uptime }
     entry.timer = C_Timer.NewTimer(delay, function()
         for k in pairs(aliases) do
             if sidFires[k] == entry then sidFires[k] = nil end
@@ -3819,7 +3827,7 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn)
     for k in pairs(aliases) do sidFires[k] = entry end
 end
 
-function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
+function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if not (ShouldRun() and InEncounter()) then
@@ -3831,7 +3839,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
         -- encounter does not loop.
         if not InEncounter() and not isRetry then
             C_Timer.After(0, function()
-                ns.HandleBigWigsAbility(sid, duration, barIdentity, true)
+                ns.HandleBigWigsAbility(sid, duration, barIdentity, true, isApprox)
             end)
             return
         end
@@ -3858,7 +3866,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry)
         ns.ScheduleBWFire("tank", sid, duration, barIdentity, lead, function(fireSid)
             lastBWSid, lastBWAt = fireSid, GetTime()
             FireBigWigsAbility(fireSid)
-        end)
+        end, isApprox)
     else
         -- No duration means this is the cast itself landing, not a countdown to one, and
         -- ours already fired `lead` seconds ago for exactly this cast. The guard belongs
@@ -4023,7 +4031,7 @@ local function OnBigWigsEvent(event, ...)
         -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
         -- both the cancellation identity and the count-extraction source.
         if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
-        ns.HandleBigWigsAbility(key, duration, text)
+        ns.HandleBigWigsAbility(key, duration, text, nil, isApprox)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
@@ -4045,7 +4053,7 @@ local function OnBigWigsEvent(event, ...)
         end
         NoteBossModBar(key, duration, isApprox)
         if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
-        ns.HandleBigWigsAbility(key, duration, text)
+        ns.HandleBigWigsAbility(key, duration, text, nil, isApprox)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
         if not hasCustomReminders then return end
         CheckBossModTimerStart("BW", key, text, duration, text)
