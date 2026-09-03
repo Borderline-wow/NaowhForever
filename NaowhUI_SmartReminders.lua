@@ -105,6 +105,17 @@ local function TRDB()
             if bare then t.callouts[id] = bare end
         end
     end
+    -- Call Together was briefly stored as a chain to the entry below before it became a set
+    -- ticked per entry. Nothing reads the old key, so it is dead weight in the saved file.
+    if type(t.presets) == "table" then
+        for _, specPresets in pairs(t.presets) do
+            if type(specPresets) == "table" then
+                for _, p in pairs(specPresets) do
+                    if type(p) == "table" then p.chain = nil end
+                end
+            end
+        end
+    end
     for k, v in pairs(DEFAULTS) do if t[k] == nil then t[k] = v end end
     return t
 end
