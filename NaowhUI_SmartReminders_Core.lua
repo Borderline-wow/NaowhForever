@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0903e"
+ns.CODE_BUILD = "0903f"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -328,6 +328,25 @@ function ns.ListProfiles()
     for name in pairs(DB().profiles) do out[#out + 1] = name end
     table.sort(out, function(a, b) return a:lower() < b:lower() end)
     return out
+end
+
+-- The stored settings of any profile, loaded or not, for the exporter. Read-only by
+-- intent: the caller copies out of it. Returns nil for a profile that has never been
+-- written to, which is a profile carrying nothing rather than an error.
+function ns.ProfileSettings(name)
+    local p = DB().profiles[name]
+    return type(p) == "table" and type(p.tankReminder) == "table" and p.tankReminder or nil
+end
+
+-- Creates the profile if it is new. Used by a whole-file import, which has to land several
+-- profiles at once without switching to each in turn.
+function ns.EnsureProfile(name)
+    local sv = DB()
+    if type(sv.profiles[name]) ~= "table" then sv.profiles[name] = {} end
+    if type(sv.profiles[name].tankReminder) ~= "table" then
+        sv.profiles[name].tankReminder = {}
+    end
+    return sv.profiles[name].tankReminder
 end
 
 function ns.SwitchProfile(name)

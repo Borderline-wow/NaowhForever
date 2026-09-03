@@ -92,6 +92,33 @@ local function Copy(v)
     return out
 end
 
+-- One profile's worth of pack data. Split out of ExportPack so a whole-file export can run
+-- it over every profile without loading each one in turn: profiles other than the active one
+-- are read straight from saved variables and never become the live table.
+local function DataFromProfile(tr)
+    local data, any = {}, false
+    for i = 1, #SECTIONS do
+        local sec = SECTIONS[i]
+        local t = tr[sec.field]
+        if type(t) == "table" and next(t) ~= nil then
+            data[sec.field] = Copy(t)
+            any = true
+        end
+    end
+    data.leadTime = tr.leadTime
+    data.voiceNone = tr.voiceNone
+    local settings = {}
+    local keys = ns.SettingKeys and ns.SettingKeys() or {}
+    for i = 1, #keys do
+        local v = tr[keys[i]]
+        local vt = type(v)
+        if vt == "number" or vt == "string" or vt == "boolean" then settings[keys[i]] = v end
+    end
+    if type(tr.pos) == "table" then settings.pos = Copy(tr.pos) end
+    if next(settings) ~= nil then data.settings = settings end
+    return data, any
+end
+
 function ns.ExportPack(packName, author)
     local Ser, LD = Codec()
     if not Ser then return nil, "The serializer libraries are missing from this build." end
@@ -102,35 +129,9 @@ function ns.ExportPack(packName, author)
             .. "be shared onward. Build your own profile to share one."):format(
             db.importedPack.name, db.importedPack.author)
     end
-    local data, any = {}, false
-    for i = 1, #SECTIONS do
-        local sec = SECTIONS[i]
-        local t = db[sec.field]
-        if type(t) == "table" and next(t) ~= nil then
-            data[sec.field] = Copy(t)
-            any = true
-        end
-    end
+    local data, any = DataFromProfile(db)
     if not any then return nil, "There is nothing to export yet." end
 
-    -- Carried but never required: an importer on defaults keeps their own.
-    data.leadTime = db.leadTime
-    data.voiceNone = db.voiceNone
-
-    -- Everything else the profile holds: display sizes and which channels show, the sound
-    -- and voice choices, where it runs, the behaviour switches, and where the alert sits.
-    -- Without these a pack carried the lists and nothing that made them look or sound like
-    -- the curator's -- 22 of the 24 settings a profile stores were left behind, which for a
-    -- UI shared as a product is most of what "import my setup" means.
-    local settings = {}
-    local keys = ns.SettingKeys and ns.SettingKeys() or {}
-    for i = 1, #keys do
-        local v = db[keys[i]]
-        local vt = type(v)
-        if vt == "number" or vt == "string" or vt == "boolean" then settings[keys[i]] = v end
-    end
-    if type(db.pos) == "table" then settings.pos = Copy(db.pos) end
-    if next(settings) ~= nil then data.settings = settings end
 
     local payload = {
         format  = PACK_FORMAT,
@@ -138,6 +139,49 @@ function ns.ExportPack(packName, author)
         author  = (author and author ~= "") and author or (UnitName and UnitName("player")) or "unknown",
         made    = date and date("%Y-%m-%d") or "",
         data    = data,
+    }
+    local ok, serialized = pcall(Ser.Serialize, payload)
+    if not ok then return nil, "The pack could not be serialized." end
+    local compressed = LD:CompressDeflate(serialized)
+    return PREFIX .. LD:EncodeForPrint(compressed)
+end
+
+-- Every profile in one string, for a curator who keeps a profile per class rather than one
+-- profile holding every spec. Both shapes are legitimate -- a profile accumulates specs, so
+-- ten classes fit in one -- but a seller building them separately would otherwise have to
+-- hand out ten strings and talk the buyer through ten imports.
+--
+-- Reads the stored settings of each profile directly; only the active one is ever the live
+-- table, and loading each in turn to export it would switch the player around their own
+-- characters.
+function ns.ExportAllProfiles(packName, author)
+    local Ser, LD = Codec()
+    if not Ser then return nil, "The serializer libraries are missing from this build." end
+
+    local profiles, count = {}, 0
+    local names = ns.ListProfiles and ns.ListProfiles() or {}
+    for i = 1, #names do
+        local tr = ns.ProfileSettings and ns.ProfileSettings(names[i])
+        if tr then
+            -- An imported profile is not the exporter's to pass on, the same rule the
+            -- single-profile export follows; it is skipped rather than failing the lot.
+            if type(tr.importedPack) ~= "table" then
+                local data, any = DataFromProfile(tr)
+                if any then
+                    profiles[names[i]] = data
+                    count = count + 1
+                end
+            end
+        end
+    end
+    if count == 0 then return nil, "None of your profiles have anything in them yet." end
+
+    local payload = {
+        format   = PACK_FORMAT,
+        name     = (packName and packName ~= "") and packName or "Reminder Pack",
+        author   = (author and author ~= "") and author or (UnitName and UnitName("player")) or "unknown",
+        made     = date and date("%Y-%m-%d") or "",
+        profiles = profiles,
     }
     local ok, serialized = pcall(Ser.Serialize, payload)
     if not ok then return nil, "The pack could not be serialized." end
@@ -167,20 +211,38 @@ function ns.DecodePack(str)
     if payload.format ~= PACK_FORMAT then
         return nil, "This pack needs a newer version of the addon."
     end
-    if type(payload.data) ~= "table" then return nil, "The pack is empty." end
+    local multi = type(payload.profiles) == "table" and next(payload.profiles) ~= nil
+    if not multi and type(payload.data) ~= "table" then return nil, "The pack is empty." end
 
     local parts = {}
-    for i = 1, #SECTIONS do
-        local sec = SECTIONS[i]
-        local n = CountSection(sec.count, payload.data[sec.field])
-        if n > 0 then parts[#parts + 1] = ("%d %s"):format(n, sec.label) end
+    if multi then
+        -- Named, with what each carries, so the preview says what is about to land rather
+        -- than a count of profiles.
+        local names = {}
+        for name in pairs(payload.profiles) do names[#names + 1] = name end
+        table.sort(names, function(a, b) return a:lower() < b:lower() end)
+        for i = 1, #names do
+            local specs = ns.PackSpecs({ data = payload.profiles[names[i]] })
+            local specText
+            for j = 1, #specs do
+                specText = specText and (specText .. ", " .. specs[j].name) or specs[j].name
+            end
+            parts[#parts + 1] = ("|cff0091ed%s|r%s"):format(names[i],
+                specText and (" -- " .. specText) or "")
+        end
+    else
+        for i = 1, #SECTIONS do
+            local sec = SECTIONS[i]
+            local n = CountSection(sec.count, payload.data[sec.field])
+            if n > 0 then parts[#parts + 1] = ("%d %s"):format(n, sec.label) end
+        end
     end
     if #parts == 0 then return nil, "The pack is empty." end
 
     local desc = ("|cff0091ed%s|r by %s%s|n%s"):format(
         tostring(payload.name), tostring(payload.author),
         payload.made ~= "" and (" (" .. payload.made .. ")") or "",
-        table.concat(parts, ", "))
+        table.concat(parts, multi and "|n" or ", "))
     return payload, desc
 end
 
@@ -221,6 +283,12 @@ end
 -- wantSpecs, when given, is a set of spec keys to take; the spec-keyed sections are filtered
 -- to it and everything else comes across whole. Nil means the whole pack, which is what an
 -- older caller and the merge path both expect.
+-- The sections keyed by spec, one way or another: three by the spec id itself, bossLists by
+-- "spec:encounter". Everything else in a pack belongs to no spec in particular.
+local SPEC_KEYED = {
+    presets = true, activePreset = true, abilityBindings = true, bossLists = true,
+}
+
 local function FilterToSpecs(field, incoming, wantSpecs)
     if not wantSpecs then return Copy(incoming) end
     local out = {}
@@ -239,6 +307,52 @@ local function FilterToSpecs(field, incoming, wantSpecs)
     return out
 end
 
+-- A whole-file pack: several named profiles at once. Each lands in a profile of that name,
+-- created if it is new, and the importer stays where they are -- switching them into a
+-- stranger's profile as a side effect of importing would be its own surprise. They pick
+-- one from Active Profile afterwards.
+--
+-- Existing profiles of the same name are merged into per key rather than replaced, so a
+-- buyer who already has a "Default" keeps whatever the seller's does not mention.
+function ns.ApplyProfiles(payload, wantProfiles, wantSettings)
+    if type(payload) ~= "table" or type(payload.profiles) ~= "table" then return false end
+    local landed = 0
+    for name, data in pairs(payload.profiles) do
+        if (not wantProfiles or wantProfiles[name]) and type(data) == "table" then
+            local tr = ns.EnsureProfile and ns.EnsureProfile(name)
+            if tr then
+                for i = 1, #SECTIONS do
+                    local sec = SECTIONS[i]
+                    local incoming = data[sec.field]
+                    if type(incoming) == "table" then
+                        if type(tr[sec.field]) ~= "table" then tr[sec.field] = {} end
+                        for k, v in pairs(incoming) do tr[sec.field][k] = Copy(v) end
+                    end
+                end
+                if wantSettings and type(data.settings) == "table" then
+                    for k, v in pairs(data.settings) do
+                        if k == "pos" then
+                            if type(v) == "table" then tr.pos = Copy(v) end
+                        else
+                            tr[k] = v
+                        end
+                    end
+                end
+                -- Marked the same way a single-profile import is: what arrived from someone
+                -- else is not the importer's to sell on.
+                tr.importedPack = {
+                    name = tostring(payload.name or "a pack"),
+                    author = tostring(payload.author or "its curator"),
+                }
+                landed = landed + 1
+            end
+        end
+    end
+    if landed == 0 then return false end
+    ns.RefreshRuntime()
+    return true, landed
+end
+
 function ns.ApplyPack(payload, mode, wantSpecs, wantSettings)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
     local db = ns.DB()
@@ -249,10 +363,14 @@ function ns.ApplyPack(payload, mode, wantSpecs, wantSettings)
         local incoming = payload.data[sec.field]
         if type(incoming) == "table" then
             local taken = FilterToSpecs(sec.field, incoming, wantSpecs)
-            -- Picking specs always merges, whatever the button said. Replacing the section
-            -- outright would take the importer's OTHER specs with it -- bringing in a Blood
-            -- list would wipe the Havoc one that was never part of the choice.
-            if wantSpecs or (mode == "merge" and type(db[sec.field]) == "table") then
+            -- A spec-keyed section always merges, whatever the button said, and whether or
+            -- not specs were picked. Replace means "match the curator", but replacing one of
+            -- these wholesale drops every spec the pack does not mention: importing a pack
+            -- built on a Paladin took a Warrior list with it, on this account, tonight. The
+            -- specs the pack DOES carry are still replaced outright, so matching the curator
+            -- still holds for everything the pack has an opinion about.
+            if SPEC_KEYED[sec.field] or wantSpecs
+                or (mode == "merge" and type(db[sec.field]) == "table") then
                 local merged = type(db[sec.field]) == "table" and Copy(db[sec.field]) or {}
                 for k, v in pairs(taken) do merged[k] = v end
                 staged[sec.field] = merged
@@ -367,17 +485,32 @@ function ns.ShowPackExport()
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 46)
 
+    local everyProfile, allBtn = false, nil
+
     local function Regenerate()
-        local str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
+        local str, err
+        if everyProfile then
+            str, err = ns.ExportAllProfiles(nameBox:GetText(), UnitName and UnitName("player"))
+        else
+            str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
+        end
         if str then
             box:SetText(str)
             -- Named, not counted. A curator sharing a set for ten classes wants to see that
             -- all ten went in, and the only way to be sure was to import it somewhere.
-            local specs, names = ns.PackSpecs({ data = { presets = ns.DB().presets,
-                activePreset = ns.DB().activePreset, bossLists = ns.DB().bossLists,
-                abilityBindings = ns.DB().abilityBindings } }), nil
-            for i = 1, #specs do
-                names = names and (names .. ", " .. specs[i].name) or specs[i].name
+            local names
+            if everyProfile then
+                local profs = ns.ListProfiles and ns.ListProfiles() or {}
+                for i = 1, #profs do
+                    names = names and (names .. ", " .. profs[i]) or profs[i]
+                end
+            else
+                local specs = ns.PackSpecs({ data = { presets = ns.DB().presets,
+                    activePreset = ns.DB().activePreset, bossLists = ns.DB().bossLists,
+                    abilityBindings = ns.DB().abilityBindings } })
+                for i = 1, #specs do
+                    names = names and (names .. ", " .. specs[i].name) or specs[i].name
+                end
             end
             status:SetText(("%d characters%s. Click the text, then Ctrl+A Ctrl+C."):format(
                 #str, names and (" covering " .. names) or ""))
@@ -386,6 +519,18 @@ function ns.ShowPackExport()
             status:SetText("|cffff6060" .. tostring(err) .. "|r")
         end
     end
+
+    -- A curator keeping a profile per class needs one string, not ten. Off by default: the
+    -- usual case is sharing the setup you are standing in.
+    allBtn = ns.Button(panel, "", 300, 22, function()
+        everyProfile = not everyProfile
+        allBtn.label:SetText((everyProfile and "|cff0091ed[x]|r  " or "[  ]  ")
+            .. "Every profile, not just this one")
+        Regenerate()
+    end)
+    allBtn:SetPoint("BOTTOM", panel, "BOTTOM", 0, 74)
+    allBtn.label:SetText("[  ]  Every profile, not just this one")
+
     box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     -- The string is display-only: retyping into it produces nothing valid, so
     -- any edit just regenerates from the real settings.
@@ -471,12 +616,23 @@ function ns.ShowPackImport()
         for i = 1, #specRows do specRows[i]:Hide() end
         if settingsBtn then settingsBtn:Hide() end
         wipe(specWanted)
-        local specs = payload and ns.PackSpecs(payload) or {}
+        -- A whole-file pack is a list of PROFILES; a single-profile one is a list of specs
+        -- inside it. Same rows either way, and the same wanted set drives the apply.
+        local multi = payload and type(payload.profiles) == "table"
+        local specs = {}
+        if multi then
+            local names = {}
+            for name in pairs(payload.profiles) do names[#names + 1] = name end
+            table.sort(names, function(a, b) return a:lower() < b:lower() end)
+            for i = 1, #names do specs[i] = { key = names[i], name = names[i] } end
+        elseif payload then
+            specs = ns.PackSpecs(payload)
+        end
         if #specs == 0 then
             specHead:Hide()
             return
         end
-        specHead:SetText("Bring in which of these:")
+        specHead:SetText(multi and "Bring in which profiles:" or "Bring in which of these:")
         specHead:Show()
         for i = 1, #specs do
             local spec = specs[i]
@@ -544,6 +700,30 @@ function ns.ShowPackImport()
         if not decoded then return end
         -- Nil rather than an empty set when every spec is ticked, so a pack whose specs are
         -- all wanted still takes the plain replace path and matches the curator exactly.
+        -- A whole-file pack lands its profiles and leaves the importer where they are; the
+        -- merge/replace choice is about one profile's sections and does not apply.
+        if type(decoded.profiles) == "table" then
+            local wantP, anyP = {}, false
+            for name in pairs(decoded.profiles) do
+                if specWanted[name] then wantP[name] = true; anyP = true end
+            end
+            if not anyP then
+                preview:SetText("|cffff6060Pick at least one profile to bring in.|r")
+                return
+            end
+            local ok, landed = ns.ApplyProfiles(decoded, wantP, settingsWanted)
+            if ok then
+                ns.Print(("%d profile%s imported. Pick one under Active Profile."):format(
+                    landed, landed == 1 and "" or "s"))
+                dimmer:Hide()
+                local EUIm = ns.UI
+                if EUIm and EUIm.RefreshPage then EUIm:RefreshPage(true) end
+            else
+                preview:SetText("|cffff6060The pack could not be applied.|r")
+            end
+            return
+        end
+
         local want, all, any = nil, true, false
         local specs = ns.PackSpecs(decoded)
         for i = 1, #specs do
