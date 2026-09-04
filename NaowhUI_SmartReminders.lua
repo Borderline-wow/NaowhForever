@@ -2541,7 +2541,10 @@ local function SpeakCallout(triggerSid)
         return
     end
 
-    if t.fallbackOn ~= false then
+    -- Per ability, falling back to the spec-wide toggle. triggerSid is nil on a test fire,
+    -- which finds no binding and so answers with that toggle -- the test still demonstrates
+    -- what the spec default does.
+    if ns.ExternalCallFor(currentEncounter, triggerSid) then
         if not ns.IsAudioOff(0) then Announce(0, t.voiceNone) end
         -- Outside the audio gate: silencing the callout should not silence the chat call.
         ns.AnnounceExternalToChat()
@@ -3767,6 +3770,17 @@ function ns.LeadTimeFor(enc, sid)
     local binding = ns.BindingForBossModKey(enc, sid)
     if binding and binding.leadTime then return binding.leadTime end
     return TRDB().leadTime or 3
+end
+
+-- Whether the last step -- "call for an external" when nothing of your own is up -- fires for
+-- THIS ability. Same shape as the lead time above: the binding answers when it has an opinion,
+-- the spec-wide toggle otherwise, and a binding only stores one when it differs from that
+-- toggle. Asking for help on every hit that outruns your cooldowns is noise on the ones the
+-- raid was never going to answer, so it belongs per ability rather than once for the spec.
+function ns.ExternalCallFor(enc, sid)
+    local binding = ns.BindingForBossModKey(enc, sid)
+    if binding and binding.external ~= nil then return binding.external end
+    return TRDB().fallbackOn ~= false
 end
 
 -- Nothing calls out until the player has deliberately added it to the boss. The curated

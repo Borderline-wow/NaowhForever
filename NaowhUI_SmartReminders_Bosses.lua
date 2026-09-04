@@ -1147,7 +1147,9 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         { type = "toggle",
           text = ("      |cff0091edLast:  %s|r"):format(db.voiceNone or "Call for an External"),
           tooltip = "The final step, used when nothing on your list is up. Switch it off to say "
-          .. "and show nothing at all in that case.",
+          .. "and show nothing at all in that case.\n\nThis is the default for the whole spec. "
+          .. "An individual ability can override it from its own cog on a boss page, for hits "
+          .. "the raid was never going to answer.",
           getValue = function() return db.fallbackOn ~= false end,
           setValue = function(v)
               db.fallbackOn = v
@@ -2361,6 +2363,8 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     -- it on every rebuild would stomp an in-progress drag the instant switching tabs or
     -- presets triggered one.
     local leadTimeVal
+    -- Same lazy-init reasoning as leadTimeVal: a rebuild must not stomp an unsaved choice.
+    local externalVal
 
     -- Same destroy-and-recreate idiom as the custom reminder editor's own dynFrame: the
     -- old body is hidden and dropped rather than cleared field by field, since GetChildren
@@ -2539,6 +2543,29 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 .. "waits until that many seconds AFTER it lands instead -- for a defensive "
                 .. "that only matters once the mechanic is over.")
             by = by - 28
+
+            -- The last step, per ability rather than once for the spec. Defaults to whatever
+            -- the spec-wide toggle says and only stores a value when it differs, the same
+            -- rule leadTime saves under.
+            if externalVal == nil then
+                externalVal = ns.ExternalCallFor(encounterID, ability.spellID)
+            end
+            Label("Call for an External when nothing of yours is up")
+            local extCheck = (EUI or ns.UI).BuildToggleControl(body, body:GetFrameLevel() + 1,
+                function() return externalVal end,
+                function(v) externalVal = v and true or false end)
+            extCheck:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            by = by - 26
+
+            local extHint = ns.Font(body, 10, nil, ns.THEME.muted)
+            extHint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            extHint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
+            extHint:SetJustifyH("LEFT")
+            extHint:SetWordWrap(true)
+            extHint:SetText("Off means this ability stays silent when your list is empty, "
+                .. "instead of asking the raid for help on a hit nobody was going to answer. "
+                .. "Untouched, it follows the spec-wide setting on the Setup page.")
+            by = by - 30
         else
             local hint = ns.Font(body, 11, nil, ns.THEME.muted)
             hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
@@ -2622,6 +2649,13 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- again once this saves.
         binding.leadTimeBySpell = nil
         binding.leadTime = (leadTimeVal ~= (ns.DB().leadTime or 3)) and leadTimeVal or nil
+        -- nil when it agrees with the spec-wide toggle, so an ability that was never given
+        -- an opinion keeps following that toggle when it later changes.
+        if externalVal == nil or externalVal == (ns.DB().fallbackOn ~= false) then
+            binding.external = nil
+        else
+            binding.external = externalVal
+        end
         binding.scope = scopeVal
         ns.RefreshRuntime()
         dimmer:Hide()
