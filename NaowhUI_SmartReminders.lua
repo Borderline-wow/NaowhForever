@@ -5173,7 +5173,19 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
                 end
             end
         end
-        local checked, agree, disagree, noData = 0, 0, 0, 0
+        -- Only these three are ROLE flags. Heroic, Deadly, Magic and the rest say when an
+        -- ability happens or what it does, never who it is aimed at, so an ability carrying
+        -- only those has not been classified by role at all.
+        local ROLE_FLAGS = { "Tank", "Dps", "Healer" }
+        local function NamesARole(extras)
+            for i = 1, #ROLE_FLAGS do
+                if extras:find(ROLE_FLAGS[i], 1, true) then return true end
+            end
+            return false
+        end
+
+        local checked, agree, contra, unconfirmed, noData = 0, 0, 0, 0, 0
+        local contraLines, unconfLines = {}, {}
         local curated = ns.TANK_ABILITIES or {}
         local ids = {}
         for sid in pairs(curated) do ids[#ids + 1] = sid end
@@ -5184,21 +5196,44 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             local sid = ids[i]
             checked = checked + 1
             local extras = extrasFor[sid]
+            local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+            local name = (si and si.name) or tostring(sid)
             if extras == nil then
                 noData = noData + 1
-            elseif extras and extras:find("Tank", 1, true) then
+            elseif extras:find("Tank", 1, true) then
                 agree = agree + 1
+            elseif NamesARole(extras) then
+                -- The journal named a DIFFERENT role. This is the case worth acting on: the
+                -- Triple Shot entry that had to come out read exactly like this.
+                contra = contra + 1
+                contraLines[#contraLines + 1] =
+                    ("  |cffff6060%s|r (%d) -- journal says: %s"):format(name, sid, extras)
             else
-                disagree = disagree + 1
-                local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-                ns.Print(("  |cffff6060%s|r (%d) -- journal says: %s"):format(
-                    (si and si.name) or tostring(sid), sid, extras ~= "" and extras or "(none)"))
+                -- No role flag either way. Not evidence against us: Apex Predator lands here
+                -- while BigWigs' own module renames it CL.tank_combo.
+                unconfirmed = unconfirmed + 1
+                unconfLines[#unconfLines + 1] =
+                    ("  %s (%d) -- no role flag%s"):format(name, sid,
+                        extras ~= "" and (", only: " .. extras) or "")
             end
         end
-        ns.Print(("%d checked, %d agree, %d disagree, %d not in this season's journal pool"):format(
-            checked, agree, disagree, noData))
-        if disagree == 0 then
+
+        if contra > 0 then
+            ns.Print("|cffff6060contradicted|r -- the journal names a different role:")
+            for i = 1, #contraLines do ns.Print(contraLines[i]) end
+        end
+        if unconfirmed > 0 then
+            ns.Print("|cffffc000unconfirmed|r -- no role flag either way, check the boss mod "
+                .. "before changing anything:")
+            for i = 1, #unconfLines do ns.Print(unconfLines[i]) end
+        end
+        ns.Print(("%d checked: %d confirmed, %d contradicted, %d unconfirmed, %d not in this "
+            .. "season's journal pool"):format(checked, agree, contra, unconfirmed, noData))
+        if contra == 0 then
             ns.Print("nothing the journal actively contradicts.")
+        end
+        if noData > 0 then
+            ns.Print("open more Dungeon Bosses and Raid Bosses pages to cover the rest.")
         end
         return
     end
