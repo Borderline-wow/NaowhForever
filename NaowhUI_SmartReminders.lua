@@ -2330,16 +2330,32 @@ local function Announce(spellID, text)
 end
 
 -- A second timeline event landing while the first is still fresh and picking the SAME
--- defensive says nothing new -- the player was already told to press it. Multi-unit fights
--- (several adds each telegraphing the same tank buster within a handful of seconds of each
--- other) hit this constantly. A DIFFERENT pick still announces normally: that genuinely is
--- new information (the first choice went on cooldown, say).
+-- defensive says nothing new -- the player was already told to press it. A DIFFERENT pick
+-- still announces normally: that genuinely is new information (the first choice went on
+-- cooldown, say).
 --
--- 5 seconds (the alert's own display window) measured too short on a live pull -- repeats
--- of the same ability landed up to ~10s apart and still announced twice. 12s covers that
--- with a little room, while staying well short of any real defensive's own cooldown, so a
--- genuinely later need for the same one is never the thing being suppressed.
+-- Two windows, because the same-spell-same-pick case splits into two failure modes that
+-- pull in opposite directions:
+--
+-- SAME boss ability firing again is usually a resynced or double-reported bar for what is
+-- actually a fresh occurrence -- reported live on Rav'i, where suppressing it read as "the
+-- icon came up but not the sound alert". That needs the full window: 5 seconds (the alert's
+-- own display window) measured too short on a live pull, repeats of the same ability landed
+-- up to ~10s apart and still announced twice. 12s covers that with a little room, while
+-- staying well short of any real defensive's own cooldown.
+--
+-- DIFFERENT boss abilities landing within a second or two of each other and both picking
+-- the same defensive is the Entombed Sentinels case (Empowering Slam / Bloodvenom Injection,
+-- confirmed from a VOD landing well under a second apart) -- the player cannot have pressed
+-- anything in that gap, so the second announcement is just noise. This window has to stay
+-- short: long enough to catch two casts that are really the same moment, short enough that
+-- two busters seconds apart (the case the trigger-keyed window above exists to protect)
+-- still both get their own line.
+--
+-- On ns rather than a chunk local: this file is at the 200-local ceiling, and one more
+-- would stop the whole file compiling.
 local SUPPRESS_REPEAT_WINDOW = 12
+ns.SUPPRESS_CROSS_TRIGGER_WINDOW = 3
 local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
 local lastAnnouncedTrigger
 
@@ -2482,8 +2498,11 @@ local function SpeakCallout(triggerSid)
         -- A muted winner means silence, not the next one down: the player deliberately
         -- turned this entry's audio off and still wants it to win the pick.
         if not ns.IsAudioOff(picked) then
-            if picked == lastAnnouncedSpellID and triggerSid == lastAnnouncedTrigger
-                and (now - lastAnnouncedAt) < SUPPRESS_REPEAT_WINDOW then
+            local sinceLast = now - lastAnnouncedAt
+            if picked == lastAnnouncedSpellID and
+                ((triggerSid == lastAnnouncedTrigger and sinceLast < SUPPRESS_REPEAT_WINDOW)
+                    or (triggerSid ~= lastAnnouncedTrigger
+                        and sinceLast < ns.SUPPRESS_CROSS_TRIGGER_WINDOW)) then
                 -- Icon-only fires were invisible in the trace, which cost a hunt.
                 if t.trace then AppendLog({ kind = "quiet", sid = picked, tankSid = triggerSid }) end
                 return
