@@ -5124,6 +5124,66 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    -- Checks ns.TANK_ABILITIES -- the file header says GENERATED, regenerate rather than
+    -- hand-edit, and Tactyks' sheet is not something this addon can re-derive -- against
+    -- the one thing that can outrank it: Blizzard's own Dungeon Journal role flags, the
+    -- same data the boss page itself already shows next to each ability. Built to close
+    -- out a live case the hard way: the picker tagged Triple Shot [tank hit] from this
+    -- list while the boss page, reading the Journal, showed it Healer -- and the Journal
+    -- was right, confirmed independently that same week by how the ability actually
+    -- fires (a PersonalMessage targeted by the mechanic, never by threat). A static
+    -- source-code read of the community modules found the boundary of what it could
+    -- settle -- most curated abilities carry no GetOptions role tag at all whether or not
+    -- they are genuinely tank mechanics, so absence there proves nothing on its own. Only
+    -- live Journal data, walked here the same way the boss page already trusts it, can.
+    if arg == "tanksheet" then
+        local cache = ns.ScrapeBosses and ns.ScrapeBosses()
+        if not cache then
+            ns.Print("the journal has not been scraped yet -- open a Dungeon Bosses or "
+                .. "Raid Bosses page once, then retry.")
+            return
+        end
+        local extrasFor = {}
+        for i = 1, #cache.instances do
+            local inst = cache.instances[i]
+            for j = 1, #inst.bosses do
+                local abilities = inst.bosses[j].abilities
+                for k = 1, #abilities do
+                    local a = abilities[k]
+                    if a.spellID then extrasFor[a.spellID] = a.extras end
+                end
+            end
+        end
+        local checked, agree, disagree, noData = 0, 0, 0, 0
+        local curated = ns.TANK_ABILITIES or {}
+        local ids = {}
+        for sid in pairs(curated) do ids[#ids + 1] = sid end
+        table.sort(ids)
+        ns.Print(("|cff0091edtank sheet cross-check|r against %d journal-scraped bosses:")
+            :format(#cache.instances))
+        for i = 1, #ids do
+            local sid = ids[i]
+            checked = checked + 1
+            local extras = extrasFor[sid]
+            if extras == nil then
+                noData = noData + 1
+            elseif extras and extras:find("Tank", 1, true) then
+                agree = agree + 1
+            else
+                disagree = disagree + 1
+                local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+                ns.Print(("  |cffff6060%s|r (%d) -- journal says: %s"):format(
+                    (si and si.name) or tostring(sid), sid, extras ~= "" and extras or "(none)"))
+            end
+        end
+        ns.Print(("%d checked, %d agree, %d disagree, %d not in this season's journal pool"):format(
+            checked, agree, disagree, noData))
+        if disagree == 0 then
+            ns.Print("nothing the journal actively contradicts.")
+        end
+        return
+    end
+
     -- Shows the alert exactly as a fight would, minus the tank gate. If the icon appears
     -- here but not on a boss, the display is fine and the gate is the variable. If it does
     -- not appear here either, the problem is the display itself.
@@ -5313,7 +5373,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             and C_CombatLog.IsCombatLogRestricted()),
         cleuLines, cleuUsable, cleuOwnAuras,
         PlayerGUID() and "readable" or "|cffff6060UNREADABLE|r"))
-    ns.Print("usage: /nutank status | observed | cds | calls | keys | trace | export | pretendtank | test | catalogue | gate | secrecy | bosses | defensives")
+    ns.Print("usage: /nutank status | observed | cds | calls | keys | trace | export | pretendtank | test | catalogue | gate | secrecy | bosses | defensives | tanksheet")
 end
 
 -------------------------------------------------------------------------------
