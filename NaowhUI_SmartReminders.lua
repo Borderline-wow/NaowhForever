@@ -2351,8 +2351,11 @@ end
 -- short: long enough to catch two casts that are really the same moment, short enough that
 -- two busters seconds apart (the case the trigger-keyed window above exists to protect)
 -- still both get their own line.
+--
+-- On ns rather than a chunk local: this file is at the 200-local ceiling, and one more
+-- would stop the whole file compiling.
 local SUPPRESS_REPEAT_WINDOW = 12
-local SUPPRESS_CROSS_TRIGGER_WINDOW = 3
+ns.SUPPRESS_CROSS_TRIGGER_WINDOW = 3
 local lastAnnouncedSpellID, lastAnnouncedAt = nil, 0
 local lastAnnouncedTrigger
 
@@ -2499,7 +2502,7 @@ local function SpeakCallout(triggerSid)
             if picked == lastAnnouncedSpellID and
                 ((triggerSid == lastAnnouncedTrigger and sinceLast < SUPPRESS_REPEAT_WINDOW)
                     or (triggerSid ~= lastAnnouncedTrigger
-                        and sinceLast < SUPPRESS_CROSS_TRIGGER_WINDOW)) then
+                        and sinceLast < ns.SUPPRESS_CROSS_TRIGGER_WINDOW)) then
                 -- Icon-only fires were invisible in the trace, which cost a hunt.
                 if t.trace then AppendLog({ kind = "quiet", sid = picked, tankSid = triggerSid }) end
                 return
