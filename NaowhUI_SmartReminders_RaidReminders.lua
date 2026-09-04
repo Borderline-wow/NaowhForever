@@ -631,13 +631,57 @@ end
 -- through LibGetFrame, which resolves the unit's frame on whichever raid-frame addon is
 -- actually drawing it. Either can come back nil (unit not currently visible on any frame
 -- of that kind), in which case the glow is silently skipped for this fire.
+-- LibGetFrame drives its scan with `coroutine.resume(co, 0, UIParent)` and
+-- discards the return value, so one frame that raises anywhere under UIParent
+-- kills the walk silently and the cache keeps whatever partial set it had --
+-- every later rescan dies in the same place. Measured live on two accounts
+-- 2026-09-04: EllesmereUI raid buttons pass every gate that scan applies
+-- (Button, not forbidden, visible, no cancelaura type attribute, a real global
+-- name, a readable unit attribute, three hops under UIParent) and still never
+-- appear in its cache, so raidframeGlow silently did nothing for those users.
+--
+-- The library is asked first, so nothing changes for anyone it already answers
+-- for. This backs it up: the unit lives on the secure "unit" attribute, which
+-- is what LibGetFrame itself reads.
+local EUI_UNIT_BUTTONS
+local function ResolveEUIUnitFrame(unit)
+    if not EUI_UNIT_BUTTONS then
+        EUI_UNIT_BUTTONS = {}
+        local function add(n) EUI_UNIT_BUTTONS[#EUI_UNIT_BUTTONS + 1] = n end
+        for i = 1, 40 do add("ERFFlatHeaderUnitButton" .. i) end
+        for g = 1, 8 do for i = 1, 40 do add("ERFGroupHeader" .. g .. "UnitButton" .. i) end end
+        for i = 1, 8 do add("ERFExtraFrame" .. i) end
+        for i = 1, 5 do add("ERFPartyHeaderUnitButton" .. i) end
+        add("ERFPartySelfButton")
+    end
+    local issec = _G.issecretvalue
+    for i = 1, #EUI_UNIT_BUTTONS do
+        local b = _G[EUI_UNIT_BUTTONS[i]]
+        if b then
+            -- IsVisible, not IsShown: a button reports shown while an ancestor
+            -- is hidden, and the raid header's buttons sit hidden in a party.
+            local okV, vis = pcall(b.IsVisible, b)
+            if okV and vis then
+                local okA, u = pcall(b.GetAttribute, b, "unit")
+                -- A secret attribute cannot be compared; skip rather than raise.
+                if okA and u ~= nil and not (issec and issec(u)) and u == unit then
+                    return b
+                end
+            end
+        end
+    end
+    return nil
+end
+
 local function ResolveGlowFrame(displayType, unit)
     if displayType == "nameplateGlow" then
         local plate = C_NamePlate and C_NamePlate.GetNamePlateForUnit and C_NamePlate.GetNamePlateForUnit(unit)
         return plate and (plate.UnitFrame or plate)
     elseif displayType == "raidframeGlow" then
         local LGF = LibStub and LibStub("LibGetFrame-1.0", true)
-        return LGF and LGF.GetUnitFrame and LGF.GetUnitFrame(unit)
+        local f = LGF and LGF.GetUnitFrame and LGF.GetUnitFrame(unit)
+        if f then return f end
+        return ResolveEUIUnitFrame(unit)
     end
     return nil
 end
