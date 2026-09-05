@@ -16,6 +16,16 @@ local TITLE_H, TAB_H = 28, 30
 local PAGES = { "Smart Reminders Setup", "Cooldown Presets", "Dungeon Bosses",
     "Raid Bosses", "Ability Reminders" }
 
+-- Pages that are built but not ready to be used. The tab stays in the strip, dimmed, and
+-- opens a note instead of the page: removing it would leave a gap people ask about, and
+-- letting it open half-finished work is worse than saying so.
+local COMING_SOON = {
+    ["Ability Reminders"] = "Every reminder for one boss in a single list, instead of one "
+        .. "boss page at a time. Not finished yet.\n\nNothing is missing in the meantime: "
+        .. "the same reminders are authored per boss from the Dungeon Bosses and Raid "
+        .. "Bosses tabs, which is where this page reads them from.",
+}
+
 local window, scrollFrame, scrollChild
 local tabButtons = {}
 local wrappers = {}          -- pageName -> built wrapper frame
@@ -30,6 +40,21 @@ function UI:ClearContentHeader() end
 -- The dispatch the pages were registered with when EllesmereUI hosted them; the builders
 -- return their raw running y (negative), and the wrapper takes math.abs of it.
 local function BuildPageInto(pageName, parent)
+    local soon = COMING_SOON[pageName]
+    if soon then
+        local head = ns.Font(parent, 16, "OUTLINE", T.muted)
+        head:SetPoint("TOP", parent, "TOP", 0, -60)
+        head:SetText("Coming soon")
+
+        local body = ns.Font(parent, 12, nil, T.muted)
+        body:SetPoint("TOP", head, "BOTTOM", 0, -12)
+        body:SetPoint("LEFT", parent, "LEFT", 60, 0)
+        body:SetPoint("RIGHT", parent, "RIGHT", -60, 0)
+        body:SetJustifyH("CENTER")
+        body:SetWordWrap(true)
+        body:SetText(soon)
+        return -180
+    end
     if pageName == "Cooldown Presets" then
         return ns.BuildPresetsPage and ns.BuildPresetsPage(parent, -6) or -6
     elseif pageName == "Dungeon Bosses" then
@@ -46,9 +71,16 @@ end
 local function PaintTabs()
     for name, btn in pairs(tabButtons) do
         local active = (name == currentPage)
-        btn.label:SetTextColor(active and T.fg.r or T.muted.r,
-            active and T.fg.g or T.muted.g,
-            active and T.fg.b or T.muted.b, 1)
+        -- A page that cannot be used reads as dimmer than an inactive one, and keeps that
+        -- look even while it is the page you are on, since selecting it changes nothing
+        -- about whether it works.
+        if COMING_SOON[name] then
+            btn.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 0.45)
+        else
+            btn.label:SetTextColor(active and T.fg.r or T.muted.r,
+                active and T.fg.g or T.muted.g,
+                active and T.fg.b or T.muted.b, 1)
+        end
         btn.marker:SetShown(active)
     end
 end
