@@ -3655,7 +3655,10 @@ end
 -- Which other specs have ability bindings saved, with how many. Feeds the Copy From Spec
 -- picker: per-spec storage means a fresh spec starts empty, and rebuilding a whole boss
 -- list by hand on every alt is not a reasonable ask.
-function ns.SpecsWithBindings(encounterID)
+-- encSet mirrors CopyBindingsFromSpec's: when the caller is only going to copy a subset of
+-- encounters, the count offered beside each spec has to describe that same subset or it
+-- promises abilities the copy will not bring.
+function ns.SpecsWithBindings(encounterID, encSet)
     local t = TRDB()
     local all = type(t.abilityBindings) == "table" and t.abilityBindings or {}
     local mine, out = tostring(specID), {}
@@ -3664,7 +3667,7 @@ function ns.SpecsWithBindings(encounterID)
         if specKey ~= mine and type(byEnc) == "table" then
             local total, here = 0, 0
             for eKey, bySpell in pairs(byEnc) do
-                if type(bySpell) == "table" then
+                if type(bySpell) == "table" and (not encSet or encSet[eKey]) then
                     for _ in pairs(bySpell) do
                         total = total + 1
                         if eKey == encKey then here = here + 1 end
@@ -3691,7 +3694,11 @@ end
 --
 -- Each binding is copied, never shared by reference -- two specs pointing at one table is
 -- the exact aliasing the per-spec split exists to end.
-function ns.CopyBindingsFromSpec(fromSpecKey, encounterID)
+-- encSet, when given, is a set of encounter keys the copy is confined to -- how the Dungeon
+-- and Raid lists keep to their own bosses, since a copy launched from the Raid page dragging
+-- every dungeon across with it is not what the page says it does. encounterID still names a
+-- single boss; with neither, everything is taken.
+function ns.CopyBindingsFromSpec(fromSpecKey, encounterID, encSet)
     if specID == 0 then return 0, 0 end
     local t = TRDB()
     local all = type(t.abilityBindings) == "table" and t.abilityBindings or nil
@@ -3705,7 +3712,8 @@ function ns.CopyBindingsFromSpec(fromSpecKey, encounterID)
     local copied, skipped = 0, 0
 
     for eKey, bySpell in pairs(src) do
-        if (not encKey or eKey == encKey) and type(bySpell) == "table" then
+        if (not encKey or eKey == encKey) and (not encSet or encSet[eKey])
+            and type(bySpell) == "table" then
             dst[eKey] = dst[eKey] or {}
             for sid, b in pairs(bySpell) do
                 if type(b) == "table" then

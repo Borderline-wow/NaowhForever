@@ -3124,34 +3124,6 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- The same copy the per-boss button offers, asked once for the whole spec. Building a
     -- pack means repeating that copy on every boss in turn otherwise, and it is the single
     -- biggest cost in setting a spec up. Only shown when another spec has something to take.
-    if specID and specID ~= 0 and ns.SpecsWithBindings
-        and #ns.SpecsWithBindings(nil) > 0 then
-        -- Built here rather than through W:Button: that helper hardcodes a 200px button, and
-        -- this label overran it and drew outside its own border. The width follows the text
-        -- instead, and a caption carries the explanation the label no longer has room for.
-        local row = CreateFrame("Frame", nil, parent)
-        row:SetHeight(34)
-        row:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD, y)
-        row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -EUI.CONTENT_PAD, y)
-
-        local label = "Copy All Bosses From a Spec"
-        local btn = ns.Button(row, label, 210, 26, function()
-            ns.ShowCopyBindingsPopup(nil, nil, EUI)
-        end)
-        btn:SetPoint("LEFT", row, "LEFT", 20, 0)
-        ns.Tooltip(btn, label, "Brings another spec's abilities across for every boss at "
-            .. "once, instead of repeating the per-boss copy on each in turn. Anything this "
-            .. "spec already has is left alone.")
-
-        local cap = ns.Font(row, 11, nil, ns.THEME.muted)
-        cap:SetPoint("LEFT", btn, "RIGHT", 12, 0)
-        cap:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-        cap:SetJustifyH("LEFT")
-        cap:SetText("Sets a new spec up in one press. Nothing already here is replaced.")
-
-        y = y - 40
-    end
-
     local data = ns.ScrapeBosses(false)
     if not data or #data.instances == 0 then
         local why = (scrapeFailed == "busy")
@@ -3185,6 +3157,46 @@ function ns.BuildBossListPage(parent, y, isRaid)
         for i = 1, #list do if list[i].id == sel.id then found = list[i]; break end end
         sel = found
         selectedInst[key] = found
+    end
+
+    -- Placed after the instance list because it needs it: the copy is confined to the bosses
+    -- THIS page lists, so pressing it on Raid Bosses cannot quietly drag every dungeon across
+    -- with it. Only shown when another spec has something inside that set to give.
+    local encSet, scopeWord = {}, isRaid and "Raid Boss" or "Dungeon Boss"
+    for i = 1, #list do
+        local bosses = list[i].bosses
+        for j = 1, #bosses do
+            if bosses[j].encounterID then encSet[tostring(bosses[j].encounterID)] = true end
+        end
+    end
+    if specID and specID ~= 0 and ns.SpecsWithBindings
+        and #ns.SpecsWithBindings(nil, encSet) > 0 then
+        -- Built directly rather than through W:Button: that helper hardcodes a 200px button
+        -- and this label overran it, drawing outside its own border. The width follows the
+        -- text instead, with the explanation in a caption beside it.
+        local row = CreateFrame("Frame", nil, parent)
+        row:SetHeight(34)
+        row:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD, y)
+        row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -EUI.CONTENT_PAD, y)
+
+        local label = isRaid and "Copy All Raids From a Spec" or "Copy All Dungeons From a Spec"
+        local btn = ns.Button(row, label, 220, 26, function()
+            ns.ShowCopyBindingsPopup(nil, nil, EUI, encSet, scopeWord)
+        end)
+        btn:SetPoint("LEFT", row, "LEFT", 20, 0)
+        ns.Tooltip(btn, label, ("Brings another spec's abilities across for every %s at once, "
+            .. "instead of repeating the per-boss copy on each in turn. %s are left to their "
+            .. "own page, and anything this spec already has is left alone."):format(
+            scopeWord:lower(), isRaid and "Dungeons" or "Raids"))
+
+        local cap = ns.Font(row, 11, nil, ns.THEME.muted)
+        cap:SetPoint("LEFT", btn, "RIGHT", 12, 0)
+        cap:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+        cap:SetJustifyH("LEFT")
+        cap:SetText(("Sets a new spec up in one press. %s only, nothing already here is "
+            .. "replaced."):format(isRaid and "Raids" or "Dungeons"))
+
+        y = y - 40
     end
 
     local LEFT_W = 190
@@ -3257,16 +3269,18 @@ end
 -- encounterID nil means the whole spec, which is what the Dungeon and Raid list pages ask
 -- for: one press instead of the same copy repeated on every boss in turn. The per-boss
 -- entry point still passes an encounter and keeps its own checkbox.
-function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI)
+function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scopeWord)
     local EUI = callerEUI or ns.UI
-    local specs = ns.SpecsWithBindings(encounterID)
+    local specs = ns.SpecsWithBindings(encounterID, encSet)
     local allMode = (encounterID == nil)
 
     local dimmer, panel = ns.MakeModal(420, 150 + math.max(1, #specs) * 30, "copyBindings")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText(allMode and "Copy Every Boss From" or "Copy Abilities From")
+    head:SetText(allMode
+        and ("Copy Every %s From"):format(scopeWord or "Boss")
+        or "Copy Abilities From")
 
     local y = -46
     if #specs == 0 then
@@ -3283,8 +3297,9 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI)
         hint:SetJustifyH("LEFT")
         hint:SetWordWrap(true)
         hint:SetText(allMode
-            and "Every boss that spec has set up is copied. Anything this spec already has "
-                .. "is left alone."
+            and ("Every %s that spec has set up is copied, and nothing outside them. "
+                .. "Anything this spec already has is left alone."):format(
+                (scopeWord or "boss"):lower())
             or "Anything this spec already has is left alone.")
         y = y - (allMode and 38 or 26)
 
@@ -3308,7 +3323,8 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI)
             -- the whole question when copying a whole spec across.
             local label = allMode and ("%s  (%d)"):format(s.name, s.total) or s.name
             local btn = ns.Button(panel, label, 200, 24, function()
-                local copied, skipped = ns.CopyBindingsFromSpec(s.key, (not allBosses) and encounterID or nil)
+                local copied, skipped = ns.CopyBindingsFromSpec(
+                    s.key, (not allBosses) and encounterID or nil, encSet)
                 ns.Print(("copied |cff0091ed%d|r abilities from %s%s.")
                     :format(copied, s.name,
                         skipped > 0 and (", left " .. skipped .. " already here alone") or ""))
