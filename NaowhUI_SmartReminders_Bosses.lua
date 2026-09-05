@@ -1975,6 +1975,10 @@ function ns.BuildProfileSettings(parent, y)
           end }
     ); y = y - h
 
+    -- Declared here rather than where it is written below: the save buttons offer an
+    -- overwrite through it, and their closures need it in scope when they are built.
+    local ConfirmOn
+
     local profRow
     profRow, h = W:DualRow(parent, y,
         { type = "label", text = "" },
@@ -1986,9 +1990,24 @@ function ns.BuildProfileSettings(parent, y)
         end
         local newBtn = ns.Button(profRow._leftRegion, "New Profile", 110, 22, function()
             ShowNamePrompt("New Profile", "Create", "", function(text)
-                local ok, err = ns.CreateProfile(text)
+                local name = text:match("^%s*(.-)%s*$")
+                -- A taken name used to fail with "that name is taken" and nothing else, so
+                -- the only way on was to invent a second name. Offer the replacement instead,
+                -- named and spelled out, rather than refusing or doing it silently.
+                if ns.ProfileExists and ns.ProfileExists(name) then
+                    ConfirmOn("Replace", "It starts empty at default settings, on every "
+                        .. "character standing in it. Cannot be undone.", "Replace", name,
+                        function(n)
+                            local ok, err = ns.CreateProfile(n, true)
+                            if not ok then return false, err end
+                            ns.SwitchProfile(n)
+                            return true
+                        end)
+                    return
+                end
+                local ok, err = ns.CreateProfile(name)
                 if not ok then ns.Print(err) return end
-                ns.SwitchProfile(text:match("^%s*(.-)%s*$"))
+                ns.SwitchProfile(name)
                 AfterChange()
             end)
         end)
@@ -2002,9 +2021,22 @@ function ns.BuildProfileSettings(parent, y)
         -- profile as it is made, and a button that did nothing would only suggest otherwise.
         local copyBtn = ns.Button(profRow._leftRegion, "Save As New Profile", 150, 22, function()
             ShowNamePrompt("Save As New Profile", "Save", "", function(text)
-                local ok, err = ns.CopyProfile(ns.ActiveProfileName(), text)
+                local name = text:match("^%s*(.-)%s*$")
+                if ns.ProfileExists and ns.ProfileExists(name) then
+                    ConfirmOn("Overwrite", "Everything set up right now replaces what is "
+                        .. "stored under it, on every character standing in it. Cannot be "
+                        .. "undone.", "Overwrite", name,
+                        function(n)
+                            local ok, err = ns.CopyProfile(ns.ActiveProfileName(), n, true)
+                            if not ok then return false, err end
+                            ns.SwitchProfile(n)
+                            return true
+                        end)
+                    return
+                end
+                local ok, err = ns.CopyProfile(ns.ActiveProfileName(), name)
                 if not ok then ns.Print(err) return end
-                ns.SwitchProfile(text:match("^%s*(.-)%s*$"))
+                ns.SwitchProfile(name)
                 AfterChange()
             end)
         end)
@@ -2026,7 +2058,7 @@ function ns.BuildProfileSettings(parent, y)
 
     -- Confirms name the profile CHOSEN, not the one in use -- the whole point is that they
     -- differ. Both reset to the placeholder afterwards through the page refresh.
-    local function ConfirmOn(title, hintText, verb, chosen, act)
+    ConfirmOn = function(title, hintText, verb, chosen, act)
         local dimmer, panel = ns.MakeModal(360, 140, "profileActConfirm")
         local head = ns.Font(panel, 14, "OUTLINE")
         head:SetPoint("TOP", panel, "TOP", 0, -16)
