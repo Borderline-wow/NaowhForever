@@ -3166,8 +3166,30 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- THIS page lists, so pressing it on Raid Bosses cannot quietly drag every dungeon across
     -- with it. Only shown when another spec has something inside that set to give.
     local encSet, scopeWord = ns.EncounterSetForKind(isRaid)
-    if specID and specID ~= 0 and ns.SpecsWithBindings
-        and #ns.SpecsWithBindings(nil, encSet) > 0 then
+
+    -- An empty page because this spec has nothing looks exactly like an empty page because
+    -- the addon lost everything, and the second reading is the one people reach for -- it
+    -- cost an evening on a profile that had imported perfectly, where the work was simply
+    -- filed under specs the character was not playing. Say which it is.
+    local others = (specID and specID ~= 0 and ns.SpecsWithBindings)
+        and ns.SpecsWithBindings(nil, encSet) or {}
+    if specID and specID ~= 0 and ns.OwnBindingCount
+        and ns.OwnBindingCount(encSet) == 0 and #others > 0 then
+        local total = 0
+        for i = 1, #others do total = total + (others[i].total or 0) end
+        local note = ns.Font(parent, 11, nil, ns.THEME.accentSoft)
+        note:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD + 20, y)
+        note:SetPoint("RIGHT", parent, "RIGHT", -EUI.CONTENT_PAD, 0)
+        note:SetJustifyH("LEFT")
+        note:SetWordWrap(true)
+        note:SetText(("This profile has %d %s set up, but none of them on %s -- abilities are "
+            .. "saved per spec. Copy them across below, or switch to a spec that has them.")
+            :format(total, total == 1 and "ability" or "abilities",
+                ns.SpecName(specID) or "this spec"))
+        y = y - 30
+    end
+
+    if specID and specID ~= 0 and #others > 0 then
         -- Built directly rather than through W:Button: that helper hardcodes a 200px button
         -- and this label overran it, drawing outside its own border. The width follows the
         -- text instead, with the explanation in a caption beside it.

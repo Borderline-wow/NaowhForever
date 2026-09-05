@@ -3655,6 +3655,25 @@ end
 -- Which other specs have ability bindings saved, with how many. Feeds the Copy From Spec
 -- picker: per-spec storage means a fresh spec starts empty, and rebuilding a whole boss
 -- list by hand on every alt is not a reasonable ask.
+-- How many abilities THIS spec has inside encSet. Its only job is telling an empty page that
+-- happens to be empty from one that is empty because the profile's work sits under a spec
+-- you are not currently playing -- which reads as the addon having lost it, and cost an
+-- evening proving otherwise on a profile that had imported perfectly.
+function ns.OwnBindingCount(encSet)
+    if specID == 0 then return 0 end
+    local t = TRDB()
+    local all = type(t.abilityBindings) == "table" and t.abilityBindings or nil
+    local mine = all and all[tostring(specID)]
+    if type(mine) ~= "table" then return 0 end
+    local n = 0
+    for eKey, bySpell in pairs(mine) do
+        if type(bySpell) == "table" and (not encSet or encSet[eKey]) then
+            for _ in pairs(bySpell) do n = n + 1 end
+        end
+    end
+    return n
+end
+
 -- encSet mirrors CopyBindingsFromSpec's: when the caller is only going to copy a subset of
 -- encounters, the count offered beside each spec has to describe that same subset or it
 -- promises abilities the copy will not bring.
