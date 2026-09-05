@@ -3126,9 +3126,30 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- biggest cost in setting a spec up. Only shown when another spec has something to take.
     if specID and specID ~= 0 and ns.SpecsWithBindings
         and #ns.SpecsWithBindings(nil) > 0 then
-        _, h = W:Button(parent, "Copy Every Boss From Another Spec", y, function()
+        -- Built here rather than through W:Button: that helper hardcodes a 200px button, and
+        -- this label overran it and drew outside its own border. The width follows the text
+        -- instead, and a caption carries the explanation the label no longer has room for.
+        local row = CreateFrame("Frame", nil, parent)
+        row:SetHeight(34)
+        row:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD, y)
+        row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -EUI.CONTENT_PAD, y)
+
+        local label = "Copy All Bosses From a Spec"
+        local btn = ns.Button(row, label, 210, 26, function()
             ns.ShowCopyBindingsPopup(nil, nil, EUI)
-        end); y = y - h
+        end)
+        btn:SetPoint("LEFT", row, "LEFT", 20, 0)
+        ns.Tooltip(btn, label, "Brings another spec's abilities across for every boss at "
+            .. "once, instead of repeating the per-boss copy on each in turn. Anything this "
+            .. "spec already has is left alone.")
+
+        local cap = ns.Font(row, 11, nil, ns.THEME.muted)
+        cap:SetPoint("LEFT", btn, "RIGHT", 12, 0)
+        cap:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+        cap:SetJustifyH("LEFT")
+        cap:SetText("Sets a new spec up in one press. Nothing already here is replaced.")
+
+        y = y - 40
     end
 
     local data = ns.ScrapeBosses(false)
