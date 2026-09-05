@@ -2996,7 +2996,10 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     addBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
 
     local copyBtn = ns.Button(parent, "Copy From Spec", 130, 24, function()
-        ns.ShowCopyBindingsPopup(boss.encounterID, boss.name, EUI)
+        -- The set travels with it so this popup's own "every boss" tick keeps to the same
+        -- side of the raid/dungeon split as the boss it was opened from.
+        local set, word = ns.EncounterSetForKind(inst.isRaid)
+        ns.ShowCopyBindingsPopup(boss.encounterID, boss.name, EUI, set, word)
     end)
     copyBtn:SetPoint("LEFT", addBtn, "RIGHT", 8, 0)
     ns.Tooltip(copyBtn, "Copy From Spec",
@@ -3162,13 +3165,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- Placed after the instance list because it needs it: the copy is confined to the bosses
     -- THIS page lists, so pressing it on Raid Bosses cannot quietly drag every dungeon across
     -- with it. Only shown when another spec has something inside that set to give.
-    local encSet, scopeWord = {}, isRaid and "Raid Boss" or "Dungeon Boss"
-    for i = 1, #list do
-        local bosses = list[i].bosses
-        for j = 1, #bosses do
-            if bosses[j].encounterID then encSet[tostring(bosses[j].encounterID)] = true end
-        end
-    end
+    local encSet, scopeWord = ns.EncounterSetForKind(isRaid)
     if specID and specID ~= 0 and ns.SpecsWithBindings
         and #ns.SpecsWithBindings(nil, encSet) > 0 then
         -- Built directly rather than through W:Button: that helper hardcodes a 200px button
@@ -3269,6 +3266,25 @@ end
 -- encounterID nil means the whole spec, which is what the Dungeon and Raid list pages ask
 -- for: one press instead of the same copy repeated on every boss in turn. The per-boss
 -- entry point still passes an encounter and keeps its own checkbox.
+-- Every encounter the journal lists on one side of the raid/dungeon split, as a set of
+-- encounter keys. Both copy entry points confine themselves with it, so neither can reach
+-- across that split into content the page it was opened from never mentions.
+function ns.EncounterSetForKind(isRaid)
+    local data = ns.ScrapeBosses(false)
+    local set = {}
+    if not data then return set, isRaid and "Raid Boss" or "Dungeon Boss" end
+    for i = 1, #data.instances do
+        local inst = data.instances[i]
+        if (inst.isRaid or false) == (isRaid and true or false) then
+            for j = 1, #inst.bosses do
+                local eid = inst.bosses[j].encounterID
+                if eid then set[tostring(eid)] = true end
+            end
+        end
+    end
+    return set, isRaid and "Raid Boss" or "Dungeon Boss"
+end
+
 function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scopeWord)
     local EUI = callerEUI or ns.UI
     local specs = ns.SpecsWithBindings(encounterID, encSet)
@@ -3313,7 +3329,10 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
             chk:SetScript("OnClick", function(self) allBosses = self:GetChecked() and true or false end)
             local chkLbl = ns.Font(panel, 11, nil, ns.THEME.fg)
             chkLbl:SetPoint("LEFT", chk, "RIGHT", 4, 0)
-            chkLbl:SetText("Every boss, not just " .. (bossName or "this one"))
+            -- Names the split it keeps to. "Every boss" read as everything the addon knows,
+            -- which is what it used to do and what it no longer does.
+            chkLbl:SetText(("Every %s, not just %s"):format(
+                (scopeWord or "boss"):lower(), bossName or "this one"))
             y = y - 28
         end
 
