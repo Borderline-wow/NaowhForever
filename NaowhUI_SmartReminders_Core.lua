@@ -421,11 +421,21 @@ function ns.SwitchProfile(name)
     return true
 end
 
-local function ValidName(name)
+-- allowExisting is for the callers that have already asked the player to confirm replacing a
+-- profile of this name. Without it a taken name is refused, which is the right default: an
+-- overwrite loses whatever was stored under it, on every character standing in it.
+local function ValidName(name, allowExisting)
     name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
     if name == "" then return nil, "the name is empty" end
-    if DB().profiles[name] then return nil, "that name is taken" end
+    if not allowExisting and DB().profiles[name] then return nil, "that name is taken" end
     return name
+end
+
+-- Whether a name is already spoken for, so the UI can offer the overwrite rather than
+-- discovering it from a failed save.
+function ns.ProfileExists(name)
+    name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
+    return name ~= "" and type(DB().profiles[name]) == "table"
 end
 
 -- A new profile becomes the account's: every character switches to it, and any logged into
@@ -449,9 +459,9 @@ function ns.SetAccountProfile(name)
     return true
 end
 
-function ns.CreateProfile(name)
+function ns.CreateProfile(name, overwrite)
     local err
-    name, err = ValidName(name)
+    name, err = ValidName(name, overwrite)
     if not name then return false, err end
     local sv = DB()
     sv.profiles[name] = {}
@@ -470,13 +480,19 @@ local function DeepCopy(t)
     return out
 end
 
-function ns.CopyProfile(src, name)
+function ns.CopyProfile(src, name, overwrite)
     local sv = DB()
     if type(sv.profiles[src]) ~= "table" then return false, "no such profile" end
     local err
-    name, err = ValidName(name)
+    name, err = ValidName(name, overwrite)
     if not name then return false, err end
     sv.profiles[name] = DeepCopy(sv.profiles[src])
+    -- Overwriting the profile in use replaces the very table the cached root points at, so
+    -- the cache is dropped rather than left describing what was there a moment ago.
+    if name == sv.charActive[CharKey()] then
+        activeRoot = nil
+        ns.QueueReapply()
+    end
     return true
 end
 
