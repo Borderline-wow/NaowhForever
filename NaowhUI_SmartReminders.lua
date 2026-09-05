@@ -3817,8 +3817,14 @@ local function FireBigWigsAbility(sid)
         -- The aggro check still RUNS and still records its verdict, it just does not stop
         -- the callout. A trace taken this way therefore still shows what the gate would
         -- have answered, which is usually the thing being investigated.
+        --
+        -- The spec's ROLE decides nothing here. A raid-wide hit a DPS answers with a
+        -- personal is the same question a tank buster asks, put to somebody else, and
+        -- adding the ability for this spec is already the answer -- bindings are per spec,
+        -- so a spec nobody has set up still fires nothing. This used to refuse outright
+        -- unless the spec had a tank role, which left the ability list on every other spec
+        -- switched on and silent.
         local pretend = TRDB().pretendTank
-        if not isTank and not pretend then return end
         if TRDB().aggroOnly then
             local verdict, path = TankingCaster(sid)
             lastAggroCheck = { sid = sid, verdict = verdict, path = pretend and not verdict
@@ -4618,8 +4624,7 @@ local warnedCombatWarnings = false
 local saidAudioOnly = false
 
 local function WarnIfMuted()
-    if warnedCombatWarnings or not TRDB().enabled
-        or not (isTank or TRDB().pretendTank) then return end
+    if warnedCombatWarnings or not TRDB().enabled then return end
     if not CombatWarningsOff() then return end
     warnedCombatWarnings = true
     ns.Print("|cffff6060Boss Warnings are turned off|r, so the game sends no timeline data and "
@@ -4634,8 +4639,7 @@ end
 local warnedNoBossMod = false
 -- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling.
 function ns.WarnIfNoBossMod()
-    if warnedNoBossMod or not TRDB().enabled
-        or not (isTank or TRDB().pretendTank) then return end
+    if warnedNoBossMod or not TRDB().enabled then return end
     local source = ns.BossSource()
     if source == "timeline" then return end
     if (source == "bigwigs" and _G.BigWigsLoader) or (source == "dbm" and _G.DBM) then return end
@@ -4857,9 +4861,9 @@ local function DiagProblems()
         out[#out + 1] = "priority list is EMPTY for this spec, so nothing can ever be "
             .. "called -- add defensives in Smart Reminders first"
     end
-    if not isTank and not t.pretendTank then
-        out[#out + 1] = "not a tank spec and Pretend Tank is off, so tank busters will "
-            .. "never call -- run /nutank pretendtank"
+    if not isTank and t.aggroOnly and not t.pretendTank then
+        out[#out + 1] = "Only While I Have the Boss is on and this spec does not tank, so "
+            .. "nothing can call -- turn that setting off"
     end
     -- No instruction any more: the client refuses the registration everywhere in this build,
     -- so there is nothing a tester can do about it and the old "step outside once" line sent
@@ -5389,11 +5393,14 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     ns.Print(("tank reminder: enabled=%s spec=%d tank=%s slots=%d"):format(
         tostring(TRDB().enabled), specID, tostring(isTank), activeSlots))
     if TRDB().pretendTank then
-        ns.Print("|cffF0A830PRETEND TANK IS ON|r -- tank busters call for you regardless of "
-            .. "spec or aggro. /nutank pretendtank turns it off.")
-    elseif not isTank then
-        ns.Print("|cffF0A830this spec does not tank|r, so known tank busters stay quiet "
-            .. "here. Custom reminders and uncovered bosses in authoring mode still call.")
+        ns.Print("|cffF0A830PRETEND TANK IS ON|r -- the aggro gate is ignored, so abilities "
+            .. "call whether or not you hold the boss. /nutank pretendtank turns it off.")
+    elseif not isTank and TRDB().aggroOnly then
+        -- The role itself no longer decides anything; only this setting can still shut a
+        -- non-tank out, and silently, which is what earns the line.
+        ns.Print("|cffF0A830Only While I Have the Boss is on|r and this spec does not tank, "
+            .. "so nothing will call. Turn it off to get calls on a spec that never holds "
+            .. "aggro.")
     end
     ns.Print(("boss addon: %s"):format(ns.BossSource()))
     if currentEncounter then
