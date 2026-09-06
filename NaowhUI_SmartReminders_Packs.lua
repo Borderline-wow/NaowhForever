@@ -659,6 +659,83 @@ function ns.MakeMultilineBox(panel, topOffset, height)
     return box
 end
 
+-- A pack string is one giant run with no spaces for the client's own word-wrap to break
+-- on, so real line breaks are inserted here instead. Measured against this box's actual
+-- font rather than a guessed characters-per-line count -- a guess already turned out
+-- wrong once, still running past the edge of the same box it was meant to fix, since
+-- this alphabet renders wider than the guess assumed.
+--
+-- Free on the way back in either way: DecodePack strips all whitespace before it looks
+-- at the string, so every inserted break disappears again on import.
+-- Parked off-screen rather than :Hide()'d. A hidden FontString does not get its text
+-- metrics computed at all -- GetStringWidth() answers 0 for it regardless of the text --
+-- so the first version of this measured every candidate line as "fits" and wrapped
+-- nothing. Shown, just nowhere anyone can see it, so the client actually lays it out.
+local wrapGauge
+local function MeasureWidth(str)
+    if not wrapGauge then
+        local host = CreateFrame("Frame", nil, UIParent)
+        host:SetSize(1, 1)
+        host:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -5000, 5000)
+        wrapGauge = host:CreateFontString(nil, "ARTWORK")
+        wrapGauge:SetFontObject("GameFontHighlightSmall")
+        wrapGauge:SetPoint("TOPLEFT")
+        host:Show()
+    end
+    wrapGauge:SetText(str)
+    return wrapGauge:GetStringWidth()
+end
+
+-- How many characters of str, starting at "from", fit within maxWidth. Grows the
+-- candidate span geometrically to bound the search, then narrows it exactly -- a few
+-- dozen measurements per line, run once per box open or edit, not per frame.
+local function FitCount(str, from, maxWidth)
+    local n = #str
+    local lo, hi = 0, 1
+    while from + hi - 1 <= n and MeasureWidth(str:sub(from, from + hi - 1)) <= maxWidth do
+        lo = hi
+        hi = hi * 2
+    end
+    hi = math.min(hi, n - from + 1)
+    while lo < hi do
+        local mid = lo + math.ceil((hi - lo) / 2)
+        if MeasureWidth(str:sub(from, from + mid - 1)) <= maxWidth then
+            lo = mid
+        else
+            hi = mid - 1
+        end
+    end
+    -- At least one character even if it overflows maxWidth: a target too small to fit
+    -- anything must still make progress rather than loop forever on the same position.
+    return math.max(lo, 1)
+end
+
+-- Fixed, conservative character count, used whenever something needed to answer the real
+-- width and could not -- the container's own width unreadable, or the gauge measuring a
+-- non-empty string as zero. Either is the gauge lying rather than the text fitting, which
+-- is exactly how the :Hide()'d version of this failed silently the first time: trusting a
+-- broken answer instead of falling back to something that still wraps.
+local function FallbackWrap(str)
+    local lines = {}
+    for i = 1, #str, 50 do lines[#lines + 1] = str:sub(i, i + 49) end
+    return table.concat(lines, "\n")
+end
+
+local function WrapForDisplay(str, maxWidth)
+    if #str == 0 then return str end
+    if not maxWidth or maxWidth <= 0 then return FallbackWrap(str) end
+    local full = MeasureWidth(str)
+    if full == 0 then return FallbackWrap(str) end
+    if full <= maxWidth then return str end
+    local lines, i, n = {}, 1, #str
+    while i <= n do
+        local count = FitCount(str, i, maxWidth)
+        lines[#lines + 1] = str:sub(i, i + count - 1)
+        i = i + count
+    end
+    return table.concat(lines, "\n")
+end
+
 -- Built once and reused. ns.MakeModal hands out a fresh dimmer and panel on every call
 -- and never releases the old one, so rebuilding these per open stacked a new copy on the
 -- screen each time the button was pressed -- reported as spawning infinite boxes. Same
@@ -671,10 +748,14 @@ function ns.ShowPackExport()
         packExport.dimmer:Show()
         return
     end
-    -- 392, not 330: the text box runs to -258 and the "every profile" tick has to sit clear
-    -- BELOW it. At the old height it landed inside the box, which swallowed every click on
-    -- it -- the box is an EditBox that grows with its content and takes the mouse.
-    local dimmer, panel = ns.MakeModal(560, 392, "packExport")
+    -- 392 is the floor, not the fixed height: Regenerate grows the panel to fit however
+    -- many lines the covered-specs line below the box wraps to (see MIN_HEIGHT below).
+    -- 392 itself is the text box running to -258 plus the "every profile" tick needing to
+    -- sit clear below it -- at a lower floor that tick landed inside the box, which
+    -- swallowed every click on it since the box is an EditBox that grows with its content
+    -- and takes the mouse.
+    local MIN_HEIGHT = 392
+    local dimmer, panel = ns.MakeModal(560, MIN_HEIGHT, "packExport")
     -- ns.Font, not a guard on ns.MakeFontString: that name is defined nowhere in the addon,
     -- so the guard was always false and this title alone skipped the shared helper every
     -- other heading here uses.
@@ -694,10 +775,15 @@ function ns.ShowPackExport()
     hint:SetText("pack name, shown on import")
 
     local box = ns.MakeMultilineBox(panel, -78, 180)
+    -- Left/right-anchored and word-wrapped, not the single centered anchor point this had
+    -- before: that let the line grow as wide as its own text needed with nothing to stop
+    -- it, so a curator's whole class list rendered as one line running out past the panel
+    -- on both sides onto the game world behind it. Positioned once allBtn exists, below.
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 62)
+    status:SetWordWrap(true)
+    status:SetJustifyH("CENTER")
 
-    local everyProfile, allBtn = false, nil
+    local everyProfile, allBtn, closeBtn = false, nil, nil
 
     local function Regenerate()
         local str, err
@@ -707,7 +793,12 @@ function ns.ShowPackExport()
             str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
         end
         if str then
-            box:SetText(str)
+            -- The scroll frame's own width, not box:GetWidth(): box's width is set from
+            -- OnSizeChanged, which can still be one frame behind on the very first open,
+            -- while the scroll frame's is anchor-derived off the panel's literal SetSize
+            -- and correct the instant it's asked for.
+            local maxWidth = box:GetParent():GetWidth()
+            box:SetText(WrapForDisplay(str, maxWidth))
             -- Named, not counted. A curator sharing a set for ten classes wants to see that
             -- all ten went in, and the only way to be sure was to import it somewhere.
             local names
@@ -730,6 +821,16 @@ function ns.ShowPackExport()
             box:SetText("")
             status:SetText("|cffff6060" .. tostring(err) .. "|r")
         end
+        -- Grown to fit however tall status turned out to be, not truncated to fit a fixed
+        -- height: the whole point of naming every class is reassuring a curator who just
+        -- exported ten of them that all ten actually went in. 78+180 is the box's own
+        -- fixed top offset and height; everything after it is the allBtn/status/close
+        -- stack that now chains off status's real wrapped height instead of a guess.
+        if allBtn and closeBtn then
+            local needed = 78 + 180 + 14 + allBtn:GetHeight() + 10 + status:GetHeight()
+                + 10 + closeBtn:GetHeight() + 16
+            panel:SetHeight(math.max(MIN_HEIGHT, needed))
+        end
     end
 
     -- A curator keeping a profile per class needs one string, not ten. Off by default: the
@@ -740,10 +841,19 @@ function ns.ShowPackExport()
             .. "Every profile, not just this one")
         Regenerate()
     end)
-    allBtn:SetPoint("BOTTOM", panel, "BOTTOM", 0, 108)
+    -- Anchored below the scroll frame itself, not a fixed panel-bottom offset: the scroll
+    -- frame is always exactly 180 tall regardless of the panel's own (now variable) height,
+    -- so this row's position never has to know how tall the panel ended up being.
+    allBtn:SetPoint("TOP", box:GetParent(), "BOTTOM", 0, -14)
     -- Above the scroll frame either way, so a box grown by a long string cannot cover it.
     allBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
     allBtn.label:SetText("[  ]  Every profile, not just this one")
+
+    -- status chains off allBtn (now that it exists) rather than a fixed panel-bottom
+    -- offset, so it always starts right below the tick regardless of panel height.
+    status:SetPoint("TOP", allBtn, "BOTTOM", 0, -10)
+    status:SetPoint("LEFT", panel, "LEFT", 14, 0)
+    status:SetPoint("RIGHT", panel, "RIGHT", -14, 0)
 
     box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     -- The string is display-only: retyping into it produces nothing valid, so
@@ -751,8 +861,12 @@ function ns.ShowPackExport()
     box:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
     nameBox:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
 
-    ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    closeBtn = ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
+    -- Chained off status's own bottom, not the panel's, for the same reason as allBtn:
+    -- status can be one line or several depending on how many classes a pack covers, and
+    -- this has to end up below it either way rather than guessing a fixed offset that
+    -- fits only the common case.
+    closeBtn:SetPoint("TOP", status, "BOTTOM", 0, -10)
 
     packExport = { dimmer = dimmer, Regenerate = Regenerate }
     Regenerate()
