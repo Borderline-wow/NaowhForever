@@ -205,7 +205,11 @@ function ns.DescribeProfilePack(str, opts)
     local profiles = {}
     if multi then
         local names = {}
-        for name in pairs(payload.profiles) do names[#names + 1] = name end
+        -- Never listed: a pack carrying one under this exact name is refused at apply
+        -- time anyway, since every account already has its own Default.
+        for name in pairs(payload.profiles) do
+            if name ~= "Default" then names[#names + 1] = name end
+        end
         table.sort(names, function(a, b) return a:lower() < b:lower() end)
         for i = 1, #names do
             local specs = ns.PackSpecs({ data = payload.profiles[names[i]] })
@@ -327,7 +331,12 @@ function ns.ExportAllProfiles(packName, author)
     local names = ns.ListProfiles and ns.ListProfiles() or {}
     for i = 1, #names do
         local tr = ns.ProfileSettings and ns.ProfileSettings(names[i])
-        if tr then
+        -- Every account already has a profile called Default -- SettingsRoot creates it
+        -- for the first character to ever log in. A pack that carried one under that
+        -- exact name landed by ApplyProfiles keying straight off the pack's own profile
+        -- name, with no free-name renaming the way a single-profile import gets: it
+        -- merged straight into whatever the importer's own Default already held.
+        if tr and names[i] ~= "Default" then
             -- An imported profile is not the exporter's to pass on, the same rule the
             -- single-profile export follows; it is skipped rather than failing the lot.
             if type(tr.importedPack) ~= "table" then
@@ -384,7 +393,10 @@ function ns.DecodePack(str)
         -- Named, with what each carries, so the preview says what is about to land rather
         -- than a count of profiles.
         local names = {}
-        for name in pairs(payload.profiles) do names[#names + 1] = name end
+        -- Never listed here either: refused at apply time regardless.
+        for name in pairs(payload.profiles) do
+            if name ~= "Default" then names[#names + 1] = name end
+        end
         table.sort(names, function(a, b) return a:lower() < b:lower() end)
         for i = 1, #names do
             local specs = ns.PackSpecs({ data = payload.profiles[names[i]] })
@@ -473,7 +485,9 @@ end
 -- one from Active Profile afterwards.
 --
 -- Existing profiles of the same name are merged into per key rather than replaced, so a
--- buyer who already has a "Default" keeps whatever the seller's does not mention.
+-- buyer who already has one keeps whatever the seller's does not mention. Except Default:
+-- every account starts with one, so a pack profile under that exact name is refused rather
+-- than merged into it -- see the check below.
 function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
     if type(payload) ~= "table" or type(payload.profiles) ~= "table" then return false end
     -- Taken before any profile in this pack is created, so a name the pack itself introduces
@@ -485,7 +499,11 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
     end
     local landed = 0
     for name, data in pairs(payload.profiles) do
-        if (not wantProfiles or wantProfiles[name]) and type(data) == "table" then
+        -- Refused outright, not just excluded from new exports: an older pack string
+        -- already circulating could still carry one, and landing it would merge a
+        -- stranger's setup straight into the one profile every account already has.
+        if name ~= "Default" and (not wantProfiles or wantProfiles[name])
+            and type(data) == "table" then
             local isNewProfile = not existing[name]
             local tr = ns.EnsureProfile and ns.EnsureProfile(name)
             if tr then
@@ -957,7 +975,10 @@ function ns.ShowPackImport()
         local specs = {}
         if multi then
             local names = {}
-            for name in pairs(payload.profiles) do names[#names + 1] = name end
+            -- Never offered as a row to tick: refused at apply time regardless.
+            for name in pairs(payload.profiles) do
+                if name ~= "Default" then names[#names + 1] = name end
+            end
             table.sort(names, function(a, b) return a:lower() < b:lower() end)
             for i = 1, #names do specs[i] = { key = names[i], name = names[i] } end
         elseif payload then
