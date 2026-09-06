@@ -635,12 +635,20 @@ end
 --
 -- Free on the way back in either way: DecodePack strips all whitespace before it looks
 -- at the string, so every inserted break disappears again on import.
+-- Parked off-screen rather than :Hide()'d. A hidden FontString does not get its text
+-- metrics computed at all -- GetStringWidth() answers 0 for it regardless of the text --
+-- so the first version of this measured every candidate line as "fits" and wrapped
+-- nothing. Shown, just nowhere anyone can see it, so the client actually lays it out.
 local wrapGauge
 local function MeasureWidth(str)
     if not wrapGauge then
-        wrapGauge = UIParent:CreateFontString(nil, "BACKGROUND")
+        local host = CreateFrame("Frame", nil, UIParent)
+        host:SetSize(1, 1)
+        host:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -5000, 5000)
+        wrapGauge = host:CreateFontString(nil, "ARTWORK")
         wrapGauge:SetFontObject("GameFontHighlightSmall")
-        wrapGauge:Hide()
+        wrapGauge:SetPoint("TOPLEFT")
+        host:Show()
     end
     wrapGauge:SetText(str)
     return wrapGauge:GetStringWidth()
@@ -670,8 +678,23 @@ local function FitCount(str, from, maxWidth)
     return math.max(lo, 1)
 end
 
+-- Fixed, conservative character count, used whenever something needed to answer the real
+-- width and could not -- the container's own width unreadable, or the gauge measuring a
+-- non-empty string as zero. Either is the gauge lying rather than the text fitting, which
+-- is exactly how the :Hide()'d version of this failed silently the first time: trusting a
+-- broken answer instead of falling back to something that still wraps.
+local function FallbackWrap(str)
+    local lines = {}
+    for i = 1, #str, 50 do lines[#lines + 1] = str:sub(i, i + 49) end
+    return table.concat(lines, "\n")
+end
+
 local function WrapForDisplay(str, maxWidth)
-    if not maxWidth or maxWidth <= 0 or MeasureWidth(str) <= maxWidth then return str end
+    if #str == 0 then return str end
+    if not maxWidth or maxWidth <= 0 then return FallbackWrap(str) end
+    local full = MeasureWidth(str)
+    if full == 0 then return FallbackWrap(str) end
+    if full <= maxWidth then return str end
     local lines, i, n = {}, 1, #str
     while i <= n do
         local count = FitCount(str, i, maxWidth)
