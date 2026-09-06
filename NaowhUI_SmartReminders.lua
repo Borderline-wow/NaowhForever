@@ -2098,6 +2098,30 @@ local function NoteOwnCast(castSpellID)
     end
 end
 
+-- These three hang off ns rather than being file locals: this chunk peaks against Lua's
+-- 200-local ceiling around line 5700, and going over stops the whole file compiling.
+--
+-- Hoisted out of ResyncSpell, where it was an anonymous function under pcall, so a fresh
+-- closure was built for every tracked spell on every cooldown event.
+function ns.ReadPlainCooldown(dur)
+    -- Nothing back means nothing running, so zero remaining.
+    if not dur or not dur.GetRemainingDuration then return 0 end
+    return dur:GetRemainingDuration() or 0,
+        (dur.GetTotalDuration and dur:GetTotalDuration()) or nil
+end
+
+ns.sidKeys = {}
+
+-- The measured total is the same number on almost every pass, and writing it back each
+-- time dirtied SavedVariables and built a fresh key string for nothing.
+function ns.LearnTotal(sid, total)
+    local key = ns.sidKeys[sid]
+    if not key then key = tostring(sid); ns.sidKeys[sid] = key end
+    local t = TRDB()
+    if type(t.learned) ~= "table" then t.learned = {} end
+    if t.learned[key] ~= total then t.learned[key] = total end
+end
+
 local function ResyncSpell(sid)
     -- Re-read the shape every pass. A talent swap can add or remove charges, and a
     -- stale shape is what makes the model confidently wrong rather than absent.
@@ -2116,9 +2140,7 @@ local function ResyncSpell(sid)
         local total = ReadChargeRecharge(sid)
         if total then
             cs.recharge, cs.rechargeSrc = total, "learned"
-            local t = TRDB()
-            if type(t.learned) ~= "table" then t.learned = {} end
-            t.learned[tostring(sid)] = total
+            ns.LearnTotal(sid, total)
         end
         return
     end
@@ -2133,13 +2155,9 @@ local function ResyncSpell(sid)
     -- Only while the predicate says this spell's cooldown reads plainly; the pcall is
     -- belt and braces against the classification changing under us mid-read.
     if CanNameSpellAloud(sid) then
-        local ok, rem, total = pcall(function()
-            local dur = C_Spell.GetSpellCooldownDuration(sid, true)
-            -- Nothing back means nothing running, so zero remaining.
-            if not dur or not dur.GetRemainingDuration then return 0 end
-            return dur:GetRemainingDuration() or 0,
-                (dur.GetTotalDuration and dur:GetTotalDuration()) or nil
-        end)
+        -- Reuses the object read for `live` above rather than asking again; that call is
+        -- already made unprotected on the same line, so nothing is newly exposed.
+        local ok, rem, total = pcall(ns.ReadPlainCooldown, live)
         if ok and type(rem) == "number" then
             readyAt[sid] = GetTime() + math.max(0, rem)
         end
@@ -2151,9 +2169,7 @@ local function ResyncSpell(sid)
         -- makes this a free measurement of a number the estimate can only guess at.
         -- The 1.5s floor keeps a GCD-length reading from overwriting a real cooldown.
         if ok and type(total) == "number" and total > 1.5 then
-            local t = TRDB()
-            if type(t.learned) ~= "table" then t.learned = {} end
-            t.learned[tostring(sid)] = total
+            ns.LearnTotal(sid, total)
         end
     end
 end
@@ -2162,6 +2178,21 @@ local function ResyncModel()
     for i = 1, activeSlots do
         ResyncSpell(slots[i].spellID)
     end
+end
+
+-- SPELL_UPDATE_COOLDOWN arrives in bursts -- several in one frame off a single cast --
+-- and each one re-reads every tracked spell. One pass per frame instead. Nothing consumes
+-- the model faster than it is drawn, and the spec-change and login callers below still
+-- run ResyncModel directly where the result is needed before the next line.
+ns.resyncQueued = false
+function ns.RunQueuedResync()
+    ns.resyncQueued = false
+    ResyncModel()
+end
+function ns.ResyncModelSoon()
+    if ns.resyncQueued then return end
+    ns.resyncQueued = true
+    C_Timer.After(0, ns.RunQueuedResync)
 end
 
 -- Is this spell castable right now? Shared by the voice pick and by preset-bound custom
@@ -3258,9 +3289,12 @@ end
 -- Cast end is SUCCEEDED only. An interrupted or cancelled cast fires nothing: the mechanic
 -- never happened, and calling "move" after a kicked cast is worse than saying nothing.
 function ns.OnBossCast(event, unit, spellID)
-    if not (hasCustomReminders and CustomRemindersAllowed()) then return end
+    -- Unit filter first. This is a plain RegisterEvent, so every cast in the group lands
+    -- here, and the gate below costs a GetInstanceInfo and three profile reads. Almost
+    -- every event is a raid member casting and stops on these two lines instead.
     if type(unit) ~= "string" then return end
     if not (unit:match("^boss%d") or unit:match("^nameplate%d")) then return end
+    if not (hasCustomReminders and CustomRemindersAllowed()) then return end
     local index = ns.watchedCasts
     if not index then return end
     local entry = index[spellID]
@@ -6826,7 +6860,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     end
 
     if event == "PLAYER_REGEN_ENABLED" or event == "SPELL_UPDATE_COOLDOWN" then
-        ResyncModel()
+        if event == "SPELL_UPDATE_COOLDOWN" then ns.ResyncModelSoon() else ResyncModel() end
         if event == "PLAYER_REGEN_ENABLED" then
             ns.CancelTrackedReminderTimers("combat")
             -- A combat log toggle skipped because of combat lockdown lands here.
