@@ -108,6 +108,11 @@ local function DataFromProfile(tr)
     end
     data.leadTime = tr.leadTime
     data.voiceNone = tr.voiceNone
+    -- A non-active profile is read straight from saved variables above and never runs the
+    -- binding-scope migration, so its abilityBindings can still be pre-migration shape.
+    -- Carried across so the landing side knows whether it's actually safe to call this
+    -- migrated, instead of just assuming so because it came through this file.
+    data.bindingsBySpec = tr.bindingsBySpec == true
     local settings = {}
     local keys = ns.SettingKeys and ns.SettingKeys() or {}
     for i = 1, #keys do
@@ -471,9 +476,17 @@ end
 -- buyer who already has a "Default" keeps whatever the seller's does not mention.
 function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
     if type(payload) ~= "table" or type(payload.profiles) ~= "table" then return false end
+    -- Taken before any profile in this pack is created, so a name the pack itself introduces
+    -- twice still reads as new both times.
+    local existing = {}
+    do
+        local names = ns.ListProfiles and ns.ListProfiles() or {}
+        for i = 1, #names do existing[names[i]] = true end
+    end
     local landed = 0
     for name, data in pairs(payload.profiles) do
         if (not wantProfiles or wantProfiles[name]) and type(data) == "table" then
+            local isNewProfile = not existing[name]
             local tr = ns.EnsureProfile and ns.EnsureProfile(name)
             if tr then
                 for i = 1, #SECTIONS do
@@ -499,6 +512,21 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
                     name = tostring(payload.name or "a pack"),
                     author = tostring(payload.author or "its curator"),
                 }
+                -- A brand-new profile has nothing pre-existing to conflict with, so it's safe
+                -- to trust what the source reports. A pack made before this field existed
+                -- carries no opinion (nil) and defaults to true, the same assumption this fix
+                -- started from: every real export has been spec-shaped except the one gap
+                -- this closes. Only an explicit false -- a source profile that was itself
+                -- never migrated -- defers to the real migration once this profile goes
+                -- active.
+                --
+                -- A merge into a profile that was already here is left alone. Forcing this
+                -- true on a merge could stamp a profile that still has its own un-migrated
+                -- legacy entries sitting under keys the incoming pack didn't touch, and the
+                -- real migration would never get another chance to run on them.
+                if isNewProfile then
+                    tr.bindingsBySpec = data.bindingsBySpec ~= false
+                end
                 -- Bind each landed profile to the specs it carries, so the character that
                 -- plays one lands on it without being told which is theirs. A profile
                 -- covering several specs claims each of them; the last profile to claim a
@@ -585,6 +613,10 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, remapSpec)
         name = tostring(payload.name or "a pack"),
         author = tostring(payload.author or "its curator"),
     }
+    -- See the same line in ApplyProfiles: this is always a fresh profile, so there's nothing
+    -- pre-existing to conflict with -- it's safe to trust whatever the source reports, nil
+    -- (a pack made before this field existed) included.
+    tr.bindingsBySpec = payload.data.bindingsBySpec ~= false
 
     if ns.SwitchProfile then ns.SwitchProfile(name) end
     ns.RefreshRuntime()
