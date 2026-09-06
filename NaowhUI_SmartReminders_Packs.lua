@@ -628,15 +628,55 @@ function ns.MakeMultilineBox(panel, topOffset, height)
 end
 
 -- A pack string is one giant run with no spaces for the client's own word-wrap to break
--- on, and it was running past the edge of the box rather than wrapping inside it. Real
--- line breaks inserted here instead of leaving the wrap to the widget -- and free on the
--- way back in, since DecodePack strips all whitespace before it looks at the string.
-local DISPLAY_WRAP = 60
-local function WrapForDisplay(str)
-    if #str <= DISPLAY_WRAP then return str end
-    local lines = {}
-    for i = 1, #str, DISPLAY_WRAP do
-        lines[#lines + 1] = str:sub(i, i + DISPLAY_WRAP - 1)
+-- on, so real line breaks are inserted here instead. Measured against this box's actual
+-- font rather than a guessed characters-per-line count -- a guess already turned out
+-- wrong once, still running past the edge of the same box it was meant to fix, since
+-- this alphabet renders wider than the guess assumed.
+--
+-- Free on the way back in either way: DecodePack strips all whitespace before it looks
+-- at the string, so every inserted break disappears again on import.
+local wrapGauge
+local function MeasureWidth(str)
+    if not wrapGauge then
+        wrapGauge = UIParent:CreateFontString(nil, "BACKGROUND")
+        wrapGauge:SetFontObject("GameFontHighlightSmall")
+        wrapGauge:Hide()
+    end
+    wrapGauge:SetText(str)
+    return wrapGauge:GetStringWidth()
+end
+
+-- How many characters of str, starting at "from", fit within maxWidth. Grows the
+-- candidate span geometrically to bound the search, then narrows it exactly -- a few
+-- dozen measurements per line, run once per box open or edit, not per frame.
+local function FitCount(str, from, maxWidth)
+    local n = #str
+    local lo, hi = 0, 1
+    while from + hi - 1 <= n and MeasureWidth(str:sub(from, from + hi - 1)) <= maxWidth do
+        lo = hi
+        hi = hi * 2
+    end
+    hi = math.min(hi, n - from + 1)
+    while lo < hi do
+        local mid = lo + math.ceil((hi - lo) / 2)
+        if MeasureWidth(str:sub(from, from + mid - 1)) <= maxWidth then
+            lo = mid
+        else
+            hi = mid - 1
+        end
+    end
+    -- At least one character even if it overflows maxWidth: a target too small to fit
+    -- anything must still make progress rather than loop forever on the same position.
+    return math.max(lo, 1)
+end
+
+local function WrapForDisplay(str, maxWidth)
+    if not maxWidth or maxWidth <= 0 or MeasureWidth(str) <= maxWidth then return str end
+    local lines, i, n = {}, 1, #str
+    while i <= n do
+        local count = FitCount(str, i, maxWidth)
+        lines[#lines + 1] = str:sub(i, i + count - 1)
+        i = i + count
     end
     return table.concat(lines, "\n")
 end
@@ -689,7 +729,11 @@ function ns.ShowPackExport()
             str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
         end
         if str then
-            box:SetText(WrapForDisplay(str))
+            -- The scroll frame's own width, not box:GetWidth(): box's width is set from
+            -- OnSizeChanged, which can still be one frame behind on the very first open,
+            -- while the scroll frame's is anchor-derived off the panel's literal SetSize
+            -- and correct the instant it's asked for.
+            box:SetText(WrapForDisplay(str, box:GetParent():GetWidth()))
             -- Named, not counted. A curator sharing a set for ten classes wants to see that
             -- all ten went in, and the only way to be sure was to import it somewhere.
             local names
