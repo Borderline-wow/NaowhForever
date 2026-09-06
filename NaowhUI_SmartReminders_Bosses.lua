@@ -1247,12 +1247,36 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     return topY + math.min(ly, ry)
 end
 
+-- Only While I Have the Boss discards every call on a spec that never holds one, and does
+-- it silently: the toggle reads as set, the ticked abilities read as set, and the only
+-- thing that says otherwise is /nutank status. Cost a raid night on a spec that had the
+-- ability ticked and heard nothing. Said on the pages that can lead someone there instead.
+--
+-- Shown on the dungeon list too, where the toggle itself is not: the gate is not raid-only
+-- even though the setting is only offered there, so a dungeon page can be silent for a
+-- reason nothing on it mentions.
+local function AggroGateNote(parent, y, EUI)
+    local spec, isTank = ns.CurrentSpec()
+    if isTank or not spec or spec == 0 or not ns.DB().aggroOnly then return y end
+    local note = ns.Font(parent, 11, nil, ns.THEME.accentSoft)
+    note:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD + 20, y)
+    note:SetPoint("RIGHT", parent, "RIGHT", -EUI.CONTENT_PAD, 0)
+    note:SetJustifyH("LEFT")
+    note:SetWordWrap(true)
+    note:SetText(("Only While I Have the Boss is on and %s never holds one, so nothing here "
+        .. "will call. Untick it on the Raid Bosses page to get calls on a spec that does "
+        .. "not tank."):format(ns.SpecName(spec) or "this spec"))
+    return y - 30
+end
+
 -- The boss's own preset choice: which of the spec's presets it calls its defensives
 -- from. The Enable This Boss toggle lives on the boss-picker row in
 -- RenderInstanceDetail, which gates this whole section.
 -- Used by RenderInstanceDetail, the journal-sourced ability list. Returns y.
 local function RenderBossHeader(parent, y, W, EUI, encounterID, specID)
     local _, h
+
+    y = AggroGateNote(parent, y, EUI)
 
     -- Which of the spec's presets this boss calls its defensives from. Shows the spec's
     -- active preset until the tank actually picks one for this boss -- nothing is written
@@ -3136,6 +3160,8 @@ function ns.BuildBossListPage(parent, y, isRaid)
             { type = "label", text = "" }
         ); y = y - h
     end
+
+    y = AggroGateNote(parent, y, EUI)
 
     -- The same copy the per-boss button offers, asked once for the whole spec. Building a
     -- pack means repeating that copy on every boss in turn otherwise, and it is the single
