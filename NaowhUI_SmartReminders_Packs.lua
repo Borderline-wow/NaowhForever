@@ -627,6 +627,20 @@ function ns.MakeMultilineBox(panel, topOffset, height)
     return box
 end
 
+-- A pack string is one giant run with no spaces for the client's own word-wrap to break
+-- on, and it was running past the edge of the box rather than wrapping inside it. Real
+-- line breaks inserted here instead of leaving the wrap to the widget -- and free on the
+-- way back in, since DecodePack strips all whitespace before it looks at the string.
+local DISPLAY_WRAP = 60
+local function WrapForDisplay(str)
+    if #str <= DISPLAY_WRAP then return str end
+    local lines = {}
+    for i = 1, #str, DISPLAY_WRAP do
+        lines[#lines + 1] = str:sub(i, i + DISPLAY_WRAP - 1)
+    end
+    return table.concat(lines, "\n")
+end
+
 -- Built once and reused. ns.MakeModal hands out a fresh dimmer and panel on every call
 -- and never releases the old one, so rebuilding these per open stacked a new copy on the
 -- screen each time the button was pressed -- reported as spawning infinite boxes. Same
@@ -675,7 +689,7 @@ function ns.ShowPackExport()
             str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
         end
         if str then
-            box:SetText(str)
+            box:SetText(WrapForDisplay(str))
             -- Named, not counted. A curator sharing a set for ten classes wants to see that
             -- all ten went in, and the only way to be sure was to import it somewhere.
             local names
