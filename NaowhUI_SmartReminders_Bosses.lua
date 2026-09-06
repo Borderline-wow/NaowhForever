@@ -48,6 +48,11 @@ local FLAG_LABELS = {
     [13] = "Bleed",
 }
 
+-- Shared by every row that shows a FLAG_LABELS role off ability.extras: the boss-detail
+-- ability list and the Add Abilities picker both colour Tank/Dps/Healer this way, and a
+-- second copy of this table would just be a second place for the colours to drift apart.
+local ROLE_COLOR = { Tank = "|cffF0A830", Dps = "|cffFF6060", Healer = "|cff6DD09A" }
+
 -------------------------------------------------------------------------------
 --  Journal availability
 -------------------------------------------------------------------------------
@@ -2794,7 +2799,6 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     -- worth a glance, the rest folded into the description line below instead of a
     -- second row, which is what caused the Setup-tab overlap this row's fixed height
     -- comment already warns about.
-    local ROLE_COLOR = { Tank = "|cffF0A830", Dps = "|cffFF6060", Healer = "|cff6DD09A" }
     local roleTag, restTag
     if ability.extras then
         local roles, rest = {}, {}
@@ -3463,12 +3467,28 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
                 icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
                 local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[a.spellID]
+                -- Same role colouring the already-added rows below use, off the same
+                -- journal extras -- this list was reading a.name, a field these ability
+                -- tables have never had (the journal walk and the BigWigs merge both
+                -- write .title), so every row fell through to the bare spell id.
+                local roleTag
+                if a.extras then
+                    local roles = {}
+                    for label in a.extras:gmatch("[^,]+") do
+                        label = label:match("^%s*(.-)%s*$")
+                        if ROLE_COLOR[label] then
+                            roles[#roles + 1] = ROLE_COLOR[label] .. label .. "|r"
+                        end
+                    end
+                    if #roles > 0 then roleTag = table.concat(roles, " ") end
+                end
                 local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
                 lbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
                 lbl:SetPoint("RIGHT", row, "RIGHT", 0, 0)
                 lbl:SetJustifyH("LEFT")
                 lbl:SetWordWrap(false)
-                lbl:SetText((a.name or ("Spell " .. a.spellID))
+                lbl:SetText((a.title or ("Spell " .. a.spellID))
+                    .. (roleTag and ("  " .. roleTag) or "")
                     .. (curated and "  |cff0091ed[tank hit]|r" or ""))
 
                 y = y - 28
