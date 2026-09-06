@@ -327,28 +327,46 @@ function ns.ExportAllProfiles(packName, author)
     local Ser, LD = Codec()
     if not Ser then return nil, "The serializer libraries are missing from this build." end
 
-    local profiles, count = {}, 0
+    -- landed doubles as the count and as what the caller reports: the export's own inclusion
+    -- rules (imported, empty, Default) were being second-guessed by the status line, which
+    -- named profiles the string did not carry.
+    local profiles, landed, defaultHeldWork = {}, {}, false
     local names = ns.ListProfiles and ns.ListProfiles() or {}
     for i = 1, #names do
         local tr = ns.ProfileSettings and ns.ProfileSettings(names[i])
-        -- Every account already has a profile called Default -- SettingsRoot creates it
-        -- for the first character to ever log in. A pack that carried one under that
-        -- exact name landed by ApplyProfiles keying straight off the pack's own profile
-        -- name, with no free-name renaming the way a single-profile import gets: it
-        -- merged straight into whatever the importer's own Default already held.
-        if tr and names[i] ~= "Default" then
+        if tr then
             -- An imported profile is not the exporter's to pass on, the same rule the
             -- single-profile export follows; it is skipped rather than failing the lot.
             if type(tr.importedPack) ~= "table" then
                 local data, any = DataFromProfile(tr)
                 if any then
-                    profiles[names[i]] = data
-                    count = count + 1
+                    -- Every account already has a profile called Default -- SettingsRoot
+                    -- creates it for the first character to ever log in. A pack that carried
+                    -- one under that exact name landed by ApplyProfiles keying straight off
+                    -- the pack's own profile name, with no free-name renaming the way a
+                    -- single-profile import gets: it merged straight into whatever the
+                    -- importer's own Default already held.
+                    if names[i] == "Default" then
+                        defaultHeldWork = true
+                    else
+                        profiles[names[i]] = data
+                        landed[#landed + 1] = names[i]
+                    end
                 end
             end
         end
     end
-    if count == 0 then return nil, "None of your profiles have anything in them yet." end
+    if #landed == 0 then
+        -- Told apart: "nothing in them yet" is simply untrue for the account whose whole
+        -- setup lives in the one profile a pack never carries, and it sends them looking
+        -- for the wrong problem.
+        if defaultHeldWork then
+            return nil, "Only your Default profile has anything in it, and a pack never "
+                .. "carries a profile by that name -- every account already has its own. "
+                .. "Copy it to a named profile and export that instead."
+        end
+        return nil, "None of your profiles have anything in them yet."
+    end
 
     local payload = {
         format   = PACK_FORMAT,
@@ -360,7 +378,8 @@ function ns.ExportAllProfiles(packName, author)
     local ok, serialized = pcall(Ser.Serialize, payload)
     if not ok then return nil, "The pack could not be serialized." end
     local compressed = LD:CompressDeflate(serialized)
-    return PREFIX .. LD:EncodeForPrint(compressed)
+    table.sort(landed, function(a, b) return a:lower() < b:lower() end)
+    return PREFIX .. LD:EncodeForPrint(compressed), nil, landed
 end
 
 -- Decode and validate; returns the payload plus a human description, or nil
@@ -389,13 +408,18 @@ function ns.DecodePack(str)
     if not multi and type(payload.data) ~= "table" then return nil, "The pack is empty." end
 
     local parts = {}
+    local refusedDefault = false
     if multi then
         -- Named, with what each carries, so the preview says what is about to land rather
         -- than a count of profiles.
         local names = {}
         -- Never listed here either: refused at apply time regardless.
         for name in pairs(payload.profiles) do
-            if name ~= "Default" then names[#names + 1] = name end
+            if name ~= "Default" then
+                names[#names + 1] = name
+            else
+                refusedDefault = true
+            end
         end
         table.sort(names, function(a, b) return a:lower() < b:lower() end)
         for i = 1, #names do
@@ -414,7 +438,15 @@ function ns.DecodePack(str)
             if n > 0 then parts[#parts + 1] = ("%d %s"):format(n, sec.label) end
         end
     end
-    if #parts == 0 then return nil, "The pack is empty." end
+    if #parts == 0 then
+        -- An older string built before the export started skipping Default can carry one and
+        -- nothing else. Saying it was refused beats "empty", which reads as a damaged string.
+        if refusedDefault then
+            return nil, "This pack carries only a profile named Default, which is never "
+                .. "landed -- every account already has its own."
+        end
+        return nil, "The pack is empty."
+    end
 
     local desc = ("|cff0091ed%s|r by %s%s|n%s"):format(
         tostring(payload.name), tostring(payload.author),
@@ -804,9 +836,10 @@ function ns.ShowPackExport()
     local everyProfile, allBtn, closeBtn = false, nil, nil
 
     local function Regenerate()
-        local str, err
+        local str, err, landed
         if everyProfile then
-            str, err = ns.ExportAllProfiles(nameBox:GetText(), UnitName and UnitName("player"))
+            str, err, landed = ns.ExportAllProfiles(nameBox:GetText(),
+                UnitName and UnitName("player"))
         else
             str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
         end
@@ -821,9 +854,11 @@ function ns.ShowPackExport()
             -- all ten went in, and the only way to be sure was to import it somewhere.
             local names
             if everyProfile then
-                local profs = ns.ListProfiles and ns.ListProfiles() or {}
-                for i = 1, #profs do
-                    names = names and (names .. ", " .. profs[i]) or profs[i]
+                -- What the export actually put in, not the profile list it was chosen from:
+                -- imported, empty and Default profiles are all skipped in there, and naming
+                -- them here promised a curator content the string does not carry.
+                for i = 1, #(landed or {}) do
+                    names = names and (names .. ", " .. landed[i]) or landed[i]
                 end
             else
                 local specs = ns.PackSpecs({ data = { presets = ns.DB().presets,
