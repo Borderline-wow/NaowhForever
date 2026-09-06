@@ -438,7 +438,8 @@ end
 -- checkbox/preset written under it is found at fire time directly. The journal entry
 -- for the same mechanic is matched by spell id, then by name (the two id spaces are
 -- not guaranteed to agree: Possession Barrage is 1292036 in BigWigs, 1284103 in the
--- journal) and contributes description, icon and role tags.
+-- journal) and contributes description, icon and role tags. A miss there still gets a
+-- description from the plain client spell record, same as title and icon already did.
 local function BigWigsAbilities(encounterID, journalAbilities, mapID)
     local opts = BigWigsOptionList(encounterID, mapID)
     if not opts then return nil end
@@ -454,12 +455,20 @@ local function BigWigsAbilities(encounterID, journalAbilities, mapID)
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
         local name = info and info.name
         local j = byId[id] or (name and byName[name])
+        -- title and icon both already fall back to the plain client spell record when the
+        -- journal join misses; description had no such fallback and simply went blank,
+        -- which is the common case here -- BigWigs toggles routinely cover mechanics the
+        -- journal never narrates as their own section, on top of the id mismatches above.
+        local desc = j and j.description
+        if (not desc or desc == "") and C_Spell and C_Spell.GetSpellDescription then
+            desc = C_Spell.GetSpellDescription(id)
+        end
         list[#list + 1] = {
             title       = (j and j.title) or name or ("Spell " .. id),
             spellID     = id,
             icon        = (j and j.icon) or (info and info.iconID),
             extras      = j and j.extras,
-            description = j and j.description,
+            description = (desc and desc ~= "") and desc or nil,
             stage       = opts[i].stage,
         }
     end
