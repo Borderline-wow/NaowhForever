@@ -716,10 +716,14 @@ function ns.ShowPackExport()
         packExport.dimmer:Show()
         return
     end
-    -- 392, not 330: the text box runs to -258 and the "every profile" tick has to sit clear
-    -- BELOW it. At the old height it landed inside the box, which swallowed every click on
-    -- it -- the box is an EditBox that grows with its content and takes the mouse.
-    local dimmer, panel = ns.MakeModal(560, 392, "packExport")
+    -- 392 is the floor, not the fixed height: Regenerate grows the panel to fit however
+    -- many lines the covered-specs line below the box wraps to (see MIN_HEIGHT below).
+    -- 392 itself is the text box running to -258 plus the "every profile" tick needing to
+    -- sit clear below it -- at a lower floor that tick landed inside the box, which
+    -- swallowed every click on it since the box is an EditBox that grows with its content
+    -- and takes the mouse.
+    local MIN_HEIGHT = 392
+    local dimmer, panel = ns.MakeModal(560, MIN_HEIGHT, "packExport")
     -- ns.Font, not a guard on ns.MakeFontString: that name is defined nowhere in the addon,
     -- so the guard was always false and this title alone skipped the shared helper every
     -- other heading here uses.
@@ -739,10 +743,15 @@ function ns.ShowPackExport()
     hint:SetText("pack name, shown on import")
 
     local box = ns.MakeMultilineBox(panel, -78, 180)
+    -- Left/right-anchored and word-wrapped, not the single centered anchor point this had
+    -- before: that let the line grow as wide as its own text needed with nothing to stop
+    -- it, so a curator's whole class list rendered as one line running out past the panel
+    -- on both sides onto the game world behind it. Positioned once allBtn exists, below.
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    status:SetPoint("BOTTOM", panel, "BOTTOM", 0, 62)
+    status:SetWordWrap(true)
+    status:SetJustifyH("CENTER")
 
-    local everyProfile, allBtn = false, nil
+    local everyProfile, allBtn, closeBtn = false, nil, nil
 
     local function Regenerate()
         local str, err
@@ -756,7 +765,8 @@ function ns.ShowPackExport()
             -- OnSizeChanged, which can still be one frame behind on the very first open,
             -- while the scroll frame's is anchor-derived off the panel's literal SetSize
             -- and correct the instant it's asked for.
-            box:SetText(WrapForDisplay(str, box:GetParent():GetWidth()))
+            local maxWidth = box:GetParent():GetWidth()
+            box:SetText(WrapForDisplay(str, maxWidth))
             -- Named, not counted. A curator sharing a set for ten classes wants to see that
             -- all ten went in, and the only way to be sure was to import it somewhere.
             local names
@@ -779,6 +789,16 @@ function ns.ShowPackExport()
             box:SetText("")
             status:SetText("|cffff6060" .. tostring(err) .. "|r")
         end
+        -- Grown to fit however tall status turned out to be, not truncated to fit a fixed
+        -- height: the whole point of naming every class is reassuring a curator who just
+        -- exported ten of them that all ten actually went in. 78+180 is the box's own
+        -- fixed top offset and height; everything after it is the allBtn/status/close
+        -- stack that now chains off status's real wrapped height instead of a guess.
+        if allBtn and closeBtn then
+            local needed = 78 + 180 + 14 + allBtn:GetHeight() + 10 + status:GetHeight()
+                + 10 + closeBtn:GetHeight() + 16
+            panel:SetHeight(math.max(MIN_HEIGHT, needed))
+        end
     end
 
     -- A curator keeping a profile per class needs one string, not ten. Off by default: the
@@ -789,10 +809,19 @@ function ns.ShowPackExport()
             .. "Every profile, not just this one")
         Regenerate()
     end)
-    allBtn:SetPoint("BOTTOM", panel, "BOTTOM", 0, 108)
+    -- Anchored below the scroll frame itself, not a fixed panel-bottom offset: the scroll
+    -- frame is always exactly 180 tall regardless of the panel's own (now variable) height,
+    -- so this row's position never has to know how tall the panel ended up being.
+    allBtn:SetPoint("TOP", box:GetParent(), "BOTTOM", 0, -14)
     -- Above the scroll frame either way, so a box grown by a long string cannot cover it.
     allBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
     allBtn.label:SetText("[  ]  Every profile, not just this one")
+
+    -- status chains off allBtn (now that it exists) rather than a fixed panel-bottom
+    -- offset, so it always starts right below the tick regardless of panel height.
+    status:SetPoint("TOP", allBtn, "BOTTOM", 0, -10)
+    status:SetPoint("LEFT", panel, "LEFT", 14, 0)
+    status:SetPoint("RIGHT", panel, "RIGHT", -14, 0)
 
     box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     -- The string is display-only: retyping into it produces nothing valid, so
@@ -800,8 +829,12 @@ function ns.ShowPackExport()
     box:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
     nameBox:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
 
-    ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    closeBtn = ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
+    -- Chained off status's own bottom, not the panel's, for the same reason as allBtn:
+    -- status can be one line or several depending on how many classes a pack covers, and
+    -- this has to end up below it either way rather than guessing a fixed offset that
+    -- fits only the common case.
+    closeBtn:SetPoint("TOP", status, "BOTTOM", 0, -10)
 
     packExport = { dimmer = dimmer, Regenerate = Regenerate }
     Regenerate()
