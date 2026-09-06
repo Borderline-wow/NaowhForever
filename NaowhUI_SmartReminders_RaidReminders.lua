@@ -648,9 +648,12 @@ local function ResolveEUIUnitFrame(unit)
     if not EUI_UNIT_BUTTONS then
         EUI_UNIT_BUTTONS = {}
         local function add(n) EUI_UNIT_BUTTONS[#EUI_UNIT_BUTTONS + 1] = n end
+        -- Ranges follow what the raid frames actually build: the flat header
+        -- holds up to 40, each separated group header exactly 5, and the extra
+        -- frames are capped at 20 (XF.CAP), not 8.
         for i = 1, 40 do add("ERFFlatHeaderUnitButton" .. i) end
-        for g = 1, 8 do for i = 1, 40 do add("ERFGroupHeader" .. g .. "UnitButton" .. i) end end
-        for i = 1, 8 do add("ERFExtraFrame" .. i) end
+        for g = 1, 8 do for i = 1, 5 do add("ERFGroupHeader" .. g .. "UnitButton" .. i) end end
+        for i = 1, 20 do add("ERFExtraFrame" .. i) end
         for i = 1, 5 do add("ERFPartyHeaderUnitButton" .. i) end
         add("ERFPartySelfButton")
     end
@@ -663,9 +666,21 @@ local function ResolveEUIUnitFrame(unit)
             local okV, vis = pcall(b.IsVisible, b)
             if okV and vis then
                 local okA, u = pcall(b.GetAttribute, b, "unit")
-                -- A secret attribute cannot be compared; skip rather than raise.
-                if okA and u ~= nil and not (issec and issec(u)) and u == unit then
-                    return b
+                -- Type check before any comparison: a secret attribute is not a
+                -- string, so this rejects it without ever comparing one.
+                if okA and type(u) == "string" and not (issec and issec(u)) then
+                    if u == unit then return b end
+                    -- In a raid the player's own button carries a raidN token,
+                    -- so a literal compare never finds "player" -- the library
+                    -- matched it through UnitIsUnit. Ask only for that case, and
+                    -- only accept a plain true, since the comparison is refused
+                    -- rather than answered on an addon-restricted map.
+                    if unit == "player" then
+                        local okU, same = pcall(UnitIsUnit, u, "player")
+                        if okU and not (issec and issec(same)) and same == true then
+                            return b
+                        end
+                    end
                 end
             end
         end
