@@ -173,6 +173,10 @@ local function CreateWindow()
     local close = ns.Button(titleBar, "X", 22, 22, function() window:Hide() end)
     close:SetPoint("RIGHT", -3, 0)
 
+    local version = ns.Font(titleBar, 11, nil, T.muted)
+    version:SetPoint("RIGHT", close, "LEFT", -10, 0)
+    version:SetText("v" .. (C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or "unknown"))
+
     -- Tab strip, in the same visual language as the modal editors' own tabs: a button
     -- with an accent underline marking the active page.
     local tx = 10

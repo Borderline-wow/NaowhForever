@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0
+## 1.0.0
 
 First release.
 
@@ -74,7 +74,7 @@ First release.
 ### Fixed before release
 
 Found by testers on live keys and raid nights between the release branch being
-cut and 1.1.0 going out.
+cut and 1.0.0 going out.
 
 - Tank callouts fired for both tanks on abilities the addon could not attribute
   to a boss unit. Every ability in the pool was checked against its BigWigs or
