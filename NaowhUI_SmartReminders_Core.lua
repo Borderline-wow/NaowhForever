@@ -8,7 +8,7 @@ local ADDON_NAME = ...
 
 -- Must match the addon folder; the DB and saved positions key off it.
 -- Renamed with the addon (was NaowhUI_TankReminder).
-local MODULE_KEY = "NaowhUI_SmartReminders"
+local MODULE_KEY = "NaowhSmartReminders"
 
 local ns = {}
 _G.NaowhUITankReminder = ns

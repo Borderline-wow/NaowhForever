@@ -438,7 +438,7 @@ end
 -- addon's own (Tools/make_media.py): shape in the alpha channel, since masks read alpha,
 -- and the ring doubles as the drawn border.
 local CIRCLE_SIZE_DEFAULT = 56
-local CIRCLE_MASK_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_mask.tga"
+local CIRCLE_MASK_PATH = "Interface\\AddOns\\NaowhSmartReminders\\Media\\circle_mask.tga"
 
 -- Set from the anchor's gear popup, stored at TRDB().raidReminderCircleSize.
 local function CircleSize()
@@ -454,8 +454,8 @@ end
 -- client (confirmed live twice, with two different mask shapes -- do not retry it).
 -- Thickness is a centred mask that punches the middle out, so it is a live setting
 -- rather than baked into the art.
-local CIRCLE_HALF_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_half.tga"
-local CIRCLE_HOLE_PATH = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\circle_hole.tga"
+local CIRCLE_HALF_PATH = "Interface\\AddOns\\NaowhSmartReminders\\Media\\circle_half.tga"
+local CIRCLE_HOLE_PATH = "Interface\\AddOns\\NaowhSmartReminders\\Media\\circle_hole.tga"
 local CIRCLE_THICKNESS_DEFAULT = 10
 
 local function CircleThickness()

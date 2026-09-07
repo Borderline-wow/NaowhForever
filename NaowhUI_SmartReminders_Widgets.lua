@@ -14,7 +14,7 @@ local UI = {}
 ns.UI = UI
 
 UI.CONTENT_PAD = 45
-UI.COGS_ICON = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\cog.tga"
+UI.COGS_ICON = "Interface\\AddOns\\NaowhSmartReminders\\Media\\cog.tga"
 
 function UI.L(text) return text end
 
@@ -109,8 +109,8 @@ end
 --
 -- toggle_track.tga is drawn 128x64, the same 2:1 ratio as W:H below, so it scales without
 -- distorting the round ends. Changing W/H away from 2:1 means redrawing it.
-local TRACK_TEX = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\toggle_track.tga"
-local KNOB_TEX = "Interface\\AddOns\\NaowhUI_SmartReminders\\Media\\toggle_knob.tga"
+local TRACK_TEX = "Interface\\AddOns\\NaowhSmartReminders\\Media\\toggle_track.tga"
+local KNOB_TEX = "Interface\\AddOns\\NaowhSmartReminders\\Media\\toggle_knob.tga"
 
 function UI.BuildToggleControl(parent, frameLevel, get, set)
     local W, H, KNOB = 40, 20, 14
