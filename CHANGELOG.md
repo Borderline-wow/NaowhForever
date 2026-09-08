@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.1
+
+### Fixed
+- Reminder Packs could not be imported or exported on the CurseForge and Wago
+  builds, which reported "The serializer libraries are missing from this
+  build." Those builds pulled an unrelated library that shares the LibSerialize
+  name, so nothing registered the serializer the pack code reads. Local
+  installs were never affected.
+
+### Changed
+- The version moves on every release now, so the number in the TOC and beside
+  the build stamp identifies which files a report came from. Three separate
+  1.0.0 files were published while this was not the case.
+
 ## 1.0.0
 
 First release.
