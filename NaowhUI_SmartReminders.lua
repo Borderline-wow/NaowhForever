@@ -1847,6 +1847,21 @@ function ChargesAvailable(sid)
         end
     end
 
+    -- currentCharges is secret only while cooldowns are restricted. Everywhere else it is
+    -- the answer outright, and it was never read: the model could drift on a press made
+    -- while the cast watcher was unregistered and had nothing to correct against for the
+    -- rest of the session. Placed after the recharge learning above so that still runs,
+    -- and returned immediately because nothing below improves on a stated count.
+    if CanNameSpellAloud(sid) then
+        local okCur, cur = pcall(function() return C_Spell.GetSpellCharges(sid).currentCharges end)
+        if okCur and type(cur) == "number" and cur >= 0 and cur <= st.max then
+            -- The climb re-anchors on a correction downward: the count is known as of now.
+            if cur < st.count then st.tick = GetTime() end
+            st.count = cur
+            return st.count
+        end
+    end
+
     if max and not active then
         -- Back to full, and if exactly one charge was out this is a free MEASUREMENT of
         -- the recharge: the gap between the cast that broke the stack and the moment the
@@ -1920,16 +1935,17 @@ function ChargesAvailable(sid)
         st.count = st.max - 1
     end
 
-    -- The floor, and the only readable answer to what isActive cannot say. A spell whose
-    -- cooldown is NOT running is castable, and on a charge spell castable means at least
-    -- one charge is in hand, whatever the model believes. Without this a state built while
-    -- a recharge was already going seeds zero and stays exactly one behind for as long as
-    -- the stack never refills -- the count climbs 0 to 1 as the real one goes 1 to 2 -- and
-    -- that is the Divine Shield callout with a charge in hand, reproduced on Rav'i.
+    -- The floor: a state built while a recharge was already going seeds zero and would
+    -- otherwise stay exactly one behind for as long as the stack never refills, which is
+    -- the Divine Shield callout with a charge in hand reproduced on Rav'i.
     --
-    -- Both fields behind it are NeverSecret, so it answers in restricted content, and the
-    -- non-charge path in this file has trusted the same call all along.
-    if st.count < 1 and CooldownRunning(sid) == false then
+    -- `not active` is load bearing. An idle cooldown does NOT prove a charge is in hand:
+    -- at ZERO charges the spell cooldown is not running either, exactly as the header of
+    -- this section documents, so without this guard the floor invented a charge precisely
+    -- when the stack was empty. That is the Death's Advance callout on Rav'i, named while
+    -- the trace read cdRunning=false. isActive is plain and says outright that something
+    -- is still recharging, which settles which of the two an idle cooldown means.
+    if st.count < 1 and not active and CooldownRunning(sid) == false then
         st.count = 1
     end
     return st.count
