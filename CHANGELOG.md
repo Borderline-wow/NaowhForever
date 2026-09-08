@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.2
+
+### Fixed
+- A defensive with charges could be called while you had none of them. At zero
+  charges the spell's cooldown is not running, and the charge tracker read that
+  idle cooldown as proof a charge was in hand, so it handed itself one. Death's
+  Advance was named at 0 of 2 on Rav'i because of it. The tracker now believes
+  the client when it says a charge is still recharging.
+- Where the game will state your real charge count, which is everywhere outside
+  a dungeon or raid, that count is now used instead of the tracked estimate. The
+  estimate could only drift, and had nothing to correct itself against for the
+  rest of the session once it had.
+
 ## 1.1.1
 
 ### Fixed
