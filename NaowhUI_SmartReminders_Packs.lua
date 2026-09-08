@@ -299,7 +299,7 @@ function ns.InstallProfilePack(str, opts)
         ok, landed = ns.ApplyProfiles(payload, nil, settings, bind)
         if ok and bind then ns.AutoSpecProfile(true) end
     else
-        ok, landed = ns.ImportPackAsProfile(payload, nil, settings, nil)
+        ok, landed = ns.ImportPackAsProfile(payload, nil, settings)
     end
     if not ok then return false, "the pack could not be applied" end
 
@@ -313,73 +313,6 @@ function ns.InstallProfilePack(str, opts)
 
     if ns.ApplySpecProfile and ns.CurrentSpec then ns.ApplySpecProfile((ns.CurrentSpec())) end
     return true, landed
-end
-
--- Every profile in one string, for a curator who keeps a profile per class rather than one
--- profile holding every spec. Both shapes are legitimate -- a profile accumulates specs, so
--- ten classes fit in one -- but a seller building them separately would otherwise have to
--- hand out ten strings and talk the buyer through ten imports.
---
--- Reads the stored settings of each profile directly; only the active one is ever the live
--- table, and loading each in turn to export it would switch the player around their own
--- characters.
-function ns.ExportAllProfiles(packName, author)
-    local Ser, LD = Codec()
-    if not Ser then return nil, "The serializer libraries are missing from this build." end
-
-    -- landed doubles as the count and as what the caller reports: the export's own inclusion
-    -- rules (imported, empty, Default) were being second-guessed by the status line, which
-    -- named profiles the string did not carry.
-    local profiles, landed, defaultHeldWork = {}, {}, false
-    local names = ns.ListProfiles and ns.ListProfiles() or {}
-    for i = 1, #names do
-        local tr = ns.ProfileSettings and ns.ProfileSettings(names[i])
-        if tr then
-            -- An imported profile is not the exporter's to pass on, the same rule the
-            -- single-profile export follows; it is skipped rather than failing the lot.
-            if type(tr.importedPack) ~= "table" then
-                local data, any = DataFromProfile(tr)
-                if any then
-                    -- Every account already has a profile called Default -- SettingsRoot
-                    -- creates it for the first character to ever log in. A pack that carried
-                    -- one under that exact name landed by ApplyProfiles keying straight off
-                    -- the pack's own profile name, with no free-name renaming the way a
-                    -- single-profile import gets: it merged straight into whatever the
-                    -- importer's own Default already held.
-                    if names[i] == "Default" then
-                        defaultHeldWork = true
-                    else
-                        profiles[names[i]] = data
-                        landed[#landed + 1] = names[i]
-                    end
-                end
-            end
-        end
-    end
-    if #landed == 0 then
-        -- Told apart: "nothing in them yet" is simply untrue for the account whose whole
-        -- setup lives in the one profile a pack never carries, and it sends them looking
-        -- for the wrong problem.
-        if defaultHeldWork then
-            return nil, "Only your Default profile has anything in it, and a pack never "
-                .. "carries a profile by that name -- every account already has its own. "
-                .. "Copy it to a named profile and export that instead."
-        end
-        return nil, "None of your profiles have anything in them yet."
-    end
-
-    local payload = {
-        format   = PACK_FORMAT,
-        name     = (packName and packName ~= "") and packName or "Reminder Pack",
-        author   = (author and author ~= "") and author or (UnitName and UnitName("player")) or "unknown",
-        made     = date and date("%Y-%m-%d") or "",
-        profiles = profiles,
-    }
-    local ok, serialized = pcall(Ser.Serialize, payload)
-    if not ok then return nil, "The pack could not be serialized." end
-    local compressed = LD:CompressDeflate(serialized)
-    table.sort(landed, function(a, b) return a:lower() < b:lower() end)
-    return PREFIX .. LD:EncodeForPrint(compressed), nil, landed
 end
 
 -- Decode and validate; returns the payload plus a human description, or nil
@@ -615,9 +548,10 @@ end
 --
 -- The profile is fresh, so the sections copy in wholesale: there is nothing underneath to
 -- merge with, which is the other half of why this is simpler than what it replaces.
-function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, remapSpec)
+function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
-    local name = FreeProfileName(payload.name)
+    local name = FreeProfileName((customName and customName ~= "") and customName
+        or payload.name)
     local tr = ns.EnsureProfile and ns.EnsureProfile(name)
     if not tr then return false end
 
@@ -627,22 +561,6 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, remapSpec)
         if type(incoming) == "table" then
             tr[sec.field] = FilterToSpecs(sec.field, incoming, wantSpecs)
         end
-    end
-
-    if remapSpec and type(tr.abilityBindings) == "table" then
-        local target = tr.abilityBindings[remapSpec]
-        if type(target) ~= "table" then target = {} end
-        for specKey, byEncounter in pairs(tr.abilityBindings) do
-            if specKey ~= remapSpec and type(byEncounter) == "table" then
-                for enc, abilities in pairs(byEncounter) do
-                    if type(target[enc]) ~= "table" then target[enc] = {} end
-                    for sid, binding in pairs(abilities) do
-                        target[enc][sid] = Copy(binding)
-                    end
-                end
-            end
-        end
-        tr.abilityBindings[remapSpec] = target
     end
 
     if wantSettings and type(payload.data.settings) == "table" then
@@ -786,6 +704,23 @@ local function WrapForDisplay(str, maxWidth)
     return table.concat(lines, "\n")
 end
 
+-- A label plus the same toggle switch the rest of the addon's settings pages use, replacing
+-- the old "[x] text" button rows. Returns a plain Frame, so every existing
+-- SetPoint/GetHeight/SetFrameLevel/Hide/Show call written against the old ns.Button-based
+-- row keeps working unchanged; .label and .toggle are exposed for a caller that needs to
+-- re-set the text or rebuild the toggle itself (a row whose get/set closes over something
+-- that changes identity between builds, like which spec a row represents).
+local function MakeToggleRow(parent, w, h, frameLevel, get, set)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetSize(w, h)
+    if frameLevel then row:SetFrameLevel(frameLevel) end
+    row.toggle = ns.UI.BuildToggleControl(row, row:GetFrameLevel() + 1, get, set)
+    row.toggle:SetPoint("LEFT", row, "LEFT", 0, 0)
+    row.label = ns.Font(row, 12, nil)
+    row.label:SetPoint("LEFT", row.toggle, "RIGHT", 8, 0)
+    return row
+end
+
 -- Built once and reused. ns.MakeModal hands out a fresh dimmer and panel on every call
 -- and never releases the old one, so rebuilding these per open stacked a new copy on the
 -- screen each time the button was pressed -- reported as spawning infinite boxes. Same
@@ -819,7 +754,16 @@ function ns.ShowPackExport()
     nameBox:SetSize(300, 22)
     nameBox:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -44)
     nameBox:SetText("My Reminder Pack")
+    nameBox:SetTextColor(ns.THEME.accent.r, ns.THEME.accent.g, ns.THEME.accent.b, 1)
+    -- One step lighter than the panel it sits on (ns.THEME.line, the same fill the toggle
+    -- track and borders use), so the field reads as its own control rather than more panel.
+    ns.Solid(nameBox, "BACKGROUND", ns.THEME.line, 1):SetAllPoints()
     nameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    -- A bare EditBox (no template) has no built-in click-to-focus -- MakeMultilineBox's
+    -- scroll frame wires this up for the paste box below, but this single-line one never
+    -- got the same treatment, so a click just... did nothing.
+    nameBox:EnableMouse(true)
+    nameBox:SetScript("OnMouseDown", function(self) self:SetFocus() end)
     local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     hint:SetPoint("LEFT", nameBox, "RIGHT", 10, 0)
     hint:SetText("pack name, shown on import")
@@ -828,21 +772,15 @@ function ns.ShowPackExport()
     -- Left/right-anchored and word-wrapped, not the single centered anchor point this had
     -- before: that let the line grow as wide as its own text needed with nothing to stop
     -- it, so a curator's whole class list rendered as one line running out past the panel
-    -- on both sides onto the game world behind it. Positioned once allBtn exists, below.
+    -- on both sides onto the game world behind it. Positioned below, once box exists.
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     status:SetWordWrap(true)
     status:SetJustifyH("CENTER")
 
-    local everyProfile, allBtn, closeBtn = false, nil, nil
+    local closeBtn
 
     local function Regenerate()
-        local str, err, landed
-        if everyProfile then
-            str, err, landed = ns.ExportAllProfiles(nameBox:GetText(),
-                UnitName and UnitName("player"))
-        else
-            str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
-        end
+        local str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
         if str then
             -- The scroll frame's own width, not box:GetWidth(): box's width is set from
             -- OnSizeChanged, which can still be one frame behind on the very first open,
@@ -850,23 +788,14 @@ function ns.ShowPackExport()
             -- and correct the instant it's asked for.
             local maxWidth = box:GetParent():GetWidth()
             box:SetText(WrapForDisplay(str, maxWidth))
-            -- Named, not counted. A curator sharing a set for ten classes wants to see that
-            -- all ten went in, and the only way to be sure was to import it somewhere.
+            -- Named, not counted. Reassures a curator that everything on this spec's
+            -- setup actually went in, rather than making them count entries by hand.
             local names
-            if everyProfile then
-                -- What the export actually put in, not the profile list it was chosen from:
-                -- imported, empty and Default profiles are all skipped in there, and naming
-                -- them here promised a curator content the string does not carry.
-                for i = 1, #(landed or {}) do
-                    names = names and (names .. ", " .. landed[i]) or landed[i]
-                end
-            else
-                local specs = ns.PackSpecs({ data = { presets = ns.DB().presets,
-                    activePreset = ns.DB().activePreset, bossLists = ns.DB().bossLists,
-                    abilityBindings = ns.DB().abilityBindings } })
-                for i = 1, #specs do
-                    names = names and (names .. ", " .. specs[i].name) or specs[i].name
-                end
+            local specs = ns.PackSpecs({ data = { presets = ns.DB().presets,
+                activePreset = ns.DB().activePreset, bossLists = ns.DB().bossLists,
+                abilityBindings = ns.DB().abilityBindings } })
+            for i = 1, #specs do
+                names = names and (names .. ", " .. specs[i].name) or specs[i].name
             end
             status:SetText(("%d characters%s. Click the text, then Ctrl+A Ctrl+C."):format(
                 #str, names and (" covering " .. names) or ""))
@@ -877,34 +806,18 @@ function ns.ShowPackExport()
         -- Grown to fit however tall status turned out to be, not truncated to fit a fixed
         -- height: the whole point of naming every class is reassuring a curator who just
         -- exported ten of them that all ten actually went in. 78+180 is the box's own
-        -- fixed top offset and height; everything after it is the allBtn/status/close
-        -- stack that now chains off status's real wrapped height instead of a guess.
-        if allBtn and closeBtn then
-            local needed = 78 + 180 + 14 + allBtn:GetHeight() + 10 + status:GetHeight()
-                + 10 + closeBtn:GetHeight() + 16
+        -- fixed top offset and height; everything after it is the status/close stack that
+        -- now chains off status's real wrapped height instead of a guess.
+        if closeBtn then
+            local needed = 78 + 180 + 14 + status:GetHeight() + 10 + closeBtn:GetHeight() + 16
             panel:SetHeight(math.max(MIN_HEIGHT, needed))
         end
     end
 
-    -- A curator keeping a profile per class needs one string, not ten. Off by default: the
-    -- usual case is sharing the setup you are standing in.
-    allBtn = ns.Button(panel, "", 300, 22, function()
-        everyProfile = not everyProfile
-        allBtn.label:SetText((everyProfile and "|cff0091ed[x]|r  " or "[  ]  ")
-            .. "Every profile, not just this one")
-        Regenerate()
-    end)
     -- Anchored below the scroll frame itself, not a fixed panel-bottom offset: the scroll
     -- frame is always exactly 180 tall regardless of the panel's own (now variable) height,
     -- so this row's position never has to know how tall the panel ended up being.
-    allBtn:SetPoint("TOP", box:GetParent(), "BOTTOM", 0, -14)
-    -- Above the scroll frame either way, so a box grown by a long string cannot cover it.
-    allBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
-    allBtn.label:SetText("[  ]  Every profile, not just this one")
-
-    -- status chains off allBtn (now that it exists) rather than a fixed panel-bottom
-    -- offset, so it always starts right below the tick regardless of panel height.
-    status:SetPoint("TOP", allBtn, "BOTTOM", 0, -10)
+    status:SetPoint("TOP", box:GetParent(), "BOTTOM", 0, -14)
     status:SetPoint("LEFT", panel, "LEFT", 14, 0)
     status:SetPoint("RIGHT", panel, "RIGHT", -14, 0)
 
@@ -915,10 +828,9 @@ function ns.ShowPackExport()
     nameBox:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
 
     closeBtn = ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
-    -- Chained off status's own bottom, not the panel's, for the same reason as allBtn:
-    -- status can be one line or several depending on how many classes a pack covers, and
-    -- this has to end up below it either way rather than guessing a fixed offset that
-    -- fits only the common case.
+    -- Chained off status's own bottom, not the panel's: status can be one line or several
+    -- depending on how many classes a pack covers, and this has to end up below it either
+    -- way rather than guessing a fixed offset that fits only the common case.
     closeBtn:SetPoint("TOP", status, "BOTTOM", 0, -10)
 
     packExport = { dimmer = dimmer, Regenerate = Regenerate }
@@ -968,7 +880,10 @@ function ns.ShowPackImport()
         packImport.box:SetFocus()
         return
     end
-    local dimmer, panel = ns.MakeModal(560, 470, "packImport")
+    -- Wider than the export dialog: a pack can carry up to 40 specs (every spec in the
+    -- game), and the spec list below is a grid rather than a single column specifically so
+    -- that many rows stays readable instead of running off the bottom of the screen.
+    local dimmer, panel = ns.MakeModal(700, 470, "packImport")
     local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Import Profile")
@@ -988,8 +903,15 @@ function ns.ShowPackImport()
     -- rows have to survive pasting a different string into the same window.
     local specRows, specWanted = {}, {}
     local settingsWanted, settingsBtn = true, nil
-    local remapWanted, remapBtn = false, nil
     local bindWanted, bindBtn = true, nil
+    -- The fallback anchor for everything below the spec grid. specRows[#specs] cannot serve
+    -- that role: with a multi-column grid, the last slot can land in any column depending on
+    -- how many specs there are, and anchoring the next row off it directly would start that
+    -- row wherever that column happens to sit instead of at the grid's actual left edge.
+    local gridAnchor
+    -- Only for a single-profile pack: a whole-file pack lands each profile under its own
+    -- name already, so there is nothing here to rename.
+    local nameLabel, nameBox
     -- Anchored under the preview rather than at a fixed offset: the preview grows a line per
     -- profile in the pack, and at a fixed offset the two ran into each other the moment a
     -- string carried more than one.
@@ -998,10 +920,42 @@ function ns.ShowPackImport()
     specHead:SetJustifyH("LEFT")
     specHead:Hide()
 
+    -- "Blood Death Knight" told a curator which spec; ticking specs to bring in one at a
+    -- time wants the class named once and the role picked out, the same axis the class/role
+    -- pickers elsewhere in the addon already use. GetSpecializationInfoByID's positional
+    -- returns (id, name, description, icon, role, primaryStat, className) -- same call
+    -- ns.SpecName already trusts for className at position 7; role sits at position 5.
+    local ROLE_LABEL = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
+    local ROLE_SORT = { TANK = 1, HEALER = 2, DAMAGER = 3 }
+    local function SpecClassAndRole(specKey)
+        local id = tonumber(specKey)
+        if not (id and GetSpecializationInfoByID) then return nil, nil end
+        local ok, _, _, _, _, role, _, className = pcall(GetSpecializationInfoByID, id)
+        if not ok then return nil, nil end
+        return className, role
+    end
+    -- classID doubles as the canonical class order (Warrior..Evoker) the reference grid
+    -- uses; GetClassInfo(1..GetNumClasses()) already walks classes in that exact order, the
+    -- same source ns.PlayableClasses trusts for its own token lookup.
+    local classLookup
+    local function ClassInfo(className)
+        if not classLookup then
+            classLookup = {}
+            if GetNumClasses and GetClassInfo then
+                for i = 1, GetNumClasses() do
+                    local displayName, token = GetClassInfo(i)
+                    if displayName and token then
+                        classLookup[displayName] = { token = token, order = i }
+                    end
+                end
+            end
+        end
+        return className and classLookup[className]
+    end
+
     local function BuildSpecRows(payload)
         for i = 1, #specRows do specRows[i]:Hide() end
         if settingsBtn then settingsBtn:Hide() end
-        if remapBtn then remapBtn:Hide() end
         if bindBtn then bindBtn:Hide() end
         wipe(specWanted)
         -- A whole-file pack is a list of PROFILES; a single-profile one is a list of specs
@@ -1018,6 +972,20 @@ function ns.ShowPackImport()
             for i = 1, #names do specs[i] = { key = names[i], name = names[i] } end
         elseif payload then
             specs = ns.PackSpecs(payload)
+            -- Grouped by class in Blizzard's own class order, then by role within a class
+            -- (Tank, Healer, DPS) -- "Blood Death Knight" sorted alphabetically before,
+            -- which scattered a class's specs apart instead of keeping them adjacent.
+            for i = 1, #specs do
+                specs[i].className, specs[i].role = SpecClassAndRole(specs[i].key)
+            end
+            table.sort(specs, function(a, b)
+                local ca, cb = ClassInfo(a.className), ClassInfo(b.className)
+                local oa, ob = ca and ca.order or 99, cb and cb.order or 99
+                if oa ~= ob then return oa < ob end
+                local ra, rb = ROLE_SORT[a.role] or 9, ROLE_SORT[b.role] or 9
+                if ra ~= rb then return ra < rb end
+                return a.name < b.name
+            end)
         end
         if #specs == 0 then
             specHead:Hide()
@@ -1025,123 +993,168 @@ function ns.ShowPackImport()
         end
         specHead:SetText(multi and "Bring in which profiles:" or "Bring in which of these:")
         specHead:Show()
+        -- A grid, not a single column: a pack can carry up to 40 specs (every spec in the
+        -- game), and 40 stacked rows ran off the bottom of the screen. Position is computed
+        -- directly off specHead rather than chained off the previous row, since the previous
+        -- row in reading order is no longer always the one directly above.
+        local GRID_COLS, COL_W, ROW_H = 3, 220, 28
+        local classColors = RAID_CLASS_COLORS or CUSTOM_CLASS_COLORS
         for i = 1, #specs do
             local spec = specs[i]
             specWanted[spec.key] = true
             local btn = specRows[i]
             if not btn then
-                btn = ns.Button(panel, "", 250, 22, nil)
+                btn = CreateFrame("Frame", nil, panel)
+                btn:SetSize(COL_W, 22)
                 -- Above the paste box: it is an EditBox that grows with its content, and
                 -- a whole-file string is long enough to reach down over these rows and
                 -- take their clicks. The export tick lost every click to exactly that.
                 btn:SetFrameLevel(panel:GetFrameLevel() + 10)
+                btn.label = ns.Font(btn, 12, nil)
                 specRows[i] = btn
             end
+            local col = (i - 1) % GRID_COLS
+            local row = math.floor((i - 1) / GRID_COLS)
             btn:ClearAllPoints()
-            btn:SetPoint("TOPLEFT", i == 1 and specHead or specRows[i - 1],
-                i == 1 and "BOTTOMLEFT" or "BOTTOMLEFT", i == 1 and 6 or 0, -6)
-            local function Paint()
-                -- ns.Button keeps its own font string; the frame has none of its own.
-                btn.label:SetText((specWanted[spec.key] and "|cff0091ed[x]|r  " or "[  ]  ")
-                    .. spec.name)
+            btn:SetPoint("TOPLEFT", specHead, "BOTTOMLEFT",
+                6 + col * COL_W, -6 - row * ROW_H)
+            -- The toggle's get/set close over `spec`, which is a fresh table every time a
+            -- different pack is pasted -- rebuilt here rather than just repainted, so a
+            -- click can never act on a spec from whatever was pasted before this one.
+            if btn.toggle then
+                btn.toggle:Hide()
+                btn.toggle:SetParent(nil)
             end
-            btn:SetScript("OnClick", function()
-                specWanted[spec.key] = not specWanted[spec.key] or nil
-                Paint()
-            end)
-            Paint()
+            -- Smaller than the default 40x20 (28x14): a grid row is tighter than a full
+            -- settings row, and the default size crowded the class-colored label next to it.
+            btn.toggle = ns.UI.BuildToggleControl(btn, btn:GetFrameLevel() + 1,
+                function() return specWanted[spec.key] end,
+                function(v) specWanted[spec.key] = v or nil end, 28, 14)
+            btn.toggle:SetPoint("LEFT", btn, "LEFT", 0, 0)
+            btn.label:ClearAllPoints()
+            btn.label:SetPoint("LEFT", btn.toggle, "RIGHT", 6, 0)
+            -- Class named once, role picked out ("Death Knight (Tank)") instead of the
+            -- spec's own full name ("Blood Death Knight") -- same axis the class/role
+            -- pickers elsewhere in the addon already sort and color by. Falls back to the
+            -- plain name (and the theme's default color) for a whole-file pack's profile
+            -- rows, or a spec too new for this client to resolve.
+            local ci = spec.className and ClassInfo(spec.className)
+            local color = ci and classColors and classColors[ci.token]
+            if spec.className and spec.role then
+                btn.label:SetText(("%s (%s)"):format(spec.className,
+                    ROLE_LABEL[spec.role] or spec.role))
+            else
+                btn.label:SetText(spec.name)
+            end
+            if color then
+                btn.label:SetTextColor(color.r, color.g, color.b, 1)
+            else
+                local fg = ns.THEME.fg
+                btn.label:SetTextColor(fg.r, fg.g, fg.b, 1)
+            end
             btn:Show()
         end
+
+        if not gridAnchor then
+            gridAnchor = CreateFrame("Frame", nil, panel)
+            gridAnchor:SetSize(1, 1)
+        end
+        gridAnchor:ClearAllPoints()
+        gridAnchor:SetPoint("TOPLEFT", specHead, "BOTTOMLEFT",
+            6, -6 - math.ceil(#specs / GRID_COLS) * ROW_H)
 
         -- Offered only when the pack has them: an older string carries none.
         if type(payload.data) == "table" and type(payload.data.settings) == "table" then
             if not settingsBtn then
-                settingsBtn = ns.Button(panel, "", 320, 22, nil)
-                settingsBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
+                settingsBtn = MakeToggleRow(panel, 320, 22, panel:GetFrameLevel() + 10,
+                    function() return settingsWanted end,
+                    function(v) settingsWanted = v end)
+                settingsBtn.label:SetText("Their display, sound and behaviour settings")
             end
             settingsBtn:ClearAllPoints()
-            settingsBtn:SetPoint("TOPLEFT", specRows[#specs] or specHead, "BOTTOMLEFT",
-                specRows[#specs] and 0 or 6, -10)
-            local function PaintSettings()
-                settingsBtn.label:SetText((settingsWanted and "|cff0091ed[x]|r  " or "[  ]  ")
-                    .. "Their display, sound and behaviour settings")
-            end
-            settingsBtn:SetScript("OnClick", function()
-                settingsWanted = not settingsWanted
-                PaintSettings()
-            end)
-            PaintSettings()
+            settingsBtn:SetPoint("TOPLEFT", gridAnchor or specHead, "BOTTOMLEFT",
+                gridAnchor and 0 or 6, -10)
             settingsBtn:Show()
         elseif settingsBtn then
             settingsBtn:Hide()
         end
 
-        -- Offered only when it would actually do something: the pack has boss ability
-        -- choices, and none of them are already under the spec being played.
-        local mySpec = ns.CurrentSpec and ns.CurrentSpec()
-        local bindings = (not multi) and payload and type(payload.data) == "table"
-            and payload.data.abilityBindings
-        local elsewhere = false
-        if type(bindings) == "table" and mySpec and mySpec > 0 then
-            for specKey in pairs(bindings) do
-                if tostring(specKey) ~= tostring(mySpec) then elsewhere = true end
-            end
-        end
-        if elsewhere then
-            if not remapBtn then
-                remapBtn = ns.Button(panel, "", 380, 22, nil)
-                remapBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
-            end
-            remapBtn:ClearAllPoints()
-            remapBtn:SetPoint("TOPLEFT", (settingsBtn and settingsBtn:IsShown())
-                and settingsBtn or (specRows[#specs] or specHead), "BOTTOMLEFT",
-                (settingsBtn and settingsBtn:IsShown()) and 0
-                    or (specRows[#specs] and 0 or 6), -6)
-            local function PaintRemap()
-                remapBtn.label:SetText((remapWanted and "|cff0091ed[x]|r  " or "[  ]  ")
-                    .. "Use their boss ability choices on my " .. ns.SpecName(mySpec))
-            end
-            remapBtn:SetScript("OnClick", function()
-                remapWanted = not remapWanted
-                PaintRemap()
-            end)
-            PaintRemap()
-            remapBtn:Show()
-        elseif remapBtn then
-            remapBtn:Hide()
-        end
+        -- Every profile here is Robin's own, spec by spec -- there is never a reason to
+        -- borrow another spec's boss ability choices, so the remap option that used to sit
+        -- here is gone rather than just unused. It also removes the exact failure mode it
+        -- caused: a DPS spec's choices overwriting a tank spec's when both were in the
+        -- same pack.
 
         -- Only for a whole-file pack: binding one profile to its own specs would just
         -- describe where the importer already is.
         if multi then
             if not bindBtn then
-                bindBtn = ns.Button(panel, "", 380, 22, nil)
-                bindBtn:SetFrameLevel(panel:GetFrameLevel() + 10)
+                bindBtn = MakeToggleRow(panel, 380, 22, panel:GetFrameLevel() + 10,
+                    function() return bindWanted end,
+                    function(v) bindWanted = v end)
+                bindBtn.label:SetText("Use each on the character whose spec it covers")
             end
             bindBtn:ClearAllPoints()
             bindBtn:SetPoint("TOPLEFT", (settingsBtn and settingsBtn:IsShown())
-                and settingsBtn or (specRows[#specs] or specHead), "BOTTOMLEFT",
+                and settingsBtn or (gridAnchor or specHead), "BOTTOMLEFT",
                 (settingsBtn and settingsBtn:IsShown()) and 0
-                    or (specRows[#specs] and 0 or 6), -6)
-            local function PaintBind()
-                bindBtn.label:SetText((bindWanted and "|cff0091ed[x]|r  " or "[  ]  ")
-                    .. "Use each on the character whose spec it covers")
-            end
-            bindBtn:SetScript("OnClick", function()
-                bindWanted = not bindWanted
-                PaintBind()
-            end)
-            PaintBind()
+                    or (gridAnchor and 0 or 6), -6)
             bindBtn:Show()
         elseif bindBtn then
             bindBtn:Hide()
         end
 
+        -- A single-profile pack lands as a new profile named after whatever the curator
+        -- typed on export -- "My Reminder Pack", usually, since exporters rarely bother
+        -- renaming it. Let the importer pick their own name instead, defaulting to the
+        -- pack's own so a curator who DID bother naming it still gets that for free.
+        if not multi then
+            if not nameBox then
+                nameLabel = ns.Font(panel, 12, nil)
+                nameLabel:SetText("Save as:")
+                nameBox = CreateFrame("EditBox", nil, panel)
+                nameBox:SetAutoFocus(false)
+                nameBox:SetFontObject("GameFontHighlight")
+                nameBox:SetSize(260, 22)
+                nameBox:SetTextColor(ns.THEME.accent.r, ns.THEME.accent.g, ns.THEME.accent.b, 1)
+                -- One step lighter than the panel (ns.THEME.line, the same fill the toggle
+                -- track and borders use), so the field reads as its own control rather than
+                -- more panel.
+                ns.Solid(nameBox, "BACKGROUND", ns.THEME.line, 1):SetAllPoints()
+                -- Same reason every other row here needs it: the paste box above grows
+                -- with a long pack string and, at the default frame level, ends up sitting
+                -- over this field and taking its clicks -- exactly what made it look
+                -- uneditable rather than just unfocused.
+                nameBox:SetFrameLevel(panel:GetFrameLevel() + 10)
+                nameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+                -- A bare EditBox (no template) has no built-in click-to-focus -- the same
+                -- gap the export dialog's own name box had. Without this a click just did
+                -- nothing, which reads as "not editable" rather than "not yet focused."
+                nameBox:EnableMouse(true)
+                nameBox:SetScript("OnMouseDown", function(self) self:SetFocus() end)
+            end
+            local anchorTo = (bindBtn and bindBtn:IsShown() and bindBtn)
+                or (settingsBtn and settingsBtn:IsShown() and settingsBtn)
+                or gridAnchor or specHead
+            nameLabel:ClearAllPoints()
+            nameLabel:SetPoint("TOPLEFT", anchorTo, "BOTTOMLEFT",
+                anchorTo == specHead and 6 or 0, -16)
+            nameBox:ClearAllPoints()
+            nameBox:SetPoint("LEFT", nameLabel, "RIGHT", 8, 0)
+            nameBox:SetText((payload.name and payload.name ~= "") and payload.name
+                or "Imported Profile")
+            nameLabel:Show()
+            nameBox:Show()
+        elseif nameBox then
+            nameLabel:Hide()
+            nameBox:Hide()
+        end
+
         -- The panel takes whatever the rows came to. A pack covering ten classes is ten rows
         -- longer than one covering one, and a fixed height either wasted half the dialog or
         -- ran the last rows under the Import button.
-        local last = (bindBtn and bindBtn:IsShown() and bindBtn)
-            or (remapBtn and remapBtn:IsShown() and remapBtn)
+        local last = (nameBox and nameBox:IsShown() and nameLabel)
+            or (bindBtn and bindBtn:IsShown() and bindBtn)
             or (settingsBtn and settingsBtn:IsShown() and settingsBtn)
             or specRows[#specs]
         if last then
@@ -1214,9 +1227,8 @@ function ns.ShowPackImport()
             return
         end
         if #specs > 0 and not all then want = specWanted end
-        local mine = ns.CurrentSpec and ns.CurrentSpec()
-        local remap = (remapWanted and mine and mine > 0) and tostring(mine) or nil
-        local ok, newName = ns.ImportPackAsProfile(decoded, want, settingsWanted, remap)
+        local ok, newName = ns.ImportPackAsProfile(decoded, want, settingsWanted,
+            nameBox and nameBox:GetText())
         if ok then
             ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
                 .. "is untouched -- switch back to it any time."):format(tostring(newName)))

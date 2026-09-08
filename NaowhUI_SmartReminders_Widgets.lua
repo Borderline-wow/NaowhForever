@@ -112,8 +112,15 @@ end
 local TRACK_TEX = "Interface\\AddOns\\NaowhSmartReminders\\Media\\toggle_track.tga"
 local KNOB_TEX = "Interface\\AddOns\\NaowhSmartReminders\\Media\\toggle_knob.tga"
 
-function UI.BuildToggleControl(parent, frameLevel, get, set)
-    local W, H, KNOB = 40, 20, 14
+-- w/h/knobSize are optional overrides for a spot needing a smaller switch (a dense grid
+-- row, say) -- omitted, they reproduce the original fixed 40x20/14 size exactly. Knob size
+-- and the edge inset scale off the given height at the same ratio the original fixed
+-- numbers held (70% and 15%), so a smaller switch keeps the same proportions rather than
+-- an oversized knob crowding a shrunk track.
+function UI.BuildToggleControl(parent, frameLevel, get, set, w, h, knobSize)
+    local W, H = w or 40, h or 20
+    local KNOB = knobSize or math.floor(H * 0.7 + 0.5)
+    local INSET = math.max(2, math.floor(H * 0.15 + 0.5))
     local t = CreateFrame("Button", nil, parent)
     t:SetSize(W, H)
     if frameLevel then t:SetFrameLevel(frameLevel) end
@@ -148,11 +155,11 @@ function UI.BuildToggleControl(parent, frameLevel, get, set)
         if on then
             PaintTrack(T.accent, 1)
             knob:SetVertexColor(1, 1, 1, 1)
-            knob:SetPoint("RIGHT", t, "RIGHT", -3, 0)
+            knob:SetPoint("RIGHT", t, "RIGHT", -INSET, 0)
         else
             PaintTrack(T.line, 1)
             knob:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
-            knob:SetPoint("LEFT", t, "LEFT", 3, 0)
+            knob:SetPoint("LEFT", t, "LEFT", INSET, 0)
         end
     end
 
