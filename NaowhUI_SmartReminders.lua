@@ -6333,6 +6333,23 @@ function ns.BuildBarsSettings(parent, y)
         end
     end
 
+    _, h = W:SectionHeader(parent, "OPTIONS WINDOW", y); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Window Scale",
+          values = { [100] = "100%  (default)", [90] = "90%", [80] = "80%",
+                     [70] = "70%", [60] = "60%", [50] = "50%" },
+          order = { 100, 90, 80, 70, 60, 50 },
+          tooltip = "Size of this options window and the editors it opens, as a percentage. "
+          .. "Turn it down if the window is too big for your screen; 1080p usually wants 80 "
+          .. "or below.|n|nSaved for this computer instead of in the profile, so switching "
+          .. "profile leaves it alone and an exported pack never carries it to someone on a "
+          .. "different monitor.",
+          getValue = function() return tonumber(ns.AccountSettings().windowScale) or 100 end,
+          setValue = function(v) ns.SetWindowScale(v) end },
+        { type = "label", text = "" }
+    ); y = y - h
+
     return y
 end
 

@@ -142,9 +142,19 @@ local equipWatcher = CreateFrame("Frame")
 equipWatcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 equipWatcher:SetScript("OnEvent", function() UI:RefreshPage(true) end)
 
+-- Set from the dropdown on the setup page. A dropdown rather than a slider on purpose:
+-- the control sits inside the frame it resizes, and the slider maps the cursor against the
+-- track's live position, so rescaling mid-drag walks the track out from under the pointer
+-- and the value chases it.
+function ns.SetWindowScale(pct)
+    ns.AccountSettings().windowScale = tonumber(pct) or 100
+    if window then window:SetScale(ns.UIScale()) end
+end
+
 local function CreateWindow()
     window = CreateFrame("Frame", "NaowhUISmartRemindersOptions", UIParent)
     window:SetSize(WINDOW_W, WINDOW_H)
+    window:SetScale(ns.UIScale())
     window:SetPoint("CENTER")
     window:SetFrameStrata("DIALOG")
     window:SetMovable(true)

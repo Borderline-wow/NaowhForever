@@ -219,6 +219,7 @@ function ns.MakeModal(width, height, key)
     local panel = CreateFrame("Frame", nil, dimmer)
     panel:SetSize(width, height)
     panel:SetPoint("CENTER")
+    panel:SetScale(ns.UIScale())
     panel:SetFrameStrata("FULLSCREEN_DIALOG")
     panel:EnableMouse(true)
     local bg = ns.Solid(panel, "BACKGROUND", ns.THEME.panel, 1)
@@ -323,6 +324,23 @@ function ns.SettingsRoot()
     if type(sv.profiles[name]) ~= "table" then sv.profiles[name] = {} end
     activeRoot = sv.profiles[name]
     return activeRoot
+end
+
+-- Account-wide, deliberately outside the profile tables: the options window's scale
+-- follows the monitor it is being read on, so it must not travel in an exported pack or
+-- change under someone when they switch profile.
+function ns.AccountSettings()
+    local sv = DB()
+    if type(sv.account) ~= "table" then sv.account = {} end
+    return sv.account
+end
+
+-- Stored as a percent, used as a multiplier. Clamped on read as well as on write: a zero
+-- or negative scale hides the window with no way left to open the control that fixes it.
+function ns.UIScale()
+    local pct = tonumber(ns.AccountSettings().windowScale) or 100
+    if pct < 50 then pct = 50 elseif pct > 150 then pct = 150 end
+    return pct / 100
 end
 
 function ns.ActiveProfileName()
