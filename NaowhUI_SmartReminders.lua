@@ -4386,6 +4386,9 @@ local function OnBigWigsEvent(event, ...)
     elseif event == "BigWigs_StartBar" then
         local _, key, text, duration, _, isApprox = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
+        -- BigWigs' own preview bars, raised from its options and Edit Mode, carry no key.
+        -- Nothing below can name an ability without one, and NoteBossModBar indexes by it.
+        if key == nil then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
         if IsUptimeBar(key, isApprox) then
             if TRDB().trace then
