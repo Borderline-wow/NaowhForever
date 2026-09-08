@@ -104,10 +104,16 @@ local function ShowPage(pageName)
     PaintTabs()
 end
 
--- The universal "this setting changed the page's shape, redraw it" call, with the same
--- semantics the pages were written against: full rebuild of the active tab, scroll
--- preserved. When the window is hidden the rebuild waits for the next open, so page-build
--- side effects (preview, lazy journal reads) never run off-screen.
+-- The universal "this setting changed, redraw it" call. Every caller passes force=true --
+-- there has never been a caller that wants anything less -- and force never meant more than
+-- "rebuild the active tab": every OTHER cached tab kept whatever it looked like when it was
+-- last built, which is wrong for anything that isn't scoped to the tab you happened to be
+-- looking at (a pack import landing new Cooldown Presets while you're sitting on Raid
+-- Bosses, say). Wipe every cached tab instead: the active one rebuilds now, same as before;
+-- the rest just lose their stale wrapper and rebuild the next time ShowPage opens them, the
+-- same lazy-build path a first-ever visit already takes. When the window is hidden the
+-- rebuild waits for the next open, so page-build side effects (preview, lazy journal reads)
+-- never run off-screen.
 function UI:RefreshPage(force)
     if not (window and window:IsShown()) then
         pendingRefresh = true
@@ -117,11 +123,10 @@ function UI:RefreshPage(force)
     -- anchor orphaned; changing a setting while hovering its label is the ordinary way in.
     if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
     local scroll = scrollFrame:GetVerticalScroll()
-    local old = wrappers[currentPage]
-    if old then
-        old:Hide()
-        old:SetParent(nil)
-        wrappers[currentPage] = nil
+    for name, w in pairs(wrappers) do
+        w:Hide()
+        w:SetParent(nil)
+        wrappers[name] = nil
     end
     ShowPage(currentPage)
     scrollFrame:UpdateScrollChildRect()
@@ -220,13 +225,15 @@ local function CreateWindow()
     scrollFrame:SetScrollChild(scrollChild)
 
     window:SetScript("OnShow", function()
+        -- Same rule as RefreshPage itself: a refresh asked for while the window was
+        -- closed (gear changed with it shut, say) is not scoped to whichever tab happens
+        -- to be current on reopen, so every cached tab goes, not just that one.
         if pendingRefresh then
             pendingRefresh = nil
-            local old = wrappers[currentPage]
-            if old then
-                old:Hide()
-                old:SetParent(nil)
-                wrappers[currentPage] = nil
+            for name, w in pairs(wrappers) do
+                w:Hide()
+                w:SetParent(nil)
+                wrappers[name] = nil
             end
         end
         ShowPage(currentPage)
