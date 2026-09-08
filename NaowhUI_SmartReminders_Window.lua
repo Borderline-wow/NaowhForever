@@ -128,6 +128,15 @@ function UI:RefreshPage(force)
     scrollFrame:SetVerticalScroll(scroll)
 end
 
+-- ShowPage only rebuilds a page's cached wrapper on an explicit RefreshPage call, so a
+-- trinket swap (or any gear change) while the Cooldown Presets page is already built and
+-- just sitting shown would otherwise never be noticed short of a full /reload. Cheap: the
+-- event only fires on an actual equip, and RefreshPage itself no-ops to a pending flag
+-- when the window is not shown.
+local equipWatcher = CreateFrame("Frame")
+equipWatcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+equipWatcher:SetScript("OnEvent", function() UI:RefreshPage(true) end)
+
 local function CreateWindow()
     window = CreateFrame("Frame", "NaowhUISmartRemindersOptions", UIParent)
     window:SetSize(WINDOW_W, WINDOW_H)

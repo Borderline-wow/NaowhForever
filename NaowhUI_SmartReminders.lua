@@ -5185,6 +5185,16 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- the picker is offering, plus anything already on your list.
     if arg == "defensives" then
         local shown = 0
+        for _, slot in ipairs({ INVSLOT_TRINKET1, INVSLOT_TRINKET2 }) do
+            local link = GetInventoryItemLink("player", slot)
+            if link and C_Item and C_Item.GetItemSpell then
+                local spellName, spellID = C_Item.GetItemSpell(link)
+                ns.Print(("trinket slot %d: %s -> %s"):format(slot, link,
+                    spellID and ("%s (%d)"):format(tostring(spellName), spellID) or "no on-use spell"))
+            else
+                ns.Print(("trinket slot %d: empty"):format(slot))
+            end
+        end
         local CV = C_CooldownViewer
         if CV and CV.GetCooldownViewerCategorySet and Enum and Enum.CooldownViewerCategory then
             for _, cat in ipairs({ Enum.CooldownViewerCategory.Essential,
@@ -5658,6 +5668,33 @@ ns.InfoIsDefensive = InfoIsDefensive
 local function CollectCandidates()
     local out, seen = {}, {}
     local list = (not collectAll) and TargetList(false) or nil
+
+    -- Equipped trinket on-use effects, read straight off the item rather than through the
+    -- Cooldown Manager's category sets: GetItemSpell needs no participation from Blizzard's
+    -- cooldown/defensive classification and has not changed shape across expansions, unlike
+    -- the Cooldown Viewer categories. Only ever two slots to check, so no noise concern the
+    -- way a spellbook-wide relaxation would have -- the player recognizes their own gear and
+    -- picks the defensive one themselves, same as they already do among ambiguous class
+    -- cooldowns InfoIsDefensive lets through.
+    for _, slot in ipairs({ INVSLOT_TRINKET1, INVSLOT_TRINKET2 }) do
+        local link = GetInventoryItemLink("player", slot)
+        if link and C_Item and C_Item.GetItemSpell then
+            local spellName, spellID = C_Item.GetItemSpell(link)
+            if spellID and not seen[spellID] then
+                seen[spellID] = true
+                if not (list and ns.ListIndexOf(list, spellID)) then
+                    local si = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellID)
+                    local base = GetSpellBaseCooldown and GetSpellBaseCooldown(spellID)
+                    out[#out + 1] = {
+                        id   = spellID,
+                        name = spellName or (si and si.name) or ("Spell " .. spellID),
+                        icon = si and si.iconID,
+                        cd   = (type(base) == "number" and base) or 0,
+                    }
+                end
+            end
+        end
+    end
 
     local CV = C_CooldownViewer
     if CV and CV.GetCooldownViewerCategorySet and CV.GetCooldownViewerCooldownInfo
