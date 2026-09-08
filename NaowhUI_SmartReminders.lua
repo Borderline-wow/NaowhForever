@@ -1996,6 +1996,10 @@ local function LogLine(e)
     elseif e.kind == "cancel" then
         return ("%s -- cancelled pending callout for %s (bar '%s' stopped early)"):format(
             head, nameOf(e.sid), tostring(e.text))
+    elseif e.kind == "schedule" then
+        return ("%s -- SCHEDULE %s bar='%s' duration=%.1f approx=%s delay=%.1f%s"):format(
+            head, nameOf(e.sid), tostring(e.text), e.duration, tostring(e.isApprox), e.delay,
+            e.existingFireIn and (" (replaced one %.1fs out)"):format(e.existingFireIn) or "")
     elseif e.kind == "aggro" then
         return ("%s -- BLOCKED %s -- not tanking the caster (%s) -- %s"):format(head,
             nameOf(e.sid), tostring(e.tankPath), tostring(e.text))
@@ -4062,6 +4066,16 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
     local key = barIdentity or false
     local fireAt = GetTime() + delay
 
+    -- Every schedule call, trace-only: answers whether a stop that later cancels this key
+    -- is cancelling THIS bar or one that was already superseded by a more accurate one
+    -- under the same name -- the existing "cancel" line can't tell those apart on its own.
+    if TRDB().trace then
+        local existing = sidFires[key]
+        AppendLog({ kind = "schedule", sid = sid, text = tostring(barIdentity),
+            duration = duration, isApprox = isApprox, delay = delay,
+            existingFireIn = existing and (existing.fireAt - GetTime()) or nil })
+    end
+
     -- Whatever else is pending for this sid -- the same bar resynced, or a different
     -- bar entirely -- gets superseded by this one, but the survivor INHERITS the
     -- superseded entry's identities when both are aimed at the same cast.
@@ -4109,7 +4123,8 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
         end
     end
 
-    local entry = { fireAt = fireAt, aliases = aliases, uptime = uptime }
+    local entry = { fireAt = fireAt, aliases = aliases, uptime = uptime,
+        approx = (isApprox == true) }
     entry.timer = C_Timer.NewTimer(delay, function()
         for k in pairs(aliases) do
             if sidFires[k] == entry then sidFires[k] = nil end
@@ -4231,22 +4246,50 @@ end
 -- callout lands seconds later for a cast that was interrupted or resynced away, which reads
 -- as an unprompted call for an ability that was never actually coming. Walks every
 -- channel: a bar stopping is real for every feature listening to it, not just tank busters.
+--
+-- Only for a PRECISE bar, though. An approximate one (:CDBar -- BigWigs' own flag that the
+-- length is an estimate of the NEXT cast, not a timer on something happening) stopping is
+-- not the module saying the cast is off; it is the module done guessing. Keyed on the
+-- flag BigWigs actually set, not on "not known-precise": DBM sends no flavour at all and
+-- its timer stops fire on real interrupts too, so an unflagged entry still cancels.
+-- The Hoardmonger (Den of Nalorakk) sends only such bars for Spoiled Supplies, Earthshatter Slam and
+-- Ravenous Bellow: all three scheduled approx at ENCOUNTER START (30s/16s/6s), all three
+-- stopped together 11s in with nothing ever replacing them, and every callout cancelled --
+-- one 0.4s before it was due. Traced twice, no second bar ever arrived under any of those
+-- names. Letting the estimate-based fire stand is the same direction every other rule in
+-- this file takes: a call at a rough time costs a moment, a swallowed one costs the tank.
+-- A precise bar's stop still cancels, since that IS a genuine interrupt or resync, and a
+-- superseded approx bar's stop already finds nothing here (ScheduleBWFire cleared it), so
+-- the only behaviour that changes is the orphaned-estimate case above. Known cost: an
+-- estimate stopped because a phase change retired the ability still fires at its rough
+-- time; a wipe does not, since CancelAllPendingBWFires is a separate, unconditional path.
 local function CancelPendingBWFire(barIdentity)
     if barIdentity == nil then return end
     for _, fires in pairs(pendingBWFires) do
         for sid, sidFires in pairs(fires) do
             local f = sidFires[barIdentity]
             if f then
-                if f.timer.Cancel then f.timer:Cancel() end
-                -- A cancelled fire is a callout that will now never happen, which from the
-                -- outside is indistinguishable from one that was never scheduled -- exactly
-                -- the shape that has cost multiple investigations. Logged for the trace.
-                AppendLog({ kind = "cancel", sid = sid, text = tostring(barIdentity) })
-                -- Clear every identity this one entry answers to, not just the name the
-                -- stop happened to arrive under, or the other mod's alias would be left
-                -- pointing at a cancelled timer.
-                for k in pairs(f.aliases) do
-                    if sidFires[k] == f then sidFires[k] = nil end
+                if f.approx then
+                    if TRDB().trace then
+                        AppendLog({ kind = "drop", sid = sid,
+                            text = ("kept estimate fire, bar '%s' stopped %.1fs before it"):format(
+                                tostring(barIdentity), f.fireAt - GetTime()) })
+                    end
+                else
+                    if f.timer.Cancel then f.timer:Cancel() end
+                    -- A cancelled fire is a callout that will now never happen, which from
+                    -- the outside is indistinguishable from one that was never scheduled --
+                    -- exactly the shape that has cost multiple investigations. Logged for
+                    -- the trace, with how far out it still was.
+                    AppendLog({ kind = "cancel", sid = sid,
+                        text = ("%s (%.1fs before it would have fired)"):format(
+                            tostring(barIdentity), f.fireAt - GetTime()) })
+                    -- Clear every identity this one entry answers to, not just the name the
+                    -- stop happened to arrive under, or the other mod's alias would be left
+                    -- pointing at a cancelled timer.
+                    for k in pairs(f.aliases) do
+                        if sidFires[k] == f then sidFires[k] = nil end
+                    end
                 end
             end
         end
