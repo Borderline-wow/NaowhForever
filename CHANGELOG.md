@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.1
+
+### Fixed
+- A flood of "table index is nil" errors while BigWigs' options or Edit Mode
+  were open. The preview bars BigWigs raises there are not real boss timers and
+  carry no ability, and filing one under the ability it does not have was the
+  error. Those bars are now ignored, which is what should have happened anyway:
+  there is nothing to remind anyone about.
+
 ## 1.1.0
 
 ### Added
