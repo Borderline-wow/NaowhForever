@@ -23,11 +23,14 @@ First release.
   threshold.
 - Skip When Already Covered, which drops a call when a big defensive or
   external is already up, for as long as you set Your Own Cast Covers You For.
-  Only While I Have the Boss gates tank callouts on the unit actually casting.
+  On a tank spec, boss callouts fire only for the tank the boss is actually on;
+  DPS and healer specs are never gated.
 - Call Together: tick two or more cooldowns on a preset and they are called as
   one -- "Vampiric Blood and Icebound Fortitude" -- showing as a single row
   named for the call. One on cooldown is left out rather than holding the
   callout back.
+- Equipped on-use trinkets sit in the cooldown preset picker beside the spec's
+  own defensives, and the list follows a gear swap without a reload.
 - Announce in Chat, including calling for an external by name.
 - Observed timings: what the boss actually did on your own pulls, recorded per
   difficulty, with a reminder built from one click.
@@ -65,9 +68,9 @@ First release.
 - Ability Reminders is marked coming soon: the tab is dimmed and opens a note.
   The same reminders are authored per boss in the meantime, which is where that
   page reads them from.
-- Importing a pack never overwrites anything. It lands as a new profile, so
-  going back to your own profile finds it as you left it, and a pack that does
-  not mention a spec no longer drops the one you had.
+- Importing a pack never overwrites anything. It lands as a new profile under a
+  name you choose, so going back to your own profile finds it as you left it,
+  and a pack that does not mention a spec no longer drops the one you had.
 - A whole profile exports in one string, every spec it holds, with the display,
   sound and behaviour settings alongside it for the importer to take or leave.
 
