@@ -44,7 +44,6 @@ local DEFAULTS = {
     inDungeons = false,
     inRaids    = false,
     fallbackOn = false,
-    aggroOnly  = false,
     coveredSkip = false,
     coveredCastWindow = 6,   -- how long your own cast counts as cover
     leadTime   = 3,     -- seconds before impact that the alert fires
@@ -3893,14 +3892,20 @@ local function FireBigWigsAbility(sid)
         -- the callout. A trace taken this way therefore still shows what the gate would
         -- have answered, which is usually the thing being investigated.
         --
-        -- The spec's ROLE decides nothing here. A raid-wide hit a DPS answers with a
-        -- personal is the same question a tank buster asks, put to somebody else, and
-        -- adding the ability for this spec is already the answer -- bindings are per spec,
-        -- so a spec nobody has set up still fires nothing. This used to refuse outright
-        -- unless the spec had a tank role, which left the ability list on every other spec
-        -- switched on and silent.
+        -- The spec's ROLE decides nothing about whether the ability list fires at all. A
+        -- raid-wide hit a DPS answers with a personal is the same question a tank buster
+        -- asks, put to somebody else, and adding the ability for this spec is already the
+        -- answer -- bindings are per spec, so a spec nobody has set up still fires nothing.
+        -- This used to refuse outright unless the spec had a tank role, which left the
+        -- ability list on every other spec switched on and silent.
+        --
+        -- The role DOES decide this one sub-gate, automatically: the aggro/threat check
+        -- below only makes sense for someone who can actually hold the boss, so it runs
+        -- for tank specs and never for anyone else -- a manual toggle used to leave it
+        -- mismatched (on for a spec that had since respecced away from tanking), which
+        -- silently killed every callout on that spec.
         local pretend = TRDB().pretendTank
-        if TRDB().aggroOnly then
+        if isTank then
             local verdict, path = TankingCaster(sid)
             lastAggroCheck = { sid = sid, verdict = verdict, path = pretend and not verdict
                 and ("pretend/" .. tostring(path)) or path }
@@ -4936,10 +4941,6 @@ local function DiagProblems()
         out[#out + 1] = "priority list is EMPTY for this spec, so nothing can ever be "
             .. "called -- add defensives in Smart Reminders first"
     end
-    if not isTank and t.aggroOnly and not t.pretendTank then
-        out[#out + 1] = "Only While I Have the Boss is on and this spec does not tank, so "
-            .. "nothing can call -- turn that setting off"
-    end
     -- No instruction any more: the client refuses the registration everywhere in this build,
     -- so there is nothing a tester can do about it and the old "step outside once" line sent
     -- several of them on a walk that could not have worked.
@@ -5016,8 +5017,8 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             tostring(C_CombatLog and C_CombatLog.IsCombatLogRestricted
                 and C_CombatLog.IsCombatLogRestricted()),
             cleuLines, cleuUsable, cleuOwnAuras)
-        out[#out + 1] = ("timeline=%s aggroOnly=%s coveredSkip=%s leadTime=%s"):format(
-            tostring(TimelineAvailable()), tostring(t.aggroOnly), tostring(t.coveredSkip ~= false),
+        out[#out + 1] = ("timeline=%s aggroGate=%s coveredSkip=%s leadTime=%s"):format(
+            tostring(TimelineAvailable()), tostring(isTank), tostring(t.coveredSkip ~= false),
             tostring(t.leadTime))
         out[#out + 1] = ("%d entries"):format(#log)
         local problems = DiagProblems()
@@ -5480,12 +5481,6 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     if TRDB().pretendTank then
         ns.Print("|cffF0A830PRETEND TANK IS ON|r -- the aggro gate is ignored, so abilities "
             .. "call whether or not you hold the boss. /nutank pretendtank turns it off.")
-    elseif not isTank and TRDB().aggroOnly then
-        -- The role itself no longer decides anything; only this setting can still shut a
-        -- non-tank out, and silently, which is what earns the line.
-        ns.Print("|cffF0A830Only While I Have the Boss is on|r and this spec does not tank, "
-            .. "so nothing will call. Turn it off to get calls on a spec that never holds "
-            .. "aggro.")
     end
     ns.Print(("boss addon: %s"):format(ns.BossSource()))
     if currentEncounter then
