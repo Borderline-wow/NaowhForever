@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+- Window Scale, on the setup page under Options Window. Sets the size of the
+  options window and every editor it opens, from 50% to 100%, for people whose
+  screen the config UI did not fit on. Saved for the computer rather than in
+  the profile, so switching profile leaves it alone and an exported pack never
+  carries it to someone on a different monitor.
+
 ## 1.0.1
 
 ### Fixed
