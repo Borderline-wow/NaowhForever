@@ -41,13 +41,11 @@ local DEFAULTS = {
     showBar   = false,
     soundOn   = false,
     soundKey  = "none",
-    inDungeons = false,
-    inRaids    = false,
     fallbackOn = false,
     coveredSkip = false,
     coveredCastWindow = 6,   -- how long your own cast counts as cover
     leadTime   = 3,     -- seconds before impact that the alert fires
-    lingerSec  = 5,     -- how long the icon stays up when the cast is never pressed
+    lingerSec  = 3,     -- display duration; early dismissal on cast is opt-in
     cdmGlow    = false, -- glow the called defensive on the Cooldown Manager bar
     voiceOn   = false,
     voiceNone = "Call for external",
@@ -743,9 +741,11 @@ local function NaowhMedia(kind, name)
 end
 
 local function AlertFont()
-    local path = NaowhMedia("font", "Naowh")
-    return path or STANDARD_TEXT_FONT
+    local selected = TRDB().fontName
+    local path = type(selected) == "string" and NaowhMedia("font", selected)
+    return path or NaowhMedia("font", "Naowh") or STANDARD_TEXT_FONT
 end
+ns.AlertFontPath = AlertFont
 
 -- Display only, never clickable. Alpha 0 hides the art but NOT hit-testing, so a losing
 -- slot left mouse-enabled would still be a live mouse target sitting over the screen.
@@ -866,7 +866,10 @@ function Reminder.Create()
 end
 
 local function ApplySize()
+    if customFrame then customFrame.text:SetFont(AlertFont(), 18, "OUTLINE") end
     if not frame then return end
+    if frame.reminder then frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
+    if frame.learnTag then frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE") end
     local t = TRDB()
     local size = t.iconSize or DEFAULTS.iconSize
     -- Independent of icon size: this used to be derived from it (floor(size * 0.34)), which
@@ -896,7 +899,22 @@ end
 -- Talent state is plain, so everything here -- which spells qualify, how many slots exist,
 -- what icon each carries -- is decided in the clear and never mid-fight. The secret half
 -- only ever touches alpha.
-local function RebuildSlots(fp)
+local function RebuildSlots(fp, keepIfEmpty)
+    -- A warning with no usable defensive must leave the current display intact.
+    if keepIfEmpty then
+        if not frame then return false end
+        local candidateList = EffectiveList(specID, currentEncounter, fp)
+        if not candidateList then return false end
+        local found = false
+        for i = 1, #candidateList do
+            local sid = candidateList[i]
+            if IsSpellAvailable(sid) and not IsSpellDisabled(sid) then
+                found = true
+                break
+            end
+        end
+        if not found then return false end
+    end
     activeSlots = 0
     if not frame then return end
 
@@ -942,6 +960,7 @@ local function RebuildSlots(fp)
         slots[i]:SetAlpha(0)
     end
     ApplySize()
+    return true
 end
 
 -------------------------------------------------------------------------------
@@ -1391,24 +1410,30 @@ end
 -- otherwise completely invisible -- the callout simply does not happen, which looks
 -- identical to the engine never firing at all, and that ambiguity has already cost a round
 -- of guessing about whether this gate runs.
-local function CoveredByActiveDefensive()
+local function CoveredByActiveDefensive(fp)
     local now = GetTime()
     if BigDefensiveUp() then return true, nil, "bigdef" end
-    for i = 1, activeSlots do
-        local sid = slots[i].spellID
-        if playerAuraUp[sid] then return true, sid, "aura" end
-        local window = TRDB().coveredCastWindow or OWN_CAST_COVER_DEFAULT
-        if window > 0 and ownCastAt[sid] and (now - ownCastAt[sid]) < window then
-            return true, sid, "cast"
-        end
-        -- Fallback for a buff that was already up before tracking could see it apply
-        -- (addon just enabled, UI just reloaded, pre-popped before pull) -- existence
-        -- only, not exact timing, same as playerAuraUp itself answers.
-        if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
-            local ok, exists = pcall(function()
-                return type(C_UnitAuras.GetPlayerAuraBySpellID(sid)) == "table"
-            end)
-            if ok and exists then return true, sid, "poll" end
+    local list = EffectiveList(specID, currentEncounter, fp) or {}
+    local eligible = 0
+    for i = 1, #list do
+        local sid = list[i]
+        if IsSpellAvailable(sid) and not IsSpellDisabled(sid) then
+            eligible = eligible + 1
+            if eligible > MAX_SLOTS then break end
+            if playerAuraUp[sid] then return true, sid, "aura" end
+            local window = TRDB().coveredCastWindow or OWN_CAST_COVER_DEFAULT
+            if window > 0 and ownCastAt[sid] and (now - ownCastAt[sid]) < window then
+                return true, sid, "cast"
+            end
+            -- Fallback for a buff that was already up before tracking could see it apply
+            -- (addon just enabled, UI just reloaded, pre-popped before pull) -- existence
+            -- only, not exact timing, same as playerAuraUp itself answers.
+            if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+                local ok, exists = pcall(function()
+                    return type(C_UnitAuras.GetPlayerAuraBySpellID(sid)) == "table"
+                end)
+                if ok and exists then return true, sid, "poll" end
+            end
         end
     end
     return false
@@ -1854,10 +1879,14 @@ function ChargesAvailable(sid)
     -- and returned immediately because nothing below improves on a stated count.
     if CanNameSpellAloud(sid) then
         local okCur, cur = pcall(function() return C_Spell.GetSpellCharges(sid).currentCharges end)
-        if okCur and type(cur) == "number" and cur >= 0 and cur <= st.max then
+        if okCur and not (issecretvalue and issecretvalue(cur))
+            and type(cur) == "number" and cur >= 0 and cur <= st.max then
             -- The climb re-anchors on a correction downward: the count is known as of now.
             if cur < st.count then st.tick = GetTime() end
             st.count = cur
+            if cur == st.max then
+                st.tick, st.missingSince, st.rechargeStart = GetTime(), nil, nil
+            end
             return st.count
         end
     end
@@ -1907,6 +1936,11 @@ function ChargesAvailable(sid)
         if gained > 0 then
             st.count = math.min(st.max, st.count + gained)
             st.tick  = st.tick + gained * st.recharge
+            -- Mark inferred landings as consumed before the duration API
+            -- reports them again after a missed read.
+            if st.rechargeStart then
+                st.rechargeStart = st.rechargeStart + gained * st.recharge
+            end
         end
     end
 
@@ -1945,7 +1979,8 @@ function ChargesAvailable(sid)
     -- when the stack was empty. That is the Death's Advance callout on Rav'i, named while
     -- the trace read cdRunning=false. isActive is plain and says outright that something
     -- is still recharging, which settles which of the two an idle cooldown means.
-    if st.count < 1 and not active and CooldownRunning(sid) == false then
+    -- A failed shape read returns nil, not a confirmed inactive recharge.
+    if st.count < 1 and max and active == false and CooldownRunning(sid) == false then
         st.count = 1
     end
     return st.count
@@ -2047,7 +2082,20 @@ local function NoteOwnCast(castSpellID)
     EnsureChargeState(sid)
     local st = chargeState[sid]
     if st then
-        ChargesAvailable(sid)
+        -- Spend from the previously tracked count. Sampling the post-cast
+        -- state first can already remove a charge (the active ceiling or an
+        -- exact count), so subtracting again would charge this cast twice.
+        -- Advance only the elapsed clock here; normal reads reconcile later.
+        if st.recharge > 0 and st.count < st.max then
+            local gained = math.floor((GetTime() - st.tick) / st.recharge)
+            if gained > 0 then
+                st.count = math.min(st.max, st.count + gained)
+                st.tick = st.tick + gained * st.recharge
+                if st.rechargeStart then
+                    st.rechargeStart = st.rechargeStart + gained * st.recharge
+                end
+            end
+        end
         -- The recharge clock starts on the drop FROM maximum. Restarting it on every
         -- cast would push the next charge further away each time one was spent.
         -- missingSince marks the same moment for the measurement in ChargesAvailable:
@@ -2748,16 +2796,24 @@ local function HideReminder()
     if bar then bar:Hide() end
 end
 
--- Pressing the defensive the callout asked for answers it, so the icon goes now rather
--- than sitting out the rest of its linger. Resolved through castToBase exactly as
--- NoteOwnCast does, so the comparison is against a plain base id and never the raw event
--- argument, which can be a secret in restricted content.
+-- Dismiss the actual displayed slot, independently of voice and per-spell mute.
+-- Alpha may be secret; when its visibility cannot be read, retain the timed display.
 function ns.HideIfCalloutPressed(castSpellID)
-    if not shownForEvent or not lastAnnouncedSpellID then return end
+    if TRDB().hideOnCast ~= true or not shownForEvent then return end
     local sid = castSpellID and castToBase[castSpellID]
-    if sid and sid == lastAnnouncedSpellID then HideReminder() end
+    if not sid then return end
+    for i = 1, activeSlots do
+        local slot = slots[i]
+        if slot.spellID == sid then
+            local ok, alpha = pcall(slot.GetAlpha, slot)
+            if ok and not (issecretvalue and issecretvalue(alpha))
+                and type(alpha) == "number" and alpha > 0 then
+                HideReminder()
+                return
+            end
+        end
+    end
 end
-
 
 -- Previews one custom line exactly as a fight would deliver it: the text over the alert
 -- frame for a few seconds, and the voice saying it. Used by the Says row's Preview button.
@@ -2814,23 +2870,13 @@ function ns.ForceShowTest()
             .. "real boss.")
     end
     if hideTimer then hideTimer:Cancel() end
-    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or 5, HideReminder)
+    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or DEFAULTS.lingerSec, HideReminder)
 end
 
 -------------------------------------------------------------------------------
 --  Events
 -------------------------------------------------------------------------------
 local watcher
-
--- The All Dungeons / All Raids switches. Anywhere else (open world, delves, scenarios) is
--- unaffected by them.
-local function AllowedHere()
-    local t = TRDB()
-    local _, instanceType = GetInstanceInfo()
-    if instanceType == "party" then return t.inDungeons ~= false end
-    if instanceType == "raid" then return t.inRaids ~= false end
-    return true
-end
 
 -- A boss switched off in the tree. Enforceable because the game tells us which encounter we
 -- are in, unlike which ability is incoming.
@@ -2850,7 +2896,6 @@ local function InEncounter()
     return currentEncounter ~= nil
 end
 ns.InEncounter = InEncounter
-ns.AllowedHere = AllowedHere
 ns.BossAllowed = BossAllowed
 function ns.CurrentEncounter() return currentEncounter end
 
@@ -2858,7 +2903,7 @@ function ns.CurrentEncounter() return currentEncounter end
 -- it, but it no longer gates whether the feature runs at all.
 local function ShouldRun()
     return TRDB().enabled == true and canSelect
-        and activeSlots > 0 and TimelineAvailable() and AllowedHere() and BossAllowed()
+        and activeSlots > 0 and TimelineAvailable() and BossAllowed()
 end
 
 -------------------------------------------------------------------------------
@@ -2867,7 +2912,7 @@ end
 -- Independent of the defensive-priority system entirely: a player with nothing on their
 -- priority list should still get these, so gating never touches ShouldRun()/activeSlots.
 local function CustomRemindersAllowed()
-    return TRDB().enabled == true and AllowedHere() and BossAllowed()
+    return TRDB().enabled == true and BossAllowed()
 end
 
 -- "Show in" syntax: blank fires immediately. A plain number or MM:SS(.ms) (e.g. "1:30.5")
@@ -3144,6 +3189,7 @@ local function FireCustomReminder(r)
 
     if not msg or msg == "" then return end
     CreateCustomFrame()
+    customFrame.text:SetFont(AlertFont(), 18, "OUTLINE")
     customFrame.text:SetText(msg)
 
     -- An explicit per-reminder color wins outright; without one this falls back to the
@@ -3944,21 +3990,17 @@ local function FireBigWigsAbility(sid)
         end
     end
 
-    RebuildSlots(tostring(sid))
-    if activeSlots == 0 then return end
-
-    -- Checked only after the rebuild above, not before: CoveredByActiveDefensive reads
-    -- slots[], and this ability's own effective list -- a per-ability preset override can
-    -- differ from whatever the previous ability left loaded -- has to be current, or the
-    -- check compares an already-active defensive against the wrong ability's list and
-    -- misses the cover entirely.
+    -- Inspect the incoming preset before rebuilding frames: a skipped warning must
+    -- not erase the previous callout while its display timer is still running.
     if not ns.testFiring and TRDB().coveredSkip ~= false then
-        local covered, bySid, how = CoveredByActiveDefensive()
+        local covered, bySid, how = CoveredByActiveDefensive(tostring(sid))
         if covered then
             AppendLog({ kind = "skip", sid = bySid or sid, tankSid = sid, tankPath = how })
             return
         end
     end
+
+    if not RebuildSlots(tostring(sid), true) then return end
 
     ApplyPriorityAlpha()
     ClearTankGate()
@@ -3972,11 +4014,11 @@ local function FireBigWigsAbility(sid)
     SpeakCallout(sid)
     lastCalloutAt = GetTime()
     if hideTimer then hideTimer:Cancel() end
-    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or 5, HideReminder)
+    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or DEFAULTS.lingerSec, HideReminder)
 end
 
 -- Setup's per-ability Test button. Fires the ability through FireBigWigsAbility itself --
--- enablement, Custom Reminder exclusivity, the priority pick, voice, the 5s auto-hide --
+-- enablement, Custom Reminder exclusivity, the priority pick, voice, the configured auto-hide --
 -- bypassing only the gates a test outside the fight cannot satisfy (tank spec, holding
 -- aggro, an active defensive), so what a test plays is what the pull plays. BigWigs' own
 -- test mode is no substitute: on retail it plays Blizzard's edit-mode timeline samples
@@ -6270,15 +6312,45 @@ function ns.BuildBarsSettings(parent, y)
     ); y = y - h
 
     _, h = W:DualRow(parent, y,
-        { type = "slider", text = "How Long It Stays Up", min = 1, max = 15, step = 1,
-          tooltip = "How many seconds the callout stays on screen when the ability is never "
-          .. "pressed. Pressing the defensive it asked for clears it straight away whatever "
-          .. "this is set to.",
+        { type = "slider", text = "Icon Display Duration", min = 1, max = 15, step = 1,
+          tooltip = "How many seconds the defensive icon and callout text stay visible. "
+          .. "Defaults to 3 seconds. Hide After Casting can dismiss it early.",
           getValue = function() return TRDB().lingerSec or DEFAULTS.lingerSec end,
-          setValue = function(v) TRDB().lingerSec = v end }
+          setValue = function(v) TRDB().lingerSec = v end },
+        { type = "toggle", text = "Hide After Casting",
+          tooltip = "Dismiss the icon and callout text when you cast the suggested defensive. "
+          .. "Off by default so they remain for the selected display duration.",
+          getValue = function() return TRDB().hideOnCast == true end,
+          setValue = function(v) TRDB().hideOnCast = v and true or nil end }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "SIZE AND LOCATION", y); y = y - h
+
+    local fontValues, fontOrder = { [""] = "Default (Naowh)" }, { "" }
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if LSM then
+        for _, name in ipairs(LSM:List("font")) do
+            fontValues[name] = name
+            fontOrder[#fontOrder + 1] = name
+        end
+    end
+    local selectedFont = TRDB().fontName
+    if type(selectedFont) == "string" and selectedFont ~= "" and not fontValues[selectedFont] then
+        fontValues[selectedFont] = selectedFont .. " (unavailable)"
+        fontOrder[#fontOrder + 1] = selectedFont
+    end
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Reminder Font", values = fontValues, order = fontOrder,
+          tooltip = "Font for defensive callouts and ability reminder text. Saved with this "
+          .. "profile. Unavailable fonts use the default font.",
+          getValue = function() return TRDB().fontName or "" end,
+          setValue = function(v)
+              TRDB().fontName = v ~= "" and v or nil
+              ApplySize()
+              UpdatePreview()
+          end },
+        { type = "label", text = "" }
+    ); y = y - h
 
     _, h = W:DualRow(parent, y,
         { type = "slider", text = "Icon Size", min = 32, max = 128, step = 1,
@@ -6521,20 +6593,8 @@ function ns.BuildColorsSettings(parent, y)
 end
 
 -------------------------------------------------------------------------------
---  Setup tab -- one flat page again, no side navigation. The tile-list
---  version (Bars / Colors / Sounds / Profile switching a detail pane) is
---  gone -- didn't earn its keep for what's currently sparse per-topic
---  content, and everything reads better as one page the way it always was.
---
---  Order: core settings, then Visibility Options + Size and Location
---  (BuildBarsSettings, despite the name -- it still covers both, they just
---  read as one section on a flat page instead of a tile of their own),
---  then Sounds, then Colors, then Profile (Reminder Packs, Where It Runs),
---  then the priority list LAST. That last placement is deliberate, not
---  incidental: RenderPresetListEditor's own returned height runs a little
---  short of its true rendered extent once the spare-defensives column gets
---  long, and putting nothing after it means that imprecision only costs
---  trailing empty space rather than another section overlapping it.
+--  Setup tab: core settings, visibility, size and location, sounds, colors,
+--  and reminder appearance. Profile management has its own tab.
 -------------------------------------------------------------------------------
 function ns.BuildSetupPage(parent, yOffset)
     local EUI = ns.UI
@@ -6546,7 +6606,6 @@ function ns.BuildSetupPage(parent, yOffset)
     if ns.BuildBarsSettings    then y = ns.BuildBarsSettings(parent, y) end
     if ns.BuildSoundsSettings  then y = ns.BuildSoundsSettings(parent, y) end
     if ns.BuildColorsSettings  then y = ns.BuildColorsSettings(parent, y) end
-    if ns.BuildProfileSettings then y = ns.BuildProfileSettings(parent, y) end
 
     return math.abs(y)
 end
@@ -6562,8 +6621,7 @@ function ns.BuildPresetsPage(parent, yOffset)
     return math.abs(y)
 end
 
--- Dungeon Bosses / Raid Bosses tabs -- just the boss list now that Reminder
--- Packs and the global switches moved to Setup's Profile tile.
+-- Dungeon Bosses / Raid Bosses tabs: the boss list and reminder editors.
 function ns.BuildBossTabPage(parent, yOffset, isRaid)
     local EUI = ns.UI
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
@@ -6922,7 +6980,6 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             if not canSelect then why = "this client lacks the cooldown API"
             elseif activeSlots == 0 then why = "no priority list for this spec (or nothing on it is talented)"
             elseif not TimelineAvailable() then why = "the boss timeline feature is unavailable here"
-            elseif not AllowedHere() then why = "dungeons/raids toggle excludes this instance"
             elseif not BossAllowed() then why = "this boss is switched off in Smart Reminders"
             end
             if not why then

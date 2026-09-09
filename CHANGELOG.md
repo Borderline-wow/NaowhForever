@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.3.0
+
+### Added
+- Dedicated Profiles tab for profile management and import/export.
+- Minimap launcher with the NaowhUI logo and a saved, draggable position.
+- Reminder Font selector shared by defensive, ability, and raid reminder text.
+- Hide After Casting toggle, off by default. Dismissal uses the displayed icon
+  independently of speech; protected visibility falls back to the display timer.
+
+### Changed
+- Icon Display Duration defaults to 3 seconds, adjustable from 1 to 15 seconds.
+  Existing profiles retain their saved duration.
+- Removed Where It Runs and its global dungeon/raid gates. The main enable
+  switch and per-boss choices remain in control.
+- Bundled the NaowhUI logo for the addon-list icon and colored Naowh blue in the title.
+
+### Fixed
+- Charge tracking could spend a charge twice, invent one after a failed read,
+  or credit the same recharge twice. Death's Advance recovery and callouts were
+  verified in Ruby Life Pools on the test build.
+- Skipped warnings and warnings with empty or unusable presets no longer erase
+  the previous icon before its display timer expires.
+
 ## 1.2.0
 
 ### Changed

@@ -1,12 +1,12 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100
-## Title: Naowh Smart Reminders
+## Title: |cff0091edNaowh|r Smart Reminders
 ## Notes: Calls out what to press when the boss timeline says an ability is coming. All specs.
 ## Author: NaowhUI
-## Version: 1.2.0
+## Version: 1.3.0
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhUI_SmartRemindersDB
 ## Group: NaowhUI
-## IconTexture: Interface\AddOns\NaowhSmartReminders\Media\icon.tga
+## IconTexture: Interface\AddOns\NaowhSmartReminders\Media\LogoAddon.tga
 ## AddonCompartmentFunc: NaowhUI_SmartReminders_OnCompartmentClick
 
 Libs\embeds.xml

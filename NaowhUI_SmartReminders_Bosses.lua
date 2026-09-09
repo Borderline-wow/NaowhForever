@@ -1947,15 +1947,11 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     return dimmer, panel
 end
 
--- Profile tab: sharing (Reminder Packs) and the two global on/off switches.
--- Global in scope -- neither is "which boss" or "how it looks", both are
--- "what this profile does everywhere" -- so this is where they belong now
--- that the boss list has its own two tabs.
+-- Profiles tab: profile management and sharing (Reminder Packs).
 function ns.BuildProfileSettings(parent, y)
     local EUI = ns.UI
     local W   = EUI.Widgets
     local _, h
-    local db = ns.DB()
 
     _, h = W:SectionHeader(parent, "PROFILES", y); y = y - h
 
@@ -2152,22 +2148,6 @@ function ns.BuildProfileSettings(parent, y)
             "Paste a profile string. Nothing applies until you choose Replace or Merge, and a "
             .. "damaged string is refused outright.")
     end
-
-    _, h = W:SectionHeader(parent, "WHERE IT RUNS", y); y = y - h
-
-    -- The two master switches, side by side: dungeons on the left, raids on the right.
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "All Dungeons",
-          tooltip = "Turn the reminder off for every Mythic+ and dungeon boss without changing "
-          .. "any of your priority lists.",
-          getValue = function() return db.inDungeons ~= false end,
-          setValue = function(v) db.inDungeons = v; ns.RefreshRuntime() end },
-        { type = "toggle", text = "All Raids",
-          tooltip = "Turn the reminder off for every raid boss without changing any of your "
-          .. "priority lists.",
-          getValue = function() return db.inRaids ~= false end,
-          setValue = function(v) db.inRaids = v; ns.RefreshRuntime() end }
-    ); y = y - h
 
     return y
 end

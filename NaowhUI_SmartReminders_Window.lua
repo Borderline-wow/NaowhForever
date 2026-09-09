@@ -14,7 +14,7 @@ local WINDOW_W, WINDOW_H = 1000, 640
 local TITLE_H, TAB_H = 28, 30
 
 local PAGES = { "Smart Reminders Setup", "Cooldown Presets", "Dungeon Bosses",
-    "Raid Bosses", "Ability Reminders" }
+    "Raid Bosses", "Ability Reminders", "Profiles" }
 
 -- Pages that are built but not ready to be used. The tab stays in the strip, dimmed, and
 -- opens a note instead of the page: removing it would leave a gap people ask about, and
@@ -55,7 +55,9 @@ local function BuildPageInto(pageName, parent)
         body:SetText(soon)
         return -180
     end
-    if pageName == "Cooldown Presets" then
+    if pageName == "Profiles" then
+        return ns.BuildProfileSettings and ns.BuildProfileSettings(parent, -6) or -6
+    elseif pageName == "Cooldown Presets" then
         return ns.BuildPresetsPage and ns.BuildPresetsPage(parent, -6) or -6
     elseif pageName == "Dungeon Bosses" then
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, false) or -6
@@ -305,3 +307,26 @@ SLASH_NAOWHUISMARTREM2 = "/naowh"
 SLASH_NAOWHUISMARTREM3 = "/nao"
 SLASH_NAOWHUISMARTREM4 = "/nsr"
 SlashCmdList["NAOWHUISMARTREM"] = function() ns.ToggleOptionsWindow() end
+
+-- The launcher position belongs to the account, not an imported settings profile.
+local launcherEvents = CreateFrame("Frame")
+launcherEvents:SetScript("OnEvent", function(self)
+    self:UnregisterEvent("PLAYER_LOGIN")
+    local account = ns.AccountSettings()
+    if type(account.minimap) ~= "table" then
+        account.minimap = { minimapPos = 220 }
+    end
+    local launcher = LibStub("LibDataBroker-1.1"):NewDataObject("NaowhSmartReminders", {
+        type = "launcher",
+        label = "Naowh Smart Reminders",
+        icon = "Interface\\AddOns\\NaowhSmartReminders\\Media\\LogoAddon.tga",
+        OnClick = function() ns.ToggleOptionsWindow() end,
+        OnTooltipShow = function(tooltip)
+            tooltip:AddLine("Naowh Smart Reminders")
+            tooltip:AddLine("Click to open settings.", 1, 1, 1)
+            tooltip:AddLine("Drag to move the minimap button.", 1, 1, 1)
+        end,
+    })
+    LibStub("LibDBIcon-1.0"):Register("NaowhSmartReminders", launcher, account.minimap)
+end)
+launcherEvents:RegisterEvent("PLAYER_LOGIN")

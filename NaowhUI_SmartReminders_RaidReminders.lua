@@ -225,16 +225,9 @@ local function ReleaseRegion(a, r)
     RestackRegions(a)
 end
 
--- LibSharedMedia lookup, same source NaowhMedia/AlertFont (NaowhUI_SmartReminders.lua)
--- read -- duplicated rather than exported, same reasoning StatusBarTexture below
--- already gives: a few lines, no state, not worth a cross-file call for.
+-- Use the same profile font as defensive and ability reminders.
 local function AlertFontPath()
-    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
-    if LSM then
-        local ok, path = pcall(LSM.Fetch, LSM, "font", "Naowh", true)
-        if ok and path then return path end
-    end
-    return STANDARD_TEXT_FONT
+    return ns.AlertFontPath()
 end
 
 -- User-resizable via Unlock Mode (see MakeRaidReminderUnlockElement in
@@ -1440,7 +1433,7 @@ end
 -- TRDB().enabled rather than having their own separate on/off) -- one switch, not a
 -- second concept of "is the addon on" to keep in sync.
 local function RaidRemindersAllowed()
-    return ns.DB().enabled == true and ns.AllowedHere() and ns.BossAllowed()
+    return ns.DB().enabled == true and ns.BossAllowed()
 end
 
 -- BigWigs only, deliberately -- OnBigWigsEvent is the only caller (OnDBMEvent never
