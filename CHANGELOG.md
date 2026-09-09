@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0
+
+### Changed
+- Importing a pack names each row by its spec rather than its class. A Warrior's
+  three rows all read "Warrior (DPS)" and "Warrior (Tank)" before, with no way
+  to tell Arms from Fury; they now read "Protection (Tank)", "Arms (DPS)",
+  "Fury (DPS)". Class colouring is unchanged, and it is what tells apart the
+  four spec names that belong to two classes each.
+
+### Added
+- Select All and Deselect All on the pack import, beside the name field. A pack
+  can carry all forty specs, so bringing in one or two of them meant thirty
+  eight clicks of turning the rest off.
+
 ## 1.1.2
 
 ### Fixed
