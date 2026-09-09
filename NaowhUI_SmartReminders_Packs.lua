@@ -912,6 +912,20 @@ function ns.ShowPackImport()
     -- Only for a single-profile pack: a whole-file pack lands each profile under its own
     -- name already, so there is nothing here to rename.
     local nameLabel, nameBox
+    -- A pack can carry all 40 specs, and a curator bringing in one or two of them was
+    -- otherwise 38 clicks of turning things off. Drives specWanted directly and then
+    -- repaints each switch, rather than clicking them, so it stays one pass over the rows
+    -- however many the pack carries.
+    local selectAllBtn, deselectAllBtn
+    local function SetAllWanted(on)
+        for i = 1, #specRows do
+            local row = specRows[i]
+            if row:IsShown() and row.specKey then
+                specWanted[row.specKey] = on or nil
+                if row.Repaint then row.Repaint() end
+            end
+        end
+    end
     -- Anchored under the preview rather than at a fixed offset: the preview grows a line per
     -- profile in the pack, and at a fixed offset the two ran into each other the moment a
     -- string carried more than one.
@@ -920,19 +934,22 @@ function ns.ShowPackImport()
     specHead:SetJustifyH("LEFT")
     specHead:Hide()
 
-    -- "Blood Death Knight" told a curator which spec; ticking specs to bring in one at a
-    -- time wants the class named once and the role picked out, the same axis the class/role
-    -- pickers elsewhere in the addon already use. GetSpecializationInfoByID's positional
-    -- returns (id, name, description, icon, role, primaryStat, className) -- same call
-    -- ns.SpecName already trusts for className at position 7; role sits at position 5.
+    -- Rows read as the spec plus its role, "Protection (Tank)". Naming the class instead
+    -- left three Warrior rows all reading "Warrior (DPS)" with no way to tell Arms from
+    -- Fury, which is the whole point of ticking specs one at a time.
+    --
+    -- GetSpecializationInfoByID's positional returns are
+    -- (id, name, description, icon, role, primaryStat, className) -- the same call
+    -- ns.SpecName already trusts for className at 7. The spec's own name is at 2, and the
+    -- class is still read because it decides the row's color and its place in the order.
     local ROLE_LABEL = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
     local ROLE_SORT = { TANK = 1, HEALER = 2, DAMAGER = 3 }
-    local function SpecClassAndRole(specKey)
+    local function SpecInfo(specKey)
         local id = tonumber(specKey)
-        if not (id and GetSpecializationInfoByID) then return nil, nil end
-        local ok, _, _, _, _, role, _, className = pcall(GetSpecializationInfoByID, id)
-        if not ok then return nil, nil end
-        return className, role
+        if not (id and GetSpecializationInfoByID) then return nil, nil, nil end
+        local ok, _, name, _, _, role, _, className = pcall(GetSpecializationInfoByID, id)
+        if not ok then return nil, nil, nil end
+        return name, className, role
     end
     -- classID doubles as the canonical class order (Warrior..Evoker) the reference grid
     -- uses; GetClassInfo(1..GetNumClasses()) already walks classes in that exact order, the
@@ -957,6 +974,8 @@ function ns.ShowPackImport()
         for i = 1, #specRows do specRows[i]:Hide() end
         if settingsBtn then settingsBtn:Hide() end
         if bindBtn then bindBtn:Hide() end
+        if selectAllBtn then selectAllBtn:Hide() end
+        if deselectAllBtn then deselectAllBtn:Hide() end
         wipe(specWanted)
         -- A whole-file pack is a list of PROFILES; a single-profile one is a list of specs
         -- inside it. Same rows either way, and the same wanted set drives the apply.
@@ -976,7 +995,7 @@ function ns.ShowPackImport()
             -- (Tank, Healer, DPS) -- "Blood Death Knight" sorted alphabetically before,
             -- which scattered a class's specs apart instead of keeping them adjacent.
             for i = 1, #specs do
-                specs[i].className, specs[i].role = SpecClassAndRole(specs[i].key)
+                specs[i].specName, specs[i].className, specs[i].role = SpecInfo(specs[i].key)
             end
             table.sort(specs, function(a, b)
                 local ca, cb = ClassInfo(a.className), ClassInfo(b.className)
@@ -1027,21 +1046,25 @@ function ns.ShowPackImport()
             end
             -- Smaller than the default 40x20 (28x14): a grid row is tighter than a full
             -- settings row, and the default size crowded the class-colored label next to it.
-            btn.toggle = ns.UI.BuildToggleControl(btn, btn:GetFrameLevel() + 1,
+            -- Third return is the toggle's own re-read-and-repaint; the bulk buttons below
+            -- change specWanted directly and need a way to make the switches agree.
+            btn.specKey = spec.key
+            local tgl, _, repaint = ns.UI.BuildToggleControl(btn, btn:GetFrameLevel() + 1,
                 function() return specWanted[spec.key] end,
                 function(v) specWanted[spec.key] = v or nil end, 28, 14)
-            btn.toggle:SetPoint("LEFT", btn, "LEFT", 0, 0)
+            btn.toggle, btn.Repaint = tgl, repaint
+            tgl:SetPoint("LEFT", btn, "LEFT", 0, 0)
             btn.label:ClearAllPoints()
             btn.label:SetPoint("LEFT", btn.toggle, "RIGHT", 6, 0)
-            -- Class named once, role picked out ("Death Knight (Tank)") instead of the
-            -- spec's own full name ("Blood Death Knight") -- same axis the class/role
-            -- pickers elsewhere in the addon already sort and color by. Falls back to the
-            -- plain name (and the theme's default color) for a whole-file pack's profile
-            -- rows, or a spec too new for this client to resolve.
+            -- A bare spec name is not unique across classes -- Protection, Frost, Holy and
+            -- Restoration each belong to two -- so the class survives as the row's color,
+            -- and the grid's class-order grouping keeps each pair well apart on the page.
+            -- Falls back to the plain name (and the theme's default color) for a whole-file
+            -- pack's profile rows, or a spec too new for this client to resolve.
             local ci = spec.className and ClassInfo(spec.className)
             local color = ci and classColors and classColors[ci.token]
-            if spec.className and spec.role then
-                btn.label:SetText(("%s (%s)"):format(spec.className,
+            if spec.specName and spec.role then
+                btn.label:SetText(("%s (%s)"):format(spec.specName,
                     ROLE_LABEL[spec.role] or spec.role))
             else
                 btn.label:SetText(spec.name)
@@ -1149,6 +1172,27 @@ function ns.ShowPackImport()
             nameLabel:Hide()
             nameBox:Hide()
         end
+
+        -- On the Save as row, where there is free width; on its own row for a whole-file
+        -- pack, which has no name field.
+        if not selectAllBtn then
+            selectAllBtn = ns.Button(panel, "Select All", 84, 22, function() SetAllWanted(true) end)
+            deselectAllBtn = ns.Button(panel, "Deselect All", 96, 22, function() SetAllWanted(false) end)
+        end
+        selectAllBtn:ClearAllPoints()
+        if nameBox and nameBox:IsShown() then
+            selectAllBtn:SetPoint("LEFT", nameBox, "RIGHT", 12, 0)
+        else
+            local anchorTo = (bindBtn and bindBtn:IsShown() and bindBtn)
+                or (settingsBtn and settingsBtn:IsShown() and settingsBtn)
+                or gridAnchor or specHead
+            selectAllBtn:SetPoint("TOPLEFT", anchorTo, "BOTTOMLEFT",
+                anchorTo == specHead and 6 or 0, -16)
+        end
+        deselectAllBtn:ClearAllPoints()
+        deselectAllBtn:SetPoint("LEFT", selectAllBtn, "RIGHT", 6, 0)
+        selectAllBtn:Show()
+        deselectAllBtn:Show()
 
         -- The panel takes whatever the rows came to. A pack covering ten classes is ten rows
         -- longer than one covering one, and a fixed height either wasted half the dialog or
