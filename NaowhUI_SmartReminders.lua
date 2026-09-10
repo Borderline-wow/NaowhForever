@@ -1641,6 +1641,7 @@ local readyAt = {}          -- [list spellID] = GetTime() at which it is back up
 -- makes the pick name a different defensive that IS up, which is a worse choice, not
 -- silence. Too short names one that is down, which is worthless at the moment it matters.
 local KNOWN_BASE_COOLDOWN = {
+    [1966] = 15,      -- Feint: recharge fallback when charge duration is unavailable
     [642] = 300,      -- Divine Shield
     [86659] = 300,    -- Guardian of Ancient Kings
 }
@@ -1843,6 +1844,10 @@ function EnsureChargeState(sid)
         -- readable cooldown, or there is no climb.
         local t = TRDB()
         local learned = type(t.learned) == "table" and t.learned[tostring(sid)] or nil
+        -- Feint's legacy inactive-flag measurement captured time between observations
+        -- (334s in the reporter's log), not its recharge. Use its known base instead.
+        -- Client-reported charge durations still take precedence below and on refresh.
+        if sid == 1966 then learned = nil end
         -- Kept apart from `learned` because the seed floor below must not touch it. The
         -- floor exists for figures measured off isActive, which lies for a talent-granted
         -- extra charge; a number the client stated outright is not that, and floors were
