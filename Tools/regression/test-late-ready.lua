@@ -36,6 +36,7 @@ local function Fixture()
         end,
         HideReminder = function() end, DEFAULTS = { lingerSec = 5 },
     }
+    env.ns.HasMessageDefensive = function() return false end
     env.ns.AbilityEnabledForBinding = function() return e.enabled end
     env.ns.BindingForBossModKey = function() return e.custom and { mode = "custom" } end
     setmetatable(env, { __index = _G })

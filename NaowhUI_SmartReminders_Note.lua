@@ -63,11 +63,6 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
     -- saved data (an old season's boss with reminders still stored).
     local instList = {}
     for i = 1, #data.instances do instList[#instList + 1] = data.instances[i] end
-    -- Not a journal instance: encounter 0 is the boss-less bucket a Time In Combat
-    -- reminder lives in (ns.CheckCombatReminders reads it on entering combat). Appended
-    -- rather than put first so the tab still opens on a real instance.
-    instList[#instList + 1] = { id = "anyCombat", name = "Any Combat (no boss)",
-        bosses = { { name = "Any Combat", encounterID = 0 } } }
     do
         local known = {}
         for _, inst in ipairs(instList) do
