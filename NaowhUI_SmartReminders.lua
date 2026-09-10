@@ -1422,7 +1422,7 @@ local function CoveredByActiveDefensive(fp)
             if eligible > MAX_SLOTS then break end
             if playerAuraUp[sid] then return true, sid, "aura" end
             local window = TRDB().coveredCastWindow or OWN_CAST_COVER_DEFAULT
-            if window > 0 and ownCastAt[sid] and (now - ownCastAt[sid]) < window then
+            if window > 0 and ownCastAt[ns.CooldownKey(sid)] and (now - ownCastAt[ns.CooldownKey(sid)]) < window then
                 return true, sid, "cast"
             end
             -- Fallback for a buff that was already up before tracking could see it apply
@@ -1631,6 +1631,11 @@ local KNOWN_BASE_COOLDOWN = {
     [86659] = 300,    -- Guardian of Ancient Kings
 }
 
+-- All readiness readers use the same key as player-cast accounting.
+function ns.CooldownKey(sid)
+    return ns.cooldownAliases and ns.cooldownAliases[sid] or sid
+end
+
 -- GetSpellCooldownDuration describes the COOLDOWN. A charge spell is gated by its
 -- RECHARGE, which is a separate clock, and the two disagree in both directions:
 --
@@ -1749,6 +1754,7 @@ local function ReadChargeRecharge(sid)
 end
 
 function EnsureChargeState(sid)
+    sid = ns.CooldownKey(sid)
     local max, active, ok = ReadChargeShape(sid)
     if not ok then
         -- The read itself failed -- keep whatever is already tracked rather than guessing.
@@ -1824,6 +1830,7 @@ function EnsureChargeState(sid)
 end
 
 function ChargesAvailable(sid)
+    sid = ns.CooldownKey(sid)
     local st = chargeState[sid]
     if not st then return nil end
 
@@ -1891,45 +1898,11 @@ function ChargesAvailable(sid)
         end
     end
 
-    if max and not active then
-        -- Back to full, and if exactly one charge was out this is a free MEASUREMENT of
-        -- the recharge: the gap between the cast that broke the stack and the moment the
-        -- engine stopped reporting a recharge IS the per-charge time. Plain signals only,
-        -- so unlike reading the cooldown it works in restricted content, which is the only
-        -- place this matters. Restricted to the one-charge case on purpose -- with two out
-        -- the elapsed time covers two recharges and our own count is the thing in doubt.
-        -- Still only from zero, deliberately. Letting a measurement correct a SEEDED
-        -- recharge was tried and reverted: this measurement is timed off isActive, and
-        -- isActive is exactly the signal known to lie for a talent-granted extra charge
-        -- (see the snap below). Using it to overwrite a seed would let that lie become the
-        -- stored rate, which is the bug being fixed here rather than a cure for it. With no
-        -- seed at all there is nothing better available, so it still runs there.
-        if st.recharge <= 0 and st.missingSince and st.count == st.max - 1 then
-            local measured = GetTime() - st.missingSince
-            if measured > 1.5 then
-                st.recharge, st.rechargeSrc = measured, "measured"
-                local t = TRDB()
-                if type(t.learned) ~= "table" then t.learned = {} end
-                t.learned[tostring(sid)] = measured
-            end
-        end
-
-        -- MEASURED: Guardian of Ancient Kings' talent-granted second charge snapped this
-        -- straight to max 138 seconds after a real cast, against a ~180s known recharge.
-        -- Blizzard's own SpellChargeInfo docs say isActive reads false for two DIFFERENT
-        -- reasons -- "at maximum available charges" OR "start time or duration are zero" --
-        -- and an extra charge layered on top of native 1-charge spell data can hit the
-        -- second case while genuinely still short a charge. Once a real recharge rate is
-        -- known, only trust "at max" once that much time has actually passed; with no rate
-        -- known yet there is nothing to check against, so the original correction still
-        -- applies immediately (that is what recovers a wrongly pessimistic first guess).
-        if st.recharge <= 0 or (GetTime() - st.tick) >= st.recharge then
-            -- rechargeStart goes with it: the next recharge is a new one, and a stale start
-            -- left here would read as several landings at once the next time one runs.
-            st.count, st.tick, st.missingSince, st.rechargeStart = st.max, GetTime(), nil, nil
-            return st.count
-        end
-    end
+    -- An inactive flag does not prove that every charge is back. With two
+    -- charges missing, one elapsed recharge can restore only one. Let the
+    -- clock below advance by the actual number of intervals; only a readable
+    -- currentCharges result above can replace that count outright. Do not
+    -- learn a recharge duration from this ambiguous flag either.
 
     if st.recharge > 0 and st.count < st.max then
         local gained = math.floor((GetTime() - st.tick) / st.recharge)
@@ -1976,15 +1949,87 @@ function ChargesAvailable(sid)
 end
 local castToBase = {}       -- cast-time override id -> the id the list stores
 
+-- Track all configured spells, not just the preset currently drawn. Boss abilities
+-- and custom reminders can select another preset without rebuilding the display's
+-- cast map, and a spell may be pressed before its first warning of the pull.
+ns.trackedCooldownSpells = {}
 local function RebuildCastMap()
-    wipe(castToBase)
-    for i = 1, activeSlots do
-        local sid = slots[i].spellID
-        castToBase[sid] = sid
+    local aliases, configured = {}, {}
+    local function Root(sid)
+        while aliases[sid] and aliases[sid] ~= sid do sid = aliases[sid] end
+        return sid
+    end
+    local function Add(sid)
+        if type(sid) ~= "number" or sid <= 0 or configured[sid] then return end
+        configured[sid] = true
+        aliases[sid] = aliases[sid] or sid
         if C_Spell and C_Spell.GetOverrideSpell then
             local ok, ov = pcall(C_Spell.GetOverrideSpell, sid)
-            if ok and ov and ov ~= sid then castToBase[ov] = sid end
+            if ok and not (issecretvalue and issecretvalue(ov))
+                and type(ov) == "number" and ov > 0 and ov ~= sid then
+                aliases[ov] = aliases[ov] or ov
+                local base, replacement = Root(sid), Root(ov)
+                if base ~= replacement then aliases[replacement] = base end
+            end
         end
+    end
+    local function AddList(list)
+        if type(list) ~= "table" then return end
+        for i = 1, #list do Add(list[i]) end
+    end
+    for i = 1, activeSlots do Add(slots[i].spellID) end
+    local presets = PresetsTable(specID, false)
+    if presets then
+        for _, preset in pairs(presets) do
+            if type(preset) == "table" then AddList(preset.list) end
+        end
+    end
+    -- Older per-boss/per-ability lists still participate in EffectiveList.
+    local legacy = TRDB().bossLists
+    if type(legacy) == "table" then
+        local prefix = tostring(specID) .. ":"
+        for key, list in pairs(legacy) do
+            if type(key) == "string" and key:sub(1, #prefix) == prefix then AddList(list) end
+        end
+    end
+
+    -- Finish discovering aliases before seeding or sampling any state. Otherwise
+    -- preset iteration order can create two independent counters for one ability.
+    local merged, deadlines, casts, roots = {}, {}, {}, {}
+    for sid in pairs(aliases) do
+        local root = Root(sid)
+        roots[sid] = root
+        local previous = castToBase[sid] or sid
+        local state = chargeState[previous]
+        local kept = merged[root]
+        -- Existing counters may already disagree. Keep the lower count (and the
+        -- later anchor on a tie); a readable client count can correct it afterward.
+        if state and (not kept or state.count < kept.count
+            or (state.count == kept.count and state.tick > kept.tick)) then
+            merged[root] = state
+        end
+        if readyAt[previous] then
+            deadlines[root] = math.max(deadlines[root] or 0, readyAt[previous])
+        end
+        if ownCastAt[previous] then
+            casts[root] = math.max(casts[root] or 0, ownCastAt[previous])
+        end
+    end
+    wipe(castToBase)
+    wipe(ns.trackedCooldownSpells)
+    for sid, root in pairs(roots) do castToBase[sid] = root end
+    ns.cooldownAliases = castToBase
+    for sid, root in pairs(roots) do
+        if sid == root then
+            chargeState[root] = merged[root]
+            readyAt[root], ownCastAt[root] = deadlines[root], casts[root]
+            ns.trackedCooldownSpells[#ns.trackedCooldownSpells + 1] = root
+        end
+    end
+    for i = 1, #ns.trackedCooldownSpells do
+        local sid = ns.trackedCooldownSpells[i]
+        pcall(EnsureChargeState, sid)
+        pcall(ChargesAvailable, sid)
     end
 end
 
@@ -2052,7 +2097,9 @@ local function LogLine(e)
         tostring(e.running), e.charges and (" charges=" .. e.charges) or "",
         e.readyAtDelta and ("%.1fs"):format(e.readyAtDelta) or "n/a", tostring(e.secrecy),
         e.tankPath and (" tankCheck=%s(%s)"):format(e.tankPath, nameOf(e.tankSid)) or "",
-        (e.withSids and (" with=" .. e.withSids) or "")
+        (e.castTracked ~= nil and (" castTracked=" .. tostring(e.castTracked)) or "")
+            .. (e.lastOwnCastAgo and (" lastCast=%.1fs ago"):format(e.lastOwnCastAgo) or "")
+            .. (e.withSids and (" with=" .. e.withSids) or "")
             .. (e.auraUp and (" auraUp=" .. e.auraUp) or "")
             .. (e.chargeModel and ("\n    charges: " .. e.chargeModel) or ""))
 end
@@ -2179,6 +2226,7 @@ function ns.LearnTotal(sid, total)
 end
 
 local function ResyncSpell(sid)
+    sid = ns.CooldownKey(sid)
     -- Re-read the shape every pass. A talent swap can add or remove charges, and a
     -- stale shape is what makes the model confidently wrong rather than absent.
     EnsureChargeState(sid)
@@ -2231,8 +2279,8 @@ local function ResyncSpell(sid)
 end
 
 local function ResyncModel()
-    for i = 1, activeSlots do
-        ResyncSpell(slots[i].spellID)
+    for i = 1, #ns.trackedCooldownSpells do
+        ResyncSpell(ns.trackedCooldownSpells[i])
     end
 end
 
@@ -2297,6 +2345,7 @@ function CooldownRunning(sid)
 end
 
 local function SpellReady(sid, now)
+    sid = ns.CooldownKey(sid)
     local charges = ChargesAvailable(sid)
     if charges then return charges > 0 end
 
@@ -2460,7 +2509,7 @@ local function ChargeModelSnapshot()
     local out
     for i = 1, activeSlots do
         local s = slots[i] and slots[i].spellID
-        local st = s and chargeState[s]
+        local st = s and chargeState[ns.CooldownKey(s)]
         if st then
             out = (out and out .. " " or "") .. ("%d=%d/%d %ds(%s) age=%ds cdRunning=%s"):format(
                 s, ChargesAvailable(s) or 0, st.max, st.recharge or 0,
@@ -2472,7 +2521,7 @@ local function ChargeModelSnapshot()
 end
 
 local function LogCallout(sid, partners)
-    local st = chargeState[sid]
+    local st = chargeState[ns.CooldownKey(sid)]
     local running = CooldownRunning(sid)
     -- Which of the player's own defensives the combat-log tracking believed were up at the
     -- moment this went out. A callout naming a second defensive seconds after the first one
@@ -2489,8 +2538,10 @@ local function LogCallout(sid, partners)
         sid = sid,
         charges = st and ("%d/%d"):format(ChargesAvailable(sid) or 0, st.max) or nil,
         chargeModel = ChargeModelSnapshot(),
+        castTracked = castToBase[sid] ~= nil,
+        lastOwnCastAgo = ownCastAt[ns.CooldownKey(sid)] and (GetTime() - ownCastAt[ns.CooldownKey(sid)]) or nil,
         running = running == nil and "unreadable" or tostring(running),
-        readyAtDelta = readyAt[sid] and (readyAt[sid] - GetTime()) or nil,
+        readyAtDelta = readyAt[ns.CooldownKey(sid)] and (readyAt[ns.CooldownKey(sid)] - GetTime()) or nil,
         secrecy = SecrecyLevelName(sid),
         -- Only present when Only While I Have the Boss was actually the gate that let
         -- this through -- how TankingCaster answered for the BOSS ABILITY that triggered
@@ -2635,6 +2686,8 @@ local function SpeakCallout(triggerSid)
         if not ns.IsAudioOff(0) then Announce(0, t.voiceNone) end
         -- Outside the audio gate: silencing the callout should not silence the chat call.
         ns.AnnounceExternalToChat()
+    elseif ok then
+        return "waiting"
     end
 end
 
@@ -3281,9 +3334,8 @@ local function ActivateCustomReminder(r, scope)
         ns.DisplayReminder(r)
         return
     end
-    -- PLAYER_REGEN_ENABLED is registered under ShouldRun(), which custom reminders
-    -- deliberately do not require, so the cancel on leaving combat is not guaranteed to
-    -- have run and a combat-scoped timer can outlive the fight it was set in.
+    -- Custom reminders need not have any tracked cooldown spells, so the regen
+    -- listener may be absent. Recheck combat before a combat-scoped timer fires.
     local combat = (scope == "combat")
     for i = 1, #delays do
         ns.TrackReminderTimer(scope or "pull", delays[i], function()
@@ -3922,7 +3974,27 @@ end
 -- ability's own enabled/mode choice can all change across a multi-second bar, and the
 -- moment that matters is the one right before the hit lands, not the one the warning
 -- started.
-local function FireBigWigsAbility(sid)
+local function FireBigWigsAbility(sid, lateRetry)
+    if lateRetry then
+        if not (frame and TRDB().enabled and TRDB().voiceOn
+            and ShouldRun() and InEncounter()) then return end
+        -- Read the binding again: the visible slots can belong to another warning.
+        -- An empty retry must not rebuild frames or extend their display timer.
+        local list = EffectiveList(specID, currentEncounter, tostring(sid))
+        if not list then return end
+        local configured, ready = false, false
+        local now = GetTime()
+        for i = 1, #list do
+            local spellID = list[i]
+            if IsSpellAvailable(spellID) and not IsSpellDisabled(spellID) then
+                configured = true
+                ResyncSpell(spellID)
+                if SpellReady(spellID, now) then ready = true break end
+            end
+        end
+        if not configured then return end
+        if not ready then return "waiting" end
+    end
     if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     -- Mutually exclusive with Custom Reminder: when the ability picker's toggle is set to
     -- Custom Reminder for this exact ability, that reminder (matched separately off the
@@ -4000,10 +4072,11 @@ local function FireBigWigsAbility(sid)
     shownForEvent = sid
     frame:Show()
     if textFrame then textFrame:Show() end
-    SpeakCallout(sid)
+    local result = SpeakCallout(sid)
     lastCalloutAt = GetTime()
     if hideTimer then hideTimer:Cancel() end
     hideTimer = C_Timer.NewTimer(TRDB().lingerSec or DEFAULTS.lingerSec, HideReminder)
+    return result
 end
 
 -- Setup's per-ability Test button. Fires the ability through FireBigWigsAbility itself --
@@ -4172,12 +4245,38 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
 
     local entry = { fireAt = fireAt, aliases = aliases, uptime = uptime,
         approx = (isApprox == true) }
-    entry.timer = C_Timer.NewTimer(delay, function()
+    entry.endsAt = GetTime() + duration
+    local function finish()
         for k in pairs(aliases) do
             if sidFires[k] == entry then sidFires[k] = nil end
         end
-        fireFn(sid)
-    end)
+    end
+    local function attempt()
+        -- Keep the entry indexed while waiting so stops, resyncs and encounter reset
+        -- cancel the retry through the same aliases as the original warning.
+        if entry.late and GetTime() >= entry.endsAt then
+            if TRDB().trace then
+                AppendLog({ kind = "drop", sid = sid, text = "late-ready window expired" })
+            end
+            finish()
+            return
+        end
+        local result = fireFn(sid, entry.late)
+        local remaining = entry.endsAt - GetTime()
+        if channel == "tank" and result == "waiting" and remaining > 0 then
+            if not entry.late and TRDB().trace then
+                AppendLog({ kind = "drop", sid = sid,
+                    text = "no cooldown ready; waiting until bar expiry" })
+            end
+            entry.late = true
+            -- No permanent ticker or new event registrations. Work exists only for an
+            -- empty warning, at most ten checks per second until this bar's deadline.
+            entry.timer = C_Timer.NewTimer(math.min(0.1, remaining), attempt)
+        else
+            finish()
+        end
+    end
+    entry.timer = C_Timer.NewTimer(delay, attempt)
     -- A kept entry under one of these identities means the module reused the bar text, so it
     -- is the same bar after all: end it rather than orphan a timer that still fires.
     for k in pairs(aliases) do
@@ -4224,9 +4323,9 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
         -- hit". A duplicate costs a moment of attention; a silent buster costs the tank.
         -- ScheduleBWFire already collapses genuine duplicates on this path by superseding
         -- whatever is pending for the sid, so nothing here needs the guard anyway.
-        ns.ScheduleBWFire("tank", sid, duration, barIdentity, lead, function(fireSid)
+        ns.ScheduleBWFire("tank", sid, duration, barIdentity, lead, function(fireSid, lateRetry)
             lastBWSid, lastBWAt = fireSid, GetTime()
-            FireBigWigsAbility(fireSid)
+            return FireBigWigsAbility(fireSid, lateRetry)
         end, isApprox)
     else
         -- No duration means this is the cast itself landing, not a countdown to one, and
@@ -4316,7 +4415,7 @@ local function CancelPendingBWFire(barIdentity)
         for sid, sidFires in pairs(fires) do
             local f = sidFires[barIdentity]
             if f then
-                if f.approx then
+                if f.approx and not f.late then
                     if TRDB().trace then
                         AppendLog({ kind = "drop", sid = sid,
                             text = ("kept estimate fire, bar '%s' stopped %.1fs before it"):format(
@@ -4390,6 +4489,35 @@ end
 local bwCdEndsAt = {}
 local UPTIME_MATCH_WINDOW = 1.5
 
+-- Verified ordinary-Bar uptimes. Keep these encounter-scoped and match the
+-- module's configured rename slot, not English text or duration alone.
+-- XathuuxTheAnnihilator:DemonicRageTimeline emits slot 3 as a message and a
+-- 15s Bar after its 4s CastBar. Slot 1 is the countdown's base label.
+ns.bossModUptimeRules = {
+    [3103] = { [474197] = { rename = 3, duration = 15, message = true } },
+}
+
+function ns.IsVerifiedBossModUptime(module, key, text, duration, isApprox)
+    local encounterRules = ns.bossModUptimeRules[currentEncounter]
+    local rule = encounterRules and encounterRules[key]
+    if not rule or type(module) ~= "table" or module.engageId ~= currentEncounter
+        or type(module.GetRename) ~= "function" then return false end
+    if duration ~= nil then
+        if isApprox ~= false or duration ~= rule.duration then return false end
+    elseif not rule.message then
+        return false
+    end
+    local ok, label = pcall(module.GetRename, module, key, rule.rename)
+    local baseOK, base = pcall(module.GetRename, module, key, 1)
+    if not ok or not baseOK or (issecretvalue and (issecretvalue(label) or issecretvalue(base)))
+        or type(label) ~= "string" or type(base) ~= "string" or label == base
+        or text ~= label then return false end
+    if TRDB().trace then
+        AppendLog({ kind = "drop", sid = key, text = "verified uptime: " .. label })
+    end
+    return true
+end
+
 local function NoteBossModBar(key, duration, isApprox)
     if isApprox and type(duration) == "number" and duration > 0 then
         bwCdEndsAt[key] = GetTime() + duration
@@ -4422,45 +4550,26 @@ local function OnBigWigsEvent(event, ...)
     -- gate -- so a player with the feature off, or outside allowed content, records
     -- nothing, matching what the rest of this bridge already treats as "not running".
     if event == "BigWigs_Message" then
-        local _, key, text = ...
+        local module, key, text = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text)) then return end
+        if ns.IsVerifiedBossModUptime(module, key, text) then return end
         if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "message") end
         if ns.ObserveCast then ns.ObserveCast(key, "BW", nil, nil) end
         ns.HandleBigWigsAbility(key)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key) end
         if not hasCustomReminders then return end
         CheckBossModMessage("BW", key)
-    elseif event == "BigWigs_StartBar" then
-        local _, key, text, duration, _, isApprox = ...
-        if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
-        -- BigWigs' own preview bars, raised from its options and Edit Mode, carry no key.
-        -- Nothing below can name an ability without one, and NoteBossModBar indexes by it.
-        if key == nil then return end
-        if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
-        if IsUptimeBar(key, isApprox) then
-            if TRDB().trace then
-                AppendLog({ kind = "drop", sid = key, text = "uptime bar" })
-            end
-            return
-        end
-        NoteBossModBar(key, duration, isApprox)
-        -- BigWigs only ever hands the bar TEXT back on stop/pause, so text doubles as
-        -- both the cancellation identity and the count-extraction source.
-        if ns.ObserveCast then ns.ObserveCast(key, "BW", duration, text) end
-        ns.HandleBigWigsAbility(key, duration, text, nil, isApprox)
-        if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key, duration, text) end
-        if not hasCustomReminders then return end
-        CheckBossModTimerStart("BW", key, text, duration, text)
     elseif event == "BigWigs_Timer" then
-        -- The newer non-bar timer API; some modules fire this INSTEAD of StartBar. When
-        -- isBarEnabled (the last argument) is true, StartBar already fired for the same
-        -- bar and handling both would double the reminder.
-        local _, key, duration, _, text, _, _, isApprox, isBarEnabled = ...
+        -- Bar and CDBar always publish this callback, even with visual bars enabled.
+        -- CastBar instead publishes BigWigs_CastTimer. StartBar mixes all three,
+        -- so using it scheduled a second warning for Chillstorm's cast/debuff bar.
+        -- The regular timer callback retains exact countdowns without guessing their
+        -- purpose from the approximate-duration flag or elapsed wall-clock time.
+        local module, key, duration, _, text, _, _, isApprox = ...
         if issecretvalue and (issecretvalue(key) or issecretvalue(text) or issecretvalue(duration)) then return end
-        if not isBarEnabled and CustomRemindersAllowed() then
-            RecordBossModKey("BW", key, text, "timer")
-        end
-        if isBarEnabled then return end
+        if key == nil then return end
+        if ns.IsVerifiedBossModUptime(module, key, text, duration, isApprox) then return end
+        if CustomRemindersAllowed() then RecordBossModKey("BW", key, text, "timer") end
         if IsUptimeBar(key, isApprox) then
             if TRDB().trace then
                 AppendLog({ kind = "drop", sid = key, text = "uptime bar" })
@@ -4570,7 +4679,6 @@ local function RegisterBossModHooks()
         local ok = pcall(function()
             local BWL = _G.BigWigsLoader
             BWL.RegisterMessage(ns, "BigWigs_Message", OnBigWigsEvent)
-            BWL.RegisterMessage(ns, "BigWigs_StartBar", OnBigWigsEvent)
             BWL.RegisterMessage(ns, "BigWigs_Timer", OnBigWigsEvent)
             BWL.RegisterMessage(ns, "BigWigs_StopBar", OnBigWigsEvent)
             BWL.RegisterMessage(ns, "BigWigs_PauseBar", OnBigWigsEvent)
@@ -4738,6 +4846,18 @@ local function UpdateEventRegistration()
         end
     end
 
+    -- Cast history must survive gaps between bosses and empty display presets.
+    -- Only the master switch and the configured watch list gate these inputs.
+    if TRDB().enabled and #ns.trackedCooldownSpells > 0 then
+        watcher:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+        watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
+        watcher:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+    else
+        watcher:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+        watcher:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        watcher:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
+    end
+
     if not ShouldRun() then
         runActive = false
         -- COMBAT_LOG_EVENT_UNFILTERED (a HasRestrictions event) is NEVER unregistered,
@@ -4749,9 +4869,6 @@ local function UpdateEventRegistration()
         -- that context. pcall cannot catch a forbidden call, so there is no window to
         -- find. OnCombatLog already self-gates on `currentEncounter == nil`, so leaving it
         -- registered costs one plain read per event and changes no behaviour.
-        watcher:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-        watcher:UnregisterEvent("PLAYER_REGEN_ENABLED")
-        watcher:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
         watcher:UnregisterEvent("PLAYER_ALIVE")
         watcher:UnregisterEvent("PLAYER_UNGHOST")
         -- ENCOUNTER_START and ENCOUNTER_END stay registered, always. Dropping them was a
@@ -4773,13 +4890,6 @@ local function UpdateEventRegistration()
         HideReminder()
         return
     end
-
-    -- The cooldown model's inputs. Unit-filtered, so the cast event fires only for the
-    -- player's own presses; regen feeds the resync. SPELL_UPDATE_COOLDOWN drives the plain
-    -- nil-signal correction -- event-driven, a handful of C calls per fire, no polling.
-    watcher:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
-    watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
-    watcher:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 
     -- Which boss we are on, so a per-boss override can take over from the spec default.
     watcher:RegisterEvent("ENCOUNTER_START")
@@ -5458,7 +5568,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
             local ok, ready = pcall(SpellReady, sid, now)
             if ok and ready then anyReady = true end
-            local st = chargeState[sid]
+            local st = chargeState[ns.CooldownKey(sid)]
             local detail = st
                 and ("%d/%d charges, recharge %s (%s)"):format(
                     ChargesAvailable(sid) or 0, st.max,
@@ -6917,7 +7027,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
                 event == "ENCOUNTER_START" and "START" or "END",
                 tostring(arg1), tostring(arg2)) })
         end
-        if event == "ENCOUNTER_END" then wipe(readyAt) end
+        -- Boss death does not reset the player's cooldowns; keep witnessed deadlines.
         wipe(ns.lastTankedAt)
         lastAnnouncedSpellID = nil
         RebuildSlots()          -- swap to this boss's list before the first ability lands

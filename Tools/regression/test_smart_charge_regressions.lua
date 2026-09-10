@@ -133,7 +133,7 @@ Case("cold start while recharging stays conservative", function()
     e.time, e.remaining = 45, 45
     Eq(e.available(SID), 1)
 end)
-Case("inactive recharge still recovers a confirmed full stack", function()
+Case("two elapsed recharges recover a full stack with an inactive flag", function()
     local e = Fixture()
     e.states[SID].count = 0
     e.time = 100
@@ -168,6 +168,36 @@ Case("readable charge can recover before an estimated deadline", function()
     local e = Fixture()
     e.states[SID].count = 0
     e.time, e.plain, e.count = 10, true, 1
+    Eq(e.available(SID), 1)
+end)
+Case("one elapsed recharge restores one spent charge, not the full stack", function()
+    local e = Fixture()
+    e.active, e.remaining = true, 45
+    e.cast(SID)
+    e.time, e.remaining = 23, 22
+    e.cast(SID)
+    Eq(e.available(SID), 0)
+    e.time, e.active, e.remaining = 45, false, nil
+    Eq(e.available(SID), 1)
+end)
+Case("Golden Serpent cast sequence stays empty after the fourth cast", function()
+    local e = Fixture()
+    e.active, e.remaining = true, 45
+    e.cast(SID) -- 08:07:09
+    Eq(e.available(SID), 1)
+    e.time, e.remaining = 23, 22
+    e.cast(SID) -- 08:07:32
+    e.time, e.remaining = 64, 26
+    Eq(e.available(SID), 1) -- 08:08:13
+    e.time, e.remaining = 66, 24
+    e.cast(SID) -- 08:08:15
+    -- Exercise the ambiguous inactive read at the next recharge boundary.
+    e.time, e.active, e.remaining = 90, false, nil
+    e.available(SID)
+    e.cast(SID) -- 08:08:39
+    e.time, e.active, e.remaining = 129, true, 6
+    Eq(e.available(SID), 0) -- 08:09:18: actual reported bad call
+    e.time, e.remaining = 135, 45
     Eq(e.available(SID), 1)
 end)
 print(cases .. " cases; " .. failures .. " failures")
