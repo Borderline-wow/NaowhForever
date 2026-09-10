@@ -1969,20 +1969,9 @@ function ChargesAvailable(sid)
         st.count = st.max - 1
     end
 
-    -- The floor: a state built while a recharge was already going seeds zero and would
-    -- otherwise stay exactly one behind for as long as the stack never refills, which is
-    -- the Divine Shield callout with a charge in hand reproduced on Rav'i.
-    --
-    -- `not active` is load bearing. An idle cooldown does NOT prove a charge is in hand:
-    -- at ZERO charges the spell cooldown is not running either, exactly as the header of
-    -- this section documents, so without this guard the floor invented a charge precisely
-    -- when the stack was empty. That is the Death's Advance callout on Rav'i, named while
-    -- the trace read cdRunning=false. isActive is plain and says outright that something
-    -- is still recharging, which settles which of the two an idle cooldown means.
-    -- A failed shape read returns nil, not a confirmed inactive recharge.
-    if st.count < 1 and max and active == false and CooldownRunning(sid) == false then
-        st.count = 1
-    end
+    -- An inactive cooldown does not establish an available charge. Keep a
+    -- tracked empty stack empty until the recharge model or a readable count
+    -- above restores it; a fallback floor here bypassed the recharge deadline.
     return st.count
 end
 local castToBase = {}       -- cast-time override id -> the id the list stores

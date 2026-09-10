@@ -147,5 +147,28 @@ Case("unexpected secret count is not compared", function()
     e.count, e.plain = e.secret, true
     Eq(e.available(SID), 2)
 end)
+Case("idle cooldown cannot restore a spent charge before its deadline", function()
+    local e = Fixture()
+    e.active, e.remaining = true, 45
+    e.cast(SID)
+    e.time, e.remaining = 10, 35
+    e.cast(SID)
+    Eq(e.available(SID), 0)
+    -- The recharge read temporarily disappears and the inactive flag returns.
+    -- Neither is a charge landing: the tracked deadline is still 45 seconds.
+    e.time, e.active, e.remaining = 11, false, nil
+    Eq(e.available(SID), 0)
+    Eq(e.available(SID), 0)
+    e.time, e.active, e.remaining = 12, true, 33
+    Eq(e.available(SID), 0)
+    e.time, e.remaining = 45, 45
+    Eq(e.available(SID), 1)
+end)
+Case("readable charge can recover before an estimated deadline", function()
+    local e = Fixture()
+    e.states[SID].count = 0
+    e.time, e.plain, e.count = 10, true, 1
+    Eq(e.available(SID), 1)
+end)
 print(cases .. " cases; " .. failures .. " failures")
 if failures > 0 then os.exit(1) end

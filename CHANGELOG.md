@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.2
+
+### Fixed
+- Removed a charge-tracking fallback that could mark an empty defensive as ready
+  before its recharge finished, causing callouts for unavailable abilities such
+  as Death's Advance.
+
 ## 1.3.1
 
 ### Fixed
