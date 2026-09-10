@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.3.4
+
+### Fixed
+- Preserve charge counters across temporary API changes and avoid crediting a
+  completed recharge twice, preventing false ready calls for charge abilities.
+- Restore Feint charges when recharge data is unavailable and disregard its old
+  inferred recharge estimate that could leave reminders silent for minutes.
+- Keep delayed message reminders through unrelated settings refreshes and cancel
+  them when their reminder is disabled, deleted, or replaced.
+- Handle boss messages emitted at encounter start before setup finishes.
+
+### Added
+- Opt-in BigWigs/DBM message triggers with a delay and defensive preset selection.
+  Existing timer-bar bindings remain for abilities without an enabled message reminder.
+- BigWigs ability selection and a single-page reminder editor. Time-in-combat
+  trigger creation is removed.
+- Bounded charge-model diagnostics included in exports even when trace is off.
+
+### Validation
+- 106 automated regression checks pass under Lua 5.1.
+- User verified Death's Advance behavior, boss-message triggers, and Feint recovery
+  with icons and sound in game. Fiery Brand has automated coverage only.
+- A newly reported Windwalker issue is under investigation and is not claimed fixed.
+
 ## 1.3.3
 
 ### Fixed
