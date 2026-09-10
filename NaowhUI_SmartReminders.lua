@@ -273,8 +273,17 @@ function ns.DeletePreset(forSpec, presetKey)
     local count = 0
     for _ in pairs(presets) do count = count + 1 end
     if count <= 1 then return false end
-    presets[presetKey] = nil
     local t = TRDB()
+    for _, set in pairs(t.customReminders or {}) do
+        for _, r in pairs(set) do
+            if r.preset == presetKey and (not r.specID or r.specID == forSpec) then
+                ns.Print("Reassign or delete reminder '" .. (r.name or "Reminder")
+                    .. "' before deleting this preset.")
+                return false
+            end
+        end
+    end
+    presets[presetKey] = nil
     local key = tostring(forSpec or 0)
     if type(t.activePreset) == "table" and t.activePreset[key] == presetKey then
         t.activePreset[key] = nil
@@ -432,7 +441,12 @@ local currentDifficultyID
 -- fp, when given, is a spellID (as a string) from the ability picker's Pre-Selected
 -- Defensives dropdown -- checked first since it is the most specific, most recent choice
 -- for this exact ability.
-local function EffectiveList(forSpec, encounterID, fp)
+local function EffectiveList(forSpec, encounterID, fp, presetOverride)
+    if presetOverride then
+        local presets = PresetsTable(forSpec, false)
+        local preset = presets and presets[presetOverride]
+        return preset and preset.list, true, presetOverride
+    end
     if encounterID and fp then
         local sid = tonumber(fp)
         local binding = sid and ns.BindingForBossModKey and ns.BindingForBossModKey(encounterID, sid)
@@ -899,11 +913,11 @@ end
 -- Talent state is plain, so everything here -- which spells qualify, how many slots exist,
 -- what icon each carries -- is decided in the clear and never mid-fight. The secret half
 -- only ever touches alpha.
-local function RebuildSlots(fp, keepIfEmpty)
+local function RebuildSlots(fp, keepIfEmpty, presetOverride)
     -- A warning with no usable defensive must leave the current display intact.
     if keepIfEmpty then
         if not frame then return false end
-        local candidateList = EffectiveList(specID, currentEncounter, fp)
+        local candidateList = EffectiveList(specID, currentEncounter, fp, presetOverride)
         if not candidateList then return false end
         local found = false
         for i = 1, #candidateList do
@@ -923,7 +937,7 @@ local function RebuildSlots(fp, keepIfEmpty)
     -- bind its own -- so the set has to be read from the same preset the slots were built
     -- from, or it leaks into presets it was never configured on and is ignored on the one
     -- actually running.
-    local list, _, presetKey = EffectiveList(specID, currentEncounter, fp)
+    local list, _, presetKey = EffectiveList(specID, currentEncounter, fp, presetOverride)
     ns.slotsPreset = presetKey
     -- No auto-seeding: an untouched spec stays silent rather than calling out a list the
     -- player never chose. Robin wants every preset built deliberately in Setup, per spec.
@@ -1410,10 +1424,10 @@ end
 -- otherwise completely invisible -- the callout simply does not happen, which looks
 -- identical to the engine never firing at all, and that ambiguity has already cost a round
 -- of guessing about whether this gate runs.
-local function CoveredByActiveDefensive(fp)
+local function CoveredByActiveDefensive(fp, presetOverride)
     local now = GetTime()
     if BigDefensiveUp() then return true, nil, "bigdef" end
-    local list = EffectiveList(specID, currentEncounter, fp) or {}
+    local list = EffectiveList(specID, currentEncounter, fp, presetOverride) or {}
     local eligible = 0
     for i = 1, #list do
         local sid = list[i]
@@ -3355,7 +3369,12 @@ end
 -- ActivateCustomReminder (the real fire path) and PreviewCustomReminder (the editor's
 -- Preview button) both call this, so a preview always shows exactly what a fight would.
 function ns.DisplayReminder(r)
-    if not r then return end
+    if not r or r.enabled == false then return end
+    if r.defensive then
+        if r.specID and r.specID ~= specID then return end
+        if not CustomRemindersAllowed() then return end
+        return ns.FireMessageDefensive(r)
+    end
     FireCustomReminder(r)
 end
 
@@ -3382,13 +3401,35 @@ ns.trackedReminderTimers = {}
 -- Owns the timer creation rather than taking a ready-made handle, so a timer that fires
 -- normally can drop its own entry: tracked-but-fired entries would otherwise pile up for
 -- the length of a pull and every later cancel sweep would walk them.
-function ns.TrackReminderTimer(scope, delay, fn)
+function ns.IsCurrentCustomReminder(r, set)
+    if r.enabled == false or (r.specID and r.specID ~= specID) then return false end
+    if set ~= CustomRemindersTable(false, currentEncounter) then return false end
+    for _, current in pairs(set or {}) do
+        if current == r then return true end
+    end
+    return false
+end
+
+function ns.PruneCustomReminderTimers()
+    local timers = ns.trackedReminderTimers
+    for i = #timers, 1, -1 do
+        local entry = timers[i]
+        if entry.reminder and not ns.IsCurrentCustomReminder(entry.reminder, entry.reminderSet) then
+            entry.handle:Cancel()
+            table.remove(timers, i)
+        end
+    end
+end
+
+function ns.TrackReminderTimer(scope, delay, fn, reminder)
     local list = ns.trackedReminderTimers
-    local entry = { scope = scope }
+    local entry = { scope = scope, reminder = reminder,
+        reminderSet = reminder and CustomRemindersTable(false, currentEncounter) }
     entry.handle = C_Timer.NewTimer(delay, function()
         for i = #list, 1, -1 do
             if list[i] == entry then table.remove(list, i) break end
         end
+        if reminder and not ns.IsCurrentCustomReminder(reminder, entry.reminderSet) then return end
         fn()
     end)
     list[#list + 1] = entry
@@ -3423,7 +3464,7 @@ local function ActivateCustomReminder(r, scope)
         ns.TrackReminderTimer(scope or "pull", delays[i], function()
             if combat and not InCombatLockdown() then return end
             ns.DisplayReminder(r)
-        end)
+        end, r)
     end
 end
 
@@ -3568,45 +3609,14 @@ end
 -- ENCOUNTER_START and so is false for exactly the fights this trigger exists for. An ns
 -- function, not a chunk local -- this chunk is at the 200-local ceiling.
 function ns.CheckCombatReminders()
-    ns.CancelTrackedReminderTimers("combat")
-    if not CustomRemindersAllowed() then return end
-    local set = CustomRemindersTable(false, 0)
-    if not set then return end
-    for _, r in pairs(set) do
-        local trig = r.trigger
-        if r.enabled ~= false and trig and trig.type == "combat" then
-            ActivateCustomReminder(r, "combat")
-        end
-    end
+    -- Retired trigger; saved records are retained for manual editing.
 end
 
 -- The same trigger saved on a boss. Which boss it is only becomes known at
 -- ENCOUNTER_START, so the schedule is worked out here and the time already spent in
 -- combat comes off it -- the clock the player set is combat entry, not the pull.
 function ns.CheckBossCombatReminders()
-    ns.CancelTrackedReminderTimers("bosscombat")
-    local enc = currentEncounter
-    if not (enc and CustomRemindersAllowed()) then return end
-    local set = CustomRemindersTable(false, enc)
-    if not set then return end
-    local elapsed = 0
-    if ns.combatStartedAt and InCombatLockdown() then
-        elapsed = GetTime() - ns.combatStartedAt
-    end
-    for _, r in pairs(set) do
-        local trig = r.trigger
-        if r.enabled ~= false and trig and trig.type == "combat" then
-            local delays = ParseDelayList(trig.delay)
-            if not delays then
-                ns.DisplayReminder(r)
-            else
-                for i = 1, #delays do
-                    ns.TrackReminderTimer("bosscombat", math.max(delays[i] - elapsed, 0.01),
-                        function() ns.DisplayReminder(r) end)
-                end
-            end
-        end
-    end
+    -- Retired trigger; saved records are retained for manual editing.
 end
 
 -------------------------------------------------------------------------------
@@ -3632,7 +3642,35 @@ local function CancelBossModTimers(mod, text)
     end
 end
 
-local function CheckBossModMessage(mod, key)
+function ns.HasMessageDefensive(encounterID, sid)
+    local set = CustomRemindersTable(false, encounterID)
+    for _, r in pairs(set or {}) do
+        if r.defensive and r.enabled ~= false and (not r.specID or r.specID == specID)
+            and r.trigger and r.trigger.type == "bwmsg" and r.trigger.spellID == sid then
+            return true
+        end
+    end
+    return false
+end
+
+local function CheckBossModMessage(mod, key, encounterID, retried)
+    if TRDB().trace then
+        AppendLog({ kind = "drop", sid = key, text = "message check: mod=" .. mod
+            .. " expectedEncounter=" .. tostring(encounterID) .. " cached=" .. tostring(hasCustomReminders)
+            .. " retry=" .. tostring(retried) })
+    end
+    -- Boss mods can announce opening casts inside their encounter-start handler,
+    -- before our handler has populated the encounter and custom-reminder cache.
+    if encounterID and (currentEncounter ~= encounterID or not hasCustomReminders) then
+        if not retried then
+            C_Timer.After(0, function()
+                if currentEncounter == encounterID then
+                    CheckBossModMessage(mod, key, encounterID, true)
+                end
+            end)
+        end
+        return
+    end
     if bwActiveMod and bwActiveMod ~= mod then return end
     if type(key) ~= "number" then return end
     if not (hasCustomReminders and CustomRemindersAllowed()) then return end
@@ -3641,15 +3679,24 @@ local function CheckBossModMessage(mod, key)
     local matched = false
     for uid, r in pairs(set) do
         local trig = r.trigger
-        if r.enabled ~= false and trig and trig.type == "bwmsg" and trig.spellID == key then
+        if r.enabled ~= false and (not r.specID or r.specID == specID)
+            and trig and trig.type == "bwmsg" and trig.spellID == key then
             matched = true
             local hit = true
             if trig.counter and trig.counter ~= "" then
                 customCounters[uid] = (customCounters[uid] or 0) + 1
                 hit = CheckCounterCondition(ParseCounterCondition(trig.counter), customCounters[uid])
             end
+            if TRDB().trace then
+                AppendLog({ kind = "drop", sid = key, text = "message matched: " .. (r.name or "Reminder")
+                    .. " counterPassed=" .. tostring(hit) .. " delay=" .. tostring(trig.delay)
+                    .. " preset=" .. tostring(r.preset) })
+            end
             if hit then ActivateCustomReminder(r) end
         end
+    end
+    if not matched and TRDB().trace then
+        AppendLog({ kind = "drop", sid = key, text = "message: no enabled reminder matched" })
     end
     if matched and not bwActiveMod then bwActiveMod = mod end
 end
@@ -4056,7 +4103,7 @@ end
 -- ability's own enabled/mode choice can all change across a multi-second bar, and the
 -- moment that matters is the one right before the hit lands, not the one the warning
 -- started.
-local function FireBigWigsAbility(sid, lateRetry)
+local function FireBigWigsAbility(sid, lateRetry, reminder)
     if lateRetry then
         if not (frame and TRDB().enabled and TRDB().voiceOn
             and ShouldRun() and InEncounter()) then return end
@@ -4077,14 +4124,26 @@ local function FireBigWigsAbility(sid, lateRetry)
         if not configured then return end
         if not ready then return "waiting" end
     end
-    if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
+    if reminder then
+        -- ENCOUNTER_START can already be handled while the separate progress API
+        -- still returns false for an opening message. Our lifecycle clears this ID
+        -- on ENCOUNTER_END and owns cancellation of the delayed reminder timers.
+        if not (frame and TRDB().enabled and canSelect and BossAllowed() and currentEncounter ~= nil) then
+            if TRDB().trace then AppendLog({ kind = "drop", sid = sid,
+                text = "message fire gated: frame=" .. tostring(frame ~= nil)
+                    .. " enabled=" .. tostring(TRDB().enabled) .. " canSelect=" .. tostring(canSelect)
+                    .. " bossAllowed=" .. tostring(BossAllowed()) .. " encounter=" .. tostring(InEncounter()) }) end
+            return
+        end
+    elseif ns.HasMessageDefensive(currentEncounter, sid)
+        or not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     -- Mutually exclusive with Custom Reminder: when the ability picker's toggle is set to
     -- Custom Reminder for this exact ability, that reminder (matched separately off the
     -- combat log, see CheckCustomReminders) is the only thing that fires for it -- the
     -- generic priority pick steps aside rather than showing alongside it.
     do
         local binding = ns.BindingForBossModKey(currentEncounter, sid)
-        if binding and binding.mode == "custom" then
+        if not reminder and binding and binding.mode == "custom" then
             AppendLog({ kind = "aside", sid = sid })
             return
         end
@@ -4136,14 +4195,18 @@ local function FireBigWigsAbility(sid, lateRetry)
     -- Inspect the incoming preset before rebuilding frames: a skipped warning must
     -- not erase the previous callout while its display timer is still running.
     if not ns.testFiring and TRDB().coveredSkip ~= false then
-        local covered, bySid, how = CoveredByActiveDefensive(tostring(sid))
+        local covered, bySid, how = CoveredByActiveDefensive(tostring(sid), reminder and reminder.preset)
         if covered then
             AppendLog({ kind = "skip", sid = bySid or sid, tankSid = sid, tankPath = how })
             return
         end
     end
 
-    if not RebuildSlots(tostring(sid), true) then return end
+    if not RebuildSlots(tostring(sid), true, reminder and reminder.preset) then
+        if reminder and TRDB().trace then AppendLog({ kind = "drop", sid = sid,
+            text = "message: preset has no available configured spells" }) end
+        return
+    end
 
     ApplyPriorityAlpha()
     ClearTankGate()
@@ -4157,8 +4220,18 @@ local function FireBigWigsAbility(sid, lateRetry)
     local result = SpeakCallout(sid)
     lastCalloutAt = GetTime()
     if hideTimer then hideTimer:Cancel() end
-    hideTimer = C_Timer.NewTimer(TRDB().lingerSec or DEFAULTS.lingerSec, HideReminder)
+    hideTimer = C_Timer.NewTimer((reminder and reminder.dur) or TRDB().lingerSec or DEFAULTS.lingerSec, HideReminder)
     return result
+end
+
+-- Message delays reach the same display, cooldown selection, grouping and audio as bars.
+function ns.FireMessageDefensive(r)
+    if TRDB().trace then AppendLog({ kind = "drop", sid = r.trigger and r.trigger.spellID,
+        text = "message defensive dispatch: " .. (r.name or "Reminder") }) end
+    if not r.preset then return end
+    local sid = r.trigger and r.trigger.spellID
+    if type(sid) ~= "number" then return end
+    return FireBigWigsAbility(sid, false, r)
 end
 
 -- Setup's per-ability Test button. Fires the ability through FireBigWigsAbility itself --
@@ -4369,6 +4442,7 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
 end
 
 function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
+    if ns.HasMessageDefensive(currentEncounter, sid) then return end
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if InEncounter() then ns.SampleTanking() end
@@ -4639,8 +4713,7 @@ local function OnBigWigsEvent(event, ...)
         if ns.ObserveCast then ns.ObserveCast(key, "BW", nil, nil) end
         ns.HandleBigWigsAbility(key)
         if ns.HandleRaidReminderAbility then ns.HandleRaidReminderAbility(key) end
-        if not hasCustomReminders then return end
-        CheckBossModMessage("BW", key)
+        CheckBossModMessage("BW", key, type(module) == "table" and module.engageId or nil)
     elseif event == "BigWigs_Timer" then
         -- Bar and CDBar always publish this callback, even with visual bars enabled.
         -- CastBar instead publishes BigWigs_CastTimer. StartBar mixes all three,
@@ -7028,6 +7101,7 @@ ns.ShowCalloutEditor = function(...) return ShowCalloutEditor(...) end
 ns.MAX_SLOTS     = MAX_SLOTS
 function ns.CurrentSpec() return specID, isTank end
 function ns.RefreshRuntime()
+    ns.PruneCustomReminderTimers()
     RebuildSlots()
     RebuildCastMap()
     UpdateEventRegistration()

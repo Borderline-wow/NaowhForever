@@ -1285,22 +1285,13 @@ end
 -------------------------------------------------------------------------------
 --  Custom reminder editor: name, message, trigger, linger
 -------------------------------------------------------------------------------
-local TRIGGER_CHOICES = { pull = "Boss Pull", bwmsg = "BigWigs/DBM Message",
-    bwtimer = "BigWigs/DBM Timer", aura = "Aura Applied", combat = "Time In Combat",
+local TRIGGER_CHOICES = { bwmsg = "BigWigs Message Timer",
     caststart = "Boss Cast Starts", castend = "Boss Cast Finishes" }
-local TRIGGER_ORDER = { "pull", "combat", "bwmsg", "bwtimer", "aura",
-    "caststart", "castend" }
--- The boss-less bucket takes Time In Combat and nothing else: the other four all need an
--- encounter underway.
-local COMBAT_TRIGGER_ORDER = { "combat" }
+local TRIGGER_ORDER = { "bwmsg", "caststart", "castend" }
 
-local IN_COMBAT_TIP = "Seconds after you enter combat. Blank fires the moment combat "
-    .. "starts; minute format works too (1:30.5 = 90.5 seconds). Separate several with a "
-    .. "comma to fire more than once. The clock runs from the first thing you pull, so a "
-    .. "boss engaged out of the trash in front of it does not restart it."
-
-local SHOW_IN_TIP = "Blank fires immediately. A number is seconds; minute format works "
-    .. "too (1:30.5 = 90.5 seconds). Separate several with a comma to fire more than once."
+local SHOW_IN_TIP = "Seconds after the trigger. Blank or zero fires immediately. "
+    .. "For messages, the delay starts only when BigWigs/DBM sends the message. "
+    .. "Enable Messages for this ability in BigWigs; disabled messages cannot trigger reminders."
 local COUNTER_TIP = "Blank fires every time. Match a count with >N, >=N, <N, <=N, !N (not "
     .. "N) or a bare number (exactly N). Separate conditions with a comma to match any of "
     .. "them, or add a leading + on the second one to require both -- example: >3,+<7 "
@@ -1338,32 +1329,48 @@ local function ResolveMechanicName(key, entry)
     return "Key " .. tostring(key)
 end
 
--- Capped rather than scrolled: this addon has no scroll-frame primitive of its own, and a
--- boss with more than a handful of distinct mechanics is rare enough that "seen most
--- often, plus a manual fallback" covers the real case without building one just for this.
--- Never a silent cap -- MECHANIC_PICKER_ROWS worth show, and a hint discloses the rest.
-local MECHANIC_PICKER_ROWS = 8
+-- List only the selected boss's BigWigs options, without a row cap.
+function ns.ReminderAbilityChoices(encounterID)
+    local byKey = {}
+    local function Add(key, text, mod)
+        if type(key) ~= "number" or key == 0 then return end
+        if not byKey[key] then byKey[key] = { key = key, entry = { text = text, mod = mod } } end
+    end
+    local data = ns.ScrapeBosses and ns.ScrapeBosses(false)
+    for _, inst in ipairs(data and data.instances or {}) do
+        for _, boss in ipairs(inst.bosses or {}) do
+            if boss.encounterID == encounterID then
+                for _, ability in ipairs(BigWigsAbilities(encounterID, nil, inst.mapID) or {}) do
+                    Add(ability.spellID, ability.title, "BW")
+                end
+            end
+        end
+    end
+    local list = {}
+    for _, item in pairs(byKey) do list[#list + 1] = item end
+    table.sort(list, function(a, b)
+        local an, bn = ResolveMechanicName(a.key, a.entry), ResolveMechanicName(b.key, b.entry)
+        if an == bn then return a.key < b.key end
+        return an < bn
+    end)
+    return list
+end
 
--- initialTrigger seeds the type for a NEW reminder (the boss page's Time In Combat
--- button opens straight onto it); the dropdown is still free to change it.
+-- New reminders default to a message; boss cast start/finish remain selectable.
 function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger)
     local EUI = callerEUI or ns.UI
     local W = EUI.Widgets
 
-    local dimmer, panel = ns.MakeModal(480, 620, "customReminderEditor")
+    local dimmer, panel = ns.MakeModal(480, 740, "customReminderEditor")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText(uid and "Edit Reminder" or "New Reminder")
 
-    -- encounterID 0 is the boss-less bucket the Custom Reminders tab's "Any Combat" entry
-    -- writes to (ns.CheckCombatReminders reads it on entering combat).
-    local anyCombat = (encounterID == 0)
-
     local set = ns.CustomRemindersTable(false, encounterID)
     local existing = (set and uid) and set[uid] or nil
     local trig = (existing and existing.trigger)
-        or { type = initialTrigger or (anyCombat and "combat" or "pull") }
+        or { type = initialTrigger or "bwmsg" }
 
     local PAD = 20
 
@@ -1378,79 +1385,13 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         end)
     end
 
-    -------------------------------------------------------------------------
-    --  Tabs -- BigWigs' own per-ability panel splits "which mechanic, what
-    --  fires it" from "how it's shown"; this splits Trigger from Message
-    --  the same way, over our own fields rather than theirs.
-    -------------------------------------------------------------------------
-    local TAB_TOP = -40
-    local BODY_TOP = TAB_TOP - 30
+    local triggerBody = CreateFrame("Frame", nil, panel)
+    triggerBody:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -42)
+    triggerBody:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, -42)
+    triggerBody:SetHeight(650)
+    local messageBody = CreateFrame("Frame", nil, triggerBody)
+    messageBody:SetSize(480, 230)
 
-    local tabBar = CreateFrame("Frame", nil, panel)
-    tabBar:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
-    -- A single-corner anchor with no width ever set left tabBar's own geometry (and
-    -- everything anchored off its LEFT/RIGHT points transitively -- every tab button)
-    -- unresolvable: GetLeft/GetTop came back nil for the tab buttons even fully shown
-    -- with alpha 1, confirmed live via debug prints. A second anchor point gives it a
-    -- real width, same as every other full-width strip in this file already does.
-    tabBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP)
-    tabBar:SetHeight(24)
-
-    local tabDivider = ns.Solid(panel, "ARTWORK", ns.THEME.line, 1)
-    tabDivider:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, BODY_TOP + 6)
-    tabDivider:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, BODY_TOP + 6)
-    tabDivider:SetHeight(1)
-
-    local tabButtons, tabBodies = {}, {}
-
-    local function SelectTab(id)
-        for tid, btn in pairs(tabButtons) do
-            local on = (tid == id)
-            btn.marker:SetShown(on)
-            local c = on and ns.THEME.fg or ns.THEME.muted
-            btn.label:SetTextColor(c.r, c.g, c.b, 1)
-        end
-        for tid, body in pairs(tabBodies) do
-            body:SetShown(tid == id)
-        end
-    end
-
-    local function AddTab(id, text, anchorTo)
-        local btn = CreateFrame("Button", nil, tabBar)
-        btn:SetHeight(24)
-        local lbl = ns.Font(btn, 12, nil, ns.THEME.muted)
-        lbl:SetText(text)
-        btn:SetSize(lbl:GetStringWidth() + 4, 24)
-        lbl:SetPoint("CENTER")
-        if anchorTo then
-            btn:SetPoint("LEFT", anchorTo, "RIGHT", 18, 0)
-        else
-            btn:SetPoint("LEFT", tabBar, "LEFT", 0, 0)
-        end
-        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.accent, 1)
-        marker:SetPoint("BOTTOMLEFT", 0, -3)
-        marker:SetPoint("BOTTOMRIGHT", 0, -3)
-        marker:SetHeight(2)
-        marker:Hide()
-        btn:SetScript("OnClick", function() SelectTab(id) end)
-        btn.label, btn.marker = lbl, marker
-        tabButtons[id] = btn
-
-        local body = CreateFrame("Frame", nil, panel)
-        body:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, BODY_TOP)
-        body:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, BODY_TOP)
-        body:SetHeight(-BODY_TOP - 60)
-        tabBodies[id] = body
-        return btn, body
-    end
-
-    local triggerTabBtn, triggerBody = AddTab("trigger", "Trigger")
-    local _, messageBody = AddTab("message", "Message", triggerTabBtn)
-
-    -------------------------------------------------------------------------
-    --  Message tab: name, preset, linger, enabled. Same fields as before,
-    --  just parented to their own tab instead of stacked under everything.
-    -------------------------------------------------------------------------
     local my = 0
 
     local function AddLabelM(text, tooltip)
@@ -1514,67 +1455,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         { type = "label", text = "" }
     ); my = my - presetRowH
 
-    -- Icon/Color/Sound: same three fields ns.ShowAbilityReminderPicker's custom mode
-    -- already has, added here too -- this editor is the only place a bwtimer trigger (the
-    -- one with a real duration behind it) can be configured, so it needs the same reach.
-    AddLabelM("Icon Spell ID (optional)")
-    local iconBox = AddBoxM(9, true, PAD + 34)
-    local iconPreview = messageBody:CreateTexture(nil, "ARTWORK")
-    iconPreview:SetSize(24, 24)
-    iconPreview:SetPoint("LEFT", iconBox, "RIGHT", 6, 0)
-    iconPreview:Hide()
-    local iconFeedback = ns.Font(messageBody, 10, nil, ns.THEME.muted)
-    iconFeedback:SetPoint("TOPLEFT", messageBody, "TOPLEFT", PAD, my)
-    iconFeedback:SetPoint("RIGHT", messageBody, "RIGHT", -PAD, 0)
-    iconFeedback:SetJustifyH("LEFT")
-    my = my - 14
-    local function SyncIconM()
-        local sid, info = ns.ResolveSpell(iconBox:GetText())
-        if sid then
-            local tex = C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(sid)
-            if tex then iconPreview:SetTexture(tex); iconPreview:Show()
-            else iconPreview:Hide() end
-            iconFeedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
-        elseif iconBox:GetText() == "" then
-            iconPreview:Hide()
-            iconFeedback:SetText("")
-        else
-            iconPreview:Hide()
-            iconFeedback:SetText("|cffff6060not a spell id|r")
-        end
-    end
-    iconBox:SetScript("OnTextChanged", SyncIconM)
-    iconBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    iconBox:SetText((existing and existing.iconSpellID and tostring(existing.iconSpellID)) or "")
-    SyncIconM()
-
-    local existingColor = existing and existing.color
-    local pendingColor = { r = (existingColor and existingColor.r) or 1,
-        g = (existingColor and existingColor.g) or 1, b = (existingColor and existingColor.b) or 1,
-        a = (existingColor and existingColor.a) or 1 }
-    local _, colorRowH = W:DualRow(messageBody, my,
-        { type = "colorpicker", text = "Text Color", hasAlpha = false,
-          tooltip = "This reminder's text color.",
-          getValue = function() return pendingColor.r, pendingColor.g, pendingColor.b,
-              pendingColor.a end,
-          setValue = function(r, g, b, a) pendingColor = { r = r, g = g, b = b, a = a } end },
-        { type = "label", text = "" }
-    ); my = my - colorRowH
-
-    local pendingSoundKey = (existing and existing.sound) or "none"
-    local soundPaths, soundNames, soundOrder = EUI.BuildAlertSoundTables()
-    if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(soundPaths, soundNames, soundOrder) end
-    local _, soundRowH = W:DualRow(messageBody, my,
-        { type = "dropdown", text = "Sound", values = soundNames, order = soundOrder,
-          tooltip = "Plays once when this reminder fires.",
-          getValue = function() return pendingSoundKey end,
-          setValue = function(v)
-              pendingSoundKey = v
-              if EUI._PlayLSMSound and soundPaths[v] then EUI._PlayLSMSound(soundPaths[v]) end
-          end },
-        { type = "label", text = "" }
-    ); my = my - soundRowH
-
     AddLabelM("Linger (seconds)")
     local durBox = AddBoxM(3, true)
     durBox:SetText(tostring((existing and existing.dur) or 3))
@@ -1590,35 +1470,21 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     -------------------------------------------------------------------------
     --  Trigger tab: type, mechanic picker, dynamic fields.
     -------------------------------------------------------------------------
-    -- Seeded once from the trigger being edited; an older cast/aura reminder (the editor
-    -- no longer creates these, but existing ones still run -- see EffectiveList) maps its
-    -- spell id across into a BigWigs/DBM Message trigger as the closest equivalent, so
-    -- re-editing it is a starting point rather than a dead end.
-    local trigVal
-    if anyCombat or trig.type == "combat" then trigVal = "combat"
-    elseif trig.type == "bwtimer" then trigVal = "bwtimer"
-    elseif trig.type == "aura" then trigVal = "aura"
-    elseif trig.type == "caststart" then trigVal = "caststart"
-    elseif trig.type == "castend" then trigVal = "castend"
-    elseif trig.type == "bwmsg" or trig.type == "spell" then trigVal = "bwmsg"
-    else trigVal = "pull" end
+    -- Legacy records retain their data until saved explicitly in this editor.
+    local trigVal = (trig.type == "caststart" or trig.type == "castend")
+        and trig.type or "bwmsg"
 
     local spellIDText = (trig.spellID and tostring(trig.spellID)) or ""
     local counterText = (type(trig.counter) == "string" and trig.counter)
         or (type(trig.counter) == "number" and tostring(trig.counter)) or ""
-    local timeleftText = (trig.timeleft and tostring(trig.timeleft)) or ""
-    local delayText = (type(trig.delay) == "string" and trig.delay) or ""
-    -- Dropdown values, not text -- their widgets write straight into these on selection,
-    -- so unlike the *Text fields there is no separate save-back step before a rebuild.
-    local targetVal = (trig.target == "player") and "player" or "boss"
-    local auraEventVal = (trig.auraEvent == "removed") and "removed" or "applied"
+        local delayText = (trig.type ~= "combat" and type(trig.delay) == "string" and trig.delay) or ""
 
     -- The dynamic block below the Trigger dropdown -- which fields it holds depends on
     -- trigVal, so it is torn down and rebuilt on every change rather than show/hidden in
     -- place. The current widgets (nil for whichever fields the active type does not use)
     -- are read back into the *Text locals before a rebuild so switching types and back
     -- does not lose what was typed.
-    local dynFrame, spellBox, counterBox, timeleftBox, delayBox
+    local dynFrame, spellBox, counterBox, delayBox
     local DYN_Y   -- set below, once the Trigger dropdown row's height is known
     local RebuildDynFields
     local triggerRow -- the Trigger dropdown's own row handle, so a picker pick can refresh its label
@@ -1626,7 +1492,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     local function SaveDynFieldsToText()
         if spellBox then spellIDText = spellBox:GetText() or "" end
         if counterBox then counterText = counterBox:GetText() or "" end
-        if timeleftBox then timeleftText = timeleftBox:GetText() or "" end
         if delayBox then delayText = delayBox:GetText() or "" end
     end
 
@@ -1642,7 +1507,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     triggerRow, triggerRowH = W:DualRow(triggerBody, 0,
         { type = "dropdown", text = "Trigger",
           values = TRIGGER_CHOICES,
-          order = anyCombat and COMBAT_TRIGGER_ORDER or TRIGGER_ORDER,
+          order = TRIGGER_ORDER,
           tooltip = "What starts this reminder.",
           getValue = function() return trigVal end,
           setValue = function(v)
@@ -1664,11 +1529,18 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     -- the Trigger dropdown rather than below it, for BigWigs/DBM Message and Timer -- the
     -- two trigger types that show the picker at all.
     local pickerRows = {}
-    for i = 1, MECHANIC_PICKER_ROWS do
-        local row = CreateFrame("Button", nil, triggerBody)
+    local pickerScroll = CreateFrame("ScrollFrame", nil, triggerBody, "UIPanelScrollFrameTemplate")
+    pickerScroll:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y)
+    pickerScroll:SetPoint("TOPRIGHT", triggerBody, "TOPRIGHT", -PAD - 22, DYN_Y)
+    pickerScroll:SetHeight(120)
+    local pickerContent = CreateFrame("Frame", nil, pickerScroll)
+    pickerContent:SetSize(418, 1)
+    pickerScroll:SetScrollChild(pickerContent)
+    local function MakePickerRow(i)
+        local row = CreateFrame("Button", nil, pickerContent)
         row:SetHeight(24)
-        row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y)
-        row:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
+        row:SetPoint("TOPLEFT", pickerContent, "TOPLEFT", 0, 0)
+        row:SetPoint("RIGHT", pickerContent, "RIGHT", 0, 0)
 
         row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.accent, 0.14)
         row.hl:SetAllPoints()
@@ -1690,69 +1562,42 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         row.tag:SetPoint("RIGHT", -2, 0)
 
         pickerRows[i] = row
+        return row
     end
-
     local pickerHint = ns.Font(triggerBody, 10, nil, ns.THEME.muted)
-    pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y)
     pickerHint:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
     pickerHint:SetJustifyH("LEFT")
-
     local PICKER_ROW_H = 24
-    local PICKER_HEIGHT = 0 -- computed by RebuildPicker, consumed by RebuildDynFields
+    local PICKER_HEIGHT = 0
 
     local function RebuildPicker()
-        for i = 1, MECHANIC_PICKER_ROWS do pickerRows[i]:Hide() end
-        pickerHint:SetText("")
-
-        if trigVal ~= "bwmsg" and trigVal ~= "bwtimer" then
-            PICKER_HEIGHT = 0
-            return
-        end
-
-        local cat = ns.BossModCatalogueTable and ns.BossModCatalogueTable(false, encounterID)
-        local list = {}
-        if cat then
-            for key, entry in pairs(cat) do
-                list[#list + 1] = { key = key, entry = entry }
-            end
-        end
-        table.sort(list, function(a, b) return (a.entry.seen or 0) > (b.entry.seen or 0) end)
-
-        if #list == 0 then
-            pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y)
-            pickerHint:SetText("|cff9a9ea6Nothing recorded for this boss yet -- pull it with "
-                .. "BigWigs or DBM running, or type a Spell ID below.|r")
-            pickerHint:SetHeight(28)
-            PICKER_HEIGHT = 28
-            return
-        end
-
-        local shown = math.min(#list, MECHANIC_PICKER_ROWS)
-        for i = 1, shown do
-            local row, item = pickerRows[i], list[i]
-            row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y - ((i - 1) * PICKER_ROW_H))
+        for i = 1, #pickerRows do pickerRows[i]:Hide() end
+        local list = ns.ReminderAbilityChoices(encounterID)
+        pickerScroll:SetShown(#list > 0)
+        pickerScroll:SetVerticalScroll(0)
+        pickerContent:SetHeight(math.max(1, #list * PICKER_ROW_H))
+        local height = math.min(120, #list * PICKER_ROW_H)
+        pickerScroll:SetHeight(math.max(1, height))
+        for i = 1, #list do
+            local item = list[i]
+            local row = pickerRows[i] or MakePickerRow(i)
+            row:SetPoint("TOPLEFT", pickerContent, "TOPLEFT", 0, -(i - 1) * PICKER_ROW_H)
             row.icon:SetTexture(ResolveMechanicIcon(item.key))
             row.name:SetText(ResolveMechanicName(item.key, item.entry))
-            row.tag:SetText(item.entry.mod == "DBM" and "|cff2da6ffDBM|r" or "|cfff0a830BW|r")
+            row.tag:SetText(item.entry.mod or "Journal")
             row:SetScript("OnClick", function()
                 SaveDynFieldsToText()
-                trigVal = (item.entry.kind == "timer") and "bwtimer" or "bwmsg"
                 spellIDText = tostring(item.key)
                 RefreshTriggerLabel()
                 RebuildDynFields()
             end)
             row:Show()
         end
-
-        pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y - (shown * PICKER_ROW_H))
-        if #list > shown then
-            pickerHint:SetText(("|cff9a9ea6+%d more not shown -- type the Spell ID below.|r")
-                :format(#list - shown))
-            pickerHint:SetHeight(16)
-        else
-            pickerHint:SetHeight(4)
-        end
-        PICKER_HEIGHT = shown * PICKER_ROW_H + (pickerHint:GetText() ~= "" and 20 or 4)
+        pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y - height - 4)
+        pickerHint:SetText(#list == 0 and "No BigWigs abilities available for this boss. Enter a spell ID below."
+            or (trigVal == "bwmsg" and "Only abilities announced by BigWigs/DBM can trigger a message reminder." or "Select the spell the boss casts."))
+        pickerHint:SetHeight(28)
+        PICKER_HEIGHT = height + 36
     end
 
     RebuildDynFields = function()
@@ -1762,7 +1607,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         dynFrame = CreateFrame("Frame", nil, triggerBody)
         dynFrame:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", 0, DYN_Y - PICKER_HEIGHT)
         dynFrame:SetSize(480, 210)
-        spellBox, counterBox, timeleftBox, delayBox = nil, nil, nil, nil
+        spellBox, counterBox, delayBox = nil, nil, nil
 
         local dy = 0
         local function DLabel(text, tooltip)
@@ -1793,150 +1638,58 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
             return box
         end
 
-        if trigVal == "combat" then
-            DLabel("Seconds In Combat", IN_COMBAT_TIP)
-            delayBox = DBox(60)
-            delayBox:SetText(delayText)
-        elseif trigVal == "pull" then
-            DLabel("Show in", SHOW_IN_TIP)
-            delayBox = DBox(60)
-            delayBox:SetText(delayText)
-        else
-            if trigVal == "aura" then
-                local _, rowHA = W:DualRow(dynFrame, dy,
-                    { type = "dropdown", text = "Target",
-                      values = { boss = "Boss", player = "You" }, order = { "boss", "player" },
-                      tooltip = "Which unit the aura has to land on.",
-                      getValue = function() return targetVal end,
-                      setValue = function(v) targetVal = v end },
-                    { type = "dropdown", text = "When",
-                      values = { applied = "Applied", removed = "Removed", stacks = "Stacks" },
-                      order = { "applied", "removed", "stacks" },
-                      tooltip = "Fire when the aura lands, when it falls off, or when it "
-                          .. "gains a stack -- read straight off the combat log, since a "
-                          .. "boss unit's own aura data is blocked from every addon during "
-                          .. "restricted content, confirmed live.",
-                      getValue = function() return auraEventVal end,
-                      setValue = function(v) auraEventVal = v; RebuildDynFields() end }
-                ); dy = dy - rowHA
-            end
-
-            DLabel("Spell ID")
-            spellBox = DBox(9, true, 80)
-            spellBox:SetText(spellIDText)
-            -- Anchored off spellBox itself so the reserved rightInset above only has to be
-            -- wide enough, not exactly right.
-            local ok = ns.Button(dynFrame, "OK", 54, 26, function() spellBox:ClearFocus() end)
-            ok:SetPoint("LEFT", spellBox, "RIGHT", 6, 0)
-            local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
-            feedback:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy + 6)
-            feedback:SetPoint("RIGHT", dynFrame, "RIGHT", -PAD, 0)
-            feedback:SetJustifyH("LEFT")
-            dy = dy - 14
-
-            local function Sync()
-                local sid, info = ns.ResolveSpell(spellBox:GetText())
-                if sid then
-                    feedback:SetText("|cff6DD09A" .. ((info and info.name) or "") .. "|r")
-                elseif spellBox:GetText() == "" then
-                    feedback:SetText("")
-                elseif trigVal == "aura" or trigVal == "caststart"
-                    or trigVal == "castend" then
-                    -- These carry a real spell id -- an aura, or what the boss is casting.
-                    -- Only a BigWigs/DBM message key can be an arbitrary number with no
-                    -- matching spell at all.
-                    feedback:SetText("|cffff6060not a spell ID|r")
-                else
-                    feedback:SetText("|cff9a9ea6no spell name found -- boss-mod keys "
-                        .. "aren't always real spell ids, that's fine|r")
-                end
-            end
-            spellBox:SetScript("OnTextChanged", Sync)
-            spellBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-            Sync()
-
-            if trigVal == "bwtimer" then
-                DLabel("Timeleft (seconds)",
-                    "Fires when this many seconds are left on the bar.")
-                timeleftBox = DBox(6, true)
-                timeleftBox:SetText(timeleftText)
-            end
-
-            if trigVal == "aura" and auraEventVal == "stacks" then
-                DLabel("Stack Count", "Fires when the aura reaches this many stacks. Same "
-                    .. "syntax as Counter: blank fires on every stack gain, or match a "
-                    .. "threshold with >N, >=N, <N, <=N, !N (not N) or a bare number "
-                    .. "(exactly N).")
-            else
-                DLabel("Counter", COUNTER_TIP)
-            end
-            counterBox = DBox(40)
-            counterBox:SetText(counterText)
-
-            DLabel("Show in", SHOW_IN_TIP)
-            delayBox = DBox(60)
-            delayBox:SetText(delayText)
-        end
+        DLabel(trigVal == "bwmsg" and "Message Spell ID / Key" or "Spell ID")
+        spellBox = DBox(12)
+        spellBox:SetText(spellIDText)
+        DLabel("Counter", COUNTER_TIP)
+        counterBox = DBox(40)
+        counterBox:SetText(counterText)
+        DLabel(trigVal == "bwmsg" and "Show seconds after the message" or "Show in",
+            SHOW_IN_TIP)
+        delayBox = DBox(60)
+        delayBox:SetText(delayText)
+        messageBody:ClearAllPoints()
+        messageBody:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", 0,
+            DYN_Y - PICKER_HEIGHT + dy - 12)
     end
     RebuildDynFields()
 
-    SelectTab("trigger")
-
     local function BuildTrigger()
         SaveDynFieldsToText()
-        if trigVal == "pull" or trigVal == "combat" then
-            return { type = trigVal, delay = (delayText ~= "" and delayText) or nil }
-        end
         local sid = tonumber(spellIDText)
-        if not sid then return nil end
+        if not sid or sid == 0 or sid ~= math.floor(sid) then return nil end
+        if trigVal ~= "bwmsg" and sid < 0 then return nil end
+        if delayText ~= "" then
+            local delay = tonumber(delayText)
+            if not delay or delay < 0 then return nil end
+        end
         local newTrig = { type = trigVal, spellID = sid,
             counter = (counterText ~= "" and counterText) or nil,
             delay = (delayText ~= "" and delayText) or nil }
-        if trigVal == "bwtimer" then
-            newTrig.timeleft = tonumber(timeleftText)
-            if not newTrig.timeleft then return nil end
-        elseif trigVal == "aura" then
-            newTrig.target = targetVal
-            newTrig.auraEvent = auraEventVal
-        end
         return newTrig
     end
 
     local function Save()
         local newTrig = BuildTrigger()
         if not newTrig then
-            ns.Print("|cffff6060need a valid spell ID"
-                .. (trigVal == "bwtimer" and " and timeleft" or "") .. " for this trigger|r")
+            ns.Print("|cffff6060Enter a valid spell/key and a delay of zero or more seconds.|r")
             return
         end
         local name = nameBox:GetText()
         if not name or name == "" then name = "Reminder" end
         local dur = tonumber(durBox:GetText()) or 3
-        local iconSid = tonumber(iconBox:GetText())
         local writeSet = ns.CustomRemindersTable(true, encounterID)
         local key = uid or ("r" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
         writeSet[key] = {
             name = name, preset = presetVal, trigger = newTrig,
             dur = math.max(1, dur), enabled = enabledVal,
-            color = pendingColor,
-            iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
-            sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
+            defensive = true, specID = editorSpecID,
         }
         ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end
 
-    ns.Button(panel, "Preview", 90, 26, function()
-        local iconSid = tonumber(iconBox:GetText())
-        ns.PreviewCustomReminder({
-            name = nameBox:GetText(), preset = presetVal,
-            dur = tonumber(durBox:GetText()) or 3,
-            color = pendingColor,
-            iconSpellID = (iconSid and iconSid > 0) and iconSid or nil,
-            sound = (pendingSoundKey ~= "none") and pendingSoundKey or nil,
-        })
-    end):SetPoint("BOTTOM", panel, "BOTTOM", -110, 16)
     ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
     ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 90, 16)
@@ -2819,20 +2572,18 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
 end
 
 -- The selected instance's own view: Share Profile / Select Boss, the boss's own
--- A boss's own Time In Combat reminders, under its ability rows. The clock is combat
--- entry, not ENCOUNTER_START, so trash the boss is pulled out of counts toward it --
--- ns.CheckBossCombatReminders schedules the remainder when the encounter starts.
-local function RenderTimeInCombatSection(parent, y, EUI, encounterID)
+-- Explicit message-driven defensive reminders, below the boss's ability rows.
+local function RenderBossMessageSection(parent, y, EUI, encounterID)
     local PADR = EUI.CONTENT_PAD or 16
     local function Refresh() EUI:RefreshPage(true) end
     local function Edit(uid)
-        local d = ns.ShowCustomReminderEditor(encounterID, uid, EUI, "combat")
+        local d = ns.ShowCustomReminderEditor(encounterID, uid, EUI, "bwmsg")
         if d then d:HookScript("OnHide", Refresh) end
     end
 
     local head = ns.Font(parent, 12, nil, ns.THEME.accent)
     head:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-    head:SetText("TIME IN COMBAT")
+    head:SetText("BIGWIGS/DBM MESSAGES")
     y = y - 20
 
     local note = ns.Font(parent, 11, nil, ns.THEME.muted)
@@ -2840,9 +2591,9 @@ local function RenderTimeInCombatSection(parent, y, EUI, encounterID)
     note:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
     note:SetJustifyH("LEFT")
     note:SetWordWrap(true)
-    note:SetText("Fires a set number of seconds into the fight, with nothing to bind it "
-        .. "to -- for a mechanic the boss does on a clock. Counted from entering combat, "
-        .. "so trash you pull this boss out of counts toward it.")
+    note:SetText("Use a boss-mod message to trigger your defensive preset, immediately or "
+        .. "after a delay. Enable Messages for this ability in BigWigs. "
+        .. "This ability ignores bars while its message reminder is enabled.")
     note:SetHeight(math.max(16, note:GetStringHeight() + 4))
     y = y - note:GetHeight() - 8
 
@@ -2850,7 +2601,8 @@ local function RenderTimeInCombatSection(parent, y, EUI, encounterID)
     local list = {}
     if set then
         for uid, r in pairs(set) do
-            if r.trigger and r.trigger.type == "combat" then
+            if r.trigger and (r.trigger.type == "bwmsg" or r.defensive)
+                and (not r.specID or r.specID == ns.CurrentSpec()) then
                 list[#list + 1] = { uid = uid, r = r }
             end
         end
@@ -2895,14 +2647,15 @@ local function RenderTimeInCombatSection(parent, y, EUI, encounterID)
             lbl:SetPoint("RIGHT", edit, "LEFT", -8, 0)
             lbl:SetJustifyH("LEFT")
             lbl:SetText((r.name or "Reminder") .. "  |cff9a9ea6("
-                .. (delay and ("In Combat +" .. tostring(delay) .. "s") or "In Combat")
+                .. ((TRIGGER_CHOICES[r.trigger.type] or r.trigger.type)
+                    .. (delay and (" +" .. tostring(delay) .. "s") or ""))
                 .. ")|r")
             y = y - 26
         end
     end
     y = y - 6
 
-    local add = ns.Button(parent, "+ Add a Time In Combat Trigger", 230, 26,
+    local add = ns.Button(parent, "+ Use BigWigs Messages", 230, 26,
         function() Edit(nil) end)
     add:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
     return y - 34
@@ -2969,7 +2722,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
         hint:SetText("No abilities listed in the journal for this boss.")
-        return RenderTimeInCombatSection(parent, y - 26, EUI, boss.encounterID)
+        return RenderBossMessageSection(parent, y - 26, EUI, boss.encounterID)
     end
 
     -- Only what the player has actually added. A boss starts blank: the journal lists
@@ -3009,7 +2762,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         hint:SetWordWrap(true)
         hint:SetText("No abilities picked for this boss yet. Add Ability lists everything "
             .. "the journal has for the fight, with the known tank hits marked.")
-        return RenderTimeInCombatSection(parent, y - 40, EUI, boss.encounterID)
+        return RenderBossMessageSection(parent, y - 40, EUI, boss.encounterID)
     end
 
     local lastStage
@@ -3029,7 +2782,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     -- here; both moved to the Custom Reminders tab, which pairs an instance and boss
     -- picker with the same lists, so picking a boss once covers everything about it.
 
-    return RenderTimeInCombatSection(parent, y - 6, EUI, boss.encounterID)
+    return RenderBossMessageSection(parent, y - 6, EUI, boss.encounterID)
 end
 
 -- Dungeon Bosses / Raid Bosses tab: a pure navigation list on the left -- one row per
@@ -3862,7 +3615,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
     y = y - 6
 
     local addCRBtn = ns.Button(content,
-        anyCombat and "+ Add a Time In Combat Trigger" or "+ Add a Ability Reminder",
+        anyCombat and "+ Use BigWigs Messages" or "+ Add a Ability Reminder",
         anyCombat and 230 or 190, 26, function()
             EditCustomReminder(nil)
         end)
