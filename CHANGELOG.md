@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.3
+
+### Fixed
+- Track charge spells across configured presets, including casts before a boss pull,
+  and share readiness between base and replacement spell IDs.
+- Restore only completed charge recharges instead of prematurely filling the stack.
+- Retry an empty early warning until its boss timer expires, allowing a cooldown
+  that becomes ready during that window to be called once.
+- Exclude BigWigs cast bars from timer reminders, including Chillstorm uptime.
+- Exclude the verified Demonic Rage uptime bar and message on Xathuux.
+
+### Validation
+- The reporter confirmed in-game testing of the fixes.
+- Fiery Brand has automated coverage; no separate live Fiery Brand result was supplied.
+- Unknown ordinary uptime bars retain the existing filtering behavior.
+
 ## 1.3.2
 
 ### Fixed
