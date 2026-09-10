@@ -1652,6 +1652,36 @@ end
 -- tracked from the player's own casts, which are always plain. `isActive` going false is
 -- then a free correction back to full.
 local chargeState = {}
+local chargeMemory = {} -- Same live counter, retained across temporary shape loss.
+
+-- Bounded transition evidence is recorded even without trace. Never store raw
+-- API fields here: these are the model's already-classified plain values.
+function ns.RecordChargeTransition(sid, reason, before, tick, st)
+    if reason ~= "own cast" and before == st.count
+        and (tick == st.tick or st.count == st.max) then return end
+    local t = TRDB()
+    if type(t.chargeAudit) ~= "table" then t.chargeAudit = {} end
+    local log = t.chargeAudit
+    log[#log + 1] = {
+        stamp = date and date("%H:%M:%S") or "?", build = ns.CODE_BUILD,
+        sid = sid, reason = reason, before = before, after = st.count,
+        oldTick = tick, tick = st.tick, at = GetTime(), recharge = st.recharge,
+        source = st.rechargeSrc,
+    }
+    while #log > 80 do table.remove(log, 1) end
+end
+
+function ns.AppendChargeAudit(out)
+    local log = TRDB().chargeAudit
+    if type(log) ~= "table" then return end
+    out[#out + 1] = "Charge model transitions (automatic, last 80):"
+    for i = 1, #log do
+        local e = log[i]
+        out[#out + 1] = ("%s build=%s spell=%d %s: %s -> %d, anchor age %.1f -> %.1f, recharge %.1f (%s)"):format(
+            e.stamp, tostring(e.build), e.sid, e.reason, tostring(e.before), e.after,
+            e.at - (e.oldTick or e.at), e.at - e.tick, e.recharge, tostring(e.source))
+    end
+end
 
 -- Defined below with the rest of the cooldown reads; forward-declared because the charge
 -- model needs it and sits above it. It answers the one question the charge fields cannot:
@@ -1770,7 +1800,25 @@ function EnsureChargeState(sid)
     end
 
     local st = chargeState[sid]
-    if not st or st.max ~= max then
+    if not st then
+        local retained = chargeMemory[sid]
+        if retained and retained.witnessed then
+            st = retained
+            chargeState[sid] = st
+            ns.RecordChargeTransition(sid, "restore", nil, nil, st)
+        end
+    end
+    if st and st.max ~= max then
+        local before, oldTick = st.count, st.tick
+        -- A larger maximum is not evidence that new charges are available. If
+        -- the old stack was full, its idle clock cannot earn the new charge.
+        if st.count == st.max and max > st.max then
+            st.tick, st.rechargeStart = GetTime(), nil
+        end
+        st.max, st.count = max, math.min(st.count, max)
+        ns.RecordChargeTransition(sid, "shape change", before, oldTick, st)
+    end
+    if not st then
         -- MEASURED: GetSpellBaseCooldown reports 8 seconds for Guardian of Ancient Kings,
         -- whose real cooldown is five minutes. Used as a recharge rate that regenerates a
         -- charge every 8 seconds, so spending both charges put the model back at full
@@ -1802,7 +1850,7 @@ function EnsureChargeState(sid)
             -- to be an overcount: the recharge math below counts back up from there on its
             -- own, so an undercount here costs a few seconds of silence instead of a false
             -- callout for a defensive still on cooldown.
-            max = max, count = active and 0 or max, tick = GetTime(),
+            max = max, count = (active or ReadChargeRecharge(sid) ~= nil) and 0 or max, tick = GetTime(),
             -- Zero means no climb at all, which is a complete answer rather than a
             -- degraded one: the count still falls on every witnessed cast, and
             -- ChargesAvailable still snaps it back to full the moment isActive reports
@@ -1824,7 +1872,8 @@ function EnsureChargeState(sid)
                 and "none")
                 or ((learned or 0) >= (KNOWN_BASE_COOLDOWN[sid] or 0) and "learned" or "seed"),
         }
-        chargeState[sid] = st
+        chargeState[sid], chargeMemory[sid] = st, st
+        ns.RecordChargeTransition(sid, "initialize", nil, nil, st)
     end
     return st
 end
@@ -1833,6 +1882,7 @@ function ChargesAvailable(sid)
     sid = ns.CooldownKey(sid)
     local st = chargeState[sid]
     if not st then return nil end
+    local before, oldTick = st.count, st.tick
 
     local max, active = ReadChargeShape(sid)
 
@@ -1888,12 +1938,29 @@ function ChargesAvailable(sid)
         local okCur, cur = pcall(function() return C_Spell.GetSpellCharges(sid).currentCharges end)
         if okCur and not (issecretvalue and issecretvalue(cur))
             and type(cur) == "number" and cur >= 0 and cur <= st.max then
+            -- A readable count already includes completed recharges. Consume those
+            -- intervals before returning, or NoteOwnCast/the next sealed read credits
+            -- the same landing again. Preserve a readable remaining-duration anchor.
+            if not remaining and st.recharge > 0 and cur < st.max then
+                local now = GetTime()
+                local elapsed = math.max(0, math.floor((now - st.tick) / st.recharge))
+                if cur > st.count and elapsed < cur - st.count then
+                    -- An early refill/reset has no known recharge phase. Start a
+                    -- conservative new interval; do not invent the next charge.
+                    st.tick, st.rechargeStart = now, nil
+                elseif elapsed > 0 then
+                    local advance = elapsed * st.recharge
+                    st.tick = st.tick + advance
+                    if st.rechargeStart then st.rechargeStart = st.rechargeStart + advance end
+                end
+            end
             -- The climb re-anchors on a correction downward: the count is known as of now.
             if cur < st.count then st.tick = GetTime() end
-            st.count = cur
+            st.count, st.witnessed = cur, true
             if cur == st.max then
                 st.tick, st.missingSince, st.rechargeStart = GetTime(), nil, nil
             end
+            ns.RecordChargeTransition(sid, "readable count", before, oldTick, st)
             return st.count
         end
     end
@@ -1945,6 +2012,7 @@ function ChargesAvailable(sid)
     -- An inactive cooldown does not establish an available charge. Keep a
     -- tracked empty stack empty until the recharge model or a readable count
     -- above restores it; a fallback floor here bypassed the recharge deadline.
+    ns.RecordChargeTransition(sid, "reconcile", before, oldTick, st)
     return st.count
 end
 local castToBase = {}       -- cast-time override id -> the id the list stores
@@ -2001,6 +2069,8 @@ local function RebuildCastMap()
         roots[sid] = root
         local previous = castToBase[sid] or sid
         local state = chargeState[previous]
+        local retained = chargeMemory[previous]
+        if not state and retained and retained.witnessed then state = retained end
         local kept = merged[root]
         -- Existing counters may already disagree. Keep the lower count (and the
         -- later anchor on a tie); a readable client count can correct it afterward.
@@ -2021,7 +2091,9 @@ local function RebuildCastMap()
     ns.cooldownAliases = castToBase
     for sid, root in pairs(roots) do
         if sid == root then
-            chargeState[root] = merged[root]
+            if merged[root] then
+                chargeState[root], chargeMemory[root] = merged[root], merged[root]
+            end
             readyAt[root], ownCastAt[root] = deadlines[root], casts[root]
             ns.trackedCooldownSpells[#ns.trackedCooldownSpells + 1] = root
         end
@@ -2117,7 +2189,10 @@ local function NoteOwnCast(castSpellID)
     -- readyAt/base-cooldown model below and get tracked by the wrong clock entirely.
     EnsureChargeState(sid)
     local st = chargeState[sid]
+    local retained = chargeMemory[sid]
+    if not st and retained and retained.witnessed then st = retained end
     if st then
+        local before, oldTick = st.count, st.tick
         -- Spend from the previously tracked count. Sampling the post-cast
         -- state first can already remove a charge (the active ceiling or an
         -- exact count), so subtracting again would charge this cast twice.
@@ -2136,7 +2211,10 @@ local function NoteOwnCast(castSpellID)
         -- cast would push the next charge further away each time one was spent.
         -- missingSince marks the same moment for the measurement in ChargesAvailable:
         -- this cast is what put the stack below full, so the run back up starts here.
-        if st.count >= st.max then
+        -- A successful cast at zero spent a landing our estimate has not seen.
+        -- Retire that pending landing instead of granting it after the cast.
+        -- A readable recharge/count can refine this conservative baseline later.
+        if st.count >= st.max or st.count == 0 then
             st.tick = GetTime()
             st.missingSince = GetTime()
             -- This cast starts a fresh recharge, so the next read establishes its own
@@ -2144,7 +2222,11 @@ local function NoteOwnCast(castSpellID)
             st.rechargeStart = nil
         end
         st.count = math.max(0, st.count - 1)
-        return
+        st.witnessed = true
+        ns.RecordChargeTransition(sid, "own cast", before, oldTick, st)
+        -- A missing charge shape still needs the single-cooldown deadline below,
+        -- but its cast must also spend from the retained charge counter.
+        if chargeState[sid] then return end
     end
 
     -- Learned beats base: a previously observed real total already includes every static
@@ -5232,6 +5314,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
                 .. "curated ability (check /nutank keys during a pull)"
         end
         for i = 1, #log do out[#out + 1] = LogLine(log[i]) end
+        ns.AppendChargeAudit(out)
         local text = table.concat(out, "\n")
         if ns.ShowDiagExport then
             ns.ShowDiagExport(text)
