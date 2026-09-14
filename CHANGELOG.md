@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.3.5
+
+### Fixed
+- Restore the settings preview after switching profiles, including switching back
+  from profiles with the icon or master switch disabled.
+- Cancel stale raid reminders after deletion, replacement, disable, profile changes,
+  or encounter changes. Two reminders sharing a boss bar can both fire.
+- Handle early boss-mod broadcasts, exact bar cancellation, and delayed callouts
+  when a bar identity is reused.
+- Recover sound lookup when SharedMedia loads late, invalidate cached sounds on
+  registration, and clear timeline sounds when their settings change.
+- Validate nested imported settings before modifying profiles, preserve supported
+  legacy shapes, and correct account-default fallback when deleting profiles.
+- Keep the alert frame from overwriting the addon's global namespace.
+
+### Performance
+- Cache sound lookups, coalesce settings and spell refreshes, reuse dialog controls,
+  and prune observations outside encounters.
+- Reuse the main Setup page's controls and rebind their profile callbacks. Dynamic
+  boss/profile editor frame growth is not fully addressed by this change.
+
+### Validation
+- All 12 offline regression suites pass under Lua 5.1, including 38 recovery cases,
+  profile-preview restoration, real serializer round trips, and Setup control reuse.
+- The tester reported all requested in-game checks passed after loading recovery.2.
+  No exact client build, screenshots, profiler capture, or taint log was supplied.
+- Combat CPU improvement and universal taint-free behavior are not claimed.
+
 ## 1.3.4
 
 ### Fixed

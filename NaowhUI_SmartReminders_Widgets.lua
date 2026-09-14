@@ -178,6 +178,7 @@ function UI.BuildToggleControl(parent, frameLevel, get, set, w, h, knobSize)
         Snap()
     end)
     Snap()
+    t._refreshValue = Snap
     return t, Paint, Snap
 end
 
@@ -267,6 +268,10 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
         border:SetColor(T.line.r, T.line.g, T.line.b, 1)
     end)
     btn._refreshLabel()
+    btn._refreshValue = btn._refreshLabel
+    btn:SetScript("OnHide", function()
+        if btn._menu then btn._menu:Close(); btn._menu = nil end
+    end)
     return btn, lbl
 end
 
@@ -354,6 +359,7 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     end)
 
     local function Commit()
+        if UI.rebindingRows then return end
         local v = Clamp(valBox:GetText())
         if v ~= nil then set(v) end
         Paint()
@@ -367,7 +373,8 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     end)
 
     Paint()
-    return track, valBox
+    track._refreshValue = Paint
+    return track, valBox, Paint
 end
 
 -------------------------------------------------------------------------------
@@ -378,11 +385,59 @@ UI.Widgets = W
 
 local ROW_H, HEADER_H = 50, 40
 
+-- Only enabled for pages whose rows have stable identities. Config objects stay
+-- attached to their controls; rebuilding updates their callbacks and dropdown data.
+function UI.BeginReusableRows(parent)
+    parent._rowCache = parent._rowCache or {}
+    parent._rowUses = {}
+    UI.rebindingRows = true
+    for _, rows in pairs(parent._rowCache) do
+        for _, row in ipairs(rows) do row:Hide() end
+    end
+    UI.rebindingRows = nil
+end
+
+local function CachedRow(parent, key)
+    if not parent._rowCache then return nil end
+    local index = (parent._rowUses[key] or 0) + 1
+    parent._rowUses[key] = index
+    local rows = parent._rowCache[key]
+    if not rows then rows = {}; parent._rowCache[key] = rows end
+    local row = rows[index]
+    if not row then
+        row = CreateFrame("Frame", nil, parent)
+        rows[index] = row
+    end
+    row:ClearAllPoints()
+    row:Show()
+    return row
+end
+
+local function UpdateConfig(dst, src)
+    if dst == src then return end
+    -- Dropdowns retain these table identities in their menu callbacks.
+    local values, order = dst.values, dst.order
+    for k in pairs(dst) do dst[k] = nil end
+    for k, v in pairs(src) do dst[k] = v end
+    for _, key in ipairs({ "values", "order" }) do
+        local prior = key == "values" and values or order
+        if type(prior) == "table" and type(src[key]) == "table" then
+            if prior ~= src[key] then
+                for k in pairs(prior) do prior[k] = nil end
+                for k, v in pairs(src[key]) do prior[k] = v end
+            end
+            dst[key] = prior
+        end
+    end
+end
+
 local function BuildRegionControl(rgn, cfg)
+    local function Get() return cfg.getValue() end
+    local function Set(...) return cfg.setValue(...) end
     if cfg.type == "toggle" then
         local disabled = type(cfg.disabled) == "function" and cfg.disabled()
         local toggle = UI.BuildToggleControl(rgn, rgn:GetFrameLevel() + 2,
-            cfg.getValue, cfg.setValue)
+            Get, Set)
         toggle:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         if disabled then
             toggle:SetAlpha(0.3)
@@ -391,12 +446,12 @@ local function BuildRegionControl(rgn, cfg)
         return toggle, disabled
     elseif cfg.type == "dropdown" then
         local dd = UI.BuildDropdownControl(rgn, cfg.width or 160, rgn:GetFrameLevel() + 2,
-            cfg.values, cfg.order, cfg.getValue, cfg.setValue)
+            cfg.values, cfg.order, Get, Set)
         dd:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         return dd
     elseif cfg.type == "slider" then
         local track, valBox = UI.BuildSliderCore(rgn, 120, 4, 12, 40, 22, 12, 1,
-            cfg.min or 0, cfg.max or 100, cfg.step or 1, cfg.getValue, cfg.setValue)
+            cfg.min or 0, cfg.max or 100, cfg.step or 1, Get, Set)
         valBox:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
         return track
@@ -407,7 +462,7 @@ local function BuildRegionControl(rgn, cfg)
         -- in this switch ever matched "colorpicker", so BuildRegionControl fell through and
         -- returned nil: no control, just the bare "Text Color" label with nothing under it
         -- to click.
-        local swatch = UI.BuildColorSwatchControl(rgn, cfg.getValue, cfg.setValue, cfg.hasAlpha)
+        local swatch = UI.BuildColorSwatchControl(rgn, Get, Set, cfg.hasAlpha)
         swatch:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         return swatch
     end
@@ -433,13 +488,30 @@ local function BuildRegion(row, cfg, left, width)
     lbl:SetText(cfg.text or "")
     if disabled then lbl:SetAlpha(0.3) end
 
+    rgn._cfg = cfg
+    rgn._refresh = function(newCfg)
+        UpdateConfig(cfg, newCfg)
+        local off = type(cfg.disabled) == "function" and cfg.disabled()
+        lbl:SetText(cfg.text or "")
+        lbl:SetAlpha(off and 0.3 or 1)
+        if control then
+            if cfg.type == "toggle" then
+                control:SetAlpha(off and 0.3 or 1)
+                control:EnableMouse(not off)
+            end
+            if control._refreshValue then control._refreshValue() end
+        end
+    end
+
     local tip = disabled and cfg.disabledTooltip or cfg.tooltip
     if tip then
         local hit = CreateFrame("Button", nil, rgn)
         hit:SetPoint("TOPLEFT", lbl, "TOPLEFT", -4, 4)
         hit:SetPoint("BOTTOMRIGHT", lbl, "BOTTOMRIGHT", 4, -4)
         hit:SetScript("OnEnter", function(self)
-            UI.ShowWidgetTooltip(self, tip, { anchor = "cursor", justify = "LEFT" })
+            local off = type(cfg.disabled) == "function" and cfg.disabled()
+            UI.ShowWidgetTooltip(self, off and cfg.disabledTooltip or cfg.tooltip,
+                { anchor = "cursor", justify = "LEFT" })
         end)
         hit:SetScript("OnLeave", function() UI.HideWidgetTooltip() end)
     end
@@ -447,7 +519,9 @@ local function BuildRegion(row, cfg, left, width)
 end
 
 function W:DualRow(parent, yOffset, leftCfg, rightCfg)
-    local row = CreateFrame("Frame", nil, parent)
+    local key = "row:" .. leftCfg.type .. ":" .. (leftCfg.text or "") .. ":"
+        .. (rightCfg and (rightCfg.type .. ":" .. (rightCfg.text or "")) or "")
+    local row = CachedRow(parent, key) or CreateFrame("Frame", nil, parent)
     row:SetHeight(ROW_H)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
@@ -456,9 +530,17 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
     -- every section starts on a lit row.
     local count = (parent._nsuiRowCount or 0) + 1
     parent._nsuiRowCount = count
-    if count % 2 == 1 then
+    if row._leftRegion then
+        row._leftRegion._refresh(leftCfg)
+        if rightCfg then row._rightRegion._refresh(rightCfg) end
+        if row._band then row._band:SetShown(count % 2 == 1) end
+        return row, ROW_H
+    end
+    if count % 2 == 1 or parent._rowCache then
         local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
         band:SetAllPoints()
+        band:SetShown(count % 2 == 1)
+        row._band = band
     end
 
     local w = row:GetWidth()
@@ -484,10 +566,12 @@ end
 
 function W:SectionHeader(parent, text, yOffset)
     parent._nsuiRowCount = 0
-    local f = CreateFrame("Frame", nil, parent)
+    local f = CachedRow(parent, "header:" .. text) or CreateFrame("Frame", nil, parent)
     f:SetHeight(HEADER_H)
     f:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
     f:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
+    if f._headerBuilt then return f, HEADER_H end
+    f._headerBuilt = true
     local lbl = ns.Font(f, 12, nil, T.accent)
     lbl:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 8)
     lbl:SetText(text)
@@ -522,6 +606,7 @@ function UI.BuildColorSwatchControl(parent, get, set, hasAlpha)
         swatch:SetColorTexture(r or 1, g or 1, b or 1, 1)
     end
     PaintSwatch()
+    swatchBtn._refreshValue = PaintSwatch
 
     swatchBtn:SetScript("OnClick", function()
         local r, g, b, a = get()
@@ -547,23 +632,34 @@ function UI.BuildColorSwatchControl(parent, get, set, hasAlpha)
 end
 
 function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
-    local row = CreateFrame("Frame", nil, parent)
+    local row = CachedRow(parent, "color:" .. text) or CreateFrame("Frame", nil, parent)
+    row._colorGet, row._colorSet = get, set
     row:SetHeight(ROW_H)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
 
     local count = (parent._nsuiRowCount or 0) + 1
     parent._nsuiRowCount = count
-    if count % 2 == 1 then
+    if row._swatch then
+        row._swatch._refreshValue()
+        if row._band then row._band:SetShown(count % 2 == 1) end
+        return row, ROW_H
+    end
+    if count % 2 == 1 or parent._rowCache then
         local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
         band:SetAllPoints()
+        band:SetShown(count % 2 == 1)
+        row._band = band
     end
 
     local lbl = ns.Font(row, 14, nil)
     lbl:SetPoint("LEFT", row, "LEFT", 20, 0)
     lbl:SetText(text)
 
-    local swatchBtn = UI.BuildColorSwatchControl(row, get, set, hasAlpha)
+    local swatchBtn = UI.BuildColorSwatchControl(row,
+        function() return row._colorGet() end,
+        function(...) return row._colorSet(...) end, hasAlpha)
+    row._swatch = swatchBtn
     swatchBtn:SetPoint("RIGHT", row, "RIGHT", -20, 0)
     return row, ROW_H
 end
@@ -605,12 +701,29 @@ function UI._PlayLSMSound(v)
     end
 end
 
--- Resolves a stored soundKey to a playable path. Rebuilt on a miss rather than
--- invalidated by callback: sounds register once at load in practice.
+-- Resolves a stored soundKey to a playable path. Built once and dropped whenever SharedMedia
+-- registers another sound (boss mods register theirs when they load, often after login).
+-- Rebuilding on a miss instead re-sorted every sound on every callout once a pack was removed.
 local soundPaths
+local soundProvider
+local function SoundRegistered(_, mediatype)
+    if mediatype == "sound" then soundPaths = nil end
+end
+
 function UI.SoundPathFor(key)
     if not key or key == "none" then return nil end
-    if not soundPaths or soundPaths[key] == nil then
+    local provider = LibStub and LibStub("LibSharedMedia-3.0", true)
+    -- A missing optional provider is not a cached miss. It may load later.
+    if not provider then return nil end
+    if provider ~= soundProvider then
+        if soundProvider then
+            soundProvider.UnregisterCallback(UI, "LibSharedMedia_Registered")
+        end
+        provider.RegisterCallback(UI, "LibSharedMedia_Registered", SoundRegistered)
+        soundProvider = provider
+        soundPaths = nil
+    end
+    if not soundPaths then
         local paths, names, order = UI.BuildAlertSoundTables()
         UI.AppendSharedMediaSounds(paths, names, order)
         soundPaths = paths

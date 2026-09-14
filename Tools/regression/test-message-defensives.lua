@@ -109,6 +109,7 @@ Case("blank delay fires immediately", function()
 end)
 Case("unrelated runtime refresh preserves pending message delay", function()
     local e = Fixture(); e.message("BW", 123)
+    e.ns.PrunePendingBWFires = function() end -- Separate raid scheduler; covered by recovery tests.
     e.env.RebuildCastMap = function() end
     e.env.UpdateEventRegistration = function() end
     e.env.UpdatePreview = function() end
