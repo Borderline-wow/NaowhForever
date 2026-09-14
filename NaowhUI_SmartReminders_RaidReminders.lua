@@ -1315,14 +1315,15 @@ function ns.ShowRaidReminderAnchorConfig()
     RefreshAllConfigVisuals()
 end
 
-function ns.HideRaidReminderAnchorConfig()
+-- windowClosing: called from the options window's own OnHide, which must not reopen it.
+function ns.HideRaidReminderAnchorConfig(windowClosing)
     configActive = false
     ns.SetAnchorGridShown(false)
     if configToolbar then configToolbar:Hide() end
     for _, displayType in ipairs(CONFIG_ORDER) do HideConfigVisual(displayType) end
     if reopenWindowOnExit then
         reopenWindowOnExit = false
-        if ns.OpenOptionsWindow then ns.OpenOptionsWindow() end
+        if not windowClosing and ns.OpenOptionsWindow then ns.OpenOptionsWindow() end
     end
 end
 
@@ -1390,40 +1391,56 @@ local RESIZE_ROWS = {
     },
 }
 
+-- Built once per display type and re-shown: its rows never change, only the values shown in
+-- them, which are repainted on each open.
+local sizePopups = {}
+
 function ns.ShowRaidReminderAnchorSizePopup(displayType)
     local rows = RESIZE_ROWS[displayType]
     if not rows then return end
-
-    -- Wide enough for label + 120px track + value box; the old numeric-box layout fit in 240.
-    local dimmer, panel = ns.MakeModal(340, 60 + #rows * 34, "raidReminderAnchorSize")
-    local head = ns.Font(panel, 13, "OUTLINE")
-    head:SetPoint("TOP", panel, "TOP", 0, -14)
-    head:SetText((DISPLAY_TYPE_LABEL[displayType] or displayType) .. " Size")
-
-    local PAD, y = 16, -42
-    for i = 1, #rows do
-        local row = rows[i]
-        local l = ns.Font(panel, 11, nil, ns.THEME.muted)
-        l:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y)
-        l:SetText(row.label)
-
-        local track, valBox = ns.UI.BuildSliderCore(panel, 120, 4, 12, 44, 22, 12, 1,
-            row.min or 8, row.max or 200, 1, row.get,
-            function(v) row.set(v); RefreshAllConfigVisuals() end)
-        valBox:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, y + 4)
-        track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
-        y = y - 34
+    for other, popup in pairs(sizePopups) do
+        if other ~= displayType then popup.dimmer:Hide() end
     end
 
-    ns.Button(panel, "Done", 90, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
-    dimmer:Show()
+    local popup = sizePopups[displayType]
+    if not popup then
+        -- Wide enough for label + 120px track + value box; the old numeric-box layout fit in 240.
+        local dimmer, panel = ns.MakeModal(340, 60 + #rows * 34,
+            "raidReminderAnchorSize:" .. displayType)
+        local head = ns.Font(panel, 13, "OUTLINE")
+        head:SetPoint("TOP", panel, "TOP", 0, -14)
+        head:SetText((DISPLAY_TYPE_LABEL[displayType] or displayType) .. " Size")
+
+        popup = { dimmer = dimmer, paints = {} }
+        local PAD, y = 16, -42
+        for i = 1, #rows do
+            local row = rows[i]
+            local l = ns.Font(panel, 11, nil, ns.THEME.muted)
+            l:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, y)
+            l:SetText(row.label)
+
+            local track, valBox, paint = ns.UI.BuildSliderCore(panel, 120, 4, 12, 44, 22, 12, 1,
+                row.min or 8, row.max or 200, 1, row.get,
+                function(v) row.set(v); RefreshAllConfigVisuals() end)
+            valBox:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, y + 4)
+            track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
+            popup.paints[i] = paint
+            y = y - 34
+        end
+
+        ns.Button(panel, "Done", 90, 26, function() dimmer:Hide() end)
+            :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+        sizePopups[displayType] = popup
+    end
+    for i = 1, #popup.paints do popup.paints[i]() end
+    popup.dimmer:Show()
 end
 
 -------------------------------------------------------------------------------
 --  Firing
 -------------------------------------------------------------------------------
 local function FireRaidReminder(entry)
+    if ns.DB().enabled ~= true or not ns.BossAllowed() then return end
     if entry.enabled == false then return end
     if not ns.RaidReminderTargetsMe(entry.target) then return end
     ns.DisplayRaidReminder(entry)
@@ -1436,22 +1453,48 @@ local function RaidRemindersAllowed()
     return ns.DB().enabled == true and ns.BossAllowed()
 end
 
+-- Capture ownership, not just the entry: an editor replaces/deletes the table value,
+-- and a profile switch can leave an otherwise enabled entry belonging to old settings.
+local function ReminderStillCurrent(reminders, uid, entry)
+    local profile = ns.DB()
+    local encounter = ns.CurrentEncounter()
+    local startedAt = ns.PullContext()
+    return function()
+        return RaidRemindersAllowed() and ns.DB() == profile
+            and ns.InEncounter() and ns.CurrentEncounter() == encounter
+            and ns.PullContext() == startedAt
+            and RaidRemindersTable(false, encounter) == reminders
+            and reminders[uid] == entry and entry.enabled ~= false
+    end
+end
+
 -- BigWigs only, deliberately -- OnBigWigsEvent is the only caller (OnDBMEvent never
 -- calls this). sid/duration/barIdentity are exactly what it already extracted and
 -- issecretvalue-checked for ns.HandleBigWigsAbility -- reused as-is, no new secret
 -- handling needed. Every raidReminders entry for the current encounter whose trigger
 -- matches this exact broadcast gets scheduled independently (a pull can reasonably want
 -- more than one reminder off the same bar, e.g. one for the tank and one for the healer).
-function ns.HandleRaidReminderAbility(sid, duration, barIdentity)
+function ns.HandleRaidReminderAbility(sid, duration, barIdentity, retried)
     if type(sid) ~= "number" or sid <= 0 then return end
-    if not (ns.InEncounter and ns.InEncounter()) then return end
     if not RaidRemindersAllowed() then return end
     local enc = ns.CurrentEncounter and ns.CurrentEncounter()
-    if not enc then return end
+    -- An engage broadcast can arrive before the main file's ENCOUNTER_START handler has set
+    -- the encounter: retried next frame, with the time already elapsed taken off a bar.
+    if not enc then
+        if not retried then
+            local at = GetTime()
+            C_Timer.After(0, function()
+                ns.HandleRaidReminderAbility(sid, duration and duration - (GetTime() - at),
+                    barIdentity, true)
+            end)
+        end
+        return
+    end
+    if not (ns.InEncounter and ns.InEncounter()) then return end
     local reminders = RaidRemindersTable(false, enc)
     if not reminders then return end
 
-    for _, entry in pairs(reminders) do
+    for uid, entry in pairs(reminders) do
         local trig = entry.trigger
         if trig and trig.spellID == sid then
             local wantsBar = trig.type == "bwtimer"
@@ -1461,9 +1504,11 @@ function ns.HandleRaidReminderAbility(sid, duration, barIdentity)
                 -- negative lead falls back to the 3s default.
                 local lead = (type(trig.leadTime) == "number" and trig.leadTime >= 0)
                     and trig.leadTime or 3
-                ns.ScheduleBWFire("raid", sid, duration, barIdentity, lead, function()
+                -- A channel per reminder: on a shared one, a second reminder on the same bar
+                -- reads as a duplicate of the first and supersedes it.
+                ns.ScheduleBWFire("raid:" .. tostring(uid), sid, duration, barIdentity, lead, function()
                     FireRaidReminder(entry)
-                end)
+                end, nil, ReminderStillCurrent(reminders, uid, entry))
             elseif trig.type == "bwmsg" and not haveBar then
                 FireRaidReminder(entry)
             end
@@ -1484,7 +1529,7 @@ function ns.CheckRaidReminderPullTriggers()
     local reminders = RaidRemindersTable(false, enc)
     if not reminders then return end
 
-    for _, entry in pairs(reminders) do
+    for uid, entry in pairs(reminders) do
         local trig = entry.trigger
         if trig and trig.type == "pull" then
             local delay = (type(trig.delay) == "number" and trig.delay >= 0) and trig.delay or 0.01
@@ -1492,7 +1537,7 @@ function ns.CheckRaidReminderPullTriggers()
             -- moment rather than starting at it.
             local lead = type(trig.leadTime) == "number" and trig.leadTime or 0
             ns.TrackReminderTimer("pull", math.max(delay - lead, 0.01),
-                function() FireRaidReminder(entry) end)
+                function() FireRaidReminder(entry) end, nil, ReminderStillCurrent(reminders, uid, entry))
         end
     end
 end
@@ -1508,13 +1553,13 @@ function ns.CheckRaidReminderStageTriggers(stage)
     local reminders = RaidRemindersTable(false, enc)
     if not reminders then return end
 
-    for _, entry in pairs(reminders) do
+    for uid, entry in pairs(reminders) do
         local trig = entry.trigger
         if trig and trig.type == "stage" and trig.stage == stage then
             local delay = (type(trig.delay) == "number" and trig.delay >= 0) and trig.delay or 0.01
             local lead = type(trig.leadTime) == "number" and trig.leadTime or 0
             ns.TrackReminderTimer("stage", math.max(delay - lead, 0.01),
-                function() FireRaidReminder(entry) end)
+                function() FireRaidReminder(entry) end, nil, ReminderStillCurrent(reminders, uid, entry))
         end
     end
 end

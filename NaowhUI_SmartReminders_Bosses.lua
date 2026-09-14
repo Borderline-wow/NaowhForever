@@ -1858,13 +1858,13 @@ function ns.BuildProfileSettings(parent, y)
           end },
         { type = "dropdown", text = "Delete Profile",
           values = pickValues, order = pickOrder,
-          tooltip = "Removes the chosen profile. Characters using it fall back to Default, "
-          .. "and the last profile cannot be deleted.",
+          tooltip = "Removes the chosen profile. Characters using it move to the account's "
+          .. "default profile, and the last profile cannot be deleted.",
           getValue = function() return "" end,
           setValue = function(v)
               if v == "" then return end
-              ConfirmOn("Delete", "Cannot be undone. Characters using it fall back to "
-                  .. "Default.", "Delete", v, ns.DeleteProfile)
+              ConfirmOn("Delete", "Cannot be undone. Characters using it move to the "
+                  .. "account's default profile.", "Delete", v, ns.DeleteProfile)
           end }
     ); y = y - h
     local packRow
@@ -1898,8 +1898,8 @@ function ns.BuildProfileSettings(parent, y)
         end)
         btn:SetPoint("RIGHT", packRow2._rightRegion, "RIGHT", -14, 0)
         ns.Tooltip(btn, "Import Profile",
-            "Paste a profile string. Nothing applies until you choose Replace or Merge, and a "
-            .. "damaged string is refused outright.")
+            "Paste a profile string. Nothing applies until you press Import, and a damaged "
+            .. "string is refused outright.")
     end
 
     return y
@@ -4278,7 +4278,8 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
           tooltip = "Message/Timer/Icon/Bar/Circle each have their own fixed on-screen "
               .. "spot. Chat Line prints instead of showing anything. Nameplate/"
               .. "Raid-Frame Glow highlight another raider's own frame -- set who "
-              .. "below.",
+              .. "below. Nameplate Glow does nothing inside dungeons and raids, where the "
+              .. "game keeps friendly nameplates from addons; use Raid-Frame Glow there.",
           getValue = function() return displayTypeVal end,
           setValue = function(v) displayTypeVal = v end }
     ); dsy = dsy - dispRowH

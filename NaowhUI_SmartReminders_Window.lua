@@ -98,6 +98,12 @@ local function ShowPage(pageName)
         wrapper:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", 0, 0)
         wrapper:SetHeight(1)
         wrappers[pageName] = wrapper
+        wrapper._dirty = true
+    end
+    local wrapper = wrappers[pageName]
+    if wrapper._dirty then
+        wrapper._dirty = nil
+        if pageName == PAGES[1] then UI.BeginReusableRows(wrapper) end
         local usedY = BuildPageInto(pageName, wrapper)
         wrapper:SetHeight(math.abs(usedY) + 30)
     end
@@ -106,17 +112,33 @@ local function ShowPage(pageName)
     PaintTabs()
 end
 
+local function InvalidatePages()
+    for name, w in pairs(wrappers) do
+        if name == PAGES[1] then
+            w._dirty = true
+        else
+            w:Hide()
+            w:SetParent(nil)
+            wrappers[name] = nil
+        end
+    end
+end
+
 -- The universal "this setting changed, redraw it" call. Every caller passes force=true --
 -- there has never been a caller that wants anything less -- and force never meant more than
 -- "rebuild the active tab": every OTHER cached tab kept whatever it looked like when it was
 -- last built, which is wrong for anything that isn't scoped to the tab you happened to be
 -- looking at (a pack import landing new Cooldown Presets while you're sitting on Raid
--- Bosses, say). Wipe every cached tab instead: the active one rebuilds now, same as before;
--- the rest just lose their stale wrapper and rebuild the next time ShowPage opens them, the
--- same lazy-build path a first-ever visit already takes. When the window is hidden the
+-- Bosses, say). Invalidate every cached tab: Setup reuses its rows, while dynamic editor
+-- pages rebuild their wrappers on the next ShowPage. When the window is hidden the
 -- rebuild waits for the next open, so page-build side effects (preview, lazy journal reads)
 -- never run off-screen.
-function UI:RefreshPage(force)
+-- One rebuild per frame however many times it is asked for: one action (a pack import,
+-- a chain of setters) can ask repeatedly.
+local refreshQueued
+
+local function RebuildPages()
+    refreshQueued = false
     if not (window and window:IsShown()) then
         pendingRefresh = true
         return
@@ -125,24 +147,31 @@ function UI:RefreshPage(force)
     -- anchor orphaned; changing a setting while hovering its label is the ordinary way in.
     if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
     local scroll = scrollFrame:GetVerticalScroll()
-    for name, w in pairs(wrappers) do
-        w:Hide()
-        w:SetParent(nil)
-        wrappers[name] = nil
-    end
+    InvalidatePages()
     ShowPage(currentPage)
     scrollFrame:UpdateScrollChildRect()
     scrollFrame:SetVerticalScroll(scroll)
 end
 
+function UI:RefreshPage(force)
+    if not (window and window:IsShown()) then
+        pendingRefresh = true
+        return
+    end
+    if refreshQueued then return end
+    refreshQueued = true
+    C_Timer.After(0, RebuildPages)
+end
+
 -- ShowPage only rebuilds a page's cached wrapper on an explicit RefreshPage call, so a
--- trinket swap (or any gear change) while the Cooldown Presets page is already built and
--- just sitting shown would otherwise never be noticed short of a full /reload. Cheap: the
--- event only fires on an actual equip, and RefreshPage itself no-ops to a pending flag
--- when the window is not shown.
+-- trinket swap while the Cooldown Presets page is already built and just sitting shown would
+-- otherwise never be noticed short of a full /reload. Only the trinket slots feed that page,
+-- and the event fires once per changed slot, so an equipment-set swap arrives as a burst.
 local equipWatcher = CreateFrame("Frame")
 equipWatcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-equipWatcher:SetScript("OnEvent", function() UI:RefreshPage(true) end)
+equipWatcher:SetScript("OnEvent", function(_, _, slot)
+    if slot == INVSLOT_TRINKET1 or slot == INVSLOT_TRINKET2 then UI:RefreshPage(true) end
+end)
 
 -- Set from the dropdown on the setup page. A dropdown rather than a slider on purpose:
 -- the control sits inside the frame it resizes, and the slider maps the cursor against the
@@ -168,20 +197,21 @@ local function CreateWindow()
     -- ESC via our own keyboard handler, NOT UISpecialFrames: a named addon frame in that
     -- table is a convicted taint injector (Blizzard's CloseAllWindows enumerates it inside
     -- secure execution). Same combat-guarded pattern MakeModal uses; opened in combat the
-    -- window keeps its close button and ESC simply does not bind.
-    if not InCombatLockdown() then
-        window:EnableKeyboard(true)
-        window:SetPropagateKeyboardInput(true)
-        window:SetScript("OnKeyDown", function(self, key)
-            if InCombatLockdown() then return end
-            if key == "ESCAPE" then
-                self:Hide()
-                self:SetPropagateKeyboardInput(false)
-            else
-                self:SetPropagateKeyboardInput(true)
-            end
-        end)
-    end
+    -- window keeps its close button and ESC binds from its next out-of-combat open (OnShow).
+    window:SetScript("OnKeyDown", function(self, key)
+        if InCombatLockdown() then return end
+        if key == "ESCAPE" then
+            self:Hide()
+            self:SetPropagateKeyboardInput(false)
+            -- Restored once this key is consumed: reopened in combat, the window cannot
+            -- change it and would swallow every keybind while open.
+            C_Timer.After(0, function()
+                if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+            end)
+        else
+            self:SetPropagateKeyboardInput(true)
+        end
+    end)
 
     local titleBar = CreateFrame("Button", nil, window)
     titleBar:SetPoint("TOPLEFT")
@@ -236,17 +266,17 @@ local function CreateWindow()
     scrollChild:SetSize(WINDOW_W - 40, 1)
     scrollFrame:SetScrollChild(scrollChild)
 
-    window:SetScript("OnShow", function()
+    window:SetScript("OnShow", function(self)
+        if not InCombatLockdown() then
+            self:EnableKeyboard(true)
+            self:SetPropagateKeyboardInput(true)
+        end
         -- Same rule as RefreshPage itself: a refresh asked for while the window was
         -- closed (gear changed with it shut, say) is not scoped to whichever tab happens
         -- to be current on reopen, so every cached tab goes, not just that one.
         if pendingRefresh then
             pendingRefresh = nil
-            for name, w in pairs(wrappers) do
-                w:Hide()
-                w:SetParent(nil)
-                wrappers[name] = nil
-            end
+            InvalidatePages()
         end
         ShowPage(currentPage)
         for i = 1, #onShowCallbacks do onShowCallbacks[i]() end

@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "1.3.4"
+ns.CODE_BUILD = "1.3.5"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -249,21 +249,26 @@ function ns.MakeModal(width, height, key)
     -- all there rather than taken without propagation control, which would swallow every
     -- keybind for as long as the modal stayed open. The cost is that ESC will not close a
     -- modal opened mid-fight; its close button still does.
-    if not InCombatLockdown() then
-        dimmer:EnableKeyboard(true)
-        dimmer:SetPropagateKeyboardInput(true)
-        dimmer:SetScript("OnKeyDown", function(self, key)
-            if InCombatLockdown() then return end
-            if key == "ESCAPE" then
-                self:Hide()
-                self:SetPropagateKeyboardInput(false)
-            else
-                self:SetPropagateKeyboardInput(true)
-            end
-        end)
-    end
+    dimmer:SetScript("OnKeyDown", function(self, key)
+        if InCombatLockdown() then return end
+        if key == "ESCAPE" then
+            self:Hide()
+            self:SetPropagateKeyboardInput(false)
+            -- Restored once this key is consumed: a cached modal shown again in combat
+            -- cannot change it, and would swallow every keybind while open.
+            C_Timer.After(0, function()
+                if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+            end)
+        else
+            self:SetPropagateKeyboardInput(true)
+        end
+    end)
 
     dimmer:SetScript("OnShow", function(self)
+        if not InCombatLockdown() then
+            self:EnableKeyboard(true)
+            self:SetPropagateKeyboardInput(true)
+        end
         -- The counter only ever climbed, so the panel level (this + 5) crossed 200 on the
         -- nineteenth modal opened in a session -- and 200 is the hardcoded dropdown level
         -- the comment above is about. Past that, dropdowns render BEHIND the panel that
@@ -539,10 +544,13 @@ function ns.DeleteProfile(name)
     sv.profiles[name] = nil
     -- Every character pointed at it falls back to the account default, or to any surviving
     -- profile if that was the one deleted -- "Default" may not exist at all once profiles
-    -- have been renamed around.
-    if sv.defaultProfile == name then sv.defaultProfile = nil end
-    local fallback = (type(sv.profiles[sv.defaultProfile or ""]) == "table")
-        and sv.defaultProfile or next(sv.profiles)
+    -- have been renamed around. A replacement becomes the default too, or a character logged
+    -- into later would start on a new, empty Default.
+    local fallback = sv.defaultProfile or "Default"
+    if type(sv.profiles[fallback]) ~= "table" then
+        fallback = next(sv.profiles)
+        sv.defaultProfile = fallback
+    end
     for char, active in pairs(sv.charActive) do
         if active == name then sv.charActive[char] = fallback end
     end
@@ -561,10 +569,16 @@ end
 local reapplyPending
 
 function ns.QueueReapply()
+    -- Invalidate old-profile work immediately, even if two switches share a frame.
+    if ns.PruneCustomReminderTimers then ns.PruneCustomReminderTimers() end
+    if ns.PrunePendingBWFires then ns.PrunePendingBWFires() end
     if reapplyPending then return end
     reapplyPending = true
     C_Timer.After(0, function()
         reapplyPending = false
         if ns.Apply then ns.Apply() end
+        -- Profile changes do not reopen the options window, so its OnShow preview
+        -- callback will not run. Restore it after Apply has rebuilt/hidden the slots.
+        if ns.RefreshDefensivePreview then ns.RefreshDefensivePreview() end
     end)
 end

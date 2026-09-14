@@ -109,18 +109,21 @@ end
 -------------------------------------------------------------------------------
 --  Recording
 -------------------------------------------------------------------------------
--- Not a wipe: the boss mods receive ENCOUNTER_START before we do and broadcast their
--- engage bars inside their own handler, so the opening cast -- usually the one worth
--- recording most -- arrives just BEFORE this runs. Anything older than the grace window
--- belonged to a previous pull or to trash and is dropped.
-function ns.ObserveBeginPull()
-    local cutoff = GetTime() - ENGAGE_GRACE
+local function DropBefore(cutoff)
     for key, p in pairs(pending) do
         if p.at < cutoff then pending[key] = nil end
     end
     for i = #landed, 1, -1 do
         if landed[i].at < cutoff then table.remove(landed, i) end
     end
+end
+
+-- Not a wipe: the boss mods receive ENCOUNTER_START before we do and broadcast their
+-- engage bars inside their own handler, so the opening cast -- usually the one worth
+-- recording most -- arrives just BEFORE this runs. Anything older than the grace window
+-- belonged to a previous pull or to trash and is dropped.
+function ns.ObserveBeginPull()
+    DropBefore(GetTime() - ENGAGE_GRACE)
 end
 
 function ns.ObserveCancel(barIdentity)
@@ -137,8 +140,11 @@ end
 -- before our own ENCOUNTER_START (see ObserveBeginPull) is not lost for want of a clock.
 function ns.ObserveCast(sid, mod, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
-    local _, _, stage, stageAt = ns.PullContext()
+    local startedAt, _, stage, stageAt = ns.PullContext()
     local now = GetTime()
+    -- Outside a pull only the last ENGAGE_GRACE seconds can still be claimed by the next one;
+    -- anything older is trash traffic that would otherwise pile up until then.
+    if not startedAt then DropBefore(now - ENGAGE_GRACE) end
 
     if type(duration) == "number" and duration > 0.5 then
         local key = barIdentity

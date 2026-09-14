@@ -39,15 +39,17 @@ local PACK_FORMAT = 1
 -- say which is live lands the importer on whichever key next() happens to return, not the
 -- one the curator meant. Nothing breaks without it -- ActivePresetKey self-heals a stale
 -- pointer -- but the choice does not survive the trip.
+-- value: what every entry of a flat section must be. perEntry: merged into an existing profile
+-- reminder by reminder rather than a boss at a time.
 local SECTIONS = {
     { field = "presets",         label = "spec priority lists",  count = "nested" },
-    { field = "activePreset",    label = "active preset choice", count = "keys" },
-    { field = "bossLists",       label = "per-boss orders",      count = "keys" },
-    { field = "callouts",        label = "callout lines",        count = "keys" },
-    { field = "customReminders", label = "custom reminders",     count = "nested" },
+    { field = "activePreset",    label = "active preset choice", count = "keys", value = "string" },
+    { field = "bossLists",       label = "per-boss orders",      count = "keys", value = "table" },
+    { field = "callouts",        label = "callout lines",        count = "keys", value = "string" },
+    { field = "customReminders", label = "custom reminders",     count = "nested", perEntry = true },
     { field = "abilityBindings", label = "ability on/off",       count = "nested" },
-    { field = "audioOff",        label = "audio switches",       count = "keys" },
-    { field = "raidReminders",   label = "raid reminders",       count = "nested" },
+    { field = "audioOff",        label = "audio switches",       count = "keys", value = "boolean" },
+    { field = "raidReminders",   label = "raid reminders",       count = "nested", perEntry = true },
 }
 
 local function CountSection(kind, t)
@@ -63,6 +65,128 @@ local function CountSection(kind, t)
         for _ in pairs(t) do n = n + 1 end
     end
     return n
+end
+
+-- Validate known fields without stripping forward-compatible metadata. Limits also
+-- stop cyclic/deep serializer values from reaching the recursive copy on import.
+local ENTRY_TABLES = { "trigger", "display", "target", "list", "together" }
+
+local function PlainData(value, seen, depth, budget)
+    local kind = type(value)
+    if kind == "number" then return value == value and math.abs(value) < math.huge end
+    if kind ~= "table" then return kind == "string" or kind == "boolean" or kind == "nil" end
+    if seen[value] or depth > 32 then return false end
+    seen[value] = true
+    for k, v in pairs(value) do
+        budget[1] = budget[1] - 1
+        if budget[1] < 0 or (type(k) ~= "string" and type(k) ~= "number")
+            or not PlainData(k, seen, depth + 1, budget)
+            or not PlainData(v, seen, depth + 1, budget) then return false end
+    end
+    seen[value] = nil
+    return true
+end
+
+local function Fields(t, schema)
+    if type(t) ~= "table" then return false end
+    for key, kinds in pairs(schema) do
+        local v = t[key]
+        if v ~= nil and not ("|" .. kinds .. "|"):find("|" .. type(v) .. "|", 1, true) then
+            return false
+        end
+    end
+    return true
+end
+
+local function FlagMap(t)
+    if t == nil then return true end
+    if type(t) ~= "table" then return false end
+    for _, flag in pairs(t) do if type(flag) ~= "boolean" then return false end end
+    return true
+end
+
+local function SpellList(t)
+    if type(t) ~= "table" then return false end
+    local count = 0
+    for index, sid in pairs(t) do
+        if type(index) ~= "number" or index < 1 or index % 1 ~= 0
+            or type(sid) ~= "number" or sid <= 0 or sid % 1 ~= 0 then return false end
+        count = count + 1
+    end
+    for i = 1, count do if t[i] == nil then return false end end
+    return true
+end
+
+local COLOR_FIELDS = { r = "number", g = "number", b = "number", a = "number" }
+local TRIGGER_FIELDS = { type = "string", spellID = "number", delay = "number|string",
+    stage = "number", leadTime = "number", timeleft = "number", counter = "string|number",
+    target = "string", auraEvent = "string" }
+local DISPLAY_FIELDS = { type = "string", text = "string", spellID = "number", dur = "number",
+    sound = "string", tts = "boolean", glowTarget = "string", hideAfterCastID = "number" }
+local ENTRY_FIELDS = { name = "string", enabled = "boolean", specID = "number",
+    preset = "string", mode = "string", defensive = "boolean", dur = "number",
+    text = "string", sound = "string", abilitySpellID = "number" }
+
+local function ValidEntry(entry)
+    if not Fields(entry, ENTRY_FIELDS) then return false end
+    for j = 1, #ENTRY_TABLES do
+        local v = entry[ENTRY_TABLES[j]]
+        if v ~= nil and type(v) ~= "table" then return false end
+    end
+    if entry.list and not SpellList(entry.list) then return false end
+    if not FlagMap(entry.together) then return false end
+    if entry.trigger and not Fields(entry.trigger, TRIGGER_FIELDS) then return false end
+    local display = entry.display
+    if display and (not Fields(display, DISPLAY_FIELDS)
+        or (display.color and not Fields(display.color, COLOR_FIELDS))) then return false end
+    if entry.color and not Fields(entry.color, COLOR_FIELDS) then return false end
+    local target = entry.target
+    if target then
+        if not Fields(target, { all = "boolean", kind = "string", value = "string|number" }) then
+            return false
+        end
+        for _, key in ipairs({ "roles", "classes", "specs", "names", "subgroups" }) do
+            if not FlagMap(target[key]) then return false end
+        end
+        if target.kind and target.kind ~= "all" and target.value == nil then return false end
+    end
+    return true
+end
+
+local function ValidData(data)
+    if not PlainData(data, {}, 0, { 100000 }) then return false end
+    for i = 1, #SECTIONS do
+        local sec = SECTIONS[i]
+        local t = data[sec.field]
+        if t ~= nil then
+            if type(t) ~= "table" then return false end
+            for _, inner in pairs(t) do
+                if sec.value then
+                    if type(inner) ~= sec.value then return false end
+                    if sec.field == "bossLists" and not SpellList(inner) then return false end
+                elseif type(inner) ~= "table" then
+                    return false
+                else
+                    for _, entry in pairs(inner) do
+                        if type(entry) ~= "table" then return false end
+                        if sec.field == "abilityBindings" and data.bindingsBySpec ~= false then
+                            -- Current shape is spec -> encounter -> spell -> binding.
+                            -- An older, unmigrated export explicitly carries false.
+                            for _, binding in pairs(entry) do
+                                if not ValidEntry(binding) then return false end
+                            end
+                        elseif not ValidEntry(entry) then return false end
+                    end
+                end
+            end
+        end
+    end
+    if data.settings ~= nil then
+        if type(data.settings) ~= "table" then return false end
+        if data.settings.pos and not Fields(data.settings.pos,
+            { point = "string", relPoint = "string", x = "number", y = "number" }) then return false end
+    end
+    return true
 end
 
 -- LibSerialize's Deserialize returns (ok, value); the adapter re-raises the failure so the
@@ -91,6 +215,17 @@ local function Copy(v)
     local out = {}
     for k, val in pairs(v) do out[k] = Copy(val) end
     return out
+end
+
+-- Only settings this addon keeps, and only as the type it keeps them in.
+local function ApplySettings(tr, settings)
+    for k, v in pairs(settings) do
+        if k == "pos" then
+            if type(v) == "table" then tr.pos = Copy(v) end
+        elseif type(v) == type(ns.SettingDefault(k)) then
+            tr[k] = v
+        end
+    end
 end
 
 -- One profile's worth of pack data. Split out of ExportPack so a whole-file export can run
@@ -339,6 +474,14 @@ function ns.DecodePack(str)
     end
     local multi = type(payload.profiles) == "table" and next(payload.profiles) ~= nil
     if not multi and type(payload.data) ~= "table" then return nil, "The pack is empty." end
+    for name, data in pairs(multi and payload.profiles or { payload.data }) do
+        if multi and (type(name) ~= "string" or name == "") then
+            return nil, "The string is damaged (profile name)."
+        end
+        if type(data) ~= "table" or not ValidData(data) then
+            return nil, "The string is damaged (contents)."
+        end
+    end
 
     local parts = {}
     local refusedDefault = false
@@ -383,7 +526,7 @@ function ns.DecodePack(str)
 
     local desc = ("|cff0091ed%s|r by %s%s|n%s"):format(
         tostring(payload.name), tostring(payload.author),
-        payload.made ~= "" and (" (" .. payload.made .. ")") or "",
+        type(payload.made) == "string" and payload.made ~= "" and (" (" .. payload.made .. ")") or "",
         table.concat(parts, multi and "|n" or ", "))
     return payload, desc
 end
@@ -449,12 +592,18 @@ end
 -- stranger's profile as a side effect of importing would be its own surprise. They pick
 -- one from Active Profile afterwards.
 --
--- Existing profiles of the same name are merged into per key rather than replaced, so a
--- buyer who already has one keeps whatever the seller's does not mention. Except Default:
--- every account starts with one, so a pack profile under that exact name is refused rather
--- than merged into it -- see the check below.
+-- Existing profiles of the same name are merged into rather than replaced. Reminders merge one
+-- at a time, so a buyer keeps their own on a boss the seller's pack also covers; spec-keyed
+-- sections are taken a whole spec at a time, since a binding names its preset by key and the
+-- two only make sense together. Except Default: every account starts with one, so a pack
+-- profile under that exact name is refused rather than merged into it -- see the check below.
 function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
     if type(payload) ~= "table" or type(payload.profiles) ~= "table" then return false end
+    for name, data in pairs(payload.profiles) do
+        if type(name) ~= "string" or name == "" or type(data) ~= "table" or not ValidData(data) then
+            return false
+        end
+    end
     -- Taken before any profile in this pack is created, so a name the pack itself introduces
     -- twice still reads as new both times.
     local existing = {}
@@ -477,17 +626,18 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
                     local incoming = data[sec.field]
                     if type(incoming) == "table" then
                         if type(tr[sec.field]) ~= "table" then tr[sec.field] = {} end
-                        for k, v in pairs(incoming) do tr[sec.field][k] = Copy(v) end
+                        local dst = tr[sec.field]
+                        for k, v in pairs(incoming) do
+                            if sec.perEntry and type(dst[k]) == "table" then
+                                for uid, r in pairs(v) do dst[k][uid] = Copy(r) end
+                            else
+                                dst[k] = Copy(v)
+                            end
+                        end
                     end
                 end
                 if wantSettings and type(data.settings) == "table" then
-                    for k, v in pairs(data.settings) do
-                        if k == "pos" then
-                            if type(v) == "table" then tr.pos = Copy(v) end
-                        else
-                            tr[k] = v
-                        end
-                    end
+                    ApplySettings(tr, data.settings)
                 end
                 -- Marked the same way a single-profile import is: what arrived from someone
                 -- else is not the importer's to sell on.
@@ -550,6 +700,7 @@ end
 -- merge with, which is the other half of why this is simpler than what it replaces.
 function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
+    if not ValidData(payload.data) then return false end
     local name = FreeProfileName((customName and customName ~= "") and customName
         or payload.name)
     local tr = ns.EnsureProfile and ns.EnsureProfile(name)
@@ -564,13 +715,7 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName)
     end
 
     if wantSettings and type(payload.data.settings) == "table" then
-        for k, v in pairs(payload.data.settings) do
-            if k == "pos" then
-                if type(v) == "table" then tr.pos = Copy(v) end
-            else
-                tr[k] = v
-            end
-        end
+        ApplySettings(tr, payload.data.settings)
     end
     if type(payload.data.leadTime) == "number" then tr.leadTime = payload.data.leadTime end
     if type(payload.data.voiceNone) == "string" and payload.data.voiceNone ~= "" then
@@ -825,7 +970,10 @@ function ns.ShowPackExport()
     -- The string is display-only: retyping into it produces nothing valid, so
     -- any edit just regenerates from the real settings.
     box:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
-    nameBox:SetScript("OnTextChanged", function(_, user) if user then Regenerate() end end)
+    -- On leaving the field rather than per keystroke: each pass serializes, compresses and
+    -- re-wraps the whole profile.
+    nameBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    nameBox:SetScript("OnEditFocusLost", function() Regenerate() end)
 
     closeBtn = ns.Button(panel, "Close", 110, 26, function() dimmer:Hide() end)
     -- Chained off status's own bottom, not the panel's: status can be one line or several
@@ -1030,6 +1178,17 @@ function ns.ShowPackImport()
                 -- take their clicks. The export tick lost every click to exactly that.
                 btn:SetFrameLevel(panel:GetFrameLevel() + 10)
                 btn.label = ns.Font(btn, 12, nil)
+                -- Smaller than the default 40x20 (28x14): a grid row is tighter than a full
+                -- settings row, and the default size crowded the class-colored label next to it.
+                -- Built once per row and reading btn.specKey at click time, so a click always
+                -- acts on the spec the row shows now, never one from an earlier paste. Third
+                -- return is the re-read-and-repaint the bulk buttons below also need.
+                local tgl, _, repaint = ns.UI.BuildToggleControl(btn, btn:GetFrameLevel() + 1,
+                    function() return specWanted[btn.specKey] end,
+                    function(v) specWanted[btn.specKey] = v or nil end, 28, 14)
+                btn.toggle, btn.Repaint = tgl, repaint
+                tgl:SetPoint("LEFT", btn, "LEFT", 0, 0)
+                btn.label:SetPoint("LEFT", tgl, "RIGHT", 6, 0)
                 specRows[i] = btn
             end
             local col = (i - 1) % GRID_COLS
@@ -1037,25 +1196,8 @@ function ns.ShowPackImport()
             btn:ClearAllPoints()
             btn:SetPoint("TOPLEFT", specHead, "BOTTOMLEFT",
                 6 + col * COL_W, -6 - row * ROW_H)
-            -- The toggle's get/set close over `spec`, which is a fresh table every time a
-            -- different pack is pasted -- rebuilt here rather than just repainted, so a
-            -- click can never act on a spec from whatever was pasted before this one.
-            if btn.toggle then
-                btn.toggle:Hide()
-                btn.toggle:SetParent(nil)
-            end
-            -- Smaller than the default 40x20 (28x14): a grid row is tighter than a full
-            -- settings row, and the default size crowded the class-colored label next to it.
-            -- Third return is the toggle's own re-read-and-repaint; the bulk buttons below
-            -- change specWanted directly and need a way to make the switches agree.
             btn.specKey = spec.key
-            local tgl, _, repaint = ns.UI.BuildToggleControl(btn, btn:GetFrameLevel() + 1,
-                function() return specWanted[spec.key] end,
-                function(v) specWanted[spec.key] = v or nil end, 28, 14)
-            btn.toggle, btn.Repaint = tgl, repaint
-            tgl:SetPoint("LEFT", btn, "LEFT", 0, 0)
-            btn.label:ClearAllPoints()
-            btn.label:SetPoint("LEFT", btn.toggle, "RIGHT", 6, 0)
+            btn.Repaint()
             -- A bare spec name is not unique across classes -- Protection, Frost, Holy and
             -- Restoration each belong to two -- so the class survives as the row's color,
             -- and the grid's class-order grouping keeps each pair well apart on the page.
