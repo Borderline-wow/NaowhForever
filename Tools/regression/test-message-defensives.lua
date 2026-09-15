@@ -30,6 +30,7 @@ local function Fixture()
             e.timers[#e.timers + 1] = t; return t
         end },
     }
+    env.ns.IsReminderEnabled = function(r) return r and r.enabled ~= false end
     env.ns.BindingForBossModKey = function() return { mode = "custom" } end
     setmetatable(env, { __index = _G })
     local code = Slice("local function ParseDelayList(", "local function ParseCounterCondition(")
@@ -57,6 +58,84 @@ local function Fixture()
 end
 local count = 0
 local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) end
+local function BridgeFixture()
+    local e = Fixture()
+    local secretText, secretKey = {}, {}
+    e.env.issecretvalue = function(v) return v == secretText or v == secretKey end
+    e.ns.BossSource = function() return "bigwigs" end
+    e.ns.IsVerifiedBossModUptime = function(_, _, text)
+        assert(text ~= secretText, "protected text reached uptime matching")
+        return text == "uptime"
+    end
+    e.env.RecordBossModKey = function(_, key, text)
+        assert(text ~= secretText, "protected text reached saved catalogue")
+        e.recordedKey, e.recordedText = key, text
+    end
+    e.env.CheckBossModMessage = e.message
+    local chunk = assert(loadstring(Slice("local function OnBigWigsEvent(", "local function OnDBMEvent(")
+        .. "\nreturn OnBigWigsEvent"))
+    setfenv(chunk, e.env)
+    e.bridge = chunk()
+    return e, secretText, secretKey
+end
+Case("protected target text still dispatches Thunder and Lightning preset", function()
+    for _, preset in ipairs({ "ams", "amz" }) do
+        local e, secretText = BridgeFixture()
+        e.set.one.preset = preset
+        e.set.one.trigger.spellID = 1288049
+        e.env.currentEncounter = 2124
+        e.env.CustomRemindersTable = function(_, enc) return enc == 2124 and e.set end
+        e.bridge("BigWigs_Message", { engageId = 2124 }, 1288049, secretText)
+        e:advance(1.9); assert(e.calls == 0)
+        e:advance(2)
+        assert(e.calls == 1 and e.shown and e.preset == preset)
+        assert(e.recordedKey == 1288049 and e.recordedText == nil)
+    end
+end)
+Case("protected spell key is rejected without recording or dispatch", function()
+    local e, _, secretKey = BridgeFixture()
+    e.bridge("BigWigs_Message", { engageId = 3202 }, secretKey, "ordinary text")
+    e:advance(20); assert(e.calls == 0 and e.recordedKey == nil)
+end)
+Case("readable messages keep labels and verified uptime remains suppressed", function()
+    local e = BridgeFixture()
+    e.bridge("BigWigs_Message", { engageId = 3202 }, 123, "uptime")
+    e:advance(20); assert(e.calls == 0 and e.recordedKey == nil)
+    e.bridge("BigWigs_Message", { engageId = 3202 }, 123, "ordinary text")
+    e:advance(22); assert(e.calls == 1 and e.recordedText == "ordinary text")
+end)
+Case("protected text preserves message occurrence counters", function()
+    local e, secretText = BridgeFixture()
+    e.set.one.trigger.counter = "2"
+    e.bridge("BigWigs_Message", { engageId = 3202 }, 123, secretText)
+    e:advance(2); assert(e.calls == 0)
+    e.bridge("BigWigs_Message", { engageId = 3202 }, 123, secretText)
+    e:advance(4); assert(e.calls == 1)
+end)
+Case("protected message delays retain cancellation and disable checks", function()
+    for _, action in ipairs({ "cancel", "disable" }) do
+        local e, secretText = BridgeFixture()
+        e.bridge("BigWigs_Message", { engageId = 3202 }, 123, secretText)
+        if action == "cancel" then e.ns.CancelTrackedReminderTimers()
+        else e.set.one.enabled = false end
+        e:advance(2); assert(e.calls == 0)
+    end
+end)
+Case("protected display fields do not block observation or raid dispatch", function()
+    local e, secretText = BridgeFixture()
+    local observed, raidCalls = 0, 0
+    e.ns.ObserveCast = function(key, provider, duration, text)
+        assert(key == 123 and provider == "BW" and duration == nil and text == nil)
+        observed = observed + 1
+    end
+    e.ns.HandleRaidReminderAbility = function(key)
+        assert(key == 123); raidCalls = raidCalls + 1
+    end
+    e.bridge("BigWigs_Message", { engageId = 3202 }, 123, secretText,
+        secretText, secretText, secretText)
+    e:advance(2)
+    assert(e.calls == 1 and observed == 1 and raidCalls == 1)
+end)
 Case("bar alone never schedules opted-in ability", function()
     local e = Fixture(); e.ns.HandleBigWigsAbility(123, 30, "bar")
     e:advance(40); assert(e.calls == 0 and #e.timers == 0)

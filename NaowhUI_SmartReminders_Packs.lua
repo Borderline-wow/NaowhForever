@@ -123,7 +123,7 @@ local TRIGGER_FIELDS = { type = "string", spellID = "number", delay = "number|st
     target = "string", auraEvent = "string" }
 local DISPLAY_FIELDS = { type = "string", text = "string", spellID = "number", dur = "number",
     sound = "string", tts = "boolean", glowTarget = "string", hideAfterCastID = "number" }
-local ENTRY_FIELDS = { name = "string", enabled = "boolean", specID = "number",
+local ENTRY_FIELDS = { name = "string", enabled = "boolean", specID = "number", healerReminder = "boolean",
     preset = "string", mode = "string", defensive = "boolean", dur = "number",
     text = "string", sound = "string", abilitySpellID = "number" }
 

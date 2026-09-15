@@ -1459,12 +1459,16 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     local durBox = AddBoxM(3, true)
     durBox:SetText(tostring((existing and existing.dur) or 3))
 
+    local healerVal = existing and existing.healerReminder == true or false
     local enabledVal = (existing == nil) or existing.enabled ~= false
     W:DualRow(messageBody, my,
         { type = "toggle", text = "Enabled",
           getValue = function() return enabledVal end,
           setValue = function(v) enabledVal = v end },
-        { type = "label", text = "" }
+        { type = "toggle", text = "Healer Reminder",
+          tooltip = "Mark this reminder so players can opt out with Enable Healer Reminders in Setup.",
+          getValue = function() return healerVal end,
+          setValue = function(v) healerVal = v end }
     )
 
     -------------------------------------------------------------------------
@@ -1682,7 +1686,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         local key = uid or ("r" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
         writeSet[key] = {
             name = name, preset = presetVal, trigger = newTrig,
-            dur = math.max(1, dur), enabled = enabledVal,
+            dur = math.max(1, dur), enabled = enabledVal, healerReminder = healerVal or nil,
             defensive = true, specID = editorSpecID,
         }
         ns.RefreshRuntime()
@@ -2136,6 +2140,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     -- Held rather than written straight through, so Cancel discards a scope change the
     -- same way it discards a preset pick.
     local scopeVal = binding.scope
+    local healerVal = binding.healerReminder == true
     -- One warning time for the whole preset on this ability -- not per defensive within
     -- it (that granularity was tried and dropped: too fiddly for what it bought). Lazily
     -- initialized inside RebuildBody, same reasoning presetVal below documents: re-deriving
@@ -2329,6 +2334,15 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             if externalVal == nil then
                 externalVal = ns.ExternalCallFor(encounterID, ability.spellID)
             end
+            Label("Healer Reminder")
+            local healerCheck = EUI.BuildToggleControl(body, body:GetFrameLevel() + 1,
+                function() return healerVal end,
+                function(v) healerVal = v and true or false end)
+            healerCheck:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            ns.Tooltip(healerCheck, "Healer Reminder",
+                "Mark this preset callout for the healer-reminder switch. General defensive callouts should stay unmarked.")
+            by = by - 30
+
             Label("Call for an External when nothing of yours is up")
             local extCheck = (EUI or ns.UI).BuildToggleControl(body, body:GetFrameLevel() + 1,
                 function() return externalVal end,
@@ -2436,6 +2450,8 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             binding.external = externalVal
         end
         binding.scope = scopeVal
+        binding.healerReminder = healerVal or nil
+        ns.ApplyReminderFilter()
         ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
@@ -2479,7 +2495,7 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     -- unticking silences the ability but keeps it, along with its preset and warning time.
     -- Taking it off the boss entirely is the X, which asks first -- an untick is reversible
     -- with the same click, a delete is not, so they are deliberately different controls.
-    local enabled = ability.spellID and ns.AbilityEnabledForBinding(encounterID, ability.spellID)
+    local enabled = ability.spellID and ns.AbilityEnabledForBinding(encounterID, ability.spellID, true)
 
     -- The addon's own toggle rather than a Blizzard checkbox, matching every other on/off
     -- control in here. `enabled` backs the getter so the widget reads its own state without
@@ -2551,7 +2567,9 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
     title:SetPoint("RIGHT", remove, "LEFT", -8, 0)
     title:SetJustifyH("LEFT")
-    title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or ""))
+    local binding = ability.spellID and ns.BindingForBossModKey(encounterID, ability.spellID)
+    local healerTag = binding and binding.healerReminder and "  |cff6DD09A[Healer Reminder]|r" or ""
+    title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or "") .. healerTag)
 
     local desc = ns.Font(row, 11, nil, ns.THEME.muted)
     desc:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -20)
@@ -4384,11 +4402,16 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     hideCastBox:SetText((display.hideAfterCastID and tostring(display.hideAfterCastID)) or "")
     SyncHideCast()
 
+    local healerVal = existing and existing.healerReminder == true or false
     local enabledVal = (existing == nil) or existing.enabled ~= false
     W:DualRow(displayBody, dsy,
         { type = "toggle", text = "Enabled",
           getValue = function() return enabledVal end,
-          setValue = function(v) enabledVal = v end }
+          setValue = function(v) enabledVal = v end },
+        { type = "toggle", text = "Healer Reminder",
+          tooltip = "Mark this reminder so players can opt out with Enable Healer Reminders in Setup.",
+          getValue = function() return healerVal end,
+          setValue = function(v) healerVal = v end }
     )
 
     SelectTab("trigger")
@@ -4454,6 +4477,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         return {
             name = (nameBox:GetText() ~= "" and nameBox:GetText()) or "Reminder",
             enabled = enabledVal, trigger = newTrig, target = newTarget, display = newDisplay,
+            healerReminder = healerVal or nil,
             abilitySpellID = boundAbilitySpellID,
         }
     end

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.6
+
+### Added
+- Account-wide Enable Healer Reminders switch in Setup, enabled by default.
+- Healer Reminder tagging for ability preset callouts and authored reminders.
+  Tags travel with shared packs; each player's opt-out stays personal.
+- Turning healer reminders off cancels their pending alerts and hides their
+  active displays. Existing reminders remain untagged until a curator marks them.
+
+### Fixed
+- BigWigs messages containing protected target text can trigger reminders using
+  their readable spell key, including Thunder and Lightning on Adderis and Aspix.
+  Protected text is discarded; this does not add player-target detection.
+
+### Validation
+- All 13 offline regression suites pass; runtime syntax checked with Lua 5.1.
+- Boss-message audit passed 1,980 synthetic dispatch checks across 990 numeric
+  module/key pairs. New message regression cases cover cancellation and counters.
+- Live encounter validation and screenshots for these changes are outstanding.
+
 ## 1.3.5
 
 ### Fixed

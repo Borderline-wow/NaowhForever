@@ -340,6 +340,21 @@ function ns.AccountSettings()
     return sv.account
 end
 
+-- A personal opt-out, not part of any shared profile or reminder pack.
+function ns.HealerRemindersEnabled()
+    return ns.AccountSettings().healerRemindersEnabled ~= false
+end
+
+function ns.IsReminderEnabled(reminder, preview)
+    return reminder ~= nil and (preview or reminder.enabled ~= false)
+        and (reminder.healerReminder ~= true or ns.HealerRemindersEnabled())
+end
+
+function ns.SetHealerRemindersEnabled(enabled)
+    ns.AccountSettings().healerRemindersEnabled = enabled and true or false
+    if ns.ApplyReminderFilter then ns.ApplyReminderFilter() end
+end
+
 -- Stored as a percent, used as a multiplier. Clamped on read as well as on write: a zero
 -- or negative scale hides the window with no way left to open the control that fixes it.
 function ns.UIScale()
