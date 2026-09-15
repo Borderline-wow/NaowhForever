@@ -211,6 +211,7 @@ local function RestackRegions(a)
 end
 
 local function ReleaseRegion(a, r)
+    r.reminderEntry = nil
     for i = 1, #a.active do
         if a.active[i] == r then table.remove(a.active, i) break end
     end
@@ -614,6 +615,7 @@ local function ReleaseGlowWrapper(w)
     w:ClearAllPoints()
     w:SetParent(UIParent)
     w.hideAfterCastID = nil
+    w.reminderEntry = nil
     for i = 1, #activeGlows do
         if activeGlows[i] == w then table.remove(activeGlows, i) break end
     end
@@ -694,7 +696,7 @@ local function ResolveGlowFrame(displayType, unit)
     return nil
 end
 
-local function FireGlowReminder(display, dur)
+local function FireGlowReminder(display, dur, entry)
     local unit = UnitTokenForName(display.glowTarget)
     local frame = unit and ResolveGlowFrame(display.type, unit)
     if not frame then return end
@@ -705,6 +707,7 @@ local function FireGlowReminder(display, dur)
     w:SetAllPoints(frame)
     w:Show()
     w.hideAfterCastID = display.hideAfterCastID
+    w.reminderEntry = entry
 
     local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
     if LCG then
@@ -789,7 +792,8 @@ ns.FormatReminderMsg = FormatReminderMsg
 -- The one place every real fire (and, once the editor exists, every Preview click)
 -- routes through -- same "one dispatcher" shape as the existing ns.DisplayReminder for
 -- Custom Reminders.
-function ns.DisplayRaidReminder(entry)
+function ns.DisplayRaidReminder(entry, preview)
+    if not ns.IsReminderEnabled(entry, preview) then return end
     local display = entry and entry.display
     if not display then return end
 
@@ -814,7 +818,7 @@ function ns.DisplayRaidReminder(entry)
     -- every other type.
     if display.type == "nameplateGlow" or display.type == "raidframeGlow" then
         local dur = (type(display.dur) == "number" and display.dur > 0) and display.dur or 4
-        FireGlowReminder(display, dur)
+        FireGlowReminder(display, dur, entry)
         ns.PlayReminderSound(display)
         ns.SpeakReminderTTS(display, formattedText)
         return
@@ -829,6 +833,7 @@ function ns.DisplayRaidReminder(entry)
     -- Read by the UNIT_SPELLCAST_SUCCEEDED watcher below -- nil for the vast majority
     -- of reminders, which never carry this optional field.
     r.hideAfterCastID = display.hideAfterCastID
+    r.reminderEntry = entry
 
     -- Computed here, not after the type dispatch below: Bar/Circle need it to drive
     -- their own live countdown, and the release timer at the bottom needs the SAME
@@ -923,6 +928,7 @@ end
 -- tank-buster editor's own Preview button. ReleaseRegion drops the anchor back to HIGH
 -- once the preview ends, so the elevation never leaks into a real fight's display.
 function ns.PreviewRaidReminder(entry)
+    if not ns.IsReminderEnabled(entry, true) then return end
     local display = entry and entry.display
     if not display then return end
     -- Chat and the glow types have no anchor to elevate -- ns.DisplayRaidReminder's
@@ -941,7 +947,21 @@ function ns.PreviewRaidReminder(entry)
         -- correct there.
         while #a.active > 0 do ReleaseRegion(a, a.active[#a.active]) end
     end
-    ns.DisplayRaidReminder(entry)
+    ns.DisplayRaidReminder(entry, true)
+end
+
+-- Clear only displays owned by opted-out reminders; preserve unrelated alerts.
+function ns.HideFilteredRaidReminders()
+    for _, a in pairs(anchors) do
+        for i = #a.active, 1, -1 do
+            local r = a.active[i]
+            if r.reminderEntry and not ns.IsReminderEnabled(r.reminderEntry) then ReleaseRegion(a, r) end
+        end
+    end
+    for i = #activeGlows, 1, -1 do
+        local w = activeGlows[i]
+        if w.reminderEntry and not ns.IsReminderEnabled(w.reminderEntry) then ReleaseGlowWrapper(w) end
+    end
 end
 
 -- MRT's event-13 "hide after use" gate: a reminder with display.hideAfterCastID set
@@ -1441,7 +1461,7 @@ end
 -------------------------------------------------------------------------------
 local function FireRaidReminder(entry)
     if ns.DB().enabled ~= true or not ns.BossAllowed() then return end
-    if entry.enabled == false then return end
+    if not ns.IsReminderEnabled(entry) then return end
     if not ns.RaidReminderTargetsMe(entry.target) then return end
     ns.DisplayRaidReminder(entry)
 end
@@ -1464,7 +1484,7 @@ local function ReminderStillCurrent(reminders, uid, entry)
             and ns.InEncounter() and ns.CurrentEncounter() == encounter
             and ns.PullContext() == startedAt
             and RaidRemindersTable(false, encounter) == reminders
-            and reminders[uid] == entry and entry.enabled ~= false
+            and reminders[uid] == entry and ns.IsReminderEnabled(entry)
     end
 end
 
@@ -1496,7 +1516,7 @@ function ns.HandleRaidReminderAbility(sid, duration, barIdentity, retried)
 
     for uid, entry in pairs(reminders) do
         local trig = entry.trigger
-        if trig and trig.spellID == sid then
+        if ns.IsReminderEnabled(entry) and trig and trig.spellID == sid then
             local wantsBar = trig.type == "bwtimer"
             local haveBar = type(duration) == "number" and duration > 0.5
             if wantsBar and haveBar then
@@ -1531,7 +1551,7 @@ function ns.CheckRaidReminderPullTriggers()
 
     for uid, entry in pairs(reminders) do
         local trig = entry.trigger
-        if trig and trig.type == "pull" then
+        if ns.IsReminderEnabled(entry) and trig and trig.type == "pull" then
             local delay = (type(trig.delay) == "number" and trig.delay >= 0) and trig.delay or 0.01
             -- leadTime pulls the fire earlier so the display counts down TO the noted
             -- moment rather than starting at it.
@@ -1555,7 +1575,7 @@ function ns.CheckRaidReminderStageTriggers(stage)
 
     for uid, entry in pairs(reminders) do
         local trig = entry.trigger
-        if trig and trig.type == "stage" and trig.stage == stage then
+        if ns.IsReminderEnabled(entry) and trig and trig.type == "stage" and trig.stage == stage then
             local delay = (type(trig.delay) == "number" and trig.delay >= 0) and trig.delay or 0.01
             local lead = type(trig.leadTime) == "number" and trig.leadTime or 0
             ns.TrackReminderTimer("stage", math.max(delay - lead, 0.01),

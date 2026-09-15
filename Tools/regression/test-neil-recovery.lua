@@ -47,6 +47,12 @@ local function Data()
             target = { roles = { TANK = true } }, display = { type = "text", text = "Use it" } } } } }
 end
 Case("current pack schema preserves false switches", function() assert(validate(Data())) end)
+Case("healer tags accept booleans only", function()
+    local data = Data()
+    data.raidReminders["1"].r.healerReminder = "false"; assert(not validate(data))
+    data.raidReminders["1"].r.healerReminder = false; assert(validate(data))
+end)
+
 Case("legacy binding and target shapes remain supported", function()
     local d = Data(); d.bindingsBySpec = false; d.abilityBindings = d.abilityBindings["250"]
     d.raidReminders["1"].r.target = { kind = "role", value = "TANK" }; assert(validate(d))
@@ -73,8 +79,9 @@ local queue = Read("_Core"):sub((assert(Read("_Core"):find("local reapplyPending
 local function Fixture(kind)
     local state = { now = 0, start = 0, encounter = 1, displayed = 0, timers = {}, queue = {} }
     local entry = { enabled = true, trigger = { type = kind, spellID = 123, leadTime = 3, delay = 20, stage = 2 } }
-    state.set = { r = entry }; state.profile = { enabled = true }
+    state.set = { r = entry }; state.profile = { enabled = true }; state.account = {}
     local ns = { trackedReminderTimers = {},
+        AccountSettings = function() return state.account end,
         DB = function() return state.profile end,
         CurrentEncounter = function() return state.encounter end,
         PullContext = function() return state.start end,
@@ -94,6 +101,7 @@ local function Fixture(kind)
             After = function(_, cb) state.queue[#state.queue + 1] = cb end,
         },
     }
+    Eval(Slice(Read("_Core"), "function ns.HealerRemindersEnabled()", "-- Stored as a percent"), env)
     Eval(tracking .. scheduler .. firing .. queue, env)
     if kind == "bwtimer" then ns.HandleRaidReminderAbility(123, 20, "bar")
     elseif kind == "pull" then ns.CheckRaidReminderPullTriggers()
@@ -108,6 +116,18 @@ local function Fixture(kind)
 end
 for _, kind in ipairs({ "bwtimer", "pull", "stage" }) do
     Case(kind .. " current reminder fires", function() local s = Fixture(kind); s:Fire(); assert(s.displayed == 1) end)
+    Case(kind .. " healer opt-out cancels queued work without reviving it", function()
+        local s = Fixture(kind); s.entry.healerReminder = true
+        s.account.healerRemindersEnabled = false
+        s.ns.PruneCustomReminderTimers(); s.ns.PrunePendingBWFires()
+        s.account.healerRemindersEnabled = true
+        assert(s.timers[1].cancelled); s:Fire(); assert(s.displayed == 0)
+    end)
+    Case(kind .. " callback rechecks healer opt-out", function()
+        local s = Fixture(kind); s.entry.healerReminder = true
+        s.account.healerRemindersEnabled = false
+        s:Fire(); assert(s.displayed == 0)
+    end)
     local changes = {
         delete = function(s) s.set.r = nil end,
         replace = function(s) s.set.r = {} end,
@@ -139,6 +159,8 @@ Case("bundled serializers round-trip real profile strings and reject malformed i
     assert(loadfile(root .. "/Libs/LibSerialize/LibSerialize.lua"))()
     assert(loadfile(root .. "/Libs/LibDeflate/LibDeflate.lua"))()
     local db = Data()
+    db.raidReminders["1"].r.healerReminder = true
+    db.abilityBindings["250"]["1"]["123"].healerReminder = true
     local writes = 0
     local ns = { DB = function() return db end,
         EnsureProfile = function() writes = writes + 1; return {} end }
@@ -148,6 +170,9 @@ Case("bundled serializers round-trip real profile strings and reject malformed i
     assert(encoded, err)
     local decoded, why = ns.DecodePack(encoded)
     assert(decoded, why)
+    assert(decoded.data.raidReminders["1"].r.healerReminder == true)
+    assert(decoded.data.abilityBindings["250"]["1"]["123"].healerReminder == true)
+    assert(decoded.data.account == nil)
     assert(decoded.data.abilityBindings["250"]["1"]["123"].enabled == false)
     local malformed = Data(); malformed.raidReminders["1"].r.target.roles = 7
     assert(ns.ImportPackAsProfile({ data = malformed }) == false and writes == 0)

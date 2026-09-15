@@ -18,7 +18,7 @@ local function Widget()
     return w
 end
 local ui = { Widgets = { DualRow = function(_,parent,y,left,right)
-    assert(right); rows[left.text] = left; return Widget(), 44
+    assert(right); rows[left.text] = left; rows[right.text] = right; return Widget(), 44
 end }, RefreshPage = function() end }
 local ns = { UI = ui, THEME = {},
     MakeModal = function() return Widget(),Widget() end,
@@ -47,7 +47,10 @@ assert(labels["Show seconds after the message"] and rows["Preset Group"])
 assert(#boxes == 5)
 boxes[1]:SetText("Stomp mobility"); boxes[2]:SetText("6")
 boxes[3]:SetText("123"); boxes[5]:SetText("2.5")
+assert(rows["Healer Reminder"].getValue() == false)
+rows["Healer Reminder"].setValue(true)
 buttons.Save()
+for _, r in pairs(records) do assert(r.healerReminder == true) end
 local _,r = next(records)
 assert(r.defensive and r.specID == 250 and r.preset == "p" and r.dur == 6)
 assert(r.trigger.type == "bwmsg" and r.trigger.spellID == 123 and r.trigger.delay == "2.5")

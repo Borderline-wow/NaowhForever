@@ -39,6 +39,7 @@ for _, name in ipairs({ "RefreshSpec", "ProbeCapabilities", "ApplyPosition", "Ap
 for _, name in ipairs({ "PruneCustomReminderTimers", "PrunePendingBWFires", "ClearEventSounds",
     "WarnIfNoBossMod" }) do env.ns[name] = function() end end
 env.ns.BossSource = function() return "timeline" end
+env.ns.HealerRemindersEnabled = function() return true end
 env.ns.soundFile = "sound"
 env.C_Timer = { After = function(_, fn) env.queued[#env.queued + 1] = fn end }
 Eval(Slice(main, "function ns.Apply()", "--  Preview"))

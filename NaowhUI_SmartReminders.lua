@@ -1612,6 +1612,7 @@ local function RegisterEventSounds()
                 and curatedTank[info.spellID] ~= nil
 
             if (flagged or curated)
+                and not ns.IsAbilityHealerFiltered(currentEncounter, info.spellID)
                 and pcall(C_EncounterEvents.SetEventSound, ids[i], trigger, sound) then
                 ns.soundEvents[ids[i]] = true
             end
@@ -2948,6 +2949,7 @@ end
 
 local function HideReminder()
     if hideTimer then hideTimer:Cancel(); hideTimer = nil end
+    ns.activeAuthoredReminder = nil
     shownForEvent = nil
     ns.StopCDMGlow()
     if frame then
@@ -3018,6 +3020,7 @@ function ns.ForceShowTest()
         if bar.bg then bar.bg:SetAlpha(1) end
         bar:Show()
     end
+    ns.activeAuthoredReminder = nil
     shownForEvent = nil
     frame:Show()
     if textFrame then textFrame:Show() end
@@ -3232,6 +3235,7 @@ local function HideCustomReminder()
     if customHideTimer then customHideTimer:Cancel(); customHideTimer = nil end
     if customFrame then
         customFrame:Hide()
+        customFrame.reminderEntry = nil
         -- Undo any Preview-specific elevation so a real fight never inherits it.
         customFrame:SetFrameStrata("HIGH")
     end
@@ -3384,6 +3388,7 @@ local function FireCustomReminder(r)
 
     ns.PlayReminderSound(r)
 
+    customFrame.reminderEntry = r
     customFrame:Show()
     if customHideTimer then customHideTimer:Cancel() end
     local dur = (type(r.dur) == "number" and r.dur > 0) and r.dur or 3
@@ -3393,7 +3398,7 @@ end
 -- ActivateCustomReminder (the real fire path) and PreviewCustomReminder (the editor's
 -- Preview button) both call this, so a preview always shows exactly what a fight would.
 function ns.DisplayReminder(r)
-    if not r or r.enabled == false then return end
+    if not ns.IsReminderEnabled(r) then return end
     if r.defensive then
         if r.specID and r.specID ~= specID then return end
         if not CustomRemindersAllowed() then return end
@@ -3426,7 +3431,7 @@ ns.trackedReminderTimers = {}
 -- normally can drop its own entry: tracked-but-fired entries would otherwise pile up for
 -- the length of a pull and every later cancel sweep would walk them.
 function ns.IsCurrentCustomReminder(r, set)
-    if r.enabled == false or (r.specID and r.specID ~= specID) then return false end
+    if not ns.IsReminderEnabled(r) or (r.specID and r.specID ~= specID) then return false end
     if set ~= CustomRemindersTable(false, currentEncounter) then return false end
     for _, current in pairs(set or {}) do
         if current == r then return true end
@@ -3447,6 +3452,8 @@ function ns.PruneCustomReminderTimers()
 end
 
 function ns.TrackReminderTimer(scope, delay, fn, reminder, valid)
+    if reminder and not ns.IsReminderEnabled(reminder) then return end
+    if valid and not valid() then return end
     local list = ns.trackedReminderTimers
     local entry = { scope = scope, reminder = reminder, valid = valid,
         reminderSet = reminder and CustomRemindersTable(false, currentEncounter) }
@@ -3478,6 +3485,7 @@ end
 -- the cost never matters) turns into either an immediate call or one timer per listed
 -- delay, so a comma list fires more than once from the same match.
 local function ActivateCustomReminder(r, scope)
+    if not ns.IsReminderEnabled(r) then return end
     local delays = ParseDelayList(r.trigger and r.trigger.delay)
     if not delays then
         ns.DisplayReminder(r)
@@ -3657,6 +3665,7 @@ local bwActiveMod
 -- early can cancel the reminder before it fires. Keyed by uid .. "|" .. mod .. ":" .. bar
 -- text, since a stop/pause event only ever carries the bar's text back, not its key.
 local bwPendingTimers = {}
+ns.pendingCustomReminderOwners = {}
 
 
 -- Keys end in "|mod:identity". An exact identity cancels that bar only; "" cancels every bar
@@ -3674,6 +3683,7 @@ local function CancelBossModTimers(mod, text)
         if hit then
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
+            ns.pendingCustomReminderOwners[k] = nil
         end
     end
 end
@@ -3784,7 +3794,7 @@ local function CheckBossModTimerStart(mod, key, barIdentity, duration, text, ret
             if trig.counter and trig.counter ~= "" then
                 hit = CheckCounterCondition(ParseCounterCondition(trig.counter), n)
             end
-            if hit then
+            if hit and ns.IsReminderEnabled(r) then
                 local barKey = uid .. "|" .. mod .. ":" .. tostring(barIdentity)
                 -- A re-announced bar (some modules resync a running bar rather than only
                 -- ever starting a fresh one) must not stack a second pending fire on top
@@ -3792,8 +3802,10 @@ local function CheckBossModTimerStart(mod, key, barIdentity, duration, text, ret
                 local old = bwPendingTimers[barKey]
                 if old and old.Cancel then old:Cancel() end
                 local fireDelay = math.max(duration - trig.timeleft, 0.01)
+                ns.pendingCustomReminderOwners[barKey] = r
                 bwPendingTimers[barKey] = C_Timer.NewTimer(fireDelay, function()
                     bwPendingTimers[barKey] = nil
+                    ns.pendingCustomReminderOwners[barKey] = nil
                     if ns.IsCurrentCustomReminder(r, set) then ActivateCustomReminder(r) end
                 end)
             end
@@ -4141,9 +4153,15 @@ end
 -- tank list no longer switches abilities on by itself -- it marks them in the Add Ability
 -- picker instead, so it still says which hits are the real tank busters without choosing
 -- for anyone.
-function ns.AbilityEnabledForBinding(enc, sid)
+function ns.IsAbilityHealerFiltered(enc, sid)
+    if ns.HealerRemindersEnabled() then return false end
+    local binding = ns.BindingForBossModKey(enc, sid)
+    return binding ~= nil and binding.healerReminder == true
+end
+
+function ns.AbilityEnabledForBinding(enc, sid, raw)
     local b = ns.BindingForBossModKey(enc, sid)
-    if b and b.enabled ~= nil then return b.enabled end
+    if b and b.enabled ~= nil then return b.enabled and (raw or ns.IsReminderEnabled(b)) end
     return false
 end
 
@@ -4162,6 +4180,7 @@ end
 -- moment that matters is the one right before the hit lands, not the one the warning
 -- started.
 local function FireBigWigsAbility(sid, lateRetry, reminder)
+    if reminder and not ns.IsReminderEnabled(reminder) then return end
     if lateRetry then
         if not (frame and TRDB().enabled and TRDB().voiceOn
             and ShouldRun() and InEncounter()) then return end
@@ -4272,6 +4291,7 @@ local function FireBigWigsAbility(sid, lateRetry, reminder)
     -- spellID instead of an event id) -- the preview system and the options-panel-close
     -- handler both check this before hiding anything, so it must be set before frame:Show()
     -- or closing Setup mid-fight would yank a live callout off screen.
+    ns.activeAuthoredReminder = reminder or ns.BindingForBossModKey(currentEncounter, sid)
     shownForEvent = sid
     frame:Show()
     if textFrame then textFrame:Show() end
@@ -4283,6 +4303,7 @@ end
 
 -- Message delays reach the same display, cooldown selection, grouping and audio as bars.
 function ns.FireMessageDefensive(r)
+    if not ns.IsReminderEnabled(r) then return end
     if TRDB().trace then AppendLog({ kind = "drop", sid = r.trigger and r.trigger.spellID,
         text = "message defensive dispatch: " .. (r.name or "Reminder") }) end
     if not r.preset then return end
@@ -4523,6 +4544,27 @@ function ns.PrunePendingBWFires()
     end
 end
 
+-- Called only when the account toggle changes; no new ticker or event watcher.
+function ns.ApplyReminderFilter()
+    ns.PruneCustomReminderTimers()
+    ns.PrunePendingBWFires()
+    for key, reminder in pairs(ns.pendingCustomReminderOwners) do
+        if not ns.IsReminderEnabled(reminder) then
+            local handle = bwPendingTimers[key]
+            if handle then handle:Cancel() end
+            bwPendingTimers[key] = nil
+            ns.pendingCustomReminderOwners[key] = nil
+        end
+    end
+    if customFrame and customFrame.reminderEntry
+        and not ns.IsReminderEnabled(customFrame.reminderEntry) then HideCustomReminder() end
+    if ns.activeAuthoredReminder and not ns.IsReminderEnabled(ns.activeAuthoredReminder) then
+        HideReminder()
+    end
+    if ns.HideFilteredRaidReminders then ns.HideFilteredRaidReminders() end
+    if ns.BossSource and ns.BossSource() == "timeline" then RegisterEventSounds() end
+end
+
 function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
     if ns.HasMessageDefensive(currentEncounter, sid) then return end
     if type(sid) ~= "number" or sid <= 0 then return end
@@ -4547,6 +4589,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
         end
         return
     end
+    if not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     -- Both duplicates and next occurrences arrive `lead` seconds after our own fire, so
     -- timing alone cannot separate them -- the presence of a duration can. See each branch.
     local lead = ns.LeadTimeFor(currentEncounter, sid)
@@ -4564,7 +4607,9 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
         ns.ScheduleBWFire("tank", sid, duration, barIdentity, lead, function(fireSid, lateRetry)
             lastBWSid, lastBWAt = fireSid, GetTime()
             return FireBigWigsAbility(fireSid, lateRetry)
-        end, isApprox)
+        end, isApprox, function()
+            return ns.AbilityEnabledForBinding(currentEncounter, sid)
+        end)
     else
         -- No duration means this is the cast itself landing, not a countdown to one, and
         -- ours already fired `lead` seconds ago for exactly this cast. The guard belongs
@@ -4789,7 +4834,10 @@ local function OnBigWigsEvent(event, ...)
     -- nothing, matching what the rest of this bridge already treats as "not running".
     if event == "BigWigs_Message" then
         local module, key, text = ...
-        if issecretvalue and (issecretvalue(key) or issecretvalue(text)) then return end
+        if issecretvalue and issecretvalue(key) then return end
+        -- Target messages may include a secret player name. Match the readable
+        -- option key, keeping protected text out of filters and SavedVariables.
+        if issecretvalue and issecretvalue(text) then text = nil end
         if ns.IsVerifiedBossModUptime(module, key, text) then return end
         if CustomRemindersAllowed() then
             RecordBossModKey("BW", key, text, "message", type(module) == "table" and module.engageId or nil)
@@ -5206,7 +5254,7 @@ function ns.Apply()
     -- Redone whenever what should be registered no longer matches what is: the switch, the
     -- file (a profile switch can change it) or Boss Addon moving off the timeline.
     if not (ns.soundFile and ns.soundFile == ResolveSoundFile() and TRDB().soundOn
-        and ns.BossSource() == "timeline") then
+        and ns.BossSource() == "timeline" and ns.HealerRemindersEnabled()) then
         RegisterEventSounds()
     end
 end
@@ -6524,7 +6572,11 @@ function ns.BuildCoreSettings(parent, y)
         -- anything with two tanks, and a five-man has one who holds every boss unit, so on
         -- the Setup tab it read as a global behaviour switch that does nothing in half the
         -- content. Same stored key, so nobody loses their choice.
-        { type = "label", text = "" }
+        { type = "toggle", text = "Enable Healer Reminders",
+          tooltip = "Show reminders marked Healer Reminder. Turning this off hides them and cancels "
+          .. "their pending alerts. Applies to every character and profile; imports do not change it.",
+          getValue = ns.HealerRemindersEnabled,
+          setValue = function(v) ns.SetHealerRemindersEnabled(v) end }
     ); y = y - h
 
     _, h = W:DualRow(parent, y,
@@ -7278,6 +7330,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             ns.ObserveCommitPull(arg1, arg3)
         end
         currentEncounter = starting and arg1 or nil
+        -- Static timeline sounds have no per-fire Lua callback. Refresh their
+        -- registration against this encounter's tags when the opt-out is active.
+        if not ns.HealerRemindersEnabled() and ns.BossSource() == "timeline" then
+            RegisterEventSounds()
+        end
         -- arg3 is difficultyID (payload is encounterID, name, difficultyID, groupSize).
         -- Timings genuinely differ between difficulties, so observed data is keyed by it.
         currentEncounterStartedAt = starting and GetTime() or nil
@@ -7312,6 +7369,7 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         for k, handle in pairs(bwPendingTimers) do
             if handle.Cancel then handle:Cancel() end
             bwPendingTimers[k] = nil
+            ns.pendingCustomReminderOwners[k] = nil
         end
         wipe(bwCdEndsAt)
         CancelAllPendingBWFires()
