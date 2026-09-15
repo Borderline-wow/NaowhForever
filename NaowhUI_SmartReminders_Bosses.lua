@@ -2326,7 +2326,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             leadHint:SetText("Positive calls out before the hit lands, as usual. Negative "
                 .. "waits until that many seconds AFTER it lands instead -- for a defensive "
                 .. "that only matters once the mechanic is over.")
-            by = by - 28
+            by = by - math.ceil(leadHint:GetStringHeight()) - 16
 
             -- The last step, per ability rather than once for the spec. Defaults to whatever
             -- the spec-wide toggle says and only stores a value when it differs, the same
@@ -2334,22 +2334,16 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             if externalVal == nil then
                 externalVal = ns.ExternalCallFor(encounterID, ability.spellID)
             end
-            Label("Healer Reminder")
+            Label("|cff6DD09AHealer|r Reminder")
             local healerCheck = EUI.BuildToggleControl(body, body:GetFrameLevel() + 1,
                 function() return healerVal end,
                 function(v) healerVal = v and true or false end)
             healerCheck:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             ns.Tooltip(healerCheck, "Healer Reminder",
                 "Mark this preset callout for the healer-reminder switch. General defensive callouts should stay unmarked.")
-            by = by - 30
+            by = by - 38
 
             Label("Call for an External when nothing of yours is up")
-            local extCheck = (EUI or ns.UI).BuildToggleControl(body, body:GetFrameLevel() + 1,
-                function() return externalVal end,
-                function(v) externalVal = v and true or false end)
-            extCheck:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-            by = by - 26
-
             local extHint = ns.Font(body, 10, nil, ns.THEME.muted)
             extHint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             extHint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
@@ -2358,7 +2352,14 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             extHint:SetText("Off means this ability stays silent when your list is empty, "
                 .. "instead of asking the raid for help on a hit nobody was going to answer. "
                 .. "Untouched, it follows the spec-wide setting on the Setup page.")
-            by = by - 30
+            by = by - math.ceil(extHint:GetStringHeight()) - 10
+
+            local extCheck = (EUI or ns.UI).BuildToggleControl(body, body:GetFrameLevel() + 1,
+                function() return externalVal end,
+                function(v) externalVal = v and true or false end)
+            extCheck:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
+            by = by - 26
+
         else
             local hint = ns.Font(body, 11, nil, ns.THEME.muted)
             hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
@@ -2611,7 +2612,7 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
     note:SetWordWrap(true)
     note:SetText("Use a boss-mod message to trigger your defensive preset, immediately or "
         .. "after a delay. Enable Messages for this ability in BigWigs. "
-        .. "This ability ignores bars while its message reminder is enabled.")
+        .. "This ability ignores bars while its message reminder is enabled. Test previews the saved output immediately, without waiting for its message or delay.")
     note:SetHeight(math.max(16, note:GetStringHeight() + 4))
     y = y - note:GetHeight() - 8
 
@@ -2659,10 +2660,19 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
             local edit = ns.Button(row, "Edit", 46, 22, function() Edit(uid) end)
             edit:SetPoint("RIGHT", del, "LEFT", -4, 0)
 
+            local test = ns.Button(row, "Test", 44, 22, function()
+                if r.defensive then
+                    ns.TestFireAbility(encounterID, r.trigger.spellID, r)
+                else
+                    ns.PreviewCustomReminder(r)
+                end
+            end)
+            test:SetPoint("RIGHT", edit, "LEFT", -4, 0)
+
             local delay = r.trigger.delay
             local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
             lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
-            lbl:SetPoint("RIGHT", edit, "LEFT", -8, 0)
+            lbl:SetPoint("RIGHT", test, "LEFT", -8, 0)
             lbl:SetJustifyH("LEFT")
             lbl:SetText((r.name or "Reminder") .. "  |cff9a9ea6("
                 .. ((TRIGGER_CHOICES[r.trigger.type] or r.trigger.type)

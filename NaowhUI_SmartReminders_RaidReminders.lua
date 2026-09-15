@@ -808,7 +808,7 @@ function ns.DisplayRaidReminder(entry, preview)
     if display.type == "chat" then
         if formattedText and formattedText ~= "" then ns.Print(formattedText) end
         ns.PlayReminderSound(display)
-        ns.SpeakReminderTTS(display, formattedText)
+        ns.SpeakReminderTTS(display, formattedText, preview)
         return
     end
 
@@ -820,7 +820,7 @@ function ns.DisplayRaidReminder(entry, preview)
         local dur = (type(display.dur) == "number" and display.dur > 0) and display.dur or 4
         FireGlowReminder(display, dur, entry)
         ns.PlayReminderSound(display)
-        ns.SpeakReminderTTS(display, formattedText)
+        ns.SpeakReminderTTS(display, formattedText, preview)
         return
     end
 
@@ -916,7 +916,7 @@ function ns.DisplayRaidReminder(entry, preview)
     r:Show()
     RestackRegions(a)
     ns.PlayReminderSound(display)
-    ns.SpeakReminderTTS(display, formattedText)
+    ns.SpeakReminderTTS(display, formattedText, preview)
 
     if r.hideTimer then r.hideTimer:Cancel() end
     r.hideTimer = C_Timer.NewTimer(dur, function() ReleaseRegion(a, r) end)
@@ -1471,6 +1471,18 @@ end
 -- second concept of "is the addon on" to keep in sync.
 local function RaidRemindersAllowed()
     return ns.DB().enabled == true and ns.BossAllowed()
+end
+
+function ns.HideIntegrationReminders(previewOnly)
+    for _, a in pairs(anchors) do
+        for i = #a.active, 1, -1 do
+            local r = a.active[i]
+            local entry = r.reminderEntry
+            if entry and entry.integration and (not previewOnly or entry.integrationPreview) then
+                ReleaseRegion(a, r)
+            end
+        end
+    end
 end
 
 -- Capture ownership, not just the entry: an editor replaces/deletes the table value,

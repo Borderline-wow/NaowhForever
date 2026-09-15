@@ -1,0 +1,381 @@
+local root = arg[1] or "."
+local function Fixture()
+    local e = { now = 0, map = 1877, kind = "party", spec = 250, timers = {}, shown = {}, added = {}, removed = {}, hooks = {},
+        registered = {}, muteCalls = {}, known = true, dead = false, usable = true,
+        cooldown = { isActive = false, isEnabled = true }, restrictions = {} }
+    local db = { enabled = true, integrationRules = { ["250"] = {} } }
+    local ns = { UI = {}, trackedReminderTimers = {} }
+    ns.DB = function() return db end
+    ns.IsReminderEnabled = function(r) return r.enabled ~= false and not (e.healerOff and r.healerReminder) end
+    ns.DisplayRaidReminder = function(r) e.shown[#e.shown + 1] = r end
+    ns.HideIntegrationReminders = function() e.hidden = true end
+    ns.ResolveReminderSpell = function() return e.picked end
+    ns.InEncounter = function() return e.encounter end
+    ns.PlayReminderSound = function(d) e.previewSound = true; e.previewKey = d.sound end
+    ns.UI.SoundPathFor = function(key)
+        if key == "voice:stoneform-ready" then return "stoneform-ready.ogg" end
+        return key == "test" and "Interface/AddOns/Test/test.ogg"
+    end
+    local env = setmetatable({ NaowhUITankReminder = ns, Enum = { UnitAuraSoundTrigger = { Added = 0, ApplicationsIncreased = 1, Removed = 2 } },
+        GetTime = function() return e.now end,
+        GetSpecialization = function() return 1 end, GetSpecializationInfo = function() return e.spec end,
+        GetInstanceInfo = function() return "Dungeon", e.kind, 8, "", 5, 0, false, e.map end,
+        InCombatLockdown = function() return e.combat end,
+        C_Spell = { GetSpellInfo = function() return { name = "Anti-Magic Shell" } end,
+            GetSpellCooldown = function() return e.cooldown end, IsSpellUsable = function() return e.usable end },
+        C_SpellBook = { IsSpellKnown = function() return e.known end },
+        UnitIsDeadOrGhost = function() return e.dead end,
+        MuteSoundFile = function(path) e.muted = true; e.muteCalls[#e.muteCalls + 1] = path end,
+        UnmuteSoundFile = function(path) e.muted = false; e.muteCalls[#e.muteCalls + 1] = path end,
+        C_RestrictedActions = { GetAddOnRestrictionState = function(kind) return e.restrictions[kind] or 0 end },
+        CreateFrame = function() return { SetScript = function(_, _, f) e.event = f end,
+            RegisterEvent = function(_, event) e.registered[event] = true end,
+            UnregisterEvent = function(_, event) e.registered[event] = nil end } end,
+        hooksecurefunc = function(object, name, callback) e.hooks[name] = callback end,
+        issecretvalue = function(v) return v == e.secret end,
+        canaccesstable = function(v) return v ~= e.forbidden end,
+        C_UnitAuras = { AddAuraSound = function(trigger, info)
+            assert(not e.combat and not e.encounter and not e.restrictions[0] and not e.restrictions[1])
+            e.added[#e.added + 1] = { trigger = trigger, info = info }; return #e.added
+        end, RemoveAuraSound = function(id)
+            assert(not e.combat and not e.encounter); e.removed[#e.removed + 1] = id
+        end },
+    }, { __index = _G })
+    env._G = env
+    env.Enum.AddOnRestrictionType = { Combat = 0, Encounter = 1, Map = 4 }
+    env.Enum.AddOnRestrictionState = { Inactive = 0, Activating = 1, Active = 2 }
+    e.secret, e.forbidden = {}, {}
+    ns.PruneCustomReminderTimers = function()
+        for i = #ns.trackedReminderTimers, 1, -1 do
+            local t = ns.trackedReminderTimers[i]
+            if not t.valid() then t.handle:Cancel(); table.remove(ns.trackedReminderTimers, i) end
+        end
+    end
+    ns.TrackReminderTimer = function(_, delay, callback, _, valid)
+        local handle = { Cancel = function(t) t.cancelled = true end }
+        local entry = { handle = handle, valid = valid }
+        ns.trackedReminderTimers[#ns.trackedReminderTimers + 1] = entry
+        e.timers[#e.timers + 1] = { at = e.now + delay, handle = handle, callback = callback, valid = valid }
+        return entry
+    end
+    local scheduler = { active = {}, _AdvanceTrashFixedCombatTimeline = function() end, RegisterTrashLocalTimer = function() end, _RemoveActiveTimerByID = function() end }
+    function scheduler:GetActiveTimers() return self.active end
+    env.ExBoss = { Timeline = { Scheduler = scheduler } }
+    local chunk = assert(loadfile(root .. "/NaowhUI_SmartReminders_Integrations.lua")); setfenv(chunk, env); chunk()
+    e.I, e.ns, e.env, e.db, e.scheduler = ns.Integrations, ns, env, db, scheduler
+    function e:advance(at)
+        self.now = at
+        for _, t in ipairs(self.timers) do
+            if not t.handle.cancelled and t.at <= at then
+                t.handle.cancelled = true
+                if t.valid() then t.callback() end
+            end
+        end
+    end
+    function e:rule(kind)
+        return { name = "Test", enabled = true, trigger = { type = kind or "exboss", spellID = 123,
+            mapID = 1877, timeleft = 5, target = "player", auraEvent = "Added" },
+            display = { type = "icon", text = "Defensive", dur = 3, sound = "test" } }
+    end
+    function e:timer(id, at)
+        self.scheduler.active[id] = { source = "trash", spellID = 123, castTime = at }
+        self.I.ObserveTimer(self.scheduler, id)
+    end
+    return e
+end
+local count = 0
+local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) end
+Case("reused trash timer delivers each deadline once across refreshes", function()
+    local e = Fixture()
+    e.I.Save(nil, e:rule())
+    e:timer(1, 10); e:advance(5)
+    assert(#e.shown == 1)
+    e:advance(10)
+    e.scheduler.active[1].castTime = 20
+    e.I.ObserveTimer(e.scheduler, 1); e.I.ObserveTimer(e.scheduler, 1)
+    e:advance(15); assert(#e.shown == 2)
+    e.I.Refresh(); e:advance(16); assert(#e.shown == 2)
+end)
+Case("observed cast anchor separates early new cycles from corrections", function()
+    local e = Fixture(); e.I.Save(nil, e:rule())
+    e.scheduler.active[1] = {source="trash", spellID=123, castTime=10,
+        trashRuntime={nextSpellAnchorAt={[123]=0}}}
+    e.I.ObserveTimer(e.scheduler, 1); e:advance(5); assert(#e.shown == 1)
+    e.scheduler.active[1].castTime = 12
+    e.I.ObserveTimer(e.scheduler, 1); e:advance(7); assert(#e.shown == 1)
+    e.scheduler.active[1].trashRuntime.nextSpellAnchorAt[123] = 7
+    e.scheduler.active[1].castTime = 20
+    e.I.ObserveTimer(e.scheduler, 1); e:advance(15); assert(#e.shown == 2)
+end)
+Case("fixed combat timeline advancement schedules the next reminder", function()
+    local e = Fixture()
+    e.I.Save(nil, e:rule())
+    e:timer(1, 10); e:advance(5)
+    local timer = e.scheduler.active[1]; timer.id = 1; timer.trashFixedCombatTimeline = true; timer.castTime = 20
+    e.hooks._AdvanceTrashFixedCombatTimeline(e.scheduler, timer)
+    e.hooks._AdvanceTrashFixedCombatTimeline(e.scheduler, timer)
+    e:advance(15); assert(#e.shown == 2)
+end)
+Case("invalid edited aura IDs are rejected without replacing saved rule", function()
+    local e = Fixture(); local r = e:rule("auraSound")
+    local ok, uid = e.I.Save(nil, r); assert(ok)
+    for _, field in ipairs({ "spellID", "mapID" }) do
+        local edited = e:rule("auraSound"); edited.trigger[field] = nil
+        assert(not e.I.Save(uid, edited))
+        assert(e.I.Rules(false)[uid] == r)
+    end
+end)
+
+Case("preset and custom-text previews use addon voice volume, with silence diagnostics", function()
+    local e = Fixture()
+    local file = assert(io.open(root .. "/NaowhUI_SmartReminders.lua", "rb"))
+    local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
+    local speech = assert(source:match("function ns.SpeakReminderTTS%b()%s*.-\nend"))
+    local calls, messages = {}, {}
+    e.env.C_VoiceChat = {
+        GetTtsVoices = function() return { { voiceID = 2 } } end,
+        SpeakText = function(...) calls[#calls + 1] = { ... } end,
+    }
+    e.env.C_TTSSettings = { GetSpeechRate = function() return 0 end,
+        GetSpeechVolume = function() return 0 end }
+    e.ns.TTSVoiceID = function() return 2 end
+    e.ns.Print = function(message) messages[#messages + 1] = message end
+    e.db.voiceVol = 65
+    local chunk = assert(loadstring("local ns, TRDB = ...; " .. speech))
+    setfenv(chunk, e.env); chunk(e.ns, e.ns.DB)
+    e.ns.DisplayRaidReminder = function(entry, preview)
+        e.ns.SpeakReminderTTS(entry.display, entry.display.text, preview)
+    end
+    local r = e:rule(); r.display.tts = true; r.display.text = "Move out"
+    e.I.Preview(r)
+    assert(#calls == 1 and calls[1][1] == 2 and calls[1][2] == "Move out")
+    assert(calls[1][3] == 0 and calls[1][4] == 65 and calls[1][5] == false)
+    r.preset = "defensives"; e.picked = 48707; e.I.Preview(r)
+    assert(calls[2][2] == "Anti-Magic Shell")
+    e.db.voiceVol = 0; e.I.Preview(r)
+    assert(#calls == 2 and messages[#messages]:find("Voice Volume is zero", 1, true))
+    e.db.voiceVol = 100; e.env.C_VoiceChat.GetTtsVoices = function() return {} end
+    e.I.Preview(r); assert(#calls == 2 and messages[#messages]:find("No TTS voices", 1, true))
+    e.env.C_VoiceChat.GetTtsVoices = function() return { { voiceID = 2 } } end
+    e.env.C_VoiceChat.SpeakText = function() error("unavailable") end
+    e.I.Preview(r); assert(messages[#messages]:find("could not start TTS", 1, true))
+    r.display.tts = false; local before = #messages
+    e.I.Preview(r); assert(#messages == before)
+end)
+Case("repeated previews replace only test regions and preserve live reminders", function()
+    local e = Fixture()
+    local file = assert(io.open(root .. "/NaowhUI_SmartReminders_RaidReminders.lua", "rb"))
+    local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
+    local cleanup = assert(source:match("function ns.HideIntegrationReminders%b()%s*.-\nend"))
+    local live = { reminderEntry = { integration = true } }
+    local other = { reminderEntry = {} }
+    local anchor = { active = { live, other } }
+    local chunk = assert(loadstring("local ns, anchors, ReleaseRegion = ...; " .. cleanup))
+    chunk(e.ns, { anchor }, function(a, r)
+        r.cancelled = true
+        for i = #a.active, 1, -1 do if a.active[i] == r then table.remove(a.active, i) end end
+    end)
+    e.ns.DisplayRaidReminder = function(entry, preview)
+        assert(preview and entry.integrationPreview)
+        anchor.active[#anchor.active + 1] = { reminderEntry = entry }
+    end
+    e.I.Preview(e:rule()); local first = anchor.active[3]
+    e.I.Preview(e:rule()); e.I.Preview(e:rule())
+    assert(#anchor.active == 3 and first.cancelled)
+    assert(anchor.active[1] == live and anchor.active[2] == other)
+    e.ns.HideIntegrationReminders()
+    assert(#anchor.active == 1 and anchor.active[1] == other)
+end)
+Case("catalogue maps challenge IDs to instance filters and deduplicates spells", function()
+    local e = Fixture()
+    assert(#e.I.Catalogue() == 0)
+    local trash = { [249] = { mapName = "Kings Rest", mobs = {
+        [10] = { spells = { [123] = {} } }, [11] = { spells = { [123] = {} } } } },
+        [999] = { mapName = "Unmapped", mobs = {} } }
+    local maps = { maps = { [1762] = { mapID = 1762, mapName = "Kings Rest" } } }
+    e.env.EXBossData = { GetTrashCDDataRoot = function() return trash end,
+        GetEncounterDataRoot = function() return maps end }
+    e.env.GetLocale = function() return "enUS" end
+    e.env.C_ChallengeMode = { GetMapUIInfo = function(id) assert(id == 249); return "Localized dungeon" end }
+    local result = e.I.Catalogue()
+    assert(#result == 1 and result[1].id == 1762 and result[1].name == "Localized dungeon")
+    assert(#result[1].abilities == 1 and result[1].abilities[1].spellID == 123)
+    assert(trash[249].mobs[10].spells[123].name == nil, "catalogue mutated provider data")
+    maps.maps[2222] = { mapID = 2222, mapName = "Kings Rest" }
+    assert(#e.I.Catalogue() == 0, "ambiguous instance mapping was guessed")
+end)
+Case("optional provider and empty configuration stay inactive", function()
+    local e = Fixture(); e.env.ExBoss = nil; e.I.Refresh()
+    assert(next(e.hooks) == nil and #e.added == 0)
+end)
+Case("trash predictions schedule once, reschedule and cancel by timer identity", function()
+    local e = Fixture(); assert(e.I.Save(nil, e:rule()))
+    e:timer(1, 20); e.I.ObserveTimer(e.scheduler, 1)
+    assert(#e.timers == 1)
+    e.scheduler.active[1].castTime = 25; e.I.ObserveTimer(e.scheduler, 1)
+    e:advance(15); assert(#e.shown == 0)
+    e:advance(20); assert(#e.shown == 1)
+    e:timer(2, 40); e.scheduler.active[2] = nil; e.hooks._RemoveActiveTimerByID(e.scheduler, 2)
+    e:advance(40); assert(#e.shown == 1)
+end)
+Case("multiple identical mobs keep independent timers and short timers fire promptly", function()
+    local e = Fixture(); e.I.Save(nil, e:rule())
+    e:timer(1, 3); e:timer(2, 4); e:advance(0.02)
+    assert(#e.shown == 2)
+end)
+Case("post-registration hook reads the assigned provider timer ID", function()
+    local e=Fixture(); e.I.Save(nil,e:rule())
+    e.scheduler.active[17]={ source="trash", spellID=123, castTime=12 }
+    local runtime={ localTimerIDsBySpellID={ [123]=17 } }
+    e.hooks.RegisterTrashLocalTimer(e.scheduler,runtime,{}, {spellID=123})
+    e:advance(7); assert(#e.shown==1)
+end)
+Case("removed provider timer is rejected even without removal notification", function()
+    local e = Fixture(); e.I.Save(nil, e:rule()); e:timer(1, 10)
+    e.scheduler.active[1] = nil; e:advance(5); assert(#e.shown == 0)
+end)
+Case("map, spec, disable and healer changes invalidate old work", function()
+    for _, what in ipairs({ "map", "spec", "disable", "healer", "profile" }) do
+        local e = Fixture(); local r = e:rule(); r.healerReminder = true
+        e.I.Save(nil, r); e:timer(1, 10)
+        if what == "map" then e.map = 99
+        elseif what == "spec" then e.spec = 251
+        elseif what == "disable" then e.db.enabled = false
+        elseif what == "profile" then e.db.integrationRules = { ["250"] = {} }
+        else e.healerOff = true end
+        e:advance(5); assert(#e.shown == 0, what)
+    end
+end)
+Case("secret and inaccessible provider data never schedules", function()
+    local e = Fixture(); e.I.Save(nil, e:rule())
+    e.scheduler.active[1] = e.forbidden; e.I.ObserveTimer(e.scheduler, 1)
+    e.scheduler.active[1] = { source = "trash", spellID = e.secret, castTime = 10 }; e.I.ObserveTimer(e.scheduler, 1)
+    e.scheduler.active[1] = { source = "trash", spellID = 123, castTime = e.secret }; e.I.ObserveTimer(e.scheduler, 1)
+    e.I.ObserveTimer(e.scheduler, e.secret); assert(#e.timers == 0)
+end)
+Case("aura registration deduplicates and supports each trigger and party unit", function()
+    local e = Fixture(); local r = e:rule("auraSound")
+    e.I.Save(nil, r); e.I.Refresh(); assert(#e.added == 1 and e.added[1].trigger == 0)
+    e.I.Save(nil, r); assert(#e.added == 1)
+    local other = e:rule("auraSound"); other.trigger.auraEvent = "Removed"; other.trigger.target = "party"
+    e.I.Save(nil, other); assert(#e.added == 5 and e.added[2].trigger == 2)
+    other = e:rule("auraSound"); other.trigger.auraEvent = "ApplicationsIncreased"
+    e.I.Save(nil, other); assert(#e.added == 6 and e.added[6].trigger == 1)
+end)
+Case("aura changes defer through combat then remove disabled rules", function()
+    local e = Fixture(); local r = e:rule("auraSound"); r.healerReminder = true
+    e.I.Save(nil, r); e.combat = true; e.healerOff = true; e.I.Refresh()
+    assert(#e.removed == 0 and e.I.auraStatus:find("pending"))
+    e.combat = false; e.I.Refresh(); assert(#e.removed == 1)
+end)
+Case("bundled voices resolve and register without SharedMedia", function()
+    local e = Fixture()
+    local file = assert(io.open(root .. "/NaowhUI_SmartReminders_Widgets.lua", "rb"))
+    local source = file:read("*a"); file:close()
+    local start = assert(source:find("local bundledVoices =", 1, true))
+    local chunk = assert(loadstring("local ns = ...; local UI = ns.UI; " .. source:sub(start)))
+    setfenv(chunk, e.env); chunk(e.ns)
+    local paths, names, order = e.ns.UI.BuildAlertSoundTables()
+    assert(#order == 4 and order[1] == "none")
+    assert(e.ns.UI.SoundPathFor("none") == nil and e.ns.UI.SoundPathFor("missing") == nil)
+    for index = 2, #order do
+        local key = order[index]
+        assert(names[key]:find("Voice:", 1, true))
+        assert(e.ns.UI.SoundPathFor(key) == paths[key])
+        local relative = assert(paths[key]:match("NaowhSmartReminders\\(.+)$")):gsub("\\", "/")
+        local sound = assert(io.open(root .. "/" .. relative, "rb"))
+        assert(sound:read(4) == "OggS"); sound:close()
+        local r = e:rule("auraSound"); r.display.sound = key
+        assert(e.I.Save(nil, r))
+        assert(e.added[index - 1].info.soundFileName == paths[key])
+    end
+end)
+Case("aura profile and instance changes clear registrations", function()
+    local e = Fixture(); e.I.Save(nil, e:rule("auraSound"))
+    e.kind = "none"; e.I.Refresh(); assert(#e.removed == 1)
+    e.kind = "party"; e.I.Refresh(); assert(#e.added == 2)
+    e.db.integrationRules = {}; e.I.Refresh(); assert(#e.removed == 2)
+end)
+Case("malformed rules are rejected and rule count is bounded", function()
+    local e = Fixture(); local r = e:rule(); r.trigger.spellID = 0/0; assert(not e.I.Save(nil,r))
+    r=e:rule("auraSound"); r.display.sound="none"; assert(not e.I.Save(nil,r))
+    for i=1,32 do assert(e.I.Save(nil,e:rule())) end
+    assert(not e.I.Save(nil,e:rule()))
+end)
+Case("settings refresh and resync do not replay an already delivered prediction", function()
+    local e=Fixture(); e.I.Save(nil,e:rule()); e:timer(1,10); e:advance(5)
+    assert(#e.shown==1)
+    e.I.Refresh(); e.scheduler.active[1].castTime=12; e.I.ObserveTimer(e.scheduler,1)
+    e:advance(7); assert(#e.shown==1)
+    e.scheduler.active[1]=nil; e.hooks._RemoveActiveTimerByID(e.scheduler,1)
+    e:timer(2,20); e:advance(15); assert(#e.shown==2)
+end)
+Case("shared packs validate integration rules, IDs and size before import", function()
+    local e=Fixture()
+    local f=assert(io.open(root.."/NaowhUI_SmartReminders_Packs.lua","rb"))
+    local source=f:read("*a"); f:close()
+    local first=assert(source:find("local SECTIONS =",1,true))
+    local last=assert(source:find("-- LibSerialize's Deserialize",first,true))
+    local chunk=assert(loadstring(source:sub(first,last-1).."\nreturn ValidData"))
+    e.env.ns=e.ns; setfenv(chunk,e.env); local valid=chunk()
+    local data={ integrationRules={ ["250"]={ i1=e:rule(), i2=e:rule("auraSound") } } }
+    assert(valid(data))
+    data.integrationRules["250"].i2.trigger.mapID="1877"; assert(not valid(data))
+    data.integrationRules["250"].i2.trigger.mapID=1877
+    data.integrationRules["250"][1]=e:rule(); assert(not valid(data))
+    data.integrationRules["250"][1]=nil
+    for i=3,33 do data.integrationRules["250"]["i"..i]=e:rule() end
+    assert(not valid(data))
+end)
+Case("Stoneform follows cooldown events in combat without re-registering", function()
+    local e = Fixture(); local r = e:rule("auraSound"); r.display.sound = "voice:stoneform-ready"
+    assert(e.I.Save(nil, r)); assert(e.muted == false and e.registered.SPELL_UPDATE_COOLDOWN)
+    e.combat = true; e.cooldown.isActive = true
+    e.event(nil, "SPELL_UPDATE_COOLDOWN", 20594); assert(e.muted == true)
+    local calls = #e.muteCalls
+    e.event(nil, "SPELL_UPDATE_COOLDOWN", 123); assert(#e.muteCalls == calls)
+    e.cooldown.isActive = false; e.event(nil, "SPELL_UPDATE_COOLDOWN", 20594)
+    assert(e.muted == false and #e.added == 1 and #e.removed == 0)
+    e.I.Refresh(); assert(e.muted == false and #e.added == 1)
+end)
+Case("Stoneform fails silent for unknown, dead, unusable and secret readiness", function()
+    for _, what in ipairs({ "unknown", "dead", "unusable", "secret", "missing", "held" }) do
+        local e = Fixture(); local r = e:rule("auraSound"); r.display.sound = "voice:stoneform-ready"
+        e.I.Save(nil, r)
+        if what == "unknown" then e.known = false
+        elseif what == "dead" then e.dead = true
+        elseif what == "unusable" then e.usable = false
+        elseif what == "secret" then e.usable = e.secret
+        elseif what == "missing" then e.cooldown = nil
+        else e.cooldown.isEnabled = false end
+        e.event(nil, "SPELL_UPDATE_USABLE"); assert(e.muted == true, what)
+    end
+end)
+Case("Stoneform preview never unmutes the registered file", function()
+    local e = Fixture(); local r = e:rule("auraSound"); r.display.sound = "voice:stoneform-ready"
+    e.cooldown.isActive = true; e.I.Save(nil, r)
+    local calls = #e.muteCalls; e.I.Preview(r)
+    assert(e.previewKey == "voice:stoneform-preview" and e.muted and #e.muteCalls == calls)
+end)
+Case("Stoneform disable in combat silences stale rules until cleanup", function()
+    local e = Fixture(); local r = e:rule("auraSound"); r.display.sound = "voice:stoneform-ready"
+    e.I.Save(nil, r); e.combat = true; e.db.enabled = false; e.I.Refresh()
+    assert(e.muted and not e.registered.SPELL_UPDATE_COOLDOWN and #e.removed == 0)
+    e.combat = false; e.I.Refresh()
+    assert(e.muted == false and #e.removed == 1)
+end)
+Case("Stoneform rejects party rules and remains idle for ordinary sounds", function()
+    local e = Fixture(); e.I.Save(nil, e:rule("auraSound"))
+    assert(#e.muteCalls == 0 and not e.registered.SPELL_UPDATE_COOLDOWN)
+    local r = e:rule("auraSound"); r.display.sound = "voice:stoneform-ready"; r.trigger.target = "party"
+    assert(not e.I.Save(nil, r))
+end)
+Case("forced restrictions defer registration without combat lockdown", function()
+    for _, kind in ipairs({ 0, 1 }) do
+        local e = Fixture(); e.restrictions[kind] = 2
+        e.I.Save(nil, e:rule("auraSound")); assert(#e.added == 0 and e.I.auraStatus:find("pending"))
+        e.restrictions[kind] = nil
+        e.event(nil, "ADDON_RESTRICTION_STATE_CHANGED", kind, 0); assert(#e.added == 1)
+    end
+end)
+print(count .. " integration regressions passed")

@@ -38,6 +38,8 @@ NaowhUI_SmartReminders_RaidReminders.lua
 
 # Shareable Reminder Packs: a curator's lists, priorities and written reminders as
 # one string, with preview-before-apply. Loads after the runtime it packages.
+NaowhUI_SmartReminders_Integrations.lua
+NaowhUI_SmartReminders_IntegrationOptions.lua
 NaowhUI_SmartReminders_Packs.lua
 
 # Reads this season's bosses and their tank-flagged abilities out of the player's own

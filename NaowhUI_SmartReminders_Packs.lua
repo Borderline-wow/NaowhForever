@@ -50,6 +50,7 @@ local SECTIONS = {
     { field = "abilityBindings", label = "ability on/off",       count = "nested" },
     { field = "audioOff",        label = "audio switches",       count = "keys", value = "boolean" },
     { field = "raidReminders",   label = "raid reminders",       count = "nested", perEntry = true },
+    { field = "integrationRules", label = "trash and debuff rules", count = "nested", perEntry = true },
 }
 
 local function CountSection(kind, t)
@@ -120,7 +121,7 @@ end
 local COLOR_FIELDS = { r = "number", g = "number", b = "number", a = "number" }
 local TRIGGER_FIELDS = { type = "string", spellID = "number", delay = "number|string",
     stage = "number", leadTime = "number", timeleft = "number", counter = "string|number",
-    target = "string", auraEvent = "string" }
+    target = "string", auraEvent = "string", mapID = "number" }
 local DISPLAY_FIELDS = { type = "string", text = "string", spellID = "number", dur = "number",
     sound = "string", tts = "boolean", glowTarget = "string", hideAfterCastID = "number" }
 local ENTRY_FIELDS = { name = "string", enabled = "boolean", specID = "number", healerReminder = "boolean",
@@ -167,6 +168,13 @@ local function ValidData(data)
                 elseif type(inner) ~= "table" then
                     return false
                 else
+                    if sec.field == "integrationRules" then
+                        local count = 0
+                        for uid in pairs(inner) do
+                            count = count + 1
+                            if type(uid) ~= "string" or count > 32 then return false end
+                        end
+                    end
                     for _, entry in pairs(inner) do
                         if type(entry) ~= "table" then return false end
                         if sec.field == "abilityBindings" and data.bindingsBySpec ~= false then
@@ -175,6 +183,8 @@ local function ValidData(data)
                             for _, binding in pairs(entry) do
                                 if not ValidEntry(binding) then return false end
                             end
+                        elseif sec.field == "integrationRules" then
+                            if not (ns.Integrations and ns.Integrations.ValidRule(entry)) then return false end
                         elseif not ValidEntry(entry) then return false end
                     end
                 end

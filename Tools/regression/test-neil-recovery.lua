@@ -26,7 +26,7 @@ Case("late LSM, negative cache, and later sound registration", function()
         UnregisterCallback = function() end,
     }
     local env = { UI = ui, LibStub = false }
-    Eval(widgets:sub((assert(widgets:find("function UI.BuildAlertSoundTables()", 1, true)))), env)
+    Eval(widgets:sub((assert(widgets:find("local bundledVoices =", 1, true)))), env)
     assert(ui.SoundPathFor("sm:later") == nil)
     env.LibStub = function() return provider end
     assert(ui.SoundPathFor("sm:later") == "later.ogg")

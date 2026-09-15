@@ -667,11 +667,22 @@ end
 -------------------------------------------------------------------------------
 --  Sounds
 -------------------------------------------------------------------------------
--- The addon ships no sound files of its own: the audience runs BigWigs/DBM/SharedMedia
--- packs, all of which register file sounds with LibSharedMedia, and those are what fill
--- the dropdown.
+-- Bundled English voice clips work without an optional SharedMedia provider.
+-- Stable keys are shared by preview, native aura registrations and exported rules.
+local bundledVoices = {
+    { key = "voice:dispel-me", text = "Dispel me", file = "dispel-me.ogg" },
+    { key = "voice:move-out", text = "Move out", file = "move-out.ogg" },
+    { key = "voice:use-a-defensive", text = "Use a defensive", file = "use-a-defensive.ogg" },
+}
+local voicePath = "Interface\\AddOns\\NaowhSmartReminders\\Media\\Voice\\"
 function UI.BuildAlertSoundTables()
-    return {}, { none = "None" }, { "none" }
+    local paths, names, order = {}, { none = "None" }, { "none" }
+    for _, voice in ipairs(bundledVoices) do
+        paths[voice.key] = voicePath .. voice.file
+        names[voice.key] = "Voice: " .. voice.text .. " (English)"
+        order[#order + 1] = voice.key
+    end
+    return paths, names, order
 end
 
 function UI.AppendSharedMediaSounds(paths, names, order)
@@ -707,11 +718,20 @@ end
 local soundPaths
 local soundProvider
 local function SoundRegistered(_, mediatype)
-    if mediatype == "sound" then soundPaths = nil end
+    if mediatype == "sound" then
+        soundPaths = nil
+        if ns and ns.Integrations then ns.Integrations.Refresh() end
+    end
 end
 
 function UI.SoundPathFor(key)
     if not key or key == "none" then return nil end
+    -- Dedicated files keep racial gating separate from previews and other sounds.
+    if key == "voice:stoneform-ready" then return voicePath .. "stoneform-ready.ogg" end
+    if key == "voice:stoneform-preview" then return voicePath .. "stoneform-preview.ogg" end
+    for _, voice in ipairs(bundledVoices) do
+        if key == voice.key then return voicePath .. voice.file end
+    end
     local provider = LibStub and LibStub("LibSharedMedia-3.0", true)
     -- A missing optional provider is not a cached miss. It may load later.
     if not provider then return nil end

@@ -250,4 +250,37 @@ Case("defensive cannot fire after tracked encounter ends", function()
     e.ns.FireMessageDefensive(e.set.one)
     assert(e.calls == 0)
 end)
+local function TestFixture()
+    local e = Fixture()
+    e.env.RefreshSpec = function() end
+    e.ns.Apply = function() end
+    e.ns.CurrentSpec = function() return 250 end
+    e.ns.Print = function(message) e.lastMessage = message end
+    e.ns.AbilityEnabledForBinding = function() return true end
+    local code = Slice("function ns.TestFireAbility(", "-- duration, when given")
+    -- Exercise the real fire path through the fixture's exported dispatcher.
+    e.env.FireBigWigsAbility = function(sid, late, reminder)
+        return e.ns.FireMessageDefensive(reminder)
+    end
+    local chunk = assert(loadstring(code)); setfenv(chunk, e.env); chunk()
+    return e
+end
+Case("message row test uses its own preset outside an encounter", function()
+    local e = TestFixture()
+    e.env.currentEncounter = nil; e.env.canSelect = false; e.allowed = false
+    e.ns.TestFireAbility(3202, 123, e.set.one)
+    assert(e.calls == 1 and e.preset == "mobility")
+    assert(e.env.currentEncounter == nil and e.ns.testFiring == nil)
+    assert(e.timers[#e.timers].at == 7)
+end)
+Case("generic test redirects to message row instead of talent warning", function()
+    local e = TestFixture()
+    e.ns.TestFireAbility(3202, 123)
+    assert(e.calls == 0 and e.lastMessage:find("BIGWIGS/DBM MESSAGES", 1, true))
+end)
+Case("disabled message test does not fire", function()
+    local e = TestFixture(); e.set.one.enabled = false
+    e.ns.TestFireAbility(3202, 123, e.set.one)
+    assert(e.calls == 0)
+end)
 print(count .. " message defensive regressions passed")

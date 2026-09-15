@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Trash & Debuffs setup with profile/spec rules, EXBoss readiness predictions, preset selection, and pack sharing.
+- Native player/party aura sounds and bundled English voices, including Stoneform calls gated by racial readiness.
+- Test buttons for individual BigWigs/DBM message reminders.
+
+### Fixed
+- Reused and recurring trash timers can notify on later cooldown cycles without replaying same-cycle corrections.
+- Invalid debuff spell and instance IDs are rejected instead of silently retaining previous values.
+- Message-only abilities direct tests to their message rows instead of reporting missing talents.
+- Improved ability-picker spacing, moved external-call help above its toggle, and colored the Healer label green.
+- Reminder TTS uses the addon voice volume and reports preview failures.
+
+### Validation and limits
+- All 15 offline regression suites pass; runtime Lua syntax checked with Lua 5.1.
+- User confirmed Stoneform voice in combat and a dungeon. New repeat-cycle fixes, message tests, and UI layout still need client verification; after screenshots are unavailable.
+- EXBoss integration predicts readiness, not confirmed casts or targets, and depends on inspected internal scheduler methods.
+- Native aura registration changes defer during combat/encounter restrictions. No specific-bleed icon or personal-target Shadowmeld voice is implemented.
+
 ## 1.3.6
 
 ### Added

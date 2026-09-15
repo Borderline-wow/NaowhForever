@@ -287,6 +287,14 @@ function ns.DeletePreset(forSpec, presetKey)
             end
         end
     end
+    local integrationRules = t.integrationRules and t.integrationRules[tostring(forSpec or 0)]
+    for _, rule in pairs(integrationRules or {}) do
+        if rule.preset == presetKey then
+            ns.Print("Reassign or delete trash rule '" .. (rule.name or "Reminder")
+                .. "' before deleting this preset.")
+            return false
+        end
+    end
     presets[presetKey] = nil
     local key = tostring(forSpec or 0)
     if type(t.activePreset) == "table" and t.activePreset[key] == presetKey then
@@ -3282,28 +3290,33 @@ function ns.PlayReminderSound(r)
     if path then ns.UI._PlayLSMSound(path) end
 end
 
--- Same optional r.tts flag PlayReminderSound's r.sound is -- speaks r.text through the
--- client's own built-in TTS (C_VoiceChat), not a bespoke voice/rate/volume picker: MRT's
--- own version is a dropdown plus two sliders on top of this exact API, skipped here in
--- favor of whatever the player already set in the Accessibility panel, one less thing to
--- configure for what is meant to stay the simple version.
--- overrideText, when given, is spoken instead of r.text -- the raid-reminder engine
--- passes its already-%placeholder-resolved copy through here rather than the raw
--- saved template, same reasoning every display widget reads the resolved copy too.
-function ns.SpeakReminderTTS(r, overrideText)
+-- Reminder speech uses the same voice and volume as the main addon callouts.
+-- Keep Blizzard's speech rate; the addon has no separate rate control.
+-- Test failures are reported locally rather than leaving a silent icon unexplained.
+function ns.SpeakReminderTTS(r, overrideText, preview)
     if not (r and r.tts) then return end
     local text = overrideText or r.text
     if not (text and text ~= "") then return end
-    if not (C_VoiceChat and C_VoiceChat.SpeakText and C_VoiceChat.GetTtsVoices) then return end
+    local function Unavailable(message)
+        if preview then ns.Print(message) end
+    end
+    if not (C_VoiceChat and C_VoiceChat.SpeakText and C_VoiceChat.GetTtsVoices) then
+        return Unavailable("TTS is unavailable in this client.")
+    end
+    local voices = C_VoiceChat.GetTtsVoices()
+    if not voices or #voices == 0 then
+        return Unavailable("No TTS voices are available. Check WoW's Text to Speech settings.")
+    end
     local voiceID = ns.TTSVoiceID()
-    if not voiceID then return end
+    if not voiceID then return Unavailable("No TTS voice is selected.") end
     local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate and C_TTSSettings.GetSpeechRate()) or 0
-    local volume = (C_TTSSettings and C_TTSSettings.GetSpeechVolume and C_TTSSettings.GetSpeechVolume()) or 100
-    -- No destination/enum argument -- confirmed against Blizzard's own
-    -- TextToSpeechFrame.lua (Blizzard_ChatFrame), which calls this exact 4-argument
-    -- form. Enum.VoiceTtsDestination does not exist; assuming it did was the bug
-    -- reported live (attempt to index a nil field).
-    C_VoiceChat.SpeakText(voiceID, text, rate, volume)
+    local volume = TRDB().voiceVol or 100
+    if volume <= 0 then
+        return Unavailable("Voice Volume is zero. Raise it under Smart Reminders Setup > Sounds and Voice.")
+    end
+    -- Blizzard's documented order is voiceID, text, rate, volume, overlap.
+    local ok = pcall(C_VoiceChat.SpeakText, voiceID, text, rate, volume, false)
+    if not ok then return Unavailable("WoW could not start TTS playback. Check its Text to Speech settings.") end
 end
 
 -- Shared by every display type that can be bound to a defensive rather than free text
@@ -4205,7 +4218,7 @@ local function FireBigWigsAbility(sid, lateRetry, reminder)
         -- ENCOUNTER_START can already be handled while the separate progress API
         -- still returns false for an opening message. Our lifecycle clears this ID
         -- on ENCOUNTER_END and owns cancellation of the delayed reminder timers.
-        if not (frame and TRDB().enabled and canSelect and BossAllowed() and currentEncounter ~= nil) then
+        if not (frame and TRDB().enabled and (ns.testFiring or (canSelect and BossAllowed() and currentEncounter ~= nil))) then
             if TRDB().trace then AppendLog({ kind = "drop", sid = sid,
                 text = "message fire gated: frame=" .. tostring(frame ~= nil)
                     .. " enabled=" .. tostring(TRDB().enabled) .. " canSelect=" .. tostring(canSelect)
@@ -4319,17 +4332,25 @@ end
 -- test mode is no substitute: on retail it plays Blizzard's edit-mode timeline samples
 -- and never broadcasts real boss spell ids. On ns: the main chunk is at Lua's 200-local
 -- ceiling.
-function ns.TestFireAbility(enc, sid)
+function ns.TestFireAbility(enc, sid, reminder)
     if not TRDB().enabled then
         ns.Print("switch the reminder on first.")
         return
     end
-    if not ns.AbilityEnabledForBinding(enc, sid) then
+    if reminder and (not ns.IsReminderEnabled(reminder) or (reminder.specID and reminder.specID ~= ns.CurrentSpec())) then
+        ns.Print("this message reminder is disabled or belongs to another spec.")
+        return
+    end
+    if not reminder and ns.HasMessageDefensive(enc, sid) then
+        ns.Print("use Test beside the reminder under BIGWIGS/DBM MESSAGES to test its preset.")
+        return
+    end
+    if not reminder and not ns.AbilityEnabledForBinding(enc, sid) then
         ns.Print("this ability is toggled off for this boss, so it will not call out.")
         return
     end
     local binding = ns.BindingForBossModKey(enc, sid)
-    if binding and binding.mode == "custom" then
+    if not reminder and binding and binding.mode == "custom" then
         ns.Print("this ability is set to Ability Reminder; the generic callout stays quiet for it.")
         return
     end
@@ -4339,7 +4360,8 @@ function ns.TestFireAbility(enc, sid)
     currentEncounter = enc
     ns.testFiring = true
     lastAnnouncedSpellID = nil   -- repeat test clicks should not be eaten by the repeat window
-    local ok, err = pcall(FireBigWigsAbility, sid)
+    shownForEvent = nil -- a previous successful test must not hide a failed one
+    local ok, err = pcall(FireBigWigsAbility, sid, false, reminder)
     ns.testFiring = nil
     currentEncounter = priorEnc
     if not ok then error(err, 0) end
@@ -4562,6 +4584,7 @@ function ns.ApplyReminderFilter()
         HideReminder()
     end
     if ns.HideFilteredRaidReminders then ns.HideFilteredRaidReminders() end
+    if ns.Integrations then ns.Integrations.Refresh() end
     if ns.BossSource and ns.BossSource() == "timeline" then RegisterEventSounds() end
 end
 
@@ -5220,6 +5243,7 @@ function ns.WarnIfNoBossMod()
 end
 
 function ns.Apply()
+    if ns.Integrations then ns.Integrations.Refresh() end
     ns.PruneCustomReminderTimers()
     ns.PrunePendingBWFires()
     -- Resolved even while switched off: the list is built BEFORE the feature is enabled, and
@@ -6574,7 +6598,8 @@ function ns.BuildCoreSettings(parent, y)
         -- content. Same stored key, so nobody loses their choice.
         { type = "toggle", text = "Enable Healer Reminders",
           tooltip = "Show reminders marked Healer Reminder. Turning this off hides them and cancels "
-          .. "their pending alerts. Applies to every character and profile; imports do not change it.",
+          .. "their pending alerts. Applies to every character and profile; imports do not change it. "
+          .. "Native debuff sound changes wait until combat and the encounter end.",
           getValue = ns.HealerRemindersEnabled,
           setValue = function(v) ns.SetHealerRemindersEnabled(v) end }
     ); y = y - h
@@ -7254,6 +7279,7 @@ ns.ShowCalloutEditor = function(...) return ShowCalloutEditor(...) end
 ns.MAX_SLOTS     = MAX_SLOTS
 function ns.CurrentSpec() return specID, isTank end
 function ns.RefreshRuntime()
+    if ns.Integrations then ns.Integrations.Refresh() end
     ns.PruneCustomReminderTimers()
     ns.PrunePendingBWFires()
     RebuildSlots()

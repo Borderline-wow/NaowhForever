@@ -14,7 +14,7 @@ local WINDOW_W, WINDOW_H = 1000, 640
 local TITLE_H, TAB_H = 28, 30
 
 local PAGES = { "Smart Reminders Setup", "Cooldown Presets", "Dungeon Bosses",
-    "Raid Bosses", "Ability Reminders", "Profiles" }
+    "Raid Bosses", "Trash & Debuffs", "Profiles" }
 
 -- Pages that are built but not ready to be used. The tab stays in the strip, dimmed, and
 -- opens a note instead of the page: removing it would leave a gap people ask about, and
@@ -63,6 +63,8 @@ local function BuildPageInto(pageName, parent)
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, false) or -6
     elseif pageName == "Raid Bosses" then
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, true) or -6
+    elseif pageName == "Trash & Debuffs" then
+        return ns.BuildIntegrationsPage and ns.BuildIntegrationsPage(parent, -6) or -6
     elseif pageName == "Ability Reminders" then
         return ns.BuildCustomRemindersPage and ns.BuildCustomRemindersPage(parent, -6) or -6
     else
@@ -238,7 +240,8 @@ local function CreateWindow()
     local tx = 10
     for _, name in ipairs(PAGES) do
         local btn = CreateFrame("Button", nil, window)
-        btn:SetSize(150, TAB_H)
+        local width = name == PAGES[1] and 176 or 128
+        btn:SetSize(width, TAB_H)
         btn:SetPoint("TOPLEFT", window, "TOPLEFT", tx, -TITLE_H)
         btn.label = ns.Font(btn, 12, nil, T.muted)
         btn.label:SetPoint("CENTER")
@@ -250,7 +253,7 @@ local function CreateWindow()
         btn.marker:Hide()
         btn:SetScript("OnClick", function() ShowPage(name) end)
         tabButtons[name] = btn
-        tx = tx + 154
+        tx = tx + width + 4
     end
     local tabLine = ns.Solid(window, "ARTWORK", T.line, 1)
     tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -(TITLE_H + TAB_H))
