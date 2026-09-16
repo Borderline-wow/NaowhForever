@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.7
 
 ### Added
 - Trash & Debuffs setup with profile/spec rules, EXBoss readiness predictions, preset selection, and pack sharing.
