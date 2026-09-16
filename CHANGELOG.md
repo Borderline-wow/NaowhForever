@@ -21,8 +21,8 @@
 
 ### Validation and limits
 - All 16 offline regression suites pass; runtime Lua syntax checked.
-- Not yet verified in a live encounter. Both callouts share one reminder frame, so when a
-  bar callout and a message land close together the later one replaces the display.
+- User confirmed in game. Both callouts share one reminder frame, so when a bar callout
+  and a message land close together the later one replaces the display.
 
 ## 1.3.7
 
