@@ -397,6 +397,95 @@ function I.Save(uid, rule)
     I.Refresh()
     return true, uid
 end
+
+-- The same ability, watched the same way, at the same time, in the same place. Everything
+-- the trigger uses is in it because this page deliberately allows more than one rule per
+-- ability: a debuff sound for the player gaining an aura and one for the party losing it
+-- are different rules, and so are two callouts on one spell at eight seconds and at two.
+local function RuleKey(r)
+    local t = r.trigger
+    return table.concat({ tostring(t.type), tostring(t.spellID), tostring(t.mapID),
+        tostring(t.target), tostring(t.auraEvent), tostring(t.timeleft) }, ":")
+end
+
+local function CopyRule(v)
+    if type(v) ~= "table" then return v end
+    local out = {}
+    for k, inner in pairs(v) do out[k] = CopyRule(inner) end
+    return out
+end
+
+-- Which other specs have trash rules saved, with how many. Feeds the Copy From Spec picker
+-- on the Trash & Debuff page; per-spec storage means a fresh spec starts empty.
+function I.SpecsWithRules()
+    local db = ns.DB()
+    local all = Table(db.integrationRules) and db.integrationRules or {}
+    local mine, out = tostring(I.Spec()), {}
+    for specKey, rules in pairs(all) do
+        if specKey ~= mine and Table(rules) then
+            local n = 0
+            for _, r in pairs(rules) do if Table(r) then n = n + 1 end end
+            if n > 0 then
+                out[#out + 1] = { key = specKey, name = ns.SpecName(specKey), total = n }
+            end
+        end
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
+-- Copies another spec's trash and debuff rules into this one. Additive, the same rule the
+-- boss pages' own Copy From Spec follows: a rule this spec already has for that ability is
+-- left alone, so copying can never overwrite work already done here.
+--
+-- Each rule is copied rather than shared, and lands on a fresh uid: uids are sequential per
+-- spec, so the source's own would collide with unrelated rules already saved here.
+--
+-- Returns copied, skipped, noRoom. noRoom is the 32-per-spec cap being reached partway --
+-- reported rather than swallowed, since a copy that silently lands 12 of 20 rules looks
+-- exactly like one that worked.
+function I.CopyRulesFromSpec(fromSpecKey)
+    local db = ns.DB()
+    local all = Table(db.integrationRules) and db.integrationRules or nil
+    local src = all and all[fromSpecKey]
+    if not Table(src) then return 0, 0, 0 end
+    local dst = I.Rules(true)
+    if not Table(dst) then return 0, 0, 0 end
+
+    local have, count = {}, 0
+    for _, r in pairs(dst) do
+        if Table(r) then
+            count = count + 1
+            if Table(r.trigger) then have[RuleKey(r)] = true end
+        end
+    end
+
+    -- Sorted, so a copy that runs out of room takes the source's first rules rather than an
+    -- arbitrary subset that changes between two presses of the same button.
+    local uids = {}
+    for uid in pairs(src) do uids[#uids + 1] = tostring(uid) end
+    table.sort(uids)
+
+    local copied, skipped, noRoom, index = 0, 0, 0, 1
+    for i = 1, #uids do
+        local r = src[uids[i]]
+        if Table(r) and I.ValidRule(r) then
+            local key = RuleKey(r)
+            if have[key] then
+                skipped = skipped + 1
+            elseif count >= MAX_RULES then
+                noRoom = noRoom + 1
+            else
+                while dst["i" .. index] do index = index + 1 end
+                dst["i" .. index] = CopyRule(r)
+                have[key], count, copied = true, count + 1, copied + 1
+            end
+        end
+    end
+    -- Once, not per rule: Refresh tears down and rebuilds every registration.
+    if copied > 0 then I.Refresh() end
+    return copied, skipped, noRoom
+end
 events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, name, state)
     if event == "ADDON_RESTRICTION_STATE_CHANGED" then

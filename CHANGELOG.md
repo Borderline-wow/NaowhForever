@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.3.9
+
+### Added
+- Importing a single-profile pack can point every character on the account at it, including
+  characters logged into later, instead of leaving each alt to be switched by hand. The
+  toggle names how many characters it will move and is on by default.
+- Copy From Spec on the Trash & Debuff page brings another spec's trash and debuff rules
+  across, leaving anything already saved here alone and saying what did not fit the
+  32-rule limit.
+
+### Fixed
+- Setting an account-wide profile now turns per-spec profile switching off, instead of
+  every alt being moved back to the previous profile on its next login. Spec choices are
+  kept and come back if switching is turned on again.
+
+### Validation and limits
+- All 17 offline regression suites pass; runtime Lua syntax checked.
+- User confirmed the account-wide import in game, which is how the per-spec switching
+  conflict was found. That fix and the trash rule copy are not yet client verified.
+- Copied trash rules name the spells the source spec casts. Copying across classes is
+  allowed and warned about rather than blocked.
+
 ## 1.3.8
 
 ### Added

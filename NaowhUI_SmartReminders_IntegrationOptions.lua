@@ -150,6 +150,72 @@ local function Editor(parent, uid, kind, ability, dungeon)
         remove:SetPoint("LEFT", save, "RIGHT", 12, 0)
     end
 end
+-- Trash rules are saved per spec, so a second spec starts with nothing and rebuilding a
+-- dungeon's worth of them by hand is the same ask the boss pages answer with their own Copy
+-- From Spec. Deliberately plain next to that one: there is no boss to scope to and no
+-- every-boss choice to offer, so the panel is the spec list and nothing else.
+function ns.ShowCopyTrashRulesPopup(callerEUI)
+    local EUI = callerEUI or ns.UI
+    local specs = I.SpecsWithRules()
+    -- Provisional: the hint below wraps to a line count no arithmetic here can know, so the
+    -- panel is resized to whatever the content measured once it is laid out.
+    local dimmer, panel = ns.MakeModal(430, 150 + math.max(1, #specs) * 30, "copyTrashRules")
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", panel, "TOP", 0, -16)
+    head:SetText("Copy Trash Rules From")
+
+    local y = -46
+    if #specs == 0 then
+        local none = ns.Font(panel, 12, nil, ns.THEME.muted)
+        none:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+        none:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+        none:SetJustifyH("LEFT")
+        none:SetWordWrap(true)
+        none:SetText("No other spec has any trash or debuff rules saved yet.")
+    else
+        local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+        hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+        hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+        hint:SetJustifyH("LEFT")
+        hint:SetWordWrap(true)
+        -- The class warning is the one thing worth saying up front: a rule names a spell YOU
+        -- cast, so taking one from another class lands rules for spells this spec does not
+        -- have. Said rather than prevented -- the same curator who wants it knows why.
+        hint:SetText("Anything this spec already has is left alone. A rule calls out one of "
+            .. "your own spells, so copying from another class brings rules for spells this "
+            .. "spec cannot cast.")
+        hint:SetHeight(math.max(16, hint:GetStringHeight() + 4))
+        y = y - hint:GetHeight() - 12
+
+        for i = 1, #specs do
+            local s = specs[i]
+            local btn = ns.Button(panel, s.name, 210, 24, function()
+                local copied, skipped, noRoom = I.CopyRulesFromSpec(s.key)
+                ns.Print(("copied |cff0091ed%d|r trash rules from %s%s%s."):format(
+                    copied, s.name,
+                    skipped > 0 and (", left " .. skipped .. " already here alone") or "",
+                    noRoom > 0 and ("|cffff6060, and %d did not fit the 32-rule limit|r")
+                        :format(noRoom) or ""))
+                dimmer:Hide()
+                if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+            end)
+            btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+            local count = ns.Font(panel, 11, nil, ns.THEME.muted)
+            count:SetPoint("LEFT", btn, "RIGHT", 10, 0)
+            count:SetText(("%d rule%s"):format(s.total, s.total == 1 and "" or "s"))
+            y = y - 30
+        end
+    end
+
+    -- Cancel anchors to the panel's own bottom, so fitting the panel to the content moves
+    -- it with them rather than leaving it floating under a short list.
+    panel:SetHeight(math.max(150, -y + 58))
+    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    dimmer:Show()
+end
+
 function ns.BuildIntegrationsPage(parent, y)
     I.Refresh()
     Label(parent, "Trash & Debuff Alerts", 20, y - 6, 900, 16, ns.THEME.accent)
@@ -175,10 +241,23 @@ function ns.BuildIntegrationsPage(parent, y)
         selection.uid = nil; selection.spellID = nil; selection.newAura = true; UI:RefreshPage(true)
     end)
     add:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -104)
-    Label(side, selected and "Select an Ability" or "Saved Reminders", 14, -148, 252, 14, ns.THEME.fg)
+    -- Only when another spec has something to give, and the list below moves down by
+    -- exactly its height when it does, so the panel keeps its own bottom edge either way.
+    local others = I.SpecsWithRules and I.SpecsWithRules() or {}
+    local shift = #others > 0 and 28 or 0
+    if shift > 0 then
+        local copy = ns.Button(side, "Copy From Spec", 252, 26, function()
+            ns.ShowCopyTrashRulesPopup(UI)
+        end)
+        copy:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -134)
+        ns.Tooltip(copy, "Copy From Spec",
+            "Brings another spec's trash and debuff rules over to this one. Rules are saved "
+            .. "per spec, and anything already here is left alone.")
+    end
+    Label(side, selected and "Select an Ability" or "Saved Reminders", 14, -148 - shift, 252, 14, ns.THEME.fg)
     local scroll = CreateFrame("ScrollFrame", nil, side, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", side, "TOPLEFT", 10, -178)
-    scroll:SetSize(240, 486)
+    scroll:SetPoint("TOPLEFT", side, "TOPLEFT", 10, -178 - shift)
+    scroll:SetSize(240, 486 - shift)
     local list = CreateFrame("Frame", nil, scroll)
     list:SetWidth(240); scroll:SetScrollChild(list)
     local rules, rows = I.Rules(false) or {}, {}

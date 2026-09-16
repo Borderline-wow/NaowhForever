@@ -20,7 +20,7 @@ ns.MODULE_KEY = MODULE_KEY
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "1.3.8"
+ns.CODE_BUILD = "1.3.9"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -492,9 +492,19 @@ function ns.SetAccountProfile(name)
     sv.defaultProfile = name
     for char in pairs(sv.charActive) do sv.charActive[char] = name end
     sv.charActive[CharKey()] = name
+    -- Auto spec switching runs on every login and spec change, and a map still pointing at
+    -- the profile this one replaces puts the character straight back on it before anyone
+    -- sees the change -- reported after an account-wide import, where only the importing
+    -- character's own spec had been remapped and every alt landed back on the old profile.
+    -- "One profile for the account" and "a profile per spec" are answers to the same
+    -- question, so the second is switched off rather than overwritten: the map itself is
+    -- left exactly as it was, and turning switching back on restores it whole. Reported so
+    -- the caller can say it happened rather than leaving it to be discovered.
+    local turnedOff = sv.autoSpecProfile == true
+    sv.autoSpecProfile = nil
     activeRoot = nil
     ns.QueueReapply()
-    return true
+    return true, turnedOff
 end
 
 function ns.CreateProfile(name, overwrite)

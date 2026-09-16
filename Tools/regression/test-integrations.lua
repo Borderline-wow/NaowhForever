@@ -378,4 +378,103 @@ Case("forced restrictions defer registration without combat lockdown", function(
         e.event(nil, "ADDON_RESTRICTION_STATE_CHANGED", kind, 0); assert(#e.added == 1)
     end
 end)
+-- Copy From Spec on the Trash & Debuff page. Rules are stored per spec, so a second spec
+-- starts empty and the whole dungeon has to be rebuilt by hand without this.
+local function CopyFixture()
+    local e = Fixture()
+    e.ns.SpecName = function(k) return "Spec " .. tostring(k) end
+    e.db.integrationRules["581"] = {}
+    return e
+end
+local function RuleCount(t)
+    local n = 0
+    for _ in pairs(t) do n = n + 1 end
+    return n
+end
+Case("rules copy across as independent entries on fresh uids", function()
+    local e = CopyFixture()
+    local src = e:rule()
+    src.name = "Knock"
+    e.db.integrationRules["581"] = { i1 = src }
+    e.db.integrationRules["250"] = { i1 = e:rule("auraSound") }
+    local copied, skipped, noRoom = e.I.CopyRulesFromSpec("581")
+    assert(copied == 1 and skipped == 0 and noRoom == 0)
+    local mine = e.db.integrationRules["250"]
+    assert(RuleCount(mine) == 2 and mine.i1.trigger.type == "auraSound")
+    local landed
+    for _, r in pairs(mine) do if r.name == "Knock" then landed = r end end
+    assert(landed and landed ~= src and landed.trigger ~= src.trigger and landed.display ~= src.display)
+    assert(landed.trigger.spellID == 123 and landed.display.text == "Defensive")
+    assert(RuleCount(e.db.integrationRules["581"]) == 1, "the source spec keeps its own")
+end)
+Case("a rule this spec already has for that ability is left alone", function()
+    local e = CopyFixture()
+    e.db.integrationRules["581"] = { i1 = e:rule() }
+    e.db.integrationRules["250"] = { i1 = e:rule() }
+    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    assert(copied == 0 and skipped == 1)
+    assert(RuleCount(e.db.integrationRules["250"]) == 1)
+end)
+Case("same spell on a different map or aura event is its own rule", function()
+    local e = CopyFixture()
+    local other = e:rule("auraSound")
+    other.trigger.auraEvent = "Removed"
+    local elsewhere = e:rule()
+    elsewhere.trigger.mapID = 2000
+    e.db.integrationRules["581"] = { i1 = other, i2 = elsewhere }
+    e.db.integrationRules["250"] = { i1 = e:rule("auraSound"), i2 = e:rule() }
+    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    assert(copied == 2 and skipped == 0)
+    assert(RuleCount(e.db.integrationRules["250"]) == 4)
+end)
+Case("two callouts on one ability at different warning times both come across", function()
+    local e = CopyFixture()
+    local early, late = e:rule(), e:rule()
+    early.trigger.timeleft, late.trigger.timeleft = 8, 2
+    e.db.integrationRules["581"] = { i1 = early, i2 = late }
+    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    assert(copied == 2 and skipped == 0)
+    assert(RuleCount(e.db.integrationRules["250"]) == 2)
+    -- And a repeat press still recognises both as already here.
+    local again, skippedAgain = e.I.CopyRulesFromSpec("581")
+    assert(again == 0 and skippedAgain == 2)
+end)
+Case("the 32-rule cap stops the copy and reports what did not fit", function()
+    local e = CopyFixture()
+    local src, mine = {}, {}
+    for i = 1, 5 do
+        local r = e:rule(); r.trigger.spellID = 1000 + i
+        src["i" .. i] = r
+    end
+    for i = 1, 30 do
+        local r = e:rule(); r.trigger.spellID = 2000 + i
+        mine["i" .. i] = r
+    end
+    e.db.integrationRules["581"], e.db.integrationRules["250"] = src, mine
+    local copied, skipped, noRoom = e.I.CopyRulesFromSpec("581")
+    assert(copied == 2 and skipped == 0 and noRoom == 3)
+    assert(RuleCount(e.db.integrationRules["250"]) == 32)
+end)
+Case("an invalid source rule is passed over", function()
+    local e = CopyFixture()
+    local bad = e:rule(); bad.display.dur = 99
+    e.db.integrationRules["581"] = { i1 = bad, i2 = e:rule("auraSound") }
+    local copied = e.I.CopyRulesFromSpec("581")
+    assert(copied == 1 and RuleCount(e.db.integrationRules["250"]) == 1)
+end)
+Case("the picker lists other specs with counts and never this one", function()
+    local e = CopyFixture()
+    e.db.integrationRules["250"] = { i1 = e:rule() }
+    e.db.integrationRules["581"] = { i1 = e:rule(), i2 = e:rule("auraSound") }
+    e.db.integrationRules["104"] = {}
+    local specs = e.I.SpecsWithRules()
+    assert(#specs == 1 and specs[1].key == "581" and specs[1].total == 2)
+end)
+Case("copying from a spec with nothing saved changes nothing", function()
+    local e = CopyFixture()
+    e.db.integrationRules["250"] = { i1 = e:rule() }
+    local copied, skipped, noRoom = e.I.CopyRulesFromSpec("999")
+    assert(copied == 0 and skipped == 0 and noRoom == 0)
+    assert(RuleCount(e.db.integrationRules["250"]) == 1)
+end)
 print(count .. " integration regressions passed")

@@ -315,7 +315,11 @@ end
 --
 -- opts, all optional, shared by both calls so the description matches what actually runs:
 --   accountProfile  point every character at this profile once the pack has landed. The
---                   name must be one the pack carries, or the call fails and says so.
+--                   name must be one the pack carries, or the call fails and says so. It
+--                   switches per-spec profile switching off, since one profile for the whole
+--                   account and one per spec answer the same question -- so passing it with
+--                   bindSpecs lands the bindings but leaves them dormant, and the account
+--                   profile is what every character actually gets.
 --   bindSpecs       bind each landed profile to the specs it covers and switch on the
 --                   matching, so an alt lands on the right one without being told. Default
 --                   true for a whole-file pack.
@@ -1062,6 +1066,7 @@ function ns.ShowPackImport()
     local specRows, specWanted = {}, {}
     local settingsWanted, settingsBtn = true, nil
     local bindWanted, bindBtn = true, nil
+    local accountWanted, accountBtn = true, nil
     -- The fallback anchor for everything below the spec grid. specRows[#specs] cannot serve
     -- that role: with a multi-column grid, the last slot can land in any column depending on
     -- how many specs there are, and anchoring the next row off it directly would start that
@@ -1279,6 +1284,33 @@ function ns.ShowPackImport()
             bindBtn:Hide()
         end
 
+        -- Profile choice is stored per character, so an import moves only the character
+        -- that ran it and every alt stays on whatever it was -- reported as having to swap
+        -- each one by hand after taking a curator's pack. Offered for a single-profile pack
+        -- only: a whole-file one lands several and there is no one profile to name, which is
+        -- what the spec binding above already answers for it.
+        if not multi then
+            if not accountBtn then
+                accountBtn = MakeToggleRow(panel, 420, 22, panel:GetFrameLevel() + 10,
+                    function() return accountWanted end,
+                    function(v) accountWanted = v end)
+            end
+            -- The count is what makes the scope real before it happens rather than after.
+            -- Only characters that have logged in with the addon can be counted; one that
+            -- has not is still covered, through the account default this sets.
+            local known = ns.KnownCharacters and #ns.KnownCharacters() or 0
+            accountBtn.label:SetText(known > 1
+                and ("Use it on all %d characters on this account, and new ones"):format(known)
+                or "Use it on every character on this account, and new ones")
+            accountBtn:ClearAllPoints()
+            accountBtn:SetPoint("TOPLEFT", (settingsBtn and settingsBtn:IsShown())
+                and settingsBtn or (gridAnchor or specHead), "BOTTOMLEFT",
+                (settingsBtn and settingsBtn:IsShown()) and 0 or (gridAnchor and 0 or 6), -6)
+            accountBtn:Show()
+        elseif accountBtn then
+            accountBtn:Hide()
+        end
+
         -- A single-profile pack lands as a new profile named after whatever the curator
         -- typed on export -- "My Reminder Pack", usually, since exporters rarely bother
         -- renaming it. Let the importer pick their own name instead, defaulting to the
@@ -1308,7 +1340,8 @@ function ns.ShowPackImport()
                 nameBox:EnableMouse(true)
                 nameBox:SetScript("OnMouseDown", function(self) self:SetFocus() end)
             end
-            local anchorTo = (bindBtn and bindBtn:IsShown() and bindBtn)
+            local anchorTo = (accountBtn and accountBtn:IsShown() and accountBtn)
+                or (bindBtn and bindBtn:IsShown() and bindBtn)
                 or (settingsBtn and settingsBtn:IsShown() and settingsBtn)
                 or gridAnchor or specHead
             nameLabel:ClearAllPoints()
@@ -1426,8 +1459,27 @@ function ns.ShowPackImport()
         local ok, newName = ns.ImportPackAsProfile(decoded, want, settingsWanted,
             nameBox and nameBox:GetText())
         if ok then
-            ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
-                .. "is untouched -- switch back to it any time."):format(tostring(newName)))
+            -- After the import, never instead of it: SetAccountProfile refuses a name that
+            -- is not a profile yet, and ImportPackAsProfile is what creates it. It also
+            -- renames around a collision, so the landed name is the only one to point at.
+            local accountSet, autoOff = false, false
+            if accountWanted and ns.SetAccountProfile then
+                accountSet, autoOff = ns.SetAccountProfile(newName)
+            end
+            if accountSet then
+                local known = ns.KnownCharacters and #ns.KnownCharacters() or 0
+                ns.Print(("imported as the profile '%s'. %s on this account use%s it now, and "
+                    .. "one logged into later will too. Switching a single character "
+                    .. "afterwards moves only that one.%s"):format(
+                    tostring(newName),
+                    known == 1 and "The one character" or ("All " .. known .. " characters"),
+                    known == 1 and "s" or "",
+                    autoOff and " Per-spec profile switching is off while they share one "
+                        .. "profile; your spec choices are kept if you switch it back on." or ""))
+            else
+                ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
+                    .. "is untouched -- switch back to it any time."):format(tostring(newName)))
+            end
             dimmer:Hide()
             local EUI = ns.UI
             if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
