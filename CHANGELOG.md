@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.3.8
+
+### Added
+- Bar callouts and BigWigs/DBM message reminders run side by side on the same ability:
+  bars keep the ability's own preset and warning time, messages fire the message
+  reminder's preset.
+- Copy From Spec brings BigWigs/DBM message reminders across with the abilities, remaps
+  their preset to one this spec owns, and counts them in the spec picker.
+
+### Fixed
+- The ability Test button tests the bar callout instead of refusing when the ability also
+  has a message reminder, and points at that reminder's own Test.
+- A message reminder is no longer muted by the repeat window when the bar callout for the
+  same ability just named the same defensive.
+- A reminder saved under DBM's own spell id is matched against the BigWigs key it is
+  normalised to, instead of both callouts firing for one message.
+- The Setup page counts message reminders when deciding whether this spec has anything
+  set up, so a spec whose whole setup is reminders no longer reads as empty.
+
+### Validation and limits
+- All 16 offline regression suites pass; runtime Lua syntax checked.
+- Not yet verified in a live encounter. Both callouts share one reminder frame, so when a
+  bar callout and a message land close together the later one replaces the display.
+
 ## 1.3.7
 
 ### Added

@@ -31,6 +31,7 @@ local function Fixture()
         end },
     }
     env.ns.IsReminderEnabled = function(r) return r and r.enabled ~= false end
+    env.ns.SampleTanking = function() end
     env.ns.BindingForBossModKey = function() return { mode = "custom" } end
     setmetatable(env, { __index = _G })
     local code = Slice("local function ParseDelayList(", "local function ParseCounterCondition(")
@@ -136,9 +137,23 @@ Case("protected display fields do not block observation or raid dispatch", funct
     e:advance(2)
     assert(e.calls == 1 and observed == 1 and raidCalls == 1)
 end)
-Case("bar alone never schedules opted-in ability", function()
-    local e = Fixture(); e.ns.HandleBigWigsAbility(123, 30, "bar")
-    e:advance(40); assert(e.calls == 0 and #e.timers == 0)
+local function BarFixture()
+    local e = Fixture()
+    e.env.ShouldRun = function() return true end
+    e.ns.AbilityEnabledForBinding = function() return true end
+    e.ns.LeadTimeFor = function() return 2 end
+    e.ns.ScheduleBWFire = function(_, sid) e.scheduled = sid end
+    return e
+end
+Case("bar still schedules the ability's own callout beside a message reminder", function()
+    local e = BarFixture(); e.ns.HandleBigWigsAbility(123, 30, "bar")
+    assert(e.scheduled == 123)
+end)
+Case("plain message leaves the generic path to the message reminder", function()
+    local e = BarFixture(); e.ns.HandleBigWigsAbility(123)
+    assert(e.calls == 0 and e.scheduled == nil)
+    e.message("BW", 123); e:advance(2)
+    assert(e.calls == 1 and e.preset == "mobility")
 end)
 Case("message delay uses shared defensive display and selected preset", function()
     local e = Fixture(); e.message("BW", 123); e:advance(1.9); assert(e.calls == 0)
@@ -162,6 +177,12 @@ end)
 Case("master gating is rechecked at delayed fire", function()
     local e = Fixture(); e.message("BW", 123); e.allowed = false
     e:advance(20); assert(e.calls == 0)
+end)
+Case("a reminder on DBM's raw id owns the key it is normalized to", function()
+    local e = Fixture()
+    e.ns.DBM_TO_BIGWIGS = { [123] = 999 }
+    assert(e.ns.HasMessageDefensive(3202, 999) and e.ns.HasMessageDefensive(3202, 123))
+    assert(not e.ns.HasMessageDefensive(3202, 456))
 end)
 Case("another spec neither suppresses bars nor fires the reminder", function()
     local e = Fixture(); e.set.one.specID = 581
@@ -260,6 +281,7 @@ local function TestFixture()
     local code = Slice("function ns.TestFireAbility(", "-- duration, when given")
     -- Exercise the real fire path through the fixture's exported dispatcher.
     e.env.FireBigWigsAbility = function(sid, late, reminder)
+        if not reminder then e.genericTests = (e.genericTests or 0) + 1; e.env.shownForEvent = sid; return end
         return e.ns.FireMessageDefensive(reminder)
     end
     local chunk = assert(loadstring(code)); setfenv(chunk, e.env); chunk()
@@ -273,10 +295,19 @@ Case("message row test uses its own preset outside an encounter", function()
     assert(e.env.currentEncounter == nil and e.ns.testFiring == nil)
     assert(e.timers[#e.timers].at == 7)
 end)
-Case("generic test redirects to message row instead of talent warning", function()
+Case("generic test fires the bar callout beside a message reminder", function()
     local e = TestFixture()
+    e.ns.BindingForBossModKey = function() return {} end
     e.ns.TestFireAbility(3202, 123)
-    assert(e.calls == 0 and e.lastMessage:find("BIGWIGS/DBM MESSAGES", 1, true))
+    assert(e.genericTests == 1 and e.calls == 0)
+    assert(e.lastMessage:find("bar callout", 1, true) and e.lastMessage:find("BIGWIGS/DBM MESSAGES", 1, true))
+end)
+Case("the message-row hint also reaches a test that found nothing to call", function()
+    local e = TestFixture()
+    e.ns.BindingForBossModKey = function() return {} end
+    e.env.FireBigWigsAbility = function() end -- nothing talented: shownForEvent stays nil
+    e.ns.TestFireAbility(3202, 123)
+    assert(e.lastMessage:find("BIGWIGS/DBM MESSAGES", 1, true))
 end)
 Case("disabled message test does not fire", function()
     local e = TestFixture(); e.set.one.enabled = false

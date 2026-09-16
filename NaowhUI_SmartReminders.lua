@@ -3705,8 +3705,14 @@ function ns.HasMessageDefensive(encounterID, sid)
     local set = CustomRemindersTable(false, encounterID)
     for _, r in pairs(set or {}) do
         if r.defensive and r.enabled ~= false and (not r.specID or r.specID == specID)
-            and r.trigger and r.trigger.type == "bwmsg" and r.trigger.spellID == sid then
-            return true
+            and r.trigger and r.trigger.type == "bwmsg" then
+            -- The catalogue saves DBM's raw id while HandleBigWigsAbility asks about the
+            -- BigWigs key it was normalized to, so a reminder on a mapped DBM ability
+            -- looks like a different ability here and both callouts fire for one message.
+            local key = r.trigger.spellID
+            if key == sid or (ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[key] == sid) then
+                return true
+            end
         end
     end
     return false
@@ -4014,13 +4020,27 @@ end
 function ns.OwnBindingCount(encSet)
     if specID == 0 then return 0 end
     local t = TRDB()
+    local n = 0
     local all = type(t.abilityBindings) == "table" and t.abilityBindings or nil
     local mine = all and all[tostring(specID)]
-    if type(mine) ~= "table" then return 0 end
-    local n = 0
-    for eKey, bySpell in pairs(mine) do
-        if type(bySpell) == "table" and (not encSet or encSet[eKey]) then
-            for _ in pairs(bySpell) do n = n + 1 end
+    if type(mine) == "table" then
+        for eKey, bySpell in pairs(mine) do
+            if type(bySpell) == "table" and (not encSet or encSet[eKey]) then
+                for _ in pairs(bySpell) do n = n + 1 end
+            end
+        end
+    end
+    -- Counted the same way ns.SpecsWithBindings counts other specs, or a spec whose whole
+    -- setup is message reminders reads as empty and the page says its work went missing.
+    local sets = type(t.customReminders) == "table" and t.customReminders or {}
+    for eKey, set in pairs(sets) do
+        if type(set) == "table" and (not encSet or encSet[eKey]) then
+            for _, r in pairs(set) do
+                if type(r) == "table" and r.defensive and r.specID == specID
+                    and r.trigger and r.trigger.type == "bwmsg" then
+                    n = n + 1
+                end
+            end
         end
     end
     return n
@@ -4032,28 +4052,39 @@ end
 function ns.SpecsWithBindings(encounterID, encSet)
     local t = TRDB()
     local all = type(t.abilityBindings) == "table" and t.abilityBindings or {}
-    local mine, out = tostring(specID), {}
+    local mine, counts = tostring(specID), {}
     local encKey = tostring(encounterID or 0)
+    local function Count(specKey, eKey)
+        if specKey == mine or (encSet and not encSet[eKey]) then return end
+        local c = counts[specKey]
+        if not c then c = { total = 0, here = 0 }; counts[specKey] = c end
+        c.total = c.total + 1
+        if eKey == encKey then c.here = c.here + 1 end
+    end
     for specKey, byEnc in pairs(all) do
-        if specKey ~= mine and type(byEnc) == "table" then
-            local total, here = 0, 0
+        if type(byEnc) == "table" then
             for eKey, bySpell in pairs(byEnc) do
-                if type(bySpell) == "table" and (not encSet or encSet[eKey]) then
-                    for _ in pairs(bySpell) do
-                        total = total + 1
-                        if eKey == encKey then here = here + 1 end
-                    end
+                if type(bySpell) == "table" then
+                    for _ in pairs(bySpell) do Count(specKey, eKey) end
                 end
             end
-            if total > 0 then
-                out[#out + 1] = {
-                    key = specKey,
-                    name = ns.SpecName(specKey),
-                    here = here,
-                    total = total,
-                }
+        end
+    end
+    -- Message reminders sit under the boss with a specID field, not under the spec key.
+    local sets = type(t.customReminders) == "table" and t.customReminders or {}
+    for eKey, set in pairs(sets) do
+        if type(set) == "table" then
+            for _, r in pairs(set) do
+                if type(r) == "table" and r.defensive and r.specID
+                    and r.trigger and r.trigger.type == "bwmsg" then
+                    Count(tostring(r.specID), eKey)
+                end
             end
         end
+    end
+    local out = {}
+    for specKey, c in pairs(counts) do
+        out[#out + 1] = { key = specKey, name = ns.SpecName(specKey), here = c.here, total = c.total }
     end
     table.sort(out, function(a, b) return a.name < b.name end)
     return out
@@ -4070,42 +4101,91 @@ end
 -- every dungeon across with it is not what the page says it does. encounterID still names a
 -- single boss; with neither, everything is taken.
 function ns.CopyBindingsFromSpec(fromSpecKey, encounterID, encSet)
-    if specID == 0 then return 0, 0 end
+    if specID == 0 then return 0, 0, 0 end
     local t = TRDB()
+    local mine = tostring(specID)
+    local encKey = encounterID and tostring(encounterID) or nil
+    local copied, skipped, reminders = 0, 0, 0
+
     local all = type(t.abilityBindings) == "table" and t.abilityBindings or nil
     local src = all and all[fromSpecKey]
-    if type(src) ~= "table" then return 0, 0 end
-
-    local mine = tostring(specID)
-    all[mine] = all[mine] or {}
-    local dst = all[mine]
-    local encKey = encounterID and tostring(encounterID) or nil
-    local copied, skipped = 0, 0
-
-    for eKey, bySpell in pairs(src) do
-        if (not encKey or eKey == encKey) and (not encSet or encSet[eKey])
-            and type(bySpell) == "table" then
-            dst[eKey] = dst[eKey] or {}
-            for sid, b in pairs(bySpell) do
-                if type(b) == "table" then
-                    if dst[eKey][sid] ~= nil then
-                        skipped = skipped + 1
-                    else
-                        local copy = {}
-                        for k, v in pairs(b) do copy[k] = v end
-                        if type(b.scope) == "table" then
-                            local sc = {}
-                            for k, v in pairs(b.scope) do sc[k] = v end
-                            copy.scope = sc
+    -- A spec whose whole setup is message reminders has no binding table at all, and the
+    -- picker offers it -- so this returns early from the BINDING pass only.
+    if type(src) == "table" then
+        all[mine] = all[mine] or {}
+        local dst = all[mine]
+        for eKey, bySpell in pairs(src) do
+            if (not encKey or eKey == encKey) and (not encSet or encSet[eKey])
+                and type(bySpell) == "table" then
+                dst[eKey] = dst[eKey] or {}
+                for sid, b in pairs(bySpell) do
+                    if type(b) == "table" then
+                        if dst[eKey][sid] ~= nil then
+                            skipped = skipped + 1
+                        else
+                            local copy = {}
+                            for k, v in pairs(b) do copy[k] = v end
+                            if type(b.scope) == "table" then
+                                local sc = {}
+                                for k, v in pairs(b.scope) do sc[k] = v end
+                                copy.scope = sc
+                            end
+                            dst[eKey][sid] = copy
+                            copied = copied + 1
                         end
-                        dst[eKey][sid] = copy
-                        copied = copied + 1
                     end
                 end
             end
         end
     end
-    return copied, skipped
+
+    -- Message reminders sit under the boss carrying a specID, not under the spec key, so
+    -- they need their own pass. Same additive rule, with the message key as the identity:
+    -- a key this spec already listens for brings nothing across, which is also what stops
+    -- a second press stacking duplicates. `have` is built once and not updated as we go,
+    -- so a source with two variants on one key (a counter and a plain one) brings both.
+    local presets = PresetsTable(specID, false)
+    local sets = type(t.customReminders) == "table" and t.customReminders or {}
+    for eKey, set in pairs(sets) do
+        if (not encKey or eKey == encKey) and (not encSet or encSet[eKey]) and type(set) == "table" then
+            local have, fresh = {}, {}
+            for _, r in pairs(set) do
+                if type(r) == "table" and r.defensive and r.trigger and r.trigger.type == "bwmsg"
+                    and (not r.specID or r.specID == specID) then
+                    have[r.trigger.spellID] = true
+                end
+            end
+            for _, r in pairs(set) do
+                if type(r) == "table" and r.defensive and r.trigger and r.trigger.type == "bwmsg"
+                    and tostring(r.specID) == fromSpecKey then
+                    if have[r.trigger.spellID] then
+                        skipped = skipped + 1
+                    else
+                        local copy = {}
+                        for k, v in pairs(r) do copy[k] = v end
+                        copy.trigger = {}
+                        for k, v in pairs(r.trigger) do copy.trigger[k] = v end
+                        copy.specID = specID
+                        -- Preset keys are allocated per spec, so the source's key names a
+                        -- different list here or none at all, and the reminder fire path
+                        -- takes it as an override with no fall-through: a stale key is a
+                        -- reminder that silently never calls anything.
+                        if not (presets and presets[copy.preset]) then
+                            copy.preset = ActivePresetKey(specID)
+                        end
+                        fresh[#fresh + 1] = copy
+                    end
+                end
+            end
+            for i = 1, #fresh do
+                local key
+                repeat key = "r" .. math.floor(GetTime() * 1000) .. math.random(1, 9999) until set[key] == nil
+                set[key] = fresh[i]
+                reminders = reminders + 1
+            end
+        end
+    end
+    return copied, skipped, reminders
 end
 
 function ns.EnsureBinding(enc, sid)
@@ -4225,8 +4305,7 @@ local function FireBigWigsAbility(sid, lateRetry, reminder)
                     .. " bossAllowed=" .. tostring(BossAllowed()) .. " encounter=" .. tostring(InEncounter()) }) end
             return
         end
-    elseif ns.HasMessageDefensive(currentEncounter, sid)
-        or not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
+    elseif not ns.AbilityEnabledForBinding(currentEncounter, sid) then return end
     -- Mutually exclusive with Custom Reminder: when the ability picker's toggle is set to
     -- Custom Reminder for this exact ability, that reminder (matched separately off the
     -- combat log, see CheckCustomReminders) is the only thing that fires for it -- the
@@ -4308,6 +4387,10 @@ local function FireBigWigsAbility(sid, lateRetry, reminder)
     shownForEvent = sid
     frame:Show()
     if textFrame then textFrame:Show() end
+    -- A message reminder answers the same ability as the bar callout that ran seconds
+    -- earlier, with its own preset, so the repeat window reads the two as one callout
+    -- repeating and mutes the second whenever both presets pick the same defensive.
+    if reminder then lastAnnouncedSpellID = nil end
     local result = SpeakCallout(sid)
     if hideTimer then hideTimer:Cancel() end
     hideTimer = C_Timer.NewTimer((reminder and reminder.dur) or TRDB().lingerSec or DEFAULTS.lingerSec, HideReminder)
@@ -4341,10 +4424,6 @@ function ns.TestFireAbility(enc, sid, reminder)
         ns.Print("this message reminder is disabled or belongs to another spec.")
         return
     end
-    if not reminder and ns.HasMessageDefensive(enc, sid) then
-        ns.Print("use Test beside the reminder under BIGWIGS/DBM MESSAGES to test its preset.")
-        return
-    end
     if not reminder and not ns.AbilityEnabledForBinding(enc, sid) then
         ns.Print("this ability is toggled off for this boss, so it will not call out.")
         return
@@ -4369,6 +4448,9 @@ function ns.TestFireAbility(enc, sid, reminder)
         ns.Print("nothing on your priority list is talented for this spec, so there is nothing to call.")
     elseif not TRDB().voiceOn then
         ns.Print("voice is off, so the test shows the icon only.")
+    end
+    if not reminder and ns.HasMessageDefensive(enc, sid) then
+        ns.Print("this tests the bar callout; the ability's messages fire the reminder under BIGWIGS/DBM MESSAGES, which has its own Test.")
     end
 end
 
@@ -4589,7 +4671,6 @@ function ns.ApplyReminderFilter()
 end
 
 function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
-    if ns.HasMessageDefensive(currentEncounter, sid) then return end
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if InEncounter() then ns.SampleTanking() end
@@ -4634,6 +4715,10 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
             return ns.AbilityEnabledForBinding(currentEncounter, sid)
         end)
     else
+        -- A message reminder under BIGWIGS/DBM MESSAGES owns this ability's messages and
+        -- fires its own preset. Bars stay on the branch above with the ability's own
+        -- preset and warning time, so the two run side by side.
+        if ns.HasMessageDefensive(currentEncounter, sid) then return end
         -- No duration means this is the cast itself landing, not a countdown to one, and
         -- ours already fired `lead` seconds ago for exactly this cast. The guard belongs
         -- here and only here: a Message cannot be the next occurrence announcing itself,

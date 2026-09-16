@@ -2612,7 +2612,7 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
     note:SetWordWrap(true)
     note:SetText("Use a boss-mod message to trigger your defensive preset, immediately or "
         .. "after a delay. Enable Messages for this ability in BigWigs. "
-        .. "This ability ignores bars while its message reminder is enabled. Test previews the saved output immediately, without waiting for its message or delay.")
+        .. "Bars keep using the ability's own preset and warning time, so both can run together. Test previews the saved output immediately, without waiting for its message or delay.")
     note:SetHeight(math.max(16, note:GetStringHeight() + 4))
     y = y - note:GetHeight() - 8
 
@@ -3139,10 +3139,12 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
             -- the whole question when copying a whole spec across.
             local label = allMode and ("%s  (%d)"):format(s.name, s.total) or s.name
             local btn = ns.Button(panel, label, 200, 24, function()
-                local copied, skipped = ns.CopyBindingsFromSpec(
+                local copied, skipped, reminders = ns.CopyBindingsFromSpec(
                     s.key, (not allBosses) and encounterID or nil, encSet)
-                ns.Print(("copied |cff0091ed%d|r abilities from %s%s.")
-                    :format(copied, s.name,
+                ns.Print(("copied |cff0091ed%d|r abilities%s from %s%s.")
+                    :format(copied,
+                        reminders > 0 and (" and |cff0091ed" .. reminders .. "|r message reminders") or "",
+                        s.name,
                         skipped > 0 and (", left " .. skipped .. " already here alone") or ""))
                 ns.RefreshRuntime()
                 dimmer:Hide()
