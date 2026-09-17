@@ -9,6 +9,11 @@
   the game will say who is targeted, and display only: the client answers who it is
   without letting an addon read the answer, so the voice cannot follow it.
 
+### Changed
+- The boss page's BIGWIGS/DBM MESSAGES section is now BOSS REMINDERS, and its button is
+  Add Reminder. That editor is the only way to reach the boss cast triggers as well as the
+  message one, so naming the section after messages hid half of what it does.
+
 ### Validation and limits
 - All 19 offline regression suites pass. The new suite proves the secret values are only
   passed through, using stand-ins that raise on any read.

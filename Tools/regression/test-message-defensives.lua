@@ -300,14 +300,14 @@ Case("generic test fires the bar callout beside a message reminder", function()
     e.ns.BindingForBossModKey = function() return {} end
     e.ns.TestFireAbility(3202, 123)
     assert(e.genericTests == 1 and e.calls == 0)
-    assert(e.lastMessage:find("bar callout", 1, true) and e.lastMessage:find("BIGWIGS/DBM MESSAGES", 1, true))
+    assert(e.lastMessage:find("bar callout", 1, true) and e.lastMessage:find("BOSS REMINDERS", 1, true))
 end)
 Case("the message-row hint also reaches a test that found nothing to call", function()
     local e = TestFixture()
     e.ns.BindingForBossModKey = function() return {} end
     e.env.FireBigWigsAbility = function() end -- nothing talented: shownForEvent stays nil
     e.ns.TestFireAbility(3202, 123)
-    assert(e.lastMessage:find("BIGWIGS/DBM MESSAGES", 1, true))
+    assert(e.lastMessage:find("BOSS REMINDERS", 1, true))
 end)
 Case("disabled message test does not fire", function()
     local e = TestFixture(); e.set.one.enabled = false

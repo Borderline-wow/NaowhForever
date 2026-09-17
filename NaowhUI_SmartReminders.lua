@@ -4507,7 +4507,7 @@ function ns.TestFireAbility(enc, sid, reminder)
         ns.Print("voice is off, so the test shows the icon only.")
     end
     if not reminder and ns.HasMessageDefensive(enc, sid) then
-        ns.Print("this tests the bar callout; the ability's messages fire the reminder under BIGWIGS/DBM MESSAGES, which has its own Test.")
+        ns.Print("this tests the bar callout; the ability's messages fire the reminder under BOSS REMINDERS, which has its own Test.")
     end
 end
 
@@ -4770,7 +4770,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
             return ns.AbilityEnabledForBinding(currentEncounter, sid)
         end)
     else
-        -- A message reminder under BIGWIGS/DBM MESSAGES owns this ability's messages and
+        -- A message reminder under BOSS REMINDERS owns this ability's messages and
         -- fires its own preset. Bars stay on the branch above with the ability's own
         -- preset and warning time, so the two run side by side.
         if ns.HasMessageDefensive(currentEncounter, sid) then return end

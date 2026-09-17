@@ -2615,7 +2615,7 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
 
     local head = ns.Font(parent, 12, nil, ns.THEME.accent)
     head:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
-    head:SetText("BIGWIGS/DBM MESSAGES")
+    head:SetText("BOSS REMINDERS")
     y = y - 20
 
     local note = ns.Font(parent, 11, nil, ns.THEME.muted)
@@ -2623,9 +2623,11 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
     note:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
     note:SetJustifyH("LEFT")
     note:SetWordWrap(true)
-    note:SetText("Use a boss-mod message to trigger your defensive preset, immediately or "
-        .. "after a delay. Enable Messages for this ability in BigWigs. "
-        .. "Bars keep using the ability's own preset and warning time, so both can run together. Test previews the saved output immediately, without waiting for its message or delay.")
+    note:SetText("Your own reminders for this boss. A reminder can start from a BigWigs or "
+        .. "DBM message, or from the boss beginning or finishing a cast -- pick which in the "
+        .. "editor. A message trigger needs Messages enabled for that ability in BigWigs. "
+        .. "Bars keep using the ability's own preset and warning time, so both can run "
+        .. "together. Test previews the saved output immediately, without waiting.")
     note:SetHeight(math.max(16, note:GetStringHeight() + 4))
     y = y - note:GetHeight() - 8
 
@@ -2696,7 +2698,7 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
     end
     y = y - 6
 
-    local add = ns.Button(parent, "+ Use BigWigs Messages", 230, 26,
+    local add = ns.Button(parent, "+ Add Reminder", 230, 26,
         function() Edit(nil) end)
     add:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
     return y - 34
@@ -3658,7 +3660,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
     y = y - 6
 
     local addCRBtn = ns.Button(content,
-        anyCombat and "+ Use BigWigs Messages" or "+ Add a Ability Reminder",
+        anyCombat and "+ Add Reminder" or "+ Add an Ability Reminder",
         anyCombat and 230 or 190, 26, function()
             EditCustomReminder(nil)
         end)
