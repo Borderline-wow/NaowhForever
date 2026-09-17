@@ -560,7 +560,7 @@ function ns.BuildDebuffsPage(parent, y)
     elseif chosen then Editor(right, chosen.uid, "auraSound", nil, nil)
     else
         Label(right, "A debuff sound plays when an aura is applied, stacks or falls off.", 0, 0, 604, 14)
-        Label(right, "Use the debuff's own aura spell ID. These apply wherever you set them, not to one dungeon. Changes are saved only when you click Save.", 0, -40, 604)
+        Label(right, "Use the debuff's own aura spell ID. These apply wherever you set them, not to one dungeon. Changes save as you make them.", 0, -40, 604)
     end
     -- Measured rather than guessed: the wrapper adds its own padding on top of this,
     -- and a fixed number claimed room the page never used.

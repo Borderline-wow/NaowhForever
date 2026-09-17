@@ -11,10 +11,7 @@ local revision = 0
 -- the client declines a registration, and that refusal is already reported below. Worse,
 -- the old count was of EVERY rule in the spec, so a spec with thirty trash rules could not
 -- register a single debuff sound even though trash rules never touch that API at all.
---
--- The only bound left is on an imported pack, where a malformed or hostile string could
--- otherwise carry an unbounded table. It is a sanity check, not a budget.
-local MAX_IMPORTED_RULES = 500
+
 -- Racial callouts that must stay quiet while the racial itself is unavailable. The client
 -- plays these itself once the aura is registered with it, so there is no call of ours to
 -- suppress: the FILE is muted instead. That is why each one needs a file of its own, and a

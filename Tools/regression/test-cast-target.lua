@@ -32,9 +32,11 @@ local function Fixture()
                 SetText = function(_, v) e.drawn.name = v end,
                 SetTextColor = function(_, r, g, b) e.drawn.colour = { r, g, b } end,
                 Show = function() e.drawn.nameShown = true end,
+                Hide = function() e.drawn.nameHidden = true end,
             },
             youMarker = {
                 SetShown = function(_, v) e.drawn.marker = v end,
+                Hide = function() e.drawn.markerHidden = true end,
             },
         },
         UnitShouldDisplaySpellTargetName = function(unit)
@@ -76,11 +78,13 @@ Case("the class colour is resolved without the class being read", function()
     assert(e.drawn.colour and e.drawn.colour[1] == 0.1 and e.drawn.colour[3] == 0.3)
 end)
 
-Case("a cast with nothing displayable draws nothing", function()
+Case("a cast with nothing displayable clears whatever the last one left", function()
     local e = Fixture()
     e.show = false
     assert(e.ns.ShowCastTargetOn("boss1") == false)
     assert(e.drawn.name == nil and e.drawn.marker == nil)
+    assert(e.drawn.nameHidden and e.drawn.markerHidden,
+        "otherwise the previous cast's target stays on screen under a new callout")
 end)
 
 Case("each half can be switched off on its own", function()

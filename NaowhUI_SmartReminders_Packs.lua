@@ -154,6 +154,11 @@ local function ValidEntry(entry)
     return true
 end
 
+-- A bound on what one pack STRING may carry, not on what a spec may hold. The per-spec
+-- cap is gone; this only stops a malformed or hostile string handing over an unbounded
+-- table before anything has looked at it.
+local MAX_IMPORTED_RULES = 500
+
 local function ValidData(data)
     if not PlainData(data, {}, 0, { 100000 }) then return false end
     for i = 1, #SECTIONS do
@@ -169,13 +174,12 @@ local function ValidData(data)
                     return false
                 else
                     if sec.field == "integrationRules" then
-                        -- A bound on what a STRING may carry, not on what a spec may hold:
-                        -- the per-spec cap is gone, but a malformed or hostile pack should
-                        -- still not be able to hand over an unbounded table.
                         local count = 0
                         for uid in pairs(inner) do
                             count = count + 1
-                            if type(uid) ~= "string" or count > 500 then return false end
+                            if type(uid) ~= "string" or count > MAX_IMPORTED_RULES then
+                                return false
+                            end
                         end
                     end
                     for _, entry in pairs(inner) do
@@ -420,7 +424,9 @@ function ns.DescribeProfilePack(str, opts)
     lines[#lines + 1] = ("|cff0091ed%s|r by %s"):format(
         tostring(payload.name), tostring(payload.author))
     if type(payload.derivedFrom) == "table" then
-        lines[#lines + 1] = ("|cffF0A830Worked on from your own pack|r (%s by %s)."):format(
+        -- Stated as fact rather than addressed to the reader: whoever opens this may not be
+        -- the author it names, and the fields come from the string, not from us.
+        lines[#lines + 1] = ("|cffF0A830Built on|r %s by %s."):format(
             tostring(payload.derivedFrom.name), tostring(payload.derivedFrom.author))
     end
     lines[#lines + 1] = ("Will create %d new profile%s:"):format(
@@ -566,7 +572,7 @@ function ns.DecodePack(str)
     -- is never mistaken for an original. Set only by /nutank share.
     local derived = ""
     if type(payload.derivedFrom) == "table" then
-        derived = ("|n|cffF0A830Worked on from your own pack|r (%s by %s)."):format(
+        derived = ("|n|cffF0A830Built on|r %s by %s."):format(
             tostring(payload.derivedFrom.name), tostring(payload.derivedFrom.author))
     end
     local desc = ("|cff0091ed%s|r by %s%s%s|n%s"):format(

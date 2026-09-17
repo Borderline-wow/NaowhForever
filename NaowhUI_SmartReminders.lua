@@ -3028,12 +3028,19 @@ function ns.ShowCastTargetOn(unit)
 
     -- Plain, so it may decide a branch. False also covers "not casting" and "no target".
     local ok, show = pcall(UnitShouldDisplaySpellTargetName, unit)
-    if not ok or show ~= true then return false end
+    if not ok or show ~= true then
+        if frame.castTarget then frame.castTarget:Hide() end
+        if frame.youMarker then frame.youMarker:Hide() end
+        return false
+    end
 
     if t.showCastTarget ~= false and frame.castTarget then
         local gotName, name = pcall(UnitSpellTargetName, unit)
         if gotName and name ~= nil then
             frame.castTarget:SetText(name)
+            -- Reset first: the lookup is documented as able to return nothing, and without
+            -- this a failed one leaves the new name wearing the last target's class colour.
+            frame.castTarget:SetTextColor(1, 1, 1, 1)
             if UnitSpellTargetClass and C_ClassColor and C_ClassColor.GetClassColor then
                 local gotColour, colour = pcall(function()
                     return C_ClassColor.GetClassColor(UnitSpellTargetClass(unit))
@@ -3392,6 +3399,12 @@ local function ShowOnAlert(opts)
         return false
     end
 
+    -- Cleared on every fire. A second callout inside the display window re-arms the hide
+    -- timer instead of hiding, so without this it inherits the previous cast's target name
+    -- and YOU marker. Blizzard's own cast bar blanks the same label on the same branch.
+    if frame.castTarget then frame.castTarget:Hide() end
+    if frame.youMarker then frame.youMarker:Hide() end
+
     -- Who owns what is on screen. ApplyReminderFilter reads it to pull a live callout when
     -- its reminder is switched off or filtered out mid-display, so leaving this nil meant a
     -- healer reminder could stay up after the healer opt-out had just removed it.
@@ -3433,7 +3446,7 @@ end
 
 local function FireCustomReminder(r)
     if not r then return end
-    ShowOnAlert({
+    return ShowOnAlert({
         -- A per-ability override list is keyed by the spell it belongs to; a preset names
         -- one outright. Either way the slots answer, and the line is the fallback for a
         -- reminder that carries neither.
@@ -3455,7 +3468,7 @@ function ns.DisplayReminder(r)
         if not CustomRemindersAllowed() then return end
         return ns.FireMessageDefensive(r)
     end
-    FireCustomReminder(r)
+    return FireCustomReminder(r)
 end
 
 -- Trash and debuff rules take the same renderer as every other authored reminder: a rule
@@ -3547,12 +3560,15 @@ end
 -- the trigger, parsed fresh here rather than pre-compiled -- these fire rarely enough that
 -- the cost never matters) turns into either an immediate call or one timer per listed
 -- delay, so a comma list fires more than once from the same match.
+--
+-- Returns true only when a callout went up right now. A delayed one has not shown yet and
+-- a refused one never will, and the cast-target display keys off this rather than assuming
+-- the alert is on screen.
 local function ActivateCustomReminder(r, scope)
     if not ns.IsReminderEnabled(r) then return end
     local delays = ParseDelayList(r.trigger and r.trigger.delay)
     if not delays then
-        ns.DisplayReminder(r)
-        return
+        return ns.DisplayReminder(r) == true
     end
     -- Custom reminders need not have any tracked cooldown spells, so the regen
     -- listener may be absent. Recheck combat before a combat-scoped timer fires.
@@ -3649,12 +3665,17 @@ function ns.OnBossCast(event, unit, spellID)
                 customCounters[uid])
         end
         if hit then
-            ActivateCustomReminder(r)
-            -- After the callout, never before: the reminder's own display clears these on
-            -- the way in, so a line written first would be wiped by the thing it describes.
-            -- This is the only handler that knows which unit is casting, and therefore the
-            -- only place the target can be asked for at all.
-            ns.ShowCastTargetOn(unit)
+            local shown = ActivateCustomReminder(r)
+            -- After the callout, and only when one actually went up: the display clears the
+            -- target line on its way in, and a delayed or refused reminder would otherwise
+            -- leave a name latched onto whatever alert comes next.
+            --
+            -- Start only. On UNIT_SPELLCAST_SUCCEEDED the unit has stopped casting, and the
+            -- client answers "is there a target to show" with false at that point, so a
+            -- castend reminder could never have displayed one anyway.
+            if shown and event == "UNIT_SPELLCAST_START" then
+                ns.ShowCastTargetOn(unit)
+            end
         end
     end
 end

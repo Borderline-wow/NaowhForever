@@ -87,13 +87,15 @@ Case("the contributor export is allowed, and says what it came from", function()
     assert(payload.author == "Contributor")
 end)
 
-Case("the preview tells the curator it is their own pack coming back", function()
+Case("the preview names the pack this one was built on", function()
     local e = Fixture(); Fill(e)
     e.db.importedPack = { name = "Naowh", author = "Robin" }
     local str = e.ns.ExportPack("Contributed changes", "Contributor", true)
     local _, describe = e.ns.DecodePack(str)
     assert(type(describe) == "string")
-    assert(describe:find("Worked on from your own pack", 1, true), describe)
+    -- Stated, not addressed to the reader: whoever opens a pack is not always the
+    -- curator it names.
+    assert(describe:find("Built on", 1, true), describe)
     assert(describe:find("Naowh", 1, true))
 end)
 
