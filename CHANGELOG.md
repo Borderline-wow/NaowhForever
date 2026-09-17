@@ -1,11 +1,16 @@
 # Changelog
 
-## Unreleased
+## 1.4.2
 
 ### Changed
 - Show Who Is Targeted and Mark Me When I Am Targeted now start off rather than on. Both
   are in Setup, and the trash callout repeat is behind them too, so no part of the cast
   target display shows up until one of them is ticked.
+
+### Fixed
+- The Merge a Profile In window sizes itself to the string you paste. A profile covering
+  a lot of specs pushed the last rows and both "Also take their..." switches out past the
+  bottom of the window, with Merge and Cancel sitting over the middle of the spec list.
 
 ## 1.4.1
 
