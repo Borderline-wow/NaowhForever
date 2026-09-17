@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Show Who Is Targeted and Mark Me When I Am Targeted now start off rather than on. Both
+  are in Setup, and the trash callout repeat is behind them too, so no part of the cast
+  target display shows up until one of them is ticked.
+
 ## 1.4.1
 
 ### Added

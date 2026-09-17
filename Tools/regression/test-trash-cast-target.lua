@@ -25,7 +25,8 @@ local function Rule()
 end
 
 local function Fixture()
-    local e = { db = {}, shown = {}, targets = {}, eligible = true, names = true, watcher = {} }
+    local e = { db = { showCastTarget = true, markCastTarget = true }, shown = {},
+        targets = {}, eligible = true, names = true, watcher = {} }
     local env = {
         TRDB = function() return e.db end,
         CustomRemindersAllowed = function() return e.allowed ~= false end,
@@ -136,6 +137,13 @@ Case("both display switches off means the repeat has nothing to add", function()
     e = Fixture(); e.db.showCastTarget = false
     e.ns.OnBossCast("UNIT_SPELLCAST_START", "nameplate1", 111)
     assert(#e.shown == 1)
+end)
+
+Case("an untouched profile gets no repeat either", function()
+    local e = Fixture()
+    e.db.showCastTarget, e.db.markCastTarget = nil, nil
+    e.ns.OnBossCast("UNIT_SPELLCAST_START", "nameplate1", 111)
+    assert(#e.shown == 0 and e.askedAbout == nil, "both switches are opt-in")
 end)
 
 Case("a rule that turned the repeat off is left alone", function()

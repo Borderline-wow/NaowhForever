@@ -19,7 +19,7 @@ local function Secret(what)
 end
 
 local function Fixture()
-    local e = { db = {}, drawn = {} }
+    local e = { db = { showCastTarget = true, markCastTarget = true }, drawn = {} }
     local secretName, secretClass, secretMine =
         Secret("string"), Secret("string"), Secret("bool")
     e.secretName, e.secretClass, e.secretMine = secretName, secretClass, secretMine
@@ -104,6 +104,13 @@ Case("both off means the client is never asked at all", function()
     e.db.showCastTarget, e.db.markCastTarget = false, false
     assert(e.ns.ShowCastTargetOn("boss1") == false)
     assert(e.askedShow == nil, "no point asking a question whose answer cannot be used")
+end)
+
+Case("neither one on is the state a fresh profile is in", function()
+    local e = Fixture()
+    e.db.showCastTarget, e.db.markCastTarget = nil, nil
+    assert(e.ns.ShowCastTargetOn("boss1") == false)
+    assert(e.askedShow == nil, "both are opt-in, so an untouched profile draws nothing")
 end)
 
 Case("a client without the API, or no unit, is refused rather than erroring", function()

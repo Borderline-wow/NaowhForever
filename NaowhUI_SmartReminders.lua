@@ -3024,7 +3024,7 @@ function ns.ShowCastTargetOn(unit)
     if not frame or type(unit) ~= "string" then return false end
     if not (UnitShouldDisplaySpellTargetName and UnitSpellTargetName) then return false end
     local t = TRDB()
-    if t.showCastTarget == false and t.markCastTarget == false then return false end
+    if not (t.showCastTarget or t.markCastTarget) then return false end
 
     if not ns.CastNamesATarget(unit) then
         if frame.castTarget then frame.castTarget:Hide() end
@@ -3032,7 +3032,7 @@ function ns.ShowCastTargetOn(unit)
         return false
     end
 
-    if t.showCastTarget ~= false and frame.castTarget then
+    if t.showCastTarget and frame.castTarget then
         local gotName, name = pcall(UnitSpellTargetName, unit)
         if gotName and name ~= nil then
             frame.castTarget:SetText(name)
@@ -3051,7 +3051,7 @@ function ns.ShowCastTargetOn(unit)
         end
     end
 
-    if t.markCastTarget ~= false and frame.youMarker and PlayerIsSpellTarget then
+    if t.markCastTarget and frame.youMarker and PlayerIsSpellTarget then
         local gotMine, mine = pcall(PlayerIsSpellTarget, unit)
         -- SetShown is the sink: it takes the secret and resolves it inside the client.
         if gotMine then pcall(frame.youMarker.SetShown, frame.youMarker, mine) end
@@ -3701,7 +3701,7 @@ function ns.OnBossCast(event, unit, spellID)
     -- nobody. An authored reminder on the same spell draws after this and wins the frame.
     if event == "UNIT_SPELLCAST_START" and entry.trashcast then
         local t = TRDB()
-        if (t.showCastTarget ~= false or t.markCastTarget ~= false)
+        if (t.showCastTarget or t.markCastTarget)
             and ns.CastNamesATarget(unit) then
             local integrations, drew = ns.Integrations, false
             for i = 1, #entry.trashcast do
@@ -7040,6 +7040,8 @@ function ns.BuildBarsSettings(parent, y)
           setValue = function(v) previewPin = v; UpdatePreview() end }
     ); y = y - h
 
+    -- Both default off, unlike every other display switch here: this is new and wants some
+    -- real use behind it before it starts drawing on people's alerts unasked.
     -- Both are display only, and deliberately so: the client hands back who is targeted as
     -- a value this addon may show but never read, so neither of these can reach the voice.
     _, h = W:DualRow(parent, y,
@@ -7047,14 +7049,14 @@ function ns.BuildBarsSettings(parent, y)
           tooltip = "When a boss or trash cast names somebody, puts that player's name on "
           .. "the alert in their class colour. Only while the cast is going out, since that "
           .. "is the only moment the game will say who is being targeted.",
-          getValue = function() return TRDB().showCastTarget ~= false end,
-          setValue = function(v) TRDB().showCastTarget = v and nil or false end },
+          getValue = function() return TRDB().showCastTarget == true end,
+          setValue = function(v) TRDB().showCastTarget = v or nil end },
         { type = "toggle", text = "Mark Me When I Am Targeted",
           tooltip = "Adds YOU beside that name when the cast is aimed at you. The game "
           .. "answers this one without letting the addon see the answer, so it can change "
           .. "what is drawn but never what is said.",
-          getValue = function() return TRDB().markCastTarget ~= false end,
-          setValue = function(v) TRDB().markCastTarget = v and nil or false end }
+          getValue = function() return TRDB().markCastTarget == true end,
+          setValue = function(v) TRDB().markCastTarget = v or nil end }
     ); y = y - h
 
     -- Escape hatch: a UI-scale change can strand a moved alert off-screen where the
