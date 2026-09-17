@@ -1,19 +1,21 @@
 local root = arg[1] or "."
 local function Fixture()
     local e = { now = 0, map = 1877, kind = "party", spec = 250, timers = {}, shown = {}, added = {}, removed = {}, hooks = {},
-        registered = {}, muteCalls = {}, known = true, dead = false, usable = true,
+        registered = {}, muteCalls = {}, mutedBy = {}, known = true, dead = false, usable = true,
         cooldown = { isActive = false, isEnabled = true }, restrictions = {} }
     local db = { enabled = true, integrationRules = { ["250"] = {} } }
     local ns = { UI = {}, trackedReminderTimers = {} }
     ns.DB = function() return db end
     ns.IsReminderEnabled = function(r) return r.enabled ~= false and not (e.healerOff and r.healerReminder) end
     ns.DisplayRaidReminder = function(r) e.shown[#e.shown + 1] = r end
+    ns.DisplayIntegrationReminder = function(r) e.shown[#e.shown + 1] = r end
     ns.HideIntegrationReminders = function() e.hidden = true end
     ns.ResolveReminderSpell = function() return e.picked end
     ns.InEncounter = function() return e.encounter end
     ns.PlayReminderSound = function(d) e.previewSound = true; e.previewKey = d.sound end
     ns.UI.SoundPathFor = function(key)
         if key == "voice:stoneform-ready" then return "stoneform-ready.ogg" end
+        if key == "voice:shadowmeld-ready" then return "shadowmeld-ready.ogg" end
         return key == "test" and "Interface/AddOns/Test/test.ogg"
     end
     local env = setmetatable({ NaowhUITankReminder = ns, Enum = { UnitAuraSoundTrigger = { Added = 0, ApplicationsIncreased = 1, Removed = 2 } },
@@ -22,11 +24,26 @@ local function Fixture()
         GetInstanceInfo = function() return "Dungeon", e.kind, 8, "", 5, 0, false, e.map end,
         InCombatLockdown = function() return e.combat end,
         C_Spell = { GetSpellInfo = function() return { name = "Anti-Magic Shell" } end,
-            GetSpellCooldown = function() return e.cooldown end, IsSpellUsable = function() return e.usable end },
-        C_SpellBook = { IsSpellKnown = function() return e.known end },
+            -- Per spell where a case says so, falling back to the shared answer.
+            GetSpellCooldown = function(id)
+                if e.cooldowns and e.cooldowns[id] ~= nil then return e.cooldowns[id] end
+                return e.cooldown
+            end,
+            IsSpellUsable = function(id)
+                if e.usables and e.usables[id] ~= nil then return e.usables[id] end
+                return e.usable
+            end },
+        C_SpellBook = { IsSpellKnown = function(id)
+            if e.knowns and e.knowns[id] ~= nil then return e.knowns[id] end
+            return e.known
+        end },
         UnitIsDeadOrGhost = function() return e.dead end,
-        MuteSoundFile = function(path) e.muted = true; e.muteCalls[#e.muteCalls + 1] = path end,
-        UnmuteSoundFile = function(path) e.muted = false; e.muteCalls[#e.muteCalls + 1] = path end,
+        MuteSoundFile = function(path)
+            e.muted = true; e.mutedBy[path] = true; e.muteCalls[#e.muteCalls + 1] = path
+        end,
+        UnmuteSoundFile = function(path)
+            e.muted = false; e.mutedBy[path] = false; e.muteCalls[#e.muteCalls + 1] = path
+        end,
         C_RestrictedActions = { GetAddOnRestrictionState = function(kind) return e.restrictions[kind] or 0 end },
         CreateFrame = function() return { SetScript = function(_, _, f) e.event = f end,
             RegisterEvent = function(_, event) e.registered[event] = true end,
@@ -143,15 +160,62 @@ Case("preset and custom-text previews use addon voice volume, with silence diagn
     e.db.voiceVol = 65
     local chunk = assert(loadstring("local ns, TRDB = ...; " .. speech))
     setfenv(chunk, e.env); chunk(e.ns, e.ns.DB)
-    e.ns.DisplayRaidReminder = function(entry, preview)
-        e.ns.SpeakReminderTTS(entry.display, entry.display.text, preview)
+    -- The real function, not a stand-in: resolving a preset to the spoken name is the half
+    -- of it worth testing, and a stub would only ever be testing the stub.
+    -- Both halves of the real thing, plus the callout-name lookup they resolve through:
+    -- the spoken line has to be the name the player gave the spell, not Blizzard's.
+    local callout = assert(source:match("local function CalloutFor%b()%s*.-\nend"))
+    local shower = assert(source:match("local function ShowOnAlert%b()%s*.-\nend"))
+    local integ = callout .. "\n" .. shower .. "\n" ..
+        assert(source:match("function ns.DisplayIntegrationReminder%b()%s*.-\nend"))
+    e.env.TRDB = e.ns.DB
+    -- The defensive alert's own internals, which the function now drives directly.
+    local alert = {}
+    e.env.Reminder = { Create = function() alert.created = true end }
+    e.env.RebuildSlots = function(_, keepIfEmpty, preset)
+        alert.preset, alert.keepIfEmpty = preset, keepIfEmpty; return true
     end
+    e.env.ApplyPriorityAlpha = function() end
+    e.env.ClearTankGate = function() end
+    e.env.HideReminder = function() alert.hidden = true end
+    e.env.textFrame = { Show = function() alert.textShown = true end,
+        SetFrameStrata = function(_, v) alert.textStrata = v end }
+    e.env.frame = { Show = function() alert.shown = true end,
+        SetFrameStrata = function(_, v) alert.strata = v end,
+        reminder = { SetText = function(_, t) alert.line = t end,
+            Show = function() alert.lineShown = true end,
+            Hide = function() alert.lineShown = false end } }
+    e.env.C_Timer = { NewTimer = function(delay)
+        alert.dur = delay; return { Cancel = function() end }
+    end }
+    -- Two slots left showing whatever the spec's preset last built.
+    alert.slots = { { alpha = 1 }, { alpha = 1 } }
+    for _, slot in ipairs(alert.slots) do
+        slot.SetAlpha = function(self, a) self.alpha = a end
+    end
+    e.env.slots = alert.slots
+    e.env.activeSlots = 2
+    e.env.frame.fallback = { SetAlpha = function(_, a) alert.fallbackAlpha = a end }
+    local ichunk = assert(loadstring("local ns = ...; " .. integ))
+    setfenv(ichunk, e.env); ichunk(e.ns)
     local r = e:rule(); r.display.tts = true; r.display.text = "Move out"
     e.I.Preview(r)
+    -- No preset: the rule's own line on the alert's authored-line row, no slot rebuild.
+    assert(alert.shown and alert.line == "Move out" and alert.lineShown)
+    assert(alert.preset == nil and alert.dur == r.display.dur)
+    -- A custom line shows alone: a defensive left in the slots from the spec's own preset
+    -- is not part of what this rule asked for.
+    assert(alert.slots[1].alpha == 0 and alert.slots[2].alpha == 0)
+    assert(e.env.activeSlots == 0 and alert.fallbackAlpha == 0)
+    assert(e.ns.slotsStale == true, "the real list is rebuilt when the callout ends")
     assert(#calls == 1 and calls[1][1] == 2 and calls[1][2] == "Move out")
     assert(calls[1][3] == 0 and calls[1][4] == 65 and calls[1][5] == false)
     r.preset = "defensives"; e.picked = 48707; e.I.Preview(r)
     assert(calls[2][2] == "Anti-Magic Shell")
+    -- With a preset the alert's own slots answer, and the custom line is put away.
+    assert(alert.preset == "defensives" and alert.keepIfEmpty == true)
+    assert(alert.lineShown == false, "the custom line must not sit under the slots")
+    assert(e.env.shownForEvent == "authored", "the alert is marked occupied")
     e.db.voiceVol = 0; e.I.Preview(r)
     assert(#calls == 2 and messages[#messages]:find("Voice Volume is zero", 1, true))
     e.db.voiceVol = 100; e.env.C_VoiceChat.GetTtsVoices = function() return {} end
@@ -161,30 +225,48 @@ Case("preset and custom-text previews use addon voice volume, with silence diagn
     e.I.Preview(r); assert(messages[#messages]:find("could not start TTS", 1, true))
     r.display.tts = false; local before = #messages
     e.I.Preview(r); assert(#messages == before)
+
+    -- Renaming Anti-Magic Shell to "AMS" renames what it SAYS, the same way the slot label
+    -- beside it has always followed the rename. Speaking the full name was the two channels
+    -- disagreeing about one spell.
+    e.env.C_VoiceChat.SpeakText = function(...) calls[#calls + 1] = { ... } end
+    r.display.tts = true
+    e.db.callouts = { [48707] = "AMS" }
+    e.I.Preview(r)
+    assert(calls[#calls][2] == "AMS", "the spoken line must use the name you gave it")
 end)
-Case("repeated previews replace only test regions and preserve live reminders", function()
+Case("repeated previews replace the last test and preserve live reminders", function()
     local e = Fixture()
     local file = assert(io.open(root .. "/NaowhUI_SmartReminders_RaidReminders.lua", "rb"))
     local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
     local cleanup = assert(source:match("function ns.HideIntegrationReminders%b()%s*.-\nend"))
-    local live = { reminderEntry = { integration = true } }
+    -- Anything already in the region pool when the integration display moved onto the
+    -- shared reminder frame is still there, so that sweep has to keep working.
+    local legacy = { reminderEntry = { integration = true } }
     local other = { reminderEntry = {} }
-    local anchor = { active = { live, other } }
+    local anchor = { active = { legacy, other } }
     local chunk = assert(loadstring("local ns, anchors, ReleaseRegion = ...; " .. cleanup))
     chunk(e.ns, { anchor }, function(a, r)
         r.cancelled = true
         for i = #a.active, 1, -1 do if a.active[i] == r then table.remove(a.active, i) end end
     end)
-    e.ns.DisplayRaidReminder = function(entry, preview)
-        assert(preview and entry.integrationPreview)
-        anchor.active[#anchor.active + 1] = { reminderEntry = entry }
+    -- Stands in for the shared frame: one showing at a time, cleared on the same terms.
+    local showing
+    e.ns.HideIntegrationCustomReminder = function(previewOnly)
+        if showing and (not previewOnly or showing.integrationPreview) then
+            showing.hidden = true; showing = nil
+        end
     end
-    e.I.Preview(e:rule()); local first = anchor.active[3]
-    e.I.Preview(e:rule()); e.I.Preview(e:rule())
-    assert(#anchor.active == 3 and first.cancelled)
-    assert(anchor.active[1] == live and anchor.active[2] == other)
+    e.ns.DisplayIntegrationReminder = function(rule, preview)
+        showing = { integrationPreview = preview or nil, rule = rule }
+    end
+    e.I.Preview(e:rule()); local first = showing
+    e.I.Preview(e:rule())
+    assert(first.hidden and showing and showing ~= first)
+    assert(#anchor.active == 2, "a preview must not disturb live entries in the pool")
     e.ns.HideIntegrationReminders()
     assert(#anchor.active == 1 and anchor.active[1] == other)
+    assert(showing == nil)
 end)
 Case("catalogue maps challenge IDs to instance filters and deduplicates spells", function()
     local e = Fixture()
@@ -369,6 +451,54 @@ Case("Stoneform rejects party rules and remains idle for ordinary sounds", funct
     assert(#e.muteCalls == 0 and not e.registered.SPELL_UPDATE_COOLDOWN)
     local r = e:rule("auraSound"); r.display.sound = "voice:stoneform-ready"; r.trigger.target = "party"
     assert(not e.I.Save(nil, r))
+end)
+Case("Shadowmeld gates on its own racial, and the two are independent", function()
+    local e = Fixture()
+    local stone = e:rule("auraSound"); stone.display.sound = "voice:stoneform-ready"
+    local meld = e:rule("auraSound"); meld.display.sound = "voice:shadowmeld-ready"
+    meld.trigger.spellID = 456
+    assert(e.I.Save(nil, stone)); assert(e.I.Save(nil, meld))
+    assert(#e.added == 2 and e.registered.SPELL_UPDATE_COOLDOWN)
+
+    local function MutedFor(file)
+        local state
+        for _, path in ipairs(e.muteCalls) do
+            if path == file then state = e.mutedBy[path] end
+        end
+        return state
+    end
+    -- Shadowmeld on cooldown, Stoneform still up: only one of the two goes quiet.
+    e.cooldowns = { [58984] = { isActive = true, isEnabled = true } }
+    e.event(nil, "SPELL_UPDATE_COOLDOWN")
+    assert(MutedFor("shadowmeld-ready.ogg") == true, "Shadowmeld should be muted")
+    assert(MutedFor("stoneform-ready.ogg") == false, "Stoneform should still be audible")
+    -- And back again when it comes off cooldown.
+    e.cooldowns = nil
+    e.event(nil, "SPELL_UPDATE_COOLDOWN")
+    assert(MutedFor("shadowmeld-ready.ogg") == false)
+end)
+Case("Shadowmeld preview uses its own file and rejects a party rule", function()
+    local e = Fixture()
+    local r = e:rule("auraSound"); r.display.sound = "voice:shadowmeld-ready"
+    e.cooldown.isActive = true
+    assert(e.I.Save(nil, r))
+    local calls = #e.muteCalls
+    e.I.Preview(r)
+    assert(e.previewKey == "voice:shadowmeld-preview" and #e.muteCalls == calls,
+        "the preview must not touch the registered file")
+    local party = e:rule("auraSound")
+    party.display.sound = "voice:shadowmeld-ready"; party.trigger.target = "party"
+    assert(not e.I.Save(nil, party), "a racial you cast on yourself cannot answer for a party debuff")
+end)
+Case("a racial with nothing left registered hands its file back unmuted", function()
+    local e = Fixture()
+    local r = e:rule("auraSound"); r.display.sound = "voice:shadowmeld-ready"
+    e.cooldown.isActive = true
+    e.I.Save(nil, r)
+    assert(e.mutedBy["shadowmeld-ready.ogg"] == true)
+    e.db.integrationRules = {}
+    e.I.Refresh()
+    assert(e.mutedBy["shadowmeld-ready.ogg"] == false, "it must not stay silenced for everything else")
 end)
 Case("forced restrictions defer registration without combat lockdown", function()
     for _, kind in ipairs({ 0, 1 }) do

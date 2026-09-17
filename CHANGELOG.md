@@ -1,5 +1,69 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Merge a Profile In, on the Profiles tab. Paste a string somebody else maintains, tick
+  the specs you are accepting, pick which of your profiles it goes into, and it merges
+  rather than landing beside them. A ticked spec is taken whole, lists, bindings and
+  trash rules together. Nothing outside the ticked specs can move, which matters because
+  a contributor usually works in a copy of the whole profile they were given. Per-boss
+  reminders come across only for the specs they record. Raid reminders, callout lines and
+  their display and sound settings record no spec and are left behind unless asked for.
+- Shadowmeld joins Stoneform as a cooldown-gated debuff voice. Pick it as the sound on
+  a debuff rule and it stays silent while Shadowmeld is on cooldown, unknown, unusable
+  or you are dead. The two gate independently, so one being down does not quiet the
+  other.
+- A boss cast that names somebody now puts that player's name on the alert in their class
+  colour, with YOU beside it when the cast is aimed at you. Two switches in Setup, both
+  on by default. Only for abilities with a cast reminder, since that is the one moment
+  the game will say who is targeted, and display only: the client answers who it is
+  without letting an addon read the answer, so the voice cannot follow it.
+- New voice clips for both racials, supplied by Naowh, listed as "Stoneform - Naowh" and
+  "Shadowmeld - Naowh" to match his other sound files.
+
+### Fixed
+- A spoken callout uses the name you gave the spell. Renaming Vampiric Blood to Vamp
+  renamed the label beside the icon but not what was said, so the two channels
+  disagreed about the same spell.
+
+### Changed
+- The options window is two levels: Smart Reminders, Custom Notes and Profiles across the
+  top, with Setup, Cooldown Presets, Dungeon Bosses, Raid Bosses, Trash and Debuffs under
+  Smart Reminders. Custom Notes is dimmed and says what it will do.
+- The Trash page shows one dungeon at a time as a collapsible section, with the spell icon
+  and a switch on every ability. Rows are half their old height, so a dungeon's abilities
+  fit without scrolling the list.
+- Debuff sounds have their own tab beside Trash. They answer to an aura rather than a
+  dungeon, and were previously reachable only through a bucket at the foot of the trash
+  list. Each page keeps its own selection.
+- Copy From Spec sits beside the page heading, since it acts on the whole spec rather
+  than on the selected dungeon.
+- Trash and debuff callouts draw on the defensive alert itself, replacing what is in it,
+  instead of putting a second icon and line on screen beside it. A rule with a preset
+  rebuilds the alert's slots from that preset; a rule with only custom text takes the
+  alert's own text row and puts the slots away, so a defensive left there by the spec's
+  preset no longer shows beside the line. Each rule keeps its own sound and Speak
+  Callout setting.
+- The separate Ability Reminder display is gone. Every reminder now draws on the
+  defensive alert, so there is one placeable display instead of two showing the same
+  kind of callout in two different styles. Its Reset Ability Reminder Position button
+  and its own text colour setting go with it; the alert's Defensive Text Color now
+  covers both the slot labels and the authored line.
+- Every trash ability row carries a switch, reading off until a reminder exists behind
+  it. Turning one on writes the rule the editor would have written and opens it.
+- Reminder icons carry the 1px black edge the priority slots already had.
+- Callout text is now Custom text, and it greys out while a preset is supplying the line.
+  What is typed there is kept and returns when the preset is cleared.
+- Text in the trash editor's input boxes is inset rather than sitting on the border.
+- The Trash and Debuffs pages fit the options window, so the page itself no longer
+  scrolls. The editor's Cast, Text & Test and Voice settings sit behind tabs instead of
+  stacked panels, Save and Remove moved onto that row, and the page reports the height
+  it actually draws rather than a fixed guess. The ability list keeps its own scrollbar.
+  Switching tab shows a different panel and nothing else, so a preset chosen or text
+  typed and not yet saved survives the switch. Save, Test and Remove sit above the tabs,
+  since they act on the whole rule rather than on one group of its settings.
+
 ## 1.3.9
 
 ### Added

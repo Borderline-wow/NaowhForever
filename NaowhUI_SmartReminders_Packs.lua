@@ -693,6 +693,103 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
     return true, landed
 end
 
+-- Merge one profile out of a pack into a profile that already exists here, instead of
+-- landing it beside them. Robin's profiles are maintained by several people now: one looks
+-- after the healers, another the tanks, and each hands back the specs they own.
+--
+-- opts.specs, when given, is the set of spec keys being handed over, and is what makes that
+-- safe. A contributor usually works in a COPY of the profile they were given, so their
+-- string carries every spec in it, most of them stale. Without the filter a healer handover
+-- drags their months-old copy of the tank lists along with it.
+--
+-- A chosen spec is taken WHOLE -- its lists, its bindings, its trash rules -- because a
+-- binding names its preset by key and a spec's settings only mean anything together. Taking
+-- trash rules one at a time was worse than useless: they are numbered in sequence per spec,
+-- so rule one landed on rule one and a three-rule handover left two of the old five behind.
+--
+-- Per-boss reminders are filtered by the spec each one records, so a boss both sides cover
+-- keeps what is already here and gains only the reminders belonging to the specs handed
+-- over. Raid reminders and callout lines record no spec at all, so a spec handover leaves
+-- them alone unless opts.extras asks for them.
+--
+-- Settings are opt-in and off by default: a contributor's display, sound and behaviour
+-- choices are theirs, and taking them would restyle the whole profile as a side effect.
+local MERGE_WHOLE_SPEC = { presets = true, activePreset = true,
+    abilityBindings = true, integrationRules = true }
+local MERGE_NO_SPEC = { raidReminders = true, callouts = true, audioOff = true }
+
+function ns.MergeProfileFromPack(payload, sourceName, targetName, opts)
+    opts = type(opts) == "table" and opts or {}
+    local wantSpecs = opts.specs
+    if type(payload) ~= "table" then return false, "there is nothing to read" end
+    local data
+    if type(payload.profiles) == "table" then
+        data = sourceName and payload.profiles[sourceName]
+        if type(data) ~= "table" then return false, "that profile is not in this string" end
+    else
+        data = payload.data
+    end
+    if type(data) ~= "table" or not ValidData(data) then
+        return false, "the string does not carry a profile"
+    end
+    if type(targetName) ~= "string" or targetName == "" then
+        return false, "choose the profile to merge into"
+    end
+    -- Never creates one: merging into a profile that is not there would quietly make a new
+    -- profile under a name nobody chose, which is what Import already does properly.
+    if not (ns.ProfileExists and ns.ProfileExists(targetName)) then
+        return false, "that profile no longer exists"
+    end
+    if wantSpecs and not next(wantSpecs) then return false, "choose at least one spec" end
+    local tr = ns.EnsureProfile and ns.EnsureProfile(targetName)
+    if not tr then return false, "that profile could not be opened" end
+
+    local specs, entries = 0, 0
+    for i = 1, #SECTIONS do
+        local sec = SECTIONS[i]
+        local incoming = data[sec.field]
+        if type(incoming) == "table"
+            and not (wantSpecs and MERGE_NO_SPEC[sec.field] and not opts.extras) then
+            if type(tr[sec.field]) ~= "table" then tr[sec.field] = {} end
+            local dst = tr[sec.field]
+            for k, v in pairs(incoming) do
+                -- Which spec this key belongs to, when the key itself says.
+                local owner
+                if MERGE_WHOLE_SPEC[sec.field] then owner = tostring(k)
+                elseif sec.field == "bossLists" then owner = tostring(k):match("^(%d+):") end
+                if not (wantSpecs and owner and not wantSpecs[owner]) then
+                    if MERGE_WHOLE_SPEC[sec.field] then
+                        dst[k] = Copy(v)
+                        specs = specs + 1
+                    elseif sec.field == "customReminders" then
+                        if type(dst[k]) ~= "table" then dst[k] = {} end
+                        for uid, r in pairs(v) do
+                            local mine = not wantSpecs
+                                or (type(r) == "table" and r.specID
+                                    and wantSpecs[tostring(r.specID)] == true)
+                            if mine then
+                                dst[k][uid] = Copy(r)
+                                entries = entries + 1
+                            end
+                        end
+                    elseif sec.perEntry and type(dst[k]) == "table" then
+                        for uid, r in pairs(v) do
+                            dst[k][uid] = Copy(r)
+                            entries = entries + 1
+                        end
+                    else
+                        dst[k] = Copy(v)
+                        specs = specs + 1
+                    end
+                end
+            end
+        end
+    end
+    if opts.settings and type(data.settings) == "table" then ApplySettings(tr, data.settings) end
+    ns.RefreshRuntime()
+    return true, specs, entries
+end
+
 -- A name no existing profile has. "Naowh Raid", then "Naowh Raid 2", and so on.
 local function FreeProfileName(base)
     base = (type(base) == "string" and base ~= "") and base or "Imported Profile"
@@ -1032,6 +1129,200 @@ function ns.ShowDiagExport(text)
     diagExport.box:SetText(diagExport.text)
     diagExport.dimmer:Show()
     diagExport.box:SetFocus()
+end
+
+-- Paste a contributor's string, pick which of their profiles to take, which specs of it you
+-- are accepting, and which of your profiles it goes into. Deliberately separate from Import:
+-- that one always lands a new profile and never touches what is already here, which is the
+-- right default and the wrong tool once somebody else maintains part of your setup.
+local profileMerge
+
+function ns.ShowProfileMergeDialog()
+    if profileMerge then
+        profileMerge.box:SetText("")
+        profileMerge.Revalidate()
+        profileMerge.dimmer:Show()
+        profileMerge.box:SetFocus()
+        return
+    end
+    local dimmer, panel = ns.MakeModal(620, 560, "profileMerge")
+    local title = ns.Font(panel, 14, "OUTLINE")
+    title:SetPoint("TOP", panel, "TOP", 0, -14)
+    title:SetText("Merge a Profile Into Yours")
+
+    local box = ns.MakeMultilineBox(panel, -40, 110)
+    local preview = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    preview:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -158)
+    preview:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, -158)
+    preview:SetJustifyH("LEFT")
+    preview:SetText("Paste their profile string above.")
+
+    local decoded, sourceName, targetName
+    local wantSettings, wantExtras = false, false
+    local specWanted = {}
+    local mergeBtn, rows = nil, {}
+
+    local function ClearRows()
+        for i = 1, #rows do rows[i]:Hide() end
+        rows = {}
+    end
+    local function Track(f) rows[#rows + 1] = f; return f end
+
+    local function SourceData()
+        if not decoded then return nil end
+        if type(decoded.profiles) == "table" then
+            return sourceName and decoded.profiles[sourceName]
+        end
+        return decoded.data
+    end
+
+    local function Names()
+        local out = {}
+        if decoded and type(decoded.profiles) == "table" then
+            for name in pairs(decoded.profiles) do
+                if name ~= "Default" then out[#out + 1] = name end
+            end
+            table.sort(out, function(a, b) return a:lower() < b:lower() end)
+        end
+        return out
+    end
+
+    local Rebuild
+    local function Picker(y, label, values, order, get, set)
+        local row = Track(CreateFrame("Frame", nil, panel))
+        row:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
+        row:SetSize(280, 44)
+        row:SetFrameLevel(panel:GetFrameLevel() + 10)
+        local lbl = ns.Font(row, 12, nil, ns.THEME.muted)
+        lbl:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+        lbl:SetText(label)
+        local dd = ns.UI.BuildDropdownControl(row, 280, row:GetFrameLevel() + 2,
+            values, order, get, set)
+        dd:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -20)
+        return row
+    end
+
+    Rebuild = function()
+        ClearRows()
+        if not decoded then return end
+        local y = -192
+
+        local sources = Names()
+        if #sources > 0 then
+            if not sourceName or not decoded.profiles[sourceName] then
+                sourceName = sources[1]
+                specWanted = {}
+            end
+            local values = {}
+            for _, n in ipairs(sources) do values[n] = n end
+            Picker(y, "Take which of their profiles", values, sources,
+                function() return sourceName end,
+                function(v) sourceName = v; specWanted = {}; Rebuild() end)
+            y = y - 50
+        else
+            sourceName = nil
+        end
+
+        local mine = ns.ListProfiles()
+        if not targetName or not ns.ProfileExists(targetName) then
+            targetName = ns.ActiveProfileName()
+        end
+        local values = {}
+        for _, n in ipairs(mine) do values[n] = n end
+        Picker(y, "Merge it into", values, mine,
+            function() return targetName end,
+            function(v) targetName = v end)
+        y = y - 54
+
+        -- The specs their string covers. Everything ticked by default: a contributor handing
+        -- back one spec normally sends a copy of the whole profile, and the ticks are what
+        -- stop the rest of their stale copy coming with it.
+        local data = SourceData()
+        local specs = data and ns.PackSpecs({ data = data }) or {}
+        if not next(specWanted) then
+            for _, s in ipairs(specs) do specWanted[s.key] = true end
+        end
+        local head = Track(CreateFrame("Frame", nil, panel))
+        head:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
+        head:SetSize(560, 16)
+        local hl = ns.Font(head, 12, nil, ns.THEME.muted)
+        hl:SetPoint("LEFT", head, "LEFT", 0, 0)
+        hl:SetText(#specs > 0 and "Take which specs" or "Their string names no specs")
+        y = y - 20
+
+        local COLS, COL_W, ROW_H = 3, 188, 22
+        for i, s in ipairs(specs) do
+            local col, line = (i - 1) % COLS, math.floor((i - 1) / COLS)
+            local row = Track(MakeToggleRow(panel, COL_W, ROW_H, panel:GetFrameLevel() + 10,
+                function() return specWanted[s.key] end,
+                function(v) specWanted[s.key] = v or nil end))
+            row.label:SetText(s.name)
+            row:SetPoint("TOPLEFT", panel, "TOPLEFT", 14 + col * COL_W, y - line * ROW_H)
+            row:Show()
+        end
+        y = y - math.max(1, math.ceil(#specs / COLS)) * ROW_H - 8
+
+        local settings = Track(MakeToggleRow(panel, 460, 22, panel:GetFrameLevel() + 10,
+            function() return wantSettings end,
+            function(v) wantSettings = v end))
+        settings.label:SetText("Also take their display, sound and behaviour settings")
+        settings:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
+        settings:Show()
+        y = y - 24
+
+        local extras = Track(MakeToggleRow(panel, 460, 22, panel:GetFrameLevel() + 10,
+            function() return wantExtras end,
+            function(v) wantExtras = v end))
+        extras.label:SetText("Also take their raid reminders and callout lines")
+        extras:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
+        extras:Show()
+        ns.Tooltip(extras, "Raid reminders and callout lines",
+            "Neither records a spec, so a spec handover leaves them alone. Tick this only "
+            .. "when you want theirs in place of yours.")
+    end
+
+    local function Revalidate()
+        decoded = nil
+        local text = box:GetText()
+        if text and text:gsub("%s+", "") ~= "" then
+            local payload, describe = ns.DecodePack(text)
+            if payload then
+                decoded = payload
+                preview:SetText(describe or "Ready to merge.")
+            else
+                preview:SetText("|cffff6060" .. tostring(describe
+                    or "That string could not be read.") .. "|r")
+            end
+        else
+            preview:SetText("Paste their profile string above.")
+        end
+        Rebuild()
+        if mergeBtn then mergeBtn:SetAlpha(decoded and 1 or 0.4) end
+    end
+    box:SetScript("OnTextChanged", function() Revalidate() end)
+
+    mergeBtn = ns.Button(panel, "Merge", 130, 26, function()
+        if not decoded then return end
+        local ok, a, b = ns.MergeProfileFromPack(decoded, sourceName, targetName,
+            { settings = wantSettings, extras = wantExtras, specs = specWanted })
+        if not ok then
+            preview:SetText("|cffff6060" .. tostring(a) .. "|r")
+            return
+        end
+        ns.Print(("merged into |cff0091ed%s|r: %d spec sections and %d reminders. Specs you "
+            .. "did not tick are exactly as they were."):format(
+            tostring(targetName), a or 0, b or 0))
+        dimmer:Hide()
+        if ns.UI and ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
+    end)
+    mergeBtn:SetPoint("BOTTOM", panel, "BOTTOM", -70, 14)
+    ns.Button(panel, "Cancel", 110, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 70, 14)
+
+    profileMerge = { dimmer = dimmer, box = box, Revalidate = Revalidate }
+    Revalidate()
+    dimmer:Show()
+    box:SetFocus()
 end
 
 function ns.ShowPackImport()

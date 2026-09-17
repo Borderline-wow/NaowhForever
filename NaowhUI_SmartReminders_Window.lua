@@ -11,25 +11,57 @@ local T = ns.THEME
 local UI = ns.UI
 
 local WINDOW_W, WINDOW_H = 1000, 640
-local TITLE_H, TAB_H = 28, 30
+local TITLE_H, TAB_H, SUB_H = 28, 30, 26
 
-local PAGES = { "Smart Reminders Setup", "Cooldown Presets", "Dungeon Bosses",
-    "Raid Bosses", "Trash & Debuffs", "Profiles" }
+-- Two levels. The top strip is the three things this addon is, and everything that
+-- configures a reminder sits under the first of them rather than spread across six
+-- same-weight tabs where "Cooldown Presets" read as a peer of "Profiles".
+local TOP_PAGES = { "Smart Reminders", "Custom Notes", "Profiles" }
+local SUB_PAGES = {
+    ["Smart Reminders"] = { "Setup", "Cooldown Presets", "Dungeon Bosses",
+        "Raid Bosses", "Trash", "Debuffs" },
+}
+
+-- The page a top tab opens on, and the one whose rows are reused rather than rebuilt.
+local SETUP_PAGE = "Setup"
+
+-- Sub page -> the top tab it belongs to, and every page key the window can show. A top
+-- page with no children is its own page key.
+local PARENT_OF, ALL_PAGES = {}, {}
+for _, top in ipairs(TOP_PAGES) do
+    local subs = SUB_PAGES[top]
+    if subs then
+        for _, sub in ipairs(subs) do
+            PARENT_OF[sub] = top
+            ALL_PAGES[#ALL_PAGES + 1] = sub
+        end
+    else
+        ALL_PAGES[#ALL_PAGES + 1] = top
+    end
+end
+
+local function LandingPage(top)
+    local subs = SUB_PAGES[top]
+    return subs and subs[1] or top
+end
 
 -- Pages that are built but not ready to be used. The tab stays in the strip, dimmed, and
 -- opens a note instead of the page: removing it would leave a gap people ask about, and
 -- letting it open half-finished work is worse than saying so.
 local COMING_SOON = {
+    ["Custom Notes"] = "Your own note lines, driven by the same triggers the reminders "
+        .. "use. Not finished yet.\n\nNothing is missing in the meantime: reminders still "
+        .. "carry their own text, set per reminder from the boss and trash pages.",
     ["Ability Reminders"] = "Every reminder for one boss in a single list, instead of one "
         .. "boss page at a time. Not finished yet.\n\nNothing is missing in the meantime: "
         .. "the same reminders are authored per boss from the Dungeon Bosses and Raid "
         .. "Bosses tabs, which is where this page reads them from.",
 }
 
-local window, scrollFrame, scrollChild
-local tabButtons = {}
+local window, scrollFrame, scrollChild, tabLine
+local tabButtons, subButtons, subRows = {}, {}, {}
 local wrappers = {}          -- pageName -> built wrapper frame
-local currentPage = PAGES[1]
+local currentPage = SETUP_PAGE
 local pendingRefresh
 local onShowCallbacks, onHideCallbacks = {}, {}
 
@@ -63,8 +95,10 @@ local function BuildPageInto(pageName, parent)
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, false) or -6
     elseif pageName == "Raid Bosses" then
         return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, true) or -6
-    elseif pageName == "Trash & Debuffs" then
+    elseif pageName == "Trash" then
         return ns.BuildIntegrationsPage and ns.BuildIntegrationsPage(parent, -6) or -6
+    elseif pageName == "Debuffs" then
+        return ns.BuildDebuffsPage and ns.BuildDebuffsPage(parent, -6) or -6
     elseif pageName == "Ability Reminders" then
         return ns.BuildCustomRemindersPage and ns.BuildCustomRemindersPage(parent, -6) or -6
     else
@@ -72,25 +106,48 @@ local function BuildPageInto(pageName, parent)
     end
 end
 
-local function PaintTabs()
-    for name, btn in pairs(tabButtons) do
-        local active = (name == currentPage)
-        -- A page that cannot be used reads as dimmer than an inactive one, and keeps that
-        -- look even while it is the page you are on, since selecting it changes nothing
-        -- about whether it works.
-        if COMING_SOON[name] then
-            btn.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 0.45)
-        else
-            btn.label:SetTextColor(active and T.fg.r or T.muted.r,
-                active and T.fg.g or T.muted.g,
-                active and T.fg.b or T.muted.b, 1)
-        end
-        btn.marker:SetShown(active)
+local function ActiveTop()
+    return PARENT_OF[currentPage] or currentPage
+end
+
+-- A page that cannot be used reads as dimmer than an inactive one, and keeps that look
+-- even while it is the page you are on, since selecting it changes nothing about whether
+-- it works.
+local function PaintTab(btn, name, active)
+    if COMING_SOON[name] then
+        btn.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 0.45)
+    else
+        btn.label:SetTextColor(active and T.fg.r or T.muted.r,
+            active and T.fg.g or T.muted.g,
+            active and T.fg.b or T.muted.b, 1)
     end
+    btn.marker:SetShown(active)
+end
+
+local function PaintTabs()
+    local top = ActiveTop()
+    for name, btn in pairs(tabButtons) do PaintTab(btn, name, name == top) end
+    for name, btn in pairs(subButtons) do PaintTab(btn, name, name == currentPage) end
+end
+
+-- The sub strip only exists for a top tab that has children, so the content below has to
+-- start at a different height depending on which one is open rather than leaving an empty
+-- band on the pages that have none.
+local function LayoutStrips()
+    local top = ActiveTop()
+    for name, row in pairs(subRows) do row:SetShown(name == top) end
+    local offset = TITLE_H + TAB_H + (subRows[top] and SUB_H or 0)
+    tabLine:ClearAllPoints()
+    tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -offset)
+    tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -offset)
+    scrollFrame:ClearAllPoints()
+    scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", 10, -(offset + 5))
+    scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, 10)
 end
 
 local function ShowPage(pageName)
     currentPage = pageName
+    LayoutStrips()
     for name, w in pairs(wrappers) do
         w:SetShown(name == pageName)
     end
@@ -105,7 +162,7 @@ local function ShowPage(pageName)
     local wrapper = wrappers[pageName]
     if wrapper._dirty then
         wrapper._dirty = nil
-        if pageName == PAGES[1] then UI.BeginReusableRows(wrapper) end
+        if pageName == SETUP_PAGE then UI.BeginReusableRows(wrapper) end
         local usedY = BuildPageInto(pageName, wrapper)
         wrapper:SetHeight(math.abs(usedY) + 30)
     end
@@ -116,7 +173,7 @@ end
 
 local function InvalidatePages()
     for name, w in pairs(wrappers) do
-        if name == PAGES[1] then
+        if name == SETUP_PAGE then
             w._dirty = true
         else
             w:Hide()
@@ -236,26 +293,59 @@ local function CreateWindow()
     version:SetText("v" .. (C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or "unknown"))
 
     -- Tab strip, in the same visual language as the modal editors' own tabs: a button
-    -- with an accent underline marking the active page.
-    local tx = 10
-    for _, name in ipairs(PAGES) do
-        local btn = CreateFrame("Button", nil, window)
-        local width = name == PAGES[1] and 176 or 128
-        btn:SetSize(width, TAB_H)
-        btn:SetPoint("TOPLEFT", window, "TOPLEFT", tx, -TITLE_H)
-        btn.label = ns.Font(btn, 12, nil, T.muted)
+    -- with an accent underline marking the active page. Widths are measured off the label
+    -- rather than fixed, since the two strips carry names of very different lengths and a
+    -- fixed width leaves the short ones swimming.
+    local function MakeTab(parent, name, height, size, pad, onClick)
+        local btn = CreateFrame("Button", nil, parent)
+        btn.label = ns.Font(btn, size, nil, T.muted)
         btn.label:SetPoint("CENTER")
         btn.label:SetText(name)
+        btn:SetSize(math.max(72, math.ceil(btn.label:GetStringWidth()) + pad), height)
         btn.marker = ns.Solid(btn, "OVERLAY", T.accent, 1)
-        btn.marker:SetPoint("BOTTOMLEFT", 16, 0)
-        btn.marker:SetPoint("BOTTOMRIGHT", -16, 0)
+        btn.marker:SetPoint("BOTTOMLEFT", 10, 0)
+        btn.marker:SetPoint("BOTTOMRIGHT", -10, 0)
         btn.marker:SetHeight(2)
         btn.marker:Hide()
-        btn:SetScript("OnClick", function() ShowPage(name) end)
-        tabButtons[name] = btn
-        tx = tx + width + 4
+        btn:SetScript("OnClick", onClick)
+        return btn
     end
-    local tabLine = ns.Solid(window, "ARTWORK", T.line, 1)
+
+    local tx = 10
+    for _, name in ipairs(TOP_PAGES) do
+        local btn = MakeTab(window, name, TAB_H, 13, 44,
+            function() ShowPage(LandingPage(name)) end)
+        btn:SetPoint("TOPLEFT", window, "TOPLEFT", tx, -TITLE_H)
+        tabButtons[name] = btn
+        tx = tx + btn:GetWidth() + 4
+    end
+
+    -- One strip per top tab that has children; only the open one is shown, and the content
+    -- below moves up when there is none. Built with the window rather than on demand: a
+    -- strip rebuilt per page change loses nothing but costs a frame's worth of churn on
+    -- every click.
+    for _, top in ipairs(TOP_PAGES) do
+        local subs = SUB_PAGES[top]
+        if subs then
+            local row = CreateFrame("Frame", nil, window)
+            row:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -(TITLE_H + TAB_H))
+            row:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -(TITLE_H + TAB_H))
+            row:SetHeight(SUB_H)
+            ns.Solid(row, "BACKGROUND", T.panel, 1):SetAllPoints()
+            local sx = 16
+            for _, name in ipairs(subs) do
+                local btn = MakeTab(row, name, SUB_H, 11, 30,
+                    function() ShowPage(name) end)
+                btn:SetPoint("TOPLEFT", row, "TOPLEFT", sx, 0)
+                subButtons[name] = btn
+                sx = sx + btn:GetWidth() + 2
+            end
+            subRows[top] = row
+            row:Hide()
+        end
+    end
+
+    tabLine = ns.Solid(window, "ARTWORK", T.line, 1)
     tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -(TITLE_H + TAB_H))
     tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -(TITLE_H + TAB_H))
     tabLine:SetHeight(1)
@@ -300,8 +390,14 @@ end
 -- so setting it before Show() is the whole mechanism.
 function ns.OpenOptionsWindow(pageName)
     if pageName then
-        for _, name in ipairs(PAGES) do
-            if name == pageName then currentPage = pageName break end
+        -- Either level is accepted: a caller naming a top tab lands on whichever page that
+        -- tab opens, which is what "open on Smart Reminders" is asking for.
+        if SUB_PAGES[pageName] then
+            currentPage = LandingPage(pageName)
+        else
+            for _, name in ipairs(ALL_PAGES) do
+                if name == pageName then currentPage = pageName break end
+            end
         end
     end
     if not window then CreateWindow() end

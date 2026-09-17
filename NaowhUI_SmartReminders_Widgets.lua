@@ -729,6 +729,8 @@ function UI.SoundPathFor(key)
     -- Dedicated files keep racial gating separate from previews and other sounds.
     if key == "voice:stoneform-ready" then return voicePath .. "stoneform-ready.ogg" end
     if key == "voice:stoneform-preview" then return voicePath .. "stoneform-preview.ogg" end
+    if key == "voice:shadowmeld-ready" then return voicePath .. "shadowmeld-ready.ogg" end
+    if key == "voice:shadowmeld-preview" then return voicePath .. "shadowmeld-preview.ogg" end
     for _, voice in ipairs(bundledVoices) do
         if key == voice.key then return voicePath .. voice.file end
     end

@@ -1483,6 +1483,9 @@ function ns.HideIntegrationReminders(previewOnly)
             end
         end
     end
+    -- Integration reminders draw through the authored-reminder frame, not these regions;
+    -- the loop above only still matters for anything saved before that moved.
+    if ns.HideIntegrationCustomReminder then ns.HideIntegrationCustomReminder(previewOnly) end
 end
 
 -- Capture ownership, not just the entry: an editor replaces/deletes the table value,
