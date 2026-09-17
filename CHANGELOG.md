@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.1
 
 ### Added
 - Boss casts that name a player now show that player's name on the alert in class colour,
