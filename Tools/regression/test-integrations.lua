@@ -188,6 +188,9 @@ Case("preset and custom-text previews use addon voice volume, with silence diagn
     e.env.C_Timer = { NewTimer = function(delay)
         alert.dur = delay; return { Cancel = function() end }
     end }
+    -- The options window fades while a preview shows, so the callout is read where it will
+    -- appear rather than through the page the Test button is on.
+    e.ns.DimOptionsWindow = function(on) alert.dimmed = on end
     -- Two slots left showing whatever the spec's preset last built.
     alert.slots = { { alpha = 1 }, { alpha = 1 } }
     for _, slot in ipairs(alert.slots) do
@@ -202,6 +205,7 @@ Case("preset and custom-text previews use addon voice volume, with silence diagn
     e.I.Preview(r)
     -- No preset: the rule's own line on the alert's authored-line row, no slot rebuild.
     assert(alert.shown and alert.line == "Move out" and alert.lineShown)
+    assert(alert.dimmed == true, "a preview fades the options window out of its own way")
     assert(alert.preset == nil and alert.dur == r.display.dur)
     -- A custom line shows alone: a defensive left in the slots from the spec's own preset
     -- is not part of what this rule asked for.

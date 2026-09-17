@@ -360,6 +360,11 @@ local function CreateWindow()
     scrollFrame:SetScrollChild(scrollChild)
 
     window:SetScript("OnShow", function(self)
+        -- A preview fades this window and restores it when the callout ends. Reopening
+        -- clears it outright, so a preview interrupted by a reload or a close can never
+        -- leave the window sitting at 15% with no way back.
+        self:SetAlpha(1)
+        ns.previewDimmed = nil
         if not InCombatLockdown() then
             self:EnableKeyboard(true)
             self:SetPropagateKeyboardInput(true)
@@ -410,6 +415,16 @@ end
 -- Anchor config mode draws its movers and its own toolbar at HIGH, and this window is
 -- DIALOG, so the two cannot share the screen. Config mode steps the window out of the
 -- way and puts it back on exit.
+-- A Test fires the alert where the alert lives, which for most people is somewhere near
+-- the middle of the screen -- underneath this window. The preview is raised above it so it
+-- is visible at all, and then lands on top of whatever page is open and reads as a glitch.
+-- Fading the window for the few seconds it shows puts the callout back in its own space
+-- without moving it, which is the one thing a position preview must not do.
+function ns.DimOptionsWindow(dim)
+    if not window then return end
+    window:SetAlpha(dim and 0.15 or 1)
+end
+
 function ns.StashOptionsWindow()
     if window and window:IsShown() then
         window:Hide()
