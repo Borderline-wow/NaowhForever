@@ -9,6 +9,12 @@
   the game will say who is targeted, and display only: the client answers who it is
   without letting an addon read the answer, so the voice cannot follow it.
 
+- /nutank share exports your whole active profile even when it came from somebody else's
+  pack, for handing work back to the curator whose profile it is. The Share button on the
+  Profiles tab still refuses that, so casual resharing meets the same wall as before, and
+  the refusal now names this command for the people it was wrongly catching. A pack sent
+  back this way is marked with whose it started as, and the import preview says so.
+
 ### Changed
 - Trash and debuff rules save as you change them. The Save button is gone; a dropdown or
   switch writes through immediately and a text box writes when you leave it, so a spell id

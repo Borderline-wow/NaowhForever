@@ -273,15 +273,31 @@ local function DataFromProfile(tr)
     return data, any
 end
 
-function ns.ExportPack(packName, author)
+-- allowImported is for handing work BACK to the curator whose pack this came from, which
+-- is the one case the no-resharing rule gets wrong. Somebody maintaining a spec inside
+-- Robin's profile has imported it by definition, so the ordinary refusal below blocks
+-- exactly the person it should not. The Share button never passes it, so casual resharing
+-- still meets the refusal; the slash command does, and marks what it produces.
+--
+-- The mark is the point. A pack exported this way carries derivedFrom, so the curator
+-- receiving it can see it started life as their own and was worked on, rather than taking
+-- it for an original. This is a rule about attribution, not a lock: anyone determined can
+-- copy the saved variables file, and nothing here pretends otherwise.
+function ns.ExportPack(packName, author, allowImported)
     local Ser, LD = Codec()
     if not Ser then return nil, "The serializer libraries are missing from this build." end
 
     local db = ns.DB()
+    local derivedFrom
     if type(db.importedPack) == "table" then
-        return nil, ("This profile contains an imported pack (%s by %s), so it cannot "
-            .. "be shared onward. Build your own profile to share one."):format(
-            db.importedPack.name, db.importedPack.author)
+        if not allowImported then
+            return nil, ("This profile contains an imported pack (%s by %s), so it cannot "
+                .. "be shared onward. Build your own profile to share one. If you are "
+                .. "handing changes back to its author, use /nutank share."):format(
+                db.importedPack.name, db.importedPack.author)
+        end
+        derivedFrom = { name = tostring(db.importedPack.name),
+            author = tostring(db.importedPack.author) }
     end
     local data, any = DataFromProfile(db)
     if not any then return nil, "There is nothing to export yet." end
@@ -291,6 +307,7 @@ function ns.ExportPack(packName, author)
         name    = (packName and packName ~= "") and packName or "Reminder Pack",
         author  = (author and author ~= "") and author or (UnitName and UnitName("player")) or "unknown",
         made    = date and date("%Y-%m-%d") or "",
+        derivedFrom = derivedFrom,
         data    = data,
     }
     local ok, serialized = pcall(Ser.Serialize, payload)
@@ -402,6 +419,10 @@ function ns.DescribeProfilePack(str, opts)
     local lines = {}
     lines[#lines + 1] = ("|cff0091ed%s|r by %s"):format(
         tostring(payload.name), tostring(payload.author))
+    if type(payload.derivedFrom) == "table" then
+        lines[#lines + 1] = ("|cffF0A830Worked on from your own pack|r (%s by %s)."):format(
+            tostring(payload.derivedFrom.name), tostring(payload.derivedFrom.author))
+    end
     lines[#lines + 1] = ("Will create %d new profile%s:"):format(
         #profiles, #profiles == 1 and "" or "s")
     for i = 1, #profiles do
@@ -541,9 +562,17 @@ function ns.DecodePack(str)
         return nil, "The pack is empty."
     end
 
-    local desc = ("|cff0091ed%s|r by %s%s|n%s"):format(
+    -- A pack handed back by somebody maintaining part of your own says so, so a return
+    -- is never mistaken for an original. Set only by /nutank share.
+    local derived = ""
+    if type(payload.derivedFrom) == "table" then
+        derived = ("|n|cffF0A830Worked on from your own pack|r (%s by %s)."):format(
+            tostring(payload.derivedFrom.name), tostring(payload.derivedFrom.author))
+    end
+    local desc = ("|cff0091ed%s|r by %s%s%s|n%s"):format(
         tostring(payload.name), tostring(payload.author),
         type(payload.made) == "string" and payload.made ~= "" and (" (" .. payload.made .. ")") or "",
+        derived,
         table.concat(parts, multi and "|n" or ", "))
     return payload, desc
 end

@@ -5614,6 +5614,29 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         return
     end
 
+    -- Handing work back to the curator whose profile this is. Not on the Profiles tab on
+    -- purpose: the button there is for sharing something you built, and it refuses a profile
+    -- that came from somebody else's pack, which is the right answer for everyone except the
+    -- handful of people maintaining part of that pack. They get told to type this by the
+    -- refusal itself, so nobody has to be handed a secret.
+    if arg == "share" then
+        if not ns.ExportPack then
+            ns.Print("this build has no profile export.")
+            return
+        end
+        local str, err = ns.ExportPack("Contributed changes",
+            UnitName and UnitName("player"), true)
+        if not str then ns.Print("|cffff6060" .. tostring(err) .. "|r") return end
+        if ns.ShowDiagExport then
+            ns.ShowDiagExport(str)
+            ns.Print("your whole active profile, ready to send back. It is marked as worked "
+                .. "on from their pack, so they can see what it is.")
+        else
+            ns.Print("|cffff6060nowhere to show the string in this build.|r")
+        end
+        return
+    end
+
     if arg == "trace" then
         local t = TRDB()
         t.trace = not t.trace and true or nil
