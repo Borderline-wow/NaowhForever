@@ -104,7 +104,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
     if kind == "exboss" then
         duration = Commit(Box(test, "Display duration (1-15 seconds)", d.dur or 3, -100, 268))
         lead = Commit(Box(cast, "Warn before readiness (0-30 seconds)", t.timeleft or 5, -124, 268))
-        Label(cast, "Timing predicts ability readiness. It does not confirm a cast or its target.", 14, -184, 268)
+        Label(cast, "Timing predicts when the ability is ready. The cast itself is watched separately, which is where a target name can come from.", 14, -184, 268)
     else
         spell = Commit(Box(cast, "Debuff spell ID", spellID, -120, 268))
         map = Commit(Box(cast, "Instance ID (0 = every dungeon / raid)", mapID, -176, 268))
@@ -128,6 +128,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
             function(v) preset = v; AutoSave() end, -242, 268)
     end
     local sound, tts = d.sound or "none", d.tts == true
+    local castRepeat, castAudio = d.castRepeat ~= false, d.castAudio == true
     local paths, names, order = UI.BuildAlertSoundTables()
     UI.AppendSharedMediaSounds(paths, names, order)
     -- Named for whose voice it is, matching Naowh's other sound files. The keys are left
@@ -144,10 +145,20 @@ local function Editor(parent, uid, kind, ability, dungeon)
     if kind == "exboss" then
         Toggle(voice, "Speak callout", function() return tts end,
             function(v) tts = v; AutoSave() end, -216, 268)
+        Toggle(voice, "Show target on cast", function() return castRepeat end,
+            function(v) castRepeat = v; AutoSave() end, -252, 268)
+        Toggle(voice, "Sound on cast", function() return castAudio end,
+            function(v) castAudio = v; AutoSave() end, -288, 268)
+        Label(voice, "Only for abilities that name a target.", 14, -318, 268)
     end
     local status = Label(parent, "Changes save as you make them. Test previews your current choices.", 0, -66 - BODY_H - 10, 604)
     local function Value()
         local id, instanceID = spellID, mapID
+        -- Written out only when it differs from the default, so an untouched rule and a
+        -- pack made before the switch existed both read the same as a new one. Spelled
+        -- as an if: `cond and false or nil` yields nil on both branches.
+        local storedRepeat
+        if kind == "exboss" and not castRepeat then storedRepeat = false end
         if spell then id = tonumber(spell:GetText()) end
         if map then instanceID = tonumber(map:GetText()) end
         return { name = name:GetText(), enabled = enabled, healerReminder = healer or nil,
@@ -160,6 +171,8 @@ local function Editor(parent, uid, kind, ability, dungeon)
             display = { type = d.type or "icon",
                 text = d.text or (kind == "exboss" and "Use a defensive" or ""), sound = sound,
                 spellID = d.spellID or id, dur = kind == "exboss" and tonumber(duration:GetText()) or 3,
+                castRepeat = storedRepeat,
+                castAudio = kind == "exboss" and castAudio or nil,
                 tts = kind == "exboss" and tts or false } }
     end
     -- Refuses rather than writing a half-finished rule: a spell id mid-typing is a valid

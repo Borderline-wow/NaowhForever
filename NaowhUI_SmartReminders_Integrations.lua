@@ -109,6 +109,8 @@ function I.ValidRule(r)
     if not Number(d.dur, 1, 15) or type(d.text) ~= "string" or #d.text > 200 then return false end
     if d.sound ~= nil and (type(d.sound) ~= "string" or #d.sound > 200) then return false end
     if d.tts ~= nil and type(d.tts) ~= "boolean" then return false end
+    if d.castRepeat ~= nil and type(d.castRepeat) ~= "boolean" then return false end
+    if d.castAudio ~= nil and type(d.castAudio) ~= "boolean" then return false end
     if d.type ~= "icon" and d.type ~= "text" then return false end
     if d.spellID ~= nil and (not Number(d.spellID, 1, 100000000) or d.spellID % 1 ~= 0) then return false end
     if r.preset ~= nil and (type(r.preset) ~= "string" or #r.preset > 120) then return false end
@@ -129,6 +131,27 @@ local function Eligible(r, kind)
     local map, instance = Map()
     return (instance == "party" or instance == "raid")
         and (r.trigger.mapID == 0 or r.trigger.mapID == map)
+end
+I.Eligible = Eligible
+
+-- Trash rules keyed by the ability they watch, for the cast handler in the main file.
+--
+-- A trash rule fires off a prediction, seconds before the ability goes out. That is the
+-- whole point of one, and it is also why it can never name a target: at the moment it
+-- shows, nobody is casting yet and the client has nothing to answer with. The real cast
+-- arrives later on a nameplate unit, which is the only moment the question can be asked,
+-- so these are watched a second time there.
+function I.CastWatchRules()
+    local out
+    for uid, rule in pairs(I.Rules(false) or {}) do
+        if Eligible(rule, "exboss") and rule.display.castRepeat ~= false then
+            out = out or {}
+            local list = out[rule.trigger.spellID]
+            if not list then list = {}; out[rule.trigger.spellID] = list end
+            list[#list + 1] = { uid = uid, r = rule }
+        end
+    end
+    return out
 end
 local function ClearPending(id)
     local entries = pending[id]
@@ -413,6 +436,9 @@ function I.Refresh()
     if running then Connect()
     else I.trashStatus = "No enabled trash rules for this instance and spec." end
     RefreshSounds()
+    -- The cast watch is built from these rules, and this is the one place that knows they
+    -- changed: zoning, a spec swap and every edit all land here.
+    if ns.RefreshCastWatch then ns.RefreshCastWatch() end
     if I.OnStatusChanged then I.OnStatusChanged() end
 end
 function I.Save(uid, rule)

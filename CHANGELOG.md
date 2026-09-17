@@ -7,6 +7,10 @@
   with YOU beside it when the cast is on you. Two switches in Setup to turn either off.
   Display only; the game does not let an addon read who was named, so the voice cannot
   follow it.
+- Trash callouts get the same treatment. A trash rule warns ahead of the cast, so there is
+  nobody to name yet when it fires; it now comes back at the cast itself carrying the
+  name. Only for abilities that name a target, and silent unless you ask for it. Show
+  target on cast and Sound on cast, per rule, on the Trash tab.
 - Copy From Spec on the Debuff Alerts tab, for moving debuff alerts between specs.
 - `/nutank share` exports your profile even when it came from someone else's pack, for
   handing changes back to whoever maintains it. The pack is marked so they can see it is
