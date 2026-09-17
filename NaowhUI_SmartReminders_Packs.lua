@@ -1004,15 +1004,85 @@ end
 -- row keeps working unchanged; .label and .toggle are exposed for a caller that needs to
 -- re-set the text or rebuild the toggle itself (a row whose get/set closes over something
 -- that changes identity between builds, like which spec a row represents).
-local function MakeToggleRow(parent, w, h, frameLevel, get, set)
+local function MakeToggleRow(parent, w, h, frameLevel, get, set, toggleW, toggleH)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(w, h)
     if frameLevel then row:SetFrameLevel(frameLevel) end
-    row.toggle = ns.UI.BuildToggleControl(row, row:GetFrameLevel() + 1, get, set)
+    row.toggle = ns.UI.BuildToggleControl(row, row:GetFrameLevel() + 1, get, set,
+        toggleW, toggleH)
     row.toggle:SetPoint("LEFT", row, "LEFT", 0, 0)
     row.label = ns.Font(row, 12, nil)
     row.label:SetPoint("LEFT", row.toggle, "RIGHT", 8, 0)
     return row
+end
+
+-- Spec rows in both pack dialogs read as the spec plus its role, "Protection (Tank)".
+-- Naming the class instead left three Warrior rows all reading "Warrior (DPS)" with no
+-- way to tell Arms from Fury, which is the whole point of ticking specs one at a time.
+--
+-- GetSpecializationInfoByID's positional returns are
+-- (id, name, description, icon, role, primaryStat, className) -- the same call
+-- ns.SpecName already trusts for className at 7. The spec's own name is at 2, and the
+-- class is still read because it decides the row's color and its place in the order.
+local ROLE_LABEL = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
+local ROLE_SORT = { TANK = 1, HEALER = 2, DAMAGER = 3 }
+local function SpecInfo(specKey)
+    local id = tonumber(specKey)
+    if not (id and GetSpecializationInfoByID) then return nil, nil, nil end
+    local ok, _, name, _, _, role, _, className = pcall(GetSpecializationInfoByID, id)
+    if not ok then return nil, nil, nil end
+    return name, className, role
+end
+-- classID doubles as the canonical class order (Warrior..Evoker) the reference grid
+-- uses; GetClassInfo(1..GetNumClasses()) already walks classes in that exact order, the
+-- same source ns.PlayableClasses trusts for its own token lookup.
+local classLookup
+local function ClassInfo(className)
+    if not classLookup then
+        classLookup = {}
+        if GetNumClasses and GetClassInfo then
+            for i = 1, GetNumClasses() do
+                local displayName, token = GetClassInfo(i)
+                if displayName and token then
+                    classLookup[displayName] = { token = token, order = i }
+                end
+            end
+        end
+    end
+    return className and classLookup[className]
+end
+-- Grouped by class in Blizzard's own class order, then by role within a class (Tank,
+-- Healer, DPS). Sorted alphabetically, "Blood Death Knight" landed nowhere near the rest
+-- of its class, which scattered every class apart instead of keeping it together.
+local function SortSpecs(specs)
+    for i = 1, #specs do
+        specs[i].specName, specs[i].className, specs[i].role = SpecInfo(specs[i].key)
+    end
+    table.sort(specs, function(a, b)
+        local ca, cb = ClassInfo(a.className), ClassInfo(b.className)
+        local oa, ob = ca and ca.order or 99, cb and cb.order or 99
+        if oa ~= ob then return oa < ob end
+        local ra, rb = ROLE_SORT[a.role] or 9, ROLE_SORT[b.role] or 9
+        if ra ~= rb then return ra < rb end
+        return a.name < b.name
+    end)
+    return specs
+end
+-- A bare spec name is not unique across classes -- Protection, Frost, Holy and
+-- Restoration each belong to two -- so the class survives as the row's color, and the
+-- class-order grouping keeps each pair well apart on the page. Falls back to the plain
+-- name and the theme's own color for a whole-file pack's profile rows, or a spec too new
+-- for this client to resolve.
+local function PaintSpecLabel(label, spec)
+    if spec.specName and spec.role then
+        label:SetText(("%s (%s)"):format(spec.specName, ROLE_LABEL[spec.role] or spec.role))
+    else
+        label:SetText(spec.name)
+    end
+    local classColors = RAID_CLASS_COLORS or CUSTOM_CLASS_COLORS
+    local ci = spec.className and ClassInfo(spec.className)
+    local color = (ci and classColors and classColors[ci.token]) or ns.THEME.fg
+    label:SetTextColor(color.r, color.g, color.b, 1)
 end
 
 -- Built once and reused. ns.MakeModal hands out a fresh dimmer and panel on every call
@@ -1198,12 +1268,29 @@ function ns.ShowProfileMergeDialog()
 
     local decoded, sourceName, targetName
     local wantSettings, wantExtras = false, false
-    local specWanted = {}
+    local specWanted, specSeeded = {}, false
     local mergeBtn, rows = nil, {}
+    -- Built once and repositioned, not rebuilt: Rebuild runs on every keystroke in the
+    -- paste box, and a frame per spec per keystroke is 40 the client never gives back.
+    local specRows, rowKeys = {}, {}
+    local selectAllBtn, deselectAllBtn
+
+    -- Drives specWanted directly and repaints each switch rather than clicking them, so a
+    -- string carrying every spec is one pass however many rows it came to.
+    local function SetAllWanted(on)
+        for i = 1, #specRows do
+            if specRows[i]:IsShown() then
+                specWanted[rowKeys[i]] = on or nil
+                specRows[i].toggle._refreshValue()
+            end
+        end
+    end
 
     local function ClearRows()
         for i = 1, #rows do rows[i]:Hide() end
         rows = {}
+        for i = 1, #specRows do specRows[i]:Hide() end
+        if selectAllBtn then selectAllBtn:Hide(); deselectAllBtn:Hide() end
     end
     local function Track(f) rows[#rows + 1] = f; return f end
 
@@ -1245,6 +1332,7 @@ function ns.ShowProfileMergeDialog()
         ClearRows()
         if not decoded then
             panel:SetHeight(BASE_HEIGHT)
+            specWanted, specSeeded = {}, false
             return
         end
         local y = -192
@@ -1253,13 +1341,13 @@ function ns.ShowProfileMergeDialog()
         if #sources > 0 then
             if not sourceName or not decoded.profiles[sourceName] then
                 sourceName = sources[1]
-                specWanted = {}
+                specWanted, specSeeded = {}, false
             end
             local values = {}
             for _, n in ipairs(sources) do values[n] = n end
             Picker(y, "Take which of their profiles", values, sources,
                 function() return sourceName end,
-                function(v) sourceName = v; specWanted = {}; Rebuild() end)
+                function(v) sourceName = v; specWanted, specSeeded = {}, false; Rebuild() end)
             y = y - 50
         else
             sourceName = nil
@@ -1280,9 +1368,12 @@ function ns.ShowProfileMergeDialog()
         -- back one spec normally sends a copy of the whole profile, and the ticks are what
         -- stop the rest of their stale copy coming with it.
         local data = SourceData()
-        local specs = data and ns.PackSpecs({ data = data }) or {}
-        if not next(specWanted) then
+        local specs = data and SortSpecs(ns.PackSpecs({ data = data })) or {}
+        -- Seeded once per string rather than whenever the set happens to be empty, so
+        -- Deselect All is not undone by the next keystroke in the paste box.
+        if not specSeeded then
             for _, s in ipairs(specs) do specWanted[s.key] = true end
+            specSeeded = true
         end
         local head = Track(CreateFrame("Frame", nil, panel))
         head:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
@@ -1290,15 +1381,36 @@ function ns.ShowProfileMergeDialog()
         local hl = ns.Font(head, 12, nil, ns.THEME.muted)
         hl:SetPoint("LEFT", head, "LEFT", 0, 0)
         hl:SetText(#specs > 0 and "Take which specs" or "Their string names no specs")
+
+        -- On the header's own line rather than a row of their own: taking one spec out of
+        -- a string carrying all 40 was otherwise 39 clicks, and the grid is tall already.
+        if not selectAllBtn then
+            selectAllBtn = ns.Button(panel, "Select All", 84, 20,
+                function() SetAllWanted(true) end)
+            deselectAllBtn = ns.Button(panel, "Deselect All", 96, 20,
+                function() SetAllWanted(false) end)
+            selectAllBtn:SetPoint("TOPRIGHT", deselectAllBtn, "TOPLEFT", -6, 0)
+        end
+        deselectAllBtn:ClearAllPoints()
+        deselectAllBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, y + 2)
+        selectAllBtn:SetShown(#specs > 0)
+        deselectAllBtn:SetShown(#specs > 0)
         y = y - 20
 
         local COLS, COL_W, ROW_H = 3, 188, 22
         for i, s in ipairs(specs) do
             local col, line = (i - 1) % COLS, math.floor((i - 1) / COLS)
-            local row = Track(MakeToggleRow(panel, COL_W, ROW_H, panel:GetFrameLevel() + 10,
-                function() return specWanted[s.key] end,
-                function(v) specWanted[s.key] = v or nil end))
-            row.label:SetText(s.name)
+            rowKeys[i] = s.key
+            local row = specRows[i]
+            if not row then
+                row = MakeToggleRow(panel, COL_W, ROW_H, panel:GetFrameLevel() + 10,
+                    function() return specWanted[rowKeys[i]] end,
+                    function(v) specWanted[rowKeys[i]] = v or nil end, 28, 14)
+                specRows[i] = row
+            end
+            row.toggle._refreshValue()
+            PaintSpecLabel(row.label, s)
+            row:ClearAllPoints()
             row:SetPoint("TOPLEFT", panel, "TOPLEFT", 14 + col * COL_W, y - line * ROW_H)
             row:Show()
         end
@@ -1437,42 +1549,6 @@ function ns.ShowPackImport()
     specHead:SetJustifyH("LEFT")
     specHead:Hide()
 
-    -- Rows read as the spec plus its role, "Protection (Tank)". Naming the class instead
-    -- left three Warrior rows all reading "Warrior (DPS)" with no way to tell Arms from
-    -- Fury, which is the whole point of ticking specs one at a time.
-    --
-    -- GetSpecializationInfoByID's positional returns are
-    -- (id, name, description, icon, role, primaryStat, className) -- the same call
-    -- ns.SpecName already trusts for className at 7. The spec's own name is at 2, and the
-    -- class is still read because it decides the row's color and its place in the order.
-    local ROLE_LABEL = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
-    local ROLE_SORT = { TANK = 1, HEALER = 2, DAMAGER = 3 }
-    local function SpecInfo(specKey)
-        local id = tonumber(specKey)
-        if not (id and GetSpecializationInfoByID) then return nil, nil, nil end
-        local ok, _, name, _, _, role, _, className = pcall(GetSpecializationInfoByID, id)
-        if not ok then return nil, nil, nil end
-        return name, className, role
-    end
-    -- classID doubles as the canonical class order (Warrior..Evoker) the reference grid
-    -- uses; GetClassInfo(1..GetNumClasses()) already walks classes in that exact order, the
-    -- same source ns.PlayableClasses trusts for its own token lookup.
-    local classLookup
-    local function ClassInfo(className)
-        if not classLookup then
-            classLookup = {}
-            if GetNumClasses and GetClassInfo then
-                for i = 1, GetNumClasses() do
-                    local displayName, token = GetClassInfo(i)
-                    if displayName and token then
-                        classLookup[displayName] = { token = token, order = i }
-                    end
-                end
-            end
-        end
-        return className and classLookup[className]
-    end
-
     local function BuildSpecRows(payload)
         for i = 1, #specRows do specRows[i]:Hide() end
         if settingsBtn then settingsBtn:Hide() end
@@ -1493,21 +1569,7 @@ function ns.ShowPackImport()
             table.sort(names, function(a, b) return a:lower() < b:lower() end)
             for i = 1, #names do specs[i] = { key = names[i], name = names[i] } end
         elseif payload then
-            specs = ns.PackSpecs(payload)
-            -- Grouped by class in Blizzard's own class order, then by role within a class
-            -- (Tank, Healer, DPS) -- "Blood Death Knight" sorted alphabetically before,
-            -- which scattered a class's specs apart instead of keeping them adjacent.
-            for i = 1, #specs do
-                specs[i].specName, specs[i].className, specs[i].role = SpecInfo(specs[i].key)
-            end
-            table.sort(specs, function(a, b)
-                local ca, cb = ClassInfo(a.className), ClassInfo(b.className)
-                local oa, ob = ca and ca.order or 99, cb and cb.order or 99
-                if oa ~= ob then return oa < ob end
-                local ra, rb = ROLE_SORT[a.role] or 9, ROLE_SORT[b.role] or 9
-                if ra ~= rb then return ra < rb end
-                return a.name < b.name
-            end)
+            specs = SortSpecs(ns.PackSpecs(payload))
         end
         if #specs == 0 then
             specHead:Hide()
@@ -1520,7 +1582,6 @@ function ns.ShowPackImport()
         -- directly off specHead rather than chained off the previous row, since the previous
         -- row in reading order is no longer always the one directly above.
         local GRID_COLS, COL_W, ROW_H = 3, 220, 28
-        local classColors = RAID_CLASS_COLORS or CUSTOM_CLASS_COLORS
         for i = 1, #specs do
             local spec = specs[i]
             specWanted[spec.key] = true
@@ -1553,25 +1614,7 @@ function ns.ShowPackImport()
                 6 + col * COL_W, -6 - row * ROW_H)
             btn.specKey = spec.key
             btn.Repaint()
-            -- A bare spec name is not unique across classes -- Protection, Frost, Holy and
-            -- Restoration each belong to two -- so the class survives as the row's color,
-            -- and the grid's class-order grouping keeps each pair well apart on the page.
-            -- Falls back to the plain name (and the theme's default color) for a whole-file
-            -- pack's profile rows, or a spec too new for this client to resolve.
-            local ci = spec.className and ClassInfo(spec.className)
-            local color = ci and classColors and classColors[ci.token]
-            if spec.specName and spec.role then
-                btn.label:SetText(("%s (%s)"):format(spec.specName,
-                    ROLE_LABEL[spec.role] or spec.role))
-            else
-                btn.label:SetText(spec.name)
-            end
-            if color then
-                btn.label:SetTextColor(color.r, color.g, color.b, 1)
-            else
-                local fg = ns.THEME.fg
-                btn.label:SetTextColor(fg.r, fg.g, fg.b, 1)
-            end
+            PaintSpecLabel(btn.label, spec)
             btn:Show()
         end
 

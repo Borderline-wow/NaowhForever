@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- The spec list in Merge a Profile In now matches the one in Import: rows grouped by
+  class and coloured by it, read as "Protection (Tank)" rather than "Protection
+  Warrior", with Select All and Deselect All beside the heading.
+
 ## 1.4.2
 
 ### Changed
