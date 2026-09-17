@@ -87,7 +87,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
 
     -- Switching tab shows a different panel and nothing else. Rebuilding the page here
     -- looked tidier and threw away every unsaved edit: the controls are seeded from the
-    -- SAVED rule, so a preset chosen and not yet saved came back as Custom text the moment
+    -- SAVED rule, so a preset chosen and not yet saved came back as the stored one the moment
     -- you looked at another tab.
     local tabBtns = {}
     local function SelectTab(id)
@@ -131,14 +131,12 @@ local function Editor(parent, uid, kind, ability, dungeon)
     local name = Commit(Box(test, "Reminder name",
         old and old.name or (ability and ability.name) or "Debuff sound", -44, 268))
     local duration
-    local lead, spell, map, text, textLabel
+    local lead, spell, map
     local auraEvent, target = t.auraEvent or "Added", t.target or "player"
     if kind == "exboss" then
         duration = Commit(Box(test, "Display duration (1-15 seconds)", d.dur or 3, -100, 268))
         lead = Commit(Box(cast, "Warn before readiness (0-30 seconds)", t.timeleft or 5, -124, 268))
         Label(cast, "Timing predicts ability readiness. It does not confirm a cast or its target.", 14, -184, 268)
-        text, textLabel = Box(test, "Custom text", d.text or "Use a defensive", -156, 268)
-        Commit(text)
     else
         spell = Commit(Box(cast, "Debuff spell ID", spellID, -120, 268))
         map = Commit(Box(cast, "Instance ID (0 = every dungeon / raid)", mapID, -176, 268))
@@ -151,35 +149,15 @@ local function Editor(parent, uid, kind, ability, dungeon)
     end
     local preset = old and old.preset or "none"
     if kind == "exboss" then
-        local values, order = { none = "Custom text" }, { "none" }
+        local values, order = { none = "None" }, { "none" }
         for _, p in ipairs(ns.ListPresets(I.Spec())) do
             values[p.key] = p.name; order[#order + 1] = p.key
         end
         if preset ~= "none" and not values[preset] then
             values[preset] = "Missing preset: " .. preset; order[#order + 1] = preset
         end
-        -- A preset names the defensive at fire time and writes the line itself, so the
-        -- custom text is not read at all while one is chosen. Greyed rather than hidden:
-        -- what is typed there is kept, and comes back the moment the preset goes.
-        local function ApplyPresetLock()
-            if not text then return end
-            local locked = preset ~= "none"
-            if locked then
-                text:ClearFocus()
-                text:Disable()
-                text:SetTextColor(ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b, 0.7)
-                textLabel:SetText("Custom text (the preset supplies it)")
-            else
-                text:Enable()
-                text:SetTextColor(ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b, 1)
-                textLabel:SetText("Custom text")
-            end
-            textLabel:SetTextColor(ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b,
-                locked and 0.7 or 1)
-        end
         Dropdown(cast, "Defensive preset", values, order, function() return preset end,
-            function(v) preset = v; ApplyPresetLock(); AutoSave() end, -242, 268)
-        ApplyPresetLock()
+            function(v) preset = v; AutoSave() end, -242, 268)
     end
     local sound, tts = d.sound or "none", d.tts == true
     local paths, names, order = UI.BuildAlertSoundTables()
@@ -208,7 +186,11 @@ local function Editor(parent, uid, kind, ability, dungeon)
             preset = kind == "exboss" and preset ~= "none" and preset or nil,
             trigger = { type = kind, spellID = id, mapID = instanceID,
                 timeleft = lead and tonumber(lead:GetText()) or nil, auraEvent = auraEvent, target = target },
-            display = { type = d.type or "icon", text = text and text:GetText() or "", sound = sound,
+            -- No longer edited anywhere. A preset writes the spoken and shown line itself;
+            -- a rule without one falls back to the same generic phrase the alert has always
+            -- used, and an older rule keeps whatever text it was saved with.
+            display = { type = d.type or "icon",
+                text = d.text or (kind == "exboss" and "Use a defensive" or ""), sound = sound,
                 spellID = d.spellID or id, dur = kind == "exboss" and tonumber(duration:GetText()) or 3,
                 tts = kind == "exboss" and tts or false } }
     end
@@ -265,7 +247,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
             else selection.uid = nil; selection.spellID = nil end
             I.Refresh(); UI:RefreshPage(true)
         end)
-        remove:SetPoint("RIGHT", preview, "LEFT", 8, 0)
+        remove:SetPoint("RIGHT", preview, "LEFT", -8, 0)
     end
 end
 -- Trash rules are saved per spec, so a second spec starts with nothing and rebuilding a

@@ -95,8 +95,9 @@ local e = Fixture(); SelectTrash(e)
 assert(e.controls["Defensive preset"].width >= 260)
 e.controls["Defensive preset"].set("p1")
 e.controls["Healer Reminder"].set(true); e.controls["Speak callout"].set(true)
-e.boxes["Custom text"]:SetText("Spread")
-e.buttons.Test(); assert(e.preview.display.text == "Spread")
+e.buttons.Test()
+assert(e.preview.display.text == "Use a defensive",
+    "a rule with no line of its own falls back to the generic one")
 e.commitAll()
 assert(e.saved.trigger.type == "exboss" and e.saved.trigger.spellID == 123 and e.saved.trigger.mapID == 1762)
 assert(e.saved.preset == "p1" and e.saved.healerReminder and e.saved.display.tts)
@@ -153,14 +154,14 @@ assert(e.rowToggles[1].get() == true, "and the switch now reads from that rule")
 e.rowToggles[1].set(false)
 assert(e.rules.i1.enabled == false, "turning it off disables the rule rather than deleting it")
 
--- A preset writes the callout line itself, so the custom text goes read-only rather than
--- staying editable and being quietly ignored.
+-- The custom text field is gone: a preset writes the line, and a rule without one uses the
+-- generic phrase. Nothing in the editor edits it any more.
 e = Fixture(); SelectTrash(e)
-assert(e.boxes["Custom text"].disabled ~= true)
+assert(e.boxes["Custom text"] == nil, "the field should not be built at all")
 e.controls["Defensive preset"].set("p1")
-assert(e.boxes["Custom text"].disabled == true)
-e.controls["Defensive preset"].set("none")
-assert(e.boxes["Custom text"].disabled == false)
+e.commitAll()
+assert(e.saved.preset == "p1")
+assert(e.saved.display.text == "Use a defensive", "and the saved line is the fallback")
 
 -- Debuff sounds belong to their own tab: they answer to an aura rather than a dungeon, and
 -- used to sit in a bucket at the bottom of the trash list with no dungeon to file them under.
@@ -183,12 +184,12 @@ assert(#e.rowToggles == 1 and e.rowToggles[1].get() == false)
 -- never needs the outer scrollbar.
 e = Fixture(); SelectTrash(e)
 assert(e:tab("Cast") and e:tab("Text & Test") and e:tab("Voice"), "all three tabs are drawn")
-assert(e.boxes["Custom text"] and e.controls["Defensive preset"] and e.controls.Sound,
+assert(e.boxes["Reminder name"] and e.controls["Defensive preset"] and e.controls.Sound,
     "every group is built; the tabs only decide which one is shown")
 
 -- Switching tab must not rebuild the page. The controls are seeded from the SAVED rule, so
 -- a rebuild threw away everything not yet saved: a preset chosen on one tab came back as
--- Custom text the moment you looked at another.
+-- the stored one the moment you looked at another.
 e.controls["Defensive preset"].set("p1")
 e.boxes["Reminder name"]:SetText("Typed but not saved")
 local renders = e.renders

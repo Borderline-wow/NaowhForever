@@ -16,6 +16,11 @@
   back this way is marked with whose it started as, and the import preview says so.
 
 ### Changed
+- The custom text field is gone from the trash and debuff editor. A preset writes the
+  callout line itself, and a rule without one uses the generic phrase the alert has always
+  fallen back to. An older rule keeps whatever text it was saved with.
+- Remove no longer overlaps Test. The anchor offset pushed it back under the button it was
+  meant to sit clear of.
 - Trash and debuff rules save as you change them. The Save button is gone; a dropdown or
   switch writes through immediately and a text box writes when you leave it, so a spell id
   is never saved halfway through being typed. A rule that is not yet valid says so and
