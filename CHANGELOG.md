@@ -14,6 +14,11 @@
   a debuff rule and it stays silent while Shadowmeld is on cooldown, unknown, unusable
   or you are dead. The two gate independently, so one being down does not quiet the
   other.
+- A boss cast that names somebody now puts that player's name on the alert in their class
+  colour, with YOU beside it when the cast is aimed at you. Two switches in Setup, both
+  on by default. Only for abilities with a cast reminder, since that is the one moment
+  the game will say who is targeted, and display only: the client answers who it is
+  without letting an addon read the answer, so the voice cannot follow it.
 - New voice clips for both racials, supplied by Naowh, listed as "Stoneform - Naowh" and
   "Shadowmeld - Naowh" to match his other sound files.
 
