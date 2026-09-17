@@ -3,49 +3,25 @@
 ## Unreleased
 
 ### Added
-- A boss cast that names somebody now puts that player's name on the alert in their class
-  colour, with YOU beside it when the cast is aimed at you. Two switches in Setup, both
-  on by default. Only for abilities with a cast reminder, since that is the one moment
-  the game will say who is targeted, and display only: the client answers who it is
-  without letting an addon read the answer, so the voice cannot follow it.
-
-- /nutank share exports your whole active profile even when it came from somebody else's
-  pack, for handing work back to the curator whose profile it is. The Share button on the
-  Profiles tab still refuses that, so casual resharing meets the same wall as before, and
-  the refusal now names this command for the people it was wrongly catching. A pack sent
-  back this way is marked with whose it started as, and the import preview says so.
+- Boss casts that name a player now show that player's name on the alert in class colour,
+  with YOU beside it when the cast is on you. Two switches in Setup to turn either off.
+  Display only; the game does not let an addon read who was named, so the voice cannot
+  follow it.
+- `/nutank share` exports your profile even when it came from someone else's pack, for
+  handing changes back to whoever maintains it. The pack is marked so they can see it is
+  theirs coming back.
 
 ### Changed
-- The trash and debuff editor is one panel in two columns instead of three tabs. Once the
-  custom text field went, neither half was large enough to be worth hiding behind a click,
-  and removing the tabs removes where the last two bugs lived: switching one discarded
-  unsaved edits, and the chosen tab outlived the rule it was chosen on.
-- The custom text field is gone from the trash and debuff editor. A preset writes the
-  callout line itself, and a rule without one uses the generic phrase the alert has always
-  fallen back to. An older rule keeps whatever text it was saved with.
-- Remove no longer overlaps Test. The anchor offset pushed it back under the button it was
-  meant to sit clear of.
-- Trash and debuff rules save as you change them. The Save button is gone; a dropdown or
-  switch writes through immediately and a text box writes when you leave it, so a spell id
-  is never saved halfway through being typed. A rule that is not yet valid says so and
-  leaves the last good version saved. Test and Remove are unchanged.
-- The Trash list no longer repeats the dungeon name on a row under the dropdown that
-  already names it. One dungeon shows at a time, so there was nothing to collapse either.
-- The 32 rules per spec limit on trash and debuff rules is gone. It was this addon's own
-  choice rather than the client's, and it counted every rule in the spec, so a spec with
-  thirty trash rules could not register a single debuff sound even though trash rules
-  never touch that part of the game. The client still decides what it will register and
-  says so when it declines. An imported pack is still bounded, as a sanity check.
-- The boss page's BIGWIGS/DBM MESSAGES section is now BOSS REMINDERS, and its button is
-  Add Reminder. That editor is the only way to reach the boss cast triggers as well as the
-  message one, so naming the section after messages hid half of what it does.
+- No more 32 rules per spec limit on trash and debuff rules.
+- Trash and debuff rules save as you change them. The Save button is gone.
+- The rule editor is one page in two columns instead of three tabs.
+- Dropped the custom text field. A preset writes the callout line.
+- The Trash list no longer repeats the dungeon name under the dropdown that names it.
+- BIGWIGS/DBM MESSAGES is now BOSS REMINDERS, with an Add Reminder button. Cast triggers
+  live in that editor too, so naming it after messages hid half of what it does.
 
-### Validation and limits
-- All 19 offline regression suites pass. The new suite proves the secret values are only
-  passed through, using stand-ins that raise on any read.
-- Not verified in the client, and it cannot be offline. Outside restricted content these
-  values come back readable, so an unrestricted run looks clean whatever happens; the
-  interesting run is an instanced pull.
+### Fixed
+- Remove no longer overlaps Test in the rule editor.
 
 ## 1.4.0
 
