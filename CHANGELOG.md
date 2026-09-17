@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- A boss cast that names somebody now puts that player's name on the alert in their class
+  colour, with YOU beside it when the cast is aimed at you. Two switches in Setup, both
+  on by default. Only for abilities with a cast reminder, since that is the one moment
+  the game will say who is targeted, and display only: the client answers who it is
+  without letting an addon read the answer, so the voice cannot follow it.
+
+### Validation and limits
+- All 19 offline regression suites pass. The new suite proves the secret values are only
+  passed through, using stand-ins that raise on any read.
+- Not verified in the client, and it cannot be offline. Outside restricted content these
+  values come back readable, so an unrestricted run looks clean whatever happens; the
+  interesting run is an instanced pull.
+
 ## 1.4.0
 
 ### Added
