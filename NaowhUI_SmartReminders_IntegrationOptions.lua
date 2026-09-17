@@ -58,6 +58,17 @@ local function Toggle(parent, title, get, set, y, width)
 end
 local function Editor(parent, uid, kind, ability, dungeon)
     local editedRules, editedSpec = I.Rules(true), I.Spec()
+    -- Every control writes straight through, so there is no Save button to forget. Declared
+    -- up here because the controls are built before Value() exists to read them; the
+    -- closures capture this local and see it once it is assigned below.
+    local AutoSave
+    -- Text boxes commit when you leave them rather than on every keystroke: saving halfway
+    -- through typing a spell id would be saving a different spell.
+    local function Commit(box)
+        box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+        box:SetScript("OnEditFocusLost", function() AutoSave() end)
+        return box
+    end
     local old = uid and editedRules[uid]
     kind = old and old.trigger.type or kind
     local t, d = old and old.trigger or {}, old and old.display or {}
@@ -113,25 +124,29 @@ local function Editor(parent, uid, kind, ability, dungeon)
     end
     SelectTab(editorTab)
     local enabled, healer = not old or old.enabled ~= false, old and old.healerReminder == true
-    Toggle(cast, "Enabled", function() return enabled end, function(v) enabled = v end, -42, 268)
-    Toggle(cast, "Healer Reminder", function() return healer end, function(v) healer = v end, -78, 268)
-    local name = Box(test, "Reminder name", old and old.name or (ability and ability.name) or "Debuff sound", -44, 268)
+    Toggle(cast, "Enabled", function() return enabled end,
+        function(v) enabled = v; AutoSave() end, -42, 268)
+    Toggle(cast, "Healer Reminder", function() return healer end,
+        function(v) healer = v; AutoSave() end, -78, 268)
+    local name = Commit(Box(test, "Reminder name",
+        old and old.name or (ability and ability.name) or "Debuff sound", -44, 268))
     local duration
     local lead, spell, map, text, textLabel
     local auraEvent, target = t.auraEvent or "Added", t.target or "player"
     if kind == "exboss" then
-        duration = Box(test, "Display duration (1-15 seconds)", d.dur or 3, -100, 268)
-        lead = Box(cast, "Warn before readiness (0-30 seconds)", t.timeleft or 5, -124, 268)
+        duration = Commit(Box(test, "Display duration (1-15 seconds)", d.dur or 3, -100, 268))
+        lead = Commit(Box(cast, "Warn before readiness (0-30 seconds)", t.timeleft or 5, -124, 268))
         Label(cast, "Timing predicts ability readiness. It does not confirm a cast or its target.", 14, -184, 268)
         text, textLabel = Box(test, "Custom text", d.text or "Use a defensive", -156, 268)
+        Commit(text)
     else
-        spell = Box(cast, "Debuff spell ID", spellID, -120, 268)
-        map = Box(cast, "Instance ID (0 = every dungeon / raid)", mapID, -176, 268)
+        spell = Commit(Box(cast, "Debuff spell ID", spellID, -120, 268))
+        map = Commit(Box(cast, "Instance ID (0 = every dungeon / raid)", mapID, -176, 268))
         Dropdown(cast, "When", { Added = "Applied", ApplicationsIncreased = "Stack increased", Removed = "Removed" },
             { "Added", "ApplicationsIncreased", "Removed" }, function() return auraEvent end,
-            function(v) auraEvent = v end, -232, 268)
+            function(v) auraEvent = v; AutoSave() end, -232, 268)
         Dropdown(cast, "Unit", { player = "Me", party = "Party members" }, { "player", "party" },
-            function() return target end, function(v) target = v end, -288, 268)
+            function() return target end, function(v) target = v; AutoSave() end, -288, 268)
         Label(test, "Use the debuff's aura spell ID. The Stoneform and Shadowmeld voices require Unit: Me and stay silent while that racial is on cooldown, unknown or unusable.\n\nChanges apply after combat and encounter restrictions end. Test previews the voice regardless of cooldown.", 14, -160, 268)
     end
     local preset = old and old.preset or "none"
@@ -163,7 +178,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
                 locked and 0.7 or 1)
         end
         Dropdown(cast, "Defensive preset", values, order, function() return preset end,
-            function(v) preset = v; ApplyPresetLock() end, -242, 268)
+            function(v) preset = v; ApplyPresetLock(); AutoSave() end, -242, 268)
         ApplyPresetLock()
     end
     local sound, tts = d.sound or "none", d.tts == true
@@ -179,11 +194,12 @@ local function Editor(parent, uid, kind, ability, dungeon)
         order[#order + 1] = "voice:shadowmeld-ready"
     end
     Dropdown(voice, "Sound", names, order, function() return sound end,
-        function(v) sound = v end, -44, 268)
+        function(v) sound = v; AutoSave() end, -44, 268)
     if kind == "exboss" then
-        Toggle(voice, "Speak callout", function() return tts end, function(v) tts = v end, -112, 576)
+        Toggle(voice, "Speak callout", function() return tts end,
+            function(v) tts = v; AutoSave() end, -112, 576)
     end
-    local status = Label(parent, "Select settings, then Save. Test previews your current choices.", 0, -66 - BODY_H - 10, 604)
+    local status = Label(parent, "Changes save as you make them. Test previews your current choices.", 0, -66 - BODY_H - 10, 604)
     local function Value()
         local id, instanceID = spellID, mapID
         if spell then id = tonumber(spell:GetText()) end
@@ -196,6 +212,34 @@ local function Editor(parent, uid, kind, ability, dungeon)
                 spellID = d.spellID or id, dur = kind == "exboss" and tonumber(duration:GetText()) or 3,
                 tts = kind == "exboss" and tts or false } }
     end
+    -- Refuses rather than writing a half-finished rule: a spell id mid-typing is a valid
+    -- number for a spell nobody meant, and I.Save would happily store it. The last good
+    -- version stays saved until this one is worth saving.
+    AutoSave = function()
+        if I.Spec() ~= editedSpec or I.Rules(false) ~= editedRules then
+            status:SetText("Profile or specialization changed. Select the reminder again.")
+            return
+        end
+        local value = Value()
+        if not I.ValidRule(value) then
+            status:SetText("|cffF0A830Not saved:|r check IDs, timing and sound. "
+                .. "A racial voice requires Unit: Me.")
+            return
+        end
+        local ok, result = I.Save(uid, value)
+        if not ok then status:SetText(result); return end
+        status:SetText("Saved.")
+        -- A rule that did not exist a moment ago now does, so the list has to show it and
+        -- the editor has to gain its Remove button. Every later edit updates in place and
+        -- leaves the page alone, or typing would fight a rebuild for the keyboard.
+        if not uid then
+            uid = result
+            if kind == "auraSound" then debuffSelection = { uid = uid }
+            else selection.uid = uid end
+            UI:RefreshPage(true)
+        end
+    end
+
     local preview = ns.Button(parent, "Test", 120, 28, function()
         local r = Value()
         if I.ValidRule(r) then
@@ -205,29 +249,14 @@ local function Editor(parent, uid, kind, ability, dungeon)
             elseif kind == "exboss" and r.display.tts then
                 status:SetText("TTS uses Voice and Voice Volume in Setup. Check chat for any playback errors.")
             else
-                status:SetText("Sound preview requested. Save to keep these settings.")
+                status:SetText("Sound preview requested.")
             end
         else status:SetText("Check IDs and sound. A racial voice requires Unit: Me.") end
     end)
-    local save = ns.Button(parent, "Save", 120, 28, function()
-        if I.Spec() ~= editedSpec or I.Rules(false) ~= editedRules then
-            status:SetText("Profile or specialization changed. Select the reminder again."); return
-        end
-        local ok, result = I.Save(uid, Value())
-        if not ok then status:SetText(result); return end
-        if kind == "auraSound" then
-            debuffSelection = { uid = result or uid }
-        else
-            selection.uid = result or uid
-        end
-        UI:RefreshPage(true)
-    end)
     -- Top right, on the tab row: the editor is a fixed height now and a button row under
-    -- the body would put it back over the window's own edge. Save and Test belong to the
-    -- whole rule rather than to one group of its settings, so they sit above the tabs and
-    -- stay reachable whichever one is open.
-    save:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -40)
-    local leftOf = save
+    -- the body would put it back over the window's own edge. Both act on the whole rule
+    -- rather than one group of its settings, so they stay reachable from every tab.
+    preview:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -40)
     if uid then
         local remove = ns.Button(parent, "Remove", 120, 28, function()
             if I.Spec() ~= editedSpec or I.Rules(false) ~= editedRules then return end
@@ -236,10 +265,8 @@ local function Editor(parent, uid, kind, ability, dungeon)
             else selection.uid = nil; selection.spellID = nil end
             I.Refresh(); UI:RefreshPage(true)
         end)
-        remove:SetPoint("RIGHT", save, "LEFT", 8, 0)
-        leftOf = remove
+        remove:SetPoint("RIGHT", preview, "LEFT", 8, 0)
     end
-    preview:SetPoint("RIGHT", leftOf, "LEFT", 8, 0)
 end
 -- Trash rules are saved per spec, so a second spec starts with nothing and rebuilding a
 -- dungeon's worth of them by hand is the same ask the boss pages answer with their own Copy
@@ -308,7 +335,7 @@ end
 -- Shared by both list pages: a row that is the spell icon, the name, and a switch when
 -- there is a saved rule behind it to switch. Deliberately tight -- the whole list used to
 -- be two scrollbars deep on a dungeon with a dozen abilities.
-local ROW_H, HEAD_H, ICON = 26, 22, 20
+local ROW_H, ICON = 26, 20
 
 -- Every row carries a switch, reading off until a reminder exists behind it, so the list
 -- says at a glance what is set up. Turning one on for an ability with nothing saved writes
@@ -440,82 +467,53 @@ function ns.BuildIntegrationsPage(parent, y)
     end
 
     local chosen, ly = nil, 0
+    -- No section header: the dropdown above already names the dungeon, and repeating it on
+    -- the row below was saying the same thing twice. One dungeon shows at a time, so there
+    -- was never a second section to collapse away from either.
     for _, section in ipairs(sections) do
-        -- A single dungeon selected is its own answer to "which one", so it opens expanded;
-        -- All Dungeons starts closed or the list is hundreds of rows deep on first sight.
-        -- The dungeon you picked is its own answer to "which one", so its section opens.
-        local key = "sec:" .. tostring(section.id)
-        if selection[key] == nil then selection[key] = false end
-        local shut = selection[key]
-
-        local head = ns.Button(list, (shut and "+  " or "-  ") .. section.name, 236, HEAD_H,
-            function() selection[key] = not shut; UI:RefreshPage(true) end)
-        head:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -ly)
-        head.label:ClearAllPoints()
-        head.label:SetPoint("LEFT", head, "LEFT", 6, 0)
-        head.label:SetJustifyH("LEFT")
-        head.label:SetTextColor(ns.THEME.accent.r, ns.THEME.accent.g, ns.THEME.accent.b, 1)
-        ly = ly + HEAD_H + 1
-        if shut then
-            -- Closed sections still say how much is inside, or the count of set-up rules is
-            -- invisible without opening every dungeon in turn.
-            local n = 0
-            if section.loose then n = #section.loose
-            else
-                for _, ability in ipairs(section.abilities) do
-                    if savedFor[section.id .. ":" .. ability.spellID] then n = n + 1 end
-                end
-            end
-            if n > 0 then
-                local tag = ns.Font(head, 11, nil, ns.THEME.muted)
-                tag:SetPoint("RIGHT", head, "RIGHT", -6, 0)
-                tag:SetText(n .. " set up")
-            end
+        local entries = {}
+        if section.loose then
+            for _, item in ipairs(section.loose) do entries[#entries + 1] = item end
         else
-            local entries = {}
-            if section.loose then
-                for _, item in ipairs(section.loose) do entries[#entries + 1] = item end
-            else
-                for _, ability in ipairs(section.abilities) do
-                    entries[#entries + 1] = { ability = ability,
-                        uid = savedFor[section.id .. ":" .. ability.spellID] }
-                end
+            for _, ability in ipairs(section.abilities) do
+                entries[#entries + 1] = { ability = ability,
+                    uid = savedFor[section.id .. ":" .. ability.spellID] }
             end
-            for _, entry in ipairs(entries) do
-                local ability, uid = entry.ability, entry.uid
-                local rule = uid and rules[uid]
-                local active = (uid and uid == selection.uid)
-                    or (ability and not selection.uid
-                        and ability.spellID == selection.spellID
-                        and section.id == selection.spellMap)
-                if active then
-                    chosen = { uid = uid, ability = ability, dungeon = section.dungeon }
-                end
-                local row = ListRow(list, ly, 236, ability and ability.name or entry.name,
-                    ability and ability.icon, rule, active, function()
-                        selection.uid = uid
-                        selection.spellID = ability and ability.spellID
-                        selection.spellMap = section.id
-                        UI:RefreshPage(true)
-                    end, ability and function()
-                        local ok, result = I.Save(nil, {
-                            name = ability.name, enabled = true,
-                            trigger = { type = "exboss", spellID = ability.spellID,
-                                mapID = section.id, timeleft = 5 },
-                            display = { type = "icon", text = "Use a defensive", dur = 3 },
-                        })
-                        if not ok then ns.Print("|cffff6060" .. tostring(result) .. "|r"); return end
-                        selection.uid = result
-                        selection.spellID = ability.spellID
-                        selection.spellMap = section.id
-                        UI:RefreshPage(true)
-                    end or nil)
-                ns.Tooltip(row, ability and ability.name or entry.name,
-                    ability and (ability.mob .. "\nSpell " .. ability.spellID
-                        .. (rule and "\n\nSet up on this spec." or "\n\nNot set up yet."))
-                    or "Edit this saved reminder.")
-                ly = ly + ROW_H + 1
+        end
+        for _, entry in ipairs(entries) do
+            local ability, uid = entry.ability, entry.uid
+            local rule = uid and rules[uid]
+            local active = (uid and uid == selection.uid)
+                or (ability and not selection.uid
+                    and ability.spellID == selection.spellID
+                    and section.id == selection.spellMap)
+            if active then
+                chosen = { uid = uid, ability = ability, dungeon = section.dungeon }
             end
+            local row = ListRow(list, ly, 236, ability and ability.name or entry.name,
+                ability and ability.icon, rule, active, function()
+                    selection.uid = uid
+                    selection.spellID = ability and ability.spellID
+                    selection.spellMap = section.id
+                    UI:RefreshPage(true)
+                end, ability and function()
+                    local ok, result = I.Save(nil, {
+                        name = ability.name, enabled = true,
+                        trigger = { type = "exboss", spellID = ability.spellID,
+                            mapID = section.id, timeleft = 5 },
+                        display = { type = "icon", text = "Use a defensive", dur = 3 },
+                    })
+                    if not ok then ns.Print("|cffff6060" .. tostring(result) .. "|r"); return end
+                    selection.uid = result
+                    selection.spellID = ability.spellID
+                    selection.spellMap = section.id
+                    UI:RefreshPage(true)
+                end or nil)
+            ns.Tooltip(row, ability and ability.name or entry.name,
+                ability and (ability.mob .. "\nSpell " .. ability.spellID
+                    .. (rule and "\n\nSet up on this spec." or "\n\nNot set up yet."))
+                or "Edit this saved reminder.")
+            ly = ly + ROW_H + 1
         end
     end
     if #sections == 0 then

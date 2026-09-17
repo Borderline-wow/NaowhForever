@@ -16,7 +16,11 @@ local function Fixture()
             SetText = function(self, v) self.text = v; if self.parent then self.parent.title = v end end,
             GetText = function(self) return self.text end, Hide = function() end, Show = function() end,
             SetShown = function(self, v) self.shown = v end, GetStringWidth = function() return 40 end,
-            SetScript = function(self, kind, fn) if kind == "OnClick" then self.onClick = fn end end,
+            SetScript = function(self, kind, fn)
+                if kind == "OnClick" then self.onClick = fn
+                elseif kind == "OnEditFocusLost" then self.onCommit = fn end
+            end,
+            ClearFocus = function(self) if self.onCommit then self.onCommit() end end,
             SetTexture = function() end, SetTexCoord = function() end, SetTextColor = function() end,
             SetTextInsets = function() end, ClearFocus = function() end,
             Enable = function(self) self.disabled = false end,
@@ -66,6 +70,13 @@ local function Fixture()
     env._G = env
     local c = assert(loadfile(root .. "/NaowhUI_SmartReminders_IntegrationOptions.lua")); setfenv(c, env); c()
     e.tab = Tab
+    -- There is no Save button any more. Committing every text box is what leaving the
+    -- editor does, and every other control writes through the moment it changes.
+    function e.commitAll()
+        for _, box in pairs(e.boxes) do
+            if box.onCommit then box.onCommit() end
+        end
+    end
     e.renders = 0
     function e.render()
         e.renders = e.renders + 1
@@ -86,28 +97,28 @@ e.controls["Defensive preset"].set("p1")
 e.controls["Healer Reminder"].set(true); e.controls["Speak callout"].set(true)
 e.boxes["Custom text"]:SetText("Spread")
 e.buttons.Test(); assert(e.preview.display.text == "Spread")
-e.buttons.Save()
+e.commitAll()
 assert(e.saved.trigger.type == "exboss" and e.saved.trigger.spellID == 123 and e.saved.trigger.mapID == 1762)
 assert(e.saved.preset == "p1" and e.saved.healerReminder and e.saved.display.tts)
 assert(e.buttons.Remove, "saved rule did not stay selected")
-e.buttons.Save(); assert(e.rules.i1 and not e.rules.i2)
+e.commitAll(); assert(e.rules.i1 and not e.rules.i2)
 e.buttons.Remove(); assert(not next(e.rules))
 e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
 e.boxes["Debuff spell ID"]:SetText("456")
 e.controls.When.set("Removed"); e.controls.Unit.set("party"); e.controls.Sound.set("test")
-e.buttons.Save()
+e.commitAll()
 assert(e.saved.trigger.type == "auraSound" and e.saved.trigger.auraEvent == "Removed")
 assert(e.saved.trigger.target == "party" and e.saved.trigger.mapID == 0 and e.saved.display.sound == "test")
 assert(e.buttons.Remove and not e.saved.display.tts and not e.saved.preset)
 for _, change in ipairs({ "profile", "spec" }) do
     e = Fixture(); SelectTrash(e)
     if change == "profile" then e.rules = {} else e.spec = 251 end
-    e.buttons.Save(); assert(not e.saved)
+    e.commitAll(); assert(not e.saved)
 end
 e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
 e.boxes["Debuff spell ID"]:SetText("21562")
 e.controls.Sound.set("voice:stoneform-ready")
-e.buttons.Save()
+e.commitAll()
 assert(e.saved.display.sound == "voice:stoneform-ready" and e.saved.trigger.target == "player")
 assert(e.controls.Sound.get() == "voice:stoneform-ready")
 e.buttons.Test(); assert(e.preview.display.sound == "voice:stoneform-ready")
@@ -117,21 +128,19 @@ for _, field in ipairs({ "Debuff spell ID", "Instance ID (0 = every dungeon / ra
     for _, value in ipairs({ "", "invalid" }) do
         e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
         e.boxes["Debuff spell ID"]:SetText("21562")
-        e.controls.Sound.set("test"); e.buttons.Save()
-        e.boxes[field]:SetText(value); e.buttons.Save()
+        e.controls.Sound.set("test"); e.commitAll()
+        e.boxes[field]:SetText(value); e.commitAll()
         local key = field == "Debuff spell ID" and "spellID" or "mapID"
         assert(e.saved.trigger[key] == nil, "invalid input fell back to saved ID")
     end
 end
--- One dungeon at a time: the page opens on the first in the catalogue with its section
--- already open, and there is no All Dungeons entry to land on instead.
+-- One dungeon at a time, and its abilities listed directly. The dropdown above already
+-- names the dungeon, so there is no header row repeating it.
 e = Fixture()
-assert(e.buttons["-  Kings Rest"] and e.buttons.Slam, "the selected dungeon opens expanded")
-assert(e.controls.Dungeon.get() == 1762, "and is the one selected")
-e.buttons["-  Kings Rest"]()
-assert(not e.buttons.Slam, "the section still collapses")
-e.buttons["+  Kings Rest"]()
-assert(e.buttons.Slam)
+assert(e.controls.Dungeon.get() == 1762, "the page opens on the first dungeon")
+assert(e.buttons.Slam, "its abilities are listed")
+assert(not e.buttons["-  Kings Rest"] and not e.buttons["+  Kings Rest"],
+    "the dungeon name is not repeated on a row of its own")
 
 -- Every ability carries a switch, reading off until a reminder exists behind it.
 assert(#e.rowToggles == 1 and e.rowToggles[1].get() == false,
@@ -159,7 +168,7 @@ e = Fixture().debuffs()
 assert(e.buttons["+ Debuff Sound"], "the add button moved to this page")
 e.buttons["+ Debuff Sound"]()
 e.boxes["Debuff spell ID"]:SetText("456"); e.controls.Sound.set("test")
-e.buttons.Save()
+e.commitAll()
 assert(e.saved.trigger.type == "auraSound")
 assert(#e.rowToggles == 1, "the saved sound is listed here with its switch")
 assert(e.buttons.Remove, "and stays selected on this page after saving")
@@ -192,7 +201,8 @@ assert(e.controls["Defensive preset"].get() == "p1", "and switching back changes
 -- Save and Test act on the whole rule, so they sit above the tabs rather than inside one.
 for _, tab in ipairs({ "Cast", "Text & Test", "Voice" }) do
     e:tab(tab).onClick()
-    assert(e.buttons.Save and e.buttons.Test, "Save and Test are reachable from " .. tab)
+    assert(e.buttons.Test, "Test is reachable from " .. tab)
+    assert(not e.buttons.Save, "there is no Save button to reach")
 end
 
 print("PASS edited invalid IDs reach validation instead of falling back")

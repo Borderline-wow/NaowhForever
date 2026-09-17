@@ -10,6 +10,12 @@
   without letting an addon read the answer, so the voice cannot follow it.
 
 ### Changed
+- Trash and debuff rules save as you change them. The Save button is gone; a dropdown or
+  switch writes through immediately and a text box writes when you leave it, so a spell id
+  is never saved halfway through being typed. A rule that is not yet valid says so and
+  leaves the last good version saved. Test and Remove are unchanged.
+- The Trash list no longer repeats the dungeon name on a row under the dropdown that
+  already names it. One dungeon shows at a time, so there was nothing to collapse either.
 - The 32 rules per spec limit on trash and debuff rules is gone. It was this addon's own
   choice rather than the client's, and it counted every rule in the spec, so a spec with
   thirty trash rules could not register a single debuff sound even though trash rules
