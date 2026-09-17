@@ -737,8 +737,7 @@ local function ApplyTextLayout()
     for i = 1, #slots do place(slots[i].label, 0) end
     place(frame.fallback, 0)
     place(frame.reminder, line)
-    place(frame.castTarget, line * 2)
-    place(frame.learnTag, line * 2 + REMINDER_SIZE + 4)
+    place(frame.learnTag, line + REMINDER_SIZE + 4)
 end
 
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
@@ -863,23 +862,6 @@ function Reminder.Create()
     -- now, a callout that looked like wrong data was actually just this switch left on
     -- from an earlier authoring session. The tag rides the text callout; the border rides
     -- the icon -- between the two, whichever one someone's eyes are on says so.
-    -- Who the boss is casting at. Its own font string, never appended to the callout
-    -- line: the name arrives as a secret and joining a secret to anything raises. Blizzard
-    -- draws its own cast bar the same way, with a separate label for exactly this reason.
-    frame.castTarget = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.castTarget:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
-    frame.castTarget:Hide()
-
-    -- Shown only when the player is the one named. PlayerIsSpellTarget answers that and
-    -- returns a SECRET boolean, so it can be handed to SetShown and never tested here --
-    -- the same move Blizzard's cast bar makes with its own target indicator.
-    frame.youMarker = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.youMarker:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
-    frame.youMarker:SetTextColor(1, 0.82, 0, 1)
-    frame.youMarker:SetText("YOU")
-    frame.youMarker:SetPoint("RIGHT", frame.castTarget, "LEFT", -6, 0)
-    frame.youMarker:Hide()
-
     frame.learnTag = textFrame:CreateFontString(nil, "OVERLAY")
     frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE")
     frame.learnTag:SetTextColor(1, 0.65, 0.2, 1)
@@ -898,8 +880,6 @@ end
 local function ApplySize()
     if not frame then return end
     if frame.reminder then frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
-    if frame.castTarget then frame.castTarget:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
-    if frame.youMarker then frame.youMarker:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
     if frame.learnTag then frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE") end
     local t = TRDB()
     local size = t.iconSize or DEFAULTS.iconSize
@@ -2969,8 +2949,6 @@ local function HideReminder()
     ns.StopCDMGlow()
     if frame then
         if frame.reminder then frame.reminder:Hide() end
-        if frame.castTarget then frame.castTarget:Hide() end
-        if frame.youMarker then frame.youMarker:Hide() end
         frame:Hide()
     end
     if textFrame then textFrame:Hide() end
@@ -3000,59 +2978,6 @@ function ns.HideIfCalloutPressed(castSpellID)
     end
 end
 
--- Who a boss is casting at, drawn on the alert beside the callout that just fired.
---
--- Three of the four calls here hand back SECRET values: the name, the class and "is it
--- me". A secret may be held, stored, and handed back to a Blizzard API, and nothing else.
--- Comparing one, joining it to a string, or printing it raises, and the raise lands in
--- combat where it is least welcome. So nothing below reads any of them:
---
---   * the name goes straight into a font string of its own, never into the callout line,
---     since joining it to anything is precisely the operation that raises;
---   * the class goes straight into GetClassColor and the result straight into SetTextColor;
---   * "is it me" goes straight into SetShown, which is what makes the marker appear without
---     this code ever learning the answer.
---
--- UnitShouldDisplaySpellTargetName is the only one returning a plain boolean, which is why
--- it is the one thing here an `if` may touch. Blizzard's own cast bar is built from the same
--- four calls in the same shape; this follows it rather than inventing a second way.
---
--- A consequence worth stating plainly: the voice cannot follow any of this. Speaking or
--- muting needs a real branch and the answer never becomes readable, which is the same
--- reason the tank filter reaches artwork but not audio.
-function ns.ShowCastTargetOn(unit)
-    if not frame or type(unit) ~= "string" then return false end
-    if not (UnitShouldDisplaySpellTargetName and UnitSpellTargetName) then return false end
-    local t = TRDB()
-    if t.showCastTarget == false and t.markCastTarget == false then return false end
-
-    -- Plain, so it may decide a branch. False also covers "not casting" and "no target".
-    local ok, show = pcall(UnitShouldDisplaySpellTargetName, unit)
-    if not ok or show ~= true then return false end
-
-    if t.showCastTarget ~= false and frame.castTarget then
-        local gotName, name = pcall(UnitSpellTargetName, unit)
-        if gotName and name ~= nil then
-            frame.castTarget:SetText(name)
-            if UnitSpellTargetClass and C_ClassColor and C_ClassColor.GetClassColor then
-                local gotColour, colour = pcall(function()
-                    return C_ClassColor.GetClassColor(UnitSpellTargetClass(unit))
-                end)
-                if gotColour and colour then
-                    pcall(function() frame.castTarget:SetTextColor(colour:GetRGB()) end)
-                end
-            end
-            frame.castTarget:Show()
-        end
-    end
-
-    if t.markCastTarget ~= false and frame.youMarker and PlayerIsSpellTarget then
-        local gotMine, mine = pcall(PlayerIsSpellTarget, unit)
-        -- SetShown is the sink: it takes the secret and resolves it inside the client.
-        if gotMine then pcall(frame.youMarker.SetShown, frame.youMarker, mine) end
-    end
-    return true
-end
 -- Previews one custom line exactly as a fight would deliver it: the text over the alert
 -- frame for a few seconds, and the voice saying it. Used by the Says row's Preview button.
 function ns.PreviewReminderLine(text)
@@ -3648,14 +3573,7 @@ function ns.OnBossCast(event, unit, spellID)
             hit = CheckCounterCondition(ParseCounterCondition(r.trigger.counter),
                 customCounters[uid])
         end
-        if hit then
-            ActivateCustomReminder(r)
-            -- After the callout, never before: the reminder's own display clears these on
-            -- the way in, so a line written first would be wiped by the thing it describes.
-            -- This is the only handler that knows which unit is casting, and therefore the
-            -- only place the target can be asked for at all.
-            ns.ShowCastTargetOn(unit)
-        end
+        if hit then ActivateCustomReminder(r) end
     end
 end
 
@@ -6931,23 +6849,6 @@ function ns.BuildBarsSettings(parent, y)
           .. "options close.",
           getValue = function() return previewPin end,
           setValue = function(v) previewPin = v; UpdatePreview() end }
-    ); y = y - h
-
-    -- Both are display only, and deliberately so: the client hands back who is targeted as
-    -- a value this addon may show but never read, so neither of these can reach the voice.
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Show Who Is Targeted",
-          tooltip = "When a boss cast names somebody, puts that player's name on the alert "
-          .. "in their class colour. Only for abilities you have a cast reminder on, since "
-          .. "that is the only moment the game will say who is being targeted.",
-          getValue = function() return TRDB().showCastTarget ~= false end,
-          setValue = function(v) TRDB().showCastTarget = v and nil or false end },
-        { type = "toggle", text = "Mark Me When I Am Targeted",
-          tooltip = "Adds YOU beside that name when the cast is aimed at you. The game "
-          .. "answers this one without letting the addon see the answer, so it can change "
-          .. "what is drawn but never what is said.",
-          getValue = function() return TRDB().markCastTarget ~= false end,
-          setValue = function(v) TRDB().markCastTarget = v and nil or false end }
     ); y = y - h
 
     -- Escape hatch: a UI-scale change can strand a moved alert off-screen where the
