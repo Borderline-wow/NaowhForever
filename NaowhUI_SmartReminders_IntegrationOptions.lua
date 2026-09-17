@@ -10,9 +10,6 @@ local debuffSelection = {}
 -- settings behind tabs rather than stacking them, the same shape the boss reminder editor
 -- already uses. PANEL_H is what is left once the heading block is drawn.
 local PANEL_H, BODY_H = 424, 336
--- Which editor tab is open, kept out here so it survives the page rebuild every click
--- causes rather than snapping back to the first one.
-local editorTab = "cast"
 local function Label(parent, text, x, y, width, size, color)
     local label = ns.Font(parent, size or 12, nil, color or ns.THEME.muted)
     label:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
@@ -78,51 +75,22 @@ local function Editor(parent, uid, kind, ability, dungeon)
         0, 0, 420, 16, ns.THEME.fg)
     Label(parent, ability and (ability.mob .. "  |  Spell " .. spellID)
         or "Rules belong to the current profile and specialization.", 0, -20, 420)
-    -- All three sit in the same place; the tabs below decide which one is shown.
-    local cast = Panel(parent, kind == "exboss" and "Cast Settings" or "Debuff Settings", 0, -66, 604, BODY_H)
-    local test = Panel(parent, "Text & Test Settings", 0, -66, 604, BODY_H)
-    local voice = Panel(parent, "Voice Settings", 0, -66, 604, BODY_H)
-    local groups = { cast = cast, text = test, voice = voice }
-    if not groups[editorTab] then editorTab = "cast" end
-
-    -- Switching tab shows a different panel and nothing else. Rebuilding the page here
-    -- looked tidier and threw away every unsaved edit: the controls are seeded from the
-    -- SAVED rule, so a preset chosen and not yet saved came back as the stored one the moment
-    -- you looked at another tab.
-    local tabBtns = {}
-    local function SelectTab(id)
-        editorTab = id
-        for gid, p in pairs(groups) do p:SetShown(gid == id) end
-        for bid, btn in pairs(tabBtns) do
-            btn.marker:SetShown(bid == id)
-            local c = (bid == id) and ns.THEME.fg or ns.THEME.muted
-            btn.label:SetTextColor(c.r, c.g, c.b, 1)
-        end
-    end
-
-    local tabBtn
-    for _, tab in ipairs({
-        { id = "cast", text = kind == "exboss" and "Cast" or "Debuff" },
-        { id = "text", text = "Text & Test" },
-        { id = "voice", text = "Voice" },
-    }) do
-        local btn = CreateFrame("Button", nil, parent)
-        local lbl = ns.Font(btn, 12, nil, ns.THEME.muted)
-        lbl:SetText(tab.text)
-        btn:SetSize(math.ceil(lbl:GetStringWidth()) + 6, 22)
-        lbl:SetPoint("CENTER")
-        if tabBtn then btn:SetPoint("LEFT", tabBtn, "RIGHT", 18, 0)
-        else btn:SetPoint("TOPLEFT", parent, "TOPLEFT", 2, -42) end
-        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.accent, 1)
-        marker:SetPoint("BOTTOMLEFT", 0, -3)
-        marker:SetPoint("BOTTOMRIGHT", 0, -3)
-        marker:SetHeight(2)
-        btn.label, btn.marker = lbl, marker
-        btn:SetScript("OnClick", function() SelectTab(tab.id) end)
-        tabBtns[tab.id] = btn
-        tabBtn = btn
-    end
-    SelectTab(editorTab)
+    -- Two columns, no tabs. Once the custom text field went, neither half was big enough to
+    -- be worth hiding behind a click, and the tabs were where the last two bugs came from:
+    -- switching one discarded unsaved edits, and the chosen tab outlived the rule it was
+    -- chosen on. Nothing to switch, neither bug.
+    --
+    -- The debuff column is the tall one at roughly 332 against BODY_H. A field added to it
+    -- will need the panel to grow, and growing it past 336 brings the page's own scrollbar
+    -- back, so measure before adding one.
+    local COL_W = 296
+    local cast = Panel(parent, kind == "exboss" and "Cast Settings" or "Debuff Settings",
+        0, -66, COL_W, BODY_H)
+    local test = Panel(parent, kind == "exboss" and "Display & Voice" or "Sound",
+        COL_W + 12, -66, COL_W, BODY_H)
+    -- One panel now holds what the Voice tab used to; kept as its own name so the controls
+    -- below read the same either way.
+    local voice = test
     local enabled, healer = not old or old.enabled ~= false, old and old.healerReminder == true
     Toggle(cast, "Enabled", function() return enabled end,
         function(v) enabled = v; AutoSave() end, -42, 268)
@@ -145,7 +113,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
             function(v) auraEvent = v; AutoSave() end, -232, 268)
         Dropdown(cast, "Unit", { player = "Me", party = "Party members" }, { "player", "party" },
             function() return target end, function(v) target = v; AutoSave() end, -288, 268)
-        Label(test, "Use the debuff's aura spell ID. The Stoneform and Shadowmeld voices require Unit: Me and stay silent while that racial is on cooldown, unknown or unusable.\n\nChanges apply after combat and encounter restrictions end. Test previews the voice regardless of cooldown.", 14, -160, 268)
+        Label(test, "Use the debuff's aura spell ID. The Stoneform and Shadowmeld voices require Unit: Me and stay silent while that racial is on cooldown, unknown or unusable.\n\nChanges apply after combat and encounter restrictions end. Test previews the voice regardless of cooldown.", 14, -200, 268)
     end
     local preset = old and old.preset or "none"
     if kind == "exboss" then
@@ -172,10 +140,10 @@ local function Editor(parent, uid, kind, ability, dungeon)
         order[#order + 1] = "voice:shadowmeld-ready"
     end
     Dropdown(voice, "Sound", names, order, function() return sound end,
-        function(v) sound = v; AutoSave() end, -44, 268)
+        function(v) sound = v; AutoSave() end, kind == "exboss" and -156 or -100, 268)
     if kind == "exboss" then
         Toggle(voice, "Speak callout", function() return tts end,
-            function(v) tts = v; AutoSave() end, -112, 576)
+            function(v) tts = v; AutoSave() end, -216, 268)
     end
     local status = Label(parent, "Changes save as you make them. Test previews your current choices.", 0, -66 - BODY_H - 10, 604)
     local function Value()

@@ -180,30 +180,30 @@ assert(not e.buttons["Debuff sound"], "and does not list them")
 -- an ability in this dungeon and must not claim a row here.
 assert(#e.rowToggles == 1 and e.rowToggles[1].get() == false)
 
--- The editor's three groups of settings sit behind tabs so the page fits the window and
--- never needs the outer scrollbar.
+-- One panel, two columns, no tabs. Every control is built and reachable at once, which is
+-- also why the tab bugs are gone: there is no hidden group to lose an unsaved edit in and
+-- no remembered tab to outlive the rule it was chosen on.
 e = Fixture(); SelectTrash(e)
-assert(e:tab("Cast") and e:tab("Text & Test") and e:tab("Voice"), "all three tabs are drawn")
-assert(e.boxes["Reminder name"] and e.controls["Defensive preset"] and e.controls.Sound,
-    "every group is built; the tabs only decide which one is shown")
+assert(e.boxes["Reminder name"] and e.boxes["Display duration (1-15 seconds)"],
+    "the display controls are built")
+assert(e.controls["Defensive preset"] and e.controls.Sound and e.controls["Speak callout"],
+    "so are the cast and voice ones, without a click")
+assert(not e:tab("Cast") and not e:tab("Voice") and not e:tab("Text & Test"),
+    "and there are no tabs left to click")
 
--- Switching tab must not rebuild the page. The controls are seeded from the SAVED rule, so
--- a rebuild threw away everything not yet saved: a preset chosen on one tab came back as
--- the stored one the moment you looked at another.
-e.controls["Defensive preset"].set("p1")
-e.boxes["Reminder name"]:SetText("Typed but not saved")
+-- The FIRST change creates the rule, so the page rebuilds once to list it and give it a
+-- Remove button. Every change after that updates in place, or a rebuild would fight the
+-- keyboard while typing.
+e.controls["Speak callout"].set(true)
+assert(e.rules.i1, "the first change wrote the rule")
 local renders = e.renders
-e:tab("Text & Test").onClick()
-assert(e.renders == renders, "switching tab rebuilt the page")
-assert(e.controls["Defensive preset"].get() == "p1", "the chosen preset survived the switch")
-assert(e.boxes["Reminder name"]:GetText() == "Typed but not saved", "and so did what was typed")
-e:tab("Cast").onClick()
-assert(e.controls["Defensive preset"].get() == "p1", "and switching back changes nothing")
--- Save and Test act on the whole rule, so they sit above the tabs rather than inside one.
-for _, tab in ipairs({ "Cast", "Text & Test", "Voice" }) do
-    e:tab(tab).onClick()
-    assert(e.buttons.Test, "Test is reachable from " .. tab)
-    assert(not e.buttons.Save, "there is no Save button to reach")
-end
+e.controls["Defensive preset"].set("p1")
+e.boxes["Reminder name"]:SetText("Typed")
+assert(e.renders == renders, "a later change must not rebuild the page")
+assert(e.boxes["Reminder name"]:GetText() == "Typed")
+
+-- Test and Remove sit above both columns and act on the whole rule.
+e.commitAll()
+assert(e.buttons.Test and e.buttons.Remove)
 
 print("PASS edited invalid IDs reach validation instead of falling back")

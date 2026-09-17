@@ -16,6 +16,10 @@
   back this way is marked with whose it started as, and the import preview says so.
 
 ### Changed
+- The trash and debuff editor is one panel in two columns instead of three tabs. Once the
+  custom text field went, neither half was large enough to be worth hiding behind a click,
+  and removing the tabs removes where the last two bugs lived: switching one discarded
+  unsaved edits, and the chosen tab outlived the rule it was chosen on.
 - The custom text field is gone from the trash and debuff editor. A preset writes the
   callout line itself, and a rule without one uses the generic phrase the alert has always
   fallen back to. An older rule keeps whatever text it was saved with.
