@@ -2966,10 +2966,6 @@ local function HideReminder()
     -- Undo any Preview-specific elevation so a real fight never inherits it.
     if frame then frame:SetFrameStrata("HIGH") end
     if textFrame then textFrame:SetFrameStrata("HIGH") end
-    if ns.previewDimmed then
-        ns.previewDimmed = nil
-        if ns.DimOptionsWindow then ns.DimOptionsWindow(false) end
-    end
     ns.StopCDMGlow()
     if frame then
         if frame.reminder then frame.reminder:Hide() end
@@ -3409,10 +3405,6 @@ local function ShowOnAlert(opts)
     if opts.preview then
         frame:SetFrameStrata("FULLSCREEN_DIALOG")
         if textFrame then textFrame:SetFrameStrata("FULLSCREEN_DIALOG") end
-        -- Out of its own way while the preview shows, so the callout is read where it will
-        -- actually appear rather than through the page you pressed Test on.
-        if ns.DimOptionsWindow then ns.DimOptionsWindow(true) end
-        ns.previewDimmed = true
     end
     frame:Show()
     if textFrame then textFrame:Show() end

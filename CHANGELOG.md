@@ -26,8 +26,6 @@
 
 ### Fixed
 - Remove no longer overlaps Test in the rule editor.
-- Test no longer draws the callout over the options window. The window fades while the
-  preview shows, so you see it where it will actually appear.
 
 ## 1.4.0
 
