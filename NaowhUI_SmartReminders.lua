@@ -7044,9 +7044,9 @@ function ns.BuildBarsSettings(parent, y)
     -- a value this addon may show but never read, so neither of these can reach the voice.
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Show Who Is Targeted",
-          tooltip = "When a boss cast names somebody, puts that player's name on the alert "
-          .. "in their class colour. Only for abilities you have a cast reminder on, since "
-          .. "that is the only moment the game will say who is being targeted.",
+          tooltip = "When a boss or trash cast names somebody, puts that player's name on "
+          .. "the alert in their class colour. Only while the cast is going out, since that "
+          .. "is the only moment the game will say who is being targeted.",
           getValue = function() return TRDB().showCastTarget ~= false end,
           setValue = function(v) TRDB().showCastTarget = v and nil or false end },
         { type = "toggle", text = "Mark Me When I Am Targeted",
