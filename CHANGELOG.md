@@ -10,6 +10,11 @@
   without letting an addon read the answer, so the voice cannot follow it.
 
 ### Changed
+- The 32 rules per spec limit on trash and debuff rules is gone. It was this addon's own
+  choice rather than the client's, and it counted every rule in the spec, so a spec with
+  thirty trash rules could not register a single debuff sound even though trash rules
+  never touch that part of the game. The client still decides what it will register and
+  says so when it declines. An imported pack is still bounded, as a sanity check.
 - The boss page's BIGWIGS/DBM MESSAGES section is now BOSS REMINDERS, and its button is
   Add Reminder. That editor is the only way to reach the boss cast triggers as well as the
   message one, so naming the section after messages hid half of what it does.

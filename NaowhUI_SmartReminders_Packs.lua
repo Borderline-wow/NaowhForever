@@ -169,10 +169,13 @@ local function ValidData(data)
                     return false
                 else
                     if sec.field == "integrationRules" then
+                        -- A bound on what a STRING may carry, not on what a spec may hold:
+                        -- the per-spec cap is gone, but a malformed or hostile pack should
+                        -- still not be able to hand over an unbounded table.
                         local count = 0
                         for uid in pairs(inner) do
                             count = count + 1
-                            if type(uid) ~= "string" or count > 32 then return false end
+                            if type(uid) ~= "string" or count > 500 then return false end
                         end
                     end
                     for _, entry in pairs(inner) do

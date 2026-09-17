@@ -6,7 +6,15 @@ local pending, sounds = {}, {}
 local delivered = setmetatable({}, { __mode = "k" })
 local hooked, running = nil, false
 local revision = 0
-local MAX_RULES = 32
+-- No cap on how many rules a spec may hold. The 32 that used to sit here was this addon's
+-- own choice, not the client's: AddAuraSound has no documented limit, it returns nil when
+-- the client declines a registration, and that refusal is already reported below. Worse,
+-- the old count was of EVERY rule in the spec, so a spec with thirty trash rules could not
+-- register a single debuff sound even though trash rules never touch that API at all.
+--
+-- The only bound left is on an imported pack, where a malformed or hostile string could
+-- otherwise carry an unbounded table. It is a sanity check, not a budget.
+local MAX_IMPORTED_RULES = 500
 -- Racial callouts that must stay quiet while the racial itself is unavailable. The client
 -- plays these itself once the aura is registered with it, so there is no call of ours to
 -- suppress: the FILE is muted instead. That is why each one needs a file of its own, and a
@@ -332,10 +340,8 @@ local function RefreshSounds()
         I.auraStatus = "Aura sounds require the Retail AddAuraSound API."
         return
     end
-    local wanted, missing, ruleCount = {}, false, 0
+    local wanted, missing = {}, false
     for _, rule in pairs(I.Rules(false) or {}) do
-        ruleCount = ruleCount + 1
-        if ruleCount > MAX_RULES then wanted = {}; missing = true; break end
         if Eligible(rule, "auraSound") then
             local t, path = rule.trigger, ns.UI.SoundPathFor(rule.display.sound)
             local gated = RACIALS[rule.display.sound] and rule.display.sound or nil
@@ -395,7 +401,7 @@ local function RefreshSounds()
         end
     end
     RacialStatusLine()
-    I.auraStatus = missing and "Some rules could not load: check selected sound files and the 32-rule limit."
+    I.auraStatus = missing and "Some rules could not load: check the selected sound files."
         or failed and "Some aura sounds were not accepted by the client."
         or (count .. " aura sound registrations active. Changes apply outside combat.")
 end
@@ -404,18 +410,11 @@ function I.Refresh()
     running = false
     ClearAll()
     if ns.HideIntegrationReminders then ns.HideIntegrationReminders() end
-    local n = 0
     for _, rule in pairs(I.Rules(false) or {}) do
-        n = n + 1
-        if n > MAX_RULES then
-            running = false
-            I.trashStatus = "Too many rules; maximum 32 per spec."
-            break
-        end
         if Eligible(rule, "exboss") then running = true end
     end
     if running then Connect()
-    elseif n <= MAX_RULES then I.trashStatus = "No enabled trash rules for this instance and spec." end
+    else I.trashStatus = "No enabled trash rules for this instance and spec." end
     RefreshSounds()
     if I.OnStatusChanged then I.OnStatusChanged() end
 end
@@ -423,9 +422,6 @@ function I.Save(uid, rule)
     if not I.ValidRule(rule) then return false, "Check IDs, timing and sound. Stoneform voice requires Unit: Me." end
     local rules = I.Rules(true)
     if not uid then
-        local count = 0
-        for _ in pairs(rules) do count = count + 1 end
-        if count >= MAX_RULES then return false, "Maximum 32 rules per spec." end
         local index = 1
         while rules["i" .. index] do index = index + 1 end
         uid = "i" .. index
@@ -478,9 +474,9 @@ end
 -- Each rule is copied rather than shared, and lands on a fresh uid: uids are sequential per
 -- spec, so the source's own would collide with unrelated rules already saved here.
 --
--- Returns copied, skipped, noRoom. noRoom is the 32-per-spec cap being reached partway --
--- reported rather than swallowed, since a copy that silently lands 12 of 20 rules looks
--- exactly like one that worked.
+-- Returns copied, skipped and a third value kept at zero. There is no cap to run out of
+-- any more, so nothing is ever left behind for want of room; the return is kept so callers
+-- built against the old signature still read a number rather than nil.
 function I.CopyRulesFromSpec(fromSpecKey)
     local db = ns.DB()
     local all = Table(db.integrationRules) and db.integrationRules or nil
@@ -510,8 +506,6 @@ function I.CopyRulesFromSpec(fromSpecKey)
             local key = RuleKey(r)
             if have[key] then
                 skipped = skipped + 1
-            elseif count >= MAX_RULES then
-                noRoom = noRoom + 1
             else
                 while dst["i" .. index] do index = index + 1 end
                 dst["i" .. index] = CopyRule(r)

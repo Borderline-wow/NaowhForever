@@ -282,12 +282,10 @@ function ns.ShowCopyTrashRulesPopup(callerEUI)
         for i = 1, #specs do
             local s = specs[i]
             local btn = ns.Button(panel, s.name, 210, 24, function()
-                local copied, skipped, noRoom = I.CopyRulesFromSpec(s.key)
-                ns.Print(("copied |cff0091ed%d|r trash rules from %s%s%s."):format(
+                local copied, skipped = I.CopyRulesFromSpec(s.key)
+                ns.Print(("copied |cff0091ed%d|r trash rules from %s%s."):format(
                     copied, s.name,
-                    skipped > 0 and (", left " .. skipped .. " already here alone") or "",
-                    noRoom > 0 and ("|cffff6060, and %d did not fit the 32-rule limit|r")
-                        :format(noRoom) or ""))
+                    skipped > 0 and (", left " .. skipped .. " already here alone") or ""))
                 dimmer:Hide()
                 if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
             end)

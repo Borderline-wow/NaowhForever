@@ -378,11 +378,15 @@ Case("aura profile and instance changes clear registrations", function()
     e.kind = "party"; e.I.Refresh(); assert(#e.added == 2)
     e.db.integrationRules = {}; e.I.Refresh(); assert(#e.removed == 2)
 end)
-Case("malformed rules are rejected and rule count is bounded", function()
+Case("malformed rules are rejected, and a spec may hold as many good ones as it likes", function()
     local e = Fixture(); local r = e:rule(); r.trigger.spellID = 0/0; assert(not e.I.Save(nil,r))
     r=e:rule("auraSound"); r.display.sound="none"; assert(not e.I.Save(nil,r))
-    for i=1,32 do assert(e.I.Save(nil,e:rule())) end
-    assert(not e.I.Save(nil,e:rule()))
+    -- Well past the cap this addon used to impose on itself. The client decides what it
+    -- will register, and says so; the addon does not decide for it in advance.
+    for i = 1, 120 do assert(e.I.Save(nil, e:rule()), "rule " .. i) end
+    local n = 0
+    for _ in pairs(e.I.Rules(false)) do n = n + 1 end
+    assert(n == 120)
 end)
 Case("settings refresh and resync do not replay an already delivered prediction", function()
     local e=Fixture(); e.I.Save(nil,e:rule()); e:timer(1,10); e:advance(5)
@@ -406,8 +410,11 @@ Case("shared packs validate integration rules, IDs and size before import", func
     data.integrationRules["250"].i2.trigger.mapID=1877
     data.integrationRules["250"][1]=e:rule(); assert(not valid(data))
     data.integrationRules["250"][1]=nil
-    for i=3,33 do data.integrationRules["250"]["i"..i]=e:rule() end
-    assert(not valid(data))
+    -- A pack may carry far more than a spec used to be allowed, but not an unbounded table.
+    for i=3,120 do data.integrationRules["250"]["i"..i]=e:rule() end
+    assert(valid(data), "a large but sane pack is still a valid pack")
+    for i=121,502 do data.integrationRules["250"]["i"..i]=e:rule() end
+    assert(not valid(data), "past the sanity bound it is refused")
 end)
 Case("Stoneform follows cooldown events in combat without re-registering", function()
     local e = Fixture(); local r = e:rule("auraSound"); r.display.sound = "voice:stoneform-ready"
@@ -527,8 +534,8 @@ Case("rules copy across as independent entries on fresh uids", function()
     src.name = "Knock"
     e.db.integrationRules["581"] = { i1 = src }
     e.db.integrationRules["250"] = { i1 = e:rule("auraSound") }
-    local copied, skipped, noRoom = e.I.CopyRulesFromSpec("581")
-    assert(copied == 1 and skipped == 0 and noRoom == 0)
+    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    assert(copied == 1 and skipped == 0)
     local mine = e.db.integrationRules["250"]
     assert(RuleCount(mine) == 2 and mine.i1.trigger.type == "auraSound")
     local landed
@@ -569,7 +576,7 @@ Case("two callouts on one ability at different warning times both come across", 
     local again, skippedAgain = e.I.CopyRulesFromSpec("581")
     assert(again == 0 and skippedAgain == 2)
 end)
-Case("the 32-rule cap stops the copy and reports what did not fit", function()
+Case("a copy is no longer cut short by a cap", function()
     local e = CopyFixture()
     local src, mine = {}, {}
     for i = 1, 5 do
@@ -581,9 +588,9 @@ Case("the 32-rule cap stops the copy and reports what did not fit", function()
         mine["i" .. i] = r
     end
     e.db.integrationRules["581"], e.db.integrationRules["250"] = src, mine
-    local copied, skipped, noRoom = e.I.CopyRulesFromSpec("581")
-    assert(copied == 2 and skipped == 0 and noRoom == 3)
-    assert(RuleCount(e.db.integrationRules["250"]) == 32)
+    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    assert(copied == 5 and skipped == 0, "every source rule comes across")
+    assert(RuleCount(e.db.integrationRules["250"]) == 35)
 end)
 Case("an invalid source rule is passed over", function()
     local e = CopyFixture()
@@ -603,8 +610,8 @@ end)
 Case("copying from a spec with nothing saved changes nothing", function()
     local e = CopyFixture()
     e.db.integrationRules["250"] = { i1 = e:rule() }
-    local copied, skipped, noRoom = e.I.CopyRulesFromSpec("999")
-    assert(copied == 0 and skipped == 0 and noRoom == 0)
+    local copied, skipped = e.I.CopyRulesFromSpec("999")
+    assert(copied == 0 and skipped == 0)
     assert(RuleCount(e.db.integrationRules["250"]) == 1)
 end)
 print(count .. " integration regressions passed")
