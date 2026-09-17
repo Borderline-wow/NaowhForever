@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0
 
 ### Added
 - Merge a Profile In, on the Profiles tab. Paste a string somebody else maintains, tick
@@ -58,6 +58,16 @@
   Switching tab shows a different panel and nothing else, so a preset chosen or text
   typed and not yet saved survives the switch. Save, Test and Remove sit above the tabs,
   since they act on the whole rule rather than on one group of its settings.
+
+### Validation and limits
+- All 18 offline regression suites pass; runtime Lua syntax checked.
+- This is a large UI rework and none of it has been verified in the client. The window
+  layout, the split Trash and Debuffs pages, the single reminder display and both new
+  dialogs are offline-tested only.
+- The two racial voice clips are installed and wired but have not been heard, and their
+  encoding is unverified.
+- Showing who a boss cast is aimed at is not in this build. It is display only and
+  cannot be meaningfully tested outside an instanced pull, so it ships on alpha first.
 
 ## 1.3.9
 
