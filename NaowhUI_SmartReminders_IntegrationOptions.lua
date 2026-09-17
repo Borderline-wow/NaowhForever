@@ -97,7 +97,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
     Toggle(cast, "Healer Reminder", function() return healer end,
         function(v) healer = v; AutoSave() end, -78, 268)
     local name = Commit(Box(test, "Reminder name",
-        old and old.name or (ability and ability.name) or "Debuff sound", -44, 268))
+        old and old.name or (ability and ability.name) or "Debuff alert", -44, 268))
     local duration
     local lead, spell, map
     local auraEvent, target = t.auraEvent or "Added", t.target or "player"
@@ -222,16 +222,17 @@ end
 -- dungeon's worth of them by hand is the same ask the boss pages answer with their own Copy
 -- From Spec. Deliberately plain next to that one: there is no boss to scope to and no
 -- every-boss choice to offer, so the panel is the spec list and nothing else.
-function ns.ShowCopyTrashRulesPopup(callerEUI)
+function ns.ShowCopyTrashRulesPopup(callerEUI, kind)
     local EUI = callerEUI or ns.UI
-    local specs = I.SpecsWithRules()
+    local noun = kind == "auraSound" and "debuff alerts" or "trash rules"
+    local specs = I.SpecsWithRules(kind)
     -- Provisional: the hint below wraps to a line count no arithmetic here can know, so the
     -- panel is resized to whatever the content measured once it is laid out.
     local dimmer, panel = ns.MakeModal(430, 150 + math.max(1, #specs) * 30, "copyTrashRules")
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
-    head:SetText("Copy Trash Rules From")
+    head:SetText(kind == "auraSound" and "Copy Debuff Alerts From" or "Copy Trash Rules From")
 
     local y = -46
     if #specs == 0 then
@@ -240,7 +241,7 @@ function ns.ShowCopyTrashRulesPopup(callerEUI)
         none:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
         none:SetJustifyH("LEFT")
         none:SetWordWrap(true)
-        none:SetText("No other spec has any trash or debuff rules saved yet.")
+        none:SetText(("No other spec has any %s saved yet."):format(noun))
     else
         local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
@@ -259,9 +260,9 @@ function ns.ShowCopyTrashRulesPopup(callerEUI)
         for i = 1, #specs do
             local s = specs[i]
             local btn = ns.Button(panel, s.name, 210, 24, function()
-                local copied, skipped = I.CopyRulesFromSpec(s.key)
-                ns.Print(("copied |cff0091ed%d|r trash rules from %s%s."):format(
-                    copied, s.name,
+                local copied, skipped = I.CopyRulesFromSpec(s.key, kind)
+                ns.Print(("copied |cff0091ed%d|r %s from %s%s."):format(
+                    copied, noun, s.name,
                     skipped > 0 and (", left " .. skipped .. " already here alone") or ""))
                 dimmer:Hide()
                 if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
@@ -269,7 +270,7 @@ function ns.ShowCopyTrashRulesPopup(callerEUI)
             btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
             local count = ns.Font(panel, 11, nil, ns.THEME.muted)
             count:SetPoint("LEFT", btn, "RIGHT", 10, 0)
-            count:SetText(("%d rule%s"):format(s.total, s.total == 1 and "" or "s"))
+            count:SetText(("%d saved"):format(s.total))
             y = y - 30
         end
     end
@@ -341,19 +342,20 @@ end
 
 function ns.BuildIntegrationsPage(parent, y)
     I.Refresh()
-    Label(parent, "Trash & Debuff Alerts", 20, y - 4, 900, 16, ns.THEME.accent)
+    Label(parent, "Trash Alerts", 20, y - 4, 900, 16, ns.THEME.accent)
 
     -- Beside the heading rather than buried in the list: it acts on the whole spec, not on
     -- whichever dungeon happens to be selected below, and it brings debuff rules too.
-    local others = I.SpecsWithRules and I.SpecsWithRules() or {}
+    local others = I.SpecsWithRules and I.SpecsWithRules("exboss") or {}
     if #others > 0 then
         local copy = ns.Button(parent, "Copy From Spec", 160, 24, function()
-            ns.ShowCopyTrashRulesPopup(UI)
+            ns.ShowCopyTrashRulesPopup(UI, "exboss")
         end)
-        copy:SetPoint("TOPLEFT", parent, "TOPLEFT", 200, y)
+        copy:SetPoint("TOPLEFT", parent, "TOPLEFT", 160, y)
         ns.Tooltip(copy, "Copy From Spec",
-            "Brings another spec's trash and debuff rules over to this one. Rules are saved "
-            .. "per spec, and anything already here is left alone.")
+            "Brings another spec's trash rules over to this one. Rules are saved per spec, "
+            .. "and anything already here is left alone. Debuff alerts have their own "
+            .. "button on their own tab.")
     end
     StatusLines(parent, y)
 
@@ -380,7 +382,7 @@ function ns.BuildIntegrationsPage(parent, y)
     local list = CreateFrame("Frame", nil, scroll)
     list:SetWidth(240); scroll:SetScrollChild(list)
 
-    -- Cast rules only. Debuff sounds have their own tab: they answer to no dungeon and were
+    -- Cast rules only. Debuff alerts have their own tab: they answer to no dungeon and were
     -- only ever reachable here through a bucket at the bottom of somebody else's list.
     local rules = I.Rules(false) or {}
     local savedFor, claimed = {}, {}
@@ -484,22 +486,35 @@ function ns.BuildIntegrationsPage(parent, y)
     if chosen then Editor(right, chosen.uid, "exboss", chosen.ability, chosen.dungeon or selectedDungeon)
     else
         Label(right, "Select an ability to set up its callout, or switch one on to start from the defaults.", 0, 0, 604, 14)
-        Label(right, "Debuff sounds live on their own tab. Changes are saved only when you click Save.", 0, -40, 604)
+        Label(right, "Debuff alerts live on their own tab. Changes save as you make them.", 0, -40, 604)
     end
     -- Measured rather than guessed: the wrapper adds its own padding on top of this,
     -- and a fixed number claimed room the page never used.
     return y - (68 + PANEL_H + 8)
 end
 
--- Debuff sounds answer to an aura, not to a dungeon, so they get their own page rather than
+-- Debuff alerts answer to an aura, not to a dungeon, so they get their own page rather than
 -- a bucket at the bottom of the trash list where they had no dungeon to be filed under.
 function ns.BuildDebuffsPage(parent, y)
     I.Refresh()
-    Label(parent, "Debuff Sounds", 20, y - 4, 900, 16, ns.THEME.accent)
+    Label(parent, "Debuff Alerts", 20, y - 4, 900, 16, ns.THEME.accent)
+
+    -- Its own copy, of its own kind: these answer to an aura rather than a dungeon, and the
+    -- trash page's button no longer reaches them.
+    local others = I.SpecsWithRules and I.SpecsWithRules("auraSound") or {}
+    if #others > 0 then
+        local copy = ns.Button(parent, "Copy From Spec", 160, 24, function()
+            ns.ShowCopyTrashRulesPopup(UI, "auraSound")
+        end)
+        copy:SetPoint("TOPLEFT", parent, "TOPLEFT", 160, y)
+        ns.Tooltip(copy, "Copy From Spec",
+            "Brings another spec's debuff alerts over to this one. They are saved per spec, "
+            .. "and anything already here is left alone.")
+    end
     StatusLines(parent, y)
 
-    local side = Panel(parent, "Saved Debuff Sounds", 20, y - 68, 280, PANEL_H)
-    local add = ns.Button(side, "+ Debuff Sound", 252, 26, function()
+    local side = Panel(parent, "Saved Debuff Alerts", 20, y - 68, 280, PANEL_H)
+    local add = ns.Button(side, "+ Debuff Alert", 252, 26, function()
         debuffSelection = { newAura = true }; UI:RefreshPage(true)
     end)
     add:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -42)
@@ -524,9 +539,9 @@ function ns.BuildDebuffsPage(parent, y)
         if active then chosen = entry end
         local icon = C_Spell and C_Spell.GetSpellTexture
             and C_Spell.GetSpellTexture(rule.trigger.spellID)
-        local row = ListRow(list, ly, 236, rule.name or "Debuff sound", icon, rule, active,
+        local row = ListRow(list, ly, 236, rule.name or "Debuff alert", icon, rule, active,
             function() debuffSelection = { uid = entry.uid }; UI:RefreshPage(true) end)
-        ns.Tooltip(row, rule.name or "Debuff sound",
+        ns.Tooltip(row, rule.name or "Debuff alert",
             ("Aura %s on %s, when %s."):format(tostring(rule.trigger.spellID),
                 rule.trigger.target == "party" and "a party member" or "you",
                 (rule.trigger.auraEvent or "Added"):lower()))

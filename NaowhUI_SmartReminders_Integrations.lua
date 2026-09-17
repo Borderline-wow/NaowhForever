@@ -448,16 +448,25 @@ local function CopyRule(v)
     return out
 end
 
--- Which other specs have trash rules saved, with how many. Feeds the Copy From Spec picker
--- on the Trash & Debuff page; per-spec storage means a fresh spec starts empty.
-function I.SpecsWithRules()
+-- Which other specs have rules of this kind saved, and how many. Feeds the Copy From Spec
+-- picker on whichever page asked; per-spec storage means a fresh spec starts empty.
+--
+-- kind is "exboss" or "auraSound". Each page copies only its own: the Trash button used to
+-- drag debuff alerts across with it, which is not what a button on the trash page says it
+-- does, and there was no way to move debuff alerts on their own at all.
+local function OfKind(rule, kind)
+    return Table(rule) and Table(rule.trigger)
+        and (not kind or rule.trigger.type == kind)
+end
+
+function I.SpecsWithRules(kind)
     local db = ns.DB()
     local all = Table(db.integrationRules) and db.integrationRules or {}
     local mine, out = tostring(I.Spec()), {}
     for specKey, rules in pairs(all) do
         if specKey ~= mine and Table(rules) then
             local n = 0
-            for _, r in pairs(rules) do if Table(r) then n = n + 1 end end
+            for _, r in pairs(rules) do if OfKind(r, kind) then n = n + 1 end end
             if n > 0 then
                 out[#out + 1] = { key = specKey, name = ns.SpecName(specKey), total = n }
             end
@@ -477,7 +486,7 @@ end
 -- Returns copied, skipped and a third value kept at zero. There is no cap to run out of
 -- any more, so nothing is ever left behind for want of room; the return is kept so callers
 -- built against the old signature still read a number rather than nil.
-function I.CopyRulesFromSpec(fromSpecKey)
+function I.CopyRulesFromSpec(fromSpecKey, kind)
     local db = ns.DB()
     local all = Table(db.integrationRules) and db.integrationRules or nil
     local src = all and all[fromSpecKey]
@@ -485,12 +494,9 @@ function I.CopyRulesFromSpec(fromSpecKey)
     local dst = I.Rules(true)
     if not Table(dst) then return 0, 0, 0 end
 
-    local have, count = {}, 0
+    local have = {}
     for _, r in pairs(dst) do
-        if Table(r) then
-            count = count + 1
-            if Table(r.trigger) then have[RuleKey(r)] = true end
-        end
+        if OfKind(r, kind) then have[RuleKey(r)] = true end
     end
 
     -- Sorted, so a copy that runs out of room takes the source's first rules rather than an
@@ -502,14 +508,14 @@ function I.CopyRulesFromSpec(fromSpecKey)
     local copied, skipped, noRoom, index = 0, 0, 0, 1
     for i = 1, #uids do
         local r = src[uids[i]]
-        if Table(r) and I.ValidRule(r) then
+        if OfKind(r, kind) and I.ValidRule(r) then
             local key = RuleKey(r)
             if have[key] then
                 skipped = skipped + 1
             else
                 while dst["i" .. index] do index = index + 1 end
                 dst["i" .. index] = CopyRule(r)
-                have[key], count, copied = true, count + 1, copied + 1
+                have[key], copied = true, copied + 1
             end
         end
     end

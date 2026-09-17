@@ -7,11 +7,15 @@
   with YOU beside it when the cast is on you. Two switches in Setup to turn either off.
   Display only; the game does not let an addon read who was named, so the voice cannot
   follow it.
+- Copy From Spec on the Debuff Alerts tab, for moving debuff alerts between specs.
 - `/nutank share` exports your profile even when it came from someone else's pack, for
   handing changes back to whoever maintains it. The pack is marked so they can see it is
   theirs coming back.
 
 ### Changed
+- Trash Alerts and Debuff Alerts, renamed from Trash & Debuff Alerts and Debuff Sounds.
+- Each Copy From Spec now moves only its own kind. The trash one used to drag debuff
+  alerts across with it.
 - No more 32 rules per spec limit on trash and debuff rules.
 - Trash and debuff rules save as you change them. The Save button is gone.
 - The rule editor is one page in two columns instead of three tabs.

@@ -534,7 +534,7 @@ Case("rules copy across as independent entries on fresh uids", function()
     src.name = "Knock"
     e.db.integrationRules["581"] = { i1 = src }
     e.db.integrationRules["250"] = { i1 = e:rule("auraSound") }
-    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    local copied, skipped = e.I.CopyRulesFromSpec("581", "exboss")
     assert(copied == 1 and skipped == 0)
     local mine = e.db.integrationRules["250"]
     assert(RuleCount(mine) == 2 and mine.i1.trigger.type == "auraSound")
@@ -548,7 +548,7 @@ Case("a rule this spec already has for that ability is left alone", function()
     local e = CopyFixture()
     e.db.integrationRules["581"] = { i1 = e:rule() }
     e.db.integrationRules["250"] = { i1 = e:rule() }
-    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    local copied, skipped = e.I.CopyRulesFromSpec("581", "exboss")
     assert(copied == 0 and skipped == 1)
     assert(RuleCount(e.db.integrationRules["250"]) == 1)
 end)
@@ -560,20 +560,60 @@ Case("same spell on a different map or aura event is its own rule", function()
     elsewhere.trigger.mapID = 2000
     e.db.integrationRules["581"] = { i1 = other, i2 = elsewhere }
     e.db.integrationRules["250"] = { i1 = e:rule("auraSound"), i2 = e:rule() }
-    local copied, skipped = e.I.CopyRulesFromSpec("581")
-    assert(copied == 2 and skipped == 0)
+    -- One of each kind, so each half is copied by the page that owns it.
+    local copied, skipped = e.I.CopyRulesFromSpec("581", "auraSound")
+    assert(copied == 1 and skipped == 0, "a different aura event is its own rule")
+    copied, skipped = e.I.CopyRulesFromSpec("581", "exboss")
+    assert(copied == 1 and skipped == 0, "and so is a different map")
     assert(RuleCount(e.db.integrationRules["250"]) == 4)
+end)
+Case("each page copies only its own kind of rule", function()
+    local e = CopyFixture()
+    local trash = e:rule()
+    local debuff = e:rule("auraSound")
+    debuff.trigger.spellID = 456
+    e.db.integrationRules["581"] = { i1 = trash, i2 = debuff }
+
+    -- The trash page's button takes trash rules and leaves the debuff alert behind.
+    local copied = e.I.CopyRulesFromSpec("581", "exboss")
+    assert(copied == 1)
+    local mine = e.db.integrationRules["250"]
+    assert(RuleCount(mine) == 1)
+    for _, r in pairs(mine) do assert(r.trigger.type == "exboss") end
+
+    -- The debuff page's button takes the other one.
+    copied = e.I.CopyRulesFromSpec("581", "auraSound")
+    assert(copied == 1 and RuleCount(mine) == 2)
+    local kinds = {}
+    for _, r in pairs(mine) do kinds[r.trigger.type] = true end
+    assert(kinds.exboss and kinds.auraSound)
+end)
+Case("the picker counts only the kind the page asked about", function()
+    local e = CopyFixture()
+    local debuff = e:rule("auraSound")
+    debuff.trigger.spellID = 456
+    e.db.integrationRules["581"] = { i1 = e:rule(), i2 = e:rule(), i3 = debuff }
+    local trashSpecs = e.I.SpecsWithRules("exboss")
+    assert(#trashSpecs == 1 and trashSpecs[1].total == 2)
+    local debuffSpecs = e.I.SpecsWithRules("auraSound")
+    assert(#debuffSpecs == 1 and debuffSpecs[1].total == 1)
+end)
+Case("a spec with only the other kind is not offered at all", function()
+    local e = CopyFixture()
+    e.db.integrationRules["581"] = { i1 = e:rule("auraSound") }
+    assert(#e.I.SpecsWithRules("exboss") == 0, "nothing to copy means nothing to pick")
+    assert(#e.I.SpecsWithRules("auraSound") == 1)
 end)
 Case("two callouts on one ability at different warning times both come across", function()
     local e = CopyFixture()
     local early, late = e:rule(), e:rule()
     early.trigger.timeleft, late.trigger.timeleft = 8, 2
     e.db.integrationRules["581"] = { i1 = early, i2 = late }
-    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    local copied, skipped = e.I.CopyRulesFromSpec("581", "exboss")
     assert(copied == 2 and skipped == 0)
     assert(RuleCount(e.db.integrationRules["250"]) == 2)
     -- And a repeat press still recognises both as already here.
-    local again, skippedAgain = e.I.CopyRulesFromSpec("581")
+    local again, skippedAgain = e.I.CopyRulesFromSpec("581", "exboss")
     assert(again == 0 and skippedAgain == 2)
 end)
 Case("a copy is no longer cut short by a cap", function()
@@ -588,15 +628,16 @@ Case("a copy is no longer cut short by a cap", function()
         mine["i" .. i] = r
     end
     e.db.integrationRules["581"], e.db.integrationRules["250"] = src, mine
-    local copied, skipped = e.I.CopyRulesFromSpec("581")
+    local copied, skipped = e.I.CopyRulesFromSpec("581", "exboss")
     assert(copied == 5 and skipped == 0, "every source rule comes across")
     assert(RuleCount(e.db.integrationRules["250"]) == 35)
 end)
 Case("an invalid source rule is passed over", function()
     local e = CopyFixture()
     local bad = e:rule(); bad.display.dur = 99
-    e.db.integrationRules["581"] = { i1 = bad, i2 = e:rule("auraSound") }
-    local copied = e.I.CopyRulesFromSpec("581")
+    local good = e:rule(); good.trigger.spellID = 999
+    e.db.integrationRules["581"] = { i1 = bad, i2 = good }
+    local copied = e.I.CopyRulesFromSpec("581", "exboss")
     assert(copied == 1 and RuleCount(e.db.integrationRules["250"]) == 1)
 end)
 Case("the picker lists other specs with counts and never this one", function()
@@ -604,13 +645,14 @@ Case("the picker lists other specs with counts and never this one", function()
     e.db.integrationRules["250"] = { i1 = e:rule() }
     e.db.integrationRules["581"] = { i1 = e:rule(), i2 = e:rule("auraSound") }
     e.db.integrationRules["104"] = {}
-    local specs = e.I.SpecsWithRules()
-    assert(#specs == 1 and specs[1].key == "581" and specs[1].total == 2)
+    -- Two rules saved there, but only one of the kind this picker was opened for.
+    local specs = e.I.SpecsWithRules("exboss")
+    assert(#specs == 1 and specs[1].key == "581" and specs[1].total == 1)
 end)
 Case("copying from a spec with nothing saved changes nothing", function()
     local e = CopyFixture()
     e.db.integrationRules["250"] = { i1 = e:rule() }
-    local copied, skipped = e.I.CopyRulesFromSpec("999")
+    local copied, skipped = e.I.CopyRulesFromSpec("999", "exboss")
     assert(copied == 0 and skipped == 0)
     assert(RuleCount(e.db.integrationRules["250"]) == 1)
 end)

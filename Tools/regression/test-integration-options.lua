@@ -104,7 +104,7 @@ assert(e.saved.preset == "p1" and e.saved.healerReminder and e.saved.display.tts
 assert(e.buttons.Remove, "saved rule did not stay selected")
 e.commitAll(); assert(e.rules.i1 and not e.rules.i2)
 e.buttons.Remove(); assert(not next(e.rules))
-e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
+e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
 e.boxes["Debuff spell ID"]:SetText("456")
 e.controls.When.set("Removed"); e.controls.Unit.set("party"); e.controls.Sound.set("test")
 e.commitAll()
@@ -116,7 +116,7 @@ for _, change in ipairs({ "profile", "spec" }) do
     if change == "profile" then e.rules = {} else e.spec = 251 end
     e.commitAll(); assert(not e.saved)
 end
-e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
+e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
 e.boxes["Debuff spell ID"]:SetText("21562")
 e.controls.Sound.set("voice:stoneform-ready")
 e.commitAll()
@@ -127,7 +127,7 @@ print("PASS dungeon selection, wide preset control, preview, save/reselection, r
 
 for _, field in ipairs({ "Debuff spell ID", "Instance ID (0 = every dungeon / raid)" }) do
     for _, value in ipairs({ "", "invalid" }) do
-        e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
+        e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
         e.boxes["Debuff spell ID"]:SetText("21562")
         e.controls.Sound.set("test"); e.commitAll()
         e.boxes[field]:SetText(value); e.commitAll()
@@ -166,16 +166,16 @@ assert(e.saved.display.text == "Use a defensive", "and the saved line is the fal
 -- Debuff sounds belong to their own tab: they answer to an aura rather than a dungeon, and
 -- used to sit in a bucket at the bottom of the trash list with no dungeon to file them under.
 e = Fixture().debuffs()
-assert(e.buttons["+ Debuff Sound"], "the add button moved to this page")
-e.buttons["+ Debuff Sound"]()
+assert(e.buttons["+ Debuff Alert"], "the add button moved to this page")
+e.buttons["+ Debuff Alert"]()
 e.boxes["Debuff spell ID"]:SetText("456"); e.controls.Sound.set("test")
 e.commitAll()
 assert(e.saved.trigger.type == "auraSound")
 assert(#e.rowToggles == 1, "the saved sound is listed here with its switch")
 assert(e.buttons.Remove, "and stays selected on this page after saving")
 e.page = nil; e.render()
-assert(not e.buttons["+ Debuff Sound"], "the trash page no longer offers debuff sounds")
-assert(not e.buttons["Debuff sound"], "and does not list them")
+assert(not e.buttons["+ Debuff Alert"], "the trash page no longer offers debuff sounds")
+assert(not e.buttons["Debuff alert"], "and does not list them")
 -- One row, for the one catalogue ability, and its switch reads off: the aura rule is not
 -- an ability in this dungeon and must not claim a row here.
 assert(#e.rowToggles == 1 and e.rowToggles[1].get() == false)
