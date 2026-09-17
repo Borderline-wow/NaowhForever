@@ -1,6 +1,18 @@
 local ns = _G.NaowhUITankReminder
 local I, UI = ns.Integrations, ns.UI
-local selection = { dungeon = "saved" }
+local selection = { dungeon = "all" }
+-- The two list pages keep their own selection: picking a debuff sound must not decide what
+-- the trash page is showing when you come back to it.
+local debuffSelection = {}
+
+-- The page is sized to the options window so it never scrolls: the ability list keeps its
+-- own scrollbar and nothing else needs one. The editor fits by putting its three groups of
+-- settings behind tabs rather than stacking them, the same shape the boss reminder editor
+-- already uses. PANEL_H is what is left once the heading block is drawn.
+local PANEL_H, BODY_H = 424, 336
+-- Which editor tab is open, kept out here so it survives the page rebuild every click
+-- causes rather than snapping back to the first one.
+local editorTab = "cast"
 local function Label(parent, text, x, y, width, size, color)
     local label = ns.Font(parent, size or 12, nil, color or ns.THEME.muted)
     label:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
@@ -19,7 +31,7 @@ local function Panel(parent, title, x, y, width, height)
     return p
 end
 local function Box(parent, title, value, y, width)
-    Label(parent, title, 14, y, width)
+    local label = Label(parent, title, 14, y, width)
     local box = CreateFrame("EditBox", nil, parent)
     box:SetFontObject(GameFontHighlight)
     box:SetAutoFocus(false)
@@ -28,8 +40,10 @@ local function Box(parent, title, value, y, width)
     box:SetSize(width, 24)
     ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
     ns.Border(box)
+    -- Without an inset the caret and the first character sit on the border itself.
+    box:SetTextInsets(7, 7, 0, 0)
     box:SetText(tostring(value or ""))
-    return box
+    return box, label
 end
 local function Dropdown(parent, title, values, order, get, set, y, width)
     Label(parent, title, 14, y, width)
@@ -50,24 +64,66 @@ local function Editor(parent, uid, kind, ability, dungeon)
     local spellID = t.spellID or (ability and ability.spellID)
     local mapID = t.mapID or (dungeon and dungeon.id) or 0
     Label(parent, old and old.name or (ability and ability.name) or "New Debuff Sound",
-        0, 0, 590, 18, ns.THEME.fg)
+        0, 0, 420, 16, ns.THEME.fg)
     Label(parent, ability and (ability.mob .. "  |  Spell " .. spellID)
-        or "Rules belong to the current profile and specialization.", 0, -28, 590)
-    local cast = Panel(parent, kind == "exboss" and "Cast Settings" or "Debuff Settings", 0, -60, 296, 352)
-    local test = Panel(parent, "Text & Test Settings", 308, -60, 296, 352)
-    local voice = Panel(parent, "Voice Settings", 0, -424, 604, 164)
+        or "Rules belong to the current profile and specialization.", 0, -20, 420)
+    -- All three sit in the same place; the tabs below decide which one is shown.
+    local cast = Panel(parent, kind == "exboss" and "Cast Settings" or "Debuff Settings", 0, -66, 604, BODY_H)
+    local test = Panel(parent, "Text & Test Settings", 0, -66, 604, BODY_H)
+    local voice = Panel(parent, "Voice Settings", 0, -66, 604, BODY_H)
+    local groups = { cast = cast, text = test, voice = voice }
+    if not groups[editorTab] then editorTab = "cast" end
+
+    -- Switching tab shows a different panel and nothing else. Rebuilding the page here
+    -- looked tidier and threw away every unsaved edit: the controls are seeded from the
+    -- SAVED rule, so a preset chosen and not yet saved came back as Custom text the moment
+    -- you looked at another tab.
+    local tabBtns = {}
+    local function SelectTab(id)
+        editorTab = id
+        for gid, p in pairs(groups) do p:SetShown(gid == id) end
+        for bid, btn in pairs(tabBtns) do
+            btn.marker:SetShown(bid == id)
+            local c = (bid == id) and ns.THEME.fg or ns.THEME.muted
+            btn.label:SetTextColor(c.r, c.g, c.b, 1)
+        end
+    end
+
+    local tabBtn
+    for _, tab in ipairs({
+        { id = "cast", text = kind == "exboss" and "Cast" or "Debuff" },
+        { id = "text", text = "Text & Test" },
+        { id = "voice", text = "Voice" },
+    }) do
+        local btn = CreateFrame("Button", nil, parent)
+        local lbl = ns.Font(btn, 12, nil, ns.THEME.muted)
+        lbl:SetText(tab.text)
+        btn:SetSize(math.ceil(lbl:GetStringWidth()) + 6, 22)
+        lbl:SetPoint("CENTER")
+        if tabBtn then btn:SetPoint("LEFT", tabBtn, "RIGHT", 18, 0)
+        else btn:SetPoint("TOPLEFT", parent, "TOPLEFT", 2, -42) end
+        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.accent, 1)
+        marker:SetPoint("BOTTOMLEFT", 0, -3)
+        marker:SetPoint("BOTTOMRIGHT", 0, -3)
+        marker:SetHeight(2)
+        btn.label, btn.marker = lbl, marker
+        btn:SetScript("OnClick", function() SelectTab(tab.id) end)
+        tabBtns[tab.id] = btn
+        tabBtn = btn
+    end
+    SelectTab(editorTab)
     local enabled, healer = not old or old.enabled ~= false, old and old.healerReminder == true
     Toggle(cast, "Enabled", function() return enabled end, function(v) enabled = v end, -42, 268)
     Toggle(cast, "Healer Reminder", function() return healer end, function(v) healer = v end, -78, 268)
     local name = Box(test, "Reminder name", old and old.name or (ability and ability.name) or "Debuff sound", -44, 268)
     local duration
-    local lead, spell, map, text
+    local lead, spell, map, text, textLabel
     local auraEvent, target = t.auraEvent or "Added", t.target or "player"
     if kind == "exboss" then
         duration = Box(test, "Display duration (1-15 seconds)", d.dur or 3, -100, 268)
         lead = Box(cast, "Warn before readiness (0-30 seconds)", t.timeleft or 5, -124, 268)
         Label(cast, "Timing predicts ability readiness. It does not confirm a cast or its target.", 14, -184, 268)
-        text = Box(test, "Callout text", d.text or "Use a defensive", -156, 268)
+        text, textLabel = Box(test, "Custom text", d.text or "Use a defensive", -156, 268)
     else
         spell = Box(cast, "Debuff spell ID", spellID, -120, 268)
         map = Box(cast, "Instance ID (0 = every dungeon / raid)", mapID, -176, 268)
@@ -76,7 +132,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
             function(v) auraEvent = v end, -232, 268)
         Dropdown(cast, "Unit", { player = "Me", party = "Party members" }, { "player", "party" },
             function() return target end, function(v) target = v end, -288, 268)
-        Label(test, "Use the debuff's aura spell ID. Stoneform voice requires Unit: Me and stays silent while the racial is unavailable.\n\nChanges apply after combat and encounter restrictions end. Test previews the voice regardless of cooldown.", 14, -160, 268)
+        Label(test, "Use the debuff's aura spell ID. The Stoneform and Shadowmeld voices require Unit: Me and stay silent while that racial is on cooldown, unknown or unusable.\n\nChanges apply after combat and encounter restrictions end. Test previews the voice regardless of cooldown.", 14, -160, 268)
     end
     local preset = old and old.preset or "none"
     if kind == "exboss" then
@@ -87,22 +143,47 @@ local function Editor(parent, uid, kind, ability, dungeon)
         if preset ~= "none" and not values[preset] then
             values[preset] = "Missing preset: " .. preset; order[#order + 1] = preset
         end
+        -- A preset names the defensive at fire time and writes the line itself, so the
+        -- custom text is not read at all while one is chosen. Greyed rather than hidden:
+        -- what is typed there is kept, and comes back the moment the preset goes.
+        local function ApplyPresetLock()
+            if not text then return end
+            local locked = preset ~= "none"
+            if locked then
+                text:ClearFocus()
+                text:Disable()
+                text:SetTextColor(ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b, 0.7)
+                textLabel:SetText("Custom text (the preset supplies it)")
+            else
+                text:Enable()
+                text:SetTextColor(ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b, 1)
+                textLabel:SetText("Custom text")
+            end
+            textLabel:SetTextColor(ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b,
+                locked and 0.7 or 1)
+        end
         Dropdown(cast, "Defensive preset", values, order, function() return preset end,
-            function(v) preset = v end, -242, 268)
+            function(v) preset = v; ApplyPresetLock() end, -242, 268)
+        ApplyPresetLock()
     end
     local sound, tts = d.sound or "none", d.tts == true
     local paths, names, order = UI.BuildAlertSoundTables()
     UI.AppendSharedMediaSounds(paths, names, order)
+    -- Named for whose voice it is, matching Naowh's other sound files. The keys are left
+    -- alone: a saved rule and a shared pack both store the key, never the label, so
+    -- renaming one of these can never orphan a rule somebody already made.
     if kind == "auraSound" then
-        names["voice:stoneform-ready"] = "Stoneform - only when ready (English)"
+        names["voice:stoneform-ready"] = "Stoneform - Naowh"
         order[#order + 1] = "voice:stoneform-ready"
+        names["voice:shadowmeld-ready"] = "Shadowmeld - Naowh"
+        order[#order + 1] = "voice:shadowmeld-ready"
     end
     Dropdown(voice, "Sound", names, order, function() return sound end,
         function(v) sound = v end, -44, 268)
     if kind == "exboss" then
         Toggle(voice, "Speak callout", function() return tts end, function(v) tts = v end, -112, 576)
     end
-    local status = Label(parent, "Select settings, then Save. Test previews your current choices.", 0, -604, 604)
+    local status = Label(parent, "Select settings, then Save. Test previews your current choices.", 0, -66 - BODY_H - 10, 604)
     local function Value()
         local id, instanceID = spellID, mapID
         if spell then id = tonumber(spell:GetText()) end
@@ -115,7 +196,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
                 spellID = d.spellID or id, dur = kind == "exboss" and tonumber(duration:GetText()) or 3,
                 tts = kind == "exboss" and tts or false } }
     end
-    local preview = ns.Button(test, "Test Reminder", 268, 28, function()
+    local preview = ns.Button(parent, "Test", 120, 28, function()
         local r = Value()
         if I.ValidRule(r) then
             I.Preview(r)
@@ -126,29 +207,39 @@ local function Editor(parent, uid, kind, ability, dungeon)
             else
                 status:SetText("Sound preview requested. Save to keep these settings.")
             end
-        else status:SetText("Check IDs and sound. Stoneform voice requires Unit: Me.") end
+        else status:SetText("Check IDs and sound. A racial voice requires Unit: Me.") end
     end)
-    preview:SetPoint("BOTTOMLEFT", test, "BOTTOMLEFT", 14, 16)
     local save = ns.Button(parent, "Save", 120, 28, function()
         if I.Spec() ~= editedSpec or I.Rules(false) ~= editedRules then
             status:SetText("Profile or specialization changed. Select the reminder again."); return
         end
         local ok, result = I.Save(uid, Value())
         if not ok then status:SetText(result); return end
-        selection.uid = result or uid
-        if kind == "auraSound" then selection.dungeon = "saved" end
-        selection.newAura = nil
+        if kind == "auraSound" then
+            debuffSelection = { uid = result or uid }
+        else
+            selection.uid = result or uid
+        end
         UI:RefreshPage(true)
     end)
-    save:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -646)
+    -- Top right, on the tab row: the editor is a fixed height now and a button row under
+    -- the body would put it back over the window's own edge. Save and Test belong to the
+    -- whole rule rather than to one group of its settings, so they sit above the tabs and
+    -- stay reachable whichever one is open.
+    save:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -40)
+    local leftOf = save
     if uid then
         local remove = ns.Button(parent, "Remove", 120, 28, function()
             if I.Spec() ~= editedSpec or I.Rules(false) ~= editedRules then return end
-            editedRules[uid] = nil; selection.uid = nil; selection.spellID = nil
+            editedRules[uid] = nil
+            if kind == "auraSound" then debuffSelection = {}
+            else selection.uid = nil; selection.spellID = nil end
             I.Refresh(); UI:RefreshPage(true)
         end)
-        remove:SetPoint("LEFT", save, "RIGHT", 12, 0)
+        remove:SetPoint("RIGHT", save, "LEFT", 8, 0)
+        leftOf = remove
     end
+    preview:SetPoint("RIGHT", leftOf, "LEFT", 8, 0)
 end
 -- Trash rules are saved per spec, so a second spec starts with nothing and rebuilding a
 -- dungeon's worth of them by hand is the same ask the boss pages answer with their own Copy
@@ -216,101 +307,301 @@ function ns.ShowCopyTrashRulesPopup(callerEUI)
     dimmer:Show()
 end
 
-function ns.BuildIntegrationsPage(parent, y)
-    I.Refresh()
-    Label(parent, "Trash & Debuff Alerts", 20, y - 6, 900, 16, ns.THEME.accent)
-    local status = Label(parent, I.trashStatus or "", 20, y - 34, 900)
-    local function AuraStatus()
-        return (I.auraStatus or "") .. (I.stoneformStatus and ("  " .. I.stoneformStatus) or "")
+-- Shared by both list pages: a row that is the spell icon, the name, and a switch when
+-- there is a saved rule behind it to switch. Deliberately tight -- the whole list used to
+-- be two scrollbars deep on a dungeon with a dozen abilities.
+local ROW_H, HEAD_H, ICON = 26, 22, 20
+
+-- Every row carries a switch, reading off until a reminder exists behind it, so the list
+-- says at a glance what is set up. Turning one on for an ability with nothing saved writes
+-- the rule the editor would have written and opens it, which is the same "create on demand"
+-- the boss ability rows already do rather than a second Add button.
+local function ListRow(list, ly, width, text, icon, rule, active, onClick, onCreate)
+    local row = ns.Button(list, text, width, ROW_H, onClick)
+    row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -ly)
+    row.label:ClearAllPoints()
+    row.label:SetPoint("LEFT", row, "LEFT", 64, 0)
+    row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.label:SetJustifyH("LEFT")
+    row.label:SetWordWrap(false)
+
+    local on = rule ~= nil and rule.enabled ~= false
+    local toggle = UI.BuildToggleControl(row, row:GetFrameLevel() + 2,
+        function() return on end,
+        function(v)
+            on = v and true or false
+            if rule then
+                rule.enabled = on
+                I.Refresh()
+            elseif on and onCreate then
+                onCreate()
+            end
+        end, 26, 13)
+    toggle:SetPoint("LEFT", row, "LEFT", 6, 0)
+
+    if icon then
+        local holder = CreateFrame("Frame", nil, row)
+        holder:SetSize(ICON, ICON)
+        holder:SetPoint("LEFT", row, "LEFT", 38, 0)
+        local tex = holder:CreateTexture(nil, "ARTWORK")
+        tex:SetAllPoints()
+        tex:SetTexture(icon)
+        tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        ns.Border(holder, { r = 0, g = 0, b = 0 }, 1)
     end
-    local auraStatus = Label(parent, AuraStatus(), 20, y - 56, 900)
+    if active then ns.Border(row, ns.THEME.accent) end
+    return row
+end
+
+local function StatusLines(parent, y)
+    local status = Label(parent, I.trashStatus or "", 20, y - 26, 900)
+    local function AuraStatus()
+        return (I.auraStatus or "") .. (I.racialStatus and ("  " .. I.racialStatus) or "")
+    end
+    local auraStatus = Label(parent, AuraStatus(), 20, y - 44, 900)
     I.OnStatusChanged = function()
         status:SetText(I.trashStatus or ""); auraStatus:SetText(AuraStatus())
     end
-    local catalogue, values, order, selected = I.Catalogue(), { saved = "Saved reminders" }, { "saved" }
-    for _, dungeon in ipairs(catalogue) do
-        values[dungeon.id] = dungeon.name; order[#order + 1] = dungeon.id
-        if dungeon.id == selection.dungeon then selected = dungeon end
-    end
-    if not values[selection.dungeon] then selection.dungeon = "saved" end
-    local side = Panel(parent, "Select a Dungeon", 20, y - 90, 280, 684)
-    Dropdown(side, "Dungeon", values, order, function() return selection.dungeon end, function(v)
-        selection = { dungeon = v }; UI:RefreshPage(true)
-    end, -42, 252)
-    local add = ns.Button(side, "+ Debuff Sound", 252, 26, function()
-        selection.uid = nil; selection.spellID = nil; selection.newAura = true; UI:RefreshPage(true)
-    end)
-    add:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -104)
-    -- Only when another spec has something to give, and the list below moves down by
-    -- exactly its height when it does, so the panel keeps its own bottom edge either way.
+end
+
+function ns.BuildIntegrationsPage(parent, y)
+    I.Refresh()
+    Label(parent, "Trash & Debuff Alerts", 20, y - 4, 900, 16, ns.THEME.accent)
+
+    -- Beside the heading rather than buried in the list: it acts on the whole spec, not on
+    -- whichever dungeon happens to be selected below, and it brings debuff rules too.
     local others = I.SpecsWithRules and I.SpecsWithRules() or {}
-    local shift = #others > 0 and 28 or 0
-    if shift > 0 then
-        local copy = ns.Button(side, "Copy From Spec", 252, 26, function()
+    if #others > 0 then
+        local copy = ns.Button(parent, "Copy From Spec", 160, 24, function()
             ns.ShowCopyTrashRulesPopup(UI)
         end)
-        copy:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -134)
+        copy:SetPoint("TOPLEFT", parent, "TOPLEFT", 200, y)
         ns.Tooltip(copy, "Copy From Spec",
             "Brings another spec's trash and debuff rules over to this one. Rules are saved "
             .. "per spec, and anything already here is left alone.")
     end
-    Label(side, selected and "Select an Ability" or "Saved Reminders", 14, -148 - shift, 252, 14, ns.THEME.fg)
+    StatusLines(parent, y)
+
+    local catalogue = I.Catalogue()
+    local values, order = { saved = "Every dungeon" }, {}
+    for _, dungeon in ipairs(catalogue) do
+        values[dungeon.id] = dungeon.name; order[#order + 1] = dungeon.id
+    end
+    order[#order + 1] = "saved"
+    -- One dungeon at a time. Listing every one at once was hundreds of rows deep and made
+    -- the choice of dungeon something you scrolled past rather than made.
+    if not values[selection.dungeon] then
+        selection = { dungeon = catalogue[1] and catalogue[1].id or "saved" }
+    end
+
+    local side = Panel(parent, "Select a Dungeon", 20, y - 68, 280, PANEL_H)
+    Dropdown(side, "Dungeon", values, order, function() return selection.dungeon end, function(v)
+        selection = { dungeon = v }; UI:RefreshPage(true)
+    end, -42, 252)
+
     local scroll = CreateFrame("ScrollFrame", nil, side, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", side, "TOPLEFT", 10, -178 - shift)
-    scroll:SetSize(240, 486 - shift)
+    scroll:SetPoint("TOPLEFT", side, "TOPLEFT", 10, -96)
+    scroll:SetSize(240, PANEL_H - 108)
     local list = CreateFrame("Frame", nil, scroll)
     list:SetWidth(240); scroll:SetScrollChild(list)
-    local rules, rows = I.Rules(false) or {}, {}
-    if selected then
-        for _, ability in ipairs(selected.abilities) do
-            rows[#rows + 1] = { ability = ability }
-            -- Existing duplicate rules stay separately editable under Saved reminders.
-            local ids = {}
-            for uid, r in pairs(rules) do
-                if r.trigger.type == "exboss" and r.trigger.mapID == selected.id
-                    and r.trigger.spellID == ability.spellID then ids[#ids + 1] = uid end
+
+    -- Cast rules only. Debuff sounds have their own tab: they answer to no dungeon and were
+    -- only ever reachable here through a bucket at the bottom of somebody else's list.
+    local rules = I.Rules(false) or {}
+    local savedFor, claimed = {}, {}
+    for uid, r in pairs(rules) do
+        if r.trigger.type == "exboss" then
+            local key = r.trigger.mapID .. ":" .. r.trigger.spellID
+            if not savedFor[key] or uid < savedFor[key] then savedFor[key] = uid end
+        end
+    end
+    for _, dungeon in ipairs(catalogue) do
+        for _, ability in ipairs(dungeon.abilities) do
+            local uid = savedFor[dungeon.id .. ":" .. ability.spellID]
+            if uid then claimed[uid] = true end
+        end
+    end
+
+    local sections = {}
+    if selection.dungeon ~= "saved" then
+        for _, dungeon in ipairs(catalogue) do
+            if dungeon.id == selection.dungeon then
+                sections[1] = { id = dungeon.id, name = dungeon.name,
+                    dungeon = dungeon, abilities = dungeon.abilities }
             end
-            table.sort(ids); rows[#rows].uid = ids[1]
         end
     else
-        for uid, r in pairs(rules) do rows[#rows + 1] = { uid = uid, name = r.name } end
-        table.sort(rows, function(a, b) return a.uid < b.uid end)
-    end
-    local chosen
-    for index, row in ipairs(rows) do
-        local ability = row.ability
-        local active = not selection.newAura and ((ability and ability.spellID == selection.spellID)
-            or (selection.uid and row.uid == selection.uid))
-        if active then chosen = row end
-        local label = (row.uid and "[Saved] " or "") .. (ability and ability.name or row.name)
-        local button = ns.Button(list, label, 236, 44, function()
-            selection.uid = row.uid; selection.spellID = ability and ability.spellID
-            selection.newAura = nil; UI:RefreshPage(true)
-        end)
-        button:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -(index - 1) * 50)
-        button.label:ClearAllPoints()
-        button.label:SetPoint("LEFT", button, "LEFT", ability and 42 or 8, 0)
-        button.label:SetPoint("RIGHT", button, "RIGHT", -8, 0)
-        button.label:SetJustifyH("LEFT")
-        button.label:SetWordWrap(false)
-        if ability and ability.icon then
-            local icon = button:CreateTexture(nil, "ARTWORK")
-            icon:SetPoint("LEFT", button, "LEFT", 6, 0)
-            icon:SetSize(30, 30); icon:SetTexture(ability.icon)
+        local loose = {}
+        for uid, r in pairs(rules) do
+            if r.trigger.type == "exboss" and not claimed[uid] then
+                loose[#loose + 1] = { uid = uid, name = r.name }
+            end
         end
-        ns.Tooltip(button, label, ability and (ability.mob .. "\nSpell " .. ability.spellID) or "Edit this saved reminder.")
-        if active then ns.Border(button, ns.THEME.accent) end
+        table.sort(loose, function(a, b) return a.uid < b.uid end)
+        sections[1] = { id = "saved", name = "Rules for every dungeon", loose = loose }
     end
-    list:SetHeight(math.max(1, #rows * 50))
+
+    local chosen, ly = nil, 0
+    for _, section in ipairs(sections) do
+        -- A single dungeon selected is its own answer to "which one", so it opens expanded;
+        -- All Dungeons starts closed or the list is hundreds of rows deep on first sight.
+        -- The dungeon you picked is its own answer to "which one", so its section opens.
+        local key = "sec:" .. tostring(section.id)
+        if selection[key] == nil then selection[key] = false end
+        local shut = selection[key]
+
+        local head = ns.Button(list, (shut and "+  " or "-  ") .. section.name, 236, HEAD_H,
+            function() selection[key] = not shut; UI:RefreshPage(true) end)
+        head:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -ly)
+        head.label:ClearAllPoints()
+        head.label:SetPoint("LEFT", head, "LEFT", 6, 0)
+        head.label:SetJustifyH("LEFT")
+        head.label:SetTextColor(ns.THEME.accent.r, ns.THEME.accent.g, ns.THEME.accent.b, 1)
+        ly = ly + HEAD_H + 1
+        if shut then
+            -- Closed sections still say how much is inside, or the count of set-up rules is
+            -- invisible without opening every dungeon in turn.
+            local n = 0
+            if section.loose then n = #section.loose
+            else
+                for _, ability in ipairs(section.abilities) do
+                    if savedFor[section.id .. ":" .. ability.spellID] then n = n + 1 end
+                end
+            end
+            if n > 0 then
+                local tag = ns.Font(head, 11, nil, ns.THEME.muted)
+                tag:SetPoint("RIGHT", head, "RIGHT", -6, 0)
+                tag:SetText(n .. " set up")
+            end
+        else
+            local entries = {}
+            if section.loose then
+                for _, item in ipairs(section.loose) do entries[#entries + 1] = item end
+            else
+                for _, ability in ipairs(section.abilities) do
+                    entries[#entries + 1] = { ability = ability,
+                        uid = savedFor[section.id .. ":" .. ability.spellID] }
+                end
+            end
+            for _, entry in ipairs(entries) do
+                local ability, uid = entry.ability, entry.uid
+                local rule = uid and rules[uid]
+                local active = (uid and uid == selection.uid)
+                    or (ability and not selection.uid
+                        and ability.spellID == selection.spellID
+                        and section.id == selection.spellMap)
+                if active then
+                    chosen = { uid = uid, ability = ability, dungeon = section.dungeon }
+                end
+                local row = ListRow(list, ly, 236, ability and ability.name or entry.name,
+                    ability and ability.icon, rule, active, function()
+                        selection.uid = uid
+                        selection.spellID = ability and ability.spellID
+                        selection.spellMap = section.id
+                        UI:RefreshPage(true)
+                    end, ability and function()
+                        local ok, result = I.Save(nil, {
+                            name = ability.name, enabled = true,
+                            trigger = { type = "exboss", spellID = ability.spellID,
+                                mapID = section.id, timeleft = 5 },
+                            display = { type = "icon", text = "Use a defensive", dur = 3 },
+                        })
+                        if not ok then ns.Print("|cffff6060" .. tostring(result) .. "|r"); return end
+                        selection.uid = result
+                        selection.spellID = ability.spellID
+                        selection.spellMap = section.id
+                        UI:RefreshPage(true)
+                    end or nil)
+                ns.Tooltip(row, ability and ability.name or entry.name,
+                    ability and (ability.mob .. "\nSpell " .. ability.spellID
+                        .. (rule and "\n\nSet up on this spec." or "\n\nNot set up yet."))
+                    or "Edit this saved reminder.")
+                ly = ly + ROW_H + 1
+            end
+        end
+    end
+    if #sections == 0 then
+        Label(list, "The trash ability catalogue is unavailable. Enable the trash timer "
+            .. "engine and its data addon, then reopen this page.", 4, 0, 230)
+        ly = 60
+    end
+    list:SetHeight(math.max(1, ly))
+
+    local selectedDungeon
+    for _, dungeon in ipairs(catalogue) do
+        if dungeon.id == selection.dungeon then selectedDungeon = dungeon end
+    end
+
     local right = CreateFrame("Frame", nil, parent)
-    right:SetPoint("TOPLEFT", parent, "TOPLEFT", 320, y - 90)
-    right:SetSize(604, 684)
-    if selection.newAura then Editor(right, nil, "auraSound", nil, selected)
-    elseif chosen then Editor(right, chosen.uid, "exboss", chosen.ability, selected)
+    right:SetPoint("TOPLEFT", parent, "TOPLEFT", 320, y - 68)
+    right:SetSize(604, PANEL_H)
+    if chosen then Editor(right, chosen.uid, "exboss", chosen.ability, chosen.dungeon or selectedDungeon)
     else
-        Label(right, "Choose a dungeon, then select an ability to set up its callout.", 0, 0, 604, 14)
-        Label(right, #catalogue == 0 and "The trash ability catalogue is unavailable. Enable the trash timer engine and its data addon, then reopen this page. Existing rules are still available under Saved reminders."
-            or "Saved reminders keeps your existing rules, including debuff sounds and rules that apply to every dungeon. Changes are saved only when you click Save.", 0, -40, 604)
+        Label(right, "Select an ability to set up its callout, or switch one on to start from the defaults.", 0, 0, 604, 14)
+        Label(right, "Debuff sounds live on their own tab. Changes are saved only when you click Save.", 0, -40, 604)
     end
-    return y - 800
+    -- Measured rather than guessed: the wrapper adds its own padding on top of this,
+    -- and a fixed number claimed room the page never used.
+    return y - (68 + PANEL_H + 8)
+end
+
+-- Debuff sounds answer to an aura, not to a dungeon, so they get their own page rather than
+-- a bucket at the bottom of the trash list where they had no dungeon to be filed under.
+function ns.BuildDebuffsPage(parent, y)
+    I.Refresh()
+    Label(parent, "Debuff Sounds", 20, y - 4, 900, 16, ns.THEME.accent)
+    StatusLines(parent, y)
+
+    local side = Panel(parent, "Saved Debuff Sounds", 20, y - 68, 280, PANEL_H)
+    local add = ns.Button(side, "+ Debuff Sound", 252, 26, function()
+        debuffSelection = { newAura = true }; UI:RefreshPage(true)
+    end)
+    add:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -42)
+
+    local scroll = CreateFrame("ScrollFrame", nil, side, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", side, "TOPLEFT", 10, -78)
+    scroll:SetSize(240, PANEL_H - 90)
+    local list = CreateFrame("Frame", nil, scroll)
+    list:SetWidth(240); scroll:SetScrollChild(list)
+
+    local rules = I.Rules(false) or {}
+    local rows = {}
+    for uid, r in pairs(rules) do
+        if r.trigger.type == "auraSound" then rows[#rows + 1] = { uid = uid, rule = r } end
+    end
+    table.sort(rows, function(a, b) return a.uid < b.uid end)
+
+    local chosen, ly = nil, 0
+    for _, entry in ipairs(rows) do
+        local rule = entry.rule
+        local active = not debuffSelection.newAura and entry.uid == debuffSelection.uid
+        if active then chosen = entry end
+        local icon = C_Spell and C_Spell.GetSpellTexture
+            and C_Spell.GetSpellTexture(rule.trigger.spellID)
+        local row = ListRow(list, ly, 236, rule.name or "Debuff sound", icon, rule, active,
+            function() debuffSelection = { uid = entry.uid }; UI:RefreshPage(true) end)
+        ns.Tooltip(row, rule.name or "Debuff sound",
+            ("Aura %s on %s, when %s."):format(tostring(rule.trigger.spellID),
+                rule.trigger.target == "party" and "a party member" or "you",
+                (rule.trigger.auraEvent or "Added"):lower()))
+        ly = ly + ROW_H + 1
+    end
+    if #rows == 0 then
+        Label(list, "None yet. Add one with the button above.", 4, 0, 230)
+        ly = 40
+    end
+    list:SetHeight(math.max(1, ly))
+
+    local right = CreateFrame("Frame", nil, parent)
+    right:SetPoint("TOPLEFT", parent, "TOPLEFT", 320, y - 68)
+    right:SetSize(604, PANEL_H)
+    if debuffSelection.newAura then Editor(right, nil, "auraSound", nil, nil)
+    elseif chosen then Editor(right, chosen.uid, "auraSound", nil, nil)
+    else
+        Label(right, "A debuff sound plays when an aura is applied, stacks or falls off.", 0, 0, 604, 14)
+        Label(right, "Use the debuff's own aura spell ID. These apply wherever you set them, not to one dungeon. Changes are saved only when you click Save.", 0, -40, 604)
+    end
+    -- Measured rather than guessed: the wrapper adds its own padding on top of this,
+    -- and a fixed number claimed room the page never used.
+    return y - (68 + PANEL_H + 8)
 end

@@ -7,11 +7,22 @@ local delivered = setmetatable({}, { __mode = "k" })
 local hooked, running = nil, false
 local revision = 0
 local MAX_RULES = 32
-local STONEFORM = 20594
-local STONEFORM_SOUND = "voice:stoneform-ready"
+-- Racial callouts that must stay quiet while the racial itself is unavailable. The client
+-- plays these itself once the aura is registered with it, so there is no call of ours to
+-- suppress: the FILE is muted instead. That is why each one needs a file of its own, and a
+-- second copy for the preview that the gate never touches.
+local RACIALS = {
+    ["voice:stoneform-ready"] = { spellID = 20594, name = "Stoneform",
+        preview = "voice:stoneform-preview" },
+    ["voice:shadowmeld-ready"] = { spellID = 58984, name = "Shadowmeld",
+        preview = "voice:shadowmeld-preview" },
+}
+-- Registration key -> the racial sound it belongs to, for the pending-changes comparison.
 local gatedSounds = {}
-local events, stoneformEnabled, stoneformOwned, stoneformMuted
-local stoneformEvents = { "SPELL_UPDATE_COOLDOWN", "SPELL_UPDATE_USABLE", "SPELLS_CHANGED",
+local racialState = {}
+for key in pairs(RACIALS) do racialState[key] = {} end
+local events, racialEventsOn
+local racialEvents = { "SPELL_UPDATE_COOLDOWN", "SPELL_UPDATE_USABLE", "SPELLS_CHANGED",
     "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST" }
 local function Plain(v) return not (issecretvalue and issecretvalue(v)) end
 local function Table(v)
@@ -96,7 +107,8 @@ function I.ValidRule(r)
     if d.type ~= "icon" and d.type ~= "text" then return false end
     if d.spellID ~= nil and (not Number(d.spellID, 1, 100000000) or d.spellID % 1 ~= 0) then return false end
     if r.preset ~= nil and (type(r.preset) ~= "string" or #r.preset > 120) then return false end
-    if d.sound == STONEFORM_SOUND and (t.type ~= "auraSound" or t.target ~= "player") then return false end
+    -- A racial you cast on yourself cannot answer for a debuff on somebody else.
+    if RACIALS[d.sound] and (t.type ~= "auraSound" or t.target ~= "player") then return false end
     if t.type == "exboss" then return Number(t.timeleft, 0, 30) end
     return (t.target == "player" or t.target == "party")
         and (t.auraEvent == "Added" or t.auraEvent == "ApplicationsIncreased" or t.auraEvent == "Removed")
@@ -124,25 +136,19 @@ local function ClearAll()
     for id in pairs(pending) do ClearPending(id) end
     ns.PruneCustomReminderTimers()
 end
+-- One renderer for every reminder this addon draws: the preset resolution and the icon
+-- both happen inside it, so a trash callout is the same object on screen as an authored
+-- one rather than a lookalike built here.
 local function Display(rule, preview)
-    local d = {}
-    for k, v in pairs(rule.display) do d[k] = v end
-    if rule.preset then
-        local picked = ns.ResolveReminderSpell(rule)
-        if not picked then return end
-        d.spellID = picked
-        local info = C_Spell.GetSpellInfo(picked)
-        if info and Plain(info.name) then d.text = info.name end
-    end
-    ns.DisplayRaidReminder({ enabled = true, healerReminder = rule.healerReminder, display = d,
-        integration = true, integrationPreview = preview or nil }, preview)
+    ns.DisplayIntegrationReminder(rule, preview)
 end
 function I.Preview(rule)
     if not I.ValidRule(rule) or not ns.IsReminderEnabled(rule, true) then return end
     if rule.trigger.type == "auraSound" then
         -- Preview has a separate file: never unmute a live registration for a test.
-        if rule.display.sound == STONEFORM_SOUND then
-            ns.PlayReminderSound({ sound = "voice:stoneform-preview" })
+        local racial = RACIALS[rule.display.sound]
+        if racial then
+            ns.PlayReminderSound({ sound = racial.preview })
         else ns.PlayReminderSound(rule.display) end
     else
         ns.HideIntegrationReminders(true)
@@ -257,46 +263,70 @@ end
 local function AuraBusy()
     return InCombatLockdown() or (ns.InEncounter and ns.InEncounter()) or RestrictionBusy()
 end
-local function StoneformReady()
+-- Every rung reads a plain value or refuses: an unreadable cooldown is not a ready racial.
+local function RacialReady(spellID)
     if not (C_SpellBook and C_SpellBook.IsSpellKnown and C_Spell
         and C_Spell.GetSpellCooldown and C_Spell.IsSpellUsable and UnitIsDeadOrGhost) then return false, "API unavailable" end
-    local known, dead = C_SpellBook.IsSpellKnown(STONEFORM), UnitIsDeadOrGhost("player")
+    local known, dead = C_SpellBook.IsSpellKnown(spellID), UnitIsDeadOrGhost("player")
     if not Plain(known) or known ~= true then return false, "spell not known or unreadable" end
     if not Plain(dead) or dead ~= false then return false, "dead or unreadable player state" end
-    local cd = C_Spell.GetSpellCooldown(STONEFORM)
+    local cd = C_Spell.GetSpellCooldown(spellID)
     if not Table(cd) or not Plain(cd.isActive) or not Plain(cd.isEnabled) then return false, "cooldown unreadable" end
     if cd.isActive ~= false or cd.isEnabled ~= true then return false, "cooldown active or on hold" end
-    local usable = C_Spell.IsSpellUsable(STONEFORM)
+    local usable = C_Spell.IsSpellUsable(spellID)
     if not Plain(usable) then return false, "usability unreadable" end
     if usable ~= true then return false, "spell unusable" end
     return true, "ready"
 end
-local function UpdateStoneform()
-    if not stoneformOwned then return end
-    local ready, reason = false, "configuration pending or disabled"
-    if stoneformEnabled then ready, reason = StoneformReady() end
-    local muted = not ready
-    I.stoneformStatus = "Stoneform: " .. reason
-    if muted ~= stoneformMuted then
-        local path = ns.UI.SoundPathFor(STONEFORM_SOUND)
-        if muted then MuteSoundFile(path) else UnmuteSoundFile(path) end
-        stoneformMuted = muted
+local function RacialStatusLine()
+    local parts = {}
+    for key, racial in pairs(RACIALS) do
+        local st = racialState[key]
+        if st.owned and st.reason then parts[#parts + 1] = racial.name .. ": " .. st.reason end
     end
+    table.sort(parts)
+    I.racialStatus = #parts > 0 and table.concat(parts, "  ") or nil
+end
+local function UpdateRacial(key)
+    local st = racialState[key]
+    if not st.owned then return end
+    local ready, reason = false, "configuration pending or disabled"
+    if st.enabled then ready, reason = RacialReady(RACIALS[key].spellID) end
+    local muted = not ready
+    st.reason = reason
+    if muted ~= st.muted then
+        local path = ns.UI.SoundPathFor(key)
+        if muted then MuteSoundFile(path) else UnmuteSoundFile(path) end
+        st.muted = muted
+    end
+    RacialStatusLine()
     if I.OnStatusChanged then I.OnStatusChanged() end
 end
-local function SetStoneformEnabled(enabled)
-    enabled = enabled and MuteSoundFile ~= nil and UnmuteSoundFile ~= nil or false
-    if enabled ~= stoneformEnabled then
-        stoneformEnabled = enabled
-        for _, event in ipairs(stoneformEvents) do
-            if enabled then events:RegisterEvent(event) else events:UnregisterEvent(event) end
-        end
+-- The readiness events are shared, so they follow whether ANY racial is being gated rather
+-- than being registered once per racial on the same frame.
+local function SyncRacialEvents()
+    local any = false
+    for key in pairs(RACIALS) do
+        if racialState[key].enabled then any = true end
     end
-    UpdateStoneform()
+    if any == racialEventsOn then return end
+    racialEventsOn = any
+    for _, event in ipairs(racialEvents) do
+        if any then events:RegisterEvent(event) else events:UnregisterEvent(event) end
+    end
+end
+local function SetRacialEnabled(key, enabled)
+    enabled = enabled and MuteSoundFile ~= nil and UnmuteSoundFile ~= nil or false
+    racialState[key].enabled = enabled
+    SyncRacialEvents()
+    UpdateRacial(key)
+end
+local function SetAllRacialsEnabled(enabled)
+    for key in pairs(RACIALS) do SetRacialEnabled(key, enabled) end
 end
 local function RefreshSounds()
     -- Pending edits must not leave a stale profile's racial callout audible.
-    SetStoneformEnabled(false)
+    SetAllRacialsEnabled(false)
     if not (C_UnitAuras and C_UnitAuras.AddAuraSound and C_UnitAuras.RemoveAuraSound
         and Enum and Enum.UnitAuraSoundTrigger) then
         I.auraStatus = "Aura sounds require the Retail AddAuraSound API."
@@ -308,7 +338,7 @@ local function RefreshSounds()
         if ruleCount > MAX_RULES then wanted = {}; missing = true; break end
         if Eligible(rule, "auraSound") then
             local t, path = rule.trigger, ns.UI.SoundPathFor(rule.display.sound)
-            local gated = rule.display.sound == STONEFORM_SOUND
+            local gated = RACIALS[rule.display.sound] and rule.display.sound or nil
             if gated and not (MuteSoundFile and UnmuteSoundFile) then path = nil end
             if type(path) == "string" and path ~= "" then
                 local units = t.target == "party" and { "party1", "party2", "party3", "party4" } or { "player" }
@@ -331,7 +361,7 @@ local function RefreshSounds()
         for key, request in pairs(wanted) do
             if request.gated and not gatedSounds[key] then matched = false end
         end
-        SetStoneformEnabled(any and matched)
+        SetAllRacialsEnabled(any and matched)
         I.auraStatus = "Sound changes pending until combat and encounter restrictions end. Existing registrations remain active."
         return
     end
@@ -340,24 +370,31 @@ local function RefreshSounds()
             C_UnitAuras.RemoveAuraSound(id); sounds[key] = nil; gatedSounds[key] = nil
         end
     end
-    local count, failed, gatedCount = 0, false, 0
+    local count, failed, live = 0, false, {}
     for key, request in pairs(wanted) do
-        if request.gated and not stoneformOwned then
-            stoneformOwned = true
-            UpdateStoneform()
+        local st = request.gated and racialState[request.gated]
+        if st and not st.owned then
+            st.owned = true
+            UpdateRacial(request.gated)
         end
         if not sounds[key] then sounds[key] = C_UnitAuras.AddAuraSound(request.trigger, request.info) end
         if sounds[key] then count = count + 1 else failed = true end
         if sounds[key] and request.gated then
-            gatedCount = gatedCount + 1; gatedSounds[key] = true
+            live[request.gated] = true
+            gatedSounds[key] = request.gated
         end
     end
-    SetStoneformEnabled(gatedCount > 0)
-    if gatedCount == 0 and stoneformOwned then
-        UnmuteSoundFile(ns.UI.SoundPathFor(STONEFORM_SOUND))
-        stoneformOwned, stoneformMuted = nil, nil
-        I.stoneformStatus = nil
+    for racialKey in pairs(RACIALS) do
+        SetRacialEnabled(racialKey, live[racialKey] == true)
+        local st = racialState[racialKey]
+        -- Handing the file back unmuted: a racial nothing is registered for any more must
+        -- not leave its clip silenced for everything else that might play it.
+        if not live[racialKey] and st.owned then
+            UnmuteSoundFile(ns.UI.SoundPathFor(racialKey))
+            st.owned, st.muted, st.reason = nil, nil, nil
+        end
     end
+    RacialStatusLine()
     I.auraStatus = missing and "Some rules could not load: check selected sound files and the 32-rule limit."
         or failed and "Some aura sounds were not accepted by the client."
         or (count .. " aura sound registrations active. Changes apply outside combat.")
@@ -492,8 +529,11 @@ events:SetScript("OnEvent", function(_, event, name, state)
         if (name ~= Enum.AddOnRestrictionType.Combat and name ~= Enum.AddOnRestrictionType.Encounter)
             or state ~= Enum.AddOnRestrictionState.Inactive then return end
     end
-    for _, gateEvent in ipairs(stoneformEvents) do
-        if event == gateEvent then UpdateStoneform(); return end
+    for _, gateEvent in ipairs(racialEvents) do
+        if event == gateEvent then
+            for key in pairs(RACIALS) do UpdateRacial(key) end
+            return
+        end
     end
     if event == "ADDON_LOADED" and name ~= "EXBoss" and name ~= "NaowhSmartReminders" then return end
     if event == "PLAYER_SPECIALIZATION_CHANGED" and name ~= "player" then return end

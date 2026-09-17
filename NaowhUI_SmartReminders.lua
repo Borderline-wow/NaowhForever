@@ -643,11 +643,6 @@ local bar
 local activeSlots = 0           -- how many slots the current spec actually uses
 local hideTimer
 local shownForEvent
--- Hoisted from where it used to be declared, right before CreateCustomFrame: the new
--- color-apply functions below need it in scope, and a bare `local customFrame` further
--- down the file would shadow this one rather than reuse it -- every reader between the
--- two points would silently split into two different variables.
-local customFrame
 
 local function ApplyPosition()
     if not frame then return end
@@ -670,10 +665,6 @@ local function DefensiveTextColor()
     return (c and c.r) or 1, (c and c.g) or 1, (c and c.b) or 1, (c and c.a) or 1
 end
 
-local function CustomTextColor()
-    local c = TRDB().customTextColor
-    return (c and c.r) or 1, (c and c.g) or 1, (c and c.b) or 1, (c and c.a) or 1
-end
 
 -- Both colors are opt-in ("as an option", not a forced restyle): white unless the player
 -- has switched the toggle on, matching what every install has always shown.
@@ -697,14 +688,6 @@ local function ApplyDefensiveTextColor()
     end
 end
 
-local function ApplyCustomTextColor()
-    if not customFrame or not customFrame.text then return end
-    if TRDB().customTextColorOn then
-        customFrame.text:SetTextColor(CustomTextColor())
-    else
-        customFrame.text:SetTextColor(1, 1, 1, 1)
-    end
-end
 
 -- Where the countdown bar sits under the icon, shared with the text layout below so the
 -- two cannot drift apart.
@@ -895,7 +878,6 @@ function Reminder.Create()
 end
 
 local function ApplySize()
-    if customFrame then customFrame.text:SetFont(AlertFont(), 18, "OUTLINE") end
     if not frame then return end
     if frame.reminder then frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
     if frame.learnTag then frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE") end
@@ -2959,6 +2941,11 @@ local function HideReminder()
     if hideTimer then hideTimer:Cancel(); hideTimer = nil end
     ns.activeAuthoredReminder = nil
     shownForEvent = nil
+    -- On ns rather than chunk locals: this chunk is already at Lua's 200-local ceiling.
+    ns.integrationShowing, ns.integrationWasPreview = nil, nil
+    -- Undo any Preview-specific elevation so a real fight never inherits it.
+    if frame then frame:SetFrameStrata("HIGH") end
+    if textFrame then textFrame:SetFrameStrata("HIGH") end
     ns.StopCDMGlow()
     if frame then
         if frame.reminder then frame.reminder:Hide() end
@@ -3168,10 +3155,6 @@ local function CheckCounterCondition(groups, n)
     return false
 end
 
--- customFrame is declared much earlier, alongside frame/textFrame, so the color-apply
--- functions up there can close over the same variable this file's other custom-reminder
--- code writes to.
-local customHideTimer
 -- Per-uid occurrence count for the "Nth cast" counter, reset every pull.
 local customCounters = {}
 -- Cached at ENCOUNTER_START so OnCombatLog's hot path stays a single boolean read on a
@@ -3198,55 +3181,16 @@ ns.RefreshCustomRemindersFlag = RefreshCustomRemindersFlag
 
 -- Same shape as ApplyPosition: nil = default centre, otherwise wherever
 -- Unlock Mode last saved it.
-local function ApplyCustomReminderPosition()
-    if not customFrame then return end
-    local p = TRDB().customPos
-    customFrame:ClearAllPoints()
-    if p then
-        customFrame:SetPoint(p.point or "CENTER", UIParent, p.relPoint or "CENTER", p.x or 0, p.y or 0)
-    else
-        customFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
-    end
-end
 
-local function CreateCustomFrame()
-    if customFrame then return customFrame end
-    customFrame = CreateFrame("Frame", "NaowhUITankReminderCustom", UIParent)
-    customFrame:SetSize(360, 40)
-    -- HIGH, matching the icon and text callout (frame/textFrame) -- part of Smart
-    -- Reminders' own display, not something that should out-rank EllesmereUI's windows or
-    -- the rest of Smart Reminders' own alert. The editor's Preview button temporarily
-    -- raises this (see PreviewCustomReminder below) since it fires from inside a modal
-    -- that sits above HIGH; everything else leaves it here.
-    customFrame:SetFrameStrata("HIGH")
-    customFrame:SetClampedToScreen(true)
-    customFrame:EnableMouse(false)
-    customFrame:Hide()
 
-    -- Icon is optional per reminder (see FireCustomReminder) -- hidden until one actually
-    -- carries an iconSpellID, at which point the text moves off CENTER to sit beside it.
-    customFrame.icon = customFrame:CreateTexture(nil, "ARTWORK")
-    customFrame.icon:SetSize(28, 28)
-    customFrame.icon:SetPoint("LEFT", customFrame, "LEFT", 4, 0)
-    customFrame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    customFrame.icon:Hide()
 
-    customFrame.text = customFrame:CreateFontString(nil, "OVERLAY")
-    customFrame.text:SetPoint("CENTER")
-    customFrame.text:SetFont(AlertFont(), 18, "OUTLINE")
-    ApplyCustomTextColor()
-    ApplyCustomReminderPosition()
-    return customFrame
-end
-
-local function HideCustomReminder()
-    if customHideTimer then customHideTimer:Cancel(); customHideTimer = nil end
-    if customFrame then
-        customFrame:Hide()
-        customFrame.reminderEntry = nil
-        -- Undo any Preview-specific elevation so a real fight never inherits it.
-        customFrame:SetFrameStrata("HIGH")
-    end
+-- Trash rules occupy the defensive alert now, so the integration hide path has to reach it
+-- as well as the raid-reminder regions it already walks -- otherwise one test sits on
+-- screen until its own timer runs out instead of being replaced by the next.
+function ns.HideIntegrationCustomReminder(previewOnly)
+    if not ns.integrationShowing then return end
+    if previewOnly and not ns.integrationWasPreview then return end
+    HideReminder()
 end
 
 -- The best still-available defensive in an ordered spellID list, decided at fire time by
@@ -3312,7 +3256,7 @@ function ns.SpeakReminderTTS(r, overrideText, preview)
     local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate and C_TTSSettings.GetSpeechRate()) or 0
     local volume = TRDB().voiceVol or 100
     if volume <= 0 then
-        return Unavailable("Voice Volume is zero. Raise it under Smart Reminders Setup > Sounds and Voice.")
+        return Unavailable("Voice Volume is zero. Raise it under Smart Reminders > Setup > Sounds and Voice.")
     end
     -- Blizzard's documented order is voiceID, text, rate, volume, overlap.
     local ok = pcall(C_VoiceChat.SpeakText, voiceID, text, rate, volume, false)
@@ -3342,70 +3286,89 @@ end
 
 -- Bypasses trigger matching entirely -- used both by the real firing path below and by
 -- the editor's Preview button, so a preview shows exactly what a fight would.
+-- Authored reminders draw on the defensive alert, the same slots and the same text row
+-- every boss callout uses. They had a frame of their own until this, which put a second
+-- icon and line on screen beside the real display and gave one job two different looks.
+-- The per-reminder colour and icon-spell settings went with it: the alert owns both, and a
+-- reminder restyling it would be the second display all over again.
+--
+-- opts: fp, preset, text, dur, audio, preview, resolveFrom.
+local function ShowOnAlert(opts)
+    if not frame then Reminder.Create() end
+    if not frame then return false end
+
+    if opts.preset or opts.fp then
+        -- keepIfEmpty: nothing on the list being available leaves whatever is on screen
+        -- alone rather than blanking it, same as a boss callout that cannot be answered.
+        if not RebuildSlots(opts.fp or "authored", true, opts.preset) then return false end
+        ApplyPriorityAlpha()
+        ClearTankGate()
+        if frame.reminder then frame.reminder:Hide() end
+    elseif frame.reminder and type(opts.text) == "string" and opts.text ~= "" then
+        -- The slots keep whatever the spec's own preset last put in them, so showing the
+        -- frame for a line alone still displayed a defensive nobody asked for.
+        for i = 1, #slots do slots[i]:SetAlpha(0) end
+        activeSlots = 0
+        if frame.fallback then frame.fallback:SetAlpha(0) end
+        ns.slotsStale = true
+        frame.reminder:SetText(opts.text)
+        frame.reminder:Show()
+    else
+        return false
+    end
+
+    -- Who owns what is on screen. ApplyReminderFilter reads it to pull a live callout when
+    -- its reminder is switched off or filtered out mid-display, so leaving this nil meant a
+    -- healer reminder could stay up after the healer opt-out had just removed it.
+    ns.activeAuthoredReminder = opts.resolveFrom
+    -- Not a spell id, and never compared against one: it marks the alert as occupied so a
+    -- general rebuild or the options preview cannot pull it off screen mid-display.
+    shownForEvent = "authored"
+    ns.integrationShowing, ns.integrationWasPreview = true, opts.preview or nil
+    -- An editor's Preview fires from inside a modal at FULLSCREEN_DIALOG, which HIGH sits
+    -- well below. HideReminder drops both back, so the elevation never leaks into a fight.
+    if opts.preview then
+        frame:SetFrameStrata("FULLSCREEN_DIALOG")
+        if textFrame then textFrame:SetFrameStrata("FULLSCREEN_DIALOG") end
+    end
+    frame:Show()
+    if textFrame then textFrame:Show() end
+
+    if opts.audio then
+        ns.PlayReminderSound(opts.audio)
+        local spoken = opts.text
+        if opts.resolveFrom and (opts.preset or opts.fp) then
+            local picked = ns.ResolveReminderSpell(opts.resolveFrom)
+            local info = picked and C_Spell and C_Spell.GetSpellInfo
+                and C_Spell.GetSpellInfo(picked)
+            -- Through CalloutFor, not the spell's own name: someone who renames Vampiric
+            -- Blood to "Vamp" wants to hear "Vamp", and the slot label beside it has always
+            -- said so. Speaking the full name was the two channels disagreeing.
+            local named = picked and CalloutFor(picked, info and info.name)
+            if named and named ~= "" then spoken = named end
+        end
+        ns.SpeakReminderTTS(opts.audio, spoken, opts.preview)
+    end
+
+    if hideTimer then hideTimer:Cancel() end
+    hideTimer = C_Timer.NewTimer((type(opts.dur) == "number" and opts.dur > 0)
+        and opts.dur or 3, HideReminder)
+    return true
+end
+
 local function FireCustomReminder(r)
     if not r then return end
-
-    local msg
-    -- Set when the message resolved to a specific defensive (abilitySpellID/preset path),
-    -- so the icon below can default to that spell's own texture without needing a manually
-    -- typed Icon Spell ID for the one mode where the icon is already implied.
-    local resolvedSpellID
-    if r.abilitySpellID or r.preset then
-        local picked = ns.ResolveReminderSpell(r)
-        if picked then
-            local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
-            msg = CalloutFor(picked, info and info.name)
-            resolvedSpellID = picked
-        else
-            -- Nothing available is up. Same line the main callout falls back to, so a
-            -- custom reminder never goes blank at the moment it matters most.
-            msg = TRDB().voiceNone
-        end
-    else
-        -- Reminders saved before preset binding existed still show their authored text.
-        msg = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name
-    end
-
-    if not msg or msg == "" then return end
-    CreateCustomFrame()
-    customFrame.text:SetFont(AlertFont(), 18, "OUTLINE")
-    customFrame.text:SetText(msg)
-
-    -- An explicit per-reminder color wins outright; without one this falls back to the
-    -- existing global Custom Reminders Text Color setting, same as every reminder that
-    -- predates this field.
-    if type(r.color) == "table" then
-        customFrame.text:SetTextColor(r.color.r or 1, r.color.g or 1, r.color.b or 1,
-            r.color.a or 1)
-    else
-        ApplyCustomTextColor()
-    end
-
-    -- Icon is looked up fresh each fire rather than cached at save time: a spell's icon can
-    -- change (talent rework, a texture swap) and this stays correct without a migration.
-    -- An explicit Icon Spell ID wins outright; otherwise a resolved defensive uses its own
-    -- icon automatically -- typing it a second time would just be duplicating what the
-    -- ability/preset resolution already picked.
-    local iconSid = r.iconSpellID or resolvedSpellID
-    local tex = iconSid and C_Spell and C_Spell.GetSpellTexture
-        and C_Spell.GetSpellTexture(iconSid)
-    customFrame.text:ClearAllPoints()
-    if tex then
-        customFrame.icon:SetTexture(tex)
-        customFrame.icon:Show()
-        customFrame.text:SetPoint("LEFT", customFrame.icon, "RIGHT", 6, 0)
-    else
-        customFrame.icon:Hide()
-        customFrame.text:SetPoint("CENTER")
-    end
-
-    ns.PlayReminderSound(r)
-
-    customFrame.reminderEntry = r
-    customFrame:Show()
-    if customHideTimer then customHideTimer:Cancel() end
-    local dur = (type(r.dur) == "number" and r.dur > 0) and r.dur or 3
-    customHideTimer = C_Timer.NewTimer(dur, HideCustomReminder)
+    ShowOnAlert({
+        -- A per-ability override list is keyed by the spell it belongs to; a preset names
+        -- one outright. Either way the slots answer, and the line is the fallback for a
+        -- reminder that carries neither.
+        fp = r.abilitySpellID and tostring(r.abilitySpellID) or nil,
+        preset = r.preset,
+        text = (type(r.msg) == "string" and r.msg ~= "" and r.msg) or r.name,
+        dur = r.dur,
+        audio = r,
+        resolveFrom = r,
+    })
 end
 
 -- ActivateCustomReminder (the real fire path) and PreviewCustomReminder (the editor's
@@ -3420,14 +3383,26 @@ function ns.DisplayReminder(r)
     FireCustomReminder(r)
 end
 
--- The editor's Preview button fires this from inside its own modal (FULLSCREEN_DIALOG),
--- which HIGH sits well below, so it needs a taller strata just for this one showing --
--- HideCustomReminder drops it back to HIGH once the preview ends, so the elevation never
--- leaks into how a real fight displays this frame.
+-- Trash and debuff rules take the same renderer as every other authored reminder: a rule
+-- carrying a preset is asking the question the alert already answers, and one with only
+-- custom text takes the alert's own text row.
+function ns.DisplayIntegrationReminder(rule, preview)
+    if not rule or not rule.display then return end
+    local d = rule.display
+    ShowOnAlert({
+        preset = rule.preset,
+        text = d.text,
+        dur = d.dur,
+        audio = d,
+        preview = preview,
+        resolveFrom = rule,
+    })
+end
+
+-- The editor's Preview button fires from inside its own modal (FULLSCREEN_DIALOG), which
+-- the alert's HIGH sits well below. ShowOnAlert raises it for a preview and HideReminder
+-- puts it back, so there is nothing left for this to arrange.
 function ns.PreviewCustomReminder(r)
-    CreateCustomFrame()
-    customFrame:SetFrameStrata("FULLSCREEN_DIALOG")
-    customFrame:SetFrameLevel(250)
     ns.DisplayReminder(r)
 end
 
@@ -4660,8 +4635,6 @@ function ns.ApplyReminderFilter()
             ns.pendingCustomReminderOwners[key] = nil
         end
     end
-    if customFrame and customFrame.reminderEntry
-        and not ns.IsReminderEnabled(customFrame.reminderEntry) then HideCustomReminder() end
     if ns.activeAuthoredReminder and not ns.IsReminderEnabled(ns.activeAuthoredReminder) then
         HideReminder()
     end
@@ -5352,7 +5325,6 @@ function ns.Apply()
     -- profile switch (which runs this without recreating an already-existing frame) needs
     -- these called explicitly or it would keep showing the PREVIOUS profile's color.
     ApplyDefensiveTextColor()
-    ApplyCustomTextColor()
     RebuildSlots()
     RebuildCastMap()
     ResyncModel()
@@ -5394,18 +5366,10 @@ local function UpdatePreview()
             frame:SetScript("OnDragStart", nil)
             frame:SetScript("OnDragStop", nil)
         end
-        if customFrame then
-            customFrame:EnableMouse(false)
-            customFrame:SetScript("OnDragStart", nil)
-            customFrame:SetScript("OnDragStop", nil)
-        end
         -- Never yank a live call-out off the screen because the settings panel closed.
         if frame and not shownForEvent then frame:Hide() end
         if textFrame and not shownForEvent then textFrame:Hide() end
         if bar and not shownForEvent then bar:Hide() end
-        -- Same rule for the custom reminder frame: customHideTimer is only running while
-        -- a real (or Preview-button) fire is actually on screen.
-        if customFrame and not customHideTimer then customFrame:Hide() end
         return
     end
     -- No gate on the master switch here: everything ships OFF, so the addon is still
@@ -5433,28 +5397,6 @@ local function UpdatePreview()
         ApplyPosition()
     end)
 
-    -- The custom reminder frame previews too, with a placeholder line rather than a real
-    -- fight message -- there is no "current" custom reminder the way there is a current
-    -- defensive slot. Skipped while a real (or Preview-button) fire is already showing its
-    -- own text, so dragging into place never stomps on an actual preview mid-display.
-    CreateCustomFrame()
-    if not customHideTimer then
-        customFrame.text:SetText("Ability Reminder")
-    end
-    customFrame:SetMovable(true)
-    customFrame:SetClampedToScreen(true)
-    customFrame:EnableMouse(true)
-    customFrame:RegisterForDrag("LeftButton")
-    customFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    customFrame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        local point, _, relPoint, x, y = self:GetPoint(1)
-        if point then
-            TRDB().customPos = { point = point, relPoint = relPoint, x = x, y = y }
-        end
-        ApplyCustomReminderPosition()
-    end)
-    customFrame:Show()
 
     -- An empty or fully switched-off list previews a stand-in in slot 1, so Show Icon
     -- and the size/position tools work before any ability has been enabled.
@@ -6072,7 +6014,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Bare command opens the options; the diagnostic dump that used to live here moved
     -- under "status" when the addon got its own window.
     if arg == "" and ns.ToggleOptionsWindow then
-        ns.ToggleOptionsWindow("Smart Reminders Setup")
+        ns.ToggleOptionsWindow("Setup")
         return
     end
     if arg ~= "status" then
@@ -6929,15 +6871,6 @@ function ns.BuildBarsSettings(parent, y)
             btn:SetPoint("LEFT", resetRow._leftRegion, "LEFT", 8, 0)
             resetRow._resetIcon = btn
         end
-        if resetRow._rightRegion and not resetRow._resetCustom then
-            local btn = ns.Button(resetRow._rightRegion, "Reset Ability Reminder Position", 220, 26,
-                function()
-                    TRDB().customPos = nil
-                    ApplyCustomReminderPosition()
-                end)
-            btn:SetPoint("LEFT", resetRow._rightRegion, "LEFT", 8, 0)
-            resetRow._resetCustom = btn
-        end
     end
 
     _, h = W:SectionHeader(parent, "OPTIONS WINDOW", y); y = y - h
@@ -7063,17 +6996,11 @@ function ns.BuildColorsSettings(parent, y)
               ApplyDefensiveTextColor()
               EUI:RefreshPage(true)
           end },
-        { type = "toggle", text = "Color Ability Reminders Text",
-          tooltip = "Recolor custom reminder text -- BigWigs/DBM, Aura and Pull triggers. "
-          .. "Off uses the default white.",
-          getValue = function() return TRDB().customTextColorOn end,
-          setValue = function(v)
-              TRDB().customTextColorOn = v
-              ApplyCustomTextColor()
-              EUI:RefreshPage(true)
-          end }
+        { type = "label", text = "" }
     ); y = y - h
 
+    -- One colour setting now that the authored line and the defensive callout share the
+    -- same display; the second one coloured a frame that no longer exists.
     if TRDB().defensiveTextColorOn then
         _, h = W:ColorPicker(parent, "Defensive Text Color", y,
             DefensiveTextColor,
@@ -7085,18 +7012,8 @@ function ns.BuildColorsSettings(parent, y)
         y = y - h
     end
 
-    if TRDB().customTextColorOn then
-        _, h = W:ColorPicker(parent, "Ability Reminders Text Color", y,
-            CustomTextColor,
-            function(r, g, b, a)
-                TRDB().customTextColor = { r = r, g = g, b = b, a = a }
-                ApplyCustomTextColor()
-            end,
-            true)
-        y = y - h
-    end
 
-    if not (TRDB().defensiveTextColorOn or TRDB().customTextColorOn) then
+    if not TRDB().defensiveTextColorOn then
         _, h = W:DualRow(parent, y,
             { type = "label", text = "|cff9a9ea6Nothing else to configure here yet.|r" },
             { type = "label", text = "" }

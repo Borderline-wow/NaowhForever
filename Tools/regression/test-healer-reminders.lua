@@ -70,10 +70,10 @@ local function Timer() return { Cancel = function(t) t.cancelled = true end } en
 local h, o = Timer(), Timer()
 env.bwPendingTimers = { h = h, o = o }
 ns.pendingCustomReminderOwners = { h = healer, o = ordinary }
-local customHidden, defensiveHidden, raidCleared = 0, 0, 0
-env.customFrame = { reminderEntry = healer }
+-- One display now: the authored-reminder frame is gone and everything draws on the
+-- defensive alert, so the filter has one callout to pull rather than two.
+local defensiveHidden, raidCleared = 0, 0
 ns.activeAuthoredReminder = healer
-env.HideCustomReminder = function() customHidden = customHidden + 1 end
 env.HideReminder = function() defensiveHidden = defensiveHidden + 1 end
 ns.HideFilteredRaidReminders = function() raidCleared = raidCleared + 1 end
 ns.PruneCustomReminderTimers = function() end
@@ -81,10 +81,10 @@ ns.PrunePendingBWFires = function() end
 Eval(Slice(main, "function ns.ApplyReminderFilter()", "function ns.HandleBigWigsAbility"), env)
 ns.SetHealerRemindersEnabled(false)
 assert(h.cancelled and not o.cancelled and env.bwPendingTimers.h == nil)
-assert(customHidden == 1 and defensiveHidden == 1 and raidCleared == 1)
-env.customFrame.reminderEntry = ordinary; ns.activeAuthoredReminder = ordinary
+assert(defensiveHidden == 1 and raidCleared == 1)
+ns.activeAuthoredReminder = ordinary
 ns.SetHealerRemindersEnabled(true)
-assert(customHidden == 1 and defensiveHidden == 1 and env.bwPendingTimers.h == nil)
+assert(defensiveHidden == 1 and env.bwPendingTimers.h == nil)
 
 -- Raid regions and glows keep their owners even when several share an anchor.
 local a = { active = { { reminderEntry = healer }, { reminderEntry = ordinary } } }

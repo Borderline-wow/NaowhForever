@@ -1,6 +1,12 @@
 local root = arg[1] or "."
 local function Fixture()
-    local e = { buttons = {}, boxes = {}, controls = {}, rules = {}, spec = 250 }
+    local e = { buttons = {}, boxes = {}, controls = {}, rowToggles = {}, rawButtons = {},
+        rules = {}, spec = 250 }
+    local function Tab(self, name)
+        for _, w in ipairs(self.rawButtons) do
+            if w.title == name then return w end
+        end
+    end
     local function Widget(parent)
         return { parent = parent, SetPoint = function() end, SetSize = function(self, w, h) self.width = w; self.height = h end,
             SetWidth = function(self, w) self.width = w end, SetHeight = function() end,
@@ -8,7 +14,13 @@ local function Fixture()
             SetMaxLetters = function() end, SetJustifyH = function() end, SetWordWrap = function() end,
             SetScrollChild = function() end, ClearAllPoints = function() end, GetFrameLevel = function() return 1 end,
             SetText = function(self, v) self.text = v; if self.parent then self.parent.title = v end end,
-            GetText = function(self) return self.text end, Hide = function() end, SetTexture = function() end }
+            GetText = function(self) return self.text end, Hide = function() end, Show = function() end,
+            SetShown = function(self, v) self.shown = v end, GetStringWidth = function() return 40 end,
+            SetScript = function(self, kind, fn) if kind == "OnClick" then self.onClick = fn end end,
+            SetTexture = function() end, SetTexCoord = function() end, SetTextColor = function() end,
+            SetTextInsets = function() end, ClearFocus = function() end,
+            Enable = function(self) self.disabled = false end,
+            Disable = function(self) self.disabled = true end }
     end
     local I = {
         Spec = function() return e.spec end, Rules = function() return e.rules end,
@@ -18,7 +30,10 @@ local function Fixture()
         Catalogue = function() return { { id = 1762, name = "Kings Rest", abilities = {
             { spellID = 123, name = "Slam", mob = "Guard" } } } } end,
     }
-    local ns = { Integrations = I, THEME = {}, UI = { Widgets = {} } }
+    local colour = { r = 1, g = 1, b = 1 }
+    local ns = { Integrations = I, UI = { Widgets = {} },
+        THEME = { accent = colour, muted = colour, fg = colour, panel = colour,
+            bg = colour, line = colour, accentSoft = colour } }
     ns.Font = Widget; ns.Solid = Widget; ns.Border = Widget; ns.Tooltip = function() end
     ns.Button = function(_, text, _, _, callback)
         e.buttons[text] = callback; local w = Widget(); w.label = Widget(); return w
@@ -28,21 +43,37 @@ local function Fixture()
     ns.UI.BuildAlertSoundTables = function() return {}, { test = "Test" }, { "test" } end
     ns.UI.AppendSharedMediaSounds = function() end
     ns.UI.BuildDropdownControl = function(parent, width, _, _, _, get, set)
-        e.controls[parent.title] = { get = get, set = set, width = width }; return Widget()
+        if parent.title then e.controls[parent.title] = { get = get, set = set, width = width } end
+        return Widget()
     end
+    -- Keyed by the label above it, and the reminder rows in the list have no label of their
+    -- own -- those toggles are collected separately rather than indexed by nil.
     ns.UI.BuildToggleControl = function(parent, _, get, set)
-        e.controls[parent.title] = { get = get, set = set }; return Widget()
+        if parent.title then e.controls[parent.title] = { get = get, set = set }
+        else e.rowToggles[#e.rowToggles + 1] = { get = get, set = set } end
+        return Widget()
     end
     local env = setmetatable({ NaowhUITankReminder = ns, GameFontHighlight = {},
         CreateFrame = function(kind, _, parent)
             local w = Widget(); w.CreateTexture = Widget
             if kind == "EditBox" then e.boxes[parent.title] = w end
+            -- The editor's own tabs are raw Buttons, not ns.Button, so they are collected
+            -- here and looked up by the label that names them.
+            if kind == "Button" then e.rawButtons[#e.rawButtons + 1] = w end
             return w
         end,
     }, { __index = _G })
     env._G = env
     local c = assert(loadfile(root .. "/NaowhUI_SmartReminders_IntegrationOptions.lua")); setfenv(c, env); c()
-    function e.render() e.buttons = {}; e.boxes = {}; e.controls = {}; ns.BuildIntegrationsPage(Widget(), 0) end
+    e.tab = Tab
+    e.renders = 0
+    function e.render()
+        e.renders = e.renders + 1
+        e.buttons = {}; e.boxes = {}; e.controls = {}; e.rowToggles = {}; e.rawButtons = {}
+        if e.page == "debuffs" then ns.BuildDebuffsPage(Widget(), 0)
+        else ns.BuildIntegrationsPage(Widget(), 0) end
+    end
+    function e.debuffs() e.page = "debuffs"; e.render(); return e end
     e.render()
     return e
 end
@@ -53,15 +84,15 @@ local e = Fixture(); SelectTrash(e)
 assert(e.controls["Defensive preset"].width >= 260)
 e.controls["Defensive preset"].set("p1")
 e.controls["Healer Reminder"].set(true); e.controls["Speak callout"].set(true)
-e.boxes["Callout text"]:SetText("Spread")
-e.buttons["Test Reminder"](); assert(e.preview.display.text == "Spread")
+e.boxes["Custom text"]:SetText("Spread")
+e.buttons.Test(); assert(e.preview.display.text == "Spread")
 e.buttons.Save()
 assert(e.saved.trigger.type == "exboss" and e.saved.trigger.spellID == 123 and e.saved.trigger.mapID == 1762)
 assert(e.saved.preset == "p1" and e.saved.healerReminder and e.saved.display.tts)
 assert(e.buttons.Remove, "saved rule did not stay selected")
 e.buttons.Save(); assert(e.rules.i1 and not e.rules.i2)
 e.buttons.Remove(); assert(not next(e.rules))
-e = Fixture(); e.buttons["+ Debuff Sound"]()
+e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
 e.boxes["Debuff spell ID"]:SetText("456")
 e.controls.When.set("Removed"); e.controls.Unit.set("party"); e.controls.Sound.set("test")
 e.buttons.Save()
@@ -73,18 +104,18 @@ for _, change in ipairs({ "profile", "spec" }) do
     if change == "profile" then e.rules = {} else e.spec = 251 end
     e.buttons.Save(); assert(not e.saved)
 end
-e = Fixture(); e.buttons["+ Debuff Sound"]()
+e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
 e.boxes["Debuff spell ID"]:SetText("21562")
 e.controls.Sound.set("voice:stoneform-ready")
 e.buttons.Save()
 assert(e.saved.display.sound == "voice:stoneform-ready" and e.saved.trigger.target == "player")
 assert(e.controls.Sound.get() == "voice:stoneform-ready")
-e.buttons["Test Reminder"](); assert(e.preview.display.sound == "voice:stoneform-ready")
+e.buttons.Test(); assert(e.preview.display.sound == "voice:stoneform-ready")
 print("PASS dungeon selection, wide preset control, preview, save/reselection, remove, debuff and profile isolation")
 
 for _, field in ipairs({ "Debuff spell ID", "Instance ID (0 = every dungeon / raid)" }) do
     for _, value in ipairs({ "", "invalid" }) do
-        e = Fixture(); e.buttons["+ Debuff Sound"]()
+        e = Fixture().debuffs(); e.buttons["+ Debuff Sound"]()
         e.boxes["Debuff spell ID"]:SetText("21562")
         e.controls.Sound.set("test"); e.buttons.Save()
         e.boxes[field]:SetText(value); e.buttons.Save()
@@ -92,4 +123,76 @@ for _, field in ipairs({ "Debuff spell ID", "Instance ID (0 = every dungeon / ra
         assert(e.saved.trigger[key] == nil, "invalid input fell back to saved ID")
     end
 end
+-- One dungeon at a time: the page opens on the first in the catalogue with its section
+-- already open, and there is no All Dungeons entry to land on instead.
+e = Fixture()
+assert(e.buttons["-  Kings Rest"] and e.buttons.Slam, "the selected dungeon opens expanded")
+assert(e.controls.Dungeon.get() == 1762, "and is the one selected")
+e.buttons["-  Kings Rest"]()
+assert(not e.buttons.Slam, "the section still collapses")
+e.buttons["+  Kings Rest"]()
+assert(e.buttons.Slam)
+
+-- Every ability carries a switch, reading off until a reminder exists behind it.
+assert(#e.rowToggles == 1 and e.rowToggles[1].get() == false,
+    "an unconfigured ability shows an off switch rather than none")
+e.rowToggles[1].set(true)
+assert(e.saved and e.saved.trigger.spellID == 123 and e.saved.trigger.mapID == 1762,
+    "turning it on writes the rule the editor would have")
+assert(e.saved.display.dur == 3 and e.saved.trigger.timeleft == 5 and e.saved.enabled == true)
+assert(e.rowToggles[1].get() == true, "and the switch now reads from that rule")
+e.rowToggles[1].set(false)
+assert(e.rules.i1.enabled == false, "turning it off disables the rule rather than deleting it")
+
+-- A preset writes the callout line itself, so the custom text goes read-only rather than
+-- staying editable and being quietly ignored.
+e = Fixture(); SelectTrash(e)
+assert(e.boxes["Custom text"].disabled ~= true)
+e.controls["Defensive preset"].set("p1")
+assert(e.boxes["Custom text"].disabled == true)
+e.controls["Defensive preset"].set("none")
+assert(e.boxes["Custom text"].disabled == false)
+
+-- Debuff sounds belong to their own tab: they answer to an aura rather than a dungeon, and
+-- used to sit in a bucket at the bottom of the trash list with no dungeon to file them under.
+e = Fixture().debuffs()
+assert(e.buttons["+ Debuff Sound"], "the add button moved to this page")
+e.buttons["+ Debuff Sound"]()
+e.boxes["Debuff spell ID"]:SetText("456"); e.controls.Sound.set("test")
+e.buttons.Save()
+assert(e.saved.trigger.type == "auraSound")
+assert(#e.rowToggles == 1, "the saved sound is listed here with its switch")
+assert(e.buttons.Remove, "and stays selected on this page after saving")
+e.page = nil; e.render()
+assert(not e.buttons["+ Debuff Sound"], "the trash page no longer offers debuff sounds")
+assert(not e.buttons["Debuff sound"], "and does not list them")
+-- One row, for the one catalogue ability, and its switch reads off: the aura rule is not
+-- an ability in this dungeon and must not claim a row here.
+assert(#e.rowToggles == 1 and e.rowToggles[1].get() == false)
+
+-- The editor's three groups of settings sit behind tabs so the page fits the window and
+-- never needs the outer scrollbar.
+e = Fixture(); SelectTrash(e)
+assert(e:tab("Cast") and e:tab("Text & Test") and e:tab("Voice"), "all three tabs are drawn")
+assert(e.boxes["Custom text"] and e.controls["Defensive preset"] and e.controls.Sound,
+    "every group is built; the tabs only decide which one is shown")
+
+-- Switching tab must not rebuild the page. The controls are seeded from the SAVED rule, so
+-- a rebuild threw away everything not yet saved: a preset chosen on one tab came back as
+-- Custom text the moment you looked at another.
+e.controls["Defensive preset"].set("p1")
+e.boxes["Reminder name"]:SetText("Typed but not saved")
+local renders = e.renders
+e:tab("Text & Test").onClick()
+assert(e.renders == renders, "switching tab rebuilt the page")
+assert(e.controls["Defensive preset"].get() == "p1", "the chosen preset survived the switch")
+assert(e.boxes["Reminder name"]:GetText() == "Typed but not saved", "and so did what was typed")
+e:tab("Cast").onClick()
+assert(e.controls["Defensive preset"].get() == "p1", "and switching back changes nothing")
+-- Save and Test act on the whole rule, so they sit above the tabs rather than inside one.
+for _, tab in ipairs({ "Cast", "Text & Test", "Voice" }) do
+    e:tab(tab).onClick()
+    assert(e.buttons.Save and e.buttons.Test, "Save and Test are reachable from " .. tab)
+end
+
 print("PASS edited invalid IDs reach validation instead of falling back")

@@ -1811,6 +1811,19 @@ function ns.BuildProfileSettings(parent, y)
         ns.Tooltip(copyBtn, "Save As New Profile", "Stores everything set up right now as a "
             .. "new profile under a name you choose, and switches to it. Your current "
             .. "profile is left as it was.")
+
+        -- Import always lands a NEW profile and never touches what is here, which is the
+        -- right default and the wrong tool once somebody else maintains part of your
+        -- setup. This is that other tool.
+        local mergeBtn = ns.Button(profRow._rightRegion, "Merge a Profile In", 150, 22,
+            function()
+                if ns.ShowProfileMergeDialog then ns.ShowProfileMergeDialog() end
+            end)
+        mergeBtn:SetPoint("LEFT", profRow._rightRegion, "LEFT", 20, 0)
+        ns.Tooltip(mergeBtn, "Merge a Profile In", "Takes a profile string somebody else "
+            .. "maintains and merges it into one of yours. A spec they look after "
+            .. "replaces yours for that spec; specs they do not cover are left exactly "
+            .. "as they are, and per-boss reminders are added rather than swapped.")
     end
 
     -- Reset and Delete pick their target rather than acting on whatever is loaded. Having to
@@ -3523,7 +3536,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
                 else
                     why:SetText("Boss Addon is set to Blizzard Timeline, which keeps ability "
                         .. "identity secret, so there is nothing to record from. Switch it to "
-                        .. "BigWigs or DBM on the Smart Reminders Setup tab.")
+                        .. "BigWigs or DBM on the Smart Reminders > Setup tab.")
                 end
             else
                 why:SetText(("Nothing recorded for this boss yet. Pull it with %s running and "
