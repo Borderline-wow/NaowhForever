@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.3
 
 ### Changed
 - The spec list in Merge a Profile In now matches the one in Import: rows grouped by
