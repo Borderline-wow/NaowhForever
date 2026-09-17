@@ -1183,7 +1183,8 @@ function ns.ShowProfileMergeDialog()
         profileMerge.box:SetFocus()
         return
     end
-    local dimmer, panel = ns.MakeModal(620, 560, "profileMerge")
+    local BASE_HEIGHT = 560
+    local dimmer, panel = ns.MakeModal(620, BASE_HEIGHT, "profileMerge")
     local title = ns.Font(panel, 14, "OUTLINE")
     title:SetPoint("TOP", panel, "TOP", 0, -14)
     title:SetText("Merge a Profile Into Yours")
@@ -1242,7 +1243,10 @@ function ns.ShowProfileMergeDialog()
 
     Rebuild = function()
         ClearRows()
-        if not decoded then return end
+        if not decoded then
+            panel:SetHeight(BASE_HEIGHT)
+            return
+        end
         local y = -192
 
         local sources = Names()
@@ -1317,6 +1321,13 @@ function ns.ShowProfileMergeDialog()
         ns.Tooltip(extras, "Raid reminders and callout lines",
             "Neither records a spec, so a spec handover leaves them alone. Tick this only "
             .. "when you want theirs in place of yours.")
+
+        -- The panel takes whatever the rows came to, the same as the import dialog: a
+        -- string covering all 40 specs is 14 grid lines, and at a fixed height the last
+        -- of them ran out through the bottom of the panel with the Merge button sitting
+        -- over the grid. y is the extras row's top, so its bottom plus the button strip
+        -- is the height needed.
+        panel:SetHeight(math.max(BASE_HEIGHT, -y + 78))
     end
 
     local function Revalidate()
