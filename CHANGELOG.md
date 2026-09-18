@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Picking a dungeon by name while the Instance ID field was showing saved the id last
+  typed in that field instead of the dungeon chosen, then snapped back to it.
+- Choosing a dungeon no longer redraws the page. On an alert too incomplete to have saved
+  yet, that redraw threw away the spell id, name and switches already typed into it.
+- The Instance ID field no longer pushes the Unit dropdown past the bottom of its panel.
+
 ## 1.4.16
 
 ### Changed

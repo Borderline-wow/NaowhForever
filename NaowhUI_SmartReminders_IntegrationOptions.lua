@@ -171,22 +171,32 @@ local function Editor(parent, uid, kind, ability, dungeon)
         mapValues.other = "Another instance (by ID)"
         mapOrder[#mapOrder + 1] = "other"
         -- The id field costs a row, and four rows at the usual spacing already fill this
-        -- column against BODY_H. Everything below tightens by eight when it is showing
-        -- rather than the panel growing, which would bring the page's own scrollbar back.
-        local gap = debuffByID and 48 or 56
+        -- column against BODY_H. Everything below tightens while it is showing rather than
+        -- the panel growing, which would bring the page's own scrollbar back.
+        --
+        -- 42, not 48: a row is a 20px label over a 24px box, so the last of five sits at
+        -- -120 - 4 * gap and ends 44 below that. At 48 it finished 20px past the panel's
+        -- own border and over the status line underneath. 42 puts the fifth row's bottom
+        -- exactly where the fourth sat before, which is the fit this column was built to.
+        local gap = debuffByID and 42 or 56
         local yMap = -120 - gap
         Dropdown(cast, "Dungeon", mapValues, mapOrder,
             function() return debuffByID and "other" or mapChoice end,
             function(v)
+                local wasByID = debuffByID
                 if v == "other" then
                     debuffByID = true
                 else
-                    debuffByID, mapChoice = false, v
+                    -- map is dropped with it: Value() prefers the box whenever one exists,
+                    -- and it still does until the rebuild, so leaving it would save the id
+                    -- last typed there instead of the dungeon just picked.
+                    debuffByID, mapChoice, map = false, v, nil
                     AutoSave()
                 end
-                -- The id field appears and disappears with the choice, and this panel is
-                -- built once, so the page has to come back round to draw it.
-                UI:RefreshPage(true)
+                -- Only when the id field comes or goes. The dropdown repaints its own
+                -- label, so an ordinary pick needs no rebuild, and rebuilding anyway threw
+                -- away whatever was typed into an alert too incomplete to have saved yet.
+                if wasByID ~= debuffByID then UI:RefreshPage(true) end
             end, yMap, 268)
         local yWhen = yMap - gap
         if debuffByID then

@@ -255,17 +255,38 @@ assert(e.controls["Dungeon"].values.other == "Another instance (by ID)")
 assert(e.controls["Dungeon"].values[0] == nil,
     "a debuff alert names the instance it belongs to; there is no everywhere choice")
 assert(not e.boxes["Instance ID (0 = every dungeon or raid)"], "hidden until asked for")
+
+-- Saved first, deliberately. The very first save creates the rule and rebuilds the page,
+-- and that rebuild resets the editor back to the list -- so a sequence that switches to
+-- the id field before the rule exists never reaches the transition below at all.
+e.boxes["Debuff spell ID"]:SetText("21562"); e.controls.Sound.set("test"); e.commitAll()
 e.controls["Dungeon"].set("other")
 local idBox = e.boxes["Instance ID (0 = every dungeon or raid)"]
 assert(idBox, "picking it brings the field back")
-e.boxes["Debuff spell ID"]:SetText("21562")
 idBox:SetText("2657"); e.commitAll()
 assert(e.saved.trigger.mapID == 2657, "and the typed id is what gets saved")
 
--- Picking a dungeon by name puts the list back in charge.
-e.controls["Dungeon"].set(1762); e.commitAll()
-assert(e.saved.trigger.mapID == 1762)
+-- Picking a dungeon by name puts the list back in charge. Asserted on the pick itself,
+-- which saves on its own and has to beat the id still sitting in the box it is about to
+-- remove: Value() prefers a box whenever one exists, and the box outlives the pick by one
+-- rebuild, so this saved the id last typed rather than the dungeon just chosen.
+e.controls["Dungeon"].set(1762)
+assert(e.saved.trigger.mapID == 1762, "the pick wins, not the id left in the box")
 assert(not e.boxes["Instance ID (0 = every dungeon or raid)"], "and the field goes away")
+
+-- An ordinary pick does not rebuild the page. The dropdown repaints its own label, and a
+-- rebuild throws away whatever is typed into an alert too incomplete to have saved yet.
+-- Done on an alert that already exists: the very first save creates the rule and redraws
+-- for its Remove button, which is a different rebuild with its own reason.
+e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
+e.boxes["Debuff spell ID"]:SetText("21562"); e.controls.Sound.set("test"); e.commitAll()
+local renders = e.renders
+e.controls["Dungeon"].set(1762)
+assert(e.renders == renders, "nothing appeared or disappeared, so nothing to redraw")
+
+-- Only the field coming or going costs a rebuild.
+e.controls["Dungeon"].set("other")
+assert(e.renders > renders, "the id field has to be drawn")
 -- The Every dungeon entry is the bucket for a saved rule no dungeon in the catalogue
 -- accounts for. It is offered only when something is actually in it, so the dropdown does
 -- not carry an entry that opens an empty list.
