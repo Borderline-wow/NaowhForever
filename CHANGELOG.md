@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.7
 
 ### Removed
 - Mark Me When I Am Targeted. It could never have worked. The game answers "is this cast on
