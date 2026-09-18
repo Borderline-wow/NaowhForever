@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.16
 
 ### Changed
 - A debuff alert names the instance it belongs to. "Every dungeon or raid" is gone from
