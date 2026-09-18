@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.13
 
 ### Removed
 - Show What Is Incoming. Its spoken half went in 1.4.11 as a second voice over BigWigs, and
