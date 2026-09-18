@@ -240,30 +240,9 @@ e.commitAll()
 assert(e.buttons.Test and e.buttons.Remove)
 
 
--- The two cast switches. Default state is "name the target, say nothing", and only a
--- departure from that is written out, so an untouched rule and one saved before either
--- switch existed carry nothing at all.
-e = Fixture(); SelectTrash(e)
-assert(e.controls["Show target on cast"].get() == true, "naming is on for a new rule")
-assert(e.controls["Sound on cast"].get() == false, "the warning already spoke")
-e.controls["Speak callout"].set(true)
-assert(e.saved.display.castRepeat == nil and e.saved.display.castAudio == nil,
-    "the default is the absence of both, not a stored copy of it")
-
--- Off has to reach storage as false. Written as an if for a reason: the obvious
--- `cond and false or nil` yields nil on both branches and silently stores nothing.
-e.controls["Show target on cast"].set(false)
-assert(e.saved.display.castRepeat == false, "otherwise turning it off does nothing at all")
-e.controls["Sound on cast"].set(true)
-assert(e.saved.display.castAudio == true)
-
--- And a rule reopened from storage shows what it was saved with.
-e.controls["Show target on cast"].set(true)
-assert(e.saved.display.castRepeat == nil)
-
--- Neither switch belongs to a debuff alert: no cast is involved in an aura landing.
+-- A debuff alert is authored from scratch with no row to agree with, and asking for one
+-- is asking for it to work, so this one starts on.
 e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
-assert(not e.controls["Show target on cast"] and not e.controls["Sound on cast"])
 -- An alert being authored from scratch has no row to agree with, and asking for one is
 -- asking for it to work, so this one does still start on.
 assert(e.controls["Enabled"].get() == true, "a new alert starts enabled")

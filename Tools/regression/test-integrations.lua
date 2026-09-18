@@ -419,44 +419,7 @@ Case("malformed rules are rejected, and a spec may hold as many good ones as it 
     for _ in pairs(e.I.Rules(false)) do n = n + 1 end
     assert(n == 120)
 end)
-Case("the cast watch index holds the trash rules that want a name, and only those", function()
-    local e = Fixture()
-    local a = e:rule(); assert(e.I.Save(nil, a))
-    -- A second rule on the same ability at a different warning time. Both want naming.
-    local b = e:rule(); b.trigger.timeleft = 2; assert(e.I.Save(nil, b))
-    local other = e:rule(); other.trigger.spellID = 456; assert(e.I.Save(nil, other))
-
-    local index = e.I.CastWatchRules()
-    assert(index[123] and #index[123] == 2, "one entry per rule, keyed by the ability")
-    assert(index[456] and #index[456] == 1)
-end)
-Case("debuff alerts are never cast-watched: no cast is involved in one", function()
-    local e = Fixture()
-    local d = e:rule("auraSound"); d.trigger.spellID = 456
-    assert(e.I.Save(nil, d))
-    assert(e.I.CastWatchRules() == nil, "an aura landing is not somebody casting")
-end)
-Case("a rule with the repeat switched off is left out of the index entirely", function()
-    local e = Fixture()
-    local r = e:rule(); r.display.castRepeat = false
-    assert(e.I.Save(nil, r))
-    assert(e.I.CastWatchRules() == nil, "no point watching a cast nothing will answer")
-end)
-Case("the index follows the same eligibility the warning itself does", function()
-    local e = Fixture()
-    local r = e:rule(); r.healerReminder = true
-    assert(e.I.Save(nil, r))
-    assert(e.I.CastWatchRules()[123], "on by default")
-    -- Out of the dungeon the rule names, and then out of a dungeon at all.
-    e.map = 9999
-    assert(e.I.CastWatchRules() == nil)
-    e.map = 1877; e.kind = "none"
-    assert(e.I.CastWatchRules() == nil)
-    -- And the healer opt-out reaches it like everything else.
-    e.kind = "party"; e.healerOff = true
-    assert(e.I.CastWatchRules() == nil)
-end)
-Case("the two cast switches are validated like every other stored flag", function()
+Case("the retired cast switches are still validated, so old rules still load", function()
     local e = Fixture()
     local r = e:rule(); r.display.castRepeat = "no"
     assert(not e.I.Save(nil, r))

@@ -132,27 +132,6 @@ local function Eligible(r, kind)
     return (instance == "party" or instance == "raid")
         and (r.trigger.mapID == 0 or r.trigger.mapID == map)
 end
-I.Eligible = Eligible
-
--- Trash rules keyed by the ability they watch, for the cast handler in the main file.
---
--- A trash rule fires off a prediction, seconds before the ability goes out. That is the
--- whole point of one, and it is also why it can never name a target: at the moment it
--- shows, nobody is casting yet and the client has nothing to answer with. The real cast
--- arrives later on a nameplate unit, which is the only moment the question can be asked,
--- so these are watched a second time there.
-function I.CastWatchRules()
-    local out
-    for uid, rule in pairs(I.Rules(false) or {}) do
-        if Eligible(rule, "exboss") and rule.display.castRepeat ~= false then
-            out = out or {}
-            local list = out[rule.trigger.spellID]
-            if not list then list = {}; out[rule.trigger.spellID] = list end
-            list[#list + 1] = { uid = uid, r = rule }
-        end
-    end
-    return out
-end
 local function ClearPending(id)
     local entries = pending[id]
     pending[id] = nil

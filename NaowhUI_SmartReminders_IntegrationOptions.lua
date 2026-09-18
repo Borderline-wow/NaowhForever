@@ -174,7 +174,6 @@ local function Editor(parent, uid, kind, ability, dungeon)
             function(v) preset = v; AutoSave() end, -242, 268)
     end
     local sound, tts = d.sound or "none", d.tts == true
-    local castRepeat, castAudio = d.castRepeat ~= false, d.castAudio == true
     local paths, names, order = UI.BuildAlertSoundTables()
     UI.AppendSharedMediaSounds(paths, names, order)
     -- Named for whose voice it is, matching Naowh's other sound files. The keys are left
@@ -191,20 +190,10 @@ local function Editor(parent, uid, kind, ability, dungeon)
     if kind == "exboss" then
         Toggle(voice, "Speak callout", function() return tts end,
             function(v) tts = v; AutoSave() end, -216, 268)
-        Toggle(voice, "Show target on cast", function() return castRepeat end,
-            function(v) castRepeat = v; AutoSave() end, -252, 268)
-        Toggle(voice, "Sound on cast", function() return castAudio end,
-            function(v) castAudio = v; AutoSave() end, -288, 268)
-        Label(voice, "Only for abilities that name a target.", 14, -318, 268)
     end
     local status = Label(parent, "Changes save as you make them. Test previews your current choices.", 0, -66 - BODY_H - 10, 604)
     local function Value()
         local id, instanceID = spellID, mapID
-        -- Written out only when it differs from the default, so an untouched rule and a
-        -- pack made before the switch existed both read the same as a new one. Spelled
-        -- as an if: `cond and false or nil` yields nil on both branches.
-        local storedRepeat
-        if kind == "exboss" and not castRepeat then storedRepeat = false end
         if spell then id = tonumber(spell:GetText()) end
         if mapChoice then instanceID = mapChoice end
         return { name = name:GetText(), enabled = enabled, healerReminder = healer or nil,
@@ -217,8 +206,12 @@ local function Editor(parent, uid, kind, ability, dungeon)
             display = { type = d.type or "icon",
                 text = d.text or (kind == "exboss" and "Use a defensive" or ""), sound = sound,
                 spellID = d.spellID or id, dur = kind == "exboss" and tonumber(duration:GetText()) or 3,
-                castRepeat = storedRepeat,
-                castAudio = kind == "exboss" and castAudio or nil,
+                -- Carried through untouched rather than dropped. Nothing writes or reads
+                -- them any more, but a rule or a shared pack saved while the cast repeat
+                -- existed still has them, and rewriting a rule should not quietly strip
+                -- fields a future version might mean something by.
+                castRepeat = d.castRepeat,
+                castAudio = d.castAudio,
                 tts = kind == "exboss" and tts or false } }
     end
     -- Refuses rather than writing a half-finished rule: a spell id mid-typing is a valid
@@ -437,24 +430,6 @@ function ns.BuildIntegrationsPage(parent, y)
             .. "and anything already here is left alone. Debuff alerts have their own "
             .. "button on their own tab.")
     end
-
-    -- Here rather than on Setup: it only reaches the rules listed below, and boss casts
-    -- ask for the same thing separately on their own pages.
-    Label(parent, "Show Target on Trash Casts", 620, y - 4, 240)
-    local castTarget = UI.BuildToggleControl(parent, parent:GetFrameLevel() + 2,
-        function() return ns.DB().castTargetTrash == true end,
-        function(v)
-            ns.DB().castTargetTrash = v or nil
-            -- The cast watch is built from this switch, and nothing else here would
-            -- rebuild it until the next zone or rule edit.
-            if ns.RefreshCastWatch then ns.RefreshCastWatch() end
-        end)
-    castTarget:SetPoint("TOPLEFT", parent, "TOPLEFT", 880, y)
-    ns.Tooltip(castTarget, "Show Target on Trash Casts",
-        "A trash rule warns seconds before the ability goes out, when nobody is casting "
-        .. "yet and the game has nothing to answer with. With this on, the rule calls out "
-        .. "again at the cast itself carrying the target's name. Only for abilities that "
-        .. "name somebody, and silent unless that rule asks for Sound on cast.")
 
     StatusLines(parent, y)
 

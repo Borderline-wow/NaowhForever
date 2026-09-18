@@ -3540,24 +3540,6 @@ function ns.DisplayIntegrationReminder(rule, preview)
     })
 end
 
--- The same callout the prediction already put up, shown again at the instant the ability
--- is actually cast. That instant is the only one at which the client will name a target,
--- and ShowCastTargetOn writes the name on top of what this draws.
---
--- Silent unless the rule asks for sound: the warning spoke seconds ago, and saying it twice
--- is worse than saying it once.
-function ns.RepeatIntegrationReminderOnCast(rule)
-    if not rule or not rule.display or rule.display.castRepeat == false then return false end
-    local d = rule.display
-    return ShowOnAlert({
-        preset = rule.preset,
-        text = d.text,
-        dur = d.dur,
-        audio = d.castAudio == true and d or nil,
-        resolveFrom = rule,
-    }) == true
-end
-
 -- The editor's Preview button fires from inside its own modal (FULLSCREEN_DIALOG), which
 -- the alert's HIGH sits well below. ShowOnAlert raises it for a preview and HideReminder
 -- puts it back, so there is nothing left for this to arrange.
@@ -3678,21 +3660,10 @@ function ns.RefreshCastWatch()
             end
         end
     end
-    -- Trash rules are not in the set above at all: they live per spec rather than per
-    -- encounter, and they matter precisely where there is no encounter. They warn ahead of
-    -- the cast by design, so this second look is the only one that can carry a name.
-    -- Only while trash targeting is on: the index is what keeps the cast events
-    -- registered, so with it off they are not listening at all rather than firing on every
-    -- trash cast to do nothing.
-    local integrations = ns.Integrations
-    local trash = TRDB().castTargetTrash and integrations and integrations.CastWatchRules
-        and integrations.CastWatchRules()
-    for spellID, list in pairs(trash or {}) do
-        local entry = index[spellID]
-        if not entry then entry = {}; index[spellID] = entry end
-        entry.trashcast = list
-        any = true
-    end
+    -- Trash rules are deliberately not here. Watching a trash cast meant matching it to the
+    -- rule that predicted it, by spell id, and that id is secret for every unit that is not
+    -- the player or their pet -- so the lookup never matched and the repeat never fired.
+    -- It shipped in 1.4.1 and was removed once the traces proved it could not work.
     ns.watchedCasts = index
 
     -- Armed for the target name alone, with nothing in the index to match against. A boss
@@ -3759,7 +3730,13 @@ function ns.OnBossCast(event, unit, spellID)
     if event == "UNIT_SPELLCAST_START" and unit:match("^boss%d") then
         local why
         if not TRDB().castTargetBoss then why = "target display off"
-        elseif not shownForEvent then why = "no alert to name"
+        -- Asked even with nothing on screen, so a trace of one dungeon answers "which
+        -- abilities here carry a target name at all" instead of only reporting the ones
+        -- that happened to coincide with a callout. That question has cost several pulls
+        -- to guess at, and it is one plain boolean away.
+        elseif not shownForEvent then
+            why = ns.CastNamesATarget(unit) and "no alert, but this cast names somebody"
+                or "no alert to name"
         elseif ns.ShowCastTargetOn(unit, true) then why = "target named"
         else why = "cast names nobody" end
         if TRDB().trace then AppendLog({ kind = "bosscast", unit = unit, text = why }) end
@@ -3781,28 +3758,6 @@ function ns.OnBossCast(event, unit, spellID)
             text = entry and "matched" or "not watched" })
     end
     if not entry then return end
-
-    -- Trash first, and before the list check below: these rules are in no caststart or
-    -- castend list, so an ability carrying only trash rules would have stopped there.
-    --
-    -- Asked before anything is drawn. A repeat that cannot name anybody is the warning
-    -- shown twice, which is worse than not repeating at all, and most abilities name
-    -- nobody. An authored reminder on the same spell draws after this and wins the frame.
-    if event == "UNIT_SPELLCAST_START" and entry.trashcast then
-        local onTrash = TRDB().castTargetTrash
-        if onTrash and ns.CastNamesATarget(unit) then
-            local integrations, drew = ns.Integrations, false
-            for i = 1, #entry.trashcast do
-                local rule = entry.trashcast[i].r
-                -- Rechecked rather than trusted: the index is rebuilt on zoning and on
-                -- every edit, but the healer opt-out moves under it without either.
-                if integrations and integrations.Eligible
-                    and integrations.Eligible(rule, "exboss")
-                    and ns.RepeatIntegrationReminderOnCast(rule) then drew = true end
-            end
-            if drew then ns.ShowCastTargetOn(unit, onTrash) end
-        end
-    end
 
     local list = entry[event == "UNIT_SPELLCAST_START" and "caststart" or "castend"]
     if not list then return end

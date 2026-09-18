@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+- Show Target on Trash Casts, and everything behind it. A trash cast was matched to the
+  rule that predicted it by spell id, and the client keeps that id secret for every unit
+  that is not you or your pet, so the match never succeeded and the repeat never once fired
+  in a dungeon. The per-rule Show target on cast and Sound on cast switches go with it.
+  Rules and packs already carrying those fields keep them untouched.
+
+### Changed
+- The diagnostic trace says when a boss cast names somebody even with no alert on screen to
+  put the name on. One traced dungeon now answers which abilities carry a target name at
+  all, which previously took a pull per guess.
+
 ## 1.4.11
 
 ### Changed
