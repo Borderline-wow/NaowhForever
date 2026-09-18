@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.8
 
 ### Added
 - Show What Is Incoming, on Setup. The alert gains a line naming the ability the boss mod is
