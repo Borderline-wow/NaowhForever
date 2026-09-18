@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.10
 
 ### Added
 - Say What Is Incoming, on Setup. Speaks the boss mod's own name for the ability just
