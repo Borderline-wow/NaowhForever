@@ -4,6 +4,9 @@ local selection = { dungeon = "all" }
 -- The two list pages keep their own selection: picking a debuff sound must not decide what
 -- the trash page is showing when you come back to it.
 local debuffSelection = {}
+-- Whether the debuff editor is showing the raw Instance ID field instead of the dungeon
+-- list. Page state, not saved: it is how you are editing right now, not part of the rule.
+local debuffByID = false
 
 -- The page is sized to the options window so it never scrolls: the ability list keeps its
 -- own scrollbar and nothing else needs one. The editor fits by putting its three groups of
@@ -139,26 +142,54 @@ local function Editor(parent, uid, kind, ability, dungeon)
         -- Picked by name, not typed as an id. The catalogue already knows every dungeon it
         -- carries trash data for, and the trash page has always chosen one this way.
         --
-        -- An id the catalogue does not carry still gets an entry of its own, so an alert
-        -- saved for a raid, or for a dungeon that has left the catalogue, keeps the
-        -- instance it was set for instead of being quietly moved to everywhere.
+        -- The list is not the whole world, though, and the box has to stay reachable. The
+        -- catalogue comes from ExBoss and covers dungeons it holds trash data for: without
+        -- that addon it is empty, and a raid is not in it either. Offering only the list
+        -- would mean an alert could be scoped to nothing at all on a client without
+        -- ExBoss, which is a capability this page used to have. So "Another instance"
+        -- brings the id field back, and an id the list does not carry keeps an entry of
+        -- its own rather than being quietly moved to everywhere.
         local mapValues = { [0] = "Every dungeon or raid" }
         local mapOrder = { 0 }
         for _, dungeon in ipairs(I.Catalogue() or {}) do
             mapValues[dungeon.id] = dungeon.name
             mapOrder[#mapOrder + 1] = dungeon.id
         end
-        if not mapValues[mapChoice] then
+        if mapChoice ~= 0 and not mapValues[mapChoice] then
             mapValues[mapChoice] = "Instance " .. tostring(mapChoice)
             mapOrder[#mapOrder + 1] = mapChoice
         end
-        Dropdown(cast, "Dungeon", mapValues, mapOrder, function() return mapChoice end,
-            function(v) mapChoice = v; AutoSave() end, -176, 268)
+        mapValues.other = "Another instance (by ID)"
+        mapOrder[#mapOrder + 1] = "other"
+        -- The id field costs a row, and four rows at the usual spacing already fill this
+        -- column against BODY_H. Everything below tightens by eight when it is showing
+        -- rather than the panel growing, which would bring the page's own scrollbar back.
+        local gap = debuffByID and 48 or 56
+        local yMap = -120 - gap
+        Dropdown(cast, "Dungeon", mapValues, mapOrder,
+            function() return debuffByID and "other" or mapChoice end,
+            function(v)
+                if v == "other" then
+                    debuffByID = true
+                else
+                    debuffByID, mapChoice = false, v
+                    AutoSave()
+                end
+                -- The id field appears and disappears with the choice, and this panel is
+                -- built once, so the page has to come back round to draw it.
+                UI:RefreshPage(true)
+            end, yMap, 268)
+        local yWhen = yMap - gap
+        if debuffByID then
+            map = Commit(Box(cast, "Instance ID (0 = every dungeon or raid)",
+                mapChoice, yWhen, 268))
+            yWhen = yWhen - gap
+        end
         Dropdown(cast, "When", { Added = "Applied", ApplicationsIncreased = "Stack increased", Removed = "Removed" },
             { "Added", "ApplicationsIncreased", "Removed" }, function() return auraEvent end,
-            function(v) auraEvent = v; AutoSave() end, -232, 268)
+            function(v) auraEvent = v; AutoSave() end, yWhen, 268)
         Dropdown(cast, "Unit", { player = "Me", party = "Party members" }, { "player", "party" },
-            function() return target end, function(v) target = v; AutoSave() end, -288, 268)
+            function() return target end, function(v) target = v; AutoSave() end, yWhen - gap, 268)
         Label(test, "Use the debuff's aura spell ID. The Stoneform and Shadowmeld voices require Unit: Me and stay silent while that racial is on cooldown, unknown or unusable.\n\nChanges apply after combat and encounter restrictions end. Test previews the voice regardless of cooldown.", 14, -200, 268)
     end
     local preset = old and old.preset or "none"
@@ -195,7 +226,9 @@ local function Editor(parent, uid, kind, ability, dungeon)
     local function Value()
         local id, instanceID = spellID, mapID
         if spell then id = tonumber(spell:GetText()) end
-        if mapChoice then instanceID = mapChoice end
+        -- The box wins while it is the control on screen; otherwise the list's pick does.
+        if map then instanceID = tonumber(map:GetText())
+        elseif mapChoice then instanceID = mapChoice end
         return { name = name:GetText(), enabled = enabled, healerReminder = healer or nil,
             preset = kind == "exboss" and preset ~= "none" and preset or nil,
             trigger = { type = kind, spellID = id, mapID = instanceID,
@@ -236,7 +269,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
         -- leaves the page alone, or typing would fight a rebuild for the keyboard.
         if not uid then
             uid = result
-            if kind == "auraSound" then debuffSelection = { uid = uid }
+            if kind == "auraSound" then debuffSelection, debuffByID = { uid = uid }, false
             else selection.uid = uid end
             UI:RefreshPage(true)
         end
@@ -263,7 +296,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
         local remove = ns.Button(parent, "Remove", 120, 28, function()
             if I.Spec() ~= editedSpec or I.Rules(false) ~= editedRules then return end
             editedRules[uid] = nil
-            if kind == "auraSound" then debuffSelection = {}
+            if kind == "auraSound" then debuffSelection, debuffByID = {}, false
             else selection.uid = nil; selection.spellID = nil end
             I.Refresh(); UI:RefreshPage(true)
         end)
@@ -605,7 +638,7 @@ function ns.BuildDebuffsPage(parent, y)
 
     local side = Panel(parent, "Saved Debuff Alerts", 20, y - 68, 280, PANEL_H)
     local add = ns.Button(side, "+ Debuff Alert", 252, 26, function()
-        debuffSelection = { newAura = true }; UI:RefreshPage(true)
+        debuffSelection, debuffByID = { newAura = true }, false; UI:RefreshPage(true)
     end)
     add:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -42)
 
@@ -665,7 +698,10 @@ function ns.BuildDebuffsPage(parent, y)
                     and C_Spell.GetSpellTexture(rule.trigger.spellID)
                 local row = ListRow(list, ly, 224, rule.name or "Debuff alert", icon, rule,
                     active,
-                    function() debuffSelection = { uid = entry.uid }; UI:RefreshPage(true) end,
+                    function()
+                        debuffSelection, debuffByID = { uid = entry.uid }, false
+                        UI:RefreshPage(true)
+                    end,
                     nil, 12)
                 ns.Tooltip(row, rule.name or "Debuff alert",
                     ("Aura %s on %s, when %s."):format(tostring(rule.trigger.spellID),

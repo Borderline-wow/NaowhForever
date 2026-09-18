@@ -2928,7 +2928,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
               ns.DB().castTargetBoss = v or nil
               -- The cast watch arms from this switch, and nothing else here would rebuild
               -- it until the next pull, so ticking it mid-fight would do nothing until
-              -- then. Same call the trash switch makes on its own page.
+              -- then.
               if ns.RefreshCastWatch then ns.RefreshCastWatch() end
           end }
     ); y = y - h

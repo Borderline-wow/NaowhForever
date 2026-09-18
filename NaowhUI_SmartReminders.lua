@@ -747,9 +747,15 @@ local function ApplyTextLayout()
     -- Placed from here rather than at draw time because place() owns the anchor and the
     -- direction, and those change with Text Position. Re-run when the name goes up, since
     -- whether the authored line is showing is decided per callout, not per setting.
+    --
+    -- Its own pitch, floored at the font's own height: `line` follows Text Size, but these
+    -- strings are drawn at REMINDER_SIZE whatever that is set to, so at a small Text Size a
+    -- single `line` of separation is less than the glyphs are tall and the name lands on
+    -- top of the callout. The old two-row gap hid that; one row does not.
     ns.PlaceCastTargetLine = function()
+        local pitch = math.max(line, REMINDER_SIZE + 4)
         local occupied = frame.reminder and frame.reminder:IsShown()
-        place(frame.castTarget, occupied and line * 2 or line)
+        place(frame.castTarget, occupied and pitch * 2 or pitch)
     end
     ns.PlaceCastTargetLine()
 end
@@ -3046,8 +3052,7 @@ end
 function ns.ShowCastTargetOn(unit, allowed)
     if not frame or type(unit) ~= "string" then return false end
     if not (UnitShouldDisplaySpellTargetName and UnitSpellTargetName) then return false end
-    -- Whose cast this is decides whether a name may show at all, and only the caller knows
-    -- that: boss casts and trash casts are asked for separately, on their own pages.
+    -- Whether a name may show at all is the caller's switch, not one read here.
     if not allowed then return false end
 
     -- The NAME only. Whether the cast is on you is a different question with its own call,
@@ -3689,9 +3694,6 @@ function ns.OnBossCast(event, unit, spellID)
     -- every event is a raid member casting and stops on these two lines instead.
     if type(unit) ~= "string" then return end
     if not (unit:match("^boss%d") or unit:match("^nameplate%d")) then return end
-    -- hasCustomReminders is cached at ENCOUNTER_START and trash happens where there is no
-    -- encounter, so the index is the precondition now. It holds nothing unless something is
-    -- waiting on a cast, and the watcher is unregistered entirely while it is empty.
     if not CustomRemindersAllowed() then return end
 
     -- Who a cast is aimed at, written onto the alert that is ALREADY on screen. Nothing
@@ -3718,8 +3720,10 @@ function ns.OnBossCast(event, unit, spellID)
         -- that happened to coincide with a callout. That question has cost several pulls
         -- to guess at, and it is one plain boolean away.
         elseif not shownForEvent then
-            why = ns.CastNamesATarget(unit) and "no alert, but this cast names somebody"
-                or "no alert to name"
+            -- Only worth asking when somebody is reading the answer: with trace off this
+            -- string is built and thrown away, and the question is an API call per cast.
+            why = TRDB().trace and ns.CastNamesATarget(unit)
+                and "no alert, but this cast names somebody" or "no alert to name"
         elseif ns.ShowCastTargetOn(unit, true) then why = "target named"
         else why = "cast names nobody" end
         if TRDB().trace then AppendLog({ kind = "bosscast", unit = unit, text = why }) end
@@ -4552,6 +4556,11 @@ local function FireBigWigsAbility(sid, lateRetry, reminder)
     -- or closing Setup mid-fight would yank a live callout off screen.
     ns.activeAuthoredReminder = reminder or ns.BindingForBossModKey(currentEncounter, sid)
     shownForEvent = sid
+    -- A second bar callout inside the display window re-arms the hide timer instead of
+    -- hiding, so without this it keeps the previous cast's target name under a callout
+    -- that has nothing to do with it. ShowOnAlert clears the same label for the same
+    -- reason; this path never did.
+    if frame.castTarget then frame.castTarget:Hide() end
     frame:Show()
     if textFrame then textFrame:Show() end
     -- A message reminder answers the same ability as the bar callout that ran seconds

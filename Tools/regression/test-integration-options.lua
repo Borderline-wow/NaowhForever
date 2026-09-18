@@ -240,13 +240,29 @@ e.commitAll()
 assert(e.buttons.Test and e.buttons.Remove)
 
 
--- A debuff alert is authored from scratch with no row to agree with, and asking for one
--- is asking for it to work, so this one starts on.
 e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
 -- An alert being authored from scratch has no row to agree with, and asking for one is
 -- asking for it to work, so this one does still start on.
 assert(e.controls["Enabled"].get() == true, "a new alert starts enabled")
 
+
+-- The list is not the whole world: it comes from ExBoss and holds dungeons it has trash
+-- data for, so without that addon it is empty and a raid is never in it. "Another
+-- instance" has to stay reachable or an alert could be scoped to nothing at all.
+e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
+assert(e.controls["Dungeon"].values.other == "Another instance (by ID)")
+assert(not e.boxes["Instance ID (0 = every dungeon or raid)"], "hidden until asked for")
+e.controls["Dungeon"].set("other")
+local idBox = e.boxes["Instance ID (0 = every dungeon or raid)"]
+assert(idBox, "picking it brings the field back")
+e.boxes["Debuff spell ID"]:SetText("21562")
+idBox:SetText("2657"); e.commitAll()
+assert(e.saved.trigger.mapID == 2657, "and the typed id is what gets saved")
+
+-- Picking a dungeon by name puts the list back in charge.
+e.controls["Dungeon"].set(1762); e.commitAll()
+assert(e.saved.trigger.mapID == 1762)
+assert(not e.boxes["Instance ID (0 = every dungeon or raid)"], "and the field goes away")
 -- The Every dungeon entry is the bucket for a saved rule no dungeon in the catalogue
 -- accounts for. It is offered only when something is actually in it, so the dropdown does
 -- not carry an entry that opens an empty list.

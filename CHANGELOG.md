@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- A debuff alert can be scoped to an instance the dungeon list does not carry again. That
+  list comes from ExBoss and holds only dungeons it has trash data for, so without ExBoss
+  it is empty and nothing could be scoped at all, and a raid was never in it. The list
+  gains "Another instance (by ID)", which brings the id field back.
+- A second boss callout arriving while the first is still on screen no longer keeps the
+  earlier cast's target name under it.
+- The target name no longer overlaps the callout at small Text Size settings. It is drawn
+  at a fixed size while the row spacing follows Text Size, so the two could collide.
+
 ## 1.4.14
 
 ### Fixed
