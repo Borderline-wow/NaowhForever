@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.9
 
 ### Fixed
 - Show What Is Incoming showed nothing on DBM. DBM identifies a timer by a numeric id
