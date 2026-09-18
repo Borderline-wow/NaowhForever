@@ -737,13 +737,8 @@ local function ApplyTextLayout()
     for i = 1, #slots do place(slots[i].label, 0) end
     place(frame.fallback, 0)
     place(frame.reminder, line)
-    -- The incoming line only takes a row when it is switched on. Reserving it either way
-    -- left an empty gap between the callout and the target name for everyone who has the
-    -- name on and this off.
-    local afterIncoming = (t.showIncoming == true) and line * 3 or line * 2
-    place(frame.incoming, line * 2)
-    place(frame.castTarget, afterIncoming)
-    place(frame.learnTag, afterIncoming + REMINDER_SIZE + 4)
+    place(frame.castTarget, line * 2)
+    place(frame.learnTag, line * 2 + REMINDER_SIZE + 4)
 end
 
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
@@ -875,14 +870,6 @@ function Reminder.Create()
     frame.castTarget:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
     frame.castTarget:Hide()
 
-    -- What the boss mod called the bar this callout answers -- "Frontal", "Debuffs",
-    -- "Boss Buff". Ordinary text the mod hands over, nothing the client withholds, and it
-    -- names the incoming ability in the words a curator chose rather than the spell's own.
-    frame.incoming = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.incoming:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
-    frame.incoming:SetTextColor(1, 0.82, 0, 1)
-    frame.incoming:Hide()
-
     -- There is deliberately no "you are the one targeted" marker. PlayerIsSpellTarget
     -- answers that, but as a SECRET boolean, and the only thing to do with one is hand it
     -- to SetShown -- which is documented AllowedWhenUntainted and refuses a secret from
@@ -910,7 +897,6 @@ local function ApplySize()
     if not frame then return end
     if frame.reminder then frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
     if frame.castTarget then frame.castTarget:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
-    if frame.incoming then frame.incoming:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
     if frame.learnTag then frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE") end
     local t = TRDB()
     local size = t.iconSize or DEFAULTS.iconSize
@@ -2995,7 +2981,6 @@ local function HideReminder()
     if frame then
         if frame.reminder then frame.reminder:Hide() end
         if frame.castTarget then frame.castTarget:Hide() end
-        if frame.incoming then frame.incoming:Hide() end
         frame:Hide()
     end
     if textFrame then textFrame:Hide() end
@@ -3082,23 +3067,6 @@ function ns.ShowCastTargetOn(unit, allowed)
 
     return named
 end
--- The boss mod's own name for the bar, put on the alert under the callout. This is plain
--- text from the mod, not anything the client withholds: BigWigs and ExBoss name their bars
--- for what the ability DOES -- "Frontal", "Debuffs", "Boss Buff" -- which is the thing a
--- tank wants to read, and is exactly how ExBoss labels its own cast bar. It never asks the
--- client what is being cast, because nothing can; it names the bar it already scheduled.
---
--- Off unless asked for: it is a second line on an alert people have arranged around.
-function ns.ShowIncomingLabel(label)
-    if not frame or not frame.incoming then return end
-    if TRDB().showIncoming ~= true or type(label) ~= "string" or label == "" then
-        frame.incoming:Hide()
-        return
-    end
-    frame.incoming:SetText(label)
-    frame.incoming:Show()
-end
-
 -- The one plain answer in the set, so an `if` may use it. Split out because a caller that
 -- is deciding whether to put a callout up at all has to ask BEFORE it draws: most abilities
 -- name nobody, and a second callout that adds no name is the same warning twice.
@@ -3448,10 +3416,9 @@ local function ShowOnAlert(opts)
     end
 
     -- Cleared on every fire. A second callout inside the display window re-arms the hide
-    -- timer instead of hiding, so without this it inherits the previous cast's target name
-    -- and YOU marker. Blizzard's own cast bar blanks the same label on the same branch.
+    -- timer instead of hiding, so without this it inherits the previous cast's target name.
+    -- Blizzard's own cast bar blanks the same label on the same branch.
     if frame.castTarget then frame.castTarget:Hide() end
-    if frame.incoming then frame.incoming:Hide() end
 
     -- Who owns what is on screen. ApplyReminderFilter reads it to pull a live callout when
     -- its reminder is switched off or filtered out mid-display, so leaving this nil meant a
@@ -4569,7 +4536,6 @@ local function FireBigWigsAbility(sid, lateRetry, reminder)
     -- or closing Setup mid-fight would yank a live callout off screen.
     ns.activeAuthoredReminder = reminder or ns.BindingForBossModKey(currentEncounter, sid)
     shownForEvent = sid
-    ns.ShowIncomingLabel(ns.firingBarLabel)
     frame:Show()
     if textFrame then textFrame:Show() end
     -- A message reminder answers the same ability as the bar callout that ran seconds
@@ -4685,8 +4651,7 @@ local SAME_CAST_WINDOW = 2
 -- name welded onto the real callout by the inheritance below, and the debuff expiring then
 -- cancels a cast that was still coming. Nil counts as a cooldown: DBM sends no flavour and
 -- its timers are cooldowns, and pairing its id with BigWigs' text is what aliases are for.
-function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, isApprox, valid,
-        barLabel)
+function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, isApprox, valid)
     local fires = pendingBWFires[channel]
     if not fires then fires = {} pendingBWFires[channel] = fires end
     local sidFires = fires[sid]
@@ -4785,16 +4750,7 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
             finish()
             return
         end
-        -- The bar's own name, for the line the callout draws. Set around the call rather
-        -- than threaded through fireFn: every caller builds that closure differently and
-        -- only this scope ever knew which bar the fire belongs to.
-        -- The identity is whatever the mod cancels by: BigWigs hands back its bar TEXT and
-        -- DBM a numeric timer id, so only a string is fit to put on screen. DBM passes its
-        -- message separately, which is why the label is its own argument rather than this.
-        ns.firingBarLabel = barLabel
-            or (type(barIdentity) == "string" and barIdentity or nil)
         local result = fireFn(sid, entry.late)
-        ns.firingBarLabel = nil
         local remaining = entry.endsAt - GetTime()
         if channel == "tank" and result == "waiting" and remaining > 0 then
             if not entry.late and TRDB().trace then
@@ -4863,7 +4819,7 @@ function ns.ApplyReminderFilter()
     if ns.BossSource and ns.BossSource() == "timeline" then RegisterEventSounds() end
 end
 
-function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox, barLabel)
+function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if InEncounter() then ns.SampleTanking() end
@@ -4876,7 +4832,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox, 
         -- encounter does not loop.
         if not InEncounter() and not isRetry then
             C_Timer.After(0, function()
-                ns.HandleBigWigsAbility(sid, duration, barIdentity, true, isApprox, barLabel)
+                ns.HandleBigWigsAbility(sid, duration, barIdentity, true, isApprox)
             end)
             return
         end
@@ -4906,7 +4862,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox, 
             return FireBigWigsAbility(fireSid, lateRetry)
         end, isApprox, function()
             return ns.AbilityEnabledForBinding(currentEncounter, sid)
-        end, barLabel)
+        end)
     else
         -- A message reminder under BOSS REMINDERS owns this ability's messages and
         -- fires its own preset. Bars stay on the branch above with the ability's own
@@ -5232,8 +5188,7 @@ local function OnDBMEvent(event, ...)
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
         if ns.ObserveCast then ns.ObserveCast(spellId, "DBM", duration, id) end
-        ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId,
-            duration, id, nil, nil, type(msg) == "string" and msg or nil)
+        ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
         -- Raid Reminders are BigWigs-only by design (see ShowRaidReminderEditor) --
         -- deliberately no ns.HandleRaidReminderAbility call here.
         CheckBossModTimerStart("DBM", spellId, id, duration, msg)
@@ -7093,25 +7048,6 @@ function ns.BuildBarsSettings(parent, y)
           .. "options close.",
           getValue = function() return previewPin end,
           setValue = function(v) previewPin = v; UpdatePreview() end }
-    ); y = y - h
-
-    -- The boss mod already names its bars for what the ability does rather than what it is
-    -- called -- "Frontal", "Debuffs", "Boss Buff" -- and that name arrives as ordinary text
-    -- alongside the timer. Putting it on the alert answers "what is coming" next to "what
-    -- to press", which the callout alone never said.
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Show What Is Incoming",
-          tooltip = "Adds the boss mod's own name for the ability under the callout, so the "
-          .. "alert says what is coming as well as what to press. Only for reminders driven "
-          .. "by a BigWigs or DBM timer, since the name comes from the bar.",
-          getValue = function() return TRDB().showIncoming == true end,
-          setValue = function(v)
-              TRDB().showIncoming = v or nil
-              -- The rows below this line move with it, so the alert has to be laid out
-              -- again rather than waiting for whatever changes a size next.
-              ApplyTextLayout()
-              UpdatePreview()
-          end }
     ); y = y - h
 
     -- Escape hatch: a UI-scale change can strand a moved alert off-screen where the

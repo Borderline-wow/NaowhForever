@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+- Show What Is Incoming. Its spoken half went in 1.4.11 as a second voice over BigWigs, and
+  the line on its own did not earn a row on the alert. The label no longer travels from the
+  boss mod to the display at all, and the rows that moved to make space have moved back.
+
 ## 1.4.12
 
 ### Removed
