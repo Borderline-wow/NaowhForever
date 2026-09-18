@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Show What Is Incoming, on Setup. The alert gains a line naming the ability the boss mod is
+  timing -- "Frontal", "Debuffs", "Boss Buff" -- so it says what is coming as well as what
+  to press. The name is the boss mod's own bar text, which arrives as ordinary text beside
+  the timer, so nothing is guessed and nothing restricted is read. Only for reminders driven
+  by a BigWigs or DBM timer, since that is where the name comes from. Off until you ask.
+
 ## 1.4.7
 
 ### Removed

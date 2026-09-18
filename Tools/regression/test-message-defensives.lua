@@ -30,6 +30,7 @@ local function Fixture()
             e.timers[#e.timers + 1] = t; return t
         end },
     }
+    env.ns.ShowIncomingLabel = function() end
     env.ns.IsReminderEnabled = function(r) return r and r.enabled ~= false end
     env.ns.SampleTanking = function() end
     env.ns.BindingForBossModKey = function() return { mode = "custom" } end

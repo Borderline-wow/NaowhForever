@@ -36,6 +36,9 @@ local function Fixture()
         end,
         HideReminder = function() end, DEFAULTS = { lingerSec = 5 },
     }
+    -- Records what the fire handed it, so the bar name reaching the alert is proved
+    -- end to end rather than assumed from the schedule call.
+    env.ns.ShowIncomingLabel = function(label) e.incoming = label end
     env.ns.HasMessageDefensive = function() return false end
     env.ns.AbilityEnabledForBinding = function() return e.enabled end
     env.ns.BindingForBossModKey = function() return e.custom and { mode = "custom" } end
@@ -146,5 +149,10 @@ Case("production callout returns waiting only for a clean empty pick", function(
     e.external = false; e.fail = true; assert(call(1) == nil)
     e.fail = false; e.voiceOn = false; assert(call(1) == nil)
     e.voiceOn = true; e.ready = true; assert(call(1) == nil) -- Muted winner is terminal.
+end)
+Case("the bar name reaches the alert with the callout", function()
+    local e = Fixture(); e:schedule(); e:advance(12)
+    assert(e.calls == 1, "the callout fired")
+    assert(e.incoming == "gust", "and carried the bar it was scheduled from")
 end)
 print(cases .. " late-ready regressions passed")
