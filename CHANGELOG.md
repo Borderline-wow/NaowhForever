@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.5
 
 ### Added
 - A boss cast puts the target's name on the reminder that is already on screen. The client
