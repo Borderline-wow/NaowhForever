@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.15
 
 ### Fixed
 - A debuff alert can be scoped to an instance the dungeon list does not carry again. That
