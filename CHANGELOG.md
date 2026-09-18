@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Say What Is Incoming, on Setup. Speaks the boss mod's own name for the ability just
+  before the callout: "Frontal", then "Vampiric Blood". Said on its own rather than folded
+  into the callout, so it still works when your callout is a sound file instead of speech.
+  The bar's count is left off what is spoken -- "Frontal", not "Frontal one".
+
+### Fixed
+- The diagnostic trace said "no name, asked if it is on you" for a cast carrying no target
+  name, describing a marker that was removed in 1.4.7. It reads "cast names nobody" again.
+
 ## 1.4.9
 
 ### Fixed

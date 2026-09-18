@@ -23,7 +23,7 @@ local function Fixture()
     }
     setmetatable(env, { __index = _G })
     local chunk = assert(loadstring("local ns = ...; "
-        .. Slice("function ns.ShowIncomingLabel(", "-- The one plain answer in the set")))
+        .. Slice("function ns.IncomingSpeech(", "-- The one plain answer in the set")))
     setfenv(chunk, env)
     e.ns = {}
     chunk(e.ns)
@@ -73,6 +73,28 @@ Case("no alert built yet is not an error", function()
     e.env.frame = nil
     e.ns.ShowIncomingLabel("Frontal (1)")
     assert(e.drawn.text == nil)
+end)
+
+-- The spoken form. BigWigs counts its bars and "Frontal one" is not what anyone wants to
+-- hear, so the count comes off for the voice while the line keeps it.
+local Speech = (function()
+    local e = Fixture()
+    return e.ns.IncomingSpeech
+end)()
+
+Case("the bar count is left off what gets said", function()
+    assert(Speech("Frontal (1)") == "Frontal")
+    assert(Speech("Boss Buff (12)") == "Boss Buff")
+end)
+
+Case("a label with no count is spoken as it is", function()
+    assert(Speech("Frontal") == "Frontal")
+end)
+
+Case("nothing to say for a callout with no bar behind it", function()
+    assert(Speech(nil) == nil and Speech("") == nil)
+    assert(Speech(4815162342) == nil, "a DBM timer id is not words")
+    assert(Speech("(3)") == nil, "and a count on its own is not either")
 end)
 
 print(count .. " incoming label regressions passed")
