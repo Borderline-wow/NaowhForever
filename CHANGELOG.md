@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- The rule editor no longer reads Enabled for a trash ability nothing is saved for. It was
+  showing a would-be rule's defaults while that ability's own switch in the list correctly
+  read off, and the missing Remove button was the only sign nothing was there. Editing a
+  field on an ability you have not switched on now creates it disabled, which is what the
+  editor in front of you says it will do.
+
 ## 1.4.5
 
 ### Added

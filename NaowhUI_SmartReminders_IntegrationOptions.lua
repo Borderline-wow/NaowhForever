@@ -108,7 +108,18 @@ local function Editor(parent, uid, kind, ability, dungeon)
     -- One panel now holds what the Voice tab used to; kept as its own name so the controls
     -- below read the same either way.
     local voice = test
-    local enabled, healer = not old or old.enabled ~= false, old and old.healerReminder == true
+    local healer = old and old.healerReminder == true
+    -- Off for a catalogue ability nobody has set up, so this agrees with that ability's own
+    -- switch in the list beside it. It read on before, contradicting both that switch and
+    -- the missing Remove button, which is what made it look like a rule existed when none
+    -- did. A rule being authored from scratch has no row to disagree with and still starts
+    -- on, since asking for one is asking for it to work.
+    local enabled
+    if old then
+        enabled = old.enabled ~= false
+    else
+        enabled = ability == nil
+    end
     Toggle(cast, "Enabled", function() return enabled end,
         function(v) enabled = v; AutoSave() end, -42, 268)
     Toggle(cast, "Healer Reminder", function() return healer end,

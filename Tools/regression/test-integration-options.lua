@@ -153,11 +153,20 @@ assert(not e.buttons["-  Kings Rest"] and not e.buttons["+  Kings Rest"],
 -- Every ability carries a switch, reading off until a reminder exists behind it.
 assert(#e.rowToggles == 1 and e.rowToggles[1].get() == false,
     "an unconfigured ability shows an off switch rather than none")
+-- Selecting one opens its editor, and the editor agrees with the switch. It used to read
+-- enabled for an ability with no rule behind it, contradicting both that switch and the
+-- missing Remove button.
+e.buttons.Slam()
+assert(e.controls["Enabled"] and e.controls["Enabled"].get() == false,
+    "the editor must not claim an ability is on when nothing is saved for it")
+assert(not e.buttons["Remove"], "and there is nothing to remove yet")
 e.rowToggles[1].set(true)
 assert(e.saved and e.saved.trigger.spellID == 123 and e.saved.trigger.mapID == 1762,
     "turning it on writes the rule the editor would have")
 assert(e.saved.display.dur == 3 and e.saved.trigger.timeleft == 5 and e.saved.enabled == true)
 assert(e.rowToggles[1].get() == true, "and the switch now reads from that rule")
+assert(e.controls["Enabled"].get() == true, "the editor follows it")
+assert(e.buttons["Remove"], "and there is something to remove now")
 e.rowToggles[1].set(false)
 assert(e.rules.i1.enabled == false, "turning it off disables the rule rather than deleting it")
 
@@ -238,6 +247,9 @@ assert(e.saved.display.castRepeat == nil)
 -- Neither switch belongs to a debuff alert: no cast is involved in an aura landing.
 e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
 assert(not e.controls["Show target on cast"] and not e.controls["Sound on cast"])
+-- An alert being authored from scratch has no row to agree with, and asking for one is
+-- asking for it to work, so this one does still start on.
+assert(e.controls["Enabled"].get() == true, "a new alert starts enabled")
 
 -- The Every dungeon entry is the bucket for a saved rule no dungeon in the catalogue
 -- accounts for. It is offered only when something is actually in it, so the dropdown does
