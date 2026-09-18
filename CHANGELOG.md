@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.12
 
 ### Removed
 - Show Target on Trash Casts, and everything behind it. A trash cast was matched to the
