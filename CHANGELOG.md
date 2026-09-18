@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.11
 
 ### Changed
 - Debuff Alerts pick the instance they apply to by name, from the same dungeon list the
