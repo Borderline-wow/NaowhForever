@@ -1,6 +1,6 @@
 local root = arg[1] or "."
 local function Fixture()
-    local e = { buttons = {}, boxes = {}, controls = {}, rowToggles = {}, rawButtons = {},
+    local e = { buttons = {}, boxes = {}, controls = {}, rowToggles = {}, rawButtons = {}, scrolls = {},
         rules = {}, spec = 250 }
     local function Tab(self, name)
         for _, w in ipairs(self.rawButtons) do
@@ -13,6 +13,10 @@ local function Fixture()
             SetAllPoints = function() end, SetFontObject = function() end, SetAutoFocus = function() end,
             SetMaxLetters = function() end, SetJustifyH = function() end, SetWordWrap = function() end,
             SetScrollChild = function() end, ClearAllPoints = function() end, GetFrameLevel = function() return 1 end,
+            GetHeight = function(self) return self.height or 0 end,
+            UpdateScrollChildRect = function() end,
+            SetVerticalScroll = function(self, v) self.vscroll = v end,
+            HookScript = function(self, kind, fn) self.hooks = self.hooks or {}; self.hooks[kind] = fn end,
             SetText = function(self, v) self.text = v; if self.parent then self.parent.title = v end end,
             GetText = function(self) return self.text end, Hide = function() end, Show = function() end,
             SetShown = function(self, v) self.shown = v end, GetStringWidth = function() return 40 end,
@@ -60,6 +64,7 @@ local function Fixture()
     local env = setmetatable({ NaowhUITankReminder = ns, GameFontHighlight = {},
         CreateFrame = function(kind, _, parent)
             local w = Widget(); w.CreateTexture = Widget
+            if kind == "ScrollFrame" then e.scrolls[#e.scrolls + 1] = w end
             if kind == "EditBox" then e.boxes[parent.title] = w end
             -- The editor's own tabs are raw Buttons, not ns.Button, so they are collected
             -- here and looked up by the label that names them.
@@ -81,6 +86,7 @@ local function Fixture()
     function e.render()
         e.renders = e.renders + 1
         e.buttons = {}; e.boxes = {}; e.controls = {}; e.rowToggles = {}; e.rawButtons = {}
+        e.scrolls = {}
         if e.page == "debuffs" then ns.BuildDebuffsPage(Widget(), 0)
         else ns.BuildIntegrationsPage(Widget(), 0) end
     end
@@ -231,5 +237,53 @@ assert(e.saved.display.castRepeat == nil)
 -- Neither switch belongs to a debuff alert: no cast is involved in an aura landing.
 e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
 assert(not e.controls["Show target on cast"] and not e.controls["Sound on cast"])
+
+-- Debuff alerts are grouped by the instance they are set for, and a group folds away
+-- without letting go of whatever is selected inside it.
+e = Fixture()
+for i = 1, 4 do
+    e.rules["b" .. i] = { name = "Alert " .. i, enabled = true,
+        trigger = { type = "auraSound", spellID = 200 + i,
+            mapID = (i <= 2) and 1762 or 0 },
+        display = { type = "icon" } }
+end
+e.debuffs()
+assert(#e.rowToggles == 4, "every alert is listed under the instance it names")
+assert(e.buttons["-  Kings Rest  (2)"], "the catalogue names the group")
+assert(e.buttons["-  Every dungeon or raid  (2)"], "and one set everywhere is its own")
+
+e.buttons["Alert 1"]()
+assert(e.buttons["Remove"], "picking an alert opens its editor")
+e.buttons["-  Kings Rest  (2)"]()
+assert(#e.rowToggles == 2, "a folded group stops drawing its rows")
+assert(e.buttons["+  Kings Rest  (2)"], "and says it is folded")
+assert(e.buttons["Remove"],
+    "folding the group is not deselecting what is inside it")
+e.buttons["+  Kings Rest  (2)"]()
+assert(#e.rowToggles == 4, "and it comes back")
+
+-- Picking a rule rebuilds the page, and the list is rebuilt onto a new scroll frame with
+-- it. Without the offset being carried across, choosing anything below the fold sent the
+-- list back to the top, which is where you were not.
+e = Fixture()
+for i = 1, 30 do
+    e.rules["a" .. i] = { name = "Alert " .. i, enabled = true,
+        trigger = { type = "auraSound", spellID = 100 + i, target = "me" },
+        display = { type = "icon" } }
+end
+e.debuffs()
+local list = e.scrolls[#e.scrolls]
+assert(list.hooks and list.hooks.OnVerticalScroll, "the list has to report its own offset")
+list.hooks.OnVerticalScroll(list, 120)
+e.render()
+assert(e.scrolls[#e.scrolls].vscroll == 120,
+    "got " .. tostring(e.scrolls[#e.scrolls].vscroll))
+
+-- Clamped to what the rebuilt list can actually show: deleting most of the rules while
+-- scrolled to the bottom must not leave it parked past the end.
+for i = 4, 30 do e.rules["a" .. i] = nil end
+e.render()
+assert(e.scrolls[#e.scrolls].vscroll == 0,
+    "a list shorter than its frame has nowhere to scroll to")
 
 print("PASS edited invalid IDs reach validation instead of falling back")

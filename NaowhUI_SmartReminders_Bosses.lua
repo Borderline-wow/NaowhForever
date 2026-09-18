@@ -2914,6 +2914,19 @@ function ns.BuildBossListPage(parent, y, isRaid)
         y = y - 30
     end
 
+    -- Here rather than on Setup: it only reaches reminders authored from this page, and
+    -- trash asks for the same thing separately on its own. Shown on both boss tabs, which
+    -- are this same page built twice, and driving the one account-wide switch.
+    _, h = W:DualRow(parent, y,
+        { type = "toggle", text = "Show Target on Boss Casts",
+          tooltip = "When a boss cast you have a Boss Cast Starts reminder for names a "
+          .. "player, puts that player's name on the alert in their class colour. Only "
+          .. "while the cast is going out, since that is the only moment the game will say "
+          .. "who is being targeted, and only for the abilities that name anybody at all.",
+          getValue = function() return ns.DB().castTargetBoss == true end,
+          setValue = function(v) ns.DB().castTargetBoss = v or nil end }
+    ); y = y - h
+
     -- The same copy the per-boss button offers, asked once for the whole spec. Building a
     -- pack means repeating that copy on every boss in turn otherwise, and it is the single
     -- biggest cost in setting a spec up. Only shown when another spec has something to take.

@@ -166,7 +166,11 @@ Case("preset and custom-text previews use addon voice volume, with silence diagn
     -- the spoken line has to be the name the player gave the spell, not Blizzard's.
     local callout = assert(source:match("local function CalloutFor%b()%s*.-\nend"))
     local shower = assert(source:match("local function ShowOnAlert%b()%s*.-\nend"))
+    -- The set helpers too: the spoken line for a preset-bound reminder resolves through
+    -- them, and they are the half this suite is here to pin.
     local integ = callout .. "\n" .. shower .. "\n" ..
+        assert(source:match("function ns.TogetherPartners%b()%s*.-\nend")) .. "\n" ..
+        assert(source:match("function ns.SetCalloutLine%b()%s*.-\nend")) .. "\n" ..
         assert(source:match("function ns.DisplayIntegrationReminder%b()%s*.-\nend"))
     e.env.TRDB = e.ns.DB
     -- The defensive alert's own internals, which the function now drives directly.
@@ -234,6 +238,33 @@ Case("preset and custom-text previews use addon voice volume, with silence diagn
     e.db.callouts = { [48707] = "AMS" }
     e.I.Preview(r)
     assert(calls[#calls][2] == "AMS", "the spoken line must use the name you gave it")
+
+    -- A preset built as "AMS + Death's Advance" says both halves, not whichever one
+    -- happened to win the pick. The boss callout has always done this; the authored path
+    -- that trash rules fire through spoke the winner alone.
+    e.env.slots[1].spellID, e.env.slots[2].spellID = 48707, 48265
+    e.env.activeSlots = 2
+    e.env.GetTime = function() return 0 end
+    e.env.SpellReady = function() return true end
+    e.ns.slotsPreset = "defensives"
+    e.ns.IsAudioOff = function() return false end
+    e.ns.CalledTogetherInPreset = function(_, _, sid)
+        return sid == 48707 or sid == 48265
+    end
+    e.db.callouts = { [48707] = "AMS", [48265] = "DA" }
+    e.I.Preview(r)
+    assert(calls[#calls][2] == "AMS and DA", "got " .. tostring(calls[#calls][2]))
+
+    -- A member that is down is left out rather than holding the callout back.
+    e.env.SpellReady = function(sid) return sid ~= 48265 end
+    e.I.Preview(r)
+    assert(calls[#calls][2] == "AMS", "a set of one speaks as one")
+
+    -- Muting a member drops it from the line without dropping the set.
+    e.env.SpellReady = function() return true end
+    e.ns.IsAudioOff = function(sid) return sid == 48265 end
+    e.I.Preview(r)
+    assert(calls[#calls][2] == "AMS")
 end)
 Case("repeated previews replace the last test and preserve live reminders", function()
     local e = Fixture()

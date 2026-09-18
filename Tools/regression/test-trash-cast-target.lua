@@ -25,7 +25,7 @@ local function Rule()
 end
 
 local function Fixture()
-    local e = { db = { showCastTarget = true, markCastTarget = true }, shown = {},
+    local e = { db = { castTargetTrash = true }, shown = {},
         targets = {}, eligible = true, names = true, watcher = {} }
     local env = {
         TRDB = function() return e.db end,
@@ -127,23 +127,20 @@ Case("an ability that names nobody is not repeated at all", function()
     assert(#e.targets == 0)
 end)
 
-Case("both display switches off means the repeat has nothing to add", function()
+Case("trash targeting off means the repeat has nothing to add", function()
     local e = Fixture()
-    e.db.showCastTarget, e.db.markCastTarget = false, false
+    e.db.castTargetTrash = nil
     e.ns.OnBossCast("UNIT_SPELLCAST_START", "nameplate1", 111)
     assert(#e.shown == 0 and e.askedAbout == nil, "and the client is not asked either")
-
-    -- Either one on its own is still worth the repeat.
-    e = Fixture(); e.db.showCastTarget = false
-    e.ns.OnBossCast("UNIT_SPELLCAST_START", "nameplate1", 111)
-    assert(#e.shown == 1)
 end)
 
-Case("an untouched profile gets no repeat either", function()
+Case("the boss switch does not speak for trash", function()
+    -- The two sources are asked for on their own pages. Turning boss casts on says
+    -- nothing about whether trash rules should start repeating.
     local e = Fixture()
-    e.db.showCastTarget, e.db.markCastTarget = nil, nil
+    e.db.castTargetTrash, e.db.castTargetBoss = nil, true
     e.ns.OnBossCast("UNIT_SPELLCAST_START", "nameplate1", 111)
-    assert(#e.shown == 0 and e.askedAbout == nil, "both switches are opt-in")
+    assert(#e.shown == 0 and #e.targets == 0)
 end)
 
 Case("a rule that turned the repeat off is left alone", function()
@@ -179,6 +176,16 @@ Case("a spell nobody watches is ignored", function()
     local e = Fixture()
     e.ns.OnBossCast("UNIT_SPELLCAST_START", "nameplate1", 999)
     assert(#e.shown == 0)
+end)
+
+Case("the watcher never registers while trash targeting is off", function()
+    -- The index is the gate: with no trash rules in it and no encounter, there is nothing
+    -- waiting on a cast, so the events come off entirely rather than firing for nothing.
+    local e = Fixture()
+    e.db.castTargetTrash = nil
+    e.ns.RefreshCastWatch()
+    assert(e.watcher.off and next(e.watcher.registered) == nil)
+    assert(e.ns.watchedCasts[111] == nil)
 end)
 
 Case("trash turns the watcher on where there is no encounter at all", function()

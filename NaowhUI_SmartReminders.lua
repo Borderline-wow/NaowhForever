@@ -2700,6 +2700,68 @@ local function LogCallout(sid, partners)
     })
 end
 
+-- Every other member of the pick's Call Together group that is ready, in list order. nil
+-- when the pick is not itself in a group: a group the pick never reached says nothing
+-- about this hit. A member that is down is skipped rather than waited for -- being in a
+-- group must never be able to silence a callout, which is the failure this engine keeps
+-- having to unlearn.
+--
+-- Read from the preset the slots were BUILT from rather than the spec's active one: a
+-- boss or a single ability can bind its own, and Call Together is stored per preset.
+--
+-- Its own pcall for the same reason the pick has one: a throw here would otherwise take
+-- the callout with it.
+--
+-- ns functions rather than chunk locals: this file is at the 200-local ceiling.
+function ns.TogetherPartners(picked, presetKey, now)
+    if not (picked and presetKey) then return nil end
+    now = now or GetTime()
+    local ok, out = pcall(function()
+        if not ns.CalledTogetherInPreset(specID, presetKey, picked) then return nil end
+        local partners
+        for i = 1, activeSlots do
+            local sid = slots[i].spellID
+            if sid ~= picked and ns.CalledTogetherInPreset(specID, presetKey, sid)
+                and SpellReady(sid, now) then
+                partners = partners or {}
+                partners[#partners + 1] = sid
+            end
+        end
+        return partners
+    end)
+    return ok and out or nil
+end
+
+-- What the voice says for a pick. Spoken in LIST order, not winner-first, so the line
+-- matches the one the preset row shows for the set -- "Guardian and Ardent" reads the same
+-- in both places whichever half happened to win the pick. A per-spell SOUND FILE still
+-- belongs to the winner alone: two files cannot be run together into one announcement, and
+-- the voice is the channel where a set reads as a set.
+--
+-- A muted member stays out of the spoken line but keeps its glow: muting an entry means
+-- "do not say this one", not "drop it from the set".
+function ns.SetCalloutLine(picked, partners)
+    local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
+    local own = CalloutFor(picked, info and info.name)
+    if not partners then return own end
+    local said
+    for i = 1, activeSlots do
+        local sid = slots[i].spellID
+        local part = sid == picked
+        if not part then
+            for j = 1, #partners do
+                if partners[j] == sid then part = true break end
+            end
+        end
+        if part and not ns.IsAudioOff(sid) then
+            local si = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
+            local one = CalloutFor(sid, si and si.name)
+            said = said and (said .. " and " .. one) or one
+        end
+    end
+    return said or own
+end
+
 -- triggerSid: the boss ability this callout is FOR, so the repeat window only mutes a
 -- re-announcement of the same defensive for the SAME incoming hit (a resynced or
 -- double-reported bar). Two different busters seconds apart each deserve their own
@@ -2747,28 +2809,7 @@ local function SpeakCallout(triggerSid)
     end
 
     if picked then
-        -- Only when the winner is itself in the group: a group the pick never reached says
-        -- nothing about this hit. Every other member that is ready is then named with it, in
-        -- list order. A member that is down is skipped rather than waited for -- being in a
-        -- group must never be able to silence a callout, which is the failure this engine
-        -- keeps having to unlearn.
-        --
-        -- Its own pcall for the same reason the pick has one: a throw here would otherwise
-        -- take the callout with it.
-        local okChain, partners = pcall(function()
-            if not ns.CalledTogetherInPreset(specID, ns.slotsPreset, picked) then return nil end
-            local out
-            for i = 1, activeSlots do
-                local sid = slots[i].spellID
-                if sid ~= picked and ns.CalledTogetherInPreset(specID, ns.slotsPreset, sid)
-                    and SpellReady(sid, now) then
-                    out = out or {}
-                    out[#out + 1] = sid
-                end
-            end
-            return out
-        end)
-        if not okChain then partners = nil end
+        local partners = ns.TogetherPartners(picked, ns.slotsPreset, now)
 
         -- Outside the audio gate below: a muted entry still wins the pick and still shows,
         -- so it should still light up its Cooldown Manager button.
@@ -2790,34 +2831,7 @@ local function SpeakCallout(triggerSid)
             end
             lastAnnouncedSpellID, lastAnnouncedTrigger, lastAnnouncedAt = picked, triggerSid, now
             LogCallout(picked, partners)
-            local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(picked)
-            local said = CalloutFor(picked, info and info.name)
-            -- Spoken in LIST order, not winner-first, so the line matches the one the preset
-            -- row shows for the set -- "Guardian and Ardent" reads the same in both places
-            -- whichever half happened to win the pick. A per-spell SOUND FILE still belongs
-            -- to the winner alone: two files cannot be run together into one announcement,
-            -- and the voice is the channel where a set reads as a set.
-            if partners then
-                said = nil
-                for i = 1, activeSlots do
-                    local sid = slots[i].spellID
-                    local part = sid == picked
-                    if not part then
-                        for j = 1, #partners do
-                            if partners[j] == sid then part = true break end
-                        end
-                    end
-                    -- A member the player muted stays out of the spoken line. It still
-                    -- glows, the same way a muted winner does -- muting an entry means
-                    -- "do not say this one", not "drop it from the set".
-                    if part and not ns.IsAudioOff(sid) then
-                        local si = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
-                        local one = CalloutFor(sid, si and si.name)
-                        said = said and (said .. " and " .. one) or one
-                    end
-                end
-            end
-            Announce(picked, said or CalloutFor(picked, info and info.name))
+            Announce(picked, ns.SetCalloutLine(picked, partners))
         end
         return
     end
@@ -3020,11 +3034,13 @@ end
 -- A consequence worth stating plainly: the voice cannot follow any of this. Speaking or
 -- muting needs a real branch and the answer never becomes readable, which is the same
 -- reason the tank filter reaches artwork but not audio.
-function ns.ShowCastTargetOn(unit)
+function ns.ShowCastTargetOn(unit, allowed)
     if not frame or type(unit) ~= "string" then return false end
     if not (UnitShouldDisplaySpellTargetName and UnitSpellTargetName) then return false end
     local t = TRDB()
-    if not (t.showCastTarget or t.markCastTarget) then return false end
+    -- Whose cast this is decides whether a name may show at all, and only the caller knows
+    -- that: boss casts and trash casts are asked for separately, on their own pages.
+    if not allowed then return false end
 
     if not ns.CastNamesATarget(unit) then
         if frame.castTarget then frame.castTarget:Hide() end
@@ -3032,7 +3048,7 @@ function ns.ShowCastTargetOn(unit)
         return false
     end
 
-    if t.showCastTarget and frame.castTarget then
+    if frame.castTarget then
         local gotName, name = pcall(UnitSpellTargetName, unit)
         if gotName and name ~= nil then
             frame.castTarget:SetText(name)
@@ -3434,12 +3450,17 @@ local function ShowOnAlert(opts)
         local spoken = opts.text
         if opts.resolveFrom and (opts.preset or opts.fp) then
             local picked = ns.ResolveReminderSpell(opts.resolveFrom)
-            local info = picked and C_Spell and C_Spell.GetSpellInfo
-                and C_Spell.GetSpellInfo(picked)
-            -- Through CalloutFor, not the spell's own name: someone who renames Vampiric
-            -- Blood to "Vamp" wants to hear "Vamp", and the slot label beside it has always
-            -- said so. Speaking the full name was the two channels disagreeing.
-            local named = picked and CalloutFor(picked, info and info.name)
+            -- The same set line the boss callout speaks, for the same reason: a pick that
+            -- belongs to a Call Together group is named with every other ready member
+            -- rather than on its own. This said the winner alone, so a set built as
+            -- "AMS + Death's Advance" called out half of itself.
+            --
+            -- Reads the slots RebuildSlots just filled for this preset above, which is why
+            -- it belongs here rather than in ResolveReminderSpell. Through CalloutFor, not
+            -- the spell's own name: someone who renames Vampiric Blood to "Vamp" wants to
+            -- hear "Vamp", and the slot label beside it has always said so.
+            local named = picked and ns.SetCalloutLine(picked,
+                ns.TogetherPartners(picked, ns.slotsPreset))
             if named and named ~= "" then spoken = named end
         end
         ns.SpeakReminderTTS(opts.audio, spoken, opts.preview)
@@ -3635,8 +3656,12 @@ function ns.RefreshCastWatch()
     -- Trash rules are not in the set above at all: they live per spec rather than per
     -- encounter, and they matter precisely where there is no encounter. They warn ahead of
     -- the cast by design, so this second look is the only one that can carry a name.
+    -- Only while trash targeting is on: the index is what keeps the cast events
+    -- registered, so with it off they are not listening at all rather than firing on every
+    -- trash cast to do nothing.
     local integrations = ns.Integrations
-    local trash = integrations and integrations.CastWatchRules and integrations.CastWatchRules()
+    local trash = TRDB().castTargetTrash and integrations and integrations.CastWatchRules
+        and integrations.CastWatchRules()
     for spellID, list in pairs(trash or {}) do
         local entry = index[spellID]
         if not entry then entry = {}; index[spellID] = entry end
@@ -3700,9 +3725,8 @@ function ns.OnBossCast(event, unit, spellID)
     -- shown twice, which is worse than not repeating at all, and most abilities name
     -- nobody. An authored reminder on the same spell draws after this and wins the frame.
     if event == "UNIT_SPELLCAST_START" and entry.trashcast then
-        local t = TRDB()
-        if (t.showCastTarget or t.markCastTarget)
-            and ns.CastNamesATarget(unit) then
+        local onTrash = TRDB().castTargetTrash
+        if onTrash and ns.CastNamesATarget(unit) then
             local integrations, drew = ns.Integrations, false
             for i = 1, #entry.trashcast do
                 local rule = entry.trashcast[i].r
@@ -3712,7 +3736,7 @@ function ns.OnBossCast(event, unit, spellID)
                     and integrations.Eligible(rule, "exboss")
                     and ns.RepeatIntegrationReminderOnCast(rule) then drew = true end
             end
-            if drew then ns.ShowCastTargetOn(unit) end
+            if drew then ns.ShowCastTargetOn(unit, onTrash) end
         end
     end
 
@@ -3737,7 +3761,7 @@ function ns.OnBossCast(event, unit, spellID)
             -- client answers "is there a target to show" with false at that point, so a
             -- castend reminder could never have displayed one anyway.
             if shown and event == "UNIT_SPELLCAST_START" then
-                ns.ShowCastTargetOn(unit)
+                ns.ShowCastTargetOn(unit, TRDB().castTargetBoss)
             end
         end
     end
@@ -7040,21 +7064,17 @@ function ns.BuildBarsSettings(parent, y)
           setValue = function(v) previewPin = v; UpdatePreview() end }
     ); y = y - h
 
-    -- Both default off, unlike every other display switch here: this is new and wants some
-    -- real use behind it before it starts drawing on people's alerts unasked.
-    -- Both are display only, and deliberately so: the client hands back who is targeted as
-    -- a value this addon may show but never read, so neither of these can reach the voice.
+    -- Display only, and deliberately so: the client hands back who is targeted as a value
+    -- this addon may show but never read, so this cannot reach the voice.
+    --
+    -- Whether a name shows at all is asked for per source, on the boss and trash pages that
+    -- own those reminders. This only decides whether YOU rides along with it.
     _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Show Who Is Targeted",
-          tooltip = "When a boss or trash cast names somebody, puts that player's name on "
-          .. "the alert in their class colour. Only while the cast is going out, since that "
-          .. "is the only moment the game will say who is being targeted.",
-          getValue = function() return TRDB().showCastTarget == true end,
-          setValue = function(v) TRDB().showCastTarget = v or nil end },
         { type = "toggle", text = "Mark Me When I Am Targeted",
-          tooltip = "Adds YOU beside that name when the cast is aimed at you. The game "
-          .. "answers this one without letting the addon see the answer, so it can change "
-          .. "what is drawn but never what is said.",
+          tooltip = "Adds YOU beside the target's name when the cast is aimed at you. The "
+          .. "name itself is turned on under Dungeon Bosses, Raid Bosses and Trash. The "
+          .. "game answers this one without letting the addon see the answer, so it can "
+          .. "change what is drawn but never what is said.",
           getValue = function() return TRDB().markCastTarget == true end,
           setValue = function(v) TRDB().markCastTarget = v or nil end }
     ); y = y - h

@@ -124,7 +124,9 @@ Case("reused identity supersedes waiting timer", function()
     e:advance(20); assert(e.calls == 1)
 end)
 Case("production callout returns waiting only for a clean empty pick", function()
-    local speak = Slice("local function SpeakCallout(triggerSid)", "--  Showing and hiding")
+    -- From the set helpers rather than SpeakCallout itself: the callout resolves its Call
+    -- Together line through them now, and a slice starting lower leaves them undefined.
+    local speak = Slice("function ns.TogetherPartners(", "--  Showing and hiding")
     local e = { voiceOn = true, external = false, fail = false, ready = false, calls = 0 }
     local env = { ns = {
         ExternalCallFor = function() return e.external end,

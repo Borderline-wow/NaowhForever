@@ -53,6 +53,23 @@ local function Toggle(parent, title, get, set, y, width)
     local toggle = UI.BuildToggleControl(parent, parent:GetFrameLevel() + 2, get, set)
     toggle:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -14, y)
 end
+
+-- Picking a row IS a refresh, and a refresh rebuilds the page from scratch onto a brand
+-- new scroll frame, so these lists jumped back to the top whenever you chose or switched
+-- on a rule near the bottom of one. The offset outlives the frame here and goes back on
+-- once the rows are in, which is the first moment there is a range to clamp it against.
+--
+-- Clamped by hand rather than left to SetVerticalScroll: the frame's own range is not
+-- recomputed until it next draws, and an offset past it would land at the top -- which is
+-- the very thing being fixed.
+local listScroll = {}
+local function KeepListScroll(scroll, key, contentHeight)
+    scroll:HookScript("OnVerticalScroll", function(_, offset) listScroll[key] = offset end)
+    local want = listScroll[key]
+    if not want or want <= 0 then return end
+    scroll:UpdateScrollChildRect()
+    scroll:SetVerticalScroll(math.min(want, math.max(0, contentHeight - scroll:GetHeight())))
+end
 local function Editor(parent, uid, kind, ability, dungeon)
     local editedRules, editedSpec = I.Rules(true), I.Spec()
     -- Every control writes straight through, so there is no Save button to forget. Declared
@@ -305,9 +322,9 @@ local ROW_H, ICON = 26, 20
 -- says at a glance what is set up. Turning one on for an ability with nothing saved writes
 -- the rule the editor would have written and opens it, which is the same "create on demand"
 -- the boss ability rows already do rather than a second Add button.
-local function ListRow(list, ly, width, text, icon, rule, active, onClick, onCreate)
+local function ListRow(list, ly, width, text, icon, rule, active, onClick, onCreate, indent)
     local row = ns.Button(list, text, width, ROW_H, onClick)
-    row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -ly)
+    row:SetPoint("TOPLEFT", list, "TOPLEFT", indent or 0, -ly)
     row.label:ClearAllPoints()
     row.label:SetPoint("LEFT", row, "LEFT", 64, 0)
     row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
@@ -342,6 +359,27 @@ local function ListRow(list, ly, width, text, icon, rule, active, onClick, onCre
     return row
 end
 
+-- Which dungeon groups are folded shut, keyed by instance id. Outside the page for the
+-- same reason the scroll offset is: clicking a header rebuilds the page and the state has
+-- to outlive that. Not saved to the profile, since which group you last had open is not a
+-- setting and reopening the window somewhere unexpected is worse than starting open.
+local debuffCollapsed = {}
+
+-- Plus and minus rather than a drawn chevron: it is the tree idiom the game itself uses,
+-- and it costs no geometry to get right at two sizes.
+local function GroupHeader(list, ly, width, name, count, collapsed, onClick)
+    local row = ns.Button(list, ("%s  %s  (%d)"):format(collapsed and "+" or "-", name, count),
+        width, ROW_H, onClick)
+    row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -ly)
+    row.label:ClearAllPoints()
+    row.label:SetPoint("LEFT", row, "LEFT", 8, 0)
+    row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.label:SetJustifyH("LEFT")
+    row.label:SetWordWrap(false)
+    row.label:SetTextColor(ns.THEME.accent.r, ns.THEME.accent.g, ns.THEME.accent.b, 1)
+    return row
+end
+
 local function StatusLines(parent, y)
     local status = Label(parent, I.trashStatus or "", 20, y - 26, 900)
     local function AuraStatus()
@@ -370,6 +408,25 @@ function ns.BuildIntegrationsPage(parent, y)
             .. "and anything already here is left alone. Debuff alerts have their own "
             .. "button on their own tab.")
     end
+
+    -- Here rather than on Setup: it only reaches the rules listed below, and boss casts
+    -- ask for the same thing separately on their own pages.
+    Label(parent, "Show Target on Trash Casts", 620, y - 4, 240)
+    local castTarget = UI.BuildToggleControl(parent, parent:GetFrameLevel() + 2,
+        function() return ns.DB().castTargetTrash == true end,
+        function(v)
+            ns.DB().castTargetTrash = v or nil
+            -- The cast watch is built from this switch, and nothing else here would
+            -- rebuild it until the next zone or rule edit.
+            if ns.RefreshCastWatch then ns.RefreshCastWatch() end
+        end)
+    castTarget:SetPoint("TOPLEFT", parent, "TOPLEFT", 880, y)
+    ns.Tooltip(castTarget, "Show Target on Trash Casts",
+        "A trash rule warns seconds before the ability goes out, when nobody is casting "
+        .. "yet and the game has nothing to answer with. With this on, the rule calls out "
+        .. "again at the cast itself carrying the target's name. Only for abilities that "
+        .. "name somebody, and silent unless that rule asks for Sound on cast.")
+
     StatusLines(parent, y)
 
     local catalogue = I.Catalogue()
@@ -487,6 +544,7 @@ function ns.BuildIntegrationsPage(parent, y)
         ly = 60
     end
     list:SetHeight(math.max(1, ly))
+    KeepListScroll(scroll, "trash", math.max(1, ly))
 
     local selectedDungeon
     for _, dungeon in ipairs(catalogue) do
@@ -545,26 +603,65 @@ function ns.BuildDebuffsPage(parent, y)
     end
     table.sort(rows, function(a, b) return a.uid < b.uid end)
 
-    local chosen, ly = nil, 0
+    -- Grouped by the instance each alert is set for. The catalogue names the ones it knows;
+    -- an id it does not carry still gets a group of its own rather than being hidden, and
+    -- an alert set for everywhere has no instance to file under so it goes last.
+    local dungeonName = {}
+    for _, dungeon in ipairs(I.Catalogue() or {}) do dungeonName[dungeon.id] = dungeon.name end
+    local groups, byMap = {}, {}
     for _, entry in ipairs(rows) do
-        local rule = entry.rule
-        local active = not debuffSelection.newAura and entry.uid == debuffSelection.uid
-        if active then chosen = entry end
-        local icon = C_Spell and C_Spell.GetSpellTexture
-            and C_Spell.GetSpellTexture(rule.trigger.spellID)
-        local row = ListRow(list, ly, 236, rule.name or "Debuff alert", icon, rule, active,
-            function() debuffSelection = { uid = entry.uid }; UI:RefreshPage(true) end)
-        ns.Tooltip(row, rule.name or "Debuff alert",
-            ("Aura %s on %s, when %s."):format(tostring(rule.trigger.spellID),
-                rule.trigger.target == "party" and "a party member" or "you",
-                (rule.trigger.auraEvent or "Added"):lower()))
+        local mapID = entry.rule.trigger.mapID or 0
+        local group = byMap[mapID]
+        if not group then
+            group = { mapID = mapID, entries = {},
+                name = (mapID == 0 and "Every dungeon or raid")
+                    or dungeonName[mapID] or ("Instance " .. tostring(mapID)) }
+            byMap[mapID] = group
+            groups[#groups + 1] = group
+        end
+        group.entries[#group.entries + 1] = entry
+    end
+    table.sort(groups, function(a, b)
+        if (a.mapID == 0) ~= (b.mapID == 0) then return b.mapID == 0 end
+        return a.name < b.name
+    end)
+
+    local chosen, ly = nil, 0
+    for _, group in ipairs(groups) do
+        local key = tostring(group.mapID)
+        local collapsed = debuffCollapsed[key] == true
+        GroupHeader(list, ly, 236, group.name, #group.entries, collapsed, function()
+            debuffCollapsed[key] = (not collapsed) or nil
+            UI:RefreshPage(true)
+        end)
         ly = ly + ROW_H + 1
+        for _, entry in ipairs(group.entries) do
+            local rule = entry.rule
+            local active = not debuffSelection.newAura and entry.uid == debuffSelection.uid
+            -- Found whether or not its group is open: folding a group away is not the same
+            -- as deselecting what is inside it, and the editor on the right must not blank.
+            if active then chosen = entry end
+            if not collapsed then
+                local icon = C_Spell and C_Spell.GetSpellTexture
+                    and C_Spell.GetSpellTexture(rule.trigger.spellID)
+                local row = ListRow(list, ly, 224, rule.name or "Debuff alert", icon, rule,
+                    active,
+                    function() debuffSelection = { uid = entry.uid }; UI:RefreshPage(true) end,
+                    nil, 12)
+                ns.Tooltip(row, rule.name or "Debuff alert",
+                    ("Aura %s on %s, when %s."):format(tostring(rule.trigger.spellID),
+                        rule.trigger.target == "party" and "a party member" or "you",
+                        (rule.trigger.auraEvent or "Added"):lower()))
+                ly = ly + ROW_H + 1
+            end
+        end
     end
     if #rows == 0 then
         Label(list, "None yet. Add one with the button above.", 4, 0, 230)
         ly = 40
     end
     list:SetHeight(math.max(1, ly))
+    KeepListScroll(scroll, "debuff", math.max(1, ly))
 
     local right = CreateFrame("Frame", nil, parent)
     right:SetPoint("TOPLEFT", parent, "TOPLEFT", 320, y - 68)

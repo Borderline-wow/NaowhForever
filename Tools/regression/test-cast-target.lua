@@ -19,7 +19,7 @@ local function Secret(what)
 end
 
 local function Fixture()
-    local e = { db = { showCastTarget = true, markCastTarget = true }, drawn = {} }
+    local e = { db = { markCastTarget = true }, drawn = {} }
     local secretName, secretClass, secretMine =
         Secret("string"), Secret("string"), Secret("bool")
     e.secretName, e.secretClass, e.secretMine = secretName, secretClass, secretMine
@@ -64,7 +64,7 @@ local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) en
 
 Case("the name and the marker are passed through untouched", function()
     local e = Fixture()
-    assert(e.ns.ShowCastTargetOn("boss1") == true)
+    assert(e.ns.ShowCastTargetOn("boss1", true) == true)
     assert(e.askedShow == "boss1", "the plain gate decides, and it is asked about the caster")
     assert(e.drawn.name == e.secretName, "the secret name reaches the font string as it came")
     assert(e.drawn.nameShown == true)
@@ -73,7 +73,7 @@ end)
 
 Case("the class colour is resolved without the class being read", function()
     local e = Fixture()
-    e.ns.ShowCastTargetOn("boss1")
+    e.ns.ShowCastTargetOn("boss1", true)
     assert(e.classGiven == e.secretClass, "the secret class goes straight to GetClassColor")
     assert(e.drawn.colour and e.drawn.colour[1] == 0.1 and e.drawn.colour[3] == 0.3)
 end)
@@ -81,51 +81,46 @@ end)
 Case("a cast with nothing displayable clears whatever the last one left", function()
     local e = Fixture()
     e.show = false
-    assert(e.ns.ShowCastTargetOn("boss1") == false)
+    assert(e.ns.ShowCastTargetOn("boss1", true) == false)
     assert(e.drawn.name == nil and e.drawn.marker == nil)
     assert(e.drawn.nameHidden and e.drawn.markerHidden,
         "otherwise the previous cast's target stays on screen under a new callout")
 end)
 
-Case("each half can be switched off on its own", function()
+Case("the YOU marker is the one half with a switch of its own", function()
+    -- Whether the name shows is the calling source's own switch, passed in. This is the
+    -- only half that can be turned off while the source stays on.
     local e = Fixture()
-    e.db.showCastTarget = false
-    e.ns.ShowCastTargetOn("boss1")
-    assert(e.drawn.name == nil and e.drawn.marker == e.secretMine)
-
-    e = Fixture()
-    e.db.markCastTarget = false
-    e.ns.ShowCastTargetOn("boss1")
+    e.db.markCastTarget = nil
+    e.ns.ShowCastTargetOn("boss1", true)
     assert(e.drawn.name == e.secretName and e.drawn.marker == nil)
 end)
 
-Case("both off means the client is never asked at all", function()
+Case("a source that was not asked for is never asked about either", function()
     local e = Fixture()
-    e.db.showCastTarget, e.db.markCastTarget = false, false
-    assert(e.ns.ShowCastTargetOn("boss1") == false)
+    assert(e.ns.ShowCastTargetOn("boss1", false) == false)
     assert(e.askedShow == nil, "no point asking a question whose answer cannot be used")
-end)
+    assert(e.drawn.name == nil and e.drawn.marker == nil)
 
-Case("neither one on is the state a fresh profile is in", function()
-    local e = Fixture()
-    e.db.showCastTarget, e.db.markCastTarget = nil, nil
-    assert(e.ns.ShowCastTargetOn("boss1") == false)
-    assert(e.askedShow == nil, "both are opt-in, so an untouched profile draws nothing")
+    -- nil, not false, is what an untouched profile passes in.
+    e = Fixture()
+    assert(e.ns.ShowCastTargetOn("boss1", nil) == false)
+    assert(e.askedShow == nil)
 end)
 
 Case("a client without the API, or no unit, is refused rather than erroring", function()
     local e = Fixture()
     e.env.UnitSpellTargetName = nil
-    assert(e.ns.ShowCastTargetOn("boss1") == false)
+    assert(e.ns.ShowCastTargetOn("boss1", true) == false)
     e = Fixture()
-    assert(e.ns.ShowCastTargetOn(nil) == false)
-    assert(e.ns.ShowCastTargetOn(e.secretName) == false, "a unit token that is not a string")
+    assert(e.ns.ShowCastTargetOn(nil, true) == false)
+    assert(e.ns.ShowCastTargetOn(e.secretName, true) == false, "a unit token that is not a string")
 end)
 
 Case("a target the client declines to name leaves the marker working", function()
     local e = Fixture()
     e.name = nil
-    e.ns.ShowCastTargetOn("boss1")
+    e.ns.ShowCastTargetOn("boss1", true)
     assert(e.drawn.name == nil and e.drawn.nameShown == nil)
     assert(e.drawn.marker == e.secretMine, "being unable to name them does not mean it is not you")
 end)

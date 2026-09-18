@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Show Who Is Targeted is now two switches, each on the page that owns the reminders it
+  affects. Show Target on Boss Casts sits on the Dungeon Bosses and Raid Bosses tabs,
+  Show Target on Trash Casts on the Trash tab, and both start off. Mark Me When I Am
+  Targeted stays on Setup, since it applies wherever a name shows. The old setting is not
+  carried over, so if you had it on, tick the one you want.
+- Debuff Alerts are grouped by the instance each one is set for, under headers that fold
+  shut. Alerts set for every dungeon or raid get their own group at the bottom. Folding a
+  group leaves whatever is selected inside it open in the editor.
+
+### Fixed
+- A trash callout bound to a preset names every cooldown in the set, not just the one that
+  won the pick. With Call Together ticked on Anti-Magic Shell and Death's Advance it said
+  "AMS"; it now says "AMS and Death's Advance", the same line the boss callout has always
+  spoken for a set.
+- The Trash and Debuff Alerts lists stay where you left them. Picking a rule rebuilds the
+  page, which sent the list back to the top, so anything below the fold scrolled away the
+  moment you clicked it.
+
 ## 1.4.3
 
 ### Changed
