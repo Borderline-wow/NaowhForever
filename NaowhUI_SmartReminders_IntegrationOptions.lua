@@ -148,14 +148,23 @@ local function Editor(parent, uid, kind, ability, dungeon)
         -- would mean an alert could be scoped to nothing at all on a client without
         -- ExBoss, which is a capability this page used to have. So "Another instance"
         -- brings the id field back, and an id the list does not carry keeps an entry of
-        -- its own rather than being quietly moved to everywhere.
-        local mapValues = { [0] = "Every dungeon or raid" }
-        local mapOrder = { 0 }
-        for _, dungeon in ipairs(I.Catalogue() or {}) do
+        -- its own rather than being quietly moved somewhere it was not set for.
+        --
+        -- There is no "every dungeon or raid" choice: a debuff alert names the instance it
+        -- belongs to. Zero still MEANS everywhere to the engine and an alert saved with it
+        -- keeps firing everywhere -- it shows as "Instance 0" until rescoped, and can be
+        -- typed back in through the id field by anyone who wants it.
+        local catalogue = I.Catalogue() or {}
+        -- A new alert starts on the first dungeon rather than at zero, which would show as
+        -- an instance nobody chose. With no catalogue there is nothing to start it on, so
+        -- it stays at zero and the id field is the way through.
+        if not old and mapChoice == 0 and catalogue[1] then mapChoice = catalogue[1].id end
+        local mapValues, mapOrder = {}, {}
+        for _, dungeon in ipairs(catalogue) do
             mapValues[dungeon.id] = dungeon.name
             mapOrder[#mapOrder + 1] = dungeon.id
         end
-        if mapChoice ~= 0 and not mapValues[mapChoice] then
+        if not mapValues[mapChoice] then
             mapValues[mapChoice] = "Instance " .. tostring(mapChoice)
             mapOrder[#mapOrder + 1] = mapChoice
         end

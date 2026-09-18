@@ -116,7 +116,10 @@ e.boxes["Debuff spell ID"]:SetText("456")
 e.controls.When.set("Removed"); e.controls.Unit.set("party"); e.controls.Sound.set("test")
 e.commitAll()
 assert(e.saved.trigger.type == "auraSound" and e.saved.trigger.auraEvent == "Removed")
-assert(e.saved.trigger.target == "party" and e.saved.trigger.mapID == 0 and e.saved.display.sound == "test")
+-- A new alert starts on the first dungeon in the list. There is no "everywhere" choice
+-- to start it on, and zero would read as an instance nobody picked.
+assert(e.saved.trigger.target == "party" and e.saved.trigger.mapID == 1762
+    and e.saved.display.sound == "test")
 assert(e.buttons.Remove and not e.saved.display.tts and not e.saved.preset)
 for _, change in ipairs({ "profile", "spec" }) do
     e = Fixture(); SelectTrash(e)
@@ -144,9 +147,7 @@ end
 -- get wrong, and the same control the trash page has always used does the choosing.
 e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
 assert(e.controls.Dungeon, "the debuff editor picks its instance by name")
-assert(e.controls.Dungeon.values[0] == "Every dungeon or raid",
-    "and everywhere is a choice rather than a magic zero")
-assert(e.controls.Dungeon.values[1762] == "Kings Rest", "the catalogue names the rest")
+assert(e.controls.Dungeon.values[1762] == "Kings Rest", "the catalogue names them")
 e.boxes["Debuff spell ID"]:SetText("21562")
 e.controls.Dungeon.set(1762); e.commitAll()
 assert(e.saved.trigger.mapID == 1762, "and the pick is what gets saved")
@@ -251,6 +252,8 @@ assert(e.controls["Enabled"].get() == true, "a new alert starts enabled")
 -- instance" has to stay reachable or an alert could be scoped to nothing at all.
 e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
 assert(e.controls["Dungeon"].values.other == "Another instance (by ID)")
+assert(e.controls["Dungeon"].values[0] == nil,
+    "a debuff alert names the instance it belongs to; there is no everywhere choice")
 assert(not e.boxes["Instance ID (0 = every dungeon or raid)"], "hidden until asked for")
 e.controls["Dungeon"].set("other")
 local idBox = e.boxes["Instance ID (0 = every dungeon or raid)"]

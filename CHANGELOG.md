@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- A debuff alert names the instance it belongs to. "Every dungeon or raid" is gone from
+  the list, and a new alert starts on the first dungeon instead of everywhere. An alert
+  already saved for everywhere keeps firing everywhere and shows as "Instance 0" until you
+  rescope it; "Another instance (by ID)" still accepts 0 if that is what you want.
+
 ## 1.4.15
 
 ### Fixed
