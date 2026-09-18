@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.6
 
 ### Fixed
 - The rule editor no longer reads Enabled for a trash ability nothing is saved for. It was
