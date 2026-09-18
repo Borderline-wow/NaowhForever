@@ -737,9 +737,13 @@ local function ApplyTextLayout()
     for i = 1, #slots do place(slots[i].label, 0) end
     place(frame.fallback, 0)
     place(frame.reminder, line)
+    -- The incoming line only takes a row when it is switched on. Reserving it either way
+    -- left an empty gap between the callout and the target name for everyone who has the
+    -- name on and this off.
+    local afterIncoming = (t.showIncoming == true) and line * 3 or line * 2
     place(frame.incoming, line * 2)
-    place(frame.castTarget, line * 3)
-    place(frame.learnTag, line * 3 + REMINDER_SIZE + 4)
+    place(frame.castTarget, afterIncoming)
+    place(frame.learnTag, afterIncoming + REMINDER_SIZE + 4)
 end
 
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
@@ -4728,7 +4732,8 @@ local SAME_CAST_WINDOW = 2
 -- name welded onto the real callout by the inheritance below, and the debuff expiring then
 -- cancels a cast that was still coming. Nil counts as a cooldown: DBM sends no flavour and
 -- its timers are cooldowns, and pairing its id with BigWigs' text is what aliases are for.
-function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, isApprox, valid)
+function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, isApprox, valid,
+        barLabel)
     local fires = pendingBWFires[channel]
     if not fires then fires = {} pendingBWFires[channel] = fires end
     local sidFires = fires[sid]
@@ -4830,7 +4835,11 @@ function ns.ScheduleBWFire(channel, sid, duration, barIdentity, lead, fireFn, is
         -- The bar's own name, for the line the callout draws. Set around the call rather
         -- than threaded through fireFn: every caller builds that closure differently and
         -- only this scope ever knew which bar the fire belongs to.
-        ns.firingBarLabel = barIdentity
+        -- The identity is whatever the mod cancels by: BigWigs hands back its bar TEXT and
+        -- DBM a numeric timer id, so only a string is fit to put on screen. DBM passes its
+        -- message separately, which is why the label is its own argument rather than this.
+        ns.firingBarLabel = barLabel
+            or (type(barIdentity) == "string" and barIdentity or nil)
         local result = fireFn(sid, entry.late)
         ns.firingBarLabel = nil
         local remaining = entry.endsAt - GetTime()
@@ -4901,7 +4910,7 @@ function ns.ApplyReminderFilter()
     if ns.BossSource and ns.BossSource() == "timeline" then RegisterEventSounds() end
 end
 
-function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
+function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox, barLabel)
     if type(sid) ~= "number" or sid <= 0 then return end
     if not (frame and TRDB().enabled) then return end
     if InEncounter() then ns.SampleTanking() end
@@ -4914,7 +4923,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
         -- encounter does not loop.
         if not InEncounter() and not isRetry then
             C_Timer.After(0, function()
-                ns.HandleBigWigsAbility(sid, duration, barIdentity, true, isApprox)
+                ns.HandleBigWigsAbility(sid, duration, barIdentity, true, isApprox, barLabel)
             end)
             return
         end
@@ -4944,7 +4953,7 @@ function ns.HandleBigWigsAbility(sid, duration, barIdentity, isRetry, isApprox)
             return FireBigWigsAbility(fireSid, lateRetry)
         end, isApprox, function()
             return ns.AbilityEnabledForBinding(currentEncounter, sid)
-        end)
+        end, barLabel)
     else
         -- A message reminder under BOSS REMINDERS owns this ability's messages and
         -- fires its own preset. Bars stay on the branch above with the ability's own
@@ -5270,7 +5279,8 @@ local function OnDBMEvent(event, ...)
         -- DBM hands the timer ID back on stop/pause, not the message text, so ID is the
         -- cancellation identity here; msg is only used for count extraction.
         if ns.ObserveCast then ns.ObserveCast(spellId, "DBM", duration, id) end
-        ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId, duration, id)
+        ns.HandleBigWigsAbility(ns.DBM_TO_BIGWIGS and ns.DBM_TO_BIGWIGS[spellId] or spellId,
+            duration, id, nil, nil, type(msg) == "string" and msg or nil)
         -- Raid Reminders are BigWigs-only by design (see ShowRaidReminderEditor) --
         -- deliberately no ns.HandleRaidReminderAbility call here.
         CheckBossModTimerStart("DBM", spellId, id, duration, msg)
@@ -7142,7 +7152,13 @@ function ns.BuildBarsSettings(parent, y)
           .. "alert says what is coming as well as what to press. Only for reminders driven "
           .. "by a BigWigs or DBM timer, since the name comes from the bar.",
           getValue = function() return TRDB().showIncoming == true end,
-          setValue = function(v) TRDB().showIncoming = v or nil end }
+          setValue = function(v)
+              TRDB().showIncoming = v or nil
+              -- The rows below this line move with it, so the alert has to be laid out
+              -- again rather than waiting for whatever changes a size next.
+              ApplyTextLayout()
+              UpdatePreview()
+          end }
     ); y = y - h
 
     -- Escape hatch: a UI-scale change can strand a moved alert off-screen where the

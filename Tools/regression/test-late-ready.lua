@@ -59,12 +59,12 @@ local function Fixture()
         end
         self.now = at
     end
-    function e:schedule(identity, approximate, channel, duration)
+    function e:schedule(identity, approximate, channel, duration, label)
         env.ns.ScheduleBWFire(channel or "tank", 1, duration or 10, identity or "gust", 2,
             function(sid, late)
                 self.checks = self.checks + 1
                 return self.fire(sid, late)
-            end, approximate)
+            end, approximate, nil, label)
     end
     e.env = env
     return e
@@ -154,5 +154,15 @@ Case("the bar name reaches the alert with the callout", function()
     local e = Fixture(); e:schedule(); e:advance(12)
     assert(e.calls == 1, "the callout fired")
     assert(e.incoming == "gust", "and carried the bar it was scheduled from")
+end)
+Case("a DBM timer id is not put on screen as if it were a name", function()
+    -- BigWigs hands back its bar TEXT as the cancellation identity, so that doubles as
+    -- the label. DBM hands back a numeric timer id and its message separately, and the
+    -- id is meaningless to read.
+    local e = Fixture(); e:schedule(4815162342); e:advance(12)
+    assert(e.calls == 1 and e.incoming == nil, "an id is not a label")
+
+    e = Fixture(); e:schedule(4815162342, nil, nil, nil, "Frontal"); e:advance(12)
+    assert(e.incoming == "Frontal", "the message is what goes up")
 end)
 print(cases .. " late-ready regressions passed")

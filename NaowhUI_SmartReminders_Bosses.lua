@@ -2924,7 +2924,13 @@ function ns.BuildBossListPage(parent, y, isRaid)
           .. "while the cast is going out, since that is the only moment the game will say "
           .. "who is being targeted, and only for the abilities that name anybody at all.",
           getValue = function() return ns.DB().castTargetBoss == true end,
-          setValue = function(v) ns.DB().castTargetBoss = v or nil end }
+          setValue = function(v)
+              ns.DB().castTargetBoss = v or nil
+              -- The cast watch arms from this switch, and nothing else here would rebuild
+              -- it until the next pull, so ticking it mid-fight would do nothing until
+              -- then. Same call the trash switch makes on its own page.
+              if ns.RefreshCastWatch then ns.RefreshCastWatch() end
+          end }
     ); y = y - h
 
     -- The same copy the per-boss button offers, asked once for the whole spec. Building a

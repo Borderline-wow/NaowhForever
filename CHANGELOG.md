@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Show What Is Incoming showed nothing on DBM. DBM identifies a timer by a numeric id
+  rather than by its text, and the line was using that id; the message DBM sends alongside
+  it is the label now. BigWigs was unaffected, since its identity is the bar text.
+- The alert no longer leaves an empty row between the callout and the target name when the
+  incoming line is switched off.
+- Show Target on Boss Casts takes effect the moment you tick it, instead of waiting for the
+  next pull. Its trash counterpart already did.
+
 ## 1.4.8
 
 ### Added
