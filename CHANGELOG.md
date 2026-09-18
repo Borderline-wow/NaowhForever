@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.4
 
 ### Changed
 - Show Who Is Targeted is now two switches, each on the page that owns the reminders it
