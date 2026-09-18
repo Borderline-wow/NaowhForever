@@ -88,6 +88,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
     local t, d = old and old.trigger or {}, old and old.display or {}
     local spellID = t.spellID or (ability and ability.spellID)
     local mapID = t.mapID or (dungeon and dungeon.id) or 0
+    local mapChoice = mapID
     Label(parent, old and old.name or (ability and ability.name) or "New Debuff Sound",
         0, 0, 420, 16, ns.THEME.fg)
     Label(parent, ability and (ability.mob .. "  |  Spell " .. spellID)
@@ -135,7 +136,24 @@ local function Editor(parent, uid, kind, ability, dungeon)
         Label(cast, "Timing predicts when the ability is ready. The cast itself is watched separately, which is where a target name can come from.", 14, -184, 268)
     else
         spell = Commit(Box(cast, "Debuff spell ID", spellID, -120, 268))
-        map = Commit(Box(cast, "Instance ID (0 = every dungeon / raid)", mapID, -176, 268))
+        -- Picked by name, not typed as an id. The catalogue already knows every dungeon it
+        -- carries trash data for, and the trash page has always chosen one this way.
+        --
+        -- An id the catalogue does not carry still gets an entry of its own, so an alert
+        -- saved for a raid, or for a dungeon that has left the catalogue, keeps the
+        -- instance it was set for instead of being quietly moved to everywhere.
+        local mapValues = { [0] = "Every dungeon or raid" }
+        local mapOrder = { 0 }
+        for _, dungeon in ipairs(I.Catalogue() or {}) do
+            mapValues[dungeon.id] = dungeon.name
+            mapOrder[#mapOrder + 1] = dungeon.id
+        end
+        if not mapValues[mapChoice] then
+            mapValues[mapChoice] = "Instance " .. tostring(mapChoice)
+            mapOrder[#mapOrder + 1] = mapChoice
+        end
+        Dropdown(cast, "Dungeon", mapValues, mapOrder, function() return mapChoice end,
+            function(v) mapChoice = v; AutoSave() end, -176, 268)
         Dropdown(cast, "When", { Added = "Applied", ApplicationsIncreased = "Stack increased", Removed = "Removed" },
             { "Added", "ApplicationsIncreased", "Removed" }, function() return auraEvent end,
             function(v) auraEvent = v; AutoSave() end, -232, 268)
@@ -188,7 +206,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
         local storedRepeat
         if kind == "exboss" and not castRepeat then storedRepeat = false end
         if spell then id = tonumber(spell:GetText()) end
-        if map then instanceID = tonumber(map:GetText()) end
+        if mapChoice then instanceID = mapChoice end
         return { name = name:GetText(), enabled = enabled, healerReminder = healer or nil,
             preset = kind == "exboss" and preset ~= "none" and preset or nil,
             trigger = { type = kind, spellID = id, mapID = instanceID,

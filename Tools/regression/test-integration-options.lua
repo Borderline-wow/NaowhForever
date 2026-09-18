@@ -132,16 +132,33 @@ assert(e.controls.Sound.get() == "voice:stoneform-ready")
 e.buttons.Test(); assert(e.preview.display.sound == "voice:stoneform-ready")
 print("PASS dungeon selection, wide preset control, preview, save/reselection, remove, debuff and profile isolation")
 
-for _, field in ipairs({ "Debuff spell ID", "Instance ID (0 = every dungeon / raid)" }) do
-    for _, value in ipairs({ "", "invalid" }) do
-        e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
-        e.boxes["Debuff spell ID"]:SetText("21562")
-        e.controls.Sound.set("test"); e.commitAll()
-        e.boxes[field]:SetText(value); e.commitAll()
-        local key = field == "Debuff spell ID" and "spellID" or "mapID"
-        assert(e.saved.trigger[key] == nil, "invalid input fell back to saved ID")
-    end
+for _, value in ipairs({ "", "invalid" }) do
+    e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
+    e.boxes["Debuff spell ID"]:SetText("21562")
+    e.controls.Sound.set("test"); e.commitAll()
+    e.boxes["Debuff spell ID"]:SetText(value); e.commitAll()
+    assert(e.saved.trigger.spellID == nil, "invalid input fell back to saved ID")
 end
+
+-- The instance is picked by name rather than typed as an id, so there is no text left to
+-- get wrong, and the same control the trash page has always used does the choosing.
+e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
+assert(e.controls.Dungeon, "the debuff editor picks its instance by name")
+assert(e.controls.Dungeon.values[0] == "Every dungeon or raid",
+    "and everywhere is a choice rather than a magic zero")
+assert(e.controls.Dungeon.values[1762] == "Kings Rest", "the catalogue names the rest")
+e.boxes["Debuff spell ID"]:SetText("21562")
+e.controls.Dungeon.set(1762); e.commitAll()
+assert(e.saved.trigger.mapID == 1762, "and the pick is what gets saved")
+
+-- An alert saved for an instance the catalogue does not carry -- a raid, or a dungeon that
+-- has since left it -- keeps that instance rather than being quietly moved to everywhere.
+e = Fixture().debuffs()
+e.rules.x1 = { name = "Odd", enabled = true,
+    trigger = { type = "auraSound", spellID = 999, mapID = 424242, target = "player" },
+    display = { type = "icon" } }
+e.render(); e.buttons["Odd"]()
+assert(e.controls.Dungeon.values[424242] == "Instance 424242")
 -- One dungeon at a time, and its abilities listed directly. The dropdown above already
 -- names the dungeon, so there is no header row repeating it.
 e = Fixture()

@@ -2842,15 +2842,6 @@ local function SpeakCallout(triggerSid)
             end
             lastAnnouncedSpellID, lastAnnouncedTrigger, lastAnnouncedAt = picked, triggerSid, now
             LogCallout(picked, partners)
-            -- What is coming, said before what to press. Its own utterance rather than
-            -- words added to the callout: that callout may be a per-spell sound FILE, and a
-            -- file cannot carry extra words. SpeakText is called with overlap on already,
-            -- so the two sit together.
-            --
-            -- The voice can follow this where it can never follow the target name. The name
-            -- is a secret the client hands over sealed; this is ordinary text the boss mod
-            -- gave us, so speaking it needs nobody's permission.
-            if TRDB().sayIncoming then Speak(ns.IncomingSpeech(ns.firingBarLabel)) end
             Announce(picked, ns.SetCalloutLine(picked, partners))
         end
         return
@@ -3098,16 +3089,6 @@ end
 -- client what is being cast, because nothing can; it names the bar it already scheduled.
 --
 -- Off unless asked for: it is a second line on an alert people have arranged around.
--- What to SAY for a bar label. BigWigs counts its bars -- "Frontal (1)", "Frontal (2)" --
--- which reads fine and speaks badly, so the count comes off for the voice. Nil for anything
--- that is not text, which is every callout with no boss-mod bar behind it.
-function ns.IncomingSpeech(label)
-    if type(label) ~= "string" or label == "" then return nil end
-    local spoken = label:gsub("%s*%(%d+%)%s*$", "")
-    if spoken == "" then return nil end
-    return spoken
-end
-
 function ns.ShowIncomingLabel(label)
     if not frame or not frame.incoming then return end
     if TRDB().showIncoming ~= true or type(label) ~= "string" or label == "" then
@@ -7175,14 +7156,7 @@ function ns.BuildBarsSettings(parent, y)
               -- again rather than waiting for whatever changes a size next.
               ApplyTextLayout()
               UpdatePreview()
-          end },
-        { type = "toggle", text = "Say What Is Incoming",
-          tooltip = "Speaks that same name just before the callout -- \"Frontal\", then "
-          .. "\"Vampiric Blood\". Said on its own, so it still works when the callout is a "
-          .. "sound file rather than speech. The bar's count is left off: \"Frontal\", not "
-          .. "\"Frontal one\".",
-          getValue = function() return TRDB().sayIncoming == true end,
-          setValue = function(v) TRDB().sayIncoming = v or nil end }
+          end }
     ); y = y - h
 
     -- Escape hatch: a UI-scale change can strand a moved alert off-screen where the

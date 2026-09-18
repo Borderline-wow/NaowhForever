@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Debuff Alerts pick the instance they apply to by name, from the same dungeon list the
+  Trash tab uses, instead of a typed Instance ID. An id the list does not carry keeps an
+  entry of its own, so an alert set for a raid is not quietly moved to everywhere.
+
+### Removed
+- Say What Is Incoming, one release after it arrived. BigWigs already announces its own
+  warnings, so this was a second voice saying the same thing a beat earlier.
+
 ## 1.4.10
 
 ### Added
