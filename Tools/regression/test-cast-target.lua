@@ -1,10 +1,19 @@
--- Showing who a boss is casting at. Three of the four values involved are secrets: the
--- client will let us hold them and hand them back, and raises if we look inside. The point
--- of this suite is to prove the code never looks.
+-- Showing who a boss is casting at. The values involved are secrets: the client will let us
+-- hold them and hand them back, and raises if we look inside. The point of this suite is to
+-- prove the code never looks.
 --
 -- The stand-in secrets below raise on concatenation, comparison, tostring, indexing and
 -- length, which is what a real secret does. So any case that finishes at all is a case that
 -- only passed the value through.
+--
+-- There is deliberately no "the cast is on YOU" marker, and there cannot be one.
+-- PlayerIsSpellTarget answers that as a secret boolean, and the only thing to do with one is
+-- hand it to SetShown, which the generated API documents as AllowedWhenUntainted: it refuses
+-- a secret from addon code, and addon code is always tainted. SetText is AllowedWhenTainted,
+-- which is exactly why the name works and the marker never did. It shipped pcall-wrapped and
+-- so failed silently rather than erroring, and no offline test could have caught that -- a
+-- stub does not emulate taint. The name carries the same information anyway: when the cast
+-- is on you, the name printed is yours.
 local f = assert(io.open(arg[1] or "NaowhUI_SmartReminders.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
@@ -19,10 +28,9 @@ local function Secret(what)
 end
 
 local function Fixture()
-    local e = { db = { markCastTarget = true }, drawn = {} }
-    local secretName, secretClass, secretMine =
-        Secret("string"), Secret("string"), Secret("bool")
-    e.secretName, e.secretClass, e.secretMine = secretName, secretClass, secretMine
+    local e = { db = {}, drawn = {} }
+    local secretName, secretClass = Secret("string"), Secret("string")
+    e.secretName, e.secretClass = secretName, secretClass
     e.colour = { GetRGB = function() return 0.1, 0.2, 0.3 end }
 
     local env = {
@@ -34,10 +42,6 @@ local function Fixture()
                 Show = function() e.drawn.nameShown = true end,
                 Hide = function() e.drawn.nameHidden = true end,
             },
-            youMarker = {
-                SetShown = function(_, v) e.drawn.marker = v end,
-                Hide = function() e.drawn.markerHidden = true end,
-            },
         },
         UnitShouldDisplaySpellTargetName = function(unit)
             e.askedShow = unit
@@ -45,7 +49,6 @@ local function Fixture()
         end,
         UnitSpellTargetName = function() return e.name end,
         UnitSpellTargetClass = function() return secretClass end,
-        PlayerIsSpellTarget = function() return secretMine end,
         C_ClassColor = { GetClassColor = function(cls) e.classGiven = cls; return e.colour end },
     }
     e.name = secretName
@@ -62,13 +65,12 @@ end
 local count = 0
 local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) end
 
-Case("the name and the marker are passed through untouched", function()
+Case("the name is passed through untouched", function()
     local e = Fixture()
     assert(e.ns.ShowCastTargetOn("boss1", true) == true)
     assert(e.askedShow == "boss1", "the plain gate decides, and it is asked about the caster")
     assert(e.drawn.name == e.secretName, "the secret name reaches the font string as it came")
     assert(e.drawn.nameShown == true)
-    assert(e.drawn.marker == e.secretMine, "the secret boolean reaches SetShown as it came")
 end)
 
 Case("the class colour is resolved without the class being read", function()
@@ -82,25 +84,15 @@ Case("a cast with nothing displayable clears whatever the last one left", functi
     local e = Fixture()
     e.show = false
     assert(e.ns.ShowCastTargetOn("boss1", true) == false)
-    assert(e.drawn.name == nil and e.drawn.marker == nil)
-    assert(e.drawn.nameHidden and e.drawn.markerHidden,
+    assert(e.drawn.name == nil and e.drawn.nameHidden,
         "otherwise the previous cast's target stays on screen under a new callout")
-end)
-
-Case("the YOU marker is the one half with a switch of its own", function()
-    -- Whether the name shows is the calling source's own switch, passed in. This is the
-    -- only half that can be turned off while the source stays on.
-    local e = Fixture()
-    e.db.markCastTarget = nil
-    e.ns.ShowCastTargetOn("boss1", true)
-    assert(e.drawn.name == e.secretName and e.drawn.marker == nil)
 end)
 
 Case("a source that was not asked for is never asked about either", function()
     local e = Fixture()
     assert(e.ns.ShowCastTargetOn("boss1", false) == false)
     assert(e.askedShow == nil, "no point asking a question whose answer cannot be used")
-    assert(e.drawn.name == nil and e.drawn.marker == nil)
+    assert(e.drawn.name == nil)
 
     -- nil, not false, is what an untouched profile passes in.
     e = Fixture()
@@ -117,12 +109,11 @@ Case("a client without the API, or no unit, is refused rather than erroring", fu
     assert(e.ns.ShowCastTargetOn(e.secretName, true) == false, "a unit token that is not a string")
 end)
 
-Case("a target the client declines to name leaves the marker working", function()
+Case("a name the client declines to hand over draws nothing rather than erroring", function()
     local e = Fixture()
     e.name = nil
     e.ns.ShowCastTargetOn("boss1", true)
     assert(e.drawn.name == nil and e.drawn.nameShown == nil)
-    assert(e.drawn.marker == e.secretMine, "being unable to name them does not mean it is not you")
 end)
 
 print(count .. " cast target regressions passed")

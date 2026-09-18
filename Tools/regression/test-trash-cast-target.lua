@@ -230,12 +230,14 @@ Case("with no alert up there is nothing to write on", function()
     assert(#e.targets == 0)
 end)
 
-Case("a cast naming nobody leaves the alert as it is", function()
+Case("a cast naming nobody still reaches the display, which clears the last name", function()
+    -- Reached whatever the answer about the name is, so a stale name from an earlier cast
+    -- is cleared rather than left sitting under a new callout.
     local e = Fixture()
     e.db.castTargetBoss, e.names = true, false
     e.env.shownForEvent = "authored"
     e.ns.OnBossCast("UNIT_SPELLCAST_START", "boss1", 999)
-    assert(#e.targets == 0, "clearing would drop a name an earlier cast put there")
+    assert(#e.targets == 1)
 end)
 
 Case("trash casts are not decorated on a guess", function()

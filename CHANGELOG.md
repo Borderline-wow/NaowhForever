@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+- Mark Me When I Am Targeted. It could never have worked. The game answers "is this cast on
+  you" as a protected value, and the only way to put that on screen is a call the game
+  refuses from addons, so it failed silently from the day it shipped in 1.4.1. Nothing is
+  really lost: when a cast does carry a target name, that name is yours when it is on you.
+
+### Changed
+- The diagnostic trace now says why a boss cast did or did not put a name up: the switch is
+  off, nothing was on screen to write on, or the cast names nobody.
+
 ## 1.4.6
 
 ### Fixed

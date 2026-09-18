@@ -870,15 +870,13 @@ function Reminder.Create()
     frame.castTarget:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
     frame.castTarget:Hide()
 
-    -- Shown only when the player is the one named. PlayerIsSpellTarget answers that and
-    -- returns a SECRET boolean, so it can be handed to SetShown and never tested here --
-    -- the same move Blizzard's cast bar makes with its own target indicator.
-    frame.youMarker = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.youMarker:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
-    frame.youMarker:SetTextColor(1, 0.82, 0, 1)
-    frame.youMarker:SetText("YOU")
-    frame.youMarker:SetPoint("RIGHT", frame.castTarget, "LEFT", -6, 0)
-    frame.youMarker:Hide()
+    -- There is deliberately no "you are the one targeted" marker. PlayerIsSpellTarget
+    -- answers that, but as a SECRET boolean, and the only thing to do with one is hand it
+    -- to SetShown -- which is documented AllowedWhenUntainted and refuses a secret from
+    -- addon code. Blizzard's own cast bar does exactly this and gets away with it because
+    -- its code is untainted; ours never is. It shipped pcall-wrapped and so failed
+    -- silently for three versions rather than erroring. The name below carries the same
+    -- information anyway: when the cast is on you, the name it prints is yours.
 
     frame.learnTag = textFrame:CreateFontString(nil, "OVERLAY")
     frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE")
@@ -899,7 +897,6 @@ local function ApplySize()
     if not frame then return end
     if frame.reminder then frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
     if frame.castTarget then frame.castTarget:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
-    if frame.youMarker then frame.youMarker:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
     if frame.learnTag then frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE") end
     local t = TRDB()
     local size = t.iconSize or DEFAULTS.iconSize
@@ -2984,7 +2981,6 @@ local function HideReminder()
     if frame then
         if frame.reminder then frame.reminder:Hide() end
         if frame.castTarget then frame.castTarget:Hide() end
-        if frame.youMarker then frame.youMarker:Hide() end
         frame:Hide()
     end
     if textFrame then textFrame:Hide() end
@@ -3042,13 +3038,16 @@ function ns.ShowCastTargetOn(unit, allowed)
     -- that: boss casts and trash casts are asked for separately, on their own pages.
     if not allowed then return false end
 
-    if not ns.CastNamesATarget(unit) then
-        if frame.castTarget then frame.castTarget:Hide() end
-        if frame.youMarker then frame.youMarker:Hide() end
-        return false
-    end
+    -- The NAME only. Whether the cast is on you is a different question with its own call,
+    -- asked below whatever this answers: a spell the client will not name a target for can
+    -- still be aimed at you, and hiding the marker here said it was not. Blizzard's own
+    -- cast bar keeps them apart the same way -- UpdateTargetNameText and
+    -- UpdateHighlightWhenCastTarget are separate calls, and the highlight does not consult
+    -- the name at all.
+    local named = ns.CastNamesATarget(unit)
+    if not named and frame.castTarget then frame.castTarget:Hide() end
 
-    if frame.castTarget then
+    if named and frame.castTarget then
         local gotName, name = pcall(UnitSpellTargetName, unit)
         if gotName and name ~= nil then
             frame.castTarget:SetText(name)
@@ -3067,12 +3066,7 @@ function ns.ShowCastTargetOn(unit, allowed)
         end
     end
 
-    if t.markCastTarget and frame.youMarker and PlayerIsSpellTarget then
-        local gotMine, mine = pcall(PlayerIsSpellTarget, unit)
-        -- SetShown is the sink: it takes the secret and resolves it inside the client.
-        if gotMine then pcall(frame.youMarker.SetShown, frame.youMarker, mine) end
-    end
-    return true
+    return named
 end
 -- The one plain answer in the set, so an `if` may use it. Split out because a caller that
 -- is deciding whether to put a callout up at all has to ask BEFORE it draws: most abilities
@@ -3426,7 +3420,6 @@ local function ShowOnAlert(opts)
     -- timer instead of hiding, so without this it inherits the previous cast's target name
     -- and YOU marker. Blizzard's own cast bar blanks the same label on the same branch.
     if frame.castTarget then frame.castTarget:Hide() end
-    if frame.youMarker then frame.youMarker:Hide() end
 
     -- Who owns what is on screen. ApplyReminderFilter reads it to pull a live callout when
     -- its reminder is switched off or filtered out mid-display, so leaving this nil meant a
@@ -3726,11 +3719,20 @@ function ns.OnBossCast(event, unit, spellID)
     -- alert is nearly always about it -- a trash pack has several and the guess would be
     -- worth much less. Asked before drawing, so a cast that names nobody leaves a name
     -- already on the alert alone instead of clearing it.
-    if event == "UNIT_SPELLCAST_START" and shownForEvent and unit:match("^boss%d")
-        and TRDB().castTargetBoss and ns.CastNamesATarget(unit) then
-        if ns.ShowCastTargetOn(unit, true) and TRDB().trace then
-            AppendLog({ kind = "bosscast", unit = unit, text = "target named" })
-        end
+    --
+    -- Traced on every branch, not only the one that draws. Each silent outcome looks
+    -- identical in play and has a different answer -- the switch is off, nothing was on
+    -- screen to write on, or the client says this cast names nobody, which is true of most
+    -- casts and is not a fault. Logging only the success cost a pull to find that out.
+    if event == "UNIT_SPELLCAST_START" and unit:match("^boss%d") then
+        local why
+        if not TRDB().castTargetBoss then why = "target display off"
+        elseif not shownForEvent then why = "no alert to name"
+        -- Called whatever the answer about the name is. A cast the client will not name a
+        -- target for can still be on you, and the marker is a separate call that says so.
+        elseif ns.ShowCastTargetOn(unit, true) then why = "target named"
+        else why = "no name, asked if it is on you" end
+        if TRDB().trace then AppendLog({ kind = "bosscast", unit = unit, text = why }) end
     end
 
     local index = ns.watchedCasts
@@ -7094,21 +7096,6 @@ function ns.BuildBarsSettings(parent, y)
           .. "options close.",
           getValue = function() return previewPin end,
           setValue = function(v) previewPin = v; UpdatePreview() end }
-    ); y = y - h
-
-    -- Display only, and deliberately so: the client hands back who is targeted as a value
-    -- this addon may show but never read, so this cannot reach the voice.
-    --
-    -- Whether a name shows at all is asked for per source, on the boss and trash pages that
-    -- own those reminders. This only decides whether YOU rides along with it.
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Mark Me When I Am Targeted",
-          tooltip = "Adds YOU beside the target's name when the cast is aimed at you. The "
-          .. "name itself is turned on under Dungeon Bosses, Raid Bosses and Trash. The "
-          .. "game answers this one without letting the addon see the answer, so it can "
-          .. "change what is drawn but never what is said.",
-          getValue = function() return TRDB().markCastTarget == true end,
-          setValue = function(v) TRDB().markCastTarget = v or nil end }
     ); y = y - h
 
     -- Escape hatch: a UI-scale change can strand a moved alert off-screen where the
