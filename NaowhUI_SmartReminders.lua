@@ -3670,6 +3670,19 @@ function ns.RefreshCastWatch()
     end
     ns.watchedCasts = index
 
+    -- Armed for the target name alone, with nothing in the index to match against. A boss
+    -- cast cannot be identified at all -- UNIT_SPELLCAST_START is
+    -- SecretWhenUnitSpellCastRestricted, which the client documents as producing secret
+    -- values "if the unit being queried for cast information is not the player or their
+    -- pet", so the id is secret for every boss in every fight rather than only in
+    -- restricted content. Naming who a cast is aimed at never needed the id, so that half
+    -- still works; see the decoration branch in OnBossCast.
+    --
+    -- Bounded to an encounter so the events are not registered for every cast in the group
+    -- while walking around. currentEncounter is already set or cleared by the time the
+    -- ENCOUNTER_START/END handler calls this.
+    if currentEncounter and TRDB().castTargetBoss then any = true end
+
     if any and not ns.castWatcher then
         ns.castWatcher = CreateFrame("Frame")
         ns.castWatcher:SetScript("OnEvent", function(_, event, unit, _, spellID)
@@ -3701,6 +3714,25 @@ function ns.OnBossCast(event, unit, spellID)
     -- encounter, so the index is the precondition now. It holds nothing unless something is
     -- waiting on a cast, and the watcher is unregistered entirely while it is empty.
     if not CustomRemindersAllowed() then return end
+
+    -- Who a cast is aimed at, written onto the alert that is ALREADY on screen. Nothing
+    -- here asks what was cast, because nothing can: the id is secret for any unit that is
+    -- not the player or their pet. Whether a cast names somebody is the one plain answer
+    -- the client gives, so the reminder that warned about the ability seconds ago picks up
+    -- the name when the cast actually goes out, without the two ever being matched.
+    --
+    -- What that costs: the name belongs to whatever is being cast right now, not provably
+    -- to the ability the alert names. Boss units only, where there is one caster and the
+    -- alert is nearly always about it -- a trash pack has several and the guess would be
+    -- worth much less. Asked before drawing, so a cast that names nobody leaves a name
+    -- already on the alert alone instead of clearing it.
+    if event == "UNIT_SPELLCAST_START" and shownForEvent and unit:match("^boss%d")
+        and TRDB().castTargetBoss and ns.CastNamesATarget(unit) then
+        if ns.ShowCastTargetOn(unit, true) and TRDB().trace then
+            AppendLog({ kind = "bosscast", unit = unit, text = "target named" })
+        end
+    end
+
     local index = ns.watchedCasts
     if not index then return end
     -- Screened before the lookup: a secret cannot be used as a table key.

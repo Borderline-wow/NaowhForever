@@ -210,4 +210,59 @@ Case("an authored cast reminder on the same spell still fires", function()
     assert(#e.targets == 2, "each asks for the name after drawing, so the last one wins")
 end)
 
+-- The half that survives the secret. A boss cast can never be identified: its spell id is
+-- secret for any unit that is not the player or their pet, so nothing can match it to the
+-- reminder that warned about it. Whether it names somebody is plain, though, and the alert
+-- is already on screen, so the name goes on without the two ever being matched.
+Case("a boss cast names the target on the alert already showing", function()
+    local e = Fixture()
+    e.db.castTargetBoss = true
+    e.env.shownForEvent = "authored"
+    -- 999 is watched by nothing, and nothing could watch it. That is the point.
+    e.ns.OnBossCast("UNIT_SPELLCAST_START", "boss1", 999)
+    assert(#e.targets == 1 and e.targets[1] == "boss1")
+end)
+
+Case("with no alert up there is nothing to write on", function()
+    local e = Fixture()
+    e.db.castTargetBoss = true
+    e.ns.OnBossCast("UNIT_SPELLCAST_START", "boss1", 999)
+    assert(#e.targets == 0)
+end)
+
+Case("a cast naming nobody leaves the alert as it is", function()
+    local e = Fixture()
+    e.db.castTargetBoss, e.names = true, false
+    e.env.shownForEvent = "authored"
+    e.ns.OnBossCast("UNIT_SPELLCAST_START", "boss1", 999)
+    assert(#e.targets == 0, "clearing would drop a name an earlier cast put there")
+end)
+
+Case("trash casts are not decorated on a guess", function()
+    -- A pack has several casters and no way to say which one the alert is about.
+    local e = Fixture()
+    e.db.castTargetBoss = true
+    e.env.shownForEvent = "authored"
+    e.ns.OnBossCast("UNIT_SPELLCAST_START", "nameplate1", 999)
+    assert(#e.targets == 0)
+end)
+
+Case("the boss switch off means no name", function()
+    local e = Fixture()
+    e.env.shownForEvent = "authored"
+    e.ns.OnBossCast("UNIT_SPELLCAST_START", "boss1", 999)
+    assert(#e.targets == 0)
+end)
+
+Case("the watcher arms for the name alone, with nothing indexed", function()
+    local e = Fixture()
+    e.index = nil
+    e.env.currentEncounter = 3456
+    e.db.castTargetBoss = true
+    e.ns.RefreshCastWatch()
+    assert(e.watcher.registered.UNIT_SPELLCAST_START,
+        "there is nothing to index, so the index cannot be the gate here")
+    assert(e.ns.watchedCasts and next(e.ns.watchedCasts) == nil)
+end)
+
 print(count .. " trash cast target regressions passed")

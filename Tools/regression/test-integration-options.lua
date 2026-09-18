@@ -50,8 +50,9 @@ local function Fixture()
     ns.UI.RefreshPage = function() e.render() end
     ns.UI.BuildAlertSoundTables = function() return {}, { test = "Test" }, { "test" } end
     ns.UI.AppendSharedMediaSounds = function() end
-    ns.UI.BuildDropdownControl = function(parent, width, _, _, _, get, set)
-        if parent.title then e.controls[parent.title] = { get = get, set = set, width = width } end
+    ns.UI.BuildDropdownControl = function(parent, width, _, values, order, get, set)
+        if parent.title then e.controls[parent.title] = { get = get, set = set, width = width,
+            values = values, order = order } end
         return Widget()
     end
     -- Keyed by the label above it, and the reminder rows in the list have no label of their
@@ -237,6 +238,19 @@ assert(e.saved.display.castRepeat == nil)
 -- Neither switch belongs to a debuff alert: no cast is involved in an aura landing.
 e = Fixture().debuffs(); e.buttons["+ Debuff Alert"]()
 assert(not e.controls["Show target on cast"] and not e.controls["Sound on cast"])
+
+-- The Every dungeon entry is the bucket for a saved rule no dungeon in the catalogue
+-- accounts for. It is offered only when something is actually in it, so the dropdown does
+-- not carry an entry that opens an empty list.
+e = Fixture()
+assert(e.controls["Dungeon"], "the dungeon dropdown is built")
+assert(e.controls["Dungeon"].values.saved == nil,
+    "nothing is loose, so there is no Every dungeon to pick")
+e.rules["loose1"] = { name = "Loose", enabled = true,
+    trigger = { type = "exboss", spellID = 999, mapID = 0 }, display = { type = "icon" } }
+e.render()
+assert(e.controls["Dungeon"].values.saved == "Every dungeon",
+    "a rule no dungeon claims has to stay reachable")
 
 -- Debuff alerts are grouped by the instance they are set for, and a group folds away
 -- without letting go of whatever is selected inside it.

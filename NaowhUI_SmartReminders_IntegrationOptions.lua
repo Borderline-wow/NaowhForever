@@ -430,11 +430,41 @@ function ns.BuildIntegrationsPage(parent, y)
     StatusLines(parent, y)
 
     local catalogue = I.Catalogue()
-    local values, order = { saved = "Every dungeon" }, {}
+
+    -- Which saved rules a dungeon in the catalogue already accounts for. Worked out up
+    -- here rather than beside the list below, because whether the "Every dungeon" entry is
+    -- worth offering at all depends on whether anything is left over.
+    local rules = I.Rules(false) or {}
+    local savedFor, claimed = {}, {}
+    for uid, r in pairs(rules) do
+        if r.trigger.type == "exboss" then
+            local key = r.trigger.mapID .. ":" .. r.trigger.spellID
+            if not savedFor[key] or uid < savedFor[key] then savedFor[key] = uid end
+        end
+    end
+    for _, dungeon in ipairs(catalogue) do
+        for _, ability in ipairs(dungeon.abilities) do
+            local uid = savedFor[dungeon.id .. ":" .. ability.spellID]
+            if uid then claimed[uid] = true end
+        end
+    end
+    local hasLoose = false
+    for uid, r in pairs(rules) do
+        if r.trigger.type == "exboss" and not claimed[uid] then hasLoose = true break end
+    end
+
+    local values, order = {}, {}
     for _, dungeon in ipairs(catalogue) do
         values[dungeon.id] = dungeon.name; order[#order + 1] = dungeon.id
     end
-    order[#order + 1] = "saved"
+    -- Only when something is actually in it. It is the bucket for a saved rule no dungeon
+    -- in the catalogue accounts for, which is usually nothing, and an entry that opens an
+    -- empty list every time is an entry worth not having. Kept rather than deleted so a
+    -- rule that lands there stays reachable instead of firing from somewhere unopenable.
+    if hasLoose then
+        values.saved = "Every dungeon"
+        order[#order + 1] = "saved"
+    end
     -- One dungeon at a time. Listing every one at once was hundreds of rows deep and made
     -- the choice of dungeon something you scrolled past rather than made.
     if not values[selection.dungeon] then
@@ -454,21 +484,6 @@ function ns.BuildIntegrationsPage(parent, y)
 
     -- Cast rules only. Debuff alerts have their own tab: they answer to no dungeon and were
     -- only ever reachable here through a bucket at the bottom of somebody else's list.
-    local rules = I.Rules(false) or {}
-    local savedFor, claimed = {}, {}
-    for uid, r in pairs(rules) do
-        if r.trigger.type == "exboss" then
-            local key = r.trigger.mapID .. ":" .. r.trigger.spellID
-            if not savedFor[key] or uid < savedFor[key] then savedFor[key] = uid end
-        end
-    end
-    for _, dungeon in ipairs(catalogue) do
-        for _, ability in ipairs(dungeon.abilities) do
-            local uid = savedFor[dungeon.id .. ":" .. ability.spellID]
-            if uid then claimed[uid] = true end
-        end
-    end
-
     local sections = {}
     if selection.dungeon ~= "saved" then
         for _, dungeon in ipairs(catalogue) do

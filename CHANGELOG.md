@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- A boss cast puts the target's name on the reminder that is already on screen. The client
+  will not say what a boss is casting, so a reminder could never be matched to the cast it
+  warned about; whether a cast names somebody is the one thing it does answer plainly, so
+  the warning already showing picks the name up when the ability goes out. Needs Show
+  Target on Boss Casts, on the Dungeon Bosses or Raid Bosses tab. Boss units only: the name
+  belongs to whatever is casting at that moment, which on a boss is the mechanic you were
+  warned about and in a trash pack would be a guess.
+
+### Changed
+- The Trash dungeon list only offers Every dungeon when there is a saved rule no dungeon in
+  the catalogue accounts for, instead of always carrying an entry that opens an empty list.
+
 ## 1.4.4
 
 ### Changed
