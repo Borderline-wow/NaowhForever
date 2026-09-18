@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.14
 
 ### Fixed
 - The target name on a boss cast sat a full row clear of the callout, with an empty row
