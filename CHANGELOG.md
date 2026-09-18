@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- The target name on a boss cast sat a full row clear of the callout, with an empty row
+  between them, because the row it used belongs to a reminder's own text and that text is
+  not shown for a boss-mod callout. It could be drawn and still be impossible to find. It
+  now takes the row directly beside the callout, and moves out one only when a reminder is
+  actually using that row.
+
 ## 1.4.13
 
 ### Removed

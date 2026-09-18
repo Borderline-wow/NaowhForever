@@ -737,8 +737,21 @@ local function ApplyTextLayout()
     for i = 1, #slots do place(slots[i].label, 0) end
     place(frame.fallback, 0)
     place(frame.reminder, line)
-    place(frame.castTarget, line * 2)
     place(frame.learnTag, line * 2 + REMINDER_SIZE + 4)
+
+    -- The target name takes the authored line's row when that line is not in use, which for
+    -- a boss-mod callout is always: it is only shown for a reminder carrying its own text.
+    -- Fixed at line * 2 it floated a clear row above the callout with a hole beneath it,
+    -- which reads as belonging to nothing and was missed entirely in play.
+    --
+    -- Placed from here rather than at draw time because place() owns the anchor and the
+    -- direction, and those change with Text Position. Re-run when the name goes up, since
+    -- whether the authored line is showing is decided per callout, not per setting.
+    ns.PlaceCastTargetLine = function()
+        local occupied = frame.reminder and frame.reminder:IsShown()
+        place(frame.castTarget, occupied and line * 2 or line)
+    end
+    ns.PlaceCastTargetLine()
 end
 
 -- The suite's own media, resolved through SharedMedia so the paths live in one place and
@@ -3061,6 +3074,9 @@ function ns.ShowCastTargetOn(unit, allowed)
                     pcall(function() frame.castTarget:SetTextColor(colour:GetRGB()) end)
                 end
             end
+            -- Which row it takes depends on whether the authored line is up, and that is
+            -- decided per callout rather than per setting.
+            if ns.PlaceCastTargetLine then ns.PlaceCastTargetLine() end
             frame.castTarget:Show()
         end
     end

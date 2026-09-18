@@ -116,4 +116,50 @@ Case("a name the client declines to hand over draws nothing rather than erroring
     assert(e.drawn.name == nil and e.drawn.nameShown == nil)
 end)
 
+-- Which row the target name takes. It shares one anchor stack with the authored line, and
+-- that line is only up for a reminder carrying its own text, so a fixed offset left the
+-- name floating a clear row above the callout with an empty row beneath it. Missed
+-- entirely in play: the trace said it had drawn and nobody could find it on screen.
+local function LayoutFixture()
+    local e = { placed = {}, reminderShown = false }
+    local function FS(key)
+        return {
+            ClearAllPoints = function() end,
+            SetPoint = function(_, _, _, _, _, y) e.placed[key] = y end,
+            IsShown = function() return e.reminderShown end,
+        }
+    end
+    local env = {
+        TRDB = function() return { textSide = "RIGHT", textSize = 16 } end,
+        DEFAULTS = { textSide = "RIGHT", textSize = 16 },
+        TEXT_GAP = 6, BAR_DROP = 0, BAR_HEIGHT = 0, REMINDER_SIZE = 16,
+        slots = {},
+        frame = { castTarget = FS("castTarget"), reminder = FS("reminder"),
+            learnTag = FS("learnTag"), fallback = FS("fallback") },
+        textFrame = { ClearAllPoints = function() end, SetPoint = function() end },
+    }
+    setmetatable(env, { __index = _G })
+    local chunk = assert(loadstring("local ns = ...\n"
+        .. Slice("local function ApplyTextLayout()", "-- The suite's own media")
+        .. "\nreturn ApplyTextLayout"))
+    setfenv(chunk, env)
+    e.ns = {}
+    e.apply = chunk(e.ns)
+    return e
+end
+
+Case("the name takes the row under the callout when nothing else holds it", function()
+    local e = LayoutFixture()
+    e.apply()
+    -- textSize 16 gives a 20px line, and Right of the Icon stacks upward.
+    assert(e.placed.castTarget == 20, "got " .. tostring(e.placed.castTarget))
+end)
+
+Case("and moves out one row when an authored line is showing", function()
+    local e = LayoutFixture()
+    e.reminderShown = true
+    e.apply()
+    assert(e.placed.castTarget == 40, "got " .. tostring(e.placed.castTarget))
+end)
+
 print(count .. " cast target regressions passed")
