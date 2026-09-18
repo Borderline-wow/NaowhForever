@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.17
 
 ### Fixed
 - Picking a dungeon by name while the Instance ID field was showing saved the id last
