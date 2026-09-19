@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- A trash alert or boss reminder bound to a defensive preset now stays quiet when nothing
+  on that preset is ready. It was still playing its sound and speaking its line -- "Use a
+  defensive", on a rule that had never been given one of its own -- over icons that had
+  already gone dark for the same reason. A reminder carrying only custom text is
+  unchanged and still fires every time.
+
 ## 1.4.17
 
 ### Fixed

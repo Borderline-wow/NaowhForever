@@ -265,6 +265,21 @@ Case("preset and custom-text previews use addon voice volume, with silence diagn
     e.ns.IsAudioOff = function(sid) return sid == 48265 end
     e.I.Preview(r)
     assert(calls[#calls][2] == "AMS")
+
+    -- Nothing on the preset is up. The slots have already gone dark, and the audio has to
+    -- agree: a rule sitting on the bundled "Use a defensive" clip, or on the generic line
+    -- a rule without its own text carries, was calling for a defensive that was not there.
+    e.picked = nil
+    e.previewSound, e.previewKey = nil, nil
+    local quiet = #calls
+    e.I.Preview(r)
+    assert(#calls == quiet, "nothing is up, so nothing is spoken")
+    assert(not e.previewSound, "and the rule's own clip stays quiet with it")
+
+    -- A rule carrying only custom text is untouched: it never asked what was ready.
+    local plain = e:rule(); plain.display.tts = true; plain.display.text = "Move out"
+    e.I.Preview(plain)
+    assert(calls[#calls][2] == "Move out" and e.previewSound)
 end)
 Case("repeated previews replace the last test and preserve live reminders", function()
     local e = Fixture()

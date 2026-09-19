@@ -3459,8 +3459,7 @@ local function ShowOnAlert(opts)
     if textFrame then textFrame:Show() end
 
     if opts.audio then
-        ns.PlayReminderSound(opts.audio)
-        local spoken = opts.text
+        local spoken, resolved = opts.text, true
         if opts.resolveFrom and (opts.preset or opts.fp) then
             local picked = ns.ResolveReminderSpell(opts.resolveFrom)
             -- The same set line the boss callout speaks, for the same reason: a pick that
@@ -3474,9 +3473,20 @@ local function ShowOnAlert(opts)
             -- hear "Vamp", and the slot label beside it has always said so.
             local named = picked and ns.SetCalloutLine(picked,
                 ns.TogetherPartners(picked, ns.slotsPreset))
-            if named and named ~= "" then spoken = named end
+            if named and named ~= "" then spoken = named else resolved = false end
         end
-        ns.SpeakReminderTTS(opts.audio, spoken, opts.preview)
+        -- Nothing on the list is up. RebuildSlots let the callout through because every
+        -- entry is KNOWN -- readiness is the alpha's job -- so the icons had already gone
+        -- dark while the sound file and the pre-pull line still called for a defensive the
+        -- player did not have. A rule carrying only custom text never reaches this.
+        if resolved then
+            ns.PlayReminderSound(opts.audio)
+            ns.SpeakReminderTTS(opts.audio, spoken, opts.preview)
+        elseif TRDB().trace then
+            AppendLog({ kind = "drop",
+                sid = opts.resolveFrom.trigger and opts.resolveFrom.trigger.spellID,
+                text = "authored callout silent; nothing on the preset is ready" })
+        end
     end
 
     if hideTimer then hideTimer:Cancel() end
