@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.19
 
 **Alpha. Please test this before relying on it in a key.**
 
