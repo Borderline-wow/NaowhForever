@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+**Alpha. Please test this before relying on it in a key.**
+
+This build converts your saved trash alerts when it loads: any alert still carrying the
+old generic "Use a defensive" line is rewritten to a blank one. Nothing is deleted, but
+the conversion is one way. If you install this and then go back to 1.4.18 or earlier,
+every converted alert stops firing, with no icon, no sound and no error to tell you. Back
+up NaowhUI_SmartRemindersDB.lua before you load it if you want a way back.
+
+### Changed
+- A trash alert with no defensive preset chosen now calls out whichever preset the spec
+  has active, instead of saying a generic "Use a defensive". That phrase was never typed
+  by anyone: the page has had no text box since these moved from free text to presets, so
+  every alert switched on from the dungeon list carried it.
+- An alert whose preset belongs to another spec now falls back to the active preset as
+  well. It used to go silent. Copy From Spec and shared packs both produce this.
+- The Defensive preset dropdown reads "This spec's active preset" where it read "None".
+
 ## 1.4.18
 
 ### Fixed

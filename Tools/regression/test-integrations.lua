@@ -171,8 +171,13 @@ Case("preset and custom-text previews use addon voice volume, with silence diagn
     local integ = callout .. "\n" .. shower .. "\n" ..
         assert(source:match("function ns.TogetherPartners%b()%s*.-\nend")) .. "\n" ..
         assert(source:match("function ns.SetCalloutLine%b()%s*.-\nend")) .. "\n" ..
+        assert(source:match("function ns.IntegrationPreset%b()%s*.-\nend")) .. "\n" ..
         assert(source:match("function ns.DisplayIntegrationReminder%b()%s*.-\nend"))
     e.env.TRDB = e.ns.DB
+    -- File-locals in the real chunk, so the slice reads them from the environment.
+    e.env.specID = 250
+    e.env.PresetsTable = function() return { defensives = { list = { 48707 } } } end
+    e.env.ActivePresetKey = function() return "defensives" end
     -- The defensive alert's own internals, which the function now drives directly.
     local alert = {}
     e.env.Reminder = { Create = function() alert.created = true end }
@@ -710,5 +715,76 @@ Case("copying from a spec with nothing saved changes nothing", function()
     local copied, skipped = e.I.CopyRulesFromSpec("999", "exboss")
     assert(copied == 0 and skipped == 0)
     assert(RuleCount(e.db.integrationRules["250"]) == 1)
+end)
+
+Case("a trash rule answers with the spec's preset unless it carries a line of its own", function()
+    local e = Fixture()
+    local file = assert(io.open(root .. "/NaowhUI_SmartReminders.lua", "rb"))
+    local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
+    local slice = assert(source:match("function ns.IntegrationPreset%b()%s*.-\nend"))
+    local presets = { defensives = { list = { 48707 } } }
+    local env = setmetatable({ specID = 250,
+        PresetsTable = function() return next(presets) and presets or nil end,
+        ActivePresetKey = function() return next(presets) end }, { __index = _G })
+    local ns = {}
+    local chunk = assert(loadstring("local ns = ...; " .. slice))
+    setfenv(chunk, env); chunk(ns)
+    local function rule(kind, text, preset)
+        return { preset = preset, trigger = { type = kind }, display = { text = text } }
+    end
+
+    -- A blank line is the question, not an answer: this page has had no text box since
+    -- these moved to presets, so nothing new can carry one.
+    assert(ns.IntegrationPreset(rule("exboss", "")) == "defensives")
+    assert(ns.IntegrationPreset(rule("exboss", "", "defensives")) == "defensives")
+    -- A key this spec does not have, which is what a pack built on another one carries.
+    -- The fire path takes a key as an override with no fall-through, so this used to be a
+    -- rule that silently never called anything.
+    assert(ns.IntegrationPreset(rule("exboss", "", "p7")) == "defensives")
+    -- A line somebody typed while the box still existed still owns the callout.
+    assert(ns.IntegrationPreset(rule("exboss", "Move out")) == nil)
+    assert(ns.IntegrationPreset(rule("exboss", "Move out", "p7")) == "p7")
+    -- A debuff alert is not a defensive callout and must never pick one up.
+    assert(ns.IntegrationPreset(rule("auraSound", "")) == nil)
+    -- A spec with no presets at all stays silent rather than erroring.
+    presets = {}
+    assert(ns.IntegrationPreset(rule("exboss", "")) == nil)
+end)
+
+Case("the minted trash line is cleared on load, and only that line", function()
+    local file = assert(io.open(root .. "/NaowhUI_SmartReminders.lua", "rb"))
+    local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
+    local slice = assert(source:match("local function TRDB%b()%s*.-\nend"))
+    local saved = { tankReminder = {
+        integrationRules = {
+            ["250"] = {
+                i1 = { trigger = { type = "exboss" }, display = { text = "Use a defensive" } },
+                i2 = { trigger = { type = "exboss" }, display = { text = "Move out" } },
+                i3 = { trigger = { type = "exboss" }, display = { text = "" }, preset = "p1" },
+                i4 = { trigger = { type = "auraSound" }, display = { text = "Use a defensive" } },
+            },
+            ["577"] = { i5 = { trigger = { type = "exboss" }, display = { text = "Use a defensive" } } },
+            ["62"] = "not a table",
+        },
+        callouts = { [48707] = "Use AMS" },
+    } }
+    local env = setmetatable({ DEFAULTS = { leadTime = 3 },
+        prepared = setmetatable({}, { __mode = "k" }),
+        ns = { SettingsRoot = function() return saved end } }, { __index = _G })
+    local chunk = assert(loadstring(slice .. "  return TRDB"))
+    setfenv(chunk, env)
+    local t = chunk()()
+    local r = t.integrationRules
+    -- The editor minted this line; nobody could have typed it, so it is not content.
+    assert(r["250"].i1.display.text == "")
+    assert(r["577"].i5.display.text == "", "every spec bucket is walked, not just the first")
+    -- A line saved while the text box still existed is the one thing that must survive.
+    assert(r["250"].i2.display.text == "Move out")
+    assert(r["250"].i3.display.text == "" and r["250"].i3.preset == "p1", "already converted")
+    -- A debuff alert is not a trash rule and shares none of this.
+    assert(r["250"].i4.display.text == "Use a defensive")
+    assert(r["62"] == "not a table", "a malformed bucket is stepped over rather than indexed")
+    -- The migrations beside it still run, and the defaults still fill.
+    assert(t.callouts[48707] == "AMS" and t.leadTime == 3)
 end)
 print(count .. " integration regressions passed")

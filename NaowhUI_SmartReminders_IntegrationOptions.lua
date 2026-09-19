@@ -213,7 +213,7 @@ local function Editor(parent, uid, kind, ability, dungeon)
     end
     local preset = old and old.preset or "none"
     if kind == "exboss" then
-        local values, order = { none = "None" }, { "none" }
+        local values, order = { none = "This spec's active preset" }, { "none" }
         for _, p in ipairs(ns.ListPresets(I.Spec())) do
             values[p.key] = p.name; order[#order + 1] = p.key
         end
@@ -252,11 +252,11 @@ local function Editor(parent, uid, kind, ability, dungeon)
             preset = kind == "exboss" and preset ~= "none" and preset or nil,
             trigger = { type = kind, spellID = id, mapID = instanceID,
                 timeleft = lead and tonumber(lead:GetText()) or nil, auraEvent = auraEvent, target = target },
-            -- No longer edited anywhere. A preset writes the spoken and shown line itself;
-            -- a rule without one falls back to the same generic phrase the alert has always
-            -- used, and an older rule keeps whatever text it was saved with.
+            -- No longer edited anywhere. A preset writes the spoken and shown line itself,
+            -- and a blank line is what asks for one; only a rule saved while this page still
+            -- had a text box carries any, and it keeps it.
             display = { type = d.type or "icon",
-                text = d.text or (kind == "exboss" and "Use a defensive" or ""), sound = sound,
+                text = d.text or "", sound = sound,
                 spellID = d.spellID or id, dur = kind == "exboss" and tonumber(duration:GetText()) or 3,
                 -- Carried through untouched rather than dropped. Nothing writes or reads
                 -- them any more, but a rule or a shared pack saved while the cast repeat
@@ -594,7 +594,7 @@ function ns.BuildIntegrationsPage(parent, y)
                         name = ability.name, enabled = true,
                         trigger = { type = "exboss", spellID = ability.spellID,
                             mapID = section.id, timeleft = 5 },
-                        display = { type = "icon", text = "Use a defensive", dur = 3 },
+                        display = { type = "icon", text = "", dur = 3 },
                     })
                     if not ok then ns.Print("|cffff6060" .. tostring(result) .. "|r"); return end
                     selection.uid = result

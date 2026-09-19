@@ -103,8 +103,8 @@ assert(e.controls["Defensive preset"].width >= 260)
 e.controls["Defensive preset"].set("p1")
 e.controls["Healer Reminder"].set(true); e.controls["Speak callout"].set(true)
 e.buttons.Test()
-assert(e.preview.display.text == "Use a defensive",
-    "a rule with no line of its own falls back to the generic one")
+    assert(e.preview.display.text == "",
+        "a rule with no line of its own carries none; the preset answers instead")
 e.commitAll()
 assert(e.saved.trigger.type == "exboss" and e.saved.trigger.spellID == 123 and e.saved.trigger.mapID == 1762)
 assert(e.saved.preset == "p1" and e.saved.healerReminder and e.saved.display.tts)
@@ -182,20 +182,22 @@ e.rowToggles[1].set(true)
 assert(e.saved and e.saved.trigger.spellID == 123 and e.saved.trigger.mapID == 1762,
     "turning it on writes the rule the editor would have")
 assert(e.saved.display.dur == 3 and e.saved.trigger.timeleft == 5 and e.saved.enabled == true)
+assert(e.saved.display.text == "" and e.saved.preset == nil,
+    "the shortcut writes no line and names no preset; the spec's active one answers")
 assert(e.rowToggles[1].get() == true, "and the switch now reads from that rule")
 assert(e.controls["Enabled"].get() == true, "the editor follows it")
 assert(e.buttons["Remove"], "and there is something to remove now")
 e.rowToggles[1].set(false)
 assert(e.rules.i1.enabled == false, "turning it off disables the rule rather than deleting it")
 
--- The custom text field is gone: a preset writes the line, and a rule without one uses the
--- generic phrase. Nothing in the editor edits it any more.
+-- The custom text field is gone: a preset writes the line, and a rule with a blank one
+-- is answered by whichever preset the spec has active. Nothing in the editor edits it.
 e = Fixture(); SelectTrash(e)
 assert(e.boxes["Custom text"] == nil, "the field should not be built at all")
 e.controls["Defensive preset"].set("p1")
 e.commitAll()
 assert(e.saved.preset == "p1")
-assert(e.saved.display.text == "Use a defensive", "and the saved line is the fallback")
+assert(e.saved.display.text == "", "the saved line stays blank, which is what asks for the preset")
 
 -- Debuff sounds belong to their own tab: they answer to an aura rather than a dungeon, and
 -- used to sit in a bucket at the bottom of the trash list with no dungeon to file them under.

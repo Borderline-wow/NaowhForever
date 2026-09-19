@@ -104,6 +104,23 @@ local function TRDB()
             if bare then t.callouts[id] = bare end
         end
     end
+    -- Trash rules were saved with a generic "Use a defensive" line the editor minted for
+    -- them; the page has never had a text box for anyone to have typed it in. A rule
+    -- carrying it has no line of its own, and a blank one answers with the spec's preset
+    -- instead of speaking a placeholder over icons that have already gone dark.
+    if type(t.integrationRules) == "table" then
+        for _, rules in pairs(t.integrationRules) do
+            if type(rules) == "table" then
+                for _, rule in pairs(rules) do
+                    if type(rule) == "table" and type(rule.display) == "table"
+                        and type(rule.trigger) == "table" and rule.trigger.type == "exboss"
+                        and rule.display.text == "Use a defensive" then
+                        rule.display.text = ""
+                    end
+                end
+            end
+        end
+    end
     -- Call Together was briefly stored as a chain to the entry below before it became a set
     -- ticked per entry. Nothing reads the old key, so it is dead weight in the saved file.
     if type(t.presets) == "table" then
@@ -3387,7 +3404,7 @@ end
 -- the full editor) -- resolves once to the actual spell that would be called, so the
 -- callout text and an auto-filled icon never have to re-derive it separately or disagree.
 -- On ns rather than staying local: the main chunk is already at Lua's 200-local ceiling.
-function ns.ResolveReminderSpell(r)
+function ns.ResolveReminderSpell(r, presetKey)
     if not r then return nil end
     if r.abilitySpellID then
         -- EffectiveList's fp-keyed layer already does exactly what a per-ability override
@@ -3399,7 +3416,11 @@ function ns.ResolveReminderSpell(r)
         local picked = ns.PickFromList(list)
         if picked then return picked end
     end
-    if r.preset then return PickFromPreset(r.preset) end
+    -- The caller's key when it has one: ShowOnAlert has already resolved which preset the
+    -- slots were built from, and re-deriving it here from r.preset alone would answer with
+    -- a different list than the icons are showing.
+    presetKey = presetKey or r.preset
+    if presetKey then return PickFromPreset(presetKey) end
     return nil
 end
 
@@ -3461,7 +3482,7 @@ local function ShowOnAlert(opts)
     if opts.audio then
         local spoken, resolved = opts.text, true
         if opts.resolveFrom and (opts.preset or opts.fp) then
-            local picked = ns.ResolveReminderSpell(opts.resolveFrom)
+            local picked = ns.ResolveReminderSpell(opts.resolveFrom, opts.preset)
             -- The same set line the boss callout speaks, for the same reason: a pick that
             -- belongs to a Call Together group is named with every other ready member
             -- rather than on its own. This said the winner alone, so a set built as
@@ -3522,14 +3543,33 @@ function ns.DisplayReminder(r)
     return FireCustomReminder(r)
 end
 
+-- Which preset a trash rule answers with, resolved per fire rather than stamped when the
+-- rule was saved. Preset keys are allocated per spec, so a key written on one spec, or
+-- arriving inside a pack, names a different list here or none at all -- and the fire path
+-- takes a key as an override with no fall-through, which makes a stale one a rule that
+-- silently never calls anything (CopyRemindersFromSpec carries the same note).
+--
+-- An empty line means "answer with the preset", not "say nothing": this page has had no
+-- text box since these moved from free text to presets, so only rules saved before that
+-- carry a line of their own, and those are still asking for the line rather than for a
+-- defensive.
+function ns.IntegrationPreset(rule)
+    if not (rule.trigger and rule.trigger.type == "exboss") then return rule.preset end
+    local d = rule.display
+    if type(d) == "table" and type(d.text) == "string" and d.text ~= "" then return rule.preset end
+    local presets = PresetsTable(specID, false)
+    if rule.preset and presets and presets[rule.preset] then return rule.preset end
+    return ActivePresetKey(specID)
+end
+
 -- Trash and debuff rules take the same renderer as every other authored reminder: a rule
--- carrying a preset is asking the question the alert already answers, and one with only
--- custom text takes the alert's own text row.
+-- answering with a preset is asking the question the alert already answers, and one with
+-- only custom text takes the alert's own text row.
 function ns.DisplayIntegrationReminder(rule, preview)
     if not rule or not rule.display then return end
     local d = rule.display
     ShowOnAlert({
-        preset = rule.preset,
+        preset = ns.IntegrationPreset(rule),
         text = d.text,
         dur = d.dur,
         audio = d,
