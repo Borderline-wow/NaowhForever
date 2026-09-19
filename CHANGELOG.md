@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.18
 
 ### Fixed
 - A trash alert or boss reminder bound to a defensive preset now stays quiet when nothing
