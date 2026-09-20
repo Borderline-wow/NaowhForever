@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.23
+
+### Fixed
+- A personalized profile from naowh.gg no longer refuses to import when your BattleTag is
+  saved on the site with different capitals than Battle.net holds. `Silkytouch#1976` and
+  `SilkyTouch#1976` are the same account, and the check now treats them that way. It was
+  reporting "this pack is licensed to a different Battle.net account", which pointed at the
+  wrong problem entirely, and the 30 day change lock meant you could not correct it yourself.
+
 ## 1.4.22
 
 ### Added
