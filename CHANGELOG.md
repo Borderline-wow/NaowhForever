@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.21
+
+Housekeeping only. No gameplay or behaviour changes from 1.4.20.
+
+### Added
+- LICENSE.md, covering this addon and the libraries it embeds.
+
 ## 1.4.20
 
 Built on 1.4.18. The 1.4.19 alpha is not included: that work is still being fixed.
