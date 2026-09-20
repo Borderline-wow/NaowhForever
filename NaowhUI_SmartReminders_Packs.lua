@@ -866,6 +866,16 @@ function ns.MergeProfileFromPack(payload, sourceName, targetName, opts)
 end
 
 -- A name no existing profile has. "Naowh Raid", then "Naowh Raid 2", and so on.
+-- Whether importing under this name would land on top of something.
+local function ProfileTaken(name)
+    if type(name) ~= "string" or name == "" then return false end
+    local names = ns.ListProfiles and ns.ListProfiles() or {}
+    for i = 1, #names do
+        if names[i] == name then return true end
+    end
+    return false
+end
+
 local function FreeProfileName(base)
     base = (type(base) == "string" and base ~= "") and base or "Imported Profile"
     local taken = {}
@@ -884,11 +894,15 @@ end
 --
 -- The profile is fresh, so the sections copy in wholesale: there is nothing underneath to
 -- merge with, which is the other half of why this is simpler than what it replaces.
-function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName)
+function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName, overwrite)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
     if not ValidData(payload.data) then return false end
-    local name = FreeProfileName((customName and customName ~= "") and customName
-        or payload.name)
+    local wanted = (customName and customName ~= "") and customName or payload.name
+    if type(wanted) ~= "string" or wanted == "" then wanted = "Imported Profile" end
+    -- Default stays "never touch what is already here". Overwrite is opt-in from the
+    -- dialog and only offered when the name is actually taken, because a monthly
+    -- refresh of the same pack otherwise piles up "Naowh 2", "Naowh 3" and so on.
+    local name = overwrite and wanted or FreeProfileName(wanted)
     local tr = ns.EnsureProfile and ns.EnsureProfile(name)
     if not tr then return false end
 
@@ -1557,6 +1571,7 @@ function ns.ShowPackImport()
     local settingsWanted, settingsBtn = true, nil
     local bindWanted, bindBtn = true, nil
     local accountWanted, accountBtn = true, nil
+    local overwriteWanted, overwriteBtn = false, nil
     -- The fallback anchor for everything below the spec grid. specRows[#specs] cannot serve
     -- that role: with a multi-column grid, the last slot can land in any column depending on
     -- how many specs there are, and anchoring the next row off it directly would start that
@@ -1774,9 +1789,36 @@ function ns.ShowPackImport()
                 or "Imported Profile")
             nameLabel:Show()
             nameBox:Show()
+
+            -- Offered only when the name is actually taken. Without it a monthly
+            -- re-download lands "Naowh 2", "Naowh 3" and so on; with it always on, a
+            -- profile someone tuned themselves would be silently replaced.
+            if not overwriteBtn then
+                overwriteBtn = MakeToggleRow(panel, 420, 22, panel:GetFrameLevel() + 10,
+                    function() return overwriteWanted end,
+                    function(v) overwriteWanted = v end)
+            end
+            local function RefreshOverwrite()
+                local typed = nameBox:GetText()
+                if ProfileTaken(typed) then
+                    overwriteBtn.label:SetText(
+                        ("Replace the existing profile '%s' instead of making a copy"):format(typed))
+                    overwriteBtn:Show()
+                else
+                    overwriteWanted = false
+                    overwriteBtn:Hide()
+                end
+            end
+            overwriteBtn:ClearAllPoints()
+            overwriteBtn:SetPoint("TOPLEFT", nameLabel, "BOTTOMLEFT", 0, -12)
+            -- Rebound every refresh rather than at creation: the dialog is reused, and a
+            -- handler closed over the first pack's widgets would go stale on the next.
+            nameBox:SetScript("OnTextChanged", function() RefreshOverwrite() end)
+            RefreshOverwrite()
         elseif nameBox then
             nameLabel:Hide()
             nameBox:Hide()
+            if overwriteBtn then overwriteWanted = false; overwriteBtn:Hide() end
         end
 
         -- On the Save as row, where there is free width; on its own row for a whole-file
@@ -1878,7 +1920,7 @@ function ns.ShowPackImport()
         end
         if #specs > 0 and not all then want = specWanted end
         local ok, newName = ns.ImportPackAsProfile(decoded, want, settingsWanted,
-            nameBox and nameBox:GetText())
+            nameBox and nameBox:GetText(), overwriteWanted)
         if ok then
             -- After the import, never instead of it: SetAccountProfile refuses a name that
             -- is not a profile yet, and ImportPackAsProfile is what creates it. It also
