@@ -14,6 +14,14 @@ local ns = {}
 _G.NaowhUITankReminder = ns
 ns.MODULE_KEY = MODULE_KEY
 
+local locale = _G.NaowhSmartRemindersLocale or {}
+function ns.L(key, ...)
+    local text = locale[key]
+    if text == nil or text == true then text = key end
+    if select("#", ...) > 0 then return text:format(...) end
+    return text
+end
+
 -- Bumped by hand on every code change that goes to a tester, and printed beside the TOC
 -- version everywhere a build is reported. The TOC version only moves on release, so it
 -- cannot tell a working checkout from the release it was branched off -- which cost two
@@ -119,7 +127,7 @@ function ns.Button(parent, text, w, h, onClick)
     local border = ns.Border(btn)
     local lbl = ns.Font(btn, 12, nil)
     lbl:SetPoint("CENTER")
-    lbl:SetText(text)
+    lbl:SetText(ns.L(text))
     btn.label = lbl
     btn:SetScript("OnClick", function() if onClick then onClick() end end)
     btn:SetScript("OnEnter", function()
@@ -135,7 +143,7 @@ end
 
 function ns.SetButtonText(btn, text)
     if not (btn and btn.label) then return end
-    btn.label:SetText(text)
+    btn.label:SetText(ns.L(text))
 end
 
 -- The house tooltip lives in the Widgets file (ns.UI); resolved at hover time since that

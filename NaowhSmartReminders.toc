@@ -11,6 +11,11 @@
 
 Libs\embeds.xml
 
+# Locale tables must load before Core creates the addon namespace.
+Locales\enUS.lua
+Locales\deDE.lua [AllowLoadTextLocale deDE]
+Locales\ruRU.lua [AllowLoadTextLocale ruRU]
+
 # Core first: theme, chrome primitives, the DB and profiles -- everything later files
 # hang off.
 NaowhUI_SmartReminders_Core.lua
@@ -40,6 +45,11 @@ NaowhUI_SmartReminders_RaidReminders.lua
 # one string, with preview-before-apply. Loads after the runtime it packages.
 NaowhUI_SmartReminders_Integrations.lua
 NaowhUI_SmartReminders_IntegrationOptions.lua
+# Signature check for naowh.gg's personalized pack downloads. Loads before Packs,
+# which calls into it; standalone otherwise, so load order relative to the main
+# runtime does not matter.
+NaowhUI_SmartReminders_Verify.lua
+
 NaowhUI_SmartReminders_Packs.lua
 
 # Reads this season's bosses and their tank-flagged abilities out of the player's own

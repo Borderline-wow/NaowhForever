@@ -16,7 +16,7 @@ ns.UI = UI
 UI.CONTENT_PAD = 45
 UI.COGS_ICON = "Interface\\AddOns\\NaowhSmartReminders\\Media\\cog.tga"
 
-function UI.L(text) return text end
+function UI.L(text) return ns.L(text) end
 
 -------------------------------------------------------------------------------
 --  Tooltip

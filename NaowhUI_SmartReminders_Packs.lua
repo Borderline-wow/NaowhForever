@@ -18,15 +18,25 @@
 --      everything they had. There is no merge-or-replace to get wrong, and no
 --      way for a pack to take a preset, a spec or a profile with it.
 --
---  There is deliberately no license check, expiry, or key. A string is text
---  and always will be; what a subscription buys is the next version. The
---  version field on the preview is what makes that model legible.
+--  There is deliberately no license check, expiry, or key for a pack shared
+--  the ordinary way, string to string: a string is text and always will be,
+--  so nothing here can stop it being copied, and what a subscription buys is
+--  the next version. The version field on the preview is what makes that
+--  model legible.
+--
+--  naowh.gg's global download is the one exception, and it works differently
+--  on purpose: it hands out a pack with a ":LIC1:" segment appended, an
+--  RSA-signed (battletag, expiry) naowh.gg's server produced for that one
+--  visitor. DecodePack below only checks that when the segment is actually
+--  present, so an ordinary friend-to-friend or self export is untouched by
+--  any of this. See NaowhUI_SmartReminders_Verify.lua.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhUITankReminder
 if not ns then return end
 
 local PREFIX = "NSRPACK2:"
 local PACK_FORMAT = 1
+local LICENSE_MARKER = ":LIC1:"
 
 -- Sections a pack may carry, in display order. Keyed by the profile field;
 -- label is what the preview calls it; count says how its size is measured.
@@ -502,6 +512,18 @@ function ns.DecodePack(str)
     if type(str) ~= "string" then return nil, "Nothing to read." end
     str = str:gsub("%s+", "")
     if str == "" then return nil, "Nothing to read." end
+
+    -- A naowh.gg personalized download appends a signed license after this
+    -- marker. Plain find, not a pattern: the pack payload before it is
+    -- LibDeflate print-encoded (alphabet a-zA-Z0-9() only), which can never
+    -- itself contain a colon, so this can only match the real marker.
+    local license
+    local licStart = str:find(LICENSE_MARKER, 1, true)
+    if licStart then
+        license = str:sub(licStart + #LICENSE_MARKER)
+        str = str:sub(1, licStart - 1)
+    end
+
     if str:sub(1, #PREFIX) ~= PREFIX then
         return nil, "Not a Reminder Pack string (missing the " .. PREFIX .. " prefix)."
     end
@@ -515,6 +537,10 @@ function ns.DecodePack(str)
     end
     if payload.format ~= PACK_FORMAT then
         return nil, "This pack needs a newer version of the addon."
+    end
+    if license then
+        local licOk, licErr = ns.CheckPackLicense(license)
+        if not licOk then return nil, licErr end
     end
     local multi = type(payload.profiles) == "table" and next(payload.profiles) ~= nil
     if not multi and type(payload.data) ~= "table" then return nil, "The pack is empty." end

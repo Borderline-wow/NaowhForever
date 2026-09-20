@@ -76,7 +76,7 @@ local function BuildPageInto(pageName, parent)
     if soon then
         local head = ns.Font(parent, 16, "OUTLINE", T.muted)
         head:SetPoint("TOP", parent, "TOP", 0, -60)
-        head:SetText("Coming soon")
+        head:SetText(ns.L("Coming soon"))
 
         local body = ns.Font(parent, 12, nil, T.muted)
         body:SetPoint("TOP", head, "BOTTOM", 0, -12)
@@ -283,7 +283,7 @@ local function CreateWindow()
 
     local title = ns.Font(titleBar, 13, "OUTLINE")
     title:SetPoint("LEFT", 12, 0)
-    title:SetText("|cff0091edNaowh|r Smart Reminders")
+    title:SetText("|cff0091edNaowh|r " .. ns.L("Smart Reminders"))
 
     local close = ns.Button(titleBar, "X", 22, 22, function() window:Hide() end)
     close:SetPoint("RIGHT", -3, 0)
@@ -300,7 +300,7 @@ local function CreateWindow()
         local btn = CreateFrame("Button", nil, parent)
         btn.label = ns.Font(btn, size, nil, T.muted)
         btn.label:SetPoint("CENTER")
-        btn.label:SetText(name)
+        btn.label:SetText(ns.L(name))
         btn:SetSize(math.max(72, math.ceil(btn.label:GetStringWidth()) + pad), height)
         btn.marker = ns.Solid(btn, "OVERLAY", T.accent, 1)
         btn.marker:SetPoint("BOTTOMLEFT", 10, 0)
@@ -447,13 +447,13 @@ launcherEvents:SetScript("OnEvent", function(self)
     end
     local launcher = LibStub("LibDataBroker-1.1"):NewDataObject("NaowhSmartReminders", {
         type = "launcher",
-        label = "Naowh Smart Reminders",
+        label = "Naowh " .. ns.L("Smart Reminders"),
         icon = "Interface\\AddOns\\NaowhSmartReminders\\Media\\LogoAddon.tga",
         OnClick = function() ns.ToggleOptionsWindow() end,
         OnTooltipShow = function(tooltip)
-            tooltip:AddLine("Naowh Smart Reminders")
-            tooltip:AddLine("Click to open settings.", 1, 1, 1)
-            tooltip:AddLine("Drag to move the minimap button.", 1, 1, 1)
+            tooltip:AddLine("Naowh " .. ns.L("Smart Reminders"))
+            tooltip:AddLine(ns.L("Click to open settings."), 1, 1, 1)
+            tooltip:AddLine(ns.L("Drag to move the minimap button."), 1, 1, 1)
         end,
     })
     LibStub("LibDBIcon-1.0"):Register("NaowhSmartReminders", launcher, account.minimap)
