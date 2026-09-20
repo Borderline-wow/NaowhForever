@@ -304,10 +304,17 @@ function ns.ExportPack(packName, author, allowImported)
     local db = ns.DB()
     local derivedFrom
     if type(db.importedPack) == "table" then
+        -- Refused even for the curator hand-back path: a licensed pack is bound to the
+        -- BattleTag that downloaded it, and an export carries no licence at all, so
+        -- passing one on would hand out an unlicensed copy of a paid profile.
+        if db.importedPack.licensed then
+            return nil, ("This profile came from %s, which is licensed to the account that "
+                .. "downloaded it. It cannot be exported. Get your own copy from naowh.gg."):format(
+                db.importedPack.name)
+        end
         if not allowImported then
             return nil, ("This profile contains an imported pack (%s by %s), so it cannot "
-                .. "be shared onward. Build your own profile to share one. If you are "
-                .. "handing changes back to its author, use /nutank share."):format(
+                .. "be shared onward. Build your own profile to share one."):format(
                 db.importedPack.name, db.importedPack.author)
         end
         derivedFrom = { name = tostring(db.importedPack.name),
@@ -541,6 +548,9 @@ function ns.DecodePack(str)
     if license then
         local licOk, licErr = ns.CheckPackLicense(license)
         if not licOk then return nil, licErr end
+        -- Carried onto importedPack below: a licensed pack is tied to the account
+        -- that downloaded it, so it must not be re-exported for anyone else.
+        payload.licensed = true
     end
     local multi = type(payload.profiles) == "table" and next(payload.profiles) ~= nil
     if not multi and type(payload.data) ~= "table" then return nil, "The pack is empty." end
@@ -722,6 +732,7 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
                 tr.importedPack = {
                     name = tostring(payload.name or "a pack"),
                     author = tostring(payload.author or "its curator"),
+                    licensed = payload.licensed or nil,
                 }
                 -- A brand-new profile has nothing pre-existing to conflict with, so it's safe
                 -- to trust what the source reports. A pack made before this field existed
@@ -900,6 +911,7 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName)
     tr.importedPack = {
         name = tostring(payload.name or "a pack"),
         author = tostring(payload.author or "its curator"),
+        licensed = payload.licensed or nil,
     }
     -- See the same line in ApplyProfiles: this is always a fresh profile, so there's nothing
     -- pre-existing to conflict with -- it's safe to trust whatever the source reports, nil

@@ -5717,7 +5717,11 @@ end
 
 SLASH_NAOWHUITANK1 = "/nutank"
 SlashCmdList["NAOWHUITANK"] = function(msg)
-    local arg = (msg or ""):lower():match("^%s*(%S*)")
+    msg = msg or ""
+    local arg = msg:lower():match("^%s*(%S*)")
+    -- Case preserved: the remainder names the pack, and that name is what the
+    -- importer's profile ends up called.
+    local rest = msg:match("^%s*%S*%s+(.-)%s*$")
     ProbeCapabilities()
     RefreshSpec()
 
@@ -5753,7 +5757,8 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             ns.Print("this build has no profile export.")
             return
         end
-        local str, err = ns.ExportPack("Contributed changes",
+        local packName = (rest and rest ~= "") and rest or "Naowh"
+        local str, err = ns.ExportPack(packName,
             UnitName and UnitName("player"), true)
         if not str then ns.Print("|cffff6060" .. tostring(err) .. "|r") return end
         if ns.ShowDiagExport then
