@@ -361,7 +361,11 @@ function ns.CheckPackLicense(encoded)
     if not myTag or myTag == "" then
         return false, "could not read your Battle.net BattleTag to check this pack's license"
     end
-    if myTag ~= battletag then
+    -- Compared without case. BattleTags preserve the capitals you chose but are unique
+    -- without them, so this cannot match the wrong account. Exact comparison rejected
+    -- people who typed "Silkytouch#1976" on the site when Battle.net holds
+    -- "SilkyTouch#1976", which reads as the addon being broken rather than as a typo.
+    if myTag:lower() ~= battletag:lower() then
         return false, "this pack is licensed to a different Battle.net account"
     end
 
