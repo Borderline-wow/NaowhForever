@@ -5757,7 +5757,11 @@ end
 
 SLASH_NAOWHUITANK1 = "/nutank"
 SlashCmdList["NAOWHUITANK"] = function(msg)
-    local arg = (msg or ""):lower():match("^%s*(%S*)")
+    msg = msg or ""
+    local arg = msg:lower():match("^%s*(%S*)")
+    -- Case preserved: the remainder names the pack, and that name is what the
+    -- importer's profile ends up called.
+    local rest = msg:match("^%s*%S*%s+(.-)%s*$")
     ProbeCapabilities()
     RefreshSpec()
 
@@ -5786,14 +5790,16 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Handing work back to the curator whose profile this is. Not on the Profiles tab on
     -- purpose: the button there is for sharing something you built, and it refuses a profile
     -- that came from somebody else's pack, which is the right answer for everyone except the
-    -- handful of people maintaining part of that pack. They get told to type this by the
-    -- refusal itself, so nobody has to be handed a secret.
+    -- handful of people maintaining part of that pack. The refusal deliberately does NOT
+    -- name this command any more: telling everyone who hit it how to get round it is how a
+    -- licensed pack left as a licence-free string. Contributors are told it directly.
     if arg == "share" then
         if not ns.ExportPack then
             ns.Print("this build has no profile export.")
             return
         end
-        local str, err = ns.ExportPack("Contributed changes",
+        local packName = (rest and rest ~= "") and rest or "Naowh"
+        local str, err = ns.ExportPack(packName,
             UnitName and UnitName("player"), true)
         if not str then ns.Print("|cffff6060" .. tostring(err) .. "|r") return end
         if ns.ShowDiagExport then

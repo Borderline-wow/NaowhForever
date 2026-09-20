@@ -304,10 +304,22 @@ function ns.ExportPack(packName, author, allowImported)
     local db = ns.DB()
     local derivedFrom
     if type(db.importedPack) == "table" then
+        -- Known gap: a profile imported from a licensed pack before this build carries
+        -- no licensed flag, so it stays exportable until its owner imports again. The
+        -- cohort closes itself, since a licence lasts 30 days. Inferring it from the pack
+        -- name instead would refuse legitimate sharing of any pack that happened to match.
+        --
+        -- Refused even for the curator hand-back path: a licensed pack is bound to the
+        -- BattleTag that downloaded it, and an export carries no licence at all, so
+        -- passing one on would hand out an unlicensed copy of a paid profile.
+        if db.importedPack.licensed then
+            return nil, ("This profile came from %s, which is licensed to the account that "
+                .. "downloaded it. It cannot be exported. Get your own copy from naowh.gg."):format(
+                db.importedPack.name)
+        end
         if not allowImported then
             return nil, ("This profile contains an imported pack (%s by %s), so it cannot "
-                .. "be shared onward. Build your own profile to share one. If you are "
-                .. "handing changes back to its author, use /nutank share."):format(
+                .. "be shared onward. Build your own profile to share one."):format(
                 db.importedPack.name, db.importedPack.author)
         end
         derivedFrom = { name = tostring(db.importedPack.name),
@@ -538,9 +550,16 @@ function ns.DecodePack(str)
     if payload.format ~= PACK_FORMAT then
         return nil, "This pack needs a newer version of the addon."
     end
+    -- Never trust the field off the wire: it is set here and nowhere else. A pack with
+    -- licensed = true serialized into it would otherwise skip CheckPackLicense entirely
+    -- and mark the importer's profile permanently unexportable.
+    payload.licensed = nil
     if license then
         local licOk, licErr = ns.CheckPackLicense(license)
         if not licOk then return nil, licErr end
+        -- Carried onto importedPack below: a licensed pack is tied to the account
+        -- that downloaded it, so it must not be re-exported for anyone else.
+        payload.licensed = true
     end
     local multi = type(payload.profiles) == "table" and next(payload.profiles) ~= nil
     if not multi and type(payload.data) ~= "table" then return nil, "The pack is empty." end
@@ -722,6 +741,7 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
                 tr.importedPack = {
                     name = tostring(payload.name or "a pack"),
                     author = tostring(payload.author or "its curator"),
+                    licensed = payload.licensed or nil,
                 }
                 -- A brand-new profile has nothing pre-existing to conflict with, so it's safe
                 -- to trust what the source reports. A pack made before this field existed
@@ -808,6 +828,17 @@ function ns.MergeProfileFromPack(payload, sourceName, targetName, opts)
     local tr = ns.EnsureProfile and ns.EnsureProfile(targetName)
     if not tr then return false, "that profile could not be opened" end
 
+    -- Merging a licensed pack taints the target the same way importing one does.
+    -- Without this the licence guard in ExportPack is simply walked around: merge the
+    -- pack in, then export the target as a licence-free string.
+    if payload.licensed then
+        tr.importedPack = {
+            name = tostring(payload.name or "a pack"),
+            author = tostring(payload.author or "its curator"),
+            licensed = true,
+        }
+    end
+
     local specs, entries = 0, 0
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
@@ -866,20 +897,44 @@ local function FreeProfileName(base)
     return base .. " " .. n
 end
 
--- Import as a NEW profile, always. Nothing the importer already has is touched, so there is
--- no merge-or-replace to get wrong and no way for a pack to take a spec, a preset or a whole
--- profile with it -- which is what replace did on this account, twice. Their own profile is
--- still there; switching back to it restores everything exactly as it was.
+-- Imports as a NEW profile by default. Nothing the importer already has is touched, so
+-- there is no merge-or-replace to get wrong and no way for a pack to take a spec, a preset
+-- or a whole profile with it -- which is what replace did on this account, twice. Their own
+-- profile is still there; switching back to it restores everything exactly as it was.
 --
--- The profile is fresh, so the sections copy in wholesale: there is nothing underneath to
--- merge with, which is the other half of why this is simpler than what it replaces.
-function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName)
+-- The one exception is `overwrite`, ticked deliberately in the dialog and only offered when
+-- the name already exists, for the case a curator's pack is re-downloaded every month and
+-- would otherwise pile up copies. That path clears the target's sections first, so it
+-- replaces rather than merges, and it refuses "Default" outright.
+function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName, overwrite)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
     if not ValidData(payload.data) then return false end
-    local name = FreeProfileName((customName and customName ~= "") and customName
-        or payload.name)
+    local wanted = (customName and customName ~= "") and customName or payload.name
+    -- Trimmed to match ns.ProfileExists, which the dialog uses to decide whether to
+    -- offer Replace at all. Untrimmed, "Naowh " would be offered as a replace and then
+    -- create a second profile under a name with a trailing space.
+    wanted = type(wanted) == "string" and wanted:match("^%s*(.-)%s*$") or ""
+    if wanted == "" then wanted = "Imported Profile" end
+    -- Default stays "never touch what is already here". Overwrite is opt-in from the
+    -- dialog and only offered when the name is actually taken, because a monthly
+    -- refresh of the same pack otherwise piles up "Naowh 2", "Naowh 3" and so on.
+    -- "Default" is refused as an overwrite target for the same reason ApplyProfiles
+    -- refuses to land one: it is the baseline every account already has, and replacing
+    -- it puts a stranger's setup under the profile people fall back to. A copy is still
+    -- allowed, so the import is not lost.
+    if overwrite and wanted == "Default" then overwrite = false end
+    local name = overwrite and wanted or FreeProfileName(wanted)
     local tr = ns.EnsureProfile and ns.EnsureProfile(name)
     if not tr then return false end
+
+    if overwrite then
+        -- Cleared first, because EnsureProfile hands back the existing profile and the
+        -- loop below only writes sections the pack actually carries. Without this a
+        -- "replace" leaves the importer's own reminders sitting under a name that now
+        -- claims to be the curator's. Settings are deliberately not touched here: they
+        -- have their own tick in the same dialog.
+        for i = 1, #SECTIONS do tr[SECTIONS[i].field] = nil end
+    end
 
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
@@ -900,6 +955,7 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName)
     tr.importedPack = {
         name = tostring(payload.name or "a pack"),
         author = tostring(payload.author or "its curator"),
+        licensed = payload.licensed or nil,
     }
     -- See the same line in ApplyProfiles: this is always a fresh profile, so there's nothing
     -- pre-existing to conflict with -- it's safe to trust whatever the source reports, nil
@@ -1545,6 +1601,7 @@ function ns.ShowPackImport()
     local settingsWanted, settingsBtn = true, nil
     local bindWanted, bindBtn = true, nil
     local accountWanted, accountBtn = true, nil
+    local overwriteWanted, overwriteBtn = false, nil
     -- The fallback anchor for everything below the spec grid. specRows[#specs] cannot serve
     -- that role: with a multi-column grid, the last slot can land in any column depending on
     -- how many specs there are, and anchoring the next row off it directly would start that
@@ -1575,7 +1632,21 @@ function ns.ShowPackImport()
     specHead:SetJustifyH("LEFT")
     specHead:Hide()
 
+    -- Disarm and repaint together. The dialog is cached between imports, so a Replace
+    -- ticked for one pack would otherwise stay armed for the next, and the switch would
+    -- keep painting ON after the value was reset in code.
+    local function ClearOverwrite()
+        overwriteWanted = false
+        if overwriteBtn then
+            if overwriteBtn.toggle and overwriteBtn.toggle._refreshValue then
+                overwriteBtn.toggle._refreshValue()
+            end
+            overwriteBtn:Hide()
+        end
+    end
+
     local function BuildSpecRows(payload)
+        ClearOverwrite()
         for i = 1, #specRows do specRows[i]:Hide() end
         if settingsBtn then settingsBtn:Hide() end
         if bindBtn then bindBtn:Hide() end
@@ -1599,6 +1670,13 @@ function ns.ShowPackImport()
         end
         if #specs == 0 then
             specHead:Hide()
+            -- Blanked, not just hidden: Finish reads this box regardless, so a hidden row
+            -- still carrying the last pack's name would land this one under it with no
+            -- visible field to correct.
+            if nameBox then nameBox:SetText(""); nameLabel:Hide(); nameBox:Hide() end
+            if accountBtn then accountBtn:Hide() end
+            if bindBtn then bindBtn:Hide() end
+            if settingsBtn then settingsBtn:Hide() end
             return
         end
         specHead:SetText(multi and "Bring in which profiles:" or "Bring in which of these:")
@@ -1762,9 +1840,35 @@ function ns.ShowPackImport()
                 or "Imported Profile")
             nameLabel:Show()
             nameBox:Show()
+
+            -- Offered only when the name is actually taken. Without it a monthly
+            -- re-download lands "Naowh 2", "Naowh 3" and so on; with it always on, a
+            -- profile someone tuned themselves would be silently replaced.
+            if not overwriteBtn then
+                overwriteBtn = MakeToggleRow(panel, 420, 22, panel:GetFrameLevel() + 10,
+                    function() return overwriteWanted end,
+                    function(v) overwriteWanted = v end)
+            end
+            local function RefreshOverwrite()
+                local typed = nameBox:GetText()
+                if ns.ProfileExists and ns.ProfileExists(typed) then
+                    overwriteBtn.label:SetText(
+                        ("Replace the existing profile '%s' instead of making a copy"):format(typed))
+                    overwriteBtn:Show()
+                else
+                    ClearOverwrite()
+                end
+            end
+            overwriteBtn:ClearAllPoints()
+            overwriteBtn:SetPoint("TOPLEFT", nameLabel, "BOTTOMLEFT", 0, -12)
+            -- Rebound every refresh rather than at creation: the dialog is reused, and a
+            -- handler closed over the first pack's widgets would go stale on the next.
+            nameBox:SetScript("OnTextChanged", function() RefreshOverwrite() end)
+            RefreshOverwrite()
         elseif nameBox then
             nameLabel:Hide()
             nameBox:Hide()
+            ClearOverwrite()
         end
 
         -- On the Save as row, where there is free width; on its own row for a whole-file
@@ -1791,7 +1895,8 @@ function ns.ShowPackImport()
         -- The panel takes whatever the rows came to. A pack covering ten classes is ten rows
         -- longer than one covering one, and a fixed height either wasted half the dialog or
         -- ran the last rows under the Import button.
-        local last = (nameBox and nameBox:IsShown() and nameLabel)
+        local last = (overwriteBtn and overwriteBtn:IsShown() and overwriteBtn)
+            or (nameBox and nameBox:IsShown() and nameLabel)
             or (bindBtn and bindBtn:IsShown() and bindBtn)
             or (settingsBtn and settingsBtn:IsShown() and settingsBtn)
             or specRows[#specs]
@@ -1866,7 +1971,7 @@ function ns.ShowPackImport()
         end
         if #specs > 0 and not all then want = specWanted end
         local ok, newName = ns.ImportPackAsProfile(decoded, want, settingsWanted,
-            nameBox and nameBox:GetText())
+            nameBox and nameBox:GetText(), overwriteWanted)
         if ok then
             -- After the import, never instead of it: SetAccountProfile refuses a name that
             -- is not a profile yet, and ImportPackAsProfile is what creates it. It also
@@ -1886,8 +1991,15 @@ function ns.ShowPackImport()
                     autoOff and " Per-spec profile switching is off while they share one "
                         .. "profile; your spec choices are kept if you switch it back on." or ""))
             else
-                ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
-                    .. "is untouched -- switch back to it any time."):format(tostring(newName)))
+                -- The reassurance only holds when a copy was made. After a Replace the
+                -- old contents are gone, and saying otherwise is the worst kind of wrong.
+                if overwriteWanted then
+                    ns.Print(("replaced the profile '%s' with this pack, and switched to it."):format(
+                        tostring(newName)))
+                else
+                    ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
+                        .. "is untouched -- switch back to it any time."):format(tostring(newName)))
+                end
             end
             dimmer:Hide()
             local EUI = ns.UI
