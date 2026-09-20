@@ -5750,8 +5750,9 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     -- Handing work back to the curator whose profile this is. Not on the Profiles tab on
     -- purpose: the button there is for sharing something you built, and it refuses a profile
     -- that came from somebody else's pack, which is the right answer for everyone except the
-    -- handful of people maintaining part of that pack. They get told to type this by the
-    -- refusal itself, so nobody has to be handed a secret.
+    -- handful of people maintaining part of that pack. The refusal deliberately does NOT
+    -- name this command any more: telling everyone who hit it how to get round it is how a
+    -- licensed pack left as a licence-free string. Contributors are told it directly.
     if arg == "share" then
         if not ns.ExportPack then
             ns.Print("this build has no profile export.")

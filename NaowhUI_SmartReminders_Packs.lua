@@ -550,6 +550,10 @@ function ns.DecodePack(str)
     if payload.format ~= PACK_FORMAT then
         return nil, "This pack needs a newer version of the addon."
     end
+    -- Never trust the field off the wire: it is set here and nowhere else. A pack with
+    -- licensed = true serialized into it would otherwise skip CheckPackLicense entirely
+    -- and mark the importer's profile permanently unexportable.
+    payload.licensed = nil
     if license then
         local licOk, licErr = ns.CheckPackLicense(license)
         if not licOk then return nil, licErr end
@@ -893,13 +897,15 @@ local function FreeProfileName(base)
     return base .. " " .. n
 end
 
--- Import as a NEW profile, always. Nothing the importer already has is touched, so there is
--- no merge-or-replace to get wrong and no way for a pack to take a spec, a preset or a whole
--- profile with it -- which is what replace did on this account, twice. Their own profile is
--- still there; switching back to it restores everything exactly as it was.
+-- Imports as a NEW profile by default. Nothing the importer already has is touched, so
+-- there is no merge-or-replace to get wrong and no way for a pack to take a spec, a preset
+-- or a whole profile with it -- which is what replace did on this account, twice. Their own
+-- profile is still there; switching back to it restores everything exactly as it was.
 --
--- The profile is fresh, so the sections copy in wholesale: there is nothing underneath to
--- merge with, which is the other half of why this is simpler than what it replaces.
+-- The one exception is `overwrite`, ticked deliberately in the dialog and only offered when
+-- the name already exists, for the case a curator's pack is re-downloaded every month and
+-- would otherwise pile up copies. That path clears the target's sections first, so it
+-- replaces rather than merges, and it refuses "Default" outright.
 function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName, overwrite)
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
     if not ValidData(payload.data) then return false end
@@ -912,6 +918,11 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName, ov
     -- Default stays "never touch what is already here". Overwrite is opt-in from the
     -- dialog and only offered when the name is actually taken, because a monthly
     -- refresh of the same pack otherwise piles up "Naowh 2", "Naowh 3" and so on.
+    -- "Default" is refused as an overwrite target for the same reason ApplyProfiles
+    -- refuses to land one: it is the baseline every account already has, and replacing
+    -- it puts a stranger's setup under the profile people fall back to. A copy is still
+    -- allowed, so the import is not lost.
+    if overwrite and wanted == "Default" then overwrite = false end
     local name = overwrite and wanted or FreeProfileName(wanted)
     local tr = ns.EnsureProfile and ns.EnsureProfile(name)
     if not tr then return false end
@@ -1659,7 +1670,13 @@ function ns.ShowPackImport()
         end
         if #specs == 0 then
             specHead:Hide()
-            if nameBox then nameLabel:Hide(); nameBox:Hide() end
+            -- Blanked, not just hidden: Finish reads this box regardless, so a hidden row
+            -- still carrying the last pack's name would land this one under it with no
+            -- visible field to correct.
+            if nameBox then nameBox:SetText(""); nameLabel:Hide(); nameBox:Hide() end
+            if accountBtn then accountBtn:Hide() end
+            if bindBtn then bindBtn:Hide() end
+            if settingsBtn then settingsBtn:Hide() end
             return
         end
         specHead:SetText(multi and "Bring in which profiles:" or "Bring in which of these:")
@@ -1974,8 +1991,15 @@ function ns.ShowPackImport()
                     autoOff and " Per-spec profile switching is off while they share one "
                         .. "profile; your spec choices are kept if you switch it back on." or ""))
             else
-                ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
-                    .. "is untouched -- switch back to it any time."):format(tostring(newName)))
+                -- The reassurance only holds when a copy was made. After a Replace the
+                -- old contents are gone, and saying otherwise is the worst kind of wrong.
+                if overwriteWanted then
+                    ns.Print(("replaced the profile '%s' with this pack, and switched to it."):format(
+                        tostring(newName)))
+                else
+                    ns.Print(("imported as the profile '%s', and switched to it. Your own profile "
+                        .. "is untouched -- switch back to it any time."):format(tostring(newName)))
+                end
             end
             dimmer:Hide()
             local EUI = ns.UI
