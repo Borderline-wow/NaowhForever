@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.22
+
+### Added
+- A pack shared with `/nutank share` is now named **Naowh** by default, and
+  `/nutank share <name>` names it whatever you type. That name is what the profile ends up
+  called when someone imports it.
+- Importing a pack whose name you already have offers to **replace** that profile instead of
+  landing another copy beside it. Off by default, and only offered when the name is actually
+  taken, so nothing is replaced without choosing it. Replacing clears the profile first, so
+  none of the old contents survive underneath. "Default" is never replaced.
+
+### Changed
+- A personalized profile from naowh.gg can no longer be exported or shared onward, including
+  through `/nutank share`, and merging one marks the profile it was merged into. Packs that
+  did not come with a licence are unaffected, so handing work back to a curator still works
+  exactly as before.
+- The refusal you get when exporting a profile built on someone else's pack no longer names
+  the command that bypasses it.
+
 ## 1.4.21
 
 Housekeeping only. No gameplay or behaviour changes from 1.4.20.
