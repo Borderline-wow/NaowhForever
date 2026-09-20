@@ -366,7 +366,7 @@ function ns.CheckPackLicense(encoded)
     -- people who typed "Silkytouch#1976" on the site when Battle.net holds
     -- "SilkyTouch#1976", which reads as the addon being broken rather than as a typo.
     if myTag:lower() ~= battletag:lower() then
-        return false, "this pack is licensed to a different Battle.net account"
+        return false, format("this pack is licensed to %s, but you are logged in to Battle.net as %s", battletag, myTag)
     end
 
     return true, "license_ok", battletag

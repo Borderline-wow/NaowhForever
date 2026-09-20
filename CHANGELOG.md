@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.24
+
+### Changed
+- When a personalized profile is refused because it belongs to another account, the message
+  now names both BattleTags: the one the pack is signed to and the one you are logged in to
+  Battle.net as. Reading them side by side shows you whether the tag saved on naowh.gg has a
+  typo in it, which the old wording gave you no way to tell.
+
 ## 1.4.23
 
 ### Fixed
