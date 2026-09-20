@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Smart Reminders
 ## Notes: Calls out what to press when the boss timeline says an ability is coming. All specs.
 ## Author: NaowhUI
-## Version: 1.4.19
+## Version: 1.4.21
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhUI_SmartRemindersDB
 ## Group: NaowhUI
@@ -10,6 +10,11 @@
 ## AddonCompartmentFunc: NaowhUI_SmartReminders_OnCompartmentClick
 
 Libs\embeds.xml
+
+# Locale tables must load before Core creates the addon namespace.
+Locales\enUS.lua
+Locales\deDE.lua [AllowLoadTextLocale deDE]
+Locales\ruRU.lua [AllowLoadTextLocale ruRU]
 
 # Core first: theme, chrome primitives, the DB and profiles -- everything later files
 # hang off.
@@ -40,6 +45,11 @@ NaowhUI_SmartReminders_RaidReminders.lua
 # one string, with preview-before-apply. Loads after the runtime it packages.
 NaowhUI_SmartReminders_Integrations.lua
 NaowhUI_SmartReminders_IntegrationOptions.lua
+# Signature check for naowh.gg's personalized pack downloads. Loads before Packs,
+# which calls into it; standalone otherwise, so load order relative to the main
+# runtime does not matter.
+NaowhUI_SmartReminders_Verify.lua
+
 NaowhUI_SmartReminders_Packs.lua
 
 # Reads this season's bosses and their tank-flagged abilities out of the player's own

@@ -1,6 +1,35 @@
 # Changelog
 
+## 1.4.21
+
+Housekeeping only. No gameplay or behaviour changes from 1.4.20.
+
+### Added
+- LICENSE.md, covering this addon and the libraries it embeds.
+
+## 1.4.20
+
+Built on 1.4.18. The 1.4.19 alpha is not included: that work is still being fixed.
+
+### Added
+- naowh.gg can hand out a personalized, signed copy of a curator's Reminder Pack, bound
+  to the recipient's own BattleTag so it cannot be freely redistributed. The signature is
+  checked with a real RSA-2048 verification on import. Ordinary friend-to-friend and
+  self-export packs are completely unaffected.
+- Russian and German locale foundations, with the English strings split into
+  Locales/enUS.lua. Anything untranslated falls back to English.
+
+### Note
+- Personalized packs from naowh.gg need this version or newer. Earlier builds do not know
+  about the licence appended to the string and report it as damaged on import.
+- **If you ran the 1.4.19 alpha**, it rewrote your saved trash alerts one way and this
+  build does not carry the code that reads them back. Those alerts will stop firing, with
+  no icon and no sound. Restore the NaowhUI_SmartRemindersDB.lua backup you took, or set
+  a defensive preset on the affected alerts again.
+
 ## 1.4.19
+
+**Never released. Superseded by 1.4.20, which is built on 1.4.18.**
 
 **Alpha. Please test this before relying on it in a key.**
 
@@ -18,7 +47,6 @@ up NaowhUI_SmartRemindersDB.lua before you load it if you want a way back.
 - An alert whose preset belongs to another spec now falls back to the active preset as
   well. It used to go silent. Copy From Spec and shared packs both produce this.
 - The Defensive preset dropdown reads "This spec's active preset" where it read "None".
-
 ## 1.4.18
 
 ### Fixed
