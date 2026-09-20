@@ -304,6 +304,11 @@ function ns.ExportPack(packName, author, allowImported)
     local db = ns.DB()
     local derivedFrom
     if type(db.importedPack) == "table" then
+        -- Known gap: a profile imported from a licensed pack before this build carries
+        -- no licensed flag, so it stays exportable until its owner imports again. The
+        -- cohort closes itself, since a licence lasts 30 days. Inferring it from the pack
+        -- name instead would refuse legitimate sharing of any pack that happened to match.
+        --
         -- Refused even for the curator hand-back path: a licensed pack is bound to the
         -- BattleTag that downloaded it, and an export carries no licence at all, so
         -- passing one on would hand out an unlicensed copy of a paid profile.
@@ -819,6 +824,17 @@ function ns.MergeProfileFromPack(payload, sourceName, targetName, opts)
     local tr = ns.EnsureProfile and ns.EnsureProfile(targetName)
     if not tr then return false, "that profile could not be opened" end
 
+    -- Merging a licensed pack taints the target the same way importing one does.
+    -- Without this the licence guard in ExportPack is simply walked around: merge the
+    -- pack in, then export the target as a licence-free string.
+    if payload.licensed then
+        tr.importedPack = {
+            name = tostring(payload.name or "a pack"),
+            author = tostring(payload.author or "its curator"),
+            licensed = true,
+        }
+    end
+
     local specs, entries = 0, 0
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
@@ -866,16 +882,6 @@ function ns.MergeProfileFromPack(payload, sourceName, targetName, opts)
 end
 
 -- A name no existing profile has. "Naowh Raid", then "Naowh Raid 2", and so on.
--- Whether importing under this name would land on top of something.
-local function ProfileTaken(name)
-    if type(name) ~= "string" or name == "" then return false end
-    local names = ns.ListProfiles and ns.ListProfiles() or {}
-    for i = 1, #names do
-        if names[i] == name then return true end
-    end
-    return false
-end
-
 local function FreeProfileName(base)
     base = (type(base) == "string" and base ~= "") and base or "Imported Profile"
     local taken = {}
@@ -898,13 +904,26 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName, ov
     if type(payload) ~= "table" or type(payload.data) ~= "table" then return false end
     if not ValidData(payload.data) then return false end
     local wanted = (customName and customName ~= "") and customName or payload.name
-    if type(wanted) ~= "string" or wanted == "" then wanted = "Imported Profile" end
+    -- Trimmed to match ns.ProfileExists, which the dialog uses to decide whether to
+    -- offer Replace at all. Untrimmed, "Naowh " would be offered as a replace and then
+    -- create a second profile under a name with a trailing space.
+    wanted = type(wanted) == "string" and wanted:match("^%s*(.-)%s*$") or ""
+    if wanted == "" then wanted = "Imported Profile" end
     -- Default stays "never touch what is already here". Overwrite is opt-in from the
     -- dialog and only offered when the name is actually taken, because a monthly
     -- refresh of the same pack otherwise piles up "Naowh 2", "Naowh 3" and so on.
     local name = overwrite and wanted or FreeProfileName(wanted)
     local tr = ns.EnsureProfile and ns.EnsureProfile(name)
     if not tr then return false end
+
+    if overwrite then
+        -- Cleared first, because EnsureProfile hands back the existing profile and the
+        -- loop below only writes sections the pack actually carries. Without this a
+        -- "replace" leaves the importer's own reminders sitting under a name that now
+        -- claims to be the curator's. Settings are deliberately not touched here: they
+        -- have their own tick in the same dialog.
+        for i = 1, #SECTIONS do tr[SECTIONS[i].field] = nil end
+    end
 
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
@@ -1602,7 +1621,21 @@ function ns.ShowPackImport()
     specHead:SetJustifyH("LEFT")
     specHead:Hide()
 
+    -- Disarm and repaint together. The dialog is cached between imports, so a Replace
+    -- ticked for one pack would otherwise stay armed for the next, and the switch would
+    -- keep painting ON after the value was reset in code.
+    local function ClearOverwrite()
+        overwriteWanted = false
+        if overwriteBtn then
+            if overwriteBtn.toggle and overwriteBtn.toggle._refreshValue then
+                overwriteBtn.toggle._refreshValue()
+            end
+            overwriteBtn:Hide()
+        end
+    end
+
     local function BuildSpecRows(payload)
+        ClearOverwrite()
         for i = 1, #specRows do specRows[i]:Hide() end
         if settingsBtn then settingsBtn:Hide() end
         if bindBtn then bindBtn:Hide() end
@@ -1626,6 +1659,7 @@ function ns.ShowPackImport()
         end
         if #specs == 0 then
             specHead:Hide()
+            if nameBox then nameLabel:Hide(); nameBox:Hide() end
             return
         end
         specHead:SetText(multi and "Bring in which profiles:" or "Bring in which of these:")
@@ -1800,13 +1834,12 @@ function ns.ShowPackImport()
             end
             local function RefreshOverwrite()
                 local typed = nameBox:GetText()
-                if ProfileTaken(typed) then
+                if ns.ProfileExists and ns.ProfileExists(typed) then
                     overwriteBtn.label:SetText(
                         ("Replace the existing profile '%s' instead of making a copy"):format(typed))
                     overwriteBtn:Show()
                 else
-                    overwriteWanted = false
-                    overwriteBtn:Hide()
+                    ClearOverwrite()
                 end
             end
             overwriteBtn:ClearAllPoints()
@@ -1818,7 +1851,7 @@ function ns.ShowPackImport()
         elseif nameBox then
             nameLabel:Hide()
             nameBox:Hide()
-            if overwriteBtn then overwriteWanted = false; overwriteBtn:Hide() end
+            ClearOverwrite()
         end
 
         -- On the Save as row, where there is free width; on its own row for a whole-file
@@ -1845,7 +1878,8 @@ function ns.ShowPackImport()
         -- The panel takes whatever the rows came to. A pack covering ten classes is ten rows
         -- longer than one covering one, and a fixed height either wasted half the dialog or
         -- ran the last rows under the Import button.
-        local last = (nameBox and nameBox:IsShown() and nameLabel)
+        local last = (overwriteBtn and overwriteBtn:IsShown() and overwriteBtn)
+            or (nameBox and nameBox:IsShown() and nameLabel)
             or (bindBtn and bindBtn:IsShown() and bindBtn)
             or (settingsBtn and settingsBtn:IsShown() and settingsBtn)
             or specRows[#specs]

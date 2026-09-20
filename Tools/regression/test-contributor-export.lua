@@ -70,8 +70,10 @@ Case("an imported profile is still refused by the ordinary export", function()
     local str, why = e.ns.ExportPack("Mine", "Contributor")
     assert(str == nil and type(why) == "string")
     assert(why:find("Naowh", 1, true) and why:find("Robin", 1, true))
-    -- and it says where to go instead, so nobody has to be told the command separately
-    assert(why:find("/nutank share", 1, true))
+    -- and it does NOT name the command that bypasses it: anyone who hit this refusal was
+    -- being told how to get round it, which is how a licensed pack left as a licence-free
+    -- string. Contributors are told the command directly instead.
+    assert(not why:find("/nutank share", 1, true))
 end)
 
 Case("the contributor export is allowed, and says what it came from", function()
