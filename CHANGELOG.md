@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.25
+
+### Fixed
+- The Trash tab now says outright that trash cooldown alerts need ExBoss. Without it the
+  tab showed an empty dungeon list and "No enabled trash rules for this instance and
+  spec", which reads as nothing being set up rather than the timer engine being absent.
+  Both the ability list and the timings behind every alert come from ExBoss, so nothing
+  on the tab can fire without it.
+- The ability list on the Trash tab now says why it is empty when it has nothing to show.
+  The line written for that case could not be reached, so the list sat blank instead.
+
 ## 1.4.24
 
 ### Changed
