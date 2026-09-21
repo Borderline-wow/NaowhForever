@@ -337,8 +337,14 @@ Case("catalogue maps challenge IDs to instance filters and deduplicates spells",
     maps.maps[2222] = { mapID = 2222, mapName = "Kings Rest" }
     assert(#e.I.Catalogue() == 0, "ambiguous instance mapping was guessed")
 end)
-Case("optional provider and empty configuration stay inactive", function()
+Case("optional provider and empty configuration stay inactive, and say so", function()
     local e = Fixture(); e.env.ExBoss = nil; e.I.Refresh()
+    assert(next(e.hooks) == nil and #e.added == 0)
+    -- Nothing here can fire without the provider, so the tab has to name it rather than
+    -- report an empty configuration.
+    assert(e.I.trashStatus:find("ExBoss", 1, true))
+    assert(e.I.Save(nil, e:rule())); e.I.Refresh()
+    assert(e.I.trashStatus:find("ExBoss", 1, true))
     assert(next(e.hooks) == nil and #e.added == 0)
 end)
 Case("trash predictions schedule once, reschedule and cancel by timer identity", function()

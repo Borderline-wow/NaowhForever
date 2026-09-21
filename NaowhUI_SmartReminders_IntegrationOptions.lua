@@ -609,9 +609,12 @@ function ns.BuildIntegrationsPage(parent, y)
             ly = ly + ROW_H + 1
         end
     end
-    if #sections == 0 then
-        Label(list, "The trash ability catalogue is unavailable. Enable the trash timer "
-            .. "engine and its data addon, then reopen this page.", 4, 0, 230)
+    -- Keyed on nothing having been drawn rather than on an empty catalogue: a dungeon
+    -- with no abilities and a "saved" bucket with nothing in it are just as blank, and
+    -- the label can never land on top of a row this way.
+    if ly == 0 then
+        Label(list, "No trash abilities to show. The list comes from ExBoss: enable or "
+            .. "update it, then reopen this page.", 4, 0, 230)
         ly = 60
     end
     list:SetHeight(math.max(1, ly))
