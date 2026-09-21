@@ -221,12 +221,21 @@ function I.ObserveTimer(scheduler, id)
     end
     ns.PruneCustomReminderTimers()
 end
-local function Connect()
+local NO_ENGINE = "|cffff6060ExBoss is missing or too old, so no trash alert can fire.|r "
+    .. "The ability list needs it too."
+-- The scheduler ExBoss hangs its trash timers off. One check answers for the whole tab:
+-- EXBoss lists EXBossData, which the ability list is built from, in its RequiredDeps.
+local function Engine()
     local scheduler = ExBoss and ExBoss.Timeline and ExBoss.Timeline.Scheduler
     if not scheduler or type(scheduler.GetActiveTimers) ~= "function"
         or type(scheduler.RegisterTrashLocalTimer) ~= "function"
-        or type(scheduler._RemoveActiveTimerByID) ~= "function" then
-        I.trashStatus = "Trash timer engine unavailable. Enable a compatible timer engine to use predictions."
+        or type(scheduler._RemoveActiveTimerByID) ~= "function" then return nil end
+    return scheduler
+end
+local function Connect()
+    local scheduler = Engine()
+    if not scheduler then
+        I.trashStatus = NO_ENGINE
         return
     end
     if hooked and hooked ~= scheduler then
@@ -412,7 +421,8 @@ function I.Refresh()
     for _, rule in pairs(I.Rules(false) or {}) do
         if Eligible(rule, "exboss") then running = true end
     end
-    if running then Connect()
+    if not Engine() then I.trashStatus = NO_ENGINE
+    elseif running then Connect()
     else I.trashStatus = "No enabled trash rules for this instance and spec." end
     RefreshSounds()
     -- The cast watch is built from these rules, and this is the one place that knows they
