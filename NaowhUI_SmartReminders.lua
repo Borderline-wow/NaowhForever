@@ -2632,12 +2632,26 @@ end
 
 local function Speak(text)
     if not (C_VoiceChat and C_VoiceChat.SpeakText) or not text or text == "" then return end
-    -- The generated docs give (voiceID, text, rate, volume, overlap), but EllesmereUI carries
-    -- a field note that the live client treats the third argument as a destination that must
-    -- be 1. Passing 1 satisfies both readings -- it is a valid rate and the required
-    -- destination -- so this matches their proven call rather than the docs alone.
+    -- (voiceID, text, rate, volume, overlap). The third argument is the RATE, and the
+    -- player's own is what belongs there. This passed a hardcoded 1 on an EllesmereUI field
+    -- note that the live client treats it as a destination that must be 1; that note does
+    -- not hold here. Blizzard's own chat TTS passes C_TTSSettings.GetSpeechRate() into that
+    -- slot (TextToSpeechFrame.lua), and so does ns.SpeakReminderTTS below, which is shipped
+    -- and working -- so this addon already proves the argument is a rate.
+    --
+    -- It is not only correctness. Synthesis happens on the calling thread while the client
+    -- waits, so a slower rate is a longer utterance and a longer stall, and a tank who set a
+    -- fast rate to get callouts out quickly was being overridden into the slowest one.
+    --
+    -- 0 is Blizzard's normal rate, matching SpeakReminderTTS's own fallback. Do not write
+    -- `or 0` against the call itself -- a real 0 is truthy in Lua, so the guard is on the
+    -- API being present, not on the value.
+    local rate = 0
+    if C_TTSSettings and C_TTSSettings.GetSpeechRate then
+        rate = C_TTSSettings.GetSpeechRate() or 0
+    end
     -- Only `text` may carry a secret; every other argument is NeverSecret, and ours are plain.
-    pcall(C_VoiceChat.SpeakText, ns.TTSVoiceID(), text, 1, TRDB().voiceVol or 100, true)
+    pcall(C_VoiceChat.SpeakText, ns.TTSVoiceID(), text, rate, TRDB().voiceVol or 100, true)
 end
 
 -- The single place a callout becomes audible, so the sound-or-speech choice is made once
