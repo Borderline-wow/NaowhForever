@@ -2680,7 +2680,19 @@ local function Speak(text)
         rate = C_TTSSettings.GetSpeechRate() or 0
     end
     -- Only `text` may carry a secret; every other argument is NeverSecret, and ours are plain.
-    pcall(C_VoiceChat.SpeakText, ns.TTSVoiceID(), text, rate, TRDB().voiceVol or 100, true)
+    --
+    -- /nutank speaktime wraps this one call. debugprofilestop is read as a DELTA and
+    -- debugprofilestart is never called: that global timer belongs to whoever started it,
+    -- and restarting it would corrupt another addon's measurement mid-fight.
+    local p = ns.speakProf
+    local before = p and debugprofilestop() or 0
+    pcall(C_VoiceChat.SpeakText, ns.TTSVoiceID(), text,
+        rate, TRDB().voiceVol or 100, true)
+    if p then
+        local ms = debugprofilestop() - before
+        p.ttsN, p.ttsSum = p.ttsN + 1, p.ttsSum + ms
+        if ms > p.ttsMax then p.ttsMax = ms end
+    end
 end
 
 -- The single place a callout becomes audible, so the sound-or-speech choice is made once
@@ -2900,6 +2912,14 @@ local function SpeakCallout(triggerSid)
 
     -- The model is the last rung of the ladder below, for spells whose cooldown is sealed
     -- and whose cast we have not witnessed. Resync first so it is current.
+    -- /nutank speaktime measures the two halves of a callout separately: deciding what to
+    -- say (here) and saying it (in Speak). Which one costs has been guessed at twice and
+    -- got it wrong twice, so it is measured rather than reasoned about. This half is timed
+    -- here rather than around the whole function because it is contiguous, while the
+    -- function has four exits and a subtraction would go wrong at whichever one got missed.
+    local prof = ns.speakProf
+    local pickedAt = prof and debugprofilestop() or 0
+
     ResyncModel()
     local now = GetTime()
 
@@ -2914,6 +2934,12 @@ local function SpeakCallout(triggerSid)
             if SpellReady(sid, now) then return sid end
         end
     end)
+
+    if prof then
+        local ms = debugprofilestop() - pickedAt
+        prof.pickN, prof.pickSum = prof.pickN + 1, prof.pickSum + ms
+        if ms > prof.pickMax then prof.pickMax = ms end
+    end
 
     -- On failure pcall's second return is the error STRING, which is truthy and would be
     -- announced as though it were the winning spell.
@@ -5908,6 +5934,47 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             ns.Print(("|cffF0A830trace OFF|r -- %d entries recorded. /nutank export opens them "
                 .. "in a copyable box."):format(type(t.callLog) == "table" and #t.callLog or 0))
         end
+        return
+    end
+
+    -- Splits a callout's cost in two: choosing the defensive, and Windows speaking its
+    -- name. A session flag, not a saved one -- this is measured across one pull and read
+    -- back straight away, and a profiler left on across a reload is a profiler nobody
+    -- remembers turning on.
+    if arg == "speaktime" then
+        local pr = ns.speakProf
+        if not pr then
+            ns.speakProf = { pickN = 0, pickSum = 0, pickMax = 0,
+                             ttsN = 0, ttsSum = 0, ttsMax = 0 }
+            ns.Print("|cff6DD09Acallout timing ON|r -- pull once, then /nutank speaktime "
+                .. "again to stop and read it.")
+            if not TRDB().voiceOn then
+                ns.Print("  |cffff6060this will record nothing:|r Speak Which Defensive to "
+                    .. "Use is off, and that switch gates the whole callout.")
+            end
+            return
+        end
+        ns.speakProf = nil
+        if pr.pickN == 0 then
+            ns.Print("|cffF0A830callout timing OFF|r -- no callouts fired, so there is "
+                .. "nothing to report.")
+            return
+        end
+        ns.Print(("|cff0091edcallout timing|r (build %s), %d callout(s):")
+            :format(BuildString(), pr.pickN))
+        ns.Print(("  choosing the defensive: avg %.2fms, worst %.2fms, total %.0fms")
+            :format(pr.pickSum / pr.pickN, pr.pickMax, pr.pickSum))
+        if pr.ttsN > 0 then
+            ns.Print(("  speaking it: avg %.2fms, worst %.2fms, total %.0fms, %d utterance(s)")
+                :format(pr.ttsSum / pr.ttsN, pr.ttsMax, pr.ttsSum, pr.ttsN))
+        else
+            ns.Print("  speaking it: never reached -- every callout was suppressed or muted.")
+        end
+        -- The whole point of the split. Windows synthesises on the calling thread, so time
+        -- inside SpeakText is the client standing still.
+        local worst = pr.ttsMax > pr.pickMax and "speaking" or "choosing"
+        ns.Print(("  worst single frame was |cffF0A830%s|r, at %.2fms.")
+            :format(worst, math.max(pr.ttsMax, pr.pickMax)))
         return
     end
 
