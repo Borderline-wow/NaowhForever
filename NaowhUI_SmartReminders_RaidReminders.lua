@@ -903,13 +903,28 @@ function ns.DisplayRaidReminder(entry, preview)
         r.expirationTime = GetTime() + dur
         SetCircleSweep(r, 0)
         r.label:SetText(caption)
+        r.shownTenth = nil
         -- One decimal, matching how the ring reads: the arc visibly moves between whole
         -- seconds, so a whole-second number beside it looks stuck.
+        --
+        -- The sweep stays per frame because the arc is meant to look continuous, but the
+        -- caption only changes ten times a second and was being rebuilt on every one of
+        -- them. Same fix, and the same reason, as the "timer" display above.
         r:SetScript("OnUpdate", function(self)
             local remain = self.expirationTime - GetTime()
             if remain < 0 then remain = 0 end
             SetCircleSweep(self, (1 - remain / dur) * 360)
-            self.label:SetFormattedText("%s (%.1f)", self.caption, remain)
+            -- Printed FROM the tenth it keys on, not from remain: keying on one value and
+            -- printing another lets the two disagree, and %.1f rounds half to even where
+            -- any arithmetic here rounds half up, so an exact .x5 frame showed a tenth the
+            -- key had already moved past. Truncating also reads correctly for a countdown
+            -- -- 9.2 means at least 9.2 left -- at the cost of showing each tenth up to
+            -- 0.05s earlier than before, which is not visible at a tenth's granularity.
+            local tenth = math.floor(remain * 10)
+            if tenth ~= self.shownTenth then
+                self.shownTenth = tenth
+                self.label:SetFormattedText("%s (%.1f)", self.caption, tenth / 10)
+            end
         end)
     end
 
