@@ -2597,20 +2597,49 @@ end
 -- and follows whatever the player chose in Blizzard's Text to Speech panel. A stored id for
 -- a voice that is no longer installed falls back rather than going silent, which is what
 -- would otherwise happen after a Windows voice pack is removed.
-function ns.TTSVoiceID()
-    if not (C_VoiceChat and C_VoiceChat.GetTtsVoices) then return 0 end
-    local voices = C_VoiceChat.GetTtsVoices()
-    local want = TRDB().ttsVoiceID
-    if want and voices then
-        for i = 1, #voices do
-            if voices[i].voiceID == want then return want end
+--
+-- Cached, because Speak() resolved this on every single callout: GetTtsVoices builds a fresh
+-- table per call, and "Game Default" -- what everyone is on until they pick a voice -- then
+-- goes through Blizzard's TextToSpeech_GetSelectedVoice, which calls GetTtsVoices a SECOND
+-- time and walks it with a closure.
+--
+-- The key is the stored setting, so the dropdown and a profile switch both invalidate with
+-- no wiring at either site, and VOICE_CHAT_TTS_VOICES_UPDATE catches the installed list.
+-- Blizzard's own Text to Speech panel raises no event when its voice changes, so combat
+-- start drops the cache too, which bounds a stale read to one pull.
+--
+-- Upvalues in a do block rather than file locals: this chunk is at Lua's 200-local ceiling.
+do
+    local cachedWant, cachedID
+
+    function ns.InvalidateTTSVoice()
+        cachedWant, cachedID = nil, nil
+    end
+
+    function ns.TTSVoiceID()
+        local want = TRDB().ttsVoiceID
+        if cachedID and cachedWant == want then return cachedID end
+        if not (C_VoiceChat and C_VoiceChat.GetTtsVoices) then return 0 end
+        local voices = C_VoiceChat.GetTtsVoices()
+        local resolved
+        if want and voices then
+            for i = 1, #voices do
+                if voices[i].voiceID == want then
+                    resolved = want
+                    break
+                end
+            end
         end
+        if not resolved and TextToSpeech_GetSelectedVoice then
+            local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
+            if ok and voice and voice.voiceID then resolved = voice.voiceID end
+        end
+        if not resolved then
+            resolved = (voices and voices[1] and voices[1].voiceID) or 0
+        end
+        cachedWant, cachedID = want, resolved
+        return resolved
     end
-    if TextToSpeech_GetSelectedVoice then
-        local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
-        if ok and voice and voice.voiceID then return voice.voiceID end
-    end
-    return (voices and voices[1] and voices[1].voiceID) or 0
 end
 
 -- Voice list for the options dropdown: values keyed by voiceID, plus a Game Default entry
@@ -7668,6 +7697,9 @@ watcher:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
 -- GUID that arrives that way would otherwise stay out of ns.bossGUIDs until the next
 -- engage-unit event, and every aura on that boss is missed for the whole window.
 watcher:RegisterEvent("UNIT_TARGETABLE_CHANGED")
+-- Rare, and all it does is drop a cache: the resolved TTS voice stops being valid once the
+-- installed voice list changes underneath us.
+watcher:RegisterEvent("VOICE_CHAT_TTS_VOICES_UPDATE")
 
 watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     -- FIRST in the chain, and gated before the pcall: this is by far the most frequent
@@ -7834,6 +7866,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     if event == "PLAYER_REGEN_DISABLED" then
         -- An ns field, not a chunk local: this chunk is at the 200-local ceiling.
         ns.combatStartedAt = GetTime()
+        -- Blizzard's Text to Speech panel fires nothing when its selected voice changes, so
+        -- re-resolve once per pull instead. Warmed here rather than left lazy so the first
+        -- callout of the fight is not the one paying for the lookup.
+        ns.InvalidateTTSVoice()
+        if TRDB().voiceOn then ns.TTSVoiceID() end
         ns.CheckCombatReminders()
         return
     end
@@ -7845,6 +7882,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             -- A combat log toggle skipped because of combat lockdown lands here.
             UpdateEventRegistration()
         end
+        return
+    end
+
+    if event == "VOICE_CHAT_TTS_VOICES_UPDATE" then
+        ns.InvalidateTTSVoice()
         return
     end
 
