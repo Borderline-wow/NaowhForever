@@ -5466,9 +5466,11 @@ local function OnCombatLog()
     -- Custom reminders ride the same registration under their own gate
     -- (hasCustomReminders), independent of runActive: a defensive priority list is
     -- not a prerequisite for a boss-pull reminder. Raid reminders' own aura triggers
-    -- get the same treatment -- checked directly rather than through a synced cache
-    -- flag, since a raid reminder can be added/removed from several different UI
-    -- entry points and a stale flag would silently stop firing until the next one.
+    -- now ride hasRaidReminders, the same shape as hasCustomReminders. That flag was
+    -- live-read here for years because a raid reminder can be added or removed from
+    -- several UI entry points and a stale one silently stops firing; what made the
+    -- cache safe was making every one of those paths call RefreshCustomRemindersFlag,
+    -- so add the refresh before adding another write path.
     -- The dispatcher gates this before the pcall; kept as the function's own contract.
     if currentEncounter == nil then return end
     -- Counted here, ABOVE the secrecy filter, so /nutank can separate three different

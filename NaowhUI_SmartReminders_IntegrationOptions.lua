@@ -460,11 +460,12 @@ local function StatusLines(parent, y)
         return (I.auraStatus or "") .. (I.racialStatus and ("  " .. I.racialStatus) or "")
     end
     local auraStatus = Label(parent, AuraStatus(), 20, y - 44, 900)
-    -- Nothing clears this when the window closes or the page is rebuilt, so it outlives
-    -- both and keeps a dead build's labels alive. Bail while they are off screen rather
-    -- than running two SetText layout passes for a page nobody is looking at.
+    -- Deliberately unguarded. An IsVisible() test here looked free and was not: nothing
+    -- re-runs this when the page is shown again, so a hidden page came back carrying
+    -- whatever it had when it was hidden. The cost this would have saved is two SetText
+    -- calls, and the event storm that made them add up is already stopped upstream by
+    -- UpdateRacial's unchanged-reason early return.
     I.OnStatusChanged = function()
-        if not status:IsVisible() then return end
         status:SetText(I.trashStatus or ""); auraStatus:SetText(AuraStatus())
     end
 end
