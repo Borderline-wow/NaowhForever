@@ -1680,11 +1680,15 @@ local function RegisterEventSounds()
     local function Step()
         -- A clear or a newer registration since this pass began supersedes it.
         if generation ~= ns.soundGeneration then return end
-        -- 50, not 200: each step is a GetEventInfo (which hands back a fresh table) plus
-        -- a pcall'd SetEventSound, and against the ~870-event catalogue below 200 of them
-        -- in one frame is a visible hitch repeated over the next four. This re-runs on
-        -- ENCOUNTER_START under the healer opt-out, so the spike landed on the pull.
-        local stop = math.min(i + 49, total)
+        -- Each step is a GetEventInfo (which hands back a fresh table) plus a pcall'd
+        -- SetEventSound, against a catalogue of roughly 870 events, and this re-runs on
+        -- ENCOUNTER_START under the healer opt-out, so whatever it costs lands on the
+        -- pull. Both ends of the trade are real and neither is measured: 200 per frame
+        -- was a visible hitch over 5 frames, and 50 stretched the registration to 18,
+        -- which is ~0.3s at 60fps where an ability firing early in a pull has no sound
+        -- registered yet. 100 splits it at ~9 frames. Measure both before moving it
+        -- again; MeasureCall on one Step is enough to price a chunk.
+        local stop = math.min(i + 99, total)
         while i <= stop do
             local info = C_EncounterEvents.GetEventInfo(ids[i])
 
