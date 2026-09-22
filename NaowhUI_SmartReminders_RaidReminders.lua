@@ -1615,13 +1615,8 @@ function ns.CheckRaidReminderAuraTriggers(kind, destGUID, spellID)
     local reminders = RaidRemindersTable(false, enc)
     if not reminders then return end
 
-    local isPlayer = destGUID == UnitGUID("player")
-    local isBoss = false
-    if not isPlayer then
-        for i = 1, 5 do
-            if destGUID == UnitGUID("boss" .. i) then isBoss = true; break end
-        end
-    end
+    local isPlayer = destGUID == ns.PlayerGUID()
+    local isBoss = not isPlayer and ns.bossGUIDs[destGUID] == true
     if not (isPlayer or isBoss) then return end
 
     for _, entry in pairs(reminders) do

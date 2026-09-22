@@ -1246,6 +1246,44 @@ end
 
 ns.CustomRemindersTable = CustomRemindersTable
 
+local BOSS_UNITS = { "boss1", "boss2", "boss3", "boss4", "boss5" }
+
+-- UnitGUID is SecretWhenUnitIdentityRestricted, and that already cost days once on the
+-- tank gate (see TankingCaster). Read once from wherever it comes back plainly and kept,
+-- rather than called fresh on every combat log line inside a raid, where the answer may
+-- not be readable at all. A GUID does not change for the life of the character.
+-- Declared here rather than beside OnCombatLog, its original home, because
+-- CheckAuraReminder sits earlier in the file and needs it too.
+local playerGUID
+local function PlayerGUID()
+    if playerGUID then return playerGUID end
+    local ok, guid = pcall(UnitGUID, "player")
+    if ok and not (issecretvalue and issecretvalue(guid)) and type(guid) == "string" then
+        playerGUID = guid
+    end
+    return playerGUID
+end
+ns.PlayerGUID = PlayerGUID
+
+-- Which GUIDs are currently on boss1-5. The aura triggers ask "is this destGUID a boss"
+-- once per combat log line, and answering it with UnitGUID("boss"..i) meant five API
+-- calls and five string builds per line -- hundreds of lines a second in a raid, against
+-- an answer that only changes when the engage units do. Same secrecy reasoning as
+-- PlayerGUID above, and refreshed from INSTANCE_ENCOUNTER_ENGAGE_UNIT.
+ns.bossGUIDs = {}
+function ns.RefreshBossGUIDs()
+    wipe(ns.bossGUIDs)
+    for i = 1, 5 do
+        local unit = BOSS_UNITS[i]
+        if UnitExists(unit) then
+            local ok, guid = pcall(UnitGUID, unit)
+            if ok and not (issecretvalue and issecretvalue(guid)) and type(guid) == "string" then
+                ns.bossGUIDs[guid] = true
+            end
+        end
+    end
+end
+
 -- Per-unit tanking verdict: true/false, or nil when both available reads come back
 -- secret. Threat status is checked first (>= 2 means tanking) and trusted on its own
 -- when it's readable -- confirmed live to be reliably plain even in raid content where
@@ -1253,18 +1291,22 @@ ns.CustomRemindersTable = CustomRemindersTable
 -- content where threat status itself reads secret (SecretWhenUnitThreatStateRestricted
 -- vs SecretWhenUnitComparisonRestricted are different gates, so one being secret says
 -- nothing about the other).
+-- Split out so the pcall can take it by reference: this runs up to five times per
+-- boss mod broadcast, and the inline closure it replaced was allocated on every one.
+local function ReadTankedVerdict(unit)
+    local status = UnitThreatSituation("player", unit)
+    local statusKnown = not (issecretvalue and issecretvalue(status))
+    if statusKnown then
+        return type(status) == "number" and status >= 2
+    end
+    local same = UnitIsUnit(unit .. "target", "player")
+    local sameKnown = not (issecretvalue and issecretvalue(same))
+    if sameKnown then return same == true end
+    return nil
+end
+
 local function UnitTankedVerdict(unit)
-    local ok, verdict = pcall(function()
-        local status = UnitThreatSituation("player", unit)
-        local statusKnown = not (issecretvalue and issecretvalue(status))
-        if statusKnown then
-            return type(status) == "number" and status >= 2
-        end
-        local same = UnitIsUnit(unit .. "target", "player")
-        local sameKnown = not (issecretvalue and issecretvalue(same))
-        if sameKnown then return same == true end
-        return nil
-    end)
+    local ok, verdict = pcall(ReadTankedVerdict, unit)
     if not ok then return nil end
     return verdict
 end
@@ -1275,7 +1317,7 @@ end
 local function BossThreatSummary()
     local out
     for i = 1, 5 do
-        local unit = "boss" .. i
+        local unit = BOSS_UNITS[i]
         if UnitExists(unit) then
             out = (out and out .. "," or "")
                 .. ("%s=%s"):format(unit, tostring(UnitTankedVerdict(unit)))
@@ -1292,7 +1334,7 @@ end
 local function TankingSomeBoss()
     local sawBoss, unknown = false, false
     for i = 1, 5 do
-        local unit = "boss" .. i
+        local unit = BOSS_UNITS[i]
         if UnitExists(unit) then
             sawBoss = true
             local verdict = UnitTankedVerdict(unit)
@@ -1349,7 +1391,7 @@ ns.lastTankedAt = {}
 function ns.SampleTanking()
     local now = GetTime()
     for i = 1, 5 do
-        local unit = "boss" .. i
+        local unit = BOSS_UNITS[i]
         if UnitExists(unit) and UnitTankedVerdict(unit) then ns.lastTankedAt[unit] = now end
     end
 end
@@ -1357,8 +1399,8 @@ end
 local function TankingCaster(sid)
     local ownerSlot = ns.TANK_ABILITY_OWNER_UNIT and ns.TANK_ABILITY_OWNER_UNIT[sid]
     if ownerSlot then
-        local unit = "boss" .. ownerSlot
-        if UnitExists(unit) then
+        local unit = BOSS_UNITS[ownerSlot]
+        if unit and UnitExists(unit) then
             local verdict = UnitTankedVerdict(unit)
             if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
             if verdict then
@@ -1378,7 +1420,7 @@ local function TankingCaster(sid)
     local guid = castSourceGUID[sid]
     if not guid then return TankingSomeBoss(), "nocache" end
     for i = 1, 5 do
-        local unit = "boss" .. i
+        local unit = BOSS_UNITS[i]
         if UnitExists(unit) then
             local ok, unitGUID = pcall(UnitGUID, unit)
             if ok and not (issecretvalue and issecretvalue(unitGUID)) and unitGUID == guid then
@@ -1638,7 +1680,11 @@ local function RegisterEventSounds()
     local function Step()
         -- A clear or a newer registration since this pass began supersedes it.
         if generation ~= ns.soundGeneration then return end
-        local stop = math.min(i + 199, total)
+        -- 50, not 200: each step is a GetEventInfo (which hands back a fresh table) plus
+        -- a pcall'd SetEventSound, and against the ~870-event catalogue below 200 of them
+        -- in one frame is a visible hitch repeated over the next four. This re-runs on
+        -- ENCOUNTER_START under the healer opt-out, so the spike landed on the pull.
+        local stop = math.min(i + 49, total)
         while i <= stop do
             local info = C_EncounterEvents.GetEventInfo(ids[i])
 
@@ -3743,7 +3789,12 @@ function ns.OnBossCast(event, unit, spellID)
     -- here, and the gate below costs a GetInstanceInfo and three profile reads. Almost
     -- every event is a raid member casting and stops on these two lines instead.
     if type(unit) ~= "string" then return end
-    if not (unit:match("^boss%d") or unit:match("^nameplate%d")) then return end
+    -- Plain find rather than a ^boss%d pattern: this filter IS the per-event cost for
+    -- every cast in the group and on every nameplate, and a pattern match compiles the
+    -- pattern and builds a result string on each hit. Only base unit tokens reach an
+    -- event payload, so a prefix test accepts exactly what the pattern did.
+    local isBoss = unit:find("boss", 1, true) == 1
+    if not (isBoss or unit:find("nameplate", 1, true) == 1) then return end
     if not CustomRemindersAllowed() then return end
 
     -- Who a cast is aimed at, written onto the alert that is ALREADY on screen. Nothing
@@ -3762,7 +3813,7 @@ function ns.OnBossCast(event, unit, spellID)
     -- identical in play and has a different answer -- the switch is off, nothing was on
     -- screen to write on, or the client says this cast names nobody, which is true of most
     -- casts and is not a fault. Logging only the success cost a pull to find that out.
-    if event == "UNIT_SPELLCAST_START" and unit:match("^boss%d") then
+    if event == "UNIT_SPELLCAST_START" and isBoss then
         local why
         if not TRDB().castTargetBoss then why = "target display off"
         -- Asked even with nothing on screen, so a trace of one dungeon answers "which
@@ -4072,16 +4123,14 @@ end
 local function CheckAuraReminder(kind, destGUID, spellID, amount)
     if not (hasCustomReminders and CustomRemindersAllowed()) then return end
     if type(spellID) ~= "number" or type(destGUID) ~= "string" then return end
-    local isPlayer = destGUID == UnitGUID("player")
-    local isBoss = false
-    if not isPlayer then
-        for i = 1, 5 do
-            if destGUID == UnitGUID("boss" .. i) then isBoss = true; break end
-        end
-    end
-    if not (isPlayer or isBoss) then return end
+    -- Ahead of the GUID tests, not after them: this is the check that says whether there
+    -- is anything on this boss to fire at all, and behind it the tests below were being
+    -- paid on every aura line of every boss by anyone with a reminder saved on any of them.
     local set = CustomRemindersTable(false, currentEncounter)
     if not set then return end
+    local isPlayer = destGUID == PlayerGUID()
+    local isBoss = not isPlayer and ns.bossGUIDs[destGUID] == true
+    if not (isPlayer or isBoss) then return end
     for uid, r in pairs(set) do
         local trig = r.trigger
         if r.enabled ~= false and trig and trig.type == "aura" and trig.spellID == spellID
@@ -5338,20 +5387,6 @@ ns.RegisterBossModHooks = RegisterBossModHooks
 -- itself per combat log line would mean several function calls a line instead of one read.
 local runActive = false
 
--- UnitGUID is SecretWhenUnitIdentityRestricted, and that already cost days once on the
--- tank gate (see TankingCaster). Read once from wherever it comes back plainly and kept,
--- rather than called fresh on every combat log line inside a raid, where the answer may
--- not be readable at all. A GUID does not change for the life of the character.
-local playerGUID
-local function PlayerGUID()
-    if playerGUID then return playerGUID end
-    local ok, guid = pcall(UnitGUID, "player")
-    if ok and not (issecretvalue and issecretvalue(guid)) and type(guid) == "string" then
-        playerGUID = guid
-    end
-    return playerGUID
-end
-
 local cleuLines, cleuUsable, cleuOwnAuras = 0, 0, 0
 
 local function OnCombatLog()
@@ -5405,8 +5440,11 @@ local function OnCombatLog()
     end
 
     -- Raid Reminders' own "aura" trigger -- independent of hasCustomReminders, which
-    -- only ever reflects the older CustomRemindersTable.
-    if ns.CheckRaidReminderAuraTriggers and type(spellId) == "number" then
+    -- only ever reflects the older CustomRemindersTable. hasRaidReminders is this
+    -- feature's own cached flag and every edit path refreshes it (RefreshCustomRemindersFlag),
+    -- so it gates the call here instead of the callee re-deriving the same answer -- a
+    -- settings-chain walk and a tostring() per line -- on a boss with none saved.
+    if hasRaidReminders and ns.CheckRaidReminderAuraTriggers and type(spellId) == "number" then
         if sub == "SPELL_AURA_APPLIED" then
             ns.CheckRaidReminderAuraTriggers("applied", destGUID, spellId)
         elseif sub == "SPELL_AURA_REMOVED" then
@@ -7603,6 +7641,12 @@ watcher:RegisterEvent("TRAIT_CONFIG_UPDATED")
 -- ShouldRun(), and a Time In Combat reminder has to fire for a player with no defensive
 -- priority list at all (CustomRemindersAllowed is the gate instead).
 watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
+-- Fires whenever the boss1-5 engage units change, which is the only thing that can
+-- invalidate ns.bossGUIDs. Static rather than under UpdateEventRegistration: the aura
+-- triggers that read the cache run under hasCustomReminders/hasRaidReminders, neither of
+-- which is tied to ShouldRun(), so a cache refreshed only on that path would go stale for
+-- exactly the players still using it.
+watcher:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
 
 watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     -- FIRST in the chain, and gated before the pcall: this is by far the most frequent
@@ -7622,6 +7666,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         return
     end
 
+    if event == "INSTANCE_ENCOUNTER_ENGAGE_UNIT" then
+        ns.RefreshBossGUIDs()
+        return
+    end
+
     if event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
         -- Dying and running back resets much of a kit, and the model cannot see that. Drop
         -- the estimates and re-read whatever is readable now.
@@ -7638,6 +7687,9 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             ns.ObserveCommitPull(arg1, arg3)
         end
         currentEncounter = starting and arg1 or nil
+        -- INSTANCE_ENCOUNTER_ENGAGE_UNIT covers changes mid-fight; this is the baseline
+        -- for a pull whose units were already up, and the clear on the way out.
+        ns.RefreshBossGUIDs()
         -- Static timeline sounds have no per-fire Lua callback. Refresh their
         -- registration against this encounter's tags when the opt-out is active.
         if not ns.HealerRemindersEnabled() and ns.BossSource() == "timeline" then
