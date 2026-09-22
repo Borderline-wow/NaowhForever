@@ -5484,7 +5484,7 @@ local function OnCombatLog()
     -- They need opposite fixes. Both counters sit below the currentEncounter gate, so
     -- nothing here costs anything outside a pull.
     cleuLines = cleuLines + 1
-    local _, sub, _, sourceGUID, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = CombatLogGetCurrentEventInfo()
+    local _, sub, _, sourceGUID, _, _, _, destGUID, _, _, _, spellId, _, _, _, amount = C_CombatLog.GetCurrentEventInfo()
     if issecretvalue and (issecretvalue(sub) or issecretvalue(spellId) or issecretvalue(destGUID)
         or issecretvalue(amount)) then
         return

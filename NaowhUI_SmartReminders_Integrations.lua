@@ -37,8 +37,8 @@ local function Number(v, low, high)
     return Plain(v) and type(v) == "number" and v == v and v >= low and v <= high
 end
 function I.Spec()
-    local index = GetSpecialization()
-    return index and GetSpecializationInfo(index) or 0
+    local index = C_SpecializationInfo.GetSpecialization()
+    return index and C_SpecializationInfo.GetSpecializationInfo(index) or 0
 end
 function I.Rules(create)
     local db, spec = ns.DB(), tostring(I.Spec())
