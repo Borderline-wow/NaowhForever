@@ -5571,7 +5571,8 @@ local function UpdateEventRegistration()
     if not cleuRegistered then
         local restricted = C_CombatLog and C_CombatLog.IsCombatLogRestricted
             and C_CombatLog.IsCombatLogRestricted()
-        if restricted == false or restricted == nil then
+        -- Forever has no C_CombatLog.GetCurrentEventInfo and no deprecated global for it.
+        if (restricted == false or restricted == nil) and C_CombatLog and C_CombatLog.GetCurrentEventInfo then
             watcher:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
             cleuRegistered = true
         end

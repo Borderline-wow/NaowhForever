@@ -240,7 +240,8 @@ function ns.ScrapeBosses(force)
     -- Current raid. There is no "give me the latest raid" API, so this is the current tier's
     -- raid list, newest last, which is the same heuristic the journal itself leans on.
     diag.raids = 0
-    if EJ_SelectTier and EJ_GetInstanceByIndex and priorTier then
+    -- Forever's journal has no tiers and reports 0, which EJ_SelectTier rejects.
+    if EJ_SelectTier and EJ_GetInstanceByIndex and priorTier and priorTier > 0 then
         EJ_SelectTier(priorTier)
         for i = 1, 20 do
             local instanceID, rname = EJ_GetInstanceByIndex(i, true)
@@ -257,7 +258,7 @@ function ns.ScrapeBosses(force)
     diag.bosses = 0
     for i = 1, #out.instances do diag.bosses = diag.bosses + #out.instances[i].bosses end
 
-    if priorTier and EJ_SelectTier then EJ_SelectTier(priorTier) end
+    if priorTier and priorTier > 0 and EJ_SelectTier then EJ_SelectTier(priorTier) end
 
     cache = out
 
