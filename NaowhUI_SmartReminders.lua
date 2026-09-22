@@ -1246,6 +1246,44 @@ end
 
 ns.CustomRemindersTable = CustomRemindersTable
 
+local BOSS_UNITS = { "boss1", "boss2", "boss3", "boss4", "boss5" }
+
+-- UnitGUID is SecretWhenUnitIdentityRestricted, and that already cost days once on the
+-- tank gate (see TankingCaster). Read once from wherever it comes back plainly and kept,
+-- rather than called fresh on every combat log line inside a raid, where the answer may
+-- not be readable at all. A GUID does not change for the life of the character.
+-- Declared here rather than beside OnCombatLog, its original home, because
+-- CheckAuraReminder sits earlier in the file and needs it too.
+local playerGUID
+local function PlayerGUID()
+    if playerGUID then return playerGUID end
+    local ok, guid = pcall(UnitGUID, "player")
+    if ok and not (issecretvalue and issecretvalue(guid)) and type(guid) == "string" then
+        playerGUID = guid
+    end
+    return playerGUID
+end
+ns.PlayerGUID = PlayerGUID
+
+-- Which GUIDs are currently on boss1-5. The aura triggers ask "is this destGUID a boss"
+-- once per combat log line, and answering it with UnitGUID("boss"..i) meant five API
+-- calls and five string builds per line -- hundreds of lines a second in a raid, against
+-- an answer that only changes when the engage units do. Same secrecy reasoning as
+-- PlayerGUID above, and refreshed from INSTANCE_ENCOUNTER_ENGAGE_UNIT.
+ns.bossGUIDs = {}
+function ns.RefreshBossGUIDs()
+    wipe(ns.bossGUIDs)
+    for i = 1, 5 do
+        local unit = BOSS_UNITS[i]
+        if UnitExists(unit) then
+            local ok, guid = pcall(UnitGUID, unit)
+            if ok and not (issecretvalue and issecretvalue(guid)) and type(guid) == "string" then
+                ns.bossGUIDs[guid] = true
+            end
+        end
+    end
+end
+
 -- Per-unit tanking verdict: true/false, or nil when both available reads come back
 -- secret. Threat status is checked first (>= 2 means tanking) and trusted on its own
 -- when it's readable -- confirmed live to be reliably plain even in raid content where
@@ -1253,18 +1291,22 @@ ns.CustomRemindersTable = CustomRemindersTable
 -- content where threat status itself reads secret (SecretWhenUnitThreatStateRestricted
 -- vs SecretWhenUnitComparisonRestricted are different gates, so one being secret says
 -- nothing about the other).
+-- Split out so the pcall can take it by reference: this runs up to five times per
+-- boss mod broadcast, and the inline closure it replaced was allocated on every one.
+local function ReadTankedVerdict(unit)
+    local status = UnitThreatSituation("player", unit)
+    local statusKnown = not (issecretvalue and issecretvalue(status))
+    if statusKnown then
+        return type(status) == "number" and status >= 2
+    end
+    local same = UnitIsUnit(unit .. "target", "player")
+    local sameKnown = not (issecretvalue and issecretvalue(same))
+    if sameKnown then return same == true end
+    return nil
+end
+
 local function UnitTankedVerdict(unit)
-    local ok, verdict = pcall(function()
-        local status = UnitThreatSituation("player", unit)
-        local statusKnown = not (issecretvalue and issecretvalue(status))
-        if statusKnown then
-            return type(status) == "number" and status >= 2
-        end
-        local same = UnitIsUnit(unit .. "target", "player")
-        local sameKnown = not (issecretvalue and issecretvalue(same))
-        if sameKnown then return same == true end
-        return nil
-    end)
+    local ok, verdict = pcall(ReadTankedVerdict, unit)
     if not ok then return nil end
     return verdict
 end
@@ -1275,7 +1317,7 @@ end
 local function BossThreatSummary()
     local out
     for i = 1, 5 do
-        local unit = "boss" .. i
+        local unit = BOSS_UNITS[i]
         if UnitExists(unit) then
             out = (out and out .. "," or "")
                 .. ("%s=%s"):format(unit, tostring(UnitTankedVerdict(unit)))
@@ -1292,7 +1334,7 @@ end
 local function TankingSomeBoss()
     local sawBoss, unknown = false, false
     for i = 1, 5 do
-        local unit = "boss" .. i
+        local unit = BOSS_UNITS[i]
         if UnitExists(unit) then
             sawBoss = true
             local verdict = UnitTankedVerdict(unit)
@@ -1349,7 +1391,7 @@ ns.lastTankedAt = {}
 function ns.SampleTanking()
     local now = GetTime()
     for i = 1, 5 do
-        local unit = "boss" .. i
+        local unit = BOSS_UNITS[i]
         if UnitExists(unit) and UnitTankedVerdict(unit) then ns.lastTankedAt[unit] = now end
     end
 end
@@ -1357,8 +1399,8 @@ end
 local function TankingCaster(sid)
     local ownerSlot = ns.TANK_ABILITY_OWNER_UNIT and ns.TANK_ABILITY_OWNER_UNIT[sid]
     if ownerSlot then
-        local unit = "boss" .. ownerSlot
-        if UnitExists(unit) then
+        local unit = BOSS_UNITS[ownerSlot]
+        if unit and UnitExists(unit) then
             local verdict = UnitTankedVerdict(unit)
             if verdict == nil then return true, "boss:" .. unit .. ":unreadable" end
             if verdict then
@@ -1378,7 +1420,7 @@ local function TankingCaster(sid)
     local guid = castSourceGUID[sid]
     if not guid then return TankingSomeBoss(), "nocache" end
     for i = 1, 5 do
-        local unit = "boss" .. i
+        local unit = BOSS_UNITS[i]
         if UnitExists(unit) then
             local ok, unitGUID = pcall(UnitGUID, unit)
             if ok and not (issecretvalue and issecretvalue(unitGUID)) and unitGUID == guid then
@@ -1638,7 +1680,15 @@ local function RegisterEventSounds()
     local function Step()
         -- A clear or a newer registration since this pass began supersedes it.
         if generation ~= ns.soundGeneration then return end
-        local stop = math.min(i + 199, total)
+        -- Each step is a GetEventInfo (which hands back a fresh table) plus a pcall'd
+        -- SetEventSound, against a catalogue of roughly 870 events, and this re-runs on
+        -- ENCOUNTER_START under the healer opt-out, so whatever it costs lands on the
+        -- pull. Both ends of the trade are real and neither is measured: 200 per frame
+        -- was a visible hitch over 5 frames, and 50 stretched the registration to 18,
+        -- which is ~0.3s at 60fps where an ability firing early in a pull has no sound
+        -- registered yet. 100 splits it at ~9 frames. Measure both before moving it
+        -- again; MeasureCall on one Step is enough to price a chunk.
+        local stop = math.min(i + 99, total)
         while i <= stop do
             local info = C_EncounterEvents.GetEventInfo(ids[i])
 
@@ -2551,20 +2601,49 @@ end
 -- and follows whatever the player chose in Blizzard's Text to Speech panel. A stored id for
 -- a voice that is no longer installed falls back rather than going silent, which is what
 -- would otherwise happen after a Windows voice pack is removed.
-function ns.TTSVoiceID()
-    if not (C_VoiceChat and C_VoiceChat.GetTtsVoices) then return 0 end
-    local voices = C_VoiceChat.GetTtsVoices()
-    local want = TRDB().ttsVoiceID
-    if want and voices then
-        for i = 1, #voices do
-            if voices[i].voiceID == want then return want end
+--
+-- Cached, because Speak() resolved this on every single callout: GetTtsVoices builds a fresh
+-- table per call, and "Game Default" -- what everyone is on until they pick a voice -- then
+-- goes through Blizzard's TextToSpeech_GetSelectedVoice, which calls GetTtsVoices a SECOND
+-- time and walks it with a closure.
+--
+-- The key is the stored setting, so the dropdown and a profile switch both invalidate with
+-- no wiring at either site, and VOICE_CHAT_TTS_VOICES_UPDATE catches the installed list.
+-- Blizzard's own Text to Speech panel raises no event when its voice changes, so combat
+-- start drops the cache too, which bounds a stale read to one pull.
+--
+-- Upvalues in a do block rather than file locals: this chunk is at Lua's 200-local ceiling.
+do
+    local cachedWant, cachedID
+
+    function ns.InvalidateTTSVoice()
+        cachedWant, cachedID = nil, nil
+    end
+
+    function ns.TTSVoiceID()
+        local want = TRDB().ttsVoiceID
+        if cachedID and cachedWant == want then return cachedID end
+        if not (C_VoiceChat and C_VoiceChat.GetTtsVoices) then return 0 end
+        local voices = C_VoiceChat.GetTtsVoices()
+        local resolved
+        if want and voices then
+            for i = 1, #voices do
+                if voices[i].voiceID == want then
+                    resolved = want
+                    break
+                end
+            end
         end
+        if not resolved and TextToSpeech_GetSelectedVoice then
+            local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
+            if ok and voice and voice.voiceID then resolved = voice.voiceID end
+        end
+        if not resolved then
+            resolved = (voices and voices[1] and voices[1].voiceID) or 0
+        end
+        cachedWant, cachedID = want, resolved
+        return resolved
     end
-    if TextToSpeech_GetSelectedVoice then
-        local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
-        if ok and voice and voice.voiceID then return voice.voiceID end
-    end
-    return (voices and voices[1] and voices[1].voiceID) or 0
 end
 
 -- Voice list for the options dropdown: values keyed by voiceID, plus a Game Default entry
@@ -2586,12 +2665,38 @@ end
 
 local function Speak(text)
     if not (C_VoiceChat and C_VoiceChat.SpeakText) or not text or text == "" then return end
-    -- The generated docs give (voiceID, text, rate, volume, overlap), but EllesmereUI carries
-    -- a field note that the live client treats the third argument as a destination that must
-    -- be 1. Passing 1 satisfies both readings -- it is a valid rate and the required
-    -- destination -- so this matches their proven call rather than the docs alone.
+    -- (voiceID, text, rate, volume, overlap). The third argument is the RATE, and the
+    -- player's own is what belongs there. This passed a hardcoded 1 on an EllesmereUI field
+    -- note that the live client treats it as a destination that must be 1; that note does
+    -- not hold here. Blizzard's own chat TTS passes C_TTSSettings.GetSpeechRate() into that
+    -- slot (TextToSpeechFrame.lua), and so does ns.SpeakReminderTTS below, which is shipped
+    -- and working -- so this addon already proves the argument is a rate.
+    --
+    -- It is not only correctness. Synthesis happens on the calling thread while the client
+    -- waits, so a slower rate is a longer utterance and a longer stall, and a tank who set a
+    -- fast rate to get callouts out quickly was being overridden into the slowest one.
+    --
+    -- 0 is Blizzard's normal rate, matching SpeakReminderTTS's own fallback. Do not write
+    -- `or 0` against the call itself -- a real 0 is truthy in Lua, so the guard is on the
+    -- API being present, not on the value.
+    local rate = 0
+    if C_TTSSettings and C_TTSSettings.GetSpeechRate then
+        rate = C_TTSSettings.GetSpeechRate() or 0
+    end
     -- Only `text` may carry a secret; every other argument is NeverSecret, and ours are plain.
-    pcall(C_VoiceChat.SpeakText, ns.TTSVoiceID(), text, 1, TRDB().voiceVol or 100, true)
+    --
+    -- /nutank speaktime wraps this one call. debugprofilestop is read as a DELTA and
+    -- debugprofilestart is never called: that global timer belongs to whoever started it,
+    -- and restarting it would corrupt another addon's measurement mid-fight.
+    local p = ns.speakProf
+    local before = p and debugprofilestop() or 0
+    pcall(C_VoiceChat.SpeakText, ns.TTSVoiceID(), text,
+        rate, TRDB().voiceVol or 100, true)
+    if p then
+        local ms = debugprofilestop() - before
+        p.ttsN, p.ttsSum = p.ttsN + 1, p.ttsSum + ms
+        if ms > p.ttsMax then p.ttsMax = ms end
+    end
 end
 
 -- The single place a callout becomes audible, so the sound-or-speech choice is made once
@@ -2811,6 +2916,14 @@ local function SpeakCallout(triggerSid)
 
     -- The model is the last rung of the ladder below, for spells whose cooldown is sealed
     -- and whose cast we have not witnessed. Resync first so it is current.
+    -- /nutank speaktime measures the two halves of a callout separately: deciding what to
+    -- say (here) and saying it (in Speak). Which one costs has been guessed at twice and
+    -- got it wrong twice, so it is measured rather than reasoned about. This half is timed
+    -- here rather than around the whole function because it is contiguous, while the
+    -- function has four exits and a subtraction would go wrong at whichever one got missed.
+    local prof = ns.speakProf
+    local pickedAt = prof and debugprofilestop() or 0
+
     ResyncModel()
     local now = GetTime()
 
@@ -2825,6 +2938,12 @@ local function SpeakCallout(triggerSid)
             if SpellReady(sid, now) then return sid end
         end
     end)
+
+    if prof then
+        local ms = debugprofilestop() - pickedAt
+        prof.pickN, prof.pickSum = prof.pickN + 1, prof.pickSum + ms
+        if ms > prof.pickMax then prof.pickMax = ms end
+    end
 
     -- On failure pcall's second return is the error STRING, which is truthy and would be
     -- announced as though it were the winning spell.
@@ -3743,7 +3862,12 @@ function ns.OnBossCast(event, unit, spellID)
     -- here, and the gate below costs a GetInstanceInfo and three profile reads. Almost
     -- every event is a raid member casting and stops on these two lines instead.
     if type(unit) ~= "string" then return end
-    if not (unit:match("^boss%d") or unit:match("^nameplate%d")) then return end
+    -- Plain find rather than a ^boss%d pattern: this filter IS the per-event cost for
+    -- every cast in the group and on every nameplate, and a pattern match compiles the
+    -- pattern and builds a result string on each hit. Only base unit tokens reach an
+    -- event payload, so a prefix test accepts exactly what the pattern did.
+    local isBoss = unit:find("boss", 1, true) == 1
+    if not (isBoss or unit:find("nameplate", 1, true) == 1) then return end
     if not CustomRemindersAllowed() then return end
 
     -- Who a cast is aimed at, written onto the alert that is ALREADY on screen. Nothing
@@ -3762,7 +3886,7 @@ function ns.OnBossCast(event, unit, spellID)
     -- identical in play and has a different answer -- the switch is off, nothing was on
     -- screen to write on, or the client says this cast names nobody, which is true of most
     -- casts and is not a fault. Logging only the success cost a pull to find that out.
-    if event == "UNIT_SPELLCAST_START" and unit:match("^boss%d") then
+    if event == "UNIT_SPELLCAST_START" and isBoss then
         local why
         if not TRDB().castTargetBoss then why = "target display off"
         -- Asked even with nothing on screen, so a trace of one dungeon answers "which
@@ -4072,16 +4196,14 @@ end
 local function CheckAuraReminder(kind, destGUID, spellID, amount)
     if not (hasCustomReminders and CustomRemindersAllowed()) then return end
     if type(spellID) ~= "number" or type(destGUID) ~= "string" then return end
-    local isPlayer = destGUID == UnitGUID("player")
-    local isBoss = false
-    if not isPlayer then
-        for i = 1, 5 do
-            if destGUID == UnitGUID("boss" .. i) then isBoss = true; break end
-        end
-    end
-    if not (isPlayer or isBoss) then return end
+    -- Ahead of the GUID tests, not after them: this is the check that says whether there
+    -- is anything on this boss to fire at all, and behind it the tests below were being
+    -- paid on every aura line of every boss by anyone with a reminder saved on any of them.
     local set = CustomRemindersTable(false, currentEncounter)
     if not set then return end
+    local isPlayer = destGUID == PlayerGUID()
+    local isBoss = not isPlayer and ns.bossGUIDs[destGUID] == true
+    if not (isPlayer or isBoss) then return end
     for uid, r in pairs(set) do
         local trig = r.trigger
         if r.enabled ~= false and trig and trig.type == "aura" and trig.spellID == spellID
@@ -5338,20 +5460,6 @@ ns.RegisterBossModHooks = RegisterBossModHooks
 -- itself per combat log line would mean several function calls a line instead of one read.
 local runActive = false
 
--- UnitGUID is SecretWhenUnitIdentityRestricted, and that already cost days once on the
--- tank gate (see TankingCaster). Read once from wherever it comes back plainly and kept,
--- rather than called fresh on every combat log line inside a raid, where the answer may
--- not be readable at all. A GUID does not change for the life of the character.
-local playerGUID
-local function PlayerGUID()
-    if playerGUID then return playerGUID end
-    local ok, guid = pcall(UnitGUID, "player")
-    if ok and not (issecretvalue and issecretvalue(guid)) and type(guid) == "string" then
-        playerGUID = guid
-    end
-    return playerGUID
-end
-
 local cleuLines, cleuUsable, cleuOwnAuras = 0, 0, 0
 
 local function OnCombatLog()
@@ -5362,9 +5470,11 @@ local function OnCombatLog()
     -- Custom reminders ride the same registration under their own gate
     -- (hasCustomReminders), independent of runActive: a defensive priority list is
     -- not a prerequisite for a boss-pull reminder. Raid reminders' own aura triggers
-    -- get the same treatment -- checked directly rather than through a synced cache
-    -- flag, since a raid reminder can be added/removed from several different UI
-    -- entry points and a stale flag would silently stop firing until the next one.
+    -- now ride hasRaidReminders, the same shape as hasCustomReminders. That flag was
+    -- live-read here for years because a raid reminder can be added or removed from
+    -- several UI entry points and a stale one silently stops firing; what made the
+    -- cache safe was making every one of those paths call RefreshCustomRemindersFlag,
+    -- so add the refresh before adding another write path.
     -- The dispatcher gates this before the pcall; kept as the function's own contract.
     if currentEncounter == nil then return end
     -- Counted here, ABOVE the secrecy filter, so /nutank can separate three different
@@ -5405,8 +5515,11 @@ local function OnCombatLog()
     end
 
     -- Raid Reminders' own "aura" trigger -- independent of hasCustomReminders, which
-    -- only ever reflects the older CustomRemindersTable.
-    if ns.CheckRaidReminderAuraTriggers and type(spellId) == "number" then
+    -- only ever reflects the older CustomRemindersTable. hasRaidReminders is this
+    -- feature's own cached flag and every edit path refreshes it (RefreshCustomRemindersFlag),
+    -- so it gates the call here instead of the callee re-deriving the same answer -- a
+    -- settings-chain walk and a tostring() per line -- on a boss with none saved.
+    if hasRaidReminders and ns.CheckRaidReminderAuraTriggers and type(spellId) == "number" then
         if sub == "SPELL_AURA_APPLIED" then
             ns.CheckRaidReminderAuraTriggers("applied", destGUID, spellId)
         elseif sub == "SPELL_AURA_REMOVED" then
@@ -5827,6 +5940,47 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             ns.Print(("|cffF0A830trace OFF|r -- %d entries recorded. /nutank export opens them "
                 .. "in a copyable box."):format(type(t.callLog) == "table" and #t.callLog or 0))
         end
+        return
+    end
+
+    -- Splits a callout's cost in two: choosing the defensive, and Windows speaking its
+    -- name. A session flag, not a saved one -- this is measured across one pull and read
+    -- back straight away, and a profiler left on across a reload is a profiler nobody
+    -- remembers turning on.
+    if arg == "speaktime" then
+        local pr = ns.speakProf
+        if not pr then
+            ns.speakProf = { pickN = 0, pickSum = 0, pickMax = 0,
+                             ttsN = 0, ttsSum = 0, ttsMax = 0 }
+            ns.Print("|cff6DD09Acallout timing ON|r -- pull once, then /nutank speaktime "
+                .. "again to stop and read it.")
+            if not TRDB().voiceOn then
+                ns.Print("  |cffff6060this will record nothing:|r Speak Which Defensive to "
+                    .. "Use is off, and that switch gates the whole callout.")
+            end
+            return
+        end
+        ns.speakProf = nil
+        if pr.pickN == 0 then
+            ns.Print("|cffF0A830callout timing OFF|r -- no callouts fired, so there is "
+                .. "nothing to report.")
+            return
+        end
+        ns.Print(("|cff0091edcallout timing|r (build %s), %d callout(s):")
+            :format(BuildString(), pr.pickN))
+        ns.Print(("  choosing the defensive: avg %.2fms, worst %.2fms, total %.0fms")
+            :format(pr.pickSum / pr.pickN, pr.pickMax, pr.pickSum))
+        if pr.ttsN > 0 then
+            ns.Print(("  speaking it: avg %.2fms, worst %.2fms, total %.0fms, %d utterance(s)")
+                :format(pr.ttsSum / pr.ttsN, pr.ttsMax, pr.ttsSum, pr.ttsN))
+        else
+            ns.Print("  speaking it: never reached -- every callout was suppressed or muted.")
+        end
+        -- The whole point of the split. Windows synthesises on the calling thread, so time
+        -- inside SpeakText is the client standing still.
+        local worst = pr.ttsMax > pr.pickMax and "speaking" or "choosing"
+        ns.Print(("  worst single frame was |cffF0A830%s|r, at %.2fms.")
+            :format(worst, math.max(pr.ttsMax, pr.pickMax)))
         return
     end
 
@@ -7603,6 +7757,22 @@ watcher:RegisterEvent("TRAIT_CONFIG_UPDATED")
 -- ShouldRun(), and a Time In Combat reminder has to fire for a player with no defensive
 -- priority list at all (CustomRemindersAllowed is the gate instead).
 watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
+-- Fires whenever the boss1-5 engage units change, which is the only thing that can
+-- invalidate ns.bossGUIDs. Static rather than under UpdateEventRegistration: the aura
+-- triggers that read the cache run under hasCustomReminders/hasRaidReminders, neither of
+-- which is tied to ShouldRun(), so a cache refreshed only on that path would go stale for
+-- exactly the players still using it.
+watcher:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
+-- The engage-unit event is not the only thing that moves a unit in or out of a boss
+-- slot. Blizzard's own boss frames refresh on both it and UNIT_TARGETABLE_CHANGED
+-- (Blizzard_UnitFrame/Mainline/TargetFrame.lua), because a boss that phases in becomes
+-- targetable without the engage list changing. Registered here for the same reason: a
+-- GUID that arrives that way would otherwise stay out of ns.bossGUIDs until the next
+-- engage-unit event, and every aura on that boss is missed for the whole window.
+watcher:RegisterEvent("UNIT_TARGETABLE_CHANGED")
+-- Rare, and all it does is drop a cache: the resolved TTS voice stops being valid once the
+-- installed voice list changes underneath us.
+watcher:RegisterEvent("VOICE_CHAT_TTS_VOICES_UPDATE")
 
 watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     -- FIRST in the chain, and gated before the pcall: this is by far the most frequent
@@ -7618,6 +7788,23 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
         local okL, errL = pcall(OnCombatLog)
         if not okL then
             ns.Print("|cffff6060combat log watch failed|r: " .. ErrText(errL))
+        end
+        return
+    end
+
+    if event == "INSTANCE_ENCOUNTER_ENGAGE_UNIT" then
+        ns.RefreshBossGUIDs()
+        return
+    end
+
+    if event == "UNIT_TARGETABLE_CHANGED" then
+        -- Fires for every unit the client tracks, nameplates included, so both filters
+        -- earn their place: outside a pull nothing reads the cache (both aura readers
+        -- sit behind currentEncounter), and a token that is not boss1-5 cannot change
+        -- what is in it. What survives both is rare enough to refresh all five slots.
+        if currentEncounter ~= nil and type(arg1) == "string"
+            and arg1:find("boss", 1, true) == 1 then
+            ns.RefreshBossGUIDs()
         end
         return
     end
@@ -7638,6 +7825,9 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             ns.ObserveCommitPull(arg1, arg3)
         end
         currentEncounter = starting and arg1 or nil
+        -- INSTANCE_ENCOUNTER_ENGAGE_UNIT covers changes mid-fight; this is the baseline
+        -- for a pull whose units were already up, and the clear on the way out.
+        ns.RefreshBossGUIDs()
         -- Static timeline sounds have no per-fire Lua callback. Refresh their
         -- registration against this encounter's tags when the opt-out is active.
         if not ns.HealerRemindersEnabled() and ns.BossSource() == "timeline" then
@@ -7749,6 +7939,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     if event == "PLAYER_REGEN_DISABLED" then
         -- An ns field, not a chunk local: this chunk is at the 200-local ceiling.
         ns.combatStartedAt = GetTime()
+        -- Blizzard's Text to Speech panel fires nothing when its selected voice changes, so
+        -- re-resolve once per pull instead. Warmed here rather than left lazy so the first
+        -- callout of the fight is not the one paying for the lookup.
+        ns.InvalidateTTSVoice()
+        if TRDB().voiceOn then ns.TTSVoiceID() end
         ns.CheckCombatReminders()
         return
     end
@@ -7760,6 +7955,11 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             -- A combat log toggle skipped because of combat lockdown lands here.
             UpdateEventRegistration()
         end
+        return
+    end
+
+    if event == "VOICE_CHAT_TTS_VOICES_UPDATE" then
+        ns.InvalidateTTSVoice()
         return
     end
 

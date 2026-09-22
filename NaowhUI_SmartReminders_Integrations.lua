@@ -309,12 +309,19 @@ local function UpdateRacial(key)
     local ready, reason = false, "configuration pending or disabled"
     if st.enabled then ready, reason = RacialReady(RACIALS[key].spellID) end
     local muted = not ready
-    st.reason = reason
     if muted ~= st.muted then
         local path = ns.UI.SoundPathFor(key)
         if muted then MuteSoundFile(path) else UnmuteSoundFile(path) end
         st.muted = muted
     end
+    -- SPELL_UPDATE_USABLE and SPELL_UPDATE_COOLDOWN drive this, so in combat it runs with
+    -- an unchanged answer dozens of times a second. The status line is built from
+    -- st.reason and nothing else, so an unchanged reason cannot change it -- rebuilding
+    -- it regardless cost a table, a sort, a concat and two SetText layout passes per
+    -- event. Keyed on reason rather than on `muted` because the two move independently:
+    -- several distinct reasons all mean muted, and the line names which one.
+    if reason == st.reason then return end
+    st.reason = reason
     RacialStatusLine()
     if I.OnStatusChanged then I.OnStatusChanged() end
 end
