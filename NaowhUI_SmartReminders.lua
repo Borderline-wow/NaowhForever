@@ -7647,6 +7647,13 @@ watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
 -- which is tied to ShouldRun(), so a cache refreshed only on that path would go stale for
 -- exactly the players still using it.
 watcher:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
+-- The engage-unit event is not the only thing that moves a unit in or out of a boss
+-- slot. Blizzard's own boss frames refresh on both it and UNIT_TARGETABLE_CHANGED
+-- (Blizzard_UnitFrame/Mainline/TargetFrame.lua), because a boss that phases in becomes
+-- targetable without the engage list changing. Registered here for the same reason: a
+-- GUID that arrives that way would otherwise stay out of ns.bossGUIDs until the next
+-- engage-unit event, and every aura on that boss is missed for the whole window.
+watcher:RegisterEvent("UNIT_TARGETABLE_CHANGED")
 
 watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     -- FIRST in the chain, and gated before the pcall: this is by far the most frequent
@@ -7668,6 +7675,18 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
 
     if event == "INSTANCE_ENCOUNTER_ENGAGE_UNIT" then
         ns.RefreshBossGUIDs()
+        return
+    end
+
+    if event == "UNIT_TARGETABLE_CHANGED" then
+        -- Fires for every unit the client tracks, nameplates included, so both filters
+        -- earn their place: outside a pull nothing reads the cache (both aura readers
+        -- sit behind currentEncounter), and a token that is not boss1-5 cannot change
+        -- what is in it. What survives both is rare enough to refresh all five slots.
+        if currentEncounter ~= nil and type(arg1) == "string"
+            and arg1:find("boss", 1, true) == 1 then
+            ns.RefreshBossGUIDs()
+        end
         return
     end
 
