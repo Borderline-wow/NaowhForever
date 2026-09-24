@@ -265,6 +265,10 @@ function ns.BuildQoLLootPage(parent, y)
             "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
             .. "and prints what it spent. Off by default: it spends gold for you.")
     ); y = y - h
+    local sliders = ns.RestockReagentSliders()
+    for i = 1, #sliders, 2 do
+        _, h = W:DualRow(parent, y, sliders[i], sliders[i + 1] or { type = "label", text = "" }); y = y - h
+    end
 
     return y
 end

@@ -12,27 +12,28 @@ local T = ns.THEME
 -- (build 1.60.1.69913). Each family lists its ranks from lowest; the highest rank you know
 -- sets the reagent, so a rank 2 Prayer of Fortitude asks for Sacred Candles, not Holy.
 local FAMILIES = {
-    { { 20484, 17034 }, { 20739, 17035 }, { 20742, 17036 }, { 20747, 17037 }, { 20748, 17038 } },
-    { { 21849, 17021 }, { 21850, 17026 } },                       -- Gift of the Wild
-    { { 23028, 17020 } },                                         -- Arcane Brilliance
-    { { 3561, 17031 }, { 3562, 17031 }, { 3563, 17031 }, { 3565, 17031 }, { 3566, 17031 },
-      { 3567, 17031 }, { 1297659, 17031 } },                      -- Teleports
-    { { 10059, 17032 }, { 11416, 17032 }, { 11417, 17032 }, { 11418, 17032 },
+    { class = "DRUID", { 20484, 17034 }, { 20739, 17035 }, { 20742, 17036 }, { 20747, 17037 },
+      { 20748, 17038 } },                                         -- Rebirth
+    { class = "DRUID", { 21849, 17021 }, { 21850, 17026 } },      -- Gift of the Wild
+    { class = "MAGE", { 23028, 17020 } },                         -- Arcane Brilliance
+    { class = "MAGE", { 3561, 17031 }, { 3562, 17031 }, { 3563, 17031 }, { 3565, 17031 },
+      { 3566, 17031 }, { 3567, 17031 }, { 1297659, 17031 } },     -- Teleports
+    { class = "MAGE", { 10059, 17032 }, { 11416, 17032 }, { 11417, 17032 }, { 11418, 17032 },
       { 11419, 17032 }, { 11420, 17032 } },                       -- Portals
-    { { 19752, 17033 } },                                         -- Divine Intervention
-    { { 25782, 21177 }, { 25916, 21177 }, { 25890, 21177 }, { 25894, 21177 },
+    { class = "PALADIN", { 19752, 17033 } },                      -- Divine Intervention
+    { class = "PALADIN", { 25782, 21177 }, { 25916, 21177 }, { 25890, 21177 }, { 25894, 21177 },
       { 25918, 21177 }, { 25895, 21177 }, { 25898, 21177 } },     -- Greater Blessings
-    { { 21562, 17028 }, { 21564, 17029 } },                       -- Prayer of Fortitude
-    { { 27681, 17029 } },                                         -- Prayer of Spirit
-    { { 27683, 17029 } },                                         -- Prayer of Shadow Protection
-    { { 20608, 17030 }, { 21169, 17030 }, { 27740, 17030 } },     -- Reincarnation
-    { { 18540, 16583 } },                                         -- Ritual of Doom
-    { { 1122, 5565 }, { 24670, 5565 } },                          -- Inferno
-    { { 1856, 5140 }, { 1857, 5140 }, { 27617, 5140 }, { 457437, 5140 },
+    { class = "PRIEST", { 21562, 17028 }, { 21564, 17029 } },     -- Prayer of Fortitude
+    { class = "PRIEST", { 27681, 17029 } },                       -- Prayer of Spirit
+    { class = "PRIEST", { 27683, 17029 } },                       -- Prayer of Shadow Protection
+    { class = "SHAMAN", { 20608, 17030 }, { 21169, 17030 }, { 27740, 17030 } }, -- Reincarnation
+    { class = "WARLOCK", { 18540, 16583 } },                      -- Ritual of Doom
+    { class = "WARLOCK", { 1122, 5565 }, { 24670, 5565 } },       -- Inferno
+    { class = "ROGUE", { 1856, 5140 }, { 1857, 5140 }, { 27617, 5140 }, { 457437, 5140 },
       { 1285372, 5140 } },                                        -- Vanish
 }
 
--- How many of each reagent to carry.
+-- How many of each reagent to carry, unless the player sets their own.
 local TARGETS = {
     [17034] = 5, [17035] = 5, [17036] = 5, [17037] = 5, [17038] = 5,
     [17021] = 20, [17026] = 20,
@@ -58,6 +59,10 @@ local function ItemName(itemID)
     return C_Item.GetItemNameByID(itemID) or ("item " .. itemID)
 end
 
+local function Target(itemID)
+    return S.Get("restockTarget" .. itemID) or TARGETS[itemID]
+end
+
 -- itemID -> quantity wanted: the reagents for the spells you know, plus your equipped ammo.
 local function Wanted()
     local want = {}
@@ -67,7 +72,7 @@ local function Wanted()
             for _, rank in ipairs(family) do
                 if IsPlayerSpell(rank[1]) then item = rank[2] end
             end
-            if item then want[item] = TARGETS[item] end
+            if item and Target(item) > 0 then want[item] = Target(item) end
         end
     end
     local ammo = S.Get("restockAmmo") and GetInventoryItemID("player", AMMO_SLOT)
@@ -94,6 +99,27 @@ local function ScanBags()
         end
     end
     return food, junk, free
+end
+
+-- A target slider for each reagent your class uses, for the options page.
+function ns.RestockReagentSliders()
+    local class = select(2, UnitClass("player"))
+    local sliders, seen = {}, {}
+    for _, family in ipairs(FAMILIES) do
+        if family.class == class then
+            for _, rank in ipairs(family) do
+                local item = rank[2]
+                if not seen[item] then
+                    seen[item] = true
+                    local slider = S.Slider("restockTarget" .. item, ItemName(item), 0, 200, 1,
+                        "How many to carry. 0 stops reminding you about it.", "restockReagents")
+                    slider.getValue = function() return Target(item) end
+                    sliders[#sliders + 1] = slider
+                end
+            end
+        end
+    end
+    return sliders
 end
 
 local function Lines()
