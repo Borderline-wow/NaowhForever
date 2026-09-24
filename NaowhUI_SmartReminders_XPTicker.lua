@@ -87,8 +87,8 @@ end
 
 -- A level first seen part way through has no start: the splits behind us are unknown and
 -- the one in progress is partial, so neither is compared.
-local function StartLevel(fromStart)
-    cur = { level = UnitLevel("player"), n = S.Get("xpTickerSplitCount"), splits = {}, base = 0,
+local function StartLevel(fromStart, level)
+    cur = { level = level or UnitLevel("player"), n = S.Get("xpTickerSplitCount"), splits = {}, base = 0,
         splitStart = 0 }
     anchor = not paused and GetTime() or nil
     cur.idx = fromStart and 1 or SplitIndex()
@@ -107,7 +107,9 @@ local function CloseSplitsTo(newIdx)
     cur.splitStart = now
 end
 
-local function TrackSplits()
+-- PLAYER_LEVEL_UP arrives before UnitLevel and the XP bar move to the new level, so the
+-- level is closed from its payload, and splits wait until UnitLevel catches up.
+local function TrackSplits(newLevel)
     if AtMaxLevel() then return end
     if not cur then
         local saved = Splits().current
@@ -117,12 +119,15 @@ local function TrackSplits()
             StartLevel(false)
         end
     end
-    if UnitLevel("player") > cur.level then
+    local level = newLevel or UnitLevel("player")
+    if level > cur.level then
         CloseSplitsTo(cur.n + 1)
         Splits().levels[cur.level] = { n = cur.n, splits = cur.splits, partialIdx = cur.partialIdx,
             total = not cur.partial and LevelTime() or nil }
-        StartLevel(true)
+        StartLevel(true, level)
+        return
     end
+    if level < cur.level then return end
     local idx = SplitIndex()
     if idx > cur.idx then CloseSplitsTo(idx) end
 end
@@ -221,7 +226,7 @@ function ns.XPTickerCommand(arg)
 end
 
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event)
+events:SetScript("OnEvent", function(_, event, arg1)
     if event == "PLAYER_LOGOUT" then
         if cur then cur.base = LevelTime() end
         return
@@ -232,7 +237,7 @@ events:SetScript("OnEvent", function(_, event)
         lastXP, lastXPMax = xp, max
         if not paused then sessionXP = sessionXP + gained end
     end
-    if S.Get("xpTickerSplits") then TrackSplits() end
+    if S.Get("xpTickerSplits") then TrackSplits(event == "PLAYER_LEVEL_UP" and arg1 or nil) end
     Update()
 end)
 
