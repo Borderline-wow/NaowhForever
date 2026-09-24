@@ -26,10 +26,12 @@ local function Status(questID)
     return MISSING
 end
 
-local function ForFaction(side, all)
-    if side == "B" or all then return true end
-    local faction = UnitFactionGroup("player")
-    return (side == "A" and faction == "Alliance") or (side == "H" and faction == "Horde")
+-- Your faction's quests and your class's class quests; all lists every quest.
+local function ForMe(quest, all)
+    if all then return true end
+    if quest.class and quest.class ~= select(2, UnitClass("player")) then return false end
+    local side, faction = quest[4], UnitFactionGroup("player")
+    return side == "B" or (side == "A" and faction == "Alliance") or (side == "H" and faction == "Horde")
 end
 
 -- The client's title when it has one (in the player's language), the guide's otherwise.
@@ -97,7 +99,7 @@ local function Render(dungeons)
     for _, dungeon in ipairs(dungeons) do
         if #dungeons > 1 then lines[#lines + 1] = "|cff4db5f5" .. dungeon.name .. "|r" end
         for _, quest in ipairs(dungeon.quests) do
-            if ForFaction(quest[4]) then
+            if ForMe(quest) then
                 local status = Status(quest[1])
                 if status == ACTIVE then inLog = inLog + 1 end
                 if status == MISSING then missing = missing + 1 end
@@ -123,7 +125,7 @@ end)
 local function HasQuestsForMe(dungeons)
     for _, dungeon in ipairs(dungeons) do
         for _, quest in ipairs(dungeon.quests) do
-            if ForFaction(quest[4]) then return true end
+            if ForMe(quest) then return true end
         end
     end
 end
@@ -196,7 +198,7 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("dqAllFactions", "Show Both Factions",
-            "List the other faction's quests on this page too."),
+            "List the other faction's quests, and other classes' class quests, on this page too."),
         { type = "label", text = "" }
     ); y = y - h
 
@@ -204,7 +206,7 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
     for _, dungeon in ipairs(ns.DungeonQuests) do
         _, h = W:SectionHeader(parent, dungeon.name:upper(), y); y = y - h
         for _, quest in ipairs(dungeon.quests) do
-            if ForFaction(quest[4], all) then
+            if ForMe(quest, all) then
                 local status = Status(quest[1])
                 if status ~= DONE or S.Get("dqShowDone") then
                     local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
@@ -231,6 +233,7 @@ hooksecurefunc(S, "Set", function(key)
 end)
 hooksecurefunc(ns, "Apply", Refresh)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
+    if not (S.Get("enabled") and S.Get("dqTracker")) then return end
     if not panel then BuildPanel() end
     Render(byMap[UnitFactionGroup("player") == "Horde" and 389 or 36])
     panel.mover:Show()
