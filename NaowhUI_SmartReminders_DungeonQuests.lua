@@ -43,6 +43,21 @@ end
 
 local SHARE = { [true] = "Shareable", [false] = "Not shareable", pre = "Needs a prerequisite" }
 
+-- Marks where the quest giver stands. The tracking arrow is not confirmed on Forever, so the
+-- waypoint goes on the map either way.
+local function SetWaypoint(quest)
+    local map = quest[7]
+    if not C_Map.CanSetUserWaypointOnMap(map) then
+        ns.Print("That quest giver's map does not take waypoints.")
+        return
+    end
+    C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, quest[8] / 100, quest[9] / 100))
+    if C_SuperTrack then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+    local info = C_Map.GetMapInfo(map)
+    ns.Print(("Waypoint for %s: %s %.1f, %.1f"):format(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2],
+        info and info.name or "", quest[8], quest[9]))
+end
+
 -------------------------------------------------------------------------------
 --  In the dungeon
 -------------------------------------------------------------------------------
@@ -136,10 +151,15 @@ end
 -------------------------------------------------------------------------------
 --  The page
 -------------------------------------------------------------------------------
-local function Row(parent, y, text, sub)
+local function Row(parent, y, text, sub, onWaypoint)
     local UI = ns.UI
     local x = UI.CONTENT_PAD + 20
     local width = (parent:GetWidth() or 0) > 0 and parent:GetWidth() or 960
+    if onWaypoint then
+        local btn = ns.Button(parent, "Waypoint", 80, 20, onWaypoint)
+        btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x, y - 2)
+        width = width - 90
+    end
     local fs = ns.Font(parent, 13, nil)
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - 4)
     fs:SetWidth(width - x * 2)
@@ -163,7 +183,8 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
     local W = UI.Widgets
     local _, h
     _, h = W:Note(parent, "Every dungeon quest on WoW Forever and where it starts, from Wowhead's "
-        .. "Forever dungeon quest guide. Levels are coloured like your quest log.", y); y = y - h
+        .. "Forever dungeon quest guide. Levels are coloured like your quest log. Waypoint marks "
+        .. "the quest giver on your map.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "DUNGEON QUEST TRACKER" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -188,7 +209,8 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
                 if status ~= DONE or S.Get("dqShowDone") then
                     local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
                     y = y - Row(parent, y, Title(quest) .. side .. "  " .. status,
-                        quest[6] .. "  -  " .. SHARE[quest[5]])
+                        quest[6] .. "  -  " .. SHARE[quest[5]],
+                        quest[7] and function() SetWaypoint(quest) end)
                 end
             end
         end
