@@ -1488,21 +1488,6 @@ local function RaidRemindersAllowed()
     return ns.DB().enabled == true and ns.BossAllowed()
 end
 
-function ns.HideIntegrationReminders(previewOnly)
-    for _, a in pairs(anchors) do
-        for i = #a.active, 1, -1 do
-            local r = a.active[i]
-            local entry = r.reminderEntry
-            if entry and entry.integration and (not previewOnly or entry.integrationPreview) then
-                ReleaseRegion(a, r)
-            end
-        end
-    end
-    -- Integration reminders draw through the authored-reminder frame, not these regions;
-    -- the loop above only still matters for anything saved before that moved.
-    if ns.HideIntegrationCustomReminder then ns.HideIntegrationCustomReminder(previewOnly) end
-end
-
 -- Capture ownership, not just the entry: an editor replaces/deletes the table value,
 -- and a profile switch can leave an otherwise enabled entry belonging to old settings.
 local function ReminderStillCurrent(reminders, uid, entry)

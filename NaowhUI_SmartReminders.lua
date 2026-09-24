@@ -104,23 +104,6 @@ local function TRDB()
             if bare then t.callouts[id] = bare end
         end
     end
-    -- Trash rules were saved with a generic "Use a defensive" line the editor minted for
-    -- them; the page has never had a text box for anyone to have typed it in. A rule
-    -- carrying it has no line of its own, and a blank one answers with the spec's preset
-    -- instead of speaking a placeholder over icons that have already gone dark.
-    if type(t.integrationRules) == "table" then
-        for _, rules in pairs(t.integrationRules) do
-            if type(rules) == "table" then
-                for _, rule in pairs(rules) do
-                    if type(rule) == "table" and type(rule.display) == "table"
-                        and type(rule.trigger) == "table" and rule.trigger.type == "exboss"
-                        and rule.display.text == "Use a defensive" then
-                        rule.display.text = ""
-                    end
-                end
-            end
-        end
-    end
     -- Call Together was briefly stored as a chain to the entry below before it became a set
     -- ticked per entry. Nothing reads the old key, so it is dead weight in the saved file.
     if type(t.presets) == "table" then
@@ -302,14 +285,6 @@ function ns.DeletePreset(forSpec, presetKey)
                     .. "' before deleting this preset.")
                 return false
             end
-        end
-    end
-    local integrationRules = t.integrationRules and t.integrationRules[tostring(forSpec or 0)]
-    for _, rule in pairs(integrationRules or {}) do
-        if rule.preset == presetKey then
-            ns.Print("Reassign or delete trash rule '" .. (rule.name or "Reminder")
-                .. "' before deleting this preset.")
-            return false
         end
     end
     presets[presetKey] = nil
@@ -3127,8 +3102,6 @@ local function HideReminder()
     if hideTimer then hideTimer:Cancel(); hideTimer = nil end
     ns.activeAuthoredReminder = nil
     shownForEvent = nil
-    -- On ns rather than chunk locals: this chunk is already at Lua's 200-local ceiling.
-    ns.integrationShowing, ns.integrationWasPreview = nil, nil
     -- Undo any Preview-specific elevation so a real fight never inherits it.
     if frame then frame:SetFrameStrata("HIGH") end
     if textFrame then textFrame:SetFrameStrata("HIGH") end
@@ -3439,15 +3412,6 @@ ns.RefreshCustomRemindersFlag = RefreshCustomRemindersFlag
 
 
 
--- Trash rules occupy the defensive alert now, so the integration hide path has to reach it
--- as well as the raid-reminder regions it already walks -- otherwise one test sits on
--- screen until its own timer runs out instead of being replaced by the next.
-function ns.HideIntegrationCustomReminder(previewOnly)
-    if not ns.integrationShowing then return end
-    if previewOnly and not ns.integrationWasPreview then return end
-    HideReminder()
-end
-
 -- The best still-available defensive in an ordered spellID list, decided at fire time by
 -- the same ladder the main callout uses -- shared by preset resolution below and by a
 -- per-ability override list (EffectiveList's own fp-keyed layer, see FireCustomReminder).
@@ -3588,7 +3552,6 @@ local function ShowOnAlert(opts)
     -- Not a spell id, and never compared against one: it marks the alert as occupied so a
     -- general rebuild or the options preview cannot pull it off screen mid-display.
     shownForEvent = "authored"
-    ns.integrationShowing, ns.integrationWasPreview = true, opts.preview or nil
     -- An editor's Preview fires from inside a modal at FULLSCREEN_DIALOG, which HIGH sits
     -- well below. HideReminder drops both back, so the elevation never leaks into a fight.
     if opts.preview then
@@ -3660,41 +3623,6 @@ function ns.DisplayReminder(r)
         return ns.FireMessageDefensive(r)
     end
     return FireCustomReminder(r)
-end
-
--- Which preset a trash rule answers with, resolved per fire rather than stamped when the
--- rule was saved. Preset keys are allocated per spec, so a key written on one spec, or
--- arriving inside a pack, names a different list here or none at all -- and the fire path
--- takes a key as an override with no fall-through, which makes a stale one a rule that
--- silently never calls anything (CopyRemindersFromSpec carries the same note).
---
--- An empty line means "answer with the preset", not "say nothing": this page has had no
--- text box since these moved from free text to presets, so only rules saved before that
--- carry a line of their own, and those are still asking for the line rather than for a
--- defensive.
-function ns.IntegrationPreset(rule)
-    if not (rule.trigger and rule.trigger.type == "exboss") then return rule.preset end
-    local d = rule.display
-    if type(d) == "table" and type(d.text) == "string" and d.text ~= "" then return rule.preset end
-    local presets = PresetsTable(specID, false)
-    if rule.preset and presets and presets[rule.preset] then return rule.preset end
-    return ActivePresetKey(specID)
-end
-
--- Trash and debuff rules take the same renderer as every other authored reminder: a rule
--- answering with a preset is asking the question the alert already answers, and one with
--- only custom text takes the alert's own text row.
-function ns.DisplayIntegrationReminder(rule, preview)
-    if not rule or not rule.display then return end
-    local d = rule.display
-    ShowOnAlert({
-        preset = ns.IntegrationPreset(rule),
-        text = d.text,
-        dur = d.dur,
-        audio = d,
-        preview = preview,
-        resolveFrom = rule,
-    })
 end
 
 -- The editor's Preview button fires from inside its own modal (FULLSCREEN_DIALOG), which

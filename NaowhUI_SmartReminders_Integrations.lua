@@ -1,11 +1,8 @@
--- Optional trash predictions and native aura sounds. No aura data is read.
+-- Native aura sounds for debuff alerts. No aura data is read.
 local ns = _G.NaowhUITankReminder
 local I = {}
 ns.Integrations = I
-local pending, sounds = {}, {}
-local delivered = setmetatable({}, { __mode = "k" })
-local hooked, running = nil, false
-local revision = 0
+local sounds = {}
 -- No cap on how many rules a spec may hold. The 32 that used to sit here was this addon's
 -- own choice, not the client's: AddAuraSound has no documented limit, it returns nil when
 -- the client declines a registration, and that refusal is already reported below. Worse,
@@ -48,55 +45,6 @@ function I.Rules(create)
     end
     return db.integrationRules and db.integrationRules[spec]
 end
--- Read the installed timer provider's static catalogue; never copy or modify it.
--- Its dungeon keys are challenge IDs, while reminder filters are instance IDs.
-function I.Catalogue()
-    local api = _G.EXBossData
-    if type(api) ~= "table" or type(api.GetTrashCDDataRoot) ~= "function"
-        or type(api.GetEncounterDataRoot) ~= "function" then return {} end
-    local ok, trash = pcall(api.GetTrashCDDataRoot)
-    local mapsOK, encounter = pcall(api.GetEncounterDataRoot)
-    if not ok or not mapsOK or not Table(trash) or not Table(encounter) then return {} end
-    local byName, out = {}, {}
-    for key, row in pairs(encounter.maps or encounter) do
-        if type(row) == "table" and type(row.mapName) == "string" then
-            local id = tonumber(row.instanceID or row.instanceId or row.mapID or key)
-            if id then
-                local prior = byName[row.mapName]
-                if prior ~= nil and prior ~= id then byName[row.mapName] = false
-                else byName[row.mapName] = id end
-            end
-        end
-    end
-    for key, dungeon in pairs(trash) do
-        local instanceID = type(dungeon) == "table" and byName[dungeon.mapName]
-        if instanceID then
-            local name = C_ChallengeMode and C_ChallengeMode.GetMapUIInfo(tonumber(key))
-            local entry = { id = instanceID, name = name or dungeon.mapName, abilities = {} }
-            local seen = {}
-            for npcID, mob in pairs(dungeon.mobs or {}) do
-                for spellID in pairs(mob.spells or {}) do
-                    if type(spellID) == "number" and not seen[spellID] then
-                        seen[spellID] = true
-                        local info = C_Spell and C_Spell.GetSpellInfo(spellID)
-                        local locale = (_G.EXBOSS_TRASH_CD_LOCALE or {})[npcID] or {}
-                        entry.abilities[#entry.abilities + 1] = { spellID = spellID,
-                            name = info and info.name or ("Spell " .. spellID),
-                            icon = info and info.iconID,
-                            mob = locale[GetLocale()] or locale.enUS or ("NPC " .. npcID) }
-                    end
-                end
-            end
-            table.sort(entry.abilities, function(a, b)
-                if a.name == b.name then return a.spellID < b.spellID end
-                return a.name < b.name
-            end)
-            out[#out + 1] = entry
-        end
-    end
-    table.sort(out, function(a, b) return a.name < b.name end)
-    return out
-end
 function I.ValidRule(r)
     if not Table(r) or not Table(r.trigger) or not Table(r.display) then return false end
     local t, d = r.trigger, r.display
@@ -116,6 +64,7 @@ function I.ValidRule(r)
     if r.preset ~= nil and (type(r.preset) ~= "string" or #r.preset > 120) then return false end
     -- A racial you cast on yourself cannot answer for a debuff on somebody else.
     if RACIALS[d.sound] and (t.type ~= "auraSound" or t.target ~= "player") then return false end
+    -- ExBoss trash rules no longer run, but still validate so older profiles and packs import.
     if t.type == "exboss" then return Number(t.timeleft, 0, 30) end
     return (t.target == "player" or t.target == "party")
         and (t.auraEvent == "Added" or t.auraEvent == "ApplicationsIncreased" or t.auraEvent == "Removed")
@@ -132,143 +81,14 @@ local function Eligible(r, kind)
     return (instance == "party" or instance == "raid")
         and (r.trigger.mapID == 0 or r.trigger.mapID == map)
 end
-local function ClearPending(id)
-    local entries = pending[id]
-    pending[id] = nil
-    if entries then
-        for _, e in pairs(entries) do if e.handle then e.handle:Cancel() end end
-    end
-end
-local function ClearAll()
-    for id in pairs(pending) do ClearPending(id) end
-    ns.PruneCustomReminderTimers()
-end
--- One renderer for every reminder this addon draws: the preset resolution and the icon
--- both happen inside it, so a trash callout is the same object on screen as an authored
--- one rather than a lookalike built here.
-local function Display(rule, preview)
-    ns.DisplayIntegrationReminder(rule, preview)
-end
 function I.Preview(rule)
-    if not I.ValidRule(rule) or not ns.IsReminderEnabled(rule, true) then return end
-    if rule.trigger.type == "auraSound" then
-        -- Preview has a separate file: never unmute a live registration for a test.
-        local racial = RACIALS[rule.display.sound]
-        if racial then
-            ns.PlayReminderSound({ sound = racial.preview })
-        else ns.PlayReminderSound(rule.display) end
-    else
-        ns.HideIntegrationReminders(true)
-        Display(rule, true)
-    end
-end
-local function TimerAt(scheduler, id)
-    local all = scheduler:GetActiveTimers()
-    return Table(all) and all[id] or nil
-end
-function I.ObserveTimer(scheduler, id)
-    if not running or not Number(id, 1, 1000000000) then return end
-    local timer = TimerAt(scheduler, id)
-    if not Table(timer) or not Plain(timer.source) or timer.source ~= "trash"
-        or not Number(timer.spellID, 1, 100000000) or not Number(timer.castTime, 0, 10000000000) then return end
-    local rules = I.Rules(false)
-    local at, generation = timer.castTime, revision
-    local anchor
-    if Plain(timer.trashFixedCombatTimeline) and timer.trashFixedCombatTimeline == true then
-        anchor = at
-    elseif Table(timer.trashRuntime) and Table(timer.trashRuntime.nextSpellAnchorAt) then
-        local value = timer.trashRuntime.nextSpellAnchorAt[timer.spellID]
-        if Number(value, 0, 10000000000) then anchor = value end
-    end
-    for uid, rule in pairs(rules or {}) do
-        local prior = delivered[timer] and delivered[timer][rule]
-        -- Anchor changes identify a new observed cast cycle. Without an anchor,
-        -- keep deadline corrections quiet until the previously announced cycle ends.
-        local alreadyDelivered = prior and ((anchor ~= nil and prior.anchor == anchor)
-            or (anchor == nil and (prior.at == at or GetTime() < prior.at)))
-        if alreadyDelivered then prior.at = at end
-        if Eligible(rule, "exboss") and rule.trigger.spellID == timer.spellID
-            and not alreadyDelivered then
-            local old = pending[id] and pending[id][uid]
-            if not old or old.at ~= at or old.anchor ~= anchor or old.rule ~= rule then
-                if old and old.handle then old.handle:Cancel() end
-                local entry = { at = at, anchor = anchor, rule = rule }
-                pending[id] = pending[id] or {}
-                pending[id][uid] = entry
-                local function Valid()
-                    if not running or revision ~= generation or I.Rules(false) ~= rules
-                        or rules[uid] ~= rule or not Eligible(rule, "exboss")
-                        or not pending[id] or pending[id][uid] ~= entry then return false end
-                    local current = TimerAt(scheduler, id)
-                    return Table(current) and current == timer and Plain(current.castTime) and current.castTime == at
-                        and Plain(current.source) and current.source == "trash"
-                end
-                local delay = at - GetTime() - rule.trigger.timeleft
-                if at > GetTime() then
-                    local tracked = ns.TrackReminderTimer("exboss", math.max(0.01, delay), function()
-                        entry.handle = nil
-                        if Valid() then
-                            entry.fired = true
-                            delivered[timer] = delivered[timer] or setmetatable({}, { __mode = "k" })
-                            delivered[timer][rule] = { at = at, anchor = anchor }
-                            Display(rule)
-                        end
-                    end, nil, Valid)
-                    entry.handle = tracked and tracked.handle
-                end
-            end
-        end
-    end
-    ns.PruneCustomReminderTimers()
-end
-local NO_ENGINE = "|cffff6060ExBoss is missing or too old, so no trash alert can fire.|r "
-    .. "The ability list needs it too."
--- The scheduler ExBoss hangs its trash timers off. One check answers for the whole tab:
--- EXBoss lists EXBossData, which the ability list is built from, in its RequiredDeps.
-local function Engine()
-    local scheduler = ExBoss and ExBoss.Timeline and ExBoss.Timeline.Scheduler
-    if not scheduler or type(scheduler.GetActiveTimers) ~= "function"
-        or type(scheduler.RegisterTrashLocalTimer) ~= "function"
-        or type(scheduler._RemoveActiveTimerByID) ~= "function" then return nil end
-    return scheduler
-end
-local function Connect()
-    local scheduler = Engine()
-    if not scheduler then
-        I.trashStatus = NO_ENGINE
-        return
-    end
-    if hooked and hooked ~= scheduler then
-        I.trashStatus = "The trash timer engine changed; reload before using trash alerts."
-        return
-    end
-    if not hooked then
-        -- Compatibility adapter for the inspected Exboss scheduler. Post-hooks only;
-        -- no method replacement, foreign state mutation, inferred spell IDs or polling.
-        hooked = scheduler
-        hooksecurefunc(scheduler, "RegisterTrashLocalTimer", function(self, runtime, _, spell)
-            if not running or not Table(runtime) or not Table(spell)
-                or not Number(spell.spellID, 1, 100000000) then return end
-            local ids = runtime.localTimerIDsBySpellID
-            if Table(ids) then I.ObserveTimer(self, ids[spell.spellID]) end
-        end)
-        -- Fixed combat timelines advance in place without RegisterTrashLocalTimer.
-        if type(scheduler._AdvanceTrashFixedCombatTimeline) == "function" then
-            hooksecurefunc(scheduler, "_AdvanceTrashFixedCombatTimeline", function(self, timer)
-                if running and Table(timer) and Number(timer.id, 1, 1000000000) then
-                    I.ObserveTimer(self, timer.id)
-                end
-            end)
-        end
-        hooksecurefunc(scheduler, "_RemoveActiveTimerByID", function(_, id)
-            if not running or not Number(id, 1, 1000000000) then return end
-            ClearPending(id)
-            ns.PruneCustomReminderTimers()
-        end)
-    end
-    I.trashStatus = "Trash timers connected. Alerts predict readiness, not a confirmed cast."
-    local all = scheduler:GetActiveTimers()
-    if Table(all) then for id in pairs(all) do I.ObserveTimer(scheduler, id) end end
+    if not I.ValidRule(rule) or rule.trigger.type ~= "auraSound"
+        or not ns.IsReminderEnabled(rule, true) then return end
+    -- Preview has a separate file: never unmute a live registration for a test.
+    local racial = RACIALS[rule.display.sound]
+    if racial then
+        ns.PlayReminderSound({ sound = racial.preview })
+    else ns.PlayReminderSound(rule.display) end
 end
 local function RestrictionBusy()
     local api, types = C_RestrictedActions, Enum and Enum.AddOnRestrictionType
@@ -421,16 +241,6 @@ local function RefreshSounds()
         or (count .. " aura sound registrations active. Changes apply outside combat.")
 end
 function I.Refresh()
-    revision = revision + 1
-    running = false
-    ClearAll()
-    if ns.HideIntegrationReminders then ns.HideIntegrationReminders() end
-    for _, rule in pairs(I.Rules(false) or {}) do
-        if Eligible(rule, "exboss") then running = true end
-    end
-    if not Engine() then I.trashStatus = NO_ENGINE
-    elseif running then Connect()
-    else I.trashStatus = "No enabled trash rules for this instance and spec." end
     RefreshSounds()
     -- The cast watch is built from these rules, and this is the one place that knows they
     -- changed: zoning, a spec swap and every edit all land here.
@@ -554,7 +364,7 @@ events:SetScript("OnEvent", function(_, event, name, state)
             return
         end
     end
-    if event == "ADDON_LOADED" and name ~= "EXBoss" and name ~= "NaowhSmartReminders" then return end
+    if event == "ADDON_LOADED" and name ~= "NaowhSmartReminders" then return end
     if event == "PLAYER_SPECIALIZATION_CHANGED" and name ~= "player" then return end
     I.Refresh()
 end)

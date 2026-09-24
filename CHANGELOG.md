@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+- The Trash tab and its ExBoss trash cooldown alerts. ExBoss does not run on Forever, so
+  nothing on the tab could fire. Debuff alerts are unaffected. Trash rules already saved in
+  a profile or a shared pack still load, they just no longer do anything.
+
 ## 1.4.25
 
 ### Fixed

@@ -35,11 +35,10 @@ local MODULES = {
           { name = "Cooldown Presets", build = "BuildPresetsPage" },
           { name = "Dungeon Bosses", build = "BuildBossTabPage", arg = false },
           { name = "Raid Bosses", build = "BuildBossTabPage", arg = true },
-          { name = "Trash", build = "BuildIntegrationsPage" },
           { name = "Custom Notes", soon = "Your own note lines, driven by the same triggers "
               .. "the reminders use. Not finished yet.\n\nNothing is missing in the meantime: "
-              .. "reminders still carry their own text, set per reminder from the boss and "
-              .. "trash pages." },
+              .. "reminders still carry their own text, set per reminder from the boss "
+              .. "pages." },
       } },
     { name = "QoL", settings = "QoLSettings",
       subtitle = "Naowh's quality of life tweaks, trimmed to what Forever has.",
