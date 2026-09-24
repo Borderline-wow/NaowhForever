@@ -337,12 +337,19 @@ lootWatch:SetScript("OnEvent", function(_, event, _, arg2)
     if event == "LOOT_READY" then
         if IsShiftKeyDown() then return end
         lootHidden = AllTakeable()
+        lootGen = lootGen + 1
         local gen = lootGen
-        for i = 1, GetNumLootItems() do
+        local count = GetNumLootItems()
+        for i = 1, count do
             C_Timer.After(0.05 * i, function()
                 if gen == lootGen then LootSlot(i) end
             end)
         end
+        -- Still open a second after the last slot: something could not be taken (unique,
+        -- max count, locked), so the player gets the window back.
+        C_Timer.After(0.05 * count + 1, function()
+            if gen == lootGen then ShowLootWindow() end
+        end)
     elseif event == "LOOT_CLOSED" then
         -- The window is still playing its close animation here; it gets its size back once
         -- that finishes, so it never flashes on the way out.
