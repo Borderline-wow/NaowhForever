@@ -235,7 +235,8 @@ end
 
 -- The client hides the player's auras from addons during combat, where this read comes back
 -- empty with the buff up, so the icon keeps whatever it last showed until the fight ends.
-function Refresh()
+-- InCombatLockdown() is still false while PLAYER_REGEN_DISABLED is handled.
+function Refresh(_, event)
     if not icon then return end
     if unlocked then
         ShowUp(3600, GetTime() + 2400, "Camp Chair\nFish Bowl")
@@ -248,7 +249,7 @@ function Refresh()
         SetAlert(false)
         return
     end
-    if InCombatLockdown() then
+    if InCombatLockdown() or event == "PLAYER_REGEN_DISABLED" then
         alertGen = alertGen + 1
         SetAlert(false)
         return
