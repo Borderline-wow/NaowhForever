@@ -61,8 +61,9 @@ function ns.BuildQoLGeneralPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("xpTicker", "XP per Hour",
             "Your experience per hour on screen, with time to level, session length and "
-            .. "XP this session, counted from when you logged in. Hidden at max level. Move it "
-            .. "in Unlock Mode."),
+            .. "XP this session, counted from when you logged in. Hidden at max level. Hover it "
+            .. "for Start, Pause and Reset (also /naowh xp start, pause or reset). Move it in "
+            .. "Unlock Mode."),
         S.Toggle("xpTickerLevel", "Show Ding Time",
             "How long the next level takes at your current rate.", "xpTicker")
     ); y = y - h

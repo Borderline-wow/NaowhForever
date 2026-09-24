@@ -604,8 +604,11 @@ SLASH_NAOWHUISMARTREM2 = "/naowh"
 SLASH_NAOWHUISMARTREM3 = "/nao"
 SLASH_NAOWHUISMARTREM4 = "/nsr"
 SlashCmdList["NAOWHUISMARTREM"] = function(msg)
-    if strtrim(msg or ""):lower() == "quiz" and ns.ToggleQuiz then
+    local cmd, arg = strtrim(msg or ""):lower():match("^(%S*)%s*(.-)$")
+    if cmd == "quiz" and ns.ToggleQuiz then
         ns.ToggleQuiz()
+    elseif cmd == "xp" and ns.XPTickerCommand then
+        ns.XPTickerCommand(arg)
     else
         ns.ToggleOptionsWindow()
     end

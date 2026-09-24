@@ -12,6 +12,9 @@ local GAIN, LOSS, DIM = "|cff4ade80", "|cfff87171", "|cff9ca3af"
 
 local ticker, clock, clockRate, unlocked
 local sessionStart, sessionXP = 0, 0
+-- Paused time is left out of the session clock and the level splits alike, and XP earned
+-- while paused is not counted. pausedAt is the GetTime() the current pause began.
+local paused, pausedAt, pausedTotal = false, nil, 0
 local lastXP, lastXPMax
 local cur, anchor
 
@@ -72,10 +75,10 @@ local function Splits()
     return account.levelSplits[key]
 end
 
--- cur.base is the time on this level from earlier sessions; anchor is this session's
--- GetTime() origin. Offline time never counts.
+-- cur.base is the time on this level banked so far; anchor is the GetTime() it has run
+-- from since, nil while paused. Offline time never counts.
 local function LevelTime()
-    return cur.base + GetTime() - anchor
+    return cur.base + (anchor and GetTime() - anchor or 0)
 end
 
 local function SplitIndex()
@@ -87,7 +90,7 @@ end
 local function StartLevel(fromStart)
     cur = { level = UnitLevel("player"), n = S.Get("xpTickerSplitCount"), splits = {}, base = 0,
         splitStart = 0 }
-    anchor = GetTime()
+    anchor = not paused and GetTime() or nil
     cur.idx = fromStart and 1 or SplitIndex()
     if not fromStart then
         cur.partial = true
@@ -109,7 +112,7 @@ local function TrackSplits()
     if not cur then
         local saved = Splits().current
         if saved and saved.level == UnitLevel("player") and saved.n == S.Get("xpTickerSplitCount") then
-            cur, anchor = saved, GetTime()
+            cur, anchor = saved, not paused and GetTime() or nil
         else
             StartLevel(false)
         end
@@ -164,10 +167,11 @@ local function Update()
         ticker:Hide()
         return
     end
-    local elapsed = GetTime() - sessionStart
+    local now = GetTime()
+    local elapsed = now - sessionStart - pausedTotal - (paused and now - pausedAt or 0)
     -- At least a minute, so the first kill after login does not read as millions an hour.
     local rate = sessionXP / (math.max(elapsed, 60) / 3600)
-    local lines = { Line("XP/hr", Short(rate)) }
+    local lines = { Line("XP/hr", Short(rate)) .. (paused and "  " .. DIM .. "(paused)|r" or "") }
     if S.Get("xpTickerLevel") then
         local left = UnitXPMax("player") - UnitXP("player")
         lines[#lines + 1] = Line("Ding", rate > 0 and Duration(left / rate * 3600) or "--")
@@ -185,12 +189,35 @@ local function Update()
     local height = ticker.text:GetStringHeight()
     if ticker.splits:GetText() ~= "" then height = height + 4 + ticker.splits:GetStringHeight() end
     ticker:SetSize(width + 8, height + 8)
+    ticker.controls.start:SetAlpha(paused and 1 or 0.4)
+    ticker.controls.pause:SetAlpha(paused and 0.4 or 1)
     ticker:Show()
 end
 
 function ns.ResetXPTicker()
-    sessionStart, sessionXP = GetTime(), 0
+    sessionStart, sessionXP, pausedTotal = GetTime(), 0, 0
+    if paused then pausedAt = sessionStart end
     Update()
+end
+
+function ns.PauseXPTicker()
+    if paused then return end
+    paused, pausedAt = true, GetTime()
+    if cur and anchor then cur.base, anchor = LevelTime(), nil end
+    Update()
+end
+
+function ns.StartXPTicker()
+    if not paused then return end
+    pausedTotal = pausedTotal + GetTime() - pausedAt
+    paused, pausedAt = false, nil
+    if cur then anchor = GetTime() end
+    Update()
+end
+
+function ns.XPTickerCommand(arg)
+    local run = ({ start = ns.StartXPTicker, pause = ns.PauseXPTicker, reset = ns.ResetXPTicker })[arg]
+    if run then run() else print("|cff0091edNaowh|r: /naowh xp start, pause or reset") end
 end
 
 local events = CreateFrame("Frame")
@@ -203,7 +230,7 @@ events:SetScript("OnEvent", function(_, event)
         local xp, max = UnitXP("player"), UnitXPMax("player")
         local gained = xp >= lastXP and xp - lastXP or (lastXPMax - lastXP) + xp
         lastXP, lastXPMax = xp, max
-        sessionXP = sessionXP + gained
+        if not paused then sessionXP = sessionXP + gained end
     end
     if S.Get("xpTickerSplits") then TrackSplits() end
     Update()
@@ -237,6 +264,28 @@ local function Apply()
         ticker.splits:SetPoint("TOPLEFT", ticker.text, "BOTTOMLEFT", 0, -4)
         ticker.splits:SetJustifyH("LEFT")
         ticker.mover = ns.UI.AttachMover(ticker, "XP per Hour", function(pos) S.Set("xpTickerPos", pos) end)
+        -- Start, Pause and Reset under the ticker, shown while the mouse is over either.
+        local controls = CreateFrame("Frame", nil, ticker)
+        controls:SetSize(160, 20)
+        controls:SetPoint("TOPLEFT", ticker, "BOTTOMLEFT", 0, -2)
+        controls:Hide()
+        local function HideSoon()
+            C_Timer.After(0.3, function()
+                if not (ticker:IsMouseOver() or controls:IsMouseOver()) then controls:Hide() end
+            end)
+        end
+        for i, action in ipairs({ { "start", "Start", ns.StartXPTicker },
+                                  { "pause", "Pause", ns.PauseXPTicker },
+                                  { "reset", "Reset", ns.ResetXPTicker } }) do
+            local btn = ns.Button(controls, action[2], 50, 18, action[3])
+            btn:SetPoint("LEFT", (i - 1) * 54, 0)
+            btn:HookScript("OnLeave", HideSoon)
+            controls[action[1]] = btn
+        end
+        ticker.controls = controls
+        ticker:EnableMouse(true)
+        ticker:SetScript("OnEnter", function() controls:Show() end)
+        ticker:SetScript("OnLeave", HideSoon)
         sessionStart, sessionXP = GetTime(), 0
     end
     local font, size = ns.UI.FontPath(S.Get("xpTickerFont")), S.Get("xpTickerFontSize")

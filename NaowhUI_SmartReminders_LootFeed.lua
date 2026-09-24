@@ -21,6 +21,7 @@ local STYLES = {
 
 local feed, gph, unlocked
 local rows, pool = {}, {}
+local coinRow   -- the coin line on screen, which later coin loot adds to
 local sessionStart, sessionValue = nil, 0
 
 local function On()
@@ -97,6 +98,7 @@ local function Release(row)
     row.anim:Stop()
     row:Hide()
     row.link = nil
+    if row == coinRow then coinRow = nil end
     for i = #rows, 1, -1 do
         if rows[i] == row then table.remove(rows, i) end
     end
@@ -148,10 +150,9 @@ local function NewRow()
 
     -- Fades in, holds for the display time, then fades out and frees the slot.
     row.anim = row:CreateAnimationGroup()
-    local appear = row.anim:CreateAnimation("Alpha")
-    appear:SetFromAlpha(0)
-    appear:SetToAlpha(1)
-    appear:SetDuration(0.15)
+    row.appear = row.anim:CreateAnimation("Alpha")
+    row.appear:SetToAlpha(1)
+    row.appear:SetDuration(0.15)
     row.fade = row.anim:CreateAnimation("Alpha")
     row.fade:SetFromAlpha(1)
     row.fade:SetToAlpha(0)
@@ -182,9 +183,11 @@ local function Push(icon, name, value, bags, link)
     row:Show()
     table.insert(rows, 1, row)
     while #rows > S.Get("lootFeedCount") do Release(rows[#rows]) end
+    row.appear:SetFromAlpha(0)
     row.fade:SetStartDelay(S.Get("lootFeedFade"))
     row.anim:Restart()
     Layout()
+    return row
 end
 
 local function OnItem(link, count)
@@ -203,9 +206,22 @@ local function OnItem(link, count)
     end)
 end
 
+-- Coin loot adds to the coin line still on screen and holds it for another display time,
+-- rather than stacking a line per corpse. Its fade-in is skipped so the update does not blink.
 local function OnMoney(copper)
     AddSessionValue(copper)
-    if S.Get("lootFeedMoney") then Push(COIN_ICON, "Coins", Coins(copper)) end
+    if not S.Get("lootFeedMoney") then return end
+    if coinRow then
+        coinRow.coins = coinRow.coins + copper
+        coinRow.value:SetText(Coins(coinRow.coins))
+        coinRow.appear:SetFromAlpha(1)
+        coinRow.fade:SetStartDelay(S.Get("lootFeedFade"))
+        coinRow.anim:Restart()
+        Layout()
+        return
+    end
+    coinRow = Push(COIN_ICON, "Coins", Coins(copper))
+    coinRow.coins = copper
 end
 
 -- CHAT_MSG_MONEY carries both your own looted coins and a group share, and only those, so
