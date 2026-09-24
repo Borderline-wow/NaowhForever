@@ -9,12 +9,18 @@ local T = ns.THEME
 
 -- Forever's Camp Benefits aura and icon, probed on the client 2026-09-19.
 local CAMP_BENEFITS = 1229741
+-- Area aura from being in range of a campfire, probed 2026-09-24.
+local CAMPFIRE_NEARBY = 1283391
+-- Camp Benefits with less than this left counts as due for a refresh.
+local CAMP_LOW = 120
 local CAMP_ICON = 7808144
 local CIRCLE_MASK = "Interface\\AddOns\\NaowhSmartReminders\\Media\\circle_mask.tga"
 
 local icon, unlocked
 local hasCamp       -- nil until the first read
 local shownExpiry   -- the expiry the swipe was last started from
+local alert
+local alertGen = 0   -- invalidates an older "under 2 minutes" timer
 
 local function On()
     return S.Get("enabled") and S.Get("campfire")
@@ -89,19 +95,79 @@ local function ShowMissing()
     icon:Show()
 end
 
+-- "Camp Nearby" in the middle of the screen when a campfire is in range and the camp needs
+-- refreshing: no Camp Benefits, or less than two minutes left on it.
+local function BuildAlert()
+    alert = CreateFrame("Frame", "NaowhForeverCampNearby", UIParent)
+    alert:SetMovable(true)
+    alert:SetClampedToScreen(true)
+    alert.text = ns.Font(alert, 28, "OUTLINE", T.accent)
+    alert.text:SetPoint("CENTER")
+    alert.text:SetText("Camp Nearby")
+    alert:SetSize(alert.text:GetStringWidth() + 16, 40)
+    alert.mover = ns.UI.AttachMover(alert, "Camp Nearby", function(pos) S.Set("campAlertPos", pos) end)
+    local pos = S.Get("campAlertPos")
+    if pos then
+        alert:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    else
+        alert:SetPoint("CENTER", UIParent, "CENTER", 0, 150)
+    end
+    alert:Hide()
+end
+
+local function SetAlert(show)
+    if not alert then
+        if not show then return end
+        BuildAlert()
+    end
+    alert:SetShown(show)
+end
+
+local Refresh
+
+-- Nothing fires as the buff's time runs down, so crossing the two-minute mark is timed.
+local function UpdateAlert(aura)
+    alertGen = alertGen + 1
+    if not (S.Get("campNearbyAlert") and C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_NEARBY)) then
+        SetAlert(false)
+        return
+    end
+    local left = aura and aura.expirationTime
+    if left and issecretvalue and issecretvalue(left) then left = nil end
+    left = left and left > 0 and left - GetTime()
+    if aura and not left then
+        SetAlert(false)
+        return
+    end
+    SetAlert(not aura or left < CAMP_LOW)
+    if aura and left >= CAMP_LOW then
+        local gen = alertGen
+        C_Timer.After(left - CAMP_LOW + 0.1, function()
+            if gen == alertGen then Refresh() end
+        end)
+    end
+end
+
 -- The client hides the player's auras from addons during combat, where this read comes back
 -- empty with the buff up, so the icon keeps whatever it last showed until the fight ends.
-local function Refresh()
+function Refresh()
     if not icon then return end
     if unlocked then
         ShowUp(3600, GetTime() + 2400)
+        SetAlert(S.Get("campNearbyAlert"))
         return
     end
     if not (On() and InOpenWorld()) then
         icon:Hide()
+        alertGen = alertGen + 1
+        SetAlert(false)
         return
     end
-    if InCombatLockdown() then return end
+    if InCombatLockdown() then
+        alertGen = alertGen + 1
+        SetAlert(false)
+        return
+    end
 
     local aura = C_UnitAuras.GetPlayerAuraBySpellID(CAMP_BENEFITS)
     local had = hasCamp
@@ -118,6 +184,7 @@ local function Refresh()
             ns.UI._PlayLSMSound(ns.UI.SoundPathFor(S.Get("campSoundKey")))
         end
     end
+    UpdateAlert(aura)
 end
 
 local events = CreateFrame("Frame")
@@ -127,6 +194,8 @@ local function Apply()
     if not On() then
         events:UnregisterAllEvents()
         hasCamp = nil
+        alertGen = alertGen + 1
+        SetAlert(false)
         if icon and not unlocked then icon:Hide() end
         if not unlocked then return end
     end
@@ -139,13 +208,17 @@ local function Apply()
         events:RegisterUnitEvent("UNIT_AURA", "player")
         events:RegisterEvent("PLAYER_ENTERING_WORLD")
         events:RegisterEvent("PLAYER_REGEN_ENABLED")
+        events:RegisterEvent("PLAYER_REGEN_DISABLED")
     end
     shownExpiry = nil
     Refresh()
+    if alert then alert.mover:SetShown(unlocked == true) end
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or (key:find("^camp") and key ~= "campPos") then Apply() end
+    if key == "enabled" or (key:find("^camp") and key ~= "campPos" and key ~= "campAlertPos") then
+        Apply()
+    end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()

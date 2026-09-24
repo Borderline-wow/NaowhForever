@@ -21,7 +21,7 @@ local S = UI.ModuleSettings("auraBuffs", {
     iconSize = 36,
 
     campfire = true, campTimer = true, campBuffs = true,
-    campSound = true, campSoundKey = "none", campIconSize = 44,
+    campSound = true, campSoundKey = "none", campIconSize = 44, campNearbyAlert = true,
 
     lowHealth = true, lowHealthBelow = 35, lowHealthItem = "auto",
     lowHealthIconSize = 48, lowHealthGlow = true,
@@ -114,6 +114,13 @@ function ns.BuildCampfirePage(parent, y)
         S.Toggle("campSound", "Play a Sound to Refresh",
             "Plays when it is time to refresh the camp.", "campfire"),
         S.Dropdown("campSoundKey", "Sound", names, order, nil, "campSound")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("campNearbyAlert", "Camp Nearby Alert",
+            "\"Camp Nearby\" in the middle of the screen when a campfire is in range and your "
+            .. "camp needs refreshing: no Camp Benefits, or less than 2 minutes left. Move it in "
+            .. "Unlock Mode.", "campfire"),
+        { type = "label", text = "" }
     ); y = y - h
 
     return y
