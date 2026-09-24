@@ -14,7 +14,7 @@ local SIDEBAR_W, CONTENT_W, WINDOW_H = 230, 1000, 700
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local LOGO = "Interface\\AddOns\\NaowhSmartReminders\\Media\\LogoAddon.tga"
 
--- The sidebar is the window's own pages first, then one entry per module. A module opens
+-- The window's own pages sit in the header; the sidebar has one entry per module. A module opens
 -- on its first tab. `build` names the ns builder resolved at open time; `arg` is passed
 -- after the starting y. A page with `soon` is built but not ready: its tab stays in the
 -- strip, dimmed, and opens a note instead of half-finished work.
@@ -49,10 +49,24 @@ local MODULES = {
           { name = "Interface", build = "BuildQoLInterfacePage" },
           { name = "Trainer", build = "BuildQoLTrainerPage" },
           { name = "Flight & Camp", build = "BuildQoLFlightPage" },
-          { name = "Dungeon Quests", build = "BuildQoLDungeonQuestsPage" },
-          { name = "Gear Sets", build = "BuildQoLGearSetsPage" },
-          { name = "BiS List", build = "BuildQoLBiSPage" },
           { name = "Blessings", build = "BuildQoLBlessingsPage" },
+      } },
+    -- Settings still live in the QoL table so existing profiles carry over; each module's
+    -- switch is the feature's own key rather than QoL's.
+    { name = "Dungeon Quests", settings = "QoLSettings", enabledKey = "dqTracker",
+      subtitle = "Every dungeon quest on Forever, and a tracker for the dungeon you are in.",
+      tabs = {
+          { name = "Tracker", build = "BuildQoLDungeonQuestsPage" },
+      } },
+    { name = "Gear Sets", settings = "QoLSettings", enabledKey = "gearSets",
+      subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
+      tabs = {
+          { name = "Sets", build = "BuildQoLGearSetsPage" },
+      } },
+    { name = "BiS List", settings = "QoLSettings", enabledKey = "bis",
+      subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
+      tabs = {
+          { name = "List", build = "BuildQoLBiSPage" },
       } },
     { name = "Macros", settings = "MacroSettings",
       subtitle = "Macros written and kept current for you, out of combat.",
@@ -120,14 +134,14 @@ local function BuildPageInto(page, parent)
 end
 
 -- A module's on/off switch. Smart Reminders keeps its own master switch; the newer modules
--- store `enabled` in their settings table.
+-- store `enabled` (or their `enabledKey`) in their settings table.
 local function ModuleOn(mod)
-    if mod.settings then return ns[mod.settings].Get("enabled") end
+    if mod.settings then return ns[mod.settings].Get(mod.enabledKey or "enabled") end
     return ns.DB().enabled == true
 end
 
 local function SetModuleOn(mod, on)
-    if mod.settings then ns[mod.settings].Set("enabled", on) else ns.SetEnabled(on) end
+    if mod.settings then ns[mod.settings].Set(mod.enabledKey or "enabled", on) else ns.SetEnabled(on) end
     UI:RefreshPage(true)
 end
 
@@ -378,7 +392,7 @@ local function CreateWindow()
         end
     end)
 
-    -- Sidebar: logo and name, the window's own pages, then the modules.
+    -- Sidebar: logo and name, then the modules.
     local sidebar = CreateFrame("Frame", nil, window)
     sidebar:SetPoint("TOPLEFT")
     sidebar:SetPoint("BOTTOMLEFT")
@@ -395,7 +409,7 @@ local function CreateWindow()
     brand:SetHeight(HEADER_H)
     DragRegion(brand)
     local logo = brand:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture(LOGO)
+    logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
     logo:SetSize(44, 44)
     logo:SetPoint("LEFT", brand, "LEFT", 16, 0)
     local name = ns.Font(brand, 19, "OUTLINE")
@@ -429,15 +443,6 @@ local function CreateWindow()
         return btn
     end
 
-    local unlock = NavButton("Unlock Mode", EnterUnlockMode)
-    ns.Tooltip(unlock, "Unlock Mode",
-        "Place and size each reminder display. An alignment grid appears while you are in "
-        .. "there. This window steps aside and comes back when you press Exit Config.")
-    for _, page in ipairs(SYSTEM_PAGES) do
-        navButtons[page.key] = NavButton(page.name, function() ShowPage(page.key) end)
-    end
-
-    ny = ny - 14
     local group = ns.Font(sidebar, 13, nil, T.accent)
     group:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, ny)
     group:SetText(ns.L("Modules"))
@@ -475,6 +480,42 @@ local function CreateWindow()
 
     local close = ns.Button(header, "X", 26, 26, function() window:Hide() end)
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -12, -12)
+
+    -- The window's own pages sit left of the close button, laid out right to left.
+    local anchor = close
+    local function HeaderButton(label, onClick)
+        local btn = CreateFrame("Button", nil, header)
+        btn.label = ns.Font(btn, 13, nil, T.muted)
+        btn.label:SetPoint("CENTER")
+        btn.label:SetText(ns.L(label))
+        btn:SetSize(math.ceil(btn.label:GetStringWidth()) + 24, 26)
+        btn:SetPoint("RIGHT", anchor, "LEFT", anchor == close and -10 or -2, 0)
+        btn.fill = ns.Solid(btn, "BACKGROUND", T.grey, 0.5)
+        btn.fill:SetAllPoints()
+        btn.fill:Hide()
+        btn.marker = ns.Solid(btn, "ARTWORK", T.accent, 1)
+        btn.marker:SetPoint("BOTTOMLEFT")
+        btn.marker:SetPoint("BOTTOMRIGHT")
+        btn.marker:SetHeight(2)
+        btn.marker:Hide()
+        btn:SetScript("OnClick", onClick)
+        btn:SetScript("OnEnter", function(self) self.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1) end)
+        btn:SetScript("OnLeave", function(self)
+            local c = self.fill:IsShown() and T.fg or T.muted
+            self.label:SetTextColor(c.r, c.g, c.b, 1)
+        end)
+        anchor = btn
+        return btn
+    end
+
+    for i = #SYSTEM_PAGES, 1, -1 do
+        local page = SYSTEM_PAGES[i]
+        navButtons[page.key] = HeaderButton(page.name, function() ShowPage(page.key) end)
+    end
+    local unlock = HeaderButton("Unlock Mode", EnterUnlockMode)
+    ns.Tooltip(unlock, "Unlock Mode",
+        "Place and size each reminder display. An alignment grid appears while you are in "
+        .. "there. This window steps aside and comes back when you press Exit Config.")
 
     -- Tab strip, in the same visual language as the modal editors' own tabs: a button
     -- with an accent underline marking the active page. Widths are measured off the label
@@ -639,3 +680,4 @@ launcherEvents:SetScript("OnEvent", function(self)
     LibStub("LibDBIcon-1.0"):Register("NaowhSmartReminders", launcher, account.minimap)
 end)
 launcherEvents:RegisterEvent("PLAYER_LOGIN")
+

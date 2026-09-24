@@ -135,7 +135,7 @@ local function Refresh()
     local map = inInstance and kind == "party" and select(8, GetInstanceInfo())
     if not inInstance then wipe(dismissed) end
     local dungeons = map and byMap[map]
-    if not (S.Get("enabled") and S.Get("dqTracker") and dungeons and not dismissed[map]
+    if not (S.Get("dqTracker") and dungeons and not dismissed[map]
             and HasQuestsForMe(dungeons)) then
         shownMap = nil
         questEvents:UnregisterAllEvents()
@@ -229,11 +229,11 @@ zoneEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
 zoneEvents:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or (key:find("^dq") and key ~= "dqPos") then Refresh() end
+    if key:find("^dq") and key ~= "dqPos" then Refresh() end
 end)
 hooksecurefunc(ns, "Apply", Refresh)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
-    if not (S.Get("enabled") and S.Get("dqTracker")) then return end
+    if not S.Get("dqTracker") then return end
     if not panel then BuildPanel() end
     Render(byMap[UnitFactionGroup("player") == "Horde" and 389 or 36])
     panel.mover:Show()

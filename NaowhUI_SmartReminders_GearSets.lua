@@ -13,7 +13,7 @@ local pending          -- set ID waiting for combat to end
 local autoSet          -- the set an automatic swap put on
 
 local function On()
-    return S.Get("enabled") and S.Get("gearSets")
+    return S.Get("gearSets")
 end
 
 local function Sets()
@@ -264,7 +264,7 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or (key:find("^gear") and key ~= "gearPos") then Apply() end
+    if key:find("^gear") and key ~= "gearPos" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()

@@ -13,7 +13,7 @@ local TAG = "|cff0091edNaowh BiS|r"
 local lookup   -- itemID -> true, rebuilt when the list changes
 
 local function On()
-    return S.Get("enabled") and S.Get("bis")
+    return S.Get("bis")
 end
 
 -- One list per character, kept in the account store: personal, so it never travels in an

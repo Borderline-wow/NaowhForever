@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Changed
+- Unlock Mode, Settings, Patch Notes and Profiles moved from the sidebar to the top of the
+  window, beside the close button. The sidebar now starts with the module list.
+- The logo is redrawn with smooth edges, so it stays sharp at the size the window shows it.
+- Dungeon Quests, Gear Sets and BiS List are modules of their own instead of QoL tabs, each
+  with its own switch in the sidebar. Turning QoL off no longer turns them off. Their
+  settings stay where they were, so nothing needs setting up again.
+
 ### Removed
 - The Trash tab and its ExBoss trash cooldown alerts. ExBoss does not run on Forever, so
   nothing on the tab could fire. Debuff alerts are unaffected. Trash rules already saved in
