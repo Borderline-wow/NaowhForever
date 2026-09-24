@@ -9,6 +9,7 @@ local ns = _G.NaowhUITankReminder
 local S = ns.QoLSettings
 
 local PREFIX = "NaowhBless"
+local GROUP_CHANNELS = { PARTY = true, RAID = true, INSTANCE_CHAT = true }
 local CLASSES = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 local VALID_CLASS = {}
 for _, c in ipairs(CLASSES) do VALID_CLASS[c] = true end
@@ -23,7 +24,7 @@ local BLESSINGS = {
 }
 local ORDER = { "might", "wisdom", "kings", "salvation", "light" }
 
-local others = {}      -- short paladin name -> { class -> blessing }, from their broadcasts
+local others = {}      -- paladin name (realm when not ours) -> { class -> blessing }
 local bar, buttons, dirty
 
 local function IsPaladin()
@@ -34,8 +35,23 @@ local function On()
     return S.Get("enabled") and S.Get("blessings")
 end
 
-local function Short(name)
-    return name and Ambiguate(name, "short")
+-- Unit identity and auras can come back secret in restricted content; those are skipped.
+local function Secret(v)
+    return issecretvalue and issecretvalue(v)
+end
+
+-- Senders as addon messages name them: the realm only when it is not ours.
+local function Who(name)
+    return name and Ambiguate(name, "none")
+end
+
+local function FullName(name)
+    return name:find("-") and name or name .. "-" .. GetNormalizedRealmName()
+end
+
+local function Class(unit)
+    local _, class = UnitClass(unit)
+    if not Secret(class) then return class end
 end
 
 local function Mine()
@@ -78,7 +94,7 @@ local function HasMyBlessing(unit, key)
     for i = 1, 40 do
         local aura = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL|PLAYER")
         if not aura then return false end
-        if SPELLS[aura.spellId] == key then return true end
+        if Secret(aura.spellId) or SPELLS[aura.spellId] == key then return true end
     end
     return false
 end
@@ -106,14 +122,33 @@ local function Broadcast()
     Send("F|" .. table.concat(parts, ","))
 end
 
+-- Every client asks on a roster change, so answers are batched into one send.
+local broadcastQueued
+local function BroadcastSoon()
+    if broadcastQueued then return end
+    broadcastQueued = true
+    C_Timer.After(1, function()
+        broadcastQueued = false
+        Broadcast()
+    end)
+end
+
+-- UnitFullName's realm is written like the one in an addon message's sender: no spaces.
 local function InGroup(name)
     for _, unit in ipairs(GroupUnits()) do
-        if Short(GetUnitName(unit, true)) == name then return unit end
+        local unitName, realm = UnitFullName(unit)
+        if not (Secret(unitName) or Secret(realm)) then
+            if realm and realm ~= "" and realm ~= GetNormalizedRealmName() then
+                unitName = unitName .. "-" .. realm
+            end
+            if unitName == name then return unit end
+        end
     end
 end
 
 local function CanAssign(unit)
-    return UnitIsGroupLeader(unit) or UnitIsGroupAssistant(unit)
+    local lead, assist = UnitIsGroupLeader(unit), UnitIsGroupAssistant(unit)
+    return not (Secret(lead) or Secret(assist)) and (lead or assist)
 end
 
 local Refresh
@@ -121,18 +156,18 @@ local Refresh
 -- Parsed as data: only known classes and blessings from a paladin in the group are kept, and
 -- only the leader or an assistant can set someone else's.
 local function OnMessage(msg, sender)
-    local who = Short(sender)
-    if who == Short(GetUnitName("player", true)) then return end
-    if msg == "R" then Broadcast() return end
+    local who = Who(sender)
+    if who == UnitName("player") then return end
+    if msg == "R" then BroadcastSoon() return end
     local target, class, key = msg:match("^S|([^|]+)|(%u+)=(%l*)$")
     if target then
         local unit = InGroup(who)
-        if IsPaladin() and target == Short(GetUnitName("player", true)) and unit and CanAssign(unit)
+        if IsPaladin() and target == FullName(UnitName("player")) and unit and CanAssign(unit)
             and VALID_CLASS[class] and (key == "" or BLESSINGS[key]) then
             Mine()[class] = key ~= "" and key or nil
             ns.Print(("%s set your %s blessing to %s."):format(who,
                 LOCALIZED_CLASS_NAMES_MALE[class] or class, key ~= "" and BLESSINGS[key].name or "none"))
-            Broadcast()
+            BroadcastSoon()
             Refresh()
             if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
         end
@@ -140,7 +175,7 @@ local function OnMessage(msg, sender)
     end
     local body = msg:match("^F|(.*)$")
     local unit = body and InGroup(who)
-    if not (unit and select(2, UnitClass(unit)) == "PALADIN") then return end
+    if not (unit and Class(unit) == "PALADIN") then return end
     local set = {}
     for class, key in body:gmatch("(%u+)=(%l+)") do
         if VALID_CLASS[class] and BLESSINGS[key] then set[class] = key end
@@ -152,10 +187,10 @@ end
 -------------------------------------------------------------------------------
 --  The bar
 -------------------------------------------------------------------------------
-local function ClassesInGroup()
+local function ClassesInGroup(units)
     local present, list = {}, {}
-    for _, unit in ipairs(GroupUnits()) do
-        local class = select(2, UnitClass(unit))
+    for _, unit in ipairs(units) do
+        local class = Class(unit)
         if class and not present[class] then
             present[class] = true
             list[#list + 1] = class
@@ -167,7 +202,8 @@ end
 
 local function NewButton()
     local btn = CreateFrame("Button", nil, bar, "SecureActionButtonTemplate")
-    btn:RegisterForClicks(GetCVarBool("ActionButtonUseKeyDown") and "AnyDown" or "AnyUp")
+    -- Both, so the template follows the key-down setting as it is when clicked.
+    btn:RegisterForClicks("AnyUp", "AnyDown")
     btn:SetAttribute("type", "spell")
     btn.icon = btn:CreateTexture(nil, "ARTWORK")
     btn.icon:SetPoint("TOPLEFT", 1, -1)
@@ -189,18 +225,20 @@ function Refresh()
         return
     end
     dirty = false
+    if not On() then
+        bar:Hide()
+        return
+    end
     local size = S.Get("blessBarSize")
     local mine, n = Mine(), 0
-    for _, class in ipairs(ClassesInGroup()) do
+    local units = GroupUnits()
+    for _, class in ipairs(ClassesInGroup(units)) do
         local key = mine[class]
         local spell = key and SpellFor(key)
+        local target, missing, anyone = nil, 0, nil
         if spell then
-            n = n + 1
-            local btn = buttons[n] or NewButton()
-            buttons[n] = btn
-            local target, missing, anyone = nil, 0, nil
-            for _, unit in ipairs(GroupUnits()) do
-                if select(2, UnitClass(unit)) == class and UnitIsConnected(unit) and not UnitIsDeadOrGhost(unit) then
+            for _, unit in ipairs(units) do
+                if Class(unit) == class and UnitIsConnected(unit) and not UnitIsDeadOrGhost(unit) then
                     anyone = anyone or unit
                     if not HasMyBlessing(unit, key) then
                         missing = missing + 1
@@ -208,6 +246,12 @@ function Refresh()
                     end
                 end
             end
+        end
+        -- With nobody of the class to bless, a click would fall through to the current target.
+        if anyone then
+            n = n + 1
+            local btn = buttons[n] or NewButton()
+            buttons[n] = btn
             btn:SetAttribute("spell", spell)
             btn:SetAttribute("unit", target or anyone)
             btn.icon:SetTexture(C_Spell.GetSpellTexture(spell))
@@ -302,7 +346,7 @@ function ns.BuildQoLBlessingsPage(parent, y)
         if lead then
             y = ClassRows(parent, y, function(class) return set[class] end, function(class, key)
                 set[class] = key
-                Send(("S|%s|%s=%s"):format(who, class, key or ""))
+                Send(("S|%s|%s=%s"):format(FullName(who), class, key or ""))
             end)
         else
             local parts = {}
@@ -341,7 +385,7 @@ local function SyncSoon()
         for who in pairs(others) do
             if not InGroup(who) then others[who] = nil end
         end
-        Send("R")
+        if IsPaladin() or CanAssign("player") then Send("R") end
         Broadcast()
     end)
 end
@@ -349,8 +393,8 @@ end
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, ...)
     if event == "CHAT_MSG_ADDON" then
-        local prefix, msg, _, sender = ...
-        if prefix == PREFIX then OnMessage(msg, sender) end
+        local prefix, msg, channel, sender = ...
+        if prefix == PREFIX and GROUP_CHANNELS[channel] then OnMessage(msg, sender) end
     elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
         SyncSoon()
         RefreshSoon()
@@ -367,7 +411,12 @@ end)
 local function Apply()
     events:UnregisterAllEvents()
     if not On() then
-        if bar and not InCombatLockdown() then bar:Hide() end
+        if bar and InCombatLockdown() then
+            dirty = true
+            events:RegisterEvent("PLAYER_REGEN_ENABLED")
+        elseif bar then
+            bar:Hide()
+        end
         return
     end
     C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
