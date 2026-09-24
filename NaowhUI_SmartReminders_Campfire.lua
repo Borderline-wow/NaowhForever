@@ -18,21 +18,6 @@ local CIRCLE_MASK = "Interface\\AddOns\\NaowhSmartReminders\\Media\\circle_mask.
 
 local TEXT_SIZE = 16
 
--- The camp buffs, in the order Camp Benefits' own tooltip lists them, named by the camp
--- object that grants each. Read from its aura description in the Forever data, 2026-09-24.
-local CAMP_BUFFS = {
-    { 1229451, "Tent" },
-    { 1230587, "Mana Well" },
-    { 1230172, "Sharpening Wheel" },
-    { 1230653, "Enchanted Lute" },
-    { 1230124, "First Aid Kit" },
-    { 1230098, "Fish Bowl" },
-    { 1229513, "Incense Candle" },
-    { 1230164, "Lodestone" },
-    { 1229519, "Camp Chair" },
-    { 1229718, "Faction Banner" },
-}
-
 local icon, unlocked
 local hasCamp       -- nil until the first read
 local shownExpiry   -- the expiry the swipe was last started from
@@ -157,11 +142,21 @@ local function SetAlert(show)
     alert:SetShown(show)
 end
 
--- The camp buffs currently up, one per line.
-local function ActiveBuffs()
+-- The camp buffs currently up, one per line. Most are hidden auras the client does not
+-- hand to addons (the Camp Chair buff reads as absent while Blizzard's tooltip shows it,
+-- confirmed 2026-09-24), so they are read off Camp Benefits' own tooltip, which has one
+-- "Camp Chair: effect" line per benefit. Its header line ends in a bare colon and is skipped.
+local function ActiveBuffs(aura)
+    local data = C_TooltipInfo.GetUnitBuffByAuraInstanceID("player", aura.auraInstanceID)
     local names = {}
-    for _, buff in ipairs(CAMP_BUFFS) do
-        if C_UnitAuras.GetPlayerAuraBySpellID(buff[1]) then names[#names + 1] = buff[2] end
+    for i, line in ipairs(data and data.lines or {}) do
+        local text = line.leftText
+        if i > 1 and type(text) == "string" and not (issecretvalue and issecretvalue(text)) then
+            for row in text:gmatch("[^\n]+") do
+                local label = row:match("^%s*([^:]+):%s*%S")
+                if label then names[#names + 1] = label end
+            end
+        end
     end
     return table.concat(names, "\n")
 end
@@ -220,7 +215,7 @@ function Refresh()
         if issecretvalue and (issecretvalue(duration) or issecretvalue(expiry)) then
             duration, expiry = nil, nil
         end
-        ShowUp(duration, expiry, ActiveBuffs())
+        ShowUp(duration, expiry, ActiveBuffs(aura))
     else
         ShowMissing()
         if had and S.Get("campSound") then
