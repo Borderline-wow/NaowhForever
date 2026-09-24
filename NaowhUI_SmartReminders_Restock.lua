@@ -84,7 +84,9 @@ end
 local function ScanBags()
     local food, junk, free = 0, 0, 0
     for bag = 0, NUM_BAG_SLOTS do
-        free = free + C_Container.GetContainerNumFreeSlots(bag)
+        -- Quivers, ammo pouches and soul bags do not count as room.
+        local slots, bagType = C_Container.GetContainerNumFreeSlots(bag)
+        if bagType == 0 then free = free + slots end
         for slot = 1, C_Container.GetContainerNumSlots(bag) do
             local info = C_Container.GetContainerItemInfo(bag, slot)
             if info then
@@ -213,13 +215,16 @@ end
 -------------------------------------------------------------------------------
 --  At the vendor
 -------------------------------------------------------------------------------
+-- Returns what it spent: GetMoney() does not drop until the server answers.
 local function Repair()
-    if not (S.Get("autoRepair") and CanMerchantRepair()) then return end
+    if not (S.Get("autoRepair") and CanMerchantRepair()) then return 0 end
     local cost, canRepair = GetRepairAllCost()
     if canRepair and cost > 0 and GetMoney() >= cost then
         RepairAllItems()
         ns.Print("Repaired for " .. C_CurrencyInfo.GetCoinTextureString(cost))
+        return cost
     end
+    return 0
 end
 
 local function SellJunk()
@@ -229,32 +234,35 @@ local function SellJunk()
     end
 end
 
--- Buys each wanted item this vendor sells for gold, up to its target, a stack at a time.
-local function Buy()
+-- Buys each wanted item this vendor sells for gold, up to its target. A vendor that sells in
+-- bundles (arrows by 200) only takes whole bundles, so the amount rounds up to one.
+local function Buy(alreadySpent)
     if not S.Get("restockBuy") then return end
     local want = Wanted()
+    local money = GetMoney() - alreadySpent
     local spent, bought = 0, {}
     for index = 1, GetMerchantNumItems() do
         local itemID = tonumber((GetMerchantItemLink(index) or ""):match("item:(%d+)"))
         local target = itemID and want[itemID]
         local info = target and C_MerchantFrame.GetItemInfo(index)
         if info and info.isPurchasable and not info.hasExtendedCost then
-            local need = target - C_Item.GetItemCount(itemID)
-            local unitPrice = info.price / math.max(info.stackCount, 1)
-            local maxStack = C_Item.GetItemMaxStackSizeByID(itemID) or 20
+            local bundle = math.max(info.stackCount, 1)
+            local bundles = math.ceil((target - C_Item.GetItemCount(itemID)) / bundle)
             if info.numAvailable and info.numAvailable >= 0 then
-                need = math.min(need, info.numAvailable * info.stackCount)
+                bundles = math.min(bundles, info.numAvailable)
             end
-            if unitPrice > 0 then need = math.min(need, math.floor(GetMoney() / unitPrice)) end
-            if need > 0 then
-                local left = need
+            if info.price > 0 then bundles = math.min(bundles, math.floor(money / info.price)) end
+            if bundles > 0 then
+                local perBuy = math.max(math.floor(GetMerchantItemMaxStack(index) / bundle), 1)
+                local left = bundles
                 while left > 0 do
-                    local take = math.min(left, maxStack)
-                    BuyMerchantItem(index, take)
+                    local take = math.min(left, perBuy)
+                    BuyMerchantItem(index, take * bundle)
                     left = left - take
                 end
-                spent = spent + need * unitPrice
-                bought[#bought + 1] = need .. "x " .. ItemName(itemID)
+                money = money - bundles * info.price
+                spent = spent + bundles * info.price
+                bought[#bought + 1] = bundles * bundle .. "x " .. ItemName(itemID)
             end
         end
     end
@@ -272,8 +280,7 @@ events:SetScript("OnEvent", function(_, event)
     if event == "MERCHANT_SHOW" then
         HideAlert()
         SellJunk()
-        Repair()
-        Buy()
+        Buy(Repair())
     elseif event == "MERCHANT_CLOSED" then
         -- Bags settle a moment after the last purchase or sale.
         C_Timer.After(0.5, Check)
