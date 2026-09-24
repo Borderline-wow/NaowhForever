@@ -102,7 +102,8 @@ function ns.BuildCampfirePage(parent, y)
         S.Toggle("campfire", "Campfire Reminder",
             "A round camp icon while Camp Benefits is up, and a reminder when it is not."),
         S.Toggle("campTimer", "Show Camp Timer",
-            "A circular countdown around the icon until the camp needs refreshing.", "campfire")
+            "A countdown in the icon, and a ring around it that drains as the camp runs down: "
+            .. "green above 30 minutes, yellow above 5, red under 5.", "campfire")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("campBuffs", "Show Active Camp Buffs",

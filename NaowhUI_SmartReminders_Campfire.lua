@@ -15,6 +15,9 @@ local CAMPFIRE_NEARBY = 1283391
 local CAMP_LOW = 120
 local CAMP_ICON = 7808144
 local CIRCLE_MASK = "Interface\\AddOns\\NaowhSmartReminders\\Media\\circle_mask.tga"
+local CIRCLE_RING = "Interface\\AddOns\\NaowhSmartReminders\\Media\\circle_ring.tga"
+-- The time ring's colour by minutes left: green above 30, yellow above 5, red below.
+local RING_STEPS = { { 1800, 0.29, 0.87, 0.5 }, { 300, 0.98, 0.8, 0.08 }, { 0, 0.97, 0.27, 0.27 } }
 
 local TEXT_SIZE = 16
 
@@ -23,6 +26,7 @@ local hasCamp       -- nil until the first read
 local shownExpiry   -- the expiry the swipe was last started from
 local alert
 local alertGen = 0   -- invalidates an older "under 2 minutes" timer
+local ringGen = 0    -- invalidates an older ring colour change
 
 local function On()
     return S.Get("enabled") and S.Get("campfire")
@@ -65,6 +69,19 @@ local function Build()
     icon.timer:SetDrawEdge(false)
     icon.timer:SetReverse(true)
 
+    -- A ring just outside the border that drains with the time left, over a dim full track.
+    icon.track = icon:CreateTexture(nil, "BACKGROUND")
+    icon.track:SetPoint("TOPLEFT", -5, 5)
+    icon.track:SetPoint("BOTTOMRIGHT", 5, -5)
+    icon.track:SetTexture(CIRCLE_RING)
+    icon.track:SetVertexColor(0, 0, 0, 0.6)
+    icon.drain = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
+    icon.drain:SetAllPoints(icon.track)
+    icon.drain:SetSwipeTexture(CIRCLE_RING)
+    icon.drain:SetDrawEdge(false)
+    icon.drain:SetDrawBling(false)
+    icon.drain:SetHideCountdownNumbers(true)
+
     icon.label = ns.Font(icon, TEXT_SIZE, "OUTLINE", T.accentSoft)
     icon.label:SetPoint("TOP", icon, "BOTTOM", 0, -4)
     icon.label:SetText("Refresh Camp")
@@ -87,6 +104,24 @@ local function Place()
     end
 end
 
+-- Nothing fires as the buff runs down, so each colour change is timed.
+local function ColorRing(expiry)
+    ringGen = ringGen + 1
+    local left = expiry - GetTime()
+    for _, step in ipairs(RING_STEPS) do
+        if left > step[1] or step[1] == 0 then
+            icon.drain:SetSwipeColor(step[2], step[3], step[4], 1)
+            if step[1] > 0 then
+                local gen = ringGen
+                C_Timer.After(left - step[1] + 0.1, function()
+                    if gen == ringGen then ColorRing(expiry) end
+                end)
+            end
+            return
+        end
+    end
+end
+
 local function ShowUp(duration, expiry, buffs)
     icon.tex:SetDesaturated(false)
     icon.label:Hide()
@@ -95,11 +130,18 @@ local function ShowUp(duration, expiry, buffs)
     if S.Get("campTimer") and duration and duration > 0 then
         if shownExpiry ~= expiry then
             icon.timer:SetCooldown(expiry - duration, duration)
+            icon.drain:SetCooldown(expiry - duration, duration)
+            ColorRing(expiry)
             shownExpiry = expiry
         end
         icon.timer:Show()
+        icon.drain:Show()
+        icon.track:Show()
     else
         icon.timer:Hide()
+        icon.drain:Hide()
+        icon.track:Hide()
+        ringGen = ringGen + 1
         shownExpiry = nil
     end
     icon:Show()
@@ -110,6 +152,9 @@ local function ShowMissing()
     icon.label:Show()
     icon.buffs:Hide()
     icon.timer:Hide()
+    icon.drain:Hide()
+    icon.track:Hide()
+    ringGen = ringGen + 1
     shownExpiry = nil
     icon:Show()
 end
