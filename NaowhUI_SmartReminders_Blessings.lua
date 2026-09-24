@@ -2,6 +2,7 @@
 --  NaowhUI_SmartReminders_Blessings.lua -- the QoL blessing assignments: each paladin picks a
 --  blessing per class, shared with the group's other paladins running Naowh Forever, and a
 --  bar of click-to-cast buttons, one per class in the group, counting who still needs yours.
+--  The group leader and assistants can set other paladins' assignments.
 --  Greater Blessings reach everyone of the target's class; one blessing per paladin each.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhUITankReminder
@@ -111,11 +112,32 @@ local function InGroup(name)
     end
 end
 
--- Parsed as data: only known classes and blessings from a paladin in the group are kept.
+local function CanAssign(unit)
+    return UnitIsGroupLeader(unit) or UnitIsGroupAssistant(unit)
+end
+
+local Refresh
+
+-- Parsed as data: only known classes and blessings from a paladin in the group are kept, and
+-- only the leader or an assistant can set someone else's.
 local function OnMessage(msg, sender)
     local who = Short(sender)
     if who == Short(GetUnitName("player", true)) then return end
     if msg == "R" then Broadcast() return end
+    local target, class, key = msg:match("^S|([^|]+)|(%u+)=(%l*)$")
+    if target then
+        local unit = InGroup(who)
+        if IsPaladin() and target == Short(GetUnitName("player", true)) and unit and CanAssign(unit)
+            and VALID_CLASS[class] and (key == "" or BLESSINGS[key]) then
+            Mine()[class] = key ~= "" and key or nil
+            ns.Print(("%s set your %s blessing to %s."):format(who,
+                LOCALIZED_CLASS_NAMES_MALE[class] or class, key ~= "" and BLESSINGS[key].name or "none"))
+            Broadcast()
+            Refresh()
+            if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
+        end
+        return
+    end
     local body = msg:match("^F|(.*)$")
     local unit = body and InGroup(who)
     if not (unit and select(2, UnitClass(unit)) == "PALADIN") then return end
@@ -160,7 +182,7 @@ local function NewButton()
 end
 
 -- Secure attributes can only change out of combat; a change asked for in one waits.
-local function Refresh()
+function Refresh()
     if not bar then return end
     if InCombatLockdown() then
         dirty = true
@@ -230,6 +252,24 @@ local function Values()
     return values, order
 end
 
+-- Dropdowns for one paladin's assignments, two classes to a row.
+local function ClassRows(parent, y, get, set)
+    local W = ns.UI.Widgets
+    local values, order = Values()
+    local _, h
+    local function Row(class)
+        if not class then return { type = "label", text = "" } end
+        return { type = "dropdown", text = LOCALIZED_CLASS_NAMES_MALE[class] or class,
+            values = values, order = order,
+            getValue = function() return get(class) or "" end,
+            setValue = function(v) set(class, v ~= "" and v or nil) end }
+    end
+    for i = 1, #CLASSES, 2 do
+        _, h = W:DualRow(parent, y, Row(CLASSES[i]), Row(CLASSES[i + 1])); y = y - h
+    end
+    return y
+end
+
 function ns.BuildQoLBlessingsPage(parent, y)
     local UI = ns.UI
     local W = UI.Widgets
@@ -237,7 +277,8 @@ function ns.BuildQoLBlessingsPage(parent, y)
     _, h = W:Note(parent, "Pick the blessing you give each class. Other paladins in your group "
         .. "running Naowh Forever share theirs, so you can split the classes between you. Your "
         .. "bar then has a button per class in the group: click it to bless whoever of that "
-        .. "class still needs it. The red number is how many do.", y); y = y - h
+        .. "class still needs it. The red number is how many do. The group leader or an "
+        .. "assistant can set other paladins' blessings here too.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "BLESSINGS" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -247,33 +288,31 @@ function ns.BuildQoLBlessingsPage(parent, y)
 
     if IsPaladin() then
         _, h = W:SectionHeader(parent, "YOUR BLESSINGS", y); y = y - h
-        local values, order = Values()
         local mine = Mine()
-        for i = 1, #CLASSES, 2 do
-            local function Row(class)
-                if not class then return { type = "label", text = "" } end
-                return { type = "dropdown", text = LOCALIZED_CLASS_NAMES_MALE[class] or class,
-                    values = values, order = order,
-                    getValue = function() return mine[class] or "" end,
-                    setValue = function(v)
-                        mine[class] = v ~= "" and v or nil
-                        Broadcast()
-                        Refresh()
-                    end }
-            end
-            _, h = W:DualRow(parent, y, Row(CLASSES[i]), Row(CLASSES[i + 1])); y = y - h
-        end
+        y = ClassRows(parent, y, function(class) return mine[class] end, function(class, key)
+            mine[class] = key
+            Broadcast()
+            Refresh()
+        end)
     end
 
+    local lead = CanAssign("player")
     for who, set in pairs(others) do
-        local parts = {}
-        for _, class in ipairs(CLASSES) do
-            if set[class] then
-                parts[#parts + 1] = (LOCALIZED_CLASS_NAMES_MALE[class] or class) .. ": " .. BLESSINGS[set[class]].name
-            end
-        end
         _, h = W:SectionHeader(parent, who:upper(), y); y = y - h
-        _, h = W:Note(parent, #parts > 0 and table.concat(parts, ",  ") or "Nothing assigned yet.", y); y = y - h
+        if lead then
+            y = ClassRows(parent, y, function(class) return set[class] end, function(class, key)
+                set[class] = key
+                Send(("S|%s|%s=%s"):format(who, class, key or ""))
+            end)
+        else
+            local parts = {}
+            for _, class in ipairs(CLASSES) do
+                if set[class] then
+                    parts[#parts + 1] = (LOCALIZED_CLASS_NAMES_MALE[class] or class) .. ": " .. BLESSINGS[set[class]].name
+                end
+            end
+            _, h = W:Note(parent, #parts > 0 and table.concat(parts, ",  ") or "Nothing assigned yet.", y); y = y - h
+        end
     end
     return y
 end
