@@ -69,6 +69,7 @@ NaowhUI_SmartReminders_Note.lua
 NaowhUI_SmartReminders_QoL.lua
 NaowhUI_SmartReminders_LootFeed.lua
 NaowhUI_SmartReminders_XPTicker.lua
+NaowhUI_SmartReminders_Restock.lua
 NaowhUI_SmartReminders_Flight.lua
 NaowhUI_SmartReminders_QuizData.lua
 NaowhUI_SmartReminders_Quiz.lua

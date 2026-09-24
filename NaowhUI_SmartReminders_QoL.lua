@@ -27,6 +27,9 @@ local S = UI.ModuleSettings("qol", {
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24,
     xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true,
     autoRepair = false, sellJunk = false,
+    restock = true, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
+    restockFood = true, restockFoodBelow = 10, restockVendor = true, restockBagsBelow = 4,
+    restockShowFor = 12, restockBuy = false,
 
     durability = true, durabilityBelow = 25,
     combatAlert = false, groupDeaths = false,
@@ -224,6 +227,36 @@ function ns.BuildQoLLootPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("autoRepair", "Auto Repair", "Repairs all gear when you open a vendor who can."),
         S.Toggle("sellJunk", "Auto Sell Junk", "Sells grey items when you open a vendor.")
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "RESTOCK" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("restock", "Restock Reminder",
+            "When you reach a city or inn, a flashing list in the middle of the screen of what "
+            .. "you are short on. Move it in Unlock Mode."),
+        S.Slider("restockShowFor", "Display Time (s)", 3, 30, 1, nil, "restock")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("restockReagents", "Class Reagents",
+            "The reagents your known spells use, such as Arcane Powder, candles, seeds, Symbols "
+            .. "of Kings and Flash Powder, matched to the highest rank you know.", "restock"),
+        S.Toggle("restockAmmo", "Ammo", "The arrows or shot in your ammo slot.", "restock")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("restockAmmoTarget", "Ammo to Carry", 200, 4000, 100, nil, "restockAmmo"),
+        S.Toggle("restockFood", "Food & Drink", "Reminds you when you carry little food and drink.",
+            "restock")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("restockFoodBelow", "Food & Drink Below", 1, 40, 1, nil, "restockFood"),
+        S.Toggle("restockVendor", "Junk & Full Bags",
+            "Reminds you to vendor junk, and when your bags are nearly full.", "restock")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("restockBagsBelow", "Free Slots Below", 1, 20, 1, nil, "restockVendor"),
+        S.Toggle("restockBuy", "Buy at Vendors",
+            "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
+            .. "and prints what it spent. Off by default: it spends gold for you.")
     ); y = y - h
 
     return y
