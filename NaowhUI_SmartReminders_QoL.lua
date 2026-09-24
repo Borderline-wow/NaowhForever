@@ -357,20 +357,29 @@ function ns.BuildQoLTrainerPage(parent, y)
     local _, h
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
-    _, h = W:SectionHeader(parent, "TRAINER POPUP" .. STATUS.ready, y); y = y - h
+    _, h = W:SectionHeader(parent, "TRAINER POPUP" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("trainerPopup", "Trainer Popup",
-            "After visiting a trainer, a small window lists the abilities you just learned."),
+            "After visiting a trainer, a small window lists the abilities you just learned. "
+            .. "Abilities from a tome or a quest show a moment after you learn them. Drag one "
+            .. "from the window onto your bars."),
         S.Toggle("trainerGlow", "Glow New Abilities",
             "Lights up the new abilities on your action bars until you use them.", "trainerPopup")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("trainerRanks", "Offer to Replace Lower Ranks",
             "Adds a button to the popup that swaps every lower rank on your bars for the "
-            .. "one you just learned. Keyboard and controller bars land in the same slot.",
+            .. "highest rank you know. Keyboard and controller bars land in the same slot. "
+            .. "Right-click a spell in the popup to keep its lower ranks, for downranking.",
             "trainerPopup"),
         { type = "label", text = "      Rank swaps only happen out of combat." }
     ); y = y - h
+    _, h = W:Button(parent, "Check My Bars Now", y, function()
+        if ns.TrainerRankCheck then ns.TrainerRankCheck() end
+    end); y = y - h
+    _, h = W:Button(parent, "Forget Kept Spells", y, function()
+        if ns.TrainerForgetKept then ns.TrainerForgetKept() end
+    end); y = y - h
 
     return y
 end

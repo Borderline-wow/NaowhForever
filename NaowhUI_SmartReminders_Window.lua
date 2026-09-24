@@ -653,6 +653,8 @@ SlashCmdList["NAOWHUISMARTREM"] = function(msg)
         ns.ToggleQuiz()
     elseif cmd == "xp" and ns.XPTickerCommand then
         ns.XPTickerCommand(arg)
+    elseif cmd == "ranks" and ns.TrainerRankCheck then
+        ns.TrainerRankCheck()
     else
         ns.ToggleOptionsWindow()
     end

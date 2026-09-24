@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+- Trainer popup: after a trainer visit, a window lists the abilities you just learned, and
+  they glow on your bars until you use them. One button swaps every lower rank on your bars,
+  keyboard and controller, for the highest rank you know. Right-click a spell in the window
+  to keep its lower ranks for downranking. /naowh ranks checks your bars any time.
+
 ### Changed
 - Unlock Mode, Settings, Patch Notes and Profiles moved from the sidebar to the top of the
   window, beside the close button. The sidebar now starts with the module list.

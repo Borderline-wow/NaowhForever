@@ -77,6 +77,7 @@ NaowhUI_SmartReminders_TownMap.xml
 NaowhUI_SmartReminders_GearSets.lua
 NaowhUI_SmartReminders_BiS.lua
 NaowhUI_SmartReminders_Blessings.lua
+NaowhUI_SmartReminders_Trainer.lua
 NaowhUI_SmartReminders_Flight.lua
 NaowhUI_SmartReminders_QuizData.lua
 NaowhUI_SmartReminders_Quiz.lua
