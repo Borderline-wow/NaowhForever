@@ -200,6 +200,7 @@ local function OnItem(link, count)
         AddSessionValue(worth)
         local _, _, _, hex = C_Item.GetItemQualityColor(quality)
         local name = ("|c%s%s|r |cff20ff20x%d|r"):format(hex, item:GetItemName(), count)
+        if ns.IsBisItem and ns.IsBisItem(item:GetItemID()) then name = name .. "  |cff0091edBiS|r" end
         local bags = C_Item.GetItemCount(link, S.Get("lootFeedBank"))
         Push(texture, name, S.Get("lootFeedValue") and worth > 0 and Coins(worth) or nil,
             bags > 0 and bags or nil, link)

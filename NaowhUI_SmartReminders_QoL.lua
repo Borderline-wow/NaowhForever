@@ -35,6 +35,7 @@ local S = UI.ModuleSettings("qol", {
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
     townVendors = false, townPinSize = 16,
     gearSets = true, gearBarSize = 32, gearMounted = "", gearResting = "",
+    bis = true, bisTooltip = true, bisLootAlert = true,
 
     durability = true, durabilityBelow = 25,
     combatAlert = false, groupDeaths = false,
