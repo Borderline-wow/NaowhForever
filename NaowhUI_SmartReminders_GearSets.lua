@@ -56,50 +56,8 @@ end
 -------------------------------------------------------------------------------
 --  Dialogs
 -------------------------------------------------------------------------------
-local function Prompt(title, text, onAccept)
-    local dimmer, panel = ns.MakeModal(320, 130, "gearSetPrompt")
-    local head = ns.Font(panel, 14, "OUTLINE")
-    head:SetPoint("TOP", 0, -14)
-    head:SetText(title)
-    local box = CreateFrame("EditBox", nil, panel)
-    box:SetPoint("TOP", head, "BOTTOM", 0, -12)
-    box:SetSize(280, 28)
-    box:SetAutoFocus(true)
-    box:SetMaxLetters(16)
-    box:SetFontObject("GameFontHighlight")
-    box:SetTextInsets(6, 6, 0, 0)
-    box:SetText(text or "")
-    ns.Solid(box, "BACKGROUND", T.bg, 1):SetAllPoints()
-    ns.Border(box)
-    local function Accept()
-        local name = strtrim(box:GetText())
-        if name == "" then return end
-        dimmer:Hide()
-        onAccept(name)
-    end
-    ns.Button(panel, "Save", 96, 26, Accept):SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
-    ns.Button(panel, "Cancel", 96, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
-    box:SetScript("OnEnterPressed", Accept)
-    box:SetScript("OnEscapePressed", function() dimmer:Hide() end)
-    dimmer:Show()
-end
-
-local function Confirm(text, onYes)
-    local dimmer, panel = ns.MakeModal(320, 110, "gearSetConfirm")
-    local head = ns.Font(panel, 13, nil)
-    head:SetPoint("TOP", 0, -18)
-    head:SetWidth(290)
-    head:SetText(text)
-    ns.Button(panel, "Yes", 96, 26, function() dimmer:Hide(); onYes() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
-    ns.Button(panel, "No", 96, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
-    dimmer:Show()
-end
-
 function ns.NewGearSet()
-    Prompt("Name the new gear set", "", function(name)
+    ns.PromptText("Name the new gear set", "", 16, function(name)
         if C_EquipmentSet.GetEquipmentSetID(name) then
             ns.Print("A gear set called " .. name .. " already exists.")
             return
@@ -109,13 +67,13 @@ function ns.NewGearSet()
 end
 
 function ns.SaveGearSet(setID, name)
-    Confirm("Save what you are wearing now into " .. name .. "?", function()
+    ns.Confirm("Save what you are wearing now into " .. name .. "?", function()
         C_EquipmentSet.SaveEquipmentSet(setID)
     end)
 end
 
 function ns.DeleteGearSet(setID, name)
-    Confirm("Delete the gear set " .. name .. "?", function()
+    ns.Confirm("Delete the gear set " .. name .. "?", function()
         C_EquipmentSet.DeleteEquipmentSet(setID)
     end)
 end

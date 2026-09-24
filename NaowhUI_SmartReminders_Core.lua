@@ -339,6 +339,51 @@ function ns.MakeModal(width, height, key)
     return dimmer, panel
 end
 
+-- A one-line text prompt with Save and Cancel. maxLetters 0 allows any length, for pasting
+-- import strings; text starts in the box highlighted, so a shown export can be copied.
+function ns.PromptText(title, text, maxLetters, onAccept)
+    local dimmer, panel = ns.MakeModal(360, 130, "promptText")
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", 0, -14)
+    head:SetText(title)
+    local box = CreateFrame("EditBox", nil, panel)
+    box:SetPoint("TOP", head, "BOTTOM", 0, -12)
+    box:SetSize(320, 28)
+    box:SetAutoFocus(true)
+    box:SetMaxLetters(maxLetters or 60)
+    box:SetFontObject("GameFontHighlight")
+    box:SetTextInsets(6, 6, 0, 0)
+    box:SetText(text or "")
+    box:HighlightText()
+    ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+    ns.Border(box)
+    local function Accept()
+        local value = strtrim(box:GetText())
+        if value == "" then return end
+        dimmer:Hide()
+        onAccept(value)
+    end
+    ns.Button(panel, "Save", 96, 26, Accept):SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
+    ns.Button(panel, "Cancel", 96, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
+    box:SetScript("OnEnterPressed", Accept)
+    box:SetScript("OnEscapePressed", function() dimmer:Hide() end)
+    dimmer:Show()
+end
+
+function ns.Confirm(text, onYes)
+    local dimmer, panel = ns.MakeModal(340, 110, "confirm")
+    local head = ns.Font(panel, 13, nil)
+    head:SetPoint("TOP", 0, -18)
+    head:SetWidth(310)
+    head:SetText(text)
+    ns.Button(panel, "Yes", 96, 26, function() dimmer:Hide(); onYes() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
+    ns.Button(panel, "No", 96, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
+    dimmer:Show()
+end
+
 -------------------------------------------------------------------------------
 --  SavedVariables and profiles
 -------------------------------------------------------------------------------
