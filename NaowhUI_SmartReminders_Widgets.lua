@@ -664,6 +664,118 @@ function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
     return row, ROW_H
 end
 
+-- A wrapped line of muted text across the content width, for context a row label cannot
+-- carry. Rebuilt with its page, never cached.
+function W:Note(parent, text, yOffset)
+    local fs = ns.Font(parent, 12, nil, T.muted)
+    fs:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD + 20, yOffset - 12)
+    local w = parent:GetWidth() or 0
+    if w <= 0 then w = 960 end
+    fs:SetWidth(w - (UI.CONTENT_PAD + 20) * 2)
+    fs:SetJustifyH("LEFT")
+    fs:SetWordWrap(true)
+    fs:SetText(text)
+    local h = math.ceil(fs:GetStringHeight()) + 24
+    return fs, h
+end
+
+-- Unlock Mode plate for an on-screen display: covers the frame, drags it, and hands the new
+-- position to onMoved. Hidden until the caller shows it.
+function UI.AttachMover(frame, label, onMoved)
+    local mover = CreateFrame("Frame", nil, frame)
+    mover:SetAllPoints()
+    mover:SetFrameLevel(frame:GetFrameLevel() + 20)
+    ns.Solid(mover, "BACKGROUND", T.accent, 0.35):SetAllPoints()
+    ns.Border(mover, T.accent)
+    local text = ns.Font(mover, 12, "OUTLINE")
+    text:SetPoint("CENTER")
+    text:SetText(label)
+    mover:EnableMouse(true)
+    mover:RegisterForDrag("LeftButton")
+    mover:SetScript("OnDragStart", function() frame:StartMoving() end)
+    mover:SetScript("OnDragStop", function()
+        frame:StopMovingOrSizing()
+        local point, _, relPoint, x, y = frame:GetPoint()
+        onMoved({ point = point, relPoint = relPoint, x = x, y = y })
+    end)
+    mover:Hide()
+    return mover
+end
+
+-- Font dropdown data: "" follows the Global Font, then every SharedMedia font. A saved font
+-- that has since gone missing stays listed so the dropdown does not show a blank.
+function UI.FontChoices(selected)
+    local values, order = { [""] = "Global Font" }, { "" }
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if LSM then
+        for _, name in ipairs(LSM:List("font")) do
+            values[name] = name
+            order[#order + 1] = name
+        end
+    end
+    if type(selected) == "string" and selected ~= "" and not values[selected] then
+        values[selected] = selected .. " (unavailable)"
+        order[#order + 1] = selected
+    end
+    return values, order
+end
+
+-- A SharedMedia font by name, or the Global Font for "" and anything missing.
+function UI.FontPath(name)
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    local path = LSM and name and name ~= "" and LSM:Fetch("font", name, true)
+    return path or ns.UIFontPath()
+end
+
+-- Appended to a section header to say how far along that feature is.
+UI.STATUS = {
+    ready    = "   |cff4dd17aREADY|r",
+    limited  = "   |cffffa300LIMITED|r",
+    untested = "   |cff9a9ea6UNTESTED|r",
+    blocked  = "   |cffff6060NOT POSSIBLE YET|r",
+}
+UI.PREVIEW_NOTE = "Preview build: these settings save to your profile now, and each "
+    .. "feature switches on as it is built."
+
+-- Settings for the Naowh Forever modules: one table per module inside the active profile,
+-- read through defaults so a key an older profile never wrote picks up the current default.
+-- The row makers return W:DualRow configs; `on` names the master toggle a row depends on,
+-- and every toggle redraws the page so dependants dim and undim with it.
+function UI.ModuleSettings(key, defaults)
+    local S = {}
+    function S.DB()
+        local root = ns.SettingsRoot()
+        if type(root[key]) ~= "table" then root[key] = {} end
+        return root[key]
+    end
+    function S.Get(k)
+        local v = S.DB()[k]
+        if v == nil then return defaults[k] end
+        return v
+    end
+    function S.Set(k, v) S.DB()[k] = v end
+
+    local function Row(cfg, k, on)
+        cfg.getValue = function() return S.Get(k) end
+        cfg.setValue = cfg.setValue or function(v) S.Set(k, v) end
+        if on then cfg.disabled = function() return not S.Get(on) end end
+        return cfg
+    end
+    function S.Toggle(k, text, tooltip, on)
+        return Row({ type = "toggle", text = text, tooltip = tooltip,
+            setValue = function(v) S.Set(k, v); UI:RefreshPage(true) end }, k, on)
+    end
+    function S.Slider(k, text, min, max, step, tooltip, on)
+        return Row({ type = "slider", text = text, tooltip = tooltip,
+            min = min, max = max, step = step }, k, on)
+    end
+    function S.Dropdown(k, text, values, order, tooltip, on)
+        return Row({ type = "dropdown", text = text, tooltip = tooltip,
+            values = values, order = order }, k, on)
+    end
+    return S
+end
+
 -------------------------------------------------------------------------------
 --  Sounds
 -------------------------------------------------------------------------------

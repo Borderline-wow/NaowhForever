@@ -3,64 +3,90 @@
 --
 --  Owns the window lifecycle half of ns.UI: RefreshPage, ClearContentHeader and the
 --  OnShow/OnHide callback lists the runtime uses to drive the preview. The page builders
---  themselves live in the main and Bosses files and are resolved at open time, since this
---  file loads before them.
+--  themselves live in the later files and are resolved at open time, since this file
+--  loads before them.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhUITankReminder
 local T = ns.THEME
 local UI = ns.UI
 
-local WINDOW_W, WINDOW_H = 1000, 640
-local TITLE_H, TAB_H, SUB_H = 28, 30, 26
+local SIDEBAR_W, CONTENT_W, WINDOW_H = 230, 1000, 700
+local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
+local LOGO = "Interface\\AddOns\\NaowhSmartReminders\\Media\\LogoAddon.tga"
 
--- Two levels. The top strip is the three things this addon is, and everything that
--- configures a reminder sits under the first of them rather than spread across six
--- same-weight tabs where "Cooldown Presets" read as a peer of "Profiles".
-local TOP_PAGES = { "Smart Reminders", "Custom Notes", "Profiles" }
-local SUB_PAGES = {
-    ["Smart Reminders"] = { "Setup", "Cooldown Presets", "Dungeon Bosses",
-        "Raid Bosses", "Trash", "Debuffs" },
+-- The sidebar is the window's own pages first, then one entry per module. A module opens
+-- on its first tab. `build` names the ns builder resolved at open time; `arg` is passed
+-- after the starting y. A page with `soon` is built but not ready: its tab stays in the
+-- strip, dimmed, and opens a note instead of half-finished work.
+local SYSTEM_PAGES = {
+    { name = "Settings", build = "BuildSettingsPage",
+      subtitle = "Options for the whole addon, saved for this computer." },
+    { name = "Patch Notes", build = "BuildPatchNotesPage",
+      subtitle = "What changed in recent builds." },
+    { name = "Profiles", build = "BuildProfileSettings",
+      subtitle = "Switch, copy and share everything these pages save." },
 }
 
--- The page a top tab opens on, and the one whose rows are reused rather than rebuilt.
-local SETUP_PAGE = "Setup"
+local MODULES = {
+    { name = "Smart Reminders",
+      subtitle = "Calls out what to press when a boss ability is about to land.",
+      tabs = {
+          { name = "Setup", build = "BuildSetupPage" },
+          { name = "Cooldown Presets", build = "BuildPresetsPage" },
+          { name = "Dungeon Bosses", build = "BuildBossTabPage", arg = false },
+          { name = "Raid Bosses", build = "BuildBossTabPage", arg = true },
+          { name = "Trash", build = "BuildIntegrationsPage" },
+          { name = "Custom Notes", soon = "Your own note lines, driven by the same triggers "
+              .. "the reminders use. Not finished yet.\n\nNothing is missing in the meantime: "
+              .. "reminders still carry their own text, set per reminder from the boss and "
+              .. "trash pages." },
+      } },
+    { name = "QoL", settings = "QoLSettings",
+      subtitle = "Naowh's quality of life tweaks, trimmed to what Forever has.",
+      tabs = {
+          { name = "General", build = "BuildQoLGeneralPage" },
+          { name = "Loot & Items", build = "BuildQoLLootPage" },
+          { name = "Alerts", build = "BuildQoLAlertsPage" },
+          { name = "Interface", build = "BuildQoLInterfacePage" },
+          { name = "Trainer", build = "BuildQoLTrainerPage" },
+          { name = "Flight & Camp", build = "BuildQoLFlightPage" },
+      } },
+    { name = "Macros", settings = "MacroSettings",
+      subtitle = "Macros written and kept current for you, out of combat.",
+      tabs = {
+          { name = "Consumables", build = "BuildMacroConsumablesPage" },
+          { name = "Focus & Cursor", build = "BuildMacroFocusPage" },
+      } },
+    { name = "AuraBuffs", settings = "AuraBuffSettings",
+      subtitle = "Buff, consumable and campfire reminders, low health and debuff sounds.",
+      tabs = {
+          { name = "Buffs & Consumables", build = "BuildAuraBuffsPage" },
+          { name = "Campfire", build = "BuildCampfirePage" },
+          { name = "Low Health", build = "BuildLowHealthPage" },
+          { name = "Poison & Dispel", build = "BuildPoisonDispelPage" },
+      } },
+}
 
--- Sub page -> the top tab it belongs to, and every page key the window can show. A top
--- page with no children is its own page key.
-local PARENT_OF, ALL_PAGES = {}, {}
-for _, top in ipairs(TOP_PAGES) do
-    local subs = SUB_PAGES[top]
-    if subs then
-        for _, sub in ipairs(subs) do
-            PARENT_OF[sub] = top
-            ALL_PAGES[#ALL_PAGES + 1] = sub
-        end
-    else
-        ALL_PAGES[#ALL_PAGES + 1] = top
+-- Page key -> page. Module tabs are keyed "Module/Tab", since two modules may share a tab
+-- name; the window's own pages are their own key.
+local PAGES = {}
+for _, page in ipairs(SYSTEM_PAGES) do
+    page.key, page.title = page.name, page.name
+    PAGES[page.key] = page
+end
+for _, mod in ipairs(MODULES) do
+    for _, tab in ipairs(mod.tabs) do
+        tab.key, tab.module = mod.name .. "/" .. tab.name, mod
+        PAGES[tab.key] = tab
     end
 end
 
-local function LandingPage(top)
-    local subs = SUB_PAGES[top]
-    return subs and subs[1] or top
-end
+-- The page whose rows are reused rather than rebuilt.
+local SETUP_PAGE = "Smart Reminders/Setup"
 
--- Pages that are built but not ready to be used. The tab stays in the strip, dimmed, and
--- opens a note instead of the page: removing it would leave a gap people ask about, and
--- letting it open half-finished work is worse than saying so.
-local COMING_SOON = {
-    ["Custom Notes"] = "Your own note lines, driven by the same triggers the reminders "
-        .. "use. Not finished yet.\n\nNothing is missing in the meantime: reminders still "
-        .. "carry their own text, set per reminder from the boss and trash pages.",
-    ["Ability Reminders"] = "Every reminder for one boss in a single list, instead of one "
-        .. "boss page at a time. Not finished yet.\n\nNothing is missing in the meantime: "
-        .. "the same reminders are authored per boss from the Dungeon Bosses and Raid "
-        .. "Bosses tabs, which is where this page reads them from.",
-}
-
-local window, scrollFrame, scrollChild, tabLine
-local tabButtons, subButtons, subRows = {}, {}, {}
-local wrappers = {}          -- pageName -> built wrapper frame
+local window, scrollFrame, scrollChild, tabLine, headerTitle, headerSub
+local navButtons, tabButtons, tabStrips = {}, {}, {}
+local wrappers = {}          -- page key -> built wrapper frame
 local currentPage = SETUP_PAGE
 local pendingRefresh
 local onShowCallbacks, onHideCallbacks = {}, {}
@@ -69,11 +95,9 @@ function UI:RegisterOnShow(fn) onShowCallbacks[#onShowCallbacks + 1] = fn end
 function UI:RegisterOnHide(fn) onHideCallbacks[#onHideCallbacks + 1] = fn end
 function UI:ClearContentHeader() end
 
--- The dispatch the pages were registered with when EllesmereUI hosted them; the builders
--- return their raw running y (negative), and the wrapper takes math.abs of it.
-local function BuildPageInto(pageName, parent)
-    local soon = COMING_SOON[pageName]
-    if soon then
+-- The builders return their raw running y (negative), and the wrapper takes math.abs of it.
+local function BuildPageInto(page, parent)
+    if page.soon then
         local head = ns.Font(parent, 16, "OUTLINE", T.muted)
         head:SetPoint("TOP", parent, "TOP", 0, -60)
         head:SetText(ns.L("Coming soon"))
@@ -84,91 +108,102 @@ local function BuildPageInto(pageName, parent)
         body:SetPoint("RIGHT", parent, "RIGHT", -60, 0)
         body:SetJustifyH("CENTER")
         body:SetWordWrap(true)
-        body:SetText(soon)
+        body:SetText(page.soon)
         return -180
     end
-    if pageName == "Profiles" then
-        return ns.BuildProfileSettings and ns.BuildProfileSettings(parent, -6) or -6
-    elseif pageName == "Cooldown Presets" then
-        return ns.BuildPresetsPage and ns.BuildPresetsPage(parent, -6) or -6
-    elseif pageName == "Dungeon Bosses" then
-        return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, false) or -6
-    elseif pageName == "Raid Bosses" then
-        return ns.BuildBossTabPage and ns.BuildBossTabPage(parent, -6, true) or -6
-    elseif pageName == "Trash" then
-        return ns.BuildIntegrationsPage and ns.BuildIntegrationsPage(parent, -6) or -6
-    elseif pageName == "Debuffs" then
-        return ns.BuildDebuffsPage and ns.BuildDebuffsPage(parent, -6) or -6
-    elseif pageName == "Ability Reminders" then
-        return ns.BuildCustomRemindersPage and ns.BuildCustomRemindersPage(parent, -6) or -6
-    else
-        return ns.BuildSetupPage and ns.BuildSetupPage(parent, -6) or -6
-    end
+    local fn = ns[page.build]
+    if not fn then return -6 end
+    return fn(parent, -6, page.arg)
 end
 
-local function ActiveTop()
-    return PARENT_OF[currentPage] or currentPage
+-- A module's on/off switch. Smart Reminders keeps its own master switch; the newer modules
+-- store `enabled` in their settings table.
+local function ModuleOn(mod)
+    if mod.settings then return ns[mod.settings].Get("enabled") end
+    return ns.DB().enabled == true
+end
+
+local function SetModuleOn(mod, on)
+    if mod.settings then ns[mod.settings].Set("enabled", on) else ns.SetEnabled(on) end
+    UI:RefreshPage(true)
+end
+
+-- The sidebar entry a page lights: its module, or the page itself.
+local function ActiveNav()
+    local page = PAGES[currentPage]
+    return page.module and page.module.name or page.key
 end
 
 -- A page that cannot be used reads as dimmer than an inactive one, and keeps that look
 -- even while it is the page you are on, since selecting it changes nothing about whether
 -- it works.
-local function PaintTab(btn, name, active)
-    if COMING_SOON[name] then
+local function PaintTab(btn, page, active)
+    if page.soon then
         btn.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 0.45)
     else
-        btn.label:SetTextColor(active and T.fg.r or T.muted.r,
-            active and T.fg.g or T.muted.g,
-            active and T.fg.b or T.muted.b, 1)
+        local c = active and T.fg or T.muted
+        btn.label:SetTextColor(c.r, c.g, c.b, 1)
     end
     btn.marker:SetShown(active)
 end
 
-local function PaintTabs()
-    local top = ActiveTop()
-    for name, btn in pairs(tabButtons) do PaintTab(btn, name, name == top) end
-    for name, btn in pairs(subButtons) do PaintTab(btn, name, name == currentPage) end
+local function PaintNav()
+    local nav = ActiveNav()
+    for name, btn in pairs(navButtons) do
+        local active = name == nav
+        local c = active and T.fg or T.muted
+        btn.label:SetTextColor(c.r, c.g, c.b, 1)
+        btn.fill:SetShown(active)
+        btn.marker:SetShown(active)
+        if btn.switch then
+            btn.switch._refreshValue()
+            btn.label:SetAlpha(ModuleOn(btn.module) and 1 or 0.5)
+        end
+    end
+    for key, btn in pairs(tabButtons) do PaintTab(btn, PAGES[key], key == currentPage) end
 end
 
--- The sub strip only exists for a top tab that has children, so the content below has to
--- start at a different height depending on which one is open rather than leaving an empty
--- band on the pages that have none.
-local function LayoutStrips()
-    local top = ActiveTop()
-    for name, row in pairs(subRows) do row:SetShown(name == top) end
-    local offset = TITLE_H + TAB_H + (subRows[top] and SUB_H or 0)
+-- Only a module has a tab strip, so the content starts higher on the window's own pages
+-- rather than leaving an empty band where the strip would be.
+local function LayoutContent()
+    local page = PAGES[currentPage]
+    local mod = page.module
+    headerTitle:SetText(ns.L(mod and mod.name or page.title))
+    headerSub:SetText(mod and mod.subtitle or page.subtitle)
+    for name, strip in pairs(tabStrips) do strip:SetShown(mod ~= nil and name == mod.name) end
+    local offset = HEADER_H + (mod and TAB_H or 0)
     tabLine:ClearAllPoints()
-    tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -offset)
+    tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, -offset)
     tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -offset)
     scrollFrame:ClearAllPoints()
-    scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", 10, -(offset + 5))
-    scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, 10)
+    scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W + 10, -(offset + 5))
+    scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, FOOTER_H + 4)
 end
 
-local function ShowPage(pageName)
-    currentPage = pageName
-    LayoutStrips()
+local function ShowPage(key)
+    currentPage = key
+    LayoutContent()
     for name, w in pairs(wrappers) do
-        w:SetShown(name == pageName)
+        w:SetShown(name == key)
     end
-    if not wrappers[pageName] then
+    if not wrappers[key] then
         local wrapper = CreateFrame("Frame", nil, scrollChild)
         wrapper:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
         wrapper:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", 0, 0)
         wrapper:SetHeight(1)
-        wrappers[pageName] = wrapper
+        wrappers[key] = wrapper
         wrapper._dirty = true
     end
-    local wrapper = wrappers[pageName]
+    local wrapper = wrappers[key]
     if wrapper._dirty then
         wrapper._dirty = nil
-        if pageName == SETUP_PAGE then UI.BeginReusableRows(wrapper) end
-        local usedY = BuildPageInto(pageName, wrapper)
+        if key == SETUP_PAGE then UI.BeginReusableRows(wrapper) end
+        local usedY = BuildPageInto(PAGES[key], wrapper)
         wrapper:SetHeight(math.abs(usedY) + 30)
     end
-    scrollChild:SetHeight(wrappers[pageName]:GetHeight())
+    scrollChild:SetHeight(wrappers[key]:GetHeight())
     scrollFrame:SetVerticalScroll(0)
-    PaintTabs()
+    PaintNav()
 end
 
 local function InvalidatePages()
@@ -232,7 +267,7 @@ equipWatcher:SetScript("OnEvent", function(_, _, slot)
     if slot == INVSLOT_TRINKET1 or slot == INVSLOT_TRINKET2 then UI:RefreshPage(true) end
 end)
 
--- Set from the dropdown on the setup page. A dropdown rather than a slider on purpose:
+-- Set from the dropdown on the Settings page. A dropdown rather than a slider on purpose:
 -- the control sits inside the frame it resizes, and the slider maps the cursor against the
 -- track's live position, so rescaling mid-drag walks the track out from under the pointer
 -- and the value chases it.
@@ -241,9 +276,77 @@ function ns.SetWindowScale(pct)
     if window then window:SetScale(ns.UIScale()) end
 end
 
+function ns.BuildSettingsPage(parent, y)
+    local W = UI.Widgets
+    local _, h
+
+    _, h = W:SectionHeader(parent, "OPTIONS WINDOW", y); y = y - h
+
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Window Scale",
+          values = { [100] = "100%  (default)", [90] = "90%", [80] = "80%",
+                     [70] = "70%", [60] = "60%", [50] = "50%" },
+          order = { 100, 90, 80, 70, 60, 50 },
+          tooltip = "Size of this options window and the editors it opens, as a percentage. "
+          .. "Turn it down if the window is too big for your screen; 1080p usually wants 80 "
+          .. "or below.|n|nSaved for this computer instead of in the profile, so switching "
+          .. "profile leaves it alone and an exported pack never carries it to someone on a "
+          .. "different monitor.",
+          getValue = function() return tonumber(ns.AccountSettings().windowScale) or 100 end,
+          setValue = function(v) ns.SetWindowScale(v) end },
+        { type = "toggle", text = "Minimap Button",
+          tooltip = "The Naowh Forever button on the minimap. The addon compartment entry "
+          .. "and /naowh open this window either way.",
+          getValue = function()
+              local mm = ns.AccountSettings().minimap
+              return not (type(mm) == "table" and mm.hide)
+          end,
+          setValue = function(v)
+              ns.AccountSettings().minimap.hide = not v
+              local icon = LibStub("LibDBIcon-1.0")
+              if v then icon:Show("NaowhSmartReminders") else icon:Hide("NaowhSmartReminders") end
+          end }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "FONT", y); y = y - h
+    local fonts, fontOrder = UI.FontChoices(ns.AccountSettings().gameFont)
+    fonts[""] = "Naowh (default)"
+    fonts[ns.BLIZZARD_FONT] = "Blizzard Default"
+    table.insert(fontOrder, 2, ns.BLIZZARD_FONT)
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Global Font", values = fonts, order = fontOrder,
+          tooltip = "The font for all of the game's text: this addon, menus, chat, tooltips, "
+          .. "names and damage numbers. Blizzard Default leaves the game's own fonts alone. "
+          .. "Saved for this computer.|n|nTakes effect after a /reload.",
+          getValue = function() return ns.AccountSettings().gameFont or "" end,
+          setValue = function(v)
+              if v == "" then v = nil end
+              ns.AccountSettings().gameFont = v
+          end },
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = W:Button(parent, "Reload UI", y, ReloadUI); y = y - h
+
+    return y
+end
+
+local function EnterUnlockMode()
+    if ns.ShowRaidReminderAnchorConfig then ns.ShowRaidReminderAnchorConfig() end
+end
+
+local function StartDrag() window:StartMoving() end
+local function StopDrag() window:StopMovingOrSizing() end
+
+local function DragRegion(frame)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", StartDrag)
+    frame:SetScript("OnDragStop", StopDrag)
+end
+
 local function CreateWindow()
     window = CreateFrame("Frame", "NaowhUISmartRemindersOptions", UIParent)
-    window:SetSize(WINDOW_W, WINDOW_H)
+    window:SetSize(SIDEBAR_W + CONTENT_W, WINDOW_H)
     window:SetScale(ns.UIScale())
     window:SetPoint("CENTER")
     window:SetFrameStrata("DIALOG")
@@ -272,91 +375,154 @@ local function CreateWindow()
         end
     end)
 
-    local titleBar = CreateFrame("Button", nil, window)
-    titleBar:SetPoint("TOPLEFT")
-    titleBar:SetPoint("TOPRIGHT")
-    titleBar:SetHeight(TITLE_H)
-    ns.Solid(titleBar, "BACKGROUND", T.panel, 1):SetAllPoints()
-    titleBar:RegisterForDrag("LeftButton")
-    titleBar:SetScript("OnDragStart", function() window:StartMoving() end)
-    titleBar:SetScript("OnDragStop", function() window:StopMovingOrSizing() end)
+    -- Sidebar: logo and name, the window's own pages, then the modules.
+    local sidebar = CreateFrame("Frame", nil, window)
+    sidebar:SetPoint("TOPLEFT")
+    sidebar:SetPoint("BOTTOMLEFT")
+    sidebar:SetWidth(SIDEBAR_W)
+    ns.Solid(sidebar, "BACKGROUND", T.panel, 1):SetAllPoints()
+    local edge = ns.Solid(sidebar, "ARTWORK", T.line, 1)
+    edge:SetPoint("TOPRIGHT")
+    edge:SetPoint("BOTTOMRIGHT")
+    edge:SetWidth(1)
 
-    local title = ns.Font(titleBar, 13, "OUTLINE")
-    title:SetPoint("LEFT", 12, 0)
-    title:SetText("|cff0091edNaowh|r " .. ns.L("Smart Reminders"))
+    local brand = CreateFrame("Frame", nil, sidebar)
+    brand:SetPoint("TOPLEFT")
+    brand:SetPoint("TOPRIGHT")
+    brand:SetHeight(HEADER_H)
+    DragRegion(brand)
+    local logo = brand:CreateTexture(nil, "ARTWORK")
+    logo:SetTexture(LOGO)
+    logo:SetSize(44, 44)
+    logo:SetPoint("LEFT", brand, "LEFT", 16, 0)
+    local name = ns.Font(brand, 19, "OUTLINE")
+    name:SetPoint("LEFT", logo, "RIGHT", 10, 0)
+    name:SetText("|cff0091edNaowh|r Forever")
 
-    local close = ns.Button(titleBar, "X", 22, 22, function() window:Hide() end)
-    close:SetPoint("RIGHT", -3, 0)
-
-    local version = ns.Font(titleBar, 11, nil, T.muted)
-    version:SetPoint("RIGHT", close, "LEFT", -10, 0)
-    version:SetText("v" .. (C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or "unknown"))
-
-    -- Tab strip, in the same visual language as the modal editors' own tabs: a button
-    -- with an accent underline marking the active page. Widths are measured off the label
-    -- rather than fixed, since the two strips carry names of very different lengths and a
-    -- fixed width leaves the short ones swimming.
-    local function MakeTab(parent, name, height, size, pad, onClick)
-        local btn = CreateFrame("Button", nil, parent)
-        btn.label = ns.Font(btn, size, nil, T.muted)
-        btn.label:SetPoint("CENTER")
-        btn.label:SetText(ns.L(name))
-        btn:SetSize(math.max(72, math.ceil(btn.label:GetStringWidth()) + pad), height)
-        btn.marker = ns.Solid(btn, "OVERLAY", T.accent, 1)
-        btn.marker:SetPoint("BOTTOMLEFT", 10, 0)
-        btn.marker:SetPoint("BOTTOMRIGHT", -10, 0)
-        btn.marker:SetHeight(2)
+    local ny = -(HEADER_H + 8)
+    local function NavButton(label, onClick, indent)
+        local btn = CreateFrame("Button", nil, sidebar)
+        btn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, ny)
+        btn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -1, ny)
+        btn:SetHeight(NAV_H)
+        btn.fill = ns.Solid(btn, "BACKGROUND", T.grey, 0.5)
+        btn.fill:SetAllPoints()
+        btn.fill:Hide()
+        btn.marker = ns.Solid(btn, "ARTWORK", T.accent, 1)
+        btn.marker:SetPoint("TOPLEFT")
+        btn.marker:SetPoint("BOTTOMLEFT")
+        btn.marker:SetWidth(3)
         btn.marker:Hide()
+        btn.label = ns.Font(btn, 13, nil, T.muted)
+        btn.label:SetPoint("LEFT", btn, "LEFT", indent or 22, 0)
+        btn.label:SetText(ns.L(label))
         btn:SetScript("OnClick", onClick)
+        btn:SetScript("OnEnter", function(self) self.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1) end)
+        btn:SetScript("OnLeave", function(self)
+            local c = self.fill:IsShown() and T.fg or T.muted
+            self.label:SetTextColor(c.r, c.g, c.b, 1)
+        end)
+        ny = ny - NAV_H
         return btn
     end
 
-    local tx = 10
-    for _, name in ipairs(TOP_PAGES) do
-        local btn = MakeTab(window, name, TAB_H, 13, 44,
-            function() ShowPage(LandingPage(name)) end)
-        btn:SetPoint("TOPLEFT", window, "TOPLEFT", tx, -TITLE_H)
-        tabButtons[name] = btn
-        tx = tx + btn:GetWidth() + 4
+    local unlock = NavButton("Unlock Mode", EnterUnlockMode)
+    ns.Tooltip(unlock, "Unlock Mode",
+        "Place and size each reminder display. An alignment grid appears while you are in "
+        .. "there. This window steps aside and comes back when you press Exit Config.")
+    for _, page in ipairs(SYSTEM_PAGES) do
+        navButtons[page.key] = NavButton(page.name, function() ShowPage(page.key) end)
     end
 
-    -- One strip per top tab that has children; only the open one is shown, and the content
-    -- below moves up when there is none. Built with the window rather than on demand: a
-    -- strip rebuilt per page change loses nothing but costs a frame's worth of churn on
-    -- every click.
-    for _, top in ipairs(TOP_PAGES) do
-        local subs = SUB_PAGES[top]
-        if subs then
-            local row = CreateFrame("Frame", nil, window)
-            row:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -(TITLE_H + TAB_H))
-            row:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -(TITLE_H + TAB_H))
-            row:SetHeight(SUB_H)
-            ns.Solid(row, "BACKGROUND", T.panel, 1):SetAllPoints()
-            local sx = 16
-            for _, name in ipairs(subs) do
-                local btn = MakeTab(row, name, SUB_H, 11, 30,
-                    function() ShowPage(name) end)
-                btn:SetPoint("TOPLEFT", row, "TOPLEFT", sx, 0)
-                subButtons[name] = btn
-                sx = sx + btn:GetWidth() + 2
-            end
-            subRows[top] = row
-            row:Hide()
+    ny = ny - 14
+    local group = ns.Font(sidebar, 13, nil, T.accent)
+    group:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, ny)
+    group:SetText(ns.L("Modules"))
+    ny = ny - 24
+    -- Indented under the group label, each with a small switch that turns the whole
+    -- module off without leaving the page you are on.
+    for _, mod in ipairs(MODULES) do
+        local btn = NavButton(mod.name, function() ShowPage(mod.tabs[1].key) end, 36)
+        local switch = UI.BuildToggleControl(btn, btn:GetFrameLevel() + 2,
+            function() return ModuleOn(mod) end,
+            function(v) SetModuleOn(mod, v) end, 28, 14)
+        switch:SetPoint("RIGHT", btn, "RIGHT", -16, 0)
+        ns.Tooltip(switch, mod.name, function()
+            return ModuleOn(mod) and "On. Click to turn the whole module off."
+                or "Off. Click to turn it back on."
+        end)
+        btn.switch, btn.module = switch, mod
+        navButtons[mod.name] = btn
+    end
+
+    local version = ns.Font(sidebar, 11, nil, T.muted)
+    version:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMLEFT", 18, 14)
+    version:SetText("v" .. (C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or "unknown"))
+
+    -- Content header: the open module's name and what it is for, with its tabs below.
+    local header = CreateFrame("Frame", nil, window)
+    header:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, 0)
+    header:SetPoint("TOPRIGHT")
+    header:SetHeight(HEADER_H)
+    DragRegion(header)
+    headerTitle = ns.Font(header, 24, "OUTLINE")
+    headerTitle:SetPoint("TOPLEFT", header, "TOPLEFT", 30, -18)
+    headerSub = ns.Font(header, 12, nil, T.muted)
+    headerSub:SetPoint("TOPLEFT", headerTitle, "BOTTOMLEFT", 1, -6)
+
+    local close = ns.Button(header, "X", 26, 26, function() window:Hide() end)
+    close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -12, -12)
+
+    -- Tab strip, in the same visual language as the modal editors' own tabs: a button
+    -- with an accent underline marking the active page. Widths are measured off the label
+    -- rather than fixed, since tab names vary a lot in length and a fixed width leaves the
+    -- short ones swimming.
+    for _, mod in ipairs(MODULES) do
+        local strip = CreateFrame("Frame", nil, window)
+        strip:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, -HEADER_H)
+        strip:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -HEADER_H)
+        strip:SetHeight(TAB_H)
+        local tx = 20
+        for _, tab in ipairs(mod.tabs) do
+            local btn = CreateFrame("Button", nil, strip)
+            btn.label = ns.Font(btn, 14, nil, T.muted)
+            btn.label:SetPoint("CENTER")
+            btn.label:SetText(ns.L(tab.name))
+            btn:SetSize(math.ceil(btn.label:GetStringWidth()) + 30, TAB_H)
+            btn.marker = ns.Solid(btn, "OVERLAY", T.accent, 1)
+            btn.marker:SetPoint("BOTTOMLEFT", 6, 0)
+            btn.marker:SetPoint("BOTTOMRIGHT", -6, 0)
+            btn.marker:SetHeight(2)
+            btn.marker:Hide()
+            btn:SetScript("OnClick", function() ShowPage(tab.key) end)
+            btn:SetPoint("TOPLEFT", strip, "TOPLEFT", tx, 0)
+            tabButtons[tab.key] = btn
+            tx = tx + btn:GetWidth() + 2
         end
+        tabStrips[mod.name] = strip
+        strip:Hide()
     end
 
     tabLine = ns.Solid(window, "ARTWORK", T.line, 1)
-    tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", 0, -(TITLE_H + TAB_H))
-    tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -(TITLE_H + TAB_H))
     tabLine:SetHeight(1)
 
+    local footer = CreateFrame("Frame", nil, window)
+    footer:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", SIDEBAR_W, 0)
+    footer:SetPoint("BOTTOMRIGHT")
+    footer:SetHeight(FOOTER_H)
+    local footLine = ns.Solid(footer, "ARTWORK", T.line, 1)
+    footLine:SetPoint("TOPLEFT")
+    footLine:SetPoint("TOPRIGHT")
+    footLine:SetHeight(1)
+    ns.Button(footer, "Reload UI", 140, 26, ReloadUI):SetPoint("LEFT", footer, "LEFT", 30, 0)
+    ns.Button(footer, "Close", 140, 26, function() window:Hide() end)
+        :SetPoint("RIGHT", footer, "RIGHT", -30, 0)
+
     scrollFrame = CreateFrame("ScrollFrame", nil, window, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", 10, -(TITLE_H + TAB_H + 5))
-    scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, 10)
     scrollChild = CreateFrame("Frame", nil, scrollFrame)
     -- Fixed width so the builders' CONTENT_PAD math lands on the same row widths every
     -- build; the window is deliberately not resizable for the same reason.
-    scrollChild:SetSize(WINDOW_W - 40, 1)
+    scrollChild:SetSize(CONTENT_W - 40, 1)
     scrollFrame:SetScrollChild(scrollChild)
 
     window:SetScript("OnShow", function(self)
@@ -386,17 +552,19 @@ local function CreateWindow()
     window:Hide()
 end
 
--- pageName, when given, is which tab the window opens on; OnShow renders currentPage,
--- so setting it before Show() is the whole mechanism.
+-- pageName, when given, is which page the window opens on; OnShow renders currentPage,
+-- so setting it before Show() is the whole mechanism. A page key, a module name (its
+-- first tab) or a bare tab name all work, so older callers naming "Setup" still land.
 function ns.OpenOptionsWindow(pageName)
     if pageName then
-        -- Either level is accepted: a caller naming a top tab lands on whichever page that
-        -- tab opens, which is what "open on Smart Reminders" is asking for.
-        if SUB_PAGES[pageName] then
-            currentPage = LandingPage(pageName)
+        if PAGES[pageName] then
+            currentPage = pageName
         else
-            for _, name in ipairs(ALL_PAGES) do
-                if name == pageName then currentPage = pageName break end
+            for _, mod in ipairs(MODULES) do
+                if mod.name == pageName then currentPage = mod.tabs[1].key break end
+                for _, tab in ipairs(mod.tabs) do
+                    if tab.name == pageName then currentPage = tab.key break end
+                end
             end
         end
     end
@@ -435,7 +603,13 @@ SLASH_NAOWHUISMARTREM1 = "/smartreminders"
 SLASH_NAOWHUISMARTREM2 = "/naowh"
 SLASH_NAOWHUISMARTREM3 = "/nao"
 SLASH_NAOWHUISMARTREM4 = "/nsr"
-SlashCmdList["NAOWHUISMARTREM"] = function() ns.ToggleOptionsWindow() end
+SlashCmdList["NAOWHUISMARTREM"] = function(msg)
+    if strtrim(msg or ""):lower() == "quiz" and ns.ToggleQuiz then
+        ns.ToggleQuiz()
+    else
+        ns.ToggleOptionsWindow()
+    end
+end
 
 -- The launcher position belongs to the account, not an imported settings profile.
 local launcherEvents = CreateFrame("Frame")
@@ -447,11 +621,11 @@ launcherEvents:SetScript("OnEvent", function(self)
     end
     local launcher = LibStub("LibDataBroker-1.1"):NewDataObject("NaowhSmartReminders", {
         type = "launcher",
-        label = "Naowh " .. ns.L("Smart Reminders"),
-        icon = "Interface\\AddOns\\NaowhSmartReminders\\Media\\LogoAddon.tga",
+        label = "Naowh Forever",
+        icon = LOGO,
         OnClick = function() ns.ToggleOptionsWindow() end,
         OnTooltipShow = function(tooltip)
-            tooltip:AddLine("Naowh " .. ns.L("Smart Reminders"))
+            tooltip:AddLine("Naowh Forever")
             tooltip:AddLine(ns.L("Click to open settings."), 1, 1, 1)
             tooltip:AddLine(ns.L("Drag to move the minimap button."), 1, 1, 1)
         end,

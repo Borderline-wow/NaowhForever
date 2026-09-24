@@ -63,17 +63,61 @@ end
 -- decided here and in ns.THEME. The widget factory in the Widgets file builds its rows
 -- from the same pieces.
 
--- The UI font: the Naowh face when NaowhUI_Media (or anything else) has registered it
--- with LibSharedMedia, the client default otherwise. Resolved once -- media addons load
--- before us via OptionalDeps, and nothing builds UI before login.
+-- The UI font: the Naowh face, bundled so it works without NaowhUI_Media. Registered under
+-- the same name and locale mask NaowhUI_Media uses; when that addon is installed its entry
+-- wins (Register never overwrites), and its Asia variant then covers the CJK clients this
+-- file leaves on the client default. Resolved once -- nothing builds UI before login.
+local NAOWH_FONT = "Interface\\AddOns\\NaowhSmartReminders\\Media\\Fonts\\Naowh.ttf"
+local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+if LSM then
+    LSM:Register("font", "Naowh", NAOWH_FONT, LSM.LOCALE_BIT_ruRU + LSM.LOCALE_BIT_western)
+end
+
+-- The Global Font on the Settings page, saved for this computer: nil is Naowh, BLIZZARD_FONT
+-- leaves the game's own fonts alone, anything else is a SharedMedia font name. A font that
+-- has gone missing falls back to Naowh.
+ns.BLIZZARD_FONT = "__blizzard"
+function ns.GlobalFontPath()
+    local name = ns.AccountSettings().gameFont
+    if name == ns.BLIZZARD_FONT or not LSM then return nil end
+    return (name and LSM:Fetch("font", name, true)) or LSM:Fetch("font", "Naowh", true)
+end
+
 local uiFontPath
 function ns.UIFontPath()
     if not uiFontPath then
-        local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
-        uiFontPath = (LSM and LSM:Fetch("font", "Naowh", true)) or STANDARD_TEXT_FONT
+        uiFontPath = ns.GlobalFontPath() or STANDARD_TEXT_FONT
     end
     return uiFontPath
 end
+
+-- The Global Font on the whole game UI. Only Blizzard's font objects and the three path
+-- globals are touched, never a frame, so it is taint-free; it has no undo, so a change
+-- takes a reload. The path globals are read when the world loads, so they are set on our
+-- ADDON_LOADED too; a font from an addon that loads after us only resolves by login,
+-- which sets them again.
+local gameFontEvents = CreateFrame("Frame")
+gameFontEvents:RegisterEvent("ADDON_LOADED")
+gameFontEvents:RegisterEvent("PLAYER_LOGIN")
+gameFontEvents:SetScript("OnEvent", function(self, event, name)
+    if event == "ADDON_LOADED" and name ~= ADDON_NAME then return end
+    local path = ns.GlobalFontPath()
+    if not path then
+        self:UnregisterAllEvents()
+        return
+    end
+    STANDARD_TEXT_FONT, UNIT_NAME_FONT, DAMAGE_TEXT_FONT = path, path, path
+    if event == "ADDON_LOADED" then return end
+    self:UnregisterAllEvents()
+    local fonts = GetFonts()
+    for i = 1, #fonts do
+        local obj = _G[fonts[i]]
+        if type(obj) == "table" and obj.GetFont then
+            local _, size, flags = obj:GetFont()
+            if size and size > 0 then obj:SetFont(path, size, flags) end
+        end
+    end
+end)
 
 function ns.Font(parent, size, flags, color)
     local c = color or ns.THEME.fg

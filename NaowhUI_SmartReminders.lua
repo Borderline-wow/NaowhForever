@@ -790,7 +790,7 @@ end
 local function AlertFont()
     local selected = TRDB().fontName
     local path = type(selected) == "string" and NaowhMedia("font", selected)
-    return path or NaowhMedia("font", "Naowh") or STANDARD_TEXT_FONT
+    return path or ns.UIFontPath()
 end
 ns.AlertFontPath = AlertFont
 
@@ -7026,6 +7026,13 @@ end
 -- the four own "when this fires", only "how it looks or sounds" or "what
 -- profile owns it"), while the rest split into the four side-list panels.
 
+-- Shared by the Setup toggle and the module's switch in the sidebar.
+function ns.SetEnabled(v)
+    TRDB().enabled = v
+    ns.Apply()
+    UpdatePreview()
+end
+
 -- Core: master enable, boss-tanking scope, timing/behaviour, the priority
 -- list. Always shown at the top of the Setup tab regardless of which of the
 -- four side items is selected.
@@ -7044,9 +7051,7 @@ function ns.BuildCoreSettings(parent, y)
           .. "specialization.",
           getValue = function() return TRDB().enabled end,
           setValue = function(v)
-              TRDB().enabled = v
-              ns.Apply()
-              UpdatePreview()
+              ns.SetEnabled(v)
               EUI:RefreshPage(true)
           end },
         -- "Only for Tank Abilities" lived here until the fingerprint data shipped. It was
@@ -7217,7 +7222,7 @@ function ns.BuildBarsSettings(parent, y)
 
     _, h = W:SectionHeader(parent, "SIZE AND LOCATION", y); y = y - h
 
-    local fontValues, fontOrder = { [""] = "Default (Naowh)" }, { "" }
+    local fontValues, fontOrder = { [""] = "Global Font" }, { "" }
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     if LSM then
         for _, name in ipairs(LSM:List("font")) do
@@ -7307,23 +7312,6 @@ function ns.BuildBarsSettings(parent, y)
             resetRow._resetIcon = btn
         end
     end
-
-    _, h = W:SectionHeader(parent, "OPTIONS WINDOW", y); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "dropdown", text = "Window Scale",
-          values = { [100] = "100%  (default)", [90] = "90%", [80] = "80%",
-                     [70] = "70%", [60] = "60%", [50] = "50%" },
-          order = { 100, 90, 80, 70, 60, 50 },
-          tooltip = "Size of this options window and the editors it opens, as a percentage. "
-          .. "Turn it down if the window is too big for your screen; 1080p usually wants 80 "
-          .. "or below.|n|nSaved for this computer instead of in the profile, so switching "
-          .. "profile leaves it alone and an exported pack never carries it to someone on a "
-          .. "different monitor.",
-          getValue = function() return tonumber(ns.AccountSettings().windowScale) or 100 end,
-          setValue = function(v) ns.SetWindowScale(v) end },
-        { type = "label", text = "" }
-    ); y = y - h
 
     return y
 end

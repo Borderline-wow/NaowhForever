@@ -1,6 +1,6 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100, 16001
-## Title: |cff0091edNaowh|r Smart Reminders
-## Notes: Calls out what to press when the boss timeline says an ability is coming. All specs.
+## Title: |cff0091edNaowh|r Forever
+## Notes: Naowh's Forever companion: Smart Reminders, QoL, macros and buff reminders.
 ## Author: NaowhUI
 ## Version: 1.4.25
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
@@ -63,3 +63,17 @@ NaowhUI_SmartReminders_Observed.lua
 # The Custom Reminders tab and the MRT note format behind it. Loads last: the page
 # renders through the shared section builder and editors Bosses.lua defines.
 NaowhUI_SmartReminders_Note.lua
+
+# The Naowh Forever modules and the Patch Notes page. Page builders only, resolved by
+# the window at open time.
+NaowhUI_SmartReminders_QoL.lua
+NaowhUI_SmartReminders_LootFeed.lua
+NaowhUI_SmartReminders_XPTicker.lua
+NaowhUI_SmartReminders_Flight.lua
+NaowhUI_SmartReminders_QuizData.lua
+NaowhUI_SmartReminders_Quiz.lua
+NaowhUI_SmartReminders_Macros.lua
+NaowhUI_SmartReminders_AuraBuffs.lua
+NaowhUI_SmartReminders_Campfire.lua
+NaowhUI_SmartReminders_LowHealth.lua
+NaowhUI_SmartReminders_PatchNotes.lua
