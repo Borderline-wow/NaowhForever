@@ -16,6 +16,23 @@ local CAMP_LOW = 120
 local CAMP_ICON = 7808144
 local CIRCLE_MASK = "Interface\\AddOns\\NaowhSmartReminders\\Media\\circle_mask.tga"
 
+local TEXT_SIZE = 16
+
+-- The camp buffs, in the order Camp Benefits' own tooltip lists them, named by the camp
+-- object that grants each. Read from its aura description in the Forever data, 2026-09-24.
+local CAMP_BUFFS = {
+    { 1229451, "Tent" },
+    { 1230587, "Mana Well" },
+    { 1230172, "Sharpening Wheel" },
+    { 1230653, "Enchanted Lute" },
+    { 1230124, "First Aid Kit" },
+    { 1230098, "Fish Bowl" },
+    { 1229513, "Incense Candle" },
+    { 1230164, "Lodestone" },
+    { 1229519, "Camp Chair" },
+    { 1229718, "Faction Banner" },
+}
+
 local icon, unlocked
 local hasCamp       -- nil until the first read
 local shownExpiry   -- the expiry the swipe was last started from
@@ -46,6 +63,16 @@ local function Build()
     icon.mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     icon.tex:AddMaskTexture(icon.mask)
 
+    -- A black circle one pixel wider on every side, behind the icon: a 1px round border.
+    icon.ring = icon:CreateTexture(nil, "BACKGROUND")
+    icon.ring:SetPoint("TOPLEFT", -1, 1)
+    icon.ring:SetPoint("BOTTOMRIGHT", 1, -1)
+    icon.ring:SetColorTexture(0, 0, 0, 1)
+    icon.ringMask = icon:CreateMaskTexture()
+    icon.ringMask:SetAllPoints(icon.ring)
+    icon.ringMask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    icon.ring:AddMaskTexture(icon.ringMask)
+
     icon.timer = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
     icon.timer:SetAllPoints()
     icon.timer:SetSwipeTexture(CIRCLE_MASK)
@@ -53,9 +80,13 @@ local function Build()
     icon.timer:SetDrawEdge(false)
     icon.timer:SetReverse(true)
 
-    icon.label = ns.Font(icon, 13, "OUTLINE", T.accentSoft)
+    icon.label = ns.Font(icon, TEXT_SIZE, "OUTLINE", T.accentSoft)
     icon.label:SetPoint("TOP", icon, "BOTTOM", 0, -4)
     icon.label:SetText("Refresh Camp")
+
+    icon.buffs = ns.Font(icon, TEXT_SIZE, "OUTLINE")
+    icon.buffs:SetPoint("TOP", icon, "BOTTOM", 0, -4)
+    icon.buffs:SetJustifyH("CENTER")
 
     icon.mover = ns.UI.AttachMover(icon, "Campfire", function(pos) S.Set("campPos", pos) end)
     icon:Hide()
@@ -71,9 +102,11 @@ local function Place()
     end
 end
 
-local function ShowUp(duration, expiry)
+local function ShowUp(duration, expiry, buffs)
     icon.tex:SetDesaturated(false)
     icon.label:Hide()
+    icon.buffs:SetText(S.Get("campBuffs") and buffs or "")
+    icon.buffs:Show()
     if S.Get("campTimer") and duration and duration > 0 then
         if shownExpiry ~= expiry then
             icon.timer:SetCooldown(expiry - duration, duration)
@@ -90,6 +123,7 @@ end
 local function ShowMissing()
     icon.tex:SetDesaturated(true)
     icon.label:Show()
+    icon.buffs:Hide()
     icon.timer:Hide()
     shownExpiry = nil
     icon:Show()
@@ -123,6 +157,15 @@ local function SetAlert(show)
     alert:SetShown(show)
 end
 
+-- The camp buffs currently up, one per line.
+local function ActiveBuffs()
+    local names = {}
+    for _, buff in ipairs(CAMP_BUFFS) do
+        if C_UnitAuras.GetPlayerAuraBySpellID(buff[1]) then names[#names + 1] = buff[2] end
+    end
+    return table.concat(names, "\n")
+end
+
 local Refresh
 
 -- Nothing fires as the buff's time runs down, so crossing the two-minute mark is timed.
@@ -153,7 +196,7 @@ end
 function Refresh()
     if not icon then return end
     if unlocked then
-        ShowUp(3600, GetTime() + 2400)
+        ShowUp(3600, GetTime() + 2400, "Camp Chair\nFish Bowl")
         SetAlert(S.Get("campNearbyAlert"))
         return
     end
@@ -177,7 +220,7 @@ function Refresh()
         if issecretvalue and (issecretvalue(duration) or issecretvalue(expiry)) then
             duration, expiry = nil, nil
         end
-        ShowUp(duration, expiry)
+        ShowUp(duration, expiry, ActiveBuffs())
     else
         ShowMissing()
         if had and S.Get("campSound") then

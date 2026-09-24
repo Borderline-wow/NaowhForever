@@ -21,7 +21,7 @@ local S = UI.ModuleSettings("auraBuffs", {
     iconSize = 36,
 
     campfire = true, campTimer = true, campBuffs = true,
-    campSound = true, campSoundKey = "none", campIconSize = 44, campNearbyAlert = true,
+    campSound = true, campSoundKey = "none", campIconSize = 56, campNearbyAlert = true,
 
     lowHealth = true, lowHealthBelow = 35, lowHealthItem = "auto",
     lowHealthIconSize = 48, lowHealthGlow = true,
@@ -106,8 +106,8 @@ function ns.BuildCampfirePage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("campBuffs", "Show Active Camp Buffs",
-            "The camp buffs you have running, three at a time, beside the icon. Not built "
-            .. "yet.", "campfire"),
+            "The camp buffs you have running, listed under the icon: Camp Chair, Fish Bowl, "
+            .. "Tent and the rest.", "campfire"),
         S.Slider("campIconSize", "Icon Size", 24, 80, 1, nil, "campfire")
     ); y = y - h
     _, h = W:DualRow(parent, y,
