@@ -154,18 +154,46 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
     end
 end)
 
+local function Alert(link, what)
+    if link and not (issecretvalue and issecretvalue(link)) and ns.IsBisItem(IDFrom(link)) then
+        ns.Print(TAG .. " " .. what .. ": " .. link)
+        PlaySound(SOUNDKIT.RAID_WARNING)
+    end
+end
+
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function()
+events:SetScript("OnEvent", function(_, event, rollID)
     if not (On() and S.Get("bisLootAlert")) then return end
+    if event == "START_LOOT_ROLL" then
+        Alert(GetLootRollItemLink(rollID), "roll")
+        return
+    end
     for slot = 1, GetNumLootItems() do
-        local link = GetLootSlotLink(slot)
-        if link and not (issecretvalue and issecretvalue(link)) and ns.IsBisItem(IDFrom(link)) then
-            ns.Print(TAG .. " drop: " .. link)
-            PlaySound(SOUNDKIT.RAID_WARNING)
-        end
+        Alert(GetLootSlotLink(slot), "drop")
     end
 end)
 events:RegisterEvent("LOOT_READY")
+events:RegisterEvent("START_LOOT_ROLL")
+
+-- A listed item's roll frame glows while it is open. Forever's roll frames are unverified, so
+-- a missing one just goes without the glow.
+local function MarkRoll(frame)
+    local LCG = LibStub("LibCustomGlow-1.0")
+    local link = frame.rollID and GetLootRollItemLink(frame.rollID)
+    if On() and S.Get("bisLootAlert") and link and ns.IsBisItem(IDFrom(link)) then
+        LCG.PixelGlow_Start(frame, { 0, 0.57, 0.93, 1 }, 12, nil, nil, 2, 0, 0, nil, "NaowhBiS")
+    else
+        LCG.PixelGlow_Stop(frame, "NaowhBiS")
+    end
+end
+
+for i = 1, 4 do
+    local frame = _G["GroupLootFrame" .. i]
+    if frame then
+        frame:HookScript("OnShow", MarkRoll)
+        frame:HookScript("OnHide", function(self) LibStub("LibCustomGlow-1.0").PixelGlow_Stop(self, "NaowhBiS") end)
+    end
+end
 
 -------------------------------------------------------------------------------
 --  The page
@@ -177,7 +205,7 @@ function ns.BuildQoLBiSPage(parent, y)
     local list = List()
     _, h = W:Note(parent, "Alt+Shift-click any item (bags, links, the Dungeon Journal, loot) to "
         .. "add it to your BiS list, or again to take it off. Listed items say so on their "
-        .. "tooltip, are tagged in the loot feed, and ring an alert when they drop.", y); y = y - h
+        .. "tooltip, are tagged in the loot feed, and ring an alert when they drop or come up for a roll.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "BIS LIST" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -186,7 +214,7 @@ function ns.BuildQoLBiSPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("bisLootAlert", "Drop Alert",
-            "A chat line and a sound when a listed item is in the loot window.", "bis"),
+            "A chat line and a sound when a listed item is in the loot window or up for a roll, and a glow on its roll frame.", "bis"),
         { type = "label", text = "" }
     ); y = y - h
     _, h = W:Button(parent, "Add Item by ID", y, function()
