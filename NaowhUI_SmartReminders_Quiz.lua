@@ -1,14 +1,15 @@
 -------------------------------------------------------------------------------
 --  NaowhUI_SmartReminders_Quiz.lua -- a WoW quiz to pass the time on a flight or at the
---  campfire. Opens by itself when a flight starts or you reach a campfire, and with
+--  campfire. Opens by itself when a flight starts or you sit at a campfire, and with
 --  /naowh quiz any time.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhUITankReminder
 local S = ns.QoLSettings
 local T = ns.THEME
 
--- Forever's "Campfire Nearby" aura, probed on the client 2026-09-19.
-local CAMPFIRE_NEARBY = 1283391
+-- Forever's "Welcoming Campfire" aura: present only while seated at a camp fire (probed
+-- 2026-09-24). "Campfire Nearby" (1283391) is an area aura from simply walking past one.
+local CAMPFIRE_SEATED = 1229739
 
 local RIGHT, WRONG = { r = 0.30, g = 0.82, b = 0.48 }, { r = 0.97, g = 0.44, b = 0.44 }
 
@@ -181,7 +182,7 @@ events:SetScript("OnEvent", function(_, event)
         return
     end
     if InCombatLockdown() then return end
-    local here = C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_NEARBY) ~= nil
+    local here = C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_SEATED) ~= nil
     if here == atCamp then return end
     atCamp = here
     if here then ns.QuizOffer("camp") else ns.QuizDismiss("camp") end

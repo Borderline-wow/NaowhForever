@@ -322,7 +322,7 @@ function ns.BuildQoLFlightPage(parent, y)
         S.Toggle("quizFlight", "Quiz While Flying",
             "A WoW quiz opens when a flight starts and closes when you land."),
         S.Toggle("quizCamp", "Quiz at the Campfire",
-            "The quiz opens when you reach a campfire and closes when you walk away.")
+            "The quiz opens when you sit down at a campfire and closes when you stand up.")
     ); y = y - h
     _, h = W:Button(parent, "Open the Quiz", y, function()
         if ns.ToggleQuiz then ns.ToggleQuiz() end
