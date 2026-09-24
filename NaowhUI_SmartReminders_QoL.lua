@@ -30,6 +30,7 @@ local S = UI.ModuleSettings("qol", {
     restock = true, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
     restockFood = true, restockFoodBelow = 10, restockVendor = true, restockBagsBelow = 4,
     restockShowFor = 12, restockBuy = false,
+    dqTracker = true, dqShowDone = false, dqAllFactions = false,
 
     durability = true, durabilityBelow = 25,
     combatAlert = false, groupDeaths = false,
