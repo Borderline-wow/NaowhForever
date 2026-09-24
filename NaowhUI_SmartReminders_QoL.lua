@@ -31,6 +31,9 @@ local S = UI.ModuleSettings("qol", {
     restockFood = true, restockFoodBelow = 10, restockVendor = true, restockBagsBelow = 4,
     restockShowFor = 12, restockBuy = false,
     dqTracker = true, dqShowDone = false, dqAllFactions = false,
+    townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
+    townBank = true, townStable = false, townRepair = true, townSupplies = true,
+    townVendors = false, townPinSize = 16,
 
     durability = true, durabilityBelow = 25,
     combatAlert = false, groupDeaths = false,
@@ -307,6 +310,34 @@ function ns.BuildQoLInterfacePage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("worldMS", "Show World MS", nil, "fps"),
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "TOWN MAP" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("townMap", "Town Map Pins",
+            "Trainers, vendors, innkeepers, flight masters and more pinned on the world map for "
+            .. "your faction, with their name and title on hover. No more asking a guard."),
+        S.Slider("townPinSize", "Pin Size", 10, 28, 1, nil, "townMap")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("townClass", "Class Trainers", "Your class's trainers only.", "townMap"),
+        S.Toggle("townProfession", "Profession Trainers", nil, "townMap")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("townFlight", "Flight Masters", nil, "townMap"),
+        S.Toggle("townInn", "Innkeepers", nil, "townMap")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("townBank", "Bank & Auction House", nil, "townMap"),
+        S.Toggle("townRepair", "Repairs", nil, "townMap")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("townSupplies", "Reagents, Ammo & Food", nil, "townMap"),
+        S.Toggle("townStable", "Stable Masters", nil, "townMap")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("townVendors", "Other Vendors", "Trade goods and every other merchant.", "townMap"),
         { type = "label", text = "" }
     ); y = y - h
 
