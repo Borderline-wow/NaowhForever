@@ -62,7 +62,8 @@ function ns.AddBisItem(value)
         ns.Print("That is not an item you can equip.")
         return
     end
-    if ns.IsBisItem(id) then return end
+    if not lookup then Rebuild() end
+    if lookup[id] then return end
     local items = List().items
     if #items >= MAX_ITEMS then return end
     items[#items + 1] = id
@@ -102,12 +103,14 @@ local function Decode(text)
     if not (ok and type(data) == "table" and data.v == 1 and type(data.items) == "table") then return end
     local items, seen = {}, {}
     for _, id in ipairs(data.items) do
-        if type(id) == "number" and id > 0 and id == math.floor(id) and not seen[id] and #items < MAX_ITEMS then
+        if type(id) == "number" and id > 0 and id < 2 ^ 31 and id == math.floor(id) and not seen[id]
+            and #items < MAX_ITEMS then
             items[#items + 1] = id
             seen[id] = true
         end
     end
-    local name = type(data.name) == "string" and data.name:sub(1, 40) or "Imported BiS"
+    -- Shown in chat and tooltips, so escape codes are neutralised.
+    local name = type(data.name) == "string" and data.name:sub(1, 40):gsub("|", "||") or "Imported BiS"
     return name, items
 end
 
@@ -154,6 +157,9 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
     end
 end)
 
+-- LOOT_READY can fire more than once for one loot window; each item alerts once.
+local alerted = {}
+
 local function Alert(link, what)
     if link and not (issecretvalue and issecretvalue(link)) and ns.IsBisItem(IDFrom(link)) then
         ns.Print(TAG .. " " .. what .. ": " .. link)
@@ -163,16 +169,25 @@ end
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, rollID)
+    if event == "LOOT_CLOSED" then
+        wipe(alerted)
+        return
+    end
     if not (On() and S.Get("bisLootAlert")) then return end
     if event == "START_LOOT_ROLL" then
         Alert(GetLootRollItemLink(rollID), "roll")
         return
     end
     for slot = 1, GetNumLootItems() do
-        Alert(GetLootSlotLink(slot), "drop")
+        local link = GetLootSlotLink(slot)
+        if link and not (issecretvalue and issecretvalue(link)) and not alerted[link] then
+            alerted[link] = true
+            Alert(link, "drop")
+        end
     end
 end)
 events:RegisterEvent("LOOT_READY")
+events:RegisterEvent("LOOT_CLOSED")
 events:RegisterEvent("START_LOOT_ROLL")
 
 -- A listed item's roll frame glows while it is open. Forever's roll frames are unverified, so
