@@ -22,7 +22,7 @@ local POTIONS = { 13446, 3928, 1710, 929, 858, 118 }
 local FALLBACK_ICON = 134830    -- Healing Potion
 
 local frame, curve, unlocked
-local shownItem, wasLow
+local shownItem, wasLow, glowing
 
 local function On()
     return S.Get("enabled") and S.Get("lowHealth")
@@ -43,20 +43,38 @@ end
 
 local function UpdateItem()
     local id = PickItem()
+    local count = id and C_Item.GetItemCount(id) or 0
+    frame.count:SetText(count > 1 and count or "")
     if id == shownItem and frame.itemShown then return end
     shownItem, frame.itemShown = id, true
     frame.icon:SetTexture(id and C_Item.GetItemIconByID(id) or FALLBACK_ICON)
     frame.icon:SetDesaturated(id == nil)
-    frame.count:SetText(id and C_Item.GetItemCount(id) > 1 and C_Item.GetItemCount(id) or "")
 end
 
--- The sound needs the health itself, not just the curve. Where the client hands it over
--- readable it plays once per dip below the threshold; a secret read is skipped, so on a
--- client that hides health mid-fight it only ever plays out of combat.
+local function SetGlow(on)
+    on = on and true or false
+    if on == glowing then return end
+    glowing = on
+    local LCG = LibStub("LibCustomGlow-1.0", true)
+    if not LCG then return end
+    if on then
+        LCG.PixelGlow_Start(frame, { 1, 0.25, 0.25, 1 }, nil, nil, nil, 2)
+    else
+        LCG.PixelGlow_Stop(frame)
+    end
+end
+
+-- The sound and the glow need the health itself, not just the curve. Where the client hands
+-- it over readable the sound plays once per dip below the threshold and the glow runs only
+-- while low; a secret read skips the sound and leaves the glow running under the alpha.
 local function CheckSound()
     local pct = UnitHealthPercent("player", true)
-    if issecretvalue and issecretvalue(pct) then return end
+    if issecretvalue and issecretvalue(pct) then
+        SetGlow(S.Get("lowHealthGlow"))
+        return
+    end
     local low = pct < S.Get("lowHealthBelow") / 100
+    SetGlow(low and S.Get("lowHealthGlow"))
     if low and not wasLow and S.Get("lowHealthSound") then
         ns.UI._PlayLSMSound(ns.UI.SoundPathFor(S.Get("lowHealthSoundKey")))
     end
@@ -68,6 +86,7 @@ local function UpdateAlpha()
         frame:SetAlpha(1)
     elseif UnitIsDeadOrGhost("player") then
         frame:SetAlpha(0)
+        SetGlow(false)
         wasLow = false
     else
         frame:SetAlpha(UnitHealthPercent("player", true, curve))
@@ -119,16 +138,6 @@ local function Place()
     end
 end
 
-local function SetGlow(on)
-    local LCG = LibStub("LibCustomGlow-1.0", true)
-    if not LCG then return end
-    if on then
-        LCG.PixelGlow_Start(frame, { 1, 0.25, 0.25, 1 }, nil, nil, nil, 2)
-    else
-        LCG.PixelGlow_Stop(frame)
-    end
-end
-
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event)
     if event == "BAG_UPDATE_DELAYED" then UpdateItem() else UpdateAlpha() end
@@ -150,7 +159,7 @@ local function Apply()
     BuildCurve()
     frame.itemShown = nil
     UpdateItem()
-    SetGlow(S.Get("lowHealthGlow"))
+    SetGlow(unlocked and S.Get("lowHealthGlow"))
     frame.mover:SetShown(unlocked == true)
     frame:Show()
     if On() then
