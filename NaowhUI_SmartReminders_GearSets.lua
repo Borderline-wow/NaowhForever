@@ -10,8 +10,7 @@ local T = ns.THEME
 
 local bar, buttons, addButton, unlocked
 local pending          -- set ID waiting for combat to end
-local autoSet          -- the set an automatic swap put on, and what it replaced
-local returnSet
+local autoSet          -- the set an automatic swap put on
 
 local function On()
     return S.Get("enabled") and S.Get("gearSets")
@@ -51,6 +50,21 @@ local function Equip(setID)
     end
     pending = nil
     C_EquipmentSet.UseEquipmentSet(setID)
+end
+
+-- The set an automatic swap replaced, kept per character so logging out in town or mounted
+-- still puts it back after the next login.
+local function Saved()
+    local account = ns.AccountSettings()
+    account.gearReturn = account.gearReturn or {}
+    return account.gearReturn, UnitName("player") .. "-" .. GetRealmName()
+end
+
+-- A set picked by hand is kept when the automatic swap ends.
+local function EquipByHand(setID)
+    local saved, key = Saved()
+    saved[key] = nil
+    Equip(setID)
 end
 
 -------------------------------------------------------------------------------
@@ -100,7 +114,7 @@ local function NewButton()
     btn.border = ns.Border(btn, { r = 0, g = 0, b = 0 })
     btn:RegisterForClicks("LeftButtonUp")
     btn:SetScript("OnClick", function(self)
-        if IsShiftKeyDown() then ns.SaveGearSet(self.set.id, self.set.name) else Equip(self.set.id) end
+        if IsShiftKeyDown() then ns.SaveGearSet(self.set.id, self.set.name) else EquipByHand(self.set.id) end
     end)
     btn:SetScript("OnEnter", SetTooltip)
     btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -161,14 +175,15 @@ end
 local function AutoSwap()
     local want = WantedAuto()
     if want == autoSet then return end
+    local saved, key = Saved()
     if want then
-        if not autoSet then returnSet = EquippedSet() end
+        if not autoSet and EquippedSet() ~= want then saved[key] = EquippedSet() end
         autoSet = want
         Equip(want)
     else
         autoSet = nil
-        if returnSet then Equip(returnSet) end
-        returnSet = nil
+        Equip(saved[key])
+        saved[key] = nil
     end
 end
 
@@ -206,7 +221,7 @@ function ns.BuildQoLGearSetsPage(parent, y)
 
     for _, set in ipairs(sets) do
         _, h = W:SectionHeader(parent, set.name:upper() .. (set.equipped and "  (EQUIPPED)" or ""), y); y = y - h
-        _, h = W:Button(parent, "Equip " .. set.name, y, function() Equip(set.id) end); y = y - h
+        _, h = W:Button(parent, "Equip " .. set.name, y, function() EquipByHand(set.id) end); y = y - h
         _, h = W:Button(parent, "Save Current Gear", y, function() ns.SaveGearSet(set.id, set.name) end); y = y - h
         _, h = W:Button(parent, "Delete", y, function() ns.DeleteGearSet(set.id, set.name) end); y = y - h
     end
