@@ -53,6 +53,7 @@ local MODULES = {
           { name = "Dungeon Quests", build = "BuildQoLDungeonQuestsPage" },
           { name = "Gear Sets", build = "BuildQoLGearSetsPage" },
           { name = "BiS List", build = "BuildQoLBiSPage" },
+          { name = "Blessings", build = "BuildQoLBlessingsPage" },
       } },
     { name = "Macros", settings = "MacroSettings",
       subtitle = "Macros written and kept current for you, out of combat.",
