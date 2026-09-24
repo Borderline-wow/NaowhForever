@@ -51,6 +51,7 @@ local MODULES = {
           { name = "Trainer", build = "BuildQoLTrainerPage" },
           { name = "Flight & Camp", build = "BuildQoLFlightPage" },
           { name = "Dungeon Quests", build = "BuildQoLDungeonQuestsPage" },
+          { name = "Gear Sets", build = "BuildQoLGearSetsPage" },
       } },
     { name = "Macros", settings = "MacroSettings",
       subtitle = "Macros written and kept current for you, out of combat.",

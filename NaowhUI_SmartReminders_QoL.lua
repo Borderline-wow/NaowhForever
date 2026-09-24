@@ -34,6 +34,7 @@ local S = UI.ModuleSettings("qol", {
     townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
     townVendors = false, townPinSize = 16,
+    gearSets = true, gearBarSize = 32, gearMounted = "", gearResting = "",
 
     durability = true, durabilityBelow = 25,
     combatAlert = false, groupDeaths = false,
