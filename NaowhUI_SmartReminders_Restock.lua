@@ -161,9 +161,13 @@ local function BuildAlert()
     alert.text:SetJustifyH("CENTER")
     alert.mover = ns.UI.AttachMover(alert, "Restock", function(pos) S.Set("restockPos", pos) end)
 
-    -- Pulses while it is up, then hides after the display time.
+    -- Pulses a few times when it appears, then stays solid until it is dealt with.
     flash = alert:CreateAnimationGroup()
     flash:SetLooping("BOUNCE")
+    flash:SetScript("OnLoop", function(self)
+        self.loops = self.loops + 1
+        if self.loops >= 6 then self:Stop() end
+    end)
     local pulse = flash:CreateAnimation("Alpha")
     pulse:SetFromAlpha(1)
     pulse:SetToAlpha(0.35)
@@ -178,10 +182,7 @@ local function BuildAlert()
     alert:Hide()
 end
 
-local hideGen = 0
-
 local function HideAlert()
-    hideGen = hideGen + 1
     if alert then
         flash:Stop()
         alert:Hide()
@@ -194,12 +195,8 @@ local function ShowAlert(lines)
     alert:SetSize(math.max(alert.title:GetStringWidth(), alert.text:GetStringWidth()) + 16,
         alert.title:GetStringHeight() + alert.text:GetStringHeight() + 12)
     alert:Show()
+    flash.loops = 0
     flash:Play()
-    hideGen = hideGen + 1
-    local gen = hideGen
-    C_Timer.After(S.Get("restockShowFor"), function()
-        if gen == hideGen then HideAlert() end
-    end)
 end
 
 -- Shown on reaching a rested area, and again after a vendor if anything is still short.

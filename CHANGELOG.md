@@ -9,6 +9,9 @@
 - Dungeon Quests, Gear Sets and BiS List are modules of their own instead of QoL tabs, each
   with its own switch in the sidebar. Turning QoL off no longer turns them off. Their
   settings stay where they were, so nothing needs setting up again.
+- The restock reminder stays up while you are in town and short on something, instead of
+  hiding after a set time. It goes away once a vendor has you covered, when you leave or
+  when combat starts, and pulses only when it first appears. The Display Time slider is gone.
 
 ### Removed
 - The Trash tab and its ExBoss trash cooldown alerts. ExBoss does not run on Forever, so

@@ -29,7 +29,7 @@ local S = UI.ModuleSettings("qol", {
     autoRepair = false, sellJunk = false,
     restock = true, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
     restockFood = true, restockFoodBelow = 10, restockVendor = true, restockBagsBelow = 4,
-    restockShowFor = 12, restockBuy = false,
+    restockBuy = false,
     dqTracker = true, dqShowDone = false, dqAllFactions = false,
     townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
@@ -240,8 +240,11 @@ function ns.BuildQoLLootPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("restock", "Restock Reminder",
             "When you reach a city or inn, a flashing list in the middle of the screen of what "
-            .. "you are short on. Move it in Unlock Mode."),
-        S.Slider("restockShowFor", "Display Time (s)", 3, 30, 1, nil, "restock")
+            .. "you are short on. It stays up until you have what you need or leave. Move it "
+            .. "in Unlock Mode."),
+        S.Toggle("restockBuy", "Buy at Vendors",
+            "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
+            .. "and prints what it spent. Off by default: it spends gold for you.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("restockReagents", "Class Reagents",
@@ -259,14 +262,12 @@ function ns.BuildQoLLootPage(parent, y)
         S.Toggle("restockVendor", "Junk & Full Bags",
             "Reminds you to vendor junk, and when your bags are nearly full.", "restock")
     ); y = y - h
+    local sliders = ns.RestockReagentSliders()
     _, h = W:DualRow(parent, y,
         S.Slider("restockBagsBelow", "Free Slots Below", 1, 20, 1, nil, "restockVendor"),
-        S.Toggle("restockBuy", "Buy at Vendors",
-            "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
-            .. "and prints what it spent. Off by default: it spends gold for you.")
+        sliders[1] or { type = "label", text = "" }
     ); y = y - h
-    local sliders = ns.RestockReagentSliders()
-    for i = 1, #sliders, 2 do
+    for i = 2, #sliders, 2 do
         _, h = W:DualRow(parent, y, sliders[i], sliders[i + 1] or { type = "label", text = "" }); y = y - h
     end
 
