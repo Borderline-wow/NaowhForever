@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.7-beta
 
 ### Changed
 - BiS list: every gear slot laid out like the character pane. Pick it opens that slot's
