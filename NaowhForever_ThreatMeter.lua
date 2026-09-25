@@ -314,8 +314,13 @@ local function RequestUpdate()
     C_Timer.After(UPDATE_DELAY, Update)
 end
 
+-- Every mob's threat list reports, nameplates included; only the target's matters here
+-- (a followed targettarget is read on the ticker).
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", RequestUpdate)
+events:SetScript("OnEvent", function(_, event, unit)
+    if event == "UNIT_THREAT_LIST_UPDATE" and not (unit and UnitIsUnit(unit, "target")) then return end
+    RequestUpdate()
+end)
 
 local function Apply()
     events:UnregisterAllEvents()
