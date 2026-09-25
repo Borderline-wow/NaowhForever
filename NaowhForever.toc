@@ -75,6 +75,7 @@ NaowhForever_DungeonQuests.lua
 NaowhForever_TownData.lua
 NaowhForever_TownMap.xml
 NaowhForever_GearSets.lua
+NaowhForever_BiSData.lua
 NaowhForever_BiS.lua
 NaowhForever_Blessings.xml
 NaowhForever_Blessings.lua
