@@ -122,7 +122,7 @@ local SETUP_PAGE = "Smart Reminders/Setup"
 local window, scrollFrame, scrollChild, tabLine, headerTitle, headerSub
 local navButtons, tabButtons, tabStrips = {}, {}, {}
 local wrappers = {}          -- page key -> built wrapper frame
-local currentPage = SETUP_PAGE
+local currentPage = "Settings"
 local pendingRefresh
 local onShowCallbacks, onHideCallbacks = {}, {}
 
@@ -319,12 +319,14 @@ function ns.BuildSettingsPage(parent, y)
 
     _, h = W:DualRow(parent, y,
         { type = "dropdown", text = "Window Scale",
-          values = { [100] = "100%  (default)", [90] = "90%", [80] = "80%",
-                     [70] = "70%", [60] = "60%", [50] = "50%" },
-          order = { 100, 90, 80, 70, 60, 50 },
+          values = { [200] = "200%", [190] = "190%", [180] = "180%", [170] = "170%",
+                     [160] = "160%", [150] = "150%", [140] = "140%", [130] = "130%",
+                     [120] = "120%", [110] = "110%", [100] = "100%  (default)", [90] = "90%",
+                     [80] = "80%", [70] = "70%", [60] = "60%", [50] = "50%" },
+          order = { 200, 190, 180, 170, 160, 150, 140, 130, 120, 110, 100, 90, 80, 70, 60, 50 },
           tooltip = "Size of this options window and the editors it opens, as a percentage. "
           .. "Turn it down if the window is too big for your screen; 1080p usually wants 80 "
-          .. "or below.|n|nSaved for this computer instead of in the profile, so switching "
+          .. "or below. Turn it up on a large or high-resolution monitor.|n|nSaved for this computer instead of in the profile, so switching "
           .. "profile leaves it alone and an exported pack never carries it to someone on a "
           .. "different monitor.",
           getValue = function() return tonumber(ns.AccountSettings().windowScale) or 100 end,

@@ -460,7 +460,7 @@ end
 -- or negative scale hides the window with no way left to open the control that fixes it.
 function ns.UIScale()
     local pct = tonumber(ns.AccountSettings().windowScale) or 100
-    if pct < 50 then pct = 50 elseif pct > 150 then pct = 150 end
+    if pct < 50 then pct = 50 elseif pct > 200 then pct = 200 end
     return pct / 100
 end
 
