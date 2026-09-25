@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4-beta
+
+### Changed
+- The options window opens on Settings instead of Smart Reminders.
+- Window Scale goes up to 200%, for large or high-resolution monitors.
+
 ## 0.5.3-beta
 
 ### Fixed
