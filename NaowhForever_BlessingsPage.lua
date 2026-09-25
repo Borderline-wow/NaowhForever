@@ -18,7 +18,9 @@ function ns.BuildQoLBlessingsPage(parent, y)
         .. "of that class who needs it: missing first, then whoever runs out soonest, skipping "
         .. "anyone dead or out of range. The red number is how many are missing it. Right-click "
         .. "a class to choose its blessing or open its player list, where each player can have "
-        .. "their own. A Greater Blessing is only used while the whole class shares one.", y); y = y - h
+        .. "their own. A Greater Blessing is only used while the whole class shares one and you "
+        .. "carry Symbols of Kings. In combat a class button keeps the member it had when the "
+        .. "fight began.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "BAR" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -94,7 +96,7 @@ function ns.BuildBlessingAssignmentsPage(parent, y)
             end }
     end
     for _, member in ipairs(B.Roster()) do
-        if member.class == "PALADIN" and not UnitIsUnit(member.unit, "player") and not others[member.who] then
+        if member.class == "PALADIN" and member.guid ~= UnitGUID("player") and not others[member.who] then
             rows[#rows + 1] = { who = member.who }
         end
     end

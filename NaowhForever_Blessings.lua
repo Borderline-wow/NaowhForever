@@ -48,16 +48,18 @@ for _, entry in ipairs(AURAS) do Index(entry) end
 Index(FURY)
 
 local EXPIRING = 300          -- seconds left that count as due for a refresh
+local SYMBOL_OF_KINGS = 21177 -- the reagent every Greater Blessing uses
 local QUESTION = 134400
 local RED = { r = 0.97, g = 0.27, b = 0.27 }
 local PALADIN_COLOR = RAID_CLASS_COLORS.PALADIN
 
 local others = {}             -- paladin name (realm when not ours) -> { classes, aura, known }
 local bar, cells, flyout, rows, auraButton, furyButton
-local flyoutClass, dirty, ticker
+local flyoutClass, dirty, ticker, unlocked
+local buildAfterCombat, broadcastAfterCombat
 
 local function On()
-    return S.Get("enabled") and S.Get("blessings")
+    return S.Get("blessings")
 end
 
 local function IsPaladin()
@@ -159,7 +161,7 @@ end
 -- is down for the same blessing; otherwise the single one, so nobody's own choice is replaced.
 local function CastSpell(key, members)
     local entry = BY_KEY[key]
-    local greater = HighestKnown(entry.greater)
+    local greater = C_Item.GetItemCount(SYMBOL_OF_KINGS) > 0 and HighestKnown(entry.greater)
     if greater then
         for _, member in ipairs(members) do
             if Assigned(member) ~= key then greater = nil break end
@@ -185,9 +187,9 @@ local function BuffState(unit, key)
 end
 
 -- Range does not apply to every spell and unit pair; nil leaves it to the cast.
-local function InRange(unit, spell)
-    if UnitIsUnit(unit, "player") then return true end
-    local inRange = C_Spell.IsSpellInRange(spell, unit)
+local function InRange(member, spell)
+    if member.guid == UnitGUID("player") then return true end
+    local inRange = C_Spell.IsSpellInRange(spell, member.unit)
     return Secret(inRange) or inRange ~= false
 end
 
@@ -196,9 +198,11 @@ end
 local function Survey(members)
     local target, targetSpell, rank, left
     local missing, shortest, reachable = 0, nil, false
+    local spells = {}
     for _, member in ipairs(members) do
         local key = Assigned(member)
-        local spell = key and CastSpell(key, members)
+        if key and spells[key] == nil then spells[key] = CastSpell(key, members) or false end
+        local spell = key and spells[key]
         if spell and UnitIsConnected(member.unit) and not UnitIsDeadOrGhost(member.unit) then
             local has, remaining = BuffState(member.unit, key)
             if has == false then
@@ -207,7 +211,7 @@ local function Survey(members)
             elseif remaining and (not shortest or remaining < shortest) then
                 shortest = remaining
             end
-            if has ~= nil and UnitIsVisible(member.unit) and InRange(member.unit, spell) then
+            if has ~= nil and UnitIsVisible(member.unit) and InRange(member, spell) then
                 reachable = true
                 local r = not has and 0 or (remaining and remaining < EXPIRING and 1 or 2)
                 local l = remaining or math.huge
@@ -273,6 +277,10 @@ end
 
 local function Broadcast()
     if not IsPaladin() then return end
+    if InCombatLockdown() then
+        broadcastAfterCombat = true
+        return
+    end
     local store = Store()
     Send("F|" .. EncodePlan(store.classes, store.aura) .. "|" .. KnownCodes())
 end
@@ -435,6 +443,12 @@ local function Recipient(parent, name)
     return header, button
 end
 
+local function SetNames(header, names)
+    if header.names == names then return end
+    header.names = names
+    header:SetAttribute("nameList", names)
+end
+
 local function SizeRecipient(header, button, size)
     header:SetAttribute("minWidth", size)
     header:SetAttribute("minHeight", size)
@@ -489,7 +503,7 @@ local function PrepareCell(cell)
     local shown = spell or (key and CastSpell(key, members))
     cell.icon:SetTexture(shown and C_Spell.GetSpellTexture(shown) or QUESTION)
     -- With nobody to bless the last target stays, but without a spell to cast on them.
-    if target then cell.header:SetAttribute("nameList", target.names) end
+    if target then SetNames(cell.header, target.names) end
     cell.cast:SetAttribute("spell1", spell)
     cell.target = target
     local due = missing > 0 or (shortest and shortest < EXPIRING)
@@ -599,7 +613,7 @@ local function ArrangeFlyout(roster)
         local key = Assigned(member)
         row.note:SetText(own and SpellName(own) or "Class default")
         row.slot.icon:SetTexture(key and SpellIcon(key) or QUESTION)
-        row.header:SetAttribute("nameList", member.names)
+        SetNames(row.header, member.names)
         row.cast:SetAttribute("spell1", key and HighestKnown(BY_KEY[key].ranks))
         SetWatch(row.slot, member.unit, key)
         local has, remaining
@@ -610,7 +624,7 @@ local function ArrangeFlyout(roster)
         row:Show()
     end
     for i = #members + 1, #rows do
-        rows[i].header:SetAttribute("nameList", "-")
+        SetNames(rows[i].header, "-")
         SetWatch(rows[i].slot, nil, nil)
         rows[i]:Hide()
     end
@@ -686,6 +700,7 @@ function Refresh()
         return
     end
     bar:Show()
+    if not bar:IsVisible() then return end
     local size, gap = S.Get("blessBarSize"), 6
     local x = 0
     local function Place(frame)
@@ -728,7 +743,7 @@ function Refresh()
             Place(cell)
             PrepareCell(cell)
         elseif cell then
-            cell.header:SetAttribute("nameList", "-")
+            SetNames(cell.header, "-")
             LibStub("LibCustomGlow-1.0").PixelGlow_Stop(cell, "NaowhBless")
             cell.glowing = nil
             cell:Hide()
@@ -789,10 +804,12 @@ local function SyncSoon()
             if not InGroup(who) then others[who] = nil end
         end
         if IsPaladin() or CanAssign("player") then Send("R") end
-        Broadcast()
+        BroadcastSoon()
         if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
     end)
 end
+
+local Apply
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, ...)
@@ -805,7 +822,20 @@ events:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PARTY_LEADER_CHANGED" then
         if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
     elseif event == "PLAYER_REGEN_ENABLED" then
+        if buildAfterCombat then
+            buildAfterCombat = false
+            Apply()
+            return
+        end
         if dirty then Refresh() end
+        if broadcastAfterCombat then
+            broadcastAfterCombat = false
+            BroadcastSoon()
+        end
+        if unlocked and bar then bar.mover:Show() end
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        -- The bar holds secure buttons, so it cannot be dragged in combat.
+        if bar then bar.mover:Hide() end
     elseif event == "SPELLS_CHANGED" then
         BroadcastSoon()
         RefreshSoon()
@@ -815,7 +845,7 @@ events:SetScript("OnEvent", function(_, event, ...)
     end
 end)
 
-local function Apply()
+function Apply()
     events:UnregisterAllEvents()
     if ticker then
         ticker:Cancel()
@@ -839,6 +869,12 @@ local function Apply()
     if IsPaladin() then
         events:RegisterEvent("UNIT_AURA")
         events:RegisterEvent("SPELLS_CHANGED")
+        events:RegisterEvent("PLAYER_REGEN_DISABLED")
+        -- The bar's buttons are secure, so it is only built out of combat (a reload in one).
+        if not bar and InCombatLockdown() then
+            buildAfterCombat = true
+            return
+        end
         if not bar then BuildBar() end
         -- Range and time left change with nothing to announce them.
         ticker = C_Timer.NewTicker(3, function()
@@ -849,16 +885,18 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or (key:find("^bless") and key ~= "blessPos") then Apply() end
+    if key:find("^bless") and key ~= "blessPos" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
+    unlocked = true
     if bar and not InCombatLockdown() then
         bar.mover:Show()
         bar:Show()
     end
 end)
 hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
+    unlocked = false
     if bar then
         bar.mover:Hide()
         Refresh()
@@ -878,6 +916,7 @@ ns.Blessings = {
     -- The leader's edit to another paladin's plan: kept here until their broadcast confirms it.
     SetFor = function(who, column, key)
         local plan = others[who]
+        if not plan then return end
         if column == "AURA" then plan.aura = key else plan.classes[column] = key end
         local full = who:find("-") and who or who .. "-" .. GetNormalizedRealmName()
         Send("S|" .. full .. "|" .. EncodePlan(plan.classes, plan.aura))
