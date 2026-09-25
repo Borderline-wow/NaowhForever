@@ -318,7 +318,12 @@ end
 -- (a followed targettarget is read on the ticker).
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, unit)
-    if event == "UNIT_THREAT_LIST_UPDATE" and not (unit and UnitIsUnit(unit, "target")) then return end
+    if event == "UNIT_THREAT_LIST_UPDATE" then
+        if not unit then return end
+        -- Some tokens (targettarget) compare to the target as a secret; those may be it.
+        local isTarget = UnitIsUnit(unit, "target")
+        if Readable(isTarget) and not isTarget then return end
+    end
     RequestUpdate()
 end)
 
