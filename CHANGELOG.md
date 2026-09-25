@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0-beta
 
 ### Added
 - Trainer popup: after a trainer visit, a window lists the abilities you just learned, and
