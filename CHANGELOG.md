@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.2-beta
 
 ### Fixed
 - Blessings: the bar waits for combat to end before it is built (a reload mid-fight), the
