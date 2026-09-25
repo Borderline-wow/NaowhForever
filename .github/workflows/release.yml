@@ -32,7 +32,9 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_CHANGELOG_WEBHOOK }}
         run: |
           # CHANGELOG.md hard-wraps list items; join them so Discord doesn't break mid-sentence.
+          # The repo stores CRLF (.gitattributes -text), and the runner's awk keeps the CR.
           notes=$(awk -v v="## ${GITHUB_REF_NAME}" '
+            {sub(/\r$/, "")}
             $0 == v {f = 1; next}
             /^## / {f = 0}
             !f {next}
