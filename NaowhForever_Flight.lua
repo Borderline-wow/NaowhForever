@@ -70,10 +70,12 @@ local function CurrentNodeName()
 end
 
 -- Frequent Flier, node 110300 of the Adventure Legacy tree (1188), makes flight path
--- mounts 20% faster. Legacy perks are bought per character.
+-- mounts 20% faster. Legacy perks are bought per character; a character without the tree
+-- has no config for it.
 local function SpeedMultiplier()
-    local node = C_Traits.GetNodeInfo(C_Traits.GetConfigIDByTreeID(1188), 110300)
-    return node.activeRank > 0 and 1.2 or 1
+    local config = C_Traits.GetConfigIDByTreeID(1188)
+    local node = config and C_Traits.GetNodeInfo(config, 110300)
+    return node and node.activeRank > 0 and 1.2 or 1
 end
 
 -- Seconds to the map's slot, summed over every hop; nil when a hop is missing from the
