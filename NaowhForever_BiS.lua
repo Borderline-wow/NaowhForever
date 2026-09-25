@@ -180,6 +180,21 @@ function ns.AddBisItem(value)
     end
 end
 
+-- An item typed in for one slot, from a slot's dropdown.
+function ns.SetBisSlot(slot, value)
+    local id = IDFrom(value)
+    if not (id and Fits(id, slot)) then
+        ns.Print(("That item does not go in your %s."):format(SLOT_NAME[slot]))
+        return
+    end
+    local cleared = SetSlot(slot, id)
+    ns.Print(("Added %s to your BiS %s."):format(Name(id), SLOT_NAME[slot]))
+    if cleared then
+        ns.Print(("%s came off your BiS list: a two-hander and an off-hand cannot both be listed.")
+            :format(Name(cleared)))
+    end
+end
+
 function ns.RemoveBisItem(itemID)
     local slots = List().slots
     for s, id in pairs(slots) do
@@ -391,17 +406,11 @@ local function OpenPicker(anchor, slot)
     for _, id in ipairs(spec and spec.slots[slot] or {}) do
         if C_Item.GetItemInfoInstant(id) then ids[#ids + 1] = id end
     end
-    if #ids == 0 then
-        ns.Print("No picks for this slot. Alt+Shift-click an item to add it.")
-        return
-    end
-    local container = ContinuableContainer:Create()
-    for _, id in ipairs(ids) do container:AddContinuable(Item:CreateFromItemID(id)) end
-    container:ContinueOnLoad(function()
+    local function Open()
         if not anchor:IsVisible() then return end
         local desc = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
         desc:SetScrollMode(420)
-        desc:CreateTitle(("%s: %s"):format(ns.L(SLOT_NAME[slot]), spec.name))
+        desc:CreateTitle(spec and ("%s: %s"):format(ns.L(SLOT_NAME[slot]), spec.name) or ns.L(SLOT_NAME[slot]))
         for rank, id in ipairs(ids) do
             local text = ("%d.  |T%s:18|t  %s%s|r"):format(rank, C_Item.GetItemIconByID(id), QualityHex(id), Name(id))
             local source = ns.BiSData.sources[id]
@@ -411,8 +420,20 @@ local function OpenPicker(anchor, slot)
                 function() SetSlot(slot, id) end)
             button:SetTooltip(function(tooltip) tooltip:SetItemByID(id) end)
         end
+        if #ids > 0 then desc:CreateDivider() end
+        desc:CreateButton(ns.L("Enter an item ID..."), function()
+            ns.PromptText(("Item ID or link for your %s"):format(ns.L(SLOT_NAME[slot])), "", 0,
+                function(value) ns.SetBisSlot(slot, value) end)
+        end)
         Menu.GetManager():OpenMenu(anchor, desc, AnchorUtil.CreateAnchor("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2))
-    end)
+    end
+    if #ids == 0 then
+        Open()
+        return
+    end
+    local container = ContinuableContainer:Create()
+    for _, id in ipairs(ids) do container:AddContinuable(Item:CreateFromItemID(id)) end
+    container:ContinueOnLoad(Open)
 end
 
 local function SlotRow(parent, x, y, width, slot, label, lit)
@@ -492,7 +513,7 @@ function ns.BuildQoLBiSPage(parent, y)
     local W = UI.Widgets
     local _, h
     wipe(wornMarks)
-    _, h = W:Note(parent, "Pick an item for each slot from the ranking for your spec, or "
+    _, h = W:Note(parent, "Pick an item for each slot from the ranking for your spec or by item ID, or "
         .. "Alt+Shift-click any item (bags, links, loot) to put it in its slot, or again to take it "
         .. "off. Listed items say so on their tooltip, are tagged in the loot feed, and ring an "
         .. "alert when they drop or come up for a roll.", y); y = y - h
