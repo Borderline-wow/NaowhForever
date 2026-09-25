@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.5-beta
+
+### Fixed
+- Blessings: no more "table index is nil" error when someone joins your group while
+  their character is still loading. They show up on the bar a moment later.
+
 ## 0.5.4-beta
 
 ### Changed
