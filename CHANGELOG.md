@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.3-beta
 
 ### Fixed
 - Blessings: no more "Auras cannot be accessed" errors on boss pulls. While the game
