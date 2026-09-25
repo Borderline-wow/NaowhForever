@@ -37,6 +37,7 @@ local EQUIP_SLOTS = {
 }
 
 local lookup   -- itemID -> true, rebuilt when the list changes
+local wornMarks = {}   -- the built page's worn marks, rechecked when gear changes
 
 local function On()
     return S.Get("bis")
@@ -73,6 +74,12 @@ local function FreeSlot(slots, itemID)
     for _, s in ipairs(SlotsFor(itemID) or {}) do
         if not slots[s] then return s end
     end
+end
+
+local function Wearing(slot, itemID)
+    if GetInventoryItemID("player", slot) == itemID then return true end
+    local pair = (slot == 11 and 12) or (slot == 12 and 11) or (slot == 13 and 14) or (slot == 14 and 13)
+    return pair and GetInventoryItemID("player", pair) == itemID
 end
 
 -- A two-hander and an off-hand cannot be worn together; returns the off-hand it took out.
@@ -154,7 +161,8 @@ function ns.AddBisItem(value)
         ns.Print("That is not an item you can equip.")
         return
     end
-    if ns.IsBisItem(id) then return end
+    if not lookup then Rebuild() end
+    if lookup[id] then return end
     local slots = List().slots
     local slot = FreeSlot(slots, id) or fits[1]
     -- A one-hander takes a listed two-hander's place instead of pushing it out from the off-hand.
@@ -309,6 +317,10 @@ end
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, rollID)
+    if event == "PLAYER_EQUIPMENT_CHANGED" then
+        for _, mark in ipairs(wornMarks) do mark:SetShown(Wearing(mark.slot, mark.itemID)) end
+        return
+    end
     if event == "LOOT_CLOSED" then
         wipe(alerted)
         return
@@ -329,6 +341,7 @@ end)
 events:RegisterEvent("LOOT_READY")
 events:RegisterEvent("LOOT_CLOSED")
 events:RegisterEvent("START_LOOT_ROLL")
+events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 
 -- A listed item's roll frame glows while it is open. Forever's roll frames are unverified, so
 -- a missing one just goes without the glow.
@@ -369,17 +382,15 @@ local function ItemTooltip(owner, itemID)
     GameTooltip:Show()
 end
 
-local function Wearing(slot, itemID)
-    if GetInventoryItemID("player", slot) == itemID then return true end
-    local pair = (slot == 11 and 12) or (slot == 12 and 11) or (slot == 13 and 14) or (slot == 14 and 13)
-    return pair and GetInventoryItemID("player", pair) == itemID
-end
-
 -- The slot's ranked candidates as an anchored dropdown, opened once their names have loaded.
 -- The same menu as the house dropdowns, so it closes on an outside click and scrolls when long.
 local function OpenPicker(anchor, slot)
     local spec = CurrentSpec()
-    local ids = spec and spec.slots[slot] or {}
+    -- An ID the running client does not know never finishes loading, so it is left out.
+    local ids = {}
+    for _, id in ipairs(spec and spec.slots[slot] or {}) do
+        if C_Item.GetItemInfoInstant(id) then ids[#ids + 1] = id end
+    end
     if #ids == 0 then
         ns.Print("No picks for this slot. Alt+Shift-click an item to add it.")
         return
@@ -467,18 +478,20 @@ local function SlotRow(parent, x, y, width, slot, label, lit)
     end)
     remove:SetScript("OnLeave", function() ns.UI.HideWidgetTooltip() end)
 
-    if Wearing(slot, id) then
-        local worn = row:CreateTexture(nil, "ARTWORK")
-        worn:SetSize(18, 18)
-        worn:SetPoint("RIGHT", remove, "LEFT", -6, 0)
-        worn:SetTexture(READY)
-    end
+    local worn = row:CreateTexture(nil, "ARTWORK")
+    worn:SetSize(18, 18)
+    worn:SetPoint("RIGHT", remove, "LEFT", -6, 0)
+    worn:SetTexture(READY)
+    worn.slot, worn.itemID = slot, id
+    worn:SetShown(Wearing(slot, id))
+    wornMarks[#wornMarks + 1] = worn
 end
 
 function ns.BuildQoLBiSPage(parent, y)
     local UI = ns.UI
     local W = UI.Widgets
     local _, h
+    wipe(wornMarks)
     _, h = W:Note(parent, "Pick an item for each slot from the ranking for your spec, or "
         .. "Alt+Shift-click any item (bags, links, loot) to put it in its slot, or again to take it "
         .. "off. Listed items say so on their tooltip, are tagged in the loot feed, and ring an "

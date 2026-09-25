@@ -144,6 +144,15 @@ Case("an import cannot list a two-hander with an off-hand, but can list one weap
     assert(s[16] == 302 and s[17] == 302, "same dagger in both hands")
 end)
 
+Case("adding a listed item again does nothing, even with the BiS toggle off", function()
+    local e = Fixture()
+    e.ns.QoLSettings.Get = function() return false end
+    e.ns.AddBisItem(201); e.ns.AddBisItem(201); e.ns.AddBisItem(101); e.ns.AddBisItem(101)
+    local s = Slots(e)
+    assert(s[11] == 201 and s[12] == nil and s[1] == 101, "no second copy")
+    assert(#e.printed == 2, "no 'replaces itself' line")
+end)
+
 Case("an item that cannot be equipped is refused", function()
     local e = Fixture()
     e.ns.AddBisItem(999)
