@@ -249,7 +249,7 @@ function Refresh(_, event)
         SetAlert(false)
         return
     end
-    if InCombatLockdown() or event == "PLAYER_REGEN_DISABLED" then
+    if InCombatLockdown() or event == "PLAYER_REGEN_DISABLED" or C_Secrets.ShouldAurasBeSecret() then
         alertGen = alertGen + 1
         SetAlert(false)
         return

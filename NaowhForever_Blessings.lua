@@ -170,8 +170,11 @@ local function CastSpell(key, members)
     return greater or HighestKnown(entry.ranks)
 end
 
--- Out of combat only. Present, with the time left when it runs out; nil when unreadable.
+-- Present, with the time left when it runs out; nil when unreadable. Aura access can be
+-- withdrawn outside combat lockdown too (seen on boss pulls), and GetAuraDataByIndex then
+-- raises instead of returning nil, so the restriction is checked before the call.
 local function BuffState(unit, key)
+    if C_Secrets.ShouldAurasBeSecret() then return nil end
     for i = 1, 40 do
         local aura = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
         if not aura then return false end
@@ -687,10 +690,12 @@ end
 -------------------------------------------------------------------------------
 --  Layout
 -------------------------------------------------------------------------------
--- Secure buttons only change out of combat; a change asked for in one waits.
+-- Secure buttons only change out of combat; a change asked for in one waits. So does one
+-- asked for while auras are unreadable: every buff would read unknown and the class buttons
+-- would lose their spell, then stay empty once combat locks them.
 function Refresh()
     if not bar then return end
-    if InCombatLockdown() then
+    if InCombatLockdown() or C_Secrets.ShouldAurasBeSecret() then
         dirty = true
         return
     end

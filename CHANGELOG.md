@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Blessings: no more "Auras cannot be accessed" errors on boss pulls. While the game
+  keeps auras hidden the bar holds what it showed before the pull, and its buttons still
+  cast; the marks and timers catch up once auras are readable again.
+- The campfire icon no longer reports the Camp Benefits buff gone, or plays its sound,
+  at the start of a world boss pull.
+
 ## 0.5.2-beta
 
 ### Fixed
