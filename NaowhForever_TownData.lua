@@ -1058,7 +1058,7 @@ ns.TownNPCs = {
         { 81.2, 38.5, "vendor", "Alliance Brigadier General", "", nil, "A" },
         { 61.1, 70.7, "auction", "Auctioneer Jaxon", "", nil, "A" },
         { 37.3, 64.1, "vendor", "Lunar Festival Vendor", "", nil, "AH" },
-        { 38.0, 81.6, "class", "Maginor Dumas", "Master Mage", "MAGE", "A" },
+        { 49.1, 87.6, "class", "Maginor Dumas", "Master Mage", "MAGE", "A" },
     },
     [1454] = {
         { 81.5, 19.6, "profession", "Hanashi", "Weapon Master", nil, "H" },
