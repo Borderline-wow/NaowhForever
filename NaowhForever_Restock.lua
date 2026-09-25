@@ -195,9 +195,12 @@ local function ShowAlert(lines)
     alert.text:SetText(table.concat(lines, "\n"))
     alert:SetSize(math.max(alert.title:GetStringWidth(), alert.text:GetStringWidth()) + 16,
         alert.title:GetStringHeight() + alert.text:GetStringHeight() + 12)
-    alert:Show()
-    flash.loops = 0
-    flash:Play()
+    -- Refreshed as bags change; only a new appearance pulses.
+    if not alert:IsShown() then
+        alert:Show()
+        flash.loops = 0
+        flash:Play()
+    end
 end
 
 -- Shown on reaching a rested area, and again after a vendor if anything is still short.
@@ -284,6 +287,9 @@ events:SetScript("OnEvent", function(_, event)
         C_Timer.After(0.5, Check)
     elseif event == "PLAYER_REGEN_DISABLED" then
         HideAlert()
+    elseif event == "BAG_UPDATE_DELAYED" then
+        -- Restocked from the bank, mail or a trade: the list follows while it is up.
+        if alert and alert:IsShown() then Check() end
     else
         local resting = IsResting()
         if resting and not wasResting then Check() end
@@ -305,6 +311,7 @@ local function Apply()
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
     events:RegisterEvent("MERCHANT_SHOW")
     events:RegisterEvent("MERCHANT_CLOSED")
+    events:RegisterEvent("BAG_UPDATE_DELAYED")
 end
 
 hooksecurefunc(S, "Set", function(key)
