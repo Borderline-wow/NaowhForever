@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.6-beta
+
+### Fixed
+- Threat meter: no more "attempt to perform boolean test on a secret boolean value"
+  errors while your target is targeting someone.
+
 ## 0.5.5-beta
 
 ### Fixed
