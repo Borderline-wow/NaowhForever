@@ -75,8 +75,9 @@ local function Wanted()
             if item and Target(item) > 0 then want[item] = Target(item) end
         end
     end
+    -- Forever reports an empty ammo slot as item 0, not nil.
     local ammo = S.Get("restockAmmo") and GetInventoryItemID("player", AMMO_SLOT)
-    if ammo then want[ammo] = S.Get("restockAmmoTarget") end
+    if ammo and ammo > 0 then want[ammo] = S.Get("restockAmmoTarget") end
     return want
 end
 
