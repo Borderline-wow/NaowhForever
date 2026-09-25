@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- BiS list: a line for every gear slot. Pick it opens that slot's ranking for your spec
+  from wowsrc.com (used with permission), with each item's icon, source and tooltip; the
+  chosen item shows in its line with a mark when you are wearing it. Rankings For switches
+  between your class's specs.
+- The list keeps one item per slot (two rings, two trinkets). Alt+Shift-click puts an item
+  in its slot. An older list moves into slots on first use; anything that no longer fits
+  is named in chat.
+- Export now shares the slots and the spec, so a list you import comes in slot for slot.
+  Older strings still import.
+
 ## 0.5.6-beta
 
 ### Fixed
