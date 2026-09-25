@@ -14,14 +14,14 @@ local TAG = "|cff0091edNaowh BiS|r"
 -- Inventory slot numbers, laid out as on the character pane.
 local LEFT_SLOTS = {
     { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 15, "Back" }, { 5, "Chest" }, { 9, "Wrist" },
+    { 16, "Main Hand" }, { 17, "Off Hand" }, { 18, "Ranged" },
 }
 local RIGHT_SLOTS = {
     { 10, "Hands" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
     { 11, "Ring 1" }, { 12, "Ring 2" }, { 13, "Trinket 1" }, { 14, "Trinket 2" },
 }
-local WEAPON_SLOTS = { { 16, "Main Hand" }, { 17, "Off Hand" }, { 18, "Ranged" } }
 local SLOT_NAME = {}
-for _, group in ipairs({ LEFT_SLOTS, RIGHT_SLOTS, WEAPON_SLOTS }) do
+for _, group in ipairs({ LEFT_SLOTS, RIGHT_SLOTS }) do
     for _, s in ipairs(group) do SLOT_NAME[s[1]] = s[2] end
 end
 
@@ -507,10 +507,5 @@ function ns.BuildQoLBiSPage(parent, y)
     for i, s in ipairs(RIGHT_SLOTS) do
         SlotRow(parent, pad + half + gap, y - (i - 1) * ROW_H, half, s[1], s[2], i % 2 == 1)
     end
-    y = y - #RIGHT_SLOTS * ROW_H - gap
-    local third = (width - gap * 2) / 3
-    for i, s in ipairs(WEAPON_SLOTS) do
-        SlotRow(parent, pad + (i - 1) * (third + gap), y, third, s[1], s[2], true)
-    end
-    return y - ROW_H
+    return y - math.max(#LEFT_SLOTS, #RIGHT_SLOTS) * ROW_H
 end
