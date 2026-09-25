@@ -83,6 +83,11 @@ local function PickIcon(title, onPick)
         if provider then provider:Release() end
         provider = nil
     end)
+    -- Hiding the UI (Alt-Z, a cinematic) hides the dialog too, which releases the icons, so
+    -- it stays closed when the UI comes back.
+    dimmer:SetScript("OnShow", function(self)
+        if not provider then self:Hide() end
+    end)
 
     local head = ns.Font(panel, 14, "OUTLINE")
     head:SetPoint("TOP", 0, -14)
