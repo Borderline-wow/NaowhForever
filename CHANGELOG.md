@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Blessings: the bar waits for combat to end before it is built (a reload mid-fight), the
+  bar cannot be dragged in combat, and a plan changed in combat is shared once it ends. A
+  Greater Blessing is only used while you carry Symbols of Kings. The Blessings switch in
+  the sidebar turns the module on and off by itself.
+- The flight timer works on characters without the Adventure Legacy perk tree.
+- The trainer popup's Update Bars no longer mistakes a spell whose rank has not loaded yet
+  for a lower rank.
+- The restock reminder follows your bags while it is up, so restocking from the bank or
+  mail updates it; it only pulses when it first appears.
+- The threat meter only redraws for your target's threat, not every mob nearby.
+- The gear set icon picker no longer errors after the UI is hidden and shown again.
+- Maginor Dumas's town map pin sits with the other Stormwind mage trainers.
+
+### Upgrading
+- The addon's folder is now NaowhForever. Delete the old NaowhSmartReminders folder, or both
+  load and every reminder fires twice.
+
 ## 0.5.1-beta
 
 ### Added
