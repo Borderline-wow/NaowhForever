@@ -70,13 +70,97 @@ end
 -------------------------------------------------------------------------------
 --  Dialogs
 -------------------------------------------------------------------------------
+local ICON_COLS, ICON_ROWS, ICON_SIZE, ICON_GAP = 10, 6, 36, 4
+
+-- The client's own icon list, the one its equipment manager offers, with the icons of what
+-- you wear first. The provider holds every macro icon while open, so it is released on close.
+local function PickIcon(title, onPick)
+    local provider = CreateAndInitFromMixin(IconDataProviderMixin, IconDataProviderExtraType.Equipment)
+    local count = provider:GetNumIcons()
+    local width = ICON_COLS * (ICON_SIZE + ICON_GAP) + 40
+    local dimmer, panel = ns.MakeModal(width, ICON_ROWS * (ICON_SIZE + ICON_GAP) + 100, "gearIcon")
+    dimmer:SetScript("OnHide", function()
+        if provider then provider:Release() end
+        provider = nil
+    end)
+
+    local head = ns.Font(panel, 14, "OUTLINE")
+    head:SetPoint("TOP", 0, -14)
+    head:SetText(title)
+
+    local slider = CreateFrame("Slider", nil, panel)
+    slider:SetOrientation("VERTICAL")
+    slider:SetPoint("TOPRIGHT", -12, -44)
+    slider:SetSize(8, ICON_ROWS * (ICON_SIZE + ICON_GAP) - ICON_GAP)
+    ns.Solid(slider, "BACKGROUND", T.bg, 1):SetAllPoints()
+    local thumb = slider:CreateTexture(nil, "OVERLAY")
+    thumb:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
+    thumb:SetSize(8, 24)
+    slider:SetThumbTexture(thumb)
+    slider:SetMinMaxValues(0, math.max(0, math.ceil(count / ICON_COLS) - ICON_ROWS))
+    slider:SetValueStep(1)
+    slider:SetObeyStepOnDrag(true)
+
+    local cells = {}
+    for i = 1, ICON_COLS * ICON_ROWS do
+        local cell = CreateFrame("Button", nil, panel)
+        cell:SetSize(ICON_SIZE, ICON_SIZE)
+        cell:SetPoint("TOPLEFT", 14 + ((i - 1) % ICON_COLS) * (ICON_SIZE + ICON_GAP),
+            -44 - math.floor((i - 1) / ICON_COLS) * (ICON_SIZE + ICON_GAP))
+        cell.icon = cell:CreateTexture(nil, "ARTWORK")
+        cell.icon:SetPoint("TOPLEFT", 1, -1)
+        cell.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+        cell.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        local border = ns.Border(cell, { r = 0, g = 0, b = 0 })
+        cell:SetScript("OnEnter", function() border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+        cell:SetScript("OnLeave", function() border:SetColor(0, 0, 0, 1) end)
+        cell:SetScript("OnClick", function(self)
+            local icon = provider:GetIconForSaving(self.index)
+            dimmer:Hide()
+            onPick(icon)
+        end)
+        cells[i] = cell
+    end
+
+    local function Refresh()
+        local first = math.floor(slider:GetValue()) * ICON_COLS
+        for i, cell in ipairs(cells) do
+            local index = first + i
+            if index <= count then
+                cell.index = index
+                cell.icon:SetTexture(provider:GetIconByIndex(index))
+                cell:Show()
+            else
+                cell:Hide()
+            end
+        end
+    end
+    slider:SetScript("OnValueChanged", Refresh)
+    panel:EnableMouseWheel(true)
+    panel:SetScript("OnMouseWheel", function(_, delta) slider:SetValue(slider:GetValue() - delta * 3) end)
+    slider:SetValue(0)
+    Refresh()
+
+    ns.Button(panel, "Cancel", 96, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+    dimmer:Show()
+end
+
 function ns.NewGearSet()
     ns.PromptText("Name the new gear set", "", 16, function(name)
         if C_EquipmentSet.GetEquipmentSetID(name) then
             ns.Print("A gear set called " .. name .. " already exists.")
             return
         end
-        C_EquipmentSet.CreateEquipmentSet(name)
+        PickIcon("Pick an icon for " .. name, function(icon)
+            C_EquipmentSet.CreateEquipmentSet(name, icon)
+        end)
+    end)
+end
+
+function ns.ChangeGearSetIcon(setID, name)
+    PickIcon("Pick an icon for " .. name, function(icon)
+        C_EquipmentSet.ModifyEquipmentSet(setID, name, icon)
     end)
 end
 
@@ -101,7 +185,8 @@ local function SetTooltip(btn)
     GameTooltip:SetText(set.name, 1, 1, 1)
     if set.equipped then GameTooltip:AddLine("Equipped", 0.29, 0.87, 0.5) end
     if set.lost > 0 then GameTooltip:AddLine(set.lost .. " item(s) missing", 0.97, 0.44, 0.44) end
-    GameTooltip:AddLine("Click to equip. Shift-click to save what you wear into it.", 0.6, 0.62, 0.65, true)
+    GameTooltip:AddLine("Click to equip. Shift-click to save what you wear into it. Right-click to "
+        .. "change its icon.", 0.6, 0.62, 0.65, true)
     GameTooltip:Show()
 end
 
@@ -112,9 +197,11 @@ local function NewButton()
     btn.icon:SetPoint("BOTTOMRIGHT", -1, 1)
     btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     btn.border = ns.Border(btn, { r = 0, g = 0, b = 0 })
-    btn:RegisterForClicks("LeftButtonUp")
-    btn:SetScript("OnClick", function(self)
-        if IsShiftKeyDown() then ns.SaveGearSet(self.set.id, self.set.name) else EquipByHand(self.set.id) end
+    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    btn:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            ns.ChangeGearSetIcon(self.set.id, self.set.name)
+        elseif IsShiftKeyDown() then ns.SaveGearSet(self.set.id, self.set.name) else EquipByHand(self.set.id) end
     end)
     btn:SetScript("OnEnter", SetTooltip)
     btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -207,8 +294,8 @@ function ns.BuildQoLGearSetsPage(parent, y)
     _, h = W:SectionHeader(parent, "GEAR SETS" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("gearSets", "Gear Set Bar",
-            "A button per set: click to equip, Shift-click to save what you wear into it, and + "
-            .. "to save a new one. The set you wear is outlined. Move it in Unlock Mode."),
+            "A button per set: click to equip, Shift-click to save what you wear into it, right-click "
+            .. "to change its icon, and + to save a new one. The set you wear is outlined. Move it in Unlock Mode."),
         S.Slider("gearBarSize", "Button Size", 20, 48, 1, nil, "gearSets")
     ); y = y - h
     _, h = W:DualRow(parent, y,
@@ -223,6 +310,7 @@ function ns.BuildQoLGearSetsPage(parent, y)
         _, h = W:SectionHeader(parent, set.name:upper() .. (set.equipped and "  (EQUIPPED)" or ""), y); y = y - h
         _, h = W:Button(parent, "Equip " .. set.name, y, function() EquipByHand(set.id) end); y = y - h
         _, h = W:Button(parent, "Save Current Gear", y, function() ns.SaveGearSet(set.id, set.name) end); y = y - h
+        _, h = W:Button(parent, "Change Icon", y, function() ns.ChangeGearSetIcon(set.id, set.name) end); y = y - h
         _, h = W:Button(parent, "Delete", y, function() ns.DeleteGearSet(set.id, set.name) end); y = y - h
     end
     return y
