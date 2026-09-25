@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+- The flight timer counts down from your first flight on a route instead of counting up.
+  The time comes from the length of every leg of the trip, 20% shorter with Frequent
+  Flier. A flight picked up after a reload mid-air still counts up.
+
 ### Changed
 - The trainer popup's Update Bars only swaps each spell's highest rank on your bars. A lower
   rank sitting beside it, such as a healer's Rank 1 heal, stays for downranking, and if your

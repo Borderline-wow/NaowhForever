@@ -36,6 +36,8 @@ ns.FLIGHT_QUOTES = {
 }
 
 local QUOTE_SECONDS = 45
+-- Yards per second, fitted to measured Classic flight times.
+local FLIGHT_SPEED = 30.4
 
 local bar, poll, unlocked, Apply
 local pending   -- { from, to, at }: a flight bought but not boarded yet
@@ -65,6 +67,32 @@ local function CurrentNodeName()
     for i = 1, NumTaxiNodes() do
         if TaxiNodeGetType(i) == "CURRENT" then return TaxiNodeName(i) end
     end
+end
+
+-- Frequent Flier, node 110300 of the Adventure Legacy tree (1188), makes flight path
+-- mounts 20% faster. Legacy perks are bought per character.
+local function SpeedMultiplier()
+    local node = C_Traits.GetNodeInfo(C_Traits.GetConfigIDByTreeID(1188), 110300)
+    return node.activeRank > 0 and 1.2 or 1
+end
+
+-- Seconds to the map's slot, summed over every hop; nil when a hop is missing from the
+-- route data, and the learned time for the route is used instead.
+local function EstimateSeconds(slot)
+    local idBySlot = {}
+    for _, node in ipairs(C_TaxiMap.GetAllTaxiNodes(GetTaxiMapID())) do
+        idBySlot[node.slotIndex] = node.nodeID
+    end
+    local yards = 0
+    for hop = 1, GetNumRoutes(slot) do
+        local from = idBySlot[TaxiGetNodeSlot(slot, hop, true)]
+        local to = idBySlot[TaxiGetNodeSlot(slot, hop, false)]
+        local hopYards = from and to and ns.FLIGHT_ROUTES[from * 10000 + to]
+        if not hopYards then return nil end
+        yards = yards + hopYards
+    end
+    if yards == 0 then return nil end
+    return yards / (FLIGHT_SPEED * SpeedMultiplier())
 end
 
 -- A new face and line, never the same line twice in a row.
@@ -129,7 +157,7 @@ end
 local function Board(route)
     local key = route and RouteKey(route.from, route.to)
     flight = { from = route and route.from, to = route and route.to, start = GetTime(),
-        known = key and Times()[key] }
+        known = route and route.estimate or key and Times()[key] }
     pending = nil
     if On() then Show() end
     if ns.QuizOffer then ns.QuizOffer("flight") end
@@ -208,7 +236,8 @@ local function Place()
 end
 
 hooksecurefunc("TakeTaxiNode", function(index)
-    pending = { from = CurrentNodeName(), to = TaxiNodeName(index), at = GetTime() }
+    pending = { from = CurrentNodeName(), to = TaxiNodeName(index), at = GetTime(),
+        estimate = EstimateSeconds(index) }
     StartPoll()
 end)
 

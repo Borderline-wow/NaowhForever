@@ -80,6 +80,7 @@ NaowhForever_Blessings.xml
 NaowhForever_Blessings.lua
 NaowhForever_BlessingsPage.lua
 NaowhForever_Trainer.lua
+NaowhForever_FlightData.lua
 NaowhForever_Flight.lua
 NaowhForever_QuizData.lua
 NaowhForever_Quiz.lua
