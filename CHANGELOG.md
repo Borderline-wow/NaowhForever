@@ -3,10 +3,10 @@
 ## Unreleased
 
 ### Changed
-- BiS list: a line for every gear slot. Pick it opens that slot's ranking for your spec
-  from wowsrc.com (used with permission), with each item's icon, source and tooltip; the
-  chosen item shows in its line with a mark when you are wearing it. Rankings For switches
-  between your class's specs.
+- BiS list: every gear slot laid out like the character pane. Pick it opens that slot's
+  ranking for your spec, with each item's icon, source and tooltip; the chosen item shows
+  in its slot with a mark when you are wearing it. Rankings For switches between your
+  class's specs.
 - The list keeps one item per slot (two rings, two trinkets). Alt+Shift-click puts an item
   in its slot. An older list moves into slots on first use; anything that no longer fits
   is named in chat.

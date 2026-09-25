@@ -11,15 +11,19 @@ local T = ns.THEME
 local PREFIX = "!NBIS1!"
 local TAG = "|cff0091edNaowh BiS|r"
 
--- Inventory slot numbers in character pane order.
-local SLOTS = {
-    { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 15, "Back" }, { 5, "Chest" },
-    { 9, "Wrist" }, { 10, "Hands" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
-    { 11, "Ring 1" }, { 12, "Ring 2" }, { 13, "Trinket 1" }, { 14, "Trinket 2" },
-    { 16, "Main Hand" }, { 17, "Off Hand" }, { 18, "Ranged" },
+-- Inventory slot numbers, laid out as on the character pane.
+local LEFT_SLOTS = {
+    { 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 15, "Back" }, { 5, "Chest" }, { 9, "Wrist" },
 }
+local RIGHT_SLOTS = {
+    { 10, "Hands" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
+    { 11, "Ring 1" }, { 12, "Ring 2" }, { 13, "Trinket 1" }, { 14, "Trinket 2" },
+}
+local WEAPON_SLOTS = { { 16, "Main Hand" }, { 17, "Off Hand" }, { 18, "Ranged" } }
 local SLOT_NAME = {}
-for _, s in ipairs(SLOTS) do SLOT_NAME[s[1]] = s[2] end
+for _, group in ipairs({ LEFT_SLOTS, RIGHT_SLOTS, WEAPON_SLOTS }) do
+    for _, s in ipairs(group) do SLOT_NAME[s[1]] = s[2] end
+end
 
 -- Where an item can go, first choice first.
 local EQUIP_SLOTS = {
@@ -357,7 +361,7 @@ local function OpenPicker(anchor, slot)
     local spec = CurrentSpec()
     local ids = spec and spec.slots[slot] or {}
     if #ids == 0 then
-        ns.Print("wowsrc.com has no picks for this slot. Alt+Shift-click an item to add it.")
+        ns.Print("No picks for this slot. Alt+Shift-click an item to add it.")
         return
     end
     local container = ContinuableContainer:Create()
@@ -366,7 +370,7 @@ local function OpenPicker(anchor, slot)
         if not anchor:IsVisible() then return end
         local desc = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
         desc:SetScrollMode(420)
-        desc:CreateTitle(("%s: %s, ranked by wowsrc.com"):format(ns.L(SLOT_NAME[slot]), spec.name))
+        desc:CreateTitle(("%s: %s"):format(ns.L(SLOT_NAME[slot]), spec.name))
         for rank, id in ipairs(ids) do
             local text = ("%d.  |T%s:18|t  %s%s|r"):format(rank, C_Item.GetItemIconByID(id), QualityHex(id), Name(id))
             local source = ns.BiSData.sources[id]
@@ -380,11 +384,10 @@ local function OpenPicker(anchor, slot)
     end)
 end
 
-local function SlotRow(parent, y, slot, label, lit)
+local function SlotRow(parent, x, y, width, slot, label, lit)
     local row = CreateFrame("Button", nil, parent)
-    row:SetHeight(ROW_H)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", ns.UI.CONTENT_PAD, y)
-    row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -ns.UI.CONTENT_PAD, y)
+    row:SetSize(width, ROW_H)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
     local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
     band:SetAllPoints()
     band:SetShown(lit)
@@ -393,7 +396,7 @@ local function SlotRow(parent, y, slot, label, lit)
     hover:Hide()
 
     local name = ns.Font(row, 12, nil, T.muted)
-    name:SetPoint("LEFT", 20, 0)
+    name:SetPoint("LEFT", 14, 0)
     name:SetText(ns.L(label))
 
     local id = List().slots[slot]
@@ -409,24 +412,24 @@ local function SlotRow(parent, y, slot, label, lit)
     end)
 
     if not id then
-        ns.Button(row, "Pick it", 90, 24, Pick):SetPoint("LEFT", 130, 0)
-        return ROW_H
+        ns.Button(row, "Pick it", 90, 24, Pick):SetPoint("LEFT", 96, 0)
+        return
     end
 
     local icon = row:CreateTexture(nil, "ARTWORK")
     icon:SetSize(ICON, ICON)
-    icon:SetPoint("LEFT", 130, 0)
+    icon:SetPoint("LEFT", 96, 0)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     icon:SetTexture(C_Item.GetItemIconByID(id))
 
     local item = ns.Font(row, 13, nil)
     item:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -1)
-    item:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+    item:SetPoint("RIGHT", row, "RIGHT", -56, 0)
     item:SetJustifyH("LEFT")
     item:SetWordWrap(false)
     local source = ns.Font(row, 11, nil, T.muted)
     source:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 10, 1)
-    source:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+    source:SetPoint("RIGHT", row, "RIGHT", -56, 0)
     source:SetJustifyH("LEFT")
     source:SetWordWrap(false)
     source:SetText(ns.BiSData.sources[id] or "")
@@ -436,7 +439,7 @@ local function SlotRow(parent, y, slot, label, lit)
 
     local remove = CreateFrame("Button", nil, row)
     remove:SetSize(18, 18)
-    remove:SetPoint("RIGHT", -16, 0)
+    remove:SetPoint("RIGHT", -12, 0)
     remove:SetNormalTexture(NOT_READY)
     remove:SetScript("OnClick", function() ClearSlot(slot) end)
     remove:SetScript("OnEnter", function(self)
@@ -447,17 +450,16 @@ local function SlotRow(parent, y, slot, label, lit)
     if Wearing(slot, id) then
         local worn = row:CreateTexture(nil, "ARTWORK")
         worn:SetSize(18, 18)
-        worn:SetPoint("RIGHT", remove, "LEFT", -12, 0)
+        worn:SetPoint("RIGHT", remove, "LEFT", -6, 0)
         worn:SetTexture(READY)
     end
-    return ROW_H
 end
 
 function ns.BuildQoLBiSPage(parent, y)
     local UI = ns.UI
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, "Pick an item for each slot from wowsrc.com's ranking for your spec, or "
+    _, h = W:Note(parent, "Pick an item for each slot from the ranking for your spec, or "
         .. "Alt+Shift-click any item (bags, links, loot) to put it in its slot, or again to take it "
         .. "off. Listed items say so on their tooltip, are tagged in the loot feed, and ring an "
         .. "alert when they drop or come up for a roll.", y); y = y - h
@@ -493,9 +495,22 @@ function ns.BuildQoLBiSPage(parent, y)
         ns.PromptText("Copy this to share your list", ns.ExportBisList(), 0, function() end)
     end); y = y - h
 
-    _, h = W:SectionHeader(parent, "GEAR  |cff808080rankings from wowsrc.com|r", y); y = y - h
-    for i, s in ipairs(SLOTS) do
-        y = y - SlotRow(parent, y, s[1], s[2], i % 2 == 1)
+    _, h = W:SectionHeader(parent, "GEAR", y); y = y - h
+    local pad = UI.CONTENT_PAD
+    local width = parent:GetWidth() - pad * 2
+    if width <= 0 then width = 910 end
+    local gap = 12
+    local half = (width - gap) / 2
+    for i, s in ipairs(LEFT_SLOTS) do
+        SlotRow(parent, pad, y - (i - 1) * ROW_H, half, s[1], s[2], i % 2 == 1)
     end
-    return y
+    for i, s in ipairs(RIGHT_SLOTS) do
+        SlotRow(parent, pad + half + gap, y - (i - 1) * ROW_H, half, s[1], s[2], i % 2 == 1)
+    end
+    y = y - #RIGHT_SLOTS * ROW_H - gap
+    local third = (width - gap * 2) / 3
+    for i, s in ipairs(WEAPON_SLOTS) do
+        SlotRow(parent, pad + (i - 1) * (third + gap), y, third, s[1], s[2], true)
+    end
+    return y - ROW_H
 end
