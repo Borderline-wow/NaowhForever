@@ -77,8 +77,10 @@ local function CheckSlot(slot, best, found)
     local kind, id = GetActionInfo(slot)
     if kind ~= "spell" or not id then return end
     local name = C_Spell.GetSpellName(id)
-    if not (name and best[name]) then return end
-    found[#found + 1] = { slot = slot, name = name, id = id, rank = RankOf(C_Spell.GetSpellSubtext(id)) }
+    -- An uncached spell has no subtext yet; read as rank 0 it would pass for a downrank.
+    local subtext = C_Spell.GetSpellSubtext(id)
+    if not (name and best[name] and subtext and subtext ~= "") then return end
+    found[#found + 1] = { slot = slot, name = name, id = id, rank = RankOf(subtext) }
 end
 
 -- Every bar slot, keyboard and controller, holding the highest rank of a spell on your bars
@@ -230,8 +232,8 @@ local function BuildRow(i)
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Drag onto your bars to place it.", 1, 1, 1)
         GameTooltip:AddLine(Kept()[self.spellName]
-            and "Right-click to let rank swaps replace its lower ranks again."
-            or "Right-click to keep its lower ranks on your bars (for downranking).", 1, 1, 1)
+            and "Right-click to let Update Bars swap it again."
+            or "Right-click to leave it as it is on your bars when you update them.", 1, 1, 1)
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", GameTooltip_Hide)
