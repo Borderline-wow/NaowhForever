@@ -40,7 +40,6 @@ local MODULES = {
           { name = "Interface", build = "BuildQoLInterfacePage" },
           { name = "Trainer", build = "BuildQoLTrainerPage" },
           { name = "Flight & Camp", build = "BuildQoLFlightPage" },
-          { name = "Blessings", build = "BuildQoLBlessingsPage" },
       } },
     -- Settings still live in the QoL table so existing profiles carry over; each module's
     -- switch is the feature's own key rather than QoL's.
@@ -53,6 +52,12 @@ local MODULES = {
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
       tabs = {
           { name = "Sets", build = "BuildQoLGearSetsPage" },
+      } },
+    { name = "Blessings", settings = "QoLSettings", enabledKey = "blessings",
+      subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
+      tabs = {
+          { name = "Bar", build = "BuildQoLBlessingsPage" },
+          { name = "Assignments", build = "BuildBlessingAssignmentsPage" },
       } },
     { name = "BiS List", settings = "QoLSettings", enabledKey = "bis",
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",

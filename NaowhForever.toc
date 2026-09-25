@@ -76,7 +76,9 @@ NaowhForever_TownData.lua
 NaowhForever_TownMap.xml
 NaowhForever_GearSets.lua
 NaowhForever_BiS.lua
+NaowhForever_Blessings.xml
 NaowhForever_Blessings.lua
+NaowhForever_BlessingsPage.lua
 NaowhForever_Trainer.lua
 NaowhForever_Flight.lua
 NaowhForever_QuizData.lua
