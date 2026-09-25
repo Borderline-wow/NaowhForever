@@ -7,6 +7,14 @@
   they glow on your bars until you use them. One button swaps every lower rank on your bars,
   keyboard and controller, for the highest rank you know. Right-click a spell in the window
   to keep its lower ranks for downranking. /naowh ranks checks your bars any time.
+- Blessings: each class button casts on the next member of that class who needs a blessing
+  (missing first, then running out), skipping anyone dead, offline or out of range. Greater
+  Blessings only when the whole class shares one, otherwise the highest single rank. Each
+  class opens a player list with per-player choices, aura and Righteous Fury buttons sit at
+  the front, and an assignments grid shows every paladin's plan, editable by the leader and
+  assistants.
+- /naowh townaudit: open an NPC's window while standing next to them to see how far the
+  town map pin is from where they really stand, or that the map is missing them.
 
 ### Changed
 - The addon is Naowh Forever throughout: folder, files, saved settings, chat prefix and the
