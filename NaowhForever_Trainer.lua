@@ -190,7 +190,12 @@ local function SwapRanks()
     if #ups > 0 then
         print(("|cff0091edNaowh|r: updated %d bar slot(s): %s"):format(#ups, Summary(ups)))
     end
-    Render()
+    -- Done once every slot is swapped; anything left over keeps the window up.
+    if #Swappable() == 0 then
+        popup:Hide()
+    else
+        Render()
+    end
 end
 
 local function BuildRow(i)
