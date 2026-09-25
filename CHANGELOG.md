@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- The trainer popup's Update Bars only swaps each spell's highest rank on your bars. A lower
+  rank sitting beside it, such as a healer's Rank 1 heal, stays for downranking, and if your
+  top rank is already on your bars nothing of that spell changes.
+
 ## 0.5.0-beta
 
 ### Added

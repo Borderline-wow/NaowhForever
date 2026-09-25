@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Trainer.lua -- the QoL trainer popup: after a trainer visit (or
 --  any new ability), a window lists what you learned, the new abilities glow on your bars
---  until you use them, and one button swaps every lower rank on your bars for the highest
---  rank you know. Keyboard and controller bars are both covered.
+--  until you use them, and one button swaps each spell's highest rank on your bars for the
+--  highest rank you know, leaving lower copies for downranking. Keyboard and controller bars are both covered.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -73,26 +73,31 @@ local function HighestRanks()
     return best
 end
 
-local function CheckSlot(slot, best, kept, out)
+local function CheckSlot(slot, best, found)
     local kind, id = GetActionInfo(slot)
     if kind ~= "spell" or not id then return end
     local name = C_Spell.GetSpellName(id)
-    local top = name and best[name]
-    if not top or top.spellID == id then return end
-    if top.rank > RankOf(C_Spell.GetSpellSubtext(id)) then
-        out[#out + 1] = { slot = slot, name = name, spellID = top.spellID, kept = kept[name] }
-    end
+    if not (name and best[name]) then return end
+    found[#found + 1] = { slot = slot, name = name, id = id, rank = RankOf(C_Spell.GetSpellSubtext(id)) }
 end
 
--- Every bar slot, keyboard and controller, holding a lower rank of a spell you know. Kept
--- spells are included, flagged, so the window can still list them.
+-- Every bar slot, keyboard and controller, holding the highest rank of a spell on your bars
+-- when you know a higher one. A lower rank beside it stays, for downranking: a healer's Rank 1
+-- heal next to the main one. Kept spells are included, flagged, so the window can still list them.
 local function Upgrades()
-    local best, kept, out = HighestRanks(), Kept(), {}
-    for slot = 1, KEYBOARD_SLOTS do CheckSlot(slot, best, kept, out) end
+    local best, kept, found, onBars, out = HighestRanks(), Kept(), {}, {}, {}
+    for slot = 1, KEYBOARD_SLOTS do CheckSlot(slot, best, found) end
     local slot = math.max(C_GamepadUI.GetFirstGamepadActionStorageSlotIndex(), KEYBOARD_SLOTS + 1)
     while C_GamepadUI.IsValidGamepadActionStorageSlotIndex(slot) do
-        CheckSlot(slot, best, kept, out)
+        CheckSlot(slot, best, found)
         slot = slot + 1
+    end
+    for _, f in ipairs(found) do onBars[f.name] = math.max(onBars[f.name] or 0, f.rank) end
+    for _, f in ipairs(found) do
+        local top = best[f.name]
+        if top.spellID ~= f.id and top.rank > f.rank and f.rank == onBars[f.name] then
+            out[#out + 1] = { slot = f.slot, name = f.name, spellID = top.spellID, kept = kept[f.name] }
+        end
     end
     return out
 end
