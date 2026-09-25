@@ -78,6 +78,11 @@ local MODULES = {
           { name = "Low Health", build = "BuildLowHealthPage" },
           { name = "Poison & Dispel", build = "BuildPoisonDispelPage" },
       } },
+    { name = "Threat Meter", settings = "ThreatMeterSettings",
+      subtitle = "Threat on your target for the whole group, and a warning before you pull.",
+      tabs = {
+          { name = "Meter", build = "BuildThreatMeterPage" },
+      } },
     -- The reminder modules sit below a divider in the sidebar.
     { name = "Custom Reminders", settings = "CustomReminderSettings", divider = true,
       subtitle = "Your own reminders, driven by the same triggers Smart Reminders uses.",
