@@ -2,7 +2,7 @@
 -- allocation/rebinding, not WoW rendering, protected execution or keyboard input.
 local root = arg[1] or "."
 local function Read(suffix)
-    local f = assert(io.open(root .. "/NaowhUI_SmartReminders" .. suffix .. ".lua", "rb"))
+    local f = assert(io.open(root .. "/NaowhForever" .. (suffix == "" and "_SmartReminders" or suffix) .. ".lua", "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close(); return s
 end
 local count, methods = 0, {}
@@ -47,7 +47,7 @@ env._G = env
 setmetatable(env, { __index = _G })
 local function Eval(s) local f = assert(loadstring(s)); setfenv(f, env); return f() end
 Eval(Read("_Core")); Eval(Read("_Widgets"))
-local ns = env.NaowhUITankReminder
+local ns = env.NaowhForever
 ns.TTSVoiceChoices = function() return { [""] = "Default" }, { "" } end
 ns.WindowScalePercent = function() return 100 end
 ns.UI.RefreshPage = function() end

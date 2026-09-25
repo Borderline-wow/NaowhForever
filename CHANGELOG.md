@@ -9,6 +9,13 @@
   to keep its lower ranks for downranking. /naowh ranks checks your bars any time.
 
 ### Changed
+- The addon is Naowh Forever throughout: folder, files, saved settings, chat prefix and the
+  addon table other addons read (`_G.NaowhForever`). Smart Reminders is one of its modules.
+  Settings saved before the rename load once `SavedVariables\NaowhSmartReminders.lua` is
+  copied over as `NaowhForever.lua`. `/nf` joins the existing slash commands.
+- The town map has 38 NPCs Forever added that Classic never had: Horde paladin and
+  Alliance shaman trainers among other new class trainers, Dalaran's innkeeper, bankers and
+  vendors in Alterac Mountains, reagent and ammo vendors and an auctioneer.
 - Unlock Mode, Settings, Patch Notes and Profiles moved from the sidebar to the top of the
   window, beside the close button. The sidebar now starts with the module list.
 - The logo is redrawn with smooth edges, so it stays sharp at the size the window shows it.

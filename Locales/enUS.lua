@@ -1,9 +1,10 @@
 -- English is both the source catalog and the fallback for every locale.
-local L = _G.NaowhSmartRemindersLocale or {}
-_G.NaowhSmartRemindersLocale = L
+local L = _G.NaowhForeverLocale or {}
+_G.NaowhForeverLocale = L
 
 L["Smart Reminders"] = true
 L["Custom Notes"] = true
+L["Custom Reminders"] = true
 L["Profiles"] = true
 L["Setup"] = true
 L["Cooldown Presets"] = true

@@ -1,4 +1,4 @@
-local f = assert(io.open("NaowhUI_SmartReminders_Bosses.lua", "rb"))
+local f = assert(io.open("NaowhForever_Bosses.lua", "rb"))
 local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local a = assert(s:find("local TRIGGER_CHOICES =", 1, true))
 local b = assert(s:find("-- Profiles tab: profile management", a, true))

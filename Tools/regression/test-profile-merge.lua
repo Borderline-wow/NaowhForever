@@ -27,11 +27,11 @@ local function Fixture()
     ns.UI = { Widgets = {} }
     ns.THEME = { accent = {}, muted = {}, fg = {}, panel = {}, bg = {}, line = {} }
 
-    local env = setmetatable({ NaowhUITankReminder = ns,
+    local env = setmetatable({ NaowhForever = ns,
         CreateFrame = function() return { SetScript = function() end } end,
     }, { __index = _G })
     env._G = env
-    local chunk = assert(loadfile(root .. "/NaowhUI_SmartReminders_Packs.lua"))
+    local chunk = assert(loadfile(root .. "/NaowhForever_Packs.lua"))
     setfenv(chunk, env); chunk()
     e.ns, e.env = ns, env
     return e

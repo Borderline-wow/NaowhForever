@@ -13,9 +13,9 @@ for _, saved in ipairs({{}, {minimap={minimapPos=47,hide=true}}}) do
     }
     local libs = {
         ["LibDataBroker-1.1"]={NewDataObject=function(_,name,data)
-            assert(name=="NaowhSmartReminders"); object=data; return data end},
+            assert(name=="NaowhForever"); object=data; return data end},
         ["LibDBIcon-1.0"]={Register=function(_,name,data,db)
-            assert(name=="NaowhSmartReminders" and data==object and db==saved.minimap)
+            assert(name=="NaowhForever" and data==object and db==saved.minimap)
             registered=true end},
     }
     local env = setmetatable({ns=ns,CreateFrame=function() return frame end,

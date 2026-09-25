@@ -8,7 +8,7 @@ To add a language:
 1. Copy `deDE.lua` and name the copy with the WoW locale code, such as
    `frFR.lua` or `ptBR.lua`.
 2. Translate the values on the right and retain every key exactly.
-3. Add the file to `NaowhSmartReminders.toc` with an
+3. Add the file to `NaowhForever.toc` with an
    `AllowLoadTextLocale` condition.
 
 Use `ns.L("English text")` for new player-facing text. It falls back to the

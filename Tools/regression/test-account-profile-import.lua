@@ -2,9 +2,9 @@
 -- account, not just the one that ran the import. Covers the Core half (SetAccountProfile
 -- plus the fallback a character with no assignment takes) and the dialog half (that the
 -- Import button reaches it, with the name the import actually landed under).
-local core = assert(io.open(arg[1] or "NaowhUI_SmartReminders_Core.lua", "rb"))
+local core = assert(io.open(arg[1] or "NaowhForever_Core.lua", "rb"))
 local coreSrc = core:read("*a"):gsub("\r\n", "\n"); core:close()
-local packs = assert(io.open(arg[2] or "NaowhUI_SmartReminders_Packs.lua", "rb"))
+local packs = assert(io.open(arg[2] or "NaowhForever_Packs.lua", "rb"))
 local packSrc = packs:read("*a"):gsub("\r\n", "\n"); packs:close()
 
 local function Slice(source, a, b)
@@ -30,8 +30,8 @@ local function Fixture(char)
     -- activeRoot is a file local in the real chunk; the slice reads it as a global here, so
     -- the cache it keeps behaves the same way without dragging the whole file in.
     e.env, e.ns = env, env.ns
-    e.db = function() return _G.NaowhUI_SmartRemindersDB end
-    _G.NaowhUI_SmartRemindersDB = nil
+    e.db = function() return _G.NaowhForeverDB end
+    _G.NaowhForeverDB = nil
     return e
 end
 

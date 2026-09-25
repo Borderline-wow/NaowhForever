@@ -1,7 +1,7 @@
 -- The spec grid both pack dialogs draw: what order the rows come out in, what each one
 -- says and what colour it wears. Import and Merge share one copy of this, so anything
 -- here is a claim about both windows.
-local f = assert(io.open(arg[1] or "NaowhUI_SmartReminders_Packs.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_Packs.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
     local first = assert(source:find(a, 1, true), a)

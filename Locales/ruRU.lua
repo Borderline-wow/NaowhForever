@@ -1,4 +1,4 @@
-local L = _G.NaowhSmartRemindersLocale
+local L = _G.NaowhForeverLocale
 if not L then return end
 
 L["Smart Reminders"] = "Умные напоминания"

@@ -14,7 +14,7 @@
 -- so failed silently rather than erroring, and no offline test could have caught that -- a
 -- stub does not emulate taint. The name carries the same information anyway: when the cast
 -- is on you, the name printed is yours.
-local f = assert(io.open(arg[1] or "NaowhUI_SmartReminders.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_SmartReminders.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
     local first = assert(source:find(a, 1, true))

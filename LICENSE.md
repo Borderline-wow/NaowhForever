@@ -1,6 +1,6 @@
-## NaowhSmartReminders
+## NaowhForever
 
-**Source**: [https://github.com/nwh-gaming-ab/NaowhSmartReminders](https://github.com/nwh-gaming-ab/NaowhSmartReminders)
+**Source**: [https://github.com/nwh-gaming-ab/NaowhForever](https://github.com/nwh-gaming-ab/NaowhForever)
 
 ```
 Copyright © 2026 The contents of this addon, excluding externals listed below, are
@@ -9,7 +9,7 @@ copyrighted to their authors with all rights reserved.
 
 ## CallbackHandler-1.0
 
-**Path**: NaowhSmartReminders/Libs/CallbackHandler-1.0
+**Path**: NaowhForever/Libs/CallbackHandler-1.0
 
 ### License
 
@@ -41,7 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## LibCustomGlow-1.0
 
-**Path**: NaowhSmartReminders/Libs/LibCustomGlow-1.0
+**Path**: NaowhForever/Libs/LibCustomGlow-1.0
 
 ### License
 
@@ -71,7 +71,7 @@ SOFTWARE.
 
 ## LibDeflate
 
-**Path**: NaowhSmartReminders/Libs/LibDeflate
+**Path**: NaowhForever/Libs/LibDeflate
 
 ### License
 
@@ -99,7 +99,7 @@ freely, subject to the following restrictions:
 
 ## LibGetFrame-1.0
 
-**Path**: NaowhSmartReminders/Libs/LibGetFrame-1.0
+**Path**: NaowhForever/Libs/LibGetFrame-1.0
 
 ### License
 
@@ -388,7 +388,7 @@ POSSIBILITY OF SUCH DAMAGES.
 
 ## LibSerialize
 
-**Path**: NaowhSmartReminders/Libs/LibSerialize
+**Path**: NaowhForever/Libs/LibSerialize
 
 ### License
 
@@ -416,7 +416,7 @@ SOFTWARE.
 
 ## LibSharedMedia-3.0
 
-**Path**: NaowhSmartReminders/Libs/LibSharedMedia-3.0
+**Path**: NaowhForever/Libs/LibSharedMedia-3.0
 
 ### License
 

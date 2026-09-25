@@ -1,6 +1,6 @@
 local root = arg[1] or "."
 local function Read(suffix)
-    local f = assert(io.open(root .. "/NaowhUI_SmartReminders" .. suffix .. ".lua", "rb"))
+    local f = assert(io.open(root .. "/NaowhForever" .. (suffix == "" and "_SmartReminders" or suffix) .. ".lua", "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close(); return s
 end
 local function Slice(s, first, last)
@@ -164,7 +164,7 @@ Case("bundled serializers round-trip real profile strings and reject malformed i
     local writes = 0
     local ns = { DB = function() return db end,
         EnsureProfile = function() writes = writes + 1; return {} end }
-    local env = { _G = { NaowhUITankReminder = ns }, LibStub = LibStub }
+    local env = { _G = { NaowhForever = ns }, LibStub = LibStub }
     Eval(Read("_Packs"), env)
     local encoded, err = ns.ExportPack("Recovery test", "Tester")
     assert(encoded, err)

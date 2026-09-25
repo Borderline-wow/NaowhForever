@@ -1,6 +1,6 @@
 local root = arg[1] or "."
 local function Read(suffix)
-    local f = assert(io.open(root .. "/NaowhUI_SmartReminders" .. suffix .. ".lua", "rb"))
+    local f = assert(io.open(root .. "/NaowhForever" .. (suffix == "" and "_SmartReminders" or suffix) .. ".lua", "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close(); return s
 end
 local function Slice(s, a, b)
@@ -14,7 +14,7 @@ end
 local core, main, raid = Read("_Core"), Read(""), Read("_RaidReminders")
 local saved = { profiles = { One = {}, Two = {} }, charActive = {}, account = {} }
 local ns = {}
-local env = { ns = ns, _G = { NaowhUI_SmartRemindersDB = saved },
+local env = { ns = ns, _G = { NaowhForeverDB = saved },
     UnitName = function() return "Tester" end, GetRealmName = function() return "Realm" end }
 Eval(Slice(core, "local activeRoot", "-- Stored as a percent"), env)
 local healer, ordinary = { healerReminder = true }, {}

@@ -17,7 +17,7 @@ local function Fixture()
         if key == "voice:shadowmeld-ready" then return "shadowmeld-ready.ogg" end
         return key == "test" and "Interface/AddOns/Test/test.ogg"
     end
-    local env = setmetatable({ NaowhUITankReminder = ns, Enum = { UnitAuraSoundTrigger = { Added = 0, ApplicationsIncreased = 1, Removed = 2 } },
+    local env = setmetatable({ NaowhForever = ns, Enum = { UnitAuraSoundTrigger = { Added = 0, ApplicationsIncreased = 1, Removed = 2 } },
         GetTime = function() return e.now end,
         C_SpecializationInfo = { GetSpecialization = function() return 1 end, GetSpecializationInfo = function() return e.spec end },
         GetInstanceInfo = function() return "Dungeon", e.kind, 8, "", 5, 0, false, e.map end,
@@ -60,7 +60,7 @@ local function Fixture()
     env.Enum.AddOnRestrictionType = { Combat = 0, Encounter = 1, Map = 4 }
     env.Enum.AddOnRestrictionState = { Inactive = 0, Activating = 1, Active = 2 }
     e.secret, e.forbidden = {}, {}
-    local chunk = assert(loadfile(root .. "/NaowhUI_SmartReminders_Integrations.lua")); setfenv(chunk, env); chunk()
+    local chunk = assert(loadfile(root .. "/NaowhForever_Integrations.lua")); setfenv(chunk, env); chunk()
     e.I, e.ns, e.env, e.db = ns.Integrations, ns, env, db
     function e:rule(kind)
         return { name = "Test", enabled = true, trigger = { type = kind or "exboss", spellID = 123,
@@ -98,7 +98,7 @@ Case("aura changes defer through combat then remove disabled rules", function()
 end)
 Case("bundled voices resolve and register without SharedMedia", function()
     local e = Fixture()
-    local file = assert(io.open(root .. "/NaowhUI_SmartReminders_Widgets.lua", "rb"))
+    local file = assert(io.open(root .. "/NaowhForever_Widgets.lua", "rb"))
     local source = file:read("*a"); file:close()
     local start = assert(source:find("local bundledVoices =", 1, true))
     local chunk = assert(loadstring("local ns = ...; local UI = ns.UI; " .. source:sub(start)))
@@ -110,7 +110,7 @@ Case("bundled voices resolve and register without SharedMedia", function()
         local key = order[index]
         assert(names[key]:find("Voice:", 1, true))
         assert(e.ns.UI.SoundPathFor(key) == paths[key])
-        local relative = assert(paths[key]:match("NaowhSmartReminders\\(.+)$")):gsub("\\", "/")
+        local relative = assert(paths[key]:match("NaowhForever\\(.+)$")):gsub("\\", "/")
         local sound = assert(io.open(root .. "/" .. relative, "rb"))
         assert(sound:read(4) == "OggS"); sound:close()
         local r = e:rule("auraSound"); r.display.sound = key
@@ -145,7 +145,7 @@ Case("the retired cast switches are still validated, so old rules still load", f
 end)
 Case("shared packs validate integration rules, IDs and size before import", function()
     local e=Fixture()
-    local f=assert(io.open(root.."/NaowhUI_SmartReminders_Packs.lua","rb"))
+    local f=assert(io.open(root.."/NaowhForever_Packs.lua","rb"))
     local source=f:read("*a"); f:close()
     local first=assert(source:find("local SECTIONS =",1,true))
     local last=assert(source:find("-- LibSerialize's Deserialize",first,true))

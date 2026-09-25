@@ -59,7 +59,7 @@ local function Fixture()
         else e.rowToggles[#e.rowToggles + 1] = { get = get, set = set } end
         return Widget()
     end
-    local env = setmetatable({ NaowhUITankReminder = ns, GameFontHighlight = {},
+    local env = setmetatable({ NaowhForever = ns, GameFontHighlight = {},
         CreateFrame = function(kind, _, parent)
             local w = Widget(); w.CreateTexture = Widget
             if kind == "ScrollFrame" then e.scrolls[#e.scrolls + 1] = w end
@@ -71,7 +71,7 @@ local function Fixture()
         end,
     }, { __index = _G })
     env._G = env
-    local c = assert(loadfile(root .. "/NaowhUI_SmartReminders_IntegrationOptions.lua")); setfenv(c, env); c()
+    local c = assert(loadfile(root .. "/NaowhForever_IntegrationOptions.lua")); setfenv(c, env); c()
     e.tab = Tab
     -- There is no Save button any more. Committing every text box is what leaving the
     -- editor does, and every other control writes through the moment it changes.

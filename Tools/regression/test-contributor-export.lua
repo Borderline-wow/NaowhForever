@@ -17,7 +17,7 @@ local function Fixture()
     -- A stand-in codec. The real libraries are not loaded offline, and what these cases
     -- care about is what goes into the payload and comes back out, not how it is packed.
     local vault = {}
-    local env = setmetatable({ NaowhUITankReminder = ns,
+    local env = setmetatable({ NaowhForever = ns,
         UnitName = function() return "Contributor" end,
         date = function() return "2026-09-17" end,
         CreateFrame = function() return { SetScript = function() end } end,
@@ -41,7 +41,7 @@ local function Fixture()
         end,
     }, { __index = _G })
     env._G = env
-    local chunk = assert(loadfile(root .. "/NaowhUI_SmartReminders_Packs.lua"))
+    local chunk = assert(loadfile(root .. "/NaowhForever_Packs.lua"))
     setfenv(chunk, env); chunk()
     e.ns, e.env = ns, env
     return e
