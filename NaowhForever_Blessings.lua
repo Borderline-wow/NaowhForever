@@ -130,7 +130,9 @@ local function Roster()
         local name, unitRealm = UnitFullName(unit)
         local _, class = UnitClass(unit)
         local guid = UnitGUID(unit)
-        if name and not (Secret(name) or Secret(unitRealm) or Secret(class) or Secret(guid)) then
+        -- A member whose data has not arrived yet reads "Unknown" with no class; the next
+        -- roster or aura update picks them up.
+        if name and not (Secret(name) or Secret(unitRealm) or Secret(class) or Secret(guid)) and class then
             local who = name
             if unitRealm and unitRealm ~= "" and unitRealm ~= realm then who = name .. "-" .. unitRealm end
             list[#list + 1] = { unit = unit, guid = guid, class = class, who = who,
