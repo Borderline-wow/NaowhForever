@@ -109,6 +109,41 @@ Case("a one-hander goes to the off-hand when the main hand is taken", function()
     assert(s[16] == 302 and s[17] == 303, "main and off hand")
 end)
 
+Case("a one-hander replaces a listed two-hander instead of pushing it out", function()
+    local e = Fixture()
+    e.ns.AddBisItem(301); e.ns.AddBisItem(302)
+    local s = Slots(e)
+    assert(s[16] == 302 and s[17] == nil, "one-hander took the main hand")
+    assert(e.printed[#e.printed]:find("Item302 replaces Item301"), "said so")
+end)
+
+Case("an off-hand over a two-hander says the two-hander came off", function()
+    local e = Fixture()
+    e.ns.AddBisItem(301); e.ns.AddBisItem(303)
+    local s = Slots(e)
+    assert(s[16] == nil and s[17] == 303)
+    assert(e.printed[#e.printed]:find("Item301 came off"), "named")
+end)
+
+Case("an old list with a two-hander and an off-hand keeps the two-hander", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "Old", items = { 301, 303 } } })
+    local s = Slots(e)
+    assert(s[16] == 301 and s[17] == nil, "off-hand dropped")
+    assert(e.printed[1] and e.printed[1]:find("Item303"), "named")
+end)
+
+Case("an import cannot list a two-hander with an off-hand, but can list one weapon twice", function()
+    local e = Fixture()
+    e.vault[1] = { v = 2, name = "Hands", slots = { [16] = 301, [17] = 303 } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    local s = e.account.bis["Tester-Realm"].slots
+    assert(s[16] == 301 and s[17] == nil, "two-hander kept")
+    e.vault[2] = { v = 2, name = "Daggers", slots = { [16] = 302, [17] = 302 } }
+    assert(e.ns.ImportBisList("!NBIS1!S2", true))
+    s = e.account.bis["Tester-Realm"].slots
+    assert(s[16] == 302 and s[17] == 302, "same dagger in both hands")
+end)
+
 Case("an item that cannot be equipped is refused", function()
     local e = Fixture()
     e.ns.AddBisItem(999)

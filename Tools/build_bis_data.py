@@ -109,7 +109,7 @@ def lua_string(s):
 
 def main():
     cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
-    specs, sources, unresolved = [], {}, {}
+    specs, sources, candidates, left_out = [], {}, {}, set()
 
     for cls, slug in spec_slugs():
         title, slots = parse_spec(slug)
@@ -122,9 +122,10 @@ def main():
                 if key not in cache:
                     matches = lookup(item)
                     cache[key] = matches[0] if len(matches) == 1 else None
-                    if len(matches) != 1:
-                        unresolved[key] = matches
+                    candidates[key] = matches
                 item_id = cache[key]
+                if not item_id:
+                    left_out.add(key)
                 if item_id and item_id not in ids:
                     ids.append(item_id)
                     if item["source"]:
@@ -161,10 +162,12 @@ def main():
     OUT.write_text("\r\n".join(lines) + "\r\n", encoding="utf-8")
 
     print(f"{len(specs)} specs, {len(sources)} sourced items -> {OUT.name}", file=sys.stderr)
-    if unresolved:
-        print(f"{len(unresolved)} items left out (no single match); settle them in {CACHE.name}:", file=sys.stderr)
-        for key, matches in sorted(unresolved.items()):
-            print(f"  {key}  candidates={matches}", file=sys.stderr)
+    # Every run lists them, whether the lookup failed now, earlier, or was set to null by hand.
+    if left_out:
+        print(f"{len(left_out)} items left out; settle them in {CACHE.name}:", file=sys.stderr)
+        for key in sorted(left_out):
+            found = f"  candidates={candidates[key]}" if key in candidates else ""
+            print(f"  {key}{found}", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -75,6 +75,15 @@ local function FreeSlot(slots, itemID)
     end
 end
 
+-- A two-hander and an off-hand cannot be worn together; returns the off-hand it took out.
+local function DropOffHand(slots)
+    if slots[16] and slots[17] and IsTwoHand(slots[16]) then
+        local off = slots[17]
+        slots[17] = nil
+        return off
+    end
+end
+
 -- One list per character, kept in the account store: personal, so it never travels in an
 -- exported profile. Lists from before slots were a flat item list; each item moves into the
 -- first slot it fits, and whatever no longer fits is named in chat once.
@@ -91,6 +100,8 @@ local function List()
             local slot = FreeSlot(list.slots, id)
             if slot then list.slots[slot] = id else dropped[#dropped + 1] = Name(id) end
         end
+        local off = DropOffHand(list.slots)
+        if off then dropped[#dropped + 1] = Name(off) end
         list.items = nil
         if #dropped > 0 then
             ns.Print("Your BiS list now keeps one item per slot. These did not fit: "
@@ -116,16 +127,18 @@ local function Changed()
     if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
 end
 
--- A two-hander and an off-hand cannot be worn together, so setting one clears the other.
+-- Setting a two-hander clears the off-hand and the reverse; returns what it cleared.
 local function SetSlot(slot, itemID)
     local slots = List().slots
-    for s, id in pairs(slots) do
-        if id == itemID and s ~= slot then slots[s] = nil end
+    local cleared
+    if slot == 16 and IsTwoHand(itemID) then
+        cleared, slots[17] = slots[17], nil
+    elseif slot == 17 and slots[16] and IsTwoHand(slots[16]) then
+        cleared, slots[16] = slots[16], nil
     end
     slots[slot] = itemID
-    if slot == 16 and IsTwoHand(itemID) then slots[17] = nil end
-    if slot == 17 and slots[16] and IsTwoHand(slots[16]) then slots[16] = nil end
     Changed()
+    return cleared
 end
 
 local function ClearSlot(slot)
@@ -144,12 +157,18 @@ function ns.AddBisItem(value)
     if ns.IsBisItem(id) then return end
     local slots = List().slots
     local slot = FreeSlot(slots, id) or fits[1]
+    -- A one-hander takes a listed two-hander's place instead of pushing it out from the off-hand.
+    if slot == 17 and fits[1] == 16 and slots[16] and IsTwoHand(slots[16]) then slot = 16 end
     local replaced = slots[slot]
-    SetSlot(slot, id)
+    local cleared = SetSlot(slot, id)
     if replaced then
         ns.Print(("%s replaces %s in your BiS %s."):format(Name(id), Name(replaced), SLOT_NAME[slot]))
     else
         ns.Print(("Added %s to your BiS %s."):format(Name(id), SLOT_NAME[slot]))
+    end
+    if cleared then
+        ns.Print(("%s came off your BiS list: a two-hander and an off-hand cannot both be listed.")
+            :format(Name(cleared)))
     end
 end
 
@@ -225,6 +244,7 @@ local function Decode(text)
     else
         return
     end
+    DropOffHand(slots)
     -- Shown in chat and tooltips, so escape codes are neutralised.
     local name = type(data.name) == "string" and data.name:sub(1, 40):gsub("|", "||") or "Imported BiS"
     local spec = type(data.spec) == "string" and data.spec:sub(1, 40) or nil
