@@ -1,11 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.5.1-beta
+
+### Added
+- Threat Meter: threat on your target for everyone in the group, one bar each, with an
+  optional pull aggro bar and a warning sound. Off until you turn it on.
+- Gear sets: a new set asks for an icon from the same list the equipment manager offers.
 
 ### Fixed
 - The flight timer counts down from your first flight on a route instead of counting up.
   The time comes from the length of every leg of the trip, 20% shorter with Frequent
   Flier. A flight picked up after a reload mid-air still counts up.
+- Town map pins and dungeon quest waypoints in Stormwind, Mulgore, Redridge and the Eastern
+  Plaguelands sit where the NPCs stand. Forever redrew those maps over a wider area, so the
+  auction house showed in Cathedral Square and the mage trainers south of the park.
+- Restock no longer asks for 1000 of "item 0" when your ammo slot is empty.
+- The trainer popup closes after Update Bars once every slot is swapped.
 
 ### Changed
 - The trainer popup's Update Bars only swaps each spell's highest rank on your bars. A lower
