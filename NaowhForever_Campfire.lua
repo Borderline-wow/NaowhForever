@@ -11,7 +11,7 @@ local T = ns.THEME
 local CAMP_BENEFITS = 1229741
 -- Area aura from being in range of a campfire, probed 2026-09-24.
 local CAMPFIRE_NEARBY = 1283391
--- The 60 second aura while sitting at a campfire, before Camp Benefits lands; probed 2026-09-26.
+-- The 60 second aura while sitting at a campfire, before Camp Benefits lands; probed 2026-09-25.
 local WELCOMING_CAMPFIRE = 1229739
 -- Camp Benefits with less than this left counts as due for a refresh.
 local CAMP_LOW = 120
@@ -30,6 +30,7 @@ local alert
 local alertGen = 0   -- invalidates an older "under 2 minutes" timer
 local ringGen = 0    -- invalidates an older ring colour change
 local showGen = 0    -- invalidates an older "drops under the Show Only When Low time" timer
+local showArmed      -- the expiry and minutes that timer was set for
 
 local function On()
     return S.Get("enabled") and S.Get("campfire")
@@ -156,15 +157,18 @@ local function ShowSitting(duration, expiry)
     icon.label:Show()
     icon.buffs:Hide()
     ringGen = ringGen + 1
-    if shownExpiry ~= expiry then
+    local timed = S.Get("campTimer")
+    if timed and shownExpiry ~= expiry then
         icon.timer:SetCooldown(expiry - duration, duration)
         icon.drain:SetCooldown(expiry - duration, duration)
         icon.drain:SetSwipeColor(T.accent.r, T.accent.g, T.accent.b, 1)
         shownExpiry = expiry
+    elseif not timed then
+        shownExpiry = nil
     end
-    icon.timer:Show()
-    icon.drain:Show()
-    icon.track:Show()
+    icon.timer:SetShown(timed)
+    icon.drain:SetShown(timed)
+    icon.track:SetShown(timed)
     icon:Show()
 end
 
@@ -263,7 +267,6 @@ end
 -- InCombatLockdown() is still false while PLAYER_REGEN_DISABLED is handled.
 function Refresh(_, event)
     if not icon then return end
-    showGen = showGen + 1
     if unlocked then
         ShowUp(3600, GetTime() + 2400, "Camp Chair\nFish Bowl")
         SetAlert(S.Get("campNearbyAlert"))
@@ -303,11 +306,24 @@ function Refresh(_, event)
         local under = S.Get("campShowUnderMinutes") * 60
         if S.Get("campShowUnder") and left and left > under then
             icon:Hide()
-            local gen = showGen
-            C_Timer.After(left - under + 0.1, function()
-                if gen == showGen then Refresh() end
-            end)
+            -- UNIT_AURA fires often, so the timer is only set again for a new expiry or setting.
+            local key = expiry .. ":" .. under
+            if showArmed ~= key then
+                showArmed = key
+                showGen = showGen + 1
+                local gen = showGen
+                C_Timer.After(left - under + 0.1, function()
+                    if gen == showGen then
+                        showArmed = nil
+                        Refresh()
+                    end
+                end)
+            end
         else
+            if showArmed then
+                showArmed = nil
+                showGen = showGen + 1
+            end
             ShowUp(duration, expiry, ActiveBuffs(aura))
         end
     else
