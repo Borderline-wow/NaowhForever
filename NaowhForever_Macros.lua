@@ -105,6 +105,7 @@ local MACROS = {
 }
 
 local ready, pending, warnedFull
+local toDelete = {}
 
 local function FirstCarried(list)
     for _, id in ipairs(list) do
@@ -162,7 +163,12 @@ local BODIES = {
     focus = function()
         local body = "/focus [@mouseover,exists,nodead][]"
         if S.Get("focusMark") then body = body .. "\n/tm [@focus] " .. S.Get("focusMarker") end
-        if S.Get("focusAnnounce") then body = body .. "\n/p Focus: %f" end
+        -- Chat commands take no conditionals, so the channel is chosen here and the macro
+        -- is rewritten on roster changes.
+        local channel = (IsInRaid() and "/ra") or (IsInGroup() and "/p")
+        if S.Get("focusAnnounce") and channel then
+            body = body .. "\n" .. channel .. " Focus: %f"
+        end
         return body
     end,
 }
@@ -195,13 +201,26 @@ local function Update()
     local on = S.Get("enabled")
     for _, m in ipairs(MACROS) do
         if on and S.Get(m.key) then
+            toDelete[m.name] = nil
             local body = BODIES[m.key]()
             if body then Write(m, body) end
-        else
+        elseif toDelete[m.name] then
+            toDelete[m.name] = nil
             local index = GetMacroIndexByName(m.name)
             if index > 0 then DeleteMacro(index) end
         end
     end
+end
+
+-- Only switching a macro or the module off deletes it. A profile or spec switch that turns
+-- one off leaves it alone, since deleting a macro also empties its action bar slot.
+local function SettingChanged(key, value)
+    if value == false then
+        for _, m in ipairs(MACROS) do
+            if key == "enabled" or key == m.key then toDelete[m.name] = true end
+        end
+    end
+    Update()
 end
 
 -- Nothing is written before the first PLAYER_ENTERING_WORLD, when the character's macros
@@ -212,12 +231,17 @@ events:SetScript("OnEvent", function(_, event)
         ready = true
     elseif event == "PLAYER_REGEN_ENABLED" and not pending then
         return
+    elseif event == "GROUP_ROSTER_UPDATE" and not (S.Get("focus") and S.Get("focusAnnounce")) then
+        return
     end
     Update()
 end)
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("BAG_UPDATE_DELAYED")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:RegisterEvent("GROUP_ROSTER_UPDATE")
+-- Fires when a macro is deleted, so a macro that did not fit is made once there is room.
+events:RegisterEvent("UPDATE_MACROS")
 
-hooksecurefunc(S, "Set", Update)
+hooksecurefunc(S, "Set", SettingChanged)
 hooksecurefunc(ns, "Apply", Update)

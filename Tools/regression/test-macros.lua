@@ -18,8 +18,9 @@ local function Fixture(opts)
     local settings = opts.settings or {}
     local bags = opts.bags or {}            -- flat list of item IDs, one per slot
     local macros, created, edited, deleted, printed = {}, 0, 0, 0, {}
-    local combat = false
-    local handler, hooks = nil, {}
+    local combat, group = false, opts.group
+    local consts = { MAX_CHARACTER_MACROS = opts.max or 30 }
+    local handler, registered = nil, {}
 
     local S = {}
     local ns = {
@@ -50,7 +51,9 @@ local function Fixture(opts)
     end
     local env = {
         NUM_BAG_SLOTS = 0,
-        Constants = { MacroConsts = { MAX_CHARACTER_MACROS = opts.max or 30 } },
+        Constants = { MacroConsts = consts },
+        IsInRaid = function() return group == "raid" end,
+        IsInGroup = function() return group ~= nil end,
         C_Container = {
             GetContainerNumSlots = function() return #bags end,
             GetContainerItemID = function(_, slot) return bags[slot] end,
@@ -79,7 +82,7 @@ local function Fixture(opts)
         CreateFrame = function()
             return {
                 SetScript = function(_, _, fn) handler = fn end,
-                RegisterEvent = function() end,
+                RegisterEvent = function(_, event) registered[event] = true end,
             }
         end,
         hooksecurefunc = function(tbl, key, fn)
@@ -98,12 +101,15 @@ local function Fixture(opts)
     chunk()
 
     local t = {}
-    function t.Fire(event) handler(nil, event) end
+    function t.Fire(event) if registered[event] then handler(nil, event) end end
     function t.Set(k, v) S.Set(k, v) end
     function t.Body(name) local i = Find(name); return i > 0 and macros[i].body or nil end
     function t.Combat(on) combat = on end
     function t.Bags(list) bags = list end
     function t.Counts() return created, edited, deleted end
+    function t.Profile(new) settings = new; ns.Apply() end
+    function t.Group(kind) group = kind end
+    function t.SetMax(n) consts.MAX_CHARACTER_MACROS = n end
     t.printed, t.macros = printed, macros
     return t
 end
@@ -189,22 +195,60 @@ do
     Check("module off deletes", t.Body("NF Trinket 2"), nil)
 end
 
--- Focus body follows its options.
+-- Focus body follows its options; the announce channel follows the group.
 do
     local t = Fixture({ settings = { focus = true, focusMark = true, focusMarker = 7,
         focusAnnounce = true } })
     t.Fire("PLAYER_ENTERING_WORLD")
-    Check("focus macro", t.Body("NF Focus"),
+    Check("focus solo, no announce", t.Body("NF Focus"),
+        "/focus [@mouseover,exists,nodead][]\n/tm [@focus] 7")
+    t.Group("party")
+    t.Fire("GROUP_ROSTER_UPDATE")
+    Check("focus in a party", t.Body("NF Focus"),
         "/focus [@mouseover,exists,nodead][]\n/tm [@focus] 7\n/p Focus: %f")
+    t.Group("raid")
+    t.Fire("GROUP_ROSTER_UPDATE")
+    Check("focus in a raid", t.Body("NF Focus"),
+        "/focus [@mouseover,exists,nodead][]\n/tm [@focus] 7\n/ra Focus: %f")
 end
 
--- Full character macros: warned once, nothing made.
+-- A profile switch that turns a macro off keeps it; its own switch deletes it.
+do
+    local t = Fixture({ settings = { health = true, trinket1 = true }, bags = { 5509 } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    t.Profile({})
+    Check("profile switch keeps the macro", t.Body("NF Trinket 1"), "#showtooltip 13\n/use 13")
+    t.Bags({ 929 })
+    t.Fire("BAG_UPDATE_DELAYED")
+    Check("macro off in this profile is not updated", t.Body("NF Health"),
+        "#showtooltip\n/use item:5509")
+    t.Profile({ trinket1 = true })
+    t.Set("trinket1", false)
+    Check("its own switch deletes it", t.Body("NF Trinket 1"), nil)
+end
+
+-- Turned off in combat: deleted once combat ends.
+do
+    local t = Fixture({ settings = { trinket2 = true } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    t.Combat(true)
+    t.Set("trinket2", false)
+    Check("not deleted in combat", t.Body("NF Trinket 2"), "#showtooltip 14\n/use 14")
+    t.Combat(false)
+    t.Fire("PLAYER_REGEN_ENABLED")
+    Check("deleted after combat", t.Body("NF Trinket 2"), nil)
+end
+
+-- Full character macros: warned once, nothing made; made once a slot frees up.
 do
     local t = Fixture({ settings = { trinket1 = true, trinket2 = true }, max = 0 })
     t.Fire("PLAYER_ENTERING_WORLD")
     t.Fire("BAG_UPDATE_DELAYED")
     Check("nothing made when full", #t.macros, 0)
     Check("warned once", #t.printed, 1)
+    t.SetMax(2)
+    t.Fire("UPDATE_MACROS")
+    Check("made after a macro is deleted", t.Body("NF Trinket 1"), "#showtooltip 13\n/use 13")
 end
 
 if failures > 0 then

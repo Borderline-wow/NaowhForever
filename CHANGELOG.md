@@ -6,8 +6,10 @@
 - Macros: the macros on the Macros page are now actually made. Switching one on adds it to
   your character macros (NF Health, NF Mana, NF Food, NF Bandage, NF Trinket 1 and 2,
   NF Focus); put it on a bar once and it follows your bags, changing after combat if your
-  bags change during a fight. Switching it off, or turning the module off, deletes it.
-  Before this the settings saved but no macro was ever written.
+  bags change during a fight. Switching it off, or turning the module off, deletes it; a
+  profile or spec switch that has it off leaves it on your bars. Announce Focus uses raid
+  chat in a raid and party chat in a party. Before this the settings saved but no macro
+  was ever written.
 
 ## 0.5.11-beta
 
