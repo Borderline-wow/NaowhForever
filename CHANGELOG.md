@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Blessings and Restock look up which spells you know through the current spellbook call.
+  The old call only exists on Forever while deprecated APIs are loaded, so without them
+  the Blessings bar could not find your blessing ranks and class reagent restocking found
+  no spells.
+
 ## 0.5.11-beta
 
 ### Added
