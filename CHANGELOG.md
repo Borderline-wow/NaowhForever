@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.9-beta
 
 ### Added
 - Blessings: Next Blessing and Next Greater Blessing keybinds, like Pally Power's. Bind
