@@ -9,6 +9,65 @@ local B = ns.Blessings
 
 local CELL, GAP, NAME_WIDTH = 32, 6, 170
 local EMPTY = 134400
+local MODIFIER_KEYS = { LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true, LALT = true, RALT = true }
+
+-- A key field for one binding action, saved in the same place as the Key Bindings screen.
+-- Click it and press a key to bind, Escape to cancel; right-click clears it.
+local function KeyField(rgn, action, label)
+    local btn = ns.Button(rgn, "", 150, 26)
+    btn:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    local capturing
+    local function Show()
+        local key = GetBindingKey(action)
+        btn.label:SetText(capturing and "Press a key..." or key and GetBindingText(key) or "|cff808080Not bound|r")
+        btn:SetAlpha(InCombatLockdown() and 0.4 or 1)
+    end
+    local function Stop()
+        capturing = false
+        btn:EnableKeyboard(false)
+        Show()
+    end
+    local function Save()
+        SaveBindings(GetCurrentBindingSet())
+    end
+    btn:SetScript("OnClick", function(_, button)
+        if InCombatLockdown() then return end
+        if button == "RightButton" then
+            for _, key in ipairs({ GetBindingKey(action) }) do SetBinding(key) end
+            Save()
+            Stop()
+            return
+        end
+        capturing = true
+        btn:EnableKeyboard(true)
+        btn:SetPropagateKeyboardInput(false)
+        Show()
+    end)
+    btn:SetScript("OnKeyDown", function(_, key)
+        if MODIFIER_KEYS[key] then return end
+        if key == "ESCAPE" or InCombatLockdown() then
+            Stop()
+            return
+        end
+        local combo = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
+            .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
+        local previous = GetBindingAction(combo)
+        for _, old in ipairs({ GetBindingKey(action) }) do SetBinding(old) end
+        SetBinding(combo, action)
+        Save()
+        if previous ~= "" and previous ~= action then
+            ns.Print(("%s now casts %s instead of %s."):format(GetBindingText(combo), label,
+                GetBindingName(previous)))
+        end
+        Stop()
+    end)
+    btn:SetScript("OnShow", Show)
+    btn:SetScript("OnHide", function() if capturing then Stop() end end)
+    ns.Tooltip(btn, label, "Click, then press a key to bind it. Escape cancels; right-click clears. "
+        .. "The same binding as in Key Bindings > AddOns > Naowh Forever.")
+    Show()
+end
 
 function ns.BuildQoLBlessingsPage(parent, y)
     local UI = ns.UI
@@ -20,8 +79,8 @@ function ns.BuildQoLBlessingsPage(parent, y)
         .. "a class to choose its blessing or open its player list, where each player can have "
         .. "their own. A Greater Blessing is only used while the whole class shares one and you "
         .. "carry Symbols of Kings. In combat a class button keeps the member it had when the "
-        .. "fight began.|n|nNext Blessing and Next Greater Blessing can be bound in Key Bindings > "
-        .. "AddOns > Naowh Forever. Each press blesses the next player who needs it, most urgent "
+        .. "fight began.|n|nNext Blessing and Next Greater Blessing can be bound below, or in Key "
+        .. "Bindings > AddOns > Naowh Forever. Each press blesses the next player who needs it, most urgent "
         .. "first; in combat a key steps through the players who needed it when the fight began.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "BAR" .. UI.STATUS.untested, y); y = y - h
@@ -36,6 +95,15 @@ function ns.BuildQoLBlessingsPage(parent, y)
         S.Toggle("blessShowFury", "Righteous Fury Button", "Casts Righteous Fury on yourself.",
             "blessings")
     ); y = y - h
+
+    _, h = W:SectionHeader(parent, "KEYBINDS" .. UI.STATUS.untested, y); y = y - h
+    local row
+    row, h = W:DualRow(parent, y,
+        { type = "label", text = "Next Blessing" },
+        { type = "label", text = "Next Greater Blessing" }
+    ); y = y - h
+    KeyField(row._leftRegion, "CLICK NaowhForeverBlessNext:LeftButton", "Next Blessing")
+    KeyField(row._rightRegion, "CLICK NaowhForeverBlessNextGreater:LeftButton", "Next Greater Blessing")
     return y
 end
 
