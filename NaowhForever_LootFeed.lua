@@ -207,6 +207,17 @@ local function OnItem(link, count)
     end)
 end
 
+-- CHAT_MSG_LOOT can arrive before the item is in the bags, which showed the total from
+-- before the loot, so item rows read their total again once the bags settle.
+local function RefreshBags()
+    for _, row in ipairs(rows) do
+        if row.link then
+            local bags = C_Item.GetItemCount(row.link, S.Get("lootFeedBank"))
+            row.bags:SetText(bags > 0 and bags or "")
+        end
+    end
+end
+
 -- Coin loot adds to the coin line still on screen and holds it for another display time,
 -- rather than stacking a line per corpse. Its fade-in is skipped so the update does not blink.
 local function OnMoney(copper)
@@ -262,6 +273,10 @@ end
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, text, ...)
+    if event == "BAG_UPDATE_DELAYED" then
+        RefreshBags()
+        return
+    end
     if event == "QUEST_TURNED_IN" then
         if S.Get("lootFeedQuest") then QuestTurnedIn(text, ...) end
         return
@@ -286,7 +301,7 @@ events:SetScript("OnEvent", function(_, event, text, ...)
 end)
 
 local EVENTS = { "CHAT_MSG_LOOT", "CHAT_MSG_MONEY", "CHAT_MSG_COMBAT_XP_GAIN",
-    "CHAT_MSG_COMBAT_FACTION_CHANGE", "QUEST_TURNED_IN" }
+    "CHAT_MSG_COMBAT_FACTION_CHANGE", "QUEST_TURNED_IN", "BAG_UPDATE_DELAYED" }
 
 -- Quick loot with Blizzard's loot window kept out of sight. Every slot is taken on
 -- LOOT_READY, a slot per 0.05s as EUI's quick loot does on Forever. The window still opens
