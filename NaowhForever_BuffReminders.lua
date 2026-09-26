@@ -296,7 +296,9 @@ end
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, unit)
-    if event == "UNIT_AURA" and not (unit == "player" or unit:find("^party%d") or unit:find("^raid%d")) then
+    -- The unit arrives secret while auras are restricted; PLAYER_REGEN_ENABLED catches up.
+    if event == "UNIT_AURA" and (Secret(unit)
+        or not (unit == "player" or unit:find("^party%d") or unit:find("^raid%d"))) then
         return
     end
     if event == "BAG_UPDATE_DELAYED" then ScanFood() end

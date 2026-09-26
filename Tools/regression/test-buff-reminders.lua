@@ -1,6 +1,8 @@
 -- Loads NaowhForever_BuffReminders.lua and its data against stubbed aura, bag and group APIs
 -- and checks which reminder icons show. Run from the repo root:
 -- lua Tools/regression/test-buff-reminders.lua
+-- Stands in for a secret value: any field or method use raises, as the client does.
+local SECRET = setmetatable({}, { __index = function() error("attempt to index a secret value") end })
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local source = f:read("*a"); f:close()
@@ -104,6 +106,7 @@ local function Fixture(opts)
         UnitIsVisible = function() return true end,
         UnitIsUnit = function(a, b) return a == b end,
         C_Secrets = { ShouldAurasBeSecret = function() return state.secret end },
+        issecretvalue = function(v) return v == SECRET end,
         C_UnitAuras = {
             GetAuraDataByIndex = function(unit, i)
                 if state.secret then error("Auras cannot be accessed when secret while tainted") end
@@ -277,6 +280,7 @@ do
     t.state.auras.player = { { 1249520, 900, 900 } }
     local reads = t.state.reads
     t.Fire("UNIT_AURA", "player")
+    t.Fire("UNIT_AURA", SECRET)
     t.Advance(0.5)
     Check("secret: no aura read", t.state.reads, reads)
     Check("secret: frozen", t.Shown(), "item:13931")
