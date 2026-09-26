@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.8-beta
 
 ### Fixed
 - Loot feed: the bag count on a looted item is your new total, not the count from before
