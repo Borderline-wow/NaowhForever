@@ -54,7 +54,7 @@ local RED = { r = 0.97, g = 0.27, b = 0.27 }
 local PALADIN_COLOR = RAID_CLASS_COLORS.PALADIN
 
 local others = {}             -- paladin name (realm when not ours) -> { classes, aura, known }
-local bar, cells, flyout, rows, auraButton, furyButton
+local bar, cells, flyout, rows, auraButton, furyButton, keyNext, keyGreater
 local flyoutClass, dirty, ticker, unlocked
 local buildAfterCombat, broadcastAfterCombat
 
@@ -227,6 +227,96 @@ local function Survey(members)
         end
     end
     return target, targetSpell, missing, shortest, reachable
+end
+
+-------------------------------------------------------------------------------
+--  Keybinds
+-------------------------------------------------------------------------------
+-- Next Blessing and Next Greater Blessing, bound in Key Bindings > AddOns (Bindings.xml).
+-- Out of combat each key is re-aimed on every refresh; in combat, where buffs cannot be read,
+-- it steps through the list it had when the fight began, one press per entry.
+BINDING_HEADER_NAOWHFOREVER = "Naowh Forever"
+_G["BINDING_NAME_CLICK NaowhForeverBlessNext:LeftButton"] = "Next Blessing"
+_G["BINDING_NAME_CLICK NaowhForeverBlessNextGreater:LeftButton"] = "Next Greater Blessing"
+
+local STEP = [[
+    local i, n = self:GetAttribute("step") or 1, self:GetAttribute("count") or 0
+    if i > n then return false end
+    self:SetAttribute("unit", self:GetAttribute("unit" .. i))
+    self:SetAttribute("spell", self:GetAttribute("spell" .. i))
+    self:SetAttribute("step", i + 1)
+]]
+
+local function NewKeyButton(name, handler)
+    local btn = CreateFrame("Button", name, UIParent, "SecureActionButtonTemplate")
+    -- Key down only, so a press casts and steps once whatever ActionButtonUseKeyDown is set to.
+    btn:RegisterForClicks("AnyDown")
+    btn:SetAttribute("useOnKeyDown", true)
+    btn:SetAttribute("type", "spell")
+    btn:SetAttribute("count", 0)
+    SecureHandlerWrapScript(btn, "OnClick", handler, STEP)
+    return btn
+end
+
+-- Due for a blessing: missing first, then under the refresh time, by time left.
+local function Due(member, key, spell)
+    if not (spell and UnitIsConnected(member.unit) and not UnitIsDeadOrGhost(member.unit)
+        and UnitIsVisible(member.unit) and InRange(member, spell)) then return end
+    local has, remaining = BuffState(member.unit, key)
+    if has == false then return 0, 0 end
+    if has and remaining and remaining < EXPIRING then return 1, remaining end
+end
+
+local function ByUrgency(a, b)
+    if a.rank ~= b.rank then return a.rank < b.rank end
+    return a.left < b.left
+end
+
+local function SetQueue(btn, list)
+    table.sort(list, ByUrgency)
+    for i, entry in ipairs(list) do
+        btn:SetAttribute("unit" .. i, entry.unit)
+        btn:SetAttribute("spell" .. i, entry.spell)
+    end
+    btn:SetAttribute("count", #list)
+    btn:SetAttribute("step", 1)
+end
+
+local function ClearKeys()
+    if keyNext then keyNext:SetAttribute("count", 0) end
+    if keyGreater then keyGreater:SetAttribute("count", 0) end
+end
+
+-- The single blessing for everyone due. A Greater one per class whose members all share its
+-- blessing, cast on the most urgent of them, and only while Symbols of Kings are carried, so
+-- it never replaces a player's own choice.
+local function FillKeys(byClass)
+    local single, greater = {}, {}
+    local symbols = C_Item.GetItemCount(SYMBOL_OF_KINGS) > 0
+    for _, class in ipairs(CLASSES) do
+        local members = byClass[class]
+        if members then
+            local shared = Store().classes[class]
+            for _, member in ipairs(members) do
+                local key = Assigned(member)
+                if key ~= shared then shared = nil end
+                local spell = key and HighestKnown(BY_KEY[key].ranks)
+                local rank, left = Due(member, key, spell)
+                if rank then single[#single + 1] = { unit = member.unit, spell = spell, rank = rank, left = left } end
+            end
+            local spell = shared and symbols and HighestKnown(BY_KEY[shared].greater)
+            local best
+            for _, member in ipairs(spell and members or {}) do
+                local rank, left = Due(member, shared, spell)
+                if rank and (not best or ByUrgency({ rank = rank, left = left }, best)) then
+                    best = { unit = member.unit, spell = spell, rank = rank, left = left }
+                end
+            end
+            greater[#greater + 1] = best
+        end
+    end
+    SetQueue(keyNext, single)
+    SetQueue(keyGreater, greater)
 end
 
 -------------------------------------------------------------------------------
@@ -704,6 +794,7 @@ function Refresh()
     dirty = false
     if not (On() and IsPaladin()) then
         bar:Hide()
+        ClearKeys()
         return
     end
     bar:Show()
@@ -757,6 +848,7 @@ function Refresh()
         end
     end
     ArrangeFlyout(roster)
+    FillKeys(byClass)
     bar:SetSize(math.max(x - gap, size), size)
     bar:SetShown(x > 0 or bar.mover:IsShown())
 end
@@ -783,6 +875,9 @@ local function BuildBar()
     furyButton = NewSelfButton("NaowhForeverBlessFury")
     ns.Tooltip(furyButton, C_Spell.GetSpellName(FURY.ranks[1]) or "Righteous Fury",
         "Left-click: cast it on yourself.")
+    local handler = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
+    keyNext = NewKeyButton("NaowhForeverBlessNext", handler)
+    keyGreater = NewKeyButton("NaowhForeverBlessNextGreater", handler)
     BuildFlyout()
 end
 
@@ -864,6 +959,7 @@ function Apply()
             events:RegisterEvent("PLAYER_REGEN_ENABLED")
         elseif bar then
             bar:Hide()
+            ClearKeys()
         end
         return
     end

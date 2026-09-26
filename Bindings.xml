@@ -1,0 +1,4 @@
+<Bindings>
+    <Binding name="CLICK NaowhForeverBlessNext:LeftButton" header="NAOWHFOREVER" category="ADDONS"/>
+    <Binding name="CLICK NaowhForeverBlessNextGreater:LeftButton" category="ADDONS"/>
+</Bindings>
