@@ -23,6 +23,7 @@ local S = UI.ModuleSettings("qol", {
     hideLootWindow = false,
     lootFeedWidth = 340, lootFeedHeight = 36, lootFeedSpacing = 0,
     lootFeedFont = "", lootFeedFontSize = 13,
+    ahPrices = true, ahTooltip = true,
     xpTicker = true, xpTickerLevel = true, xpTickerElapsed = false, xpTickerTotal = false,
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24,
     xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true,
@@ -59,8 +60,8 @@ local QUALITY_ORDER = { 0, 1, 2, 3, 4 }
 local STYLE_VALUES = { dark = "Dark", light = "Light" }
 local STYLE_ORDER = { "dark", "light" }
 
-local PRICE_VALUES = { vendor = "Vendor Price", tsm = "Auction (TSM)" }
-local PRICE_ORDER = { "vendor", "tsm" }
+local PRICE_VALUES = { vendor = "Vendor Price", ahscan = "Auction (Naowh Scan)", tsm = "Auction (TSM)" }
+local PRICE_ORDER = { "vendor", "ahscan", "tsm" }
 
 function ns.BuildQoLGeneralPage(parent, y)
     local W = UI.Widgets
@@ -189,7 +190,8 @@ function ns.BuildQoLLootPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("lootFeedPrice", "Price Source", PRICE_VALUES, PRICE_ORDER,
-            "Auction prices need TradeSkillMaster. Without it, vendor prices are used.",
+            "Auction (Naowh Scan) uses your last Scan Prices at the auction house; Auction (TSM) "
+            .. "needs TradeSkillMaster. An item without an auction price counts at its vendor price.",
             "lootFeed"),
         S.Toggle("lootFeedGPH", "Gold per Hour",
             "A running gold per hour beside the newest line, counting money and item value "
@@ -223,6 +225,17 @@ function ns.BuildQoLLootPage(parent, y)
             "The item name. Values and the bag count scale with it.", "lootFeed"),
         { type = "label", text = "" }
     ); y = y - h
+
+    _, h = W:SectionHeader(parent, "AUCTION PRICES" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("ahPrices", "Scan Prices Button",
+            "A Scan Prices button on the auction house. It reads every listing and keeps the "
+            .. "lowest buyout for each item, for this realm and faction. Blizzard allows one full "
+            .. "scan every 15 minutes."),
+        S.Toggle("ahTooltip", "Prices on Tooltips",
+            "The last scanned price for one of an item, and how long ago the scan ran.")
+    ); y = y - h
+    _, h = W:Note(parent, ns.AuctionScanSummary(), y); y = y - h
 
     _, h = W:SectionHeader(parent, "LOOTING" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,

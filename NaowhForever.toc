@@ -68,6 +68,7 @@ NaowhForever_Note.lua
 # the window at open time.
 NaowhForever_QoL.lua
 NaowhForever_LootFeed.lua
+NaowhForever_AuctionPrices.lua
 NaowhForever_XPTicker.lua
 NaowhForever_Restock.lua
 NaowhForever_DungeonQuestData.lua

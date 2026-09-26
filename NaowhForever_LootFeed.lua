@@ -70,6 +70,10 @@ end
 -- TradeSkillMaster is optional and its price call errors on a source it cannot resolve,
 -- which is the one reason this is protected.
 local function UnitPrice(link, vendor)
+    if S.Get("lootFeedPrice") == "ahscan" then
+        local price = ns.AuctionPrice(C_Item.GetItemInfoInstant(link))
+        if price then return price end
+    end
     if S.Get("lootFeedPrice") == "tsm" and TSM_API and TSM_API.GetCustomPriceValue then
         local ok, value = pcall(TSM_API.GetCustomPriceValue, "dbminbuyout", TSM_API.ToItemString(link))
         if ok and value then return value end
