@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.10-beta
 
 ### Added
 - Auction prices: a Scan Prices button on the auction house reads every listing and keeps
