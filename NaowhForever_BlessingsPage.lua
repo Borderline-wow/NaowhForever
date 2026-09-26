@@ -20,7 +20,9 @@ function ns.BuildQoLBlessingsPage(parent, y)
         .. "a class to choose its blessing or open its player list, where each player can have "
         .. "their own. A Greater Blessing is only used while the whole class shares one and you "
         .. "carry Symbols of Kings. In combat a class button keeps the member it had when the "
-        .. "fight began.", y); y = y - h
+        .. "fight began.|n|nNext Blessing and Next Greater Blessing can be bound in Key Bindings > "
+        .. "AddOns > Naowh Forever. Each press blesses the next player who needs it, most urgent "
+        .. "first; in combat a key steps through the players who needed it when the fight began.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "BAR" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
