@@ -28,6 +28,7 @@ local hasCamp       -- nil until the first read
 local shownExpiry   -- the expiry the swipe was last started from
 local alert
 local alertGen = 0   -- invalidates an older "under 2 minutes" timer
+local alertArmed     -- the expiry that timer was set for
 local ringGen = 0    -- invalidates an older ring colour change
 local showGen = 0    -- invalidates an older "drops under the Show Only When Low time" timer
 local showArmed      -- the expiry and minutes that timer was set for
@@ -239,25 +240,39 @@ end
 
 local Refresh
 
--- Nothing fires as the buff's time runs down, so crossing the two-minute mark is timed.
-local function UpdateAlert(aura)
+local function DisarmAlert()
     alertGen = alertGen + 1
+    alertArmed = nil
+end
+
+-- Nothing fires as the buff's time runs down, so crossing the two-minute mark is timed.
+-- UNIT_AURA fires often, so the timer is only set again for a new expiry.
+local function UpdateAlert(aura)
     if not (S.Get("campNearbyAlert") and C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_NEARBY)) then
+        DisarmAlert()
         SetAlert(false)
         return
     end
-    local left = aura and aura.expirationTime
-    if left and issecretvalue and issecretvalue(left) then left = nil end
-    left = left and left > 0 and left - GetTime()
+    local expiry = aura and aura.expirationTime
+    if expiry and issecretvalue and issecretvalue(expiry) then expiry = nil end
+    local left = expiry and expiry > 0 and expiry - GetTime()
     if aura and not left then
+        DisarmAlert()
         SetAlert(false)
         return
     end
     SetAlert(not aura or left < CAMP_LOW)
-    if aura and left >= CAMP_LOW then
+    if not (aura and left >= CAMP_LOW) then
+        DisarmAlert()
+    elseif alertArmed ~= expiry then
+        DisarmAlert()
+        alertArmed = expiry
         local gen = alertGen
         C_Timer.After(left - CAMP_LOW + 0.1, function()
-            if gen == alertGen then Refresh() end
+            if gen == alertGen then
+                alertArmed = nil
+                Refresh()
+            end
         end)
     end
 end
@@ -274,12 +289,12 @@ function Refresh(_, event)
     end
     if not (On() and InOpenWorld()) then
         icon:Hide()
-        alertGen = alertGen + 1
+        DisarmAlert()
         SetAlert(false)
         return
     end
     if InCombatLockdown() or event == "PLAYER_REGEN_DISABLED" or C_Secrets.ShouldAurasBeSecret() then
-        alertGen = alertGen + 1
+        DisarmAlert()
         SetAlert(false)
         return
     end
@@ -292,7 +307,7 @@ function Refresh(_, event)
     if sitting and not (issecretvalue and (issecretvalue(sitDuration) or issecretvalue(sitExpiry)))
         and sitDuration > 0 then
         ShowSitting(sitDuration, sitExpiry)
-        alertGen = alertGen + 1
+        DisarmAlert()
         SetAlert(false)
         return
     end
@@ -324,7 +339,7 @@ function Refresh(_, event)
                 showArmed = nil
                 showGen = showGen + 1
             end
-            ShowUp(duration, expiry, ActiveBuffs(aura))
+            ShowUp(duration, expiry, S.Get("campBuffs") and ActiveBuffs(aura) or "")
         end
     else
         ShowMissing()
@@ -342,7 +357,7 @@ local function Apply()
     if not On() then
         events:UnregisterAllEvents()
         hasCamp = nil
-        alertGen = alertGen + 1
+        DisarmAlert()
         SetAlert(false)
         if icon and not unlocked then icon:Hide() end
         if not unlocked then return end

@@ -28,6 +28,7 @@
 --  same walk that gives the name and icon. No join needed.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
+local UI = ns.UI
 if not ns then return end
 
 -- GetSectionIconFlags returns INDICES into the flag list, not the enum values, so Tank (the
@@ -518,16 +519,22 @@ end
 
 -- A small x on the row, left of the label. Takes the ability out of the choices entirely,
 -- as opposed to the checkbox which only moves it between in-play and not-in-play.
+-- The attach helpers build onto a row once and re-point it on later builds, since the rows
+-- are reused.
 local function AttachRemove(row, entry, specID, EUI, onGone)
-    local btn = CreateFrame("Button", nil, row)
-    btn:SetSize(14, 14)
-    btn:SetPoint("LEFT", row, "LEFT", 22, 0)
-    btn:SetFrameLevel(row:GetFrameLevel() + 6)
-
-    local a = ns.Solid(btn, "OVERLAY", ns.THEME.muted, 0.85)
-    a:SetSize(10, 2); a:SetPoint("CENTER"); a:SetRotation(math.rad(45))
-    local b = ns.Solid(btn, "OVERLAY", ns.THEME.muted, 0.85)
-    b:SetSize(10, 2); b:SetPoint("CENTER"); b:SetRotation(math.rad(-45))
+    local btn = row._removeBtn
+    if not btn then
+        btn = CreateFrame("Button", nil, row)
+        btn:SetSize(14, 14)
+        btn:SetPoint("LEFT", row, "LEFT", 22, 0)
+        btn:SetFrameLevel(row:GetFrameLevel() + 6)
+        btn._a = ns.Solid(btn, "OVERLAY", ns.THEME.muted, 0.85)
+        btn._a:SetSize(10, 2); btn._a:SetPoint("CENTER"); btn._a:SetRotation(math.rad(45))
+        btn._b = ns.Solid(btn, "OVERLAY", ns.THEME.muted, 0.85)
+        btn._b:SetSize(10, 2); btn._b:SetPoint("CENTER"); btn._b:SetRotation(math.rad(-45))
+        row._removeBtn = btn
+    end
+    local a, b = btn._a, btn._b
 
     btn:SetScript("OnEnter", function()
         a:SetColorTexture(1, 0.35, 0.35, 1); b:SetColorTexture(1, 0.35, 0.35, 1)
@@ -552,22 +559,28 @@ local function AttachRemove(row, entry, specID, EUI, onGone)
 end
 
 local function AttachGrabber(row, spellID, index, specID, encounterID, EUI)
-    local grab = CreateFrame("Button", nil, row)
-    grab:SetSize(14, 22)
-    grab:SetPoint("LEFT", row, "LEFT", 4, 0)
-    grab:SetFrameLevel(row:GetFrameLevel() + 6)
+    local grab = row._grab
+    if not grab then
+        grab = CreateFrame("Button", nil, row)
+        grab:SetSize(14, 22)
+        grab:SetPoint("LEFT", row, "LEFT", 4, 0)
+        grab:SetFrameLevel(row:GetFrameLevel() + 6)
 
-    -- Six dots: the conventional "pick me up" affordance, drawn rather than textured so it
-    -- follows the theme.
-    for c = 0, 1 do
-        for r2 = 0, 2 do
-            local d = ns.Solid(grab, "OVERLAY", ns.THEME.muted, 0.85)
-            d:SetSize(3, 3)
-            d:SetPoint("TOPLEFT", grab, "TOPLEFT", 3 + c * 5, -(4 + r2 * 6))
+        -- Six dots: the conventional "pick me up" affordance, drawn rather than textured so
+        -- it follows the theme.
+        for c = 0, 1 do
+            for r2 = 0, 2 do
+                local d = ns.Solid(grab, "OVERLAY", ns.THEME.muted, 0.85)
+                d:SetSize(3, 3)
+                d:SetPoint("TOPLEFT", grab, "TOPLEFT", 3 + c * 5, -(4 + r2 * 6))
+            end
         end
-    end
 
-    grab:RegisterForDrag("LeftButton")
+        grab:RegisterForDrag("LeftButton")
+        ns.Tooltip(grab, "Drag to reorder", "Drag this onto another enabled ability to change "
+            .. "the order it is called out in.")
+        row._grab = grab
+    end
     grab:SetScript("OnDragStart", function()
         dragging = { spellID = spellID, from = index }
         row:SetAlpha(0.5)
@@ -583,8 +596,6 @@ local function AttachGrabber(row, spellID, index, specID, encounterID, EUI)
             EUI:RefreshPage(true)
         end
     end)
-    ns.Tooltip(grab, "Drag to reorder", "Drag this onto another enabled ability to change the "
-        .. "order it is called out in.")
     return grab
 end
 
@@ -592,25 +603,29 @@ end
 -- the region's control -- the same geometry as every cog in the suite.
 local function AttachRowCog(rgn, onClick, tipTitle, tipBody)
     if not rgn then return end
-    local cog = CreateFrame("Button", nil, rgn)
-    cog:SetSize(26, 26)
-    cog:SetPoint("RIGHT", rgn._lastInline or rgn._control or rgn, "LEFT", -8, 0)
-    rgn._lastInline = cog
-    cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
-    cog:SetAlpha(0.4)
-    local tex = cog:CreateTexture(nil, "OVERLAY")
-    tex:SetAllPoints()
     local EUIg = ns.UI
-    if EUIg and EUIg.COGS_ICON then tex:SetTexture(EUIg.COGS_ICON) end
+    local cog = rgn._cog
+    if not cog then
+        cog = CreateFrame("Button", nil, rgn)
+        cog:SetSize(26, 26)
+        cog:SetPoint("RIGHT", rgn._lastInline or rgn._control or rgn, "LEFT", -8, 0)
+        rgn._lastInline = cog
+        cog:SetFrameLevel(rgn:GetFrameLevel() + 5)
+        cog:SetAlpha(0.4)
+        local tex = cog:CreateTexture(nil, "OVERLAY")
+        tex:SetAllPoints()
+        if EUIg and EUIg.COGS_ICON then tex:SetTexture(EUIg.COGS_ICON) end
+        cog:SetScript("OnLeave", function(self)
+            self:SetAlpha(0.4)
+            if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
+        end)
+        rgn._cog = cog
+    end
     cog:SetScript("OnEnter", function(self)
         self:SetAlpha(0.7)
         if EUIg and EUIg.ShowWidgetTooltip and tipTitle then
             EUIg.ShowWidgetTooltip(self, tipBody and (tipTitle .. ": " .. tipBody) or tipTitle)
         end
-    end)
-    cog:SetScript("OnLeave", function(self)
-        self:SetAlpha(0.4)
-        if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
     end)
     cog:SetScript("OnClick", function() if onClick then onClick() end end)
     return cog
@@ -623,8 +638,8 @@ end
 
 -- Frames are never garbage collected, so a dialog built from plain frames is built once and
 -- re-pointed on each open, with the per-open values held in a state table the widgets read
--- rather than captured directly. Dialogs built from the widget factory's rows cannot do
--- this -- see ShowAbilitySettingsPopup below for why.
+-- rather than captured directly. The others keep what they build through UI.Keep, which does
+-- the same by call site.
 --
 -- Add and Rename are the same dialog: a name, a confirm and a cancel.
 local namePrompt
@@ -696,7 +711,7 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     local W = EUI.Widgets
     local dimmer, panel = ns.MakeModal(360, 172, "abilitySettings")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText(name)
 
@@ -728,7 +743,7 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
           end }
     ); y = y - h
 
-    editBtn = ns.Button(panel, "Edit Callout", 120, 26, function()
+    editBtn = UI.KeepButton(panel, "edit", "Edit Callout", 120, 26, function()
         ns.ShowCalloutEditor(("Audio callout for %s"):format(name),
             ns.CalloutFor(spellID, name), function(text)
                 ns.SetCallout(spellID, text)
@@ -738,7 +753,7 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     editBtn:SetPoint("BOTTOM", panel, "BOTTOM", -55, 16)
     editBtn:SetShown(not ns.IsAudioOff(spellID))
 
-    local closeBtn = ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+    local closeBtn = UI.KeepButton(panel, "close", "Close", 90, 26, function() dimmer:Hide() end)
     placeClose = function()
         closeBtn:ClearAllPoints()
         closeBtn:SetPoint("BOTTOM", panel, "BOTTOM", editBtn:IsShown() and 65 or 0, 16)
@@ -756,7 +771,7 @@ end
 local function ShowSetSettingsPopup(specID, members, EUI)
     local dimmer, panel = ns.MakeModal(400, 160, "setSettings")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText("Called Together")
 
@@ -765,7 +780,7 @@ local function ShowSetSettingsPopup(specID, members, EUI)
         local sid = members[i]
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
         local nm = (info and info.name) or ("Spell " .. sid)
-        local btn = ns.Button(panel, ns.CalloutFor(sid, nm), 340, 26, function()
+        local btn = UI.KeepButton(panel, "member", ns.CalloutFor(sid, nm), 340, 26, function()
             dimmer:Hide()
             ShowAbilitySettingsPopup(specID, sid, nm, EUI)
         end)
@@ -778,7 +793,7 @@ local function ShowSetSettingsPopup(specID, members, EUI)
     -- 26 for the button row, 16 for the bottom inset, and a gap so they do not touch.
     panel:SetHeight(math.abs(y) + 58)
 
-    ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "close", "Close", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
 
     dimmer:Show()
@@ -792,7 +807,7 @@ local function ShowFallbackSettingsPopup(EUI)
     local db = ns.DB()
     local dimmer, panel = ns.MakeModal(360, 178, "fallbackSettings")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText("Call for an External")
 
@@ -827,7 +842,7 @@ local function ShowFallbackSettingsPopup(EUI)
           end }
     ); y = y - h
 
-    editBtn = ns.Button(panel, "Edit Callout", 120, 26, function()
+    editBtn = UI.KeepButton(panel, "edit", "Edit Callout", 120, 26, function()
         ns.ShowCalloutEditor("Said and shown when nothing on the list is up",
             db.voiceNone, function(v)
                 db.voiceNone = v
@@ -837,7 +852,7 @@ local function ShowFallbackSettingsPopup(EUI)
     editBtn:SetPoint("BOTTOM", panel, "BOTTOM", -55, 16)
     editBtn:SetShown(db.fallbackOn ~= false and not ns.IsAudioOff(0))
 
-    local closeBtn = ns.Button(panel, "Close", 90, 26, function() dimmer:Hide() end)
+    local closeBtn = UI.KeepButton(panel, "close", "Close", 90, 26, function() dimmer:Hide() end)
     placeClose = function()
         closeBtn:ClearAllPoints()
         closeBtn:SetPoint("BOTTOM", panel, "BOTTOM", editBtn:IsShown() and 65 or 0, 16)
@@ -850,37 +865,18 @@ end
 -- A left-column entry: click to switch presets, pencil to rename, x to delete. Hand-drawn
 -- rather than a DualRow toggle since it needs the active highlight and the rename/delete
 -- affordances a checkbox row does not have.
-local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, canDelete, EUI)
+local function NewPresetRow(leftPane)
     local prow = CreateFrame("Button", nil, leftPane)
-    prow:SetSize(rowW, rowH)
-    prow:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, ly)
+    prow.bg = ns.Solid(prow, "BACKGROUND", ns.THEME.grey, 0.55)
+    prow.bg:SetAllPoints()
 
-    if isActive then
-        local bg = ns.Solid(prow, "BACKGROUND", ns.THEME.grey, 0.55)
-        bg:SetAllPoints()
-    end
-
-    local lbl = ns.Font(prow, 13, nil, isActive and ns.THEME.accent or ns.THEME.muted)
-    lbl:SetPoint("LEFT", prow, "LEFT", 8, 0)
-    lbl:SetPoint("RIGHT", prow, "RIGHT", canDelete and -56 or -34, 0)
-    lbl:SetJustifyH("LEFT")
-    lbl:SetWordWrap(false)
-    lbl:SetText(p.name)
-
-    prow:SetScript("OnClick", function()
-        ns.SelectPreset(specID, p.key)
-        EUI:RefreshPage(true)
-    end)
+    prow.lbl = ns.Font(prow, 13, nil, ns.THEME.muted)
+    prow.lbl:SetJustifyH("LEFT")
+    prow.lbl:SetWordWrap(false)
 
     local edit = ns.Font(prow, 11, nil, ns.THEME.muted)
     edit:SetText("Edit")
     local editHit = CreateFrame("Button", nil, prow)
-    editHit:SetSize(28, rowH)
-    if canDelete then
-        editHit:SetPoint("RIGHT", prow, "RIGHT", -26, 0)
-    else
-        editHit:SetPoint("RIGHT", prow, "RIGHT", -6, 0)
-    end
     edit:SetPoint("CENTER", editHit, "CENTER", 0, 0)
     editHit:SetScript("OnEnter", function(self)
         local c = ns.THEME.accent
@@ -896,35 +892,63 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
         local EUIg = ns.UI
         if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
     end)
+    prow.editHit = editHit
+
+    local del = CreateFrame("Button", nil, prow)
+    del:SetSize(14, 14)
+    del:SetPoint("RIGHT", prow, "RIGHT", -6, 0)
+    local a = ns.Solid(del, "OVERLAY", ns.THEME.muted, 0.85)
+    a:SetSize(10, 2); a:SetPoint("CENTER"); a:SetRotation(math.rad(45))
+    local b = ns.Solid(del, "OVERLAY", ns.THEME.muted, 0.85)
+    b:SetSize(10, 2); b:SetPoint("CENTER"); b:SetRotation(math.rad(-45))
+    del:SetScript("OnEnter", function(self)
+        a:SetColorTexture(1, 0.35, 0.35, 1); b:SetColorTexture(1, 0.35, 0.35, 1)
+        local EUIg = ns.UI
+        if EUIg and EUIg.ShowWidgetTooltip then
+            EUIg.ShowWidgetTooltip(self,
+                "|cff0091edDelete Preset|r\nRemoves this preset and its list. Cannot be undone.")
+        end
+    end)
+    del:SetScript("OnLeave", function()
+        local c = ns.THEME.muted
+        a:SetColorTexture(c.r, c.g, c.b, 0.85); b:SetColorTexture(c.r, c.g, c.b, 0.85)
+        local EUIg = ns.UI
+        if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
+    end)
+    prow.del = del
+    return prow
+end
+
+local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, canDelete, EUI)
+    local prow = UI.Keep(leftPane, "presetRow", NewPresetRow)
+    prow:SetSize(rowW, rowH)
+    prow:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, ly)
+    prow.bg:SetShown(isActive)
+
+    local lbl = prow.lbl
+    local c = isActive and ns.THEME.accent or ns.THEME.muted
+    lbl:SetTextColor(c.r, c.g, c.b, 1)
+    lbl:ClearAllPoints()
+    lbl:SetPoint("LEFT", prow, "LEFT", 8, 0)
+    lbl:SetPoint("RIGHT", prow, "RIGHT", canDelete and -56 or -34, 0)
+    lbl:SetText(p.name)
+
+    prow:SetScript("OnClick", function()
+        ns.SelectPreset(specID, p.key)
+        EUI:RefreshPage(true)
+    end)
+
+    local editHit = prow.editHit
+    editHit:SetSize(28, rowH)
+    editHit:ClearAllPoints()
+    editHit:SetPoint("RIGHT", prow, "RIGHT", canDelete and -26 or -6, 0)
     editHit:SetScript("OnClick", function() ShowRenamePresetPopup(specID, p.key, p.name, EUI) end)
 
-    if canDelete then
-        local del = CreateFrame("Button", nil, prow)
-        del:SetSize(14, 14)
-        del:SetPoint("RIGHT", prow, "RIGHT", -6, 0)
-        local a = ns.Solid(del, "OVERLAY", ns.THEME.muted, 0.85)
-        a:SetSize(10, 2); a:SetPoint("CENTER"); a:SetRotation(math.rad(45))
-        local b = ns.Solid(del, "OVERLAY", ns.THEME.muted, 0.85)
-        b:SetSize(10, 2); b:SetPoint("CENTER"); b:SetRotation(math.rad(-45))
-        del:SetScript("OnEnter", function(self)
-            a:SetColorTexture(1, 0.35, 0.35, 1); b:SetColorTexture(1, 0.35, 0.35, 1)
-            local EUIg = ns.UI
-            if EUIg and EUIg.ShowWidgetTooltip then
-                EUIg.ShowWidgetTooltip(self,
-                    "|cff0091edDelete Preset|r\nRemoves this preset and its list. Cannot be undone.")
-            end
-        end)
-        del:SetScript("OnLeave", function()
-            local c = ns.THEME.muted
-            a:SetColorTexture(c.r, c.g, c.b, 0.85); b:SetColorTexture(c.r, c.g, c.b, 0.85)
-            local EUIg = ns.UI
-            if EUIg and EUIg.HideWidgetTooltip then EUIg.HideWidgetTooltip() end
-        end)
-        del:SetScript("OnClick", function()
-            ns.DeletePreset(specID, p.key)
-            EUI:RefreshPage(true)
-        end)
-    end
+    prow.del:SetShown(canDelete)
+    prow.del:SetScript("OnClick", function()
+        ns.DeletePreset(specID, p.key)
+        EUI:RefreshPage(true)
+    end)
 
     return prow
 end
@@ -949,11 +973,11 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     local totalW = parent:GetWidth() - EUI.CONTENT_PAD * 2
     local rightW = totalW - LEFT_W - GAP
 
-    local leftPane = CreateFrame("Frame", nil, parent)
+    local leftPane = UI.Keep(parent, "presetLeft", function(p) return CreateFrame("Frame", nil, p) end)
     leftPane:SetSize(LEFT_W, 10)
     leftPane:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD, topY)
 
-    local rightPane = CreateFrame("Frame", nil, parent)
+    local rightPane = UI.Keep(parent, "presetRight", function(p) return CreateFrame("Frame", nil, p) end)
     rightPane:SetSize(rightW, 10)
     rightPane:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD + LEFT_W + GAP, topY)
 
@@ -966,20 +990,23 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         ly = ly - PRESET_ROW_H
     end
 
-    local addRow = CreateFrame("Button", nil, leftPane)
+    local addRow = UI.Keep(leftPane, "addPreset", function(host)
+        local b = CreateFrame("Button", nil, host)
+        local addLbl = ns.Font(b, 13, nil, ns.THEME.muted)
+        addLbl:SetPoint("LEFT", b, "LEFT", 8, 0)
+        addLbl:SetText("+ Add Preset")
+        b:SetScript("OnEnter", function()
+            local c = ns.THEME.fg
+            addLbl:SetTextColor(c.r, c.g, c.b, 1)
+        end)
+        b:SetScript("OnLeave", function()
+            local c = ns.THEME.muted
+            addLbl:SetTextColor(c.r, c.g, c.b, 1)
+        end)
+        return b
+    end)
     addRow:SetSize(LEFT_W, PRESET_ROW_H)
     addRow:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, ly)
-    local addLbl = ns.Font(addRow, 13, nil, ns.THEME.muted)
-    addLbl:SetPoint("LEFT", addRow, "LEFT", 8, 0)
-    addLbl:SetText("+ Add Preset")
-    addRow:SetScript("OnEnter", function()
-        local c = ns.THEME.fg
-        addLbl:SetTextColor(c.r, c.g, c.b, 1)
-    end)
-    addRow:SetScript("OnLeave", function()
-        local c = ns.THEME.muted
-        addLbl:SetTextColor(c.r, c.g, c.b, 1)
-    end)
     addRow:SetScript("OnClick", function() ShowAddPresetPopup(specID, EUI) end)
     ly = ly - PRESET_ROW_H
 
@@ -1187,30 +1214,30 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     if row and row._rightRegion then
         local rgn = row._rightRegion
 
-        local add = ns.Button(rgn, "Add", 54, 22, nil)
-        add:SetPoint("RIGHT", rgn, "RIGHT", -14, 0)
+        if not rgn._spellBox then
+            local add = ns.Button(rgn, "Add", 54, 22, nil)
+            add:SetPoint("RIGHT", rgn, "RIGHT", -14, 0)
 
-        local box = CreateFrame("EditBox", nil, rgn)
-        box:SetPoint("LEFT", rgn, "LEFT", 6, 0)
-        box:SetPoint("RIGHT", add, "LEFT", -8, 0)
-        box:SetHeight(24)
-        box:SetAutoFocus(false)
-        box:SetNumeric(true)
-        box:SetMaxLetters(9)
-        box:SetFontObject("GameFontHighlight")
-        box:SetTextInsets(6, 6, 0, 0)
-        local well = ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1)
-        well:SetAllPoints()
-        ns.Border(box)
+            local box = ns.NewEditBox(rgn)
+            box:SetPoint("LEFT", rgn, "LEFT", 6, 0)
+            box:SetPoint("RIGHT", add, "LEFT", -8, 0)
+            box:SetHeight(24)
+            box:SetNumeric(true)
+            box:SetMaxLetters(9)
 
-        local placeholder = ns.Font(box, 12, nil, ns.THEME.muted)
-        placeholder:SetPoint("LEFT", box, "LEFT", 8, 0)
-        placeholder:SetText("Enter SpellID")
+            box.placeholder = ns.Font(box, 12, nil, ns.THEME.muted)
+            box.placeholder:SetPoint("LEFT", box, "LEFT", 8, 0)
+            box.placeholder:SetText("Enter SpellID")
 
-        local feedback = ns.Font(rgn, 10, nil, ns.THEME.muted)
-        feedback:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 2, -1)
-        feedback:SetPoint("RIGHT", add, "LEFT", -8, 0)
-        feedback:SetJustifyH("LEFT")
+            box.feedback = ns.Font(rgn, 10, nil, ns.THEME.muted)
+            box.feedback:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 2, -1)
+            box.feedback:SetPoint("RIGHT", add, "LEFT", -8, 0)
+            box.feedback:SetJustifyH("LEFT")
+            box.add = add
+            rgn._spellBox = box
+        end
+        local box = rgn._spellBox
+        local add, placeholder, feedback = box.add, box.placeholder, box.feedback
 
         local function Commit()
             local sid = ns.ResolveSpell(box:GetText())
@@ -1242,6 +1269,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         box:SetScript("OnTextChanged", Validate)
         box:SetScript("OnEnterPressed", Commit)
         box:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+        box:SetText("")
         Validate()
     end
 
@@ -1298,9 +1326,8 @@ local COUNTER_TIP = "Blank fires every time. Match a count with >N, >=N, <N, <=N
     .. "them, or add a leading + on the second one to require both -- example: >3,+<7 "
     .. "fires between 4 and 6."
 
--- Rebuilt fresh on every open: an occasional settings dialog is not worth the bookkeeping
--- a cached singleton would need for a dropdown and text fields that all close over a
--- different encounter/uid each time.
+-- Its parts are kept through UI.Keep and filled in on each open, since what they close over
+-- -- the encounter and the reminder being edited -- changes every time.
 -- callerEUI, when given, is a caller's own EUI proxy (e.g. the ability picker's) -- its
 -- RefreshPage also re-renders that caller, not just the real options page, which is what
 -- actually makes a saved/edited reminder show up in its list without a reopen.
@@ -1364,7 +1391,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
 
     local dimmer, panel = ns.MakeModal(480, 740, "customReminderEditor")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText(uid and "Edit Reminder" or "New Reminder")
 
@@ -1386,21 +1413,21 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         end)
     end
 
-    local triggerBody = CreateFrame("Frame", nil, panel)
+    local triggerBody = UI.Keep(panel, "triggerBody", function(p) return CreateFrame("Frame", nil, p) end)
     triggerBody:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -42)
     triggerBody:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, -42)
     triggerBody:SetHeight(650)
-    local messageBody = CreateFrame("Frame", nil, triggerBody)
+    local messageBody = UI.Keep(triggerBody, "messageBody", function(p) return CreateFrame("Frame", nil, p) end)
     messageBody:SetSize(480, 230)
 
     local my = 0
 
     local function AddLabelM(text, tooltip)
-        local l = ns.Font(messageBody, 11, nil, ns.THEME.muted)
+        local l = UI.KeepFont(messageBody, "label", 11, nil, ns.THEME.muted)
         l:SetPoint("TOPLEFT", messageBody, "TOPLEFT", PAD, my)
         l:SetText(text)
         if tooltip then
-            local hit = CreateFrame("Frame", nil, messageBody)
+            local hit = UI.Keep(messageBody, "labelHit", function(p) return CreateFrame("Frame", nil, p) end)
             hit:SetPoint("TOPLEFT", l, "TOPLEFT", -4, 4)
             hit:SetPoint("BOTTOMRIGHT", l, "BOTTOMRIGHT", 4, -4)
             HoverTip(hit, tooltip)
@@ -1409,17 +1436,12 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     end
 
     local function AddBoxM(maxLetters, numeric, rightInset)
-        local box = CreateFrame("EditBox", nil, messageBody)
+        local box = UI.Keep(messageBody, "box", ns.NewEditBox)
         box:SetPoint("TOPLEFT", messageBody, "TOPLEFT", PAD, my)
         box:SetPoint("RIGHT", messageBody, "RIGHT", -(rightInset or PAD), 0)
         box:SetHeight(26)
-        box:SetAutoFocus(false)
         box:SetMaxLetters(maxLetters or 60)
-        if numeric then box:SetNumeric(true) end
-        box:SetFontObject("GameFontHighlight")
-        box:SetTextInsets(6, 6, 0, 0)
-        ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-        ns.Border(box)
+        box:SetNumeric(numeric == true)
         my = my - 32
         return box
     end
@@ -1489,7 +1511,8 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     -- place. The current widgets (nil for whichever fields the active type does not use)
     -- are read back into the *Text locals before a rebuild so switching types and back
     -- does not lose what was typed.
-    local dynFrame, spellBox, counterBox, delayBox
+    local dynFrame = UI.Keep(triggerBody, "dynFrame", function(p) return CreateFrame("Frame", nil, p) end)
+    local spellBox, counterBox, delayBox
     local DYN_Y   -- set below, once the Trigger dropdown row's height is known
     local RebuildDynFields
     local triggerRow -- the Trigger dropdown's own row handle, so a picker pick can refresh its label
@@ -1533,14 +1556,19 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     -- there, the picker's first row and its "nothing recorded" hint sat directly on top of
     -- the Trigger dropdown rather than below it, for BigWigs/DBM Message and Timer -- the
     -- two trigger types that show the picker at all.
-    local pickerRows = {}
-    local pickerScroll = CreateFrame("ScrollFrame", nil, triggerBody, "UIPanelScrollFrameTemplate")
+    -- The rows live on the scroll frame, which outlasts this open, so the next one reuses them.
+    local pickerScroll = UI.Keep(triggerBody, "pickerScroll", function(p)
+        local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
+        sf.content = CreateFrame("Frame", nil, sf)
+        sf.content:SetSize(418, 1)
+        sf:SetScrollChild(sf.content)
+        sf.rows = {}
+        return sf
+    end)
     pickerScroll:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, DYN_Y)
     pickerScroll:SetPoint("TOPRIGHT", triggerBody, "TOPRIGHT", -PAD - 22, DYN_Y)
     pickerScroll:SetHeight(120)
-    local pickerContent = CreateFrame("Frame", nil, pickerScroll)
-    pickerContent:SetSize(418, 1)
-    pickerScroll:SetScrollChild(pickerContent)
+    local pickerContent, pickerRows = pickerScroll.content, pickerScroll.rows
     local function MakePickerRow(i)
         local row = CreateFrame("Button", nil, pickerContent)
         row:SetHeight(24)
@@ -1569,7 +1597,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         pickerRows[i] = row
         return row
     end
-    local pickerHint = ns.Font(triggerBody, 10, nil, ns.THEME.muted)
+    local pickerHint = UI.KeepFont(triggerBody, "pickerHint", 10, nil, ns.THEME.muted)
     pickerHint:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
     pickerHint:SetJustifyH("LEFT")
     local PICKER_ROW_H = 24
@@ -1606,21 +1634,21 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     end
 
     RebuildDynFields = function()
-        if dynFrame then dynFrame:Hide() end
         RebuildPicker()
 
-        dynFrame = CreateFrame("Frame", nil, triggerBody)
+        UI.BeginReusableRows(dynFrame)
+        dynFrame:ClearAllPoints()
         dynFrame:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", 0, DYN_Y - PICKER_HEIGHT)
         dynFrame:SetSize(480, 210)
         spellBox, counterBox, delayBox = nil, nil, nil
 
         local dy = 0
         local function DLabel(text, tooltip)
-            local l = ns.Font(dynFrame, 11, nil, ns.THEME.muted)
+            local l = UI.KeepFont(dynFrame, "label", 11, nil, ns.THEME.muted)
             l:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy)
             l:SetText(text)
             if tooltip then
-                local hit = CreateFrame("Frame", nil, dynFrame)
+                local hit = UI.Keep(dynFrame, "labelHit", function(p) return CreateFrame("Frame", nil, p) end)
                 hit:SetPoint("TOPLEFT", l, "TOPLEFT", -4, 4)
                 hit:SetPoint("BOTTOMRIGHT", l, "BOTTOMRIGHT", 4, -4)
                 HoverTip(hit, tooltip)
@@ -1628,17 +1656,12 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
             dy = dy - 16
         end
         local function DBox(maxLetters, numeric, rightInset)
-            local box = CreateFrame("EditBox", nil, dynFrame)
+            local box = UI.Keep(dynFrame, "box", ns.NewEditBox)
             box:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy)
             box:SetPoint("RIGHT", dynFrame, "RIGHT", -(rightInset or PAD), 0)
             box:SetHeight(26)
-            box:SetAutoFocus(false)
             box:SetMaxLetters(maxLetters or 60)
-            if numeric then box:SetNumeric(true) end
-            box:SetFontObject("GameFontHighlight")
-            box:SetTextInsets(6, 6, 0, 0)
-            ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-            ns.Border(box)
+            box:SetNumeric(numeric == true)
             dy = dy - 32
             return box
         end
@@ -1695,13 +1718,13 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end
 
-    ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "save", "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
+    UI.KeepButton(panel, "cancel", "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 90, 16)
 
     dimmer:Show()
-    -- Returned so a caller (ns.ShowBossReminderPicker) can hook OnHide and refresh its
-    -- own list once this editor closes -- ignored by every other existing call site.
+    -- Returned so a caller can set dimmer.onClose and refresh its own list once this
+    -- editor closes -- ignored by every other existing call site.
     return dimmer, panel
 end
 
@@ -1756,7 +1779,14 @@ function ns.BuildProfileSettings(parent, y)
         local function AfterChange()
             EUI:RefreshPage(true)
         end
-        local newBtn = ns.Button(profRow._leftRegion, "New Profile", 110, 22, function()
+        -- The rows are reused, so their buttons are made once and re-pointed on each build.
+        local left, right = profRow._leftRegion, profRow._rightRegion
+        left._newBtn = left._newBtn or ns.Button(left, "New Profile", 110, 22)
+        left._copyBtn = left._copyBtn or ns.Button(left, "Save As New Profile", 150, 22)
+        right._mergeBtn = right._mergeBtn or ns.Button(right, "Merge a Profile In", 150, 22)
+
+        local newBtn = left._newBtn
+        newBtn._onClick = function()
             ShowNamePrompt("New Profile", "Create", "", function(text)
                 local name = text:match("^%s*(.-)%s*$")
                 -- A taken name used to fail with "that name is taken" and nothing else, so
@@ -1778,7 +1808,7 @@ function ns.BuildProfileSettings(parent, y)
                 ns.SwitchProfile(name)
                 AfterChange()
             end)
-        end)
+        end
         newBtn:SetPoint("LEFT", profRow._leftRegion, "LEFT", 20, 0)
         ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings. It becomes "
             .. "the one every character on this account uses, including any you log into "
@@ -1787,7 +1817,8 @@ function ns.BuildProfileSettings(parent, y)
         -- your choosing, which is what someone looks for a Save button to do. There is no
         -- plain Save because there is nothing to save -- every change is written into the
         -- profile as it is made, and a button that did nothing would only suggest otherwise.
-        local copyBtn = ns.Button(profRow._leftRegion, "Save As New Profile", 150, 22, function()
+        local copyBtn = left._copyBtn
+        copyBtn._onClick = function()
             ShowNamePrompt("Save As New Profile", "Save", "", function(text)
                 local name = text:match("^%s*(.-)%s*$")
                 if ns.ProfileExists and ns.ProfileExists(name) then
@@ -1807,7 +1838,7 @@ function ns.BuildProfileSettings(parent, y)
                 ns.SwitchProfile(name)
                 AfterChange()
             end)
-        end)
+        end
         copyBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
         ns.Tooltip(copyBtn, "Save As New Profile", "Stores everything set up right now as a "
             .. "new profile under a name you choose, and switches to it. Your current "
@@ -1816,10 +1847,10 @@ function ns.BuildProfileSettings(parent, y)
         -- Import always lands a NEW profile and never touches what is here, which is the
         -- right default and the wrong tool once somebody else maintains part of your
         -- setup. This is that other tool.
-        local mergeBtn = ns.Button(profRow._rightRegion, "Merge a Profile In", 150, 22,
-            function()
-                if ns.ShowProfileMergeDialog then ns.ShowProfileMergeDialog() end
-            end)
+        local mergeBtn = right._mergeBtn
+        mergeBtn._onClick = function()
+            if ns.ShowProfileMergeDialog then ns.ShowProfileMergeDialog() end
+        end
         mergeBtn:SetPoint("LEFT", profRow._rightRegion, "LEFT", 20, 0)
         ns.Tooltip(mergeBtn, "Merge a Profile In", "Takes a profile string somebody else "
             .. "maintains and merges it into one of yours. A spec they look after "
@@ -1841,22 +1872,22 @@ function ns.BuildProfileSettings(parent, y)
     -- differ. Both reset to the placeholder afterwards through the page refresh.
     ConfirmOn = function(title, hintText, verb, chosen, act)
         local dimmer, panel = ns.MakeModal(360, 140, "profileActConfirm")
-        local head = ns.Font(panel, 14, "OUTLINE")
+        local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
         head:SetPoint("TOP", panel, "TOP", 0, -16)
         head:SetText(("%s '%s'?"):format(title, chosen))
-        local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+        local hint = UI.KeepFont(panel, "hint", 11, nil, ns.THEME.muted)
         hint:SetPoint("TOP", head, "BOTTOM", 0, -8)
         hint:SetPoint("LEFT", panel, "LEFT", 16, 0)
         hint:SetPoint("RIGHT", panel, "RIGHT", -16, 0)
         hint:SetText(hintText)
-        local yes = ns.Button(panel, verb, 100, 24, function()
+        local yes = UI.KeepButton(panel, "yes", verb, 100, 24, function()
             local ok, err = act(chosen)
             if not ok and err then ns.Print(err) end
             dimmer:Hide()
             EUI:RefreshPage(true)
         end)
         yes:SetPoint("BOTTOM", panel, "BOTTOM", -56, 14)
-        ns.Button(panel, "Cancel", 100, 24, function()
+        UI.KeepButton(panel, "cancel", "Cancel", 100, 24, function()
             dimmer:Hide()
             EUI:RefreshPage(true)
         end):SetPoint("BOTTOM", panel, "BOTTOM", 56, 14)
@@ -1896,9 +1927,11 @@ function ns.BuildProfileSettings(parent, y)
     -- row's LEFT half and overlapped the label text next to it regardless of width.
     -- Anchored to the region's own RIGHT edge directly instead.
     if packRow and packRow._rightRegion then
-        local btn = ns.Button(packRow._rightRegion, "Share your Profile", 130, 22, function()
+        local rgn = packRow._rightRegion
+        rgn._btn = rgn._btn or ns.Button(rgn, "Share your Profile", 130, 22, function()
             if ns.ShowPackExport then ns.ShowPackExport() end
         end)
+        local btn = rgn._btn
         btn:SetPoint("RIGHT", packRow._rightRegion, "RIGHT", -14, 0)
         ns.Tooltip(btn, "Share your Smart Reminders",
             "Everything a curator sets up -- priority lists, per-boss orders, callouts and "
@@ -1911,9 +1944,11 @@ function ns.BuildProfileSettings(parent, y)
         { type = "label", text = "" }
     ); y = y - h
     if packRow2 and packRow2._rightRegion then
-        local btn = ns.Button(packRow2._rightRegion, "Import Profile", 120, 22, function()
+        local rgn = packRow2._rightRegion
+        rgn._btn = rgn._btn or ns.Button(rgn, "Import Profile", 120, 22, function()
             if ns.ShowPackImport then ns.ShowPackImport() end
         end)
+        local btn = rgn._btn
         btn:SetPoint("RIGHT", packRow2._rightRegion, "RIGHT", -14, 0)
         ns.Tooltip(btn, "Import Profile",
             "Paste a profile string. Nothing applies until you press Import, and a damaged "
@@ -2055,11 +2090,11 @@ end
 function ns.ShowBindingScopePicker(scope, onAccept)
     local dimmer, panel = ns.MakeModal(400, 470, "bindingScopePicker")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText("Loads for")
 
-    local hint = ns.Font(panel, 10, nil, ns.THEME.muted)
+    local hint = UI.KeepFont(panel, "hint", 10, nil, ns.THEME.muted)
     hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -40)
     hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
     hint:SetJustifyH("LEFT")
@@ -2073,7 +2108,7 @@ function ns.ShowBindingScopePicker(scope, onAccept)
 
     local y = -74
     local function Label(text)
-        local l = ns.Font(panel, 11, nil, ns.THEME.muted)
+        local l = UI.KeepFont(panel, "label", 11, nil, ns.THEME.muted)
         l:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
         l:SetText(text)
         y = y - 18
@@ -2082,14 +2117,17 @@ function ns.ShowBindingScopePicker(scope, onAccept)
         for i = 1, #items do
             local key, label = items[i][1], items[i][2]
             local col, row = (i - 1) % perRow, math.floor((i - 1) / perRow)
-            local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-            check:SetSize(18, 18)
+            local check = UI.Keep(panel, "check", function(p)
+                local c = CreateFrame("CheckButton", nil, p, "UICheckButtonTemplate")
+                c:SetSize(18, 18)
+                return c
+            end)
             check:SetPoint("TOPLEFT", panel, "TOPLEFT", 20 + col * itemW, y - row * 22)
             check:SetChecked(set[key])
             check:SetScript("OnClick", function(self)
                 set[key] = self:GetChecked() and true or nil
             end)
-            local lbl = ns.Font(panel, 10, nil, ns.THEME.fg)
+            local lbl = UI.KeepFont(panel, "checkLabel", 10, nil, ns.THEME.fg)
             lbl:SetPoint("LEFT", check, "RIGHT", 2, 0)
             lbl:SetWordWrap(false)
             lbl:SetText(label)
@@ -2114,7 +2152,7 @@ function ns.ShowBindingScopePicker(scope, onAccept)
         end)
     end
 
-    ns.Button(panel, "Accept", 90, 26, function()
+    UI.KeepButton(panel, "accept", "Accept", 90, 26, function()
         local out = {}
         if next(roles) then out.roles = roles end
         if next(classes) then out.classes = classes end
@@ -2123,7 +2161,7 @@ function ns.ShowBindingScopePicker(scope, onAccept)
         onAccept(next(out) and out or nil)
         dimmer:Hide()
     end):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "cancel", "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
 
     dimmer:Show()
@@ -2142,7 +2180,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     -- taller modal (the full custom reminder editor).
     local dimmer, panel = ns.MakeModal(440, 640, "abilityReminderPicker")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText(ability.title or "Ability")
 
@@ -2164,10 +2202,9 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     -- Same lazy-init reasoning as leadTimeVal: a rebuild must not stomp an unsaved choice.
     local externalVal
 
-    -- Same destroy-and-recreate idiom as the custom reminder editor's own dynFrame: the
-    -- old body is hidden and dropped rather than cleared field by field, since GetChildren
-    -- only ever returns child FRAMES, not the label FontStrings this also has to remove.
-    local body
+    -- Kept for the dialog and reset on every rebuild, so switching tabs reuses what the
+    -- last rebuild made instead of stacking a new body each time.
+    local body = UI.Keep(panel, "body", function(p) return CreateFrame("Frame", nil, p) end)
     -- presetVal is written by the dropdown built in RebuildBody and read back by Save()
     -- -- it has to outlive any single rebuild, since a pick must not be lost if switching
     -- tabs or presets forces a reflow later.
@@ -2196,21 +2233,23 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         RebuildBody()
     end
     local function AddPageTab(id, text, anchorTo)
-        local btn = CreateFrame("Button", nil, panel)
-        btn:SetHeight(22)
-        local lbl = ns.Font(btn, 12, nil, ns.THEME.muted)
-        lbl:SetText(text)
-        btn:SetSize(lbl:GetStringWidth() + 4, 22)
-        lbl:SetPoint("CENTER")
+        local btn = UI.Keep(panel, "tab", function(p)
+            local b = CreateFrame("Button", nil, p)
+            b.label = ns.Font(b, 12, nil, ns.THEME.muted)
+            b.label:SetPoint("CENTER")
+            b.marker = ns.Solid(b, "OVERLAY", ns.THEME.accent, 1)
+            b.marker:SetPoint("BOTTOMLEFT", 0, -3)
+            b.marker:SetPoint("BOTTOMRIGHT", 0, -3)
+            b.marker:SetHeight(2)
+            return b
+        end)
+        btn.label:SetText(text)
+        btn.label:SetTextColor(ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b, 1)
+        btn:SetSize(btn.label:GetStringWidth() + 4, 22)
         if anchorTo then btn:SetPoint("LEFT", anchorTo, "RIGHT", 18, 0)
         else btn:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP) end
-        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.accent, 1)
-        marker:SetPoint("BOTTOMLEFT", 0, -3)
-        marker:SetPoint("BOTTOMRIGHT", 0, -3)
-        marker:SetHeight(2)
-        marker:Hide()
+        btn.marker:Hide()
         btn:SetScript("OnClick", function() SelectPageTab(id) end)
-        btn.label, btn.marker = lbl, marker
         tabBtns[id] = btn
         return btn
     end
@@ -2220,8 +2259,8 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     defTabBtn.label:SetTextColor(ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b, 1)
 
     RebuildBody = function()
-        if body then body:Hide() end
-        body = CreateFrame("Frame", nil, panel)
+        UI.BeginReusableRows(body)
+        body:ClearAllPoints()
         body:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP - 30)
         body:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP - 30)
         -- An explicit height, not just the two TOP anchors -- matching dynFrame in the full
@@ -2241,7 +2280,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- full right half even fed a blank label, which is exactly the dead space this
         -- popup does not have the width to spare (it is 440px, not a page-width column).
         local function Label(text)
-            local lbl = ns.Font(body, 11, nil, ns.THEME.muted)
+            local lbl = UI.KeepFont(body, "label", 11, nil, ns.THEME.muted)
             lbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             lbl:SetText(text)
             by = by - 16
@@ -2254,8 +2293,8 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         -- page-row chrome (background band, hover-tag) that widget wraps it in, which is
         -- built for a full-width options page rather than a small modal.
         local function DropdownRow(values, order, getValue, setValue)
-            local ddBtn = EUI.BuildDropdownControl(body, FIELD_W,
-                body:GetFrameLevel() + 1, values, order, getValue, setValue)
+            local ddBtn = UI.KeepDropdown(body, "dropdown", FIELD_W, values, order,
+                getValue, setValue)
             ddBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             by = by - 32
             return ddBtn
@@ -2267,7 +2306,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             -- one -- edited on the Setup page, not duplicated per ability.
             local presets = ns.ListPresets(specID)
             if #presets == 0 then
-                local hint = ns.Font(body, 11, nil, ns.THEME.muted)
+                local hint = UI.KeepFont(body, "noPresets", 11, nil, ns.THEME.muted)
                 hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
                 hint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
                 hint:SetWordWrap(true)
@@ -2301,7 +2340,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     function(v) presetVal = v end)
             end
 
-            local note = ns.Font(body, 10, nil, ns.THEME.muted)
+            local note = UI.KeepFont(body, "note", 10, nil, ns.THEME.muted)
             note:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             note:SetPoint("RIGHT", body, "RIGHT", 0, 0)
             note:SetJustifyH("LEFT")
@@ -2324,7 +2363,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             -- change, not a second mode alongside it. -30 comfortably covers a delayed call
             -- on anything shorter than a boss's longest bars; the spec-wide default stays
             -- positive-only on its own slider on the Setup page.
-            local trackFrame, valBox = EUI.BuildSliderCore(body, 200, 4, 12, 40, 22, 12,
+            local trackFrame, valBox = UI.KeepSlider(body, "lead", 200, 4, 12, 40, 22, 12,
                 1, -30, 10, 1,
                 function() return leadTimeVal end,
                 function(v) leadTimeVal = v end)
@@ -2332,7 +2371,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             valBox:SetPoint("LEFT", trackFrame, "RIGHT", 10, 0)
             by = by - 32
 
-            local leadHint = ns.Font(body, 10, nil, ns.THEME.muted)
+            local leadHint = UI.KeepFont(body, "leadHint", 10, nil, ns.THEME.muted)
             leadHint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             leadHint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
             leadHint:SetJustifyH("LEFT")
@@ -2349,7 +2388,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 externalVal = ns.ExternalCallFor(encounterID, ability.spellID)
             end
             Label("|cff6DD09AHealer|r Reminder")
-            local healerCheck = EUI.BuildToggleControl(body, body:GetFrameLevel() + 1,
+            local healerCheck = UI.KeepToggle(body, "healer",
                 function() return healerVal end,
                 function(v) healerVal = v and true or false end)
             healerCheck:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
@@ -2358,7 +2397,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             by = by - 38
 
             Label("Call for an External when nothing of yours is up")
-            local extHint = ns.Font(body, 10, nil, ns.THEME.muted)
+            local extHint = UI.KeepFont(body, "extHint", 10, nil, ns.THEME.muted)
             extHint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             extHint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
             extHint:SetJustifyH("LEFT")
@@ -2368,14 +2407,14 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 .. "Untouched, it follows the spec-wide setting on the Setup page.")
             by = by - math.ceil(extHint:GetStringHeight()) - 10
 
-            local extCheck = (EUI or ns.UI).BuildToggleControl(body, body:GetFrameLevel() + 1,
+            local extCheck = UI.KeepToggle(body, "external",
                 function() return externalVal end,
                 function(v) externalVal = v and true or false end)
             extCheck:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             by = by - 26
 
         else
-            local hint = ns.Font(body, 11, nil, ns.THEME.muted)
+            local hint = UI.KeepFont(body, "customHint", 11, nil, ns.THEME.muted)
             hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             hint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
             hint:SetJustifyH("LEFT")
@@ -2387,24 +2426,24 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
             local uid, entry = FindBoundRaidReminder(encounterID, ability.spellID)
             if entry then
-                local nameLbl = ns.Font(body, 12, nil, ns.THEME.fg)
+                local nameLbl = UI.KeepFont(body, "name", 12, nil, ns.THEME.fg)
                 nameLbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
                 nameLbl:SetText(entry.name or "Reminder")
                 by = by - 18
 
-                local descLbl = ns.Font(body, 11, nil, ns.THEME.muted)
+                local descLbl = UI.KeepFont(body, "desc", 11, nil, ns.THEME.muted)
                 descLbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
                 descLbl:SetText(RaidReminderTargetDesc(entry.target) .. "  -- "
                     .. (RR_DISPLAY_VALUES[entry.display and entry.display.type] or "Message"))
                 by = by - 30
 
-                local editBtn = ns.Button(body, "Edit", 100, 26, function()
+                local editBtn = UI.KeepButton(body, "edit", "Edit", 100, 26, function()
                     local nestedDimmer = ns.ShowRaidReminderEditor(
                         encounterID, uid, EUI, nil, ability.spellID)
-                    if nestedDimmer then nestedDimmer:HookScript("OnHide", RebuildBody) end
+                    if nestedDimmer then nestedDimmer.onClose = RebuildBody end
                 end)
                 editBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
-                local removeBtn = ns.Button(body, "Remove", 100, 26, function()
+                local removeBtn = UI.KeepButton(body, "remove", "Remove", 100, 26, function()
                     local writeSet = ns.RaidRemindersTable(false, encounterID)
                     if writeSet then writeSet[uid] = nil end
                     RebuildBody()
@@ -2412,15 +2451,15 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 removeBtn:SetPoint("LEFT", editBtn, "RIGHT", 10, 0)
                 by = by - 32
             else
-                local noneLbl = ns.Font(body, 11, nil, ns.THEME.muted)
+                local noneLbl = UI.KeepFont(body, "none", 11, nil, ns.THEME.muted)
                 noneLbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
                 noneLbl:SetText("None yet for this ability.")
                 by = by - 26
 
-                local addBtn = ns.Button(body, "+ Add a Ability Reminder", 200, 26, function()
+                local addBtn = UI.KeepButton(body, "add", "+ Add a Ability Reminder", 200, 26, function()
                     local nestedDimmer = ns.ShowRaidReminderEditor(
                         encounterID, nil, EUI, nil, ability.spellID)
-                    if nestedDimmer then nestedDimmer:HookScript("OnHide", RebuildBody) end
+                    if nestedDimmer then nestedDimmer.onClose = RebuildBody end
                 end)
                 addBtn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
                 by = by - 32
@@ -2428,7 +2467,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         end
         end)
         if not ok then
-            local errText = ns.Font(body, 11, nil, { r = 1, g = 0.35, b = 0.35 })
+            local errText = UI.KeepFont(body, "error", 11, nil, { r = 1, g = 0.35, b = 0.35 })
             errText:SetPoint("TOPLEFT", body, "TOPLEFT", 0, 0)
             errText:SetPoint("RIGHT", body, "RIGHT", 0, 0)
             errText:SetJustifyH("LEFT")
@@ -2474,7 +2513,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
     -- Sits above Save/Cancel rather than in either tab: the scope is the binding's, not
     -- the Defensive Preset's or the Custom Reminder's, so it must not move with the tabs.
-    local scopeText = ns.Font(panel, 10, nil, ns.THEME.muted)
+    local scopeText = UI.KeepFont(panel, "scope", 10, nil, ns.THEME.muted)
     scopeText:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", PAD, 52)
     scopeText:SetPoint("RIGHT", panel, "RIGHT", -PAD - 76, 0)
     scopeText:SetJustifyH("LEFT")
@@ -2484,15 +2523,15 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     end
     RefreshScopeText()
 
-    ns.Button(panel, "Change", 70, 22, function()
+    UI.KeepButton(panel, "change", "Change", 70, 22, function()
         ns.ShowBindingScopePicker(scopeVal, function(newScope)
             scopeVal = newScope
             RefreshScopeText()
         end)
     end):SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -PAD, 48)
 
-    ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "save", "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
+    UI.KeepButton(panel, "cancel", "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 50, 16)
 
     dimmer:Show()
@@ -2500,11 +2539,46 @@ end
 
 local ABILITY_ROW_H = 62
 
-local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
+local function NewAbilityRow(parent)
     local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(ABILITY_ROW_H)
+    row.check = UI.BuildToggleControl(row, row:GetFrameLevel() + 1,
+        function() return false end, function() end)
+    row.check:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -6)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(30, 30)
+    row.icon:SetPoint("TOPLEFT", row.check, "TOPRIGHT", 8, 6)
+    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.cog = ns.Button(row, "...", 30, 26)
+    row.cog:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
+    row.test = ns.Button(row, "Test", 44, 26)
+    row.test:SetPoint("TOPRIGHT", row.cog, "TOPLEFT", -4, 0)
+    row.remove = ns.Button(row, "X", 26, 26)
+    row.remove:SetPoint("TOPRIGHT", row.test, "TOPLEFT", -4, 0)
+    row.remove.label:SetTextColor(1, 0.38, 0.38, 1)
+    ns.Tooltip(row.remove, "Remove Ability",
+        "Take this ability off the boss. Its preset and warning time go with it.")
+    row.title = ns.Font(row, 13, nil, ns.THEME.fg)
+    row.title:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, -2)
+    row.title:SetPoint("RIGHT", row.remove, "LEFT", -8, 0)
+    row.title:SetJustifyH("LEFT")
+    row.desc = ns.Font(row, 11, nil, ns.THEME.muted)
+    row.desc:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, -20)
+    row.desc:SetPoint("RIGHT", row.remove, "LEFT", -8, 0)
+    row.desc:SetHeight(ABILITY_ROW_H - 24)
+    row.desc:SetJustifyH("LEFT")
+    row.desc:SetWordWrap(true)
+    local div = ns.Solid(row, "ARTWORK", ns.THEME.line, 1)
+    div:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+    div:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+    div:SetHeight(1)
+    return row
+end
+
+local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
+    local row = UI.Keep(parent, "abilityRow", NewAbilityRow)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
     row:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
-    row:SetHeight(ABILITY_ROW_H)
 
     -- The tick is whether the boss has the ability, same as the Add Ability picker's, so
     -- unticking silences the ability but keeps it, along with its preset and warning time.
@@ -2515,48 +2589,37 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     -- The addon's own toggle rather than a Blizzard checkbox, matching every other on/off
     -- control in here. `enabled` backs the getter so the widget reads its own state without
     -- another binding lookup per repaint.
-    local check = (EUI or ns.UI).BuildToggleControl(row, row:GetFrameLevel() + 1,
-        function() return enabled end,
-        function(v)
-            if not ability.spellID then return end
-            enabled = v and true or false
-            ns.EnsureBinding(encounterID, ability.spellID).enabled = enabled
-            ns.RefreshRuntime()
-            if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
-        end)
-    check:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -6)
+    row.check._get = function() return enabled end
+    row.check._set = function(v)
+        if not ability.spellID then return end
+        enabled = v and true or false
+        ns.EnsureBinding(encounterID, ability.spellID).enabled = enabled
+        ns.RefreshRuntime()
+        if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
+    end
+    row.check._refreshValue()
 
-    local icon = row:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(30, 30)
-    icon:SetPoint("TOPLEFT", check, "TOPRIGHT", 8, 6)
-    if ability.icon then icon:SetTexture(ability.icon) end
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.icon:SetTexture(ability.icon)
 
-    local cog = ns.Button(row, "...", 30, 26, function()
+    row.cog._onClick = function()
         if not ability.spellID then
             ns.Print("|cffff6060this journal entry has no spell id to bind to|r")
             return
         end
         ns.ShowAbilityReminderPicker(encounterID, ability, EUI)
-    end)
-    cog:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -4)
+    end
 
-    local test = ns.Button(row, "Test", 44, 26, function()
+    row.test._onClick = function()
         if not ability.spellID then
             ns.Print("|cffff6060this journal entry has no spell id to bind to|r")
             return
         end
         ns.TestFireAbility(encounterID, ability.spellID)
-    end)
-    test:SetPoint("TOPRIGHT", cog, "TOPLEFT", -4, 0)
+    end
 
-    local remove = ns.Button(row, "X", 26, 26, function()
+    row.remove._onClick = function()
         ns.ConfirmRemoveAbility(encounterID, ability, EUI)
-    end)
-    remove:SetPoint("TOPRIGHT", test, "TOPLEFT", -4, 0)
-    remove.label:SetTextColor(1, 0.38, 0.38, 1)
-    ns.Tooltip(remove, "Remove Ability",
-        "Take this ability off the boss. Its preset and warning time go with it.")
+    end
 
     -- Role/difficulty flags straight off the journal (FLAG_LABELS, same icon set the
     -- in-game Adventure Guide shows) -- Tank/Dps/Healer first since those are the ones
@@ -2578,28 +2641,13 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
         if #rest > 0 then restTag = table.concat(rest, ", ") end
     end
 
-    local title = ns.Font(row, 13, nil, ns.THEME.fg)
-    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
-    title:SetPoint("RIGHT", remove, "LEFT", -8, 0)
-    title:SetJustifyH("LEFT")
     local binding = ability.spellID and ns.BindingForBossModKey(encounterID, ability.spellID)
     local healerTag = binding and binding.healerReminder and "  |cff6DD09A[Healer Reminder]|r" or ""
-    title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or "") .. healerTag)
+    row.title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or "") .. healerTag)
 
-    local desc = ns.Font(row, 11, nil, ns.THEME.muted)
-    desc:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -20)
-    desc:SetPoint("RIGHT", remove, "LEFT", -8, 0)
-    desc:SetHeight(ABILITY_ROW_H - 24)
-    desc:SetJustifyH("LEFT")
-    desc:SetWordWrap(true)
     local descText = ability.description or "|cff9a9ea6No description in the journal.|r"
     if restTag then descText = ("|cff9a9ea6[%s]|r  "):format(restTag) .. descText end
-    desc:SetText(descText)
-
-    local div = ns.Solid(row, "ARTWORK", ns.THEME.line, 1)
-    div:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
-    div:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
-    div:SetHeight(1)
+    row.desc:SetText(descText)
 
     return y - ABILITY_ROW_H
 end
@@ -2611,15 +2659,15 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
     local function Refresh() EUI:RefreshPage(true) end
     local function Edit(uid)
         local d = ns.ShowCustomReminderEditor(encounterID, uid, EUI, "bwmsg")
-        if d then d:HookScript("OnHide", Refresh) end
+        if d then d.onClose = Refresh end
     end
 
-    local head = ns.Font(parent, 12, nil, ns.THEME.accent)
+    local head = UI.KeepFont(parent, "bmHead", 12, nil, ns.THEME.accent)
     head:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
     head:SetText("BOSS REMINDERS")
     y = y - 20
 
-    local note = ns.Font(parent, 11, nil, ns.THEME.muted)
+    local note = UI.KeepFont(parent, "bmNote", 11, nil, ns.THEME.muted)
     note:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
     note:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
     note:SetJustifyH("LEFT")
@@ -2645,52 +2693,56 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
     end
 
     if #list == 0 then
-        local none = ns.Font(parent, 11, nil, ns.THEME.muted)
+        local none = UI.KeepFont(parent, "bmNone", 11, nil, ns.THEME.muted)
         none:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
         none:SetText("None yet for this boss.")
         y = y - 20
     else
         for i = 1, #list do
             local uid, r = list[i].uid, list[i].r
-            local row = CreateFrame("Frame", nil, parent)
+            local row = UI.Keep(parent, "bmRow", function(host)
+                local f = CreateFrame("Frame", nil, host)
+                f:SetHeight(24)
+                f.check = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+                f.check:SetSize(20, 20)
+                f.check:SetPoint("LEFT", f, "LEFT", 0, 0)
+                f.del = ns.Button(f, "Delete", 56, 22)
+                f.del:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+                f.edit = ns.Button(f, "Edit", 46, 22)
+                f.edit:SetPoint("RIGHT", f.del, "LEFT", -4, 0)
+                f.test = ns.Button(f, "Test", 44, 22)
+                f.test:SetPoint("RIGHT", f.edit, "LEFT", -4, 0)
+                f.lbl = ns.Font(f, 11, nil, ns.THEME.fg)
+                f.lbl:SetPoint("LEFT", f.check, "RIGHT", 4, 0)
+                f.lbl:SetPoint("RIGHT", f.test, "LEFT", -8, 0)
+                f.lbl:SetJustifyH("LEFT")
+                return f
+            end)
             row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
             row:SetPoint("RIGHT", parent, "RIGHT", -PADR, 0)
-            row:SetHeight(24)
 
-            local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-            check:SetSize(20, 20)
-            check:SetPoint("LEFT", row, "LEFT", 0, 0)
-            check:SetChecked(r.enabled ~= false)
-            check:SetScript("OnClick", function(self)
+            row.check:SetChecked(r.enabled ~= false)
+            row.check:SetScript("OnClick", function(self)
                 r.enabled = self:GetChecked() and true or false
                 ns.RefreshRuntime()
             end)
-
-            local del = ns.Button(row, "Delete", 56, 22, function()
+            row.del._onClick = function()
                 local writeSet = ns.CustomRemindersTable(false, encounterID)
                 if writeSet then writeSet[uid] = nil end
                 ns.RefreshRuntime()
                 Refresh()
-            end)
-            del:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-            local edit = ns.Button(row, "Edit", 46, 22, function() Edit(uid) end)
-            edit:SetPoint("RIGHT", del, "LEFT", -4, 0)
-
-            local test = ns.Button(row, "Test", 44, 22, function()
+            end
+            row.edit._onClick = function() Edit(uid) end
+            row.test._onClick = function()
                 if r.defensive then
                     ns.TestFireAbility(encounterID, r.trigger.spellID, r)
                 else
                     ns.PreviewCustomReminder(r)
                 end
-            end)
-            test:SetPoint("RIGHT", edit, "LEFT", -4, 0)
+            end
 
             local delay = r.trigger.delay
-            local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
-            lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
-            lbl:SetPoint("RIGHT", test, "LEFT", -8, 0)
-            lbl:SetJustifyH("LEFT")
-            lbl:SetText((r.name or "Reminder") .. "  |cff9a9ea6("
+            row.lbl:SetText((r.name or "Reminder") .. "  |cff9a9ea6("
                 .. ((TRIGGER_CHOICES[r.trigger.type] or r.trigger.type)
                     .. (delay and (" +" .. tostring(delay) .. "s") or ""))
                 .. ")|r")
@@ -2699,7 +2751,7 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
     end
     y = y - 6
 
-    local add = ns.Button(parent, "+ Add Reminder", 230, 26,
+    local add = UI.KeepButton(parent, "bmAdd", "+ Add Reminder", 230, 26,
         function() Edit(nil) end)
     add:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
     return y - 34
@@ -2713,7 +2765,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
 
     if not boss then
-        local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
+        local hint = UI.KeepFont(parent, "noBoss", 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
         hint:SetText("This instance has no bosses in the journal yet.")
         return y - 20
@@ -2763,7 +2815,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     -- problem, so this listing is exact by construction.
     local abilities = BigWigsAbilities(boss.encounterID, boss.abilities, inst.mapID) or boss.abilities
     if not (abilities and #abilities > 0) then
-        local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
+        local hint = UI.KeepFont(parent, "noAbilities", 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
         hint:SetText("No abilities listed in the journal for this boss.")
         return RenderBossMessageSection(parent, y - 26, EUI, boss.encounterID)
@@ -2780,12 +2832,12 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         end
     end
 
-    local addBtn = ns.Button(parent, "+ Add Ability", 130, 24, function()
+    local addBtn = UI.KeepButton(parent, "addAbility", "+ Add Ability", 130, 24, function()
         ns.ShowAbilityPicker(boss.encounterID, abilities, EUI)
     end)
     addBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
 
-    local copyBtn = ns.Button(parent, "Copy From Spec", 130, 24, function()
+    local copyBtn = UI.KeepButton(parent, "copyFromSpec", "Copy From Spec", 130, 24, function()
         -- The set travels with it so this popup's own "every boss" tick keeps to the same
         -- side of the raid/dungeon split as the boss it was opened from.
         local set, word = ns.EncounterSetForKind(inst.isRaid)
@@ -2799,7 +2851,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     y = y - 30
 
     if #added == 0 then
-        local hint = ns.Font(parent, 12, nil, ns.THEME.muted)
+        local hint = UI.KeepFont(parent, "noneAdded", 12, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
         hint:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
         hint:SetJustifyH("LEFT")
@@ -2814,7 +2866,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         local a = added[i]
         if a.stage and a.stage ~= lastStage then
             lastStage = a.stage
-            local hdr = ns.Font(parent, 11, nil, ns.THEME.muted)
+            local hdr = UI.KeepFont(parent, "stage", 11, nil, ns.THEME.muted)
             hdr:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y - 6)
             hdr:SetText(a.stage)
             y = y - 24
@@ -2838,18 +2890,18 @@ function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
     local EUI = callerEUI or ns.UI
     local dimmer, panel = ns.MakeModal(400, 190, "abilityRemoveConfirm")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText("Remove Ability")
 
-    local body = ns.Font(panel, 12, nil, ns.THEME.fg)
+    local body = UI.KeepFont(panel, "body", 12, nil, ns.THEME.fg)
     body:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -48)
     body:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
     body:SetJustifyH("LEFT")
     body:SetWordWrap(true)
     body:SetText(("Remove |cff0091ed%s|r from this boss?"):format(ability.title or "this ability"))
 
-    local warn = ns.Font(panel, 11, nil, ns.THEME.muted)
+    local warn = UI.KeepFont(panel, "warn", 11, nil, ns.THEME.muted)
     warn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -84)
     warn:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
     warn:SetJustifyH("LEFT")
@@ -2857,7 +2909,7 @@ function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
     warn:SetText("Its cooldown preset and warning time go with it. Adding it back later "
         .. "starts that ability fresh.")
 
-    local remove = ns.Button(panel, "Remove", 110, 26, function()
+    local remove = UI.KeepButton(panel, "remove", "Remove", 110, 26, function()
         -- EnsureBinding first: a binding saved under this ability's journal alias reads
         -- back fine but would survive a delete keyed on the current id. Ensuring migrates
         -- the alias onto that id, so the nil below actually removes it.
@@ -2871,7 +2923,7 @@ function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
     remove:SetPoint("BOTTOMRIGHT", panel, "BOTTOM", -6, 16)
     remove.label:SetTextColor(1, 0.38, 0.38, 1)
 
-    local cancel = ns.Button(panel, "Cancel", 110, 26, function() dimmer:Hide() end)
+    local cancel = UI.KeepButton(panel, "cancel", "Cancel", 110, 26, function() dimmer:Hide() end)
     cancel:SetPoint("BOTTOMLEFT", panel, "BOTTOM", 6, 16)
 
     dimmer:Show()
@@ -2888,7 +2940,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- the label sitting near its bottom -- no centering or colour override exists on it.
     -- Hand-built here instead: centered, Naowh's gold, and a fraction of that height, which
     -- is most of what was leaving a gap between the tab strip and the content below.
-    local pageHead = ns.Font(parent, 14, nil, ns.THEME.accent)
+    local pageHead = UI.KeepFont(parent, "pageHead", 14, nil, ns.THEME.accent)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
     pageHead:SetJustifyH("CENTER")
     pageHead:SetText(isRaid and "Raid Bosses" or "Dungeon Bosses")
@@ -2902,7 +2954,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- leave mismatched (on for a spec that no longer tanks), silently killing every callout
     -- with nothing but /nutank status to say why. It now just follows the spec's real role.
     if isRaid then
-        local note = ns.Font(parent, 11, nil, ns.THEME.accentSoft)
+        local note = UI.KeepFont(parent, "tankNote", 11, nil, ns.THEME.accentSoft)
         note:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD, y)
         note:SetPoint("RIGHT", parent, "RIGHT", -EUI.CONTENT_PAD, 0)
         note:SetJustifyH("LEFT")
@@ -2987,7 +3039,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
         and ns.OwnBindingCount(encSet) == 0 and #others > 0 then
         local total = 0
         for i = 1, #others do total = total + (others[i].total or 0) end
-        local note = ns.Font(parent, 11, nil, ns.THEME.accentSoft)
+        local note = UI.KeepFont(parent, "otherSpecsNote", 11, nil, ns.THEME.accentSoft)
         note:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD + 20, y)
         note:SetPoint("RIGHT", parent, "RIGHT", -EUI.CONTENT_PAD, 0)
         note:SetJustifyH("LEFT")
@@ -3003,26 +3055,32 @@ function ns.BuildBossListPage(parent, y, isRaid)
         -- Built directly rather than through W:Button: that helper hardcodes a 200px button
         -- and this label overran it, drawing outside its own border. The width follows the
         -- text instead, with the explanation in a caption beside it.
-        local row = CreateFrame("Frame", nil, parent)
-        row:SetHeight(34)
+        local row = UI.Keep(parent, "copyAllRow", function(host)
+            local f = CreateFrame("Frame", nil, host)
+            f:SetHeight(34)
+            f.btn = ns.Button(f, "", 220, 26)
+            f.btn:SetPoint("LEFT", f, "LEFT", 20, 0)
+            f.cap = ns.Font(f, 11, nil, ns.THEME.muted)
+            f.cap:SetPoint("LEFT", f.btn, "RIGHT", 12, 0)
+            f.cap:SetPoint("RIGHT", f, "RIGHT", -8, 0)
+            f.cap:SetJustifyH("LEFT")
+            return f
+        end)
         row:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD, y)
         row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -EUI.CONTENT_PAD, y)
 
         local label = isRaid and "Copy All Raids From a Spec" or "Copy All Dungeons From a Spec"
-        local btn = ns.Button(row, label, 220, 26, function()
+        local btn = row.btn
+        ns.SetButtonText(btn, label)
+        btn._onClick = function()
             ns.ShowCopyBindingsPopup(nil, nil, EUI, encSet, scopeWord)
-        end)
-        btn:SetPoint("LEFT", row, "LEFT", 20, 0)
+        end
         ns.Tooltip(btn, label, ("Brings another spec's abilities across for every %s at once, "
             .. "instead of repeating the per-boss copy on each in turn. %s are left to their "
             .. "own page, and anything this spec already has is left alone."):format(
             scopeWord:lower(), isRaid and "Dungeons" or "Raids"))
 
-        local cap = ns.Font(row, 11, nil, ns.THEME.muted)
-        cap:SetPoint("LEFT", btn, "RIGHT", 12, 0)
-        cap:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-        cap:SetJustifyH("LEFT")
-        cap:SetText(("Sets a new spec up in one press. %s only, nothing already here is "
+        row.cap:SetText(("Sets a new spec up in one press. %s only, nothing already here is "
             .. "replaced."):format(isRaid and "Raids" or "Dungeons"))
 
         y = y - 40
@@ -3034,31 +3092,36 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- The picker's own label, above the pool it picks from -- used to be a hint on the
     -- right that only showed up once nothing was picked yet; moved here so it reads as
     -- the list's heading instead of an empty-state message.
-    local leftHead = ns.Font(parent, 12, nil, ns.THEME.muted)
+    local leftHead = UI.KeepFont(parent, "leftHead", 12, nil, ns.THEME.muted)
     leftHead:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, topY)
     leftHead:SetJustifyH("LEFT")
     leftHead:SetText(isRaid and "Select a Raid" or "Select a Dungeon")
     local listTop = topY - 18
 
-    local leftPane = CreateFrame("Frame", nil, parent)
+    local leftPane = UI.Keep(parent, "leftPane", function(p) return CreateFrame("Frame", nil, p) end)
     leftPane:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, listTop)
     leftPane:SetSize(LEFT_W, math.max(1, #list * 26))
 
     for i = 1, #list do
         local inst = list[i]
-        local row = CreateFrame("Button", nil, leftPane)
-        row:SetSize(LEFT_W, 26)
+        local row = UI.Keep(leftPane, "instance", function(host)
+            local b = CreateFrame("Button", nil, host)
+            b:SetSize(LEFT_W, 26)
+            b.bg = b:CreateTexture(nil, "BACKGROUND")
+            b.bg:SetAllPoints()
+            b.lbl = ns.Font(b, 12, nil, ns.THEME.muted)
+            b.lbl:SetPoint("LEFT", b, "LEFT", 6, 0)
+            b.lbl:SetPoint("RIGHT", b, "RIGHT", -6, 0)
+            b.lbl:SetJustifyH("LEFT")
+            return b
+        end)
         row:SetPoint("TOPLEFT", leftPane, "TOPLEFT", 0, -(i - 1) * 26)
 
         local isSel = (sel == inst)
-        local bg = ns.Solid(row, "BACKGROUND", ns.THEME.accent, isSel and 0.16 or 0)
-        bg:SetAllPoints()
-
-        local lbl = ns.Font(row, 12, nil, isSel and ns.THEME.fg or ns.THEME.muted)
-        lbl:SetPoint("LEFT", row, "LEFT", 6, 0)
-        lbl:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-        lbl:SetJustifyH("LEFT")
-        lbl:SetText(inst.name)
+        local a, c = ns.THEME.accent, isSel and ns.THEME.fg or ns.THEME.muted
+        row.bg:SetColorTexture(a.r, a.g, a.b, isSel and 0.16 or 0)
+        row.lbl:SetTextColor(c.r, c.g, c.b, 1)
+        row.lbl:SetText(inst.name)
 
         row:SetScript("OnClick", function()
             selectedInst[key] = inst
@@ -3070,7 +3133,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
     -- above -- without it, everything anchored to this pane's own RIGHT (the ability
     -- rows' cog button in particular) sits under the scroll frame's scrollbar, both
     -- visually clipped and unclickable since the scrollbar's hit region wins the click.
-    local rightPane = CreateFrame("Frame", nil, parent)
+    local rightPane = UI.Keep(parent, "rightPane", function(p) return CreateFrame("Frame", nil, p) end)
     rightPane:SetPoint("TOPLEFT", parent, "TOPLEFT", LEFT_W + 16, topY)
     rightPane:SetPoint("RIGHT", parent, "RIGHT", -(EUI.CONTENT_PAD or 16), 0)
 
@@ -3124,7 +3187,7 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
 
     local dimmer, panel = ns.MakeModal(420, 150 + math.max(1, #specs) * 30, "copyBindings")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText(allMode
         and ("Copy Every %s From"):format(scopeWord or "Boss")
@@ -3132,14 +3195,14 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
 
     local y = -46
     if #specs == 0 then
-        local none = ns.Font(panel, 12, nil, ns.THEME.muted)
+        local none = UI.KeepFont(panel, "none", 12, nil, ns.THEME.muted)
         none:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
         none:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
         none:SetJustifyH("LEFT")
         none:SetWordWrap(true)
         none:SetText("No other spec has any abilities saved yet.")
     else
-        local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+        local hint = UI.KeepFont(panel, "hint", 11, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
         hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
         hint:SetJustifyH("LEFT")
@@ -3155,11 +3218,15 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
         -- that cannot be unticked reads as broken.
         local allBosses = allMode
         if not allMode then
-            local chk = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-            chk:SetSize(20, 20)
+            local chk = UI.Keep(panel, "allBosses", function(p)
+                local c = CreateFrame("CheckButton", nil, p, "UICheckButtonTemplate")
+                c:SetSize(20, 20)
+                return c
+            end)
+            chk:SetChecked(false)
             chk:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
             chk:SetScript("OnClick", function(self) allBosses = self:GetChecked() and true or false end)
-            local chkLbl = ns.Font(panel, 11, nil, ns.THEME.fg)
+            local chkLbl = UI.KeepFont(panel, "allBossesLabel", 11, nil, ns.THEME.fg)
             chkLbl:SetPoint("LEFT", chk, "RIGHT", 4, 0)
             -- Names the split it keeps to. "Every boss" read as everything the addon knows,
             -- which is what it used to do and what it no longer does.
@@ -3173,7 +3240,7 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
             -- The count is what tells the finished spec from one barely started, which is
             -- the whole question when copying a whole spec across.
             local label = allMode and ("%s  (%d)"):format(s.name, s.total) or s.name
-            local btn = ns.Button(panel, label, 200, 24, function()
+            local btn = UI.KeepButton(panel, "spec", label, 200, 24, function()
                 local copied, skipped, reminders = ns.CopyBindingsFromSpec(
                     s.key, (not allBosses) and encounterID or nil, encSet)
                 ns.Print(("copied |cff0091ed%d|r abilities%s from %s%s.")
@@ -3186,14 +3253,14 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
                 if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
             end)
             btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
-            local count = ns.Font(panel, 11, nil, ns.THEME.muted)
+            local count = UI.KeepFont(panel, "count", 11, nil, ns.THEME.muted)
             count:SetPoint("LEFT", btn, "RIGHT", 10, 0)
             count:SetText(("%d here, %d total"):format(s.here, s.total))
             y = y - 30
         end
     end
 
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "cancel", "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
     dimmer:Show()
 end
@@ -3203,11 +3270,11 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
     local PANEL_W = 460
     local dimmer, panel = ns.MakeModal(PANEL_W, 560, "abilityPicker")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText("Add Abilities")
 
-    local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+    local hint = UI.KeepFont(panel, "hint", 11, nil, ns.THEME.muted)
     hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -42)
     hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
     hint:SetJustifyH("LEFT")
@@ -3219,14 +3286,20 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
     -- Scrolled rather than capped: a journal boss can list well past a screenful, and this
     -- is the only place an ability can be switched on, so a row that does not fit still has
     -- to be reachable.
-    local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+    local scroll = UI.Keep(panel, "scroll", function(p)
+        local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
+        sf.content = CreateFrame("Frame", nil, sf)
+        -- Sized off the panel, not scroll:GetWidth(): the scroll frame is anchor-derived and
+        -- still reads 0 wide until a layout pass has run.
+        sf.content:SetSize(PANEL_W - 62, 1)
+        sf:SetScrollChild(sf.content)
+        return sf
+    end)
     scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -82)
     scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -40, 54)
-    local content = CreateFrame("Frame", nil, scroll)
-    -- Sized off the panel, not scroll:GetWidth(): the scroll frame is anchor-derived and
-    -- still reads 0 wide until a layout pass has run.
-    content:SetSize(PANEL_W - 62, 1)
-    scroll:SetScrollChild(content)
+    scroll:SetVerticalScroll(0)
+    local content = scroll.content
+    UI.BeginReusableRows(content)
 
     local ok, err = pcall(function()
         local y, shown = 0, 0
@@ -3234,10 +3307,25 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
             local a = abilities[i]
             if a.spellID then
                 shown = shown + 1
-                local row = CreateFrame("Frame", nil, content)
+                local row = UI.Keep(content, "row", function(parent)
+                    local r = CreateFrame("Frame", nil, parent)
+                    r:SetHeight(26)
+                    r.check = CreateFrame("CheckButton", nil, r, "UICheckButtonTemplate")
+                    r.check:SetSize(22, 22)
+                    r.check:SetPoint("LEFT", r, "LEFT", 0, 0)
+                    r.icon = r:CreateTexture(nil, "ARTWORK")
+                    r.icon:SetSize(20, 20)
+                    r.icon:SetPoint("LEFT", r.check, "RIGHT", 4, 0)
+                    r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                    r.lbl = ns.Font(r, 11, nil, ns.THEME.fg)
+                    r.lbl:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+                    r.lbl:SetPoint("RIGHT", r, "RIGHT", 0, 0)
+                    r.lbl:SetJustifyH("LEFT")
+                    r.lbl:SetWordWrap(false)
+                    return r
+                end)
                 row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
                 row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-                row:SetHeight(26)
 
                 -- Two-way: the box IS whether this boss has the ability, so unticking
                 -- drops it. Reading the box's own state rather than assuming the click
@@ -3245,9 +3333,7 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
                 -- ticked in this same session (built before it was added) live but
                 -- one-directional, so unticking it silently re-added and the ability
                 -- stayed on the boss.
-                local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-                check:SetSize(22, 22)
-                check:SetPoint("LEFT", row, "LEFT", 0, 0)
+                local check = row.check
                 check:SetChecked(ns.AbilityAdded(encounterID, a.spellID))
                 check:SetScript("OnClick", function(self)
                     if self:GetChecked() then
@@ -3259,11 +3345,7 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
                     if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
                 end)
 
-                local icon = row:CreateTexture(nil, "ARTWORK")
-                icon:SetSize(20, 20)
-                icon:SetPoint("LEFT", check, "RIGHT", 4, 0)
-                if a.icon then icon:SetTexture(a.icon) end
-                icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                row.icon:SetTexture(a.icon)
 
                 local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[a.spellID]
                 -- Same role colouring the already-added rows below use, off the same
@@ -3281,12 +3363,7 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
                     end
                     if #roles > 0 then roleTag = table.concat(roles, " ") end
                 end
-                local lbl = ns.Font(row, 11, nil, ns.THEME.fg)
-                lbl:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-                lbl:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-                lbl:SetJustifyH("LEFT")
-                lbl:SetWordWrap(false)
-                lbl:SetText((a.title or ("Spell " .. a.spellID))
+                row.lbl:SetText((a.title or ("Spell " .. a.spellID))
                     .. (roleTag and ("  " .. roleTag) or "")
                     .. (curated and "  |cff0091ed[tank hit]|r" or ""))
 
@@ -3294,14 +3371,14 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
             end
         end
         if shown == 0 then
-            local none = ns.Font(content, 11, nil, ns.THEME.muted)
+            local none = UI.KeepFont(content, "none", 11, nil, ns.THEME.muted)
             none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
             none:SetText("Nothing in the journal for this boss carries a spell id.")
         end
         content:SetHeight(math.max(1, math.abs(y)))
     end)
     if not ok then
-        local errText = ns.Font(content, 11, nil, { r = 1, g = 0.35, b = 0.35 })
+        local errText = UI.KeepFont(content, "error", 11, nil, { r = 1, g = 0.35, b = 0.35 })
         errText:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
         errText:SetPoint("RIGHT", content, "RIGHT", 0, 0)
         errText:SetJustifyH("LEFT")
@@ -3310,7 +3387,7 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
         ns.Print("|cffff6060ability add picker|r: " .. tostring(err))
     end
 
-    ns.Button(panel, "Close", 100, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "close", "Close", 100, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
     dimmer:Show()
     return dimmer
@@ -3388,7 +3465,7 @@ local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChang
                         name = (info and info.name) or nil }
                 end
                 local d = ns.ShowRaidReminderEditor(encounterID, nil, EUI, isRaid, nil, seed)
-                if d then d:HookScript("OnHide", onChanged) end
+                if d then d.onClose = onChanged end
             end)
             chip:SetPoint("LEFT", anchor, "RIGHT", 6, 0)
             local spread = (slot.hi and slot.lo) and (slot.hi - slot.lo) or 0
@@ -3413,18 +3490,18 @@ end
 -- anchors button and both Add buttons -- shared verbatim by the cog picker modal and
 -- the Custom Reminders tab, so the two surfaces cannot drift. Renders into `content`
 -- starting at startY (negative running offset) and returns the final y. opts.onChanged
--- runs after any edit/delete/add closes, and nested editors hook it onto their OnHide.
+-- runs after any edit/delete/add closes, set as each nested editor's onClose.
 function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts)
     local EUI = (opts and opts.EUI) or ns.UI
     local onChanged = (opts and opts.onChanged) or function() end
 
     local function EditRaidReminder(uid)
         local nestedDimmer = ns.ShowRaidReminderEditor(encounterID, uid, EUI, isRaid)
-        if nestedDimmer then nestedDimmer:HookScript("OnHide", onChanged) end
+        if nestedDimmer then nestedDimmer.onClose = onChanged end
     end
     local function EditCustomReminder(uid)
         local nestedDimmer = ns.ShowCustomReminderEditor(encounterID, uid, EUI)
-        if nestedDimmer then nestedDimmer:HookScript("OnHide", onChanged) end
+        if nestedDimmer then nestedDimmer.onClose = onChanged end
     end
 
     -- The boss-less bucket the Custom Reminders tab's "Any Combat" entry writes to. Only
@@ -3714,7 +3791,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     -- kind dropdown, and none of these tab bodies scroll.
     local dimmer, panel = ns.MakeModal(480, 860, "raidReminderEditor")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText((uid and "Edit " or "New ")
         .. (abilitySpellID and "Ability Reminder" or (kind .. " Reminder")))
@@ -3731,6 +3808,16 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local display = (existing and existing.display) or { type = "text" }
 
     local PAD = 20
+
+    -- The editor keeps what it builds (UI.Keep). A kept box can still carry the text
+    -- handler another field gave it, and SetText would fire that handler into the wrong
+    -- field's value, so every box sheds its handlers before it is filled in.
+    local function KeptBox(parent)
+        local box = UI.Keep(parent, "box", ns.NewEditBox)
+        box:SetScript("OnTextChanged", nil)
+        box:SetScript("OnEnterPressed", nil)
+        return box
+    end
 
     -- Wrapped, matching ShowAbilityReminderPicker's own RebuildBody: a blank panel with
     -- no error anywhere on screen is a failure mode this codebase has already shipped
@@ -3756,7 +3843,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local TAB_TOP = -40
     local BODY_TOP = TAB_TOP - 30
 
-    local tabBar = CreateFrame("Frame", nil, panel)
+    local tabBar = UI.Keep(panel, "tabBar", function(p) return CreateFrame("Frame", nil, p) end)
     tabBar:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
     -- A single-corner anchor with no width ever set left tabBar's own geometry (and
     -- everything anchored off its LEFT/RIGHT points transitively -- every tab button)
@@ -3766,7 +3853,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     tabBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP)
     tabBar:SetHeight(24)
 
-    local tabDivider = ns.Solid(panel, "ARTWORK", ns.THEME.line, 1)
+    local tabDivider = UI.Keep(panel, "tabDivider", function(p) return ns.Solid(p, "ARTWORK", ns.THEME.line, 1) end)
     tabDivider:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, BODY_TOP + 6)
     tabDivider:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, BODY_TOP + 6)
     tabDivider:SetHeight(1)
@@ -3784,24 +3871,25 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     end
 
     local function AddTab(id, text, anchorTo)
-        local btn = CreateFrame("Button", nil, tabBar)
-        btn:SetHeight(24)
-        local lbl = ns.Font(btn, 12, nil, ns.THEME.muted)
-        lbl:SetText(text)
-        btn:SetSize(lbl:GetStringWidth() + 4, 24)
-        lbl:SetPoint("CENTER")
+        local btn = UI.Keep(tabBar, "tab", function(parent)
+            local b = CreateFrame("Button", nil, parent)
+            b.label = ns.Font(b, 12, nil, ns.THEME.muted)
+            b.label:SetPoint("CENTER")
+            b.marker = ns.Solid(b, "OVERLAY", ns.THEME.accent, 1)
+            b.marker:SetPoint("BOTTOMLEFT", 0, -3)
+            b.marker:SetPoint("BOTTOMRIGHT", 0, -3)
+            b.marker:SetHeight(2)
+            return b
+        end)
+        btn.label:SetText(text)
+        btn:SetSize(btn.label:GetStringWidth() + 4, 24)
         if anchorTo then btn:SetPoint("LEFT", anchorTo, "RIGHT", 18, 0)
         else btn:SetPoint("LEFT", tabBar, "LEFT", 0, 0) end
-        local marker = ns.Solid(btn, "OVERLAY", ns.THEME.accent, 1)
-        marker:SetPoint("BOTTOMLEFT", 0, -3)
-        marker:SetPoint("BOTTOMRIGHT", 0, -3)
-        marker:SetHeight(2)
-        marker:Hide()
+        btn.marker:Hide()
         btn:SetScript("OnClick", function() SelectTab(id) end)
-        btn.label, btn.marker = lbl, marker
         tabButtons[id] = btn
 
-        local body = CreateFrame("Frame", nil, panel)
+        local body = UI.Keep(panel, "tabBody", function(p) return CreateFrame("Frame", nil, p) end)
         body:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, BODY_TOP)
         body:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, BODY_TOP)
         body:SetHeight(-BODY_TOP - 60)
@@ -3817,11 +3905,11 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     -------------------------------------------------------------------------
     local ty = 0
     local function TLabel(text, tooltip)
-        local l = ns.Font(triggerBody, 11, nil, ns.THEME.muted)
+        local l = UI.KeepFont(triggerBody, "label", 11, nil, ns.THEME.muted)
         l:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, ty)
         l:SetText(text)
         if tooltip then
-            local hit = CreateFrame("Frame", nil, triggerBody)
+            local hit = UI.Keep(triggerBody, "labelHit", function(p) return CreateFrame("Frame", nil, p) end)
             hit:SetPoint("TOPLEFT", l, "TOPLEFT", -4, 4)
             hit:SetPoint("BOTTOMRIGHT", l, "BOTTOMRIGHT", 4, -4)
             HoverTip(hit, tooltip)
@@ -3829,17 +3917,12 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         ty = ty - 16
     end
     local function TBox(maxLetters, numeric, rightInset)
-        local box = CreateFrame("EditBox", nil, triggerBody)
+        local box = KeptBox(triggerBody)
         box:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, ty)
         box:SetPoint("RIGHT", triggerBody, "RIGHT", -(rightInset or PAD), 0)
         box:SetHeight(26)
-        box:SetAutoFocus(false)
         box:SetMaxLetters(maxLetters or 60)
-        if numeric then box:SetNumeric(true) end
-        box:SetFontObject("GameFontHighlight")
-        box:SetTextInsets(6, 6, 0, 0)
-        ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-        ns.Border(box)
+        box:SetNumeric(numeric == true)
         ty = ty - 32
         return box
     end
@@ -3862,28 +3945,32 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local MECHANIC_ROWS = 6
     local pickerRows = {}
     for i = 1, MECHANIC_ROWS do
-        local row = CreateFrame("Button", nil, triggerBody)
-        row:SetHeight(22)
+        local row = UI.Keep(triggerBody, "mechanicRow", function(parent)
+            local r = CreateFrame("Button", nil, parent)
+            r:SetHeight(22)
+            r.hl = ns.Solid(r, "BACKGROUND", ns.THEME.accent, 0.14)
+            r.hl:SetAllPoints()
+            r:SetScript("OnEnter", function(s) s.hl:Show() end)
+            r:SetScript("OnLeave", function(s) s.hl:Hide() end)
+            r.icon = r:CreateTexture(nil, "ARTWORK")
+            r.icon:SetSize(16, 16)
+            r.icon:SetPoint("LEFT", 2, 0)
+            r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            r.name = ns.Font(r, 11, nil, ns.THEME.fg)
+            r.name:SetPoint("LEFT", 22, 0)
+            r.name:SetPoint("RIGHT", -34, 0)
+            r.name:SetJustifyH("LEFT")
+            r.tag = ns.Font(r, 9, nil, ns.THEME.muted)
+            r.tag:SetPoint("RIGHT", -2, 0)
+            return r
+        end)
         row:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, 0)
         row:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
-        row.hl = ns.Solid(row, "BACKGROUND", ns.THEME.accent, 0.14)
-        row.hl:SetAllPoints()
         row.hl:Hide()
-        row:SetScript("OnEnter", function(s) s.hl:Show() end)
-        row:SetScript("OnLeave", function(s) s.hl:Hide() end)
-        row.icon = row:CreateTexture(nil, "ARTWORK")
-        row.icon:SetSize(16, 16)
-        row.icon:SetPoint("LEFT", 2, 0)
-        row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        row.name = ns.Font(row, 11, nil, ns.THEME.fg)
-        row.name:SetPoint("LEFT", 22, 0)
-        row.name:SetPoint("RIGHT", -34, 0)
-        row.name:SetJustifyH("LEFT")
-        row.tag = ns.Font(row, 9, nil, ns.THEME.muted)
-        row.tag:SetPoint("RIGHT", -2, 0)
+        row:Hide()
         pickerRows[i] = row
     end
-    local pickerHint = ns.Font(triggerBody, 10, nil, ns.THEME.muted)
+    local pickerHint = UI.KeepFont(triggerBody, "pickerHint", 10, nil, ns.THEME.muted)
     pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, ty)
     pickerHint:SetPoint("RIGHT", triggerBody, "RIGHT", -PAD, 0)
     pickerHint:SetJustifyH("LEFT")
@@ -3961,8 +4048,11 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         return shown * PICKER_ROW_H + 4
     end
 
-    local dynFrame, spellBox, leadTimeBox, pullDelayBox
-    local triggerTypeRow
+    -- Rebuilt on every trigger change within one open, so each is kept for the dialog and
+    -- reset at the top of its rebuild rather than made again.
+    local typeHost = UI.Keep(triggerBody, "typeHost", function(p) return CreateFrame("Frame", nil, p) end)
+    local dynFrame = UI.Keep(triggerBody, "dynFrame", function(p) return CreateFrame("Frame", nil, p) end)
+    local spellBox, leadTimeBox, pullDelayBox
 
     -- Target: who sees this -- AND across categories (role/class/spec/name/subgroup),
     -- OR within one, matching ns.RaidReminderTargetsMe exactly (see its own comment).
@@ -3989,7 +4079,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         table.sort(list)
         targetNameText = table.concat(list, ", ")
     end
-    local targetSection
+    local targetSection = UI.Keep(triggerBody, "targetSection", function(p) return CreateFrame("Frame", nil, p) end)
     local RebuildTargetSection
 
     RebuildTriggerFields = function()
@@ -4008,15 +4098,16 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         else
             ty = PICKER_TOP - RebuildPicker()
         end
-        -- Every call rebuilds this row from scratch (picking a mechanic off the
-        -- picker, or switching Message/Timer itself, both call RebuildTriggerFields
-        -- again) -- the previous one has to be hidden first or picking two different
-        -- mechanics in a row stacks a second "Trigger Type" dropdown exactly on top
-        -- of the first, both drawing their own label text into the same spot.
-        if triggerTypeRow then triggerTypeRow:Hide() end
+        -- Every call lays this row out again (picking a mechanic off the picker, or
+        -- switching Message/Timer itself, both call RebuildTriggerFields again), on a host
+        -- that hands back the same row each time rather than stacking a second one.
+        UI.BeginReusableRows(typeHost)
+        typeHost:ClearAllPoints()
+        typeHost:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", 0, ty)
+        typeHost:SetPoint("RIGHT", triggerBody, "RIGHT", 0, 0)
+        typeHost:SetHeight(1)
 
-        local typeRowH
-        triggerTypeRow, typeRowH = W:DualRow(triggerBody, ty,
+        local _, typeRowH = W:DualRow(typeHost, 0,
             { type = "dropdown", text = "Trigger Type",
               values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer",
                   pull = "Time After Pull", aura = "Gain/Lose a Buff or Debuff",
@@ -4035,29 +4126,24 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         )
         ty = ty - typeRowH
 
-        if dynFrame then dynFrame:Hide() end
-        dynFrame = CreateFrame("Frame", nil, triggerBody)
+        UI.BeginReusableRows(dynFrame)
+        dynFrame:ClearAllPoints()
         dynFrame:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", 0, ty)
         dynFrame:SetSize(440, 120)
         local dy = 0
         local function DLabel(text)
-            local l = ns.Font(dynFrame, 11, nil, ns.THEME.muted)
+            local l = UI.KeepFont(dynFrame, "label", 11, nil, ns.THEME.muted)
             l:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy)
             l:SetText(text)
             dy = dy - 16
         end
         local function DBox(maxLetters, numeric, rightInset)
-            local box = CreateFrame("EditBox", nil, dynFrame)
+            local box = KeptBox(dynFrame)
             box:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy)
             box:SetPoint("RIGHT", dynFrame, "RIGHT", -(rightInset or PAD), 0)
             box:SetHeight(26)
-            box:SetAutoFocus(false)
             box:SetMaxLetters(maxLetters or 60)
-            if numeric then box:SetNumeric(true) end
-            box:SetFontObject("GameFontHighlight")
-            box:SetTextInsets(6, 6, 0, 0)
-            ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-            ns.Border(box)
+            box:SetNumeric(numeric == true)
             dy = dy - 32
             return box
         end
@@ -4102,9 +4188,9 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             DLabel("Spell ID")
             spellBox = DBox(9, true, 80)
             spellBox:SetText(spellIDText)
-            local okBtn = ns.Button(dynFrame, "OK", 54, 26, function() spellBox:ClearFocus() end)
+            local okBtn = UI.KeepButton(dynFrame, "ok", "OK", 54, 26, function() spellBox:ClearFocus() end)
             okBtn:SetPoint("LEFT", spellBox, "RIGHT", 6, 0)
-            local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
+            local feedback = UI.KeepFont(dynFrame, "feedback", 10, nil, ns.THEME.muted)
             feedback:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy + 6)
             feedback:SetPoint("RIGHT", dynFrame, "RIGHT", -PAD, 0)
             feedback:SetJustifyH("LEFT")
@@ -4142,9 +4228,9 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             DLabel("Spell ID")
             spellBox = DBox(9, true, 80)
             spellBox:SetText(spellIDText)
-            local okBtn = ns.Button(dynFrame, "OK", 54, 26, function() spellBox:ClearFocus() end)
+            local okBtn = UI.KeepButton(dynFrame, "ok", "OK", 54, 26, function() spellBox:ClearFocus() end)
             okBtn:SetPoint("LEFT", spellBox, "RIGHT", 6, 0)
-            local feedback = ns.Font(dynFrame, 10, nil, ns.THEME.muted)
+            local feedback = UI.KeepFont(dynFrame, "feedback", 10, nil, ns.THEME.muted)
             feedback:SetPoint("TOPLEFT", dynFrame, "TOPLEFT", PAD, dy + 6)
             feedback:SetPoint("RIGHT", dynFrame, "RIGHT", -PAD, 0)
             feedback:SetJustifyH("LEFT")
@@ -4183,25 +4269,28 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     end
 
     RebuildTargetSection = function()
-        if targetSection then targetSection:Hide() end
-        targetSection = CreateFrame("Frame", nil, triggerBody)
+        UI.BeginReusableRows(targetSection)
+        targetSection:ClearAllPoints()
         targetSection:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", 0, ty - 10)
         targetSection:SetPoint("RIGHT", triggerBody, "RIGHT", 0, 0)
 
         local tgy = 0
         local function TargetLabel(text)
-            local l = ns.Font(targetSection, 11, nil, ns.THEME.muted)
+            local l = UI.KeepFont(targetSection, "label", 11, nil, ns.THEME.muted)
             l:SetPoint("TOPLEFT", targetSection, "TOPLEFT", PAD, tgy)
             l:SetText(text)
             tgy = tgy - 16
         end
         TargetLabel("Target")
 
-        local allCheck = CreateFrame("CheckButton", nil, targetSection, "UICheckButtonTemplate")
-        allCheck:SetSize(20, 20)
+        local allCheck = UI.Keep(targetSection, "allCheck", function(parent)
+            local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+            c:SetSize(20, 20)
+            return c
+        end)
         allCheck:SetPoint("TOPLEFT", targetSection, "TOPLEFT", PAD, tgy)
         allCheck:SetChecked(targetAllVal)
-        local allLbl = ns.Font(targetSection, 11, nil, ns.THEME.fg)
+        local allLbl = UI.KeepFont(targetSection, "allLabel", 11, nil, ns.THEME.fg)
         allLbl:SetPoint("LEFT", allCheck, "RIGHT", 4, 0)
         allLbl:SetText("Everyone")
         tgy = tgy - 28
@@ -4209,13 +4298,13 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         -- Greyed out (not just ignored) while Everyone is checked -- an irrelevant
         -- control should read as irrelevant, same reasoning the boss cast-bar's own
         -- AddCastBlock gating uses elsewhere in this addon suite.
-        local restFrame = CreateFrame("Frame", nil, targetSection)
+        local restFrame = UI.Keep(targetSection, "rest", function(p) return CreateFrame("Frame", nil, p) end)
         restFrame:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 0, tgy)
         restFrame:SetPoint("RIGHT", targetSection, "RIGHT", 0, 0)
 
         local ry = 0
         local function RestLabel(text)
-            local l = ns.Font(restFrame, 11, nil, ns.THEME.muted)
+            local l = UI.KeepFont(restFrame, "label", 11, nil, ns.THEME.muted)
             l:SetPoint("TOPLEFT", restFrame, "TOPLEFT", PAD, ry)
             l:SetText(text)
             ry = ry - 16
@@ -4229,14 +4318,17 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
                 local key, label = items[i][1], items[i][2]
                 local col = (i - 1) % perRow
                 local row = math.floor((i - 1) / perRow)
-                local check = CreateFrame("CheckButton", nil, restFrame, "UICheckButtonTemplate")
-                check:SetSize(18, 18)
+                local check = UI.Keep(restFrame, "check", function(parent)
+                    local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+                    c:SetSize(18, 18)
+                    return c
+                end)
                 check:SetPoint("TOPLEFT", restFrame, "TOPLEFT", PAD + col * itemW, ry - row * 22)
                 check:SetChecked(set[key])
                 check:SetScript("OnClick", function(self)
                     if self:GetChecked() then set[key] = true else set[key] = nil end
                 end)
-                local lbl = ns.Font(restFrame, 10, nil, ns.THEME.fg)
+                local lbl = UI.KeepFont(restFrame, "checkLabel", 10, nil, ns.THEME.fg)
                 lbl:SetPoint("LEFT", check, "RIGHT", 2, 0)
                 lbl:SetWordWrap(false)
                 lbl:SetText(label)
@@ -4280,16 +4372,11 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
 
         local function RestBox(labelText, existingText, onChange)
             RestLabel(labelText)
-            local box = CreateFrame("EditBox", nil, restFrame)
+            local box = KeptBox(restFrame)
             box:SetPoint("TOPLEFT", restFrame, "TOPLEFT", PAD, ry)
             box:SetPoint("RIGHT", restFrame, "RIGHT", -PAD, 0)
             box:SetHeight(26)
-            box:SetAutoFocus(false)
             box:SetMaxLetters(200)
-            box:SetFontObject("GameFontHighlight")
-            box:SetTextInsets(6, 6, 0, 0)
-            ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-            ns.Border(box)
             box:SetText(existingText)
             box:SetScript("OnTextChanged", function() onChange(box:GetText() or "") end)
             ry = ry - 32
@@ -4315,23 +4402,18 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     -------------------------------------------------------------------------
     local dsy = 0
     local function DsLabel(text)
-        local l = ns.Font(displayBody, 11, nil, ns.THEME.muted)
+        local l = UI.KeepFont(displayBody, "label", 11, nil, ns.THEME.muted)
         l:SetPoint("TOPLEFT", displayBody, "TOPLEFT", PAD, dsy)
         l:SetText(text)
         dsy = dsy - 16
     end
     local function DsBox(maxLetters, numeric, rightInset)
-        local box = CreateFrame("EditBox", nil, displayBody)
+        local box = KeptBox(displayBody)
         box:SetPoint("TOPLEFT", displayBody, "TOPLEFT", PAD, dsy)
         box:SetPoint("RIGHT", displayBody, "RIGHT", -(rightInset or PAD), 0)
         box:SetHeight(26)
-        box:SetAutoFocus(false)
         box:SetMaxLetters(maxLetters or 60)
-        if numeric then box:SetNumeric(true) end
-        box:SetFontObject("GameFontHighlight")
-        box:SetTextInsets(6, 6, 0, 0)
-        ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-        ns.Border(box)
+        box:SetNumeric(numeric == true)
         dsy = dsy - 32
         return box
     end
@@ -4359,11 +4441,14 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
 
     DsLabel("Icon Spell ID (used for Icon display; optional otherwise)")
     local iconBox = DsBox(9, true, PAD + 34)
-    local iconPreview = displayBody:CreateTexture(nil, "ARTWORK")
-    iconPreview:SetSize(24, 24)
+    local iconPreview = UI.Keep(displayBody, "iconPreview", function(parent)
+        local t = parent:CreateTexture(nil, "ARTWORK")
+        t:SetSize(24, 24)
+        return t
+    end)
     iconPreview:SetPoint("LEFT", iconBox, "RIGHT", 6, 0)
     iconPreview:Hide()
-    local iconFeedback = ns.Font(displayBody, 10, nil, ns.THEME.muted)
+    local iconFeedback = UI.KeepFont(displayBody, "iconFeedback", 10, nil, ns.THEME.muted)
     iconFeedback:SetPoint("TOPLEFT", displayBody, "TOPLEFT", PAD, dsy)
     iconFeedback:SetPoint("RIGHT", displayBody, "RIGHT", -PAD, 0)
     iconFeedback:SetJustifyH("LEFT")
@@ -4429,7 +4514,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     -- own timer, same as before this existed.
     DsLabel("Hide Once I Cast (Spell ID, optional)")
     local hideCastBox = DsBox(9, true, PAD + 34)
-    local hideCastFeedback = ns.Font(displayBody, 10, nil, ns.THEME.muted)
+    local hideCastFeedback = UI.KeepFont(displayBody, "hideCastFeedback", 10, nil, ns.THEME.muted)
     hideCastFeedback:SetPoint("TOPLEFT", displayBody, "TOPLEFT", PAD, dsy)
     hideCastFeedback:SetPoint("RIGHT", displayBody, "RIGHT", -PAD, 0)
     hideCastFeedback:SetJustifyH("LEFT")
@@ -4545,7 +4630,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end
 
-    ns.Button(panel, "Preview", 90, 26, function()
+    UI.KeepButton(panel, "preview", "Preview", 90, 26, function()
         -- Bypasses ns.RaidReminderTargetsMe entirely, same as ShowCustomReminderEditor's
         -- own Preview button bypasses trigger matching -- a curator previewing sees it
         -- regardless of whether they personally match the target they just chose.
@@ -4556,15 +4641,15 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             ns.Print("|cffff6060" .. (buildErr or "could not preview this reminder") .. "|r")
         end
     end):SetPoint("BOTTOM", panel, "BOTTOM", -110, 16)
-    ns.Button(panel, "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "save", "Save", 90, 26, Save):SetPoint("BOTTOM", panel, "BOTTOM", -10, 16)
+    UI.KeepButton(panel, "cancel", "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 90, 16)
 
     end)
     if not ok then
         -- Fixed offset, not TAB_TOP -- that local only exists inside the pcall'd
         -- closure above, out of scope here precisely because it failed to run.
-        local errText = ns.Font(panel, 11, nil, { r = 1, g = 0.35, b = 0.35 })
+        local errText = UI.KeepFont(panel, "error", 11, nil, { r = 1, g = 0.35, b = 0.35 })
         errText:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, -70)
         errText:SetPoint("RIGHT", panel, "RIGHT", -PAD, 0)
         errText:SetJustifyH("LEFT")
@@ -4574,8 +4659,8 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     end
 
     dimmer:Show()
-    -- Returned so a caller (ns.ShowBossReminderPicker) can hook OnHide and refresh its
-    -- own list once this editor closes -- ignored by every other existing call site.
+    -- Returned so a caller can set dimmer.onClose and refresh its own list once this
+    -- editor closes -- ignored by every other existing call site.
     return dimmer, panel
 end
 

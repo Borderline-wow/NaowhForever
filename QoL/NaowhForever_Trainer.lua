@@ -20,6 +20,7 @@ local manual = false        -- the open window came from a manual check, which a
 local atTrainer, showQueued, showGen = false, false, 0
 local popup
 local glowing = {}
+local WatchGlow
 
 local function On()
     return S.Get("enabled") and S.Get("trainerPopup")
@@ -33,11 +34,12 @@ end
 
 -- spellID -> true for abilities still waiting to be used; kept per character so a reload
 -- does not drop the glow.
+local charKey
 local function NewSpells()
     local all = Account("trainerNew")
-    local key = UnitName("player") .. "-" .. GetRealmName()
-    all[key] = all[key] or {}
-    return all[key]
+    charKey = charKey or UnitName("player") .. "-" .. GetRealmName()
+    all[charKey] = all[charKey] or {}
+    return all[charKey]
 end
 
 -- Spell names whose lower ranks stay on the bars, for deliberate downranking.
@@ -142,6 +144,7 @@ local function RefreshGlow()
             glowing[btn] = nil
         end
     end
+    WatchGlow()
 end
 
 -- Paging and slot events arrive before the buttons pick up their new action, so the
@@ -398,6 +401,7 @@ local function Learned(spellID)
     learned[#learned + 1] = spellID
     if S.Get("trainerGlow") then
         NewSpells()[spellID] = true
+        WatchGlow()
         QueueGlow()
     end
     -- Away from a trainer (a tome, a quest reward) the window follows a moment after the
@@ -421,6 +425,23 @@ local function Used(spellID)
 end
 
 local events = CreateFrame("Frame")
+
+local GLOW_EVENTS = { "ACTIONBAR_SLOT_CHANGED", "ACTIONBAR_PAGE_CHANGED", "UPDATE_BONUS_ACTIONBAR",
+    "PLAYER_ENTERING_WORLD" }
+
+-- Casts and bar changes only matter while a new ability is waiting to be used or still lit,
+-- so they are heard only then.
+function WatchGlow()
+    local watch = On() and S.Get("trainerGlow") and (next(NewSpells()) ~= nil or next(glowing) ~= nil)
+    if watch then
+        events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+        for _, event in ipairs(GLOW_EVENTS) do events:RegisterEvent(event) end
+    else
+        events:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+        for _, event in ipairs(GLOW_EVENTS) do events:UnregisterEvent(event) end
+    end
+end
+
 events:SetScript("OnEvent", function(_, event, arg1, _, arg3)
     if event == "LEARNED_SPELL_IN_SKILL_LINE" then
         Learned(arg1)
@@ -457,13 +478,7 @@ local function Apply()
     events:RegisterEvent("TRAINER_CLOSED")
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
-    if S.Get("trainerGlow") then
-        events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
-        events:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
-        events:RegisterEvent("ACTIONBAR_PAGE_CHANGED")
-        events:RegisterEvent("UPDATE_BONUS_ACTIONBAR")
-        events:RegisterEvent("PLAYER_ENTERING_WORLD")
-    end
+    WatchGlow()
     QueueGlow()
 end
 

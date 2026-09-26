@@ -436,73 +436,89 @@ local function OpenPicker(anchor, slot)
     container:ContinueOnLoad(Open)
 end
 
-local function SlotRow(parent, x, y, width, slot, label, lit)
+local function NewSlotRow(parent)
     local row = CreateFrame("Button", nil, parent)
-    row:SetSize(width, ROW_H)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-    local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
-    band:SetAllPoints()
-    band:SetShown(lit)
+    row.band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
+    row.band:SetAllPoints()
     local hover = ns.Solid(row, "BORDER", T.accent, 0.08)
     hover:SetAllPoints()
     hover:Hide()
-
-    local name = ns.Font(row, 12, nil, T.muted)
-    name:SetPoint("LEFT", 14, 0)
-    name:SetText(ns.L(label))
-
-    local id = List().slots[slot]
-    local function Pick() OpenPicker(row, slot) end
-    row:SetScript("OnClick", Pick)
+    row:SetScript("OnClick", function(self) OpenPicker(self, self.slot) end)
     row:SetScript("OnEnter", function(self)
         hover:Show()
-        if id then ItemTooltip(self, id) end
+        if self.id then ItemTooltip(self, self.id) end
     end)
     row:SetScript("OnLeave", function()
         hover:Hide()
         GameTooltip:Hide()
     end)
 
-    if not id then
-        ns.Button(row, "Pick it", 90, 24, Pick):SetPoint("LEFT", 96, 0)
-        return
-    end
+    row.name = ns.Font(row, 12, nil, T.muted)
+    row.name:SetPoint("LEFT", 14, 0)
 
-    local icon = row:CreateTexture(nil, "ARTWORK")
+    row.pick = ns.Button(row, "Pick it", 90, 24, function() OpenPicker(row, row.slot) end)
+    row.pick:SetPoint("LEFT", 96, 0)
+
+    -- Everything shown only for a filled slot.
+    local filled = CreateFrame("Frame", nil, row)
+    filled:SetAllPoints()
+    row.filled = filled
+
+    local icon = filled:CreateTexture(nil, "ARTWORK")
     icon:SetSize(ICON, ICON)
-    icon:SetPoint("LEFT", 96, 0)
+    icon:SetPoint("LEFT", row, "LEFT", 96, 0)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    icon:SetTexture(C_Item.GetItemIconByID(id))
+    row.icon = icon
 
-    local item = ns.Font(row, 13, nil)
-    item:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -1)
-    item:SetPoint("RIGHT", row, "RIGHT", -56, 0)
-    item:SetJustifyH("LEFT")
-    item:SetWordWrap(false)
-    local source = ns.Font(row, 11, nil, T.muted)
-    source:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 10, 1)
-    source:SetPoint("RIGHT", row, "RIGHT", -56, 0)
-    source:SetJustifyH("LEFT")
-    source:SetWordWrap(false)
-    source:SetText(ns.BiSData.sources[id] or "")
-    Item:CreateFromItemID(id):ContinueOnItemLoad(function()
-        item:SetText(QualityHex(id) .. Name(id) .. "|r")
-    end)
+    row.item = ns.Font(filled, 13, nil)
+    row.item:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -1)
+    row.item:SetPoint("RIGHT", row, "RIGHT", -56, 0)
+    row.item:SetJustifyH("LEFT")
+    row.item:SetWordWrap(false)
+    row.source = ns.Font(filled, 11, nil, T.muted)
+    row.source:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 10, 1)
+    row.source:SetPoint("RIGHT", row, "RIGHT", -56, 0)
+    row.source:SetJustifyH("LEFT")
+    row.source:SetWordWrap(false)
 
-    local remove = CreateFrame("Button", nil, row)
+    local remove = CreateFrame("Button", nil, filled)
     remove:SetSize(18, 18)
-    remove:SetPoint("RIGHT", -12, 0)
+    remove:SetPoint("RIGHT", row, "RIGHT", -12, 0)
     remove:SetNormalTexture(NOT_READY)
-    remove:SetScript("OnClick", function() ClearSlot(slot) end)
+    remove:SetScript("OnClick", function() ClearSlot(row.slot) end)
     remove:SetScript("OnEnter", function(self)
         ns.UI.ShowWidgetTooltip(self, "Clear this slot", { anchor = "cursor" })
     end)
     remove:SetScript("OnLeave", function() ns.UI.HideWidgetTooltip() end)
 
-    local worn = row:CreateTexture(nil, "ARTWORK")
-    worn:SetSize(18, 18)
-    worn:SetPoint("RIGHT", remove, "LEFT", -6, 0)
-    worn:SetTexture(READY)
+    row.worn = filled:CreateTexture(nil, "ARTWORK")
+    row.worn:SetSize(18, 18)
+    row.worn:SetPoint("RIGHT", remove, "LEFT", -6, 0)
+    row.worn:SetTexture(READY)
+    return row
+end
+
+local function SlotRow(parent, x, y, width, slot, label, lit)
+    local row = ns.UI.Keep(parent, "slot", NewSlotRow)
+    row:SetSize(width, ROW_H)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+    row.band:SetShown(lit)
+    row.name:SetText(ns.L(label))
+
+    local id = List().slots[slot]
+    row.slot, row.id = slot, id
+    row.pick:SetShown(not id)
+    row.filled:SetShown(id ~= nil)
+    if not id then return end
+
+    row.icon:SetTexture(C_Item.GetItemIconByID(id))
+    row.source:SetText(ns.BiSData.sources[id] or "")
+    row.item:SetText("")
+    Item:CreateFromItemID(id):ContinueOnItemLoad(function()
+        if row.id == id then row.item:SetText(QualityHex(id) .. Name(id) .. "|r") end
+    end)
+
+    local worn = row.worn
     worn.slot, worn.itemID = slot, id
     worn:SetShown(Wearing(slot, id))
     wornMarks[#wornMarks + 1] = worn

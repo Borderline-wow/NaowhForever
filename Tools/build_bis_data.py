@@ -22,7 +22,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "NaowhForever_BiSData.lua"
+OUT = ROOT / "BiS" / "NaowhForever_BiSData.lua"
 CACHE = Path(__file__).resolve().parent / "bis_item_ids.json"
 
 CLASSES = ["druid", "hunter", "mage", "paladin", "priest", "rogue", "shaman", "warlock", "warrior"]

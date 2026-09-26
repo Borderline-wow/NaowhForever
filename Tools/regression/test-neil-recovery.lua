@@ -1,6 +1,8 @@
 local root = arg[1] or "."
 local function Read(suffix)
-    local f = assert(io.open(root .. "/NaowhForever" .. (suffix == "" and "_SmartReminders" or suffix) .. ".lua", "rb"))
+    local name = suffix == "" and "_SmartReminders" or suffix
+    local dir = (name == "_Core" or name == "_Widgets") and "/Core" or "/SmartReminders"
+    local f = assert(io.open(root .. dir .. "/NaowhForever" .. name .. ".lua", "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close(); return s
 end
 local function Slice(s, first, last)
