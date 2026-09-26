@@ -27,6 +27,7 @@ local shownExpiry   -- the expiry the swipe was last started from
 local alert
 local alertGen = 0   -- invalidates an older "under 2 minutes" timer
 local ringGen = 0    -- invalidates an older ring colour change
+local showGen = 0    -- invalidates an older "drops under the Show Only When Low time" timer
 
 local function On()
     return S.Get("enabled") and S.Get("campfire")
@@ -238,6 +239,7 @@ end
 -- InCombatLockdown() is still false while PLAYER_REGEN_DISABLED is handled.
 function Refresh(_, event)
     if not icon then return end
+    showGen = showGen + 1
     if unlocked then
         ShowUp(3600, GetTime() + 2400, "Camp Chair\nFish Bowl")
         SetAlert(S.Get("campNearbyAlert"))
@@ -263,7 +265,18 @@ function Refresh(_, event)
         if issecretvalue and (issecretvalue(duration) or issecretvalue(expiry)) then
             duration, expiry = nil, nil
         end
-        ShowUp(duration, expiry, ActiveBuffs(aura))
+        -- Nothing fires as the camp runs down, so the moment it drops under the time is timed.
+        local left = expiry and expiry > 0 and expiry - GetTime()
+        local under = S.Get("campShowUnderMinutes") * 60
+        if S.Get("campShowUnder") and left and left > under then
+            icon:Hide()
+            local gen = showGen
+            C_Timer.After(left - under + 0.1, function()
+                if gen == showGen then Refresh() end
+            end)
+        else
+            ShowUp(duration, expiry, ActiveBuffs(aura))
+        end
     else
         ShowMissing()
         if had and S.Get("campSound") then

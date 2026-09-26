@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- Campfire: Show Only When Low keeps the camp icon hidden until Camp Benefits has less
+  time left than you choose (10 to 59 minutes, 10 by default). Off by default.
+
 ### Fixed
 - Death Release Protection (QoL > General) now works: in a dungeon or raid, Release Spirit
   has to be held down for the Hold Time before it releases, and a plain click does nothing.

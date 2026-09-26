@@ -22,6 +22,7 @@ local S = UI.ModuleSettings("auraBuffs", {
 
     campfire = true, campTimer = true, campBuffs = true,
     campSound = true, campSoundKey = "none", campIconSize = 56, campNearbyAlert = true,
+    campShowUnder = false, campShowUnderMinutes = 10,
 
     lowHealth = true, lowHealthBelow = 35, lowHealthItem = "auto",
     lowHealthIconSize = 48, lowHealthGlow = true,
@@ -110,6 +111,13 @@ function ns.BuildCampfirePage(parent, y)
             "The camp buffs you have running, listed under the icon: Camp Chair, Fish Bowl, "
             .. "Tent and the rest.", "campfire"),
         S.Slider("campIconSize", "Icon Size", 24, 80, 1, nil, "campfire")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("campShowUnder", "Show Only When Low",
+            "Keeps the icon hidden while Camp Benefits has more time left than Minutes, and "
+            .. "shows it once the camp drops under that. The Refresh Camp reminder still shows "
+            .. "when the buff is gone.", "campfire"),
+        S.Slider("campShowUnderMinutes", "Minutes", 10, 59, 1, nil, "campShowUnder")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("campSound", "Play a Sound to Refresh",
