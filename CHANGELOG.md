@@ -3,10 +3,11 @@
 ## Unreleased
 
 ### Added
-- Blessings: Next Blessing and Next Greater Blessing keybinds (Key Bindings > AddOns >
-  Naowh Forever), like Pally Power's. Each press blesses the next player who needs it; the
-  Greater key only covers classes that share one blessing, while you carry Symbols of Kings.
-  In combat a key steps through the players who needed it when the fight began.
+- Blessings: Next Blessing and Next Greater Blessing keybinds, like Pally Power's. Bind
+  them on the Blessings page or in Key Bindings > AddOns > Naowh Forever. Each press
+  blesses the next player who needs it; the Greater key only covers classes that share one
+  blessing, while you carry Symbols of Kings. In combat a key steps through the players who
+  needed it when the fight began.
 
 ## 0.5.8-beta
 
