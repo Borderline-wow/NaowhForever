@@ -9,6 +9,7 @@
   Benefits lands, then switches to the camp's own timer.
 
 ### Fixed
+- Campfire: "Spell ID" no longer shows in the list of active camp buffs.
 - Death Release Protection (QoL > General) now works: in a dungeon or raid, Release Spirit
   has to be held down for the Hold Time before it releases, and a plain click does nothing.
   The setting was saved before, but nothing acted on it.

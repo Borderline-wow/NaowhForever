@@ -214,7 +214,8 @@ end
 -- confirmed 2026-09-24), so they are read off Camp Benefits' own tooltip, which has one
 -- "Camp Chair: effect" line per benefit. Its header line ends in a bare colon and is skipped,
 -- and so is the time left line, whose "|4minute:minutes;" plural code carries a colon too:
--- a camp object's name never holds a digit or an escape code.
+-- a camp object's name never holds a digit or an escape code. The Forever client also adds a
+-- "Spell ID: 1229741" line to the tooltip data, so a label ending in ID is skipped as well.
 local function ActiveBuffs(aura)
     local data = C_TooltipInfo.GetUnitBuffByAuraInstanceID("player", aura.auraInstanceID)
     local names = {}
@@ -223,7 +224,9 @@ local function ActiveBuffs(aura)
         if i > 1 and type(text) == "string" and not (issecretvalue and issecretvalue(text)) then
             for row in text:gmatch("[^\n]+") do
                 local label = row:match("^%s*([^:]+):%s*%S")
-                if label and not label:find("[%d|]") then names[#names + 1] = label end
+                if label and not label:find("[%d|]") and not label:find("ID$") then
+                    names[#names + 1] = label
+                end
             end
         end
     end
