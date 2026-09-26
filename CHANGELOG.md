@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.11-beta
 
 ### Added
 - Campfire: Show Only When Low keeps the camp icon hidden until Camp Benefits has less
