@@ -101,7 +101,8 @@ function ns.BuildCampfirePage(parent, y)
     _, h = W:SectionHeader(parent, "CAMPFIRE" .. STATUS.limited, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("campfire", "Campfire Reminder",
-            "A round camp icon while Camp Benefits is up, and a reminder when it is not."),
+            "A round camp icon while Camp Benefits is up, a one minute countdown while you sit "
+            .. "at a campfire, and a reminder when the camp is gone."),
         S.Toggle("campTimer", "Show Camp Timer",
             "A countdown in the icon, and a ring around it that drains as the camp runs down: "
             .. "green above 30 minutes, yellow above 5, red under 5.", "campfire")
@@ -115,8 +116,8 @@ function ns.BuildCampfirePage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("campShowUnder", "Show Only When Low",
             "Keeps the icon hidden while Camp Benefits has more time left than Minutes, and "
-            .. "shows it once the camp drops under that. The Refresh Camp reminder still shows "
-            .. "when the buff is gone.", "campfire"),
+            .. "shows it once the camp drops under that. The sitting countdown and the Refresh "
+            .. "Camp reminder still show.", "campfire"),
         S.Slider("campShowUnderMinutes", "Minutes", 10, 59, 1, nil, "campShowUnder")
     ); y = y - h
     _, h = W:DualRow(parent, y,

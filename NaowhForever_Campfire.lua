@@ -11,6 +11,8 @@ local T = ns.THEME
 local CAMP_BENEFITS = 1229741
 -- Area aura from being in range of a campfire, probed 2026-09-24.
 local CAMPFIRE_NEARBY = 1283391
+-- The 60 second aura while sitting at a campfire, before Camp Benefits lands; probed 2026-09-26.
+local WELCOMING_CAMPFIRE = 1229739
 -- Camp Benefits with less than this left counts as due for a refresh.
 local CAMP_LOW = 120
 local CAMP_ICON = 7808144
@@ -148,8 +150,27 @@ local function ShowUp(duration, expiry, buffs)
     icon:Show()
 end
 
+local function ShowSitting(duration, expiry)
+    icon.tex:SetDesaturated(false)
+    icon.label:SetText("Stay Seated")
+    icon.label:Show()
+    icon.buffs:Hide()
+    ringGen = ringGen + 1
+    if shownExpiry ~= expiry then
+        icon.timer:SetCooldown(expiry - duration, duration)
+        icon.drain:SetCooldown(expiry - duration, duration)
+        icon.drain:SetSwipeColor(T.accent.r, T.accent.g, T.accent.b, 1)
+        shownExpiry = expiry
+    end
+    icon.timer:Show()
+    icon.drain:Show()
+    icon.track:Show()
+    icon:Show()
+end
+
 local function ShowMissing()
     icon.tex:SetDesaturated(true)
+    icon.label:SetText("Refresh Camp")
     icon.label:Show()
     icon.buffs:Hide()
     icon.timer:Hide()
@@ -260,6 +281,15 @@ function Refresh(_, event)
     local aura = C_UnitAuras.GetPlayerAuraBySpellID(CAMP_BENEFITS)
     local had = hasCamp
     hasCamp = aura ~= nil
+    local sitting = C_UnitAuras.GetPlayerAuraBySpellID(WELCOMING_CAMPFIRE)
+    local sitDuration, sitExpiry = sitting and sitting.duration, sitting and sitting.expirationTime
+    if sitting and not (issecretvalue and (issecretvalue(sitDuration) or issecretvalue(sitExpiry)))
+        and sitDuration > 0 then
+        ShowSitting(sitDuration, sitExpiry)
+        alertGen = alertGen + 1
+        SetAlert(false)
+        return
+    end
     if aura then
         local duration, expiry = aura.duration, aura.expirationTime
         if issecretvalue and (issecretvalue(duration) or issecretvalue(expiry)) then
