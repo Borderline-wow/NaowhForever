@@ -904,7 +904,7 @@ local function BuildMicroBar()
             PaintMicroButton(mod)
         end
     end
-    microBar.mover = UI.AttachMover(microBar, "Menu", function(pos) MicroDB().pos = pos end)
+    microBar.mover = UI.AttachMover(microBar, "Micro Menu", function(pos) MicroDB().pos = pos end)
     local pos = MicroDB().pos
     if pos then
         microBar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)

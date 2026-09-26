@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- BiS List, Dungeon Quests, Gear Sets, Blessings and Threat Meter open in a window of their
+  own, without the rest of the options: /nfbis, /nfdq, /nfgear, /nfbless and /nfthreat open
+  or close each one.
+- A micro menu bar at the top of the screen has a button for each. It shows BiS and Dungeon
+  Quests to start with; choose its buttons or hide it under Settings > Micro Menu, and move
+  it in Unlock Mode.
+
 ## 0.5.11-beta
 
 ### Added
