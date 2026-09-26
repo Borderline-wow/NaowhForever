@@ -22,6 +22,7 @@ local S = UI.ModuleSettings("auraBuffs", {
 
     campfire = true, campTimer = true, campBuffs = true,
     campSound = true, campSoundKey = "none", campIconSize = 56, campNearbyAlert = true,
+    campShowUnder = false, campShowUnderMinutes = 10,
 
     lowHealth = true, lowHealthBelow = 35, lowHealthItem = "auto",
     lowHealthIconSize = 48, lowHealthGlow = true,
@@ -100,7 +101,8 @@ function ns.BuildCampfirePage(parent, y)
     _, h = W:SectionHeader(parent, "CAMPFIRE" .. STATUS.limited, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("campfire", "Campfire Reminder",
-            "A round camp icon while Camp Benefits is up, and a reminder when it is not."),
+            "A round camp icon while Camp Benefits is up, a one minute countdown while you sit "
+            .. "at a campfire, and a reminder when the camp is gone."),
         S.Toggle("campTimer", "Show Camp Timer",
             "A countdown in the icon, and a ring around it that drains as the camp runs down: "
             .. "green above 30 minutes, yellow above 5, red under 5.", "campfire")
@@ -110,6 +112,13 @@ function ns.BuildCampfirePage(parent, y)
             "The camp buffs you have running, listed under the icon: Camp Chair, Fish Bowl, "
             .. "Tent and the rest.", "campfire"),
         S.Slider("campIconSize", "Icon Size", 24, 80, 1, nil, "campfire")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("campShowUnder", "Show Only When Low",
+            "Keeps the icon hidden while Camp Benefits has more time left than Minutes, and "
+            .. "shows it once the camp drops under that. The sitting countdown and the Refresh "
+            .. "Camp reminder still show.", "campfire"),
+        S.Slider("campShowUnderMinutes", "Minutes", 10, 59, 1, nil, "campShowUnder")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("campSound", "Play a Sound to Refresh",

@@ -11,6 +11,8 @@ local T = ns.THEME
 local CAMP_BENEFITS = 1229741
 -- Area aura from being in range of a campfire, probed 2026-09-24.
 local CAMPFIRE_NEARBY = 1283391
+-- The 60 second aura while sitting at a campfire, before Camp Benefits lands; probed 2026-09-25.
+local WELCOMING_CAMPFIRE = 1229739
 -- Camp Benefits with less than this left counts as due for a refresh.
 local CAMP_LOW = 120
 local CAMP_ICON = 7808144
@@ -27,6 +29,8 @@ local shownExpiry   -- the expiry the swipe was last started from
 local alert
 local alertGen = 0   -- invalidates an older "under 2 minutes" timer
 local ringGen = 0    -- invalidates an older ring colour change
+local showGen = 0    -- invalidates an older "drops under the Show Only When Low time" timer
+local showArmed      -- the expiry and minutes that timer was set for
 
 local function On()
     return S.Get("enabled") and S.Get("campfire")
@@ -147,8 +151,30 @@ local function ShowUp(duration, expiry, buffs)
     icon:Show()
 end
 
+local function ShowSitting(duration, expiry)
+    icon.tex:SetDesaturated(false)
+    icon.label:SetText("Stay Seated")
+    icon.label:Show()
+    icon.buffs:Hide()
+    ringGen = ringGen + 1
+    local timed = S.Get("campTimer")
+    if timed and shownExpiry ~= expiry then
+        icon.timer:SetCooldown(expiry - duration, duration)
+        icon.drain:SetCooldown(expiry - duration, duration)
+        icon.drain:SetSwipeColor(T.accent.r, T.accent.g, T.accent.b, 1)
+        shownExpiry = expiry
+    elseif not timed then
+        shownExpiry = nil
+    end
+    icon.timer:SetShown(timed)
+    icon.drain:SetShown(timed)
+    icon.track:SetShown(timed)
+    icon:Show()
+end
+
 local function ShowMissing()
     icon.tex:SetDesaturated(true)
+    icon.label:SetText("Refresh Camp")
     icon.label:Show()
     icon.buffs:Hide()
     icon.timer:Hide()
@@ -192,7 +218,8 @@ end
 -- confirmed 2026-09-24), so they are read off Camp Benefits' own tooltip, which has one
 -- "Camp Chair: effect" line per benefit. Its header line ends in a bare colon and is skipped,
 -- and so is the time left line, whose "|4minute:minutes;" plural code carries a colon too:
--- a camp object's name never holds a digit or an escape code.
+-- a camp object's name never holds a digit or an escape code. The Forever client also adds a
+-- "Spell ID: 1229741" line to the tooltip data, so a label ending in ID is skipped as well.
 local function ActiveBuffs(aura)
     local data = C_TooltipInfo.GetUnitBuffByAuraInstanceID("player", aura.auraInstanceID)
     local names = {}
@@ -201,7 +228,9 @@ local function ActiveBuffs(aura)
         if i > 1 and type(text) == "string" and not (issecretvalue and issecretvalue(text)) then
             for row in text:gmatch("[^\n]+") do
                 local label = row:match("^%s*([^:]+):%s*%S")
-                if label and not label:find("[%d|]") then names[#names + 1] = label end
+                if label and not label:find("[%d|]") and not label:find("ID$") then
+                    names[#names + 1] = label
+                end
             end
         end
     end
@@ -258,12 +287,45 @@ function Refresh(_, event)
     local aura = C_UnitAuras.GetPlayerAuraBySpellID(CAMP_BENEFITS)
     local had = hasCamp
     hasCamp = aura ~= nil
+    local sitting = C_UnitAuras.GetPlayerAuraBySpellID(WELCOMING_CAMPFIRE)
+    local sitDuration, sitExpiry = sitting and sitting.duration, sitting and sitting.expirationTime
+    if sitting and not (issecretvalue and (issecretvalue(sitDuration) or issecretvalue(sitExpiry)))
+        and sitDuration > 0 then
+        ShowSitting(sitDuration, sitExpiry)
+        alertGen = alertGen + 1
+        SetAlert(false)
+        return
+    end
     if aura then
         local duration, expiry = aura.duration, aura.expirationTime
         if issecretvalue and (issecretvalue(duration) or issecretvalue(expiry)) then
             duration, expiry = nil, nil
         end
-        ShowUp(duration, expiry, ActiveBuffs(aura))
+        -- Nothing fires as the camp runs down, so the moment it drops under the time is timed.
+        local left = expiry and expiry > 0 and expiry - GetTime()
+        local under = S.Get("campShowUnderMinutes") * 60
+        if S.Get("campShowUnder") and left and left > under then
+            icon:Hide()
+            -- UNIT_AURA fires often, so the timer is only set again for a new expiry or setting.
+            local key = expiry .. ":" .. under
+            if showArmed ~= key then
+                showArmed = key
+                showGen = showGen + 1
+                local gen = showGen
+                C_Timer.After(left - under + 0.1, function()
+                    if gen == showGen then
+                        showArmed = nil
+                        Refresh()
+                    end
+                end)
+            end
+        else
+            if showArmed then
+                showArmed = nil
+                showGen = showGen + 1
+            end
+            ShowUp(duration, expiry, ActiveBuffs(aura))
+        end
     else
         ShowMissing()
         if had and S.Get("campSound") then
