@@ -68,6 +68,9 @@ NaowhForever_Note.lua
 # the window at open time.
 NaowhForever_QoL.lua
 NaowhForever_DeathRelease.lua
+NaowhForever_EasyDelete.lua
+NaowhForever_UIClutter.lua
+NaowhForever_FPS.lua
 NaowhForever_LootFeed.lua
 NaowhForever_AuctionPrices.lua
 NaowhForever_XPTicker.lua
