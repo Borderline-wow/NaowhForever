@@ -27,7 +27,7 @@ local function Place()
     if pos then
         frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
     else
-        frame:SetPoint("TOP", UIParent, "TOP", 0, -6)
+        frame:SetPoint("TOP", UIParent, "TOP", 0, -30)
     end
 end
 

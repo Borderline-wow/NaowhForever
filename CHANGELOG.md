@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- UI Clutter (QoL > Interface) now works. Hide Error Messages hides the red error text and
+  its voice line. Hide Tutorial Pop-ups turns off tutorials and help tips, and turning it
+  off puts back what you had. Hide Screenshot Status hides the "Screen captured" text. Skip
+  Cinematics skips cinematics you have already seen on this account.
+- Auto-Fill Delete Confirmation now works: it types DELETE for you when you destroy a rare
+  or better item. You still click Yes.
+- FPS counter (QoL > Interface), with optional local and world latency. Move it in Unlock
+  Mode.
+
 ## 0.5.11-beta
 
 ### Added
