@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Auction prices: a Scan Prices button on the auction house reads every listing and keeps
+  the lowest buyout for each item (Blizzard allows one full scan every 15 minutes). Item
+  tooltips show that price, and the loot feed can use it as its Price Source, no
+  TradeSkillMaster needed. Settings under QoL > Loot & Items > Auction Prices.
+
 ## 0.5.9-beta
 
 ### Added
