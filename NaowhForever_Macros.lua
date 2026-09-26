@@ -26,10 +26,11 @@ local MARKER_ORDER = { 8, 7, 6, 5, 4, 3, 2, 1 }
 function ns.BuildMacroConsumablesPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE .. " Each macro appears in your character macros "
-        .. "once switched on. Put it on a bar once and it keeps itself current.", y); y = y - h
+    _, h = W:Note(parent, "Each macro appears in your character macros (NF Health, NF Food "
+        .. "and so on) once switched on. Put it on a bar once and it keeps itself current, "
+        .. "updating after combat if your bags change during a fight.", y); y = y - h
 
-    _, h = W:SectionHeader(parent, "CONSUMABLE MACROS" .. STATUS.ready, y); y = y - h
+    _, h = W:SectionHeader(parent, "CONSUMABLE MACROS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("health", "Health Macro",
             "Uses the best healthstone or healing potion in your bags."),
@@ -47,7 +48,7 @@ function ns.BuildMacroConsumablesPage(parent, y)
         { type = "label", text = "" }
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "TRINKETS" .. STATUS.ready, y); y = y - h
+    _, h = W:SectionHeader(parent, "TRINKETS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("trinket1", "Trinket 1 Macro", "Uses your top trinket slot."),
         S.Toggle("trinket2", "Trinket 2 Macro", "Uses your bottom trinket slot.")
@@ -59,15 +60,14 @@ end
 function ns.BuildMacroFocusPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
-
     _, h = W:SectionHeader(parent, "SET FOCUS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("focus", "Set Focus Macro", "Focuses your mouseover, or your target."),
         S.Toggle("focusAnnounce", "Announce Focus", "Tells your group what you focused.", "focus")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("focusMark", "Mark Focus", "Puts a raid marker on your focus.", "focus"),
+        S.Toggle("focusMark", "Mark Focus", "Puts a raid marker on your focus. Pressing the "
+            .. "macro again on the same focus clears the marker.", "focus"),
         S.Dropdown("focusMarker", "Focus Marker", MARKER_VALUES, MARKER_ORDER, nil, "focus")
     ); y = y - h
 
@@ -79,3 +79,145 @@ function ns.BuildMacroFocusPage(parent, y)
 
     return y
 end
+
+-------------------------------------------------------------------------------
+--  Runtime
+-------------------------------------------------------------------------------
+-- Classic-era item IDs, best first.
+local MANA_POTIONS = { 13444, 13443, 6149, 3827, 3385, 2455 }
+local BANDAGES = { 14530, 14529, 8545, 8544, 6451, 6450, 3531, 3530, 2581, 1251 }
+local CONJURED = {
+    [8079] = true, [8078] = true, [8077] = true, [3772] = true, [2136] = true, [2288] = true,
+    [5350] = true, [22895] = true, [8076] = true, [8075] = true, [1487] = true, [1114] = true,
+    [1113] = true, [5349] = true,
+}
+local FOOD_SPELL, DRINK_SPELL = 433, 430
+local ICON = 134400     -- question mark, so #showtooltip shows the item
+
+local MACROS = {
+    { key = "health", name = "NF Health" },
+    { key = "mana", name = "NF Mana" },
+    { key = "food", name = "NF Food" },
+    { key = "bandage", name = "NF Bandage" },
+    { key = "trinket1", name = "NF Trinket 1" },
+    { key = "trinket2", name = "NF Trinket 2" },
+    { key = "focus", name = "NF Focus" },
+}
+
+local ready, pending, warnedFull
+
+local function FirstCarried(list)
+    for _, id in ipairs(list) do
+        if C_Item.GetItemCount(id) > 0 then return id end
+    end
+end
+
+-- Best food and best drink in the bags: conjured first, then the highest required level.
+local function BestFoodAndDrink()
+    local foodName, drinkName = C_Spell.GetSpellName(FOOD_SPELL), C_Spell.GetSpellName(DRINK_SPELL)
+    local best, score = {}, {}
+    for bag = 0, NUM_BAG_SLOTS do
+        for slot = 1, C_Container.GetContainerNumSlots(bag) do
+            local id = C_Container.GetContainerItemID(bag, slot)
+            local spell = id and C_Item.GetItemSpell(id)
+            local kind = (spell == foodName and "food") or (spell == drinkName and "drink")
+            if kind then
+                local s = (CONJURED[id] and 1000 or 0) + (select(5, C_Item.GetItemInfo(id)) or 0)
+                if not score[kind] or s > score[kind] then best[kind], score[kind] = id, s end
+            end
+        end
+    end
+    return best.food, best.drink
+end
+
+local function UseLines(...)
+    local lines = { "#showtooltip" }
+    for i = 1, select("#", ...) do
+        local line = select(i, ...)
+        if line then lines[#lines + 1] = line end
+    end
+    if #lines == 1 then return end
+    return table.concat(lines, "\n")
+end
+
+local function ItemLine(id, prefix)
+    return id and ("/use " .. (prefix or "") .. "item:" .. id)
+end
+
+-- The macro body for each key, or nil to leave an existing macro as it is (nothing carried).
+local BODIES = {
+    health = function()
+        local stone, potion = FirstCarried(ns.HEALTHSTONES), FirstCarried(ns.HEALING_POTIONS)
+        if S.Get("healthOrder") == "potion" then return UseLines(ItemLine(potion or stone)) end
+        return UseLines(ItemLine(stone or potion))
+    end,
+    mana = function() return UseLines(ItemLine(FirstCarried(MANA_POTIONS))) end,
+    food = function()
+        local food, drink = BestFoodAndDrink()
+        return UseLines(ItemLine(food), ItemLine(drink))
+    end,
+    bandage = function() return UseLines(ItemLine(FirstCarried(BANDAGES), "[@player] ")) end,
+    trinket1 = function() return "#showtooltip 13\n/use 13" end,
+    trinket2 = function() return "#showtooltip 14\n/use 14" end,
+    focus = function()
+        local body = "/focus [@mouseover,exists,nodead][]"
+        if S.Get("focusMark") then body = body .. "\n/tm [@focus] " .. S.Get("focusMarker") end
+        if S.Get("focusAnnounce") then body = body .. "\n/p Focus: %f" end
+        return body
+    end,
+}
+
+local function Write(m, body)
+    local index = GetMacroIndexByName(m.name)
+    if index > 0 then
+        if GetMacroBody(index) ~= body then EditMacro(index, m.name, ICON, body) end
+        return
+    end
+    local _, perChar = GetNumMacros()
+    if perChar >= Constants.MacroConsts.MAX_CHARACTER_MACROS then
+        if not warnedFull then
+            warnedFull = true
+            ns.Print("Character macros are full, so " .. m.name
+                .. " could not be made. Delete one and it will be added.")
+        end
+        return
+    end
+    CreateMacro(m.name, ICON, body, true)
+end
+
+local function Update()
+    if not ready then return end
+    if InCombatLockdown() then
+        pending = true
+        return
+    end
+    pending = false
+    local on = S.Get("enabled")
+    for _, m in ipairs(MACROS) do
+        if on and S.Get(m.key) then
+            local body = BODIES[m.key]()
+            if body then Write(m, body) end
+        else
+            local index = GetMacroIndexByName(m.name)
+            if index > 0 then DeleteMacro(index) end
+        end
+    end
+end
+
+-- Nothing is written before the first PLAYER_ENTERING_WORLD, when the character's macros
+-- are loaded; GetMacroIndexByName misses them earlier and every macro would be made twice.
+local events = CreateFrame("Frame")
+events:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_ENTERING_WORLD" then
+        ready = true
+    elseif event == "PLAYER_REGEN_ENABLED" and not pending then
+        return
+    end
+    Update()
+end)
+events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("BAG_UPDATE_DELAYED")
+events:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+hooksecurefunc(S, "Set", Update)
+hooksecurefunc(ns, "Apply", Update)

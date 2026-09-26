@@ -19,6 +19,7 @@ local HEALTHSTONES = {
     5512, 19004, 19005,     -- Minor
 }
 local POTIONS = { 13446, 3928, 1710, 929, 858, 118 }
+ns.HEALTHSTONES, ns.HEALING_POTIONS = HEALTHSTONES, POTIONS
 local FALLBACK_ICON = 134830    -- Healing Potion
 
 local frame, curve, unlocked
