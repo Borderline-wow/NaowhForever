@@ -18,6 +18,8 @@ local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 -- on its first tab. `build` names the ns builder resolved at open time; `arg` is passed
 -- after the starting y. A page with `soon` is built but not ready: its tab stays in the
 -- strip, dimmed, and opens a note instead of half-finished work.
+-- A module with `command` also opens in a window of its own, from /nf<command> and a micro
+-- menu button labelled `short`; `micro` puts that button on the bar by default.
 local SYSTEM_PAGES = {
     { name = "Settings", build = "BuildSettingsPage",
       subtitle = "Options for the whole addon, saved for this computer." },
@@ -44,22 +46,26 @@ local MODULES = {
     -- Settings still live in the QoL table so existing profiles carry over; each module's
     -- switch is the feature's own key rather than QoL's.
     { name = "Dungeon Quests", settings = "QoLSettings", enabledKey = "dqTracker",
+      command = "dq", short = "DQ", micro = true,
       subtitle = "Every dungeon quest on Forever, and a tracker for the dungeon you are in.",
       tabs = {
           { name = "Tracker", build = "BuildQoLDungeonQuestsPage" },
       } },
     { name = "Gear Sets", settings = "QoLSettings", enabledKey = "gearSets",
+      command = "gear", short = "Gear",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
       tabs = {
           { name = "Sets", build = "BuildQoLGearSetsPage" },
       } },
     { name = "Blessings", settings = "QoLSettings", enabledKey = "blessings",
+      command = "bless", short = "Bless",
       subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
       tabs = {
           { name = "Bar", build = "BuildQoLBlessingsPage" },
           { name = "Assignments", build = "BuildBlessingAssignmentsPage" },
       } },
     { name = "BiS List", settings = "QoLSettings", enabledKey = "bis",
+      command = "bis", short = "BiS", micro = true,
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
       tabs = {
           { name = "List", build = "BuildQoLBiSPage" },
@@ -79,6 +85,7 @@ local MODULES = {
           { name = "Poison & Dispel", build = "BuildPoisonDispelPage" },
       } },
     { name = "Threat Meter", settings = "ThreatMeterSettings",
+      command = "threat", short = "Threat",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
       tabs = {
           { name = "Meter", build = "BuildThreatMeterPage" },
@@ -125,6 +132,9 @@ local wrappers = {}          -- page key -> built wrapper frame
 local currentPage = "Settings"
 local pendingRefresh
 local onShowCallbacks, onHideCallbacks = {}, {}
+local moduleWindows = {}     -- module name -> its standalone window
+local microButtons = {}      -- module name -> its micro menu button
+local ApplyMicroMenu
 
 function UI:RegisterOnShow(fn) onShowCallbacks[#onShowCallbacks + 1] = fn end
 function UI:RegisterOnHide(fn) onHideCallbacks[#onHideCallbacks + 1] = fn end
@@ -215,40 +225,54 @@ local function LayoutContent()
     scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, FOOTER_H + 4)
 end
 
-local function ShowPage(key)
-    currentPage = key
-    LayoutContent()
-    for name, w in pairs(wrappers) do
+-- Each window keeps its own wrappers, so a page open in the main window and in a module's
+-- own window at once is two separate builds.
+local function ShowWrapper(pageWrappers, child, key)
+    for name, w in pairs(pageWrappers) do
         w:SetShown(name == key)
     end
-    if not wrappers[key] then
-        local wrapper = CreateFrame("Frame", nil, scrollChild)
-        wrapper:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
-        wrapper:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", 0, 0)
+    if not pageWrappers[key] then
+        local wrapper = CreateFrame("Frame", nil, child)
+        wrapper:SetPoint("TOPLEFT", child, "TOPLEFT", 0, 0)
+        wrapper:SetPoint("TOPRIGHT", child, "TOPRIGHT", 0, 0)
         wrapper:SetHeight(1)
-        wrappers[key] = wrapper
+        pageWrappers[key] = wrapper
         wrapper._dirty = true
     end
-    local wrapper = wrappers[key]
+    local wrapper = pageWrappers[key]
     if wrapper._dirty then
         wrapper._dirty = nil
         if key == SETUP_PAGE then UI.BeginReusableRows(wrapper) end
         local usedY = BuildPageInto(PAGES[key], wrapper)
         wrapper:SetHeight(math.abs(usedY) + 30)
     end
-    scrollChild:SetHeight(wrappers[key]:GetHeight())
+    child:SetHeight(wrapper:GetHeight())
+end
+
+local function ShowPage(key)
+    currentPage = key
+    LayoutContent()
+    ShowWrapper(wrappers, scrollChild, key)
     scrollFrame:SetVerticalScroll(0)
     PaintNav()
 end
 
-local function InvalidatePages()
-    for name, w in pairs(wrappers) do
+local function ShowModulePage(win, key)
+    win.page = key
+    ShowWrapper(win.wrappers, win.scrollChild, key)
+    win.scrollFrame:SetVerticalScroll(0)
+    win.switch._refreshValue()
+    for k, btn in pairs(win.tabButtons) do PaintTab(btn, PAGES[k], k == key) end
+end
+
+local function InvalidatePages(pageWrappers)
+    for name, w in pairs(pageWrappers) do
         if name == SETUP_PAGE then
             w._dirty = true
         else
             w:Hide()
             w:SetParent(nil)
-            wrappers[name] = nil
+            pageWrappers[name] = nil
         end
     end
 end
@@ -261,30 +285,50 @@ end
 -- Bosses, say). Invalidate every cached tab: Setup reuses its rows, while dynamic editor
 -- pages rebuild their wrappers on the next ShowPage. When the window is hidden the
 -- rebuild waits for the next open, so page-build side effects (preview, lazy journal reads)
--- never run off-screen.
+-- never run off-screen. The module windows follow the same rules.
 -- One rebuild per frame however many times it is asked for: one action (a pack import,
 -- a chain of setters) can ask repeatedly.
 local refreshQueued
 
 local function RebuildPages()
     refreshQueued = false
-    if not (window and window:IsShown()) then
-        pendingRefresh = true
-        return
-    end
     -- A tooltip anchored to a row we are about to destroy would hang on screen with its
     -- anchor orphaned; changing a setting while hovering its label is the ordinary way in.
     if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
-    local scroll = scrollFrame:GetVerticalScroll()
-    InvalidatePages()
-    ShowPage(currentPage)
-    scrollFrame:UpdateScrollChildRect()
-    scrollFrame:SetVerticalScroll(scroll)
+    if window and window:IsShown() then
+        local scroll = scrollFrame:GetVerticalScroll()
+        InvalidatePages(wrappers)
+        ShowPage(currentPage)
+        scrollFrame:UpdateScrollChildRect()
+        scrollFrame:SetVerticalScroll(scroll)
+    else
+        pendingRefresh = true
+    end
+    for _, win in pairs(moduleWindows) do
+        if win:IsShown() then
+            local scroll = win.scrollFrame:GetVerticalScroll()
+            InvalidatePages(win.wrappers)
+            ShowModulePage(win, win.page)
+            win.scrollFrame:UpdateScrollChildRect()
+            win.scrollFrame:SetVerticalScroll(scroll)
+        else
+            win.pendingRefresh = true
+        end
+    end
+end
+
+local function AnyWindowShown()
+    if window and window:IsShown() then return true end
+    for _, win in pairs(moduleWindows) do
+        if win:IsShown() then return true end
+    end
+    return false
 end
 
 function UI:RefreshPage(force)
-    if not (window and window:IsShown()) then
+    if not AnyWindowShown() then
         pendingRefresh = true
+        for _, win in pairs(moduleWindows) do win.pendingRefresh = true end
         return
     end
     if refreshQueued then return end
@@ -309,6 +353,21 @@ end)
 function ns.SetWindowScale(pct)
     ns.AccountSettings().windowScale = tonumber(pct) or 100
     if window then window:SetScale(ns.UIScale()) end
+    for _, win in pairs(moduleWindows) do win:SetScale(ns.UIScale()) end
+end
+
+-- Saved for this computer, like the window scale. A button never set follows its module's
+-- `micro` default.
+local function MicroDB()
+    local account = ns.AccountSettings()
+    account.microMenu = account.microMenu or { buttons = {} }
+    return account.microMenu
+end
+
+local function MicroButtonOn(mod)
+    local on = MicroDB().buttons[mod.name]
+    if on == nil then return mod.micro == true end
+    return on
 end
 
 function ns.BuildSettingsPage(parent, y)
@@ -345,6 +404,35 @@ function ns.BuildSettingsPage(parent, y)
           end }
     ); y = y - h
 
+    _, h = W:SectionHeader(parent, "MICRO MENU", y); y = y - h
+    local rows = {
+        { type = "toggle", text = "Micro Menu",
+          tooltip = "A bar at the top of the screen with a button per module that opens on its "
+          .. "own. Move it in Unlock Mode. Saved for this computer.",
+          getValue = function() return not MicroDB().hide end,
+          setValue = function(v)
+              MicroDB().hide = not v
+              ApplyMicroMenu()
+              UI:RefreshPage(true)
+          end },
+    }
+    for _, mod in ipairs(MODULES) do
+        if mod.command then
+            rows[#rows + 1] = { type = "toggle", text = mod.name,
+                tooltip = ("A button that opens %s on its own. /nf%s does the same.")
+                    :format(mod.name, mod.command),
+                disabled = function() return MicroDB().hide end,
+                getValue = function() return MicroButtonOn(mod) end,
+                setValue = function(v)
+                    MicroDB().buttons[mod.name] = v
+                    ApplyMicroMenu()
+                end }
+        end
+    end
+    for i = 1, #rows, 2 do
+        _, h = W:DualRow(parent, y, rows[i], rows[i + 1] or { type = "label", text = "" }); y = y - h
+    end
+
     _, h = W:SectionHeader(parent, "FONT", y); y = y - h
     local fonts, fontOrder = UI.FontChoices(ns.AccountSettings().gameFont)
     fonts[""] = "Naowh (default)"
@@ -371,14 +459,59 @@ local function EnterUnlockMode()
     if ns.ShowRaidReminderAnchorConfig then ns.ShowRaidReminderAnchorConfig() end
 end
 
-local function StartDrag() window:StartMoving() end
-local function StopDrag() window:StopMovingOrSizing() end
-
-local function DragRegion(frame)
+local function DragRegion(frame, target)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", StartDrag)
-    frame:SetScript("OnDragStop", StopDrag)
+    frame:SetScript("OnDragStart", function() target:StartMoving() end)
+    frame:SetScript("OnDragStop", function() target:StopMovingOrSizing() end)
+end
+
+-- ESC via our own keyboard handler, NOT UISpecialFrames: a named addon frame in that
+-- table is a convicted taint injector (Blizzard's CloseAllWindows enumerates it inside
+-- secure execution). Same combat-guarded pattern MakeModal uses; opened in combat the
+-- window keeps its close button and ESC binds from its next out-of-combat open (OnShow).
+local function CloseOnEscape(self, key)
+    if InCombatLockdown() then return end
+    if key == "ESCAPE" then
+        self:Hide()
+        self:SetPropagateKeyboardInput(false)
+        -- Restored once this key is consumed: reopened in combat, the window cannot
+        -- change it and would swallow every keybind while open.
+        C_Timer.After(0, function()
+            if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+        end)
+    else
+        self:SetPropagateKeyboardInput(true)
+    end
+end
+
+-- Tab strip, in the same visual language as the modal editors' own tabs: a button
+-- with an accent underline marking the active page. Widths are measured off the label
+-- rather than fixed, since tab names vary a lot in length and a fixed width leaves the
+-- short ones swimming.
+local function TabStrip(parent, left, mod, onClick, buttons)
+    local strip = CreateFrame("Frame", nil, parent)
+    strip:SetPoint("TOPLEFT", parent, "TOPLEFT", left, -HEADER_H)
+    strip:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -HEADER_H)
+    strip:SetHeight(TAB_H)
+    local tx = 20
+    for _, tab in ipairs(mod.tabs) do
+        local btn = CreateFrame("Button", nil, strip)
+        btn.label = ns.Font(btn, 14, nil, T.muted)
+        btn.label:SetPoint("CENTER")
+        btn.label:SetText(ns.L(tab.name))
+        btn:SetSize(math.ceil(btn.label:GetStringWidth()) + 30, TAB_H)
+        btn.marker = ns.Solid(btn, "OVERLAY", T.accent, 1)
+        btn.marker:SetPoint("BOTTOMLEFT", 6, 0)
+        btn.marker:SetPoint("BOTTOMRIGHT", -6, 0)
+        btn.marker:SetHeight(2)
+        btn.marker:Hide()
+        btn:SetScript("OnClick", function() onClick(tab.key) end)
+        btn:SetPoint("TOPLEFT", strip, "TOPLEFT", tx, 0)
+        buttons[tab.key] = btn
+        tx = tx + btn:GetWidth() + 2
+    end
+    return strip
 end
 
 local function CreateWindow()
@@ -392,25 +525,7 @@ local function CreateWindow()
     window:EnableMouse(true)
     ns.Solid(window, "BACKGROUND", T.bg, 1):SetAllPoints()
     ns.Border(window)
-
-    -- ESC via our own keyboard handler, NOT UISpecialFrames: a named addon frame in that
-    -- table is a convicted taint injector (Blizzard's CloseAllWindows enumerates it inside
-    -- secure execution). Same combat-guarded pattern MakeModal uses; opened in combat the
-    -- window keeps its close button and ESC binds from its next out-of-combat open (OnShow).
-    window:SetScript("OnKeyDown", function(self, key)
-        if InCombatLockdown() then return end
-        if key == "ESCAPE" then
-            self:Hide()
-            self:SetPropagateKeyboardInput(false)
-            -- Restored once this key is consumed: reopened in combat, the window cannot
-            -- change it and would swallow every keybind while open.
-            C_Timer.After(0, function()
-                if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
-            end)
-        else
-            self:SetPropagateKeyboardInput(true)
-        end
-    end)
+    window:SetScript("OnKeyDown", CloseOnEscape)
 
     -- Sidebar: logo and name, then the modules.
     local sidebar = CreateFrame("Frame", nil, window)
@@ -427,7 +542,7 @@ local function CreateWindow()
     brand:SetPoint("TOPLEFT")
     brand:SetPoint("TOPRIGHT")
     brand:SetHeight(HEADER_H)
-    DragRegion(brand)
+    DragRegion(brand, window)
     local logo = brand:CreateTexture(nil, "ARTWORK")
     logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
     logo:SetSize(44, 44)
@@ -500,7 +615,7 @@ local function CreateWindow()
     header:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, 0)
     header:SetPoint("TOPRIGHT")
     header:SetHeight(HEADER_H)
-    DragRegion(header)
+    DragRegion(header, window)
     headerTitle = ns.Font(header, 24, "OUTLINE")
     headerTitle:SetPoint("TOPLEFT", header, "TOPLEFT", 30, -18)
     headerSub = ns.Font(header, 12, nil, T.muted)
@@ -545,32 +660,8 @@ local function CreateWindow()
         "Place and size each reminder display. An alignment grid appears while you are in "
         .. "there. This window steps aside and comes back when you press Exit Config.")
 
-    -- Tab strip, in the same visual language as the modal editors' own tabs: a button
-    -- with an accent underline marking the active page. Widths are measured off the label
-    -- rather than fixed, since tab names vary a lot in length and a fixed width leaves the
-    -- short ones swimming.
     for _, mod in ipairs(MODULES) do
-        local strip = CreateFrame("Frame", nil, window)
-        strip:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, -HEADER_H)
-        strip:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -HEADER_H)
-        strip:SetHeight(TAB_H)
-        local tx = 20
-        for _, tab in ipairs(mod.tabs) do
-            local btn = CreateFrame("Button", nil, strip)
-            btn.label = ns.Font(btn, 14, nil, T.muted)
-            btn.label:SetPoint("CENTER")
-            btn.label:SetText(ns.L(tab.name))
-            btn:SetSize(math.ceil(btn.label:GetStringWidth()) + 30, TAB_H)
-            btn.marker = ns.Solid(btn, "OVERLAY", T.accent, 1)
-            btn.marker:SetPoint("BOTTOMLEFT", 6, 0)
-            btn.marker:SetPoint("BOTTOMRIGHT", -6, 0)
-            btn.marker:SetHeight(2)
-            btn.marker:Hide()
-            btn:SetScript("OnClick", function() ShowPage(tab.key) end)
-            btn:SetPoint("TOPLEFT", strip, "TOPLEFT", tx, 0)
-            tabButtons[tab.key] = btn
-            tx = tx + btn:GetWidth() + 2
-        end
+        local strip = TabStrip(window, SIDEBAR_W, mod, ShowPage, tabButtons)
         tabStrips[mod.name] = strip
         strip:Hide()
     end
@@ -607,7 +698,7 @@ local function CreateWindow()
         -- to be current on reopen, so every cached tab goes, not just that one.
         if pendingRefresh then
             pendingRefresh = nil
-            InvalidatePages()
+            InvalidatePages(wrappers)
         end
         ShowPage(currentPage)
         for i = 1, #onShowCallbacks do onShowCallbacks[i]() end
@@ -666,6 +757,103 @@ function ns.ToggleOptionsWindow(pageName)
     end
 end
 
+-- A module on its own: its header and tabs over the same page builders, without the sidebar
+-- or the window's own pages. The content is as wide as the main window's, so every page lays
+-- out the same in both.
+local MODULE_WINDOW_H = 560
+
+local function PaintMicroButton(mod)
+    local btn = microButtons[mod.name]
+    if not btn then return end
+    local win = moduleWindows[mod.name]
+    local c = win and win:IsShown() and T.accentSoft or T.fg
+    btn.label:SetTextColor(c.r, c.g, c.b, 1)
+end
+
+local function CreateModuleWindow(mod)
+    local win = CreateFrame("Frame", nil, UIParent)
+    win:Hide()
+    win:SetSize(CONTENT_W, MODULE_WINDOW_H)
+    win:SetScale(ns.UIScale())
+    win:SetPoint("CENTER")
+    win:SetFrameStrata("MEDIUM")
+    win:SetToplevel(true)
+    win:SetMovable(true)
+    win:SetClampedToScreen(true)
+    win:EnableMouse(true)
+    ns.Solid(win, "BACKGROUND", T.bg, 1):SetAllPoints()
+    ns.Border(win)
+    win:SetScript("OnKeyDown", CloseOnEscape)
+
+    local header = CreateFrame("Frame", nil, win)
+    header:SetPoint("TOPLEFT")
+    header:SetPoint("TOPRIGHT")
+    header:SetHeight(HEADER_H)
+    DragRegion(header, win)
+    local title = ns.Font(header, 24, "OUTLINE")
+    title:SetPoint("TOPLEFT", header, "TOPLEFT", 30, -18)
+    title:SetText(ns.L(mod.name))
+    local sub = ns.Font(header, 12, nil, T.muted)
+    sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 1, -6)
+    sub:SetText(mod.subtitle)
+    local close = ns.Button(header, "X", 26, 26, function() win:Hide() end)
+    close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -12, -12)
+    -- The sidebar's module switch, since some pages have no switch of their own.
+    local switch = UI.BuildToggleControl(header, header:GetFrameLevel() + 2,
+        function() return ModuleOn(mod) end,
+        function(v) SetModuleOn(mod, v) end, 28, 14)
+    switch:SetPoint("RIGHT", close, "LEFT", -14, 0)
+    ns.Tooltip(switch, mod.name, function()
+        return ModuleOn(mod) and "On. Click to turn the whole module off."
+            or "Off. Click to turn it back on."
+    end)
+    win.switch = switch
+
+    win.tabButtons = {}
+    TabStrip(win, 0, mod, function(key) ShowModulePage(win, key) end, win.tabButtons)
+    local offset = HEADER_H + TAB_H
+    local line = ns.Solid(win, "ARTWORK", T.line, 1)
+    line:SetPoint("TOPLEFT", win, "TOPLEFT", 0, -offset)
+    line:SetPoint("TOPRIGHT", win, "TOPRIGHT", 0, -offset)
+    line:SetHeight(1)
+
+    win.scrollFrame = CreateFrame("ScrollFrame", nil, win, "UIPanelScrollFrameTemplate")
+    win.scrollFrame:SetPoint("TOPLEFT", win, "TOPLEFT", 10, -(offset + 5))
+    win.scrollFrame:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -30, 10)
+    win.scrollChild = CreateFrame("Frame", nil, win.scrollFrame)
+    win.scrollChild:SetSize(CONTENT_W - 40, 1)
+    win.scrollFrame:SetScrollChild(win.scrollChild)
+    win.wrappers = {}
+    win.page = mod.tabs[1].key
+
+    win:SetScript("OnShow", function(self)
+        if not InCombatLockdown() then
+            self:EnableKeyboard(true)
+            self:SetPropagateKeyboardInput(true)
+        end
+        if self.pendingRefresh then
+            self.pendingRefresh = nil
+            InvalidatePages(self.wrappers)
+        end
+        ShowModulePage(self, self.page)
+        PaintMicroButton(mod)
+    end)
+    win:SetScript("OnHide", function()
+        if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
+        PaintMicroButton(mod)
+    end)
+    return win
+end
+
+local function ToggleModuleWindow(mod)
+    local win = moduleWindows[mod.name]
+    if not win then
+        win = CreateModuleWindow(mod)
+        moduleWindows[mod.name] = win
+    end
+    win:SetShown(not win:IsShown())
+end
+
 -- Addon compartment entry (the puzzle-piece menu by the minimap); wired in the .toc.
 function _G.NaowhForever_OnCompartmentClick()
     ns.ToggleOptionsWindow()
@@ -691,6 +879,64 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
     end
 end
 
+for _, mod in ipairs(MODULES) do
+    if mod.command then
+        local key = "NAOWHFOREVER" .. mod.command:upper()
+        _G["SLASH_" .. key .. "1"] = "/nf" .. mod.command
+        SlashCmdList[key] = function() ToggleModuleWindow(mod) end
+    end
+end
+
+-- The micro menu: a button per module with a command, placed in Unlock Mode.
+local microBar, microUnlocked
+
+local function BuildMicroBar()
+    microBar = CreateFrame("Frame", "NaowhForeverMicroMenu", UIParent)
+    microBar:SetHeight(22)
+    microBar:SetMovable(true)
+    microBar:SetClampedToScreen(true)
+    for _, mod in ipairs(MODULES) do
+        if mod.command then
+            local btn = ns.Button(microBar, mod.short, 1, 22, function() ToggleModuleWindow(mod) end)
+            btn:SetWidth(math.ceil(btn.label:GetStringWidth()) + 16)
+            ns.Tooltip(btn, mod.name, "Opens or closes it on its own, as /nf" .. mod.command .. " does.")
+            microButtons[mod.name] = btn
+            PaintMicroButton(mod)
+        end
+    end
+    microBar.mover = UI.AttachMover(microBar, "Menu", function(pos) MicroDB().pos = pos end)
+    local pos = MicroDB().pos
+    if pos then
+        microBar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    else
+        microBar:SetPoint("TOP", UIParent, "TOP", 0, -4)
+    end
+end
+
+function ApplyMicroMenu()
+    local db = MicroDB()
+    if not microBar then
+        if db.hide then return end
+        BuildMicroBar()
+    end
+    local x = 0
+    for _, mod in ipairs(MODULES) do
+        local btn = microButtons[mod.name]
+        if btn then
+            local on = MicroButtonOn(mod)
+            btn:SetShown(on)
+            if on then
+                btn:ClearAllPoints()
+                btn:SetPoint("LEFT", microBar, "LEFT", x, 0)
+                x = x + btn:GetWidth() + 2
+            end
+        end
+    end
+    microBar:SetWidth(math.max(x - 2, 1))
+    microBar:SetShown(not db.hide and x > 0)
+    microBar.mover:SetShown(microUnlocked == true)
+end
+
 -- The launcher position belongs to the account, not an imported settings profile.
 local launcherEvents = CreateFrame("Frame")
 launcherEvents:SetScript("OnEvent", function(self)
@@ -711,6 +957,17 @@ launcherEvents:SetScript("OnEvent", function(self)
         end,
     })
     LibStub("LibDBIcon-1.0"):Register("NaowhForever", launcher, account.minimap)
+
+    -- Hooked at login: RaidReminders, which defines these, loads after this file.
+    hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
+        microUnlocked = true
+        if microBar then ApplyMicroMenu() end
+    end)
+    hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
+        microUnlocked = false
+        if microBar then ApplyMicroMenu() end
+    end)
+    ApplyMicroMenu()
 end)
 launcherEvents:RegisterEvent("PLAYER_LOGIN")
 
