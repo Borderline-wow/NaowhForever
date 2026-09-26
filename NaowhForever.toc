@@ -67,6 +67,7 @@ NaowhForever_Note.lua
 # The Naowh Forever modules and the Patch Notes page. Page builders only, resolved by
 # the window at open time.
 NaowhForever_QoL.lua
+NaowhForever_DeathRelease.lua
 NaowhForever_LootFeed.lua
 NaowhForever_AuctionPrices.lua
 NaowhForever_XPTicker.lua
