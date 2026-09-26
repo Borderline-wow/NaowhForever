@@ -169,6 +169,23 @@ function ns.ChangeGearSetIcon(setID, name)
     end)
 end
 
+-- The auto-swap choices hold the set's name, so they follow it to the new one.
+function ns.RenameGearSet(setID, name)
+    ns.PromptText("Rename " .. name, name, 16, function(newName)
+        if newName == name then return end
+        local other = C_EquipmentSet.GetEquipmentSetID(newName)
+        if other and other ~= setID then
+            ns.Print("A gear set called " .. newName .. " already exists.")
+            return
+        end
+        local _, icon = C_EquipmentSet.GetEquipmentSetInfo(setID)
+        C_EquipmentSet.ModifyEquipmentSet(setID, newName, icon)
+        for _, key in ipairs({ "gearMounted", "gearResting" }) do
+            if S.Get(key) == name then S.Set(key, newName) end
+        end
+    end)
+end
+
 function ns.SaveGearSet(setID, name)
     ns.Confirm("Save what you are wearing now into " .. name .. "?", function()
         C_EquipmentSet.SaveEquipmentSet(setID)
@@ -190,8 +207,8 @@ local function SetTooltip(btn)
     GameTooltip:SetText(set.name, 1, 1, 1)
     if set.equipped then GameTooltip:AddLine("Equipped", 0.29, 0.87, 0.5) end
     if set.lost > 0 then GameTooltip:AddLine(set.lost .. " item(s) missing", 0.97, 0.44, 0.44) end
-    GameTooltip:AddLine("Click to equip. Shift-click to save what you wear into it. Right-click to "
-        .. "change its icon.", 0.6, 0.62, 0.65, true)
+    GameTooltip:AddLine("Click to equip. Shift-click to save what you wear into it. Ctrl-click to "
+        .. "rename it. Right-click to change its icon.", 0.6, 0.62, 0.65, true)
     GameTooltip:Show()
 end
 
@@ -206,7 +223,13 @@ local function NewButton()
     btn:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
             ns.ChangeGearSetIcon(self.set.id, self.set.name)
-        elseif IsShiftKeyDown() then ns.SaveGearSet(self.set.id, self.set.name) else EquipByHand(self.set.id) end
+        elseif IsShiftKeyDown() then
+            ns.SaveGearSet(self.set.id, self.set.name)
+        elseif IsControlKeyDown() then
+            ns.RenameGearSet(self.set.id, self.set.name)
+        else
+            EquipByHand(self.set.id)
+        end
     end)
     btn:SetScript("OnEnter", SetTooltip)
     btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -299,8 +322,9 @@ function ns.BuildQoLGearSetsPage(parent, y)
     _, h = W:SectionHeader(parent, "GEAR SETS" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("gearSets", "Gear Set Bar",
-            "A button per set: click to equip, Shift-click to save what you wear into it, right-click "
-            .. "to change its icon, and + to save a new one. The set you wear is outlined. Move it in Unlock Mode."),
+            "A button per set: click to equip, Shift-click to save what you wear into it, Ctrl-click "
+            .. "to rename it, right-click to change its icon, and + to save a new one. The set you "
+            .. "wear is outlined. Move it in Unlock Mode."),
         S.Slider("gearBarSize", "Button Size", 20, 48, 1, nil, "gearSets")
     ); y = y - h
     _, h = W:DualRow(parent, y,
@@ -315,6 +339,7 @@ function ns.BuildQoLGearSetsPage(parent, y)
         _, h = W:SectionHeader(parent, set.name:upper() .. (set.equipped and "  (EQUIPPED)" or ""), y); y = y - h
         _, h = W:Button(parent, "Equip " .. set.name, y, function() EquipByHand(set.id) end); y = y - h
         _, h = W:Button(parent, "Save Current Gear", y, function() ns.SaveGearSet(set.id, set.name) end); y = y - h
+        _, h = W:Button(parent, "Rename", y, function() ns.RenameGearSet(set.id, set.name) end); y = y - h
         _, h = W:Button(parent, "Change Icon", y, function() ns.ChangeGearSetIcon(set.id, set.name) end); y = y - h
         _, h = W:Button(parent, "Delete", y, function() ns.DeleteGearSet(set.id, set.name) end); y = y - h
     end
