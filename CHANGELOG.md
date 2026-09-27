@@ -58,9 +58,14 @@
   Dungeon Quests page, to list every quest in its chain in order, the ones before it and
   the ones after, each marked Completed, In log or Not done. A chain quest you have opens
   in your quest log from that list. Chains come from Wowhead's Forever quest database.
-- BiS list: a Where Your Items Drop panel to the right of the gear slots, which now run
-  down one column, groups everything you picked by where it comes from (dungeon, zone,
-  quest, crafted, world drop), with the places that hold the most BiS picks first.
+- BiS list: the page looks like the character pane, your character in the middle with
+  your gear slots around it. Slots start empty; click one to open a picker in the middle
+  of the screen and choose its items in order from the ranking for your spec, your BiS
+  first, then your 2nd, 3rd and so on. A slot shows its BiS with a green border and a
+  check mark, and +N for the rest.
+- BiS list: a Where Your Items Drop panel to the right of your character groups everything
+  you picked by where it comes from (dungeon, zone, quest, crafted, world drop), with the
+  places that hold the most BiS picks first.
 
 Brought over from NaowhQOL:
 - Questing (QoL > General): accept quests, hand in finished ones, and pick quests from
@@ -129,16 +134,16 @@ its page.
   keeps them on.
 - XP per Hour: the level splits read "Level 23  1/4" and so on, instead of "Split 1", so
   each line says which level it belongs to.
-- BiS list: each slot can have one BiS pick and any number of secondary picks. A slot shows
-  its ranked items as icons: BiS with a green border and a check mark, secondary picks
-  with a yellow border, the rest with a black border. Click a slot or an icon and choose
-  Best in Slot, Secondary or Remove on an item. Tooltips, the loot feed and drop alerts
-  say when an item is a secondary pick. Your current list carries over as your BiS picks.
-- BiS list: Alt+Shift-click makes an item a slot's BiS pick when that slot has none, and a
-  secondary pick otherwise, so it never pushes out an item you already picked.
+- BiS list: each slot holds a ranked list of picks instead of one item. The picker lists
+  your picks in order, with Up, Down and Remove, above the ranking you add from, each item
+  with its rank and where it drops. Tooltips, the loot feed and drop alerts say BiS for
+  your first pick and BiS #2, #3 and so on for the rest. Your current list carries over as
+  your BiS picks.
+- BiS list: Alt+Shift-click adds an item as the next pick for its slot, or as its BiS when
+  the slot has none, and never pushes out an item you already picked.
 - BiS list: picking is only from the ranking now; the Add Item by ID button and the item
-  ID entry are gone. Shared lists carry secondary picks, and older strings still import.
-  Worn replaces the tick beside a BiS pick you are wearing.
+  ID entry are gone. Shared lists keep the order of your picks, and older strings still
+  import. Worn marks a BiS pick you are wearing.
 - Dungeon Quests: quests grey to you are no longer listed on the tracker (in dungeons and
   with Show Single Dungeon too) or on the Dungeon Quests page. Quests in your log and chains
   you are partway through still show, and Show Completed still lists the ones you did.

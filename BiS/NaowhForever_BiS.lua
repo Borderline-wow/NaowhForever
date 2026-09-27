@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
---  NaowhForever_BiS.lua -- the QoL BiS list: per gear slot per character, one BiS pick and
---  any number of secondary picks from wowsrc.com's ranked list for a spec
---  (NaowhForever_BiSData.lua) or by Alt+Shift-click, shared as an import string, and shown
---  on item tooltips, in the loot feed and as an alert when a listed item drops.
+--  NaowhForever_BiS.lua -- the QoL BiS list: per gear slot per character, a ranked list of
+--  picks (#1 is the BiS) from wowsrc.com's ranking for a spec (NaowhForever_BiSData.lua)
+--  or by Alt+Shift-click, shared as an import string, and shown on item tooltips, in the
+--  loot feed and as an alert when a listed item drops.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -32,7 +32,7 @@ local EQUIP_SLOTS = {
     INVTYPE_RANGED = { 18 }, INVTYPE_RANGEDRIGHT = { 18 }, INVTYPE_THROWN = { 18 }, INVTYPE_RELIC = { 18 },
 }
 
-local lookup   -- itemID -> "bis" or "secondary", rebuilt when the list changes
+local lookup   -- itemID -> its best pick number (1 is BiS), rebuilt when the list changes
 local wornMarks = {}   -- built page -> its worn marks, rechecked when gear changes
 
 local function On()
@@ -78,154 +78,38 @@ local function Wearing(slot, itemID)
     return pair and GetInventoryItemID("player", pair) == itemID
 end
 
--- A two-hander and an off-hand cannot be worn together; returns the off-hand it took out.
-local function DropOffHand(slots)
-    if slots[16] and slots[17] and IsTwoHand(slots[16]) then
-        local off = slots[17]
-        slots[17] = nil
-        return off
+-- A slot's picks in order: slots[slot] is #1 and extra[slot] holds the rest.
+local function Picks(list, slot)
+    local picks = { list.slots[slot] }
+    for _, id in ipairs(list.extra[slot] or {}) do picks[#picks + 1] = id end
+    return picks
+end
+
+local function Store(list, slot, picks)
+    local rest = {}
+    for i = 2, #picks do rest[#rest + 1] = picks[i] end
+    list.slots[slot], list.extra[slot] = picks[1], rest[1] and rest or nil
+end
+
+-- A two-hander and an off-hand cannot both be #1. The hand that did not just change gives
+-- way, its next pick moving up; returns the picks taken out.
+local function HandRule(list, changed)
+    local cleared = {}
+    while list.slots[16] and list.slots[17] and IsTwoHand(list.slots[16]) do
+        local slot = changed == 17 and 16 or 17
+        local picks = Picks(list, slot)
+        cleared[#cleared + 1] = table.remove(picks, 1)
+        Store(list, slot, picks)
     end
-end
-
--- One list per character, kept in the account store: personal, so it never travels in an
--- exported profile. slots holds each slot's BiS pick, extra[slot] its secondary picks as a
--- set. Lists from before slots were a flat item list; each item moves into the first slot
--- it fits, and whatever no longer fits is named in chat once.
-local function List()
-    local account = ns.AccountSettings()
-    account.bis = account.bis or {}
-    local key = UnitName("player") .. "-" .. GetRealmName()
-    local list = account.bis[key] or { name = "My BiS" }
-    account.bis[key] = list
-    if not list.slots then
-        list.slots = {}
-        local dropped = {}
-        for _, id in ipairs(list.items or {}) do
-            local slot = FreeSlot(list.slots, id)
-            if slot then list.slots[slot] = id else dropped[#dropped + 1] = Name(id) end
-        end
-        local off = DropOffHand(list.slots)
-        if off then dropped[#dropped + 1] = Name(off) end
-        list.items = nil
-        if #dropped > 0 then
-            ns.Print("Your BiS list now keeps one item per slot. These did not fit: "
-                .. table.concat(dropped, ", "))
-        end
-    end
-    list.extra = list.extra or {}
-    return list
-end
-
-local function Rebuild()
-    lookup = {}
-    local list = List()
-    for _, set in pairs(list.extra) do
-        for id in pairs(set) do lookup[id] = "secondary" end
-    end
-    for _, id in pairs(list.slots) do lookup[id] = "bis" end
-end
-
--- "bis" or "secondary" for an item on the list.
-function ns.IsBisItem(itemID)
-    if not (On() and itemID) then return nil end
-    if not lookup then Rebuild() end
-    return lookup[itemID]
-end
-
-local function Changed()
-    Rebuild()
-    if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
-end
-
-local function SetExtra(slot, itemID, on)
-    local extra = List().extra
-    local set = extra[slot] or {}
-    set[itemID] = on or nil
-    extra[slot] = next(set) and set or nil
-end
-
--- Setting a two-hander clears the off-hand and the reverse; returns what it cleared.
-local function SetSlot(slot, itemID)
-    local slots = List().slots
-    local cleared
-    if slot == 16 and IsTwoHand(itemID) then
-        cleared, slots[17] = slots[17], nil
-    elseif slot == 17 and slots[16] and IsTwoHand(slots[16]) then
-        cleared, slots[16] = slots[16], nil
-    end
-    slots[slot] = itemID
-    SetExtra(slot, itemID, nil)
-    Changed()
     return cleared
 end
 
--- A slot is open for a BiS pick when it has none and the other hand's pick does not rule it out.
-local function Open(slots, slot, itemID)
-    if slots[slot] then return false end
-    if slot == 17 then return not (slots[16] and IsTwoHand(slots[16])) end
-    if slot == 16 and IsTwoHand(itemID) then return not slots[17] end
-    return true
-end
-
--- The BiS pick of the first open slot the item fits, else a secondary pick in its first slot.
-function ns.AddBisItem(value)
-    local id = IDFrom(value)
-    local fits = id and SlotsFor(id)
-    if not fits then
-        ns.Print("That is not an item you can equip.")
-        return
-    end
-    if not lookup then Rebuild() end
-    if lookup[id] then return end
-    local slots = List().slots
-    for _, slot in ipairs(fits) do
-        if Open(slots, slot, id) then
-            SetSlot(slot, id)
-            ns.Print(("Added %s to your BiS %s."):format(Name(id), SLOT_NAME[slot]))
-            return
-        end
-    end
-    SetExtra(fits[1], id, true)
-    Changed()
-    ns.Print(("Added %s to your BiS %s as a secondary pick."):format(Name(id), SLOT_NAME[fits[1]]))
-end
-
--- From a slot's dropdown.
-function ns.SetBisSlot(slot, itemID)
-    local cleared = SetSlot(slot, itemID)
-    if cleared then
-        ns.Print(("%s came off your BiS list: a two-hander and an off-hand cannot both be listed.")
-            :format(Name(cleared)))
-    end
-end
-
-function ns.SetBisSecondary(slot, itemID, on)
-    local slots = List().slots
-    if on and slots[slot] == itemID then slots[slot] = nil end
-    SetExtra(slot, itemID, on)
-    Changed()
-end
-
-function ns.ClearBisPick(slot, itemID)
-    local slots = List().slots
-    if slots[slot] == itemID then slots[slot] = nil end
-    SetExtra(slot, itemID, nil)
-    Changed()
-end
-
-local function ClearSlot(slot)
-    local list = List()
-    list.slots[slot], list.extra[slot] = nil, nil
-    Changed()
-end
-
-function ns.RemoveBisItem(itemID)
-    local list = List()
-    for s, id in pairs(list.slots) do
-        if id == itemID then list.slots[s] = nil end
-    end
-    for s in pairs(list.extra) do SetExtra(s, itemID, nil) end
-    Changed()
+local function SayCleared(cleared)
+    if #cleared == 0 then return end
+    local names = {}
+    for _, id in ipairs(cleared) do names[#names + 1] = Name(id) end
+    ns.Print(("%s came off your BiS list: a two-hander and an off-hand cannot both be BiS.")
+        :format(table.concat(names, ", ")))
 end
 
 -------------------------------------------------------------------------------
@@ -240,7 +124,67 @@ local function ClassSpecs()
     return out
 end
 
--- The spec whose rankings the page shows: the one picked last, else the class's first.
+-- A slot's ranked items under a spec key, else under the class's first spec.
+local function Ranking(key, slot)
+    for _, spec in ipairs(ns.BiSData.specs) do
+        if spec.key == key then return spec.slots[slot] end
+    end
+    local spec = ClassSpecs()[1]
+    return spec and spec.slots[slot]
+end
+
+-- A set of item IDs as a list in ranked order, anything unranked last.
+local function Ranked(set, order)
+    local pos, ids = {}, {}
+    for i, id in ipairs(order or {}) do pos[id] = pos[id] or i end
+    for id in pairs(set) do ids[#ids + 1] = id end
+    table.sort(ids, function(a, b)
+        local pa, pb = pos[a] or math.huge, pos[b] or math.huge
+        if pa ~= pb then return pa < pb end
+        return a < b
+    end)
+    return ids
+end
+
+-- One list per character, kept in the account store: personal, so it never travels in an
+-- exported profile. Lists from before slots were a flat item list; each item moves into the
+-- first slot it fits. 0.5.12 test builds kept extra[slot] as an unordered set of secondary
+-- picks; those are put in ranked order behind the BiS pick. Whatever no longer fits is named
+-- in chat once.
+local function List()
+    local account = ns.AccountSettings()
+    account.bis = account.bis or {}
+    local key = UnitName("player") .. "-" .. GetRealmName()
+    local list = account.bis[key] or { name = "My BiS" }
+    account.bis[key] = list
+    list.extra = list.extra or {}
+    local moved, dropped = false, {}
+    if not list.slots then
+        list.slots = {}
+        for _, id in ipairs(list.items or {}) do
+            local slot = FreeSlot(list.slots, id)
+            if slot then list.slots[slot] = id else dropped[#dropped + 1] = Name(id) end
+        end
+        list.items = nil
+        moved = true
+    end
+    for slot, set in pairs(list.extra) do
+        if not set[1] then
+            list.extra[slot] = Ranked(set, Ranking(list.spec, slot))
+            Store(list, slot, Picks(list, slot))
+            moved = true
+        end
+    end
+    if moved then
+        for _, id in ipairs(HandRule(list, 16)) do dropped[#dropped + 1] = Name(id) end
+        if #dropped > 0 then
+            ns.Print("Your BiS list now keeps a ranked list per slot. These did not fit: "
+                .. table.concat(dropped, ", "))
+        end
+    end
+    return list
+end
+
 local function CurrentSpec()
     local specs = ClassSpecs()
     local key = List().spec
@@ -250,22 +194,128 @@ local function CurrentSpec()
     return specs[1]
 end
 
--- The slot's ranked items, then any picks the ranking lacks; returns them and the ranked count.
--- An ID the running client does not know never finishes loading, so it is left out.
+-- The slot's ranked items the running client knows; an unknown ID never finishes loading.
 local function Candidates(slot, spec)
+    local ids = {}
+    for _, id in ipairs(spec and spec.slots[slot] or {}) do
+        if C_Item.GetItemInfoInstant(id) then ids[#ids + 1] = id end
+    end
+    return ids
+end
+
+local function Rebuild()
+    lookup = {}
     local list = List()
-    local ids, seen = {}, {}
-    local function Add(id)
-        if not seen[id] and C_Item.GetItemInfoInstant(id) then
-            seen[id] = true
-            ids[#ids + 1] = id
+    for slot in pairs(SLOT_NAME) do
+        for rank, id in ipairs(Picks(list, slot)) do
+            if not lookup[id] or rank < lookup[id] then lookup[id] = rank end
         end
     end
-    for _, id in ipairs(spec and spec.slots[slot] or {}) do Add(id) end
-    local ranked = #ids
-    if list.slots[slot] then Add(list.slots[slot]) end
-    for id in pairs(list.extra[slot] or {}) do Add(id) end
-    return ids, ranked
+end
+
+-- The item's best pick number, 1 being BiS.
+function ns.IsBisItem(itemID)
+    if not (On() and itemID) then return nil end
+    if not lookup then Rebuild() end
+    return lookup[itemID]
+end
+
+local function Changed()
+    Rebuild()
+    if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
+end
+
+-- A slot is open for a #1 pick when it has none and the other hand's pick does not rule it out.
+local function Open(slots, slot, itemID)
+    if slots[slot] then return false end
+    if slot == 17 then return not (slots[16] and IsTwoHand(slots[16])) end
+    if slot == 16 and IsTwoHand(itemID) then return not slots[17] end
+    return true
+end
+
+-- The next pick in the slot, #1 when it has none.
+function ns.AddBisPick(slot, itemID)
+    local list = List()
+    local picks = Picks(list, slot)
+    for _, id in ipairs(picks) do
+        if id == itemID then return end
+    end
+    picks[#picks + 1] = itemID
+    Store(list, slot, picks)
+    SayCleared(HandRule(list, slot))
+    Changed()
+end
+
+function ns.RemoveBisPick(slot, itemID)
+    local list = List()
+    local picks = Picks(list, slot)
+    for i, id in ipairs(picks) do
+        if id == itemID then
+            table.remove(picks, i)
+            break
+        end
+    end
+    Store(list, slot, picks)
+    SayCleared(HandRule(list, slot))
+    Changed()
+end
+
+-- Swaps the pick with the one above (step -1) or below (step 1).
+function ns.MoveBisPick(slot, itemID, step)
+    local list = List()
+    local picks = Picks(list, slot)
+    for i, id in ipairs(picks) do
+        local j = i + step
+        if id == itemID and picks[j] then
+            picks[i], picks[j] = picks[j], id
+            break
+        end
+    end
+    Store(list, slot, picks)
+    SayCleared(HandRule(list, slot))
+    Changed()
+end
+
+-- #1 in the first open slot the item fits, else the next pick in its first slot. Never
+-- pushes out the other hand's BiS pick.
+function ns.AddBisItem(value)
+    local id = IDFrom(value)
+    local fits = id and SlotsFor(id)
+    if not fits then
+        ns.Print("That is not an item you can equip.")
+        return
+    end
+    if not lookup then Rebuild() end
+    if lookup[id] then return end
+    local list = List()
+    for _, slot in ipairs(fits) do
+        if Open(list.slots, slot, id) then
+            ns.AddBisPick(slot, id)
+            ns.Print(("Added %s to your BiS %s."):format(Name(id), SLOT_NAME[slot]))
+            return
+        end
+    end
+    local slot = fits[1]
+    if not list.slots[slot] then
+        ns.Print(("%s was not added: a two-hander and an off-hand cannot both be BiS. Pick it in the %s slot to swap them.")
+            :format(Name(id), SLOT_NAME[slot]))
+        return
+    end
+    ns.AddBisPick(slot, id)
+    ns.Print(("Added %s to your BiS %s as #%d."):format(Name(id), SLOT_NAME[slot], #Picks(list, slot)))
+end
+
+function ns.RemoveBisItem(itemID)
+    local list = List()
+    for slot in pairs(SLOT_NAME) do
+        local picks = Picks(list, slot)
+        for i = #picks, 1, -1 do
+            if picks[i] == itemID then table.remove(picks, i) end
+        end
+        Store(list, slot, picks)
+    end
+    SayCleared(HandRule(list, 16))
+    Changed()
 end
 
 -------------------------------------------------------------------------------
@@ -279,7 +329,7 @@ function ns.ExportBisList()
     local LS, LD = Codec()
     local list = List()
     return PREFIX .. LD:EncodeForPrint(LD:CompressDeflate(LS:Serialize({
-        v = 3, name = list.name, spec = list.spec, slots = list.slots, extra = list.extra,
+        v = 4, name = list.name, spec = list.spec, slots = list.slots, extra = list.extra,
     })))
 end
 
@@ -289,7 +339,8 @@ end
 
 -- Parsed as data, never run: only a name, a spec key and item numbers in slots they fit are
 -- kept. Version 1 strings are the old flat list, placed the same way an old saved list is;
--- version 2 strings have no secondary picks.
+-- version 2 strings have only BiS picks, and version 3 strings have unordered secondary
+-- picks, put in the spec's ranked order.
 local function Decode(text)
     local LS, LD = Codec()
     local body = type(text) == "string" and text:match("^%s*" .. PREFIX:gsub("!", "%%!") .. "(%S+)%s*$")
@@ -298,34 +349,45 @@ local function Decode(text)
     if not raw then return end
     local ok, data = LS:Deserialize(raw)
     if not (ok and type(data) == "table") then return end
-    local slots, extra = {}, {}
+    -- Shown in chat and tooltips, so escape codes are neutralised.
+    local name = type(data.name) == "string" and data.name:sub(1, 40):gsub("|", "||") or "Imported BiS"
+    local spec = type(data.spec) == "string" and data.spec:sub(1, 40) or nil
+    local list = { slots = {}, extra = {} }
     if data.v == 1 and type(data.items) == "table" then
         for _, id in ipairs(data.items) do
-            local slot = ValidID(id) and FreeSlot(slots, id)
-            if slot then slots[slot] = id end
+            local slot = ValidID(id) and FreeSlot(list.slots, id)
+            if slot then list.slots[slot] = id end
         end
-    elseif (data.v == 2 or data.v == 3) and type(data.slots) == "table" then
+    elseif (data.v == 2 or data.v == 3 or data.v == 4) and type(data.slots) == "table" then
         for slot, id in pairs(data.slots) do
-            if SLOT_NAME[slot] and ValidID(id) and Fits(id, slot) then slots[slot] = id end
+            if SLOT_NAME[slot] and ValidID(id) and Fits(id, slot) then list.slots[slot] = id end
         end
-        for slot, set in pairs(data.v == 3 and type(data.extra) == "table" and data.extra or {}) do
-            if SLOT_NAME[slot] and type(set) == "table" then
-                for id, on in pairs(set) do
-                    if on == true and ValidID(id) and Fits(id, slot) and slots[slot] ~= id then
-                        extra[slot] = extra[slot] or {}
-                        extra[slot][id] = true
+        for slot, more in pairs(data.v > 2 and type(data.extra) == "table" and data.extra or {}) do
+            if SLOT_NAME[slot] and type(more) == "table" then
+                if data.v == 3 then
+                    local set = {}
+                    for id, on in pairs(more) do
+                        if on == true and ValidID(id) then set[id] = true end
+                    end
+                    more = Ranked(set, Ranking(spec, slot))
+                end
+                local picks = Picks(list, slot)
+                local seen = {}
+                for _, id in ipairs(picks) do seen[id] = true end
+                for _, id in ipairs(more) do
+                    if ValidID(id) and Fits(id, slot) and not seen[id] then
+                        seen[id] = true
+                        picks[#picks + 1] = id
                     end
                 end
+                Store(list, slot, picks)
             end
         end
     else
         return
     end
-    DropOffHand(slots)
-    -- Shown in chat and tooltips, so escape codes are neutralised.
-    local name = type(data.name) == "string" and data.name:sub(1, 40):gsub("|", "||") or "Imported BiS"
-    local spec = type(data.spec) == "string" and data.spec:sub(1, 40) or nil
-    return name, slots, extra, spec
+    HandRule(list, 16)
+    return name, list.slots, list.extra, spec
 end
 
 -- Also the entry point for a curated list delivered in a profile pack.
@@ -337,9 +399,7 @@ function ns.ImportBisList(text, quiet)
     end
     local count = 0
     for _ in pairs(slots) do count = count + 1 end
-    for _, set in pairs(extra) do
-        for _ in pairs(set) do count = count + 1 end
-    end
+    for _, rest in pairs(extra) do count = count + #rest end
     local function Apply()
         local list = List()
         list.name, list.slots, list.extra = name, slots, extra
@@ -359,9 +419,9 @@ end
 TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
     local id = data and data.id
     if not id or (issecretvalue and issecretvalue(id)) then return end
-    local pick = S.Get("bisTooltip") and ns.IsBisItem(id)
-    if pick then
-        tooltip:AddLine(TAG .. "  " .. List().name .. (pick == "secondary" and " (secondary)" or ""))
+    local rank = S.Get("bisTooltip") and ns.IsBisItem(id)
+    if rank then
+        tooltip:AddLine(TAG .. (rank > 1 and " #" .. rank or "") .. "  " .. List().name)
     end
 end)
 
@@ -382,9 +442,9 @@ end)
 local alerted = {}
 
 local function Alert(link, what)
-    local pick = link and not (issecretvalue and issecretvalue(link)) and ns.IsBisItem(IDFrom(link))
-    if pick then
-        ns.Print(TAG .. " " .. (pick == "secondary" and "secondary " or "") .. what .. ": " .. link)
+    local rank = link and not (issecretvalue and issecretvalue(link)) and ns.IsBisItem(IDFrom(link))
+    if rank then
+        ns.Print(TAG .. (rank > 1 and " #" .. rank or "") .. " " .. what .. ": " .. link)
         PlaySound(SOUNDKIT.RAID_WARNING)
     end
 end
@@ -440,19 +500,22 @@ for i = 1, 4 do
 end
 
 -------------------------------------------------------------------------------
---  The page
+--  The picker
 -------------------------------------------------------------------------------
-local ROW_H, ICON, STRIDE, MAX_ICONS = 56, 28, 32, 10
-local NOT_READY = "Interface\\RaidFrame\\ReadyCheck-NotReady"
 local CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
-local BIS_COLOR, SECONDARY_COLOR, OTHER_COLOR = { 0.1, 0.85, 0.2 }, { 1, 0.82, 0 }, { 0, 0, 0 }
-local BIS_TEXT, SECONDARY_TEXT = "|cff1ad933BiS|r", "|cffffd100Secondary|r"
+local BIS_COLOR, EMPTY_COLOR = { 0.1, 0.85, 0.2 }, { 0, 0, 0 }
+local BIS_TEXT = "|cff1ad933BiS|r"
 local SOURCE_SEP = " \194\183 "   -- the middle dot wowsrc puts between boss and place
+local PICKER_W, PICKER_H, PICK_ROW = 480, 560, 30
 
 local function QualityHex(itemID)
     local q = C_Item.GetItemQualityByID(itemID)
     local c = q and ITEM_QUALITY_COLORS[q]
     return c and c.hex or "|cffffffff"
+end
+
+local function RankText(rank)
+    return rank == 1 and BIS_TEXT or ("|cffffd100#%d|r"):format(rank)
 end
 
 local function ItemTooltip(owner, itemID)
@@ -472,183 +535,300 @@ local function OnLoaded(ids, fn)
     container:ContinueOnLoad(fn)
 end
 
--- The slot's candidates as an anchored dropdown, each with a submenu to make it the BiS
--- pick, a secondary pick, or neither. The same menu as the house dropdowns, so it closes on
--- an outside click and scrolls when long.
-local function OpenPicker(anchor, slot)
-    local spec = CurrentSpec()
-    local ids, ranked = Candidates(slot, spec)
-    OnLoaded(ids, function()
-        if not anchor:IsVisible() then return end
-        local list = List()
-        local extra = list.extra[slot] or {}
-        local desc = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
-        desc:SetScrollMode(420)
-        desc:CreateTitle(spec and ("%s: %s"):format(ns.L(SLOT_NAME[slot]), spec.name) or ns.L(SLOT_NAME[slot]))
-        for i, id in ipairs(ids) do
-            local text = ("%s|T%s:18|t  %s%s|r"):format(i <= ranked and (i .. ".  ") or "",
-                C_Item.GetItemIconByID(id), QualityHex(id), Name(id))
-            local source = ns.BiSData.sources[id]
-            if source then text = text .. "  |cff808080" .. source .. "|r" end
-            local picked = list.slots[slot] == id or extra[id]
-            if list.slots[slot] == id then text = text .. "  " .. BIS_TEXT
-            elseif extra[id] then text = text .. "  " .. SECONDARY_TEXT end
-            local item = desc:CreateButton(text)
-            item:SetTooltip(function(tooltip) tooltip:SetItemByID(id) end)
-            item:CreateRadio(ns.L("Best in Slot"),
-                function() return List().slots[slot] == id end,
-                function()
-                    ns.SetBisSlot(slot, id)
-                    return MenuResponse.CloseAll
-                end)
-            item:CreateCheckbox(ns.L("Secondary"),
-                function() return extra[id] == true end,
-                function()
-                    ns.SetBisSecondary(slot, id, not extra[id])
-                    return MenuResponse.CloseAll
-                end)
-            if picked then
-                item:CreateButton(ns.L("Remove"), function()
-                    ns.ClearBisPick(slot, id)
-                    return MenuResponse.CloseAll
-                end)
-            end
-        end
-        Menu.GetManager():OpenMenu(anchor, desc, AnchorUtil.CreateAnchor("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2))
-    end)
+local pickerPanel, pickerSlot
+local FillPicker
+
+-- Icon, quality-coloured name and grey source, shared by both kinds of picker row.
+local function ItemLine(row, x)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(22, 22)
+    row.icon:SetPoint("LEFT", x, 0)
+    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.text = ns.Font(row, 12, nil)
+    row.text:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(false)
+    row.num = ns.Font(row, 12, nil, T.muted)
+    row.num:SetPoint("RIGHT", row.icon, "LEFT", -6, 0)
 end
 
-local function NewSlotRow(parent)
-    local row = CreateFrame("Button", nil, parent)
-    row.band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
-    row.band:SetAllPoints()
-    local hover = ns.Solid(row, "BORDER", T.accent, 0.08)
-    hover:SetAllPoints()
-    hover:Hide()
-    row:SetScript("OnClick", function(self) OpenPicker(self, self.slot) end)
-    row:SetScript("OnEnter", function() hover:Show() end)
-    row:SetScript("OnLeave", function() hover:Hide() end)
+local function SetItemLine(row, num, id)
+    local source = ns.BiSData.sources[id]
+    row.id = id
+    row.num:SetText(num)
+    row.icon:SetTexture(C_Item.GetItemIconByID(id))
+    row.text:SetText(QualityHex(id) .. Name(id) .. "|r" .. (source and "  |cff808080" .. source .. "|r" or ""))
+end
 
-    row.name = ns.Font(row, 12, nil, T.muted)
-    row.name:SetPoint("LEFT", 14, 0)
-
-    row.icons = {}
-    for i = 1, MAX_ICONS do
-        local b = CreateFrame("Button", nil, row)
-        b:SetSize(ICON, ICON)
-        b:SetPoint("TOPLEFT", row, "TOPLEFT", 96 + (i - 1) * STRIDE, -6)
-        b.border = b:CreateTexture(nil, "BACKGROUND")
-        b.border:SetAllPoints()
-        b.icon = b:CreateTexture(nil, "ARTWORK")
-        b.icon:SetPoint("TOPLEFT", 2, -2)
-        b.icon:SetPoint("BOTTOMRIGHT", -2, 2)
-        b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        b.check = b:CreateTexture(nil, "OVERLAY")
-        b.check:SetSize(18, 18)
-        b.check:SetPoint("BOTTOMRIGHT", 5, -5)
-        b.check:SetTexture(CHECK)
-        b.check:SetVertexColor(BIS_COLOR[1], BIS_COLOR[2], BIS_COLOR[3])
-        b:SetScript("OnClick", function(self) OpenPicker(self, row.slot) end)
-        b:SetScript("OnEnter", function(self) ItemTooltip(self, self.id) end)
-        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-        row.icons[i] = b
-    end
-
-    row.item = ns.Font(row, 12, nil)
-    row.item:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 96, 6)
-    row.item:SetPoint("RIGHT", row, "RIGHT", -56, 0)
-    row.item:SetJustifyH("LEFT")
-    row.item:SetWordWrap(false)
-
-    local remove = CreateFrame("Button", nil, row)
-    remove:SetSize(18, 18)
-    remove:SetPoint("RIGHT", row, "RIGHT", -12, 0)
-    remove:SetNormalTexture(NOT_READY)
-    remove:SetScript("OnClick", function() ClearSlot(row.slot) end)
-    remove:SetScript("OnEnter", function(self)
-        ns.UI.ShowWidgetTooltip(self, "Clear this slot", { anchor = "cursor" })
+local function NewPickRow(parent)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(PICK_ROW)
+    row:EnableMouse(true)
+    ItemLine(row, 32)
+    row:SetScript("OnEnter", function(self) ItemTooltip(self, self.id) end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row.remove = ns.Button(row, "Remove", 64, 22, function()
+        ns.RemoveBisPick(pickerSlot, row.id)
+        FillPicker()
     end)
-    remove:SetScript("OnLeave", function() ns.UI.HideWidgetTooltip() end)
-    row.remove = remove
-
-    row.worn = ns.Font(row, 11, nil, T.muted)
-    row.worn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -12, 6)
-    row.worn:SetText("Worn")
+    row.remove:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+    row.down = ns.Button(row, "Down", 48, 22, function()
+        ns.MoveBisPick(pickerSlot, row.id, 1)
+        FillPicker()
+    end)
+    row.down:SetPoint("RIGHT", row.remove, "LEFT", -4, 0)
+    row.up = ns.Button(row, "Up", 40, 22, function()
+        ns.MoveBisPick(pickerSlot, row.id, -1)
+        FillPicker()
+    end)
+    row.up:SetPoint("RIGHT", row.down, "LEFT", -4, 0)
+    row.text:SetPoint("RIGHT", row.up, "LEFT", -8, 0)
     return row
 end
 
-local function SlotRow(parent, x, y, width, slot, label, lit, spec)
-    local row = ns.UI.Keep(parent, "slot", NewSlotRow)
-    row:SetSize(width, ROW_H)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-    row.band:SetShown(lit)
-    row.name:SetText(ns.L(label))
+local function NewCandidateRow(parent)
+    local row = CreateFrame("Button", nil, parent)
+    row:SetHeight(PICK_ROW)
+    local hover = ns.Solid(row, "BACKGROUND", T.accent, 0.12)
+    hover:SetAllPoints()
+    hover:Hide()
+    ItemLine(row, 32)
+    row.tag = ns.Font(row, 12, nil)
+    row.tag:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.text:SetPoint("RIGHT", row.tag, "LEFT", -8, 0)
+    row:SetScript("OnClick", function(self)
+        ns.AddBisPick(pickerSlot, self.id)
+        FillPicker()
+    end)
+    row:SetScript("OnEnter", function(self)
+        hover:Show()
+        ItemTooltip(self, self.id)
+    end)
+    row:SetScript("OnLeave", function()
+        hover:Hide()
+        GameTooltip:Hide()
+    end)
+    return row
+end
 
-    local list = List()
-    local bis = list.slots[slot]
-    local extra = list.extra[slot] or {}
-    row.slot, row.id = slot, bis
+-- Your picks in order with their controls, then the spec's ranking to pick from.
+function FillPicker()
+    local UI = ns.UI
+    local content = pickerPanel.scroll.content
+    UI.BeginReusableRows(content)
+    local spec = CurrentSpec()
+    local picks = Picks(List(), pickerSlot)
+    local y = 0
 
-    -- The BiS pick, then secondary picks, then the rest in ranked order.
+    local head = UI.KeepFont(content, "picksHead", 12, nil, T.accent)
+    head:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+    head:SetText("YOUR PICKS, BEST FIRST")
+    y = y - 22
+    local picked = {}
+    for i, id in ipairs(picks) do
+        picked[id] = i
+        local row = UI.Keep(content, "pick", NewPickRow)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        SetItemLine(row, i == 1 and BIS_TEXT or i .. ".", id)
+        row.up:SetShown(i > 1)
+        row.down:SetShown(i < #picks)
+        y = y - PICK_ROW
+    end
+    if #picks == 0 then
+        local none = UI.KeepFont(content, "none", 12, nil, T.muted)
+        none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y - 6)
+        none:SetText("Nothing picked yet. The first item you click below is your BiS.")
+        y = y - PICK_ROW
+    end
+
+    y = y - 14
+    head = UI.KeepFont(content, "rankHead", 12, nil, T.accent)
+    head:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+    head:SetText(spec and ("RANKED FOR " .. spec.name:upper()) or "RANKED")
+    y = y - 22
+    local ids = Candidates(pickerSlot, spec)
+    for i, id in ipairs(ids) do
+        local row = UI.Keep(content, "candidate", NewCandidateRow)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        SetItemLine(row, i .. ".", id)
+        row.tag:SetText(picked[id] and RankText(picked[id]) or "")
+        y = y - PICK_ROW
+    end
+    if #ids == 0 then
+        local none = UI.KeepFont(content, "unranked", 12, nil, T.muted)
+        none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y - 6)
+        none:SetText("Nothing ranked for this slot.")
+        y = y - PICK_ROW
+    end
+    content:SetHeight(-y)
+end
+
+local function OpenPicker(slot)
+    local UI = ns.UI
+    local spec = CurrentSpec()
+    local dimmer, panel = ns.MakeModal(PICKER_W, PICKER_H, "bisPicker")
+    pickerPanel, pickerSlot = panel, slot
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
+    head:SetPoint("TOP", 0, -16)
+    head:SetText(spec and ("%s: %s"):format(ns.L(SLOT_NAME[slot]), spec.name) or ns.L(SLOT_NAME[slot]))
+    panel.scroll = UI.Keep(panel, "scroll", function(p)
+        local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
+        sf.content = CreateFrame("Frame", nil, sf)
+        -- Sized off the panel: the scroll frame reads 0 wide until a layout pass has run.
+        sf.content:SetSize(PICKER_W - 62, 1)
+        sf:SetScrollChild(sf.content)
+        return sf
+    end)
+    panel.scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -48)
+    panel.scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -40, 54)
+    panel.scroll:SetVerticalScroll(0)
+    UI.KeepButton(panel, "done", "Done", 100, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    FillPicker()
+    dimmer:Show()
+
     local ids = Candidates(slot, spec)
-    local shown = {}
-    if bis and C_Item.GetItemInfoInstant(bis) then shown[1] = bis end
-    for _, id in ipairs(ids) do
-        if extra[id] then shown[#shown + 1] = id end
-    end
-    for _, id in ipairs(ids) do
-        if id ~= bis and not extra[id] then shown[#shown + 1] = id end
-    end
-    local room = math.min(MAX_ICONS, math.floor((width - 96 - 56 + STRIDE - ICON) / STRIDE))
-    for i, b in ipairs(row.icons) do
-        local id = i <= room and shown[i] or nil
-        b:SetShown(id ~= nil)
-        if id then
-            b.id = id
-            b.icon:SetTexture(C_Item.GetItemIconByID(id))
-            local c = (id == bis and BIS_COLOR) or (extra[id] and SECONDARY_COLOR) or OTHER_COLOR
-            b.border:SetColorTexture(c[1], c[2], c[3], 1)
-            b.check:SetShown(id == bis)
-        end
-    end
-
-    row.remove:SetShown(bis ~= nil or next(extra) ~= nil)
-    row.worn:Hide()
-    if not bis then
-        row.item:SetText("|cff808080" .. (next(extra) and "No BiS picked yet" or #ids > 0
-            and "Click an item to pick it" or "Nothing ranked for this slot") .. "|r")
-        return
-    end
-    local worn = row.worn
-    worn.slot, worn.itemID = slot, bis
-    worn:SetShown(Wearing(slot, bis))
-    local marks = wornMarks[parent]
-    marks[#marks + 1] = worn
-
-    local source = ns.BiSData.sources[bis]
-    row.item:SetText("")
-    Item:CreateFromItemID(bis):ContinueOnItemLoad(function()
-        if row.id == bis then
-            row.item:SetText(QualityHex(bis) .. Name(bis) .. "|r"
-                .. (source and "  |cff808080" .. source .. "|r" or ""))
-        end
+    for _, id in ipairs(Picks(List(), slot)) do ids[#ids + 1] = id end
+    OnLoaded(ids, function()
+        if dimmer:IsShown() and pickerSlot == slot then FillPicker() end
     end)
 end
 
+-------------------------------------------------------------------------------
+--  The page
+-------------------------------------------------------------------------------
+-- The paperdoll: slot buttons down both sides of the character model, weapons underneath.
+local SLOT_SIZE, SLOT_GAP, MODEL_GAP = 40, 6, 12
+local LEFT_SLOTS = { 1, 2, 3, 15, 5, 9 }
+local RIGHT_SLOTS = { 10, 6, 7, 8, 11, 12, 13, 14 }
+local BOTTOM_SLOTS = { 16, 17, 18 }
+local COLUMN_H = #RIGHT_SLOTS * (SLOT_SIZE + SLOT_GAP) - SLOT_GAP
+local DOLL_W = 380
+local DOLL_H = COLUMN_H + MODEL_GAP + SLOT_SIZE + 16   -- room for Worn under the weapons
+
+local function SlotTooltip(self)
+    local picks = Picks(List(), self.slot)
+    local label = ns.L(SLOT_NAME[self.slot])
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    if picks[1] then
+        GameTooltip:SetItemByID(picks[1])
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(("Your %s picks"):format(label), T.accent.r, T.accent.g, T.accent.b)
+        for i, id in ipairs(picks) do
+            GameTooltip:AddLine(("%d. %s%s|r"):format(i, QualityHex(id), Name(id)))
+        end
+        GameTooltip:AddLine("Click to change them.", 0.5, 0.5, 0.5)
+    else
+        GameTooltip:SetText(label)
+        GameTooltip:AddLine("Click to pick your BiS from the ranking.", 0.5, 0.5, 0.5)
+    end
+    GameTooltip:Show()
+end
+
+local function NewSlotButton(parent)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(SLOT_SIZE, SLOT_SIZE)
+    b.border = b:CreateTexture(nil, "BACKGROUND")
+    b.border:SetAllPoints()
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetPoint("TOPLEFT", 2, -2)
+    b.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+    b.check = b:CreateTexture(nil, "OVERLAY")
+    b.check:SetSize(20, 20)
+    b.check:SetPoint("BOTTOMRIGHT", 5, -5)
+    b.check:SetTexture(CHECK)
+    b.check:SetVertexColor(BIS_COLOR[1], BIS_COLOR[2], BIS_COLOR[3])
+    b.more = ns.Font(b, 11, "OUTLINE")
+    b.more:SetPoint("TOPRIGHT", -3, -3)
+    b.worn = ns.Font(b, 10, nil, T.muted)
+    b.worn:SetText("Worn")
+    b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    b:SetScript("OnClick", function(self) OpenPicker(self.slot) end)
+    b:SetScript("OnEnter", SlotTooltip)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    return b
+end
+
+-- side is where Worn goes, clear of the model: LEFT, RIGHT or BOTTOM.
+local function SlotButton(doll, slot, x, y, side, marks)
+    local b = ns.UI.Keep(doll, "slot", NewSlotButton)
+    b:SetPoint("TOPLEFT", doll, "TOPLEFT", x, y)
+    b.slot = slot
+    local picks = Picks(List(), slot)
+    local id = picks[1]
+    b.worn:ClearAllPoints()
+    if side == "LEFT" then
+        b.worn:SetPoint("RIGHT", b, "LEFT", -4, 0)
+    elseif side == "RIGHT" then
+        b.worn:SetPoint("LEFT", b, "RIGHT", 4, 0)
+    else
+        b.worn:SetPoint("TOP", b, "BOTTOM", 0, -2)
+    end
+    b.check:SetShown(id ~= nil)
+    b.more:SetText(#picks > 1 and "+" .. (#picks - 1) or "")
+    if id then
+        b.icon:SetTexture(C_Item.GetItemIconByID(id))
+        b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        b.border:SetColorTexture(BIS_COLOR[1], BIS_COLOR[2], BIS_COLOR[3], 1)
+        b.worn.slot, b.worn.itemID = slot, id
+        b.worn:SetShown(Wearing(slot, id))
+        marks[#marks + 1] = b.worn
+    else
+        local _, empty = C_PaperDollInfo.GetInventorySlotInfoForInvSlot(slot)
+        b.icon:SetTexture(empty)
+        b.icon:SetTexCoord(0, 1, 0, 1)
+        b.border:SetColorTexture(EMPTY_COLOR[1], EMPTY_COLOR[2], EMPTY_COLOR[3], 1)
+        b.worn:Hide()
+    end
+end
+
+local function NewDoll(parent)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(DOLL_W, DOLL_H)
+    local model = CreateFrame("PlayerModel", nil, f)
+    model:SetPoint("TOPLEFT", f, "TOPLEFT", SLOT_SIZE + MODEL_GAP, 0)
+    model:SetSize(DOLL_W - 2 * (SLOT_SIZE + MODEL_GAP), COLUMN_H)
+    local band = ns.Solid(f, "BACKGROUND", T.panel, 0.35)
+    band:SetAllPoints(model)
+    -- A model frame drops its model while hidden.
+    model:SetScript("OnShow", function(self) self:SetUnit("player") end)
+    model:SetScript("OnEvent", function(self)
+        if self:IsVisible() then self:RefreshUnit() end
+    end)
+    model:RegisterUnitEvent("UNIT_MODEL_CHANGED", "player")
+    model:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    return f
+end
+
+local function Paperdoll(parent, x, y, marks)
+    local doll = ns.UI.Keep(parent, "bisDoll", NewDoll)
+    doll:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+    local stride = (COLUMN_H - SLOT_SIZE) / (#LEFT_SLOTS - 1)
+    for i, slot in ipairs(LEFT_SLOTS) do
+        SlotButton(doll, slot, 0, -math.floor((i - 1) * stride + 0.5), "LEFT", marks)
+    end
+    for i, slot in ipairs(RIGHT_SLOTS) do
+        SlotButton(doll, slot, DOLL_W - SLOT_SIZE, -(i - 1) * (SLOT_SIZE + SLOT_GAP), "RIGHT", marks)
+    end
+    local step = SLOT_SIZE + MODEL_GAP
+    local left = (DOLL_W - #BOTTOM_SLOTS * step + MODEL_GAP) / 2
+    for i, slot in ipairs(BOTTOM_SLOTS) do
+        SlotButton(doll, slot, left + (i - 1) * step, -(COLUMN_H + MODEL_GAP), "BOTTOM", marks)
+    end
+end
+
 -- Every pick grouped by where it comes from: places with the most BiS picks first, and in
--- each place BiS picks before secondary ones.
+-- each place BiS picks before the rest, best first.
 local function SourceText()
     local list = List()
-    local kinds, ids = {}, {}
-    for _, set in pairs(list.extra) do
-        for id in pairs(set) do
-            if not kinds[id] then ids[#ids + 1] = id end
-            kinds[id] = "secondary"
+    local ranks, ids = {}, {}
+    for slot in pairs(SLOT_NAME) do
+        for rank, id in ipairs(Picks(list, slot)) do
+            if not ranks[id] then ids[#ids + 1] = id end
+            if not ranks[id] or rank < ranks[id] then ranks[id] = rank end
         end
-    end
-    for _, id in pairs(list.slots) do
-        if not kinds[id] then ids[#ids + 1] = id end
-        kinds[id] = "bis"
     end
     if #ids == 0 then
         return "|cff808080Pick items for your slots and this lists where each one comes from.|r", ids
@@ -665,8 +845,8 @@ local function SourceText()
             byName[place] = p
             places[#places + 1] = p
         end
-        if kinds[id] == "bis" then p.bis = p.bis + 1 end
-        p.items[#p.items + 1] = { id = id, bis = kinds[id] == "bis", detail = detail }
+        if ranks[id] == 1 then p.bis = p.bis + 1 end
+        p.items[#p.items + 1] = { id = id, rank = ranks[id], detail = detail }
     end
     table.sort(places, function(a, b)
         if a.bis ~= b.bis then return a.bis > b.bis end
@@ -677,13 +857,13 @@ local function SourceText()
     local lines = {}
     for _, p in ipairs(places) do
         table.sort(p.items, function(a, b)
-            if a.bis ~= b.bis then return a.bis end
+            if a.rank ~= b.rank then return a.rank < b.rank end
             return a.id < b.id
         end)
         if #lines > 0 then lines[#lines + 1] = " " end
         lines[#lines + 1] = p.name
         for _, item in ipairs(p.items) do
-            lines[#lines + 1] = ("    %s  %s%s|r%s"):format(item.bis and BIS_TEXT or SECONDARY_TEXT,
+            lines[#lines + 1] = ("    %s  %s%s|r%s"):format(RankText(item.rank),
                 QualityHex(item.id), Name(item.id), item.detail and ("  |cff808080" .. item.detail .. "|r") or "")
         end
     end
@@ -730,11 +910,12 @@ function ns.BuildQoLBiSPage(parent, y)
         if not page:GetParent() then wornMarks[page] = nil end
     end
     wornMarks[parent] = {}
-    _, h = W:Note(parent, "Click a slot to pick its best in slot (green, with a check) and any "
-        .. "secondary picks (yellow) from the ranking for your spec. Alt+Shift-click any item (bags, "
-        .. "links, loot) to add it, as the slot's BiS if it has none or else as a secondary pick, or "
-        .. "again to take it off. Listed items say so on their tooltip, are tagged in the loot feed, "
-        .. "and ring an alert when they drop or come up for a roll.", y); y = y - h
+    _, h = W:Note(parent, "Click a slot to pick its items from the ranking for your spec, best "
+        .. "first: your BiS, then your 2nd, 3rd and so on. A slot shows its BiS with a green border "
+        .. "and a check mark, and +N for the rest. Alt+Shift-click any item (bags, links, loot) to "
+        .. "add it as the next pick for its slot, or again to take it off. Listed items say so on "
+        .. "their tooltip, are tagged in the loot feed, and ring an alert when they drop or come up "
+        .. "for a roll.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "BIS LIST" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -752,7 +933,7 @@ function ns.BuildQoLBiSPage(parent, y)
         S.Toggle("bisLootAlert", "Drop Alert",
             "A chat line and a sound when a listed item is in the loot window or up for a roll, and a glow on its roll frame.", "bis"),
         #specs > 0 and { type = "dropdown", text = "Rankings For", values = values, order = order,
-            tooltip = "Whose ranking each slot's dropdown shows. Your picks stay as they are when you switch.",
+            tooltip = "Whose ranking the slot picker shows. Your picks stay as they are when you switch.",
             getValue = function() local spec = CurrentSpec(); return spec and spec.key end,
             setValue = function(v) List().spec = v end }
         or { type = "label", text = "" }
@@ -768,12 +949,8 @@ function ns.BuildQoLBiSPage(parent, y)
     local pad = UI.CONTENT_PAD
     local width = parent:GetWidth() - pad * 2
     if width <= 0 then width = 910 end
-    local gap = 24
-    local left = math.floor(width * 0.6)
-    local spec = CurrentSpec()
-    for i, s in ipairs(SLOTS) do
-        SlotRow(parent, pad, y - (i - 1) * ROW_H, left, s[1], s[2], i % 2 == 1, spec)
-    end
-    local panelH = SourcePanel(parent, pad + left + gap, y, width - left - gap)
-    return y - math.max(#SLOTS * ROW_H, panelH)
+    local gap = 48
+    Paperdoll(parent, pad, y - 8, wornMarks[parent])
+    local panelH = SourcePanel(parent, pad + DOLL_W + gap, y, width - DOLL_W - gap)
+    return y - math.max(DOLL_H + 8, panelH)
 end
