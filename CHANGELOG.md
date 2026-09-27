@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Blessings: the Next Blessing and Next Greater Blessing key fields no longer take keys
+  you press before clicking them. Walking with the Blessings page open bound W, A, S or D
+  to a blessing.
+
 ## 0.5.12-beta
 
 ### Added
