@@ -58,6 +58,9 @@
   Dungeon Quests page, to list every quest in its chain in order, the ones before it and
   the ones after, each marked Completed, In log or Not done. A chain quest you have opens
   in your quest log from that list. Chains come from Wowhead's Forever quest database.
+- BiS list: a Where Your Items Drop panel to the right of the gear slots, which now run
+  down one column, groups everything you picked by where it comes from (dungeon, zone,
+  quest, crafted, world drop), with the places that hold the most BiS picks first.
 
 ### Changed
 - Loot Feed: Show Reputation and Glow are off by default. Anyone who switched them on
@@ -74,6 +77,9 @@
 - BiS list: picking is only from the ranking now; the Add Item by ID button and the item
   ID entry are gone. Shared lists carry secondary picks, and older strings still import.
   Worn replaces the tick beside a BiS pick you are wearing.
+- Dungeon Quests: quests grey to you are no longer listed on the tracker (in dungeons and
+  with Show Single Dungeon too) or on the Dungeon Quests page. Quests in your log and chains
+  you are partway through still show, and Show Completed still lists the ones you did.
 
 ### Fixed
 - Dungeon Quests: Afadra Dunwall (The Restless Dead) is marked at her real spot in Old
@@ -100,15 +106,6 @@
   was ever written.
 - XP per Hour: Reset now also resets the XP Bar's Time to Level, XP/Hour and Session.
   They kept their own count, so resetting seemed to do nothing when reading the bar.
-
-### Changed
-- Dungeon Quests: quests grey to you are no longer listed on the tracker (in dungeons and
-  with Show Single Dungeon too) or on the Dungeon Quests page. Quests in your log and chains
-  you are partway through still show, and Show Completed still lists the ones you did.
-
-- BiS list: a Where Your Items Drop panel to the right of the gear slots, which now run
-  down one column, groups everything you picked by where it comes from (dungeon, zone,
-  quest, crafted, world drop), with the places that hold the most BiS picks first.
 
 ## 0.5.12-beta
 
