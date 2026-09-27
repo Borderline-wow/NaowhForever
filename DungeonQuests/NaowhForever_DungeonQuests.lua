@@ -9,8 +9,11 @@ local T = ns.THEME
 
 -- In log is the quest log's own in-progress yellow.
 local DONE, ACTIVE, MISSING = "Completed", "|cffffd100In log|r", "|cfff87171Missing|r"
--- A completed quest is drawn whole in the quest log's own completed green.
+-- A completed quest is drawn whole in the quest log's own completed green. Complete is one
+-- in your log with its objectives done; every quest in your log is boxed in that green.
 local COMPLETE = "|cff19ff19"
+local READY = COMPLETE .. "Complete|r"
+local LOG_BORDER = { r = 0x19 / 255, g = 1, b = 0x19 / 255 }
 local MUTED = "|cff9ca3af"
 
 -- Instance ID -> the dungeons that use it; Blackrock Spire holds both its halves. A new
@@ -56,8 +59,10 @@ local function OnID(ids)
     end
 end
 
-local function AnyOn(ids)
-    return OnID(ids) ~= nil
+-- The ID of whichever step or version of the quest is in your log, if any.
+local function LoggedID(quest)
+    if C_QuestLog.IsOnQuest(quest[1]) then return quest[1] end
+    return OnID(quest.alt) or OnID(quest.steps) or OnID(quest.lead)
 end
 
 local function StepDone(step)
@@ -72,9 +77,8 @@ end
 -- which only counts while you carry it.
 local function Status(quest)
     local done = C_QuestLog.IsQuestFlaggedCompleted
-    if C_QuestLog.IsOnQuest(quest[1]) or AnyOn(quest.alt) or AnyOn(quest.steps) or AnyOn(quest.lead) then
-        return ACTIVE
-    end
+    local id = LoggedID(quest)
+    if id then return C_QuestLog.IsComplete(id) and READY or ACTIVE end
     local first = done(quest[1])
     for _, id in ipairs(quest.alt or {}) do first = first or done(id) end
     local all, any = first, first
@@ -84,6 +88,10 @@ local function Status(quest)
     end
     if all then return DONE end
     return any and NEXT or MISSING
+end
+
+local function InLog(status)
+    return status == ACTIVE or status == READY
 end
 
 -- Your faction's quests and your class's class quests; all lists every quest.
@@ -186,12 +194,6 @@ local function SetWaypoint(quest)
     local map, x, y = WaypointSpot(quest)
     if not map then return end
     PlaceWaypoint(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2], map, x, y)
-end
-
--- The ID of whichever step or version of the quest is in your log, if any.
-local function LoggedID(quest)
-    if C_QuestLog.IsOnQuest(quest[1]) then return quest[1] end
-    return OnID(quest.alt) or OnID(quest.steps) or OnID(quest.lead)
 end
 
 -- The quest log opens on the world map in this engine. Not in combat: showing that panel
@@ -345,6 +347,10 @@ local function TrackerRow(i)
     row.pin:SetScript("OnClick", PinClick)
     row.pin:SetScript("OnEnter", PinTooltip)
     row.pin:SetScript("OnLeave", GameTooltip_Hide)
+    row.border = ns.Border(row, LOG_BORDER)
+    row.border._frame:ClearAllPoints()
+    row.border._frame:SetPoint("TOPLEFT", -3, 0)
+    row.border._frame:SetPoint("BOTTOMRIGHT", 3, 2)
     row:SetScript("OnClick", function(self)
         local id = self.quest and LoggedID(self.quest)
         if id then OpenInQuestLog(id) end
@@ -355,21 +361,25 @@ local function TrackerRow(i)
     return row
 end
 
--- entries: { text, quest?, pin?, indent? }. Quest rows leave room for the pin whether or
--- not they have one, so every title lines up.
+-- entries: { text, quest?, pin?, indent?, logged? }. Quest rows leave room for the pin
+-- whether or not they have one, so every title lines up; a logged row is padded inside
+-- its border.
 local function Layout(entries)
     local y = 0
     for i, entry in ipairs(entries) do
         local row = TrackerRow(i)
         local x = entry.quest and PIN + 3 or (entry.indent or 0)
+        local pad = entry.logged and 3 or 0
         row.quest = entry.quest
         row.text:ClearAllPoints()
-        row.text:SetPoint("TOPLEFT", x, 0)
+        row.text:SetPoint("TOPLEFT", x, -pad)
         row.text:SetWidth(BODY_W - x)
         row.text:SetText(entry.text)
+        row.pin:SetPoint("TOPLEFT", 0, 1 - pad)
         row.pin:SetShown(entry.pin == true)
+        row.border._frame:SetShown(entry.logged == true)
         row:EnableMouse(entry.quest ~= nil)
-        local h = math.ceil(row.text:GetStringHeight()) + 2
+        local h = math.ceil(row.text:GetStringHeight()) + 2 + pad * 2
         row:SetHeight(h)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", panel.body, "TOPLEFT", 0, -y)
@@ -405,7 +415,7 @@ local function Render(dungeons, title, near)
                 status = nil
             end
             if status then
-                if status == ACTIVE then inLog = inLog + 1 end
+                if InLog(status) then inLog = inLog + 1 end
                 if status == MISSING or status == NEXT then missing = missing + 1 end
                 if status == DONE then
                     if S.Get("dqShowDone") then
@@ -415,7 +425,8 @@ local function Render(dungeons, title, near)
                     -- A pin on every quest in your log (it tracks the quest), and on the rest
                     -- wherever the data knows where the quest giver stands.
                     Add(QuestLine(quest, status),
-                        { quest = quest, pin = status == ACTIVE or WaypointSpot(quest) ~= nil })
+                        { quest = quest, pin = InLog(status) or WaypointSpot(quest) ~= nil,
+                          logged = InLog(status) })
                     if status == MISSING then Add(MUTED .. quest[6] .. "|r", { indent = PIN + 15 }) end
                     local nextSpot = status == NEXT and NextSpot(quest)
                     if nextSpot then
@@ -456,7 +467,7 @@ local function HasQuestsForMe(dungeons, near)
             if ForMe(quest) then
                 if not near then return true end
                 local status = Status(quest)
-                if status == ACTIVE or status == NEXT or (status == MISSING and NearLevel(quest)) then
+                if InLog(status) or status == NEXT or (status == MISSING and NearLevel(quest)) then
                     return true
                 end
             end
@@ -566,7 +577,7 @@ end
 -------------------------------------------------------------------------------
 --  The page
 -------------------------------------------------------------------------------
-local function Row(parent, y, text, sub, onWaypoint)
+local function Row(parent, y, text, sub, onWaypoint, logged)
     local UI = ns.UI
     local x = UI.CONTENT_PAD + 20
     local width = (parent:GetWidth() or 0) > 0 and parent:GetWidth() or 960
@@ -589,6 +600,16 @@ local function Row(parent, y, text, sub, onWaypoint)
         s:SetWordWrap(true)
         s:SetText(sub)
         h = h + math.ceil(s:GetStringHeight()) + 2
+    end
+    if logged then
+        local box = UI.Keep(parent, "questBorder", function(p)
+            local f = CreateFrame("Frame", nil, p)
+            ns.Border(f, LOG_BORDER)
+            return f
+        end)
+        box:SetPoint("TOPLEFT", parent, "TOPLEFT", x - 6, y)
+        box:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x + 6, y)
+        box:SetHeight(h + 4)
     end
     return h + 6
 end
@@ -642,7 +663,7 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
                         local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
                         y = y - Row(parent, y, QuestLine(quest, status, side),
                             quest[6] .. "  -  " .. SHARE[quest[5]],
-                            quest[7] and function() SetWaypoint(quest) end)
+                            quest[7] and function() SetWaypoint(quest) end, InLog(status))
                     end
                 end
             end

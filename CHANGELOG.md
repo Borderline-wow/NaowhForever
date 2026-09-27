@@ -22,6 +22,9 @@
   Site: Wetlands, City of Dalaran, The Drowned City, Krol'dok, Alcaz Prison, Blackmaw Hold,
   Shaper's Terrace) are on the page and in the dropdown now, and all nine new dungeons show
   their level range.
+- Dungeon Quests: a quest in your log has a green border on the tracker and the Dungeon
+  Quests page, and once its objectives are done it reads Complete in green instead of In
+  log, so you know it is ready to hand in.
 - BiS List, Dungeon Quests, Gear Sets, Blessings and Threat Meter open in a window of their
   own, without the rest of the options: /nfbis, /nfdq, /nfgear, /nfbless and /nfthreat open
   or close each one.
