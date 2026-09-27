@@ -5655,7 +5655,7 @@ local previewPin = true
 local configPreview = false
 
 local function UpdatePreview()
-    if not ((previewing and previewPin) or configPreview) then
+    if not ((TRDB().enabled and previewing and previewPin) or configPreview) then
         -- Strip the preview's drag affordances the moment it stops being a preview: a
         -- mouse-enabled alert frame in a fight would sit invisibly over the screen
         -- eating clicks.
@@ -5670,8 +5670,6 @@ local function UpdatePreview()
         if bar and not shownForEvent then bar:Hide() end
         return
     end
-    -- No gate on the master switch here: everything ships OFF, so the addon is still
-    -- disabled at exactly the moment someone is placing and sizing the alert.
 
     Reminder.Create()
     RebuildSlots()

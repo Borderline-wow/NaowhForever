@@ -28,7 +28,7 @@ end
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0.5.12-beta"
+ns.CODE_BUILD = "0.5.13-beta"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -380,7 +380,10 @@ function ns.PromptText(title, text, maxLetters, onAccept)
     local dimmer, panel = ns.MakeModal(360, 130, "promptText")
     local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", 0, -14)
+    head:SetWidth(330)
     head:SetText(title)
+    -- A title that wraps pushes the box and buttons down, so the panel grows with it.
+    panel:SetHeight(math.max(130, head:GetStringHeight() + 110))
     local box = UI.Keep(panel, "box", ns.NewEditBox)
     box:SetPoint("TOP", head, "BOTTOM", 0, -12)
     box:SetSize(320, 28)

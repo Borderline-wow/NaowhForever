@@ -65,6 +65,8 @@ local function KeyField(rgn, action, label)
         end
         Stop()
     end)
+    -- Setting an OnKeyDown script turns keyboard input on; it stays off until the field is clicked.
+    btn:EnableKeyboard(false)
     btn:SetScript("OnShow", Show)
     btn:SetScript("OnHide", function() if capturing then Stop() end end)
     ns.Tooltip(btn, label, "Click, then press a key to bind it. Escape cancels; right-click clears. "

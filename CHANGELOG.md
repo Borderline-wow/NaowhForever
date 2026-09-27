@@ -1,11 +1,41 @@
 # Changelog
 
-## Unreleased
+## 0.5.13-beta
+
+### Added
+- Top Bar module: friends and guild on the left, the clock in the middle, addon buttons
+  on either side, FPS and latency underneath. Dungeon Quests and BiS List are on it by
+  default, and any addon's broker button can be added from its Buttons section, on the
+  left or the right, along with an optional Hearthstone button. Move it in Unlock Mode.
+  It replaces NaowhUI's top bar on Forever.
+- Every module with its own window (Dungeon Quests, Gear Sets, Blessings, BiS List, Threat
+  Meter) now has a broker button, which the Top Bar and any broker display can carry, and an
+  optional minimap button next to the Naowh Forever logo. Settings > Minimap Buttons turns
+  those on; they start off.
+
+### Removed
+- The micro menu bar. The Top Bar carries Dungeon Quests and BiS List, and any other
+  module can be added to it.
 
 ### Fixed
+- XP Bar: Blizzard's experience bar is faded out instead of hidden. Hiding it from the
+  addon tainted Edit Mode's action bar layout, so a pet or stance bar change in combat
+  was blocked (ADDON_ACTION_BLOCKED on MultiBarBottomRight). The space it took is kept.
+- Crosshair: Melee Spell ID 0 now works for paladins (Holy Strike), and the class check
+  no longer calls a function Forever only keeps as a deprecated shim.
+- Text prompts wrap a long title inside the box instead of running past its edges.
+- Smart Reminders: the alert preview no longer shows while the module is switched off. It
+  put an empty square on screen whenever the Naowh Forever window was open, on any page.
 - BiS List: item names no longer show as "item 12345" the first time you open a gear
   slot. An item the server could not load held back every other name in that slot until
   you clicked something.
+- Dungeon Quests: clicking a quest you have, or Track in quest log in a chain list, now
+  tracks it and selects it in your quest log instead of opening the log. Opening it from
+  the addon left the world map's quest pins blocked the next time you opened the map in
+  combat (ADDON_ACTION_BLOCKED on SetPassThroughButtons).
+- Blessings: the Next Blessing and Next Greater Blessing key fields no longer take keys
+  you press before clicking them. Walking with the Blessings page open bound W, A, S or D
+  to a blessing.
 
 ## 0.5.12-beta
 

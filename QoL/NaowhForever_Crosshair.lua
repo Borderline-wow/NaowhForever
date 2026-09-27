@@ -14,9 +14,9 @@ local PI, sin, cos = math.pi, math.sin, math.cos
 local TICK = 0.05
 
 -- A melee-range ability per class, lowest rank (Forever keeps every rank known). Druids
--- depend on form. Paladins, shamans without Stormstrike and casters have none; a spell ID
--- of your own can be set on the options page.
-local MELEE = { WARRIOR = 1715, ROGUE = 1752, HUNTER = 2973, SHAMAN = 17364 }
+-- depend on form. Shamans without Stormstrike and casters have none; a spell ID of your own
+-- can be set on the options page.
+local MELEE = { WARRIOR = 1715, ROGUE = 1752, HUNTER = 2973, SHAMAN = 17364, PALADIN = 679 }
 local DRUID_MELEE = { [1] = 1082, [5] = 6807, [8] = 6807 }   -- Claw in Cat, Maul in Bear
 
 local ARMS = {
@@ -50,7 +50,7 @@ local function MeleeSpell()
     local _, class = UnitClass("player")
     if class == "DRUID" then return DRUID_MELEE[GetShapeshiftFormID()] end
     local id = MELEE[class]
-    return id and IsPlayerSpell(id) and id or nil
+    return id and C_SpellBook.IsSpellKnown(id) and id or nil
 end
 
 local function Texture(layer, sub, path)

@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever
 ## Notes: Naowh's Forever companion: Smart Reminders, QoL, macros and buff reminders.
 ## Author: NaowhUI
-## Version: 0.5.12-beta
+## Version: 0.5.13-beta
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhForeverDB, NaowhUI_SmartRemindersDB
 ## Group: NaowhUI
@@ -107,6 +107,7 @@ Professions\NaowhForever_Professions.lua
 Professions\NaowhForever_RecipeData.lua
 Professions\NaowhForever_RecipeFinder.lua
 ThreatMeter\NaowhForever_ThreatMeter.lua
+TopBar\NaowhForever_TopBar.lua
 QoL\NaowhForever_FlightData.lua
 QoL\NaowhForever_Flight.lua
 QoL\NaowhForever_QuizData.lua

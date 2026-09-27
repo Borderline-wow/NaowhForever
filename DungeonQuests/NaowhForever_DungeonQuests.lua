@@ -239,21 +239,14 @@ local function SetWaypoint(quest)
     PlaceWaypoint(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2], map, x, y)
 end
 
--- The quest log opens on the world map in this engine. Not in combat: showing that panel
--- from addon code mid-fight is blocked.
-local function OpenInQuestLog(id)
-    if InCombatLockdown() then
-        ns.Print("The quest log cannot be opened from here in combat.")
-        return
-    end
-    if QuestMapFrame_OpenToQuestDetails then
-        QuestMapFrame_OpenToQuestDetails(id)
-    elseif QuestLog_OpenToQuest and C_QuestLog.GetLogIndexForQuestID then
-        QuestLog_OpenToQuest(C_QuestLog.GetLogIndexForQuestID(id))
-    else
-        C_QuestLog.SetSelectedQuest(id)
-        ToggleQuestLog()
-    end
+-- Selects and super-tracks the quest without opening the log. The quest log lives on the
+-- world map in this engine, and opening it from addon code taints the map's quest pins:
+-- the next time the map opens in combat their SetPassThroughButtons is blocked.
+local function SelectInQuestLog(id)
+    C_QuestLog.SetSelectedQuest(id)
+    C_SuperTrack.SetSuperTrackedQuestID(id)
+    ns.Print(("Tracking %s. Press L to see it in your quest log."):format(
+        C_QuestLog.GetTitleForQuestID(id) or id))
 end
 
 local byID = {}
@@ -286,7 +279,7 @@ local function StepState(step)
 end
 
 -- Every quest of the chain in order with how far you are, the clicked one marked; a quest
--- in your log can be opened in the quest log from here.
+-- in your log can be tracked from here.
 local function OpenChain(owner, quest)
     local chain, own = Chain(quest)
     MenuUtil.CreateContextMenu(owner, function(_, root)
@@ -303,7 +296,7 @@ local function OpenChain(owner, quest)
         local logged = LoggedID(quest)
         if logged then
             root:CreateDivider()
-            root:CreateButton("Open in quest log", function() OpenInQuestLog(logged) end)
+            root:CreateButton("Track in quest log", function() SelectInQuestLog(logged) end)
         end
     end)
 end
@@ -411,7 +404,7 @@ local function RowTooltip(row)
     if Chain(quest) then
         GameTooltip:AddLine("Click to list every quest in its chain.", 0.3, 0.7, 0.95)
     elseif LoggedID(quest) then
-        GameTooltip:AddLine("Click to open it in your quest log.", 0.3, 0.7, 0.95)
+        GameTooltip:AddLine("Click to track it in your quest log.", 0.3, 0.7, 0.95)
     end
     GameTooltip:Show()
 end
@@ -486,7 +479,7 @@ local function TrackerRow(i)
             return
         end
         local id = self.quest and LoggedID(self.quest)
-        if id then OpenInQuestLog(id) end
+        if id then SelectInQuestLog(id) end
     end)
     row:SetScript("OnEnter", RowTooltip)
     row:SetScript("OnLeave", GameTooltip_Hide)

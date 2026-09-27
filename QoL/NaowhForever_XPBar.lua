@@ -53,10 +53,11 @@ end
 -------------------------------------------------------------------------------
 --  Blizzard's experience bar
 -------------------------------------------------------------------------------
--- Hidden rather than unregistered, so switching the bar off gives the default one back
--- without a reload. Retail-engine clients track XP in the status tracking containers,
--- older ones in MainMenuExpBar. Only the container holding the XP bar is hidden: at max
--- level the same container carries the watched reputation instead.
+-- Faded out rather than hidden or unregistered. Edit Mode stacks the bottom action bars on
+-- these containers, and a Show/Hide from addon code taints that layout: the next re-layout in
+-- combat (the pet or stance bar changing) is then blocked. Retail-engine clients track XP in
+-- the status tracking containers, older ones in MainMenuExpBar. Only the container holding
+-- the XP bar fades: at max level the same container carries the watched reputation instead.
 local hideBlizzard = false
 local hooked = {}
 
@@ -75,14 +76,7 @@ local function ShowsXP(frame)
 end
 
 local function Refresh(frame)
-    if InCombatLockdown() and frame:IsProtected() then return end
-    if hideBlizzard and ShowsXP(frame) then
-        frame:Hide()
-    elseif frame.UpdateShownState then
-        frame:UpdateShownState()
-    elseif not hideBlizzard then
-        frame:Show()
-    end
+    frame:SetAlpha(hideBlizzard and ShowsXP(frame) and 0 or 1)
 end
 
 local function SetBlizzardHidden(hide)
