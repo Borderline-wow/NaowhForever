@@ -21,6 +21,9 @@
 - XP Bar: Blizzard's experience bar is faded out instead of hidden. Hiding it from the
   addon tainted Edit Mode's action bar layout, so a pet or stance bar change in combat
   was blocked (ADDON_ACTION_BLOCKED on MultiBarBottomRight). The space it took is kept.
+- Crosshair: Melee Spell ID 0 now works for paladins (Holy Strike), and the class check
+  no longer calls a function Forever only keeps as a deprecated shim.
+- Text prompts wrap a long title inside the box instead of running past its edges.
 - Smart Reminders: the alert preview no longer shows while the module is switched off. It
   put an empty square on screen whenever the Naowh Forever window was open, on any page.
 - BiS List: item names no longer show as "item 12345" the first time you open a gear
