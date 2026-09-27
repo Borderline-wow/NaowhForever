@@ -64,8 +64,8 @@
   first, then your 2nd, 3rd and so on. A slot shows its BiS with a green border and a
   check mark, and +N for the rest.
 - BiS list: a Where Your Items Drop panel to the right of your character has a line per
-  slot with its BiS, where it drops and +N for your other picks. Click a line, or the slot
-  on your character, to list every pick for that slot with its boss and place. Run Next at
+  slot with its BiS, where it drops and +N for your other picks. Click the + on a line to
+  list every pick for that slot with its boss and place. Run Next at
   the top names the places holding the most BiS picks you do not have yet.
 
 Brought over from NaowhQOL:
