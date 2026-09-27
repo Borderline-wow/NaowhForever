@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Dungeon Quests: clicking a quest you have, or Track in quest log in a chain list, now
+  tracks it and selects it in your quest log instead of opening the log. Opening it from
+  the addon left the world map's quest pins blocked the next time you opened the map in
+  combat (ADDON_ACTION_BLOCKED on SetPassThroughButtons).
+
 ## 0.5.12-beta
 
 ### Added
