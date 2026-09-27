@@ -792,8 +792,10 @@ local function NewDoll(parent)
     model:SetSize(DOLL_W - 2 * (SLOT_SIZE + MODEL_GAP), COLUMN_H)
     local band = ns.Solid(f, "BACKGROUND", T.panel, 0.35)
     band:SetAllPoints(model)
-    -- A model frame drops its model while hidden.
+    -- A model frame drops its model while hidden. A new frame starts shown, so OnShow only
+    -- covers later shows and the first unit is set here.
     model:SetScript("OnShow", function(self) self:SetUnit("player") end)
+    model:SetUnit("player")
     model:SetScript("OnEvent", function(self)
         if self:IsVisible() then self:RefreshUnit() end
     end)
