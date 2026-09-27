@@ -71,6 +71,7 @@ NaowhForever_DeathRelease.lua
 NaowhForever_LootFeed.lua
 NaowhForever_AuctionPrices.lua
 NaowhForever_XPTicker.lua
+NaowhForever_XPBar.lua
 NaowhForever_Restock.lua
 NaowhForever_DungeonQuestData.lua
 NaowhForever_DungeonQuests.lua
