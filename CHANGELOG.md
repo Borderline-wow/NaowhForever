@@ -141,9 +141,10 @@ its page.
   each line says which level it belongs to.
 - BiS list: each slot holds a ranked list of picks instead of one item. The picker lists
   your picks in order, with Up, Down and Remove, above the ranking you add from, each item
-  with its rank and where it drops. Tooltips, the loot feed and drop alerts say BiS for
-  your first pick and BiS #2, #3 and so on for the rest. Your current list carries over as
-  your BiS picks.
+  with its rank and where it comes from: the quest, vendor or NPC from Wowhead's Forever
+  database when the ranking gives no source. Tooltips, the loot feed and drop alerts say
+  BiS for your first pick and BiS #2, #3 and so on for the rest. Your current list carries
+  over as your BiS picks.
 - BiS list: Alt+Shift-click adds an item as the next pick for its slot, or as its BiS when
   the slot has none, and never pushes out an item you already picked.
 - BiS list: picking is from the ranking and the dungeon drops now; the Add Item by ID
