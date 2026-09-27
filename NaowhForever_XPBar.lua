@@ -19,7 +19,8 @@ local QUEST_HEX, RESTED_HEX, VALUE = "|cfff2a900", "|cff6b8cff", "|cfff0f1f3"
 local LABEL = "|cff9a9ea6"
 
 local bar, clock, unlocked, questTimer
-local sessionStart, sessionXP = time(), 0
+-- nil while the bar is off: XP is only counted while it is on, so the clock starts with it.
+local sessionStart, sessionXP = nil, 0
 local lastXP, lastXPMax
 local questDone, questOpen = 0, 0
 -- TIME_PLAYED_MSG totals and the GetTime() they arrived at, so the clock can run on.
@@ -54,16 +55,34 @@ end
 -------------------------------------------------------------------------------
 -- Hidden rather than unregistered, so switching the bar off gives the default one back
 -- without a reload. Retail-engine clients track XP in the status tracking containers,
--- older ones in MainMenuExpBar; whichever exists is hidden.
+-- older ones in MainMenuExpBar. Only the container holding the XP bar is hidden: at max
+-- level the same container carries the watched reputation instead.
 local hideBlizzard = false
 local hooked = {}
 
 local function BlizzardBars()
+    local manager = StatusTrackingBarManager
+    if manager and manager.barContainers then return manager.barContainers end
     local list = {}
-    for _, name in ipairs({ "MainStatusTrackingBarContainer", "MainMenuExpBar", "ExhaustionTick" }) do
+    for _, name in ipairs({ "MainMenuExpBar", "ExhaustionTick" }) do
         if _G[name] then list[#list + 1] = _G[name] end
     end
     return list
+end
+
+local function ShowsXP(frame)
+    return frame.shownBarIndex == nil or frame.shownBarIndex == StatusTrackingBarInfo.BarsEnum.Experience
+end
+
+local function Refresh(frame)
+    if InCombatLockdown() and frame:IsProtected() then return end
+    if hideBlizzard and ShowsXP(frame) then
+        frame:Hide()
+    elseif frame.UpdateShownState then
+        frame:UpdateShownState()
+    elseif not hideBlizzard then
+        frame:Show()
+    end
 end
 
 local function SetBlizzardHidden(hide)
@@ -73,16 +92,16 @@ local function SetBlizzardHidden(hide)
         if not hooked[frame] then
             hooked[frame] = true
             frame:HookScript("OnShow", function(self)
-                if hideBlizzard and not (InCombatLockdown() and self:IsProtected()) then self:Hide() end
+                if hideBlizzard and ShowsXP(self) then Refresh(self) end
             end)
+            -- The container swaps bars without hiding when XP is switched back on at max level.
+            if frame.ApplyPendingBarToShow then
+                hooksecurefunc(frame, "ApplyPendingBarToShow", function(self)
+                    if hideBlizzard then Refresh(self) end
+                end)
+            end
         end
-        if not (InCombatLockdown() and frame:IsProtected()) then
-            if hide then frame:Hide() else frame:Show() end
-        end
-    end
-    -- The manager decides which containers have a bar to show; let it re-decide.
-    if not hide and StatusTrackingBarManager and StatusTrackingBarManager.UpdateBarsShown then
-        pcall(StatusTrackingBarManager.UpdateBarsShown, StatusTrackingBarManager)
+        Refresh(frame)
     end
 end
 
@@ -142,16 +161,14 @@ end
 
 local function SaveSession()
     local store, key = SessionStore()
-    store[key] = { start = sessionStart, xp = sessionXP }
+    store[key] = sessionStart and { start = sessionStart, xp = sessionXP } or nil
 end
 
 local function LoadSession(isReload)
     local store, key = SessionStore()
     local saved = store[key]
-    if isReload and saved and not S.Get("xpBarResetOnReload") then
-        sessionStart, sessionXP = saved.start or time(), saved.xp or 0
-    else
-        sessionStart, sessionXP = time(), 0
+    if isReload and saved and saved.start and not S.Get("xpBarResetOnReload") then
+        sessionStart, sessionXP = saved.start, saved.xp or 0
     end
 end
 
@@ -345,9 +362,11 @@ local function Apply()
         if clock then clock:Cancel(); clock = nil end
         if bar then bar:Hide() end
         SetBlizzardHidden(false)
+        sessionStart, sessionXP = nil, 0
         return
     end
     if not bar then Create() end
+    if not sessionStart then sessionStart, sessionXP = time(), 0 end
 
     local w, h = S.Get("xpBarWidth"), S.Get("xpBarHeight")
     bar:SetSize(w, h)
