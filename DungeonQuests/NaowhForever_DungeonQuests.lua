@@ -43,6 +43,21 @@ local dismissed = {}   -- instance IDs closed by hand, until you leave
 -- in your log always are.
 local BELOW, ABOVE = 3, 6
 
+-- A dungeon is within reach from this many levels under its range to as many over it; its
+-- range is shown in the options' READY green then.
+local REACH, IN_REACH = 5, "|cff4dd17a"
+
+local function InReach(dungeon)
+    local mine = UnitLevel("player")
+    local levels = dungeon.levels
+    return levels ~= nil and mine >= levels[1] - REACH and mine <= levels[2] + REACH
+end
+
+local function LevelRange(dungeon)
+    if not dungeon.levels then return "" end
+    return ("  %s%d-%d|r"):format(InReach(dungeon) and IN_REACH or MUTED, dungeon.levels[1], dungeon.levels[2])
+end
+
 -- Part of a chain done, and the next step not picked up yet.
 local NEXT = "|cffff9933Next step|r"
 
@@ -412,7 +427,7 @@ local function Render(dungeons, title, near)
         lines[#lines + 1] = extra
     end
     for _, dungeon in ipairs(dungeons) do
-        if #dungeons > 1 or near then Add("|cff4db5f5" .. dungeon.name .. "|r") end
+        if #dungeons > 1 or near then Add("|cff4db5f5" .. dungeon.name .. "|r" .. LevelRange(dungeon)) end
         -- Completed quests go under the rest of their dungeon.
         local completed = {}
         for _, quest in ipairs(dungeon.quests) do
@@ -461,7 +476,12 @@ local function Render(dungeons, title, near)
     panel.picker:SetShown(single)
     panel.body:ClearAllPoints()
     panel.body:SetPoint("TOPLEFT", single and panel.picker or panel.title, "BOTTOMLEFT", 0, -6)
-    if single then panel.picker._refreshLabel() end
+    if single then
+        for _, dungeon in ipairs(ns.DungeonQuests) do
+            dungeonValues[dungeon.name] = dungeon.name .. LevelRange(dungeon)
+        end
+        panel.picker._refreshLabel()
+    end
     local listH = Layout(lines)
     panel:SetHeight(panel.title:GetStringHeight() + listH + 22
         + (single and panel.picker:GetHeight() + 6 or 0))
@@ -656,7 +676,9 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
 
     local all = S.Get("dqAllFactions")
     for _, dungeon in ipairs(ns.DungeonQuests) do
-        local levels = dungeon.levels and ("   |cff9a9ea6LEVEL %d-%d|r"):format(dungeon.levels[1], dungeon.levels[2]) or ""
+        local levels = dungeon.levels and ("   %sLEVEL %d-%d%s|r"):format(
+            InReach(dungeon) and IN_REACH or "|cff9a9ea6", dungeon.levels[1], dungeon.levels[2],
+            InReach(dungeon) and "  IN RANGE" or "") or ""
         _, h = W:SectionHeader(parent, dungeon.name:upper() .. levels, y); y = y - h
         if #dungeon.quests == 0 then
             y = y - Row(parent, y, MUTED .. "No quests known for this dungeon yet.|r")

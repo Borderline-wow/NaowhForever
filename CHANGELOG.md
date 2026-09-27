@@ -25,6 +25,9 @@
 - Dungeon Quests: a quest in your log has a green border on the tracker and the Dungeon
   Quests page, and once its objectives are done it reads Complete in green instead of In
   log, so you know it is ready to hand in.
+- Dungeon Quests: every dungeon shows its level range now, not only the new ones. Within 5
+  levels of it the range turns green, with IN RANGE on the Dungeon Quests page; the tracker
+  shows it next to each dungeon outside and in the Show Single Dungeon dropdown.
 - BiS List, Dungeon Quests, Gear Sets, Blessings and Threat Meter open in a window of their
   own, without the rest of the options: /nfbis, /nfdq, /nfgear, /nfbless and /nfthreat open
   or close each one.

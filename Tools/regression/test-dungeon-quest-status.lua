@@ -1,6 +1,7 @@
 -- Dungeon Quests: a quest in your log reads Complete once the log says its objectives are
 -- done, whichever of its IDs is the one you carry; the rest keep their old statuses. A quest
--- is grey exactly when the quest log would colour its level grey.
+-- is grey exactly when the quest log would colour its level grey, and a dungeon is within
+-- reach from 5 levels under its range to 5 over it.
 local f = assert(io.open(arg[1] or "DungeonQuests/NaowhForever_DungeonQuests.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
@@ -106,5 +107,27 @@ Case("an unloaded quest is judged by the data file's level until the game has it
     assert(Grey({ 5, "", 15 }))
     assert(not Grey({ 6, "", 28 }))
     assert(not Grey({ 7, "" }))
+end)
+local function ReachFixture(player)
+    local env = setmetatable({ UnitLevel = function() return player end, MUTED = "|cff9ca3af" },
+        { __index = _G })
+    local code = Slice("local REACH", "\n-- Part of a chain done") .. "\nreturn InReach, LevelRange"
+    local chunk = assert(loadstring(code)); setfenv(chunk, env)
+    return chunk()
+end
+
+Case("a dungeon is within reach from 5 under its range to 5 over it", function()
+    local sfk = { levels = { 22, 30 } }
+    for level, want in pairs({ [16] = false, [17] = true, [26] = true, [35] = true, [36] = false }) do
+        local InReach = ReachFixture(level)
+        assert(InReach(sfk) == want, level)
+    end
+    assert(not ReachFixture(20)({}))
+end)
+Case("the range reads green within reach, muted outside it, and blank without one", function()
+    local _, LevelRange = ReachFixture(40)
+    assert(LevelRange({ levels = { 37, 46 } }) == "  |cff4dd17a37-46|r")
+    assert(LevelRange({ levels = { 13, 18 } }) == "  |cff9ca3af13-18|r")
+    assert(LevelRange({}) == "")
 end)
 print(count .. " dungeon quest status regressions passed")
