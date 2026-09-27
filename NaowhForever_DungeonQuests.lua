@@ -395,7 +395,7 @@ local function Render(dungeons, title, near)
         lines[#lines + 1] = extra
     end
     for _, dungeon in ipairs(dungeons) do
-        if #dungeons > 1 then Add("|cff4db5f5" .. dungeon.name .. "|r") end
+        if #dungeons > 1 or near then Add("|cff4db5f5" .. dungeon.name .. "|r") end
         -- Completed quests go under the rest of their dungeon.
         local completed = {}
         for _, quest in ipairs(dungeon.quests) do
@@ -429,7 +429,7 @@ local function Render(dungeons, title, near)
     local known = 0
     for _, dungeon in ipairs(dungeons) do known = known + #dungeon.quests end
     if known == 0 then
-        Add(MUTED .. "No quests known for this dungeon yet.|r")
+        Add(MUTED .. (near and "No dungeon quests near your level." or "No quests known for this dungeon yet.") .. "|r")
     elseif mine == 0 then
         Add(MUTED .. "No quests here for your faction and class.|r")
     elseif inLog + missing == 0 and not S.Get("dqShowDone") then
@@ -526,20 +526,16 @@ local function Refresh()
     questEvents:RegisterEvent("PLAYER_LEVEL_UP")
     questEvents:RegisterEvent("QUEST_DATA_LOAD_RESULT")
 end
--- Quest loads arrive one event per quest, dozens at once outside a dungeon, so they are
--- gathered into a single redraw.
+-- Quest loads arrive one event per quest, dozens at once outside a dungeon, and the quest
+-- log updates several times per kill, so all of them are gathered into a single redraw.
 local redrawQueued
-questEvents:SetScript("OnEvent", function(_, event)
-    if event == "QUEST_DATA_LOAD_RESULT" then
-        if redrawQueued then return end
-        redrawQueued = true
-        C_Timer.After(0.2, function()
-            redrawQueued = false
-            if panel and panel:IsShown() then Refresh() end
-        end)
-        return
-    end
-    if panel and panel:IsShown() then Refresh() end
+questEvents:SetScript("OnEvent", function()
+    if redrawQueued then return end
+    redrawQueued = true
+    C_Timer.After(0.2, function()
+        redrawQueued = false
+        if panel and panel:IsShown() then Refresh() end
+    end)
 end)
 
 -- /nf dungeon: outside a dungeon it flips Show Outside Dungeons; inside one it shows or
