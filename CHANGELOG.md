@@ -22,6 +22,26 @@
   Site: Wetlands, City of Dalaran, The Drowned City, Krol'dok, Alcaz Prison, Blackmaw Hold,
   Shaper's Terrace) are on the page and in the dropdown now, and all nine new dungeons show
   their level range.
+- BiS List, Dungeon Quests, Gear Sets, Blessings and Threat Meter open in a window of their
+  own, without the rest of the options: /nfbis, /nfdq, /nfgear, /nfbless and /nfthreat open
+  or close each one.
+- A micro menu bar at the top of the screen has a button for each. It shows BiS and Dungeon
+  Quests to start with; choose its buttons or hide it under Settings > Micro Menu, and move
+  it in Unlock Mode.
+- Gear Sets: rename a set with Ctrl-click on its bar button or the Rename button on the
+  Gear Sets page. Wear While Mounted and Wear While Resting follow the new name.
+- Buffs & Consumables (AuraBuffs) now works: a row of icons for missing food, flask and
+  elixir buffs in dungeons and raids, or wherever you choose under Show In. It can warn a
+  few minutes before a buff runs out, and skips anything you do not carry.
+- Scrolls in your bags show until you read them.
+- Raid Buff Reminders shows how many in your group are missing Arcane Intellect,
+  Fortitude, Divine Spirit, Mark of the Wild or a Blessing.
+- Move the icons in Unlock Mode. Reminders pause in combat, since Forever hides auras from
+  addons then, and pick up again after.
+- Saved quest rewards (QoL > General > Questing): Alt-click a reward you can choose, in the
+  quest log or at the quest giver, to save it for that quest in your profile. It is selected
+  when you hand the quest in, and Auto Turn In takes it for you. Picks travel with the
+  profile, so a shared profile comes with its rewards chosen. Suggested by Gingi.
 
 ### Fixed
 - Dungeon Quests: Afadra Dunwall (The Restless Dead) is marked at her real spot in Old
@@ -46,30 +66,6 @@
   profile or spec switch that has it off leaves it on your bars. Announce Focus uses raid
   chat in a raid and party chat in a party. Before this the settings saved but no macro
   was ever written.
-
-- BiS List, Dungeon Quests, Gear Sets, Blessings and Threat Meter open in a window of their
-  own, without the rest of the options: /nfbis, /nfdq, /nfgear, /nfbless and /nfthreat open
-  or close each one.
-- A micro menu bar at the top of the screen has a button for each. It shows BiS and Dungeon
-  Quests to start with; choose its buttons or hide it under Settings > Micro Menu, and move
-  it in Unlock Mode.
-
-- Gear Sets: rename a set with Ctrl-click on its bar button or the Rename button on the
-  Gear Sets page. Wear While Mounted and Wear While Resting follow the new name.
-
-- Buffs & Consumables (AuraBuffs) now works: a row of icons for missing food, flask and
-  elixir buffs in dungeons and raids, or wherever you choose under Show In. It can warn a
-  few minutes before a buff runs out, and skips anything you do not carry.
-- Scrolls in your bags show until you read them.
-- Raid Buff Reminders shows how many in your group are missing Arcane Intellect,
-  Fortitude, Divine Spirit, Mark of the Wild or a Blessing.
-- Move the icons in Unlock Mode. Reminders pause in combat, since Forever hides auras from
-  addons then, and pick up again after.
-
-- Saved quest rewards (QoL > General > Questing): Alt-click a reward you can choose, in the
-  quest log or at the quest giver, to save it for that quest in your profile. It is selected
-  when you hand the quest in, and Auto Turn In takes it for you. Picks travel with the
-  profile, so a shared profile comes with its rewards chosen. Suggested by Gingi.
 
 ## 0.5.12-beta
 
