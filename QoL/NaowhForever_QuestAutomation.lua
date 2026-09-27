@@ -18,8 +18,10 @@ local function Picks()
     return db.questRewards
 end
 
-local function ItemID(link)
-    return link and tonumber(link:match("item:(%d+)"))
+-- The item ID comes with the reward before the item is cached; its link may not.
+local function ChoiceItemID(index)
+    local _, _, _, _, _, itemID = GetQuestItemInfo("choice", index)
+    return itemID
 end
 
 -- The choice at the hand-in window that gives the saved item for this quest.
@@ -27,16 +29,22 @@ local function PickedChoice()
     local picked = On("questRewardPicks") and Picks()[GetQuestID()]
     if not picked then return end
     for i = 1, GetNumQuestChoices() do
-        if ItemID(GetQuestItemLink("choice", i)) == picked then return i end
+        if ChoiceItemID(i) == picked then return i end
     end
 end
 
 local function SaveClick(self)
     if not (On("questRewardPicks") and IsAltKeyDown()) or IsShiftKeyDown() or IsControlKeyDown() then return end
     if self.type ~= "choice" or self.objectType ~= "item" then return end
-    local link = QuestInfoFrame.questLog and GetQuestLogItemLink(self.type, self:GetID())
-        or GetQuestItemLink(self.type, self:GetID())
-    local itemID, questID = ItemID(link), self.questID
+    local itemID, link
+    if QuestInfoFrame.questLog then
+        itemID = select(6, GetQuestLogChoiceInfo(self:GetID()))
+        link = GetQuestLogItemLink(self.type, self:GetID())
+    else
+        itemID = ChoiceItemID(self:GetID())
+        link = GetQuestItemLink(self.type, self:GetID())
+    end
+    local questID = self.questID
     if not (itemID and questID) then return end
     local picks = Picks()
     local title = C_QuestLog.GetTitleForQuestID(questID) or GetTitleText() or ""
@@ -46,7 +54,7 @@ local function SaveClick(self)
         return
     end
     picks[questID] = itemID
-    ns.Print(("%s is your reward for %s in this profile."):format(link, title))
+    ns.Print(("%s is your reward for %s in this profile."):format(link or ("item " .. itemID), title))
     if not QuestInfoFrame.questLog and QuestInfoFrame.chooseItems then QuestInfoItem_OnClick(self) end
 end
 
@@ -60,9 +68,10 @@ hooksecurefunc("QuestInfo_GetRewardButton", function(rewardsFrame, index)
     end
 end)
 
--- The reward panel lays out its buttons and clears the choice in its own OnShow, so the
--- saved pick is selected after it.
-QuestFrameRewardPanel:HookScript("OnShow", function()
+-- Every layout of the rewards ends by clearing the choice: the reward panel's own OnShow,
+-- and again on QUEST_ITEM_UPDATE as uncached items arrive. The saved pick is selected after.
+hooksecurefunc("QuestInfo_ShowRewards", function()
+    if QuestInfoFrame.questLog or not QuestFrameRewardPanel:IsShown() then return end
     local pick = PickedChoice()
     if not pick then return end
     for _, button in ipairs(QuestInfoRewardsFrame.RewardButtons) do
