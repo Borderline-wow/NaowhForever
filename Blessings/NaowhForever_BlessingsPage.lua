@@ -13,7 +13,10 @@ local MODIFIER_KEYS = { LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true
 
 -- A key field for one binding action, saved in the same place as the Key Bindings screen.
 -- Click it and press a key to bind, Escape to cancel; right-click clears it.
+-- The page reuses its rows, so a region that already has its key button keeps it.
 local function KeyField(rgn, action, label)
+    if rgn._keyField then return end
+    rgn._keyField = true
     local btn = ns.Button(rgn, "", 150, 26)
     btn:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -107,19 +110,25 @@ function ns.BuildQoLBlessingsPage(parent, y)
     return y
 end
 
-local function Cell(parent, x, y, icon, lit, title, body, onClick)
+local function NewCell(parent)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(CELL, CELL)
+    btn.tex = btn:CreateTexture(nil, "ARTWORK")
+    btn.tex:SetPoint("TOPLEFT", 1, -1)
+    btn.tex:SetPoint("BOTTOMRIGHT", -1, 1)
+    btn.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    ns.Border(btn)
+    return btn
+end
+
+local function Cell(parent, x, y, icon, lit, title, body, onClick)
+    local btn = ns.UI.Keep(parent, "cell", NewCell)
     btn:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-    local tex = btn:CreateTexture(nil, "ARTWORK")
-    tex:SetPoint("TOPLEFT", 1, -1)
-    tex:SetPoint("BOTTOMRIGHT", -1, 1)
-    tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local tex = btn.tex
     tex:SetTexture(icon)
     tex:SetDesaturated(not lit)
     tex:SetAlpha(lit and 1 or 0.35)
-    ns.Border(btn)
-    if onClick then btn:SetScript("OnClick", onClick) end
+    btn:SetScript("OnClick", onClick)
     ns.Tooltip(btn, title, body)
     return btn
 end
@@ -176,13 +185,13 @@ function ns.BuildBlessingAssignmentsPage(parent, y)
     end
 
     for _, row in ipairs(rows) do
-        local label = ns.Font(parent, 13, "OUTLINE", RAID_CLASS_COLORS.PALADIN)
+        local label = UI.KeepFont(parent, "name", 13, "OUTLINE", RAID_CLASS_COLORS.PALADIN)
         label:SetPoint("TOPLEFT", parent, "TOPLEFT", left, y - 9)
         label:SetWidth(NAME_WIDTH - 10)
         label:SetJustifyH("LEFT")
         label:SetText(Ambiguate(row.who, "short") .. (row.you and "  (you)" or ""))
         if not row.plan then
-            local note = ns.Font(parent, 12, nil, T.muted)
+            local note = UI.KeepFont(parent, "noAddon", 12, nil, T.muted)
             note:SetPoint("TOPLEFT", parent, "TOPLEFT", left + NAME_WIDTH, y - 10)
             note:SetText("Not running Naowh Forever")
         else

@@ -3977,7 +3977,8 @@ end
 
 function ns.HasMessageDefensive(encounterID, sid)
     local set = CustomRemindersTable(false, encounterID)
-    for _, r in pairs(set or {}) do
+    if not set then return false end
+    for _, r in pairs(set) do
         if r.defensive and r.enabled ~= false and (not r.specID or r.specID == specID)
             and r.trigger and r.trigger.type == "bwmsg" then
             -- The catalogue saves DBM's raw id while HandleBigWigsAbility asks about the
@@ -5198,8 +5199,11 @@ end
 local function IsUptimeBar(key, isApprox)
     if isApprox then return false end
     for _, fires in pairs(pendingBWFires) do
-        for _, f in pairs(fires[key] or {}) do
-            if not f.uptime then return true end
+        local sidFires = fires[key]
+        if sidFires then
+            for _, f in pairs(sidFires) do
+                if not f.uptime then return true end
+            end
         end
     end
     local UPTIME_MATCH_WINDOW = 1.5

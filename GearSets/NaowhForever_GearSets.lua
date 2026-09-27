@@ -72,28 +72,12 @@ end
 -------------------------------------------------------------------------------
 local ICON_COLS, ICON_ROWS, ICON_SIZE, ICON_GAP = 10, 6, 36, 4
 
--- The client's own icon list, the one its equipment manager offers, with the icons of what
--- you wear first. The provider holds every macro icon while open, so it is released on close.
-local function PickIcon(title, onPick)
-    local provider = CreateAndInitFromMixin(IconDataProviderMixin, IconDataProviderExtraType.Equipment)
-    local count = provider:GetNumIcons()
-    local width = ICON_COLS * (ICON_SIZE + ICON_GAP) + 40
-    local dimmer, panel = ns.MakeModal(width, ICON_ROWS * (ICON_SIZE + ICON_GAP) + 100, "gearIcon")
-    dimmer:SetScript("OnHide", function()
-        if provider then provider:Release() end
-        provider = nil
-    end)
-    -- Hiding the UI (Alt-Z, a cinematic) hides the dialog too, which releases the icons, so
-    -- it stays closed when the UI comes back.
-    dimmer:SetScript("OnShow", function(self)
-        if not provider then self:Hide() end
-    end)
-
-    local head = ns.Font(panel, 14, "OUTLINE")
-    head:SetPoint("TOP", 0, -14)
-    head:SetText(title)
-
-    local slider = CreateFrame("Slider", nil, panel)
+-- The icon grid and its scrollbar, built once. What changes per open -- the icon list, the
+-- action -- is kept on the grid.
+local function BuildIconGrid(panel)
+    local grid = CreateFrame("Frame", nil, panel)
+    grid:SetAllPoints()
+    local slider = CreateFrame("Slider", nil, grid)
     slider:SetOrientation("VERTICAL")
     slider:SetPoint("TOPRIGHT", -12, -44)
     slider:SetSize(8, ICON_ROWS * (ICON_SIZE + ICON_GAP) - ICON_GAP)
@@ -102,13 +86,13 @@ local function PickIcon(title, onPick)
     thumb:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
     thumb:SetSize(8, 24)
     slider:SetThumbTexture(thumb)
-    slider:SetMinMaxValues(0, math.max(0, math.ceil(count / ICON_COLS) - ICON_ROWS))
     slider:SetValueStep(1)
     slider:SetObeyStepOnDrag(true)
+    grid.slider = slider
 
-    local cells = {}
+    grid.cells = {}
     for i = 1, ICON_COLS * ICON_ROWS do
-        local cell = CreateFrame("Button", nil, panel)
+        local cell = CreateFrame("Button", nil, grid)
         cell:SetSize(ICON_SIZE, ICON_SIZE)
         cell:SetPoint("TOPLEFT", 14 + ((i - 1) % ICON_COLS) * (ICON_SIZE + ICON_GAP),
             -44 - math.floor((i - 1) / ICON_COLS) * (ICON_SIZE + ICON_GAP))
@@ -120,33 +104,67 @@ local function PickIcon(title, onPick)
         cell:SetScript("OnEnter", function() border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
         cell:SetScript("OnLeave", function() border:SetColor(0, 0, 0, 1) end)
         cell:SetScript("OnClick", function(self)
-            local icon = provider:GetIconForSaving(self.index)
-            dimmer:Hide()
+            local icon = grid.provider:GetIconForSaving(self.index)
+            local onPick = grid.onPick
+            grid.dimmer:Hide()
             onPick(icon)
         end)
-        cells[i] = cell
+        grid.cells[i] = cell
     end
 
-    local function Refresh()
+    function grid:Refresh()
         local first = math.floor(slider:GetValue()) * ICON_COLS
-        for i, cell in ipairs(cells) do
+        for i, cell in ipairs(self.cells) do
             local index = first + i
-            if index <= count then
+            if index <= self.count then
                 cell.index = index
-                cell.icon:SetTexture(provider:GetIconByIndex(index))
+                cell.icon:SetTexture(self.provider:GetIconByIndex(index))
                 cell:Show()
             else
                 cell:Hide()
             end
         end
     end
-    slider:SetScript("OnValueChanged", Refresh)
-    panel:EnableMouseWheel(true)
-    panel:SetScript("OnMouseWheel", function(_, delta) slider:SetValue(slider:GetValue() - delta * 3) end)
-    slider:SetValue(0)
-    Refresh()
+    slider:SetScript("OnValueChanged", function() grid:Refresh() end)
+    grid:EnableMouseWheel(true)
+    grid:SetScript("OnMouseWheel", function(_, delta) slider:SetValue(slider:GetValue() - delta * 3) end)
+    return grid
+end
 
-    ns.Button(panel, "Cancel", 96, 26, function() dimmer:Hide() end)
+-- The client's own icon list, the one its equipment manager offers, with the icons of what
+-- you wear first. The provider holds every macro icon while open, so it is released on close.
+local function PickIcon(title, onPick)
+    local UI = ns.UI
+    local width = ICON_COLS * (ICON_SIZE + ICON_GAP) + 40
+    local dimmer, panel = ns.MakeModal(width, ICON_ROWS * (ICON_SIZE + ICON_GAP) + 100, "gearIcon")
+    local provider = CreateAndInitFromMixin(IconDataProviderMixin, IconDataProviderExtraType.Equipment)
+    dimmer.onClose = function()
+        provider:Release()
+        dimmer.gearProvider = nil
+    end
+    dimmer.gearProvider = provider
+    -- Hiding the UI (Alt-Z, a cinematic) hides the dialog too, which releases the icons, so
+    -- it stays closed when the UI comes back.
+    if not dimmer._gearHooked then
+        dimmer._gearHooked = true
+        dimmer:HookScript("OnShow", function(self)
+            if not self.gearProvider then self:Hide() end
+        end)
+    end
+
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
+    head:SetPoint("TOP", 0, -14)
+    head:SetText(title)
+
+    local grid = UI.Keep(panel, "grid", BuildIconGrid)
+    grid:SetAllPoints()
+    grid.provider, grid.onPick, grid.dimmer = provider, onPick, dimmer
+    grid.count = provider:GetNumIcons()
+    grid.slider:SetMinMaxValues(0, math.max(0, math.ceil(grid.count / ICON_COLS) - ICON_ROWS))
+    grid.slider:SetValue(0)
+    grid:Refresh()
+
+    UI.KeepButton(panel, "cancel", "Cancel", 96, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
     dimmer:Show()
 end
@@ -324,6 +342,17 @@ end
 -------------------------------------------------------------------------------
 --  Wiring
 -------------------------------------------------------------------------------
+-- A set swap fires PLAYER_EQUIPMENT_CHANGED once per slot; one redraw covers the burst.
+local layoutQueued
+local function LayoutSoon()
+    if layoutQueued then return end
+    layoutQueued = true
+    C_Timer.After(0, function()
+        layoutQueued = false
+        Layout()
+    end)
+end
+
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_REGEN_ENABLED" then
@@ -335,7 +364,7 @@ events:SetScript("OnEvent", function(_, event)
     elseif event == "EQUIPMENT_SETS_CHANGED" and ns.UI.RefreshPage then
         ns.UI:RefreshPage(true)
     end
-    Layout()
+    LayoutSoon()
 end)
 
 local function Apply()

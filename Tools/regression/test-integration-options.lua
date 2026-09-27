@@ -40,13 +40,31 @@ local function Fixture()
     local ns = { Integrations = I, UI = { Widgets = {} },
         THEME = { accent = colour, muted = colour, fg = colour, panel = colour,
             bg = colour, line = colour, accentSoft = colour } }
-    ns.Font = Widget; ns.Solid = Widget; ns.Border = Widget; ns.Tooltip = function() end
+    ns.Font = Widget; ns.Solid = Widget; ns.Tooltip = function() end
+    ns.Border = function() local b = Widget(); b._frame = Widget(); return b end
+    -- Kept rows are re-labelled and re-pointed through _onClick, so a row is found by the
+    -- label it was last given.
+    ns.SetButtonText = function(btn, text)
+        btn.label:SetText(text)
+        e.buttons[text] = function(...) return btn._onClick(...) end
+    end
     ns.Button = function(_, text, _, _, callback)
         e.buttons[text] = callback; local w = Widget(); w.label = Widget(); return w
     end
     ns.UI.RefreshPage = function() e.render() end
     ns.UI.BuildAlertSoundTables = function() return {}, { test = "Test" }, { "test" } end
     ns.UI.AppendSharedMediaSounds = function() end
+    -- Nothing here reuses its rows, so every kept element is made fresh, as on a first build.
+    ns.UI.BeginReusableRows = function() end
+    ns.UI.Keep = function(parent, _, create) return create(parent), true end
+    ns.UI.KeepFont = function(parent, _, ...) return ns.Font(parent, ...) end
+    ns.UI.KeepButton = function(parent, _, text, w, h, onClick)
+        local b = ns.Button(parent, text, w, h, onClick); b._onClick = onClick; return b
+    end
+    ns.UI.KeepToggle = function(parent, _, get, set) return ns.UI.BuildToggleControl(parent, nil, get, set) end
+    ns.UI.KeepDropdown = function(parent, _, width, values, order, get, set)
+        return ns.UI.BuildDropdownControl(parent, width, nil, values, order, get, set)
+    end
     ns.UI.BuildDropdownControl = function(parent, width, _, values, order, get, set)
         if parent.title then e.controls[parent.title] = { get = get, set = set, width = width,
             values = values, order = order } end
@@ -57,7 +75,8 @@ local function Fixture()
     ns.UI.BuildToggleControl = function(parent, _, get, set)
         if parent.title then e.controls[parent.title] = { get = get, set = set }
         else e.rowToggles[#e.rowToggles + 1] = { get = get, set = set } end
-        return Widget()
+        local t = Widget(); t._refreshValue = function() end
+        return t
     end
     local env = setmetatable({ NaowhForever = ns, GameFontHighlight = {},
         CreateFrame = function(kind, _, parent)
@@ -71,7 +90,7 @@ local function Fixture()
         end,
     }, { __index = _G })
     env._G = env
-    local c = assert(loadfile(root .. "/NaowhForever_IntegrationOptions.lua")); setfenv(c, env); c()
+    local c = assert(loadfile(root .. "/SmartReminders/NaowhForever_IntegrationOptions.lua")); setfenv(c, env); c()
     e.tab = Tab
     -- There is no Save button any more. Committing every text box is what leaving the
     -- editor does, and every other control writes through the moment it changes.
