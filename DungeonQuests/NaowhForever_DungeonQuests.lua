@@ -60,6 +60,7 @@ end
 
 -- Part of a chain done, and the next step not picked up yet.
 local NEXT = "|cffff9933Next step|r"
+local NOT_DONE = MUTED .. "Not done|r"
 
 -- A step is a quest ID, or a table of IDs that each stand for it (one per faction).
 local function StepIDs(step)
@@ -234,6 +235,58 @@ local function OpenInQuestLog(id)
     end
 end
 
+local byID = {}
+for _, dungeon in ipairs(ns.DungeonQuests) do
+    for _, quest in ipairs(dungeon.quests) do byID[quest[1]] = quest end
+end
+
+-- The chain the quest belongs to (see the chains file) and which step of it the quest is;
+-- nil for a quest that stands alone.
+local function Chain(quest)
+    local chain = ns.DungeonQuestChains[quest[1]]
+    if not chain then return end
+    for i, step in ipairs(chain) do
+        for _, id in ipairs(StepIDs(step)) do
+            if id == quest[1] then return chain, i end
+        end
+    end
+end
+
+-- Done, in your log or neither, and the ID of the step's version to name it by.
+local function StepState(step)
+    local ids = StepIDs(step)
+    for _, id in ipairs(ids) do
+        if C_QuestLog.IsOnQuest(id) then return ACTIVE, id end
+    end
+    for _, id in ipairs(ids) do
+        if C_QuestLog.IsQuestFlaggedCompleted(id) then return DONE, id end
+    end
+    return NOT_DONE, ids[1]
+end
+
+-- Every quest of the chain in order with how far you are, the clicked one marked; a quest
+-- in your log can be opened in the quest log from here.
+local function OpenChain(owner, quest)
+    local chain, own = Chain(quest)
+    MenuUtil.CreateContextMenu(owner, function(_, root)
+        local title = C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2]
+        root:CreateTitle(("%s: step %d of %d"):format(title, own, #chain))
+        for i, step in ipairs(chain) do
+            local state, id = StepState(step)
+            local name = C_QuestLog.GetTitleForQuestID(id) or ns.DungeonQuestChainNames[id] or byID[id][2]
+            local text = ("%d.  %s  %s"):format(i, name, state)
+            if state == DONE then text = COMPLETE .. ("%d.  %s  %s|r"):format(i, name, DONE) end
+            if i == own then text = text .. "  |cff4db5f5(this quest)|r" end
+            root:CreateTitle(text, WHITE_FONT_COLOR)
+        end
+        local logged = LoggedID(quest)
+        if logged then
+            root:CreateDivider()
+            root:CreateButton("Open in quest log", function() OpenInQuestLog(logged) end)
+        end
+    end)
+end
+
 -- A quest in your log gets a waypoint where the game's own navigation would send you (its
 -- objective or turn-in). Super-tracking alone puts nothing on the map, and Forever has no
 -- route for many vanilla quests, so without one it falls back to the quest giver, which
@@ -326,7 +379,11 @@ local function RowTooltip(row)
     GameTooltip:SetOwner(row, "ANCHOR_LEFT")
     GameTooltip:SetText(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2])
     GameTooltip:AddLine(quest[6], 1, 1, 1, true)
-    if LoggedID(quest) then GameTooltip:AddLine("Click to open it in your quest log.", 0.3, 0.7, 0.95) end
+    if Chain(quest) then
+        GameTooltip:AddLine("Click to list every quest in its chain.", 0.3, 0.7, 0.95)
+    elseif LoggedID(quest) then
+        GameTooltip:AddLine("Click to open it in your quest log.", 0.3, 0.7, 0.95)
+    end
     GameTooltip:Show()
 end
 
@@ -373,6 +430,10 @@ local function TrackerRow(i)
     row.border._frame:SetPoint("TOPLEFT", -3, 0)
     row.border._frame:SetPoint("BOTTOMRIGHT", 3, 2)
     row:SetScript("OnClick", function(self)
+        if self.quest and Chain(self.quest) then
+            OpenChain(self, self.quest)
+            return
+        end
         local id = self.quest and LoggedID(self.quest)
         if id then OpenInQuestLog(id) end
     end)
@@ -606,14 +667,21 @@ end
 -------------------------------------------------------------------------------
 --  The page
 -------------------------------------------------------------------------------
-local function Row(parent, y, text, sub, onWaypoint, logged)
+local function Row(parent, y, text, sub, onWaypoint, onChain, logged)
     local UI = ns.UI
     local x = UI.CONTENT_PAD + 20
     local width = (parent:GetWidth() or 0) > 0 and parent:GetWidth() or 960
+    local right = x
     if onWaypoint then
         local btn = UI.KeepButton(parent, "waypoint", "Waypoint", 80, 20, onWaypoint)
-        btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x, y - 2)
-        width = width - 90
+        btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -right, y - 2)
+        width, right = width - 90, right + 90
+    end
+    if onChain then
+        local btn
+        btn = UI.KeepButton(parent, "chain", "Chain", 60, 20, function() onChain(btn) end)
+        btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -right, y - 2)
+        width = width - 70
     end
     local fs = UI.KeepFont(parent, "quest", 13, nil)
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - 4)
@@ -649,7 +717,8 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
     local _, h
     _, h = W:Note(parent, "Every dungeon quest on WoW Forever and where it starts, from Wowhead's "
         .. "Forever dungeon quest guide. Levels are coloured like your quest log, and quests grey "
-        .. "to you are left out. Waypoint marks the quest giver on your map.", y); y = y - h
+        .. "to you are left out. Waypoint marks the quest giver on your map; Chain lists every "
+        .. "quest in its chain, in order.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "DUNGEON QUEST TRACKER" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -693,9 +762,12 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
                         or pass == 2 and status == DONE and S.Get("dqShowDone")
                     if show then
                         local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
-                        y = y - Row(parent, y, QuestLine(quest, status, side),
-                            quest[6] .. "  -  " .. SHARE[quest[5]],
-                            quest[7] and function() SetWaypoint(quest) end, InLog(status))
+                        local chain, step = Chain(quest)
+                        local sub = quest[6] .. "  -  " .. SHARE[quest[5]]
+                        if chain then sub = sub .. ("  -  Chain: step %d of %d"):format(step, #chain) end
+                        y = y - Row(parent, y, QuestLine(quest, status, side), sub,
+                            quest[7] and function() SetWaypoint(quest) end,
+                            chain and function(btn) OpenChain(btn, quest) end, InLog(status))
                     end
                 end
             end
