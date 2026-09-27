@@ -74,6 +74,11 @@ local MODULES = {
       tabs = {
           { name = "List", build = "BuildQoLBiSPage", reuse = true },
       } },
+    { name = "Professions", settings = "ProfessionSettings",
+      subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",
+      tabs = {
+          { name = "Window", build = "BuildProfessionsPage", reuse = true },
+      } },
     { name = "Macros", settings = "MacroSettings",
       subtitle = "Macros written and kept current for you, out of combat.",
       tabs = {
@@ -811,10 +816,11 @@ local function CreateModuleWindow(mod)
     sub:SetText(mod.subtitle)
     local close = ns.Button(header, "X", 26, 26, function() win:Hide() end)
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -12, -12)
-    -- The sidebar's module switch, since some pages have no switch of their own.
+    -- The sidebar's module switch, since some pages have no switch of their own. Full
+    -- size, like the switches on the page below it.
     local switch = UI.BuildToggleControl(header, header:GetFrameLevel() + 2,
         function() return ModuleOn(mod) end,
-        function(v) SetModuleOn(mod, v) end, 28, 14)
+        function(v) SetModuleOn(mod, v) end)
     switch:SetPoint("RIGHT", close, "LEFT", -14, 0)
     ns.Tooltip(switch, mod.name, function()
         return ModuleOn(mod) and "On. Click to turn the whole module off."
@@ -886,6 +892,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.ToggleDungeonQuests()
     elseif cmd == "ranks" and ns.TrainerRankCheck then
         ns.TrainerRankCheck()
+    elseif cmd == "recipes" and ns.RecipeFinderDebug then
+        ns.RecipeFinderDebug()
     elseif cmd == "townaudit" and ns.TownAudit then
         ns.TownAudit()
     else

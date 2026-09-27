@@ -24,7 +24,7 @@ local function Fixture(on, complete, done)
             IsQuestFlaggedCompleted = function(id) return done[id] == true end,
         },
     }, { __index = _G })
-    local code = Slice("local DONE, ACTIVE, MISSING", "\n-- Instance ID")
+    local code = Slice("local MUTED", "\n-- Instance ID")
         .. Slice("-- Part of a chain done", "\n-- Your faction's quests")
         .. "\nreturn { Status = Status, InLog = InLog, DONE = DONE, ACTIVE = ACTIVE,"
         .. " READY = READY, MISSING = MISSING, NEXT = NEXT }"
@@ -90,7 +90,7 @@ local function GreyFixture(player, range, levels)
             RequestLoadQuestByID = function() end,
         },
     }, { __index = _G })
-    local code = Slice("local requested = {}", "\n-- The quest's line") .. "\nreturn Grey"
+    local code = Slice("local requested = {}", "\n-- The quest's title for its line") .. "\nreturn Grey"
     local chunk = assert(loadstring(code)); setfenv(chunk, env)
     return chunk()
 end

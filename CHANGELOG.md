@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Professions module: Naowh's profession window over Blizzard's, with your recipes by
+  category, reagents and Create / Create All in the middle, and Blizzard's profession tabs
+  on its edge. The overview tab shows every profession as a card. Off shows Blizzard's
+  window as before.
+- Unlearned Recipes: the recipes you have not learned yet, listed under your own, with the
+  skill each needs, what it costs and where it comes from (nearest trainers, the vendor
+  selling it, or what drops it). Click a trainer or vendor to set a waypoint. Covers every
+  crafting profession plus Cooking, Fishing and First Aid; with the Naowh window off it is
+  a drawer beside Blizzard's. /nf recipes prints what the profession API reports.
+
+### Changed
+- Dungeon Quests: each quest's state sits in its own column on the right, quests are listed
+  in the order you work through them (to pick up, in log, complete, finished), and a
+  finished quest is greyed with a check in place of its level. The tracker draws each quest
+  as its own bar on a darker panel. The tracker's on/off is now only the module switch.
+- XP Bar: the bar runs the full width, with the percentage inside it on the right.
+
+### Fixed
+- XP Bar: Time to Level and the quest and rested percentages no longer break for a moment
+  after login or a reload, when the game still reports 0 XP to level.
+
 ## 0.5.13-beta
 
 ### Added
