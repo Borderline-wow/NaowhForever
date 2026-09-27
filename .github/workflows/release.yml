@@ -46,6 +46,12 @@ jobs:
             echo "No '## ${GITHUB_REF_NAME}' section in CHANGELOG.md"
             exit 1
           fi
+          # An embed description holds 4096 characters; a longer section is posted by hand
+          # rather than cut off mid-list.
+          if [ ${#notes} -gt 4096 ]; then
+            echo "::warning::${GITHUB_REF_NAME} notes are ${#notes} characters, over Discord's 4096. Post them by hand."
+            exit 0
+          fi
           jq -n --arg title "Naowh Forever ${GITHUB_REF_NAME}" --arg notes "$notes" \
-            '{embeds: [{title: $title, description: $notes[0:4096], color: 10181046}]}' |
+            '{embeds: [{title: $title, description: $notes, color: 10181046}]}' |
             curl -fsS -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK"
