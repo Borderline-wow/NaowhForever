@@ -18,6 +18,9 @@
   module can be added to it.
 
 ### Fixed
+- Crosshair: Melee Spell ID 0 now works for paladins (Holy Strike), and the class check
+  no longer calls a function Forever only keeps as a deprecated shim.
+- Text prompts wrap a long title inside the box instead of running past its edges.
 - Smart Reminders: the alert preview no longer shows while the module is switched off. It
   put an empty square on screen whenever the Naowh Forever window was open, on any page.
 - BiS List: item names no longer show as "item 12345" the first time you open a gear
