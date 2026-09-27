@@ -576,6 +576,8 @@ local ARMOR = { MAGE = 1, PRIEST = 1, WARLOCK = 1, ROGUE = 2, DRUID = 2, HUNTER 
 local ARMOR_BEFORE_40 = { HUNTER = 2, SHAMAN = 2, WARRIOR = 3, PALADIN = 3 }
 local SHIELD = { WARRIOR = true, PALADIN = true, SHAMAN = true }
 local RELIC = { [7] = "PALADIN", [8] = "DRUID", [9] = "SHAMAN" }
+-- A weapon in the off hand takes dual wield, which only these classes learn, as in classic.
+local DUAL_WIELD = { WARRIOR = true, ROGUE = true, HUNTER = true }
 -- Enum.ItemWeaponSubclass values each class can learn, as in classic.
 local WEAPONS = {
     DRUID = { 4, 5, 10, 13, 15 },
@@ -614,6 +616,7 @@ local function DungeonDrops(slot, ranked, near)
     local ids = {}
     for id, item in pairs(loot) do
         if not skip[id] and Usable(class, item) and Fits(id, slot)
+            and not (slot == 17 and item[1] == 2 and not DUAL_WIELD[class])
             and (not near or math.abs(item[4] - level) <= 10) then
             ids[#ids + 1] = id
         end
