@@ -49,6 +49,12 @@
 - FPS counter (QoL > Interface), with optional local and world latency. Move it in Unlock
   Mode.
 
+### Changed
+- Loot Feed: Show Reputation and Glow are off by default. Anyone who switched them on
+  keeps them on.
+- XP per Hour: the level splits read "Level 23  1/4" and so on, instead of "Split 1", so
+  each line says which level it belongs to.
+
 ### Fixed
 - Dungeon Quests: Afadra Dunwall (The Restless Dead) is marked at her real spot in Old
   Ironforge.
@@ -72,6 +78,8 @@
   profile or spec switch that has it off leaves it on your bars. Announce Focus uses raid
   chat in a raid and party chat in a party. Before this the settings saved but no macro
   was ever written.
+- XP per Hour: Reset now also resets the XP Bar's Time to Level, XP/Hour and Session.
+  They kept their own count, so resetting seemed to do nothing when reading the bar.
 
 ## 0.5.12-beta
 

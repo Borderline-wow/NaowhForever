@@ -158,7 +158,8 @@ local function SplitLines()
             value = Clock(LevelTime() - cur.splitStart)
             if i == cur.partialIdx then value = DIM .. value .. "|r" end
         end
-        lines[#lines + 1] = LABEL .. "Split " .. i .. ":|r " .. VALUE .. value .. "|r" .. delta
+        lines[#lines + 1] = LABEL .. "Level " .. cur.level .. "  " .. i .. "/" .. cur.n .. ":|r "
+            .. VALUE .. value .. "|r" .. delta
     end
     return table.concat(lines, "\n")
 end
@@ -203,6 +204,8 @@ function ns.ResetXPTicker()
     sessionStart, sessionXP, pausedTotal = GetTime(), 0, 0
     if paused then pausedAt = sessionStart end
     Update()
+    -- The XP Bar keeps its own session for its XP/Hour, so one Reset clears both.
+    ns.ResetXPBarSession()
 end
 
 function ns.PauseXPTicker()
