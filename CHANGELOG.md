@@ -10,6 +10,9 @@
   tracks it and selects it in your quest log instead of opening the log. Opening it from
   the addon left the world map's quest pins blocked the next time you opened the map in
   combat (ADDON_ACTION_BLOCKED on SetPassThroughButtons).
+- Blessings: the Next Blessing and Next Greater Blessing key fields no longer take keys
+  you press before clicking them. Walking with the Blessings page open bound W, A, S or D
+  to a blessing.
 
 ## 0.5.12-beta
 
