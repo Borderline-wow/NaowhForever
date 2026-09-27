@@ -3,6 +3,9 @@
 ## 0.5.12-beta
 
 ### Added
+- Resize any Naowh Forever window by dragging its bottom-right corner, the main window
+  and each module's own window alike. Each keeps its size, and pages spread out to the
+  new width when you let go.
 - XP Bar (QoL > General): level, experience and percentage on one bar, with completed
   quest XP and rested experience drawn past the fill, and optional played, session and
   levelling text underneath. Replaces Blizzard's experience bar while it is on. Off by

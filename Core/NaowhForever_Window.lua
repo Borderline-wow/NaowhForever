@@ -467,6 +467,36 @@ local function DragRegion(frame, target)
     frame:SetScript("OnDragStop", function() target:StopMovingOrSizing() end)
 end
 
+-- A grip in the bottom-right corner, with the size kept per window in the account store.
+-- Pages lay out at the scroll child's width when they build, so a new width rebuilds them
+-- once the drag ends.
+local function Resizable(frame, key, child, inset, minW, minH)
+    local function Fit() child:SetWidth(frame:GetWidth() - inset) end
+    local sizes = ns.AccountSettings().windowSizes
+    local saved = sizes and sizes[key]
+    if saved then frame:SetSize(math.max(saved[1], minW), math.max(saved[2], minH)) end
+    Fit()
+    frame:SetResizable(true)
+    frame:SetResizeBounds(minW, minH)
+    local grip = CreateFrame("Button", nil, frame)
+    grip:SetSize(16, 16)
+    grip:SetPoint("BOTTOMRIGHT", -3, 3)
+    grip:SetFrameLevel(frame:GetFrameLevel() + 20)
+    grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    grip:SetScript("OnMouseDown", function() frame:StartSizing("BOTTOMRIGHT") end)
+    grip:SetScript("OnMouseUp", function()
+        frame:StopMovingOrSizing()
+        local account = ns.AccountSettings()
+        account.windowSizes = account.windowSizes or {}
+        account.windowSizes[key] = { frame:GetWidth(), frame:GetHeight() }
+        local width = child:GetWidth()
+        Fit()
+        if child:GetWidth() ~= width then UI:RefreshPage(true) end
+    end)
+end
+
 -- ESC via our own keyboard handler, NOT UISpecialFrames: a named addon frame in that
 -- table is a convicted taint injector (Blizzard's CloseAllWindows enumerates it inside
 -- secure execution). Same combat-guarded pattern MakeModal uses; opened in combat the
@@ -684,10 +714,10 @@ local function CreateWindow()
 
     scrollFrame = CreateFrame("ScrollFrame", nil, window, "UIPanelScrollFrameTemplate")
     scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    -- Fixed width so the builders' CONTENT_PAD math lands on the same row widths every
-    -- build; the window is deliberately not resizable for the same reason.
     scrollChild:SetSize(CONTENT_W - 40, 1)
     scrollFrame:SetScrollChild(scrollChild)
+    -- No narrower than the default: some pages (the BiS paperdoll) are laid out for it.
+    Resizable(window, "main", scrollChild, SIDEBAR_W + 40, SIDEBAR_W + CONTENT_W, 480)
 
     window:SetScript("OnShow", function(self)
         if not InCombatLockdown() then
@@ -820,10 +850,11 @@ local function CreateModuleWindow(mod)
 
     win.scrollFrame = CreateFrame("ScrollFrame", nil, win, "UIPanelScrollFrameTemplate")
     win.scrollFrame:SetPoint("TOPLEFT", win, "TOPLEFT", 10, -(offset + 5))
-    win.scrollFrame:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -30, 10)
+    win.scrollFrame:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -30, 22)
     win.scrollChild = CreateFrame("Frame", nil, win.scrollFrame)
     win.scrollChild:SetSize(CONTENT_W - 40, 1)
     win.scrollFrame:SetScrollChild(win.scrollChild)
+    Resizable(win, "module:" .. mod.name, win.scrollChild, 40, CONTENT_W, 360)
     win.wrappers = {}
     win.page = mod.tabs[1].key
 
