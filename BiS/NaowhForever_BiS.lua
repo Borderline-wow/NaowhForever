@@ -707,6 +707,7 @@ local BOTTOM_SLOTS = { 16, 17, 18 }
 local COLUMN_H = #RIGHT_SLOTS * (SLOT_SIZE + SLOT_GAP) - SLOT_GAP
 local DOLL_W = 380
 local DOLL_H = COLUMN_H + MODEL_GAP + SLOT_SIZE + 16   -- room for Worn under the weapons
+local openSlots = {}   -- slots whose picks the panel lists in full, for the session
 
 local function SlotTooltip(self)
     local picks = Picks(List(), self.slot)
@@ -746,8 +747,14 @@ local function NewSlotButton(parent)
     b.worn:SetText("Worn")
     b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     b:SetScript("OnClick", function(self) OpenPicker(self.slot) end)
-    b:SetScript("OnEnter", SlotTooltip)
-    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnEnter", function(self)
+        self:GetParent().lines[self.slot].hover:Show()
+        SlotTooltip(self)
+    end)
+    b:SetScript("OnLeave", function(self)
+        self:GetParent().lines[self.slot].hover:Hide()
+        GameTooltip:Hide()
+    end)
     return b
 end
 
@@ -804,9 +811,11 @@ local function NewDoll(parent)
     return f
 end
 
-local function Paperdoll(parent, x, y, marks)
+-- lines are the panel's slot lines, lit while their slot is hovered.
+local function Paperdoll(parent, x, y, marks, lines)
     local doll = ns.UI.Keep(parent, "bisDoll", NewDoll)
     doll:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+    doll.lines = lines
     local stride = (COLUMN_H - SLOT_SIZE) / (#LEFT_SLOTS - 1)
     for i, slot in ipairs(LEFT_SLOTS) do
         SlotButton(doll, slot, 0, -math.floor((i - 1) * stride + 0.5), "LEFT", marks)
@@ -821,56 +830,43 @@ local function Paperdoll(parent, x, y, marks)
     end
 end
 
--- Every pick grouped by where it comes from: places with the most BiS picks first, and in
--- each place BiS picks before the rest, best first.
-local function SourceText()
-    local list = List()
-    local ranks, ids = {}, {}
-    for slot in pairs(SLOT_NAME) do
-        for rank, id in ipairs(Picks(list, slot)) do
-            if not ranks[id] then ids[#ids + 1] = id end
-            if not ranks[id] or rank < ranks[id] then ranks[id] = rank end
-        end
-    end
-    if #ids == 0 then
-        return "|cff808080Pick items for your slots and this lists where each one comes from.|r", ids
-    end
+-- Where a wowsrc source says the item comes from, and the boss or detail before that.
+local function Place(source)
+    local detail, place = source:match("^(.*)" .. SOURCE_SEP .. "(.+)$")
+    return place or source, detail
+end
 
+local function Owned(slot, id)
+    return Wearing(slot, id) or C_Item.GetItemCount(id, true) > 0
+end
+
+-- The places with the most BiS picks you do not have yet, most first, at most three.
+local function RunNext(list)
     local places, byName = {}, {}
-    for _, id in ipairs(ids) do
-        local source = ns.BiSData.sources[id] or "Source not listed"
-        local detail, place = source:match("^(.*)" .. SOURCE_SEP .. "(.+)$")
-        place = place or source
-        local p = byName[place]
-        if not p then
-            p = { name = place, bis = 0, items = {} }
-            byName[place] = p
-            places[#places + 1] = p
+    for slot in pairs(SLOT_NAME) do
+        local id = list.slots[slot]
+        local source = id and ns.BiSData.sources[id]
+        if source and not Owned(slot, id) then
+            local name = Place(source)
+            local p = byName[name]
+            if not p then
+                p = { name = name, bis = 0 }
+                byName[name] = p
+                places[#places + 1] = p
+            end
+            p.bis = p.bis + 1
         end
-        if ranks[id] == 1 then p.bis = p.bis + 1 end
-        p.items[#p.items + 1] = { id = id, rank = ranks[id], detail = detail }
     end
     table.sort(places, function(a, b)
         if a.bis ~= b.bis then return a.bis > b.bis end
-        if #a.items ~= #b.items then return #a.items > #b.items end
         return a.name < b.name
     end)
-
-    local lines = {}
-    for _, p in ipairs(places) do
-        table.sort(p.items, function(a, b)
-            if a.rank ~= b.rank then return a.rank < b.rank end
-            return a.id < b.id
-        end)
-        if #lines > 0 then lines[#lines + 1] = " " end
-        lines[#lines + 1] = p.name
-        for _, item in ipairs(p.items) do
-            lines[#lines + 1] = ("    %s  %s%s|r%s"):format(RankText(item.rank),
-                QualityHex(item.id), Name(item.id), item.detail and ("  |cff808080" .. item.detail .. "|r") or "")
-        end
-    end
-    return table.concat(lines, "\n"), ids
+    for i = #places, 4, -1 do places[i] = nil end
+    return places
 end
+
+local SLOT_ROW, PICK_LINE = 20, 18
+local PLUS, MINUS = "Interface\\Buttons\\UI-PlusButton-Up", "Interface\\Buttons\\UI-MinusButton-Up"
 
 local function NewSourcePanel(parent)
     local f = CreateFrame("Frame", nil, parent)
@@ -881,25 +877,155 @@ local function NewSourcePanel(parent)
     sep:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -26)
     sep:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -26)
     sep:SetHeight(1)
-    f.body = ns.Font(f, 12, nil)
-    f.body:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -36)
-    f.body:SetPoint("RIGHT", f, "RIGHT")
-    f.body:SetJustifyH("LEFT")
-    f.body:SetSpacing(3)
+    f.lines = {}
     return f
 end
 
--- Returns the panel's height.
+local function NewRunLine(parent)
+    local fs = ns.Font(parent, 12, nil)
+    fs:SetJustifyH("LEFT")
+    fs:SetWordWrap(false)
+    return fs
+end
+
+-- A slot's #1 pick and where it drops; clicking lists every pick under it.
+local function NewSlotLine(parent)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetHeight(SLOT_ROW)
+    b.hover = ns.Solid(b, "BACKGROUND", T.accent, 0.12)
+    b.hover:SetAllPoints()
+    b.hover:Hide()
+    -- Only the +/- opens a slot; the rest of the line is for its tooltip.
+    b.toggle = CreateFrame("Button", nil, b)
+    b.toggle:SetSize(14, 14)
+    b.toggle:SetPoint("LEFT", 2, 0)
+    b.toggle:SetScript("OnClick", function(self)
+        local line = self:GetParent()
+        openSlots[line.slot] = not openSlots[line.slot] or nil
+        ns.UI:RefreshPage(true)
+    end)
+    b.label = ns.Font(b, 12, nil, T.muted)
+    b.label:SetPoint("LEFT", 22, 0)
+    b.more = ns.Font(b, 12, nil, T.muted)
+    b.more:SetPoint("RIGHT", -4, 0)
+    b.place = ns.Font(b, 12, nil, T.muted)
+    b.place:SetPoint("RIGHT", -36, 0)
+    b.place:SetWidth(140)
+    b.place:SetJustifyH("RIGHT")
+    b.place:SetWordWrap(false)
+    b.item = ns.Font(b, 12, nil)
+    b.item:SetPoint("LEFT", 100, 0)
+    b.item:SetPoint("RIGHT", b.place, "LEFT", -8, 0)
+    b.item:SetJustifyH("LEFT")
+    b.item:SetWordWrap(false)
+    b:SetScript("OnEnter", function(self)
+        self.hover:Show()
+        if self.id then ItemTooltip(self, self.id) end
+    end)
+    b:SetScript("OnLeave", function(self)
+        self.hover:Hide()
+        GameTooltip:Hide()
+    end)
+    return b
+end
+
+local function NewPickLine(parent)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(PICK_LINE)
+    row:EnableMouse(true)
+    row.num = ns.Font(row, 12, nil, T.muted)
+    row.num:SetPoint("RIGHT", row, "LEFT", 40, 0)
+    row.item = ns.Font(row, 12, nil)
+    row.item:SetPoint("LEFT", 46, 0)
+    row.item:SetWidth(180)
+    row.item:SetJustifyH("LEFT")
+    row.item:SetWordWrap(false)
+    row.source = ns.Font(row, 12, nil, T.muted)
+    row.source:SetPoint("LEFT", row.item, "RIGHT", 8, 0)
+    row.source:SetPoint("RIGHT", -4, 0)
+    row.source:SetJustifyH("LEFT")
+    row.source:SetWordWrap(false)
+    row:SetScript("OnEnter", function(self) ItemTooltip(self, self.id) end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    return row
+end
+
+-- The places to run next, then a line per slot in paperdoll order, open ones listing every
+-- pick. Returns the panel's height and its slot lines.
 local function SourcePanel(parent, x, y, width)
-    local f = ns.UI.Keep(parent, "bisSources", NewSourcePanel)
+    local UI = ns.UI
+    local f = UI.Keep(parent, "bisSources", NewSourcePanel)
     f:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
     f:SetWidth(width)
-    local text, ids = SourceText()
-    f.body:SetText(text)
-    OnLoaded(ids, function() f.body:SetText((SourceText())) end)
-    local h = 36 + f.body:GetStringHeight()
-    f:SetHeight(h)
-    return h
+    wipe(f.lines)
+    local list = List()
+    local top = -36
+
+    local places = RunNext(list)
+    if places[1] then
+        local head = UI.KeepFont(f, "runHead", 12, nil, T.accent)
+        head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, top)
+        head:SetText("RUN NEXT")
+        top = top - 20
+        for _, p in ipairs(places) do
+            local line = UI.Keep(f, "run", NewRunLine)
+            line:SetPoint("TOPLEFT", f, "TOPLEFT", 22, top)
+            line:SetPoint("RIGHT", f, "RIGHT")
+            line:SetText(("%s: |cff1ad933%d BiS|r"):format(p.name, p.bis))
+            top = top - PICK_LINE
+        end
+        top = top - 12
+    end
+
+    local named, ids = {}, {}
+    for _, side in ipairs({ LEFT_SLOTS, RIGHT_SLOTS, BOTTOM_SLOTS }) do
+        for _, slot in ipairs(side) do
+            local picks = Picks(list, slot)
+            local b = UI.Keep(f, "slotLine", NewSlotLine)
+            b:SetPoint("TOPLEFT", f, "TOPLEFT", 0, top)
+            b:SetPoint("RIGHT", f, "RIGHT")
+            b.slot, b.id = slot, picks[1]
+            f.lines[slot] = b
+            b.label:SetText(ns.L(SLOT_NAME[slot]) .. ":")
+            b.more:SetText(#picks > 1 and "+" .. (#picks - 1) or "")
+            b.toggle:SetShown(picks[1] ~= nil)
+            top = top - SLOT_ROW
+            if not picks[1] then
+                b.item:SetText("|cff808080not picked|r")
+                b.place:SetText("")
+            else
+                b.toggle:SetNormalTexture(openSlots[slot] and MINUS or PLUS)
+                b.place:SetText((Place(ns.BiSData.sources[picks[1]] or "Source not listed")))
+                named[#named + 1] = b
+                ids[#ids + 1] = picks[1]
+            end
+            if picks[1] and openSlots[slot] then
+                for i, id in ipairs(picks) do
+                    local row = UI.Keep(f, "pickLine", NewPickLine)
+                    row:SetPoint("TOPLEFT", f, "TOPLEFT", 0, top)
+                    row:SetPoint("RIGHT", f, "RIGHT")
+                    row.id = id
+                    row.num:SetText(i .. ".")
+                    local place, detail = Place(ns.BiSData.sources[id] or "Source not listed")
+                    row.source:SetText(detail and detail .. ", " .. place or place)
+                    named[#named + 1] = row
+                    ids[#ids + 1] = id
+                    top = top - PICK_LINE
+                end
+                top = top - 4
+            end
+        end
+    end
+    -- A later build can hand these lines another item, or none, before the names load.
+    local function SetNames()
+        for _, line in ipairs(named) do
+            if line.id then line.item:SetText(QualityHex(line.id) .. Name(line.id) .. "|r") end
+        end
+    end
+    SetNames()
+    OnLoaded(ids, SetNames)
+    f:SetHeight(-top)
+    return -top, f.lines
 end
 
 function ns.BuildQoLBiSPage(parent, y)
@@ -952,7 +1078,7 @@ function ns.BuildQoLBiSPage(parent, y)
     local width = parent:GetWidth() - pad * 2
     if width <= 0 then width = 910 end
     local gap = 48
-    Paperdoll(parent, pad, y - 8, wornMarks[parent])
-    local panelH = SourcePanel(parent, pad + DOLL_W + gap, y, width - DOLL_W - gap)
+    local panelH, lines = SourcePanel(parent, pad + DOLL_W + gap, y, width - DOLL_W - gap)
+    Paperdoll(parent, pad, y - 8, wornMarks[parent], lines)
     return y - math.max(DOLL_H + 8, panelH)
 end

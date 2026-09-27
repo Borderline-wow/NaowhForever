@@ -318,4 +318,66 @@ Case("removing takes the item out of every slot that holds it", function()
     assert(Picks(e, 11) == "" and Picks(e, 12) == "202" and not e.ns.IsBisItem(203))
 end)
 
+-- Run Next on the paperdoll's panel: the real source sliced out, against a list and what is
+-- worn and carried.
+local function RunNextFixture(sources, worn, carried)
+    local f = assert(io.open(root .. "/BiS/NaowhForever_BiS.lua", "rb"))
+    local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+    local function Slice(a, b)
+        local first = assert(source:find(a, 1, true))
+        return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
+    end
+    local env = setmetatable({
+        ns = { BiSData = { sources = sources } },
+        SLOT_NAME = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [11] = "Ring 1", [12] = "Ring 2" },
+        GetInventoryItemID = function(_, slot) return worn[slot] end,
+        C_Item = { GetItemCount = function(id, bank) return bank and carried[id] or 0 end },
+    }, { __index = _G })
+    local code = Slice("local SOURCE_SEP", "\n") .. "\n"
+        .. Slice("local function Wearing", "local function Store")
+        .. Slice("-- Where a wowsrc source", "local SLOT_ROW")
+        .. "\nreturn RunNext, Place"
+    local chunk = assert(loadstring(code)); setfenv(chunk, env)
+    return chunk()
+end
+
+local DOT = " \194\183 "
+
+Case("run next counts BiS picks you do not have by place, most first, at most three", function()
+    local RunNext = RunNextFixture({
+        [101] = "Boss A" .. DOT .. "Scholomance", [102] = "Boss B" .. DOT .. "Scholomance",
+        [103] = "Boss C" .. DOT .. "Stratholme", [104] = "Crafted", [105] = "Boss D" .. DOT .. "Maraudon",
+        [106] = "Boss E" .. DOT .. "Scholomance",
+    }, { [3] = 103 }, { [104] = 1 })
+    local list = { slots = { [1] = 101, [2] = 102, [3] = 103, [11] = 104, [12] = 105 } }
+    local out = RunNext(list)
+    assert(#out == 2 and out[1].name == "Scholomance" and out[1].bis == 2, "worn and carried left out")
+    assert(out[2].name == "Maraudon" and out[2].bis == 1)
+    list.slots[3], list.slots[11] = 106, 107   -- 107 has no source
+    out = RunNext(list)
+    assert(out[1].bis == 3 and #out == 2, "unlisted sources are not a place")
+end)
+
+Case("run next ties go by name and stop at three", function()
+    local RunNext = RunNextFixture({ [1] = "Zul'Farrak", [2] = "Dire Maul", [3] = "Uldaman",
+        [4] = "Boss" .. DOT .. "Blackrock Depths", [5] = "Gnomeregan" }, {}, {})
+    local out = RunNext({ slots = { [1] = 1, [2] = 2, [3] = 3, [11] = 4, [12] = 5 } })
+    assert(#out == 3 and out[1].name == "Blackrock Depths" and out[2].name == "Dire Maul"
+        and out[3].name == "Gnomeregan")
+    assert(#RunNext({ slots = {} }) == 0, "nothing picked, nothing shown")
+end)
+
+Case("a ring worn in the other ring slot counts as had", function()
+    local RunNext = RunNextFixture({ [201] = "Onyxia" }, { [12] = 201 }, {})
+    assert(#RunNext({ slots = { [11] = 201 } }) == 0)
+end)
+
+Case("a source splits into place and boss at the last middle dot", function()
+    local _, Place = RunNextFixture({}, {}, {})
+    local place, detail = Place("Quest" .. DOT .. "Boss" .. DOT .. "Blackrock Spire")
+    assert(place == "Blackrock Spire" and detail == "Quest" .. DOT .. "Boss")
+    place, detail = Place("World Drop")
+    assert(place == "World Drop" and detail == nil)
+end)
+
 print(("%d cases passed"):format(count))
