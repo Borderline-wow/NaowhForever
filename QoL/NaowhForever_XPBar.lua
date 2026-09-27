@@ -276,6 +276,13 @@ local function QueueQuestScan()
     questTimer = C_Timer.NewTimer(0.3, function() ScanQuests(); Update() end)
 end
 
+function ns.ResetXPBarSession()
+    if not sessionStart then return end
+    sessionStart, sessionXP = time(), 0
+    SaveSession()
+    Update()
+end
+
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, arg1, arg2)
     if event == "PLAYER_LOGOUT" then
