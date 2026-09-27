@@ -48,6 +48,21 @@
   Skip Cinematics skips only cinematics already seen on this account.
 - FPS counter (QoL > Interface), with optional local and world latency. Move it in Unlock
   Mode.
+- BiS list: a Where Your Items Drop panel to the right of the gear slots, which now run
+  down one column, groups everything you picked by where it comes from (dungeon, zone,
+  quest, crafted, world drop), with the places that hold the most BiS picks first.
+
+### Changed
+- BiS list: each slot can have one BiS pick and any number of secondary picks. A slot shows
+  its ranked items as icons: BiS with a green border and a check mark, secondary picks
+  with a yellow border, the rest with a black border. Click a slot or an icon and choose
+  Best in Slot, Secondary or Remove on an item. Tooltips, the loot feed and drop alerts
+  say when an item is a secondary pick. Your current list carries over as your BiS picks.
+- BiS list: Alt+Shift-click makes an item a slot's BiS pick when that slot has none, and a
+  secondary pick otherwise, so it never pushes out an item you already picked.
+- BiS list: picking is only from the ranking now; the Add Item by ID button and the item
+  ID entry are gone. Shared lists carry secondary picks, and older strings still import.
+  Worn replaces the tick beside a BiS pick you are wearing.
 
 ### Fixed
 - Dungeon Quests: Afadra Dunwall (The Restless Dead) is marked at her real spot in Old
