@@ -1,4 +1,4 @@
-local f = assert(io.open(arg[1] or "NaowhForever_Trainer.lua", "rb"))
+local f = assert(io.open(arg[1] or "QoL/NaowhForever_Trainer.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
     local first = assert(source:find(a, 1, true))

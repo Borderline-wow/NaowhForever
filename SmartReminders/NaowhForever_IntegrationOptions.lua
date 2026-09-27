@@ -10,47 +10,57 @@ local debuffByID = false
 -- settings behind tabs rather than stacking them, the same shape the boss reminder editor
 -- already uses. PANEL_H is what is left once the heading block is drawn.
 local PANEL_H, BODY_H = 424, 336
+-- The page and its editor reuse what they build (UI.Keep). A font's size is fixed when it is
+-- made, so it is part of the key; everything else is set on every call.
 local function Label(parent, text, x, y, width, size, color)
-    local label = ns.Font(parent, size or 12, nil, color or ns.THEME.muted)
+    local label = UI.KeepFont(parent, "label" .. (size or 12), size or 12, nil, color or ns.THEME.muted)
     label:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
     label:SetWidth(width)
     label:SetJustifyH("LEFT")
     label:SetText(text)
     return label
 end
-local function Panel(parent, title, x, y, width, height)
+local function NewPanel(parent)
     local p = CreateFrame("Frame", nil, parent)
-    p:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-    p:SetSize(width, height)
     ns.Solid(p, "BACKGROUND", ns.THEME.panel, 1):SetAllPoints()
     ns.Border(p)
+    return p
+end
+local function Panel(parent, title, x, y, width, height)
+    local p = UI.Keep(parent, "panel", NewPanel)
+    p:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+    p:SetSize(width, height)
     Label(p, title, 14, -12, width - 28, 14, ns.THEME.accent)
     return p
 end
-local function Box(parent, title, value, y, width)
-    local label = Label(parent, title, 14, y, width)
+local function NewBox(parent)
     local box = CreateFrame("EditBox", nil, parent)
     box:SetFontObject(GameFontHighlight)
     box:SetAutoFocus(false)
     box:SetMaxLetters(200)
-    box:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, y - 20)
-    box:SetSize(width, 24)
     ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
     ns.Border(box)
     -- Without an inset the caret and the first character sit on the border itself.
     box:SetTextInsets(7, 7, 0, 0)
+    return box
+end
+local function Box(parent, title, value, y, width)
+    local label = Label(parent, title, 14, y, width)
+    local box = UI.Keep(parent, "box", NewBox)
+    box:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, y - 20)
+    box:SetSize(width, 24)
     box:SetText(tostring(value or ""))
     return box, label
 end
 local function Dropdown(parent, title, values, order, get, set, y, width)
     Label(parent, title, 14, y, width)
-    local dd = UI.BuildDropdownControl(parent, width, parent:GetFrameLevel() + 2, values, order, get, set)
+    local dd = UI.KeepDropdown(parent, "dd" .. width, width, values, order, get, set)
     dd:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, y - 20)
     return dd
 end
 local function Toggle(parent, title, get, set, y, width)
     Label(parent, title, 14, y - 4, width - 54)
-    local toggle = UI.BuildToggleControl(parent, parent:GetFrameLevel() + 2, get, set)
+    local toggle = UI.KeepToggle(parent, "toggle", get, set)
     toggle:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -14, y)
 end
 
@@ -64,7 +74,11 @@ end
 -- the very thing being fixed.
 local listScroll = {}
 local function KeepListScroll(scroll, key, contentHeight)
-    scroll:HookScript("OnVerticalScroll", function(_, offset) listScroll[key] = offset end)
+    scroll._scrollKey = key
+    if not scroll._scrollHooked then
+        scroll._scrollHooked = true
+        scroll:HookScript("OnVerticalScroll", function(self, offset) listScroll[self._scrollKey] = offset end)
+    end
     local want = listScroll[key]
     if not want or want <= 0 then return end
     scroll:UpdateScrollChildRect()
@@ -224,7 +238,7 @@ local function Editor(parent, uid)
         end
     end
 
-    local preview = ns.Button(parent, "Test", 120, 28, function()
+    local preview = UI.KeepButton(parent, "test", "Test", 120, 28, function()
         local r = Value()
         if I.ValidRule(r) then
             I.Preview(r)
@@ -236,7 +250,7 @@ local function Editor(parent, uid)
     -- rather than one group of its settings, so they stay reachable from every tab.
     preview:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -40)
     if uid then
-        local remove = ns.Button(parent, "Remove", 120, 28, function()
+        local remove = UI.KeepButton(parent, "remove", "Remove", 120, 28, function()
             if I.Spec() ~= editedSpec or I.Rules(false) ~= editedRules then return end
             editedRules[uid] = nil
             debuffSelection, debuffByID = {}, false
@@ -257,20 +271,20 @@ function ns.ShowCopyTrashRulesPopup(callerEUI, kind)
     -- panel is resized to whatever the content measured once it is laid out.
     local dimmer, panel = ns.MakeModal(430, 150 + math.max(1, #specs) * 30, "copyTrashRules")
 
-    local head = ns.Font(panel, 14, "OUTLINE")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
     head:SetPoint("TOP", panel, "TOP", 0, -16)
     head:SetText(kind == "auraSound" and "Copy Debuff Alerts From" or "Copy Trash Rules From")
 
     local y = -46
     if #specs == 0 then
-        local none = ns.Font(panel, 12, nil, ns.THEME.muted)
+        local none = UI.KeepFont(panel, "none", 12, nil, ns.THEME.muted)
         none:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
         none:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
         none:SetJustifyH("LEFT")
         none:SetWordWrap(true)
         none:SetText(("No other spec has any %s saved yet."):format(noun))
     else
-        local hint = ns.Font(panel, 11, nil, ns.THEME.muted)
+        local hint = UI.KeepFont(panel, "hint", 11, nil, ns.THEME.muted)
         hint:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
         hint:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
         hint:SetJustifyH("LEFT")
@@ -286,7 +300,7 @@ function ns.ShowCopyTrashRulesPopup(callerEUI, kind)
 
         for i = 1, #specs do
             local s = specs[i]
-            local btn = ns.Button(panel, s.name, 210, 24, function()
+            local btn = UI.KeepButton(panel, "spec", s.name, 210, 24, function()
                 local copied, skipped = I.CopyRulesFromSpec(s.key, kind)
                 ns.Print(("copied |cff0091ed%d|r %s from %s%s."):format(
                     copied, noun, s.name,
@@ -295,7 +309,7 @@ function ns.ShowCopyTrashRulesPopup(callerEUI, kind)
                 if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
             end)
             btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
-            local count = ns.Font(panel, 11, nil, ns.THEME.muted)
+            local count = UI.KeepFont(panel, "count", 11, nil, ns.THEME.muted)
             count:SetPoint("LEFT", btn, "RIGHT", 10, 0)
             count:SetText(("%d saved"):format(s.total))
             y = y - 30
@@ -305,7 +319,7 @@ function ns.ShowCopyTrashRulesPopup(callerEUI, kind)
     -- Cancel anchors to the panel's own bottom, so fitting the panel to the content moves
     -- it with them rather than leaving it floating under a short list.
     panel:SetHeight(math.max(150, -y + 58))
-    ns.Button(panel, "Cancel", 90, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "cancel", "Cancel", 90, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
     dimmer:Show()
 end
@@ -319,40 +333,49 @@ local ROW_H, ICON = 26, 20
 -- says at a glance what is set up. Turning one on for an ability with nothing saved writes
 -- the rule the editor would have written and opens it, which is the same "create on demand"
 -- the boss ability rows already do rather than a second Add button.
-local function ListRow(list, ly, width, text, icon, rule, active, onClick, onCreate, indent)
-    local row = ns.Button(list, text, width, ROW_H, onClick)
-    row:SetPoint("TOPLEFT", list, "TOPLEFT", indent or 0, -ly)
+local function NewListRow(list)
+    local row = ns.Button(list, "", 10, ROW_H)
     row.label:ClearAllPoints()
     row.label:SetPoint("LEFT", row, "LEFT", 64, 0)
     row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.label:SetJustifyH("LEFT")
     row.label:SetWordWrap(false)
+    row.toggle = UI.BuildToggleControl(row, row:GetFrameLevel() + 2,
+        function() return row.on end, function(v) row.onToggle(v) end, 26, 13)
+    row.toggle:SetPoint("LEFT", row, "LEFT", 6, 0)
+    row.holder = CreateFrame("Frame", nil, row)
+    row.holder:SetSize(ICON, ICON)
+    row.holder:SetPoint("LEFT", row, "LEFT", 38, 0)
+    row.tex = row.holder:CreateTexture(nil, "ARTWORK")
+    row.tex:SetAllPoints()
+    row.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    ns.Border(row.holder, { r = 0, g = 0, b = 0 }, 1)
+    row.activeBorder = ns.Border(row, ns.THEME.accent)
+    return row
+end
 
-    local on = rule ~= nil and rule.enabled ~= false
-    local toggle = UI.BuildToggleControl(row, row:GetFrameLevel() + 2,
-        function() return on end,
-        function(v)
-            on = v and true or false
-            if rule then
-                rule.enabled = on
-                I.Refresh()
-            elseif on and onCreate then
-                onCreate()
-            end
-        end, 26, 13)
-    toggle:SetPoint("LEFT", row, "LEFT", 6, 0)
+local function ListRow(list, ly, width, text, icon, rule, active, onClick, onCreate, indent)
+    local row = UI.Keep(list, "row", NewListRow)
+    row:SetSize(width, ROW_H)
+    row:SetPoint("TOPLEFT", list, "TOPLEFT", indent or 0, -ly)
+    ns.SetButtonText(row, text)
+    row._onClick = onClick
 
-    if icon then
-        local holder = CreateFrame("Frame", nil, row)
-        holder:SetSize(ICON, ICON)
-        holder:SetPoint("LEFT", row, "LEFT", 38, 0)
-        local tex = holder:CreateTexture(nil, "ARTWORK")
-        tex:SetAllPoints()
-        tex:SetTexture(icon)
-        tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        ns.Border(holder, { r = 0, g = 0, b = 0 }, 1)
+    row.on = rule ~= nil and rule.enabled ~= false
+    row.onToggle = function(v)
+        row.on = v and true or false
+        if rule then
+            rule.enabled = row.on
+            I.Refresh()
+        elseif row.on and onCreate then
+            onCreate()
+        end
     end
-    if active then ns.Border(row, ns.THEME.accent) end
+    row.toggle._refreshValue()
+
+    row.holder:SetShown(icon ~= nil)
+    row.tex:SetTexture(icon)
+    row.activeBorder._frame:SetShown(active == true)
     return row
 end
 
@@ -364,16 +387,23 @@ local debuffCollapsed = {}
 
 -- Plus and minus rather than a drawn chevron: it is the tree idiom the game itself uses,
 -- and it costs no geometry to get right at two sizes.
-local function GroupHeader(list, ly, width, name, count, collapsed, onClick)
-    local row = ns.Button(list, ("%s  %s  (%d)"):format(collapsed and "+" or "-", name, count),
-        width, ROW_H, onClick)
-    row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -ly)
+local function NewGroupHeader(list)
+    local row = ns.Button(list, "", 10, ROW_H)
     row.label:ClearAllPoints()
     row.label:SetPoint("LEFT", row, "LEFT", 8, 0)
     row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.label:SetJustifyH("LEFT")
     row.label:SetWordWrap(false)
     row.label:SetTextColor(ns.THEME.accent.r, ns.THEME.accent.g, ns.THEME.accent.b, 1)
+    return row
+end
+
+local function GroupHeader(list, ly, width, name, count, collapsed, onClick)
+    local row = UI.Keep(list, "group", NewGroupHeader)
+    row:SetSize(width, ROW_H)
+    row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -ly)
+    ns.SetButtonText(row, ("%s  %s  (%d)"):format(collapsed and "+" or "-", name, count))
+    row._onClick = onClick
     return row
 end
 
@@ -400,7 +430,7 @@ function ns.BuildDebuffsPage(parent, y)
     -- trash page's button no longer reaches them.
     local others = I.SpecsWithRules and I.SpecsWithRules("auraSound") or {}
     if #others > 0 then
-        local copy = ns.Button(parent, "Copy From Spec", 160, 24, function()
+        local copy = UI.KeepButton(parent, "copy", "Copy From Spec", 160, 24, function()
             ns.ShowCopyTrashRulesPopup(UI, "auraSound")
         end)
         copy:SetPoint("TOPLEFT", parent, "TOPLEFT", 160, y)
@@ -411,16 +441,22 @@ function ns.BuildDebuffsPage(parent, y)
     StatusLines(parent, y)
 
     local side = Panel(parent, "Saved Debuff Alerts", 20, y - 68, 280, PANEL_H)
-    local add = ns.Button(side, "+ Debuff Alert", 252, 26, function()
+    local add = UI.KeepButton(side, "add", "+ Debuff Alert", 252, 26, function()
         debuffSelection, debuffByID = { newAura = true }, false; UI:RefreshPage(true)
     end)
     add:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -42)
 
-    local scroll = CreateFrame("ScrollFrame", nil, side, "UIPanelScrollFrameTemplate")
+    local scroll = UI.Keep(side, "scroll", function(p)
+        local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
+        sf.list = CreateFrame("Frame", nil, sf)
+        sf.list:SetWidth(240)
+        sf:SetScrollChild(sf.list)
+        return sf
+    end)
     scroll:SetPoint("TOPLEFT", side, "TOPLEFT", 10, -78)
     scroll:SetSize(240, PANEL_H - 90)
-    local list = CreateFrame("Frame", nil, scroll)
-    list:SetWidth(240); scroll:SetScrollChild(list)
+    local list = scroll.list
+    UI.BeginReusableRows(list)
 
     local rules = I.Rules(false) or {}
     local rows = {}
@@ -488,7 +524,7 @@ function ns.BuildDebuffsPage(parent, y)
     list:SetHeight(math.max(1, ly))
     KeepListScroll(scroll, "debuff", math.max(1, ly))
 
-    local right = CreateFrame("Frame", nil, parent)
+    local right = UI.Keep(parent, "right", function(p) return CreateFrame("Frame", nil, p) end)
     right:SetPoint("TOPLEFT", parent, "TOPLEFT", 320, y - 68)
     right:SetSize(604, PANEL_H)
     if debuffSelection.newAura then Editor(right, nil)

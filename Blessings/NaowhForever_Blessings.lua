@@ -942,8 +942,17 @@ events:SetScript("OnEvent", function(_, event, ...)
         BroadcastSoon()
         RefreshSoon()
     elseif event == "UNIT_AURA" then
+        -- Fires for every unit the client tracks. A queued rescan already covers this one,
+        -- and in combat Refresh would only mark the bar dirty, so both skip the unit test.
+        if refreshQueued then return end
+        if InCombatLockdown() then
+            dirty = true
+            return
+        end
         local unit = ...
-        if unit == "player" or unit:find("^party%d") or unit:find("^raid%d") then RefreshSoon() end
+        if unit == "player" or unit:find("party", 1, true) == 1 or unit:find("raid", 1, true) == 1 then
+            RefreshSoon()
+        end
     end
 end)
 

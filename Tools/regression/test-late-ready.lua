@@ -1,4 +1,4 @@
-local file = assert(io.open(arg[1] or "NaowhForever_SmartReminders.lua", "rb"))
+local file = assert(io.open(arg[1] or "SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
 local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
 local function Slice(first, last)
     local a = assert(source:find(first, 1, true))

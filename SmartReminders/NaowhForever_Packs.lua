@@ -1351,7 +1351,10 @@ function ns.ShowProfileMergeDialog()
     local decoded, sourceName, targetName
     local wantSettings, wantExtras = false, false
     local specWanted, specSeeded = {}, false
-    local mergeBtn, rows = nil, {}
+    local mergeBtn
+    -- The pickers and option rows Rebuild lays out, reused from one rebuild to the next.
+    local rowsHost = CreateFrame("Frame", nil, panel)
+    rowsHost:SetAllPoints()
     -- Built once and repositioned, not rebuilt: Rebuild runs on every keystroke in the
     -- paste box, and a frame per spec per keystroke is 40 the client never gives back.
     local specRows, rowKeys = {}, {}
@@ -1369,12 +1372,10 @@ function ns.ShowProfileMergeDialog()
     end
 
     local function ClearRows()
-        for i = 1, #rows do rows[i]:Hide() end
-        rows = {}
+        ns.UI.BeginReusableRows(rowsHost)
         for i = 1, #specRows do specRows[i]:Hide() end
         if selectAllBtn then selectAllBtn:Hide(); deselectAllBtn:Hide() end
     end
-    local function Track(f) rows[#rows + 1] = f; return f end
 
     local function SourceData()
         if not decoded then return nil end
@@ -1397,16 +1398,22 @@ function ns.ShowProfileMergeDialog()
 
     local Rebuild
     local function Picker(y, label, values, order, get, set)
-        local row = Track(CreateFrame("Frame", nil, panel))
+        local row = ns.UI.Keep(rowsHost, "picker", function(host)
+            local r = CreateFrame("Frame", nil, host)
+            r.lbl = ns.Font(r, 12, nil, ns.THEME.muted)
+            r.lbl:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
+            r.dd = ns.UI.BuildDropdownControl(r, 280, nil, values, order, get, set)
+            r.dd:SetPoint("TOPLEFT", r, "TOPLEFT", 0, -20)
+            return r
+        end)
         row:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
         row:SetSize(280, 44)
         row:SetFrameLevel(panel:GetFrameLevel() + 10)
-        local lbl = ns.Font(row, 12, nil, ns.THEME.muted)
-        lbl:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
-        lbl:SetText(label)
-        local dd = ns.UI.BuildDropdownControl(row, 280, row:GetFrameLevel() + 2,
-            values, order, get, set)
-        dd:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -20)
+        row.lbl:SetText(label)
+        local dd = row.dd
+        dd._values, dd._order, dd._get, dd._set = values, order, get, set
+        dd:SetFrameLevel(row:GetFrameLevel() + 2)
+        dd._refreshLabel()
         return row
     end
 
@@ -1457,12 +1464,15 @@ function ns.ShowProfileMergeDialog()
             for _, s in ipairs(specs) do specWanted[s.key] = true end
             specSeeded = true
         end
-        local head = Track(CreateFrame("Frame", nil, panel))
+        local head = ns.UI.Keep(rowsHost, "head", function(host)
+            local f = CreateFrame("Frame", nil, host)
+            f.text = ns.Font(f, 12, nil, ns.THEME.muted)
+            f.text:SetPoint("LEFT", f, "LEFT", 0, 0)
+            return f
+        end)
         head:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
         head:SetSize(560, 16)
-        local hl = ns.Font(head, 12, nil, ns.THEME.muted)
-        hl:SetPoint("LEFT", head, "LEFT", 0, 0)
-        hl:SetText(#specs > 0 and "Take which specs" or "Their string names no specs")
+        head.text:SetText(#specs > 0 and "Take which specs" or "Their string names no specs")
 
         -- On the header's own line rather than a row of their own: taking one spec out of
         -- a string carrying all 40 was otherwise 39 clicks, and the grid is tall already.
@@ -1498,23 +1508,33 @@ function ns.ShowProfileMergeDialog()
         end
         y = y - math.max(1, math.ceil(#specs / COLS)) * ROW_H - 8
 
-        local settings = Track(MakeToggleRow(panel, 460, 22, panel:GetFrameLevel() + 10,
-            function() return wantSettings end,
-            function(v) wantSettings = v end))
-        settings.label:SetText("Also take their display, sound and behaviour settings")
+        -- Built once: this dialog is itself built once, so the closures always see its own
+        -- wantSettings and wantExtras.
+        local settings = ns.UI.Keep(rowsHost, "settings", function(host)
+            local r = MakeToggleRow(host, 460, 22, nil,
+                function() return wantSettings end,
+                function(v) wantSettings = v end)
+            r.label:SetText("Also take their display, sound and behaviour settings")
+            return r
+        end)
+        settings:SetFrameLevel(panel:GetFrameLevel() + 10)
+        settings.toggle._refreshValue()
         settings:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
-        settings:Show()
         y = y - 24
 
-        local extras = Track(MakeToggleRow(panel, 460, 22, panel:GetFrameLevel() + 10,
-            function() return wantExtras end,
-            function(v) wantExtras = v end))
-        extras.label:SetText("Also take their raid reminders and callout lines")
+        local extras = ns.UI.Keep(rowsHost, "extras", function(host)
+            local r = MakeToggleRow(host, 460, 22, nil,
+                function() return wantExtras end,
+                function(v) wantExtras = v end)
+            r.label:SetText("Also take their raid reminders and callout lines")
+            ns.Tooltip(r, "Raid reminders and callout lines",
+                "Neither records a spec, so a spec handover leaves them alone. Tick this only "
+                .. "when you want theirs in place of yours.")
+            return r
+        end)
+        extras:SetFrameLevel(panel:GetFrameLevel() + 10)
+        extras.toggle._refreshValue()
         extras:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, y)
-        extras:Show()
-        ns.Tooltip(extras, "Raid reminders and callout lines",
-            "Neither records a spec, so a spec handover leaves them alone. Tick this only "
-            .. "when you want theirs in place of yours.")
 
         -- The panel takes whatever the rows came to, the same as the import dialog: a
         -- string covering all 40 specs is 14 grid lines, and at a fixed height the last

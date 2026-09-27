@@ -144,6 +144,8 @@ function UI.BuildToggleControl(parent, frameLevel, get, set, w, h, knobSize)
     knob:SetSize(KNOB, KNOB)
     Smooth(knob)
 
+    -- Read through fields so a kept control can be pointed at new callbacks (UI.KeepToggle).
+    t._get, t._set = get, set
     local on = false
     local function PaintTrack(c, a)
         track:SetVertexColor(c.r, c.g, c.b, a)
@@ -172,9 +174,9 @@ function UI.BuildToggleControl(parent, frameLevel, get, set, w, h, knobSize)
         PaintTrack(on and T.accent or T.line, 1)
     end)
 
-    local function Snap() Paint(get() and true or false) end
+    local function Snap() Paint(t._get() and true or false) end
     t:SetScript("OnClick", function()
-        set(not (get() and true or false))
+        t._set(not (t._get() and true or false))
         Snap()
     end)
     Snap()
@@ -197,16 +199,18 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
     local arrow = ns.Font(btn, 10, nil, T.muted)
     arrow:SetPoint("RIGHT", -7, 0)
     arrow:SetText("v")
+    -- Read through fields so a kept control can be pointed at new data (UI.KeepDropdown).
+    btn._values, btn._order, btn._get, btn._set = values, order, get, set
     local function Keys()
-        if order then return order end
+        if btn._order then return btn._order end
         local out = {}
-        for k in pairs(values) do out[#out + 1] = k end
+        for k in pairs(btn._values) do out[#out + 1] = k end
         table.sort(out, function(a, b) return tostring(a) < tostring(b) end)
         return out
     end
     btn._refreshLabel = function()
-        local v = get()
-        lbl:SetText(values[v] or tostring(v or ""))
+        local v = btn._get()
+        lbl:SetText(btn._values[v] or tostring(v or ""))
     end
     -- An anchored dropdown, not a context menu, and it closes itself.
     --
@@ -251,10 +255,10 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
         if desc.SetScrollMode then desc:SetScrollMode(420) end
         for _, k in ipairs(Keys()) do
             local key = k
-            desc:CreateRadio(values[key] or tostring(key),
-                function() return get() == key end,
+            desc:CreateRadio(btn._values[key] or tostring(key),
+                function() return btn._get() == key end,
                 function()
-                    set(key)
+                    btn._set(key)
                     btn._refreshLabel()
                 end)
         end
@@ -289,6 +293,8 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     local track = CreateFrame("Frame", nil, parent)
     track:SetSize(trackW, math.max(trackH, thumbSz))
     track:EnableMouse(true)
+    -- Read through fields so a kept control can be pointed at new callbacks (UI.KeepSlider).
+    track._get, track._set = get, set
     local rail = ns.Solid(track, "BACKGROUND", T.line, 1)
     rail:SetPoint("LEFT", 0, 0)
     rail:SetPoint("RIGHT", 0, 0)
@@ -311,7 +317,7 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     ns.Border(valBox)
 
     local function Paint()
-        local v = Clamp(get()) or minV
+        local v = Clamp(track._get()) or minV
         local frac = (maxV > minV) and (v - minV) / (maxV - minV) or 0
         fill:SetWidth(math.max(0.001, frac * trackW))
         thumb:ClearAllPoints()
@@ -328,8 +334,8 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
         local frac = (cx - left) / trackW
         if frac < 0 then frac = 0 elseif frac > 1 then frac = 1 end
         local v = Clamp(minV + frac * (maxV - minV))
-        if v ~= nil and v ~= get() then
-            set(v)
+        if v ~= nil and v ~= track._get() then
+            track._set(v)
         end
         Paint()
     end
@@ -361,7 +367,7 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     local function Commit()
         if UI.rebindingRows then return end
         local v = Clamp(valBox:GetText())
-        if v ~= nil then set(v) end
+        if v ~= nil then track._set(v) end
         Paint()
         valBox:ClearFocus()
     end
@@ -374,6 +380,7 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
 
     Paint()
     track._refreshValue = Paint
+    track._valBox = valBox
     return track, valBox, Paint
 end
 
@@ -390,6 +397,7 @@ local ROW_H, HEADER_H = 50, 40
 function UI.BeginReusableRows(parent)
     parent._rowCache = parent._rowCache or {}
     parent._rowUses = {}
+    parent._nsuiRowCount = 0
     UI.rebindingRows = true
     for _, rows in pairs(parent._rowCache) do
         for _, row in ipairs(rows) do row:Hide() end
@@ -411,6 +419,82 @@ local function CachedRow(parent, key)
     row:ClearAllPoints()
     row:Show()
     return row
+end
+
+-- Any frame or region a builder makes, reused the same way the rows are: on a parent that
+-- reuses its rows, each key hands back what this call site made on the last build, in build
+-- order; elsewhere it is made fresh, as it always was. create(parent) makes one, and is
+-- where anything done only once belongs -- sub-textures, borders, hooks. Everything that
+-- changes between builds is set by the caller every time. A frame handed out reuses its
+-- own children the same way, so nested content can be kept as well. The second return is
+-- true for an element made just now.
+function UI.Keep(parent, key, create)
+    if not parent._rowCache then return create(parent), true end
+    local index = (parent._rowUses[key] or 0) + 1
+    parent._rowUses[key] = index
+    local list = parent._rowCache[key]
+    if not list then list = {}; parent._rowCache[key] = list end
+    local el, new = list[index], false
+    if not el then
+        el, new = create(parent), true
+        list[index] = el
+    end
+    el:ClearAllPoints()
+    el:Show()
+    if el.CreateTexture then UI.BeginReusableRows(el) end
+    return el, new
+end
+
+function UI.KeepFont(parent, key, size, flags, color)
+    local fs = UI.Keep(parent, key, function(p) return ns.Font(p, size, flags, color) end)
+    local c = color or T.fg
+    fs:SetTextColor(c.r, c.g, c.b, 1)
+    return fs
+end
+
+function UI.KeepToggle(parent, key, get, set, w, h, knobSize)
+    local t = UI.Keep(parent, key, function(p)
+        return UI.BuildToggleControl(p, nil, get, set, w, h, knobSize)
+    end)
+    t._get, t._set = get, set
+    t:SetFrameLevel(parent:GetFrameLevel() + 2)
+    t._refreshValue()
+    return t
+end
+
+function UI.KeepDropdown(parent, key, width, values, order, get, set)
+    local dd = UI.Keep(parent, key, function(p)
+        return UI.BuildDropdownControl(p, width, nil, values, order, get, set)
+    end)
+    dd._values, dd._order, dd._get, dd._set = values, order, get, set
+    dd:SetFrameLevel(parent:GetFrameLevel() + 2)
+    dd._refreshLabel()
+    return dd
+end
+
+-- The range is fixed when it is made, so one key is one slider shape.
+function UI.KeepSlider(parent, key, trackW, trackH, thumbSz, inputW, inputH, inputFontSz,
+                       inputAlpha, minV, maxV, step, get, set)
+    local track = UI.Keep(parent, key, function(p)
+        local t = UI.BuildSliderCore(p, trackW, trackH, thumbSz, inputW, inputH, inputFontSz,
+            inputAlpha, minV, maxV, step, get, set)
+        -- The value box is the track's sibling, so it follows the track in and out of use.
+        t:HookScript("OnShow", function() t._valBox:Show() end)
+        t:HookScript("OnHide", function() t._valBox:Hide() end)
+        return t
+    end)
+    track._get, track._set = get, set
+    track._valBox:Show()
+    track._refreshValue()
+    return track, track._valBox
+end
+
+function UI.KeepButton(parent, key, text, w, h, onClick)
+    local btn = UI.Keep(parent, key, function(p) return ns.Button(p, text, w, h) end)
+    btn:SetSize(w, h)
+    ns.SetButtonText(btn, text)
+    btn._onClick = onClick
+    return btn
 end
 
 local function UpdateConfig(dst, src)
@@ -518,9 +602,16 @@ local function BuildRegion(row, cfg, left, width)
     return rgn
 end
 
+-- A slider's range is fixed when it is built, so it is part of what makes a cached row
+-- reusable for a config.
+local function RegionKey(cfg)
+    local key = cfg.type .. ":" .. (cfg.text or "")
+    if cfg.type == "slider" then key = key .. ":" .. tostring(cfg.min) .. ":" .. tostring(cfg.max) end
+    return key
+end
+
 function W:DualRow(parent, yOffset, leftCfg, rightCfg)
-    local key = "row:" .. leftCfg.type .. ":" .. (leftCfg.text or "") .. ":"
-        .. (rightCfg and (rightCfg.type .. ":" .. (rightCfg.text or "")) or "")
+    local key = "row:" .. RegionKey(leftCfg) .. ":" .. (rightCfg and RegionKey(rightCfg) or "")
     local row = CachedRow(parent, key) or CreateFrame("Frame", nil, parent)
     row:SetHeight(ROW_H)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
@@ -583,12 +674,15 @@ function W:SectionHeader(parent, text, yOffset)
 end
 
 function W:Button(parent, text, yOffset, onClick)
-    local row = CreateFrame("Frame", nil, parent)
+    local row = CachedRow(parent, "button:" .. text) or CreateFrame("Frame", nil, parent)
     row:SetHeight(ROW_H)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
-    local btn = ns.Button(row, text, 200, 26, onClick)
-    btn:SetPoint("LEFT", row, "LEFT", 20, 0)
+    row._onClick = onClick
+    if not row._btn then
+        row._btn = ns.Button(row, text, 200, 26, function() row._onClick() end)
+        row._btn:SetPoint("LEFT", row, "LEFT", 20, 0)
+    end
     return row, ROW_H
 end
 
@@ -665,15 +759,25 @@ function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
 end
 
 -- A wrapped line of muted text across the content width, for context a row label cannot
--- carry. Rebuilt with its page, never cached.
+-- carry. On a page that reuses its rows the font string is reused too, in build order.
 function W:Note(parent, text, yOffset)
-    local fs = ns.Font(parent, 12, nil, T.muted)
+    local row = CachedRow(parent, "note")
+    if row then
+        row:SetPoint("TOPLEFT")
+        row:SetSize(1, 1)
+    end
+    local fs = row and row._fs
+    if not fs then
+        fs = ns.Font(row or parent, 12, nil, T.muted)
+        fs:SetJustifyH("LEFT")
+        fs:SetWordWrap(true)
+        if row then row._fs = fs end
+    end
+    fs:ClearAllPoints()
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD + 20, yOffset - 12)
     local w = parent:GetWidth() or 0
     if w <= 0 then w = 960 end
     fs:SetWidth(w - (UI.CONTENT_PAD + 20) * 2)
-    fs:SetJustifyH("LEFT")
-    fs:SetWordWrap(true)
     fs:SetText(text)
     local h = math.ceil(fs:GetStringHeight()) + 24
     return fs, h

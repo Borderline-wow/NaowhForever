@@ -355,6 +355,8 @@ end
 lootWatch:SetScript("OnEvent", function(_, event, _, arg2)
     if event == "LOOT_READY" then
         if IsShiftKeyDown() then return end
+        -- Only a full-bags error during a loot matters, so errors are heard only while one is open.
+        lootWatch:RegisterEvent("UI_ERROR_MESSAGE")
         lootHidden = AllTakeable()
         lootGen = lootGen + 1
         local gen = lootGen
@@ -374,6 +376,7 @@ lootWatch:SetScript("OnEvent", function(_, event, _, arg2)
         -- that finishes, so it never flashes on the way out.
         lootGen = lootGen + 1
         lootHidden = false
+        lootWatch:UnregisterEvent("UI_ERROR_MESSAGE")
     elseif event == "UI_ERROR_MESSAGE" and arg2 == ERR_INV_FULL then
         ShowLootWindow()
     end
@@ -390,7 +393,6 @@ local function ApplyLootWindow()
         end
         lootWatch:RegisterEvent("LOOT_READY")
         lootWatch:RegisterEvent("LOOT_CLOSED")
-        lootWatch:RegisterEvent("UI_ERROR_MESSAGE")
     else
         lootWatch:UnregisterAllEvents()
         ShowLootWindow()

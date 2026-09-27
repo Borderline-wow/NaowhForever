@@ -36,6 +36,58 @@
   that is part done shows Next step. Crest of Lordaeron was missing and is listed now,
   and Searching for the Lost Satchel shows its real quest giver, Rahauro in Thunder Bluff.
 
+## 0.5.12-beta
+
+### Added
+Brought over from NaowhQOL:
+- Questing (QoL > General): accept quests, hand in finished ones, and pick quests from
+  an NPC's options for you. Hold Alt to skip it.
+- Skip Loot Confirmations (QoL > Loot & Items): Need, Greed, disenchant and
+  bind-on-pickup confirmations answered for you.
+- Combat Timer (QoL > Alerts): how long the fight has run, with the time in chat when it
+  ends.
+- UI clutter (QoL > Interface): hide alert pop-ups, event toasts and zone text, and keep
+  the cursor in the game window during combat.
+- Crosshair (QoL > Interface), with a colour change and sound while your target is out
+  of melee range.
+- A new Tools tab under QoL:
+  - Auto Combat Logging in raids, asking once per raid and difficulty.
+  - Global Copy: /copy for the text under the cursor, and a hotkey that copies a
+    tooltip's spell, item or NPC ID.
+  - Custom Slash Commands that open a game window or run another command.
+
+### Fixed
+These QoL settings were saved before, but nothing acted on them. They now work:
+- Stealth Reminder (QoL > General): RESTEALTH on screen while a rogue or druid is out
+  of stealth and out of combat, and STEALTH while stealthed. Druids choose Cat Form only
+  or any form.
+- Stance / Form Reminder (QoL > General): a warning while a warrior has no stance, a
+  paladin has no aura, or a druid or shadow priest is out of the form picked on the page,
+  with an optional repeating sound.
+- Co-Tank Frame (QoL > General): the other tank's health while you are tanking, with
+  their debuffs beside it out of combat. Click it to target them. It can also anchor to
+  another frame by name.
+- Auto-Fill Delete Confirmation (QoL > Loot & Items) types DELETE for you and shows the
+  item as a link in the dialog.
+- Low Durability Warning (QoL > Alerts).
+- Combat Alert (QoL > Alerts): text as you enter and leave combat, each with an optional
+  sound or spoken line.
+
+Each on-screen reminder can be moved in Unlock Mode, and its text, colours and font set on
+its page.
+
+### Changed
+- The options window no longer builds a fresh copy of a page every time a setting on it
+  changes, which used memory for the rest of the session. Every page now reuses its own.
+- Popups and editors (reminder editors, pickers, confirmations, copy boxes, the gear set
+  icon picker) are built once and reused instead of adding a new window each time they
+  open.
+- Campfire: standing near a campfire no longer stacks up a new hidden timer every time
+  your buffs change.
+- Lighter in combat: the Blessings bar, threat meter, trainer glow, loot feed, gear set bar
+  and Smart Reminders' boss mod handling do less work per event, and XP per Hour stops its
+  clock at max level.
+
 ## 0.5.11-beta
 
 ### Added

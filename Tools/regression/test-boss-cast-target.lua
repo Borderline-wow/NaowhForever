@@ -11,7 +11,7 @@
 --
 -- The trash half of this was removed in 1.4.12. It matched a cast to its rule by spell id,
 -- which is the lookup that can never succeed, and it had never once fired in a dungeon.
-local f = assert(io.open(arg[1] or "NaowhForever_SmartReminders.lua", "rb"))
+local f = assert(io.open(arg[1] or "SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
     local first = assert(source:find(a, 1, true), a)

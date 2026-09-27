@@ -13,13 +13,15 @@ local TAG = "|cff0091edNaowh AH|r"
 
 local button, scanning, scanGen = nil, nil, 0
 
--- One price table per auction house: prices differ between realms and factions.
+-- One price table per auction house: prices differ between realms and factions. Read on
+-- every item tooltip, so the key is worked out once.
+local houseKey
 local function House(create)
     local account = ns.AccountSettings()
     account.ahPrices = account.ahPrices or {}
-    local key = GetRealmName() .. "-" .. (UnitFactionGroup("player") or "")
-    if create and not account.ahPrices[key] then account.ahPrices[key] = { prices = {} } end
-    return account.ahPrices[key]
+    houseKey = houseKey or GetRealmName() .. "-" .. (UnitFactionGroup("player") or "")
+    if create and not account.ahPrices[houseKey] then account.ahPrices[houseKey] = { prices = {} } end
+    return account.ahPrices[houseKey]
 end
 
 -- The lowest buyout for one of the item at the last scan, and when that scan ran.

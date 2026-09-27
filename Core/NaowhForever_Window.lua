@@ -17,13 +17,16 @@ local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 -- The window's own pages sit in the header; the sidebar has one entry per module. A module opens
 -- on its first tab. `build` names the ns builder resolved at open time; `arg` is passed
 -- after the starting y. A page with `soon` is built but not ready: its tab stays in the
--- strip, dimmed, and opens a note instead of half-finished work.
+-- strip, dimmed, and opens a note instead of half-finished work. A page with `reuse` keeps
+-- its rows across rebuilds instead of building new ones; only pages drawn entirely with the
+-- row widgets and UI.Keep can take it, since any other frame a builder makes would be
+-- stacked again on every rebuild.
 local SYSTEM_PAGES = {
-    { name = "Settings", build = "BuildSettingsPage",
+    { name = "Settings", build = "BuildSettingsPage", reuse = true,
       subtitle = "Options for the whole addon, saved for this computer." },
-    { name = "Patch Notes", build = "BuildPatchNotesPage",
+    { name = "Patch Notes", build = "BuildPatchNotesPage", reuse = true,
       subtitle = "What changed in recent builds." },
-    { name = "Profiles", build = "BuildProfileSettings",
+    { name = "Profiles", build = "BuildProfileSettings", reuse = true,
       subtitle = "Switch, copy and share everything these pages save." },
 }
 
@@ -34,54 +37,55 @@ local MODULES = {
     { name = "QoL", settings = "QoLSettings",
       subtitle = "Naowh's quality of life tweaks, trimmed to what Forever has.",
       tabs = {
-          { name = "General", build = "BuildQoLGeneralPage" },
-          { name = "Loot & Items", build = "BuildQoLLootPage" },
-          { name = "Alerts", build = "BuildQoLAlertsPage" },
-          { name = "Interface", build = "BuildQoLInterfacePage" },
-          { name = "Trainer", build = "BuildQoLTrainerPage" },
-          { name = "Flight & Camp", build = "BuildQoLFlightPage" },
+          { name = "General", build = "BuildQoLGeneralPage", reuse = true },
+          { name = "Loot & Items", build = "BuildQoLLootPage", reuse = true },
+          { name = "Alerts", build = "BuildQoLAlertsPage", reuse = true },
+          { name = "Interface", build = "BuildQoLInterfacePage", reuse = true },
+          { name = "Tools", build = "BuildQoLToolsPage", reuse = true },
+          { name = "Trainer", build = "BuildQoLTrainerPage", reuse = true },
+          { name = "Flight & Camp", build = "BuildQoLFlightPage", reuse = true },
       } },
     -- Settings still live in the QoL table so existing profiles carry over; each module's
     -- switch is the feature's own key rather than QoL's.
     { name = "Dungeon Quests", settings = "QoLSettings", enabledKey = "dqTracker",
       subtitle = "Every dungeon quest on Forever, and a tracker for the dungeon you are in.",
       tabs = {
-          { name = "Tracker", build = "BuildQoLDungeonQuestsPage" },
+          { name = "Tracker", build = "BuildQoLDungeonQuestsPage", reuse = true },
       } },
     { name = "Gear Sets", settings = "QoLSettings", enabledKey = "gearSets",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
       tabs = {
-          { name = "Sets", build = "BuildQoLGearSetsPage" },
+          { name = "Sets", build = "BuildQoLGearSetsPage", reuse = true },
       } },
     { name = "Blessings", settings = "QoLSettings", enabledKey = "blessings",
       subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
       tabs = {
-          { name = "Bar", build = "BuildQoLBlessingsPage" },
-          { name = "Assignments", build = "BuildBlessingAssignmentsPage" },
+          { name = "Bar", build = "BuildQoLBlessingsPage", reuse = true },
+          { name = "Assignments", build = "BuildBlessingAssignmentsPage", reuse = true },
       } },
     { name = "BiS List", settings = "QoLSettings", enabledKey = "bis",
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
       tabs = {
-          { name = "List", build = "BuildQoLBiSPage" },
+          { name = "List", build = "BuildQoLBiSPage", reuse = true },
       } },
     { name = "Macros", settings = "MacroSettings",
       subtitle = "Macros written and kept current for you, out of combat.",
       tabs = {
-          { name = "Consumables", build = "BuildMacroConsumablesPage" },
-          { name = "Focus & Cursor", build = "BuildMacroFocusPage" },
+          { name = "Consumables", build = "BuildMacroConsumablesPage", reuse = true },
+          { name = "Focus & Cursor", build = "BuildMacroFocusPage", reuse = true },
       } },
     { name = "AuraBuffs", settings = "AuraBuffSettings",
       subtitle = "Buff, consumable and campfire reminders, low health and debuff sounds.",
       tabs = {
-          { name = "Buffs & Consumables", build = "BuildAuraBuffsPage" },
-          { name = "Campfire", build = "BuildCampfirePage" },
-          { name = "Low Health", build = "BuildLowHealthPage" },
-          { name = "Poison & Dispel", build = "BuildPoisonDispelPage" },
+          { name = "Buffs & Consumables", build = "BuildAuraBuffsPage", reuse = true },
+          { name = "Campfire", build = "BuildCampfirePage", reuse = true },
+          { name = "Low Health", build = "BuildLowHealthPage", reuse = true },
+          { name = "Poison & Dispel", build = "BuildPoisonDispelPage", reuse = true },
       } },
     { name = "Threat Meter", settings = "ThreatMeterSettings",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
       tabs = {
-          { name = "Meter", build = "BuildThreatMeterPage" },
+          { name = "Meter", build = "BuildThreatMeterPage", reuse = true },
       } },
     -- The reminder modules sit below a divider in the sidebar.
     { name = "Custom Reminders", settings = "CustomReminderSettings", divider = true,
@@ -95,10 +99,10 @@ local MODULES = {
     { name = "Smart Reminders",
       subtitle = "Calls out what to press when a boss ability is about to land.",
       tabs = {
-          { name = "Setup", build = "BuildSetupPage" },
-          { name = "Cooldown Presets", build = "BuildPresetsPage" },
-          { name = "Dungeon Bosses", build = "BuildBossTabPage", arg = false },
-          { name = "Raid Bosses", build = "BuildBossTabPage", arg = true },
+          { name = "Setup", build = "BuildSetupPage", reuse = true },
+          { name = "Cooldown Presets", build = "BuildPresetsPage", reuse = true },
+          { name = "Dungeon Bosses", build = "BuildBossTabPage", arg = false, reuse = true },
+          { name = "Raid Bosses", build = "BuildBossTabPage", arg = true, reuse = true },
       } },
 }
 
@@ -115,9 +119,6 @@ for _, mod in ipairs(MODULES) do
         PAGES[tab.key] = tab
     end
 end
-
--- The page whose rows are reused rather than rebuilt.
-local SETUP_PAGE = "Smart Reminders/Setup"
 
 local window, scrollFrame, scrollChild, tabLine, headerTitle, headerSub
 local navButtons, tabButtons, tabStrips = {}, {}, {}
@@ -232,7 +233,7 @@ local function ShowPage(key)
     local wrapper = wrappers[key]
     if wrapper._dirty then
         wrapper._dirty = nil
-        if key == SETUP_PAGE then UI.BeginReusableRows(wrapper) end
+        if PAGES[key].reuse then UI.BeginReusableRows(wrapper) end
         local usedY = BuildPageInto(PAGES[key], wrapper)
         wrapper:SetHeight(math.abs(usedY) + 30)
     end
@@ -243,7 +244,7 @@ end
 
 local function InvalidatePages()
     for name, w in pairs(wrappers) do
-        if name == SETUP_PAGE then
+        if PAGES[name].reuse then
             w._dirty = true
         else
             w:Hide()

@@ -1,4 +1,4 @@
-local f = assert(io.open("NaowhForever_Bosses.lua", "rb"))
+local f = assert(io.open("SmartReminders/NaowhForever_Bosses.lua", "rb"))
 local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local a = assert(s:find("local TRIGGER_CHOICES =", 1, true))
 local b = assert(s:find("-- Profiles tab: profile management", a, true))
@@ -20,6 +20,10 @@ end
 local ui = { Widgets = { DualRow = function(_,parent,y,left,right)
     assert(right); rows[left.text] = left; rows[right.text] = right; return Widget(), 44
 end }, RefreshPage = function() end }
+ui.BeginReusableRows = function() end
+ui.Keep = function(parent, _, create) return create(parent), true end
+ui.KeepFont = function() return Widget() end
+ui.KeepButton = function(_, _, name, _, _, fn) buttons[name] = fn; return Widget() end
 local ns = { UI = ui, THEME = {},
     MakeModal = function() return Widget(),Widget() end,
     Font = Widget, Solid = Widget, Border = function() end,
@@ -31,11 +35,12 @@ local ns = { UI = ui, THEME = {},
     BossModCatalogueTable = function() return {} end,
     RefreshRuntime = function() end, Print = function(text) error(text) end,
 }
-local env = { ns = ns, GetTime = function() return 1 end,
+local env = { ns = ns, UI = ui, GetTime = function() return 1 end,
     CreateFrame = function(kind)
         local w = Widget(); if kind == "EditBox" then boxes[#boxes+1] = w end; return w
     end }
 setmetatable(env,{ __index = _G })
+ns.NewEditBox = function() return env.CreateFrame("EditBox") end
 local chunk = assert(loadstring(s:sub(a,b-1))); setfenv(chunk,env); chunk()
 ns.ShowCustomReminderEditor(3202)
 assert(rows.Trigger.getValue() == "bwmsg")

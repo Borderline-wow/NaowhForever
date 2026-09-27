@@ -166,20 +166,24 @@ local function Add(unit, mob)
     e.isPlayer, e.pull = UnitIsUnit(unit, "player"), nil
 end
 
+local RAID, RAID_PETS, PARTY, PARTY_PETS = {}, {}, {}, {}
+for i = 1, MAX_RAID_MEMBERS do RAID[i], RAID_PETS[i] = "raid" .. i, "raidpet" .. i end
+for i = 1, MAX_PARTY_MEMBERS do PARTY[i], PARTY_PETS[i] = "party" .. i, "partypet" .. i end
+
 local function Collect(mob)
     Clear()
     local pets = not S.Get("ignorePets")
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do
-            Add("raid" .. i, mob)
-            if pets then Add("raidpet" .. i, mob) end
+            Add(RAID[i], mob)
+            if pets then Add(RAID_PETS[i], mob) end
         end
     else
         Add("player", mob)
         if pets then Add("pet", mob) end
         for i = 1, GetNumSubgroupMembers() do
-            Add("party" .. i, mob)
-            if pets then Add("partypet" .. i, mob) end
+            Add(PARTY[i], mob)
+            if pets then Add(PARTY_PETS[i], mob) end
         end
     end
 end
@@ -318,6 +322,7 @@ end
 -- (a followed targettarget is read on the ticker).
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, unit)
+    if pendingUpdate then return end
     if event == "UNIT_THREAT_LIST_UPDATE" then
         if not unit then return end
         -- Some tokens (targettarget) compare to the target as a secret; those may be it.
