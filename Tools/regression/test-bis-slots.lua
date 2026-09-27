@@ -1,7 +1,7 @@
 -- The BiS list keeps a ranked list of picks per gear slot, #1 being the BiS. Old flat lists,
 -- the unordered secondary picks of the 0.5.12 test builds and version 1 to 3 share strings
--- must land in the right slots and order, and a two-hander and an off-hand must never both
--- be #1.
+-- must land in the right slots and order. A two-hander as the main hand's #1 leaves the
+-- off-hand's picks unused but never removes them.
 local root = arg[1] or "."
 
 -- itemID -> equip location, standing in for C_Item.GetItemInfoInstant.
@@ -116,12 +116,12 @@ Case("unordered secondary picks become ranked picks behind the BiS, once", funct
             [11] = { [201] = true, [202] = true }, [17] = { [303] = true } } } })
     assert(Picks(e, 1) == "101,103,102,104,105", "ranked order, unranked last")
     assert(Picks(e, 11) == "202,201", "first ranked secondary becomes #1")
-    assert(Picks(e, 16) == "301" and Picks(e, 17) == "", "off-hand cannot be #1 beside a two-hander")
-    assert(#e.printed == 1 and e.printed[1]:find("Item303"), "named")
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303", "off-hand kept beside a two-hander")
+    assert(#e.printed == 0)
     assert(e.ns.IsBisItem(101) == 1 and e.ns.IsBisItem(103) == 2 and e.ns.IsBisItem(105) == 5)
     Saved(e).extra[1][1] = 104
     e.ns.RemoveBisItem(999)   -- any change reads the list again
-    assert(Picks(e, 1) == "101,104,102,104,105" and #e.printed == 1, "arrays are left alone")
+    assert(Picks(e, 1) == "101,104,102,104,105" and #e.printed == 0, "arrays are left alone")
 end)
 
 Case("picks append in order, #1 first, and a pick is listed once per slot", function()
@@ -161,26 +161,15 @@ Case("removing a pick closes the gap, and removing #1 moves #2 up", function()
     assert(Saved(e).slots[1] == nil and Saved(e).extra[1] == nil and not e.ns.IsBisItem(103))
 end)
 
-Case("a two-hander #1 clears the off-hand picks and the reverse, and says so", function()
+Case("a two-hander #1 never removes the off-hand picks", function()
     local e = Fixture()
     e.ns.AddBisPick(17, 303); e.ns.AddBisPick(17, 304); e.ns.AddBisPick(16, 301)
-    assert(Picks(e, 16) == "301" and Picks(e, 17) == "", "two-hander cleared the off-hand")
-    assert(e.printed[#e.printed]:find("Item303, Item304 came off"), "named")
-    e.ns.AddBisPick(17, 303)
-    assert(Picks(e, 17) == "303" and Picks(e, 16) == "", "off-hand cleared the two-hander")
-    assert(e.printed[#e.printed]:find("Item301 came off"), "named")
-end)
-
-Case("the rule is on #1 only: a two-hander further down sits beside an off-hand", function()
-    local e = Fixture()
-    e.ns.AddBisPick(16, 302); e.ns.AddBisPick(16, 301); e.ns.AddBisPick(17, 303)
-    assert(Picks(e, 16) == "302,301" and Picks(e, 17) == "303" and #e.printed == 0)
-    e.ns.MoveBisPick(16, 301, -1)
-    assert(Picks(e, 16) == "301,302" and Picks(e, 17) == "", "moved up to #1")
-    e.ns.AddBisPick(17, 303)
-    assert(Picks(e, 16) == "302" and Picks(e, 17) == "303", "off-hand #1 takes the two-hander out")
-    e.ns.AddBisPick(16, 301); e.ns.RemoveBisPick(16, 302)
-    assert(Picks(e, 16) == "301" and Picks(e, 17) == "", "promoted by a removal")
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303,304" and #e.printed == 0)
+    e.ns.AddBisPick(16, 302); e.ns.MoveBisPick(16, 302, -1)
+    assert(Picks(e, 16) == "302,301" and Picks(e, 17) == "303,304", "one-hander moved up")
+    e.ns.RemoveBisPick(16, 302)
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303,304", "two-hander promoted by a removal")
+    assert(e.ns.IsBisItem(303) == 1 and #e.printed == 0, "still on the list, nothing said")
 end)
 
 Case("Alt+Shift fills the free ring slots, then appends to Ring 1", function()
@@ -191,15 +180,13 @@ Case("Alt+Shift fills the free ring slots, then appends to Ring 1", function()
     assert(e.printed[#e.printed]:find("as #2"), "said so")
 end)
 
-Case("Alt+Shift adding never pushes out the other hand's BiS pick", function()
+Case("Alt+Shift fills an empty hand even beside a two-hander", function()
     local e = Fixture()
     e.ns.AddBisItem(301); e.ns.AddBisItem(303); e.ns.AddBisItem(302)
-    assert(Picks(e, 16) == "301,302" and Picks(e, 17) == "", "two-hander kept, one-hander appended")
-    assert(not e.ns.IsBisItem(303) and e.printed[2]:find("Item303 was not added"), "off-hand refused")
+    assert(Picks(e, 16) == "301,302" and Picks(e, 17) == "303", "one-hander appended to the main hand")
     e = Fixture()
     e.ns.AddBisItem(303); e.ns.AddBisItem(301)
-    assert(Picks(e, 17) == "303" and Picks(e, 16) == "", "off-hand kept")
-    assert(e.printed[2]:find("Item301 was not added"), "two-hander refused")
+    assert(Picks(e, 17) == "303" and Picks(e, 16) == "301")
 end)
 
 Case("a one-hander goes to the off-hand when the main hand is taken", function()
@@ -208,17 +195,16 @@ Case("a one-hander goes to the off-hand when the main hand is taken", function()
     assert(Picks(e, 16) == "302" and Picks(e, 17) == "303")
 end)
 
-Case("an old list with a two-hander and an off-hand keeps the two-hander", function()
+Case("an old list with a two-hander and an off-hand keeps both", function()
     local e = Fixture({ ["Tester-Realm"] = { name = "Old", items = { 301, 303 } } })
-    assert(Picks(e, 16) == "301" and Picks(e, 17) == "", "off-hand dropped")
-    assert(e.printed[1] and e.printed[1]:find("Item303"), "named")
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303" and #e.printed == 0)
 end)
 
-Case("an import cannot list a two-hander with an off-hand, but can list one weapon twice", function()
+Case("an import keeps a two-hander and an off-hand, and can list one weapon twice", function()
     local e = Fixture()
     e.vault[1] = { v = 2, name = "Hands", slots = { [16] = 301, [17] = 303 } }
     assert(e.ns.ImportBisList("!NBIS1!S1", true))
-    assert(Picks(e, 16) == "301" and Picks(e, 17) == "", "two-hander kept")
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303", "both kept")
     e.vault[2] = { v = 2, name = "Daggers", slots = { [16] = 302, [17] = 302 } }
     assert(e.ns.ImportBisList("!NBIS1!S2", true))
     assert(Picks(e, 16) == "302" and Picks(e, 17) == "302", "same dagger in both hands")
@@ -330,7 +316,9 @@ local function RunNextFixture(sources, worn, carried)
     local env = setmetatable({
         ns = { BiSData = { sources = sources },
             BiSSource = function(id) return sources[id] end },
-        SLOT_NAME = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [11] = "Ring 1", [12] = "Ring 2" },
+        SLOT_NAME = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [11] = "Ring 1", [12] = "Ring 2",
+            [16] = "Main Hand", [17] = "Off Hand" },
+        OffHandIdle = function(list) return list.twoHand == true end,
         GetInventoryItemID = function(_, slot) return worn[slot] end,
         C_Item = { GetItemCount = function(id, bank) return bank and carried[id] or 0 end },
     }, { __index = _G })
@@ -366,6 +354,16 @@ Case("run next ties go by name and stop at three", function()
     assert(#out == 3 and out[1].name == "Blackrock Depths" and out[2].name == "Dire Maul"
         and out[3].name == "Gnomeregan")
     assert(#RunNext({ slots = {} }) == 0, "nothing picked, nothing shown")
+end)
+
+Case("an off-hand pick left unused by a two-hander is not a place to run", function()
+    local RunNext = RunNextFixture({ [301] = "Boss" .. DOT .. "Scholomance",
+        [303] = "Boss" .. DOT .. "Stratholme" }, {}, {})
+    local list = { slots = { [16] = 301, [17] = 303 } }
+    assert(#RunNext(list) == 2)
+    list.twoHand = true
+    local out = RunNext(list)
+    assert(#out == 1 and out[1].name == "Scholomance")
 end)
 
 Case("a ring worn in the other ring slot counts as had", function()

@@ -92,25 +92,10 @@ local function Store(list, slot, picks)
     list.slots[slot], list.extra[slot] = picks[1], rest[1] and rest or nil
 end
 
--- A two-hander and an off-hand cannot both be #1. The hand that did not just change gives
--- way, its next pick moving up; returns the picks taken out.
-local function HandRule(list, changed)
-    local cleared = {}
-    while list.slots[16] and list.slots[17] and IsTwoHand(list.slots[16]) do
-        local slot = changed == 17 and 16 or 17
-        local picks = Picks(list, slot)
-        cleared[#cleared + 1] = table.remove(picks, 1)
-        Store(list, slot, picks)
-    end
-    return cleared
-end
-
-local function SayCleared(cleared)
-    if #cleared == 0 then return end
-    local names = {}
-    for _, id in ipairs(cleared) do names[#names + 1] = Name(id) end
-    ns.Print(("%s came off your BiS list: a two-hander and an off-hand cannot both be BiS.")
-        :format(table.concat(names, ", ")))
+-- A two-hander as the main hand's #1 leaves the off hand unused. Its picks are kept, not
+-- counted, until the main hand's #1 is a one-hander again.
+local function OffHandIdle(list)
+    return list.slots[16] ~= nil and IsTwoHand(list.slots[16])
 end
 
 -------------------------------------------------------------------------------
@@ -159,7 +144,7 @@ local function List()
     local list = account.bis[key] or { name = "My BiS" }
     account.bis[key] = list
     list.extra = list.extra or {}
-    local moved, dropped = false, {}
+    local dropped = {}
     if not list.slots then
         list.slots = {}
         for _, id in ipairs(list.items or {}) do
@@ -167,21 +152,16 @@ local function List()
             if slot then list.slots[slot] = id else dropped[#dropped + 1] = Name(id) end
         end
         list.items = nil
-        moved = true
     end
     for slot, set in pairs(list.extra) do
         if not set[1] then
             list.extra[slot] = Ranked(set, Ranking(list.spec, slot))
             Store(list, slot, Picks(list, slot))
-            moved = true
         end
     end
-    if moved then
-        for _, id in ipairs(HandRule(list, 16)) do dropped[#dropped + 1] = Name(id) end
-        if #dropped > 0 then
-            ns.Print("Your BiS list now keeps a ranked list per slot. These did not fit: "
-                .. table.concat(dropped, ", "))
-        end
+    if #dropped > 0 then
+        ns.Print("Your BiS list now keeps a ranked list per slot. These did not fit: "
+            .. table.concat(dropped, ", "))
     end
     return list
 end
@@ -226,14 +206,6 @@ local function Changed()
     if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
 end
 
--- A slot is open for a #1 pick when it has none and the other hand's pick does not rule it out.
-local function Open(slots, slot, itemID)
-    if slots[slot] then return false end
-    if slot == 17 then return not (slots[16] and IsTwoHand(slots[16])) end
-    if slot == 16 and IsTwoHand(itemID) then return not slots[17] end
-    return true
-end
-
 -- The next pick in the slot, #1 when it has none.
 function ns.AddBisPick(slot, itemID)
     local list = List()
@@ -243,7 +215,6 @@ function ns.AddBisPick(slot, itemID)
     end
     picks[#picks + 1] = itemID
     Store(list, slot, picks)
-    SayCleared(HandRule(list, slot))
     Changed()
 end
 
@@ -257,7 +228,6 @@ function ns.RemoveBisPick(slot, itemID)
         end
     end
     Store(list, slot, picks)
-    SayCleared(HandRule(list, slot))
     Changed()
 end
 
@@ -273,12 +243,10 @@ function ns.MoveBisPick(slot, itemID, step)
         end
     end
     Store(list, slot, picks)
-    SayCleared(HandRule(list, slot))
     Changed()
 end
 
--- #1 in the first open slot the item fits, else the next pick in its first slot. Never
--- pushes out the other hand's BiS pick.
+-- #1 in the first empty slot the item fits, else the next pick in its first slot.
 function ns.AddBisItem(value)
     local id = IDFrom(value)
     local fits = id and SlotsFor(id)
@@ -290,18 +258,13 @@ function ns.AddBisItem(value)
     if lookup[id] then return end
     local list = List()
     for _, slot in ipairs(fits) do
-        if Open(list.slots, slot, id) then
+        if not list.slots[slot] then
             ns.AddBisPick(slot, id)
             ns.Print(("Added %s to your BiS %s."):format(Name(id), SLOT_NAME[slot]))
             return
         end
     end
     local slot = fits[1]
-    if not list.slots[slot] then
-        ns.Print(("%s was not added: a two-hander and an off-hand cannot both be BiS. Pick it in the %s slot to swap them.")
-            :format(Name(id), SLOT_NAME[slot]))
-        return
-    end
     ns.AddBisPick(slot, id)
     ns.Print(("Added %s to your BiS %s as #%d."):format(Name(id), SLOT_NAME[slot], #Picks(list, slot)))
 end
@@ -315,7 +278,6 @@ function ns.RemoveBisItem(itemID)
         end
         Store(list, slot, picks)
     end
-    SayCleared(HandRule(list, 16))
     Changed()
 end
 
@@ -387,7 +349,6 @@ local function Decode(text)
     else
         return
     end
-    HandRule(list, 16)
     return name, list.slots, list.extra, spec
 end
 
@@ -808,7 +769,8 @@ local DOLL_H = COLUMN_H + MODEL_GAP + SLOT_SIZE + 16   -- room for Worn under th
 local openSlots = {}   -- slots whose picks the panel lists in full, for the session
 
 local function SlotTooltip(self)
-    local picks = Picks(List(), self.slot)
+    local list = List()
+    local picks = Picks(list, self.slot)
     local label = ns.L(SLOT_NAME[self.slot])
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     if picks[1] then
@@ -817,6 +779,9 @@ local function SlotTooltip(self)
         GameTooltip:AddLine(("Your %s picks"):format(label), T.accent.r, T.accent.g, T.accent.b)
         for i, id in ipairs(picks) do
             GameTooltip:AddLine(("%d. %s%s|r"):format(i, QualityHex(id), Name(id)))
+        end
+        if self.slot == 17 and OffHandIdle(list) then
+            GameTooltip:AddLine("Unused while your Main Hand BiS is a two-hander.", 1, 0.82, 0)
         end
         GameTooltip:AddLine("Click to change them.", 0.5, 0.5, 0.5)
     else
@@ -861,8 +826,10 @@ local function SlotButton(doll, slot, x, y, side, marks)
     local b = ns.UI.Keep(doll, "slot", NewSlotButton)
     b:SetPoint("TOPLEFT", doll, "TOPLEFT", x, y)
     b.slot = slot
-    local picks = Picks(List(), slot)
+    local list = List()
+    local picks = Picks(list, slot)
     local id = picks[1]
+    b.icon:SetDesaturated(slot == 17 and OffHandIdle(list))
     b.worn:ClearAllPoints()
     if side == "LEFT" then
         b.worn:SetPoint("RIGHT", b, "LEFT", -4, 0)
@@ -941,8 +908,9 @@ end
 -- The places with the most BiS picks you do not have yet, most first, at most three.
 local function RunNext(list)
     local places, byName = {}, {}
+    local idle = OffHandIdle(list)
     for slot in pairs(SLOT_NAME) do
-        local id = list.slots[slot]
+        local id = not (slot == 17 and idle) and list.slots[slot]
         local source = id and ns.BiSSource(id)
         if source and not Owned(slot, id) then
             local name = Place(source)
@@ -1093,7 +1061,8 @@ local function SourcePanel(parent, x, y, width)
                 b.place:SetText("")
             else
                 b.toggle:SetNormalTexture(openSlots[slot] and MINUS or PLUS)
-                b.place:SetText((Place(ns.BiSSource(picks[1]) or "Source not listed")))
+                b.place:SetText(slot == 17 and OffHandIdle(list) and "unused, two-hander in main hand"
+                    or (Place(ns.BiSSource(picks[1]) or "Source not listed")))
                 named[#named + 1] = b
                 ids[#ids + 1] = picks[1]
             end

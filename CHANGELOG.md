@@ -148,6 +148,8 @@ its page.
   over as your BiS picks.
 - BiS list: Alt+Shift-click adds an item as the next pick for its slot, or as its BiS when
   the slot has none, and never pushes out an item you already picked.
+- BiS list: a two-hander as your Main Hand BiS greys out the Off Hand but keeps its picks.
+  They count again once your Main Hand BiS is a one-hander.
 - BiS list: picking is from the ranking and the dungeon drops now; the Add Item by ID
   button and the item ID entry are gone. Shared lists keep the order of your picks, and
   older strings still import. Worn marks a BiS pick you are wearing.
