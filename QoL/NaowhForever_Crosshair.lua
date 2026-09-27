@@ -52,6 +52,7 @@ local function MeleeSpell()
     local id = MELEE[class]
     return id and C_SpellBook.IsSpellKnown(id) and id or nil
 end
+ns.MeleeRangeSpell = MeleeSpell
 
 local function Texture(layer, sub, path)
     local t = frame:CreateTexture(nil, layer, nil, sub)

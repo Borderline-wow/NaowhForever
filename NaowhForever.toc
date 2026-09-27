@@ -83,6 +83,13 @@ QoL\NaowhForever_SlashCommands.lua
 QoL\NaowhForever_HideClutter.lua
 QoL\NaowhForever_Crosshair.lua
 QoL\NaowhForever_FPS.lua
+QoL\NaowhForever_MouseRing.lua
+QoL\NaowhForever_PetTracker.lua
+QoL\NaowhForever_EquipmentReminder.lua
+QoL\NaowhForever_EmoteDetection.lua
+QoL\NaowhForever_GcdTracker.lua
+QoL\NaowhForever_FocusCastBar.lua
+QoL\NaowhForever_Performance.lua
 QoL\NaowhForever_LootFeed.lua
 QoL\NaowhForever_AuctionPrices.lua
 QoL\NaowhForever_XPTicker.lua

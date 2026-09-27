@@ -93,6 +93,56 @@ local S = UI.ModuleSettings("qol", {
     crossMeleeSpell = 0,
     fps = false, localMS = false, worldMS = false,
 
+    petTracker = false, petPassive = true, petLowHealth = false, petLowHealthBelow = 25,
+    petInstanceOnly = false, petCombatOnly = false, petHideMounted = true, petShowIcon = true,
+    petColor = { r = 1, g = 0, b = 0 }, petClassColor = false, petFont = "", petFontSize = 20,
+    petMissingText = "Pet Missing", petPassiveText = "Pet Passive", petLowHealthText = "Pet Low HP",
+    equipReminder = false, equipOnInstance = true, equipOnReadyCheck = true, equipAutoHide = 10,
+    equipIconSize = 40, equipEnchants = false, equipEnchantRules = {},
+    emoteDetection = false, emotePattern = "prepares,places", emoteColor = { r = 1, g = 1, b = 1 },
+    emoteFont = "", emoteFontSize = 16, emoteSound = true, emoteSoundKey = "none",
+    autoEmote = false, autoEmoteCooldown = 2, autoEmoteList = "698: prepares a ritual of summoning",
+
+    mouseRing = false, mouseShape = "ring.tga", mouseSize = 48,
+    mouseColor = { r = 1, g = 0.66, b = 0 }, mouseClassColor = false,
+    mouseShowOOC = true, mouseOpacityCombat = 1, mouseOpacityOOC = 1,
+    mouseHideOnClick = false, mouseHideAfk = false,
+    mouseBorder = false, mouseBorderColor = { r = 1, g = 1, b = 1 }, mouseBorderClassColor = false,
+    mouseBorderWeight = 2,
+    mouseDot = false, mouseDotSize = 6, mouseDotColor = { r = 1, g = 1, b = 1 },
+    mouseDotClassColor = false,
+    mouseFadeIdle = false, mouseFadeDelay = 2, mouseFadeOpacity = 0,
+    mouseGCD = true, mouseHideBackground = false, mouseGCDColor = { r = 0.004, g = 0.56, b = 0.91 },
+    mouseGCDClassColor = false, mouseReadyColor = { r = 0, g = 0.8, b = 0.3 }, mouseReadyMatch = false,
+    mouseGCDAlpha = 1, mouseCastSwipe = true, mouseCastColor = { r = 0.004, g = 0.56, b = 0.91 },
+    mouseCastClassColor = false, mouseSwipeDelay = 0.08,
+    mouseTrail = false, mouseTrailShape = "glow", mouseTrailColor = { r = 1, g = 1, b = 1 },
+    mouseTrailClassColor = false, mouseTrailSparkle = false, mouseTrailLength = 20,
+    mouseTrailDuration = 2, mouseTrailSize = 24, mouseTrailBrightness = 0.8,
+    mouseMelee = false, mouseMeleeBorder = true, mouseMeleeRing = false,
+    mouseMeleeSound = false, mouseMeleeSoundKey = "none", mouseMeleeSoundInterval = 3,
+
+    gcdTracker = false, gcdDuration = 5, gcdIconSize = 32, gcdSpacing = 4, gcdDirection = "RIGHT",
+    gcdFadeStart = 0.5, gcdStack = true, gcdCombatOnly = false,
+    gcdWorld = true, gcdDungeon = true, gcdRaid = true, gcdPvP = true,
+    gcdBlocklist = "6603, 75", gcdTimelineColor = { r = 0.01, g = 0.56, b = 0.91 },
+    gcdTimelineHeight = 4, gcdDowntime = false,
+    focusCastBar = false, focusWidth = 250, focusHeight = 24,
+    focusBgColor = { r = 0.12, g = 0.12, b = 0.12 }, focusBgAlpha = 0.8,
+    focusReadyColor = { r = 0.01, g = 0.56, b = 0.91 }, focusReadyClassColor = false,
+    focusCooldownColor = { r = 0.5, g = 0.5, b = 0.5 },
+    focusColorNonInt = true, focusNonIntColor = { r = 0.8, g = 0.2, b = 0.2 },
+    focusInterruptedColor = { r = 0.51, g = 0.51, b = 0.51 },
+    focusIcon = true, focusIconSide = "LEFT", focusSpellName = true, focusNameLength = 0,
+    focusTarget = true, focusTime = true, focusShield = true,
+    focusTick = true, focusTickColor = { r = 1, g = 1, b = 1 }, focusTickClassColor = false,
+    focusFont = "", focusFontSize = 12,
+    focusTextColor = { r = 1, g = 1, b = 1 }, focusTextClassColor = false,
+    focusHideFriendly = false, focusHideNonInt = false, focusHideOnCooldown = false,
+    focusFadeTime = 0.75, focusInterrupter = false,
+    focusAudio = "none", focusSound = "none", focusSpeech = "Interrupt",
+    focusVoice = "", focusVolume = 50, focusRate = 0,
+
     trainerPopup = true, trainerGlow = true, trainerRanks = true,
 
     flightTimer = true, flightQuotes = true, quizFlight = true, quizCamp = true,
@@ -118,6 +168,32 @@ local DRUID_FORM_ORDER = { "none", "cat", "bear", "moonkin" }
 
 local AUDIO_VALUES = { none = "None", sound = "Sound", tts = "Text to Speech" }
 local AUDIO_ORDER = { "none", "sound", "tts" }
+
+local RING_SHAPES = {
+    { "ring.tga", "Circle" }, { "thin_ring.tga", "Thin Circle" }, { "thick_ring.tga", "Thick Circle" },
+    { "nq_circle.tga", "Filled Circle" }, { "nq_circle_hard.tga", "Hard Circle" },
+    { "nq_ring1.tga", "Ring 1" }, { "nq_ring2.tga", "Ring 2" }, { "nq_ring3.tga", "Ring 3" },
+    { "nq_ring4.tga", "Ring 4" }, { "nq_ring_soft1.tga", "Soft Ring 1" },
+    { "nq_ring_soft2.tga", "Soft Ring 2" }, { "nq_ring_soft3.tga", "Soft Ring 3" },
+    { "nq_ring_soft4.tga", "Soft Ring 4" }, { "nq_glow.tga", "Glow" }, { "nq_glow_large.tga", "Large Glow" },
+    { "nq_glow_reversed.tga", "Reversed Glow" }, { "nq_cross1.tga", "Cross 1" },
+    { "nq_cross2.tga", "Cross 2" }, { "nq_cross3.tga", "Cross 3" }, { "nq_star.tga", "Star" },
+    { "nq_swirl.tga", "Swirl" }, { "nq_sphere.tga", "Sphere" },
+}
+local SHAPE_VALUES, SHAPE_ORDER = {}, {}
+for _, shape in ipairs(RING_SHAPES) do
+    SHAPE_VALUES[shape[1]] = shape[2]
+    SHAPE_ORDER[#SHAPE_ORDER + 1] = shape[1]
+end
+
+local TRAIL_VALUES = { glow = "Glow", circle = "Circle", ring = "Ring", star = "Star", sparkle = "Sparkle" }
+local TRAIL_ORDER = { "glow", "circle", "ring", "star", "sparkle" }
+
+local SIDE_VALUES = { LEFT = "Left", RIGHT = "Right", TOP = "Top", BOTTOM = "Bottom" }
+local SIDE_ORDER = { "LEFT", "RIGHT", "TOP", "BOTTOM" }
+
+local DIRECTION_VALUES = { RIGHT = "Right", LEFT = "Left", UP = "Up", DOWN = "Down" }
+local DIRECTION_ORDER = { "RIGHT", "LEFT", "UP", "DOWN" }
 
 local MODIFIER_VALUES = { CTRL = "Ctrl", SHIFT = "Shift", ALT = "Alt", NONE = "None" }
 local MODIFIER_ORDER = { "CTRL", "SHIFT", "ALT", "NONE" }
@@ -602,6 +678,100 @@ function ns.BuildQoLAlertsPage(parent, y)
         S.Slider("combatTimerFontSize", "Font Size", 10, 72, 1, nil, "combatTimer")
     ); y = y - h
 
+    _, h = W:SectionHeader(parent, "PET TRACKER" .. STATUS.untested, y); y = y - h
+    local petFonts, petFontOrder = UI.FontChoices(S.Get("petFont"))
+    _, h = W:DualRow(parent, y,
+        S.Toggle("petTracker", "Pet Tracker",
+            "A warning while a hunter or warlock has no pet out. A warlock who sacrificed their "
+            .. "demon is left alone. Move it in Unlock Mode."),
+        S.Toggle("petPassive", "Warn While Passive", "Also warns while your pet is set to passive.",
+            "petTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("petLowHealth", "Warn on Low Pet Health",
+            "Also warns while your pet's health is under the threshold, in combat too.", "petTracker"),
+        S.Slider("petLowHealthBelow", "Low Health Below (%)", 5, 90, 1, nil, "petLowHealth")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("petCombatOnly", "Only In Combat", nil, "petTracker"),
+        S.Toggle("petInstanceOnly", "Only In Dungeons & Raids", nil, "petTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("petHideMounted", "Hide While Mounted",
+            "Also hidden for a few seconds after you dismount, while the pet comes back.", "petTracker"),
+        S.Toggle("petShowIcon", "Show Icon", nil, "petTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("petColor", "Colour", "petTracker"),
+        S.Toggle("petClassColor", "Class Colour", nil, "petTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("petFont", "Font", petFonts, petFontOrder, nil, "petTracker"),
+        S.Slider("petFontSize", "Font Size", 12, 48, 1, nil, "petTracker")
+    ); y = y - h
+    _, h = TextButton(parent, y, "Missing Text", "Text while your pet is missing", "petMissingText"); y = y - h
+    _, h = TextButton(parent, y, "Passive Text", "Text while your pet is passive", "petPassiveText"); y = y - h
+    _, h = TextButton(parent, y, "Low Health Text", "Text while your pet is low on health",
+        "petLowHealthText"); y = y - h
+
+    _, h = W:SectionHeader(parent, "EQUIPMENT REMINDER" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("equipReminder", "Equipment Reminder",
+            "Your trinkets, weapons and ranged slot in a small window when you enter a dungeon "
+            .. "or raid, or on a ready check, so a wrong trinket gets noticed before the pull. "
+            .. "Drag the window to move it."),
+        S.Toggle("equipEnchants", "Enchant Check",
+            "Adds a line that flags any slot whose enchant is missing or differs from the ones "
+            .. "you captured below. Hover it for the details.", "equipReminder")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("equipOnInstance", "Show Entering Dungeons & Raids", nil, "equipReminder"),
+        S.Toggle("equipOnReadyCheck", "Show on Ready Check", nil, "equipReminder")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("equipAutoHide", "Hide After (s)", 0, 60, 1,
+            "0 keeps it up until you close it.", "equipReminder"),
+        S.Slider("equipIconSize", "Icon Size", 24, 64, 1, nil, "equipReminder")
+    ); y = y - h
+    _, h = W:Button(parent, "Capture Current Enchants", y, function()
+        local count = ns.CaptureEnchants()
+        ns.Print(("Captured %d enchant%s from your gear. The enchant check expects these from now on.")
+            :format(count, count == 1 and "" or "s"))
+    end); y = y - h
+    _, h = W:Button(parent, "Show Equipment Check", y, function()
+        if ns.ShowEquipmentReminder then ns.ShowEquipmentReminder() end
+    end); y = y - h
+
+    _, h = W:SectionHeader(parent, "EMOTE DETECTION" .. STATUS.untested, y); y = y - h
+    local emoteFonts, emoteFontOrder = UI.FontChoices(S.Get("emoteFont"))
+    _, h = W:DualRow(parent, y,
+        S.Toggle("emoteDetection", "Emote Detection",
+            "An alert when an emote in a dungeon or raid contains one of your words, such as "
+            .. "someone putting down a feast. Out of combat only. Move it in Unlock Mode."),
+        S.Toggle("emoteSound", "Play a Sound", nil, "emoteDetection")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("emoteSoundKey", "Sound", soundNames, soundOrder, nil, "emoteSound"),
+        ColorRow("emoteColor", "Text Colour", "emoteDetection")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("emoteFont", "Font", emoteFonts, emoteFontOrder, nil, "emoteDetection"),
+        S.Slider("emoteFontSize", "Font Size", 10, 32, 1, nil, "emoteDetection")
+    ); y = y - h
+    _, h = TextButton(parent, y, "Words to Watch For",
+        "Words to watch for in emotes, separated by commas", "emotePattern"); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("autoEmote", "Auto Emotes",
+            "An /emote of your own in a dungeon or raid when you start casting one of the spells "
+            .. "below, so the group knows a summon is coming. Started in combat, it waits for "
+            .. "the fight to end."),
+        S.Slider("autoEmoteCooldown", "Cooldown (s)", 0, 30, 1,
+            "The shortest time between two auto emotes.", "autoEmote")
+    ); y = y - h
+    _, h = TextButton(parent, y, "Auto Emote Spells",
+        "Spell ID and emote, separated by semicolons, such as 698: prepares a ritual of summoning",
+        "autoEmoteList"); y = y - h
+
     return y
 end
 
@@ -728,6 +898,131 @@ function ns.BuildQoLInterfacePage(parent, y)
                 S.Set("crossMeleeSpell", tonumber(v) or 0)
             end)
     end); y = y - h
+
+    _, h = W:SectionHeader(parent, "MOUSE RING" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseRing", "Mouse Ring",
+            "A ring around your cursor so you never lose it in a busy fight, with your global "
+            .. "cooldown and casts swept around it."),
+        S.Toggle("mouseShowOOC", "Show Out of Combat", nil, "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseHideOnClick", "Hide While Right-Click Held",
+            "Hidden while you turn the camera with the right mouse button.", "mouseRing"),
+        S.Toggle("mouseHideAfk", "Hide While Away", "Hidden while you are away, outside instances.",
+            "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("mouseShape", "Shape", SHAPE_VALUES, SHAPE_ORDER, nil, "mouseRing"),
+        S.Slider("mouseSize", "Size", 16, 128, 1, nil, "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("mouseColor", "Ring Colour", "mouseRing"),
+        S.Toggle("mouseClassColor", "Class Colour", nil, "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseOpacityCombat", "Opacity In Combat", 0.1, 1, 0.05,
+            "Also used inside dungeons and raids.", "mouseRing"),
+        S.Slider("mouseOpacityOOC", "Opacity Out of Combat", 0.1, 1, 0.05, nil, "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseBorder", "Border", nil, "mouseRing"),
+        S.Slider("mouseBorderWeight", "Border Width", 1, 10, 1, nil, "mouseBorder")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("mouseBorderColor", "Border Colour", "mouseBorder"),
+        S.Toggle("mouseBorderClassColor", "Class Colour", nil, "mouseBorder")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseDot", "Centre Dot", nil, "mouseRing"),
+        S.Slider("mouseDotSize", "Dot Size", 1, 20, 1, nil, "mouseDot")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("mouseDotColor", "Dot Colour", "mouseDot"),
+        S.Toggle("mouseDotClassColor", "Class Colour", nil, "mouseDot")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseFadeIdle", "Fade When Idle", "Fades out while the cursor stays still.",
+            "mouseRing"),
+        S.Slider("mouseFadeDelay", "Fade After (s)", 0.5, 10, 0.5, nil, "mouseFadeIdle")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseFadeOpacity", "Idle Opacity", 0, 1, 0.05, nil, "mouseFadeIdle"),
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "MOUSE RING GCD & CASTS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseGCD", "GCD Sweep",
+            "Your global cooldown swept around the ring, and a ready ring once it is over.",
+            "mouseRing"),
+        S.Toggle("mouseHideBackground", "Hide Ring Under the Sweep",
+            "Only the sweep and the ready ring show.", "mouseGCD")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("mouseGCDColor", "Sweep Colour", "mouseGCD"),
+        S.Toggle("mouseGCDClassColor", "Class Colour", nil, "mouseGCD")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("mouseReadyColor", "Ready Colour", "mouseGCD"),
+        S.Toggle("mouseReadyMatch", "Ready Matches Sweep", nil, "mouseGCD")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseCastSwipe", "Cast Sweep", "Your casts and channels swept around the ring too.",
+            "mouseGCD"),
+        ColorRow("mouseCastColor", "Cast Sweep Colour", "mouseCastSwipe")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseCastClassColor", "Class Colour", nil, "mouseCastSwipe"),
+        S.Slider("mouseGCDAlpha", "Sweep Opacity", 0.1, 1, 0.05, nil, "mouseGCD")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseSwipeDelay", "Sweep Delay (s)", 0, 0.5, 0.01,
+            "Waits this long before a sweep starts, so one that is over at once does not flicker.",
+            "mouseGCD"),
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "MOUSE RING TRAIL", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseTrail", "Trail", "A fading trail behind the cursor.", "mouseRing"),
+        S.Dropdown("mouseTrailShape", "Trail Shape", TRAIL_VALUES, TRAIL_ORDER, nil, "mouseTrail")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("mouseTrailColor", "Trail Colour", "mouseTrail"),
+        S.Toggle("mouseTrailClassColor", "Class Colour", nil, "mouseTrail")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseTrailSparkle", "Sparkle", "Each point of the trail in a colour of its own.",
+            "mouseTrail"),
+        S.Slider("mouseTrailSize", "Trail Size", 4, 64, 1, nil, "mouseTrail")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseTrailLength", "Trail Length", 5, 60, 1, nil, "mouseTrail"),
+        S.Slider("mouseTrailDuration", "Trail Duration (s)", 0.1, 5, 0.1, nil, "mouseTrail")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseTrailBrightness", "Trail Brightness", 0.1, 1, 0.05, nil, "mouseTrail"),
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "MOUSE RING MELEE RANGE", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseMelee", "Recolour Out of Melee Range",
+            "Turns the ring red while your target is out of melee range. Uses the same ability "
+            .. "as the crosshair's melee check, Melee Spell ID included.", "mouseRing"),
+        S.Toggle("mouseMeleeBorder", "Recolour Border", nil, "mouseMelee")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseMeleeRing", "Recolour Ready Ring", nil, "mouseMelee"),
+        S.Toggle("mouseMeleeSound", "Play a Sound", "Plays as your target leaves melee range.",
+            "mouseMelee")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("mouseMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "mouseMeleeSound"),
+        S.Slider("mouseMeleeSoundInterval", "Repeat Every (s)", 0, 10, 1,
+            "Plays the sound again this often while out of range. 0 plays it once.", "mouseMeleeSound")
+    ); y = y - h
 
     _, h = W:SectionHeader(parent, "ON-SCREEN EXTRAS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -926,6 +1221,149 @@ function ns.BuildQoLFlightPage(parent, y)
     _, h = W:Button(parent, "Open the Quiz", y, function()
         if ns.ToggleQuiz then ns.ToggleQuiz() end
     end); y = y - h
+
+    return y
+end
+
+function ns.BuildQoLCastingPage(parent, y)
+    local W = UI.Widgets
+    local _, h
+    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
+
+    _, h = W:SectionHeader(parent, "GCD TRACKER" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("gcdTracker", "GCD Tracker",
+            "Your recent casts as icons scrolling away from a point, with a bar underneath while "
+            .. "you were casting or on the global cooldown. Gaps in the bar are time spent doing "
+            .. "nothing. Move it in Unlock Mode."),
+        S.Toggle("gcdCombatOnly", "Only In Combat", nil, "gcdTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("gcdWorld", "Show in the World", nil, "gcdTracker"),
+        S.Toggle("gcdDungeon", "Show in Dungeons", nil, "gcdTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("gcdRaid", "Show in Raids", nil, "gcdTracker"),
+        S.Toggle("gcdPvP", "Show in Battlegrounds", nil, "gcdTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("gcdDirection", "Direction", DIRECTION_VALUES, DIRECTION_ORDER, nil, "gcdTracker"),
+        S.Slider("gcdDuration", "Time Shown (s)", 2, 15, 1, nil, "gcdTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("gcdIconSize", "Icon Size", 16, 64, 1, nil, "gcdTracker"),
+        S.Slider("gcdSpacing", "Spacing", 0, 20, 1, nil, "gcdTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("gcdFadeStart", "Fade From", 0, 0.95, 0.05,
+            "How far along an icon starts to fade, from 0 (at once) to 0.95 (at the very end).",
+            "gcdTracker"),
+        S.Toggle("gcdStack", "Stack Overlapping Casts",
+            "Casts within 0.3s of each other sit side by side instead of on top of each other.",
+            "gcdTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("gcdTimelineColor", "Activity Bar Colour", "gcdTracker"),
+        S.Slider("gcdTimelineHeight", "Activity Bar Height", 1, 12, 1, nil, "gcdTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("gcdDowntime", "Downtime Summary",
+            "After each fight longer than 15 seconds, how long you spent neither casting nor on "
+            .. "the global cooldown, in chat.", "gcdTracker"),
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = TextButton(parent, y, "Hidden Spells",
+        "Spell IDs never shown, separated by commas. 6603 is Auto Attack, 75 is Auto Shot.",
+        "gcdBlocklist"); y = y - h
+
+    _, h = W:SectionHeader(parent, "FOCUS CAST BAR" .. STATUS.untested, y); y = y - h
+    local focusFonts, focusFontOrder = UI.FontChoices(S.Get("focusFont"))
+    local _, soundNames, soundOrder = ns.SoundChoices()
+    local voices, voiceOrder = ns.TTSVoiceChoices()
+    _, h = W:DualRow(parent, y,
+        S.Toggle("focusCastBar", "Focus Cast Bar",
+            "Your focus target's casts on a bar of their own, coloured by whether your interrupt "
+            .. "is ready, with a tick where it comes off cooldown and a shield on casts you cannot "
+            .. "interrupt. Your interrupt is the first you know of Pummel, Shield Bash, Kick, "
+            .. "Counterspell, Earth Shock, Silence and Feral Charge. Move it in Unlock Mode."),
+        S.Toggle("focusHideFriendly", "Hide Friendly Casts", nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("focusWidth", "Width", 100, 600, 5, nil, "focusCastBar"),
+        S.Slider("focusHeight", "Height", 10, 60, 1, nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("focusReadyColor", "Interrupt Ready Colour", "focusCastBar"),
+        S.Toggle("focusReadyClassColor", "Class Colour", nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("focusCooldownColor", "Interrupt on Cooldown Colour", "focusCastBar"),
+        ColorRow("focusInterruptedColor", "Interrupted Colour", "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("focusColorNonInt", "Colour Uninterruptible Casts", nil, "focusCastBar"),
+        ColorRow("focusNonIntColor", "Uninterruptible Colour", "focusColorNonInt")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("focusBgColor", "Background Colour", "focusCastBar"),
+        S.Slider("focusBgAlpha", "Background Opacity", 0, 1, 0.05, nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("focusIcon", "Show Icon", nil, "focusCastBar"),
+        S.Dropdown("focusIconSide", "Icon Side", SIDE_VALUES, SIDE_ORDER, nil, "focusIcon")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("focusSpellName", "Show Spell Name", nil, "focusCastBar"),
+        S.Slider("focusNameLength", "Name Length", 0, 40, 1,
+            "Cuts the name to about this many letters. 0 shows it whole.", "focusSpellName")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("focusTarget", "Show Cast Target", "Who the cast is aimed at, in their class colour.",
+            "focusCastBar"),
+        S.Toggle("focusTime", "Show Time Left", nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("focusShield", "Uninterruptible Shield", nil, "focusCastBar"),
+        S.Toggle("focusTick", "Interrupt Ready Tick",
+            "A tick on the bar where your interrupt comes off cooldown. Hidden while it is ready.",
+            "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("focusTickColor", "Tick Colour", "focusTick"),
+        S.Toggle("focusTickClassColor", "Class Colour", nil, "focusTick")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorRow("focusTextColor", "Text Colour", "focusCastBar"),
+        S.Toggle("focusTextClassColor", "Class Colour", nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("focusFont", "Font", focusFonts, focusFontOrder, nil, "focusCastBar"),
+        S.Slider("focusFontSize", "Font Size", 8, 24, 1, nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("focusHideNonInt", "Hide Uninterruptible Casts", nil, "focusCastBar"),
+        S.Toggle("focusHideOnCooldown", "Hide While Interrupt Is on Cooldown", nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("focusFadeTime", "Interrupted Fade (s)", 0, 3, 0.05,
+            "How long an interrupted cast stays up. 0 hides it at once.", "focusCastBar"),
+        S.Toggle("focusInterrupter", "Show Who Interrupted", nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("focusAudio", "Cast Start Audio", AUDIO_VALUES, AUDIO_ORDER,
+            "A sound, or the Speech text read aloud, as each cast starts.", "focusCastBar"),
+        S.Dropdown("focusSound", "Sound", soundNames, soundOrder, nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("focusVoice", "Voice", voices, voiceOrder,
+            "Game Default speaks in the voice the rest of the addon uses.", "focusCastBar"),
+        S.Slider("focusVolume", "Volume", 0, 100, 1, nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("focusRate", "Speech Rate", -10, 10, 1, nil, "focusCastBar"),
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = TextButton(parent, y, "Speech Text", "Spoken as a cast starts", "focusSpeech"); y = y - h
 
     return y
 end

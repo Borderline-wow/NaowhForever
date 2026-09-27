@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- The rest of NaowhQOL that works on Forever, each off by default:
+  - Pet Tracker (QoL > Alerts): a warning while a hunter or warlock has no pet out or has
+    it on passive, and optionally while the pet is low on health. A warlock who sacrificed
+    their demon is left alone. Move it in Unlock Mode.
+  - Equipment Reminder (QoL > Alerts): your trinkets, weapons and ranged slot in a small
+    window when you enter a dungeon or raid or on a ready check, with an optional enchant
+    check against the enchants you capture.
+  - Emote Detection (QoL > Alerts): an alert and a sound when an emote in a dungeon or raid
+    contains one of your words, plus auto emotes for spells you list, such as a summoning
+    ritual.
+  - Mouse Ring (QoL > Interface): a ring around your cursor with your global cooldown and
+    casts swept around it, an optional trail, centre dot and border, idle fade, and a red
+    recolour while your target is out of melee range.
+  - GCD Tracker (QoL > Casting): your recent casts scrolling across the screen with a bar
+    showing when you were busy, and an optional downtime summary after each fight. Move it
+    in Unlock Mode.
+  - Focus Cast Bar (QoL > Casting): your focus target's casts, coloured by whether your
+    interrupt is ready, with a tick where it comes off cooldown, a shield on casts you
+    cannot interrupt, and an optional sound or spoken line. Move it in Unlock Mode.
+  - Performance (QoL > Performance): NaowhQOL's recommended graphics, frame rate and
+    network settings, applied all at once or one at a time, with your own values kept so
+    you can put them back, and the spell queue window.
+
 ## 0.5.13-beta
 
 ### Added
