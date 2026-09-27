@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.13-beta
 
 ### Added
 - Top Bar module: friends and guild on the left, the clock in the middle, addon buttons
