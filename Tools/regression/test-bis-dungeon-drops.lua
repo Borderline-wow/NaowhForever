@@ -155,4 +155,32 @@ Case("the generated loot file is well formed", function()
     assert(n > 300, n)
 end)
 
+-- Ranked items that neither wowsrc nor Wowhead's Forever database gives a source for.
+local UNSOURCED = {}
+for _, id in ipairs({ 5821, 263435, 263436, 270039, 270046, 272996, 276727, 277213, 277219,
+    277227, 277257, 279392, 279393, 281264, 281290, 281309, 281323, 281660, 281675, 281926,
+    284187, 284386, 284668, 285331, 286535 }) do UNSOURCED[id] = true end
+
+Case("every ranked item in the generated data has a source", function()
+    local ns = {}
+    local env = setmetatable({ _G = { NaowhForever = ns }, ns = ns }, { __index = _G })
+    for _, file in ipairs({ "NaowhForever_BiSData.lua", "NaowhForever_DungeonLoot.lua" }) do
+        local chunk = assert(loadfile(root .. "/BiS/" .. file))
+        setfenv(chunk, env)
+        chunk()
+    end
+    local chunk = assert(loadstring(Slice("-- Where an item comes from:", "\nlocal function SetItemLine")))
+    setfenv(chunk, env)
+    chunk()
+    local missing = {}
+    for _, spec in ipairs(ns.BiSData.specs) do
+        for _, ids in pairs(spec.slots) do
+            for _, id in ipairs(ids) do
+                if not ns.BiSSource(id) and not UNSOURCED[id] then missing[#missing + 1] = id end
+            end
+        end
+    end
+    assert(#missing == 0, "no source: " .. table.concat(missing, ", "))
+end)
+
 print(("%d cases passed"):format(count))

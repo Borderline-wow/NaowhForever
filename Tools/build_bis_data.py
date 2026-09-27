@@ -9,7 +9,15 @@ accepted only when name, quality, icon and item level all agree. Answers are
 cached in bis_item_ids.json; an entry there can be edited by hand to settle an
 item the lookup could not, and a value of null leaves the item out.
 
-Usage: python Tools/build_bis_data.py
+wowsrc gives no source for some items. Those get one from their Wowhead Forever
+item page: the NPC and zone that drop it, the quest that rewards it, the profession
+that crafts it, the vendor that sells it or the container it comes in, in that order,
+or World drop when many NPCs drop it. Answers are cached in bis_sources.json, where
+an entry can be edited by hand the same way.
+
+Usage: python Tools/build_bis_data.py [--sources-only]
+  --sources-only keeps the specs in NaowhForever_BiSData.lua as they are and only
+  fills in the sources missing for items already in it.
 """
 import html
 import json
@@ -24,6 +32,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "BiS" / "NaowhForever_BiSData.lua"
 CACHE = Path(__file__).resolve().parent / "bis_item_ids.json"
+SOURCES = Path(__file__).resolve().parent / "bis_sources.json"
+WOWHEAD = "https://www.wowhead.com/forever"
+SEP = " \u00b7 "
 
 CLASSES = ["druid", "hunter", "mage", "paladin", "priest", "rogue", "shaman", "warlock", "warrior"]
 
@@ -35,6 +46,11 @@ SLOTS = [
 ]
 
 QUALITY = {"poor": 0, "common": 1, "uncommon": 2, "rare": 3, "epic": 4, "legendary": 5}
+
+# Wowhead quest side -> wowsrc's wording; 3 is both.
+SIDE = {1: " (Alliance)", 2: " (Horde)"}
+PROFESSIONS = {164: "Blacksmithing", 165: "Leatherworking", 171: "Alchemy", 197: "Tailoring",
+               202: "Engineering", 333: "Enchanting"}
 
 
 def fetch(url):
@@ -99,6 +115,98 @@ def lookup(item):
     return matches
 
 
+def listview(page, lv_id):
+    start = page.find(f"id: '{lv_id}'")
+    if start < 0:
+        return []
+    data = re.compile(r"data:\s*").search(page, start)
+    return json.JSONDecoder().raw_decode(page[data.end():])[0]
+
+
+def zone_name(zone, cache):
+    key = f"zone={zone}"
+    if key not in cache:
+        cache[key] = re.search(r"<title>(.+?) - Zone - ", fetch(f"{WOWHEAD}/zone={zone}")).group(1)
+        time.sleep(1)
+    return cache[key]
+
+
+def wowhead_source(item_id, cache):
+    key = f"item={item_id}"
+    if key in cache:
+        return cache[key]
+    page = fetch(f"{WOWHEAD}/item={item_id}")
+    time.sleep(1)
+
+    def top(rows):
+        return max(rows, key=lambda r: r.get("popularity", 0))
+
+    npcs = sorted(listview(page, "dropped-by"), key=lambda n: -n.get("count", 0))
+    # Some NPCs are placed only on a continent (negative), which says nothing about where.
+    zones = {z for n in npcs for z in n.get("location", []) if z > 0}
+    quests = listview(page, "reward-from-q")
+    crafts = listview(page, "created-by-spell")
+    vendors = listview(page, "sold-by")
+    containers = listview(page, "contained-in-item") + listview(page, "contained-in-object")
+    source = None
+    if npcs and len(npcs) <= 3 and len(zones) == 1:
+        source = npcs[0]["name"] + SEP + zone_name(zones.pop(), cache)
+    elif quests:
+        name = top(quests)["name"]
+        sides = {q.get("side") for q in quests if q["name"] == name}
+        source = name + SEP + "Quest" + (SIDE.get(sides.pop(), "") if len(sides) == 1 else "")
+    elif crafts:
+        source = PROFESSIONS[crafts[0]["skill"][0]] + SEP + "Crafted"
+    elif vendors:
+        vendor = top(vendors)
+        zone = next((z for z in vendor.get("location", []) if z > 0), None)
+        source = vendor["name"] + SEP + (zone_name(zone, cache) if zone else "Vendor")
+    elif containers:
+        source = containers[0]["name"] + SEP + "Container"
+    elif len(npcs) > 3:
+        source = "World drop"
+    cache[key] = source
+    return source
+
+
+def fill_sources(sources, ranked):
+    """Adds a Wowhead source for every ranked item wowsrc gave none; returns the ones still without."""
+    cache = json.loads(SOURCES.read_text(encoding="utf-8")) if SOURCES.exists() else {}
+    missing = []
+    for item_id in sorted(ranked - sources.keys()):
+        source = wowhead_source(item_id, cache)
+        SOURCES.write_text(json.dumps(cache, indent=1, sort_keys=True), encoding="utf-8")
+        if source:
+            sources[item_id] = source
+        else:
+            missing.append(item_id)
+    return missing
+
+
+def source_lines(sources):
+    lines = ["    sources = {"]
+    for item_id in sorted(sources):
+        lines.append(f"        [{item_id}] = {lua_string(sources[item_id])},")
+    return lines + ["    },", "}"]
+
+
+def refill_sources():
+    data = OUT.read_bytes()
+    head = data[:data.index(b"    sources = {")]
+    text = data[len(head):].decode("utf-8")
+    sources = {int(i): re.sub(r"\\(.)", r"\1", s)
+               for i, s in re.findall(r'\[(\d+)\] = "((?:[^"\\]|\\.)*)",', text)}
+    ranked = {int(i) for i in re.findall(rb"\d+", b" ".join(re.findall(rb"\] = \{([\d, ]*)\}", head)))}
+    before = len(sources)
+    missing = fill_sources(sources, ranked)
+    # Appending in text mode gives the same line ends as the full build's write_text.
+    OUT.write_bytes(head)
+    with OUT.open("a", encoding="utf-8") as f:
+        f.write("\r\n".join(source_lines(sources)) + "\r\n")
+    print(f"{len(ranked)} ranked items, {before} sourced, {len(sources) - before} added from Wowhead", file=sys.stderr)
+    return missing
+
+
 def item_key(item):
     return f'{item["name"]}|{item["icon"]}|{item["quality"]}|{item["ilvl"]}'
 
@@ -108,6 +216,9 @@ def lua_string(s):
 
 
 def main():
+    if "--sources-only" in sys.argv:
+        report_missing(refill_sources())
+        return
     cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
     specs, sources, candidates, left_out = [], {}, {}, set()
 
@@ -154,11 +265,8 @@ def main():
             lines.append(f"            [{inv}] = {{ {', '.join(str(i) for i in ids)} }},")
         lines.append("        } },")
     lines.append("    },")
-    lines.append("    sources = {")
-    for item_id in sorted(sources):
-        lines.append(f"        [{item_id}] = {lua_string(sources[item_id])},")
-    lines.append("    },")
-    lines.append("}")
+    missing = fill_sources(sources, {i for _, _, _, slots in specs for ids in slots.values() for i in ids})
+    lines += source_lines(sources)
     OUT.write_text("\r\n".join(lines) + "\r\n", encoding="utf-8")
 
     print(f"{len(specs)} specs, {len(sources)} sourced items -> {OUT.name}", file=sys.stderr)
@@ -168,6 +276,13 @@ def main():
         for key in sorted(left_out):
             found = f"  candidates={candidates[key]}" if key in candidates else ""
             print(f"  {key}{found}", file=sys.stderr)
+    report_missing(missing)
+
+
+def report_missing(missing):
+    if missing:
+        print(f"{len(missing)} items have no source; settle them in {SOURCES.name}: "
+              + ", ".join(map(str, missing)), file=sys.stderr)
 
 
 if __name__ == "__main__":
