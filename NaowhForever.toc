@@ -95,6 +95,7 @@ QoL\NaowhForever_TownData.lua
 QoL\NaowhForever_TownMap.xml
 GearSets\NaowhForever_GearSets.lua
 BiS\NaowhForever_BiSData.lua
+BiS\NaowhForever_DungeonLoot.lua
 BiS\NaowhForever_BiS.lua
 Blessings\NaowhForever_Blessings.xml
 Blessings\NaowhForever_Blessings.lua

@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_BiS.lua -- the QoL BiS list: per gear slot per character, a ranked list of
---  picks (#1 is the BiS) from wowsrc.com's ranking for a spec (NaowhForever_BiSData.lua)
---  or by Alt+Shift-click, shared as an import string, and shown on item tooltips, in the
+--  picks (#1 is the BiS) from wowsrc.com's ranking for a spec (NaowhForever_BiSData.lua),
+--  the dungeon drops the class can use (NaowhForever_DungeonLoot.lua) or by
+--  Alt+Shift-click, shared as an import string, and shown on item tooltips, in the
 --  loot feed and as an alert when a listed item drops.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
@@ -536,6 +537,7 @@ local function OnLoaded(ids, fn)
 end
 
 local pickerPanel, pickerSlot
+local allDrops = false   -- dungeon drops at every level, not only near yours
 local FillPicker
 
 -- Icon, quality-coloured name and grey source, shared by both kinds of picker row.
@@ -552,12 +554,79 @@ local function ItemLine(row, x)
     row.num:SetPoint("RIGHT", row.icon, "LEFT", -6, 0)
 end
 
-local function SetItemLine(row, num, id)
-    local source = ns.BiSData.sources[id]
+-- Where an item comes from: wowsrc's wording, else the dungeon that drops it.
+function ns.BiSSource(itemID)
+    local loot = ns.BiSDungeonLoot[itemID]
+    return ns.BiSData.sources[itemID] or (loot and loot[5])
+end
+
+local function SetItemLine(row, num, id, detail)
+    local source = ns.BiSSource(id)
     row.id = id
     row.num:SetText(num)
     row.icon:SetTexture(C_Item.GetItemIconByID(id))
-    row.text:SetText(QualityHex(id) .. Name(id) .. "|r" .. (source and "  |cff808080" .. source .. "|r" or ""))
+    row.text:SetText(QualityHex(id) .. Name(id) .. "|r" .. (detail and "  " .. detail or "")
+        .. (source and "  |cff808080" .. source .. "|r" or ""))
+end
+
+-- The armor type a class wears, by the item's required level: mail and plate are learned at
+-- 40, as in classic. Types are NaowhForever_DungeonLoot.lua's.
+local ARMOR = { MAGE = 1, PRIEST = 1, WARLOCK = 1, ROGUE = 2, DRUID = 2, HUNTER = 3, SHAMAN = 3,
+    WARRIOR = 4, PALADIN = 4 }
+local ARMOR_BEFORE_40 = { HUNTER = 2, SHAMAN = 2, WARRIOR = 3, PALADIN = 3 }
+local SHIELD = { WARRIOR = true, PALADIN = true, SHAMAN = true }
+local RELIC = { [7] = "PALADIN", [8] = "DRUID", [9] = "SHAMAN" }
+-- A weapon in the off hand takes dual wield, which only these classes learn, as in classic.
+local DUAL_WIELD = { WARRIOR = true, ROGUE = true, HUNTER = true }
+-- Enum.ItemWeaponSubclass values each class can learn, as in classic.
+local WEAPONS = {
+    DRUID = { 4, 5, 10, 13, 15 },
+    HUNTER = { 0, 1, 2, 3, 6, 7, 8, 10, 13, 15, 16, 18 },
+    MAGE = { 7, 10, 15, 19 },
+    PALADIN = { 0, 1, 4, 5, 6, 7, 8 },
+    PRIEST = { 4, 10, 15, 19 },
+    ROGUE = { 2, 3, 4, 7, 13, 15, 16, 18 },
+    SHAMAN = { 0, 1, 4, 5, 10, 13, 15 },
+    WARLOCK = { 7, 10, 15, 19 },
+    WARRIOR = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 13, 15, 16, 18 },
+}
+for class, subs in pairs(WEAPONS) do
+    local set = {}
+    for _, sub in ipairs(subs) do set[sub] = true end
+    WEAPONS[class] = set
+end
+
+local function Usable(class, item)
+    local itemClass, sub, req = item[1], item[2], item[4]
+    if itemClass == 2 then return WEAPONS[class][sub] == true end
+    if sub == 0 then return true end
+    if sub == 6 then return SHIELD[class] == true end
+    if RELIC[sub] then return RELIC[sub] == class end
+    return sub == (req < 40 and ARMOR_BEFORE_40[class] or ARMOR[class])
+end
+
+-- Dungeon drops for the slot that your class can use and the ranking leaves out, highest
+-- required level first; near keeps only those within 10 levels of yours.
+local function DungeonDrops(slot, ranked, near)
+    local _, class = UnitClass("player")
+    local level = UnitLevel("player")
+    local loot = ns.BiSDungeonLoot
+    local skip = {}
+    for _, id in ipairs(ranked) do skip[id] = true end
+    local ids = {}
+    for id, item in pairs(loot) do
+        if not skip[id] and Usable(class, item) and Fits(id, slot)
+            and not (slot == 17 and item[1] == 2 and not DUAL_WIELD[class])
+            and (not near or math.abs(item[4] - level) <= 10) then
+            ids[#ids + 1] = id
+        end
+    end
+    table.sort(ids, function(a, b)
+        if loot[a][4] ~= loot[b][4] then return loot[a][4] > loot[b][4] end
+        if loot[a][3] ~= loot[b][3] then return loot[a][3] > loot[b][3] end
+        return a < b
+    end)
+    return ids
 end
 
 local function NewPickRow(parent)
@@ -611,7 +680,8 @@ local function NewCandidateRow(parent)
     return row
 end
 
--- Your picks in order with their controls, then the spec's ranking to pick from.
+-- Your picks in order with their controls, then the spec's ranking and the other dungeon
+-- drops to pick from.
 function FillPicker()
     local UI = ns.UI
     local content = pickerPanel.scroll.content
@@ -662,6 +732,33 @@ function FillPicker()
         none:SetText("Nothing ranked for this slot.")
         y = y - PICK_ROW
     end
+
+    y = y - 14
+    head = UI.KeepFont(content, "dropsHead", 12, nil, T.accent)
+    head:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+    head:SetText(allDrops and "OTHER DUNGEON DROPS" or "OTHER DUNGEON DROPS NEAR YOUR LEVEL")
+    UI.KeepButton(content, "dropsAll", allDrops and "Near My Level" or "Show All", 110, 20, function()
+        allDrops = not allDrops
+        FillPicker()
+    end):SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y + 4)
+    y = y - 22
+    local drops = DungeonDrops(pickerSlot, ids, not allDrops)
+    for _, id in ipairs(drops) do
+        local item = ns.BiSDungeonLoot[id]
+        local row = UI.Keep(content, "candidate", NewCandidateRow)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+        row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        SetItemLine(row, "", id, ("ilvl %d, req %d"):format(item[3], item[4]))
+        row.tag:SetText(picked[id] and RankText(picked[id]) or "")
+        y = y - PICK_ROW
+    end
+    if #drops == 0 then
+        local none = UI.KeepFont(content, "noDrops", 12, nil, T.muted)
+        none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y - 6)
+        none:SetText(allDrops and "No dungeon drops for this slot that you can use."
+            or "No dungeon drops for this slot within 10 levels of yours.")
+        y = y - PICK_ROW
+    end
     content:SetHeight(-y)
 end
 
@@ -690,6 +787,7 @@ local function OpenPicker(slot)
     dimmer:Show()
 
     local ids = Candidates(slot, spec)
+    for _, id in ipairs(DungeonDrops(slot, ids, false)) do ids[#ids + 1] = id end
     for _, id in ipairs(Picks(List(), slot)) do ids[#ids + 1] = id end
     OnLoaded(ids, function()
         if dimmer:IsShown() and pickerSlot == slot then FillPicker() end
@@ -1038,9 +1136,9 @@ function ns.BuildQoLBiSPage(parent, y)
         if not page:GetParent() then wornMarks[page] = nil end
     end
     wornMarks[parent] = {}
-    _, h = W:Note(parent, "Click a slot to pick its items from the ranking for your spec, best "
-        .. "first: your BiS, then your 2nd, 3rd and so on. A slot shows its BiS with a green border "
-        .. "and a check mark, and +N for the rest. Alt+Shift-click any item (bags, links, loot) to "
+    _, h = W:Note(parent, "Click a slot to pick its items from the ranking for your spec, or "
+        .. "from every dungeon drop your class can use, best first: your BiS, then your 2nd, 3rd "
+        .. "and so on. A slot shows its BiS with a green border and a check mark, and +N for the rest. Alt+Shift-click any item (bags, links, loot) to "
         .. "add it as the next pick for its slot, or again to take it off. Listed items say so on "
         .. "their tooltip, are tagged in the loot feed, and ring an alert when they drop or come up "
         .. "for a roll.", y); y = y - h
