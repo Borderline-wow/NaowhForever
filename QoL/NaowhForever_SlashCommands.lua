@@ -84,7 +84,7 @@ local function RunCommand(command, args)
     local box = ChatFrame1EditBox or DEFAULT_CHAT_FRAME.editBox
     local original = box:GetText()
     box:SetText(command)
-    ChatEdit_SendText(box)
+    box:SendText()
     box:SetText(original)
 end
 
@@ -118,6 +118,8 @@ function ns.RefreshSlashCommands()
     for name, id in pairs(registered) do
         _G["SLASH_" .. id .. "1"] = nil
         SlashCmdList[id] = nil
+        -- The chat box caches handlers here the first time any slash command is typed.
+        hash_SlashCmdList["/" .. strupper(name)] = nil
         registered[name] = nil
     end
     if not On() then return end

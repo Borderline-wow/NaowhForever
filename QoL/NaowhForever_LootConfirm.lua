@@ -12,7 +12,8 @@ local CONFIRMATIONS = {
     CONFIRM_DISENCHANT_ROLL = { confirm = "ConfirmLootRoll", popup = "CONFIRM_LOOT_ROLL", forward = true },
     LOOT_BIND_CONFIRM = { confirm = "ConfirmLootSlot", popup = "LOOT_BIND", forward = true,
         spreadExtra = true },
-    MERCHANT_CONFIRM_TRADE_TIMER_REMOVAL = { confirm = "SellCursorItem" },
+    MERCHANT_CONFIRM_TRADE_TIMER_REMOVAL = { confirm = "SellCursorItem",
+        popup = "CONFIRM_MERCHANT_TRADE_TIMER_REMOVAL" },
     MAIL_LOCK_SEND_ITEMS = { confirm = "RespondMailLockSendItem", appendTrue = true },
 }
 
