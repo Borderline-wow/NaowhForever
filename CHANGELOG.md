@@ -48,6 +48,10 @@
   Skip Cinematics skips only cinematics already seen on this account.
 - FPS counter (QoL > Interface), with optional local and world latency. Move it in Unlock
   Mode.
+- Dungeon Quests: quest chains. Click a quest on the tracker, or its Chain button on the
+  Dungeon Quests page, to list every quest in its chain in order, the ones before it and
+  the ones after, each marked Completed, In log or Not done. A chain quest you have opens
+  in your quest log from that list. Chains come from Wowhead's Forever quest database.
 
 ### Fixed
 - Dungeon Quests: Afadra Dunwall (The Restless Dead) is marked at her real spot in Old
