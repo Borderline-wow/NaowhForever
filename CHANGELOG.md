@@ -58,6 +58,11 @@
   Dungeon Quests page, to list every quest in its chain in order, the ones before it and
   the ones after, each marked Completed, In log or Not done. A chain quest you have opens
   in your quest log from that list. Chains come from Wowhead's Forever quest database.
+- BiS list: the slot picker lists every dungeon drop for that slot that your class can
+  use under Other Dungeon Drops, below the ranking for your spec, with its item level,
+  required level and the boss that drops it. It shows drops within 10 levels of yours;
+  Show All lists every level. Click one to add it as your next pick. Dungeons Wowhead has
+  no Forever loot for yet (Dire Maul and most of the new dungeons) are not in it.
 - BiS list: the page looks like the character pane, your character in the middle with
   your gear slots around it. Slots start empty; click one to open a picker in the middle
   of the screen and choose its items in order from the ranking for your spec, your BiS
@@ -141,9 +146,9 @@ its page.
   your BiS picks.
 - BiS list: Alt+Shift-click adds an item as the next pick for its slot, or as its BiS when
   the slot has none, and never pushes out an item you already picked.
-- BiS list: picking is only from the ranking now; the Add Item by ID button and the item
-  ID entry are gone. Shared lists keep the order of your picks, and older strings still
-  import. Worn marks a BiS pick you are wearing.
+- BiS list: picking is from the ranking and the dungeon drops now; the Add Item by ID
+  button and the item ID entry are gone. Shared lists keep the order of your picks, and
+  older strings still import. Worn marks a BiS pick you are wearing.
 - Dungeon Quests: quests grey to you are no longer listed on the tracker (in dungeons and
   with Show Single Dungeon too) or on the Dungeon Quests page. Quests in your log and chains
   you are partway through still show, and Show Completed still lists the ones you did.
