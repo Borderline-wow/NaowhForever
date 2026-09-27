@@ -63,9 +63,10 @@
   of the screen and choose its items in order from the ranking for your spec, your BiS
   first, then your 2nd, 3rd and so on. A slot shows its BiS with a green border and a
   check mark, and +N for the rest.
-- BiS list: a Where Your Items Drop panel to the right of your character groups everything
-  you picked by where it comes from (dungeon, zone, quest, crafted, world drop), with the
-  places that hold the most BiS picks first.
+- BiS list: a Where Your Items Drop panel to the right of your character has a line per
+  slot with its BiS, where it drops and +N for your other picks. Click a line, or the slot
+  on your character, to list every pick for that slot with its boss and place. Run Next at
+  the top names the places holding the most BiS picks you do not have yet.
 
 Brought over from NaowhQOL:
 - Questing (QoL > General): accept quests, hand in finished ones, and pick quests from
