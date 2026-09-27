@@ -76,6 +76,11 @@
   chat in a raid and party chat in a party. Before this the settings saved but no macro
   was ever written.
 
+### Changed
+- Dungeon Quests: quests grey to you are no longer listed on the tracker (in dungeons and
+  with Show Single Dungeon too) or on the Dungeon Quests page. Quests in your log and chains
+  you are partway through still show, and Show Completed still lists the ones you did.
+
 ## 0.5.12-beta
 
 ### Added

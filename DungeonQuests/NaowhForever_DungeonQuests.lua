@@ -128,6 +128,12 @@ local function Title(quest, plain)
     return ("|cff%02x%02x%02x[%d]|r %s"):format(c.r * 255, c.g * 255, c.b * 255, level, name)
 end
 
+-- Grey in the quest log: too far under your level to be worth picking up.
+local function Grey(quest)
+    local level = QuestLevel(quest)
+    return level ~= nil and GetQuestDifficultyColor(level) == QuestDifficultyColors.trivial
+end
+
 -- The quest's line: title, then its status; suffix sits between them (the page's faction).
 local function QuestLine(quest, status, suffix)
     suffix = suffix or ""
@@ -396,9 +402,10 @@ local function NearLevel(quest)
     return not level or (level >= mine - BELOW and level <= mine + ABOVE)
 end
 
--- near, outside a dungeon, drops the missing quests that are not close to your level.
+-- near, outside a dungeon, drops the missing quests that are not close to your level; a
+-- missing quest grey to you is dropped everywhere.
 local function Render(dungeons, title, near)
-    local lines, inLog, missing, mine = {}, 0, 0, 0
+    local lines, inLog, missing, mine, grey = {}, 0, 0, 0, false
     local function Add(text, extra)
         extra = extra or {}
         extra.text = text
@@ -414,6 +421,7 @@ local function Render(dungeons, title, near)
             if status and near and (status == MISSING or status == DONE) and not NearLevel(quest) then
                 status = nil
             end
+            if status == MISSING and Grey(quest) then status, grey = nil, true end
             if status then
                 if InLog(status) then inLog = inLog + 1 end
                 if status == MISSING or status == NEXT then missing = missing + 1 end
@@ -444,7 +452,8 @@ local function Render(dungeons, title, near)
     elseif mine == 0 then
         Add(MUTED .. "No quests here for your faction and class.|r")
     elseif inLog + missing == 0 and not S.Get("dqShowDone") then
-        Add(MUTED .. (near and "No dungeon quests near your level." or "All done here.") .. "|r")
+        Add(MUTED .. (near and "No dungeon quests near your level."
+            or grey and "Only quests grey to you are left here." or "All done here.") .. "|r")
     end
     local name = title or (#dungeons > 1 and "Blackrock Spire" or dungeons[1].name)
     panel.title:SetText(("%s  %s%d in log, %d missing|r"):format(name, MUTED, inLog, missing))
@@ -519,7 +528,7 @@ local function Refresh()
             S.Set("dqSelected", (dungeons and dungeons[1] or ns.DungeonQuests[1]).name)
             return
         end
-        -- A dungeon picked by hand lists all of your quests there, whatever their level.
+        -- A dungeon picked by hand lists your quests there at any level short of grey.
         dungeons, title, near = { picked }, "Dungeon Quests", nil
     end
     if not show then
@@ -619,8 +628,8 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
     local W = UI.Widgets
     local _, h
     _, h = W:Note(parent, "Every dungeon quest on WoW Forever and where it starts, from Wowhead's "
-        .. "Forever dungeon quest guide. Levels are coloured like your quest log. Waypoint marks "
-        .. "the quest giver on your map.", y); y = y - h
+        .. "Forever dungeon quest guide. Levels are coloured like your quest log, and quests grey "
+        .. "to you are left out. Waypoint marks the quest giver on your map.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "DUNGEON QUEST TRACKER" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -658,6 +667,7 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
                 if ForMe(quest, all) then
                     local status = Status(quest)
                     local show = pass == 1 and status ~= DONE
+                        and not (status == MISSING and Grey(quest))
                         or pass == 2 and status == DONE and S.Get("dqShowDone")
                     if show then
                         local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
