@@ -37,7 +37,7 @@ local EQUIP_SLOTS = {
 }
 
 local lookup   -- itemID -> true, rebuilt when the list changes
-local wornMarks = {}   -- the built page's worn marks, rechecked when gear changes
+local wornMarks = {}   -- built page -> its worn marks, rechecked when gear changes
 
 local function On()
     return S.Get("bis")
@@ -333,7 +333,9 @@ end
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, rollID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
-        for _, mark in ipairs(wornMarks) do mark:SetShown(Wearing(mark.slot, mark.itemID)) end
+        for _, marks in pairs(wornMarks) do
+            for _, mark in ipairs(marks) do mark:SetShown(Wearing(mark.slot, mark.itemID)) end
+        end
         return
     end
     if event == "LOOT_CLOSED" then
@@ -521,14 +523,20 @@ local function SlotRow(parent, x, y, width, slot, label, lit)
     local worn = row.worn
     worn.slot, worn.itemID = slot, id
     worn:SetShown(Wearing(slot, id))
-    wornMarks[#wornMarks + 1] = worn
+    local marks = wornMarks[parent]
+    marks[#marks + 1] = worn
 end
 
 function ns.BuildQoLBiSPage(parent, y)
     local UI = ns.UI
     local W = UI.Widgets
     local _, h
-    wipe(wornMarks)
+    -- The main window and the BiS window can each have the page built. A build the window
+    -- has since thrown away is unparented, and its marks go with it.
+    for page in pairs(wornMarks) do
+        if not page:GetParent() then wornMarks[page] = nil end
+    end
+    wornMarks[parent] = {}
     _, h = W:Note(parent, "Pick an item for each slot from the ranking for your spec or by item ID, or "
         .. "Alt+Shift-click any item (bags, links, loot) to put it in its slot, or again to take it "
         .. "off. Listed items say so on their tooltip, are tagged in the loot feed, and ring an "
