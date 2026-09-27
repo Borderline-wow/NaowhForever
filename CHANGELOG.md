@@ -57,6 +57,15 @@
 - Gear Sets: rename a set with Ctrl-click on its bar button or the Rename button on the
   Gear Sets page. Wear While Mounted and Wear While Resting follow the new name.
 
+- Buffs & Consumables (AuraBuffs) now works: a row of icons for missing food, flask and
+  elixir buffs in dungeons and raids, or wherever you choose under Show In. It can warn a
+  few minutes before a buff runs out, and skips anything you do not carry.
+- Scrolls in your bags show until you read them.
+- Raid Buff Reminders shows how many in your group are missing Arcane Intellect,
+  Fortitude, Divine Spirit, Mark of the Wild or a Blessing.
+- Move the icons in Unlock Mode. Reminders pause in combat, since Forever hides auras from
+  addons then, and pick up again after.
+
 ## 0.5.12-beta
 
 ### Added

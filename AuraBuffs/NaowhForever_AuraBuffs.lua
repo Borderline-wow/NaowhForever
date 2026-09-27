@@ -39,18 +39,19 @@ local ITEM_ORDER = { "auto", "stone", "potion" }
 function ns.BuildAuraBuffsPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE .. " Buff reminders pause during combat: the game "
-        .. "hides your buffs from addons until the fight ends, and they pick up again after.",
-        y); y = y - h
+    _, h = W:Note(parent, "Buff reminders pause during combat: the game hides your buffs from "
+        .. "addons until the fight ends, and they pick up again after.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "FOOD, ELIXIRS & FLASKS" .. STATUS.limited, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("food", "Food Buff", "Reminds you to eat when your Well Fed buff is missing."),
-        S.Toggle("flasks", "Flasks")
+        S.Toggle("flasks", "Flasks",
+            "Flask of the Titans, Distilled Wisdom, Supreme Power or Chromatic Resistance.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("elixirs", "Elixirs",
-            "Battle and guardian elixirs are tracked separately, so one of each counts."),
+            "One reminder for each kind of elixir you carry, Agility or Spell Damage for "
+            .. "example, while none of that kind is up."),
         S.Dropdown("consumablesWhere", "Show In", WHERE_VALUES, WHERE_ORDER)
     ); y = y - h
     _, h = W:DualRow(parent, y,
@@ -70,14 +71,18 @@ function ns.BuildAuraBuffsPage(parent, y)
             "A scroll you loot, Scroll of Spirit for example, joins your buff reminders "
             .. "until you read it."),
         S.Toggle("scrollsSkipActive", "Skip If That Buff Is Up",
-            "Stays quiet while you already have a buff of the same type.", "scrolls")
+            "Stays quiet while you already have that stat from a scroll, or from Arcane "
+            .. "Intellect, Fortitude or Divine Spirit.", "scrolls")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "RAID BUFFS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("raidBuffs", "Raid Buff Reminders",
-            "Missing class buffs in your group, out of combat."),
-        S.Toggle("raidBuffsOwn", "Only Buffs I Can Cast", nil, "raidBuffs")
+            "Missing class buffs in your group, out of combat, with how many are missing "
+            .. "them. A camp buff standing in for one, the Incense Candle for Arcane Intellect "
+            .. "for example, is not seen, so it still counts as missing."),
+        S.Toggle("raidBuffsOwn", "Only Buffs I Can Cast",
+            "Off: every buff a class in your group can cast.", "raidBuffs")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "DISPLAY", y); y = y - h
@@ -92,7 +97,6 @@ end
 function ns.BuildCampfirePage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
     local _, names, order = ns.SoundChoices()
     names.none = "None"
@@ -139,7 +143,6 @@ end
 function ns.BuildLowHealthPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
     _, h = W:SectionHeader(parent, "LOW HEALTH" .. STATUS.ready, y); y = y - h
     _, h = W:DualRow(parent, y,

@@ -107,4 +107,6 @@ Macros\NaowhForever_Macros.lua
 AuraBuffs\NaowhForever_AuraBuffs.lua
 AuraBuffs\NaowhForever_Campfire.lua
 AuraBuffs\NaowhForever_LowHealth.lua
+AuraBuffs\NaowhForever_BuffReminderData.lua
+AuraBuffs\NaowhForever_BuffReminders.lua
 Core\NaowhForever_PatchNotes.lua
