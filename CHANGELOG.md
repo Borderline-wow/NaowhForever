@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- BiS List: item names no longer show as "item 12345" the first time you open a gear
+  slot. An item the server could not load held back every other name in that slot until
+  you clicked something.
+
 ## 0.5.12-beta
 
 ### Added
