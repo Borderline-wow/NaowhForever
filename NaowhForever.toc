@@ -85,6 +85,7 @@ QoL\NaowhForever_Crosshair.lua
 QoL\NaowhForever_LootFeed.lua
 QoL\NaowhForever_AuctionPrices.lua
 QoL\NaowhForever_XPTicker.lua
+QoL\NaowhForever_XPBar.lua
 QoL\NaowhForever_Restock.lua
 DungeonQuests\NaowhForever_DungeonQuestData.lua
 DungeonQuests\NaowhForever_DungeonQuests.lua

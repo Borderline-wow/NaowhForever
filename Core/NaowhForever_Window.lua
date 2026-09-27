@@ -683,6 +683,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.ToggleQuiz()
     elseif cmd == "xp" and ns.XPTickerCommand then
         ns.XPTickerCommand(arg)
+    elseif cmd == "dungeon" and ns.ToggleDungeonQuests then
+        ns.ToggleDungeonQuests()
     elseif cmd == "ranks" and ns.TrainerRankCheck then
         ns.TrainerRankCheck()
     elseif cmd == "townaudit" and ns.TownAudit then
@@ -714,4 +716,3 @@ launcherEvents:SetScript("OnEvent", function(self)
     LibStub("LibDBIcon-1.0"):Register("NaowhForever", launcher, account.minimap)
 end)
 launcherEvents:RegisterEvent("PLAYER_LOGIN")
-

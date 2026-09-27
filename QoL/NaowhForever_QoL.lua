@@ -47,11 +47,15 @@ local S = UI.ModuleSettings("qol", {
     xpTicker = true, xpTickerLevel = true, xpTickerElapsed = false, xpTickerTotal = false,
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24,
     xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true,
+    xpBar = false, xpBarPlayed = false, xpBarSession = false, xpBarLeveling = false,
+    xpBarCompleted = false, xpBarIncomplete = false, xpBarMaxLevel = false,
+    xpBarResetOnReload = false, xpBarWidth = 520, xpBarHeight = 26,
     autoRepair = false, sellJunk = false,
     restock = true, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
     restockFood = true, restockFoodBelow = 10, restockVendor = true, restockBagsBelow = 4,
     restockBuy = false,
-    dqTracker = true, dqShowDone = false, dqAllFactions = false,
+    dqTracker = true, dqShowDone = false, dqAllFactions = false, dqOutside = false,
+    dqSingle = false, dqSelected = "",
     townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
     townVendors = false, townPinSize = 16,
@@ -185,6 +189,39 @@ function ns.BuildQoLGeneralPage(parent, y)
     _, h = W:Button(parent, "Reset XP per Hour", y, function()
         if ns.ResetXPTicker then ns.ResetXPTicker() end
     end); y = y - h
+
+    _, h = W:SectionHeader(parent, "XP BAR" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("xpBar", "XP Bar",
+            "Your level, experience and percentage on one bar, with the XP of completed "
+            .. "quests (gold) and rested experience (dark blue) drawn past the fill. Replaces "
+            .. "Blizzard's experience bar while it is on. Move it in Unlock Mode."),
+        S.Toggle("xpBarMaxLevel", "Show Bar at Max Level", nil, "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("xpBarPlayed", "Played Time Text",
+            "Total played time and time played on this level.", "xpBar"),
+        S.Toggle("xpBarSession", "Session Time Text", "How long this session has run.", "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("xpBarLeveling", "Leveling Time & XP/Hour Text",
+            "Time to the next level at this session's rate, and the rate itself.", "xpBar"),
+        S.Toggle("xpBarCompleted", "Completed & Rested Text",
+            "The XP of quests ready to turn in and your rested experience, as a share of "
+            .. "this level.", "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("xpBarIncomplete", "Show Incomplete Quests Bar",
+            "The XP of quests still in progress, as a faded segment after the completed ones.",
+            "xpBar"),
+        S.Toggle("xpBarResetOnReload", "Reset Session Time and XP/Hour on Reload UI",
+            "Off: a /reload carries on the session. A fresh login always starts a new one.",
+            "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("xpBarWidth", "Width", 200, 1200, 10, nil, "xpBar"),
+        S.Slider("xpBarHeight", "Height", 14, 48, 1, nil, "xpBar")
+    ); y = y - h
 
     _, h = W:SectionHeader(parent, "QUESTING" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
