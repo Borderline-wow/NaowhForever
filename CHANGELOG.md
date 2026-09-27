@@ -3,11 +3,11 @@
 ## Unreleased
 
 ### Added
-- Top Bar module: friends and guild on the left, the clock in the middle, your
-  Hearthstone and addon buttons on the right, FPS and latency underneath. Dungeon Quests
-  and BiS List are on it by default, and any addon's broker button can be added from its
-  Buttons section, on the left or the right. Move it in Unlock Mode. It replaces NaowhUI's
-  top bar on Forever.
+- Top Bar module: friends and guild on the left, the clock in the middle, addon buttons
+  on either side, FPS and latency underneath. Dungeon Quests and BiS List are on it by
+  default, and any addon's broker button can be added from its Buttons section, on the
+  left or the right, along with an optional Hearthstone button. Move it in Unlock Mode.
+  It replaces NaowhUI's top bar on Forever.
 - Every module with its own window (Dungeon Quests, Gear Sets, Blessings, BiS List, Threat
   Meter) now has a broker button, which the Top Bar and any broker display can carry, and an
   optional minimap button next to the Naowh Forever logo. Settings > Minimap Buttons turns

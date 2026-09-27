@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
---  NaowhForever_TopBar.lua -- [friends guild] [clock] [hearth] across the top of the screen,
---  addon buttons on either side, FPS / MS under it. Friends, guild and hearth are secure
---  buttons; the rest are any addon's LibDataBroker source, Dungeon Quests and BiS List by
---  default.
+--  NaowhForever_TopBar.lua -- [friends guild] [clock] across the top of the screen, addon
+--  buttons on either side and an optional Hearthstone, FPS / MS under it. Friends, guild and
+--  hearth are secure buttons; the rest are any addon's LibDataBroker source, Dungeon Quests
+--  and BiS List by default.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
@@ -13,7 +13,7 @@ local S = UI.ModuleSettings("topBar", {
     -- The clock font is EllesmereUI's, found through SharedMedia; without it the Global Font.
     iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", use24h = true,
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
-    hideInCombat = false,
+    hideInCombat = false, showHearth = false,
     showSystem = true, systemTooltip = true, sysSize = 13, tooltipScale = 120,
     brokers = { "NaowhForeverDQ", "NaowhForeverBiS" },
     brokerSide = {},   -- [name] = "left"; anything else goes on the right
@@ -421,6 +421,7 @@ local function Build()
         line:SetPoint("BOTTOMLEFT", seg, "BOTTOMLEFT")
         line:SetPoint("BOTTOMRIGHT", seg, "BOTTOMRIGHT")
         line:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 0.55)
+        seg.line = line
         bar.segs[i] = seg
     end
 
@@ -518,9 +519,10 @@ local function Layout(group, keys)
 end
 
 -- Chosen brokers go on the outer edge of their side: before friends and guild on the left,
--- after the Hearthstone on the right, each in the order they were switched on.
+-- after the Hearthstone (when shown) on the right, each in the order they were switched on.
 local function GroupKeys()
-    local left, right = {}, { "hearth" }
+    local left, right = {}, {}
+    if S.Get("showHearth") then right[1] = "hearth" else buttons.hearth:Hide() end
     for key, b in pairs(buttons) do
         if key:find("^ldb:") then b:Hide() end
     end
@@ -614,6 +616,8 @@ local function Apply()
     segR:ClearAllPoints()
     segR:SetPoint("TOPLEFT", rightGroup, "TOPLEFT", -SEG_PAD, 0)
     segR:SetPoint("BOTTOMRIGHT", rightGroup, "BOTTOMRIGHT", SEG_PAD, 0)
+    segR:SetShown(#right > 0)
+    segR.line:SetShown(#right > 0)
     segC:ClearAllPoints()
     segC:SetPoint("LEFT", clockText, "LEFT", -(SEG_PAD + 4), 0)
     segC:SetPoint("RIGHT", clockText, "RIGHT", SEG_PAD + 4, 0)
@@ -646,9 +650,9 @@ end)
 function ns.BuildTopBarPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, "Friends and guild on the left, the clock in the middle, your "
-        .. "Hearthstone and addon buttons on the right, with FPS and latency underneath. "
-        .. "Move it in Unlock Mode.", y); y = y - h
+    _, h = W:Note(parent, "Friends and guild on the left, the clock in the middle, addon "
+        .. "buttons on either side, with FPS and latency underneath. Move it in Unlock Mode.",
+        y); y = y - h
 
     _, h = W:SectionHeader(parent, "BAR", y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -686,6 +690,11 @@ function ns.BuildTopBarPage(parent, y)
 
     -- Every broker source with an icon, from any addon, each with the side it goes on.
     _, h = W:SectionHeader(parent, "BUTTONS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("showHearth", "Hearthstone", "Uses your Hearthstone. Its tooltip shows where "
+            .. "it is set and its cooldown.", "enabled"),
+        { type = "label", text = "" }
+    ); y = y - h
     local ldb = LDB()
     if ldb then
         local names = {}
