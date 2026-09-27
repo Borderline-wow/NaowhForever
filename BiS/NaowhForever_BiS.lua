@@ -943,7 +943,7 @@ local function RunNext(list)
     local places, byName = {}, {}
     for slot in pairs(SLOT_NAME) do
         local id = list.slots[slot]
-        local source = id and ns.BiSData.sources[id]
+        local source = id and ns.BiSSource(id)
         if source and not Owned(slot, id) then
             local name = Place(source)
             local p = byName[name]
@@ -1093,7 +1093,7 @@ local function SourcePanel(parent, x, y, width)
                 b.place:SetText("")
             else
                 b.toggle:SetNormalTexture(openSlots[slot] and MINUS or PLUS)
-                b.place:SetText((Place(ns.BiSData.sources[picks[1]] or "Source not listed")))
+                b.place:SetText((Place(ns.BiSSource(picks[1]) or "Source not listed")))
                 named[#named + 1] = b
                 ids[#ids + 1] = picks[1]
             end
@@ -1104,7 +1104,7 @@ local function SourcePanel(parent, x, y, width)
                     row:SetPoint("RIGHT", f, "RIGHT")
                     row.id = id
                     row.num:SetText(i .. ".")
-                    local place, detail = Place(ns.BiSData.sources[id] or "Source not listed")
+                    local place, detail = Place(ns.BiSSource(id) or "Source not listed")
                     row.source:SetText(detail and detail .. ", " .. place or place)
                     named[#named + 1] = row
                     ids[#ids + 1] = id

@@ -328,7 +328,8 @@ local function RunNextFixture(sources, worn, carried)
         return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
     end
     local env = setmetatable({
-        ns = { BiSData = { sources = sources } },
+        ns = { BiSData = { sources = sources },
+            BiSSource = function(id) return sources[id] end },
         SLOT_NAME = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [11] = "Ring 1", [12] = "Ring 2" },
         GetInventoryItemID = function(_, slot) return worn[slot] end,
         C_Item = { GetItemCount = function(id, bank) return bank and carried[id] or 0 end },
