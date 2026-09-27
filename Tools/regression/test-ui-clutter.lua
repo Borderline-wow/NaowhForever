@@ -1,4 +1,4 @@
-local f = assert(io.open(arg[1] or "NaowhForever_UIClutter.lua", "rb"))
+local f = assert(io.open(arg[1] or "QoL/NaowhForever_HideClutter.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 
 local function Compile(env)
@@ -28,7 +28,7 @@ local function Session(settings, account, cvars)
     function ns.Apply() end
     local env = {
         _G = { NaowhForever = ns },
-        pairs = pairs,
+        pairs = pairs, ipairs = ipairs,
         CreateFrame = function() local fr = Frame(); boot = fr; return fr end,
         hooksecurefunc = function(t, name, post)
             if type(t) ~= "table" then return end

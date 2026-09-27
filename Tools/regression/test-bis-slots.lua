@@ -62,7 +62,7 @@ local function Fixture(saved)
         end,
     }, { __index = _G })
     env._G = env
-    local chunk = assert(loadfile(root .. "/NaowhForever_BiS.lua", "t", env))
+    local chunk = assert(loadfile(root .. "/BiS/NaowhForever_BiS.lua", "t", env))
     if setfenv then setfenv(chunk, env) end
     chunk()
     e.ns, e.vault = ns, vault

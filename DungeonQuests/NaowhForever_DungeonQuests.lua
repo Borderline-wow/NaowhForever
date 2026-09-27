@@ -158,18 +158,18 @@ local function Row(parent, y, text, sub, onWaypoint)
     local x = UI.CONTENT_PAD + 20
     local width = (parent:GetWidth() or 0) > 0 and parent:GetWidth() or 960
     if onWaypoint then
-        local btn = ns.Button(parent, "Waypoint", 80, 20, onWaypoint)
+        local btn = UI.KeepButton(parent, "waypoint", "Waypoint", 80, 20, onWaypoint)
         btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x, y - 2)
         width = width - 90
     end
-    local fs = ns.Font(parent, 13, nil)
+    local fs = UI.KeepFont(parent, "quest", 13, nil)
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - 4)
     fs:SetWidth(width - x * 2)
     fs:SetJustifyH("LEFT")
     fs:SetText(text)
     local h = math.ceil(fs:GetStringHeight()) + 4
     if sub then
-        local s = ns.Font(parent, 11, nil, T.muted)
+        local s = UI.KeepFont(parent, "questSub", 11, nil, T.muted)
         s:SetPoint("TOPLEFT", fs, "BOTTOMLEFT", 14, -2)
         s:SetWidth(width - x * 2 - 14)
         s:SetJustifyH("LEFT")

@@ -306,8 +306,10 @@ local function Apply()
     -- The rate falls and the clock runs while you stand still, so the text is redrawn on a
     -- slow clock too; a running split needs a one-second clock to read as a timer.
     local rate = S.Get("xpTickerSplits") and 1 or 5
+    -- Nothing to count at max level, where the ticker stays hidden.
+    if AtMaxLevel() and not unlocked then rate = nil end
     if clock and clockRate ~= rate then clock:Cancel(); clock = nil end
-    if not clock then clock, clockRate = C_Timer.NewTicker(rate, Update), rate end
+    if rate and not clock then clock, clockRate = C_Timer.NewTicker(rate, Update), rate end
     ticker.mover:SetShown(unlocked == true)
     Update()
 end

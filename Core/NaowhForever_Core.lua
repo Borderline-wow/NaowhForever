@@ -28,7 +28,7 @@ end
 -- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
 -- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
 -- not sent means the files changed under a running client and the capture predates them.
-ns.CODE_BUILD = "0.5.11-beta"
+ns.CODE_BUILD = "0.5.12-beta"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -161,7 +161,8 @@ function ns.Solid(parent, layer, color, alpha)
     return t
 end
 
--- btn.label is exposed so a reused button can be re-labelled on each open.
+-- btn.label is exposed so a reused button can be re-labelled on each open, and btn._onClick
+-- so it can be pointed at a new action.
 function ns.Button(parent, text, w, h, onClick)
     local T = ns.THEME
     local btn = CreateFrame("Button", nil, parent)
@@ -173,7 +174,8 @@ function ns.Button(parent, text, w, h, onClick)
     lbl:SetPoint("CENTER")
     lbl:SetText(ns.L(text))
     btn.label = lbl
-    btn:SetScript("OnClick", function() if onClick then onClick() end end)
+    btn._onClick = onClick
+    btn:SetScript("OnClick", function() if btn._onClick then btn._onClick() end end)
     btn:SetScript("OnEnter", function()
         bg:SetColorTexture(T.panel.r, T.panel.g, T.panel.b, 1)
         border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
@@ -205,25 +207,32 @@ function ns.SpecName(specID)
     return name
 end
 
-function ns.Tooltip(frame, title, body)
-    -- Composed at HOVER time, not attach time: the tooltip accepts a function and
-    -- resolves it on show, and a body that is itself a function can answer from data that
-    -- did not exist yet when the row was built -- spell text loads async.
-    local function Compose()
-        local b = body
-        if type(b) == "function" then b = b() end
-        if b and b ~= "" then
-            return "|cff0091ed" .. title .. "|r\n" .. b
-        end
-        return title
+-- Composed at HOVER time, not attach time: the tooltip accepts a function and resolves it on
+-- show, and a body that is itself a function can answer from data that did not exist yet when
+-- the row was built -- spell text loads async.
+local function ComposeTooltip(frame)
+    local b = frame._tipBody
+    if type(b) == "function" then b = b() end
+    if b and b ~= "" then
+        return "|cff0091ed" .. frame._tipTitle .. "|r\n" .. b
     end
+    return frame._tipTitle
+end
+
+-- The text lives on the frame and the hooks go on once, so a frame the options window reuses
+-- takes new text without stacking another pair of hooks each time.
+function ns.Tooltip(frame, title, body)
+    frame._tipTitle, frame._tipBody = title, body
+    if frame._tipHooked then return end
+    frame._tipHooked = true
     -- Hooked, not set: ns.Button already owns OnEnter/OnLeave for its hover highlight, and
     -- SetScript here silently replaced it -- every button carrying a tooltip stopped
     -- lighting up on hover.
     frame:HookScript("OnEnter", function(self)
         local UI = ns.UI
         if UI and UI.ShowWidgetTooltip then
-            UI.ShowWidgetTooltip(self, Compose, { anchor = "cursor", justify = "LEFT" })
+            UI.ShowWidgetTooltip(self, function() return ComposeTooltip(self) end,
+                { anchor = "cursor", justify = "LEFT" })
         end
     end)
     frame:HookScript("OnLeave", function()
@@ -243,23 +252,32 @@ end
 -- hosts on its own strata, above any of this); it stays because bounded is the point.
 local nextModalLevel = 10
 
--- One live modal per key. Callers build their contents fresh on every open, so without
--- an identity the same button pressed twice leaves two live copies stacked on screen --
--- reported on the pack importer, but true of every dialog here. Retiring the previous
--- copy under the same key is all that is needed: WoW frames cannot be destroyed, and
--- hiding an orphaned one is as close to releasing it as the API allows.
+-- One shell per key, handed back on every open. WoW frames are never freed, so a dialog
+-- built from new frames on each open kept every earlier copy for the rest of the session.
+-- The panel reuses what is built on it the way the options window's pages do (UI.Keep), so
+-- a dialog builds its parts once and fills them in on each open. Opening a key that is
+-- already up closes that copy first -- the same button pressed twice still leaves one.
 --
 -- Nested dialogs keep DIFFERENT keys (the reminder editor opens from inside the instance
 -- modal and both must stay up), so this never closes a parent to open its child.
-local liveModals = {}
+local shells = {}
 
 -- A dimmed modal shell: click-off to dismiss, house border and panel fill. Returns the
 -- dimmer (show/hide this) and the panel to fill. `key` names the dialog; pass one unless
--- several copies are genuinely meant to coexist.
+-- several copies are genuinely meant to coexist. dimmer.onClose, set by the caller after
+-- opening, runs once when this open closes.
 function ns.MakeModal(width, height, key)
-    if key and liveModals[key] then
-        liveModals[key]:Hide()
-        liveModals[key] = nil
+    local shell = key and shells[key]
+    if shell then
+        shell.dimmer:Hide()
+        shell.dimmer.onClose = nil
+        local panel = shell.panel
+        panel:SetSize(width, height)
+        panel:SetScale(ns.UIScale())
+        panel:ClearAllPoints()
+        panel:SetPoint("CENTER")
+        ns.UI.BeginReusableRows(panel)
+        return shell.dimmer, panel
     end
     local dimmer = CreateFrame("Frame", nil, UIParent)
     dimmer:SetAllPoints(UIParent)
@@ -281,9 +299,8 @@ function ns.MakeModal(width, height, key)
     -- Draggable from any empty background area, the same way EllesmereUI's own windows
     -- move -- a click that lands on a button or edit box is intercepted by that child
     -- first, so this only ever engages on the parts of the panel nothing else claimed.
-    -- Not saved: most of these popups are rebuilt fresh on every open (see their own
-    -- comments), so there is nowhere sensible to persist a position across that, and it
-    -- would look odd for a small popup to inherit wherever a much larger one was dragged.
+    -- Not saved, and re-centred on every open: it would look odd for a popup to reopen
+    -- wherever it was last dragged to, for a different thing entirely.
     panel:SetMovable(true)
     panel:RegisterForDrag("LeftButton")
     panel:SetScript("OnDragStart", function(self) self:StartMoving() end)
@@ -334,52 +351,67 @@ function ns.MakeModal(width, height, key)
         panel:SetFrameLevel(nextModalLevel + 5)
     end)
     dimmer:Hide()
+    dimmer:SetScript("OnHide", function(self)
+        local fn = self.onClose
+        self.onClose = nil
+        if fn then fn() end
+    end)
 
-    if key then liveModals[key] = dimmer end
+    ns.UI.BeginReusableRows(panel)
+    if key then shells[key] = { dimmer = dimmer, panel = panel } end
     return dimmer, panel
 end
 
 -- A one-line text prompt with Save and Cancel. maxLetters 0 allows any length, for pasting
 -- import strings; text starts in the box highlighted, so a shown export can be copied.
-function ns.PromptText(title, text, maxLetters, onAccept)
-    local dimmer, panel = ns.MakeModal(360, 130, "promptText")
-    local head = ns.Font(panel, 14, "OUTLINE")
-    head:SetPoint("TOP", 0, -14)
-    head:SetText(title)
-    local box = CreateFrame("EditBox", nil, panel)
-    box:SetPoint("TOP", head, "BOTTOM", 0, -12)
-    box:SetSize(320, 28)
-    box:SetAutoFocus(true)
-    box:SetMaxLetters(maxLetters or 60)
+-- A text box on the house background and border, for dialogs to keep with UI.Keep.
+function ns.NewEditBox(parent)
+    local box = CreateFrame("EditBox", nil, parent)
+    box:SetAutoFocus(false)
     box:SetFontObject("GameFontHighlight")
     box:SetTextInsets(6, 6, 0, 0)
-    box:SetText(text or "")
-    box:HighlightText()
     ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
     ns.Border(box)
+    return box
+end
+
+function ns.PromptText(title, text, maxLetters, onAccept)
+    local UI = ns.UI
+    local dimmer, panel = ns.MakeModal(360, 130, "promptText")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
+    head:SetPoint("TOP", 0, -14)
+    head:SetText(title)
+    local box = UI.Keep(panel, "box", ns.NewEditBox)
+    box:SetPoint("TOP", head, "BOTTOM", 0, -12)
+    box:SetSize(320, 28)
+    box:SetMaxLetters(maxLetters or 60)
+    box:SetText(text or "")
     local function Accept()
         local value = strtrim(box:GetText())
         if value == "" then return end
         dimmer:Hide()
         onAccept(value)
     end
-    ns.Button(panel, "Save", 96, 26, Accept):SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
-    ns.Button(panel, "Cancel", 96, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "save", "Save", 96, 26, Accept):SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
+    UI.KeepButton(panel, "cancel", "Cancel", 96, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
     box:SetScript("OnEnterPressed", Accept)
     box:SetScript("OnEscapePressed", function() dimmer:Hide() end)
     dimmer:Show()
+    box:SetFocus()
+    box:HighlightText()
 end
 
 function ns.Confirm(text, onYes)
+    local UI = ns.UI
     local dimmer, panel = ns.MakeModal(340, 110, "confirm")
-    local head = ns.Font(panel, 13, nil)
+    local head = UI.KeepFont(panel, "head", 13, nil)
     head:SetPoint("TOP", 0, -18)
     head:SetWidth(310)
     head:SetText(text)
-    ns.Button(panel, "Yes", 96, 26, function() dimmer:Hide(); onYes() end)
+    UI.KeepButton(panel, "yes", "Yes", 96, 26, function() dimmer:Hide(); onYes() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
-    ns.Button(panel, "No", 96, 26, function() dimmer:Hide() end)
+    UI.KeepButton(panel, "no", "No", 96, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
     dimmer:Show()
 end
