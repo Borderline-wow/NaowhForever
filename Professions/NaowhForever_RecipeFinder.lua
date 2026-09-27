@@ -19,8 +19,6 @@ local list, rows = {}, {}
 local state, selected
 local offset = 0
 
-local IsKnown = IsPlayerSpell or (C_SpellBook and C_SpellBook.IsSpellKnown)
-
 local function On()
     return S.Get("enabled") and S.Get("recipeFinder")
 end
@@ -74,7 +72,7 @@ end
 local function Learned(spell)
     local info = C_TradeSkillUI.GetRecipeInfo(spell)
     if info and info.learned then return true end
-    return IsKnown and IsKnown(spell) or false
+    return C_SpellBook.IsSpellKnown(spell)
 end
 
 -- What profession trainers actually ask, read off their window: Forever lowered many trainer

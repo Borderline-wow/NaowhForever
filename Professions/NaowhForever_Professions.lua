@@ -1042,7 +1042,7 @@ function ns.BuildProfessionsPage(parent, y)
             .. "skill it needs, what it costs and where it comes from: the nearest trainers, the "
             .. "vendor selling its manual, or the mobs that drop it. Click a trainer or vendor "
             .. "to set a waypoint. With the Naowh window off they show in a drawer beside "
-            .. "Blizzard's. First Aid only for now.")
+            .. "Blizzard's.")
     ); y = y - h
 
     return y

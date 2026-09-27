@@ -8,9 +8,9 @@ local S = ns.QoLSettings
 local T = ns.THEME
 
 -- The level in its difficulty colour and the title white; the state sits in a column on the
--- right of each line. In log is the quest log's own in-progress yellow. Ready is one in your
--- log with its objectives done, in the quest log's completed green; "Ready" rather than
--- "Complete" so it does not read as Completed. A completed quest fades back to grey, a check where its level would be.
+-- right of each line. In log is the quest log's own in-progress yellow. Complete is one in
+-- your log with its objectives done, in the quest log's completed green. A quest handed in
+-- reads Finished and fades to grey, with a check where its level would be.
 local MUTED = "|cff9ca3af"
 local COMPLETE = "|cff19ff19"
 local DONE = MUTED .. "Finished|r"
@@ -368,13 +368,11 @@ local function BuildPanel()
         end
     end)
     panel.close:SetPoint("TOPRIGHT", -5, -5)
-    panel.close:SetRestBorder(BLACK)
     panel.picker = ns.UI.BuildDropdownControl(panel, 324, panel:GetFrameLevel() + 3,
         dungeonValues, dungeonOrder,
         function() return S.Get("dqSelected") end,
         function(name) S.Set("dqSelected", name) end)
     panel.picker:SetPoint("TOPLEFT", panel.title, "BOTTOMLEFT", 0, -6)
-    panel.picker:SetRestBorder(BLACK)
     -- The list: one row per line, built from a pool so a redraw reuses them.
     panel.body = CreateFrame("Frame", nil, panel)
     panel.body:SetWidth(324)
