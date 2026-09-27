@@ -6,6 +6,10 @@
 - BiS List: item names no longer show as "item 12345" the first time you open a gear
   slot. An item the server could not load held back every other name in that slot until
   you clicked something.
+- Dungeon Quests: clicking a quest you have, or Track in quest log in a chain list, now
+  tracks it and selects it in your quest log instead of opening the log. Opening it from
+  the addon left the world map's quest pins blocked the next time you opened the map in
+  combat (ADDON_ACTION_BLOCKED on SetPassThroughButtons).
 
 ## 0.5.12-beta
 
