@@ -9,8 +9,11 @@ local T = ns.THEME
 
 -- In log is the quest log's own in-progress yellow.
 local DONE, ACTIVE, MISSING = "Completed", "|cffffd100In log|r", "|cfff87171Missing|r"
--- A completed quest is drawn whole in the quest log's own completed green.
+-- A completed quest is drawn whole in the quest log's own completed green. Complete is one
+-- in your log with its objectives done; every quest in your log is boxed in that green.
 local COMPLETE = "|cff19ff19"
+local READY = COMPLETE .. "Complete|r"
+local LOG_BORDER = { r = 0x19 / 255, g = 1, b = 0x19 / 255 }
 local MUTED = "|cff9ca3af"
 
 -- Instance ID -> the dungeons that use it; Blackrock Spire holds both its halves. A new
@@ -40,6 +43,21 @@ local dismissed = {}   -- instance IDs closed by hand, until you leave
 -- in your log always are.
 local BELOW, ABOVE = 3, 6
 
+-- A dungeon is within reach from this many levels under its range to as many over it; its
+-- range is shown in the options' READY green then.
+local REACH, IN_REACH = 5, "|cff4dd17a"
+
+local function InReach(dungeon)
+    local mine = UnitLevel("player")
+    local levels = dungeon.levels
+    return levels ~= nil and mine >= levels[1] - REACH and mine <= levels[2] + REACH
+end
+
+local function LevelRange(dungeon)
+    if not dungeon.levels then return "" end
+    return ("  %s%d-%d|r"):format(InReach(dungeon) and IN_REACH or MUTED, dungeon.levels[1], dungeon.levels[2])
+end
+
 -- Part of a chain done, and the next step not picked up yet.
 local NEXT = "|cffff9933Next step|r"
 
@@ -56,8 +74,10 @@ local function OnID(ids)
     end
 end
 
-local function AnyOn(ids)
-    return OnID(ids) ~= nil
+-- The ID of whichever step or version of the quest is in your log, if any.
+local function LoggedID(quest)
+    if C_QuestLog.IsOnQuest(quest[1]) then return quest[1] end
+    return OnID(quest.alt) or OnID(quest.steps) or OnID(quest.lead)
 end
 
 local function StepDone(step)
@@ -72,9 +92,8 @@ end
 -- which only counts while you carry it.
 local function Status(quest)
     local done = C_QuestLog.IsQuestFlaggedCompleted
-    if C_QuestLog.IsOnQuest(quest[1]) or AnyOn(quest.alt) or AnyOn(quest.steps) or AnyOn(quest.lead) then
-        return ACTIVE
-    end
+    local id = LoggedID(quest)
+    if id then return C_QuestLog.IsComplete(id) and READY or ACTIVE end
     local first = done(quest[1])
     for _, id in ipairs(quest.alt or {}) do first = first or done(id) end
     local all, any = first, first
@@ -84,6 +103,10 @@ local function Status(quest)
     end
     if all then return DONE end
     return any and NEXT or MISSING
+end
+
+local function InLog(status)
+    return status == ACTIVE or status == READY
 end
 
 -- Your faction's quests and your class's class quests; all lists every quest.
@@ -118,6 +141,12 @@ local function Title(quest, plain)
     if plain then return ("[%d] %s"):format(level, name) end
     local c = GetQuestDifficultyColor(level)
     return ("|cff%02x%02x%02x[%d]|r %s"):format(c.r * 255, c.g * 255, c.b * 255, level, name)
+end
+
+-- Grey in the quest log: too far under your level to be worth picking up.
+local function Grey(quest)
+    local level = QuestLevel(quest)
+    return level ~= nil and GetQuestDifficultyColor(level) == QuestDifficultyColors.trivial
 end
 
 -- The quest's line: title, then its status; suffix sits between them (the page's faction).
@@ -186,12 +215,6 @@ local function SetWaypoint(quest)
     local map, x, y = WaypointSpot(quest)
     if not map then return end
     PlaceWaypoint(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2], map, x, y)
-end
-
--- The ID of whichever step or version of the quest is in your log, if any.
-local function LoggedID(quest)
-    if C_QuestLog.IsOnQuest(quest[1]) then return quest[1] end
-    return OnID(quest.alt) or OnID(quest.steps) or OnID(quest.lead)
 end
 
 -- The quest log opens on the world map in this engine. Not in combat: showing that panel
@@ -345,6 +368,10 @@ local function TrackerRow(i)
     row.pin:SetScript("OnClick", PinClick)
     row.pin:SetScript("OnEnter", PinTooltip)
     row.pin:SetScript("OnLeave", GameTooltip_Hide)
+    row.border = ns.Border(row, LOG_BORDER)
+    row.border._frame:ClearAllPoints()
+    row.border._frame:SetPoint("TOPLEFT", -3, 0)
+    row.border._frame:SetPoint("BOTTOMRIGHT", 3, 2)
     row:SetScript("OnClick", function(self)
         local id = self.quest and LoggedID(self.quest)
         if id then OpenInQuestLog(id) end
@@ -355,21 +382,25 @@ local function TrackerRow(i)
     return row
 end
 
--- entries: { text, quest?, pin?, indent? }. Quest rows leave room for the pin whether or
--- not they have one, so every title lines up.
+-- entries: { text, quest?, pin?, indent?, logged? }. Quest rows leave room for the pin
+-- whether or not they have one, so every title lines up; a logged row is padded inside
+-- its border.
 local function Layout(entries)
     local y = 0
     for i, entry in ipairs(entries) do
         local row = TrackerRow(i)
         local x = entry.quest and PIN + 3 or (entry.indent or 0)
+        local pad = entry.logged and 3 or 0
         row.quest = entry.quest
         row.text:ClearAllPoints()
-        row.text:SetPoint("TOPLEFT", x, 0)
+        row.text:SetPoint("TOPLEFT", x, -pad)
         row.text:SetWidth(BODY_W - x)
         row.text:SetText(entry.text)
+        row.pin:SetPoint("TOPLEFT", 0, 1 - pad)
         row.pin:SetShown(entry.pin == true)
+        row.border._frame:SetShown(entry.logged == true)
         row:EnableMouse(entry.quest ~= nil)
-        local h = math.ceil(row.text:GetStringHeight()) + 2
+        local h = math.ceil(row.text:GetStringHeight()) + 2 + pad * 2
         row:SetHeight(h)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", panel.body, "TOPLEFT", 0, -y)
@@ -386,16 +417,17 @@ local function NearLevel(quest)
     return not level or (level >= mine - BELOW and level <= mine + ABOVE)
 end
 
--- near, outside a dungeon, drops the missing quests that are not close to your level.
+-- near, outside a dungeon, drops the missing quests that are not close to your level; a
+-- missing quest grey to you is dropped everywhere.
 local function Render(dungeons, title, near)
-    local lines, inLog, missing, mine = {}, 0, 0, 0
+    local lines, inLog, missing, mine, grey = {}, 0, 0, 0, false
     local function Add(text, extra)
         extra = extra or {}
         extra.text = text
         lines[#lines + 1] = extra
     end
     for _, dungeon in ipairs(dungeons) do
-        if #dungeons > 1 or near then Add("|cff4db5f5" .. dungeon.name .. "|r") end
+        if #dungeons > 1 or near then Add("|cff4db5f5" .. dungeon.name .. "|r" .. LevelRange(dungeon)) end
         -- Completed quests go under the rest of their dungeon.
         local completed = {}
         for _, quest in ipairs(dungeon.quests) do
@@ -404,8 +436,9 @@ local function Render(dungeons, title, near)
             if status and near and (status == MISSING or status == DONE) and not NearLevel(quest) then
                 status = nil
             end
+            if status == MISSING and Grey(quest) then status, grey = nil, true end
             if status then
-                if status == ACTIVE then inLog = inLog + 1 end
+                if InLog(status) then inLog = inLog + 1 end
                 if status == MISSING or status == NEXT then missing = missing + 1 end
                 if status == DONE then
                     if S.Get("dqShowDone") then
@@ -415,7 +448,8 @@ local function Render(dungeons, title, near)
                     -- A pin on every quest in your log (it tracks the quest), and on the rest
                     -- wherever the data knows where the quest giver stands.
                     Add(QuestLine(quest, status),
-                        { quest = quest, pin = status == ACTIVE or WaypointSpot(quest) ~= nil })
+                        { quest = quest, pin = InLog(status) or WaypointSpot(quest) ~= nil,
+                          logged = InLog(status) })
                     if status == MISSING then Add(MUTED .. quest[6] .. "|r", { indent = PIN + 15 }) end
                     local nextSpot = status == NEXT and NextSpot(quest)
                     if nextSpot then
@@ -433,7 +467,8 @@ local function Render(dungeons, title, near)
     elseif mine == 0 then
         Add(MUTED .. "No quests here for your faction and class.|r")
     elseif inLog + missing == 0 and not S.Get("dqShowDone") then
-        Add(MUTED .. (near and "No dungeon quests near your level." or "All done here.") .. "|r")
+        Add(MUTED .. (near and "No dungeon quests near your level."
+            or grey and "Only quests grey to you are left here." or "All done here.") .. "|r")
     end
     local name = title or (#dungeons > 1 and "Blackrock Spire" or dungeons[1].name)
     panel.title:SetText(("%s  %s%d in log, %d missing|r"):format(name, MUTED, inLog, missing))
@@ -441,7 +476,12 @@ local function Render(dungeons, title, near)
     panel.picker:SetShown(single)
     panel.body:ClearAllPoints()
     panel.body:SetPoint("TOPLEFT", single and panel.picker or panel.title, "BOTTOMLEFT", 0, -6)
-    if single then panel.picker._refreshLabel() end
+    if single then
+        for _, dungeon in ipairs(ns.DungeonQuests) do
+            dungeonValues[dungeon.name] = dungeon.name .. LevelRange(dungeon)
+        end
+        panel.picker._refreshLabel()
+    end
     local listH = Layout(lines)
     panel:SetHeight(panel.title:GetStringHeight() + listH + 22
         + (single and panel.picker:GetHeight() + 6 or 0))
@@ -456,7 +496,7 @@ local function HasQuestsForMe(dungeons, near)
             if ForMe(quest) then
                 if not near then return true end
                 local status = Status(quest)
-                if status == ACTIVE or status == NEXT or (status == MISSING and NearLevel(quest)) then
+                if InLog(status) or status == NEXT or (status == MISSING and NearLevel(quest)) then
                     return true
                 end
             end
@@ -508,7 +548,7 @@ local function Refresh()
             S.Set("dqSelected", (dungeons and dungeons[1] or ns.DungeonQuests[1]).name)
             return
         end
-        -- A dungeon picked by hand lists all of your quests there, whatever their level.
+        -- A dungeon picked by hand lists your quests there at any level short of grey.
         dungeons, title, near = { picked }, "Dungeon Quests", nil
     end
     if not show then
@@ -566,7 +606,7 @@ end
 -------------------------------------------------------------------------------
 --  The page
 -------------------------------------------------------------------------------
-local function Row(parent, y, text, sub, onWaypoint)
+local function Row(parent, y, text, sub, onWaypoint, logged)
     local UI = ns.UI
     local x = UI.CONTENT_PAD + 20
     local width = (parent:GetWidth() or 0) > 0 and parent:GetWidth() or 960
@@ -590,6 +630,16 @@ local function Row(parent, y, text, sub, onWaypoint)
         s:SetText(sub)
         h = h + math.ceil(s:GetStringHeight()) + 2
     end
+    if logged then
+        local box = UI.Keep(parent, "questBorder", function(p)
+            local f = CreateFrame("Frame", nil, p)
+            ns.Border(f, LOG_BORDER)
+            return f
+        end)
+        box:SetPoint("TOPLEFT", parent, "TOPLEFT", x - 6, y)
+        box:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x + 6, y)
+        box:SetHeight(h + 4)
+    end
     return h + 6
 end
 
@@ -598,8 +648,8 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
     local W = UI.Widgets
     local _, h
     _, h = W:Note(parent, "Every dungeon quest on WoW Forever and where it starts, from Wowhead's "
-        .. "Forever dungeon quest guide. Levels are coloured like your quest log. Waypoint marks "
-        .. "the quest giver on your map.", y); y = y - h
+        .. "Forever dungeon quest guide. Levels are coloured like your quest log, and quests grey "
+        .. "to you are left out. Waypoint marks the quest giver on your map.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "DUNGEON QUEST TRACKER" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -626,7 +676,9 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
 
     local all = S.Get("dqAllFactions")
     for _, dungeon in ipairs(ns.DungeonQuests) do
-        local levels = dungeon.levels and ("   |cff9a9ea6LEVEL %d-%d|r"):format(dungeon.levels[1], dungeon.levels[2]) or ""
+        local levels = dungeon.levels and ("   %sLEVEL %d-%d%s|r"):format(
+            InReach(dungeon) and IN_REACH or "|cff9a9ea6", dungeon.levels[1], dungeon.levels[2],
+            InReach(dungeon) and "  IN RANGE" or "") or ""
         _, h = W:SectionHeader(parent, dungeon.name:upper() .. levels, y); y = y - h
         if #dungeon.quests == 0 then
             y = y - Row(parent, y, MUTED .. "No quests known for this dungeon yet.|r")
@@ -637,12 +689,13 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
                 if ForMe(quest, all) then
                     local status = Status(quest)
                     local show = pass == 1 and status ~= DONE
+                        and not (status == MISSING and Grey(quest))
                         or pass == 2 and status == DONE and S.Get("dqShowDone")
                     if show then
                         local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
                         y = y - Row(parent, y, QuestLine(quest, status, side),
                             quest[6] .. "  -  " .. SHARE[quest[5]],
-                            quest[7] and function() SetWaypoint(quest) end)
+                            quest[7] and function() SetWaypoint(quest) end, InLog(status))
                     end
                 end
             end

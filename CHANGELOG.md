@@ -22,6 +22,12 @@
   Site: Wetlands, City of Dalaran, The Drowned City, Krol'dok, Alcaz Prison, Blackmaw Hold,
   Shaper's Terrace) are on the page and in the dropdown now, and all nine new dungeons show
   their level range.
+- Dungeon Quests: a quest in your log has a green border on the tracker and the Dungeon
+  Quests page, and once its objectives are done it reads Complete in green instead of In
+  log, so you know it is ready to hand in.
+- Dungeon Quests: every dungeon shows its level range now, not only the new ones. Within 5
+  levels of it the range turns green, with IN RANGE on the Dungeon Quests page; the tracker
+  shows it next to each dungeon outside and in the Show Single Dungeon dropdown.
 - BiS List, Dungeon Quests, Gear Sets, Blessings and Threat Meter open in a window of their
   own, without the rest of the options: /nfbis, /nfdq, /nfgear, /nfbless and /nfthreat open
   or close each one.
@@ -80,6 +86,11 @@
   was ever written.
 - XP per Hour: Reset now also resets the XP Bar's Time to Level, XP/Hour and Session.
   They kept their own count, so resetting seemed to do nothing when reading the bar.
+
+### Changed
+- Dungeon Quests: quests grey to you are no longer listed on the tracker (in dungeons and
+  with Show Single Dungeon too) or on the Dungeon Quests page. Quests in your log and chains
+  you are partway through still show, and Show Completed still lists the ones you did.
 
 ## 0.5.12-beta
 
