@@ -54,6 +54,9 @@
   Quests to start with; choose its buttons or hide it under Settings > Micro Menu, and move
   it in Unlock Mode.
 
+- Gear Sets: rename a set with Ctrl-click on its bar button or the Rename button on the
+  Gear Sets page. Wear While Mounted and Wear While Resting follow the new name.
+
 ## 0.5.12-beta
 
 ### Added
