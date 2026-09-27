@@ -613,12 +613,18 @@ function ns.BuildQoLInterfacePage(parent, y)
     _, h = W:SectionHeader(parent, "UI CLUTTER" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("hideErrors", "Hide Error Messages",
-            "Hides the red \"not ready yet\" and \"out of range\" text."),
-        S.Toggle("hideTutorials", "Hide Tutorial Pop-ups")
+            "Hides the red error text, like \"not ready yet\" and \"out of range\", and the "
+            .. "voice line that comes with it."),
+        S.Toggle("hideTutorials", "Hide Tutorial Pop-ups",
+            "Turns off the game's tutorials and help tips. Turning this back off restores "
+            .. "what you had before.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("hideScreenshot", "Hide Screenshot Status"),
-        S.Toggle("skipCinematics", "Skip Cinematics", "Skips cinematics you have already seen.")
+        S.Toggle("hideScreenshot", "Hide Screenshot Status",
+            "Hides the \"Screen captured\" text when you take a screenshot."),
+        S.Toggle("skipCinematics", "Skip Cinematics",
+            "Skips cinematics you have already seen on this account. Each one plays the "
+            .. "first time.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("hideAlerts", "Hide Alert Pop-ups",
@@ -725,11 +731,14 @@ function ns.BuildQoLInterfacePage(parent, y)
 
     _, h = W:SectionHeader(parent, "ON-SCREEN EXTRAS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("fps", "FPS Counter"),
-        S.Toggle("localMS", "Show Local MS", nil, "fps")
+        S.Toggle("fps", "FPS Counter",
+            "Your frame rate on screen, updated every second. Move it in Unlock Mode."),
+        S.Toggle("localMS", "Show Local MS",
+            "Latency to the realm server: chat, guild and the auction house.", "fps")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("worldMS", "Show World MS", nil, "fps"),
+        S.Toggle("worldMS", "Show World MS",
+            "Latency to the world server: combat, spells and other players.", "fps"),
         { type = "label", text = "" }
     ); y = y - h
 

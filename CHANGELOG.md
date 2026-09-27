@@ -42,6 +42,12 @@
   quest log or at the quest giver, to save it for that quest in your profile. It is selected
   when you hand the quest in, and Auto Turn In takes it for you. Picks travel with the
   profile, so a shared profile comes with its rewards chosen. Suggested by Gingi.
+- UI Clutter (QoL > Interface): Hide Error Messages, Hide Tutorial Pop-ups, Hide Screenshot
+  Status and Skip Cinematics now work. Hide Error Messages also silences the voice line with
+  the red text. Turning Hide Tutorial Pop-ups off puts back the tutorial settings you had.
+  Skip Cinematics skips only cinematics already seen on this account.
+- FPS counter (QoL > Interface), with optional local and world latency. Move it in Unlock
+  Mode.
 
 ### Fixed
 - Dungeon Quests: Afadra Dunwall (The Restless Dead) is marked at her real spot in Old
