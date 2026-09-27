@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+- Top Bar module: friends and guild on the left, the clock in the middle, your
+  Hearthstone and addon buttons on the right, FPS and latency underneath. Dungeon Quests
+  and BiS List are on it by default, and any addon's broker button can be added from its
+  Buttons section, on the left or the right. Move it in Unlock Mode. It replaces NaowhUI's
+  top bar on Forever.
+- Every module with its own window (Dungeon Quests, Gear Sets, Blessings, BiS List, Threat
+  Meter) now has a broker button, which the Top Bar and any broker display can carry, and an
+  optional minimap button next to the Naowh Forever logo. Settings > Minimap Buttons turns
+  those on; they start off.
+
+### Removed
+- The micro menu bar. The Top Bar carries Dungeon Quests and BiS List, and any other
+  module can be added to it.
+
 ### Fixed
 - BiS List: item names no longer show as "item 12345" the first time you open a gear
   slot. An item the server could not load held back every other name in that slot until

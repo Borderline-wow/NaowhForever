@@ -102,6 +102,7 @@ Blessings\NaowhForever_Blessings.lua
 Blessings\NaowhForever_BlessingsPage.lua
 QoL\NaowhForever_Trainer.lua
 ThreatMeter\NaowhForever_ThreatMeter.lua
+TopBar\NaowhForever_TopBar.lua
 QoL\NaowhForever_FlightData.lua
 QoL\NaowhForever_Flight.lua
 QoL\NaowhForever_QuizData.lua
