@@ -1,12 +1,8 @@
 # Changelog
 
-## 0.5.11-beta
+## Unreleased
 
 ### Added
-- Campfire: Show Only When Low keeps the camp icon hidden until Camp Benefits has less
-  time left than you choose (10 to 59 minutes, 10 by default). Off by default.
-- Campfire: while you sit at a campfire, the icon counts down the minute until Camp
-  Benefits lands, then switches to the camp's own timer.
 - XP Bar (QoL > General): level, experience and percentage on one bar, with completed
   quest XP and rested experience drawn past the fill, and optional played, session and
   levelling text underneath. Replaces Blizzard's experience bar while it is on. Off by
@@ -19,10 +15,9 @@
 - Dungeon Quest Tracker: a pin in front of each quest. On a quest you still need it marks
   the quest giver on your map; on one in your log it marks where you hand it in (the
   quest giver, or the turn-in NPC where that is someone else). Clicking a quest you have
-  opens it in your quest log.
+  opens it in your quest log. Hover a line or pin for where the quest starts.
 - Dungeon Quests: with TomTom installed, waypoints from the tracker and the Dungeon
   Quests page use TomTom's waypoint and arrow instead of the game's.
-  Hover a line or pin for where the quest starts.
 - Dungeon Quests: the seven new Forever dungeons that had no quests listed (Excavation
   Site: Wetlands, City of Dalaran, The Drowned City, Krol'dok, Alcaz Prison, Blackmaw Hold,
   Shaper's Terrace) are on the page and in the dropdown now, and all nine new dungeons show
@@ -35,11 +30,21 @@
   number as the quest log, instead of the guide's, which was often off (Leaders of the
   Fang read 15; it is 22).
 - Dungeon Quests: quests with more than one step or a version per faction now read In log
-  or Done correctly, where before they could show Missing. Covers Searching for the Lost
+  or Completed correctly, where before they could show Missing. Covers Searching for the Lost
   Satchel (Ragefire Chasm), Unending Torment and Crest of Lordaeron (Ruins of Lordaeron),
   and Allegiance to the Old Gods and The Essence of Aku'Mai (Blackfathom Deeps). A chain
   that is part done shows Next step. Crest of Lordaeron was missing and is listed now,
   and Searching for the Lost Satchel shows its real quest giver, Rahauro in Thunder Bluff.
+
+## 0.5.11-beta
+
+### Added
+- Campfire: Show Only When Low keeps the camp icon hidden until Camp Benefits has less
+  time left than you choose (10 to 59 minutes, 10 by default). Off by default.
+- Campfire: while you sit at a campfire, the icon counts down the minute until Camp
+  Benefits lands, then switches to the camp's own timer.
+
+### Fixed
 - Campfire: "Spell ID" no longer shows in the list of active camp buffs.
 - Death Release Protection (QoL > General) now works: in a dungeon or raid, Release Spirit
   has to be held down for the Hold Time before it releases, and a plain click does nothing.
