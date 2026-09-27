@@ -35,6 +35,10 @@
   and Allegiance to the Old Gods and The Essence of Aku'Mai (Blackfathom Deeps). A chain
   that is part done shows Next step. Crest of Lordaeron was missing and is listed now,
   and Searching for the Lost Satchel shows its real quest giver, Rahauro in Thunder Bluff.
+- Blessings and Restock look up which spells you know through the current spellbook call.
+  The old call only exists on Forever while deprecated APIs are loaded, so without them
+  the Blessings bar could not find your blessing ranks and class reagent restocking found
+  no spells.
 
 ## 0.5.12-beta
 

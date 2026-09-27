@@ -73,7 +73,7 @@ end
 
 local function HighestKnown(ids)
     for i = #ids, 1, -1 do
-        if IsPlayerSpell(ids[i]) then return ids[i] end
+        if C_SpellBook.IsSpellKnown(ids[i]) then return ids[i] end
     end
 end
 

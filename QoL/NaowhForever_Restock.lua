@@ -70,7 +70,7 @@ local function Wanted()
         for _, family in ipairs(FAMILIES) do
             local item
             for _, rank in ipairs(family) do
-                if IsPlayerSpell(rank[1]) then item = rank[2] end
+                if C_SpellBook.IsSpellKnown(rank[1]) then item = rank[2] end
             end
             if item and Target(item) > 0 then want[item] = Target(item) end
         end
