@@ -7,14 +7,27 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
 
--- In log is the quest log's own in-progress yellow.
-local DONE, ACTIVE, MISSING = "Completed", "|cffffd100In log|r", "|cfff87171Missing|r"
--- A completed quest is drawn whole in the quest log's own completed green. Complete is one
--- in your log with its objectives done; every quest in your log is boxed in that green.
-local COMPLETE = "|cff19ff19"
-local READY = COMPLETE .. "Complete|r"
-local LOG_BORDER = { r = 0x19 / 255, g = 1, b = 0x19 / 255 }
+-- The level in its difficulty colour and the title white; the state sits in a column on the
+-- right of each line. In log is the quest log's own in-progress yellow. Ready is one in your
+-- log with its objectives done, in the quest log's completed green; "Ready" rather than
+-- "Complete" so it does not read as Completed. A completed quest fades back to grey, a check where its level would be.
 local MUTED = "|cff9ca3af"
+local COMPLETE = "|cff19ff19"
+local DONE = MUTED .. "Finished|r"
+local ACTIVE = "|cffffd100In log|r"
+local MISSING = "|cfff87171Missing|r"
+local READY = COMPLETE .. "Complete|r"
+-- Size 0 is the font's own height, so the check does not make its line taller than the
+-- status beside it.
+local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
+-- A dark band behind every other quest on the page, so the lines are easy to follow
+-- across. Black, so it darkens the panel rather than greying it.
+local BLACK = { r = 0, g = 0, b = 0 }
+local STRIPE = BLACK
+local STRIPE_ALPHA = 0.35
+-- On the tracker each quest is a solid bar a shade darker than the dropdown above it
+-- (the theme's panel grey, 0x1a1c1f), edged in black.
+local BAR = { r = 0x14 / 255, g = 0x16 / 255, b = 0x19 / 255 }
 
 -- Instance ID -> the dungeons that use it; Blackrock Spire holds both its halves. A new
 -- dungeon whose ID is not known yet is found by the instance name instead.
@@ -110,6 +123,12 @@ local function InLog(status)
     return status == ACTIVE or status == READY
 end
 
+-- The order quests are listed in within a dungeon, the way a quest goes: still to pick up
+-- (Next step is a chain's next quest to pick up), in your log, ready to hand in, done.
+-- Data order within each.
+local RANK = { [MISSING] = 1, [NEXT] = 2, [ACTIVE] = 3, [READY] = 4, [DONE] = 5 }
+local RANKS = 5
+
 -- Your faction's quests and your class's class quests; all lists every quest.
 local function ForMe(quest, all)
     if all then return true end
@@ -134,14 +153,16 @@ local function QuestLevel(quest)
     return quest[3]
 end
 
--- plain leaves the level uncoloured, for a line that is coloured whole.
-local function Title(quest, plain)
-    local level = QuestLevel(quest)
+-- done swaps the level for a check: it no longer matters once the quest is handed in.
+-- Otherwise the level is in its difficulty colour and the title white.
+local function Title(quest, done, suffix)
+    suffix = suffix or ""
     local name = C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2]
-    if not level then return name end
-    if plain then return ("[%d] %s"):format(level, name) end
+    if done then return CHECK .. " " .. MUTED .. name .. suffix .. "|r" end
+    local level = QuestLevel(quest)
+    if not level then return name .. suffix end
     local c = GetQuestDifficultyColor(level)
-    return ("|cff%02x%02x%02x[%d]|r %s"):format(c.r * 255, c.g * 255, c.b * 255, level, name)
+    return ("|cff%02x%02x%02x[%d]|r %s%s"):format(c.r * 255, c.g * 255, c.b * 255, level, name, suffix)
 end
 
 -- Grey in the quest log: too far under your level to be worth picking up.
@@ -150,11 +171,10 @@ local function Grey(quest)
     return level ~= nil and GetQuestDifficultyColor(level) == QuestDifficultyColors.trivial
 end
 
--- The quest's line: title, then its status; suffix sits between them (the page's faction).
+-- The quest's title for its line; its status goes in the column on the right. suffix
+-- follows the title (the page's faction).
 local function QuestLine(quest, status, suffix)
-    suffix = suffix or ""
-    if status == DONE then return COMPLETE .. Title(quest, true) .. suffix .. "  " .. DONE .. "|r" end
-    return Title(quest) .. suffix .. "  " .. status
+    return Title(quest, status == DONE, suffix)
 end
 
 local SHARE = { [true] = "Shareable", [false] = "Not shareable", pre = "Needs a prerequisite" }
@@ -211,6 +231,7 @@ local function PlaceWaypoint(title, map, x, y, note)
     ns.Print(("Waypoint for %s%s: %s %.1f, %.1f"):format(title, note or "", info and info.name or "", x, y))
     return true
 end
+ns.PlaceWaypoint = PlaceWaypoint
 
 local function SetWaypoint(quest)
     local map, x, y = WaypointSpot(quest)
@@ -275,7 +296,7 @@ local function OpenChain(owner, quest)
             local state, id = StepState(step)
             local name = C_QuestLog.GetTitleForQuestID(id) or ns.DungeonQuestChainNames[id] or byID[id][2]
             local text = ("%d.  %s  %s"):format(i, name, state)
-            if state == DONE then text = COMPLETE .. ("%d.  %s  %s|r"):format(i, name, DONE) end
+            if state == DONE then text = MUTED .. ("%d.  %s|r  "):format(i, name) .. DONE end
             if i == own then text = text .. "  |cff4db5f5(this quest)|r" end
             root:CreateTitle(text, WHITE_FONT_COLOR)
         end
@@ -334,8 +355,10 @@ local function BuildPanel()
     panel:SetMovable(true)
     panel:SetClampedToScreen(true)
     panel:SetWidth(340)
-    ns.Solid(panel, "BACKGROUND", T.bg, 0.85):SetAllPoints()
-    ns.Border(panel)
+    -- Black at 70%, so the world shows faintly through, with a black border rather than the
+    -- theme's grey; the quest bars on it are solid.
+    ns.Solid(panel, "BACKGROUND", BLACK, 0.7):SetAllPoints()
+    ns.Border(panel, BLACK)
     panel.title = ns.Font(panel, 14, "OUTLINE", T.accent)
     panel.title:SetPoint("TOPLEFT", 8, -8)
     panel.title:SetPoint("RIGHT", -28, 0)
@@ -352,11 +375,13 @@ local function BuildPanel()
         end
     end)
     panel.close:SetPoint("TOPRIGHT", -5, -5)
+    panel.close:SetRestBorder(BLACK)
     panel.picker = ns.UI.BuildDropdownControl(panel, 324, panel:GetFrameLevel() + 3,
         dungeonValues, dungeonOrder,
         function() return S.Get("dqSelected") end,
         function(name) S.Set("dqSelected", name) end)
     panel.picker:SetPoint("TOPLEFT", panel.title, "BOTTOMLEFT", 0, -6)
+    panel.picker:SetRestBorder(BLACK)
     -- The list: one row per line, built from a pool so a redraw reuses them.
     panel.body = CreateFrame("Frame", nil, panel)
     panel.body:SetWidth(324)
@@ -371,7 +396,11 @@ local function BuildPanel()
     panel:Hide()
 end
 
-local PIN, BODY_W = 14, 324
+-- STATUS_W is the least room kept for the status, so short ones do not let titles run
+-- right up to them; a wider status takes what it needs. GAP is the room kept above a quest
+-- and below its last line, so each quest sits apart from the next.
+-- INSET keeps the pin and the status in from the band's edges, as the dropdown keeps its text.
+local PIN, BODY_W, STATUS_W, GAP, NUDGE, INSET = 18, 324, 64, 5, 2, 4
 
 local function RowTooltip(row)
     local quest = row.quest
@@ -425,10 +454,32 @@ local function TrackerRow(i)
     row.pin:SetScript("OnClick", PinClick)
     row.pin:SetScript("OnEnter", PinTooltip)
     row.pin:SetScript("OnLeave", GameTooltip_Hide)
-    row.border = ns.Border(row, LOG_BORDER)
-    row.border._frame:ClearAllPoints()
-    row.border._frame:SetPoint("TOPLEFT", -3, 0)
-    row.border._frame:SetPoint("BOTTOMRIGHT", 3, 2)
+    -- No set width: it sizes to its text, so a status is never cut short.
+    row.status = ns.Font(row, 12, nil)
+    row.status:SetPoint("TOPRIGHT", 0, -1)
+    row.status:SetJustifyH("RIGHT")
+    row.status:SetWordWrap(false)
+    -- The quest's bar spans the row exactly, the same width as the dropdown above. A quest
+    -- whose lines take more than one row is one bar: its rows share the fill and the side
+    -- edges, the top edge goes on its first row and the bottom edge on its last.
+    row.stripe = ns.Solid(row, "BACKGROUND", BAR, 1)
+    row.stripe:SetAllPoints()
+    row.edges = {}
+    for side, points in pairs({
+        top = { "TOPLEFT", "TOPRIGHT" }, bottom = { "BOTTOMLEFT", "BOTTOMRIGHT" },
+        left = { "TOPLEFT", "BOTTOMLEFT" }, right = { "TOPRIGHT", "BOTTOMRIGHT" },
+    }) do
+        local edge = ns.Solid(row, "ARTWORK", BLACK, 1)
+        edge:SetPoint(points[1])
+        edge:SetPoint(points[2])
+        if side == "top" or side == "bottom" then edge:SetHeight(1) else edge:SetWidth(1) end
+        row.edges[side] = edge
+    end
+    -- A 1px line in the Naowh blue in the gap between one quest's bar and the next.
+    row.divider = ns.Solid(row, "ARTWORK", T.accent, 1)
+    row.divider:SetPoint("TOPLEFT", row, "BOTTOMLEFT")
+    row.divider:SetPoint("TOPRIGHT", row, "BOTTOMRIGHT")
+    row.divider:SetHeight(1)
     row:SetScript("OnClick", function(self)
         if self.quest and Chain(self.quest) then
             OpenChain(self, self.quest)
@@ -443,30 +494,48 @@ local function TrackerRow(i)
     return row
 end
 
--- entries: { text, quest?, pin?, indent?, logged? }. Quest rows leave room for the pin
--- whether or not they have one, so every title lines up; a logged row is padded inside
--- its border.
+-- entries: { text, status?, quest?, pin?, indent?, stripe?, sub? }. Quest rows leave room
+-- for the pin whether or not they have one, so every title lines up, and for the status
+-- column, so every status lines up on the right. sub marks a quest's own line under its
+-- title, which keeps close to it: the GAP goes above the title and below the last line,
+-- and the divider in a 1px gap under the last line.
 local function Layout(entries)
     local y = 0
     for i, entry in ipairs(entries) do
         local row = TrackerRow(i)
-        local x = entry.quest and PIN + 3 or (entry.indent or 0)
-        local pad = entry.logged and 3 or 0
+        local x = INSET + (entry.quest and PIN + 3 or (entry.indent or 0))
+        local top = entry.sub and 0 or GAP
+        local bottom = entries[i + 1] and entries[i + 1].sub and 0 or GAP
         row.quest = entry.quest
         row.text:ClearAllPoints()
-        row.text:SetPoint("TOPLEFT", x, -pad)
-        row.text:SetWidth(BODY_W - x)
+        -- NUDGE lifts the line inside its row: the font leaves room above its capitals, so
+        -- text placed evenly by the numbers looks low.
+        row.text:SetPoint("TOPLEFT", x, NUDGE - 1 - top)
+        row.status:ClearAllPoints()
+        row.status:SetPoint("TOPRIGHT", -INSET, NUDGE - 1 - top)
+        row.status:SetText(entry.status or "")
+        local statusW = entry.status and math.max(STATUS_W, math.ceil(row.status:GetStringWidth())) + 6 or 0
+        row.text:SetWidth(BODY_W - x - statusW - INSET)
         row.text:SetText(entry.text)
-        row.pin:SetPoint("TOPLEFT", 0, 1 - pad)
+        -- Centred on the title's first line.
+        row.pin:SetPoint("TOPLEFT", INSET, NUDGE + 1 - top)
         row.pin:SetShown(entry.pin == true)
-        row.border._frame:SetShown(entry.logged == true)
+        local bar = entry.stripe == true
+        row.stripe:SetShown(bar)
+        row.edges.left:SetShown(bar)
+        row.edges.right:SetShown(bar)
+        row.edges.top:SetShown(bar and top > 0)
+        row.edges.bottom:SetShown(bar and bottom > 0)
+        -- Only between two quests, not under a dungeon's name or the last quest.
+        local divided = bar and bottom > 0 and entries[i + 1] ~= nil and entries[i + 1].stripe == true
+        row.divider:SetShown(divided)
         row:EnableMouse(entry.quest ~= nil)
-        local h = math.ceil(row.text:GetStringHeight()) + 2 + pad * 2
+        local h = math.ceil(row.text:GetStringHeight()) + 3 + top + bottom
         row:SetHeight(h)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", panel.body, "TOPLEFT", 0, -y)
         row:Show()
-        y = y + h
+        y = y + h + (divided and 1 or 0)
     end
     for i = #entries + 1, #panel.rows do panel.rows[i]:Hide() end
     panel.body:SetHeight(math.max(y, 1))
@@ -489,8 +558,9 @@ local function Render(dungeons, title, near)
     end
     for _, dungeon in ipairs(dungeons) do
         if #dungeons > 1 or near then Add("|cff4db5f5" .. dungeon.name .. "|r" .. LevelRange(dungeon)) end
-        -- Completed quests go under the rest of their dungeon.
-        local completed = {}
+        -- Gathered by state first, then listed in RANK order.
+        local byRank = {}
+        for r = 1, RANKS do byRank[r] = {} end
         for _, quest in ipairs(dungeon.quests) do
             local status = ForMe(quest) and Status(quest)
             if status then mine = mine + 1 end
@@ -501,25 +571,32 @@ local function Render(dungeons, title, near)
             if status then
                 if InLog(status) then inLog = inLog + 1 end
                 if status == MISSING or status == NEXT then missing = missing + 1 end
+                if status ~= DONE or S.Get("dqShowDone") then
+                    table.insert(byRank[RANK[status]], { quest = quest, status = status })
+                end
+            end
+        end
+        for r = 1, RANKS do
+            for _, item in ipairs(byRank[r]) do
+                local quest, status = item.quest, item.status
                 if status == DONE then
-                    if S.Get("dqShowDone") then
-                        completed[#completed + 1] = { text = QuestLine(quest, status), quest = quest }
-                    end
+                    Add(QuestLine(quest, status), { status = status, quest = quest, stripe = true })
                 else
                     -- A pin on every quest in your log (it tracks the quest), and on the rest
                     -- wherever the data knows where the quest giver stands.
                     Add(QuestLine(quest, status),
-                        { quest = quest, pin = InLog(status) or WaypointSpot(quest) ~= nil,
-                          logged = InLog(status) })
-                    if status == MISSING then Add(MUTED .. quest[6] .. "|r", { indent = PIN + 15 }) end
+                        { status = status, quest = quest, pin = InLog(status) or WaypointSpot(quest) ~= nil,
+                          stripe = true })
+                    if status == MISSING then
+                        Add(MUTED .. quest[6] .. "|r", { indent = PIN + 15, stripe = true, sub = true })
+                    end
                     local nextSpot = status == NEXT and NextSpot(quest)
                     if nextSpot then
-                        Add(MUTED .. "Next: " .. nextSpot[4] .. "|r", { indent = PIN + 15 })
+                        Add(MUTED .. "Next: " .. nextSpot[4] .. "|r", { indent = PIN + 15, stripe = true, sub = true })
                     end
                 end
             end
         end
-        for _, entry in ipairs(completed) do lines[#lines + 1] = entry end
     end
     local known = 0
     for _, dungeon in ipairs(dungeons) do known = known + #dungeon.quests end
@@ -532,7 +609,7 @@ local function Render(dungeons, title, near)
             or grey and "Only quests grey to you are left here." or "All done here.") .. "|r")
     end
     local name = title or (#dungeons > 1 and "Blackrock Spire" or dungeons[1].name)
-    panel.title:SetText(("%s  %s%d in log, %d missing|r"):format(name, MUTED, inLog, missing))
+    panel.title:SetText(name)
     local single = S.Get("dqSingle")
     panel.picker:SetShown(single)
     panel.body:ClearAllPoints()
@@ -667,10 +744,17 @@ end
 -------------------------------------------------------------------------------
 --  The page
 -------------------------------------------------------------------------------
-local function Row(parent, y, text, sub, onWaypoint, onChain, logged)
+-- The status column sits left of the buttons, where it would be with both of them, so it
+-- lines up down the page whichever buttons a quest has.
+local BUTTONS_W, PAGE_STATUS_W = 160, 80
+
+-- opts: { status?, stripe? }, as on the tracker.
+local function Row(parent, y, text, sub, onWaypoint, onChain, opts)
+    opts = opts or {}
     local UI = ns.UI
     local x = UI.CONTENT_PAD + 20
     local width = (parent:GetWidth() or 0) > 0 and parent:GetWidth() or 960
+    local full = width
     local right = x
     if onWaypoint then
         local btn = UI.KeepButton(parent, "waypoint", "Waypoint", 80, 20, onWaypoint)
@@ -685,7 +769,18 @@ local function Row(parent, y, text, sub, onWaypoint, onChain, logged)
     end
     local fs = UI.KeepFont(parent, "quest", 13, nil)
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - 4)
-    fs:SetWidth(width - x * 2)
+    if opts.status then
+        -- Sized to its text, like the tracker's, so it is never cut short.
+        local st = UI.KeepFont(parent, "questStatus", 13, nil)
+        st:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -(x + BUTTONS_W), y - 4)
+        st:SetJustifyH("RIGHT")
+        st:SetWordWrap(false)
+        st:SetText(opts.status)
+        local statusW = math.max(PAGE_STATUS_W, math.ceil(st:GetStringWidth()))
+        fs:SetWidth(full - x * 2 - BUTTONS_W - statusW - 10)
+    else
+        fs:SetWidth(width - x * 2)
+    end
     fs:SetJustifyH("LEFT")
     fs:SetText(text)
     local h = math.ceil(fs:GetStringHeight()) + 4
@@ -698,15 +793,14 @@ local function Row(parent, y, text, sub, onWaypoint, onChain, logged)
         s:SetText(sub)
         h = h + math.ceil(s:GetStringHeight()) + 2
     end
-    if logged then
-        local box = UI.Keep(parent, "questBorder", function(p)
-            local f = CreateFrame("Frame", nil, p)
-            ns.Border(f, LOG_BORDER)
-            return f
+    -- The band covers the whole row, buttons included, so neighbouring bands meet.
+    if opts.stripe then
+        local band = UI.Keep(parent, "questStripe", function(p)
+            return ns.Solid(p, "BACKGROUND", STRIPE, STRIPE_ALPHA)
         end)
-        box:SetPoint("TOPLEFT", parent, "TOPLEFT", x - 6, y)
-        box:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x + 6, y)
-        box:SetHeight(h + 4)
+        band:SetPoint("TOPLEFT", parent, "TOPLEFT", x - 6, y)
+        band:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -(x - 6), y)
+        band:SetHeight(h + 6)
     end
     return h + 6
 end
@@ -718,29 +812,25 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
     _, h = W:Note(parent, "Every dungeon quest on WoW Forever and where it starts, from Wowhead's "
         .. "Forever dungeon quest guide. Levels are coloured like your quest log, and quests grey "
         .. "to you are left out. Waypoint marks the quest giver on your map; Chain lists every "
-        .. "quest in its chain, in order.", y); y = y - h
+        .. "quest in its chain, in order. With the module switched on, entering a dungeon "
+        .. "shows a tracker of its quests; close it with the X, and move it in Unlock Mode.", y); y = y - h
 
+    -- The tracker's own on/off is the module switch (dqTracker), in the sidebar or the
+    -- window header, so it has no row here.
     _, h = W:SectionHeader(parent, "DUNGEON QUEST TRACKER" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("dqTracker", "Dungeon Quest Tracker",
-            "Entering a dungeon shows its quests for your faction: the ones in your log, and the "
-            .. "ones you still need, with where to get them. Close it with the X; it comes back "
-            .. "next time you enter. Move it in Unlock Mode."),
-        S.Toggle("dqShowDone", "Show Completed", "Also list the quests you have already done.")
+        S.Toggle("dqShowDone", "Show Completed", "Also list the quests you have already done."),
+        S.Toggle("dqAllFactions", "Show Both Factions",
+            "List the other faction's quests, and other classes' class quests, on this page too.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("dqAllFactions", "Show Both Factions",
-            "List the other faction's quests, and other classes' class quests, on this page too."),
         S.Toggle("dqOutside", "Show Outside Dungeons",
             "Out in the world, list the dungeons with one of your quests in the log, or one you "
             .. "still need near your level. /nf dungeon and the X on the tracker switch this "
-            .. "on and off.", "dqTracker")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            .. "on and off.", "dqTracker"),
         S.Toggle("dqSingle", "Show Single Dungeon",
             "A dropdown on the tracker picks the one dungeon it lists, with all of your quests "
-            .. "there. Entering a dungeon selects it.", "dqTracker"),
-        { type = "label", text = "" }
+            .. "there. Entering a dungeon selects it.", "dqTracker")
     ); y = y - h
 
     local all = S.Get("dqAllFactions")
@@ -752,24 +842,30 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
         if #dungeon.quests == 0 then
             y = y - Row(parent, y, MUTED .. "No quests known for this dungeon yet.|r")
         end
-        -- Two passes: open quests first, then the completed ones under them.
-        for pass = 1, 2 do
-            for _, quest in ipairs(dungeon.quests) do
-                if ForMe(quest, all) then
-                    local status = Status(quest)
-                    local show = pass == 1 and status ~= DONE
-                        and not (status == MISSING and Grey(quest))
-                        or pass == 2 and status == DONE and S.Get("dqShowDone")
-                    if show then
-                        local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
-                        local chain, step = Chain(quest)
-                        local sub = quest[6] .. "  -  " .. SHARE[quest[5]]
-                        if chain then sub = sub .. ("  -  Chain: step %d of %d"):format(step, #chain) end
-                        y = y - Row(parent, y, QuestLine(quest, status, side), sub,
-                            quest[7] and function() SetWaypoint(quest) end,
-                            chain and function(btn) OpenChain(btn, quest) end, InLog(status))
-                    end
-                end
+        -- Gathered by state first, then listed in RANK order, as on the tracker.
+        local byRank = {}
+        for r = 1, RANKS do byRank[r] = {} end
+        for _, quest in ipairs(dungeon.quests) do
+            if ForMe(quest, all) then
+                local status = Status(quest)
+                local show = status == DONE and S.Get("dqShowDone")
+                    or status ~= DONE and not (status == MISSING and Grey(quest))
+                if show then table.insert(byRank[RANK[status]], { quest = quest, status = status }) end
+            end
+        end
+        local band = false
+        for r = 1, RANKS do
+            for _, item in ipairs(byRank[r]) do
+                local quest, status = item.quest, item.status
+                band = not band
+                local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
+                local chain, step = Chain(quest)
+                local sub = quest[6] .. "  -  " .. SHARE[quest[5]]
+                if chain then sub = sub .. ("  -  Chain: step %d of %d"):format(step, #chain) end
+                y = y - Row(parent, y, QuestLine(quest, status, side), sub,
+                    quest[7] and function() SetWaypoint(quest) end,
+                    chain and function(btn) OpenChain(btn, quest) end,
+                    { status = status, stripe = band })
             end
         end
     end

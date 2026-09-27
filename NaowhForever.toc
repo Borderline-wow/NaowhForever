@@ -101,6 +101,11 @@ Blessings\NaowhForever_Blessings.xml
 Blessings\NaowhForever_Blessings.lua
 Blessings\NaowhForever_BlessingsPage.lua
 QoL\NaowhForever_Trainer.lua
+# Professions: Naowh's profession window, and where to learn each recipe you lack. The window
+# file creates the module's settings, so it loads first.
+Professions\NaowhForever_Professions.lua
+Professions\NaowhForever_RecipeData.lua
+Professions\NaowhForever_RecipeFinder.lua
 ThreatMeter\NaowhForever_ThreatMeter.lua
 QoL\NaowhForever_FlightData.lua
 QoL\NaowhForever_Flight.lua

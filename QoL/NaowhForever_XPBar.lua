@@ -186,20 +186,21 @@ local function Segment(tex, from, width, total)
     return from + w
 end
 
-local function SubLines(maxed)
+-- max is Update's, never 0: the game reports 0 for a moment after login or a reload, before
+-- the character's data has loaded.
+local function SubLines(maxed, max)
     local lines = {}
     local function Add(...) lines[#lines + 1] = table.concat({ ... }, " - ") end
     local elapsed = time() - sessionStart
 
     if not maxed and S.Get("xpBarCompleted") then
-        local max = UnitXPMax("player")
         local rested = GetXPExhaustion() or 0
         Add(LABEL .. "Completed Quests:|r " .. QUEST_HEX .. ("%.1f%%"):format(questDone / max * 100) .. "|r",
             LABEL .. "Rested Experience:|r " .. RESTED_HEX .. ("%.1f%%"):format(rested / max * 100) .. "|r")
     end
     if not maxed and S.Get("xpBarLeveling") then
         local rate = sessionXP / (math.max(elapsed, 60) / 3600)
-        local left = UnitXPMax("player") - UnitXP("player")
+        local left = math.max(max - UnitXP("player"), 0)
         Add(LABEL .. "Time to Level:|r " .. VALUE .. (rate > 0 and Duration(left / rate * 3600) or "--") .. "|r",
             LABEL .. "XP/Hour:|r " .. VALUE .. Short(rate) .. "|r")
     end
@@ -235,10 +236,8 @@ local function Update()
         bar.pct:SetText(("%.1f%%"):format(pct) .. withQuests)
     end
 
-    local boxW = math.max(math.ceil(bar.pct:GetStringWidth()) + 24, bar:GetHeight() * 3)
-    bar.box:SetWidth(boxW)
-    local total = bar:GetWidth() - boxW
-    bar.track:SetWidth(total)
+    -- The whole bar is the track: a full bar is 100%.
+    local total = bar:GetWidth()
 
     local x = Segment(bar.fill, 0, total * pct / 100, total)
     if maxed then
@@ -267,7 +266,7 @@ local function Update()
         end
     end
 
-    bar.sub:SetText(SubLines(maxed))
+    bar.sub:SetText(SubLines(maxed, max))
     bar:Show()
 end
 
@@ -326,10 +325,9 @@ local function Create()
     bar:SetClampedToScreen(true)
     ns.Solid(bar, "BACKGROUND", T.bg, 0.85):SetAllPoints()
 
-    -- The track holds the fill and segments; the box on the right holds the percentage.
+    -- The track holds the fill and segments, the full width of the bar.
     bar.track = CreateFrame("Frame", nil, bar)
-    bar.track:SetPoint("TOPLEFT")
-    bar.track:SetPoint("BOTTOMLEFT")
+    bar.track:SetAllPoints()
     bar.track:SetClipsChildren(true)
     bar.fill = bar.track:CreateTexture(nil, "ARTWORK")
     bar.fill:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -338,11 +336,7 @@ local function Create()
     bar.open = ns.Solid(bar.track, "ARTWORK", QUEST, 0.4)
     bar.rested = ns.Solid(bar.track, "OVERLAY", RESTED, 1)
 
-    bar.box = CreateFrame("Frame", nil, bar)
-    bar.box:SetPoint("TOPRIGHT")
-    bar.box:SetPoint("BOTTOMRIGHT")
-    ns.Solid(bar.box, "BACKGROUND", T.panel, 1):SetAllPoints()
-    -- Above the box, whose own frame would otherwise cover the border's right edge.
+    -- Above the track, whose own frame would otherwise cover the border.
     ns.Border(bar)._frame:SetFrameLevel(bar:GetFrameLevel() + 4)
 
     local text = CreateFrame("Frame", nil, bar)
@@ -353,7 +347,7 @@ local function Create()
     bar.value = ns.Font(text, 14, "OUTLINE")
     bar.value:SetPoint("CENTER", bar.track, "CENTER")
     bar.pct = ns.Font(text, 14, "OUTLINE")
-    bar.pct:SetPoint("CENTER", bar.box, "CENTER")
+    bar.pct:SetPoint("RIGHT", bar.track, "RIGHT", -8, 0)
     bar.sub = ns.Font(bar, 13, "OUTLINE")
     bar.sub:SetPoint("TOP", bar, "BOTTOM", 0, -4)
     bar.sub:SetJustifyH("CENTER")
