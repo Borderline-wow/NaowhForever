@@ -486,15 +486,21 @@ local function ItemTooltip(owner, itemID)
     GameTooltip:Show()
 end
 
--- Runs fn once every item in ids has loaded its name.
+-- Runs fn, at most once a frame, as items in ids load their names. An item the server fails
+-- to load never calls back, so a ContinuableContainer over ids would never finish.
 local function OnLoaded(ids, fn)
-    if #ids == 0 then
-        fn()
-        return
+    local queued
+    local function Refresh()
+        if queued then return end
+        queued = true
+        C_Timer.After(0, function()
+            queued = false
+            fn()
+        end)
     end
-    local container = ContinuableContainer:Create()
-    for _, id in ipairs(ids) do container:AddContinuable(Item:CreateFromItemID(id)) end
-    container:ContinueOnLoad(fn)
+    for _, id in ipairs(ids) do
+        if not C_Item.IsItemDataCachedByID(id) then ItemEventListener:AddCallback(id, Refresh) end
+    end
 end
 
 local pickerPanel, pickerSlot
