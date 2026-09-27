@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.12-beta
 
 ### Added
 - XP Bar (QoL > General): level, experience and percentage on one bar, with completed
@@ -62,24 +62,22 @@
   down one column, groups everything you picked by where it comes from (dungeon, zone,
   quest, crafted, world drop), with the places that hold the most BiS picks first.
 
-### Changed
-- Loot Feed: Show Reputation and Glow are off by default. Anyone who switched them on
-  keeps them on.
-- XP per Hour: the level splits read "Level 23  1/4" and so on, instead of "Split 1", so
-  each line says which level it belongs to.
-- BiS list: each slot can have one BiS pick and any number of secondary picks. A slot shows
-  its ranked items as icons: BiS with a green border and a check mark, secondary picks
-  with a yellow border, the rest with a black border. Click a slot or an icon and choose
-  Best in Slot, Secondary or Remove on an item. Tooltips, the loot feed and drop alerts
-  say when an item is a secondary pick. Your current list carries over as your BiS picks.
-- BiS list: Alt+Shift-click makes an item a slot's BiS pick when that slot has none, and a
-  secondary pick otherwise, so it never pushes out an item you already picked.
-- BiS list: picking is only from the ranking now; the Add Item by ID button and the item
-  ID entry are gone. Shared lists carry secondary picks, and older strings still import.
-  Worn replaces the tick beside a BiS pick you are wearing.
-- Dungeon Quests: quests grey to you are no longer listed on the tracker (in dungeons and
-  with Show Single Dungeon too) or on the Dungeon Quests page. Quests in your log and chains
-  you are partway through still show, and Show Completed still lists the ones you did.
+Brought over from NaowhQOL:
+- Questing (QoL > General): accept quests, hand in finished ones, and pick quests from
+  an NPC's options for you. Hold Alt to skip it.
+- Skip Loot Confirmations (QoL > Loot & Items): Need, Greed, disenchant and
+  bind-on-pickup confirmations answered for you.
+- Combat Timer (QoL > Alerts): how long the fight has run, with the time in chat when it
+  ends.
+- UI clutter (QoL > Interface): hide alert pop-ups, event toasts and zone text, and keep
+  the cursor in the game window during combat.
+- Crosshair (QoL > Interface), with a colour change and sound while your target is out
+  of melee range.
+- A new Tools tab under QoL:
+  - Auto Combat Logging in raids, asking once per raid and difficulty.
+  - Global Copy: /copy for the text under the cursor, and a hotkey that copies a
+    tooltip's spell, item or NPC ID.
+  - Custom Slash Commands that open a game window or run another command.
 
 ### Fixed
 - Dungeon Quests: Afadra Dunwall (The Restless Dead) is marked at her real spot in Old
@@ -107,27 +105,6 @@
 - XP per Hour: Reset now also resets the XP Bar's Time to Level, XP/Hour and Session.
   They kept their own count, so resetting seemed to do nothing when reading the bar.
 
-## 0.5.12-beta
-
-### Added
-Brought over from NaowhQOL:
-- Questing (QoL > General): accept quests, hand in finished ones, and pick quests from
-  an NPC's options for you. Hold Alt to skip it.
-- Skip Loot Confirmations (QoL > Loot & Items): Need, Greed, disenchant and
-  bind-on-pickup confirmations answered for you.
-- Combat Timer (QoL > Alerts): how long the fight has run, with the time in chat when it
-  ends.
-- UI clutter (QoL > Interface): hide alert pop-ups, event toasts and zone text, and keep
-  the cursor in the game window during combat.
-- Crosshair (QoL > Interface), with a colour change and sound while your target is out
-  of melee range.
-- A new Tools tab under QoL:
-  - Auto Combat Logging in raids, asking once per raid and difficulty.
-  - Global Copy: /copy for the text under the cursor, and a hotkey that copies a
-    tooltip's spell, item or NPC ID.
-  - Custom Slash Commands that open a game window or run another command.
-
-### Fixed
 These QoL settings were saved before, but nothing acted on them. They now work:
 - Stealth Reminder (QoL > General): RESTEALTH on screen while a rogue or druid is out
   of stealth and out of combat, and STEALTH while stealthed. Druids choose Cat Form only
@@ -148,6 +125,23 @@ Each on-screen reminder can be moved in Unlock Mode, and its text, colours and f
 its page.
 
 ### Changed
+- Loot Feed: Show Reputation and Glow are off by default. Anyone who switched them on
+  keeps them on.
+- XP per Hour: the level splits read "Level 23  1/4" and so on, instead of "Split 1", so
+  each line says which level it belongs to.
+- BiS list: each slot can have one BiS pick and any number of secondary picks. A slot shows
+  its ranked items as icons: BiS with a green border and a check mark, secondary picks
+  with a yellow border, the rest with a black border. Click a slot or an icon and choose
+  Best in Slot, Secondary or Remove on an item. Tooltips, the loot feed and drop alerts
+  say when an item is a secondary pick. Your current list carries over as your BiS picks.
+- BiS list: Alt+Shift-click makes an item a slot's BiS pick when that slot has none, and a
+  secondary pick otherwise, so it never pushes out an item you already picked.
+- BiS list: picking is only from the ranking now; the Add Item by ID button and the item
+  ID entry are gone. Shared lists carry secondary picks, and older strings still import.
+  Worn replaces the tick beside a BiS pick you are wearing.
+- Dungeon Quests: quests grey to you are no longer listed on the tracker (in dungeons and
+  with Show Single Dungeon too) or on the Dungeon Quests page. Quests in your log and chains
+  you are partway through still show, and Show Completed still lists the ones you did.
 - The options window no longer builds a fresh copy of a page every time a setting on it
   changes, which used memory for the rest of the session. Every page now reuses its own.
 - Popups and editors (reminder editors, pickers, confirmations, copy boxes, the gear set
