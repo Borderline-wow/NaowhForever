@@ -18,6 +18,8 @@
   module can be added to it.
 
 ### Fixed
+- Smart Reminders: the alert preview no longer shows while the module is switched off. It
+  put an empty square on screen whenever the Naowh Forever window was open, on any page.
 - BiS List: item names no longer show as "item 12345" the first time you open a gear
   slot. An item the server could not load held back every other name in that slot until
   you clicked something.
