@@ -21,8 +21,8 @@ local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 -- its rows across rebuilds instead of building new ones; only pages drawn entirely with the
 -- row widgets and UI.Keep can take it, since any other frame a builder makes would be
 -- stacked again on every rebuild.
--- A module with `command` also opens in a window of its own, from /nf<command> and a micro
--- menu button labelled `short`; `micro` puts that button on the bar by default.
+-- A module with `command` also opens in a window of its own, from /nf<command> and from its
+-- broker button, NaowhForever<short>, which the top bar and the minimap can carry.
 local SYSTEM_PAGES = {
     { name = "Settings", build = "BuildSettingsPage", reuse = true,
       subtitle = "Options for the whole addon, saved for this computer." },
@@ -50,26 +50,26 @@ local MODULES = {
     -- Settings still live in the QoL table so existing profiles carry over; each module's
     -- switch is the feature's own key rather than QoL's.
     { name = "Dungeon Quests", settings = "QoLSettings", enabledKey = "dqTracker",
-      command = "dq", short = "DQ", micro = true,
+      command = "dq", short = "DQ", icon = "Interface\\Icons\\INV_Misc_Note_01",
       subtitle = "Every dungeon quest on Forever, and a tracker for the dungeon you are in.",
       tabs = {
           { name = "Tracker", build = "BuildQoLDungeonQuestsPage", reuse = true },
       } },
     { name = "Gear Sets", settings = "QoLSettings", enabledKey = "gearSets",
-      command = "gear", short = "Gear",
+      command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
       tabs = {
           { name = "Sets", build = "BuildQoLGearSetsPage", reuse = true },
       } },
     { name = "Blessings", settings = "QoLSettings", enabledKey = "blessings",
-      command = "bless", short = "Bless",
+      command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
       subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
       tabs = {
           { name = "Bar", build = "BuildQoLBlessingsPage", reuse = true },
           { name = "Assignments", build = "BuildBlessingAssignmentsPage", reuse = true },
       } },
     { name = "BiS List", settings = "QoLSettings", enabledKey = "bis",
-      command = "bis", short = "BiS", micro = true,
+      command = "bis", short = "BiS", icon = "Interface\\Icons\\INV_Sword_39",
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
       tabs = {
           { name = "List", build = "BuildQoLBiSPage", reuse = true },
@@ -89,10 +89,15 @@ local MODULES = {
           { name = "Poison & Dispel", build = "BuildPoisonDispelPage", reuse = true },
       } },
     { name = "Threat Meter", settings = "ThreatMeterSettings",
-      command = "threat", short = "Threat",
+      command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
       tabs = {
           { name = "Meter", build = "BuildThreatMeterPage", reuse = true },
+      } },
+    { name = "Top Bar", settings = "TopBarSettings",
+      subtitle = "Friends, guild, the clock and your addon buttons across the top of the screen.",
+      tabs = {
+          { name = "Bar", build = "BuildTopBarPage", reuse = true },
       } },
     -- The reminder modules sit below a divider in the sidebar.
     { name = "Custom Reminders", settings = "CustomReminderSettings", divider = true,
@@ -134,8 +139,6 @@ local currentPage = "Settings"
 local pendingRefresh
 local onShowCallbacks, onHideCallbacks = {}, {}
 local moduleWindows = {}     -- module name -> its standalone window
-local microButtons = {}      -- module name -> its micro menu button
-local ApplyMicroMenu
 
 function UI:RegisterOnShow(fn) onShowCallbacks[#onShowCallbacks + 1] = fn end
 function UI:RegisterOnHide(fn) onHideCallbacks[#onHideCallbacks + 1] = fn end
@@ -357,18 +360,11 @@ function ns.SetWindowScale(pct)
     for _, win in pairs(moduleWindows) do win:SetScale(ns.UIScale()) end
 end
 
--- Saved for this computer, like the window scale. A button never set follows its module's
--- `micro` default.
-local function MicroDB()
+-- Saved for this computer, like the window scale, under the key of the micro menu these
+-- switches came from. Off until switched on: the top bar carries the modules.
+local function MinimapButtonOn(mod)
     local account = ns.AccountSettings()
-    account.microMenu = account.microMenu or { buttons = {} }
-    return account.microMenu
-end
-
-local function MicroButtonOn(mod)
-    local on = MicroDB().buttons[mod.name]
-    if on == nil then return mod.micro == true end
-    return on
+    return account.microMenu and account.microMenu.buttons[mod.name] == true
 end
 
 function ns.BuildSettingsPage(parent, y)
@@ -405,28 +401,22 @@ function ns.BuildSettingsPage(parent, y)
           end }
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "MICRO MENU", y); y = y - h
-    local rows = {
-        { type = "toggle", text = "Micro Menu",
-          tooltip = "A bar at the top of the screen with a button per module that opens on its "
-          .. "own. Move it in Unlock Mode. Saved for this computer.",
-          getValue = function() return not MicroDB().hide end,
-          setValue = function(v)
-              MicroDB().hide = not v
-              ApplyMicroMenu()
-              UI:RefreshPage(true)
-          end },
-    }
+    _, h = W:SectionHeader(parent, "MINIMAP BUTTONS", y); y = y - h
+    local rows = {}
     for _, mod in ipairs(MODULES) do
         if mod.command then
             rows[#rows + 1] = { type = "toggle", text = mod.name,
-                tooltip = ("A button that opens %s on its own. /nf%s does the same.")
+                tooltip = ("A minimap button that opens %s on its own. /nf%s does the same, "
+                    .. "and the Top Bar can carry it too. Saved for this computer.")
                     :format(mod.name, mod.command),
-                disabled = function() return MicroDB().hide end,
-                getValue = function() return MicroButtonOn(mod) end,
+                getValue = function() return MinimapButtonOn(mod) end,
                 setValue = function(v)
-                    MicroDB().buttons[mod.name] = v
-                    ApplyMicroMenu()
+                    local account = ns.AccountSettings()
+                    account.microMenu = account.microMenu or { buttons = {} }
+                    account.microMenu.buttons[mod.name] = v
+                    account.moduleButtons[mod.name].hide = not v
+                    local icon = LibStub("LibDBIcon-1.0")
+                    if v then icon:Show("NaowhForever" .. mod.short) else icon:Hide("NaowhForever" .. mod.short) end
                 end }
         end
     end
@@ -793,14 +783,6 @@ end
 -- out the same in both.
 local MODULE_WINDOW_H = 560
 
-local function PaintMicroButton(mod)
-    local btn = microButtons[mod.name]
-    if not btn then return end
-    local win = moduleWindows[mod.name]
-    local c = win and win:IsShown() and T.accentSoft or T.fg
-    btn.label:SetTextColor(c.r, c.g, c.b, 1)
-end
-
 local function CreateModuleWindow(mod)
     local win = CreateFrame("Frame", nil, UIParent)
     win:Hide()
@@ -868,11 +850,9 @@ local function CreateModuleWindow(mod)
             InvalidatePages(self.wrappers)
         end
         ShowModulePage(self, self.page)
-        PaintMicroButton(mod)
     end)
     win:SetScript("OnHide", function()
         if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
-        PaintMicroButton(mod)
     end)
     return win
 end
@@ -921,56 +901,6 @@ for _, mod in ipairs(MODULES) do
     end
 end
 
--- The micro menu: a button per module with a command, placed in Unlock Mode.
-local microBar, microUnlocked
-
-local function BuildMicroBar()
-    microBar = CreateFrame("Frame", "NaowhForeverMicroMenu", UIParent)
-    microBar:SetHeight(22)
-    microBar:SetMovable(true)
-    microBar:SetClampedToScreen(true)
-    for _, mod in ipairs(MODULES) do
-        if mod.command then
-            local btn = ns.Button(microBar, mod.short, 1, 22, function() ToggleModuleWindow(mod) end)
-            btn:SetWidth(math.ceil(btn.label:GetStringWidth()) + 16)
-            ns.Tooltip(btn, mod.name, "Opens or closes it on its own, as /nf" .. mod.command .. " does.")
-            microButtons[mod.name] = btn
-            PaintMicroButton(mod)
-        end
-    end
-    microBar.mover = UI.AttachMover(microBar, "Micro Menu", function(pos) MicroDB().pos = pos end)
-    local pos = MicroDB().pos
-    if pos then
-        microBar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
-    else
-        microBar:SetPoint("TOP", UIParent, "TOP", 0, -4)
-    end
-end
-
-function ApplyMicroMenu()
-    local db = MicroDB()
-    if not microBar then
-        if db.hide then return end
-        BuildMicroBar()
-    end
-    local x = 0
-    for _, mod in ipairs(MODULES) do
-        local btn = microButtons[mod.name]
-        if btn then
-            local on = MicroButtonOn(mod)
-            btn:SetShown(on)
-            if on then
-                btn:ClearAllPoints()
-                btn:SetPoint("LEFT", microBar, "LEFT", x, 0)
-                x = x + btn:GetWidth() + 2
-            end
-        end
-    end
-    microBar:SetWidth(math.max(x - 2, 1))
-    microBar:SetShown(not db.hide and x > 0)
-    microBar.mover:SetShown(microUnlocked == true)
-end
-
 -- The launcher position belongs to the account, not an imported settings profile.
 local launcherEvents = CreateFrame("Frame")
 launcherEvents:SetScript("OnEvent", function(self)
@@ -992,15 +922,26 @@ launcherEvents:SetScript("OnEvent", function(self)
     })
     LibStub("LibDBIcon-1.0"):Register("NaowhForever", launcher, account.minimap)
 
-    -- Hooked at login: RaidReminders, which defines these, loads after this file.
-    hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
-        microUnlocked = true
-        if microBar then ApplyMicroMenu() end
-    end)
-    hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
-        microUnlocked = false
-        if microBar then ApplyMicroMenu() end
-    end)
-    ApplyMicroMenu()
+    -- A launcher per module, for the top bar and any broker display, on the minimap while its
+    -- Minimap Buttons switch is on.
+    account.moduleButtons = account.moduleButtons or {}
+    for _, mod in ipairs(MODULES) do
+        if mod.command then
+            local db = account.moduleButtons[mod.name] or { minimapPos = 220 }
+            account.moduleButtons[mod.name] = db
+            db.hide = not MinimapButtonOn(mod)
+            local obj = LibStub("LibDataBroker-1.1"):NewDataObject("NaowhForever" .. mod.short, {
+                type = "launcher",
+                label = mod.name,
+                icon = mod.icon,
+                OnClick = function() ToggleModuleWindow(mod) end,
+                OnTooltipShow = function(tooltip)
+                    tooltip:AddLine(mod.name)
+                    tooltip:AddLine(ns.L("Click to open or close it on its own."), 1, 1, 1)
+                end,
+            })
+            LibStub("LibDBIcon-1.0"):Register("NaowhForever" .. mod.short, obj, db)
+        end
+    end
 end)
 launcherEvents:RegisterEvent("PLAYER_LOGIN")
