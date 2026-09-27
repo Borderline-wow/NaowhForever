@@ -18,6 +18,9 @@
   module can be added to it.
 
 ### Fixed
+- XP Bar: Blizzard's experience bar is faded out instead of hidden. Hiding it from the
+  addon tainted Edit Mode's action bar layout, so a pet or stance bar change in combat
+  was blocked (ADDON_ACTION_BLOCKED on MultiBarBottomRight). The space it took is kept.
 - Smart Reminders: the alert preview no longer shows while the module is switched off. It
   put an empty square on screen whenever the Naowh Forever window was open, on any page.
 - BiS List: item names no longer show as "item 12345" the first time you open a gear
