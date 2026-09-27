@@ -28,7 +28,7 @@ local S = UI.ModuleSettings("qol", {
     coTankAnchor = "UIParent", coTankX = 0, coTankY = 0,
 
     deleteConfirm = false, lootConfirm = false,
-    questAccept = false, questTurnIn = false, questGossip = false,
+    questAccept = false, questTurnIn = false, questGossip = false, questRewardPicks = true,
     combatTimer = false, combatTimerInstanceOnly = false, combatTimerChat = true,
     combatTimerSticky = false, combatTimerHidePrefix = false, combatTimerBackground = false,
     combatTimerColor = { r = 1, g = 1, b = 1 }, combatTimerClassColor = false,
@@ -192,13 +192,16 @@ function ns.BuildQoLGeneralPage(parent, y)
             "Accepts a quest as soon as its text opens. Hold Alt to read it first."),
         S.Toggle("questTurnIn", "Auto Turn In Quests",
             "Hands in finished quests. A quest with a choice of rewards waits for you to pick "
-            .. "one. Hold Alt to skip it.")
+            .. "one, unless you saved a reward for it. Hold Alt to skip it.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("questGossip", "Pick Quests From NPCs",
             "When an NPC offers several things, goes straight to a finished quest to hand in, "
             .. "or the first quest on offer. Works with the two options above."),
-        { type = "label", text = "" }
+        S.Toggle("questRewardPicks", "Saved Quest Rewards",
+            "Alt-click a reward you can choose, in the quest log or at the quest giver, to save "
+            .. "it for that quest in this profile; Alt-click it again to clear it. It is selected "
+            .. "when you hand the quest in, and Auto Turn In takes it for you.")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "DEATH RELEASE" .. STATUS.untested, y); y = y - h

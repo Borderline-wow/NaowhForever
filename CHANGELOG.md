@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Saved quest rewards (QoL > General > Questing): Alt-click a reward you can choose, in the
+  quest log or at the quest giver, to save it for that quest in your profile. It is selected
+  when you hand the quest in, and Auto Turn In takes it for you. Picks travel with the
+  profile, so a shared profile comes with its rewards chosen. Suggested by Gingi.
+
 ## 0.5.12-beta
 
 ### Added
