@@ -100,6 +100,12 @@ local MODULES = {
       tabs = {
           { name = "Meter", build = "BuildThreatMeterPage", reuse = true },
       } },
+    { name = "Swing Timer", settings = "SwingTimerSettings",
+      subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",
+      tabs = {
+          { name = "Bars", build = "BuildSwingTimerPage", reuse = true },
+          { name = "Timing Aids", build = "BuildSwingTimerAidsPage", reuse = true },
+      } },
     { name = "Top Bar", settings = "TopBarSettings",
       subtitle = "Friends, guild, the clock and your addon buttons across the top of the screen.",
       tabs = {

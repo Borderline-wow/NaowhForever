@@ -107,6 +107,7 @@ Professions\NaowhForever_Professions.lua
 Professions\NaowhForever_RecipeData.lua
 Professions\NaowhForever_RecipeFinder.lua
 ThreatMeter\NaowhForever_ThreatMeter.lua
+SwingTimer\NaowhForever_SwingTimer.lua
 TopBar\NaowhForever_TopBar.lua
 QoL\NaowhForever_FlightData.lua
 QoL\NaowhForever_Flight.lua

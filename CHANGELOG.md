@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- Swing Timer module: a bar for each weapon that can swing (Main Hand, Off Hand, Ranged),
+  timed by the game's own swing event, so parry haste, swing resets and haste are always
+  right. Range dimming, queued Heroic Strike / Cleave / Maul / Raptor Strike colors, class
+  colors, textures and Unlock Mode placement. Its Timing Aids tab adds a window at the end of
+  the melee swing (with optional latency), a hunter's Auto Shot cast window that turns red
+  while moving, a mark where your cast ends against the next swing, and an estimated Target
+  swing bar. Everything starts off.
 - Professions module: Naowh's profession window over Blizzard's, with your recipes by
   category, reagents and Create / Create All in the middle, and Blizzard's profession tabs
   on its edge. The overview tab shows every profession as a card. Off shows Blizzard's
