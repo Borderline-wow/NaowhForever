@@ -529,23 +529,37 @@ local function TabStrip(parent, left, mod, onClick, buttons)
     strip:SetPoint("TOPLEFT", parent, "TOPLEFT", left, -HEADER_H)
     strip:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -HEADER_H)
     strip:SetHeight(TAB_H)
-    local tx = 20
+    local row, textW = {}, 0
     for _, tab in ipairs(mod.tabs) do
         local btn = CreateFrame("Button", nil, strip)
         btn.label = ns.Font(btn, 14, nil, T.muted)
         btn.label:SetPoint("CENTER")
         btn.label:SetText(ns.L(tab.name))
-        btn:SetSize(math.ceil(btn.label:GetStringWidth()) + 30, TAB_H)
+        btn.textW = math.ceil(btn.label:GetStringWidth())
         btn.marker = ns.Solid(btn, "OVERLAY", T.accent, 1)
         btn.marker:SetPoint("BOTTOMLEFT", 6, 0)
         btn.marker:SetPoint("BOTTOMRIGHT", -6, 0)
         btn.marker:SetHeight(2)
         btn.marker:Hide()
         btn:SetScript("OnClick", function() onClick(tab.key) end)
-        btn:SetPoint("TOPLEFT", strip, "TOPLEFT", tx, 0)
         buttons[tab.key] = btn
-        tx = tx + btn:GetWidth() + 2
+        row[#row + 1] = btn
+        textW = textW + btn.textW
     end
+    -- Long tab sets (QoL) do not fit the content width at full padding; tighten it until
+    -- they stop short of the scrollbar.
+    local function Layout()
+        local avail = strip:GetWidth() - 20 - 30 - 2 * (#row - 1)
+        local pad = math.max(12, math.min(30, math.floor((avail - textW) / #row)))
+        local tx = 20
+        for _, btn in ipairs(row) do
+            btn:SetSize(btn.textW + pad, TAB_H)
+            btn:SetPoint("TOPLEFT", strip, "TOPLEFT", tx, 0)
+            tx = tx + btn:GetWidth() + 2
+        end
+    end
+    strip:SetScript("OnSizeChanged", Layout)
+    Layout()
     return strip
 end
 

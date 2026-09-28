@@ -18,6 +18,28 @@
   merchant sells for gold without a stock limit are remembered when you visit them.
 - Professions: Reagents in Bags and Reagents in Bank (both on by default) add Bags and Bank
   columns to the chosen recipe's reagents.
+
+### Changed
+- Professions: your learned recipes sit under a Learned heading that folds away, and the
+  unlearned ones are split into Learnable now, Needs more skill and Needs next rank (the
+  last two folded by default). The recipe list has a scrollbar.
+- Professions: Naowh's profession window is the only way the module shows recipes. The
+  separate Naowh Profession Window switch and the unlearned-recipes drawer beside
+  Blizzard's window are gone; the module's sidebar switch turns it all on and off.
+
+### Fixed
+- QoL's tab row no longer runs past the window edge and over the scrollbar; tabs tighten
+  their spacing to fit.
+- Threat Meter no longer throws a Lua error every update while it has a mob to show, which
+  kept it from listing any threat.
+- XP Bar: Blizzard's experience bar no longer comes back after a /reload. Its container's
+  own fade-in animation was undoing the fade.
+
+## 0.5.14-beta
+
+### Added
+- Tooltip Display (QoL > Tooltip Display): spell, item and NPC IDs under tooltips, and
+  a copy card (Ctrl+Shift+C) with the ID or its Wowhead link, outside combat.
 - Town Map: added 35 audited service NPC locations on Zephras Isle, including class and
   profession services, innkeeper, bank, auctioneer, vendors and repairs.
 - The rest of NaowhQOL that works on Forever, each off by default:
@@ -51,21 +73,17 @@
   swing bar. Everything starts off.
 - Professions module: Naowh's profession window over Blizzard's, with your recipes by
   category, reagents and Create / Create All in the middle, and Blizzard's profession tabs
-  on its edge. The overview tab shows every profession as a card. With the module off,
-  Blizzard's window shows as before.
+  on its edge. The overview tab shows every profession as a card. Off shows Blizzard's
+  window as before.
 - Unlearned Recipes: the recipes you have not learned yet, listed under your own, with the
   skill each needs, what it costs and where it comes from (nearest trainers, the vendor
   selling it, or what drops it). Click a trainer or vendor to set a waypoint. Covers every
-  crafting profession plus Cooking, Fishing and First Aid. /nf recipes prints what the
-  profession API reports.
+  crafting profession plus Cooking, Fishing and First Aid; with the Naowh window off it is
+  a drawer beside Blizzard's. /nf recipes prints what the profession API reports.
 
 ### Changed
-- Professions: your learned recipes sit under a Learned heading that folds away, and the
-  unlearned ones are split into Learnable now, Needs more skill and Needs next rank (the
-  last two folded by default). The recipe list has a scrollbar.
-- Professions: Naowh's profession window is the only way the module shows recipes. The
-  separate Naowh Profession Window switch and the unlearned-recipes drawer beside
-  Blizzard's window are gone; the module's sidebar switch turns it all on and off.
+- Threat Meter: focus tracking, class icons and rank numbers, and with Lock Window off
+  it can be dragged and resized.
 - Dungeon Quests: each quest's state sits in its own column on the right, quests are listed
   in the order you work through them (to pick up, in log, complete, finished), and a
   finished quest is greyed with a check in place of its level. The tracker draws each quest
@@ -73,8 +91,6 @@
 - XP Bar: the bar runs the full width, with the percentage inside it on the right.
 
 ### Fixed
-- XP Bar: Blizzard's experience bar no longer comes back after a /reload. Its container's
-  own fade-in animation was undoing the fade.
 - XP Bar: Time to Level and the quest and rested percentages no longer break for a moment
   after login or a reload, when the game still reports 0 XP to level.
 

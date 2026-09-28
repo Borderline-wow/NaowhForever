@@ -472,7 +472,7 @@ function Update()
         SetFollow(false); frame:Hide(); return
     end
     SetFollow(mob ~= nil and mob ~= TrackedUnit() and combat)
-    if mob and not C_Secrets.ShouldUnitThreatValuesBeSecret() then Collect(mob) else Clear() end
+    if mob then Collect(mob) else Clear() end
     if #list == 0 then
         warned, warnedMob = false, nil
         if S.Get("onlyWithThreat") then frame:Hide(); return end
