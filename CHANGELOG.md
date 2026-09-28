@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Campfire reminder: include the high-resolution campfire artwork instead of the default spell icon.
 
 ### Added
 - Professions: Next Rank Alert (on by default). Once a profession's skill is high enough

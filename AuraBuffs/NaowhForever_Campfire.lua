@@ -15,7 +15,6 @@ local CAMPFIRE_NEARBY = 1283391
 local WELCOMING_CAMPFIRE = 1229739
 -- Camp Benefits with less than this left counts as due for a refresh.
 local CAMP_LOW = 120
-local CAMP_ICON = 7808144
 local CIRCLE_MASK = "Interface\\AddOns\\NaowhForever\\Media\\circle_mask.tga"
 local CIRCLE_RING = "Interface\\AddOns\\NaowhForever\\Media\\circle_ring.tga"
 -- The time ring's colour by minutes left: green above 30, yellow above 5, red below.
@@ -51,11 +50,15 @@ local function Build()
 
     icon.tex = icon:CreateTexture(nil, "ARTWORK")
     icon.tex:SetAllPoints()
-    icon.tex:SetTexture(C_Spell.GetSpellTexture(CAMP_BENEFITS) or CAMP_ICON)
+    icon.tex:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\Campfire.tga")
+    icon.plate = icon:CreateTexture(nil, "BACKGROUND", nil, 1)
+    icon.plate:SetAllPoints()
+    icon.plate:SetColorTexture(0.14, 0.15, 0.16, 1)
     icon.mask = icon:CreateMaskTexture()
     icon.mask:SetAllPoints()
     icon.mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     icon.tex:AddMaskTexture(icon.mask)
+    icon.plate:AddMaskTexture(icon.mask)
 
     -- A black circle one pixel wider on every side, behind the icon: a 1px round border.
     icon.ring = icon:CreateTexture(nil, "BACKGROUND")
