@@ -7,7 +7,7 @@
 --  area, so Classic positions there are converted through world coordinates.
 --
 --  [uiMapID] = { { x, y, category, name, title, class token (class trainers),
---  factions ("A", "H" or "AH") }, ... }. x and y are map percentages.
+--  factions ("A", "H" or "AH"), optional NPC ID }, ... }. x and y are map percentages.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 
@@ -1516,5 +1516,43 @@ ns.TownNPCs = {
     },
     [2482] = {
         { 70.8, 50.8, "ammo", "Lenedil Moonwing", "General Goods", nil, "AH" },
+    },
+    -- Zephras Isle: September 2026 town audit; service titles/IDs matched to Forever data.
+    [2521] = {
+        { 44.9, 44.3, "profession", "Aedi Thriceforged", "Blacksmith", nil, "AH", 251913 },
+        { 43.7, 24.3, "class", "Akeri Duskblade", "Rogue Trainer", "ROGUE", "AH", 251389 },
+        { 57.7, 77.1, "bank", "Baelann Favorbreeze", "Banker", nil, "AH", 257036 },
+        { 44.8, 45.1, "trade", "Belandiel Farflight", "Trade Supplies", nil, "AH", 254360 },
+        { 43.6, 24.2, "class", "Blademaster Ren", "Warrior Trainer", "WARRIOR", "AH", 251964 },
+        { 43.1, 43.3, "inn", "Coriella Calmbreeze", "Innkeeper", nil, "AH", 254089 },
+        { 45.0, 45.1, "class", "Corsan Earthrazer", "Warrior Trainer", "WARRIOR", "AH", 254088 },
+        { 43.4, 23.5, "repair", "Destin Thriceforged", "Weapon Merchant", nil, "AH", 251364 },
+        { 59.2, 76.3, "profession", "Eaysaa Brightgust", "Enchanter", nil, "AH", 257004 },
+        { 59.5, 76.1, "repair", "Elaria Anvilwind", "Artisan Armorsmith", nil, "AH", 271478 },
+        { 45.2, 44.3, "class", "Elayaa Easewind", "Hunter Trainer", "HUNTER", "AH", 254084 },
+        { 59.7, 75.9, "profession", "Ergaan Eastwind", "Artisan Leather Goods", nil, "AH", 271483 },
+        { 59.4, 75.8, "repair", "Falfaan Halfwind", "Artisan Weapon Crafter", nil, "AH", 271465 },
+        { 43.4, 23.5, "repair", "Fevrath Skyhammer", "Armorer & Shieldcrafter", nil, "AH", 251965 },
+        { 43.0, 43.5, "profession", "Halassa Fernbreeze", "Herbalist", nil, "AH", 257021 },
+        { 58.9, 75.5, "trade", "Iallion Featherfall", "Trade Supplies", nil, "AH", 252449 },
+        { 44.7, 44.5, "profession", "Indari Sunseam", "Leatherworker", nil, "AH", 251993 },
+        { 59.6, 76.0, "profession", "Ishlee Breezewhisper", "Skinner", nil, "AH", 257003 },
+        { 43.5, 23.7, "repair", "Jolee Brightmeadows", "Cloth & Leather Armor", nil, "AH", 251365 },
+        { 43.3, 43.4, "profession", "Mendalass Tattermend", "Skinner", nil, "AH", 257024 },
+        { 44.8, 44.5, "profession", "Messana Crestwind", "Miner", nil, "AH", 257022 },
+        { 43.2, 43.3, "class", "Miriaan Mistblade", "Rogue Trainer", "ROGUE", "AH", 254087 },
+        { 45.2, 44.3, "class", "Naeluna Swiftmend", "Druid Trainer", "DRUID", "AH", 254081 },
+        { 43.2, 43.2, "profession", "Nasalanna Windsinger", "Enchanter", nil, "AH", 257020 },
+        { 43.7, 43.5, "profession", "Nyassa Swiftdraught", "Alchemist", nil, "AH", 257019 },
+        { 58.9, 75.4, "repair", "Railee Thriceforged", "Weapon Merchant", nil, "AH", 257422 },
+        { 45.1, 45.8, "class", "Shenaan Spellwind", "Mage Trainer", "MAGE", "AH", 254086 },
+        { 44.8, 44.2, "profession", "Taleen Shimmerthread", "Tailor", nil, "AH", 251991 },
+        { 59.3, 76.2, "profession", "Taliaa Brightsky", "Artisan Clothier", nil, "AH", 271480 },
+        { 44.7, 44.2, "repair", "Tephri Thriceforged", "Weapon Merchant", nil, "AH", 257421 },
+        { 42.7, 24.4, "repair", "Uualia Suncrest", "General Goods", nil, "AH", 251537 },
+        { 59.2, 76.3, "profession", "Valiena Swiftgale", "Alchemist", nil, "AH", 257005 },
+        { 44.7, 45.4, "vendor", "Veena Vericloud", "General Goods", nil, "AH", 254358 },
+        { 57.9, 77.1, "auction", "Zelena Favorbreeze", "Auctioneer", nil, "AH", 257037 },
+        { 43.8, 43.9, "vendor", "Zerril Softbreeze", "Cook", nil, "AH", 251905 },
     },
 }

@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Town Map: added 35 audited service NPC locations on Zephras Isle, including class and
+  profession services, innkeeper, bank, auctioneer, vendors and repairs.
 - The rest of NaowhQOL that works on Forever, each off by default:
   - Pet Tracker (QoL > Alerts): a warning while a hunter or warlock has no pet out or has
     it on passive, and optionally while the pet is low on health. A warlock who sacrificed
