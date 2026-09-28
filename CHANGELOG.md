@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.5.14-beta
 
 ### Added
+- Tooltip Display (QoL > Tooltip Display): spell, item and NPC IDs under tooltips, and
+  a copy card (Ctrl+Shift+C) with the ID or its Wowhead link, outside combat.
 - Town Map: added 35 audited service NPC locations on Zephras Isle, including class and
   profession services, innkeeper, bank, auctioneer, vendors and repairs.
 - The rest of NaowhQOL that works on Forever, each off by default:
@@ -45,6 +47,8 @@
   a drawer beside Blizzard's. /nf recipes prints what the profession API reports.
 
 ### Changed
+- Threat Meter: focus tracking, class icons and rank numbers, and with Lock Window off
+  it can be dragged and resized.
 - Dungeon Quests: each quest's state sits in its own column on the right, quests are listed
   in the order you work through them (to pick up, in log, complete, finished), and a
   finished quest is greyed with a check in place of its level. The tracker draws each quest
