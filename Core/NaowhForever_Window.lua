@@ -44,6 +44,7 @@ local MODULES = {
           { name = "Alerts", build = "BuildQoLAlertsPage", reuse = true },
           { name = "Interface", build = "BuildQoLInterfacePage", reuse = true },
           { name = "Tools", build = "BuildQoLToolsPage", reuse = true },
+          { name = "Tooltip Display", build = "BuildQoLTooltipPage", reuse = true },
           { name = "Trainer", build = "BuildQoLTrainerPage", reuse = true },
           { name = "Flight & Camp", build = "BuildQoLFlightPage", reuse = true },
       } },

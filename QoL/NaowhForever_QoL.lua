@@ -35,6 +35,9 @@ local S = UI.ModuleSettings("qol", {
     combatTimerFont = "", combatTimerFontSize = 32,
     combatLogger = false,
     globalCopy = false, copyTooltipIds = true, copyModifier = "CTRL", copyKey = "C",
+    tooltipDisplay = true, tooltipSpellID = true, tooltipNPCID = true, tooltipItemID = true,
+    tooltipRestricted = "hide", tooltipCopy = true, tooltipModifier = "CTRL-SHIFT", tooltipKey = "C",
+    tooltipCopyFormat = "url", tooltipWowhead = "classic",
     slashCommands = false,
     lootFeed = true, lootFeedMoney = true, lootFeedXP = false, lootFeedQuality = 1,
     lootFeedQuest = true, lootFeedRep = false,
@@ -927,5 +930,39 @@ function ns.BuildQoLFlightPage(parent, y)
         if ns.ToggleQuiz then ns.ToggleQuiz() end
     end); y = y - h
 
+    return y
+end
+
+function ns.BuildQoLTooltipPage(parent, y)
+    local W = UI.Widgets
+    local _, h
+    _, h = W:Note(parent, "Readable IDs appear below the tooltip. Hover a spell, item or NPC and press your shortcut to open a copy card. Copy cards open outside combat; typing never triggers the shortcut.", y); y = y - h
+    _, h = W:SectionHeader(parent, "TOOLTIP DISPLAY", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("tooltipDisplay", "Tooltip Display"),
+        S.Dropdown("tooltipRestricted", "Restricted IDs", { hide = "Hide Line", hidden = "Show Hidden" }, { "hide", "hidden" }, nil, "tooltipDisplay")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("tooltipSpellID", "Show Spell ID", nil, "tooltipDisplay"),
+        S.Toggle("tooltipItemID", "Show Item ID", nil, "tooltipDisplay")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("tooltipNPCID", "Show NPC ID", "Creature and vehicle IDs only; never player GUIDs.", "tooltipDisplay"),
+        S.Toggle("tooltipCopy", "Mouseover Copy Shortcut", nil, "tooltipDisplay")
+    ); y = y - h
+    _, h = W:SectionHeader(parent, "COPY CARD", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("tooltipModifier", "Modifier", { CTRL = "Ctrl", SHIFT = "Shift", ALT = "Alt", ["CTRL-SHIFT"] = "Ctrl + Shift", ["CTRL-ALT"] = "Ctrl + Alt", ["ALT-SHIFT"] = "Alt + Shift" },
+            { "CTRL-SHIFT", "CTRL-ALT", "ALT-SHIFT", "CTRL", "SHIFT", "ALT" }, nil, "tooltipCopy"),
+        S.Dropdown("tooltipKey", "Key", KEY_VALUES, KEY_ORDER, nil, "tooltipCopy")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("tooltipCopyFormat", "Initially Select", { id = "ID", url = "Wowhead Link" }, { "id", "url" }, nil, "tooltipCopy"),
+        S.Dropdown("tooltipWowhead", "Wowhead Database", { classic = "Classic", retail = "Retail" }, { "classic", "retail" }, "Forever-specific entries may not have a matching Wowhead page.", "tooltipCopy")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Preview Copy Card", buttonText = "Preview", onClick = function() ns.PreviewTooltipCopyCard() end },
+        { type = "label", text = "Select ID or link, then Ctrl+C" }
+    ); y = y - h
     return y
 end
