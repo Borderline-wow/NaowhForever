@@ -52,6 +52,7 @@ local LICENSE_MARKER = ":LIC1:"
 -- value: what every entry of a flat section must be. perEntry: merged into an existing profile
 -- reminder by reminder rather than a boss at a time.
 local SECTIONS = {
+    { field = "utilityReminders", label = "consumable and class macro groups", count = "keys", value = "table" },
     { field = "presets",         label = "spec priority lists",  count = "nested" },
     { field = "activePreset",    label = "active preset choice", count = "keys", value = "string" },
     { field = "bossLists",       label = "per-boss orders",      count = "keys", value = "table" },
@@ -169,8 +170,43 @@ end
 -- table before anything has looked at it.
 local MAX_IMPORTED_RULES = 500
 
+local function PositiveID(id)
+    return type(id) == "number" and id >= 1 and id <= 2147483647 and id == math.floor(id)
+end
+local function ValidUtilities(data)
+    if type(data) ~= "table" then return false end
+    local categories = { food = true, flask = true, scroll = true, battle = true, guardian = true }
+    if data.consumables ~= nil then
+        if type(data.consumables) ~= "table" then return false end
+        local count = 0
+        for index, entry in pairs(data.consumables) do
+            count = count + 1
+            if not PositiveID(index) or index > #data.consumables or count > 500
+                or type(entry) ~= "table" or not categories[entry.category]
+                or not PositiveID(entry.itemID) or type(entry.auras) ~= "table" or #entry.auras == 0 then return false end
+            for i, id in pairs(entry.auras) do
+                if not PositiveID(i) or i > #entry.auras or not PositiveID(id) then return false end
+            end
+        end
+    end
+    if data.classMacros ~= nil then
+        if type(data.classMacros) ~= "table" then return false end
+        for class, entries in pairs(data.classMacros) do
+            if type(class) ~= "string" or type(entries) ~= "table" then return false end
+            for i, entry in pairs(entries) do
+                if not PositiveID(i) or i > #entries or #entries > 100 or type(entry) ~= "table"
+                    or type(entry.name) ~= "string" or #entry.name < 1 or #entry.name > 16
+                    or type(entry.body) ~= "string" or #entry.body < 1 or #entry.body > 255
+                    or entry.icon ~= nil and not PositiveID(entry.icon) then return false end
+            end
+        end
+    end
+    return true
+end
+
 local function ValidData(data)
     if not PlainData(data, {}, 0, { 100000 }) then return false end
+    if data.utilityReminders ~= nil and not ValidUtilities(data.utilityReminders) then return false end
     for i = 1, #SECTIONS do
         local sec = SECTIONS[i]
         local t = data[sec.field]
@@ -800,7 +836,7 @@ end
 -- choices are theirs, and taking them would restyle the whole profile as a side effect.
 local MERGE_WHOLE_SPEC = { presets = true, activePreset = true,
     abilityBindings = true, integrationRules = true }
-local MERGE_NO_SPEC = { raidReminders = true, callouts = true, audioOff = true }
+local MERGE_NO_SPEC = { utilityReminders = true, raidReminders = true, callouts = true, audioOff = true }
 
 function ns.MergeProfileFromPack(payload, sourceName, targetName, opts)
     opts = type(opts) == "table" and opts or {}

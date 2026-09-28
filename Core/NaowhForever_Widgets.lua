@@ -518,7 +518,38 @@ end
 local function BuildRegionControl(rgn, cfg)
     local function Get() return cfg.getValue() end
     local function Set(...) return cfg.setValue(...) end
-    if cfg.type == "toggle" then
+    if cfg.type == "iconbutton" then
+        local button = CreateFrame("Button", nil, rgn)
+        button:SetSize(32, 32)
+        button:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+        local icon = button:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints()
+        ns.Border(button, { r = 0, g = 0, b = 0 })
+        button:RegisterForDrag("LeftButton")
+        button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        button:SetScript("OnClick", function(_, mouse)
+            if mouse == "RightButton" then
+                if cfg.onRightClick then cfg.onRightClick() end
+            else
+                cfg.onClick()
+            end
+        end)
+        button:SetScript("OnDragStart", function() cfg.onClick() end)
+        button:SetScript("OnEnter", function(self)
+            if cfg.tooltip then UI.ShowWidgetTooltip(self, cfg.tooltip, { anchor = "cursor", justify = "LEFT" }) end
+        end)
+        button:SetScript("OnLeave", function() UI.HideWidgetTooltip() end)
+        button._refreshValue = function()
+            icon:SetTexture(cfg.icon or 134400)
+            icon:SetDesaturated(cfg.active ~= nil and not cfg.active())
+        end
+        button._refreshValue()
+        return button
+    elseif cfg.type == "button" then
+        local button = ns.Button(rgn, cfg.buttonText or "Edit", 90, 24, function() cfg.onClick() end)
+        button:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+        return button
+    elseif cfg.type == "toggle" then
         local disabled = type(cfg.disabled) == "function" and cfg.disabled()
         local toggle = UI.BuildToggleControl(rgn, rgn:GetFrameLevel() + 2,
             Get, Set)
@@ -783,8 +814,213 @@ function W:Note(parent, text, yOffset)
     return fs, h
 end
 
--- Unlock Mode plate for an on-screen display: covers the frame, drags it, and hands the new
--- position to onMoved. Hidden until the caller shows it.
+-- Shared placement controls for ordinary display plates and reminder anchor handles.
+-- All geometry belongs to this addon; the guide is positioned numerically on UIParent,
+-- never anchored to a protected display such as the Top Bar.
+local placement = { active = false }
+
+local function PlacementPoint(item)
+    local point, relative, relPoint, x, y = item.frame:GetPoint(1)
+    if not point then return end
+    if relative and relative ~= UIParent then
+        local cx, cy = item.frame:GetCenter()
+        local px, py = UIParent:GetCenter()
+        if not cx or not px then return end
+        local scale = item.frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+        point, relPoint, x, y = "CENTER", "CENTER", cx - px / scale, cy - py / scale
+    end
+    return point, relPoint, x, y
+end
+
+local function SavePlacement(item, point, relPoint, x, y)
+    if not point then point, relPoint, x, y = PlacementPoint(item) end
+    if not point then return end
+    item.frame:ClearAllPoints()
+    item.frame:SetPoint(point, UIParent, relPoint, x, y)
+    item.save({ point = point, relPoint = relPoint, x = x, y = y })
+end
+
+local function StopPlacementDrag(item)
+    if not item or not item.dragging then return end
+    if InCombatLockdown() and item.frame:IsProtected() then placement.pendingDrag = item; return end
+    item.dragging = false
+    item.handle:SetScript("OnUpdate", nil)
+    item.frame:StopMovingOrSizing()
+    SavePlacement(item)
+end
+
+function UI.ClearMoverSelection()
+    StopPlacementDrag(placement.selected)
+    placement.selected = nil
+    if not placement.hud then return end
+    placement.outline:Hide()
+    placement.vertical:Hide()
+    placement.horizontal:Hide()
+    placement.hud.text:SetText("Select a display to see its position.\nArrow keys move it; Shift + arrow moves it 10 units.")
+    if not InCombatLockdown() then placement.hud:SetPropagateKeyboardInput(true) end
+end
+
+function UI.RefreshMoverSelection()
+    local item = placement.selected
+    if not item or InCombatLockdown() then return end
+    if not item.handle:IsVisible() then UI.ClearMoverSelection(); return end
+    local frame, hud = item.frame, placement.hud
+    local point, _, relPoint, x, y = frame:GetPoint(1)
+    if not point then return end
+    hud.text:SetText(("%s  |  X %.1f   Y %.1f\n%s relative to %s\nArrow keys: 1 unit   |   Shift + arrow: 10 units")
+        :format(item.label, x, y, point, relPoint))
+    local scale = item.handle:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    local left, bottom = item.handle:GetLeft(), item.handle:GetBottom()
+    if left and bottom then
+        placement.outline:ClearAllPoints()
+        placement.outline:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left * scale - 2, bottom * scale - 2)
+        placement.outline:SetSize(item.handle:GetWidth() * scale + 4, item.handle:GetHeight() * scale + 4)
+        placement.outline:Show()
+    end
+    local cx, cy = frame:GetCenter()
+    if cx and cy then
+        local ratio = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+        placement.vertical:ClearAllPoints()
+        placement.vertical:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx * ratio, 0)
+        placement.vertical:SetSize(1, UIParent:GetHeight())
+        placement.horizontal:ClearAllPoints()
+        placement.horizontal:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, cy * ratio)
+        placement.horizontal:SetSize(UIParent:GetWidth(), 1)
+        placement.vertical:Show()
+        placement.horizontal:Show()
+    end
+end
+
+local function PlacementKey(self, key)
+    if InCombatLockdown() then return end
+    self:SetPropagateKeyboardInput(true)
+    local item = placement.selected
+    if not placement.active or not item or item.dragging or GetCurrentKeyBoardFocus() then return end
+    if key == "ESCAPE" then UI.ClearMoverSelection(); self:SetPropagateKeyboardInput(false); return end
+    local dx = key == "LEFT" and -1 or key == "RIGHT" and 1 or 0
+    local dy = key == "DOWN" and -1 or key == "UP" and 1 or 0
+    if dx == 0 and dy == 0 then return end
+    if not item.handle:IsVisible() then UI.ClearMoverSelection(); return end
+    local step = IsShiftKeyDown() and 10 or 1
+    -- Normalize the uncommon non-screen anchor through the same path used by dragging.
+    local point, relPoint, x, y = PlacementPoint(item)
+    if not point then return end
+    -- Save the requested offsets directly; layout readback can round fractional points.
+    SavePlacement(item, point, relPoint, x + dx * step, y + dy * step)
+    UI.RefreshMoverSelection()
+    self:SetPropagateKeyboardInput(false)
+end
+
+function UI.BeginMoverMode()
+    placement.active = true
+    if not placement.hud then
+        local hud = CreateFrame("Frame", nil, UIParent)
+        placement.hud = hud
+        hud:SetFrameStrata("FULLSCREEN_DIALOG")
+        hud:SetFrameLevel(500)
+        hud:SetSize(480, 78)
+        hud:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 70)
+        hud:SetClampedToScreen(true)
+        ns.Solid(hud, "BACKGROUND", T.bg, 0.96):SetAllPoints()
+        ns.Border(hud, T.accent)
+        hud.text = ns.Font(hud, 13, nil)
+        hud.text:SetPoint("CENTER")
+        hud.text:SetWidth(456)
+        hud:SetScript("OnKeyDown", PlacementKey)
+        hud:SetScript("OnKeyUp", function(self)
+            if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+        end)
+        placement.outline = CreateFrame("Frame", nil, UIParent)
+        placement.outline:SetFrameStrata("FULLSCREEN_DIALOG")
+        placement.outline:SetFrameLevel(499)
+        ns.Solid(placement.outline, "BACKGROUND", { r = 1, g = 1, b = 1 }, 0.10):SetAllPoints()
+        ns.Border(placement.outline, { r = 1, g = 1, b = 1 })
+        local guides = CreateFrame("Frame", nil, UIParent)
+        guides:SetFrameStrata("BACKGROUND")
+        guides:SetFrameLevel(2)
+        placement.vertical = ns.Solid(guides, "OVERLAY", T.accentSoft, 0.9)
+        placement.horizontal = ns.Solid(guides, "OVERLAY", T.accentSoft, 0.9)
+        -- Keep selection geometry aligned when owners resize or reposition their previews.
+        local refreshElapsed = 0
+        hud:SetScript("OnUpdate", function(_, elapsed)
+            refreshElapsed = refreshElapsed + elapsed
+            if refreshElapsed < 0.05 then return end
+            refreshElapsed = 0
+            if placement.active and placement.selected then UI.RefreshMoverSelection() end
+        end)
+        hud:SetScript("OnEvent", function(_, event)
+            if event == "PLAYER_REGEN_DISABLED" then
+                UI.ClearMoverSelection()
+                hud:Hide()
+            else
+                StopPlacementDrag(placement.pendingDrag)
+                placement.pendingDrag = nil
+                if placement.active then UI.BeginMoverMode() else hud:UnregisterAllEvents() end
+            end
+        end)
+    end
+    if not InCombatLockdown() then
+        placement.hud:EnableKeyboard(true)
+        placement.hud:SetPropagateKeyboardInput(true)
+    end
+    UI.ClearMoverSelection()
+    placement.hud:RegisterEvent("PLAYER_REGEN_DISABLED")
+    placement.hud:RegisterEvent("PLAYER_REGEN_ENABLED")
+    placement.hud:SetShown(not InCombatLockdown())
+end
+
+function UI.EndMoverMode()
+    placement.active = false
+    UI.ClearMoverSelection()
+    if placement.hud then
+        placement.hud:Hide()
+        if not InCombatLockdown() then placement.hud:EnableKeyboard(false) end
+        if not placement.pendingDrag then placement.hud:UnregisterAllEvents() end
+    end
+end
+
+function UI.SelectMover(handle)
+    if not placement.active or InCombatLockdown() or not handle:IsVisible() then return end
+    local item = handle._placement
+    if not item then return end
+    if placement.selected ~= item then UI.ClearMoverSelection() end
+    placement.selected = item
+    UI.RefreshMoverSelection()
+end
+
+function UI.StartMoverDrag(handle)
+    if not placement.active or InCombatLockdown() or not handle:IsVisible() then return end
+    local item = handle._placement
+    UI.SelectMover(handle)
+    item.dragging = true
+    item.frame:StartMoving()
+    handle:SetScript("OnUpdate", function()
+        if not InCombatLockdown() then UI.RefreshMoverSelection() end
+    end)
+end
+
+function UI.StopMoverDrag(handle)
+    StopPlacementDrag(handle._placement)
+    UI.RefreshMoverSelection()
+end
+
+function UI.BindMover(handle, frame, label, onMoved)
+    local item = { handle = handle, frame = frame, label = label, save = onMoved }
+    handle._placement = item
+    handle:EnableMouse(true)
+    handle:RegisterForDrag("LeftButton")
+    handle:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" then UI.SelectMover(handle) end
+    end)
+    handle:SetScript("OnDragStart", function() UI.StartMoverDrag(handle) end)
+    handle:SetScript("OnDragStop", function() UI.StopMoverDrag(handle) end)
+    handle:HookScript("OnHide", function()
+        StopPlacementDrag(item)
+        if placement.selected == item then UI.ClearMoverSelection() end
+    end)
+end
+
+-- Unlock Mode plate for an on-screen display. Hidden until the caller shows it.
 function UI.AttachMover(frame, label, onMoved)
     local mover = CreateFrame("Frame", nil, frame)
     mover:SetAllPoints()
@@ -794,14 +1030,7 @@ function UI.AttachMover(frame, label, onMoved)
     local text = ns.Font(mover, 12, "OUTLINE")
     text:SetPoint("CENTER")
     text:SetText(label)
-    mover:EnableMouse(true)
-    mover:RegisterForDrag("LeftButton")
-    mover:SetScript("OnDragStart", function() frame:StartMoving() end)
-    mover:SetScript("OnDragStop", function()
-        frame:StopMovingOrSizing()
-        local point, _, relPoint, x, y = frame:GetPoint()
-        onMoved({ point = point, relPoint = relPoint, x = x, y = y })
-    end)
+    UI.BindMover(mover, frame, label, onMoved)
     mover:Hide()
     return mover
 end

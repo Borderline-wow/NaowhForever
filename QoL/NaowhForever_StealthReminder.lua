@@ -26,6 +26,7 @@ local stealthFrame, formFrame, unlocked, inCombat, class
 local alarm, alarmTicker
 
 local function On(key)
+    if key == "formReminder" then return false end -- Retained for later review.
     return S.Get("enabled") and S.Get(key)
 end
 

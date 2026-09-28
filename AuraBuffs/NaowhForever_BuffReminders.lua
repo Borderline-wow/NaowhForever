@@ -14,20 +14,19 @@ local D = ns.BuffReminderData
 local GAP = 4
 local ELIXIR_ICON = 13454   -- Greater Arcane Elixir, for "no elixir at all"
 local KEYS = {
-    enabled = true, food = true, elixirs = true, flasks = true, consumablesWhere = true,
+    consumableEntries = true, enabled = true, food = true, elixirs = true, flasks = true, consumablesWhere = true,
     consumablesMinutes = true, onlyIfCarried = true, hideResting = true, scrolls = true,
     scrollsSkipActive = true, raidBuffs = true, raidBuffsOwn = true, iconSize = true,
 }
 
-local frame, unlocked, carriedFood
+local frame, unlocked
 local cells = {}
 local pending      -- a refresh is queued
 local wakeGen = 0  -- invalidates an older "buff drops under the warning time" timer
 local wakeAt
 
 local function On()
-    return S.Get("enabled") and (S.Get("food") or S.Get("flasks") or S.Get("elixirs")
-        or S.Get("scrolls") or S.Get("raidBuffs"))
+    return S.Get("enabled") and (#(S.Get("consumableEntries") or {}) > 0 or S.Get("raidBuffs"))
 end
 
 local function Secret(v)
@@ -65,19 +64,6 @@ local function Left(aura)
     return expiry - GetTime()
 end
 
-local function ScanFood()
-    carriedFood = nil
-    for bag = 0, NUM_BAG_SLOTS do
-        for slot = 1, C_Container.GetContainerNumSlots(bag) do
-            local item = C_Container.GetContainerItemID(bag, slot)
-            if item and D.FOOD_SPELLS[select(2, C_Item.GetItemSpell(item))] then
-                carriedFood = item
-                return
-            end
-        end
-    end
-end
-
 local function ConsumablesHere()
     if S.Get("hideResting") and IsResting() then return false end
     local where = S.Get("consumablesWhere")
@@ -105,48 +91,22 @@ local function Consumable(list, buffs, auras, item, icon)
 end
 
 local function Consumables(list, buffs)
-    if S.Get("food") then
-        Consumable(list, buffs, D.WELL_FED, carriedFood, C_Spell.GetSpellTexture(D.WELL_FED[1]))
-    end
-    if S.Get("flasks") then
-        Consumable(list, buffs, D.FLASKS.auras, FirstCarried(D.FLASKS.items),
-            C_Item.GetItemIconByID(D.FLASKS.items[1]))
-    end
-    if S.Get("elixirs") then
-        local carried, up
-        for _, group in ipairs(D.ELIXIRS) do
-            local item = FirstCarried(group.items)
-            if item then
-                carried = true
-                Consumable(list, buffs, group.auras, item)
-            elseif Find(buffs, group.auras) then
-                up = true
-            end
-        end
-        if not (carried or up or S.Get("onlyIfCarried")) then
-            list[#list + 1] = { icon = C_Item.GetItemIconByID(ELIXIR_ICON) }
+    local groups = {}
+    for _, entry in ipairs(S.Get("consumableEntries") or {}) do
+        if type(entry) == "table" and type(entry.itemID) == "number" and type(entry.auras) == "table" then
+            local group = groups[entry.category]
+            if not group then group = { items = {}, auras = {} }; groups[entry.category] = group end
+            group.items[#group.items + 1] = entry.itemID
+            for _, id in ipairs(entry.auras) do group.auras[#group.auras + 1] = id end
         end
     end
-end
-
-local function RaidFamily(key)
-    for _, family in ipairs(D.RAID) do
-        if family.key == key then return family end
-    end
-end
-
--- The best rank of each scroll you carry, until you read it.
-local function Scrolls(list, buffs)
-    for _, group in ipairs(D.SCROLLS) do
-        local item
-        for i = #group.items, 1, -1 do
-            if C_Item.GetItemCount(group.items[i]) > 0 then item = group.items[i] break end
-        end
-        local active = S.Get("scrollsSkipActive") and (Find(buffs, group.auras)
-            or group.raid and Find(buffs, RaidFamily(group.raid).spells))
-        if item and not active then
-            local count = C_Item.GetItemCount(item)
-            list[#list + 1] = { icon = C_Item.GetItemIconByID(item), count = count > 1 and count }
+    for _, category in ipairs({ "food", "flask", "scroll", "battle", "guardian" }) do
+        local group = groups[category]
+        if group then
+            local before = #list
+            Consumable(list, buffs, group.auras, FirstCarried(group.items),
+                C_Item.GetItemIconByID(group.items[1]))
+            if #list > before then list[#list].items = group.items end
         end
     end
 end
@@ -209,15 +169,80 @@ local function Collect()
     local list = {}
     wakeAt = nil
     if ConsumablesHere() then Consumables(list, buffs) end
-    if S.Get("scrolls") then Scrolls(list, buffs) end
     if S.Get("raidBuffs") then RaidBuffs(list, buffs) end
     return list
+end
+
+local popup
+-- The menu holds secure buttons, so it can only be hidden outside combat.
+local function HideMenu()
+    if popup and not InCombatLockdown() then popup:Hide() end
+end
+local function LeaveMenu()
+    C_Timer.After(0.15, function()
+        if popup and popup:IsShown() and not MouseIsOver(popup)
+            and not (popup.owner and MouseIsOver(popup.owner)) then HideMenu() end
+    end)
+end
+local function OpenMenu(cell)
+    if unlocked or InCombatLockdown() or C_Secrets.ShouldAurasBeSecret() or not cell.items then return end
+    if not popup then
+        popup = CreateFrame("Frame", nil, UIParent)
+        popup:SetFrameStrata("DIALOG")
+        popup:SetClampedToScreen(true)
+        popup:EnableMouse(true)
+        popup:SetScript("OnLeave", LeaveMenu)
+        ns.Solid(popup, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+        ns.Border(popup)
+        popup.buttons = {}
+    end
+    popup.owner = cell
+    local count, seen = 0, {}
+    for _, id in ipairs(cell.items) do
+        if not seen[id] and C_Item.GetItemCount(id) > 0 then
+            seen[id] = true
+            count = count + 1
+            local button = popup.buttons[count]
+            if not button then
+                button = CreateFrame("Button", nil, popup, "SecureActionButtonTemplate")
+                button:SetSize(32, 32)
+                button:RegisterForClicks("AnyUp", "AnyDown")
+                button:SetAttribute("type1", "item")
+                button.icon = button:CreateTexture(nil, "ARTWORK")
+                button.icon:SetAllPoints()
+                ns.Border(button, { r = 0, g = 0, b = 0 })
+                button:SetScript("PostClick", HideMenu)
+                button:SetScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:SetItemByID(self.itemID)
+                    GameTooltip:Show()
+                end)
+                button:SetScript("OnLeave", function() GameTooltip:Hide(); LeaveMenu() end)
+                popup.buttons[count] = button
+            end
+            button.itemID = id
+            button:SetAttribute("item1", "item:" .. id)
+            button.icon:SetTexture(C_Item.GetItemIconByID(id))
+            button:ClearAllPoints()
+            button:SetPoint("TOPLEFT", 4 + ((count - 1) % 8) * 36, -4 - math.floor((count - 1) / 8) * 36)
+            button:Show()
+        end
+    end
+    for i = count + 1, #popup.buttons do popup.buttons[i]:Hide() end
+    popup:SetSize(math.max(1, math.min(count, 8)) * 36 + 4, math.max(1, math.ceil(count / 8)) * 36 + 4)
+    popup:ClearAllPoints()
+    popup:SetPoint("TOPLEFT", cell, "BOTTOMLEFT", 0, -2)
+    popup:SetShown(count > 0)
 end
 
 local function Cell(i)
     local cell = cells[i]
     if cell then return cell end
     cell = CreateFrame("Frame", nil, frame)
+    cell:EnableMouse(true)
+    cell:SetScript("OnEnter", OpenMenu)
+    cell:SetScript("OnLeave", LeaveMenu)
+    cell:SetScript("OnHide", function() if popup and popup.owner == cell then HideMenu() end end)
     cell.icon = cell:CreateTexture(nil, "ARTWORK")
     cell.icon:SetAllPoints()
     cell.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
@@ -239,6 +264,7 @@ local function Show(list)
         cell:SetSize(size, size)
         cell:ClearAllPoints()
         cell:SetPoint("LEFT", frame, "LEFT", (i - 1) * (size + GAP), 0)
+        cell.items = entry.items
         cell.icon:SetTexture(entry.icon)
         cell.count:SetText(entry.count or "")
         local aura = entry.aura
@@ -252,6 +278,9 @@ local function Show(list)
     end
     for i = #list + 1, #cells do cells[i]:Hide() end
     frame:SetSize(math.max(#list, 1) * (size + GAP) - GAP, size)
+    if popup and popup:IsShown() then
+        if popup.owner:IsShown() and popup.owner.items then OpenMenu(popup.owner) else HideMenu() end
+    end
 end
 
 local PREVIEW = {
@@ -301,7 +330,7 @@ events:SetScript("OnEvent", function(_, event, unit)
         or not (unit == "player" or unit:find("^party%d") or unit:find("^raid%d"))) then
         return
     end
-    if event == "BAG_UPDATE_DELAYED" then ScanFood() end
+    if event == "PLAYER_REGEN_DISABLED" then HideMenu(); return end
     Queue()
 end)
 
@@ -323,6 +352,7 @@ local function Place()
 end
 
 local function Apply()
+    HideMenu()
     events:UnregisterAllEvents()
     wakeGen = wakeGen + 1
     if not (On() or unlocked) then
@@ -344,7 +374,7 @@ local function Apply()
         events:RegisterEvent("PLAYER_REGEN_ENABLED")
         events:RegisterEvent("PLAYER_UPDATE_RESTING")
         events:RegisterEvent("BAG_UPDATE_DELAYED")
-        ScanFood()
+        events:RegisterEvent("PLAYER_REGEN_DISABLED")
     end
     Refresh()
 end

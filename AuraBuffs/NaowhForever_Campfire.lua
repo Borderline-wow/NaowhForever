@@ -73,18 +73,20 @@ local function Build()
     icon.timer = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
     icon.timer:SetAllPoints()
     icon.timer:SetSwipeTexture(CIRCLE_MASK)
-    icon.timer:SetSwipeColor(0, 0, 0, 0.65)
+    icon.timer:SetDrawSwipe(false)
+    icon.timer:SetDrawBling(false)
     icon.timer:SetDrawEdge(false)
     icon.timer:SetReverse(true)
 
-    -- A ring just outside the border that drains with the time left, over a dim full track.
+    -- The black disk extends past the drain on both sides, edging the time ring.
     icon.track = icon:CreateTexture(nil, "BACKGROUND")
-    icon.track:SetPoint("TOPLEFT", -5, 5)
-    icon.track:SetPoint("BOTTOMRIGHT", 5, -5)
-    icon.track:SetTexture(CIRCLE_RING)
-    icon.track:SetVertexColor(0, 0, 0, 0.6)
+    icon.track:SetPoint("TOPLEFT", -6, 6)
+    icon.track:SetPoint("BOTTOMRIGHT", 6, -6)
+    icon.track:SetTexture(CIRCLE_MASK)
+    icon.track:SetVertexColor(0, 0, 0, 1)
     icon.drain = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
-    icon.drain:SetAllPoints(icon.track)
+    icon.drain:SetPoint("TOPLEFT", -5, 5)
+    icon.drain:SetPoint("BOTTOMRIGHT", 5, -5)
     icon.drain:SetSwipeTexture(CIRCLE_RING)
     icon.drain:SetDrawEdge(false)
     icon.drain:SetDrawBling(false)
@@ -157,7 +159,7 @@ end
 
 local function ShowSitting(duration, expiry)
     icon.tex:SetDesaturated(false)
-    icon.label:SetText("Stay Seated")
+    icon.label:SetText("Resting")
     icon.label:Show()
     icon.buffs:Hide()
     ringGen = ringGen + 1
@@ -186,7 +188,7 @@ local function ShowMissing()
     icon.track:Hide()
     ringGen = ringGen + 1
     shownExpiry = nil
-    icon:Show()
+    icon:SetShown(S.Get("campShowMissing") or unlocked == true)
 end
 
 -- "Camp Nearby" in the middle of the screen when a campfire is in range and the camp needs
@@ -233,7 +235,7 @@ local function ActiveBuffs(aura)
             for row in text:gmatch("[^\n]+") do
                 local label = row:match("^%s*([^:]+):%s*%S")
                 if label and not label:find("[%d|]") and not label:find("ID$") then
-                    names[#names + 1] = label
+                    names[#names + 1] = row:match("^[^:]+:%s*(.-)%s*$") or label
                 end
             end
         end
@@ -286,7 +288,7 @@ end
 function Refresh(_, event)
     if not icon then return end
     if unlocked then
-        ShowUp(3600, GetTime() + 2400, "Camp Chair\nFish Bowl")
+        ShowUp(3600, GetTime() + 2400, "Rested XP\nMana regeneration")
         SetAlert(S.Get("campNearbyAlert"))
         return
     end
@@ -368,6 +370,14 @@ local function Apply()
     if not icon then Build() end
     local size = S.Get("campIconSize")
     icon:SetSize(size, size)
+    icon.buffs:SetFont(ns.UIFontPath(), S.Get("campBuffTextSize"), "OUTLINE")
+    icon.buffs:ClearAllPoints()
+    local side = S.Get("campBuffSide")
+    icon.buffs:SetJustifyH(side == "right" and "LEFT" or side == "left" and "RIGHT" or "CENTER")
+    if side == "right" then icon.buffs:SetPoint("LEFT", icon, "RIGHT", 12, 0)
+    elseif side == "left" then icon.buffs:SetPoint("RIGHT", icon, "LEFT", -12, 0)
+    elseif side == "above" then icon.buffs:SetPoint("BOTTOM", icon, "TOP", 0, 12)
+    else icon.buffs:SetPoint("TOP", icon, "BOTTOM", 0, -12) end
     Place()
     icon.mover:SetShown(unlocked == true)
     if On() then

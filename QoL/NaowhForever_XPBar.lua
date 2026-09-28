@@ -227,16 +227,15 @@ local function Update()
 
     local xp, max = UnitXP("player"), math.max(UnitXPMax("player"), 1)
     local pct = maxed and 100 or xp / max * 100
-    bar.level:SetText("Level " .. UnitLevel("player"))
-    if maxed then
-        bar.value:SetText("Max Level")
-        bar.pct:SetText("100%")
-    else
-        bar.value:SetText(xp .. " / " .. max)
-        local withQuests = questDone > 0
-            and (" (%.1f%%)"):format(math.min((xp + questDone) / max * 100, 100)) or ""
-        bar.pct:SetText(("%.1f%%"):format(pct) .. withQuests)
-    end
+    local values = {
+        none = "", level = "Level " .. UnitLevel("player"),
+        xp = maxed and "Max Level" or (xp .. " / " .. max),
+        percent = ("%.1f%%"):format(pct),
+        rested = ("Rested %.1f%%"):format((GetXPExhaustion() or 0) / max * 100),
+    }
+    bar.level:SetText(values[S.Get("xpBarLeftText") or "level"] or "")
+    bar.value:SetText(values[S.Get("xpBarCenterText") or "xp"] or "")
+    bar.pct:SetText(values[S.Get("xpBarRightText") or "percent"] or "")
 
     -- The whole bar is the track: a full bar is 100%.
     local total = bar:GetWidth()
@@ -331,12 +330,16 @@ local function Create()
     bar.track = CreateFrame("Frame", nil, bar)
     bar.track:SetAllPoints()
     bar.track:SetClipsChildren(true)
+    bar.track:SetFrameLevel(bar:GetFrameLevel() + 1)
     bar.fill = bar.track:CreateTexture(nil, "ARTWORK")
     bar.fill:SetTexture("Interface\\Buttons\\WHITE8X8")
     bar.fill:SetGradient("HORIZONTAL", FILL_FROM, FILL_TO)
     bar.done = ns.Solid(bar.track, "ARTWORK", QUEST, 1)
     bar.open = ns.Solid(bar.track, "ARTWORK", QUEST, 0.4)
-    bar.rested = ns.Solid(bar.track, "OVERLAY", RESTED, 1)
+    bar.rested = ns.Solid(bar.track, "ARTWORK", RESTED, 1)
+    bar.rested:SetDrawLayer("ARTWORK", 0)
+    bar.done:SetDrawLayer("ARTWORK", 1)
+    bar.open:SetDrawLayer("ARTWORK", 1)
 
     -- Above the track, whose own frame would otherwise cover the border.
     ns.Border(bar)._frame:SetFrameLevel(bar:GetFrameLevel() + 4)
@@ -346,10 +349,12 @@ local function Create()
     text:SetFrameLevel(bar:GetFrameLevel() + 5)
     bar.level = ns.Font(text, 14, "OUTLINE")
     bar.level:SetPoint("LEFT", bar.track, "LEFT", 8, 0)
+    bar.level:SetJustifyH("LEFT")
     bar.value = ns.Font(text, 14, "OUTLINE")
     bar.value:SetPoint("CENTER", bar.track, "CENTER")
     bar.pct = ns.Font(text, 14, "OUTLINE")
     bar.pct:SetPoint("RIGHT", bar.track, "RIGHT", -8, 0)
+    bar.pct:SetJustifyH("RIGHT")
     bar.sub = ns.Font(bar, 13, "OUTLINE")
     bar.sub:SetPoint("TOP", bar, "BOTTOM", 0, -4)
     bar.sub:SetJustifyH("CENTER")
@@ -376,6 +381,10 @@ local function Apply()
     local size = math.max(10, math.floor(h * 0.55))
     for _, fs in ipairs({ bar.level, bar.value, bar.pct }) do
         fs:SetFont(ns.UIFontPath(), size, "OUTLINE")
+    end
+    for _, fs in ipairs({ bar.level, bar.value, bar.pct }) do
+        fs:SetWidth(math.max(1, w / 3 - 16))
+        fs:SetWordWrap(false)
     end
     Place()
 

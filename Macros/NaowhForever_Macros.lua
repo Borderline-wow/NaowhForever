@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Macros.lua -- the Macros module: character macros the addon
+--  NaowhForever_Macros.lua -- the Macros module: macros the addon
 --  writes and keeps pointed at the best item or spell you have, rewritten out of combat
 --  as bags and spells change.
 -------------------------------------------------------------------------------
@@ -8,12 +8,31 @@ local UI = ns.UI
 local STATUS = UI.STATUS
 
 local S = UI.ModuleSettings("macros", {
-    enabled = true,
+    enabled = true, classMacros = {},
     health = false, healthOrder = "stone",
     mana = false, food = false, bandage = false,
     trinket1 = false, trinket2 = false,
     focus = false, focusMark = false, focusMarker = 8, focusAnnounce = false,
 })
+-- Authored definitions travel with shared packs; presentation settings stay in this module.
+local GetSetting, SetSetting = S.Get, S.Set
+function S.Get(key)
+    if key == "classMacros" and ns.DB then
+        local data = ns.DB().utilityReminders
+        return data and data.classMacros or {}
+    end
+    return GetSetting(key)
+end
+function S.Set(key, value)
+    if key == "classMacros" and ns.DB then
+        local db = ns.DB()
+        db.utilityReminders = db.utilityReminders or {}
+        db.utilityReminders.classMacros = value
+    else
+        SetSetting(key, value)
+    end
+end
+
 ns.MacroSettings = S
 
 local HEALTH_ORDER_VALUES = { stone = "Healthstone First", potion = "Potion First" }
@@ -23,35 +42,65 @@ local MARKER_VALUES = { [1] = "Star", [2] = "Circle", [3] = "Diamond", [4] = "Tr
     [5] = "Moon", [6] = "Square", [7] = "Cross", [8] = "Skull" }
 local MARKER_ORDER = { 8, 7, 6, 5, 4, 3, 2, 1 }
 
+local function MacroIcon(key, text, tooltip)
+    return { type = "iconbutton", text = text,
+        tooltip = tooltip .. " Right-click to remove the macro.",
+        icon = ({ health = 134829, mana = 134855, food = 133971, bandage = 133682,
+            trinket1 = 134400, trinket2 = 134400, focus = 132212 })[key],
+        active = function() return S.Get(key) == true end,
+        onClick = function() ns.PickupManagedMacro(key) end,
+        onRightClick = function() ns.RemoveManagedMacro(key) end }
+end
+
+function ns.BuildClassMacrosPage(parent, y)
+    local W = UI.Widgets
+    local _, h = W:Note(parent, "Class macros are supplied by your profile. Click or drag an icon to put its macro on your action bar.", y)
+    y = y - h
+    local _, class = UnitClass("player")
+    local entries = (S.Get("classMacros") or {})[class] or {}
+    if #entries == 0 then
+        _, h = W:Note(parent, "No class macros configured for this class.", y)
+        return y - h
+    end
+    for _, entry in ipairs(entries) do
+        _, h = W:DualRow(parent, y,
+            { type = "iconbutton", text = entry.name or "Class Macro", icon = entry.icon,
+                tooltip = type(entry.body) == "string" and entry.body or nil,
+                onClick = function() ns.PickupProfileMacro(entry) end },
+            { type = "label", text = "Click or drag to action bar" }); y = y - h
+    end
+    return y
+end
+
 function ns.BuildMacroConsumablesPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, "Each macro appears in your character macros (NF Health, NF Food "
-        .. "and so on) once switched on. Put it on a bar once and it keeps itself current, "
-        .. "updating after combat if your bags change during a fight.", y); y = y - h
+    _, h = W:Note(parent, "Click or drag an icon to create a General macro and place it on your action bar. "
+        .. "It keeps itself current as your bags change, updating after combat. Existing character "
+        .. "macros stay in place so their action bar slots are preserved.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "CONSUMABLE MACROS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("health", "Health Macro",
+        MacroIcon("health", "Health Macro",
             "Uses the best healthstone or healing potion in your bags."),
         S.Dropdown("healthOrder", "Health Priority", HEALTH_ORDER_VALUES, HEALTH_ORDER_ORDER,
             nil, "health")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("mana", "Mana Potion Macro", "Uses the best mana potion in your bags."),
-        S.Toggle("food", "Food & Drink Macro",
+        MacroIcon("mana", "Mana Potion Macro", "Uses the best mana potion in your bags."),
+        MacroIcon("food", "Food & Drink Macro",
             "Eats or drinks the best food and water in your bags, conjured first.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("bandage", "Bandage Macro",
+        MacroIcon("bandage", "Bandage Macro",
             "Bandages yourself with the best bandage in your bags."),
         { type = "label", text = "" }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "TRINKETS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("trinket1", "Trinket 1 Macro", "Uses your top trinket slot."),
-        S.Toggle("trinket2", "Trinket 2 Macro", "Uses your bottom trinket slot.")
+        MacroIcon("trinket1", "Trinket 1 Macro", "Uses your top trinket slot."),
+        MacroIcon("trinket2", "Trinket 2 Macro", "Uses your bottom trinket slot.")
     ); y = y - h
 
     return y
@@ -62,7 +111,7 @@ function ns.BuildMacroFocusPage(parent, y)
     local _, h
     _, h = W:SectionHeader(parent, "SET FOCUS" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("focus", "Set Focus Macro", "Focuses your mouseover, or your target."),
+        MacroIcon("focus", "Set Focus Macro", "Focuses your mouseover, or your target."),
         S.Toggle("focusAnnounce", "Announce Focus", "Tells your group what you focused.", "focus")
     ); y = y - h
     _, h = W:DualRow(parent, y,
@@ -70,12 +119,6 @@ function ns.BuildMacroFocusPage(parent, y)
             .. "macro again on the same focus clears the marker.", "focus"),
         S.Dropdown("focusMarker", "Focus Marker", MARKER_VALUES, MARKER_ORDER, nil, "focus")
     ); y = y - h
-
-    _, h = W:SectionHeader(parent, "CLASS MACROS" .. STATUS.untested, y); y = y - h
-    _, h = W:Note(parent, "Focus and cursor casts for your class, like interrupting your "
-        .. "focus or dropping a ground effect at the cursor. These come once each class's "
-        .. "Forever spells are mapped, since Forever's spell IDs differ from retail's.", y)
-    y = y - h
 
     return y
 end
@@ -179,16 +222,16 @@ local function Write(m, body)
         if GetMacroBody(index) ~= body then EditMacro(index, m.name, ICON, body) end
         return
     end
-    local _, perChar = GetNumMacros()
-    if perChar >= Constants.MacroConsts.MAX_CHARACTER_MACROS then
+    local accountCount = GetNumMacros()
+    if accountCount >= Constants.MacroConsts.MAX_ACCOUNT_MACROS then
         if not warnedFull then
             warnedFull = true
-            ns.Print("Character macros are full, so " .. m.name
+            ns.Print("General macros are full, so " .. m.name
                 .. " could not be made. Delete one and it will be added.")
         end
         return
     end
-    CreateMacro(m.name, ICON, body, true)
+    CreateMacro(m.name, m.icon or ICON, body, false)
 end
 
 local function Update()
@@ -210,6 +253,63 @@ local function Update()
             if index > 0 then DeleteMacro(index) end
         end
     end
+end
+
+function ns.PickupManagedMacro(key)
+    if InCombatLockdown() then ns.Print("Move macros outside combat.") return end
+    if not ready or not S.Get("enabled") then ns.Print("Enable Macros first.") return end
+    S.Set(key, true)
+    if UI.RefreshPage then UI:RefreshPage(true) end
+    Update()
+    for _, macro in ipairs(MACROS) do
+        if macro.key == key then
+            local index = GetMacroIndexByName(macro.name)
+            if index > 0 then PickupMacro(index)
+            else ns.Print("Carry a matching item and make room in General macros first.") end
+            return
+        end
+    end
+end
+
+function ns.RemoveManagedMacro(key)
+    if InCombatLockdown() then ns.Print("Remove macros outside combat.") return end
+    if not S.Get(key) then return end
+    S.Set(key, false)
+    if UI.RefreshPage then UI:RefreshPage(true) end
+end
+
+local SCRIPT_COMMANDS = { ["/run"] = true, ["/script"] = true, ["/dump"] = true }
+
+function ns.PickupProfileMacro(entry)
+    if InCombatLockdown() or not ready or not S.Get("enabled") then return end
+    if type(entry.name) ~= "string" or #entry.name < 1 or #entry.name > 16
+        or type(entry.body) ~= "string" or #entry.body < 1 or #entry.body > 255 then
+        ns.Print("A profile macro needs a name (1-16 characters) and body (1-255 characters).")
+        return
+    end
+    local index = GetMacroIndexByName(entry.name)
+    if index > 0 and GetMacroBody(index) ~= entry.body then
+        ns.Print("A different macro already uses that name; rename it before adding the profile macro.")
+        return
+    end
+    local function Place()
+        if InCombatLockdown() then return end
+        Write(entry, entry.body)
+        local placed = GetMacroIndexByName(entry.name)
+        if placed > 0 then PickupMacro(placed) end
+    end
+    -- Profile macros come from shared packs, so script lines need the player's say-so.
+    if index == 0 then
+        for line in entry.body:gmatch("[^\n]+") do
+            local command = line:match("^%s*(/%a+)")
+            if command and SCRIPT_COMMANDS[command:lower()] then
+                ns.Confirm(entry.name .. " runs a script from a shared profile. Hover its icon to "
+                    .. "read it first. Create it?", Place)
+                return
+            end
+        end
+    end
+    Place()
 end
 
 -- Only switching a macro or the module off deletes it. A profile or spec switch that turns

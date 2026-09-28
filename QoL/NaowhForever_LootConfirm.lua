@@ -40,8 +40,8 @@ end)
 
 local function Apply()
     events:UnregisterAllEvents()
-    if not (S.Get("enabled") and S.Get("lootConfirm")) then return end
-    for event in pairs(CONFIRMATIONS) do events:RegisterEvent(event) end
+    -- Automatic confirmations are retired; keep saved preferences recoverable.
+    -- No events are registered, including for profiles that previously enabled it.
 end
 
 hooksecurefunc(S, "Set", function(key)

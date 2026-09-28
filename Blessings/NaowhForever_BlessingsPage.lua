@@ -90,7 +90,7 @@ function ns.BuildQoLBlessingsPage(parent, y)
 
     _, h = W:SectionHeader(parent, "BAR" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("blessBarSize", "Button Size", 20, 48, 1, nil, "blessings"),
+        S.Slider("blessBarSize", "Button Size", 20, 70, 1, nil, "blessings"),
         S.Toggle("blessTimers", "Minutes Left",
             "Minutes left on each class's shortest blessing, and on each player's.", "blessings")
     ); y = y - h
@@ -101,6 +101,14 @@ function ns.BuildQoLBlessingsPage(parent, y)
             "blessings")
     ); y = y - h
 
+    _, h = W:DualRow(parent, y,
+        S.Slider("blessSpacing", "Button Spacing", 0, 30, 1),
+        S.Slider("blessGroupSpacing", "Aura / Class Gap", 0, 40, 1)
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("blessTimerSize", "Timer Text Size", 8, 24, 1),
+        S.Toggle("blessShowLabels", "Class Labels")
+    ); y = y - h
     _, h = W:SectionHeader(parent, "KEYBINDS" .. UI.STATUS.untested, y); y = y - h
     local row
     row, h = W:DualRow(parent, y,

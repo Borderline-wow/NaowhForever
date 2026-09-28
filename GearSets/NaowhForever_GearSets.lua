@@ -339,11 +339,11 @@ function ns.BuildQoLGearSetsPage(parent, y)
 
     _, h = W:SectionHeader(parent, "GEAR SETS" .. UI.STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("gearSets", "Gear Set Bar",
+        S.Toggle("gearBarVisible", "Gear Set Bar",
             "A button per set: click to equip, Shift-click to save what you wear into it, Ctrl-click "
             .. "to rename it, right-click to change its icon, and + to save a new one. The set you "
             .. "wear is outlined. Move it in Unlock Mode."),
-        S.Slider("gearBarSize", "Button Size", 20, 48, 1, nil, "gearSets")
+        S.Slider("gearBarSize", "Button Size", 20, 48, 1, nil, "gearBarVisible")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("gearMounted", "Wear While Mounted", values, order,
@@ -405,7 +405,7 @@ local function Apply()
         events:RegisterEvent(e)
     end
     Layout()
-    bar:Show()
+    bar:SetShown(S.Get("gearBarVisible") == true)
     bar.mover:SetShown(unlocked == true)
     AutoSwap()
 end
@@ -426,3 +426,152 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+
+-------------------------------------------------------------------------------
+-- Two independent trinket slots. Equipment changes require an out-of-combat click.
+-------------------------------------------------------------------------------
+do
+    local trinkets, picker, moving
+    local function ClosePicker()
+        if picker then picker:Hide() end
+    end
+    local function Choose(anchor, inventorySlot)
+        if InCombatLockdown() then return end
+        ClosePicker()
+        if not picker then
+            picker = CreateFrame("Frame", nil, UIParent)
+            picker:SetFrameStrata("DIALOG")
+            picker:SetClampedToScreen(true)
+            ns.Solid(picker, "BACKGROUND", T.bg, 1):SetAllPoints()
+            ns.Border(picker)
+            picker.buttons = {}
+            picker.close = ns.Button(picker, "Close", 80, 22, ClosePicker)
+            picker.close:SetPoint("BOTTOM", 0, 5)
+        end
+        local items, seen = {}, {}
+        for bag = 0, NUM_BAG_SLOTS do
+            for slot = 1, C_Container.GetContainerNumSlots(bag) do
+                local id = C_Container.GetContainerItemID(bag, slot)
+                if id and not seen[id] then
+                    local _, _, _, equipLoc = C_Item.GetItemInfoInstant(id)
+                    if equipLoc == "INVTYPE_TRINKET" then
+                        seen[id] = true
+                        items[#items + 1] = id
+                    end
+                end
+            end
+        end
+        if #items == 0 then ns.Print("No spare trinkets in your bags.") return end
+        for i, id in ipairs(items) do
+            local button = picker.buttons[i]
+            if not button then
+                button = CreateFrame("Button", nil, picker)
+                button:SetSize(36, 36)
+                button.icon = button:CreateTexture(nil, "ARTWORK")
+                button.icon:SetAllPoints()
+                ns.Border(button, { r = 0, g = 0, b = 0 })
+                button:SetScript("OnClick", function(self)
+                    if InCombatLockdown() then return end
+                    -- Re-check the bags: they may have changed since the chooser opened.
+                    for bag = 0, NUM_BAG_SLOTS do
+                        for slot = 1, C_Container.GetContainerNumSlots(bag) do
+                            if C_Container.GetContainerItemID(bag, slot) == self.itemID then
+                                C_Item.EquipItemByName(self.itemID, self.inventorySlot)
+                                ClosePicker()
+                                return
+                            end
+                        end
+                    end
+                    ClosePicker()
+                end)
+                button:SetScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:SetItemByID(self.itemID)
+                    GameTooltip:Show()
+                end)
+                button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                picker.buttons[i] = button
+            end
+            button.itemID, button.inventorySlot = id, inventorySlot
+            button.icon:SetTexture(C_Item.GetItemIconByID(id))
+            button:ClearAllPoints()
+            button:SetPoint("TOPLEFT", 6 + ((i - 1) % 6) * 40, -6 - math.floor((i - 1) / 6) * 40)
+            button:Show()
+        end
+        for i = #items + 1, #picker.buttons do picker.buttons[i]:Hide() end
+        picker:SetSize(math.min(#items, 6) * 40 + 8, math.ceil(#items / 6) * 40 + 34)
+        picker:ClearAllPoints()
+        picker:SetPoint("BOTTOMLEFT", anchor, "TOPLEFT", 0, 5)
+        picker:Show()
+    end
+    local function ApplyTrinkets()
+        if InCombatLockdown() then return end
+        ClosePicker()
+        local on = S.Get("gearSets") and S.Get("trinketBar")
+        if not on then
+            if trinkets then trinkets:Hide() end
+            return
+        end
+        if not trinkets then
+            trinkets = CreateFrame("Frame", "NaowhForeverTrinkets", UIParent)
+            trinkets:SetMovable(true)
+            trinkets:SetClampedToScreen(true)
+            trinkets.buttons = {}
+            for i = 1, 2 do
+                local slot = i + 12
+                local button = CreateFrame("Button", nil, trinkets, "SecureActionButtonTemplate")
+                button:RegisterForClicks("AnyUp", "AnyDown")
+                button:SetAttribute("type1", "item")
+                button:SetAttribute("item1", tostring(slot))
+                button.icon = button:CreateTexture(nil, "ARTWORK")
+                button.icon:SetPoint("TOPLEFT", 1, -1)
+                button.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+                ns.Border(button, { r = 0, g = 0, b = 0 })
+                button:SetScript("PostClick", function(self, mouse, down)
+                    if mouse == "RightButton" and not down then Choose(self, slot) end
+                end)
+                ns.Tooltip(button, "Trinket " .. i, "Left-click to use. Right-click to choose a carried trinket out of combat.")
+                trinkets.buttons[i] = button
+            end
+            trinkets.mover = ns.UI.AttachMover(trinkets, "Trinkets", function(pos) S.Set("trinketPos", pos) end)
+        end
+        local size, gap = S.Get("trinketSize"), S.Get("trinketSpacing")
+        trinkets:SetSize(size * 2 + gap, size)
+        trinkets:ClearAllPoints()
+        local pos = S.Get("trinketPos")
+        if pos then trinkets:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+        else trinkets:SetPoint("CENTER", UIParent, "CENTER", 0, -160) end
+        for i, button in ipairs(trinkets.buttons) do
+            button:SetSize(size, size)
+            button:ClearAllPoints()
+            button:SetPoint("LEFT", (i - 1) * (size + gap), 0)
+            button.icon:SetTexture(GetInventoryItemTexture("player", i + 12) or 134400)
+        end
+        trinkets.mover:SetShown(moving == true)
+        trinkets:Show()
+    end
+    function ns.BuildTrinketsPage(parent, y)
+        local W = ns.UI.Widgets
+        local _, h = W:Note(parent, "Two movable trinket slots. Left-click to use; right-click to equip a trinket from your bags outside combat. Enable Gear & Trinkets in the sidebar first.", y)
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            S.Toggle("trinketBar", "Trinket Bar"), S.Slider("trinketSize", "Icon Size", 20, 70, 1)); y = y - h
+        _, h = W:DualRow(parent, y,
+            S.Slider("trinketSpacing", "Spacing", 0, 30, 1), { type = "label", text = "Move in Unlock Mode" })
+        return y - h
+    end
+    local watcher = CreateFrame("Frame")
+    for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "PLAYER_EQUIPMENT_CHANGED" }) do
+        watcher:RegisterEvent(event)
+    end
+    watcher:SetScript("OnEvent", function(_, event)
+        if event == "PLAYER_REGEN_DISABLED" then ClosePicker() else ApplyTrinkets() end
+    end)
+    hooksecurefunc(S, "Set", function(key)
+        if key == "gearSets" or key:find("^trinket") and key ~= "trinketPos" then ApplyTrinkets() end
+    end)
+    hooksecurefunc(ns, "Apply", ApplyTrinkets)
+    hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function() moving = true; ApplyTrinkets() end)
+    hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function() moving = false; ApplyTrinkets() end)
+end

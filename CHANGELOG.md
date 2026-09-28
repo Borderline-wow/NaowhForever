@@ -19,6 +19,15 @@
   merchant sells for gold without a stock limit are remembered when you visit them.
 - Professions: Reagents in Bags and Reagents in Bank (both on by default) add Bags and Bank
   columns to the chosen recipe's reagents.
+- Gear & Trinkets: a Trinket bar with two movable slots. Left-click uses the trinket,
+  right-click (out of combat) picks another one from your bags.
+- Macros: a Class Macros tab for macros supplied by your profile. Click or drag an icon to
+  put it on your action bar. A macro that runs a script asks before it is created.
+- Campfire: Buff Text Size, Buff Text Position (below, above, left or right) and Show
+  Refresh Reminder settings.
+- Blessings: Button Spacing, Aura / Class Gap, Timer Text Size and Class Labels settings;
+  buttons go up to 70.
+- XP Bar: choose the left, center and right text (level, XP, percent or rested).
 
 ### Changed
 - Professions: your learned recipes sit under a Learned heading that folds away, and the
@@ -27,6 +36,18 @@
 - Professions: Naowh's profession window is the only way the module shows recipes. The
   separate Naowh Profession Window switch and the unlearned-recipes drawer beside
   Blizzard's window are gone; the module's sidebar switch turns it all on and off.
+- Buffs & Consumables: food, flask, scroll and elixir reminders come from the entries you
+  add (an item ID and its buff spell IDs) or from an imported profile, instead of a built-in
+  list. Hover a reminder to pick a configured item from your bags.
+- Macros: the macro toggles are icons you click or drag onto your bars, created as General
+  macros instead of character macros. Right-click an icon to remove its macro.
+- Campfire: the timer ring is edged in black with no dark swipe over the icon, the seated
+  label reads Resting, and each buff line shows the effect from the Camp Benefits tooltip.
+- BiS: each spec keeps its own list; switching spec or importing no longer overwrites
+  another spec's picks.
+- XP Ticker: Level Splits is replaced by Level History, your most recent completed levels.
+- Module names: Gear Sets is Gear & Trinkets, Alerts is Combat & Alerts.
+- FPS and latency moved to the Top Bar; the On-Screen Extras options are gone.
 
 ### Fixed
 - QoL's tab row no longer runs past the window edge and over the scrollbar; tabs tighten
@@ -35,6 +56,10 @@
   kept it from listing any threat.
 - XP Bar: Blizzard's experience bar no longer comes back after a /reload. Its container's
   own fade-in animation was undoing the fade.
+
+### Removed
+- Streamer quotes on flights.
+- Automatic loot confirmations (saved preferences are kept).
 
 ## 0.5.14-beta
 

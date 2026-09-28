@@ -11,29 +11,7 @@ local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 
 -- Streamer art goes in Media\Streamers as a square power-of-two .tga (128x128 is plenty);
 -- point `icon` at it once the streamer has said yes to their face being used.
-ns.FLIGHT_QUOTES = {
-    { name = "Asmongold", icon = PLACEHOLDER, quotes = {
-        "Clean your desk.",
-        "Throw out the empty cans.",
-        "Open a window, get some air in here.",
-        "Take the plates back to the kitchen.",
-        "When did you last eat something green?",
-    } },
-    { name = "Xaryu", icon = PLACEHOLDER, quotes = {
-        "Grab some water.",
-        "Sit up straight.",
-        "Stretch your wrists.",
-        "Stand up and stretch your legs.",
-        "Look away from the screen for a bit.",
-    } },
-    { name = "Naowh", icon = LOGO, quotes = {
-        "Check your bags before the next pull.",
-        "Refill your water, not just your mana.",
-        "Blink a few times, your eyes will thank you.",
-        "Relax your shoulders.",
-        "Text someone back.",
-    } },
-}
+ns.FLIGHT_QUOTES = {}
 
 local QUOTE_SECONDS = 45
 -- Yards per second, fitted to measured Classic flight times.
@@ -120,11 +98,11 @@ local function Update()
     else
         bar.time:SetText(Clock(elapsed))
     end
-    if S.Get("flightQuotes") and GetTime() - quoteAt >= QUOTE_SECONDS then NextQuote() end
+    if false and GetTime() - quoteAt >= QUOTE_SECONDS then NextQuote() end
 end
 
 local function Layout()
-    local quotes = S.Get("flightQuotes")
+    local quotes = false
     bar.icon:SetShown(quotes)
     bar.quote:SetShown(quotes)
     bar.title:SetPoint("TOPLEFT", quotes and 62 or 8, -8)
@@ -135,7 +113,7 @@ end
 local function Show()
     Layout()
     bar.title:SetText(flight.to and ("Flying to " .. flight.to) or "In flight")
-    if S.Get("flightQuotes") then NextQuote() end
+    if false then NextQuote() end
     Update()
     bar:Show()
 end

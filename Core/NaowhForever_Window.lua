@@ -40,8 +40,9 @@ local MODULES = {
       subtitle = "Naowh's quality of life tweaks, trimmed to what Forever has.",
       tabs = {
           { name = "General", build = "BuildQoLGeneralPage", reuse = true },
+          { name = "Questing", build = "BuildQoLQuestingPage", reuse = true },
           { name = "Loot & Items", build = "BuildQoLLootPage", reuse = true },
-          { name = "Alerts", build = "BuildQoLAlertsPage", reuse = true },
+          { name = "Combat & Alerts", build = "BuildQoLAlertsPage", reuse = true },
           { name = "Interface", build = "BuildQoLInterfacePage", reuse = true },
           { name = "Casting", build = "BuildQoLCastingPage", reuse = true },
           { name = "Tools", build = "BuildQoLToolsPage", reuse = true },
@@ -58,11 +59,12 @@ local MODULES = {
       tabs = {
           { name = "Tracker", build = "BuildQoLDungeonQuestsPage", reuse = true },
       } },
-    { name = "Gear Sets", settings = "QoLSettings", enabledKey = "gearSets",
+    { name = "Gear & Trinkets", settings = "QoLSettings", enabledKey = "gearSets",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
       tabs = {
-          { name = "Sets", build = "BuildQoLGearSetsPage", reuse = true },
+          { name = "Gear Sets", build = "BuildQoLGearSetsPage", reuse = true },
+          { name = "Trinkets", build = "BuildTrinketsPage", reuse = true },
       } },
     { name = "Blessings", settings = "QoLSettings", enabledKey = "blessings",
       command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
@@ -85,6 +87,7 @@ local MODULES = {
     { name = "Macros", settings = "MacroSettings",
       subtitle = "Macros written and kept current for you, out of combat.",
       tabs = {
+          { name = "Class Macros", build = "BuildClassMacrosPage", reuse = true },
           { name = "Consumables", build = "BuildMacroConsumablesPage", reuse = true },
           { name = "Focus & Cursor", build = "BuildMacroFocusPage", reuse = true },
       } },
@@ -594,11 +597,14 @@ local function CreateWindow()
     DragRegion(brand, window)
     local logo = brand:CreateTexture(nil, "ARTWORK")
     logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(44, 44)
-    logo:SetPoint("LEFT", brand, "LEFT", 16, 0)
-    local name = ns.Font(brand, 19, "OUTLINE")
-    name:SetPoint("LEFT", logo, "RIGHT", 10, 0)
-    name:SetText("|cff0091edNaowh|r Forever")
+    logo:SetSize(60, 60)
+    logo:SetPoint("TOPLEFT", brand, "TOPLEFT", 12, -4)
+    local name = ns.Font(brand, 22, "OUTLINE", T.accent)
+    name:SetPoint("TOPLEFT", brand, "TOPLEFT", 82, -14)
+    name:SetText("Naowh")
+    local forever = ns.Font(brand, 17, nil)
+    forever:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 1, -3)
+    forever:SetText("Forever")
 
     local ny = -(HEADER_H + 8)
     local function NavButton(label, onClick, indent)
@@ -657,7 +663,7 @@ local function CreateWindow()
 
     local version = ns.Font(sidebar, 11, nil, T.muted)
     version:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMLEFT", 18, 14)
-    version:SetText("v" .. (C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or "unknown"))
+    version:SetText("v" .. (ns.CODE_BUILD or C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or "unknown"))
 
     -- Content header: the open module's name and what it is for, with its tabs below.
     local header = CreateFrame("Frame", nil, window)
