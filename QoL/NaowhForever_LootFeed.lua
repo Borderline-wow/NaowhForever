@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_LootFeed.lua -- the QoL loot feed: a line per loot with its icon,
---  amount, bag total and value, stacking upward from the anchor and fading out, plus an
+--  amount, bag total and value, stacking up or down from the anchor and fading out, plus an
 --  optional gold per hour counter.
 --
 --  Forever has no GetItemInfo/GetItemCount/GetCoinTextureString globals (Blizzard_Deprecated*
@@ -83,9 +83,12 @@ end
 
 local function Layout()
     local step = S.Get("lootFeedHeight") + S.Get("lootFeedSpacing")
+    local down = S.Get("lootFeedGrowth") == "down"
+    local point = down and "TOP" or "BOTTOM"
+    if down then step = -step end
     for i, row in ipairs(rows) do
         row:ClearAllPoints()
-        row:SetPoint("BOTTOM", feed, "BOTTOM", 0, (i - 1) * step)
+        row:SetPoint(point, feed, point, 0, (i - 1) * step)
     end
     local newest = rows[1]
     if gph and newest and S.Get("lootFeedGPH") and sessionStart then
@@ -358,7 +361,7 @@ lootWatch:SetScript("OnEvent", function(_, event, _, arg2)
         if IsShiftKeyDown() then return end
         -- Only a full-bags error during a loot matters, so errors are heard only while one is open.
         lootWatch:RegisterEvent("UI_ERROR_MESSAGE")
-        lootHidden = AllTakeable()
+        lootHidden = S.Get("hideLootWindow") and AllTakeable()
         lootGen = lootGen + 1
         local gen = lootGen
         local count = GetNumLootItems()
@@ -384,7 +387,8 @@ lootWatch:SetScript("OnEvent", function(_, event, _, arg2)
 end)
 
 local function ApplyLootWindow()
-    if S.Get("enabled") and S.Get("hideLootWindow") then
+    if not S.Get("hideLootWindow") then ShowLootWindow() end
+    if S.Get("enabled") and (S.Get("hideLootWindow") or S.Get("fastLoot")) then
         if not lootHooked then
             lootHooked = true
             hooksecurefunc(LootFrame, "Open", function()
@@ -396,6 +400,7 @@ local function ApplyLootWindow()
         lootWatch:RegisterEvent("LOOT_CLOSED")
     else
         lootWatch:UnregisterAllEvents()
+        lootGen = lootGen + 1
         ShowLootWindow()
     end
 end
@@ -441,7 +446,7 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "hideLootWindow"
+    if key == "enabled" or key == "hideLootWindow" or key == "fastLoot"
         or (key:find("^lootFeed") and key ~= "lootFeedPos") then
         Apply()
     end

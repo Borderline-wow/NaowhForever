@@ -81,85 +81,44 @@ local function LevelTime()
     return cur.base + (anchor and GetTime() - anchor or 0)
 end
 
-local function SplitIndex()
-    return math.min(cur.n, math.floor(UnitXP("player") / UnitXPMax("player") * cur.n) + 1)
-end
-
--- A level first seen part way through has no start: the splits behind us are unknown and
--- the one in progress is partial, so neither is compared.
+-- Keep only whole-level records in the display. A level first observed part-way
+-- through is partial and must never be presented as a complete level time.
 local function StartLevel(fromStart, level)
-    cur = { level = level or UnitLevel("player"), n = S.Get("xpTickerSplitCount"), splits = {}, base = 0,
-        splitStart = 0 }
+    cur = { level = level or UnitLevel("player"), base = 0, partial = not fromStart }
     anchor = not paused and GetTime() or nil
-    cur.idx = fromStart and 1 or SplitIndex()
-    if not fromStart then
-        cur.partial = true
-        cur.partialIdx = cur.idx
-    end
     Splits().current = cur
 end
 
-local function CloseSplitsTo(newIdx)
-    local now = LevelTime()
-    cur.splits[cur.idx] = now - cur.splitStart
-    for i = cur.idx + 1, newIdx - 1 do cur.splits[i] = 0 end
-    cur.idx = newIdx
-    cur.splitStart = now
-end
-
--- PLAYER_LEVEL_UP arrives before UnitLevel and the XP bar move to the new level, so the
--- level is closed from its payload, and splits wait until UnitLevel catches up.
 local function TrackSplits(newLevel)
-    if AtMaxLevel() then return end
     if not cur then
         local saved = Splits().current
-        if saved and saved.level == UnitLevel("player") and saved.n == S.Get("xpTickerSplitCount") then
+        if saved and saved.level == UnitLevel("player") then
             cur, anchor = saved, not paused and GetTime() or nil
         else
-            StartLevel(false)
+            StartLevel(UnitXP("player") == 0)
         end
     end
     local level = newLevel or UnitLevel("player")
     if level > cur.level then
-        CloseSplitsTo(cur.n + 1)
-        Splits().levels[cur.level] = { n = cur.n, splits = cur.splits, partialIdx = cur.partialIdx,
-            total = not cur.partial and LevelTime() or nil }
+        Splits().levels[cur.level] = { total = not cur.partial and LevelTime() or nil }
         StartLevel(true, level)
-        return
+    elseif not anchor and not paused then
+        anchor = GetTime()
     end
-    if level < cur.level then return end
-    local idx = SplitIndex()
-    if idx > cur.idx then CloseSplitsTo(idx) end
 end
 
 local function SplitLines()
-    local levels = Splits().levels
-    local compare = S.Get("xpTickerCompare")
-    local prev = compare and levels[cur.level - 1]
-    if prev and prev.n ~= cur.n then prev = nil end
-    local lines = {}
-
-    local last = levels[cur.level - 1]
-    if compare and last and last.total then
-        local before = levels[cur.level - 2]
-        local text = Line("Level " .. (cur.level - 1), Clock(last.total))
-        if before and before.total then text = text .. "  " .. Delta(last.total - before.total) end
-        lines[#lines + 1] = text
-    end
-    lines[#lines + 1] = Line("Level " .. cur.level, cur.partial and "--" or Clock(LevelTime()))
-
-    for i = 1, cur.n do
-        local value, delta = DIM .. "--|r", ""
-        if i < cur.idx and cur.splits[i] and i ~= cur.partialIdx then
-            value = Clock(cur.splits[i])
-            local p = prev and prev.splits[i]
-            if p and i ~= prev.partialIdx then delta = "  " .. Delta(cur.splits[i] - p) end
-        elseif i == cur.idx then
-            value = Clock(LevelTime() - cur.splitStart)
-            if i == cur.partialIdx then value = DIM .. value .. "|r" end
+    local levels, keys = Splits().levels, {}
+    for level, record in pairs(levels) do
+        if type(level) == "number" and level < cur.level and record.total then
+            keys[#keys + 1] = level
         end
-        lines[#lines + 1] = LABEL .. "Level " .. cur.level .. "  " .. i .. "/" .. cur.n .. ":|r "
-            .. VALUE .. value .. "|r" .. delta
+    end
+    table.sort(keys, function(a, b) return a > b end)
+    local lines = {}
+    for i = 1, math.min(#keys, S.Get("xpTickerHistoryCount") or 10) do
+        local level = keys[i]
+        lines[#lines + 1] = Line("Level " .. level, Clock(levels[level].total))
     end
     return table.concat(lines, "\n")
 end
@@ -183,11 +142,9 @@ local function Update()
         lines[#lines + 1] = Line("Ding", rate > 0 and Duration(left / rate * 3600) or "--")
     end
     if S.Get("xpTickerElapsed") then
-        lines[#lines + 1] = Line("Elapsed", Duration(elapsed))
+        lines[#lines + 1] = Line("Time", Clock(elapsed))
     end
-    if S.Get("xpTickerTotal") then
-        lines[#lines + 1] = Line("XP/Session", BreakUpLargeNumbers(sessionXP))
-    end
+
     ticker.text:SetText(table.concat(lines, "\n"))
     ticker.splits:SetText(S.Get("xpTickerSplits") and cur and SplitLines() or "")
 
@@ -240,7 +197,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
         lastXP, lastXPMax = xp, max
         if not paused then sessionXP = sessionXP + gained end
     end
-    if S.Get("xpTickerSplits") then TrackSplits(event == "PLAYER_LEVEL_UP" and arg1 or nil) end
+    TrackSplits(event == "PLAYER_LEVEL_UP" and arg1 or nil)
     Update()
 end)
 
@@ -256,6 +213,7 @@ end
 
 local function Apply()
     if not On() then
+        if cur and anchor then cur.base, anchor = LevelTime(), nil end
         events:UnregisterAllEvents()
         if clock then clock:Cancel(); clock = nil end
         if ticker then ticker:Hide() end
@@ -305,7 +263,7 @@ local function Apply()
     events:RegisterEvent("PLAYER_UPDATE_RESTING")
     events:RegisterEvent("PLAYER_LEVEL_UP")
     events:RegisterEvent("PLAYER_LOGOUT")
-    if S.Get("xpTickerSplits") then TrackSplits() end
+    TrackSplits()
     -- The rate falls and the clock runs while you stand still, so the text is redrawn on a
     -- slow clock too; a running split needs a one-second clock to read as a timer.
     local rate = S.Get("xpTickerSplits") and 1 or 5
@@ -318,8 +276,6 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key, value)
-    -- A new split count cannot remap the times already taken, so the level restarts.
-    if key == "xpTickerSplitCount" and cur and cur.n ~= value then cur = nil; StartLevel(false) end
     if key == "enabled" or (key:find("^xpTicker") and key ~= "xpTickerPos") then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)

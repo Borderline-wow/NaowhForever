@@ -7,9 +7,12 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 
 local TEMPLATE = "NaowhForeverTownPinTemplate"
+local LINK_TEMPLATE = "NaowhForeverZoneLinkPinTemplate"
+local CAPITALS = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true, [2482] = true }
 
 -- Category -> the setting that shows it, its icon and the label in the tooltip.
 local CATEGORIES = {
+    spirit     = { "townSpiritHealers", "Interface\\Icons\\Spell_Holy_GuardianSpirit", "Spirit Healer" },
     class      = { "townClass", nil, "Class Trainer" },
     profession = { "townProfession", "Interface\\Icons\\INV_Misc_Book_09", "Trainer" },
     flight     = { "townFlight", "Interface\\Icons\\Ability_Mount_Gryphon_01", "Flight Master" },
@@ -67,6 +70,29 @@ function NaowhForeverTownPinMixin:OnMouseLeave()
     GameTooltip:Hide()
 end
 
+-- Separate clickable pins keep ordinary vendor/trainer pins click-through.
+NaowhForeverZoneLinkPinMixin = CreateFromMixins(MapCanvasPinMixin)
+function NaowhForeverZoneLinkPinMixin:OnLoad()
+    self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI")
+end
+function NaowhForeverZoneLinkPinMixin:CheckMouseButtonPassthrough() end
+function NaowhForeverZoneLinkPinMixin:OnAcquired(link)
+    self.link = link
+    self:SetSize(S.Get("townPinSize"), S.Get("townPinSize"))
+    self.Icon:SetAtlas(link.atlasName)
+    self:SetPosition(link.position:GetXY())
+end
+function NaowhForeverZoneLinkPinMixin:OnClick(button)
+    if button == "LeftButton" and self.link then self:GetMap():SetMapID(self.link.linkedUiMapID) end
+end
+function NaowhForeverZoneLinkPinMixin:OnMouseEnter()
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(self.link.name)
+    GameTooltip:AddLine("Click to open this zone", 0.3, 0.71, 0.96)
+    GameTooltip:Show()
+end
+function NaowhForeverZoneLinkPinMixin:OnMouseLeave() GameTooltip:Hide() end
+
 -------------------------------------------------------------------------------
 --  The map's data provider
 -------------------------------------------------------------------------------
@@ -74,15 +100,28 @@ local provider = CreateFromMixins(MapCanvasDataProviderMixin)
 
 function provider:RemoveAllData()
     self:GetMap():RemoveAllPinsByTemplate(TEMPLATE)
+    self:GetMap():RemoveAllPinsByTemplate(LINK_TEMPLATE)
 end
 
 function provider:RefreshAllData()
     self:RemoveAllData()
-    local list = On() and ns.TownNPCs[self:GetMap():GetMapID()]
-    if not list then return end
+    if not On() then return end
+    local mapID = self:GetMap():GetMapID()
+    local list = (not S.Get("townCapitalsOnly") or CAPITALS[mapID]) and ns.TownNPCs[mapID] or {}
+    if S.Get("townSpiritHealers") and C_DeathInfo and C_DeathInfo.GetGraveyardsForMap then
+        for _, grave in ipairs(C_DeathInfo.GetGraveyardsForMap(mapID) or {}) do
+            local x, y = grave.position:GetXY()
+            self:GetMap():AcquirePin(TEMPLATE, { x * 100, y * 100, "spirit", grave.name, "Spirit Healer", nil, "AH" })
+        end
+    end
+    if S.Get("townZoneLinks") and C_Map.GetMapLinksForMap then
+        for _, link in ipairs(C_Map.GetMapLinksForMap(mapID) or {}) do
+            self:GetMap():AcquirePin(LINK_TEMPLATE, link)
+        end
+    end
     local faction = UnitFactionGroup("player") == "Horde" and "H" or "A"
     local _, class = UnitClass("player")
-    for _, npc in ipairs(list) do
+    for _, npc in ipairs(list or {}) do
         local cat = CATEGORIES[npc[3]]
         if npc[7]:find(faction, 1, true) and S.Get(cat[1])
             and (npc[3] ~= "class" or npc[6] == class) then

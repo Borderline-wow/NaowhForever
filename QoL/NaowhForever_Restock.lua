@@ -50,6 +50,7 @@ local FOOD_CLASS, FOOD_SUBCLASS = 0, 5   -- Consumable: Food & Drink
 
 local alert, flash
 local wasResting
+local pendingItems = {}
 
 local function On()
     return S.Get("enabled") and S.Get("restock")
@@ -83,7 +84,8 @@ end
 
 -- Food and drink carried, junk to sell and free bag slots, in one pass over the bags.
 local function ScanBags()
-    local food, junk, free = 0, 0, 0
+    local food, drink, junk, free = 0, 0, 0, 0
+    local drinkSpell = C_Item.GetItemSpell(159) -- Refreshing Spring Water; localized Drink spell name.
     for bag = 0, NUM_BAG_SLOTS do
         -- Quivers, ammo pouches and soul bags do not count as room.
         local slots, bagType = C_Container.GetContainerNumFreeSlots(bag)
@@ -96,12 +98,26 @@ local function ScanBags()
                 end
                 local _, _, _, _, _, classID, subclassID = C_Item.GetItemInfoInstant(info.itemID)
                 if classID == FOOD_CLASS and subclassID == FOOD_SUBCLASS then
-                    food = food + info.stackCount
+                    local _, _, _, _, level = C_Item.GetItemInfo(info.itemID)
+                    if not level then
+                        if not pendingItems[info.itemID] then
+                            pendingItems[info.itemID] = true
+                            C_Item.RequestLoadItemDataByID(info.itemID)
+                        end
+                    elseif level >= (S.Get("restockFoodMinLevel") or 0)
+                        and level <= (S.Get("restockFoodMaxLevel") or 60) then
+                        local spell = C_Item.GetItemSpell(info.itemID)
+                        if drinkSpell and spell == drinkSpell then
+                            drink = drink + info.stackCount
+                        else
+                            food = food + info.stackCount
+                        end
+                    end
                 end
             end
         end
     end
-    return food, junk, free
+    return food, junk, free, drink
 end
 
 -- A target slider for each reagent your class uses, for the options page.
@@ -134,9 +150,14 @@ local function Lines()
         end
     end
     table.sort(lines)
-    local food, junk, free = ScanBags()
+    local food, junk, free, drink = ScanBags()
     if S.Get("restockFood") and food < S.Get("restockFoodBelow") then
-        lines[#lines + 1] = ("Food & Drink  %d left"):format(food)
+        lines[#lines + 1] = ("Food  %d left"):format(food)
+    end
+    local class = select(2, UnitClass("player"))
+    if S.Get("restockFood") and class ~= "WARRIOR" and class ~= "ROGUE"
+        and drink < S.Get("restockFoodBelow") then
+        lines[#lines + 1] = ("Drink  %d left"):format(drink)
     end
     if S.Get("restockVendor") then
         if junk > 0 then lines[#lines + 1] = ("Junk to sell  %d"):format(junk) end
@@ -205,7 +226,8 @@ end
 
 -- Shown on reaching a rested area, and again after a vendor if anything is still short.
 local function Check()
-    if not IsResting() or InCombatLockdown() or IsInInstance() then
+    if not On() or not IsResting() or InCombatLockdown() or IsInInstance()
+        or (MerchantFrame and MerchantFrame:IsShown()) then
         HideAlert()
         return
     end
@@ -277,7 +299,11 @@ end
 --  Wiring
 -------------------------------------------------------------------------------
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event)
+events:SetScript("OnEvent", function(_, event, itemID)
+    if event == "GET_ITEM_INFO_RECEIVED" then
+        if not pendingItems[itemID] then return end
+        pendingItems[itemID] = nil
+    end
     if event == "MERCHANT_SHOW" then
         HideAlert()
         SellJunk()
@@ -287,9 +313,10 @@ events:SetScript("OnEvent", function(_, event)
         C_Timer.After(0.5, Check)
     elseif event == "PLAYER_REGEN_DISABLED" then
         HideAlert()
-    elseif event == "BAG_UPDATE_DELAYED" then
+    elseif event == "BAG_UPDATE_DELAYED" or event == "PLAYER_REGEN_ENABLED"
+        or event == "GET_ITEM_INFO_RECEIVED" then
         -- Restocked from the bank, mail or a trade: the list follows while it is up.
-        if alert and alert:IsShown() then Check() end
+        Check()
     else
         local resting = IsResting()
         if resting and not wasResting then Check() end
@@ -309,9 +336,15 @@ local function Apply()
     events:RegisterEvent("PLAYER_UPDATE_RESTING")
     events:RegisterEvent("PLAYER_ENTERING_WORLD")
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
+    events:RegisterEvent("PLAYER_REGEN_ENABLED")
+    events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     events:RegisterEvent("MERCHANT_SHOW")
     events:RegisterEvent("MERCHANT_CLOSED")
     events:RegisterEvent("BAG_UPDATE_DELAYED")
+    pendingItems[159] = true
+    C_Item.RequestLoadItemDataByID(159)
+    wasResting = IsResting()
+    Check()
 end
 
 hooksecurefunc(S, "Set", function(key)

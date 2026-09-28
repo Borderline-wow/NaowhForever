@@ -10,7 +10,7 @@ local LABEL, VALUE = "|cff0091ed", "|cfff0f1f3"
 local frame, clock, unlocked
 
 local function On()
-    return S.Get("enabled") and S.Get("fps")
+    return false -- FPS and latency now live in the Top Bar.
 end
 
 local function Update()

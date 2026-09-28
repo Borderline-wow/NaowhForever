@@ -43,28 +43,30 @@ local S = UI.ModuleSettings("qol", {
     lootFeedQuest = true, lootFeedRep = false,
     lootFeedCount = 6, lootFeedFade = 5, lootFeedStyle = "dark", lootFeedGlow = false,
     lootFeedValue = true, lootFeedBank = true, lootFeedPrice = "vendor", lootFeedGPH = false,
-    hideLootWindow = false,
-    lootFeedWidth = 340, lootFeedHeight = 36, lootFeedSpacing = 0,
+    hideLootWindow = false, fastLoot = false,
+    lootFeedWidth = 340, lootFeedHeight = 36, lootFeedSpacing = 0, lootFeedGrowth = "up",
     lootFeedFont = "", lootFeedFontSize = 13,
     ahPrices = true, ahTooltip = true,
-    xpTicker = true, xpTickerLevel = true, xpTickerElapsed = false, xpTickerTotal = false,
+    xpTicker = true, xpTickerLevel = true, xpTickerElapsed = true, xpTickerTotal = false,
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24,
-    xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true,
-    xpBar = false, xpBarPlayed = false, xpBarSession = false, xpBarLeveling = false,
+    xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true, xpTickerHistoryCount = 10,
+    xpBar = false, xpBarPlayed = true, xpBarSession = false, xpBarLeveling = true,
+    xpBarLeftText = "level", xpBarCenterText = "xp", xpBarRightText = "percent",
     xpBarCompleted = false, xpBarIncomplete = false, xpBarMaxLevel = false,
     xpBarResetOnReload = false, xpBarWidth = 520, xpBarHeight = 26,
     autoRepair = false, sellJunk = false,
     restock = true, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
-    restockFood = true, restockFoodBelow = 10, restockVendor = true, restockBagsBelow = 4,
+    restockFood = true, restockFoodBelow = 10, restockFoodMinLevel = 0, restockFoodMaxLevel = 60, restockVendor = true, restockBagsBelow = 4,
     restockBuy = false,
     dqTracker = true, dqShowDone = false, dqAllFactions = false, dqOutside = false,
     dqSingle = false, dqSelected = "",
+    townCapitalsOnly = true, townSpiritHealers = true, townZoneLinks = true,
     townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
     townVendors = false, townPinSize = 16,
-    gearSets = true, gearBarSize = 32, gearMounted = "", gearResting = "",
+    gearSets = true, gearBarVisible = true, trinketBar = false, trinketSize = 36, trinketSpacing = 4, gearBarSize = 32, gearMounted = "", gearResting = "",
     bis = true, bisTooltip = true, bisLootAlert = true,
-    blessings = true, blessBarSize = 30, blessTimers = true, blessShowAura = true,
+    blessings = true, blessSpacing = 6, blessGroupSpacing = 6, blessTimerSize = 14, blessShowLabels = true, blessBarSize = 30, blessTimers = true, blessShowAura = true,
     blessShowFury = false,
 
     durability = true, durabilityBelow = 25, durabilityFont = "",
@@ -148,7 +150,7 @@ local S = UI.ModuleSettings("qol", {
 
     trainerPopup = true, trainerGlow = true, trainerRanks = true,
 
-    flightTimer = true, flightQuotes = true, quizFlight = true, quizCamp = true,
+    flightTimer = true, flightQuotes = false, quizFlight = true, quizCamp = true,
 })
 ns.QoLSettings = S
 
@@ -225,41 +227,34 @@ local function TextButton(parent, y, label, title, k)
     end)
 end
 
-function ns.BuildQoLGeneralPage(parent, y)
+local function TextControl(label, title, key)
+    return { type = "button", text = label, buttonText = "Edit", onClick = function()
+        ns.PromptText(title, S.Get(key), 0, function(value) S.Set(key, value) end)
+    end }
+end
+
+function ns.BuildQoLQuestingPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
-
     _, h = W:SectionHeader(parent, "XP PER HOUR" .. STATUS.ready, y); y = y - h
     local xpFonts, xpFontOrder = UI.FontChoices(S.Get("xpTickerFont"))
     _, h = W:DualRow(parent, y,
         S.Toggle("xpTicker", "XP per Hour",
             "Your experience per hour on screen, with time to level, session length and "
-            .. "XP this session, counted from when you logged in. Hidden at max level. Hover it "
+            .. "recent level times. Hidden at max level. Hover it "
             .. "for Start, Pause and Reset (also /naowh xp start, pause or reset). Move it in "
             .. "Unlock Mode."),
         S.Toggle("xpTickerLevel", "Show Ding Time",
             "How long the next level takes at your current rate.", "xpTicker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("xpTickerElapsed", "Show Elapsed", "How long this session has run.",
+        S.Toggle("xpTickerElapsed", "Show Time", "How long this session has run.",
             "xpTicker"),
-        S.Toggle("xpTickerTotal", "Show XP per Session", "Experience gained this session.",
-            "xpTicker")
+        S.Toggle("xpTickerHideResting", "Hide While Resting", "Hidden in cities and inns.", "xpTicker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("xpTickerSplits", "Level Splits",
-            "Each level cut into equal parts of experience, with the time each part took. "
-            .. "Times count only while you are logged in.", "xpTicker"),
-        S.Slider("xpTickerSplitCount", "Splits per Level", 1, 10, 1,
-            "Changing it restarts the splits of the level you are on.", "xpTickerSplits")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("xpTickerCompare", "Compare to Previous Level",
-            "Each finished split shows how much faster (green) or slower (red) it was than "
-            .. "the same split of your previous level.", "xpTickerSplits"),
-        S.Toggle("xpTickerHideResting", "Hide While Resting",
-            "Hidden in cities and inns.", "xpTicker")
+        S.Toggle("xpTickerSplits", "Level History", "Completed levels, newest first. No placeholder rows.", "xpTicker"),
+        S.Slider("xpTickerHistoryCount", "Levels Shown", 1, 10, 1, "The most recent completed levels.", "xpTickerSplits")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("xpTickerFont", "Font", xpFonts, xpFontOrder, nil, "xpTicker"),
@@ -302,6 +297,17 @@ function ns.BuildQoLGeneralPage(parent, y)
         S.Slider("xpBarHeight", "Height", 14, 48, 1, nil, "xpBar")
     ); y = y - h
 
+    local textValues = { none = "None", level = "Level", xp = "Current / Max XP", percent = "XP Percent", rested = "Rested Percent" }
+    local textOrder = { "none", "level", "xp", "percent", "rested" }
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("xpBarLeftText", "Left Text", textValues, textOrder, nil, "xpBar"),
+        S.Dropdown("xpBarCenterText", "Center Text", textValues, textOrder, nil, "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("xpBarRightText", "Right Text", textValues, textOrder, nil, "xpBar"),
+        { type = "label", text = "" }
+    ); y = y - h
+
     _, h = W:SectionHeader(parent, "QUESTING" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("questAccept", "Auto Accept Quests",
@@ -320,6 +326,14 @@ function ns.BuildQoLGeneralPage(parent, y)
             .. "when you hand the quest in, and Auto Turn In takes it for you.")
     ); y = y - h
 
+    return y
+end
+
+function ns.BuildQoLGeneralPage(parent, y)
+    local W = UI.Widgets
+    local _, h
+    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
+
     _, h = W:SectionHeader(parent, "DEATH RELEASE" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("deathRelease", "Death Release Protection",
@@ -328,23 +342,16 @@ function ns.BuildQoLGeneralPage(parent, y)
         S.Slider("deathReleaseHold", "Hold Time (s)", 0.5, 3, 0.1, nil, "deathRelease")
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "STEALTH & FORM REMINDER" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("stealthReminder", "Stealth Reminder",
-            "Text on screen while a rogue or druid is out of stealth, and optionally while "
-            .. "stealthed. Hidden in combat. Move it in Unlock Mode."),
-        S.Toggle("formReminder", "Stance / Form Reminder",
-            "Warns while a warrior has no stance, a paladin has no aura, or a druid or priest "
-            .. "is out of the form picked below. Move it in Unlock Mode.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("reminderInGroup", "Only In a Group",
-            "Both reminders stay hidden while you play alone."),
-        S.Toggle("reminderHideResting", "Hide While Resting",
-            "Both reminders stay hidden in cities and inns.")
-    ); y = y - h
-
     _, h = W:SectionHeader(parent, "STEALTH REMINDER", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("stealthReminder", "Enable Stealth Reminder", "Out-of-combat stealth status for rogues and druids."),
+        { type = "label", text = "" }
+    ); y = y - h
+    if S.Get("stealthReminder") then
+    _, h = W:DualRow(parent, y,
+        S.Toggle("reminderInGroup", "Only In a Group", nil, "stealthReminder"),
+        S.Toggle("reminderHideResting", "Hide While Resting", nil, "stealthReminder")
+    ); y = y - h
     local stealthFonts, stealthFontOrder = UI.FontChoices(S.Get("stealthFont"))
     _, h = W:DualRow(parent, y,
         S.Toggle("stealthShowStealthed", "Show While Stealthed",
@@ -366,43 +373,11 @@ function ns.BuildQoLGeneralPage(parent, y)
         S.Dropdown("stealthFont", "Font", stealthFonts, stealthFontOrder, nil, "stealthReminder"),
         S.Slider("stealthFontSize", "Font Size", 10, 60, 1, nil, "stealthReminder")
     ); y = y - h
-    _, h = TextButton(parent, y, "Out of Stealth Text", "Text while out of stealth", "warningText"); y = y - h
-    _, h = TextButton(parent, y, "Stealthed Text", "Text while stealthed", "stealthText"); y = y - h
-
-    _, h = W:SectionHeader(parent, "STANCE / FORM REMINDER", y); y = y - h
-    local formFonts, formFontOrder = UI.FontChoices(S.Get("formFont"))
-    local _, soundNames, soundOrder = ns.SoundChoices()
     _, h = W:DualRow(parent, y,
-        S.Dropdown("formDruid", "Druid Form", DRUID_FORM_VALUES, DRUID_FORM_ORDER,
-            "The form a druid should be in. Forever cannot tell which spec you play, so it is "
-            .. "picked here. None leaves druids alone.", "formReminder"),
-        S.Toggle("formShadowform", "Priest: Shadowform",
-            "Warns a priest who knows Shadowform while out of it.", "formReminder")
+        TextControl("Out of Stealth Text", "Text while out of stealth", "warningText"),
+        TextControl("Stealthed Text", "Text while stealthed", "stealthText")
     ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("formCombatOnly", "Only In Combat", nil, "formReminder"),
-        S.Toggle("formInstanceOnly", "Only In Dungeons & Raids", nil, "formReminder")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("formColor", "Warning Colour", "formReminder"),
-        S.Toggle("formClassColor", "Class Colour", nil, "formReminder")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("formFont", "Font", formFonts, formFontOrder, nil, "formReminder"),
-        S.Slider("formFontSize", "Font Size", 10, 60, 1, nil, "formReminder")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("formSound", "Play a Sound", "Plays when the warning appears.", "formReminder"),
-        S.Dropdown("formSoundKey", "Sound", soundNames, soundOrder, nil, "formSound")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("formSoundInterval", "Repeat Every (s)", 0, 10, 1,
-            "Plays the sound again this often while the warning stays up. 0 plays it once.",
-            "formSound"),
-        { type = "label", text = "" }
-    ); y = y - h
-    _, h = TextButton(parent, y, "Warning Text", "Warning text, in place of your class's own",
-        "formText"); y = y - h
+    end
 
     _, h = W:SectionHeader(parent, "CO-TANK FRAME" .. STATUS.untested, y); y = y - h
     local coTankFonts, coTankFontOrder = UI.FontChoices(S.Get("coTankFont"))
@@ -459,11 +434,59 @@ function ns.BuildQoLLootPage(parent, y)
     local _, h
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
+    _, h = W:SectionHeader(parent, "LOOTING" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("deleteConfirm", "Auto-Fill Delete Confirmation",
+            "Types DELETE into the confirmation box for you, and names the item in the dialog as a "
+            .. "link you can hover for its tooltip."),
+        S.Toggle("fastLoot", "Faster Auto Loot", "Loots automatically without hiding the loot window. Hold Shift to loot manually.")
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "RESTOCK" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("restock", "Restock Reminder",
+            "When you reach a city or inn, a flashing list in the middle of the screen of what "
+            .. "you are short on. It stays up until you have what you need or leave. Move it "
+            .. "in Unlock Mode."),
+        S.Toggle("restockBuy", "Buy at Vendors",
+            "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
+            .. "and prints what it spent. Off by default: it spends gold for you.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("restockReagents", "Class Reagents",
+            "The reagents your known spells use, such as Arcane Powder, candles, seeds, Symbols "
+            .. "of Kings and Flash Powder, matched to the highest rank you know.", "restock"),
+        S.Toggle("restockAmmo", "Ammo", "The arrows or shot in your ammo slot.", "restock")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("restockAmmoTarget", "Ammo to Carry", 200, 4000, 100, nil, "restockAmmo"),
+        S.Toggle("restockFood", "Food & Drink", "Counts food and drink separately across all stacks. Warriors and rogues do not need drink.",
+            "restock")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("restockFoodBelow", "Food & Drink Below", 1, 40, 1, nil, "restockFood"),
+        S.Toggle("restockVendor", "Junk & Full Bags",
+            "Reminds you to vendor junk, and when your bags are nearly full.", "restock")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("restockFoodMinLevel", "Food Minimum Required Level", 0, 60, 1,
+            "Only count food and drink whose required level is within this range.", "restockFood"),
+        S.Slider("restockFoodMaxLevel", "Food Maximum Required Level", 0, 60, 1,
+            "The same required-level filter applies to every stack, not each item separately.", "restockFood")
+    ); y = y - h
+    local sliders = ns.RestockReagentSliders()
+    _, h = W:DualRow(parent, y,
+        S.Slider("restockBagsBelow", "Free Slots Below", 1, 20, 1, nil, "restockVendor"),
+        sliders[1] or { type = "label", text = "" }
+    ); y = y - h
+    for i = 2, #sliders, 2 do
+        _, h = W:DualRow(parent, y, sliders[i], sliders[i + 1] or { type = "label", text = "" }); y = y - h
+    end
     _, h = W:SectionHeader(parent, "LOOT FEED" .. STATUS.ready, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("lootFeed", "Loot Feed",
             "Everything you loot pops up on screen with its icon, amount and value, stacking "
-            .. "upward and fading out. Hover a line for the item's tooltip. Move it in Unlock Mode."),
+            .. "in your chosen direction and fading out. Hover a line for the item's tooltip. Move it in Unlock Mode."),
         S.Toggle("lootFeedMoney", "Show Money", nil, "lootFeed")
     ); y = y - h
     _, h = W:DualRow(parent, y,
@@ -530,7 +553,15 @@ function ns.BuildQoLLootPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Slider("lootFeedFontSize", "Font Size", 8, 24, 1,
             "The item name. Values and the bag count scale with it.", "lootFeed"),
-        { type = "label", text = "" }
+        S.Dropdown("lootFeedGrowth", "Growth Direction", { up = "Up", down = "Down" },
+            { "up", "down" }, "The newest line stays at the anchor; older lines stack in this direction.",
+            "lootFeed")
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "VENDORS" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("autoRepair", "Auto Repair", "Repairs all gear when you open a vendor who can."),
+        S.Toggle("sellJunk", "Auto Sell Junk", "Sells grey items when you open a vendor.")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "AUCTION PRICES" .. STATUS.untested, y); y = y - h
@@ -544,56 +575,6 @@ function ns.BuildQoLLootPage(parent, y)
     ); y = y - h
     _, h = W:Note(parent, ns.AuctionScanSummary(), y); y = y - h
 
-    _, h = W:SectionHeader(parent, "LOOTING" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("deleteConfirm", "Auto-Fill Delete Confirmation",
-            "Types DELETE into the confirmation box for you, and names the item in the dialog as a "
-            .. "link you can hover for its tooltip."),
-        S.Toggle("lootConfirm", "Skip Loot Confirmations",
-            "Answers yes for you to Need, Greed and disenchant rolls, looting a bind-on-pickup "
-            .. "item, selling an item you could still trade, and mailing a locked item.")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "VENDORS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("autoRepair", "Auto Repair", "Repairs all gear when you open a vendor who can."),
-        S.Toggle("sellJunk", "Auto Sell Junk", "Sells grey items when you open a vendor.")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "RESTOCK" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("restock", "Restock Reminder",
-            "When you reach a city or inn, a flashing list in the middle of the screen of what "
-            .. "you are short on. It stays up until you have what you need or leave. Move it "
-            .. "in Unlock Mode."),
-        S.Toggle("restockBuy", "Buy at Vendors",
-            "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
-            .. "and prints what it spent. Off by default: it spends gold for you.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("restockReagents", "Class Reagents",
-            "The reagents your known spells use, such as Arcane Powder, candles, seeds, Symbols "
-            .. "of Kings and Flash Powder, matched to the highest rank you know.", "restock"),
-        S.Toggle("restockAmmo", "Ammo", "The arrows or shot in your ammo slot.", "restock")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("restockAmmoTarget", "Ammo to Carry", 200, 4000, 100, nil, "restockAmmo"),
-        S.Toggle("restockFood", "Food & Drink", "Reminds you when you carry little food and drink.",
-            "restock")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("restockFoodBelow", "Food & Drink Below", 1, 40, 1, nil, "restockFood"),
-        S.Toggle("restockVendor", "Junk & Full Bags",
-            "Reminds you to vendor junk, and when your bags are nearly full.", "restock")
-    ); y = y - h
-    local sliders = ns.RestockReagentSliders()
-    _, h = W:DualRow(parent, y,
-        S.Slider("restockBagsBelow", "Free Slots Below", 1, 20, 1, nil, "restockVendor"),
-        sliders[1] or { type = "label", text = "" }
-    ); y = y - h
-    for i = 2, #sliders, 2 do
-        _, h = W:DualRow(parent, y, sliders[i], sliders[i + 1] or { type = "label", text = "" }); y = y - h
-    end
 
     return y
 end
@@ -651,8 +632,10 @@ function ns.BuildQoLAlertsPage(parent, y)
             S.Slider(k .. "Rate", name .. " Speech Rate", -10, 10, 1, nil, "combatAlert"),
             { type = "label", text = "" }
         ); y = y - h
-        _, h = TextButton(parent, y, name .. " Text", name .. " combat text", k .. "Text"); y = y - h
-        _, h = TextButton(parent, y, name .. " Speech", name .. " combat speech", k .. "Speech"); y = y - h
+        _, h = W:DualRow(parent, y,
+            TextControl(name .. " Text", name .. " combat text", k .. "Text"),
+            TextControl(name .. " Speech", name .. " combat speech", k .. "Speech")
+        ); y = y - h
     end
 
     _, h = W:SectionHeader(parent, "COMBAT TIMER" .. STATUS.untested, y); y = y - h
@@ -1027,25 +1010,20 @@ function ns.BuildQoLInterfacePage(parent, y)
             "Plays the sound again this often while out of range. 0 plays it once.", "mouseMeleeSound")
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "ON-SCREEN EXTRAS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("fps", "FPS Counter",
-            "Your frame rate on screen, updated every second. Move it in Unlock Mode."),
-        S.Toggle("localMS", "Show Local MS",
-            "Latency to the realm server: chat, guild and the auction house.", "fps")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("worldMS", "Show World MS",
-            "Latency to the world server: combat, spells and other players.", "fps"),
-        { type = "label", text = "" }
-    ); y = y - h
-
     _, h = W:SectionHeader(parent, "TOWN MAP" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("townMap", "Town Map Pins",
             "Trainers, vendors, innkeepers, flight masters and more pinned on the world map for "
             .. "your faction, with their name and title on hover. No more asking a guard."),
         S.Slider("townPinSize", "Pin Size", 10, 28, 1, nil, "townMap")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("townCapitalsOnly", "Town Pins Only in Capitals", "Keeps vendors and trainers off questing maps.", "townMap"),
+        S.Toggle("townSpiritHealers", "Spirit Healers", "Shows graveyards supplied by the game map.", "townMap")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("townZoneLinks", "Clickable Zone Exits", "Click an exit to open the adjoining zone map.", "townMap"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("townClass", "Class Trainers", "Your class's trainers only.", "townMap"),
@@ -1075,6 +1053,58 @@ function ns.BuildQoLToolsPage(parent, y)
     local W = UI.Widgets
     local _, h
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
+
+    _, h = W:SectionHeader(parent, "GLOBAL COPY" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("globalCopy", "Global Copy",
+            "/copy puts the text of whatever is under your cursor in a box you can copy from. "
+            .. "/copy followed by a frame name copies that frame's text instead."),
+        S.Toggle("copyTooltipIds", "Copy IDs From Tooltips",
+            "With a tooltip showing, the key below copies its spell, item or NPC ID.", "globalCopy")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("copyModifier", "Modifier", MODIFIER_VALUES, MODIFIER_ORDER, nil, "copyTooltipIds"),
+        S.Dropdown("copyKey", "Key", KEY_VALUES, KEY_ORDER, nil, "copyTooltipIds")
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "SLASH COMMANDS" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("slashCommands", "Custom Slash Commands",
+            "Short commands of your own that open a game window or run another command. A "
+            .. "name another addon already uses is skipped."),
+        { type = "label", text = "" }
+    ); y = y - h
+    local commands = ns.SlashCommandList()
+    local function CommandRow(cmd)
+        if not cmd then return { type = "label", text = "" } end
+        return { type = "toggle", text = "/" .. cmd.name, tooltip = ns.SlashCommandSummary(cmd),
+            getValue = function() return cmd.enabled end,
+            setValue = function(v)
+                cmd.enabled = v
+                ns.RefreshSlashCommands()
+            end,
+            disabled = function() return not S.Get("slashCommands") end }
+    end
+    for i = 1, #commands, 2 do
+        _, h = W:DualRow(parent, y, CommandRow(commands[i]), CommandRow(commands[i + 1])); y = y - h
+    end
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Add Command", buttonText = "Add", onClick = function()
+            ns.ShowAddSlashCommand(function() UI:RefreshPage(true) end)
+        end },
+        { type = "button", text = "Remove Command", buttonText = "Remove", onClick = function()
+            ns.PromptText("Command to remove, such as /cdm", "", 0, function(v)
+                if ns.RemoveSlashCommand(v) then UI:RefreshPage(true)
+                else ns.Print(v .. " is not one of your commands.") end
+            end)
+        end }
+    ); y = y - h
+    _, h = W:Button(parent, "Restore Default Commands", y, function()
+        ns.Confirm("Replace your commands with the defaults?", function()
+            ns.RestoreSlashCommands()
+            UI:RefreshPage(true)
+        end)
+    end); y = y - h
 
     _, h = W:SectionHeader(parent, "COMBAT LOGGING" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -1111,58 +1141,6 @@ function ns.BuildQoLToolsPage(parent, y)
             end)
     end); y = y - h
 
-    _, h = W:SectionHeader(parent, "GLOBAL COPY" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("globalCopy", "Global Copy",
-            "/copy puts the text of whatever is under your cursor in a box you can copy from. "
-            .. "/copy followed by a frame name copies that frame's text instead."),
-        S.Toggle("copyTooltipIds", "Copy IDs From Tooltips",
-            "With a tooltip showing, the key below copies its spell, item or NPC ID.", "globalCopy")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("copyModifier", "Modifier", MODIFIER_VALUES, MODIFIER_ORDER, nil, "copyTooltipIds"),
-        S.Dropdown("copyKey", "Key", KEY_VALUES, KEY_ORDER, nil, "copyTooltipIds")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "SLASH COMMANDS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("slashCommands", "Custom Slash Commands",
-            "Short commands of your own that open a game window or run another command. A "
-            .. "name another addon already uses is skipped."),
-        { type = "label", text = "" }
-    ); y = y - h
-    local commands = ns.SlashCommandList()
-    local function CommandRow(cmd)
-        if not cmd then return { type = "label", text = "" } end
-        return { type = "toggle", text = "/" .. cmd.name, tooltip = ns.SlashCommandSummary(cmd),
-            getValue = function() return cmd.enabled end,
-            setValue = function(v)
-                cmd.enabled = v
-                ns.RefreshSlashCommands()
-            end,
-            disabled = function() return not S.Get("slashCommands") end }
-    end
-    for i = 1, #commands, 2 do
-        _, h = W:DualRow(parent, y, CommandRow(commands[i]), CommandRow(commands[i + 1])); y = y - h
-    end
-    _, h = W:Button(parent, "Add Command", y, function()
-        ns.ShowAddSlashCommand(function() UI:RefreshPage(true) end)
-    end); y = y - h
-    _, h = W:Button(parent, "Remove Command", y, function()
-        ns.PromptText("Command to remove, such as /cdm", "", 0, function(v)
-            if ns.RemoveSlashCommand(v) then
-                UI:RefreshPage(true)
-            else
-                ns.Print(v .. " is not one of your commands.")
-            end
-        end)
-    end); y = y - h
-    _, h = W:Button(parent, "Restore Default Commands", y, function()
-        ns.Confirm("Replace your commands with the defaults?", function()
-            ns.RestoreSlashCommands()
-            UI:RefreshPage(true)
-        end)
-    end); y = y - h
 
     return y
 end
@@ -1209,9 +1187,7 @@ function ns.BuildQoLFlightPage(parent, y)
         S.Toggle("flightTimer", "Flight Timer",
             "Where you are flying and how long is left. The first flight on a route counts up; "
             .. "after that it counts down to landing. Move it in Unlock Mode."),
-        S.Toggle("flightQuotes", "Streamer Quotes",
-            "A reminder from a streamer beside the timer, like \"Grab some water\", changing "
-            .. "every 45 seconds.", "flightTimer")
+        { type = "label", text = "" }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "QUIZ" .. STATUS.untested, y); y = y - h

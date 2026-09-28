@@ -19,7 +19,7 @@ local function Fixture(opts)
     local bags = opts.bags or {}            -- flat list of item IDs, one per slot
     local macros, created, edited, deleted, printed = {}, 0, 0, 0, {}
     local combat, group = false, opts.group
-    local consts = { MAX_CHARACTER_MACROS = opts.max or 30 }
+    local consts = { MAX_ACCOUNT_MACROS = opts.max or 30 }
     local handler, registered = nil, {}
 
     local S = {}
@@ -66,11 +66,12 @@ local function Fixture(opts)
             end,
         },
         C_Spell = { GetSpellName = function(id) return id == 433 and FOOD or DRINK end },
+        PickupMacro = function(index) assert(index > 0) end,
         GetMacroIndexByName = Find,
         GetMacroBody = function(i) return macros[i].body end,
-        GetNumMacros = function() return 0, #macros end,
+        GetNumMacros = function() return #macros, 0 end,
         CreateMacro = function(name, _, body, perChar)
-            assert(perChar == true, "macros are per character")
+            assert(perChar == false, "new macros are General macros")
             assert(#name <= 16, "macro name too long: " .. name)
             assert(#body <= 255, "macro body too long")
             created = created + 1
@@ -100,7 +101,7 @@ local function Fixture(opts)
     end
     chunk()
 
-    local t = {}
+    local t = { ns = ns }
     function t.Fire(event) if registered[event] then handler(nil, event) end end
     function t.Set(k, v) S.Set(k, v) end
     function t.Body(name) local i = Find(name); return i > 0 and macros[i].body or nil end
@@ -109,7 +110,7 @@ local function Fixture(opts)
     function t.Counts() return created, edited, deleted end
     function t.Profile(new) settings = new; ns.Apply() end
     function t.Group(kind) group = kind end
-    function t.SetMax(n) consts.MAX_CHARACTER_MACROS = n end
+    function t.SetMax(n) consts.MAX_ACCOUNT_MACROS = n end
     t.printed, t.macros = printed, macros
     return t
 end
@@ -249,6 +250,23 @@ do
     t.SetMax(2)
     t.Fire("UPDATE_MACROS")
     Check("made after a macro is deleted", t.Body("NF Trinket 1"), "#showtooltip 13\n/use 13")
+end
+
+do
+    local t = Fixture({})
+    t.Fire("PLAYER_ENTERING_WORLD")
+    t.ns.PickupProfileMacro({ name = "Example", body = "/say test", icon = 1 })
+    Check("profile macro created", t.Body("Example"), "/say test")
+    t.ns.PickupProfileMacro({ name = "Example", body = "/say replaced" })
+    Check("name collision preserves existing", t.Body("Example"), "/say test")
+    t.ns.PickupProfileMacro({ name = "TooLongBody", body = string.rep("x", 256) })
+    Check("oversize macro rejected", t.Body("TooLongBody"), nil)
+    t.Combat(true)
+    t.ns.PickupManagedMacro("trinket1")
+    Check("click in combat does not create", t.Body("NF Trinket 1"), nil)
+    t.Combat(false)
+    t.ns.PickupManagedMacro("trinket1")
+    Check("click creates macro", t.Body("NF Trinket 1"), "#showtooltip 13\n/use 13")
 end
 
 if failures > 0 then

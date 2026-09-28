@@ -1176,13 +1176,8 @@ local function EnsureConfigHandle(displayType, a)
 
     h:SetMovable(true)
     a:SetMovable(true)
-    h:EnableMouse(true)
-    h:RegisterForDrag("LeftButton")
-    h:SetScript("OnDragStart", function() a:StartMoving() end)
-    h:SetScript("OnDragStop", function()
-        a:StopMovingOrSizing()
-        local point, _, relPoint, x, y = a:GetPoint(1)
-        SaveAnchorPos(displayType, point, relPoint, x, y)
+    ns.UI.BindMover(h, a, DISPLAY_TYPE_LABEL[displayType], function(pos)
+        SaveAnchorPos(displayType, pos.point, pos.relPoint, pos.x, pos.y)
     end)
 
     a._configHandle = h
@@ -1341,6 +1336,7 @@ function ns.ShowRaidReminderAnchorConfig()
     -- mode from a slash command does not conjure the window on the way out.
     local reopen = ns.StashOptionsWindow and ns.StashOptionsWindow() or false
     configActive = true
+    ns.UI.BeginMoverMode()
     reopenWindowOnExit = reopen
     local f = BuildConfigToolbar()
     -- With Smart Reminders off its anchors stay hidden; the toolbar still carries Exit Config.
@@ -1361,6 +1357,7 @@ end
 -- windowClosing: called from the options window's own OnHide, which must not reopen it.
 function ns.HideRaidReminderAnchorConfig(windowClosing)
     configActive = false
+    ns.UI.EndMoverMode()
     ns.SetAnchorGridShown(false)
     if configToolbar then configToolbar:Hide() end
     for _, displayType in ipairs(CONFIG_ORDER) do HideConfigVisual(displayType) end

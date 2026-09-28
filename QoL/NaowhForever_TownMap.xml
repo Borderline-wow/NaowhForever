@@ -17,4 +17,9 @@
             </Layer>
         </Layers>
     </Frame>
+    <Button name="NaowhForeverZoneLinkPinTemplate" mixin="NaowhForeverZoneLinkPinMixin" enableMouse="true" virtual="true">
+        <Size x="16" y="16"/>
+        <Layers><Layer level="ARTWORK"><Texture parentKey="Icon" setAllPoints="true"/></Layer></Layers>
+        <Scripts><OnClick method="OnClick"/></Scripts>
+    </Button>
 </Ui>

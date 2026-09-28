@@ -465,7 +465,8 @@ local function Watch(frame)
                 icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
                 button:SetIcon(icon)
                 local text = button:CreateFontString(nil, "OVERLAY")
-                text:SetFont(ns.UIFontPath(), 10, "OUTLINE")
+                text:SetFont(ns.UIFontPath(), S.Get("blessTimerSize"), "OUTLINE")
+                frame.watchText = text
                 text:SetPoint("BOTTOM", 0, 1)
                 button:SetDurationText(text, {})
             end,
@@ -622,7 +623,7 @@ end
 local function NewCell(class)
     local cell = CreateFrame("Frame", nil, bar)
     cell.class = class
-    Icon(cell, RAID_CLASS_COLORS[class])
+    Icon(cell)
     cell.label = ns.Font(cell, 10, "OUTLINE")
     cell.label:SetPoint("TOP", cell, "BOTTOM", 0, -2)
     cell.label:SetText(ClassName(class))
@@ -799,10 +800,13 @@ function Refresh()
     end
     bar:Show()
     if not bar:IsVisible() then return end
-    local size, gap = S.Get("blessBarSize"), 6
+    local size, gap = S.Get("blessBarSize"), S.Get("blessSpacing")
     local x = 0
     local function Place(frame)
         frame:SetSize(size, size)
+        frame.timer:SetFont(ns.UIFontPath(), S.Get("blessTimerSize"), "OUTLINE")
+        if frame.watchText then frame.watchText:SetFont(ns.UIFontPath(), S.Get("blessTimerSize"), "OUTLINE") end
+        if frame.label then frame.label:SetShown(S.Get("blessShowLabels")) end
         frame:ClearAllPoints()
         frame:SetPoint("LEFT", bar, "LEFT", x, 0)
         frame:Show()
@@ -822,7 +826,7 @@ function Refresh()
     else
         furyButton:Hide()
     end
-    if x > 0 then x = x + gap end
+    if x > 0 then x = x + S.Get("blessGroupSpacing") end
 
     local roster = Roster()
     local byClass = {}

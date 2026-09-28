@@ -5661,6 +5661,7 @@ local function UpdatePreview()
         -- eating clicks.
         if frame then
             frame:EnableMouse(false)
+            frame:SetScript("OnMouseDown", nil)
             frame:SetScript("OnDragStart", nil)
             frame:SetScript("OnDragStop", nil)
         end
@@ -5683,8 +5684,23 @@ local function UpdatePreview()
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    frame:SetScript("OnMouseDown", function(self, button)
+        if configPreview and self._configHandle and button == "LeftButton" then
+            ns.UI.SelectMover(self._configHandle)
+        end
+    end)
+    frame:SetScript("OnDragStart", function(self)
+        if configPreview and self._configHandle then
+            ns.UI.StartMoverDrag(self._configHandle)
+        elseif not InCombatLockdown() then
+            self:StartMoving()
+        end
+    end)
     frame:SetScript("OnDragStop", function(self)
+        if configPreview and self._configHandle then
+            ns.UI.StopMoverDrag(self._configHandle)
+            return
+        end
         self:StopMovingOrSizing()
         local point, _, relPoint, x, y = self:GetPoint(1)
         if point then

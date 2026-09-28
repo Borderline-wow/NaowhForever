@@ -166,6 +166,26 @@ local function List()
     return list
 end
 
+-- Keep the active fields in place for existing readers and share strings. Park each
+-- spec's own tables when switching, so edits and imports cannot replace another spec.
+local function SwitchListSpec(key)
+    local list = List()
+    local first = ClassSpecs()[1]
+    local previous = list.spec or (first and first.key)
+    if not key or key == previous then
+        list.spec = previous
+        return list
+    end
+    list.bySpec = list.bySpec or {}
+    if previous then
+        list.bySpec[previous] = { name = list.name, slots = list.slots, extra = list.extra }
+    end
+    local nextList = list.bySpec[key] or { name = "My BiS", slots = {}, extra = {} }
+    list.name, list.slots, list.extra = nextList.name, nextList.slots, nextList.extra
+    list.spec = key
+    return list
+end
+
 local function CurrentSpec()
     local specs = ClassSpecs()
     local key = List().spec
@@ -204,6 +224,16 @@ end
 local function Changed()
     Rebuild()
     if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
+end
+
+function ns.SetBisSpec(key)
+    for _, spec in ipairs(ClassSpecs()) do
+        if spec.key == key then
+            SwitchListSpec(key)
+            Changed()
+            return
+        end
+    end
 end
 
 -- The next pick in the slot, #1 when it has none.
@@ -363,9 +393,8 @@ function ns.ImportBisList(text, quiet)
     for _ in pairs(slots) do count = count + 1 end
     for _, rest in pairs(extra) do count = count + #rest end
     local function Apply()
-        local list = List()
+        local list = SwitchListSpec(spec)
         list.name, list.slots, list.extra = name, slots, extra
-        if spec then list.spec = spec end
         Changed()
         ns.Print(("Imported %s: %d items."):format(name, count))
     end
@@ -1136,7 +1165,7 @@ function ns.BuildQoLBiSPage(parent, y)
         #specs > 0 and { type = "dropdown", text = "Rankings For", values = values, order = order,
             tooltip = "Whose ranking the slot picker shows. Your picks stay as they are when you switch.",
             getValue = function() local spec = CurrentSpec(); return spec and spec.key end,
-            setValue = function(v) List().spec = v end }
+            setValue = function(v) ns.SetBisSpec(v) end }
         or { type = "label", text = "" }
     ); y = y - h
     _, h = W:Button(parent, "Import a BiS List", y, function()

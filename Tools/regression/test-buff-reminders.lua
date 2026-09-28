@@ -20,6 +20,13 @@ end
 
 local function Fixture(opts)
     local settings = opts.settings or {}
+    if settings.consumableEntries == nil then
+        settings.consumableEntries = {
+            { category = "food", itemID = 13931, auras = { 1249520 } },
+            { category = "flask", itemID = 13510, auras = { 17626 } },
+            { category = "battle", itemID = 13454, auras = { 17539 } },
+        }
+    end
     local state = {
         now = 1000, secret = false, combat = false, resting = false,
         instance = opts.instance or "none",
@@ -35,11 +42,11 @@ local function Fixture(opts)
 
     local function NewFrame(template)
         local f
-        f = Recorder({ shown = true, events = {} })
+        f = Recorder({ shown = true, events = {}, scripts = {} })
         function f:Show() f.shown = true end
         function f:Hide() f.shown = false end
         function f:SetShown(v) f.shown = v and true or false end
-        function f:SetScript(_, fn) f.handler = fn end
+        function f:SetScript(key, fn) f.scripts[key] = fn; if key == "OnEvent" then f.handler = fn end end
         function f:RegisterEvent(e) f.events[e] = true end
         function f:RegisterUnitEvent(e) f.events[e] = true end
         function f:UnregisterAllEvents() f.events = {} end
@@ -72,7 +79,8 @@ local function Fixture(opts)
         Apply = function() end,
         ShowRaidReminderAnchorConfig = function() end,
         HideRaidReminderAnchorConfig = function() end,
-        Border = function() end,
+        Border = function() end, THEME = { bg = {} },
+        Solid = function() return Recorder() end,
         Font = function()
             local fs = Recorder()
             function fs:SetText(v) fs.text = v end
@@ -120,6 +128,7 @@ local function Fixture(opts)
         C_Container = {
             GetContainerNumSlots = function() return #state.bags end,
             GetContainerItemID = function(_, slot) return state.bags[slot] end,
+            UseContainerItem = function(bag, slot) state.used = state.bags[slot] end,
         },
         C_Item = {
             GetItemCount = Count,
@@ -151,7 +160,7 @@ local function Fixture(opts)
         chunk()
     end
 
-    local t = { state = state }
+    local t = { state = state, frames = frames }
     function t.Fire(event, ...)
         for _, f in ipairs(frames) do
             if f.events[event] and f.handler then f.handler(f, event, ...) end
@@ -179,7 +188,7 @@ local function Fixture(opts)
         if not (root and root.shown) then return "" end
         local out = {}
         for _, f in ipairs(frames) do
-            if rawget(f, "icon") and f.shown then
+            if rawget(f, "icon") and rawget(f, "count") and f.shown then
                 local s = f.icon.texture
                 if rawget(f.count, "text") and f.count.text ~= "" then s = s .. "x" .. f.count.text end
                 if rawget(f.timer, "shown") then s = s .. "(t)" end
@@ -242,15 +251,17 @@ do
     t.Login()
     Check("nothing carried", t.Shown(), "")
     t.Set("onlyIfCarried", false)
-    Check("not carried, shown anyway", t.Shown(), "spell:1248406 item:13510 item:13454")
+    Check("not carried, shown anyway", t.Shown(), "item:13931 item:13510 item:13454")
 end
 
--- Elixirs: one reminder per kind carried, and a kind already up is quiet.
+-- Battle and guardian elixirs remain separate, even while one category is active.
 do
-    local t = Fixture({ instance = "raid", settings = { food = false, flasks = false },
-        bags = { 13452, 9187, 13454 }, auras = { player = { { 17539, 3000, 3600 } } } })
+    local t = Fixture({ instance = "raid", settings = { consumableEntries = {
+        { category = "battle", itemID = 13454, auras = { 17539 } },
+        { category = "guardian", itemID = 13452, auras = { 17538 } },
+    } }, bags = { 13452, 13454 }, auras = { player = { { 17539, 3000, 3600 } } } })
     t.Login()
-    Check("agility carried, spell damage up", t.Shown(), "item:13452")
+    Check("guardian missing, battle up", t.Shown(), "item:13452")
 end
 
 -- Warn With Minutes Left: a buff under the time shows with its timer; one over it is
@@ -296,20 +307,20 @@ do
     Check("after combat", t.Shown(), "")
 end
 
--- Scrolls: the best rank carried, quiet while the stat is up from a scroll or class buff.
+-- An empty profile never invents reminders from items in bags.
 do
-    local t = Fixture({ settings = { food = false, flasks = false, elixirs = false },
-        bags = { 4424, 10306, 10306, 955 } })
+    local t = Fixture({ settings = { consumableEntries = {} }, instance = "raid",
+        bags = { 13931, 13510, 13454, 10306 } })
     t.Login()
-    Check("scrolls anywhere", t.Shown(), "item:955 item:10306x2")
-    t.state.auras.player = { { 27841, 3000, 3600 }, { 12176, 1000, 1800 } }
-    t.Fire("UNIT_AURA", "player")
-    t.Advance(0.5)
-    Check("divine spirit and a scroll up", t.Shown(), "")
-    t.Set("scrollsSkipActive", false)
-    Check("skip off", t.Shown(), "item:955 item:10306x2")
-    t.Set("scrolls", false)
-    Check("scrolls off", t.Shown(), "")
+    Check("empty profile has no automatic reminders", t.Shown(), "")
+    Check("empty profile has no aura listener", t.Listening("UNIT_AURA"), false)
+    t.Set("consumableEntries", { { category = "scroll", itemID = 10306, auras = { 12176 } } })
+    Check("manual scroll added", t.Shown(), "item:10306")
+    t.state.auras.player = { { 12176, 1000, 1800 } }
+    t.Fire("UNIT_AURA", "player"); t.Advance(0.5)
+    Check("manual scroll buff suppresses reminder", t.Shown(), "")
+    t.Set("consumableEntries", {})
+    Check("removed configuration stays empty", t.Shown(), "")
 end
 
 -- Raid buffs: how many are missing each buff you can cast, or any class in the group can.
@@ -339,6 +350,34 @@ do
     t.Set("enabled", true)
     Check("enabled: listening", t.Listening("UNIT_AURA"), true)
     Check("enabled: shown", t.Shown(), "item:13931")
+end
+
+-- Hover menus offer only carried configured alternatives and validate at click time.
+do
+    local t = Fixture({ instance = "raid", bags = { 111, 222, 999 }, settings = { consumableEntries = {
+        { category = "food", itemID = 111, auras = { 11 } },
+        { category = "food", itemID = 222, auras = { 22 } },
+        { category = "food", itemID = 333, auras = { 33 } },
+    } } })
+    t.Login()
+    local cell
+    for _, f in ipairs(t.frames) do if rawget(f, "items") then cell = f end end
+    cell.scripts.OnEnter(cell)
+    local popup
+    for _, f in ipairs(t.frames) do if rawget(f, "owner") == cell then popup = f end end
+    Check("only carried configured choices", #popup.buttons, 2)
+    t.state.bags = { 999, 111 }
+    popup.buttons[2].scripts.OnClick(popup.buttons[2])
+    Check("removed item cannot be used", t.state.used, nil)
+    cell.scripts.OnEnter(cell)
+    popup.buttons[1].scripts.OnClick(popup.buttons[1])
+    Check("moved item found in current bag slot", t.state.used, 111)
+    cell.scripts.OnEnter(cell)
+    t.Fire("PLAYER_REGEN_DISABLED")
+    Check("combat entry closes hover menu", popup.shown, false)
+    t.state.used = nil; t.state.combat = true
+    popup.buttons[1].scripts.OnClick(popup.buttons[1])
+    Check("combat prevents consumption", t.state.used, nil)
 end
 
 if failures > 0 then
