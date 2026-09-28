@@ -1,7 +1,6 @@
 # Changelog
 
-## Unreleased
-- Campfire reminder: include the high-resolution campfire artwork instead of the default spell icon.
+## 0.5.15-beta
 
 ### Added
 - Professions: Next Rank Alert (on by default). Once a profession's skill is high enough
@@ -41,8 +40,9 @@
   list. Hover a reminder to pick a configured item from your bags.
 - Macros: the macro toggles are icons you click or drag onto your bars, created as General
   macros instead of character macros. Right-click an icon to remove its macro.
-- Campfire: the timer ring is edged in black with no dark swipe over the icon, the seated
-  label reads Resting, and each buff line shows the effect from the Camp Benefits tooltip.
+- Campfire: a new high-resolution icon. The timer ring is edged in black with no dark
+  swipe over the icon, the seated label reads Resting, and each buff line shows the effect
+  from the Camp Benefits tooltip.
 - BiS: each spec keeps its own list; switching spec or importing no longer overwrites
   another spec's picks.
 - XP Ticker: Level Splits is replaced by Level History, your most recent completed levels.
