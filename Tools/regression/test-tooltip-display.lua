@@ -97,4 +97,11 @@ show({type=1,id=133});title:SetText('Readable');title.text=secret;k.scripts.OnKe
 settings.globalCopy=true;shift=false;k.scripts.OnKeyDown(k,'C');check('legacy copy shortcut preserved',lastPanel.cache.scroll.box.text=='133');lastDimmer:Hide()
 shift=true;settings.globalCopy=false;ns.QoLSettings.Set('tooltipCopy',false);check('copy disabled independently',k.keyboard==false)
 show({type=1,id=133});check('IDs remain with copy disabled',tooltip.lines[2][2]=='133' and #tooltip.lines==2)
+ns.QoLSettings.Set('tooltipCopy',true);settings.tooltipItemID=true
+tooltip.shown=false;env.ItemRefTooltip.data={type=2,id=6948};env.ItemRefTooltipTextLeft1=title
+k.scripts.OnKeyDown(k,'C');check('chat-link tooltip copies its ID',lastPanel.cache.value.text=='https://www.wowhead.com/item=6948');lastDimmer:Hide()
+env.ItemRefTooltip.shown=false;prior=lastPanel;k.scripts.OnKeyDown(k,'C');check('hidden chat link is not copied',lastPanel==prior)
+callbacks[2](env.ShoppingTooltip1,{type=2,id=6948})
+settings.tooltipItemID=true;callbacks[2](env.ShoppingTooltip1,{type=2,id=6948})
+check('comparison tooltip does not advertise unsupported shortcut',#env.ShoppingTooltip1.lines==2)
 print(checks..' tooltip-display checks passed')

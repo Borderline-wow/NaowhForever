@@ -179,8 +179,10 @@ do
  check('unlocked window starts resizing',s.window.sizing==true)
  local oldHeight=s.bar('You'):GetHeight()
  local oldFont=s.bar('You').name.fontSize
+ local readsBeforeResize=s.reads
  s.window:SetSize(350,310)
  s.window.scripts.OnSizeChanged(s.window)
+ check('resizing reuses collected threat',s.reads==readsBeforeResize)
  check('bars grow during drag',s.bar('You'):GetHeight()>oldHeight)
  check('text grows during drag',s.bar('You').name.fontSize>oldFont)
  s.window.grip.scripts.OnMouseUp(s.window.grip)
@@ -197,5 +199,14 @@ do
  s.combat=true
  s.window.grip.scripts.OnMouseDown(s.window.grip,'LeftButton')
  check('combat prevents resizing',s.window.sizing~=true)
+end
+do
+ local s=fixture({enabled=true,width=240,barHeight=72,fontSize=24,height=400})
+ local row=s.bar('You')
+ check('large row icons stay compact',row.icon.w==32)
+ check('narrow window reduces rendered font',row.name.fontSize<24)
+ local nameSpace=row.w-16-18-38-5-99*row.name.fontSize/12
+ check('narrow window reserves readable names',nameSpace>=47.99)
+ check('render fit preserves font preference',s.settings.fontSize==24)
 end
 print(checks..' threat-meter checks passed')

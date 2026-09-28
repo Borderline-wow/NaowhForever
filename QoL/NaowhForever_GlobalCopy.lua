@@ -241,7 +241,7 @@ local function Decorate(tooltip, data)
     decorated[tooltip] = true
     tooltip:AddLine(" ")
     tooltip:AddDoubleLine(info.label, hidden and "Hidden" or tostring(id), T.accent.r, T.accent.g, T.accent.b, 0.85, 0.89, 0.93)
-    if not hidden and S.Get("tooltipCopy") then
+    if not hidden and S.Get("tooltipCopy") and (tooltip == GameTooltip or tooltip == ItemRefTooltip) then
         tooltip:AddLine(S.Get("tooltipModifier") .. "+" .. S.Get("tooltipKey") .. "  Copy ID / Wowhead link", T.muted.r, T.muted.g, T.muted.b)
     end
 end
@@ -262,10 +262,14 @@ local function OnKeyDown(self, key)
     local modern = DisplayOn() and S.Get("tooltipCopy") and key == S.Get("tooltipKey") and Matches(S.Get("tooltipModifier"))
     local legacy = On() and S.Get("copyTooltipIds") and key == S.Get("copyKey") and Matches(S.Get("copyModifier"))
     if not modern and not legacy then return end
-    if GameTooltip:IsForbidden() or not GameTooltip:IsShown() then return end
-    local info, id = Resolve(GameTooltip:GetPrimaryTooltipData())
+    local tooltip, titleLine = GameTooltip, GameTooltipTextLeft1
+    if tooltip:IsForbidden() or not tooltip:IsShown() then
+        tooltip, titleLine = ItemRefTooltip, ItemRefTooltipTextLeft1
+    end
+    if not tooltip or tooltip:IsForbidden() or not tooltip:IsShown() then return end
+    local info, id = Resolve(tooltip:GetPrimaryTooltipData())
     if not info or not id or (modern and not S.Get(info.setting)) then return end
-    local title = GameTooltipTextLeft1:GetText()
+    local title = titleLine and titleLine:GetText()
     if not Accessible(title) or type(title) ~= "string" then title = info.label end
     self:SetPropagateKeyboardInput(false)
     if modern then ShowIDCard(info, id, title) else ShowCopyBox(title, tostring(id)) end

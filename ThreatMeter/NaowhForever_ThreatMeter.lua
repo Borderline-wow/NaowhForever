@@ -27,7 +27,8 @@ local UPDATE_DELAY = 0.2
 local FOLLOW_INTERVAL = 0.5
 local TEXT_PAD = 8
 local INSET, FOOTER = 8, 24
-local Update, RequestUpdate, RenderSample
+local Update, RequestUpdate, RenderSample, Render
+local renderedTitle, renderedPlayer
 local offset, currentMob, warnedMob, preview = 0, nil, nil, false
 local updateGeneration = 0
 local threatEventsOn = false
@@ -134,6 +135,14 @@ local function Layout()
     local h = math.max(minHeight, S.Get("height"))
     frame:SetResizeBounds(240, minHeight, 520, 700)
     if not frame.sizing then frame:SetSize(w, h) else w, h = frame:GetWidth(), frame:GetHeight() end
+    local iconSize = math.min(32, bh - 6)
+    local iconWidth = S.Get("showIcons") and iconSize + 6 or 0
+    local rankWidth = S.Get("showRanks") and 18 or 0
+    local columns = (S.Get("showPercent") and 45 or 0) + (S.Get("showValue") and 54 or 0)
+    if columns > 0 then
+        local available = w - 2 * INSET - 2 * TEXT_PAD - iconWidth - rankWidth - 5 - 48
+        fontSize = math.max(8, math.min(fontSize, available * 12 / columns))
+    end
     local capacity = math.max(1, math.floor((h - top - FOOTER - 2 * INSET + gap) / (bh + gap)))
     local total = math.min(#list, S.Get("maxBars"))
     offset = math.max(0, math.min(offset, total - capacity))
@@ -151,9 +160,9 @@ local function Layout()
         row.rank:ClearAllPoints(); row.rank:SetPoint("LEFT", left, 0); row.rank:SetWidth(16)
         row.rank:SetShown(S.Get("showRanks"))
         if S.Get("showRanks") then left = left + 18 end
-        row.icon:ClearAllPoints(); row.icon:SetPoint("LEFT", left, 0); row.icon:SetSize(bh - 6, bh - 6)
+        row.icon:ClearAllPoints(); row.icon:SetPoint("LEFT", left, 0); row.icon:SetSize(iconSize, iconSize)
         row.icon:SetShown(S.Get("showIcons"))
-        if S.Get("showIcons") then left = left + bh end
+        left = left + iconWidth
         local percentWidth = S.Get("showPercent") and 45 * fontSize / 12 or 0
         local valueWidth = S.Get("showValue") and 54 * fontSize / 12 or 0
         row.percent:ClearAllPoints(); row.percent:SetPoint("RIGHT", -TEXT_PAD, 0); row.percent:SetWidth(math.max(1, percentWidth))
@@ -264,7 +273,7 @@ local function Build()
         SavePosition(); Update()
     end)
     frame:SetScript("OnSizeChanged", function()
-        if frame.sizing then Update() end
+        if frame.sizing then Render(renderedTitle, renderedPlayer) end
     end)
     frame:SetScript("OnHide", function()
         if frame.moving or frame.sizing then
@@ -356,7 +365,8 @@ local function RowColor(e)
     return e.class and RAID_CLASS_COLORS[e.class] or FALLBACK_COLOR
 end
 
-local function Render(title, me)
+function Render(title, me)
+    renderedTitle, renderedPlayer = title, me
     local shown = Layout()
     local top = list[1] and list[1].raw or 0
     frame.header.text:SetText(title)
