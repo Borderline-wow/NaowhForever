@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- QoL's tab row no longer runs past the window edge and over the scrollbar; tabs tighten
+  their spacing to fit.
+
 ## 0.5.14-beta
 
 ### Added
