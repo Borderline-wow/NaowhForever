@@ -4,9 +4,10 @@ local function check(label, value) assert(value, label); checks = checks + 1 end
 local function fixture(kind)
     local state = { combat = false, secret = false, now = 1000, bags = { 101, 202, 101, 303 },
         settings = { gearSets = true, gearBarVisible = false, trinketBar = true,
-            trinketSize = 36, trinketSpacing = 4 }, frames = {}, named = {}, timers = {}, equips = {} }
+            trinketSize = 36, trinketSpacing = 4, gearBarSize = 32 }, frames = {}, named = {}, timers = {}, equips = {} }
     local function frame(name, parent, template)
-        local f = { scripts = {}, events = {}, shown = true, parent = parent, attributes = {} }
+        local f = { scripts = {}, events = {}, shown = true, parent = parent, attributes = {},
+            secure = template == 'SecureActionButtonTemplate' or name == 'NaowhForeverTrinkets' }
         local noop = function() end
         setmetatable(f, { __index = function(_, key) return noop end })
         function f:SetScript(key, fn) self.scripts[key] = fn end
@@ -22,7 +23,7 @@ local function fixture(kind)
         function f:SetShown(v) if v then self:Show() else self:Hide() end end
         function f:IsShown() return self.shown end
         function f:SetSize(w, h)
-            assert(kind ~= 'gear' or not state.combat, 'layout changed in combat')
+            assert(not (self.secure and state.combat), 'layout changed in combat')
             self.width, self.height = w, h
         end
         function f:SetPoint(...) self.point = { ... } end
@@ -67,6 +68,7 @@ local function fixture(kind)
         InCombatLockdown = function() return state.combat end,
         GetTime = function() return state.now end,
         IsInInstance = function() return false end,
+        IsMounted = function() return false end, IsResting = function() return false end,
         GetInventoryItemTexture = function(_, slot) return slot + 1000 end,
         C_Secrets = { ShouldAurasBeSecret = function() return state.secret end },
         C_UnitAuras = { GetPlayerAuraBySpellID = function(id)
@@ -78,6 +80,7 @@ local function fixture(kind)
             { leftText = 'Spell ID: 1229741' }, { leftText = '20 |4minute:minutes;' },
         } } end },
         C_Timer = { After = function(_, fn) state.timers[#state.timers + 1] = fn end },
+        C_EquipmentSet = { GetEquipmentSetIDs = function() return {} end },
         C_Container = {
             GetContainerNumSlots = function() return #state.bags end,
             GetContainerItemID = function(_, slot) return state.bags[slot] end,
@@ -108,6 +111,10 @@ end
 do
     local s = fixture('gear')
     s.load('GearSets/NaowhForever_GearSets.lua'); s.fire('PLAYER_LOGIN')
+    check('hidden set bar stays hidden', not s.named.NaowhForeverGearBar.shown)
+    local swaps = false
+    for _, f in ipairs(s.frames) do if f.events.PLAYER_MOUNT_DISPLAY_CHANGED then swaps = true end end
+    check('hidden set bar keeps automatic swaps', swaps)
     local bar = s.named.NaowhForeverTrinkets
     check('two trinket slots', #bar.buttons == 2)
     check('secure use top slot', bar.buttons[1].attributes.item1 == '13')

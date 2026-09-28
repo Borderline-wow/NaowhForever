@@ -43,10 +43,13 @@ local MARKER_VALUES = { [1] = "Star", [2] = "Circle", [3] = "Diamond", [4] = "Tr
 local MARKER_ORDER = { 8, 7, 6, 5, 4, 3, 2, 1 }
 
 local function MacroIcon(key, text, tooltip)
-    return { type = "iconbutton", text = text, tooltip = tooltip,
+    return { type = "iconbutton", text = text,
+        tooltip = tooltip .. " Right-click to remove the macro.",
         icon = ({ health = 134829, mana = 134855, food = 133971, bandage = 133682,
             trinket1 = 134400, trinket2 = 134400, focus = 132212 })[key],
-        onClick = function() ns.PickupManagedMacro(key) end }
+        active = function() return S.Get(key) == true end,
+        onClick = function() ns.PickupManagedMacro(key) end,
+        onRightClick = function() ns.RemoveManagedMacro(key) end }
 end
 
 function ns.BuildClassMacrosPage(parent, y)
@@ -62,6 +65,7 @@ function ns.BuildClassMacrosPage(parent, y)
     for _, entry in ipairs(entries) do
         _, h = W:DualRow(parent, y,
             { type = "iconbutton", text = entry.name or "Class Macro", icon = entry.icon,
+                tooltip = type(entry.body) == "string" and entry.body or nil,
                 onClick = function() ns.PickupProfileMacro(entry) end },
             { type = "label", text = "Click or drag to action bar" }); y = y - h
     end
@@ -267,6 +271,15 @@ function ns.PickupManagedMacro(key)
     end
 end
 
+function ns.RemoveManagedMacro(key)
+    if InCombatLockdown() then ns.Print("Remove macros outside combat.") return end
+    if not S.Get(key) then return end
+    S.Set(key, false)
+    if UI.RefreshPage then UI:RefreshPage(true) end
+end
+
+local SCRIPT_COMMANDS = { ["/run"] = true, ["/script"] = true, ["/dump"] = true }
+
 function ns.PickupProfileMacro(entry)
     if InCombatLockdown() or not ready or not S.Get("enabled") then return end
     if type(entry.name) ~= "string" or #entry.name < 1 or #entry.name > 16
@@ -279,9 +292,24 @@ function ns.PickupProfileMacro(entry)
         ns.Print("A different macro already uses that name; rename it before adding the profile macro.")
         return
     end
-    Write(entry, entry.body)
-    index = GetMacroIndexByName(entry.name)
-    if index > 0 then PickupMacro(index) end
+    local function Place()
+        if InCombatLockdown() then return end
+        Write(entry, entry.body)
+        local placed = GetMacroIndexByName(entry.name)
+        if placed > 0 then PickupMacro(placed) end
+    end
+    -- Profile macros come from shared packs, so script lines need the player's say-so.
+    if index == 0 then
+        for line in entry.body:gmatch("[^\n]+") do
+            local command = line:match("^%s*(/%a+)")
+            if command and SCRIPT_COMMANDS[command:lower()] then
+                ns.Confirm(entry.name .. " runs a script from a shared profile. Hover its icon to "
+                    .. "read it first. Create it?", Place)
+                return
+            end
+        end
+    end
+    Place()
 end
 
 -- Only switching a macro or the module off deletes it. A profile or spec switch that turns

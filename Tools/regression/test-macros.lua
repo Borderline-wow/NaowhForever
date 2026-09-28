@@ -267,6 +267,27 @@ do
     t.Combat(false)
     t.ns.PickupManagedMacro("trinket1")
     Check("click creates macro", t.Body("NF Trinket 1"), "#showtooltip 13\n/use 13")
+    t.Combat(true)
+    t.ns.RemoveManagedMacro("trinket1")
+    Check("remove in combat keeps macro", t.Body("NF Trinket 1") ~= nil, true)
+    t.Combat(false)
+    t.ns.RemoveManagedMacro("trinket1")
+    Check("right-click removes macro", t.Body("NF Trinket 1"), nil)
+end
+
+-- Shared profile macros that run Lua ask before they are created.
+do
+    local t = Fixture({})
+    t.Fire("PLAYER_ENTERING_WORLD")
+    local accept
+    t.ns.Confirm = function(_, onYes) accept = onYes end
+    t.ns.PickupProfileMacro({ name = "Sneaky", body = "#showtooltip\n/run print(1)" })
+    Check("script macro waits for confirmation", t.Body("Sneaky"), nil)
+    accept()
+    Check("confirmed script macro created", t.Body("Sneaky") ~= nil, true)
+    accept = nil
+    t.ns.PickupProfileMacro({ name = "Plain", body = "/cast Frostbolt" })
+    Check("plain macro needs no confirmation", accept == nil and t.Body("Plain") ~= nil, true)
 end
 
 if failures > 0 then

@@ -1,6 +1,7 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_AuraBuffs.lua -- the AuraBuffs module: buff and consumable
---  reminders, the campfire and low health.
+--  reminders, the campfire, low health, and the debuff sounds the Poison & Dispel tab
+--  hands to the existing debuff alert editor.
 --
 --  In combat the client refuses addons the player's auras outright
 --  (GetAuraDataByIndex errors, GetPlayerAuraBySpellID returns nil with the buff up), so a
@@ -233,8 +234,15 @@ function ns.BuildLowHealthPage(parent, y)
     return y
 end
 
--- Visual poison/dispel reminders await a supported combat display.
+-- The debuff alert editor already registers these with C_UnitAuras.AddAuraSound, which the
+-- game plays itself mid-combat whatever the addon can read. Sound only: nothing can be
+-- drawn off an aura the addon cannot see.
 function ns.BuildPoisonDispelPage(parent, y)
-    local _, h = UI.Widgets:Note(parent, "No poison or dispel reminders configured.", y)
-    return y - h
+    local W = UI.Widgets
+    local _, h
+    _, h = W:Note(parent, "A sound when a poison, disease or curse lands on you, even in "
+        .. "combat. Add each debuff by its aura spell ID. Sound only, no on-screen glow. "
+        .. "Dwarves can pick the Stoneform voice, which only speaks while Stoneform is "
+        .. "ready.", y); y = y - h
+    return ns.BuildDebuffsPage(parent, y)
 end

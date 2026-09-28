@@ -42,7 +42,9 @@ local function Fixture(opts)
 
     local function NewFrame(template)
         local f
-        f = Recorder({ shown = true, events = {}, scripts = {} })
+        f = Recorder({ shown = true, events = {}, scripts = {}, attributes = {}, template = template })
+        function f:SetAttribute(k, v) f.attributes[k] = v end
+        function f:IsShown() return f.shown end
         function f:Show() f.shown = true end
         function f:Hide() f.shown = false end
         function f:SetShown(v) f.shown = v and true or false end
@@ -128,7 +130,6 @@ local function Fixture(opts)
         C_Container = {
             GetContainerNumSlots = function() return #state.bags end,
             GetContainerItemID = function(_, slot) return state.bags[slot] end,
-            UseContainerItem = function(bag, slot) state.used = state.bags[slot] end,
         },
         C_Item = {
             GetItemCount = Count,
@@ -352,7 +353,7 @@ do
     Check("enabled: shown", t.Shown(), "item:13931")
 end
 
--- Hover menus offer only carried configured alternatives and validate at click time.
+-- Hover menus offer only carried configured alternatives as secure item buttons.
 do
     local t = Fixture({ instance = "raid", bags = { 111, 222, 999 }, settings = { consumableEntries = {
         { category = "food", itemID = 111, auras = { 11 } },
@@ -366,18 +367,22 @@ do
     local popup
     for _, f in ipairs(t.frames) do if rawget(f, "owner") == cell then popup = f end end
     Check("only carried configured choices", #popup.buttons, 2)
+    Check("menu buttons are secure", popup.buttons[1].template, "SecureActionButtonTemplate")
+    Check("menu button uses its item", popup.buttons[2].attributes.item1, "item:222")
+    Check("menu button action type", popup.buttons[2].attributes.type1, "item")
     t.state.bags = { 999, 111 }
-    popup.buttons[2].scripts.OnClick(popup.buttons[2])
-    Check("removed item cannot be used", t.state.used, nil)
-    cell.scripts.OnEnter(cell)
-    popup.buttons[1].scripts.OnClick(popup.buttons[1])
-    Check("moved item found in current bag slot", t.state.used, 111)
+    t.Fire("BAG_UPDATE_DELAYED")
+    t.Advance(0.5)
+    Check("refresh keeps the menu open", popup.shown, true)
+    Check("refresh drops items no longer carried", popup.buttons[2].shown, false)
+    popup.buttons[1].scripts.PostClick(popup.buttons[1])
+    Check("using an item closes the menu", popup.shown, false)
     cell.scripts.OnEnter(cell)
     t.Fire("PLAYER_REGEN_DISABLED")
     Check("combat entry closes hover menu", popup.shown, false)
-    t.state.used = nil; t.state.combat = true
-    popup.buttons[1].scripts.OnClick(popup.buttons[1])
-    Check("combat prevents consumption", t.state.used, nil)
+    t.state.combat = true
+    cell.scripts.OnEnter(cell)
+    Check("no menu in combat", popup.shown, false)
 end
 
 if failures > 0 then

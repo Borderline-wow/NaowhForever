@@ -22,7 +22,7 @@
 - Gear & Trinkets: a Trinket bar with two movable slots. Left-click uses the trinket,
   right-click (out of combat) picks another one from your bags.
 - Macros: a Class Macros tab for macros supplied by your profile. Click or drag an icon to
-  put it on your action bar.
+  put it on your action bar. A macro that runs a script asks before it is created.
 - Campfire: Buff Text Size, Buff Text Position (below, above, left or right) and Show
   Refresh Reminder settings.
 - Blessings: Button Spacing, Aura / Class Gap, Timer Text Size and Class Labels settings;
@@ -40,7 +40,7 @@
   add (an item ID and its buff spell IDs) or from an imported profile, instead of a built-in
   list. Hover a reminder to pick a configured item from your bags.
 - Macros: the macro toggles are icons you click or drag onto your bars, created as General
-  macros instead of character macros.
+  macros instead of character macros. Right-click an icon to remove its macro.
 - Campfire: the timer ring is edged in black with no dark swipe over the icon, the seated
   label reads Resting, and each buff line shows the effect from the Camp Benefits tooltip.
 - BiS: each spec keeps its own list; switching spec or importing no longer overwrites
@@ -60,7 +60,6 @@
 ### Removed
 - Streamer quotes on flights.
 - Automatic loot confirmations (saved preferences are kept).
-- Poison and dispel on-screen reminders, until a combat-safe display exists.
 
 ## 0.5.14-beta
 

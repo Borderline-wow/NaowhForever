@@ -174,8 +174,9 @@ local function Collect()
 end
 
 local popup
+-- The menu holds secure buttons, so it can only be hidden outside combat.
 local function HideMenu()
-    if popup then popup:Hide() end
+    if popup and not InCombatLockdown() then popup:Hide() end
 end
 local function LeaveMenu()
     C_Timer.After(0.15, function()
@@ -203,24 +204,14 @@ local function OpenMenu(cell)
             count = count + 1
             local button = popup.buttons[count]
             if not button then
-                button = CreateFrame("Button", nil, popup)
+                button = CreateFrame("Button", nil, popup, "SecureActionButtonTemplate")
                 button:SetSize(32, 32)
+                button:RegisterForClicks("AnyUp", "AnyDown")
+                button:SetAttribute("type1", "item")
                 button.icon = button:CreateTexture(nil, "ARTWORK")
                 button.icon:SetAllPoints()
                 ns.Border(button, { r = 0, g = 0, b = 0 })
-                button:SetScript("OnClick", function(self)
-                    if InCombatLockdown() or C_Secrets.ShouldAurasBeSecret() then return end
-                    for bag = 0, NUM_BAG_SLOTS do
-                        for slot = 1, C_Container.GetContainerNumSlots(bag) do
-                            if C_Container.GetContainerItemID(bag, slot) == self.itemID then
-                                C_Container.UseContainerItem(bag, slot)
-                                HideMenu()
-                                return
-                            end
-                        end
-                    end
-                    HideMenu()
-                end)
+                button:SetScript("PostClick", HideMenu)
                 button:SetScript("OnEnter", function(self)
                     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     GameTooltip:SetItemByID(self.itemID)
@@ -230,6 +221,7 @@ local function OpenMenu(cell)
                 popup.buttons[count] = button
             end
             button.itemID = id
+            button:SetAttribute("item1", "item:" .. id)
             button.icon:SetTexture(C_Item.GetItemIconByID(id))
             button:ClearAllPoints()
             button:SetPoint("TOPLEFT", 4 + ((count - 1) % 8) * 36, -4 - math.floor((count - 1) / 8) * 36)
@@ -266,7 +258,6 @@ local function Cell(i)
 end
 
 local function Show(list)
-    HideMenu()
     local size = S.Get("iconSize")
     for i, entry in ipairs(list) do
         local cell = Cell(i)
@@ -287,6 +278,9 @@ local function Show(list)
     end
     for i = #list + 1, #cells do cells[i]:Hide() end
     frame:SetSize(math.max(#list, 1) * (size + GAP) - GAP, size)
+    if popup and popup:IsShown() then
+        if popup.owner:IsShown() and popup.owner.items then OpenMenu(popup.owner) else HideMenu() end
+    end
 end
 
 local PREVIEW = {
@@ -337,7 +331,6 @@ events:SetScript("OnEvent", function(_, event, unit)
         return
     end
     if event == "PLAYER_REGEN_DISABLED" then HideMenu(); return end
-    if event == "BAG_UPDATE_DELAYED" then HideMenu() end
     Queue()
 end)
 

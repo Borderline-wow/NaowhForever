@@ -13,7 +13,7 @@ local pending          -- set ID waiting for combat to end
 local autoSet          -- the set an automatic swap put on
 
 local function On()
-    return S.Get("gearSets") and S.Get("gearBarVisible")
+    return S.Get("gearSets")
 end
 
 local function Sets()
@@ -343,7 +343,7 @@ function ns.BuildQoLGearSetsPage(parent, y)
             "A button per set: click to equip, Shift-click to save what you wear into it, Ctrl-click "
             .. "to rename it, right-click to change its icon, and + to save a new one. The set you "
             .. "wear is outlined. Move it in Unlock Mode."),
-        S.Slider("gearBarSize", "Button Size", 20, 48, 1, nil, "gearSets")
+        S.Slider("gearBarSize", "Button Size", 20, 48, 1, nil, "gearBarVisible")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("gearMounted", "Wear While Mounted", values, order,
@@ -405,7 +405,7 @@ local function Apply()
         events:RegisterEvent(e)
     end
     Layout()
-    bar:Show()
+    bar:SetShown(S.Get("gearBarVisible") == true)
     bar.mover:SetShown(unlocked == true)
     AutoSwap()
 end

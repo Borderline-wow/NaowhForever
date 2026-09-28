@@ -526,9 +526,23 @@ local function BuildRegionControl(rgn, cfg)
         icon:SetAllPoints()
         ns.Border(button, { r = 0, g = 0, b = 0 })
         button:RegisterForDrag("LeftButton")
-        button:SetScript("OnClick", function() cfg.onClick() end)
+        button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        button:SetScript("OnClick", function(_, mouse)
+            if mouse == "RightButton" then
+                if cfg.onRightClick then cfg.onRightClick() end
+            else
+                cfg.onClick()
+            end
+        end)
         button:SetScript("OnDragStart", function() cfg.onClick() end)
-        button._refreshValue = function() icon:SetTexture(cfg.icon or 134400) end
+        button:SetScript("OnEnter", function(self)
+            if cfg.tooltip then UI.ShowWidgetTooltip(self, cfg.tooltip, { anchor = "cursor", justify = "LEFT" }) end
+        end)
+        button:SetScript("OnLeave", function() UI.HideWidgetTooltip() end)
+        button._refreshValue = function()
+            icon:SetTexture(cfg.icon or 134400)
+            icon:SetDesaturated(cfg.active ~= nil and not cfg.active())
+        end
         button._refreshValue()
         return button
     elseif cfg.type == "button" then
@@ -828,7 +842,7 @@ end
 
 local function StopPlacementDrag(item)
     if not item or not item.dragging then return end
-    if InCombatLockdown() then placement.pendingDrag = item; return end
+    if InCombatLockdown() and item.frame:IsProtected() then placement.pendingDrag = item; return end
     item.dragging = false
     item.handle:SetScript("OnUpdate", nil)
     item.frame:StopMovingOrSizing()
