@@ -1,5 +1,10 @@
 # Contributing to Naowh Forever
 
+**Feature requests are open, but not every one will be merged. Naowh Forever already
+covers a lot, so each addition is weighed on how many players would use it, how much
+upkeep it adds and how much code it brings. If you want to build a feature, message
+Glyalith on Discord before you start.**
+
 Naowh Forever is Naowh's companion addon for the WoW Forever client: Smart Reminders,
 BiS, Dungeon Quests, Professions, Gear Sets, Swing Timer, Threat Meter, QoL, macros and
 buff reminders, in one window.
