@@ -5,6 +5,8 @@
 ### Fixed
 - QoL's tab row no longer runs past the window edge and over the scrollbar; tabs tighten
   their spacing to fit.
+- Threat Meter no longer throws a Lua error every update while it has a mob to show, which
+  kept it from listing any threat.
 
 ## 0.5.14-beta
 

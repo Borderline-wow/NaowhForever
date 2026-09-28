@@ -66,7 +66,8 @@ local function fixture(settings)
         UnitClass=function(u) return 'class',s.units[u] and s.units[u].class end,
         UnitIsUnit=function(a,b) return a==b end,
         UnitDetailedThreatSituation=function(u,mob)
-            assert(not s.secret,'restricted threat read'); s.reads=s.reads+1; s.readMob=mob
+            s.reads=s.reads+1; s.readMob=mob
+            if s.secret then local v={secret=true};return v,v,v,v,v end
             return unpack(s.units[u].threat or {})
         end,
         UnitAffectingCombat=function() return s.combat end,InCombatLockdown=function() return s.combat end,
@@ -76,7 +77,6 @@ local function fixture(settings)
         UnitGroupRolesAssigned=function() return s.role or 'DAMAGER' end,
         GetShapeshiftFormID=function() return nil end,
         issecretvalue=function(v) return type(v)=='table' and v.secret==true end,
-        C_Secrets={ShouldUnitThreatValuesBeSecret=function() return s.secret end},
         C_Timer={After=function(delay,fn) s.timers[#s.timers+1]={at=s.now+delay,fn=fn} end,
             NewTicker=function(delay,fn) local t={fn=fn,cancelled=false};function t:Cancel() self.cancelled=true end;s.tickers[#s.tickers+1]=t;return t end},
         hooksecurefunc=function(t,k,fn) local old=t[k];t[k]=function(...) old(...);fn(...) end end,
@@ -148,7 +148,7 @@ end
 do
  local s=fixture({enabled=true});local reads=s.reads
  s.secret=true;s.fire('UNIT_THREAT_LIST_UPDATE','target');s.advance(0.21)
- check('secret state prevents threat reads',s.reads==reads)
+ check('secret threat values are read without error',s.reads>reads)
  check('restricted data hides when empty',not s.window.shown)
  s.set('onlyWithThreat',false);check('empty window can remain visible',s.window.shown and s.window.empty.shown)
  s.units.target=nil;s.fire('PLAYER_TARGET_CHANGED');s.advance(0.21)
