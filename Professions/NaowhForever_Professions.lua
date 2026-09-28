@@ -16,7 +16,7 @@ local T = ns.THEME
 -- The Professions module's settings, its own profile section. `enabled` is the sidebar
 -- switch for the whole module; off leaves Blizzard's window alone.
 local S = UI.ModuleSettings("professions", {
-    enabled = true, profWindow = true, recipeFinder = true,
+    enabled = true, recipeFinder = true, rankAlert = true, vendorMaterials = false, bagReagents = true, bankReagents = true,
 })
 ns.ProfessionSettings = S
 
@@ -25,7 +25,11 @@ local LEFT_W, MID_W = 280, 400
 local MID_X = PAD + LEFT_W + PAD
 local W = MID_X + MID_W + PAD
 local TOP_Y = -68
+-- The next-rank banner sits under the skill bar and pushes both columns down while shown.
+local BANNER_Y, BANNER_H, BANNER_SHIFT = -64, 40, 46
 local ROW_H, REAGENT_H, MAX_REAGENTS = 20, 36, 8
+local REAGENT_COL_W = 52
+local SCROLL_W = 6
 local MAX_PARAS, MAX_LINES = 3, 7
 local PRIMARY_H, CARD_GAP = 128, 8
 -- Blizzard's book cards, in the order this window's cards are laid out.
@@ -35,6 +39,8 @@ local SECONDARY_NAMES = { PROFESSIONS_COOKING or "Cooking", PROFESSIONS_FISHING 
     PROFESSIONS_FIRST_AID or "First Aid" }
 local GOLD = { r = 1, g = 0.82, b = 0 }
 local RED = { r = 1, g = 0.3, b = 0.3 }
+local VENDOR_ORANGE = { r = 1, g = 0.6, b = 0.2 }
+local VENDOR_ICON = "|TInterface\\GossipFrame\\VendorGossipIcon:14:14|t"
 -- Enum.TradeskillRelativeDifficulty: Optimal, Medium, Easy, Trivial.
 local DIFFICULTY = {
     [0] = { r = 1, g = 0.5, b = 0.25 },
@@ -50,10 +56,20 @@ local collapsed = {}
 local selectedID, offset, query = nil, 0, ""
 -- An unlearned recipe (a RecipeData row) when one is chosen; it takes over the middle column.
 local selectedUnlearned
-local UNLEARNED = { name = "Unlearned", unlearned = true }
+-- The two top-level sections; `key` is where a header remembers being opened or closed, and
+-- `sub` headers sit indented beneath one.
+local LEARNED = { name = "Learned", key = "profLearnedCollapsed", closed = false }
+local UNLEARNED = { name = "Unlearned", key = "profUnlearnedCollapsed", closed = false }
+-- The unlearned recipes split by what stands between you and them; only the ones you can learn
+-- now start open.
+local UNLEARNED_GROUPS = {
+    { status = "ready", name = "Learnable now", key = "profUnlearnedReadyCollapsed", closed = false, sub = true },
+    { status = "later", name = "Needs more skill", key = "profUnlearnedLaterCollapsed", closed = true, sub = true },
+    { status = "rank", name = "Needs next rank", key = "profUnlearnedRankCollapsed", closed = true, sub = true },
+}
 
 local function On()
-    return S.Get("enabled") and S.Get("profWindow")
+    return S.Get("enabled")
 end
 
 local function Own()
@@ -99,7 +115,7 @@ local function Collect()
             if not cat then
                 local ci = catID > 0 and C_TradeSkillUI.GetCategoryInfo(catID)
                 cat = { id = catID, name = ci and ci.name or OTHER or "Other", order = ci and ci.uiOrder or 999,
-                    recipes = {} }
+                    recipes = {}, sub = true }
                 byID[catID] = cat
                 categories[#categories + 1] = cat
             end
@@ -113,15 +129,21 @@ local function Collect()
     unlearned = ns.RecipeFinder and ns.RecipeFinder.Unlearned() or {}
 end
 
+local function GroupClosed(group)
+    local v = S.Get(group.key)
+    if v == nil then return group.closed end
+    return v
+end
+
 local function IsCollapsed(cat)
     if query ~= "" then return false end
-    if cat.unlearned then return S.Get("profUnlearnedCollapsed") end
+    if cat.key then return GroupClosed(cat) end
     return collapsed[cat.name]
 end
 
 local function ToggleCollapsed(cat)
-    if cat.unlearned then
-        S.Set("profUnlearnedCollapsed", not S.Get("profUnlearnedCollapsed"))
+    if cat.key then
+        S.Set(cat.key, not GroupClosed(cat))
     else
         collapsed[cat.name] = not collapsed[cat.name] or nil
     end
@@ -134,15 +156,19 @@ end
 local function BuildEntries()
     wipe(entries)
     local first, found
+    local learnedAt, learnedCount = #entries + 1, 0
+    entries[learnedAt] = { cat = LEARNED }
+    local learnedOpen = not IsCollapsed(LEARNED)
     for _, cat in ipairs(categories) do
         local shown = {}
         for _, info in ipairs(cat.recipes) do
             if Matches(info) then shown[#shown + 1] = info end
         end
         if #shown > 0 then
-            entries[#entries + 1] = { cat = cat }
+            learnedCount = learnedCount + #shown
+            if learnedOpen then entries[#entries + 1] = { cat = cat } end
             -- A search opens every category, so a match is never hidden in a closed one.
-            local open = not IsCollapsed(cat)
+            local open = learnedOpen and not IsCollapsed(cat)
             for _, info in ipairs(shown) do
                 first = first or info.recipeID
                 if info.recipeID == selectedID then found = true end
@@ -150,6 +176,8 @@ local function BuildEntries()
             end
         end
     end
+    LEARNED.count = learnedCount
+    if learnedCount == 0 then table.remove(entries, learnedAt) end
 
     local shownU, foundU = {}, false
     for _, r in ipairs(unlearned) do
@@ -160,9 +188,18 @@ local function BuildEntries()
         UNLEARNED.count = #shownU
         entries[#entries + 1] = { cat = UNLEARNED }
         local open = not IsCollapsed(UNLEARNED)
-        for _, r in ipairs(shownU) do
-            if r == selectedUnlearned then foundU = true end
-            if open then entries[#entries + 1] = { unlearned = r } end
+        for _, group in ipairs(UNLEARNED_GROUPS) do
+            local inGroup = {}
+            for _, r in ipairs(shownU) do
+                if ns.RecipeFinder.Status(r) == group.status then inGroup[#inGroup + 1] = r end
+            end
+            group.count = #inGroup
+            if open and #inGroup > 0 then entries[#entries + 1] = { cat = group } end
+            local groupOpen = open and not IsCollapsed(group)
+            for _, r in ipairs(inGroup) do
+                if r == selectedUnlearned then foundU = true end
+                if groupOpen then entries[#entries + 1] = { unlearned = r } end
+            end
         end
     end
 
@@ -203,6 +240,10 @@ local function ItemCount(itemID)
     return C_Item.GetItemCount(itemID, false, false, true) or 0
 end
 
+local function BankCount(itemID)
+    return math.max(0, (C_Item.GetItemCount(itemID, true, false, true) or 0) - ItemCount(itemID))
+end
+
 -- How many you can make from your bags. Forever answers numAvailable with 0, so it is worked
 -- out from the reagents when the game gives nothing.
 local function Craftable(info)
@@ -216,11 +257,64 @@ local function Craftable(info)
     return n
 end
 
+-- Reagents trade-goods vendors sell for gold, without limit. Merchants you visit add to this
+-- (account-wide), so anything missing here is picked up the first time you see it sold.
+local VENDOR_REAGENTS = {
+    [2880] = true, [3466] = true, -- Weak Flux, Strong Flux
+    [2320] = true, [2321] = true, [4291] = true, [8343] = true, [14341] = true, -- threads
+    [3371] = true, [3372] = true, [8925] = true, [18256] = true, -- vials
+    [4289] = true, [2678] = true, [2692] = true, [3713] = true, [2665] = true, -- salt, spices
+    [159] = true, [1179] = true, -- Refreshing Spring Water, Ice Cold Milk
+    [6217] = true, [3857] = true, [4470] = true, [4399] = true, [4400] = true, -- rod, coal, wood, stocks
+    [2324] = true, [2325] = true, [2604] = true, [6260] = true, [6261] = true, -- bleach, dyes
+    [4340] = true, [4341] = true, [4342] = true, [10290] = true,
+}
+
+local function LearnedVendorItems()
+    local account = ns.AccountSettings()
+    account.profVendorItems = account.profVendorItems or {}
+    return account.profVendorItems
+end
+
+local function IsVendorItem(itemID)
+    return VENDOR_REAGENTS[itemID] or LearnedVendorItems()[itemID] or false
+end
+
+-- How many you could make buying the vendor reagents: only the others limit it. Nil when
+-- every reagent comes from a vendor, as the number would mean nothing.
+local function CraftableWithVendor(info)
+    local n
+    for _, r in ipairs(Reagents(info.recipeID)) do
+        if not IsVendorItem(r.itemID) then
+            local can = math.floor(ItemCount(r.itemID) / math.max(r.need, 1))
+            n = n and math.min(n, can) or can
+        end
+    end
+    return n
+end
+
 local function Craft(count)
     local info = SelectedInfo()
     if not info or count < 1 then return end
     local ok, err = pcall(C_TradeSkillUI.CraftRecipe, info.recipeID, count)
     if not ok then ns.Print("Could not craft: " .. tostring(err)) end
+end
+
+local function Hex(c)
+    return ("|cff%02x%02x%02x"):format(c.r * 255, c.g * 255, c.b * 255)
+end
+
+-- "3" from your bags; with the vendor option on, "3 | 6", the second in orange, when buying
+-- the vendor reagents would let you make more, or just the orange "6" when you can make none.
+local function FormatCraftCount(info)
+    local have = Craftable(info)
+    local plain = have > 0 and tostring(have) or ""
+    if not S.Get("vendorMaterials") then return plain end
+    local withVendor = CraftableWithVendor(info)
+    if not withVendor or withVendor <= have then return plain end
+    local orange = Hex(VENDOR_ORANGE) .. withVendor .. "|r"
+    if have == 0 then return orange end
+    return plain .. " | " .. orange
 end
 
 -------------------------------------------------------------------------------
@@ -246,10 +340,10 @@ RenderList = function()
             row.entry = e
             row.icon:ClearAllPoints()
             if e.cat then
-                local label = e.cat.unlearned and ("%s (%d)"):format(e.cat.name, e.cat.count) or e.cat.name
+                local label = e.cat.count and ("%s (%d)"):format(e.cat.name, e.cat.count) or e.cat.name
                 row.text:SetText((IsCollapsed(e.cat) and "+  " or "-  ") .. label)
                 SetColor(row.text, GOLD)
-                row.text:SetPoint("LEFT", 4, 0)
+                row.text:SetPoint("LEFT", e.cat.sub and 14 or 4, 0)
                 row.count:SetText("")
                 row.icon:Hide()
                 row.head:Show()
@@ -258,7 +352,7 @@ RenderList = function()
                 local r = e.unlearned
                 local c = ns.RecipeFinder.Color(r)
                 row.icon:SetTexture((r.item and C_Item.GetItemIconByID(r.item)) or C_Spell.GetSpellTexture(r.spell))
-                row.icon:SetPoint("LEFT", 14, 0)
+                row.icon:SetPoint("LEFT", 24, 0)
                 row.icon:Show()
                 row.text:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
                 row.text:SetText(C_Spell.GetSpellName(r.spell) or ("Recipe " .. r.spell))
@@ -271,13 +365,12 @@ RenderList = function()
                 local info = e.recipe
                 SetColor(row.count, T.fg)
                 row.icon:SetTexture(info.icon)
-                row.icon:SetPoint("LEFT", 14, 0)
+                row.icon:SetPoint("LEFT", 24, 0)
                 row.icon:Show()
                 row.text:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
                 row.text:SetText(info.name)
                 SetColor(row.text, DIFFICULTY[info.relativeDifficulty] or T.fg)
-                local n = Craftable(info)
-                row.count:SetText(n > 0 and ("(" .. n .. ")") or "")
+                row.count:SetText(FormatCraftCount(info))
                 row.head:Hide()
                 row.sel:SetShown(not selectedUnlearned and info.recipeID == selectedID)
             end
@@ -287,6 +380,62 @@ RenderList = function()
         end
     end
     for i = visible + 1, #rows do rows[i]:Hide() end
+
+    -- The scrollbar follows the list; hidden when everything fits.
+    local bar, maxOffset = win.scroll, math.max(0, #entries - visible)
+    if not bar then return end
+    bar:SetShown(maxOffset > 0)
+    if maxOffset > 0 then
+        bar.thumb:SetHeight(math.max(20, bar:GetHeight() * visible / #entries))
+        bar.syncing = true
+        bar:SetMinMaxValues(0, maxOffset)
+        bar:SetValue(offset)
+        bar.syncing = nil
+    end
+end
+
+-- Fills up to `max` reagent rows. With `target`, each vendor reagent says how many to buy to make
+-- that many.
+local function FillReagents(rows, reagents, target, max)
+    local showBags, showBank = S.Get("bagReagents"), S.Get("bankReagents")
+    local cols = (showBags and 1 or 0) + (showBank and 1 or 0)
+    for i, r in ipairs(rows) do
+        local data = i <= max and reagents[i]
+        if data then
+            local name = C_Item.GetItemNameByID(data.itemID)
+            if not name then C_Item.RequestLoadItemDataByID(data.itemID) end
+            local have = ItemCount(data.itemID)
+            r.itemID = data.itemID
+            r.icon:SetTexture(C_Item.GetItemIconByID(data.itemID))
+            local buy = target and IsVendorItem(data.itemID) and target * data.need - have or 0
+            r.count:SetText(("%d/%d"):format(have, data.need)
+                .. (buy > 0 and ("   %sbuy %d more|r"):format(Hex(VENDOR_ORANGE), buy) or ""))
+            SetColor(r.count, have >= data.need and T.fg or RED)
+            r.bagsLabel:SetShown(showBags)
+            r.bags:SetShown(showBags)
+            r.bankLabel:SetShown(showBank)
+            r.bank:SetShown(showBank)
+            r.bagsLabel:ClearAllPoints()
+            r.bagsLabel:SetPoint("TOPRIGHT", showBank and -REAGENT_COL_W or 0, -2)
+            r.name:ClearAllPoints()
+            r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 6, -2)
+            r.name:SetPoint("RIGHT", -cols * REAGENT_COL_W - 6, 0)
+            if showBags then
+                r.bags:SetText(have)
+                SetColor(r.bags, have > 0 and T.fg or T.muted)
+            end
+            if showBank then
+                local bank = BankCount(data.itemID)
+                r.bank:SetText(bank)
+                SetColor(r.bank, bank > 0 and T.accent or T.muted)
+            end
+            r.vendor = IsVendorItem(data.itemID)
+            r.name:SetText((name or "") .. (r.vendor and "  " .. VENDOR_ICON or ""))
+            r:Show()
+        else
+            r:Hide()
+        end
+    end
 end
 
 RenderLearn = function(r)
@@ -322,6 +471,16 @@ RenderLearn = function(r)
             y = y - 18
         end
     end
+
+    -- What it will take to craft, when the game knows the recipe's reagents before you learn it.
+    local ok, reagents = pcall(Reagents, r.spell)
+    if not ok then reagents = {} end
+    local height = l:GetHeight() > 0 and l:GetHeight() or (MIN_H + TOP_Y - PAD)
+    local fit = math.floor((height + y - 14 - 40) / REAGENT_H)
+    l.reagentsLabel:SetShown(#reagents > 0 and fit > 0)
+    l.reagentsLabel:ClearAllPoints()
+    l.reagentsLabel:SetPoint("TOPLEFT", 14, y - 14)
+    FillReagents(l.reagents, reagents, nil, math.max(0, fit))
 end
 
 RenderDetail = function()
@@ -362,24 +521,43 @@ RenderDetail = function()
     d.reagentsLabel:ClearAllPoints()
     d.reagentsLabel:SetPoint("TOPLEFT", d.desc, "BOTTOMLEFT", 0, -14)
     local reagents = Reagents(info.recipeID)
-    for i, r in ipairs(d.reagents) do
-        local data = reagents[i]
-        if data then
-            local name = C_Item.GetItemNameByID(data.itemID)
-            if not name then C_Item.RequestLoadItemDataByID(data.itemID) end
-            local have = ItemCount(data.itemID)
-            r.itemID = data.itemID
-            r.icon:SetTexture(C_Item.GetItemIconByID(data.itemID))
-            r.count:SetText(("%d/%d"):format(have, data.need))
-            SetColor(r.count, have >= data.need and T.fg or RED)
-            r.name:SetText(name or "")
-            r:Show()
-        else
-            r:Hide()
-        end
-    end
+    -- The crafts the orange count promises: each vendor reagent says how many to buy for them.
+    local target = S.Get("vendorMaterials") and CraftableWithVendor(info)
+    if target and target <= Craftable(info) then target = nil end
+    FillReagents(d.reagents, reagents, target, MAX_REAGENTS)
 
     ns.SetButtonText(win.createAll, ("Create All (%d)"):format(Craftable(info)))
+end
+
+-- What a next-rank alert says, shared by the banner and the overview cards: the rank, what
+-- it takes, and the teacher with where they stand.
+local function RankLines(a)
+    local npc = a.npc
+    return ("%s%s|r is ready to learn."):format(ns.RecipeFinder.Hex(GOLD), a.rankName), a.how .. ".",
+        npc and ("%s - %s %.1f, %.1f"):format(npc[2], ns.RecipeFinder.ZoneName(npc[4]), npc[5], npc[6])
+            or "No teacher recorded for your faction."
+end
+
+-- Shows the banner when the open profession can take its next rank, and moves the search
+-- box and the middle column below it.
+local function RenderRankBanner(prof)
+    local banner = win.rankBanner
+    local a
+    if ns.ProfessionRank and ns.RecipeFinder and Own() then
+        local line, skill, max = ns.RecipeFinder.Current()
+        a = line and ns.ProfessionRank.For(line, skill, max, prof.name)
+    end
+    local npc = a and a.npc
+    if a then
+        banner.npc = npc
+        local rank, how, where = RankLines(a)
+        banner.text:SetText(("%s %s\n%s%s|r"):format(rank, how, ns.RecipeFinder.Hex(T.muted), where))
+        banner.waypoint:SetShown(npc ~= nil)
+    end
+    banner:SetShown(a ~= nil)
+    local top = a and (TOP_Y - BANNER_SHIFT) or TOP_Y
+    win.search:SetPoint("TOPLEFT", PAD, top)
+    win.mid:SetPoint("TOPLEFT", MID_X, top)
 end
 
 Render = function()
@@ -389,7 +567,7 @@ Render = function()
     win.rank:SetMinMaxValues(0, math.max(prof.max, 1))
     win.rank:SetValue(prof.skill)
     win.rankText:SetText(("%s %d/%d"):format(prof.name, prof.skill, prof.max))
-
+    RenderRankBanner(prof)
 
     Collect()
     BuildEntries()
@@ -442,6 +620,61 @@ local function CloseAll()
     HideUIPanel(ProfessionsFrame)
 end
 
+-- A "Reagents:" label and the rows under it, one reagent per line: icon, name, have/need, and
+-- the Bags and Bank columns on the right (a muted label over each number).
+local function BuildReagents(parent)
+    local label = ns.Font(parent, 12, nil, GOLD)
+    label:SetText("Reagents:")
+    local rows = {}
+    for i = 1, MAX_REAGENTS do
+        local r = CreateFrame("Button", nil, parent)
+        r:SetSize(MID_W - 28, REAGENT_H - 4)
+        r:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -6 - (i - 1) * REAGENT_H)
+        r.icon = r:CreateTexture(nil, "ARTWORK")
+        r.icon:SetSize(REAGENT_H - 6, REAGENT_H - 6)
+        r.icon:SetPoint("LEFT")
+        r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        local function Column(right)
+            local head = ns.Font(r, 11, nil, T.muted)
+            head:SetPoint("TOPRIGHT", right, -2)
+            head:SetWidth(REAGENT_COL_W)
+            head:SetJustifyH("RIGHT")
+            local value = ns.Font(r, 12, nil)
+            value:SetPoint("TOPRIGHT", head, "BOTTOMRIGHT", 0, -1)
+            value:SetWidth(REAGENT_COL_W)
+            value:SetJustifyH("RIGHT")
+            return head, value
+        end
+        r.bankLabel, r.bank = Column(0)
+        r.bankLabel:SetText("Bank")
+        r.bagsLabel, r.bags = Column(-REAGENT_COL_W)
+        r.bagsLabel:SetText("Bags")
+        r.name = ns.Font(r, 12, nil)
+        r.name:SetJustifyH("LEFT")
+        r.name:SetWordWrap(false)
+        r.count = ns.Font(r, 12, nil)
+        r.count:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -1)
+        r:SetScript("OnClick", function(self)
+            if IsModifiedClick("CHATLINK") then
+                local _, link = C_Item.GetItemInfo(self.itemID)
+                if link then ChatEdit_InsertLink(link) end
+            end
+        end)
+        r:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetItemByID(self.itemID)
+            if self.vendor then
+                GameTooltip:AddLine(VENDOR_ICON .. " Sold by vendors", VENDOR_ORANGE.r, VENDOR_ORANGE.g,
+                    VENDOR_ORANGE.b)
+            end
+            GameTooltip:Show()
+        end)
+        r:SetScript("OnLeave", GameTooltip_Hide)
+        rows[i] = r
+    end
+    return label, rows
+end
+
 local function Build()
     win = CreateFrame("Frame", "NaowhForeverProfessions", UIParent)
     win:SetWidth(W)
@@ -471,6 +704,41 @@ local function Build()
     win.rankText = ns.Font(rank, 12, "OUTLINE")
     win.rankText:SetPoint("CENTER")
 
+    -- The next profession rank, once your skill is high enough for it.
+    local banner = CreateFrame("Frame", nil, win)
+    banner:SetPoint("TOPLEFT", PAD, BANNER_Y)
+    banner:SetSize(W - PAD * 2, BANNER_H)
+    ns.Solid(banner, "BACKGROUND", GOLD, 0.12):SetAllPoints()
+    ns.Border(banner, GOLD, 0.6)
+    banner.icon = banner:CreateTexture(nil, "ARTWORK")
+    banner.icon:SetTexture("Interface\\GossipFrame\\TrainerGossipIcon")
+    banner.icon:SetSize(16, 16)
+    banner.icon:SetPoint("LEFT", 8, 0)
+    banner.waypoint = ns.Button(banner, "Waypoint", 86, 22, function()
+        ns.ProfessionRank.Waypoint(banner.npc)
+    end)
+    banner.waypoint:SetPoint("RIGHT", -4, 0)
+    banner.waypoint:HookScript("OnEnter", function(self)
+        local npc = self:GetParent().npc
+        if not npc then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(npc[2], 1, 1, 1)
+        GameTooltip:AddLine(("%s %.1f, %.1f"):format(ns.RecipeFinder.ZoneName(npc[4]), npc[5], npc[6]),
+            T.muted.r, T.muted.g, T.muted.b)
+        GameTooltip:AddLine("Click to set a waypoint.", T.accent.r, T.accent.g, T.accent.b)
+        GameTooltip:Show()
+    end)
+    banner.waypoint:HookScript("OnLeave", GameTooltip_Hide)
+    banner.text = ns.Font(banner, 12, nil)
+    banner.text:SetPoint("LEFT", banner.icon, "RIGHT", 8, 0)
+    banner.text:SetPoint("RIGHT", banner.waypoint, "LEFT", -8, 0)
+    banner.text:SetJustifyH("LEFT")
+    banner.text:SetWordWrap(true)
+    banner.text:SetSpacing(2)
+    if banner.text.SetMaxLines then banner.text:SetMaxLines(2) end
+    banner:Hide()
+    win.rankBanner = banner
+
     -- Left column: search and the recipe list.
     local search = ns.NewEditBox(win)
     win.search = search
@@ -479,9 +747,25 @@ local function Build()
     search.hint = ns.Font(search, 12, nil, T.muted)
     search.hint:SetPoint("LEFT", 6, 0)
     search.hint:SetText(SEARCH or "Search")
+    -- Clears the search; only there while something is typed.
+    search:SetTextInsets(6, 22, 0, 0)
+    local clear = CreateFrame("Button", nil, search)
+    clear:SetSize(18, 18)
+    clear:SetPoint("RIGHT", -2, 0)
+    clear.text = ns.Font(clear, 13, nil, T.muted)
+    clear.text:SetPoint("CENTER")
+    clear.text:SetText("X")
+    clear:SetScript("OnClick", function()
+        search:SetText("")
+        search:ClearFocus()
+    end)
+    clear:SetScript("OnEnter", function() SetColor(clear.text, T.accent) end)
+    clear:SetScript("OnLeave", function() SetColor(clear.text, T.muted) end)
+    clear:Hide()
     search:SetScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
         self.hint:SetShown(text == "")
+        clear:SetShown(text ~= "")
         query = text:lower()
         offset = 0
         BuildEntries()
@@ -503,9 +787,29 @@ local function Build()
     ns.Solid(list, "BACKGROUND", T.panel, 0.6):SetAllPoints()
     win.list = list
 
+    local bar = CreateFrame("Slider", nil, list)
+    bar:SetPoint("TOPRIGHT", -2, -2)
+    bar:SetPoint("BOTTOMRIGHT", -2, 2)
+    bar:SetWidth(SCROLL_W)
+    bar:SetOrientation("VERTICAL")
+    bar:SetValueStep(1)
+    ns.Solid(bar, "BACKGROUND", T.line, 0.6):SetAllPoints()
+    bar.thumb = bar:CreateTexture(nil, "ARTWORK")
+    bar.thumb:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 0.8)
+    bar.thumb:SetSize(SCROLL_W, 40)
+    bar:SetThumbTexture(bar.thumb)
+    bar:SetScript("OnValueChanged", function(self, value)
+        if self.syncing then return end
+        offset = math.floor(value + 0.5)
+        RenderList()
+    end)
+    bar:EnableMouseWheel(true)
+    bar:SetScript("OnMouseWheel", function(_, delta) list:GetScript("OnMouseWheel")(list, delta) end)
+    win.scroll = bar
+
     function win.BuildRow(i)
         local row = CreateFrame("Button", nil, list)
-        row:SetSize(LEFT_W - 4, ROW_H)
+        row:SetSize(LEFT_W - SCROLL_W - 6, ROW_H)
         row:SetPoint("TOPLEFT", 2, -2 - (i - 1) * ROW_H)
         row.head = ns.Solid(row, "BACKGROUND", T.line, 0.6)
         row.head:SetAllPoints()
@@ -606,39 +910,7 @@ local function Build()
     d.desc:SetJustifyH("LEFT")
     d.desc:SetSpacing(2)
 
-    d.reagentsLabel = ns.Font(d, 12, nil, GOLD)
-    d.reagentsLabel:SetText("Reagents:")
-    d.reagents = {}
-    for i = 1, MAX_REAGENTS do
-        local r = CreateFrame("Button", nil, d)
-        r:SetSize((MID_W - 28) / 2, REAGENT_H - 4)
-        local col, line = (i - 1) % 2, math.floor((i - 1) / 2)
-        r:SetPoint("TOPLEFT", d.reagentsLabel, "BOTTOMLEFT", col * (MID_W - 28) / 2, -6 - line * REAGENT_H)
-        r.icon = r:CreateTexture(nil, "ARTWORK")
-        r.icon:SetSize(REAGENT_H - 6, REAGENT_H - 6)
-        r.icon:SetPoint("LEFT")
-        r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-        r.count = ns.Font(r, 12, nil)
-        r.count:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 6, -2)
-        r.name = ns.Font(r, 12, nil)
-        r.name:SetPoint("TOPLEFT", r.count, "BOTTOMLEFT", 0, -1)
-        r.name:SetPoint("RIGHT", -2, 0)
-        r.name:SetJustifyH("LEFT")
-        r.name:SetWordWrap(false)
-        r:SetScript("OnClick", function(self)
-            if IsModifiedClick("CHATLINK") then
-                local _, link = C_Item.GetItemInfo(self.itemID)
-                if link then ChatEdit_InsertLink(link) end
-            end
-        end)
-        r:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetItemByID(self.itemID)
-            GameTooltip:Show()
-        end)
-        r:SetScript("OnLeave", GameTooltip_Hide)
-        d.reagents[i] = r
-    end
+    d.reagentsLabel, d.reagents = BuildReagents(d)
 
     -- Craft controls along the bottom of the middle column.
     local create = ns.Button(d, "Create", 90, 24, function()
@@ -716,6 +988,7 @@ local function Build()
         line:SetScript("OnLeave", GameTooltip_Hide)
         l.lines[i] = line
     end
+    l.reagentsLabel, l.reagents = BuildReagents(l)
     local hint = ns.Font(l, 11, nil, T.muted)
     hint:SetPoint("BOTTOMLEFT", 14, 14)
     hint:SetText("Click a trainer or vendor to set a waypoint.")
@@ -766,6 +1039,41 @@ local function Build()
         card.missing:SetPoint("CENTER", 0, primary and -8 or 0)
         card.missing:SetWidth((primary and innerW or cardW) - 40)
         card.missing:SetWordWrap(true)
+
+        -- The next profession rank, once the skill is high enough for it, under the skill
+        -- bar; click for a waypoint. Above Blizzard's card, which is docked over this one.
+        local strip = CreateFrame("Button", nil, card)
+        strip:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -6)
+        strip:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -6)
+        strip:SetHeight(primary and 38 or 50)
+        strip:SetFrameLevel(card:GetFrameLevel() + 12)
+        ns.Solid(strip, "BACKGROUND", GOLD, 0.12):SetAllPoints()
+        ns.Border(strip, GOLD, 0.6)
+        strip.text = ns.Font(strip, 12, nil)
+        strip.text:SetPoint("TOPLEFT", 8, -7)
+        strip.text:SetPoint("TOPRIGHT", -8, -7)
+        strip.text:SetJustifyH(primary and "LEFT" or "CENTER")
+        strip.text:SetWordWrap(true)
+        strip.text:SetSpacing(2)
+        strip:SetScript("OnClick", function(self)
+            if self.alert then ns.ProfessionRank.Waypoint(self.alert.npc) end
+        end)
+        strip:SetScript("OnEnter", function(self)
+            local a = self.alert
+            if not a then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(a.rankName, GOLD.r, GOLD.g, GOLD.b)
+            GameTooltip:AddLine(a.how, 1, 1, 1, true)
+            if a.npc then
+                GameTooltip:AddLine(("%s - %s %.1f, %.1f"):format(a.npc[2], ns.RecipeFinder.ZoneName(a.npc[4]),
+                    a.npc[5], a.npc[6]), T.muted.r, T.muted.g, T.muted.b)
+                GameTooltip:AddLine("Click to set a waypoint.", T.accent.r, T.accent.g, T.accent.b)
+            end
+            GameTooltip:Show()
+        end)
+        strip:SetScript("OnLeave", GameTooltip_Hide)
+        strip:Hide()
+        card.rankStrip = strip
         book.cards[i] = card
     end
 end
@@ -780,14 +1088,30 @@ local function BookIndices()
     return { prof1, prof2, cooking, fishing, firstAid }
 end
 
+local function RenderRankStrip(card, a)
+    local strip = card.rankStrip
+    strip.alert = a
+    strip:SetShown(a ~= nil)
+    if not a then return end
+    local rank, how, where = RankLines(a)
+    local muted, click = ns.RecipeFinder.Hex(T.muted), a.npc and (ns.RecipeFinder.Hex(T.accent) .. "Click for a waypoint.|r")
+    if card.primary then
+        strip.text:SetText(("%s %s\n%s%s|r%s"):format(rank, how, muted, where, click and ("  " .. click) or ""))
+    else
+        strip.text:SetText(("%s\n%s\n%s%s|r%s"):format(rank, how, muted, where, click and ("\n" .. click) or ""))
+    end
+    strip:SetHeight(strip.text:GetStringHeight() + 14)
+end
+
 local function RenderBook()
     win.title:SetText(TRADE_SKILLS or "Professions")
     local indices = BookIndices()
     for i, card in ipairs(win.book.cards) do
         local index = indices[i]
         if index then
-            local name, _, rank, maxRank, _, _, _, modifier = GetProfessionInfo(index)
+            local name, _, rank, maxRank, _, _, line, modifier = GetProfessionInfo(index)
             card.name:SetText(name)
+            RenderRankStrip(card, ns.ProfessionRank and ns.ProfessionRank.For(line, rank, maxRank, name))
             card.bar:SetMinMaxValues(0, math.max(maxRank or 0, 1))
             card.bar:SetValue(rank or 0)
             card.barText:SetText(("%d/%d%s"):format(rank or 0, maxRank or 0,
@@ -801,6 +1125,7 @@ local function RenderBook()
                 "Visit a profession trainer to learn one.") or "Not learned yet.")
             card.bar:Hide()
             card.missing:Show()
+            card.rankStrip:Hide()
         end
     end
 end
@@ -908,10 +1233,6 @@ local function Deactivate()
         DockBook(false)
         ProfessionsFrame:SetAlpha(1)
     end
-    if ns.ProfWindowActive then
-        ns.ProfWindowActive = nil
-        if ns.RecipeFinderRefresh then ns.RecipeFinderRefresh() end
-    end
 end
 
 -- mode is "craft" (a profession's recipes) or "book" (the overview).
@@ -932,16 +1253,13 @@ local function Activate(mode)
         selectedID, selectedUnlearned, offset = nil, nil, 0
         win:Show()
     end
-    if not ns.ProfWindowActive then
-        ns.ProfWindowActive = true
-        if ns.RecipeFinderRefresh then ns.RecipeFinderRefresh() end
-    end
     DockTabs(true)
     local book = mode == "book"
     win.search:SetShown(not book)
     win.list:SetShown(not book)
     win.mid:SetShown(not book)
     win.rank:SetShown(not book)
+    if book then win.rankBanner:Hide() end
     win.book:SetShown(book)
     DockBook(book)
     if book then
@@ -977,6 +1295,32 @@ local function Queue()
 end
 ns.ProfWindowRefresh = Queue
 
+-- At a merchant: remember the reagents it sells for plain gold and without a stock limit.
+local function ScanMerchant()
+    if not S.Get("vendorMaterials") then return end
+    local learned = LearnedVendorItems()
+    for i = 1, GetMerchantNumItems() do
+        local itemID = GetMerchantItemID(i)
+        local price, available, extended
+        if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+            local info = C_MerchantFrame.GetItemInfo(i)
+            if info then price, available, extended = info.price, info.numAvailable, info.hasExtendedCost end
+        else
+            local _
+            _, _, price, _, available, _, _, extended = GetMerchantItemInfo(i)
+        end
+        if itemID and (price or 0) > 0 and available == -1 and not extended
+            and select(12, C_Item.GetItemInfo(itemID)) == Enum.ItemClass.Tradegoods then
+            learned[itemID] = true
+        end
+    end
+end
+
+local merchant = CreateFrame("Frame")
+merchant:RegisterEvent("MERCHANT_SHOW")
+merchant:RegisterEvent("MERCHANT_UPDATE")
+merchant:SetScript("OnEvent", ScanMerchant)
+
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, name)
     if event == "ADDON_LOADED" then
@@ -1006,7 +1350,8 @@ local function Apply()
     if not On() then return Deactivate() end
     for _, event in ipairs({ "TRADE_SKILL_SHOW", "TRADE_SKILL_CLOSE", "TRADE_SKILL_LIST_UPDATE",
         "TRADE_SKILL_DATA_SOURCE_CHANGED", "TRADE_SKILL_NAME_UPDATE", "NEW_RECIPE_LEARNED",
-        "SKILL_LINES_CHANGED", "BAG_UPDATE_DELAYED", "ITEM_DATA_LOAD_RESULT", "PLAYER_REGEN_ENABLED" }) do
+        "SKILL_LINES_CHANGED", "BAG_UPDATE_DELAYED", "ITEM_DATA_LOAD_RESULT", "PLAYER_REGEN_ENABLED",
+        "PLAYERBANKSLOTS_CHANGED" }) do
         pcall(events.RegisterEvent, events, event)
     end
     if not C_AddOns.IsAddOnLoaded("Blizzard_Professions") then events:RegisterEvent("ADDON_LOADED") end
@@ -1014,7 +1359,8 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "profWindow" then Apply() end
+    if key == "enabled" then Apply() end
+    if key == "vendorMaterials" or key == "bagReagents" or key == "bankReagents" then Queue() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 
@@ -1031,18 +1377,45 @@ function ns.BuildProfessionsPage(parent, y)
     local _, h
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
-    _, h = W:SectionHeader(parent, "PROFESSION WINDOW" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "UNLEARNED RECIPES" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("profWindow", "Naowh Profession Window",
-            "Replaces Blizzard's profession window with Naowh's: your recipes, reagents and "
-            .. "crafting in one window, the overview of all your professions, and Blizzard's "
-            .. "profession tabs on its edge. Off shows Blizzard's window."),
         S.Toggle("recipeFinder", "Unlearned Recipes",
             "Lists the recipes you have not learned yet below your own. Click one to see the "
             .. "skill it needs, what it costs and where it comes from: the nearest trainers, the "
             .. "vendor selling its manual, or the mobs that drop it. Click a trainer or vendor "
-            .. "to set a waypoint. With the Naowh window off they show in a drawer beside "
-            .. "Blizzard's.")
+            .. "to set a waypoint."),
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "PROFESSION RANKS" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("rankAlert", "Next Rank Alert",
+            "When a profession's skill is high enough for its next rank (Journeyman, Expert, "
+            .. "Artisan), a banner under the skill bar and on its card in the overview says what "
+            .. "it takes and who teaches it: the "
+            .. "nearest trainer, book vendor or quest giver. Click Waypoint to mark them on your "
+            .. "map. Reaching it also says so once in chat; /naowh profrank repeats that."),
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "RECIPES", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("vendorMaterials", "Crafts with Vendor Buys",
+            "Adds a second, orange number next to each recipe: how many you could make after "
+            .. "buying the reagents vendors sell, such as Weak Flux or Coarse Thread. The recipe's "
+            .. "reagents then say how many of each to buy."),
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("bagReagents", "Reagents in Bags",
+            "Adds a Bags column to the chosen recipe's reagents, showing how many of each you carry."),
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("bankReagents", "Reagents in Bank",
+            "Adds a Bank column to the chosen recipe's reagents, showing how many of each are in "
+            .. "your bank."),
+        { type = "label", text = "" }
     ); y = y - h
 
     return y

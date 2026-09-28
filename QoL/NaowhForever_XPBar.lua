@@ -72,7 +72,8 @@ local function BlizzardBars()
 end
 
 local function ShowsXP(frame)
-    return frame.shownBarIndex == nil or frame.shownBarIndex == StatusTrackingBarInfo.BarsEnum.Experience
+    local enum = StatusTrackingBarInfo and StatusTrackingBarInfo.BarsEnum
+    return frame.shownBarIndex == nil or not enum or frame.shownBarIndex == enum.Experience
 end
 
 local function Refresh(frame)
@@ -94,6 +95,13 @@ local function SetBlizzardHidden(hide)
                     if hideBlizzard then Refresh(self) end
                 end)
             end
+            -- The container's own fade-in animation runs after those hooks and ends at full
+            -- alpha, which is how the bar came back after a /reload. Animations do not go
+            -- through SetAlpha, so it is caught here instead, only while the frame is shown
+            -- and only when its alpha has crept back up.
+            frame:HookScript("OnUpdate", function(self)
+                if hideBlizzard and self:GetAlpha() > 0 and ShowsXP(self) then self:SetAlpha(0) end
+            end)
         end
         Refresh(frame)
     end

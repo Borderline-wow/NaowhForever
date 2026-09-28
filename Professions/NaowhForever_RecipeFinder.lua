@@ -2,22 +2,18 @@
 --  NaowhForever_RecipeFinder.lua -- the recipes you have not learned yet, and for each the
 --  skill it needs, what it costs and where it comes from: the nearest trainers, the vendor
 --  selling its manual, or the mobs that drop it. Trainer and vendor lines set a waypoint.
---  Naowh's profession window lists them through ns.RecipeFinder; with that window off they
---  show in a drawer on Blizzard's. Data: RecipeData.lua.
+--  Naowh's profession window lists them through ns.RecipeFinder. Visiting a profession
+--  trainer records what its recipes really need and cost. Data: RecipeData.lua.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.ProfessionSettings
 local T = ns.THEME
 
-local WIDTH, HEADER_H, ROW_H, DETAIL_H = 280, 34, 22, 236
-local MAX_LINES, NEAREST = 7, 3
+local NEAREST = 3
 local GREEN = { r = 0.35, g = 1, b = 0.35 }
 local ORANGE = { r = 1, g = 0.6, b = 0.2 }
 
-local panel, hooked
-local list, rows = {}, {}
-local state, selected
-local offset = 0
+local list, state = {}, nil
 
 local function On()
     return S.Get("enabled") and S.Get("recipeFinder")
@@ -149,14 +145,12 @@ end
 -------------------------------------------------------------------------------
 --  Detail text
 -------------------------------------------------------------------------------
-local RenderDetail
-
+-- An uncached item name reads "its manual" until the item loads; the window redraws on
+-- ITEM_DATA_LOAD_RESULT.
 local function ItemName(itemID)
     local name = C_Item.GetItemNameByID(itemID)
     if name then return Hex(T.accent) .. name .. "|r" end
-    Item:CreateFromItemID(itemID):ContinueOnItemLoad(function()
-        if panel and panel:IsShown() then RenderDetail() end
-    end)
+    C_Item.RequestLoadItemDataByID(itemID)
     return "its manual"
 end
 
@@ -174,10 +168,11 @@ end
 
 -- Trainer lists in the data are indices into the profession's trainers, so each NPC is written
 -- out once; rank books, quest givers and vendors are full rows.
-local function Rows(list)
+local function Rows(list, data)
     if not list or type(list[1]) ~= "number" then return list or {} end
+    local trainers = (data or state.data).trainers
     local rows = {}
-    for i, index in ipairs(list) do rows[i] = state.data.trainers[index] end
+    for i, index in ipairs(list) do rows[i] = trainers[index] end
     return rows
 end
 
@@ -283,92 +278,8 @@ local function Describe(r)
 end
 
 -------------------------------------------------------------------------------
---  The panel
+--  The unlearned list
 -------------------------------------------------------------------------------
-local Render
-
--- A drawer on Blizzard's window's right edge, overlapping its 1px border so the two read as one.
-local function Collapsed()
-    return S.Get("recipeFinderCollapsed")
-end
-
-local function Place()
-    local pf = ProfessionsFrame
-    panel:ClearAllPoints()
-    panel:SetPoint("TOPLEFT", pf, "TOPRIGHT", -1, 0)
-    if Collapsed() then
-        panel:SetHeight(HEADER_H)
-    else
-        panel:SetPoint("BOTTOMLEFT", pf, "BOTTOMRIGHT", -1, 0)
-    end
-    panel:SetFrameLevel(pf:GetFrameLevel() + 20)
-end
-
-local function VisibleRows()
-    return math.max(1, math.floor((ProfessionsFrame:GetHeight() - HEADER_H - DETAIL_H - 8) / ROW_H))
-end
-
--------------------------------------------------------------------------------
---  Side tabs
--------------------------------------------------------------------------------
--- Whatever hangs off the window's right edge (profession tab strips from Blizzard or another
--- addon) moves out by the drawer's width while it is open, and back when it closes. Only
--- frames anchored to the window itself are moved; a chain of tabs follows its first one.
--- Tabs may be secure buttons, so this never runs in combat.
-local shifted, shiftedOn, shiftPending = {}, false, nil
-
-local function RightAnchored(p)
-    return p[2] == ProfessionsFrame and type(p[3]) == "string" and p[3]:find("RIGHT") ~= nil
-end
-
-local function Candidates(right, out)
-    local function Check(f)
-        if f == panel or out[f] or (f.IsForbidden and f:IsForbidden()) or not f:IsShown() then return end
-        local left = f:GetLeft()
-        if not left or left < right - 2 then return end
-        local pts, hit = {}, false
-        for i = 1, f:GetNumPoints() do
-            local p = { f:GetPoint(i) }
-            pts[i] = p
-            if RightAnchored(p) then hit = true end
-        end
-        if hit then out[f] = pts end
-    end
-    for _, f in ipairs({ ProfessionsFrame:GetChildren() }) do Check(f) end
-    for _, f in ipairs({ UIParent:GetChildren() }) do Check(f) end
-    return out
-end
-
-local function ShiftTabs(on)
-    if on == shiftedOn then
-        shiftPending = nil
-        return
-    end
-    if InCombatLockdown() then
-        shiftPending = on
-        return
-    end
-    shiftPending = nil
-    shiftedOn = on
-    if on then
-        local right = ProfessionsFrame:GetRight()
-        if not right then return end
-        for f, pts in pairs(Candidates(right, {})) do
-            shifted[f] = pts
-            f:ClearAllPoints()
-            for _, p in ipairs(pts) do
-                f:SetPoint(p[1], p[2], p[3], (p[4] or 0) + (RightAnchored(p) and WIDTH - 1 or 0), p[5] or 0)
-            end
-        end
-    else
-        for f, pts in pairs(shifted) do
-            f:ClearAllPoints()
-            for _, p in ipairs(pts) do f:SetPoint(p[1], p[2], p[3], p[4] or 0, p[5] or 0) end
-        end
-        wipe(shifted)
-    end
-end
-
 local function RowColor(r)
     local st = Status(r)
     if st == "ready" then return GREEN end
@@ -377,250 +288,7 @@ local function RowColor(r)
 end
 
 local SOURCE_TAG = { trainer = "Trainer", teacher = "Trainer", vendor = "Vendor", drop = "Drop",
-    unknown = "?" }
-
-local function BuildRow(i)
-    local row = CreateFrame("Button", nil, panel)
-    row:SetSize(WIDTH - 16, ROW_H - 2)
-    row:SetPoint("TOPLEFT", 8, -HEADER_H - (i - 1) * ROW_H)
-    row.sel = ns.Solid(row, "BACKGROUND", T.accent, 0.25)
-    row.sel:SetAllPoints()
-    row.hl = ns.Solid(row, "BACKGROUND", T.panel, 0.9)
-    row.hl:SetAllPoints()
-    row.hl:Hide()
-
-    row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetSize(ROW_H - 4, ROW_H - 4)
-    row.icon:SetPoint("LEFT", 2, 0)
-    row.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-
-    row.tag = ns.Font(row, 11, nil, T.muted)
-    row.tag:SetPoint("RIGHT", -4, 0)
-    row.tag:SetJustifyH("RIGHT")
-    row.skill = ns.Font(row, 12, nil)
-    row.skill:SetPoint("RIGHT", -58, 0)
-    row.name = ns.Font(row, 12, nil)
-    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-    row.name:SetPoint("RIGHT", row.skill, "LEFT", -6, 0)
-    row.name:SetJustifyH("LEFT")
-    row.name:SetWordWrap(false)
-
-    row:SetScript("OnClick", function(self)
-        selected = self.recipe
-        Render()
-    end)
-    row:SetScript("OnEnter", function(self)
-        self.hl:Show()
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetSpellByID(self.recipe.spell)
-        GameTooltip:Show()
-    end)
-    row:SetScript("OnLeave", function(self)
-        self.hl:Hide()
-        GameTooltip_Hide()
-    end)
-    row:SetScript("OnMouseWheel", function(_, delta) panel:GetScript("OnMouseWheel")(panel, delta) end)
-    return row
-end
-
-local function BuildLine(detail)
-    local line = CreateFrame("Button", nil, detail)
-    line:SetSize(WIDTH - 24, 16)
-    line.text = ns.Font(line, 12, nil)
-    line.text:SetPoint("LEFT")
-    line.text:SetPoint("RIGHT")
-    line.text:SetJustifyH("LEFT")
-    line.text:SetWordWrap(false)
-    line:SetScript("OnClick", function(self)
-        local npc = self.npc
-        if npc and ns.PlaceWaypoint then ns.PlaceWaypoint(npc[2], npc[4], npc[5], npc[6]) end
-    end)
-    line:SetScript("OnEnter", function(self)
-        if not self.npc then return end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(self.npc[2], 1, 1, 1)
-        GameTooltip:AddLine("Click to set a waypoint.", T.accent.r, T.accent.g, T.accent.b)
-        GameTooltip:Show()
-    end)
-    line:SetScript("OnLeave", GameTooltip_Hide)
-    return line
-end
-
-local function Build()
-    panel = CreateFrame("Frame", "NaowhForeverRecipeFinder", ProfessionsFrame)
-    panel:SetWidth(WIDTH)
-    panel:EnableMouse(true)
-    panel:EnableMouseWheel(true)
-    ns.Solid(panel, "BACKGROUND", T.bg, 0.95):SetAllPoints()
-    ns.Border(panel)
-
-    local header = CreateFrame("Frame", nil, panel)
-    header:SetPoint("TOPLEFT")
-    header:SetPoint("TOPRIGHT")
-    header:SetHeight(HEADER_H)
-    header:EnableMouse(true)
-
-    local logo = header:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga")
-    logo:SetSize(20, 20)
-    logo:SetPoint("LEFT", 8, 0)
-    panel.title = ns.Font(header, 14, "OUTLINE", T.accent)
-    panel.title:SetPoint("LEFT", logo, "RIGHT", 6, 0)
-
-    panel.collapse = ns.Button(header, "-", 20, 20, function()
-        S.Set("recipeFinderCollapsed", not S.Get("recipeFinderCollapsed"))
-        Place()
-        Render()
-    end)
-    panel.collapse:SetPoint("RIGHT", -4, 0)
-
-    panel.more = ns.Font(panel, 11, nil, T.muted)
-
-    local detail = CreateFrame("Frame", nil, panel)
-    detail:SetPoint("BOTTOMLEFT", 0, 0)
-    detail:SetPoint("BOTTOMRIGHT", 0, 0)
-    detail:SetHeight(DETAIL_H)
-    local sep = ns.Solid(detail, "ARTWORK", T.line, 1)
-    sep:SetPoint("TOPLEFT", 8, 0)
-    sep:SetPoint("TOPRIGHT", -8, 0)
-    sep:SetHeight(1)
-
-    detail.icon = detail:CreateTexture(nil, "ARTWORK")
-    detail.icon:SetSize(30, 30)
-    detail.icon:SetPoint("TOPLEFT", 10, -10)
-    detail.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    detail.title = ns.Font(detail, 14, nil)
-    detail.title:SetPoint("TOPLEFT", detail.icon, "TOPRIGHT", 8, 0)
-    detail.title:SetPoint("RIGHT", -10, 0)
-    detail.title:SetJustifyH("LEFT")
-    detail.req = ns.Font(detail, 12, nil)
-    detail.req:SetPoint("BOTTOMLEFT", detail.icon, "BOTTOMRIGHT", 8, 0)
-
-    detail.paras = {}
-    for i = 1, 3 do
-        local fs = ns.Font(detail, 12, nil)
-        fs:SetWidth(WIDTH - 20)
-        fs:SetJustifyH("LEFT")
-        fs:SetWordWrap(true)
-        fs:SetSpacing(2)
-        detail.paras[i] = fs
-    end
-
-    detail.lines = {}
-    for i = 1, MAX_LINES do detail.lines[i] = BuildLine(detail) end
-    panel.detail = detail
-
-    panel:SetScript("OnMouseWheel", function(_, delta)
-        local maxOffset = math.max(0, #list - VisibleRows())
-        offset = math.min(maxOffset, math.max(0, offset - delta))
-        Render()
-    end)
-end
-
-RenderDetail = function()
-    local detail = panel.detail
-    local r = selected
-    local profName = C_Spell.GetSpellName(state.data.skillSpell) or "First Aid"
-    for _, line in ipairs(detail.lines) do line:Hide() end
-    for _, fs in ipairs(detail.paras) do fs:Hide() end
-    if not r then
-        detail.icon:Hide()
-        detail.title:SetText("")
-        detail.req:SetText("")
-        local fs = detail.paras[1]
-        fs:ClearAllPoints()
-        fs:SetPoint("TOPLEFT", 10, -12)
-        fs:SetText(#list == 0 and ("You know every " .. profName .. " recipe.")
-            or "Click a recipe to see where to learn it.")
-        fs:Show()
-        return
-    end
-
-    detail.icon:SetTexture((r.item and C_Item.GetItemIconByID(r.item)) or C_Spell.GetSpellTexture(r.spell))
-    detail.icon:Show()
-    detail.title:SetText(C_Spell.GetSpellName(r.spell) or ("Recipe " .. r.spell))
-    detail.req:SetText(("%sRequires %s %d|r   %s(you: %d/%d)|r"):format(Hex(RowColor(r)), profName,
-        Skill(r), Hex(T.muted), state.skill, state.max))
-
-    local y, nPara, nLine = -50, 0, 0
-    for _, entry in ipairs(Describe(r)) do
-        if entry.para then
-            nPara = nPara + 1
-            local fs = detail.paras[nPara]
-            if not fs then break end
-            if nPara > 1 then y = y - 6 end
-            fs:ClearAllPoints()
-            fs:SetPoint("TOPLEFT", 10, y)
-            fs:SetText(entry.text)
-            fs:Show()
-            y = y - fs:GetStringHeight() - 4
-        else
-            nLine = nLine + 1
-            local line = detail.lines[nLine]
-            if not line then break end
-            line.npc = entry.npc
-            line.text:SetText(entry.text)
-            local c = entry.npc and T.accent or T.fg
-            line.text:SetTextColor(c.r, c.g, c.b, 1)
-            line:ClearAllPoints()
-            line:SetPoint("TOPLEFT", 14, y)
-            line:Show()
-            y = y - 17
-        end
-    end
-end
-
-Render = function()
-    Place()
-    local collapsed = Collapsed()
-    ns.SetButtonText(panel.collapse, collapsed and "+" or "-")
-    panel.title:SetText(("Unlearned Recipes (%d)"):format(#list))
-    panel.detail:SetShown(not collapsed)
-
-    local visible = collapsed and 0 or VisibleRows()
-    offset = math.min(offset, math.max(0, #list - visible))
-    for i = 1, math.max(visible, #rows) do
-        local row = rows[i]
-        local r = i <= visible and list[i + offset]
-        if r then
-            row = row or BuildRow(i)
-            rows[i] = row
-            row.recipe = r
-            row.icon:SetTexture((r.item and C_Item.GetItemIconByID(r.item)) or C_Spell.GetSpellTexture(r.spell))
-            row.name:SetText(C_Spell.GetSpellName(r.spell) or ("Recipe " .. r.spell))
-            local c = RowColor(r)
-            row.name:SetTextColor(c.r, c.g, c.b, 1)
-            row.skill:SetText(Skill(r))
-            row.skill:SetTextColor(c.r, c.g, c.b, 1)
-            row.tag:SetText(SOURCE_TAG[r.source])
-            row.sel:SetShown(r == selected)
-            row:Show()
-        elseif row then
-            row:Hide()
-        end
-    end
-
-    panel.more:ClearAllPoints()
-    local hidden = #list - visible - offset
-    if not collapsed and (offset > 0 or hidden > 0) then
-        panel.more:SetPoint("BOTTOMRIGHT", panel.detail, "TOPRIGHT", -10, 4)
-        panel.more:SetText(("scroll for more (%d-%d of %d)"):format(offset + 1, offset + visible, #list))
-        panel.more:Show()
-    else
-        panel.more:Hide()
-    end
-
-    if not collapsed then RenderDetail() end
-    ShiftTabs(not collapsed)
-end
-
--------------------------------------------------------------------------------
---  Refresh
--------------------------------------------------------------------------------
-local function Hide()
-    if panel then panel:Hide() end
-    ShiftTabs(false)
-end
+    quest = "Quest", unknown = "?" }
 
 -- Reads the open profession into state and list. False when it is not one with data, or not
 -- your own.
@@ -630,48 +298,18 @@ local function Compute()
         state, list = nil, {}
         return false
     end
-    if not state or state.id ~= id then selected, offset = nil, 0 end
     state = { id = id, data = ns.RecipeData[id], skill = skill, max = max }
     list = {}
     for _, r in ipairs(state.data.recipes) do
         if not Learned(r.spell) then list[#list + 1] = r end
     end
-    table.sort(list, function(a, b)
-        local sa, sb = Skill(a), Skill(b)
-        if sa ~= sb then return sa < sb end
-        return a.spell < b.spell
+    table.sort(list, function(x, y)
+        local sx, sy = Skill(x), Skill(y)
+        if sx ~= sy then return sx < sy end
+        return x.spell < y.spell
     end)
-    if selected and not tContains(list, selected) then selected = nil end
     return true
 end
-
-local function Refresh()
-    if not (On() and ProfessionsFrame and ProfessionsFrame:IsShown()) or ns.ProfWindowActive then
-        return Hide()
-    end
-    -- The overview tab's book page lists every profession, not recipes.
-    if ProfessionsFrame.BookPage and ProfessionsFrame.BookPage:IsShown() then return Hide() end
-    if ProfessionsFrame.GetTab and ProfessionsFrame.recipesTabID
-        and ProfessionsFrame:GetTab() ~= ProfessionsFrame.recipesTabID then
-        return Hide()
-    end
-    if not Compute() then return Hide() end
-
-    if not panel then Build() end
-    panel:Show()
-    Render()
-end
-
-local queued = false
-local function Queue()
-    if queued then return end
-    queued = true
-    C_Timer.After(0, function()
-        queued = false
-        Refresh()
-    end)
-end
-ns.RecipeFinderRefresh = Queue
 
 -- For Naowh's profession window: the unlearned recipes of the open profession (empty when the
 -- finder is off or has no data for it), each one's colour and requirement line, and the
@@ -682,14 +320,23 @@ ns.RecipeFinder = {
         return list
     end,
     Color = function(r) return RowColor(r) end,
+    Status = function(r) return Status(r) end,
     Requirement = function(r)
         local profName = C_Spell.GetSpellName(state.data.skillSpell) or "First Aid"
         return ("%sRequires %s %d|r   %s(you: %d/%d)|r"):format(Hex(RowColor(r)), profName, Skill(r),
             Hex(T.muted), state.skill, state.max)
     end,
     Describe = function(r) return Describe(r) end,
-    Tag = function(r) return SOURCE_TAG[r.source] end,
+    Tag = function(r) return SOURCE_TAG[r.source] or "?" end,
     Skill = function(r) return Skill(r) end,
+    -- For the rank banner: the open profession's skill line, skill and cap (nil when it is
+    -- not your own), NPC rows nearest first, trainer indices to rows, and formatting.
+    Current = function() return ReadProfession() end,
+    Nearest = Nearest,
+    Rows = Rows,
+    Money = Money,
+    ZoneName = ZoneName,
+    Hex = Hex,
 }
 
 -- At a profession trainer: remember what each recipe on offer really needs and costs.
@@ -768,62 +415,27 @@ function ns.RecipeFinderDebug()
         end
         ns.Print(("Data recipes: %d, %d learned"):format(#ns.RecipeData[id].recipes, learned))
     end
-    local pf = ProfessionsFrame
-    if not (pf and pf:IsShown() and pf:GetRight()) then return end
-    ns.Print(("Tabs moved: %s. Frames past the window's right edge:"):format(shiftedOn and "yes" or "no"))
-    local edge = pf:GetRight() + (shiftedOn and WIDTH or 0)
-    local all = { pf:GetChildren() }
-    for _, f in ipairs({ UIParent:GetChildren() }) do all[#all + 1] = f end
-    for _, f in ipairs(all) do
-        local left = not (f.IsForbidden and f:IsForbidden()) and f:IsShown() and f ~= panel and f:GetLeft()
-        if left and left >= pf:GetRight() - 2 and left <= edge + 80 then
-            local _, rel, relPoint = f:GetPoint(1)
-            ns.Print(("  %s -> %s %s%s"):format(f:GetDebugName(), rel and rel:GetDebugName() or "?",
-                tostring(relPoint), shifted[f] and " (moved)" or ""))
-        end
-    end
 end
 
 -------------------------------------------------------------------------------
 --  Events
 -------------------------------------------------------------------------------
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event, name)
-    if event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" then return QueueTrainerScan() end
-    if event == "PLAYER_REGEN_ENABLED" then
-        if shiftPending ~= nil then ShiftTabs(shiftPending) end
-        return
-    end
-    if event == "ADDON_LOADED" then
-        if name ~= "Blizzard_Professions" then return end
-        events:UnregisterEvent("ADDON_LOADED")
-    end
-    if not hooked and ProfessionsFrame then
-        hooked = true
-        ProfessionsFrame:HookScript("OnShow", Queue)
-        ProfessionsFrame:HookScript("OnSizeChanged", Queue)
-        ProfessionsFrame:HookScript("OnHide", function() ShiftTabs(false) end)
-        if ProfessionsFrame.SetTab then hooksecurefunc(ProfessionsFrame, "SetTab", Queue) end
-    end
-    Queue()
-end)
+events:SetScript("OnEvent", QueueTrainerScan)
 
 local function Apply()
     events:UnregisterAllEvents()
-    if not On() then return Hide() end
-    for _, event in ipairs({ "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_DATA_SOURCE_CHANGED",
-        "NEW_RECIPE_LEARNED", "SKILL_LINES_CHANGED" }) do
-        pcall(events.RegisterEvent, events, event)
-    end
-    events:RegisterEvent("PLAYER_REGEN_ENABLED")
+    if not On() then return end
     events:RegisterEvent("TRAINER_SHOW")
     events:RegisterEvent("TRAINER_UPDATE")
-    if not C_AddOns.IsAddOnLoaded("Blizzard_Professions") then events:RegisterEvent("ADDON_LOADED") end
-    events:GetScript("OnEvent")(events, "APPLY")
 end
 
+-- The Unlearned Recipes switch changes what the window lists.
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "recipeFinder" then Apply() end
+    if key == "enabled" or key == "recipeFinder" then
+        Apply()
+        if ns.ProfWindowRefresh then ns.ProfWindowRefresh() end
+    end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 

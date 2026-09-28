@@ -901,6 +901,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.ToggleDungeonQuests()
     elseif cmd == "ranks" and ns.TrainerRankCheck then
         ns.TrainerRankCheck()
+    elseif cmd == "profrank" and ns.ProfessionRankCheck then
+        ns.ProfessionRankCheck()
     elseif cmd == "recipes" and ns.RecipeFinderDebug then
         ns.RecipeFinderDebug()
     elseif cmd == "townaudit" and ns.TownAudit then
