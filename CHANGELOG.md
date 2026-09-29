@@ -2,8 +2,43 @@
 
 ## Unreleased
 
-- Trinket bar: clicking an empty trinket slot no longer throws a Lua error, and hovering a slot shows the equipped trinket's tooltip instead of usage instructions (those stay on the Trinkets settings page).
+### Added
+- Bag Space (QoL > Loot, off by default): the cheapest items in your bags as a row of
+  icons, cheapest first (or grey items first), with what each stack sells for and a border
+  in its quality colour, black for common items.
+  Ctrl-click an icon to delete it, or click it to sell it at a vendor, and middle-click an
+  item to ignore it. Uncommon and better items are only picked up by a Ctrl-click, so the
+  game's own delete confirmation still applies to them. Hover an icon for what the stack
+  fetches at a vendor and at the auction house; an item worth more at the auction house is
+  valued at its auction price, so it comes later in the row. Reagents, ammo, quest items,
+  keys, equipment set items and BiS items are never offered. It can show only when your
+  bags are nearly full, hides in combat, and has a key binding that picks up the cheapest
+  item, which you can set on the same page. Move it in Unlock Mode.
+- Bag Space: Ignore List, on the same page, shows every item you ignored, newest first, with
+  the day you ignored it and how many you carry. Search it by name, hover a row and click
+  the X to stop ignoring that item, or drop an item from your bags onto it to ignore it
+  before it is ever offered. Clear All starts over.
+- Bag Space: each line Bag Space adds to an icon's tooltip (vendor price, auction price, the
+  delete hint and the ignore hint) can be turned off on its page. The quest warning always
+  shows.
+- Bag Space: a Stack button at the start of the row when part-filled stacks of the same item
+  can be combined, with how many slots it frees; nothing is deleted. Free slots out of your
+  total show above the row with a bag icon (orange when nearly full, red when full; hover it
+  for each bag), food, drink and potions 10 or more levels below you are marked
+  OLD (and can go first), and an "Inventory is full" error brings the row up for 20 seconds
+  even when your free-slot threshold would hide it.
+- Bag Space: an item an unfinished quest in your log still needs (Okra for Westfall Stew,
+  say) gets a yellow ! and goes to the end of the row, and its tooltip names the quest and
+  how many you have. Deleting it takes a second Ctrl-click within 5 seconds.
+
+### Changed
+- Key bindings: Naowh Forever's bindings have their own Naowh Forever section in the game's
+  Key Bindings, instead of sitting under AddOns. When a key field takes a key that was
+  already in use, the message now says the key "is now bound to" the new action.
 - Campfire: clearer high-resolution artwork, a larger default icon, and short buff labels such as Rested XP and Crit Strike 2%.
+
+### Fixed
+- Trinket bar: clicking an empty trinket slot no longer throws a Lua error, and hovering a slot shows the equipped trinket's tooltip instead of usage instructions (those stay on the Trinkets settings page).
 
 ## 0.5.15-beta
 

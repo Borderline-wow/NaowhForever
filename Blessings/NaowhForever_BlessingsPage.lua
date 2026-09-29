@@ -60,7 +60,7 @@ local function KeyField(rgn, action, label)
         SetBinding(combo, action)
         Save()
         if previous ~= "" and previous ~= action then
-            ns.Print(("%s now casts %s instead of %s."):format(GetBindingText(combo), label,
+            ns.Print(("%s is now bound to %s instead of %s."):format(GetBindingText(combo), label,
                 GetBindingName(previous)))
         end
         Stop()
@@ -70,9 +70,10 @@ local function KeyField(rgn, action, label)
     btn:SetScript("OnShow", Show)
     btn:SetScript("OnHide", function() if capturing then Stop() end end)
     ns.Tooltip(btn, label, "Click, then press a key to bind it. Escape cancels; right-click clears. "
-        .. "The same binding as in Key Bindings > AddOns > Naowh Forever.")
+        .. "The same binding as in Key Bindings > Naowh Forever.")
     Show()
 end
+ns.KeyField = KeyField
 
 function ns.BuildQoLBlessingsPage(parent, y)
     local UI = ns.UI
