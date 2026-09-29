@@ -22,7 +22,7 @@ local S = UI.ModuleSettings("auraBuffs", {
     iconSize = 36,
 
     campfire = true, campTimer = true, campBuffs = true,
-    campSound = true, campSoundKey = "none", campIconSize = 56, campNearbyAlert = true,
+    campSound = true, campSoundKey = "none", campIconSize = 64, campNearbyAlert = true,
     campShowUnder = false, campShowUnderMinutes = 10,
 
     lowHealth = true, lowHealthBelow = 35, lowHealthItem = "auto",
@@ -167,7 +167,7 @@ function ns.BuildCampfirePage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("campBuffs", "Show Active Camp Buffs",
             "The active effects reported in your Camp Benefits tooltip.", "campfire"),
-        S.Slider("campIconSize", "Icon Size", 24, 80, 1, nil, "campfire")
+        S.Slider("campIconSize", "Icon Size", 24, 110, 1, nil, "campfire")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("campShowUnder", "Show Only When Low",

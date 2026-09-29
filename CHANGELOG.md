@@ -27,6 +27,7 @@
 - Key bindings: Naowh Forever's bindings have their own Naowh Forever section in the game's
   Key Bindings, instead of sitting under AddOns. When a key field takes a key that was
   already in use, the message now says the key "is now bound to" the new action.
+- Campfire: clearer high-resolution artwork, a larger default icon, and short buff labels such as Rested XP and Crit Strike 2%.
 
 ## 0.5.15-beta
 
