@@ -23,6 +23,7 @@ local FULL_SHOW = 20      -- seconds the row stays up after an "Inventory is ful
 local OUTLEVEL = 10       -- a consumable this many levels below you is flagged as old
 local MERGE_STEPS = 60    -- a stack merge gives up after this many moves
 local QUEST_CONFIRM = 5   -- seconds a second Ctrl-click has to delete an item a quest needs
+local DIRECT_DELETE = 1   -- highest quality Ctrl-click deletes; better goes on the cursor
 
 -- Never offered whatever they are worth: you need them, or they free no bag space.
 local PROTECTED_CLASS = {
@@ -102,7 +103,7 @@ local function AuctionEach(itemID, link)
 end
 
 -- What the stack would fetch: its vendor price, or its auction price when that is higher, so
--- an item worth listing is never the one offered for the bin.
+-- an item worth listing sorts behind ones only a vendor wants.
 local function StackValue(itemID, link, vendor, count)
     local each = vendor
     if scanAuction then
@@ -249,7 +250,7 @@ end
 -------------------------------------------------------------------------------
 --  Deleting, selling, ignoring
 -------------------------------------------------------------------------------
-local RequestScan
+local RequestScan, Update
 
 -- The slot is read again right before acting: bags shift under a row that was drawn a
 -- moment ago, and the item there now is the one that would go.
@@ -260,7 +261,7 @@ end
 
 local function Snapshot(e)
     return { bag = e.bag, slot = e.slot, itemID = e.itemID, link = e.link, count = e.count, value = e.value,
-        quest = e.quest }
+        quest = e.quest, quality = e.quality }
 end
 
 local function Label(p)
@@ -315,8 +316,14 @@ end
 
 -- Straight from a click on the icon the game lets the delete through; from anywhere else
 -- (a confirmation button, a key binding) it is blocked, so those only pick the item up.
+-- DeleteCursorItem skips the game's confirmation, so Uncommon and better only go on the
+-- cursor, where dropping them brings up the game's prompt (type DELETE for Rare and up).
 local function Delete(p)
     if not PickUp(p) then return end
+    if p.quality > DIRECT_DELETE then
+        GroundHint(p)
+        return
+    end
     DeleteCursorItem()
     if GetCursorInfo() then
         GroundHint(p)
@@ -577,6 +584,7 @@ local function MergeStep()
         return StopMerge("stacking stopped: put down what you are holding, and wait for combat to end.")
     end
     mergeSteps = mergeSteps + 1
+    if mergeSteps == 1 then mergeStartFree = free end
     local src, dst, amount = NextMove()
     -- A move still landing hides its slots from the scan; wait for them rather than stop.
     if not src and anyLocked and mergeSteps <= MERGE_STEPS then return end
@@ -595,14 +603,15 @@ local function MergeStep()
     if GetCursorInfo() then C_Container.PickupContainerItem(src.bag, src.slot) end
 end
 
+-- The first move runs off a fresh scan: bags may have changed since the row was drawn.
 local function StartMerge()
     if merging or InCombatLockdown() then return end
     if GetCursorInfo() then
         ns.Print("put down what you are holding first.")
         return
     end
-    merging, mergeSteps, mergeStartFree = true, 0, free
-    MergeStep()
+    merging, mergeSteps = true, 0
+    Update()
 end
 
 -- Pick up the cheapest item, for the key binding (Bindings.xml).
@@ -610,7 +619,8 @@ BINDING_NAME_NAOWHFOREVER_BAGSPACE_PICKUP = "Pick Up Cheapest Item"
 
 function NaowhForever_BagSpacePickUp()
     if not On() then return end
-    Scan()
+    -- The row's buttons point into the scan's pooled entries, so a scan redraws the row too.
+    Update()
     if not picks[1] then return end
     local p = Snapshot(picks[1])
     if PickUp(p) then GroundHint(p) end
@@ -665,6 +675,8 @@ local function OnEnter(self)
     if e.quest then
         GameTooltip:AddLine("Needed for " .. QuestText(e.quest), 1, 0.82, 0)
         GameTooltip:AddLine("|cff0091edCtrl-click|r  twice to delete", 1, 1, 1)
+    elseif e.quality > DIRECT_DELETE then
+        GameTooltip:AddLine("|cff0091edCtrl-click|r  pick up to delete", 1, 1, 1)
     else
         GameTooltip:AddLine("|cff0091edCtrl-click|r  delete now", 1, 1, 1)
     end
@@ -780,7 +792,7 @@ end
 -------------------------------------------------------------------------------
 local events = CreateFrame("Frame")
 
-local function Update()
+function Update()
     pendingScan = false
     if not (frame and On()) then return end
     Scan()

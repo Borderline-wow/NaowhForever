@@ -16,6 +16,7 @@ local ITEMS = {
     [8] = { "Blue Ring", 3, 0, 1, 900, 4 },            -- rare: above the quality limit
     [9] = { "Tough Jerky", 1, 5, 20, 1, 0 },           -- food ten or more levels below: old
     [10] = { "Linen Cloth", 1, 0, 20, 13, 7 },
+    [11] = { "Green Belt", 2, 0, 1, 50, 4 },
 }
 
 local WHITE = { r = 1, g = 1, b = 1, hex = "|cffffffff" }
@@ -51,6 +52,7 @@ local function Fixture(opts)
         SetShown = function(self, v) self.shown = v and true or false end,
         IsShown = function(self) return self.shown end,
         SetText = function(self, v) self.text = v end,
+        SetTexture = function(self, v) self.texture = v end,
         SetScript = function(self, name, fn) self[name] = fn end,
         CreateTexture = function() return Widget("region") end,
         CreateFontString = function() return Widget("region") end,
@@ -102,6 +104,8 @@ local function Fixture(opts)
             it.count = it.count + moved
             cursor.count = cursor.count - moved
             if cursor.count == 0 then cursor = nil end
+        else
+            bags[bag][slot], cursor = cursor, it
         end
     end
 
@@ -309,6 +313,40 @@ do
     t.Click(2, "LeftButton", true)
     t.Fire("BAG_UPDATE_DELAYED")
     Check("second ctrl-click deletes", t.Count(1), 0)
+end
+
+-- Uncommon and better only go on the cursor, so the game's own delete confirmation applies.
+do
+    local t = Fixture({ bags = { [0] = Bag(16, { { 11, 1 } }) } })
+    t.Click(1, "LeftButton", true)
+    Check("uncommon is picked up, not deleted", select(2, t.env.GetCursorInfo()), 11)
+    Check("ground hint", t.printed[#t.printed]:find("is on your cursor") ~= nil, true)
+end
+
+-- The key binding redraws the row from the scan it acts on, so icons match their items.
+do
+    local bags = { [0] = Bag(16, { { 1, 3 }, { 2, 11 }, { 3, 2 } }) }
+    local t = Fixture({ bags = bags })
+    bags[0][1] = nil   -- the eggs are gone, with no bag event yet
+    t.env.NaowhForever_BagSpacePickUp()
+    Check("binding picks up the cheapest", select(2, t.env.GetCursorInfo()), 2)
+    for i = 1, 2 do
+        local b = t.Button(i)
+        Check("icon " .. i .. " matches its item", b.icon.texture, b.pick.itemID)
+    end
+end
+
+-- Stacking starts from a fresh scan: a stack moved by hand since the row was drawn is found
+-- where it is now, and the item put in its old slot stays put.
+do
+    local bags = { [0] = Bag(16, { { 1, 3 }, { 1, 5 }, { 2, 11 } }) }
+    local t = Fixture({ bags = bags })
+    bags[0][4], bags[0][1] = bags[0][1], { id = 10, count = 3 }
+    t.Click(1)
+    for _ = 1, 5 do t.Fire("BAG_UPDATE_DELAYED") end
+    Check("linen left alone", bags[0][1] and bags[0][1].id, 10)
+    Check("moved eggs merged", t.Slots(1), 1)
+    Check("no moved eggs lost", t.Count(1), 8)
 end
 
 -- Two part-filled egg stacks: a Stack button that merges them into one slot.

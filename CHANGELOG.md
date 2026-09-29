@@ -10,8 +10,10 @@
   to ignore it; Ignore List on the same page shows what you ignored, newest first, with how
   many you carry. Search it by name, remove items one by one, or drop an item from your bags
   onto it to ignore it before it is ever offered. Hover an icon for what the stack fetches at a vendor and at the
-  auction house. Items worth more at the auction house, reagents, ammo, quest items, keys,
-  equipment set items and BiS items are never offered. It can show only when your bags are
+  auction house. An item worth more at the auction house is valued at its auction price, so
+  it comes later in the row. Reagents, ammo, quest items, keys, equipment set items and BiS
+  items are never offered. Uncommon and better items are only picked up by a Ctrl-click, so
+  the game's own delete confirmation still applies to them. It can show only when your bags are
   nearly full, hides in combat, and has a key binding that picks up the cheapest item, which
   you can set on the same page. Move it in Unlock Mode.
 - Bag Space: a Stack button at the start of the row when part-filled stacks of the same item
