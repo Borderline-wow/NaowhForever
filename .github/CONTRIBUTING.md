@@ -91,6 +91,9 @@ comment, sent back for changes, or merged and fixed up by me.
   or symlink works). `/reload` picks up new files and TOC changes, no restart needed.
 - Offline tests live in `Tools/regression` and run on Lua 5.1:
   `lua5.1 Tools/regression/test-bis-slots.lua .`
+- Lint with [luacheck](https://github.com/lunarmodules/luacheck) from the repo root:
+  `luacheck .` (settings in `.luacheckrc`). A new global the addon writes goes in
+  `globals` there, a new game API it reads in `read_globals`.
 
 ## PR etiquette
 
