@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Changed
+- Dungeon Quests: click a step in a quest's Chain list for a waypoint to where it starts,
+  or for a step in your log, to where the game sends you for it.
 - Co-Tank Frame: Righteous Fury counts as tanking for paladins.
 - Co-Tank Debuffs now show in combat, drawn by the game the way NaowhUI's co-tank does it,
   with its filter, icon, position and text settings. On by default with the frame.

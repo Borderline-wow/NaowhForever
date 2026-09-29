@@ -278,20 +278,50 @@ local function StepState(step)
     return NOT_DONE, ids[1]
 end
 
--- Every quest of the chain in order with how far you are, the clicked one marked; a quest
--- in your log can be tracked from here.
+-- Where a step is picked up: its quest giver in the data file, else where its quest page
+-- says it starts. The version the step state names is tried first.
+local function StepSpot(step, id)
+    local ids = { id }
+    for _, other in ipairs(StepIDs(step)) do ids[#ids + 1] = other end
+    for _, try in ipairs(ids) do
+        local quest = byID[try]
+        if quest and quest[7] then return quest[7], quest[8], quest[9], " (quest giver)" end
+        local start = ns.DungeonQuestChainStarts[try]
+        if start then return start[1], start[2], start[3], " (" .. start[4] .. ")" end
+    end
+end
+
+-- A step in your log goes where the game's own navigation sends you for it; any other
+-- step goes to where it is picked up.
+local function StepWaypoint(step, state, id, name)
+    if state == ACTIVE and C_QuestLog.GetNextWaypoint then
+        local map, x, y = C_QuestLog.GetNextWaypoint(id)
+        if map and x and y and PlaceWaypoint(name, map, x * 100, y * 100) then return end
+    end
+    local map, x, y, note = StepSpot(step, id)
+    if map then PlaceWaypoint(name, map, x, y, note) end
+end
+
+-- Every quest of the chain in order with how far you are, the clicked one marked. A step
+-- not done yet with somewhere to go puts a waypoint there when clicked; a quest in your log
+-- can be tracked from here.
 local function OpenChain(owner, quest)
     local chain, own = Chain(quest)
     MenuUtil.CreateContextMenu(owner, function(_, root)
         local title = C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2]
         root:CreateTitle(("%s: step %d of %d"):format(title, own, #chain))
+        root:CreateTitle(MUTED .. "Click a step for a waypoint.|r")
         for i, step in ipairs(chain) do
             local state, id = StepState(step)
             local name = C_QuestLog.GetTitleForQuestID(id) or ns.DungeonQuestChainNames[id] or byID[id][2]
             local text = ("%d.  %s  %s"):format(i, name, state)
             if state == DONE then text = MUTED .. ("%d.  %s|r  "):format(i, name) .. DONE end
             if i == own then text = text .. "  |cff4db5f5(this quest)|r" end
-            root:CreateTitle(text, WHITE_FONT_COLOR)
+            if state ~= DONE and (state == ACTIVE or StepSpot(step, id)) then
+                root:CreateButton(text, function() StepWaypoint(step, state, id, name) end)
+            else
+                root:CreateTitle(text, WHITE_FONT_COLOR)
+            end
         end
         local logged = LoggedID(quest)
         if logged then

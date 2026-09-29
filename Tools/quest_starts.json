@@ -1,0 +1,2004 @@
+{
+ "1100": null,
+ "1101": {
+  "coord": [
+   89.6,
+   46.4
+  ],
+  "npc": "Falfindel Waywarder",
+  "npcId": 4048,
+  "zone": 357
+ },
+ "1149": {
+  "coord": [
+   53.8,
+   41.6
+  ],
+  "npc": "Dorn Plainstalker",
+  "npcId": 2986,
+  "zone": 400
+ },
+ "1150": {
+  "coord": [
+   53.8,
+   41.6
+  ],
+  "npc": "Dorn Plainstalker",
+  "npcId": 2986,
+  "zone": 400
+ },
+ "1151": {
+  "coord": [
+   53.8,
+   41.6
+  ],
+  "npc": "Dorn Plainstalker",
+  "npcId": 2986,
+  "zone": 400
+ },
+ "1152": {
+  "coord": [
+   53.8,
+   41.6
+  ],
+  "npc": "Dorn Plainstalker",
+  "npcId": 2986,
+  "zone": 400
+ },
+ "1154": {
+  "coord": [
+   78.6,
+   45.6
+  ],
+  "npc": "Braug Dimspirit",
+  "npcId": 4489,
+  "zone": 406
+ },
+ "1159": {
+  "coord": [
+   78.6,
+   45.6
+  ],
+  "npc": "Braug Dimspirit",
+  "npcId": 4489,
+  "zone": 406
+ },
+ "1160": {
+  "coord": [
+   57.8,
+   65
+  ],
+  "npc": "Parqual Fintallas",
+  "npcId": 4488,
+  "zone": 1497
+ },
+ "1200": {
+  "coord": [
+   ""
+  ],
+  "npc": "Argent Guard Thaelrid",
+  "npcId": 4787,
+  "zone": 719
+ },
+ "1394": {
+  "coord": [
+   57.8,
+   65
+  ],
+  "npc": "Parqual Fintallas",
+  "npcId": 4488,
+  "zone": 1497
+ },
+ "1424": {
+  "coord": [
+   48,
+   55
+  ],
+  "npc": "Fel'zerul",
+  "npcId": 1443,
+  "zone": 8
+ },
+ "1429": {
+  "coord": [
+   48,
+   55
+  ],
+  "npc": "Fel'zerul",
+  "npcId": 1443,
+  "zone": 8
+ },
+ "1444": {
+  "coord": [
+   33.6,
+   75.2
+  ],
+  "npc": "Atal'ai Exile",
+  "npcId": 5598,
+  "zone": 47
+ },
+ "1445": {
+  "coord": [
+   48,
+   55
+  ],
+  "npc": "Fel'zerul",
+  "npcId": 1443,
+  "zone": 8
+ },
+ "1469": {
+  "coord": [
+   26.8,
+   48.4
+  ],
+  "npc": "Rhapsody Shindigger",
+  "npcId": 5634,
+  "zone": 47
+ },
+ "1475": {
+  "coord": [
+   64.2,
+   20.8
+  ],
+  "npc": "Brohann Caskbelly",
+  "npcId": 5384,
+  "zone": 1519
+ },
+ "1489": {
+  "coord": [
+   52.2,
+   31.8
+  ],
+  "npc": "Tonga Runetotem",
+  "npcId": 3448,
+  "zone": 17
+ },
+ "1490": {
+  "coord": [
+   78.4,
+   28.4
+  ],
+  "npc": "Arch Druid Hamuul Runetotem",
+  "npcId": 5769,
+  "zone": 1638
+ },
+ "155": {
+  "coord": [
+   55.6,
+   47.4
+  ],
+  "npc": "The Defias Traitor",
+  "npcId": 467,
+  "zone": 40
+ },
+ "1651": {
+  "coord": [
+   42.2,
+   88.6
+  ],
+  "npc": "Daphne Stilwell",
+  "npcId": 6182,
+  "zone": 40
+ },
+ "1652": {
+  "coord": [
+   42.2,
+   88.6
+  ],
+  "npc": "Daphne Stilwell",
+  "npcId": 6182,
+  "zone": 40
+ },
+ "1653": {
+  "coord": [
+   40,
+   29.8
+  ],
+  "npc": "Duthorian Rall",
+  "npcId": 6171,
+  "zone": 1519
+ },
+ "1654": {
+  "coord": [
+   52.4,
+   36.8
+  ],
+  "npc": "Jordan Stilwell",
+  "npcId": 6181,
+  "zone": 1
+ },
+ "166": {
+  "coord": [
+   56.2,
+   47.6
+  ],
+  "npc": "Gryan Stoutmantle",
+  "npcId": 234,
+  "zone": 40
+ },
+ "167": {
+  "coord": [
+   65.2,
+   21.2
+  ],
+  "npc": "Wilder Thistlenettle",
+  "npcId": 656,
+  "zone": 1519
+ },
+ "168": {
+  "coord": [
+   65.2,
+   21.2
+  ],
+  "npc": "Wilder Thistlenettle",
+  "npcId": 656,
+  "zone": 1519
+ },
+ "1806": {
+  "coord": [
+   52.4,
+   36.8
+  ],
+  "npc": "Jordan Stilwell",
+  "npcId": 6181,
+  "zone": 1
+ },
+ "1949": {
+  "coord": [
+   46,
+   57
+  ],
+  "npc": "Tabetha",
+  "npcId": 6546,
+  "zone": 15
+ },
+ "1950": {
+  "coord": [
+   78.2,
+   75.8
+  ],
+  "npc": "Magus Tirth",
+  "npcId": 6548,
+  "zone": 400
+ },
+ "1951": {
+  "coord": [
+   78.2,
+   75.8
+  ],
+  "npc": "Magus Tirth",
+  "npcId": 6548,
+  "zone": 400
+ },
+ "1953": {
+  "coord": [
+   25.6,
+   14.6
+  ],
+  "npc": "Ursyn Ghull",
+  "npcId": 3048,
+  "zone": 1638
+ },
+ "1954": {
+  "coord": [
+   46,
+   57
+  ],
+  "npc": "Tabetha",
+  "npcId": 6546,
+  "zone": 15
+ },
+ "1955": {
+  "coord": [
+   46,
+   57
+  ],
+  "npc": "Tabetha",
+  "npcId": 6546,
+  "zone": 15
+ },
+ "1956": {
+  "coord": [
+   46,
+   57
+  ],
+  "npc": "Tabetha",
+  "npcId": 6546,
+  "zone": 15
+ },
+ "1957": {
+  "coord": [
+   46,
+   57
+  ],
+  "npc": "Tabetha",
+  "npcId": 6546,
+  "zone": 15
+ },
+ "2040": {
+  "coord": [
+   55.4,
+   12.6
+  ],
+  "npc": "Shoni the Shilent",
+  "npcId": 6579,
+  "zone": 1519
+ },
+ "2041": {
+  "coord": [
+   69.4,
+   50.6
+  ],
+  "npc": "Gnoarn",
+  "npcId": 6569,
+  "zone": 1537
+ },
+ "2198": null,
+ "2199": {
+  "coord": [
+   36,
+   4
+  ],
+  "npc": "Talvash del Kissel",
+  "npcId": 6826,
+  "zone": 1537
+ },
+ "2200": {
+  "coord": [
+   36,
+   4
+  ],
+  "npc": "Talvash del Kissel",
+  "npcId": 6826,
+  "zone": 1537
+ },
+ "2201": {
+  "coord": [
+   ""
+  ],
+  "npc": "Remains of a Paladin",
+  "npcId": 6912,
+  "zone": 1337
+ },
+ "2202": {
+  "coord": [
+   2.6,
+   46
+  ],
+  "npc": "Jarkal Mossmeld",
+  "npcId": 6868,
+  "zone": 3
+ },
+ "2204": {
+  "coord": [
+   44.7,
+   12.6
+  ],
+  "npc": "Talvash's Scrying Bowl",
+  "npcId": 112877,
+  "zone": 3
+ },
+ "2240": {
+  "coord": [
+   ""
+  ],
+  "npc": "Baelog",
+  "npcId": 6906,
+  "zone": 1337
+ },
+ "2258": {
+  "coord": [
+   2.6,
+   46
+  ],
+  "npc": "Jarkal Mossmeld",
+  "npcId": 6868,
+  "zone": 3
+ },
+ "2283": {
+  "coord": [
+   59.4,
+   36.8
+  ],
+  "npc": "Dran Droffers",
+  "npcId": 6986,
+  "zone": 1637
+ },
+ "2284": {
+  "coord": [
+   59.4,
+   36.8
+  ],
+  "npc": "Dran Droffers",
+  "npcId": 6986,
+  "zone": 1637
+ },
+ "2318": {
+  "coord": [
+   ""
+  ],
+  "npc": "Remains of a Paladin",
+  "npcId": 6912,
+  "zone": 1337
+ },
+ "2338": {
+  "coord": [
+   2.6,
+   46
+  ],
+  "npc": "Jarkal Mossmeld",
+  "npcId": 6868,
+  "zone": 3
+ },
+ "2745": {
+  "coord": [
+   60,
+   64.4
+  ],
+  "npc": "Elling Trias",
+  "npcId": 482,
+  "zone": 1519
+ },
+ "2746": {
+  "coord": [
+   69.2,
+   14.6
+  ],
+  "npc": "Tyrion",
+  "npcId": 7766,
+  "zone": 1519
+ },
+ "2769": {
+  "coord": [
+   68.2,
+   46.2
+  ],
+  "npc": "Klockmort Spannerspan",
+  "npcId": 6169,
+  "zone": 1537
+ },
+ "2842": {
+  "coord": [
+   75.6,
+   25.2
+  ],
+  "npc": "Sovik",
+  "npcId": 3413,
+  "zone": 1637
+ },
+ "2861": {
+  "coord": [
+   85,
+   10.2
+  ],
+  "npc": "Anastasia Hartwell",
+  "npcId": 4568,
+  "zone": 1497
+ },
+ "2864": {
+  "coord": [
+   27,
+   77.2
+  ],
+  "npc": "Krazek",
+  "npcId": 773,
+  "zone": 33
+ },
+ "2923": {
+  "coord": [
+   40.6,
+   30.8
+  ],
+  "npc": "Brother Sarno",
+  "npcId": 7917,
+  "zone": 1519
+ },
+ "2925": {
+  "coord": [
+   59.2,
+   45.4
+  ],
+  "npc": "Mathiel",
+  "npcId": 6142,
+  "zone": 1657
+ },
+ "2928": {
+  "coord": [
+   55.4,
+   12.6
+  ],
+  "npc": "Shoni the Shilent",
+  "npcId": 6579,
+  "zone": 1519
+ },
+ "2931": {
+  "coord": [
+   59.4,
+   67.2
+  ],
+  "npc": "Gaxim Rustfizzle",
+  "npcId": 4077,
+  "zone": 406
+ },
+ "2933": {
+  "coord": [
+   23.6,
+   58.7
+  ],
+  "npc": "Venom Bottle",
+  "npcId": 142702,
+  "zone": 47
+ },
+ "2934": {
+  "coord": [
+   61.4,
+   19.2
+  ],
+  "npc": "Apothecary Lydon",
+  "npcId": 2216,
+  "zone": 267
+ },
+ "2935": {
+  "coord": [
+   61.4,
+   19.2
+  ],
+  "npc": "Apothecary Lydon",
+  "npcId": 2216,
+  "zone": 267
+ },
+ "2936": {
+  "coord": [
+   56,
+   74.6
+  ],
+  "npc": "Master Gadrin",
+  "npcId": 3188,
+  "zone": 14
+ },
+ "2937": {
+  "coord": [
+   56,
+   74.6
+  ],
+  "npc": "Master Gadrin",
+  "npcId": 3188,
+  "zone": 14
+ },
+ "2988": {
+  "coord": [
+   9.8,
+   44.4
+  ],
+  "npc": "Gryphon Master Talonaxe",
+  "npcId": 5636,
+  "zone": 47
+ },
+ "2989": {
+  "coord": [
+   9.8,
+   44.4
+  ],
+  "npc": "Gryphon Master Talonaxe",
+  "npcId": 5636,
+  "zone": 47
+ },
+ "2990": {
+  "coord": [
+   9.8,
+   44.4
+  ],
+  "npc": "Gryphon Master Talonaxe",
+  "npcId": 5636,
+  "zone": 47
+ },
+ "2991": {
+  "coord": [
+   67,
+   19.4
+  ],
+  "npc": "Thadius Grimshade",
+  "npcId": 8022,
+  "zone": 4
+ },
+ "2992": {
+  "coord": [
+   67,
+   19.4
+  ],
+  "npc": "Thadius Grimshade",
+  "npcId": 8022,
+  "zone": 4
+ },
+ "2993": {
+  "coord": [
+   67,
+   19.4
+  ],
+  "npc": "Thadius Grimshade",
+  "npcId": 8022,
+  "zone": 4
+ },
+ "2994": {
+  "coord": [
+   9.8,
+   44.4
+  ],
+  "npc": "Gryphon Master Talonaxe",
+  "npcId": 5636,
+  "zone": 47
+ },
+ "350": {
+  "coord": [
+   75.8,
+   59.8
+  ],
+  "npc": "Master Mathias Shaw",
+  "npcId": 332,
+  "zone": 1519
+ },
+ "3520": {
+  "coord": [
+   67,
+   22.4
+  ],
+  "npc": "Yeh'kinya",
+  "npcId": 8579,
+  "zone": 440
+ },
+ "3523": {
+  "coord": [
+   ""
+  ],
+  "npc": "Belnistrasz",
+  "npcId": 8516,
+  "zone": 722
+ },
+ "3525": {
+  "coord": [
+   ""
+  ],
+  "npc": "Belnistrasz",
+  "npcId": 8516,
+  "zone": 722
+ },
+ "3527": {
+  "coord": [
+   67,
+   22.4
+  ],
+  "npc": "Yeh'kinya",
+  "npcId": 8579,
+  "zone": 440
+ },
+ "3636": {
+  "coord": [
+   39.6,
+   27.4
+  ],
+  "npc": "Archbishop Benedictus",
+  "npcId": 1284,
+  "zone": 1519
+ },
+ "373": null,
+ "3765": {
+  "coord": [
+   21.4,
+   55.6
+  ],
+  "npc": "Argos Nightwhisper",
+  "npcId": 4984,
+  "zone": 1519
+ },
+ "3801": null,
+ "3802": null,
+ "386": {
+  "coord": [
+   26.4,
+   46.6
+  ],
+  "npc": "Guard Berton",
+  "npcId": 859,
+  "zone": 44
+ },
+ "387": {
+  "coord": [
+   41.2,
+   58
+  ],
+  "npc": "Warden Thelwater",
+  "npcId": 1719,
+  "zone": 1519
+ },
+ "388": {
+  "coord": [
+   73.4,
+   46.6
+  ],
+  "npc": "Nikova Raskol",
+  "npcId": 1721,
+  "zone": 1519
+ },
+ "389": {
+  "coord": [
+   49,
+   30.2
+  ],
+  "npc": "Baros Alexston",
+  "npcId": 1646,
+  "zone": 1519
+ },
+ "3907": {
+  "coord": [
+   3.4,
+   48.2
+  ],
+  "npc": "Thunderheart",
+  "npcId": 9084,
+  "zone": 3
+ },
+ "391": {
+  "coord": [
+   41.2,
+   58
+  ],
+  "npc": "Warden Thelwater",
+  "npcId": 1719,
+  "zone": 1519
+ },
+ "392": {
+  "coord": [
+   41.2,
+   58
+  ],
+  "npc": "Warden Thelwater",
+  "npcId": 1719,
+  "zone": 1519
+ },
+ "393": {
+  "coord": [
+   49,
+   30.2
+  ],
+  "npc": "Baros Alexston",
+  "npcId": 1646,
+  "zone": 1519
+ },
+ "3981": {
+  "coord": [
+   5.8,
+   47.6
+  ],
+  "npc": "Galamav the Marksman",
+  "npcId": 9081,
+  "zone": 3
+ },
+ "3982": {
+  "coord": [
+   ""
+  ],
+  "npc": "Commander Gor'shak",
+  "npcId": 9020,
+  "zone": 1584
+ },
+ "4001": {
+  "coord": [
+   ""
+  ],
+  "npc": "Commander Gor'shak",
+  "npcId": 9020,
+  "zone": 1584
+ },
+ "4002": {
+  "coord": [
+   32,
+   37.8
+  ],
+  "npc": "Thrall",
+  "npcId": 4949,
+  "zone": 1637
+ },
+ "4004": {
+  "coord": [
+   ""
+  ],
+  "npc": "Princess Moira Bronzebeard",
+  "npcId": 8929,
+  "zone": 1584
+ },
+ "4022": {
+  "coord": [
+   94.8,
+   31.6
+  ],
+  "npc": "Cyrus Therepentous",
+  "npcId": 9459,
+  "zone": 46
+ },
+ "4023": {
+  "coord": [
+   94.8,
+   31.6
+  ],
+  "npc": "Cyrus Therepentous",
+  "npcId": 9459,
+  "zone": 46
+ },
+ "4061": {
+  "coord": [
+   3,
+   47.8
+  ],
+  "npc": "Hierophant Theodora Mulvadania",
+  "npcId": 9079,
+  "zone": 3
+ },
+ "4062": {
+  "coord": [
+   3,
+   47.8
+  ],
+  "npc": "Hierophant Theodora Mulvadania",
+  "npcId": 9079,
+  "zone": 3
+ },
+ "4063": {
+  "coord": [
+   25.8,
+   45
+  ],
+  "npc": "Lotwil Veriatus",
+  "npcId": 2921,
+  "zone": 3
+ },
+ "4128": {
+  "coord": [
+   63.6,
+   20.4
+  ],
+  "npc": "Enohar Thunderbrew",
+  "npcId": 9540,
+  "zone": 4
+ },
+ "4133": {
+  "coord": [
+   50,
+   68.4
+  ],
+  "npc": "Apothecary Zinge",
+  "npcId": 5204,
+  "zone": 1497
+ },
+ "4141": {
+  "coord": [
+   43,
+   9.6
+  ],
+  "npc": "Muigin",
+  "npcId": 9119,
+  "zone": 490
+ },
+ "4142": {
+  "coord": [
+   43,
+   9.6
+  ],
+  "npc": "Muigin",
+  "npcId": 9119,
+  "zone": 490
+ },
+ "4143": {
+  "coord": [
+   45,
+   25.4
+  ],
+  "npc": "Gregan Brewspewer",
+  "npcId": 7775,
+  "zone": 357
+ },
+ "4145": {
+  "coord": [
+   45.6,
+   8.6
+  ],
+  "npc": "Larion",
+  "npcId": 9118,
+  "zone": 490
+ },
+ "4146": {
+  "coord": [
+   62.4,
+   38.6
+  ],
+  "npc": "Liv Rizzlefix",
+  "npcId": 8496,
+  "zone": 17
+ },
+ "4147": {
+  "coord": [
+   45.6,
+   8.6
+  ],
+  "npc": "Larion",
+  "npcId": 9118,
+  "zone": 490
+ },
+ "4182": {
+  "coord": [
+   85.6,
+   69
+  ],
+  "npc": "Helendis Riverhorn",
+  "npcId": 9562,
+  "zone": 46
+ },
+ "4183": {
+  "coord": [
+   85.6,
+   69
+  ],
+  "npc": "Helendis Riverhorn",
+  "npcId": 9562,
+  "zone": 46
+ },
+ "4184": {
+  "coord": [
+   30,
+   44.2
+  ],
+  "npc": "Magistrate Solomon",
+  "npcId": 344,
+  "zone": 44
+ },
+ "4185": {
+  "coord": [
+   78,
+   18
+  ],
+  "npc": "Highlord Bolvar Fordragon",
+  "npcId": 1748,
+  "zone": 1519
+ },
+ "4186": {
+  "coord": [
+   78,
+   18
+  ],
+  "npc": "Highlord Bolvar Fordragon",
+  "npcId": 1748,
+  "zone": 1519
+ },
+ "4223": {
+  "coord": [
+   30,
+   44.2
+  ],
+  "npc": "Magistrate Solomon",
+  "npcId": 344,
+  "zone": 44
+ },
+ "4224": {
+  "coord": [
+   84.6,
+   68.8
+  ],
+  "npc": "Marshal Maxwell",
+  "npcId": 9560,
+  "zone": 46
+ },
+ "4241": {
+  "coord": [
+   84.6,
+   68.8
+  ],
+  "npc": "Marshal Maxwell",
+  "npcId": 9560,
+  "zone": 46
+ },
+ "4242": {
+  "coord": [
+   ""
+  ],
+  "npc": "Marshal Windsor",
+  "npcId": 9023,
+  "zone": 1584
+ },
+ "4322": {
+  "coord": [
+   ""
+  ],
+  "npc": "Marshal Windsor",
+  "npcId": 9023,
+  "zone": 1584
+ },
+ "4324": {
+  "coord": [
+   67,
+   24
+  ],
+  "npc": "Yorba Screwspigot",
+  "npcId": 9706,
+  "zone": 440
+ },
+ "4342": {
+  "coord": [
+   ""
+  ],
+  "npc": "Kharan Mighthammer",
+  "npcId": 9021,
+  "zone": 1584
+ },
+ "4361": {
+  "coord": [
+   ""
+  ],
+  "npc": "Kharan Mighthammer",
+  "npcId": 9021,
+  "zone": 1584
+ },
+ "4362": {
+  "coord": [
+   39.4,
+   55.8
+  ],
+  "npc": "King Magni Bronzebeard",
+  "npcId": 2784,
+  "zone": 1537
+ },
+ "4363": {
+  "coord": [
+   ""
+  ],
+  "npc": "Princess Moira Bronzebeard",
+  "npcId": 8929,
+  "zone": 1584
+ },
+ "4742": {
+  "coord": [
+   0,
+   0
+  ],
+  "npc": "Scarshield Infiltrator",
+  "npcId": 10299,
+  "zone": 1583
+ },
+ "4743": {
+  "coord": [
+   0,
+   0
+  ],
+  "npc": "Scarshield Infiltrator",
+  "npcId": 10299,
+  "zone": 1583
+ },
+ "4765": {
+  "coord": [
+   84.8,
+   69
+  ],
+  "npc": "Mayara Brightwing",
+  "npcId": 9565,
+  "zone": 46
+ },
+ "4766": {
+  "coord": [
+   74,
+   30
+  ],
+  "npc": "Count Remington Ridgewell",
+  "npcId": 2285,
+  "zone": 1519
+ },
+ "4769": {
+  "coord": [
+   50,
+   68.4
+  ],
+  "npc": "Apothecary Zinge",
+  "npcId": 5204,
+  "zone": 1497
+ },
+ "4771": {
+  "coord": [
+   81.4,
+   59.6
+  ],
+  "npc": "Betina Bigglezink",
+  "npcId": 11035,
+  "zone": 139
+ },
+ "4787": {
+  "coord": [
+   67,
+   22.4
+  ],
+  "npc": "Yeh'kinya",
+  "npcId": 8579,
+  "zone": 440
+ },
+ "4788": {
+  "coord": [
+   66.8,
+   24
+  ],
+  "npc": "Prospector Ironboot",
+  "npcId": 10460,
+  "zone": 440
+ },
+ "4941": {
+  "coord": [
+   5.8,
+   47.4
+  ],
+  "npc": "Warlord Goretooth",
+  "npcId": 9077,
+  "zone": 3
+ },
+ "4974": {
+  "coord": [
+   32,
+   37.8
+  ],
+  "npc": "Thrall",
+  "npcId": 4949,
+  "zone": 1637
+ },
+ "4982": {
+  "coord": [
+   0,
+   0
+  ],
+  "npc": "Bijou",
+  "npcId": 10257,
+  "zone": 1583
+ },
+ "4983": {
+  "coord": [
+   0,
+   0
+  ],
+  "npc": "Bijou",
+  "npcId": 10257,
+  "zone": 1583
+ },
+ "5001": {
+  "coord": [
+   0,
+   0
+  ],
+  "npc": "Bijou",
+  "npcId": 10257,
+  "zone": 1583
+ },
+ "5002": {
+  "coord": [
+   0,
+   0
+  ],
+  "npc": "Bijou",
+  "npcId": 10257,
+  "zone": 1583
+ },
+ "5065": {
+  "coord": [
+   66.8,
+   24
+  ],
+  "npc": "Prospector Ironboot",
+  "npcId": 10460,
+  "zone": 440
+ },
+ "5081": {
+  "coord": [
+   84.6,
+   68.8
+  ],
+  "npc": "Marshal Maxwell",
+  "npcId": 9560,
+  "zone": 46
+ },
+ "5089": null,
+ "5102": {
+  "coord": [
+   84.6,
+   68.8
+  ],
+  "npc": "Marshal Maxwell",
+  "npcId": 9560,
+  "zone": 46
+ },
+ "5160": {
+  "coord": [
+   0,
+   0
+  ],
+  "npc": "Awbee",
+  "npcId": 10740,
+  "zone": 1583
+ },
+ "5161": {
+  "coord": [
+   54.4,
+   51.2
+  ],
+  "npc": "Haleh",
+  "npcId": 10929,
+  "zone": 618
+ },
+ "5162": {
+  "coord": [
+   54.4,
+   51.2
+  ],
+  "npc": "Haleh",
+  "npcId": 10929,
+  "zone": 618
+ },
+ "5164": {
+  "coord": [
+   39.4,
+   66.8
+  ],
+  "npc": "Jeziba",
+  "npcId": 10976,
+  "zone": 28
+ },
+ "5212": {
+  "coord": [
+   81.4,
+   59.6
+  ],
+  "npc": "Betina Bigglezink",
+  "npcId": 11035,
+  "zone": 139
+ },
+ "5213": {
+  "coord": [
+   81.4,
+   59.6
+  ],
+  "npc": "Betina Bigglezink",
+  "npcId": 11035,
+  "zone": 139
+ },
+ "5214": {
+  "coord": [
+   80.6,
+   58
+  ],
+  "npc": "Smokey LaRue",
+  "npcId": 11033,
+  "zone": 139
+ },
+ "5243": {
+  "coord": [
+   81.6,
+   57.8
+  ],
+  "npc": "Leonid Barthalomew the Revered",
+  "npcId": 11036,
+  "zone": 139
+ },
+ "5251": {
+  "coord": [
+   81.4,
+   59.8
+  ],
+  "npc": "Duke Nicholas Zverenhoff",
+  "npcId": 11039,
+  "zone": 139
+ },
+ "5262": null,
+ "5263": {
+  "coord": [
+   81.4,
+   59.8
+  ],
+  "npc": "Duke Nicholas Zverenhoff",
+  "npcId": 11039,
+  "zone": 139
+ },
+ "5281": {
+  "coord": [
+   79.4,
+   63.8
+  ],
+  "npc": "Caretaker Alen",
+  "npcId": 11038,
+  "zone": 139
+ },
+ "5282": {
+  "coord": [
+   14.4,
+   33.6
+  ],
+  "npc": "Egan",
+  "npcId": 11140,
+  "zone": 139
+ },
+ "5342": {
+  "coord": [
+   83,
+   71.4
+  ],
+  "npc": "Alexi Barov",
+  "npcId": 11022,
+  "zone": 85
+ },
+ "5344": {
+  "coord": [
+   43.4,
+   83.6
+  ],
+  "npc": "Weldon Barov",
+  "npcId": 11023,
+  "zone": 28
+ },
+ "5461": {
+  "coord": [
+   70.4,
+   74
+  ],
+  "npc": "Magistrate Marduke",
+  "npcId": 11286,
+  "zone": 28
+ },
+ "5462": {
+  "coord": [
+   70.4,
+   74
+  ],
+  "npc": "Magistrate Marduke",
+  "npcId": 11286,
+  "zone": 28
+ },
+ "5463": {
+  "coord": [
+   81.6,
+   57.8
+  ],
+  "npc": "Leonid Barthalomew the Revered",
+  "npcId": 11036,
+  "zone": 139
+ },
+ "5464": {
+  "coord": [
+   ""
+  ],
+  "npc": "Menethil's Gift",
+  "npcId": 176631,
+  "zone": 2017
+ },
+ "5465": {
+  "coord": [
+   81.6,
+   57.8
+  ],
+  "npc": "Leonid Barthalomew the Revered",
+  "npcId": 11036,
+  "zone": 139
+ },
+ "5466": {
+  "coord": [
+   70.4,
+   74
+  ],
+  "npc": "Magistrate Marduke",
+  "npcId": 11286,
+  "zone": 28
+ },
+ "5515": {
+  "coord": [
+   70.2,
+   73.8
+  ],
+  "npc": "Eva Sarkhoff",
+  "npcId": 11216,
+  "zone": 28
+ },
+ "5522": {
+  "coord": [
+   65.2,
+   23.8
+  ],
+  "npc": "Tinkee Steamboil",
+  "npcId": 10267,
+  "zone": 46
+ },
+ "5526": {
+  "coord": [
+   51.6,
+   44.8
+  ],
+  "npc": "Rabine Saturna",
+  "npcId": 11801,
+  "zone": 493
+ },
+ "5527": {
+  "coord": [
+   51.6,
+   44.8
+  ],
+  "npc": "Rabine Saturna",
+  "npcId": 11801,
+  "zone": 493
+ },
+ "5529": {
+  "coord": [
+   81.4,
+   59.6
+  ],
+  "npc": "Betina Bigglezink",
+  "npcId": 11035,
+  "zone": 139
+ },
+ "5531": {
+  "coord": [
+   81.6,
+   57.8
+  ],
+  "npc": "Leonid Barthalomew the Revered",
+  "npcId": 11036,
+  "zone": 139
+ },
+ "5724": {
+  "coord": [
+   ""
+  ],
+  "npc": "Maur Grimtotem",
+  "npcId": 11834,
+  "zone": 2437
+ },
+ "5727": {
+  "coord": [
+   32,
+   37.8
+  ],
+  "npc": "Thrall",
+  "npcId": 4949,
+  "zone": 1637
+ },
+ "5728": {
+  "coord": [
+   32,
+   37.8
+  ],
+  "npc": "Thrall",
+  "npcId": 4949,
+  "zone": 1637
+ },
+ "5729": {
+  "coord": [
+   32,
+   37.8
+  ],
+  "npc": "Thrall",
+  "npcId": 4949,
+  "zone": 1637
+ },
+ "5730": {
+  "coord": [
+   49.6,
+   50.4
+  ],
+  "npc": "Neeru Fireblade",
+  "npcId": 3216,
+  "zone": 1637
+ },
+ "5742": {
+  "coord": [
+   7.4,
+   43.6
+  ],
+  "npc": "Tirion Fordring",
+  "npcId": 1855,
+  "zone": 139
+ },
+ "5781": {
+  "coord": [
+   7.4,
+   43.6
+  ],
+  "npc": "Tirion Fordring",
+  "npcId": 1855,
+  "zone": 139
+ },
+ "5845": {
+  "coord": [
+   7.4,
+   43.6
+  ],
+  "npc": "Tirion Fordring",
+  "npcId": 1855,
+  "zone": 139
+ },
+ "5846": {
+  "coord": [
+   7.4,
+   43.6
+  ],
+  "npc": "Tirion Fordring",
+  "npcId": 1855,
+  "zone": 139
+ },
+ "5848": {
+  "coord": [
+   65.6,
+   75.4
+  ],
+  "npc": "Artist Renfray",
+  "npcId": 11936,
+  "zone": 28
+ },
+ "5861": {
+  "coord": [
+   7.4,
+   43.6
+  ],
+  "npc": "Tirion Fordring",
+  "npcId": 1855,
+  "zone": 139
+ },
+ "5862": {
+  "coord": [
+   50.8,
+   77.8
+  ],
+  "npc": "Myranda the Hag",
+  "npcId": 11872,
+  "zone": 28
+ },
+ "6402": {
+  "coord": [
+   84.6,
+   68.8
+  ],
+  "npc": "Marshal Maxwell",
+  "npcId": 9560,
+  "zone": 46
+ },
+ "6403": {
+  "coord": [
+   32,
+   49.2
+  ],
+  "npc": "Reginald Windsor",
+  "npcId": 12580,
+  "zone": 12
+ },
+ "6501": {
+  "coord": [
+   78,
+   18
+  ],
+  "npc": "Highlord Bolvar Fordragon",
+  "npcId": 1748,
+  "zone": 1519
+ },
+ "6502": {
+  "coord": [
+   54.4,
+   51.2
+  ],
+  "npc": "Haleh",
+  "npcId": 10929,
+  "zone": 618
+ },
+ "6521": {
+  "coord": [
+   56.2,
+   92.6
+  ],
+  "npc": "Varimathras",
+  "npcId": 2425,
+  "zone": 1497
+ },
+ "6522": null,
+ "6562": {
+  "coord": [
+   47.2,
+   64.2
+  ],
+  "npc": "Tsunaman",
+  "npcId": 11862,
+  "zone": 406
+ },
+ "6564": null,
+ "6585": {
+  "coord": [
+   56.6,
+   87.6
+  ],
+  "npc": "Emberstrife",
+  "npcId": 10321,
+  "zone": 15
+ },
+ "6601": {
+  "coord": [
+   56.6,
+   87.6
+  ],
+  "npc": "Emberstrife",
+  "npcId": 10321,
+  "zone": 15
+ },
+ "6602": {
+  "coord": [
+   45.2,
+   2.6
+  ],
+  "npc": "Rexxar",
+  "npcId": 10182,
+  "zone": 357
+ },
+ "6627": {
+  "coord": [
+   78.6,
+   45.6
+  ],
+  "npc": "Braug Dimspirit",
+  "npcId": 4489,
+  "zone": 406
+ },
+ "6628": {
+  "coord": [
+   57.8,
+   65
+  ],
+  "npc": "Parqual Fintallas",
+  "npcId": 4488,
+  "zone": 1497
+ },
+ "6821": {
+  "coord": [
+   79.2,
+   73.6
+  ],
+  "npc": "Duke Hydraxis",
+  "npcId": 13278,
+  "zone": 16
+ },
+ "6822": {
+  "coord": [
+   79.2,
+   73.6
+  ],
+  "npc": "Duke Hydraxis",
+  "npcId": 13278,
+  "zone": 16
+ },
+ "6823": {
+  "coord": [
+   79.2,
+   73.6
+  ],
+  "npc": "Duke Hydraxis",
+  "npcId": 13278,
+  "zone": 16
+ },
+ "6824": {
+  "coord": [
+   79.2,
+   73.6
+  ],
+  "npc": "Duke Hydraxis",
+  "npcId": 13278,
+  "zone": 16
+ },
+ "704": {
+  "coord": [
+   65.8,
+   65.6
+  ],
+  "npc": "Prospector Ironband",
+  "npcId": 1344,
+  "zone": 38
+ },
+ "707": {
+  "coord": [
+   74.4,
+   12
+  ],
+  "npc": "Prospector Stormpike",
+  "npcId": 1356,
+  "zone": 1537
+ },
+ "738": {
+  "coord": [
+   65.8,
+   65.6
+  ],
+  "npc": "Prospector Ironband",
+  "npcId": 1344,
+  "zone": 38
+ },
+ "739": {
+  "coord": [
+   50.9,
+   62.2
+  ],
+  "npc": "Battered Dwarven Skeleton",
+  "npcId": 2875,
+  "zone": 3
+ },
+ "7461": {
+  "coord": [
+   ""
+  ],
+  "npc": "Shen'dralar Ancient",
+  "npcId": 14358,
+  "zone": 2557
+ },
+ "7492": {
+  "coord": [
+   68.2,
+   47.6
+  ],
+  "npc": "Harbinger Balthazad",
+  "npcId": 10879,
+  "zone": 1497
+ },
+ "7494": {
+  "coord": [
+   55,
+   62.8
+  ],
+  "npc": "Crier Goodman",
+  "npcId": 2198,
+  "zone": 1519
+ },
+ "7877": {
+  "coord": [
+   ""
+  ],
+  "npc": "Shen'dralar Ancient",
+  "npcId": 14358,
+  "zone": 2557
+ },
+ "8926": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8927": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8929": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8930": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8931": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8932": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8933": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8934": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8935": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8936": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8937": {
+  "coord": [
+   43.4,
+   52.2
+  ],
+  "npc": "Deliana",
+  "npcId": 16013,
+  "zone": 1537
+ },
+ "8938": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8939": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8940": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8941": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8942": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8943": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8944": {
+  "coord": [
+   34.8,
+   38
+  ],
+  "npc": "Mokvar",
+  "npcId": 16012,
+  "zone": 1637
+ },
+ "8945": null,
+ "8946": {
+  "coord": [
+   ""
+  ],
+  "npc": "Ysida Harmon",
+  "npcId": 16031,
+  "zone": 2017
+ },
+ "8947": null,
+ "8948": null,
+ "8949": {
+  "coord": [
+   ""
+  ],
+  "npc": "Falrin Treeshaper",
+  "npcId": 16032,
+  "zone": 2557
+ },
+ "8950": {
+  "coord": [
+   ""
+  ],
+  "npc": "Falrin Treeshaper",
+  "npcId": 16032,
+  "zone": 2557
+ },
+ "914": {
+  "coord": [
+   75.6,
+   31.2
+  ],
+  "npc": "Nara Wildmane",
+  "npcId": 5770,
+  "zone": 1638
+ },
+ "92415": null,
+ "95161": {
+  "coord": [
+   47.2,
+   38.4
+  ],
+  "npc": "Orphan Matron Nightingale",
+  "npcId": 14450,
+  "zone": 1519
+ },
+ "95195": null,
+ "96391": null,
+ "97288": null,
+ "97289": {
+  "coord": [
+   48.4,
+   69.4
+  ],
+  "npc": "Master Apothecary Faranell",
+  "npcId": 2055,
+  "zone": 1497
+ },
+ "97290": {
+  "coord": [
+   46,
+   62.2
+  ],
+  "npc": "Unfinished Abomination",
+  "npcId": 271613,
+  "zone": 1497
+ },
+ "97291": {
+  "coord": [
+   48.4,
+   69.4
+  ],
+  "npc": "Master Apothecary Faranell",
+  "npcId": 2055,
+  "zone": 1497
+ },
+ "97292": {
+  "coord": [
+   48.4,
+   69.4
+  ],
+  "npc": "Master Apothecary Faranell",
+  "npcId": 2055,
+  "zone": 1497
+ }
+}
