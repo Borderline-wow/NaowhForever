@@ -1,4 +1,5 @@
 <!-- Thanks for contributing! Please read .github/CONTRIBUTING.md first.
+     Title: "type: summary", e.g. "fix(bag-space): keep the row hidden in combat".
      The checklist below mirrors the acceptance criteria used in review. -->
 
 ## What does this PR do?

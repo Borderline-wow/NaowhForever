@@ -3,7 +3,7 @@
 **Feature requests are open, but not every one will be merged. Naowh Forever already
 covers a lot, so each addition is weighed on how many players would use it, how much
 upkeep it adds and how much code it brings. If you want to build a feature, message
-Glyalith on Discord before you start.**
+Glyalith on [Discord](https://discord.gg/naowh) before you start.**
 
 Naowh Forever is Naowh's companion addon for the WoW Forever client: Smart Reminders,
 BiS, Dungeon Quests, Professions, Gear Sets, Swing Timer, Threat Meter, QoL, macros and
@@ -89,15 +89,95 @@ comment, sent back for changes, or merged and fixed up by me.
   from a release build into your checkout, or the addon will not load.
 - Point your Forever `Interface\AddOns\NaowhForever` folder at your checkout (a junction
   or symlink works). `/reload` picks up new files and TOC changes, no restart needed.
-- Offline tests live in `Tools/regression` and run on Lua 5.1:
-  `lua5.1 Tools/regression/test-bis-slots.lua .`
-- Lint with [luacheck](https://github.com/lunarmodules/luacheck) from the repo root:
-  `luacheck .` (settings in `.luacheckrc`). A new global the addon writes goes in
-  `globals` there, a new game API it reads in `read_globals`.
+- A new global the addon writes goes in `globals` in `.luacheckrc`, a new game API it
+  reads in `read_globals`.
+
+## Checks
+
+Every pull request runs these on GitHub. Get them green before you ask for a review.
+
+| Check | What it looks at |
+| --- | --- |
+| `pre-commit` | luacheck; CRLF and ASCII in addon files; every TOC file exists with the right letter case; valid XML and YAML; merge markers, trailing whitespace, mixed line endings, private keys and files over 5 MB; the workflows through actionlint and zizmor. The list is in `.pre-commit-config.yaml`. |
+| `tests` | Every test in `Tools/regression` on Lua 5.1, including `test-syntax.lua`, which compiles every file the TOC loads, so `goto` or `//` fails here instead of at login. |
+| `pr-rules` | Addon changes add a line under `## Unreleased` in `CHANGELOG.md`, and the TOC `## Version` and `ns.CODE_BUILD` stay as they are. Label the PR `no changelog` when nothing changes for players, or `release` for the release commit. |
+| `package` | The release packager builds the zip without uploading it, then every TOC file and library must be inside and no tooling may ship. |
+| `title` | The PR title is `type: summary` (see [PR etiquette](#pr-etiquette)), since a squash merge turns it into the commit on main. |
+
+Actions and hooks are pinned by commit SHA, and Dependabot opens a weekly PR for new
+versions.
+
+### Run them on your machine
+
+After `pre-commit install`, the checks run by themselves on every `git commit`, on the
+files you changed, and your commit message is checked too. Use luacheck **1.2.0**, the
+version CI runs; older ones warn differently. `.luacheckrc` has a baseline of warnings
+that were already in the code: fix one and remove its entry, but never add entries to
+get a check passing.
+
+**Windows** (PowerShell):
+
+1. Install Python and Lua 5.1:
+
+   ```powershell
+   winget install Python.Python.3.12
+   winget install rjpcomputing.luaforwindows
+   ```
+
+2. Download `luacheck.exe` 1.2.0 from the
+   [luacheck releases](https://github.com/lunarmodules/luacheck/releases/tag/v1.2.0), put
+   it in a folder such as `C:\tools`, and add that folder to your user `PATH`.
+3. Open a new terminal, then install pre-commit:
+
+   ```powershell
+   py -m pip install --user pipx
+   py -m pipx ensurepath
+   pipx install pre-commit
+   ```
+
+**macOS:**
+
+```sh
+brew install pre-commit luacheck luajit
+```
+
+Homebrew has no Lua 5.1, so the tests run on LuaJIT: `LUA=luajit bash
+Tools/regression/run-all.sh`. LuaJIT accepts `goto`, so `test-syntax.lua` only catches
+that in CI.
+
+**Linux** (Debian and Ubuntu):
+
+```sh
+sudo apt install pre-commit lua5.1 liblua5.1-dev luarocks
+sudo luarocks install luacheck 1.2.0-1
+```
+
+The `lua-check` package is an older luacheck, so it comes from LuaRocks instead. On other
+distributions: `pipx install pre-commit`, `luarocks install luacheck 1.2.0-1`, and your
+package manager's Lua 5.1 (or LuaJIT).
+
+**Then, on every OS**, from the repo root:
+
+```sh
+pre-commit install              # checks on every commit from now on
+pre-commit run --all-files      # everything, once
+bash Tools/regression/run-all.sh
+bash Tools/hooks/check-pr.sh origin/main
+```
+
+On Windows, run the last two from Git Bash and point the tests at your Lua:
+`LUA="/c/Program Files (x86)/Lua/5.1/lua.exe" bash Tools/regression/run-all.sh`.
+
+If a hook fails, it prints the file and line: fix it and commit again. Skipping hooks with
+`--no-verify` only moves the failure to the pull request.
 
 ## PR etiquette
 
 - One focused change per PR; keep the diff small.
+- Commit messages and PR titles follow Conventional Commits: `type: summary` or
+  `type(scope): summary`, e.g. `fix(bag-space): keep the row hidden in combat`. Types:
+  `feat` (new for players), `fix` (a bug), `perf`, `refactor`, `docs`, `test`, `ci`,
+  `build`, `chore`, `revert`. A squash merge turns the PR title into the commit on main.
 - Screenshots (before and after) for anything visual.
 - Fill in the PR template checklist honestly. "N/A" is a fine answer, silence is not.
 

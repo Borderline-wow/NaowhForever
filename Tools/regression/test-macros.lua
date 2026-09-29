@@ -72,11 +72,11 @@ local function Fixture(opts)
         GetMacroIndexByName = Find,
         GetMacroBody = function(i) return macros[i].body end,
         GetNumMacros = function()
-            local account, character = 0, 0
+            local numAccount, numCharacter = 0, 0
             for _, m in ipairs(macros) do
-                if m.perChar then character = character + 1 else account = account + 1 end
+                if m.perChar then numCharacter = numCharacter + 1 else numAccount = numAccount + 1 end
             end
-            return account, character
+            return numAccount, numCharacter
         end,
         CreateMacro = function(name, icon, body, perChar)
             assert(type(perChar) == "boolean")

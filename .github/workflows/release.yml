@@ -7,11 +7,17 @@ on:
     tags:
       - "*"
 
+permissions: {}
+
 jobs:
 
   release:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
+    # Uploads the GitHub release (GITHUB_OAUTH below).
+    permissions:
+      contents: write
 
     env:
       CF_API_KEY: ${{ secrets.CF_API_KEY }}
@@ -21,10 +27,12 @@ jobs:
     steps:
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Release
-        uses: BigWigsMods/packager@v2
+        uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
 
       - name: Post changelog to Discord
         if: startsWith(github.ref, 'refs/tags/')

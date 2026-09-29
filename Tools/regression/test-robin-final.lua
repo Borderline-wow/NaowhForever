@@ -70,6 +70,7 @@ local function fixture(kind)
         IsInInstance = function() return false end,
         IsMounted = function() return false end, IsResting = function() return false end,
         GetInventoryItemTexture = function(_, slot) return slot + 1000 end,
+        GetInventoryItemID = function(_, slot) return slot + 2000 end,
         C_Secrets = { ShouldAurasBeSecret = function() return state.secret end },
         C_UnitAuras = { GetPlayerAuraBySpellID = function(id)
             assert(not state.combat and not state.secret, 'restricted aura read')

@@ -1,105 +1,80 @@
-# Contributing to Naowh Forever
+<div align="center">
 
-**Feature requests are open, but not every one will be merged. Naowh Forever already
-covers a lot, so each addition is weighed on how many players would use it, how much
-upkeep it adds and how much code it brings. If you want to build a feature, message
-Glyalith on Discord before you start.**
+<img src=".github/assets/logo.png" width="140" alt="Naowh Forever logo">
 
-Naowh Forever is Naowh's companion addon for the WoW Forever client: Smart Reminders,
-BiS, Dungeon Quests, Professions, Gear Sets, Swing Timer, Threat Meter, QoL, macros and
-buff reminders, in one window.
+# Naowh Forever
 
-Thanks for wanting to help! Pull requests are welcome. This document explains how PRs
-are reviewed and the rules the codebase lives by, so your change can merge quickly
-instead of bouncing through review rounds.
+**Naowh's companion addon for World of Warcraft Forever**
 
-**Building something bigger than a fix? Message Glyalith on Discord first** and describe
-what you want to build. It is much better to agree on the approach before you write
-500 lines of code.
+Boss reminders, your BiS list, dungeon quests, professions, gear swaps
+and a lot of quality of life, all in one window.
 
-## How a change gets in
+[![Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=for-the-badge&logo=discord&logoColor=white&labelColor=0b1a24)](https://discord.gg/naowh)
+[![naowh.gg](https://img.shields.io/badge/naowh.gg-Website-c8a46a?style=for-the-badge&labelColor=0b1a24)](https://naowh.gg/)
+[![Download](https://img.shields.io/badge/Download-Releases-36c5d8?style=for-the-badge&logo=github&logoColor=white&labelColor=0b1a24)](https://github.com/nwh-gaming-ab/NaowhForever/releases)
+[![WoW Forever](https://img.shields.io/badge/WoW-Forever-1f7fe0?style=for-the-badge&logo=battledotnet&logoColor=white&labelColor=0b1a24)](https://www.wowhead.com/forever)
 
-1. Fork the repo and branch off the latest `main`.
-2. Make one focused change, test it in the Forever client, and open a PR against `main`.
-3. Fill in the PR template. I review every PR and test it in game before it merges.
-4. Only the maintainer merges. Releases are cut separately: the version bump is its own
-   commit, and the release tag posts the changelog to Discord.
+[Install](#install) &nbsp;|&nbsp; [What's inside](#whats-inside) &nbsp;|&nbsp; [Commands](#commands) &nbsp;|&nbsp; [Changelog](CHANGELOG.md) &nbsp;|&nbsp; [Contributing](.github/CONTRIBUTING.md)
 
-## The five acceptance criteria
+</div>
 
-Every PR is reviewed against all five. If one is missed the PR will be closed with a
-comment, sent back for changes, or merged and fixed up by me.
+---
 
-1. **Off by default, free while off.** New features and new settings start **OFF**. A
-   player who never turns your feature on must pay nothing for it: no events registered,
-   no hooks doing work, no frames built, no OnUpdate. Build on first enable and register
-   events only while the feature is on. Only real bug fixes may change behavior for
-   everyone.
+## What's inside
 
-2. **Cheap while on.** Event-driven, not polling. Use OnUpdate only while something is
-   actually animating or counting down, and stop it when it is done. No table churn in
-   hot paths.
+| Module | What it does |
+| --- | --- |
+| **Smart Reminders** | Tells you what to press when a boss ability is about to land, for dungeon and raid bosses, with cooldown presets for your spec. |
+| **BiS List** | Your best-in-slot list, marked on tooltips and called out when it drops. |
+| **Dungeon Quests** | Every dungeon quest on Forever, and a tracker for the dungeon you are in. |
+| **Professions** | Recipes, reagents and crafting in one window, including the recipes you have not learned yet. |
+| **Gear & Trinkets** | Swap equipment sets from a bar, or automatically while you ride or rest. |
+| **Blessings** | Paladin blessings by class and player, shared with your group's paladins. |
+| **Macros** | Class, consumable and focus macros, written and kept up to date for you. |
+| **Buffs & Reminders** | Buff, consumable and campfire reminders, a low health warning and debuff sounds. |
+| **Threat Meter** | Threat on your target for the whole group, and a warning before you pull. |
+| **Swing Timer** | Your swings from the game's own timer, with marks for timing around them. |
+| **Top Bar** | Friends, guild, the clock and your addon buttons across the top of the screen. |
+| **Quality of Life** | Questing, loot and bag space, alerts, casting, tooltips, trainer ranks, flight and camp, mail and more. |
 
-3. **No taint, no Lua errors.** A feature that can throw in combat or taint Blizzard's
-   UI will not be merged.
-   - Never drive Blizzard's own UI functions from addon code to open or refresh their
-     frames (calling `QuestMapFrame_OpenToQuestDetails` tainted the whole world map).
-   - Never `SetScript` on Blizzard frames; use `hooksecurefunc` / `HookScript`.
-   - Do not `Hide()` Blizzard frames that other Blizzard code lays out; fade them with
-     `SetAlpha` instead (hiding the XP bar containers tainted the action bars).
-   - Aura data goes secret during boss pulls, before `InCombatLockdown()` turns true.
-     Guard aura reads with `C_Secrets.ShouldAurasBeSecret()` and freeze while it is true.
-   - The combat log is closed to addons on Forever.
+> [!TIP]
+> Every module starts **off**. Turn on only what you want; anything you leave off costs
+> nothing, not even a registered event.
 
-4. **Forever only.** This addon targets the Forever client. Retail Smart Reminders lives
-   in its own repo, so do not add retail branches here. Forever uses classic-era spell
-   IDs (retail IDs do not match) and does not load Blizzard's deprecated shims, so use
-   the current API (`C_SpellBook.IsSpellKnown`, not `IsPlayerSpell`). Look IDs up on
-   [Wowhead Forever](https://www.wowhead.com/forever).
+Settings live in **Profiles**, so you can switch between them, copy them to another
+character or share them with a friend.
 
-5. **Your own code.** Do not copy code from other addons. Matching another addon's
-   behavior is fine; lifting its source is not. Data scraped from a site needs that
-   site's permission.
+## Install
 
-## Code style
+1. Download the newest `NaowhForever-<version>.zip` from
+   [Releases](https://github.com/nwh-gaming-ab/NaowhForever/releases).
+2. Extract it into your Forever `Interface\AddOns` folder, so that you end up with
+   `Interface\AddOns\NaowhForever\NaowhForever.toc`.
+3. Log in, or type `/reload` if you are already in game, then open it with `/nf`.
 
-- **Lua 5.1 only.** No `goto`, no `::labels::`, no integer division.
-- **ASCII only** in code, comments and strings. No em dashes, no curly quotes.
-- **CRLF line endings.** `.gitattributes` sets `* -text` so git never converts them.
-  Keep your editor on CRLF, and never `sed -i` from Git Bash, which strips them.
-- **Match the surrounding code.** Before building an options row, slider or popup, find
-  the nearest existing example in the same module and copy its shape.
-- Each module has its own folder with `NaowhForever_<Name>.lua` files. Add new files to
-  `NaowhForever.toc` next to the rest of that module's files.
-- Settings go through `UI.ModuleSettings`, option widgets through the `ns.UI` kit in
-  `Core/NaowhForever_Widgets.lua`, confirmations through `ns.Confirm` / `ns.PromptText`,
-  and movable frames through `UI.AttachMover` so they show up in Unlock Mode.
-- Keep comments short and only where the code cannot speak for itself.
+## Commands
 
-## Changelog and versions
+| Command | Opens |
+| --- | --- |
+| `/nf` | The main window (also `/naowh`, `/nao` and `/nsr`) |
+| `/nfbis` | Your BiS list |
+| `/nfdq` | Dungeon Quests |
+| `/nfgear` | Gear Sets |
+| `/nfbless` | Blessings |
+| `/nfthreat` | Threat Meter |
+| `/nf quiz` | A WoW quiz for flights and campfires |
+| `/copy` | The text under your mouse, ready to copy (turn on Global Copy in QoL > Tools) |
 
-- Add a line under `## Unreleased` in `CHANGELOG.md`, written for players: what changed
-  for them and where to find it.
-- Do **not** touch the TOC `## Version`, `ns.CODE_BUILD` or tags. That is the release
-  commit's job.
+You can also open the window from the addon compartment next to the minimap.
 
-## Getting set up
+## Contributing
 
-- `Libs/` is not in git (the packager fetches it from `.pkgmeta`). Copy the `Libs` folder
-  from a release build into your checkout, or the addon will not load.
-- Point your Forever `Interface\AddOns\NaowhForever` folder at your checkout (a junction
-  or symlink works). `/reload` picks up new files and TOC changes, no restart needed.
-- Offline tests live in `Tools/regression` and run on Lua 5.1:
-  `lua5.1 Tools/regression/test-bis-slots.lua .`
+Bug fixes and ideas are welcome. Read the [contributing guide](.github/CONTRIBUTING.md)
+before you start: it has the rules every change is reviewed against, how to set up the
+checks, and how commits and pull requests are named. For anything bigger than a fix,
+message Glyalith on [Discord](https://discord.gg/naowh) first.
 
-## PR etiquette
+## License
 
-- One focused change per PR; keep the diff small.
-- Screenshots (before and after) for anything visual.
-- Fill in the PR template checklist honestly. "N/A" is a fine answer, silence is not.
-
-## Contribution license
-
-By submitting a PR, you keep the copyright to your contribution but grant Naowh Forever
-a perpetual, worldwide, royalty-free license to use, modify, incorporate and distribute
-it as part of Naowh Forever.
+Copyright 2026 the Naowh Forever authors, all rights reserved. The bundled libraries keep
+their own licenses, listed in [LICENSE.md](LICENSE.md).
