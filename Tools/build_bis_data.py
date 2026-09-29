@@ -199,9 +199,9 @@ def refill_sources():
     ranked = {int(i) for i in re.findall(rb"\d+", b" ".join(re.findall(rb"\] = \{([\d, ]*)\}", head)))}
     before = len(sources)
     missing = fill_sources(sources, ranked)
-    # Appending in text mode gives the same line ends as the full build's write_text.
+    # newline="" writes our CRLF as is; without it Windows turns each \n into \r\n again (CR CR LF).
     OUT.write_bytes(head)
-    with OUT.open("a", encoding="utf-8") as f:
+    with OUT.open("a", encoding="utf-8", newline="") as f:
         f.write("\r\n".join(source_lines(sources)) + "\r\n")
     print(f"{len(ranked)} ranked items, {before} sourced, {len(sources) - before} added from Wowhead", file=sys.stderr)
     return missing
@@ -267,7 +267,7 @@ def main():
     lines.append("    },")
     missing = fill_sources(sources, {i for _, _, _, slots in specs for ids in slots.values() for i in ids})
     lines += source_lines(sources)
-    OUT.write_text("\r\n".join(lines) + "\r\n", encoding="utf-8")
+    OUT.write_text("\r\n".join(lines) + "\r\n", encoding="utf-8", newline="")
 
     print(f"{len(specs)} specs, {len(sources)} sourced items -> {OUT.name}", file=sys.stderr)
     # Every run lists them, whether the lookup failed now, earlier, or was set to null by hand.
