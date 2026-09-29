@@ -497,8 +497,9 @@ end
 
 function UpdateVisibility()
     if not frame then return end
-    local show = unlocked or (On() and (S.Get("visibility") == "always" or inCombat)
-        and not (S.Get("hideWhenIdle") and live == 0))
+    local always = S.Get("visibility") == "always"
+    local show = unlocked or (On() and (always or inCombat)
+        and not (not always and S.Get("hideWhenIdle") and live == 0))
     frame:SetShown(show and true or false)
 end
 
@@ -775,14 +776,19 @@ function ns.BuildSwingTimerPage(parent, y)
         S.Toggle("showMH", "Main Hand", nil, "enabled"),
         S.Toggle("showOH", "Off Hand", "Shown while you have a weapon in your off hand.", "enabled")
     ); y = y - h
+    local showRow = S.Dropdown("visibility", "Show", { always = "Always", combat = "In Combat" },
+        { "always", "combat" }, nil, "enabled")
+    showRow.setValue = function(v) S.Set("visibility", v); UI:RefreshPage(true) end
     _, h = W:DualRow(parent, y,
         S.Toggle("showR", "Ranged", "Shown while you have a bow, gun, crossbow, wand or thrown weapon.",
             "enabled"),
-        S.Dropdown("visibility", "Show", { always = "Always", combat = "In Combat" },
-            { "always", "combat" }, nil, "enabled")
+        showRow
     ); y = y - h
+    local idleRow = S.Toggle("hideWhenIdle", "Hide When Idle", "Hide the bars while no swing is running.", "enabled")
+    idleRow.disabled = function() return not S.Get("enabled") or S.Get("visibility") == "always" end
+    idleRow.disabledTooltip = "Only applies when Show is set to In Combat."
     _, h = W:DualRow(parent, y,
-        S.Toggle("hideWhenIdle", "Hide When Idle", "Hide the bars while no swing is running.", "enabled"),
+        idleRow,
         S.Toggle("depleteFill", "Deplete Fill", "Start each bar full and drain it, instead of filling it up.",
             "enabled")
     ); y = y - h
