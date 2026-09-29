@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.16-beta
 
 ### Added
 - Bag Space (QoL > Loot, off by default): the cheapest items in your bags as a row of
@@ -18,9 +18,8 @@
   the day you ignored it and how many you carry. Search it by name, hover a row and click
   the X to stop ignoring that item, or drop an item from your bags onto it to ignore it
   before it is ever offered. Clear All starts over.
-- Bag Space: each line Bag Space adds to an icon's tooltip (vendor price, auction price, the
-  delete hint and the ignore hint) can be turned off on its page. The quest warning always
-  shows.
+- Bag Space: each tooltip line it adds (vendor price, auction price, delete and ignore hints)
+  can be turned off on its page. The quest warning always shows.
 - Bag Space: a Stack button at the start of the row when part-filled stacks of the same item
   can be combined, with how many slots it frees; nothing is deleted. Free slots out of your
   total show above the row with a bag icon (orange when nearly full, red when full; hover it
@@ -30,18 +29,15 @@
 - Bag Space: an item an unfinished quest in your log still needs (Okra for Westfall Stew,
   say) gets a yellow ! and goes to the end of the row, and its tooltip names the quest and
   how many you have. Deleting it takes a second Ctrl-click within 5 seconds.
-- Mail & Alts (QoL > Loot & Items, each off by default): Alt Item Counts adds how many your
-  characters on this realm and faction hold in their bags, bank and mailbox to item tooltips,
-  one line per character. An Alts button beside the mailbox's Send tab lists those characters
-  with their level and gold, and picking one fills the To box. An Attach button attaches every
-  trade good, one type of trade good, or your unbound gear in one click. Mail Expiry Warning
-  names any character whose mail expires within three days when you log in. Each character
-  is recorded once you log in on it; Forget a Character removes one you deleted.
-- Class macros: right-click a class macro's icon to pick a different icon (kept for you, not
-  shared in profile exports; Profile Icon goes back to the original). A macro with a
-  command the game does not know, a line that is not a command, or unbalanced brackets is
-  marked on the Class Macros page, and hovering its icon lists what looks wrong. Profiles can
-  give a class macro a short note, shown beside it.
+- Mail & Alts (QoL > Loot & Items, each off by default): item tooltips show what your
+  characters on this realm and faction hold in bags, bank and mail. On the mailbox's Send tab,
+  Alts fills the To box with one of your characters (with their level and gold) and Attach
+  adds all trade goods, one type of them, or your unbound gear in one click. A login warning
+  names characters whose mail expires within three days. Characters are recorded once you
+  log in on them; Forget a Character removes one.
+- Class macros: right-click an icon to pick another (yours only, never exported; Profile Icon
+  restores it). A macro with an unknown command, a line that is not a command, or unbalanced
+  brackets is marked, and hovering its icon says what is wrong. Profiles can add a note.
 
 ### Changed
 - Class macros are now made as character macros, so they no longer fill General macro slots
