@@ -15,6 +15,11 @@ args_for() {
     esac
 }
 
+# Runs one test, with its source-file argument when it takes one.
+run_test() {
+    if [ -n "$2" ]; then "$LUA" "$1" "$2"; else "$LUA" "$1"; fi
+}
+
 # Out of date with the code they test: reported here, not failed, until they are updated.
 KNOWN_BROKEN=" test-smart-minimap.lua test-smart-display-review-fixes.lua test-neil-setup-reuse.lua "
 
@@ -29,7 +34,7 @@ for test in Tools/regression/test*.lua; do
         continue
     fi
     arg="$(args_for "$name")"
-    if output="$("$LUA" "$test" $arg 2>&1)"; then
+    if output="$(run_test "$test" "$arg" 2>&1)"; then
         pass=$((pass + 1))
     else
         fail=$((fail + 1))

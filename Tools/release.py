@@ -1,6 +1,7 @@
 """Release helper for .github/workflows/release.yml. From the repo root:
 
-    python Tools/release.py prepare [--bump patch|minor|major] [--beta | --no-beta] [--version V]
+    python Tools/release.py prepare [--bump patch|minor|major] [--beta | --no-beta]
+                                    [--version V]
     python Tools/release.py notes <tag>
     python Tools/release.py start-next
 
@@ -85,7 +86,7 @@ def next_version(tag, bump="patch", beta=None):
 
 def section(text, heading):
     """The lines under "## heading", up to the next "## ", or None without that heading."""
-    lines = text.splitlines()
+    lines = [line.rstrip() for line in text.splitlines()]
     try:
         start = lines.index(f"## {heading}") + 1
     except ValueError:
@@ -94,10 +95,10 @@ def section(text, heading):
     return lines[start:end]
 
 
-def replace_line(text, pattern, replacement, name):
+def replace_line(text, pattern, replacement, missing):
     new, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE)
     if count != 1:
-        raise ReleaseError(f"{name}: no line matching {pattern!r}")
+        raise ReleaseError(missing)
     return new
 
 
@@ -122,18 +123,21 @@ def prepare(root, version=None, bump="patch", beta=None):
     # numbering restarted at 0.5.
     changelog = read(root, CHANGELOG)
     plain = changelog.replace("\r", "")
-    first = next((line[3:] for line in plain.splitlines() if line.startswith("## ")), None)
+    first = next((line[3:].strip() for line in plain.splitlines() if line.startswith("## ")),
+                 None)
     if first == "Unreleased":
         if not any(line.strip() for line in section(plain, "Unreleased")):
             raise ReleaseError(f"'## Unreleased' in {CHANGELOG} is empty: nothing to release")
-        changelog = replace_line(changelog, r"^## Unreleased(?=\r?$)", f"## {version}", CHANGELOG)
+        changelog = replace_line(changelog, r"^## Unreleased[ \t]*(?=\r?$)", f"## {version}",
+                                 f"{CHANGELOG}: no '## Unreleased' line")
     elif first != version:
         raise ReleaseError(f"{CHANGELOG} must start with '## Unreleased' or '## {version}', "
                            f"not '## {first}'")
 
-    toc = replace_line(read(root, TOC), r"^(## Version:[ \t]*)[^\r\n]*", rf"\g<1>{version}", TOC)
+    toc = replace_line(read(root, TOC), r"^(## Version:[ \t]*)[^\r\n]*", rf"\g<1>{version}",
+                       f"{TOC} has no '## Version' line")
     core = replace_line(read(root, CORE), r'^(ns\.CODE_BUILD = ")[^"\r\n]*(")',
-                        rf"\g<1>{version}\g<2>", CORE)
+                        rf"\g<1>{version}\g<2>", f"{CORE} has no ns.CODE_BUILD line")
 
     write(root, CHANGELOG, changelog)
     write(root, TOC, toc)
@@ -179,7 +183,7 @@ def start_next(root):
     changelog = read(root, CHANGELOG)
     lines = changelog.replace("\r", "").splitlines()
     first = next((i for i, line in enumerate(lines) if line.startswith("## ")), None)
-    if first is not None and lines[first] == "## Unreleased":
+    if first is not None and lines[first].rstrip() == "## Unreleased":
         return False
     newline = "\r\n" if "\r\n" in changelog else "\n"
     heading = f"## Unreleased{newline}{newline}"

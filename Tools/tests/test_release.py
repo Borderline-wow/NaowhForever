@@ -11,9 +11,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import release  # noqa: E402
 
-CHANGELOG = "# Changelog\r\n\r\n## Unreleased\r\n\r\n### Fixed\r\n- A fix.\r\n\r\n## 0.5.16-beta\r\n\r\n- Old.\r\n"
-TOC = "## Interface: 16001\r\n## Title: Naowh Forever\r\n## Version: 0.5.16-beta\r\nCore\\NaowhForever_Core.lua\r\n"
+CHANGELOG = ("# Changelog\r\n\r\n## Unreleased\r\n\r\n### Fixed\r\n- A fix.\r\n\r\n"
+             "## 0.5.16-beta\r\n\r\n- Old.\r\n")
+TOC = ("## Interface: 16001\r\n## Title: Naowh Forever\r\n## Version: 0.5.16-beta\r\n"
+       "Core\\NaowhForever_Core.lua\r\n")
 CORE = 'local ns = {}\r\nns.CODE_BUILD = "0.5.16-beta"\r\nreturn ns\r\n'
+FILES = (release.CHANGELOG, release.TOC, release.CORE)
 
 
 class ReleaseTest(unittest.TestCase):
@@ -81,19 +84,21 @@ class ReleaseTest(unittest.TestCase):
 
     def test_refuses_and_changes_nothing(self):
         cases = {
-            "empty Unreleased": ({release.CHANGELOG: "## Unreleased\r\n\r\n## 0.5.16-beta\r\n"}, None),
+            "empty Unreleased": (
+                {release.CHANGELOG: "## Unreleased\r\n\r\n## 0.5.16-beta\r\n"}, None),
             "existing tag": ({}, "0.5.16-beta"),
             "bad version": ({}, "v1"),
             "no changelog section": ({release.CHANGELOG: "## 0.5.16-beta\r\n- Old.\r\n"}, None),
             "no CODE_BUILD": ({release.CORE: "local ns = {}\r\n"}, None),
             "old section of the same number": (
-                {release.CHANGELOG: "## 0.5.16-beta\r\n- Old.\r\n\r\n## 1.0.0\r\n- Older.\r\n"}, "1.0.0"),
+                {release.CHANGELOG: "## 0.5.16-beta\r\n- Old.\r\n\r\n## 1.0.0\r\n- Older.\r\n"},
+                "1.0.0"),
         }
         for label, (contents, version) in cases.items():
             with self.subTest(label):
                 self.files({release.CHANGELOG: CHANGELOG, release.TOC: TOC, release.CORE: CORE})
                 self.files(contents)
-                before = {name: self.read(name) for name in (release.CHANGELOG, release.TOC, release.CORE)}
+                before = {name: self.read(name) for name in FILES}
                 with self.assertRaises(release.ReleaseError):
                     release.prepare(self.root, version)
                 for name, text in before.items():
@@ -107,7 +112,8 @@ class ReleaseTest(unittest.TestCase):
         release.prepare(self.root, "0.5.17-beta")
         self.tag("0.5.17-beta")
         text = release.notes(self.root, "0.5.17-beta")
-        self.assertTrue(text.startswith("## What's new\n\n### Fixed\n- A fix.\n\n## Commits since 0.5.16-beta\n"))
+        self.assertTrue(text.startswith(
+            "## What's new\n\n### Fixed\n- A fix.\n\n## Commits since 0.5.16-beta\n"))
         self.assertIn("### Features\n\n- **bag-space:** show the stack total (", text)
         self.assertIn("### Fixes\n\n- trinket bar error (", text)
         self.assertIn("### Performance\n\n- no garbage per scan (", text)
@@ -139,11 +145,22 @@ class ReleaseTest(unittest.TestCase):
         self.tag("1.0.0")
         self.assertEqual(release.newest_tag(self.root), "1.0.0")
 
+    def test_heading_with_trailing_spaces(self):
+        self.files({release.CHANGELOG: CHANGELOG.replace("## Unreleased", "## Unreleased  ")})
+        self.assertEqual(release.prepare(self.root, "0.5.17-beta"), "0.5.17-beta")
+        self.assertIn("## 0.5.17-beta\r\n", self.read(release.CHANGELOG))
+
+    def test_errors_name_what_is_missing(self):
+        self.files({release.CORE: "local ns = {}\r\n"})
+        with self.assertRaisesRegex(release.ReleaseError, "has no ns.CODE_BUILD line"):
+            release.prepare(self.root, "0.5.17-beta")
+
     def test_start_next_after_a_release(self):
         release.prepare(self.root, "0.5.17-beta")
         self.assertTrue(release.start_next(self.root))
         self.assertEqual(self.read(release.CHANGELOG),
-                         "# Changelog\r\n\r\n## Unreleased\r\n\r\n## 0.5.17-beta\r\n\r\n### Fixed\r\n"
+                         "# Changelog\r\n\r\n## Unreleased\r\n\r\n"
+                         "## 0.5.17-beta\r\n\r\n### Fixed\r\n"
                          "- A fix.\r\n\r\n## 0.5.16-beta\r\n\r\n- Old.\r\n")
         self.assertFalse(release.start_next(self.root))  # already there: no change
 

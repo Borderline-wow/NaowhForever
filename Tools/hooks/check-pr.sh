@@ -9,6 +9,14 @@ head="${2:-HEAD}"
 range="$base...$head"
 problems=0
 
+# A bad revision would make every git command below print nothing, and pass.
+for ref in "$base" "$head"; do
+    if ! git rev-parse -q --verify "$ref^{commit}" > /dev/null; then
+        echo "check-pr: unknown revision '$ref'"
+        exit 2
+    fi
+done
+
 # What ships: everything but tooling, repo config, docs and the fetched Libs.
 shipped=$(git diff --name-only "$range" |
     grep -Ev '^(Tools/|\.github/|Libs/|\.[^/]*$|[^/]*\.md$|LICENSE)' || true)
@@ -30,11 +38,11 @@ fi
 
 if [ "${RELEASE:-false}" != "true" ]; then
     if git diff -U0 "$range" -- NaowhForever.toc | grep -qE '^[-+]## Version:'; then
-        echo "NaowhForever.toc: '## Version' changed. Only the release commit bumps it."
+        echo "NaowhForever.toc: '## Version' changed. Only a release changes it."
         problems=$((problems + 1))
     fi
     if git diff -U0 "$range" -- '*.lua' | grep -qE '^[-+][[:space:]]*ns\.CODE_BUILD[[:space:]]*='; then
-        echo "ns.CODE_BUILD changed. Only the release commit bumps it."
+        echo "ns.CODE_BUILD changed. Only a release changes it."
         problems=$((problems + 1))
     fi
 fi
