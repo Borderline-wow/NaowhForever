@@ -96,6 +96,8 @@ QoL\NaowhForever_XPTicker.lua
 QoL\NaowhForever_XPBar.lua
 QoL\NaowhForever_Restock.lua
 QoL\NaowhForever_BagSpace.lua
+QoL\NaowhForever_Alts.lua
+QoL\NaowhForever_Mail.lua
 DungeonQuests\NaowhForever_DungeonQuestData.lua
 DungeonQuests\NaowhForever_DungeonQuestChains.lua
 DungeonQuests\NaowhForever_DungeonQuests.lua

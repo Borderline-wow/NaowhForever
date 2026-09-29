@@ -111,6 +111,9 @@ read_globals = {
     "UnitThreatSituation", "UnitXP", "UnitXPMax", "UnmuteSoundFile", "UnregisterStateDriver",
     "UpdateAddOnMemoryUsage", "WHITE_FONT_COLOR", "wipe", "WorldFrame", "WorldMapFrame",
     "ZoneTextFrame",
+    "ClickSendMailItemButton", "GetInboxHeaderInfo", "GetInboxItem", "GetInboxNumItems",
+    "GetLooseMacroIcons", "GetLooseMacroItemIcons", "GetMacroIcons", "GetMacroItemIcons",
+    "HasSendMailItem", "MailFrame", "SendMailFrame", "SendMailNameEditBox", "SendMailSubjectEditBox",
 }
 
 -- The offline tests run on plain Lua 5.1 and stub the game themselves.
