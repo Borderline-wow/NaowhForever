@@ -6,16 +6,18 @@
 - Bag Space (QoL > Loot, off by default): the cheapest items in your bags as a row of
   icons, cheapest first (or grey items first), with what each stack sells for and a border
   in its quality colour, black for common items.
-  Ctrl-click an icon to delete it, or click it to sell it at a vendor. Middle-click an item
-  to ignore it; Ignore List on the same page shows what you ignored, newest first, with how
-  many you carry. Search it by name, remove items one by one, or drop an item from your bags
-  onto it to ignore it before it is ever offered. Hover an icon for what the stack fetches at a vendor and at the
-  auction house. An item worth more at the auction house is valued at its auction price, so
-  it comes later in the row. Reagents, ammo, quest items, keys, equipment set items and BiS
-  items are never offered. Uncommon and better items are only picked up by a Ctrl-click, so
-  the game's own delete confirmation still applies to them. It can show only when your bags are
-  nearly full, hides in combat, and has a key binding that picks up the cheapest item, which
-  you can set on the same page. Move it in Unlock Mode.
+  Ctrl-click an icon to delete it, or click it to sell it at a vendor, and middle-click an
+  item to ignore it. Uncommon and better items are only picked up by a Ctrl-click, so the
+  game's own delete confirmation still applies to them. Hover an icon for what the stack
+  fetches at a vendor and at the auction house; an item worth more at the auction house is
+  valued at its auction price, so it comes later in the row. Reagents, ammo, quest items,
+  keys, equipment set items and BiS items are never offered. It can show only when your
+  bags are nearly full, hides in combat, and has a key binding that picks up the cheapest
+  item, which you can set on the same page. Move it in Unlock Mode.
+- Bag Space: Ignore List, on the same page, shows every item you ignored, newest first, with
+  the day you ignored it and how many you carry. Search it by name, hover a row and click
+  the X to stop ignoring that item, or drop an item from your bags onto it to ignore it
+  before it is ever offered. Clear All starts over.
 - Bag Space: a Stack button at the start of the row when part-filled stacks of the same item
   can be combined, with how many slots it frees; nothing is deleted. The number of free
   slots shows above the row, food, drink and potions 10 or more levels below you are marked
