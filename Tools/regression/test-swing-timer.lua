@@ -300,12 +300,18 @@ end)
 
 Case("Hide When Idle hides when a target change stops the only running bar", function()
     local _, log = Session({ enabled = true, targetSwing = true, hideWhenIdle = true,
-        visibility = "always" })
+        visibility = "combat" })
     local container = log.bars[1].parent.parent
+    log.Fire("PLAYER_REGEN_DISABLED")
     log.Fire("UNIT_COMBAT", "player", "WOUND", "", 120, 1)
     assert(container.shown)
     log.Fire("PLAYER_TARGET_CHANGED")
     assert(not container.shown)
+end)
+
+Case("Show Always keeps idle bars up even with Hide When Idle on", function()
+    local _, log = Session({ enabled = true, hideWhenIdle = true, visibility = "always" })
+    assert(log.bars[1].parent.parent.shown)
 end)
 
 Case("turning the module off during Unlock Mode takes its sample bars away", function()

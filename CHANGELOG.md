@@ -52,6 +52,7 @@
 - Campfire: clearer high-resolution artwork, a larger default icon, and short buff labels such as Rested XP and Crit Strike 2%.
 
 ### Fixed
+- Swing Timer: Show set to Always now keeps the bars up out of combat even with Hide When Idle on. Hide When Idle is greyed out while Show is Always, since it only applies to In Combat.
 - Trinket bar: clicking an empty trinket slot no longer throws a Lua error, and hovering a slot shows the equipped trinket's tooltip instead of usage instructions (those stay on the Trinkets settings page).
 
 ## 0.5.15-beta
