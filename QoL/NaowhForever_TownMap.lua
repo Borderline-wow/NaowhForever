@@ -8,7 +8,7 @@ local S = ns.QoLSettings
 
 local TEMPLATE = "NaowhForeverTownPinTemplate"
 local LINK_TEMPLATE = "NaowhForeverZoneLinkPinTemplate"
-local CAPITALS = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true, [2482] = true }
+local CAPITALS = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true, [2482] = true, [2521] = true }
 
 -- Category -> the setting that shows it, its icon and the label in the tooltip.
 local CATEGORIES = {

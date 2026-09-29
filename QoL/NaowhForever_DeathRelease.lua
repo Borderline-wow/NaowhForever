@@ -61,7 +61,11 @@ local function Build()
 end
 
 hooksecurefunc("StaticPopup_Show", function(which)
-    if which ~= "DEATH" or not (S.Get("deathRelease") and InGroupContent()) then return end
+    if which ~= "DEATH" then return end
+    if not (S.Get("deathRelease") and InGroupContent()) then
+        if guard then guard:Hide() end
+        return
+    end
     local dialog = StaticPopup_FindVisible("DEATH")
     if not dialog then return end
     if not guard then Build() end

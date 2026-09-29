@@ -59,9 +59,8 @@ local DEFAULTS = {
     textSize   = 21,
     -- Which side of the icon the text callout sits on: TOP, BOTTOM, LEFT or RIGHT.
     textSide   = "BOTTOM",
-    -- Which single source drives the callouts: "timeline" (Blizzard's own encounter
-    -- timeline), "bigwigs" or "dbm". Exclusive by design -- the other two are ignored.
-    bossSource = "timeline",
+    -- bossSource ("timeline", "bigwigs" or "dbm") has no default: unset follows the
+    -- installed boss mod, see ns.BossSource().
     -- pos = { point, relPoint, x, y } once moved in Unlock Mode; nil = default centre.
 }
 
@@ -1608,6 +1607,7 @@ local function RegisterEventSounds()
     soundError = nil
     ns.ClearEventSounds()
     if not (TRDB().enabled and TRDB().soundOn) then return end
+    if not (canSound and TimelineAvailable()) then return end
     if ns.BossSource() ~= "timeline" then
         soundError = "Per-ability sounds ride the Blizzard timeline. Boss Addon is set to "
             .. "a boss mod, so they are off."
@@ -3294,9 +3294,13 @@ function ns.CurrentEncounter() return currentEncounter end
 
 -- Every specialization. The role is still resolved because the optional tank filter needs
 -- it, but it no longer gates whether the feature runs at all.
+local function EngineAvailable()
+    return ns.BossSource() ~= "timeline" or TimelineAvailable()
+end
+
 local function ShouldRun()
     return TRDB().enabled == true and canSelect
-        and activeSlots > 0 and TimelineAvailable() and BossAllowed()
+        and activeSlots > 0 and EngineAvailable() and BossAllowed()
 end
 
 -------------------------------------------------------------------------------
@@ -3895,7 +3899,7 @@ end
 -- default -- so nothing starts talking because of this.
 function ns.BossSource()
     local saved = TRDB().bossSource
-    if saved then return saved end
+    if saved and not (saved == "timeline" and not TimelineAvailable()) then return saved end
     if _G.BigWigsLoader then return "bigwigs" end
     if _G.DBM then return "dbm" end
     return "timeline"
@@ -5523,6 +5527,11 @@ local function UpdateEventRegistration()
         watcher:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
     end
 
+    -- Forever has no encounter timeline, so these cannot wait for ShouldRun(): the pull
+    -- triggers and boss-mod reminders only need to know which encounter is underway.
+    watcher:RegisterEvent("ENCOUNTER_START")
+    watcher:RegisterEvent("ENCOUNTER_END")
+
     if not ShouldRun() then
         runActive = false
         -- COMBAT_LOG_EVENT_UNFILTERED (a HasRestrictions event) is NEVER unregistered,
@@ -5556,9 +5565,6 @@ local function UpdateEventRegistration()
         return
     end
 
-    -- Which boss we are on, so a per-boss override can take over from the spec default.
-    watcher:RegisterEvent("ENCOUNTER_START")
-    watcher:RegisterEvent("ENCOUNTER_END")
     watcher:RegisterEvent("PLAYER_ALIVE")
     watcher:RegisterEvent("PLAYER_UNGHOST")
 
@@ -5810,8 +5816,8 @@ local function DiagProblems()
             .. "for " .. tostring(TRDB().coveredCastWindow or OWN_CAST_COVER_DEFAULT)
             .. "s after you press one"
     end
-    if not TimelineAvailable() then
-        out[#out + 1] = "the boss timeline feature is unavailable here"
+    if not EngineAvailable() then
+        out[#out + 1] = "there is no boss timeline here and no BigWigs or DBM to follow"
     end
     return out
 end
@@ -7027,7 +7033,7 @@ function ns.BuildCoreSettings(parent, y)
           .. "work here. BigWigs or DBM instead ride that mod's bars and messages -- "
           .. "what powers timer/message reminders and phase (p2) note lines. Ability-timer "
           .. "Raid Reminders are BigWigs only. The other two sources are ignored entirely.",
-          getValue = function() return TRDB().bossSource or "timeline" end,
+          getValue = function() return ns.BossSource() end,
           setValue = function(v)
               TRDB().bossSource = v
               ns.Apply()
@@ -7831,7 +7837,8 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
             local why
             if not canSelect then why = "this client lacks the cooldown API"
             elseif activeSlots == 0 then why = "no priority list for this spec (or nothing on it is talented)"
-            elseif not TimelineAvailable() then why = "the boss timeline feature is unavailable here"
+            elseif not EngineAvailable() then
+                why = "there is no boss timeline here and no BigWigs or DBM to follow"
             elseif not BossAllowed() then why = "this boss is switched off in Smart Reminders"
             end
             if not why then

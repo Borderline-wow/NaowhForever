@@ -63,6 +63,7 @@ end
 local function Read()
     events:UnregisterEvent("REPLICATE_ITEM_LIST_UPDATE")
     local total = C_AuctionHouse.GetNumReplicateItems()
+    if total == 0 then return Stop("The auction house returned no listings. Try again in a moment.") end
     local prices, index, gen = {}, 0, scanGen
     local function Step()
         if gen ~= scanGen then return end

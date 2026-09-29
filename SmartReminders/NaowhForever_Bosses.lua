@@ -2993,7 +2993,8 @@ function ns.BuildBossListPage(parent, y, isRaid)
     if not data or #data.instances == 0 then
         local why = (scrapeFailed == "busy")
             and "Close the Dungeon Journal and reopen this page."
-            or "Nothing found yet. Open the Adventure Guide once, then use Refresh below."
+            or "No bosses listed yet. They appear once the game publishes this season's "
+                .. "Dungeon Journal data; open the Adventure Guide once, then use Refresh below."
         _, h = W:DualRow(parent, y,
             { type = "label", text = why },
             { type = "label", text = "Run /nutank bosses to see which step came back empty." }
@@ -4107,12 +4108,15 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         typeHost:SetPoint("RIGHT", triggerBody, "RIGHT", 0, 0)
         typeHost:SetHeight(1)
 
+        local auraOK = trigTypeVal == "aura"
+            or (C_CombatLog and C_CombatLog.GetCurrentEventInfo) ~= nil
         local _, typeRowH = W:DualRow(typeHost, 0,
             { type = "dropdown", text = "Trigger Type",
               values = { bwmsg = "BigWigs Message", bwtimer = "BigWigs Timer",
                   pull = "Time After Pull", aura = "Gain/Lose a Buff or Debuff",
                   stage = "Phase Start" },
-              order = { "bwmsg", "bwtimer", "pull", "aura", "stage" },
+              order = auraOK and { "bwmsg", "bwtimer", "pull", "aura", "stage" }
+                  or { "bwmsg", "bwtimer", "pull", "stage" },
               tooltip = "Message fires the instant BigWigs announces it. Timer waits "
                   .. "out the bar and fires this many seconds before it ends. Time "
                   .. "After Pull fires a fixed number of seconds into the encounter, "

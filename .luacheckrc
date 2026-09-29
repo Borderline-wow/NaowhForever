@@ -27,8 +27,8 @@ globals = {
 -- how a misspelled global, or one Forever does not have, gets caught.
 read_globals = {
     "AcceptQuest", "ActionBarButtonEventsFrame", "ActionStatus", "AlertFrame", "Ambiguate",
-    "AnchorUtil", "AuraUtil", "BACKPACK_CONTAINER", "BigWigsLoader", "bit", "BNET_CLIENT_WOW",
-    "BNGetInfo", "BNGetNumFriends", "BreakUpLargeNumbers", "BuyMerchantItem",
+    "AnchorUtil", "AuraContainerSortMethod", "AuraUtil", "BACKPACK_CONTAINER", "BigWigsLoader",
+    "bit", "BNET_CLIENT_WOW", "BNGetInfo", "BNGetNumFriends", "BreakUpLargeNumbers", "BuyMerchantItem",
     "canaccessallvalues", "canaccesstable", "canaccessvalue", "CanMerchantRepair",
     "ChatEdit_InsertLink", "ChatFrame1EditBox", "CinematicFrame_CancelCinematic",
     "ClearCursor", "CloseQuest", "ColorPickerFrame", "CompleteQuest", "ConfirmAcceptQuest",
@@ -100,7 +100,7 @@ read_globals = {
     "SubZoneTextFrame", "TaxiGetNodeSlot", "TaxiNodeGetType", "TaxiNodeName", "tContains",
     "TextToSpeech_GetSelectedVoice", "time", "ToggleCalendar", "TomTom",
     "TooltipDataProcessor", "TRADE_SKILLS", "TSM_API", "UIErrorsFrame", "UiMapPoint",
-    "UIParent", "UnitAffectingCombat", "UnitAttackSpeed", "UnitCanAttack",
+    "UIParent", "UNKNOWNOBJECT", "UnitAffectingCombat", "UnitAttackSpeed", "UnitCanAttack",
     "UnitCastingDuration", "UnitCastingInfo", "UnitChannelDuration", "UnitChannelInfo",
     "UnitClass", "UnitDetailedThreatSituation", "UnitExists", "UnitFactionGroup",
     "UnitFullName", "UnitGroupRolesAssigned", "UnitGUID", "UnitHealth", "UnitHealthMax",

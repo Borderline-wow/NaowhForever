@@ -16,7 +16,8 @@ local function Fixture(char)
     local e = { char = char or "Main-Ravencrest", reapplied = 0 }
     local env = { ns = { QueueReapply = function() e.reapplied = e.reapplied + 1 end },
         activeRoot = nil,
-        CharKey = function() return e.char end }
+        CharKey = function() return e.char end,
+        UnitName = function() return e.char:match("^[^-]+") end, UNKNOWNOBJECT = "Unknown" }
     setmetatable(env, { __index = _G })
     local code = Slice(coreSrc, "local function DB()", "function ns.SettingsRoot()")
         .. Slice(coreSrc, "function ns.SettingsRoot()", "-- Account-wide, deliberately outside")
@@ -37,6 +38,20 @@ end
 
 local count = 0
 local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) end
+
+Case("a player still named Unknown is not filed or cached", function()
+    local e = Fixture("Unknown-Ravencrest")
+    e.ns.SettingsRoot()
+    local sv = e.db()
+    assert(next(sv.charActive) == nil and e.env.activeRoot == nil)
+end)
+
+Case("a player still named Unknown reads the account default's name", function()
+    local e = Fixture("Unknown-Ravencrest")
+    e.ns.SettingsRoot()
+    e.db().defaultProfile = "Naowh"
+    assert(e.ns.ActiveProfileName() == "Naowh")
+end)
 
 Case("every known character moves, and the account default moves with them", function()
     local e = Fixture("Main-Ravencrest")

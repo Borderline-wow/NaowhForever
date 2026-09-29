@@ -426,7 +426,7 @@ end
 -- SettingsRoot hands back the active profile's root, and TRDB layers its defaults onto
 -- root.tankReminder from there. A switch hands TRDB a different table identity, which is
 -- what re-runs its weak-keyed defaults fill.
-local activeRoot
+local activeRoot, provisional
 
 local function CharKey()
     return UnitName("player") .. "-" .. GetRealmName()
@@ -450,6 +450,14 @@ end
 function ns.SettingsRoot()
     if activeRoot then return activeRoot end
     local sv = DB()
+    -- Forever returns "Unknown" for the player's name until late in loading; resolving
+    -- then would file the character under a key it never uses again.
+    if UnitName("player") == UNKNOWNOBJECT then
+        local default = sv.defaultProfile or "Default"
+        if type(sv.profiles[default]) ~= "table" then sv.profiles[default] = {} end
+        provisional = sv.profiles[default]
+        return provisional
+    end
     local name = sv.charActive[CharKey()]
     if type(name) ~= "string" or type(sv.profiles[name]) ~= "table" then
         -- A character with no assignment, or one pointing at a deleted profile, takes the
@@ -499,8 +507,21 @@ function ns.UIScale()
     return pct / 100
 end
 
+-- Anything read while the name was still "Unknown" got the account default. Once the name
+-- is known, a character on another profile has everything reapplied from its own.
+local nameWatch = CreateFrame("Frame")
+nameWatch:RegisterEvent("PLAYER_LOGIN")
+nameWatch:RegisterEvent("PLAYER_ENTERING_WORLD")
+nameWatch:RegisterUnitEvent("UNIT_NAME_UPDATE", "player")
+nameWatch:SetScript("OnEvent", function(self)
+    if UnitName("player") == UNKNOWNOBJECT then return end
+    self:UnregisterAllEvents()
+    if provisional and ns.SettingsRoot() ~= provisional then ns.QueueReapply() end
+    provisional = nil
+end)
+
 function ns.ActiveProfileName()
-    ns.SettingsRoot()
+    if ns.SettingsRoot() == provisional then return DB().defaultProfile or "Default" end
     return DB().charActive[CharKey()]
 end
 

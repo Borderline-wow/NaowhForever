@@ -37,6 +37,7 @@ if not ns then return end
 local PREFIX = "NSRPACK2:"
 local PACK_FORMAT = 1
 local LICENSE_MARKER = ":LIC1:"
+local MAX_PACK_CHARS = 1000000
 
 -- Sections a pack may carry, in display order. Keyed by the profile field;
 -- label is what the preview calls it; count says how its size is measured.
@@ -561,6 +562,7 @@ function ns.DecodePack(str)
     if type(str) ~= "string" then return nil, "Nothing to read." end
     str = str:gsub("%s+", "")
     if str == "" then return nil, "Nothing to read." end
+    if #str > MAX_PACK_CHARS then return nil, "That string is too large to be a Reminder Pack." end
 
     -- A naowh.gg personalized download appends a signed license after this
     -- marker. Plain find, not a pattern: the pack payload before it is

@@ -132,6 +132,7 @@ ns.ClearEventSounds = function() registered = {}; ns.soundEvents = {}; ns.soundG
 ns.TANK_ABILITIES = { [123] = true, [789] = true }
 env.TRDB = function() return { enabled = true, soundOn = true } end
 env.canSound = true; env.currentEncounter = 1
+env.TimelineAvailable = function() return true end
 env.ResolveSoundFile = function() return "test.ogg" end
 env.Enum = { EncounterEventSoundTrigger = { OnTimelineEventHighlight = 1 }, EncounterEventIconmask = { TankRole = 1 } }
 env.bit = { band = function() return 0 end }

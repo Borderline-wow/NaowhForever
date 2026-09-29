@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Co-Tank Frame: Righteous Fury counts as tanking for paladins.
+- Co-Tank Debuffs now show in combat, drawn by the game the way NaowhUI's co-tank does it,
+  with its filter, icon, position and text settings. On by default with the frame.
+
+### Fixed
+- Death Release Protection no longer carries over to a death outside a dungeon or raid.
+- Smart Reminders now follows an installed BigWigs or DBM on Forever, and pull triggers and
+  boss-mod reminders work without Blizzard's encounter timeline. Callouts still wait for
+  boss data, so nothing fires in Forever dungeons until BigWigs or DBM ship timers for them.
+- Loading in while the game still calls you "Unknown" no longer files your character under
+  that name or pins the wrong profile for the session.
+- Pasting an oversized string into Reminder Pack import is refused instead of freezing the game.
+- Auction Prices: a scan that comes back empty no longer wipes the saved prices or starts the
+  15 minute wait.
+- Gain/Lose a Buff or Debuff is no longer offered as a reminder trigger where the combat log is
+  unavailable.
+- Town Map: pins show by default in Zephras Isle.
+- Flight Timer: the tooltip no longer says the first flight counts up.
+
 ## 0.5.16-beta
 
 ### Added

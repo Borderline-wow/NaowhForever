@@ -4,15 +4,19 @@
 --
 --  A secure unit button, so its unit, size, position and visibility only change out of
 --  combat; a roster or setting change mid-fight waits for the fight to end.
+--  Debuffs render through Blizzard's aura container, as NaowhUI's co-tank does: aura data
+--  is secret in combat, and the container is the only thing that can still draw it.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
 
-local MAX_DEBUFFS = 5
+local RIGHTEOUS_FURY = 25780
+local PALADIN = select(2, UnitClass("player")) == "PALADIN"
 
-local frame, unlocked, inCombat
-local tank
+local frame, unlocked
+local tank, fury
+local debuffs, styleKey
 
 local function On()
     return S.Get("enabled") and S.Get("coTank")
@@ -22,11 +26,21 @@ local function Secret(v)
     return issecretvalue and issecretvalue(v)
 end
 
--- The threat meter's test: tank role, Bear or Dire Bear Form, or Defensive Stance.
+-- Righteous Fury is an aura, so it is only readable while auras are not secret; the last
+-- answer stands in until they are.
+local function HasFury()
+    if not C_Secrets.ShouldAurasBeSecret() then
+        fury = C_UnitAuras.GetPlayerAuraBySpellID(RIGHTEOUS_FURY) ~= nil
+    end
+    return fury
+end
+
+-- The threat meter's test: tank role, Bear or Dire Bear Form, or Defensive Stance, plus
+-- Righteous Fury for paladins.
 local function PlayerIsTank()
     if UnitGroupRolesAssigned("player") == "TANK" then return true end
     local form = GetShapeshiftFormID()
-    return form == 5 or form == 8 or form == 18
+    return form == 5 or form == 8 or form == 18 or (PALADIN and HasFury())
 end
 
 -- Tank role, or the raid's Main Tank assignment.
@@ -42,6 +56,258 @@ local function FindOtherTank()
     end
 end
 
+-------------------------------------------------------------------------------
+--  Debuffs
+-------------------------------------------------------------------------------
+-- Blizzard's own sated/hidden set, as NaowhUI keeps it.
+local HIDDEN_DEBUFFS = {
+    [57723] = true, [57724] = true, [80354] = true, [95809] = true,
+    [160455] = true, [264689] = true, [390435] = true,
+    [1254550] = true, [308312] = true,
+}
+
+-- One group per filter, so the icon cap is the whole row. isBossOrRoleAura is the engine's
+-- own "boss aura or role aura" test, which needs only one group; the default sort has no
+-- boss tiebreak, so a wide group would fill with older trash debuffs first.
+local DEBUFF_GROUPS = {
+    { key = "all",         filter = "HARMFUL" },
+    { key = "important",   filter = "HARMFUL", cand = { isBossOrRoleAura = true } },
+    { key = "nonplayer",   filter = "HARMFUL", cand = { isFromPlayerOrPlayerPet = false } },
+    { key = "dispellable", filter = "HARMFUL|RAID_PLAYER_DISPELLABLE" },
+}
+for _, g in ipairs(DEBUFF_GROUPS) do
+    g.cand = g.cand or {}
+    g.cand.excludeSpellIDs = HIDDEN_DEBUFFS
+end
+
+local CORNERS = {
+    topleft = "TOPLEFT", top = "TOP", topright = "TOPRIGHT",
+    left = "LEFT", center = "CENTER", right = "RIGHT",
+    bottomleft = "BOTTOMLEFT", bottom = "BOTTOM", bottomright = "BOTTOMRIGHT",
+}
+
+-- The row's edge that meets the bar is the mirror of the bar corner: a row above puts its
+-- BOTTOM on the bar's TOP.
+local MIRROR = {
+    TOP = "BOTTOM", BOTTOM = "TOP", LEFT = "RIGHT", RIGHT = "LEFT",
+    TOPLEFT = "BOTTOMLEFT", TOPRIGHT = "BOTTOMRIGHT",
+    BOTTOMLEFT = "TOPLEFT", BOTTOMRIGHT = "TOPRIGHT",
+    CENTER = "CENTER",
+}
+
+local PREVIEW_ICONS = {
+    [[Interface\Icons\Spell_Shadow_ShadowWordPain]],
+    [[Interface\Icons\Spell_Fire_Immolation]],
+    [[Interface\Icons\Spell_Frost_FrostNova]],
+    [[Interface\Icons\Spell_Nature_Earthbind]],
+    [[Interface\Icons\Spell_Shadow_CurseOfSargeras]],
+    [[Interface\Icons\Spell_Holy_Silence]],
+    [[Interface\Icons\Ability_Poisons]],
+    [[Interface\Icons\Spell_Shadow_UnholyFrenzy]],
+}
+
+-- Bare seconds under a minute, then 2m / 1h / 1d. Seconds round up so it never reads 0
+-- while time remains; the Up band at 60 stops a value just under a minute showing "0m".
+local durationFormatter
+
+local function DurationFormatter()
+    if durationFormatter then return durationFormatter end
+    local Up, Down = Enum.NumericRuleFormatRounding.Up, Enum.NumericRuleFormatRounding.Down
+    durationFormatter = C_StringUtil.CreateNumericRuleFormatter()
+    durationFormatter:SetBreakpoints({
+        { threshold = 0,     format = "%d",  step = 1, rounding = Up },
+        { threshold = 60,    format = "%dm", step = 1, rounding = Up,   components = { { div = 60 } } },
+        { threshold = 61,    format = "%dm", step = 1, rounding = Down, components = { { div = 60 } } },
+        { threshold = 3600,  format = "%dh", step = 1, rounding = Down, components = { { div = 3600 } } },
+        { threshold = 86400, format = "%dd", step = 1, rounding = Down, components = { { div = 86400 } } },
+    })
+    return durationFormatter
+end
+
+-- Regions per engine button, kept off the button itself.
+local buttons = setmetatable({}, { __mode = "k" })
+
+local function Flow()
+    local corner = CORNERS[S.Get("coTankDebuffPosition")] or "TOP"
+    local grow = S.Get("coTankDebuffGrow")
+    local point = MIRROR[corner]
+    local h, v = grow, "UP"
+    if grow == "CENTER" then
+        -- A row that wraps away from the bar, not back through it.
+        h, v = "RIGHT", point:find("TOP", 1, true) and "DOWN" or "UP"
+    elseif grow == "UP" or grow == "DOWN" then
+        h, v = "RIGHT", grow
+    end
+    return corner, point, h, v, grow == "UP" or grow == "DOWN"
+end
+
+-- Button calls are denied while auras are secret, so a restyle waits for them to clear.
+local function StyleButton(button, r)
+    local size = S.Get("coTankDebuffSize")
+    local font = ns.UI.FontPath(S.Get("coTankFont"))
+    button:SetSize(size, size)
+    button:SetMouseMotionEnabled(S.Get("coTankDebuffTooltips"))
+    r.duration:SetFont(font, S.Get("coTankDebuffDurationSize"), "OUTLINE")
+    r.duration:SetShown(S.Get("coTankDebuffDuration"))
+    r.stack:SetFont(font, S.Get("coTankDebuffStackSize"), "OUTLINE")
+    r.stack:SetShown(S.Get("coTankDebuffStacks"))
+end
+
+-- Runs once per engine button, the only time parenting to the button is allowed. Fonts are
+-- set before the engine is handed a font string: it writes text into them straight away.
+local function InitButton(button)
+    local r = {}
+    buttons[button] = r
+    -- The bar under the row is click-to-target.
+    button:SetMouseClickEnabled(false)
+
+    r.icon = button:CreateTexture(nil, "ARTWORK")
+    r.icon:SetAllPoints()
+    r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+    r.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
+    r.cooldown:SetAllPoints()
+    r.cooldown:SetReverse(true)
+    r.cooldown:SetDrawEdge(false)
+    r.cooldown:SetHideCountdownNumbers(true)
+    ns.Border(r.cooldown, { r = 0, g = 0, b = 0 })
+
+    -- Plain white strips the engine shows and tints by dispel type; which aura gets them
+    -- is secret, so that call is the engine's.
+    local ring = CreateFrame("Frame", nil, button)
+    ring:SetAllPoints()
+    ring:SetFrameLevel(r.cooldown:GetFrameLevel() + 3)
+    local strips = {}
+    for i = 1, 4 do
+        strips[i] = ring:CreateTexture(nil, "OVERLAY")
+        strips[i]:SetColorTexture(1, 1, 1, 1)
+    end
+    strips[1]:SetPoint("TOPLEFT"); strips[1]:SetPoint("TOPRIGHT"); strips[1]:SetHeight(2)
+    strips[2]:SetPoint("BOTTOMLEFT"); strips[2]:SetPoint("BOTTOMRIGHT"); strips[2]:SetHeight(2)
+    strips[3]:SetPoint("TOPLEFT", 0, -2); strips[3]:SetPoint("BOTTOMLEFT", 0, 2); strips[3]:SetWidth(2)
+    strips[4]:SetPoint("TOPRIGHT", 0, -2); strips[4]:SetPoint("BOTTOMRIGHT", 0, 2); strips[4]:SetWidth(2)
+    local ringOpts = { style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset,
+        showWhenHarmful = true, showWhenHelpful = false }
+    for i = 1, 4 do button:AddDispelTypeTexture(strips[i], ringOpts) end
+
+    local text = CreateFrame("Frame", nil, button)
+    text:SetAllPoints()
+    text:SetFrameLevel(ring:GetFrameLevel() + 1)
+    r.stack = ns.Font(text, 10, "OUTLINE")
+    r.stack:SetPoint("BOTTOMRIGHT", 1, 1)
+    r.duration = ns.Font(text, 10, "OUTLINE")
+    r.duration:SetPoint("CENTER")
+    StyleButton(button, r)
+
+    button:SetIcon(r.icon)
+    button:SetDurationCooldown(r.cooldown)
+    button:SetApplicationCount(r.stack, {})
+    button:SetDurationText(r.duration, { textFormatter = DurationFormatter() })
+end
+
+local function BuildDebuffs()
+    C_AddOns.LoadAddOn("Blizzard_AuraContainer")
+    debuffs = CreateFrame("AuraContainer", nil, frame, "CustomAuraContainerTemplate")
+    debuffs:SetSize(1, 1)
+    debuffs:SetFrameLevel(frame.bar:GetFrameLevel() + 5)
+    for _, g in ipairs(DEBUFF_GROUPS) do
+        debuffs:AddAuraGroup(g.key, g.filter, {
+            maxFrameCount = 0,
+            candidateFilters = g.cand,
+            sortMethod = AuraContainerSortMethod.Default,
+            initializeFrame = InitButton,
+        })
+    end
+    debuffs:Hide()
+end
+
+local function LayoutDebuffs()
+    local corner, point, h, v, vertical = Flow()
+    local size, spacing = S.Get("coTankDebuffSize"), S.Get("coTankDebuffSpacing")
+    local FD = AnchorUtil.FlowDirection
+    debuffs:ClearAllPoints()
+    debuffs:SetPoint(point, frame, corner, S.Get("coTankDebuffX"), S.Get("coTankDebuffY"))
+    -- Flow starts on the far side of its travel: RIGHT begins at a LEFT corner.
+    debuffs:SetFlowLayoutAnchorPoint((v == "DOWN" and "TOP" or "BOTTOM") .. (h == "LEFT" and "RIGHT" or "LEFT"))
+    debuffs:SetFlowLayoutGrowthDirection(h == "LEFT" and FD.Left or FD.Right, v == "DOWN" and FD.Down or FD.Up)
+    debuffs:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
+    -- A vertical row is one column. The 0.4 slack stops the engine's rounding dropping
+    -- the last icon when the width equals the content exactly.
+    debuffs:SetFlowLayoutMaximumLineSize(vertical and size + 0.4 or nil)
+
+    local layout = { elementWidth = size, elementHeight = size, elementSpacing = spacing, lineSpacing = spacing }
+    local active = S.Get("coTankDebuffFilter")
+    for _, g in ipairs(DEBUFF_GROUPS) do
+        if g.key == active then
+            debuffs:SetAuraGroupMaxFrameCount(g.key, S.Get("coTankDebuffCap"))
+            debuffs:SetAuraGroupCandidateFilters(g.key, g.cand)
+            debuffs:SetAuraGroupLayout(g.key, layout)
+        else
+            debuffs:SetAuraGroupMaxFrameCount(g.key, 0)
+        end
+    end
+
+    local key = table.concat({ S.Get("coTankDebuffSize"), S.Get("coTankFont"),
+        tostring(S.Get("coTankDebuffTooltips")), tostring(S.Get("coTankDebuffDuration")),
+        S.Get("coTankDebuffDurationSize"), tostring(S.Get("coTankDebuffStacks")),
+        S.Get("coTankDebuffStackSize") }, "|")
+    if key ~= styleKey and not C_Secrets.ShouldAurasBeSecret() then
+        for button, r in pairs(buttons) do StyleButton(button, r) end
+        styleKey = key
+    end
+end
+
+-- Plain textures, not engine buttons: the engine only draws auras the unit really has.
+local function ShowPreviewDebuffs(show)
+    local host = frame.previewDebuffs
+    if not show then
+        if host then host:Hide() end
+        return
+    end
+    if not host then
+        host = CreateFrame("Frame", nil, frame)
+        host:SetFrameLevel(frame.bar:GetFrameLevel() + 5)
+        host.icons = {}
+        for i, path in ipairs(PREVIEW_ICONS) do
+            local icon = CreateFrame("Frame", nil, host)
+            icon.tex = icon:CreateTexture(nil, "ARTWORK")
+            icon.tex:SetAllPoints()
+            icon.tex:SetTexture(path)
+            icon.tex:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+            ns.Border(icon, { r = 0, g = 0, b = 0 })
+            host.icons[i] = icon
+        end
+        frame.previewDebuffs = host
+    end
+
+    local corner, point, h, v, vertical = Flow()
+    local size, spacing = S.Get("coTankDebuffSize"), S.Get("coTankDebuffSpacing")
+    local n = math.min(S.Get("coTankDebuffCap"), #host.icons)
+    local run = n * size + math.max(0, n - 1) * spacing
+    host:ClearAllPoints()
+    host:SetPoint(point, frame, corner, S.Get("coTankDebuffX"), S.Get("coTankDebuffY"))
+    host:SetSize(vertical and size or run, vertical and run or size)
+    for i, icon in ipairs(host.icons) do
+        icon:SetShown(i <= n)
+        if i <= n then
+            local off = (i - 1) * (size + spacing)
+            icon:SetSize(size, size)
+            icon:ClearAllPoints()
+            if vertical then
+                local from = v == "DOWN" and "TOP" or "BOTTOM"
+                icon:SetPoint(from, host, from, 0, v == "DOWN" and -off or off)
+            else
+                local from = h == "LEFT" and "RIGHT" or "LEFT"
+                icon:SetPoint(from, host, from, h == "LEFT" and -off or off, 0)
+            end
+        end
+    end
+    host:Show()
+end
+
+-------------------------------------------------------------------------------
+--  Frame
+-------------------------------------------------------------------------------
 local function Build()
     frame = CreateFrame("Button", "NaowhForeverCoTank", UIParent, "SecureUnitButtonTemplate")
     frame:SetMovable(true)
@@ -59,7 +325,6 @@ local function Build()
     frame.name = ns.Font(frame.bar, 12, "OUTLINE")
     frame.name:SetPoint("CENTER")
 
-    frame.debuffs = {}
     -- Dragging it places it on the screen again, as NaowhQOL's did.
     frame.mover = ns.UI.AttachMover(frame, "Co-Tank", function(pos)
         S.Set("coTankPos", pos)
@@ -87,42 +352,6 @@ local function UpdateHealth()
     frame.bar:SetValue(UnitHealth(tank))
 end
 
-local function DebuffIcon(i)
-    local icon = frame.debuffs[i]
-    if not icon then
-        icon = CreateFrame("Frame", nil, frame)
-        icon.tex = icon:CreateTexture(nil, "ARTWORK")
-        icon.tex:SetAllPoints()
-        icon.tex:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-        icon.count = ns.Font(icon, 10, "OUTLINE")
-        icon.count:SetPoint("BOTTOMRIGHT", 1, 0)
-        frame.debuffs[i] = icon
-    end
-    local size = S.Get("coTankHeight")
-    icon:SetSize(size, size)
-    icon:ClearAllPoints()
-    icon:SetPoint("LEFT", frame, "RIGHT", 2 + (i - 1) * (size + 2), 0)
-    return icon
-end
-
--- Out of combat only: the client withdraws auras from addons during a fight, and on some
--- pulls before it, when GetAuraDataByIndex raises instead of returning nil.
-local function UpdateDebuffs()
-    local shown = 0
-    if tank and S.Get("coTankDebuffs") and not inCombat and not C_Secrets.ShouldAurasBeSecret() then
-        for i = 1, MAX_DEBUFFS do
-            local aura = C_UnitAuras.GetAuraDataByIndex(tank, i, "HARMFUL")
-            if not aura then break end
-            local icon = DebuffIcon(i)
-            icon.tex:SetTexture(aura.icon)
-            icon.count:SetText(aura.applications > 1 and aura.applications or "")
-            icon:Show()
-            shown = i
-        end
-    end
-    for i = shown + 1, #frame.debuffs do frame.debuffs[i]:Hide() end
-end
-
 local function SetName(name, classColor)
     if not S.Get("coTankName") then
         frame.name:SetText("")
@@ -142,7 +371,6 @@ local function Paint()
     frame.bar:SetStatusBarColor(c.r, c.g, c.b)
     SetName(UnitName(tank), classColor)
     UpdateHealth()
-    UpdateDebuffs()
 end
 
 local function Preview()
@@ -151,7 +379,6 @@ local function Preview()
     frame.bar:SetMinMaxValues(0, 100)
     frame.bar:SetValue(75)
     SetName("TankName", nil)
-    UpdateDebuffs()
 end
 
 local events = CreateFrame("Frame")
@@ -159,19 +386,15 @@ local unitEvents = CreateFrame("Frame")
 local Refresh
 
 events:SetScript("OnEvent", function(_, event)
-    if event == "PLAYER_REGEN_DISABLED" then
-        inCombat = true
-        if frame then UpdateDebuffs() end
-        return
+    if event == "UNIT_AURA" then
+        local was = fury
+        if HasFury() == was then return end
     end
-    if event == "PLAYER_REGEN_ENABLED" then inCombat = false end
     Refresh()
 end)
 
 unitEvents:SetScript("OnEvent", function(_, event)
-    if event == "UNIT_AURA" then
-        UpdateDebuffs()
-    elseif event == "UNIT_NAME_UPDATE" then
+    if event == "UNIT_NAME_UPDATE" then
         Paint()
     else
         UpdateHealth()
@@ -191,11 +414,11 @@ function Refresh()
         return
     end
     if not frame then Build() end
-    inCombat = false
     for _, event in ipairs({ "GROUP_ROSTER_UPDATE", "PLAYER_ROLES_ASSIGNED", "UPDATE_SHAPESHIFT_FORM",
-        "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }) do
+        "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED" }) do
         events:RegisterEvent(event)
     end
+    if PALADIN then events:RegisterUnitEvent("UNIT_AURA", "player") end
 
     tank = PlayerIsTank() and FindOtherTank() or nil
     frame:SetAttribute("unit", tank)
@@ -204,13 +427,26 @@ function Refresh()
     frame.name:SetFont(ns.UI.FontPath(S.Get("coTankFont")), S.Get("coTankFontSize"), "OUTLINE")
     Place()
     frame.mover:SetShown(unlocked == true)
+
+    local showDebuffs = S.Get("coTankDebuffs")
     if tank then
-        for _, event in ipairs({ "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_AURA", "UNIT_NAME_UPDATE" }) do
+        for _, event in ipairs({ "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_NAME_UPDATE" }) do
             unitEvents:RegisterUnitEvent(event, tank)
         end
         Paint()
     elseif unlocked then
         Preview()
+    end
+    ShowPreviewDebuffs(showDebuffs and not tank and unlocked == true)
+
+    if showDebuffs and tank then
+        if not debuffs then BuildDebuffs() end
+        LayoutDebuffs()
+        debuffs:SetUnit(tank)
+        debuffs:Show()
+        debuffs:UpdateAllAuras()
+    elseif debuffs then
+        debuffs:Hide()
     end
     frame:SetShown(tank ~= nil or unlocked == true)
 end

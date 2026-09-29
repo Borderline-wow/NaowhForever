@@ -20,12 +20,17 @@ local S = UI.ModuleSettings("qol", {
     formText = "", formColor = { r = 1, g = 0.4, b = 0 }, formClassColor = false,
     formFont = "", formFontSize = 22,
     formSound = false, formSoundKey = "none", formSoundInterval = 3,
-    coTank = false, coTankName = true, coTankClassColor = true, coTankDebuffs = false,
+    coTank = false, coTankName = true, coTankClassColor = true, coTankDebuffs = true,
     coTankWidth = 180, coTankHeight = 30,
     coTankColor = { r = 0, g = 0.8, b = 0.2 }, coTankBgAlpha = 0.6,
     coTankNameClassColor = false, coTankNameColor = { r = 1, g = 1, b = 1 },
     coTankNameLength = 0, coTankFont = "", coTankFontSize = 12,
     coTankAnchor = "UIParent", coTankX = 0, coTankY = 0,
+    coTankDebuffFilter = "important", coTankDebuffCap = 3, coTankDebuffSize = 22,
+    coTankDebuffSpacing = 2, coTankDebuffPosition = "top", coTankDebuffGrow = "CENTER",
+    coTankDebuffX = 0, coTankDebuffY = 3,
+    coTankDebuffDuration = true, coTankDebuffDurationSize = 10,
+    coTankDebuffStacks = true, coTankDebuffStackSize = 10, coTankDebuffTooltips = false,
 
     deleteConfirm = false, lootConfirm = false,
     questAccept = false, questTurnIn = false, questGossip = false, questRewardPicks = true,
@@ -173,6 +178,19 @@ local PRICE_ORDER = { "vendor", "ahscan", "tsm" }
 local DRUID_STEALTH_VALUES = { cat = "In Cat Form", always = "In Any Form" }
 local DRUID_STEALTH_ORDER = { "cat", "always" }
 
+local DEBUFF_FILTER_VALUES = { important = "Boss & Important", nonplayer = "Non-Player Auras",
+    all = "All Debuffs", dispellable = "Dispellable by You" }
+local DEBUFF_FILTER_ORDER = { "important", "nonplayer", "all", "dispellable" }
+
+local DEBUFF_POS_VALUES = { top = "Above", bottom = "Below", left = "Left", right = "Right",
+    topleft = "Top Left", topright = "Top Right", bottomleft = "Bottom Left",
+    bottomright = "Bottom Right", center = "Centre" }
+local DEBUFF_POS_ORDER = { "top", "bottom", "left", "right", "topleft", "topright",
+    "bottomleft", "bottomright", "center" }
+
+local DEBUFF_GROW_VALUES = { CENTER = "Centred", RIGHT = "Right", LEFT = "Left", UP = "Up", DOWN = "Down" }
+local DEBUFF_GROW_ORDER = { "CENTER", "RIGHT", "LEFT", "UP", "DOWN" }
+
 local DRUID_FORM_VALUES = { none = "None", cat = "Cat Form", bear = "Bear Form",
     moonkin = "Moonkin Form" }
 local DRUID_FORM_ORDER = { "none", "cat", "bear", "moonkin" }
@@ -270,7 +288,7 @@ function ns.BuildQoLQuestingPage(parent, y)
         if ns.ResetXPTicker then ns.ResetXPTicker() end
     end); y = y - h
 
-    _, h = W:SectionHeader(parent, "XP BAR" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "XP BAR", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("xpBar", "XP Bar",
             "Your level, experience and percentage on one bar, with the XP of completed "
@@ -314,7 +332,7 @@ function ns.BuildQoLQuestingPage(parent, y)
         { type = "label", text = "" }
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "QUESTING" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "QUESTING", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("questAccept", "Auto Accept Quests",
             "Accepts a quest as soon as its text opens. Hold Alt to read it first."),
@@ -340,7 +358,7 @@ function ns.BuildQoLGeneralPage(parent, y)
     local _, h
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
-    _, h = W:SectionHeader(parent, "DEATH RELEASE" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "DEATH RELEASE", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("deathRelease", "Death Release Protection",
             "Release Spirit has to be held down for a moment inside a dungeon or raid, so "
@@ -385,17 +403,15 @@ function ns.BuildQoLGeneralPage(parent, y)
     ); y = y - h
     end
 
-    _, h = W:SectionHeader(parent, "CO-TANK FRAME" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "CO-TANK FRAME", y); y = y - h
     local coTankFonts, coTankFontOrder = UI.FontChoices(S.Get("coTankFont"))
     _, h = W:DualRow(parent, y,
         S.Toggle("coTank", "Co-Tank Frame",
             "A small health bar for the other tank in your group, shown while you are tanking: "
-            .. "tank role, Bear Form or Defensive Stance. The other tank is whoever has the tank "
-            .. "role or the raid's Main Tank assignment. Click it to target them. Changes made "
-            .. "in combat apply when the fight ends. Move it in Unlock Mode."),
-        S.Toggle("coTankDebuffs", "Co-Tank Debuffs",
-            "Their debuffs next to the bar, out of combat only: the client hides auras "
-            .. "from addons during a fight.", "coTank")
+            .. "tank role, Bear Form, Defensive Stance or Righteous Fury. The other tank is "
+            .. "whoever has the tank role or the raid's Main Tank assignment. Click it to target "
+            .. "them. Changes made in combat apply when the fight ends. Move it in Unlock Mode."),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("coTankWidth", "Width", 50, 400, 5, nil, "coTank"),
@@ -430,6 +446,42 @@ function ns.BuildQoLGeneralPage(parent, y)
             "From the centre of the anchor frame. Only used while anchored to a frame.", "coTank"),
         S.Slider("coTankY", "Y Offset", -2000, 2000, 1,
             "From the centre of the anchor frame. Only used while anchored to a frame.", "coTank")
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "CO-TANK DEBUFFS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("coTankDebuffs", "Co-Tank Debuffs",
+            "Shows the other tank's debuffs beside their health bar, in combat too: tank-buster "
+            .. "stacks, boss debuffs and anything you can dispel.", "coTank"),
+        S.Dropdown("coTankDebuffFilter", "Filter", DEBUFF_FILTER_VALUES, DEBUFF_FILTER_ORDER,
+            nil, "coTankDebuffs")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("coTankDebuffCap", "Max Icons", 1, 8, 1, nil, "coTankDebuffs"),
+        S.Slider("coTankDebuffSize", "Icon Size", 10, 48, 1, nil, "coTankDebuffs")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("coTankDebuffPosition", "Position", DEBUFF_POS_VALUES, DEBUFF_POS_ORDER,
+            nil, "coTankDebuffs"),
+        S.Dropdown("coTankDebuffGrow", "Grow", DEBUFF_GROW_VALUES, DEBUFF_GROW_ORDER,
+            nil, "coTankDebuffs")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("coTankDebuffX", "Offset X", -200, 200, 1, nil, "coTankDebuffs"),
+        S.Slider("coTankDebuffY", "Offset Y", -200, 200, 1, nil, "coTankDebuffs")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("coTankDebuffSpacing", "Spacing", 0, 12, 1, nil, "coTankDebuffs"),
+        S.Toggle("coTankDebuffTooltips", "Show Tooltips",
+            "Off by default: the bar under the icons is click-to-target.", "coTankDebuffs")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("coTankDebuffDuration", "Show Time Left", nil, "coTankDebuffs"),
+        S.Slider("coTankDebuffDurationSize", "Time Left Size", 6, 20, 1, nil, "coTankDebuffDuration")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("coTankDebuffStacks", "Show Stacks", nil, "coTankDebuffs"),
+        S.Slider("coTankDebuffStackSize", "Stacks Size", 6, 20, 1, nil, "coTankDebuffStacks")
     ); y = y - h
 
     return y
@@ -1283,8 +1335,8 @@ function ns.BuildQoLFlightPage(parent, y)
     _, h = W:SectionHeader(parent, "FLIGHT TIMER" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("flightTimer", "Flight Timer",
-            "Where you are flying and how long is left. The first flight on a route counts up; "
-            .. "after that it counts down to landing. Move it in Unlock Mode."),
+            "Where you are flying and how long is left, counting down to landing. "
+            .. "Move it in Unlock Mode."),
         { type = "label", text = "" }
     ); y = y - h
 
