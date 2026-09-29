@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Trinket bar: clicking an empty trinket slot no longer throws a Lua error, and hovering a slot shows the equipped trinket's tooltip instead of usage instructions (those stay on the Trinkets settings page).
 - Campfire: clearer high-resolution artwork, a larger default icon, and short buff labels such as Rested XP and Crit Strike 2%.
 
 ## 0.5.15-beta
