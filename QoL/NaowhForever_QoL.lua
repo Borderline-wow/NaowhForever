@@ -58,6 +58,10 @@ local S = UI.ModuleSettings("qol", {
     restock = true, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
     restockFood = true, restockFoodBelow = 10, restockFoodMinLevel = 0, restockFoodMaxLevel = 60, restockVendor = true, restockBagsBelow = 4,
     restockBuy = false,
+    bagSpace = false, bagSpaceCount = 4, bagSpaceSize = 36, bagSpaceGrow = "RIGHT",
+    bagSpaceMaxQuality = 2, bagSpaceJunkFirst = false, bagSpaceAuction = true,
+    bagSpaceProtect = true, bagSpaceFreeBelow = 0, bagSpaceHideCombat = true,
+    bagSpaceOnFull = true, bagSpaceShowFree = true, bagSpaceStack = true, bagSpaceOldFirst = false,
     dqTracker = true, dqShowDone = false, dqAllFactions = false, dqOutside = false,
     dqSingle = false, dqSelected = "",
     townCapitalsOnly = true, townSpiritHealers = true, townZoneLinks = true,
@@ -482,6 +486,65 @@ function ns.BuildQoLLootPage(parent, y)
     for i = 2, #sliders, 2 do
         _, h = W:DualRow(parent, y, sliders[i], sliders[i + 1] or { type = "label", text = "" }); y = y - h
     end
+
+    _, h = W:SectionHeader(parent, "BAG SPACE" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpace", "Bag Space",
+            "The cheapest items in your bags as a row of icons, cheapest first. Ctrl-click an icon "
+            .. "to delete it, or click it to sell it while a vendor is open. Middle-click to ignore "
+            .. "an item. A key binding picks up the cheapest item. Move it in Unlock Mode."),
+        S.Slider("bagSpaceCount", "Items Shown", 1, 8, 1, nil, "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("bagSpaceMaxQuality", "Highest Quality Offered", QUALITY_VALUES, QUALITY_ORDER,
+            "Items above this quality are never offered.", "bagSpace"),
+        S.Toggle("bagSpaceJunkFirst", "Grey Items First",
+            "Grey items come before everything else, whatever they sell for.", "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpaceAuction", "Count Auction Prices",
+            "An item worth more at the auction house than at a vendor is valued at its auction "
+            .. "price, from your last Scan Prices or TradeSkillMaster.", "bagSpace"),
+        S.Toggle("bagSpaceProtect", "Protect Needed Items",
+            "Never offers reagents, ammo, quest items, keys, items in an equipment set or items "
+            .. "on your BiS list.", "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("bagSpaceFreeBelow", "Only With Free Slots Below", 0, 30, 1,
+            "Shows the row only once your bags are this full. 0 shows it all the time.", "bagSpace"),
+        S.Toggle("bagSpaceHideCombat", "Hide in Combat", nil, "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpaceOnFull", "Show When Bags Are Full",
+            "An \"Inventory is full\" error brings the row up for 20 seconds, even with more free "
+            .. "slots than the threshold above.", "bagSpace"),
+        S.Toggle("bagSpaceShowFree", "Show Free Slots",
+            "How many bag slots are left, above the row.", "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpaceStack", "Offer to Stack",
+            "A Stack button at the start of the row when part-filled stacks of the same item can "
+            .. "be combined, with how many slots it frees. Nothing is deleted.", "bagSpace"),
+        S.Toggle("bagSpaceOldFirst", "Outlevelled Food & Potions First",
+            "Food, drink and potions 10 or more levels below you are marked OLD; this puts them "
+            .. "first.", "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("bagSpaceSize", "Icon Size", 24, 56, 1, nil, "bagSpace"),
+        S.Dropdown("bagSpaceGrow", "Direction", DIRECTION_VALUES, DIRECTION_ORDER, nil, "bagSpace")
+    ); y = y - h
+    local keyRow
+    keyRow, h = W:DualRow(parent, y,
+        { type = "label", text = "Pick Up Cheapest Item" },
+        { type = "label", text = "" }
+    ); y = y - h
+    if ns.KeyField then
+        ns.KeyField(keyRow._leftRegion, "NAOWHFOREVER_BAGSPACE_PICKUP", "Pick Up Cheapest Item")
+    end
+    _, h = W:Button(parent, "Ignore List", y, function()
+        if ns.ShowBagSpaceIgnoreList then ns.ShowBagSpaceIgnoreList() end
+    end); y = y - h
+
     _, h = W:SectionHeader(parent, "LOOT FEED" .. STATUS.ready, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("lootFeed", "Loot Feed",
