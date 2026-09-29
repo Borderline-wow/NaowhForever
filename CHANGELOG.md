@@ -37,6 +37,9 @@
   already in use, the message now says the key "is now bound to" the new action.
 - Campfire: clearer high-resolution artwork, a larger default icon, and short buff labels such as Rested XP and Crit Strike 2%.
 
+### Fixed
+- Trinket bar: clicking an empty trinket slot no longer throws a Lua error, and hovering a slot shows the equipped trinket's tooltip instead of usage instructions (those stay on the Trinkets settings page).
+
 ## 0.5.15-beta
 
 ### Added

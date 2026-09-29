@@ -522,7 +522,6 @@ do
                 local slot = i + 12
                 local button = CreateFrame("Button", nil, trinkets, "SecureActionButtonTemplate")
                 button:RegisterForClicks("AnyUp", "AnyDown")
-                button:SetAttribute("type1", "item")
                 button:SetAttribute("item1", tostring(slot))
                 button.icon = button:CreateTexture(nil, "ARTWORK")
                 button.icon:SetPoint("TOPLEFT", 1, -1)
@@ -531,7 +530,16 @@ do
                 button:SetScript("PostClick", function(self, mouse, down)
                     if mouse == "RightButton" and not down then Choose(self, slot) end
                 end)
-                ns.Tooltip(button, "Trinket " .. i, "Left-click to use. Right-click to choose a carried trinket out of combat.")
+                button:SetScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    if GetInventoryItemID("player", slot) then
+                        GameTooltip:SetInventoryItem("player", slot)
+                    else
+                        GameTooltip:SetText("Trinket " .. i .. " - Empty")
+                    end
+                    GameTooltip:Show()
+                end)
+                button:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 trinkets.buttons[i] = button
             end
             trinkets.mover = ns.UI.AttachMover(trinkets, "Trinkets", function(pos) S.Set("trinketPos", pos) end)
@@ -547,6 +555,8 @@ do
             button:ClearAllPoints()
             button:SetPoint("LEFT", (i - 1) * (size + gap), 0)
             button.icon:SetTexture(GetInventoryItemTexture("player", i + 12) or 134400)
+            -- The secure item action errors on an empty slot (nil link into C_Item.IsEquippableItem).
+            button:SetAttribute("type1", GetInventoryItemID("player", i + 12) and "item" or nil)
         end
         trinkets.mover:SetShown(moving == true)
         trinkets:Show()
