@@ -63,6 +63,9 @@ jobs:
       - name: Run the regression tests
         run: bash Tools/regression/run-all.sh
 
+      - name: Test the release script
+        run: python3 -m unittest discover -s Tools/tests
+
   pr-rules:
     name: pr-rules
     runs-on: ubuntu-24.04

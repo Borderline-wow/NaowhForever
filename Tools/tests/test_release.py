@@ -1,0 +1,169 @@
+"""Tests for Tools/release.py, each in a throwaway git repo. From the repo root:
+
+    python -m unittest discover -s Tools/tests
+"""
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import release  # noqa: E402
+
+CHANGELOG = "# Changelog\r\n\r\n## Unreleased\r\n\r\n### Fixed\r\n- A fix.\r\n\r\n## 0.5.16-beta\r\n\r\n- Old.\r\n"
+TOC = "## Interface: 16001\r\n## Title: Naowh Forever\r\n## Version: 0.5.16-beta\r\nCore\\NaowhForever_Core.lua\r\n"
+CORE = 'local ns = {}\r\nns.CODE_BUILD = "0.5.16-beta"\r\nreturn ns\r\n'
+
+
+class ReleaseTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.git("init", "-q")
+        self.files({release.CHANGELOG: CHANGELOG, release.TOC: TOC, release.CORE: CORE})
+        self.commit("chore(release): 0.5.16-beta")
+        self.tag("0.5.16-beta")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def git(self, *args):
+        subprocess.run(["git", "-c", "user.name=test", "-c", "user.email=test@example.com",
+                        "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false", *args],
+                       cwd=self.root, check=True, capture_output=True)
+
+    def files(self, contents):
+        for name, text in contents.items():
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write(text)
+
+    def commit(self, message):
+        self.git("add", "-A")
+        self.git("commit", "-q", "--allow-empty", "-m", message)
+
+    def tag(self, name):
+        self.git("tag", name)
+
+    def read(self, name):
+        with open(self.root / name, encoding="utf-8", newline="") as f:
+            return f.read()
+
+    def assertUnchanged(self):
+        self.assertEqual(self.read(release.CHANGELOG), CHANGELOG)
+        self.assertEqual(self.read(release.TOC), TOC)
+        self.assertEqual(self.read(release.CORE), CORE)
+
+    def test_next_patch_after_the_newest_tag(self):
+        self.tag("0.5.9-beta")  # sorts by number, not text
+        self.assertEqual(release.prepare(self.root), "0.5.17-beta")
+        self.assertEqual(self.read(release.CHANGELOG),
+                         CHANGELOG.replace("## Unreleased", "## 0.5.17-beta"))
+        self.assertEqual(self.read(release.TOC),
+                         TOC.replace("## Version: 0.5.16-beta", "## Version: 0.5.17-beta"))
+        self.assertEqual(self.read(release.CORE), CORE.replace("0.5.16-beta", "0.5.17-beta"))
+
+    def test_given_version(self):
+        self.assertEqual(release.prepare(self.root, "0.6.0-beta"), "0.6.0-beta")
+        self.assertIn("## 0.6.0-beta\r\n", self.read(release.CHANGELOG))
+        self.assertIn('ns.CODE_BUILD = "0.6.0-beta"\r\n', self.read(release.CORE))
+
+    def test_version_already_set_by_hand(self):
+        bumped = {release.CHANGELOG: CHANGELOG.replace("## Unreleased", "## 0.5.17-beta"),
+                  release.TOC: TOC.replace("0.5.16-beta", "0.5.17-beta"),
+                  release.CORE: CORE.replace("0.5.16-beta", "0.5.17-beta")}
+        self.files(bumped)
+        self.assertEqual(release.prepare(self.root), "0.5.17-beta")
+        for name, text in bumped.items():
+            self.assertEqual(self.read(name), text)
+
+    def test_refuses_and_changes_nothing(self):
+        cases = {
+            "empty Unreleased": ({release.CHANGELOG: "## Unreleased\r\n\r\n## 0.5.16-beta\r\n"}, None),
+            "existing tag": ({}, "0.5.16-beta"),
+            "bad version": ({}, "v1"),
+            "no changelog section": ({release.CHANGELOG: "## 0.5.16-beta\r\n- Old.\r\n"}, None),
+            "no CODE_BUILD": ({release.CORE: "local ns = {}\r\n"}, None),
+            "old section of the same number": (
+                {release.CHANGELOG: "## 0.5.16-beta\r\n- Old.\r\n\r\n## 1.0.0\r\n- Older.\r\n"}, "1.0.0"),
+        }
+        for label, (contents, version) in cases.items():
+            with self.subTest(label):
+                self.files({release.CHANGELOG: CHANGELOG, release.TOC: TOC, release.CORE: CORE})
+                self.files(contents)
+                before = {name: self.read(name) for name in (release.CHANGELOG, release.TOC, release.CORE)}
+                with self.assertRaises(release.ReleaseError):
+                    release.prepare(self.root, version)
+                for name, text in before.items():
+                    self.assertEqual(self.read(name), text)
+
+    def test_notes(self):
+        for message in ("feat(bag-space): show the stack total", "fix: trinket bar error",
+                        "perf: no garbage per scan", "docs: rewrite the README",
+                        "Old style subject", "chore(release): 0.5.17-beta"):
+            self.commit(message)
+        release.prepare(self.root, "0.5.17-beta")
+        self.tag("0.5.17-beta")
+        text = release.notes(self.root, "0.5.17-beta")
+        self.assertTrue(text.startswith("## What's new\n\n### Fixed\n- A fix.\n\n## Commits since 0.5.16-beta\n"))
+        self.assertIn("### Features\n\n- **bag-space:** show the stack total (", text)
+        self.assertIn("### Fixes\n\n- trinket bar error (", text)
+        self.assertIn("### Performance\n\n- no garbage per scan (", text)
+        # Newest first, like git log.
+        self.assertIn("### Other changes\n\n- Old style subject (", text)
+        self.assertIn("- rewrite the README (", text)
+        self.assertNotIn("chore(release)", text)
+        self.assertLess(text.index("### Features"), text.index("### Other changes"))
+
+    def test_main_reports_errors(self):
+        self.assertEqual(release.main(["prepare", "--version", "v1"]), 1)
+
+    def test_bumps(self):
+        cases = [
+            ("patch", None, "0.5.17-beta"),
+            ("minor", None, "0.6.0-beta"),
+            ("major", None, "1.0.0-beta"),
+            ("major", False, "1.0.0"),
+            ("patch", True, "0.5.17-beta"),
+        ]
+        for bump, beta, expected in cases:
+            with self.subTest(bump=bump, beta=beta):
+                self.assertEqual(release.next_version("0.5.16-beta", bump, beta), expected)
+        self.assertEqual(release.next_version("1.0.0", "minor", None), "1.1.0")
+        self.assertEqual(release.next_version("1.0.0", "patch", True), "1.0.1-beta")
+
+    def test_newest_tag_prefers_the_final_release(self):
+        self.tag("1.0.0-beta")
+        self.tag("1.0.0")
+        self.assertEqual(release.newest_tag(self.root), "1.0.0")
+
+    def test_start_next_after_a_release(self):
+        release.prepare(self.root, "0.5.17-beta")
+        self.assertTrue(release.start_next(self.root))
+        self.assertEqual(self.read(release.CHANGELOG),
+                         "# Changelog\r\n\r\n## Unreleased\r\n\r\n## 0.5.17-beta\r\n\r\n### Fixed\r\n"
+                         "- A fix.\r\n\r\n## 0.5.16-beta\r\n\r\n- Old.\r\n")
+        self.assertFalse(release.start_next(self.root))  # already there: no change
+
+    def test_start_next_keeps_lf(self):
+        self.files({release.CHANGELOG: "# Changelog\n\n## 1.0.0\n- Done.\n"})
+        release.start_next(self.root)
+        self.assertEqual(self.read(release.CHANGELOG),
+                         "# Changelog\n\n## Unreleased\n\n## 1.0.0\n- Done.\n")
+
+    def test_before_one_is_always_a_pre_release(self):
+        with self.assertRaises(release.ReleaseError):
+            release.prepare(self.root, bump="minor", beta=False)
+        self.assertUnchanged()
+        self.assertEqual(release.prepare(self.root, "0.6.0-alpha"), "0.6.0-alpha")
+
+    def test_prepare_with_bump_and_no_beta(self):
+        self.assertEqual(release.prepare(self.root, bump="major", beta=False), "1.0.0")
+        self.assertIn("## Version: 1.0.0\r\n", self.read(release.TOC))
+        self.assertIn('ns.CODE_BUILD = "1.0.0"\r\n', self.read(release.CORE))
+
+
+if __name__ == "__main__":
+    unittest.main()

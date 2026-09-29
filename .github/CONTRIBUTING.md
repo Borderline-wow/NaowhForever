@@ -80,8 +80,8 @@ comment, sent back for changes, or merged and fixed up by me.
 
 - Add a line under `## Unreleased` in `CHANGELOG.md`, written for players: what changed
   for them and where to find it.
-- Do **not** touch the TOC `## Version`, `ns.CODE_BUILD` or tags. That is the release
-  commit's job.
+- Do **not** touch the TOC `## Version`, `ns.CODE_BUILD` or tags. The Release workflow
+  sets them (README, "Releasing a new version").
 
 ## Getting set up
 
@@ -99,7 +99,7 @@ Every pull request runs these on GitHub. Get them green before you ask for a rev
 | Check | What it looks at |
 | --- | --- |
 | `pre-commit` | luacheck; CRLF and ASCII in addon files; every TOC file exists with the right letter case; valid XML and YAML; merge markers, trailing whitespace, mixed line endings, private keys and files over 5 MB; the workflows through actionlint and zizmor. The list is in `.pre-commit-config.yaml`. |
-| `tests` | Every test in `Tools/regression` on Lua 5.1, including `test-syntax.lua`, which compiles every file the TOC loads, so `goto` or `//` fails here instead of at login. |
+| `tests` | Every test in `Tools/regression` on Lua 5.1, including `test-syntax.lua`, which compiles every file the TOC loads, so `goto` or `//` fails here instead of at login; and the release script's tests in `Tools/tests`. |
 | `pr-rules` | Addon changes add a line under `## Unreleased` in `CHANGELOG.md`, and the TOC `## Version` and `ns.CODE_BUILD` stay as they are. Label the PR `no changelog` when nothing changes for players, or `release` for the release commit. |
 | `package` | The release packager builds the zip without uploading it, then every TOC file and library must be inside and no tooling may ship. |
 | `title` | The PR title is `type: summary` (see [PR etiquette](#pr-etiquette)), since a squash merge turns it into the commit on main. |
@@ -162,6 +162,7 @@ package manager's Lua 5.1 (or LuaJIT).
 pre-commit install              # checks on every commit from now on
 pre-commit run --all-files      # everything, once
 bash Tools/regression/run-all.sh
+python -m unittest discover -s Tools/tests    # the release script
 bash Tools/hooks/check-pr.sh origin/main
 ```
 

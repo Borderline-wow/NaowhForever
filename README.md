@@ -74,6 +74,39 @@ before you start: it has the rules every change is reviewed against, how to set 
 checks, and how commits and pull requests are named. For anything bigger than a fix,
 message Glyalith on [Discord](https://discord.gg/naowh) first.
 
+## Releasing a new version
+
+For maintainers. A release is one click:
+
+1. Check that everything for the release is merged into `main`, and that `## Unreleased` in
+   [CHANGELOG.md](CHANGELOG.md) says what changed for players.
+2. Open **Actions > Release > Run workflow** and keep the branch on `main`.
+3. Pick the **Bump** and click **Run workflow**:
+
+   | Bump | From `0.5.16-beta` |
+   | --- | --- |
+   | patch (default) | `0.5.17-beta` |
+   | minor | `0.6.0-beta` |
+   | major | `1.0.0-beta` |
+
+   Untick **Beta** for a full release: major without Beta gives `1.0.0`. Before 1.0.0 every
+   release is a pre-release, so the workflow refuses to run with Beta unticked. **Version**
+   takes an exact version instead, for anything the bumps can't express.
+
+The workflow then:
+
+- renames `## Unreleased` to the version, sets the TOC `## Version` and `ns.CODE_BUILD`,
+  and pushes that as `chore(release): <version>` to `main`;
+- tags the commit and builds the zip;
+- publishes the GitHub release with the player notes and every commit since the last
+  tag, uploads to CurseForge and Wago, and posts the notes to Discord;
+- puts an empty `## Unreleased` back at the top of the changelog on `main`, ready for the
+  next pull request.
+
+It stops before changing anything if `## Unreleased` is empty or not the newest section,
+the tag already exists, or the version is not like `0.5.17-beta`. Pushing a tag by hand
+still releases as before.
+
 ## License
 
 Copyright 2026 the Naowh Forever authors, all rights reserved. The bundled libraries keep
