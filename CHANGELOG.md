@@ -30,8 +30,22 @@
 - Bag Space: an item an unfinished quest in your log still needs (Okra for Westfall Stew,
   say) gets a yellow ! and goes to the end of the row, and its tooltip names the quest and
   how many you have. Deleting it takes a second Ctrl-click within 5 seconds.
+- Mail & Alts (QoL > Loot & Items, each off by default): Alt Item Counts adds how many your
+  characters on this realm and faction hold in their bags, bank and mailbox to item tooltips,
+  one line per character. An Alts button beside the mailbox's Send tab lists those characters
+  with their level and gold, and picking one fills the To box. An Attach button attaches every
+  trade good, one type of trade good, or your unbound gear in one click. Mail Expiry Warning
+  names any character whose mail expires within three days when you log in. Each character
+  is recorded once you log in on it; Forget a Character removes one you deleted.
+- Class macros: right-click a class macro's icon to pick a different icon (kept for you, not
+  shared in profile exports; Profile Icon goes back to the original). A macro with a
+  command the game does not know, a line that is not a command, or unbalanced brackets is
+  marked on the Class Macros page, and hovering its icon lists what looks wrong. Profiles can
+  give a class macro a short note, shown beside it.
 
 ### Changed
+- Class macros are now made as character macros, so they no longer fill General macro slots
+  or show on your other characters. Class macros you already made stay where they are.
 - Key bindings: Naowh Forever's bindings have their own Naowh Forever section in the game's
   Key Bindings, instead of sitting under AddOns. When a key field takes a key that was
   already in use, the message now says the key "is now bound to" the new action.

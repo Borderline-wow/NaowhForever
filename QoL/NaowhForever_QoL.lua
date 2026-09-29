@@ -47,6 +47,7 @@ local S = UI.ModuleSettings("qol", {
     lootFeedWidth = 340, lootFeedHeight = 36, lootFeedSpacing = 0, lootFeedGrowth = "up",
     lootFeedFont = "", lootFeedFontSize = 13,
     ahPrices = true, ahTooltip = true,
+    altCounts = false, mailAlts = false, mailQuickAttach = false, mailExpiry = false,
     xpTicker = true, xpTickerLevel = true, xpTickerElapsed = true, xpTickerTotal = false,
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24,
     xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true, xpTickerHistoryCount = 10,
@@ -650,6 +651,27 @@ function ns.BuildQoLLootPage(parent, y)
             "The last scanned price for one of an item, and how long ago the scan ran.")
     ); y = y - h
     _, h = W:Note(parent, ns.AuctionScanSummary(), y); y = y - h
+
+    _, h = W:SectionHeader(parent, "MAIL & ALTS" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("altCounts", "Alt Item Counts",
+            "Item tooltips show how many your characters on this realm and faction hold in "
+            .. "their bags, bank and mailbox. Each character is counted once you log in on it, "
+            .. "and its bank once you open it."),
+        S.Toggle("mailAlts", "Alts Button on Mail",
+            "An Alts button beside the mailbox's Send tab lists your characters on this realm "
+            .. "and faction with their level and gold. Pick one to fill the To box.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mailQuickAttach", "Quick Attach",
+            "An Attach button beside the mailbox's Send tab: attach every trade good, one type "
+            .. "of trade good, or your unbound gear in one click."),
+        S.Toggle("mailExpiry", "Mail Expiry Warning",
+            "At login, names any of your characters with mail that expires within three days. "
+            .. "It knows each character's mail from the last time it opened a mailbox.")
+    ); y = y - h
+    local forget
+    forget, h = W:Button(parent, "Forget a Character", y, function() ns.OpenForgetAltMenu(forget._btn) end); y = y - h
 
 
     return y

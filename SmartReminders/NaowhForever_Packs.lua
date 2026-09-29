@@ -197,7 +197,8 @@ local function ValidUtilities(data)
                 if not PositiveID(i) or i > #entries or #entries > 100 or type(entry) ~= "table"
                     or type(entry.name) ~= "string" or #entry.name < 1 or #entry.name > 16
                     or type(entry.body) ~= "string" or #entry.body < 1 or #entry.body > 255
-                    or entry.icon ~= nil and not PositiveID(entry.icon) then return false end
+                    or entry.icon ~= nil and not PositiveID(entry.icon)
+                    or entry.note ~= nil and (type(entry.note) ~= "string" or #entry.note > 200) then return false end
             end
         end
     end

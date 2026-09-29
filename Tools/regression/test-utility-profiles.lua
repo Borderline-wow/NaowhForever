@@ -62,7 +62,7 @@ Case("consumable and class macro definitions survive export, decode and merge", 
     local mine = e.ns.EnsureProfile("Naowh")
     mine.utilityReminders = {
         consumables = { { category = "food", itemID = 123, auras = { 456, 789 } } },
-        classMacros = { PALADIN = { { name = "Example", body = "/say example", icon = 134400 } } },
+        classMacros = { PALADIN = { { name = "Example", body = "/say example", icon = 134400, note = "Says hi" } } },
     }
     local serialized
     local serializer = { Serialize = function(_, payload) serialized = payload; return "payload" end,
@@ -80,6 +80,7 @@ Case("consumable and class macro definitions survive export, decode and merge", 
     local imported = e.profiles.Other.utilityReminders
     assert(imported.consumables[1].auras[2] == 789)
     assert(imported.classMacros.PALADIN[1].body == "/say example")
+    assert(imported.classMacros.PALADIN[1].note == "Says hi")
     imported.consumables[1].itemID = 999
     assert(mine.utilityReminders.consumables[1].itemID == 123)
 end)
@@ -96,6 +97,9 @@ Case("invalid definitions reject the entire import", function()
     end
     assert(not e.ns.MergeProfileFromPack({ data = { utilityReminders = { classMacros = {
         PALADIN = { { name = "Bad", body = string.rep("x", 256) } },
+    } } } }, nil, "Other"))
+    assert(not e.ns.MergeProfileFromPack({ data = { utilityReminders = { classMacros = {
+        PALADIN = { { name = "Bad", body = "/say x", note = 5 } },
     } } } }, nil, "Other"))
 end)
 Case("a spec-only merge preserves utility definitions unless extras are selected", function()

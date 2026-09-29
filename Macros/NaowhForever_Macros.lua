@@ -52,9 +52,155 @@ local function MacroIcon(key, text, tooltip)
         onRightClick = function() ns.RemoveManagedMacro(key) end }
 end
 
+local ICON = 134400     -- question mark, so #showtooltip shows the item
+local SCRIPT_COMMANDS = { ["/run"] = true, ["/script"] = true, ["/dump"] = true }
+
+-- Every slash command and emote the client knows, from its SLASH_ and EMOTE_CMD strings.
+-- Commands from addons that are not loaded are missing, so an unknown command is a warning.
+local knownCommands
+local function KnownCommands()
+    if knownCommands then return knownCommands end
+    knownCommands = {}
+    for key, value in pairs(_G) do
+        if type(key) == "string" and type(value) == "string"
+            and (key:find("^SLASH_") or key:find("^EMOTE%d+_CMD%d+$")) and value:sub(1, 1) == "/" then
+            knownCommands[value:lower()] = true
+        end
+    end
+    return knownCommands
+end
+
+-- Problems a player would hit when the macro runs: unknown commands, lines that are not
+-- commands, and unbalanced brackets. Script lines are Lua, so only their command is checked.
+function ns.MacroProblems(body)
+    local problems, n = {}, 0
+    for line in (body .. "\n"):gmatch("([^\n]*)\n") do
+        n = n + 1
+        local text = strtrim(line)
+        if text ~= "" and text:sub(1, 1) ~= "#" then
+            local command = text:match("^(/%S+)")
+            if not command then
+                problems[#problems + 1] = ("Line %d does not start with / or #."):format(n)
+            else
+                command = command:lower()
+                if not (command:find("^/%d+$") or KnownCommands()[command]) then
+                    problems[#problems + 1] = ("Line %d: %s is not a command the game knows."):format(n, command)
+                end
+                if not SCRIPT_COMMANDS[command] then
+                    local _, open = text:gsub("%[", "")
+                    local _, close = text:gsub("%]", "")
+                    if open ~= close then
+                        problems[#problems + 1] = ("Line %d has %d [ but %d ]."):format(n, open, close)
+                    end
+                end
+            end
+        end
+    end
+    return problems
+end
+
+local icons
+local function MacroIcons()
+    if not icons then
+        local all = {}
+        GetLooseMacroIcons(all)
+        GetLooseMacroItemIcons(all)
+        GetMacroIcons(all)
+        GetMacroItemIcons(all)
+        icons = {}
+        for _, icon in ipairs(all) do
+            local id = tonumber(icon)
+            if id then icons[#icons + 1] = id end
+        end
+    end
+    return icons
+end
+
+local PICKER_COLS, PICKER_ROWS, PICKER_ICON = 10, 7, 32
+
+-- Picked icons are the player's own, kept by macro name outside the profile so a pack
+-- export never carries them and Profile Icon can always go back to the author's choice.
+local function IconChoices()
+    local account = ns.AccountSettings()
+    account.macroIcons = account.macroIcons or {}
+    return account.macroIcons
+end
+
+local function EntryIcon(entry)
+    return IconChoices()[entry.name] or entry.icon
+end
+
+local function SetEntryIcon(entry, icon)
+    if InCombatLockdown() then ns.Print("Change macro icons outside combat.") return end
+    IconChoices()[entry.name] = icon
+    local index = GetMacroIndexByName(entry.name)
+    if index > 0 and GetMacroBody(index) == entry.body then
+        EditMacro(index, entry.name, EntryIcon(entry) or ICON)
+    end
+    if UI.RefreshPage then UI:RefreshPage(true) end
+end
+
+local function OpenIconPicker(entry)
+    local list = MacroIcons()
+    local perPage = PICKER_COLS * PICKER_ROWS
+    local pages = math.max(1, math.ceil(#list / perPage))
+    local page = 1
+    local dimmer, panel = ns.MakeModal(PICKER_COLS * (PICKER_ICON + 4) + 28,
+        PICKER_ROWS * (PICKER_ICON + 4) + 100, "macroIconPicker")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
+    head:SetPoint("TOP", 0, -12)
+    head:SetText("Icon for " .. entry.name)
+    local label = UI.KeepFont(panel, "page", 12)
+    label:SetPoint("BOTTOM", 0, 22)
+    local buttons = {}
+    local function Fill()
+        label:SetText(("Page %d of %d"):format(page, pages))
+        for i, button in ipairs(buttons) do
+            local icon = list[(page - 1) * perPage + i]
+            button.icon = icon
+            button.tex:SetTexture(icon)
+            button:SetShown(icon ~= nil)
+        end
+    end
+    for i = 1, perPage do
+        local button = UI.Keep(panel, "icon", function(p)
+            local b = CreateFrame("Button", nil, p)
+            b:SetSize(PICKER_ICON, PICKER_ICON)
+            b.tex = b:CreateTexture(nil, "ARTWORK")
+            b.tex:SetAllPoints()
+            b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+            return b
+        end)
+        local col, row = (i - 1) % PICKER_COLS, math.floor((i - 1) / PICKER_COLS)
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", 14 + col * (PICKER_ICON + 4), -38 - row * (PICKER_ICON + 4))
+        button:SetScript("OnClick", function(self)
+            dimmer:Hide()
+            SetEntryIcon(entry, self.icon)
+        end)
+        buttons[i] = button
+    end
+    local function Turn(step)
+        page = math.min(pages, math.max(1, page + step))
+        Fill()
+    end
+    UI.KeepButton(panel, "prev", "<", 30, 24, function() Turn(-1) end):SetPoint("BOTTOMLEFT", 14, 14)
+    UI.KeepButton(panel, "next", ">", 30, 24, function() Turn(1) end):SetPoint("BOTTOMLEFT", 48, 14)
+    UI.KeepButton(panel, "default", "Profile Icon", 80, 24, function()
+        dimmer:Hide()
+        SetEntryIcon(entry, nil)
+    end):SetPoint("BOTTOMRIGHT", -98, 14)
+    UI.KeepButton(panel, "close", "Close", 80, 24, function() dimmer:Hide() end):SetPoint("BOTTOMRIGHT", -14, 14)
+    panel:EnableMouseWheel(true)
+    panel:SetScript("OnMouseWheel", function(_, delta) Turn(-delta) end)
+    Fill()
+    dimmer:Show()
+end
+
 function ns.BuildClassMacrosPage(parent, y)
     local W = UI.Widgets
-    local _, h = W:Note(parent, "Class macros are supplied by your profile. Click or drag an icon to put its macro on your action bar.", y)
+    local _, h = W:Note(parent, "Class macros are supplied by your profile and saved as character macros. "
+        .. "Click or drag an icon to put its macro on your action bar, or right-click it to pick another icon.", y)
     y = y - h
     local _, class = UnitClass("player")
     local entries = (S.Get("classMacros") or {})[class] or {}
@@ -63,11 +209,18 @@ function ns.BuildClassMacrosPage(parent, y)
         return y - h
     end
     for _, entry in ipairs(entries) do
+        local body = type(entry.body) == "string" and entry.body or ""
+        local problems = ns.MacroProblems(body)
+        local tip = body
+        if entry.note then tip = entry.note .. "\n\n" .. tip end
+        if #problems > 0 then tip = tip .. "\n\n|cffff8000" .. table.concat(problems, "\n") .. "|r" end
+        local text = entry.note or "Click or drag to action bar"
+        if #problems > 0 then text = "|cffff8000May not work: hover the icon|r" end
         _, h = W:DualRow(parent, y,
-            { type = "iconbutton", text = entry.name or "Class Macro", icon = entry.icon,
-                tooltip = type(entry.body) == "string" and entry.body or nil,
-                onClick = function() ns.PickupProfileMacro(entry) end },
-            { type = "label", text = "Click or drag to action bar" }); y = y - h
+            { type = "iconbutton", text = entry.name or "Class Macro", icon = EntryIcon(entry), tooltip = tip,
+                onClick = function() ns.PickupProfileMacro(entry) end,
+                onRightClick = function() OpenIconPicker(entry) end },
+            { type = "label", text = text }); y = y - h
     end
     return y
 end
@@ -135,7 +288,6 @@ local CONJURED = {
     [1113] = true, [5349] = true,
 }
 local FOOD_SPELL, DRINK_SPELL = 433, 430
-local ICON = 134400     -- question mark, so #showtooltip shows the item
 
 local MACROS = {
     { key = "health", name = "NF Health" },
@@ -147,7 +299,8 @@ local MACROS = {
     { key = "focus", name = "NF Focus" },
 }
 
-local ready, pending, warnedFull
+local ready, pending
+local warnedFull = {}
 local toDelete = {}
 
 local function FirstCarried(list)
@@ -216,22 +369,29 @@ local BODIES = {
     end,
 }
 
-local function Write(m, body)
+local function Write(m, body, perCharacter)
     local index = GetMacroIndexByName(m.name)
     if index > 0 then
         if GetMacroBody(index) ~= body then EditMacro(index, m.name, ICON, body) end
         return
     end
-    local accountCount = GetNumMacros()
-    if accountCount >= Constants.MacroConsts.MAX_ACCOUNT_MACROS then
-        if not warnedFull then
-            warnedFull = true
-            ns.Print("General macros are full, so " .. m.name
+    local accountCount, characterCount = GetNumMacros()
+    local full
+    if perCharacter then
+        full = characterCount >= Constants.MacroConsts.MAX_CHARACTER_MACROS
+    else
+        full = accountCount >= Constants.MacroConsts.MAX_ACCOUNT_MACROS
+    end
+    if full then
+        local scope = perCharacter and "character" or "general"
+        if not warnedFull[scope] then
+            warnedFull[scope] = true
+            ns.Print((perCharacter and "Character" or "General") .. " macros are full, so " .. m.name
                 .. " could not be made. Delete one and it will be added.")
         end
         return
     end
-    CreateMacro(m.name, m.icon or ICON, body, false)
+    CreateMacro(m.name, m.icon or ICON, body, perCharacter or false)
 end
 
 local function Update()
@@ -278,8 +438,6 @@ function ns.RemoveManagedMacro(key)
     if UI.RefreshPage then UI:RefreshPage(true) end
 end
 
-local SCRIPT_COMMANDS = { ["/run"] = true, ["/script"] = true, ["/dump"] = true }
-
 function ns.PickupProfileMacro(entry)
     if InCombatLockdown() or not ready or not S.Get("enabled") then return end
     if type(entry.name) ~= "string" or #entry.name < 1 or #entry.name > 16
@@ -294,9 +452,13 @@ function ns.PickupProfileMacro(entry)
     end
     local function Place()
         if InCombatLockdown() then return end
-        Write(entry, entry.body)
+        Write({ name = entry.name, icon = EntryIcon(entry) }, entry.body, true)
         local placed = GetMacroIndexByName(entry.name)
         if placed > 0 then PickupMacro(placed) end
+        local problems = ns.MacroProblems(entry.body)
+        if #problems > 0 then
+            ns.Print(entry.name .. " may not work: " .. table.concat(problems, " "))
+        end
     end
     -- Profile macros come from shared packs, so script lines need the player's say-so.
     if index == 0 then
