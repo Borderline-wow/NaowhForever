@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- Supporter Badges: Legendary patrons on Naowh's Patreon now get the Naowh Forever N next
+  to their name in chat, seen by everyone with the addon. Hover their name for their card,
+  with how long they've been supporting, and their player tooltip shows it too. Type
+  /nf badges id to get the code that links your characters. Naowh, the developers and the
+  moderators have their own badges. Turn each part off in QoL > Interface > Supporter
+  Badges, where you can also turn on a banner for when one of them joins your group.
+
 ### Changed
 - Dungeon Quests: click a step in a quest's Chain list for a waypoint to where it starts,
   or for a step in your log, to where the game sends you for it.

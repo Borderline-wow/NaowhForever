@@ -36,10 +36,12 @@ and a lot of quality of life, all in one window.
 | **Swing Timer** | Your swings from the game's own timer, with marks for timing around them. |
 | **Top Bar** | Friends, guild, the clock and your addon buttons across the top of the screen. |
 | **Quality of Life** | Questing, loot and bag space, alerts, casting, tooltips, trainer ranks, flight and camp, mail and more. |
+| **Supporter Badges** | The Naowh Forever N next to the name of Naowh, the devs, the mods and our Legendary patrons. See [Supporter badges](#supporter-badges). |
 
 > [!TIP]
 > Every module starts **off**. Turn on only what you want; anything you leave off costs
-> nothing, not even a registered event.
+> nothing, not even a registered event. Supporter badges are the exception: they start on so
+> everyone sees them, and each part can be turned off.
 
 Settings live in **Profiles**, so you can switch between them, copy them to another
 character or share them with a friend.
@@ -64,8 +66,72 @@ character or share them with a friend.
 | `/nfthreat` | Threat Meter |
 | `/nf quiz` | A WoW quiz for flights and campfires |
 | `/copy` | The text under your mouse, ready to copy (turn on Global Copy in QoL > Tools) |
+| `/nf badges id` | Your badge code, for all your characters (see [Supporter badges](#supporter-badges)) |
 
 You can also open the window from the addon compartment next to the minimap.
+
+## Supporter badges
+
+Naowh, the developers, the moderators and the Legendary patrons on Naowh's Patreon get the
+Naowh Forever N next to their name in chat. Hover the name for their card. If you turn it
+on, a banner also shows when they join your group.
+
+Everyone with Naowh Forever sees them. You can turn each part off in **QoL > Interface >
+Supporter Badges**: chat badges, the hover card and the tooltip line start on, the group
+banner starts off, and there's an option to skip the banner for your own guild.
+
+| Badge | Who |
+| --- | --- |
+| Founder (gold) | Naowh |
+| Developer (blue) | The people building Naowh Forever |
+| Moderator (purple) | The people keeping the community running |
+| Legendary Patron (orange) | Legendary tier on Naowh's Patreon |
+
+### Getting your badge
+
+The badge is tied to your characters, not your name, so we need their IDs. You only do this
+once.
+
+1. Log into every character you want the badge on, once. The addon remembers them.
+2. Type `/nf badges id`. A box opens with one code for all of them, like
+   `90:Player-4613-006EB819,Player-4613-00ABCDEF`.
+3. Press **Ctrl+C** to copy it.
+4. Send it:
+   - **Legendary patrons:** paste it on naowh.gg after logging in with Patreon. Until that
+     page is live, send it to the team on [Discord](https://discord.gg/naowh).
+   - **Developers and moderators:** send it to Dieman or Glyalith.
+
+Your badge shows up with the next release. Made a new alt? Log into it, run `/nf badges id`
+again and send the new code.
+
+**Don't have the addon yet?** This line prints the same code for the character you're on:
+
+```
+/run print(GetCurrentRegion()..":"..UnitGUID("player"))
+```
+
+Run it on each character. To send several at once, keep the number before the `:` once and
+join the rest with commas: `90:Player-4613-006EB819,Player-4613-00ABCDEF`. The first time,
+the game may ask you to allow scripts.
+
+The code only has your region and your characters' IDs. No names, nothing else.
+
+### Adding staff (maintainers)
+
+Staff are in `Badges/NaowhForever_BadgesStaff.lua`, by region and then character ID. The
+number before the `:` in the code is the region. Forever has its own region numbers, not
+retail's 1 to 5, so always copy it from the code. For `90:Player-4613-006EB819`:
+
+```lua
+[90] = {
+    ["Player-4613-006EB819"] = { tier = "developer", title = "Lead Developer" },
+},
+```
+
+Tiers are `naowh`, `developer` and `moderator`; `title` is optional. Add one line per
+character in the code. Don't edit `Badges/NaowhForever_BadgesPatrons.lua`: the patron sync
+writes it. Staff can check a badge with
+`/nf badges preview [naowh|developer|moderator|legendary]` and `/nf badges toast`.
 
 ## Contributing
 

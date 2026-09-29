@@ -40,6 +40,10 @@ local S = UI.ModuleSettings("qol", {
     combatTimerFont = "", combatTimerFontSize = 32,
     combatLogger = false,
     globalCopy = false, copyTooltipIds = true, copyModifier = "CTRL", copyKey = "C",
+    -- Supporter badges. On by default so everyone sees them, except the group banner, which
+    -- Naowh asked to start off.
+    badgeChat = true, badgeCard = true, badgeTooltip = true,
+    badgeBanner = false, badgeBannerSkipGuild = true,
     tooltipDisplay = true, tooltipSpellID = true, tooltipNPCID = true, tooltipItemID = true,
     tooltipRestricted = "hide", tooltipCopy = true, tooltipModifier = "CTRL-SHIFT", tooltipKey = "C",
     tooltipCopyFormat = "url", tooltipWowhead = "classic",
@@ -944,6 +948,25 @@ function ns.BuildQoLInterfacePage(parent, y)
         S.Toggle("cursorClip", "Keep Cursor In Window During Combat",
             "Stops the cursor leaving the game window while you fight, for a second monitor. "
             .. "Your own setting comes back afterwards.")
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "SUPPORTER BADGES", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("badgeChat", "Chat Badges",
+            "The Naowh Forever N next to the name of Naowh, the developers, the moderators and "
+            .. "our Legendary patrons in chat."),
+        S.Toggle("badgeCard", "Hover Card",
+            "Hover a badged name in chat to see their card.", "badgeChat")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("badgeTooltip", "Tooltip Line",
+            "A line in their colour on their player tooltip."),
+        S.Toggle("badgeBanner", "Group Banner",
+            "A banner and a sound when one of them joins your group.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("badgeBannerSkipGuild", "No Banner For Guild Members",
+            "Skips the banner when they're in your guild.", "badgeBanner")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "CROSSHAIR" .. STATUS.untested, y); y = y - h

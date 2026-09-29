@@ -130,4 +130,8 @@ AuraBuffs\NaowhForever_Campfire.lua
 AuraBuffs\NaowhForever_LowHealth.lua
 AuraBuffs\NaowhForever_BuffReminderData.lua
 AuraBuffs\NaowhForever_BuffReminders.lua
+# Supporter badges: the staff and patron lists, then the chat name filter and card that read it.
+Badges\NaowhForever_BadgesStaff.lua
+Badges\NaowhForever_BadgesPatrons.lua
+Badges\NaowhForever_Badges.lua
 Core\NaowhForever_PatchNotes.lua

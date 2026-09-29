@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime.version": "Lua 5.1",
+  "workspace.ignoreDir": ["Libs", ".release", ".claude"],
+  "workspace.checkThirdParty": false,
+  "diagnostics.disable": [
+    "undefined-global",
+    "lowercase-global",
+    "need-check-nil",
+    "undefined-field",
+    "inject-field",
+    "redundant-parameter",
+    "param-type-mismatch",
+    "assign-type-mismatch",
+    "cast-local-type"
+  ]
+}
