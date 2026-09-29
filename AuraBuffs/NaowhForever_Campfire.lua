@@ -50,7 +50,7 @@ local function Build()
 
     icon.tex = icon:CreateTexture(nil, "ARTWORK")
     icon.tex:SetAllPoints()
-    icon.tex:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\Campfire.tga")
+    icon.tex:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\CampfireHD.tga")
     icon.plate = icon:CreateTexture(nil, "BACKGROUND", nil, 1)
     icon.plate:SetAllPoints()
     icon.plate:SetColorTexture(0.14, 0.15, 0.16, 1)
@@ -219,23 +219,41 @@ local function SetAlert(show)
     alert:SetShown(show)
 end
 
--- The camp buffs currently up, one per line. Most are hidden auras the client does not
--- hand to addons (the Camp Chair buff reads as absent while Blizzard's tooltip shows it,
--- confirmed 2026-09-24), so they are read off Camp Benefits' own tooltip, which has one
--- "Camp Chair: effect" line per benefit. Its header line ends in a bare colon and is skipped,
--- and so is the time left line, whose "|4minute:minutes;" plural code carries a colon too:
--- a camp object's name never holds a digit or an escape code. The Forever client also adds a
--- "Spell ID: 1229741" line to the tooltip data, so a label ending in ID is skipped as well.
+-- Keep the display compact; unknown effects use the camp object's name.
+local function ShortCampBuff(label, effect)
+    local lower = effect:lower()
+    if lower:find("rest experience", 1, true) or lower:find("rested", 1, true) then
+        return "Rested XP"
+    end
+    local percent = effect:match("(%d+%.?%d*%%)")
+    if percent and lower:find("critical strike", 1, true) then
+        return "Crit Strike " .. percent
+    end
+    if lower:find("mana", 1, true) and lower:find("regen", 1, true) then
+        return "Mana Regen" .. (percent and " " .. percent or "")
+    end
+    if #effect > 0 and #effect <= 28 then return effect end
+    return label
+end
+
+-- Only readable benefit rows, excluding the tooltip header, timer and ID metadata.
 local function ActiveBuffs(aura)
     local data = C_TooltipInfo.GetUnitBuffByAuraInstanceID("player", aura.auraInstanceID)
-    local names = {}
+    local names, seen = {}, {}
     for i, line in ipairs(data and data.lines or {}) do
         local text = line.leftText
         if i > 1 and type(text) == "string" and not (issecretvalue and issecretvalue(text)) then
+            text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
             for row in text:gmatch("[^\n]+") do
                 local label = row:match("^%s*([^:]+):%s*%S")
                 if label and not label:find("[%d|]") and not label:find("ID$") then
-                    names[#names + 1] = row:match("^[^:]+:%s*(.-)%s*$") or label
+                    label = label:match("^%s*(.-)%s*$")
+                    local effect = row:match("^[^:]+:%s*(.-)%s*$") or ""
+                    local short = ShortCampBuff(label, effect)
+                    if not seen[short] then
+                        names[#names + 1] = short
+                        seen[short] = true
+                    end
                 end
             end
         end
@@ -288,7 +306,7 @@ end
 function Refresh(_, event)
     if not icon then return end
     if unlocked then
-        ShowUp(3600, GetTime() + 2400, "Rested XP\nMana regeneration")
+        ShowUp(3600, GetTime() + 2400, "Rested XP\nCrit Strike 2%")
         SetAlert(S.Get("campNearbyAlert"))
         return
     end

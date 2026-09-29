@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Campfire: clearer high-resolution artwork, a larger default icon, and short buff labels such as Rested XP and Crit Strike 2%.
+
 ## 0.5.15-beta
 
 ### Added
