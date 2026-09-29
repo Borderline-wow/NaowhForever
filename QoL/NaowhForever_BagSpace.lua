@@ -19,6 +19,9 @@ local GAP = 6
 local SCAN_DELAY = 0.2
 local SAMPLE_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 local STACK_ICON = "Interface\\Icons\\INV_Misc_Bag_10"
+local BAG_ICON = "Interface\\Icons\\INV_Misc_Bag_08"
+local FULL_COLOR = { r = 1, g = 0.25, b = 0.25 }
+local LOW_COLOR = { r = 1, g = 0.6, b = 0.2 }
 local FULL_SHOW = 20      -- seconds the row stays up after an "Inventory is full" error
 local OUTLEVEL = 10       -- a consumable this many levels below you is flagged as old
 local MERGE_STEPS = 60    -- a stack merge gives up after this many moves
@@ -37,7 +40,7 @@ local PROTECTED_CLASS = {
 local frame, unlocked, atMerchant, inCombat, pendingScan, missingInfo, junkFirst, oldFirst
 local buttons = {}
 local pool, picks = {}, {}  -- scan entries are reused; picks is the sorted view
-local free, fullUntil = 0, 0
+local free, total, fullUntil = 0, 0, 0
 local setItems, setsDirty = {}, true
 local partial, stackSaves = {}, 0   -- itemID -> part-filled stacks in plain bags; slots merging frees
 local merging, mergeSteps, mergeStartFree
@@ -201,7 +204,7 @@ local function Scan()
     for i = #picks, 1, -1 do picks[i] = nil end
     wipe(partial)
     listsUsed, slotsUsed = 0, 0
-    free, missingInfo, anyLocked = 0, false, false
+    free, total, missingInfo, anyLocked = 0, 0, false, false
     if setsDirty then RebuildSets() end
     if questDirty then RebuildQuestNeeds() end
     scanIgnored, scanProtect = Ignored(), S.Get("bagSpaceProtect")
@@ -212,8 +215,9 @@ local function Scan()
     for bag = BACKPACK_CONTAINER, lastBag do
         local freeSlots, family = GetContainerNumFreeSlots(bag)
         if family == 0 then
-            free = free + (freeSlots or 0)
-            for slot = 1, GetContainerNumSlots(bag) do
+            local slots = GetContainerNumSlots(bag)
+            free, total = free + (freeSlots or 0), total + slots
+            for slot = 1, slots do
                 local info = GetContainerItemInfo(bag, slot)
                 if info and info.isLocked then anyLocked = true end
                 if info and info.itemID and not info.isLocked then
@@ -668,20 +672,28 @@ local function OnEnter(self)
         return
     end
     GameTooltip:SetBagItem(e.bag, e.slot)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddDoubleLine("Vendor", Worth(e.vendor, e.count), 1, 1, 1, 1, 1, 1)
-    local ah = AuctionEach(e.itemID, e.link)
-    GameTooltip:AddDoubleLine("Auction", ah and Worth(ah, e.count) or "|cff9a9ea6unknown|r", 1, 1, 1, 1, 1, 1)
-    if e.quest then
-        GameTooltip:AddLine("Needed for " .. QuestText(e.quest), 1, 0.82, 0)
-        GameTooltip:AddLine("|cff0091edCtrl-click|r  twice to delete", 1, 1, 1)
-    elseif e.quality > DIRECT_DELETE then
-        GameTooltip:AddLine("|cff0091edCtrl-click|r  pick up to delete", 1, 1, 1)
-    else
-        GameTooltip:AddLine("|cff0091edCtrl-click|r  delete now", 1, 1, 1)
+    -- Each added line can be turned off; the quest warning always shows, since it is what
+    -- stops a needed item going by mistake.
+    local vendor, auction = S.Get("bagSpaceTipVendor"), S.Get("bagSpaceTipAuction")
+    local deleteHint, ignoreHint = S.Get("bagSpaceTipDelete"), S.Get("bagSpaceTipIgnore")
+    if vendor or auction or deleteHint or ignoreHint or e.quest then GameTooltip:AddLine(" ") end
+    if vendor then GameTooltip:AddDoubleLine("Vendor", Worth(e.vendor, e.count), 1, 1, 1, 1, 1, 1) end
+    if auction then
+        local ah = AuctionEach(e.itemID, e.link)
+        GameTooltip:AddDoubleLine("Auction", ah and Worth(ah, e.count) or "|cff9a9ea6unknown|r", 1, 1, 1, 1, 1, 1)
     end
-    if atMerchant then GameTooltip:AddLine("|cff0091edClick|r  sell", 1, 1, 1) end
-    GameTooltip:AddLine("|cff0091edMiddle-click|r  ignore this item", 1, 1, 1)
+    if e.quest then GameTooltip:AddLine("Needed for " .. QuestText(e.quest), 1, 0.82, 0) end
+    if deleteHint then
+        if e.quest then
+            GameTooltip:AddLine("|cff0091edCtrl-click|r  twice to delete", 1, 1, 1)
+        elseif e.quality > DIRECT_DELETE then
+            GameTooltip:AddLine("|cff0091edCtrl-click|r  pick up to delete", 1, 1, 1)
+        else
+            GameTooltip:AddLine("|cff0091edCtrl-click|r  delete now", 1, 1, 1)
+        end
+        if atMerchant then GameTooltip:AddLine("|cff0091edClick|r  sell", 1, 1, 1) end
+    end
+    if ignoreHint then GameTooltip:AddLine("|cff0091edMiddle-click|r  ignore this item", 1, 1, 1) end
     GameTooltip:Show()
 end
 
@@ -727,6 +739,11 @@ local function Layout(shown)
         b:Show()
     end
     for i = shown + 1, #buttons do buttons[i]:Hide() end
+    -- The counter sits over the row's left end: the first icon, or the last one when the row
+    -- grows left or up.
+    local lead = (dir[1] < 0 or dir[2] > 0) and buttons[math.max(shown, 1)] or buttons[1]
+    frame.free:ClearAllPoints()
+    if lead then frame.free:SetPoint("BOTTOMLEFT", lead, "TOPLEFT", 0, 3) end
 end
 
 local function Fill(b, e, icon, price, count, quality, old, quest)
@@ -751,11 +768,54 @@ local function FillStack(b)
     b.edge:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
 end
 
--- Above the first icon: how many slots are left, red when there are none.
-local function ShowFree(count)
-    frame.free:SetShown(S.Get("bagSpaceShowFree"))
-    local color = count == 0 and "|cffff4040" or count <= 2 and "|cffff9933" or "|cff9a9ea6"
-    frame.free:SetText(("%s%d free|r"):format(color, count))
+-- Free out of total over the row, orange under a tenth free and red when full.
+local function ShowFree(count, slots)
+    local f = frame.free
+    f:SetShown(S.Get("bagSpaceShowFree"))
+    local c = count == 0 and FULL_COLOR or count < slots * 0.1 and LOW_COLOR or T.fg
+    f.text:SetTextColor(c.r, c.g, c.b, 1)
+    f.text:SetText(("%d/%d"):format(count, slots))
+    f:SetSize(16 + f.text:GetStringWidth(), 14)
+end
+
+-- Hovering the counter: each plain bag's free and total slots.
+local function FreeTooltip(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText("Bag Space")
+    local lastBag = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS
+    local special = false
+    for bag = BACKPACK_CONTAINER, lastBag do
+        local slots = GetContainerNumSlots(bag)
+        if slots > 0 then
+            local freeSlots, family = GetContainerNumFreeSlots(bag)
+            if family == 0 then
+                local name = C_Container.GetBagName and C_Container.GetBagName(bag) or ("Bag " .. bag)
+                GameTooltip:AddDoubleLine(name, ("%d/%d free"):format(freeSlots or 0, slots), 1, 1, 1, 1, 1, 1)
+            else
+                special = true
+            end
+        end
+    end
+    if special then
+        GameTooltip:AddLine("Quivers and profession bags are not counted.", 0.6, 0.6, 0.6, true)
+    end
+    GameTooltip:Show()
+end
+
+local function NewFreeCounter(parent)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(60, 14)
+    f:EnableMouse(true)
+    f.icon = f:CreateTexture(nil, "ARTWORK")
+    f.icon:SetSize(12, 12)
+    f.icon:SetPoint("LEFT", f, "LEFT", 0, 0)
+    f.icon:SetTexture(BAG_ICON)
+    f.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    f.text = ns.Font(f, 11, "OUTLINE")
+    f.text:SetPoint("LEFT", f.icon, "RIGHT", 4, 0)
+    f:SetScript("OnEnter", FreeTooltip)
+    f:SetScript("OnLeave", GameTooltip_Hide)
+    return f
 end
 
 local function Render()
@@ -763,7 +823,7 @@ local function Render()
         local n = S.Get("bagSpaceCount")
         Layout(n)
         for i = 1, n do Fill(buttons[i], nil, SAMPLE_ICON, Money(12 * i), nil, 1, i == 1) end
-        ShowFree(2)
+        ShowFree(28, 96)
         frame:Show()
         return
     end
@@ -783,7 +843,7 @@ local function Render()
         local e = picks[i]
         Fill(buttons[i + first], e, e.icon, Money(e.value), e.count, e.quality, e.old, e.quest)
     end
-    ShowFree(free)
+    ShowFree(free, total)
     frame:Show()
 end
 
@@ -860,8 +920,7 @@ local function Apply()
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
         frame.mover = UI.AttachMover(frame, "Bag Space", function(pos) S.Set("bagSpacePos", pos) end)
-        frame.free = ns.Font(frame, 11, "OUTLINE")
-        frame.free:SetPoint("BOTTOM", frame, "TOP", 0, 3)
+        frame.free = NewFreeCounter(frame)
     end
     Place()
     frame.mover:SetShown(unlocked == true)

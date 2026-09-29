@@ -62,6 +62,7 @@ local S = UI.ModuleSettings("qol", {
     bagSpaceMaxQuality = 2, bagSpaceJunkFirst = false, bagSpaceAuction = true,
     bagSpaceProtect = true, bagSpaceFreeBelow = 0, bagSpaceHideCombat = true,
     bagSpaceOnFull = true, bagSpaceShowFree = true, bagSpaceStack = true, bagSpaceOldFirst = false,
+    bagSpaceTipVendor = true, bagSpaceTipAuction = true, bagSpaceTipDelete = true, bagSpaceTipIgnore = true,
     dqTracker = true, dqShowDone = false, dqAllFactions = false, dqOutside = false,
     dqSingle = false, dqSelected = "",
     townCapitalsOnly = true, townSpiritHealers = true, townZoneLinks = true,
@@ -519,7 +520,7 @@ function ns.BuildQoLLootPage(parent, y)
             "An \"Inventory is full\" error brings the row up for 20 seconds, even with more free "
             .. "slots than the threshold above.", "bagSpace"),
         S.Toggle("bagSpaceShowFree", "Show Free Slots",
-            "How many bag slots are left, above the row.", "bagSpace")
+            "Free bag slots out of your total, above the row. Hover it for each bag.", "bagSpace")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("bagSpaceStack", "Offer to Stack",
@@ -532,6 +533,18 @@ function ns.BuildQoLLootPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Slider("bagSpaceSize", "Icon Size", 24, 56, 1, nil, "bagSpace"),
         S.Dropdown("bagSpaceGrow", "Direction", DIRECTION_VALUES, DIRECTION_ORDER, nil, "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpaceTipVendor", "Tooltip: Vendor Price",
+            "What the whole stack sells for at a vendor, and each item's price.", "bagSpace"),
+        S.Toggle("bagSpaceTipAuction", "Tooltip: Auction Price",
+            "What the stack fetches at the auction house, from your last Scan Prices or "
+            .. "TradeSkillMaster.", "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpaceTipDelete", "Tooltip: Delete Hint",
+            "The Ctrl-click line, and Click to sell while a vendor is open.", "bagSpace"),
+        S.Toggle("bagSpaceTipIgnore", "Tooltip: Ignore Hint", "The Middle-click line.", "bagSpace")
     ); y = y - h
     local keyRow
     keyRow, h = W:DualRow(parent, y,

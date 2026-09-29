@@ -18,9 +18,13 @@
   the day you ignored it and how many you carry. Search it by name, hover a row and click
   the X to stop ignoring that item, or drop an item from your bags onto it to ignore it
   before it is ever offered. Clear All starts over.
+- Bag Space: each line Bag Space adds to an icon's tooltip (vendor price, auction price, the
+  delete hint and the ignore hint) can be turned off on its page. The quest warning always
+  shows.
 - Bag Space: a Stack button at the start of the row when part-filled stacks of the same item
-  can be combined, with how many slots it frees; nothing is deleted. The number of free
-  slots shows above the row, food, drink and potions 10 or more levels below you are marked
+  can be combined, with how many slots it frees; nothing is deleted. Free slots out of your
+  total show above the row with a bag icon (orange when nearly full, red when full; hover it
+  for each bag), food, drink and potions 10 or more levels below you are marked
   OLD (and can go first), and an "Inventory is full" error brings the row up for 20 seconds
   even when your free-slot threshold would hide it.
 - Bag Space: an item an unfinished quest in your log still needs (Okra for Westfall Stew,

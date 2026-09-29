@@ -52,6 +52,7 @@ local function Fixture(opts)
         SetShown = function(self, v) self.shown = v and true or false end,
         IsShown = function(self) return self.shown end,
         SetText = function(self, v) self.text = v end,
+        GetStringWidth = function() return 20 end,
         SetTexture = function(self, v) self.texture = v end,
         SetScript = function(self, name, fn) self[name] = fn end,
         CreateTexture = function() return Widget("region") end,
@@ -66,7 +67,9 @@ local function Fixture(opts)
     end
 
     local ns = {
-        THEME = { accent = { r = 0, g = 0.57, b = 0.93 }, muted = { r = 0.6, g = 0.6, b = 0.6 } },
+        THEME = { accent = { r = 0, g = 0.57, b = 0.93 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
+            fg = { r = 0.94, g = 0.95, b = 0.95 }, bg = { r = 0.05, g = 0.06, b = 0.07 },
+            line = { r = 0.18, g = 0.19, b = 0.21 } },
         QoLSettings = S,
         Print = function(msg) printed[#printed + 1] = msg end,
         Apply = function() end,
@@ -194,6 +197,9 @@ local function Fixture(opts)
         end
         return table.concat(out, ", ")
     end
+    function t.FreeText()
+        return buttons.row and buttons.row.free and buttons.row.free.text.text
+    end
     function t.Button(i)
         local n = 0
         for _, b in ipairs(buttons) do
@@ -254,6 +260,7 @@ do
         { 3, 2 }, { 1, 3 }, { 2, 11 }, { 4, 2 }, { 5, 10 }, { 6, 1 }, { 7, 1 }, { 8, 1 },
     }) } })
     Check("cheapest stack first", t.Row(), "Small Egg, Coyote Meat, Chipped Boar Tusk, Light Feather")
+    Check("counter reads free out of total", t.FreeText(), "8/16")
 end
 
 -- Grey Items First puts the tusk ahead of everything.
