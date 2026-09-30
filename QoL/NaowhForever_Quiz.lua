@@ -94,9 +94,9 @@ local function Build()
     ns.Border(quiz)
 
     local logo = quiz:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga")
-    logo:SetSize(22, 22)
-    logo:SetPoint("TOPLEFT", 12, -10)
+    logo:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\LogoSmall.tga", nil, nil, "TRILINEAR")
+    logo:SetSize(26, 26)
+    logo:SetPoint("TOPLEFT", 12, -8)
 
     local title = ns.Font(quiz, 16, "OUTLINE", T.accent)
     title:SetPoint("LEFT", logo, "RIGHT", 8, 0)

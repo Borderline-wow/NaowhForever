@@ -261,9 +261,9 @@ local function Build()
     ns.Border(popup)
 
     local logo = popup:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga")
-    logo:SetSize(22, 22)
-    logo:SetPoint("TOPLEFT", 12, -10)
+    logo:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\LogoSmall.tga", nil, nil, "TRILINEAR")
+    logo:SetSize(26, 26)
+    logo:SetPoint("TOPLEFT", 12, -8)
 
     popup.title = ns.Font(popup, 16, "OUTLINE", T.accent)
     popup.title:SetPoint("LEFT", logo, "RIGHT", 8, 0)

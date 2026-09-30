@@ -14,6 +14,8 @@
   (Auction House Price), with the other tooltip settings. Your setting is kept.
 
 ### Fixed
+- The Naowh logo on the New Abilities, Quiz and Buy Materials windows is sharper and a little
+  bigger.
 - Blessings: every icon has the same thin black border, also while its buff is up and on
   your own blessing button.
 - Bag Space: Unlock Mode shows your own items instead of question marks, where you have them.
