@@ -96,6 +96,22 @@ function ns.BuildAuraBuffsPage(parent, y)
     _, h = W:Note(parent, "Add an item ID and its buff spell ID(s), or import a profile with reminders. "
         .. "Nothing is added automatically. Hover a reminder to choose a configured item from your bags. "
         .. "Reminders pause in combat; item menus work outside combat.", y); y = y - h
+    _, h = W:SectionHeader(parent, "RAID BUFFS" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("raidBuffs", "Raid Buff Reminders",
+            "Missing class buffs in your group, out of combat, with how many are missing "
+            .. "them. A camp buff standing in for one, the Incense Candle for Arcane Intellect "
+            .. "for example, is not seen, so it still counts as missing."),
+        S.Toggle("raidBuffsOwn", "Only Buffs I Can Cast",
+            "Off: every buff a class in your group can cast.", "raidBuffs")
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "DISPLAY", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("iconSize", "Icon Size", 20, 64, 1, "Move the icons in Unlock Mode."),
+        { type = "label", text = "" }
+    ); y = y - h
+
     _, h = W:SectionHeader(parent, "CONSUMABLES", y); y = y - h
     for _, category in ipairs(CATEGORY_ORDER) do
         _, h = W:Feature(parent, y, { type = "label", text = CATEGORY_NAMES[category] }); y = y - h
@@ -128,22 +144,6 @@ function ns.BuildAuraBuffsPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("onlyIfCarried", "Only If I Carry One"),
         S.Toggle("hideResting", "Hide While Resting")); y = y - h
-
-    _, h = W:SectionHeader(parent, "RAID BUFFS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("raidBuffs", "Raid Buff Reminders",
-            "Missing class buffs in your group, out of combat, with how many are missing "
-            .. "them. A camp buff standing in for one, the Incense Candle for Arcane Intellect "
-            .. "for example, is not seen, so it still counts as missing."),
-        S.Toggle("raidBuffsOwn", "Only Buffs I Can Cast",
-            "Off: every buff a class in your group can cast.", "raidBuffs")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "DISPLAY", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("iconSize", "Icon Size", 20, 64, 1, "Move the icons in Unlock Mode."),
-        { type = "label", text = "" }
-    ); y = y - h
 
     return y
 end

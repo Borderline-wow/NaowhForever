@@ -17,6 +17,11 @@
   Badges, where you can also turn on a banner for when one of them joins your group.
 
 ### Changed
+- Settings: switches that stand on their own now sit above the dropdowns on every page. On
+  the QoL Questing, Loot & Items, Combat & Alerts and Performance tabs, AuraBuffs, Blessings
+  and Swing Timer's aids they had been further down.
+- Crosshair: Recolour Out of Melee Range and its options are inside the Crosshair dropdown
+  instead of a section of their own.
 - XP Bar: the text around the bar now has five spots, Top Left, Top Right, Bottom Left,
   Bottom and Bottom Right, and each shows the one you pick: Played Time, Session Time,
   Completed Quests, Rested Experience, Time to Level or XP per Hour. They replace the four

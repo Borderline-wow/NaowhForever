@@ -838,6 +838,16 @@ function ns.BuildSwingTimerAidsPage(parent, y)
     _, h = W:Note(parent, "Extra marks on the bars for timing what you press against your "
         .. "swings. Each one is off until you turn it on.", y); y = y - h
 
+    _, h = W:SectionHeader(parent, "TARGET" .. UI.STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("targetSwing", "Target Swing Timer",
+            "A bar for your target's swings, restarted by each physical hit you take while it "
+            .. "is targeting you, and shortened when it parries. It is an estimate: the game "
+            .. "does not say who hit you or with what, so other attackers, physical specials "
+            .. "and bleed ticks restart it too.", "enabled"),
+        ColorRow("tgtColor", "Target Color", "targetSwing")
+    ); y = y - h
+
     _, h = W:SectionHeader(parent, "SWING END WINDOW" .. UI.STATUS.untested, y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("swingWindow", "Swing End Window",
@@ -881,16 +891,6 @@ function ns.BuildSwingTimerAidsPage(parent, y)
     _, h = W:DualRow(parent, y,
         ColorRow("castOkColor", "Cast Fits Color", "castClip", true),
         ColorRow("castBadColor", "Cast Clips Color", "castClip", true)
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "TARGET" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("targetSwing", "Target Swing Timer",
-            "A bar for your target's swings, restarted by each physical hit you take while it "
-            .. "is targeting you, and shortened when it parries. It is an estimate: the game "
-            .. "does not say who hit you or with what, so other attackers, physical specials "
-            .. "and bleed ticks restart it too.", "enabled"),
-        ColorRow("tgtColor", "Target Color", "targetSwing")
     ); y = y - h
     return y
 end

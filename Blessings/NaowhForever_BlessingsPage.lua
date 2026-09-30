@@ -89,6 +89,15 @@ function ns.BuildQoLBlessingsPage(parent, y)
         .. "Bindings > AddOns > Naowh Forever. Each press blesses the next player who needs it, most urgent "
         .. "first; in combat a key steps through the players who needed it when the fight began.", y); y = y - h
 
+    _, h = W:SectionHeader(parent, "KEYBINDS" .. UI.STATUS.untested, y); y = y - h
+    local row
+    row, h = W:DualRow(parent, y,
+        { type = "label", text = "Next Blessing" },
+        { type = "label", text = "Next Greater Blessing" }
+    ); y = y - h
+    KeyField(row._leftRegion, "CLICK NaowhForeverBlessNext:LeftButton", "Next Blessing")
+    KeyField(row._rightRegion, "CLICK NaowhForeverBlessNextGreater:LeftButton", "Next Greater Blessing")
+
     _, h = W:SectionHeader(parent, "BLESSING BAR", y); y = y - h
     _, h = W:Feature(parent, y, { type = "label", text = "Bar" .. UI.STATUS.untested }); y = y - h
     _, h = W:DualRow(parent, y,
@@ -111,14 +120,6 @@ function ns.BuildQoLBlessingsPage(parent, y)
         S.Slider("blessTimerSize", "Timer Text Size", 8, 24, 1),
         S.Toggle("blessShowLabels", "Class Labels")
     ); y = y - h
-    _, h = W:SectionHeader(parent, "KEYBINDS" .. UI.STATUS.untested, y); y = y - h
-    local row
-    row, h = W:DualRow(parent, y,
-        { type = "label", text = "Next Blessing" },
-        { type = "label", text = "Next Greater Blessing" }
-    ); y = y - h
-    KeyField(row._leftRegion, "CLICK NaowhForeverBlessNext:LeftButton", "Next Blessing")
-    KeyField(row._rightRegion, "CLICK NaowhForeverBlessNextGreater:LeftButton", "Next Greater Blessing")
     return y
 end
 

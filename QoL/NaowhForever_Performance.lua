@@ -189,6 +189,18 @@ function ns.BuildQoLPerformancePage(parent, y)
         ns.Confirm("Put back every setting this page has changed?", RestoreAll)
     end); y = y - h
 
+    _, h = W:SectionHeader(parent, "SPELL QUEUE WINDOW", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "slider", text = "Spell Queue Window (ms)", min = 0, max = 400, step = 1,
+          tooltip = "How early you can press your next spell before the current one finishes. "
+              .. "100 to 400 suits most: lower is more responsive, higher is more forgiving of "
+              .. "latency. Melee around your ping + 100, ranged around your ping + 150.",
+          getValue = function() return tonumber(C_CVar.GetCVar("SpellQueueWindow")) or 400 end,
+          setValue = function(v) C_CVar.SetCVar("SpellQueueWindow", v) end },
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = W:Button(parent, "Reload UI", y, ReloadUI); y = y - h
+
     _, h = W:SectionHeader(parent, "INDIVIDUAL SETTINGS", y); y = y - h
     for _, cat in ipairs(CATEGORIES) do
         local rows = {}
@@ -202,18 +214,6 @@ function ns.BuildQoLPerformancePage(parent, y)
             end
         end
     end
-
-    _, h = W:SectionHeader(parent, "SPELL QUEUE WINDOW", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        { type = "slider", text = "Spell Queue Window (ms)", min = 0, max = 400, step = 1,
-          tooltip = "How early you can press your next spell before the current one finishes. "
-              .. "100 to 400 suits most: lower is more responsive, higher is more forgiving of "
-              .. "latency. Melee around your ping + 100, ranged around your ping + 150.",
-          getValue = function() return tonumber(C_CVar.GetCVar("SpellQueueWindow")) or 400 end,
-          setValue = function(v) C_CVar.SetCVar("SpellQueueWindow", v) end },
-        { type = "label", text = "" }
-    ); y = y - h
-    _, h = W:Button(parent, "Reload UI", y, ReloadUI); y = y - h
 
     return y
 end

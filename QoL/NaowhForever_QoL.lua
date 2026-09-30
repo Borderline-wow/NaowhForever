@@ -264,6 +264,24 @@ end
 function ns.BuildQoLQuestingPage(parent, y)
     local W = UI.Widgets
     local _, h
+    _, h = W:SectionHeader(parent, "QUESTING", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("questAccept", "Auto Accept Quests",
+            "Accepts a quest as soon as its text opens. Hold Alt to read it first."),
+        S.Toggle("questTurnIn", "Auto Turn In Quests",
+            "Hands in finished quests. A quest with a choice of rewards waits for you to pick "
+            .. "one, unless you saved a reward for it. Hold Alt to skip it.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("questGossip", "Pick Quests From NPCs",
+            "When an NPC offers several things, goes straight to a finished quest to hand in, "
+            .. "or the first quest on offer. Works with the two options above."),
+        S.Toggle("questRewardPicks", "Saved Quest Rewards",
+            "Alt-click a reward you can choose, in the quest log or at the quest giver, to save "
+            .. "it for that quest in this profile; Alt-click it again to clear it. It is selected "
+            .. "when you hand the quest in, and Auto Turn In takes it for you.")
+    ); y = y - h
+
     _, h = W:SectionHeader(parent, "XP PER HOUR" .. STATUS.ready, y); y = y - h
     local xpFonts, xpFontOrder = UI.FontChoices(S.Get("xpTickerFont"))
     _, h = W:Feature(parent, y,
@@ -347,24 +365,6 @@ function ns.BuildQoLQuestingPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Dropdown("xpBarBottomRight", "Bottom Right", slotValues, slotOrder, slotTip, "xpBar"),
         { type = "label", text = "" }
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "QUESTING", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("questAccept", "Auto Accept Quests",
-            "Accepts a quest as soon as its text opens. Hold Alt to read it first."),
-        S.Toggle("questTurnIn", "Auto Turn In Quests",
-            "Hands in finished quests. A quest with a choice of rewards waits for you to pick "
-            .. "one, unless you saved a reward for it. Hold Alt to skip it.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("questGossip", "Pick Quests From NPCs",
-            "When an NPC offers several things, goes straight to a finished quest to hand in, "
-            .. "or the first quest on offer. Works with the two options above."),
-        S.Toggle("questRewardPicks", "Saved Quest Rewards",
-            "Alt-click a reward you can choose, in the quest log or at the quest giver, to save "
-            .. "it for that quest in this profile; Alt-click it again to clear it. It is selected "
-            .. "when you hand the quest in, and Auto Turn In takes it for you.")
     ); y = y - h
 
     return y
@@ -515,6 +515,44 @@ function ns.BuildQoLLootPage(parent, y)
             .. "link you can hover for its tooltip."),
         S.Toggle("fastLoot", "Faster Auto Loot", "Loots automatically without hiding the loot window. Hold Shift to loot manually.")
     ); y = y - h
+
+    _, h = W:SectionHeader(parent, "VENDORS" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("autoRepair", "Auto Repair", "Repairs all gear when you open a vendor who can."),
+        S.Toggle("sellJunk", "Auto Sell Junk", "Sells grey items when you open a vendor.")
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "AUCTION PRICES" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("ahPrices", "Scan Prices Button",
+            "A Scan Prices button on the auction house. It reads every listing and keeps the "
+            .. "lowest buyout for each item, for this realm and faction. Blizzard allows one full "
+            .. "scan every 15 minutes."),
+        S.Toggle("ahTooltip", "Prices on Tooltips",
+            "The last scanned price for one of an item, and how long ago the scan ran.")
+    ); y = y - h
+    _, h = W:Note(parent, ns.AuctionScanSummary(), y); y = y - h
+
+    _, h = W:SectionHeader(parent, "MAIL & ALTS" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("altCounts", "Alt Item Counts",
+            "Item tooltips show how many your characters on this realm and faction hold in "
+            .. "their bags, bank and mailbox. Each character is counted once you log in on it, "
+            .. "and its bank once you open it."),
+        S.Toggle("mailAlts", "Alts Button on Mail",
+            "An Alts button beside the mailbox's Send tab lists your characters on this realm "
+            .. "and faction with their level and gold. Pick one to fill the To box.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mailQuickAttach", "Quick Attach",
+            "An Attach button beside the mailbox's Send tab: attach every trade good, one type "
+            .. "of trade good, or your unbound gear in one click."),
+        S.Toggle("mailExpiry", "Mail Expiry Warning",
+            "At login, names any of your characters with mail that expires within three days. "
+            .. "It knows each character's mail from the last time it opened a mailbox.")
+    ); y = y - h
+    local forget
+    forget, h = W:Button(parent, "Forget a Character", y, function() ns.OpenForgetAltMenu(forget._btn) end); y = y - h
 
     _, h = W:SectionHeader(parent, "RESTOCK" .. STATUS.untested, y); y = y - h
     _, h = W:Feature(parent, y,
@@ -708,44 +746,6 @@ function ns.BuildQoLLootPage(parent, y)
             "lootFeed")
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "VENDORS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("autoRepair", "Auto Repair", "Repairs all gear when you open a vendor who can."),
-        S.Toggle("sellJunk", "Auto Sell Junk", "Sells grey items when you open a vendor.")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "AUCTION PRICES" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("ahPrices", "Scan Prices Button",
-            "A Scan Prices button on the auction house. It reads every listing and keeps the "
-            .. "lowest buyout for each item, for this realm and faction. Blizzard allows one full "
-            .. "scan every 15 minutes."),
-        S.Toggle("ahTooltip", "Prices on Tooltips",
-            "The last scanned price for one of an item, and how long ago the scan ran.")
-    ); y = y - h
-    _, h = W:Note(parent, ns.AuctionScanSummary(), y); y = y - h
-
-    _, h = W:SectionHeader(parent, "MAIL & ALTS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("altCounts", "Alt Item Counts",
-            "Item tooltips show how many your characters on this realm and faction hold in "
-            .. "their bags, bank and mailbox. Each character is counted once you log in on it, "
-            .. "and its bank once you open it."),
-        S.Toggle("mailAlts", "Alts Button on Mail",
-            "An Alts button beside the mailbox's Send tab lists your characters on this realm "
-            .. "and faction with their level and gold. Pick one to fill the To box.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("mailQuickAttach", "Quick Attach",
-            "An Attach button beside the mailbox's Send tab: attach every trade good, one type "
-            .. "of trade good, or your unbound gear in one click."),
-        S.Toggle("mailExpiry", "Mail Expiry Warning",
-            "At login, names any of your characters with mail that expires within three days. "
-            .. "It knows each character's mail from the last time it opened a mailbox.")
-    ); y = y - h
-    local forget
-    forget, h = W:Button(parent, "Forget a Character", y, function() ns.OpenForgetAltMenu(forget._btn) end); y = y - h
-
 
     return y
 end
@@ -754,22 +754,6 @@ function ns.BuildQoLAlertsPage(parent, y)
     local W = UI.Widgets
     local _, h
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
-
-    _, h = W:SectionHeader(parent, "DURABILITY" .. STATUS.untested, y); y = y - h
-    _, h = W:Feature(parent, y,
-        S.Toggle("durability", "Low Durability Warning",
-            "Text on screen when any piece of gear drops below the threshold. Hidden in "
-            .. "combat. Move it in Unlock Mode.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("durabilityBelow", "Warn Below (%)", 5, 100, 1, nil, "durability"),
-        { type = "label", text = "" }
-    ); y = y - h
-    local durFonts, durFontOrder = UI.FontChoices(S.Get("durabilityFont"))
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("durabilityFont", "Font", durFonts, durFontOrder, nil, "durability"),
-        { type = "label", text = "" }
-    ); y = y - h
 
     _, h = W:SectionHeader(parent, "COMBAT" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -812,6 +796,22 @@ function ns.BuildQoLAlertsPage(parent, y)
             TextControl(name .. " Speech", name .. " combat speech", k .. "Speech")
         ); y = y - h
     end
+
+    _, h = W:SectionHeader(parent, "DURABILITY" .. STATUS.untested, y); y = y - h
+    _, h = W:Feature(parent, y,
+        S.Toggle("durability", "Low Durability Warning",
+            "Text on screen when any piece of gear drops below the threshold. Hidden in "
+            .. "combat. Move it in Unlock Mode.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("durabilityBelow", "Warn Below (%)", 5, 100, 1, nil, "durability"),
+        { type = "label", text = "" }
+    ); y = y - h
+    local durFonts, durFontOrder = UI.FontChoices(S.Get("durabilityFont"))
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("durabilityFont", "Font", durFonts, durFontOrder, nil, "durability"),
+        { type = "label", text = "" }
+    ); y = y - h
 
     _, h = W:SectionHeader(parent, "COMBAT TIMER" .. STATUS.untested, y); y = y - h
     local timerFonts, timerFontOrder = UI.FontChoices(S.Get("combatTimerFont"))
@@ -1054,32 +1054,31 @@ function ns.BuildQoLInterfacePage(parent, y)
         S.Slider("crossX", "X Offset", -500, 500, 1, nil, "crosshair"),
         S.Slider("crossY", "Y Offset", -500, 500, 1, nil, "crosshair")
     ); y = y - h
-
-    _, h = W:SectionHeader(parent, "CROSSHAIR MELEE RANGE", y); y = y - h
-    _, h = W:Feature(parent, y,
+    _, h = W:DualRow(parent, y,
         S.Toggle("crossMelee", "Recolour Out of Melee Range",
             "Changes colour while your target is out of melee range. Warriors, rogues, hunters "
             .. "(Raptor Strike), shamans with Stormstrike, and druids in Cat or Bear Form have "
-            .. "an ability it can check; anyone else can set a spell ID below.", "crosshair")
+            .. "an ability it can check; anyone else can set a spell ID below.", "crosshair"),
+        ColorRow("crossMeleeColor", "Out of Range Colour", "crossMelee")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("crossMeleeColor", "Out of Range Colour", "crossMelee"),
-        S.Toggle("crossMeleeBorder", "Recolour Outline", nil, "crossMelee")
+        S.Toggle("crossMeleeBorder", "Recolour Outline", nil, "crossMelee"),
+        S.Toggle("crossMeleeArms", "Recolour Arms", nil, "crossMelee")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("crossMeleeArms", "Recolour Arms", nil, "crossMelee"),
-        S.Toggle("crossMeleeDot", "Recolour Dot", nil, "crossMelee")
+        S.Toggle("crossMeleeDot", "Recolour Dot", nil, "crossMelee"),
+        S.Toggle("crossMeleeCircle", "Recolour Circle", nil, "crossMelee")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("crossMeleeCircle", "Recolour Circle", nil, "crossMelee"),
         S.Toggle("crossMeleeSound", "Play a Sound",
-            "Plays as your target leaves melee range.", "crossMelee")
+            "Plays as your target leaves melee range.", "crossMelee"),
+        S.Dropdown("crossMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "crossMeleeSound")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("crossMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "crossMeleeSound"),
         S.Slider("crossMeleeSoundInterval", "Repeat Every (s)", 0, 10, 1,
             "Plays the sound again this often while out of range. 0 plays it once.",
-            "crossMeleeSound")
+            "crossMeleeSound"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:Button(parent, "Melee Spell ID", y, function()
         ns.PromptText("Spell ID to check melee range with. 0 uses your class's own.",
