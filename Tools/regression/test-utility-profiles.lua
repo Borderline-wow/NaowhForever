@@ -26,6 +26,7 @@ local function Fixture()
     ns.Integrations = { ValidRule = function() return true end }
     ns.UI = { Widgets = {} }
     ns.THEME = { accent = {}, muted = {}, fg = {}, panel = {}, bg = {}, line = {} }
+    ns.Color = function(token, text) return "|cff" .. ({ accent = "0091ed", muted = "9a9ea6", fg = "f0f1f3", accentSoft = "4db5f5" })[token] .. (text and (text .. "|r") or "") end
 
     local env = setmetatable({ NaowhForever = ns,
         CreateFrame = function() return { SetScript = function() end } end,

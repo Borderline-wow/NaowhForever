@@ -1,6 +1,6 @@
 # Bundled English callouts
 
-The three generic clips were made for Smart Reminders with Windows System.Speech
+The generic clips were made with Windows System.Speech
 (Microsoft Zira Desktop), rate 1, volume 100: synthesized stock-voice clips, not
 recordings of a person. The racial clips below were supplied by Naowh. No media was
 copied from another addon.
@@ -8,6 +8,8 @@ copied from another addon.
 - dispel-me.ogg: "Dispel me."
 - move-out.ogg: "Move out."
 - use-a-defensive.ogg: "Use a defensive."
+- combat.ogg: "Combat." The Combat Alert's default sound for entering combat.
+- safe.ogg: "Safe." Its default sound for leaving combat.
 - stoneform-ready.ogg: Dedicated to cooldown-gated aura registrations.
 - stoneform-preview.ogg: Separate preview file, never muted by the gate.
 - shadowmeld-ready.ogg: Same, for Shadowmeld.

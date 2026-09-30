@@ -242,12 +242,14 @@ end
 local function Repair()
     if not (S.Get("autoRepair") and CanMerchantRepair()) then return 0 end
     local cost, canRepair = GetRepairAllCost()
-    if canRepair and cost > 0 and GetMoney() >= cost then
-        RepairAllItems()
-        ns.Print("Repaired for " .. C_CurrencyInfo.GetCoinTextureString(cost))
-        return cost
+    if not (canRepair and cost > 0) then return 0 end
+    if GetMoney() < cost then
+        ns.Print("Not enough gold to repair (" .. C_CurrencyInfo.GetCoinTextureString(cost) .. ").")
+        return 0
     end
-    return 0
+    RepairAllItems()
+    ns.Print("Repaired for " .. C_CurrencyInfo.GetCoinTextureString(cost))
+    return cost
 end
 
 local function SellJunk()
@@ -307,7 +309,8 @@ events:SetScript("OnEvent", function(_, event, itemID)
     if event == "MERCHANT_SHOW" then
         HideAlert()
         SellJunk()
-        Buy(Repair())
+        local spent = Repair()
+        if On() then Buy(spent) end
     elseif event == "MERCHANT_CLOSED" then
         -- Bags settle a moment after the last purchase or sale.
         C_Timer.After(0.5, Check)
@@ -327,6 +330,10 @@ end)
 
 local function Apply()
     events:UnregisterAllEvents()
+    -- Auto Repair and Auto Sell Junk work at the vendor whether or not the reminder is on.
+    if S.Get("enabled") and (S.Get("restock") or S.Get("autoRepair") or S.Get("sellJunk")) then
+        events:RegisterEvent("MERCHANT_SHOW")
+    end
     if not On() then
         HideAlert()
         return
@@ -338,7 +345,6 @@ local function Apply()
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
     events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-    events:RegisterEvent("MERCHANT_SHOW")
     events:RegisterEvent("MERCHANT_CLOSED")
     events:RegisterEvent("BAG_UPDATE_DELAYED")
     pendingItems[159] = true

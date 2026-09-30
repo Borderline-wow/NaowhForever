@@ -15,6 +15,30 @@
   /nf badges id to get the code that links your characters. Naowh, the developers and the
   moderators have their own badges. Turn each part off in QoL > Interface > Supporter
   Badges, where you can also turn on a banner for when one of them joins your group.
+- Discovery: a new module (off by default) for the 40 library books hidden around Azeroth.
+  The Books page lists every book your faction can take, by zone, with its level set, where
+  it lies, who takes it and a Waypoint button; Finished, In bags, In bank or Missing on the
+  right. Books handed to the librarian count toward Friend of the Library (10) and Greater
+  Friend of the Library (20); the level 60 set goes to a mage trainer instead.
+- Discovery: Show Tracker (off by default). Entering a zone with books you still need pops
+  up a small window listing them with a waypoint pin each, under a bar counting your
+  hand-ins toward the next reward; hover the bar for both rewards and their items, click the
+  title for the Books page. Books in your bags or bank get a line with where to hand them
+  in. It stays while you are in that zone; the X closes it until you enter another.
+- Discovery: Always Show (off by default) keeps the tracker up in every zone, with a
+  dropdown of the zones where you still have books to find. Entering one selects it; the X
+  switches Always Show off.
+- Discovery: Show on World Map (off by default) pins every book you still need on its
+  zone's map, and your librarian while you carry books. Hover for the exact spot; click for
+  a waypoint.
+- Discovery: Sound When Nearby (off by default) plays the map ping and names the book in
+  chat when you come within range of one you still need (10 to 100 yards, default 40).
+- Settings: a new COLORS section with theme presets (Midnight, Slate, Obsidian, Aubergine,
+  Forest, Crimson, Rose Noir and Cotton Candy) for the addon's windows and HUD frames, plus
+  a Custom option to pick your own Background, Panels, Borders & Lines, Text, Secondary Text
+  and Accent colors. Choose a theme, then press Reload UI (a reminder shows under the
+  section until you do). Custom can start from any theme. Off by default (Naowh
+  (default)); saved for this computer.
 
 ### Changed
 - Settings: switches that stand on their own now sit above the dropdowns on every page. On
@@ -38,13 +62,20 @@
   Pick, make, rename and delete them on the List and Settings tabs; each character keeps
   using its own pick. Your current list moves over, named after your character. Importing
   a list adds it as a new one instead of replacing yours.
+- BiS List: Fill Empty Slots puts the ranking's best item in every slot you have not picked,
+  skipping items already picked elsewhere, so a second ring or trinket gets the next one down.
+- BiS List picker: two-line rows with each item's source, item level and required level (in
+  orange while it is above yours), small arrow and remove buttons, and only your own picks
+  are numbered.
+- BiS List: Where to Go Next lists only places you can go, not crafted, quest, reputation or
+  world-drop items.
+- BiS List: add any item to a slot by item ID, item link or Wowhead URL from the bottom of
+  the picker.
 - BiS List: a slot's BiS item is framed in a thin border of its quality colour, and the
   check mark is gone.
 - BiS List: a button beside each slot steps its icon through your picks (BiS, 2nd, 3rd and so
   on) and turns green on the one you are wearing; the slot's line in Where Your Items Drop
   follows it. The slot's picker tags the item you wear Worn.
-- Dungeon Quests and BiS List open straight to the dungeons and to your character panel;
-  their options moved to a new Settings tab in each.
 - Dungeon Quests and BiS List open straight to the dungeons and to your character panel;
   their options moved to a new Settings tab in each.
 - Settings pages are shorter: a feature with several options, such as Restock or the Co-Tank
@@ -56,6 +87,22 @@
 - Co-Tank Frame: Righteous Fury counts as tanking for paladins.
 - Co-Tank Debuffs now show in combat, drawn by the game the way NaowhUI's co-tank does it,
   with its filter, icon, position and text settings. On by default with the frame.
+- Combat Alert: two new voice clips, "Combat" and "Safe", are its default sounds for entering and
+  leaving combat. Set Audio to Sound to hear a spoken alert without the stutter Text to Speech
+  can cause. They are in every sound list as Voice: Combat and Voice: Safe.
+- Professions: every Professions setting is off by default (Unlearned Recipes, Next Rank
+  Alert, Reagents in Bags and Reagents in Bank were on). Settings a profile has already saved
+  keep their value.
+- Professions: the settings page is grouped into Recipe Window, Buying and Selling, and
+  Gathering, two settings to a row.
+- Professions: the recipe list is wider. Craft counts and required skills sit in a column at
+  the left of each row, so the icons and names line up, and the profit at the right.
+- Professions: Create and Create All grey out while one of the recipe's requirements is not
+  met, such as being away from an anvil.
+- Professions: the window follows the NaowhUI look: 1px black borders, the skill bars filled
+  with Naowh's blue gradient like the XP bar, and flat checkboxes.
+- Professions: amounts read as text, from the largest coin down to copper ("12g 07s 09c",
+  "6s 00c").
 
 ### Fixed
 - Death Release Protection no longer carries over to a death outside a dungeon or raid.
@@ -71,6 +118,55 @@
   unavailable.
 - Town Map: pins show by default in Zephras Isle.
 - Flight Timer: the tooltip no longer says the first flight counts up.
+- Professions: Crafting Profit (Buying and Selling, off by default). Once you have scanned
+  the auction house (Scan Prices), the chosen recipe shows Buy for, Sell for and Profit: what
+  its reagents cost to buy, what the item sells for, and the profit after the 5% auction cut,
+  green or red. Each reagent is priced at its cheapest: a vendor's price once you have seen a
+  vendor sell it, else the lowest buyout at your last scan. Hover the lines for the cost of
+  each reagent. Works for unlearned recipes too.
+- Professions: Profit in Recipe List (off by default) shows each recipe's profit at the right
+  of its row in the list.
+- Professions: with Crafting Profit or Buy Materials on, each reagent has a checkbox. Uncheck
+  one you already have to leave it out of the cost and out of what Buy Materials buys, for
+  every recipe that uses it.
+- Professions: Search AH Button (off by default). At the auction house, a Search AH button
+  next to the chosen recipe searches for the item it makes; unlearned recipes also get Search
+  Recipe, for the pattern, plans or manual that teaches it.
+- Professions: Buy Materials (off by default). At the auction house, "- [1] + Buy" under the
+  chosen recipe's reagents buys the materials for that many crafts: every checked reagent
+  vendors do not sell. Each material is searched and priced first, warns in red when it is
+  more than 25% above your last scan or you cannot afford it, and is only bought when you
+  click Confirm. Materials sold as single listings get Search AH instead.
+- Professions: a Filter button beside the recipe search: Have Materials, Has Skill-Up,
+  Profitable (once scanned) and Unlearned Recipes, with Reset Filters. It shows how many
+  filters are on.
+- Professions: Track Recipe on the chosen recipe's Reagents line, as in Blizzard's window:
+  the recipe's reagents in your objective tracker.
+- Professions: Tracking Reminder (Gathering, off by default). An icon on screen while you
+  know Find Herbs, Find Minerals or Find Fish but track none of them; click it to start
+  tracking (left, right and middle-click for the first, second and third). Hidden in combat,
+  on flight paths, while dead, and in dungeons and raids unless Show in Dungeons and Raids is
+  on. Include Find Fish can leave fish out. Move it in Unlock Mode.
+- Mouse Ring: a cast pushed back by damage keeps its sweep to the new end instead of stopping at
+  the old one and leaving the ring blank until the cast finishes.
+- Mouse Ring: changing the Melee Spell ID takes effect at once instead of on the next target.
+- Crosshair and Mouse Ring: switching Play a Sound off stops an out-of-melee sound already
+  repeating.
+- Cursor Clip: a crash or a closed client in the middle of a fight no longer leaves the cursor
+  locked to the window; your own setting comes back at the next login.
+- Mouse Ring: Recolour Ready Ring greys out while GCD Sweep is off, as the ready ring needs it.
+- Combat Alert with Text to Speech no longer stutters the game on every pull. The addon re-read
+  your installed Windows voices each time combat started; it now does that when you close
+  the game's Settings or its Text to Speech options. The spoken line also goes out a frame
+  after the combat change instead of on it.
+- Auto Repair and Auto Sell Junk work with the Restock Reminder switched off. They did nothing
+  at a vendor unless the reminder was on, and said nothing about it.
+- Auto Repair says so when you do not have the gold to repair, instead of skipping it quietly.
+- Buy at Vendors greys out while the Restock Reminder is off, as it only buys with it on.
+- Professions: clicking another player's profession link with the profession window closed
+  opened your own profession; it now opens theirs the first time.
+- Professions: the unlearned recipe view no longer runs its requirement line under the
+  Search Recipe button, or its waypoint hint into the profit lines.
 
 ## 0.5.16-beta
 

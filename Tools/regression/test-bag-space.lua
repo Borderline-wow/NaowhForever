@@ -20,6 +20,7 @@ local ITEMS = {
 }
 
 local WHITE = { r = 1, g = 1, b = 1, hex = "|cffffffff" }
+local HEX = { accent = "0091ed", muted = "9a9ea6", fg = "f0f1f3", accentSoft = "4db5f5" }
 
 local function Fixture(opts)
     local settings = opts.settings or {}
@@ -67,6 +68,7 @@ local function Fixture(opts)
     end
 
     local ns = {
+        Color = function(token, text) return "|cff" .. HEX[token] .. (text and (text .. "|r") or "") end,
         THEME = { accent = { r = 0, g = 0.57, b = 0.93 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
             fg = { r = 0.94, g = 0.95, b = 0.95 }, bg = { r = 0.05, g = 0.06, b = 0.07 },
             line = { r = 0.18, g = 0.19, b = 0.21 } },

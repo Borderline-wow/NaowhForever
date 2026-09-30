@@ -82,7 +82,8 @@ local function Fixture(kind)
     local state = { now = 0, start = 0, encounter = 1, displayed = 0, timers = {}, queue = {} }
     local entry = { enabled = true, trigger = { type = kind, spellID = 123, leadTime = 3, delay = 20, stage = 2 } }
     state.set = { r = entry }; state.profile = { enabled = true }; state.account = {}
-    local ns = { trackedReminderTimers = {},
+    local ns = { Color = function(token, text) return "|cff" .. ({ accent = "0091ed", muted = "9a9ea6", fg = "f0f1f3", accentSoft = "4db5f5" })[token] .. (text and (text .. "|r") or "") end,
+        trackedReminderTimers = {},
         AccountSettings = function() return state.account end,
         DB = function() return state.profile end,
         CurrentEncounter = function() return state.encounter end,
@@ -164,7 +165,8 @@ Case("bundled serializers round-trip real profile strings and reject malformed i
     db.raidReminders["1"].r.healerReminder = true
     db.abilityBindings["250"]["1"]["123"].healerReminder = true
     local writes = 0
-    local ns = { DB = function() return db end,
+    local ns = { Color = function(token, text) return "|cff" .. ({ accent = "0091ed", muted = "9a9ea6", fg = "f0f1f3", accentSoft = "4db5f5" })[token] .. (text and (text .. "|r") or "") end,
+        DB = function() return db end,
         EnsureProfile = function() writes = writes + 1; return {} end }
     local env = { _G = { NaowhForever = ns }, LibStub = LibStub }
     Eval(Read("_Packs"), env)

@@ -302,7 +302,7 @@ function ns.ShowCopyTrashRulesPopup(callerEUI, kind)
             local s = specs[i]
             local btn = UI.KeepButton(panel, "spec", s.name, 210, 24, function()
                 local copied, skipped = I.CopyRulesFromSpec(s.key, kind)
-                ns.Print(("copied |cff0091ed%d|r %s from %s%s."):format(
+                ns.Print(("copied " .. ns.Color("accent", "%d") .. " %s from %s%s."):format(
                     copied, noun, s.name,
                     skipped > 0 and (", left " .. skipped .. " already here alone") or ""))
                 dimmer:Hide()

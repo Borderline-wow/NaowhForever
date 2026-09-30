@@ -8,6 +8,8 @@ $clips = [ordered]@{
     'dispel-me' = 'Dispel me.'
     'move-out' = 'Move out.'
     'use-a-defensive' = 'Use a defensive.'
+    'combat' = 'Combat.'
+    'safe' = 'Safe.'
     'stoneform-ready' = 'Stoneform.'
     'stoneform-preview' = 'Stoneform.'
 }

@@ -6,7 +6,7 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 
-local TAG = "|cff0091edNaowh Mail|r"
+local function Tag() return ns.Color("accent", "Naowh Mail") end
 local SEND_SLOTS = 12
 local EXPIRY_WARN = 3 * 86400
 local TRADE_GOODS = Enum.ItemClass.Tradegoods
@@ -71,7 +71,7 @@ local function AttachNext()
         local e = table.remove(queue, 1)
         local slot = FreeSlot()
         if not slot then
-            ns.Print(TAG .. ": all " .. SEND_SLOTS .. " attachment slots are full. Send this one and attach again.")
+            ns.Print(Tag() .. ": all " .. SEND_SLOTS .. " attachment slots are full. Send this one and attach again.")
             StopAttaching()
             return
         end
@@ -151,7 +151,7 @@ local function WarnExpiring()
         end
     end
     if #soon > 0 then
-        ns.Print(TAG .. ": mail expiring soon on " .. table.concat(soon, ", ")
+        ns.Print(Tag() .. ": mail expiring soon on " .. table.concat(soon, ", ")
             .. ". Open the mailbox on those characters to keep it.")
     end
 end

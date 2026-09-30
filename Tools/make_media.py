@@ -123,7 +123,28 @@ def chevron(x, y, size):
     return (255, 255, 255, int(round(255 * a)))
 
 
+def segment_dist(x, y, ax, ay, bx, by):
+    dx, dy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(x - (ax + t * dx), y - (ay + t * dy))
+
+
+def stroke(size, points, width):
+    # White polyline with round caps, alpha only, for tinting with SetVertexColor.
+    def pixel(x, y, _):
+        d = min(segment_dist(x, y, *(p * size for p in points[i] + points[i + 1]))
+                for i in range(len(points) - 1))
+        return (255, 255, 255, int(round(255 * smooth(width * size / 2, d))))
+    return pixel
+
+
 os.makedirs(OUT, exist_ok=True)
+# y runs down the image.
+write_tga(os.path.join(OUT, "chevron_up.tga"), 64, stroke(64, [(0.22, 0.64), (0.5, 0.36), (0.78, 0.64)], 0.12))
+write_tga(os.path.join(OUT, "cross.tga"), 64, lambda x, y, s: max(
+    stroke(64, [(0.26, 0.26), (0.74, 0.74)], 0.11)(x, y, s),
+    stroke(64, [(0.26, 0.74), (0.74, 0.26)], 0.11)(x, y, s), key=lambda p: p[3]))
+write_tga(os.path.join(OUT, "check.tga"), 64, stroke(64, [(0.18, 0.5), (0.4, 0.72), (0.82, 0.28)], 0.13))
 write_tga(os.path.join(OUT, "circle_mask.tga"), 128, disc)
 write_tga(os.path.join(OUT, "circle_half.tga"), 256, half_disc)
 write_tga(os.path.join(OUT, "circle_hole.tga"), 256, hole)

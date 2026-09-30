@@ -18,7 +18,7 @@ globals = {
     "SLASH_NAOWHFOREVER4", "SLASH_NAOWHFOREVER5",
     "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHUITANK1",
     "BINDING_HEADER_NAOWHFOREVER", "BINDING_NAME_NAOWHFOREVER_BAGSPACE_PICKUP",
-    "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin",
+    "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin", "NaowhForeverLibraryPinMixin",
     "SlashCmdList", "hash_SlashCmdList", "StaticPopupDialogs",
     "STANDARD_TEXT_FONT", "UNIT_NAME_FONT", "DAMAGE_TEXT_FONT",
 }
@@ -94,7 +94,8 @@ read_globals = {
     "QuestGetAutoAccept", "QuestInfoFrame", "QuestInfoItem_OnClick", "QuestInfoRewardsFrame",
     "RAID_CLASS_COLORS", "RegisterStateDriver", "ReloadUI", "RepairAllItems",
     "RequestTimePlayed", "SaveBindings", "SEARCH", "SecondsToTime", "SecureHandlerWrapScript",
-    "SelectActiveQuest", "SelectAvailableQuest", "SendChatMessage", "SetBinding", "SetCVar",
+    "SelectActiveQuest", "SelectAvailableQuest", "SendChatMessage", "SetBinding", "SetCVar", "SetItemRef", "C_Minimap", "GameTooltip_SetTitle",
+    "GameTooltip_AddNormalLine",
     "ShoppingTooltip1", "ShoppingTooltip2", "SILVER_AMOUNT", "SOUNDKIT",
     "StaticPopup_FindVisible", "StaticPopup_Hide", "StaticPopup_Show", "StatusTrackingBarInfo",
     "StatusTrackingBarManager", "strlower", "strsplit", "strsub", "strtrim", "strupper",

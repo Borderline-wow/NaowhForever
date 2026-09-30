@@ -10,6 +10,9 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local UI = ns.UI
 
+-- The blue glow and border while a cast runs; ns.ThemeTint swaps in the player's Accent.
+local GCD_BLUE = { r = 0.01, g = 0.56, b = 0.91 }
+
 -- A baseline spell per class with no cooldown of its own, so any cooldown it shows is the
 -- global cooldown. Forever has no dedicated global cooldown spell.
 local GCD_SPELLS = {
@@ -70,7 +73,8 @@ local function NewIcon()
     f.glow = f:CreateTexture(nil, "BACKGROUND")
     f.glow:SetPoint("TOPLEFT", -1, 1)
     f.glow:SetPoint("BOTTOMRIGHT", 1, -1)
-    f.glow:SetColorTexture(0.01, 0.56, 0.91, 0.7)
+    local blue = ns.ThemeTint("accent", GCD_BLUE)
+    f.glow:SetColorTexture(blue.r, blue.g, blue.b, 0.7)
     f.border = f:CreateTexture(nil, "BORDER")
     f.border:SetPoint("TOPLEFT", -1, 1)
     f.border:SetPoint("BOTTOMRIGHT", 1, -1)
@@ -99,7 +103,8 @@ local function Paint(f, entry, onGCD)
         f.glow:Show()
         f.tex:SetDesaturated(false)
         f.tex:SetVertexColor(1, 1, 1)
-        f.border:SetColorTexture(0.01, 0.56, 0.91, 0.8)
+        local blue = ns.ThemeTint("accent", GCD_BLUE)
+        f.border:SetColorTexture(blue.r, blue.g, blue.b, 0.8)
     elseif entry.failed then
         f.glow:Hide()
         f.tex:SetDesaturated(true)

@@ -830,7 +830,7 @@ local function ShowFallbackSettingsPopup(EUI)
 
     _, h = W:DualRow(panel, y,
         { type = "toggle", text = "Announce in Chat",
-          tooltip = "Sends |cff0091edEXTERNAL!|r to party, raid or instance chat when nothing on "
+          tooltip = "Sends " .. ns.Color("accent", "EXTERNAL!") .. " to party, raid or instance chat when nothing on "
           .. "your list is up, so whoever is watching for it can react. Group chat only, and at "
           .. "most once every three seconds however many telegraphs land together.",
           disabled = function() return db.fallbackOn == false end,
@@ -906,7 +906,7 @@ local function NewPresetRow(leftPane)
         local EUIg = ns.UI
         if EUIg and EUIg.ShowWidgetTooltip then
             EUIg.ShowWidgetTooltip(self,
-                "|cff0091edDelete Preset|r\nRemoves this preset and its list. Cannot be undone.")
+                ns.Color("accent", "Delete Preset") .. "\nRemoves this preset and its list. Cannot be undone.")
         end
     end)
     del:SetScript("OnLeave", function()
@@ -1146,7 +1146,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         local c = spare[i]
         row, h = W:DualRow(rightPane, ry,
             { type = "toggle",
-              text = "      |cff9a9ea6" .. c.name .. (c.userAdded and " (added by you)" or "") .. "|r",
+              text = "      " .. ns.Color("muted", c.name .. (c.userAdded and " (added by you)" or "")),
               tooltip = ("Spell ID %d. Tick to put it into your priority order."):format(c.id),
               getValue = function() return false end,
               setValue = function()
@@ -1187,7 +1187,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     local db = ns.DB()
     row, h = W:DualRow(rightPane, ry,
         { type = "toggle",
-          text = ("      |cff0091edLast:  %s|r"):format(db.voiceNone or "Call for an External"),
+          text = ("      " .. ns.Color("accent", "Last:  %s")):format(db.voiceNone or "Call for an External"),
           tooltip = "The final step, used when nothing on your list is up. Switch it off to say "
           .. "and show nothing at all in that case.\n\nThis is the default for the whole spec. "
           .. "An individual ability can override it from its own cog on a boss page, for hits "
@@ -2309,8 +2309,8 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 hint:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
                 hint:SetPoint("RIGHT", body, "RIGHT", 0, 0)
                 hint:SetWordWrap(true)
-                hint:SetText("|cff9a9ea6No presets yet -- add one on the Setup page "
-                    .. "first.|r")
+                hint:SetText(ns.Color("muted", "No presets yet -- add one on the Setup page "
+                    .. "first."))
                 by = by - 34
             else
                 local presetValues, presetOrder = {}, {}
@@ -2644,8 +2644,8 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     local healerTag = binding and binding.healerReminder and "  |cff6DD09A[Healer Reminder]|r" or ""
     row.title:SetText((ability.title or "?") .. (roleTag and ("  " .. roleTag) or "") .. healerTag)
 
-    local descText = ability.description or "|cff9a9ea6No description in the journal.|r"
-    if restTag then descText = ("|cff9a9ea6[%s]|r  "):format(restTag) .. descText end
+    local descText = ability.description or ns.Color("muted", "No description in the journal.")
+    if restTag then descText = (ns.Color("muted", "[%s]") .. "  "):format(restTag) .. descText end
     row.desc:SetText(descText)
 
     return y - ABILITY_ROW_H
@@ -2741,10 +2741,10 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
             end
 
             local delay = r.trigger.delay
-            row.lbl:SetText((r.name or "Reminder") .. "  |cff9a9ea6("
+            row.lbl:SetText((r.name or "Reminder") .. "  " .. ns.Color("muted", "("
                 .. ((TRIGGER_CHOICES[r.trigger.type] or r.trigger.type)
                     .. (delay and (" +" .. tostring(delay) .. "s") or ""))
-                .. ")|r")
+                .. ")"))
             y = y - 26
         end
     end
@@ -2898,7 +2898,7 @@ function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
     body:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
     body:SetJustifyH("LEFT")
     body:SetWordWrap(true)
-    body:SetText(("Remove |cff0091ed%s|r from this boss?"):format(ability.title or "this ability"))
+    body:SetText(("Remove " .. ns.Color("accent", "%s") .. " from this boss?"):format(ability.title or "this ability"))
 
     local warn = UI.KeepFont(panel, "warn", 11, nil, ns.THEME.muted)
     warn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -84)
@@ -3243,9 +3243,9 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
             local btn = UI.KeepButton(panel, "spec", label, 200, 24, function()
                 local copied, skipped, reminders = ns.CopyBindingsFromSpec(
                     s.key, (not allBosses) and encounterID or nil, encSet)
-                ns.Print(("copied |cff0091ed%d|r abilities%s from %s%s.")
+                ns.Print(("copied " .. ns.Color("accent", "%d") .. " abilities%s from %s%s.")
                     :format(copied,
-                        reminders > 0 and (" and |cff0091ed" .. reminders .. "|r message reminders") or "",
+                        reminders > 0 and (" and " .. ns.Color("accent", reminders) .. " message reminders") or "",
                         s.name,
                         skipped > 0 and (", left " .. skipped .. " already here alone") or ""))
                 ns.RefreshRuntime()
@@ -3365,7 +3365,7 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
                 end
                 row.lbl:SetText((a.title or ("Spell " .. a.spellID))
                     .. (roleTag and ("  " .. roleTag) or "")
-                    .. (curated and "  |cff0091ed[tank hit]|r" or ""))
+                    .. (curated and ("  " .. ns.Color("accent", "[tank hit]")) or ""))
 
                 y = y - 28
             end
@@ -3553,7 +3553,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         lbl:SetPoint("LEFT", check, "RIGHT", 4, 0)
         lbl:SetPoint("RIGHT", editBtn, "LEFT", -8, 0)
         lbl:SetJustifyH("LEFT")
-        lbl:SetText(name .. "  |cff9a9ea6(" .. desc .. ")|r")
+        lbl:SetText(name .. "  " .. ns.Color("muted", "(" .. desc .. ")"))
 
         y = y - 26
     end
@@ -4016,8 +4016,8 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
 
         if #list == 0 then
             pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, PICKER_TOP)
-            pickerHint:SetText("|cff9a9ea6Nothing recorded for this boss yet -- pull it with "
-                .. "BigWigs running, or type a Spell ID below.|r")
+            pickerHint:SetText(ns.Color("muted", "Nothing recorded for this boss yet -- pull it with "
+                .. "BigWigs running, or type a Spell ID below."))
             pickerHint:SetHeight(28)
             return 28
         end
@@ -4039,7 +4039,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         end
         pickerHint:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", PAD, PICKER_TOP - shown * PICKER_ROW_H)
         if #list > shown then
-            pickerHint:SetText(("|cff9a9ea6+%d more not shown -- type the Spell ID below.|r")
+            pickerHint:SetText((ns.Color("muted", "+%d more not shown -- type the Spell ID below."))
                 :format(#list - shown))
             pickerHint:SetHeight(16)
             return shown * PICKER_ROW_H + 20
@@ -4245,8 +4245,8 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
                 elseif spellBox:GetText() == "" then
                     feedback:SetText("")
                 else
-                    feedback:SetText("|cff9a9ea6no spell name found -- boss-mod keys aren't "
-                        .. "always real spell ids, that's fine|r")
+                    feedback:SetText(ns.Color("muted", "no spell name found -- boss-mod keys aren't "
+                        .. "always real spell ids, that's fine"))
                 end
             end
             spellBox:SetScript("OnTextChanged", function() spellIDText = spellBox:GetText() or ""; Sync() end)

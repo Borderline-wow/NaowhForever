@@ -316,7 +316,7 @@ local function OpenChain(owner, quest)
             local name = C_QuestLog.GetTitleForQuestID(id) or ns.DungeonQuestChainNames[id] or byID[id][2]
             local text = ("%d.  %s  %s"):format(i, name, state)
             if state == DONE then text = MUTED .. ("%d.  %s|r  "):format(i, name) .. DONE end
-            if i == own then text = text .. "  |cff4db5f5(this quest)|r" end
+            if i == own then text = text .. "  " .. ns.Color("accentSoft", "(this quest)") end
             if state ~= DONE and (state == ACTIVE or StepSpot(step, id)) then
                 root:CreateButton(text, function() StepWaypoint(step, state, id, name) end)
             else
@@ -578,7 +578,7 @@ local function Render(dungeons, title, near)
         lines[#lines + 1] = extra
     end
     for _, dungeon in ipairs(dungeons) do
-        if #dungeons > 1 or near then Add("|cff4db5f5" .. dungeon.name .. "|r" .. LevelRange(dungeon)) end
+        if #dungeons > 1 or near then Add(ns.Color("accentSoft", dungeon.name) .. LevelRange(dungeon)) end
         -- Gathered by state first, then listed in RANK order.
         local byRank = {}
         for r = 1, RANKS do byRank[r] = {} end
@@ -861,7 +861,7 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
     local all = S.Get("dqAllFactions")
     for _, dungeon in ipairs(ns.DungeonQuests) do
         local levels = dungeon.levels and ("   %sLEVEL %d-%d%s|r"):format(
-            InReach(dungeon) and IN_REACH or "|cff9a9ea6", dungeon.levels[1], dungeon.levels[2],
+            InReach(dungeon) and IN_REACH or ns.Color("muted"), dungeon.levels[1], dungeon.levels[2],
             InReach(dungeon) and "  IN RANGE" or "") or ""
         y = y - select(2, W:SectionHeader(parent, dungeon.name:upper() .. levels, y))
         if #dungeon.quests == 0 then

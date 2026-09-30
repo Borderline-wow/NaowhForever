@@ -91,8 +91,8 @@ local S = UI.ModuleSettings("qol", {
     combatLeaveText = "-Combat", combatLeaveColor = { r = 1, g = 0, b = 0 },
     combatLeaveClassColor = false,
     combatAlertFont = "", combatAlertFontSize = 32,
-    combatEnterAudio = "none", combatEnterSound = "none", combatEnterSpeech = "Combat",
-    combatLeaveAudio = "none", combatLeaveSound = "none", combatLeaveSpeech = "Safe",
+    combatEnterAudio = "none", combatEnterSound = "voice:combat", combatEnterSpeech = "Combat",
+    combatLeaveAudio = "none", combatLeaveSound = "voice:safe", combatLeaveSpeech = "Safe",
     combatEnterVoice = "", combatEnterVolume = 50, combatEnterRate = 0,
     combatLeaveVoice = "", combatLeaveVolume = 50, combatLeaveRate = 0,
 
@@ -506,9 +506,8 @@ end
 function ns.BuildQoLLootPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
-    _, h = W:SectionHeader(parent, "LOOTING" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "LOOTING", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("deleteConfirm", "Auto-Fill Delete Confirmation",
             "Types DELETE into the confirmation box for you, and names the item in the dialog as a "
@@ -516,13 +515,13 @@ function ns.BuildQoLLootPage(parent, y)
         S.Toggle("fastLoot", "Faster Auto Loot", "Loots automatically without hiding the loot window. Hold Shift to loot manually.")
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "VENDORS" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "VENDORS", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("autoRepair", "Auto Repair", "Repairs all gear when you open a vendor who can."),
         S.Toggle("sellJunk", "Auto Sell Junk", "Sells grey items when you open a vendor.")
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "AUCTION PRICES" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "AUCTION PRICES", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("ahPrices", "Scan Prices Button",
             "A Scan Prices button on the auction house. It reads every listing and keeps the "
@@ -533,7 +532,7 @@ function ns.BuildQoLLootPage(parent, y)
     ); y = y - h
     _, h = W:Note(parent, ns.AuctionScanSummary(), y); y = y - h
 
-    _, h = W:SectionHeader(parent, "MAIL & ALTS" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "MAIL & ALTS", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("altCounts", "Alt Item Counts",
             "Item tooltips show how many your characters on this realm and faction hold in "
@@ -554,7 +553,7 @@ function ns.BuildQoLLootPage(parent, y)
     local forget
     forget, h = W:Button(parent, "Forget a Character", y, function() ns.OpenForgetAltMenu(forget._btn) end); y = y - h
 
-    _, h = W:SectionHeader(parent, "RESTOCK" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "RESTOCK", y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("restock", "Restock Reminder",
             "When you reach a city or inn, a flashing list in the middle of the screen of what "
@@ -564,7 +563,7 @@ function ns.BuildQoLLootPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("restockBuy", "Buy at Vendors",
             "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
-            .. "and prints what it spent. Off by default: it spends gold for you."),
+            .. "and prints what it spent. Off by default: it spends gold for you.", "restock"),
         S.Toggle("restockReagents", "Class Reagents",
             "The reagents your known spells use, such as Arcane Powder, candles, seeds, Symbols "
             .. "of Kings and Flash Powder, matched to the highest rank you know.", "restock")
@@ -598,7 +597,7 @@ function ns.BuildQoLLootPage(parent, y)
         _, h = W:DualRow(parent, y, sliders[i], sliders[i + 1] or { type = "label", text = "" }); y = y - h
     end
 
-    _, h = W:SectionHeader(parent, "BAG SPACE" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "BAG SPACE", y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("bagSpace", "Bag Space",
             "The cheapest items in your bags as a row of icons, cheapest first. Ctrl-click an icon "
@@ -671,7 +670,7 @@ function ns.BuildQoLLootPage(parent, y)
         if ns.ShowBagSpaceIgnoreList then ns.ShowBagSpaceIgnoreList() end
     end); y = y - h
 
-    _, h = W:SectionHeader(parent, "LOOT FEED" .. STATUS.ready, y); y = y - h
+    _, h = W:SectionHeader(parent, "LOOT FEED", y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("lootFeed", "Loot Feed",
             "Everything you loot pops up on screen with its icon, amount and value, stacking "
@@ -753,9 +752,8 @@ end
 function ns.BuildQoLAlertsPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
-    _, h = W:SectionHeader(parent, "COMBAT" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "COMBAT", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("groupDeaths", "Announce Group Deaths", "Shows who died in your group."),
         { type = "label", text = "" }
@@ -779,7 +777,8 @@ function ns.BuildQoLAlertsPage(parent, y)
         ); y = y - h
         _, h = W:DualRow(parent, y,
             S.Dropdown(k .. "Audio", name .. " Audio", AUDIO_VALUES, AUDIO_ORDER,
-                "A sound, or the Speech text read aloud.", "combatAlert"),
+                "A sound, or the Speech text read aloud. Text to Speech can stutter on some PCs, "
+                .. "as the game waits while Windows speaks it; a Sound costs nothing.", "combatAlert"),
             S.Dropdown(k .. "Sound", name .. " Sound", soundNames, soundOrder, nil, "combatAlert")
         ); y = y - h
         _, h = W:DualRow(parent, y,
@@ -797,7 +796,7 @@ function ns.BuildQoLAlertsPage(parent, y)
         ); y = y - h
     end
 
-    _, h = W:SectionHeader(parent, "DURABILITY" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "DURABILITY", y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("durability", "Low Durability Warning",
             "Text on screen when any piece of gear drops below the threshold. Hidden in "
@@ -813,7 +812,7 @@ function ns.BuildQoLAlertsPage(parent, y)
         { type = "label", text = "" }
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "COMBAT TIMER" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "COMBAT TIMER", y); y = y - h
     local timerFonts, timerFontOrder = UI.FontChoices(S.Get("combatTimerFont"))
     _, h = W:Feature(parent, y,
         S.Toggle("combatTimer", "Combat Timer",
@@ -842,7 +841,7 @@ function ns.BuildQoLAlertsPage(parent, y)
         { type = "label", text = "" }
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "PET TRACKER" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "PET TRACKER", y); y = y - h
     local petFonts, petFontOrder = UI.FontChoices(S.Get("petFont"))
     _, h = W:Feature(parent, y,
         S.Toggle("petTracker", "Pet Tracker",
@@ -881,7 +880,7 @@ function ns.BuildQoLAlertsPage(parent, y)
     _, h = TextButton(parent, y, "Low Health Text", "Text while your pet is low on health",
         "petLowHealthText"); y = y - h
 
-    _, h = W:SectionHeader(parent, "EQUIPMENT REMINDER" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "EQUIPMENT REMINDER", y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("equipReminder", "Equipment Reminder",
             "Your trinkets, weapons and ranged slot in a small window when you enter a dungeon "
@@ -912,7 +911,7 @@ function ns.BuildQoLAlertsPage(parent, y)
         if ns.ShowEquipmentReminder then ns.ShowEquipmentReminder() end
     end); y = y - h
 
-    _, h = W:SectionHeader(parent, "EMOTE DETECTION" .. STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "EMOTE DETECTION", y); y = y - h
     local emoteFonts, emoteFontOrder = UI.FontChoices(S.Get("emoteFont"))
     _, h = W:Feature(parent, y,
         S.Toggle("emoteDetection", "Emote Detection",
@@ -1197,9 +1196,13 @@ function ns.BuildQoLInterfacePage(parent, y)
             "Turns the ring red while your target is out of melee range. Uses the same ability "
             .. "as the crosshair's melee check, Melee Spell ID included.", "mouseRing")
     ); y = y - h
+    -- The ready ring only exists with GCD Sweep on, so recolouring it needs both.
+    local readyRecolour = S.Toggle("mouseMeleeRing", "Recolour Ready Ring",
+        "The ready ring shows with GCD Sweep on.", "mouseMelee")
+    readyRecolour.disabled = function() return not (S.Get("mouseMelee") and S.Get("mouseGCD")) end
     _, h = W:DualRow(parent, y,
         S.Toggle("mouseMeleeBorder", "Recolour Border", nil, "mouseMelee"),
-        S.Toggle("mouseMeleeRing", "Recolour Ready Ring", nil, "mouseMelee")
+        readyRecolour
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("mouseMeleeSound", "Play a Sound", "Plays as your target leaves melee range.",

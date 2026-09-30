@@ -42,6 +42,208 @@ ns.THEME = {
     accentSoft = { r = 0x4d / 255, g = 0xb5 / 255, b = 0xf5 / 255 },
 }
 
+-- Theme presets for Settings > COLORS: the six tokens a player can change, per preset. The
+-- default theme is not listed; it is ns.THEME above, untouched. Each preset keeps fg at 4.5:1
+-- and muted and accent at 3:1 against its own bg and panel (Tools/regression checks it).
+ns.THEME_EDITABLE = { "bg", "panel", "line", "fg", "muted", "accent" }
+ns.THEME_PRESET_ORDER = { "midnight", "slate", "obsidian", "aubergine", "forest", "crimson", "rosenoir",
+    "cottoncandy" }
+ns.THEME_PRESETS = {
+    midnight = { name = "Midnight",
+        bg     = { r = 0x0b / 255, g = 0x10 / 255, b = 0x20 / 255 },
+        panel  = { r = 0x15 / 255, g = 0x1c / 255, b = 0x30 / 255 },
+        line   = { r = 0x2a / 255, g = 0x35 / 255, b = 0x50 / 255 },
+        fg     = { r = 0xee / 255, g = 0xf2 / 255, b = 0xff / 255 },
+        muted  = { r = 0x9b / 255, g = 0xa7 / 255, b = 0xc8 / 255 },
+        accent = { r = 0x5b / 255, g = 0x8c / 255, b = 0xff / 255 } },
+    slate = { name = "Slate",
+        bg     = { r = 0x12 / 255, g = 0x16 / 255, b = 0x1c / 255 },
+        panel  = { r = 0x1e / 255, g = 0x24 / 255, b = 0x2d / 255 },
+        line   = { r = 0x36 / 255, g = 0x40 / 255, b = 0x4d / 255 },
+        fg     = { r = 0xf0 / 255, g = 0xf3 / 255, b = 0xf5 / 255 },
+        muted  = { r = 0x9a / 255, g = 0xa7 / 255, b = 0xb4 / 255 },
+        accent = { r = 0x2b / 255, g = 0xb8 / 255, b = 0xa8 / 255 } },
+    obsidian = { name = "Obsidian",
+        bg     = { r = 0x07 / 255, g = 0x07 / 255, b = 0x08 / 255 },
+        panel  = { r = 0x13 / 255, g = 0x14 / 255, b = 0x17 / 255 },
+        line   = { r = 0x2b / 255, g = 0x2d / 255, b = 0x32 / 255 },
+        fg     = { r = 0xf5 / 255, g = 0xf5 / 255, b = 0xf4 / 255 },
+        muted  = { r = 0xa1 / 255, g = 0xa1 / 255, b = 0xa6 / 255 },
+        accent = { r = 0xf5 / 255, g = 0xa5 / 255, b = 0x24 / 255 } },
+    aubergine = { name = "Aubergine",
+        bg     = { r = 0x13 / 255, g = 0x0d / 255, b = 0x18 / 255 },
+        panel  = { r = 0x1f / 255, g = 0x16 / 255, b = 0x26 / 255 },
+        line   = { r = 0x3a / 255, g = 0x2c / 255, b = 0x46 / 255 },
+        fg     = { r = 0xf3 / 255, g = 0xee / 255, b = 0xf7 / 255 },
+        muted  = { r = 0xa8 / 255, g = 0x9b / 255, b = 0xb8 / 255 },
+        accent = { r = 0xb5 / 255, g = 0x7b / 255, b = 0xff / 255 } },
+    forest = { name = "Forest",
+        bg     = { r = 0x0c / 255, g = 0x13 / 255, b = 0x10 / 255 },
+        panel  = { r = 0x16 / 255, g = 0x20 / 255, b = 0x19 / 255 },
+        line   = { r = 0x2c / 255, g = 0x3b / 255, b = 0x31 / 255 },
+        fg     = { r = 0xee / 255, g = 0xf4 / 255, b = 0xef / 255 },
+        muted  = { r = 0x9a / 255, g = 0xae / 255, b = 0x9f / 255 },
+        accent = { r = 0x36 / 255, g = 0xc5 / 255, b = 0x8a / 255 } },
+    crimson = { name = "Crimson",
+        bg     = { r = 0x14 / 255, g = 0x0a / 255, b = 0x0c / 255 },
+        panel  = { r = 0x20 / 255, g = 0x13 / 255, b = 0x16 / 255 },
+        line   = { r = 0x3d / 255, g = 0x24 / 255, b = 0x29 / 255 },
+        fg     = { r = 0xf6 / 255, g = 0xef / 255, b = 0xf0 / 255 },
+        muted  = { r = 0xac / 255, g = 0x9a / 255, b = 0x9e / 255 },
+        accent = { r = 0xef / 255, g = 0x4b / 255, b = 0x56 / 255 } },
+    rosenoir = { name = "Rose Noir",
+        bg     = { r = 0x1a / 255, g = 0x0b / 255, b = 0x14 / 255 },
+        panel  = { r = 0x27 / 255, g = 0x12 / 255, b = 0x1d / 255 },
+        line   = { r = 0x4a / 255, g = 0x24 / 255, b = 0x38 / 255 },
+        fg     = { r = 0xfd / 255, g = 0xee / 255, b = 0xf5 / 255 },
+        muted  = { r = 0xc9 / 255, g = 0xa3 / 255, b = 0xb6 / 255 },
+        accent = { r = 0xff / 255, g = 0x5f / 255, b = 0xa2 / 255 } },
+    cottoncandy = { name = "Cotton Candy",
+        bg     = { r = 0x1c / 255, g = 0x18 / 255, b = 0x32 / 255 },
+        panel  = { r = 0x27 / 255, g = 0x22 / 255, b = 0x45 / 255 },
+        line   = { r = 0x46 / 255, g = 0x3f / 255, b = 0x70 / 255 },
+        fg     = { r = 0xf8 / 255, g = 0xf2 / 255, b = 0xff / 255 },
+        muted  = { r = 0xbb / 255, g = 0xb2 / 255, b = 0xdc / 255 },
+        accent = { r = 0xf7 / 255, g = 0x8f / 255, b = 0xc8 / 255 } },
+}
+
+-- A |cffRRGGBB escape from a THEME key (or an {r,g,b} table). With text it wraps it and
+-- closes with |r; without, it returns the bare prefix for strings built in pieces. The
+-- prefix is cached per key, so a call costs one concat.
+local colorPrefix = {}
+function ns.Color(token, text)
+    local prefix = colorPrefix[token]
+    if not prefix then
+        local c = type(token) == "table" and token or ns.THEME[token]
+        prefix = ("|cff%02x%02x%02x"):format(
+            math.floor(c.r * 255 + 0.5), math.floor(c.g * 255 + 0.5), math.floor(c.b * 255 + 0.5))
+        if type(token) == "string" then colorPrefix[token] = prefix end
+    end
+    if text == nil then return prefix end
+    return prefix .. text .. "|r"
+end
+
+-- Player colors from Settings > COLORS, saved for this computer. They are written into the
+-- THEME tables above in place, once per load and before any window is built, so every
+-- file's `local T = ns.THEME` sees them; a new pick takes effect after a reload.
+local themeShipped = {}
+
+local function Channel(v)
+    v = tonumber(v)
+    if not v then return nil end
+    return math.min(1, math.max(0, v))
+end
+
+local function Pick(source, key)
+    local c = type(source) == "table" and source[key]
+    if type(c) ~= "table" then return nil end
+    local r, g, b = Channel(c.r), Channel(c.g), Channel(c.b)
+    if r and g and b then return r, g, b end
+end
+
+-- The colors in force: a preset's table, or the player's own picks for Custom. Anything else,
+-- an unknown preset name included, is the default theme and applies nothing.
+local function ThemeSource()
+    local account = ns.AccountSettings()
+    local preset = account.themePreset
+    if preset == "custom" then return account.themeColors end
+    return type(preset) == "string" and ns.THEME_PRESETS[preset] or nil
+end
+
+local function Paint(key, r, g, b)
+    local t = ns.THEME[key]
+    if not themeShipped[key] then themeShipped[key] = { r = t.r, g = t.g, b = t.b } end
+    t.r, t.g, t.b = r, g, b
+end
+
+-- The lighter accent and the selection fill are not picked: they follow the accent and the
+-- line, a fixed step toward white, and only when those two were changed.
+local function Lightened(t, amount)
+    return t.r + (1 - t.r) * amount, t.g + (1 - t.g) * amount, t.b + (1 - t.b) * amount
+end
+
+function ns.ApplyThemeColors()
+    local source = ThemeSource()
+    if not source then return end
+    for _, key in ipairs(ns.THEME_EDITABLE) do
+        local r, g, b = Pick(source, key)
+        if r then Paint(key, r, g, b) end
+    end
+    if themeShipped.accent then Paint("accentSoft", Lightened(ns.THEME.accent, 0.33)) end
+    if themeShipped.line then Paint("grey", Lightened(ns.THEME.line, 0.03)) end
+    for key in pairs(colorPrefix) do colorPrefix[key] = nil end
+end
+
+-- The selection in the Theme dropdown: a preset key, "custom", or "" for the default theme.
+function ns.ThemePresetKey()
+    local preset = ns.AccountSettings().themePreset
+    if preset == "custom" or (type(preset) == "string" and ns.THEME_PRESETS[preset]) then
+        return preset
+    end
+    return ""
+end
+
+local function HasPicks(colors)
+    for _, key in ipairs(ns.THEME_EDITABLE) do
+        if Pick(colors, key) then return true end
+    end
+    return false
+end
+
+-- The six colors of a preset, or of the default theme for "" or any unknown name, as picks.
+local function PalettePicks(name)
+    local from = ns.THEME_PRESETS[name]
+    local picks = {}
+    for _, key in ipairs(ns.THEME_EDITABLE) do
+        local r, g, b = Pick(from, key)
+        if not r then
+            local t = themeShipped[key] or ns.THEME[key]
+            r, g, b = t.r, t.g, t.b
+        end
+        picks[key] = { r = r, g = g, b = b }
+    end
+    return picks
+end
+
+-- Custom starts from the palette the player was looking at, unless they have picks saved
+-- from before, which stay.
+function ns.SetThemePreset(name)
+    local account = ns.AccountSettings()
+    local previous = ns.ThemePresetKey()
+    if name == "custom" then
+        if previous ~= "custom" and not HasPicks(account.themeColors) then
+            account.themeColors = PalettePicks(previous)
+        end
+        account.themePreset = "custom"
+    elseif type(name) == "string" and ns.THEME_PRESETS[name] then
+        account.themePreset = name
+    else
+        account.themePreset = nil
+    end
+end
+
+-- Replaces the Custom picks with a preset's colors ("" for the default theme's): the way
+-- back to a good palette after some experimenting.
+function ns.CopyThemeToCustom(name)
+    ns.AccountSettings().themeColors = PalettePicks(name)
+end
+
+-- What a swatch shows: the saved pick, else the color the addon ships with.
+function ns.ThemeSwatchColor(key)
+    local r, g, b = Pick(ns.AccountSettings().themeColors, key)
+    if r then return r, g, b end
+    local t = themeShipped[key] or ns.THEME[key]
+    return t.r, t.g, t.b
+end
+
+-- For a surface that ships its own shade instead of the token (a HUD panel with a tint):
+-- the token while the theme has changed `key`, else the shipped literal untouched. Read when
+-- a frame is built or refreshed, never at file load.
+function ns.ThemeTint(key, literal)
+    if themeShipped[key] then return ns.THEME[key] end
+    return literal
+end
+
 -- A secret-tainted message is DROPPED by the display, silently and with nothing logged, so
 -- a diagnostic built from live combat data can vanish line by line while looking for all the
 -- world like code that never ran. Caught here once rather than at every call site.
@@ -51,9 +253,9 @@ ns.THEME = {
 -- the only thing that answers plainly, and it must be asked BEFORE the value is coerced.
 function ns.Print(msg)
     if issecretvalue and issecretvalue(msg) then
-        msg = "|cff0091ed(withheld: this line contained a secret value)|r"
+        msg = ns.Color("accent", "(withheld: this line contained a secret value)")
     end
-    print("|cff0091edNaowh|r Forever: " .. tostring(msg))
+    print(ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
 end
 
 -------------------------------------------------------------------------------
@@ -101,6 +303,7 @@ gameFontEvents:RegisterEvent("ADDON_LOADED")
 gameFontEvents:RegisterEvent("PLAYER_LOGIN")
 gameFontEvents:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name ~= ADDON_NAME then return end
+    if event == "ADDON_LOADED" then ns.ApplyThemeColors() end
     local path = ns.GlobalFontPath()
     if not path then
         self:UnregisterAllEvents()
@@ -170,6 +373,8 @@ function ns.Button(parent, text, w, h, onClick)
     local bg = ns.Solid(btn, "BACKGROUND", T.panel, 0.9)
     bg:SetAllPoints()
     local border = ns.Border(btn)
+    -- The border and the colour it rests at, so ns.BlackBorder can restyle a module's buttons.
+    btn._border, btn._rest = border, T.line
     local lbl = ns.Font(btn, 12, nil)
     lbl:SetPoint("CENTER")
     lbl:SetText(ns.L(text))
@@ -182,9 +387,19 @@ function ns.Button(parent, text, w, h, onClick)
     end)
     btn:SetScript("OnLeave", function()
         bg:SetColorTexture(T.panel.r, T.panel.g, T.panel.b, 0.9)
-        border:SetColor(T.line.r, T.line.g, T.line.b, 1)
+        border:SetColor(btn._rest.r, btn._rest.g, btn._rest.b, 1)
     end)
     return btn
+end
+
+-- NaowhUI's 1px black border for an ns.Button or ns.NewEditBox (hover still lights it blue).
+-- Opt-in per module, so panels that keep the grey line are left alone.
+local BLACK = { r = 0, g = 0, b = 0 }
+function ns.BlackBorder(frame)
+    if not (frame and frame._border) then return frame end
+    frame._rest = BLACK
+    frame._border:SetColor(0, 0, 0, 1)
+    return frame
 end
 
 function ns.SetButtonText(btn, text)
@@ -214,7 +429,7 @@ local function ComposeTooltip(frame)
     local b = frame._tipBody
     if type(b) == "function" then b = b() end
     if b and b ~= "" then
-        return "|cff0091ed" .. frame._tipTitle .. "|r\n" .. b
+        return ns.Color("accent", frame._tipTitle) .. "\n" .. b
     end
     return frame._tipTitle
 end
@@ -371,7 +586,7 @@ function ns.NewEditBox(parent)
     box:SetFontObject("GameFontHighlight")
     box:SetTextInsets(6, 6, 0, 0)
     ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-    ns.Border(box)
+    box._border = ns.Border(box)
     return box
 end
 

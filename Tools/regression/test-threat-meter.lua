@@ -37,6 +37,7 @@ local function fixture(settings)
         function f:SetTexture(t) self.texture=t end
         function f:SetDesaturated(v) self.desaturated=v end
         function f:SetStatusBarColor(...) self.color={...} end
+        function f:SetColorTexture(...) self.colorTexture={...} end
         function f:SetValue(v) self.valueNumber=v end
         function f:CreateTexture() return frame('Texture',nil,self) end
         s.frames[#s.frames+1]=f; if name then s.named[name]=f end
@@ -45,8 +46,10 @@ local function fixture(settings)
     local ns={ THEME={bg={},muted={},accent={r=0,g=0.7,b=1}},
         UIFontPath=function() return 'font.ttf' end, Print=function() end,
         Apply=function() end, ShowRaidReminderAnchorConfig=function() end, HideRaidReminderAnchorConfig=function() end,
-        Font=function() return frame('FontString') end, Border=function() return frame('Border') end,
-        Solid=function() return frame('Texture') end, Tooltip=function() end,
+        Font=function() return frame('FontString') end,
+        Border=function(_,color) local b=frame('Border'); b.edge=color; return b end,
+        Solid=function(_,_,color,alpha) local t=frame('Texture'); t.solid={color=color,alpha=alpha}; return t end,
+        ThemeTint=function(_,literal) return literal end, Tooltip=function() end,
         Button=function(parent,text,w,h,fn) local b=frame('Button',nil,parent); b.label=frame('FontString'); b.label:SetText(text); b.scripts.OnClick=fn; return b end,
         OpenOptionsWindow=function(name) s.opened=name end,
         UI={STATUS={},FontPath=function() return 'font.ttf' end,AttachMover=function() return frame('Mover') end,
@@ -208,5 +211,19 @@ do
  local nameSpace=row.w-16-18-38-5-99*row.name.fontSize/12
  check('narrow window reserves readable names',nameSpace>=47.99)
  check('render fit preserves font preference',s.settings.fontSize==24)
+end
+do
+ -- With Custom Colors off the window paints exactly the surfaces it always did.
+ local s=fixture({enabled=true})
+ local function solid(r,g,b) for _,f in ipairs(s.frames) do local sd=rawget(f,'solid'); local c=sd and sd.color
+     if c and c.r==r and c.g==g and c.b==b and sd.alpha==1 then return true end end end
+ local function edge(r,g,b) for _,f in ipairs(s.frames) do local c=rawget(f,'edge')
+     if c and c.r==r and c.g==g and c.b==b then return true end end end
+ local function rowBg(r,g,b) for _,f in ipairs(s.frames) do local c=rawget(f,'colorTexture')
+     if c and c[1]==r and c[2]==g and c[3]==b and c[4]==1 then return true end end end
+ check('window background is unchanged',solid(0.025,0.04,0.055))
+ check('header background is unchanged',solid(0.04,0.075,0.095))
+ check('window border is unchanged',edge(0.10,0.19,0.24))
+ check('row background is unchanged',rowBg(0.065,0.085,0.105))
 end
 print(checks..' threat-meter checks passed')

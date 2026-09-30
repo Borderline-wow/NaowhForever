@@ -6,18 +6,20 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 
 -- The player's own ClipCursor value while we hold it at 1; nil when we are not holding it.
-local saved
-
+-- Saved, so a crash or a killed client mid-fight is put right at the next login instead of
+-- the held 1 being taken for the player's own setting.
 local function Clip()
-    if saved or not (S.Get("enabled") and S.Get("cursorClip")) then return end
-    saved = GetCVar("ClipCursor") or "0"
+    local account = ns.AccountSettings()
+    if account.clipCursorSaved or not (S.Get("enabled") and S.Get("cursorClip")) then return end
+    account.clipCursorSaved = GetCVar("ClipCursor") or "0"
     SetCVar("ClipCursor", "1")
 end
 
 local function Restore()
-    if not saved then return end
-    SetCVar("ClipCursor", saved)
-    saved = nil
+    local account = ns.AccountSettings()
+    if not account.clipCursorSaved then return end
+    SetCVar("ClipCursor", account.clipCursorSaved)
+    account.clipCursorSaved = nil
 end
 
 local events = CreateFrame("Frame")

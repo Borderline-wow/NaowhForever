@@ -65,6 +65,12 @@ local MODULES = {
           { name = "Dungeons", build = "BuildQoLDungeonQuestsPage", reuse = true, noscan = true },
           { name = "Settings", build = "BuildQoLDungeonQuestsSettingsPage", reuse = true },
       } },
+    { name = "Discovery", settings = "DiscoverySettings",
+      subtitle = "Library books to find around Azeroth, and who to hand them to.",
+      tabs = {
+          { name = "Books", build = "BuildDiscoveryBooksPage", reuse = true, noscan = true },
+          { name = "Settings", build = "BuildDiscoverySettingsPage", reuse = true },
+      } },
     { name = "Gear & Trinkets", settings = "QoLSettings", enabledKey = "gearSets",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
@@ -455,6 +461,10 @@ local function MinimapButtonOn(mod)
     return account.microMenu and account.microMenu.buttons[mod.name] == true
 end
 
+-- Set by any change in the COLORS section, and only cleared by a reload, which is when the
+-- colors apply.
+local colorsPending = false
+
 function ns.BuildSettingsPage(parent, y)
     local W = UI.Widgets
     local _, h
@@ -529,6 +539,76 @@ function ns.BuildSettingsPage(parent, y)
           end },
         { type = "label", text = "" }
     ); y = y - h
+
+    _, h = W:SectionHeader(parent, "COLORS", y); y = y - h
+    local function CustomSelected() return ns.ThemePresetKey() == "custom" end
+    -- A swatch drag calls setValue on every tick and has no OK callback, so the page is
+    -- rebuilt once, on the first change, to bring the hint up.
+    local function MarkColorsPending()
+        if colorsPending then return end
+        colorsPending = true
+        UI:RefreshPage(true)
+    end
+    local themes, themeOrder = { [""] = "Naowh (default)" }, { "" }
+    for _, key in ipairs(ns.THEME_PRESET_ORDER) do
+        themes[key] = ns.THEME_PRESETS[key].name
+        themeOrder[#themeOrder + 1] = key
+    end
+    themes.custom = "Custom"
+    themeOrder[#themeOrder + 1] = "custom"
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Theme", values = themes, order = themeOrder,
+          tooltip = "Theme presets for the addon's windows and HUD frames, plus a Custom "
+          .. "option for your own colors. If text gets hard to read, pick Naowh (default). "
+          .. "Saved for this computer.|n|nTakes effect after a /reload.",
+          getValue = ns.ThemePresetKey,
+          setValue = function(v)
+              ns.SetThemePreset(v)
+              colorsPending = true
+              UI:RefreshPage(true)
+          end },
+        { type = "label", text = "" }
+    ); y = y - h
+    if CustomSelected() then
+        -- An action, not a setting: it always reads "Choose a theme...", and picking one
+        -- asks before it replaces the swatches below with that theme's colors.
+        local starts, startOrder = { [""] = "Choose a theme...", default = "Naowh (default)" }, { "", "default" }
+        for _, key in ipairs(ns.THEME_PRESET_ORDER) do
+            starts[key] = ns.THEME_PRESETS[key].name
+            startOrder[#startOrder + 1] = key
+        end
+        _, h = W:DualRow(parent, y,
+            { type = "dropdown", text = "Start From", values = starts, order = startOrder,
+              tooltip = "Replace your custom colors with the colors of a theme, then adjust "
+              .. "them below. Picking Naowh (default) is a reset.",
+              getValue = function() return "" end,
+              setValue = function(v)
+                  if v == "" then return end
+                  ns.Confirm("Replace your custom colors with " .. starts[v] .. "?", function()
+                      ns.CopyThemeToCustom(v ~= "default" and v or "")
+                      colorsPending = true
+                      UI:RefreshPage(true)
+                  end)
+              end },
+            { type = "label", text = "" }
+        ); y = y - h
+        local function Swatch(key, text)
+            return { type = "colorpicker", text = text, hasAlpha = false,
+                getValue = function() return ns.ThemeSwatchColor(key) end,
+                setValue = function(r, g, b)
+                    local account = ns.AccountSettings()
+                    if type(account.themeColors) ~= "table" then account.themeColors = {} end
+                    account.themeColors[key] = { r = r, g = g, b = b }
+                    MarkColorsPending()
+                end }
+        end
+        _, h = W:DualRow(parent, y, Swatch("bg", "Background"), Swatch("panel", "Panels")); y = y - h
+        _, h = W:DualRow(parent, y, Swatch("line", "Borders & Lines"), Swatch("fg", "Text")); y = y - h
+        _, h = W:DualRow(parent, y, Swatch("muted", "Secondary Text"), Swatch("accent", "Accent")); y = y - h
+    end
+    if colorsPending then
+        _, h = W:Note(parent, "Reload UI to apply your color changes.", y); y = y - h
+    end
     _, h = W:Button(parent, "Reload UI", y, ReloadUI); y = y - h
 
     return y

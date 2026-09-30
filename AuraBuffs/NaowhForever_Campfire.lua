@@ -21,6 +21,8 @@ local CIRCLE_RING = "Interface\\AddOns\\NaowhForever\\Media\\circle_ring.tga"
 local RING_STEPS = { { 1800, 0.29, 0.87, 0.5 }, { 300, 0.98, 0.8, 0.08 }, { 0, 0.97, 0.27, 0.27 } }
 
 local TEXT_SIZE = 16
+-- The plate behind the campfire art; ns.ThemeTint swaps in the player's Panels color.
+local PLATE = { r = 0.14, g = 0.15, b = 0.16 }
 
 local icon, unlocked
 local hasCamp       -- nil until the first read
@@ -53,7 +55,8 @@ local function Build()
     icon.tex:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\CampfireHD.tga")
     icon.plate = icon:CreateTexture(nil, "BACKGROUND", nil, 1)
     icon.plate:SetAllPoints()
-    icon.plate:SetColorTexture(0.14, 0.15, 0.16, 1)
+    local plate = ns.ThemeTint("panel", PLATE)
+    icon.plate:SetColorTexture(plate.r, plate.g, plate.b, 1)
     icon.mask = icon:CreateMaskTexture()
     icon.mask:SetAllPoints()
     icon.mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")

@@ -198,7 +198,7 @@ local function SwapRanks()
         ClearCursor()
     end
     if #ups > 0 then
-        print(("|cff0091edNaowh|r: updated %d bar slot(s): %s"):format(#ups, Summary(ups)))
+        print((ns.Color("accent", "Naowh") .. ": updated %d bar slot(s): %s"):format(#ups, Summary(ups)))
     end
     -- Done once every slot is swapped; anything left over keeps the window up.
     if #Swappable() == 0 then
@@ -379,12 +379,12 @@ end
 -- /naowh ranks: check the bars now, as after a trainer visit.
 function ns.TrainerRankCheck()
     if InCombatLockdown() then
-        print("|cff0091edNaowh|r: leave combat, then check your bars again.")
+        print(ns.Color("accent", "Naowh") .. ": leave combat, then check your bars again.")
         return
     end
     listed, manual = {}, true
     if not Render() then
-        print("|cff0091edNaowh|r: every spell on your bars is at its highest rank.")
+        print(ns.Color("accent", "Naowh") .. ": every spell on your bars is at its highest rank.")
     end
 end
 

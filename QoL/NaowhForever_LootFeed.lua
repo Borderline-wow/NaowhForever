@@ -208,7 +208,7 @@ local function OnItem(link, count)
         local _, _, _, hex = C_Item.GetItemQualityColor(quality)
         local name = ("|c%s%s|r |cff20ff20x%d|r"):format(hex, item:GetItemName(), count)
         local pick = ns.IsBisItem and ns.IsBisItem(item:GetItemID())
-        if pick then name = name .. "  |cff0091edBiS" .. (pick > 1 and " #" .. pick or "") .. "|r" end
+        if pick then name = name .. "  " .. ns.Color("accent", "BiS" .. (pick > 1 and " #" .. pick or "")) end
         local bags = C_Item.GetItemCount(link, S.Get("lootFeedBank"))
         Push(texture, name, S.Get("lootFeedValue") and worth > 0 and Coins(worth) or nil,
             bags > 0 and bags or nil, link)

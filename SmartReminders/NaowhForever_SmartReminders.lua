@@ -2585,8 +2585,9 @@ end
 --
 -- The key is the stored setting, so the dropdown and a profile switch both invalidate with
 -- no wiring at either site, and VOICE_CHAT_TTS_VOICES_UPDATE catches the installed list.
--- Blizzard's own Text to Speech panel raises no event when its voice changes, so combat
--- start drops the cache too, which bounds a stale read to one pull.
+-- Blizzard's own Text to Speech panel raises no event when its voice changes, so closing
+-- that panel or the game's Settings drops the cache. Not combat start: the Combat Alert
+-- speaks on every pull, and re-reading the voice list there stalled each one.
 --
 -- Upvalues in a do block rather than file locals: this chunk is at Lua's 200-local ceiling.
 do
@@ -2595,6 +2596,15 @@ do
     function ns.InvalidateTTSVoice()
         cachedWant, cachedID = nil, nil
     end
+
+    local hookVoicePanels = CreateFrame("Frame")
+    hookVoicePanels:RegisterEvent("PLAYER_LOGIN")
+    hookVoicePanels:SetScript("OnEvent", function(self)
+        self:UnregisterAllEvents()
+        for _, panel in ipairs({ _G.SettingsPanel, _G.TextToSpeechFrame }) do
+            panel:HookScript("OnHide", ns.InvalidateTTSVoice)
+        end
+    end)
 
     function ns.TTSVoiceID()
         local want = TRDB().ttsVoiceID
@@ -2617,7 +2627,9 @@ do
         if not resolved then
             resolved = (voices and voices[1] and voices[1].voiceID) or 0
         end
-        cachedWant, cachedID = want, resolved
+        -- The voice list can still be empty early in a session. Nothing on a pull clears
+        -- the cache any more, so a guess made from an empty list is not kept.
+        if voices and #voices > 0 then cachedWant, cachedID = want, resolved end
         return resolved
     end
 end
@@ -5920,7 +5932,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
                 .. "nothing to report.")
             return
         end
-        ns.Print(("|cff0091edcallout timing|r (build %s), %d callout(s):")
+        ns.Print((ns.Color("accent", "callout timing") .. " (build %s), %d callout(s):")
             :format(BuildString(), pr.pickN))
         ns.Print(("  choosing the defensive: avg %.2fms, worst %.2fms, total %.0fms")
             :format(pr.pickSum / pr.pickN, pr.pickMax, pr.pickSum))
@@ -5995,12 +6007,12 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             return
         end
         if not currentEncounter then
-            ns.Print(("|cff9a9ea6last pull, encounter %s|r"):format(tostring(enc)))
+            ns.Print((ns.Color("muted", "last pull, encounter %s")):format(tostring(enc)))
         end
         for _, d in ipairs(diffs) do
             local block = ns.ObservedFor(enc, tonumber(d.key))
             local name = GetDifficultyInfo and GetDifficultyInfo(tonumber(d.key))
-            ns.Print(("|cff0091edobserved|r %s (%s): %d pull(s), longest %.0fs"):format(
+            ns.Print((ns.Color("accent", "observed") .. " %s (%s): %d pull(s), longest %.0fs"):format(
                 tostring(name or "?"), d.key, block.pulls or 0, block.longest or 0))
             for sid, list in pairs(block.casts or {}) do
                 local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
@@ -6030,7 +6042,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
                     .. "during or right after a pull.")
             return
         end
-        ns.Print(("|cff0091edboss mod keys|r seen this pull (encounter %s):"):format(tostring(enc)))
+        ns.Print((ns.Color("accent", "boss mod keys") .. " seen this pull (encounter %s):"):format(tostring(enc)))
         for key, e in pairs(cat) do
             local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(key)
             local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[key]
@@ -6038,7 +6050,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             local binding = ns.BindingForBossModKey(enc, key)
             local verdict
             if on and binding and binding.mode == "custom" then
-                verdict = "|cff9a9ea6steps aside to its Ability Reminder|r"
+                verdict = ns.Color("muted", "steps aside to its Ability Reminder")
             elseif on then
                 verdict = "|cff6DD09Awould call|r"
             else
@@ -6047,7 +6059,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
             ns.Print(("  %d %s -- %s/%s x%d -- %s, %s"):format(
                 key, (info and info.name) or "?", tostring(e.mod), tostring(e.kind),
                 e.seen or 0,
-                curated and "in the tank list" or "|cff9a9ea6not a tank ability|r",
+                curated and "in the tank list" or ns.Color("muted", "not a tank ability"),
                 verdict))
         end
         return
@@ -6217,7 +6229,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         local ids = {}
         for sid in pairs(curated) do ids[#ids + 1] = sid end
         table.sort(ids)
-        ns.Print(("|cff0091edtank sheet cross-check|r against %d journal-scraped bosses:")
+        ns.Print((ns.Color("accent", "tank sheet cross-check") .. " against %d journal-scraped bosses:")
             :format(#cache.instances))
         for i = 1, #ids do
             local sid = ids[i]
@@ -6296,7 +6308,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
         end
         ResyncModel()
         local now, anyReady = GetTime(), false
-        ns.Print(("|cff0091edcooldowns|r (build %s), in priority order:"):format(BuildString()))
+        ns.Print((ns.Color("accent", "cooldowns") .. " (build %s), in priority order:"):format(BuildString()))
         for i = 1, activeSlots do
             local sid = slots[i].spellID
             local info = C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(sid)
@@ -7391,7 +7403,7 @@ function ns.BuildColorsSettings(parent, y)
 
     if not TRDB().defensiveTextColorOn then
         _, h = W:DualRow(parent, y,
-            { type = "label", text = "|cff9a9ea6Nothing else to configure here yet.|r" },
+            { type = "label", text = ns.Color("muted", "Nothing else to configure here yet.") },
             { type = "label", text = "" }
         ); y = y - h
     end
@@ -7882,11 +7894,6 @@ watcher:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
     if event == "PLAYER_REGEN_DISABLED" then
         -- An ns field, not a chunk local: this chunk is at the 200-local ceiling.
         ns.combatStartedAt = GetTime()
-        -- Blizzard's Text to Speech panel fires nothing when its selected voice changes, so
-        -- re-resolve once per pull instead. Warmed here rather than left lazy so the first
-        -- callout of the fight is not the one paying for the lookup.
-        ns.InvalidateTTSVoice()
-        if TRDB().voiceOn then ns.TTSVoiceID() end
         ns.CheckCombatReminders()
         return
     end

@@ -81,7 +81,9 @@ events:SetScript("OnEvent", function(_, event)
     if unlocked then return end
     local prefix = event == "PLAYER_REGEN_DISABLED" and "combatEnter" or "combatLeave"
     Flash(prefix)
-    Announce(prefix)
+    -- Speech is made on the game's own thread and the client waits for it, so it goes out a
+    -- frame later instead of stacking on the combat change every other addon is handling.
+    C_Timer.After(0, function() Announce(prefix) end)
 end)
 
 local function Apply()

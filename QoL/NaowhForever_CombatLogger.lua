@@ -26,9 +26,18 @@ local function SetLogging(on)
     logging = on
 end
 
+-- The text is set when a prompt is shown, so its title follows the theme's accent.
+local function AclText()
+    return ns.Color("accent", "Naowh") .. " Forever\n\nAdvanced Combat Logging is off. Warcraft Logs needs it "
+        .. "for a detailed report. Turn it on now? This reloads your UI."
+end
+
+local function LogText()
+    return ns.Color("accent", "Naowh") .. " Forever\n\nEnable combat logging for:\n|cffffa300%s|r\n(%s)\n\n"
+        .. "Your choice will be remembered."
+end
+
 StaticPopupDialogs["NAOWHFOREVER_ACL_PROMPT"] = {
-    text = "|cff0091edNaowh|r Forever\n\nAdvanced Combat Logging is off. Warcraft Logs needs it "
-        .. "for a detailed report. Turn it on now? This reloads your UI.",
     button1 = "Enable & Reload",
     button2 = "Skip",
     OnAccept = function()
@@ -44,6 +53,7 @@ StaticPopupDialogs["NAOWHFOREVER_ACL_PROMPT"] = {
 local function AdvancedLoggingOn()
     local acl = GetCVar("advancedCombatLogging")
     if acl == nil or acl == "1" then return true end
+    StaticPopupDialogs["NAOWHFOREVER_ACL_PROMPT"].text = AclText()
     StaticPopup_Show("NAOWHFOREVER_ACL_PROMPT")
     return false
 end
@@ -58,8 +68,6 @@ local function Remember(data, enabled)
 end
 
 StaticPopupDialogs["NAOWHFOREVER_COMBATLOG_PROMPT"] = {
-    text = "|cff0091edNaowh|r Forever\n\nEnable combat logging for:\n|cffffa300%s|r\n(%s)\n\n"
-        .. "Your choice will be remembered.",
     button1 = "Enable Logging",
     button2 = "Skip",
     OnAccept = function(_, data) Remember(data, true) end,
@@ -85,6 +93,7 @@ local function Check()
         -- Logging starts while the question is up, so the pull it is asked on is not lost.
         if not AdvancedLoggingOn() then return end
         SetLogging(true)
+        StaticPopupDialogs["NAOWHFOREVER_COMBATLOG_PROMPT"].text = LogText()
         StaticPopup_Show("NAOWHFOREVER_COMBATLOG_PROMPT", name, diffName,
             { key = key, name = name, diffName = diffName })
     end

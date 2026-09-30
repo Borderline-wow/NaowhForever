@@ -104,7 +104,7 @@ Case("bundled voices resolve and register without SharedMedia", function()
     local chunk = assert(loadstring("local ns = ...; local UI = ns.UI; " .. source:sub(start)))
     setfenv(chunk, e.env); chunk(e.ns)
     local paths, names, order = e.ns.UI.BuildAlertSoundTables()
-    assert(#order == 4 and order[1] == "none")
+    assert(#order == 6 and order[1] == "none")
     assert(e.ns.UI.SoundPathFor("none") == nil and e.ns.UI.SoundPathFor("missing") == nil)
     for index = 2, #order do
         local key = order[index]

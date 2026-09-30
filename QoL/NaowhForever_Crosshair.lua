@@ -205,6 +205,7 @@ local function EvaluateMelee()
     spell = MeleeSpell()
     if On() and S.Get("crossMelee") and spell and HasTarget() then
         ticker:SetScript("OnUpdate", Tick)
+        if not S.Get("crossMeleeSound") then StopAlarm() end
     else
         ticker:SetScript("OnUpdate", nil)
         StopAlarm()

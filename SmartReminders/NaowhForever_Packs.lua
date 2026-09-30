@@ -481,7 +481,7 @@ function ns.DescribeProfilePack(str, opts)
     }
 
     local lines = {}
-    lines[#lines + 1] = ("|cff0091ed%s|r by %s"):format(
+    lines[#lines + 1] = (ns.Color("accent", "%s") .. " by %s"):format(
         tostring(payload.name), tostring(payload.author))
     if type(payload.derivedFrom) == "table" then
         -- Stated as fact rather than addressed to the reader: whoever opens this may not be
@@ -494,7 +494,7 @@ function ns.DescribeProfilePack(str, opts)
     for i = 1, #profiles do
         local p = profiles[i]
         local specText = #p.specs > 0 and (" -- " .. table.concat(p.specs, ", ")) or ""
-        lines[#lines + 1] = ("  |cff0091ed%s|r%s"):format(p.name, specText)
+        lines[#lines + 1] = ("  " .. ns.Color("accent", "%s") .. "%s"):format(p.name, specText)
     end
     lines[#lines + 1] = "Your own existing profiles are not changed."
     if wantSettings then
@@ -632,7 +632,7 @@ function ns.DecodePack(str)
             for j = 1, #specs do
                 specText = specText and (specText .. ", " .. specs[j].name) or specs[j].name
             end
-            parts[#parts + 1] = ("|cff0091ed%s|r%s"):format(names[i],
+            parts[#parts + 1] = (ns.Color("accent", "%s") .. "%s"):format(names[i],
                 specText and (" -- " .. specText) or "")
         end
     else
@@ -659,7 +659,7 @@ function ns.DecodePack(str)
         derived = ("|n|cffF0A830Built on|r %s by %s."):format(
             tostring(payload.derivedFrom.name), tostring(payload.derivedFrom.author))
     end
-    local desc = ("|cff0091ed%s|r by %s%s%s|n%s"):format(
+    local desc = (ns.Color("accent", "%s") .. " by %s%s%s|n%s"):format(
         tostring(payload.name), tostring(payload.author),
         type(payload.made) == "string" and payload.made ~= "" and (" (" .. payload.made .. ")") or "",
         derived,
@@ -1611,7 +1611,7 @@ function ns.ShowProfileMergeDialog()
             preview:SetText("|cffff6060" .. tostring(a) .. "|r")
             return
         end
-        ns.Print(("merged into |cff0091ed%s|r: %d spec sections and %d reminders. Specs you "
+        ns.Print(("merged into " .. ns.Color("accent", "%s") .. ": %d spec sections and %d reminders. Specs you "
             .. "did not tick are exactly as they were."):format(
             tostring(targetName), a or 0, b or 0))
         dimmer:Hide()

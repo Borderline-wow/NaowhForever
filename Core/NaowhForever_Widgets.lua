@@ -1213,9 +1213,13 @@ end
 UI.STATUS = {
     ready    = "   |cff4dd17aREADY|r",
     limited  = "   |cffffa300LIMITED|r",
-    untested = "   |cff9a9ea6UNTESTED|r",
     blocked  = "   |cffff6060NOT POSSIBLE YET|r",
 }
+-- The one status drawn in a theme color is looked up when a page is built, not at load, so
+-- it follows the player's Secondary Text color.
+setmetatable(UI.STATUS, { __index = function(_, key)
+    if key == "untested" then return "   " .. ns.Color("muted", "UNTESTED") end
+end })
 UI.PREVIEW_NOTE = "Preview build: these settings save to your profile now, and each "
     .. "feature switches on as it is built."
 
@@ -1267,6 +1271,8 @@ local bundledVoices = {
     { key = "voice:dispel-me", text = "Dispel me", file = "dispel-me.ogg" },
     { key = "voice:move-out", text = "Move out", file = "move-out.ogg" },
     { key = "voice:use-a-defensive", text = "Use a defensive", file = "use-a-defensive.ogg" },
+    { key = "voice:combat", text = "Combat", file = "combat.ogg" },
+    { key = "voice:safe", text = "Safe", file = "safe.ogg" },
 }
 local voicePath = "Interface\\AddOns\\NaowhForever\\Media\\Voice\\"
 function UI.BuildAlertSoundTables()

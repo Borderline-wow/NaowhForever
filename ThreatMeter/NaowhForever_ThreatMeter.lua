@@ -35,6 +35,11 @@ local threatEventsOn = false
 local events
 
 local FALLBACK_COLOR = { r = 0.6, g = 0.6, b = 0.6 }
+-- The window's own blue-tinted dark scheme; ns.ThemeTint swaps in the player's theme colors.
+local WINDOW_BG = { r = 0.025, g = 0.04, b = 0.055 }
+local WINDOW_EDGE = { r = 0.10, g = 0.19, b = 0.24 }
+local HEADER_BG = { r = 0.04, g = 0.075, b = 0.095 }
+local ROW_BG = { r = 0.065, g = 0.085, b = 0.105 }
 
 local frame, pendingUpdate, followTicker, unlocked, warned
 local rows = {}         -- bar widgets, created on demand
@@ -210,12 +215,12 @@ local function Build()
     frame = CreateFrame("Frame", "NaowhForeverThreatMeter", UIParent)
     frame:SetMovable(true); frame:SetClampedToScreen(true); frame:SetResizable(true)
     frame:SetResizeBounds(240, 120, 520, 700)
-    frame.background = ns.Solid(frame, "BACKGROUND", { r = 0.025, g = 0.04, b = 0.055 }, 1)
+    frame.background = ns.Solid(frame, "BACKGROUND", ns.ThemeTint("bg", WINDOW_BG), 1)
     frame.background:SetAllPoints()
-    ns.Border(frame, { r = 0.10, g = 0.19, b = 0.24 })
+    ns.Border(frame, ns.ThemeTint("line", WINDOW_EDGE))
     frame.header = CreateFrame("Frame", nil, frame)
     frame.header:SetPoint("TOPLEFT")
-    ns.Solid(frame.header, "BACKGROUND", { r = 0.04, g = 0.075, b = 0.095 }, 1):SetAllPoints()
+    ns.Solid(frame.header, "BACKGROUND", ns.ThemeTint("panel", HEADER_BG), 1):SetAllPoints()
     local line = ns.Solid(frame.header, "OVERLAY", T.accent, 0.8)
     line:SetPoint("TOPLEFT"); line:SetPoint("TOPRIGHT"); line:SetHeight(2)
     frame.header.kicker = ns.Font(frame.header, 9, "OUTLINE", T.accent)
@@ -375,18 +380,23 @@ function Render(title, me)
         if not e.pull then rank = rank + 1 end
         e.rank = rank
     end
+    local rowBg = ns.ThemeTint("panel", ROW_BG)
     for i = 1, shown do
         local e, row = list[offset + i], rows[i]
         local c = RowColor(e)
         row:SetStatusBarColor(c.r, c.g, c.b, S.Get("barAlpha"))
-        row.bg:SetColorTexture(0.065, 0.085, 0.105, 1)
+        row.bg:SetColorTexture(rowBg.r, rowBg.g, rowBg.b, 1)
         local own = e.isPlayer and S.Get("highlightPlayer")
         row.edge:SetColorTexture(own and T.accent.r or c.r, own and T.accent.g or c.g, own and T.accent.b or c.b, 1)
         row:SetValue(top > 0 and e.raw / top or 0)
         row.rank:SetText(e.pull and "-" or tostring(e.rank))
         row.name:SetText(e.name)
         row.name:SetTextColor(1, 1, 1)
-        if own then row.bg:SetColorTexture(0.04, 0.19, 0.25, 1) end
+        if own then
+            local mark = ns.ThemeTint("accent", nil)   -- the accent, darkened, once it was changed
+            if mark then row.bg:SetColorTexture(mark.r * 0.27, mark.g * 0.27, mark.b * 0.27, 1)
+            else row.bg:SetColorTexture(0.04, 0.19, 0.25, 1) end
+        end
         row.icon:SetTexture(e.pull and "Interface\\Icons\\Ability_Warrior_Challange"
             or e.class and ("Interface\\Icons\\ClassIcon_" .. e.class) or "Interface\\Icons\\Ability_Hunter_BeastCall")
         row.icon:SetDesaturated(e.isPet == true)

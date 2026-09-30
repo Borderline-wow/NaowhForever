@@ -7,7 +7,6 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 
 -- Naowh's scheme: his blue for the labels, the theme's near-white for the values.
-local LABEL, VALUE = "|cff0091ed", "|cfff0f1f3"
 local DIM = "|cff9ca3af"
 
 local ticker, clock, clockRate, unlocked
@@ -54,7 +53,7 @@ end
 
 
 local function Line(label, value)
-    return LABEL .. label .. ":|r " .. VALUE .. value .. "|r"
+    return ns.Color("accent", label .. ":") .. " " .. ns.Color("fg", value)
 end
 
 -------------------------------------------------------------------------------
@@ -177,7 +176,7 @@ end
 
 function ns.XPTickerCommand(arg)
     local run = ({ start = ns.StartXPTicker, pause = ns.PauseXPTicker, reset = ns.ResetXPTicker })[arg]
-    if run then run() else print("|cff0091edNaowh|r: /naowh xp start, pause or reset") end
+    if run then run() else print(ns.Color("accent", "Naowh") .. ": /naowh xp start, pause or reset") end
 end
 
 local events = CreateFrame("Frame")

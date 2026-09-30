@@ -105,6 +105,12 @@ QoL\NaowhForever_Mail.lua
 DungeonQuests\NaowhForever_DungeonQuestData.lua
 DungeonQuests\NaowhForever_DungeonQuestChains.lua
 DungeonQuests\NaowhForever_DungeonQuests.lua
+# Discovery: the library books. The data loads first; the module reads it.
+Discovery\NaowhForever_DiscoveryData.lua
+Discovery\NaowhForever_Discovery.lua
+Discovery\NaowhForever_DiscoveryTracker.lua
+Discovery\NaowhForever_DiscoveryMap.xml
+Discovery\NaowhForever_DiscoveryNearby.lua
 QoL\NaowhForever_TownData.lua
 QoL\NaowhForever_TownMap.xml
 GearSets\NaowhForever_GearSets.lua
@@ -121,6 +127,7 @@ Professions\NaowhForever_Professions.lua
 Professions\NaowhForever_RecipeData.lua
 Professions\NaowhForever_RecipeFinder.lua
 Professions\NaowhForever_RankAlert.lua
+Professions\NaowhForever_GatherTracking.lua
 ThreatMeter\NaowhForever_ThreatMeter.lua
 SwingTimer\NaowhForever_SwingTimer.lua
 TopBar\NaowhForever_TopBar.lua

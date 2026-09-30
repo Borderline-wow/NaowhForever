@@ -9,7 +9,7 @@ local S = ns.QoLSettings
 local SCAN_COOLDOWN = 900   -- Blizzard allows one full scan every 15 minutes
 local CHUNK = 1000          -- listings read per frame, so a large auction house does not stall
 local TIMEOUT = 60
-local TAG = "|cff0091edNaowh AH|r"
+local function Tag() return ns.Color("accent", "Naowh AH") end
 
 local button, scanning, scanGen = nil, nil, 0
 
@@ -28,6 +28,12 @@ end
 function ns.AuctionPrice(itemID)
     local house = House()
     if house and itemID then return house.prices[itemID], house.time end
+end
+
+-- When this realm and faction's auction house was last scanned, or nil if never.
+function ns.AuctionScanTime()
+    local house = House()
+    return house and house.time
 end
 
 local function Age(seconds)
@@ -55,7 +61,7 @@ local function Stop(message)
     scanGen = scanGen + 1
     events:UnregisterEvent("REPLICATE_ITEM_LIST_UPDATE")
     Label("Scan Prices")
-    if message then ns.Print(TAG .. ": " .. message) end
+    if message then ns.Print(Tag() .. ": " .. message) end
 end
 
 -- The listings arrive all at once and are read a chunk per frame. Each keeps its buyout for
@@ -85,7 +91,9 @@ local function Read()
         local house = House(true)
         house.prices, house.time = prices, time()
         Stop()
-        ns.Print(TAG .. ": " .. ns.AuctionScanSummary())
+        ns.Print(Tag() .. ": " .. ns.AuctionScanSummary())
+        -- The profession window's crafting profit reads these prices.
+        if ns.ProfWindowRefresh then ns.ProfWindowRefresh() end
     end
     Step()
 end
@@ -96,7 +104,7 @@ local function Scan()
     local wait = house and house.time and SCAN_COOLDOWN - (time() - house.time)
     if wait and wait > 0 then
         ns.Print(("%s: Blizzard allows one full scan every 15 minutes. Next scan in %dm."):format(
-            TAG, math.ceil(wait / 60)))
+            Tag(), math.ceil(wait / 60)))
         return
     end
     scanning = true
@@ -154,6 +162,6 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tool
     if not id or (issecretvalue and issecretvalue(id)) then return end
     local price, when = ns.AuctionPrice(id)
     if not price then return end
-    tooltip:AddDoubleLine(TAG, C_CurrencyInfo.GetCoinTextureString(price, 12)
+    tooltip:AddDoubleLine(Tag(), C_CurrencyInfo.GetCoinTextureString(price, 12)
         .. " |cff808080each, " .. Age(time() - when) .. " ago|r", 1, 1, 1, 1, 1, 1)
 end)

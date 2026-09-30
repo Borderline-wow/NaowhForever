@@ -10,7 +10,9 @@ local S = ns.QoLSettings
 local T = ns.THEME
 
 local PREFIX = "!NBIS1!"
-local TAG = "|cff0091edNaowh BiS|r"
+local function Tag() return ns.Color("accent", "Naowh BiS") end
+-- The loot roll glow; ns.ThemeTint swaps in the player's Accent.
+local BIS_GLOW = { r = 0, g = 0.57, b = 0.93 }
 
 -- Inventory slot numbers, in page order.
 local SLOTS = {
@@ -45,7 +47,7 @@ end
 
 local function IDFrom(value)
     if type(value) == "number" then return value end
-    return tonumber(tostring(value):match("item:(%d+)") or tostring(value):match("^%s*(%d+)%s*$"))
+    return tonumber(tostring(value):match("item[:=](%d+)") or tostring(value):match("^%s*(%d+)%s*$"))
 end
 
 local function SlotsFor(itemID)
@@ -543,7 +545,7 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tool
     if not id or (issecretvalue and issecretvalue(id)) then return end
     local rank = S.Get("bisTooltip") and ns.IsBisItem(id)
     if rank then
-        tooltip:AddLine(TAG .. (rank > 1 and " #" .. rank or "") .. "  " .. List().name)
+        tooltip:AddLine(Tag() .. (rank > 1 and " #" .. rank or "") .. "  " .. List().name)
     end
 end)
 
@@ -566,7 +568,7 @@ local alerted = {}
 local function Alert(link, what)
     local rank = link and not (issecretvalue and issecretvalue(link)) and ns.IsBisItem(IDFrom(link))
     if rank then
-        ns.Print(TAG .. (rank > 1 and " #" .. rank or "") .. " " .. what .. ": " .. link)
+        ns.Print(Tag() .. (rank > 1 and " #" .. rank or "") .. " " .. what .. ": " .. link)
         PlaySound(SOUNDKIT.RAID_WARNING)
     end
 end
@@ -609,7 +611,8 @@ local function MarkRoll(frame)
     local LCG = LibStub("LibCustomGlow-1.0")
     local link = frame.rollID and GetLootRollItemLink(frame.rollID)
     if On() and S.Get("bisLootAlert") and link and ns.IsBisItem(IDFrom(link)) then
-        LCG.PixelGlow_Start(frame, { 0, 0.57, 0.93, 1 }, 12, nil, nil, 2, 0, 0, nil, "NaowhBiS")
+        local glow = ns.ThemeTint("accent", BIS_GLOW)
+        LCG.PixelGlow_Start(frame, { glow.r, glow.g, glow.b, 1 }, 12, nil, nil, 2, 0, 0, nil, "NaowhBiS")
     else
         LCG.PixelGlow_Stop(frame, "NaowhBiS")
     end
@@ -629,7 +632,9 @@ end
 local EMPTY_COLOR = { 0, 0, 0 }
 local BIS_TEXT = "|cff1ad933BiS|r"
 local SOURCE_SEP = " \194\183 "   -- the middle dot wowsrc puts between boss and place
-local PICKER_W, PICKER_H, PICK_ROW = 480, 560, 30
+local PICKER_W, PICKER_H, PICK_ROW = 520, 600, 40
+local MEDIA = "Interface\\AddOns\\NaowhForever\\Media\\"
+local CHEVRON, CROSS = MEDIA .. "chevron_up.tga", MEDIA .. "cross.tga"
 
 local function QualityHex(itemID)
     local q = C_Item.GetItemQualityByID(itemID)
@@ -668,16 +673,65 @@ local pickerPanel, pickerSlot
 local allDrops = false   -- dungeon drops at every level, not only near yours
 local FillPicker
 
--- Icon, quality-coloured name and grey source, shared by both kinds of picker row.
+-- An item icon inside a 1px border in the item's quality colour.
+local function NewIcon(parent, size)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(size, size)
+    f.tex = f:CreateTexture(nil, "ARTWORK")
+    f.tex:SetPoint("TOPLEFT", 1, -1)
+    f.tex:SetPoint("BOTTOMRIGHT", -1, 1)
+    f.border = ns.Border(f)
+    return f
+end
+
+-- An item, or with no item the empty texture of emptySlot.
+local function SetIcon(f, id, emptySlot)
+    local c = T.line
+    if id then
+        f.tex:SetTexture(C_Item.GetItemIconByID(id))
+        f.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        local q = C_Item.GetItemQualityByID(id)
+        c = q and ITEM_QUALITY_COLORS[q] or c
+    else
+        local _, empty = C_PaperDollInfo.GetInventorySlotInfoForInvSlot(emptySlot)
+        f.tex:SetTexture(empty)
+        f.tex:SetTexCoord(0, 1, 0, 1)
+    end
+    f.border:SetColor(c.r, c.g, c.b, 1)
+end
+
+-- A small square button with a glyph, named by its tooltip.
+local function GlyphButton(parent, texture, tip, onClick)
+    local b = ns.Button(parent, "", 22, 22, onClick)
+    b.glyph = b:CreateTexture(nil, "ARTWORK")
+    b.glyph:SetSize(12, 12)
+    b.glyph:SetPoint("CENTER")
+    b.glyph:SetTexture(texture)
+    b.glyph:SetVertexColor(T.muted.r, T.muted.g, T.muted.b)
+    b:HookScript("OnEnter", function(self)
+        self.glyph:SetVertexColor(T.fg.r, T.fg.g, T.fg.b)
+        ns.UI.ShowWidgetTooltip(self, tip)
+    end)
+    b:HookScript("OnLeave", function(self)
+        self.glyph:SetVertexColor(T.muted.r, T.muted.g, T.muted.b)
+        ns.UI.HideWidgetTooltip()
+    end)
+    return b
+end
+
+-- Icon, quality-coloured name and a grey detail line under it, shared by both kinds of
+-- picker row. The caller anchors the right ends of text and detail.
 local function ItemLine(row, x)
-    row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetSize(22, 22)
+    row.icon = NewIcon(row, 30)
     row.icon:SetPoint("LEFT", x, 0)
-    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    row.text = ns.Font(row, 12, nil)
-    row.text:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
+    row.text = ns.Font(row, 13, nil)
+    row.text:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 10, -1)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(false)
+    row.detail = ns.Font(row, 11, nil, T.muted)
+    row.detail:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 10, 1)
+    row.detail:SetJustifyH("LEFT")
+    row.detail:SetWordWrap(false)
     row.num = ns.Font(row, 12, nil, T.muted)
     row.num:SetPoint("RIGHT", row.icon, "LEFT", -6, 0)
 end
@@ -688,14 +742,31 @@ function ns.BiSSource(itemID)
     return ns.BiSData.sources[itemID] or (loot and loot[5])
 end
 
-local function SetItemLine(row, num, id, detail)
-    local source = ns.BiSSource(id)
+local function ReqLevel(itemID)
+    local loot = ns.BiSDungeonLoot[itemID]
+    return loot and loot[4] or select(5, C_Item.GetItemInfo(itemID))
+end
+
+-- The grey line under an item's name: its source, item level and required level, the last
+-- in orange while it is above yours.
+local function Detail(itemID)
+    local parts = { ns.BiSSource(itemID) or "Source not listed" }
+    local loot = ns.BiSDungeonLoot[itemID]
+    if loot then parts[#parts + 1] = "ilvl " .. loot[3] end
+    local req = ReqLevel(itemID)
+    if req and req > 1 then
+        parts[#parts + 1] = (req > UnitLevel("player") and "|cffff8040Req %d|r" or "Req %d"):format(req)
+    end
+    return table.concat(parts, SOURCE_SEP)
+end
+
+local function SetItemLine(row, num, id)
     row.id = id
     row.num:SetText(num)
-    row.icon:SetTexture(C_Item.GetItemIconByID(id))
-    row.text:SetText(QualityHex(id) .. Name(id) .. "|r" .. (detail and "  " .. detail or "")
-        .. (pickerSlot and Wearing(pickerSlot, id) and "  |cff1ad933Worn|r" or "")
-        .. (source and "  |cff808080" .. source .. "|r" or ""))
+    SetIcon(row.icon, id)
+    row.text:SetText(QualityHex(id) .. Name(id) .. "|r"
+        .. (pickerSlot and Wearing(pickerSlot, id) and "  |cff1ad933Worn|r" or ""))
+    row.detail:SetText(Detail(id))
 end
 
 -- The armor type a class wears, by the item's required level: mail and plate are learned at
@@ -762,25 +833,28 @@ local function NewPickRow(parent)
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(PICK_ROW)
     row:EnableMouse(true)
-    ItemLine(row, 32)
+    ns.Solid(row, "BACKGROUND", T.bg, 0.6):SetAllPoints()
+    ItemLine(row, 40)
     row:SetScript("OnEnter", function(self) ItemTooltip(self, self.id) end)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    row.remove = ns.Button(row, "Remove", 64, 22, function()
+    row.remove = GlyphButton(row, CROSS, "Remove", function()
         ns.RemoveBisPick(pickerSlot, row.id)
         FillPicker()
     end)
-    row.remove:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-    row.down = ns.Button(row, "Down", 48, 22, function()
+    row.remove:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.down = GlyphButton(row, CHEVRON, "Move down", function()
         ns.MoveBisPick(pickerSlot, row.id, 1)
         FillPicker()
     end)
+    row.down.glyph:SetTexCoord(0, 1, 1, 0)
     row.down:SetPoint("RIGHT", row.remove, "LEFT", -4, 0)
-    row.up = ns.Button(row, "Up", 40, 22, function()
+    row.up = GlyphButton(row, CHEVRON, "Move up", function()
         ns.MoveBisPick(pickerSlot, row.id, -1)
         FillPicker()
     end)
     row.up:SetPoint("RIGHT", row.down, "LEFT", -4, 0)
     row.text:SetPoint("RIGHT", row.up, "LEFT", -8, 0)
+    row.detail:SetPoint("RIGHT", row.up, "LEFT", -8, 0)
     return row
 end
 
@@ -790,10 +864,11 @@ local function NewCandidateRow(parent)
     local hover = ns.Solid(row, "BACKGROUND", T.accent, 0.12)
     hover:SetAllPoints()
     hover:Hide()
-    ItemLine(row, 32)
+    ItemLine(row, 40)
     row.tag = ns.Font(row, 12, nil)
-    row.tag:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.tag:SetPoint("RIGHT", row, "RIGHT", -8, 0)
     row.text:SetPoint("RIGHT", row.tag, "LEFT", -8, 0)
+    row.detail:SetPoint("RIGHT", row.tag, "LEFT", -8, 0)
     row:SetScript("OnClick", function(self)
         ns.AddBisPick(pickerSlot, self.id)
         FillPicker()
@@ -809,20 +884,33 @@ local function NewCandidateRow(parent)
     return row
 end
 
+local function Heading(content, key, text, y)
+    local head = ns.UI.KeepFont(content, key, 12, nil, T.accent)
+    head:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+    head:SetText(text)
+    local line = ns.UI.Keep(content, key .. "Line", function(p) return ns.Solid(p, "ARTWORK", T.line, 1) end)
+    line:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y - 18)
+    line:SetPoint("RIGHT", content, "RIGHT")
+    line:SetHeight(1)
+    return y - 26
+end
+
+local function Empty(content, key, text, y)
+    local none = ns.UI.KeepFont(content, key, 12, nil, T.muted)
+    none:SetPoint("TOPLEFT", content, "TOPLEFT", 8, y - 8)
+    none:SetText(text)
+    return y - 32
+end
+
 -- Your picks in order with their controls, then the spec's ranking and the other dungeon
--- drops to pick from.
+-- drops to pick from. Only your picks are numbered.
 function FillPicker()
     local UI = ns.UI
     local content = pickerPanel.scroll.content
     UI.BeginReusableRows(content)
     local spec = CurrentSpec()
     local picks = Picks(List(), pickerSlot)
-    local y = 0
-
-    local head = UI.KeepFont(content, "picksHead", 12, nil, T.accent)
-    head:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-    head:SetText("YOUR PICKS, BEST FIRST")
-    y = y - 22
+    local y = Heading(content, "picksHead", "YOUR PICKS, BEST FIRST", 0)
     local picked = {}
     for i, id in ipairs(picks) do
         picked[id] = i
@@ -832,63 +920,78 @@ function FillPicker()
         SetItemLine(row, i == 1 and BIS_TEXT or i .. ".", id)
         row.up:SetShown(i > 1)
         row.down:SetShown(i < #picks)
-        y = y - PICK_ROW
+        y = y - PICK_ROW - 2
     end
     if #picks == 0 then
-        local none = UI.KeepFont(content, "none", 12, nil, T.muted)
-        none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y - 6)
-        none:SetText("Nothing picked yet. The first item you click below is your BiS.")
-        y = y - PICK_ROW
+        y = Empty(content, "none", "Nothing picked yet. The first item you click below is your BiS.", y)
     end
 
-    y = y - 14
-    head = UI.KeepFont(content, "rankHead", 12, nil, T.accent)
-    head:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-    head:SetText(spec and ("RANKED FOR " .. spec.name:upper()) or "RANKED")
-    y = y - 22
+    y = Heading(content, "rankHead", spec and ("RANKED FOR " .. spec.name:upper()) or "RANKED", y - 16)
     local ids = Candidates(pickerSlot, spec)
-    for i, id in ipairs(ids) do
+    for _, id in ipairs(ids) do
         local row = UI.Keep(content, "candidate", NewCandidateRow)
         row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
         row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-        SetItemLine(row, i .. ".", id)
+        SetItemLine(row, "", id)
         row.tag:SetText(picked[id] and RankText(picked[id]) or "")
         y = y - PICK_ROW
     end
-    if #ids == 0 then
-        local none = UI.KeepFont(content, "unranked", 12, nil, T.muted)
-        none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y - 6)
-        none:SetText("Nothing ranked for this slot.")
-        y = y - PICK_ROW
-    end
+    if #ids == 0 then y = Empty(content, "unranked", "Nothing ranked for this slot.", y) end
 
-    y = y - 14
-    head = UI.KeepFont(content, "dropsHead", 12, nil, T.accent)
-    head:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-    head:SetText(allDrops and "OTHER DUNGEON DROPS" or "OTHER DUNGEON DROPS NEAR YOUR LEVEL")
+    y = Heading(content, "dropsHead", allDrops and "DUNGEON DROPS" or "DUNGEON DROPS NEAR YOUR LEVEL", y - 16)
     UI.KeepButton(content, "dropsAll", allDrops and "Near My Level" or "Show All", 110, 20, function()
         allDrops = not allDrops
         FillPicker()
-    end):SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y + 4)
-    y = y - 22
+    end):SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y + 28)
     local drops = DungeonDrops(pickerSlot, ids, not allDrops)
     for _, id in ipairs(drops) do
-        local item = ns.BiSDungeonLoot[id]
         local row = UI.Keep(content, "candidate", NewCandidateRow)
         row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
         row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-        SetItemLine(row, "", id, ("ilvl %d, req %d"):format(item[3], item[4]))
+        SetItemLine(row, "", id)
         row.tag:SetText(picked[id] and RankText(picked[id]) or "")
         y = y - PICK_ROW
     end
     if #drops == 0 then
-        local none = UI.KeepFont(content, "noDrops", 12, nil, T.muted)
-        none:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y - 6)
-        none:SetText(allDrops and "No dungeon drops for this slot that you can use."
-            or "No dungeon drops for this slot within 10 levels of yours.")
-        y = y - PICK_ROW
+        y = Empty(content, "noDrops", allDrops and "No dungeon drops for this slot that you can use."
+            or "No dungeon drops for this slot within 10 levels of yours.", y)
     end
     content:SetHeight(-y)
+end
+
+-- An item ID, an item link or a Wowhead item URL, added as the slot's next pick.
+local function AddByID(box)
+    local id = IDFrom(box:GetText())
+    if not (id and C_Item.GetItemInfoInstant(id)) then
+        ns.Print("There is no item with that ID.")
+        return
+    end
+    if not Fits(id, pickerSlot) then
+        ns.Print(("%s does not go in the %s slot."):format(Name(id), ns.L(SLOT_NAME[pickerSlot])))
+        return
+    end
+    ns.AddBisPick(pickerSlot, id)
+    box:SetText("")
+    box:ClearFocus()
+    FillPicker()
+    local slot = pickerSlot
+    OnLoaded({ id }, function()
+        if pickerPanel:IsVisible() and pickerSlot == slot then FillPicker() end
+    end)
+end
+
+local function NewIDBox(panel)
+    local box = ns.NewEditBox(panel)
+    box.hint = ns.Font(box, 12, nil, T.muted)
+    box.hint:SetPoint("LEFT", 7, 0)
+    box.hint:SetText("Item ID, link or Wowhead URL")
+    local function Hint(self) self.hint:SetShown(self:GetText() == "" and not self:HasFocus()) end
+    box:SetScript("OnTextChanged", Hint)
+    box:SetScript("OnEditFocusGained", Hint)
+    box:SetScript("OnEditFocusLost", Hint)
+    box:SetScript("OnEscapePressed", box.ClearFocus)
+    box:SetScript("OnEnterPressed", AddByID)
+    return box
 end
 
 local function OpenPicker(slot)
@@ -896,22 +999,35 @@ local function OpenPicker(slot)
     local spec = CurrentSpec()
     local dimmer, panel = ns.MakeModal(PICKER_W, PICKER_H, "bisPicker")
     pickerPanel, pickerSlot = panel, slot
-    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
-    head:SetPoint("TOP", 0, -16)
-    head:SetText(spec and ("%s: %s"):format(ns.L(SLOT_NAME[slot]), spec.name) or ns.L(SLOT_NAME[slot]))
+    local head = UI.KeepFont(panel, "head", 15, "OUTLINE")
+    head:SetPoint("TOPLEFT", 22, -18)
+    head:SetText(ns.L(SLOT_NAME[slot]))
+    local sub = UI.KeepFont(panel, "sub", 12, nil, T.muted)
+    sub:SetPoint("LEFT", head, "RIGHT", 10, 0)
+    sub:SetText(spec and spec.name or "")
     panel.scroll = UI.Keep(panel, "scroll", function(p)
         local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
         sf.content = CreateFrame("Frame", nil, sf)
         -- Sized off the panel: the scroll frame reads 0 wide until a layout pass has run.
-        sf.content:SetSize(PICKER_W - 62, 1)
+        sf.content:SetSize(PICKER_W - 64, 1)
         sf:SetScrollChild(sf.content)
         return sf
     end)
-    panel.scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -48)
-    panel.scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -40, 54)
+    panel.scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 22, -52)
+    panel.scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -42, 62)
     panel.scroll:SetVerticalScroll(0)
-    UI.KeepButton(panel, "done", "Done", 100, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 16)
+    local sep = UI.Keep(panel, "footLine", function(p) return ns.Solid(p, "ARTWORK", T.line, 1) end)
+    sep:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 0, 52)
+    sep:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 52)
+    sep:SetHeight(1)
+    local box = UI.Keep(panel, "idBox", NewIDBox)
+    box:SetSize(250, 26)
+    box:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 22, 14)
+    box:SetText("")
+    UI.KeepButton(panel, "addID", "Add", 60, 26, function() AddByID(box) end)
+        :SetPoint("LEFT", box, "RIGHT", 6, 0)
+    UI.KeepButton(panel, "done", "Done", 90, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -22, 14)
     FillPicker()
     dimmer:Show()
 
@@ -1108,6 +1224,10 @@ local function Owned(slot, id)
     return Wearing(slot, id) or C_Item.GetItemCount(id, true) > 0
 end
 
+-- Sources that are not somewhere to go.
+local NOT_A_PLACE = { Crafted = true, Quest = true, ["Quest (Horde)"] = true, ["Quest (Alliance)"] = true,
+    ["Quest Reward"] = true, ["World drop"] = true, Reputation = true }
+
 -- The places with the most BiS picks you do not have yet, most first, at most three.
 local function RunNext(list)
     local places, byName = {}, {}
@@ -1115,8 +1235,8 @@ local function RunNext(list)
     for slot in pairs(SLOT_NAME) do
         local id = not (slot == 17 and idle) and list.slots[slot]
         local source = id and ns.BiSSource(id)
-        if source and not Owned(slot, id) then
-            local name = Place(source)
+        local name = source and Place(source)
+        if name and not NOT_A_PLACE[name] and not Owned(slot, id) then
             local p = byName[name]
             if not p then
                 p = { name = name, bis = 0 }
@@ -1132,6 +1252,30 @@ local function RunNext(list)
     end)
     for i = #places, 4, -1 do places[i] = nil end
     return places
+end
+
+-- The #1 pick in every empty slot from the spec's ranking, skipping items already picked
+-- elsewhere, so the second ring or trinket gets the next one down. Returns how many.
+function ns.FillBisFromRanking()
+    local list = List()
+    local spec = CurrentSpec()
+    local used, filled = {}, 0
+    for slot in pairs(SLOT_NAME) do
+        if list.slots[slot] then used[list.slots[slot]] = true end
+    end
+    for _, s in ipairs(SLOTS) do
+        local slot = s[1]
+        if not list.slots[slot] and not (slot == 17 and OffHandIdle(list)) then
+            for _, id in ipairs(Candidates(slot, spec)) do
+                if not used[id] then
+                    list.slots[slot], used[id], filled = id, true, filled + 1
+                    break
+                end
+            end
+        end
+    end
+    if filled > 0 then Changed() end
+    return filled
 end
 
 local SLOT_ROW, PICK_LINE = 20, 18
@@ -1382,7 +1526,13 @@ function ns.BuildQoLBiSPage(parent, y)
         if not page:GetParent() then wornMarks[page] = nil end
     end
     wornMarks[parent] = {}
-    y = y - select(2, ns.UI.Widgets:DualRow(parent, y, ListChoice()))
+    y = y - select(2, ns.UI.Widgets:DualRow(parent, y, ListChoice(),
+        { type = "button", text = "Fill Empty Slots", buttonText = "Fill", onClick = function()
+            local spec = CurrentSpec()
+            local n = ns.FillBisFromRanking()
+            ns.Print(n > 0 and ("Filled %d empty slots from the %s ranking."):format(n, spec.name)
+                or "The ranking has nothing new for your empty slots.")
+        end }))
     local pad = ns.UI.CONTENT_PAD
     local width = parent:GetWidth() - pad * 2
     if width <= 0 then width = 910 end

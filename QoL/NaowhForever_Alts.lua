@@ -6,7 +6,7 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 
-local TAG = "|cff0091edNaowh|r"
+local function Tag() return ns.Color("accent", "Naowh") end
 local MAIL_ATTACHMENTS = 16
 local MAX_TOOLTIP_ROWS = 8
 
@@ -209,7 +209,7 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tool
     end
     if not elsewhere then return end
     table.sort(rows, function(a, b) return a.count > b.count end)
-    tooltip:AddDoubleLine(TAG .. " owned", total, 1, 1, 1, 1, 1, 1)
+    tooltip:AddDoubleLine(Tag() .. " owned", total, 1, 1, 1, 1, 1, 1)
     for i = 1, math.min(#rows, MAX_TOOLTIP_ROWS) do
         local r = rows[i]
         tooltip:AddDoubleLine("  " .. ns.ClassColoredName(r.name, r.class), r.text, 1, 1, 1, 0.8, 0.8, 0.8)

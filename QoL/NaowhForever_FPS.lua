@@ -5,8 +5,6 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 
-local LABEL, VALUE = "|cff0091ed", "|cfff0f1f3"
-
 local frame, clock, unlocked
 
 local function On()
@@ -14,6 +12,7 @@ local function On()
 end
 
 local function Update()
+    local LABEL, VALUE = ns.Color("accent"), ns.Color("fg")
     local text = LABEL .. "FPS|r " .. VALUE .. math.floor(GetFramerate() + 0.5) .. "|r"
     local _, _, home, world = GetNetStats()
     if S.Get("localMS") then text = text .. "   " .. LABEL .. "Local|r " .. VALUE .. home .. " ms|r" end

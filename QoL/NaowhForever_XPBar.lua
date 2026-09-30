@@ -12,11 +12,9 @@ local T = ns.THEME
 -- deep royal blue for rested, darker than where the fill ends so the two read apart. Its
 -- text is a lighter shade of the same blue, which the dark background can carry.
 local FILL_FROM = CreateColor(0x00 / 255, 0x4f / 255, 0x85 / 255, 1)
-local FILL_TO   = CreateColor(T.accent.r, T.accent.g, T.accent.b, 1)
 local QUEST     = { r = 0xf2 / 255, g = 0xa9 / 255, b = 0x00 / 255 }
 local RESTED    = { r = 0x1e / 255, g = 0x40 / 255, b = 0xaf / 255 }
-local QUEST_HEX, RESTED_HEX, VALUE = "|cfff2a900", "|cff6b8cff", "|cfff0f1f3"
-local LABEL = "|cff9a9ea6"
+local QUEST_HEX, RESTED_HEX = "|cfff2a900", "|cff6b8cff"
 
 local bar, clock, unlocked, questTimer
 -- nil while the bar is off: XP is only counted while it is on, so the clock starts with it.
@@ -211,6 +209,7 @@ end
 -- max is Update's, never 0: the game reports 0 for a moment after login or a reload, before
 -- the character's data has loaded.
 local function SlotText(which, maxed, max)
+    local LABEL, VALUE = ns.Color("muted"), ns.Color("fg")
     local elapsed = time() - sessionStart
     if which == "played" then
         if not playedTotal then return "" end
@@ -389,7 +388,10 @@ local function Create()
     bar.track:SetFrameLevel(bar:GetFrameLevel() + 1)
     bar.fill = bar.track:CreateTexture(nil, "ARTWORK")
     bar.fill:SetTexture("Interface\\Buttons\\WHITE8X8")
-    bar.fill:SetGradient("HORIZONTAL", FILL_FROM, FILL_TO)
+    -- The dark end follows a changed accent; the shipped blue stays as it was otherwise.
+    local shifted = ns.ThemeTint("accent", nil)
+    local from = shifted and CreateColor(shifted.r * 0.55, shifted.g * 0.55, shifted.b * 0.55, 1) or FILL_FROM
+    bar.fill:SetGradient("HORIZONTAL", from, CreateColor(T.accent.r, T.accent.g, T.accent.b, 1))
     bar.done = ns.Solid(bar.track, "ARTWORK", QUEST, 1)
     bar.open = ns.Solid(bar.track, "ARTWORK", QUEST, 0.4)
     bar.rested = ns.Solid(bar.track, "ARTWORK", RESTED, 1)

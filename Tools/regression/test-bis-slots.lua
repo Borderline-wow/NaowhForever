@@ -307,6 +307,31 @@ Case("removing takes the item out of every slot that holds it", function()
     assert(Picks(e, 11) == "" and Picks(e, 12) == "202" and not e.ns.IsBisItem(203))
 end)
 
+Case("fill puts the ranking's first unpicked item in each empty slot and leaves picked ones", function()
+    table.insert(SPECS, { class = "MAGE", key = "ring-mage", name = "Ring Mage",
+        slots = { [1] = { 103, 102 }, [11] = { 202, 201 }, [12] = { 202, 201 } } })
+    local e = Fixture({ ["Tester-Realm"] = { name = "L", spec = "ring-mage", slots = { [11] = 202 }, extra = {} } })
+    assert(e.ns.FillBisFromRanking() == 2)
+    assert(e.ns.FillBisFromRanking() == 0, "nothing left to fill")
+    table.remove(SPECS)
+    assert(Picks(e, 1) == "103" and Picks(e, 11) == "202" and Picks(e, 12) == "201", "ring 2 skips ring 1's pick")
+end)
+
+Case("fill leaves the off hand empty behind a two-hander", function()
+    local spec = { class = "MAGE", key = "arcane-mage", name = "Arcane Mage", slots = { [16] = { 301 }, [17] = { 303 } } }
+    table.insert(SPECS, spec)
+    local e = Fixture({ ["Tester-Realm"] = { name = "L", spec = "arcane-mage", slots = {}, extra = {} } })
+    e.ns.FillBisFromRanking()
+    table.remove(SPECS)
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "")
+end)
+
+Case("an item ID, a link or a Wowhead URL all read as the item", function()
+    local e = Fixture()
+    e.ns.AddBisItem("101"); e.ns.AddBisItem("|Hitem:102::|h[x]|h"); e.ns.AddBisItem("https://www.wowhead.com/forever/item=201/ring")
+    assert(Picks(e, 1) == "101,102" and Picks(e, 11) == "201")
+end)
+
 -- Run Next on the paperdoll's panel: the real source sliced out, against a list and what is
 -- worn and carried.
 local function RunNextFixture(sources, worn, carried)
@@ -327,7 +352,7 @@ local function RunNextFixture(sources, worn, carried)
     }, { __index = _G })
     local code = Slice("local SOURCE_SEP", "\n") .. "\n"
         .. Slice("local function Wearing", "local function Store")
-        .. Slice("-- Where a wowsrc source", "local SLOT_ROW")
+        .. Slice("-- Where a wowsrc source", "-- The #1 pick in every empty slot")
         .. "\nreturn RunNext, Place"
     local chunk = assert(loadstring(code)); setfenv(chunk, env)
     return chunk()
@@ -367,6 +392,14 @@ Case("an off-hand pick left unused by a two-hander is not a place to run", funct
     list.twoHand = true
     local out = RunNext(list)
     assert(#out == 1 and out[1].name == "Scholomance")
+end)
+
+Case("crafted, quest, world drop and reputation picks are not a place to go", function()
+    local RunNext = RunNextFixture({ [1] = "Crafted", [2] = "Quest (Horde)", [3] = "World drop",
+        [4] = "Ruins of Lordaeron Quest" .. DOT .. "Quest Reward", [5] = "Ratchet - Friendly" .. DOT .. "Reputation",
+        [6] = "Grazlix" .. DOT .. "The Barrens" }, {}, {})
+    local out = RunNext({ slots = { [1] = 1, [2] = 2, [3] = 3, [11] = 4, [12] = 5, [16] = 6 } })
+    assert(#out == 1 and out[1].name == "The Barrens")
 end)
 
 Case("a ring worn in the other ring slot counts as had", function()

@@ -383,6 +383,7 @@ local function EvaluateMelee()
     if On() and S.Get("mouseMelee") and meleeSpell and UnitExists("target")
         and UnitCanAttack("player", "target") and not UnitIsDeadOrGhost("target") then
         meleeTicker:SetScript("OnUpdate", MeleeTick)
+        if not S.Get("mouseMeleeSound") then StopAlarm() end
     else
         meleeTicker:SetScript("OnUpdate", nil)
         StopAlarm()
@@ -408,8 +409,10 @@ local function ReadCast()
     local _, _, _, startMs, endMs = UnitCastingInfo("player")
     if not startMs then _, _, _, startMs, endMs = UnitChannelInfo("player") end
     if startMs and not Secret(startMs) and not Secret(endMs) then
+        -- A pushback moves the end of a cast already showing; only a new cast waits again.
+        local already = state.casting
         state.casting, state.castStart, state.castEnd = true, startMs / 1000, endMs / 1000
-        castDelay = DelaySwipe("castSwipeAllowed", castDelay)
+        if not already then castDelay = DelaySwipe("castSwipeAllowed", castDelay) end
     else
         state.casting = false
         if castDelay then castDelay:Cancel(); castDelay = nil end
@@ -494,7 +497,7 @@ local function Apply()
     end
     for _, event in ipairs({ "PLAYER_FLAGS_CHANGED", "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP",
         "UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_CHANNEL_START",
-        "UNIT_SPELLCAST_CHANNEL_STOP" }) do
+        "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_DELAYED", "UNIT_SPELLCAST_CHANNEL_UPDATE" }) do
         events:RegisterUnitEvent(event, "player")
     end
     RefreshZone()
@@ -506,7 +509,7 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key:find("^mouse") then Apply() end
+    if key == "enabled" or key == "crossMeleeSpell" or key:find("^mouse") then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 

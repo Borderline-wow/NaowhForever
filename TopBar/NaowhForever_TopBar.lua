@@ -41,6 +41,8 @@ local bar, clockText, leftGroup, rightGroup, ticker, unlocked, fitPending
 local buttons = {}
 local lastRoster, lastTipRoster, lastMemScan = 0, 0, 0
 local memList = {}
+-- The dark pills behind the buttons; ns.ThemeTint swaps in the player's Background color.
+local PILL_BG = { r = 0.03, g = 0.03, b = 0.04 }
 
 local function On() return S.Get("enabled") end
 local function LDB() return LibStub("LibDataBroker-1.1", true) end
@@ -594,7 +596,8 @@ local function Apply()
     bar.clockBtn:SetSize(80, h)
     local rest = math.max(12, math.floor(h * 0.55 + 0.5))
     bar.rest:SetSize(rest, rest)
-    for _, seg in ipairs(bar.segs) do seg:SetColorTexture(0.03, 0.03, 0.04, S.Get("bgAlpha") / 100) end
+    local pill = ns.ThemeTint("bg", PILL_BG)
+    for _, seg in ipairs(bar.segs) do seg:SetColorTexture(pill.r, pill.g, pill.b, S.Get("bgAlpha") / 100) end
     if not clockText:SetFont(UI.FontPath(S.Get("clockFont")), S.Get("clockSize"), "") then
         clockText:SetFont(ns.UIFontPath(), S.Get("clockSize"), "")
     end

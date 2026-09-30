@@ -655,7 +655,7 @@ end
 -- The whole stack goes, so the total is what is lost; the split says how it adds up.
 local function Worth(each, count)
     if count <= 1 then return Money(each) end
-    return Money(each * count) .. ("  |cff9a9ea6(%s each x%d)|r"):format(Money(each), count)
+    return Money(each * count) .. ("  " .. ns.Color("muted", "(%s each x%d)")):format(Money(each), count)
 end
 
 local function OnEnter(self)
@@ -667,7 +667,7 @@ local function OnEnter(self)
         GameTooltip:AddLine(("Combines part-filled stacks of the same item, freeing %d slot%s. "
             .. "Nothing is deleted."):format(stackSaves, stackSaves == 1 and "" or "s"), 1, 1, 1, true)
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("|cff0091edClick|r  stack now", 1, 1, 1)
+        GameTooltip:AddLine(ns.Color("accent", "Click") .. "  stack now", 1, 1, 1)
         GameTooltip:Show()
         return
     end
@@ -680,20 +680,20 @@ local function OnEnter(self)
     if vendor then GameTooltip:AddDoubleLine("Vendor", Worth(e.vendor, e.count), 1, 1, 1, 1, 1, 1) end
     if auction then
         local ah = AuctionEach(e.itemID, e.link)
-        GameTooltip:AddDoubleLine("Auction", ah and Worth(ah, e.count) or "|cff9a9ea6unknown|r", 1, 1, 1, 1, 1, 1)
+        GameTooltip:AddDoubleLine("Auction", ah and Worth(ah, e.count) or ns.Color("muted", "unknown"), 1, 1, 1, 1, 1, 1)
     end
     if e.quest then GameTooltip:AddLine("Needed for " .. QuestText(e.quest), 1, 0.82, 0) end
     if deleteHint then
         if e.quest then
-            GameTooltip:AddLine("|cff0091edCtrl-click|r  twice to delete", 1, 1, 1)
+            GameTooltip:AddLine(ns.Color("accent", "Ctrl-click") .. "  twice to delete", 1, 1, 1)
         elseif e.quality > DIRECT_DELETE then
-            GameTooltip:AddLine("|cff0091edCtrl-click|r  pick up to delete", 1, 1, 1)
+            GameTooltip:AddLine(ns.Color("accent", "Ctrl-click") .. "  pick up to delete", 1, 1, 1)
         else
-            GameTooltip:AddLine("|cff0091edCtrl-click|r  delete now", 1, 1, 1)
+            GameTooltip:AddLine(ns.Color("accent", "Ctrl-click") .. "  delete now", 1, 1, 1)
         end
-        if atMerchant then GameTooltip:AddLine("|cff0091edClick|r  sell", 1, 1, 1) end
+        if atMerchant then GameTooltip:AddLine(ns.Color("accent", "Click") .. "  sell", 1, 1, 1) end
     end
-    if ignoreHint then GameTooltip:AddLine("|cff0091edMiddle-click|r  ignore this item", 1, 1, 1) end
+    if ignoreHint then GameTooltip:AddLine(ns.Color("accent", "Middle-click") .. "  ignore this item", 1, 1, 1) end
     GameTooltip:Show()
 end
 
@@ -758,10 +758,14 @@ local function Fill(b, e, icon, price, count, quality, old, quest)
     b.edge:SetColorTexture(c.r, c.g, c.b, 1)
 end
 
+-- Built on first use, once the theme is applied, then reused: a scan fills this every time.
+local stackLabel
+
 local function FillStack(b)
     b.pick = stackEntry
     b.icon:SetTexture(STACK_ICON)
-    b.price:SetText("|cff0091edStack|r")
+    stackLabel = stackLabel or ns.Color("accent", "Stack")
+    b.price:SetText(stackLabel)
     b.count:SetText("+" .. stackSaves)
     b.old:Hide()
     b.quest:Hide()
