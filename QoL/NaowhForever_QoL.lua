@@ -61,6 +61,7 @@ local S = UI.ModuleSettings("qol", {
     xpTicker = true, xpTickerLevel = true, xpTickerElapsed = true, xpTickerTotal = false,
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24,
     xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true, xpTickerHistoryCount = 10,
+    groupXP = false, groupXPShowSelf = true, groupXPWidth = 260,
     xpBar = false, xpBarLeftText = "level", xpBarCenterText = "xp", xpBarRightText = "percent",
     xpBarTopLeft = "played", xpBarTopRight = "none", xpBarBottomLeft = "leveling",
     xpBarBottom = "none", xpBarBottomRight = "xphour", xpBarIncomplete = false, xpBarMaxLevel = false,
@@ -374,6 +375,18 @@ function ns.BuildQoLQuestingPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Dropdown("xpBarBottomRight", "Bottom Right", slotValues, slotOrder, slotTip, "xpBar"),
         { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "GROUP XP" .. STATUS.untested, y); y = y - h
+    _, h = W:Feature(parent, y,
+        S.Toggle("groupXP", "Group XP",
+            "A bar per group member with their level and how far through it they are. Only "
+            .. "members running Naowh Forever with Group XP on share their experience; anyone "
+            .. "else shows their level. Updates wait until combat ends. Move it in Unlock Mode.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("groupXPShowSelf", "Show Yourself", nil, "groupXP"),
+        S.Slider("groupXPWidth", "Width", 160, 500, 10, nil, "groupXP")
     ); y = y - h
 
     return y

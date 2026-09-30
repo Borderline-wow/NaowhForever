@@ -11,6 +11,10 @@
 - Accept Popup Macro (Macros > Focus & Cursor): a macro that presses the first button of the
   popup on screen, like accepting a summons or a group invite. It presses whichever popup is
   on top, so it confirms the others too.
+- Group XP (off by default, QoL > Questing): a bar for each group member with their level
+  and how far through it they are, for levelling together. Everyone who wants to be seen
+  needs Naowh Forever with Group XP on; anyone else shows their level only. Move it in
+  Unlock Mode.
 - Options window: a search box at the top of the sidebar finds a setting on the Settings
   page and on the QoL, Gear & Trinkets, Macros, AuraBuffs, Threat Meter, Swing Timer and
   Professions pages, jumps to it and lights it up, opening the dropdown it sits in. While
