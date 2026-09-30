@@ -17,6 +17,12 @@ local DONE = MUTED .. "Finished|r"
 local ACTIVE = "|cffffd100In log|r"
 local MISSING = "|cfff87171Missing|r"
 local READY = COMPLETE .. "Complete|r"
+-- A quest you cannot pick up yet. Do first: one of its prerequisites is not done (the line
+-- under it names which), in the quest log's yellow when that step is in your log already.
+-- With them all done but your level too low, the level it needs, muted.
+local PREREQ = "|cffff9933Do first|r"
+local PREREQ_LOG = "|cffffd100Do first|r"
+local LOW = MUTED .. "Level %d to pick up|r"
 -- Size 0 is the font's own height, so the check does not make its line taller than the
 -- status beside it.
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
@@ -94,16 +100,45 @@ local function LoggedID(quest)
     return OnID(quest.alt) or OnID(quest.steps) or OnID(quest.lead)
 end
 
-local function StepDone(step)
-    for _, id in ipairs(StepIDs(step)) do
-        if C_QuestLog.IsQuestFlaggedCompleted(id) then return true end
+-- The first of a step's IDs that check passes, without building a table for a lone ID.
+local function StepAny(step, check)
+    if type(step) ~= "table" then return check(step) and step or nil end
+    for _, id in ipairs(step) do
+        if check(id) then return id end
     end
-    return false
+end
+
+local function StepDone(step)
+    return StepAny(step, C_QuestLog.IsQuestFlaggedCompleted) ~= nil
+end
+
+-- The prerequisite to do next for a quest not picked up yet (see the chains file), its place
+-- in the list and the list's length; nil once they are all done. It is the one after the
+-- last step done: a later step done means the ones before it are, even a lead-in the game
+-- never flags as completed.
+local function NextPrereq(quest)
+    local list = ns.DungeonQuestPrereqs[quest[1]]
+    if not list then return end
+    local n = #list
+    for i = n, 1, -1 do
+        if StepDone(list[i]) then
+            if i == n then return end
+            return list[i + 1], i + 1, n
+        end
+    end
+    return list[1], 1, n
+end
+
+-- The level the quest can be picked up at, while yours is below it.
+local function LevelNeeded(quest)
+    local need = ns.DungeonQuestMinLevel[quest[1]]
+    if need and UnitLevel("player") < need then return need end
 end
 
 -- A quest can carry more IDs than its own (see the data file): alt versions, either of
 -- which counts; the other steps of its chain, all of which must be done; and a lead-in,
--- which only counts while you carry it.
+-- which only counts while you carry it. One not picked up yet may need its prerequisites
+-- or a higher level first.
 local function Status(quest)
     local done = C_QuestLog.IsQuestFlaggedCompleted
     local id = LoggedID(quest)
@@ -116,18 +151,37 @@ local function Status(quest)
         all, any = all and d, any or d
     end
     if all then return DONE end
-    return any and NEXT or MISSING
+    if any then return NEXT end
+    local step = NextPrereq(quest)
+    if step then return StepAny(step, C_QuestLog.IsOnQuest) and PREREQ_LOG or PREREQ end
+    if LevelNeeded(quest) then return LOW end
+    return MISSING
 end
 
 local function InLog(status)
     return status == ACTIVE or status == READY
 end
 
--- The order quests are listed in within a dungeon, the way a quest goes: still to pick up
--- (Next step is a chain's next quest to pick up), in your log, ready to hand in, done.
--- Data order within each.
-local RANK = { [MISSING] = 1, [NEXT] = 2, [ACTIVE] = 3, [READY] = 4, [DONE] = 5 }
-local RANKS = 5
+-- Not picked up yet, whether or not it can be now.
+local function ToPickUp(status)
+    return status == MISSING or status == PREREQ or status == PREREQ_LOG or status == LOW
+end
+
+-- The status as shown: LOW carries the level the quest needs.
+local function StatusText(quest, status)
+    if status == LOW then return LOW:format(ns.DungeonQuestMinLevel[quest[1]]) end
+    return status
+end
+
+-- The order quests are listed in within a dungeon, the way a quest goes: its prerequisites
+-- first (the one in your log after the one not started), then waiting on your level, then
+-- still to pick up (Next step is a chain's next quest to pick up), in your log, ready to
+-- hand in, done. Data order within each.
+local RANK = {
+    [PREREQ] = 1, [PREREQ_LOG] = 2, [LOW] = 3, [MISSING] = 4, [NEXT] = 5, [ACTIVE] = 6,
+    [READY] = 7, [DONE] = 8,
+}
+local RANKS = 8
 
 -- Your faction's quests and your class's class quests; all lists every quest.
 local function ForMe(quest, all)
@@ -188,16 +242,6 @@ local function NextSpot(quest)
     end
 end
 
--- Where the waypoint goes: the quest giver, or with part of the chain done, whoever gives
--- the next step. nil when the data has no spot.
-local function WaypointSpot(quest)
-    if Status(quest) == NEXT then
-        local spot = NextSpot(quest)
-        if spot then return spot[1], spot[2], spot[3], spot[4] end
-    end
-    if quest[7] then return quest[7], quest[8], quest[9], quest[6] end
-end
-
 -- Marks where the quest giver stands. The tracking arrow is not confirmed on Forever, so the
 -- waypoint goes on the map either way.
 -- With TomTom loaded, its waypoint and arrow instead of the game's. Only the last one the
@@ -232,12 +276,6 @@ local function PlaceWaypoint(title, map, x, y, note)
     return true
 end
 ns.PlaceWaypoint = PlaceWaypoint
-
-local function SetWaypoint(quest)
-    local map, x, y = WaypointSpot(quest)
-    if not map then return end
-    PlaceWaypoint(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2], map, x, y)
-end
 
 -- Selects and super-tracks the quest without opening the log. The quest log lives on the
 -- world map in this engine, and opening it from addon code taints the map's quest pins:
@@ -299,7 +337,64 @@ local function StepWaypoint(step, state, id, name)
         if map and x and y and PlaceWaypoint(name, map, x * 100, y * 100) then return end
     end
     local map, x, y, note = StepSpot(step, id)
-    if map then PlaceWaypoint(name, map, x, y, note) end
+    if map then
+        PlaceWaypoint(name, map, x, y, note)
+    else
+        ns.Print(("Where %s starts is not known."):format(name))
+    end
+end
+
+-- A step's name: the client's title, else the chains file's or the data file's.
+local function StepName(id)
+    return C_QuestLog.GetTitleForQuestID(id) or ns.DungeonQuestChainNames[id]
+        or (byID[id] and byID[id][2]) or tostring(id)
+end
+
+-- The line under a quest you cannot pick up yet: the prerequisite to do next and how far
+-- along the list it is. Also the step, its state and the ID of the version to name it by.
+local function PrereqLine(quest)
+    local step, i, n = NextPrereq(quest)
+    if not step then return end
+    local state, id = StepState(step)
+    local text = ("Do first%s: %s (%d/%d)"):format(state == ACTIVE and " (in your log)" or "", StepName(id), i, n)
+    return text, step, state, id
+end
+
+-- The where text without the guide's prerequisite note, once the prerequisites are known;
+-- the tooltip still has the full text.
+local function Where(quest)
+    return ns.DungeonQuestWhere[quest[1]] or quest[6]
+end
+
+-- Where the waypoint goes: the quest giver, with part of the chain done whoever gives the
+-- next step, and with a prerequisite to do first whoever gives that. nil when the data has
+-- no spot; the 4th value says where it is.
+local function WaypointSpot(quest)
+    local status = Status(quest)
+    if status == NEXT then
+        local spot = NextSpot(quest)
+        if spot then return spot[1], spot[2], spot[3], spot[4] end
+    elseif status == PREREQ or status == PREREQ_LOG then
+        local text, step, _, id = PrereqLine(quest)
+        local map, x, y, note = StepSpot(step, id)
+        if map then return map, x, y, text .. note end
+        return
+    end
+    if quest[7] then return quest[7], quest[8], quest[9], Where(quest) end
+end
+
+-- A prerequisite goes where StepWaypoint sends you for it: the game's own route while it is
+-- in your log, its quest giver otherwise.
+local function SetWaypoint(quest)
+    local status = Status(quest)
+    if status == PREREQ or status == PREREQ_LOG then
+        local _, step, state, id = PrereqLine(quest)
+        StepWaypoint(step, state, id, StepName(id))
+        return
+    end
+    local map, x, y = WaypointSpot(quest)
+    if not map then return end
+    PlaceWaypoint(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2], map, x, y)
 end
 
 -- Every quest of the chain in order with how far you are, the clicked one marked. A step
@@ -429,6 +524,8 @@ local function RowTooltip(row)
     GameTooltip:SetOwner(row, "ANCHOR_LEFT")
     GameTooltip:SetText(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2])
     GameTooltip:AddLine(quest[6], 1, 1, 1, true)
+    local prereq = PrereqLine(quest)
+    if prereq and not LoggedID(quest) then GameTooltip:AddLine(prereq, 1, 0.6, 0.2, true) end
     if Chain(quest) then
         GameTooltip:AddLine("Click to list every quest in its chain.", 0.3, 0.7, 0.95)
     elseif LoggedID(quest) then
@@ -440,10 +537,19 @@ end
 local function PinTooltip(pin)
     local quest = pin:GetParent().quest
     GameTooltip:SetOwner(pin, "ANCHOR_LEFT")
-    if LoggedID(quest) then
+    local status = not LoggedID(quest) and Status(quest)
+    if not status then
         GameTooltip:SetText("Waypoint")
         GameTooltip:AddLine("Click to mark its objective or turn-in on your map, or its quest "
             .. "giver where the game has no route for it.", 0.3, 0.7, 0.95, true)
+    elseif status == PREREQ_LOG then
+        GameTooltip:SetText("Waypoint")
+        GameTooltip:AddLine(PrereqLine(quest), 1, 1, 1, true)
+        GameTooltip:AddLine("Click to mark that quest's objective or turn-in on your map.", 0.3, 0.7, 0.95, true)
+    elseif status == PREREQ then
+        GameTooltip:SetText("Waypoint")
+        GameTooltip:AddLine(select(4, WaypointSpot(quest)), 1, 1, 1, true)
+        GameTooltip:AddLine("Click to mark where that quest starts on your map.", 0.3, 0.7, 0.95, true)
     else
         GameTooltip:SetText("Waypoint")
         GameTooltip:AddLine(select(4, WaypointSpot(quest)), 1, 1, 1, true)
@@ -585,13 +691,13 @@ local function Render(dungeons, title, near)
         for _, quest in ipairs(dungeon.quests) do
             local status = ForMe(quest) and Status(quest)
             if status then mine = mine + 1 end
-            if status and near and (status == MISSING or status == DONE) and not NearLevel(quest) then
+            if status and near and (ToPickUp(status) or status == DONE) and not NearLevel(quest) then
                 status = nil
             end
-            if status == MISSING and Grey(quest) then status, grey = nil, true end
+            if ToPickUp(status) and Grey(quest) then status, grey = nil, true end
             if status then
                 if InLog(status) then inLog = inLog + 1 end
-                if status == MISSING or status == NEXT then missing = missing + 1 end
+                if ToPickUp(status) or status == NEXT then missing = missing + 1 end
                 if status ~= DONE or S.Get("dqShowDone") then
                     table.insert(byRank[RANK[status]], { quest = quest, status = status })
                 end
@@ -605,11 +711,15 @@ local function Render(dungeons, title, near)
                 else
                     -- A pin on every quest in your log (it tracks the quest), and on the rest
                     -- wherever the data knows where the quest giver stands.
+                    -- A prerequisite in your log gets one too: the game routes you there.
                     Add(QuestLine(quest, status),
-                        { status = status, quest = quest, pin = InLog(status) or WaypointSpot(quest) ~= nil,
+                        { status = StatusText(quest, status), quest = quest,
+                          pin = InLog(status) or status == PREREQ_LOG or WaypointSpot(quest) ~= nil,
                           stripe = true })
-                    if status == MISSING then
-                        Add(MUTED .. quest[6] .. "|r", { indent = PIN + 15, stripe = true, sub = true })
+                    if status == MISSING or status == LOW then
+                        Add(MUTED .. Where(quest) .. "|r", { indent = PIN + 15, stripe = true, sub = true })
+                    elseif status == PREREQ or status == PREREQ_LOG then
+                        Add(MUTED .. PrereqLine(quest) .. "|r", { indent = PIN + 15, stripe = true, sub = true })
                     end
                     local nextSpot = status == NEXT and NextSpot(quest)
                     if nextSpot then
@@ -655,7 +765,7 @@ local function HasQuestsForMe(dungeons, near)
             if ForMe(quest) then
                 if not near then return true end
                 local status = Status(quest)
-                if InLog(status) or status == NEXT or (status == MISSING and NearLevel(quest)) then
+                if InLog(status) or status == NEXT or (ToPickUp(status) and NearLevel(quest)) then
                     return true
                 end
             end
@@ -832,7 +942,8 @@ function ns.BuildQoLDungeonQuestsSettingsPage(parent, y)
     local _, h
     _, h = W:Note(parent, "Every dungeon quest on WoW Forever and where it starts, from Wowhead's "
         .. "Forever dungeon quest guide. Levels are coloured like your quest log, and quests grey "
-        .. "to you are left out. Waypoint marks the quest giver on your map; Chain lists every "
+        .. "to you are left out. Waypoint marks the quest giver on your map, or for a quest you "
+        .. "can't pick up yet, the quest to do first; Chain lists every "
         .. "quest in its chain, in order. With the module switched on, entering a dungeon "
         .. "shows a tracker of its quests; close it with the X, and move it in Unlock Mode.", y); y = y - h
 
@@ -874,7 +985,7 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
             if ForMe(quest, all) then
                 local status = Status(quest)
                 local show = status == DONE and S.Get("dqShowDone")
-                    or status ~= DONE and not (status == MISSING and Grey(quest))
+                    or status ~= DONE and not (ToPickUp(status) and Grey(quest))
                 if show then table.insert(byRank[RANK[status]], { quest = quest, status = status }) end
             end
         end
@@ -885,12 +996,14 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
                 band = not band
                 local side = all and quest[4] ~= "B" and (quest[4] == "A" and " (Alliance)" or " (Horde)") or ""
                 local chain, step = Chain(quest)
-                local sub = quest[6] .. "  -  " .. SHARE[quest[5]]
+                local sub = Where(quest) .. "  -  " .. SHARE[quest[5]]
                 if chain then sub = sub .. ("  -  Chain: step %d of %d"):format(step, #chain) end
+                local prereq = (status == PREREQ or status == PREREQ_LOG) and PrereqLine(quest)
+                if prereq then sub = prereq .. "\n" .. sub end
                 y = y - Row(parent, y, QuestLine(quest, status, side), sub,
-                    quest[7] and function() SetWaypoint(quest) end,
+                    (quest[7] or prereq) and function() SetWaypoint(quest) end,
                     chain and function(btn) OpenChain(btn, quest) end,
-                    { status = status, stripe = band })
+                    { status = StatusText(quest, status), stripe = band })
             end
         end
     end

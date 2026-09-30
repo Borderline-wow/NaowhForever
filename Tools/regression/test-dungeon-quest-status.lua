@@ -23,6 +23,9 @@ local function Fixture(on, complete, done)
             IsComplete = function(id) return complete[id] == true end,
             IsQuestFlaggedCompleted = function(id) return done[id] == true end,
         },
+        -- No prerequisites or required levels here; test-dungeon-quest-prereqs.lua has those.
+        ns = { DungeonQuestPrereqs = {}, DungeonQuestMinLevel = {} },
+        UnitLevel = function() return 60 end,
     }, { __index = _G })
     local code = Slice("local MUTED", "\n-- Instance ID")
         .. Slice("-- Part of a chain done", "\n-- Your faction's quests")

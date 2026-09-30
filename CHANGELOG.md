@@ -8,6 +8,8 @@
   you type in chat, it still links it.
 
 ### Changed
+- Dungeon Quests: a quest you can't pick up yet says what to do first, and its waypoint
+  points there. Once that's done, it shows the level you need to pick it up.
 - QoL: the auction house price on item tooltips is now switched in QoL > Tooltip Display
   (Auction House Price), with the other tooltip settings. Your setting is kept.
 

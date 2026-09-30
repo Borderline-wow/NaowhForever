@@ -1,0 +1,1264 @@
+{
+ "1013": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1014": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1048": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1049": {
+  "note": "Undead cannot pick up this quest",
+  "quests": [],
+  "seps": []
+ },
+ "1050": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1051": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1053": {
+  "note": "3 prerequisite quests, starting with Brother Anton",
+  "quests": [
+   6141
+  ],
+  "seps": []
+ },
+ "1098": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1101": {
+  "note": "Complete Lonebrow's Journal first.",
+  "quests": [
+   1100
+  ],
+  "seps": []
+ },
+ "1102": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1109": {
+  "note": "Prerequisite for Scarlet Monastery quest Hearts of Zeal",
+  "quests": [
+   1113
+  ],
+  "seps": []
+ },
+ "1113": {
+  "note": "Complete Going, Going, Guano! , Razorfen Kraul",
+  "quests": [
+   1109
+  ],
+  "seps": []
+ },
+ "1139": {
+  "note": "Complete 8 quests, starting with A Sign of Hope first",
+  "quests": [
+   720
+  ],
+  "seps": []
+ },
+ "1142": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1144": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1160": {
+  "note": "Complete 6 quests in chain, starting with Test of Faith",
+  "quests": [
+   1149
+  ],
+  "seps": []
+ },
+ "1198": {
+  "note": "Prerequisite to Blackfathom Villainy",
+  "quests": [
+   1200
+  ],
+  "seps": []
+ },
+ "1199": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1200": {
+  "note": "Requires In Search of Thaelrid",
+  "quests": [
+   1198
+  ],
+  "seps": []
+ },
+ "1221": {
+  "note": "Don't forget quest items next to Mizzyrix.",
+  "quests": [],
+  "seps": []
+ },
+ "1275": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1360": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1445": {
+  "note": "Complete 3 quests first, starting with Pool of Tears",
+  "quests": [
+   1424
+  ],
+  "seps": []
+ },
+ "1446": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1475": {
+  "note": "Complete 6 quests first, starting with In Search of The Temple",
+  "quests": [
+   1448
+  ],
+  "seps": []
+ },
+ "1486": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1487": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1491": {
+  "note": "Complete Raptor Horns from same NPC first",
+  "quests": [
+   865
+  ],
+  "seps": []
+ },
+ "1654": {
+  "note": "Starts with Tome of Valor quest chains; starts in different places depending on race. See Paladin Quest guide below.",
+  "quests": [],
+  "seps": []
+ },
+ "166": {
+  "note": "Same prerequisites as Red Silk Bandanas",
+  "quests": [
+   214
+  ],
+  "seps": []
+ },
+ "167": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "168": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "17": {
+  "note": "Complete Badlands Reagent Run first",
+  "quests": [
+   2500
+  ],
+  "seps": []
+ },
+ "1740": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "1951": {
+  "note": "Complete 3 quests, starting with Journey to the Marsh",
+  "quests": [
+   1947
+  ],
+  "seps": []
+ },
+ "1956": {
+  "note": "Complete 3 quests, starting with Return to the Marsh first",
+  "quests": [
+   1953
+  ],
+  "seps": []
+ },
+ "2040": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "214": {
+  "note": "Complete 6 quests, starting with The Defias Brotherhood , Gryan Stoutmantle , Sentinell Hill, Westfall",
+  "quests": [
+   65
+  ],
+  "seps": []
+ },
+ "2198": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2202": {
+  "note": "Complete Badlands Reagent Run first",
+  "quests": [
+   2258
+  ],
+  "seps": []
+ },
+ "2240": {
+  "note": "Complete The Lost Dwarves first",
+  "quests": [
+   2398
+  ],
+  "seps": []
+ },
+ "2278": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2283": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2342": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2398": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2418": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2768": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2770": {
+  "note": "One group member must have Mallet of Zul'Farrak to summon Gahz'rilla - drop from Qiaga the Keeper in The Hinterlands",
+  "quests": [],
+  "seps": []
+ },
+ "2841": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2842": {
+  "note": "Must pick up Rig Wars first.",
+  "quests": [
+   2841
+  ],
+  "seps": []
+ },
+ "2843": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2846": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2865": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2904": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2922": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2924": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2926": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2928": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2929": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2930": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2936": {
+  "note": "Complete 3 quests first, starting with Venom Bottles",
+  "quests": [
+   2933
+  ],
+  "seps": []
+ },
+ "2945": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2951": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "2962": {
+  "note": "Complete Gnogaine first.",
+  "quests": [
+   2926
+  ],
+  "seps": []
+ },
+ "2991": {
+  "note": "Complete 3 quests first, starting with Witherbark Cages",
+  "quests": [
+   2988
+  ],
+  "seps": []
+ },
+ "3042": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "3341": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "3373": {
+  "note": "Complete 2 quests first, starting with The Sunken Temple / The Sunken Temple",
+  "quests": [
+   3380,
+   3445
+  ],
+  "seps": [
+   "/"
+  ]
+ },
+ "3447": {
+  "note": "Complete 2 quests first, starting with The Sunken Temple / The Sunken Temple",
+  "quests": [
+   3380,
+   3445
+  ],
+  "seps": [
+   "/"
+  ]
+ },
+ "3523": {
+  "note": "Entire party should complete before picking up next quest",
+  "quests": [],
+  "seps": []
+ },
+ "3525": {
+  "note": "Make sure entire party has finished Scourge of the Downs first or they won't get credit!",
+  "quests": [
+   3523
+  ],
+  "seps": []
+ },
+ "3527": {
+  "note": "Complete Screecher Spirits first",
+  "quests": [
+   3520
+  ],
+  "seps": []
+ },
+ "3528": {
+  "note": "Complete 3 quests first, starting with Screecher Spirits",
+  "quests": [
+   3520
+  ],
+  "seps": []
+ },
+ "3636": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "373": {
+  "note": "Prerequisite to pick up The Stockade Riots",
+  "quests": [
+   391
+  ],
+  "seps": []
+ },
+ "377": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "378": {
+  "note": "Requires The Dark Iron War",
+  "quests": [
+   303
+  ],
+  "seps": []
+ },
+ "3802": {
+  "note": "NPC is only visible if you are dead Complete Dark Iron Legacy first",
+  "quests": [
+   3801
+  ],
+  "seps": []
+ },
+ "386": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "387": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "388": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "3906": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "3907": {
+  "note": "Opens after completing Disharmony of Flame",
+  "quests": [
+   3906
+  ],
+  "seps": []
+ },
+ "391": {
+  "note": "Requires quest line starting with The Unsent Letter from Deadmines",
+  "quests": [
+   373
+  ],
+  "seps": []
+ },
+ "3981": {
+  "note": "Opens after completing Disharmony of Flame",
+  "quests": [
+   3906
+  ],
+  "seps": []
+ },
+ "4003": {
+  "note": "Complete 4 quests first, starting with Commander Gor'shak",
+  "quests": [
+   3981
+  ],
+  "seps": []
+ },
+ "4024": {
+  "note": "Complete 11 quests first, starting with Divine Retribution",
+  "quests": [
+   3441
+  ],
+  "seps": []
+ },
+ "4063": {
+  "note": "Complete 2 quests first, starting with The Rise of the Machines",
+  "quests": [
+   4061
+  ],
+  "seps": []
+ },
+ "4081": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4082": {
+  "note": "Complete KILL ON SIGHT: Dark Iron Dwarves first",
+  "quests": [
+   4081
+  ],
+  "seps": []
+ },
+ "4123": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4126": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4132": {
+  "note": "Complete 3 quests first, starting with KILL ON SIGHT: Dark Iron Dwarves . This includes Grark Lorkrub , a long escort quest.",
+  "quests": [
+   4081,
+   4122
+  ],
+  "seps": [
+   ". This includes"
+  ]
+ },
+ "4134": {
+  "note": "Breadcrumb Vivian Lagrave in Undercity for easy XP",
+  "quests": [
+   4133
+  ],
+  "seps": []
+ },
+ "4136": {
+  "note": "Can pick up breadcrumb Yuka Screwspigot in Steamwheedle Port for easy XP",
+  "quests": [
+   4324
+  ],
+  "seps": []
+ },
+ "4143": {
+  "note": "Complete 2 quests first, starting with Muigin and Larion",
+  "quests": [
+   4141
+  ],
+  "seps": []
+ },
+ "4146": {
+  "note": "Complete 2 quests first, starting with Larion and Muigin",
+  "quests": [
+   4145
+  ],
+  "seps": []
+ },
+ "4201": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4241": {
+  "note": "Complete 2 quests first, starting with Dragonkin Menace",
+  "quests": [
+   4182
+  ],
+  "seps": []
+ },
+ "4262": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4263": {
+  "note": "Complete Overmaster Pyron first",
+  "quests": [
+   4262
+  ],
+  "seps": []
+ },
+ "4286": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4322": {
+  "note": "Complete 6 quests first, starting with Dragonkin Menace and moving through Marshal Windsor until A Shred of Hope",
+  "quests": [
+   4182,
+   4241,
+   4282
+  ],
+  "seps": [
+   "and moving through",
+   "until"
+  ]
+ },
+ "4341": {
+  "note": "Complete 2 quests first, starting with The Smoldering Ruins of Thaurissan",
+  "quests": [
+   3702
+  ],
+  "seps": []
+ },
+ "4362": {
+  "note": "Complete 2 quests first, starting with Kharan Mighthammer",
+  "quests": [
+   4341
+  ],
+  "seps": []
+ },
+ "4701": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4724": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4729": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4735": {
+  "note": "Complete 6 quests, starting with Egg Freezing and Broodling Essence from same NPC",
+  "quests": [
+   4734,
+   4726
+  ],
+  "seps": [
+   "and"
+  ]
+ },
+ "4742": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4764": {
+  "note": "Pick up non-required breadcrumb Mayara Brightwing in Stormwind Keep for easy XP",
+  "quests": [
+   4766
+  ],
+  "seps": []
+ },
+ "4768": {
+  "note": "Pick up non-required breadcrumb Vivian Lagrave and the Darkstone Tablet in Undercity for easy XP",
+  "quests": [
+   4769
+  ],
+  "seps": []
+ },
+ "4771": {
+  "note": "Complete 9 quests, starting with Broodling Essence first",
+  "quests": [
+   4726
+  ],
+  "seps": []
+ },
+ "4788": {
+  "note": "Complete 5 quests first, starting with Screecher Spirits",
+  "quests": [
+   3520
+  ],
+  "seps": []
+ },
+ "4862": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4866": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4867": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4903": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "4974": {
+  "note": "Complete 2 quests, starting with Warlord's Command first",
+  "quests": [
+   4903
+  ],
+  "seps": []
+ },
+ "4981": {
+  "note": "Leads to Bijou's Belongings inside LBRS",
+  "quests": [
+   4982
+  ],
+  "seps": []
+ },
+ "5001": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5047": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5089": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5102": {
+  "note": "Complete General Drakkisath's Command first",
+  "quests": [
+   5089
+  ],
+  "seps": []
+ },
+ "5122": {
+  "note": "Complete quest to pick up The Restless Souls on Undead side",
+  "quests": [
+   5281
+  ],
+  "seps": []
+ },
+ "5125": {
+  "note": "Complete The Medallion of Faith first",
+  "quests": [
+   5122
+  ],
+  "seps": []
+ },
+ "5127": {
+  "note": "Complete Lorax's Tale from same NPC. Rewards Plans: Demon Forged Breastplate",
+  "quests": [
+   5126
+  ],
+  "seps": []
+ },
+ "5160": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5212": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5213": {
+  "note": "Complete The Flesh Does Not Lie first",
+  "quests": [
+   5212
+  ],
+  "seps": []
+ },
+ "5214": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5243": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5251": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5262": {
+  "note": "Complete The Archivist to be eligible for drop",
+  "quests": [
+   5251
+  ],
+  "seps": []
+ },
+ "5263": {
+  "note": "Complete 2 quests staring with The Archivist",
+  "quests": [
+   5251
+  ],
+  "seps": []
+ },
+ "5282": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5341": {
+  "note": "Alexi Barov may be dead due to Alliance kill quest; 30m spawn timer",
+  "quests": [],
+  "seps": []
+ },
+ "5343": {
+  "note": "Weldon Barov may be dead due to Horde kill quest; 30m spawn timer",
+  "quests": [],
+  "seps": []
+ },
+ "5382": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5384": {
+  "note": "Complete Krastinov's Bag of Horrors first; save reward item",
+  "quests": [
+   5515
+  ],
+  "seps": []
+ },
+ "5463": {
+  "note": "Complete 5 quests, starting with Doctor Theolen Krastinov, the Butcher first",
+  "quests": [
+   5382
+  ],
+  "seps": []
+ },
+ "5466": {
+  "note": "Complete 8 quests, starting with Doctor Theolen Krastinov, the Butcher first Must have equipped to see Magistrate Marduke",
+  "quests": [
+   5382
+  ],
+  "seps": []
+ },
+ "5515": {
+  "note": "Complete Doctor Theolen Krastinov, the Butcher first",
+  "quests": [
+   5382
+  ],
+  "seps": []
+ },
+ "5518": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5525": {
+  "note": "Cannot be completed during Tribute Run unless a party member already has Gordok Shackle Key",
+  "quests": [],
+  "seps": []
+ },
+ "5526": {
+  "note": "Complete A Reliquary of Purity from same NPC and explore all of Dire Maul first to open quest",
+  "quests": [
+   5527
+  ],
+  "seps": []
+ },
+ "5528": {
+  "note": "Can only be picked up after completing a Tribute Run",
+  "quests": [],
+  "seps": []
+ },
+ "5529": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5722": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5723": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5725": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5728": {
+  "note": "Prerequisite: Complete 3 quests, starting with Hidden Enemies from Thrall",
+  "quests": [
+   5726
+  ],
+  "seps": []
+ },
+ "5761": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "5848": {
+  "note": "Complete 7 quests, starting with Blood Tinged Skies , Carrion Grubbage , and Demon Dogs",
+  "quests": [
+   5543,
+   5544,
+   5542
+  ],
+  "seps": [
+   ",",
+   ", and"
+  ]
+ },
+ "6163": {
+  "note": "Complete 4 quests, starting with The Ranger Lord's Behest and To Kill With Purpose",
+  "quests": [
+   6133,
+   6022
+  ],
+  "seps": [
+   "and"
+  ]
+ },
+ "6502": {
+  "note": "Step on blue rune at end of cave to spawn NPC Complete 10 quests, starting with Dragonkin Menace",
+  "quests": [
+   4182
+  ],
+  "seps": []
+ },
+ "6521": {
+  "note": "Complete An Unholy Alliance from RFK",
+  "quests": [
+   6522
+  ],
+  "seps": []
+ },
+ "6522": {
+  "note": "Prerequisite for Razorfen Downs quest An Unholy Alliance",
+  "quests": [
+   6521
+  ],
+  "seps": []
+ },
+ "6561": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "6563": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "6565": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "6602": {
+  "note": "Complete 13 quests, starting with Warlord's Command first",
+  "quests": [
+   4903
+  ],
+  "seps": []
+ },
+ "6626": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "6821": {
+  "note": "Complete 2 quests, Stormers and Rumblers and Poisoned Water from same NPC",
+  "quests": [
+   6805,
+   6804
+  ],
+  "seps": [
+   "and"
+  ]
+ },
+ "6921": {
+  "note": "Summons Baron Aquanis when Fathom Core picked up, needed for next quest",
+  "quests": [],
+  "seps": []
+ },
+ "6922": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "6981": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7028": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7029": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "704": {
+  "note": "Complete 3 quests, starting with Ironband Wants You! first",
+  "quests": [
+   707
+  ],
+  "seps": []
+ },
+ "7041": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7044": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7046": {
+  "note": "Complete Legends of Maraudon first",
+  "quests": [
+   7044
+  ],
+  "seps": []
+ },
+ "7064": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7065": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7066": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7067": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7068": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7070": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "709": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7201": {
+  "note": "Opens after completing Disharmony of Flame",
+  "quests": [
+   3906
+  ],
+  "seps": []
+ },
+ "7441": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7461": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7463": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7481": {
+  "note": "Complete to be eligible for Libram of Protection , Libram of Rapidity , and Libram of Focus",
+  "quests": [
+   7485,
+   7483,
+   7484
+  ],
+  "seps": [
+   ",",
+   ", and"
+  ]
+ },
+ "7482": {
+  "note": "Complete to be eligible for Libram of Protection , Libram of Rapidity , and Libram of Focus",
+  "quests": [
+   7485,
+   7483,
+   7484
+  ],
+  "seps": [
+   ",",
+   ", and"
+  ]
+ },
+ "7488": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7489": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7507": {
+  "note": "Not BoP. Used to create BoP tanking sword .",
+  "quests": [],
+  "seps": []
+ },
+ "7668": {
+  "note": "Complete Material Assistance first",
+  "quests": [
+   7667
+  ],
+  "seps": []
+ },
+ "7703": {
+  "note": "Requires completing one Tribute Run first, and a second Tribute Run after killing Prince Tortheldrin and looting the Gauntlet of Gordok Might",
+  "quests": [],
+  "seps": []
+ },
+ "7761": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "7848": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "8945": {
+  "note": "Complete 9 quests, starting with A Supernatural Device / A Supernatural Device . Requires Extra-Dimensional Ghost Revealer to see quest NPC",
+  "quests": [
+   8923,
+   8922
+  ],
+  "seps": [
+   "/"
+  ]
+ },
+ "914": {
+  "note": "Prerequisite: Complete 5 quests, starting with The Forgotten Pools , The Barrens, Crossroads, Tonga Runetotem",
+  "quests": [
+   870
+  ],
+  "seps": []
+ },
+ "92401": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "92415": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "92421": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "92422": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "95195": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "95216": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "95250": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "959": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "962": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "96393": {
+  "note": "Prerequisite to pick up Underground Map from Dark Iron Map",
+  "quests": [
+   96391
+  ],
+  "seps": []
+ },
+ "96394": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "96395": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "96403": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "971": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "97288": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ },
+ "98423": {
+  "note": "",
+  "quests": [],
+  "seps": []
+ }
+}

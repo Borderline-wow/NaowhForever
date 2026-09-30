@@ -7,6 +7,20 @@
  "1051": null,
  "1053": null,
  "1098": null,
+ "1100": {
+  "chain": [
+   [
+    1100
+   ],
+   [
+    1101
+   ]
+  ],
+  "names": {
+   "1100": "Lonebrow's Journal",
+   "1101": "The Crone of the Kraul"
+  }
+ },
  "1101": {
   "chain": [
    [
@@ -53,6 +67,52 @@
  "1139": null,
  "1142": null,
  "1144": null,
+ "1149": {
+  "chain": [
+   [
+    1149
+   ],
+   [
+    1150
+   ],
+   [
+    1151
+   ],
+   [
+    1152
+   ],
+   [
+    1154
+   ],
+   [
+    6627
+   ],
+   [
+    1159
+   ],
+   [
+    1160
+   ],
+   [
+    6628
+   ],
+   [
+    1394
+   ]
+  ],
+  "names": {
+   "1149": "Test of Faith",
+   "1150": "Test of Endurance",
+   "1151": "Test of Strength",
+   "1152": "Test of Lore",
+   "1154": "Test of Lore",
+   "1159": "Test of Lore",
+   "1160": "Test of Lore",
+   "1394": "Final Passage",
+   "6627": "Test of Lore",
+   "6628": "Test of Lore"
+  }
+ },
  "1160": {
   "chain": [
    [
@@ -144,6 +204,28 @@
   }
  },
  "1360": null,
+ "1424": {
+  "chain": [
+   [
+    1424
+   ],
+   [
+    1429
+   ],
+   [
+    1444
+   ],
+   [
+    1445
+   ]
+  ],
+  "names": {
+   "1424": "Pool of Tears",
+   "1429": "The Atal'ai Exile",
+   "1444": "Return to Fel'Zerul",
+   "1445": "The Temple of Atal'Hakkar"
+  }
+ },
  "1445": {
   "chain": [
    [
@@ -167,6 +249,32 @@
   }
  },
  "1446": null,
+ "1448": {
+  "chain": [
+   [
+    1448
+   ],
+   [
+    1449
+   ],
+   [
+    1450
+   ],
+   [
+    1451
+   ],
+   [
+    1452
+   ]
+  ],
+  "names": {
+   "1448": "In Search of The Temple",
+   "1449": "To The Hinterlands",
+   "1450": "Gryphon Master Talonaxe",
+   "1451": "Rhapsody Shindigger",
+   "1452": "Rhapsody's Kalimdor Kocktail"
+  }
+ },
  "1475": {
   "chain": [
    [
@@ -228,6 +336,7 @@
  "168": null,
  "17": null,
  "1740": null,
+ "1947": null,
  "1951": {
   "chain": [
    [
@@ -244,6 +353,32 @@
    "1949": "Hidden Secrets",
    "1950": "Get the Scoop",
    "1951": "Rituals of Power"
+  }
+ },
+ "1953": {
+  "chain": [
+   [
+    1953
+   ],
+   [
+    1954
+   ],
+   [
+    1955
+   ],
+   [
+    1956
+   ],
+   [
+    1957
+   ]
+  ],
+  "names": {
+   "1953": "Return to the Marsh",
+   "1954": "The Infernal Orb",
+   "1955": "The Exorcism",
+   "1956": "Power in Uldaman",
+   "1957": "Mana Surges"
   }
  },
  "1956": {
@@ -341,6 +476,20 @@
    "2398": "The Lost Dwarves"
   }
  },
+ "2258": {
+  "chain": [
+   [
+    2258
+   ],
+   [
+    2202
+   ]
+  ],
+  "names": {
+   "2202": "Uldaman Reagent Run",
+   "2258": "Badlands Reagent Run"
+  }
+ },
  "2278": null,
  "2283": {
   "chain": [
@@ -380,6 +529,7 @@
   }
  },
  "2418": null,
+ "2500": null,
  "2768": null,
  "2770": {
   "chain": [
@@ -498,6 +648,32 @@
    "2931": "Castpipe's Task"
   }
  },
+ "2933": {
+  "chain": [
+   [
+    2933
+   ],
+   [
+    2934
+   ],
+   [
+    2935
+   ],
+   [
+    2936
+   ],
+   [
+    2937
+   ]
+  ],
+  "names": {
+   "2933": "Venom Bottles",
+   "2934": "Undamaged Venom Sac",
+   "2935": "Consult Master Gadrin",
+   "2936": "The Spider God",
+   "2937": "Summoning Shadra"
+  }
+ },
  "2936": {
   "chain": [
    [
@@ -527,6 +703,40 @@
  "2945": null,
  "2951": null,
  "2962": null,
+ "2988": {
+  "chain": [
+   [
+    2988
+   ],
+   [
+    2989
+   ],
+   [
+    2990
+   ],
+   [
+    2991
+   ],
+   [
+    2992
+   ],
+   [
+    2993
+   ],
+   [
+    2994
+   ]
+  ],
+  "names": {
+   "2988": "Witherbark Cages",
+   "2989": "The Altar of Zul",
+   "2990": "Thadius Grimshade",
+   "2991": "Nekrum's Medallion",
+   "2992": "The Divination",
+   "2993": "Return to the Hinterlands",
+   "2994": "Saving Sharpbeak"
+  }
+ },
  "2991": {
   "chain": [
    [
@@ -561,14 +771,70 @@
    "2994": "Saving Sharpbeak"
   }
  },
+ "303": null,
  "3042": null,
  "3341": null,
  "3366": null,
  "3369": null,
  "3370": null,
  "3373": null,
+ "3380": {
+  "chain": [
+   [
+    3380,
+    3445
+   ],
+   [
+    3444
+   ]
+  ],
+  "names": {
+   "3380": "The Sunken Temple",
+   "3444": "The Stone Circle",
+   "3445": "The Sunken Temple"
+  }
+ },
+ "3441": null,
+ "3445": {
+  "chain": [
+   [
+    3445,
+    3380
+   ],
+   [
+    3444
+   ]
+  ],
+  "names": {
+   "3380": "The Sunken Temple",
+   "3444": "The Stone Circle",
+   "3445": "The Sunken Temple"
+  }
+ },
  "3446": null,
  "3447": null,
+ "3520": {
+  "chain": [
+   [
+    3520
+   ],
+   [
+    3527
+   ],
+   [
+    4787
+   ],
+   [
+    3528
+   ]
+  ],
+  "names": {
+   "3520": "Screecher Spirits",
+   "3527": "The Prophecy of Mosh'aru",
+   "3528": "The God Hakkar",
+   "4787": "The Ancient Egg"
+  }
+ },
  "3523": {
   "chain": [
    [
@@ -642,6 +908,20 @@
   }
  },
  "3636": null,
+ "3702": {
+  "chain": [
+   [
+    3702
+   ],
+   [
+    3701
+   ]
+  ],
+  "names": {
+   "3701": "The Smoldering Ruins of Thaurissan",
+   "3702": "The Smoldering Ruins of Thaurissan"
+  }
+ },
  "373": {
   "chain": [
    [
@@ -682,6 +962,20 @@
  },
  "377": null,
  "378": null,
+ "3801": {
+  "chain": [
+   [
+    3801
+   ],
+   [
+    3802
+   ]
+  ],
+  "names": {
+   "3801": "Dark Iron Legacy",
+   "3802": "Dark Iron Legacy"
+  }
+ },
  "3802": {
   "chain": [
    [
@@ -841,6 +1135,24 @@
    "4024": "A Taste of Flame"
   }
  },
+ "4061": {
+  "chain": [
+   [
+    4061
+   ],
+   [
+    4062
+   ],
+   [
+    4063
+   ]
+  ],
+  "names": {
+   "4061": "The Rise of the Machines",
+   "4062": "The Rise of the Machines",
+   "4063": "The Rise of the Machines"
+  }
+ },
  "4063": {
   "chain": [
    [
@@ -861,6 +1173,7 @@
  },
  "4081": null,
  "4082": null,
+ "4122": null,
  "4123": null,
  "4126": {
   "chain": [
@@ -905,6 +1218,24 @@
    "4324": "Yuka Screwspigot"
   }
  },
+ "4141": {
+  "chain": [
+   [
+    4141
+   ],
+   [
+    4142
+   ],
+   [
+    4143
+   ]
+  ],
+  "names": {
+   "4141": "Muigin and Larion",
+   "4142": "A Visit to Gregan",
+   "4143": "Haze of Evil"
+  }
+ },
  "4143": {
   "chain": [
    [
@@ -923,6 +1254,24 @@
    "4143": "Haze of Evil"
   }
  },
+ "4145": {
+  "chain": [
+   [
+    4145
+   ],
+   [
+    4147
+   ],
+   [
+    4146
+   ]
+  ],
+  "names": {
+   "4145": "Larion and Muigin",
+   "4146": "Zapper Fuel",
+   "4147": "Marvon's Workshop"
+  }
+ },
  "4146": {
   "chain": [
    [
@@ -939,6 +1288,48 @@
    "4145": "Larion and Muigin",
    "4146": "Zapper Fuel",
    "4147": "Marvon's Workshop"
+  }
+ },
+ "4182": {
+  "chain": [
+   [
+    4182
+   ],
+   [
+    4183
+   ],
+   [
+    4184
+   ],
+   [
+    4185
+   ],
+   [
+    4186
+   ],
+   [
+    4223
+   ],
+   [
+    4224
+   ],
+   [
+    4241
+   ],
+   [
+    4242
+   ]
+  ],
+  "names": {
+   "4182": "Dragonkin Menace",
+   "4183": "The True Masters",
+   "4184": "The True Masters",
+   "4185": "The True Masters",
+   "4186": "The True Masters",
+   "4223": "The True Masters",
+   "4224": "The True Masters",
+   "4241": "Marshal Windsor",
+   "4242": "Abandoned Hope"
   }
  },
  "4201": null,
@@ -1012,6 +1403,20 @@
    "4263": "Incendius!"
   }
  },
+ "4282": {
+  "chain": [
+   [
+    4264
+   ],
+   [
+    4282
+   ]
+  ],
+  "names": {
+   "4264": "A Crumpled Up Note",
+   "4282": "A Shred of Hope"
+  }
+ },
  "4286": null,
  "4322": {
   "chain": [
@@ -1052,7 +1457,43 @@
  },
  "4701": null,
  "4724": null,
+ "4726": {
+  "chain": [
+   [
+    4726
+   ],
+   [
+    4808
+   ],
+   [
+    4809
+   ],
+   [
+    4810
+   ]
+  ],
+  "names": {
+   "4726": "Broodling Essence",
+   "4808": "Felnok Steelspring",
+   "4809": "Chillwind Horns",
+   "4810": "Return to Tinkee"
+  }
+ },
  "4729": null,
+ "4734": {
+  "chain": [
+   [
+    4907
+   ],
+   [
+    4734
+   ]
+  ],
+  "names": {
+   "4734": "Egg Freezing",
+   "4907": "Tinkee Steamboil"
+  }
+ },
  "4735": null,
  "4742": {
   "chain": [
@@ -1238,6 +1679,7 @@
  },
  "5122": null,
  "5125": null,
+ "5126": null,
  "5127": null,
  "5160": {
   "chain": [
@@ -1492,8 +1934,25 @@
    "5527": "A Reliquary of Purity"
   }
  },
+ "5527": {
+  "chain": [
+   [
+    5527
+   ],
+   [
+    5526
+   ]
+  ],
+  "names": {
+   "5526": "Shards of the Felvine",
+   "5527": "A Reliquary of Purity"
+  }
+ },
  "5528": null,
  "5529": null,
+ "5542": null,
+ "5543": null,
+ "5544": null,
  "5582": null,
  "5722": {
   "chain": [
@@ -1525,6 +1984,7 @@
   }
  },
  "5725": null,
+ "5726": null,
  "5728": {
   "chain": [
    [
@@ -1582,7 +2042,53 @@
    "5862": "Scarlet Subterfuge"
   }
  },
+ "6022": null,
+ "6133": null,
+ "6141": {
+  "chain": [
+   [
+    6141
+   ],
+   [
+    261
+   ],
+   [
+    1052
+   ]
+  ],
+  "names": {
+   "1052": "Down the Scarlet Path",
+   "261": "Down the Scarlet Path",
+   "6141": "Brother Anton"
+  }
+ },
  "6163": null,
+ "65": {
+  "chain": [
+   [
+    65
+   ],
+   [
+    132
+   ],
+   [
+    135
+   ],
+   [
+    141
+   ],
+   [
+    142
+   ]
+  ],
+  "names": {
+   "132": "The Defias Brotherhood",
+   "135": "The Defias Brotherhood",
+   "141": "The Defias Brotherhood",
+   "142": "The Defias Brotherhood",
+   "65": "The Defias Brotherhood"
+  }
+ },
  "6502": {
   "chain": [
    [
@@ -1705,6 +2211,8 @@
   }
  },
  "6626": null,
+ "6804": null,
+ "6805": null,
  "6821": {
   "chain": [
    [
@@ -1762,8 +2270,56 @@
  "7066": null,
  "7067": null,
  "7068": null,
+ "707": {
+  "chain": [
+   [
+    707
+   ],
+   [
+    738
+   ],
+   [
+    739
+   ],
+   [
+    704
+   ]
+  ],
+  "names": {
+   "704": "Agmond's Fate",
+   "707": "Ironband Wants You!",
+   "738": "Find Agmond",
+   "739": "Murdaloc"
+  }
+ },
  "7070": null,
  "709": null,
+ "720": {
+  "chain": [
+   [
+    720
+   ],
+   [
+    721
+   ],
+   [
+    722
+   ],
+   [
+    723
+   ],
+   [
+    724
+   ]
+  ],
+  "names": {
+   "720": "A Sign of Hope",
+   "721": "A Sign of Hope",
+   "722": "Amulet of Secrets",
+   "723": "Prospect of Faith",
+   "724": "Prospect of Faith"
+  }
+ },
  "7201": null,
  "7441": null,
  "7461": {
@@ -1812,10 +2368,103 @@
   }
  },
  "7507": null,
+ "7667": {
+  "chain": [
+   [
+    7667
+   ],
+   [
+    8258
+   ]
+  ],
+  "names": {
+   "7667": "Material Assistance",
+   "8258": "The Darkreaver Menace"
+  }
+ },
  "7668": null,
  "7703": null,
  "7761": null,
  "7848": null,
+ "865": null,
+ "870": {
+  "chain": [
+   [
+    886
+   ],
+   [
+    870
+   ],
+   [
+    877
+   ],
+   [
+    880
+   ]
+  ],
+  "names": {
+   "870": "The Forgotten Pools",
+   "877": "The Stagnant Oasis",
+   "880": "Altered Beings",
+   "886": "The Barrens Oases"
+  }
+ },
+ "8922": {
+  "chain": [
+   [
+    8922,
+    8923
+   ],
+   [
+    8921
+   ],
+   [
+    8924
+   ],
+   [
+    8925
+   ],
+   [
+    8928
+   ]
+  ],
+  "names": {
+   "8921": "The Ectoplasmic Distiller",
+   "8922": "A Supernatural Device",
+   "8923": "A Supernatural Device",
+   "8924": "Hunting for Ectoplasm",
+   "8925": "A Portable Power Source",
+   "8928": "A Shifty Merchant"
+  }
+ },
+ "8923": {
+  "chain": [
+   [
+    8923,
+    8922
+   ],
+   [
+    8921
+   ],
+   [
+    8924
+   ],
+   [
+    8925
+   ],
+   [
+    8928
+   ]
+  ],
+  "names": {
+   "8921": "The Ectoplasmic Distiller",
+   "8922": "A Supernatural Device",
+   "8923": "A Supernatural Device",
+   "8924": "Hunting for Ectoplasm",
+   "8925": "A Portable Power Source",
+   "8928": "A Shifty Merchant"
+  }
+ },
  "8945": {
   "chain": [
    [
