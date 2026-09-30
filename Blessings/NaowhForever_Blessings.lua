@@ -51,7 +51,7 @@ local EXPIRING = 300          -- seconds left that count as due for a refresh
 local SYMBOL_OF_KINGS = 21177 -- the reagent every Greater Blessing uses
 local QUESTION = 134400
 local RED = { r = 0.97, g = 0.27, b = 0.27 }
-local PALADIN_COLOR = RAID_CLASS_COLORS.PALADIN
+local ICON_BORDER = { r = 0, g = 0, b = 0 }
 
 local others = {}             -- paladin name (realm when not ours) -> { classes, aura, known }
 local bar, cells, flyout, rows, auraButton, furyButton, keyNext, keyGreater
@@ -458,7 +458,9 @@ local function Watch(frame)
         c:AddAuraSlot("buff", "HELPFUL", {
             candidateFilters = { includeSpellIDs = {} },
             initializeFrame = function(button)
-                button:SetAllPoints(c)
+                -- Inset like the button's own icon, so its black border still shows.
+                button:SetPoint("TOPLEFT", c, "TOPLEFT", 1, -1)
+                button:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -1, 1)
                 button:EnableMouse(false)
                 local icon = button:CreateTexture(nil, "ARTWORK")
                 icon:SetAllPoints()
@@ -503,12 +505,13 @@ end
 -------------------------------------------------------------------------------
 --  The bar
 -------------------------------------------------------------------------------
-local function Icon(frame, color)
+-- Every icon on the bar: the art inset 1px inside the house black border.
+local function Icon(frame)
     frame.icon = frame:CreateTexture(nil, "ARTWORK")
     frame.icon:SetPoint("TOPLEFT", 1, -1)
     frame.icon:SetPoint("BOTTOMRIGHT", -1, 1)
     frame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    ns.Border(frame, color or { r = 0, g = 0, b = 0 })
+    ns.Border(frame, ICON_BORDER)
     frame.mark = ns.Font(frame, 14, "OUTLINE", RED)
     frame.mark:SetPoint("CENTER")
     frame.timer = ns.Font(frame, 10, "OUTLINE")
@@ -767,7 +770,7 @@ local function NewSelfButton(name)
     btn:SetAttribute("type1", "spell")
     btn:SetAttribute("unit1", "player")
     btn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-    Icon(btn, PALADIN_COLOR)
+    Icon(btn)
     Watch(btn)
     return btn
 end

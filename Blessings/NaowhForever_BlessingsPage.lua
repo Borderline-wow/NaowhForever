@@ -123,6 +123,9 @@ function ns.BuildQoLBlessingsPage(parent, y)
     return y
 end
 
+-- The house 1px black border, as on the bar.
+local ICON_BORDER = { r = 0, g = 0, b = 0 }
+
 local function NewCell(parent)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(CELL, CELL)
@@ -130,7 +133,7 @@ local function NewCell(parent)
     btn.tex:SetPoint("TOPLEFT", 1, -1)
     btn.tex:SetPoint("BOTTOMRIGHT", -1, 1)
     btn.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    ns.Border(btn)
+    ns.Border(btn, ICON_BORDER)
     return btn
 end
 
