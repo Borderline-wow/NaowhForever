@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.17-beta
 
 ### Added
 - Unspent Talent Points (off by default, QoL > Combat & Alerts): text on screen while you
