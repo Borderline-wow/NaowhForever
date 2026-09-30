@@ -55,6 +55,7 @@
 ### Changed
 - Campfire: an Alert Under slider next to Camp Nearby Alert sets how many minutes of Camp
   Benefits count as needing a refresh, instead of always 2 (AuraBuffs > Campfire).
+- Patch Notes: the page in the options window lists what is new in this version.
 - Settings: switches that stand on their own now sit above the dropdowns on every page. On
   the QoL Questing, Loot & Items, Combat & Alerts and Performance tabs, AuraBuffs, Blessings
   and Swing Timer's aids they had been further down.

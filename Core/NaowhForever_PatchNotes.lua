@@ -6,6 +6,50 @@ local ns = _G.NaowhForever
 local UI = ns.UI
 
 local NOTES = {
+    { title = "0.5.17-beta", lines = {
+        "Group XP (QoL, Questing): a bar for each group member with their level and XP, for "
+            .. "levelling together. Everyone who wants to show up needs Naowh Forever with Group "
+            .. "XP on.",
+        "Share Quests With Group (QoL, Questing): quests you pick up from an NPC are shared "
+            .. "with your group. Hold Alt to keep one to yourself.",
+        "Unspent Talent Points (QoL, Combat & Alerts): a reminder while you have talent points "
+            .. "to spend.",
+        "Accept Popup Macro (Macros, Focus & Cursor): presses the popup on screen for you. It "
+            .. "presses whichever popup is on top.",
+        "Bag Space (QoL, Loot & Items): your cheapest items as a row of icons. Ctrl-click "
+            .. "deletes, click sells, middle-click ignores. It also combines part stacks and "
+            .. "warns about items a quest still needs.",
+        "Mail & Alts (QoL, Loot & Items): what your alts carry on item tooltips, Alts and "
+            .. "Attach buttons on the mailbox, and a warning for mail about to expire.",
+        "Search box at the top of the sidebar: finds a setting and takes you to it. Thanks to "
+            .. "Lyssa.",
+        "Supporter Badges (QoL, Interface) for Naowh's Legendary patrons, the developers and "
+            .. "the moderators.",
+        "Themes (Settings, Colors): eight colour presets or your own colours for this window. "
+            .. "Thanks to Lyssa.",
+        "Discovery: track the 40 library books around Azeroth, with a zone tracker, world map "
+            .. "pins and an alert when one is nearby.",
+        "Professions: crafting profit from your auction house scan, Buy Materials and Search AH "
+            .. "buttons, a recipe filter, Track Recipe and a gathering reminder.",
+        "XP Bar: pick the text for each of five spots around the bar.",
+        "Flight Timer (QoL, Flight & Camp): a new look, bigger, with a Scale slider and a Land "
+            .. "Early button.",
+        "Campfire: sharper artwork, and an Alert Under slider for Camp Nearby.",
+        "Settings: features fold into dropdowns that open when you switch them on, with single "
+            .. "switches above them. Crosshair melee range moved inside Crosshair.",
+        "BiS List: several lists per class, quality borders, a rank button per slot, Fill Empty "
+            .. "Slots and adding items by ID. Dungeon Quests: click a chain step for a waypoint.",
+        "Combat Alert: new Combat and Safe voice clips, and no more stutter on the pull with "
+            .. "Text to Speech.",
+        "Co-Tank Frame: Righteous Fury counts as tanking, and debuffs show in combat.",
+        "Class macros are character macros now, with a right-click icon picker. Key bindings "
+            .. "have their own Naowh Forever section.",
+        "Fixed: Death Release Protection outside instances, Smart Reminders with BigWigs and "
+            .. "DBM, the Unknown name on login, Auto Repair without the Restock Reminder, Swing "
+            .. "Timer set to Always, the empty trinket slot error and the cursor staying clipped "
+            .. "after a crash, among others.",
+        "New features are off until you turn them on.",
+    } },
     { title = "Naowh Forever preview", lines = {
         "Smart Reminders is now Naowh Forever, and Smart Reminders is one of its modules. "
             .. "The addon folder is NaowhForever now: settings saved before the rename come "
