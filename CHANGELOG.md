@@ -16,7 +16,9 @@
 ### Fixed
 - Blessings: every icon has the same thin black border, also while its buff is up and on
   your own blessing button.
-- Bag Space: Shift-click links the item in chat again.
+- Bag Space: Unlock Mode shows your own items instead of question marks, where you have them.
+- Buff Reminders: no more error when the mouse leaves a missing buff's item menu.
+- Global Copy: /copy finds the frame under the mouse again when the game names none.
 - Reload UI buttons and prompts work again, like the one after Apply All Recommended on
   QoL > Performance: they run the game's own /reload instead of causing an error. In
   combat they say to type /reload.
