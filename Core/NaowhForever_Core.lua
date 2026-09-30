@@ -258,6 +258,16 @@ function ns.Print(msg)
     print(ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
 end
 
+-- Every Reload UI the addon offers goes through here. In combat the game blocks an addon's
+-- reload, even from a click (ADDON_ACTION_BLOCKED on Reload), so it says so instead.
+function ns.ReloadUI()
+    if InCombatLockdown() then
+        ns.Print("Can't reload in combat. Type /reload when combat ends.")
+        return
+    end
+    ReloadUI()
+end
+
 -------------------------------------------------------------------------------
 --  House chrome
 -------------------------------------------------------------------------------

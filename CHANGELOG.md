@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+- Reload UI buttons and prompts no longer cause an error in combat. They say to /reload
+  once combat ends instead.
+
 ## 0.5.17-beta
 
 ### Added

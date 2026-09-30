@@ -42,7 +42,7 @@ StaticPopupDialogs["NAOWHFOREVER_ACL_PROMPT"] = {
     button2 = "Skip",
     OnAccept = function()
         SetCVar("advancedCombatLogging", 1)
-        ReloadUI()
+        ns.ReloadUI()
     end,
     timeout = 0,
     hideOnEscape = true,

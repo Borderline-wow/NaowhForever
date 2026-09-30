@@ -609,7 +609,7 @@ function ns.BuildSettingsPage(parent, y)
     if colorsPending then
         _, h = W:Note(parent, "Reload UI to apply your color changes.", y); y = y - h
     end
-    _, h = W:Button(parent, "Reload UI", y, ReloadUI); y = y - h
+    _, h = W:Button(parent, "Reload UI", y, ns.ReloadUI); y = y - h
 
     return y
 end
@@ -885,7 +885,7 @@ local function CreateWindow()
     footLine:SetPoint("TOPLEFT")
     footLine:SetPoint("TOPRIGHT")
     footLine:SetHeight(1)
-    ns.Button(footer, "Reload UI", 140, 26, ReloadUI):SetPoint("LEFT", footer, "LEFT", 30, 0)
+    ns.Button(footer, "Reload UI", 140, 26, ns.ReloadUI):SetPoint("LEFT", footer, "LEFT", 30, 0)
     ns.Button(footer, "Close", 140, 26, function() window:Hide() end)
         :SetPoint("RIGHT", footer, "RIGHT", -30, 0)
 

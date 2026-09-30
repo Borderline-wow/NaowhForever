@@ -130,7 +130,7 @@ local function Restore(cvar)
 end
 
 local function OfferReload()
-    ns.Confirm("Some settings only take effect after a reload. Reload UI now?", ReloadUI)
+    ns.Confirm("Some settings only take effect after a reload. Reload UI now?", ns.ReloadUI)
 end
 
 local function ApplyAll()
@@ -199,7 +199,7 @@ function ns.BuildQoLPerformancePage(parent, y)
           setValue = function(v) C_CVar.SetCVar("SpellQueueWindow", v) end },
         { type = "label", text = "" }
     ); y = y - h
-    _, h = W:Button(parent, "Reload UI", y, ReloadUI); y = y - h
+    _, h = W:Button(parent, "Reload UI", y, ns.ReloadUI); y = y - h
 
     _, h = W:SectionHeader(parent, "INDIVIDUAL SETTINGS", y); y = y - h
     for _, cat in ipairs(CATEGORIES) do
