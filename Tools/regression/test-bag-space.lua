@@ -406,6 +406,16 @@ do
     Check("no garbage per scan", grown / SCANS < 0.05, true)
 end
 
+-- Shift-click links through ChatFrameUtil: ChatEdit_InsertLink is a deprecated shim Forever
+-- does not load, so a call to it does nothing there.
+local deprecated = false
+for line in source:gmatch("[^\n]+") do
+    if not line:match("^%s*%-%-") and line:find("ChatEdit_", 1, true) then deprecated = true end
+end
+Check("no deprecated ChatEdit_ calls", deprecated, false)
+Check("Shift-click links through ChatFrameUtil",
+    source:find("ChatFrameUtil.InsertLink(p.link)", 1, true) ~= nil, true)
+
 if failures > 0 then
     print(failures .. " failure(s)")
     os.exit(1)

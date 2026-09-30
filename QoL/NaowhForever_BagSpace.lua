@@ -641,8 +641,9 @@ local function OnClick(self, button)
         return
     end
     local p = Snapshot(e)
+    -- ChatFrameUtil, not ChatEdit_InsertLink: that is a deprecated shim Forever does not load.
     if IsModifiedClick("CHATLINK") then
-        ChatEdit_InsertLink(p.link)
+        ChatFrameUtil.InsertLink(p.link)
     elseif button == "MiddleButton" then
         Ignore(p)
     elseif IsControlKeyDown() then

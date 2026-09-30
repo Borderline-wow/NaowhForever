@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Bag Space: Shift-click links the item in chat again.
 - Reload UI buttons and prompts work again, like the one after Apply All Recommended on
   QoL > Performance: they run the game's own /reload instead of causing an error. In
   combat they say to type /reload.
