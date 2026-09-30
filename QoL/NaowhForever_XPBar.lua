@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_XPBar.lua -- the QoL XP bar: level, experience and percentage on one
 --  bar, with the XP of completed quests drawn as segments past the fill, rested
---  experience over them from the end of your XP, and optional played, session and
---  levelling lines underneath. Replaces Blizzard's experience bar while it is on.
+--  experience over them from the end of your XP, and a text of your choice at each of five
+--  spots around it. Replaces Blizzard's experience bar while it is on.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -26,6 +26,26 @@ local questDone, questOpen = 0, 0
 -- TIME_PLAYED_MSG totals and the GetTime() they arrived at, so the clock can run on.
 local playedTotal, playedLevel, playedAt
 local mutedChat = {}
+
+-- The spots around the bar a text can go, each the setting that picks its text.
+local SLOTS = {
+    { key = "xpBarTopLeft", point = "BOTTOMLEFT", rel = "TOPLEFT", y = 4, justify = "LEFT" },
+    { key = "xpBarTopRight", point = "BOTTOMRIGHT", rel = "TOPRIGHT", y = 4, justify = "RIGHT" },
+    { key = "xpBarBottomLeft", point = "TOPLEFT", rel = "BOTTOMLEFT", y = -4, justify = "LEFT" },
+    { key = "xpBarBottom", point = "TOP", rel = "BOTTOM", y = -4, justify = "CENTER" },
+    { key = "xpBarBottomRight", point = "TOPRIGHT", rel = "BOTTOMRIGHT", y = -4, justify = "RIGHT" },
+}
+
+-- The switches the spots replaced, each with the texts it showed and the spots they move to.
+-- The old defaults were Played and Leveling on, Session and Completed off.
+local OLD_TEXTS = {
+    { key = "xpBarPlayed", default = true, texts = { { "xpBarTopLeft", "played" } } },
+    { key = "xpBarSession", default = false, texts = { { "xpBarTopRight", "session" } } },
+    { key = "xpBarLeveling", default = true,
+      texts = { { "xpBarBottomLeft", "leveling" }, { "xpBarBottomRight", "xphour" } } },
+    { key = "xpBarCompleted", default = false,
+      texts = { { "xpBarBottom", "completed" }, { "xpBarBottom", "rested" } } },
+}
 
 local function On()
     return S.Get("enabled") and S.Get("xpBar")
@@ -190,31 +210,65 @@ end
 
 -- max is Update's, never 0: the game reports 0 for a moment after login or a reload, before
 -- the character's data has loaded.
-local function SubLines(maxed, max)
-    local lines = {}
-    local function Add(...) lines[#lines + 1] = table.concat({ ... }, " - ") end
+local function SlotText(which, maxed, max)
     local elapsed = time() - sessionStart
-
-    if not maxed and S.Get("xpBarCompleted") then
-        local rested = GetXPExhaustion() or 0
-        Add(LABEL .. "Completed Quests:|r " .. QUEST_HEX .. ("%.1f%%"):format(questDone / max * 100) .. "|r",
-            LABEL .. "Rested Experience:|r " .. RESTED_HEX .. ("%.1f%%"):format(rested / max * 100) .. "|r")
-    end
-    if not maxed and S.Get("xpBarLeveling") then
-        local rate = sessionXP / (math.max(elapsed, 60) / 3600)
-        local left = math.max(max - UnitXP("player"), 0)
-        Add(LABEL .. "Time to Level:|r " .. VALUE .. (rate > 0 and Duration(left / rate * 3600) or "--") .. "|r",
-            LABEL .. "XP/Hour:|r " .. VALUE .. Short(rate) .. "|r")
-    end
-    if S.Get("xpBarPlayed") and playedTotal then
+    if which == "played" then
+        if not playedTotal then return "" end
         local since = GetTime() - playedAt
-        Add(LABEL .. "Played:|r " .. VALUE .. Duration(playedTotal + since) .. "|r",
-            LABEL .. "This Level:|r " .. VALUE .. Duration(playedLevel + since) .. "|r")
+        return LABEL .. "Played:|r " .. VALUE .. Duration(playedTotal + since) .. "|r - "
+            .. LABEL .. "This Level:|r " .. VALUE .. Duration(playedLevel + since) .. "|r"
+    elseif which == "session" then
+        return LABEL .. "Session:|r " .. VALUE .. Duration(elapsed) .. "|r"
+    elseif maxed then
+        return ""
+    elseif which == "completed" then
+        return LABEL .. "Completed Quests:|r " .. QUEST_HEX .. ("%.1f%%"):format(questDone / max * 100) .. "|r"
+    elseif which == "rested" then
+        return LABEL .. "Rested:|r " .. RESTED_HEX .. ("%.1f%%"):format((GetXPExhaustion() or 0) / max * 100) .. "|r"
     end
-    if S.Get("xpBarSession") then
-        Add(LABEL .. "Session:|r " .. VALUE .. Duration(elapsed) .. "|r")
+    local rate = sessionXP / (math.max(elapsed, 60) / 3600)
+    if which == "leveling" then
+        local left = math.max(max - UnitXP("player"), 0)
+        return LABEL .. "Time to Level:|r " .. VALUE .. (rate > 0 and Duration(left / rate * 3600) or "--") .. "|r"
+    elseif which == "xphour" then
+        return LABEL .. "XP/Hour:|r " .. VALUE .. Short(rate) .. "|r"
     end
-    return table.concat(lines, "\n")
+    return ""
+end
+
+-- A profile that changed the old switches gets the same texts in the spots, once. With both
+-- Completed Quests and Rested on there is one spot left, so Rested is dropped.
+local function ConvertOldTexts()
+    local db = S.DB()
+    local saved = false
+    for _, old in ipairs(OLD_TEXTS) do
+        if db[old.key] ~= nil then saved = true end
+    end
+    if not saved then return end
+    local picked = false
+    for _, slot in ipairs(SLOTS) do
+        if db[slot.key] ~= nil then picked = true end
+    end
+    if not picked then
+        for _, slot in ipairs(SLOTS) do db[slot.key] = "none" end
+        for _, old in ipairs(OLD_TEXTS) do
+            local on = db[old.key]
+            if on == nil then on = old.default end
+            if on then
+                for _, t in ipairs(old.texts) do
+                    if db[t[1]] == "none" then db[t[1]] = t[2] end
+                end
+            end
+        end
+    end
+    for _, old in ipairs(OLD_TEXTS) do db[old.key] = nil end
+end
+
+local function ShowsText(which)
+    for _, slot in ipairs(SLOTS) do
+        if S.Get(slot.key) == which then return true end
+    end
+    return false
 end
 
 local function Update()
@@ -267,7 +321,9 @@ local function Update()
         end
     end
 
-    bar.sub:SetText(SubLines(maxed, max))
+    for i, slot in ipairs(SLOTS) do
+        bar.slots[i]:SetText(SlotText(S.Get(slot.key), maxed, max))
+    end
     bar:Show()
 end
 
@@ -355,15 +411,20 @@ local function Create()
     bar.pct = ns.Font(text, 14, "OUTLINE")
     bar.pct:SetPoint("RIGHT", bar.track, "RIGHT", -8, 0)
     bar.pct:SetJustifyH("RIGHT")
-    bar.sub = ns.Font(bar, 13, "OUTLINE")
-    bar.sub:SetPoint("TOP", bar, "BOTTOM", 0, -4)
-    bar.sub:SetJustifyH("CENTER")
-    bar.sub:SetSpacing(2)
+    bar.slots = {}
+    for i, slot in ipairs(SLOTS) do
+        local fs = ns.Font(bar, 13, "OUTLINE")
+        fs:SetPoint(slot.point, bar, slot.rel, 0, slot.y)
+        fs:SetJustifyH(slot.justify)
+        fs:SetWordWrap(false)
+        bar.slots[i] = fs
+    end
 
     bar.mover = ns.UI.AttachMover(bar, "XP Bar", function(pos) S.Set("xpBarPos", pos) end)
 end
 
 local function Apply()
+    ConvertOldTexts()
     if not On() then
         events:UnregisterAllEvents()
         events:RegisterEvent("PLAYER_LOGOUT")
@@ -386,6 +447,15 @@ local function Apply()
         fs:SetWidth(math.max(1, w / 3 - 16))
         fs:SetWordWrap(false)
     end
+    -- Texts sharing a row split its width, so a long one cuts off instead of running into
+    -- its neighbour.
+    local used = {}
+    for i, slot in ipairs(SLOTS) do used[i] = (S.Get(slot.key) or "none") ~= "none" end
+    local top = (used[1] and used[2]) and 2 or 1
+    local bottom = used[4] and ((used[3] or used[5]) and 3 or 1) or ((used[3] and used[5]) and 2 or 1)
+    for i, fs in ipairs(bar.slots) do
+        fs:SetWidth(math.max(1, w / (i <= 2 and top or bottom) - 8))
+    end
     Place()
 
     lastXP, lastXPMax = UnitXP("player"), UnitXPMax("player")
@@ -394,7 +464,7 @@ local function Apply()
                          "DISABLE_XP_GAIN", "ENABLE_XP_GAIN", "PLAYER_LOGOUT" }) do
         events:RegisterEvent(e)
     end
-    if S.Get("xpBarPlayed") and not playedTotal then RequestPlayed() end
+    if ShowsText("played") and not playedTotal then RequestPlayed() end
     if not clock then clock = C_Timer.NewTicker(1, Update) end
 
     SetBlizzardHidden(true)

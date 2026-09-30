@@ -17,6 +17,10 @@
   Badges, where you can also turn on a banner for when one of them joins your group.
 
 ### Changed
+- XP Bar: the text around the bar now has five spots, Top Left, Top Right, Bottom Left,
+  Bottom and Bottom Right, and each shows the one you pick: Played Time, Session Time,
+  Completed Quests, Rested Experience, Time to Level or XP per Hour. They replace the four
+  text switches, and the texts you had on move into the spots (QoL > Questing > XP Bar).
 - Settings dropdowns: switching a feature on opens its options, and the arrow is a bigger,
   bolder chevron.
 - Flight Timer: a new look in Naowh's colours. The route is a line between its two ends,

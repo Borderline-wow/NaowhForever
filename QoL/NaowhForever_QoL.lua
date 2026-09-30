@@ -60,9 +60,9 @@ local S = UI.ModuleSettings("qol", {
     xpTicker = true, xpTickerLevel = true, xpTickerElapsed = true, xpTickerTotal = false,
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24,
     xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true, xpTickerHistoryCount = 10,
-    xpBar = false, xpBarPlayed = true, xpBarSession = false, xpBarLeveling = true,
-    xpBarLeftText = "level", xpBarCenterText = "xp", xpBarRightText = "percent",
-    xpBarCompleted = false, xpBarIncomplete = false, xpBarMaxLevel = false,
+    xpBar = false, xpBarLeftText = "level", xpBarCenterText = "xp", xpBarRightText = "percent",
+    xpBarTopLeft = "played", xpBarTopRight = "none", xpBarBottomLeft = "leveling",
+    xpBarBottom = "none", xpBarBottomRight = "xphour", xpBarIncomplete = false, xpBarMaxLevel = false,
     xpBarResetOnReload = false, xpBarWidth = 520, xpBarHeight = 26,
     autoRepair = false, sellJunk = false,
     restock = true, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
@@ -304,18 +304,6 @@ function ns.BuildQoLQuestingPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("xpBarMaxLevel", "Show Bar at Max Level", nil, "xpBar"),
-        S.Toggle("xpBarPlayed", "Played Time Text",
-            "Total played time and time played on this level.", "xpBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("xpBarSession", "Session Time Text", "How long this session has run.", "xpBar"),
-        S.Toggle("xpBarLeveling", "Leveling Time & XP/Hour Text",
-            "Time to the next level at this session's rate, and the rate itself.", "xpBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("xpBarCompleted", "Completed & Rested Text",
-            "The XP of quests ready to turn in and your rested experience, as a share of "
-            .. "this level.", "xpBar"),
         S.Toggle("xpBarIncomplete", "Show Incomplete Quests Bar",
             "The XP of quests still in progress, as a faded segment after the completed ones.",
             "xpBar")
@@ -339,6 +327,25 @@ function ns.BuildQoLQuestingPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("xpBarRightText", "Right Text", textValues, textOrder, nil, "xpBar"),
+        { type = "label", text = "" }
+    ); y = y - h
+
+    local slotValues = { none = "None", played = "Played Time", session = "Session Time",
+        completed = "Completed Quests", rested = "Rested Experience", leveling = "Time to Level",
+        xphour = "XP per Hour" }
+    local slotOrder = { "none", "played", "session", "completed", "rested", "leveling", "xphour" }
+    local slotTip = "The text shown at this spot outside the bar. Completed Quests, Rested "
+        .. "Experience, Time to Level and XP per Hour are hidden at max level."
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("xpBarTopLeft", "Top Left", slotValues, slotOrder, slotTip, "xpBar"),
+        S.Dropdown("xpBarTopRight", "Top Right", slotValues, slotOrder, slotTip, "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("xpBarBottomLeft", "Bottom Left", slotValues, slotOrder, slotTip, "xpBar"),
+        S.Dropdown("xpBarBottom", "Bottom", slotValues, slotOrder, slotTip, "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("xpBarBottomRight", "Bottom Right", slotValues, slotOrder, slotTip, "xpBar"),
         { type = "label", text = "" }
     ); y = y - h
 
