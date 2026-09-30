@@ -143,7 +143,7 @@ end
 -- The pages the scan leaves out are exactly the ones the audit found unsafe.
 do
     local expected = { ["Patch Notes"] = true, ["Profiles"] = true, ["QoL/Tools"] = true,
-        ["Dungeon Quests/Tracker"] = true, ["Blessings/Bar"] = true, ["Blessings/Assignments"] = true,
+        ["Dungeon Quests/Dungeons"] = true, ["Blessings/Bar"] = true, ["Blessings/Assignments"] = true,
         ["BiS List/List"] = true, ["AuraBuffs/Poison & Dispel"] = true, ["Top Bar/Bar"] = true,
         ["Smart Reminders/Setup"] = true, ["Smart Reminders/Cooldown Presets"] = true,
         ["Smart Reminders/Dungeon Bosses"] = true, ["Smart Reminders/Raid Bosses"] = true }
@@ -163,7 +163,7 @@ do
             Check(noscan == (expected[name] == true), name .. ": noscan is " .. tostring(expected[name] == true))
         end
     end
-    Check(total == 37, "the window lists 37 pages (" .. total .. "): decide noscan for a new one")
+    Check(total == 39, "the window lists 39 pages (" .. total .. "): decide noscan for a new one")
     for name in pairs(expected) do Check(seen[name] ~= nil, "the audited page still exists: " .. name) end
 end
 

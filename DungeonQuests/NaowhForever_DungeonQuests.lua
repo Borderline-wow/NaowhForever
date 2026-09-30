@@ -826,7 +826,7 @@ local function Row(parent, y, text, sub, onWaypoint, onChain, opts)
     return h + 6
 end
 
-function ns.BuildQoLDungeonQuestsPage(parent, y)
+function ns.BuildQoLDungeonQuestsSettingsPage(parent, y)
     local UI = ns.UI
     local W = UI.Widgets
     local _, h
@@ -853,13 +853,17 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
             "A dropdown on the tracker picks the one dungeon it lists, with all of your quests "
             .. "there. Entering a dungeon selects it.", "dqTracker")
     ); y = y - h
+    return y
+end
 
+function ns.BuildQoLDungeonQuestsPage(parent, y)
+    local W = ns.UI.Widgets
     local all = S.Get("dqAllFactions")
     for _, dungeon in ipairs(ns.DungeonQuests) do
         local levels = dungeon.levels and ("   %sLEVEL %d-%d%s|r"):format(
             InReach(dungeon) and IN_REACH or "|cff9a9ea6", dungeon.levels[1], dungeon.levels[2],
             InReach(dungeon) and "  IN RANGE" or "") or ""
-        _, h = W:SectionHeader(parent, dungeon.name:upper() .. levels, y); y = y - h
+        y = y - select(2, W:SectionHeader(parent, dungeon.name:upper() .. levels, y))
         if #dungeon.quests == 0 then
             y = y - Row(parent, y, MUTED .. "No quests known for this dungeon yet.|r")
         end

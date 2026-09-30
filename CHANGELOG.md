@@ -17,6 +17,8 @@
   Badges, where you can also turn on a banner for when one of them joins your group.
 
 ### Changed
+- Dungeon Quests and BiS List open straight to the dungeons and to your character panel;
+  their options moved to a new Settings tab in each.
 - Settings pages are shorter: a feature with several options, such as Restock or the Co-Tank
   Frame, is one row with its on/off switch, and its options open under it with a click.
   Features with a single switch stay as they are. Groups of options with no switch of their

@@ -62,7 +62,8 @@ local MODULES = {
       command = "dq", short = "DQ", icon = "Interface\\Icons\\INV_Misc_Note_01",
       subtitle = "Every dungeon quest on Forever, and a tracker for the dungeon you are in.",
       tabs = {
-          { name = "Tracker", build = "BuildQoLDungeonQuestsPage", reuse = true, noscan = true },
+          { name = "Dungeons", build = "BuildQoLDungeonQuestsPage", reuse = true, noscan = true },
+          { name = "Settings", build = "BuildQoLDungeonQuestsSettingsPage", reuse = true },
       } },
     { name = "Gear & Trinkets", settings = "QoLSettings", enabledKey = "gearSets",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
@@ -83,6 +84,7 @@ local MODULES = {
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
       tabs = {
           { name = "List", build = "BuildQoLBiSPage", reuse = true, noscan = true },
+          { name = "Settings", build = "BuildQoLBiSSettingsPage", reuse = true },
       } },
     { name = "Professions", settings = "ProfessionSettings",
       subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",

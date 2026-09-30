@@ -1130,16 +1130,10 @@ local function SourcePanel(parent, x, y, width)
     return -top, f.lines
 end
 
-function ns.BuildQoLBiSPage(parent, y)
+function ns.BuildQoLBiSSettingsPage(parent, y)
     local UI = ns.UI
     local W = UI.Widgets
     local _, h
-    -- The main window and the BiS window can each have the page built. A build the window
-    -- has since thrown away is unparented, and its marks go with it.
-    for page in pairs(wornMarks) do
-        if not page:GetParent() then wornMarks[page] = nil end
-    end
-    wornMarks[parent] = {}
     _, h = W:Note(parent, "Click a slot to pick its items from the ranking for your spec, or "
         .. "from every dungeon drop your class can use, best first: your BiS, then your 2nd, 3rd "
         .. "and so on. A slot shows its BiS with a green border and a check mark, and +N for the rest. Alt+Shift-click any item (bags, links, loot) to "
@@ -1174,9 +1168,17 @@ function ns.BuildQoLBiSPage(parent, y)
     _, h = W:Button(parent, "Export My BiS List", y, function()
         ns.PromptText("Copy this to share your list", ns.ExportBisList(), 0, function() end)
     end); y = y - h
+    return y
+end
 
-    _, h = W:SectionHeader(parent, "GEAR", y); y = y - h
-    local pad = UI.CONTENT_PAD
+function ns.BuildQoLBiSPage(parent, y)
+    -- The main window and the BiS window can each have the page built. A build the window
+    -- has since thrown away is unparented, and its marks go with it.
+    for page in pairs(wornMarks) do
+        if not page:GetParent() then wornMarks[page] = nil end
+    end
+    wornMarks[parent] = {}
+    local pad = ns.UI.CONTENT_PAD
     local width = parent:GetWidth() - pad * 2
     if width <= 0 then width = 910 end
     local gap = 48
