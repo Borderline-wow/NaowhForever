@@ -395,20 +395,22 @@ end
 function ns.BuildQoLGeneralPage(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
-    _, h = W:SectionHeader(parent, "DEATH RELEASE", y); y = y - h
+    _, h = W:SectionHeader(parent, "Death Release", y); y = y - h
+    _, h = W:Note(parent, "Hold to release inside dungeons and raids.", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("deathRelease", "Death Release Protection",
             "Release Spirit has to be held down for a moment inside a dungeon or raid, so "
-            .. "a stray click never sends you on a corpse run while a battle res is coming."),
-        S.Slider("deathReleaseHold", "Hold Time (s)", 0.5, 3, 0.1, nil, "deathRelease")
+            .. "a stray click never sends you on a corpse run while a battle res is coming.")
     ); y = y - h
+    local hold = S.Slider("deathReleaseHold", "Hold Time (s)", 0.5, 3, 0.1, nil, "deathRelease")
+    hold.trackWidth = 220
+    _, h = W:DualRow(parent, y, hold); y = y - h
 
-    _, h = W:SectionHeader(parent, "STEALTH REMINDER", y); y = y - h
-    _, h = W:Feature(parent, y,
-        S.Toggle("stealthReminder", "Enable Stealth Reminder", "Out-of-combat stealth status for rogues and druids.")
-    ); y = y - h
+    y = y - 16
+    local stealth = S.Toggle("stealthReminder", "Stealth Reminder", "Out-of-combat stealth status for rogues and druids.")
+    _, h = W:Feature(parent, y, stealth, "Enable Stealth Reminder"); y = y - h
+    _, h = W:Note(parent, "Out-of-combat stealth status for rogues and druids.", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("reminderInGroup", "Only In a Group", nil, "stealthReminder"),
         S.Toggle("reminderHideResting", "Hide While Resting", nil, "stealthReminder")
@@ -422,6 +424,7 @@ function ns.BuildQoLGeneralPage(parent, y)
             "In Cat Form reminds a druid only while in Cat Form. In Any Form reminds in every "
             .. "form but travel forms, for a druid who prowls between fights.", "stealthReminder")
     ); y = y - h
+    _, h = W:Disclosure(parent, y, "Appearance & text", "appearance"); y = y - h
     _, h = W:DualRow(parent, y,
         ColorRow("warningColor", "Out of Stealth Colour", "stealthReminder"),
         S.Toggle("warningClassColor", "Class Colour", nil, "stealthReminder")
@@ -438,8 +441,10 @@ function ns.BuildQoLGeneralPage(parent, y)
         TextControl("Out of Stealth Text", "Text while out of stealth", "warningText"),
         TextControl("Stealthed Text", "Text while stealthed", "stealthText")
     ); y = y - h
+    W:EndDisclosure(parent)
+    W:EndFeature(parent)
+    y = y - 16
 
-    _, h = W:SectionHeader(parent, "CO-TANK FRAME", y); y = y - h
     local coTankFonts, coTankFontOrder = UI.FontChoices(S.Get("coTankFont"))
     _, h = W:Feature(parent, y,
         S.Toggle("coTank", "Co-Tank Frame",
@@ -483,11 +488,10 @@ function ns.BuildQoLGeneralPage(parent, y)
             "From the centre of the anchor frame. Only used while anchored to a frame.", "coTank")
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "CO-TANK DEBUFFS", y); y = y - h
-    _, h = W:Feature(parent, y,
+    _, h = W:Disclosure(parent, y,
         S.Toggle("coTankDebuffs", "Co-Tank Debuffs",
             "Shows the other tank's debuffs beside their health bar, in combat too: tank-buster "
-            .. "stacks, boss debuffs and anything you can dispel.", "coTank")
+            .. "stacks, boss debuffs and anything you can dispel.", "coTank"), "debuffs"
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("coTankDebuffFilter", "Filter", DEBUFF_FILTER_VALUES, DEBUFF_FILTER_ORDER,
@@ -522,6 +526,8 @@ function ns.BuildQoLGeneralPage(parent, y)
         S.Slider("coTankDebuffStackSize", "Stacks Size", 6, 20, 1, nil, "coTankDebuffStacks")
     ); y = y - h
 
+    W:EndDisclosure(parent)
+    W:EndFeature(parent)
     return y
 end
 

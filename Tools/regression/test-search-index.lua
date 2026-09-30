@@ -174,7 +174,7 @@ do
         "DualRow tags its row")
     local window = Read("Core/NaowhForever_Window.lua")
     Check(window:find("row._searchL == label or row._searchR == label", 1, true), "the jump finds the row by label")
-    Check(window:find("UI.AttachSearch(sidebar", 1, true), "the window attaches the search box")
+    Check(window:find("UI.AttachSearch(top", 1, true), "the window attaches the search box")
 end
 
 

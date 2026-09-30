@@ -210,6 +210,7 @@ local function MarkPage(text)
             open[entry.feature] = true
         end
     end
+    if open then UI.MarkFeatureParents(open) end
     UI.searchWords, UI.searchOpen = words, open
     -- Clearing redraws every page that was marked; typing only the one on show.
     if words then UI.RefreshSearchMarks() else UI:RefreshPage(true) end
@@ -235,12 +236,13 @@ end
 
 -- Called once, when the window is made.
 function UI.AttachSearch(sidebar, top)
-    box = ns.NewSearchBox(sidebar, "Search settings", OnText)
+    box = ns.NewSearchBox(sidebar, "Search all settings", OnText)
     box:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 14, -top)
     box:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -14, -top)
     box:SetHeight(24)
     box:SetScript("OnEnterPressed", function(self)
         if results[1] then Jump(results[1]) else self:ClearFocus() end
     end)
-    UI:RegisterOnHide(function() box:SetText("") end)
+    UI:RegisterOnHide(function() box:SetText(""); box:ClearFocus() end)
+    return box
 end

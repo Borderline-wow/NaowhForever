@@ -13,7 +13,7 @@ local T = ns.THEME
 local UI = {}
 ns.UI = UI
 
-UI.CONTENT_PAD = 45
+UI.CONTENT_PAD = 20
 UI.COGS_ICON = "Interface\\AddOns\\NaowhForever\\Media\\cog.tga"
 
 function UI.L(text) return ns.L(text) end
@@ -302,7 +302,9 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     local fill = ns.Solid(track, "BORDER", T.accent, 1)
     fill:SetPoint("LEFT", 0, 0)
     fill:SetHeight(trackH)
-    local thumb = ns.Solid(track, "ARTWORK", T.fg, 1)
+    local thumb = track:CreateTexture(nil, "ARTWORK")
+    thumb:SetTexture(KNOB_TEX)
+    thumb:SetVertexColor(T.fg.r, T.fg.g, T.fg.b, 1)
     thumb:SetSize(thumbSz, thumbSz)
 
     local valBox = CreateFrame("EditBox", nil, parent)
@@ -396,10 +398,23 @@ local ROW_H, HEADER_H = 50, 40
 -- under its row (W:Feature); on a page marked `collapse` they start closed, still built so
 -- callers keep the frames they expect, but hidden and taking no height.
 local openFeatures = {}
+local featureParents = {}
 
 -- The settings search opens the feature holding the setting it jumps to.
 function UI.OpenFeature(id)
-    openFeatures[id] = true
+    while id do
+        openFeatures[id] = true
+        id = featureParents[id]
+    end
+end
+
+function UI.MarkFeatureParents(open)
+    local parents = {}
+    for id in pairs(open) do
+        local parent = featureParents[id]
+        while parent do parents[parent] = true; parent = featureParents[parent] end
+    end
+    for id in pairs(parents) do open[id] = true end
 end
 
 local function Collapsed(parent, frame, h)
@@ -583,7 +598,7 @@ local function BuildRegionControl(rgn, cfg)
         dd:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         return dd
     elseif cfg.type == "slider" then
-        local track, valBox = UI.BuildSliderCore(rgn, 120, 4, 12, 40, 22, 12, 1,
+        local track, valBox = UI.BuildSliderCore(rgn, cfg.trackWidth or 120, 4, 12, 40, 22, 12, 1,
             cfg.min or 0, cfg.max or 100, cfg.step or 1, Get, Set)
         valBox:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
@@ -619,6 +634,7 @@ local function BuildRegion(row, cfg, left, width)
     lbl:SetJustifyH("LEFT")
     lbl:SetWordWrap(false)
     lbl:SetText(cfg.text or "")
+    rgn._label = lbl
     if disabled then lbl:SetAlpha(0.3) end
 
     rgn._cfg = cfg
@@ -655,7 +671,9 @@ end
 -- reusable for a config.
 local function RegionKey(cfg)
     local key = cfg.type .. ":" .. (cfg.text or "")
-    if cfg.type == "slider" then key = key .. ":" .. tostring(cfg.min) .. ":" .. tostring(cfg.max) end
+    if cfg.type == "slider" then
+        key = key .. ":" .. tostring(cfg.min) .. ":" .. tostring(cfg.max) .. ":" .. tostring(cfg.trackWidth)
+    end
     return key
 end
 
@@ -710,21 +728,24 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
 
-    -- Alternating band; the counter lives on the parent and SectionHeader resets it, so
-    -- every section starts on a lit row.
-    local count = (parent._nsuiRowCount or 0) + 1
-    parent._nsuiRowCount = count
+    if not row._rule then
+        row._rule = ns.Solid(row, "ARTWORK", T.line, 0.6)
+        row._rule:SetPoint("BOTTOMLEFT"); row._rule:SetPoint("BOTTOMRIGHT"); row._rule:SetHeight(1)
+    end
+    local function FitRegions()
+        local width = math.max(1, parent:GetWidth() - UI.CONTENT_PAD * 2)
+        local half = rightCfg and width / 2 or width
+        row._leftRegion:SetWidth(half)
+        if row._rightRegion then
+            row._rightRegion:SetWidth(half)
+            row._rightRegion:SetPoint("TOPLEFT", row, "TOPLEFT", half, 0)
+        end
+    end
     if row._leftRegion then
         row._leftRegion._refresh(leftCfg)
         if rightCfg then row._rightRegion._refresh(rightCfg) end
-        if row._band then row._band:SetShown(count % 2 == 1) end
+        FitRegions()
         return MarkRow(parent, row, leftCfg, rightCfg)
-    end
-    if count % 2 == 1 or parent._rowCache then
-        local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
-        band:SetAllPoints()
-        band:SetShown(count % 2 == 1)
-        row._band = band
     end
 
     local w = row:GetWidth()
@@ -761,7 +782,7 @@ function W:SectionHeader(parent, text, yOffset)
     f:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
     if f._headerBuilt then return f, HEADER_H end
     f._headerBuilt = true
-    local lbl = ns.Font(f, 12, nil, T.accent)
+    local lbl = ns.Font(f, 14, nil, T.fg)
     lbl:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 8)
     lbl:SetText(text)
     local sep = ns.Solid(f, "ARTWORK", T.line, 1)
@@ -786,17 +807,20 @@ function W:Feature(parent, yOffset, cfg, key)
     parent._nsuiCollapsed, parent._nsuiFeatureId = nil, nil
     local collapsible = parent._collapsible == true
     local id = collapsible and (parent._pageKey .. ":" .. (key or cfg.text)) or nil
-    -- Switching a feature on opens it, so its options are there to set.
+    -- The feature switch opens its options on enable and closes them on disable.
     if collapsible and cfg.type == "toggle" then
         local set = cfg.setValue
         cfg.setValue = function(v)
-            if v then openFeatures[id] = true end
+            openFeatures[id] = v and true or nil
+            if not v and UI.searchOpen then UI.searchOpen[id] = nil end
             set(v)
         end
     end
     local row = W:DualRow(parent, yOffset, cfg)
     if not row._feature then
         row._feature = true
+        row._leftRegion._label:SetFont(ns.UIFontPath(), cfg.type == "label" and 14 or 16, "")
+        row._leftRegion._label:SetPoint("LEFT", row._leftRegion, "LEFT", 30, 0)
         row.arrow = row:CreateTexture(nil, "ARTWORK")
         row.arrow:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\chevron.tga")
         row.arrow:SetSize(14, 14)
@@ -830,6 +854,43 @@ function W:Feature(parent, yOffset, cfg, key)
     parent._nsuiCollapsed = closed or nil
     parent._nsuiFeatureId = (parent._pageKey or "") .. ":" .. (key or cfg.text)
     return row, ROW_H
+end
+
+-- A presentation-only disclosure nested inside an existing feature. Settings keep
+-- their original keys; search opens both levels before measuring the destination row.
+function W:Disclosure(parent, yOffset, text, key)
+    local cfg = type(text) == "table" and text or { type = "label", text = text }
+    local scan = UI.searchScan
+    local parentId = scan and scan.feature or parent._nsuiFeatureId
+    local nestedKey = (parentId or "") .. ":" .. key
+    local pageKey = scan and scan.page or (parent._pageKey or "")
+    local id = pageKey .. ":" .. nestedKey
+    featureParents[id] = parentId
+    if scan then
+        scan.disclosure = { feature = scan.feature, featureName = scan.featureName }
+        ScanLabel(cfg.text, cfg.tooltip)
+        scan.feature, scan.featureName = id, cfg.text
+        return nil, ROW_H
+    end
+    local saved = { closed = parent._nsuiCollapsed, feature = parentId }
+    local row, h = self:Feature(parent, yOffset, cfg, nestedKey)
+    row._searchF = parentId
+    parent._nsuiDisclosure = saved
+    if saved.closed then row:Hide(); parent._nsuiCollapsed = true; h = 0 end
+    return row, h
+end
+
+function W:EndDisclosure(parent)
+    local scan = UI.searchScan
+    if scan then
+        local saved = scan.disclosure
+        scan.feature, scan.featureName = saved.feature, saved.featureName
+        scan.disclosure = nil
+        return
+    end
+    local saved = parent._nsuiDisclosure
+    parent._nsuiCollapsed, parent._nsuiFeatureId = saved.closed, saved.feature
+    parent._nsuiDisclosure = nil
 end
 
 function W:EndFeature(parent)
@@ -996,6 +1057,11 @@ local function SavePlacement(item, point, relPoint, x, y)
     item.save({ point = point, relPoint = relPoint, x = x, y = y })
 end
 
+local function FitPlacementHud()
+    local hud = placement.hud
+    hud:SetSize(math.ceil(hud.text:GetStringWidth()) + 24, math.ceil(hud.text:GetStringHeight()) + 16)
+end
+
 local function StopPlacementDrag(item)
     if not item or not item.dragging then return end
     if InCombatLockdown() and item.frame:IsProtected() then placement.pendingDrag = item; return end
@@ -1013,6 +1079,9 @@ function UI.ClearMoverSelection()
     placement.vertical:Hide()
     placement.horizontal:Hide()
     placement.hud.text:SetText("Select a display to see its position.\nArrow keys move it; Shift + arrow moves it 10 units.")
+    FitPlacementHud()
+    placement.hud:ClearAllPoints()
+    placement.hud:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 70)
     if not InCombatLockdown() then placement.hud:SetPropagateKeyboardInput(true) end
 end
 
@@ -1025,13 +1094,23 @@ function UI.RefreshMoverSelection()
     if not point then return end
     hud.text:SetText(("%s  |  X %.1f   Y %.1f\n%s relative to %s\nArrow keys: 1 unit   |   Shift + arrow: 10 units")
         :format(item.label, x, y, point, relPoint))
+    FitPlacementHud()
     local scale = item.handle:GetEffectiveScale() / UIParent:GetEffectiveScale()
     local left, bottom = item.handle:GetLeft(), item.handle:GetBottom()
     if left and bottom then
+        local width, height = item.handle:GetWidth() * scale + 4, item.handle:GetHeight() * scale + 4
+        left, bottom = left * scale - 2, bottom * scale - 2
         placement.outline:ClearAllPoints()
-        placement.outline:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left * scale - 2, bottom * scale - 2)
-        placement.outline:SetSize(item.handle:GetWidth() * scale + 4, item.handle:GetHeight() * scale + 4)
+        placement.outline:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+        placement.outline:SetSize(width, height)
         placement.outline:Show()
+        -- Sit above the display, or below it when it is too close to the top of the screen.
+        hud:ClearAllPoints()
+        if bottom + height + 4 + hud:GetHeight() <= UIParent:GetHeight() then
+            hud:SetPoint("BOTTOM", UIParent, "BOTTOMLEFT", left + width / 2, bottom + height + 4)
+        else
+            hud:SetPoint("TOP", UIParent, "BOTTOMLEFT", left + width / 2, bottom - 4)
+        end
     end
     local cx, cy = frame:GetCenter()
     if cx and cy then
@@ -1074,14 +1153,11 @@ function UI.BeginMoverMode()
         placement.hud = hud
         hud:SetFrameStrata("FULLSCREEN_DIALOG")
         hud:SetFrameLevel(500)
-        hud:SetSize(480, 78)
-        hud:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 70)
         hud:SetClampedToScreen(true)
         ns.Solid(hud, "BACKGROUND", T.bg, 0.96):SetAllPoints()
         ns.Border(hud, T.accent)
         hud.text = ns.Font(hud, 13, nil)
         hud.text:SetPoint("CENTER")
-        hud.text:SetWidth(456)
         hud:SetScript("OnKeyDown", PlacementKey)
         hud:SetScript("OnKeyUp", function(self)
             if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end

@@ -10,12 +10,13 @@ local ns = _G.NaowhForever
 local T = ns.THEME
 local UI = ns.UI
 
-local SIDEBAR_W, CONTENT_W, WINDOW_H = 230, 1000, 700
+local SIDEBAR_W, CONTENT_W, WINDOW_H = 240, 1000, 760
+local SUBNAV_W, TOP_H, PAGE_HEADER_H = 200, 64, 128
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 
--- The window's own pages sit in the header; the sidebar has one entry per module. A module opens
--- on its first tab. `build` names the ns builder resolved at open time; `arg` is passed
+-- System pages sit below the grouped module navigation. A module remembers its last
+-- category for this session. `build` names the ns builder resolved at open time; `arg` is passed
 -- after the starting y. A page with `soon` is built but not ready: its tab stays in the
 -- strip, dimmed, and opens a note instead of half-finished work. A page with `reuse` keeps
 -- its rows across rebuilds instead of building new ones; only pages drawn entirely with the
@@ -41,7 +42,7 @@ local SYSTEM_PAGES = {
 ns.CustomReminderSettings = UI.ModuleSettings("customReminders", { enabled = false })
 
 local MODULES = {
-    { name = "QoL", settings = "QoLSettings",
+    { name = "QoL", navIcon = "checklist", settings = "QoLSettings",
       subtitle = "Naowh's quality of life tweaks, trimmed to what Forever has.",
       tabs = {
           { name = "General", build = "BuildQoLGeneralPage", reuse = true, collapse = true },
@@ -58,53 +59,53 @@ local MODULES = {
       } },
     -- Settings still live in the QoL table so existing profiles carry over; each module's
     -- switch is the feature's own key rather than QoL's.
-    { name = "Dungeon Quests", settings = "QoLSettings", enabledKey = "dqTracker",
+    { name = "Dungeon Quests", group = "ADVENTURE", navIcon = "map", settings = "QoLSettings", enabledKey = "dqTracker",
       command = "dq", short = "DQ", icon = "Interface\\Icons\\INV_Misc_Note_01",
       subtitle = "Every dungeon quest on Forever, and a tracker for the dungeon you are in.",
       tabs = {
           { name = "Dungeons", build = "BuildQoLDungeonQuestsPage", reuse = true, noscan = true },
           { name = "Settings", build = "BuildQoLDungeonQuestsSettingsPage", reuse = true },
       } },
-    { name = "Discovery", settings = "DiscoverySettings",
+    { name = "Discovery", group = "ADVENTURE", navIcon = "compass", settings = "DiscoverySettings",
       subtitle = "Library books to find around Azeroth, and who to hand them to.",
       tabs = {
           { name = "Books", build = "BuildDiscoveryBooksPage", reuse = true, noscan = true },
           { name = "Settings", build = "BuildDiscoverySettingsPage", reuse = true },
       } },
-    { name = "Gear & Trinkets", settings = "QoLSettings", enabledKey = "gearSets",
+    { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
       tabs = {
           { name = "Gear Sets", build = "BuildQoLGearSetsPage", reuse = true, collapse = true },
           { name = "Trinkets", build = "BuildTrinketsPage", reuse = true },
       } },
-    { name = "Blessings", settings = "QoLSettings", enabledKey = "blessings",
+    { name = "Blessings", group = "COMBAT", navIcon = "spark", settings = "QoLSettings", enabledKey = "blessings",
       command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
       subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
       tabs = {
           { name = "Bar", build = "BuildQoLBlessingsPage", reuse = true, collapse = true, noscan = true },
           { name = "Assignments", build = "BuildBlessingAssignmentsPage", reuse = true, noscan = true },
       } },
-    { name = "BiS List", settings = "QoLSettings", enabledKey = "bis",
+    { name = "BiS List", group = "ADVENTURE", navIcon = "trophy", settings = "QoLSettings", enabledKey = "bis",
       command = "bis", short = "BiS", icon = "Interface\\Icons\\INV_Sword_39",
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
       tabs = {
           { name = "List", build = "BuildQoLBiSPage", reuse = true, noscan = true },
           { name = "Settings", build = "BuildQoLBiSSettingsPage", reuse = true },
       } },
-    { name = "Professions", settings = "ProfessionSettings",
+    { name = "Professions", group = "ADVENTURE", navIcon = "hammer", settings = "ProfessionSettings",
       subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",
       tabs = {
           { name = "Window", build = "BuildProfessionsPage", reuse = true, collapse = true },
       } },
-    { name = "Macros", settings = "MacroSettings",
+    { name = "Macros", group = "UTILITIES", navIcon = "pen", settings = "MacroSettings",
       subtitle = "Macros written and kept current for you, out of combat.",
       tabs = {
           { name = "Class Macros", build = "BuildClassMacrosPage", reuse = true },
           { name = "Consumables", build = "BuildMacroConsumablesPage", reuse = true, collapse = true },
           { name = "Focus & Cursor", build = "BuildMacroFocusPage", reuse = true },
       } },
-    { name = "AuraBuffs", settings = "AuraBuffSettings",
+    { name = "AuraBuffs", group = "COMBAT", navIcon = "aura", settings = "AuraBuffSettings",
       subtitle = "Buff, consumable and campfire reminders, low health and debuff sounds.",
       tabs = {
           { name = "Buffs & Consumables", build = "BuildAuraBuffsPage", reuse = true, collapse = true },
@@ -112,25 +113,24 @@ local MODULES = {
           { name = "Low Health", build = "BuildLowHealthPage", reuse = true },
           { name = "Poison & Dispel", build = "BuildPoisonDispelPage", reuse = true, noscan = true },
       } },
-    { name = "Threat Meter", settings = "ThreatMeterSettings",
+    { name = "Threat Meter", group = "COMBAT", navIcon = "bars", settings = "ThreatMeterSettings",
       command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
       tabs = {
           { name = "Meter", build = "BuildThreatMeterPage", reuse = true, collapse = true },
       } },
-    { name = "Swing Timer", settings = "SwingTimerSettings",
+    { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
       subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",
       tabs = {
           { name = "Bars", build = "BuildSwingTimerPage", reuse = true, collapse = true },
           { name = "Timing Aids", build = "BuildSwingTimerAidsPage", reuse = true, collapse = true },
       } },
-    { name = "Top Bar", settings = "TopBarSettings",
+    { name = "Top Bar", group = "UTILITIES", navIcon = "window", settings = "TopBarSettings",
       subtitle = "Friends, guild, the clock and your addon buttons across the top of the screen.",
       tabs = {
           { name = "Bar", build = "BuildTopBarPage", reuse = true, collapse = true, noscan = true },
       } },
-    -- The reminder modules sit below a divider in the sidebar.
-    { name = "Custom Reminders", settings = "CustomReminderSettings", divider = true,
+    { name = "Custom Reminders", settings = "CustomReminderSettings",
       subtitle = "Your own reminders, driven by the same triggers Smart Reminders uses.",
       tabs = {
           { name = "Custom Notes", soon = "Your own note lines, driven by the same triggers "
@@ -138,7 +138,7 @@ local MODULES = {
               .. "reminders still carry their own text, set per reminder from the boss "
               .. "pages." },
       } },
-    { name = "Smart Reminders",
+    { name = "Smart Reminders", group = "COMBAT", navIcon = "bell",
       subtitle = "Calls out what to press when a boss ability is about to land.",
       tabs = {
           { name = "Setup", build = "BuildSetupPage", reuse = true, noscan = true },
@@ -163,9 +163,12 @@ for _, mod in ipairs(MODULES) do
 end
 
 local window, scrollFrame, scrollChild, tabLine, headerTitle, headerSub
+local contentHeader, contentFooter, breadcrumb, moduleSwitch, moduleLabel
+local categoryPane, categoryTitle
+local lastPages = {}
 local navButtons, tabButtons, tabStrips = {}, {}, {}
 local wrappers = {}          -- page key -> built wrapper frame
-local currentPage = "Settings"
+local currentPage = "QoL/General"
 local pendingRefresh
 local onShowCallbacks, onHideCallbacks = {}, {}
 local moduleWindows = {}     -- module name -> its standalone window
@@ -226,37 +229,63 @@ local function PaintTab(btn, page, active)
     btn.marker:SetShown(active)
 end
 
+local function DisplayName(mod)
+    return ns.L(mod.name == "QoL" and "Quality of Life" or mod.name)
+end
+
 local function PaintNav()
     local nav = ActiveNav()
     for name, btn in pairs(navButtons) do
         local active = name == nav
         local c = active and T.fg or T.muted
         btn.label:SetTextColor(c.r, c.g, c.b, 1)
+        if btn.icon then btn.icon:SetVertexColor(c.r, c.g, c.b, 1) end
         btn.fill:SetShown(active)
         btn.marker:SetShown(active)
-        if btn.switch then
-            btn.switch._refreshValue()
-            btn.label:SetAlpha(ModuleOn(btn.module) and 1 or 0.5)
-        end
     end
-    for key, btn in pairs(tabButtons) do PaintTab(btn, PAGES[key], key == currentPage) end
+    for key, btn in pairs(tabButtons) do
+        local active = key == currentPage
+        PaintTab(btn, PAGES[key], active)
+        btn.fill:SetShown(active)
+    end
 end
 
--- Only a module has a tab strip, so the content starts higher on the window's own pages
--- rather than leaving an empty band where the strip would be.
+local function ContentLeft()
+    local mod = PAGES[currentPage].module
+    return SIDEBAR_W + (mod and #mod.tabs > 1 and SUBNAV_W or 0)
+end
+
 local function LayoutContent()
     local page = PAGES[currentPage]
     local mod = page.module
-    headerTitle:SetText(ns.L(mod and mod.name or page.title))
-    headerSub:SetText(mod and mod.subtitle or page.subtitle)
-    for name, strip in pairs(tabStrips) do strip:SetShown(mod ~= nil and name == mod.name) end
-    local offset = HEADER_H + (mod and TAB_H or 0)
+    local nested = mod and #mod.tabs > 1
+    local left = ContentLeft()
+    categoryPane:SetShown(nested and true or false)
+    if mod then categoryTitle:SetText(DisplayName(mod)) end
+    headerTitle:SetText(ns.L(nested and page.name or (mod and DisplayName(mod) or page.title)))
+    breadcrumb:SetText(mod and (DisplayName(mod) .. " / " .. ns.L(page.name)) or "Naowh Forever")
+    headerSub:SetText(page.key == "QoL/General" and ns.L("Everyday helpers for your character.")
+        or (mod and mod.subtitle or page.subtitle))
+    contentHeader:ClearAllPoints()
+    contentHeader:SetPoint("TOPLEFT", window, "TOPLEFT", left, -TOP_H)
+    contentHeader:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -TOP_H)
+    moduleSwitch:SetShown(mod ~= nil and not page.soon)
+    moduleLabel:SetShown(mod ~= nil and not page.soon)
+    if mod and not page.soon then
+        moduleLabel:SetText(ns.L("Enable") .. " " .. ns.L(mod.name))
+        moduleSwitch._refreshValue()
+    end
+    for name, strip in pairs(tabStrips) do strip:SetShown(nested and name == mod.name or false) end
     tabLine:ClearAllPoints()
-    tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, -offset)
-    tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -offset)
+    tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", left + 26, -(TOP_H + PAGE_HEADER_H))
+    tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", -30, -(TOP_H + PAGE_HEADER_H))
     scrollFrame:ClearAllPoints()
-    scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W + 10, -(offset + 5))
+    scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", left + 6, -(TOP_H + PAGE_HEADER_H + 8))
     scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, FOOTER_H + 4)
+    scrollChild:SetWidth(window:GetWidth() - left - 36)
+    contentFooter:ClearAllPoints()
+    contentFooter:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", left, 0)
+    contentFooter:SetPoint("BOTTOMRIGHT")
 end
 
 -- Each window keeps its own wrappers, so a page open in the main window and in a module's
@@ -274,7 +303,9 @@ local function ShowWrapper(pageWrappers, child, key)
         wrapper._dirty = true
     end
     local wrapper = pageWrappers[key]
+    if wrapper._builtWidth ~= child:GetWidth() then wrapper._dirty = true end
     if wrapper._dirty then
+        wrapper._builtWidth = child:GetWidth()
         wrapper._dirty = nil
         wrapper._pageKey, wrapper._collapsible, wrapper._nsuiCollapsed = key, PAGES[key].collapse, nil
         wrapper._nsuiFeatureId = nil
@@ -287,6 +318,7 @@ end
 
 local function ShowPage(key)
     currentPage = key
+    if PAGES[key].module then lastPages[PAGES[key].module.name] = key end
     LayoutContent()
     ShowWrapper(wrappers, scrollChild, key)
     scrollFrame:SetVerticalScroll(0)
@@ -298,7 +330,9 @@ function UI.SearchPages()
     local pages = {}
     for _, page in ipairs(SYSTEM_PAGES) do pages[#pages + 1] = page end
     for _, mod in ipairs(MODULES) do
-        for _, tab in ipairs(mod.tabs) do pages[#pages + 1] = tab end
+        for _, tab in ipairs(mod.tabs) do
+            if not tab.soon then pages[#pages + 1] = tab end
+        end
     end
     return pages
 end
@@ -448,9 +482,16 @@ end)
 -- the control sits inside the frame it resizes, and the slider maps the cursor against the
 -- track's live position, so rescaling mid-drag walks the track out from under the pointer
 -- and the value chases it.
+local function FitMainWindow()
+    if not window then return end
+    local fit = math.min((UIParent:GetWidth() - 32) / window:GetWidth(),
+        (UIParent:GetHeight() - 32) / window:GetHeight())
+    window:SetScale(math.min(ns.UIScale(), math.max(0.25, fit)))
+end
+
 function ns.SetWindowScale(pct)
     ns.AccountSettings().windowScale = tonumber(pct) or 100
-    if window then window:SetScale(ns.UIScale()) end
+    FitMainWindow()
     for _, win in pairs(moduleWindows) do win:SetScale(ns.UIScale()) end
 end
 
@@ -479,8 +520,8 @@ function ns.BuildSettingsPage(parent, y)
                      [80] = "80%", [70] = "70%", [60] = "60%", [50] = "50%" },
           order = { 200, 190, 180, 170, 160, 150, 140, 130, 120, 110, 100, 90, 80, 70, 60, 50 },
           tooltip = "Size of this options window and the editors it opens, as a percentage. "
-          .. "Turn it down if the window is too big for your screen; 1080p usually wants 80 "
-          .. "or below. Turn it up on a large or high-resolution monitor.|n|nSaved for this computer instead of in the profile, so switching "
+          .. "This window never grows past your screen, so above that size a higher setting "
+          .. "only enlarges the editors.|n|nSaved for this computer instead of in the profile, so switching "
           .. "profile leaves it alone and an exported pack never carries it to someone on a "
           .. "different monitor.",
           getValue = function() return tonumber(ns.AccountSettings().windowScale) or 100 end,
@@ -651,7 +692,9 @@ end
 -- Pages lay out at the scroll child's width when they build, so a new width rebuilds them
 -- once the drag ends.
 local function Resizable(frame, key, child, inset, minW, minH)
-    local function Fit() child:SetWidth(frame:GetWidth() - inset) end
+    local function Fit()
+        child:SetWidth(frame:GetWidth() - (type(inset) == "function" and inset() or inset))
+    end
     local sizes = ns.AccountSettings().windowSizes
     local saved = sizes and sizes[key]
     if saved then frame:SetSize(math.max(saved[1], minW), math.max(saved[2], minH)) end
@@ -673,6 +716,7 @@ local function Resizable(frame, key, child, inset, minW, minH)
         account.windowSizes[key] = { frame:GetWidth(), frame:GetHeight() }
         local width = child:GetWidth()
         Fit()
+        if frame == window then FitMainWindow() end
         if child:GetWidth() ~= width then UI:RefreshPage(true) end
     end)
 end
@@ -739,9 +783,95 @@ local function TabStrip(parent, left, mod, onClick, buttons)
     return strip
 end
 
+-- Only navigation scrolls here; the footer and global controls stay in reach.
+local function NavigationScroll(parent, top, bottom, width)
+    local scroll = CreateFrame("ScrollFrame", nil, parent)
+    scroll:SetPoint("TOPLEFT", 0, -top)
+    scroll:SetPoint("BOTTOMRIGHT", -12, bottom)
+    local child = CreateFrame("Frame", nil, scroll)
+    child:SetSize(width - 12, 1)
+    scroll:SetScrollChild(child)
+    local bar = CreateFrame("Slider", nil, scroll)
+    scroll.ScrollBar = bar
+    bar:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 1, -2)
+    bar:SetPoint("BOTTOMLEFT", scroll, "BOTTOMRIGHT", 1, 2)
+    bar:SetWidth(10)
+    bar:SetOrientation("VERTICAL")
+    bar:SetMinMaxValues(0, 0)
+    bar:SetValue(0)
+    local track = ns.Solid(bar, "BACKGROUND", T.line, 1)
+    track:SetPoint("TOP"); track:SetPoint("BOTTOM"); track:SetWidth(2)
+    local thumb = ns.Solid(bar, "ARTWORK", T.muted, 0.85)
+    thumb:SetSize(6, 40)
+    bar:SetThumbTexture(thumb)
+    bar:SetScript("OnValueChanged", function(_, value)
+        if value ~= scroll:GetVerticalScroll() then scroll:SetVerticalScroll(value) end
+    end)
+    scroll:SetScript("OnVerticalScroll", function(_, value) bar:SetValue(value) end)
+    local function UpdateRange()
+        local range = scroll:GetVerticalScrollRange()
+        bar:SetMinMaxValues(0, range)
+        bar:SetShown(range > 0)
+        scroll:SetVerticalScroll(math.max(0, math.min(scroll:GetVerticalScroll(), range)))
+        bar:SetValue(scroll:GetVerticalScroll())
+    end
+    bar:Hide()
+    scroll:SetScript("OnScrollRangeChanged", UpdateRange)
+    scroll:SetScript("OnShow", UpdateRange)
+    scroll:EnableMouseWheel(true)
+    scroll:SetScript("OnMouseWheel", function(self, delta)
+        self:SetVerticalScroll(math.max(0, math.min(self:GetVerticalScrollRange(),
+            self:GetVerticalScroll() - delta * NAV_H)))
+    end)
+    scroll:SetScript("OnSizeChanged", function(self)
+        self:UpdateScrollChildRect()
+        UpdateRange()
+    end)
+    return child
+end
+
+local function NavigationButton(parent, label, y, onClick, icon)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetPoint("TOPLEFT", 8, y)
+    btn:SetPoint("TOPRIGHT", -8, y)
+    btn:SetHeight(38)
+    btn.fill = ns.Solid(btn, "BACKGROUND", T.accent, 0.16)
+    btn.fill:SetAllPoints()
+    btn.fill:Hide()
+    btn.marker = ns.Solid(btn, "ARTWORK", T.accent, 1)
+    btn.marker:SetPoint("TOPLEFT"); btn.marker:SetPoint("BOTTOMLEFT"); btn.marker:SetWidth(3)
+    btn.marker:Hide()
+    btn.label = ns.Font(btn, 14, nil, T.muted)
+    btn.label:SetPoint("LEFT", icon and 42 or 18, 0)
+    btn.label:SetPoint("RIGHT", -10, 0)
+    btn.label:SetJustifyH("LEFT")
+    btn.label:SetWordWrap(false)
+    btn.label:SetText(label)
+    if icon then
+        btn.icon = btn:CreateTexture(nil, "ARTWORK")
+        btn.icon:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\Navigation\\" .. icon .. ".tga")
+        btn.icon:SetSize(20, 20)
+        btn.icon:SetPoint("LEFT", 14, 0)
+        btn.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
+    end
+    btn:SetScript("OnClick", onClick)
+    btn:SetScript("OnEnter", function(self) self.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1) end)
+    btn:SetScript("OnLeave", function(self)
+        local c = self.fill:IsShown() and T.fg or T.muted
+        self.label:SetTextColor(c.r, c.g, c.b, 1)
+    end)
+    return btn
+end
+
+local function AccentButton(btn)
+    btn._rest = T.accent
+    btn._border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    return btn
+end
+
 local function CreateWindow()
     window = CreateFrame("Frame", "NaowhForeverOptions", UIParent)
-    window:SetSize(SIDEBAR_W + CONTENT_W, WINDOW_H)
+    window:SetSize(SIDEBAR_W + SUBNAV_W + CONTENT_W, WINDOW_H)
     window:SetScale(ns.UIScale())
     window:SetPoint("CENTER")
     window:SetFrameStrata("DIALOG")
@@ -752,180 +882,158 @@ local function CreateWindow()
     ns.Border(window)
     window:SetScript("OnKeyDown", CloseOnEscape)
 
-    -- Sidebar: logo and name, then the modules.
-    local sidebar = CreateFrame("Frame", nil, window)
-    sidebar:SetPoint("TOPLEFT")
-    sidebar:SetPoint("BOTTOMLEFT")
-    sidebar:SetWidth(SIDEBAR_W)
-    ns.Solid(sidebar, "BACKGROUND", T.panel, 1):SetAllPoints()
-    local edge = ns.Solid(sidebar, "ARTWORK", T.line, 1)
-    edge:SetPoint("TOPRIGHT")
-    edge:SetPoint("BOTTOMRIGHT")
-    edge:SetWidth(1)
-
-    local brand = CreateFrame("Frame", nil, sidebar)
-    brand:SetPoint("TOPLEFT")
-    brand:SetPoint("TOPRIGHT")
-    brand:SetHeight(HEADER_H)
-    DragRegion(brand, window)
-    local logo = brand:CreateTexture(nil, "ARTWORK")
+    local top = CreateFrame("Frame", nil, window)
+    top:SetPoint("TOPLEFT"); top:SetPoint("TOPRIGHT"); top:SetHeight(TOP_H)
+    DragRegion(top, window)
+    local topLine = ns.Solid(top, "ARTWORK", T.line, 1)
+    topLine:SetPoint("BOTTOMLEFT"); topLine:SetPoint("BOTTOMRIGHT"); topLine:SetHeight(1)
+    local logo = top:CreateTexture(nil, "ARTWORK")
     logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(60, 60)
-    logo:SetPoint("TOPLEFT", brand, "TOPLEFT", 12, -4)
-    local name = ns.Font(brand, 22, "OUTLINE", T.accent)
-    name:SetPoint("TOPLEFT", brand, "TOPLEFT", 82, -14)
-    name:SetText("Naowh")
-    local forever = ns.Font(brand, 17, nil)
-    forever:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 1, -3)
-    forever:SetText("Forever")
+    logo:SetSize(44, 44); logo:SetPoint("LEFT", 18, 0)
+    local name = ns.Font(top, 24, nil)
+    name:SetPoint("LEFT", logo, "RIGHT", 12, 0); name:SetText("Naowh")
+    local forever = ns.Font(top, 24, nil, T.accent)
+    forever:SetPoint("LEFT", name, "RIGHT", 6, 0); forever:SetText("Forever")
+    local close = ns.Button(top, "X", 28, 28, function() window:Hide() end)
+    close:SetPoint("RIGHT", -18, 0)
+    local unlock = ns.Button(top, "Unlock Mode", 140, 32, EnterUnlockMode)
+    AccentButton(unlock)
+    unlock:SetPoint("RIGHT", close, "LEFT", -18, 0)
+    ns.Tooltip(unlock, "Unlock Mode", "Place and size each display. Exit Config returns to this window.")
+    local search = UI.AttachSearch(top, 0)
+    search:ClearAllPoints()
+    search:SetPoint("LEFT", top, "LEFT", SIDEBAR_W + SUBNAV_W, 0)
+    search:SetPoint("RIGHT", unlock, "LEFT", -100, 0)
+    search:SetHeight(34)
+    search:SetTextInsets(34, 22, 0, 0)
+    search.hint:ClearAllPoints(); search.hint:SetPoint("LEFT", 34, 0)
+    local searchIcon = search:CreateTexture(nil, "ARTWORK")
+    searchIcon:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\Navigation\\search.tga")
+    searchIcon:SetSize(18, 18); searchIcon:SetPoint("LEFT", 10, 0)
+    searchIcon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
 
-    -- The settings search sits under the brand; the module list starts below it.
-    UI.AttachSearch(sidebar, HEADER_H + 6)
-    local ny = -(HEADER_H + 40)
-    local function NavButton(label, onClick, indent)
-        local btn = CreateFrame("Button", nil, sidebar)
-        btn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, ny)
-        btn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -1, ny)
-        btn:SetHeight(NAV_H)
-        btn.fill = ns.Solid(btn, "BACKGROUND", T.grey, 0.5)
-        btn.fill:SetAllPoints()
-        btn.fill:Hide()
-        btn.marker = ns.Solid(btn, "ARTWORK", T.accent, 1)
-        btn.marker:SetPoint("TOPLEFT")
-        btn.marker:SetPoint("BOTTOMLEFT")
-        btn.marker:SetWidth(3)
-        btn.marker:Hide()
-        btn.label = ns.Font(btn, 13, nil, T.muted)
-        btn.label:SetPoint("LEFT", btn, "LEFT", indent or 22, 0)
-        btn.label:SetText(ns.L(label))
-        btn:SetScript("OnClick", onClick)
-        btn:SetScript("OnEnter", function(self) self.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1) end)
-        btn:SetScript("OnLeave", function(self)
-            local c = self.fill:IsShown() and T.fg or T.muted
-            self.label:SetTextColor(c.r, c.g, c.b, 1)
-        end)
-        ny = ny - NAV_H
-        return btn
-    end
-
-    local group = ns.Font(sidebar, 13, nil, T.accent)
-    group:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, ny)
-    group:SetText(ns.L("Modules"))
-    ny = ny - 24
-    -- Indented under the group label, each with a small switch that turns the whole
-    -- module off without leaving the page you are on.
+    local sidebar = CreateFrame("Frame", nil, window)
+    sidebar:SetPoint("TOPLEFT", 0, -TOP_H); sidebar:SetPoint("BOTTOMLEFT"); sidebar:SetWidth(SIDEBAR_W)
+    local edge = ns.Solid(sidebar, "ARTWORK", T.line, 1)
+    edge:SetPoint("TOPRIGHT"); edge:SetPoint("BOTTOMRIGHT"); edge:SetWidth(1)
+    local nav = NavigationScroll(sidebar, 16, 140, SIDEBAR_W)
+    -- Modules list in MODULES order under their group; one with only unfinished tabs is left out.
+    local groups, grouped = {}, {}
     for _, mod in ipairs(MODULES) do
-        if mod.divider then
-            ny = ny - 8
-            local line = ns.Solid(sidebar, "ARTWORK", T.line, 1)
-            line:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 18, ny)
-            line:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -18, ny)
-            line:SetHeight(1)
-            ny = ny - 9
+        local ready = false
+        for _, tab in ipairs(mod.tabs) do ready = ready or not tab.soon end
+        if ready then
+            local group = mod.group or ""
+            if not grouped[group] then
+                grouped[group] = {}
+                groups[#groups + 1] = group
+            end
+            table.insert(grouped[group], mod)
         end
-        local btn = NavButton(mod.name, function() ShowPage(mod.tabs[1].key) end, 36)
-        local switch = UI.BuildToggleControl(btn, btn:GetFrameLevel() + 2,
-            function() return ModuleOn(mod) end,
-            function(v) SetModuleOn(mod, v) end, 28, 14)
-        switch:SetPoint("RIGHT", btn, "RIGHT", -16, 0)
-        ns.Tooltip(switch, mod.name, function()
-            return ModuleOn(mod) and "On. Click to turn the whole module off."
-                or "Off. Click to turn it back on."
-        end)
-        btn.switch, btn.module = switch, mod
-        navButtons[mod.name] = btn
     end
+    local ny = 0
+    for _, group in ipairs(groups) do
+        if group ~= "" then
+            local label = ns.Font(nav, 11, nil, T.muted)
+            label:SetPoint("TOPLEFT", 20, ny - 10); label:SetText(ns.L(group))
+            ny = ny - 30
+        end
+        for _, mod in ipairs(grouped[group]) do
+            local btn = NavigationButton(nav, DisplayName(mod), ny,
+                function() ShowPage(lastPages[mod.name] or mod.tabs[1].key) end, mod.navIcon)
+            btn:SetHeight(32)
+            navButtons[mod.name] = btn
+            ny = ny - 34
+        end
+    end
+    nav:SetHeight(-ny)
 
-    local version = ns.Font(sidebar, 11, nil, T.muted)
-    version:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMLEFT", 18, 14)
+    local utility = CreateFrame("Frame", nil, sidebar)
+    utility:SetPoint("BOTTOMLEFT", 0, 28); utility:SetPoint("BOTTOMRIGHT", 0, 28); utility:SetHeight(108)
+    local utilityLine = ns.Solid(utility, "ARTWORK", T.line, 1)
+    utilityLine:SetPoint("TOPLEFT"); utilityLine:SetPoint("TOPRIGHT"); utilityLine:SetHeight(1)
+    for i, key in ipairs({ "Settings", "Profiles", "Patch Notes" }) do
+        local icon = key == "Settings" and "settings" or (key == "Profiles" and "person" or "notes")
+        local btn = NavigationButton(utility, ns.L(key), -4 - (i - 1) * 34, function() ShowPage(key) end, icon)
+        btn:SetHeight(32)
+        navButtons[key] = btn
+    end
+    local version = ns.Font(sidebar, 10, nil, T.muted)
+    version:SetPoint("BOTTOMLEFT", 20, 10)
     version:SetText("v" .. (ns.CODE_BUILD or C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or "unknown"))
 
-    -- Content header: the open module's name and what it is for, with its tabs below.
-    local header = CreateFrame("Frame", nil, window)
-    header:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, 0)
-    header:SetPoint("TOPRIGHT")
-    header:SetHeight(HEADER_H)
-    DragRegion(header, window)
-    headerTitle = ns.Font(header, 24, "OUTLINE")
-    headerTitle:SetPoint("TOPLEFT", header, "TOPLEFT", 30, -18)
-    headerSub = ns.Font(header, 12, nil, T.muted)
-    headerSub:SetPoint("TOPLEFT", headerTitle, "BOTTOMLEFT", 1, -6)
-
-    local close = ns.Button(header, "X", 26, 26, function() window:Hide() end)
-    close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -12, -12)
-
-    -- The window's own pages sit left of the close button, laid out right to left.
-    local anchor = close
-    local function HeaderButton(label, onClick)
-        local btn = CreateFrame("Button", nil, header)
-        btn.label = ns.Font(btn, 13, nil, T.muted)
-        btn.label:SetPoint("CENTER")
-        btn.label:SetText(ns.L(label))
-        btn:SetSize(math.ceil(btn.label:GetStringWidth()) + 24, 26)
-        btn:SetPoint("RIGHT", anchor, "LEFT", anchor == close and -10 or -2, 0)
-        btn.fill = ns.Solid(btn, "BACKGROUND", T.grey, 0.5)
-        btn.fill:SetAllPoints()
-        btn.fill:Hide()
-        btn.marker = ns.Solid(btn, "ARTWORK", T.accent, 1)
-        btn.marker:SetPoint("BOTTOMLEFT")
-        btn.marker:SetPoint("BOTTOMRIGHT")
-        btn.marker:SetHeight(2)
-        btn.marker:Hide()
-        btn:SetScript("OnClick", onClick)
-        btn:SetScript("OnEnter", function(self) self.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1) end)
-        btn:SetScript("OnLeave", function(self)
-            local c = self.fill:IsShown() and T.fg or T.muted
-            self.label:SetTextColor(c.r, c.g, c.b, 1)
-        end)
-        anchor = btn
-        return btn
-    end
-
-    for i = #SYSTEM_PAGES, 1, -1 do
-        local page = SYSTEM_PAGES[i]
-        navButtons[page.key] = HeaderButton(page.name, function() ShowPage(page.key) end)
-    end
-    local unlock = HeaderButton("Unlock Mode", EnterUnlockMode)
-    ns.Tooltip(unlock, "Unlock Mode",
-        "Place and size each reminder display. An alignment grid appears while you are in "
-        .. "there. This window steps aside and comes back when you press Exit Config.")
-
+    categoryPane = CreateFrame("Frame", nil, window)
+    categoryPane:SetPoint("TOPLEFT", SIDEBAR_W, -TOP_H)
+    categoryPane:SetPoint("BOTTOMLEFT", SIDEBAR_W, 0); categoryPane:SetWidth(SUBNAV_W)
+    local catEdge = ns.Solid(categoryPane, "ARTWORK", T.line, 1)
+    catEdge:SetPoint("TOPRIGHT"); catEdge:SetPoint("BOTTOMRIGHT"); catEdge:SetWidth(1)
+    categoryTitle = ns.Font(categoryPane, 11, nil, T.muted)
+    categoryTitle:SetPoint("TOPLEFT", 22, -26); categoryTitle:SetPoint("TOPRIGHT", -16, -26)
+    categoryTitle:SetJustifyH("LEFT"); categoryTitle:SetWordWrap(false)
     for _, mod in ipairs(MODULES) do
-        local strip = TabStrip(window, SIDEBAR_W, mod, ShowPage, tabButtons)
-        tabStrips[mod.name] = strip
-        strip:Hide()
+        if #mod.tabs > 1 then
+            local pane = CreateFrame("Frame", nil, categoryPane)
+            pane:SetAllPoints()
+            local child = NavigationScroll(pane, 52, 16, SUBNAV_W)
+            for i, tab in ipairs(mod.tabs) do
+                tabButtons[tab.key] = NavigationButton(child, ns.L(tab.name), -(i - 1) * 40,
+                    function() ShowPage(tab.key) end)
+            end
+            child:SetHeight(#mod.tabs * 40)
+            tabStrips[mod.name] = pane
+            pane:Hide()
+        end
     end
 
-    tabLine = ns.Solid(window, "ARTWORK", T.line, 1)
-    tabLine:SetHeight(1)
+    contentHeader = CreateFrame("Frame", nil, window)
+    contentHeader:SetHeight(PAGE_HEADER_H)
+    breadcrumb = ns.Font(contentHeader, 12, nil, T.muted)
+    breadcrumb:SetPoint("TOPLEFT", 26, -24)
+    headerTitle = ns.Font(contentHeader, 28, nil)
+    headerTitle:SetPoint("TOPLEFT", 26, -51)
+    headerTitle:SetPoint("TOPRIGHT", contentHeader, "TOPRIGHT", -300, -51)
+    headerTitle:SetJustifyH("LEFT"); headerTitle:SetWordWrap(false)
+    headerSub = ns.Font(contentHeader, 13, nil, T.muted)
+    headerSub:SetPoint("TOPLEFT", 26, -94)
+    headerSub:SetPoint("TOPRIGHT", -30, -94); headerSub:SetJustifyH("LEFT"); headerSub:SetWordWrap(false)
+    moduleSwitch = UI.BuildToggleControl(contentHeader, nil,
+        function() local mod = PAGES[currentPage].module; return mod and ModuleOn(mod) end,
+        function(v) local mod = PAGES[currentPage].module; if mod then SetModuleOn(mod, v) end end, 52, 26)
+    moduleSwitch:SetPoint("TOPRIGHT", -30, -54)
+    moduleLabel = ns.Font(contentHeader, 14, nil)
+    moduleLabel:SetPoint("RIGHT", moduleSwitch, "LEFT", -14, 0)
+    ns.Tooltip(moduleSwitch, "Module", "Turn this module on or off. Your settings are kept.")
+    tabLine = ns.Solid(window, "ARTWORK", T.line, 1); tabLine:SetHeight(1)
 
-    local footer = CreateFrame("Frame", nil, window)
-    footer:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", SIDEBAR_W, 0)
-    footer:SetPoint("BOTTOMRIGHT")
-    footer:SetHeight(FOOTER_H)
-    local footLine = ns.Solid(footer, "ARTWORK", T.line, 1)
-    footLine:SetPoint("TOPLEFT")
-    footLine:SetPoint("TOPRIGHT")
-    footLine:SetHeight(1)
-    ns.ReloadButton(footer, "Reload UI", 140, 26):SetPoint("LEFT", footer, "LEFT", 30, 0)
-    ns.Button(footer, "Close", 140, 26, function() window:Hide() end)
-        :SetPoint("RIGHT", footer, "RIGHT", -30, 0)
-
+    contentFooter = CreateFrame("Frame", nil, window)
+    contentFooter:SetHeight(FOOTER_H)
+    local footLine = ns.Solid(contentFooter, "ARTWORK", T.line, 1)
+    footLine:SetPoint("TOPLEFT"); footLine:SetPoint("TOPRIGHT"); footLine:SetHeight(1)
+    AccentButton(ns.ReloadButton(contentFooter, "Reload UI", 120, 30)):SetPoint("LEFT", 26, 0)
+    AccentButton(ns.Button(contentFooter, "Close", 120, 30, function() window:Hide() end))
+        :SetPoint("RIGHT", -30, 0)
     scrollFrame = CreateFrame("ScrollFrame", nil, window, "UIPanelScrollFrameTemplate")
+    local bar = scrollFrame.ScrollBar
+    if bar then
+        bar:SetWidth(8)
+        bar.ThumbTexture:SetTexture("Interface\\Buttons\\WHITE8x8")
+        bar.ThumbTexture:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 0.7)
+        bar.ThumbTexture:SetSize(6, 40)
+        bar.ScrollUpButton:SetAlpha(0); bar.ScrollUpButton:EnableMouse(false)
+        bar.ScrollDownButton:SetAlpha(0); bar.ScrollDownButton:EnableMouse(false)
+    end
     scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetSize(CONTENT_W - 40, 1)
+    scrollChild:SetSize(CONTENT_W - 36, 1)
     scrollFrame:SetScrollChild(scrollChild)
-    -- No narrower than the default: some pages (the BiS paperdoll) are laid out for it.
-    Resizable(window, "main", scrollChild, SIDEBAR_W + 40, SIDEBAR_W + CONTENT_W, 480)
+    Resizable(window, "main", scrollChild, function() return ContentLeft() + 36 end,
+        SIDEBAR_W + SUBNAV_W + CONTENT_W, 620)
 
     window:SetScript("OnShow", function(self)
+        FitMainWindow()
         if not InCombatLockdown() then
             self:EnableKeyboard(true)
             self:SetPropagateKeyboardInput(true)
         end
-        -- Same rule as RefreshPage itself: a refresh asked for while the window was
-        -- closed (gear changed with it shut, say) is not scoped to whichever tab happens
-        -- to be current on reopen, so every cached tab goes, not just that one.
         if pendingRefresh then
             pendingRefresh = nil
             InvalidatePages(wrappers)
@@ -937,11 +1045,7 @@ local function CreateWindow()
         if UI.HideWidgetTooltip then UI.HideWidgetTooltip() end
         for i = 1, #onHideCallbacks do onHideCallbacks[i]() end
     end)
-
-    -- CreateFrame hands back a SHOWN frame, so without this the first Show() is a no-op
-    -- and OnShow never runs: the page renders (OpenOptionsWindow calls ShowPage itself)
-    -- but nothing that rides the open callback -- the preview above all -- ever arms,
-    -- until something genuinely hides the window and the next Show() is a real edge.
+    FitMainWindow()
     window:Hide()
 end
 
@@ -1020,7 +1124,7 @@ local function CreateModuleWindow(mod)
     sub:SetText(mod.subtitle)
     local close = ns.Button(header, "X", 26, 26, function() win:Hide() end)
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -12, -12)
-    -- The sidebar's module switch, since some pages have no switch of their own. Full
+    -- The module switch, since some pages have no switch of their own. Full
     -- size, like the switches on the page below it.
     local switch = UI.BuildToggleControl(header, header:GetFrameLevel() + 2,
         function() return ModuleOn(mod) end,

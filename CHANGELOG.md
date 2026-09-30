@@ -8,6 +8,15 @@
   you type in chat, it still links it.
 
 ### Changed
+- Options window: redesigned. The left menu groups the modules under Adventure, Combat and
+  Utilities, a module's categories sit in a column beside it, the search at the top covers every
+  setting, and each module's on/off switch is at the top right of its page. The window also fits
+  on a 1080p screen.
+- Unlock Mode: the position readout sits on the display you select instead of at the bottom of
+  the screen.
+- QoL > General: Co-Tank Debuffs now sits inside Co-Tank Frame, and Stealth Reminder's colours
+  and texts fold away under Appearance & text. Turning a feature off folds its settings away
+  again.
 - Dungeon Quests: a quest you can't pick up yet says what to do first, and its waypoint
   points there. Once that's done, it shows the level you need to pick it up.
 - QoL: the auction house price on item tooltips is now switched in QoL > Tooltip Display
