@@ -328,7 +328,8 @@ function ns.BuildQoLQuestingPage(parent, y)
         S.Toggle("xpBar", "XP Bar",
             "Your level, experience and percentage on one bar, with the XP of completed "
             .. "quests (gold) and rested experience (dark blue) drawn past the fill. Replaces "
-            .. "Blizzard's experience bar while it is on. Move it in Unlock Mode.")
+            .. "Blizzard's experience bar while it is on. Move it in Unlock Mode.|n|n"
+            .. "Ctrl + right-click the bar to reset the session time and XP/Hour.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("xpBarMaxLevel", "Show Bar at Max Level", nil, "xpBar"),

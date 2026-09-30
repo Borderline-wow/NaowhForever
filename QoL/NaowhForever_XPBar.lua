@@ -2,7 +2,8 @@
 --  NaowhForever_XPBar.lua -- the QoL XP bar: level, experience and percentage on one
 --  bar, with the XP of completed quests drawn as segments past the fill, rested
 --  experience over them from the end of your XP, and a text of your choice at each of five
---  spots around it. Replaces Blizzard's experience bar while it is on.
+--  spots around it. Ctrl + right-click resets the session. Replaces Blizzard's experience
+--  bar while it is on.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -379,6 +380,10 @@ local function Create()
     bar = CreateFrame("Frame", "NaowhForeverXPBar", UIParent)
     bar:SetMovable(true)
     bar:SetClampedToScreen(true)
+    bar:EnableMouse(true)
+    bar:SetScript("OnMouseUp", function(_, button)
+        if button == "RightButton" and IsControlKeyDown() then ns.ResetXPTicker() end
+    end)
     ns.Solid(bar, "BACKGROUND", T.bg, 0.85):SetAllPoints()
 
     -- The track holds the fill and segments, the full width of the bar.

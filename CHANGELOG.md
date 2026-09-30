@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- XP Bar: Ctrl + right-click the bar to reset the session time and XP/Hour.
 - Professions: Shift-Click Searches AH (off by default). While the auction house is open,
   Shift-click a recipe or a reagent and the search for the item runs straight away; while
   you type in chat, it still links it.
