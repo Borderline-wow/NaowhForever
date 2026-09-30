@@ -14,6 +14,9 @@
   (Auction House Price), with the other tooltip settings. Your setting is kept.
 
 ### Fixed
+- The Naowh font is only on this addon's own windows and HUD again; the rest of the game keeps
+  its own fonts. Settings > Font has Addon Font (Naowh), plus Game Font and Combat Text Font,
+  both off unless you pick a font.
 - The Naowh logo on the New Abilities, Quiz and Buy Materials windows is sharper and a little
   bigger.
 - Blessings: every icon has the same thin black border, also while its buff is up and on

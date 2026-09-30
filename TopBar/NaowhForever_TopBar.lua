@@ -10,7 +10,7 @@ local T = ns.THEME
 
 local S = UI.ModuleSettings("topBar", {
     enabled = true,
-    -- The clock font is EllesmereUI's, found through SharedMedia; without it the Global Font.
+    -- The clock font is EllesmereUI's, found through SharedMedia; without it the Addon Font.
     iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", use24h = true,
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
     hideInCombat = false, showHearth = false,

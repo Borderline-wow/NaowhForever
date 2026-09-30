@@ -1191,10 +1191,10 @@ function UI.AttachMover(frame, label, onMoved)
     return mover
 end
 
--- Font dropdown data: "" follows the Global Font, then every SharedMedia font. A saved font
+-- Font dropdown data: "" follows the Addon Font, then every SharedMedia font. A saved font
 -- that has since gone missing stays listed so the dropdown does not show a blank.
 function UI.FontChoices(selected)
-    local values, order = { [""] = "Global Font" }, { "" }
+    local values, order = { [""] = "Addon Font" }, { "" }
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     if LSM then
         for _, name in ipairs(LSM:List("font")) do
@@ -1209,7 +1209,7 @@ function UI.FontChoices(selected)
     return values, order
 end
 
--- A SharedMedia font by name, or the Global Font for "" and anything missing.
+-- A SharedMedia font by name, or the Addon Font for "" and anything missing.
 function UI.FontPath(name)
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     local path = LSM and name and name ~= "" and LSM:Fetch("font", name, true)

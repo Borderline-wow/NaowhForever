@@ -335,50 +335,62 @@ if LSM then
     LSM:Register("font", "Naowh", NAOWH_FONT, LSM.LOCALE_BIT_ruRU + LSM.LOCALE_BIT_western)
 end
 
--- The Global Font on the Settings page, saved for this computer: nil is Naowh, BLIZZARD_FONT
--- leaves the game's own fonts alone, anything else is a SharedMedia font name. A font that
--- has gone missing falls back to Naowh.
+-- The three fonts on the Settings page, saved for this computer. Addon Font is this addon's
+-- own text: nil is Naowh, BLIZZARD_FONT the game's. Game Font and Combat Text Font are off
+-- (Blizzard's fonts left alone) for nil or BLIZZARD_FONT. Anything else is a SharedMedia
+-- font name; one that has gone missing falls back to Naowh.
 ns.BLIZZARD_FONT = "__blizzard"
-function ns.GlobalFontPath()
-    local name = ns.AccountSettings().gameFont
-    if name == ns.BLIZZARD_FONT or not LSM then return nil end
-    return (name and LSM:Fetch("font", name, true)) or LSM:Fetch("font", "Naowh", true)
+local function FontPath(name)
+    if name == nil or name == ns.BLIZZARD_FONT or not LSM then return nil end
+    return LSM:Fetch("font", name, true) or LSM:Fetch("font", "Naowh", true)
 end
 
 local uiFontPath
 function ns.UIFontPath()
     if not uiFontPath then
-        uiFontPath = ns.GlobalFontPath() or STANDARD_TEXT_FONT
+        uiFontPath = FontPath(ns.AccountSettings().uiFont or "Naowh") or STANDARD_TEXT_FONT
     end
     return uiFontPath
 end
 
--- The Global Font on the whole game UI. Only Blizzard's font objects and the three path
--- globals are touched, never a frame, so it is taint-free; it has no undo, so a change
--- takes a reload. The path globals are read when the world loads, so they are set on our
--- ADDON_LOADED too; a font from an addon that loads after us only resolves by login,
--- which sets them again.
+-- Game Font and Combat Text Font on the whole game UI. Only Blizzard's font objects and the
+-- three path globals are touched, never a frame, so it is taint-free; it has no undo, so a
+-- change takes a reload. The path globals are read when the world loads, so they are set on
+-- our ADDON_LOADED too; a font from an addon that loads after us only resolves by login,
+-- which sets them again. The combat text objects inherit from SystemFont_World, which the
+-- Game Font changes, so they are set on their own after it.
 local gameFontEvents = CreateFrame("Frame")
 gameFontEvents:RegisterEvent("ADDON_LOADED")
 gameFontEvents:RegisterEvent("PLAYER_LOGIN")
 gameFontEvents:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name ~= ADDON_NAME then return end
     if event == "ADDON_LOADED" then ns.ApplyThemeColors() end
-    local path = ns.GlobalFontPath()
-    if not path then
+    local account = ns.AccountSettings()
+    local game, combat = FontPath(account.gameFont), FontPath(account.combatFont)
+    if not (game or combat) then
         self:UnregisterAllEvents()
         return
     end
-    STANDARD_TEXT_FONT, UNIT_NAME_FONT, DAMAGE_TEXT_FONT = path, path, path
+    if game then STANDARD_TEXT_FONT, UNIT_NAME_FONT = game, game end
+    if combat then DAMAGE_TEXT_FONT = combat end
     if event == "ADDON_LOADED" then return end
     self:UnregisterAllEvents()
-    local fonts = GetFonts()
-    for i = 1, #fonts do
-        local obj = _G[fonts[i]]
-        if type(obj) == "table" and obj.GetFont then
-            local _, size, flags = obj:GetFont()
-            if size and size > 0 then obj:SetFont(path, size, flags) end
+    local combatObjects = { CombatTextFont, CombatTextFontOutline }
+    local combatFonts = {}
+    for i, obj in ipairs(combatObjects) do combatFonts[i] = { obj:GetFont() } end
+    if game then
+        local fonts = GetFonts()
+        for i = 1, #fonts do
+            local obj = _G[fonts[i]]
+            if type(obj) == "table" and obj.GetFont then
+                local _, size, flags = obj:GetFont()
+                if size and size > 0 then obj:SetFont(game, size, flags) end
+            end
         end
+    end
+    for i, obj in ipairs(combatObjects) do
+        local path, size, flags = unpack(combatFonts[i])
+        if size and size > 0 then obj:SetFont(combat or path, size, flags) end
     end
 end)
 

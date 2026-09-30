@@ -7187,7 +7187,7 @@ function ns.BuildBarsSettings(parent, y)
 
     _, h = W:SectionHeader(parent, "SIZE AND LOCATION", y); y = y - h
 
-    local fontValues, fontOrder = { [""] = "Global Font" }, { "" }
+    local fontValues, fontOrder = { [""] = "Addon Font" }, { "" }
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     if LSM then
         for _, name in ipairs(LSM:List("font")) do

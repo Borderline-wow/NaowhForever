@@ -523,20 +523,42 @@ function ns.BuildSettingsPage(parent, y)
     end
 
     _, h = W:SectionHeader(parent, "FONT", y); y = y - h
-    local fonts, fontOrder = UI.FontChoices(ns.AccountSettings().gameFont)
-    fonts[""] = "Naowh (default)"
-    fonts[ns.BLIZZARD_FONT] = "Blizzard Default"
-    table.insert(fontOrder, 2, ns.BLIZZARD_FONT)
+    local uiFonts, uiFontOrder = UI.FontChoices(ns.AccountSettings().uiFont)
+    uiFonts[""] = "Naowh (default)"
+    uiFonts[ns.BLIZZARD_FONT] = "Blizzard Default"
+    table.insert(uiFontOrder, 2, ns.BLIZZARD_FONT)
+    -- Off is saved as nil; an old Global Font of Blizzard Default reads as Off too.
+    local function GameFontDropdown(text, key, tooltip)
+        local saved = ns.AccountSettings()[key]
+        if saved == ns.BLIZZARD_FONT then saved = nil end
+        local fonts, order = UI.FontChoices(saved)
+        fonts[""] = "Off (Blizzard Default)"
+        return { type = "dropdown", text = text, values = fonts, order = order,
+            tooltip = tooltip .. " Saved for this computer.|n|nTakes effect after a /reload.",
+            getValue = function()
+                local v = ns.AccountSettings()[key]
+                return (v == nil or v == ns.BLIZZARD_FONT) and "" or v
+            end,
+            setValue = function(v)
+                ns.AccountSettings()[key] = v ~= "" and v or nil
+            end }
+    end
     _, h = W:DualRow(parent, y,
-        { type = "dropdown", text = "Global Font", values = fonts, order = fontOrder,
-          tooltip = "The font for all of the game's text: this addon, menus, chat, tooltips, "
-          .. "names and damage numbers. Blizzard Default leaves the game's own fonts alone. "
-          .. "Saved for this computer.|n|nTakes effect after a /reload.",
-          getValue = function() return ns.AccountSettings().gameFont or "" end,
+        { type = "dropdown", text = "Addon Font", values = uiFonts, order = uiFontOrder,
+          tooltip = "The font for this addon's windows and HUD. Font settings on a feature "
+          .. "use it unless they pick their own. Saved for this computer.|n|nTakes effect "
+          .. "after a /reload.",
+          getValue = function() return ns.AccountSettings().uiFont or "" end,
           setValue = function(v)
-              if v == "" then v = nil end
-              ns.AccountSettings().gameFont = v
+              ns.AccountSettings().uiFont = v ~= "" and v or nil
           end },
+        GameFontDropdown("Game Font", "gameFont", "The font for the rest of the game: menus, "
+            .. "chat, tooltips and names. Off leaves the game's own fonts alone.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        GameFontDropdown("Combat Text Font", "combatFont", "The font for damage and healing "
+            .. "numbers, over enemies and over your character. Off leaves the game's own "
+            .. "font alone."),
         { type = "label", text = "" }
     ); y = y - h
 
