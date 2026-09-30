@@ -1,6 +1,7 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_QuestAutomation.lua -- the QoL quest automation: accepts quests, turns
---  them in, and picks quests out of an NPC's greeting or gossip. Hold Alt to skip it.
+--  them in, picks quests out of an NPC's greeting or gossip, and shares quests you accept
+--  with your group. Hold Alt to skip it.
 --  Also the saved reward picks: Alt-click a choice reward to keep it for that quest in the
 --  profile, and it is selected (or taken by Auto Turn In) when the quest is handed in.
 -------------------------------------------------------------------------------
@@ -110,10 +111,21 @@ local function PickFromGossip()
     end
 end
 
+-- The quest in the last quest window, when a player offered it (shared it with you) rather
+-- than an NPC: the group already has it, so accepting it does not share it again.
+local sharedWithMe
+
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event)
+events:SetScript("OnEvent", function(_, event, questID)
+    if event == "QUEST_DETAIL" then sharedWithMe = UnitIsPlayer("questnpc") and GetQuestID() or nil end
     if IsAltKeyDown() then return end
-    if event == "QUEST_DETAIL" then
+    if event == "QUEST_ACCEPTED" then
+        local shared = questID == sharedWithMe
+        -- The same call Blizzard's own Share button makes.
+        if not shared and On("questShare") and IsInGroup() and C_QuestLog.IsPushableQuest(questID) then
+            QuestLogPushQuest(C_QuestLog.GetLogIndexForQuestID(questID))
+        end
+    elseif event == "QUEST_DETAIL" then
         if not On("questAccept") then return end
         if QuestGetAutoAccept() then CloseQuest() else AcceptQuest() end
     elseif event == "QUEST_ACCEPT_CONFIRM" then
@@ -137,6 +149,10 @@ end)
 
 local function Apply()
     events:UnregisterAllEvents()
+    if On("questShare") then
+        events:RegisterEvent("QUEST_ACCEPTED")
+        events:RegisterEvent("QUEST_DETAIL")
+    end
     if not (On("questAccept") or On("questTurnIn")) then return end
     for _, event in ipairs({ "QUEST_DETAIL", "QUEST_ACCEPT_CONFIRM", "QUEST_PROGRESS",
         "QUEST_COMPLETE", "QUEST_GREETING", "GOSSIP_SHOW" }) do

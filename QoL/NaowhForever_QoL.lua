@@ -34,6 +34,7 @@ local S = UI.ModuleSettings("qol", {
 
     deleteConfirm = false, lootConfirm = false,
     questAccept = false, questTurnIn = false, questGossip = false, questRewardPicks = true,
+    questShare = false,
     combatTimer = false, combatTimerInstanceOnly = false, combatTimerChat = true,
     combatTimerSticky = false, combatTimerHidePrefix = false, combatTimerBackground = false,
     combatTimerColor = { r = 1, g = 1, b = 1 }, combatTimerClassColor = false,
@@ -281,6 +282,13 @@ function ns.BuildQoLQuestingPage(parent, y)
             "Alt-click a reward you can choose, in the quest log or at the quest giver, to save "
             .. "it for that quest in this profile; Alt-click it again to clear it. It is selected "
             .. "when you hand the quest in, and Auto Turn In takes it for you.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("questShare", "Share Quests With Group",
+            "While you are in a group, shares each quest you accept from an NPC with the "
+            .. "others, if the quest can be shared. A quest someone shared with you is not "
+            .. "shared again. Hold Alt as you accept to keep it to yourself."),
+        { type = "label", text = "" }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "XP PER HOUR" .. STATUS.ready, y); y = y - h

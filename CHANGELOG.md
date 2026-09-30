@@ -5,6 +5,9 @@
 ### Added
 - Unspent Talent Points (off by default, QoL > Combat & Alerts): text on screen while you
   have talent points to spend. Hidden in combat; move it in Unlock Mode.
+- Share Quests With Group (off by default, QoL > Questing): while you are in a group, each
+  quest you accept from an NPC is shared with the others, when the quest can be shared. A
+  quest someone shared with you is not shared again. Hold Alt to keep one to yourself.
 - Options window: a search box at the top of the sidebar finds a setting on the Settings
   page and on the QoL, Gear & Trinkets, Macros, AuraBuffs, Threat Meter, Swing Timer and
   Professions pages, jumps to it and lights it up, opening the dropdown it sits in. While
