@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Unspent Talent Points (off by default, QoL > Combat & Alerts): text on screen while you
+  have talent points to spend. Hidden in combat; move it in Unlock Mode.
 - Options window: a search box at the top of the sidebar finds a setting on the Settings
   page and on the QoL, Gear & Trinkets, Macros, AuraBuffs, Threat Meter, Swing Timer and
   Professions pages, jumps to it and lights it up, opening the dropdown it sits in. While

@@ -85,6 +85,7 @@ local S = UI.ModuleSettings("qol", {
     blessShowFury = false,
 
     durability = true, durabilityBelow = 25, durabilityFont = "",
+    talentPoints = false, talentPointsFont = "",
     combatAlert = false, groupDeaths = false,
     combatEnterText = "+Combat", combatEnterColor = { r = 0, g = 1, b = 0 },
     combatEnterClassColor = false,
@@ -752,6 +753,15 @@ end
 function ns.BuildQoLAlertsPage(parent, y)
     local W = UI.Widgets
     local _, h
+
+    _, h = W:SectionHeader(parent, "TALENT POINTS" .. STATUS.untested, y); y = y - h
+    local talentFonts, talentFontOrder = UI.FontChoices(S.Get("talentPointsFont"))
+    _, h = W:DualRow(parent, y,
+        S.Toggle("talentPoints", "Unspent Talent Points",
+            "Text on screen while you have talent points to spend. Hidden in combat. Move it in "
+            .. "Unlock Mode."),
+        S.Dropdown("talentPointsFont", "Font", talentFonts, talentFontOrder, nil, "talentPoints")
+    ); y = y - h
 
     _, h = W:SectionHeader(parent, "COMBAT", y); y = y - h
     _, h = W:DualRow(parent, y,

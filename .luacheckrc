@@ -35,7 +35,7 @@ read_globals = {
     "Constants", "COPPER_AMOUNT", "CopyTable", "CreateAndInitFromMixin", "CreateColor",
     "CreateFrame", "CreateFromMixins", "CreateMacro", "CreateVector2D", "CUSTOM_CLASS_COLORS",
     "CVarCallbackRegistry", "C_AddOns", "C_AuctionHouse", "C_BattleNet", "C_ChallengeMode",
-    "C_ChatInfo", "C_ClassColor", "C_CombatLog", "C_Container", "C_CooldownViewer",
+    "C_ChatInfo", "C_ClassColor", "C_ClassTalents", "C_CombatLog", "C_Container", "C_CooldownViewer",
     "C_CurrencyInfo", "C_CurveUtil", "C_CVar", "C_DeathInfo", "C_DurationUtil",
     "C_EncounterEvents", "C_EncounterJournal", "C_EncounterTimeline", "C_EquipmentSet",
     "C_FriendList", "C_GamepadUI", "C_GossipInfo", "C_GuildInfo", "C_InstanceEncounter",
