@@ -9,10 +9,13 @@ local T = ns.THEME
 
 local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
 local WHITE = "Interface\\Buttons\\WHITE8X8"
+local DOT_TEX = "Interface\\AddOns\\NaowhForever\\Media\\circle_mask.tga"
 local STOP_ICON = "Interface\\Minimap\\Tracking\\FlightMaster"
-local LAND_ICON = "Interface\\Icons\\Spell_Magic_FeatherFall"
+-- Blizzard's own button for leaving a flight uses this art.
+local LAND_ICON = "Interface\\Vehicles\\UI-Vehicles-Button-Exit-Up"
+local LAND_ICON_DOWN = "Interface\\Vehicles\\UI-Vehicles-Button-Exit-Down"
 
-local WIDTH, TRACK_H, DOT, PIN, NAME_SIZE = 300, 6, 10, 14, 12
+local WIDTH, TRACK_H, DOT, PIN, NAME_SIZE = 420, 10, 14, 18, 14
 local HEIGHT = PIN + 2 * (NAME_SIZE + 8)
 -- A stop slides in at the track's right end this many seconds before it is reached.
 local LOOKAHEAD = 60
@@ -247,7 +250,7 @@ local function Build()
     local over = CreateFrame("Frame", nil, bar)
     over:SetAllPoints()
     over:SetFrameLevel(track:GetFrameLevel() + 3)
-    bar.ends = { Mark(over, WHITE, DOT), Mark(over, WHITE, DOT) }
+    bar.ends = { Mark(over, DOT_TEX, DOT), Mark(over, DOT_TEX, DOT) }
     for i, side in ipairs({ "LEFT", "RIGHT" }) do
         local m = bar.ends[i]
         m.icon:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
@@ -256,7 +259,7 @@ local function Build()
         m.label:SetWidth(WIDTH * 0.47)
         m.label:SetJustifyH(side)
     end
-    bar.you = Mark(over, WHITE, 2, PIN + 4, 10)
+    bar.you = Mark(over, WHITE, 2, PIN + 4, 12)
     bar.you.icon:SetPoint("CENTER")
     bar.you.label:SetPoint("BOTTOM", bar.you.icon, "TOP", 0, 2)
     bar.you.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
@@ -273,32 +276,39 @@ local function Build()
     bar.clip.strip:SetSize(1, 1)
     bar.stops = {}
 
-    bar.time = ns.Font(bar, 14, "OUTLINE", T.accentSoft)
+    bar.time = ns.Font(bar, 18, "OUTLINE", T.accentSoft)
     bar.time:SetPoint("RIGHT", bar, "LEFT", -DOT / 2 - 8, 0)
 
     bar.land = CreateFrame("Button", nil, bar)
-    bar.land:SetSize(24, 24)
+    bar.land:SetSize(30, 30)
     bar.land:SetPoint("LEFT", bar, "RIGHT", DOT / 2 + 8, 0)
     bar.land:SetNormalTexture(LAND_ICON)
-    bar.land:GetNormalTexture():SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    bar.land:GetNormalTexture():SetTexCoord(0.140625, 0.859375, 0.140625, 0.859375)
+    bar.land:SetPushedTexture(LAND_ICON_DOWN)
+    bar.land:GetPushedTexture():SetTexCoord(0.140625, 0.859375, 0.140625, 0.859375)
     bar.land:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-    ns.Border(bar.land, { r = 0, g = 0, b = 0 })
     bar.land:SetScript("OnClick", function() TaxiRequestEarlyLanding() end)
     ns.Tooltip(bar.land, "Land Early", "Land at the next flight point.")
 
     -- Smooth while shown; the poll ticker only watches for boarding and landing.
     bar:SetScript("OnUpdate", Update)
-    bar.mover = ns.UI.AttachMover(bar, "Flight Timer", function(pos) S.Set("flightTimerPos", pos) end)
+    -- The mover reports offsets in the timer's own scaled units; they are saved in screen
+    -- units so the Scale slider resizes it in place.
+    bar.mover = ns.UI.AttachMover(bar, "Flight Timer", function(pos)
+        local scale = bar:GetScale()
+        S.Set("flightTimerPos", { point = pos.point, relPoint = pos.relPoint,
+            x = pos.x * scale, y = pos.y * scale })
+    end)
     bar:Hide()
 end
 
 local function Place()
-    local pos = S.Get("flightTimerPos")
+    local pos, scale = S.Get("flightTimerPos"), bar:GetScale()
     bar:ClearAllPoints()
     if pos then
-        bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+        bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x / scale, pos.y / scale)
     else
-        bar:SetPoint("TOP", UIParent, "TOP", 0, -140)
+        bar:SetPoint("TOP", UIParent, "TOP", 0, -140 / scale)
     end
 end
 
@@ -328,6 +338,7 @@ local SAMPLE = { { name = "Ironforge", at = 0 }, { name = "Thorium Point", at = 
 
 function Apply()
     if not bar then Build() end
+    bar:SetScale(S.Get("flightTimerScale"))
     Place()
     if unlocked then
         bar.mover:Show()
@@ -345,7 +356,9 @@ function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "flightTimer" or key == "flightEarlyLanding" then Apply() end
+    if key == "enabled" or key == "flightTimer" or key == "flightEarlyLanding" or key == "flightTimerScale" then
+        Apply()
+    end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()

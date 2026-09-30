@@ -165,7 +165,7 @@ local S = UI.ModuleSettings("qol", {
 
     trainerPopup = true, trainerGlow = true, trainerRanks = true,
 
-    flightTimer = true, flightEarlyLanding = false, flightQuotes = false, quizFlight = true, quizCamp = true,
+    flightTimer = true, flightTimerScale = 1, flightEarlyLanding = false, flightQuotes = false, quizFlight = true, quizCamp = true,
 })
 ns.QoLSettings = S
 
@@ -1389,15 +1389,6 @@ function ns.BuildQoLFlightPage(parent, y)
     local _, h
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
-    _, h = W:SectionHeader(parent, "FLIGHT TIMER" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("flightTimer", "Flight Timer",
-            "The route you are flying as a line between its two ends, the stops on the way "
-            .. "sliding past you, and the time left to landing. Move it in Unlock Mode."),
-        S.Toggle("flightEarlyLanding", "Land Early Button",
-            "A button beside the timer that lands you at the next flight point.", "flightTimer")
-    ); y = y - h
-
     _, h = W:SectionHeader(parent, "QUIZ" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("quizFlight", "Quiz While Flying",
@@ -1408,6 +1399,18 @@ function ns.BuildQoLFlightPage(parent, y)
     _, h = W:Button(parent, "Open the Quiz", y, function()
         if ns.ToggleQuiz then ns.ToggleQuiz() end
     end); y = y - h
+
+    _, h = W:SectionHeader(parent, "FLIGHT TIMER" .. STATUS.untested, y); y = y - h
+    _, h = W:Feature(parent, y,
+        S.Toggle("flightTimer", "Flight Timer",
+            "The route you are flying as a line between its two ends, the stops on the way "
+            .. "sliding past you, and the time left to landing. Move it in Unlock Mode.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("flightEarlyLanding", "Land Early Button",
+            "A button beside the timer that lands you at the next flight point.", "flightTimer"),
+        S.Slider("flightTimerScale", "Scale", 0.5, 2, 0.05, nil, "flightTimer")
+    ); y = y - h
 
     return y
 end
