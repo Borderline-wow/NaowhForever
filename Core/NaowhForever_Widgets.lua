@@ -784,13 +784,24 @@ function W:Feature(parent, yOffset, cfg, key)
         return nil, ROW_H
     end
     parent._nsuiCollapsed, parent._nsuiFeatureId = nil, nil
-    local row = W:DualRow(parent, yOffset, cfg)
     local collapsible = parent._collapsible == true
     local id = collapsible and (parent._pageKey .. ":" .. (key or cfg.text)) or nil
+    -- Switching a feature on opens it, so its options are there to set.
+    if collapsible and cfg.type == "toggle" then
+        local set = cfg.setValue
+        cfg.setValue = function(v)
+            if v then openFeatures[id] = true end
+            set(v)
+        end
+    end
+    local row = W:DualRow(parent, yOffset, cfg)
     if not row._feature then
         row._feature = true
-        row.arrow = ns.Font(row, 12, nil, T.muted)
-        row.arrow:SetPoint("LEFT", row, "LEFT", 6, 0)
+        row.arrow = row:CreateTexture(nil, "ARTWORK")
+        row.arrow:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\chevron.tga")
+        row.arrow:SetSize(14, 14)
+        row.arrow:SetPoint("LEFT", row, "LEFT", 4, 0)
+        row.arrow:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
         row.hit = CreateFrame("Button", nil, row)
         row.hit:SetPoint("TOPLEFT")
         row.hit:SetPoint("BOTTOMLEFT")
@@ -801,12 +812,12 @@ function W:Feature(parent, yOffset, cfg, key)
             UI:RefreshPage(true)
         end)
         row.hit:SetScript("OnEnter", function(hit)
-            row.arrow:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
+            row.arrow:SetVertexColor(T.fg.r, T.fg.g, T.fg.b, 1)
             local tip = hit._cfg.tooltip
             if tip then UI.ShowWidgetTooltip(hit, tip, { anchor = "cursor", justify = "LEFT" }) end
         end)
         row.hit:SetScript("OnLeave", function()
-            row.arrow:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
+            row.arrow:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
             UI.HideWidgetTooltip()
         end)
     end
@@ -814,7 +825,8 @@ function W:Feature(parent, yOffset, cfg, key)
     local closed = collapsible and not openFeatures[id] and not (UI.searchOpen and UI.searchOpen[id])
     row.hit:SetShown(collapsible)
     row.arrow:SetShown(collapsible)
-    row.arrow:SetText(closed and ">" or "v")
+    -- One chevron: pointing right while closed, turned to point down while open.
+    row.arrow:SetRotation(closed and 0 or -math.pi / 2)
     parent._nsuiCollapsed = closed or nil
     parent._nsuiFeatureId = (parent._pageKey or "") .. ":" .. (key or cfg.text)
     return row, ROW_H

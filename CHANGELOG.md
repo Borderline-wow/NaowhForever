@@ -17,6 +17,8 @@
   Badges, where you can also turn on a banner for when one of them joins your group.
 
 ### Changed
+- Settings dropdowns: switching a feature on opens its options, and the arrow is a bigger,
+  bolder chevron.
 - Flight Timer: a new look in Naowh's colours. The route is a line between its two ends,
   the stops on the way slide past you, and the time left sits beside it. A Land Early
   button (off by default, QoL > Flight & Camp) lands you at the next flight point.

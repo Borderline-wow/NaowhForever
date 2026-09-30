@@ -105,9 +105,28 @@ def icon(x, y, size):
     return (int(r), int(g), int(b), int(round(255 * a)))
 
 
+def seg_dist(px, py, ax, ay, bx, by):
+    # Distance from a point to the segment a-b.
+    dx, dy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def chevron(x, y, size):
+    # A thick right-pointing chevron with rounded ends: the feature rows' open/closed
+    # arrow, rotated a quarter turn to point down when open.
+    ax, ay = size * 0.36, size * 0.18
+    tx, ty = size * 0.66, size * 0.50
+    bx, by = size * 0.36, size * 0.82
+    d = min(seg_dist(x, y, ax, ay, tx, ty), seg_dist(x, y, tx, ty, bx, by))
+    a = smooth(size * 0.10, d)
+    return (255, 255, 255, int(round(255 * a)))
+
+
 os.makedirs(OUT, exist_ok=True)
 write_tga(os.path.join(OUT, "circle_mask.tga"), 128, disc)
 write_tga(os.path.join(OUT, "circle_half.tga"), 256, half_disc)
 write_tga(os.path.join(OUT, "circle_hole.tga"), 256, hole)
 write_tga(os.path.join(OUT, "cog.tga"), 64, gear)
 write_tga(os.path.join(OUT, "icon.tga"), 64, icon)
+write_tga(os.path.join(OUT, "chevron.tga"), 64, chevron)
