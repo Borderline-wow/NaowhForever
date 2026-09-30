@@ -266,63 +266,69 @@ function ns.BuildQoLQuestingPage(parent, y)
     local _, h
     _, h = W:SectionHeader(parent, "XP PER HOUR" .. STATUS.ready, y); y = y - h
     local xpFonts, xpFontOrder = UI.FontChoices(S.Get("xpTickerFont"))
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("xpTicker", "XP per Hour",
             "Your experience per hour on screen, with time to level, session length and "
             .. "recent level times. Hidden at max level. Hover it "
             .. "for Start, Pause and Reset (also /naowh xp start, pause or reset). Move it in "
-            .. "Unlock Mode."),
+            .. "Unlock Mode.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("xpTickerLevel", "Show Ding Time",
-            "How long the next level takes at your current rate.", "xpTicker")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            "How long the next level takes at your current rate.", "xpTicker"),
         S.Toggle("xpTickerElapsed", "Show Time", "How long this session has run.",
-            "xpTicker"),
-        S.Toggle("xpTickerHideResting", "Hide While Resting", "Hidden in cities and inns.", "xpTicker")
+            "xpTicker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("xpTickerSplits", "Level History", "Completed levels, newest first. No placeholder rows.", "xpTicker"),
-        S.Slider("xpTickerHistoryCount", "Levels Shown", 1, 10, 1, "The most recent completed levels.", "xpTickerSplits")
+        S.Toggle("xpTickerHideResting", "Hide While Resting", "Hidden in cities and inns.", "xpTicker"),
+        S.Toggle("xpTickerSplits", "Level History", "Completed levels, newest first. No placeholder rows.", "xpTicker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("xpTickerFont", "Font", xpFonts, xpFontOrder, nil, "xpTicker"),
-        S.Slider("xpTickerFontSize", "Font Size", 8, 32, 1, nil, "xpTicker")
+        S.Slider("xpTickerHistoryCount", "Levels Shown", 1, 10, 1, "The most recent completed levels.", "xpTickerSplits"),
+        S.Dropdown("xpTickerFont", "Font", xpFonts, xpFontOrder, nil, "xpTicker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("xpTickerFontSize", "Font Size", 8, 32, 1, nil, "xpTicker"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:Button(parent, "Reset XP per Hour", y, function()
         if ns.ResetXPTicker then ns.ResetXPTicker() end
     end); y = y - h
 
     _, h = W:SectionHeader(parent, "XP BAR", y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("xpBar", "XP Bar",
             "Your level, experience and percentage on one bar, with the XP of completed "
             .. "quests (gold) and rested experience (dark blue) drawn past the fill. Replaces "
-            .. "Blizzard's experience bar while it is on. Move it in Unlock Mode."),
-        S.Toggle("xpBarMaxLevel", "Show Bar at Max Level", nil, "xpBar")
+            .. "Blizzard's experience bar while it is on. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("xpBarMaxLevel", "Show Bar at Max Level", nil, "xpBar"),
         S.Toggle("xpBarPlayed", "Played Time Text",
-            "Total played time and time played on this level.", "xpBar"),
-        S.Toggle("xpBarSession", "Session Time Text", "How long this session has run.", "xpBar")
+            "Total played time and time played on this level.", "xpBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("xpBarSession", "Session Time Text", "How long this session has run.", "xpBar"),
         S.Toggle("xpBarLeveling", "Leveling Time & XP/Hour Text",
-            "Time to the next level at this session's rate, and the rate itself.", "xpBar"),
+            "Time to the next level at this session's rate, and the rate itself.", "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("xpBarCompleted", "Completed & Rested Text",
             "The XP of quests ready to turn in and your rested experience, as a share of "
-            .. "this level.", "xpBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            .. "this level.", "xpBar"),
         S.Toggle("xpBarIncomplete", "Show Incomplete Quests Bar",
             "The XP of quests still in progress, as a faded segment after the completed ones.",
-            "xpBar"),
-        S.Toggle("xpBarResetOnReload", "Reset Session Time and XP/Hour on Reload UI",
-            "Off: a /reload carries on the session. A fresh login always starts a new one.",
             "xpBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("xpBarWidth", "Width", 200, 1200, 10, nil, "xpBar"),
-        S.Slider("xpBarHeight", "Height", 14, 48, 1, nil, "xpBar")
+        S.Toggle("xpBarResetOnReload", "Reset Session Time and XP/Hour on Reload UI",
+            "Off: a /reload carries on the session. A fresh login always starts a new one.",
+            "xpBar"),
+        S.Slider("xpBarWidth", "Width", 200, 1200, 10, nil, "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("xpBarHeight", "Height", 14, 48, 1, nil, "xpBar"),
+        { type = "label", text = "" }
     ); y = y - h
 
     local textValues = { none = "None", level = "Level", xp = "Current / Max XP", percent = "XP Percent", rested = "Rested Percent" }
@@ -371,11 +377,9 @@ function ns.BuildQoLGeneralPage(parent, y)
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "STEALTH REMINDER", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("stealthReminder", "Enable Stealth Reminder", "Out-of-combat stealth status for rogues and druids."),
-        { type = "label", text = "" }
+    _, h = W:Feature(parent, y,
+        S.Toggle("stealthReminder", "Enable Stealth Reminder", "Out-of-combat stealth status for rogues and druids.")
     ); y = y - h
-    if S.Get("stealthReminder") then
     _, h = W:DualRow(parent, y,
         S.Toggle("reminderInGroup", "Only In a Group", nil, "stealthReminder"),
         S.Toggle("reminderHideResting", "Hide While Resting", nil, "stealthReminder")
@@ -405,17 +409,15 @@ function ns.BuildQoLGeneralPage(parent, y)
         TextControl("Out of Stealth Text", "Text while out of stealth", "warningText"),
         TextControl("Stealthed Text", "Text while stealthed", "stealthText")
     ); y = y - h
-    end
 
     _, h = W:SectionHeader(parent, "CO-TANK FRAME", y); y = y - h
     local coTankFonts, coTankFontOrder = UI.FontChoices(S.Get("coTankFont"))
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("coTank", "Co-Tank Frame",
             "A small health bar for the other tank in your group, shown while you are tanking: "
             .. "tank role, Bear Form, Defensive Stance or Righteous Fury. The other tank is "
             .. "whoever has the tank role or the raid's Main Tank assignment. Click it to target "
-            .. "them. Changes made in combat apply when the fight ends. Move it in Unlock Mode."),
-        { type = "label", text = "" }
+            .. "them. Changes made in combat apply when the fight ends. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("coTankWidth", "Width", 50, 400, 5, nil, "coTank"),
@@ -453,16 +455,19 @@ function ns.BuildQoLGeneralPage(parent, y)
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "CO-TANK DEBUFFS", y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("coTankDebuffs", "Co-Tank Debuffs",
             "Shows the other tank's debuffs beside their health bar, in combat too: tank-buster "
-            .. "stacks, boss debuffs and anything you can dispel.", "coTank"),
-        S.Dropdown("coTankDebuffFilter", "Filter", DEBUFF_FILTER_VALUES, DEBUFF_FILTER_ORDER,
-            nil, "coTankDebuffs")
+            .. "stacks, boss debuffs and anything you can dispel.", "coTank")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("coTankDebuffCap", "Max Icons", 1, 8, 1, nil, "coTankDebuffs"),
-        S.Slider("coTankDebuffSize", "Icon Size", 10, 48, 1, nil, "coTankDebuffs")
+        S.Dropdown("coTankDebuffFilter", "Filter", DEBUFF_FILTER_VALUES, DEBUFF_FILTER_ORDER,
+            nil, "coTankDebuffs"),
+        S.Slider("coTankDebuffCap", "Max Icons", 1, 8, 1, nil, "coTankDebuffs")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("coTankDebuffSize", "Icon Size", 10, 48, 1, nil, "coTankDebuffs"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("coTankDebuffPosition", "Position", DEBUFF_POS_VALUES, DEBUFF_POS_ORDER,
@@ -505,36 +510,39 @@ function ns.BuildQoLLootPage(parent, y)
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "RESTOCK" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("restock", "Restock Reminder",
             "When you reach a city or inn, a flashing list in the middle of the screen of what "
             .. "you are short on. It stays up until you have what you need or leave. Move it "
-            .. "in Unlock Mode."),
+            .. "in Unlock Mode.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("restockBuy", "Buy at Vendors",
             "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
-            .. "and prints what it spent. Off by default: it spends gold for you.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            .. "and prints what it spent. Off by default: it spends gold for you."),
         S.Toggle("restockReagents", "Class Reagents",
             "The reagents your known spells use, such as Arcane Powder, candles, seeds, Symbols "
-            .. "of Kings and Flash Powder, matched to the highest rank you know.", "restock"),
-        S.Toggle("restockAmmo", "Ammo", "The arrows or shot in your ammo slot.", "restock")
+            .. "of Kings and Flash Powder, matched to the highest rank you know.", "restock")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("restockAmmoTarget", "Ammo to Carry", 200, 4000, 100, nil, "restockAmmo"),
+        S.Toggle("restockAmmo", "Ammo", "The arrows or shot in your ammo slot.", "restock"),
+        S.Slider("restockAmmoTarget", "Ammo to Carry", 200, 4000, 100, nil, "restockAmmo")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("restockFood", "Food & Drink", "Counts food and drink separately across all stacks. Warriors and rogues do not need drink.",
-            "restock")
+            "restock"),
+        S.Slider("restockFoodBelow", "Food & Drink Below", 1, 40, 1, nil, "restockFood")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("restockFoodBelow", "Food & Drink Below", 1, 40, 1, nil, "restockFood"),
         S.Toggle("restockVendor", "Junk & Full Bags",
-            "Reminds you to vendor junk, and when your bags are nearly full.", "restock")
+            "Reminds you to vendor junk, and when your bags are nearly full.", "restock"),
+        S.Slider("restockFoodMinLevel", "Food Minimum Required Level", 0, 60, 1,
+            "Only count food and drink whose required level is within this range.", "restockFood")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("restockFoodMinLevel", "Food Minimum Required Level", 0, 60, 1,
-            "Only count food and drink whose required level is within this range.", "restockFood"),
         S.Slider("restockFoodMaxLevel", "Food Maximum Required Level", 0, 60, 1,
-            "The same required-level filter applies to every stack, not each item separately.", "restockFood")
+            "The same required-level filter applies to every stack, not each item separately.", "restockFood"),
+        { type = "label", text = "" }
     ); y = y - h
     local sliders = ns.RestockReagentSliders()
     _, h = W:DualRow(parent, y,
@@ -546,62 +554,65 @@ function ns.BuildQoLLootPage(parent, y)
     end
 
     _, h = W:SectionHeader(parent, "BAG SPACE" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("bagSpace", "Bag Space",
             "The cheapest items in your bags as a row of icons, cheapest first. Ctrl-click an icon "
             .. "to delete it, or click it to sell it while a vendor is open. Middle-click to ignore "
-            .. "an item. A key binding picks up the cheapest item. Move it in Unlock Mode."),
-        S.Slider("bagSpaceCount", "Items Shown", 1, 8, 1, nil, "bagSpace")
+            .. "an item. A key binding picks up the cheapest item. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Slider("bagSpaceCount", "Items Shown", 1, 8, 1, nil, "bagSpace"),
         S.Dropdown("bagSpaceMaxQuality", "Highest Quality Offered", QUALITY_VALUES, QUALITY_ORDER,
-            "Items above this quality are never offered.", "bagSpace"),
-        S.Toggle("bagSpaceJunkFirst", "Grey Items First",
-            "Grey items come before everything else, whatever they sell for.", "bagSpace")
+            "Items above this quality are never offered.", "bagSpace")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpaceJunkFirst", "Grey Items First",
+            "Grey items come before everything else, whatever they sell for.", "bagSpace"),
         S.Toggle("bagSpaceAuction", "Count Auction Prices",
             "An item worth more at the auction house than at a vendor is valued at its auction "
-            .. "price, from your last Scan Prices or TradeSkillMaster.", "bagSpace"),
+            .. "price, from your last Scan Prices or TradeSkillMaster.", "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("bagSpaceProtect", "Protect Needed Items",
             "Never offers reagents, ammo, quest items, keys, items in an equipment set or items "
-            .. "on your BiS list.", "bagSpace")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            .. "on your BiS list.", "bagSpace"),
         S.Slider("bagSpaceFreeBelow", "Only With Free Slots Below", 0, 30, 1,
-            "Shows the row only once your bags are this full. 0 shows it all the time.", "bagSpace"),
-        S.Toggle("bagSpaceHideCombat", "Hide in Combat", nil, "bagSpace")
+            "Shows the row only once your bags are this full. 0 shows it all the time.", "bagSpace")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpaceHideCombat", "Hide in Combat", nil, "bagSpace"),
         S.Toggle("bagSpaceOnFull", "Show When Bags Are Full",
             "An \"Inventory is full\" error brings the row up for 20 seconds, even with more free "
-            .. "slots than the threshold above.", "bagSpace"),
-        S.Toggle("bagSpaceShowFree", "Show Free Slots",
-            "Free bag slots out of your total, above the row. Hover it for each bag.", "bagSpace")
+            .. "slots than the threshold above.", "bagSpace")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("bagSpaceShowFree", "Show Free Slots",
+            "Free bag slots out of your total, above the row. Hover it for each bag.", "bagSpace"),
         S.Toggle("bagSpaceStack", "Offer to Stack",
             "A Stack button at the start of the row when part-filled stacks of the same item can "
-            .. "be combined, with how many slots it frees. Nothing is deleted.", "bagSpace"),
+            .. "be combined, with how many slots it frees. Nothing is deleted.", "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("bagSpaceOldFirst", "Outlevelled Food & Potions First",
             "Food, drink and potions 10 or more levels below you are marked OLD; this puts them "
-            .. "first.", "bagSpace")
+            .. "first.", "bagSpace"),
+        S.Slider("bagSpaceSize", "Icon Size", 24, 56, 1, nil, "bagSpace")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("bagSpaceSize", "Icon Size", 24, 56, 1, nil, "bagSpace"),
-        S.Dropdown("bagSpaceGrow", "Direction", DIRECTION_VALUES, DIRECTION_ORDER, nil, "bagSpace")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+        S.Dropdown("bagSpaceGrow", "Direction", DIRECTION_VALUES, DIRECTION_ORDER, nil, "bagSpace"),
         S.Toggle("bagSpaceTipVendor", "Tooltip: Vendor Price",
-            "What the whole stack sells for at a vendor, and each item's price.", "bagSpace"),
+            "What the whole stack sells for at a vendor, and each item's price.", "bagSpace")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("bagSpaceTipAuction", "Tooltip: Auction Price",
             "What the stack fetches at the auction house, from your last Scan Prices or "
-            .. "TradeSkillMaster.", "bagSpace")
+            .. "TradeSkillMaster.", "bagSpace"),
+        S.Toggle("bagSpaceTipDelete", "Tooltip: Delete Hint",
+            "The Ctrl-click line, and Click to sell while a vendor is open.", "bagSpace")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("bagSpaceTipDelete", "Tooltip: Delete Hint",
-            "The Ctrl-click line, and Click to sell while a vendor is open.", "bagSpace"),
-        S.Toggle("bagSpaceTipIgnore", "Tooltip: Ignore Hint", "The Middle-click line.", "bagSpace")
+        S.Toggle("bagSpaceTipIgnore", "Tooltip: Ignore Hint", "The Middle-click line.", "bagSpace"),
+        { type = "label", text = "" }
     ); y = y - h
     local keyRow
     keyRow, h = W:DualRow(parent, y,
@@ -616,63 +627,62 @@ function ns.BuildQoLLootPage(parent, y)
     end); y = y - h
 
     _, h = W:SectionHeader(parent, "LOOT FEED" .. STATUS.ready, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("lootFeed", "Loot Feed",
             "Everything you loot pops up on screen with its icon, amount and value, stacking "
-            .. "in your chosen direction and fading out. Hover a line for the item's tooltip. Move it in Unlock Mode."),
-        S.Toggle("lootFeedMoney", "Show Money", nil, "lootFeed")
+            .. "in your chosen direction and fading out. Hover a line for the item's tooltip. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("lootFeedMoney", "Show Money", nil, "lootFeed"),
         S.Toggle("lootFeedQuest", "Show Quest Rewards",
             "A line for each quest you turn in, with the experience and money it gave. "
-            .. "Reward items show as their own lines.", "lootFeed"),
-        S.Toggle("lootFeedRep", "Show Reputation",
-            "A line for every reputation gain, from quests and kills alike.", "lootFeed")
+            .. "Reward items show as their own lines.", "lootFeed")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("lootFeedRep", "Show Reputation",
+            "A line for every reputation gain, from quests and kills alike.", "lootFeed"),
         S.Toggle("lootFeedXP", "Show Kill Experience",
             "A line for the experience from each kill. Quest experience is on the quest's "
-            .. "own line.", "lootFeed"),
+            .. "own line.", "lootFeed")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("lootFeedValue", "Show Item Value",
-            "What each line is worth, in gold, silver and copper.", "lootFeed")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            "What each line is worth, in gold, silver and copper.", "lootFeed"),
         S.Dropdown("lootFeedQuality", "Lowest Quality Shown", QUALITY_VALUES, QUALITY_ORDER,
-            nil, "lootFeed"),
-        S.Slider("lootFeedCount", "Lines Shown", 3, 12, 1, nil, "lootFeed")
+            nil, "lootFeed")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Slider("lootFeedCount", "Lines Shown", 3, 12, 1, nil, "lootFeed"),
         S.Slider("lootFeedFade", "Display Time (s)", 0.5, 10, 0.5,
-            "How long each line stays before it fades.", "lootFeed"),
-        S.Dropdown("lootFeedStyle", "Style", STYLE_VALUES, STYLE_ORDER, nil, "lootFeed")
+            "How long each line stays before it fades.", "lootFeed")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("lootFeedGlow", "Glow", "A soft glow beside each icon.", "lootFeed"),
+        S.Dropdown("lootFeedStyle", "Style", STYLE_VALUES, STYLE_ORDER, nil, "lootFeed"),
+        S.Toggle("lootFeedGlow", "Glow", "A soft glow beside each icon.", "lootFeed")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("lootFeedBank", "Count Bank Items",
-            "The number on each icon counts your bank as well as your bags.", "lootFeed")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            "The number on each icon counts your bank as well as your bags.", "lootFeed"),
         S.Dropdown("lootFeedPrice", "Price Source", PRICE_VALUES, PRICE_ORDER,
             "Auction (Naowh Scan) uses your last Scan Prices at the auction house; Auction (TSM) "
             .. "needs TradeSkillMaster. An item without an auction price counts at its vendor price.",
-            "lootFeed"),
-        S.Toggle("lootFeedGPH", "Gold per Hour",
-            "A running gold per hour beside the newest line, counting money and item value "
-            .. "since your first loot this session.", "lootFeed")
+            "lootFeed")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("lootFeedGPH", "Gold per Hour",
+            "A running gold per hour beside the newest line, counting money and item value "
+            .. "since your first loot this session.", "lootFeed"),
         S.Toggle("hideLootWindow", "Hide Blizzard Loot Window",
             "Takes everything the moment you loot, with Blizzard's loot window kept out of "
             .. "sight, so the feed is all you see. Works with or without the game's auto loot. "
             .. "Hold Shift while looting to get the window back. It also appears whenever "
-            .. "something cannot be taken: a group roll, a locked item, or bags too full."),
-        { type = "label", text = "" }
+            .. "something cannot be taken: a group roll, a locked item, or bags too full.")
     ); y = y - h
     _, h = W:Button(parent, "Reset Gold per Hour", y, function()
         if ns.ResetLootFeedSession then ns.ResetLootFeedSession() end
     end); y = y - h
 
-    _, h = W:SectionHeader(parent, "LOOT FEED APPEARANCE", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Loot Feed Appearance" }); y = y - h
     local fonts, fontOrder = UI.FontChoices(S.Get("lootFeedFont"))
     _, h = W:DualRow(parent, y,
         S.Slider("lootFeedWidth", "Width", 200, 600, 5, nil, "lootFeed"),
@@ -739,11 +749,14 @@ function ns.BuildQoLAlertsPage(parent, y)
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
     _, h = W:SectionHeader(parent, "DURABILITY" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("durability", "Low Durability Warning",
             "Text on screen when any piece of gear drops below the threshold. Hidden in "
-            .. "combat. Move it in Unlock Mode."),
-        S.Slider("durabilityBelow", "Warn Below (%)", 5, 100, 1, nil, "durability")
+            .. "combat. Move it in Unlock Mode.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("durabilityBelow", "Warn Below (%)", 5, 100, 1, nil, "durability"),
+        { type = "label", text = "" }
     ); y = y - h
     local durFonts, durFontOrder = UI.FontChoices(S.Get("durabilityFont"))
     _, h = W:DualRow(parent, y,
@@ -753,12 +766,13 @@ function ns.BuildQoLAlertsPage(parent, y)
 
     _, h = W:SectionHeader(parent, "COMBAT" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("combatAlert", "Combat Alert",
-            "A short flash of text entering and leaving combat. Move it in Unlock Mode."),
-        S.Toggle("groupDeaths", "Announce Group Deaths", "Shows who died in your group.")
+        S.Toggle("groupDeaths", "Announce Group Deaths", "Shows who died in your group."),
+        { type = "label", text = "" }
     ); y = y - h
-
-    _, h = W:SectionHeader(parent, "COMBAT ALERT", y); y = y - h
+    _, h = W:Feature(parent, y,
+        S.Toggle("combatAlert", "Combat Alert",
+            "A short flash of text entering and leaving combat. Move it in Unlock Mode.")
+    ); y = y - h
     local alertFonts, alertFontOrder = UI.FontChoices(S.Get("combatAlertFont"))
     _, h = W:DualRow(parent, y,
         S.Dropdown("combatAlertFont", "Font", alertFonts, alertFontOrder, nil, "combatAlert"),
@@ -794,60 +808,66 @@ function ns.BuildQoLAlertsPage(parent, y)
 
     _, h = W:SectionHeader(parent, "COMBAT TIMER" .. STATUS.untested, y); y = y - h
     local timerFonts, timerFontOrder = UI.FontChoices(S.Get("combatTimerFont"))
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("combatTimer", "Combat Timer",
-            "How long the current fight has run, on screen while you fight. Move it in Unlock Mode."),
-        S.Toggle("combatTimerInstanceOnly", "Only In Instances", nil, "combatTimer")
+            "How long the current fight has run, on screen while you fight. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("combatTimerInstanceOnly", "Only In Instances", nil, "combatTimer"),
         S.Toggle("combatTimerChat", "Report to Chat",
-            "How long the fight lasted, in chat when it ends.", "combatTimer"),
+            "How long the fight lasted, in chat when it ends.", "combatTimer")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("combatTimerSticky", "Keep After the Fight",
-            "The last fight's time stays on screen until the next one starts.", "combatTimer")
+            "The last fight's time stays on screen until the next one starts.", "combatTimer"),
+        S.Toggle("combatTimerHidePrefix", "Hide the COMBAT Label", nil, "combatTimer")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("combatTimerHidePrefix", "Hide the COMBAT Label", nil, "combatTimer"),
-        S.Toggle("combatTimerBackground", "Show Background", nil, "combatTimer")
+        S.Toggle("combatTimerBackground", "Show Background", nil, "combatTimer"),
+        ColorRow("combatTimerColor", "Timer Colour", "combatTimer")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("combatTimerColor", "Timer Colour", "combatTimer"),
-        S.Toggle("combatTimerClassColor", "Class Colour", nil, "combatTimer")
+        S.Toggle("combatTimerClassColor", "Class Colour", nil, "combatTimer"),
+        S.Dropdown("combatTimerFont", "Font", timerFonts, timerFontOrder, nil, "combatTimer")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("combatTimerFont", "Font", timerFonts, timerFontOrder, nil, "combatTimer"),
-        S.Slider("combatTimerFontSize", "Font Size", 10, 72, 1, nil, "combatTimer")
+        S.Slider("combatTimerFontSize", "Font Size", 10, 72, 1, nil, "combatTimer"),
+        { type = "label", text = "" }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "PET TRACKER" .. STATUS.untested, y); y = y - h
     local petFonts, petFontOrder = UI.FontChoices(S.Get("petFont"))
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("petTracker", "Pet Tracker",
             "A warning while a hunter or warlock has no pet out. A warlock who sacrificed their "
-            .. "demon is left alone. Move it in Unlock Mode."),
+            .. "demon is left alone. Move it in Unlock Mode.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("petPassive", "Warn While Passive", "Also warns while your pet is set to passive.",
-            "petTracker")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            "petTracker"),
         S.Toggle("petLowHealth", "Warn on Low Pet Health",
-            "Also warns while your pet's health is under the threshold, in combat too.", "petTracker"),
-        S.Slider("petLowHealthBelow", "Low Health Below (%)", 5, 90, 1, nil, "petLowHealth")
+            "Also warns while your pet's health is under the threshold, in combat too.", "petTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("petCombatOnly", "Only In Combat", nil, "petTracker"),
-        S.Toggle("petInstanceOnly", "Only In Dungeons & Raids", nil, "petTracker")
+        S.Slider("petLowHealthBelow", "Low Health Below (%)", 5, 90, 1, nil, "petLowHealth"),
+        S.Toggle("petCombatOnly", "Only In Combat", nil, "petTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("petInstanceOnly", "Only In Dungeons & Raids", nil, "petTracker"),
         S.Toggle("petHideMounted", "Hide While Mounted",
-            "Also hidden for a few seconds after you dismount, while the pet comes back.", "petTracker"),
-        S.Toggle("petShowIcon", "Show Icon", nil, "petTracker")
+            "Also hidden for a few seconds after you dismount, while the pet comes back.", "petTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("petColor", "Colour", "petTracker"),
-        S.Toggle("petClassColor", "Class Colour", nil, "petTracker")
+        S.Toggle("petShowIcon", "Show Icon", nil, "petTracker"),
+        ColorRow("petColor", "Colour", "petTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("petFont", "Font", petFonts, petFontOrder, nil, "petTracker"),
-        S.Slider("petFontSize", "Font Size", 12, 48, 1, nil, "petTracker")
+        S.Toggle("petClassColor", "Class Colour", nil, "petTracker"),
+        S.Dropdown("petFont", "Font", petFonts, petFontOrder, nil, "petTracker")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("petFontSize", "Font Size", 12, 48, 1, nil, "petTracker"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = TextButton(parent, y, "Missing Text", "Text while your pet is missing", "petMissingText"); y = y - h
     _, h = TextButton(parent, y, "Passive Text", "Text while your pet is passive", "petPassiveText"); y = y - h
@@ -855,23 +875,26 @@ function ns.BuildQoLAlertsPage(parent, y)
         "petLowHealthText"); y = y - h
 
     _, h = W:SectionHeader(parent, "EQUIPMENT REMINDER" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("equipReminder", "Equipment Reminder",
             "Your trinkets, weapons and ranged slot in a small window when you enter a dungeon "
             .. "or raid, or on a ready check, so a wrong trinket gets noticed before the pull. "
-            .. "Drag the window to move it."),
+            .. "Drag the window to move it.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("equipEnchants", "Enchant Check",
             "Adds a line that flags any slot whose enchant is missing or differs from the ones "
-            .. "you captured below. Hover it for the details.", "equipReminder")
+            .. "you captured below. Hover it for the details.", "equipReminder"),
+        S.Toggle("equipOnInstance", "Show Entering Dungeons & Raids", nil, "equipReminder")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("equipOnInstance", "Show Entering Dungeons & Raids", nil, "equipReminder"),
-        S.Toggle("equipOnReadyCheck", "Show on Ready Check", nil, "equipReminder")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+        S.Toggle("equipOnReadyCheck", "Show on Ready Check", nil, "equipReminder"),
         S.Slider("equipAutoHide", "Hide After (s)", 0, 60, 1,
-            "0 keeps it up until you close it.", "equipReminder"),
-        S.Slider("equipIconSize", "Icon Size", 24, 64, 1, nil, "equipReminder")
+            "0 keeps it up until you close it.", "equipReminder")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("equipIconSize", "Icon Size", 24, 64, 1, nil, "equipReminder"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:Button(parent, "Capture Current Enchants", y, function()
         local count = ns.CaptureEnchants()
@@ -884,29 +907,35 @@ function ns.BuildQoLAlertsPage(parent, y)
 
     _, h = W:SectionHeader(parent, "EMOTE DETECTION" .. STATUS.untested, y); y = y - h
     local emoteFonts, emoteFontOrder = UI.FontChoices(S.Get("emoteFont"))
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("emoteDetection", "Emote Detection",
             "An alert when an emote in a dungeon or raid contains one of your words, such as "
-            .. "someone putting down a feast. Out of combat only. Move it in Unlock Mode."),
-        S.Toggle("emoteSound", "Play a Sound", nil, "emoteDetection")
+            .. "someone putting down a feast. Out of combat only. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("emoteSoundKey", "Sound", soundNames, soundOrder, nil, "emoteSound"),
-        ColorRow("emoteColor", "Text Colour", "emoteDetection")
+        S.Toggle("emoteSound", "Play a Sound", nil, "emoteDetection"),
+        S.Dropdown("emoteSoundKey", "Sound", soundNames, soundOrder, nil, "emoteSound")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("emoteFont", "Font", emoteFonts, emoteFontOrder, nil, "emoteDetection"),
-        S.Slider("emoteFontSize", "Font Size", 10, 32, 1, nil, "emoteDetection")
+        ColorRow("emoteColor", "Text Colour", "emoteDetection"),
+        S.Dropdown("emoteFont", "Font", emoteFonts, emoteFontOrder, nil, "emoteDetection")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("emoteFontSize", "Font Size", 10, 32, 1, nil, "emoteDetection"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = TextButton(parent, y, "Words to Watch For",
         "Words to watch for in emotes, separated by commas", "emotePattern"); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("autoEmote", "Auto Emotes",
             "An /emote of your own in a dungeon or raid when you start casting one of the spells "
             .. "below, so the group knows a summon is coming. Started in combat, it waits for "
-            .. "the fight to end."),
+            .. "the fight to end.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Slider("autoEmoteCooldown", "Cooldown (s)", 0, 30, 1,
-            "The shortest time between two auto emotes.", "autoEmote")
+            "The shortest time between two auto emotes.", "autoEmote"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = TextButton(parent, y, "Auto Emote Spells",
         "Spell ID and emote, separated by semicolons, such as 698: prepares a ritual of summoning",
@@ -971,25 +1000,24 @@ function ns.BuildQoLInterfacePage(parent, y)
 
     _, h = W:SectionHeader(parent, "CROSSHAIR" .. STATUS.untested, y); y = y - h
     local _, soundNames, soundOrder = ns.SoundChoices()
-    _, h = W:DualRow(parent, y,
-        S.Toggle("crosshair", "Crosshair", "A crosshair at the middle of your screen."),
-        S.Toggle("crossCombatOnly", "Only In Combat", nil, "crosshair")
+    _, h = W:Feature(parent, y,
+        S.Toggle("crosshair", "Crosshair", "A crosshair at the middle of your screen.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("crossHideMounted", "Hide While Mounted", nil, "crosshair"),
-        S.Slider("crossOpacity", "Opacity", 0.1, 1, 0.05, nil, "crosshair")
+        S.Toggle("crossCombatOnly", "Only In Combat", nil, "crosshair"),
+        S.Toggle("crossHideMounted", "Hide While Mounted", nil, "crosshair")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("crossSize", "Arm Length", 4, 100, 1, nil, "crosshair"),
-        S.Slider("crossThickness", "Thickness", 1, 20, 1, nil, "crosshair")
+        S.Slider("crossOpacity", "Opacity", 0.1, 1, 0.05, nil, "crosshair"),
+        S.Slider("crossSize", "Arm Length", 4, 100, 1, nil, "crosshair")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("crossGap", "Gap", 0, 50, 1, "Space between the middle and each arm.", "crosshair"),
-        ColorRow("crossColor", "Colour", "crosshair")
+        S.Slider("crossThickness", "Thickness", 1, 20, 1, nil, "crosshair"),
+        S.Slider("crossGap", "Gap", 0, 50, 1, "Space between the middle and each arm.", "crosshair")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("crossClassColor", "Class Colour", nil, "crosshair"),
-        { type = "label", text = "" }
+        ColorRow("crossColor", "Colour", "crosshair"),
+        S.Toggle("crossClassColor", "Class Colour", nil, "crosshair")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("crossTop", "Top Arm", nil, "crosshair"),
@@ -1009,15 +1037,11 @@ function ns.BuildQoLInterfacePage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         ColorRow("crossCircleColor", "Circle Colour", "crossCircle"),
-        { type = "label", text = "" }
+        S.Toggle("crossOutline", "Outline", nil, "crosshair")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("crossOutline", "Outline", nil, "crosshair"),
-        S.Slider("crossOutlineWeight", "Outline Width", 1, 5, 1, nil, "crossOutline")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("crossOutlineColor", "Outline Colour", "crossOutline"),
-        { type = "label", text = "" }
+        S.Slider("crossOutlineWeight", "Outline Width", 1, 5, 1, nil, "crossOutline"),
+        ColorRow("crossOutlineColor", "Outline Colour", "crossOutline")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("crossX", "X Offset", -500, 500, 1, nil, "crosshair"),
@@ -1025,31 +1049,30 @@ function ns.BuildQoLInterfacePage(parent, y)
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "CROSSHAIR MELEE RANGE", y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("crossMelee", "Recolour Out of Melee Range",
             "Changes colour while your target is out of melee range. Warriors, rogues, hunters "
             .. "(Raptor Strike), shamans with Stormstrike, and druids in Cat or Bear Form have "
-            .. "an ability it can check; anyone else can set a spell ID below.", "crosshair"),
-        ColorRow("crossMeleeColor", "Out of Range Colour", "crossMelee")
+            .. "an ability it can check; anyone else can set a spell ID below.", "crosshair")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("crossMeleeBorder", "Recolour Outline", nil, "crossMelee"),
-        S.Toggle("crossMeleeArms", "Recolour Arms", nil, "crossMelee")
+        ColorRow("crossMeleeColor", "Out of Range Colour", "crossMelee"),
+        S.Toggle("crossMeleeBorder", "Recolour Outline", nil, "crossMelee")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("crossMeleeDot", "Recolour Dot", nil, "crossMelee"),
-        S.Toggle("crossMeleeCircle", "Recolour Circle", nil, "crossMelee")
+        S.Toggle("crossMeleeArms", "Recolour Arms", nil, "crossMelee"),
+        S.Toggle("crossMeleeDot", "Recolour Dot", nil, "crossMelee")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("crossMeleeCircle", "Recolour Circle", nil, "crossMelee"),
         S.Toggle("crossMeleeSound", "Play a Sound",
-            "Plays as your target leaves melee range.", "crossMelee"),
-        S.Dropdown("crossMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "crossMeleeSound")
+            "Plays as your target leaves melee range.", "crossMelee")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Dropdown("crossMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "crossMeleeSound"),
         S.Slider("crossMeleeSoundInterval", "Repeat Every (s)", 0, 10, 1,
             "Plays the sound again this often while out of range. 0 plays it once.",
-            "crossMeleeSound"),
-        { type = "label", text = "" }
+            "crossMeleeSound")
     ); y = y - h
     _, h = W:Button(parent, "Melee Spell ID", y, function()
         ns.PromptText("Spell ID to check melee range with. 0 uses your class's own.",
@@ -1059,144 +1082,143 @@ function ns.BuildQoLInterfacePage(parent, y)
     end); y = y - h
 
     _, h = W:SectionHeader(parent, "MOUSE RING" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("mouseRing", "Mouse Ring",
             "A ring around your cursor so you never lose it in a busy fight, with your global "
-            .. "cooldown and casts swept around it."),
-        S.Toggle("mouseShowOOC", "Show Out of Combat", nil, "mouseRing")
+            .. "cooldown and casts swept around it.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("mouseShowOOC", "Show Out of Combat", nil, "mouseRing"),
         S.Toggle("mouseHideOnClick", "Hide While Right-Click Held",
-            "Hidden while you turn the camera with the right mouse button.", "mouseRing"),
+            "Hidden while you turn the camera with the right mouse button.", "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("mouseHideAfk", "Hide While Away", "Hidden while you are away, outside instances.",
+            "mouseRing"),
+        S.Dropdown("mouseShape", "Shape", SHAPE_VALUES, SHAPE_ORDER, nil, "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseSize", "Size", 16, 128, 1, nil, "mouseRing"),
+        ColorRow("mouseColor", "Ring Colour", "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseClassColor", "Class Colour", nil, "mouseRing"),
+        S.Slider("mouseOpacityCombat", "Opacity In Combat", 0.1, 1, 0.05,
+            "Also used inside dungeons and raids.", "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseOpacityOOC", "Opacity Out of Combat", 0.1, 1, 0.05, nil, "mouseRing"),
+        S.Toggle("mouseBorder", "Border", nil, "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseBorderWeight", "Border Width", 1, 10, 1, nil, "mouseBorder"),
+        ColorRow("mouseBorderColor", "Border Colour", "mouseBorder")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseBorderClassColor", "Class Colour", nil, "mouseBorder"),
+        S.Toggle("mouseDot", "Centre Dot", nil, "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("mouseDotSize", "Dot Size", 1, 20, 1, nil, "mouseDot"),
+        ColorRow("mouseDotColor", "Dot Colour", "mouseDot")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseDotClassColor", "Class Colour", nil, "mouseDot"),
+        S.Toggle("mouseFadeIdle", "Fade When Idle", "Fades out while the cursor stays still.",
             "mouseRing")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("mouseShape", "Shape", SHAPE_VALUES, SHAPE_ORDER, nil, "mouseRing"),
-        S.Slider("mouseSize", "Size", 16, 128, 1, nil, "mouseRing")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("mouseColor", "Ring Colour", "mouseRing"),
-        S.Toggle("mouseClassColor", "Class Colour", nil, "mouseRing")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("mouseOpacityCombat", "Opacity In Combat", 0.1, 1, 0.05,
-            "Also used inside dungeons and raids.", "mouseRing"),
-        S.Slider("mouseOpacityOOC", "Opacity Out of Combat", 0.1, 1, 0.05, nil, "mouseRing")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("mouseBorder", "Border", nil, "mouseRing"),
-        S.Slider("mouseBorderWeight", "Border Width", 1, 10, 1, nil, "mouseBorder")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("mouseBorderColor", "Border Colour", "mouseBorder"),
-        S.Toggle("mouseBorderClassColor", "Class Colour", nil, "mouseBorder")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("mouseDot", "Centre Dot", nil, "mouseRing"),
-        S.Slider("mouseDotSize", "Dot Size", 1, 20, 1, nil, "mouseDot")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("mouseDotColor", "Dot Colour", "mouseDot"),
-        S.Toggle("mouseDotClassColor", "Class Colour", nil, "mouseDot")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("mouseFadeIdle", "Fade When Idle", "Fades out while the cursor stays still.",
-            "mouseRing"),
-        S.Slider("mouseFadeDelay", "Fade After (s)", 0.5, 10, 0.5, nil, "mouseFadeIdle")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("mouseFadeOpacity", "Idle Opacity", 0, 1, 0.05, nil, "mouseFadeIdle"),
-        { type = "label", text = "" }
+        S.Slider("mouseFadeDelay", "Fade After (s)", 0.5, 10, 0.5, nil, "mouseFadeIdle"),
+        S.Slider("mouseFadeOpacity", "Idle Opacity", 0, 1, 0.05, nil, "mouseFadeIdle")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "MOUSE RING GCD & CASTS", y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("mouseGCD", "GCD Sweep",
             "Your global cooldown swept around the ring, and a ready ring once it is over.",
-            "mouseRing"),
+            "mouseRing")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("mouseHideBackground", "Hide Ring Under the Sweep",
-            "Only the sweep and the ready ring show.", "mouseGCD")
+            "Only the sweep and the ready ring show.", "mouseGCD"),
+        ColorRow("mouseGCDColor", "Sweep Colour", "mouseGCD")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("mouseGCDColor", "Sweep Colour", "mouseGCD"),
-        S.Toggle("mouseGCDClassColor", "Class Colour", nil, "mouseGCD")
+        S.Toggle("mouseGCDClassColor", "Class Colour", nil, "mouseGCD"),
+        ColorRow("mouseReadyColor", "Ready Colour", "mouseGCD")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("mouseReadyColor", "Ready Colour", "mouseGCD"),
-        S.Toggle("mouseReadyMatch", "Ready Matches Sweep", nil, "mouseGCD")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseReadyMatch", "Ready Matches Sweep", nil, "mouseGCD"),
         S.Toggle("mouseCastSwipe", "Cast Sweep", "Your casts and channels swept around the ring too.",
-            "mouseGCD"),
-        ColorRow("mouseCastColor", "Cast Sweep Colour", "mouseCastSwipe")
+            "mouseGCD")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("mouseCastClassColor", "Class Colour", nil, "mouseCastSwipe"),
-        S.Slider("mouseGCDAlpha", "Sweep Opacity", 0.1, 1, 0.05, nil, "mouseGCD")
+        ColorRow("mouseCastColor", "Cast Sweep Colour", "mouseCastSwipe"),
+        S.Toggle("mouseCastClassColor", "Class Colour", nil, "mouseCastSwipe")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Slider("mouseGCDAlpha", "Sweep Opacity", 0.1, 1, 0.05, nil, "mouseGCD"),
         S.Slider("mouseSwipeDelay", "Sweep Delay (s)", 0, 0.5, 0.01,
             "Waits this long before a sweep starts, so one that is over at once does not flicker.",
-            "mouseGCD"),
-        { type = "label", text = "" }
+            "mouseGCD")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "MOUSE RING TRAIL", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("mouseTrail", "Trail", "A fading trail behind the cursor.", "mouseRing"),
-        S.Dropdown("mouseTrailShape", "Trail Shape", TRAIL_VALUES, TRAIL_ORDER, nil, "mouseTrail")
+    _, h = W:Feature(parent, y,
+        S.Toggle("mouseTrail", "Trail", "A fading trail behind the cursor.", "mouseRing")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("mouseTrailColor", "Trail Colour", "mouseTrail"),
-        S.Toggle("mouseTrailClassColor", "Class Colour", nil, "mouseTrail")
+        S.Dropdown("mouseTrailShape", "Trail Shape", TRAIL_VALUES, TRAIL_ORDER, nil, "mouseTrail"),
+        ColorRow("mouseTrailColor", "Trail Colour", "mouseTrail")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("mouseTrailClassColor", "Class Colour", nil, "mouseTrail"),
         S.Toggle("mouseTrailSparkle", "Sparkle", "Each point of the trail in a colour of its own.",
-            "mouseTrail"),
-        S.Slider("mouseTrailSize", "Trail Size", 4, 64, 1, nil, "mouseTrail")
+            "mouseTrail")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("mouseTrailLength", "Trail Length", 5, 60, 1, nil, "mouseTrail"),
-        S.Slider("mouseTrailDuration", "Trail Duration (s)", 0.1, 5, 0.1, nil, "mouseTrail")
+        S.Slider("mouseTrailSize", "Trail Size", 4, 64, 1, nil, "mouseTrail"),
+        S.Slider("mouseTrailLength", "Trail Length", 5, 60, 1, nil, "mouseTrail")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("mouseTrailBrightness", "Trail Brightness", 0.1, 1, 0.05, nil, "mouseTrail"),
-        { type = "label", text = "" }
+        S.Slider("mouseTrailDuration", "Trail Duration (s)", 0.1, 5, 0.1, nil, "mouseTrail"),
+        S.Slider("mouseTrailBrightness", "Trail Brightness", 0.1, 1, 0.05, nil, "mouseTrail")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "MOUSE RING MELEE RANGE", y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("mouseMelee", "Recolour Out of Melee Range",
             "Turns the ring red while your target is out of melee range. Uses the same ability "
-            .. "as the crosshair's melee check, Melee Spell ID included.", "mouseRing"),
-        S.Toggle("mouseMeleeBorder", "Recolour Border", nil, "mouseMelee")
+            .. "as the crosshair's melee check, Melee Spell ID included.", "mouseRing")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("mouseMeleeRing", "Recolour Ready Ring", nil, "mouseMelee"),
+        S.Toggle("mouseMeleeBorder", "Recolour Border", nil, "mouseMelee"),
+        S.Toggle("mouseMeleeRing", "Recolour Ready Ring", nil, "mouseMelee")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("mouseMeleeSound", "Play a Sound", "Plays as your target leaves melee range.",
-            "mouseMelee")
+            "mouseMelee"),
+        S.Dropdown("mouseMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "mouseMeleeSound")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("mouseMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "mouseMeleeSound"),
         S.Slider("mouseMeleeSoundInterval", "Repeat Every (s)", 0, 10, 1,
-            "Plays the sound again this often while out of range. 0 plays it once.", "mouseMeleeSound")
+            "Plays the sound again this often while out of range. 0 plays it once.", "mouseMeleeSound"),
+        { type = "label", text = "" }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "TOWN MAP" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("townMap", "Town Map Pins",
             "Trainers, vendors, innkeepers, flight masters and more pinned on the world map for "
-            .. "your faction, with their name and title on hover. No more asking a guard."),
-        S.Slider("townPinSize", "Pin Size", 10, 28, 1, nil, "townMap")
+            .. "your faction, with their name and title on hover. No more asking a guard.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("townCapitalsOnly", "Town Pins Only in Capitals", "Keeps vendors and trainers off questing maps.", "townMap"),
-        S.Toggle("townSpiritHealers", "Spirit Healers", "Shows graveyards supplied by the game map.", "townMap")
+        S.Slider("townPinSize", "Pin Size", 10, 28, 1, nil, "townMap"),
+        S.Toggle("townCapitalsOnly", "Town Pins Only in Capitals", "Keeps vendors and trainers off questing maps.", "townMap")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("townZoneLinks", "Clickable Zone Exits", "Click an exit to open the adjoining zone map.", "townMap"),
-        { type = "label", text = "" }
+        S.Toggle("townSpiritHealers", "Spirit Healers", "Shows graveyards supplied by the game map.", "townMap"),
+        S.Toggle("townZoneLinks", "Clickable Zone Exits", "Click an exit to open the adjoining zone map.", "townMap")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("townClass", "Class Trainers", "Your class's trainers only.", "townMap"),
@@ -1228,24 +1250,26 @@ function ns.BuildQoLToolsPage(parent, y)
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
     _, h = W:SectionHeader(parent, "GLOBAL COPY" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("globalCopy", "Global Copy",
             "/copy puts the text of whatever is under your cursor in a box you can copy from. "
-            .. "/copy followed by a frame name copies that frame's text instead."),
-        S.Toggle("copyTooltipIds", "Copy IDs From Tooltips",
-            "With a tooltip showing, the key below copies its spell, item or NPC ID.", "globalCopy")
+            .. "/copy followed by a frame name copies that frame's text instead.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("copyModifier", "Modifier", MODIFIER_VALUES, MODIFIER_ORDER, nil, "copyTooltipIds"),
-        S.Dropdown("copyKey", "Key", KEY_VALUES, KEY_ORDER, nil, "copyTooltipIds")
+        S.Toggle("copyTooltipIds", "Copy IDs From Tooltips",
+            "With a tooltip showing, the key below copies its spell, item or NPC ID.", "globalCopy"),
+        S.Dropdown("copyModifier", "Modifier", MODIFIER_VALUES, MODIFIER_ORDER, nil, "copyTooltipIds")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("copyKey", "Key", KEY_VALUES, KEY_ORDER, nil, "copyTooltipIds"),
+        { type = "label", text = "" }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "SLASH COMMANDS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("slashCommands", "Custom Slash Commands",
             "Short commands of your own that open a game window or run another command. A "
-            .. "name another addon already uses is skipped."),
-        { type = "label", text = "" }
+            .. "name another addon already uses is skipped.")
     ); y = y - h
     local commands = ns.SlashCommandList()
     local function CommandRow(cmd)
@@ -1280,11 +1304,14 @@ function ns.BuildQoLToolsPage(parent, y)
     end); y = y - h
 
     _, h = W:SectionHeader(parent, "COMBAT LOGGING" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("combatLogger", "Auto Combat Logging",
             "Turns the combat log on in raids and off when you leave. The first time you enter "
-            .. "each raid and difficulty it asks, and remembers your answer."),
-        { type = "label", text = ns.CombatLogging() and "Logging now" or "Not logging" }
+            .. "each raid and difficulty it asks, and remembers your answer.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "label", text = ns.CombatLogging() and "Logging now" or "Not logging" },
+        { type = "label", text = "" }
     ); y = y - h
     local saved, keys = ns.CombatLogInstances(), {}
     for key in pairs(saved) do keys[#keys + 1] = key end
@@ -1382,19 +1409,22 @@ function ns.BuildQoLTooltipPage(parent, y)
     local _, h
     _, h = W:Note(parent, "Readable IDs appear below the tooltip. Hover a spell, item or NPC and press your shortcut to open a copy card. Copy cards open outside combat; typing never triggers the shortcut.", y); y = y - h
     _, h = W:SectionHeader(parent, "TOOLTIP DISPLAY", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("tooltipDisplay", "Tooltip Display"),
-        S.Dropdown("tooltipRestricted", "Restricted IDs", { hide = "Hide Line", hidden = "Show Hidden" }, { "hide", "hidden" }, nil, "tooltipDisplay")
+    _, h = W:Feature(parent, y,
+        S.Toggle("tooltipDisplay", "Tooltip Display")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("tooltipSpellID", "Show Spell ID", nil, "tooltipDisplay"),
-        S.Toggle("tooltipItemID", "Show Item ID", nil, "tooltipDisplay")
+        S.Dropdown("tooltipRestricted", "Restricted IDs", { hide = "Hide Line", hidden = "Show Hidden" }, { "hide", "hidden" }, nil, "tooltipDisplay"),
+        S.Toggle("tooltipSpellID", "Show Spell ID", nil, "tooltipDisplay")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("tooltipNPCID", "Show NPC ID", "Creature and vehicle IDs only; never player GUIDs.", "tooltipDisplay"),
-        S.Toggle("tooltipCopy", "Mouseover Copy Shortcut", nil, "tooltipDisplay")
+        S.Toggle("tooltipItemID", "Show Item ID", nil, "tooltipDisplay"),
+        S.Toggle("tooltipNPCID", "Show NPC ID", "Creature and vehicle IDs only; never player GUIDs.", "tooltipDisplay")
     ); y = y - h
-    _, h = W:SectionHeader(parent, "COPY CARD", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("tooltipCopy", "Mouseover Copy Shortcut", nil, "tooltipDisplay"),
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Copy Card" }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("tooltipModifier", "Modifier", { CTRL = "Ctrl", SHIFT = "Shift", ALT = "Alt", ["CTRL-SHIFT"] = "Ctrl + Shift", ["CTRL-ALT"] = "Ctrl + Alt", ["ALT-SHIFT"] = "Alt + Shift" },
             { "CTRL-SHIFT", "CTRL-ALT", "ALT-SHIFT", "CTRL", "SHIFT", "ALT" }, nil, "tooltipCopy"),
@@ -1417,46 +1447,45 @@ function ns.BuildQoLCastingPage(parent, y)
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
     _, h = W:SectionHeader(parent, "GCD TRACKER" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("gcdTracker", "GCD Tracker",
             "Your recent casts as icons scrolling away from a point, with a bar underneath while "
             .. "you were casting or on the global cooldown. Gaps in the bar are time spent doing "
-            .. "nothing. Move it in Unlock Mode."),
-        S.Toggle("gcdCombatOnly", "Only In Combat", nil, "gcdTracker")
+            .. "nothing. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("gcdWorld", "Show in the World", nil, "gcdTracker"),
-        S.Toggle("gcdDungeon", "Show in Dungeons", nil, "gcdTracker")
+        S.Toggle("gcdCombatOnly", "Only In Combat", nil, "gcdTracker"),
+        S.Toggle("gcdWorld", "Show in the World", nil, "gcdTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("gcdRaid", "Show in Raids", nil, "gcdTracker"),
-        S.Toggle("gcdPvP", "Show in Battlegrounds", nil, "gcdTracker")
+        S.Toggle("gcdDungeon", "Show in Dungeons", nil, "gcdTracker"),
+        S.Toggle("gcdRaid", "Show in Raids", nil, "gcdTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("gcdDirection", "Direction", DIRECTION_VALUES, DIRECTION_ORDER, nil, "gcdTracker"),
-        S.Slider("gcdDuration", "Time Shown (s)", 2, 15, 1, nil, "gcdTracker")
+        S.Toggle("gcdPvP", "Show in Battlegrounds", nil, "gcdTracker"),
+        S.Dropdown("gcdDirection", "Direction", DIRECTION_VALUES, DIRECTION_ORDER, nil, "gcdTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("gcdIconSize", "Icon Size", 16, 64, 1, nil, "gcdTracker"),
-        S.Slider("gcdSpacing", "Spacing", 0, 20, 1, nil, "gcdTracker")
+        S.Slider("gcdDuration", "Time Shown (s)", 2, 15, 1, nil, "gcdTracker"),
+        S.Slider("gcdIconSize", "Icon Size", 16, 64, 1, nil, "gcdTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Slider("gcdSpacing", "Spacing", 0, 20, 1, nil, "gcdTracker"),
         S.Slider("gcdFadeStart", "Fade From", 0, 0.95, 0.05,
             "How far along an icon starts to fade, from 0 (at once) to 0.95 (at the very end).",
-            "gcdTracker"),
-        S.Toggle("gcdStack", "Stack Overlapping Casts",
-            "Casts within 0.3s of each other sit side by side instead of on top of each other.",
             "gcdTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("gcdTimelineColor", "Activity Bar Colour", "gcdTracker"),
-        S.Slider("gcdTimelineHeight", "Activity Bar Height", 1, 12, 1, nil, "gcdTracker")
+        S.Toggle("gcdStack", "Stack Overlapping Casts",
+            "Casts within 0.3s of each other sit side by side instead of on top of each other.",
+            "gcdTracker"),
+        ColorRow("gcdTimelineColor", "Activity Bar Colour", "gcdTracker")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Slider("gcdTimelineHeight", "Activity Bar Height", 1, 12, 1, nil, "gcdTracker"),
         S.Toggle("gcdDowntime", "Downtime Summary",
             "After each fight longer than 15 seconds, how long you spent neither casting nor on "
-            .. "the global cooldown, in chat.", "gcdTracker"),
-        { type = "label", text = "" }
+            .. "the global cooldown, in chat.", "gcdTracker")
     ); y = y - h
     _, h = TextButton(parent, y, "Hidden Spells",
         "Spell IDs never shown, separated by commas. 6603 is Auto Attack, 75 is Auto Shot.",
@@ -1466,88 +1495,87 @@ function ns.BuildQoLCastingPage(parent, y)
     local focusFonts, focusFontOrder = UI.FontChoices(S.Get("focusFont"))
     local _, soundNames, soundOrder = ns.SoundChoices()
     local voices, voiceOrder = ns.TTSVoiceChoices()
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("focusCastBar", "Focus Cast Bar",
             "Your focus target's casts on a bar of their own, coloured by whether your interrupt "
             .. "is ready, with a tick where it comes off cooldown and a shield on casts you cannot "
             .. "interrupt. Your interrupt is the first you know of Pummel, Shield Bash, Kick, "
-            .. "Counterspell, Earth Shock, Silence and Feral Charge. Move it in Unlock Mode."),
-        S.Toggle("focusHideFriendly", "Hide Friendly Casts", nil, "focusCastBar")
+            .. "Counterspell, Earth Shock, Silence and Feral Charge. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("focusWidth", "Width", 100, 600, 5, nil, "focusCastBar"),
-        S.Slider("focusHeight", "Height", 10, 60, 1, nil, "focusCastBar")
+        S.Toggle("focusHideFriendly", "Hide Friendly Casts", nil, "focusCastBar"),
+        S.Slider("focusWidth", "Width", 100, 600, 5, nil, "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("focusReadyColor", "Interrupt Ready Colour", "focusCastBar"),
-        S.Toggle("focusReadyClassColor", "Class Colour", nil, "focusCastBar")
+        S.Slider("focusHeight", "Height", 10, 60, 1, nil, "focusCastBar"),
+        ColorRow("focusReadyColor", "Interrupt Ready Colour", "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("focusCooldownColor", "Interrupt on Cooldown Colour", "focusCastBar"),
-        ColorRow("focusInterruptedColor", "Interrupted Colour", "focusCastBar")
+        S.Toggle("focusReadyClassColor", "Class Colour", nil, "focusCastBar"),
+        ColorRow("focusCooldownColor", "Interrupt on Cooldown Colour", "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("focusColorNonInt", "Colour Uninterruptible Casts", nil, "focusCastBar"),
-        ColorRow("focusNonIntColor", "Uninterruptible Colour", "focusColorNonInt")
+        ColorRow("focusInterruptedColor", "Interrupted Colour", "focusCastBar"),
+        S.Toggle("focusColorNonInt", "Colour Uninterruptible Casts", nil, "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("focusBgColor", "Background Colour", "focusCastBar"),
-        S.Slider("focusBgAlpha", "Background Opacity", 0, 1, 0.05, nil, "focusCastBar")
+        ColorRow("focusNonIntColor", "Uninterruptible Colour", "focusColorNonInt"),
+        ColorRow("focusBgColor", "Background Colour", "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("focusIcon", "Show Icon", nil, "focusCastBar"),
-        S.Dropdown("focusIconSide", "Icon Side", SIDE_VALUES, SIDE_ORDER, nil, "focusIcon")
+        S.Slider("focusBgAlpha", "Background Opacity", 0, 1, 0.05, nil, "focusCastBar"),
+        S.Toggle("focusIcon", "Show Icon", nil, "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("focusSpellName", "Show Spell Name", nil, "focusCastBar"),
+        S.Dropdown("focusIconSide", "Icon Side", SIDE_VALUES, SIDE_ORDER, nil, "focusIcon"),
+        S.Toggle("focusSpellName", "Show Spell Name", nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Slider("focusNameLength", "Name Length", 0, 40, 1,
-            "Cuts the name to about this many letters. 0 shows it whole.", "focusSpellName")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
+            "Cuts the name to about this many letters. 0 shows it whole.", "focusSpellName"),
         S.Toggle("focusTarget", "Show Cast Target", "Who the cast is aimed at, in their class colour.",
-            "focusCastBar"),
-        S.Toggle("focusTime", "Show Time Left", nil, "focusCastBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("focusShield", "Uninterruptible Shield", nil, "focusCastBar"),
-        S.Toggle("focusTick", "Interrupt Ready Tick",
-            "A tick on the bar where your interrupt comes off cooldown. Hidden while it is ready.",
             "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("focusTickColor", "Tick Colour", "focusTick"),
-        S.Toggle("focusTickClassColor", "Class Colour", nil, "focusTick")
+        S.Toggle("focusTime", "Show Time Left", nil, "focusCastBar"),
+        S.Toggle("focusShield", "Uninterruptible Shield", nil, "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("focusTextColor", "Text Colour", "focusCastBar"),
-        S.Toggle("focusTextClassColor", "Class Colour", nil, "focusCastBar")
+        S.Toggle("focusTick", "Interrupt Ready Tick",
+            "A tick on the bar where your interrupt comes off cooldown. Hidden while it is ready.",
+            "focusCastBar"),
+        ColorRow("focusTickColor", "Tick Colour", "focusTick")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("focusFont", "Font", focusFonts, focusFontOrder, nil, "focusCastBar"),
-        S.Slider("focusFontSize", "Font Size", 8, 24, 1, nil, "focusCastBar")
+        S.Toggle("focusTickClassColor", "Class Colour", nil, "focusTick"),
+        ColorRow("focusTextColor", "Text Colour", "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("focusHideNonInt", "Hide Uninterruptible Casts", nil, "focusCastBar"),
-        S.Toggle("focusHideOnCooldown", "Hide While Interrupt Is on Cooldown", nil, "focusCastBar")
+        S.Toggle("focusTextClassColor", "Class Colour", nil, "focusCastBar"),
+        S.Dropdown("focusFont", "Font", focusFonts, focusFontOrder, nil, "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Slider("focusFontSize", "Font Size", 8, 24, 1, nil, "focusCastBar"),
+        S.Toggle("focusHideNonInt", "Hide Uninterruptible Casts", nil, "focusCastBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("focusHideOnCooldown", "Hide While Interrupt Is on Cooldown", nil, "focusCastBar"),
         S.Slider("focusFadeTime", "Interrupted Fade (s)", 0, 3, 0.05,
-            "How long an interrupted cast stays up. 0 hides it at once.", "focusCastBar"),
-        S.Toggle("focusInterrupter", "Show Who Interrupted", nil, "focusCastBar")
+            "How long an interrupted cast stays up. 0 hides it at once.", "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Toggle("focusInterrupter", "Show Who Interrupted", nil, "focusCastBar"),
         S.Dropdown("focusAudio", "Cast Start Audio", AUDIO_VALUES, AUDIO_ORDER,
-            "A sound, or the Speech text read aloud, as each cast starts.", "focusCastBar"),
-        S.Dropdown("focusSound", "Sound", soundNames, soundOrder, nil, "focusCastBar")
+            "A sound, or the Speech text read aloud, as each cast starts.", "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Dropdown("focusSound", "Sound", soundNames, soundOrder, nil, "focusCastBar"),
         S.Dropdown("focusVoice", "Voice", voices, voiceOrder,
-            "Game Default speaks in the voice the rest of the addon uses.", "focusCastBar"),
-        S.Slider("focusVolume", "Volume", 0, 100, 1, nil, "focusCastBar")
+            "Game Default speaks in the voice the rest of the addon uses.", "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Slider("focusRate", "Speech Rate", -10, 10, 1, nil, "focusCastBar"),
-        { type = "label", text = "" }
+        S.Slider("focusVolume", "Volume", 0, 100, 1, nil, "focusCastBar"),
+        S.Slider("focusRate", "Speech Rate", -10, 10, 1, nil, "focusCastBar")
     ); y = y - h
     _, h = TextButton(parent, y, "Speech Text", "Spoken as a cast starts", "focusSpeech"); y = y - h
 

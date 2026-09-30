@@ -96,8 +96,9 @@ function ns.BuildAuraBuffsPage(parent, y)
     _, h = W:Note(parent, "Add an item ID and its buff spell ID(s), or import a profile with reminders. "
         .. "Nothing is added automatically. Hover a reminder to choose a configured item from your bags. "
         .. "Reminders pause in combat; item menus work outside combat.", y); y = y - h
+    _, h = W:SectionHeader(parent, "CONSUMABLES", y); y = y - h
     for _, category in ipairs(CATEGORY_ORDER) do
-        _, h = W:SectionHeader(parent, CATEGORY_NAMES[category]:upper(), y); y = y - h
+        _, h = W:Feature(parent, y, { type = "label", text = CATEGORY_NAMES[category] }); y = y - h
         _, h = W:DualRow(parent, y,
             { type = "button", text = "Add " .. CATEGORY_NAMES[category], buttonText = "Add",
                 onClick = function() EditEntry(category) end },
@@ -120,7 +121,7 @@ function ns.BuildAuraBuffsPage(parent, y)
             end
         end
     end
-    _, h = W:SectionHeader(parent, "REMINDER SETTINGS", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Reminder Settings" }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("consumablesWhere", "Show In", WHERE_VALUES, WHERE_ORDER),
         S.Slider("consumablesMinutes", "Warn With Minutes Left", 0, 10, 1)); y = y - h

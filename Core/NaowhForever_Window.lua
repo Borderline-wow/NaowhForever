@@ -21,6 +21,8 @@ local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 -- its rows across rebuilds instead of building new ones; only pages drawn entirely with the
 -- row widgets and UI.Keep can take it, since any other frame a builder makes would be
 -- stacked again on every rebuild.
+-- A page with `collapse` opens with its features (W:Feature) closed, one click on a feature
+-- to open it; only pages drawn with the row widgets can take it.
 -- A module with `command` also opens in a window of its own, from /nf<command> and from its
 -- broker button, NaowhForever<short>, which the top bar and the minimap can carry.
 local SYSTEM_PAGES = {
@@ -39,17 +41,17 @@ local MODULES = {
     { name = "QoL", settings = "QoLSettings",
       subtitle = "Naowh's quality of life tweaks, trimmed to what Forever has.",
       tabs = {
-          { name = "General", build = "BuildQoLGeneralPage", reuse = true },
-          { name = "Questing", build = "BuildQoLQuestingPage", reuse = true },
-          { name = "Loot & Items", build = "BuildQoLLootPage", reuse = true },
-          { name = "Combat & Alerts", build = "BuildQoLAlertsPage", reuse = true },
-          { name = "Interface", build = "BuildQoLInterfacePage", reuse = true },
-          { name = "Casting", build = "BuildQoLCastingPage", reuse = true },
-          { name = "Tools", build = "BuildQoLToolsPage", reuse = true },
-          { name = "Tooltip Display", build = "BuildQoLTooltipPage", reuse = true },
-          { name = "Performance", build = "BuildQoLPerformancePage", reuse = true },
+          { name = "General", build = "BuildQoLGeneralPage", reuse = true, collapse = true },
+          { name = "Questing", build = "BuildQoLQuestingPage", reuse = true, collapse = true },
+          { name = "Loot & Items", build = "BuildQoLLootPage", reuse = true, collapse = true },
+          { name = "Combat & Alerts", build = "BuildQoLAlertsPage", reuse = true, collapse = true },
+          { name = "Interface", build = "BuildQoLInterfacePage", reuse = true, collapse = true },
+          { name = "Casting", build = "BuildQoLCastingPage", reuse = true, collapse = true },
+          { name = "Tools", build = "BuildQoLToolsPage", reuse = true, collapse = true },
+          { name = "Tooltip Display", build = "BuildQoLTooltipPage", reuse = true, collapse = true },
+          { name = "Performance", build = "BuildQoLPerformancePage", reuse = true, collapse = true },
           { name = "Trainer", build = "BuildQoLTrainerPage", reuse = true },
-          { name = "Flight & Camp", build = "BuildQoLFlightPage", reuse = true },
+          { name = "Flight & Camp", build = "BuildQoLFlightPage", reuse = true, collapse = true },
       } },
     -- Settings still live in the QoL table so existing profiles carry over; each module's
     -- switch is the feature's own key rather than QoL's.
@@ -63,14 +65,14 @@ local MODULES = {
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
       tabs = {
-          { name = "Gear Sets", build = "BuildQoLGearSetsPage", reuse = true },
+          { name = "Gear Sets", build = "BuildQoLGearSetsPage", reuse = true, collapse = true },
           { name = "Trinkets", build = "BuildTrinketsPage", reuse = true },
       } },
     { name = "Blessings", settings = "QoLSettings", enabledKey = "blessings",
       command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
       subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
       tabs = {
-          { name = "Bar", build = "BuildQoLBlessingsPage", reuse = true },
+          { name = "Bar", build = "BuildQoLBlessingsPage", reuse = true, collapse = true },
           { name = "Assignments", build = "BuildBlessingAssignmentsPage", reuse = true },
       } },
     { name = "BiS List", settings = "QoLSettings", enabledKey = "bis",
@@ -82,19 +84,19 @@ local MODULES = {
     { name = "Professions", settings = "ProfessionSettings",
       subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",
       tabs = {
-          { name = "Window", build = "BuildProfessionsPage", reuse = true },
+          { name = "Window", build = "BuildProfessionsPage", reuse = true, collapse = true },
       } },
     { name = "Macros", settings = "MacroSettings",
       subtitle = "Macros written and kept current for you, out of combat.",
       tabs = {
           { name = "Class Macros", build = "BuildClassMacrosPage", reuse = true },
-          { name = "Consumables", build = "BuildMacroConsumablesPage", reuse = true },
+          { name = "Consumables", build = "BuildMacroConsumablesPage", reuse = true, collapse = true },
           { name = "Focus & Cursor", build = "BuildMacroFocusPage", reuse = true },
       } },
     { name = "AuraBuffs", settings = "AuraBuffSettings",
       subtitle = "Buff, consumable and campfire reminders, low health and debuff sounds.",
       tabs = {
-          { name = "Buffs & Consumables", build = "BuildAuraBuffsPage", reuse = true },
+          { name = "Buffs & Consumables", build = "BuildAuraBuffsPage", reuse = true, collapse = true },
           { name = "Campfire", build = "BuildCampfirePage", reuse = true },
           { name = "Low Health", build = "BuildLowHealthPage", reuse = true },
           { name = "Poison & Dispel", build = "BuildPoisonDispelPage", reuse = true },
@@ -103,18 +105,18 @@ local MODULES = {
       command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
       tabs = {
-          { name = "Meter", build = "BuildThreatMeterPage", reuse = true },
+          { name = "Meter", build = "BuildThreatMeterPage", reuse = true, collapse = true },
       } },
     { name = "Swing Timer", settings = "SwingTimerSettings",
       subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",
       tabs = {
-          { name = "Bars", build = "BuildSwingTimerPage", reuse = true },
-          { name = "Timing Aids", build = "BuildSwingTimerAidsPage", reuse = true },
+          { name = "Bars", build = "BuildSwingTimerPage", reuse = true, collapse = true },
+          { name = "Timing Aids", build = "BuildSwingTimerAidsPage", reuse = true, collapse = true },
       } },
     { name = "Top Bar", settings = "TopBarSettings",
       subtitle = "Friends, guild, the clock and your addon buttons across the top of the screen.",
       tabs = {
-          { name = "Bar", build = "BuildTopBarPage", reuse = true },
+          { name = "Bar", build = "BuildTopBarPage", reuse = true, collapse = true },
       } },
     -- The reminder modules sit below a divider in the sidebar.
     { name = "Custom Reminders", settings = "CustomReminderSettings", divider = true,
@@ -263,6 +265,7 @@ local function ShowWrapper(pageWrappers, child, key)
     local wrapper = pageWrappers[key]
     if wrapper._dirty then
         wrapper._dirty = nil
+        wrapper._pageKey, wrapper._collapsible, wrapper._nsuiCollapsed = key, PAGES[key].collapse, nil
         if PAGES[key].reuse then UI.BeginReusableRows(wrapper) end
         local usedY = BuildPageInto(PAGES[key], wrapper)
         wrapper:SetHeight(math.abs(usedY) + 30)

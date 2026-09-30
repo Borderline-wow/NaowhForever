@@ -756,7 +756,8 @@ function ns.BuildSwingTimerPage(parent, y)
     _, h = W:Note(parent, "One bar per weapon, timed by the game's own swing event, so parry "
         .. "haste, swing resets and haste are always right. Move it in Unlock Mode.", y); y = y - h
 
-    _, h = W:SectionHeader(parent, "LAYOUT" .. UI.STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "WEAPON BARS", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Layout" .. UI.STATUS.untested }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("width", "Width", 80, 600, 1, nil, "enabled"),
         S.Slider("rowHeight", "Bar Height", 4, 40, 1, nil, "enabled")
@@ -771,7 +772,7 @@ function ns.BuildSwingTimerPage(parent, y)
         S.Slider("bgAlpha", "Background Opacity", 0, 1, 0.05, nil, "enabled")
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "BARS", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Bars" }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("showMH", "Main Hand", nil, "enabled"),
         S.Toggle("showOH", "Off Hand", "Shown while you have a weapon in your off hand.", "enabled")
@@ -806,7 +807,7 @@ function ns.BuildSwingTimerPage(parent, y)
         S.Toggle("classColored", "Class Colors", "Color the weapon bars in your class color.", "enabled")
     ); y = y - h
 
-    _, h = W:SectionHeader(parent, "COLORS", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Colours" }); y = y - h
     _, h = W:DualRow(parent, y,
         ColorRow("mhColor", "Main Hand", "enabled"),
         ColorRow("ohColor", "Off Hand", "enabled")
@@ -816,13 +817,13 @@ function ns.BuildSwingTimerPage(parent, y)
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "QUEUED ATTACKS", y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("queueHighlight", "Highlight Queued Attacks",
             "While Heroic Strike, Cleave, Maul or Raptor Strike is queued, the melee bars take "
-            .. "its color and name.", "enabled"),
-        ColorRow("queueColor", "Heroic Strike / Maul / Raptor Strike", "queueHighlight")
+            .. "its color and name.", "enabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        ColorRow("queueColor", "Heroic Strike / Maul / Raptor Strike", "queueHighlight"),
         ColorRow("cleaveColor", "Cleave", "queueHighlight")
     ); y = y - h
     return y
@@ -838,17 +839,20 @@ function ns.BuildSwingTimerAidsPage(parent, y)
         .. "swings. Each one is off until you turn it on.", y); y = y - h
 
     _, h = W:SectionHeader(parent, "SWING END WINDOW" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("swingWindow", "Swing End Window",
             "Shade the last part of each melee swing: when to twist a seal, finish a weave or "
-            .. "queue an attack before the hit.", "enabled"),
-        Needs(S.Slider("swingWindowTime", "Window Length (sec)", 0.1, 2, 0.05), "enabled", "swingWindow")
+            .. "queue an attack before the hit.", "enabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("swingWindowColor", "Window Color", "swingWindow", true),
+        Needs(S.Slider("swingWindowTime", "Window Length (sec)", 0.1, 2, 0.05), "enabled", "swingWindow"),
+        ColorRow("swingWindowColor", "Window Color", "swingWindow", true)
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("windowLatency", "Add Latency",
             "Widen the swing and Auto Shot windows by your world latency, so they show when "
-            .. "to press rather than when the server acts.", "enabled")
+            .. "to press rather than when the server acts.", "enabled"),
+        { type = "label", text = "" }
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "AUTO SHOT" .. UI.STATUS.untested, y); y = y - h
@@ -865,17 +869,17 @@ function ns.BuildSwingTimerAidsPage(parent, y)
         stand.disabled = autoShot.disabled
         moveRow.disabled = autoShot.disabled
     end
-    _, h = W:DualRow(parent, y, autoShot, stand); y = y - h
-    _, h = W:DualRow(parent, y, moveRow); y = y - h
+    _, h = W:Feature(parent, y, autoShot); y = y - h
+    _, h = W:DualRow(parent, y, stand, moveRow); y = y - h
 
     _, h = W:SectionHeader(parent, "CAST CLIP" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("castClip", "Cast Clip Marker",
             "While you cast, mark where the cast ends on the Main Hand bar. It turns red when "
-            .. "the cast will still be going as the swing comes due.", "enabled"),
-        ColorRow("castOkColor", "Cast Fits Color", "castClip", true)
+            .. "the cast will still be going as the swing comes due.", "enabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        ColorRow("castOkColor", "Cast Fits Color", "castClip", true),
         ColorRow("castBadColor", "Cast Clips Color", "castClip", true)
     ); y = y - h
 

@@ -89,7 +89,8 @@ function ns.BuildQoLBlessingsPage(parent, y)
         .. "Bindings > AddOns > Naowh Forever. Each press blesses the next player who needs it, most urgent "
         .. "first; in combat a key steps through the players who needed it when the fight began.", y); y = y - h
 
-    _, h = W:SectionHeader(parent, "BAR" .. UI.STATUS.untested, y); y = y - h
+    _, h = W:SectionHeader(parent, "BLESSING BAR", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Bar" .. UI.STATUS.untested }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("blessBarSize", "Button Size", 20, 70, 1, nil, "blessings"),
         S.Toggle("blessTimers", "Minutes Left",

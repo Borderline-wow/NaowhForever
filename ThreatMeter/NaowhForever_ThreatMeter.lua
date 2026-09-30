@@ -568,7 +568,8 @@ function ns.BuildThreatMeterPage(parent, y)
         .. "they are fighting. Scroll for more entries; unlock the window to drag and resize it, "
         .. "or position it in Unlock Mode.", y); y = y - h
 
-    _, h = W:SectionHeader(parent, "TRACKING", y); y = y - h
+    _, h = W:SectionHeader(parent, "METER", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Tracking" }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("focusEnabled", "Enable Focus Tracking", "Adds target/focus switching to the header."),
         S.Dropdown("source", "Track", { target = "Target", focus = "Focus" }, { "target", "focus" }, nil, "focusEnabled")
@@ -583,7 +584,7 @@ function ns.BuildThreatMeterPage(parent, y)
             "Pull Aggro: 100% takes aggro. Tank Threat: 100% equals the current tank's threat."),
         { type = "button", text = "10-Second Preview", buttonText = "Preview", onClick = function() ns.PreviewThreatMeter() end }
     ); y = y - h
-    _, h = W:SectionHeader(parent, "LAYOUT" .. UI.STATUS.untested, y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Layout" .. UI.STATUS.untested }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("width", "Width", 240, 520, 1, nil, "enabled"),
         S.Slider("height", "Window Height", 120, 700, 1, nil, "enabled")
@@ -613,7 +614,7 @@ function ns.BuildThreatMeterPage(parent, y)
         S.Toggle("locked", "Lock Window", "Off: drag the header or resize with the corner grip outside combat. Unlock Mode remains available."),
         S.Toggle("highlightPlayer", "Highlight Your Row")
     ); y = y - h
-    _, h = W:SectionHeader(parent, "APPEARANCE", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Appearance" }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("showIcons", "Class Icons", "Pets use their owner's class icon, desaturated."),
         S.Toggle("showRanks", "Rank Numbers")
@@ -631,7 +632,7 @@ function ns.BuildThreatMeterPage(parent, y)
         S.Dropdown("texture", "Bar Texture", { smooth = "Naowh Gradient", flat = "Flat" }, { "smooth", "flat" }),
         { type = "label", text = "Mouse wheel scrolls the roster" }
     ); y = y - h
-    _, h = W:SectionHeader(parent, "COLORS", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Colours" }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("playerColorOn", "Color Your Bar", "Your own bar in one color instead of your class color.",
             "enabled"),
@@ -652,16 +653,19 @@ function ns.BuildThreatMeterPage(parent, y)
     names.none = "None"
     table.insert(order, 1, "none")
     _, h = W:SectionHeader(parent, "WARNING", y); y = y - h
-    _, h = W:DualRow(parent, y,
+    _, h = W:Feature(parent, y,
         S.Toggle("warnSound", "Warning Sound",
             "Plays once when your threat climbs past the threshold, and again only after it "
-            .. "drops back below.", "enabled"),
-        S.Slider("warnAt", "Warn At (%)", 50, 100, 1, nil, "warnSound")
+            .. "drops back below.", "enabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("warnSoundKey", "Sound", names, order, nil, "warnSound"),
+        S.Slider("warnAt", "Warn At (%)", 50, 100, 1, nil, "warnSound"),
+        S.Dropdown("warnSoundKey", "Sound", names, order, nil, "warnSound")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("warnSkipTank", "Not While Tanking",
-            "No warning in a tank role, Bear Form or Defensive Stance.", "warnSound")
+            "No warning in a tank role, Bear Form or Defensive Stance.", "warnSound"),
+        { type = "label", text = "" }
     ); y = y - h
 
     return y

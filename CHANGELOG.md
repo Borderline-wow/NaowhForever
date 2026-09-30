@@ -11,6 +11,10 @@
   Badges, where you can also turn on a banner for when one of them joins your group.
 
 ### Changed
+- Settings pages are shorter: a feature with several options, such as Restock or the Co-Tank
+  Frame, is one row with its on/off switch, and its options open under it with a click.
+  Features with a single switch stay as they are. Groups of options with no switch of their
+  own, such as a module's layout or colours, open the same way.
 - Dungeon Quests: click a step in a quest's Chain list for a waypoint to where it starts,
   or for a step in your log, to where the game sends you for it.
 - Co-Tank Frame: Righteous Fury counts as tanking for paladins.

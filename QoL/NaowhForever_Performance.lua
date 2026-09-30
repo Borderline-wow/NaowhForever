@@ -189,13 +189,14 @@ function ns.BuildQoLPerformancePage(parent, y)
         ns.Confirm("Put back every setting this page has changed?", RestoreAll)
     end); y = y - h
 
+    _, h = W:SectionHeader(parent, "INDIVIDUAL SETTINGS", y); y = y - h
     for _, cat in ipairs(CATEGORIES) do
         local rows = {}
         for _, c in ipairs(cat.cvars) do
             if Exists(c[1]) then rows[#rows + 1] = c end
         end
         if #rows > 0 then
-            _, h = W:SectionHeader(parent, cat.name, y); y = y - h
+            _, h = W:Feature(parent, y, { type = "label", text = cat.name }); y = y - h
             for i = 1, #rows, 2 do
                 _, h = W:DualRow(parent, y, CVarRow(rows[i]), CVarRow(rows[i + 1])); y = y - h
             end

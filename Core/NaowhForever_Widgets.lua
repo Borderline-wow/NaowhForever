@@ -392,6 +392,19 @@ UI.Widgets = W
 
 local ROW_H, HEADER_H = 50, 40
 
+-- Features a player has opened this session, by page and name. A feature's options sit
+-- under its row (W:Feature); on a page marked `collapse` they start closed, still built so
+-- callers keep the frames they expect, but hidden and taking no height.
+local openFeatures = {}
+
+local function Collapsed(parent, frame, h)
+    if parent._nsuiCollapsed then
+        frame:Hide()
+        return frame, 0
+    end
+    return frame, h
+end
+
 -- Only enabled for pages whose rows have stable identities. Config objects stay
 -- attached to their controls; rebuilding updates their callbacks and dropdown data.
 function UI.BeginReusableRows(parent)
@@ -656,7 +669,7 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
         row._leftRegion._refresh(leftCfg)
         if rightCfg then row._rightRegion._refresh(rightCfg) end
         if row._band then row._band:SetShown(count % 2 == 1) end
-        return row, ROW_H
+        return Collapsed(parent, row, ROW_H)
     end
     if count % 2 == 1 or parent._rowCache then
         local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
@@ -683,11 +696,12 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
     else
         row._leftRegion = BuildRegion(row, leftCfg, 0, w)
     end
-    return row, ROW_H
+    return Collapsed(parent, row, ROW_H)
 end
 
 function W:SectionHeader(parent, text, yOffset)
     parent._nsuiRowCount = 0
+    parent._nsuiCollapsed = nil
     local f = CachedRow(parent, "header:" .. text) or CreateFrame("Frame", nil, parent)
     f:SetHeight(HEADER_H)
     f:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
@@ -704,6 +718,51 @@ function W:SectionHeader(parent, text, yOffset)
     return f, HEADER_H
 end
 
+-- A feature with several options: one full-width row with an arrow, its name and, when cfg
+-- is a toggle, its on/off switch, so it can be switched without opening it. Its options are
+-- the rows after it, up to the next section header, feature or W:EndFeature. key names the
+-- feature for its open state when cfg.text is not stable.
+function W:Feature(parent, yOffset, cfg, key)
+    parent._nsuiCollapsed = nil
+    local row = W:DualRow(parent, yOffset, cfg)
+    local collapsible = parent._collapsible == true
+    local id = collapsible and (parent._pageKey .. ":" .. (key or cfg.text)) or nil
+    if not row._feature then
+        row._feature = true
+        row.arrow = ns.Font(row, 12, nil, T.muted)
+        row.arrow:SetPoint("LEFT", row, "LEFT", 6, 0)
+        row.hit = CreateFrame("Button", nil, row)
+        row.hit:SetPoint("TOPLEFT")
+        row.hit:SetPoint("BOTTOMLEFT")
+        row.hit:SetPoint("RIGHT", row._leftRegion, "RIGHT", -120, 0)
+        row.hit:SetFrameLevel(row._leftRegion:GetFrameLevel() + 3)
+        row.hit:SetScript("OnClick", function(hit)
+            openFeatures[hit._id] = not openFeatures[hit._id] or nil
+            UI:RefreshPage(true)
+        end)
+        row.hit:SetScript("OnEnter", function(hit)
+            row.arrow:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
+            local tip = hit._cfg.tooltip
+            if tip then UI.ShowWidgetTooltip(hit, tip, { anchor = "cursor", justify = "LEFT" }) end
+        end)
+        row.hit:SetScript("OnLeave", function()
+            row.arrow:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
+            UI.HideWidgetTooltip()
+        end)
+    end
+    row.hit._id, row.hit._cfg = id, cfg
+    local closed = collapsible and not openFeatures[id]
+    row.hit:SetShown(collapsible)
+    row.arrow:SetShown(collapsible)
+    row.arrow:SetText(closed and ">" or "v")
+    parent._nsuiCollapsed = closed or nil
+    return row, ROW_H
+end
+
+function W:EndFeature(parent)
+    parent._nsuiCollapsed = nil
+end
+
 function W:Button(parent, text, yOffset, onClick)
     local row = CachedRow(parent, "button:" .. text) or CreateFrame("Frame", nil, parent)
     row:SetHeight(ROW_H)
@@ -714,7 +773,7 @@ function W:Button(parent, text, yOffset, onClick)
         row._btn = ns.Button(row, text, 200, 26, function() row._onClick() end)
         row._btn:SetPoint("LEFT", row, "LEFT", 20, 0)
     end
-    return row, ROW_H
+    return Collapsed(parent, row, ROW_H)
 end
 
 -- The swatch alone, sized to drop into either a full row (W:ColorPicker below) or a
@@ -768,7 +827,7 @@ function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
     if row._swatch then
         row._swatch._refreshValue()
         if row._band then row._band:SetShown(count % 2 == 1) end
-        return row, ROW_H
+        return Collapsed(parent, row, ROW_H)
     end
     if count % 2 == 1 or parent._rowCache then
         local band = ns.Solid(row, "BACKGROUND", T.panel, 0.35)
@@ -786,7 +845,7 @@ function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
         function(...) return row._colorSet(...) end, hasAlpha)
     row._swatch = swatchBtn
     swatchBtn:SetPoint("RIGHT", row, "RIGHT", -20, 0)
-    return row, ROW_H
+    return Collapsed(parent, row, ROW_H)
 end
 
 -- A wrapped line of muted text across the content width, for context a row label cannot
@@ -810,8 +869,9 @@ function W:Note(parent, text, yOffset)
     if w <= 0 then w = 960 end
     fs:SetWidth(w - (UI.CONTENT_PAD + 20) * 2)
     fs:SetText(text)
+    fs:Show()
     local h = math.ceil(fs:GetStringHeight()) + 24
-    return fs, h
+    return Collapsed(parent, fs, h)
 end
 
 -- Shared placement controls for ordinary display plates and reminder anchor handles.

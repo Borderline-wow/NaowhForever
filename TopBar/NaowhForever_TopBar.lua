@@ -654,7 +654,8 @@ function ns.BuildTopBarPage(parent, y)
         .. "buttons on either side, with FPS and latency underneath. Move it in Unlock Mode.",
         y); y = y - h
 
-    _, h = W:SectionHeader(parent, "BAR", y); y = y - h
+    _, h = W:SectionHeader(parent, "TOP BAR", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Bar" }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("use24h", "24-Hour Clock", nil, "enabled"),
         S.Slider("bgAlpha", "Bar Opacity (%)", 0, 100, 5, nil, "enabled")
@@ -678,18 +679,18 @@ function ns.BuildTopBarPage(parent, y)
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "FPS / MS", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("showSystem", "Show FPS / MS", nil, "enabled"),
-        S.Slider("sysSize", "Text Size", 6, 24, 1, nil, "showSystem")
+    _, h = W:Feature(parent, y,
+        S.Toggle("showSystem", "Show FPS / MS", nil, "enabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Slider("sysSize", "Text Size", 6, 24, 1, nil, "showSystem"),
         S.Toggle("systemTooltip", "Tooltip", "Latency and addon memory when you hover the readout.",
-            "showSystem"),
-        { type = "label", text = "" }
+            "showSystem")
     ); y = y - h
 
     -- Every broker source with an icon, from any addon, each with the side it goes on.
     _, h = W:SectionHeader(parent, "BUTTONS", y); y = y - h
+    _, h = W:Feature(parent, y, { type = "label", text = "Addon Buttons" }); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("showHearth", "Hearthstone", "Uses your Hearthstone. Its tooltip shows where "
             .. "it is set and its cooldown.", "enabled"),

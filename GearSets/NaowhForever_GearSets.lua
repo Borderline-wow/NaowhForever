@@ -353,8 +353,12 @@ function ns.BuildQoLGearSetsPage(parent, y)
     ); y = y - h
     _, h = W:Button(parent, "New Gear Set", y, ns.NewGearSet); y = y - h
 
+    if sets[1] then
+        _, h = W:SectionHeader(parent, "YOUR SETS", y); y = y - h
+    end
     for _, set in ipairs(sets) do
-        _, h = W:SectionHeader(parent, set.name:upper() .. (set.equipped and "  (EQUIPPED)" or ""), y); y = y - h
+        _, h = W:Feature(parent, y, { type = "label",
+            text = set.name .. (set.equipped and "   |cff4dd17aEQUIPPED|r" or "") }, "set" .. set.id); y = y - h
         _, h = W:Button(parent, "Equip " .. set.name, y, function() EquipByHand(set.id) end); y = y - h
         _, h = W:Button(parent, "Save Current Gear", y, function() ns.SaveGearSet(set.id, set.name) end); y = y - h
         _, h = W:Button(parent, "Rename", y, function() ns.RenameGearSet(set.id, set.name) end); y = y - h
