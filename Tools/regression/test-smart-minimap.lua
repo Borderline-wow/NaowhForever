@@ -28,7 +28,7 @@ for _, saved in ipairs({{}, {minimap={minimapPos=47,hide=true}}}) do
         MODULES={ {name="QoL"}, dq, gear },
         MinimapButtonOn=function(mod) return mod.micro==true end,
         ToggleModuleWindow=function(mod) opened=mod end}, {__index=_G})
-    assert(load(chunk,"launcher","t",env))()
+    local launcher = assert(loadstring(chunk, "launcher")); setfenv(launcher, env); launcher()
     assert(not registered)
     event(frame)
     assert(registered and object.type=="launcher")

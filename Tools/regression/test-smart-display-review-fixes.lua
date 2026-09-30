@@ -39,4 +39,4 @@ settings.hideOnCast=true;shownForEvent=nil;ns.HideIfCalloutPressed(22);assert(no
 incoming={};RebuildSlots();assert(alpha==0 and activeSlots==0,"normal rebuild failed to clear")
 print("PASS: empty/missing/unusable presets preserve display; normal rebuild clears; voice-off, stale voice, override, invisible, secret and toggle cases")
 ]]
-assert(load(test,"display review regression","t",_G))()
+assert(loadstring(test, "display review regression"))()

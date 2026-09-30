@@ -17,7 +17,8 @@ end
 for name in ("SetFont SetFontObject SetTextColor SetColorTexture SetTexture SetAllPoints SetPoint "
     .. "ClearAllPoints SetDrawLayer SetVertexColor SetTexelSnappingBias SetSnapToPixelGrid "
     .. "SetJustifyH SetJustifyV SetWordWrap SetAlpha EnableMouse SetAutoFocus SetTextInsets "
-    .. "SetCursorPosition ClearFocus SetFrameStrata SetClampedToScreen SetSpacing"):gmatch("%S+") do
+    .. "SetCursorPosition ClearFocus SetFrameStrata SetClampedToScreen SetSpacing "
+    .. "RegisterEvent UnregisterEvent UnregisterAllEvents RegisterUnitEvent"):gmatch("%S+") do
     methods[name] = function() end
 end
 function methods:SetScript(name, fn) self.scripts[name] = fn end
@@ -67,6 +68,7 @@ env.DefensiveTextColor = function() return 1, 1, 1, 1 end
 env.CustomTextColor = env.DefensiveTextColor
 env.previewPin = true
 env.canSound = true
+ns.BossSource = function() return "timeline" end
 Eval(main:sub(defaults, defaultsEnd - 1) .. main:sub(first, last - 1))
 local page = Object()
 local function Build(on)
