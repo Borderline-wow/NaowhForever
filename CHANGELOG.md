@@ -17,6 +17,17 @@
   Badges, where you can also turn on a banner for when one of them joins your group.
 
 ### Changed
+- BiS List: lists are shared by every character of a class, and a class can keep several.
+  Pick, make, rename and delete them on the List and Settings tabs; each character keeps
+  using its own pick. Your current list moves over, named after your character. Importing
+  a list adds it as a new one instead of replacing yours.
+- BiS List: a slot's BiS item is framed in a thin border of its quality colour, and the
+  check mark is gone.
+- BiS List: a button beside each slot steps its icon through your picks (BiS, 2nd, 3rd and so
+  on) and turns green on the one you are wearing; the slot's line in Where Your Items Drop
+  follows it. The slot's picker tags the item you wear Worn.
+- Dungeon Quests and BiS List open straight to the dungeons and to your character panel;
+  their options moved to a new Settings tab in each.
 - Dungeon Quests and BiS List open straight to the dungeons and to your character panel;
   their options moved to a new Settings tab in each.
 - Settings pages are shorter: a feature with several options, such as Restock or the Co-Tank

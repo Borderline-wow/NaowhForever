@@ -19,7 +19,7 @@ local SPECS = {
     { class = "MAGE", key = "frost-mage", name = "Frost Mage", slots = { [1] = { 104, 103, 102 } } },
 }
 
-local function Fixture(saved)
+local function Fixture(saved, char)
     local e = { account = { bis = saved }, printed = {} }
     local ns = {}
     ns.Print = function(m) e.printed[#e.printed + 1] = m end
@@ -34,7 +34,7 @@ local function Fixture(saved)
     local vault = {}
     local frame = { SetScript = function() end, RegisterEvent = function() end }
     local env = setmetatable({ NaowhForever = ns,
-        UnitName = function() return "Tester" end,
+        UnitName = function() return char or "Tester" end,
         UnitClass = function() return "Mage", "MAGE" end,
         GetRealmName = function() return "Realm" end,
         C_Item = {
@@ -79,9 +79,12 @@ local function Fixture(saved)
     return e
 end
 
+-- The list this character is using, from its class's lists.
 local function Saved(e)
     e.ns.IsBisItem(0)   -- any read runs the one-time moves
-    return e.account.bis["Tester-Realm"]
+    for _, list in ipairs(e.account.bisLists.MAGE.lists) do
+        if list.id == e.account.bisActive["Tester-Realm"] then return list end
+    end
 end
 
 -- A slot's picks in order, #1 first.
@@ -379,4 +382,66 @@ Case("a source splits into place and boss at the last middle dot", function()
     assert(place == "World Drop" and detail == nil)
 end)
 
+
+Case("an old per-character list joins its class's lists, named for the character", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "My BiS", slots = { [1] = 101 } } })
+    local list = Saved(e)
+    assert(list.name == "Tester" and list.slots[1] == 101, "moved and named")
+    assert(e.account.bis["Tester-Realm"] == nil and #e.account.bisLists.MAGE.lists == 1, "moved once")
+end)
+
+Case("every character of a class sees its lists and keeps its own choice", function()
+    local e = Fixture()
+    e.ns.IsBisItem(0)
+    assert(e.ns.NewBisList("Tank"))
+    local alt = Fixture(nil, "Alt")
+    alt.account = e.account
+    local values, order, active = alt.ns.BisListChoices()
+    assert(#order == 2 and values[order[2]] == "Tank", "shared")
+    assert(active == order[1] and Saved(e).name == "Tank", "each keeps its own")
+end)
+
+Case("lists are made, renamed and deleted, and names stay unique", function()
+    local e = Fixture()
+    assert(e.ns.NewBisList("Raid"))
+    assert(not e.ns.NewBisList(" raid "), "taken, ignoring case and spaces")
+    assert(not e.ns.RenameBisList("   "), "empty")
+    assert(e.ns.RenameBisList("Raid |cffff0000") and Saved(e).name == "Raid ||cffff0000", "escaped")
+    e.ns.DeleteBisList()
+    assert(Saved(e).name == "My BiS" and #e.account.bisLists.MAGE.lists == 1, "moved to what is left")
+    e.ns.DeleteBisList()
+    assert(Saved(e).name == "My BiS" and next(Saved(e).slots) == nil, "never left without one")
+end)
+
+Case("an import adds a list beside the one in use", function()
+    local e = Fixture()
+    e.ns.AddBisPick(1, 101)
+    local mine = Saved(e)
+    e.vault[1] = { v = 2, name = "Robin's", slots = { [1] = 102 } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    assert(Saved(e).name == "Robin's" and Picks(e, 1) == "102" and mine.slots[1] == 101, "kept both")
+    assert(e.ns.ImportBisList("!NBIS1!S1", true) and Saved(e).name == "Robin's 2", "a free name")
+end)
+
+Case("switching spec swaps the picks but keeps the list's name", function()
+    local e = Fixture()
+    assert(e.ns.NewBisList("Keep"))
+    e.ns.AddBisPick(1, 103)
+    e.ns.SetBisSpec("frost-mage")
+    assert(Saved(e).name == "Keep" and Picks(e, 1) == "", "frost starts empty")
+    e.ns.SetBisSpec("fire-mage")
+    assert(Picks(e, 1) == "103", "fire's picks came back")
+end)
+
+Case("a moved list whose name is taken gets a free one", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "Raid", slots = {} } })
+    e.account.bisLists = { MAGE = { lists = { { id = 1, name = "raid", slots = {}, extra = {} } }, nextID = 2 } }
+    assert(Saved(e).name == "Raid 2")
+end)
+
+Case("renaming to the name as shown keeps its pipes as they are", function()
+    local e = Fixture()
+    assert(e.ns.RenameBisList("A|B") and Saved(e).name == "A||B")
+    assert(e.ns.RenameBisList((Saved(e).name:gsub("||", "|"))) and Saved(e).name == "A||B")
+end)
 print(("%d cases passed"):format(count))

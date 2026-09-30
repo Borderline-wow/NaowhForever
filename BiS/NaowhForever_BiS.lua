@@ -34,7 +34,10 @@ local EQUIP_SLOTS = {
 }
 
 local lookup   -- itemID -> its best pick number (1 is BiS), rebuilt when the list changes
-local wornMarks = {}   -- built page -> its worn marks, rechecked when gear changes
+local wornMarks = {}   -- built page -> its slot buttons, repainted when gear changes
+-- Which pick each slot's icon shows once its rank button has been clicked, this session.
+local shownPick = {}
+local ShowPick
 
 local function On()
     return S.Get("bis")
@@ -78,6 +81,24 @@ local function Wearing(slot, itemID)
     local pair = (slot == 11 and 12) or (slot == 12 and 11) or (slot == 13 and 14) or (slot == 14 and 13)
     return pair and GetInventoryItemID("player", pair) == itemID
 end
+
+-- The pick a slot shows on the paperdoll and in the list: the one its rank button was
+-- stepped to, else the one you wear, else the BiS.
+local function ShownRank(slot, picks)
+    local rank = shownPick[slot]
+    if rank and picks[rank] then return rank end
+    for i, id in ipairs(picks) do
+        if Wearing(slot, id) then return i end
+    end
+    return 1
+end
+
+local function RankLabel(rank)
+    return rank == 1 and "BiS" or rank == 2 and "2nd" or rank == 3 and "3rd" or "#" .. rank
+end
+
+local WORN_COLOR = { r = 0.1, g = 0.85, b = 0.2 }
+
 
 -- A slot's picks in order: slots[slot] is #1 and extra[slot] holds the rest.
 local function Picks(list, slot)
@@ -132,17 +153,65 @@ local function Ranked(set, order)
     return ids
 end
 
--- One list per character, kept in the account store: personal, so it never travels in an
--- exported profile. Lists from before slots were a flat item list; each item moves into the
--- first slot it fits. 0.5.12 test builds kept extra[slot] as an unordered set of secondary
--- picks; those are put in ranked order behind the BiS pick. Whatever no longer fits is named
--- in chat once.
-local function List()
+-- Lists are kept per class in the account store, so every character of a class shares them
+-- and none travels in an exported profile; each character remembers which one it uses, by
+-- id. A character's own list from before lists were shared joins its class's lists the first
+-- time it logs in, named for the character unless it already had a name of its own.
+local function ClassLists()
     local account = ns.AccountSettings()
-    account.bis = account.bis or {}
-    local key = UnitName("player") .. "-" .. GetRealmName()
-    local list = account.bis[key] or { name = "My BiS" }
-    account.bis[key] = list
+    local _, class = UnitClass("player")
+    account.bisLists = account.bisLists or {}
+    local store = account.bisLists[class] or { lists = {}, nextID = 1 }
+    account.bisLists[class] = store
+    account.bisActive = account.bisActive or {}
+    return store, account
+end
+
+local function AddList(store, list)
+    list.id = store.nextID
+    store.nextID = store.nextID + 1
+    store.lists[#store.lists + 1] = list
+    return list
+end
+
+local function Taken(store, name, except)
+    for _, l in ipairs(store.lists) do
+        if l ~= except and l.name:lower() == name:lower() then return true end
+    end
+    return false
+end
+
+local function FreeName(store, name)
+    local try, n = name, 1
+    while Taken(store, try) do
+        n = n + 1
+        try = ("%s %d"):format(name, n)
+    end
+    return try
+end
+
+local function CharKey()
+    return UnitName("player") .. "-" .. GetRealmName()
+end
+
+-- Lists from before slots were a flat item list; each item moves into the first slot it
+-- fits. 0.5.12 test builds kept extra[slot] as an unordered set of secondary picks; those
+-- are put in ranked order behind the BiS pick. Whatever no longer fits is named in chat once.
+local function List()
+    local store, account = ClassLists()
+    local key = CharKey()
+    local old = account.bis and account.bis[key]
+    if old then
+        old.name = FreeName(store, (not old.name or old.name == "My BiS") and UnitName("player") or old.name)
+        account.bisActive[key] = AddList(store, old).id
+        account.bis[key] = nil
+    end
+    local list
+    for _, l in ipairs(store.lists) do
+        if l.id == account.bisActive[key] then list = l end
+    end
+    list = list or store.lists[1] or AddList(store, { name = "My BiS" })
+    account.bisActive[key] = list.id
     list.extra = list.extra or {}
     local dropped = {}
     if not list.slots then
@@ -178,10 +247,10 @@ local function SwitchListSpec(key)
     end
     list.bySpec = list.bySpec or {}
     if previous then
-        list.bySpec[previous] = { name = list.name, slots = list.slots, extra = list.extra }
+        list.bySpec[previous] = { slots = list.slots, extra = list.extra }
     end
-    local nextList = list.bySpec[key] or { name = "My BiS", slots = {}, extra = {} }
-    list.name, list.slots, list.extra = nextList.name, nextList.slots, nextList.extra
+    local nextList = list.bySpec[key] or { slots = {}, extra = {} }
+    list.slots, list.extra = nextList.slots, nextList.extra
     list.spec = key
     return list
 end
@@ -234,6 +303,67 @@ function ns.SetBisSpec(key)
             return
         end
     end
+end
+
+-- Names are shown in chat and tooltips, so escape codes are neutralised.
+local function CleanName(name)
+    name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
+    if name == "" then return nil end
+    return (name:sub(1, 40):gsub("|", "||"))
+end
+
+-- For the list dropdown: id -> name in the order they were made, and the one in use.
+function ns.BisListChoices()
+    local id = List().id
+    local values, order = {}, {}
+    for _, l in ipairs((ClassLists()).lists) do
+        values[l.id], order[#order + 1] = l.name, l.id
+    end
+    return values, order, id
+end
+
+function ns.SelectBisList(id)
+    local store, account = ClassLists()
+    for _, l in ipairs(store.lists) do
+        if l.id == id then
+            account.bisActive[CharKey()] = id
+            Changed()
+            return
+        end
+    end
+end
+
+-- An empty list, ranked for the spec the current one is ranked for, and switched to.
+function ns.NewBisList(name)
+    name = CleanName(name)
+    if not name then return false, "the name is empty" end
+    local current = CurrentSpec()
+    local store, account = ClassLists()
+    if Taken(store, name) then return false, "that name is taken" end
+    local list = AddList(store, { name = name, spec = current and current.key, slots = {}, extra = {} })
+    account.bisActive[CharKey()] = list.id
+    Changed()
+    return true
+end
+
+function ns.RenameBisList(name)
+    name = CleanName(name)
+    if not name then return false, "the name is empty" end
+    local list = List()
+    if Taken((ClassLists()), name, list) then return false, "that name is taken" end
+    list.name = name
+    Changed()
+    return true
+end
+
+-- Every character using it moves to the class's first list, or a new empty one.
+function ns.DeleteBisList()
+    local list = List()
+    local lists = (ClassLists()).lists
+    for i, l in ipairs(lists) do
+        if l == list then table.remove(lists, i) break end
+    end
+    Changed()
 end
 
 -- The next pick in the slot, #1 when it has none.
@@ -393,13 +523,14 @@ function ns.ImportBisList(text, quiet)
     for _ in pairs(slots) do count = count + 1 end
     for _, rest in pairs(extra) do count = count + #rest end
     local function Apply()
-        local list = SwitchListSpec(spec)
-        list.name, list.slots, list.extra = name, slots, extra
+        local store, account = ClassLists()
+        local list = AddList(store, { name = FreeName(store, name), spec = spec, slots = slots, extra = extra })
+        account.bisActive[CharKey()] = list.id
         Changed()
-        ns.Print(("Imported %s: %d items."):format(name, count))
+        ns.Print(("Imported %s: %d items."):format(list.name, count))
     end
     if quiet then Apply() else
-        ns.Confirm(("Replace your BiS list with %s (%d items)?"):format(name, count), Apply)
+        ns.Confirm(("Add %s (%d items) as a new BiS list?"):format(name, count), Apply)
     end
     return true
 end
@@ -444,8 +575,10 @@ local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, rollID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
         for _, marks in pairs(wornMarks) do
-            for _, mark in ipairs(marks) do mark:SetShown(Wearing(mark.slot, mark.itemID)) end
+            for _, b in ipairs(marks) do ShowPick(b) end
         end
+        -- The list beside the paperdoll says which pick is worn too.
+        if next(wornMarks) then ns.UI:RefreshPage(true) end
         return
     end
     if event == "LOOT_CLOSED" then
@@ -493,8 +626,7 @@ end
 -------------------------------------------------------------------------------
 --  The picker
 -------------------------------------------------------------------------------
-local CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
-local BIS_COLOR, EMPTY_COLOR = { 0.1, 0.85, 0.2 }, { 0, 0, 0 }
+local EMPTY_COLOR = { 0, 0, 0 }
 local BIS_TEXT = "|cff1ad933BiS|r"
 local SOURCE_SEP = " \194\183 "   -- the middle dot wowsrc puts between boss and place
 local PICKER_W, PICKER_H, PICK_ROW = 480, 560, 30
@@ -562,6 +694,7 @@ local function SetItemLine(row, num, id, detail)
     row.num:SetText(num)
     row.icon:SetTexture(C_Item.GetItemIconByID(id))
     row.text:SetText(QualityHex(id) .. Name(id) .. "|r" .. (detail and "  " .. detail or "")
+        .. (pickerSlot and Wearing(pickerSlot, id) and "  |cff1ad933Worn|r" or "")
         .. (source and "  |cff808080" .. source .. "|r" or ""))
 end
 
@@ -800,7 +933,7 @@ local RIGHT_SLOTS = { 10, 6, 7, 8, 11, 12, 13, 14 }
 local BOTTOM_SLOTS = { 16, 17, 18 }
 local COLUMN_H = #RIGHT_SLOTS * (SLOT_SIZE + SLOT_GAP) - SLOT_GAP
 local DOLL_W = 380
-local DOLL_H = COLUMN_H + MODEL_GAP + SLOT_SIZE + 16   -- room for Worn under the weapons
+local DOLL_H = COLUMN_H + MODEL_GAP + SLOT_SIZE + 16   -- room for the rank buttons under the weapons
 local openSlots = {}   -- slots whose picks the panel lists in full, for the session
 
 local function SlotTooltip(self)
@@ -809,7 +942,7 @@ local function SlotTooltip(self)
     local label = ns.L(SLOT_NAME[self.slot])
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     if picks[1] then
-        GameTooltip:SetItemByID(picks[1])
+        GameTooltip:SetItemByID(self.itemID)
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(("Your %s picks"):format(label), T.accent.r, T.accent.g, T.accent.b)
         for i, id in ipairs(picks) do
@@ -832,17 +965,26 @@ local function NewSlotButton(parent)
     b.border = b:CreateTexture(nil, "BACKGROUND")
     b.border:SetAllPoints()
     b.icon = b:CreateTexture(nil, "ARTWORK")
-    b.icon:SetPoint("TOPLEFT", 2, -2)
-    b.icon:SetPoint("BOTTOMRIGHT", -2, 2)
-    b.check = b:CreateTexture(nil, "OVERLAY")
-    b.check:SetSize(20, 20)
-    b.check:SetPoint("BOTTOMRIGHT", 5, -5)
-    b.check:SetTexture(CHECK)
-    b.check:SetVertexColor(BIS_COLOR[1], BIS_COLOR[2], BIS_COLOR[3])
+    b.icon:SetPoint("TOPLEFT", 1, -1)
+    b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
     b.more = ns.Font(b, 11, "OUTLINE")
     b.more:SetPoint("TOPRIGHT", -3, -3)
-    b.worn = ns.Font(b, 10, nil, T.muted)
-    b.worn:SetText("Worn")
+    b.rank = CreateFrame("Button", nil, b)
+    b.rank:SetSize(26, 14)
+    b.rank:SetFrameLevel(b:GetFrameLevel() + 2)
+    ns.Solid(b.rank, "BACKGROUND", T.panel, 0.9):SetAllPoints()
+    b.rank.border = ns.Border(b.rank)
+    b.rank.label = ns.Font(b.rank, 9, "OUTLINE")
+    b.rank.label:SetPoint("CENTER", 0, 0)
+    b.rank:SetScript("OnClick", function()
+        shownPick[b.slot] = b.shown % #b.picks + 1
+        ns.UI:RefreshPage(true)
+    end)
+    b.rank:SetScript("OnEnter", function(self)
+        ns.UI.ShowWidgetTooltip(self, "Click to step through your picks for this slot. Green "
+            .. "while the item shown is the one you have on.")
+    end)
+    b.rank:SetScript("OnLeave", function() ns.UI.HideWidgetTooltip() end)
     b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     b:SetScript("OnClick", function(self) OpenPicker(self.slot) end)
     b:SetScript("OnEnter", function(self)
@@ -856,7 +998,35 @@ local function NewSlotButton(parent)
     return b
 end
 
--- side is where Worn goes, clear of the model: LEFT, RIGHT or BOTTOM.
+-- A 1px border in the item's quality colour, painted again once the client has the item.
+local function PaintQuality(b, id)
+    local q = C_Item.GetItemQualityByID(id)
+    local c = q and ITEM_QUALITY_COLORS[q]
+    if c then
+        b.border:SetColorTexture(c.r, c.g, c.b, 1)
+        return
+    end
+    b.border:SetColorTexture(EMPTY_COLOR[1], EMPTY_COLOR[2], EMPTY_COLOR[3], 1)
+    OnLoaded({ id }, function()
+        if b.itemID == id then PaintQuality(b, id) end
+    end)
+end
+
+-- The button names the rank the slot shows, green while that item is equipped.
+function ShowPick(b)
+    local rank = ShownRank(b.slot, b.picks)
+    local id = b.picks[rank]
+    b.shown, b.itemID = rank, id
+    b.icon:SetTexture(C_Item.GetItemIconByID(id))
+    PaintQuality(b, id)
+    local worn = Wearing(b.slot, id)
+    b.rank.label:SetText(RankLabel(rank))
+    local c = worn and WORN_COLOR or T.muted
+    b.rank.label:SetTextColor(c.r, c.g, c.b, 1)
+    b.rank.border:SetColor(c.r, c.g, c.b, worn and 1 or 0.5)
+end
+
+-- side is where the slot sits: its rank button goes toward the model, or under the weapons.
 local function SlotButton(doll, slot, x, y, side, marks)
     local b = ns.UI.Keep(doll, "slot", NewSlotButton)
     b:SetPoint("TOPLEFT", doll, "TOPLEFT", x, y)
@@ -865,29 +1035,27 @@ local function SlotButton(doll, slot, x, y, side, marks)
     local picks = Picks(list, slot)
     local id = picks[1]
     b.icon:SetDesaturated(slot == 17 and OffHandIdle(list))
-    b.worn:ClearAllPoints()
+    b.rank:ClearAllPoints()
     if side == "LEFT" then
-        b.worn:SetPoint("RIGHT", b, "LEFT", -4, 0)
+        b.rank:SetPoint("LEFT", b, "RIGHT", 3, 0)
     elseif side == "RIGHT" then
-        b.worn:SetPoint("LEFT", b, "RIGHT", 4, 0)
+        b.rank:SetPoint("RIGHT", b, "LEFT", -3, 0)
     else
-        b.worn:SetPoint("TOP", b, "BOTTOM", 0, -2)
+        b.rank:SetPoint("TOP", b, "BOTTOM", 0, -2)
     end
-    b.check:SetShown(id ~= nil)
+    b.picks = picks
     b.more:SetText(#picks > 1 and "+" .. (#picks - 1) or "")
+    b.rank:SetShown(id ~= nil)
     if id then
-        b.icon:SetTexture(C_Item.GetItemIconByID(id))
         b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        b.border:SetColorTexture(BIS_COLOR[1], BIS_COLOR[2], BIS_COLOR[3], 1)
-        b.worn.slot, b.worn.itemID = slot, id
-        b.worn:SetShown(Wearing(slot, id))
-        marks[#marks + 1] = b.worn
+        ShowPick(b)
+        marks[#marks + 1] = b
     else
+        b.itemID = nil
         local _, empty = C_PaperDollInfo.GetInventorySlotInfoForInvSlot(slot)
         b.icon:SetTexture(empty)
         b.icon:SetTexCoord(0, 1, 0, 1)
         b.border:SetColorTexture(EMPTY_COLOR[1], EMPTY_COLOR[2], EMPTY_COLOR[3], 1)
-        b.worn:Hide()
     end
 end
 
@@ -1085,7 +1253,10 @@ local function SourcePanel(parent, x, y, width)
             local b = UI.Keep(f, "slotLine", NewSlotLine)
             b:SetPoint("TOPLEFT", f, "TOPLEFT", 0, top)
             b:SetPoint("RIGHT", f, "RIGHT")
-            b.slot, b.id = slot, picks[1]
+            local rank = ShownRank(slot, picks)
+            b.slot, b.id = slot, picks[rank]
+            b.tag = picks[1] and ("  |cff%s%s|r"):format(Wearing(slot, b.id) and "1ad933" or "808080",
+                RankLabel(rank)) or ""
             f.lines[slot] = b
             b.label:SetText(ns.L(SLOT_NAME[slot]) .. ":")
             b.more:SetText(#picks > 1 and "+" .. (#picks - 1) or "")
@@ -1097,9 +1268,9 @@ local function SourcePanel(parent, x, y, width)
             else
                 b.toggle:SetNormalTexture(openSlots[slot] and MINUS or PLUS)
                 b.place:SetText(slot == 17 and OffHandIdle(list) and "unused, two-hander in main hand"
-                    or (Place(ns.BiSSource(picks[1]) or "Source not listed")))
+                    or (Place(ns.BiSSource(b.id) or "Source not listed")))
                 named[#named + 1] = b
-                ids[#ids + 1] = picks[1]
+                ids[#ids + 1] = b.id
             end
             if picks[1] and openSlots[slot] then
                 for i, id in ipairs(picks) do
@@ -1107,6 +1278,7 @@ local function SourcePanel(parent, x, y, width)
                     row:SetPoint("TOPLEFT", f, "TOPLEFT", 0, top)
                     row:SetPoint("RIGHT", f, "RIGHT")
                     row.id = id
+                    row.tag = Wearing(slot, id) and "  |cff1ad933Worn|r" or ""
                     row.num:SetText(i .. ".")
                     local place, detail = Place(ns.BiSSource(id) or "Source not listed")
                     row.source:SetText(detail and detail .. ", " .. place or place)
@@ -1121,7 +1293,7 @@ local function SourcePanel(parent, x, y, width)
     -- A later build can hand these lines another item, or none, before the names load.
     local function SetNames()
         for _, line in ipairs(named) do
-            if line.id then line.item:SetText(QualityHex(line.id) .. Name(line.id) .. "|r") end
+            if line.id then line.item:SetText(QualityHex(line.id) .. Name(line.id) .. "|r" .. line.tag) end
         end
     end
     SetNames()
@@ -1130,13 +1302,30 @@ local function SourcePanel(parent, x, y, width)
     return -top, f.lines
 end
 
+-- The class's lists, shared by every character of it; each character uses one at a time.
+local function ListChoice()
+    local values, order = ns.BisListChoices()
+    return { type = "dropdown", text = "BiS List", values = values, order = order,
+        tooltip = "Lists are shared by every character of your class. Each character keeps "
+            .. "using the one picked here.",
+        getValue = function() return select(3, ns.BisListChoices()) end,
+        setValue = function(v) ns.SelectBisList(v) end }
+end
+
+local function NameListPrompt(title, text, save)
+    ns.PromptText(title, text, 40, function(name)
+        local ok, err = save(name)
+        if not ok then ns.Print("BiS list not saved: " .. err .. ".") end
+    end)
+end
+
 function ns.BuildQoLBiSSettingsPage(parent, y)
     local UI = ns.UI
     local W = UI.Widgets
     local _, h
     _, h = W:Note(parent, "Click a slot to pick its items from the ranking for your spec, or "
         .. "from every dungeon drop your class can use, best first: your BiS, then your 2nd, 3rd "
-        .. "and so on. A slot shows its BiS with a green border and a check mark, and +N for the rest. Alt+Shift-click any item (bags, links, loot) to "
+        .. "and so on. A slot shows a pick in a border of its quality colour and +N for the rest; the button beside it steps through your picks and is green for the one you wear. Alt+Shift-click any item (bags, links, loot) to "
         .. "add it as the next pick for its slot, or again to take it off. Listed items say so on "
         .. "their tooltip, are tagged in the loot feed, and ring an alert when they drop or come up "
         .. "for a roll.", y); y = y - h
@@ -1162,10 +1351,25 @@ function ns.BuildQoLBiSSettingsPage(parent, y)
             setValue = function(v) ns.SetBisSpec(v) end }
         or { type = "label", text = "" }
     ); y = y - h
+    _, h = W:SectionHeader(parent, "LISTS", y); y = y - h
+    _, h = W:DualRow(parent, y, ListChoice(),
+        { type = "button", text = "New List", buttonText = "New", onClick = function()
+            NameListPrompt("Name the new BiS list", "", ns.NewBisList)
+        end }
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Rename This List", buttonText = "Rename", onClick = function()
+            NameListPrompt("Rename this BiS list", (List().name:gsub("||", "|")), ns.RenameBisList)
+        end },
+        { type = "button", text = "Delete This List", buttonText = "Delete", onClick = function()
+            ns.Confirm(("Delete the BiS list %s? Every character of your class using it moves "
+                .. "to another list."):format(List().name), ns.DeleteBisList)
+        end }
+    ); y = y - h
     _, h = W:Button(parent, "Import a BiS List", y, function()
         ns.PromptText("Paste a Naowh BiS list", "", 0, function(text) ns.ImportBisList(text) end)
     end); y = y - h
-    _, h = W:Button(parent, "Export My BiS List", y, function()
+    _, h = W:Button(parent, "Export This List", y, function()
         ns.PromptText("Copy this to share your list", ns.ExportBisList(), 0, function() end)
     end); y = y - h
     return y
@@ -1178,6 +1382,7 @@ function ns.BuildQoLBiSPage(parent, y)
         if not page:GetParent() then wornMarks[page] = nil end
     end
     wornMarks[parent] = {}
+    y = y - select(2, ns.UI.Widgets:DualRow(parent, y, ListChoice()))
     local pad = ns.UI.CONTENT_PAD
     local width = parent:GetWidth() - pad * 2
     if width <= 0 then width = 910 end
