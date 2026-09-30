@@ -15,7 +15,6 @@ local UI = ns.UI
 
 local BAR = "Interface\\Buttons\\WHITE8X8"
 local THROTTLE = 0.033
-local RED = { r = 1, g = 0, b = 0 }
 -- Forever cannot tell which spec you play, so the first of these you know is your interrupt.
 local INTERRUPTS = {
     WARRIOR = { 6552, 72 },     -- Pummel, Shield Bash

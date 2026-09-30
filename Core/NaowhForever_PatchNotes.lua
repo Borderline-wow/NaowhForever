@@ -44,7 +44,7 @@ local NOTES = {
 
 function ns.BuildPatchNotesPage(parent, y)
     local W = UI.Widgets
-    local _, h
+    local h
     for _, entry in ipairs(NOTES) do
         _, h = W:SectionHeader(parent, entry.title:upper(), y); y = y - h
         for _, line in ipairs(entry.lines) do

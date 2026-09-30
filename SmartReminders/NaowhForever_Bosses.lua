@@ -2171,7 +2171,6 @@ end
 
 function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or ns.UI
-    local W = EUI.Widgets
 
     -- Taller than before (was 440x480/body 320): a preset can carry up to MAX_SLOTS
     -- defensives, each now its own row below the preset dropdown. Grown by the same
@@ -3138,7 +3137,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
     rightPane:SetPoint("TOPLEFT", parent, "TOPLEFT", LEFT_W + 16, topY)
     rightPane:SetPoint("RIGHT", parent, "RIGHT", -(EUI.CONTENT_PAD or 16), 0)
 
-    local rightBottom = topY
+    local rightBottom
     if sel then
         rightBottom = RenderInstanceDetail(rightPane, 0, W, EUI, sel, specID)
     else

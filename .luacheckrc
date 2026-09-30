@@ -126,21 +126,10 @@ files["Tools/regression/"] = {
 -- Baseline: warnings that were already in the code when this config was added, silenced
 -- only where they are (file, warning code, name) so any new warning still fails. Remove
 -- an entry once its warning is fixed; don't add new ones to get a check passing.
-files["AuraBuffs/NaowhForever_AuraBuffs.lua"] = { ignore = { "211/_" } }
 files["Core/NaowhForever_Core.lua"] = { ignore = { "432/key" } }
-files["Core/NaowhForever_PatchNotes.lua"] = { ignore = { "211/_" } }
 files["DungeonQuests/NaowhForever_DungeonQuests.lua"] = { ignore = { "421/id" } }
 files["Professions/NaowhForever_Professions.lua"] = { ignore = { "431/rows", "421/bar", "431/W" } }
 files["Professions/NaowhForever_RecipeFinder.lua"] = { ignore = { "431/list" } }
-files["QoL/NaowhForever_Flight.lua"] = { ignore = { "211/LOGO", "511" } }
-files["QoL/NaowhForever_FocusCastBar.lua"] = { ignore = { "211/RED" } }
-files["QoL/NaowhForever_GlobalCopy.lua"] = { ignore = { "582" } }
 files["QoL/NaowhForever_QoL.lua"] = { ignore = { "211/DRUID_FORM_VALUES", "211/DRUID_FORM_ORDER" } }
-files["QoL/NaowhForever_XPBar.lua"] = { ignore = { "311/x" } }
-files["QoL/NaowhForever_XPTicker.lua"] = { ignore = { "211/Delta" } }
-files["SmartReminders/NaowhForever_Bosses.lua"] = { ignore = { "311/y", "211/W", "311/rightBottom", "431/set" } }
-files["SmartReminders/NaowhForever_SmartReminders.lua"] = { ignore = { "211/max" } }
-files["SwingTimer/NaowhForever_SwingTimer.lua"] = { ignore = { "211/_" } }
+files["SmartReminders/NaowhForever_Bosses.lua"] = { ignore = { "311/y", "431/set" } }
 files["Tools/regression/test-buff-reminders.lua"] = { ignore = { "432/self" } }
-files["Tools/regression/test-integration-options.lua"] = { ignore = { "314" } }
-files["Tools/regression/test-neil-recovery.lua"] = { ignore = { "213/i" } }

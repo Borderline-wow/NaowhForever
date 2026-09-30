@@ -32,7 +32,7 @@ Case("late LSM, negative cache, and later sound registration", function()
     assert(ui.SoundPathFor("sm:later") == nil)
     env.LibStub = function() return provider end
     assert(ui.SoundPathFor("sm:later") == "later.ogg")
-    for i = 1, 100 do assert(ui.SoundPathFor("sm:missing") == nil) end
+    for _ = 1, 100 do assert(ui.SoundPathFor("sm:missing") == nil) end
     assert(builds == 1, "negative lookup rebuilt cache")
     media.added = "added.ogg"; callback("LibSharedMedia_Registered", "sound", "added")
     assert(ui.SoundPathFor("sm:added") == "added.ogg" and builds == 2)

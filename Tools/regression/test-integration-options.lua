@@ -24,7 +24,6 @@ local function Fixture()
                 if kind == "OnClick" then self.onClick = fn
                 elseif kind == "OnEditFocusLost" then self.onCommit = fn end
             end,
-            ClearFocus = function(self) if self.onCommit then self.onCommit() end end,
             SetTexture = function() end, SetTexCoord = function() end, SetTextColor = function() end,
             SetTextInsets = function() end, ClearFocus = function() end,
             Enable = function(self) self.disabled = false end,

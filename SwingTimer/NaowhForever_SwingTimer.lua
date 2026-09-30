@@ -833,8 +833,7 @@ function ns.BuildSwingTimerAidsPage(parent, y)
     if not SUPPORTED then return UnsupportedNote(parent, y) end
     local W = UI.Widgets
     local _, h
-    local _, classFile = UnitClass("player")
-    local hunter = classFile == "HUNTER"
+    local hunter = select(2, UnitClass("player")) == "HUNTER"
     _, h = W:Note(parent, "Extra marks on the bars for timing what you press against your "
         .. "swings. Each one is off until you turn it on.", y); y = y - h
 

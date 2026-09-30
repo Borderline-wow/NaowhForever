@@ -2005,7 +2005,7 @@ function ChargesAvailable(sid)
     if not st then return nil end
     local before, oldTick = st.count, st.tick
 
-    local max, active = ReadChargeShape(sid)
+    local _, active = ReadChargeShape(sid)
 
     -- A running recharge is the client telling us the real rate outright, so take it over
     -- anything seeded or measured. Persisted because it can only be read WHILE recharging,

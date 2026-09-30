@@ -152,7 +152,7 @@ function ns.BuildCampfirePage(parent, y)
     local W = UI.Widgets
     local _, h
 
-    local _, names, order = ns.SoundChoices()
+    local names, order = select(2, ns.SoundChoices())
     names.none = "None"
     table.insert(order, 1, "none")
 

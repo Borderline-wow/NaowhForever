@@ -8,7 +8,7 @@ local S = ns.QoLSettings
 
 -- Naowh's scheme: his blue for the labels, the theme's near-white for the values.
 local LABEL, VALUE = "|cff0091ed", "|cfff0f1f3"
-local GAIN, LOSS, DIM = "|cff4ade80", "|cfff87171", "|cff9ca3af"
+local DIM = "|cff9ca3af"
 
 local ticker, clock, clockRate, unlocked
 local sessionStart, sessionXP = 0, 0
@@ -52,11 +52,6 @@ local function Clock(seconds)
     return ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
 end
 
--- Faster than the previous level is a gain, shown as a negative time.
-local function Delta(seconds)
-    if seconds < 0 then return GAIN .. "-" .. Clock(-seconds) .. "|r" end
-    return LOSS .. "+" .. Clock(seconds) .. "|r"
-end
 
 local function Line(label, value)
     return LABEL .. label .. ":|r " .. VALUE .. value .. "|r"

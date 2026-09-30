@@ -300,7 +300,7 @@ local function Update()
     else
         x = Segment(bar.done, x, total * questDone / max, total)
         if S.Get("xpBarIncomplete") then
-            x = Segment(bar.open, x, total * questOpen / max, total)
+            Segment(bar.open, x, total * questOpen / max, total)
         else
             bar.open:Hide()
         end

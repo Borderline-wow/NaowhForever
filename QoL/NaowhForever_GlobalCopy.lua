@@ -252,7 +252,8 @@ local function Matches(modifier)
     local ctrl = modifier:find("CTRL", 1, true) ~= nil
     local shift = modifier:find("SHIFT", 1, true) ~= nil
     local alt = modifier:find("ALT", 1, true) ~= nil
-    return not not IsControlKeyDown() == ctrl and not not IsShiftKeyDown() == shift and not not IsAltKeyDown() == alt
+    return (not not IsControlKeyDown()) == ctrl and (not not IsShiftKeyDown()) == shift
+        and (not not IsAltKeyDown()) == alt
 end
 
 local function OnKeyDown(self, key)
