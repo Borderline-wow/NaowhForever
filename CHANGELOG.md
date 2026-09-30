@@ -17,6 +17,9 @@
   Badges, where you can also turn on a banner for when one of them joins your group.
 
 ### Changed
+- Flight Timer: a new look in Naowh's colours. The route is a line between its two ends,
+  the stops on the way slide past you, and the time left sits beside it. A Land Early
+  button (off by default, QoL > Flight & Camp) lands you at the next flight point.
 - BiS List: lists are shared by every character of a class, and a class can keep several.
   Pick, make, rename and delete them on the List and Settings tabs; each character keeps
   using its own pick. Your current list moves over, named after your character. Importing

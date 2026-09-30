@@ -1,26 +1,27 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Flight.lua -- the QoL flight timer: where you are flying, how
---  long it has taken, and a reminder quote from a streamer while you wait.
+--  NaowhForever_Flight.lua -- the QoL flight timer: the route you are flying as a thin
+--  track between its two ends, the stops on the way sliding past a "you" post, and the
+--  time left beside it.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
 
-local PLACEHOLDER = "Interface\\Icons\\INV_Misc_QuestionMark"
-local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
+local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
+local WHITE = "Interface\\Buttons\\WHITE8X8"
+local STOP_ICON = "Interface\\Minimap\\Tracking\\FlightMaster"
+local LAND_ICON = "Interface\\Icons\\Spell_Magic_FeatherFall"
 
--- Streamer art goes in Media\Streamers as a square power-of-two .tga (128x128 is plenty);
--- point `icon` at it once the streamer has said yes to their face being used.
-ns.FLIGHT_QUOTES = {}
-
-local QUOTE_SECONDS = 45
+local WIDTH, TRACK_H, DOT, PIN, NAME_SIZE = 300, 6, 10, 14, 12
+local HEIGHT = PIN + 2 * (NAME_SIZE + 8)
+-- A stop slides in at the track's right end this many seconds before it is reached.
+local LOOKAHEAD = 60
 -- Yards per second, fitted to measured Classic flight times.
 local FLIGHT_SPEED = 30.4
 
 local bar, poll, unlocked, Apply
-local pending   -- { from, to, at }: a flight bought but not boarded yet
-local flight    -- { from, to, start, known }
-local quoteAt, lastQuote
+local pending   -- { from, to, points, estimate, at }: a flight bought but not boarded yet
+local flight    -- { from, to, start, known, points, early, sample }
 
 local function On()
     return S.Get("enabled") and S.Get("flightTimer")
@@ -56,64 +57,106 @@ local function SpeedMultiplier()
     return node and node.activeRank > 0 and 1.2 or 1
 end
 
--- Seconds to the map's slot, summed over every hop; nil when a hop is missing from the
--- route data, and the learned time for the route is used instead.
-local function EstimateSeconds(slot)
+-- Every node on the way to the map's slot, start first, each with the seconds it takes to
+-- reach it. From the first hop missing from the route data on, `at` is nil, and the
+-- learned time for the route stands in for the whole flight.
+local function Route(slot)
     local idBySlot = {}
     for _, node in ipairs(C_TaxiMap.GetAllTaxiNodes(GetTaxiMapID())) do
         idBySlot[node.slotIndex] = node.nodeID
     end
+    local speed = FLIGHT_SPEED * SpeedMultiplier()
+    local points = { { name = TaxiNodeName(TaxiGetNodeSlot(slot, 1, true)), at = 0 } }
     local yards = 0
     for hop = 1, GetNumRoutes(slot) do
+        local toSlot = TaxiGetNodeSlot(slot, hop, false)
         local from = idBySlot[TaxiGetNodeSlot(slot, hop, true)]
-        local to = idBySlot[TaxiGetNodeSlot(slot, hop, false)]
+        local to = idBySlot[toSlot]
         local hopYards = from and to and ns.FLIGHT_ROUTES[from * 10000 + to]
-        if not hopYards then return nil end
-        yards = yards + hopYards
+        yards = yards and hopYards and yards + hopYards
+        points[#points + 1] = { name = TaxiNodeName(toSlot), at = yards and yards / speed }
     end
-    if yards == 0 then return nil end
-    return yards / (FLIGHT_SPEED * SpeedMultiplier())
+    local last = points[#points].at
+    return points, last and last > 0 and last or nil
 end
 
--- A new face and line, never the same line twice in a row.
-local function NextQuote()
-    local list = ns.FLIGHT_QUOTES
-    local who, line
-    repeat
-        who = list[math.random(#list)]
-        line = who.quotes[math.random(#who.quotes)]
-    until line ~= lastQuote or #list * #who.quotes < 2
-    lastQuote = line
-    bar.icon:SetTexture(who.icon or PLACEHOLDER)
-    bar.quote:SetText("\"" .. line .. "\"  |cff0091ed- " .. who.name .. "|r")
-    quoteAt = GetTime()
+-------------------------------------------------------------------------------
+--  Display
+-------------------------------------------------------------------------------
+local function Mark(parent, texture, w, h, size)
+    local m = { icon = parent:CreateTexture(nil, "OVERLAY"), label = ns.Font(parent, size or NAME_SIZE, "OUTLINE") }
+    m.icon:SetTexture(texture)
+    m.icon:SetSize(w, h or w)
+    m.label:SetWordWrap(false)
+    return m
+end
+
+-- The stops are placed along a strip by their arrival time; sliding the strip left as
+-- time passes carries each one across the "you" post the moment it is reached.
+local function Slide(elapsed)
+    local clip = bar.clip
+    clip.strip:ClearAllPoints()
+    clip.strip:SetPoint("CENTER", bar, "CENTER", -elapsed * clip.pps, 0)
+    for k, m in ipairs(bar.stops) do
+        local p = flight.points[k + 1]
+        local passed = m.icon:IsShown() and p.at <= elapsed
+        m.icon:SetAlpha(passed and 0.4 or 1)
+        m.label:SetAlpha(passed and 0.4 or 1)
+    end
+end
+
+local function Layout()
+    local points = flight.points
+    local n = points and #points or 0
+    bar.ends[1].label:SetText(n > 0 and points[1].name or flight.from or "")
+    bar.ends[2].label:SetText(n > 0 and points[n].name or flight.to or "In flight")
+
+    -- Stops scroll only when every arrival time is known and there is one on the way.
+    local scroll = flight.known and n > 2 and points[n].at and not flight.early
+    bar.clip:SetShown(scroll and true or false)
+    bar.you.icon:SetShown(scroll and true or false)
+    bar.you.label:SetShown(scroll and true or false)
+    for k = 1, math.max(n - 2, #bar.stops) do
+        local m = bar.stops[k]
+        if scroll and k <= n - 2 then
+            if not m then
+                m = Mark(bar.clip.strip, STOP_ICON, PIN)
+                m.label:SetPoint("TOP", m.icon, "BOTTOM", 0, -4)
+                bar.stops[k] = m
+            end
+            m.icon:ClearAllPoints()
+            m.icon:SetPoint("CENTER", bar.clip.strip, "CENTER", points[k + 1].at * bar.clip.pps, 0)
+            m.label:SetText(points[k + 1].name)
+            m.icon:Show()
+            m.label:Show()
+        elseif m then
+            m.icon:Hide()
+            m.label:Hide()
+        end
+    end
+    -- An elapsed-only flight has no end to fill towards.
+    bar.track:SetValue(0)
+    bar.track:GetStatusBarTexture():SetAlpha(flight.known and 1 or 0)
+    bar.land:SetShown(S.Get("flightEarlyLanding") and not flight.sample)
+    bar.land:SetEnabled(not flight.early)
+    bar.land:SetAlpha(flight.early and 0.4 or 1)
 end
 
 local function Update()
     if not (bar and flight and bar:IsShown()) then return end
     local elapsed = GetTime() - flight.start
+    if flight.sample then elapsed = elapsed % flight.known end
     if flight.known then
-        bar.time:SetText(Clock(math.max(flight.known - elapsed, 0)))
-        bar.progress:SetValue(math.min(elapsed / flight.known, 1))
+        bar.time:SetText(Clock(flight.known - elapsed))
+        bar.track:SetValue(math.min(elapsed / flight.known, 1))
+        if bar.clip:IsShown() then Slide(elapsed) end
     else
         bar.time:SetText(Clock(elapsed))
     end
-    if false and GetTime() - quoteAt >= QUOTE_SECONDS then NextQuote() end
-end
-
-local function Layout()
-    local quotes = false
-    bar.icon:SetShown(quotes)
-    bar.quote:SetShown(quotes)
-    bar.title:SetPoint("TOPLEFT", quotes and 62 or 8, -8)
-    bar.progress:SetShown(flight ~= nil and flight.known ~= nil)
-    bar:SetHeight(quotes and 64 or 36)
 end
 
 local function Show()
     Layout()
-    bar.title:SetText(flight.to and ("Flying to " .. flight.to) or "In flight")
-    if false then NextQuote() end
     Update()
     bar:Show()
 end
@@ -125,8 +168,9 @@ end
 local function Land()
     local elapsed = GetTime() - flight.start
     local key = RouteKey(flight.from, flight.to)
-    -- A flight shorter than ten seconds was cut short or never really left.
-    if key and elapsed > 10 then Times()[key] = math.floor(elapsed + 0.5) end
+    -- A flight shorter than ten seconds was cut short or never really left, and one
+    -- landed early did not fly the route.
+    if key and elapsed > 10 and not flight.early then Times()[key] = math.floor(elapsed + 0.5) end
     flight = nil
     StopPoll()
     bar:Hide()
@@ -137,10 +181,26 @@ end
 local function Board(route)
     local key = route and RouteKey(route.from, route.to)
     flight = { from = route and route.from, to = route and route.to, start = GetTime(),
+        points = route and route.points,
         known = route and route.estimate or key and Times()[key] }
     pending = nil
     if On() then Show() end
     if ns.QuizOffer then ns.QuizOffer("flight") end
+end
+
+-- Landing early stops at the next node on the way, so the route and the time end there.
+local function Retarget()
+    if not flight or flight.early or flight.sample then return end
+    flight.early = true
+    local points, elapsed = flight.points, GetTime() - flight.start
+    for i, p in ipairs(points or {}) do
+        if p.at and p.at > elapsed then
+            for j = #points, i + 1, -1 do points[j] = nil end
+            flight.known = p.at
+            break
+        end
+    end
+    if bar and bar:IsShown() then Show() end
 end
 
 -- Only runs between buying a flight and landing: the client has no landing event, and
@@ -165,42 +225,69 @@ local function StartPoll()
 end
 
 local function Build()
+    -- An invisible box around the whole display, so Unlock Mode has something to grab;
+    -- the track is the line through its middle.
     bar = CreateFrame("Frame", "NaowhForeverFlightTimer", UIParent)
-    bar:SetSize(340, 64)
+    bar:SetSize(WIDTH, HEIGHT)
     bar:SetMovable(true)
     bar:SetClampedToScreen(true)
-    ns.Solid(bar, "BACKGROUND", T.bg, 0.85):SetAllPoints()
-    ns.Border(bar)
 
-    bar.icon = bar:CreateTexture(nil, "ARTWORK")
-    bar.icon:SetSize(48, 48)
-    bar.icon:SetPoint("LEFT", 8, 0)
-    bar.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    local track = CreateFrame("StatusBar", nil, bar)
+    track:SetPoint("LEFT")
+    track:SetPoint("RIGHT")
+    track:SetHeight(TRACK_H)
+    track:SetStatusBarTexture(GRADIENT)
+    track:SetStatusBarColor(T.accent.r, T.accent.g, T.accent.b)
+    track:SetMinMaxValues(0, 1)
+    ns.Solid(track, "BACKGROUND", T.bg, 0.9):SetAllPoints()
+    ns.Border(track, { r = 0, g = 0, b = 0 })
+    bar.track = track
 
-    bar.title = ns.Font(bar, 14, "OUTLINE")
-    bar.title:SetPoint("TOPLEFT", 62, -8)
-    bar.title:SetPoint("RIGHT", -60, 0)
-    bar.title:SetJustifyH("LEFT")
-    bar.title:SetWordWrap(false)
+    -- Marks sit above the track's border.
+    local over = CreateFrame("Frame", nil, bar)
+    over:SetAllPoints()
+    over:SetFrameLevel(track:GetFrameLevel() + 3)
+    bar.ends = { Mark(over, WHITE, DOT), Mark(over, WHITE, DOT) }
+    for i, side in ipairs({ "LEFT", "RIGHT" }) do
+        local m = bar.ends[i]
+        m.icon:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
+        m.icon:SetPoint("CENTER", bar, side)
+        m.label:SetPoint("BOTTOM" .. side, m.icon, "TOP" .. side, 0, 6)
+        m.label:SetWidth(WIDTH * 0.47)
+        m.label:SetJustifyH(side)
+    end
+    bar.you = Mark(over, WHITE, 2, PIN + 4, 10)
+    bar.you.icon:SetPoint("CENTER")
+    bar.you.label:SetPoint("BOTTOM", bar.you.icon, "TOP", 0, 2)
+    bar.you.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
+    bar.you.label:SetText("You")
+
+    -- The stops ride a strip clipped to the room between the two end dots.
+    bar.clip = CreateFrame("Frame", nil, bar)
+    bar.clip:SetFrameLevel(over:GetFrameLevel())
+    bar.clip:SetClipsChildren(true)
+    bar.clip:SetPoint("BOTTOMLEFT", bar, "LEFT", DOT / 2, -PIN / 2 - NAME_SIZE - 8)
+    bar.clip:SetPoint("TOPRIGHT", bar, "RIGHT", -DOT / 2, PIN / 2 + 2)
+    bar.clip.pps = WIDTH / 2 / LOOKAHEAD
+    bar.clip.strip = CreateFrame("Frame", nil, bar.clip)
+    bar.clip.strip:SetSize(1, 1)
+    bar.stops = {}
 
     bar.time = ns.Font(bar, 14, "OUTLINE", T.accentSoft)
-    bar.time:SetPoint("TOPRIGHT", -8, -8)
+    bar.time:SetPoint("RIGHT", bar, "LEFT", -DOT / 2 - 8, 0)
 
-    bar.progress = CreateFrame("StatusBar", nil, bar)
-    bar.progress:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    bar.progress:SetStatusBarColor(T.accent.r, T.accent.g, T.accent.b)
-    bar.progress:SetMinMaxValues(0, 1)
-    bar.progress:SetHeight(3)
-    bar.progress:SetPoint("TOPLEFT", bar.title, "BOTTOMLEFT", 0, -4)
-    bar.progress:SetPoint("RIGHT", -8, 0)
-    ns.Solid(bar.progress, "BACKGROUND", T.line):SetAllPoints()
+    bar.land = CreateFrame("Button", nil, bar)
+    bar.land:SetSize(24, 24)
+    bar.land:SetPoint("LEFT", bar, "RIGHT", DOT / 2 + 8, 0)
+    bar.land:SetNormalTexture(LAND_ICON)
+    bar.land:GetNormalTexture():SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    bar.land:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    ns.Border(bar.land, { r = 0, g = 0, b = 0 })
+    bar.land:SetScript("OnClick", function() TaxiRequestEarlyLanding() end)
+    ns.Tooltip(bar.land, "Land Early", "Land at the next flight point.")
 
-    bar.quote = ns.Font(bar, 12, nil, T.muted)
-    bar.quote:SetPoint("BOTTOMLEFT", 62, 8)
-    bar.quote:SetPoint("RIGHT", -8, 0)
-    bar.quote:SetJustifyH("LEFT")
-    bar.quote:SetMaxLines(2)
-
+    -- Smooth while shown; the poll ticker only watches for boarding and landing.
+    bar:SetScript("OnUpdate", Update)
     bar.mover = ns.UI.AttachMover(bar, "Flight Timer", function(pos) S.Set("flightTimerPos", pos) end)
     bar:Hide()
 end
@@ -216,10 +303,14 @@ local function Place()
 end
 
 hooksecurefunc("TakeTaxiNode", function(index)
-    pending = { from = CurrentNodeName(), to = TaxiNodeName(index), at = GetTime(),
-        estimate = EstimateSeconds(index) }
+    local points, estimate = Route(index)
+    pending = { from = CurrentNodeName(), to = TaxiNodeName(index), points = points,
+        estimate = estimate, at = GetTime() }
     StartPoll()
 end)
+
+-- Blizzard's own leave button lands early the same way.
+hooksecurefunc("TaxiRequestEarlyLanding", Retarget)
 
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -231,13 +322,17 @@ events:SetScript("OnEvent", function()
     end
 end)
 
+-- A two-stop route to place and size the display by in Unlock Mode, looping.
+local SAMPLE = { { name = "Ironforge", at = 0 }, { name = "Thorium Point", at = 50 },
+    { name = "Morgan's Vigil", at = 95 }, { name = "Lakeshire", at = 150 } }
+
 function Apply()
     if not bar then Build() end
     Place()
     if unlocked then
         bar.mover:Show()
         if not flight then
-            flight = { to = "Ironforge", start = GetTime(), known = 120, sample = true }
+            flight = { start = GetTime(), known = 150, points = SAMPLE, sample = true }
             Show()
         end
     elseif flight and flight.sample then
@@ -250,7 +345,7 @@ function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "flightTimer" or key == "flightQuotes" then Apply() end
+    if key == "enabled" or key == "flightTimer" or key == "flightEarlyLanding" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()

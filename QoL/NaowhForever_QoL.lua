@@ -165,7 +165,7 @@ local S = UI.ModuleSettings("qol", {
 
     trainerPopup = true, trainerGlow = true, trainerRanks = true,
 
-    flightTimer = true, flightQuotes = false, quizFlight = true, quizCamp = true,
+    flightTimer = true, flightEarlyLanding = false, flightQuotes = false, quizFlight = true, quizCamp = true,
 })
 ns.QoLSettings = S
 
@@ -1385,9 +1385,10 @@ function ns.BuildQoLFlightPage(parent, y)
     _, h = W:SectionHeader(parent, "FLIGHT TIMER" .. STATUS.untested, y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("flightTimer", "Flight Timer",
-            "Where you are flying and how long is left, counting down to landing. "
-            .. "Move it in Unlock Mode."),
-        { type = "label", text = "" }
+            "The route you are flying as a line between its two ends, the stops on the way "
+            .. "sliding past you, and the time left to landing. Move it in Unlock Mode."),
+        S.Toggle("flightEarlyLanding", "Land Early Button",
+            "A button beside the timer that lands you at the next flight point.", "flightTimer")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "QUIZ" .. STATUS.untested, y); y = y - h
