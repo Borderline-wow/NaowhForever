@@ -99,7 +99,7 @@ local function MouseText()
     local frame = EnumerateFrames()
     while frame do
         local ok, use = pcall(function()
-            local shown, over, name = frame:IsVisible(), MouseIsOver(frame), frame:GetName()
+            local shown, over, name = frame:IsVisible(), frame:IsMouseOver(), frame:GetName()
             if not CanAccessAll(shown, over, name) then return false end
             return shown and over and name ~= "WorldFrame"
         end)

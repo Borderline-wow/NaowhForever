@@ -178,10 +178,11 @@ local popup
 local function HideMenu()
     if popup and not InCombatLockdown() then popup:Hide() end
 end
+-- IsMouseOver on the frame: the old MouseIsOver global is gone from the game.
 local function LeaveMenu()
     C_Timer.After(0.15, function()
-        if popup and popup:IsShown() and not MouseIsOver(popup)
-            and not (popup.owner and MouseIsOver(popup.owner)) then HideMenu() end
+        if popup and popup:IsShown() and not popup:IsMouseOver()
+            and not (popup.owner and popup.owner:IsMouseOver()) then HideMenu() end
     end)
 end
 local function OpenMenu(cell)

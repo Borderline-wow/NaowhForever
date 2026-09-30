@@ -85,7 +85,7 @@ read_globals = {
     "LOOT_ITEM_PUSHED_SELF", "LOOT_ITEM_PUSHED_SELF_MULTIPLE", "LOOT_ITEM_SELF",
     "LOOT_ITEM_SELF_MULTIPLE", "MapCanvasDataProviderMixin", "MapCanvasPinMixin",
     "MAX_PARTY_MEMBERS", "MAX_RAID_MEMBERS", "Menu", "MenuUtil", "MenuVariants",
-    "MerchantFrame", "MouseIsOver", "MovieFrame", "MuteSoundFile", "NumTaxiNodes",
+    "MerchantFrame", "MovieFrame", "MuteSoundFile", "NumTaxiNodes",
     "NUM_BAG_SLOTS", "NUM_CHAT_WINDOWS", "NUM_PET_ACTION_SLOTS",
     "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "OTHER", "PetHasActionBar", "PickupMacro", "PlaceAction",
     "PlaySound", "PlaySoundFile", "ProfessionsFrame", "PROFESSIONS_COOKING",

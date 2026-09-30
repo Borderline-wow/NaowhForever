@@ -8,6 +8,8 @@
   you type in chat, it still links it.
 
 ### Fixed
+- Buff Reminders: no more error when the mouse leaves a missing buff's item menu.
+- Global Copy: /copy finds the frame under the mouse again when the game names none.
 - Bag Space: Unlock Mode shows your own items instead of question marks, where you have them.
 - Reload UI buttons and prompts work again, like the one after Apply All Recommended on
   QoL > Performance: they run the game's own /reload instead of causing an error. In
