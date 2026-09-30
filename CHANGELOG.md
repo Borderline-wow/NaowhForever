@@ -3,8 +3,9 @@
 ## Unreleased
 
 ### Fixed
-- Reload UI buttons and prompts no longer cause an error in combat. They say to /reload
-  once combat ends instead.
+- Reload UI buttons and prompts work again, like the one after Apply All Recommended on
+  QoL > Performance: they run the game's own /reload instead of causing an error. In
+  combat they say to type /reload.
 
 ## 0.5.17-beta
 

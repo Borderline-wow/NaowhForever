@@ -258,14 +258,64 @@ function ns.Print(msg)
     print(ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
 end
 
--- Every Reload UI the addon offers goes through here. In combat the game blocks an addon's
--- reload, even from a click (ADDON_ACTION_BLOCKED on Reload), so it says so instead.
-function ns.ReloadUI()
-    if InCombatLockdown() then
-        ns.Print("Can't reload in combat. Type /reload when combat ends.")
-        return
+-------------------------------------------------------------------------------
+--  Reload UI
+-------------------------------------------------------------------------------
+-- The game refuses an addon's own reload, even from a click (ADDON_ACTION_BLOCKED on
+-- Reload), but runs /reload from a secure macro button as if you had typed it. That button
+-- is protected, and a protected frame inside one of the addon's windows would lock the
+-- window in combat. So there is one, on UIParent, laid over whichever Reload UI button the
+-- mouse is on by its place on screen, never anchored to it, and hidden as combat starts. In
+-- combat it cannot be moved, and the button under it says to type /reload.
+local reloader
+
+local function Reloader()
+    if reloader then return reloader end
+    reloader = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate")
+    reloader:SetFrameStrata("TOOLTIP")
+    reloader:RegisterForClicks("AnyUp", "AnyDown")
+    reloader:SetAttribute("type", "macro")
+    reloader:SetAttribute("macrotext", "/reload")
+    local glow = reloader:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetAllPoints()
+    glow:SetColorTexture(1, 1, 1, 0.08)
+    reloader:SetScript("OnLeave", function(self)
+        if not InCombatLockdown() then self:Hide() end
+    end)
+    reloader:RegisterEvent("PLAYER_REGEN_DISABLED")
+    reloader:SetScript("OnEvent", reloader.Hide)
+    reloader:Hide()
+    return reloader
+end
+
+-- Lays the secure button over btn while the mouse is on it: OnEnter, out of combat.
+local function CoverWithReload(btn)
+    if InCombatLockdown() then return end
+    local cover = Reloader()
+    local scale = btn:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    cover:ClearAllPoints()
+    cover:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", btn:GetLeft() * scale, btn:GetBottom() * scale)
+    cover:SetSize(btn:GetWidth() * scale, btn:GetHeight() * scale)
+    cover:Show()
+end
+
+-- What the button itself does when clicked: only reached when no cover lay over it.
+local function ReloadBlocked()
+    ns.Print("Can't reload from a button in combat. Type /reload.")
+end
+
+-- Makes btn (an ns.Button) a Reload UI button. Once per button.
+function ns.MakeReloadButton(btn)
+    btn._onClick = ReloadBlocked
+    if not btn._reload then
+        btn._reload = true
+        btn:HookScript("OnEnter", CoverWithReload)
     end
-    ReloadUI()
+    return btn
+end
+
+function ns.ReloadButton(parent, text, w, h)
+    return ns.MakeReloadButton(ns.Button(parent, text, w, h))
 end
 
 -------------------------------------------------------------------------------
@@ -664,6 +714,21 @@ function ns.PromptText(title, text, maxLetters, onAccept)
     dimmer:Show()
     box:SetFocus()
     box:HighlightText()
+end
+
+-- Confirm for a reload: Reload UI runs the game's own /reload (see Reload UI above).
+function ns.ConfirmReload(text)
+    local UI = ns.UI
+    local dimmer, panel = ns.MakeModal(340, 110, "confirmReload")
+    local head = UI.KeepFont(panel, "head", 13, nil)
+    head:SetPoint("TOP", 0, -18)
+    head:SetWidth(310)
+    head:SetText(text)
+    ns.MakeReloadButton(UI.KeepButton(panel, "yes", "Reload UI", 96, 26))
+        :SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
+    UI.KeepButton(panel, "no", "Later", 96, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
+    dimmer:Show()
 end
 
 function ns.Confirm(text, onYes)

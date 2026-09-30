@@ -38,11 +38,12 @@ local function LogText()
 end
 
 StaticPopupDialogs["NAOWHFOREVER_ACL_PROMPT"] = {
-    button1 = "Enable & Reload",
+    button1 = "Enable",
     button2 = "Skip",
+    -- The game's popup cannot reload for an addon, so ours asks, with a Reload UI that can.
     OnAccept = function()
         SetCVar("advancedCombatLogging", 1)
-        ns.ReloadUI()
+        ns.ConfirmReload("Advanced combat logging starts after a reload. Reload UI now?")
     end,
     timeout = 0,
     hideOnEscape = true,

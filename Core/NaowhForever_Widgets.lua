@@ -859,6 +859,13 @@ function W:Button(parent, text, yOffset, onClick)
     return Collapsed(parent, row, ROW_H)
 end
 
+-- A full-row Reload UI button (see Reload UI in the Core file).
+function W:ReloadButton(parent, yOffset)
+    local row, h = self:Button(parent, "Reload UI", yOffset)
+    if row and row._btn then ns.MakeReloadButton(row._btn) end
+    return row, h
+end
+
 -- The swatch alone, sized to drop into either a full row (W:ColorPicker below) or a
 -- DualRow region (BuildRegionControl's "colorpicker" slot) -- one Blizzard color picker
 -- wiring, not two copies of it drifting apart.
