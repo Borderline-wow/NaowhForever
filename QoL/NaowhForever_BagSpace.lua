@@ -824,11 +824,21 @@ local function NewFreeCounter(parent)
 end
 
 local function Render()
+    -- Unlock Mode shows your own items, so the row looks as it will where you place it; the
+    -- slots with none get a sample, so the whole row can still be placed. Clicks do nothing
+    -- while unlocked.
     if unlocked then
         local n = S.Get("bagSpaceCount")
         Layout(n)
-        for i = 1, n do Fill(buttons[i], nil, SAMPLE_ICON, Money(12 * i), nil, 1, i == 1) end
-        ShowFree(28, 96)
+        for i = 1, n do
+            local e = picks[i]
+            if e then
+                Fill(buttons[i], nil, e.icon, Money(e.value), e.count, e.quality, e.old, e.quest)
+            else
+                Fill(buttons[i], nil, SAMPLE_ICON, Money(12 * i), nil, 1, i == 1)
+            end
+        end
+        if total > 0 then ShowFree(free, total) else ShowFree(28, 96) end
         frame:Show()
         return
     end

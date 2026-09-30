@@ -8,6 +8,7 @@
   you type in chat, it still links it.
 
 ### Fixed
+- Bag Space: Unlock Mode shows your own items instead of question marks, where you have them.
 - Reload UI buttons and prompts work again, like the one after Apply All Recommended on
   QoL > Performance: they run the game's own /reload instead of causing an error. In
   combat they say to type /reload.

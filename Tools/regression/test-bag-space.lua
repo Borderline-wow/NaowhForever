@@ -184,7 +184,7 @@ local function Fixture(opts)
     end
     chunk()
 
-    local t = { ns = ns, printed = printed, env = env }
+    local t = { ns = ns, printed = printed, env = env, buttons = buttons }
     function t.Fire(event, ...)
         for frame in pairs(registered[event] or {}) do frame.OnEvent(frame, event, ...) end
     end
@@ -330,6 +330,24 @@ do
     t.Click(1, "LeftButton", true)
     Check("uncommon is picked up, not deleted", select(2, t.env.GetCursorInfo()), 11)
     Check("ground hint", t.printed[#t.printed]:find("is on your cursor") ~= nil, true)
+end
+
+-- Unlock Mode shows your own items where you have them, and the sample question mark only in
+-- the slots left over, with your real free-slot count.
+do
+    local bags = { [0] = Bag(16, { { 1, 3 }, { 2, 11 } }) }
+    local t = Fixture({ bags = bags })
+    local free = t.FreeText()
+    t.ns.ShowRaidReminderAnchorConfig()
+    local icons = {}
+    for _, b in ipairs(t.buttons) do
+        if b.shown and b.icon then icons[#icons + 1] = b.icon.texture end
+    end
+    Check("unlock: four slots shown", #icons, 4)
+    Check("unlock: your items first", type(icons[1]) == "number" and type(icons[2]) == "number", true)
+    Check("unlock: a sample only where you have no item",
+        icons[3] == "Interface\\Icons\\INV_Misc_QuestionMark" and icons[4] == icons[3], true)
+    Check("unlock: your real free slots", t.FreeText(), free)
 end
 
 -- The key binding redraws the row from the scan it acts on, so icons match their items.
