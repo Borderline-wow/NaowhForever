@@ -13,8 +13,6 @@ local CAMP_BENEFITS = 1229741
 local CAMPFIRE_NEARBY = 1283391
 -- The 60 second aura while sitting at a campfire, before Camp Benefits lands; probed 2026-09-25.
 local WELCOMING_CAMPFIRE = 1229739
--- Camp Benefits with less than this left counts as due for a refresh.
-local CAMP_LOW = 120
 local CIRCLE_MASK = "Interface\\AddOns\\NaowhForever\\Media\\circle_mask.tga"
 local CIRCLE_RING = "Interface\\AddOns\\NaowhForever\\Media\\circle_ring.tga"
 -- The time ring's colour by minutes left: green above 30, yellow above 5, red below.
@@ -28,7 +26,7 @@ local icon, unlocked
 local hasCamp       -- nil until the first read
 local shownExpiry   -- the expiry the swipe was last started from
 local alert
-local alertGen = 0   -- invalidates an older "under 2 minutes" timer
+local alertGen = 0   -- invalidates an older Alert Under timer
 local alertArmed     -- the expiry that timer was set for
 local ringGen = 0    -- invalidates an older ring colour change
 local showGen = 0    -- invalidates an older "drops under the Show Only When Low time" timer
@@ -271,7 +269,7 @@ local function DisarmAlert()
     alertArmed = nil
 end
 
--- Nothing fires as the buff's time runs down, so crossing the two-minute mark is timed.
+-- Nothing fires as the buff's time runs down, so crossing the Alert Under mark is timed.
 -- UNIT_AURA fires often, so the timer is only set again for a new expiry.
 local function UpdateAlert(aura)
     if not (S.Get("campNearbyAlert") and C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_NEARBY)) then
@@ -287,14 +285,15 @@ local function UpdateAlert(aura)
         SetAlert(false)
         return
     end
-    SetAlert(not aura or left < CAMP_LOW)
-    if not (aura and left >= CAMP_LOW) then
+    local low = S.Get("campNearbyMinutes") * 60
+    SetAlert(not aura or left < low)
+    if not (aura and left >= low) then
         DisarmAlert()
     elseif alertArmed ~= expiry then
         DisarmAlert()
         alertArmed = expiry
         local gen = alertGen
-        C_Timer.After(left - CAMP_LOW + 0.1, function()
+        C_Timer.After(left - low + 0.1, function()
             if gen == alertGen then
                 alertArmed = nil
                 Refresh()
@@ -413,6 +412,8 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
+    -- A timer armed for the old threshold would fire at the wrong time.
+    if key == "campNearbyMinutes" then DisarmAlert() end
     if key == "enabled" or (key:find("^camp") and key ~= "campPos" and key ~= "campAlertPos") then
         Apply()
     end
