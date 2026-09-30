@@ -23,7 +23,8 @@ local S = UI.ModuleSettings("professions", {
     -- Gathering: all off until switched on.
     gatherReminder = false, gatherInInstances = false, gatherIconSize = 40, gatherFish = false,
     -- Buying and Selling: all off until switched on.
-    ahSearch = false, craftProfit = false, craftProfitList = false, buyMaterials = false,
+    ahSearch = false, ahShiftClick = false, craftProfit = false, craftProfitList = false,
+    buyMaterials = false,
     filterMaterials = false, filterSkillUp = false, filterProfit = false,
 })
 ns.ProfessionSettings = S
@@ -365,6 +366,18 @@ local function SearchAuctionHouse(name)
     end
     ah.SearchBar:SetSearchText(name)
     ah.SearchBar:StartSearch()
+end
+
+-- Shift-click on an item: with the auction house open and Shift-Click Searches AH on, it
+-- searches the auction house for it; while you type in chat, or otherwise, it links it in
+-- chat. ChatFrameUtil, not the ChatEdit_ names: those are deprecated shims Forever does not
+-- load. itemID may be nil (a recipe that makes no item), which just links.
+local function ShiftClick(itemID, link)
+    if S.Get("ahShiftClick") and AuctionHouseOpen() and not ChatFrameUtil.GetActiveWindow() then
+        local name = ItemName(itemID)
+        if name then return SearchAuctionHouse(name) end
+    end
+    if link then ChatFrameUtil.InsertLink(link) end
 end
 
 local function ItemCount(itemID)
@@ -1112,7 +1125,7 @@ local function BuildReagents(parent)
         r:SetScript("OnClick", function(self)
             if IsModifiedClick("CHATLINK") then
                 local _, link = C_Item.GetItemInfo(self.itemID)
-                if link then ChatEdit_InsertLink(link) end
+                ShiftClick(self.itemID, link)
             end
         end)
         r:SetScript("OnEnter", function(self)
@@ -1753,8 +1766,8 @@ local function Build()
                 RenderList()
                 RenderDetail()
             elseif IsModifiedClick("CHATLINK") then
-                local link = C_TradeSkillUI.GetRecipeLink(e.recipe.recipeID)
-                if link then ChatEdit_InsertLink(link) end
+                local id = e.recipe.recipeID
+                ShiftClick((OutputItem(id)), C_TradeSkillUI.GetRecipeLink(id))
             else
                 selectedID, selectedUnlearned = e.recipe.recipeID, nil
                 RenderList()
@@ -2485,6 +2498,12 @@ function ns.BuildProfessionsPage(parent, y)
         S.Toggle("craftProfitList", "Profit in Recipe List",
             "Also shows each recipe's profit at the right of its row in the list, green or red. "
             .. "Recipes whose profit is not known show none.", "craftProfit")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("ahShiftClick", "Shift-Click Searches AH",
+            "While the auction house is open, Shift-click a recipe or a reagent to search the "
+            .. "auction house for the item: what the recipe makes, or the reagent. While you "
+            .. "type in chat, Shift-click still links it.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("ahSearch", "Search AH Button",
