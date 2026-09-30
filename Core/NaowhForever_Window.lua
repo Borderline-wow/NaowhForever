@@ -25,12 +25,15 @@ local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 -- to open it; only pages drawn with the row widgets can take it.
 -- A module with `command` also opens in a window of its own, from /nf<command> and from its
 -- broker button, NaowhForever<short>, which the top bar and the minimap can carry.
+-- A page with `noscan` is left out of the settings search's scan (Core/NaowhForever_Search.lua),
+-- which runs a builder without a window: builders that make their own frames, write to the
+-- profile, or read the Encounter Journal cannot take that. Those pages are found by name only.
 local SYSTEM_PAGES = {
     { name = "Settings", build = "BuildSettingsPage", reuse = true,
       subtitle = "Options for the whole addon, saved for this computer." },
-    { name = "Patch Notes", build = "BuildPatchNotesPage", reuse = true,
+    { name = "Patch Notes", build = "BuildPatchNotesPage", reuse = true, noscan = true,
       subtitle = "What changed in recent builds." },
-    { name = "Profiles", build = "BuildProfileSettings", reuse = true,
+    { name = "Profiles", build = "BuildProfileSettings", reuse = true, noscan = true,
       subtitle = "Switch, copy and share everything these pages save." },
 }
 
@@ -47,7 +50,7 @@ local MODULES = {
           { name = "Combat & Alerts", build = "BuildQoLAlertsPage", reuse = true, collapse = true },
           { name = "Interface", build = "BuildQoLInterfacePage", reuse = true, collapse = true },
           { name = "Casting", build = "BuildQoLCastingPage", reuse = true, collapse = true },
-          { name = "Tools", build = "BuildQoLToolsPage", reuse = true, collapse = true },
+          { name = "Tools", build = "BuildQoLToolsPage", reuse = true, collapse = true, noscan = true },
           { name = "Tooltip Display", build = "BuildQoLTooltipPage", reuse = true, collapse = true },
           { name = "Performance", build = "BuildQoLPerformancePage", reuse = true, collapse = true },
           { name = "Trainer", build = "BuildQoLTrainerPage", reuse = true },
@@ -59,7 +62,7 @@ local MODULES = {
       command = "dq", short = "DQ", icon = "Interface\\Icons\\INV_Misc_Note_01",
       subtitle = "Every dungeon quest on Forever, and a tracker for the dungeon you are in.",
       tabs = {
-          { name = "Tracker", build = "BuildQoLDungeonQuestsPage", reuse = true },
+          { name = "Tracker", build = "BuildQoLDungeonQuestsPage", reuse = true, noscan = true },
       } },
     { name = "Gear & Trinkets", settings = "QoLSettings", enabledKey = "gearSets",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
@@ -72,14 +75,14 @@ local MODULES = {
       command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
       subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
       tabs = {
-          { name = "Bar", build = "BuildQoLBlessingsPage", reuse = true, collapse = true },
-          { name = "Assignments", build = "BuildBlessingAssignmentsPage", reuse = true },
+          { name = "Bar", build = "BuildQoLBlessingsPage", reuse = true, collapse = true, noscan = true },
+          { name = "Assignments", build = "BuildBlessingAssignmentsPage", reuse = true, noscan = true },
       } },
     { name = "BiS List", settings = "QoLSettings", enabledKey = "bis",
       command = "bis", short = "BiS", icon = "Interface\\Icons\\INV_Sword_39",
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
       tabs = {
-          { name = "List", build = "BuildQoLBiSPage", reuse = true },
+          { name = "List", build = "BuildQoLBiSPage", reuse = true, noscan = true },
       } },
     { name = "Professions", settings = "ProfessionSettings",
       subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",
@@ -99,7 +102,7 @@ local MODULES = {
           { name = "Buffs & Consumables", build = "BuildAuraBuffsPage", reuse = true, collapse = true },
           { name = "Campfire", build = "BuildCampfirePage", reuse = true },
           { name = "Low Health", build = "BuildLowHealthPage", reuse = true },
-          { name = "Poison & Dispel", build = "BuildPoisonDispelPage", reuse = true },
+          { name = "Poison & Dispel", build = "BuildPoisonDispelPage", reuse = true, noscan = true },
       } },
     { name = "Threat Meter", settings = "ThreatMeterSettings",
       command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
@@ -116,7 +119,7 @@ local MODULES = {
     { name = "Top Bar", settings = "TopBarSettings",
       subtitle = "Friends, guild, the clock and your addon buttons across the top of the screen.",
       tabs = {
-          { name = "Bar", build = "BuildTopBarPage", reuse = true, collapse = true },
+          { name = "Bar", build = "BuildTopBarPage", reuse = true, collapse = true, noscan = true },
       } },
     -- The reminder modules sit below a divider in the sidebar.
     { name = "Custom Reminders", settings = "CustomReminderSettings", divider = true,
@@ -130,10 +133,10 @@ local MODULES = {
     { name = "Smart Reminders",
       subtitle = "Calls out what to press when a boss ability is about to land.",
       tabs = {
-          { name = "Setup", build = "BuildSetupPage", reuse = true },
-          { name = "Cooldown Presets", build = "BuildPresetsPage", reuse = true },
-          { name = "Dungeon Bosses", build = "BuildBossTabPage", arg = false, reuse = true },
-          { name = "Raid Bosses", build = "BuildBossTabPage", arg = true, reuse = true },
+          { name = "Setup", build = "BuildSetupPage", reuse = true, noscan = true },
+          { name = "Cooldown Presets", build = "BuildPresetsPage", reuse = true, noscan = true },
+          { name = "Dungeon Bosses", build = "BuildBossTabPage", arg = false, reuse = true, noscan = true },
+          { name = "Raid Bosses", build = "BuildBossTabPage", arg = true, reuse = true, noscan = true },
       } },
 }
 
@@ -266,6 +269,7 @@ local function ShowWrapper(pageWrappers, child, key)
     if wrapper._dirty then
         wrapper._dirty = nil
         wrapper._pageKey, wrapper._collapsible, wrapper._nsuiCollapsed = key, PAGES[key].collapse, nil
+        wrapper._nsuiFeatureId = nil
         if PAGES[key].reuse then UI.BeginReusableRows(wrapper) end
         local usedY = BuildPageInto(PAGES[key], wrapper)
         wrapper:SetHeight(math.abs(usedY) + 30)
@@ -279,6 +283,68 @@ local function ShowPage(key)
     ShowWrapper(wrappers, scrollChild, key)
     scrollFrame:SetVerticalScroll(0)
     PaintNav()
+end
+
+-- The pages the settings search looks through, the window's own and every module's tabs.
+function UI.SearchPages()
+    local pages = {}
+    for _, page in ipairs(SYSTEM_PAGES) do pages[#pages + 1] = page end
+    for _, mod in ipairs(MODULES) do
+        for _, tab in ipairs(mod.tabs) do pages[#pages + 1] = tab end
+    end
+    return pages
+end
+
+-- The row that got a search hit lights up in the accent for a moment. One frame, made the
+-- first time it is needed and moved from row to row.
+local flash, flashGen = nil, 0
+local function Flash(row)
+    if not flash then
+        flash = CreateFrame("Frame", nil, row)
+        ns.Solid(flash, "OVERLAY", T.accent, 0.3):SetAllPoints()
+    end
+    flash:SetParent(row)
+    flash:ClearAllPoints()
+    flash:SetAllPoints(row)
+    flash:SetFrameLevel(row:GetFrameLevel() + 8)
+    flash:Show()
+    flashGen = flashGen + 1
+    local gen = flashGen
+    C_Timer.After(1.2, function() if gen == flashGen then flash:Hide() end end)
+end
+
+-- Opens the page (building it if this is the first visit) and the feature the row sits
+-- under, scrolls to the row that shows `label` and flashes it. The row's place comes from
+-- the real layout, so it is right whatever the page looks like now.
+function UI.GoToSetting(key, label, feature)
+    if not (window and PAGES[key]) then return end
+    if feature then UI.OpenFeature(feature) end
+    -- Drawn again, so the place measured below is the layout that stays.
+    if wrappers[key] then wrappers[key]._dirty = true end
+    ShowPage(key)
+    local wrapper = wrappers[key]
+    if not (wrapper and label) then return end
+    for _, row in ipairs({ wrapper:GetChildren() }) do
+        if row:IsShown() and row._searchF == feature and (row._searchL == label or row._searchR == label) then
+            local _, _, _, _, y = row:GetPoint(1)
+            scrollFrame:UpdateScrollChildRect()
+            scrollFrame:SetVerticalScroll(math.min(scrollFrame:GetVerticalScrollRange(), math.max(0, -y - 60)))
+            Flash(row)
+            return
+        end
+    end
+end
+
+-- The page on show, drawn again in place for the search's marks. Pages the search does not
+-- scan have nothing to mark.
+function UI.RefreshSearchMarks()
+    local page = PAGES[currentPage]
+    if not (window and window:IsShown()) or page.noscan then return end
+    local scroll = scrollFrame:GetVerticalScroll()
+    if wrappers[currentPage] then wrappers[currentPage]._dirty = true end
+    ShowPage(currentPage)
+    scrollFrame:UpdateScrollChildRect()
+    scrollFrame:SetVerticalScroll(scroll)
 end
 
 local function ShowModulePage(win, key)
@@ -609,7 +675,9 @@ local function CreateWindow()
     forever:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 1, -3)
     forever:SetText("Forever")
 
-    local ny = -(HEADER_H + 8)
+    -- The settings search sits under the brand; the module list starts below it.
+    UI.AttachSearch(sidebar, HEADER_H + 6)
+    local ny = -(HEADER_H + 40)
     local function NavButton(label, onClick, indent)
         local btn = CreateFrame("Button", nil, sidebar)
         btn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, ny)

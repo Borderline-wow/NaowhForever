@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- Options window: a search box at the top of the sidebar finds a setting on the Settings
+  page and on the QoL, Gear & Trinkets, Macros, AuraBuffs, Threat Meter, Swing Timer and
+  Professions pages, jumps to it and lights it up, opening the dropdown it sits in. While
+  you type, matching settings on the page you are on are highlighted and their dropdowns
+  open. The editor pages (Smart Reminders, Profiles, BiS List, Blessings, Dungeon Quests,
+  Top Bar, QoL Tools and Poison & Dispel) are found by name. Thanks to Lyssa.
 - Supporter Badges: Legendary patrons on Naowh's Patreon now get the Naowh Forever N next
   to their name in chat, seen by everyone with the addon. Hover their name for their card,
   with how long they've been supporting, and their player tooltip shows it too. Type

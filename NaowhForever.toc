@@ -28,6 +28,10 @@ Core\NaowhForever_Widgets.lua
 # The page builders it dispatches to live in the later files, resolved at open time.
 Core\NaowhForever_Window.lua
 
+# The settings search: finds a setting on any page and jumps to it. Loads after the window,
+# which calls into it when it is made.
+Core\NaowhForever_Search.lua
+
 # Tank busters Blizzard's own TankRole bit does not carry. Additive to it, never a
 # replacement, so content this file has never heard of still works unchanged. Loads after
 # Core, which owns the namespace it hangs off.

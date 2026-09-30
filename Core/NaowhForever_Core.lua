@@ -375,6 +375,42 @@ function ns.NewEditBox(parent)
     return box
 end
 
+-- A search field: hint text while empty, a clear button while not, Escape clears it. Made
+-- the way the Professions search is; onChange gets the text on every edit.
+function ns.NewSearchBox(parent, hint, onChange)
+    local T = ns.THEME
+    local box = ns.NewEditBox(parent)
+    box.hint = ns.Font(box, 12, nil, T.muted)
+    box.hint:SetPoint("LEFT", 6, 0)
+    box.hint:SetText(ns.L(hint))
+    box:SetTextInsets(6, 22, 0, 0)
+    local clear = CreateFrame("Button", nil, box)
+    clear:SetSize(18, 18)
+    clear:SetPoint("RIGHT", -2, 0)
+    clear.text = ns.Font(clear, 13, nil, T.muted)
+    clear.text:SetPoint("CENTER")
+    clear.text:SetText("X")
+    clear:SetScript("OnClick", function()
+        box:SetText("")
+        box:ClearFocus()
+    end)
+    clear:SetScript("OnEnter", function() clear.text:SetTextColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    clear:SetScript("OnLeave", function() clear.text:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1) end)
+    clear:Hide()
+    box:SetScript("OnTextChanged", function(self)
+        local text = self:GetText() or ""
+        self.hint:SetShown(text == "")
+        clear:SetShown(text ~= "")
+        if onChange then onChange(text) end
+    end)
+    box:SetScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+    end)
+    box:SetScript("OnEnterPressed", box.ClearFocus)
+    return box
+end
+
 function ns.PromptText(title, text, maxLetters, onAccept)
     local UI = ns.UI
     local dimmer, panel = ns.MakeModal(360, 130, "promptText")

@@ -619,7 +619,7 @@ function ns.BuildQoLLootPage(parent, y)
         { type = "label", text = "Pick Up Cheapest Item" },
         { type = "label", text = "" }
     ); y = y - h
-    if ns.KeyField then
+    if ns.KeyField and keyRow then   -- keyRow is nil while the settings search scans this page
         ns.KeyField(keyRow._leftRegion, "NAOWHFOREVER_BAGSPACE_PICKUP", "Pick Up Cheapest Item")
     end
     _, h = W:Button(parent, "Ignore List", y, function()
