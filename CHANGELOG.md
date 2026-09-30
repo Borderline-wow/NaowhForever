@@ -7,6 +7,10 @@
   Shift-click a recipe or a reagent and the search for the item runs straight away; while
   you type in chat, it still links it.
 
+### Changed
+- QoL: the auction house price on item tooltips is now switched in QoL > Tooltip Display
+  (Auction House Price), with the other tooltip settings. Your setting is kept.
+
 ### Fixed
 - Blessings: every icon has the same thin black border, also while its buff is up and on
   your own blessing button.

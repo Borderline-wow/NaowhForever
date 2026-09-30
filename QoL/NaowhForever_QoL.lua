@@ -549,8 +549,7 @@ function ns.BuildQoLLootPage(parent, y)
             "A Scan Prices button on the auction house. It reads every listing and keeps the "
             .. "lowest buyout for each item, for this realm and faction. Blizzard allows one full "
             .. "scan every 15 minutes."),
-        S.Toggle("ahTooltip", "Prices on Tooltips",
-            "The last scanned price for one of an item, and how long ago the scan ran.")
+        { type = "label", text = "Price on tooltips: QoL > Tooltip Display" }
     ); y = y - h
     _, h = W:Note(parent, ns.AuctionScanSummary(), y); y = y - h
 
@@ -1481,6 +1480,15 @@ function ns.BuildQoLTooltipPage(parent, y)
     _, h = W:DualRow(parent, y,
         { type = "button", text = "Preview Copy Card", buttonText = "Preview", onClick = function() ns.PreviewTooltipCopyCard() end },
         { type = "label", text = "Select ID or link, then Ctrl+C" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "ITEM TOOLTIPS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("ahTooltip", "Auction House Price",
+            "Item tooltips show the item's price at your last auction house scan, for one of it, "
+            .. "and how long ago that was. Scan with the Scan Prices button on the auction house "
+            .. "(QoL > Loot & Items)."),
+        { type = "label", text = "" }
     ); y = y - h
     return y
 end
