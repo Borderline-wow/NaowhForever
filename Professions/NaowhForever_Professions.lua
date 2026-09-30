@@ -368,12 +368,19 @@ local function SearchAuctionHouse(name)
     ah.SearchBar:StartSearch()
 end
 
+-- True while the cursor is in a chat box. The active chat window alone does not say it:
+-- with some chat settings there always is one, typing or not.
+local function TypingInChat()
+    local box = ChatFrameUtil.GetActiveWindow()
+    return box ~= nil and box:HasFocus()
+end
+
 -- Shift-click on an item: with the auction house open and Shift-Click Searches AH on, it
 -- searches the auction house for it; while you type in chat, or otherwise, it links it in
--- chat. ChatFrameUtil, not the ChatEdit_ names: those are deprecated shims Forever does not
--- load. itemID may be nil (a recipe that makes no item), which just links.
+-- chat, through ChatFrameUtil (the ChatEdit_ names are deprecated). itemID may be nil (a
+-- recipe that makes no item), which just links.
 local function ShiftClick(itemID, link)
-    if S.Get("ahShiftClick") and AuctionHouseOpen() and not ChatFrameUtil.GetActiveWindow() then
+    if S.Get("ahShiftClick") and AuctionHouseOpen() and not TypingInChat() then
         local name = ItemName(itemID)
         if name then return SearchAuctionHouse(name) end
     end

@@ -12,8 +12,9 @@ local function Read(path)
 end
 
 local source = Read("Professions/NaowhForever_Professions.lua")
-local first = assert(source:find("local function ShiftClick(itemID, link)", 1, true))
-local last = assert(source:find("\nend\n", first, true))
+local first = assert(source:find("local function TypingInChat()", 1, true))
+local shift = assert(source:find("local function ShiftClick(itemID, link)", first, true))
+local last = assert(source:find("\nend\n", shift, true))
 local chunk = source:sub(first, last + 4) .. "return ShiftClick"
 
 local settings, ahOpen, typing, names = {}, false, false, { [2840] = "Copper Bar" }
@@ -24,7 +25,8 @@ local env = {
     ItemName = function(id) return id and names[id] end,
     SearchAuctionHouse = function(name) searched = name end,
     ChatFrameUtil = {
-        GetActiveWindow = function() return typing and {} or nil end,
+        -- As with some chat settings: there is always an active chat box, typing or not.
+        GetActiveWindow = function() return { HasFocus = function() return typing end } end,
         InsertLink = function(link) linked = link end,
     },
 }
@@ -46,7 +48,8 @@ check("auction house closed: it links", linked == "[Copper Bar]" and not searche
 
 ahOpen = true
 Click(2840, "[Copper Bar]")
-check("auction house open: it searches for the item", searched == "Copper Bar" and not linked)
+check("auction house open, chat box there but not typing: it searches",
+    searched == "Copper Bar" and not linked)
 
 typing = true
 Click(2840, "[Copper Bar]")

@@ -4,11 +4,10 @@
 
 ### Added
 - Professions: Shift-Click Searches AH (off by default). While the auction house is open,
-  Shift-click a recipe or a reagent to search it for the item; typing in chat, it still
-  links it. Shift-click links work again on Forever.
+  Shift-click a recipe or a reagent and the search for the item runs straight away; while
+  you type in chat, it still links it.
 
 ### Fixed
-- Bag Space: Shift-click links the item in chat again.
 - Reload UI buttons and prompts work again, like the one after Apply All Recommended on
   QoL > Performance: they run the game's own /reload instead of causing an error. In
   combat they say to type /reload.
