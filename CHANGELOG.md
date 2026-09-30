@@ -8,6 +8,9 @@
 - Share Quests With Group (off by default, QoL > Questing): while you are in a group, each
   quest you accept from an NPC is shared with the others, when the quest can be shared. A
   quest someone shared with you is not shared again. Hold Alt to keep one to yourself.
+- Accept Popup Macro (Macros > Focus & Cursor): a macro that presses the first button of the
+  popup on screen, like accepting a summons or a group invite. It presses whichever popup is
+  on top, so it confirms the others too.
 - Options window: a search box at the top of the sidebar finds a setting on the Settings
   page and on the QoL, Gear & Trinkets, Macros, AuraBuffs, Threat Meter, Swing Timer and
   Professions pages, jumps to it and lights it up, opening the dropdown it sits in. While

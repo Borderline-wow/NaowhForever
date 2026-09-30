@@ -13,6 +13,7 @@ local S = UI.ModuleSettings("macros", {
     mana = false, food = false, bandage = false,
     trinket1 = false, trinket2 = false,
     focus = false, focusMark = false, focusMarker = 8, focusAnnounce = false,
+    acceptPopup = false,
 })
 -- Authored definitions travel with shared packs; presentation settings stay in this module.
 local GetSetting, SetSetting = S.Get, S.Set
@@ -41,12 +42,13 @@ local HEALTH_ORDER_ORDER = { "stone", "potion" }
 local MARKER_VALUES = { [1] = "Star", [2] = "Circle", [3] = "Diamond", [4] = "Triangle",
     [5] = "Moon", [6] = "Square", [7] = "Cross", [8] = "Skull" }
 local MARKER_ORDER = { 8, 7, 6, 5, 4, 3, 2, 1 }
+local ACCEPT_ICON = 136814  -- the ready check mark
 
 local function MacroIcon(key, text, tooltip)
     return { type = "iconbutton", text = text,
         tooltip = tooltip .. " Right-click to remove the macro.",
         icon = ({ health = 134829, mana = 134855, food = 133971, bandage = 133682,
-            trinket1 = 134400, trinket2 = 134400, focus = 132212 })[key],
+            trinket1 = 134400, trinket2 = 134400, focus = 132212, acceptPopup = ACCEPT_ICON })[key],
         active = function() return S.Get(key) == true end,
         onClick = function() ns.PickupManagedMacro(key) end,
         onRightClick = function() ns.RemoveManagedMacro(key) end }
@@ -273,6 +275,15 @@ function ns.BuildMacroFocusPage(parent, y)
         S.Dropdown("focusMarker", "Focus Marker", MARKER_VALUES, MARKER_ORDER, nil, "focus")
     ); y = y - h
 
+    _, h = W:SectionHeader(parent, "ACCEPT POPUP" .. STATUS.untested, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        MacroIcon("acceptPopup", "Accept Popup Macro",
+            "Presses the first button of the popup on screen, the same as clicking Accept or "
+            .. "Yes yourself. It presses whichever popup is on top, so it will also confirm "
+            .. "things like releasing your spirit or leaving the group."),
+        { type = "label", text = "" }
+    ); y = y - h
+
     return y
 end
 
@@ -297,6 +308,7 @@ local MACROS = {
     { key = "trinket1", name = "NF Trinket 1" },
     { key = "trinket2", name = "NF Trinket 2" },
     { key = "focus", name = "NF Focus" },
+    { key = "acceptPopup", name = "NF Accept", icon = ACCEPT_ICON },
 }
 
 local ready, pending
@@ -356,6 +368,7 @@ local BODIES = {
     bandage = function() return UseLines(ItemLine(FirstCarried(BANDAGES), "[@player] ")) end,
     trinket1 = function() return "#showtooltip 13\n/use 13" end,
     trinket2 = function() return "#showtooltip 14\n/use 14" end,
+    acceptPopup = function() return "/click StaticPopup1Button1" end,
     focus = function()
         local body = "/focus [@mouseover,exists,nodead][]"
         if S.Get("focusMark") then body = body .. "\n/tm [@focus] " .. S.Get("focusMarker") end
