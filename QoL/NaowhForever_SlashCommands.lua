@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_SlashCommands.lua -- the QoL custom slash commands: short commands of your
---  own that open a game window or run another slash command, arguments passed through.
+--  NaowhForever_SlashCommands.lua -- the QoL custom slash commands: your own short commands that
+--  open a game window or run another slash command.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

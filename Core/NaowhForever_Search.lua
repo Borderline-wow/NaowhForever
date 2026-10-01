@@ -1,12 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Search.lua -- find a setting anywhere in the options window and jump to it.
---
---  Nothing is built or scanned until the player types. The first keystroke of a search
---  runs the page builders in scan mode (UI.searchScan, see the row widgets): each row says
---  what it is called and builds nothing. Pages marked `noscan` in Window.lua are the ones
---  whose builders do more than draw rows -- their own frames, writes, journal reads -- and
---  are found by module and tab name only. Rows that only exist under some settings are
---  found only while they exist.
+--  The first keystroke runs the page builders in scan mode (UI.searchScan): each row says
+--  what it is called and builds nothing. `noscan` pages in Window.lua are found by module
+--  and tab name only. Rows that only exist under some settings are found only while they exist.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -14,7 +10,7 @@ local UI = ns.UI
 
 local MAX_RESULTS, RESULT_H, PANEL_W = 12, 36, 400
 local box, panel, active
-local results = {}          -- the entries the panel shows right now
+local results = {}
 local failed = {}           -- pages whose builder errored in the last scan (for /dump)
 
 -- A parent that answers every call with 0. A builder that does more than call the row
@@ -49,7 +45,6 @@ local function Entry(page, crumb, label, section, tooltip, feature, featureName)
         tipLower = tooltip and tooltip:lower() or nil, feature = feature }
 end
 
--- Every page by name, and every scannable page's settings.
 local function BuildIndex()
     local index = {}
     for i = #failed, 1, -1 do failed[i] = nil end
@@ -182,8 +177,6 @@ local function ShowResults(found)
     panel:Show()
 end
 
--- While a search is typed, the page on show marks the rows that match and opens the
--- features holding one; clearing it puts the page back.
 -- A setting holding every word in its own name or tooltip: what gets marked, and whose
 -- feature opens. A hit on the page or section name alone does neither.
 local function RowHit(entry, words)
@@ -224,8 +217,7 @@ local function OnText(text)
         MarkPage("")
         return
     end
-    -- The index is rebuilt at the start of every search, so it matches the settings as
-    -- they are now.
+    -- Rebuilt per search so it matches the settings as they are now.
     if not active then
         active = true
         UI.searchIndex = BuildIndex()
@@ -234,7 +226,6 @@ local function OnText(text)
     MarkPage(text)
 end
 
--- Called once, when the window is made.
 function UI.AttachSearch(sidebar, top)
     box = ns.NewSearchBox(sidebar, "Search all settings", OnText)
     box:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 14, -top)

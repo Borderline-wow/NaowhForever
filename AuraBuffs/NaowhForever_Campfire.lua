@@ -303,7 +303,6 @@ local function DisarmAlert()
     alertArmed = nil
 end
 
--- Nothing fires as the buff's time runs down, so crossing the Alert Under mark is timed.
 -- UNIT_AURA fires often, so the timer is only set again for a new expiry.
 local function UpdateAlert(aura)
     if not (S.Get("campNearbyAlert") and C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_NEARBY)) then
@@ -381,12 +380,10 @@ function Refresh(_, event)
         if issecretvalue and (issecretvalue(duration) or issecretvalue(expiry)) then
             duration, expiry = nil, nil
         end
-        -- Nothing fires as the camp runs down, so the moment it drops under the time is timed.
         local left = expiry and expiry > 0 and expiry - GetTime()
         local under = S.Get("campShowUnderMinutes") * 60
         if S.Get("campShowUnder") and left and left > under then
             icon:Hide()
-            -- UNIT_AURA fires often, so the timer is only set again for a new expiry or setting.
             local key = expiry .. ":" .. under
             if showArmed ~= key then
                 showArmed = key

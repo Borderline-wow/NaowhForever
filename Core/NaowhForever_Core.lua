@@ -1,8 +1,6 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Core.lua -- theme, chrome primitives, DB and profile plumbing.
---
---  Standalone addon: no EllesmereUI dependency. The options window, widget kit and
---  profile system are all its own (Widgets and Window files).
+--  Standalone addon: no EllesmereUI dependency.
 -------------------------------------------------------------------------------
 local ADDON_NAME = ...
 
@@ -22,12 +20,9 @@ function ns.L(key, ...)
     return text
 end
 
--- Bumped by hand on every code change that goes to a tester, and printed beside the TOC
--- version everywhere a build is reported. The TOC version only moves on release, so it
--- cannot tell a working checkout from the release it was branched off -- which cost two
--- rounds of diagnosis on reports whose traces turned out to be from an unreloaded
--- client. This moves whenever the Lua does, so a header naming a stamp the reporter was
--- not sent means the files changed under a running client and the capture predates them.
+-- Bumped by hand on every code change sent to a tester and printed beside the TOC version,
+-- which only moves on release. A report naming a stamp the reporter was not sent comes from
+-- a client that was not reloaded after the files changed.
 ns.CODE_BUILD = "0.5.17-beta"
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
@@ -108,8 +103,7 @@ ns.THEME_PRESETS = {
 }
 
 -- A |cffRRGGBB escape from a THEME key (or an {r,g,b} table). With text it wraps it and
--- closes with |r; without, it returns the bare prefix for strings built in pieces. The
--- prefix is cached per key, so a call costs one concat.
+-- closes with |r; without, it returns the bare prefix for strings built in pieces.
 local colorPrefix = {}
 function ns.Color(token, text)
     local prefix = colorPrefix[token]
@@ -244,13 +238,9 @@ function ns.ThemeTint(key, literal)
     return literal
 end
 
--- A secret-tainted message is DROPPED by the display, silently and with nothing logged, so
--- a diagnostic built from live combat data can vanish line by line while looking for all the
--- world like code that never ran. Caught here once rather than at every call site.
---
--- tostring() is not a way out: on a secret it returns a SECRET STRING rather than raising,
--- and the taint rides through format and concatenation to the display. issecretvalue() is
--- the only thing that answers plainly, and it must be asked BEFORE the value is coerced.
+-- A secret-tainted message is silently dropped by the display, so a combat diagnostic can
+-- vanish as if the code never ran. tostring() on a secret returns a secret string that taints
+-- whatever it is joined to, so issecretvalue() must be asked before the value is coerced.
 function ns.Print(msg)
     if issecretvalue and issecretvalue(msg) then
         msg = ns.Color("accent", "(withheld: this line contained a secret value)")
@@ -261,12 +251,10 @@ end
 -------------------------------------------------------------------------------
 --  Reload UI
 -------------------------------------------------------------------------------
--- The game refuses an addon's own reload, even from a click (ADDON_ACTION_BLOCKED on
--- Reload), but runs /reload from a secure macro button as if you had typed it. That button
--- is protected, and a protected frame inside one of the addon's windows would lock the
--- window in combat. So there is one, on UIParent, laid over whichever Reload UI button the
--- mouse is on by its place on screen, never anchored to it, and hidden as combat starts. In
--- combat it cannot be moved, and the button under it says to type /reload.
+-- The game blocks an addon's own reload, even from a click (ADDON_ACTION_BLOCKED), but runs
+-- /reload from a secure macro button. A protected frame inside our windows would lock them in
+-- combat, so one button lives on UIParent, laid over the hovered Reload UI button by screen
+-- position (never anchored) and hidden as combat starts.
 local reloader
 
 local function Reloader()
@@ -321,10 +309,6 @@ end
 -------------------------------------------------------------------------------
 --  House chrome
 -------------------------------------------------------------------------------
--- Every panel this addon draws is built from these primitives, so the whole look is
--- decided here and in ns.THEME. The widget factory in the Widgets file builds its rows
--- from the same pieces.
-
 -- The UI font: the Naowh face, bundled so it works without NaowhUI_Media. Registered under
 -- the same name and locale mask NaowhUI_Media uses; when that addon is installed its entry
 -- wins (Register never overwrites), and its Asia variant then covers the CJK clients this
@@ -365,12 +349,11 @@ function ns.UIFontPath()
     return uiFontPath
 end
 
--- Game Font and Combat Text Font on the whole game UI. Only Blizzard's font objects and the
--- three path globals are touched, never a frame, so it is taint-free; it has no undo, so a
--- change takes a reload. The path globals are read when the world loads, so they are set on
--- our ADDON_LOADED too; a font from an addon that loads after us only resolves by login,
--- which sets them again. The combat text objects inherit from SystemFont_World, which the
--- Game Font changes, so they are set on their own after it.
+-- Game Font and Combat Text Font on the whole game UI. Only font objects and the three path
+-- globals are touched, never a frame, so it is taint-free but has no undo: a change takes a
+-- reload. The path globals are read when the world loads, so they are set on ADDON_LOADED and
+-- again at login for fonts from later addons. Combat text inherits SystemFont_World, which
+-- Game Font changes, so it is set after.
 local gameFontEvents = CreateFrame("Frame")
 gameFontEvents:RegisterEvent("ADDON_LOADED")
 gameFontEvents:RegisterEvent("PLAYER_LOGIN")
@@ -484,12 +467,8 @@ function ns.SetButtonText(btn, text)
     btn.label:SetText(ns.L(text))
 end
 
--- The house tooltip lives in the Widgets file (ns.UI); resolved at hover time since that
--- file loads after this one.
--- "Protection" alone names two classes, and a list that mixes them -- a pack covering every
--- class, the raid reminder target picker -- reads as a puzzle. GetSpecializationInfoByID's
--- seventh return is the localized class name, which is what Blizzard's own ClubFinder pairs
--- it with. Falls back to the bare spec name, then to the id, so an unknown id still prints.
+-- "Protection" alone names two classes. GetSpecializationInfoByID's seventh return is the
+-- localized class name, which Blizzard's ClubFinder pairs it with.
 function ns.SpecName(specID)
     local id = tonumber(specID)
     if not id then return tostring(specID) end
@@ -499,9 +478,8 @@ function ns.SpecName(specID)
     return name
 end
 
--- Composed at HOVER time, not attach time: the tooltip accepts a function and resolves it on
--- show, and a body that is itself a function can answer from data that did not exist yet when
--- the row was built -- spell text loads async.
+-- Composed at hover time: a function body can answer from data that loaded after the row was
+-- built (spell text loads async).
 local function ComposeTooltip(frame)
     local b = frame._tipBody
     if type(b) == "function" then b = b() end
@@ -511,15 +489,13 @@ local function ComposeTooltip(frame)
     return frame._tipTitle
 end
 
--- The text lives on the frame and the hooks go on once, so a frame the options window reuses
--- takes new text without stacking another pair of hooks each time.
+-- The text lives on the frame and the hooks go on once, so a reused frame takes new text
+-- without stacking hooks. ns.UI is resolved at hover time: the Widgets file loads after this.
 function ns.Tooltip(frame, title, body)
     frame._tipTitle, frame._tipBody = title, body
     if frame._tipHooked then return end
     frame._tipHooked = true
-    -- Hooked, not set: ns.Button already owns OnEnter/OnLeave for its hover highlight, and
-    -- SetScript here silently replaced it -- every button carrying a tooltip stopped
-    -- lighting up on hover.
+    -- Hooked, not set: SetScript replaced ns.Button's own hover highlight.
     frame:HookScript("OnEnter", function(self)
         local UI = ns.UI
         if UI and UI.ShowWidgetTooltip then
@@ -533,25 +509,15 @@ function ns.Tooltip(frame, title, body)
     end)
 end
 
--- Modals stack: the reminder editor opens from inside the instance modal, and with both
--- on the same strata, creation order decided who was on top. Frame:Raise() looks like the
--- fix, but it reorders a frame against ALL of UIParent's direct children -- the whole
--- client's addon ecosystem, not just our own popups -- so the level it lands on is
--- unbounded and can already sit well above any fixed number by the time a session has
--- opened a few dialogs elsewhere. A private counter, incremented only by our own modals
--- and starting low, makes each newly opened modal outrank the last one at a level this
--- file controls. The 150 ceiling predates the move to MenuUtil menus (which Blizzard
--- hosts on its own strata, above any of this); it stays because bounded is the point.
+-- Stacking for our modals, which nest on one strata. Frame:Raise() orders against all of
+-- UIParent's children, so its level is unbounded; a private counter starting low keeps each new
+-- modal above the last at a level this file controls. The 150 ceiling predates MenuUtil menus
+-- and stays because bounded is the point.
 local nextModalLevel = 10
 
--- One shell per key, handed back on every open. WoW frames are never freed, so a dialog
--- built from new frames on each open kept every earlier copy for the rest of the session.
--- The panel reuses what is built on it the way the options window's pages do (UI.Keep), so
--- a dialog builds its parts once and fills them in on each open. Opening a key that is
--- already up closes that copy first -- the same button pressed twice still leaves one.
---
--- Nested dialogs keep DIFFERENT keys (the reminder editor opens from inside the instance
--- modal and both must stay up), so this never closes a parent to open its child.
+-- One shell per key, reused on every open (with UI.Keep): WoW frames are never freed, so new
+-- frames per open leaked every earlier copy. Opening a key that is already up closes it first.
+-- Nested dialogs use different keys, so a parent is never closed to open its child.
 local shells = {}
 
 -- A dimmed modal shell: click-off to dismiss, house border and panel fill. Returns the
@@ -574,9 +540,8 @@ function ns.MakeModal(width, height, key)
     local dimmer = CreateFrame("Frame", nil, UIParent)
     dimmer:SetAllPoints(UIParent)
     dimmer:SetFrameStrata("FULLSCREEN_DIALOG")
-    -- A floating panel, not a screen-blocking modal: mouse stays off the full-screen
-    -- anchor so the Dungeon Journal and everything else underneath is still clickable and
-    -- undimmed while this is open. Only the panel itself (below) captures the mouse.
+    -- Mouse stays off the full-screen anchor so the Dungeon Journal and everything underneath
+    -- stays clickable; only the panel captures the mouse.
     dimmer:EnableMouse(false)
     local panel = CreateFrame("Frame", nil, dimmer)
     panel:SetSize(width, height)
@@ -588,28 +553,17 @@ function ns.MakeModal(width, height, key)
     bg:SetAllPoints()
     ns.Border(panel)
 
-    -- Draggable from any empty background area, the same way EllesmereUI's own windows
-    -- move -- a click that lands on a button or edit box is intercepted by that child
-    -- first, so this only ever engages on the parts of the panel nothing else claimed.
-    -- Not saved, and re-centred on every open: it would look odd for a popup to reopen
-    -- wherever it was last dragged to, for a different thing entirely.
+    -- Not saved: re-centred on every open.
     panel:SetMovable(true)
     panel:RegisterForDrag("LeftButton")
     panel:SetScript("OnDragStart", function(self) self:StartMoving() end)
     panel:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
-    -- Escape closes the topmost open modal, same as any other WoW window. Not
-    -- UISpecialFrames -- that needs a fixed global name per frame, and MakeModal hands out
-    -- a fresh nameless one on every call, with several stacking at once (the reminder
-    -- editor opens from inside the instance modal). Each dimmer's own OnKeyDown instead:
-    -- ESCAPE hides this one and stops there (SetPropagateKeyboardInput(false)), so a
-    -- second ESC press reaches whatever modal is stacked underneath rather than closing
-    -- both at once. Any other key falls through untouched.
-    -- SetPropagateKeyboardInput is protected, so a modal opened in combat is refused it and
-    -- the addon is flagged for calling a protected function. The keyboard is not taken at
-    -- all there rather than taken without propagation control, which would swallow every
-    -- keybind for as long as the modal stayed open. The cost is that ESC will not close a
-    -- modal opened mid-fight; its close button still does.
+    -- Not UISpecialFrames: that needs a global name per frame, and these are nameless and stack.
+    -- ESCAPE closes only this one, so a second press reaches the modal underneath.
+    -- SetPropagateKeyboardInput is protected, so in combat the keyboard is not taken at all;
+    -- taking it without propagation control would swallow every keybind. ESC then cannot
+    -- close the modal; its close button still does.
     dimmer:SetScript("OnKeyDown", function(self, key)
         if InCombatLockdown() then return end
         if key == "ESCAPE" then
@@ -630,13 +584,8 @@ function ns.MakeModal(width, height, key)
             self:EnableKeyboard(true)
             self:SetPropagateKeyboardInput(true)
         end
-        -- The counter only ever climbed, so the panel level (this + 5) crossed 200 on the
-        -- nineteenth modal opened in a session -- and 200 is the hardcoded dropdown level
-        -- the comment above is about. Past that, dropdowns render BEHIND the panel that
-        -- opened them, which is the exact failure the counter exists to prevent. Stacking
-        -- only needs to order the modals currently on screen, and nesting never gets deep,
-        -- so winding back to the base is safe: anything still open sits below, and the one
-        -- being shown goes above it.
+        -- Wound back so the panel level (this + 5) stays under 200, the hardcoded dropdown
+        -- level; past it, dropdowns rendered behind their panel. Nesting never gets deep.
         if nextModalLevel > 150 then nextModalLevel = 10 end
         nextModalLevel = nextModalLevel + 10
         self:SetFrameLevel(nextModalLevel)
@@ -654,8 +603,6 @@ function ns.MakeModal(width, height, key)
     return dimmer, panel
 end
 
--- A one-line text prompt with Save and Cancel. maxLetters 0 allows any length, for pasting
--- import strings; text starts in the box highlighted, so a shown export can be copied.
 -- A text box on the house background and border, for dialogs to keep with UI.Keep.
 function ns.NewEditBox(parent)
     local box = CreateFrame("EditBox", nil, parent)
@@ -708,6 +655,7 @@ function ns.NewSearchBox(parent, hint, onChange)
     return box
 end
 
+-- maxLetters 0 allows any length, for pasting import strings.
 function ns.PromptText(title, text, maxLetters, onAccept)
     local UI = ns.UI
     local dimmer, panel = ns.MakeModal(360, 130, "promptText")
@@ -808,10 +756,8 @@ function ns.SettingsRoot()
     end
     local name = sv.charActive[CharKey()]
     if type(name) ~= "string" or type(sv.profiles[name]) ~= "table" then
-        -- A character with no assignment, or one pointing at a deleted profile, takes the
-        -- account default. That is "Default" until a new profile is made, which claims it --
-        -- so a character logged into for the first time afterwards joins the rest rather
-        -- than landing on an empty profile nobody chose.
+        -- No assignment, or a deleted profile: the account default, which a newly made
+        -- profile claims, so a first login afterwards joins the rest.
         name = type(name) == "string" and name or sv.defaultProfile or "Default"
         if type(sv.profiles[name]) ~= "table" and type(sv.defaultProfile) == "string" then
             name = sv.defaultProfile
@@ -823,9 +769,8 @@ function ns.SettingsRoot()
     return activeRoot
 end
 
--- Account-wide, deliberately outside the profile tables: the options window's scale
--- follows the monitor it is being read on, so it must not travel in an exported pack or
--- change under someone when they switch profile.
+-- Account-wide, outside the profiles: the window scale follows the monitor, so it must not
+-- travel in an exported pack or change on a profile switch.
 function ns.AccountSettings()
     local sv = DB()
     if type(sv.account) ~= "table" then sv.account = {} end
@@ -873,10 +818,8 @@ function ns.ActiveProfileName()
     return DB().charActive[CharKey()]
 end
 
--- Every character this account has logged in with the addon loaded, and which profile each
--- is on right now. For a preview shown before a change is made -- "this account profile move
--- will affect these characters" -- there is nothing more current to read: a character never
--- logged into on this account is not in charActive yet and cannot be named in advance.
+-- Every character logged in with the addon loaded, and its profile now. One never logged into
+-- is not in charActive and cannot be named in advance.
 function ns.KnownCharacters()
     local sv = DB()
     local out = {}
@@ -894,13 +837,8 @@ function ns.ListProfiles()
     return out
 end
 
--- The stored settings of any profile, loaded or not, for the exporter. Read-only by
--- intent: the caller copies out of it. Returns nil for a profile that has never been
--- written to, which is a profile carrying nothing rather than an error.
--- Which profile belongs to which spec, account-wide rather than inside a profile: it has to
--- survive switching away from whichever profile is loaded, and it describes the whole set.
--- Written by a whole-file import that was told to, and by a manual switch, so the map learns
--- what the player actually chooses rather than fighting them.
+-- Spec -> profile, account-wide so it survives a profile switch. Written by a whole-file
+-- import told to, and by a manual switch.
 function ns.SpecProfileMap()
     local sv = DB()
     if type(sv.specProfile) ~= "table" then sv.specProfile = {} end
@@ -912,16 +850,14 @@ function ns.SetSpecProfile(specID, name)
     ns.SpecProfileMap()[tostring(specID)] = name
 end
 
--- Off unless asked for. Switching someone's profile out from under them on a spec change is
--- the kind of helpfulness that reads as a bug, so it stays a choice.
+-- Off unless asked for: switching profile on a spec change unasked reads as a bug.
 function ns.AutoSpecProfile(set)
     local sv = DB()
     if set ~= nil then sv.autoSpecProfile = set and true or nil end
     return sv.autoSpecProfile == true
 end
 
--- Called on login and on a spec change. Returns true when it actually switched, so a caller
--- can tell whether the settings underneath it have moved.
+-- Returns true when it actually switched.
 function ns.ApplySpecProfile(specID)
     if not ns.AutoSpecProfile() then return false end
     if not specID or specID == 0 then return false end
@@ -934,6 +870,8 @@ function ns.ApplySpecProfile(specID)
     return (ns.SwitchProfile(want)) and true or false
 end
 
+-- Any profile's stored settings, for the exporter; read-only, the caller copies. nil for a
+-- profile never written to.
 function ns.ProfileSettings(name)
     local p = DB().profiles[name]
     return type(p) == "table" and type(p.tankReminder) == "table" and p.tankReminder or nil
@@ -955,18 +893,15 @@ function ns.SwitchProfile(name)
     if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
     sv.charActive[CharKey()] = name
     activeRoot = nil
-    -- The map learns from a deliberate switch, so choosing a profile while auto-switching is
-    -- on means "this one, for this spec" rather than a choice that is undone at the next
-    -- spec change. Recorded even with auto off, so turning it on later already knows.
+    -- A manual switch teaches the map, so auto switching does not undo it at the next spec
+    -- change. Recorded even with auto off, so turning it on later already knows.
     local spec = ns.CurrentSpec and ns.CurrentSpec()
     if spec and spec > 0 then ns.SetSpecProfile(spec, name) end
     ns.QueueReapply()
     return true
 end
 
--- allowExisting is for the callers that have already asked the player to confirm replacing a
--- profile of this name. Without it a taken name is refused, which is the right default: an
--- overwrite loses whatever was stored under it, on every character standing in it.
+-- allowExisting: the caller already confirmed replacing a profile of this name.
 local function ValidName(name, allowExisting)
     name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
     if name == "" then return nil, "the name is empty" end
@@ -974,37 +909,21 @@ local function ValidName(name, allowExisting)
     return name
 end
 
--- Whether a name is already spoken for, so the UI can offer the overwrite rather than
--- discovering it from a failed save.
 function ns.ProfileExists(name)
     name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
     return name ~= "" and type(DB().profiles[name]) == "table"
 end
 
--- A new profile becomes the account's: every character switches to it, and any logged into
--- later starts there too. Asked for outright -- making a profile on one character and then
--- finding the other nine still on the old one is the kind of thing that has cost real
--- confusion tonight, twice, with an export taken from the wrong profile each time.
---
--- Per-character choices are still possible: switching a character afterwards moves only that
--- one, and only until the next profile is created.
 -- Point the whole account at one profile: every character now, and any logged into later.
--- What an installer wants after landing a curator's pack, and what CreateProfile does for a
--- profile it just made.
 function ns.SetAccountProfile(name)
     local sv = DB()
     if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
     sv.defaultProfile = name
     for char in pairs(sv.charActive) do sv.charActive[char] = name end
     sv.charActive[CharKey()] = name
-    -- Auto spec switching runs on every login and spec change, and a map still pointing at
-    -- the profile this one replaces puts the character straight back on it before anyone
-    -- sees the change -- reported after an account-wide import, where only the importing
-    -- character's own spec had been remapped and every alt landed back on the old profile.
-    -- "One profile for the account" and "a profile per spec" are answers to the same
-    -- question, so the second is switched off rather than overwritten: the map itself is
-    -- left exactly as it was, and turning switching back on restores it whole. Reported so
-    -- the caller can say it happened rather than leaving it to be discovered.
+    -- A spec map still pointing at the old profile put every alt straight back on it after an
+    -- account-wide import. Auto switching is turned off, the map kept intact for turning it
+    -- back on; the caller is told so it can say so.
     local turnedOff = sv.autoSpecProfile == true
     sv.autoSpecProfile = nil
     activeRoot = nil
@@ -1012,6 +931,8 @@ function ns.SetAccountProfile(name)
     return true, turnedOff
 end
 
+-- A new profile becomes the account's, as asked for. Switching a character afterwards moves
+-- only that one, until the next profile is made.
 function ns.CreateProfile(name, overwrite)
     local err
     name, err = ValidName(name, overwrite)
@@ -1040,8 +961,7 @@ function ns.CopyProfile(src, name, overwrite)
     name, err = ValidName(name, overwrite)
     if not name then return false, err end
     sv.profiles[name] = DeepCopy(sv.profiles[src])
-    -- Overwriting the profile in use replaces the very table the cached root points at, so
-    -- the cache is dropped rather than left describing what was there a moment ago.
+    -- Overwriting the profile in use replaces the table the cached root points at.
     if name == sv.charActive[CharKey()] then
         activeRoot = nil
         ns.QueueReapply()
@@ -1049,10 +969,8 @@ function ns.CopyProfile(src, name, overwrite)
     return true
 end
 
--- Reset any profile, not only the one in use. The live half -- hiding the alert, dropping
--- the slot cache, re-registering events -- only applies when the profile being reset is the
--- one this character is standing in; for any other, clearing its stored settings is the
--- whole job and it rebuilds from defaults the next time it is loaded.
+-- The live reset (alert, slot cache, events) only runs for the profile in use; any other just
+-- has its stored settings cleared.
 function ns.ResetProfileNamed(name)
     local sv = DB()
     if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
@@ -1072,10 +990,8 @@ function ns.DeleteProfile(name)
     if count <= 1 then return false, "the last profile cannot be deleted" end
     local wasMine = sv.charActive[CharKey()] == name
     sv.profiles[name] = nil
-    -- Every character pointed at it falls back to the account default, or to any surviving
-    -- profile if that was the one deleted -- "Default" may not exist at all once profiles
-    -- have been renamed around. A replacement becomes the default too, or a character logged
-    -- into later would start on a new, empty Default.
+    -- "Default" may not exist once profiles are renamed. A replacement becomes the default
+    -- too, or a later first login would start on a new, empty Default.
     local fallback = sv.defaultProfile or "Default"
     if type(sv.profiles[fallback]) ~= "table" then
         fallback = next(sv.profiles)
@@ -1094,8 +1010,7 @@ end
 -------------------------------------------------------------------------------
 --  Re-apply on anything that swaps the active settings out from under us
 -------------------------------------------------------------------------------
--- Coalesced: one user action can request several reapplies in one go, and re-running the
--- rebuild per request would rebuild the slot list three times for one click.
+-- Coalesced: one click can request several reapplies.
 local reapplyPending
 
 function ns.QueueReapply()

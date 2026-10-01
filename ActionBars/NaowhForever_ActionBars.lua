@@ -58,7 +58,6 @@ local function SortedNames()
     return names
 end
 
--- Keyboard bars, then the controller bars when the client has them.
 local function Slots()
     local list = {}
     for slot = 1, KEYBOARD_SLOTS do list[#list + 1] = slot end
@@ -116,7 +115,6 @@ local function Capture()
     return slots
 end
 
--- Nothing saves or restores while the module is switched off.
 local function Ready(what)
     if not S.Get("enabled") then ns.Print("Action Bars is switched off.") return false end
     if InCombatLockdown() then ns.Print(("Bar sets can be %s out of combat."):format(what)) return false end
@@ -153,9 +151,9 @@ local function MacroRoom(perCharacter, plan)
     return account < max.MAX_ACCOUNT_MACROS
 end
 
--- Puts the saved action on the cursor and says whether it got there. A spell falls back to
--- the highest rank known when the saved rank is not, so a set made at a higher level still
--- restores. A test passes a plan: a missing macro that would be made again counts as placed.
+-- A spell falls back to the highest rank known when the saved rank is not, so a set made at
+-- a higher level still restores. A test passes a plan: a missing macro that would be made
+-- again counts as placed.
 local function PickUp(entry, best, plan)
     ClearCursor()
     if entry.kind == "spell" then

@@ -1,9 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_QuestAutomation.lua -- the QoL quest automation: accepts quests, turns
---  them in, picks quests out of an NPC's greeting or gossip, and shares quests you accept
---  with your group. Hold the Skip Modifier (Alt by default) to skip it.
---  Also the saved reward picks: Alt-click a choice reward to keep it for that quest in the
---  profile, and it is selected (or taken by Auto Turn In) when the quest is handed in.
+--  NaowhForever_QuestAutomation.lua -- the QoL quest automation: accepts, turns in and shares
+--  quests, and selects reward picks saved by Alt-clicking a reward.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

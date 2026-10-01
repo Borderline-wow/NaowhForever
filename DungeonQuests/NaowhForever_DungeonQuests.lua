@@ -7,10 +7,6 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
 
--- The level in its difficulty colour and the title white; the state sits in a column on the
--- right of each line. In log is the quest log's own in-progress yellow. Complete is one in
--- your log with its objectives done, in the quest log's completed green. A quest handed in
--- reads Finished and fades to grey, with a check where its level would be.
 local MUTED = "|cff9ca3af"
 local COMPLETE = "|cff19ff19"
 local DONE = MUTED .. "Finished|r"
@@ -26,8 +22,7 @@ local LOW = MUTED .. "Level %d to pick up|r"
 -- Size 0 is the font's own height, so the check does not make its line taller than the
 -- status beside it.
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
--- A dark band behind every other quest on the page, so the lines are easy to follow
--- across. Black, so it darkens the panel rather than greying it.
+-- Black, so the page's stripes darken the panel rather than greying it.
 local BLACK = { r = 0, g = 0, b = 0 }
 local STRIPE = BLACK
 local STRIPE_ALPHA = 0.35
@@ -47,7 +42,6 @@ for _, dungeon in ipairs(ns.DungeonQuests) do
     end
 end
 
--- The dungeon you are in: its instance ID and its entries, or nil outside one.
 local function CurrentDungeon()
     local inInstance, kind = IsInInstance()
     if not (inInstance and kind == "party") then return end
@@ -94,7 +88,6 @@ local function OnID(ids)
     end
 end
 
--- The ID of whichever step or version of the quest is in your log, if any.
 local function LoggedID(quest)
     if C_QuestLog.IsOnQuest(quest[1]) then return quest[1] end
     return OnID(quest.alt) or OnID(quest.steps) or OnID(quest.lead)
@@ -129,7 +122,6 @@ local function NextPrereq(quest)
     return list[1], 1, n
 end
 
--- The level the quest can be picked up at, while yours is below it.
 local function LevelNeeded(quest)
     local need = ns.DungeonQuestMinLevel[quest[1]]
     if need and UnitLevel("player") < need then return need end
@@ -162,7 +154,6 @@ local function InLog(status)
     return status == ACTIVE or status == READY
 end
 
--- Not picked up yet, whether or not it can be now.
 local function ToPickUp(status)
     return status == MISSING or status == PREREQ or status == PREREQ_LOG or status == LOW
 end
@@ -207,8 +198,6 @@ local function QuestLevel(quest)
     return quest[3]
 end
 
--- done swaps the level for a check: it no longer matters once the quest is handed in.
--- Otherwise the level is in its difficulty colour and the title white.
 local function Title(quest, done, suffix)
     suffix = suffix or ""
     local name = C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2]
@@ -225,16 +214,14 @@ local function Grey(quest)
     return level ~= nil and GetQuestDifficultyColor(level) == QuestDifficultyColors.trivial
 end
 
--- The quest's title for its line; its status goes in the column on the right. suffix
--- follows the title (the page's faction).
+-- suffix follows the title (the page's faction).
 local function QuestLine(quest, status, suffix)
     return Title(quest, status == DONE, suffix)
 end
 
 local SHARE = { [true] = "Shareable", [false] = "Not shareable", pre = "Needs a prerequisite" }
 
--- With part of a chain done, where its next step starts. quest.next runs alongside
--- quest.steps: next[i] = { uiMapID, x, y, where } for steps[i], false where unknown.
+-- With part of a chain done, where its next step starts; a false next[i] is unknown.
 local function NextSpot(quest)
     if not (quest.next and quest.steps) then return end
     for i, step in ipairs(quest.steps) do
@@ -344,7 +331,6 @@ local function StepWaypoint(step, state, id, name)
     end
 end
 
--- A step's name: the client's title, else the chains file's or the data file's.
 local function StepName(id)
     return C_QuestLog.GetTitleForQuestID(id) or ns.DungeonQuestChainNames[id]
         or (byID[id] and byID[id][2]) or tostring(id)
@@ -383,8 +369,6 @@ local function WaypointSpot(quest)
     if quest[7] then return quest[7], quest[8], quest[9], Where(quest) end
 end
 
--- A prerequisite goes where StepWaypoint sends you for it: the game's own route while it is
--- in your log, its quest giver otherwise.
 local function SetWaypoint(quest)
     local status = Status(quest)
     if status == PREREQ or status == PREREQ_LOG then
@@ -397,9 +381,6 @@ local function SetWaypoint(quest)
     PlaceWaypoint(C_QuestLog.GetTitleForQuestID(quest[1]) or quest[2], map, x, y)
 end
 
--- Every quest of the chain in order with how far you are, the clicked one marked. A step
--- not done yet with somewhere to go puts a waypoint there when clicked; a quest in your log
--- can be tracked from here.
 local function OpenChain(owner, quest)
     local chain, own = Chain(quest)
     MenuUtil.CreateContextMenu(owner, function(_, root)
@@ -473,8 +454,6 @@ local function BuildPanel()
     panel:SetMovable(true)
     panel:SetClampedToScreen(true)
     panel:SetWidth(340)
-    -- Black at 70%, so the world shows faintly through, with a black border rather than the
-    -- theme's grey; the quest bars on it are solid.
     ns.Solid(panel, "BACKGROUND", BLACK, 0.7):SetAllPoints()
     ns.Border(panel, BLACK)
     panel.title = ns.Font(panel, 14, "OUTLINE", T.accent)
@@ -498,7 +477,6 @@ local function BuildPanel()
         function() return S.Get("dqSelected") end,
         function(name) S.Set("dqSelected", name) end)
     panel.picker:SetPoint("TOPLEFT", panel.title, "BOTTOMLEFT", 0, -6)
-    -- The list: one row per line, built from a pool so a redraw reuses them.
     panel.body = CreateFrame("Frame", nil, panel)
     panel.body:SetWidth(324)
     panel.rows = {}
@@ -602,7 +580,6 @@ local function TrackerRow(i)
         if side == "top" or side == "bottom" then edge:SetHeight(1) else edge:SetWidth(1) end
         row.edges[side] = edge
     end
-    -- A 1px line in the Naowh blue in the gap between one quest's bar and the next.
     row.divider = ns.Solid(row, "ARTWORK", T.accent, 1)
     row.divider:SetPoint("TOPLEFT", row, "BOTTOMLEFT")
     row.divider:SetPoint("TOPRIGHT", row, "BOTTOMRIGHT")
@@ -813,7 +790,6 @@ local function Refresh()
     if show and single then
         local picked = byName[S.Get("dqSelected")]
         if not picked then
-            -- Nothing picked yet: the first dungeon near your level, or the first there is.
             S.Set("dqSelected", (dungeons and dungeons[1] or ns.DungeonQuests[1]).name)
             return
         end
@@ -901,7 +877,6 @@ local function Row(parent, y, text, sub, onWaypoint, onChain, opts)
     local fs = UI.KeepFont(parent, "quest", 13, nil)
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - 4)
     if opts.status then
-        -- Sized to its text, like the tracker's, so it is never cut short.
         local st = UI.KeepFont(parent, "questStatus", 13, nil)
         st:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -(x + BUTTONS_W), y - 4)
         st:SetJustifyH("RIGHT")
@@ -978,7 +953,6 @@ function ns.BuildQoLDungeonQuestsPage(parent, y)
         if #dungeon.quests == 0 then
             y = y - Row(parent, y, MUTED .. "No quests known for this dungeon yet.|r")
         end
-        -- Gathered by state first, then listed in RANK order, as on the tracker.
         local byRank = {}
         for r = 1, RANKS do byRank[r] = {} end
         for _, quest in ipairs(dungeon.quests) do

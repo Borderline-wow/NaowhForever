@@ -19,9 +19,9 @@ local function Slice(a, b)
 end
 
 local CHUNK = table.concat({
-    Slice("function ns.CastNamesATarget(", "-- Previews one custom line"),
+    Slice("function ns.CastNamesATarget(", "function ns.PreviewReminderLine("),
     Slice("function ns.RefreshCastWatch(", "-- Cast end is SUCCEEDED only"),
-    Slice("function ns.OnBossCast(", "-- Which single source drives callouts"),
+    Slice("function ns.OnBossCast(", "function ns.PullContext()"),
 }, "\n")
 
 local function Fixture()

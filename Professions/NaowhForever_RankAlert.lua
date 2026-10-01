@@ -1,11 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_RankAlert.lua -- when a profession is ready for its next rank (Journeyman,
 --  Expert, Artisan): your skill has reached what the rank asks while your cap is still the old
---  one. Naowh's profession window shows it as a banner under the skill bar, and on the
---  profession's card in the overview, naming the rank, what it takes and the nearest teacher,
---  with a waypoint (ns.ProfessionRank.For).
---  Reaching it also says so once in chat, per character, so it is not missed with the window
---  closed. Ranks and teachers come from RecipeData.lua, found through ns.RecipeFinder.
+--  one. Shown in the profession window (ns.ProfessionRank.For) and once in chat per character.
+--  Ranks and teachers come from RecipeData.lua, found through ns.RecipeFinder.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.ProfessionSettings
@@ -113,8 +110,7 @@ ns.ProfessionRank = {
 -------------------------------------------------------------------------------
 --  Chat
 -------------------------------------------------------------------------------
--- Says so in chat for every profession that could take its next rank now. `force` also
--- repeats ranks already announced.
+-- `force` also repeats ranks already announced.
 local function Check(force)
     if not ns.RecipeFinder then return end
     local announced, any = Announced(), false

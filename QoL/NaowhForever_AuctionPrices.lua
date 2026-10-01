@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_AuctionPrices.lua -- auction house prices from a full scan: a Scan Prices
---  button on the auction house, the lowest buyout per item kept for each realm and faction,
---  and that price on item tooltips and as a loot feed price source.
+--  NaowhForever_AuctionPrices.lua -- the lowest buyout per item from a full auction house scan,
+--  kept for each realm and faction.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -30,7 +29,6 @@ function ns.AuctionPrice(itemID)
     if house and itemID then return house.prices[itemID], house.time end
 end
 
--- When this realm and faction's auction house was last scanned, or nil if never.
 function ns.AuctionScanTime()
     local house = House()
     return house and house.time

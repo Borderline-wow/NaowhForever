@@ -1,11 +1,7 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Widgets.lua -- the widget kit behind every options row.
---
---  ns.UI carries the member names the page builders already call (Widgets, RefreshPage,
---  BuildDropdownControl, ShowWidgetTooltip, ...), so the pages themselves did not have to
---  be rewritten when the addon went standalone -- they took `local EUI = ns.UI` and kept
---  their bodies. The window lifecycle members (RefreshPage, RegisterOnShow/OnHide,
---  ClearContentHeader) are filled in by the Window file, which loads after this one.
+--  ns.UI keeps the member names the page builders were written against (`local EUI = ns.UI`).
+--  The window lifecycle members are filled in by the Window file, which loads after this one.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -101,23 +97,15 @@ end
 -------------------------------------------------------------------------------
 --  Bare controls
 -------------------------------------------------------------------------------
--- A pill switch: round knob in a rounded track. WoW has no rounded-rectangle primitive, so
--- the pill and the knob are drawn art, tinted with SetVertexColor, not flat colour
--- rectangles cut to shape with a mask. Masking was the original approach and could not
--- work at this size: a mask gets roughly one pixel of gradient at 20px, so the ends came
--- out stepped no matter which mask texture fed it. These carry their own antialiased edge,
--- rendered 4x-supersampled and inset far enough that the ramp fits inside the texture.
---
--- toggle_track.tga is drawn 128x64, the same 2:1 ratio as W:H below, so it scales without
--- distorting the round ends. Changing W/H away from 2:1 means redrawing it.
+-- A pill switch. WoW has no rounded-rectangle primitive, and a mask gets about one pixel of
+-- gradient at 20px (stepped ends), so track and knob are antialiased art tinted with
+-- SetVertexColor. toggle_track.tga is 128x64, the 2:1 ratio of W:H below; changing that
+-- ratio means redrawing it.
 local TRACK_TEX = "Interface\\AddOns\\NaowhForever\\Media\\toggle_track.tga"
 local KNOB_TEX = "Interface\\AddOns\\NaowhForever\\Media\\toggle_knob.tga"
 
--- w/h/knobSize are optional overrides for a spot needing a smaller switch (a dense grid
--- row, say) -- omitted, they reproduce the original fixed 40x20/14 size exactly. Knob size
--- and the edge inset scale off the given height at the same ratio the original fixed
--- numbers held (70% and 15%), so a smaller switch keeps the same proportions rather than
--- an oversized knob crowding a shrunk track.
+-- w/h/knobSize are optional overrides for a smaller switch; knob and inset scale off the
+-- height (70% and 15%).
 function UI.BuildToggleControl(parent, frameLevel, get, set, w, h, knobSize)
     local W, H = w or 40, h or 20
     local KNOB = knobSize or math.floor(H * 0.7 + 0.5)
@@ -126,10 +114,8 @@ function UI.BuildToggleControl(parent, frameLevel, get, set, w, h, knobSize)
     t:SetSize(W, H)
     if frameLevel then t:SetFrameLevel(frameLevel) end
 
-    -- Textures snap to the pixel grid by default, which forces these curved edges onto
-    -- whole pixels and throws away the antialiasing the art carries -- the actual reason
-    -- the switch read as jagged, not the mask or the art it went through before. Blizzard's
-    -- own NineSlice does the same two calls on every piece for the same reason.
+    -- Pixel snapping throws away the art's antialiasing (the real cause of the jagged
+    -- switch); Blizzard's NineSlice makes the same two calls.
     local function Smooth(tex)
         tex:SetTexelSnappingBias(0)
         tex:SetSnapToPixelGrid(false)
@@ -213,20 +199,12 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
         local v = btn._get()
         lbl:SetText(btn._values[v] or tostring(v or ""))
     end
-    -- An anchored dropdown, not a context menu, and it closes itself.
-    --
-    -- Three separate things had to line up here, and each one alone looked like the whole
-    -- bug, which is why this took three passes:
-    --
-    --   * MenuManagerMixin:OpenContextMenu positions with InputUtil.AnchorRegionToCursor,
-    --     so the list opened wherever the pointer happened to be and appeared to follow it
-    --     around. OpenMenu with an anchor is the dropdown case.
-    --   * The manager closes menus on GLOBAL_MOUSE_DOWN, and that lands AFTER this script,
-    --     so toggling on OnClick always found the menu already gone and opened a fresh one.
-    --   * It skips that close only when the moused-over frame answers
-    --     HandlesGlobalMouseEvent (Menu.lua). That is how Blizzard's own DropdownButton
-    --     keeps the press for itself; without it the manager and this handler fight over
-    --     the same click and the menu either reopens or sticks.
+    -- An anchored dropdown, not a context menu, and it closes itself. Three things line up:
+    --   * OpenContextMenu anchors to the cursor; OpenMenu with an anchor is the dropdown case.
+    --   * The manager closes menus on GLOBAL_MOUSE_DOWN, after this script, so toggling on
+    --     OnClick always found the menu gone and reopened it.
+    --   * It skips that close only when the hovered frame answers HandlesGlobalMouseEvent
+    --     (Menu.lua), as Blizzard's DropdownButton does.
     btn.HandlesGlobalMouseEvent = function(_, buttonName, event)
         return event == "GLOBAL_MOUSE_DOWN" and buttonName == "LeftButton"
     end
@@ -245,14 +223,8 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
             and Menu and Menu.GetManager and AnchorUtil) then return end
         local desc = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
         if not desc then return end
-        -- Scrolling is opt-in on Blizzard's own menu (BaseMenuDescriptionMixin:IsScrollable
-        -- reads false until something calls this): unset, the menu just grows to fit every
-        -- entry with nothing to scroll it, which for a long list -- every LibSharedMedia
-        -- sound, every spec across an account -- ran off the bottom of the screen with no
-        -- way to reach the rest. Below this height it is a no-op (useScroll only engages
-        -- once content actually exceeds it), so a five-entry dropdown looks exactly as it
-        -- did; every dropdown in the addon goes through this one control, so fixed once here
-        -- rather than per call site.
+        -- Scrolling is opt-in on Blizzard's menu (IsScrollable is false until this is
+        -- called); unset, a long list ran off the screen. It only engages past this height.
         if desc.SetScrollMode then desc:SetScrollMode(420) end
         for _, k in ipairs(Keys()) do
             local key = k
@@ -345,10 +317,8 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
         Paint()
     end
 
-    -- The drag ends when the BUTTON comes up, wherever the cursor happens to be. Relying
-    -- on OnMouseUp alone strands the drag when the release lands outside the track, which
-    -- for a 120px slider is most of the time -- the value would keep following the mouse
-    -- around the screen until the next click.
+    -- The drag ends when the button comes up, wherever the cursor is: OnMouseUp alone
+    -- strands the drag when the release lands outside the track.
     local function OnDragUpdate()
         if not IsMouseButtonDown("LeftButton") then
             track:SetScript("OnUpdate", nil)
@@ -457,13 +427,10 @@ local function CachedRow(parent, key)
     return row
 end
 
--- Any frame or region a builder makes, reused the same way the rows are: on a parent that
--- reuses its rows, each key hands back what this call site made on the last build, in build
--- order; elsewhere it is made fresh, as it always was. create(parent) makes one, and is
--- where anything done only once belongs -- sub-textures, borders, hooks. Everything that
--- changes between builds is set by the caller every time. A frame handed out reuses its
--- own children the same way, so nested content can be kept as well. The second return is
--- true for an element made just now.
+-- Any frame or region a builder makes, reused like the rows: on a parent that reuses its
+-- rows, each key hands back what this call site made last build, in build order; elsewhere
+-- it is made fresh. One-time setup belongs in create(parent); the caller sets everything
+-- else every build. The second return is true for an element made just now.
 function UI.Keep(parent, key, create)
     if not parent._rowCache then return create(parent), true end
     local index = (parent._rowUses[key] or 0) + 1
@@ -607,12 +574,7 @@ local function BuildRegionControl(rgn, cfg)
         track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
         return track
     elseif cfg.type == "colorpicker" then
-        -- Never actually wired up: two callers already pass this exact shape (Text Color
-        -- in both the custom and Ability Reminder editors), getValue returning r,g,b,a and
-        -- setValue taking the same, matching W:ColorPicker's own signature -- but nothing
-        -- in this switch ever matched "colorpicker", so BuildRegionControl fell through and
-        -- returned nil: no control, just the bare "Text Color" label with nothing under it
-        -- to click.
+        -- Text Color in the custom and Ability Reminder editors.
         local swatch = UI.BuildColorSwatchControl(rgn, Get, Set, cfg.hasAlpha)
         swatch:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         return swatch

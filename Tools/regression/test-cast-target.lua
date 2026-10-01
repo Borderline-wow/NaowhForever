@@ -54,7 +54,7 @@ local function Fixture()
     e.name = secretName
     setmetatable(env, { __index = _G })
     local chunk = assert(loadstring("local ns = ...; "
-        .. Slice("function ns.ShowCastTargetOn(", "-- Previews one custom line")))
+        .. Slice("function ns.ShowCastTargetOn(", "function ns.PreviewReminderLine(")))
     setfenv(chunk, env)
     e.ns = {}
     chunk(e.ns)
@@ -140,7 +140,7 @@ local function LayoutFixture()
     }
     setmetatable(env, { __index = _G })
     local chunk = assert(loadstring("local ns = ...\n"
-        .. Slice("local function ApplyTextLayout()", "-- The suite's own media")
+        .. Slice("local function ApplyTextLayout()", "local function NaowhMedia(")
         .. "\nreturn ApplyTextLayout"))
     setfenv(chunk, env)
     e.ns = {}

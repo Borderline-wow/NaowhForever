@@ -3,8 +3,8 @@
 --  Naowh, a Developer, a Moderator or a Legendary Patron in chat, a card when you hover it,
 --  a line on their player tooltip, and a banner when one joins your group. Each part has its
 --  own setting in QoL > Interface: badges, card and tooltip start on so everyone sees them,
---  the banner starts off (Naowh's call). A part that's off registers nothing. Idle cost is one
---  table lookup per chat line. /nf badges preview puts one on your own name (staff only).
+--  the banner starts off (Naowh's call). /nf badges preview puts one on your own name
+--  (staff only).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -76,7 +76,7 @@ local previewGUID, previewEntry  -- /nf badges preview, this session only
 
 -- This region's badges, from the staff list and the generated patron list. Another
 -- region's characters are never looked at, so a GUID that happens to exist in two regions
--- can't borrow a badge. Built once at load; a lookup is one table index.
+-- can't borrow a badge.
 local roster = {}
 
 local function BuildRoster()
@@ -131,7 +131,7 @@ local function SinceOf(entry)
 end
 
 -------------------------------------------------------------------------------
---  Chat: the icon goes in front of the name, where Blizzard puts its own Timerunning icon.
+--  Chat: the icon goes after the sender's name.
 --  Blizzard skips this filter when the name is secret, so restricted chat stays untouched.
 -------------------------------------------------------------------------------
 -- Chat line -> sender GUID, so hovering a name finds its badge. A ring of reused slots: no
@@ -234,7 +234,6 @@ local function BuildCard()
     card.glow:SetPoint("LEFT", 2, 0)
     AddShine(card)
 
-    -- The glow breathes while the card is up; every animation stops with it.
     card.pulse = card.glow:CreateAnimationGroup()
     card.pulse:SetLooping("BOUNCE")
     local fade = card.pulse:CreateAnimation("Alpha")
@@ -351,7 +350,6 @@ local function BuildToast()
     toast.title = ns.Font(toast, 12)
     toast.title:SetPoint("TOPLEFT", toast.text, "BOTTOMLEFT", 0, -3)
 
-    -- Fade in, hold, fade out: the whole life of the toast is one animation, no timers.
     toast.life = toast:CreateAnimationGroup()
     toast.life:SetToFinalAlpha(true)
     local inFade = toast.life:CreateAnimation("Alpha")

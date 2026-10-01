@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Mail.lua -- additions to Blizzard's mailbox: a list of your characters for
---  the To box, attaching trade goods or unbound gear in one click, and a login warning when
---  a character's mail is about to expire. Open All is Blizzard's own.
+--  NaowhForever_Mail.lua -- additions to Blizzard's mailbox: an alts list for the To box, quick
+--  attach, and a login warning for expiring mail.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

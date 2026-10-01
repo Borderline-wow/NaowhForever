@@ -1,7 +1,5 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Quiz.lua -- a WoW quiz to pass the time on a flight or at the
---  campfire. Opens by itself when a flight starts or you sit at a campfire, and with
---  /naowh quiz any time.
+--  NaowhForever_Quiz.lua -- a WoW quiz for flights and campfires, also opened by /naowh quiz.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

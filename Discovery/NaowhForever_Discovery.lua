@@ -3,9 +3,8 @@
 --  find, how many you have handed in toward the Friend of the Library rewards, and who takes
 --  them for your faction. Books and turn-ins come from NaowhForever_DiscoveryData.lua.
 --
---  Off by default, every feature too. This file only holds the settings, the helpers and the
---  page. The tracker, map pin and nearby files register nothing but a login check until
---  their feature is switched on.
+--  Off by default, every feature too. The tracker, map pin and nearby files register nothing
+--  but a login check until their feature is switched on.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
@@ -18,8 +17,6 @@ local S = UI.ModuleSettings("discovery", {
 })
 ns.DiscoverySettings = S
 
--- The Dungeon Quests look: a book handed in reads Finished and fades to grey with a check
--- where its level would be; one in your bags is the quest log's in-progress yellow.
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
 local IN_BAGS = "|cffffd100In bags|r"
 local IN_BANK = "|cffffd100In bank|r"
@@ -43,8 +40,7 @@ function Library.Done(book)
     return C_QuestLog.IsQuestFlaggedCompleted(book.quest)
 end
 
--- Where a book looted but not handed in yet is kept: "bags", "bank" or nil. The bank count
--- is the client's copy from the last time the bank was open.
+-- The bank count is the client's copy from the last time the bank was open.
 function Library.Stored(book)
     if Library.Done(book) then return nil end
     if C_Item.GetItemCount(book.item) > 0 then return "bags" end
@@ -55,8 +51,6 @@ function Library.Carried(book)
     return Library.Stored(book) ~= nil
 end
 
--- The book's name for its line: a check once handed in, else its set's level in the quest
--- log's difficulty colour.
 function Library.Title(book)
     if Library.Done(book) then return CHECK .. " " .. ns.Color("muted", book.name) end
     local c = GetQuestDifficultyColor(book.tier)
@@ -76,7 +70,6 @@ function Library.PlayerZone()
     return id
 end
 
--- Who takes the book for your faction.
 function Library.TurnIn(book)
     return ns.LibraryTurnIns[book.turnIn or "librarian"][Library.Side()]
 end
@@ -94,15 +87,12 @@ function Library.Progress()
     return done, total
 end
 
--- The first reward quest not handed in yet, or nil once both are.
 function Library.NextGoal()
     for _, goal in ipairs(ns.LibraryGoals) do
         if not C_QuestLog.IsQuestFlaggedCompleted(goal.quest) then return goal end
     end
 end
 
--- The books on a map in one state, as { book, spot } pairs: "find" still to find, "carried"
--- in your bags, "done" handed in.
 local function State(book)
     if Library.Done(book) then return "done" end
     if Library.Carried(book) then return "carried" end
@@ -130,7 +120,6 @@ function Library.ZoneName(mapID)
     return info and info.name or ("map " .. mapID)
 end
 
--- Where a spot is, for a sub line: its place and coordinates.
 function Library.Where(spot)
     local coords = ("(%.1f, %.1f)"):format(spot[2], spot[3])
     return spot[4] and (spot[4] .. " " .. coords) or coords
@@ -161,8 +150,6 @@ local function Status(book)
     return MISSING
 end
 
--- One book, laid out like a quest on the Dungeon Quests page: the name with its status in a
--- column on the right, the Waypoint button right of that, and a sub line under it.
 local BUTTON_W, STATUS_W = 90, 80
 local function Row(parent, y, text, sub, status, onWaypoint, stripe)
     local x = UI.CONTENT_PAD + 20

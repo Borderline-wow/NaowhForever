@@ -1,11 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_EmoteDetection.lua -- the QoL emote detection: an alert with a sound when
---  an emote in a dungeon or raid matches one of your words, such as someone putting down a
---  feast. Plus auto emotes: an /emote of your own when you start casting a spell you listed,
---  like a summoning ritual. Move the alert in Unlock Mode.
---
---  Both work out of combat in instances only. An auto emote started in combat waits for the
---  fight to end.
+--  NaowhForever_EmoteDetection.lua -- the QoL emote detection: an alert when an instance emote
+--  matches one of your words, and an /emote of your own when you cast a spell you listed.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

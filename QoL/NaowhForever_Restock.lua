@@ -1,8 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Restock.lua -- the QoL restock module: a flashing reminder when
---  you reach a rested area low on class reagents, ammo or food and drink, or carrying junk
---  or near-full bags; and at a vendor, topping reagents and ammo up to their targets,
---  selling junk and repairing.
+--  NaowhForever_Restock.lua -- the QoL restock module: a reminder in rested areas when low on
+--  reagents, ammo or food, and buying, selling junk and repairing at a vendor.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

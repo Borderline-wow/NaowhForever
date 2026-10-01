@@ -35,12 +35,12 @@ local function Fixture()
     env.ns.BindingForBossModKey = function() return { mode = "custom" } end
     setmetatable(env, { __index = _G })
     local code = Slice("local function ParseDelayList(", "local function ParseCounterCondition(")
-        .. Slice("function ns.DisplayReminder(", "-- The editor's Preview button")
-        .. Slice("ns.trackedReminderTimers = {}", "-- Boss cast triggers.")
+        .. Slice("function ns.DisplayReminder(", "function ns.PreviewCustomReminder(")
+        .. Slice("ns.trackedReminderTimers = {}", "function ns.RefreshCastWatch()")
         .. "\nlocal bwActiveMod\n"
-        .. Slice("function ns.HasMessageDefensive(", "-- barIdentity is whatever")
-        .. Slice("local function FireBigWigsAbility(", "-- Setup's per-ability Test button.")
-        .. Slice("function ns.HandleBigWigsAbility(", "-- A bar that stops or pauses")
+        .. Slice("function ns.HasMessageDefensive(", "local function CheckBossModTimerStart(")
+        .. Slice("local function FireBigWigsAbility(", "function ns.TestFireAbility(")
+        .. Slice("function ns.HandleBigWigsAbility(", "local function CancelPendingBWFire(")
         .. "\nreturn CheckBossModMessage"
     local chunk = assert(loadstring(code)); setfenv(chunk, env)
     e.message = chunk(); e.ns = env.ns; e.env = env
@@ -278,7 +278,7 @@ local function TestFixture()
     e.ns.CurrentSpec = function() return 250 end
     e.ns.Print = function(message) e.lastMessage = message end
     e.ns.AbilityEnabledForBinding = function() return true end
-    local code = Slice("function ns.TestFireAbility(", "-- duration, when given")
+    local code = Slice("function ns.TestFireAbility(", "local pendingBWFires = {")
     -- Exercise the real fire path through the fixture's exported dispatcher.
     e.env.FireBigWigsAbility = function(sid, late, reminder)
         if not reminder then e.genericTests = (e.genericTests or 0) + 1; e.env.shownForEvent = sid; return end

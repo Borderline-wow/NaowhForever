@@ -1,10 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_HideClutter.lua -- the QoL UI clutter options: hides the pop-up alerts
---  (achievements, loot won and the like), event toasts, zone text, red error text,
---  tutorials and help tips and the screenshot status text, and skips cinematics already seen.
---
---  The hooks go in once and check the setting each time, so turning an option off takes
---  effect straight away rather than after a reload.
+--  NaowhForever_HideClutter.lua -- the QoL UI clutter options: hides alerts, toasts, zone and
+--  error text and tutorials, and skips cinematics already seen.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

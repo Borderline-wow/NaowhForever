@@ -2,9 +2,7 @@
 --  NaowhForever_Note.lua -- the Custom Reminders tab.
 --
 --  Instance and boss pickers over the same reminder sections the boss pages use
---  (ns.BuildBossReminderSections), so every reminder for a boss is authored and
---  managed from one place. The MRT note importer that briefly lived here was
---  removed at the owner's direction -- authoring goes through the editors.
+--  (ns.BuildBossReminderSections), so every reminder for a boss is managed from one place.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 if not ns then return end
@@ -36,9 +34,8 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
         .. "work on trash and out in the world too.")
     y = y - 36
 
-    -- The five reminder anchors are profile-wide rather than per boss, so this sits above
-    -- the boss list and before the journal check -- it stays reachable even on the first
-    -- open, when the Dungeon Journal has not answered yet.
+    -- Anchors are profile-wide, so this sits before the journal check and stays reachable
+    -- on the first open, when the Dungeon Journal has not answered yet.
     if ns.ShowRaidReminderAnchorConfig then
         local anchorBtn = ns.Button(parent, "Customize Anchors", 200, 26, function()
             ns.ShowRaidReminderAnchorConfig()
@@ -132,7 +129,6 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
 
     if not boss then return y end
 
-    -- The same sections the boss pages use, rendered inline.
     local listBox = CreateFrame("Frame", nil, parent)
     listBox:SetPoint("TOPLEFT", parent, "TOPLEFT", PADX, y)
     listBox:SetPoint("RIGHT", parent, "RIGHT", -PADX, 0)

@@ -71,7 +71,6 @@ local function Name(itemID)
     return C_Item.GetItemNameByID(itemID) or ("item " .. itemID)
 end
 
--- The first slot the item can go in that is still empty.
 local function FreeSlot(slots, itemID)
     for _, s in ipairs(SlotsFor(itemID) or {}) do
         if not slots[s] then return s end
@@ -285,7 +284,6 @@ local function Rebuild()
     end
 end
 
--- The item's best pick number, 1 being BiS.
 function ns.IsBisItem(itemID)
     if not (On() and itemID) then return nil end
     if not lookup then Rebuild() end
@@ -368,7 +366,6 @@ function ns.DeleteBisList()
     Changed()
 end
 
--- The next pick in the slot, #1 when it has none.
 function ns.AddBisPick(slot, itemID)
     local list = List()
     local picks = Picks(list, slot)
@@ -474,7 +471,6 @@ local function Decode(text)
     if not raw then return end
     local ok, data = LS:Deserialize(raw)
     if not (ok and type(data) == "table") then return end
-    -- Shown in chat and tooltips, so escape codes are neutralised.
     local name = type(data.name) == "string" and data.name:sub(1, 40):gsub("|", "||") or "Imported BiS"
     local spec = type(data.spec) == "string" and data.spec:sub(1, 40) or nil
     local list = { slots = {}, extra = {} }
@@ -673,7 +669,6 @@ local pickerPanel, pickerSlot
 local allDrops = false   -- dungeon drops at every level, not only near yours
 local FillPicker
 
--- An item icon inside a 1px border in the item's quality colour.
 local function NewIcon(parent, size)
     local f = CreateFrame("Frame", nil, parent)
     f:SetSize(size, size)
@@ -700,7 +695,6 @@ local function SetIcon(f, id, emptySlot)
     f.border:SetColor(c.r, c.g, c.b, 1)
 end
 
--- A small square button with a glyph, named by its tooltip.
 local function GlyphButton(parent, texture, tip, onClick)
     local b = ns.Button(parent, "", 22, 22, onClick)
     b.glyph = b:CreateTexture(nil, "ARTWORK")
@@ -719,8 +713,7 @@ local function GlyphButton(parent, texture, tip, onClick)
     return b
 end
 
--- Icon, quality-coloured name and a grey detail line under it, shared by both kinds of
--- picker row. The caller anchors the right ends of text and detail.
+-- The caller anchors the right ends of text and detail.
 local function ItemLine(row, x)
     row.icon = NewIcon(row, 30)
     row.icon:SetPoint("LEFT", x, 0)
@@ -747,8 +740,6 @@ local function ReqLevel(itemID)
     return loot and loot[4] or select(5, C_Item.GetItemInfo(itemID))
 end
 
--- The grey line under an item's name: its source, item level and required level, the last
--- in orange while it is above yours.
 local function Detail(itemID)
     local parts = { ns.BiSSource(itemID) or "Source not listed" }
     local loot = ns.BiSDungeonLoot[itemID]
@@ -902,8 +893,6 @@ local function Empty(content, key, text, y)
     return y - 32
 end
 
--- Your picks in order with their controls, then the spec's ranking and the other dungeon
--- drops to pick from. Only your picks are numbered.
 function FillPicker()
     local UI = ns.UI
     local content = pickerPanel.scroll.content
@@ -1446,7 +1435,6 @@ local function SourcePanel(parent, x, y, width)
     return -top, f.lines
 end
 
--- The class's lists, shared by every character of it; each character uses one at a time.
 local function ListChoice()
     local values, order = ns.BisListChoices()
     return { type = "dropdown", text = "BiS List", values = values, order = order,

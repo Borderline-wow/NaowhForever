@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_DeathRelease.lua -- Death Release Protection: inside a dungeon or raid,
---  Release Spirit has to be held down for a moment, so a stray click never sends you on a
---  corpse run while a battle res is on its way.
+--  NaowhForever_DeathRelease.lua -- Death Release Protection: in a dungeon or raid, Release
+--  Spirit has to be held down, so a stray click cannot cost a battle res.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

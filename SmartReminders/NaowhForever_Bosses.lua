@@ -2,30 +2,10 @@
 --  NaowhForever_Bosses.lua -- browse this season's bosses and every ability the
 --  journal lists for them, labelled by who each one is aimed at.
 --
---  Every name, icon and tank marking is read out of the player's own client at runtime,
---  so it cannot go stale, it covers whatever season the client is on, and the addon
---  carries no encounter knowledge of its own. A shipped, BigWigs-GetOptions()-derived
---  phase-grouped filter was tried and dropped: BigWigs treats some tank-buster warnings
---  as always-on rather than a toggleable option, which GetOptions() never lists, so the
---  filter silently dropped real tank abilities across a wide range of bosses. Every
---  journal ability shows now, unfiltered.
---
---  The tank marking comes from the Encounter Journal, NOT from C_EncounterEvents. That is
---  deliberate and worth recording, because the other route looks tempting and is wrong:
---
---    * C_EncounterEvents carries the TankRole bit the live HUD uses, in the clear -- but it
---      has NO boss association in any form. No function takes an encounter ID, and no field
---      links a record back to one. Blizzard never calls the namespace from Lua at all; the
---      association lives C-side.
---    * Joining the two on spellID silently loses exactly the abilities we care about. The
---      journal's spellID is the DISPLAY spell (routinely the applied aura), while the event's
---      is the spell that TRIGGERS the cast. For a tank buster that casts one spell and applies
---      a stacking debuff -- which is most of them -- those are different IDs and the join
---      drops the ability. The docs also warn one spell may back several event records with
---      different masks, so the join is not even a function.
---
---  The journal's own Tank flag, by contrast, arrives already attached to its boss, from the
---  same walk that gives the name and icon. No join needed.
+--  Everything is read from the player's own client at runtime. The tank marking comes
+--  from the Encounter Journal, not C_EncounterEvents: that namespace has no boss
+--  association at all, and joining it on spellID drops most tank busters (the journal
+--  lists the applied aura, the event the triggering cast).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
@@ -33,10 +13,6 @@ if not ns then return end
 
 -- GetSectionIconFlags returns INDICES into the flag list, not the enum values, so Tank (the
 -- lowest bit, value 1) is index 0. Blizzard hardcodes the same 0 in its own role table.
---
--- EVERY ability is listed, not only tank-flagged ones: which abilities matter is the player's
--- call, and a healer or a damage dealer needs the same reference a tank does. The flags ride
--- along as labels so the list still says who each one is aimed at.
 local FLAG_LABELS = {
     [0]  = "Tank",
     [1]  = "Dps",
@@ -49,23 +25,15 @@ local FLAG_LABELS = {
     [13] = "Bleed",
 }
 
--- Shared by every row that shows a FLAG_LABELS role off ability.extras: the boss-detail
--- ability list and the Add Abilities picker both colour Tank/Dps/Healer this way, and a
--- second copy of this table would just be a second place for the colours to drift apart.
 local ROLE_COLOR = { Tank = "|cffF0A830", Dps = "|cffFF6060", Healer = "|cff6DD09A" }
 
 -------------------------------------------------------------------------------
 --  Journal availability
 -------------------------------------------------------------------------------
 -- Blizzard_EncounterJournal is load-on-demand, so the EJ_ globals do not exist until
--- something has opened it. We load it ourselves rather than telling the user to go and open
--- the dungeon journal first.
--- Second return is true only when THIS call is the one that just triggered the on-demand
--- load -- confirmed live (raid boss descriptions came back empty on the session's first
--- scrape, then correct after a reload) that scraping the instant the module loads can
--- catch some of its data before the Journal has finished populating it. ScrapeBosses
--- uses this to queue one silent re-scrape rather than leave a whole session stuck with
--- whatever the cold first pass happened to catch.
+-- something has opened it.
+-- Second return is true when this call triggered the load: a scrape right after it can
+-- miss data (raid descriptions came back empty live), so ScrapeBosses re-scrapes once.
 local function EnsureJournal()
     if EJ_GetCurrentTier and C_EncounterJournal and C_EncounterJournal.GetSectionInfo then
         return true, false
@@ -79,9 +47,8 @@ local function EnsureJournal()
 end
 
 -- EJ_SelectTier and EJ_SelectInstance mutate journal state that the Encounter Journal UI
--- reads back with no arguments, and it caches its own copy that will not resync. Scraping
--- underneath an open journal corrupts what the player is looking at. Blizzard evidently hit
--- this too -- there is a commented-out EJ_SelectInstance in their own content-tracking code.
+-- reads back with no arguments and will not resync, so scraping under an open journal
+-- corrupts what the player is looking at.
 local function JournalBusy()
     return EncounterJournal ~= nil and EncounterJournal:IsShown()
 end
@@ -89,18 +56,15 @@ end
 -------------------------------------------------------------------------------
 --  The scrape
 -------------------------------------------------------------------------------
--- In memory, built on first view and kept for the session. Nothing is scraped at login: a
--- player who never opens this page pays nothing for it.
+-- Built on first view and kept for the session; nothing is scraped at login.
 local cache          -- { instances = { {id, name, isRaid, bosses = { {name, abilities} } } } }
 local scrapeFailed
 local rescrapeQueued
--- Stage-by-stage record of the last scrape, so an empty panel can say WHICH step produced
--- nothing rather than just looking broken. Read by /nutank bosses.
+-- Stage-by-stage record of the last scrape, read by /nutank bosses.
 local diag = {}
 
 local function WalkSections(rootID, out, depth, seen)
-    -- Depth-capped: the section tree is authored data and a malformed cycle would otherwise
-    -- hang the client rather than produce a bad list.
+    -- Depth-capped so a malformed section cycle cannot hang the client.
     if not rootID or depth > 12 then return end
     seen = seen or {}
     local id = rootID
@@ -119,23 +83,16 @@ local function WalkSections(rootID, out, depth, seen)
             end
         end
 
-        -- A real ability, not a section header. The journal groups its advice under headers
-        -- like "Tanks" and "Healers", and those carry the tank icon flag too -- but they have
-        -- no spell behind them, which is what tells the two apart.
+        -- Role headers like "Tanks" carry the tank flag too, but have no spell.
         local isAbility = info.spellID and info.spellID > 0
-        -- Casts only. The journal also lists passives -- auras that empower the boss's
-        -- melee, say -- and a passive is never an event: nothing announces it, nothing can
-        -- warn about it, and a reference list is for things a tank can react to. The spell
-        -- record itself knows, which beats any name list and covers every boss.
+        -- Casts only; passives are never announced, so nothing can warn about them.
         if isAbility and C_Spell and C_Spell.IsSpellPassive then
             local okP, passive = pcall(C_Spell.IsSpellPassive, info.spellID)
             if okP and passive == true then isAbility = false end
         end
         if isAbility and info.title and info.title ~= "" then
-            -- One row per spell. The journal repeats the same ability under its overview,
-            -- its per-role advice and its stage sections, and rendering each occurrence
-            -- made every boss look like it had twice the abilities it does. Later
-            -- occurrences only contribute role labels the first one lacked.
+            -- The journal repeats an ability under overview, role and stage sections; one
+            -- row per spell, later occurrences only adding labels the first lacked.
             local prior = seen[info.spellID]
             if prior then
                 if (not prior.description or prior.description == "")
@@ -146,10 +103,6 @@ local function WalkSections(rootID, out, depth, seen)
                     if not prior.extras or prior.extras == "" then
                         prior.extras = extras
                     else
-                        -- Per-label, not the whole blob: a later occurrence carrying two
-                        -- flags where the first only had one ("Heroic, Deadly" showing up
-                        -- after a prior "Heroic") would never substring-match as a whole,
-                        -- appending the already-present label a second time.
                         for label in extras:gmatch("[^,]+") do
                             label = label:match("^%s*(.-)%s*$")
                             if label ~= "" and not prior.extras:find(label, 1, true) then
@@ -164,8 +117,6 @@ local function WalkSections(rootID, out, depth, seen)
                     spellID     = info.spellID,
                     icon        = info.abilityIcon,
                     extras      = extras,
-                    -- The journal's own explanation of what the ability does, for the
-                    -- hover tooltip. Blizzard's text, not ours.
                     description = info.description,
                 }
                 seen[info.spellID] = entry
@@ -178,9 +129,8 @@ local function WalkSections(rootID, out, depth, seen)
     end
 end
 
--- mapID is the instance map id (GetInstanceInfo's 8th return; what pack TOCs declare in
--- X-BigWigs-LoadOn-InstanceId), kept so a boss page can ask BigWigs for just this
--- instance's pack rather than every pack installed.
+-- mapID is the instance map id (GetInstanceInfo's 8th return, the TOCs'
+-- X-BigWigs-LoadOn-InstanceId), so a boss page can load just this instance's pack.
 local function ScrapeInstance(instanceID, name, isRaid, mapID)
     local entry = { id = instanceID, name = name, isRaid = isRaid, mapID = mapID, bosses = {} }
 
@@ -189,8 +139,7 @@ local function ScrapeInstance(instanceID, name, isRaid, mapID)
         local bossName, _, bossID = EJ_GetEncounterInfoByIndex(i)
         if not bossName then break end
         if bossID then
-            -- Return 7 is dungeonEncounterID: the same id ENCOUNTER_START reports, which is
-            -- what makes a list set up here fire on the right boss.
+            -- Return 7 is dungeonEncounterID, the id ENCOUNTER_START reports.
             local _, _, _, rootSectionID, _, _, dungeonEncounterID = EJ_GetEncounterInfo(bossID)
             local abilities = {}
             WalkSections(rootSectionID, abilities, 1)
@@ -211,17 +160,14 @@ function ns.ScrapeBosses(force)
     if JournalBusy() then scrapeFailed = "busy" return nil end
     scrapeFailed = nil
 
-    -- Put the journal back exactly as we found it. The UI keeps its own copy of the
-    -- selection and will not notice ours, so leaving it moved is a real bug for anyone who
-    -- opens the journal afterwards.
+    -- Restored afterwards; the journal UI keeps its own copy and would not notice ours.
     local priorTier = EJ_GetCurrentTier and EJ_GetCurrentTier()
 
     local out = { instances = {} }
     wipe(diag)
     diag.tier = priorTier
 
-    -- Mythic+ pool: this is the live season list, the same call Blizzard's own keystone UI
-    -- uses, so it needs no season constant of ours and updates itself.
+    -- Mythic+ pool: the live season list Blizzard's keystone UI uses.
     if C_ChallengeMode and C_ChallengeMode.GetMapTable and C_EncounterJournal.GetInstanceForGameMap then
         local maps = C_ChallengeMode.GetMapTable()
         diag.mapCount = maps and #maps or 0
@@ -238,8 +184,7 @@ function ns.ScrapeBosses(force)
         diag.mapCount = -1   -- the API itself was unavailable
     end
 
-    -- Current raid. There is no "give me the latest raid" API, so this is the current tier's
-    -- raid list, newest last, which is the same heuristic the journal itself leans on.
+    -- No "latest raid" API; the current tier's raid list is the journal's own heuristic.
     diag.raids = 0
     -- Forever's journal has no tiers and reports 0, which EJ_SelectTier rejects.
     if EJ_SelectTier and EJ_GetInstanceByIndex and priorTier and priorTier > 0 then
@@ -248,8 +193,7 @@ function ns.ScrapeBosses(force)
             local instanceID, rname = EJ_GetInstanceByIndex(i, true)
             if not instanceID then break end
             diag.raids = diag.raids + 1
-            -- The instance map id is EJ_GetInstanceInfo's 10th return; Blizzard's own journal
-            -- destructures past it to covenantID at 11.
+            -- The instance map id is EJ_GetInstanceInfo's 10th return.
             local _, _, _, _, _, _, _, _, _, raidMapID = EJ_GetInstanceInfo(instanceID)
             out.instances[#out.instances + 1] = ScrapeInstance(instanceID, rname or "?", true, raidMapID)
         end
@@ -263,11 +207,7 @@ function ns.ScrapeBosses(force)
 
     cache = out
 
-    -- A module loaded on-demand this exact instant is not always fully populated yet.
-    -- One silent re-scrape a moment later catches up without the player needing to
-    -- notice or hit Refresh themselves. freshLoad is only ever true on the very first
-    -- scrape of a session (EnsureJournal reports the module as already loaded on any
-    -- later call, including this retry), so this can only ever queue once.
+    -- freshLoad is only true on the session's first scrape, so this queues at most once.
     if freshLoad and not rescrapeQueued then
         rescrapeQueued = true
         C_Timer.After(2, function()
@@ -285,21 +225,13 @@ end
 -------------------------------------------------------------------------------
 --  BigWigs ability lists
 -------------------------------------------------------------------------------
--- The journal documents everything -- per-difficulty variants, sub-abilities, whole
--- mechanics BigWigs never warns about -- so the flat journal listing carried rows whose
--- checkbox could never do anything: the engine only ever receives what BigWigs actually
--- broadcasts, and that set is the module's own option list. When a boss has a BigWigs
--- module installed, the page lists exactly that (mod.toggleOptions, the same set
--- BigWigs' own options UI shows), keyed by the ids the engine will receive. Bosses with
--- no module keep the full journal listing.
+-- The engine only receives what BigWigs broadcasts, so a boss with a module lists its
+-- toggleOptions instead of the journal; bosses with no module keep the journal listing.
 local bwOptionCache = {}   -- [dungeonEncounterID] = { {id, stage}, ... }, or false
 local bwPacksLoaded, bwPacksLoading, bwPackNames
 
--- Content packs are LoadOnDemand and never loaded outside their own zone; BigWigs' own
--- options UI force-loads them the same way when browsing. Core comes in through each
--- pack's dependencies. Once per session, and only for someone who opens the options
--- window. LittleWigs' expansion packs are included because the season's dungeon rotation
--- reaches back into old expansions.
+-- Content packs are LoadOnDemand outside their own zone. LittleWigs' older expansion
+-- packs are included because the dungeon rotation reaches back into them.
 local function BossModPackNames()
     if bwPackNames then return bwPackNames end
     bwPackNames = {}
@@ -317,23 +249,9 @@ local function BossModPackNames()
     return bwPackNames
 end
 
--- Loading every installed BigWigs/LittleWigs pack in one go froze the client for about
--- five seconds the first time a boss page wanted an option list -- 22 synchronous
--- LoadAddOn calls on this machine. Same work, one pack per frame, so the client keeps
--- drawing through it and the page refreshes itself when the last one lands.
---
--- Fallback only, now that BigWigsOptionList asks BigWigs to load the one pack an instance
--- needs. Reached when there is no map id for the instance or the installed BigWigs is too
--- old to have LoadZone. Never runs on window open any more: doing so held the client at
--- single-digit FPS through all 22 loads, on a tab that used none of them.
--- A content pack's own !Options.lua indexes the BigWigs global while it loads, so loading
--- one before the core is up throws inside BigWigs' loader -- out of reach of any pcall of
--- ours, since it happens in their event handler. Reported from the options window with
--- BigWigs installed but not yet loaded: "BigWigs_TheVenomousAbyss/!Options.lua:3: attempt
--- to index global 'BigWigs' (a nil value)", twice.
---
--- The core is load-on-demand as well, so ask for it first. If it will not come up there is
--- nothing to read anyway and the caller falls back to the journal listing.
+-- A pack's !Options.lua indexes the BigWigs global while loading, so a pack loaded
+-- before the core throws inside BigWigs' loader, out of reach of our pcall. The core
+-- is load-on-demand too, so it is loaded first.
 local function BossModCoreUp()
     if _G.BigWigs then return true end
     if C_AddOns and C_AddOns.LoadAddOn then pcall(C_AddOns.LoadAddOn, "BigWigs_Core") end
@@ -342,8 +260,7 @@ end
 
 local function LoadBossModPacks()
     if bwPacksLoaded or bwPacksLoading then return end
-    -- Returns without latching bwPacksLoaded: the core comes up by itself on zoning into an
-    -- instance, and marking the sweep done here would stop it ever being tried again.
+    -- Not latched: the core comes up by itself on zoning into an instance.
     if not BossModCoreUp() then return end
     if not (C_AddOns and C_AddOns.LoadAddOn and C_Timer and C_Timer.NewTicker) then
         bwPacksLoaded = true
@@ -369,32 +286,21 @@ ns.LoadBossModPacks = LoadBossModPacks
 
 
 local function BigWigsOptionList(encounterID, mapID)
-    -- Some journal rows carry no dungeonEncounterID (EJ_GetEncounterInfo's 7th return can
-    -- be nil) -- a nil TABLE WRITE below would throw, unlike the read just above, which
-    -- Lua allows. Nothing to look up without an id anyway; falls through to the journal
-    -- listing the same as "no module found" does.
+    -- Some journal rows have no dungeonEncounterID, and a nil key write below would throw.
     if encounterID == nil then return nil end
     local cached = bwOptionCache[encounterID]
     if cached ~= nil then return cached or nil end
-    -- BigWigs' own loader knows which pack covers an instance, so ask it for that one
-    -- pack: a single synchronous load the first time this instance's page opens. Loading
-    -- all 22 installed packs one per frame -- the old approach, kicked off on ANY window
-    -- open -- held the client at single-digit FPS for the whole run of them, on the Setup
-    -- tab where none of it was even used. LoadZone is a no-op for an unknown zone.
+    -- Loads only this instance's pack. Sweeping all 22 packs on window open held the
+    -- client at single-digit FPS. LoadZone is a no-op for an unknown zone.
     if mapID and BigWigsLoader and BigWigsLoader.LoadZone and BossModCoreUp() then
         pcall(BigWigsLoader.LoadZone, BigWigsLoader, mapID)
     elseif mapID and BigWigsLoader and BigWigsLoader.LoadZone then
-        -- Core refused to load: nothing to look up, and the sweep below would hit the same
-        -- wall one pack at a time. NOT cached -- the core comes up on its own when the
-        -- player zones into an instance, and a false pinned here would say "no module for
-        -- this boss" for the rest of the session.
+        -- Core refused to load. Not cached: it comes up on its own on zoning in.
         return nil
     else
-        -- No map id or an old BigWigs without LoadZone: fall back to the sweep, but only
-        -- from here, where the result is actually wanted.
+        -- No map id or an old BigWigs without LoadZone: fall back to the sweep.
         LoadBossModPacks()
-        -- Nothing is recorded as "no module for this boss" until every pack has actually
-        -- landed, or the first look during the load pins an empty answer for the session.
+        -- Not cached until every pack has landed, or an empty answer pins for the session.
         if bwPacksLoading then return nil end
     end
     local core = _G.BigWigs
@@ -406,20 +312,17 @@ local function BigWigsOptionList(encounterID, mapID)
     for _, m in core:IterateBossModules() do
         if m.IsEncounterID and m:IsEncounterID(encounterID) then target = m break end
     end
-    -- BigWigs core resolves a module's GetOptions into toggleOptions/optionHeaders via
-    -- SetupOptions and drops GetOptions; its own options UI calls SetupOptions before
-    -- reading too, in case that has not run yet.
+    -- toggleOptions/optionHeaders only exist after SetupOptions, which BigWigs' own
+    -- options UI also calls before reading.
     if target and target.SetupOptions then target:SetupOptions() end
     local toggles = target and target.toggleOptions
     if type(toggles) ~= "table" then
         bwOptionCache[encounterID] = false
         return nil
     end
-    -- optionHeaders marks the option a group starts at, values already resolved by core
-    -- to display strings (stage names from the journal, "Mythic", ...). Carried onto
-    -- every following entry so the render loop only has to compare neighbours.
-    -- Entries can be plain ids or {id, flag, ...} tables; string options ("stages",
-    -- "berserk") are BigWigs UI plumbing, not abilities, and never broadcast as keys.
+    -- optionHeaders marks the option a group starts at, carried onto following entries.
+    -- Entries are ids or {id, flag, ...}; string options ("stages", "berserk") are never
+    -- broadcast as keys.
     local headers = target.optionHeaders
     local list, seen, stage = {}, {}, nil
     for i = 1, #toggles do
@@ -439,14 +342,10 @@ local function BigWigsOptionList(encounterID, mapID)
     return list
 end
 
--- Merged fresh per render rather than cached: the journal side can improve underneath
--- (the cold-load re-scrape above), and the merge is a dozen table reads per boss.
--- Row identity is ALWAYS the BigWigs id -- it is what the engine receives, so the
--- checkbox/preset written under it is found at fire time directly. The journal entry
--- for the same mechanic is matched by spell id, then by name (the two id spaces are
--- not guaranteed to agree: Possession Barrage is 1292036 in BigWigs, 1284103 in the
--- journal) and contributes description, icon and role tags. A miss there still gets a
--- description from the plain client spell record, same as title and icon already did.
+-- Not cached: the journal side can improve underneath (the cold-load re-scrape).
+-- Rows are keyed by the BigWigs id, which is what the engine receives. The journal
+-- entry is matched by spell id, then by name, since the id spaces can differ
+-- (Possession Barrage: 1292036 in BigWigs, 1284103 in the journal).
 local function BigWigsAbilities(encounterID, journalAbilities, mapID)
     local opts = BigWigsOptionList(encounterID, mapID)
     if not opts then return nil end
@@ -462,10 +361,6 @@ local function BigWigsAbilities(encounterID, journalAbilities, mapID)
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
         local name = info and info.name
         local j = byId[id] or (name and byName[name])
-        -- title and icon both already fall back to the plain client spell record when the
-        -- journal join misses; description had no such fallback and simply went blank,
-        -- which is the common case here -- BigWigs toggles routinely cover mechanics the
-        -- journal never narrates as their own section, on top of the id mismatches above.
         local desc = j and j.description
         if (not desc or desc == "") and C_Spell and C_Spell.GetSpellDescription then
             desc = C_Spell.GetSpellDescription(id)
@@ -485,18 +380,6 @@ end
 -------------------------------------------------------------------------------
 --  The tree page
 -------------------------------------------------------------------------------
--- Dungeons and raids as a collapsed tree: click an instance to open it, click a boss to set
--- a priority just for that boss. Everything renders through the shared widget factory, so
--- this page reads like every other one rather than a custom window pretending to be one.
---
--- State is page-local and deliberately not saved: which node you last had open is not a
--- setting, and persisting it would make the page open somewhere surprising.
--- Sets rather than one selection: this is a tree, and comparing two bosses side by side is
--- the normal thing to want. Page-local and deliberately unsaved -- which node you last had
--- open is not a setting.
--- Instance expansion state used to live here; instances render inline via
--- BuildBossListPage/RenderInstanceDetail now, not a modal.
-
 -- Rebuilt on every render. The drop target is worked out by comparing the cursor against
 -- these rows' real screen bounds, which is why they have to be captured rather than assumed.
 local dragRows, dragging = {}, nil
@@ -517,10 +400,7 @@ local function DropIndexFromCursor()
     return nil
 end
 
--- A small x on the row, left of the label. Takes the ability out of the choices entirely,
--- as opposed to the checkbox which only moves it between in-play and not-in-play.
--- The attach helpers build onto a row once and re-point it on later builds, since the rows
--- are reused.
+-- The attach helpers build onto a row once and re-point it on later builds; rows are reused.
 local function AttachRemove(row, entry, specID, EUI, onGone)
     local btn = row._removeBtn
     if not btn then
@@ -566,8 +446,6 @@ local function AttachGrabber(row, spellID, index, specID, encounterID, EUI)
         grab:SetPoint("LEFT", row, "LEFT", 4, 0)
         grab:SetFrameLevel(row:GetFrameLevel() + 6)
 
-        -- Six dots: the conventional "pick me up" affordance, drawn rather than textured so
-        -- it follows the theme.
         for c = 0, 1 do
             for r2 = 0, 2 do
                 local d = ns.Solid(grab, "OVERLAY", ns.THEME.muted, 0.85)
@@ -599,8 +477,6 @@ local function AttachGrabber(row, spellID, index, specID, encounterID, EUI)
     return grab
 end
 
--- The house cog on any row region: 26px, shared art, dim until hovered, anchored left of
--- the region's control -- the same geometry as every cog in the suite.
 local function AttachRowCog(rgn, onClick, tipTitle, tipBody)
     if not rgn then return end
     local EUIg = ns.UI
@@ -636,12 +512,8 @@ end
 --  and its condensed ability list on the right.
 -------------------------------------------------------------------------------
 
--- Frames are never garbage collected, so a dialog built from plain frames is built once and
--- re-pointed on each open, with the per-open values held in a state table the widgets read
--- rather than captured directly. The others keep what they build through UI.Keep, which does
--- the same by call site.
---
--- Add and Rename are the same dialog: a name, a confirm and a cancel.
+-- Frames are never garbage collected, so this is built once and re-pointed on each open,
+-- with per-open values in a state table rather than captured. Add and Rename share it.
 local namePrompt
 
 local function ShowNamePrompt(title, confirmLabel, initial, onCommit)
@@ -704,9 +576,6 @@ local function ShowRenamePresetPopup(specID, presetKey, currentName, EUI)
     end)
 end
 
--- Audio settings for one ability. The cog is designed to grow -- text options and whatever
--- else makes sense later -- so its content lives in its own small modal rather than crowding
--- the row.
 local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     local W = EUI.Widgets
     local dimmer, panel = ns.MakeModal(360, 172, "abilitySettings")
@@ -763,11 +632,7 @@ local function ShowAbilitySettingsPopup(specID, spellID, name, EUI)
     dimmer:Show()
 end
 
--- A set renders as ONE row named for the whole call, so its members no longer have a cog
--- each. This is where they get one back: a row per member that opens that member's own
--- settings, which is where audio, its spoken name and leaving the set already live. Written
--- as a chooser rather than a second copy of those controls so there is one place each of
--- them can be edited.
+-- A set renders as one row, so this chooser opens each member's own settings popup.
 local function ShowSetSettingsPopup(specID, members, EUI)
     local dimmer, panel = ns.MakeModal(400, 160, "setSettings")
 
@@ -799,9 +664,8 @@ local function ShowSetSettingsPopup(specID, members, EUI)
     dimmer:Show()
 end
 
--- Same shape as the ability popup above, but the fallback step stores its audio flag under
--- spellID 0 and its text directly on db.voiceNone rather than through the callout table, so
--- it cannot share ShowAbilitySettingsPopup's storage calls.
+-- The fallback step stores its audio flag under spellID 0 and its text on db.voiceNone,
+-- so it cannot share ShowAbilitySettingsPopup's storage calls.
 local function ShowFallbackSettingsPopup(EUI)
     local W = EUI.Widgets
     local db = ns.DB()
@@ -862,9 +726,6 @@ local function ShowFallbackSettingsPopup(EUI)
     dimmer:Show()
 end
 
--- A left-column entry: click to switch presets, pencil to rename, x to delete. Hand-drawn
--- rather than a DualRow toggle since it needs the active highlight and the rename/delete
--- affordances a checkbox row does not have.
 local function NewPresetRow(leftPane)
     local prow = CreateFrame("Button", nil, leftPane)
     prow.bg = ns.Solid(prow, "BACKGROUND", ns.THEME.grey, 0.55)
@@ -953,10 +814,7 @@ local function BuildPresetRow(leftPane, ly, rowW, rowH, specID, p, isActive, can
     return prow
 end
 
--- The spec-default page: a preset picker on the left, and the active preset's list -- every
--- row condensed to one column, with a settings cog where the old layout had a second column
--- -- on the right. Per-boss overrides go through RenderInstanceDetail/RenderAbilityRow, keyed
--- by spell id rather than a priority list.
+-- Per-boss overrides go through RenderInstanceDetail/RenderAbilityRow instead, keyed by spell id.
 function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     local _, h, row
     local topY = y
@@ -981,7 +839,6 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     rightPane:SetSize(rightW, 10)
     rightPane:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD + LEFT_W + GAP, topY)
 
-    -- Left column: one row per preset, then the add-preset row.
     local ly = 0
     for i = 1, #presets do
         local p = presets[i]
@@ -1010,7 +867,6 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     addRow:SetScript("OnClick", function() ShowAddPresetPopup(specID, EUI) end)
     ly = ly - PRESET_ROW_H
 
-    -- Right column: the active preset's list, condensed to one control per row.
     local ry = 0
     local list = ns.EffectiveListFor(specID, nil) or {}
     local auto = ns.AllDefensives(specID, nil)
@@ -1042,15 +898,8 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         end
     end
 
-    -- The set is drawn as ONE row, at the position of its first member, named for the whole
-    -- call -- "Guardian and Ardent". Later members are skipped rather than repeated: the
-    -- point of ticking them together is that they are one thing to press, so they should read
-    -- as one line. Their own settings move to the set popup, which is what the merged row's
-    -- cog opens.
-    -- Talented members only. RebuildSlots drops anything untalented before the engine ever
-    -- sees it, so an untalented half can never actually be called with the other one, and
-    -- folding it into the merged name would promise a callout that cannot happen. It falls
-    -- back to its own row, carrying the usual "(not talented)".
+    -- The set is drawn as one row at its first member's position. Talented members only:
+    -- RebuildSlots drops untalented spells, so they could never be called with the set.
     local setMembers
     for i = 1, #list do
         if ns.CalledTogether(specID, list[i]) and ns.IsSpellAvailable(list[i]) then
@@ -1058,7 +907,6 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
             setMembers[#setMembers + 1] = list[i]
         end
     end
-    -- A set of one is not a set; it renders as an ordinary row until a second is ticked.
     if setMembers and #setMembers < 2 then setMembers = nil end
 
     local setDrawn = false
@@ -1096,9 +944,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
                       and "Called as one. Open the cog to rename either half or take one out."
                       or ("Spell ID %d. Untick to drop it to the bottom of the list."):format(spellID),
                   getValue = function() return true end,
-                  -- The whole set leaves together: it is drawn as one entry, so dropping it
-                  -- has to take every member with it or the other half reappears on its own
-                  -- row a line later.
+                  -- The whole set leaves together, or the other half reappears on its own row.
                   setValue = function()
                       if inSet then
                           for m = 1, #setMembers do
@@ -1121,9 +967,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
                         ns.HideSpell(specID, rid)
                     end
                 end)
-                -- The row is single-column (no rightCfg), so the toggle lives in the LEFT
-                -- region -- chain the cog off that region's control, not the empty right one,
-                -- or it would anchor off in the dead space past the toggle.
+                -- Single-column row, so the toggle lives in the left region.
                 AttachRowCog(row._leftRegion, function()
                     if inSet then
                         ShowSetSettingsPopup(specID, setMembers, EUI)
@@ -1182,8 +1026,6 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
         ); ry = ry - h
     end
 
-    -- The fallback step, condensed like everything above it: its own toggle plus a cog for
-    -- audio and text, matching the shape of an ability row even though it is not one.
     local db = ns.DB()
     row, h = W:DualRow(rightPane, ry,
         { type = "toggle",
@@ -1204,8 +1046,7 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
             "Settings", "Audio, and anything added later.")
     end
 
-    -- The spell ID entry, last: the widget factory has no text input, so the box and its
-    -- button are built here and laid over the row's right half.
+    -- The widget factory has no text input, so the box is laid over the row's right half.
     row, h = W:DualRow(rightPane, ry,
         { type = "label", text = "      Add an Ability by Spell ID" },
         { type = "label", text = "" }   -- overlaid below with the entry box and Add button
@@ -1276,16 +1117,11 @@ function ns.RenderPresetListEditor(parent, y, W, EUI, specID)
     return topY + math.min(ly, ry)
 end
 
--- The boss's own preset choice: which of the spec's presets it calls its defensives
--- from. The Enable This Boss toggle lives on the boss-picker row in
--- RenderInstanceDetail, which gates this whole section.
--- Used by RenderInstanceDetail, the journal-sourced ability list. Returns y.
+-- The Enable This Boss toggle lives on the boss-picker row in RenderInstanceDetail.
 local function RenderBossHeader(parent, y, W, EUI, encounterID, specID)
     local _, h
 
-    -- Which of the spec's presets this boss calls its defensives from. Shows the spec's
-    -- active preset until the tank actually picks one for this boss -- nothing is written
-    -- just from opening the modal and looking at it.
+    -- Shows the spec's active preset until one is picked; opening it writes nothing.
     local presets = ns.ListPresets(specID)
     if #presets > 0 then
         local presetValues, presetOrder = {}, {}
@@ -1326,16 +1162,7 @@ local COUNTER_TIP = "Blank fires every time. Match a count with >N, >=N, <N, <=N
     .. "them, or add a leading + on the second one to require both -- example: >3,+<7 "
     .. "fires between 4 and 6."
 
--- Its parts are kept through UI.Keep and filled in on each open, since what they close over
--- -- the encounter and the reminder being edited -- changes every time.
--- callerEUI, when given, is a caller's own EUI proxy (e.g. the ability picker's) -- its
--- RefreshPage also re-renders that caller, not just the real options page, which is what
--- actually makes a saved/edited reminder show up in its list without a reopen.
--- Icon + display name for a catalogued BigWigs/DBM key. Positive keys are almost always
--- real spell ids; negative ones are BigWigs' own convention for "this is really a
--- Dungeon Journal section", the same -sectionID scheme its own options panel uses. Both
--- routes read Blizzard's plain data (C_Spell / C_EncounterJournal) -- nothing here reads
--- anything of BigWigs' or DBM's own beyond the bare key and label they already broadcast.
+-- Negative BigWigs keys are -sectionID of a Dungeon Journal section.
 local function ResolveMechanicIcon(key)
     if key > 0 then
         return C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(key)
@@ -1350,14 +1177,10 @@ local function ResolveMechanicName(key, entry)
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(key)
         if info and info.name then return info.name end
     end
-    -- The boss mod's own message/bar text as a fallback: it is not always a real spell
-    -- (a negative journal key, or an arbitrary internal id some modules use), and that
-    -- text is still the clearest label available for it.
     if type(entry.text) == "string" and entry.text ~= "" then return entry.text end
     return "Key " .. tostring(key)
 end
 
--- List only the selected boss's BigWigs options, without a row cap.
 function ns.ReminderAbilityChoices(encounterID)
     local byKey = {}
     local function Add(key, text, mod)
@@ -1384,7 +1207,7 @@ function ns.ReminderAbilityChoices(encounterID)
     return list
 end
 
--- New reminders default to a message; boss cast start/finish remain selectable.
+-- callerEUI is the caller's own EUI proxy, so its RefreshPage re-renders that caller's list.
 function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger)
     local EUI = callerEUI or ns.UI
     local W = EUI.Widgets
@@ -1450,10 +1273,6 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     local nameBox = AddBoxM(40)
     nameBox:SetText((existing and existing.name) or "")
 
-    -- A preset rather than a typed line: the reminder announces whichever defensive in that
-    -- preset is actually still up when it fires. Free text could only ever name a fixed
-    -- spell, which is wrong the moment that spell is on cooldown -- the reason these are
-    -- called smart reminders at all.
     local editorSpecID = ns.CurrentSpec()
     if #ns.ListPresets(editorSpecID) == 0 then
         ns.AddPreset(editorSpecID, "Default")
@@ -1506,11 +1325,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         or (type(trig.counter) == "number" and tostring(trig.counter)) or ""
         local delayText = (trig.type ~= "combat" and type(trig.delay) == "string" and trig.delay) or ""
 
-    -- The dynamic block below the Trigger dropdown -- which fields it holds depends on
-    -- trigVal, so it is torn down and rebuilt on every change rather than show/hidden in
-    -- place. The current widgets (nil for whichever fields the active type does not use)
-    -- are read back into the *Text locals before a rebuild so switching types and back
-    -- does not lose what was typed.
+    -- Rebuilt on every trigger change; typed values are saved to the *Text locals first.
     local dynFrame = UI.Keep(triggerBody, "dynFrame", function(p) return CreateFrame("Frame", nil, p) end)
     local spellBox, counterBox, delayBox
     local DYN_Y   -- set below, once the Trigger dropdown row's height is known
@@ -1523,9 +1338,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         if delayBox then delayText = delayBox:GetText() or "" end
     end
 
-    -- Public entry point for the picker rows below: picking a mechanic changes trigVal
-    -- and spellIDText from OUTSIDE the Trigger dropdown's own setValue, so the dropdown's
-    -- displayed label has to be told to re-read them rather than assume it already knows.
+    -- A picker pick changes the trigger outside the dropdown's setValue, so its label is refreshed.
     local function RefreshTriggerLabel()
         local ctrl = triggerRow and triggerRow._leftRegion and triggerRow._leftRegion._control
         if ctrl and ctrl._refreshLabel then ctrl._refreshLabel() end
@@ -1547,15 +1360,8 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
     )
     DYN_Y = -triggerRowH
 
-    -- The mechanic picker: every BigWigs/DBM key actually seen for this boss (recorded by
-    -- RecordBossModKey the moment it fires live -- see the bridge above), sorted by how
-    -- often it has come up. Picking one fills the Spell ID field below exactly the way
-    -- typing it in would, so nothing downstream (BuildTrigger, Save) needed to change.
-    -- Every row below anchors at DYN_Y (the bottom of the Trigger dropdown), not at 0 --
-    -- 0 is triggerBody's own top, which is where the dropdown ITSELF starts. Anchored
-    -- there, the picker's first row and its "nothing recorded" hint sat directly on top of
-    -- the Trigger dropdown rather than below it, for BigWigs/DBM Message and Timer -- the
-    -- two trigger types that show the picker at all.
+    -- Picking a mechanic fills the Spell ID field exactly as typing it would.
+    -- Anchored at DYN_Y, not 0: at 0 the picker sat on top of the Trigger dropdown.
     -- The rows live on the scroll frame, which outlasts this open, so the next one reuses them.
     local pickerScroll = UI.Keep(triggerBody, "pickerScroll", function(p)
         local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
@@ -1723,12 +1529,10 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
         :SetPoint("BOTTOM", panel, "BOTTOM", 90, 16)
 
     dimmer:Show()
-    -- Returned so a caller can set dimmer.onClose and refresh its own list once this
-    -- editor closes -- ignored by every other existing call site.
+    -- Returned so a caller can set dimmer.onClose and refresh its own list.
     return dimmer, panel
 end
 
--- Profiles tab: profile management and sharing (Reminder Packs).
 function ns.BuildProfileSettings(parent, y)
     local EUI = ns.UI
     local W   = EUI.Widgets
@@ -1736,8 +1540,6 @@ function ns.BuildProfileSettings(parent, y)
 
     _, h = W:SectionHeader(parent, "PROFILES", y); y = y - h
 
-    -- Values/order rebuilt per page build; a create/copy/delete refreshes the page, so the
-    -- dropdown never shows a stale list.
     local profNames = ns.ListProfiles()
     local profValues = {}
     for _, name in ipairs(profNames) do profValues[name] = name end
@@ -1766,8 +1568,7 @@ function ns.BuildProfileSettings(parent, y)
           end }
     ); y = y - h
 
-    -- Declared here rather than where it is written below: the save buttons offer an
-    -- overwrite through it, and their closures need it in scope when they are built.
+    -- Assigned below; the save buttons' closures need it in scope.
     local ConfirmOn
 
     local profRow
@@ -1789,9 +1590,6 @@ function ns.BuildProfileSettings(parent, y)
         newBtn._onClick = function()
             ShowNamePrompt("New Profile", "Create", "", function(text)
                 local name = text:match("^%s*(.-)%s*$")
-                -- A taken name used to fail with "that name is taken" and nothing else, so
-                -- the only way on was to invent a second name. Offer the replacement instead,
-                -- named and spelled out, rather than refusing or doing it silently.
                 if ns.ProfileExists and ns.ProfileExists(name) then
                     ConfirmOn("Replace", "It starts empty at default settings, on every "
                         .. "character standing in it. Cannot be undone.", "Replace", name,
@@ -1813,10 +1611,7 @@ function ns.BuildProfileSettings(parent, y)
         ns.Tooltip(newBtn, "New Profile", "A fresh profile with default settings. It becomes "
             .. "the one every character on this account uses, including any you log into "
             .. "later. Switch a single character afterwards if you want it on its own.")
-        -- "Save As", not "Copy": what it does is store what you have set up under a name of
-        -- your choosing, which is what someone looks for a Save button to do. There is no
-        -- plain Save because there is nothing to save -- every change is written into the
-        -- profile as it is made, and a button that did nothing would only suggest otherwise.
+        -- No plain Save: every change is written into the profile as it is made.
         local copyBtn = left._copyBtn
         copyBtn._onClick = function()
             ShowNamePrompt("Save As New Profile", "Save", "", function(text)
@@ -1844,9 +1639,7 @@ function ns.BuildProfileSettings(parent, y)
             .. "new profile under a name you choose, and switches to it. Your current "
             .. "profile is left as it was.")
 
-        -- Import always lands a NEW profile and never touches what is here, which is the
-        -- right default and the wrong tool once somebody else maintains part of your
-        -- setup. This is that other tool.
+        -- Import always lands a new profile; this merges into an existing one.
         local mergeBtn = right._mergeBtn
         mergeBtn._onClick = function()
             if ns.ShowProfileMergeDialog then ns.ShowProfileMergeDialog() end
@@ -1858,18 +1651,14 @@ function ns.BuildProfileSettings(parent, y)
             .. "as they are, and per-boss reminders are added rather than swapped.")
     end
 
-    -- Reset and Delete pick their target rather than acting on whatever is loaded. Having to
-    -- switch to a profile before you could delete it meant loading the thing you were trying
-    -- to get rid of, and reading the confirm dialog as the only clue you were on the right
-    -- one. Northern Sky drives both from dropdowns; these do the same.
+    -- Reset and Delete pick their target, so deleting a profile does not mean loading it first.
     local pickValues, pickOrder = { [""] = "Choose a profile..." }, { "" }
     for i = 1, #profNames do
         pickValues[profNames[i]] = profNames[i]
         pickOrder[#pickOrder + 1] = profNames[i]
     end
 
-    -- Confirms name the profile CHOSEN, not the one in use -- the whole point is that they
-    -- differ. Both reset to the placeholder afterwards through the page refresh.
+    -- Confirms name the chosen profile, not the one in use.
     ConfirmOn = function(title, hintText, verb, chosen, act)
         local dimmer, panel = ns.MakeModal(360, 140, "profileActConfirm")
         local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
@@ -1921,11 +1710,8 @@ function ns.BuildProfileSettings(parent, y)
         { type = "label", text = "      Share your Smart Reminders" },
         { type = "label", text = "" }
     ); y = y - h
-    -- Not AttachInline here: it chains off a region's existing control, and this right
-    -- half has none (its label field is blank) -- it fell back to anchoring off the
-    -- region's own LEFT edge (the row's midpoint) instead, so the button sat in the
-    -- row's LEFT half and overlapped the label text next to it regardless of width.
-    -- Anchored to the region's own RIGHT edge directly instead.
+    -- Not AttachInline: this right half has no control, so it would anchor off the row's
+    -- midpoint and overlap the label.
     if packRow and packRow._rightRegion then
         local rgn = packRow._rightRegion
         rgn._btn = rgn._btn or ns.Button(rgn, "Share your Profile", 130, 22, function()
@@ -1958,40 +1744,20 @@ function ns.BuildProfileSettings(parent, y)
     return y
 end
 
--- InstanceSlot/AttachInstanceCog (the old bulk on/off toggle + cog opening the old
--- fingerprint-accordion boss modal, both since removed) were here and are gone -- the left
--- column is pure navigation now, and the bulk on/off they wrote is still reachable, just
--- relocated to the selected boss's own Enable This Boss toggle (on the boss-picker row
--- in RenderInstanceDetail) instead of a per-instance shortcut.
-
--- Which instance is selected on each tab, and which boss within it -- both persist
--- across a RefreshPage (module-level upvalues, not page-local), the same way the Setup
--- tab's old tile selection did before that got removed. Independent per tab: picking a
--- dungeon must not disturb whichever raid was showing.
+-- Module-level so the selection survives a RefreshPage; per tab, so a dungeon pick
+-- leaves the raid selection alone.
 local selectedInst = { dungeon = nil, raid = nil }
 local selectedBossIdx = {}   -- keyed by instance.id
 
--- One ability row: checkbox (this ability's binding, stored in AbilityBindingsTable by
--- its journal spellID), icon, title, description, a cog on the right. Fixed height rather
--- than measured from the wrapped description's real extent -- GetStringHeight() right
--- after SetPoint/SetText depends on this row's own width having already resolved through
--- its parent chain, which is exactly the kind of synchronous-layout assumption that
--- produced the Setup-tab overlap earlier tonight. A long description clips instead;
--- annoying, never wrong.
 -------------------------------------------------------------------------------
---  Per-ability reminder picker: this ability's spot on the normal defensive
---  priority list, and (Custom Reminder tab) a written note of its own bound
---  straight to its own BigWigs cast/bar -- built on the Raid Reminder engine
---  (NaowhForever_RaidReminders.lua) so it can be assigned to a role/class/
---  spec/name/subgroup too, the same NSRT/TimelineReminders-style tool
---  ns.ShowBossReminderPicker's boss-wide reminders already are.
+--  Per-ability reminder picker, built on the Raid Reminder engine
+--  (NaowhForever_RaidReminders.lua).
 -------------------------------------------------------------------------------
 local RR_ROLE_VALUES = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
 local RR_ROLE_ORDER = { "TANK", "HEALER", "DAMAGER" }
 
--- Categories join with " + " (AND, narrows), values within one category join with
--- "/" (OR, widens) -- mirrors ns.RaidReminderTargetsMe's own semantics exactly, so
--- what the summary says is what the targeting actually does.
+-- Categories join with " + " (AND), values within one with "/" (OR), matching
+-- ns.RaidReminderTargetsMe.
 local function RaidReminderTargetDesc(target)
     target = ns.NormalizeRaidReminderTarget(target)
     if target.all then return "Everyone" end
@@ -2019,11 +1785,8 @@ local function RaidReminderTargetDesc(target)
     return table.concat(parts, " + ")
 end
 
--- A reminder built from this ability's own cog carries abilitySpellID (the journal
--- spellID, not necessarily the same value as trigger.spellID -- the BigWigs key the
--- mechanic picker resolved it to) so it shows here instead of in the boss-wide list
--- ns.ShowBossReminderPicker renders. One per ability, same as the old bound-reminder
--- model this replaces -- first match wins.
+-- abilitySpellID is the journal spellID, which can differ from trigger.spellID (the
+-- BigWigs key). One per ability; first match wins.
 local function FindBoundRaidReminder(encounterID, spellID)
     local set = ns.RaidRemindersTable and ns.RaidRemindersTable(false, encounterID)
     if not set then return nil, nil end
@@ -2038,11 +1801,8 @@ local RR_DISPLAY_VALUES = { text = "Message", timer = "Timer", icon = "Icon", ba
     raidframeGlow = "Raid-Frame Glow" }
 local RR_DISPLAY_ORDER = { "text", "timer", "icon", "bar", "circle", "chat",
     "nameplateGlow", "raidframeGlow" }
--- LOCALIZED_CLASS_NAMES_MALE carries every class token the client knows, including ones
--- nobody plays -- Adventurer and Traveler both show up in it and were landing in the class
--- grids. GetClassInfo bounded by GetNumClasses walks only the real playable set, which is
--- how Blizzard's own class filter menu builds its list.
--- Returns { token, displayName } pairs sorted by display name.
+-- LOCALIZED_CLASS_NAMES_MALE includes unplayable tokens (Adventurer, Traveler);
+-- GetClassInfo over GetNumClasses walks only the playable set.
 function ns.PlayableClasses()
     local out = {}
     if GetNumClasses and GetClassInfo then
@@ -2060,8 +1820,7 @@ function ns.PlayableClasses()
     return out
 end
 
--- Human-readable summary of who loads a binding. Its own spec always does -- that is the
--- table it is stored in -- so this only ever describes the extra role/class shares.
+-- A binding's own spec always loads it, so this only describes the extra role/class shares.
 function ns.DescribeBindingScope(scope)
     if type(scope) ~= "table" or not next(scope) then return "this spec only" end
     local parts = { "this spec" }
@@ -2084,9 +1843,7 @@ function ns.DescribeBindingScope(scope)
     return table.concat(parts, " + ")
 end
 
--- Shares one binding with specs other than the one that owns it. There is no spec list:
--- the owning spec always loads it, and naming other specs individually is what the role
--- and class rows cover without a 39-entry matrix in a 400-wide modal.
+-- Roles and classes only; a per-spec list would not fit this modal.
 function ns.ShowBindingScopePicker(scope, onAccept)
     local dimmer, panel = ns.MakeModal(400, 470, "bindingScopePicker")
 
@@ -2156,8 +1913,7 @@ function ns.ShowBindingScopePicker(scope, onAccept)
         local out = {}
         if next(roles) then out.roles = roles end
         if next(classes) then out.classes = classes end
-        -- Nothing ticked means private to the owning spec, which is nil rather than an
-        -- empty table so it never lands in SavedVariables as noise.
+        -- nil rather than an empty table, so it stays out of SavedVariables.
         onAccept(next(out) and out or nil)
         dimmer:Hide()
     end):SetPoint("BOTTOM", panel, "BOTTOM", -50, 16)
@@ -2172,11 +1928,6 @@ end
 function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     local EUI = callerEUI or ns.UI
 
-    -- Taller than before (was 440x480/body 320): a preset can carry up to MAX_SLOTS
-    -- defensives, each now its own row below the preset dropdown. Grown by the same
-    -- amount panel and body both, preserving the original's ~84px margin above Save/
-    -- Cancel -- matches the 480x620 precedent this file already uses for its other,
-    -- taller modal (the full custom reminder editor).
     local dimmer, panel = ns.MakeModal(440, 640, "abilityReminderPicker")
 
     local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
@@ -2188,37 +1939,20 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
     local binding = ns.EnsureBinding(encounterID, ability.spellID)
     local specID = ns.CurrentSpec and ns.CurrentSpec()
-    -- Held rather than written straight through, so Cancel discards a scope change the
-    -- same way it discards a preset pick.
+    -- Held until Save, so Cancel discards a scope change too.
     local scopeVal = binding.scope
     local healerVal = binding.healerReminder == true
-    -- One warning time for the whole preset on this ability -- not per defensive within
-    -- it (that granularity was tried and dropped: too fiddly for what it bought). Lazily
-    -- initialized inside RebuildBody, same reasoning presetVal below documents: re-deriving
-    -- it on every rebuild would stomp an in-progress drag the instant switching tabs or
-    -- presets triggered one.
+    -- These are lazily initialized in RebuildBody and outlive it: re-deriving them on a
+    -- rebuild (tab or preset switch) would stomp an unsaved choice.
     local leadTimeVal
-    -- Same lazy-init reasoning as leadTimeVal: a rebuild must not stomp an unsaved choice.
     local externalVal
 
-    -- Kept for the dialog and reset on every rebuild, so switching tabs reuses what the
-    -- last rebuild made instead of stacking a new body each time.
     local body = UI.Keep(panel, "body", function(p) return CreateFrame("Frame", nil, p) end)
-    -- presetVal is written by the dropdown built in RebuildBody and read back by Save()
-    -- -- it has to outlive any single rebuild, since a pick must not be lost if switching
-    -- tabs or presets forces a reflow later.
     local presetVal
 
-    -- RebuildBody is assigned below (forward-declared here so SelectPageTab, built next,
-    -- can close over it) -- same forward-reference shape RebuildTriggerFields uses in
-    -- ShowRaidReminderEditor above.
     local RebuildBody
 
-    -- Two tabs, independent of each other rather than mutually exclusive like the old
-    -- single-toggle model: Defensive Preset (unchanged) and Custom Reminder, a written
-    -- note bound straight to this ability's own BigWigs cast/bar. An ability can carry
-    -- both -- the defensive callout is always for you; a Custom Reminder can target
-    -- anyone, so silencing one when the other is set would be wrong as often as right.
+    -- The tabs are independent, not a mode switch: an ability can carry both.
     local pageTab = "defensive"
     local tabBtns = {}
     local function SelectPageTab(id)
@@ -2262,35 +1996,21 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         body:ClearAllPoints()
         body:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP - 30)
         body:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP - 30)
-        -- An explicit height, not just the two TOP anchors -- matching dynFrame in the full
-        -- custom reminder editor below (SetSize) and messageBody/triggerBody in the same
-        -- (SetHeight): a frame anchored on only one edge never resolves a height on its
-        -- own, and every rebuilt-body frame elsewhere in this file sets one for that reason.
+        -- A frame anchored on only its top edge never resolves a height on its own.
         body:SetHeight(480)
 
-        -- Wrapped: a blank body with no error anywhere on screen is the exact failure mode
-        -- that shipped once already (the tab buttons mispositioned so badly the whole
-        -- panel looked dead). If something in here throws, this says so instead of leaving
-        -- another silent blank panel.
+        -- Wrapped so a throw shows an error instead of a silent blank panel.
         local ok, err = pcall(function()
         local by = 0
 
-        -- One-column helpers throughout -- W:DualRow's second slot always reserves the
-        -- full right half even fed a blank label, which is exactly the dead space this
-        -- popup does not have the width to spare (it is 440px, not a page-width column).
+        -- One-column helpers: W:DualRow always reserves a right half this popup cannot spare.
         local function Label(text)
             local lbl = UI.KeepFont(body, "label", 11, nil, ns.THEME.muted)
             lbl:SetPoint("TOPLEFT", body, "TOPLEFT", 0, by)
             lbl:SetText(text)
             by = by - 16
         end
-        -- Fixed width instead of stretching to the body's edge, matching every other
-        -- field this popup lines up on both edges.
         local FIELD_W = 260
-        -- A single dropdown row, fixed width to FIELD_W -- BuildDropdownControl
-        -- is the same primitive W:DualRow's own "dropdown" slot type calls, without the
-        -- page-row chrome (background band, hover-tag) that widget wraps it in, which is
-        -- built for a full-width options page rather than a small modal.
         local function DropdownRow(values, order, getValue, setValue)
             local ddBtn = UI.KeepDropdown(body, "dropdown", FIELD_W, values, order,
                 getValue, setValue)
@@ -2300,9 +2020,6 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         end
 
         if pageTab == "defensive" then
-            -- One preset, not a hand-built list: this ability draws from whichever preset
-            -- is chosen here, the same way a boss or a custom reminder already draws from
-            -- one -- edited on the Setup page, not duplicated per ability.
             local presets = ns.ListPresets(specID)
             if #presets == 0 then
                 local hint = UI.KeepFont(body, "noPresets", 11, nil, ns.THEME.muted)
@@ -2318,17 +2035,8 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                     presetValues[presets[i].key] = presets[i].name
                     presetOrder[i] = presets[i].key
                 end
-                -- Derived from binding.preset ONLY the first time this body is ever
-                -- built (presetVal starts nil, and no real preset key is ever nil) --
-                -- shows the effective default (this boss's preset, else the spec's
-                -- active one) until this ability actually gets its own pick, matching
-                -- the same fallback EffectiveList itself uses at runtime. A rebuild
-                -- triggered by the dropdown's OWN change must never re-derive this: it
-                -- would re-read binding.preset, still the OLD value until Save() runs,
-                -- and stomp the pick right back to it -- which is exactly what made the
-                -- dropdown look stuck on the old preset the instant a different one was
-                -- clicked (the same trap leadTimeVal's own init below already has to
-                -- dodge, just missed here when RebuildBody() was added to this one).
+                -- First build only: binding.preset keeps the old value until Save, and
+                -- re-reading it on a rebuild left the dropdown stuck on the old preset.
                 if presetVal == nil then
                     presetVal = binding.preset or ns.BossPresetKey(specID, encounterID)
                         or ns.ActivePresetKey(specID) or presetOrder[1]
@@ -2348,20 +2056,12 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 .. "when this ability is cast.")
             by = by - 30
 
-            -- Lazily initialized, not re-derived on every rebuild (see its own comment
-            -- above) -- an edit that triggers a rebuild (switching presets or tabs) must
-            -- not stomp a drag still in progress.
             if leadTimeVal == nil then
                 leadTimeVal = binding.leadTime or (ns.DB().leadTime or 3)
             end
             Label("Warning Time (+before / -after impact)")
-            -- -30 to 10, not 0 to 10: requested for Rav'i's Triple Shot, called out a beat
-            -- AFTER the volley lands rather than before it. Negative is what that is --
-            -- ScheduleBWFire already reads a lead past the bar's own length as "wait this
-            -- much further" once the sign flips, so this is the one place that needed to
-            -- change, not a second mode alongside it. -30 comfortably covers a delayed call
-            -- on anything shorter than a boss's longest bars; the spec-wide default stays
-            -- positive-only on its own slider on the Setup page.
+            -- Negative calls after impact (ScheduleBWFire handles the sign); the spec-wide
+            -- default on the Setup page stays positive-only.
             local trackFrame, valBox = UI.KeepSlider(body, "lead", 200, 4, 12, 40, 22, 12,
                 1, -30, 10, 1,
                 function() return leadTimeVal end,
@@ -2380,9 +2080,6 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 .. "that only matters once the mechanic is over.")
             by = by - math.ceil(leadHint:GetStringHeight()) - 16
 
-            -- The last step, per ability rather than once for the spec. Defaults to whatever
-            -- the spec-wide toggle says and only stores a value when it differs, the same
-            -- rule leadTime saves under.
             if externalVal == nil then
                 externalVal = ns.ExternalCallFor(encounterID, ability.spellID)
             end
@@ -2478,25 +2175,16 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
 
     RebuildBody()
 
-    -- Only the Defensive Preset tab's settings -- the Custom Reminder tab saves
-    -- immediately through its own nested editor's Save button (ns.ShowRaidReminderEditor),
-    -- there's nothing of its deferred to this button.
+    -- The Ability Reminder tab saves through its own nested editor.
     local function Save()
-        -- "defensive" unconditionally: nothing on this picker writes "custom" anymore
-        -- (the Custom Reminder tab is additive now, not a mode switch -- see the header
-        -- comment above), so this also self-heals a profile with a stale "custom" from
-        -- before that change, which would otherwise silently suppress this ability's
-        -- Pre-Selected Defensives pick forever (ns.HandleBigWigsAbility's own gate).
+        -- Heals a stale "custom" mode from older builds, which HandleBigWigsAbility
+        -- would otherwise read as suppressing the preset pick.
         binding.mode = "defensive"
         binding.preset = presetVal
-        -- Per-defensive leadTimeBySpell was tried and dropped -- too fiddly for what it
-        -- bought -- back to one warning time for the whole preset on this ability. No
-        -- migration: any leftover leadTimeBySpell from that build is simply never read
-        -- again once this saves.
+        -- leadTimeBySpell is a dropped older field, cleared on save.
         binding.leadTimeBySpell = nil
         binding.leadTime = (leadTimeVal ~= (ns.DB().leadTime or 3)) and leadTimeVal or nil
-        -- nil when it agrees with the spec-wide toggle, so an ability that was never given
-        -- an opinion keeps following that toggle when it later changes.
+        -- nil when it agrees with the spec-wide toggle, so it keeps following that toggle.
         if externalVal == nil or externalVal == (ns.DB().fallbackOn ~= false) then
             binding.external = nil
         else
@@ -2510,8 +2198,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end
 
-    -- Sits above Save/Cancel rather than in either tab: the scope is the binding's, not
-    -- the Defensive Preset's or the Custom Reminder's, so it must not move with the tabs.
+    -- Outside the tabs: the scope belongs to the binding.
     local scopeText = UI.KeepFont(panel, "scope", 10, nil, ns.THEME.muted)
     scopeText:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", PAD, 52)
     scopeText:SetPoint("RIGHT", panel, "RIGHT", -PAD - 76, 0)
@@ -2536,6 +2223,8 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
     dimmer:Show()
 end
 
+-- Fixed height: GetStringHeight right after SetText depends on the parent chain's width
+-- having resolved, which caused overlaps before. Long descriptions clip instead.
 local ABILITY_ROW_H = 62
 
 local function NewAbilityRow(parent)
@@ -2579,15 +2268,9 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
     row:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
 
-    -- The tick is whether the boss has the ability, same as the Add Ability picker's, so
-    -- unticking silences the ability but keeps it, along with its preset and warning time.
-    -- Taking it off the boss entirely is the X, which asks first -- an untick is reversible
-    -- with the same click, a delete is not, so they are deliberately different controls.
+    -- Unticking silences the ability but keeps its settings; the X removes it.
     local enabled = ability.spellID and ns.AbilityEnabledForBinding(encounterID, ability.spellID, true)
 
-    -- The addon's own toggle rather than a Blizzard checkbox, matching every other on/off
-    -- control in here. `enabled` backs the getter so the widget reads its own state without
-    -- another binding lookup per repaint.
     row.check._get = function() return enabled end
     row.check._set = function(v)
         if not ability.spellID then return end
@@ -2620,11 +2303,7 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
         ns.ConfirmRemoveAbility(encounterID, ability, EUI)
     end
 
-    -- Role/difficulty flags straight off the journal (FLAG_LABELS, same icon set the
-    -- in-game Adventure Guide shows) -- Tank/Dps/Healer first since those are the ones
-    -- worth a glance, the rest folded into the description line below instead of a
-    -- second row, which is what caused the Setup-tab overlap this row's fixed height
-    -- comment already warns about.
+    -- Roles go on the title; other flags fold into the description, not a second row.
     local roleTag, restTag
     if ability.extras then
         local roles, rest = {}, {}
@@ -2651,8 +2330,6 @@ local function RenderAbilityRow(parent, y, encounterID, ability, specID, EUI)
     return y - ABILITY_ROW_H
 end
 
--- The selected instance's own view: Share Profile / Select Boss, the boss's own
--- Explicit message-driven defensive reminders, below the boss's ability rows.
 local function RenderBossMessageSection(parent, y, EUI, encounterID)
     local PADR = EUI.CONTENT_PAD or 16
     local function Refresh() EUI:RefreshPage(true) end
@@ -2756,10 +2433,6 @@ local function RenderBossMessageSection(parent, y, EUI, encounterID)
     return y - 34
 end
 
--- Enable/Preset header (RenderBossHeader), then
--- every ability the Dungeon Journal lists for that boss -- journal icon, description
--- and role flags (Tank/Dps/Healer) included, all data ns.ScrapeBosses already collects
--- (boss.abilities).
 local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     local boss = inst.bosses[selectedBossIdx[inst.id] or 1]
 
@@ -2770,9 +2443,6 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         return y - 20
     end
 
-    -- One row carries the whole boss selection state: the picker on the left (with the
-    -- boss-wide reminders cog chained inline), Enable This Boss on the right. The picker
-    -- is a real dropdown slot keyed by boss index.
     local db = ns.DB()
     local bossOn = not (db.bossOff and db.bossOff[tostring(boss.encounterID)])
     local bossValues, bossOrder = {}, {}
@@ -2806,12 +2476,8 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     y = RenderBossHeader(parent, y, W, EUI, boss.encounterID, specID)
 
     y = y - 10
-    -- The shipped-data curated list (extracted from GetOptions with a script) was tried
-    -- and dropped in 0824t for systematically missing abilities; re-auditing its misses
-    -- against the module source showed the extractor's parsing was at fault ({id, flag}
-    -- table entries), plus abilities BigWigs does not track at all -- which the engine
-    -- can never fire anyway. Reading the installed modules at runtime has neither
-    -- problem, so this listing is exact by construction.
+    -- Read from the installed modules at runtime; a shipped GetOptions-derived list was
+    -- dropped in 0824t for missing abilities.
     local abilities = BigWigsAbilities(boss.encounterID, boss.abilities, inst.mapID) or boss.abilities
     if not (abilities and #abilities > 0) then
         local hint = UI.KeepFont(parent, "noAbilities", 12, nil, ns.THEME.muted)
@@ -2820,9 +2486,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         return RenderBossMessageSection(parent, y - 26, EUI, boss.encounterID)
     end
 
-    -- Only what the player has actually added. A boss starts blank: the journal lists
-    -- everything a fight does, most of which is not a tank hit, and a page of rows that
-    -- are all off by default reads as broken rather than as a choice.
+    -- Only what the player has added; a boss starts blank.
     local added = {}
     for i = 1, #abilities do
         local a = abilities[i]
@@ -2837,8 +2501,7 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
     addBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
 
     local copyBtn = UI.KeepButton(parent, "copyFromSpec", "Copy From Spec", 130, 24, function()
-        -- The set travels with it so this popup's own "every boss" tick keeps to the same
-        -- side of the raid/dungeon split as the boss it was opened from.
+        -- Keeps the popup's "every boss" tick on the same side of the raid/dungeon split.
         local set, word = ns.EncounterSetForKind(inst.isRaid)
         ns.ShowCopyBindingsPopup(boss.encounterID, boss.name, EUI, set, word)
     end)
@@ -2873,18 +2536,9 @@ local function RenderInstanceDetail(parent, y, W, EUI, inst, specID)
         y = RenderAbilityRow(parent, y, boss.encounterID, a, specID, EUI)
     end
 
-    -- Custom Reminders and Raid/Dungeon Reminders for this boss used to render inline
-    -- here; both moved to the Custom Reminders tab, which pairs an instance and boss
-    -- picker with the same lists, so picking a boss once covers everything about it.
-
     return RenderBossMessageSection(parent, y - 6, EUI, boss.encounterID)
 end
 
--- Dungeon Bosses / Raid Bosses tab: a pure navigation list on the left -- one row per
--- instance, click to select, no per-row toggle here anymore (the old bulk on/off per
--- instance is still reachable; it lives on the selected boss's own Enable This Boss row,
--- same as it always did for a single boss) -- and the selected instance's detail on the
--- right.
 function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
     local EUI = callerEUI or ns.UI
     local dimmer, panel = ns.MakeModal(400, 190, "abilityRemoveConfirm")
@@ -2909,9 +2563,7 @@ function ns.ConfirmRemoveAbility(encounterID, ability, callerEUI)
         .. "starts that ability fresh.")
 
     local remove = UI.KeepButton(panel, "remove", "Remove", 110, 26, function()
-        -- EnsureBinding first: a binding saved under this ability's journal alias reads
-        -- back fine but would survive a delete keyed on the current id. Ensuring migrates
-        -- the alias onto that id, so the nil below actually removes it.
+        -- EnsureBinding migrates a journal-alias binding onto this id, so the nil removes it.
         ns.EnsureBinding(encounterID, ability.spellID)
         local set = ns.AbilityBindingsTable(false, encounterID)
         if set then set[ability.spellID] = nil end
@@ -2935,23 +2587,15 @@ function ns.BuildBossListPage(parent, y, isRaid)
     local _, h
     local specID, isTank = ns.CurrentSpec()
 
-    -- W:SectionHeader is a fixed widget -- left-aligned, one set colour, a 40px band with
-    -- the label sitting near its bottom -- no centering or colour override exists on it.
-    -- Hand-built here instead: centered, Naowh's gold, and a fraction of that height, which
-    -- is most of what was leaving a gap between the tab strip and the content below.
+    -- Hand-built: W:SectionHeader cannot center or recolour, and its 40px band left a gap.
     local pageHead = UI.KeepFont(parent, "pageHead", 14, nil, ns.THEME.accent)
     pageHead:SetPoint("TOP", parent, "TOP", 0, y)
     pageHead:SetJustifyH("CENTER")
     pageHead:SetText(isRaid and "Raid Bosses" or "Dungeon Bosses")
     y = y - 22
 
-    -- Raid-only on purpose. The gate asks whether the OTHER tank has the boss, and that
-    -- question only exists with two of them -- a five-man has one tank holding every boss
-    -- unit, so the check always answers yes there and changes nothing.
-    --
-    -- No longer a manual toggle: it used to sit here as a global switch that a respec could
-    -- leave mismatched (on for a spec that no longer tanks), silently killing every callout
-    -- with nothing but /nutank status to say why. It now just follows the spec's real role.
+    -- Raid-only: a five-man has one tank, so the gate changes nothing there. It follows
+    -- the spec's role; a manual toggle could be left on after a respec and kill every callout.
     if isRaid then
         local note = UI.KeepFont(parent, "tankNote", 11, nil, ns.THEME.accentSoft)
         note:SetPoint("TOPLEFT", parent, "TOPLEFT", EUI.CONTENT_PAD, y)
@@ -2966,9 +2610,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
         y = y - 30
     end
 
-    -- Here rather than on Setup: it only reaches reminders authored from this page, and
-    -- trash asks for the same thing separately on its own. Shown on both boss tabs, which
-    -- are this same page built twice, and driving the one account-wide switch.
+    -- Here rather than on Setup: it only reaches reminders authored from this page.
     _, h = W:DualRow(parent, y,
         { type = "toggle", text = "Show Target on Boss Casts",
           tooltip = "When a boss cast you have a Boss Cast Starts reminder for names a "
@@ -2978,16 +2620,11 @@ function ns.BuildBossListPage(parent, y, isRaid)
           getValue = function() return ns.DB().castTargetBoss == true end,
           setValue = function(v)
               ns.DB().castTargetBoss = v or nil
-              -- The cast watch arms from this switch, and nothing else here would rebuild
-              -- it until the next pull, so ticking it mid-fight would do nothing until
-              -- then.
+              -- Otherwise the cast watch would not rearm until the next pull.
               if ns.RefreshCastWatch then ns.RefreshCastWatch() end
           end }
     ); y = y - h
 
-    -- The same copy the per-boss button offers, asked once for the whole spec. Building a
-    -- pack means repeating that copy on every boss in turn otherwise, and it is the single
-    -- biggest cost in setting a spec up. Only shown when another spec has something to take.
     local data = ns.ScrapeBosses(false)
     if not data or #data.instances == 0 then
         local why = (scrapeFailed == "busy")
@@ -3013,10 +2650,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
 
     local key = isRaid and "raid" or "dungeon"
     local sel = selectedInst[key]
-    -- The scraped list is rebuilt fresh on every refresh (ns.ScrapeBosses is cached, but
-    -- a new table each call after a forced rescan) -- match the remembered selection back
-    -- up by id rather than by table identity, or picking an instance would un-pick itself
-    -- the moment anything else on the page forced a refresh.
+    -- Matched by id: a forced rescan builds new tables, which would drop the selection.
     if sel then
         local found
         for i = 1, #list do if list[i].id == sel.id then found = list[i]; break end end
@@ -3024,15 +2658,10 @@ function ns.BuildBossListPage(parent, y, isRaid)
         selectedInst[key] = found
     end
 
-    -- Placed after the instance list because it needs it: the copy is confined to the bosses
-    -- THIS page lists, so pressing it on Raid Bosses cannot quietly drag every dungeon across
-    -- with it. Only shown when another spec has something inside that set to give.
+    -- Copies are confined to this page's bosses, so Raid Bosses cannot drag dungeons along.
     local encSet, scopeWord = ns.EncounterSetForKind(isRaid)
 
-    -- An empty page because this spec has nothing looks exactly like an empty page because
-    -- the addon lost everything, and the second reading is the one people reach for -- it
-    -- cost an evening on a profile that had imported perfectly, where the work was simply
-    -- filed under specs the character was not playing. Say which it is.
+    -- Bindings filed under another spec look like a lost profile; say which it is.
     local others = (specID and specID ~= 0 and ns.SpecsWithBindings)
         and ns.SpecsWithBindings(nil, encSet) or {}
     if specID and specID ~= 0 and ns.OwnBindingCount
@@ -3052,9 +2681,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
     end
 
     if specID and specID ~= 0 and #others > 0 then
-        -- Built directly rather than through W:Button: that helper hardcodes a 200px button
-        -- and this label overran it, drawing outside its own border. The width follows the
-        -- text instead, with the explanation in a caption beside it.
+        -- Not W:Button: its hardcoded 200px width is too narrow for this label.
         local row = UI.Keep(parent, "copyAllRow", function(host)
             local f = CreateFrame("Frame", nil, host)
             f:SetHeight(34)
@@ -3089,9 +2716,6 @@ function ns.BuildBossListPage(parent, y, isRaid)
     local LEFT_W = 190
     local topY = y
 
-    -- The picker's own label, above the pool it picks from -- used to be a hint on the
-    -- right that only showed up once nothing was picked yet; moved here so it reads as
-    -- the list's heading instead of an empty-state message.
     local leftHead = UI.KeepFont(parent, "leftHead", 12, nil, ns.THEME.muted)
     leftHead:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, topY)
     leftHead:SetJustifyH("LEFT")
@@ -3129,10 +2753,7 @@ function ns.BuildBossListPage(parent, y, isRaid)
         end)
     end
 
-    -- Right edge inset by CONTENT_PAD, same as RenderPresetListEditor's own right column
-    -- above -- without it, everything anchored to this pane's own RIGHT (the ability
-    -- rows' cog button in particular) sits under the scroll frame's scrollbar, both
-    -- visually clipped and unclickable since the scrollbar's hit region wins the click.
+    -- Inset by CONTENT_PAD, or the row cogs sit under the scrollbar and cannot be clicked.
     local rightPane = UI.Keep(parent, "rightPane", function(p) return CreateFrame("Frame", nil, p) end)
     rightPane:SetPoint("TOPLEFT", parent, "TOPLEFT", LEFT_W + 16, topY)
     rightPane:SetPoint("RIGHT", parent, "RIGHT", -(EUI.CONTENT_PAD or 16), 0)
@@ -3148,22 +2769,8 @@ function ns.BuildBossListPage(parent, y, isRaid)
     return math.min(leftBottom, topY + rightBottom)
 end
 
--- Choose which of a boss's abilities get reminders; the boss page lists exactly these.
--- The curated tank list marks rows here instead of pre-selecting them, so it still says
--- which hits are the real tank busters without choosing for the player.
---
--- Two-way: the tick is whether the boss has the ability, so unticking one drops it along
--- with the preset and warning time saved on it -- the same thing the boss page's own row
--- tick does.
--- Copy another spec's bindings for this boss into the current one. Per-spec storage means
--- every alt starts empty; this is how a spec gets a working list without rebuilding it by
--- hand. Additive only -- anything already set up here survives untouched.
--- encounterID nil means the whole spec, which is what the Dungeon and Raid list pages ask
--- for: one press instead of the same copy repeated on every boss in turn. The per-boss
--- entry point still passes an encounter and keeps its own checkbox.
--- Every encounter the journal lists on one side of the raid/dungeon split, as a set of
--- encounter keys. Both copy entry points confine themselves with it, so neither can reach
--- across that split into content the page it was opened from never mentions.
+-- Encounter keys on one side of the raid/dungeon split; both copy entry points confine
+-- themselves to it.
 function ns.EncounterSetForKind(isRaid)
     local data = ns.ScrapeBosses(false)
     local set = {}
@@ -3180,6 +2787,7 @@ function ns.EncounterSetForKind(isRaid)
     return set, isRaid and "Raid Boss" or "Dungeon Boss"
 end
 
+-- Additive copy of another spec's bindings. encounterID nil copies the whole spec.
 function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scopeWord)
     local EUI = callerEUI or ns.UI
     local specs = ns.SpecsWithBindings(encounterID, encSet)
@@ -3214,8 +2822,6 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
             or "Anything this spec already has is left alone.")
         y = y - (allMode and 38 or 26)
 
-        -- Nothing to choose when the whole spec is already the subject, and a ticked box
-        -- that cannot be unticked reads as broken.
         local allBosses = allMode
         if not allMode then
             local chk = UI.Keep(panel, "allBosses", function(p)
@@ -3228,8 +2834,6 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
             chk:SetScript("OnClick", function(self) allBosses = self:GetChecked() and true or false end)
             local chkLbl = UI.KeepFont(panel, "allBossesLabel", 11, nil, ns.THEME.fg)
             chkLbl:SetPoint("LEFT", chk, "RIGHT", 4, 0)
-            -- Names the split it keeps to. "Every boss" read as everything the addon knows,
-            -- which is what it used to do and what it no longer does.
             chkLbl:SetText(("Every %s, not just %s"):format(
                 (scopeWord or "boss"):lower(), bossName or "this one"))
             y = y - 28
@@ -3237,8 +2841,6 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
 
         for i = 1, #specs do
             local s = specs[i]
-            -- The count is what tells the finished spec from one barely started, which is
-            -- the whole question when copying a whole spec across.
             local label = allMode and ("%s  (%d)"):format(s.name, s.total) or s.name
             local btn = UI.KeepButton(panel, "spec", label, 200, 24, function()
                 local copied, skipped, reminders = ns.CopyBindingsFromSpec(
@@ -3265,6 +2867,7 @@ function ns.ShowCopyBindingsPopup(encounterID, bossName, callerEUI, encSet, scop
     dimmer:Show()
 end
 
+-- The curated tank list marks rows here instead of pre-selecting them.
 function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
     local EUI = callerEUI or ns.UI
     local PANEL_W = 460
@@ -3283,9 +2886,6 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
         .. "addon knows to be tank hits on this boss. Unticking one drops it from the "
         .. "boss, along with any warning time or reminder set up on it.")
 
-    -- Scrolled rather than capped: a journal boss can list well past a screenful, and this
-    -- is the only place an ability can be switched on, so a row that does not fit still has
-    -- to be reachable.
     local scroll = UI.Keep(panel, "scroll", function(p)
         local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
         sf.content = CreateFrame("Frame", nil, sf)
@@ -3327,12 +2927,8 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
                 row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
                 row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
 
-                -- Two-way: the box IS whether this boss has the ability, so unticking
-                -- drops it. Reading the box's own state rather than assuming the click
-                -- means "add" -- an already-added row used to be disabled, which left one
-                -- ticked in this same session (built before it was added) live but
-                -- one-directional, so unticking it silently re-added and the ability
-                -- stayed on the boss.
+                -- Two-way, read from the box's own state: assuming the click meant "add"
+                -- once made unticking silently re-add the ability.
                 local check = row.check
                 check:SetChecked(ns.AbilityAdded(encounterID, a.spellID))
                 check:SetScript("OnClick", function(self)
@@ -3348,10 +2944,6 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
                 row.icon:SetTexture(a.icon)
 
                 local curated = ns.TANK_ABILITIES and ns.TANK_ABILITIES[a.spellID]
-                -- Same role colouring the already-added rows below use, off the same
-                -- journal extras -- this list was reading a.name, a field these ability
-                -- tables have never had (the journal walk and the BigWigs merge both
-                -- write .title), so every row fell through to the bare spell id.
                 local roleTag
                 if a.extras then
                     local roles = {}
@@ -3394,28 +2986,13 @@ function ns.ShowAbilityPicker(encounterID, abilities, callerEUI)
 end
 
 -------------------------------------------------------------------------------
---  Raid/Dungeon Reminders and Custom Reminders for one boss, behind the cog next to
---  that boss's picker (RenderInstanceDetail) -- a different shape than the per-ability
---  cog (ShowAbilityReminderPicker), which configures one ability's own tank-buster
---  callout. Both used to be full top-level tabs, each with its own boss dropdown
---  duplicating the one already on Dungeon/Raid Bosses; folded in here so a boss is only
---  ever picked once. Engine for raid reminders (data, targeting, BigWigs scheduling,
---  the four displays) lives in NaowhForever_RaidReminders.lua; this is the
---  authoring UI on top of it, kept here since it needs the same tab/mechanic-picker/
---  HoverTip scaffolding ShowCustomReminderEditor/ShowRaidReminderEditor already built.
---  Ability-bound reminders (r.abilitySpellID set) are excluded below -- those live on
---  their own ability's cog instead (ShowAbilityReminderPicker's Custom Reminder tab).
+--  Boss-wide reminder lists, authoring UI over NaowhForever_RaidReminders.lua.
+--  Ability-bound reminders (r.abilitySpellID set) live on their ability's cog instead.
 -------------------------------------------------------------------------------
--- Opened from the cog next to a boss's picker (RenderInstanceDetail). isRaid decides
--- which of RaidRemindersTable's two kinds this boss's encounterID belongs to (the same
--- split ns.BuildBossListPage's left column already keys instances on), not something
--- picked here.
--- Which difficulty's recording the observed section is showing, per encounter. Page-local
--- rather than saved: it is a viewing choice, not a setting.
+-- Per encounter, unsaved: a viewing choice, not a setting.
 local observedDiffPick = {}
 
--- One recorded ability: icon, name, then each observed occurrence as a clickable time.
--- Clicking opens the reminder editor already pointed at that moment.
+-- Each observed occurrence is a time chip that opens the editor pointed at that moment.
 local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChanged, y)
     local row = CreateFrame("Frame", nil, content)
     row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
@@ -3435,9 +3012,7 @@ local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChang
     lbl:SetWordWrap(false)
     lbl:SetText((info and info.name) or ("Spell " .. sid))
 
-    -- How many time chips actually fit. This row renders on two very different surfaces --
-    -- the 480px cog modal and the much wider options tab -- and a boss with a dozen
-    -- recorded occurrences would run straight off the narrow one.
+    -- Renders in both the 480px modal and the wide options tab, so chips are capped to fit.
     local avail = content:GetWidth()
     if avail <= 0 then avail = 440 end
     local fits = math.max(1, math.floor((avail - 190) / 70))
@@ -3452,8 +3027,7 @@ local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChang
             local label = ("%d:%02d"):format(math.floor(shown / 60), math.floor(shown % 60))
             if phased then label = "P" .. slot.stage .. " " .. label end
             local chip = ns.Button(row, label, phased and 62 or 46, 20, function()
-                -- A phase-anchored observation seeds a phase trigger, since a pull-relative
-                -- time for a later phase is only true for a pull of the same speed.
+                -- Later-phase pull-relative times only hold for a pull of the same speed.
                 local seed
                 if phased then
                     seed = { trigger = { type = "stage", stage = slot.stage,
@@ -3486,11 +3060,8 @@ local function ObservedRow(content, sid, list, encounterID, isRaid, EUI, onChang
     return row
 end
 
--- The boss-scoped reminder lists -- RAID/DUNGEON REMINDERS, ABILITY REMINDERS, the
--- anchors button and both Add buttons -- shared verbatim by the cog picker modal and
--- the Custom Reminders tab, so the two surfaces cannot drift. Renders into `content`
--- starting at startY (negative running offset) and returns the final y. opts.onChanged
--- runs after any edit/delete/add closes, set as each nested editor's onClose.
+-- Shared by the cog picker modal and the Custom Reminders tab. Returns the final y;
+-- opts.onChanged becomes each nested editor's onClose.
 function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts)
     local EUI = (opts and opts.EUI) or ns.UI
     local onChanged = (opts and opts.onChanged) or function() end
@@ -3504,17 +3075,12 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         if nestedDimmer then nestedDimmer.onClose = onChanged end
     end
 
-    -- The boss-less bucket the Custom Reminders tab's "Any Combat" entry writes to. Only
-    -- the custom list applies there: observed timings come from encounter events, and a
-    -- raid reminder reads currentEncounter, so neither has anything to say without a boss.
+    -- "Any Combat" bucket: observed timings and raid reminders both need an encounter.
     local anyCombat = (encounterID == 0)
 
     local y = startY or 0
 
-    -- Hand-rolled rows throughout, not W:SectionHeader/W:DualRow -- those are built
-    -- for a full-width options page (row backgrounds, hover-tags, a half-column each
-    -- slot always reserves) and look wrong crammed into a 480px floating popup, the
-    -- same reasoning ShowAbilityReminderPicker's own compact Label/Box helpers state.
+    -- Hand-rolled rows: W:SectionHeader/W:DualRow are built for a full-width page.
     local function Header(text)
         local lbl = ns.Font(content, 12, nil, ns.THEME.accent)
         lbl:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
@@ -3529,7 +3095,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         y = y - 20
     end
 
-    -- One reminder: an enabled checkbox, name + description, Edit/Delete on the right.
     local function ReminderRow(name, desc, getEnabled, setEnabled, editFn, deleteFn)
         local row = CreateFrame("Frame", nil, content)
         row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
@@ -3559,9 +3124,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
     end
 
     if not anyCombat then
-        -- What this boss actually did, from the player's own pulls. Rendered above the
-        -- reminder lists because it is the raw material they are built from: pick a time here
-        -- and the editor opens already pointed at it.
         local diffs = ns.ObservedDifficulties and ns.ObservedDifficulties(encounterID) or {}
         Header("OBSERVED TIMINGS")
         if #diffs > 0 then
@@ -3574,8 +3136,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
             local block = ns.ObservedFor(encounterID, tonumber(chosen.key))
 
             if #diffs > 1 then
-                -- Only when there is a choice to make: the same boss on two difficulties casts
-                -- on genuinely different schedules and the two must never be read as one.
+                -- Difficulties cast on different schedules and are never merged.
                 local dvalues, dorder = {}, {}
                 for _, d in ipairs(diffs) do
                     local dn = GetDifficultyInfo and GetDifficultyInfo(tonumber(d.key))
@@ -3617,8 +3178,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
                 math.floor((block and block.longest or 0) / 60), (block and block.longest or 0) % 60))
             y = y - 22
         else
-            -- Says which of the two reasons it is. They need different actions from the
-            -- player, and neither is guessable from an empty list.
             local src = ns.BossSource and ns.BossSource() or "timeline"
             local why = ns.Font(content, 11, nil, ns.THEME.muted)
             why:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
@@ -3626,8 +3185,6 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
             why:SetJustifyH("LEFT")
             why:SetWordWrap(true)
             if src ~= "bigwigs" and src ~= "dbm" then
-                -- Boss Addon only lands on Timeline now by an explicit pick or with no boss
-                -- mod installed at all, and those need different things from the player.
                 if not (_G.BigWigsLoader or _G.DBM) then
                     why:SetText("Recording rides BigWigs or DBM broadcasts and neither is "
                         .. "installed. With one of them running, every boss you pull records "
@@ -3684,9 +3241,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
 
         local addRRBtn = ns.Button(content,
             isRaid and "+ Add a Raid Reminder" or "+ Add a Dungeon Reminder", 190, 26, function()
-                -- A thrown error here would otherwise be indistinguishable from a dead
-                -- button -- WoW hides script errors by default, so an uncaught throw looks
-                -- exactly like nothing happening at all.
+                -- WoW hides script errors by default, so a throw would look like a dead button.
                 local okClick, clickErr = pcall(EditRaidReminder, nil)
                 if not okClick then
                     ns.Print("|cffff6060could not open the raid reminder editor|r: "
@@ -3697,11 +3252,8 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
         y = y - 34
     end
 
-    -- Excludes "spell"-triggered entries -- those are the per-ability picker's own
-    -- Custom Reminder mode (ShowAbilityReminderPicker), already editable from that
-    -- ability's row; listing them here too would let this generic editor delete the
-    -- reminder object while the ability's binding still says "custom", leaving that
-    -- ability silently unable to fire either kind of callout.
+    -- "spell" entries belong to the ability picker; deleting one here would leave its
+    -- binding on "custom" and the ability unable to fire either callout.
     Header("ABILITY REMINDERS")
     local crSet = ns.CustomRemindersTable and ns.CustomRemindersTable(false, encounterID)
     local crList = {}
@@ -3768,27 +3320,15 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
 end
 
 
--- ShowCustomReminderEditor's twin: same modal size, same tab/mechanic-picker/Save
--- shape, restricted to BigWigs triggers only (no pull/aura, no DBM -- a raid reminder is
--- always tied to a real BigWigs broadcast) and carrying the two things that editor has
--- no concept of:
--- who this is for (Target) and which of the four displays shows it.
--- abilitySpellID, passed only from ShowAbilityReminderPicker's Custom Reminder tab,
--- tags a brand-new entry as bound to that ability (so it shows on the ability's own
--- cog instead of ShowBossReminderPicker's boss-wide list) and seeds the mechanic
--- picker's Spell ID field with it -- still just a starting guess, not locked, since
--- the real BigWigs key for an ability can differ from its journal spellID.
--- seed (optional): { trigger = {...}, name = "..." } -- a starting point for a brand-new
--- reminder, used by the observed-timings rows so a recorded moment opens the editor
--- already pointed at it. Ignored when editing an existing entry.
+-- abilitySpellID binds a new entry to that ability and seeds the Spell ID field; the
+-- BigWigs key can still differ from the journal spellID, so it stays editable.
+-- seed (optional): { trigger = {...}, name = "..." } for a new entry; ignored when editing.
 function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilitySpellID, seed)
     local EUI = callerEUI or ns.UI
     local W = EUI.Widgets
     local kind = isRaid and "Raid" or "Dungeon"
 
-    -- Taller than ShowCustomReminderEditor's 620: the Target tab now carries full
-    -- role/class/subgroup checkbox grids plus spec/name text fields instead of one
-    -- kind dropdown, and none of these tab bodies scroll.
+    -- Tall because none of the tab bodies scroll.
     local dimmer, panel = ns.MakeModal(480, 860, "raidReminderEditor")
 
     local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
@@ -3800,18 +3340,13 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local existing = (set and uid) and set[uid] or nil
     local boundAbilitySpellID = (existing and existing.abilitySpellID) or abilitySpellID
     local trig = (existing and existing.trigger) or (seed and seed.trigger) or { type = "bwtimer" }
-    -- New reminders open with Everyone unticked and the role/class grid already showing:
-    -- assigning to somebody specific is the common case, and starting on Everyone hid the
-    -- controls that do it. Only the editor's starting state -- a saved reminder with no
-    -- target of its own still means everyone, which is what NormalizeRaidReminderTarget says.
+    -- Editor starting state only; a saved reminder with no target still means everyone.
     local target = (existing and existing.target) or { all = false }
     local display = (existing and existing.display) or { type = "text" }
 
     local PAD = 20
 
-    -- The editor keeps what it builds (UI.Keep). A kept box can still carry the text
-    -- handler another field gave it, and SetText would fire that handler into the wrong
-    -- field's value, so every box sheds its handlers before it is filled in.
+    -- A kept box can still carry another field's text handler, which SetText would fire.
     local function KeptBox(parent)
         local box = UI.Keep(parent, "box", ns.NewEditBox)
         box:SetScript("OnTextChanged", nil)
@@ -3819,10 +3354,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         return box
     end
 
-    -- Wrapped, matching ShowAbilityReminderPicker's own RebuildBody: a blank panel with
-    -- no error anywhere on screen is a failure mode this codebase has already shipped
-    -- once, so anything that throws here shows up as text on the panel instead of an
-    -- empty modal nobody can diagnose from a screenshot alone.
+    -- Wrapped so a throw shows an error instead of a silent blank panel.
     local ok, err = pcall(function()
 
     local function HoverTip(hit, tooltip)
@@ -3837,19 +3369,14 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     end
 
     -------------------------------------------------------------------------
-    --  Tabs -- same split ShowCustomReminderEditor uses: what fires this,
-    --  and for whom (Trigger & Target), versus how it looks (Display).
+    --  Tabs
     -------------------------------------------------------------------------
     local TAB_TOP = -40
     local BODY_TOP = TAB_TOP - 30
 
     local tabBar = UI.Keep(panel, "tabBar", function(p) return CreateFrame("Frame", nil, p) end)
     tabBar:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, TAB_TOP)
-    -- A single-corner anchor with no width ever set left tabBar's own geometry (and
-    -- everything anchored off its LEFT/RIGHT points transitively -- every tab button)
-    -- unresolvable: GetLeft/GetTop came back nil for the tab buttons even fully shown
-    -- with alpha 1, confirmed live via debug prints. A second anchor point gives it a
-    -- real width, same as every other full-width strip in this file already does.
+    -- With one anchor and no width, the tab buttons' geometry never resolved (nil GetLeft).
     tabBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -PAD, TAB_TOP)
     tabBar:SetHeight(24)
 
@@ -3938,10 +3465,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         nameBox:SetText((info and info.name) or "")
     end
 
-    -- The mechanic picker: every BigWigs/DBM key actually seen for this boss (recorded
-    -- by RecordBossModKey the moment it fires live), sorted by how often it has come
-    -- up -- same data source and shape ShowCustomReminderEditor's own picker uses,
-    -- since it is the one place both editors need "which real ability is this."
+    -- Every boss-mod key seen live for this boss (RecordBossModKey), most frequent first.
     local MECHANIC_ROWS = 6
     local pickerRows = {}
     for i = 1, MECHANIC_ROWS do
@@ -3992,10 +3516,6 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local auraEventVal = (trig.auraEvent == "removed") and "removed" or "applied"
     local auraTargetVal = (trig.target == "boss") and "boss" or "player"
 
-    -- Declared here, assigned below: a picker row's OnClick (built by RebuildPicker,
-    -- called from inside RebuildTriggerFields itself) has to reach the rebuild function
-    -- that is still being defined at the point this local exists -- same forward-
-    -- reference shape ShowCustomReminderEditor's own RebuildDynFields/dynFrame pair uses.
     local RebuildTriggerFields
 
     local function RebuildPicker()
@@ -4004,10 +3524,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         local cat = ns.BossModCatalogueTable and ns.BossModCatalogueTable(false, encounterID)
         local list = {}
         if cat then
-            -- BigWigs only: a raid reminder's trigger is always "BigWigs Message/Timer"
-            -- now (see the Trigger Type dropdown above), so a DBM-only catalogue entry
-            -- would just be a dead pick here -- the catalogue itself stays shared with
-            -- ShowCustomReminderEditor, which still wants both.
+            -- BigWigs only: raid reminder triggers are BigWigs Message/Timer.
             for key, entry in pairs(cat) do
                 if entry.mod ~= "DBM" then list[#list + 1] = { key = key, entry = entry } end
             end
@@ -4048,18 +3565,11 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         return shown * PICKER_ROW_H + 4
     end
 
-    -- Rebuilt on every trigger change within one open, so each is kept for the dialog and
-    -- reset at the top of its rebuild rather than made again.
     local typeHost = UI.Keep(triggerBody, "typeHost", function(p) return CreateFrame("Frame", nil, p) end)
     local dynFrame = UI.Keep(triggerBody, "dynFrame", function(p) return CreateFrame("Frame", nil, p) end)
     local spellBox, leadTimeBox, pullDelayBox
 
-    -- Target: who sees this -- AND across categories (role/class/spec/name/subgroup),
-    -- OR within one, matching ns.RaidReminderTargetsMe exactly (see its own comment).
-    -- Declared here, built below: RebuildTriggerFields' own tail calls
-    -- RebuildTargetSection so toggling Message/Timer (which changes how tall the
-    -- fields above it are) re-anchors the whole Target section instead of leaving it
-    -- frozen at its original position.
+    -- RebuildTriggerFields re-anchors the Target section, since trigger fields change height.
     local nTarget = ns.NormalizeRaidReminderTarget(target)
     local targetAllVal = nTarget.all
     local targetRoles, targetClasses, targetSubgroups = {}, {}, {}
@@ -4083,14 +3593,8 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local RebuildTargetSection
 
     RebuildTriggerFields = function()
-        -- RebuildPicker returns a POSITIVE height consumed; SUBTRACT it from PICKER_TOP
-        -- (already negative) to move further down the panel, same sign convention every
-        -- other "ty = ty - rowHeight" line in this function already uses. Written as +
-        -- originally, which flipped ty positive and threw everything after the picker
-        -- back above it -- the overlap seen live.
-        -- Skipped entirely for "pull"/"aura": neither is anchored to a BigWigs
-        -- mechanic (pull is a flat delay, aura is a plain spell id + apply/remove),
-        -- so there's nothing on the boss-mod catalogue to pick from either way.
+        -- RebuildPicker returns a positive height; adding it once threw the fields above
+        -- the picker. No picker for pull/aura, which are not boss-mod mechanics.
         if trigTypeVal == "pull" or trigTypeVal == "aura" then
             for i = 1, MECHANIC_ROWS do pickerRows[i]:Hide() end
             pickerHint:SetText("")
@@ -4098,9 +3602,6 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         else
             ty = PICKER_TOP - RebuildPicker()
         end
-        -- Every call lays this row out again (picking a mechanic off the picker, or
-        -- switching Message/Timer itself, both call RebuildTriggerFields again), on a host
-        -- that hands back the same row each time rather than stacking a second one.
         UI.BeginReusableRows(typeHost)
         typeHost:ClearAllPoints()
         typeHost:SetPoint("TOPLEFT", triggerBody, "TOPLEFT", 0, ty)
@@ -4263,10 +3764,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             end
         end
 
-        -- dynFrame's own dy cursor is local to this closure and never reaches the outer
-        -- ty on its own -- without this, the Target section built right after this call
-        -- returns would render on top of whatever dynFrame just placed here, since ty
-        -- would still be sitting at the Trigger Type row's own bottom edge.
+        -- Carries dynFrame's height into ty, or the Target section overlaps it.
         ty = ty + dy
         RebuildTargetSection()
     end
@@ -4298,9 +3796,6 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         allLbl:SetText("Everyone")
         tgy = tgy - 28
 
-        -- Greyed out (not just ignored) while Everyone is checked -- an irrelevant
-        -- control should read as irrelevant, same reasoning the boss cast-bar's own
-        -- AddCastBlock gating uses elsewhere in this addon suite.
         local restFrame = UI.Keep(targetSection, "rest", function(p) return CreateFrame("Frame", nil, p) end)
         restFrame:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 0, tgy)
         restFrame:SetPoint("RIGHT", targetSection, "RIGHT", 0, 0)
@@ -4312,10 +3807,6 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
             l:SetText(text)
             ry = ry - 16
         end
-        -- A fixed grid of small checkboxes -- shared shape for role/class/subgroup,
-        -- the three fixed-size enumerations. AND-across/OR-within (see
-        -- ns.RaidReminderTargetsMe) means checking two roles widens ("Tank OR
-        -- Healer"), while a role AND a class both checked narrows to their overlap.
         local function CheckGrid(items, set, perRow, itemW, colorFn)
             for i = 1, #items do
                 local key, label = items[i][1], items[i][2]
@@ -4364,9 +3855,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         do
             local items = {}
             for i = 1, 4 do items[i] = { i, tostring(i) } end
-            -- Four covers a 20-man mythic roster. A flex raid can still run to eight, so
-            -- groups above four appear only when something is already assigned to one --
-            -- an older assignment stays editable without cluttering the usual case.
+            -- Groups 5-8 appear only when already assigned, so old assignments stay editable.
             for i = 5, 8 do
                 if targetSubgroups[i] then items[#items + 1] = { i, tostring(i) } end
             end
@@ -4511,10 +4000,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local durBox = DsBox(3, true)
     durBox:SetText(tostring(display.dur or 4))
 
-    -- MRT's event-13 "hide after use" gate -- once YOU successfully cast this spell,
-    -- whatever's currently on screen for this reminder disappears immediately instead
-    -- of waiting out its own Linger. Optional: blank means it only ever hides on its
-    -- own timer, same as before this existed.
+    -- MRT's event-13 "hide after use": your successful cast hides it before Linger ends.
     DsLabel("Hide Once I Cast (Spell ID, optional)")
     local hideCastBox = DsBox(9, true, PAD + 34)
     local hideCastFeedback = UI.KeepFont(displayBody, "hideCastFeedback", 10, nil, ns.THEME.muted)
@@ -4626,17 +4112,14 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
         local writeSet = ns.RaidRemindersTable(true, encounterID)
         local key = uid or ("rr" .. math.floor(GetTime() * 1000) .. math.random(1, 9999))
         writeSet[key] = entry
-        -- Takes effect now, and refreshes the cached has-reminders flags the combat log
-        -- hot path reads.
+        -- Also refreshes the cached has-reminders flags the combat log hot path reads.
         ns.RefreshRuntime()
         dimmer:Hide()
         if EUI and EUI.RefreshPage then EUI:RefreshPage(true) end
     end
 
     UI.KeepButton(panel, "preview", "Preview", 90, 26, function()
-        -- Bypasses ns.RaidReminderTargetsMe entirely, same as ShowCustomReminderEditor's
-        -- own Preview button bypasses trigger matching -- a curator previewing sees it
-        -- regardless of whether they personally match the target they just chose.
+        -- Bypasses targeting, so a curator sees it whoever it is for.
         local entry, buildErr = BuildEntry()
         if entry then
             if ns.PreviewRaidReminder then ns.PreviewRaidReminder(entry) end
@@ -4650,8 +4133,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
 
     end)
     if not ok then
-        -- Fixed offset, not TAB_TOP -- that local only exists inside the pcall'd
-        -- closure above, out of scope here precisely because it failed to run.
+        -- Fixed offset: TAB_TOP is local to the closure that failed.
         local errText = UI.KeepFont(panel, "error", 11, nil, { r = 1, g = 0.35, b = 0.35 })
         errText:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, -70)
         errText:SetPoint("RIGHT", panel, "RIGHT", -PAD, 0)
@@ -4662,18 +4144,15 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     end
 
     dimmer:Show()
-    -- Returned so a caller can set dimmer.onClose and refresh its own list once this
-    -- editor closes -- ignored by every other existing call site.
+    -- Returned so a caller can set dimmer.onClose and refresh its own list.
     return dimmer, panel
 end
 
 -------------------------------------------------------------------------------
 --  Diagnostics
 -------------------------------------------------------------------------------
--- Coverage check. The journal's Tank flag is an editorial annotation and may not perfectly
--- match the TankRole bit the live HUD uses, and neither dataset is in the client source --
--- both are DB2 tables. This prints the totals so the two can be compared against a boss
--- whose abilities you already know.
+-- The journal's Tank flag may not match the HUD's TankRole bit (both are DB2 data), so
+-- this prints totals to compare against a known boss.
 function ns.PrintBossSummary()
     local data = ns.ScrapeBosses(false)
     if not data then
@@ -4681,8 +4160,6 @@ function ns.PrintBossSummary()
         return
     end
 
-    -- Stage report first: an empty list is almost always one of these returning nothing,
-    -- and knowing which turns a guessing game into a one-line fix.
     ns.Print(("stages: tier=%s  challengeMaps=%s  mappedToJournal=%s  raidInstances=%s")
         :format(tostring(diag.tier), tostring(diag.mapCount),
                 tostring(diag.mapped), tostring(diag.raids)))

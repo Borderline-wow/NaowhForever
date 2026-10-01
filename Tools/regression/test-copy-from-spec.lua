@@ -22,7 +22,7 @@ local function Fixture()
         PresetsTable = function(spec) return db.presets[tostring(spec)] end,
         ActivePresetKey = function(spec) return next(db.presets[tostring(spec)] or {}) end }
     setmetatable(env, { __index = _G })
-    local code = Slice("function ns.SpecsWithBindings(", "-- Copies another spec's bindings")
+    local code = Slice("function ns.SpecsWithBindings(", "function ns.CopyBindingsFromSpec(")
         .. Slice("function ns.CopyBindingsFromSpec(", "\nend\n") .. "\nend\n"
     local chunk = assert(loadstring(code)); setfenv(chunk, env); chunk()
     return env.ns, db

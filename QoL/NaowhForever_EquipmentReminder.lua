@@ -1,10 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_EquipmentReminder.lua -- the QoL equipment reminder: your trinkets and
---  weapons in a small window when you enter a dungeon or raid, or on a ready check, so a
---  wrong trinket or a fishing pole gets noticed before the pull. With the enchant check on it
---  also flags any slot whose enchant is missing or differs from the ones you captured.
---
---  Out of combat only. Drag the window to move it.
+--  NaowhForever_EquipmentReminder.lua -- the QoL equipment reminder: your trinkets, weapons and
+--  enchants in a window on entering an instance or on a ready check.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

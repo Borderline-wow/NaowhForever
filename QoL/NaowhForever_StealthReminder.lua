@@ -1,10 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_StealthReminder.lua -- the QoL stealth and form reminders: text on screen
---  while a rogue or druid is out of stealth (or in it), and while a warrior has no stance,
---  a paladin no aura, or a druid or shadow priest is out of the form they chose.
---
---  Forever cannot tell the client which spec you play, so the form a druid or priest should
---  be in is picked on the options page rather than read from the spec as NaowhQOL did.
+--  NaowhForever_StealthReminder.lua -- the QoL stealth, stance, aura and form reminders. Forever
+--  does not expose your spec, so a druid or priest picks their form on the options page.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

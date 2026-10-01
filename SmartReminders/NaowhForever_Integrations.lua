@@ -3,16 +3,11 @@ local ns = _G.NaowhForever
 local I = {}
 ns.Integrations = I
 local sounds = {}
--- No cap on how many rules a spec may hold. The 32 that used to sit here was this addon's
--- own choice, not the client's: AddAuraSound has no documented limit, it returns nil when
--- the client declines a registration, and that refusal is already reported below. Worse,
--- the old count was of EVERY rule in the spec, so a spec with thirty trash rules could not
--- register a single debuff sound even though trash rules never touch that API at all.
+-- No per-spec rule cap: AddAuraSound has no documented limit and returns nil on refusal,
+-- which is reported below. The old cap of 32 also counted trash rules.
 
--- Racial callouts that must stay quiet while the racial itself is unavailable. The client
--- plays these itself once the aura is registered with it, so there is no call of ours to
--- suppress: the FILE is muted instead. That is why each one needs a file of its own, and a
--- second copy for the preview that the gate never touches.
+-- Racial callouts that must stay quiet while the racial is unavailable. The client plays
+-- these itself, so the FILE is muted instead: each needs its own file, plus a preview copy.
 local RACIALS = {
     ["voice:stoneform-ready"] = { spellID = 20594, name = "Stoneform",
         preview = "voice:stoneform-preview" },
@@ -134,12 +129,8 @@ local function UpdateRacial(key)
         if muted then MuteSoundFile(path) else UnmuteSoundFile(path) end
         st.muted = muted
     end
-    -- SPELL_UPDATE_USABLE and SPELL_UPDATE_COOLDOWN drive this, so in combat it runs with
-    -- an unchanged answer dozens of times a second. The status line is built from
-    -- st.reason and nothing else, so an unchanged reason cannot change it -- rebuilding
-    -- it regardless cost a table, a sort, a concat and two SetText layout passes per
-    -- event. Keyed on reason rather than on `muted` because the two move independently:
-    -- several distinct reasons all mean muted, and the line names which one.
+    -- Runs dozens of times a second in combat. Keyed on reason, not `muted`: several
+    -- reasons mean muted and the status line names which one.
     if reason == st.reason then return end
     st.reason = reason
     RacialStatusLine()
@@ -260,10 +251,8 @@ function I.Save(uid, rule)
     return true, uid
 end
 
--- The same ability, watched the same way, at the same time, in the same place. Everything
--- the trigger uses is in it because this page deliberately allows more than one rule per
--- ability: a debuff sound for the player gaining an aura and one for the party losing it
--- are different rules, and so are two callouts on one spell at eight seconds and at two.
+-- Every trigger field is in the key: one ability may deliberately have several rules
+-- (player gain vs party loss, or callouts at eight seconds and at two).
 local function RuleKey(r)
     local t = r.trigger
     return table.concat({ tostring(t.type), tostring(t.spellID), tostring(t.mapID),
@@ -277,12 +266,8 @@ local function CopyRule(v)
     return out
 end
 
--- Which other specs have rules of this kind saved, and how many. Feeds the Copy From Spec
--- picker on whichever page asked; per-spec storage means a fresh spec starts empty.
---
--- kind is "exboss" or "auraSound". Each page copies only its own: the Trash button used to
--- drag debuff alerts across with it, which is not what a button on the trash page says it
--- does, and there was no way to move debuff alerts on their own at all.
+-- kind is "exboss" or "auraSound". Each page copies only its own kind; the Trash button
+-- used to drag debuff alerts across with it.
 local function OfKind(rule, kind)
     return Table(rule) and Table(rule.trigger)
         and (not kind or rule.trigger.type == kind)
@@ -305,16 +290,9 @@ function I.SpecsWithRules(kind)
     return out
 end
 
--- Copies another spec's trash and debuff rules into this one. Additive, the same rule the
--- boss pages' own Copy From Spec follows: a rule this spec already has for that ability is
--- left alone, so copying can never overwrite work already done here.
---
--- Each rule is copied rather than shared, and lands on a fresh uid: uids are sequential per
--- spec, so the source's own would collide with unrelated rules already saved here.
---
--- Returns copied, skipped and a third value kept at zero. There is no cap to run out of
--- any more, so nothing is ever left behind for want of room; the return is kept so callers
--- built against the old signature still read a number rather than nil.
+-- Additive, like the boss pages' Copy From Spec: existing rules for an ability are left
+-- alone. Copies land on fresh uids since uids are sequential per spec. The third return
+-- is always zero, kept for callers of the old capped signature.
 function I.CopyRulesFromSpec(fromSpecKey, kind)
     local db = ns.DB()
     local all = Table(db.integrationRules) and db.integrationRules or nil
@@ -328,8 +306,6 @@ function I.CopyRulesFromSpec(fromSpecKey, kind)
         if OfKind(r, kind) then have[RuleKey(r)] = true end
     end
 
-    -- Sorted, so a copy that runs out of room takes the source's first rules rather than an
-    -- arbitrary subset that changes between two presses of the same button.
     local uids = {}
     for uid in pairs(src) do uids[#uids + 1] = tostring(uid) end
     table.sort(uids)

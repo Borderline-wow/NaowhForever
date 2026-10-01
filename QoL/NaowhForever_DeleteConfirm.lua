@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_DeleteConfirm.lua -- the QoL delete confirmation auto-fill: types DELETE
---  into the box the game asks for before destroying a good item, and names the item in the
---  dialog as a link that shows its tooltip on hover.
+--  NaowhForever_DeleteConfirm.lua -- the QoL delete confirmation auto-fill: types DELETE for
+--  you and names the item in the dialog as a link.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

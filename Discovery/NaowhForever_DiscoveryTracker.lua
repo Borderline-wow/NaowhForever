@@ -1,9 +1,7 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_DiscoveryTracker.lua -- the library book tracker: in a zone with books you
---  still need, a small window lists them with a waypoint for each, under a bar counting
---  your hand-ins toward the next Friend of the Library reward, and a line with where to hand
---  in the books you carry. It pops up on entering such a zone; Always Show keeps it up in
---  every zone.
+--  still need, a small window lists them with a waypoint for each. It pops up on entering
+--  such a zone; Always Show keeps it up in every zone.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.DiscoverySettings
@@ -37,8 +35,6 @@ local function SetPinTexture(tex)
     tex:SetTexture("Interface\\Minimap\\MiniMap-QuestArrow")
 end
 
--- Both rewards: claimed, ready to hand in, or how many books to go, each with its choice of
--- items; then who takes the books and how many are waiting in your bags and bank.
 local function BarTooltip(bar)
     local done, total = L.Progress()
     GameTooltip:SetOwner(bar, "ANCHOR_LEFT")
@@ -101,7 +97,6 @@ local function BuildPanel()
         end
     end)
     panel.close:SetPoint("TOPRIGHT", -5, -5)
-    -- The title opens the Books page; it lights up in the soft blue while hovered.
     local titleBtn = CreateFrame("Button", nil, panel)
     titleBtn:SetPoint("TOPLEFT", panel.title, "TOPLEFT", -4, 4)
     titleBtn:SetPoint("BOTTOMRIGHT", panel.title, "BOTTOMRIGHT", 0, -4)
@@ -195,8 +190,6 @@ local function Row(i)
     row.pin:SetScript("OnClick", PinClick)
     row.pin:SetScript("OnEnter", PinTooltip)
     row.pin:SetScript("OnLeave", GameTooltip_Hide)
-    -- As on the Dungeon Quests tracker: each row a solid bar edged in black, and a 1px line
-    -- in the Naowh blue in the gap under it when another row follows.
     row.stripe = ns.Solid(row, "BACKGROUND", ns.ThemeTint("panel", BAR_BG), 1)
     row.stripe:SetAllPoints()
     for _, e in ipairs({
@@ -364,8 +357,6 @@ local function Render(zone, left)
             end,
         }
     end
-    -- Handed in: listed last on one line, ticked and grey, with no waypoint, as a finished
-    -- quest is on the Dungeon Quests tracker.
     for _, item in ipairs(L.DoneOnMap(listZone)) do
         entries[#entries + 1] = { text = L.Title(item[1]) }
     end
@@ -435,7 +426,6 @@ local function QueueRefresh()
     end)
 end
 
--- Registers the zone events only while the tracker is on, then redraws.
 local function Apply()
     if On() then
         if not zoneEvents then

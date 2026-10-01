@@ -287,9 +287,8 @@ local function ClearKeys()
     if keyGreater then keyGreater:SetAttribute("count", 0) end
 end
 
--- The single blessing for everyone due. A Greater one per class whose members all share its
--- blessing, cast on the most urgent of them, and only while Symbols of Kings are carried, so
--- it never replaces a player's own choice.
+-- The single blessing for everyone due, and a Greater one per class whose members all share
+-- its blessing, cast on the most urgent of them.
 local function FillKeys(byClass)
     local single, greater = {}, {}
     local symbols = C_Item.GetItemCount(SYMBOL_OF_KINGS) > 0

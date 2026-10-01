@@ -1,10 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_GcdTracker.lua -- the QoL GCD tracker: your recent casts as icons scrolling
---  away from a point, with a bar underneath marking when you were busy casting or on the
---  global cooldown and gaps where you were not. Optionally reports your downtime to chat
---  after each fight. Move it in Unlock Mode.
---
---  Only the player's own casts are read, and those are never secret.
+--  NaowhForever_GcdTracker.lua -- the QoL GCD tracker: your recent casts as scrolling icons over
+--  a bar of busy time and gaps. Only the player's own casts are read, and those are never secret.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

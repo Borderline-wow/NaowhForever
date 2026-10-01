@@ -1,12 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Performance.lua -- the QoL Performance page: NaowhQOL's recommended
---  graphics, frame rate and network settings, applied all at once or one at a time, and the
---  spell queue window.
---
---  These are the game's own settings, which it keeps per computer, so the values they
---  replaced are kept in the account store rather than the profile. The first change to a
---  setting records what it was; restoring puts that back and forgets it. A setting the
---  Forever client does not have is left off the page.
+--  NaowhForever_Performance.lua -- the QoL Performance page: NaowhQOL's recommended game settings.
+--  The game keeps those per computer, so the values they replaced live in the account store.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI

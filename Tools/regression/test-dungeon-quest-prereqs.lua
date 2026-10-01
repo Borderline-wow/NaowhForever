@@ -20,7 +20,7 @@ local CHUNK = table.concat({
     Slice("local MUTED", "\n-- Instance ID"),
     Slice("-- Part of a chain done", "\n-- Your faction's quests"),
     Slice("-- With part of a chain done, where", "\n-- Marks where the quest giver"),
-    Slice("local byID = {}", "-- Every quest of the chain in order"),
+    Slice("local byID = {}", "local function OpenChain("),
     "return { Status = Status, StatusText = StatusText, PrereqLine = PrereqLine, Where = Where,"
         .. " WaypointSpot = WaypointSpot, SetWaypoint = SetWaypoint, ToPickUp = ToPickUp,"
         .. " RANK = RANK, RANKS = RANKS, MISSING = MISSING, PREREQ = PREREQ,"

@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Crosshair.lua -- the QoL crosshair: four arms, a dot and a circle at the
---  middle of the screen, optionally recoloured with a sound while your target is out of
---  melee range.
+--  NaowhForever_Crosshair.lua -- the QoL crosshair at the middle of the screen, optionally
+--  recoloured while your target is out of melee range.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

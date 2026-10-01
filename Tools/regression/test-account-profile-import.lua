@@ -20,12 +20,12 @@ local function Fixture(char)
         UnitName = function() return e.char:match("^[^-]+") end, UNKNOWNOBJECT = "Unknown" }
     setmetatable(env, { __index = _G })
     local code = Slice(coreSrc, "local function DB()", "function ns.SettingsRoot()")
-        .. Slice(coreSrc, "function ns.SettingsRoot()", "-- Account-wide, deliberately outside")
+        .. Slice(coreSrc, "function ns.SettingsRoot()", "function ns.AccountSettings()")
         .. Slice(coreSrc, "function ns.ActiveProfileName()", "function ns.ListProfiles()")
-        .. Slice(coreSrc, "function ns.SpecProfileMap()", "-- Off unless asked for.")
-        .. Slice(coreSrc, "function ns.AutoSpecProfile(", "-- Called on login and on a spec change.")
-        .. Slice(coreSrc, "function ns.ApplySpecProfile(", "-- allowExisting is for the callers")
-        .. Slice(coreSrc, "function ns.SwitchProfile(", "-- allowExisting is for the callers")
+        .. Slice(coreSrc, "function ns.SpecProfileMap()", "function ns.AutoSpecProfile(")
+        .. Slice(coreSrc, "function ns.AutoSpecProfile(", "function ns.ApplySpecProfile(")
+        .. Slice(coreSrc, "function ns.ApplySpecProfile(", "local function ValidName(")
+        .. Slice(coreSrc, "function ns.SwitchProfile(", "local function ValidName(")
         .. Slice(coreSrc, "function ns.SetAccountProfile(", "function ns.CreateProfile(")
     local chunk = assert(loadstring(code)); setfenv(chunk, env); chunk()
     -- activeRoot is a file local in the real chunk; the slice reads it as a global here, so
@@ -105,7 +105,7 @@ end)
 -- branch, runs after the import, and is handed the landed name.
 Case("the import dialog reaches SetAccountProfile with the landed name", function()
     local branch = Slice(packSrc, "local ok, newName = ns.ImportPackAsProfile(",
-        "    -- Import or Cancel, and nothing else")
+        "    applyBtn = ns.Button(panel, \"Import\"")
     assert(branch:find("ns.SetAccountProfile(newName)", 1, true),
         "the single-profile import must point the account at the name it landed under")
     assert(branch:find("if accountWanted and ns.SetAccountProfile then", 1, true),
@@ -117,7 +117,7 @@ end)
 
 Case("the toggle is offered for single-profile packs only", function()
     local build = Slice(packSrc, "        if not multi then\n            if not accountBtn then",
-        "-- A single-profile pack lands as a new profile named")
+        "        if not multi then\n            if not nameBox then")
     assert(build:find("accountWanted", 1, true) and build:find("KnownCharacters", 1, true))
     assert(packSrc:find("elseif accountBtn then", 1, true), "it must hide again for a whole-file pack")
     -- The Save as row anchors under it, or the two draw over each other.

@@ -61,7 +61,6 @@ local function Stop()
     if moveEvents then moveEvents:UnregisterAllEvents() end
 end
 
--- Watches the zone you are in if it has books left; stops otherwise.
 local function Refresh()
     if not On() or IsInInstance() then return Stop() end
     local id = L.PlayerZone()

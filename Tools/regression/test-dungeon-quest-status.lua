@@ -93,7 +93,7 @@ local function GreyFixture(player, range, levels)
             RequestLoadQuestByID = function() end,
         },
     }, { __index = _G })
-    local code = Slice("local requested = {}", "\n-- The quest's title for its line") .. "\nreturn Grey"
+    local code = Slice("local requested = {}", "\nlocal function QuestLine(") .. "\nreturn Grey"
     local chunk = assert(loadstring(code)); setfenv(chunk, env)
     return chunk()
 end

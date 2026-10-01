@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Durability.lua -- the QoL low durability warning: text on screen while any
---  equipped item is below the threshold, shading from pink towards red as it wears down.
---  Hidden in combat.
+--  NaowhForever_Durability.lua -- the QoL low durability warning, shading from pink to red as
+--  your gear wears down.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

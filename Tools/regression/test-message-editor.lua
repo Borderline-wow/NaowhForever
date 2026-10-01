@@ -1,7 +1,7 @@
 local f = assert(io.open("SmartReminders/NaowhForever_Bosses.lua", "rb"))
 local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local a = assert(s:find("local TRIGGER_CHOICES =", 1, true))
-local b = assert(s:find("-- Profiles tab: profile management", a, true))
+local b = assert(s:find("function ns.BuildProfileSettings(", a, true))
 local labels, buttons, boxes, rows, records = {}, {}, {}, {}, {}
 local function Widget()
     local w = { value = "", height = 26, shown = true }

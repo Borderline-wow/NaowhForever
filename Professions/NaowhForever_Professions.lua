@@ -13,8 +13,7 @@ local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
 
--- The Professions module's settings, its own profile section. `enabled` is the sidebar
--- switch for the whole module; off leaves Blizzard's window alone.
+-- `enabled` is the sidebar switch for the whole module; off leaves Blizzard's window alone.
 local S = UI.ModuleSettings("professions", {
     enabled = true,
     -- Recipe Window: all off until switched on.
@@ -61,8 +60,6 @@ local DIFFICULTY = {
     [3] = { r = 0.55, g = 0.55, b = 0.55 },
 }
 local TRIVIAL = 3   -- grey: no more skill from it
--- NaowhUI's look, as on the XP bar: 1px black borders, and blue bars filled with Naowh's blue
--- deepening to the left.
 local BLACK = { r = 0, g = 0, b = 0 }
 local BAR_FROM = CreateColor(0x00 / 255, 0x4f / 255, 0x85 / 255, 1)
 local function StyleBar(bar)
@@ -355,7 +352,6 @@ local function ShowSearch(button, name, nameText, parent)
     end
 end
 
--- Types a name into the auction house search on its Buy tab and runs the search.
 local function SearchAuctionHouse(name)
     if not (name and AuctionHouseOpen()) then return end
     local ah = _G.AuctionHouseFrame
@@ -441,9 +437,7 @@ end
 -------------------------------------------------------------------------------
 local AH_CUT = 0.05   -- the auction house keeps 5% of a sale
 local PROFIT_GREEN = { r = 0.3, g = 0.82, b = 0.48 }
--- The profit block: three lines, the amounts starting past the widest label.
--- The label-to-amount gap; RenderProfit sizes the columns to what they hold, from the
--- starting widths here.
+-- RenderProfit sizes the columns to what they hold, from the starting widths here.
 local PROFIT_LINE, PROFIT_LABEL_W, PROFIT_VALUE_W, PROFIT_GAP = 16, 58, 96, 8
 local PROFIT_H = 3 * PROFIT_LINE
 
@@ -456,7 +450,6 @@ local function BuyPrice(itemID)
     if ah then return ah, "ah" end
 end
 
--- Crafting profit is on and this realm and faction's auction house has been scanned.
 local function ProfitShown()
     return S.Get("craftProfit") and ns.AuctionScanTime and ns.AuctionScanTime() ~= nil
 end
@@ -565,9 +558,7 @@ local function RecipeProfit(recipeID, output, made)
     return profit or nil
 end
 
--- A recipe's profit for its row in the list and the colour for it: "" when it is off or not
--- known (no scan, a reagent without a price, or an item that was not listed). The row's font
--- takes the colour, green or red.
+-- "" when the list profit is off or not known; the row's font takes the colour.
 local function ListProfit(recipeID, output, made)
     local profit = S.Get("craftProfitList") and RecipeProfit(recipeID, output, made)
     if not profit then return "", T.fg end
@@ -624,8 +615,6 @@ local function UpdateFilterLabel()
     ns.SetButtonText(win.filter, n > 0 and ("Filter (%d)"):format(n) or "Filter")
 end
 
--- One line of the profit block: its label, the amount, and a muted note after it. Hidden when
--- `value` is nil.
 local function SetProfitLine(line, label, value, note)
     line.label:SetText(label or "")
     line.value:SetText(value or "")
@@ -633,8 +622,6 @@ local function SetProfitLine(line, label, value, note)
     line:SetShown(value ~= nil)
 end
 
--- Three lines under a recipe: what its reagents cost to buy, what it sells for, and the
--- profit. Hidden until the auction house has been scanned on this realm and faction.
 local function RenderProfit(block, recipeID, output, made)
     if not (S.Get("craftProfit") and ns.AuctionScanTime and ns.AuctionScanTime()) then
         block.value = nil
@@ -775,7 +762,6 @@ RenderList = function()
     for i = visible + 1, #rows do rows[i]:Hide() end
     AlignRows(visible)
 
-    -- The scrollbar follows the list; hidden when everything fits.
     local bar, maxOffset = win.scroll, math.max(0, #entries - visible)
     if not bar then return end
     bar:SetShown(maxOffset > 0)
@@ -1153,7 +1139,6 @@ local function BuildProfit(parent)
     local block = CreateFrame("Frame", nil, parent)
     block:SetSize(MID_W - 28, PROFIT_H)
     block:EnableMouse(true)
-    -- Buy, Sell and Profit, one under the other with their amounts lined up.
     for i, key in ipairs({ "buy", "sell", "profit" }) do
         local line = CreateFrame("Frame", nil, block)
         line:SetPoint("TOPLEFT", 0, -(i - 1) * PROFIT_LINE)
@@ -1227,7 +1212,6 @@ local function MaterialsToBuy(recipeID, crafts)
     return out
 end
 
--- Whether a recipe has anything Buy Materials could ever buy, for showing its button.
 HasBuyableMaterials = function(recipeID)
     local owned = Owned()
     local ok, reagents = pcall(Reagents, recipeID)
@@ -1347,8 +1331,7 @@ local function Quote(item)
     end)
 end
 
--- Buy asks for the final price and Confirm pays; both run inside their click, as the game
--- requires. Confirm is the only thing that spends gold.
+-- Confirm is the only thing that spends gold.
 local function Primary()
     local item = buyer.list[buyer.index]
     local state = buyer.state
@@ -2467,8 +2450,6 @@ function ns.BuildProfessionsPage(parent, y)
     local _, h
     _, h = W:Note(parent, UI.PREVIEW_NOTE, y); y = y - h
 
-    -- The window itself first, then buying and selling at the auction house, then the
-    -- gathering reminder, which lives outside the window.
     _, h = W:SectionHeader(parent, "RECIPE WINDOW", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("recipeFinder", "Unlearned Recipes",

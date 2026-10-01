@@ -1,10 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_LootFeed.lua -- the QoL loot feed: a line per loot with its icon,
---  amount, bag total and value, stacking up or down from the anchor and fading out, plus an
---  optional gold per hour counter.
---
---  Forever has no GetItemInfo/GetItemCount/GetCoinTextureString globals (Blizzard_Deprecated*
---  never loads there), so everything goes through C_Item and C_CurrencyInfo.
+--  NaowhForever_LootFeed.lua -- the QoL loot feed and gold per hour counter. Forever never loads
+--  Blizzard_Deprecated*, so item and coin calls go through C_Item and C_CurrencyInfo.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

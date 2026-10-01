@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_QoL.lua -- the QoL module: NaowhUI's QoL page, trimmed to what
---  Forever has (no Mythic+, keystones, talking heads or retail spec bars), plus the loot
---  feed and the trainer popup.
+--  NaowhForever_QoL.lua -- the QoL module: NaowhUI's QoL page trimmed to what Forever has,
+--  plus the loot feed and the trainer popup.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI

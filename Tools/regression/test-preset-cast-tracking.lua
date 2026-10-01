@@ -6,7 +6,7 @@ local function Slice(first, last)
     local b = assert(source:find(last, a + #first, true))
     return source:sub(a, b - 1)
 end
-local charge = Slice("local KNOWN_BASE_COOLDOWN = {", "-- Every actual cast or callout")
+local charge = Slice("local KNOWN_BASE_COOLDOWN = {", "function AppendLog(")
 local cast = Slice("local function NoteOwnCast(castSpellID)", "-- These three hang off ns")
 local registration = Slice("local function UpdateEventRegistration()", "local function WarnIfMuted")
 local function Fixture(sid)

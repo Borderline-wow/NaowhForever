@@ -1,8 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Trainer.lua -- the QoL trainer popup: after a trainer visit (or
---  any new ability), a window lists what you learned, the new abilities glow on your bars
---  until you use them, and one button swaps each spell's highest rank on your bars for the
---  highest rank you know, leaving lower copies for downranking. Keyboard and controller bars are both covered.
+--  NaowhForever_Trainer.lua -- the QoL trainer popup: lists what you learned, glows new abilities
+--  until used, and swaps outdated top ranks on your bars, leaving lower ranks for downranking.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

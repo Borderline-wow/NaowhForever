@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_CombatLogger.lua -- the QoL combat logger: turns the combat log on in raids
---  and off outside them. The first visit to each raid and difficulty asks, and the answer
---  is remembered.
+--  NaowhForever_CombatLogger.lua -- the QoL combat logger: logs combat in raids, asking once per
+--  raid and difficulty.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

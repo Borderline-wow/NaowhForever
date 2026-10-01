@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_CombatAlert.lua -- the QoL combat alert: a line of text as you enter combat
---  and another as you leave it, fading in and out, each with an optional sound or spoken
---  line.
+--  NaowhForever_CombatAlert.lua -- the QoL combat alert: fading text, with an optional sound or
+--  spoken line, as you enter and leave combat.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

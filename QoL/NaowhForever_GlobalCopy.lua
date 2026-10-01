@@ -1,10 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_GlobalCopy.lua -- the QoL global copy: /copy puts the text of whatever is
---  under the cursor (or a frame named after it) in a box to copy from, and a hotkey over a
---  tooltip copies its spell, item or NPC ID.
---
---  Frame text can be secret in restricted content, and reading it then raises, so every
---  read is checked with canaccessvalue and wrapped in pcall.
+--  NaowhForever_GlobalCopy.lua -- the QoL global copy: /copy for the text under the cursor, and a
+--  hotkey for tooltip IDs. Frame text can be secret, so every read is checked and pcalled.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

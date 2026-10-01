@@ -97,7 +97,6 @@ function provider:RefreshAllData()
     for _, item in ipairs(L.OnMap(mapID)) do
         map:AcquirePin(TEMPLATE, { book = item[1], spot = item[2] })
     end
-    -- Books carried, per person who takes them, pinned on that person's map.
     local counts = {}
     for _, book in ipairs(ns.LibraryBooks) do
         if L.ForMe(book) and L.Carried(book) then
@@ -114,7 +113,6 @@ end
 -------------------------------------------------------------------------------
 --  Wiring
 -------------------------------------------------------------------------------
--- The provider is only added, and the events only registered, once the pins are switched on.
 local added, events
 
 local function Redraw()

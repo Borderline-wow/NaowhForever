@@ -75,8 +75,8 @@ for name, mutate in pairs(mutations) do
 end
 
 local scheduler = Slice(main, "local pendingBWFires =", "function ns.HandleBigWigsAbility(")
-local tracking = Slice(main, "function ns.PruneCustomReminderTimers()", "-- The match decided")
-local firing = Slice(raid, "local function FireRaidReminder(entry)", '-- "aura" triggers')
+local tracking = Slice(main, "function ns.PruneCustomReminderTimers()", "local function ActivateCustomReminder(")
+local firing = Slice(raid, "local function FireRaidReminder(entry)", "function ns.CheckRaidReminderAuraTriggers(")
 local queue = Read("_Core"):sub((assert(Read("_Core"):find("local reapplyPending", 1, true))))
 local function Fixture(kind)
     local state = { now = 0, start = 0, encounter = 1, displayed = 0, timers = {}, queue = {} }

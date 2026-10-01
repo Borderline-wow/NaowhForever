@@ -1,13 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_FocusCastBar.lua -- the QoL focus cast bar: your focus target's casts on a
---  bar of their own, coloured by whether your interrupt is ready, with a tick where it comes
---  off cooldown and a shield on casts you cannot interrupt. Move it in Unlock Mode.
---
---  Everything about a focus cast is secret to addons, since the focus is never the player
---  or their pet. So the bar never reads it in Lua: the cast's duration object drives the
---  fill, the text setters take the secret strings and numbers as they are, and colour and
---  visibility go through EvaluateColorFromBoolean and SetAlphaFromBoolean, which accept a
---  secret boolean.
+--  NaowhForever_FocusCastBar.lua -- the QoL focus cast bar, coloured by whether your interrupt
+--  is ready. Focus casts are secret, so they only ever reach setters that accept secrets.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

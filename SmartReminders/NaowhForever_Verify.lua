@@ -1,18 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Verify.lua -- signature check for personalized packs.
---
---  Packs.lua's own header explains why an ordinary pack carries no license at
---  all: a string is text, and text can always be copied. This file exists for
---  the one case that argument does not cover -- naowh.gg's global download,
---  where the string is deliberately bound to one BattleTag before it ever
---  reaches a player. That binding is a real cryptographic signature (RSA-2048
---  PKCS#1 v1.5 / SHA-256): naowh.gg signs (battletag, expiry) with a private
---  key that never leaves the server, and this file verifies it with the
---  matching public key below, which is safe to ship because verifying a
---  signature and forging one require different halves of the keypair.
---
---  A pack with no ":LIC1:" segment is untouched by any of this -- Packs.lua
---  only calls into here when one is present.
+--  naowh.gg's global download binds a pack to one BattleTag: the server signs
+--  (battletag, expiry) with RSA-2048 PKCS#1 v1.5 / SHA-256 and only the public
+--  key ships here. Packs.lua only calls in when a ":LIC1:" segment is present.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 if not ns then return end
@@ -130,10 +120,9 @@ local function BytesToHex(bin)
 end
 
 -------------------------------------------------------------------------------
---  Minimal unsigned bignum, base 2^16 limbs, little-endian. See the spike
---  notes this was validated against: 16-bit limbs (not 24) keep every
---  schoolbook-multiply column sum inside a Lua double's 53-bit exact range
---  for a 2048-bit modulus.
+--  Minimal unsigned bignum, base 2^16 limbs, little-endian. 16-bit limbs
+--  (not 24) keep every schoolbook-multiply column sum inside a Lua double's
+--  53-bit exact range for a 2048-bit modulus.
 -------------------------------------------------------------------------------
 local BASE = 65536
 
@@ -361,10 +350,8 @@ function ns.CheckPackLicense(encoded)
     if not myTag or myTag == "" then
         return false, "could not read your Battle.net BattleTag to check this pack's license"
     end
-    -- Compared without case. BattleTags preserve the capitals you chose but are unique
-    -- without them, so this cannot match the wrong account. Exact comparison rejected
-    -- people who typed "Silkytouch#1976" on the site when Battle.net holds
-    -- "SilkyTouch#1976", which reads as the addon being broken rather than as a typo.
+    -- BattleTags are unique without case, and people type them on the site with the
+    -- wrong capitals; an exact comparison rejected those as if the addon were broken.
     if myTag:lower() ~= battletag:lower() then
         return false, format("this pack is licensed to %s, but you are logged in to Battle.net as %s", battletag, myTag)
     end

@@ -1,9 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_MouseRing.lua -- the QoL mouse ring: a ring that follows the cursor, with
---  your global cooldown and casts swept around it, an optional trail, centre dot and border,
---  and a red recolour while your target is out of melee range.
---
---  The melee check uses the crosshair's spell, Melee Spell ID included.
+--  NaowhForever_MouseRing.lua -- the QoL mouse ring: casts and the GCD swept around the cursor,
+--  red while your target is out of the crosshair's melee range.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

@@ -41,7 +41,7 @@ env.FireCustomReminder = function() displayed = displayed + 1; sounds = sounds +
 env.specID = 250
 env.CustomRemindersAllowed = function() return true end
 ns.FireMessageDefensive = function() displayed = displayed + 1 end
-Eval(Slice(main, "function ns.DisplayReminder(r)", "-- The editor's Preview"), env)
+Eval(Slice(main, "function ns.DisplayReminder(r)", "function ns.PreviewCustomReminder("), env)
 ns.DisplayReminder(healer); assert(displayed == 0 and sounds == 0)
 ns.DisplayReminder(ordinary); assert(displayed == 1 and sounds == 1)
 healer.defensive = true; ns.DisplayReminder(healer); assert(displayed == 1)
@@ -98,7 +98,7 @@ end
 env.ReleaseGlowWrapper = function(w)
     for i, r in ipairs(env.activeGlows) do if r == w then table.remove(env.activeGlows, i); break end end
 end
-Eval(Slice(raid, "function ns.HideFilteredRaidReminders()", "-- MRT's event-13"), env)
+Eval(Slice(raid, "function ns.HideFilteredRaidReminders()", "local castGateWatcher = CreateFrame("), env)
 ns.SetHealerRemindersEnabled(false)
 assert(#a.active == 1 and a.active[1].reminderEntry == ordinary)
 assert(#env.activeGlows == 1 and env.activeGlows[1].reminderEntry == ordinary)
@@ -111,7 +111,7 @@ ns.BindingForBossModKey = function(enc, sid)
     if enc ~= 1 then return normalBinding end
     return (sid == 123 or sid == 456) and binding or normalBinding
 end
-Eval(Slice(main, "function ns.IsAbilityHealerFiltered", "-- Has the player added"), env)
+Eval(Slice(main, "function ns.IsAbilityHealerFiltered", "function ns.AbilityAdded("), env)
 assert(not ns.AbilityEnabledForBinding(1, 123))
 assert(not ns.AbilityEnabledForBinding(1, 456)) -- resolved alias
 assert(ns.AbilityEnabledForBinding(1, 123, true)) -- UI still shows the saved enabled state
@@ -175,7 +175,7 @@ saved.account.healerRemindersEnabled = false
 assert(not scheduledAbility.valid())
 local timer = Timer()
 env.pendingBWFires = { tank = { [123] = { test = { timer = timer, valid = scheduledAbility.valid } } } }
-Eval(Slice(main, "function ns.PrunePendingBWFires()", "-- Called only when the account toggle"), env)
+Eval(Slice(main, "function ns.PrunePendingBWFires()", "function ns.ApplyReminderFilter()"), env)
 ns.PrunePendingBWFires()
 saved.account.healerRemindersEnabled = true
 assert(timer.cancelled and env.pendingBWFires.tank[123].test == nil)

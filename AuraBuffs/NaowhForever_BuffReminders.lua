@@ -21,7 +21,7 @@ local KEYS = {
 
 local frame, unlocked
 local cells = {}
-local pending      -- a refresh is queued
+local pending
 local wakeGen = 0  -- invalidates an older "buff drops under the warning time" timer
 local wakeAt
 

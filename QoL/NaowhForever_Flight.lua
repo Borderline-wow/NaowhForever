@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Flight.lua -- the QoL flight timer: the route you are flying as a thin
---  track between its two ends, the stops on the way sliding past a "you" post, and the
---  time left beside it.
+--  NaowhForever_Flight.lua -- the QoL flight timer: the route as a track with its stops sliding
+--  past, and the time left.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

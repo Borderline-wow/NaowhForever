@@ -45,7 +45,7 @@ local function Fixture()
     }
     setmetatable(env, { __index = _G })
     local chunk = assert(loadstring("local ns = ...\n"
-        .. Slice("local ROLE_LABEL =", "-- Built once and reused.")
+        .. Slice("local ROLE_LABEL =", "local packExport, packImport")
         .. "\nreturn SortSpecs, PaintSpecLabel"))
     setfenv(chunk, env)
     return chunk({ THEME = { fg = THEME_FG } })

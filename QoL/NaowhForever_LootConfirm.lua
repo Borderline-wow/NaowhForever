@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_LootConfirm.lua -- the QoL loot confirmation skip: answers yes to the
---  Need/Greed, disenchant and bind-on-pickup confirmations, and to the vendor trade-timer
---  and mail lock prompts, so none of them interrupt looting.
+--  NaowhForever_LootConfirm.lua -- the QoL loot confirmation skip: answers yes to roll, bind,
+--  trade-timer and mail lock confirmations.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

@@ -1,9 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_RecipeFinder.lua -- the recipes you have not learned yet, and for each the
 --  skill it needs, what it costs and where it comes from: the nearest trainers, the vendor
---  selling its manual, or the mobs that drop it. Trainer and vendor lines set a waypoint.
---  Naowh's profession window lists them through ns.RecipeFinder. Visiting a profession
---  trainer records what its recipes really need and cost. Data: RecipeData.lua.
+--  selling its manual, or the mobs that drop it. Visiting a profession trainer records what
+--  its recipes really need and cost. Data: RecipeData.lua.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.ProfessionSettings
@@ -154,7 +153,6 @@ local function ItemName(itemID)
     return "its manual"
 end
 
--- The detail reads as paragraphs, each followed by the NPCs it talks about.
 local function Para(out, text)
     out[#out + 1] = { text = text, para = true }
 end
@@ -290,8 +288,7 @@ end
 local SOURCE_TAG = { trainer = "Trainer", teacher = "Trainer", vendor = "Vendor", drop = "Drop",
     quest = "Quest", unknown = "?" }
 
--- Reads the open profession into state and list. False when it is not one with data, or not
--- your own.
+-- False when the open profession has no data, or is not your own.
 local function Compute()
     local id, skill, max = ReadProfession()
     if not id then
@@ -311,9 +308,6 @@ local function Compute()
     return true
 end
 
--- For Naowh's profession window: the unlearned recipes of the open profession (empty when the
--- finder is off or has no data for it), each one's colour and requirement line, and the
--- paragraphs and NPC lines saying where to learn it.
 ns.RecipeFinder = {
     Unlearned = function()
         if not (On() and Compute()) then return {} end

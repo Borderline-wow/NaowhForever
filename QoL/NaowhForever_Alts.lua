@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Alts.lua -- your characters, kept account-wide per realm and faction: class,
---  level and gold for the mail features, and with Alt Item Counts on, what each one holds in
---  its bags, bank and mailbox, shown on item tooltips.
+--  NaowhForever_Alts.lua -- your characters per realm and faction, kept account-wide for the
+--  mail features and the Alt Item Counts on item tooltips.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -167,7 +166,6 @@ local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
 
--- Your other characters on this realm and faction, highest level first.
 function ns.AltList()
     local list, mine = {}, ns.AltName()
     for name, c in pairs(ns.AltRealm()) do

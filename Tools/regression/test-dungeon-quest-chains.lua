@@ -16,7 +16,7 @@ end
 local CHUNK = table.concat({
     "local ns = ...\nlocal ACTIVE, DONE, NOT_DONE = 'active', 'done', 'not done'\n",
     Slice("local function StepIDs(step)", "local function OnID(ids)"),
-    Slice("local byID = {}", "-- Every quest of the chain in order"),
+    Slice("local byID = {}", "local function OpenChain("),
     "return Chain, StepState, byID\n",
 }, "\n")
 

@@ -6,8 +6,8 @@ local function Slice(first, last)
     return source:sub(a, b - 1)
 end
 local scheduler = Slice("function ns.ScheduleBWFire(", "function ns.HandleBigWigsAbility(")
-local cancel = Slice("local function CancelPendingBWFire(", "-- Both dispatchers below")
-local fire = Slice("local function FireBigWigsAbility(", "-- Setup's per-ability Test button.")
+local cancel = Slice("local function CancelPendingBWFire(", "local bwCdEndsAt = {}")
+local fire = Slice("local function FireBigWigsAbility(", "function ns.TestFireAbility(")
 local function Fixture()
     local e = { now = 0, timers = {}, calls = 0, checks = 0, logs = {}, readyAt = 9,
         db = { enabled = true, voiceOn = true, trace = true, coveredSkip = false },

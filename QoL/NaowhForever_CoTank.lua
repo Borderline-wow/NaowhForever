@@ -1,11 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_CoTank.lua -- the QoL co-tank frame: a health bar for the other tank in
---  your group while you are tanking. Click it to target them.
---
---  A secure unit button, so its unit, size, position and visibility only change out of
---  combat; a roster or setting change mid-fight waits for the fight to end.
---  Debuffs render through Blizzard's aura container, as NaowhUI's co-tank does: aura data
---  is secret in combat, and the container is the only thing that can still draw it.
+--  NaowhForever_CoTank.lua -- the QoL co-tank frame: a health bar for the other tank. Debuffs
+--  go through Blizzard's aura container, the only thing that can draw secret aura data.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

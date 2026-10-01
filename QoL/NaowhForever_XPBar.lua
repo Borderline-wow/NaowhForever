@@ -1,17 +1,12 @@
 -------------------------------------------------------------------------------
---  NaowhForever_XPBar.lua -- the QoL XP bar: level, experience and percentage on one
---  bar, with the XP of completed quests drawn as segments past the fill, rested
---  experience over them from the end of your XP, and a text of your choice at each of five
---  spots around it. Ctrl + right-click resets the session. Replaces Blizzard's experience
---  bar while it is on.
+--  NaowhForever_XPBar.lua -- the QoL XP bar, with completed quest XP and rested drawn on it and
+--  a choice of texts around it. Replaces Blizzard's experience bar while on.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
 
--- Naowh's blue for the fill, deepening to the left; the gold of his logo for quest XP; a
--- deep royal blue for rested, darker than where the fill ends so the two read apart. Its
--- text is a lighter shade of the same blue, which the dark background can carry.
+-- Naowh's blue for the fill, his logo's gold for quest XP, a darker blue for rested.
 local FILL_FROM = CreateColor(0x00 / 255, 0x4f / 255, 0x85 / 255, 1)
 local QUEST     = { r = 0xf2 / 255, g = 0xa9 / 255, b = 0x00 / 255 }
 local RESTED    = { r = 0x1e / 255, g = 0x40 / 255, b = 0xaf / 255 }

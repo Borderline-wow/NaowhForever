@@ -1,10 +1,7 @@
 -------------------------------------------------------------------------------
---  NaowhForever_TownData.lua -- where trainers, vendors, innkeepers, flight
---  masters, bankers, auctioneers and stable masters stand, by world map. Generated from
---  Classic Era data; the NPCs Forever added (new class trainers, Dalaran's bankers and the
---  like) were placed from Wowhead's Forever world map and sit last in each map's list.
---  Forever redrew Stormwind, Mulgore, Redridge and the Eastern Plaguelands over a wider
---  area, so Classic positions there are converted through world coordinates.
+--  NaowhForever_TownData.lua -- town service NPC positions by world map, from Classic Era data;
+--  NPCs Forever added sit last in each map's list. Forever redrew Stormwind, Mulgore, Redridge
+--  and the Eastern Plaguelands, so Classic positions there go through world coordinates.
 --
 --  [uiMapID] = { { x, y, category, name, title, class token (class trainers),
 --  factions ("A", "H" or "AH"), optional NPC ID }, ... }. x and y are map percentages.

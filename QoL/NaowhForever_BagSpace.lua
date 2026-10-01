@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_BagSpace.lua -- the QoL Bag Space row: the cheapest things in your bags
---  as icons, so a full bag gets a slot back fast. Ctrl-click deletes, a click sells at a
---  vendor, middle-click ignores the item for good.
+--  NaowhForever_BagSpace.lua -- the QoL Bag Space row: the cheapest things in your bags as
+--  icons, to delete, sell or ignore.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI

@@ -45,9 +45,9 @@ env.ns.HealerRemindersEnabled = function() return true end
 env.ns.soundFile = "sound"
 env.C_Timer = { After = function(_, fn) env.queued[#env.queued + 1] = fn end }
 Eval(Slice(main, "function ns.Apply()", "--  Preview"))
-Eval(Slice(main, "local previewPin = true", "-- The anchor-config half")
+Eval(Slice(main, "local previewPin = true", "function ns.SetDefensiveAnchorConfigShown(")
     .. "\nfunction ns.TestPreviewPin(v) previewPin = v end\n"
-    .. Slice(main, "function ns.RefreshDefensivePreview()", "-- Re-seat the alert"))
+    .. Slice(main, "function ns.RefreshDefensivePreview()", "function ns.ApplyDefensiveAlertPosition()"))
 Eval(core:sub((assert(core:find("local reapplyPending", 1, true)))))
 local function Switch(settings)
     env.settings = settings

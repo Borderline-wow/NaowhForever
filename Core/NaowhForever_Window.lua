@@ -1,10 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Window.lua -- the standalone options window.
---
---  Owns the window lifecycle half of ns.UI: RefreshPage, ClearContentHeader and the
---  OnShow/OnHide callback lists the runtime uses to drive the preview. The page builders
---  themselves live in the later files and are resolved at open time, since this file
---  loads before them.
+--  NaowhForever_Window.lua -- the standalone options window and the lifecycle half of ns.UI.
+--  The page builders live in later files and are resolved at open time.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -15,20 +11,14 @@ local TOP_H, PAGE_HEADER_H = 64, 128
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 
--- System pages sit below the grouped module navigation. A module remembers its last
--- category for this session. `build` names the ns builder resolved at open time; `arg` is passed
--- after the starting y. A page with `soon` is built but not ready: its tab stays in the
--- strip, dimmed, and opens a note instead of half-finished work. A page with `reuse` keeps
--- its rows across rebuilds instead of building new ones; only pages drawn entirely with the
--- row widgets and UI.Keep can take it, since any other frame a builder makes would be
--- stacked again on every rebuild.
--- A page with `collapse` opens with its features (W:Feature) closed, one click on a feature
--- to open it; only pages drawn with the row widgets can take it.
--- A module with `command` also opens in a window of its own, from /nf<command> and from its
--- broker button, NaowhForever<short>, which the top bar and the minimap can carry.
--- A page with `noscan` is left out of the settings search's scan (Core/NaowhForever_Search.lua),
--- which runs a builder without a window: builders that make their own frames, write to the
--- profile, or read the Encounter Journal cannot take that. Those pages are found by name only.
+-- System pages sit below the module navigation. `build` names the ns builder (resolved at
+-- open time); `arg` is passed after the starting y.
+--   soon      tab stays, dimmed, and opens a note instead of the page
+--   reuse     rows kept across rebuilds; only pages drawn entirely with row widgets and UI.Keep
+--   collapse  features (W:Feature) start closed; row-widget pages only
+--   command   module also opens in its own window from /nf<command> and broker NaowhForever<short>
+--   noscan    left out of the search scan: its builder makes frames, writes the profile or
+--             reads the Encounter Journal, so it is found by name only
 local SYSTEM_PAGES = {
     { name = "Settings", build = "BuildSettingsPage", reuse = true,
       subtitle = "Options for the whole addon, saved for this computer." },
@@ -220,9 +210,7 @@ local function ActiveNav()
     return page.module and page.module.name or page.key
 end
 
--- A page that cannot be used reads as dimmer than an inactive one, and keeps that look
--- even while it is the page you are on, since selecting it changes nothing about whether
--- it works.
+-- A page that cannot be used stays dimmer than an inactive one, even while selected.
 local function PaintTab(btn, page, active)
     if page.soon then
         btn.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 0.45)
@@ -404,17 +392,10 @@ local function InvalidatePages(pageWrappers)
     end
 end
 
--- The universal "this setting changed, redraw it" call. Every caller passes force=true --
--- there has never been a caller that wants anything less -- and force never meant more than
--- "rebuild the active tab": every OTHER cached tab kept whatever it looked like when it was
--- last built, which is wrong for anything that isn't scoped to the tab you happened to be
--- looking at (a pack import landing new Cooldown Presets while you're sitting on Raid
--- Bosses, say). Invalidate every cached tab: Setup reuses its rows, while dynamic editor
--- pages rebuild their wrappers on the next ShowPage. When the window is hidden the
--- rebuild waits for the next open, so page-build side effects (preview, lazy journal reads)
--- never run off-screen. The module windows follow the same rules.
--- One rebuild per frame however many times it is asked for: one action (a pack import,
--- a chain of setters) can ask repeatedly.
+-- Invalidates every cached tab, not only the active one: a pack import can add Cooldown
+-- Presets while Raid Bosses is on show. While hidden, the rebuild waits for the next open so
+-- page-build side effects (preview, lazy journal reads) never run off-screen. One rebuild per
+-- frame however often it is asked for.
 local refreshQueued
 
 local function RebuildPages()
@@ -463,20 +444,16 @@ function UI:RefreshPage(force)
     C_Timer.After(0, RebuildPages)
 end
 
--- ShowPage only rebuilds a page's cached wrapper on an explicit RefreshPage call, so a
--- trinket swap while the Cooldown Presets page is already built and just sitting shown would
--- otherwise never be noticed short of a full /reload. Only the trinket slots feed that page,
--- and the event fires once per changed slot, so an equipment-set swap arrives as a burst.
+-- Cached pages only rebuild on RefreshPage, so a trinket swap under a shown Cooldown Presets
+-- page went unnoticed. The event fires per changed slot; a set swap arrives as a burst.
 local equipWatcher = CreateFrame("Frame")
 equipWatcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 equipWatcher:SetScript("OnEvent", function(_, _, slot)
     if slot == INVSLOT_TRINKET1 or slot == INVSLOT_TRINKET2 then UI:RefreshPage(true) end
 end)
 
--- Set from the dropdown on the Settings page. A dropdown rather than a slider on purpose:
--- the control sits inside the frame it resizes, and the slider maps the cursor against the
--- track's live position, so rescaling mid-drag walks the track out from under the pointer
--- and the value chases it.
+-- Set from a dropdown, not a slider: the control sits inside the frame it resizes, so
+-- rescaling mid-drag moved the track out from under the cursor.
 local function FitMainWindow()
     if not window then return end
     local fit = math.min((UIParent:GetWidth() - 32) / window:GetWidth(),
@@ -735,10 +712,7 @@ local function CloseOnEscape(self, key)
     end
 end
 
--- Tab strip, in the same visual language as the modal editors' own tabs: a button
--- with an accent underline marking the active page. Widths are measured off the label
--- rather than fixed, since tab names vary a lot in length and a fixed width leaves the
--- short ones swimming.
+-- Tab strip: an accent underline marks the active page; widths follow the label.
 local function TabStrip(parent, left, top, mod, onClick, buttons)
     local strip = CreateFrame("Frame", nil, parent)
     strip:SetPoint("TOPLEFT", parent, "TOPLEFT", left, -top)
@@ -1026,9 +1000,8 @@ local function CreateWindow()
     window:Hide()
 end
 
--- pageName, when given, is which page the window opens on; OnShow renders currentPage,
--- so setting it before Show() is the whole mechanism. A page key, a module name (its
--- first tab) or a bare tab name all work, so older callers naming "Setup" still land.
+-- pageName may be a page key, a module name (its first tab) or a bare tab name, so older
+-- callers naming "Setup" still land. OnShow renders currentPage.
 function ns.OpenOptionsWindow(pageName)
     if pageName then
         if PAGES[pageName] then

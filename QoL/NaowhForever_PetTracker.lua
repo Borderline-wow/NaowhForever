@@ -1,10 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_PetTracker.lua -- the QoL pet tracker: a warning while a hunter or warlock
---  has no pet out or has it on passive, and optionally while the pet is low on health.
---
---  The low health warning never compares the health: a step curve turns the pet's health
---  percent into the frame's alpha, the same way the Low Health reminder works, so it keeps
---  working in combat where health is secret to addons.
+--  NaowhForever_PetTracker.lua -- the QoL pet tracker: a warning while a pet is missing, passive
+--  or low. Health is secret in combat, so a step curve turns it into the warning's alpha.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

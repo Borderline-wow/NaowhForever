@@ -1,9 +1,7 @@
 -------------------------------------------------------------------------------
---  NaowhForever_GroupXP.lua -- the QoL group XP bars: a row per group member with their
---  level and how far through it they are. Members running Naowh Forever with Group XP on
---  send their experience over addon messages; anyone else shows their level only.
---  Messages: "1 level xp max" is someone's numbers, "R" asks everyone for theirs (sent when
---  Group XP starts or after a loading screen), "O" says the sender switched it off.
+--  NaowhForever_GroupXP.lua -- the QoL group XP bars, fed by addon messages from members running
+--  Naowh Forever. Messages: "1 level xp max" is someone's numbers, "R" asks everyone for theirs,
+--  "O" says the sender switched it off.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

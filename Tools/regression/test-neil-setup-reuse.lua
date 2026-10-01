@@ -56,9 +56,9 @@ ns.WindowScalePercent = function() return 100 end
 ns.UI.RefreshPage = function() end
 local main = Read("")
 local defaults = assert(main:find("local DEFAULTS =", 1, true))
-local defaultsEnd = assert(main:find("-- Which profile tables", defaults, true))
+local defaultsEnd = assert(main:find("local prepared = setmetatable(", defaults, true))
 local first = assert(main:find("function ns.BuildCoreSettings(", 1, true))
-local last = assert(main:find("-- Defensive Presets tab:", first, true))
+local last = assert(main:find("function ns.BuildPresetsPage(", first, true))
 env.current = {}
 env.ns = ns
 env.TRDB = function() return env.current end

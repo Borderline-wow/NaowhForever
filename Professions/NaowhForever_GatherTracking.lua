@@ -19,7 +19,6 @@ local TRACKINGS = {
     { spell = FIND_MINERALS, label = "Minerals" },
     { spell = FIND_FISH, label = "Fish", key = "gatherFish" },
 }
--- The mouse button each known tracking is cast with, in order.
 local CLICKS = { { "1", "Left-click" }, { "2", "Right-click" }, { "3", "Middle-click" } }
 
 local button, unlocked, pending
@@ -43,7 +42,6 @@ local function Tracking(spellID)
     return false
 end
 
--- The tracking spells you know, and whether any of them is on.
 local function Known()
     local known, any = {}, false
     for _, t in ipairs(TRACKINGS) do
@@ -70,7 +68,7 @@ local function Build()
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetAllPoints()
     button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    ns.Border(button, { r = 0, g = 0, b = 0 })   -- NaowhUI's 1px black border
+    ns.Border(button, { r = 0, g = 0, b = 0 })
     button.highlight = button:CreateTexture(nil, "HIGHLIGHT")
     button.highlight:SetAllPoints()
     button.highlight:SetColorTexture(1, 1, 1, 0.15)
@@ -103,8 +101,6 @@ local function Place()
     end
 end
 
--- Points the button's clicks at the spells you know: left the first, right the second,
--- middle the third.
 local function Arm(known)
     button.known = known
     for i, click in ipairs(CLICKS) do

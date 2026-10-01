@@ -1,25 +1,11 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Observed.lua -- what the boss actually did, recorded
---  from the player's own pulls.
+--  NaowhForever_Observed.lua -- when boss abilities actually landed, recorded
+--  from the player's own pulls so reminders can be built from real times.
 --
---  The addon has always catalogued WHICH abilities a boss mod broadcasts
---  (bwCatalogue, with a seen count). This records WHEN, so a reminder can be
---  built from a real observed time instead of the player having to already know
---  that Ravenous Stomp lands at 0:03.
---
---  Two rules shape the whole file:
---
---  Nothing is written mid-pull. A bar is a countdown TO a cast, so a landing is
---  a PREDICTION until the bar survives to its own end; a stopped bar (a phase
---  change cancelling the rest, a resync) means the cast never happened.
---  Predictions live in memory for the pull and are committed once at
---  ENCOUNTER_END, keeping only those that actually landed before the pull
---  ended. That costs nothing in combat and keeps cancelled casts out of the data.
---
---  Storage aggregates on write, the same shape bwCatalogue proves: one entry per
---  ability per occurrence, carrying a running mean rather than a row per pull.
---  Growth is bounded by how many abilities a boss has, not by how many times it
---  has been pulled.
+--  Nothing is written mid-pull: a bar is only a prediction until it runs out (a
+--  stopped bar means the cast never happened), so predictions are held in memory
+--  and committed at ENCOUNTER_END. Storage keeps a running mean per ability per
+--  occurrence, bounded by ability count rather than pull count.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 if not ns then return end
@@ -30,18 +16,15 @@ local MAX_SAMPLES = 10        -- mean stops averaging past this, so recent pulls
 local MAX_OCCURRENCES = 12    -- per ability; later casts of a long fight drift too far to be useful
 local MAX_ABILITIES = 40      -- per encounter and difficulty
 local SAME_CAST = 2           -- a message landing this close to a prediction is that same cast
-local ENGAGE_GRACE = 3        -- boss mods broadcast their engage bars before our own
-                              -- ENCOUNTER_START lands; casts this far ahead of the pull
-                              -- still belong to it
+local ENGAGE_GRACE = 3        -- casts this far ahead of our ENCOUNTER_START still belong to the pull
 local MAX_BUFFER = 200        -- bounds what accumulates outside an encounter
 
 -- Live for the current pull only.
 local pending = {}   -- [barIdentity] = { sid, mod, landing, stage, stageAt }
 local landed = {}    -- array of { sid, mod, at, stage, stageAt }
 
--- The last pull this session committed, kept because ENCOUNTER_END clears the main file's
--- currentEncounter before anyone can type a slash command -- which left /nutank observed
--- answering "not in an encounter" at exactly the moment it was worth asking.
+-- ENCOUNTER_END clears the main file's currentEncounter before a slash command can run,
+-- so /nutank observed reads the last committed pull from here.
 local lastPullEnc, lastPullDiff
 
 function ns.ObservedLastPull()
@@ -51,9 +34,7 @@ end
 -------------------------------------------------------------------------------
 --  Storage
 -------------------------------------------------------------------------------
--- At the SavedVariables ROOT, deliberately not inside a profile: this is a record of what
--- the game did, not a preference. In a profile it would be duplicated per profile and
--- wiped by Reset Profile, which would throw away weeks of pulls to change a setting.
+-- At the SavedVariables root, not in a profile, so Reset Profile does not wipe weeks of pulls.
 local function Root()
     local sv = _G.NaowhForeverDB
     if type(sv) ~= "table" then return nil end
@@ -73,8 +54,6 @@ function ns.ObservedFor(encounterID, difficultyID)
     return enc[tostring(difficultyID)]
 end
 
--- Which difficulties this encounter has data for, most recently updated first -- the UI
--- offers a picker only when there is more than one.
 function ns.ObservedDifficulties(encounterID)
     local enc = ns.ObservedFor(encounterID, nil)
     local out = {}
@@ -88,8 +67,7 @@ function ns.ObservedDifficulties(encounterID)
     return out
 end
 
--- One pass at login. Nothing else in the addon prunes anything, so this store has to
--- carry its own housekeeping or it grows for the life of the account.
+-- Runs once at login; nothing else prunes this store.
 function ns.ObservedPrune()
     local o = Root()
     if not o then return end
@@ -118,10 +96,8 @@ local function DropBefore(cutoff)
     end
 end
 
--- Not a wipe: the boss mods receive ENCOUNTER_START before we do and broadcast their
--- engage bars inside their own handler, so the opening cast -- usually the one worth
--- recording most -- arrives just BEFORE this runs. Anything older than the grace window
--- belonged to a previous pull or to trash and is dropped.
+-- Not a wipe: boss mods broadcast their engage bars from their own ENCOUNTER_START
+-- handler, which runs before ours, so the opening cast arrives just before this.
 function ns.ObserveBeginPull()
     DropBefore(GetTime() - ENGAGE_GRACE)
 end
@@ -134,16 +110,12 @@ function ns.ObserveCancelAll()
     wipe(pending)
 end
 
--- duration present means a bar: a countdown to a cast that has not happened yet.
--- duration absent means a message: the cast is landing right now.
--- Times are recorded ABSOLUTE and made pull-relative at commit, so a cast that arrives
--- before our own ENCOUNTER_START (see ObserveBeginPull) is not lost for want of a clock.
+-- With duration it is a bar (a cast still to come); without, a message (landing now).
+-- Times are absolute until commit, so casts from before our ENCOUNTER_START still count.
 function ns.ObserveCast(sid, mod, duration, barIdentity)
     if type(sid) ~= "number" or sid <= 0 then return end
     local startedAt, _, stage, stageAt = ns.PullContext()
     local now = GetTime()
-    -- Outside a pull only the last ENGAGE_GRACE seconds can still be claimed by the next one;
-    -- anything older is trash traffic that would otherwise pile up until then.
     if not startedAt then DropBefore(now - ENGAGE_GRACE) end
 
     if type(duration) == "number" and duration > 0.5 then
@@ -155,8 +127,7 @@ function ns.ObserveCast(sid, mod, duration, barIdentity)
     end
     if #landed >= MAX_BUFFER then return end
 
-    -- A module that pairs a bar with a message for the same cast would otherwise record
-    -- it twice; the bar's own prediction is the one already accounted for.
+    -- Modules can pair a bar with a message for the same cast; keep only one.
     for key, p in pairs(pending) do
         if p.sid == sid and math.abs(p.landing - now) <= SAME_CAST then
             pending[key] = nil
@@ -176,9 +147,7 @@ local function MergeSample(slot, t, stage, ts)
         if t < slot.lo then slot.lo = t end
         if t > slot.hi then slot.hi = t end
     end
-    -- Phase-relative is the trustworthy anchor for later phases, whose start is
-    -- health-gated rather than scheduled; pull-relative times there drift by whole
-    -- seconds between pulls of different speed.
+    -- Later phases are health-gated, so phase-relative times drift far less than pull-relative.
     if stage then
         slot.stage = stage
         if ts then slot.ts = slot.ts and (slot.ts + (ts - slot.ts) / (slot.n or 1)) or ts end
@@ -197,8 +166,7 @@ function ns.ObserveCommitPull(encounterID, difficultyID)
     end
     local pullDur = endedAt - startedAt
 
-    -- A prediction still standing at the end only counts if its cast would have landed
-    -- before the pull did: a wipe at 0:40 never saw the 4:30 mechanic.
+    -- A standing prediction only counts if it would have landed before the pull ended.
     for _, p in pairs(pending) do
         if p.landing <= endedAt then
             landed[#landed + 1] = { sid = p.sid, mod = p.mod, at = p.landing,
@@ -238,9 +206,7 @@ function ns.ObserveCommitPull(encounterID, difficultyID)
             if idx <= MAX_OCCURRENCES then
                 local slot = slotList[idx]
                 if type(slot) ~= "table" then slot = {}; slotList[idx] = slot end
-                -- Clamped: an engage bar caught inside the grace window is a fraction of
-                -- a second before the pull officially started, and a negative time would
-                -- read as nonsense in the list.
+                -- Engage bars inside the grace window predate the pull start slightly.
                 MergeSample(slot, math.max(0, e.at - startedAt), e.stage,
                     e.stageAt and math.max(0, e.at - e.stageAt) or nil)
             end

@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_XPTicker.lua -- the QoL XP per hour ticker: experience per hour
---  since login, time to the next level, session length and session total, one per line,
---  with optional level splits underneath.
+--  NaowhForever_XPTicker.lua -- the QoL XP per hour ticker: rate, time to level and session
+--  stats, with optional level splits.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings

@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_TownMap.lua -- the QoL town map: trainers, vendors, innkeepers,
---  flight masters, bankers and more pinned on the world map for your faction, so nobody has
---  to ask a guard for directions. Positions come from NaowhForever_TownData.lua.
+--  NaowhForever_TownMap.lua -- the QoL town map: service NPCs from NaowhForever_TownData.lua
+--  pinned on the world map for your faction.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
