@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Sound dropdowns list None once. The second None was a silent placeholder from
+  SharedMedia.
 
 ### Added
 - Blessings: in combat each click on a class button blesses the next member of that class who
