@@ -10,8 +10,8 @@ local ns = _G.NaowhForever
 local T = ns.THEME
 local UI = ns.UI
 
-local SIDEBAR_W, CONTENT_W, WINDOW_H = 240, 1000, 760
-local SUBNAV_W, TOP_H, PAGE_HEADER_H = 200, 64, 128
+local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 760
+local TOP_H, PAGE_HEADER_H = 64, 128
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 
@@ -164,7 +164,6 @@ end
 
 local window, scrollFrame, scrollChild, tabLine, headerTitle, headerSub
 local contentHeader, contentFooter, breadcrumb, moduleSwitch, moduleLabel
-local categoryPane, categoryTitle
 local lastPages = {}
 local navButtons, tabButtons, tabStrips = {}, {}, {}
 local wrappers = {}          -- page key -> built wrapper frame
@@ -243,32 +242,23 @@ local function PaintNav()
         btn.fill:SetShown(active)
         btn.marker:SetShown(active)
     end
-    for key, btn in pairs(tabButtons) do
-        local active = key == currentPage
-        PaintTab(btn, PAGES[key], active)
-        btn.fill:SetShown(active)
-    end
-end
-
-local function ContentLeft()
-    local mod = PAGES[currentPage].module
-    return SIDEBAR_W + (mod and #mod.tabs > 1 and SUBNAV_W or 0)
+    for key, btn in pairs(tabButtons) do PaintTab(btn, PAGES[key], key == currentPage) end
 end
 
 local function LayoutContent()
     local page = PAGES[currentPage]
     local mod = page.module
     local nested = mod and #mod.tabs > 1
-    local left = ContentLeft()
-    categoryPane:SetShown(nested and true or false)
-    if mod then categoryTitle:SetText(DisplayName(mod)) end
-    headerTitle:SetText(ns.L(nested and page.name or (mod and DisplayName(mod) or page.title)))
+    local left = SIDEBAR_W
+    -- The tab row sits under the subtitle and pushes the page down by its own height.
+    local headerH = PAGE_HEADER_H + (nested and TAB_H - 12 or 0)
+    headerTitle:SetText(mod and DisplayName(mod) or ns.L(page.title))
     breadcrumb:SetText(mod and (DisplayName(mod) .. " / " .. ns.L(page.name)) or "Naowh Forever")
-    headerSub:SetText(page.key == "QoL/General" and ns.L("Everyday helpers for your character.")
-        or (mod and mod.subtitle or page.subtitle))
+    headerSub:SetText(mod and mod.subtitle or page.subtitle)
     contentHeader:ClearAllPoints()
     contentHeader:SetPoint("TOPLEFT", window, "TOPLEFT", left, -TOP_H)
     contentHeader:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -TOP_H)
+    contentHeader:SetHeight(headerH)
     moduleSwitch:SetShown(mod ~= nil and not page.soon)
     moduleLabel:SetShown(mod ~= nil and not page.soon)
     if mod and not page.soon then
@@ -277,10 +267,10 @@ local function LayoutContent()
     end
     for name, strip in pairs(tabStrips) do strip:SetShown(nested and name == mod.name or false) end
     tabLine:ClearAllPoints()
-    tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", left + 26, -(TOP_H + PAGE_HEADER_H))
-    tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", -30, -(TOP_H + PAGE_HEADER_H))
+    tabLine:SetPoint("TOPLEFT", window, "TOPLEFT", left + 26, -(TOP_H + headerH))
+    tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", -30, -(TOP_H + headerH))
     scrollFrame:ClearAllPoints()
-    scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", left + 6, -(TOP_H + PAGE_HEADER_H + 8))
+    scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", left + 6, -(TOP_H + headerH + 8))
     scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, FOOTER_H + 4)
     scrollChild:SetWidth(window:GetWidth() - left - 36)
     contentFooter:ClearAllPoints()
@@ -744,10 +734,10 @@ end
 -- with an accent underline marking the active page. Widths are measured off the label
 -- rather than fixed, since tab names vary a lot in length and a fixed width leaves the
 -- short ones swimming.
-local function TabStrip(parent, left, mod, onClick, buttons)
+local function TabStrip(parent, left, top, mod, onClick, buttons)
     local strip = CreateFrame("Frame", nil, parent)
-    strip:SetPoint("TOPLEFT", parent, "TOPLEFT", left, -HEADER_H)
-    strip:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -HEADER_H)
+    strip:SetPoint("TOPLEFT", parent, "TOPLEFT", left, -top)
+    strip:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -top)
     strip:SetHeight(TAB_H)
     local row, textW = {}, 0
     for _, tab in ipairs(mod.tabs) do
@@ -871,7 +861,7 @@ end
 
 local function CreateWindow()
     window = CreateFrame("Frame", "NaowhForeverOptions", UIParent)
-    window:SetSize(SIDEBAR_W + SUBNAV_W + CONTENT_W, WINDOW_H)
+    window:SetSize(WINDOW_W, WINDOW_H)
     window:SetScale(ns.UIScale())
     window:SetPoint("CENTER")
     window:SetFrameStrata("DIALOG")
@@ -902,7 +892,7 @@ local function CreateWindow()
     ns.Tooltip(unlock, "Unlock Mode", "Place and size each display. Exit Config returns to this window.")
     local search = UI.AttachSearch(top, 0)
     search:ClearAllPoints()
-    search:SetPoint("LEFT", top, "LEFT", SIDEBAR_W + SUBNAV_W, 0)
+    search:SetPoint("LEFT", top, "LEFT", SIDEBAR_W + 26, 0)
     search:SetPoint("RIGHT", unlock, "LEFT", -100, 0)
     search:SetHeight(34)
     search:SetTextInsets(34, 22, 0, 0)
@@ -962,29 +952,6 @@ local function CreateWindow()
     version:SetPoint("BOTTOMLEFT", 20, 10)
     version:SetText("v" .. (ns.CODE_BUILD or C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or "unknown"))
 
-    categoryPane = CreateFrame("Frame", nil, window)
-    categoryPane:SetPoint("TOPLEFT", SIDEBAR_W, -TOP_H)
-    categoryPane:SetPoint("BOTTOMLEFT", SIDEBAR_W, 0); categoryPane:SetWidth(SUBNAV_W)
-    local catEdge = ns.Solid(categoryPane, "ARTWORK", T.line, 1)
-    catEdge:SetPoint("TOPRIGHT"); catEdge:SetPoint("BOTTOMRIGHT"); catEdge:SetWidth(1)
-    categoryTitle = ns.Font(categoryPane, 11, nil, T.muted)
-    categoryTitle:SetPoint("TOPLEFT", 22, -26); categoryTitle:SetPoint("TOPRIGHT", -16, -26)
-    categoryTitle:SetJustifyH("LEFT"); categoryTitle:SetWordWrap(false)
-    for _, mod in ipairs(MODULES) do
-        if #mod.tabs > 1 then
-            local pane = CreateFrame("Frame", nil, categoryPane)
-            pane:SetAllPoints()
-            local child = NavigationScroll(pane, 52, 16, SUBNAV_W)
-            for i, tab in ipairs(mod.tabs) do
-                tabButtons[tab.key] = NavigationButton(child, ns.L(tab.name), -(i - 1) * 40,
-                    function() ShowPage(tab.key) end)
-            end
-            child:SetHeight(#mod.tabs * 40)
-            tabStrips[mod.name] = pane
-            pane:Hide()
-        end
-    end
-
     contentHeader = CreateFrame("Frame", nil, window)
     contentHeader:SetHeight(PAGE_HEADER_H)
     breadcrumb = ns.Font(contentHeader, 12, nil, T.muted)
@@ -1003,6 +970,12 @@ local function CreateWindow()
     moduleLabel = ns.Font(contentHeader, 14, nil)
     moduleLabel:SetPoint("RIGHT", moduleSwitch, "LEFT", -14, 0)
     ns.Tooltip(moduleSwitch, "Module", "Turn this module on or off. Your settings are kept.")
+    for _, mod in ipairs(MODULES) do
+        if #mod.tabs > 1 then
+            tabStrips[mod.name] = TabStrip(contentHeader, 6, PAGE_HEADER_H - 12, mod, ShowPage, tabButtons)
+            tabStrips[mod.name]:Hide()
+        end
+    end
     tabLine = ns.Solid(window, "ARTWORK", T.line, 1); tabLine:SetHeight(1)
 
     contentFooter = CreateFrame("Frame", nil, window)
@@ -1023,10 +996,9 @@ local function CreateWindow()
         bar.ScrollDownButton:SetAlpha(0); bar.ScrollDownButton:EnableMouse(false)
     end
     scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetSize(CONTENT_W - 36, 1)
+    scrollChild:SetSize(WINDOW_W - SIDEBAR_W - 36, 1)
     scrollFrame:SetScrollChild(scrollChild)
-    Resizable(window, "main", scrollChild, function() return ContentLeft() + 36 end,
-        SIDEBAR_W + SUBNAV_W + CONTENT_W, 620)
+    Resizable(window, "main", scrollChild, SIDEBAR_W + 36, WINDOW_W, 620)
 
     window:SetScript("OnShow", function(self)
         FitMainWindow()
@@ -1092,8 +1064,7 @@ function ns.ToggleOptionsWindow(pageName)
 end
 
 -- A module on its own: its header and tabs over the same page builders, without the sidebar
--- or the window's own pages. The content is as wide as the main window's, so every page lays
--- out the same in both.
+-- or the window's own pages.
 local MODULE_WINDOW_H = 560
 
 local function CreateModuleWindow(mod)
@@ -1137,7 +1108,7 @@ local function CreateModuleWindow(mod)
     win.switch = switch
 
     win.tabButtons = {}
-    TabStrip(win, 0, mod, function(key) ShowModulePage(win, key) end, win.tabButtons)
+    TabStrip(win, 0, HEADER_H, mod, function(key) ShowModulePage(win, key) end, win.tabButtons)
     local offset = HEADER_H + TAB_H
     local line = ns.Solid(win, "ARTWORK", T.line, 1)
     line:SetPoint("TOPLEFT", win, "TOPLEFT", 0, -offset)

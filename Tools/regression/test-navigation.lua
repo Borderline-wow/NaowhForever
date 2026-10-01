@@ -234,10 +234,22 @@ UI:RefreshPage(true); Flush()
 Check(Text("Appearance & text") and not Text("Out of Stealth Colour"), "appearance starts closed")
 UI.GoToSetting("QoL/General", "Out of Stealth Colour", "QoL/General:QoL/General:Enable Stealth Reminder:appearance")
 Check(Text("Out of Stealth Colour") ~= nil, "search jump reveals nested controls")
+local generalTab = Button("General")
+local strip = generalTab.parent
+local lastTab = generalTab
+for _, tab in ipairs(strip.children) do
+    Check(tab.points.TOPLEFT[4] == 0, "QoL categories share one row")
+    if tab.points.TOPLEFT[3] > lastTab.points.TOPLEFT[3] then lastTab = tab end
+end
+Check(#strip.children == 11, "every QoL category has a tab")
+Check(lastTab.points.TOPLEFT[3] + lastTab:GetWidth() <= strip:GetWidth() - 30,
+    "the last QoL tab stops short of the scrollbar at the default width")
 Button("Interface").scripts.OnClick(); Flush()
-Check(Text("Interface") ~= nil, "category navigation works")
+Check(Text("Quality of Life / Interface") ~= nil, "category navigation works")
+Button("Swing Timer").scripts.OnClick(); Flush()
+Check(Text("Bars") and Text("Timing Aids") and not Text("General"), "each module shows only its own tabs")
 Button("Top Bar").scripts.OnClick(); Flush()
-Check(not Text("General") and not Text("Questing"), "single-page module hides category column")
+Check(not Text("General") and not Text("Bar"), "single-page module shows no tab row")
 Button("Quality of Life").scripts.OnClick(); Flush()
 Check(Text("Quality of Life / Interface") ~= nil, "returning to a module remembers its page")
 Button("General").scripts.OnClick(); Flush()

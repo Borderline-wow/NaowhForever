@@ -10,9 +10,10 @@
 
 ### Changed
 - Options window: redesigned. The left menu groups the modules under Adventure, Combat and
-  Utilities, a module's categories sit in a column beside it, the search at the top covers every
+  Utilities, a module's categories are tabs on one row under its title, the search at the top covers every
   setting, and each module's on/off switch is at the top right of its page. The window also fits
   on a 1080p screen.
+- Buttons, dropdowns and input boxes have a black border that lights up blue under the mouse.
 - Unlock Mode: the position readout sits on the display you select instead of at the bottom of
   the screen.
 - QoL > General: Co-Tank Debuffs now sits inside Co-Tank Frame, and Stealth Reminder's colours

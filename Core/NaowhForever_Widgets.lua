@@ -9,6 +9,7 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
+local BLACK = { r = 0, g = 0, b = 0 }
 
 local UI = {}
 ns.UI = UI
@@ -190,7 +191,7 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
     if fLevel then btn:SetFrameLevel(fLevel) end
     local bg = ns.Solid(btn, "BACKGROUND", T.panel, 1)
     bg:SetAllPoints()
-    local border = ns.Border(btn)
+    local border = ns.Border(btn, BLACK)
     local lbl = ns.Font(btn, 12, nil)
     lbl:SetPoint("LEFT", 8, 0)
     lbl:SetPoint("RIGHT", -18, 0)
@@ -269,7 +270,7 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
         border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
     end)
     btn:SetScript("OnLeave", function()
-        border:SetColor(T.line.r, T.line.g, T.line.b, 1)
+        border:SetColor(0, 0, 0, 1)
     end)
     btn._refreshLabel()
     btn._refreshValue = btn._refreshLabel
@@ -316,7 +317,9 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     valBox:SetAlpha(inputAlpha or 1)
     local boxBg = ns.Solid(valBox, "BACKGROUND", T.bg, 1)
     boxBg:SetAllPoints()
-    ns.Border(valBox)
+    local boxBorder = ns.Border(valBox, BLACK)
+    valBox:SetScript("OnEnter", function() boxBorder:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    valBox:SetScript("OnLeave", function() boxBorder:SetColor(0, 0, 0, 1) end)
 
     local function Paint()
         local v = Clamp(track._get()) or minV

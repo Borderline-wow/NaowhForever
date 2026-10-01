@@ -73,9 +73,7 @@ local function StyleBar(bar)
     bar:GetStatusBarTexture():SetGradient("HORIZONTAL", from, CreateColor(T.accent.r, T.accent.g, T.accent.b, 1))
     ns.Border(bar, BLACK)
 end
--- The house button and text box, with that black border.
-local function Button(...) return ns.BlackBorder(ns.Button(...)) end
-local function EditBox(parent) return ns.BlackBorder(ns.NewEditBox(parent)) end
+local Button, EditBox = ns.Button, ns.NewEditBox
 -- A flat checkbox to match: a dark square with the black border, Naowh's blue square inside
 -- when checked, the border lit blue on hover. A real CheckButton, so GetChecked, SetChecked and
 -- OnClick work as with Blizzard's; add tooltips with HookScript to keep the hover.

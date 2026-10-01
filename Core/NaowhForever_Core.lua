@@ -436,6 +436,9 @@ function ns.Solid(parent, layer, color, alpha)
     return t
 end
 
+-- NaowhUI's 1px black border on buttons and input boxes, lit blue on hover.
+local BLACK = { r = 0, g = 0, b = 0 }
+
 -- btn.label is exposed so a reused button can be re-labelled on each open, and btn._onClick
 -- so it can be pointed at a new action.
 function ns.Button(parent, text, w, h, onClick)
@@ -444,9 +447,9 @@ function ns.Button(parent, text, w, h, onClick)
     btn:SetSize(w, h)
     local bg = ns.Solid(btn, "BACKGROUND", T.panel, 0.9)
     bg:SetAllPoints()
-    local border = ns.Border(btn)
-    -- The border and the colour it rests at, so ns.BlackBorder can restyle a module's buttons.
-    btn._border, btn._rest = border, T.line
+    local border = ns.Border(btn, BLACK)
+    -- The border and the colour it rests at, so a caller can restyle a button (AccentButton).
+    btn._border, btn._rest = border, BLACK
     local lbl = ns.Font(btn, 12, nil)
     lbl:SetPoint("CENTER")
     lbl:SetText(ns.L(text))
@@ -462,16 +465,6 @@ function ns.Button(parent, text, w, h, onClick)
         border:SetColor(btn._rest.r, btn._rest.g, btn._rest.b, 1)
     end)
     return btn
-end
-
--- NaowhUI's 1px black border for an ns.Button or ns.NewEditBox (hover still lights it blue).
--- Opt-in per module, so panels that keep the grey line are left alone.
-local BLACK = { r = 0, g = 0, b = 0 }
-function ns.BlackBorder(frame)
-    if not (frame and frame._border) then return frame end
-    frame._rest = BLACK
-    frame._border:SetColor(0, 0, 0, 1)
-    return frame
 end
 
 function ns.SetButtonText(btn, text)
@@ -658,7 +651,12 @@ function ns.NewEditBox(parent)
     box:SetFontObject("GameFontHighlight")
     box:SetTextInsets(6, 6, 0, 0)
     ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
-    box._border = ns.Border(box)
+    box._border = ns.Border(box, BLACK)
+    box:HookScript("OnEnter", function()
+        local a = ns.THEME.accent
+        box._border:SetColor(a.r, a.g, a.b, 1)
+    end)
+    box:HookScript("OnLeave", function() box._border:SetColor(0, 0, 0, 1) end)
     return box
 end
 
