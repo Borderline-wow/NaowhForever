@@ -54,10 +54,15 @@ local TIERS = {
         showsSince = true,  -- "Supporter since" is a patron's line, not a developer's
     },
 }
+-- The chat badge is as tall as the chat's text, so a line is no taller for it, and goes
+-- this much lower: the Naowh and game fonts leave room above their capitals, so letters sit
+-- under the middle of the line an icon is centred on.
+local BADGE_DROP = 1
+
 for _, tier in pairs(TIERS) do
     local c = tier.color
     tier.hex = string.format("ff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255)
-    tier.markup = "|T" .. tier.chat .. ":16:16:0:0|t"
+    tier.markup = ("|T%s:0:0:0:%d|t"):format(tier.chat, -BADGE_DROP)
     tier.tooltipLine = "|T" .. tier.chat .. ":16:16|t |c" .. tier.hex
         .. (tier.label or ("Naowh Forever " .. tier.title)) .. "|r"
 end
@@ -140,11 +145,12 @@ local function Remember(lineID, guid)
     nextSlot = nextSlot % CACHE_SIZE + 1
 end
 
+-- The badge goes after the name, so every name in chat starts where it would without one.
 local function DecorateName(_, name, _, _, _, _, _, _, _, _, _, _, lineID, guid)
     local tier = TierOf(EntryOf(guid))
     if not tier then return name end
     if lineID and not Secret(lineID) then Remember(lineID, guid) end
-    return tier.markup .. name
+    return name .. " " .. tier.markup
 end
 
 -------------------------------------------------------------------------------
@@ -215,6 +221,9 @@ local function AddShine(frame)
     end
 end
 
+-- Where the card's lines start: right of the logo, under the top bar.
+local CARD_TEXT_LEFT, CARD_TEXT_TOP = 110, 16
+
 local function BuildCard()
     card = CreateFrame("Frame", "NaowhForeverBadgeCard", UIParent)
     card:SetFrameStrata("TOOLTIP")
@@ -247,23 +256,25 @@ local function BuildCard()
         for i = 1, #self.shines do self.shines[i].sweep:Stop() end
     end)
 
-    card.brand = ns.Font(card, 10, nil, T.muted)
-    card.brand:SetPoint("TOPLEFT", 110, -16)
+    -- The lines, each under the last, their letters on one left edge (ns.FontInset): each
+    -- is moved by the difference between its size's inset and the one above it.
+    local function Line(size, color, above, aboveSize, gap)
+        local line = ns.Font(card, size, nil, color)
+        if above then
+            line:SetPoint("TOPLEFT", above, "BOTTOMLEFT", ns.FontInset(aboveSize) - ns.FontInset(size), -gap)
+        else
+            line:SetPoint("TOPLEFT", CARD_TEXT_LEFT - ns.FontInset(size), -CARD_TEXT_TOP)
+        end
+        return line
+    end
+    card.brand = Line(10, T.muted)
     card.brand:SetText("NAOWH FOREVER")
-
-    card.title = ns.Font(card, 19)
-    card.title:SetPoint("TOPLEFT", card.brand, "BOTTOMLEFT", 0, -4)
-
-    card.player = ns.Font(card, 13)
-    card.player:SetPoint("TOPLEFT", card.title, "BOTTOMLEFT", 0, -4)
-
-    card.about = ns.Font(card, 11, nil, T.muted)
-    card.about:SetPoint("TOPLEFT", card.player, "BOTTOMLEFT", 0, -6)
+    card.title = Line(19, nil, card.brand, 10, 4)
+    card.player = Line(13, nil, card.title, 19, 4)
+    card.about = Line(11, T.muted, card.player, 13, 6)
     card.about:SetWidth(238)
     card.about:SetJustifyH("LEFT")
-
-    card.since = ns.Font(card, 10)
-    card.since:SetPoint("TOPLEFT", card.about, "BOTTOMLEFT", 0, -6)
+    card.since = Line(10, nil, card.about, 11, 6)
 
     card.site = ns.Font(card, 10, nil, T.accentSoft)
     card.site:SetPoint("BOTTOMRIGHT", -10, 8)
@@ -489,6 +500,79 @@ end)
 groupEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 -------------------------------------------------------------------------------
+--  The guild and community member list (Guild & Communities): the badge after each badged
+--  member's name, as in chat. The list is Blizzard's, loaded when the window first opens;
+--  the badge is the addon's own texture on a row, kept in a side table, set each time the
+--  list fills a row (it reuses rows as it scrolls) and hidden when the row is someone else.
+-------------------------------------------------------------------------------
+local LIST_BADGE = 14       -- as tall as the list's names
+local LIST_BADGE_GAP = 3    -- the name's end to the badge
+
+local listBadges = setmetatable({}, { __mode = "k" })   -- row -> its badge texture
+local listOn, listWaiting
+
+local function MemberScroll()
+    local frame = CommunitiesFrame
+    return frame and frame.MemberList and frame.MemberList.ScrollBox
+end
+
+-- The row's member, read from Blizzard's own field (never written).
+local function PaintRow(row)
+    local info = listOn and row.memberInfo
+    local guid = info and info.guid
+    local tier = guid and not Secret(guid) and TierOf(EntryOf(guid))
+    local badge = listBadges[row]
+    if not tier then
+        if badge then badge:Hide() end
+        return
+    end
+    local name = row.NameFrame and row.NameFrame.Name
+    if not name then return end
+    if not badge then
+        badge = row.NameFrame:CreateTexture(nil, "OVERLAY")
+        badge:SetSize(LIST_BADGE, LIST_BADGE)
+        listBadges[row] = badge
+    end
+    badge:SetTexture(tier.chat)
+    badge:ClearAllPoints()
+    -- After the name's text, or at its edge when the list cuts a long name short.
+    local width = math.min(name:GetStringWidth(), name:GetWidth())
+    badge:SetPoint("LEFT", name, "LEFT", width + LIST_BADGE_GAP, -BADGE_DROP)
+    badge:Show()
+end
+
+local function RowInitialized(_, row)
+    PaintRow(row)
+end
+
+local function HookList()
+    listWaiting = false
+    local scroll = MemberScroll()
+    if not (scroll and listOn) then return end
+    scroll:RegisterCallback(ScrollBoxListMixin.Event.OnInitializedFrame, RowInitialized, listBadges)
+    scroll:ForEachFrame(PaintRow)
+end
+
+-- On with the chat badges. The list's code loads with the window, so the first time this
+-- may wait for it; off, the callback goes and every badge on the list is hidden.
+local function SyncList(on)
+    if on == (listOn or false) then return end
+    listOn = on
+    local scroll = MemberScroll()
+    if on then
+        if scroll then
+            HookList()
+        elseif not listWaiting then
+            listWaiting = true
+            EventUtil.ContinueOnAddOnLoaded("Blizzard_Communities", HookList)
+        end
+    else
+        if scroll then scroll:UnregisterCallback(ScrollBoxListMixin.Event.OnInitializedFrame, listBadges) end
+        for _, badge in pairs(listBadges) do badge:Hide() end
+    end
+end
+
+-------------------------------------------------------------------------------
 --  Settings. Each part is registered only while it's on. The name filter needs
 --  ChatFrameUtil (Forever 1.60, retail 12.x); without it there are no chat badges or cards.
 -------------------------------------------------------------------------------
@@ -505,6 +589,7 @@ local function Apply()
             ChatFrameUtil.RemoveSenderNameFilter(DecorateName)
         end
     end
+    SyncList(chat)
 
     -- The card needs the chat badges: it finds its player through the line they wrote.
     local cardWanted = chat and S.Get("badgeCard") == true
@@ -636,7 +721,7 @@ function ns.BadgesCommand(arg)
 end
 
 -- For the offline test.
-ns._BadgesTest = { DecorateName = DecorateName, OnLinkEnter = OnLinkEnter, TIERS = TIERS,
+ns._BadgesTest = { DecorateName = DecorateName, ListBadges = listBadges, OnLinkEnter = OnLinkEnter, TIERS = TIERS,
     guidByLine = guidByLine, CACHE_SIZE = CACHE_SIZE, SinceOf = SinceOf,
     BuildRoster = BuildRoster, BadgeCode = BadgeCode,
     Card = function() return card end, Toast = function() return toast end,

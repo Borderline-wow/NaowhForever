@@ -11,7 +11,7 @@ local DEFAULTS = { badgeChat = true, badgeCard = true, badgeTooltip = true,
 local function fixture(withChatUtil, settings)
     local state = { nameFilters = {}, callbacks = {}, postCalls = {}, printed = {}, sounds = 0,
         group = {}, raid = false, combat = false, region = 3, me = "Player-1-SELF", account = {},
-        guild = {} }
+        guild = {}, onLoaded = {} }
     local values = {}
     for k, v in pairs(DEFAULTS) do values[k] = v end
     for k, v in pairs(settings or {}) do values[k] = v end
@@ -42,6 +42,7 @@ local function fixture(withChatUtil, settings)
         Solid = function() return frame() end,
         Border = function() return { SetColor = noop } end,
         Font = function() return frame() end,
+        FontInset = function(size) return size * 0.075 end,
         Print = function(msg) state.printed[#state.printed + 1] = msg end,
         AccountSettings = function() return state.account end,
         QoLSettings = S,
@@ -112,6 +113,8 @@ local function fixture(withChatUtil, settings)
             state.postCalls[#state.postCalls + 1] = fn
         end },
         Enum = { TooltipDataType = { Unit = 2 } },
+        EventUtil = { ContinueOnAddOnLoaded = function(name, fn) state.onLoaded[name] = fn end },
+        ScrollBoxListMixin = { Event = { OnInitializedFrame = "OnInitializedFrame" } },
     }
     if withChatUtil then
         env.ChatFrameUtil = {
@@ -128,6 +131,38 @@ local function fixture(withChatUtil, settings)
     ns.Apply()  -- what login does
     state.names = names
     state.env = env
+    -- Guild & Communities' member list: a scroll box of rows, each with its member and name.
+    function state.communities(guids)
+        local scroll = { rows = {}, callbacks = {}, infos = {} }
+        function scroll:RegisterCallback(event, fn, owner) self.callbacks[event] = { fn = fn, owner = owner } end
+        function scroll:UnregisterCallback(event) self.callbacks[event] = nil end
+        function scroll:ForEachFrame(fn) for _, row in ipairs(self.rows) do fn(row) end end
+        function scroll:Fill(row, guid)   -- the list puts a member in a row, as it scrolls
+            -- One member table per GUID, made once: the stub must not make garbage of its own.
+            local info = guid and self.infos[guid]
+            if guid and not info then info = { guid = guid }; self.infos[guid] = info end
+            row.memberInfo = info
+            local cb = self.callbacks.OnInitializedFrame
+            if cb then cb.fn(cb.owner, row) end
+        end
+        for i, guid in ipairs(guids) do
+            local name = frame()
+            name.GetStringWidth = function() return 40 end
+            name.GetWidth = function() return 120 end
+            local nameFrame = frame()
+            nameFrame.Name = name
+            nameFrame.CreateTexture = function()
+                local t = frame()
+                t.SetPoint = function(texture, point, relativeTo, _, x)
+                    texture.point, texture.relativeTo, texture.x = point, relativeTo, x
+                end
+                return t
+            end
+            scroll.rows[i] = { memberInfo = guid and { guid = guid } or nil, NameFrame = nameFrame }
+        end
+        env.CommunitiesFrame = { MemberList = { ScrollBox = scroll } }
+        return scroll
+    end
     state.api = ns._BadgesTest
     function state.fire(event) state.api.GroupEvents.scripts.OnEvent(state.api.GroupEvents, event) end
     function state.staff(guid, entry, region)
@@ -160,8 +195,9 @@ do  -- chat, card, tooltip
     check("tooltip post-call registered", #s.postCalls == 1)
 
     local dev = say(filter, "Glyalith", 1, "Player-1-DEV")
-    check("developer badge before the name", dev:find("BadgeDeveloperChat.tga", 1, true)
-        and dev:sub(-8) == "Glyalith")
+    check("developer badge after the name", dev:find("BadgeDeveloperChat.tga", 1, true)
+        and dev:sub(1, 9) == "Glyalith ")
+    check("the badge is as tall as the text", dev:find("BadgeDeveloperChat.tga:0:0:", 1, true) ~= nil)
     check("legendary badge", say(filter, "Patron", 2, "Player-1-LEG"):find("BadgeLegendaryChat.tga", 1, true))
     check("plain tier string still works", say(filter, "Old", 6, "Player-1-OLD"):find("BadgeDeveloper", 1, true))
     check("unknown tier: name unchanged", say(filter, "Bad", 7, "Player-1-BAD") == "Bad")
@@ -515,6 +551,50 @@ do  -- cost: every chat line and every group change go through this code
     check("chat line with a badge: under 0.01 ms", supMs < 0.01)
     check("unit tooltip: under 0.005 ms, no garbage", tipMs < 0.005 and tipKB < 0.001)
     check("40-man raid change: under 0.1 ms, no garbage", scanMs < 0.1 and scanKB < 0.001)
+end
+
+do  -- the guild and community member list
+    local s = fixture(true)
+    s.staff("Player-1-DEV", { tier = "developer", title = "Lead Developer" })
+    check("before the window opens, the list waits for its code", s.onLoaded.Blizzard_Communities ~= nil)
+    local scroll = s.communities({ "Player-1-DEV", "Player-1-NOBODY" })
+    s.onLoaded.Blizzard_Communities()
+    check("then it follows the list", scroll.callbacks.OnInitializedFrame ~= nil)
+    local dev, other = scroll.rows[1], scroll.rows[2]
+    local badge = s.api.ListBadges[dev]
+    check("a badged member's row shows the badge", badge and badge:IsShown())
+    check("after the name", badge.point == "LEFT" and badge.relativeTo == dev.NameFrame.Name
+        and badge.x > 40)
+    check("no badge for anyone else", s.api.ListBadges[other] == nil)
+    scroll:Fill(dev, "Player-1-NOBODY")
+    check("a row reused for someone else hides its badge", not badge:IsShown())
+    scroll:Fill(dev, "Player-1-DEV")
+    check("and shows it again for a badged member", badge:IsShown())
+    s.S.Set("badgeChat", false)
+    s.ns.Apply()
+    check("badges off: the list is no longer followed", scroll.callbacks.OnInitializedFrame == nil)
+    check("and its badges are hidden", not badge:IsShown())
+
+    -- Cost: the list fills a row as it scrolls; a full screen of rows, refilled.
+    s.S.Set("badgeChat", true)
+    s.ns.Apply()
+    local many = {}
+    for i = 1, 20 do many[i] = i % 4 == 0 and "Player-1-DEV" or "Player-1-NOBODY" end
+    local big = s.communities(many)
+    s.onLoaded.Blizzard_Communities()
+    local runs = 500
+    collectgarbage("collect")
+    collectgarbage("stop")
+    local before, start = collectgarbage("count"), os.clock()
+    for _ = 1, runs do
+        for i = 1, #big.rows do big:Fill(big.rows[i], many[i]) end
+    end
+    local ms = (os.clock() - start) * 1000 / runs
+    local kb = (collectgarbage("count") - before) / runs
+    collectgarbage("restart")
+    print(("  guild list, 20 rows filled: %.5f ms, %.4f KB"):format(ms, kb))
+    check("filling a screen of the guild list: under 0.05 ms", ms < 0.05)
+    check("and no garbage", kb < 0.01)
 end
 
 print(checks .. " badge checks passed")

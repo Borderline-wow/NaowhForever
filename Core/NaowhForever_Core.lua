@@ -346,6 +346,18 @@ local function FontPath(name)
 end
 
 local uiFontPath
+-- The Naowh font starts a capital with a straight left side (N, L, D, B...) 75/1000 of its
+-- size in from where the text begins (Media/Fonts/Naowh.ttf: 75 units of 1000). Lines of
+-- different sizes set at one x so look a pixel ragged, the big ones further in; moving each
+-- line left by its size's inset puts their letters on one edge.
+local STEM_INSET = 0.075
+
+---@param size number the font size
+---@return number inset how far in its capitals start, in the same units
+function ns.FontInset(size)
+    return size * STEM_INSET
+end
+
 function ns.UIFontPath()
     if not uiFontPath then
         uiFontPath = FontPath(ns.AccountSettings().uiFont or "Naowh") or STANDARD_TEXT_FONT

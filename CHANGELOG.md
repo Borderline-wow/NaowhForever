@@ -12,6 +12,9 @@
   you type in chat, it still links it.
 
 ### Changed
+- Supporter badges: the badge sits after the name in chat, at the size of the text, so every
+  name starts in the same place and lines are no taller. It shows in the Guild & Communities
+  member list too, after the name, and the lines on the badge's hover card line up.
 - Options window: redesigned. The left menu groups the modules under Adventure, Combat and
   Utilities, a module's categories are tabs on one row under its title, the search at the top covers every
   setting, and each module's on/off switch is at the top right of its page. The window also fits
