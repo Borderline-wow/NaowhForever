@@ -349,6 +349,12 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2)
         QueueQuestScan()
         return
     end
+    -- The bar takes the mouse only while Ctrl is down, for its reset click; otherwise a click
+    -- or a camera drag that starts over it goes through to the world.
+    if event == "MODIFIER_STATE_CHANGED" then
+        bar:EnableMouse(IsControlKeyDown())
+        return
+    end
     if event == "TIME_PLAYED_MSG" then
         playedTotal, playedLevel, playedAt = arg1, arg2, GetTime()
         C_Timer.After(0, RestoreChat)
@@ -380,7 +386,7 @@ local function Create()
     bar = CreateFrame("Frame", "NaowhForeverXPBar", UIParent)
     bar:SetMovable(true)
     bar:SetClampedToScreen(true)
-    bar:EnableMouse(true)
+    bar:EnableMouse(false)
     bar:SetScript("OnMouseUp", function(_, button)
         if button == "RightButton" and IsControlKeyDown() then ns.ResetXPTicker() end
     end)
@@ -468,7 +474,7 @@ local function Apply()
     lastXP, lastXPMax = UnitXP("player"), UnitXPMax("player")
     for _, e in ipairs({ "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "UPDATE_EXHAUSTION",
                          "PLAYER_UPDATE_RESTING", "QUEST_LOG_UPDATE", "TIME_PLAYED_MSG",
-                         "DISABLE_XP_GAIN", "ENABLE_XP_GAIN", "PLAYER_LOGOUT" }) do
+                         "DISABLE_XP_GAIN", "ENABLE_XP_GAIN", "PLAYER_LOGOUT", "MODIFIER_STATE_CHANGED" }) do
         events:RegisterEvent(e)
     end
     if ShowsText("played") and not playedTotal then RequestPlayed() end
