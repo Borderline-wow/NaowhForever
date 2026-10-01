@@ -78,14 +78,47 @@ local function SlashID(name)
     return "NAOWHFOREVER_" .. strupper(name)
 end
 
+local function FindInList(list, command)
+    if type(list) ~= "table" then return end
+    for key, handler in pairs(list) do
+        local i = 1
+        local alias = _G["SLASH_" .. key .. i]
+        while alias do
+            if strupper(alias) == command then return handler end
+            i = i + 1
+            alias = _G["SLASH_" .. key .. i]
+        end
+    end
+end
+
+-- The first time anything is typed in chat, the game moves SlashCmdList's entries into
+-- hash_SlashCmdList and a table behind SlashCmdList's metatable, so look in all three.
+local function FindHandler(command)
+    local handler = hash_SlashCmdList[command] or FindInList(SlashCmdList, command)
+    if handler then return handler end
+    local meta = getmetatable(SlashCmdList)
+    return meta and FindInList(meta.__index, command)
+end
+
+-- Calls the command's handler directly. Sending it through the chat box ran the game's chat
+-- code from the addon, and the player's next chat message was blocked.
 local function RunCommand(command, args)
     if not command:match("^/") then command = "/" .. command end
     if args and args ~= "" then command = command .. " " .. args end
-    local box = ChatFrame1EditBox or DEFAULT_CHAT_FRAME.editBox
-    local original = box:GetText()
-    box:SetText(command)
-    box:SendText()
-    box:SetText(original)
+    local name = command:match("^/%S+")
+    if not name then return end
+    local key = strupper(name)
+    -- /cast, /use, /target and the other macro commands only run from the chat box or a macro.
+    if IsSecureCmd(key) then
+        ns.Print(name .. " can't be run from a custom command. Put it in a macro instead.")
+        return
+    end
+    local handler = FindHandler(key)
+    if not handler then
+        ns.Print(name .. " is not a slash command a custom command can run.")
+        return
+    end
+    handler(strtrim(command:sub(#name + 1)), nil)
 end
 
 local function ToggleFrame(name)

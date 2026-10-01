@@ -79,7 +79,7 @@ read_globals = {
     "INVSLOT_TRINKET1", "INVSLOT_TRINKET2", "IsAltKeyDown", "IsControlKeyDown", "IsInGroup",
     "IsInGuild", "IsInInstance", "IsInRaid", "IsModifiedClick", "IsMounted",
     "IsMouseButtonDown", "IsPlayerMoving", "IsPlayerSpell", "IsQuestCompletable", "IsResting",
-    "issecrettable", "issecretvalue", "IsShiftKeyDown", "IsStealthed", "IsTradeskillTrainer",
+    "issecrettable", "issecretvalue", "IsSecureCmd", "IsShiftKeyDown", "IsStealthed", "IsTradeskillTrainer",
     "IsXPUserDisabled", "Item", "ItemEventListener", "ItemRefTooltip",
     "ItemRefTooltipTextLeft1", "ITEM_QUALITY_COLORS", "LE_PARTY_CATEGORY_INSTANCE", "LibStub",
     "LOCALIZED_CLASS_NAMES_MALE", "LoggingCombat", "LootFrame", "LootSlot",
