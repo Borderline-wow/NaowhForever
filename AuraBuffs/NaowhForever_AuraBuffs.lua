@@ -148,6 +148,16 @@ function ns.BuildAuraBuffsPage(parent, y)
     return y
 end
 
+-- Show Active Camp Buffs as Off / Always / On Mouseover; reads the old switch until one is picked.
+local function CampBuffDropdown()
+    local cfg = S.Dropdown("campBuffMode", "Show Active Camp Buffs",
+        { off = "Off", always = "Always", hover = "On Mouseover" }, { "off", "always", "hover" },
+        "The active effects reported in your Camp Benefits tooltip. On Mouseover shows them "
+        .. "while the mouse is over the camp icon.", "campfire")
+    cfg.getValue = function() return ns.CampBuffMode() end
+    return cfg
+end
+
 function ns.BuildCampfirePage(parent, y)
     local W = UI.Widgets
     local _, h
@@ -166,8 +176,7 @@ function ns.BuildCampfirePage(parent, y)
             .. "green above 30 minutes, yellow above 5, red under 5.", "campfire")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("campBuffs", "Show Active Camp Buffs",
-            "The active effects reported in your Camp Benefits tooltip.", "campfire"),
+        CampBuffDropdown(),
         S.Slider("campIconSize", "Icon Size", 24, 110, 1, nil, "campfire")
     ); y = y - h
     _, h = W:DualRow(parent, y,
