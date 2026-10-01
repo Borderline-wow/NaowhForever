@@ -10,7 +10,7 @@ local T = ns.THEME
 local S = UI.ModuleSettings("threatMeter", {
     enabled = false,
     width = 280, height = 240, barHeight = 24, maxBars = 40,
-    source = "target", focusEnabled = false, onlyWithThreat = true, visibility = "always",
+    source = "target", focusEnabled = false, visibility = "threat",
     locked = true, barSpacing = 3, fontSize = 12, font = "",
     showIcons = true, showRanks = true, highlightPlayer = true,
     backgroundAlpha = 0.94, barAlpha = 0.72, texture = "smooth", percentMode = "pull",
@@ -485,7 +485,7 @@ function Update()
     if mob then Collect(mob) else Clear() end
     if #list == 0 then
         warned, warnedMob = false, nil
-        if S.Get("onlyWithThreat") then frame:Hide(); return end
+        if visible == "threat" then frame:Hide(); return end
         Render(mob and UnitName(mob) or "No target"); frame:Show(); return
     end
     local me, tankRaw
@@ -528,7 +528,23 @@ events:SetScript("OnEvent", function(_, event, unit)
     RequestUpdate()
 end)
 
+-- Hide When Empty became a Show option. Runs once per profile.
+local function MigrateVisibility()
+    local db = S.DB()
+    if db.visibilityMerged then return end
+    db.visibilityMerged = true
+    local hideEmpty = db.onlyWithThreat
+    if hideEmpty == nil then hideEmpty = true end   -- the old default
+    db.onlyWithThreat = nil
+    if hideEmpty and (db.visibility == nil or db.visibility == "always") then
+        db.visibility = "threat"
+    elseif db.visibility == nil then
+        db.visibility = "always"   -- had it off on purpose; keep showing when empty
+    end
+end
+
 local function Apply()
+    MigrateVisibility()
     events:UnregisterAllEvents()
     threatEventsOn = false
     updateGeneration = updateGeneration + 1; pendingUpdate = false
@@ -585,13 +601,14 @@ function ns.BuildThreatMeterPage(parent, y)
         S.Dropdown("source", "Track", { target = "Target", focus = "Focus" }, { "target", "focus" }, nil, "focusEnabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("onlyWithThreat", "Hide When Empty"),
-        S.Dropdown("visibility", "Show", { always = "Always", combat = "In Combat", group = "In a Group" },
-            { "always", "combat", "group" })
+        S.Dropdown("visibility", "Show",
+            { always = "Always", threat = "With Threat", combat = "In Combat", group = "In a Group" },
+            { "always", "threat", "combat", "group" },
+            "With Threat: hidden until someone in your group has threat on the mob."),
+        S.Dropdown("percentMode", "Percent Of", { pull = "Pull Aggro", tank = "Tank Threat" }, { "pull", "tank" },
+            "Pull Aggro: 100% takes aggro. Tank Threat: 100% equals the current tank's threat.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("percentMode", "Percent Of", { pull = "Pull Aggro", tank = "Tank Threat" }, { "pull", "tank" },
-            "Pull Aggro: 100% takes aggro. Tank Threat: 100% equals the current tank's threat."),
         { type = "button", text = "10-Second Preview", buttonText = "Preview", onClick = function() ns.PreviewThreatMeter() end }
     ); y = y - h
     _, h = W:Feature(parent, y, { type = "label", text = "Layout" .. UI.STATUS.untested }); y = y - h

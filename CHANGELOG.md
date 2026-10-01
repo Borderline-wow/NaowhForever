@@ -169,6 +169,8 @@
 - QoL: the auction house price on item tooltips is now switched in QoL > Tooltip Display
   (Auction House Price), with the other tooltip settings. Your setting is kept.
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
+- Threat Meter: Hide When Empty is now With Threat, a choice under Show, so Always really
+  means always. Your setting carries over.
 
 ### Fixed
 - A copy downloaded with GitHub's green Code button has none of the addon's libraries, and
