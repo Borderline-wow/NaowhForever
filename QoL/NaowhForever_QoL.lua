@@ -75,8 +75,6 @@ local S = UI.ModuleSettings("qol", {
     bagSpaceProtect = true, bagSpaceFreeBelow = 0, bagSpaceHideCombat = true,
     bagSpaceOnFull = true, bagSpaceShowFree = true, bagSpaceStack = true, bagSpaceOldFirst = false,
     bagSpaceTipVendor = true, bagSpaceTipAuction = true, bagSpaceTipDelete = true, bagSpaceTipIgnore = true,
-    dqTracker = true, dqShowDone = false, dqAllFactions = false, dqOutside = false,
-    dqSingle = false, dqSelected = "",
     townCapitalsOnly = true, townSpiritHealers = true, townZoneLinks = true,
     townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
@@ -693,8 +691,8 @@ function ns.BuildQoLLootPage(parent, y)
         { type = "label", text = "Pick Up Cheapest Item" },
         { type = "label", text = "" }
     ); y = y - h
-    if ns.KeyField and keyRow then   -- keyRow is nil while the settings search scans this page
-        ns.KeyField(keyRow._leftRegion, "NAOWHFOREVER_BAGSPACE_PICKUP", "Pick Up Cheapest Item")
+    if keyRow then   -- nil while the settings search scans this page
+        ns.UI.KeyField(keyRow._leftRegion, "NAOWHFOREVER_BAGSPACE_PICKUP", "Pick Up Cheapest Item")
     end
     _, h = W:Button(parent, "Ignore List", y, function()
         if ns.ShowBagSpaceIgnoreList then ns.ShowBagSpaceIgnoreList() end

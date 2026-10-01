@@ -20,6 +20,9 @@ Locales\ruRU.lua [AllowLoadTextLocale ruRU]
 # hang off.
 Core\NaowhForever_Core.lua
 
+# ns.PlaceWaypoint: a waypoint (or TomTom's) for any module. Needs the Core.
+Core\NaowhForever_Waypoint.lua
+
 # The widget kit: ns.UI, the shim every options page calls in place of EllesmereUI's
 # factory. Needs ns.THEME and the Core primitives.
 Core\NaowhForever_Widgets.lua
@@ -104,9 +107,6 @@ QoL\NaowhForever_Restock.lua
 QoL\NaowhForever_BagSpace.lua
 QoL\NaowhForever_Alts.lua
 QoL\NaowhForever_Mail.lua
-DungeonQuests\NaowhForever_DungeonQuestData.lua
-DungeonQuests\NaowhForever_DungeonQuestChains.lua
-DungeonQuests\NaowhForever_DungeonQuests.lua
 # Discovery: the library books. The data loads first; the module reads it.
 Discovery\NaowhForever_DiscoveryData.lua
 Discovery\NaowhForever_Discovery.lua
@@ -119,6 +119,9 @@ GearSets\NaowhForever_GearSets.lua
 BiS\NaowhForever_BiSData.lua
 BiS\NaowhForever_DungeonLoot.lua
 BiS\NaowhForever_BiS.lua
+# Dungeon Journal: every dungeon's bosses, loot and quests. Its own XML loads its files in
+# order (see DungeonJournal/README.md). Loads after BiS, whose list and class rules it reads.
+DungeonJournal\DungeonJournal.xml
 Blessings\NaowhForever_Blessings.xml
 Blessings\NaowhForever_Blessings.lua
 Blessings\NaowhForever_BlessingsPage.lua

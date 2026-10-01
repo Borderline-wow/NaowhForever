@@ -428,6 +428,23 @@ function ns.AddBisItem(value)
     ns.Print(("Added %s to your BiS %s as #%d."):format(Name(id), SLOT_NAME[slot], #Picks(list, slot)))
 end
 
+-- Moves the item to #1 in each slot it is listed in.
+function ns.PromoteBisItem(itemID)
+    local list = List()
+    for slot in pairs(SLOT_NAME) do
+        local picks = Picks(list, slot)
+        for i = 2, #picks do
+            if picks[i] == itemID then
+                table.remove(picks, i)
+                table.insert(picks, 1, itemID)
+                Store(list, slot, picks)
+                break
+            end
+        end
+    end
+    Changed()
+end
+
 function ns.RemoveBisItem(itemID)
     local list = List()
     for slot in pairs(SLOT_NAME) do
@@ -795,6 +812,9 @@ local function Usable(class, item)
     if RELIC[sub] then return RELIC[sub] == class end
     return sub == (req < 40 and ARMOR_BEFORE_40[class] or ARMOR[class])
 end
+-- The Dungeon Journal's item facts start with the same four fields, so it asks here too.
+ns.ClassCanUse = Usable
+ns.BisSlotsFor = SlotsFor
 
 -- Dungeon drops for the slot that your class can use and the ranking leaves out, highest
 -- required level first; near keeps only those within 10 levels of yours.
@@ -1245,6 +1265,11 @@ end
 
 -- The #1 pick in every empty slot from the spec's ranking, skipping items already picked
 -- elsewhere, so the second ring or trinket gets the next one down. Returns how many.
+-- True while this character's list has nothing picked in any slot.
+function ns.BisListIsEmpty()
+    return next(List().slots) == nil
+end
+
 function ns.FillBisFromRanking()
     local list = List()
     local spec = CurrentSpec()

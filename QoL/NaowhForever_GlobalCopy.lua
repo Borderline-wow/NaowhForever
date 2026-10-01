@@ -25,43 +25,17 @@ local function CanAccessAll(...)
     return not canaccessallvalues or canaccessallvalues(...)
 end
 
+-- Global Copy's keyboard watch goes back on (Apply) once the box closes.
+local function Reapply()
+    Apply()
+end
+
 local function ShowCopyBox(title, text)
     if not text or text == "" then
         ns.Print("No copyable text found.")
         return
     end
-    local UI = ns.UI
-    local dimmer, panel = ns.MakeModal(520, 260, "globalCopy")
-    local head = UI.KeepFont(panel, "head", 14, "OUTLINE", T.accent)
-    head:SetPoint("TOPLEFT", 14, -12)
-    head:SetText(title)
-    local hint = UI.KeepFont(panel, "hint", 11, nil, T.muted)
-    hint:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -6)
-    hint:SetText("Ctrl+A, Ctrl+C to copy")
-    UI.KeepButton(panel, "close", "X", 22, 22, function() dimmer:Hide() end):SetPoint("TOPRIGHT", -8, -8)
-
-    local scroll = UI.Keep(panel, "scroll", function(p)
-        local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
-        ns.Solid(sf, "BACKGROUND", T.bg, 1):SetAllPoints()
-        local eb = CreateFrame("EditBox", nil, sf)
-        eb:SetMultiLine(true)
-        eb:SetAutoFocus(false)
-        eb:SetFontObject("GameFontHighlight")
-        eb:SetWidth(460)
-        eb:SetTextInsets(4, 4, 4, 4)
-        sf:SetScrollChild(eb)
-        sf.box = eb
-        return sf
-    end)
-    scroll:SetPoint("TOPLEFT", 14, -54)
-    scroll:SetPoint("BOTTOMRIGHT", -32, 14)
-    local box = scroll.box
-    box:SetText(text)
-    box:SetScript("OnEscapePressed", function() dimmer:Hide() end)
-    dimmer.onClose = function() box:ClearFocus(); Apply() end
-    dimmer:Show()
-    box:SetFocus()
-    box:HighlightText()
+    ns.ShowCopyBox(title, text, Reapply)
 end
 
 local function FrameText(frame)
@@ -214,6 +188,13 @@ local function ShowIDCard(info, id, title)
     linkButton:SetPoint("LEFT", idButton, "RIGHT", 8, 0)
     dimmer.onClose = function() box:ClearFocus(); Apply() end
     dimmer:Show(); Select(S.Get("tooltipCopyFormat"))
+end
+
+-- The copy card for anything with an ID the tooltips do not cover (the Dungeon Journal's
+-- quests): kind is Wowhead's ("quest"), label names the ID.
+function ns.ShowCopyCard(kind, label, id, title)
+    if InCombatLockdown() then ns.Print("Copy cards are available outside combat."); return end
+    ShowIDCard({ kind = kind, label = label }, id, title)
 end
 
 function ns.PreviewTooltipCopyCard()

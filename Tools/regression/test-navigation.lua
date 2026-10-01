@@ -137,7 +137,7 @@ Load("Core/NaowhForever_Search.lua")
 Load("QoL/NaowhForever_QoL.lua")
 local UI = ns.UI
 ns.BuildQoLInterfacePage = function(parent, y) return y end
-for _, name in ipairs({ "DiscoverySettings", "ProfessionSettings", "MacroSettings", "AuraBuffSettings",
+for _, name in ipairs({ "JournalSettings", "DiscoverySettings", "ProfessionSettings", "MacroSettings", "AuraBuffSettings",
     "ThreatMeterSettings", "SwingTimerSettings", "TopBarSettings", "ActionBarSettings" }) do
     ns[name] = UI.ModuleSettings(name, { enabled = false })
 end
@@ -162,7 +162,7 @@ Check(Text("General") ~= nil, "opens to QoL General")
 Check(Text("ADVENTURE") and Text("COMBAT") and Text("UTILITIES"), "grouped navigation")
 Check(not Text("Custom Reminders"), "unfinished module is absent from navigation")
 Check(Button("Quality of Life").switch == nil, "navigation does not toggle modules")
-for _, name in ipairs({ "Quality of Life", "Dungeon Quests", "Discovery", "BiS List", "Professions",
+for _, name in ipairs({ "Quality of Life", "Dungeon Journal", "Discovery", "BiS List", "Professions",
     "Gear & Trinkets", "Blessings", "AuraBuffs", "Threat Meter", "Swing Timer", "Smart Reminders",
     "Macros", "Action Bars", "Top Bar" }) do
     Check(Button(name).icon ~= nil, name .. " is listed with its glyph")

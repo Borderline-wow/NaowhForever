@@ -51,6 +51,11 @@ local env={_G={NaowhForever=ns},GameTooltip=tooltip,ItemRefTooltip=Frame(),Shopp
     strsplit=function(delim,s) local a={};for part in s:gmatch('[^'..delim..']+') do a[#a+1]=part end;return unpack(a) end,
 }
 setmetatable(env,{__index=_G})
+-- The copy box is the Core's (ns.ShowCopyBox): load that function alone from it.
+local core=assert(io.open('Core/NaowhForever_Core.lua','rb')):read('*a')
+local first=assert(core:find('function ns.ShowCopyBox',1,true))
+local last=assert(core:find('-- Confirm for a reload',first,true))
+local copy=assert(loadstring(core:sub(first,last-1)));setfenv(copy,setmetatable({ns=ns},{__index=env}));copy()
 local chunk=assert(loadfile('QoL/NaowhForever_GlobalCopy.lua'));setfenv(chunk,env);chunk()
 local function clear()
  tooltip.lines={};if tooltip.scripts.OnTooltipCleared then tooltip.scripts.OnTooltipCleared(tooltip) end

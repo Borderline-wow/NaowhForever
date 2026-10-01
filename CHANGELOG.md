@@ -3,6 +3,27 @@
 ## Unreleased
 
 ### Added
+- Dungeon Journal: every dungeon's bosses in the order you meet them, what each one drops
+  and how often, with your BiS marked and how many of them each boss has. Upgrade marks
+  what beats your gear, and right-click puts an item on your BiS list. Your quests for the
+  dungeon are listed too, with a waypoint each, and right-click one to share it with your
+  party. The group icon counts who else is on each quest; click it on one you don't have
+  and a member running Naowh Forever shares it with you (Quest Share Requests, in the
+  Journal's settings). Tracker opens a dungeon's quests in a small window to keep on
+  screen while you run it. Each dungeon says whose ground its entrance is on, and the pin
+  by its name points you there. Open the world map inside a dungeon and it sits beside the map; browse any
+  dungeon in its own window with /nfjournal (or /nfdj), or bind Boss Loot at Cursor to see
+  what the boss you hover drops. Search every dungeon for an item or boss, or list only
+  the BiS you are still missing. The switch beside the search lists the dungeons on
+  Alliance or Horde ground, or both. Loot your class can't use is hidden, and nearly every
+  boss has a tip from Naowh, to read on hover and share in chat. A skull on each boss
+  counts how many times this character has killed it; click it for each kill, who was in
+  your group (tanks, healers, then damage, in class colours), everything that dropped, who
+  won it and everyone's rolls. The Dungeon Journal page lists your latest kills and loot,
+  and where. The three raids
+  announced for Forever are listed too (Onyxia's Lair, The Barrow Deeps and Hyjal Summit),
+  with their bosses and entrances; their loot fills in once it is known. Off by default:
+  turn it on in the Dungeon Journal page.
 - Top Bar: hover the clock to see your saved instances, boss progress and when each resets;
   `/nf lockouts` lists them in chat.
 - Campfire: Ctrl-click the Camp Nearby alert to dismiss it until you leave that campfire.
@@ -20,6 +41,11 @@
   you type in chat, it still links it.
 
 ### Changed
+- Dungeon Quests is now part of the Dungeon Journal. Each dungeon's page lists your quests
+  there: what to do first for one you can't pick up yet (and the waypoint points there),
+  the level it needs, Too high for one five levels or more above you, and the whole chain
+  leading up to it. The separate Dungeon Quests page is gone, and its tracker is the
+  Journal's Tracker now; /nf dungeon and the Top Bar button open the Journal instead.
 - Patch Notes: what's new in 0.5.18-beta on the in-game page.
 - Campfire: each camp benefit shows as a short stat tag (+Spirit, +ATK, +ARM, +STR, +STA, +INT,
   +MP5, +Stats, +Crit, +Rested) instead of the camp feature's name.
@@ -37,8 +63,6 @@
 - QoL > General: Co-Tank Debuffs now sits inside Co-Tank Frame, and Stealth Reminder's colours
   and texts fold away under Appearance & text. Turning a feature off folds its settings away
   again.
-- Dungeon Quests: a quest you can't pick up yet says what to do first, and its waypoint
-  points there. Once that's done, it shows the level you need to pick it up.
 - QoL: the auction house price on item tooltips is now switched in QoL > Tooltip Display
   (Auction House Price), with the other tooltip settings. Your setting is kept.
 

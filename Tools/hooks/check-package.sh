@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Checks the zip the packager built in .release: one NaowhForever/ folder at the top, every
-# file the TOC loads and every library .pkgmeta fetches is inside, and no tooling ships.
+# file the TOC loads (following the XML files it includes) and every library .pkgmeta
+# fetches is inside, and no tooling ships.
 set -u
 shopt -s nullglob
 zips=(.release/*.zip)
@@ -19,13 +20,12 @@ outside=$(echo "$list" | grep -v '^NaowhForever/' || true)
 
 has() { echo "$list" | grep -qxF "NaowhForever/$1"; }
 
-while IFS= read -r line; do
-    line="${line%$'\r'}"
-    case "$line" in "" | "#"* | " "*) continue ;; esac
-    path="${line%% \[*}"
-    path="${path//\\//}"
+# Every file the TOC loads, following its XML includes (Tools/hooks/toc_files.py).
+while IFS= read -r path; do
+    path="${path%$'\r'}"
+    [ -n "$path" ] || continue
     has "$path" || fail "TOC file missing: $path"
-done < NaowhForever.toc
+done < <(python3 Tools/hooks/toc_files.py)
 
 while IFS= read -r dir; do
     echo "$list" | grep -q "^NaowhForever/$dir/." || fail "library missing: $dir"

@@ -1,12 +1,16 @@
 """Checks that every file NaowhForever.toc loads exists, with the same letter case.
 
 The game only reports a missing file as an error at login, and a path whose case differs
-works on one machine and fails on another. Run from the repo root.
+works on one machine and fails on another. Follows the XML files the TOC includes (see
+toc_files.py), so a module's own load file is checked too. The libraries' files that
+Libs/embeds.xml lists are not in git (the packager fetches them, see .pkgmeta), so they are
+left to check-package.sh, which checks the built package. Run from the repo root.
 """
 import os
 import sys
 
-TOC = "NaowhForever.toc"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from toc_files import files  # noqa: E402
 
 
 def exists_exact(path):
@@ -23,16 +27,9 @@ def exists_exact(path):
 
 
 def main():
-    problems = []
-    with open(TOC, encoding="utf-8") as toc:
-        for number, line in enumerate(toc, 1):
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            # "Locales\deDE.lua [AllowLoadTextLocale deDE]": the path is before the options.
-            path = line.split(" [", 1)[0].strip().replace("\\", "/")
-            if not exists_exact(path):
-                problems.append(f"{TOC}:{number}: {path} is missing or its case differs")
+    problems = [f"{listed_at}: {path} is missing or its case differs"
+                for path, listed_at in files()
+                if not listed_at.startswith("Libs/") and not exists_exact(path)]
     for problem in problems:
         print(problem)
     return 1 if problems else 0

@@ -462,6 +462,16 @@ function ns.Button(parent, text, w, h, onClick)
     return btn
 end
 
+-- An ns.Button edged in the accent: the window's main action (Unlock Mode, Close, Open
+-- Dungeon Journal). Theme colour, read when the button is made.
+function ns.AccentBorder(frame)
+    if not (frame and frame._border) then return frame end
+    local accent = ns.THEME.accent
+    frame._rest = accent
+    frame._border:SetColor(accent.r, accent.g, accent.b, 1)
+    return frame
+end
+
 function ns.SetButtonText(btn, text)
     if not (btn and btn.label) then return end
     btn.label:SetText(ns.L(text))
@@ -611,6 +621,8 @@ function ns.NewEditBox(parent)
     box:SetTextInsets(6, 6, 0, 0)
     ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
     box._border = ns.Border(box, BLACK)
+    -- Public for a caller that styles its own box (the accent while typing).
+    box.border = box._border
     box:HookScript("OnEnter", function()
         local a = ns.THEME.accent
         box._border:SetColor(a.r, a.g, a.b, 1)
@@ -681,6 +693,46 @@ function ns.PromptText(title, text, maxLetters, onAccept)
         :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
     box:SetScript("OnEnterPressed", Accept)
     box:SetScript("OnEscapePressed", function() dimmer:Hide() end)
+    dimmer:Show()
+    box:SetFocus()
+    box:HighlightText()
+end
+
+-- The game cannot put text on the clipboard for an addon: this box shows it selected, for
+-- Ctrl+C. onClose, when given, runs once it is closed.
+function ns.ShowCopyBox(title, text, onClose)
+    local UI, T = ns.UI, ns.THEME
+    local dimmer, panel = ns.MakeModal(520, 260, "copyBox")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE", T.accent)
+    head:SetPoint("TOPLEFT", 14, -12)
+    head:SetText(title)
+    local hint = UI.KeepFont(panel, "hint", 11, nil, T.muted)
+    hint:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -6)
+    hint:SetText("Ctrl+A, Ctrl+C to copy")
+    UI.KeepButton(panel, "close", "X", 22, 22, function() dimmer:Hide() end):SetPoint("TOPRIGHT", -8, -8)
+
+    local scroll = UI.Keep(panel, "scroll", function(p)
+        local sf = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
+        ns.Solid(sf, "BACKGROUND", T.bg, 1):SetAllPoints()
+        local eb = CreateFrame("EditBox", nil, sf)
+        eb:SetMultiLine(true)
+        eb:SetAutoFocus(false)
+        eb:SetFontObject("GameFontHighlight")
+        eb:SetWidth(460)
+        eb:SetTextInsets(4, 4, 4, 4)
+        sf:SetScrollChild(eb)
+        sf.box = eb
+        return sf
+    end)
+    scroll:SetPoint("TOPLEFT", 14, -54)
+    scroll:SetPoint("BOTTOMRIGHT", -32, 14)
+    local box = scroll.box
+    box:SetText(text)
+    box:SetScript("OnEscapePressed", function() dimmer:Hide() end)
+    dimmer.onClose = function()
+        box:ClearFocus()
+        if onClose then onClose() end
+    end
     dimmer:Show()
     box:SetFocus()
     box:HighlightText()

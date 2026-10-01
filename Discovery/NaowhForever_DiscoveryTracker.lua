@@ -13,7 +13,6 @@ local BLACK = { r = 0, g = 0, b = 0 }
 local BAR_BG = { r = 0x14 / 255, g = 0x16 / 255, b = 0x19 / 255 }
 local READY = { r = 0x19 / 255, g = 1, b = 0x19 / 255 }
 
--- GAP, NUDGE and the 3px line padding are the Dungeon Quests tracker's, so the rows match.
 -- NUDGE lifts the text inside its row: the font leaves room above its capitals.
 local PANEL_W, BODY_W, PIN, INSET, GAP, NUDGE = 300, 284, 18, 4, 5, 2
 
@@ -116,7 +115,7 @@ local function BuildPanel()
     end)
 
     local bar = CreateFrame("StatusBar", nil, panel)
-    -- The height of the Dungeon Quests tracker's dropdown, and spaced like it.
+    -- As tall as the dropdown under it, and spaced like it.
     bar:SetSize(BODY_W, 24)
     bar:SetPoint("TOPLEFT", panel.title, "BOTTOMLEFT", 0, -6)
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
@@ -129,8 +128,8 @@ local function BuildPanel()
     bar:SetScript("OnLeave", GameTooltip_Hide)
     panel.bar = bar
 
-    -- With Always Show, in a zone with no books left: pick another zone to list. The same
-    -- dropdown as the Dungeon Quests tracker's; its zones are handed to it on every redraw.
+    -- With Always Show, in a zone with no books left: pick another zone to list. Its zones
+    -- are handed to it on every redraw.
     panel.picker = ns.UI.BuildDropdownControl(panel, BODY_W, panel:GetFrameLevel() + 3, {}, {},
         function() return pickedZone end,
         function(id) S.Set("trackerZone", id) end)
@@ -366,8 +365,7 @@ local function Render(zone, left)
     panel.title:SetText("Library Books  " .. ns.Color("muted", L.ZoneName(zone)))
     RenderBar()
     local listH = Layout(entries)
-    -- 8 above the title, 6 above and below the bar and the dropdown, 8 under the list: the
-    -- Dungeon Quests tracker's spacing.
+    -- 8 above the title, 6 above and below the bar and the dropdown, 8 under the list.
     local pickerH = left and (panel.picker:GetHeight() + 6) or 0
     panel:SetHeight(8 + math.ceil(panel.title:GetStringHeight()) + 6 + panel.bar:GetHeight() + 6
         + pickerH + listH + 8)

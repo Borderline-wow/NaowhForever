@@ -6,7 +6,7 @@ upkeep it adds and how much code it brings. If you want to build a feature, mess
 Glyalith on [Discord](https://discord.gg/naowh) before you start.**
 
 Naowh Forever is Naowh's companion addon for the WoW Forever client: Smart Reminders,
-BiS, Dungeon Quests, Professions, Gear Sets, Swing Timer, Threat Meter, QoL, macros and
+BiS, Dungeon Journal, Professions, Gear Sets, Swing Timer, Threat Meter, QoL, macros and
 buff reminders, in one window.
 
 Thanks for wanting to help! Pull requests are welcome. This document explains how PRs
@@ -71,10 +71,29 @@ comment, sent back for changes, or merged and fixed up by me.
   the nearest existing example in the same module and copy its shape.
 - Each module has its own folder with `NaowhForever_<Name>.lua` files. Add new files to
   `NaowhForever.toc` next to the rest of that module's files.
+- A module with many files loads them through its own XML file, which the TOC lists once,
+  and names its files plainly inside its folder. The Dungeon Journal is the example:
+  `DungeonJournal/DungeonJournal.xml`, with its layout in `DungeonJournal/README.md`. Add a
+  new file to that XML. The checks read the XML too, so its files are linted and compiled.
 - Settings go through `UI.ModuleSettings`, option widgets through the `ns.UI` kit in
   `Core/NaowhForever_Widgets.lua`, confirmations through `ns.Confirm` / `ns.PromptText`,
   and movable frames through `UI.AttachMover` so they show up in Unlock Mode.
 - Keep comments short and only where the code cannot speak for itself.
+
+### Style
+
+- Every colour, size and gap is a named value, with a comment when the name alone does not
+  say what it is for: in the module's style file when more than one file uses it (the
+  Dungeon Journal's `View/Style.lua`), else at the top of the file that does. No bare
+  numbers in drawing code.
+- Edges are 1px black: buttons and input boxes have it by default, and a window's own
+  panels use the module's black edge colour. The accent is Naowh Blue, `#0091ED`
+  (`T.accent`), and a window's main action is edged in it (`ns.AccentBorder`).
+- Text goes through `ns.Font`, in the Naowh font. That font leaves room above its
+  capitals, so its letters sit under the middle of their font string: an icon beside text
+  is moved down to the letters by a named offset with its reason (the Dungeon Journal's
+  `PIN_DROP`, the Discovery tracker's `NUDGE`), never an unnamed number. Measure it in game
+  rather than guessing.
 
 ## Changelog and versions
 

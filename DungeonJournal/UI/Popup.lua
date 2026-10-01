@@ -1,0 +1,76 @@
+-------------------------------------------------------------------------------
+--  UI/Popup.lua -- Boss Loot at Cursor: a key binding (Naowh Forever's own section in Key
+--  Bindings) that opens a small panel at the mouse with the loot of the boss you hover, or
+--  else your target, drawn by the Dungeon Journal's view: BiS marked, right-click for the
+--  BiS list. Pressing the key again, or the X, closes it. Nothing is made until the key is
+--  first pressed, which turns the module on.
+-------------------------------------------------------------------------------
+local ns = _G.NaowhForever
+local J = ns.Journal
+
+local St = J.Style
+local PANEL_W, PANEL_PAD, PANEL_HEADER = St.PANEL_W, St.PANEL_PAD, St.PANEL_HEADER
+
+BINDING_NAME_NAOWHFOREVER_BOSSLOOT = "Boss Loot at Cursor"
+
+local CURSOR_OFFSET = 12
+
+local popup, view
+
+-- The panel grows with what the view draws, also when a late item name redraws it.
+local function Drawn(height)
+    popup:SetHeight(height + PANEL_HEADER + PANEL_PAD)
+end
+
+local function Build()
+    popup = J.View.Parts.Panel("")
+    popup:SetFrameStrata("DIALOG")
+    view = J.View.New(popup)
+    view:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEADER)
+    view:SetWidth(PANEL_W - PANEL_PAD * 2)
+    view.onResize = Drawn
+end
+
+local function Open(boss, dungeon)
+    if not popup then Build() end
+    local x, y = GetCursorPosition()
+    popup:SetScale(ns.UIScale())
+    local scale = popup:GetEffectiveScale()
+    popup:ClearAllPoints()
+    popup:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale + CURSOR_OFFSET, y / scale - CURSOR_OFFSET)
+    popup.title:SetText(dungeon.name:upper())
+    popup:Show()
+    view:DrawBossLoot(boss, dungeon)
+end
+
+-- The binding's action (Bindings.xml).
+function NaowhForever_BossLoot()
+    if popup and popup:IsShown() then
+        popup:Hide()
+        return
+    end
+    J.TurnOn()
+    local unit = UnitExists("mouseover") and "mouseover" or "target"
+    if not UnitExists(unit) then
+        ns.Print("Hover or target a boss, then press the key again.")
+        return
+    end
+    -- A GUID the game keeps secret (enemies in combat, in some places) cannot be read.
+    local guid = UnitGUID(unit)
+    local npc = guid and not issecretvalue(guid) and J.NpcID(guid)
+    if not npc then
+        ns.Print("That is not a boss the Dungeon Journal can read right now.")
+        return
+    end
+    local boss, dungeon = J.Boss(npc)
+    if not boss then
+        ns.Print(("%s is not a boss the Dungeon Journal knows."):format(UnitName(unit) or "That"))
+        return
+    end
+    Open(boss, dungeon)
+end
+
+-- Turning the module off closes it.
+J.Settings.OnChange(function(key, value)
+    if key == "enabled" and not value and popup then popup:Hide() end
+end)

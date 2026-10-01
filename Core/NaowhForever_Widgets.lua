@@ -356,6 +356,11 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     Paint()
     track._refreshValue = Paint
     track._valBox = valBox
+    -- Its parts, public for a caller that styles its own slider (the Dungeon Journal's
+    -- opacity): the rail, the filled part, the thumb, and the value box with its fill and
+    -- border ({ _frame, SetColor }). Paint only sizes and moves them, so a restyle lasts.
+    track.rail, track.fill, track.thumb = rail, fill, thumb
+    track.valueBox, track.valueFill, track.valueBorder = valBox, boxBg, boxBorder
     return track, valBox, Paint
 end
 
@@ -885,6 +890,72 @@ function W:Button(parent, text, yOffset, onClick)
     return Collapsed(parent, row, ROW_H)
 end
 
+local MODIFIER_KEYS = { LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true, LALT = true, RALT = true }
+
+-- A key field for one binding action (Bindings.xml), saved where the game's Key Bindings
+-- screen saves it.
+-- Click it and press a key to bind, Escape to cancel; right-click clears it.
+-- The page reuses its rows, so a region that already has its key button keeps it.
+function UI.KeyField(rgn, action, label)
+    if rgn._keyField then return end
+    rgn._keyField = true
+    local btn = ns.Button(rgn, "", 150, 26)
+    btn:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    local capturing
+    local function Show()
+        local key = GetBindingKey(action)
+        btn.label:SetText(capturing and "Press a key..." or key and GetBindingText(key) or "|cff808080Not bound|r")
+        btn:SetAlpha(InCombatLockdown() and 0.4 or 1)
+    end
+    local function Stop()
+        capturing = false
+        btn:EnableKeyboard(false)
+        Show()
+    end
+    local function Save()
+        SaveBindings(GetCurrentBindingSet())
+    end
+    btn:SetScript("OnClick", function(_, button)
+        if InCombatLockdown() then return end
+        if button == "RightButton" then
+            for _, key in ipairs({ GetBindingKey(action) }) do SetBinding(key) end
+            Save()
+            Stop()
+            return
+        end
+        capturing = true
+        btn:EnableKeyboard(true)
+        btn:SetPropagateKeyboardInput(false)
+        Show()
+    end)
+    btn:SetScript("OnKeyDown", function(_, key)
+        if MODIFIER_KEYS[key] then return end
+        if key == "ESCAPE" or InCombatLockdown() then
+            Stop()
+            return
+        end
+        local combo = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
+            .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
+        local previous = GetBindingAction(combo)
+        for _, old in ipairs({ GetBindingKey(action) }) do SetBinding(old) end
+        SetBinding(combo, action)
+        Save()
+        if previous ~= "" and previous ~= action then
+            ns.Print(("%s is now bound to %s instead of %s."):format(GetBindingText(combo), label,
+                GetBindingName(previous)))
+        end
+        Stop()
+    end)
+    -- Setting an OnKeyDown script turns keyboard input on; it stays off until the field is clicked.
+    btn:EnableKeyboard(false)
+    btn:SetScript("OnShow", Show)
+    btn:SetScript("OnHide", function() if capturing then Stop() end end)
+    ns.Tooltip(btn, label, "Click, then press a key to bind it. Escape cancels; right-click clears. "
+        .. "The same binding as in Key Bindings > Naowh Forever.")
+    Show()
+end
+
 -- A full-row Reload UI button (see Reload UI in the Core file).
 function W:ReloadButton(parent, yOffset)
     local row, h = self:Button(parent, "Reload UI", yOffset)
@@ -1234,6 +1305,55 @@ end
 
 -- Font dropdown data: "" follows the Addon Font, then every SharedMedia font. A saved font
 -- that has since gone missing stays listed so the dropdown does not show a blank.
+-------------------------------------------------------------------------------
+--  Slim scroll
+-------------------------------------------------------------------------------
+-- A scroll frame with a thin scrollbar in the theme's colours, in place of Blizzard's grey
+-- one with its arrow buttons: a track and a thumb sized to how much of the content shows,
+-- dragged, clicked or moved with the mouse wheel. It hides while everything fits. The bar
+-- sits to the right of the frame, width + gap inside whatever the frame is anchored in.
+local SCROLL_STEP = 40
+
+function UI.SlimScroll(parent, width, gap)
+    width, gap = width or 6, gap or 6
+    local scroll = CreateFrame("ScrollFrame", nil, parent)
+    local bar = CreateFrame("Slider", nil, parent)
+    bar:SetOrientation("VERTICAL")
+    bar:SetWidth(width)
+    bar:SetPoint("TOPLEFT", scroll, "TOPRIGHT", gap, 0)
+    bar:SetPoint("BOTTOMLEFT", scroll, "BOTTOMRIGHT", gap, 0)
+    bar:SetObeyStepOnDrag(false)
+    local track = ns.Solid(bar, "BACKGROUND", T.line, 0.6)
+    track:SetAllPoints()
+    local thumb = bar:CreateTexture(nil, "ARTWORK")
+    thumb:SetColorTexture(T.muted.r, T.muted.g, T.muted.b, 0.8)
+    thumb:SetWidth(width)
+    bar:SetThumbTexture(thumb)
+    bar:SetMinMaxValues(0, 0)
+    bar:Hide()
+    bar:SetScript("OnValueChanged", function(_, value) scroll:SetVerticalScroll(value) end)
+    bar:SetScript("OnEnter", function() thumb:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    bar:SetScript("OnLeave", function() thumb:SetColorTexture(T.muted.r, T.muted.g, T.muted.b, 0.8) end)
+
+    scroll:SetScript("OnScrollRangeChanged", function(self, _, range)
+        range = range or self:GetVerticalScrollRange()
+        local shown = self:GetHeight()
+        bar:SetMinMaxValues(0, range)
+        bar:SetShown(range > 0)
+        thumb:SetHeight(math.max(24, bar:GetHeight() * shown / (shown + range)))
+        if bar:GetValue() > range then bar:SetValue(range) end
+    end)
+    scroll:SetScript("OnVerticalScroll", function(_, offset)
+        if math.abs(bar:GetValue() - offset) > 0.5 then bar:SetValue(offset) end
+    end)
+    scroll:EnableMouseWheel(true)
+    scroll:SetScript("OnMouseWheel", function(_, delta)
+        bar:SetValue(bar:GetValue() - delta * SCROLL_STEP)
+    end)
+    scroll.bar = bar
+    return scroll
+end
+
 function UI.FontChoices(selected)
     local values, order = { [""] = "Addon Font" }, { "" }
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
@@ -1275,8 +1395,11 @@ UI.PREVIEW_NOTE = "Preview build: these settings save to your profile now, and e
 -- read through defaults so a key an older profile never wrote picks up the current default.
 -- The row makers return W:DualRow configs; `on` names the master toggle a row depends on,
 -- and every toggle redraws the page so dependants dim and undim with it.
+-- S.OnChange(fn) calls fn(key, value) after every S.Set, in the order they were added: a
+-- module listens to its own settings there instead of wrapping S.Set with hooksecurefunc.
 function UI.ModuleSettings(key, defaults)
     local S = {}
+    local listeners = {}
     function S.DB()
         local root = ns.SettingsRoot()
         if type(root[key]) ~= "table" then root[key] = {} end
@@ -1287,7 +1410,11 @@ function UI.ModuleSettings(key, defaults)
         if v == nil then return defaults[k] end
         return v
     end
-    function S.Set(k, v) S.DB()[k] = v end
+    function S.Set(k, v)
+        S.DB()[k] = v
+        for i = 1, #listeners do listeners[i](k, v) end
+    end
+    function S.OnChange(fn) listeners[#listeners + 1] = fn end
 
     local function Row(cfg, k, on)
         cfg.getValue = function() return S.Get(k) end

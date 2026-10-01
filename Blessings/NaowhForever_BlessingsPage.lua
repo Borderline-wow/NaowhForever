@@ -9,71 +9,8 @@ local B = ns.Blessings
 
 local CELL, GAP, NAME_WIDTH = 32, 6, 170
 local EMPTY = 134400
-local MODIFIER_KEYS = { LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true, LALT = true, RALT = true }
 
--- A key field for one binding action, saved in the same place as the Key Bindings screen.
--- Click it and press a key to bind, Escape to cancel; right-click clears it.
--- The page reuses its rows, so a region that already has its key button keeps it.
-local function KeyField(rgn, action, label)
-    if rgn._keyField then return end
-    rgn._keyField = true
-    local btn = ns.Button(rgn, "", 150, 26)
-    btn:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
-    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    local capturing
-    local function Show()
-        local key = GetBindingKey(action)
-        btn.label:SetText(capturing and "Press a key..." or key and GetBindingText(key) or "|cff808080Not bound|r")
-        btn:SetAlpha(InCombatLockdown() and 0.4 or 1)
-    end
-    local function Stop()
-        capturing = false
-        btn:EnableKeyboard(false)
-        Show()
-    end
-    local function Save()
-        SaveBindings(GetCurrentBindingSet())
-    end
-    btn:SetScript("OnClick", function(_, button)
-        if InCombatLockdown() then return end
-        if button == "RightButton" then
-            for _, key in ipairs({ GetBindingKey(action) }) do SetBinding(key) end
-            Save()
-            Stop()
-            return
-        end
-        capturing = true
-        btn:EnableKeyboard(true)
-        btn:SetPropagateKeyboardInput(false)
-        Show()
-    end)
-    btn:SetScript("OnKeyDown", function(_, key)
-        if MODIFIER_KEYS[key] then return end
-        if key == "ESCAPE" or InCombatLockdown() then
-            Stop()
-            return
-        end
-        local combo = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
-            .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
-        local previous = GetBindingAction(combo)
-        for _, old in ipairs({ GetBindingKey(action) }) do SetBinding(old) end
-        SetBinding(combo, action)
-        Save()
-        if previous ~= "" and previous ~= action then
-            ns.Print(("%s is now bound to %s instead of %s."):format(GetBindingText(combo), label,
-                GetBindingName(previous)))
-        end
-        Stop()
-    end)
-    -- Setting an OnKeyDown script turns keyboard input on; it stays off until the field is clicked.
-    btn:EnableKeyboard(false)
-    btn:SetScript("OnShow", Show)
-    btn:SetScript("OnHide", function() if capturing then Stop() end end)
-    ns.Tooltip(btn, label, "Click, then press a key to bind it. Escape cancels; right-click clears. "
-        .. "The same binding as in Key Bindings > Naowh Forever.")
-    Show()
-end
-ns.KeyField = KeyField
+local KeyField = ns.UI.KeyField
 
 function ns.BuildQoLBlessingsPage(parent, y)
     local UI = ns.UI

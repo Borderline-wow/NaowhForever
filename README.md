@@ -6,7 +6,7 @@
 
 **Naowh's companion addon for World of Warcraft Forever**
 
-Boss reminders, your BiS list, dungeon quests, professions, gear swaps
+Boss reminders, your BiS list, a dungeon journal, professions, gear swaps
 and a lot of quality of life, all in one window.
 
 [![Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=for-the-badge&logo=discord&logoColor=white&labelColor=0b1a24)](https://discord.gg/naowh)
@@ -26,7 +26,7 @@ and a lot of quality of life, all in one window.
 | --- | --- |
 | **Smart Reminders** | Tells you what to press when a boss ability is about to land, for dungeon and raid bosses, with cooldown presets for your spec. |
 | **BiS List** | Your best-in-slot list, marked on tooltips and called out when it drops. |
-| **Dungeon Quests** | Every dungeon quest on Forever, and a tracker for the dungeon you are in. |
+| **Dungeon Journal** | Every dungeon on Forever, the new ones included, and the raids: its bosses in order and what they drop, your BiS marked, your quests there with what to do first, a tip from Naowh for each boss and how many times you have killed it. Beside the map when you press M in a dungeon. |
 | **Professions** | Recipes, reagents and crafting in one window, including the recipes you have not learned yet. |
 | **Gear & Trinkets** | Swap equipment sets from a bar, or automatically while you ride or rest. |
 | **Blessings** | Paladin blessings by class and player, shared with your group's paladins. |
@@ -60,7 +60,7 @@ character or share them with a friend.
 | --- | --- |
 | `/nf` | The main window (also `/naowh`, `/nao` and `/nsr`) |
 | `/nfbis` | Your BiS list |
-| `/nfdq` | Dungeon Quests |
+| `/nfjournal` | Dungeon Journal (also `/nfdj`) |
 | `/nfgear` | Gear Sets |
 | `/nfbless` | Blessings |
 | `/nfthreat` | Threat Meter |

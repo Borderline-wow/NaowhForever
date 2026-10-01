@@ -41,18 +41,10 @@ local ROWS = {
       [==[return ns.Color("accent", frame._tipTitle) .. "\n" .. b]==],
       [==[ns.Color("accent", "Title") .. "\n" .. "body"]==],
       [==["|cff0091ed" .. "Title" .. "|r\n" .. "body"]==] },
-    { [==[DungeonQuests/NaowhForever_DungeonQuests.lua]==],
-      [==[text = text .. "  " .. ns.Color("accentSoft", "(this quest)")]==],
-      [==["x" .. "  " .. ns.Color("accentSoft", "(this quest)")]==],
-      [==["x" .. "  |cff4db5f5(this quest)|r"]==] },
-    { [==[DungeonQuests/NaowhForever_DungeonQuests.lua]==],
-      [==[Add(ns.Color("accentSoft", dungeon.name) .. LevelRange(dungeon))]==],
-      [==[ns.Color("accentSoft", "Deadmines") .. " (10-20)"]==],
-      [==["|cff4db5f5" .. "Deadmines" .. "|r" .. " (10-20)"]==] },
-    { [==[DungeonQuests/NaowhForever_DungeonQuests.lua]==],
-      [==[InReach(dungeon) and IN_REACH or ns.Color("muted")]==],
-      [==[ns.Color("muted")]==],
-      [==["|cff9a9ea6"]==] },
+    { [==[DungeonJournal/View/QuestRows.lua]==],
+      [==[text = text .. "  " .. ns.Color("accentSoft", "(dungeon quest)")]==],
+      [==["x" .. "  " .. ns.Color("accentSoft", "(dungeon quest)")]==],
+      [==["x" .. "  |cff4db5f5(dungeon quest)|r"]==] },
     { [==[QoL/NaowhForever_BagSpace.lua]==],
       [==[("  " .. ns.Color("muted", "(%s each x%d)")):format(Money(each), count)]==],
       [==[("  " .. ns.Color("muted", "(%s each x%d)")):format("5g", 3)]==],
@@ -257,10 +249,10 @@ for _, r in ipairs(ROWS) do
 end
 
 -- Nothing in the addon spells a theme color out any more (comments may mention one).
+-- Every Lua file the TOC loads, following the XML files it includes.
 local toc = {}
-for line in io.lines("NaowhForever.toc") do
-    local path = line:gsub("\r$", ""):match("^([^#%s]%S*%.lua)")
-    if path and not path:find("^Locales") and not path:find("^Libs") then toc[#toc + 1] = path:gsub("\\", "/") end
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("%.lua$")) do
+    if not path:find("^Locales") and not path:find("^Libs") then toc[#toc + 1] = path end
 end
 Check(#toc > 50, "the TOC lists the addon's files")
 local left = {}

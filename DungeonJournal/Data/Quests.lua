@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  NaowhForever_DungeonQuestData.lua -- every dungeon quest on WoW Forever, from
+--  Data/Quests.lua -- every dungeon quest on WoW Forever, from
 --  Wowhead's Forever dungeon quest guide (patch 1.60.1, updated 2026-09-23). Generated;
 --  instance IDs are the Map table's for build 1.60.1.69913.
 --
@@ -22,9 +22,10 @@
 --  A step can be a table of IDs, one per faction, any of which counts. next runs
 --  alongside steps: next[i] = { uiMapID, x, y, where } is where steps[i] is picked up.
 -------------------------------------------------------------------------------
-local ns = _G.NaowhForever
+local J = _G.NaowhForever.Journal
 
-ns.DungeonQuests = {
+-- One entry per dungeon, matched to its Journal dungeon by name (Journal.lua).
+J.QuestData = {
     { name = "Ragefire Chasm", map = 389, levels = { 13, 18 }, quests = {
         { 5761, "Slaying the Beast", 9, "H", true, "Orgrimmar, The Drag - Neeru Fireblade (49.5, 50.6)", 1454, 49.5, 50.6 },
         { 5725, "The Power to Destroy...", 9, "H", true, "Undercity, Royal Quarter - Varimathras (56.2, 92.2)", 1458, 56.2, 92.2 },
@@ -161,7 +162,7 @@ ns.DungeonQuests = {
         { 2278, "The Platinum Discs", 40, "B", false, "Uldaman, room after Archaedas - an object" },
         { 1956, "Power in Uldaman", 35, "B", "pre", "Mage only - Dustwallow Marsh, N. of Stonemaul Ruins - Tabetha Complete 3 quests, starting with Return to the Marsh first (46.1, 57.1)", 1445, 46.1, 57.1, class = "MAGE" },
     } },
-    { name = "Krol'dok", map = nil, levels = { 40, 45 }, quests = {} },
+    { name = "Krol'dok Stronghold", map = nil, levels = { 40, 45 }, quests = {} },
     { name = "Zul'Farrak", map = 209, levels = { 44, 54 }, quests = {
         { 2936, "The Spider God", 40, "H", "pre", "Durotar, Sen'jin Village - Master Gadrin Complete 3 quests first, starting with Venom Bottles (56, 74.7)", 1411, 56.0, 74.7 },
         { 2991, "Nekrum's Medallion", 40, "A", "pre", "Blasted Lands, Nethergarde Keep - Thadius Grimshade Complete 3 quests first, starting with Witherbark Cages (66.9, 19.5)", 1419, 66.9, 19.5 },
@@ -196,7 +197,7 @@ ns.DungeonQuests = {
         { 3447, "Secret of the Circle", 46, "B", "pre", "Tanaris, S. of Gadgetzan - Marvon Rivetseeker Complete 2 quests first, starting with The Sunken Temple/ The Sunken Temple (52.7, 45.9)", 1446, 52.7, 45.9 },
         { 3528, "The God Hakkar", 40, "B", true, "Tanaris, Steamwheedle Port - Yeh'kinya Complete 3 quests first, starting with Screecher Spirits (67, 22.4)", 1446, 67.0, 22.4 },
     } },
-    { name = "Alcaz Prison", map = nil, levels = { 48, 53 }, quests = {} },
+    { name = "Alcaz Prison", map = 2994, levels = { 48, 53 }, quests = {} },
     { name = "Blackrock Depths", map = 230, levels = { 52, 60 }, quests = {
         { 4081, "KILL ON SIGHT: Dark Iron Dwarves", 48, "H", true, "Badlands, Kargath - the Wanted poster (4, 47)", 1418, 4.0, 47.0 },
         { 4134, "Lost Thunderbrew Recipe", 50, "H", true, "Badlands, Kargath - Shadowmage Vivian Lagrave Breadcrumb Vivian Lagrave in Undercity for easy XP (2.9, 47.8)", 1418, 2.9, 47.8 },
@@ -295,15 +296,19 @@ ns.DungeonQuests = {
         { 5127, "The Demon Forge", 55, "B", "pre", "Blacksmiths only - Winterspring, Southeast - Lorax Complete Lorax's Tale from same NPC. Rewards Plans: Demon Forged Breastplate (63.8, 73.8)", 1452, 63.8, 73.8 },
     } },
     { name = "Blackmaw Hold", map = nil, levels = { 55, 60 }, quests = {} },
-    { name = "Shaper's Terrace", map = nil, levels = { 58, 60 }, quests = {} },
+    { name = "Shaper's Terrace", map = 3001, levels = { 58, 60 }, quests = {} },
+    -- The raids announced for Forever (maps from the game's Map and Achievement tables).
+    { name = "Onyxia's Lair", map = 249, levels = { 60, 60 }, quests = {} },
+    { name = "The Barrow Deeps", map = 3052, levels = { 60, 60 }, quests = {} },
+    { name = "Hyjal Summit", map = 2981, levels = { 60, 60 }, quests = {} },
 }
 
 -- Where a quest is handed in, where that is not its quest giver: quest ID ->
--- { uiMapID, x, y, who }. The tracker's pin on a quest in your log goes here. From
+-- { uiMapID, x, y, who }. A quest in your log is tracked to here. From
 -- Wowhead Forever's NPC pages (2026-09-26), with its Classic-era spots dropped on the
 -- redrawn maps; The Glowing Shard follows the in-game quest text, which Wowhead has
 -- wrong. Dungeons up to level 20 so far.
-ns.DungeonQuestTurnIns = {
+J.QuestTurnIns = {
     -- The Hall of Thanes
     [96393] = { 1455, 39.6, 55.6, "King Magni Bronzebeard, Ironforge" },
     [98423] = { 1455, 39.6, 55.6, "King Magni Bronzebeard, Ironforge" },

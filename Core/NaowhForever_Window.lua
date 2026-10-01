@@ -17,6 +17,7 @@ local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 --   reuse     rows kept across rebuilds; only pages drawn entirely with row widgets and UI.Keep
 --   collapse  features (W:Feature) start closed; row-widget pages only
 --   command   module also opens in its own window from /nf<command> and broker NaowhForever<short>
+--             with `open`, ns[open] toggles the module's own window instead
 --   noscan    left out of the search scan: its builder makes frames, writes the profile or
 --             reads the Encounter Journal, so it is found by name only
 local SYSTEM_PAGES = {
@@ -47,14 +48,13 @@ local MODULES = {
           { name = "Trainer", build = "BuildQoLTrainerPage", reuse = true },
           { name = "Flight & Camp", build = "BuildQoLFlightPage", reuse = true, collapse = true },
       } },
-    -- Settings still live in the QoL table so existing profiles carry over; each module's
-    -- switch is the feature's own key rather than QoL's.
-    { name = "Dungeon Quests", group = "ADVENTURE", navIcon = "map", settings = "QoLSettings", enabledKey = "dqTracker",
-      command = "dq", short = "DQ", icon = "Interface\\Icons\\INV_Misc_Note_01",
-      subtitle = "Every dungeon quest on Forever, and a tracker for the dungeon you are in.",
+    -- The journal itself is a window of its own (open); only its settings live here.
+    { name = "Dungeon Journal", group = "ADVENTURE", navIcon = "map", settings = "JournalSettings",
+      open = "ToggleJournalWindow",
+      command = "journal", alias = "dj", short = "Journal", icon = "Interface\\Icons\\INV_Misc_Book_09",
+      subtitle = "Every dungeon and raid: what drops, your quests, and more.",
       tabs = {
-          { name = "Dungeons", build = "BuildQoLDungeonQuestsPage", reuse = true, noscan = true },
-          { name = "Settings", build = "BuildQoLDungeonQuestsSettingsPage", reuse = true },
+          { name = "Settings", build = "BuildJournalSettingsPage", reuse = true },
       } },
     { name = "Discovery", group = "ADVENTURE", navIcon = "compass", settings = "DiscoverySettings",
       subtitle = "Library books to find around Azeroth, and who to hand them to.",
@@ -711,6 +711,7 @@ local function CloseOnEscape(self, key)
         self:SetPropagateKeyboardInput(true)
     end
 end
+UI.CloseOnEscape = CloseOnEscape
 
 -- Tab strip: an accent underline marks the active page; widths follow the label.
 local function TabStrip(parent, left, top, mod, onClick, buttons)
@@ -832,12 +833,6 @@ local function NavigationButton(parent, label, y, onClick, icon)
     return btn
 end
 
-local function AccentButton(btn)
-    btn._rest = T.accent
-    btn._border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
-    return btn
-end
-
 local function CreateWindow()
     window = CreateFrame("Frame", "NaowhForeverOptions", UIParent)
     window:SetSize(WINDOW_W, WINDOW_H)
@@ -866,7 +861,7 @@ local function CreateWindow()
     local close = ns.Button(top, "X", 28, 28, function() window:Hide() end)
     close:SetPoint("RIGHT", -18, 0)
     local unlock = ns.Button(top, "Unlock Mode", 140, 32, EnterUnlockMode)
-    AccentButton(unlock)
+    ns.AccentBorder(unlock)
     unlock:SetPoint("RIGHT", close, "LEFT", -18, 0)
     ns.Tooltip(unlock, "Unlock Mode", "Place and size each display. Exit Config returns to this window.")
     local search = UI.AttachSearch(top, 0)
@@ -961,8 +956,8 @@ local function CreateWindow()
     contentFooter:SetHeight(FOOTER_H)
     local footLine = ns.Solid(contentFooter, "ARTWORK", T.line, 1)
     footLine:SetPoint("TOPLEFT"); footLine:SetPoint("TOPRIGHT"); footLine:SetHeight(1)
-    AccentButton(ns.ReloadButton(contentFooter, "Reload UI", 120, 30)):SetPoint("LEFT", 26, 0)
-    AccentButton(ns.Button(contentFooter, "Close", 120, 30, function() window:Hide() end))
+    ns.AccentBorder(ns.ReloadButton(contentFooter, "Reload UI", 120, 30)):SetPoint("LEFT", 26, 0)
+    ns.AccentBorder(ns.Button(contentFooter, "Close", 120, 30, function() window:Hide() end))
         :SetPoint("RIGHT", -30, 0)
     scrollFrame = CreateFrame("ScrollFrame", nil, window, "UIPanelScrollFrameTemplate")
     local bar = scrollFrame.ScrollBar
@@ -1129,6 +1124,11 @@ local function ToggleModuleWindow(mod)
     win:SetShown(not win:IsShown())
 end
 
+-- A module's own window: the one it names in `open`, else its tabs on their own.
+local function OpenModule(mod)
+    if mod.open and ns[mod.open] then ns[mod.open]() else ToggleModuleWindow(mod) end
+end
+
 -- Addon compartment entry (the puzzle-piece menu by the minimap); wired in the .toc.
 function _G.NaowhForever_OnCompartmentClick()
     ns.ToggleOptionsWindow()
@@ -1145,8 +1145,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.ToggleQuiz()
     elseif cmd == "xp" and ns.XPTickerCommand then
         ns.XPTickerCommand(arg)
-    elseif cmd == "dungeon" and ns.ToggleDungeonQuests then
-        ns.ToggleDungeonQuests()
+    elseif cmd == "dungeon" and ns.ToggleJournalWindow then
+        ns.ToggleJournalWindow()
     elseif cmd == "bars" and ns.ActionBarsCommand then
         -- Set names keep the case they were typed in.
         ns.ActionBarsCommand(strtrim(msg):match("^%S+%s*(.-)$"))
@@ -1171,7 +1171,9 @@ for _, mod in ipairs(MODULES) do
     if mod.command then
         local key = "NAOWHFOREVER" .. mod.command:upper()
         _G["SLASH_" .. key .. "1"] = "/nf" .. mod.command
-        SlashCmdList[key] = function() ToggleModuleWindow(mod) end
+        -- A short second name: /nfdj for /nfjournal.
+        if mod.alias then _G["SLASH_" .. key .. "2"] = "/nf" .. mod.alias end
+        SlashCmdList[key] = function() OpenModule(mod) end
     end
 end
 
@@ -1208,7 +1210,7 @@ launcherEvents:SetScript("OnEvent", function(self)
                 type = "launcher",
                 label = mod.name,
                 icon = mod.icon,
-                OnClick = function() ToggleModuleWindow(mod) end,
+                OnClick = function() OpenModule(mod) end,
                 OnTooltipShow = function(tooltip)
                     tooltip:AddLine(mod.name)
                     tooltip:AddLine(ns.L("Click to open or close it on its own."), 1, 1, 1)

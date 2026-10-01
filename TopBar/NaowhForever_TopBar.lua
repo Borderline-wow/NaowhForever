@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_TopBar.lua -- [friends guild] [clock] across the top of the screen, addon
 --  buttons on either side and an optional Hearthstone, FPS / MS under it. Friends, guild and
---  hearth are secure buttons; the rest are any addon's LibDataBroker source, Dungeon Quests
---  and BiS List by default.
+--  hearth are secure buttons; the rest are any addon's LibDataBroker source, the Dungeon
+--  Journal and BiS List by default.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
@@ -15,7 +15,7 @@ local S = UI.ModuleSettings("topBar", {
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
     hideInCombat = false, showFriends = true, showGuild = true, showHearth = false,
     showSystem = true, systemTooltip = true, sysSize = 13, tooltipScale = 120,
-    brokers = { "NaowhForeverDQ", "NaowhForeverBiS" },
+    brokers = { "NaowhForeverJournal", "NaowhForeverBiS" },
     brokerSide = {},   -- [name] = "left"; anything else goes on the right
 })
 ns.TopBarSettings = S
@@ -27,7 +27,7 @@ local ROSTER_CAP = 40   -- keeps a big guild's tooltip on the screen
 
 -- Our own glyphs for our modules; any other source's icon is desaturated and tinted to match.
 local GLYPH = {
-    NaowhForeverDQ = MEDIA .. "icon-dq.png",
+    NaowhForeverJournal = MEDIA .. "icon-journal.png",
     NaowhForeverBiS = MEDIA .. "icon-bis.png",
 }
 
@@ -557,9 +557,32 @@ local function Layout(group, keys)
     group:SetSize(math.max(1, x - GAP), size)
 end
 
+-- Dungeon Quests became part of the Dungeon Journal: a bar that carried its button carries
+-- the Journal's, on the same side. Only a list the player changed is saved; the default
+-- already has the Journal.
+local OLD_DQ, JOURNAL = "NaowhForeverDQ", "NaowhForeverJournal"
+
+local function MigrateBrokers()
+    local db = S.DB()
+    local saved = db.brokers
+    if not (saved and tContains(saved, OLD_DQ)) then return end
+    local keep = tContains(saved, JOURNAL)
+    for i = #saved, 1, -1 do
+        if saved[i] == OLD_DQ then
+            if keep then table.remove(saved, i) else saved[i], keep = JOURNAL, true end
+        end
+    end
+    local sides = db.brokerSide
+    if sides and sides[OLD_DQ] then
+        sides[JOURNAL] = sides[JOURNAL] or sides[OLD_DQ]
+        sides[OLD_DQ] = nil
+    end
+end
+
 -- Chosen brokers go on the outer edge of their side: before friends and guild on the left,
 -- after the Hearthstone (when shown) on the right, each in the order they were switched on.
 local function GroupKeys()
+    MigrateBrokers()
     local left, right = {}, {}
     if S.Get("showHearth") then right[1] = "hearth" else buttons.hearth:Hide() end
     for key, b in pairs(buttons) do
