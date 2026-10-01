@@ -20,6 +20,7 @@
   you type in chat, it still links it.
 
 ### Changed
+- Patch Notes: what's new in 0.5.18-beta on the in-game page.
 - Campfire: each camp benefit shows as a short stat tag (+Spirit, +ATK, +ARM, +STR, +STA, +INT,
   +MP5, +Stats, +Crit, +Rested) instead of the camp feature's name.
 - Supporter badges: the badge sits after the name in chat, at the size of the text, so every

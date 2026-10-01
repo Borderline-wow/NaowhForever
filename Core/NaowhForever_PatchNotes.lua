@@ -6,6 +6,35 @@ local ns = _G.NaowhForever
 local UI = ns.UI
 
 local NOTES = {
+    { title = "0.5.18-beta", lines = {
+        "New options window: the modules are grouped under Adventure, Combat and Utilities on "
+            .. "the left, a module's categories are tabs under its title, and the search at the top "
+            .. "finds any setting. It fits on a 1080p screen.",
+        "Action Bars (Utilities): save your action bars as a named set and put them back later, "
+            .. "out of combat. Sets are shared by every character of your class. Also /nf bars "
+            .. "save, restore, test, delete or list.",
+        "Top Bar: hover the clock to see your saved instances and when each resets, or type "
+            .. "/nf lockouts. Friends and Guild can each be switched off under Buttons.",
+        "Campfire: each camp benefit shows as a short tag (+Spirit, +ATK, +ARM, +STR and so on), "
+            .. "and Ctrl-click the Camp Nearby alert to dismiss it until you leave that campfire.",
+        "XP Bar: Ctrl + right-click it to reset the session time and XP/Hour. Other clicks go "
+            .. "through the bar.",
+        "Skip Modifier (QoL, Questing): pick the key you hold to skip quest automation, Alt, "
+            .. "Ctrl or Shift.",
+        "Shift-Click Searches AH (Professions): with the auction house open, Shift-click a recipe "
+            .. "or a reagent to search for it.",
+        "Unlock Mode: the position readout sits on the display you select.",
+        "Buttons, dropdowns and input boxes have a black border that lights up blue under the "
+            .. "mouse.",
+        "Supporter badges sit after the name in chat, and show in the Guild & Communities list.",
+        "Dungeon Quests: a quest you can't pick up yet says what to do first.",
+        "QoL, General: Co-Tank Debuffs sits inside Co-Tank Frame, and Stealth Reminder's colours "
+            .. "fold away. Auction House Price moved to QoL, Tooltip Display.",
+        "Fixed: the Naowh font no longer replaces the game's own fonts (Settings, Font has Game "
+            .. "Font and Combat Text Font if you want them), Reload UI buttons, Blessings icon "
+            .. "borders, Bag Space in Unlock Mode, Global Copy and a Buff Reminders error.",
+        "New features are off until you turn them on.",
+    } },
     { title = "0.5.17-beta", lines = {
         "Group XP (QoL, Questing): a bar for each group member with their level and XP, for "
             .. "levelling together. Everyone who wants to show up needs Naowh Forever with Group "
