@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Top Bar: Friends and Guild can each be switched off in Top Bar > Buttons (both on by default).
 - XP Bar: Ctrl + right-click the bar to reset the session time and XP/Hour.
 - Professions: Shift-Click Searches AH (off by default). While the auction house is open,
   Shift-click a recipe or a reagent and the search for the item runs straight away; while

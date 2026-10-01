@@ -13,7 +13,7 @@ local S = UI.ModuleSettings("topBar", {
     -- The clock font is EllesmereUI's, found through SharedMedia; without it the Addon Font.
     iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", use24h = true,
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
-    hideInCombat = false, showHearth = false,
+    hideInCombat = false, showFriends = true, showGuild = true, showHearth = false,
     showSystem = true, systemTooltip = true, sysSize = 13, tooltipScale = 120,
     brokers = { "NaowhForeverDQ", "NaowhForeverBiS" },
     brokerSide = {},   -- [name] = "left"; anything else goes on the right
@@ -351,7 +351,7 @@ local function UpdateBadges()
     buttons.friends.badge:SetText(n > 0 and n or "")
     n = GuildOnline()
     buttons.guild.badge:SetText(n and n > 0 and n or "")
-    if IsInGuild() and not InCombatLockdown() and GetTime() - lastRoster >= 15 then
+    if S.Get("showGuild") and IsInGuild() and not InCombatLockdown() and GetTime() - lastRoster >= 15 then
         lastRoster = GetTime()
         C_GuildInfo.GuildRoster()
     end
@@ -544,8 +544,13 @@ local function GroupKeys()
             keys[#keys + 1] = b.key
         end
     end
-    left[#left + 1] = "friends"
-    left[#left + 1] = "guild"
+    for _, key in ipairs({ "friends", "guild" }) do
+        if S.Get(key == "friends" and "showFriends" or "showGuild") then
+            left[#left + 1] = key
+        else
+            buttons[key]:Hide()
+        end
+    end
     return left, right
 end
 
@@ -616,6 +621,8 @@ local function Apply()
     segL:ClearAllPoints()
     segL:SetPoint("TOPLEFT", leftGroup, "TOPLEFT", -SEG_PAD, 0)
     segL:SetPoint("BOTTOMRIGHT", leftGroup, "BOTTOMRIGHT", SEG_PAD, 0)
+    segL:SetShown(#left > 0)
+    segL.line:SetShown(#left > 0)
     segR:ClearAllPoints()
     segR:SetPoint("TOPLEFT", rightGroup, "TOPLEFT", -SEG_PAD, 0)
     segR:SetPoint("BOTTOMRIGHT", rightGroup, "BOTTOMRIGHT", SEG_PAD, 0)
@@ -694,6 +701,12 @@ function ns.BuildTopBarPage(parent, y)
     -- Every broker source with an icon, from any addon, each with the side it goes on.
     _, h = W:SectionHeader(parent, "BUTTONS", y); y = y - h
     _, h = W:Feature(parent, y, { type = "label", text = "Addon Buttons" }); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("showFriends", "Friends", "Online friends on the button; its tooltip lists them. "
+            .. "Click to open Friends.", "enabled"),
+        S.Toggle("showGuild", "Guild", "Online guild members on the button; its tooltip lists them. "
+            .. "Click to open Guild.", "enabled")
+    ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("showHearth", "Hearthstone", "Uses your Hearthstone. Its tooltip shows where "
             .. "it is set and its cooldown.", "enabled"),
