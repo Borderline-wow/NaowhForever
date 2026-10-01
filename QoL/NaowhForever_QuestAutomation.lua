@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_QuestAutomation.lua -- the QoL quest automation: accepts quests, turns
 --  them in, picks quests out of an NPC's greeting or gossip, and shares quests you accept
---  with your group. Hold Alt to skip it.
+--  with your group. Hold the Skip Modifier (Alt by default) to skip it.
 --  Also the saved reward picks: Alt-click a choice reward to keep it for that quest in the
 --  profile, and it is selected (or taken by Auto Turn In) when the quest is handed in.
 -------------------------------------------------------------------------------
@@ -11,6 +11,8 @@ local S = ns.QoLSettings
 local function On(key)
     return S.Get("enabled") and S.Get(key)
 end
+
+local SKIP_HELD = { ALT = IsAltKeyDown, CTRL = IsControlKeyDown, SHIFT = IsShiftKeyDown }
 
 -- Quest ID -> item ID, in the profile, so a shared profile carries its picks.
 local function Picks()
@@ -118,7 +120,7 @@ local sharedWithMe
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, questID)
     if event == "QUEST_DETAIL" then sharedWithMe = UnitIsPlayer("questnpc") and GetQuestID() or nil end
-    if IsAltKeyDown() then return end
+    if SKIP_HELD[S.Get("questSkipModifier")]() then return end
     if event == "QUEST_ACCEPTED" then
         local shared = questID == sharedWithMe
         -- The same call Blizzard's own Share button makes.

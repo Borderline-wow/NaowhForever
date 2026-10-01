@@ -34,6 +34,7 @@ local S = UI.ModuleSettings("qol", {
 
     deleteConfirm = false, lootConfirm = false,
     questAccept = false, questTurnIn = false, questGossip = false, questRewardPicks = true,
+    questSkipModifier = "ALT",
     questShare = false,
     combatTimer = false, combatTimerInstanceOnly = false, combatTimerChat = true,
     combatTimerSticky = false, combatTimerHidePrefix = false, combatTimerBackground = false,
@@ -270,10 +271,10 @@ function ns.BuildQoLQuestingPage(parent, y)
     _, h = W:SectionHeader(parent, "QUESTING", y); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("questAccept", "Auto Accept Quests",
-            "Accepts a quest as soon as its text opens. Hold Alt to read it first."),
+            "Accepts a quest as soon as its text opens. Hold the Skip Modifier to read it first."),
         S.Toggle("questTurnIn", "Auto Turn In Quests",
             "Hands in finished quests. A quest with a choice of rewards waits for you to pick "
-            .. "one, unless you saved a reward for it. Hold Alt to skip it.")
+            .. "one, unless you saved a reward for it. Hold the Skip Modifier to skip it.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("questGossip", "Pick Quests From NPCs",
@@ -288,8 +289,10 @@ function ns.BuildQoLQuestingPage(parent, y)
         S.Toggle("questShare", "Share Quests With Group",
             "While you are in a group, shares each quest you accept from an NPC with the "
             .. "others, if the quest can be shared. A quest someone shared with you is not "
-            .. "shared again. Hold Alt as you accept to keep it to yourself."),
-        { type = "label", text = "" }
+            .. "shared again. Hold the Skip Modifier as you accept to keep it to yourself."),
+        S.Dropdown("questSkipModifier", "Skip Modifier", { ALT = "Alt", CTRL = "Ctrl", SHIFT = "Shift" },
+            { "ALT", "CTRL", "SHIFT" },
+            "Hold it to skip Auto Accept, Auto Turn In, Pick Quests From NPCs and sharing for that quest.")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "XP PER HOUR" .. STATUS.ready, y); y = y - h
