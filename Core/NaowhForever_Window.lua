@@ -1177,6 +1177,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
     elseif cmd == "bars" and ns.ActionBarsCommand then
         -- Set names keep the case they were typed in.
         ns.ActionBarsCommand(strtrim(msg):match("^%S+%s*(.-)$"))
+    elseif cmd == "lockouts" and ns.LockoutsCommand then
+        ns.LockoutsCommand()
     elseif cmd == "ranks" and ns.TrainerRankCheck then
         ns.TrainerRankCheck()
     elseif cmd == "profrank" and ns.ProfessionRankCheck then

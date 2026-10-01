@@ -82,6 +82,35 @@ local function FmtCD(sec)
     return ("%d:%02d"):format(sec / 60, sec % 60)
 end
 
+-- GetSavedInstanceInfo's reset counts down from the last UPDATE_INSTANCE_INFO, not from now.
+local lockoutsAt = 0
+
+-- Saved instances, soonest reset first, each with its line for a tooltip or chat.
+local function Lockouts()
+    local out, elapsed = {}, GetTime() - lockoutsAt
+    for i = 1, GetNumSavedInstances() do
+        local name, _, reset, _, locked, extended, _, _, _, _, total, done = GetSavedInstanceInfo(i)
+        local left = (reset or 0) - elapsed
+        if (locked or extended) and left > 0 then
+            local d, h, m = math.floor(left / 86400), math.floor(left / 3600) % 24, math.floor(left / 60) % 60
+            out[#out + 1] = {
+                left = left,
+                name = (total and total > 0) and ("%s %d/%d"):format(name, done or 0, total) or name,
+                reset = d > 0 and ("%dd %dh"):format(d, h) or h > 0 and ("%dh %dm"):format(h, m) or ("%dm"):format(m),
+            }
+        end
+    end
+    table.sort(out, function(a, b) return a.left < b.left end)
+    return out
+end
+
+function ns.LockoutsCommand()
+    local list = Lockouts()
+    if #list == 0 then ns.Print("You are not saved to any instance.") return end
+    ns.Print("Saved instances:")
+    for _, l in ipairs(list) do print(("   %s: resets in %s"):format(l.name, l.reset)) end
+end
+
 local function FpsRGB(fps)
     if fps >= 100 then return 0.25, 1, 0.25 end
     if fps >= 60 then return 0.55, 1, 0.25 end
@@ -436,6 +465,14 @@ local function Build()
         clockText:SetTextColor(Accent())
         OwnTooltip(self)
         GameTooltip:SetText(date("%A, %B %d"), 1, 1, 1)
+        local list = Lockouts()
+        if #list > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Saved Instances", 1, 1, 1)
+            for _, l in ipairs(list) do
+                GameTooltip:AddDoubleLine(l.name, "resets in " .. l.reset, 0.7, 0.7, 0.7, 1, 1, 1)
+            end
+        end
         GameTooltip:Show()
     end)
     clockBtn:SetScript("OnLeave", function()
@@ -810,10 +847,14 @@ events:RegisterEvent("PLAYER_UPDATE_RESTING")
 events:RegisterEvent("FRIENDLIST_UPDATE")
 events:RegisterEvent("BN_FRIEND_INFO_CHANGED")
 events:RegisterEvent("GUILD_ROSTER_UPDATE")
+events:RegisterEvent("UPDATE_INSTANCE_INFO")
 events:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_UPDATE_RESTING" then
         UpdateResting()
+    elseif event == "UPDATE_INSTANCE_INFO" then
+        lockoutsAt = GetTime()
     elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
+        if event == "PLAYER_ENTERING_WORLD" then RequestRaidInfo() end
         -- PLAYER_ENTERING_WORLD comes after every addon's login, so late brokers exist by then.
         Apply()
     else

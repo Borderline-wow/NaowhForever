@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Top Bar: hover the clock to see your saved instances, boss progress and when each resets;
+  `/nf lockouts` lists them in chat.
 - Action Bars (new, under Utilities): save every action bar slot as a named set and restore it later,
   out of combat. Sets are shared by your class on the account; Test Restore lists what would not
   come back. Options to restore the highest rank, recreate deleted macros and save on logout
