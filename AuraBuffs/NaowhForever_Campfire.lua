@@ -28,6 +28,7 @@ local shownExpiry   -- the expiry the swipe was last started from
 local alert
 local alertGen = 0   -- invalidates an older Alert Under timer
 local alertArmed     -- the expiry that timer was set for
+local alertDismissed -- Ctrl-clicked away; back once you leave the campfire's range
 local ringGen = 0    -- invalidates an older ring colour change
 local showGen = 0    -- invalidates an older "drops under the Show Only When Low time" timer
 local showArmed      -- the expiry and minutes that timer was set for
@@ -202,6 +203,21 @@ local function BuildAlert()
     alert.text:SetPoint("CENTER")
     alert.text:SetText("Camp Nearby")
     alert:SetSize(alert.text:GetStringWidth() + 16, 40)
+    -- Ctrl-click dismisses it. It takes the mouse only while Ctrl is down, so an ordinary click
+    -- or camera drag in the middle of the screen still reaches the world.
+    alert:EnableMouse(false)
+    alert:SetScript("OnShow", function(self)
+        self:EnableMouse(IsControlKeyDown())
+        self:RegisterEvent("MODIFIER_STATE_CHANGED")
+    end)
+    alert:SetScript("OnHide", function(self) self:UnregisterEvent("MODIFIER_STATE_CHANGED") end)
+    alert:SetScript("OnEvent", function(self) self:EnableMouse(IsControlKeyDown()) end)
+    alert:SetScript("OnMouseUp", function(self, button)
+        if button == "LeftButton" and IsControlKeyDown() and not unlocked then
+            alertDismissed = true
+            self:Hide()
+        end
+    end)
     alert.mover = ns.UI.AttachMover(alert, "Camp Nearby", function(pos) S.Set("campAlertPos", pos) end)
     local pos = S.Get("campAlertPos")
     if pos then
@@ -220,18 +236,36 @@ local function SetAlert(show)
     alert:SetShown(show)
 end
 
--- Keep the display compact; unknown effects use the camp object's name.
+-- The same tags found in the effect text, for a camp feature not in FEATURE_TAGS. Armor comes
+-- before stats, since the Enchanted Lute's effect names both.
+local EFFECT_TAGS = {
+    { "rested", "+Rested" }, { "rest experience", "+Rested" }, { "critical strike", "+Crit" },
+    { "armor", "+ARM" }, { "attack power", "+ATK" }, { "strength", "+STR" }, { "stamina", "+STA" },
+    { "intellect", "+INT" }, { "spirit", "+Spirit" }, { "mana", "+MP5" }, { "mp5", "+MP5" },
+    { "stats", "+Stats" },
+}
+-- Each camp feature's benefit as a short stat tag. Upgraded features give the benefit of the
+-- one they replace (Wowhead's Forever item data, 2026-09-30). Matched by name first, so a
+-- benefit text that names other stats (all stats spelled out one by one) cannot mislabel it.
+local FEATURE_TAGS = {
+    ["Camp Tent"] = "+Rested", ["Tanning Rack"] = "+Rested", ["Sewing Machine"] = "+Rested",
+    ["Camp Chair"] = "+Crit", ["Trapper's Workbench"] = "+Crit", ["Field Guide"] = "+Crit",
+    ["Enchanted Lute"] = "+ARM", ["Arcane Salvager"] = "+ARM", ["Arcane Forge"] = "+ARM",
+    ["Lodestone"] = "+ATK", ["Rock Garden"] = "+ATK", ["Molten Foundry"] = "+ATK",
+    ["Sharpening Wheel"] = "+STR", ["Anvil"] = "+STR", ["Master Forge"] = "+STR",
+    ["First Aid Kit"] = "+STA", ["Toxin Study"] = "+STA", ["Plague Doctor's Laboratory"] = "+STA",
+    ["Incense Candle"] = "+INT", ["Greenhouse"] = "+INT", ["Seed Hybridizer"] = "+INT",
+    ["Faction Banner"] = "+Spirit", ["Spinning Wheel"] = "+Spirit", ["Loom"] = "+Spirit",
+    ["Mana Well"] = "+MP5", ["Fermenter"] = "+MP5", ["Alchemy Laboratory"] = "+MP5",
+    ["Fish Bowl"] = "+Stats", ["Fishing Rack"] = "+Stats", ["Fishing Hut"] = "+Stats",
+}
+
+-- Anything neither list knows keeps a short effect text, or else the camp feature's name.
 local function ShortCampBuff(label, effect)
+    if FEATURE_TAGS[label] then return FEATURE_TAGS[label] end
     local lower = effect:lower()
-    if lower:find("rest experience", 1, true) or lower:find("rested", 1, true) then
-        return "Rested XP"
-    end
-    local percent = effect:match("(%d+%.?%d*%%)")
-    if percent and lower:find("critical strike", 1, true) then
-        return "Crit Strike " .. percent
-    end
-    if lower:find("mana", 1, true) and lower:find("regen", 1, true) then
-        return "Mana Regen" .. (percent and " " .. percent or "")
+    for _, tag in ipairs(EFFECT_TAGS) do
+        if lower:find(tag[1], 1, true) then return tag[2] end
     end
     if #effect > 0 and #effect <= 28 then return effect end
     return label
@@ -273,6 +307,12 @@ end
 -- UNIT_AURA fires often, so the timer is only set again for a new expiry.
 local function UpdateAlert(aura)
     if not (S.Get("campNearbyAlert") and C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_NEARBY)) then
+        alertDismissed = nil
+        DisarmAlert()
+        SetAlert(false)
+        return
+    end
+    if alertDismissed then
         DisarmAlert()
         SetAlert(false)
         return
@@ -308,7 +348,7 @@ end
 function Refresh(_, event)
     if not icon then return end
     if unlocked then
-        ShowUp(3600, GetTime() + 2400, "Rested XP\nCrit Strike 2%")
+        ShowUp(3600, GetTime() + 2400, "+Rested\n+Crit")
         SetAlert(S.Get("campNearbyAlert"))
         return
     end

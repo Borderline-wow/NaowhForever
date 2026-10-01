@@ -5,6 +5,7 @@
 ### Added
 - Top Bar: hover the clock to see your saved instances, boss progress and when each resets;
   `/nf lockouts` lists them in chat.
+- Campfire: Ctrl-click the Camp Nearby alert to dismiss it until you leave that campfire.
 - Action Bars (new, under Utilities): save every action bar slot as a named set and restore it later,
   out of combat. Sets are shared by your class on the account; Test Restore lists what would not
   come back. Options to restore the highest rank, recreate deleted macros and save on logout
@@ -19,6 +20,8 @@
   you type in chat, it still links it.
 
 ### Changed
+- Campfire: each camp benefit shows as a short stat tag (+Spirit, +ATK, +ARM, +STR, +STA, +INT,
+  +MP5, +Stats, +Crit, +Rested) instead of the camp feature's name.
 - Supporter badges: the badge sits after the name in chat, at the size of the text, so every
   name starts in the same place and lines are no taller. It shows in the Guild & Communities
   member list too, after the name, and the lines on the badge's hover card line up.

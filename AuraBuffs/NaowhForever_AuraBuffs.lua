@@ -186,7 +186,8 @@ function ns.BuildCampfirePage(parent, y)
         S.Toggle("campNearbyAlert", "Camp Nearby Alert",
             "\"Camp Nearby\" in the middle of the screen when a campfire is in range and your "
             .. "camp needs refreshing: no Camp Benefits, or less than Alert Under minutes left. "
-            .. "Move it in Unlock Mode.", "campfire"),
+            .. "Ctrl-click it to dismiss it until you leave that campfire. Move it in Unlock Mode.",
+            "campfire"),
         S.Slider("campNearbyMinutes", "Alert Under (Minutes)", 1, 59, 1,
             "How little Camp Benefits time counts as needing a refresh.", "campNearbyAlert")
     ); y = y - h

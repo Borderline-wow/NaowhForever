@@ -160,7 +160,7 @@ do
     check('sitting label is Resting', icon.label.text == 'Resting' and icon.shown)
     s.auras = { [1229741] = { duration = 3600, expirationTime = 2200, auraInstanceID = 1 } }
     s.fire('UNIT_AURA')
-    check('effects instead of objects', icon.buffs.text == 'Rested XP\n10 MP5')
+    check('effects instead of objects', icon.buffs.text == '+Rested\n+MP5')
     s.S.Set('campBuffSide', 'right'); s.S.Set('campBuffTextSize', 20)
     check('buff text position and size', icon.buffs.point[1] == 'LEFT' and icon.buffs.font[2] == 20)
     s.S.Set('campShowUnder', true); s.S.Set('campShowUnderMinutes', 1)
