@@ -81,8 +81,8 @@
   QoL > Performance: they run the game's own /reload instead of causing an error. In
   combat they say to type /reload.
 - QoL > Tools: a custom slash command that runs another slash command no longer makes your
-  next chat message fail. Macro commands like /cast, /use and /target can't be run this way;
-  the command says so in chat.
+  next chat message fail. Emotes like /dance work too. Macro commands like /cast, /use and
+  /target, and /reload, can't be run this way; the command says so in chat.
 
 ## 0.5.17-beta
 

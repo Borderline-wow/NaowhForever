@@ -29,6 +29,7 @@ local frame = { RegisterEvent = noop, SetScript = noop }
 local settings = { enabled = true, slashCommands = true }
 local db = {}
 local printed = {}
+local emotes = {}
 local secure = { ["/CAST"] = true, ["/USE"] = true, ["/TARGET"] = true }
 
 -- The game's SlashCmdList, with the table its metatable reads entries from once the chat box
@@ -47,6 +48,12 @@ local env = {
     },
     SlashCmdList = setmetatable({}, { __index = proxy }),
     hash_SlashCmdList = {},
+    hash_EmoteTokenList = { ["/DANCE"] = "DANCE" },
+    C_ChatInfo = {
+        PerformEmote = function(token, target)
+            emotes[#emotes + 1] = { token = token, target = target }
+        end,
+    },
     IsSecureCmd = function(command) return secure[string.upper(command)] or nil end,
     ChatFrame1EditBox = ChatBox("ChatFrame1EditBox"),
     DEFAULT_CHAT_FRAME = { editBox = ChatBox("DEFAULT_CHAT_FRAME.editBox") },
@@ -84,6 +91,8 @@ env.hash_SlashCmdList["/BAR"] = Handler("bar")
 -- Moved into the proxy, with the hash entry since cleared by its addon.
 env.SLASH_BAZ1 = "/baz"
 proxy.BAZ = Handler("baz")
+env.SLASH_RELOAD1 = "/reload"
+proxy.RELOAD = Handler("reload")
 
 db.slashList = {
     { name = "f", command = "/foo hello", enabled = true },
@@ -93,6 +102,8 @@ db.slashList = {
     { name = "c", command = "/cast Fireball", enabled = true },
     { name = "t", command = "/target", enabled = true },
     { name = "s", command = "/say", enabled = true },
+    { name = "d", command = "/dance", enabled = true },
+    { name = "r", command = "/reload", enabled = true },
     { name = "kb", frame = "QuickKeybindFrame", enabled = true },
 }
 local kb = { shown = false }
@@ -135,7 +146,16 @@ check("/target is not run", n == 0 and printed[#printed]:find("/target can't be 
 
 n = select(2, Run("s", "hello"))
 check("an unknown command (a chat type) runs nothing and says so", n == 0
-    and printed[#printed]:find("/say is not a slash command", 1, true))
+    and printed[#printed]:find("/say isn't a command", 1, true))
+
+printedBefore = #printed
+n = select(2, Run("d", "Bob"))
+check("an emote is performed with the typed target", n == 0 and #emotes == 1
+    and emotes[1].token == "DANCE" and emotes[1].target == "Bob" and #printed == printedBefore)
+
+n = select(2, Run("r", ""))
+check("/reload is not run, since the game blocks it from addon code", n == 0
+    and printed[#printed]:find("Type /reload", 1, true))
 
 Run("kb", "")
 check("a window command still opens its window", kb.shown)

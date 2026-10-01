@@ -91,7 +91,7 @@ local function FindInList(list, command)
     end
 end
 
--- The first time anything is typed in chat, the game moves SlashCmdList's entries into
+-- Whenever chat text is parsed, the game moves SlashCmdList's entries into
 -- hash_SlashCmdList and a table behind SlashCmdList's metatable, so look in all three.
 local function FindHandler(command)
     local handler = hash_SlashCmdList[command] or FindInList(SlashCmdList, command)
@@ -113,12 +113,23 @@ local function RunCommand(command, args)
         ns.Print(name .. " can't be run from a custom command. Put it in a macro instead.")
         return
     end
+    local msg = strtrim(command:sub(#name + 1))
     local handler = FindHandler(key)
     if not handler then
-        ns.Print(name .. " is not a slash command a custom command can run.")
+        local emote = hash_EmoteTokenList[key]
+        if emote then
+            C_ChatInfo.PerformEmote(emote, msg)
+        else
+            ns.Print(name .. " isn't a command this can run.")
+        end
         return
     end
-    handler(strtrim(command:sub(#name + 1)), nil)
+    -- The game blocks ReloadUI from addon code.
+    if handler == SlashCmdList.RELOAD then
+        ns.Print("A custom command can't reload. Type /reload.")
+        return
+    end
+    handler(msg, nil)
 end
 
 local function ToggleFrame(name)
@@ -244,7 +255,7 @@ function ns.ShowAddSlashCommand(onAdded)
 
     function ShowAction()
         local isFrame = action == "frame"
-        targetLabel:SetText(isFrame and "Window" or "Command to run, such as /reload. What you "
+        targetLabel:SetText(isFrame and "Window" or "Command to run, such as /dance. What you "
             .. "type after your command is added to it.")
         frameDD:SetShown(isFrame)
         commandBox:SetShown(not isFrame)

@@ -77,7 +77,7 @@ read_globals = {
     "GetSpecializationInfoByID", "GetSpellBaseCooldown", "GetSubZoneText", "GetTaxiMapID",
     "GetTime", "GetTitleText", "GetTrainerServiceCost", "GetTrainerServiceInfo",
     "GetTrainerServiceSkillReq", "GetUnitName", "GetXPExhaustion", "GetZoneText", "GOLD_AMOUNT",
-    "HandleModifiedItemClick", "HideUIPanel", "hooksecurefunc", "IconDataProviderExtraType",
+    "HandleModifiedItemClick", "hash_EmoteTokenList", "HideUIPanel", "hooksecurefunc", "IconDataProviderExtraType",
     "IconDataProviderMixin",
     "InCinematic", "InCombatLockdown", "INVSLOT_FIRST_EQUIPPED", "INVSLOT_LAST_EQUIPPED",
     "INVSLOT_TRINKET1", "INVSLOT_TRINKET2", "IsAltKeyDown", "IsControlKeyDown", "IsInGroup",
