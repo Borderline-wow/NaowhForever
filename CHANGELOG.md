@@ -39,6 +39,8 @@
 - Professions: Shift-Click Searches AH (off by default). While the auction house is open,
   Shift-click a recipe or a reagent and the search for the item runs straight away; while
   you type in chat, it still links it.
+- Top Bar: Show On Mouseover (off by default, Top Bar > Bar) fades the bar to Faded Opacity
+  until the mouse is over it. At 0% it stays hidden until then.
 
 ### Changed
 - Dungeon Quests is now part of the Dungeon Journal. Each dungeon's page lists your quests

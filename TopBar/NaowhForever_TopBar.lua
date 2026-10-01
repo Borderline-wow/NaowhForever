@@ -13,7 +13,8 @@ local S = UI.ModuleSettings("topBar", {
     -- The clock font is EllesmereUI's, found through SharedMedia; without it the Addon Font.
     iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", use24h = true,
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
-    hideInCombat = false, showFriends = true, showGuild = true, showHearth = false,
+    hideInCombat = false, mouseover = false, mouseoverAlpha = 0,
+    showFriends = true, showGuild = true, showHearth = false,
     showSystem = true, systemTooltip = true, sysSize = 13, tooltipScale = 120,
     brokers = { "NaowhForeverJournal", "NaowhForeverBiS" },
     brokerSide = {},   -- [name] = "left"; anything else goes on the right
@@ -37,7 +38,7 @@ local CLICK_THROUGH = {
     guild = { "GuildMicroButton" },
 }
 
-local bar, clockText, leftGroup, rightGroup, ticker, unlocked, fitPending
+local bar, clockText, leftGroup, rightGroup, ticker, unlocked, fitPending, fadeTicker
 local buttons = {}
 local lastRoster, lastTipRoster, lastMemScan = 0, 0, 0
 local memList = {}
@@ -630,6 +631,23 @@ local function StopTicker()
     if ticker then ticker:Cancel(); ticker = nil end
 end
 
+-- Show On Mouseover: the bar sits at Faded Opacity until the mouse is over it. Every button
+-- takes the mouse, so crossing the bar fires a leave at each step; a light check is steadier
+-- than following every child's enter and leave.
+local function MouseFade()
+    bar:SetAlpha(bar:IsMouseOver() and 1 or S.Get("mouseoverAlpha") / 100)
+end
+
+local function SetMouseFade(on)
+    if on and not fadeTicker then
+        fadeTicker = C_Timer.NewTicker(0.1, MouseFade)
+    elseif not on and fadeTicker then
+        fadeTicker:Cancel()
+        fadeTicker = nil
+    end
+    if on then MouseFade() elseif bar then bar:SetAlpha(1) end
+end
+
 local pending = CreateFrame("Frame")
 
 -- Everything here moves or shows secure buttons, so combat defers it to the end of the fight.
@@ -640,6 +658,7 @@ local function Apply()
     end
     if not (On() or unlocked) then
         StopTicker()
+        SetMouseFade(false)
         if bar then
             UnregisterStateDriver(bar, "visibility")
             bar:Hide()
@@ -707,6 +726,7 @@ local function Apply()
     UpdateBadges()
     UpdateResting()
     StartTicker()
+    SetMouseFade(S.Get("mouseover") and not unlocked)
 end
 
 pending:SetScript("OnEvent", function(self)
@@ -746,6 +766,12 @@ function ns.BuildTopBarPage(parent, y)
         S.Toggle("hideInCombat", "Hide In Combat", "The FPS / MS readout stays up.", "enabled"),
         S.Slider("tooltipScale", "Tooltip Size (%)", 80, 160, 5,
             "Size of the friends, guild, Hearthstone, clock and FPS tooltips.", "enabled")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("mouseover", "Show On Mouseover",
+            "The bar fades to Faded Opacity and comes back while the mouse is over it. "
+            .. "The FPS / MS readout stays up.", "enabled"),
+        S.Slider("mouseoverAlpha", "Faded Opacity (%)", 0, 100, 5, nil, "mouseover")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "FPS / MS", y); y = y - h
