@@ -10,7 +10,7 @@ local ns = _G.NaowhForever
 local T = ns.THEME
 local UI = ns.UI
 
-local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 760
+local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 790
 local TOP_H, PAGE_HEADER_H = 64, 128
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
@@ -104,6 +104,11 @@ local MODULES = {
           { name = "Class Macros", build = "BuildClassMacrosPage", reuse = true },
           { name = "Consumables", build = "BuildMacroConsumablesPage", reuse = true, collapse = true },
           { name = "Focus & Cursor", build = "BuildMacroFocusPage", reuse = true },
+      } },
+    { name = "Action Bars", group = "UTILITIES", navIcon = "grid", settings = "ActionBarSettings",
+      subtitle = "Your action bars saved by name and put back whenever you want them.",
+      tabs = {
+          { name = "Sets", build = "BuildActionBarsPage" },
       } },
     { name = "AuraBuffs", group = "COMBAT", navIcon = "aura", settings = "AuraBuffSettings",
       subtitle = "Buff, consumable and campfire reminders, low health and debuff sounds.",
@@ -1169,6 +1174,9 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.XPTickerCommand(arg)
     elseif cmd == "dungeon" and ns.ToggleDungeonQuests then
         ns.ToggleDungeonQuests()
+    elseif cmd == "bars" and ns.ActionBarsCommand then
+        -- Set names keep the case they were typed in.
+        ns.ActionBarsCommand(strtrim(msg):match("^%S+%s*(.-)$"))
     elseif cmd == "ranks" and ns.TrainerRankCheck then
         ns.TrainerRankCheck()
     elseif cmd == "profrank" and ns.ProfessionRankCheck then

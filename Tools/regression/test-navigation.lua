@@ -138,7 +138,7 @@ Load("QoL/NaowhForever_QoL.lua")
 local UI = ns.UI
 ns.BuildQoLInterfacePage = function(parent, y) return y end
 for _, name in ipairs({ "DiscoverySettings", "ProfessionSettings", "MacroSettings", "AuraBuffSettings",
-    "ThreatMeterSettings", "SwingTimerSettings", "TopBarSettings" }) do
+    "ThreatMeterSettings", "SwingTimerSettings", "TopBarSettings", "ActionBarSettings" }) do
     ns[name] = UI.ModuleSettings(name, { enabled = false })
 end
 ns.DB = function() return settings end
@@ -164,16 +164,16 @@ Check(not Text("Custom Reminders"), "unfinished module is absent from navigation
 Check(Button("Quality of Life").switch == nil, "navigation does not toggle modules")
 for _, name in ipairs({ "Quality of Life", "Dungeon Quests", "Discovery", "BiS List", "Professions",
     "Gear & Trinkets", "Blessings", "AuraBuffs", "Threat Meter", "Swing Timer", "Smart Reminders",
-    "Macros", "Top Bar" }) do
+    "Macros", "Action Bars", "Top Bar" }) do
     Check(Button(name).icon ~= nil, name .. " is listed with its glyph")
 end
 local moduleList = Button("Top Bar").parent
 local moduleScroll = moduleList.parent
 local mainWindow = moduleScroll.parent.parent
 local originalHeight = mainWindow:GetHeight()
-mainWindow:SetHeight(760)
+mainWindow:SetHeight(790)
 moduleScroll.scripts.OnSizeChanged(moduleScroll)
-Check(moduleScroll:GetVerticalScrollRange() == 0, "all modules fit in the default 760-high window")
+Check(moduleScroll:GetVerticalScrollRange() == 0, "all modules fit in the default 790-high window")
 Check(not moduleScroll.ScrollBar:IsShown(), "navigation scrollbar hides when everything fits")
 local lastModule = Button("Top Bar")
 Check(-lastModule.points.TOPLEFT[4] + lastModule:GetHeight() <= moduleScroll:GetHeight(),

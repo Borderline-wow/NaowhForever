@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- Action Bars (new, under Utilities): save every action bar slot as a named set and restore it later,
+  out of combat. Sets are shared by your class on the account; Test Restore lists what would not
+  come back. Options to restore the highest rank, recreate deleted macros and save on logout
+  (all off by default). Also `/nf bars save|restore|test|delete <name>` and `/nf bars list`.
 - Top Bar: Friends and Guild can each be switched off in Top Bar > Buttons (both on by default).
 - QoL > Questing: Skip Modifier picks the key you hold to skip quest automation (Alt, Ctrl or
   Shift; Alt by default).
@@ -20,6 +24,7 @@
   setting, and each module's on/off switch is at the top right of its page. The window also fits
   on a 1080p screen.
 - Buttons, dropdowns and input boxes have a black border that lights up blue under the mouse.
+- Options window: a little taller, so the left menu fits every module without scrolling.
 - Unlock Mode: the position readout sits on the display you select instead of at the bottom of
   the screen.
 - QoL > General: Co-Tank Debuffs now sits inside Co-Tank Frame, and Stealth Reminder's colours
