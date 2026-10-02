@@ -32,6 +32,7 @@ Usage: python Tools/wowsrc.py [--fresh]     fetch and read the loot pages
 """
 import html
 import json
+import os
 import re
 import sys
 import time
@@ -250,6 +251,31 @@ def changes(old, new, game=None):
 
 
 REPORT_MAX = 60000
+SHORT = 25   # changes a pull request lists; the rest are on its run's summary page
+
+
+def run_link():
+    """This GitHub Actions run's page (its summary), or None outside CI."""
+    server, repo, run = (os.environ.get(k) for k in ("GITHUB_SERVER_URL", "GITHUB_REPOSITORY", "GITHUB_RUN_ID"))
+    return f"{server}/{repo}/actions/runs/{run}" if server and repo and run else None
+
+
+def shortened(found):
+    """The changes as a pull request shows them: in CI, a long list cut to SHORT lines with a
+    link to the run's summary page, which has them all (to_summary)."""
+    link = run_link()
+    if len(found) <= SHORT or not link:
+        return found
+    return found[:SHORT] + ["", f"... and {len(found) - SHORT} more: [the whole list]({link}) is on the run's "
+                            "summary page."]
+
+
+def to_summary(text):
+    """The whole report on the run's summary page, in CI."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(text)
 
 
 def counts(found):
@@ -313,10 +339,15 @@ def check(report_path=None, github_output=None):
     if not found:
         text = "## Boss loot from wowsrc.com\n\nTheir loot pages match `Tools/wowsrc_loot.json`: nothing new.\n"
     else:
-        # A GitHub description holds 65536 characters: a long list is cut, and says so.
-        while len("\n".join(loot_body(found))) > REPORT_MAX and len(found) > 1:
-            found = found[:-2] + ["- ... and more: run `python Tools/wowsrc.py --check` to see them all."]
-        text = "\n".join(loot_body(found)) + "\n"
+        to_summary("\n".join(loot_body(found)) + "\n")
+        # The pull request: a long list cut, with the run's summary page for the rest; and
+        # whatever happens under GitHub's 65536 characters.
+        short = shortened(found)
+        while len("\n".join(loot_body(short))) > REPORT_MAX and len(short) > 1:
+            short = short[:-2] + ["- ... and more: run `python Tools/wowsrc.py --check` to see them all."]
+        text = "\n".join(loot_body(short)) + "\n"
+    if not found:
+        to_summary(text)
     if report_path:
         Path(report_path).write_text(text, encoding="utf-8")
     else:

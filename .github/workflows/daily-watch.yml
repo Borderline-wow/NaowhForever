@@ -203,7 +203,6 @@ jobs:
         id: check
         run: |
           python Tools/wowsrc.py --check --report report.md --github-output "$GITHUB_OUTPUT"
-          cat report.md >> "$GITHUB_STEP_SUMMARY"
 
       # The pages the check read (Tools/wowsrc_pages), their names to item IDs, the Journal.
       - name: Rebuild the Journal from them
@@ -255,7 +254,6 @@ jobs:
         id: check
         run: |
           python Tools/build_bis_data.py --check --report report.md --github-output "$GITHUB_OUTPUT"
-          cat report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Rebuild the BiS data from them
         if: steps.check.outputs.changes == 'true'

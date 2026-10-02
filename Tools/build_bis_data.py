@@ -347,9 +347,31 @@ def current_specs():
     return specs
 
 
-def bis_changes(ours, theirs, cache):
+def settler(cache):
+    """An item's ID as the build would settle it offline: the cache's, else the game's item table
+    (one Forever item with its name, quality and item level), else None. The tables are read
+    once; unreachable, the cache alone answers."""
+    tables = {"ok": True}
+
+    def find(item):
+        item_id = cache.get(item_key(item))
+        if item_id or not tables["ok"]:
+            return item_id
+        try:
+            matches = game_lookup(item)
+        except Exception as e:
+            print(f"the game's item table could not be read: {e}", file=sys.stderr)
+            tables["ok"] = False
+            return None
+        return matches[0] if len(matches) == 1 else None
+    return find
+
+
+def bis_changes(ours, theirs, cache, find=None):
     """What theirs ({slug: (title, {inv: [items]})}, read now) says that ours (current_specs)
-    does not, as Markdown lines; [] when nothing."""
+    does not, as Markdown lines; [] when nothing. find(item) -> its ID (settler's), else the
+    cache alone. No "#1": GitHub links "#" and a number to that pull request."""
+    find = find or (lambda item: cache.get(item_key(item)))
     names = {item_id: key.split("|", 1)[0] for key, item_id in cache.items() if item_id}
     slot_names = {inv: key.replace("-", " ") for key, inv in SLOTS}
     lines = []
@@ -359,12 +381,12 @@ def bis_changes(ours, theirs, cache):
             continue
         for _, inv in SLOTS:
             items = slots.get(inv, [])
-            now = [cache.get(item_key(i)) for i in items]
+            now = [find(i) for i in items]
             before = ours[slug].get(inv, [])
             said = []
             if now and before and now[0] != before[0]:
-                said.append(f"#1 is now {items[0]['name']} (was {names.get(before[0], before[0])})")
-            added = [i["name"] + ("" if cache.get(item_key(i)) else " (not looked up yet)")
+                said.append(f"top pick is now {items[0]['name']} (was {names.get(before[0], before[0])})")
+            added = [i["name"] + ("" if item_id else " (not in the game's tables yet)")
                      for i, item_id in zip(items, now) if item_id not in before]
             gone = [names.get(i, str(i)) for i in before if i not in now]
             if added:
@@ -383,7 +405,7 @@ def check(report_path=None, github_output=None):
     for _, slug in spec_slugs():
         theirs[slug] = parse_spec(slug)
         time.sleep(1)   # one page at a time, gently
-    found = bis_changes(current_specs(), theirs, cache)
+    found = bis_changes(current_specs(), theirs, cache, settler(cache))
     if not found:
         head = ["## BiS lists from wowsrc.com", "",
                 "Their spec pages match `BiS/NaowhForever_BiSData.lua`: nothing new."]
@@ -404,15 +426,21 @@ def check(report_path=None, github_output=None):
             f"(ItemSparse, build {wago.BUILD}) by name, quality and item level | `--offline` |",
             "| Where an item comes from (its source line) | wowsrc's own; else `Tools/bis_sources.json` "
             "| Wowhead is never asked in CI |",
-            "", "### What changed (#1 picks, items added or taken off)", ""]
-    # A GitHub issue holds 65536 characters: a long report is cut, and says so.
+            "", "### What changed (top picks, items added or taken off)", ""]
+    from wowsrc import shortened, to_summary
+    whole = found
+    # The pull request: a long list cut, with the run's summary page (which has it all) for the
+    # rest; and whatever happens under GitHub's 65536 characters.
+    found = shortened(found)
     while len("\n".join(head + found)) > REPORT_MAX and len(found) > 1:
         found = found[:-2] + ["- ... and more: run the build to see them all."]
     tail = ["", "### Before merging", "",
-            "- An item the build lists below as left out could not be settled from the game's tables: "
+            "- An item marked \"not in the game's tables yet\", or listed below as left out, could not be "
+            "settled offline: "
             "run `python Tools/build_bis_data.py` on your machine (it asks Wowhead).",
             "- Items with no source line: `python Tools/build_bis_data.py --sources-only`."] if found else []
     text = "\n".join(head + found + tail) + "\n"
+    to_summary("\n".join(head + whole + tail) + "\n")
     if report_path:
         Path(report_path).write_text(text, encoding="utf-8")
     else:
