@@ -179,6 +179,8 @@
 - QoL: the auction house price on item tooltips is now switched in QoL > Tooltip Display
   (Auction House Price), with the other tooltip settings. Your setting is kept.
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
+- Campfire: Show Active Camp Buffs is a dropdown: Off, Always or On Mouseover, which shows
+  the buffs only while the mouse is over the camp icon. Your current setting is kept.
 
 ### Fixed
 - Group XP: every group member running Naowh Forever now shares their XP, even with Group XP

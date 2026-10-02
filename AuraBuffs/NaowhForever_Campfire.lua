@@ -44,6 +44,20 @@ local function InOpenWorld()
     return not inInstance
 end
 
+-- Show Active Camp Buffs: Off, Always or On Mouseover. A profile that never picked one
+-- follows the old on/off switch, so nobody's setting changes.
+function ns.CampBuffMode()
+    local mode = S.Get("campBuffMode")
+    if mode then return mode end
+    return S.Get("campBuffs") and "always" or "off"
+end
+
+-- On Mouseover: the buff lines stay written but invisible until the icon is hovered.
+local function PaintBuffs()
+    local hidden = ns.CampBuffMode() == "hover" and not unlocked and not icon:IsMouseOver()
+    icon.buffs:SetAlpha(hidden and 0 or 1)
+end
+
 local function Build()
     icon = CreateFrame("Frame", "NaowhForeverCampfire", UIParent)
     icon:SetMovable(true)
@@ -102,6 +116,11 @@ local function Build()
     icon.buffs:SetPoint("TOP", icon, "BOTTOM", 0, -4)
     icon.buffs:SetJustifyH("CENTER")
 
+    -- Hovering the icon shows the buff lines while Show Active Camp Buffs is On Mouseover. The
+    -- icon only takes the mouse then (Apply), so clicks and camera drags otherwise go through.
+    icon:SetScript("OnEnter", PaintBuffs)
+    icon:SetScript("OnLeave", PaintBuffs)
+
     icon.mover = ns.UI.AttachMover(icon, "Campfire", function(pos) S.Set("campPos", pos) end)
     icon:Hide()
 end
@@ -137,8 +156,9 @@ end
 local function ShowUp(duration, expiry, buffs)
     icon.tex:SetDesaturated(false)
     icon.label:Hide()
-    icon.buffs:SetText(S.Get("campBuffs") and buffs or "")
+    icon.buffs:SetText(ns.CampBuffMode() ~= "off" and buffs or "")
     icon.buffs:Show()
+    PaintBuffs()
     if S.Get("campTimer") and duration and duration > 0 then
         if shownExpiry ~= expiry then
             icon.timer:SetCooldown(expiry - duration, duration)
@@ -401,7 +421,7 @@ function Refresh(_, event)
                 showArmed = nil
                 showGen = showGen + 1
             end
-            ShowUp(duration, expiry, S.Get("campBuffs") and ActiveBuffs(aura) or "")
+            ShowUp(duration, expiry, ns.CampBuffMode() ~= "off" and ActiveBuffs(aura) or "")
         end
     else
         ShowMissing()
@@ -425,6 +445,7 @@ local function Apply()
         if not unlocked then return end
     end
     if not icon then Build() end
+    icon:EnableMouse(ns.CampBuffMode() == "hover")
     local size = S.Get("campIconSize")
     icon:SetSize(size, size)
     icon.buffs:SetFont(ns.UIFontPath(), S.Get("campBuffTextSize"), "OUTLINE")
