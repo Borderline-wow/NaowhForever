@@ -178,6 +178,7 @@
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
 
 ### Fixed
+- Themes: the Loot Feed follows your theme: the Dark style uses your Background, the Light style uses your Panels and Borders & Lines, and the glow uses your Accent. Looks the same with the default theme.
 - Themes: the XP Bar's quest and rested segments and text follow your theme's Accent instead of staying gold and blue. Looks the same with the default theme.
 - A copy downloaded with GitHub's green Code button has none of the addon's libraries, and
   parts of it then failed with Lua errors (Low Health's glow on a level up, among others). It
