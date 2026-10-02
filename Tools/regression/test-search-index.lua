@@ -42,12 +42,13 @@ do
     W:DualRow({}, -96, { type = "dropdown", text = "Font" }, { type = "label", text = "Move in Unlock Mode" })
     W:DualRow({}, -146, { type = "toggle", text = "Alone" })
     W:DualRow({}, -196, { type = "label", text = "" }, { type = "toggle", text = "" })
+    W:DualRow({}, -226, { type = "dropdown", text = "Look" }, { type = "palette", text = "", colors = function() error("never runs") end })
     W:Button({}, "Reset Timer", -246, function() error("never runs") end)
     W:ColorPicker({}, "Timer Color", -296, function() end, function() end)
     Check(select(2, W:Note({}, "A long note.", -346)) ~= nil, "a note returns a height and is not recorded")
     local labels = {}
     for i, item in ipairs(scan.items) do labels[i] = item.label end
-    Check(table.concat(labels, ",") == "Show Timer,Timer Size,Font,Alone,Reset Timer,Timer Color",
+    Check(table.concat(labels, ",") == "Show Timer,Timer Size,Font,Alone,Look,Reset Timer,Timer Color",
         "labels are recorded in order, without label captions or empty text")
     Check(scan.items[1].tooltip == "Draws the timer." and scan.items[2].tooltip == nil, "string tooltips only")
     Check(scan.items[1].section:find("TIMING", 1, true), "each item knows its section")

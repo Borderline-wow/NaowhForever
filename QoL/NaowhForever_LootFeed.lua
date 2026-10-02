@@ -15,6 +15,15 @@ local STYLES = {
     light = { bg = { 0.32, 0.23, 0.14, 0.7 }, edge = { 0.12, 0.08, 0.04, 1 } },
 }
 
+-- What a theme changes in a row, with the default theme left as it was: the dark style's
+-- fill follows Background and the light style's fill and edge follow Panels and Borders &
+-- Lines, each at the same opacity (ns.ThemeTint returns these literals when the theme did
+-- not change that color); the glow follows Accent.
+local DARK_BG = { r = 0.05, g = 0.05, b = 0.06 }
+local LIGHT_BG = { r = 0.32, g = 0.23, b = 0.14 }
+local LIGHT_EDGE = { r = 0.12, g = 0.08, b = 0.04 }
+local GLOW = { r = 1, g = 0.8, b = 0.3 }
+
 local feed, gph, unlocked
 local rows, pool = {}, {}
 local coinRow   -- the coin line on screen, which later coin loot adds to
@@ -114,8 +123,15 @@ end
 
 local function StyleRow(row)
     local st = STYLES[S.Get("lootFeedStyle")] or STYLES.dark
-    row.bg:SetColorTexture(unpack(st.bg))
-    row.border:SetColor(unpack(st.edge))
+    if st == STYLES.dark then
+        local c = ns.ThemeTint("bg", DARK_BG)
+        row.bg:SetColorTexture(c.r, c.g, c.b, st.bg[4])
+        row.border:SetColor(unpack(st.edge))
+    else
+        local c, e = ns.ThemeTint("panel", LIGHT_BG), ns.ThemeTint("line", LIGHT_EDGE)
+        row.bg:SetColorTexture(c.r, c.g, c.b, st.bg[4])
+        row.border:SetColor(e.r, e.g, e.b, st.edge[4])
+    end
     row.glow:SetShown(S.Get("lootFeedGlow"))
     local h, size = S.Get("lootFeedHeight"), S.Get("lootFeedFontSize")
     local font = ns.UI.FontPath(S.Get("lootFeedFont"))
@@ -138,7 +154,8 @@ local function NewRow()
 
     row.glow = row:CreateTexture(nil, "ARTWORK")
     row.glow:SetColorTexture(1, 1, 1, 1)
-    row.glow:SetGradient("HORIZONTAL", CreateColor(1, 0.8, 0.3, 0.7), CreateColor(1, 0.8, 0.3, 0))
+    local glow = ns.ThemeTint("accent", GLOW)
+    row.glow:SetGradient("HORIZONTAL", CreateColor(glow.r, glow.g, glow.b, 0.7), CreateColor(glow.r, glow.g, glow.b, 0))
     row.glow:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 0, 0)
     row.glow:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 0, 0)
     row.glow:SetWidth(12)

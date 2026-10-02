@@ -14,7 +14,7 @@ local S = UI.ModuleSettings("threatMeter", {
     locked = true, barSpacing = 3, fontSize = 12, font = "",
     showIcons = true, showRanks = true, highlightPlayer = true,
     backgroundAlpha = 0.94, barAlpha = 0.72, texture = "smooth", percentMode = "pull",
-    growUp = false, showHeader = true, ignorePets = false,
+    growUp = false, showHeader = true, ignorePets = false, statusPos = "bottom",
     showValue = true, showPercent = true,
     playerColorOn = false, playerColor = { r = 0.8, g = 0.1, b = 0.1 },
     tankColorOn = false, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
@@ -153,11 +153,13 @@ local function Layout()
     offset = math.max(0, math.min(offset, total - capacity))
     local shown = math.min(total - offset, capacity)
     local growUp = S.Get("growUp")
+    local statusTop = S.Get("statusPos") == "top"
+    local above, below = top + (statusTop and FOOTER or 0), statusTop and 0 or FOOTER
     for i = 1, shown do
         local row = rows[i] or CreateRow(i)
         row:ClearAllPoints()
-        if growUp then row:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", INSET, FOOTER + INSET + (i - 1) * (bh + gap))
-        else row:SetPoint("TOPLEFT", frame, "TOPLEFT", INSET, -top - INSET - (i - 1) * (bh + gap)) end
+        if growUp then row:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", INSET, below + INSET + (i - 1) * (bh + gap))
+        else row:SetPoint("TOPLEFT", frame, "TOPLEFT", INSET, -above - INSET - (i - 1) * (bh + gap)) end
         row:SetSize(w - 2 * INSET, bh)
         row:SetStatusBarTexture(S.Get("texture") == "flat" and "Interface\\Buttons\\WHITE8X8"
             or "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga")
@@ -183,11 +185,17 @@ local function Layout()
     for i = shown + 1, #rows do rows[i]:Hide() end
     frame.header:SetSize(w, math.max(top, 1))
     frame.header:SetShown(top > 0)
+    frame.footer:ClearAllPoints()
+    if statusTop then
+        frame.footer:SetPoint("TOPLEFT", 8, -top); frame.footer:SetPoint("TOPRIGHT", -8, -top)
+    else
+        frame.footer:SetPoint("BOTTOMLEFT", 8, 0); frame.footer:SetPoint("BOTTOMRIGHT", -8, 0)
+    end
     frame.background:SetAlpha(S.Get("backgroundAlpha"))
     frame.source.label:SetText(TrackedUnit() == "focus" and "Focus" or "Target")
     frame.source:SetShown(S.Get("focusEnabled"))
     frame.lock.label:SetText(S.Get("locked") and "L" or "U")
-    frame.grip:SetShown(not unlocked)
+    frame.grip:SetShown(not unlocked and not (statusTop and S.Get("locked")))
     frame.grip:SetAlpha(S.Get("locked") and 0.4 or 1)
     frame.empty:SetShown(shown == 0)
     frame.footer.range:SetText(total > 0 and ((offset + 1) .. "-" .. (offset + shown) .. " / " .. total) or "")
@@ -246,7 +254,7 @@ local function Build()
     end)
     frame.header:SetScript("OnDragStop", function() if frame.moving then frame:StopMovingOrSizing(); frame.moving = false; SavePosition() end end)
     frame.footer = CreateFrame("Frame", nil, frame)
-    frame.footer:SetPoint("BOTTOMLEFT", 8, 0); frame.footer:SetPoint("BOTTOMRIGHT", -8, 0); frame.footer:SetHeight(FOOTER)
+    frame.footer:SetHeight(FOOTER)
     frame.footer.state = ns.Font(frame.footer, 10, "OUTLINE", T.muted)
     frame.footer.state:SetPoint("LEFT"); frame.footer.state:SetJustifyH("LEFT")
     frame.footer.range = ns.Font(frame.footer, 10, "OUTLINE", T.muted)
@@ -609,6 +617,12 @@ function ns.BuildThreatMeterPage(parent, y)
             "enabled"),
         S.Toggle("ignorePets", "Ignore Pets", "Leave hunter and warlock pets off the meter.",
             "enabled")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Dropdown("statusPos", "Status Line", { bottom = "Bottom", top = "Top" }, { "bottom", "top" },
+            "Where your distance to pulling aggro and the entry count sit: under the bars, or "
+            .. "between the title bar and the bars.", "enabled"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("showValue", "Show Threat", nil, "enabled"),

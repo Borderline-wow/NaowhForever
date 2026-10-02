@@ -10,6 +10,9 @@ local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 790
 local TOP_H, PAGE_HEADER_H = 64, 128
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
+local BRAND_LOGO = "Interface\\AddOns\\NaowhForever\\Media\\BrandLogo.tga"
+-- The art sits high in its 512x256 canvas, so the texture is pushed down to centre it.
+local BRAND = { width = 186.8, height = 93.4, x = -0.5, y = -14.6 }
 
 -- System pages sit below the module navigation. `build` names the ns builder (resolved at
 -- open time); `arg` is passed after the starting y.
@@ -611,7 +614,8 @@ function ns.BuildSettingsPage(parent, y)
               colorsPending = true
               UI:RefreshPage(true)
           end },
-        { type = "label", text = "" }
+        -- What the selection looks like, before a reload.
+        { type = "palette", text = "", colors = function() return ns.ThemePalette(ns.ThemePresetKey()) end }
     ); y = y - h
     if CustomSelected() then
         -- An action, not a setting: it always reads "Choose a theme...", and picking one
@@ -860,13 +864,16 @@ local function CreateWindow()
     DragRegion(top, window)
     local topLine = ns.Solid(top, "ARTWORK", T.line, 1)
     topLine:SetPoint("BOTTOMLEFT"); topLine:SetPoint("BOTTOMRIGHT"); topLine:SetHeight(1)
-    local logo = top:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(44, 44); logo:SetPoint("LEFT", 18, 0)
-    local name = ns.Font(top, 24, nil)
-    name:SetPoint("LEFT", logo, "RIGHT", 12, 0); name:SetText("Naowh")
-    local forever = ns.Font(top, 24, nil, T.accent)
-    forever:SetPoint("LEFT", name, "RIGHT", 6, 0); forever:SetText("Forever")
+    local brand = CreateFrame("Frame", nil, top)
+    brand:SetPoint("TOPLEFT")
+    brand:SetSize(SIDEBAR_W, TOP_H)
+    ns.Solid(brand, "BACKGROUND", T.panel, 1):SetAllPoints()
+    local brandEdge = ns.Solid(brand, "ARTWORK", T.line, 1)
+    brandEdge:SetPoint("TOPRIGHT"); brandEdge:SetPoint("BOTTOMRIGHT"); brandEdge:SetWidth(1)
+    local logo = brand:CreateTexture(nil, "ARTWORK")
+    logo:SetTexture(BRAND_LOGO, nil, nil, "TRILINEAR")
+    logo:SetSize(BRAND.width, BRAND.height)
+    logo:SetPoint("CENTER", brand, "CENTER", BRAND.x, BRAND.y)
     local close = ns.Button(top, "X", 28, 28, function() window:Hide() end)
     close:SetPoint("RIGHT", -18, 0)
     local unlock = ns.Button(top, "Unlock Mode", 140, 32, EnterUnlockMode)
@@ -876,7 +883,7 @@ local function CreateWindow()
     local search = UI.AttachSearch(top, 0)
     search:ClearAllPoints()
     search:SetPoint("LEFT", top, "LEFT", SIDEBAR_W + 26, 0)
-    search:SetPoint("RIGHT", unlock, "LEFT", -100, 0)
+    search:SetWidth(435)
     search:SetHeight(34)
     search:SetTextInsets(34, 22, 0, 0)
     search.hint:ClearAllPoints(); search.hint:SetPoint("LEFT", 34, 0)
@@ -1188,6 +1195,18 @@ end
 
 -- The launcher position belongs to the account, not an imported settings profile.
 local launcherEvents = CreateFrame("Frame")
+-- The launcher tooltips (minimap, top bar, broker displays): the title is the game's tooltip
+-- gold and the lines white, unless the theme changed Accent / Text, which they follow.
+local TIP_TITLE = { r = 1, g = 0.82, b = 0 }
+local TIP_TEXT = { r = 1, g = 1, b = 1 }
+local function TipTitle(tooltip, text)
+    local c = ns.ThemeTint("accent", TIP_TITLE)
+    tooltip:AddLine(text, c.r, c.g, c.b)
+end
+local function TipLine(tooltip, text)
+    local c = ns.ThemeTint("fg", TIP_TEXT)
+    tooltip:AddLine(text, c.r, c.g, c.b)
+end
 launcherEvents:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
     local account = ns.AccountSettings()
@@ -1200,9 +1219,9 @@ launcherEvents:SetScript("OnEvent", function(self)
         icon = LOGO,
         OnClick = function() ns.ToggleOptionsWindow() end,
         OnTooltipShow = function(tooltip)
-            tooltip:AddLine("Naowh Forever")
-            tooltip:AddLine(ns.L("Click to open settings."), 1, 1, 1)
-            tooltip:AddLine(ns.L("Drag to move the minimap button."), 1, 1, 1)
+            TipTitle(tooltip, "Naowh Forever")
+            TipLine(tooltip, ns.L("Click to open settings."))
+            TipLine(tooltip, ns.L("Drag to move the minimap button."))
         end,
     })
     LibStub("LibDBIcon-1.0"):Register("NaowhForever", launcher, account.minimap)
@@ -1221,8 +1240,8 @@ launcherEvents:SetScript("OnEvent", function(self)
                 icon = mod.icon,
                 OnClick = function() OpenModule(mod) end,
                 OnTooltipShow = function(tooltip)
-                    tooltip:AddLine(mod.name)
-                    tooltip:AddLine(ns.L("Click to open or close it on its own."), 1, 1, 1)
+                    TipTitle(tooltip, mod.name)
+                    TipLine(tooltip, ns.L("Click to open or close it on its own."))
                 end,
             })
             LibStub("LibDBIcon-1.0"):Register("NaowhForever" .. mod.short, obj, db)

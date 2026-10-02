@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Top Bar: Faded Opacity (with Show On Mouseover) sets how visible the bar and the FPS / MS
+  readout stay while the mouse is away. 0% by default, invisible as before.
 - Blessings: in combat each click on a class button blesses the next member of that class who
   needed it when the fight began, then round again, instead of the same player every time. It
   follows them by name, so the raid being rearranged mid-fight does not send it to someone
@@ -84,6 +86,7 @@
 - Professions: Shift-Click Searches AH (off by default). While the auction house is open,
   Shift-click a recipe or a reagent and the search for the item runs straight away; while
   you type in chat, it still links it.
+- Settings: six color chips beside the Theme dropdown preview the selected theme's colors before you reload.
 - Professions: Buy at Vendor (Buying and Selling, off by default). At a merchant, "- [1] +
   Buy" under the chosen recipe's reagents buys every checked reagent the merchant sells for
   that many crafts in one click, such as Coarse Thread or Weak Flux. The total shows beside
@@ -138,8 +141,15 @@
 - Dungeon Journal: Accept Shared Dungeon Quests (off by default, in the Journal's settings)
   accepts a dungeon quest a group member shares with you as soon as it opens. Hold the Skip
   Modifier to look at one first.
+- Threat Meter: Status Line (Layout) moves the line with your distance to pulling aggro and
+  the entry count from under the bars to the top, between the title bar and the bars.
+  Bottom by default.
+- Swing Timer: Apply Theme to Bar Colours (Colours, off by default) colors the main hand bar with your theme's Accent, the off hand bar with its lighter Accent and the ranged bar with a deeper shade of it, instead of the colors picked there.
 
 ### Changed
+- The options window's sidebar header shows the NaowhUI Forever logo, and the search box beside it is narrower.
+- Flight Timer: with Land Early Button on, Blizzard's own Request Stop button is hidden
+  during the flight, so there is only one. It comes back when you land.
 - The Naowh logo now has the closed infinity loop at the bottom, on the addon list, the main window and the small popups.
 - The Minimap Button switch and the per-module minimap buttons moved from Settings to the Top Bar page, so /nf shows them straight away.
 - Loot Feed Appearance options sit inside the Loot Feed dropdown instead of a second one.
@@ -173,6 +183,14 @@
   the buffs only while the mouse is over the camp icon. Your current setting is kept.
 
 ### Fixed
+- Group XP: every group member running Naowh Forever now shares their XP, even with Group XP
+  switched off, so the bars no longer say "no addon" for players who never turned it on.
+- Group XP: bars show everyone's XP again. Forever sends a character's full name with surname
+  with each update, which never matched the party list, so every member read "no addon". Older
+  versions can't be read: everyone needs this version to see each other.
+- Themes: the Top Bar's clock, its FPS / MS labels and its tooltips follow your Text and Secondary Text colors instead of staying white and grey, and the tooltips of the Naowh buttons (minimap, top bar) use your Accent for the title and Text for the lines. Looks the same with the default theme.
+- Themes: the Loot Feed follows your theme: the Dark style uses your Background, the Light style uses your Panels and Borders & Lines, and the glow uses your Accent. Looks the same with the default theme.
+- Themes: the XP Bar's quest and rested segments and text follow your theme's Accent instead of staying gold and blue. Looks the same with the default theme.
 - A copy downloaded with GitHub's green Code button has none of the addon's libraries, and
   parts of it then failed with Lua errors (Low Health's glow on a level up, among others). It
   now says at login which libraries are missing and where to download the full addon.

@@ -394,8 +394,8 @@ function ns.BuildQoLQuestingPage(parent, y)
     _, h = W:SectionHeader(parent, "GROUP XP" .. STATUS.untested, y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("groupXP", "Group XP",
-            "A bar per group member with their level and how far through it they are. Only "
-            .. "members running Naowh Forever with Group XP on share their experience; anyone "
+            "A bar per group member with their level and how far through it they are. Every "
+            .. "member running Naowh Forever shares their experience, even with this off; anyone "
             .. "else shows their level. Updates wait until combat ends. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
@@ -1470,7 +1470,8 @@ function ns.BuildQoLFlightPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("flightEarlyLanding", "Land Early Button",
-            "A button beside the timer that lands you at the next flight point.", "flightTimer"),
+            "A button beside the timer that lands you at the next flight point. Blizzard's "
+            .. "Request Stop button is hidden while it shows.", "flightTimer"),
         S.Slider("flightTimerScale", "Scale", 0.5, 2, 0.05, nil, "flightTimer")
     ); y = y - h
 

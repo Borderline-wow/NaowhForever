@@ -276,4 +276,24 @@ do
     Check(ns.Color("fg") == "|cfff6eff0" and ns.Color("muted") == "|cffac9a9e", "fg and muted follow too")
 end
 
+-- The preview's colors.
+do
+    local ns = Load({})
+    local default = ns.ThemePalette("")
+    Check(#default == 6 and Is(default[1], SHIPPED.bg) and Is(default[6], SHIPPED.accent), "default palette")
+    for i, token in ipairs(KEYS) do Check(Is(default[i], SHIPPED[token]), "default palette: " .. token) end
+    for _, key in ipairs(ORDER) do
+        local palette = ns.ThemePalette(key)
+        Check(#palette == 6, key .. ": six colors")
+        for i, token in ipairs(KEYS) do
+            Check(Is(palette[i], PRESETS[key][i + 1]), key .. " palette: " .. token)
+        end
+    end
+    Check(#ns.ThemePalette("bogus") == 6 and Is(ns.ThemePalette("bogus")[1], SHIPPED.bg), "an unknown key is the default palette")
+    ns = Load({ themeColors = { fg = { r = 1, g = 0, b = 0 } } })
+    local custom = ns.ThemePalette("custom")
+    Check(Is(custom[4], "ff0000") and Is(custom[1], SHIPPED.bg), "custom palette: the saved pick, shipped for the rest")
+    Check(#Load(nil).ThemePalette("custom") == 6, "custom with no account table still gives six")
+end
+
 print("PASS custom colors: " .. cases .. " checks")

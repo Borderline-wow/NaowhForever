@@ -13,7 +13,7 @@ local S = UI.ModuleSettings("topBar", {
     -- The clock font is EllesmereUI's, found through SharedMedia; without it the Addon Font.
     iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", use24h = true,
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
-    hideInCombat = false, mouseover = false, showFriends = true, showGuild = true, showHearth = false,
+    hideInCombat = false, mouseover = false, mouseoverAlpha = 0, showFriends = true, showGuild = true, showHearth = false,
     showSystem = true, systemTooltip = true, sysSize = 13, tooltipScale = 120,
     brokers = { "NaowhForeverJournal", "NaowhForeverBiS" },
     brokerSide = {},   -- [name] = "left"; anything else goes on the right
@@ -47,6 +47,19 @@ local PILL_BG = { r = 0.03, g = 0.03, b = 0.04 }
 local function On() return S.Get("enabled") end
 local function LDB() return LibStub("LibDataBroker-1.1", true) end
 local function Accent() return T.accent.r, T.accent.g, T.accent.b end
+-- A grey or white of the tooltips and the clock: the shade it always was, or the player's
+-- Text ("fg") / Secondary Text ("muted") when the theme changed that color. Returns r, g, b,
+-- so where it is not the last argument its values are put in locals first.
+local shades = {}
+local function Tone(key, v)
+    local shade = shades[v]
+    if not shade then
+        shade = { r = v, g = v, b = v }
+        shades[v] = shade
+    end
+    local c = ns.ThemeTint(key, shade)
+    return c.r, c.g, c.b
+end
 local function IconColor()
     local c = S.Get("iconColor")
     return c.r, c.g, c.b
@@ -57,9 +70,10 @@ local function BarHeight() return math.max(S.Get("clockSize") + CLOCK_PAD, BtnSi
 -- Show On Mouseover fades rather than hides: the bar holds secure buttons. Every enter and
 -- leave on the bar or its buttons calls this, since a leave into a gap fires nothing else.
 local function UpdateHover()
-    local hidden = S.Get("mouseover") and not unlocked and not (bar:IsMouseOver() or bar.sys:IsMouseOver())
-    bar:SetAlpha(hidden and 0 or 1)
-    bar.sys:SetAlpha(hidden and 0 or 1)
+    local faded = S.Get("mouseover") and not unlocked and not (bar:IsMouseOver() or bar.sys:IsMouseOver())
+    local alpha = faded and S.Get("mouseoverAlpha") / 100 or 1
+    bar:SetAlpha(alpha)
+    bar.sys:SetAlpha(alpha)
 end
 
 -------------------------------------------------------------------------------
@@ -159,9 +173,10 @@ end)
 -- Online Battle.net friends in WoW, then character friends.
 local function AddFriendsRoster()
     local shown = 0
+    local lr, lg, lb = Tone("muted", 0.7)
     local function Row(left, right, r, g, b)
         shown = shown + 1
-        if shown <= ROSTER_CAP then GameTooltip:AddDoubleLine(left, right or "", r, g, b, 0.7, 0.7, 0.7) end
+        if shown <= ROSTER_CAP then GameTooltip:AddDoubleLine(left, right or "", r, g, b, lr, lg, lb) end
     end
     for i = 1, (BNGetNumFriends() or 0) do
         local acc = C_BattleNet.GetFriendAccountInfo(i)
@@ -177,11 +192,11 @@ local function AddFriendsRoster()
     for i = 1, C_FriendList.GetNumFriends() do
         local fi = C_FriendList.GetFriendInfoByIndex(i)
         if fi and fi.connected then
-            Row(fi.name .. (fi.level and fi.level > 0 and "  " .. fi.level or ""), fi.area, 1, 1, 1)
+            Row(fi.name .. (fi.level and fi.level > 0 and "  " .. fi.level or ""), fi.area, Tone("fg", 1))
         end
     end
     if shown > ROSTER_CAP then
-        GameTooltip:AddLine(("... and %d more"):format(shown - ROSTER_CAP), 0.5, 0.5, 0.5)
+        GameTooltip:AddLine(("... and %d more"):format(shown - ROSTER_CAP), Tone("muted", 0.5))
     end
     return shown
 end
@@ -195,59 +210,65 @@ local function AddGuildRoster()
     local gname = GetGuildInfo("player")
     if gname then GameTooltip:AddLine(gname, 0.1, 1, 0.1) end
     local shown = 0
+    local lr, lg, lb = Tone("muted", 0.7)
+    -- The away tags keep their grey unless the theme changed Secondary Text.
+    local grey = ns.ThemeTint("muted", nil) and ns.Color("muted") or "|cff808080"
     for i = 1, GetNumGuildMembers() do
         local name, _, _, level, _, zone, _, _, online, status, class = GetGuildRosterInfo(i)
         if online then
             shown = shown + 1
             if shown <= ROSTER_CAP then
                 local cc = RAID_CLASS_COLORS[class] or { r = 1, g = 1, b = 1 }
-                local away = (status == 1 and "  |cff808080<AFK>|r") or (status == 2 and "  |cff808080<DND>|r") or ""
+                local away = (status == 1 and "  " .. grey .. "<AFK>|r") or (status == 2 and "  " .. grey .. "<DND>|r") or ""
                 GameTooltip:AddDoubleLine(level .. "  " .. (name:match("[^%-]+") or name) .. away, zone or "",
-                    cc.r, cc.g, cc.b, 0.7, 0.7, 0.7)
+                    cc.r, cc.g, cc.b, lr, lg, lb)
             end
         end
     end
     if shown > ROSTER_CAP then
-        GameTooltip:AddLine(("... and %d more"):format(shown - ROSTER_CAP), 0.5, 0.5, 0.5)
+        GameTooltip:AddLine(("... and %d more"):format(shown - ROSTER_CAP), Tone("muted", 0.5))
     end
 end
 
 -- Roster names and zones can come back secret in combat, so the lists wait for it to end.
 local TOOLTIP = {
     friends = function()
-        GameTooltip:AddLine("Friends", 1, 1, 1)
-        GameTooltip:AddDoubleLine("Online", tostring(FriendsOnline()), 0.7, 0.7, 0.7, 0.3, 1, 0.3)
+        local mr, mg, mb = Tone("muted", 0.7)
+        GameTooltip:AddLine("Friends", Tone("fg", 1))
+        GameTooltip:AddDoubleLine("Online", tostring(FriendsOnline()), mr, mg, mb, 0.3, 1, 0.3)
         if not InCombatLockdown() then
             GameTooltip:AddLine(" ")
             local ok, count = pcall(AddFriendsRoster)
-            if ok and count == 0 then GameTooltip:AddLine("No friends online", 0.6, 0.6, 0.6) end
+            if ok and count == 0 then GameTooltip:AddLine("No friends online", Tone("muted", 0.6)) end
         end
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Click to open Friends", Accent())
     end,
     guild = function()
-        GameTooltip:AddLine("Guild", 1, 1, 1)
+        local mr, mg, mb = Tone("muted", 0.7)
+        GameTooltip:AddLine("Guild", Tone("fg", 1))
         local n = GuildOnline()
         if n then
-            GameTooltip:AddDoubleLine("Online", tostring(n), 0.7, 0.7, 0.7, 1, 0.6, 0.1)
+            GameTooltip:AddDoubleLine("Online", tostring(n), mr, mg, mb, 1, 0.6, 0.1)
             if not InCombatLockdown() then
                 GameTooltip:AddLine(" ")
                 pcall(AddGuildRoster)
             end
         else
-            GameTooltip:AddLine("Not in a guild", 0.7, 0.7, 0.7)
+            GameTooltip:AddLine("Not in a guild", mr, mg, mb)
         end
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Click to open Guild", Accent())
     end,
     hearth = function()
-        GameTooltip:AddLine(C_Item.GetItemNameByID(HEARTHSTONE) or "Hearthstone", 1, 1, 1)
-        GameTooltip:AddDoubleLine("Bind", GetBindLocation() or "", 0.7, 0.7, 0.7, 1, 1, 1)
+        local mr, mg, mb = Tone("muted", 0.7)
+        GameTooltip:AddLine(C_Item.GetItemNameByID(HEARTHSTONE) or "Hearthstone", Tone("fg", 1))
+        GameTooltip:AddDoubleLine("Bind", GetBindLocation() or "", mr, mg, mb, Tone("fg", 1))
         local cd = HearthCooldown()
         if cd then
-            GameTooltip:AddDoubleLine("Cooldown", FmtCD(cd), 0.7, 0.7, 0.7, 1, 0.3, 0.3)
+            GameTooltip:AddDoubleLine("Cooldown", FmtCD(cd), mr, mg, mb, 1, 0.3, 0.3)
         else
-            GameTooltip:AddDoubleLine("Cooldown", "Ready", 0.7, 0.7, 0.7, 0.3, 1, 0.3)
+            GameTooltip:AddDoubleLine("Cooldown", "Ready", mr, mg, mb, 0.3, 1, 0.3)
         end
     end,
 }
@@ -264,9 +285,10 @@ local function ShowSystemTooltip(owner)
     OwnTooltip(owner)
     local fps = math.floor(GetFramerate() + 0.5)
     local _, _, home, world = GetNetStats()
-    GameTooltip:AddDoubleLine("FPS", fps .. " fps", 0.7, 0.7, 0.7, FpsRGB(fps))
-    GameTooltip:AddDoubleLine("Home Latency", math.floor(home) .. " ms", 0.7, 0.7, 0.7, MsRGB(home))
-    GameTooltip:AddDoubleLine("World Latency", math.floor(world) .. " ms", 0.7, 0.7, 0.7, MsRGB(world))
+    local mr, mg, mb = Tone("muted", 0.7)
+    GameTooltip:AddDoubleLine("FPS", fps .. " fps", mr, mg, mb, FpsRGB(fps))
+    GameTooltip:AddDoubleLine("Home Latency", math.floor(home) .. " ms", mr, mg, mb, MsRGB(home))
+    GameTooltip:AddDoubleLine("World Latency", math.floor(world) .. " ms", mr, mg, mb, MsRGB(world))
     -- The memory scan is a frame spike, so it runs at most every 30 seconds.
     if GetTime() - lastMemScan >= 30 then
         lastMemScan = GetTime()
@@ -286,10 +308,11 @@ local function ShowSystemTooltip(owner)
     if #memList > 0 then
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Addon Memory", Accent())
+        local fr, fg, fb = Tone("fg", 1)
         for i = 1, math.min(10, #memList) do
             local e = memList[i]
             GameTooltip:AddDoubleLine(e.name, e.mem > 1024 and ("%.2f MB"):format(e.mem / 1024)
-                or ("%.0f KB"):format(e.mem), 1, 1, 1, Accent())
+                or ("%.0f KB"):format(e.mem), fr, fg, fb, Accent())
         end
     end
     GameTooltip:AddLine(" ")
@@ -476,19 +499,20 @@ local function Build()
         UpdateHover()
         clockText:SetTextColor(Accent())
         OwnTooltip(self)
-        GameTooltip:SetText(date("%A, %B %d"), 1, 1, 1)
+        GameTooltip:SetText(date("%A, %B %d"), Tone("fg", 1))
         local list = Lockouts()
         if #list > 0 then
+            local mr, mg, mb = Tone("muted", 0.7)
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("Saved Instances", 1, 1, 1)
+            GameTooltip:AddLine("Saved Instances", Tone("fg", 1))
             for _, l in ipairs(list) do
-                GameTooltip:AddDoubleLine(l.name, "resets in " .. l.reset, 0.7, 0.7, 0.7, 1, 1, 1)
+                GameTooltip:AddDoubleLine(l.name, "resets in " .. l.reset, mr, mg, mb, Tone("fg", 1))
             end
         end
         GameTooltip:Show()
     end)
     clockBtn:SetScript("OnLeave", function()
-        clockText:SetTextColor(1, 1, 1)
+        clockText:SetTextColor(Tone("fg", 1))
         GameTooltip:Hide()
         UpdateHover()
     end)
@@ -685,10 +709,12 @@ local function Apply()
     if not clockText:SetFont(UI.FontPath(S.Get("clockFont")), S.Get("clockSize"), "") then
         clockText:SetFont(ns.UIFontPath(), S.Get("clockSize"), "")
     end
-    clockText:SetTextColor(1, 1, 1)
+    clockText:SetTextColor(Tone("fg", 1))
     clockText.last = nil
     PaintClock()
     bar.sys.text:SetFont(ns.UIFontPath(), S.Get("sysSize"), "OUTLINE")
+    -- The "FPS:" and "MS:" labels; the numbers keep their own status colors.
+    bar.sys.text:SetTextColor(Tone("fg", 1))
     bar.sys:SetHeight(S.Get("sysSize") + 3)
 
     local left, right = GroupKeys()
@@ -765,13 +791,15 @@ function ns.BuildTopBarPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("hideInCombat", "Hide In Combat", "The FPS / MS readout stays up.", "enabled"),
-        S.Toggle("mouseover", "Show On Mouseover", "The bar and the FPS / MS readout stay "
-            .. "invisible until you hover them. Their buttons still click while hidden.", "enabled")
+        S.Toggle("mouseover", "Show On Mouseover", "The bar and the FPS / MS readout fade to "
+            .. "Faded Opacity until you hover them. Their buttons still click while faded.", "enabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("tooltipScale", "Tooltip Size (%)", 80, 160, 5,
             "Size of the friends, guild, Hearthstone, clock and FPS tooltips.", "enabled"),
-        { type = "label", text = "" }
+        S.Slider("mouseoverAlpha", "Faded Opacity (%)", 0, 100, 5,
+            "How visible the bar and the FPS / MS readout stay while the mouse is away. "
+            .. "At 0 they are invisible.", "mouseover")
     ); y = y - h
 
     y = ns.BuildMinimapIcons(parent, y)
