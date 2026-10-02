@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Top Bar: Faded Opacity (with Show On Mouseover) sets how visible the bar and the FPS / MS
+  readout stay while the mouse is away. 0% by default, invisible as before.
 - Blessings: in combat each click on a class button blesses the next member of that class who
   needed it when the fight began, then round again, instead of the same player every time. It
   follows them by name, so the raid being rearranged mid-fight does not send it to someone

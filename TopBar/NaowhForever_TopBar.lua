@@ -13,7 +13,7 @@ local S = UI.ModuleSettings("topBar", {
     -- The clock font is EllesmereUI's, found through SharedMedia; without it the Addon Font.
     iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", use24h = true,
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
-    hideInCombat = false, mouseover = false, showFriends = true, showGuild = true, showHearth = false,
+    hideInCombat = false, mouseover = false, mouseoverAlpha = 0, showFriends = true, showGuild = true, showHearth = false,
     showSystem = true, systemTooltip = true, sysSize = 13, tooltipScale = 120,
     brokers = { "NaowhForeverJournal", "NaowhForeverBiS" },
     brokerSide = {},   -- [name] = "left"; anything else goes on the right
@@ -70,9 +70,10 @@ local function BarHeight() return math.max(S.Get("clockSize") + CLOCK_PAD, BtnSi
 -- Show On Mouseover fades rather than hides: the bar holds secure buttons. Every enter and
 -- leave on the bar or its buttons calls this, since a leave into a gap fires nothing else.
 local function UpdateHover()
-    local hidden = S.Get("mouseover") and not unlocked and not (bar:IsMouseOver() or bar.sys:IsMouseOver())
-    bar:SetAlpha(hidden and 0 or 1)
-    bar.sys:SetAlpha(hidden and 0 or 1)
+    local faded = S.Get("mouseover") and not unlocked and not (bar:IsMouseOver() or bar.sys:IsMouseOver())
+    local alpha = faded and S.Get("mouseoverAlpha") / 100 or 1
+    bar:SetAlpha(alpha)
+    bar.sys:SetAlpha(alpha)
 end
 
 -------------------------------------------------------------------------------
@@ -790,13 +791,15 @@ function ns.BuildTopBarPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("hideInCombat", "Hide In Combat", "The FPS / MS readout stays up.", "enabled"),
-        S.Toggle("mouseover", "Show On Mouseover", "The bar and the FPS / MS readout stay "
-            .. "invisible until you hover them. Their buttons still click while hidden.", "enabled")
+        S.Toggle("mouseover", "Show On Mouseover", "The bar and the FPS / MS readout fade to "
+            .. "Faded Opacity until you hover them. Their buttons still click while faded.", "enabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("tooltipScale", "Tooltip Size (%)", 80, 160, 5,
             "Size of the friends, guild, Hearthstone, clock and FPS tooltips.", "enabled"),
-        { type = "label", text = "" }
+        S.Slider("mouseoverAlpha", "Faded Opacity (%)", 0, 100, 5,
+            "How visible the bar and the FPS / MS readout stay while the mouse is away. "
+            .. "At 0 they are invisible.", "mouseover")
     ); y = y - h
 
     y = ns.BuildMinimapIcons(parent, y)
