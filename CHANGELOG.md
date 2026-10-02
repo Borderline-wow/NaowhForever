@@ -171,6 +171,9 @@
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
 
 ### Fixed
+- A copy downloaded with GitHub's green Code button has none of the addon's libraries, and
+  parts of it then failed with Lua errors (Low Health's glow on a level up, among others). It
+  now says at login which libraries are missing and where to download the full addon.
 - Loot Feed: turning in a quest no longer shows its experience twice, once on the quest's line
   and again as Experience. With quest lines turned off it still shows as Experience.
 - Blessings: the class buttons and the player list cast on the right player again in a party.

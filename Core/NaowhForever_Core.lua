@@ -248,6 +248,24 @@ function ns.Print(msg)
     print(ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
 end
 
+-- Libs/ is not in git; the packager adds it. An install from the repository's source zip has
+-- none, and features then fail one by one with Lua errors, so say so once at login.
+local LIBRARIES = { "CallbackHandler-1.0", "LibDataBroker-1.1", "LibDBIcon-1.0", "LibSharedMedia-3.0",
+    "LibCustomGlow-1.0", "LibGetFrame-1.0", "LibDeflate", "LibSerialize" }
+local WARNING = { r = 1, g = 0.35, b = 0.35 }
+local libCheck = CreateFrame("Frame")
+libCheck:RegisterEvent("PLAYER_LOGIN")
+libCheck:SetScript("OnEvent", function()
+    local missing = {}
+    for _, name in ipairs(LIBRARIES) do
+        if not (LibStub and LibStub(name, true)) then missing[#missing + 1] = name end
+    end
+    if #missing == 0 then return end
+    ns.Print(ns.Color(WARNING, "Libraries missing (" .. table.concat(missing, ", ") .. "), so parts of "
+        .. "the addon will not work. Download Naowh Forever from the Releases page or the Naowh "
+        .. "Discord, not with the green Code button on GitHub."))
+end)
+
 -------------------------------------------------------------------------------
 --  Reload UI
 -------------------------------------------------------------------------------
