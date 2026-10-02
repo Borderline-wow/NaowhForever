@@ -285,8 +285,9 @@ local function RenderBar()
 end
 
 -- Every zone with a book still to find, in the data's order (by set), with how many:
--- { uiMapID, count } pairs.
-local function ZonesLeft()
+-- { uiMapID, count } pairs. keep, the zone picked in the dropdown, stays in the list at 0
+-- once its last book is looted, so the pick does not jump to another zone under you.
+local function ZonesLeft(keep)
     local out, seen = {}, {}
     for _, book in ipairs(ns.LibraryBooks) do
         for _, spot in ipairs(book.spots) do
@@ -294,15 +295,15 @@ local function ZonesLeft()
             if not seen[id] then
                 seen[id] = true
                 local n = #L.OnMap(id)
-                if n > 0 then out[#out + 1] = { id, n } end
+                if n > 0 or id == keep then out[#out + 1] = { id, n } end
             end
         end
     end
     return out
 end
 
--- Points the dropdown at the zones left and returns the one to list: the saved pick while
--- it still has books, else the first.
+-- Points the dropdown at the zones left and returns the one to list: the saved pick, which
+-- ZonesLeft keeps even once it runs out, else the first.
 local function Pick(left)
     local saved, values, order = S.Get("trackerZone"), {}, {}
     pickedZone = nil
@@ -339,7 +340,11 @@ local function Render(zone, left)
             end
         end
     end
-    for _, item in ipairs(L.OnMap(listZone)) do
+    local toFind = L.OnMap(listZone)
+    if #toFind == 0 then
+        entries[#entries + 1] = { text = ns.Color("muted", "No more books in this area.") }
+    end
+    for _, item in ipairs(toFind) do
         local book, spot = item[1], item[2]
         local sub = L.Where(spot)
         if book.turnIn == "trainer" then sub = sub .. " - mage trainer" end
@@ -358,9 +363,6 @@ local function Render(zone, left)
     end
     for _, item in ipairs(L.DoneOnMap(listZone)) do
         entries[#entries + 1] = { text = L.Title(item[1]) }
-    end
-    if #entries == 0 then
-        entries[1] = { text = ns.Color("muted", "No books left to find here.") }
     end
     panel.title:SetText("Library Books  " .. ns.Color("muted", L.ZoneName(zone)))
     RenderBar()
@@ -399,7 +401,7 @@ local function Refresh()
         S.Set("trackerZone", zone)   -- redraws through the Set hook
         return
     end
-    local left = zone and always and ZonesLeft() or nil
+    local left = zone and always and ZonesLeft(S.Get("trackerZone")) or nil
     if left and #left == 0 then left = nil end
     local stay = panel and panel:IsShown() and shownZone == zone
     local show = zone and not dismissedZone and (always or here or stay)

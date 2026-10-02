@@ -19,12 +19,21 @@ local S = UI.ModuleSettings("professions", {
     -- Recipe Window: all off until switched on.
     recipeFinder = false, rankAlert = false, bagReagents = false, bankReagents = false,
     vendorMaterials = false,
+    -- Craft Orders: another player's linked profession in this window, to order crafts from.
+    craftOrders = false, orderTip = 10,
+    -- Crafting several at once shows the batch's time on the flight timer's bar.
+    craftTimer = false,
+    -- Materials for crafts added from the recipe pane, bought together at the auction house.
+    shoppingList = false,
+    -- Favourites not learned yet: offered at their trainer, their patterns listed at the AH.
+    trainFavorites = false, searchFavoritesAH = false,
     -- Gathering: all off until switched on.
     gatherReminder = false, gatherInInstances = false, gatherIconSize = 40, gatherFish = false,
     -- Buying and Selling: all off until switched on.
     ahSearch = false, ahShiftClick = false, craftProfit = false, craftProfitList = false,
-    buyMaterials = false,
+    buyMaterials = false, buyVendor = false,
     filterMaterials = false, filterSkillUp = false, filterProfit = false,
+    filterBoE = false, filterBoP = false, filterFavorite = false,
 })
 ns.ProfessionSettings = S
 
@@ -33,6 +42,8 @@ local MIN_H, PAD = 620, 8
 local LEFT_W, MID_W = 340, 400
 local MID_X = PAD + LEFT_W + PAD
 local W = MID_X + MID_W + PAD
+-- Another player's profession adds the order column on the right.
+local ORDER_W = 260
 local TOP_Y = -68
 -- The next-rank banner sits under the skill bar and pushes both columns down while shown.
 local BANNER_Y, BANNER_H, BANNER_SHIFT = -64, 40, 46
@@ -118,12 +129,25 @@ end
 -- Set when another player's profession link is clicked in chat. Opened from a closed window,
 -- a link does not always read as linked yet, so the window took it for your own.
 local viewingLink, linkClicked
+-- The GUID in the last clicked link, for the crafter's name when the game does not give it.
+local linkGUID
+-- Set while the window shows another player's profession, to order crafts from.
+local linkedMode = false
 
 local function Own()
     if viewingLink then return false end
     if C_TradeSkillUI.IsTradeSkillLinked() or C_TradeSkillUI.IsTradeSkillGuild() then return false end
     if C_TradeSkillUI.IsNPCCrafting and C_TradeSkillUI.IsNPCCrafting() then return false end
     return true
+end
+
+-- Another player's profession from a link, with Craft Orders on. A guild's or an NPC's
+-- crafting stays Blizzard's.
+local function Linked()
+    if not S.Get("craftOrders") then return false end
+    if C_TradeSkillUI.IsTradeSkillGuild() then return false end
+    if C_TradeSkillUI.IsNPCCrafting and C_TradeSkillUI.IsNPCCrafting() then return false end
+    return C_TradeSkillUI.IsTradeSkillLinked() == true
 end
 
 local function Profession()
@@ -180,7 +204,7 @@ local function Collect()
         if a.order ~= b.order then return a.order < b.order end
         return a.name < b.name
     end)
-    unlearned = ns.RecipeFinder and ns.RecipeFinder.Unlearned() or {}
+    unlearned = not linkedMode and ns.RecipeFinder and ns.RecipeFinder.Unlearned() or {}
 end
 
 local function GroupClosed(group)
@@ -213,6 +237,8 @@ local PassesFilter
 -- Whether Buy Materials has anything to buy for a recipe, and resetting its craft count; both
 -- set in the Buy Materials section.
 local HasBuyableMaterials, ResetBuyCount
+-- Buy at Vendor, filled in after Buy on AH: the open merchant's reagents for a recipe.
+local Vendor = {}
 
 local function BuildEntries()
     wipe(entries)
@@ -462,6 +488,11 @@ local function Owned()
     return db.craftOwned
 end
 
+-- For the shopping list (NaowhForever_ShoppingList.lua), which adds its row to the recipe
+-- pane: the chosen recipe, its reagents, and which of them Buy on AH would buy.
+ns.ProfWindowAPI = { SelectedInfo = SelectedInfo, Reagents = Reagents, Owned = Owned,
+    IsVendorItem = IsVendorItem, Linked = function() return linkedMode end }
+
 -- What one craft costs in bought reagents and fetches on the auction house after its cut.
 -- `sale` is nil when the item had no listing at the last scan, or makes no item at all.
 local function CraftValue(recipeID, output, made)
@@ -560,7 +591,8 @@ end
 
 -- "" when the list profit is off or not known; the row's font takes the colour.
 local function ListProfit(recipeID, output, made)
-    local profit = S.Get("craftProfitList") and RecipeProfit(recipeID, output, made)
+    -- Not in another player's list: you are ordering those, not crafting to sell.
+    local profit = not linkedMode and S.Get("craftProfitList") and RecipeProfit(recipeID, output, made)
     if not profit then return "", T.fg end
     return (profit >= 0 and "+" or "") .. Money(profit), profit >= 0 and PROFIT_GREEN or RED
 end
@@ -570,12 +602,80 @@ end
 -------------------------------------------------------------------------------
 -- The Filter menu, as in Blizzard's window, plus Profitable. Have Materials and Has Skill-Up
 -- concern the recipes you know; an unlearned recipe cannot be made, so Have Materials hides
--- those too.
+-- those too. Below a divider, how the item made binds (C_Item.GetItemInfo's bindType: 1 on
+-- pickup, 2 on equip, 0 never; never counts as on equip for now, see PassesFilter).
 local FILTERS = {
+    { key = "filterFavorite", text = "Favorites" },
     { key = "filterMaterials", text = "Have Materials" },
     { key = "filterSkillUp", text = "Has Skill-Up" },
     { key = "filterProfit", text = "Profitable", profit = true },
+    { key = "filterBoE", text = "Bind on Equip", bind = 2, divider = true },
+    { key = "filterBoP", text = "Bind on Pickup", bind = 1 },
 }
+for _, f in ipairs(FILTERS) do FILTERS[f.key] = f end
+
+-- Favourite recipes: kept in the profile (craftFavorites), by spell ID, which is also a known
+-- recipe's recipeID. A known one is told to the game as well, so a favourite set in Blizzard's
+-- own window counts too; an unlearned one (a RecipeData row) lives only here, and the trainer
+-- and auction house reminders (NaowhForever_FavoriteRecipes.lua) read it.
+FILTERS.favorites = {}
+ns.ProfFavorites = FILTERS.favorites
+
+function FILTERS.favorites.Store()
+    local db = S.DB()
+    if type(db.craftFavorites) ~= "table" then db.craftFavorites = {} end
+    return db.craftFavorites
+end
+
+-- `info` is a known recipe's info, or an unlearned recipe's RecipeData row.
+function FILTERS.favorites.Is(info)
+    if not info then return false end
+    local own = FILTERS.favorites.Store()[info.recipeID or info.spell]
+    if own ~= nil then return own end
+    return info.favorite == true
+end
+
+function FILTERS.favorites.Toggle(info)
+    if not info then return end
+    local on = not FILTERS.favorites.Is(info)
+    FILTERS.favorites.Store()[info.recipeID or info.spell] = on
+    if not info.recipeID then return end
+    info.favorite = on
+    if C_TradeSkillUI.SetRecipeFavorite then pcall(C_TradeSkillUI.SetRecipeFavorite, info.recipeID, on) end
+end
+
+-- The favourite star before an unlearned recipe's name, in the pane saying where to learn it.
+function FILTERS.favorites.BuildLearnStar(l)
+    l.fav = CreateFrame("Button", nil, l)
+    l.fav:SetSize(18, 18)
+    l.fav:SetPoint("TOPLEFT", l.icon, "TOPRIGHT", 10, 0)
+    l.fav.tex = l.fav:CreateTexture(nil, "ARTWORK")
+    l.fav.tex:SetAllPoints()
+    -- RenderList and RenderDetail are declared further down, so the window redraws through
+    -- its refresh instead.
+    l.fav:SetScript("OnClick", function()
+        if not selectedUnlearned then return end
+        FILTERS.favorites.Toggle(selectedUnlearned)
+        if ns.ProfWindowRefresh then ns.ProfWindowRefresh() end
+    end)
+    ns.Tooltip(l.fav, "Favorite", "Makes this recipe a favourite, or no longer one. With Train "
+        .. "Favorites on, a trainer who teaches it offers it when you visit; with Search Favorites "
+        .. "AH on, its pattern, plans or manual is listed at the auction house to search for.")
+end
+
+-- A star texture, filled for a favourite and hollow for not: the auction house's star,
+-- else the reputation star's two halves.
+function FILTERS.favorites.Star(texture, on)
+    local atlas = on and "auctionhouse-icon-favorite" or "auctionhouse-icon-favorite-off"
+    if texture.SetAtlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) then
+        texture:SetAtlas(atlas)
+        texture:SetDesaturated(false)
+        texture:SetAlpha(1)
+    else
+        texture:SetTexture("Interface\\COMMON\\ReputationStar")
+        texture:SetTexCoord(on and 0 or 0.5, on and 0.5 or 1, 0, 0.5)
+    end
+end
 
 -- Profitable only counts while there are prices to judge by.
 local function FilterOn(f)
@@ -583,17 +683,40 @@ local function FilterOn(f)
 end
 
 PassesFilter = function(info, r)
+    -- The filters are about your own crafting; another player's list shows everything.
+    if linkedMode then return true end
+    -- Favorites: only your favourites, learned or not.
+    if FilterOn(FILTERS.filterFavorite) and not FILTERS.favorites.Is(info or r) then return false end
+    -- Bind on Equip or Pickup: the item made has to bind one of the ticked ways. An item not
+    -- loaded yet is asked for; ITEM_DATA_LOAD_RESULT then redraws the list.
+    local boe, bop = FilterOn(FILTERS.filterBoE), FilterOn(FILTERS.filterBoP)
+    if boe or bop then
+        local item
+        if info then
+            item = OutputItem(info.recipeID)
+        else
+            item = r.item or OutputItem(r.spell)
+        end
+        local bind = item and select(14, C_Item.GetItemInfo(item))
+        if item and bind == nil then C_Item.RequestLoadItemDataByID(item) end
+        -- On the beta much crafted gear does not bind at all and still sells on the auction
+        -- house, so for now an item that never binds (0) counts as Bind on Equip too.
+        local asBoE = bind == FILTERS.filterBoE.bind or bind == 0
+        if not ((boe and asBoE) or (bop and bind == FILTERS.filterBoP.bind)) then
+            return false
+        end
+    end
     if info then
-        if FilterOn(FILTERS[1]) and Craftable(info) == 0 then return false end
-        if FilterOn(FILTERS[2]) and info.relativeDifficulty == TRIVIAL then return false end
-        if FilterOn(FILTERS[3]) then
+        if FilterOn(FILTERS.filterMaterials) and Craftable(info) == 0 then return false end
+        if FilterOn(FILTERS.filterSkillUp) and info.relativeDifficulty == TRIVIAL then return false end
+        if FilterOn(FILTERS.filterProfit) then
             local profit = RecipeProfit(info.recipeID, OutputItem(info.recipeID))
             if not (profit and profit > 0) then return false end
         end
         return true
     end
-    if FilterOn(FILTERS[1]) then return false end
-    if FilterOn(FILTERS[3]) then
+    if FilterOn(FILTERS.filterMaterials) then return false end
+    if FilterOn(FILTERS.filterProfit) then
         local read, made = OutputItem(r.spell)
         local profit = RecipeProfit(r.spell, r.item or read, made)
         if not (profit and profit > 0) then return false end
@@ -622,6 +745,25 @@ local function SetProfitLine(line, label, value, note)
     line:SetShown(value ~= nil)
 end
 
+-- The columns fit what they hold: the amounts end together right after the longest label,
+-- as wide as the longest amount, with the notes straight after.
+local function FitProfitLines(lines)
+    local labelW, valueW = 0, 0
+    for _, line in ipairs(lines) do
+        if line:IsShown() then
+            labelW = math.max(labelW, line.label:GetStringWidth())
+            valueW = math.max(valueW, line.value:GetStringWidth())
+        end
+    end
+    for _, line in ipairs(lines) do
+        line.value:ClearAllPoints()
+        line.value:SetPoint("LEFT", math.ceil(labelW) + PROFIT_GAP, 0)
+        line.value:SetWidth(math.ceil(valueW) + 1)
+    end
+end
+
+-- Three lines under a recipe: what its reagents cost to buy, what it sells for, and the
+-- profit. Hidden until the auction house has been scanned on this realm and faction.
 local function RenderProfit(block, recipeID, output, made)
     if not (S.Get("craftProfit") and ns.AuctionScanTime and ns.AuctionScanTime()) then
         block.value = nil
@@ -653,27 +795,287 @@ local function RenderProfit(block, recipeID, output, made)
     end
     SetProfitLine(block.sell, "Sell for:", sell, sellNote)
     SetProfitLine(block.profit, "Profit:", profit, profitNote)
-    -- The columns fit what they hold: the amounts end together right after the longest label,
-    -- as wide as the longest amount, with the notes straight after.
-    local labelW, valueW = 0, 0
-    for _, line in ipairs({ block.buy, block.sell, block.profit }) do
-        if line:IsShown() then
-            labelW = math.max(labelW, line.label:GetStringWidth())
-            valueW = math.max(valueW, line.value:GetStringWidth())
+    FitProfitLines(block.lines)
+    block:Show()
+end
+
+-------------------------------------------------------------------------------
+--  Craft orders
+-------------------------------------------------------------------------------
+-- In another player's profession: pick the crafts you want from them and how many, tick the
+-- materials you bring, and send them the order, one message per craft. Orders are kept per
+-- crafter until sent (or a reload), so closing the link and opening it again keeps them.
+-- One table for all of it: the file is close to Lua's limit of 200 locals.
+local Order = {
+    MAX = 9,
+    MIN_TIP = 100,      -- 1s
+    GAP = 0.4,          -- seconds between the whispers of one order
+    MAX_MSG = 255,      -- a chat message's length, item links counted in full
+    byCrafter = {},
+    -- Whispered with Invite, one picked at random.
+    INVITE_LINES = {
+        "Hi! Inviting you to my group for some crafts from your profession.",
+        "Hey, sending you an invite. I'd like to order a few crafts from you.",
+        "Hi there! Invite incoming, got some crafting work for you if you're up for it.",
+        "Hey! Saw your profession, inviting you so I can ask for a few crafts.",
+        "Hello! Mind joining my group? I'd like a few things crafted, with a tip of course.",
+        "Hi! Sent you an invite for some crafts, easier to sort out in party chat.",
+    },
+    -- How each craft of an order is asked for, one picked at random: the count, then the item.
+    ASK_LINES = {
+        "Could you craft %dx %s for me?",
+        "Would you make %dx %s for me?",
+        "Could I get %dx %s from you?",
+        "Any chance you could craft %dx %s?",
+        "Would you mind making %dx %s for me?",
+        "Can you make %dx %s for me?",
+    },
+    last = {},
+}
+
+-- One of `lines` at random, never the one picked from them last time.
+function Order.Pick(lines)
+    local last = Order.last[lines]
+    local pick = math.random(#lines - (last and 1 or 0))
+    if last and pick >= last then pick = pick + 1 end
+    Order.last[lines] = pick
+    return lines[pick]
+end
+
+-- Who the open link belongs to, "Name" or "Name-Realm".
+function Order.Crafter()
+    local _, name = C_TradeSkillUI.IsTradeSkillLinked()
+    if type(name) == "string" and name ~= "" then return name end
+    if linkGUID then
+        local _, _, _, _, _, n, realm = GetPlayerInfoByGUID(linkGUID)
+        if n and n ~= "" then return (realm and realm ~= "") and (n .. "-" .. realm) or n end
+    end
+end
+
+function Order.Get()
+    local who = Order.Crafter()
+    if not who then return end
+    local o = Order.byCrafter[who]
+    if not o then
+        o = { who = who, list = {}, drafts = {} }
+        Order.byCrafter[who] = o
+    end
+    -- The link's GUID finds them in your group whatever form the name comes in.
+    if linkedMode and linkGUID then o.guid = linkGUID end
+    return o
+end
+
+-- A recipe's order line: made the first time the recipe is chosen, on the order once added.
+-- It keeps what it needs to show and whisper after the link is closed.
+function Order.Draft(info)
+    local o = info and Order.Get()
+    if not o then return end
+    local d = o.drafts[info.recipeID]
+    if not d then
+        local output, made = OutputItem(info.recipeID)
+        d = { recipeID = info.recipeID, name = info.name, icon = info.icon, output = output,
+            made = made or 1, reagents = Reagents(info.recipeID), crafts = 1, bring = {} }
+        o.drafts[info.recipeID] = d
+    end
+    if #d.reagents == 0 then d.reagents = Reagents(info.recipeID) end
+    return d
+end
+
+function Order.Index(o, d)
+    for i, e in ipairs(o.list) do
+        if e == d then return i end
+    end
+end
+
+-- How many of a reagent you bring: all the crafts need once ticked (true), or the number
+-- typed, never more than they need.
+function Order.Bringing(d, r)
+    local total = r.need * d.crafts
+    local b = d.bring[r.itemID]
+    if b == true then return total end
+    return math.min(b or 0, total)
+end
+
+-- Rounded as a tip is paid: to the silver under 1g, to 10s under 10g, else to the gold.
+function Order.Round(copper)
+    local step = copper < 10000 and 100 or copper < 100000 and 1000 or 10000
+    return math.floor(copper / step + 0.5) * step
+end
+
+-- What an order line is worth: the materials the crafter puts in, what the items sell for,
+-- and the suggested tip, which pays back their materials plus a share (orderTip %) of what
+-- the items sell for, or of all the materials for a recipe that makes no item.
+function Order.Value(d)
+    local v = { theirs = 0, all = 0, missing = 0, theirsCount = 0, bringCount = 0, parts = {} }
+    for _, r in ipairs(d.reagents) do
+        local total = r.need * d.crafts
+        local mine = Order.Bringing(d, r)
+        local each, from = BuyPrice(r.itemID)
+        v.parts[#v.parts + 1] = { itemID = r.itemID, total = total, mine = mine, each = each, from = from }
+        if mine > 0 then v.bringCount = v.bringCount + 1 end
+        if total > mine then v.theirsCount = v.theirsCount + 1 end
+        if each then
+            v.theirs = v.theirs + each * (total - mine)
+            v.all = v.all + each * total
+        else
+            v.missing = v.missing + 1
         end
     end
-    for _, line in ipairs({ block.buy, block.sell, block.profit }) do
-        line.value:ClearAllPoints()
-        line.value:SetPoint("LEFT", math.ceil(labelW) + PROFIT_GAP, 0)
-        line.value:SetWidth(math.ceil(valueW) + 1)
+    local each = d.output and ns.AuctionPrice and ns.AuctionPrice(d.output)
+    v.value = each and each * d.made * d.crafts
+    v.pct = S.Get("orderTip") or 10
+    local base = v.value or (v.missing == 0 and v.all > 0 and v.all) or nil
+    if base then
+        local share = v.pct > 0 and math.max(Order.MIN_TIP, base * v.pct / 100) or 0
+        v.pay = Order.Round(v.theirs + share)
     end
-    block:Show()
+    return v
+end
+
+-- The tip you set for a line, else the suggested one.
+function Order.Pay(d, v)
+    return d.tip or v.pay
+end
+
+-- "2g 50s", "35s", "8c": for chat, leaving out the coins that are zero.
+function Order.Short(copper)
+    copper = math.floor(copper + 0.5)
+    local parts = {}
+    for _, coin in ipairs(COINS) do
+        local n = math.floor(copper / coin[1])
+        copper = copper - n * coin[1]
+        if n > 0 then parts[#parts + 1] = n .. coin[2] end
+    end
+    return #parts > 0 and table.concat(parts, " ") or "0c"
+end
+
+-- A typed tip: "2g 50s", "2g50s", "75s", or a plain number of gold ("2.5"). Nil when empty or
+-- not an amount.
+function Order.Parse(text)
+    text = (text or ""):lower():gsub("%s", "")
+    if text == "" then return end
+    local gold = tonumber(text)
+    if gold then return math.max(0, math.floor(gold * 10000 + 0.5)) end
+    -- Every part must be an amount with its coin ("2.5g", "1g50s"): anything left over is not a tip.
+    local total, bad = 0, false
+    local rest = text:gsub("([%d%.]+)([gsc])", function(n, coin)
+        n = tonumber(n)
+        if not n then bad = true return "" end
+        total = total + n * (coin == "g" and 10000 or coin == "s" and 100 or 1)
+        return ""
+    end)
+    if bad or rest ~= "" then return end
+    return math.floor(total + 0.5)
+end
+
+function Order.Link(itemID, fallback)
+    local _, link = C_Item.GetItemInfo(itemID)
+    return link or ("[" .. (C_Item.GetItemNameByID(itemID) or fallback or ("Item " .. itemID)) .. "]")
+end
+
+-- An order line's messages: one, or more when the item links run past what one message
+-- holds. In party chat each starts with the crafter's name, so the group sees who it is for.
+--   Could you craft 5x [Heavy Silk Bandage] for me? I bring 10x [Silk Cloth]. Tip: 2g 50s.
+function Order.Messages(d, name)
+    local v = Order.Value(d)
+    local what = d.output and Order.Link(d.output, d.name)
+        or C_TradeSkillUI.GetRecipeLink(d.recipeID) or ("[" .. (d.name or "?") .. "]")
+    local ask = Order.Pick(Order.ASK_LINES):format(d.crafts, what)
+    -- "Name, could you craft..." in party chat.
+    if name then ask = name .. ", " .. ask:sub(1, 1):lower() .. ask:sub(2) end
+    local pieces = { ask }
+    local mats = {}
+    for _, p in ipairs(v.parts) do
+        if p.mine > 0 then
+            mats[#mats + 1] = ("%dx %s"):format(p.mine, Order.Link(p.itemID))
+                .. (p.mine < p.total and (" (of %d)"):format(p.total) or "")
+        end
+    end
+    if #mats == 0 then
+        pieces[#pieces + 1] = "No materials from me."
+    else
+        pieces[#pieces + 1] = "I bring"
+        for i, m in ipairs(mats) do pieces[#pieces + 1] = m .. (i < #mats and "," or ".") end
+    end
+    local pay = Order.Pay(d, v)
+    if pay and pay > 0 then
+        pieces[#pieces + 1] = ("Tip: %s."):format(Order.Short(pay))
+    end
+    local out, line = {}, ""
+    for _, piece in ipairs(pieces) do
+        local joined = line == "" and piece or (line .. " " .. piece)
+        if #joined > Order.MAX_MSG and line ~= "" then
+            out[#out + 1] = line
+            line = piece
+        else
+            line = joined
+        end
+    end
+    if line ~= "" then out[#out + 1] = line end
+    return out
+end
+
+-- "party" or "raid" when the crafter is in your group, else nil. Matched by the link's GUID,
+-- else by name with your own realm left off: the link may name them "Name-Realm" where the
+-- group says "Name".
+function Order.Grouped(o)
+    if not (o and IsInGroup()) then return end
+    local raid = IsInRaid()
+    local want = Ambiguate(o.who, "none")
+    for i = 1, raid and GetNumGroupMembers() or GetNumSubgroupMembers() do
+        local unit = (raid and "raid" or "party") .. i
+        local guid = UnitGUID(unit)
+        local name = GetUnitName(unit, true)
+        if (o.guid and guid == o.guid) or (name and Ambiguate(name, "none") == want) then
+            return raid and "raid" or "party"
+        end
+    end
+end
+
+-- Where the order goes: party chat (instance chat in a dungeon-finder group) when the
+-- crafter is in your party, else a whisper; in a raid too, where it would reach everyone.
+function Order.Channel(o)
+    if Order.Grouped(o) ~= "party" then return "WHISPER" end
+    return IsInGroup(LE_PARTY_CATEGORY_INSTANCE) and "INSTANCE_CHAT" or "PARTY"
+end
+
+-- Sends the whole order, a moment apart so chat does not throttle it, and empties it.
+function Order.Send()
+    local o = Order.Get()
+    if not (o and #o.list > 0) then return end
+    local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+    local who = o.who
+    local channel = Order.Channel(o)
+    local short = Ambiguate(who, "short")
+    local messages = {}
+    for _, d in ipairs(o.list) do
+        for _, m in ipairs(Order.Messages(d, channel ~= "WHISPER" and short or nil)) do
+            messages[#messages + 1] = m
+        end
+    end
+    for i, m in ipairs(messages) do
+        C_Timer.After((i - 1) * Order.GAP, function()
+            send(m, channel, nil, channel == "WHISPER" and who or nil)
+        end)
+    end
+    o.sent = ("Asked %s %sfor %s."):format(short, channel == "WHISPER" and "" or "in party chat ",
+        #o.list == 1 and "1 craft" or (#o.list .. " crafts"))
+    wipe(o.list)
+    wipe(o.drafts)
 end
 
 -------------------------------------------------------------------------------
 --  Rendering
 -------------------------------------------------------------------------------
 local Render, RenderList, RenderDetail, RenderLearn
+
+-- "x5" in the count column for a recipe on the order.
+function Order.Count(recipeID)
+    local o = Order.Get()
+    local d = o and o.drafts[recipeID]
+    if d and Order.Index(o, d) then return Hex(T.accent) .. "x" .. d.crafts .. "|r" end
+    return ""
+end
 
 -- The counts and skills fill a column at the left of the rows, as wide as the widest one on
 -- screen and right-aligned in it, so every icon and name starts at the same place. The icons
@@ -721,6 +1123,8 @@ RenderList = function()
                 row.count:SetText("")
                 row.profit:SetText("")
                 row.icon:Hide()
+                row.fav:Hide()
+                row.text:SetPoint("RIGHT", row.profit, "LEFT", -6, 0)
                 row.head:Show()
                 row.sel:Hide()
             elseif e.unlearned then
@@ -737,6 +1141,9 @@ RenderList = function()
                 local profit, color = ListProfit(r.spell, r.item or read, made)
                 row.profit:SetText(profit)
                 SetColor(row.profit, color)
+                local fav = FILTERS.favorites.Is(r)
+                row.fav:SetShown(fav)
+                row.text:SetPoint("RIGHT", fav and row.fav or row.profit, "LEFT", fav and -4 or -6, 0)
                 row.head:Hide()
                 row.sel:SetShown(r == selectedUnlearned)
             else
@@ -747,7 +1154,10 @@ RenderList = function()
                 row.text:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
                 row.text:SetText(info.name)
                 SetColor(row.text, DIFFICULTY[info.relativeDifficulty] or T.fg)
-                row.count:SetText(FormatCraftCount(info))
+                row.count:SetText(linkedMode and Order.Count(info.recipeID) or FormatCraftCount(info))
+                local fav = not linkedMode and FILTERS.favorites.Is(info)
+                row.fav:SetShown(fav)
+                row.text:SetPoint("RIGHT", fav and row.fav or row.profit, "LEFT", fav and -4 or -6, 0)
                 local profit, color = ListProfit(info.recipeID, OutputItem(info.recipeID))
                 row.profit:SetText(profit)
                 SetColor(row.profit, color)
@@ -781,6 +1191,7 @@ local function FillReagents(rows, reagents, target, max)
     local cols = (showBags and 1 or 0) + (showBank and 1 or 0)
     -- The checkboxes decide what the profit counts and what Buy Materials buys.
     local checks = ProfitShown() or (S.Get("buyMaterials") and AuctionHouseOpen())
+        or (S.Get("buyVendor") and Vendor.Open())
     local owned = Owned()
     for i, r in ipairs(rows) do
         local data = i <= max and reagents[i]
@@ -804,6 +1215,8 @@ local function FillReagents(rows, reagents, target, max)
             r.count:SetText(("%d/%d"):format(have, data.need)
                 .. (buy > 0 and ("   %sbuy %d more|r"):format(Hex(VENDOR_ORANGE), buy) or ""))
             SetColor(r.count, have >= data.need and T.fg or RED)
+            r.draft = nil
+            r.bringRow:Hide()
             r.bagsLabel:SetShown(showBags)
             r.bags:SetShown(showBags)
             r.bankLabel:SetShown(showBank)
@@ -831,16 +1244,161 @@ local function FillReagents(rows, reagents, target, max)
     end
 end
 
+-- The reagent rows of an order line: a box to tick for each material you bring, how many you
+-- bring beside it, and how many the crafts need against what your bags hold.
+function Order.FillReagents(rows, d)
+    for i, r in ipairs(rows) do
+        local data = d.reagents[i]
+        if data then
+            local name = ItemName(data.itemID)
+            local total, mine = data.need * d.crafts, Order.Bringing(d, data)
+            local have = ItemCount(data.itemID)
+            r.itemID, r.draft = data.itemID, d
+            r.icon:SetTexture(C_Item.GetItemIconByID(data.itemID))
+            r.check:Show()
+            r.check:SetChecked(mine > 0)
+            r.icon:ClearAllPoints()
+            r.icon:SetPoint("LEFT", r.check, "RIGHT", 6, 0)
+            r.icon:SetDesaturated(false)
+            r.count:SetText(("%d needed   %s%d in bags|r"):format(total,
+                Hex(have >= mine and T.muted or RED), have))
+            SetColor(r.count, T.fg)
+            r.bagsLabel:Hide()
+            r.bags:Hide()
+            r.bankLabel:Hide()
+            r.bank:Hide()
+            r.bringRow:Show()
+            if not r.bring:HasFocus() then r.bring:SetText(tostring(mine)) end
+            r.name:ClearAllPoints()
+            r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 6, -2)
+            r.name:SetPoint("RIGHT", r.bringRow, "LEFT", -8, 0)
+            r.vendor = IsVendorItem(data.itemID)
+            r.name:SetText((name or "") .. (r.vendor and "  " .. VENDOR_ICON or ""))
+            r:Show()
+        else
+            r.draft = nil
+            r:Hide()
+        end
+    end
+end
+
+-- The chosen recipe's order line, or nil outside another player's profession.
+function Order.Current()
+    return linkedMode and Order.Draft(SelectedInfo()) or nil
+end
+
+-- The crafter's materials and the tip, for the chosen recipe. What the items sell for only
+-- goes into the suggested tip: you are ordering them, not crafting to sell.
+Order.RenderValue = function()
+    local block = win.detail.orderValue
+    local d = Order.Current()
+    if not d or #d.reagents == 0 then
+        block.value = nil
+        return block:Hide()
+    end
+    local v = Order.Value(d)
+    block.value = v
+    local none = Hex(T.muted) .. "-|r"
+    SetProfitLine(block.theirs, "Their materials:", Money(v.theirs),
+        v.missing > 0 and ("+ %d unpriced"):format(v.missing)
+        or v.theirsCount == 0 and "you bring them all" or nil)
+    if d.tip then
+        SetProfitLine(block.pay, "Your tip:", Money(d.tip),
+            v.pay and ("suggested %s"):format(Money(v.pay)) or nil)
+    else
+        SetProfitLine(block.pay, "Suggested tip:", v.pay and Money(v.pay) or none,
+            v.pay and ("their materials + %d%%"):format(v.pct) or "scan the auction house first")
+    end
+    FitProfitLines(block.lines)
+    block:Show()
+end
+
+-- The middle column in another player's profession: the reagents to tick, the amounts, and
+-- "- [n] + Add to Order" in place of the craft buttons.
+function Order.RenderDetail(info)
+    local d = win.detail
+    local draft = Order.Draft(info)
+    d.track:Hide()
+    d.buyRow:Hide()
+    d.orderRow:SetShown(draft ~= nil)
+    d.bringHead:SetShown(draft ~= nil and #draft.reagents > 0)
+    if not draft then
+        FillReagents(d.reagents, {}, nil, 0)
+        return Order.RenderValue()
+    end
+    Order.FillReagents(d.reagents, draft)
+    Order.RenderValue()
+    if not d.orderQty:HasFocus() then d.orderQty:SetText(tostring(draft.crafts)) end
+    local o = Order.Get()
+    local added = Order.Index(o, draft)
+    ns.SetButtonText(d.orderAdd, added and "Remove" or "Add to Order")
+    EnableButton(d.orderAdd, added ~= nil or #o.list < Order.MAX)
+end
+
+-- The order column: every craft on the order with its tip, and Ask.
+Order.Render = function()
+    local p = win and win.order
+    if not (p and linkedMode) then return end
+    local o = Order.Get()
+    local list = o and o.list or {}
+    p.title:SetText(o and Ambiguate(o.who, "short") or "")
+    -- Greyed out once they are in your group, or while you may not invite.
+    local mayInvite = not IsInGroup() or UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")
+    p.invite:SetShown(o ~= nil)
+    EnableButton(p.invite, o ~= nil and not Order.Grouped(o) and mayInvite)
+    local total = 0
+    for i, row in ipairs(p.rows) do
+        local d = list[i]
+        row.draft = d
+        if d then
+            local v = Order.Value(d)
+            row.icon:SetTexture(d.icon or (d.output and C_Item.GetItemIconByID(d.output)))
+            row.name:SetText(("%dx %s"):format(d.crafts, d.name or ""))
+            local sub
+            if #v.parts == 0 then
+                sub = ""
+            elseif v.bringCount == 0 then
+                sub = "No materials from you"
+            elseif v.theirsCount == 0 then
+                sub = "You bring all materials"
+            else
+                sub = ("You bring %d of %d materials"):format(v.bringCount, #v.parts)
+            end
+            row.sub:SetText(sub)
+            local pay = Order.Pay(d, v)
+            total = total + (pay or 0)
+            if not row.tip:HasFocus() then row.tip:SetText(pay and pay > 0 and Order.Short(pay) or "") end
+            row.sel:SetShown(not selectedUnlearned and d.recipeID == selectedID)
+            row:Show()
+        else
+            row:Hide()
+        end
+    end
+    p.empty:SetShown(#list == 0)
+    p.empty:SetText(o and o.sent or ("Choose a recipe, set how many crafts, tick the materials "
+        .. "you bring and click Add to Order."))
+    SetColor(p.empty, o and o.sent and T.accent or T.muted)
+    p.total:SetText(#list > 0 and ("Tips: %s"):format(Money(total)) or "")
+    -- The name is in the header above; the button says where the order will go.
+    local channel = o and Order.Channel(o)
+    ns.SetButtonText(p.send, channel == "PARTY" and "Ask in Party"
+        or channel == "INSTANCE_CHAT" and "Ask in Instance" or "Ask by Whisper")
+    EnableButton(p.send, #list > 0)
+    EnableButton(p.clear, #list > 0)
+end
+
 RenderLearn = function(r)
     local l = win.learn
     l.icon:SetTexture((r.item and C_Item.GetItemIconByID(r.item)) or C_Spell.GetSpellTexture(r.spell))
     l.name:SetText(C_Spell.GetSpellName(r.spell) or ("Recipe " .. r.spell))
     SetColor(l.name, ns.RecipeFinder.Color(r))
+    FILTERS.favorites.Star(l.fav.tex, FILTERS.favorites.Is(r))
     l.req:SetText(ns.RecipeFinder.Requirement(r))
     -- The item it makes (read from the recipe when the data has none), and the recipe itself
     -- when one is sold or dropped; trainer recipes have none.
     local read, made = OutputItem(r.spell)
     local output = r.item or read
+    l.iconButton.item, l.iconButton.spell = output, r.spell
     ShowSearch(l.search, output and (ItemName(output) or C_Spell.GetSpellName(r.spell)))
     RenderProfit(l.profit, r.spell, output, made)
     ShowSearch(l.searchRecipe, ItemName(r.recipe))
@@ -902,6 +1460,8 @@ end
 
 RenderDetail = function()
     local d = win.detail
+    -- The shopping list's row shows only for one of your own recipes, placed further down.
+    if ns.ShoppingListRender then ns.ShoppingListRender(nil) end
     if selectedUnlearned then
         d:Hide()
         win.empty:Hide()
@@ -916,16 +1476,32 @@ RenderDetail = function()
 
     d.icon:SetTexture(info.icon)
     d.name:SetText(info.name)
+    -- Your own recipes only: another player's are theirs to favour.
+    d.fav:SetShown(not linkedMode)
+    FILTERS.favorites.Star(d.fav.tex, FILTERS.favorites.Is(info))
     SetColor(d.name, DIFFICULTY[info.relativeDifficulty] or T.fg)
     local output, made = OutputItem(info.recipeID)
-    ShowSearch(d.search, output and (ItemName(output) or info.name), d.name, d)
-    RenderProfit(d.profit, info.recipeID, output, made)
+    ShowSearch(d.search, not linkedMode and output and (ItemName(output) or info.name) or nil, d.name, d)
+    -- In another player's profession the order controls stand in for the craft buttons.
+    for _, control in ipairs(win.craftControls) do control:SetShown(not linkedMode) end
+    if linkedMode then
+        d.profit.value = nil
+        d.profit:Hide()
+    else
+        d.orderRow:Hide()
+        d.bringHead:Hide()
+        d.orderValue.value = nil
+        d.orderValue:Hide()
+        RenderProfit(d.profit, info.recipeID, output, made)
+    end
 
     local ok, desc = pcall(C_TradeSkillUI.GetRecipeDescription, info.recipeID, {})
     local lines = { ok and desc or "" }
     local okReq, reqs = pcall(C_TradeSkillUI.GetRecipeRequirements, info.recipeID)
     -- A requirement not met (not at an anvil, no hammer in the bags) greys out the craft buttons.
+    -- Another player's recipe is theirs to meet, so it shows none.
     local unmet = false
+    if linkedMode then okReq = false end
     if okReq and reqs and #reqs > 0 then
         local parts = {}
         for _, req in ipairs(reqs) do
@@ -936,13 +1512,21 @@ RenderDetail = function()
         lines[#lines + 1] = "Requires: " .. table.concat(parts, ", ")
     end
     local okCd, cooldown = pcall(C_TradeSkillUI.GetRecipeCooldown, info.recipeID)
-    if okCd and cooldown and cooldown > 0 then
+    if not linkedMode and okCd and cooldown and cooldown > 0 then
         lines[#lines + 1] = "|cffff4d4dCooldown: " .. SecondsToTime(cooldown) .. "|r"
     end
+    -- More crafts than the bags have room for: Create All stops at what fits.
+    local can = Craftable(info)
+    local room = not linkedMode and ns.CraftBagRoom and ns.CraftBagRoom(output, made, Reagents(info.recipeID), can)
+    if room and can > room then
+        lines[#lines + 1] = ("|cffff4d4dBags: room for %d of %d.|r"):format(room, can)
+    end
+    win.createAll.count = room and math.min(can, room) or can
     d.desc:SetText(table.concat(lines, "\n"))
 
     d.reagentsLabel:ClearAllPoints()
     d.reagentsLabel:SetPoint("TOPLEFT", d.desc, "BOTTOMLEFT", 0, -14)
+    if linkedMode then return Order.RenderDetail(info) end
     local reagents = Reagents(info.recipeID)
     -- The crafts the orange count promises: each vendor reagent says how many to buy for them.
     local target = S.Get("vendorMaterials") and CraftableWithVendor(info)
@@ -951,18 +1535,32 @@ RenderDetail = function()
     -- Buy Materials right under the reagents it buys, on the right.
     local last = d.reagents[math.min(#reagents, MAX_REAGENTS)]
     ResetBuyCount(info.recipeID)
-    d.buyRow:SetShown(last ~= nil and S.Get("buyMaterials") and AuctionHouseOpen()
-        and HasBuyableMaterials(info.recipeID))
+    -- At the auction house it buys there; at a merchant, what that merchant sells.
+    local atAH = S.Get("buyMaterials") and AuctionHouseOpen() and HasBuyableMaterials(info.recipeID)
+    local atVendor = not atAH and not AuctionHouseOpen() and S.Get("buyVendor") and Vendor.Open()
+        and Vendor.Sells(info.recipeID)
+    d.buyRow:SetShown(last ~= nil and (atAH or atVendor) and true or false)
+    d.buyRow.vendor = atVendor and true or false
+    Vendor.Note()
+    -- Buy All (x) at a merchant: x is the orange count, the crafts buying the vendor reagents
+    -- would allow. Shown only while that is more than you can make now, and never at the
+    -- auction house, where that count means nothing.
+    local all = atVendor and CraftableWithVendor(info) or nil
+    if all and all <= Craftable(info) then all = nil end
+    d.buyAll.crafts = all
+    d.buyAll:SetShown(d.buyRow:IsShown() and all ~= nil)
+    if all then ns.SetButtonText(d.buyAll, ("Buy All (%d)"):format(all)) end
     if last then
         d.buyRow:ClearAllPoints()
         -- The reagent rows end 4px short of where Create ends (10 from the pane's edge).
         d.buyRow:SetPoint("TOPRIGHT", last, "BOTTOMRIGHT", 4, -4)
     end
+    if ns.ShoppingListRender then ns.ShoppingListRender(info, last) end
     local okTrack, tracked = pcall(C_TradeSkillUI.IsRecipeTracked, info.recipeID, false)
     d.track:SetShown(okTrack and C_TradeSkillUI.SetRecipeTracked ~= nil)
     d.track:SetChecked(okTrack and tracked == true)
 
-    ns.SetButtonText(win.createAll, ("Create All (%d)"):format(Craftable(info)))
+    ns.SetButtonText(win.createAll, ("Create All (%d)"):format(win.createAll.count))
     EnableButton(win.create, not unmet)
     EnableButton(win.createAll, not unmet)
 end
@@ -1002,16 +1600,19 @@ Render = function()
     local prof = Profession()
     if not prof then return end
     wipe(profitCache)
-    win.title:SetText(prof.name)
+    local who = linkedMode and Order.Crafter()
+    local name = who and ("%s's %s"):format(Ambiguate(who, "short"), prof.name) or prof.name
+    win.title:SetText(name)
     win.rank:SetMinMaxValues(0, math.max(prof.max, 1))
     win.rank:SetValue(prof.skill)
-    win.rankText:SetText(("%s %d/%d"):format(prof.name, prof.skill, prof.max))
+    win.rankText:SetText(("%s %d/%d"):format(name, prof.skill, prof.max))
     RenderRankBanner(prof)
 
     Collect()
     BuildEntries()
     RenderList()
     RenderDetail()
+    Order.Render()
     UpdateFilterLabel()
 end
 
@@ -1074,6 +1675,13 @@ local function BuildReagents(parent)
         r.check = CheckBox(r)
         r.check:SetPoint("LEFT", 1, 0)
         r.check:SetScript("OnClick", function(self)
+            -- In another player's profession: whether you bring this reagent for the order.
+            if linkedMode then
+                if r.draft then r.draft.bring[r.itemID] = self:GetChecked() or nil end
+                RenderDetail()
+                Order.Render()
+                return
+            end
             Owned()[r.itemID] = not self:GetChecked() or nil
             wipe(profitCache)
             BuildEntries()
@@ -1082,6 +1690,13 @@ local function BuildReagents(parent)
         end)
         r.check:HookScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if linkedMode then
+                GameTooltip:AddLine("I bring this", 1, 1, 1)
+                GameTooltip:AddLine("Tick a material you hand the crafter: all the crafts need of it. "
+                    .. "Use - and + beside it to bring only part.", T.muted.r, T.muted.g,
+                    T.muted.b, true)
+                return GameTooltip:Show()
+            end
             GameTooltip:AddLine("Count in the cost", 1, 1, 1)
             GameTooltip:AddLine("Uncheck a reagent you already have: the crafting profit then leaves it "
                 .. "out, for every recipe that uses it.", T.muted.r, T.muted.g, T.muted.b, true)
@@ -1108,6 +1723,51 @@ local function BuildReagents(parent)
         r.bankLabel:SetText("Bank")
         r.bagsLabel, r.bags = Column(-REAGENT_COL_W)
         r.bagsLabel:SetText("Bags")
+        -- In another player's profession, in place of the Bags and Bank columns: "- [n] +", how
+        -- many of it you bring for the order, under the "Your materials" heading.
+        r.bringRow = CreateFrame("Frame", nil, r)
+        r.bringRow:SetSize(18 + 2 + 36 + 2 + 18, 18)
+        r.bringRow:SetPoint("RIGHT")
+        r.bringRow:Hide()
+        local function Step(delta)
+            if not r.draft then return end
+            local data
+            for _, reagent in ipairs(r.draft.reagents) do
+                if reagent.itemID == r.itemID then data = reagent end
+            end
+            if not data then return end
+            local total = data.need * r.draft.crafts
+            local n = math.max(0, math.min(total, Order.Bringing(r.draft, data) + delta))
+            r.draft.bring[r.itemID] = n > 0 and (n == total or n) or nil
+            RenderDetail()
+            Order.Render()
+        end
+        local minus = Button(r.bringRow, "-", 18, 18, function() Step(-1) end)
+        minus:SetPoint("LEFT")
+        local plus = Button(r.bringRow, "+", 18, 18, function() Step(1) end)
+        plus:SetPoint("RIGHT")
+        r.bring = EditBox(r.bringRow)
+        r.bring:SetPoint("LEFT", minus, "RIGHT", 2, 0)
+        r.bring:SetPoint("RIGHT", plus, "LEFT", -2, 0)
+        r.bring:SetHeight(18)
+        r.bring:SetTextInsets(2, 2, 0, 0)
+        r.bring:SetNumeric(true)
+        r.bring:SetMaxLetters(4)
+        r.bring:SetJustifyH("CENTER")
+        r.bring:SetScript("OnTextChanged", function(self, user)
+            if not (user and r.draft) then return end
+            local n = tonumber(self:GetText() or "")
+            r.draft.bring[r.itemID] = (n and n > 0) and n or nil
+            r.check:SetChecked(n ~= nil and n > 0)
+            Order.RenderValue()
+            Order.Render()
+        end)
+        r.bring:SetScript("OnEscapePressed", r.bring.ClearFocus)
+        r.bring:SetScript("OnEnterPressed", r.bring.ClearFocus)
+        -- Shows the number as capped at what the crafts need.
+        r.bring:SetScript("OnEditFocusLost", function() RenderDetail() end)
+        ns.Tooltip(r.bring, "Your Materials", "How many of this material you hand the crafter. "
+            .. "Ticking the box fills in all the crafts need; - and + change it by one.")
         r.name = ns.Font(r, 12, nil)
         r.name:SetJustifyH("LEFT")
         r.name:SetWordWrap(false)
@@ -1134,12 +1794,13 @@ local function BuildReagents(parent)
     return label, rows
 end
 
--- The crafting profit lines; hovering them breaks the cost down per reagent.
-local function BuildProfit(parent)
+-- A block of amount lines, one under the other with their amounts lined up; `keys` name them.
+local function BuildLines(parent, keys)
     local block = CreateFrame("Frame", nil, parent)
-    block:SetSize(MID_W - 28, PROFIT_H)
+    block:SetSize(MID_W - 28, #keys * PROFIT_LINE)
     block:EnableMouse(true)
-    for i, key in ipairs({ "buy", "sell", "profit" }) do
+    block.lines = {}
+    for i, key in ipairs(keys) do
         local line = CreateFrame("Frame", nil, block)
         line:SetPoint("TOPLEFT", 0, -(i - 1) * PROFIT_LINE)
         line:SetPoint("RIGHT")
@@ -1158,7 +1819,17 @@ local function BuildProfit(parent)
         line.note:SetJustifyH("LEFT")
         line.note:SetWordWrap(false)
         block[key] = line
+        block.lines[i] = line
     end
+    block:SetScript("OnLeave", GameTooltip_Hide)
+    block:Hide()
+    return block
+end
+
+-- The crafting profit lines, Buy, Sell and Profit; hovering them breaks the cost down per
+-- reagent.
+local function BuildProfit(parent)
+    local block = BuildLines(parent, { "buy", "sell", "profit" })
     block:SetScript("OnEnter", function(self)
         local v = self.value
         if not v then return end
@@ -1185,8 +1856,37 @@ local function BuildProfit(parent)
         end
         GameTooltip:Show()
     end)
-    block:SetScript("OnLeave", GameTooltip_Hide)
-    block:Hide()
+    return block
+end
+
+-- An order line's amounts under the reagents: the crafter's materials and the tip; hovering
+-- breaks the materials down.
+function Order.BuildValue(parent)
+    local block = BuildLines(parent, { "theirs", "pay" })
+    block:SetScript("OnEnter", function(self)
+        local v = self.value
+        if not v then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Craft Order", GOLD.r, GOLD.g, GOLD.b)
+        for _, p in ipairs(v.parts) do
+            local name = C_Item.GetItemNameByID(p.itemID) or ("Item " .. p.itemID)
+            local theirs = p.total - p.mine
+            local right = theirs == 0 and ns.Color("muted", "you bring it")
+                or p.each and (Money(p.each * theirs) .. (p.mine > 0 and ("  (%d of theirs)"):format(theirs) or ""))
+                or "no price"
+            GameTooltip:AddDoubleLine(("%s x%d"):format(name, p.total), right, 1, 1, 1, 1, 1, 1)
+        end
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(("The suggested tip pays back the crafter's materials plus %d%% of what "
+            .. "the items sell for (of all the materials, for a recipe that makes no item), "
+            .. "rounded, at least 1s. Set a tip of your own in the order list on the right. "
+            .. "Change the share in the Professions settings."):format(v.pct),
+            T.muted.r, T.muted.g, T.muted.b, true)
+        if ns.AuctionScanSummary then
+            GameTooltip:AddLine(ns.AuctionScanSummary(), T.muted.r, T.muted.g, T.muted.b, true)
+        end
+        GameTooltip:Show()
+    end)
     return block
 end
 
@@ -1444,7 +2144,7 @@ RenderBuyer = function()
     EnableButton(b.skip, b.state ~= "buying")
     EnableButton(b.cancel, b.state ~= "buying")
     if done then
-        b.title:SetText("Buy Materials for " .. CraftsText(b.crafts))
+        b.title:SetText("Buy on AH for " .. CraftsText(b.crafts))
         b.icon:Hide()
         b.name:SetText(#b.list == 0 and "Nothing to buy: every material is unchecked or sold by vendors."
             or ("Bought %d of %d materials."):format(b.bought, #b.list))
@@ -1458,7 +2158,7 @@ RenderBuyer = function()
     local name = C_Item.GetItemNameByID(item.itemID) or ("Item " .. item.itemID)
     local scanEach = ns.AuctionPrice and ns.AuctionPrice(item.itemID)
     local muted = Hex(T.muted)
-    b.title:SetText(("Buy Materials for %s  (%d/%d)"):format(CraftsText(b.crafts), b.index, #b.list))
+    b.title:SetText(("Buy on AH for %s  (%d/%d)"):format(CraftsText(b.crafts), b.index, #b.list))
     b.icon:SetTexture(C_Item.GetItemIconByID(item.itemID))
     b.icon:Show()
     b.name:SetText(("%d x %s"):format(item.quantity, name))
@@ -1534,6 +2234,114 @@ local function OpenBuyer(recipeID, crafts)
     RenderBuyer()
 end
 
+-------------------------------------------------------------------------------
+--  Buy at Vendor
+-------------------------------------------------------------------------------
+-- At a merchant, Buy buys in one click every checked reagent the merchant sells, for that many
+-- crafts, the full amount as Buy on AH does. Only plain gold purchases: nothing with an extended
+-- cost (tokens, honour). A merchant sells some items several to a purchase, so the amount rounds
+-- up to whole purchases, and limited stock caps it.
+function Vendor.Open()
+    local frame = _G.MerchantFrame
+    return frame ~= nil and frame:IsShown()
+end
+
+-- This merchant's slot for an item: its index, the price of one purchase, how many one purchase
+-- gives, and how many purchases are left (-1 for no limit). Nil when not sold for plain gold.
+function Vendor.Find(itemID)
+    for i = 1, GetMerchantNumItems() do
+        if GetMerchantItemID(i) == itemID then
+            local price, stack, available, extended
+            if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+                local info = C_MerchantFrame.GetItemInfo(i)
+                if info then
+                    price, stack, available, extended = info.price, info.stackCount, info.numAvailable,
+                        info.hasExtendedCost
+                end
+            else
+                local _
+                _, _, price, stack, available, _, _, extended = GetMerchantItemInfo(i)
+            end
+            if (price or 0) > 0 and not extended then
+                return i, price, math.max(stack or 1, 1), available or -1
+            end
+            return
+        end
+    end
+end
+
+-- What Buy would buy for `crafts` of a recipe here, and what it all costs. With `topUp` (Buy
+-- All) only what the bags lack for that many crafts, as the orange "buy N more" says.
+function Vendor.List(recipeID, crafts, topUp)
+    local out, total, owned = {}, 0, Owned()
+    local ok, reagents = pcall(Reagents, recipeID)
+    for _, r in ipairs(ok and reagents or {}) do
+        local index, price, stack, available = Vendor.Find(r.itemID)
+        if index and not owned[r.itemID] then
+            local want = r.need * crafts - (topUp and ItemCount(r.itemID) or 0)
+            local buys = math.max(0, math.ceil(want / stack))
+            if available >= 0 then buys = math.min(buys, available) end
+            if buys > 0 then
+                out[#out + 1] = { index = index, itemID = r.itemID, count = buys * stack,
+                    cost = buys * price, short = available >= 0 and buys * stack < want }
+                total = total + buys * price
+            end
+        end
+    end
+    return out, total
+end
+
+-- Whether this merchant sells anything the recipe takes, for showing Buy.
+function Vendor.Sells(recipeID)
+    return #Vendor.List(recipeID, 1) > 0
+end
+
+-- The cost beside the row, red when you cannot pay it.
+function Vendor.Note()
+    local row = win and win.detail and win.detail.buyRow
+    if not row then return end
+    local info = row.vendor and SelectedInfo()
+    if not info then return row.cost:SetText("") end
+    local _, total = Vendor.List(info.recipeID, Crafts())
+    row.cost:SetText(Money(total))
+    SetColor(row.cost, GetMoney() < total and RED or T.muted)
+end
+
+-- The Buy (and Buy All) tooltip at a merchant: each reagent it buys and what it costs.
+function Vendor.Tooltip(crafts, topUp)
+    local info = SelectedInfo()
+    if not info then return end
+    local list, total = Vendor.List(info.recipeID, crafts or Crafts(), topUp)
+    GameTooltip:AddLine(" ")
+    for _, e in ipairs(list) do
+        local name = C_Item.GetItemNameByID(e.itemID) or ("Item " .. e.itemID)
+        GameTooltip:AddDoubleLine(("%dx %s"):format(e.count, name) .. (e.short and "  (all it has)" or ""),
+            Money(e.cost), 1, 1, 1, 1, 1, 1)
+    end
+    GameTooltip:AddDoubleLine("Total", Money(total), GOLD.r, GOLD.g, GOLD.b, 1, 1, 1)
+end
+
+-- Buys it all, each item in as few purchases as the merchant allows at a time.
+function Vendor.Buy(recipeID, crafts, topUp)
+    local list, total = Vendor.List(recipeID, crafts, topUp)
+    if #list == 0 then return end
+    if GetMoney() < total then
+        return ns.Print(("Buy at Vendor: that costs %s, more than you have."):format(Money(total)))
+    end
+    local parts = {}
+    for _, e in ipairs(list) do
+        local left = e.count
+        local most = math.max(1, GetMerchantItemMaxStack(e.index) or left)
+        while left > 0 do
+            local n = math.min(left, most)
+            BuyMerchantItem(e.index, n)
+            left = left - n
+        end
+        parts[#parts + 1] = ("%dx %s"):format(e.count, Order.Link(e.itemID))
+    end
+    ns.Print(("Bought %s for %s."):format(table.concat(parts, ", "), Money(total)))
+end
+
 -- Walking up to an anvil or forge changes whether a recipe's requirements are met. Listened to
 -- only while the window is open; the event fires often, so only the recipe pane redraws, at
 -- most twice a second.
@@ -1546,6 +2354,228 @@ usable:SetScript("OnEvent", function()
         if win:IsShown() and win.detail:IsShown() then RenderDetail() end
     end)
 end)
+
+-- The order row in the middle column, where the craft buttons are in your own profession.
+function Order.BuildControls(d)
+    -- Another player's profession: how many crafts to order, and Add to Order, where Create is.
+    local function OrderChanged()
+        RenderList()
+        RenderDetail()
+        Order.Render()
+    end
+    local orderRow = CreateFrame("Frame", nil, d)
+    orderRow:SetPoint("BOTTOMLEFT", 10, 10)
+    orderRow:SetPoint("BOTTOMRIGHT", -10, 10)
+    orderRow:SetHeight(24)
+    orderRow:Hide()
+    d.orderRow = orderRow
+    d.orderAdd = Button(orderRow, "Add to Order", 120, 24, function()
+        local draft, o = Order.Current(), Order.Get()
+        if not (draft and o) then return end
+        local at = Order.Index(o, draft)
+        if at then
+            table.remove(o.list, at)
+        elseif #o.list < Order.MAX then
+            o.list[#o.list + 1] = draft
+            o.sent = nil
+            -- The whispers link the items, which need their data loaded.
+            if draft.output then C_Item.RequestLoadItemDataByID(draft.output) end
+            for _, r in ipairs(draft.reagents) do C_Item.RequestLoadItemDataByID(r.itemID) end
+        end
+        OrderChanged()
+    end)
+    d.orderAdd:SetPoint("RIGHT")
+    ns.Tooltip(d.orderAdd, "Add to Order", "Puts this recipe on the order on the right, with the "
+        .. "number of crafts and the materials you bring. Changes made here after adding it "
+        .. ("change the order too. Up to %d recipes per order."):format(Order.MAX))
+    local orderQty = EditBox(orderRow)
+    orderQty:SetSize(40, 24)
+    orderQty:SetNumeric(true)
+    orderQty:SetMaxLetters(3)
+    orderQty:SetJustifyH("CENTER")
+    orderQty:SetText("1")
+    local function SetCrafts(n)
+        local draft = Order.Current()
+        if not draft then return end
+        draft.crafts = math.min(999, math.max(1, n))
+        OrderChanged()
+    end
+    orderQty:SetScript("OnTextChanged", function(self, user)
+        local n = tonumber(self:GetText() or "")
+        if user and n and n > 0 then SetCrafts(n) end
+    end)
+    orderQty:SetScript("OnEscapePressed", orderQty.ClearFocus)
+    orderQty:SetScript("OnEnterPressed", orderQty.ClearFocus)
+    orderQty:SetScript("OnEditFocusLost", function() RenderDetail() end)
+    ns.Tooltip(orderQty, "Crafts", "How many crafts to ask for.")
+    d.orderQty = orderQty
+    local orderPlus = Button(orderRow, "+", 22, 24, function()
+        local draft = Order.Current()
+        if draft then SetCrafts(draft.crafts + 1) end
+    end)
+    orderPlus:SetPoint("RIGHT", d.orderAdd, "LEFT", -12, 0)
+    orderQty:SetPoint("RIGHT", orderPlus, "LEFT", -2, 0)
+    local orderMinus = Button(orderRow, "-", 22, 24, function()
+        local draft = Order.Current()
+        if draft then SetCrafts(draft.crafts - 1) end
+    end)
+    orderMinus:SetPoint("RIGHT", orderQty, "LEFT", -2, 0)
+    local craftsLabel = ns.Font(orderRow, 12, nil, GOLD)
+    craftsLabel:SetPoint("RIGHT", orderMinus, "LEFT", -8, 0)
+    craftsLabel:SetText("Crafts:")
+    d.orderValue = Order.BuildValue(d)
+    d.orderValue:SetPoint("BOTTOMLEFT", 14, 44)
+    -- Over the reagents' "- [n] +" column, on the Reagents: line.
+    d.bringHead = ns.Font(d, 12, nil, GOLD)
+    d.bringHead:SetPoint("RIGHT", d.reagentsLabel, "LEFT", MID_W - 28, 0)
+    d.bringHead:SetText("Your materials")
+    d.bringHead:Hide()
+end
+
+-- The order column on the right.
+function Order.BuildPanel()
+    -- Right column, in another player's profession only: the order to whisper them.
+    local order = CreateFrame("Frame", nil, win)
+    order:SetPoint("TOPLEFT", W, TOP_Y)
+    order:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", W, PAD)
+    order:SetWidth(ORDER_W)
+    ns.Solid(order, "BACKGROUND", T.panel, 0.6):SetAllPoints()
+    order:Hide()
+    win.order = order
+    -- Invites the crafter, so the order can go to party chat; trade chat moves on quickly.
+    order.invite = Button(order, "Invite", 64, 20, function()
+        local who = Order.Crafter()
+        if not who then return end
+        -- A word first, so the invite does not come out of nowhere; one of a few, never the
+        -- same twice in a row.
+        local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+        send(Order.Pick(Order.INVITE_LINES), "WHISPER", nil, who)
+        if C_PartyInfo and C_PartyInfo.InviteUnit then
+            C_PartyInfo.InviteUnit(who)
+        else
+            InviteUnit(who)
+        end
+    end)
+    order.invite:SetPoint("TOPRIGHT", -8, -12)
+    ns.Tooltip(order.invite, "Invite", "Invites the crafter to your group, with a whisper saying "
+        .. "it is for crafts from their profession. Once they are in your "
+        .. "party, Ask sends the order in party chat instead of whispering it. Greyed out once "
+        .. "they are in your group, or while you are in a group and not its leader or an assistant.")
+    -- "Order for" over the crafter's name, so a long name keeps the whole width beside Invite.
+    order.label = ns.Font(order, 11, nil, T.muted)
+    order.label:SetPoint("TOPLEFT", 10, -8)
+    order.label:SetText("Order for")
+    order.title = ns.Font(order, 14, nil, GOLD)
+    order.title:SetPoint("TOPLEFT", order.label, "BOTTOMLEFT", 0, -3)
+    order.title:SetPoint("RIGHT", order.invite, "LEFT", -6, 0)
+    order.title:SetJustifyH("LEFT")
+    order.title:SetWordWrap(false)
+    order.rows = {}
+    local ORDER_ROW_H = 44
+    for i = 1, Order.MAX do
+        local row = CreateFrame("Button", nil, order)
+        row:SetSize(ORDER_W - 12, ORDER_ROW_H - 4)
+        row:SetPoint("TOPLEFT", 6, -44 - (i - 1) * ORDER_ROW_H)
+        row.sel = ns.Solid(row, "BACKGROUND", T.accent, 0.25)
+        row.sel:SetAllPoints()
+        row.hl = ns.Solid(row, "HIGHLIGHT", T.fg, 0.06)
+        row.hl:SetAllPoints()
+        row.icon = row:CreateTexture(nil, "ARTWORK")
+        row.icon:SetSize(28, 28)
+        row.icon:SetPoint("LEFT", 4, 0)
+        row.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        row.remove = Button(row, "X", 18, 18, function()
+            local o = Order.Get()
+            local at = o and Order.Index(o, row.draft)
+            if at then table.remove(o.list, at) end
+            RenderList()
+            RenderDetail()
+            Order.Render()
+        end)
+        row.remove:SetPoint("RIGHT", -2, 0)
+        ns.Tooltip(row.remove, "Remove", "Takes this craft off the order.")
+        -- The tip for this craft, the suggested one until you type your own; emptying it goes
+        -- back to the suggestion.
+        row.tip = EditBox(row)
+        row.tip:SetSize(76, 20)
+        row.tip:SetPoint("RIGHT", row.remove, "LEFT", -4, 0)
+        row.tip:SetJustifyH("RIGHT")
+        row.tip:SetMaxLetters(16)
+        row.tip:SetScript("OnEscapePressed", row.tip.ClearFocus)
+        row.tip:SetScript("OnEnterPressed", row.tip.ClearFocus)
+        row.tip:SetScript("OnEditFocusLost", function(self)
+            if not row.draft then return end
+            row.draft.tip = Order.Parse(self:GetText())
+            RenderDetail()
+            Order.Render()
+        end)
+        ns.Tooltip(row.tip, "Tip", "What you pay the crafter for this craft, sent with the "
+            .. "whisper. Filled in with the suggested tip; type your own as 2g 50s, 75s or 2.5 "
+            .. "(gold). Empty it to go back to the suggestion.")
+        row.name = ns.Font(row, 12, nil)
+        row.name:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 6, -1)
+        row.name:SetPoint("RIGHT", row.tip, "LEFT", -6, 0)
+        row.name:SetJustifyH("LEFT")
+        row.name:SetWordWrap(false)
+        row.sub = ns.Font(row, 11, nil, T.muted)
+        row.sub:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -3)
+        row.sub:SetPoint("RIGHT", row.tip, "LEFT", -6, 0)
+        row.sub:SetJustifyH("LEFT")
+        row.sub:SetWordWrap(false)
+        -- Click to choose the recipe again, to change its crafts or materials.
+        row:SetScript("OnClick", function(self)
+            if not self.draft then return end
+            selectedID, selectedUnlearned = self.draft.recipeID, nil
+            BuildEntries()
+            RenderList()
+            RenderDetail()
+            Order.Render()
+        end)
+        row:SetScript("OnEnter", function(self)
+            local d = self.draft
+            if not d then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if d.output then
+                GameTooltip:SetItemByID(d.output)
+            else
+                GameTooltip:SetSpellByID(d.recipeID)
+            end
+            GameTooltip:Show()
+        end)
+        row:SetScript("OnLeave", GameTooltip_Hide)
+        row:Hide()
+        order.rows[i] = row
+    end
+    order.empty = ns.Font(order, 12, nil, T.muted)
+    order.empty:SetPoint("TOPLEFT", 14, -50)
+    order.empty:SetPoint("RIGHT", -14, 0)
+    order.empty:SetJustifyH("LEFT")
+    order.empty:SetWordWrap(true)
+    order.empty:SetSpacing(2)
+    order.send = Button(order, "Ask by Whisper", 150, 24, function()
+        for _, row in ipairs(order.rows) do row.tip:ClearFocus() end
+        Order.Send()
+        RenderList()
+        RenderDetail()
+        Order.Render()
+    end)
+    order.send:SetPoint("BOTTOMLEFT", 10, 10)
+    ns.Tooltip(order.send, "Ask for the Order", "Sends the crafter one message per craft: how "
+        .. "many you want, the materials you bring and your tip. In party chat, starting with "
+        .. "their name, when they are in your party; else as a whisper (also in a raid). The "
+        .. "order is emptied once sent.")
+    order.clear = Button(order, "Clear", 80, 24, function()
+        local o = Order.Get()
+        if o then wipe(o.list) end
+        RenderList()
+        RenderDetail()
+        Order.Render()
+    end)
+    order.clear:SetPoint("BOTTOMRIGHT", -10, 10)
+    ns.Tooltip(order.clear, "Clear", "Empties the order without sending it.")
+    order.total = ns.Font(order, 12, nil, GOLD)
+    order.total:SetPoint("BOTTOMLEFT", order.send, "TOPLEFT", 2, 8)
+end
 
 local function Build()
     win = CreateFrame("Frame", "NaowhForeverProfessions", UIParent)
@@ -1630,6 +2660,7 @@ local function Build()
         MenuUtil.CreateContextMenu(win.filter, function(_, root)
             root:CreateTitle("Filter")
             for _, f in ipairs(FILTERS) do
+                if f.divider then root:CreateDivider() end
                 local box = root:CreateCheckbox(f.text, function() return S.Get(f.key) == true end, function()
                     S.Set(f.key, not S.Get(f.key))
                     Refilter()
@@ -1741,10 +2772,27 @@ local function Build()
         row.count:SetJustifyH("RIGHT")
         row.text = ns.Font(row, 12, nil)
         row.text:SetPoint("RIGHT", row.profit, "LEFT", -6, 0)
+        -- A small star on a favourite, just left of the profit; the name stops short of it.
+        row.fav = row:CreateTexture(nil, "OVERLAY")
+        row.fav:SetSize(12, 12)
+        row.fav:SetPoint("RIGHT", row.profit, "LEFT", -4, 0)
+        FILTERS.favorites.Star(row.fav, true)
+        row.fav:Hide()
+        row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         row.text:SetJustifyH("LEFT")
         row.text:SetWordWrap(false)
-        row:SetScript("OnClick", function(self)
+        row:SetScript("OnClick", function(self, button)
             local e = self.entry
+            -- Right-click makes a recipe you know a favourite, or no longer one.
+            if button == "RightButton" then
+                if (e.recipe or e.unlearned) and not linkedMode then
+                    FILTERS.favorites.Toggle(e.recipe or e.unlearned)
+                    BuildEntries()
+                    RenderList()
+                    RenderDetail()
+                end
+                return
+            end
             if e.cat then
                 ToggleCollapsed(e.cat)
                 BuildEntries()
@@ -1816,8 +2864,25 @@ local function Build()
         GameTooltip:Show()
     end)
     iconBtn:SetScript("OnLeave", GameTooltip_Hide)
+    -- The favourite star, before the name: click to make the recipe a favourite or not.
+    d.fav = CreateFrame("Button", nil, d)
+    d.fav:SetSize(18, 18)
+    d.fav:SetPoint("LEFT", iconBtn, "RIGHT", 10, 0)
+    d.fav.tex = d.fav:CreateTexture(nil, "ARTWORK")
+    d.fav.tex:SetAllPoints()
+    d.fav:SetScript("OnClick", function()
+        local info = SelectedInfo()
+        if not info then return end
+        FILTERS.favorites.Toggle(info)
+        BuildEntries()
+        RenderList()
+        RenderDetail()
+    end)
+    ns.Tooltip(d.fav, "Favorite", "Makes this recipe a favourite, or no longer one. Favourites "
+        .. "get a star in the list, and the Filter menu's Favorites shows only them. Right-click "
+        .. "a recipe in the list does the same.")
     d.name = ns.Font(d, 16, nil)
-    d.name:SetPoint("LEFT", iconBtn, "RIGHT", 10, 0)
+    d.name:SetPoint("LEFT", d.fav, "RIGHT", 6, 0)
     d.name:SetPoint("RIGHT", -12, 0)
     d.name:SetJustifyH("LEFT")
 
@@ -1868,13 +2933,31 @@ local function Build()
     d.buyRow = row
     d.buyMats = Button(row, "Buy", 90, 24, function()
         local info = SelectedInfo()
-        if info then OpenBuyer(info.recipeID, Crafts()) end
+        if not info then return end
+        if row.vendor then return Vendor.Buy(info.recipeID, Crafts()) end
+        OpenBuyer(info.recipeID, Crafts())
     end)
     d.buyMats:SetPoint("RIGHT")
-    ns.Tooltip(d.buyMats, "Buy Materials", "Buys on the auction house the materials for that many "
-        .. "crafts, whatever is already in your bags: every checked reagent that vendors do not "
-        .. "sell. Set the number with the - and + beside it; uncheck a reagent to leave it out. "
-        .. "Each material asks for the price now and waits for you to confirm.")
+    d.buyMats:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if row.vendor then
+            GameTooltip:AddLine("Buy at Vendor", 1, 1, 1)
+            GameTooltip:AddLine("Buys from this merchant, in one click, every checked reagent it "
+                .. "sells, for that many crafts, whatever is already in your bags. Set the number "
+                .. "with the - and + beside it; uncheck a reagent to leave it out.", T.muted.r,
+                T.muted.g, T.muted.b, true)
+            Vendor.Tooltip()
+        else
+            GameTooltip:AddLine("Buy on AH", 1, 1, 1)
+            GameTooltip:AddLine("Buys on the auction house the materials for that many crafts, "
+                .. "whatever is already in your bags: every checked reagent that vendors do not "
+                .. "sell. Set the number with the - and + beside it; uncheck a reagent to leave it "
+                .. "out. Each material asks for the price now and waits for you to confirm.",
+                T.muted.r, T.muted.g, T.muted.b, true)
+        end
+        GameTooltip:Show()
+    end)
+    d.buyMats:HookScript("OnLeave", GameTooltip_Hide)
     local buyQty = EditBox(row)
     buyQty:SetSize(40, 24)
     buyQty:SetNumeric(true)
@@ -1893,7 +2976,31 @@ local function Build()
         buyQty:SetText(tostring(math.max(1, Crafts() - 1)))
     end)
     buyMinus:SetPoint("RIGHT", buyQty, "LEFT", -2, 0)
-    ns.Tooltip(buyQty, "Crafts to Buy For", "How many crafts Buy Materials buys the materials for.")
+    ns.Tooltip(buyQty, "Crafts to Buy For", "How many crafts Buy buys the materials for.")
+    -- At a merchant: what Buy costs, left of the - button.
+    row.cost = ns.Font(row, 12, nil, T.muted)
+    row.cost:SetPoint("RIGHT", buyMinus, "LEFT", -8, 0)
+    buyQty:SetScript("OnTextChanged", function() Vendor.Note() end)
+    -- At a merchant: enough of its reagents for the orange count of crafts, at the pane's left
+    -- edge as Create All is (the row starts BUY_ROW_W right of it).
+    -- ns.Button calls its click with no arguments, so the count is read off the button.
+    d.buyAll = Button(row, "Buy All", 110, 24, function()
+        local info, crafts = SelectedInfo(), d.buyAll.crafts
+        if info and crafts then Vendor.Buy(info.recipeID, crafts, true) end
+    end)
+    d.buyAll:SetPoint("LEFT", row, "LEFT", -BUY_ROW_W, 0)
+    d.buyAll:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Buy All at Vendor", 1, 1, 1)
+        GameTooltip:AddLine(("Buys what your bags lack of this merchant's reagents for %d crafts, "
+            .. "the orange number next to the recipe, so Create All can make them all. Uncheck a "
+            .. "reagent to leave it out."):format(self.crafts or 0), T.muted.r, T.muted.g,
+            T.muted.b, true)
+        Vendor.Tooltip(self.crafts, true)
+        GameTooltip:Show()
+    end)
+    d.buyAll:HookScript("OnLeave", GameTooltip_Hide)
+    d.buyAll:Hide()
     row:Hide()
 
     -- Craft controls along the bottom of the middle column.
@@ -1922,21 +3029,49 @@ local function Build()
     minus:SetPoint("RIGHT", qty, "LEFT", -2, 0)
     win.createAll = Button(d, "Create All", 120, 24, function()
         local info = SelectedInfo()
-        if info then Craft(Craftable(info)) end
+        -- As many as the reagents allow and the bags have room for (RenderDetail sets it).
+        if info then Craft(win.createAll.count or Craftable(info)) end
     end)
     win.createAll:SetPoint("BOTTOMLEFT", 10, 10)
+    -- Hidden in another player's profession, where the order row takes their place.
+    win.craftControls = { create, qty, plus, minus, win.createAll }
+
+    Order.BuildControls(d)
 
     -- The middle column for an unlearned recipe: where to learn it.
     local l = CreateFrame("Frame", nil, mid)
     l:SetAllPoints()
     l:Hide()
     win.learn = l
-    l.icon = l:CreateTexture(nil, "ARTWORK")
-    l.icon:SetSize(44, 44)
-    l.icon:SetPoint("TOPLEFT", 14, -14)
+    -- The icon shows the item the recipe makes on hover (the spell for one that makes none),
+    -- as on a learned recipe; shift-click links it. RenderLearn sets what it is.
+    local learnIcon = CreateFrame("Button", nil, l)
+    learnIcon:SetSize(44, 44)
+    learnIcon:SetPoint("TOPLEFT", 14, -14)
+    l.iconButton = learnIcon
+    l.icon = learnIcon:CreateTexture(nil, "ARTWORK")
+    l.icon:SetAllPoints()
     l.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    learnIcon:SetScript("OnEnter", function(self)
+        if not (self.item or self.spell) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if self.item then
+            GameTooltip:SetItemByID(self.item)
+        else
+            GameTooltip:SetSpellByID(self.spell)
+        end
+        GameTooltip:Show()
+    end)
+    learnIcon:SetScript("OnLeave", GameTooltip_Hide)
+    learnIcon:SetScript("OnClick", function(self)
+        if not IsModifiedClick("CHATLINK") then return end
+        local link = self.item and select(2, C_Item.GetItemInfo(self.item))
+            or self.spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(self.spell)
+        if link then ChatFrameUtil.InsertLink(link) end
+    end)
+    FILTERS.favorites.BuildLearnStar(l)
     l.name = ns.Font(l, 16, nil)
-    l.name:SetPoint("TOPLEFT", l.icon, "TOPRIGHT", 10, -2)
+    l.name:SetPoint("TOPLEFT", l.fav, "TOPRIGHT", 6, -2)
     l.name:SetPoint("TOPRIGHT", -12, -16)
     l.name:SetJustifyH("LEFT")
     -- Under the name, wrapping onto a second line when the Search Recipe button leaves it
@@ -1996,6 +3131,8 @@ local function Build()
     hint:SetText("Click a trainer or vendor to set a waypoint.")
     l.profit = BuildProfit(l)
     l.profit:SetPoint("BOTTOMLEFT", hint, "TOPLEFT", 0, 8)
+
+    Order.BuildPanel()
 
     -- The overview: two primary profession cards, then Cooking, Fishing and First Aid.
     local book = CreateFrame("Frame", nil, win)
@@ -2237,28 +3374,39 @@ local function Deactivate()
     end
 end
 
--- mode is "craft" (a profession's recipes) or "book" (the overview).
+-- mode is "craft" (a profession's recipes), "linked" (another player's, to order from) or
+-- "book" (the overview).
 local function Activate(mode)
     local pf = ProfessionsFrame
     if not win then
         Build()
+        if ns.ShoppingListAttach then ns.ShoppingListAttach(win) end
         win:SetFrameStrata(NextStrata(pf:GetFrameStrata()))
         win:SetPoint("TOPLEFT", pf, "TOPLEFT", 0, 0)
     end
     pf:SetAlpha(0)
+    local linked = mode == "linked"
+    -- The right column: another player's order, or your shopping list while that is on.
+    local wide = linked or (mode == "craft" and ns.ShoppingListWide and ns.ShoppingListWide())
+    local width = wide and W + ORDER_W + PAD or W
     -- Never narrower or shorter than Blizzard's window, so none of it is left clickable.
     -- Resizing waits for peace: the overview's secure buttons may hang off this window.
     if not InCombatLockdown() then
-        win:SetSize(math.max(W, pf:GetWidth()), math.max(MIN_H, pf:GetHeight()))
+        win:SetSize(math.max(width, pf:GetWidth()), math.max(MIN_H, pf:GetHeight()))
     end
-    if not win:IsShown() then
+    if not win:IsShown() or linked ~= linkedMode then
         selectedID, selectedUnlearned, offset = nil, nil, 0
         win:Show()
     end
+    linkedMode = linked
+    win.rank:SetWidth(width - PAD * 2 - 4)
+    win.order:SetShown(linked)
     DockTabs(true)
     local book = mode == "book"
     win.search:SetShown(not book)
-    win.filter:SetShown(not book)
+    -- Another player's list has no filters, so the search takes the Filter button's room.
+    win.search:SetWidth(linked and LEFT_W or (LEFT_W - FILTER_W - 6))
+    win.filter:SetShown(not book and not linked)
     win.list:SetShown(not book)
     win.mid:SetShown(not book)
     win.rank:SetShown(not book)
@@ -2281,7 +3429,12 @@ local function BookOpen()
 end
 
 local function Update()
-    if not (On() and ProfessionsFrame and ProfessionsFrame:IsShown() and Own()) then return Deactivate() end
+    if not (On() and ProfessionsFrame and ProfessionsFrame:IsShown()) then return Deactivate() end
+    if Linked() then
+        if Profession() then return Activate("linked") end
+        return Deactivate()
+    end
+    if not Own() then return Deactivate() end
     if BookOpen() then return Activate("book") end
     if Profession() then return Activate("craft") end
     Deactivate()
@@ -2344,7 +3497,7 @@ hooksecurefunc("SetItemRef", function(link, text, button, chatFrame)
     if not On() then return end
     local guid = type(link) == "string" and link:match("^trade:([^:]+)")
     if not guid or guid == UnitGUID("player") then return end
-    viewingLink, linkClicked = true, GetTime()
+    viewingLink, linkClicked, linkGUID = true, GetTime(), guid
     casts:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
     Queue()
     if retrying then return end
@@ -2386,7 +3539,12 @@ end
 local merchant = CreateFrame("Frame")
 merchant:RegisterEvent("MERCHANT_SHOW")
 merchant:RegisterEvent("MERCHANT_UPDATE")
-merchant:SetScript("OnEvent", ScanMerchant)
+merchant:RegisterEvent("MERCHANT_CLOSED")
+-- Opening or closing a merchant shows or hides Buy at Vendor in the recipe pane.
+merchant:SetScript("OnEvent", function(_, event)
+    if event ~= "MERCHANT_CLOSED" then ScanMerchant() end
+    if event ~= "MERCHANT_UPDATE" and S.Get("buyVendor") then Queue() end
+end)
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, name)
@@ -2422,7 +3580,7 @@ local function Apply()
         "TRADE_SKILL_DATA_SOURCE_CHANGED", "TRADE_SKILL_NAME_UPDATE", "NEW_RECIPE_LEARNED",
         "SKILL_LINES_CHANGED", "BAG_UPDATE_DELAYED", "ITEM_DATA_LOAD_RESULT", "PLAYER_REGEN_ENABLED",
         "PLAYERBANKSLOTS_CHANGED", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED",
-        "TRACKED_RECIPE_UPDATE" }) do
+        "TRACKED_RECIPE_UPDATE", "GROUP_ROSTER_UPDATE", "TRADE_SKILL_FAVORITES_CHANGED" }) do
         pcall(events.RegisterEvent, events, event)
     end
     if not C_AddOns.IsAddOnLoaded("Blizzard_Professions") then events:RegisterEvent("ADDON_LOADED") end
@@ -2432,7 +3590,8 @@ end
 hooksecurefunc(S, "Set", function(key)
     if key == "enabled" then Apply() end
     if key == "vendorMaterials" or key == "bagReagents" or key == "bankReagents" or key == "ahSearch"
-        or key == "craftProfit" or key == "craftProfitList" or key == "buyMaterials" then
+        or key == "craftProfit" or key == "craftProfitList" or key == "buyMaterials" or key == "buyVendor"
+        or key == "craftOrders" or key == "orderTip" then
         Queue()
     end
 end)
@@ -2471,6 +3630,30 @@ function ns.BuildProfessionsPage(parent, y)
             "Adds a Bank column to the chosen recipe's reagents, showing how many of each are in "
             .. "your bank.")
     ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("craftTimer", "Total Craft Timer",
+            "Crafting several at once (Create All, or Create with a count) shows one bar for the "
+            .. "whole batch, drawn like the Flight Timer: the recipe, how many are done and the "
+            .. "time left on all of them, in place of the cast bar that fills for every craft. "
+            .. "It sits where the Flight Timer is, as nobody crafts in flight: move it in Unlock "
+            .. "Mode as the Flight Timer."),
+        S.Toggle("trainFavorites", "Train Favorites",
+            "At a profession trainer who teaches any of your favourite recipes that you can "
+            .. "learn now (star one before its name, or right-click it in the list), a window "
+            .. "beside the trainer's lists them with their cost: Learn one, or Learn All.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("craftOrders", "Craft Orders",
+            "Opens another player's profession link in this window, to order crafts from them. "
+            .. "Choose a recipe, set how many crafts, tick the materials you bring (or type how "
+            .. "many), and Add to Order. The order on the right has a suggested tip per craft that "
+            .. "you can change; Ask sends the crafter one message per craft with the amount, "
+            .. "your materials and the tip: in party chat when they are in your party, else as "
+            .. "a whisper. Prices and the tip need an auction house scan."),
+        S.Slider("orderTip", "Suggested Tip (% of Value)", 0, 50, 1,
+            "The share of what the items sell for that the suggested tip adds on top of paying "
+            .. "back the crafter's own materials. At least 1s unless set to 0.", "craftOrders")
+    ); y = y - h
 
     _, h = W:SectionHeader(parent, "BUYING AND SELLING", y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -2503,12 +3686,28 @@ function ns.BuildProfessionsPage(parent, y)
             .. "reagents then say how many of each to buy.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Toggle("buyMaterials", "Buy Materials",
+        S.Toggle("buyMaterials", "Buy on AH",
             "While the auction house is open, a Buy button under the chosen recipe's reagents "
             .. "buys the materials for as many crafts as you set beside it: every checked reagent "
             .. "that vendors do not sell. Each one shows its price first and is only bought when "
             .. "you click Confirm."),
-        { type = "label", text = "" }
+        S.Toggle("buyVendor", "Buy at Vendor",
+            "While a merchant is open, a Buy button under the chosen recipe's reagents buys from "
+            .. "them, in one click, every checked reagent they sell, such as Coarse Thread or Weak "
+            .. "Flux, for as many crafts as you set beside it. The total cost shows beside the "
+            .. "button; hover Buy for each reagent.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("searchFavoritesAH", "Search Favorites AH",
+            "At the auction house, a window beside it lists the patterns, plans and manuals of "
+            .. "your favourite recipes that you have not learned or bought, with what they cost "
+            .. "now. Buy finds the cheapest and asks before Accept buys it."),
+        S.Toggle("shoppingList", "Shopping List",
+            "Adds \"- [1] + Add to List\" under a recipe's reagents: the materials Buy on AH would "
+            .. "buy for that many crafts go on a shopping list, from anywhere. At the auction house "
+            .. "the list shows beside it: Check Prices looks each one up and warns in red when one "
+            .. "is well above your last scan, then Buy All goes through the list one material at a "
+            .. "time, each bought only when you confirm its final price.")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "GATHERING", y); y = y - h

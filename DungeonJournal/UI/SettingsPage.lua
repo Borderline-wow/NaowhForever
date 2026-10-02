@@ -434,6 +434,11 @@ function ns.BuildJournalSettingsPage(parent, y)
     if row then   -- nil while the settings search scans this page
         UI.KeyField(row._leftRegion, "NAOWHFOREVER_BOSSLOOT", KEY_ROW.text)
     end
+    _, h = W:DualRow(parent, y,
+        S.Toggle("acceptShared", "Accept Shared Dungeon Quests",
+            "Accepts a dungeon quest a group member shares with you as soon as it opens. Other "
+            .. "shared quests are left to you. Hold the Skip Modifier (QoL > Questing) to look at "
+            .. "one first.", "enabled")); y = y - h
     return Recent(parent, y)
 end
 

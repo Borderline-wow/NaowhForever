@@ -19,6 +19,8 @@ local PANEL_PAD, PANEL_HEADER = St.PANEL_PAD, St.PANEL_HEADER
 local TRACKER_W = 420     -- room for a quest's name beside its icons
 local MAX_H = 420         -- taller than this, it scrolls
 local SCROLL_GAP = 20     -- the view's right edge to the window's, for the scrollbar
+local SHARE_W, SHARE_H = 52, 20
+local TITLE_RIGHT = -34 - SHARE_W - 4   -- the title stops short of Share and the close button
 
 local panel, view
 local shown               -- the dungeon it shows
@@ -85,6 +87,42 @@ local function Build()
     panel:RegisterForDrag("LeftButton")
     panel:SetScript("OnDragStart", panel.StartMoving)
     panel:SetScript("OnDragStop", DragStop)
+    panel.title:SetPoint("RIGHT", TITLE_RIGHT, 0)
+    local titleBtn = CreateFrame("Button", nil, panel)
+    titleBtn:SetPoint("TOPLEFT", panel.title, "TOPLEFT", -4, 4)
+    titleBtn:SetPoint("BOTTOMRIGHT", panel.title, "BOTTOMRIGHT", 0, -4)
+    titleBtn:SetScript("OnClick", function() ns.OpenOptionsWindow("Dungeon Journal") end)
+    titleBtn:RegisterForDrag("LeftButton")
+    titleBtn:SetScript("OnDragStart", function() panel:StartMoving() end)
+    titleBtn:SetScript("OnDragStop", function() DragStop(panel) end)
+    titleBtn:SetScript("OnEnter", function(self)
+        panel.title:SetTextColor(T.accent.r, T.accent.g, T.accent.b)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("Dungeon Journal")
+        GameTooltip:AddLine("Click to open the Dungeon Journal settings.", T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+        GameTooltip:Show()
+    end)
+    titleBtn:SetScript("OnLeave", function()
+        panel.title:SetTextColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+        GameTooltip:Hide()
+    end)
+    panel.share = ns.Button(panel, "Share", SHARE_W, SHARE_H, function() J.Sharing.ShareAll(shown) end)
+    panel.share:SetPoint("RIGHT", panel.close, "LEFT", -4, 0)
+    panel.share:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("Share Quests")
+        GameTooltip:AddLine("Shares your quests for this dungeon with your group, one at a time.", 1, 1, 1, true)
+        local count = #J.Sharing.Shareable(shown)
+        if not IsInGroup() then
+            GameTooltip:AddLine("You are not in a group.", T.muted.r, T.muted.g, T.muted.b)
+        elseif count == 0 then
+            GameTooltip:AddLine("None of your quests here can be shared.", T.muted.r, T.muted.g, T.muted.b)
+        else
+            GameTooltip:AddLine(("%d to share."):format(count), T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+        end
+        GameTooltip:Show()
+    end)
+    panel.share:HookScript("OnLeave", GameTooltip_Hide)
     local scroll = ns.UI.SlimScroll(panel)
     scroll:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEADER - 4)
     scroll:SetPoint("BOTTOMRIGHT", -PANEL_PAD - SCROLL_GAP, PANEL_PAD)

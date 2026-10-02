@@ -2,6 +2,9 @@
 --  NaowhForever_RecipeData.lua -- where each profession recipe is learned, for the
 --  Recipe Finder. Generated from Wowhead's Forever database (2026-09-27). Costs are in
 --  copper; x and y are map percentages on uiMapID `map`.
+--  Wowhead lists Stormwind and Eastern Plaguelands NPCs at their Classic positions, but
+--  Forever redrew those maps: their rows are converted to Forever's maps (NPCs also in
+--  NaowhForever_TownData take its position, the rest a fit through those).
 --
 --  NPC rows: { npcID, name, faction ("A", "H", "AH" or "-"), uiMapID, x, y [, cost] }.
 --  `t` lists are indices into the profession's `trainers`. drops: { mob, areaID, minLevel,
@@ -27,7 +30,7 @@ ns.RecipeData = {
             { 5759, "Nurse Neela", "H", 1420, 61.8, 52.8 },
             { 2798, "Pand Stonebinder", "H", 1456, 29.4, 21.4 },
             { 5943, "Rawrk", "H", 1411, 54, 42 },
-            { 2327, "Shaina Fuller", "A", 1453, 42.4, 26.8 },
+            { 2327, "Shaina Fuller", "A", 1453, 53, 44.7 },
             { 2326, "Thamner Pol", "A", 1426, 47.2, 52.4 },
             { 5939, "Vira Younghoof", "H", 1412, 46, 63.8 },
         },
@@ -86,7 +89,7 @@ ns.RecipeData = {
             { spell = 23787, item = 19440, skill = 300, recipe = 19442, source = "vendor", rep = "Argent Dawn - Honored", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2, 100000 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8, 100000 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60, 100000 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2, 100000 },
             } },
             { spell = 470349, item = 232433, skill = 300, recipe = 232434, source = "vendor", vendors = {
                 { 17068, "Chief Expeditionary Requisitioner Enkles", "A", 1451, 33.2, 51, 115789 },
@@ -114,8 +117,8 @@ ns.RecipeData = {
             { 4609, "Doctor Marsh", "H", 1458, 51.2, 75 },
             { 4611, "Doctor Herbert Halsey", "H", 1458, 47.4, 72 },
             { 5177, "Tally Berryfizz", "A", 1455, 66.4, 55.2 },
-            { 5499, "Lilyssia Nightbreeze", "A", 1453, 46.4, 79.4 },
-            { 5500, "Tel'Athir", "A", 1453, 45.8, 78.2 },
+            { 5499, "Lilyssia Nightbreeze", "A", 1453, 55.7, 86 },
+            { 5500, "Tel'Athir", "A", 1453, 55.2, 85.1 },
             { 7948, "Kylanna Windwhisper", "A", 1444, 32.4, 43.8 },
             { 11041, "Milla Fairancora", "A", 1457, 55.2, 21.4 },
             { 11042, "Sylvanna Forestmoon", "A", 1457, 55.6, 23.4 },
@@ -292,7 +295,7 @@ ns.RecipeData = {
             } },
             { spell = 21923, item = 17708, skill = 190, recipe = 17709, source = "drop", world = 38 },
             { spell = 439960, item = 217398, skill = 190, recipe = 217399, source = "vendor", vendors = {
-                { 213077, "Elaine Compton", "A", 1453, 54.4, 60.2 },
+                { 213077, "Elaine Compton", "A", 1453, 61.9, 71.2 },
                 { 214070, "Jornah", "H", 1454, 51.4, 63.8 },
                 { 214096, "Dokimi", "H", 1456, 39.4, 53.4 },
                 { 214098, "Gishah", "H", 1458, 64.4, 38.4 },
@@ -300,7 +303,7 @@ ns.RecipeData = {
                 { 214101, "Marcy Baker", "A", 1457, 59.2, 56.6 },
             } },
             { spell = 1250791, item = 250342, skill = 190, recipe = 217399, source = "vendor", vendors = {
-                { 213077, "Elaine Compton", "A", 1453, 54.4, 60.2 },
+                { 213077, "Elaine Compton", "A", 1453, 61.9, 71.2 },
                 { 214070, "Jornah", "H", 1454, 51.4, 63.8 },
                 { 214096, "Dokimi", "H", 1456, 39.4, 53.4 },
                 { 214098, "Gishah", "H", 1458, 64.4, 38.4 },
@@ -367,7 +370,7 @@ ns.RecipeData = {
             } },
             { spell = 3175, item = 3387, skill = 250, recipe = 3395, source = "drop", world = 50 },
             { spell = 11476, item = 9264, skill = 250, recipe = 9301, source = "vendor", vendors = {
-                { 1313, "Maria Lumere", "A", 1453, 46.4, 78.8 },
+                { 1313, "Maria Lumere", "A", 1453, 55.9, 85.6 },
                 { 4610, "Algernon", "H", 1458, 51.4, 74.4 },
             } },
             { spell = 11477, item = 9224, skill = 250, recipe = 9300, source = "vendor", vendors = {
@@ -527,7 +530,7 @@ ns.RecipeData = {
         skillSpell = 2018,
         trainers = {
             { 514, "Smith Argus", "A", 1429, 41.6, 65.4 },
-            { 957, "Dane Lindgren", "A", 1453, 57, 15.4 },
+            { 957, "Dane Lindgren", "A", 1453, 63.9, 36.5 },
             { 1241, "Tognus Flintfire", "A", 1426, 45.2, 52 },
             { 1383, "Snarl", "H", 1454, 79.2, 22.4 },
             { 2836, "Brikk Keencraft", "AH", 1434, 29, 75.4 },
@@ -540,8 +543,8 @@ ns.RecipeData = {
             { 4258, "Bengus Deepforge", "A", 1455, 51.4, 42.2 },
             { 4596, "James Van Brunt", "H", 1458, 61.2, 29.2 },
             { 4605, "Basil Frye", "H", 1458, 59.2, 29.4 },
-            { 5511, "Therum Deepforge", "A", 1453, 56.4, 15.4 },
-            { 5513, "Gelman Stonehand", "A", 1453, 51, 17.2 },
+            { 5511, "Therum Deepforge", "A", 1453, 63.4, 36.5 },
+            { 5513, "Gelman Stonehand", "A", 1453, 59.2, 37.8 },
             { 6299, "Delfrum Flintbeard", "A", 1439, 38.2, 41 },
             { 10266, "Ug'thok", "H", 1454, 80.4, 23.4 },
             { 10276, "Rotgath Stonebeard", "A", 1455, 51.2, 42.4 },
@@ -801,7 +804,7 @@ ns.RecipeData = {
             { spell = 3492, item = 3849, skill = 135, recipe = 12162, source = "vendor", vendors = {
                 { 2843, "Jutak", "AH", 1434, 27.4, 77.4 },
                 { 3356, "Sumi", "H", 1454, 82.4, 23.4 },
-                { 5512, "Kaita Deepforge", "A", 1453, 56.4, 16.2 },
+                { 5512, "Kaita Deepforge", "A", 1453, 63.2, 37.7 },
             } },
             { spell = 3504, item = 3840, skill = 135, recipe = 3870, source = "drop", world = 32 },
             { spell = 9811, item = 7913, skill = 135, recipe = 7978, source = "quest", quests = {
@@ -827,7 +830,7 @@ ns.RecipeData = {
             { spell = 14379, item = 11128, skill = 150, source = "trainer", cost = 250, t = { 4, 5, 6, 7, 9, 10, 12, 13, 15, 19, 22, 24, 27 } },
             { spell = 19667, item = 15870, skill = 150, source = "trainer", cost = 250, t = { 4, 5, 6, 7, 9, 10, 12, 13, 15, 19, 22, 24, 27 } },
             { spell = 427061, skill = 150, recipe = 210779, source = "vendor", vendors = {
-                { 213077, "Elaine Compton", "A", 1453, 54.4, 60.2 },
+                { 213077, "Elaine Compton", "A", 1453, 61.9, 71.2 },
                 { 214070, "Jornah", "H", 1454, 51.4, 63.8 },
                 { 214096, "Dokimi", "H", 1456, 39.4, 53.4 },
                 { 214098, "Gishah", "H", 1458, 64.4, 38.4 },
@@ -922,11 +925,11 @@ ns.RecipeData = {
             } },
             { spell = 3508, item = 3844, skill = 180, source = "trainer", cost = 7500, t = { 5, 9, 12, 22 } },
             { spell = 11643, item = 9366, skill = 180, recipe = 9367, source = "quest", quests = {
-                { id = 2758, name = "The Origins of Smithing", side = "A", level = 40, npc = { 7798, "Hank the Hammer", "A", 1453, 56, 16 } },
+                { id = 2758, name = "The Origins of Smithing", side = "A", level = 40, npc = { 7798, "Hank the Hammer", "A", 1453, 63.1, 36.9 } },
             } },
             { spell = 15972, item = 12259, skill = 180, source = "trainer", cost = 7500, t = { 5, 9, 12, 22 } },
             { spell = 439120, item = 217273, skill = 180, recipe = 9367, source = "quest", quests = {
-                { id = 2758, name = "The Origins of Smithing", side = "A", level = 40, npc = { 7798, "Hank the Hammer", "A", 1453, 56, 16 } },
+                { id = 2758, name = "The Origins of Smithing", side = "A", level = 40, npc = { 7798, "Hank the Hammer", "A", 1453, 63.1, 36.9 } },
             } },
             { spell = 1252356, item = 250607, skill = 180, recipe = 251459, source = "unknown" },
             { spell = 7223, item = 6040, skill = 185, source = "trainer", cost = 1000, t = { 5, 9, 12, 22 } },
@@ -1154,7 +1157,7 @@ ns.RecipeData = {
             { spell = 16660, item = 12625, skill = 265, recipe = 12698, source = "vendor", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2 },
             } },
             { spell = 16984, item = 12792, skill = 265, recipe = 12828, source = "drop", bosses = {
                 { "Volchan", 0 },
@@ -1163,7 +1166,7 @@ ns.RecipeData = {
             { spell = 23632, item = 19051, skill = 265, recipe = 19203, source = "vendor", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2 },
             } },
             { spell = 16657, item = 12426, skill = 270, recipe = 12700, source = "quest", quests = {
                 { id = 7654, name = "Imperial Plate Boots", side = "AH", level = 50, npc = { 14567, "Derotain Mudsipper", "AH", 1446, 51.4, 28.4 } },
@@ -1279,7 +1282,7 @@ ns.RecipeData = {
             { spell = 23633, item = 19057, skill = 300, recipe = 19205, source = "vendor", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2 },
             } },
             { spell = 23636, item = 19148, skill = 300, recipe = 19206, source = "unknown" },
             { spell = 23637, item = 19164, skill = 300, recipe = 19207, source = "unknown" },
@@ -1481,7 +1484,7 @@ ns.RecipeData = {
             { 4210, "Alegorn", "A", 1457, 48.4, 21.2 },
             { 4552, "Eunice Burch", "H", 1458, 62.2, 44.4 },
             { 5159, "Daryl Riknussun", "A", 1455, 60, 36.8 },
-            { 5482, "Stephen Ryback", "A", 1453, 75.4, 37.2 },
+            { 5482, "Stephen Ryback", "A", 1453, 78.2, 53.1 },
             { 6286, "Zarrin", "A", 1438, 57, 61.2 },
             { 8306, "Duhng", "H", 1413, 55.2, 31.8 },
             { 249968, "Hnaz Blunderflame", "-", 2482, 15.4, 50 },
@@ -1529,7 +1532,7 @@ ns.RecipeData = {
                 { 13429, "Nardstrum Copperpinch", "H", 1458, 67.2, 38.4 },
                 { 13432, "Seersa Copperpinch", "H", 1456, 43.4, 57.8 },
                 { 13433, "Wulmort Jinglepocket", "A", 1455, 33.4, 65.4 },
-                { 13435, "Khole Jinglepocket", "A", 1453, 55, 59.2 },
+                { 13435, "Khole Jinglepocket", "A", 1453, 62.2, 70.3 },
                 { 216902, "Wulmort Jinglepocket", "A", 1455, 32.4, 67.4 },
             } },
             { spell = 2539, item = 2680, skill = 10, source = "trainer", cost = 50 },
@@ -1543,7 +1546,7 @@ ns.RecipeData = {
             { spell = 1229737, item = 279981, skill = 20, source = "trainer", cost = 100 },
             { spell = 818, skill = 25, source = "unknown" },
             { spell = 2795, item = 2888, skill = 25, recipe = 2889, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 1249957, item = 249865, skill = 25, recipe = 249879, source = "drop", bosses = {
                 { "Frostmane Seer", 1 },
@@ -1564,7 +1567,7 @@ ns.RecipeData = {
                 { 13429, "Nardstrum Copperpinch", "H", 1458, 67.2, 38.4 },
                 { 13432, "Seersa Copperpinch", "H", 1456, 43.4, 57.8 },
                 { 13433, "Wulmort Jinglepocket", "A", 1455, 33.4, 65.4 },
-                { 13435, "Khole Jinglepocket", "A", 1453, 55, 59.2 },
+                { 13435, "Khole Jinglepocket", "A", 1453, 62.2, 70.3 },
                 { 216902, "Wulmort Jinglepocket", "A", 1455, 32.4, 67.4 },
             } },
             { spell = 1270635, item = 263512, skill = 35, recipe = 263513, source = "quest", quests = {
@@ -1576,7 +1579,7 @@ ns.RecipeData = {
             } },
             { spell = 2541, item = 2684, skill = 50, source = "trainer", cost = 100 },
             { spell = 2542, item = 724, skill = 50, recipe = 2697, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 6415, item = 5476, skill = 50, recipe = 5485, source = "vendor", vendors = {
                 { 4200, "Laird", "A", 1439, 36.8, 44.2 },
@@ -1605,11 +1608,11 @@ ns.RecipeData = {
                 { 4553, "Ronald Burch", "H", 1458, 62.4, 43.4 },
             } },
             { spell = 3371, item = 3220, skill = 60, recipe = 3679, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 9513, item = 7676, skill = 60, recipe = 7678, source = "unknown" },
             { spell = 2543, item = 733, skill = 75, recipe = 728, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 2544, item = 2683, skill = 75, source = "trainer", cost = 200 },
             { spell = 1250154, item = 250077, skill = 75, recipe = 250185, source = "unknown" },
@@ -1618,7 +1621,7 @@ ns.RecipeData = {
             } },
             { spell = 2546, item = 2687, skill = 80, source = "trainer", cost = 150 },
             { spell = 3370, item = 3662, skill = 80, recipe = 3678, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 25704, item = 21072, skill = 80, recipe = 21099, source = "vendor", vendors = {
                 { 2381, "Micha Yance", "A", 1424, 49, 55 },
@@ -1630,14 +1633,14 @@ ns.RecipeData = {
             } },
             { spell = 1270632, skill = 80, source = "unknown" },
             { spell = 2545, item = 2682, skill = 85, recipe = 2698, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 8238, item = 6657, skill = 85, recipe = 6661, source = "drop", world = 18 },
             { spell = 1252566, item = 251525, skill = 85, recipe = 251526, source = "drop", bosses = {
                 { "Great Goretusk", 0 },
             } },
             { spell = 3372, item = 3663, skill = 90, recipe = 3680, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 6417, item = 5478, skill = 90, recipe = 5487, source = "quest", quests = {
                 { id = 862, name = "Dig Rat Stew", side = "H", level = 15, npc = { 3443, "Grub", "H", 1413, 55.2, 31.8 } },
@@ -1648,10 +1651,10 @@ ns.RecipeData = {
             } },
             { spell = 1283400, item = 279961, skill = 90, recipe = 273087, source = "unknown" },
             { spell = 2547, item = 1082, skill = 100, recipe = 2699, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 2549, item = 1017, skill = 100, recipe = 2701, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 6418, item = 5479, skill = 100, recipe = 5488, source = "vendor", vendors = {
                 { 3482, "Tari'qa", "H", 1413, 51.6, 30 },
@@ -1670,10 +1673,10 @@ ns.RecipeData = {
                 { 256731, "Kalsey Sanden", "-", 1433, 10.8, 72.4 },
             } },
             { spell = 2548, item = 2685, skill = 110, recipe = 2700, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 3377, item = 3666, skill = 110, recipe = 3683, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 3397, item = 3726, skill = 110, recipe = 3734, source = "vendor", vendors = {
                 { 3960, "Ulthaan", "A", 1440, 50, 66.4 },
@@ -1684,7 +1687,7 @@ ns.RecipeData = {
                 { 12245, "Vendor-Tron 1000", "AH", 1443, 60.2, 38.2 },
             } },
             { spell = 3373, item = 3664, skill = 120, recipe = 3681, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
             } },
             { spell = 3398, item = 3727, skill = 125, recipe = 3735, source = "vendor", vendors = {
                 { 3489, "Zargh", "H", 1413, 52.4, 29.8 },
@@ -1700,7 +1703,7 @@ ns.RecipeData = {
                 { 256731, "Kalsey Sanden", "-", 1433, 10.8, 72.4 },
             } },
             { spell = 3376, item = 3665, skill = 130, recipe = 3682, source = "vendor", vendors = {
-                { 340, "Kendor Kabonka", "A", 1453, 74.4, 36.4 },
+                { 340, "Kendor Kabonka", "A", 1453, 77.5, 52.7 },
                 { 1148, "Nerrist", "H", 1434, 32.6, 29.2 },
                 { 2821, "Keena", "H", 1417, 74, 32.4 },
             } },
@@ -1898,7 +1901,7 @@ ns.RecipeData = {
     [333] = { -- Enchanting
         skillSpell = 7411,
         trainers = {
-            { 1317, "Lucan Cordell", "A", 1453, 43, 64.4 },
+            { 1317, "Lucan Cordell", "A", 1453, 53, 74.4 },
             { 3011, "Teg Dawnstrider", "H", 1456, 44.8, 37.4 },
             { 3345, "Godan", "H", 1454, 53.8, 38.4 },
             { 3606, "Alanna Raveneye", "A", 1438, 36.8, 34.2 },
@@ -1910,7 +1913,7 @@ ns.RecipeData = {
             { 11065, "Thonys Pillarstone", "A", 1455, 60.4, 44.4 },
             { 11066, "Jhag", "H", 1454, 53.4, 38.2 },
             { 11067, "Malcomb Wynn", "H", 1458, 62.2, 60.4 },
-            { 11068, "Betty Quin", "A", 1453, 43.2, 63.8 },
+            { 11068, "Betty Quin", "A", 1453, 53.2, 73.9 },
             { 11070, "Lalina Summermoon", "A", 1457, 58.4, 13.2 },
             { 11071, "Mot Dawnstrider", "H", 1456, 43.8, 37.8 },
             { 11072, "Kitta Firewind", "A", 1429, 64.8, 70.4 },
@@ -1928,7 +1931,7 @@ ns.RecipeData = {
         recipes = {
             { spell = 7421, item = 6218, skill = 1, source = "unknown" },
             { spell = 25124, item = 20744, skill = 5, recipe = 20758, source = "vendor", vendors = {
-                { 1318, "Jessara Cordell", "A", 1453, 43, 64.2 },
+                { 1318, "Jessara Cordell", "A", 1453, 52.8, 74.3 },
                 { 3012, "Nata Dawnstrider", "H", 1456, 45, 38.4 },
                 { 3346, "Kithas", "H", 1454, 53.4, 37.2 },
                 { 4228, "Vaean", "A", 1457, 58.4, 14.4 },
@@ -1941,7 +1944,7 @@ ns.RecipeData = {
             { spell = 7420, skill = 15, source = "trainer", cost = 50 },
             { spell = 7418, skill = 20, source = "unknown" },
             { spell = 7443, skill = 20, recipe = 6342, source = "vendor", vendors = {
-                { 1318, "Jessara Cordell", "A", 1453, 43, 64.2 },
+                { 1318, "Jessara Cordell", "A", 1453, 52.8, 74.3 },
                 { 3012, "Nata Dawnstrider", "H", 1456, 45, 38.4 },
                 { 3346, "Kithas", "H", 1454, 53.4, 37.2 },
                 { 4228, "Vaean", "A", 1457, 58.4, 14.4 },
@@ -2058,7 +2061,7 @@ ns.RecipeData = {
             { spell = 13626, skill = 150, source = "trainer", cost = 2500, t = { 1, 2, 3, 5, 6, 7, 9, 16, 17, 18 } },
             { spell = 13628, item = 11130, skill = 150, source = "trainer", cost = 2500, t = { 1, 2, 3, 5, 6, 7, 9, 16, 17, 18 } },
             { spell = 25125, item = 20745, skill = 150, recipe = 20752, source = "vendor", vendors = {
-                { 1318, "Jessara Cordell", "A", 1453, 43, 64.2 },
+                { 1318, "Jessara Cordell", "A", 1453, 52.8, 74.3 },
                 { 3012, "Nata Dawnstrider", "H", 1456, 45, 38.4 },
                 { 3346, "Kithas", "H", 1454, 53.4, 37.2 },
                 { 4228, "Vaean", "A", 1457, 58.4, 14.4 },
@@ -2097,7 +2100,7 @@ ns.RecipeData = {
             { spell = 13700, skill = 200, source = "trainer", cost = 4000, t = { 16, 17, 18 } },
             { spell = 13702, item = 11145, skill = 200, source = "trainer", cost = 4000, t = { 16, 17, 18 } },
             { spell = 25126, item = 20746, skill = 200, recipe = 20753, source = "vendor", vendors = {
-                { 1318, "Jessara Cordell", "A", 1453, 43, 64.2 },
+                { 1318, "Jessara Cordell", "A", 1453, 52.8, 74.3 },
                 { 3012, "Nata Dawnstrider", "H", 1456, 45, 38.4 },
                 { 3346, "Kithas", "H", 1454, 53.4, 37.2 },
                 { 4228, "Vaean", "A", 1457, 58.4, 14.4 },
@@ -2266,7 +2269,7 @@ ns.RecipeData = {
             { spell = 23801, skill = 290, recipe = 19446, source = "vendor", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2 },
             } },
             { spell = 27837, skill = 290, recipe = 22392, source = "vendor", vendors = {
                 { 11557, "Meilosh", "AH", 1448, 65.4, 2.8 },
@@ -2442,12 +2445,12 @@ ns.RecipeData = {
             { 3494, "Tinkerwiz", "AH", 1413, 62.6, 36.2 },
             { 4586, "Graham Van Talen", "H", 1458, 75.2, 72.4 },
             { 5174, "Springspindle Fizzlegear", "A", 1455, 68.2, 43.4 },
-            { 5518, "Lilliam Sparkspindle", "A", 1453, 54.8, 7.8 },
+            { 5518, "Lilliam Sparkspindle", "A", 1453, 62.2, 30.6 },
             { 8736, "Buzzek Bracketswing", "AH", 1446, 52.2, 27.4 },
             { 10993, "Twizwick Sprocketgrind", "H", 1412, 58.6, 39.4 },
             { 11017, "Roxxik", "H", 1454, 75.4, 24.8 },
             { 11025, "Mukdrak", "H", 1411, 52.2, 40.8 },
-            { 11026, "Sprite Jumpsprocket", "A", 1453, 54.6, 8 },
+            { 11026, "Sprite Jumpsprocket", "A", 1453, 62, 30.7 },
             { 11028, "Jemma Quikswitch", "A", 1455, 67.4, 43.8 },
             { 11029, "Trixie Quikswitch", "A", 1455, 67.4, 43.2 },
             { 11031, "Franklin Lloyd", "H", 1458, 75.4, 73 },
@@ -2565,7 +2568,7 @@ ns.RecipeData = {
                 { 3413, "Sovik", "H", 1454, 75, 24.4 },
             } },
             { spell = 23067, item = 9312, skill = 150, recipe = 18649, source = "vendor", vendors = {
-                { 1304, "Darian Singh", "A", 1453, 29.4, 67.8 },
+                { 1304, "Darian Singh", "A", 1453, 42.4, 76.9 },
                 { 5175, "Gearcutter Cogspinner", "A", 1455, 67.8, 43 },
             } },
             { spell = 23068, item = 9313, skill = 150, recipe = 18648, source = "vendor", vendors = {
@@ -2686,7 +2689,7 @@ ns.RecipeData = {
             { spell = 15628, item = 11825, skill = 205, recipe = 11828, source = "unknown" },
             { spell = 15633, item = 11826, skill = 205, recipe = 11827, source = "unknown" },
             { spell = 431362, item = 211427, skill = 205, recipe = 212230, source = "vendor", vendors = {
-                { 213077, "Elaine Compton", "A", 1453, 54.4, 60.2 },
+                { 213077, "Elaine Compton", "A", 1453, 61.9, 71.2 },
                 { 214070, "Jornah", "H", 1454, 51.4, 63.8 },
                 { 214096, "Dokimi", "H", 1456, 39.4, 53.4 },
                 { 214098, "Gishah", "H", 1458, 64.4, 38.4 },
@@ -2945,7 +2948,7 @@ ns.RecipeData = {
             { 4156, "Astaia", "A", 1457, 47.4, 56.4 },
             { 4573, "Armand Cromwell", "H", 1458, 80.4, 31.2 },
             { 5161, "Grimnur Stonebrand", "A", 1455, 48.2, 6.6 },
-            { 5493, "Arnold Leland", "A", 1453, 45.4, 57.4 },
+            { 5493, "Arnold Leland", "A", 1453, 55, 69.6 },
             { 5690, "Clyde Kellen", "H", 1420, 67.2, 51 },
             { 5938, "Uthan Stillwater", "H", 1412, 44.2, 63.8 },
             { 5941, "Lau'Tiki", "H", 1411, 53.2, 81.4 },
@@ -2992,7 +2995,7 @@ ns.RecipeData = {
             { 4212, "Telonis", "A", 1457, 64.4, 21.4 },
             { 4588, "Arthur Moore", "H", 1458, 70.2, 57.4 },
             { 5127, "Fimble Finespindle", "A", 1455, 39.4, 33 },
-            { 5564, "Simon Tanner", "A", 1453, 67.2, 49.4 },
+            { 5564, "Simon Tanner", "A", 1453, 71.8, 62.8 },
             { 5784, "Waldor", "AH", 1414, 51.8, 55.4 },
             { 5811, "Kamari", "H", 1454, 63, 45 },
             { 7088, "Thuwd", "H", 1454, 63.2, 45.2 },
@@ -3000,7 +3003,7 @@ ns.RecipeData = {
             { 11081, "Faldron", "A", 1457, 64.4, 21.4 },
             { 11083, "Darianna", "A", 1457, 64.2, 21.6 },
             { 11084, "Tarn", "H", 1456, 42.4, 43 },
-            { 11096, "Randal Worth", "A", 1453, 67.4, 49.4 },
+            { 11096, "Randal Worth", "A", 1453, 71.9, 62.8 },
             { 11098, "Hahrana Ironhide", "H", 1444, 74.4, 43 },
             { 251993, "Indari Sunseam", "AH", 2521, 44.6, 44.4 },
             { 252376, "Emerii Tallgust", "AH", 2521, 63.8, 80.4 },
@@ -3152,7 +3155,7 @@ ns.RecipeData = {
                 { 4225, "Saenorion", "A", 1457, 63.2, 22.6 },
                 { 4589, "Joseph Moore", "H", 1458, 70.2, 58 },
                 { 5128, "Bombus Finespindle", "A", 1455, 39.2, 33.2 },
-                { 5565, "Jillian Tanner", "A", 1453, 67.2, 49.4 },
+                { 5565, "Jillian Tanner", "A", 1453, 71.6, 62.7 },
             } },
             { spell = 1255124, item = 252436, skill = 80, recipe = 252783, source = "vendor", vendors = {
                 { 3005, "Mahu", "H", 1456, 43.4, 43.8 },
@@ -3160,7 +3163,7 @@ ns.RecipeData = {
                 { 4225, "Saenorion", "A", 1457, 63.2, 22.6 },
                 { 4589, "Joseph Moore", "H", 1458, 70.2, 58 },
                 { 5128, "Bombus Finespindle", "A", 1455, 39.2, 33.2 },
-                { 5565, "Jillian Tanner", "A", 1453, 67.2, 49.4 },
+                { 5565, "Jillian Tanner", "A", 1453, 71.6, 62.7 },
             } },
             { spell = 1255131, item = 252493, skill = 80, source = "unknown" },
             { spell = 1255132, item = 252492, skill = 80, source = "unknown" },
@@ -3845,7 +3848,7 @@ ns.RecipeData = {
             { spell = 1255028, item = 252479, skill = 260, recipe = 252879, source = "unknown" },
             { spell = 19081, item = 15075, skill = 265, recipe = 15755, source = "drop", world = 58 },
             { spell = 19082, item = 15094, skill = 265, recipe = 15756, source = "vendor", vendors = {
-                { 12941, "Jase Farlane", "AH", 1423, 80.4, 57.6 },
+                { 12941, "Jase Farlane", "AH", 1423, 70.9, 48.1 },
             } },
             { spell = 19083, item = 15087, skill = 265, recipe = 15757, source = "drop", world = 58 },
             { spell = 19084, item = 15063, skill = 265, recipe = 15758, source = "vendor", vendors = {
@@ -3864,7 +3867,7 @@ ns.RecipeData = {
             { spell = 23705, item = 19052, skill = 265, recipe = 19328, source = "vendor", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2 },
             } },
             { spell = 1255024, item = 252480, skill = 265, recipe = 252883, source = "unknown" },
             { spell = 1255025, item = 252555, skill = 265, recipe = 252882, source = "unknown" },
@@ -3988,7 +3991,7 @@ ns.RecipeData = {
             { spell = 23706, item = 19058, skill = 295, recipe = 19329, source = "vendor", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2 },
             } },
             { spell = 461645, skill = 295, recipe = 227899, source = "drop", bosses = {
                 { "Cliff Breaker", 0 },
@@ -4219,7 +4222,7 @@ ns.RecipeData = {
             { 4254, "Geofram Bouldertoe", "A", 1455, 50.2, 26 },
             { 4598, "Brom Killian", "H", 1458, 55.4, 36.2 },
             { 5392, "Yarr Hammerstone", "A", 1426, 50, 50.4 },
-            { 5513, "Gelman Stonehand", "A", 1453, 51, 17.2 },
+            { 5513, "Gelman Stonehand", "A", 1453, 59.2, 37.8 },
             { 6297, "Kurdram Stonehammer", "A", 1439, 38.2, 41 },
             { 8128, "Pikkle", "AH", 1446, 51, 28 },
             { 247226, "Kelsey Fargo", "A", 1429, 47.2, 32.2 },
@@ -4263,8 +4266,8 @@ ns.RecipeData = {
         skillSpell = 3908,
         trainers = {
             { 1103, "Eldrin", "A", 1429, 79.2, 69 },
-            { 1300, "Lawrence Schneider", "A", 1453, 43.4, 73.8 },
-            { 1346, "Georgio Bolero", "A", 1453, 43.2, 73.4 },
+            { 1300, "Lawrence Schneider", "A", 1453, 53.3, 81.7 },
+            { 1346, "Georgio Bolero", "A", 1453, 53.2, 81.4 },
             { 1703, "Uthrar Threx", "A", 1455, 43.4, 28.2 },
             { 2399, "Daryl Stack", "H", 1424, 63.4, 20.8 },
             { 2627, "Grarnik Goodstitch", "AH", 1434, 28.6, 76.8 },
@@ -4278,7 +4281,7 @@ ns.RecipeData = {
             { 4193, "Grondal Moonbreeze", "A", 1439, 38.2, 40.4 },
             { 4576, "Josef Gregorian", "H", 1458, 70.4, 30.4 },
             { 5153, "Jormund Stonebrow", "A", 1455, 43.2, 28.4 },
-            { 5567, "Sellandus", "A", 1453, 42, 76.2 },
+            { 5567, "Sellandus", "A", 1453, 52.2, 83.6 },
             { 11048, "Victor Ward", "H", 1458, 70.2, 29.6 },
             { 11049, "Rhiannon Davis", "H", 1458, 70.2, 30.2 },
             { 11050, "Trianna", "A", 1457, 63.4, 21.4 },
@@ -4300,7 +4303,7 @@ ns.RecipeData = {
             { spell = 3915, item = 4344, skill = 1, source = "unknown" },
             { spell = 12044, item = 10045, skill = 1, source = "unknown" },
             { spell = 1257013, item = 253664, skill = 5, recipe = 253665, source = "vendor", vendors = {
-                { 1347, "Alexandra Bolero", "A", 1453, 43.4, 74 },
+                { 1347, "Alexandra Bolero", "A", 1453, 53.1, 81.8 },
                 { 1454, "Jennabink Powerseam", "A", 1437, 8, 55.8 },
                 { 1474, "Rann Flamespinner", "A", 1432, 36, 46 },
                 { 1672, "Lohgan Eva", "A", 1431, 75.6, 44.6 },
@@ -4388,7 +4391,7 @@ ns.RecipeData = {
             { spell = 3842, item = 4309, skill = 70, source = "trainer", cost = 300 },
             { spell = 12047, item = 10048, skill = 70, recipe = 10316, source = "drop", world = 24 },
             { spell = 1257017, item = 253667, skill = 70, recipe = 253668, source = "vendor", vendors = {
-                { 1347, "Alexandra Bolero", "A", 1453, 43.4, 74 },
+                { 1347, "Alexandra Bolero", "A", 1453, 53.1, 81.8 },
                 { 1454, "Jennabink Powerseam", "A", 1437, 8, 55.8 },
                 { 1474, "Rann Flamespinner", "A", 1432, 36, 46 },
                 { 1672, "Lohgan Eva", "A", 1431, 75.6, 44.6 },
@@ -4401,7 +4404,7 @@ ns.RecipeData = {
             { spell = 3847, item = 4313, skill = 75, recipe = 4345, source = "drop", world = 19 },
             { spell = 7639, item = 6263, skill = 75, recipe = 6274, source = "vendor", vendors = {
                 { 843, "Gina MacGregor", "A", 1436, 57.4, 54 },
-                { 1347, "Alexandra Bolero", "A", 1453, 43.4, 74 },
+                { 1347, "Alexandra Bolero", "A", 1453, 53.1, 81.8 },
                 { 2394, "Mallen Swain", "H", 1424, 62, 21 },
                 { 3364, "Borya", "H", 1454, 63, 51.2 },
                 { 5944, "Yonada", "H", 1413, 45, 59.2 },
@@ -4568,7 +4571,7 @@ ns.RecipeData = {
             { spell = 6692, item = 5770, skill = 125, recipe = 5773, source = "drop", world = 30 },
             { spell = 8782, item = 7049, skill = 125, recipe = 7091, source = "drop", world = 30 },
             { spell = 428424, item = 210781, skill = 125, recipe = 211247, source = "vendor", vendors = {
-                { 213077, "Elaine Compton", "A", 1453, 54.4, 60.2 },
+                { 213077, "Elaine Compton", "A", 1453, 61.9, 71.2 },
                 { 214070, "Jornah", "H", 1454, 51.4, 63.8 },
                 { 214096, "Dokimi", "H", 1456, 39.4, 53.4 },
                 { 214098, "Gishah", "H", 1458, 64.4, 38.4 },
@@ -4633,7 +4636,7 @@ ns.RecipeData = {
                 { 8681, "Outfitter Eric", "A", 1455, 43.2, 29.2 },
             } },
             { spell = 12091, item = 10040, skill = 140, recipe = 10325, source = "vendor", vendors = {
-                { 1347, "Alexandra Bolero", "A", 1453, 43.4, 74 },
+                { 1347, "Alexandra Bolero", "A", 1453, 53.1, 81.8 },
                 { 3005, "Mahu", "H", 1456, 43.4, 43.8 },
             } },
             { spell = 12093, item = 10036, skill = 140, recipe = 10326, source = "vendor", vendors = {
@@ -4756,7 +4759,7 @@ ns.RecipeData = {
                 { 8681, "Outfitter Eric", "A", 1455, 43.2, 29.2 },
             } },
             { spell = 27658, item = 22246, skill = 190, recipe = 22307, source = "vendor", vendors = {
-                { 1318, "Jessara Cordell", "A", 1453, 43, 64.2 },
+                { 1318, "Jessara Cordell", "A", 1453, 52.8, 74.3 },
                 { 3012, "Nata Dawnstrider", "H", 1456, 45, 38.4 },
                 { 3346, "Kithas", "H", 1454, 53.4, 37.2 },
                 { 4228, "Vaean", "A", 1457, 58.4, 14.4 },
@@ -5035,7 +5038,7 @@ ns.RecipeData = {
             { spell = 23664, item = 19056, skill = 255, recipe = 19216, source = "vendor", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2 },
             } },
             { spell = 27660, item = 22249, skill = 255, recipe = 22309, source = "drop", bosses = {
                 { "Magister Kalendris", 2557 },
@@ -5089,7 +5092,7 @@ ns.RecipeData = {
             { spell = 23665, item = 19059, skill = 290, recipe = 19217, source = "vendor", vendors = {
                 { 10856, "Argent Quartermaster Hasana", "AH", 1420, 83.2, 68.2 },
                 { 10857, "Argent Quartermaster Lightspark", "AH", 1422, 42.8, 83.8 },
-                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 81.4, 60 },
+                { 11536, "Quartermaster Miranda Breechlock", "AH", 1423, 71.8, 50.2 },
             } },
             { spell = 461752, skill = 290, recipe = 228318, source = "drop", world = 58 },
             { spell = 1227724, item = 239148, skill = 290, recipe = 239150, source = "unknown" },

@@ -120,8 +120,10 @@ events:SetScript("OnEvent", function(_, event, questID)
     if SKIP_HELD[S.Get("questSkipModifier")]() then return end
     if event == "QUEST_ACCEPTED" then
         local shared = questID == sharedWithMe
-        -- The same call Blizzard's own Share button makes.
-        if not shared and On("questShare") and IsInGroup() and C_QuestLog.IsPushableQuest(questID) then
+        -- The same call Blizzard's own Share button makes. It is blocked in combat, so a
+        -- quest accepted mid-fight is not shared.
+        if not shared and On("questShare") and IsInGroup() and not InCombatLockdown()
+            and C_QuestLog.IsPushableQuest(questID) then
             QuestLogPushQuest(C_QuestLog.GetLogIndexForQuestID(questID))
         end
     elseif event == "QUEST_DETAIL" then

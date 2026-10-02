@@ -191,6 +191,166 @@ local function OnMessage(text, sender)
 end
 
 -------------------------------------------------------------------------------
+--  Sharing a dungeon's quests
+-------------------------------------------------------------------------------
+-- A shared quest opens in each member's quest window, and while it is open there the next
+-- share is turned away as busy. So quests go one at a time: each waits until everyone it
+-- was sent to (the game names them in "Sharing quest with X...") has answered, and one
+-- that came back busy goes to the back of the queue to try again. Nobody named within
+-- SENT_WAIT means there is no one to wait for; ANSWER_WAIT is the most any quest waits.
+local SENT_WAIT, ANSWER_WAIT, RETRIES = 2, 30, 2
+
+local shareQueue, sharing = {}, nil
+local shareFrame
+local sentPattern, busyPattern, answerPatterns
+
+-- The quests of the dungeon in your log that the game lets you share, as log IDs.
+---@param dungeon JournalDungeon
+---@return number[] ids
+function Sharing.Shareable(dungeon)
+    local ids = {}
+    for _, quest in ipairs(dungeon.quests and dungeon.quests.quests or {}) do
+        local id = J.Quests.LoggedID(quest)
+        if id and C_QuestLog.IsPushableQuest(id) then ids[#ids + 1] = id end
+    end
+    return ids
+end
+
+local function QuestName(id)
+    return C_QuestLog.GetTitleForQuestID(id) or tostring(id)
+end
+
+-- The game's push results as patterns: "Sharing quest with X..." is the send, every other
+-- ERR_QUEST_PUSH_*_S (accepted, declined, busy, already on it...) an answer.
+local function Pattern(fmt)
+    fmt = fmt:gsub("%%%d?%$?s", "\001"):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
+    return "^" .. fmt:gsub("\001", "(.+)") .. "$"
+end
+
+local function PushPatterns()
+    if answerPatterns then return end
+    answerPatterns = {}
+    for key, value in pairs(_G) do
+        if type(key) == "string" and type(value) == "string" and key:find("^ERR_QUEST_PUSH_.+_S$")
+            and key ~= "ERR_QUEST_PUSH_SUCCESS_S" then
+            answerPatterns[#answerPatterns + 1] = Pattern(value)
+        end
+    end
+    sentPattern = ERR_QUEST_PUSH_SUCCESS_S and Pattern(ERR_QUEST_PUSH_SUCCESS_S)
+    busyPattern = ERR_QUEST_PUSH_BUSY_S and Pattern(ERR_QUEST_PUSH_BUSY_S)
+end
+
+local NextShare
+
+local function FinishShare()
+    local cur = sharing
+    sharing = nil
+    if cur.timer then cur.timer:Cancel() end
+    if cur.busy and cur.tries < RETRIES then
+        cur.tries, cur.busy = cur.tries + 1, nil
+        shareQueue[#shareQueue + 1] = cur
+        ns.Print(("Someone was busy for %s; sharing it again after the rest."):format(QuestName(cur.id)))
+    end
+    NextShare()
+end
+
+function NextShare()
+    local cur = table.remove(shareQueue, 1)
+    if not (cur and IsInGroup()) then
+        if cur then ns.Print("Stopped sharing: you are not in a group.") else ns.Print("Done sharing.") end
+        wipe(shareQueue)
+        shareFrame:UnregisterAllEvents()
+        return
+    end
+    -- Sharing is blocked in combat; the queue waits for PLAYER_REGEN_ENABLED.
+    if InCombatLockdown() then
+        table.insert(shareQueue, 1, cur)
+        shareFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        ns.Print("Sharing carries on after combat.")
+        return
+    end
+    local index = C_QuestLog.GetLogIndexForQuestID(cur.id)
+    if not index then return NextShare() end
+    QuestLogPushQuest(index)
+    sharing, cur.sent, cur.answered = cur, {}, {}
+    cur.timer = C_Timer.NewTimer(SENT_WAIT, function()
+        if sharing ~= cur then return end
+        if next(cur.sent) == nil then return FinishShare() end
+        cur.timer = C_Timer.NewTimer(ANSWER_WAIT - SENT_WAIT, function()
+            if sharing == cur then FinishShare() end
+        end)
+    end)
+end
+
+-- Push results come as system messages; UI_INFO_MESSAGE and UI_ERROR_MESSAGE carry the
+-- text second.
+local function OnShareEvent(_, event, a, b)
+    if event == "PLAYER_REGEN_ENABLED" then
+        shareFrame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        if not sharing then NextShare() end
+        return
+    end
+    local cur, msg = sharing, event == "CHAT_MSG_SYSTEM" and a or b
+    if not cur or type(msg) ~= "string" or issecretvalue(msg) then return end
+    local name = sentPattern and msg:match(sentPattern)
+    if name then
+        cur.sent[name] = true
+        return
+    end
+    for _, pattern in ipairs(answerPatterns) do
+        name = msg:match(pattern)
+        if name then
+            cur.answered[name] = true
+            if busyPattern and msg:match(busyPattern) then cur.busy = true end
+            for sent in pairs(cur.sent) do
+                if not cur.answered[sent] then return end
+            end
+            if next(cur.sent) then FinishShare() end
+            return
+        end
+    end
+end
+
+-- Shares the dungeon's quests in your log with your group, one at a time. A second click
+-- while sharing adds only the quests not queued already.
+---@param dungeon JournalDungeon
+function Sharing.ShareAll(dungeon)
+    if not IsInGroup() then
+        ns.Print("Join a group to share quests.")
+        return
+    end
+    local ids = Sharing.Shareable(dungeon)
+    if #ids == 0 then
+        ns.Print("None of your quests for this dungeon can be shared.")
+        return
+    end
+    local queued = { [sharing and sharing.id or 0] = true }
+    for _, item in ipairs(shareQueue) do queued[item.id] = true end
+    local names = {}
+    for _, id in ipairs(ids) do
+        if not queued[id] then
+            shareQueue[#shareQueue + 1] = { id = id, tries = 0 }
+            names[#names + 1] = QuestName(id)
+        end
+    end
+    if #names == 0 then
+        ns.Print("Those quests are being shared already.")
+        return
+    end
+    ns.Print("Sharing " .. table.concat(names, ", ")
+        .. ". Each one waits until your group has answered the one before.")
+    PushPatterns()
+    if not shareFrame then
+        shareFrame = CreateFrame("Frame")
+        shareFrame:SetScript("OnEvent", OnShareEvent)
+    end
+    for _, event in ipairs({ "CHAT_MSG_SYSTEM", "UI_INFO_MESSAGE", "UI_ERROR_MESSAGE" }) do
+        shareFrame:RegisterEvent(event)
+    end
+    if not sharing then NextShare() end
+end
+
+-------------------------------------------------------------------------------
 --  Listening
 -------------------------------------------------------------------------------
 -- Asks only come in a group: out of one, other addons' guild and whisper messages do not
@@ -233,7 +393,61 @@ local function Sync()
     end
 end
 
+-------------------------------------------------------------------------------
+--  Accept Shared Dungeon Quests
+-------------------------------------------------------------------------------
+-- A dungeon quest a group member shares is accepted as it opens. Every ID the data knows
+-- counts: a quest, its alt versions, the steps of its chain and its lead-in. QoL's skip key
+-- leaves one open to look at first.
+local SKIP_HELD = { ALT = IsAltKeyDown, CTRL = IsControlKeyDown, SHIFT = IsShiftKeyDown }
+local acceptFrame, dungeonQuestIDs
+
+local function AddIDs(list)
+    for _, step in ipairs(list or {}) do
+        if type(step) == "table" then
+            for _, id in ipairs(step) do dungeonQuestIDs[id] = true end
+        else
+            dungeonQuestIDs[step] = true
+        end
+    end
+end
+
+local function OnQuestDetail()
+    local qol = ns.QoLSettings
+    local held = SKIP_HELD[qol.Get("questSkipModifier")]
+    if (held and held()) or not UnitIsPlayer("questnpc") or not dungeonQuestIDs[GetQuestID()] then return end
+    -- QoL's Auto Accept Quests takes every quest already.
+    if qol.Get("enabled") and qol.Get("questAccept") then return end
+    if QuestGetAutoAccept() then CloseQuest() else AcceptQuest() end
+end
+
+local function SyncAccept()
+    local on = S.Get("enabled") == true and S.Get("acceptShared") == true
+    if not (on or acceptFrame) then return end
+    if not acceptFrame then
+        dungeonQuestIDs = {}
+        for _, dungeon in ipairs(J.QuestData) do
+            for _, quest in ipairs(dungeon.quests) do
+                dungeonQuestIDs[quest[1]] = true
+                AddIDs(quest.alt)
+                AddIDs(quest.steps)
+                AddIDs(quest.lead)
+            end
+        end
+        for _, list in pairs(J.QuestChains) do AddIDs(list) end
+        acceptFrame = CreateFrame("Frame")
+        acceptFrame:SetScript("OnEvent", OnQuestDetail)
+    end
+    if on then
+        acceptFrame:RegisterEvent("QUEST_DETAIL")
+    else
+        acceptFrame:UnregisterAllEvents()
+    end
+end
+
 S.OnChange(function(key)
     if key == "enabled" or key == "shareRequests" then Sync() end
+    if key == "enabled" or key == "acceptShared" then SyncAccept() end
 end)
 hooksecurefunc(ns, "Apply", Sync)
+hooksecurefunc(ns, "Apply", SyncAccept)

@@ -86,6 +86,7 @@ local S = ns.UI.ModuleSettings("journal", {
     showAlliance = true,
     showHorde = true,
     shareRequests = true,
+    acceptShared = false,
 })
 ns.JournalSettings = S
 

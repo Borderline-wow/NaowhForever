@@ -133,6 +133,9 @@ Professions\NaowhForever_RecipeData.lua
 Professions\NaowhForever_RecipeFinder.lua
 Professions\NaowhForever_RankAlert.lua
 Professions\NaowhForever_GatherTracking.lua
+Professions\NaowhForever_CraftTimer.lua
+Professions\NaowhForever_FavoriteRecipes.lua
+Professions\NaowhForever_ShoppingList.lua
 ThreatMeter\NaowhForever_ThreatMeter.lua
 SwingTimer\NaowhForever_SwingTimer.lua
 TopBar\NaowhForever_TopBar.lua

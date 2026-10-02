@@ -65,6 +65,60 @@
 - Professions: Shift-Click Searches AH (off by default). While the auction house is open,
   Shift-click a recipe or a reagent and the search for the item runs straight away; while
   you type in chat, it still links it.
+- Professions: Buy at Vendor (Buying and Selling, off by default). At a merchant, "- [1] +
+  Buy" under the chosen recipe's reagents buys every checked reagent the merchant sells for
+  that many crafts in one click, such as Coarse Thread or Weak Flux. The total shows beside
+  it, red when you cannot pay; hover Buy for each reagent. Buy All (x) beside it buys only
+  what your bags lack for x crafts, x being the orange count next to the recipe, so Create
+  All can then make them all. Buy Materials is now called Buy on AH.
+- Professions: Create All stops at what your bags have room for, with "Bags: room for 14 of
+  20" in red under the recipe when that is fewer than your reagents allow. Items that stack,
+  such as bandages or potions, need far fewer slots than swords or armour, and stacks you
+  already carry count; profession bags and the reagent bag count for what they take. Slots
+  freed as the batch uses up reagent stacks count too, craft by craft.
+- Professions: favourite recipes. Click the star before a recipe's name, or right-click it
+  in the list; favourites get a small star in the list, and Favorites at the top of the
+  Filter menu shows only them. Favourites set in Blizzard's window count too. Recipes you
+  have not learned can be favourites as well.
+- Professions: Shopping List (Buying and Selling, off by default). "- [1] + Add to List"
+  under a recipe's reagents puts the materials Buy on AH would buy for that many crafts on
+  a list, from anywhere. At the auction house the list shows beside it, with what it is
+  for: Check Prices looks each material up and marks in red any well above your last scan
+  or short on supply. Buy All then goes through the list: each material shows its final
+  price and is bought when you click Confirm. Bought materials leave the list.
+- Professions: Train Favorites (Recipe Window, off by default). A trainer who teaches a
+  favourite you can learn now lists them beside their window, with the cost, to Learn one
+  or Learn All.
+- Professions: Search Favorites AH (Buying and Selling, off by default). At the auction
+  house, the patterns, plans and manuals of your favourites are listed beside it with their
+  price at your last Scan Prices, cheapest first. Buy finds the cheapest listing and asks
+  "Buyout auction for:" with the live price, as the auction house does; only Accept buys it.
+- Professions: the Filter menu has Bind on Equip and Bind on Pickup, showing only recipes
+  whose item binds that way (either way with both ticked), unlearned recipes included.
+  Items that do not bind at all, as much crafted gear on the beta, count as Bind on Equip.
+- Professions: Total Craft Timer (Recipe Window, off by default). Crafting several at once
+  (Create All, or Create with a count) shows one bar for the whole batch, drawn like the
+  Flight Timer: the recipe and its icon, how many are done and the time left on all of them.
+  The cast bar that fills for every single craft is hidden meanwhile. It sits where the
+  Flight Timer is; move it in Unlock Mode as the Flight Timer. It ends when the batch is
+  done, interrupted or stopped.
+- Professions: Craft Orders (Recipe Window, off by default). Another player's profession
+  link opens in Naowh's profession window, to order crafts from them. Choose a recipe, set
+  how many crafts, tick the materials you bring (or type how many of each), and click Add to
+  Order. The order on the right lists every craft with a tip you can change; Ask sends the
+  crafter one message per craft with the amount, your materials and the tip: in party chat,
+  starting with their name, when they are in your party, else as a whisper. Invite, at the
+  top of the order, asks them into your group first. Under the reagents: the crafter's
+  materials and the suggested tip, which pays back their materials plus a share of the
+  items' value (10% by default, set with Suggested Tip), rounded, at least 1s; prices need
+  an auction house scan.
+- Dungeon Journal: Share on the quest tracker shares your quests for its dungeon with your
+  group. Quests that cannot be shared are skipped. They go out one at a time, each once your
+  group has answered the last, so nobody is too busy for the next; one someone was busy for
+  is shared again at the end. Click the tracker's title to open the Journal's settings.
+- Dungeon Journal: Accept Shared Dungeon Quests (off by default, in the Journal's settings)
+  accepts a dungeon quest a group member shares with you as soon as it opens. Hold the Skip
+  Modifier to look at one first.
 
 ### Changed
 - The Naowh logo now has the closed infinity loop at the bottom, on the addon list, the main window and the small popups.
@@ -98,6 +152,13 @@
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
 
 ### Fixed
+- Recipe Finder and rank alerts: Stormwind and Eastern Plaguelands trainers and vendors
+  (Lucan Cordell, the Stormwind enchanting trainer, among them) were placed at their Classic
+  positions, so their waypoints pointed at the wrong spot on Forever's redrawn maps.
+- Share Quests With Group no longer tries to share a quest accepted in combat, where the
+  game blocks sharing.
+- Discovery tracker: the zone picked in its dropdown stays picked once its last book is
+  looted, showing "No more books in this area", instead of jumping to another zone.
 - The Naowh font is only on this addon's own windows and HUD again; the rest of the game keeps
   its own fonts. Settings > Font has Addon Font (Naowh), plus Game Font and Combat Text Font,
   both off unless you pick a font.
