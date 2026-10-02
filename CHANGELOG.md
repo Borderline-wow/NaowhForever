@@ -138,6 +138,9 @@
 - Dungeon Journal: Accept Shared Dungeon Quests (off by default, in the Journal's settings)
   accepts a dungeon quest a group member shares with you as soon as it opens. Hold the Skip
   Modifier to look at one first.
+- Threat Meter: Status Line (Layout) moves the line with your distance to pulling aggro and
+  the entry count from under the bars to the top, between the title bar and the bars.
+  Bottom by default.
 
 ### Changed
 - The Naowh logo now has the closed infinity loop at the bottom, on the addon list, the main window and the small popups.
