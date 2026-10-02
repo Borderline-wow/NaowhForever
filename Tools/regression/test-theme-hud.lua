@@ -217,4 +217,51 @@ do
         "xpbar: a theme's accent, darkened at the low end")
 end
 
+-- The XP bar's rested segment and its text follow a changed accent; quest gold stays gold.
+do
+    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local RESTED = assert(loadstring("return " .. assert(source:match("\nlocal RESTED%s+= (%b{})"))))()
+    Check(IsRGB(RESTED, 0x1e / 255, 0x40 / 255, 0xaf / 255), "xpbar rested literal is the original")
+    local line = assert(source:match('(local rested = shifted and [^\n]*)'))
+    local function Rested(account)
+        local chunk = assert(loadstring('local shifted = ns.ThemeTint("accent", nil)\n' .. line .. "\nreturn rested"))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account), RESTED = RESTED }, { __index = _G }))
+        return chunk()
+    end
+    Check(Rested({}) == RESTED, "xpbar: the default theme keeps the royal blue")
+    local a = AccentOf(ACCENT_PRESET)
+    local on = Rested(ACCENT_PRESET)
+    Check(on.r == a.r * 0.7 and on.g == a.g * 0.7 and on.b == a.b * 0.7, "xpbar: rested is a deeper shade of the accent")
+    local expr = assert(source:match('(ns%.ThemeTint%("accent", nil%) and ns%.Color%("accent"%) or RESTED_HEX)'))
+    local function Text(account)
+        local chunk = assert(loadstring("return " .. expr))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account), RESTED_HEX = "|cff6b8cff" }, { __index = _G }))
+        return chunk()
+    end
+    Check(Text({}) == "|cff6b8cff", "xpbar: the rested text keeps its blue by default")
+    Check(Text(ACCENT_PRESET) == "|cff5b8cff", "xpbar: the rested text follows the accent")
+
+    -- Quest XP: the logo's gold by default, the lighter accent in a theme.
+    local QUEST = assert(loadstring("return " .. assert(source:match("\nlocal QUEST%s+= (%b{})"))))()
+    Check(IsRGB(QUEST, 0xf2 / 255, 0xa9 / 255, 0x00 / 255), "xpbar quest literal is the original")
+    local questLine = assert(source:match('(local quest = ns%.ThemeTint%("accentSoft", QUEST%))'))
+    local function Quest(account)
+        local chunk = assert(loadstring(questLine .. "\nreturn quest"))
+        local ns = LoadCore(account)
+        setfenv(chunk, setmetatable({ ns = ns, QUEST = QUEST }, { __index = _G }))
+        return chunk(), ns.THEME.accentSoft
+    end
+    Check(Quest({}) == QUEST, "xpbar: the default theme keeps the quest gold")
+    local color, soft = Quest(ACCENT_PRESET)
+    Check(color == soft, "xpbar: a theme's quest segment is its lighter accent")
+    local qexpr = assert(source:match('(ns%.ThemeTint%("accentSoft", nil%) and ns%.Color%("accentSoft"%) or QUEST_HEX)'))
+    local function QuestText(account)
+        local chunk = assert(loadstring("return " .. qexpr))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account), QUEST_HEX = "|cfff2a900" }, { __index = _G }))
+        return chunk()
+    end
+    Check(QuestText({}) == "|cfff2a900", "xpbar: the quest text keeps its gold by default")
+    Check(QuestText(ACCENT_PRESET) == "|cff91b2ff", "xpbar: the quest text follows the lighter accent")
+end
+
 print("PASS theme HUD: " .. cases .. " checks")

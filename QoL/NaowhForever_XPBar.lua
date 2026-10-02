@@ -217,9 +217,9 @@ local function SlotText(which, maxed, max)
     elseif maxed then
         return ""
     elseif which == "completed" then
-        return LABEL .. "Completed Quests:|r " .. QUEST_HEX .. ("%.1f%%"):format(questDone / max * 100) .. "|r"
+        return LABEL .. "Completed Quests:|r " .. (ns.ThemeTint("accentSoft", nil) and ns.Color("accentSoft") or QUEST_HEX) .. ("%.1f%%"):format(questDone / max * 100) .. "|r"
     elseif which == "rested" then
-        return LABEL .. "Rested:|r " .. RESTED_HEX .. ("%.1f%%"):format((GetXPExhaustion() or 0) / max * 100) .. "|r"
+        return LABEL .. "Rested:|r " .. (ns.ThemeTint("accent", nil) and ns.Color("accent") or RESTED_HEX) .. ("%.1f%%"):format((GetXPExhaustion() or 0) / max * 100) .. "|r"
     end
     local rate = sessionXP / (math.max(elapsed, 60) / 3600)
     if which == "leveling" then
@@ -398,9 +398,14 @@ local function Create()
     local shifted = ns.ThemeTint("accent", nil)
     local from = shifted and CreateColor(shifted.r * 0.55, shifted.g * 0.55, shifted.b * 0.55, 1) or FILL_FROM
     bar.fill:SetGradient("HORIZONTAL", from, CreateColor(T.accent.r, T.accent.g, T.accent.b, 1))
-    bar.done = ns.Solid(bar.track, "ARTWORK", QUEST, 1)
-    bar.open = ns.Solid(bar.track, "ARTWORK", QUEST, 0.4)
-    bar.rested = ns.Solid(bar.track, "ARTWORK", RESTED, 1)
+    -- Quest XP is the logo's gold; a theme changes it to its lighter accent, which reads
+    -- apart from the fill's accent.
+    local quest = ns.ThemeTint("accentSoft", QUEST)
+    bar.done = ns.Solid(bar.track, "ARTWORK", quest, 1)
+    bar.open = ns.Solid(bar.track, "ARTWORK", quest, 0.4)
+    -- Rested sits just ahead of the fill: a deeper shade of a changed accent, the royal blue otherwise.
+    local rested = shifted and { r = shifted.r * 0.7, g = shifted.g * 0.7, b = shifted.b * 0.7 } or RESTED
+    bar.rested = ns.Solid(bar.track, "ARTWORK", rested, 1)
     bar.rested:SetDrawLayer("ARTWORK", 0)
     bar.done:SetDrawLayer("ARTWORK", 1)
     bar.open:SetDrawLayer("ARTWORK", 1)

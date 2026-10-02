@@ -178,6 +178,7 @@
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
 
 ### Fixed
+- Themes: the XP Bar's quest and rested segments and text follow your theme's Accent instead of staying gold and blue. Looks the same with the default theme.
 - A copy downloaded with GitHub's green Code button has none of the addon's libraries, and
   parts of it then failed with Lua errors (Low Health's glow on a level up, among others). It
   now says at login which libraries are missing and where to download the full addon.
