@@ -1,0 +1,134 @@
+-------------------------------------------------------------------------------
+--  NaowhForever_CombatTimer.lua -- the QoL combat timer: how long the current fight has
+--  run, optionally kept on screen after it ends, and reported to chat when it does.
+-------------------------------------------------------------------------------
+local ns = _G.NaowhForever
+local S = ns.QoLSettings
+local UI = ns.UI
+
+local frame, clock, unlocked
+local started, last = nil, 0
+
+local function On()
+    return S.Get("enabled") and S.Get("combatTimer")
+end
+
+local function InstanceOk()
+    if not S.Get("combatTimerInstanceOnly") then return true end
+    local inInstance, kind = IsInInstance()
+    return inInstance and kind ~= "none"
+end
+
+local function Format(seconds)
+    local text = ("%d:%02d"):format(math.floor(seconds / 60), math.floor(seconds % 60))
+    if S.Get("combatTimerHidePrefix") then return text end
+    return "COMBAT: " .. text
+end
+
+-- Shown while fighting, while unlocked, and after a fight when Sticky keeps the last one up.
+local function Update()
+    local elapsed
+    if started then
+        elapsed = GetTime() - started
+    elseif unlocked or (S.Get("combatTimerSticky") and last > 0 and InstanceOk()) then
+        elapsed = last
+    end
+    if not elapsed then
+        frame:Hide()
+        return
+    end
+    frame.text:SetText(Format(elapsed))
+    frame:Show()
+end
+
+local function Report(duration)
+    local h, m, s = math.floor(duration / 3600), math.floor(duration % 3600 / 60),
+        math.floor(duration % 60)
+    local text
+    if h > 0 then
+        text = ("%d:%02d:%02d hours"):format(h, m, s)
+    elseif m > 0 then
+        text = ("%d:%02d minutes"):format(m, s)
+    else
+        text = ("%d seconds"):format(s)
+    end
+    ns.Print("You were in combat for: |cffffa300" .. text .. "|r")
+end
+
+local events = CreateFrame("Frame")
+events:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_REGEN_DISABLED" then
+        if not InstanceOk() then return end
+        started = GetTime()
+        if not clock then clock = C_Timer.NewTicker(1, Update) end
+    elseif event == "PLAYER_REGEN_ENABLED" and started then
+        last = GetTime() - started
+        started = nil
+        if clock then clock:Cancel(); clock = nil end
+        if S.Get("combatTimerChat") then Report(last) end
+    end
+    Update()
+end)
+
+local function Build()
+    frame = CreateFrame("Frame", "NaowhForeverCombatTimer", UIParent)
+    frame:SetMovable(true)
+    frame:SetClampedToScreen(true)
+    frame.bg = ns.Solid(frame, "BACKGROUND", { r = 0, g = 0, b = 0 }, 0.8)
+    frame.bg:SetAllPoints()
+    frame.text = ns.Font(frame, 32, "OUTLINE")
+    frame.text:SetPoint("CENTER")
+    frame.mover = UI.AttachMover(frame, "Combat Timer", function(pos) S.Set("combatTimerPos", pos) end)
+    frame:Hide()
+end
+
+local function Place()
+    local pos = S.Get("combatTimerPos")
+    frame:ClearAllPoints()
+    if pos then
+        frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    else
+        frame:SetPoint("CENTER", UIParent, "CENTER", 0, -200)
+    end
+end
+
+local function Apply()
+    events:UnregisterAllEvents()
+    if not On() then
+        started = nil
+        if clock then clock:Cancel(); clock = nil end
+        if frame then frame:Hide() end
+        return
+    end
+    if not frame then Build() end
+    local size = S.Get("combatTimerFontSize")
+    frame.text:SetFont(UI.FontPath(S.Get("combatTimerFont")), size, "OUTLINE")
+    local c = S.Get("combatTimerClassColor") and RAID_CLASS_COLORS[select(2, UnitClass("player"))]
+        or S.Get("combatTimerColor")
+    frame.text:SetTextColor(c.r, c.g, c.b, 1)
+    frame:SetSize(size * 7, size + 16)
+    frame.bg:SetShown(S.Get("combatTimerBackground"))
+    Place()
+    frame.mover:SetShown(unlocked == true)
+    events:RegisterEvent("PLAYER_REGEN_DISABLED")
+    events:RegisterEvent("PLAYER_REGEN_ENABLED")
+    events:RegisterEvent("PLAYER_ENTERING_WORLD")
+    Update()
+end
+
+hooksecurefunc(S, "Set", function(key)
+    if key == "enabled" or (key:find("^combatTimer") and key ~= "combatTimerPos") then Apply() end
+end)
+hooksecurefunc(ns, "Apply", Apply)
+hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
+    unlocked = S.Get("enabled") == true
+    Apply()
+end)
+hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
+    unlocked = false
+    Apply()
+end)
+
+local boot = CreateFrame("Frame")
+boot:RegisterEvent("PLAYER_LOGIN")
+boot:SetScript("OnEvent", Apply)

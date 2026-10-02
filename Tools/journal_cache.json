@@ -1,0 +1,8184 @@
+{
+ "drops2:10082": [
+  {
+   "class": 4,
+   "count": 624,
+   "id": 12470,
+   "kills": 3397,
+   "level": 47,
+   "quality": 3,
+   "reqlevel": 42,
+   "slot": 8,
+   "subclass": 2
+  }
+ ],
+ "drops2:10184": [
+  {
+   "class": 4,
+   "count": 370,
+   "id": 7734,
+   "kills": 37824,
+   "level": 51,
+   "quality": 3,
+   "reqlevel": 46,
+   "slot": 12,
+   "subclass": -4
+  },
+  {
+   "class": 4,
+   "count": 387,
+   "id": 11302,
+   "kills": 37824,
+   "level": 52,
+   "quality": 3,
+   "reqlevel": 47,
+   "slot": 12,
+   "subclass": -4
+  }
+ ],
+ "drops2:10220": [],
+ "drops2:10264": [
+  {
+   "class": 4,
+   "count": 656,
+   "id": 16695,
+   "kills": 3569,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 1
+  }
+ ],
+ "drops2:10268": [
+  {
+   "class": 4,
+   "count": 2539,
+   "id": 16718,
+   "kills": 13941,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 2
+  }
+ ],
+ "drops2:10339": [
+  {
+   "class": 4,
+   "count": 842,
+   "id": 12952,
+   "kills": 4169,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 1,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 795,
+   "id": 16669,
+   "kills": 4169,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 3
+  }
+ ],
+ "drops2:10363": [
+  {
+   "class": 4,
+   "count": 1140,
+   "id": 12602,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 1167,
+   "id": 13142,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 6,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 264,
+   "id": 16666,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 593,
+   "id": 16674,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 579,
+   "id": 16688,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 561,
+   "id": 16690,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 640,
+   "id": 16700,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 612,
+   "id": 16706,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 537,
+   "id": 16721,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 351,
+   "id": 16726,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 625,
+   "id": 16730,
+   "kills": 5179,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 5,
+   "subclass": 4
+  }
+ ],
+ "drops2:10393": [],
+ "drops2:10429": [
+  {
+   "class": 4,
+   "count": 1100,
+   "id": 16733,
+   "kills": 5866,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 4
+  }
+ ],
+ "drops2:10430": [
+  {
+   "class": 4,
+   "count": 821,
+   "id": 16729,
+   "kills": 4470,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 4
+  }
+ ],
+ "drops2:10432": [],
+ "drops2:10433": [],
+ "drops2:10435": [
+  {
+   "class": 4,
+   "count": 5568,
+   "id": 18722,
+   "kills": 37487,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 10,
+   "subclass": 4
+  }
+ ],
+ "drops2:10436": [
+  {
+   "class": 4,
+   "count": 4460,
+   "id": 16704,
+   "kills": 25354,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 1
+  }
+ ],
+ "drops2:10437": [
+  {
+   "class": 4,
+   "count": 5363,
+   "id": 16675,
+   "kills": 30041,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 3
+  }
+ ],
+ "drops2:10438": [
+  {
+   "class": 4,
+   "count": 4795,
+   "id": 16691,
+   "kills": 26368,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 1
+  }
+ ],
+ "drops2:10439": [
+  {
+   "class": 4,
+   "count": 4288,
+   "id": 16737,
+   "kills": 24598,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 4
+  }
+ ],
+ "drops2:10440": [
+  {
+   "class": 4,
+   "count": 1316,
+   "id": 13340,
+   "kills": 8951,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 411,
+   "id": 16668,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 939,
+   "id": 16678,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 977,
+   "id": 16687,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 934,
+   "id": 16694,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 928,
+   "id": 16699,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 975,
+   "id": 16709,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 917,
+   "id": 16719,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 577,
+   "id": 16728,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 977,
+   "id": 16732,
+   "kills": 8951,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 4
+  }
+ ],
+ "drops2:10502": [
+  {
+   "class": 4,
+   "count": 938,
+   "id": 14620,
+   "kills": 22996,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 6,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 898,
+   "id": 14621,
+   "kills": 22996,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 8,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 878,
+   "id": 14622,
+   "kills": 22996,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 10,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 833,
+   "id": 14623,
+   "kills": 22996,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 304,
+   "id": 14624,
+   "kills": 22996,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 5,
+   "subclass": 4
+  }
+ ],
+ "drops2:10503": [
+  {
+   "class": 4,
+   "count": 438,
+   "id": 16701,
+   "kills": 2603,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 1
+  }
+ ],
+ "drops2:10504": [
+  {
+   "class": 4,
+   "count": 122,
+   "id": 14620,
+   "kills": 20033,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 6,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 95,
+   "id": 14621,
+   "kills": 20033,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 8,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 113,
+   "id": 14622,
+   "kills": 20033,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 10,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 122,
+   "id": 14623,
+   "kills": 20033,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1481,
+   "id": 14624,
+   "kills": 20033,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 5,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 869,
+   "id": 16722,
+   "kills": 20033,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 9,
+   "subclass": 4
+  }
+ ],
+ "drops2:10505": [
+  {
+   "class": 4,
+   "count": 982,
+   "id": 14620,
+   "kills": 25251,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 6,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1002,
+   "id": 14621,
+   "kills": 25251,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 8,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 876,
+   "id": 14622,
+   "kills": 25251,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 10,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1013,
+   "id": 14623,
+   "kills": 25251,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 299,
+   "id": 14624,
+   "kills": 25251,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 5,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1130,
+   "id": 16710,
+   "kills": 25251,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 9,
+   "subclass": 2
+  }
+ ],
+ "drops2:10506": [
+  {
+   "class": 4,
+   "count": 3035,
+   "id": 16734,
+   "kills": 16294,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 4
+  }
+ ],
+ "drops2:10507": [
+  {
+   "class": 4,
+   "count": 934,
+   "id": 14620,
+   "kills": 25508,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 6,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 893,
+   "id": 14621,
+   "kills": 25508,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 8,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1006,
+   "id": 14622,
+   "kills": 25508,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 10,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 915,
+   "id": 14623,
+   "kills": 25508,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 295,
+   "id": 14624,
+   "kills": 25508,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 5,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1161,
+   "id": 16716,
+   "kills": 25508,
+   "level": 58,
+   "quality": 3,
+   "reqlevel": 53,
+   "slot": 6,
+   "subclass": 2
+  }
+ ],
+ "drops2:10508": [
+  {
+   "class": 4,
+   "count": 3718,
+   "id": 14525,
+   "kills": 25205,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 10,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 4726,
+   "id": 16689,
+   "kills": 25205,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 1
+  }
+ ],
+ "drops2:10509": [],
+ "drops2:10516": [
+  {
+   "class": 4,
+   "count": 805,
+   "id": 13404,
+   "kills": 3900,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 1,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 867,
+   "id": 13405,
+   "kills": 3900,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 3,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 477,
+   "id": 16717,
+   "kills": 3900,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 2
+  }
+ ],
+ "drops2:10558": [
+  {
+   "class": 4,
+   "count": 391,
+   "id": 16682,
+   "kills": 2782,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 1
+  }
+ ],
+ "drops2:10584": [],
+ "drops2:10596": [
+  {
+   "class": 4,
+   "count": 2050,
+   "id": 16715,
+   "kills": 13096,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 2
+  }
+ ],
+ "drops2:10808": [
+  {
+   "class": 4,
+   "count": 785,
+   "id": 13400,
+   "kills": 3783,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 9,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 755,
+   "id": 13402,
+   "kills": 3783,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 477,
+   "id": 16724,
+   "kills": 3783,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 4
+  }
+ ],
+ "drops2:10809": [
+  {
+   "class": 4,
+   "count": 1795,
+   "id": 13397,
+   "kills": 5785,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 16,
+   "subclass": -6
+  }
+ ],
+ "drops2:10811": [
+  {
+   "class": 4,
+   "count": 3701,
+   "id": 13387,
+   "kills": 17501,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 6,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 3154,
+   "id": 16692,
+   "kills": 17501,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 1
+  }
+ ],
+ "drops2:10813": [
+  {
+   "class": 4,
+   "count": -1,
+   "id": 16725,
+   "kills": 0,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": -1,
+   "id": 18720,
+   "kills": 0,
+   "level": 63,
+   "quality": 3,
+   "reqlevel": 58,
+   "slot": 3,
+   "subclass": 1
+  }
+ ],
+ "drops2:10899": [],
+ "drops2:10901": [
+  {
+   "class": 4,
+   "count": 888,
+   "id": 14620,
+   "kills": 24333,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 6,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 834,
+   "id": 14621,
+   "kills": 24333,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 8,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 852,
+   "id": 14622,
+   "kills": 24333,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 10,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 845,
+   "id": 14623,
+   "kills": 24333,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 306,
+   "id": 14624,
+   "kills": 24333,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 5,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1866,
+   "id": 16705,
+   "kills": 24333,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 1
+  }
+ ],
+ "drops2:10997": [
+  {
+   "class": 4,
+   "count": 515,
+   "id": 16708,
+   "kills": 3129,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 2
+  }
+ ],
+ "drops2:11261": [
+  {
+   "class": 4,
+   "count": 967,
+   "id": 14620,
+   "kills": 26628,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 6,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 967,
+   "id": 14621,
+   "kills": 26628,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 8,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1020,
+   "id": 14622,
+   "kills": 26628,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 10,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 932,
+   "id": 14623,
+   "kills": 26628,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 7,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 389,
+   "id": 14624,
+   "kills": 26628,
+   "level": 61,
+   "quality": 3,
+   "reqlevel": 56,
+   "slot": 5,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1998,
+   "id": 16684,
+   "kills": 26628,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 1
+  }
+ ],
+ "drops2:11486": [],
+ "drops2:11487": [],
+ "drops2:11488": [],
+ "drops2:11489": [],
+ "drops2:11490": [],
+ "drops2:11492": [],
+ "drops2:11496": [],
+ "drops2:11501": [],
+ "drops2:11517": [],
+ "drops2:11518": [
+  {
+   "class": 4,
+   "count": 5059,
+   "id": 14147,
+   "kills": 14986,
+   "level": 18,
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 9,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 5515,
+   "id": 14150,
+   "kills": 14986,
+   "level": 18,
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 2438,
+   "id": 14151,
+   "kills": 14986,
+   "level": 18,
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 13,
+   "subclass": 15
+  }
+ ],
+ "drops2:11519": [],
+ "drops2:11520": [
+  {
+   "class": 2,
+   "count": 2955,
+   "id": 14145,
+   "kills": 18205,
+   "level": 18,
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 21,
+   "subclass": 7
+  },
+  {
+   "class": 4,
+   "count": 5590,
+   "id": 14148,
+   "kills": 18205,
+   "level": 18,
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 5885,
+   "id": 14149,
+   "kills": 18205,
+   "level": 18,
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 16,
+   "subclass": -6
+  }
+ ],
+ "drops2:11622": [
+  {
+   "class": 4,
+   "count": 5437,
+   "id": 16711,
+   "kills": 29685,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 2
+  }
+ ],
+ "drops2:12201": [
+  {
+   "class": 2,
+   "count": 8144,
+   "id": 17710,
+   "kills": 41839,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 21,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 10253,
+   "id": 17713,
+   "kills": 41839,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 11,
+   "subclass": -2
+  },
+  {
+   "class": 4,
+   "count": 10148,
+   "id": 17714,
+   "kills": 41839,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 9,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 8157,
+   "id": 17715,
+   "kills": 41839,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 1,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 8173,
+   "id": 17766,
+   "kills": 41839,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 17,
+   "subclass": 5
+  }
+ ],
+ "drops2:12203": [
+  {
+   "class": 2,
+   "count": 1819,
+   "id": 17943,
+   "kills": 7089,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 21,
+   "subclass": 4
+  }
+ ],
+ "drops2:12225": [
+  {
+   "class": 2,
+   "count": 2401,
+   "id": 17738,
+   "kills": 7515,
+   "level": 52,
+   "quality": 3,
+   "reqlevel": 47,
+   "slot": 22,
+   "subclass": 13
+  },
+  {
+   "class": 4,
+   "count": 2430,
+   "id": 17739,
+   "kills": 7515,
+   "level": 52,
+   "quality": 3,
+   "reqlevel": 47,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 2293,
+   "id": 17740,
+   "kills": 7515,
+   "level": 52,
+   "quality": 3,
+   "reqlevel": 47,
+   "slot": 1,
+   "subclass": 2
+  }
+ ],
+ "drops2:12236": [
+  {
+   "class": 4,
+   "count": 1821,
+   "id": 17755,
+   "kills": 6584,
+   "level": 50,
+   "quality": 3,
+   "reqlevel": 45,
+   "slot": 6,
+   "subclass": 1
+  }
+ ],
+ "drops2:12237": [
+  {
+   "class": 4,
+   "count": 1603,
+   "id": 17741,
+   "kills": 5539,
+   "level": 51,
+   "quality": 3,
+   "reqlevel": 46,
+   "slot": 5,
+   "subclass": 1
+  }
+ ],
+ "drops2:12258": [
+  {
+   "class": 4,
+   "count": 2537,
+   "id": 17748,
+   "kills": 10609,
+   "level": 51,
+   "quality": 3,
+   "reqlevel": 46,
+   "slot": 8,
+   "subclass": 1
+  }
+ ],
+ "drops2:12876": [
+  {
+   "class": 2,
+   "count": 2,
+   "id": 2271,
+   "kills": 2807,
+   "level": 25,
+   "quality": 3,
+   "reqlevel": 20,
+   "slot": 17,
+   "subclass": 10
+  }
+ ],
+ "drops2:12902": [],
+ "drops2:13280": [],
+ "drops2:13282": [
+  {
+   "class": 2,
+   "count": 2160,
+   "id": 17745,
+   "kills": 11940,
+   "level": 51,
+   "quality": 3,
+   "reqlevel": 46,
+   "slot": 15,
+   "subclass": 19
+  }
+ ],
+ "drops2:13596": [
+  {
+   "class": 4,
+   "count": 4934,
+   "id": 17728,
+   "kills": 14048,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 8,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 3382,
+   "id": 17730,
+   "kills": 14048,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 4990,
+   "id": 17732,
+   "kills": 14048,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 3,
+   "subclass": 1
+  }
+ ],
+ "drops2:13601": [
+  {
+   "class": 2,
+   "count": 8656,
+   "id": 17717,
+   "kills": 26343,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 15,
+   "subclass": 3
+  },
+  {
+   "class": 2,
+   "count": 8706,
+   "id": 17719,
+   "kills": 26343,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 21,
+   "subclass": 7
+  }
+ ],
+ "drops2:14321": [],
+ "drops2:14322": [],
+ "drops2:14323": [],
+ "drops2:14325": [],
+ "drops2:14326": [],
+ "drops2:14327": [],
+ "drops2:14354": [],
+ "drops2:1663": [],
+ "drops2:1666": [
+  {
+   "class": 2,
+   "count": 67,
+   "id": 2280,
+   "kills": 7459,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 17,
+   "subclass": 10
+  }
+ ],
+ "drops2:1696": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 12992,
+   "kills": 71,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 8
+  }
+ ],
+ "drops2:1716": [],
+ "drops2:1717": [],
+ "drops2:1720": [
+  {
+   "class": 2,
+   "count": 428,
+   "id": 2941,
+   "kills": 2229,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 2,
+   "count": 412,
+   "id": 2942,
+   "kills": 2229,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 13,
+   "subclass": 13
+  },
+  {
+   "class": 4,
+   "count": 1230,
+   "id": 3228,
+   "kills": 2229,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 9,
+   "subclass": 3
+  }
+ ],
+ "drops2:1763": [
+  {
+   "class": 4,
+   "count": 5337,
+   "id": 1156,
+   "kills": 14124,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 11,
+   "subclass": -2
+  },
+  {
+   "class": 4,
+   "count": 7935,
+   "id": 5199,
+   "kills": 14124,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 7,
+   "subclass": 2
+  }
+ ],
+ "drops2:1853": [
+  {
+   "class": 4,
+   "count": 305,
+   "id": 16667,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 811,
+   "id": 16677,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 809,
+   "id": 16686,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 732,
+   "id": 16693,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 742,
+   "id": 16698,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 705,
+   "id": 16707,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 725,
+   "id": 16720,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 400,
+   "id": 16727,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 750,
+   "id": 16731,
+   "kills": 6339,
+   "level": 62,
+   "quality": 3,
+   "reqlevel": 57,
+   "slot": 1,
+   "subclass": 4
+  }
+ ],
+ "drops2:246020": [],
+ "drops2:247032": [],
+ "drops2:249787": [],
+ "drops2:249790": [],
+ "drops2:250070": [],
+ "drops2:250074": [],
+ "drops2:250075": [],
+ "drops2:250076": [],
+ "drops2:250077": [],
+ "drops2:250078": [],
+ "drops2:250079": [],
+ "drops2:250082": [],
+ "drops2:250483": [],
+ "drops2:250631": [],
+ "drops2:250657": [],
+ "drops2:250660": [],
+ "drops2:253861": [],
+ "drops2:255699": [],
+ "drops2:256035": [],
+ "drops2:256097": [],
+ "drops2:257638": [],
+ "drops2:259866": [],
+ "drops2:259867": [],
+ "drops2:259902": [],
+ "drops2:259904": [],
+ "drops2:259905": [],
+ "drops2:259907": [],
+ "drops2:259911": [],
+ "drops2:259912": [],
+ "drops2:260322": [],
+ "drops2:260325": [],
+ "drops2:260326": [],
+ "drops2:260808": [],
+ "drops2:261306": [],
+ "drops2:261311": [],
+ "drops2:261316": [],
+ "drops2:261319": [],
+ "drops2:270882": [],
+ "drops2:270883": [],
+ "drops2:270884": [],
+ "drops2:270885": [],
+ "drops2:270886": [],
+ "drops2:2748": [
+  {
+   "class": 4,
+   "count": 4,
+   "id": 9420,
+   "kills": 704,
+   "level": 37,
+   "quality": 3,
+   "reqlevel": 32,
+   "slot": 1,
+   "subclass": 2
+  }
+ ],
+ "drops2:3586": [
+  {
+   "class": 4,
+   "count": 1091,
+   "id": 5443,
+   "kills": 2658,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 1468,
+   "id": 5444,
+   "kills": 2658,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 16,
+   "subclass": -6
+  }
+ ],
+ "drops2:3653": [
+  {
+   "class": 4,
+   "count": 4311,
+   "id": 6447,
+   "kills": 6561,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 898,
+   "id": 13245,
+   "kills": 6561,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 14,
+   "subclass": 6
+  }
+ ],
+ "drops2:3654": [
+  {
+   "class": 4,
+   "count": 2750,
+   "id": 6461,
+   "kills": 9329,
+   "level": 25,
+   "quality": 3,
+   "reqlevel": 20,
+   "slot": 3,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 2822,
+   "id": 6463,
+   "kills": 9329,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 11,
+   "subclass": -2
+  },
+  {
+   "class": 4,
+   "count": 2157,
+   "id": 6627,
+   "kills": 9329,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 5,
+   "subclass": 3
+  }
+ ],
+ "drops2:3669": [
+  {
+   "class": 4,
+   "count": 1897,
+   "id": 6460,
+   "kills": 10490,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 6,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 5723,
+   "id": 6465,
+   "kills": 10490,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 1888,
+   "id": 10410,
+   "kills": 10490,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 7,
+   "subclass": 2
+  }
+ ],
+ "drops2:3670": [
+  {
+   "class": 2,
+   "count": 2679,
+   "id": 6472,
+   "kills": 9032,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 13,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 4966,
+   "id": 6473,
+   "kills": 9032,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 5,
+   "subclass": 2
+  }
+ ],
+ "drops2:3671": [
+  {
+   "class": 4,
+   "count": 3364,
+   "id": 5404,
+   "kills": 7972,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 3,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 784,
+   "id": 10412,
+   "kills": 7972,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 6,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 12992,
+   "kills": 237,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 8
+  }
+ ],
+ "drops2:3673": [
+  {
+   "class": 4,
+   "count": 1795,
+   "id": 5970,
+   "kills": 9180,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 10,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 2129,
+   "id": 6459,
+   "kills": 9180,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 8,
+   "subclass": 3
+  },
+  {
+   "class": 2,
+   "count": 1571,
+   "id": 6469,
+   "kills": 9180,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 15,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 1940,
+   "id": 10411,
+   "kills": 9180,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 8,
+   "subclass": 2
+  }
+ ],
+ "drops2:3674": [
+  {
+   "class": 2,
+   "count": 3860,
+   "id": 6448,
+   "kills": 8393,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 3905,
+   "id": 6449,
+   "kills": 8393,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 16,
+   "subclass": -6
+  }
+ ],
+ "drops2:3872": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 2205,
+   "kills": 53,
+   "level": 25,
+   "quality": 3,
+   "reqlevel": 20,
+   "slot": 17,
+   "subclass": 8
+  },
+  {
+   "class": 2,
+   "count": 2132,
+   "id": 6641,
+   "kills": 3727,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 17,
+   "subclass": 8
+  },
+  {
+   "class": 4,
+   "count": 1264,
+   "id": 6642,
+   "kills": 3727,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 5,
+   "subclass": 3
+  }
+ ],
+ "drops2:3886": [
+  {
+   "class": 2,
+   "count": 1441,
+   "id": 1292,
+   "kills": 16358,
+   "level": 25,
+   "quality": 3,
+   "reqlevel": 20,
+   "slot": 13,
+   "subclass": 0
+  },
+  {
+   "class": 2,
+   "count": 4,
+   "id": 1318,
+   "kills": 16358,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 1974,
+   "kills": 676,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 3194,
+   "kills": 659,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 6920,
+   "id": 6226,
+   "kills": 16358,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 6541,
+   "id": 6633,
+   "kills": 16358,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 13,
+   "subclass": 7
+  }
+ ],
+ "drops2:3887": [
+  {
+   "class": 2,
+   "count": 2,
+   "id": 1483,
+   "kills": 627,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 13,
+   "subclass": 4
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 1935,
+   "kills": 648,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 2205,
+   "kills": 101,
+   "level": 25,
+   "quality": 3,
+   "reqlevel": 20,
+   "slot": 17,
+   "subclass": 8
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 3194,
+   "kills": 16276,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 3030,
+   "id": 6321,
+   "kills": 16276,
+   "level": 26,
+   "quality": 3,
+   "reqlevel": 21,
+   "slot": 11,
+   "subclass": -2
+  },
+  {
+   "class": 2,
+   "count": 6217,
+   "id": 6323,
+   "kills": 16276,
+   "level": 26,
+   "quality": 3,
+   "reqlevel": 21,
+   "slot": 21,
+   "subclass": 4
+  }
+ ],
+ "drops2:3914": [
+  {
+   "class": 2,
+   "count": 2,
+   "id": 1484,
+   "kills": 10763,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 4,
+   "count": 3,
+   "id": 1974,
+   "kills": 10763,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 3194,
+   "kills": 67,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 9153,
+   "id": 5254,
+   "kills": 10763,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 3,
+   "subclass": 2
+  }
+ ],
+ "drops2:3927": [
+  {
+   "class": 2,
+   "count": 3,
+   "id": 1318,
+   "kills": 11838,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 2292,
+   "kills": 148,
+   "level": 25,
+   "quality": 3,
+   "reqlevel": 20,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 6813,
+   "id": 3748,
+   "kills": 11838,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 3,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 4469,
+   "id": 6314,
+   "kills": 11838,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 16,
+   "subclass": -6
+  }
+ ],
+ "drops2:3974": [
+  {
+   "class": 2,
+   "count": 2601,
+   "id": 7710,
+   "kills": 18185,
+   "level": 36,
+   "quality": 3,
+   "reqlevel": 31,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 4,
+   "count": 2,
+   "id": 7727,
+   "kills": 8830,
+   "level": 32,
+   "quality": 3,
+   "reqlevel": 27,
+   "slot": 3,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 3,
+   "id": 7786,
+   "kills": 18185,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 13,
+   "subclass": 0
+  },
+  {
+   "class": 4,
+   "count": 2,
+   "id": 10332,
+   "kills": 18185,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 8,
+   "subclass": 3
+  }
+ ],
+ "drops2:3975": [
+  {
+   "class": 2,
+   "count": 1790,
+   "id": 7717,
+   "kills": 12810,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 4199,
+   "id": 7719,
+   "kills": 12810,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 1,
+   "subclass": 3
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 7730,
+   "kills": 12810,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 1827,
+   "id": 10330,
+   "kills": 12810,
+   "level": 44,
+   "quality": 3,
+   "reqlevel": 39,
+   "slot": 7,
+   "subclass": 3
+  }
+ ],
+ "drops2:3976": [
+  {
+   "class": 2,
+   "count": 3834,
+   "id": 7723,
+   "kills": 20118,
+   "level": 44,
+   "quality": 3,
+   "reqlevel": 39,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 3967,
+   "id": 7724,
+   "kills": 20118,
+   "level": 44,
+   "quality": 3,
+   "reqlevel": 39,
+   "slot": 10,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 8683,
+   "id": 7726,
+   "kills": 20118,
+   "level": 44,
+   "quality": 3,
+   "reqlevel": 39,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "class": 2,
+   "count": 4,
+   "id": 7752,
+   "kills": 4374,
+   "level": 33,
+   "quality": 3,
+   "reqlevel": 28,
+   "slot": 21,
+   "subclass": 4
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 7757,
+   "kills": 20118,
+   "level": 37,
+   "quality": 3,
+   "reqlevel": 32,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 4,
+   "count": 2859,
+   "id": 10330,
+   "kills": 20118,
+   "level": 44,
+   "quality": 3,
+   "reqlevel": 39,
+   "slot": 7,
+   "subclass": 3
+  }
+ ],
+ "drops2:3977": [
+  {
+   "class": 2,
+   "count": 3041,
+   "id": 7721,
+   "kills": 16256,
+   "level": 44,
+   "quality": 3,
+   "reqlevel": 39,
+   "slot": 21,
+   "subclass": 4
+  }
+ ],
+ "drops2:3983": [
+  {
+   "class": 2,
+   "count": 898,
+   "id": 7682,
+   "kills": 13885,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 2,
+   "count": 7142,
+   "id": 7683,
+   "kills": 13885,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 13,
+   "subclass": 13
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 7727,
+   "kills": 99,
+   "level": 32,
+   "quality": 3,
+   "reqlevel": 27,
+   "slot": 3,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 7752,
+   "kills": 6507,
+   "level": 33,
+   "quality": 3,
+   "reqlevel": 28,
+   "slot": 21,
+   "subclass": 4
+  }
+ ],
+ "drops2:4274": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 1318,
+   "kills": 296,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 2,
+   "id": 1974,
+   "kills": 251,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 3194,
+   "kills": 13872,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 2452,
+   "id": 3230,
+   "kills": 13872,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 9,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 10240,
+   "id": 6340,
+   "kills": 13872,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 16,
+   "subclass": -6
+  }
+ ],
+ "drops2:4275": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 1482,
+   "kills": 235,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 21,
+   "subclass": 7
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 1484,
+   "kills": 14334,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 2807,
+   "kills": 14334,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 21,
+   "subclass": 0
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 3194,
+   "kills": 524,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 2,
+   "count": 2540,
+   "id": 6220,
+   "kills": 14334,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 5037,
+   "id": 6324,
+   "kills": 14334,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 4914,
+   "id": 6392,
+   "kills": 14334,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 6,
+   "subclass": 1
+  }
+ ],
+ "drops2:4278": [
+  {
+   "class": 2,
+   "count": 3,
+   "id": 1318,
+   "kills": 15624,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 1482,
+   "kills": 15624,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 21,
+   "subclass": 7
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 1483,
+   "kills": 541,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 13,
+   "subclass": 4
+  },
+  {
+   "class": 2,
+   "count": 6,
+   "id": 1935,
+   "kills": 15624,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 7,
+   "id": 1974,
+   "kills": 15624,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 5241,
+   "id": 3191,
+   "kills": 15624,
+   "level": 26,
+   "quality": 3,
+   "reqlevel": 21,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 4487,
+   "id": 6320,
+   "kills": 15624,
+   "level": 26,
+   "quality": 3,
+   "reqlevel": 21,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 1468,
+   "id": 6341,
+   "kills": 15624,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 23,
+   "subclass": -5
+  }
+ ],
+ "drops2:4279": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 1483,
+   "kills": 337,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 13,
+   "subclass": 4
+  },
+  {
+   "class": 2,
+   "count": 3,
+   "id": 1935,
+   "kills": 2591,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 2807,
+   "kills": 106,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 21,
+   "subclass": 0
+  },
+  {
+   "class": 2,
+   "count": 5010,
+   "id": 6318,
+   "kills": 14957,
+   "level": 26,
+   "quality": 3,
+   "reqlevel": 21,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 4,
+   "count": 8770,
+   "id": 6319,
+   "kills": 14957,
+   "level": 26,
+   "quality": 3,
+   "reqlevel": 21,
+   "slot": 6,
+   "subclass": 2
+  }
+ ],
+ "drops2:4420": [
+  {
+   "class": 4,
+   "count": 1,
+   "id": 1978,
+   "kills": 216,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 10,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 3323,
+   "id": 6686,
+   "kills": 5344,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 1,
+   "subclass": 3
+  },
+  {
+   "class": 2,
+   "count": 1817,
+   "id": 6687,
+   "kills": 5344,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 17,
+   "subclass": 1
+  }
+ ],
+ "drops2:4421": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 1976,
+   "kills": 340,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 2,
+   "count": 1101,
+   "id": 6692,
+   "kills": 6358,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 13,
+   "subclass": 0
+  },
+  {
+   "class": 4,
+   "count": 4202,
+   "id": 6693,
+   "kills": 6358,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 11,
+   "subclass": -2
+  }
+ ],
+ "drops2:4422": [
+  {
+   "class": 4,
+   "count": 3233,
+   "id": 6690,
+   "kills": 5205,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 7,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 1752,
+   "id": 6691,
+   "kills": 5205,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 21,
+   "subclass": 15
+  }
+ ],
+ "drops2:4424": [
+  {
+   "class": 2,
+   "count": 2,
+   "id": 1976,
+   "kills": 2598,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 1978,
+   "kills": 81,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 10,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 2549,
+   "kills": 81,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 2,
+   "count": 1210,
+   "id": 6681,
+   "kills": 2598,
+   "level": 32,
+   "quality": 3,
+   "reqlevel": 27,
+   "slot": 13,
+   "subclass": 15
+  }
+ ],
+ "drops2:4425": [
+  {
+   "class": 4,
+   "count": 218,
+   "id": 6695,
+   "kills": 850,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 2,
+   "subclass": -3
+  },
+  {
+   "class": 2,
+   "count": 288,
+   "id": 6696,
+   "kills": 850,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 15,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 291,
+   "id": 6697,
+   "kills": 850,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 3,
+   "subclass": 1
+  }
+ ],
+ "drops2:4428": [
+  {
+   "class": 4,
+   "count": 1,
+   "id": 2039,
+   "kills": 164,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 11,
+   "subclass": -2
+  },
+  {
+   "class": 4,
+   "count": 3,
+   "id": 2264,
+   "kills": 2048,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 3,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 463,
+   "id": 2816,
+   "kills": 4528,
+   "level": 33,
+   "quality": 3,
+   "reqlevel": 28,
+   "slot": 21,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 1926,
+   "id": 6682,
+   "kills": 4528,
+   "level": 31,
+   "quality": 3,
+   "reqlevel": 26,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 1972,
+   "id": 6685,
+   "kills": 4528,
+   "level": 32,
+   "quality": 3,
+   "reqlevel": 27,
+   "slot": 3,
+   "subclass": 1
+  }
+ ],
+ "drops2:4542": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 7730,
+   "kills": 458,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 7786,
+   "kills": 12988,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 13,
+   "subclass": 0
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 10332,
+   "kills": 12988,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 8,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 4395,
+   "id": 19507,
+   "kills": 12988,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 3,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 4211,
+   "id": 19508,
+   "kills": 12988,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 9,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 4122,
+   "id": 19509,
+   "kills": 12988,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 8,
+   "subclass": 3
+  }
+ ],
+ "drops2:4543": [
+  {
+   "class": 4,
+   "count": 8102,
+   "id": 7684,
+   "kills": 16915,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 3,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 8452,
+   "id": 7685,
+   "kills": 16915,
+   "level": 37,
+   "quality": 3,
+   "reqlevel": 32,
+   "slot": 23,
+   "subclass": -5
+  },
+  {
+   "class": 4,
+   "count": 3,
+   "id": 7754,
+   "kills": 16915,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 8,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 2,
+   "id": 10332,
+   "kills": 16915,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 8,
+   "subclass": 3
+  }
+ ],
+ "drops2:4829": [
+  {
+   "class": 4,
+   "count": 1,
+   "id": 3416,
+   "kills": 5156,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "class": 2,
+   "count": 1022,
+   "id": 6909,
+   "kills": 5156,
+   "level": 31,
+   "quality": 3,
+   "reqlevel": 26,
+   "slot": 17,
+   "subclass": 8
+  },
+  {
+   "class": 4,
+   "count": 1903,
+   "id": 6910,
+   "kills": 5156,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 7,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 1960,
+   "id": 6911,
+   "kills": 5156,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 6,
+   "subclass": 2
+  }
+ ],
+ "drops2:4830": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 1454,
+   "kills": 144,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 13,
+   "subclass": 0
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 3417,
+   "kills": 3627,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 17,
+   "subclass": 8
+  },
+  {
+   "class": 4,
+   "count": 1437,
+   "id": 6901,
+   "kills": 3627,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 1207,
+   "id": 6902,
+   "kills": 3627,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 9,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 785,
+   "id": 6904,
+   "kills": 3627,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 13,
+   "subclass": 15
+  }
+ ],
+ "drops2:4831": [
+  {
+   "class": 4,
+   "count": 1785,
+   "id": 888,
+   "kills": 4803,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 10,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 918,
+   "id": 3078,
+   "kills": 4803,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 15,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 1867,
+   "id": 11121,
+   "kills": 4803,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 21,
+   "subclass": 7
+  }
+ ],
+ "drops2:4832": [
+  {
+   "class": 2,
+   "count": 3726,
+   "id": 1155,
+   "kills": 7418,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 3413,
+   "kills": 289,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 3416,
+   "kills": 7418,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 2468,
+   "id": 6903,
+   "kills": 7418,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 7,
+   "subclass": 1
+  }
+ ],
+ "drops2:4842": [
+  {
+   "class": 4,
+   "count": 1,
+   "id": 2264,
+   "kills": 8,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 3,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 401,
+   "id": 6688,
+   "kills": 866,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 1,
+   "subclass": 2
+  }
+ ],
+ "drops2:4854": [
+  {
+   "class": 4,
+   "count": 1834,
+   "id": 9414,
+   "kills": 6278,
+   "level": 47,
+   "quality": 3,
+   "reqlevel": 42,
+   "slot": 7,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 2463,
+   "id": 9415,
+   "kills": 6278,
+   "level": 47,
+   "quality": 3,
+   "reqlevel": 42,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 1211,
+   "id": 9416,
+   "kills": 6278,
+   "level": 47,
+   "quality": 3,
+   "reqlevel": 42,
+   "slot": 17,
+   "subclass": 6
+  }
+ ],
+ "drops2:4887": [
+  {
+   "class": 4,
+   "count": 3,
+   "id": 1486,
+   "kills": 6257,
+   "level": 26,
+   "quality": 3,
+   "reqlevel": 21,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 2271,
+   "kills": 6257,
+   "level": 25,
+   "quality": 3,
+   "reqlevel": 20,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 2567,
+   "kills": 6257,
+   "level": 25,
+   "quality": 3,
+   "reqlevel": 20,
+   "slot": 21,
+   "subclass": 15
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 3413,
+   "kills": 6257,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 2,
+   "count": 6,
+   "id": 3415,
+   "kills": 6257,
+   "level": 26,
+   "quality": 3,
+   "reqlevel": 21,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 3416,
+   "kills": 185,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "class": 2,
+   "count": 1,
+   "id": 3417,
+   "kills": 6257,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 17,
+   "subclass": 8
+  },
+  {
+   "class": 4,
+   "count": 2367,
+   "id": 6907,
+   "kills": 6257,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 3524,
+   "id": 6908,
+   "kills": 6257,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 6,
+   "subclass": 1
+  }
+ ],
+ "drops2:5709": [
+  {
+   "class": 4,
+   "count": 2260,
+   "id": 10833,
+   "kills": 7198,
+   "level": 56,
+   "quality": 3,
+   "reqlevel": 51,
+   "slot": 1,
+   "subclass": 3
+  }
+ ],
+ "drops2:5710": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 810,
+   "kills": 187,
+   "level": 54,
+   "quality": 4,
+   "reqlevel": 49,
+   "slot": 21,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 2073,
+   "id": 10807,
+   "kills": 7500,
+   "level": 55,
+   "quality": 3,
+   "reqlevel": 50,
+   "slot": 7,
+   "subclass": 1
+  }
+ ],
+ "drops2:5711": [
+  {
+   "class": 2,
+   "count": 1495,
+   "id": 10804,
+   "kills": 4904,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 13,
+   "subclass": 4
+  }
+ ],
+ "drops2:5719": [
+  {
+   "class": 2,
+   "count": 376,
+   "id": 12243,
+   "kills": 4905,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 17,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 376,
+   "id": 12465,
+   "kills": 4905,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 389,
+   "id": 12466,
+   "kills": 4905,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 6,
+   "subclass": 1
+  }
+ ],
+ "drops2:5720": [
+  {
+   "class": 2,
+   "count": 245,
+   "id": 12243,
+   "kills": 2483,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 17,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 217,
+   "id": 12465,
+   "kills": 2483,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 227,
+   "id": 12466,
+   "kills": 2483,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 6,
+   "subclass": 1
+  }
+ ],
+ "drops2:5721": [
+  {
+   "class": 2,
+   "count": 203,
+   "id": 12243,
+   "kills": 2368,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 17,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 231,
+   "id": 12465,
+   "kills": 2368,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 231,
+   "id": 12466,
+   "kills": 2368,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 6,
+   "subclass": 1
+  }
+ ],
+ "drops2:5722": [
+  {
+   "class": 2,
+   "count": 360,
+   "id": 12243,
+   "kills": 4279,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 17,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 339,
+   "id": 12465,
+   "kills": 4279,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 367,
+   "id": 12466,
+   "kills": 4279,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 6,
+   "subclass": 1
+  }
+ ],
+ "drops2:5775": [
+  {
+   "class": 4,
+   "count": 1658,
+   "id": 6629,
+   "kills": 8457,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 3274,
+   "id": 6630,
+   "kills": 8457,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "class": 2,
+   "count": 3233,
+   "id": 6631,
+   "kills": 8457,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 10
+  }
+ ],
+ "drops2:5912": [
+  {
+   "class": 2,
+   "count": 414,
+   "id": 5243,
+   "kills": 988,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 15,
+   "subclass": 19
+  },
+  {
+   "class": 4,
+   "count": 449,
+   "id": 6632,
+   "kills": 988,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 16,
+   "subclass": -6
+  }
+ ],
+ "drops2:6229": [
+  {
+   "class": 2,
+   "count": 2728,
+   "id": 9449,
+   "kills": 8242,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 5359,
+   "id": 9450,
+   "kills": 8242,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 8,
+   "subclass": 2
+  }
+ ],
+ "drops2:6235": [
+  {
+   "class": 2,
+   "count": 1324,
+   "id": 9446,
+   "kills": 8086,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 21,
+   "subclass": 7
+  },
+  {
+   "class": 4,
+   "count": 2589,
+   "id": 9447,
+   "kills": 8086,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 11,
+   "subclass": -2
+  },
+  {
+   "class": 4,
+   "count": 3223,
+   "id": 9448,
+   "kills": 8086,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 9510,
+   "kills": 184,
+   "level": 32,
+   "quality": 3,
+   "reqlevel": 27,
+   "slot": 8,
+   "subclass": 3
+  }
+ ],
+ "drops2:6243": [
+  {
+   "class": 2,
+   "count": 2,
+   "id": 1454,
+   "kills": 214,
+   "level": 29,
+   "quality": 3,
+   "reqlevel": 24,
+   "slot": 13,
+   "subclass": 0
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 1491,
+   "kills": 96,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 11,
+   "subclass": -2
+  },
+  {
+   "class": 2,
+   "count": 2586,
+   "id": 6905,
+   "kills": 5410,
+   "level": 27,
+   "quality": 3,
+   "reqlevel": 22,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 2394,
+   "id": 6906,
+   "kills": 5410,
+   "level": 28,
+   "quality": 3,
+   "reqlevel": 23,
+   "slot": 10,
+   "subclass": 3
+  }
+ ],
+ "drops2:639": [
+  {
+   "class": 2,
+   "count": 2896,
+   "id": 5191,
+   "kills": 18396,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 13,
+   "subclass": 7
+  },
+  {
+   "class": 4,
+   "count": 4249,
+   "id": 5193,
+   "kills": 18396,
+   "level": 24,
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 4314,
+   "id": 5202,
+   "kills": 18396,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 2809,
+   "id": 10399,
+   "kills": 18396,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 5,
+   "subclass": 2
+  }
+ ],
+ "drops2:642": [
+  {
+   "class": 2,
+   "count": 1238,
+   "id": 1937,
+   "kills": 12452,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 13,
+   "subclass": 7
+  },
+  {
+   "class": 2,
+   "count": 6404,
+   "id": 2169,
+   "kills": 12452,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 21,
+   "subclass": 15
+  }
+ ],
+ "drops2:643": [
+  {
+   "class": 2,
+   "count": 4039,
+   "id": 5194,
+   "kills": 14710,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 9977,
+   "id": 5195,
+   "kills": 14710,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 10,
+   "subclass": 1
+  }
+ ],
+ "drops2:644": [
+  {
+   "class": 2,
+   "count": 424,
+   "id": 872,
+   "kills": 10376,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 7485,
+   "id": 5187,
+   "kills": 10376,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 17,
+   "subclass": 5
+  }
+ ],
+ "drops2:645": [
+  {
+   "class": 2,
+   "count": 7848,
+   "id": 5197,
+   "kills": 14289,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 13,
+   "subclass": 4
+  },
+  {
+   "class": 2,
+   "count": 4882,
+   "id": 5198,
+   "kills": 14289,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 15,
+   "subclass": 19
+  }
+ ],
+ "drops2:646": [
+  {
+   "class": 2,
+   "count": 5797,
+   "id": 5192,
+   "kills": 14983,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 13,
+   "subclass": 7
+  },
+  {
+   "class": 2,
+   "count": 5603,
+   "id": 5196,
+   "kills": 14983,
+   "level": 21,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 13,
+   "subclass": 0
+  },
+  {
+   "class": 2,
+   "count": 2778,
+   "id": 7230,
+   "kills": 14983,
+   "level": 23,
+   "quality": 3,
+   "reqlevel": 18,
+   "slot": 17,
+   "subclass": 5
+  }
+ ],
+ "drops2:647": [
+  {
+   "class": 2,
+   "count": 3963,
+   "id": 5200,
+   "kills": 14009,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 17,
+   "subclass": 6
+  },
+  {
+   "class": 2,
+   "count": 5334,
+   "id": 5201,
+   "kills": 14009,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 4,
+   "count": 3695,
+   "id": 10403,
+   "kills": 14009,
+   "level": 22,
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 6,
+   "subclass": 2
+  }
+ ],
+ "drops2:6487": [
+  {
+   "class": 4,
+   "count": 9102,
+   "id": 7711,
+   "kills": 19617,
+   "level": 39,
+   "quality": 2,
+   "reqlevel": 34,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 9192,
+   "id": 7713,
+   "kills": 19617,
+   "level": 39,
+   "quality": 3,
+   "reqlevel": 34,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 2,
+   "count": 9315,
+   "id": 7714,
+   "kills": 19617,
+   "level": 39,
+   "quality": 3,
+   "reqlevel": 34,
+   "slot": 21,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 2,
+   "id": 7754,
+   "kills": 19617,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 8,
+   "subclass": 2
+  }
+ ],
+ "drops2:6488": [
+  {
+   "class": 2,
+   "count": 475,
+   "id": 7689,
+   "kills": 2575,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 17,
+   "subclass": 8
+  },
+  {
+   "class": 4,
+   "count": 1021,
+   "id": 7690,
+   "kills": 2575,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 10,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 991,
+   "id": 7691,
+   "kills": 2575,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 1,
+   "subclass": 1
+  }
+ ],
+ "drops2:6489": [
+  {
+   "class": 4,
+   "count": 1056,
+   "id": 7686,
+   "kills": 2565,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 11,
+   "subclass": -2
+  },
+  {
+   "class": 2,
+   "count": 515,
+   "id": 7687,
+   "kills": 2565,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 13,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 906,
+   "id": 7688,
+   "kills": 2565,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 2,
+   "id": 7754,
+   "kills": 1294,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 8,
+   "subclass": 2
+  }
+ ],
+ "drops2:6490": [
+  {
+   "class": 2,
+   "count": 843,
+   "id": 7708,
+   "kills": 2595,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 15,
+   "subclass": 19
+  },
+  {
+   "class": 4,
+   "count": 806,
+   "id": 7709,
+   "kills": 2595,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 7,
+   "subclass": 1
+  },
+  {
+   "class": 2,
+   "count": 2,
+   "id": 7730,
+   "kills": 2595,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 17,
+   "subclass": 5
+  },
+  {
+   "class": 4,
+   "count": 876,
+   "id": 7731,
+   "kills": 2595,
+   "level": 35,
+   "quality": 3,
+   "reqlevel": 30,
+   "slot": 2,
+   "subclass": -3
+  }
+ ],
+ "drops2:6910": [
+  {
+   "class": 4,
+   "count": 1602,
+   "id": 9389,
+   "kills": 6842,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 3,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 1448,
+   "id": 9390,
+   "kills": 6842,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 10,
+   "subclass": 1
+  }
+ ],
+ "drops2:7023": [
+  {
+   "class": 2,
+   "count": 1,
+   "id": 9384,
+   "kills": 42,
+   "level": 36,
+   "quality": 3,
+   "reqlevel": 31,
+   "slot": 13,
+   "subclass": 15
+  }
+ ],
+ "drops2:7079": [
+  {
+   "class": 2,
+   "count": 1293,
+   "id": 9452,
+   "kills": 6578,
+   "level": 32,
+   "quality": 3,
+   "reqlevel": 27,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 2,
+   "count": 1183,
+   "id": 9453,
+   "kills": 6578,
+   "level": 32,
+   "quality": 3,
+   "reqlevel": 27,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 3922,
+   "id": 9454,
+   "kills": 6578,
+   "level": 32,
+   "quality": 3,
+   "reqlevel": 27,
+   "slot": 8,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 1,
+   "id": 9509,
+   "kills": 106,
+   "level": 30,
+   "quality": 3,
+   "reqlevel": 25,
+   "slot": 7,
+   "subclass": 2
+  }
+ ],
+ "drops2:7206": [
+  {
+   "class": 4,
+   "count": 2296,
+   "id": 9411,
+   "kills": 4894,
+   "level": 46,
+   "quality": 3,
+   "reqlevel": 41,
+   "slot": 3,
+   "subclass": 3
+  }
+ ],
+ "drops2:7228": [
+  {
+   "class": 4,
+   "count": 2579,
+   "id": 9407,
+   "kills": 6793,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 7,
+   "subclass": 1
+  }
+ ],
+ "drops2:7267": [
+  {
+   "class": 4,
+   "count": 2969,
+   "id": 9476,
+   "kills": 9102,
+   "level": 50,
+   "quality": 3,
+   "reqlevel": 45,
+   "slot": 3,
+   "subclass": 4
+  },
+  {
+   "class": 2,
+   "count": 2125,
+   "id": 9477,
+   "kills": 9102,
+   "level": 50,
+   "quality": 3,
+   "reqlevel": 45,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "class": 2,
+   "count": 172,
+   "id": 11086,
+   "kills": 9102,
+   "level": 50,
+   "quality": 3,
+   "reqlevel": 45,
+   "slot": 21,
+   "subclass": 7
+  }
+ ],
+ "drops2:7271": [
+  {
+   "class": 2,
+   "count": 3550,
+   "id": 18082,
+   "kills": 23168,
+   "level": 48,
+   "quality": 3,
+   "reqlevel": 43,
+   "slot": 17,
+   "subclass": 10
+  }
+ ],
+ "drops2:7272": [],
+ "drops2:7273": [
+  {
+   "class": 2,
+   "count": 4032,
+   "id": 9467,
+   "kills": 8705,
+   "level": 48,
+   "quality": 3,
+   "reqlevel": 43,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 3862,
+   "id": 9469,
+   "kills": 8705,
+   "level": 48,
+   "quality": 3,
+   "reqlevel": 43,
+   "slot": 5,
+   "subclass": 3
+  }
+ ],
+ "drops2:7275": [
+  {
+   "class": 4,
+   "count": 2080,
+   "id": 9470,
+   "kills": 9187,
+   "level": 49,
+   "quality": 3,
+   "reqlevel": 44,
+   "slot": 1,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 2049,
+   "id": 9473,
+   "kills": 9187,
+   "level": 49,
+   "quality": 3,
+   "reqlevel": 44,
+   "slot": 5,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 1986,
+   "id": 9474,
+   "kills": 9187,
+   "level": 49,
+   "quality": 3,
+   "reqlevel": 44,
+   "slot": 7,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 2011,
+   "id": 9475,
+   "kills": 9187,
+   "level": 49,
+   "quality": 3,
+   "reqlevel": 44,
+   "slot": 17,
+   "subclass": 6
+  }
+ ],
+ "drops2:7291": [],
+ "drops2:7354": [],
+ "drops2:7355": [
+  {
+   "class": 4,
+   "count": 1838,
+   "id": 10775,
+   "kills": 5699,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 40,
+   "slot": 5,
+   "subclass": 4
+  }
+ ],
+ "drops2:7357": [
+  {
+   "class": 4,
+   "count": 2113,
+   "id": 10771,
+   "kills": 6597,
+   "level": 41,
+   "quality": 3,
+   "reqlevel": 36,
+   "slot": 6,
+   "subclass": 1
+  }
+ ],
+ "drops2:7358": [
+  {
+   "class": 2,
+   "count": 2650,
+   "id": 10761,
+   "kills": 13989,
+   "level": 43,
+   "quality": 3,
+   "reqlevel": 38,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "class": 4,
+   "count": 5433,
+   "id": 10762,
+   "kills": 13989,
+   "level": 43,
+   "quality": 3,
+   "reqlevel": 38,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 5167,
+   "id": 10763,
+   "kills": 13989,
+   "level": 43,
+   "quality": 3,
+   "reqlevel": 40,
+   "slot": 1,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 3987,
+   "id": 10764,
+   "kills": 13989,
+   "level": 43,
+   "quality": 3,
+   "reqlevel": 39,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 3828,
+   "id": 10765,
+   "kills": 13989,
+   "level": 43,
+   "quality": 3,
+   "reqlevel": 38,
+   "slot": 10,
+   "subclass": 2
+  }
+ ],
+ "drops2:7361": [
+  {
+   "class": 4,
+   "count": 272,
+   "id": 9445,
+   "kills": 3168,
+   "level": 34,
+   "quality": 3,
+   "reqlevel": 29,
+   "slot": 10,
+   "subclass": 3
+  }
+ ],
+ "drops2:7604": [],
+ "drops2:7795": [],
+ "drops2:7796": [],
+ "drops2:7800": [
+  {
+   "class": 4,
+   "count": 1857,
+   "id": 9458,
+   "kills": 5820,
+   "level": 36,
+   "quality": 3,
+   "reqlevel": 31,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 1915,
+   "id": 9461,
+   "kills": 5820,
+   "level": 36,
+   "quality": 3,
+   "reqlevel": 31,
+   "slot": 11,
+   "subclass": -2
+  }
+ ],
+ "drops2:8127": [
+  {
+   "class": 2,
+   "count": 201,
+   "id": 9379,
+   "kills": 8896,
+   "level": 50,
+   "quality": 3,
+   "reqlevel": 45,
+   "slot": 13,
+   "subclass": 7
+  },
+  {
+   "class": 2,
+   "count": 1580,
+   "id": 9639,
+   "kills": 8896,
+   "level": 50,
+   "quality": 3,
+   "reqlevel": 45,
+   "slot": 21,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 2834,
+   "id": 9640,
+   "kills": 8896,
+   "level": 50,
+   "quality": 3,
+   "reqlevel": 45,
+   "slot": 10,
+   "subclass": 4
+  }
+ ],
+ "drops2:8443": [
+  {
+   "class": 2,
+   "count": -1,
+   "id": 10838,
+   "kills": 0,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 21,
+   "subclass": 4
+  },
+  {
+   "class": 2,
+   "count": -1,
+   "id": 10844,
+   "kills": 0,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 17,
+   "subclass": 10
+  }
+ ],
+ "drops2:8567": [
+  {
+   "class": 2,
+   "count": 4477,
+   "id": 10772,
+   "kills": 8938,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 13,
+   "subclass": 0
+  },
+  {
+   "class": 4,
+   "count": 4285,
+   "id": 10774,
+   "kills": 8938,
+   "level": 42,
+   "quality": 3,
+   "reqlevel": 37,
+   "slot": 3,
+   "subclass": 2
+  }
+ ],
+ "drops2:8580": [
+  {
+   "class": 2,
+   "count": 710,
+   "id": 10799,
+   "kills": 3935,
+   "level": 51,
+   "quality": 3,
+   "reqlevel": 46,
+   "slot": 17,
+   "subclass": 6
+  }
+ ],
+ "drops2:8983": [
+  {
+   "class": 4,
+   "count": 11419,
+   "id": 11822,
+   "kills": 31766,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 11597,
+   "id": 11823,
+   "kills": 31766,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 7,
+   "subclass": 2
+  }
+ ],
+ "drops2:9016": [],
+ "drops2:9017": [
+  {
+   "class": 4,
+   "count": 2952,
+   "id": 11764,
+   "kills": 21571,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 9,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 2851,
+   "id": 11765,
+   "kills": 21571,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 9,
+   "subclass": 3
+  }
+ ],
+ "drops2:9018": [
+  {
+   "class": 4,
+   "count": 345,
+   "id": 22240,
+   "kills": 2750,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 8,
+   "subclass": 3
+  }
+ ],
+ "drops2:9019": [
+  {
+   "class": 4,
+   "count": 104,
+   "id": 16724,
+   "kills": 2994,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 4
+  }
+ ],
+ "drops2:9024": [
+  {
+   "class": 4,
+   "count": 3264,
+   "id": 11747,
+   "kills": 13515,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 5,
+   "subclass": 2
+  },
+  {
+   "class": 2,
+   "count": 3835,
+   "id": 11748,
+   "kills": 13515,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 15,
+   "subclass": 19
+  },
+  {
+   "class": 4,
+   "count": 3202,
+   "id": 11749,
+   "kills": 13515,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 7,
+   "subclass": 3
+  },
+  {
+   "class": 2,
+   "count": 2689,
+   "id": 11750,
+   "kills": 13515,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 17,
+   "subclass": 10
+  }
+ ],
+ "drops2:9025": [
+  {
+   "class": 4,
+   "count": 888,
+   "id": 11631,
+   "kills": 3223,
+   "level": 52,
+   "quality": 3,
+   "reqlevel": 47,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "class": 4,
+   "count": 901,
+   "id": 11632,
+   "kills": 3223,
+   "level": 52,
+   "quality": 3,
+   "reqlevel": 47,
+   "slot": 3,
+   "subclass": 4
+  }
+ ],
+ "drops2:9027": [
+  {
+   "class": 4,
+   "count": 148,
+   "id": 11726,
+   "kills": 1203,
+   "level": 57,
+   "quality": 4,
+   "reqlevel": 52,
+   "slot": 5,
+   "subclass": 3
+  }
+ ],
+ "drops2:9028": [],
+ "drops2:9029": [
+  {
+   "class": 4,
+   "count": 286,
+   "id": 11730,
+   "kills": 2185,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 10,
+   "subclass": 3
+  }
+ ],
+ "drops2:9030": [
+  {
+   "class": 4,
+   "count": 250,
+   "id": 11728,
+   "kills": 2071,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 7,
+   "subclass": 3
+  }
+ ],
+ "drops2:9031": [
+  {
+   "class": 4,
+   "count": 197,
+   "id": 11731,
+   "kills": 2115,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 8,
+   "subclass": 3
+  }
+ ],
+ "drops2:9032": [
+  {
+   "class": 4,
+   "count": 749,
+   "id": 11633,
+   "kills": 2266,
+   "level": 54,
+   "quality": 3,
+   "reqlevel": 49,
+   "slot": 5,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 244,
+   "id": 11729,
+   "kills": 2266,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 1,
+   "subclass": 3
+  }
+ ],
+ "drops2:9033": [
+  {
+   "class": 2,
+   "count": 554,
+   "id": 11817,
+   "kills": 5350,
+   "level": 56,
+   "quality": 3,
+   "reqlevel": 51,
+   "slot": 21,
+   "subclass": 7
+  },
+  {
+   "class": 4,
+   "count": 649,
+   "id": 11821,
+   "kills": 5350,
+   "level": 58,
+   "quality": 3,
+   "reqlevel": 53,
+   "slot": 7,
+   "subclass": 2
+  }
+ ],
+ "drops2:9041": [
+  {
+   "class": 4,
+   "count": 378,
+   "id": 22241,
+   "kills": 1996,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 3,
+   "subclass": 2
+  }
+ ],
+ "drops2:9042": [
+  {
+   "class": 4,
+   "count": 109,
+   "id": 22242,
+   "kills": 1184,
+   "level": 56,
+   "quality": 3,
+   "reqlevel": 51,
+   "slot": 6,
+   "subclass": 3
+  }
+ ],
+ "drops2:9056": [
+  {
+   "class": 4,
+   "count": 602,
+   "id": 11841,
+   "kills": 2247,
+   "level": 55,
+   "quality": 3,
+   "reqlevel": 50,
+   "slot": 7,
+   "subclass": 1
+  }
+ ],
+ "drops2:9156": [],
+ "drops2:9196": [
+  {
+   "class": 4,
+   "count": 495,
+   "id": 16670,
+   "kills": 4627,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 8,
+   "subclass": 3
+  }
+ ],
+ "drops2:9236": [
+  {
+   "class": 2,
+   "count": 1126,
+   "id": 12651,
+   "kills": 15434,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 15,
+   "subclass": 18
+  },
+  {
+   "class": 4,
+   "count": 2708,
+   "id": 16712,
+   "kills": 15434,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 2
+  }
+ ],
+ "drops2:9237": [
+  {
+   "class": 4,
+   "count": 687,
+   "id": 16676,
+   "kills": 3769,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 3
+  }
+ ],
+ "drops2:9319": [
+  {
+   "class": 4,
+   "count": 260,
+   "id": 11623,
+   "kills": 1323,
+   "level": 52,
+   "quality": 3,
+   "reqlevel": 47,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "class": 4,
+   "count": 486,
+   "id": 11627,
+   "kills": 1323,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 8,
+   "subclass": 3
+  },
+  {
+   "class": 2,
+   "count": 136,
+   "id": 11628,
+   "kills": 1323,
+   "level": 53,
+   "quality": 3,
+   "reqlevel": 48,
+   "slot": 15,
+   "subclass": 2
+  }
+ ],
+ "drops2:9499": [],
+ "drops2:9502": [
+  {
+   "class": 4,
+   "count": 592,
+   "id": 11745,
+   "kills": 2049,
+   "level": 56,
+   "quality": 3,
+   "reqlevel": 51,
+   "slot": 10,
+   "subclass": 4
+  },
+  {
+   "class": 4,
+   "count": 182,
+   "id": 11746,
+   "kills": 2049,
+   "level": 56,
+   "quality": 3,
+   "reqlevel": 51,
+   "slot": 1,
+   "subclass": 4
+  }
+ ],
+ "drops2:9537": [
+  {
+   "class": 4,
+   "count": 199,
+   "id": 11735,
+   "kills": 2083,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 1,
+   "subclass": 2
+  }
+ ],
+ "drops2:9543": [],
+ "drops2:9568": [
+  {
+   "class": 4,
+   "count": 397,
+   "id": 16679,
+   "kills": 2286,
+   "level": 60,
+   "quality": 3,
+   "reqlevel": 55,
+   "slot": 3,
+   "subclass": 3
+  }
+ ],
+ "drops2:9736": [
+  {
+   "class": 4,
+   "count": 29,
+   "id": 16673,
+   "kills": 1548,
+   "level": 58,
+   "quality": 3,
+   "reqlevel": 53,
+   "slot": 6,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 25,
+   "id": 16680,
+   "kills": 1548,
+   "level": 58,
+   "quality": 3,
+   "reqlevel": 53,
+   "slot": 6,
+   "subclass": 3
+  },
+  {
+   "class": 4,
+   "count": 25,
+   "id": 16683,
+   "kills": 1548,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 28,
+   "id": 16696,
+   "kills": 1548,
+   "level": 58,
+   "quality": 3,
+   "reqlevel": 53,
+   "slot": 6,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 33,
+   "id": 16703,
+   "kills": 1548,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "class": 4,
+   "count": 34,
+   "id": 16713,
+   "kills": 1548,
+   "level": 58,
+   "quality": 3,
+   "reqlevel": 53,
+   "slot": 6,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 17,
+   "id": 16716,
+   "kills": 1548,
+   "level": 58,
+   "quality": 3,
+   "reqlevel": 53,
+   "slot": 6,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 4,
+   "id": 16717,
+   "kills": 1548,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 2
+  },
+  {
+   "class": 4,
+   "count": 34,
+   "id": 16735,
+   "kills": 1548,
+   "level": 57,
+   "quality": 3,
+   "reqlevel": 52,
+   "slot": 9,
+   "subclass": 4
+  }
+ ],
+ "drops2:9816": [
+  {
+   "class": 4,
+   "count": 6897,
+   "id": 16672,
+   "kills": 37427,
+   "level": 59,
+   "quality": 3,
+   "reqlevel": 54,
+   "slot": 10,
+   "subclass": 3
+  }
+ ],
+ "drops2:9938": [
+  {
+   "class": 4,
+   "count": 494,
+   "id": 11746,
+   "kills": 2377,
+   "level": 56,
+   "quality": 3,
+   "reqlevel": 51,
+   "slot": 1,
+   "subclass": 4
+  }
+ ],
+ "encounters:1.60.1.70094:109": [
+  [
+   486,
+   "Dreamscythe",
+   "201"
+  ],
+  [
+   487,
+   "Weaver",
+   "201"
+  ],
+  [
+   488,
+   "Jammal'an the Prophet",
+   "201"
+  ],
+  [
+   490,
+   "Morphaz",
+   "201"
+  ],
+  [
+   491,
+   "Hazzas",
+   "201"
+  ],
+  [
+   492,
+   "Avatar of Hakkar",
+   "201"
+  ],
+  [
+   493,
+   "Shade of Eranikus",
+   "201"
+  ],
+  [
+   2814,
+   "Atal'alarion",
+   "201"
+  ],
+  [
+   3582,
+   "Atal'alarion",
+   "1"
+  ],
+  [
+   3583,
+   "Avatar of Hakkar",
+   "1"
+  ],
+  [
+   3584,
+   "Shade of Eranikus",
+   "1"
+  ],
+  [
+   3585,
+   "Hazzas",
+   "1"
+  ],
+  [
+   3586,
+   "Morphaz",
+   "1"
+  ],
+  [
+   3587,
+   "Weaver",
+   "1"
+  ],
+  [
+   3588,
+   "Dreamscythe",
+   "1"
+  ],
+  [
+   3589,
+   "Jammal'an the Prophet",
+   "1"
+  ]
+ ],
+ "encounters:1.60.1.70094:129": [
+  [
+   2780,
+   "Tuten'kash",
+   "0"
+  ],
+  [
+   2781,
+   "Plaguemaw the Rotting",
+   "0"
+  ],
+  [
+   2782,
+   "Mordresh Fire Eye",
+   "0"
+  ],
+  [
+   2783,
+   "Ragglesnout",
+   "0"
+  ],
+  [
+   2784,
+   "Glutton",
+   "0"
+  ],
+  [
+   2785,
+   "Amnennar the Coldbringer",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:189": [
+  [
+   444,
+   "Interrogator Vishas",
+   "0"
+  ],
+  [
+   446,
+   "Houndmaster Loksey",
+   "0"
+  ],
+  [
+   447,
+   "Arcanist Doan",
+   "0"
+  ],
+  [
+   448,
+   "Herod",
+   "0"
+  ],
+  [
+   449,
+   "High Inquisitor Fairbanks",
+   "0"
+  ],
+  [
+   450,
+   "High Inquisitor Whitemane",
+   "0"
+  ],
+  [
+   2779,
+   "Bloodmage Thalnos",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:209": [
+  [
+   593,
+   "Hydromancer Velratha",
+   "0"
+  ],
+  [
+   594,
+   "Gahz'rilla",
+   "0"
+  ],
+  [
+   595,
+   "Antu'sul",
+   "0"
+  ],
+  [
+   596,
+   "Theka the Martyr",
+   "0"
+  ],
+  [
+   597,
+   "Witch Doctor Zum'rah",
+   "0"
+  ],
+  [
+   598,
+   "Nekrum Gutchewer",
+   "0"
+  ],
+  [
+   599,
+   "Shadowpriest Sezz'ziz",
+   "0"
+  ],
+  [
+   600,
+   "Chief Ukorz Sandscalp",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:229": [
+  [
+   267,
+   "Highlord Omokk",
+   "0"
+  ],
+  [
+   268,
+   "Shadow Hunter Vosh'gajin",
+   "0"
+  ],
+  [
+   269,
+   "War Master Voone",
+   "0"
+  ],
+  [
+   270,
+   "Mother Smolderweb",
+   "0"
+  ],
+  [
+   271,
+   "Urok Doomhowl",
+   "0"
+  ],
+  [
+   272,
+   "Quartermaster Zigris",
+   "0"
+  ],
+  [
+   273,
+   "Gizrul the Slavener",
+   "0"
+  ],
+  [
+   274,
+   "Halycon",
+   "0"
+  ],
+  [
+   275,
+   "Overlord Wyrmthalak",
+   "0"
+  ],
+  [
+   3062,
+   "Pyroguard Emberseer",
+   "0"
+  ],
+  [
+   3063,
+   "Warchief Rend Blackhand",
+   "0"
+  ],
+  [
+   3068,
+   "The Beast",
+   "0"
+  ],
+  [
+   3069,
+   "General Drakkisath",
+   "0"
+  ],
+  [
+   3070,
+   "Lord Valthalak",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:230": [
+  [
+   227,
+   "High Interrogator Gerstahn",
+   "0"
+  ],
+  [
+   228,
+   "Lord Roccor",
+   "0"
+  ],
+  [
+   229,
+   "Houndmaster Grebmar",
+   "0"
+  ],
+  [
+   230,
+   "Ring of Law",
+   "0"
+  ],
+  [
+   231,
+   "Pyromancer Loregrain",
+   "0"
+  ],
+  [
+   232,
+   "Lord Incendius",
+   "0"
+  ],
+  [
+   233,
+   "Warder Stilgiss",
+   "0"
+  ],
+  [
+   234,
+   "Fineous Darkvire",
+   "0"
+  ],
+  [
+   235,
+   "Bael'Gar",
+   "0"
+  ],
+  [
+   236,
+   "General Angerforge",
+   "0"
+  ],
+  [
+   237,
+   "Golem Lord Argelmach",
+   "0"
+  ],
+  [
+   238,
+   "Hurley Blackbreath",
+   "0"
+  ],
+  [
+   239,
+   "Phalanx",
+   "0"
+  ],
+  [
+   240,
+   "Ribbly Screwspigot",
+   "0"
+  ],
+  [
+   241,
+   "Plugger Spazzring",
+   "0"
+  ],
+  [
+   242,
+   "Ambassador Flamelash",
+   "0"
+  ],
+  [
+   243,
+   "The Seven",
+   "0"
+  ],
+  [
+   244,
+   "Magmus",
+   "0"
+  ],
+  [
+   2789,
+   "Princess Moira Bronzebeard",
+   "0"
+  ],
+  [
+   2790,
+   "Emperor Dagran Thaurissan",
+   "0"
+  ],
+  [
+   2791,
+   "The Vault",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:249": [
+  [
+   1084,
+   "Onyxia",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:289": [
+  [
+   2801,
+   "Darkmaster Gandling",
+   "0"
+  ],
+  [
+   2802,
+   "Doctor Theolen Krastinov",
+   "0"
+  ],
+  [
+   2803,
+   "Instructor Malicia",
+   "0"
+  ],
+  [
+   2804,
+   "Jandice Barov",
+   "0"
+  ],
+  [
+   2805,
+   "Kirtonos",
+   "0"
+  ],
+  [
+   2806,
+   "Lady Illucia Barov",
+   "0"
+  ],
+  [
+   2807,
+   "Lord Alexei Barov",
+   "0"
+  ],
+  [
+   2808,
+   "Lorekeeper Polkelt",
+   "0"
+  ],
+  [
+   2809,
+   "Marduk Blackpool",
+   "0"
+  ],
+  [
+   2810,
+   "Ras Frostwhisperer",
+   "0"
+  ],
+  [
+   2811,
+   "Rattlegore",
+   "0"
+  ],
+  [
+   2812,
+   "The Ravenian",
+   "0"
+  ],
+  [
+   2813,
+   "Vectus",
+   "0"
+  ],
+  [
+   3055,
+   "Kormok",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:2959": [
+  [
+   3298,
+   "Arcane Anomaly",
+   "0"
+  ],
+  [
+   3299,
+   "Fel Ancient",
+   "0"
+  ],
+  [
+   3300,
+   "Mana Devourer",
+   "0"
+  ],
+  [
+   3301,
+   "Mana Elemental",
+   "0"
+  ],
+  [
+   3302,
+   "Unstable Sentinel",
+   "0"
+  ],
+  [
+   3303,
+   "Shade of the Archmage",
+   "0"
+  ],
+  [
+   3310,
+   "Lyn the Ignored",
+   "0"
+  ],
+  [
+   3311,
+   "Atrexis the Grave Knight",
+   "0"
+  ],
+  [
+   3312,
+   "Mana Wraith",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:2981": [],
+ "encounters:1.60.1.70094:2994": [],
+ "encounters:1.60.1.70094:2998": [
+  [
+   3480,
+   "Saltspine",
+   "0"
+  ],
+  [
+   3481,
+   "Shadetooth",
+   "0"
+  ],
+  [
+   3482,
+   "Relic Guardian",
+   "0"
+  ],
+  [
+   3644,
+   "Highland Horror",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:2999": [
+  [
+   3353,
+   "Witherfang",
+   "0"
+  ],
+  [
+   3354,
+   "Rath'mael",
+   "0"
+  ],
+  [
+   3355,
+   "The Butcher",
+   "0"
+  ],
+  [
+   3357,
+   "The Abandoned",
+   "0"
+  ],
+  [
+   3408,
+   "Lordaeron Captain",
+   "0"
+  ],
+  [
+   3411,
+   "Viktor the Vile",
+   "0"
+  ],
+  [
+   3412,
+   "Bjork",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:3001": [],
+ "encounters:1.60.1.70094:3052": [],
+ "encounters:1.60.1.70094:3065": [
+  [
+   3493,
+   "Faldrim Anvilmar",
+   "0"
+  ],
+  [
+   3494,
+   "Plunder",
+   "0"
+  ],
+  [
+   3495,
+   "Infurnus",
+   "0"
+  ],
+  [
+   3496,
+   "Durgen Dirgehammer",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:329": [
+  [
+   472,
+   "The Unforgiven",
+   "0"
+  ],
+  [
+   473,
+   "Hearthsinger Forresten",
+   "0"
+  ],
+  [
+   474,
+   "Timmy the Cruel",
+   "0"
+  ],
+  [
+   475,
+   "Cannon Master Willey",
+   "0"
+  ],
+  [
+   476,
+   "Malor the Zealous",
+   "0"
+  ],
+  [
+   477,
+   "Archivist Galford",
+   "0"
+  ],
+  [
+   478,
+   "Balnazzar",
+   "0"
+  ],
+  [
+   479,
+   "Baroness Anastari",
+   "0"
+  ],
+  [
+   480,
+   "Nerub'enkan",
+   "0"
+  ],
+  [
+   481,
+   "Maleki the Pallid",
+   "0"
+  ],
+  [
+   482,
+   "Magistrate Barthilas",
+   "0"
+  ],
+  [
+   483,
+   "Ramstein the Gorger",
+   "0"
+  ],
+  [
+   484,
+   "Baron Rivendare",
+   "0"
+  ],
+  [
+   2795,
+   "Black Guard Swordsmith",
+   "0"
+  ],
+  [
+   2796,
+   "Crimson Hammersmith",
+   "0"
+  ],
+  [
+   2797,
+   "Ezra Grimm",
+   "0"
+  ],
+  [
+   2798,
+   "Postmaster Malown",
+   "0"
+  ],
+  [
+   2799,
+   "Skul",
+   "0"
+  ],
+  [
+   2800,
+   "Stonespine",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:33": [
+  [
+   2748,
+   "Rethilgore",
+   "0"
+  ],
+  [
+   2749,
+   "Razorclaw the Butcher",
+   "0"
+  ],
+  [
+   2750,
+   "Baron Silverlaine",
+   "0"
+  ],
+  [
+   2751,
+   "Commander Springvale",
+   "0"
+  ],
+  [
+   2752,
+   "Odo the Blindwatcher",
+   "0"
+  ],
+  [
+   2753,
+   "Fenrus the Devourer",
+   "0"
+  ],
+  [
+   2754,
+   "Wolf Master Nandos",
+   "0"
+  ],
+  [
+   2755,
+   "Archmage Arugal",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:34": [
+  [
+   2756,
+   "Targorr the Dread",
+   "0"
+  ],
+  [
+   2757,
+   "Kam Deepfury",
+   "0"
+  ],
+  [
+   2758,
+   "Hamhock",
+   "0"
+  ],
+  [
+   2759,
+   "Dextren Ward",
+   "0"
+  ],
+  [
+   2760,
+   "Bazil Thredd",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:349": [
+  [
+   422,
+   "Noxxion",
+   "0"
+  ],
+  [
+   423,
+   "Razorlash",
+   "0"
+  ],
+  [
+   424,
+   "Lord Vyletongue",
+   "0"
+  ],
+  [
+   425,
+   "Celebras the Cursed",
+   "0"
+  ],
+  [
+   426,
+   "Landslide",
+   "0"
+  ],
+  [
+   427,
+   "Tinkerer Gizlock",
+   "0"
+  ],
+  [
+   428,
+   "Rotgrip",
+   "0"
+  ],
+  [
+   429,
+   "Princess Theradras",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:36": [
+  [
+   2741,
+   "Rhahk'Zor",
+   "0"
+  ],
+  [
+   2742,
+   "Sneed",
+   "0"
+  ],
+  [
+   2743,
+   "Gilnid",
+   "0"
+  ],
+  [
+   2744,
+   "Captain Greenskin",
+   "0"
+  ],
+  [
+   2745,
+   "Mr. Smite",
+   "0"
+  ],
+  [
+   2746,
+   "Cookie",
+   "0"
+  ],
+  [
+   2747,
+   "Edwin VanCleef",
+   "0"
+  ],
+  [
+   3676,
+   "Miner Johnson",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:389": [
+  [
+   2732,
+   "Oggleflint",
+   "0"
+  ],
+  [
+   2733,
+   "Taragaman the Hungerer",
+   "0"
+  ],
+  [
+   2734,
+   "Jergosh the Invoker",
+   "0"
+  ],
+  [
+   2735,
+   "Bazzalan",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:429": [
+  [
+   343,
+   "Zevrim Thornhoof",
+   "0"
+  ],
+  [
+   344,
+   "Hydrospawn",
+   "0"
+  ],
+  [
+   345,
+   "Lethtendris",
+   "0"
+  ],
+  [
+   346,
+   "Alzzin the Wildshaper",
+   "0"
+  ],
+  [
+   347,
+   "Illyanna Ravenoak",
+   "0"
+  ],
+  [
+   348,
+   "Magister Kalendris",
+   "0"
+  ],
+  [
+   349,
+   "Immol'thar",
+   "0"
+  ],
+  [
+   350,
+   "Tendris Warpwood",
+   "0"
+  ],
+  [
+   361,
+   "Prince Tortheldrin",
+   "0"
+  ],
+  [
+   362,
+   "Guard Mol'dar",
+   "0"
+  ],
+  [
+   363,
+   "Stomper Kreeg",
+   "0"
+  ],
+  [
+   364,
+   "Guard Fengus",
+   "0"
+  ],
+  [
+   365,
+   "Guard Slip'kik",
+   "0"
+  ],
+  [
+   366,
+   "Captain Kromcrush",
+   "0"
+  ],
+  [
+   367,
+   "Cho'Rush the Observer",
+   "0"
+  ],
+  [
+   368,
+   "King Gordok",
+   "0"
+  ],
+  [
+   2792,
+   "Pusillin",
+   "0"
+  ],
+  [
+   2793,
+   "Lord Hel'nurath",
+   "0"
+  ],
+  [
+   2794,
+   "Tsu'zee",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:43": [
+  [
+   585,
+   "Lady Anacondra",
+   "0"
+  ],
+  [
+   586,
+   "Lord Cobrahn",
+   "0"
+  ],
+  [
+   587,
+   "Kresh",
+   "0"
+  ],
+  [
+   588,
+   "Lord Pythas",
+   "0"
+  ],
+  [
+   589,
+   "Skum",
+   "0"
+  ],
+  [
+   590,
+   "Lord Serpentis",
+   "0"
+  ],
+  [
+   591,
+   "Verdan the Everliving",
+   "0"
+  ],
+  [
+   592,
+   "Mutanus the Devourer",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:47": [
+  [
+   2773,
+   "Roogug",
+   "0"
+  ],
+  [
+   2774,
+   "Aggem Thorncurse",
+   "0"
+  ],
+  [
+   2775,
+   "Death Speaker Jargba",
+   "0"
+  ],
+  [
+   2776,
+   "Overlord Ramtusk",
+   "0"
+  ],
+  [
+   2777,
+   "Agathelos the Raging",
+   "0"
+  ],
+  [
+   2778,
+   "Charlga Razorflank",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:48": [
+  [
+   2761,
+   "Ghamoo-ra",
+   "201"
+  ],
+  [
+   2762,
+   "Lady Sarevess",
+   "201"
+  ],
+  [
+   2763,
+   "Geilhast",
+   "201"
+  ],
+  [
+   2764,
+   "Lorgus Jett",
+   "201"
+  ],
+  [
+   2765,
+   "Old Serra'kis",
+   "201"
+  ],
+  [
+   2766,
+   "Twilight Lord Kelris",
+   "201"
+  ],
+  [
+   2767,
+   "Aku'mai",
+   "201"
+  ],
+  [
+   2910,
+   "Aku'mai",
+   "1"
+  ],
+  [
+   2911,
+   "Twilight Lord Kelris",
+   "1"
+  ],
+  [
+   2912,
+   "Old Serra'kis",
+   "1"
+  ],
+  [
+   2913,
+   "Lorgus Jett",
+   "1"
+  ],
+  [
+   2914,
+   "Geilhast",
+   "1"
+  ],
+  [
+   2915,
+   "Lady Sarevess",
+   "1"
+  ],
+  [
+   2916,
+   "Ghamoo-ra",
+   "1"
+  ]
+ ],
+ "encounters:1.60.1.70094:70": [
+  [
+   547,
+   "Revelosh",
+   "0"
+  ],
+  [
+   548,
+   "The Lost Dwarves",
+   "0"
+  ],
+  [
+   549,
+   "Ironaya",
+   "0"
+  ],
+  [
+   551,
+   "Ancient Stone Keeper",
+   "0"
+  ],
+  [
+   552,
+   "Galgann Firehammer",
+   "0"
+  ],
+  [
+   553,
+   "Grimlok",
+   "0"
+  ],
+  [
+   554,
+   "Archaedas",
+   "0"
+  ],
+  [
+   1887,
+   "Obsidian Sentinel",
+   "0"
+  ]
+ ],
+ "encounters:1.60.1.70094:90": [
+  [
+   2768,
+   "Grubbis",
+   "201"
+  ],
+  [
+   2769,
+   "Viscous Fallout",
+   "201"
+  ],
+  [
+   2770,
+   "Electrocutioner 6000",
+   "201"
+  ],
+  [
+   2771,
+   "Crowd Pummeler 9-60",
+   "201"
+  ],
+  [
+   2772,
+   "Mekgineer Thermaplugg",
+   "201"
+  ]
+ ],
+ "guide:hall-of-thanes-dungeon-overview-location-rewards": [
+  {
+   "boss": "Faldrim Anvilmar",
+   "class": 4,
+   "id": 271097,
+   "level": 18,
+   "name": "Spiritwraith Drape",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 16,
+   "subclass": -6
+  },
+  {
+   "boss": "Faldrim Anvilmar",
+   "class": 4,
+   "id": 270227,
+   "level": 18,
+   "name": "Ephemeral Choker",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 2,
+   "subclass": -3
+  },
+  {
+   "boss": "Faldrim Anvilmar",
+   "class": 4,
+   "id": 271096,
+   "level": 18,
+   "name": "Aetherwisp Bracers",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 9,
+   "subclass": 1
+  },
+  {
+   "boss": "Magmatus",
+   "class": 4,
+   "id": 270230,
+   "level": 18,
+   "name": "Kindlegem Girdle",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 6,
+   "subclass": 3
+  },
+  {
+   "boss": "Magmatus",
+   "class": 4,
+   "id": 270231,
+   "level": 18,
+   "name": "Flamefist Grips",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 10,
+   "subclass": 2
+  },
+  {
+   "boss": "Magmatus",
+   "class": 2,
+   "id": 271095,
+   "level": 18,
+   "name": "Fang of Magmatus",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 21,
+   "subclass": 15
+  },
+  {
+   "boss": "Plunder",
+   "class": 2,
+   "id": 270228,
+   "level": 18,
+   "name": "Golemheart Stave",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "boss": "Plunder",
+   "class": 4,
+   "id": 271098,
+   "level": 18,
+   "name": "Golemguard Chest",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "boss": "Plunder",
+   "class": 4,
+   "id": 270229,
+   "level": 18,
+   "name": "Treads of the Protector Golem",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 8,
+   "subclass": 3
+  },
+  {
+   "boss": "Durgen Dirgehammer",
+   "class": 2,
+   "id": 270256,
+   "level": 18,
+   "name": "Durgen's Crescent Axe",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 21,
+   "subclass": 0
+  },
+  {
+   "boss": "Durgen Dirgehammer",
+   "class": 4,
+   "id": 270260,
+   "level": 18,
+   "name": "Direhammer Leggings",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 7,
+   "subclass": 2
+  },
+  {
+   "boss": "Durgen Dirgehammer",
+   "class": 4,
+   "id": 270261,
+   "level": 18,
+   "name": "Robes of the Disgraced Thane",
+   "quality": 3,
+   "reqlevel": 13,
+   "slot": 5,
+   "subclass": 1
+  }
+ ],
+ "guide:ruins-of-lordaeron-dungeon-overview-location-rewards": [
+  {
+   "boss": "Witherfang",
+   "class": 4,
+   "id": 271201,
+   "level": 20,
+   "name": "Atrophic Girdle",
+   "quality": 3,
+   "reqlevel": 15,
+   "slot": 6,
+   "subclass": 3
+  },
+  {
+   "boss": "Witherfang",
+   "class": 2,
+   "id": 271203,
+   "level": 20,
+   "name": "Segmented Spider Leg",
+   "quality": 3,
+   "reqlevel": 15,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "boss": "Witherfang",
+   "class": 4,
+   "id": 271202,
+   "level": 20,
+   "name": "Witherbite Bracers",
+   "quality": 3,
+   "reqlevel": 15,
+   "slot": 9,
+   "subclass": 2
+  },
+  {
+   "boss": "The Baron",
+   "class": 2,
+   "id": 271204,
+   "level": 20,
+   "name": "Meathook Slicer",
+   "quality": 3,
+   "reqlevel": 15,
+   "slot": 13,
+   "subclass": 15
+  },
+  {
+   "boss": "The Baron",
+   "class": 4,
+   "id": 271205,
+   "level": 20,
+   "name": "Abomination Bones",
+   "quality": 3,
+   "reqlevel": 15,
+   "slot": 5,
+   "subclass": 3
+  },
+  {
+   "boss": "The Baron",
+   "class": 4,
+   "id": 271206,
+   "level": 20,
+   "name": "Leftover Abomination Skin",
+   "quality": 3,
+   "reqlevel": 15,
+   "slot": 5,
+   "subclass": 1
+  },
+  {
+   "boss": "Viktor the Vile",
+   "class": 2,
+   "id": 271218,
+   "level": 22,
+   "name": "Vileblood Scimitar",
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 13,
+   "subclass": 7
+  },
+  {
+   "boss": "Viktor the Vile",
+   "class": 4,
+   "id": 271212,
+   "level": 22,
+   "name": "Bloodied Chestwraps",
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 5,
+   "subclass": 2
+  },
+  {
+   "boss": "Viktor the Vile",
+   "class": 4,
+   "id": 271211,
+   "level": 22,
+   "name": "Vilewalkers",
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 8,
+   "subclass": 3
+  },
+  {
+   "boss": "The Abandoned",
+   "class": 2,
+   "id": 271216,
+   "level": 22,
+   "name": "Scepter of the Abandoned",
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 21,
+   "subclass": 4
+  },
+  {
+   "boss": "The Abandoned",
+   "class": 4,
+   "id": 271208,
+   "level": 22,
+   "name": "Grip of Fear",
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 10,
+   "subclass": 3
+  },
+  {
+   "boss": "The Abandoned",
+   "class": 4,
+   "id": 271207,
+   "level": 22,
+   "name": "Rotmender's Leggings",
+   "quality": 3,
+   "reqlevel": 17,
+   "slot": 7,
+   "subclass": 1
+  },
+  {
+   "boss": "Bjork",
+   "class": 2,
+   "id": 271217,
+   "level": 21,
+   "name": "Corpse Chopper",
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 17,
+   "subclass": 1
+  },
+  {
+   "boss": "Bjork",
+   "class": 4,
+   "id": 271209,
+   "level": 21,
+   "name": "Bonerust Leggings",
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 7,
+   "subclass": 3
+  },
+  {
+   "boss": "Bjork",
+   "class": 4,
+   "id": 271210,
+   "level": 21,
+   "name": "Tuskwrap Belt",
+   "quality": 3,
+   "reqlevel": 16,
+   "slot": 6,
+   "subclass": 1
+  },
+  {
+   "boss": "Rath'Mael",
+   "class": 4,
+   "id": 271213,
+   "level": 24,
+   "name": "Mirror of Rath'mael",
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 14,
+   "subclass": 6
+  },
+  {
+   "boss": "Rath'Mael",
+   "class": 2,
+   "id": 271215,
+   "level": 24,
+   "name": "Coldspire Staff",
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 17,
+   "subclass": 10
+  },
+  {
+   "boss": "Rath'Mael",
+   "class": 4,
+   "id": 271214,
+   "level": 24,
+   "name": "Rotmender's Treads",
+   "quality": 3,
+   "reqlevel": 19,
+   "slot": 8,
+   "subclass": 1
+  }
+ ],
+ "item:10399": {
+  "class": 4,
+  "id": 10399,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 5,
+  "subclass": 2
+ },
+ "item:10400": {
+  "class": 4,
+  "id": 10400,
+  "level": 19,
+  "quality": 3,
+  "reqlevel": 14,
+  "slot": 7,
+  "subclass": 2
+ },
+ "item:10401": {
+  "class": 4,
+  "id": 10401,
+  "level": 19,
+  "quality": 3,
+  "reqlevel": 14,
+  "slot": 10,
+  "subclass": 2
+ },
+ "item:10402": {
+  "class": 4,
+  "id": 10402,
+  "level": 20,
+  "quality": 3,
+  "reqlevel": 15,
+  "slot": 8,
+  "subclass": 2
+ },
+ "item:10403": {
+  "class": 4,
+  "id": 10403,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 6,
+  "subclass": 2
+ },
+ "item:10410": {
+  "class": 4,
+  "id": 10410,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 7,
+  "subclass": 2
+ },
+ "item:10411": {
+  "class": 4,
+  "id": 10411,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 8,
+  "subclass": 2
+ },
+ "item:10412": {
+  "class": 4,
+  "id": 10412,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 6,
+  "subclass": 2
+ },
+ "item:10413": {
+  "class": 4,
+  "id": 10413,
+  "level": 19,
+  "quality": 3,
+  "reqlevel": 14,
+  "slot": 10,
+  "subclass": 2
+ },
+ "item:1156": {
+  "class": 4,
+  "id": 1156,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 11,
+  "subclass": -2
+ },
+ "item:1292": {
+  "class": 2,
+  "id": 1292,
+  "level": 25,
+  "quality": 3,
+  "reqlevel": 20,
+  "slot": 13,
+  "subclass": 0
+ },
+ "item:13245": {
+  "class": 4,
+  "id": 13245,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 14,
+  "subclass": 6
+ },
+ "item:14148": {
+  "class": 4,
+  "id": 14148,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 9,
+  "subclass": 1
+ },
+ "item:14149": {
+  "class": 4,
+  "id": 14149,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:1482": {
+  "class": 2,
+  "id": 1482,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 21,
+  "subclass": 7
+ },
+ "item:1484": {
+  "class": 2,
+  "id": 1484,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:1489": {
+  "class": 4,
+  "id": 1489,
+  "level": 25,
+  "quality": 3,
+  "reqlevel": 20,
+  "slot": 5,
+  "subclass": 2
+ },
+ "item:1935": {
+  "class": 2,
+  "id": 1935,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 13,
+  "subclass": 15
+ },
+ "item:1937": {
+  "class": 2,
+  "id": 1937,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 13,
+  "subclass": 7
+ },
+ "item:1974": {
+  "class": 4,
+  "id": 1974,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 9,
+  "subclass": 1
+ },
+ "item:2167": {
+  "class": 4,
+  "id": 2167,
+  "level": 20,
+  "quality": 2,
+  "reqlevel": 15,
+  "slot": 10,
+  "subclass": 2
+ },
+ "item:2169": {
+  "class": 2,
+  "id": 2169,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 21,
+  "subclass": 15
+ },
+ "item:2205": {
+  "class": 2,
+  "id": 2205,
+  "level": 25,
+  "quality": 3,
+  "reqlevel": 20,
+  "slot": 17,
+  "subclass": 8
+ },
+ "item:2271": {
+  "class": 2,
+  "id": 2271,
+  "level": 25,
+  "quality": 3,
+  "reqlevel": 20,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:2292": {
+  "class": 4,
+  "id": 2292,
+  "level": 25,
+  "quality": 3,
+  "reqlevel": 20,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:2567": {
+  "class": 2,
+  "id": 2567,
+  "level": 25,
+  "quality": 3,
+  "reqlevel": 20,
+  "slot": 21,
+  "subclass": 15
+ },
+ "item:270227": {
+  "class": 4,
+  "id": 270227,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 2,
+  "subclass": -3
+ },
+ "item:270228": {
+  "class": 2,
+  "id": 270228,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:270230": {
+  "class": 4,
+  "id": 270230,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 6,
+  "subclass": 3
+ },
+ "item:270231": {
+  "class": 4,
+  "id": 270231,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 10,
+  "subclass": 2
+ },
+ "item:270260": {
+  "class": 4,
+  "id": 270260,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 7,
+  "subclass": 2
+ },
+ "item:270261": {
+  "class": 4,
+  "id": 270261,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:271096": {
+  "class": 4,
+  "id": 271096,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 9,
+  "subclass": 1
+ },
+ "item:271097": {
+  "class": 4,
+  "id": 271097,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:271098": {
+  "class": 4,
+  "id": 271098,
+  "level": 18,
+  "quality": 3,
+  "reqlevel": 13,
+  "slot": 5,
+  "subclass": 3
+ },
+ "item:271201": {
+  "class": 4,
+  "id": 271201,
+  "level": 20,
+  "quality": 3,
+  "reqlevel": 15,
+  "slot": 6,
+  "subclass": 3
+ },
+ "item:271202": {
+  "class": 4,
+  "id": 271202,
+  "level": 20,
+  "quality": 3,
+  "reqlevel": 15,
+  "slot": 9,
+  "subclass": 2
+ },
+ "item:271203": {
+  "class": 2,
+  "id": 271203,
+  "level": 20,
+  "quality": 3,
+  "reqlevel": 15,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:271204": {
+  "class": 2,
+  "id": 271204,
+  "level": 20,
+  "quality": 3,
+  "reqlevel": 15,
+  "slot": 13,
+  "subclass": 15
+ },
+ "item:271205": {
+  "class": 4,
+  "id": 271205,
+  "level": 20,
+  "quality": 3,
+  "reqlevel": 15,
+  "slot": 5,
+  "subclass": 3
+ },
+ "item:271206": {
+  "class": 4,
+  "id": 271206,
+  "level": 20,
+  "quality": 3,
+  "reqlevel": 15,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:271207": {
+  "class": 4,
+  "id": 271207,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 7,
+  "subclass": 1
+ },
+ "item:271208": {
+  "class": 4,
+  "id": 271208,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 10,
+  "subclass": 3
+ },
+ "item:271209": {
+  "class": 4,
+  "id": 271209,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 7,
+  "subclass": 3
+ },
+ "item:271210": {
+  "class": 4,
+  "id": 271210,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 6,
+  "subclass": 1
+ },
+ "item:271211": {
+  "class": 4,
+  "id": 271211,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 8,
+  "subclass": 3
+ },
+ "item:271212": {
+  "class": 4,
+  "id": 271212,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 5,
+  "subclass": 2
+ },
+ "item:271213": {
+  "class": 4,
+  "id": 271213,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 14,
+  "subclass": 6
+ },
+ "item:271214": {
+  "class": 4,
+  "id": 271214,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 8,
+  "subclass": 1
+ },
+ "item:271215": {
+  "class": 2,
+  "id": 271215,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:271216": {
+  "class": 2,
+  "id": 271216,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 21,
+  "subclass": 4
+ },
+ "item:271217": {
+  "class": 2,
+  "id": 271217,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 17,
+  "subclass": 1
+ },
+ "item:273088": {
+  "class": 4,
+  "id": 273088,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 2,
+  "subclass": -3
+ },
+ "item:273137": {
+  "class": 4,
+  "id": 273137,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 23,
+  "subclass": -5
+ },
+ "item:273289": {
+  "class": 4,
+  "id": 273289,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 7,
+  "subclass": 1
+ },
+ "item:273293": {
+  "class": 4,
+  "id": 273293,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 9,
+  "subclass": 3
+ },
+ "item:273298": {
+  "class": 4,
+  "id": 273298,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 12,
+  "subclass": -4
+ },
+ "item:273457": {
+  "class": 4,
+  "id": 273457,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 2,
+  "subclass": -3
+ },
+ "item:2807": {
+  "class": 2,
+  "id": 2807,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 21,
+  "subclass": 0
+ },
+ "item:284715": {
+  "class": 4,
+  "id": 284715,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 11,
+  "subclass": -2
+ },
+ "item:5187": {
+  "class": 2,
+  "id": 5187,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 17,
+  "subclass": 5
+ },
+ "item:5191": {
+  "class": 2,
+  "id": 5191,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 13,
+  "subclass": 7
+ },
+ "item:5192": {
+  "class": 2,
+  "id": 5192,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 13,
+  "subclass": 7
+ },
+ "item:5193": {
+  "class": 4,
+  "id": 5193,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:5194": {
+  "class": 2,
+  "id": 5194,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 17,
+  "subclass": 1
+ },
+ "item:5195": {
+  "class": 4,
+  "id": 5195,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 10,
+  "subclass": 1
+ },
+ "item:5198": {
+  "class": 2,
+  "id": 5198,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 15,
+  "subclass": 19
+ },
+ "item:5200": {
+  "class": 2,
+  "id": 5200,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 17,
+  "subclass": 6
+ },
+ "item:5201": {
+  "class": 2,
+  "id": 5201,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:5202": {
+  "class": 4,
+  "id": 5202,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:5254": {
+  "class": 4,
+  "id": 5254,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 3,
+  "subclass": 2
+ },
+ "item:5404": {
+  "class": 4,
+  "id": 5404,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 3,
+  "subclass": 2
+ },
+ "item:5443": {
+  "class": 4,
+  "id": 5443,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 14,
+  "subclass": 6
+ },
+ "item:5444": {
+  "class": 4,
+  "id": 5444,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:5943": {
+  "class": 4,
+  "id": 5943,
+  "level": 25,
+  "quality": 2,
+  "reqlevel": 20,
+  "slot": 9,
+  "subclass": 3
+ },
+ "item:5970": {
+  "class": 4,
+  "id": 5970,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 10,
+  "subclass": 1
+ },
+ "item:6226": {
+  "class": 4,
+  "id": 6226,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:6448": {
+  "class": 2,
+  "id": 6448,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 13,
+  "subclass": 15
+ },
+ "item:6449": {
+  "class": 4,
+  "id": 6449,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:6459": {
+  "class": 4,
+  "id": 6459,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 8,
+  "subclass": 3
+ },
+ "item:6460": {
+  "class": 4,
+  "id": 6460,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 6,
+  "subclass": 3
+ },
+ "item:6465": {
+  "class": 4,
+  "id": 6465,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:6469": {
+  "class": 2,
+  "id": 6469,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 15,
+  "subclass": 2
+ },
+ "item:6473": {
+  "class": 4,
+  "id": 6473,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 5,
+  "subclass": 2
+ },
+ "item:6627": {
+  "class": 4,
+  "id": 6627,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 5,
+  "subclass": 3
+ },
+ "item:6629": {
+  "class": 4,
+  "id": 6629,
+  "level": 22,
+  "quality": 3,
+  "reqlevel": 17,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:6630": {
+  "class": 4,
+  "id": 6630,
+  "level": 24,
+  "quality": 3,
+  "reqlevel": 19,
+  "slot": 14,
+  "subclass": 6
+ },
+ "item:6631": {
+  "class": 2,
+  "id": 6631,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:6632": {
+  "class": 4,
+  "id": 6632,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:6633": {
+  "class": 2,
+  "id": 6633,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 13,
+  "subclass": 7
+ },
+ "item:7230": {
+  "class": 2,
+  "id": 7230,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 17,
+  "subclass": 5
+ },
+ "item:872": {
+  "class": 2,
+  "id": 872,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 17,
+  "subclass": 1
+ },
+ "map:1.60.1.70094:Alcaz Prison": null,
+ "map:1.60.1.70094:Blackmaw Hold": null,
+ "map:1.60.1.70094:Krol'dok": null,
+ "map:1.60.1.70094:Krol'dok Stronghold": null,
+ "map:1.60.1.70094:Shaper's Terrace": null,
+ "map:1.60.1.70094:The Drowned City": null,
+ "npc:Agathelos the Raging": 4422,
+ "npc:Aggem Thorncurse": 4424,
+ "npc:Aku'mai": 4829,
+ "npc:Alzzin the Wildshaper": 11492,
+ "npc:Ambassador Flamelash": 9156,
+ "npc:Amnennar the Coldbringer": 7358,
+ "npc:Ancient Stone Keeper": 7206,
+ "npc:Antu'sul": 8127,
+ "npc:Anub'shiah": 9031,
+ "npc:Arcanist Doan": 6487,
+ "npc:Archaedas": 2748,
+ "npc:Archivist Galford": 10811,
+ "npc:Archmage Arugal": 4275,
+ "npc:Atal'alarion": 8580,
+ "npc:Avatar of Hakkar": 8443,
+ "npc:Azshir the Sleepless": 6490,
+ "npc:Bael'Gar": 9016,
+ "npc:Balnazzar": 10813,
+ "npc:Baron Aquanis": 12876,
+ "npc:Baron Rivendare": 10440,
+ "npc:Baron Silverlaine": 3887,
+ "npc:Baroness Anastari": 10436,
+ "npc:Bazil Thredd": 1716,
+ "npc:Bazzalan": 11519,
+ "npc:Bjork": 256097,
+ "npc:Blazeroar": null,
+ "npc:Blind Hunter": 4425,
+ "npc:Bloodmage Thalnos": 4543,
+ "npc:Bolt": null,
+ "npc:Bruegal Ironknuckle": 1720,
+ "npc:Cannon Master Willey": 10997,
+ "npc:Captain Greenskin": 647,
+ "npc:Captain Kromcrush": 14325,
+ "npc:Celebras the Cursed": 12225,
+ "npc:Charlga Razorflank": 4421,
+ "npc:Chief Ukorz Sandscalp": 7267,
+ "npc:Cinder": null,
+ "npc:Commander Springvale": 4278,
+ "npc:Cookie": null,
+ "npc:Crowd Pummeler 9-60": 6229,
+ "npc:Darkmaster Gandling": 1853,
+ "npc:Death Speaker Jargba": 4428,
+ "npc:Deathsworn Captain": 3872,
+ "npc:Deviate Faerie Dragon": 5912,
+ "npc:Dextren Ward": 1663,
+ "npc:Doctor Theolen Krastinov": 11261,
+ "npc:Dreamscythe": 5721,
+ "npc:Durgen Dirgehammer": 261319,
+ "npc:Earthcaller Halmgar": 4842,
+ "npc:Edwin VanCleef": 639,
+ "npc:Electrocutioner 6000": 6235,
+ "npc:Emperor Dagran Thaurissan": 9019,
+ "npc:Eviscerator": 9029,
+ "npc:Faldrim Anvilmar": 261306,
+ "npc:Fallen Champion": 6488,
+ "npc:Fenrus the Devourer": 4274,
+ "npc:Fineous Darkvire": 9056,
+ "npc:Gahz'rilla": 7273,
+ "npc:Galgann Firehammer": 7291,
+ "npc:Gelihast": 6243,
+ "npc:General Angerforge": 9033,
+ "npc:General Drakkisath": 10363,
+ "npc:Ghamoo-ra": 4887,
+ "npc:Gilnid": 1763,
+ "npc:Gizrul the Slavener": 10268,
+ "npc:Glutton": 8567,
+ "npc:Golem Lord Argelmach": 8983,
+ "npc:Goraluk Anvilcrack": 10899,
+ "npc:Gorosh the Dervish": 9027,
+ "npc:Grimlok": 4854,
+ "npc:Grizzle": 9028,
+ "npc:Grubbis": 7361,
+ "npc:Guard Fengus": 14321,
+ "npc:Guard Mol'dar": 14326,
+ "npc:Guard Slip'kik": 14323,
+ "npc:Gyth": 10339,
+ "npc:Halycon": 10220,
+ "npc:Hamhock": 1717,
+ "npc:Hazzas": 5722,
+ "npc:Hearthsinger Forresten": 10558,
+ "npc:Hedrum the Creeper": 9032,
+ "npc:Herod": 3975,
+ "npc:High Inquisitor Fairbanks": 4542,
+ "npc:High Inquisitor Whitemane": 3977,
+ "npc:High Interrogator Gerstahn": 9018,
+ "npc:Highlord Omokk": 9196,
+ "npc:Houndmaster Grebmar": 9319,
+ "npc:Houndmaster Loksey": 3974,
+ "npc:Hurley Blackbreath": 9537,
+ "npc:Hydromancer Velratha": 7795,
+ "npc:Hydrospawn": 13280,
+ "npc:Illyanna Ravenoak": 11488,
+ "npc:Immol'thar": 11496,
+ "npc:Instructor Malicia": 10505,
+ "npc:Interrogator Vishas": 3983,
+ "npc:Ironaya": 7228,
+ "npc:Ironspine": 6489,
+ "npc:Jammal'an the Prophet": 5710,
+ "npc:Jandice Barov": 10503,
+ "npc:Jed Runewatcher": 10509,
+ "npc:Jergosh the Invoker": 11518,
+ "npc:Kam Deepfury": 1666,
+ "npc:King Gordok": 11501,
+ "npc:Kirtonos the Herald": 10506,
+ "npc:Kresh": 3653,
+ "npc:Lady Anacondra": 3671,
+ "npc:Lady Illucia Barov": 10502,
+ "npc:Lady Sarevess": 4831,
+ "npc:Landslide": 12203,
+ "npc:Lethtendris": 14327,
+ "npc:Lord Alexei Barov": 10504,
+ "npc:Lord Cobrahn": 3669,
+ "npc:Lord Incendius": 9017,
+ "npc:Lord Pythas": 3670,
+ "npc:Lord Roccor": 9025,
+ "npc:Lord Serpentis": 3673,
+ "npc:Lord Vyletongue": 12236,
+ "npc:Lorekeeper Polkelt": 10901,
+ "npc:Lorgus Jett": 12902,
+ "npc:Lyn the Ignored": 247032,
+ "npc:Magister Kalendris": 11487,
+ "npc:Magistrate Barthilas": 10435,
+ "npc:Magmatus": 261316,
+ "npc:Magmus": 9938,
+ "npc:Maleki the Pallid": 10438,
+ "npc:Marduk Blackpool": 10433,
+ "npc:Mekgineer Thermaplugg": 7800,
+ "npc:Meshlok the Harvester": 12237,
+ "npc:Miner Johnson": 3586,
+ "npc:Mordresh Fire Eye": 7357,
+ "npc:Morphaz": 5719,
+ "npc:Mother Smolderweb": 10596,
+ "npc:Mr. Smite": 646,
+ "npc:Mutanus the Devourer": 3654,
+ "npc:Nanaya": null,
+ "npc:Nekrum Gutchewer": 7796,
+ "npc:Nerub'enkan": 10437,
+ "npc:Noxxion": 13282,
+ "npc:Obsidian Sentinel": 7023,
+ "npc:Odo the Blindwatcher": 4279,
+ "npc:Oggleflint": 11517,
+ "npc:Ogom the Wretched": 5711,
+ "npc:Ok'thor the Breaker": 9030,
+ "npc:Old Serra'kis": 4830,
+ "npc:Overlord Ramtusk": 4420,
+ "npc:Overlord Wyrmthalak": 9568,
+ "npc:Phalanx": 9502,
+ "npc:Plugger Spazzring": 9499,
+ "npc:Plunder": 261311,
+ "npc:Prince Tortheldrin": 11486,
+ "npc:Princess Theradras": 12201,
+ "npc:Pusillin": 14354,
+ "npc:Pyroguard Emberseer": 9816,
+ "npc:Pyromancer Loregrain": 9024,
+ "npc:Quartermaster Zigris": 9736,
+ "npc:Ragglesnout": 7354,
+ "npc:Ramstein the Gorger": 10439,
+ "npc:Ras Frostwhisper": 10508,
+ "npc:Rath'Mael": 250657,
+ "npc:Rattlegore": 11622,
+ "npc:Razorclaw the Butcher": 3886,
+ "npc:Razorlash": 12258,
+ "npc:Rethilgore": 3914,
+ "npc:Revelosh": 6910,
+ "npc:Rhahk'Zor": 644,
+ "npc:Ribbly Screwspigot": 9543,
+ "npc:Rotgrip": 13596,
+ "npc:Scarlet Commander Mograine": 3976,
+ "npc:Sergeant Bly": 7604,
+ "npc:Shade of Eranikus": 5709,
+ "npc:Shade of the Archmage": 246020,
+ "npc:Shadow Hunter Vosh'gajin": 9236,
+ "npc:Shadowpriest Sezz'ziz": 7275,
+ "npc:Skul": 10393,
+ "npc:Skum": 3674,
+ "npc:Sneed": 643,
+ "npc:Sneed's Shredder": 642,
+ "npc:Snowtalon": null,
+ "npc:Solakar Flamewreath": 10264,
+ "npc:Stomper Kreeg": 14322,
+ "npc:Stonespine": 10809,
+ "npc:Taragaman the Hungerer": 11520,
+ "npc:Targorr the Dread": 1696,
+ "npc:Tendris Warpwood": 11489,
+ "npc:The Abandoned": 250631,
+ "npc:The Baron": null,
+ "npc:The Beast": null,
+ "npc:The Ravenian": 10507,
+ "npc:The Unforgiven": 10516,
+ "npc:Theka the Martyr": 7272,
+ "npc:Time-Lost Battalion": null,
+ "npc:Timmy the Cruel": 10808,
+ "npc:Tinkerer Gizlock": 13601,
+ "npc:Tuten'kash": 7355,
+ "npc:Twilight Lord Kelris": 4832,
+ "npc:Urok Doomhowl": 10584,
+ "npc:Vectus": 10432,
+ "npc:Verdan the Everliving": 5775,
+ "npc:Verek": 9042,
+ "npc:Viktor the Vile": 256035,
+ "npc:Viscous Fallout": 7079,
+ "npc:War Master Voone": 9237,
+ "npc:Warchief Rend Blackhand": 10429,
+ "npc:Warder Stilgiss": 9041,
+ "npc:Weaver": 5720,
+ "npc:Witch Doctor Zum'rah": 7271,
+ "npc:Witherfang": 250483,
+ "npc:Wolf Master Nandos": 3927,
+ "npc:Zerillis": 10082,
+ "npc:Zevrim Thornhoof": 11490,
+ "zones": {
+  "1": [
+   "Dun Morogh",
+   0
+  ],
+  "10": [
+   "Duskwood",
+   2
+  ],
+  "11": [
+   "Wetlands",
+   2
+  ],
+  "1176": [
+   "Zul'Farrak",
+   2
+  ],
+  "12": [
+   "Elwynn Forest",
+   0
+  ],
+  "130": [
+   "Silverpine Forest",
+   1
+  ],
+  "1337": [
+   "Uldaman",
+   2
+  ],
+  "13649": [
+   "Test Dungeon",
+   2
+  ],
+  "1377": [
+   "Silithus",
+   2
+  ],
+  "139": [
+   "Eastern Plaguelands",
+   2
+  ],
+  "1397": [
+   "Emerald Forest",
+   2
+  ],
+  "14": [
+   "Durotar",
+   1
+  ],
+  "141": [
+   "Teldrassil",
+   0
+  ],
+  "1417": [
+   "Sunken Temple",
+   2
+  ],
+  "1477": [
+   "The Temple of Atal'Hakkar",
+   2
+  ],
+  "148": [
+   "Darkshore",
+   0
+  ],
+  "1497": [
+   "Undercity",
+   1
+  ],
+  "15": [
+   "Dustwallow Marsh",
+   2
+  ],
+  "1519": [
+   "Stormwind City",
+   0
+  ],
+  "1537": [
+   "Ironforge",
+   0
+  ],
+  "15475": [
+   "Demon Fall Canyon",
+   2
+  ],
+  "15531": [
+   "The Tainted Scar",
+   2
+  ],
+  "15532": [
+   "Storm Cliffs",
+   2
+  ],
+  "15793": [
+   "Elsewhen",
+   2
+  ],
+  "15809": [
+   "Felwood",
+   2
+  ],
+  "1581": [
+   "The Deadmines",
+   0
+  ],
+  "15825": [
+   "The Crystal Vale",
+   2
+  ],
+  "15828": [
+   "The Burning of Andorhal",
+   2
+  ],
+  "1583": [
+   "Blackrock Spire",
+   2
+  ],
+  "1584": [
+   "Blackrock Depths",
+   2
+  ],
+  "15938": [
+   "Starfall Village",
+   2
+  ],
+  "16": [
+   "Azshara",
+   2
+  ],
+  "16003": [
+   "Azshara",
+   2
+  ],
+  "16004": [
+   "Mount Hyjal",
+   2
+  ],
+  "16017": [
+   "Desolace",
+   2
+  ],
+  "16018": [
+   "Feralas",
+   2
+  ],
+  "16028": [
+   "Eastern Plaguelands",
+   2
+  ],
+  "16029": [
+   "The Hinterlands",
+   2
+  ],
+  "16074": [
+   "Karazhan Crypts",
+   2
+  ],
+  "16076": [
+   "Temple of Ahn'Qiraj",
+   2
+  ],
+  "16113": [
+   "Redridge Mountains",
+   2
+  ],
+  "16114": [
+   "Deadwind Pass",
+   2
+  ],
+  "16115": [
+   "Blasted Lands",
+   2
+  ],
+  "16116": [
+   "Swamp of Sorrows",
+   2
+  ],
+  "16117": [
+   "Stranglethorn Vale",
+   2
+  ],
+  "16118": [
+   "Elwynn Forest",
+   0
+  ],
+  "16119": [
+   "Duskwood",
+   2
+  ],
+  "16144": [
+   "Elwynn Forest (Blue Whelpling Inn Prototype)",
+   0
+  ],
+  "16147": [
+   "Elwynn Forest",
+   0
+  ],
+  "16148": [
+   "Duskwood",
+   2
+  ],
+  "16149": [
+   "Westfall",
+   0
+  ],
+  "16169": [
+   "Ashenvale",
+   2
+  ],
+  "16236": [
+   "Scarlet Enclave",
+   2
+  ],
+  "16295": [
+   "The Scarab Dais",
+   2
+  ],
+  "16362": [
+   "Shadow Hold",
+   2
+  ],
+  "1637": [
+   "Orgrimmar",
+   1
+  ],
+  "1638": [
+   "Thunder Bluff",
+   1
+  ],
+  "16394": [
+   "Naxxramas",
+   2
+  ],
+  "16508": [
+   "Burning Steppes",
+   2
+  ],
+  "16509": [
+   "Stormwind City",
+   0
+  ],
+  "16510": [
+   "Elwynn Forest",
+   0
+  ],
+  "16532": [
+   "Tyler's Test Map (Desolace)",
+   2
+  ],
+  "16544": [
+   "City of Dalaran",
+   3
+  ],
+  "16560": [
+   "City of Dalaran",
+   2
+  ],
+  "16562": [
+   "Hillsbrad Foothills",
+   2
+  ],
+  "1657": [
+   "Darnassus",
+   0
+  ],
+  "16591": [
+   "Riverglades",
+   2
+  ],
+  "16593": [
+   "Zephras Isle",
+   2
+  ],
+  "16603": [
+   "Warsong Gulch",
+   2
+  ],
+  "16606": [
+   "Darkspear Islands",
+   4
+  ],
+  "16611": [
+   "Ruins of Lordaeron",
+   2
+  ],
+  "16632": [
+   "Half-Pint Tavern",
+   2
+  ],
+  "16651": [
+   "Shen'dralas",
+   2
+  ],
+  "16653": [
+   "Battle for Gilneas",
+   4
+  ],
+  "16662": [
+   "Stormr's Test Map",
+   2
+  ],
+  "16732": [
+   "Excavation Site: Wetlands",
+   2
+  ],
+  "16756": [
+   "Ruins of Gilneas",
+   2
+  ],
+  "16772": [
+   "Unused",
+   2
+  ],
+  "16876": [
+   "Whelgar's Excavation Site",
+   2
+  ],
+  "16919": [
+   "The Hall of Thanes",
+   2
+  ],
+  "16941": [
+   "Crafting",
+   2
+  ],
+  "17": [
+   "The Barrens",
+   1
+  ],
+  "17065": [
+   "Gilneas",
+   2
+  ],
+  "17066": [
+   "Shark-Infested Waters",
+   2
+  ],
+  "17191": [
+   "Manor Mistmantle",
+   2
+  ],
+  "17803": [
+   "Blackrock Depths",
+   2
+  ],
+  "17804": [
+   "Blackrock Spire",
+   2
+  ],
+  "1941": [
+   "Caverns of Time",
+   2
+  ],
+  "1977": [
+   "Zul'Gurub",
+   2
+  ],
+  "2017": [
+   "Stratholme",
+   2
+  ],
+  "2057": [
+   "Scholomance",
+   2
+  ],
+  "207": [
+   "The Great Sea",
+   2
+  ],
+  "209": [
+   "Shadowfang Keep",
+   1
+  ],
+  "2100": [
+   "Maraudon",
+   2
+  ],
+  "215": [
+   "Mulgore",
+   1
+  ],
+  "2159": [
+   "Onyxia's Lair",
+   2
+  ],
+  "2257": [
+   "Deeprun Tram",
+   0
+  ],
+  "2437": [
+   "Ragefire Chasm",
+   1
+  ],
+  "25": [
+   "Blackrock Mountain",
+   2
+  ],
+  "2557": [
+   "Dire Maul",
+   2
+  ],
+  "2597": [
+   "Alterac Valley",
+   4
+  ],
+  "267": [
+   "Hillsbrad Foothills",
+   2
+  ],
+  "2677": [
+   "Blackwing Lair",
+   2
+  ],
+  "2717": [
+   "Molten Core",
+   2
+  ],
+  "28": [
+   "Western Plaguelands",
+   2
+  ],
+  "3": [
+   "Badlands",
+   2
+  ],
+  "3277": [
+   "Warsong Gulch",
+   4
+  ],
+  "33": [
+   "Stranglethorn Vale",
+   2
+  ],
+  "331": [
+   "Ashenvale",
+   2
+  ],
+  "3358": [
+   "Arathi Basin",
+   4
+  ],
+  "3428": [
+   "Ahn'Qiraj",
+   2
+  ],
+  "3429": [
+   "Ruins of Ahn'Qiraj",
+   2
+  ],
+  "3456": [
+   "Naxxramas",
+   2
+  ],
+  "357": [
+   "Feralas",
+   2
+  ],
+  "36": [
+   "Alterac Mountains",
+   2
+  ],
+  "361": [
+   "Felwood",
+   2
+  ],
+  "38": [
+   "Loch Modan",
+   0
+  ],
+  "4": [
+   "Blasted Lands",
+   2
+  ],
+  "40": [
+   "Westfall",
+   0
+  ],
+  "400": [
+   "Thousand Needles",
+   2
+  ],
+  "405": [
+   "Desolace",
+   2
+  ],
+  "406": [
+   "Stonetalon Mountains",
+   2
+  ],
+  "41": [
+   "Deadwind Pass",
+   2
+  ],
+  "44": [
+   "Redridge Mountains",
+   2
+  ],
+  "440": [
+   "Tanaris",
+   2
+  ],
+  "45": [
+   "Arathi Highlands",
+   2
+  ],
+  "457": [
+   "The Veiled Sea",
+   2
+  ],
+  "46": [
+   "Burning Steppes",
+   2
+  ],
+  "47": [
+   "The Hinterlands",
+   2
+  ],
+  "490": [
+   "Un'Goro Crater",
+   2
+  ],
+  "491": [
+   "Razorfen Kraul",
+   1
+  ],
+  "493": [
+   "Moonglade",
+   2
+  ],
+  "51": [
+   "Searing Gorge",
+   2
+  ],
+  "616": [
+   "Mount Hyjal",
+   2
+  ],
+  "618": [
+   "Winterspring",
+   2
+  ],
+  "717": [
+   "The Stockade",
+   0
+  ],
+  "718": [
+   "Wailing Caverns",
+   1
+  ],
+  "719": [
+   "Blackfathom Deeps",
+   2
+  ],
+  "721": [
+   "Gnomeregan",
+   0
+  ],
+  "722": [
+   "Razorfen Downs",
+   1
+  ],
+  "796": [
+   "Scarlet Monastery",
+   1
+  ],
+  "8": [
+   "Swamp of Sorrows",
+   2
+  ],
+  "85": [
+   "Tirisfal Glades",
+   1
+  ]
+ }
+}

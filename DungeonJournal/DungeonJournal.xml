@@ -1,0 +1,111 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- The Dungeon Journal, in load order: its core, the data, the rules, how it draws
+         a dungeon, and where it shows. Each layer uses only the ones above it. See README.md. -->
+    <Script file="Journal.lua"/>
+    <!-- The data: item facts, the dungeon quests and their chains, one generated file per
+         dungeon in level order (Tools/build_journal.py), one per faction with rewards
+         (Tools/build_factions.py), and Naowh's tips -->
+    <Script file="Data\Build.lua"/>
+    <Script file="Data\Items.lua"/>
+    <Script file="Data\FactionItems.lua"/>
+    <Script file="Data\Quests.lua"/>
+    <Script file="Data\QuestChains.lua"/>
+    <Script file="Data\Dungeons\RagefireChasm.lua"/>
+    <Script file="Data\Dungeons\HallOfThanes.lua"/>
+    <Script file="Data\Dungeons\WailingCaverns.lua"/>
+    <Script file="Data\Dungeons\Deadmines.lua"/>
+    <Script file="Data\Dungeons\RuinsOfLordaeron.lua"/>
+    <Script file="Data\Dungeons\ShadowfangKeep.lua"/>
+    <Script file="Data\Dungeons\BlackfathomDeeps.lua"/>
+    <Script file="Data\Dungeons\Stockade.lua"/>
+    <Script file="Data\Dungeons\ExcavationSite.lua"/>
+    <Script file="Data\Dungeons\Gnomeregan.lua"/>
+    <Script file="Data\Dungeons\RazorfenKraul.lua"/>
+    <Script file="Data\Dungeons\Dalaran.lua"/>
+    <Script file="Data\Dungeons\ScarletMonastery.lua"/>
+    <Script file="Data\Dungeons\RazorfenDowns.lua"/>
+    <Script file="Data\Dungeons\DrownedCity.lua"/>
+    <Script file="Data\Dungeons\Uldaman.lua"/>
+    <Script file="Data\Dungeons\Kroldok.lua"/>
+    <Script file="Data\Dungeons\ZulFarrak.lua"/>
+    <Script file="Data\Dungeons\Maraudon.lua"/>
+    <Script file="Data\Dungeons\SunkenTemple.lua"/>
+    <Script file="Data\Dungeons\AlcazPrison.lua"/>
+    <Script file="Data\Dungeons\BlackrockDepths.lua"/>
+    <Script file="Data\Dungeons\DireMaul.lua"/>
+    <Script file="Data\Dungeons\LowerBlackrockSpire.lua"/>
+    <Script file="Data\Dungeons\Scholomance.lua"/>
+    <Script file="Data\Dungeons\Stratholme.lua"/>
+    <Script file="Data\Dungeons\UpperBlackrockSpire.lua"/>
+    <Script file="Data\Dungeons\BlackmawHold.lua"/>
+    <Script file="Data\Dungeons\ShapersTerrace.lua"/>
+    <!-- The raids announced for Forever -->
+    <Script file="Data\Dungeons\OnyxiasLair.lua"/>
+    <Script file="Data\Dungeons\BarrowDeeps.lua"/>
+    <Script file="Data\Dungeons\HyjalSummit.lua"/>
+    <!-- The factions: the Reputation tab's, then the PvP tab's -->
+    <Script file="Data\Factions\ArgentDawn.lua"/>
+    <Script file="Data\Factions\ThoriumBrotherhood.lua"/>
+    <Script file="Data\Factions\TimbermawHold.lua"/>
+    <Script file="Data\Factions\CenarionCircle.lua"/>
+    <Script file="Data\Factions\ZandalarTribe.lua"/>
+    <Script file="Data\Factions\BroodOfNozdormu.lua"/>
+    <Script file="Data\Factions\HydraxianWaterlords.lua"/>
+    <Script file="Data\Factions\BootyBay.lua"/>
+    <Script file="Data\Factions\Gadgetzan.lua"/>
+    <Script file="Data\Factions\Ratchet.lua"/>
+    <Script file="Data\Factions\Everlook.lua"/>
+    <Script file="Data\Factions\NightclawDruids.lua"/>
+    <Script file="Data\Factions\KirinTor.lua"/>
+    <Script file="Data\Factions\EarthenRing.lua"/>
+    <Script file="Data\Factions\GuardiansOfHyjal.lua"/>
+    <Script file="Data\Factions\Powderfuse.lua"/>
+    <Script file="Data\Factions\TheWatchers.lua"/>
+    <Script file="Data\Factions\Stormwind.lua"/>
+    <Script file="Data\Factions\Ironforge.lua"/>
+    <Script file="Data\Factions\GnomereganExiles.lua"/>
+    <Script file="Data\Factions\Darnassus.lua"/>
+    <Script file="Data\Factions\Orgrimmar.lua"/>
+    <Script file="Data\Factions\ThunderBluff.lua"/>
+    <Script file="Data\Factions\Undercity.lua"/>
+    <Script file="Data\Factions\DarkspearTrolls.lua"/>
+    <Script file="Data\Factions\AzerothCommerceAuthority.lua"/>
+    <Script file="Data\Factions\DurotarSupplyAndLogistics.lua"/>
+    <Script file="Data\Factions\LeagueOfArathor.lua"/>
+    <Script file="Data\Factions\Defilers.lua"/>
+    <Script file="Data\Factions\TheramoreExpeditionaryForce.lua"/>
+    <Script file="Data\Factions\DarkspearRaiders.lua"/>
+    <Script file="Data\Tips.lua"/>
+    <!-- The rules: loot, quests, your standing and PvP rank, who was in your group, the kills
+         and loot this character has counted, asking the group to share a quest, and where
+         each quartermaster stands -->
+    <Script file="Loot.lua"/>
+    <Script file="Quests.lua"/>
+    <Script file="Reputation.lua"/>
+    <Script file="Team.lua"/>
+    <Script file="Kills.lua"/>
+    <Script file="Looted.lua"/>
+    <Script file="Sharing.lua"/>
+    <Script file="Quartermasters.lua"/>
+    <!-- Drawing a page: its look, the engine, then its row kinds (a faction's and the PvP
+         rank's too), the item menu and the side panels (a quest, a boss's kills and loot) -->
+    <Script file="View\Style.lua"/>
+    <Script file="View\View.lua"/>
+    <Script file="View\Parts.lua"/>
+    <Script file="View\Header.lua"/>
+    <Script file="View\QuestRows.lua"/>
+    <Script file="View\BossCards.lua"/>
+    <Script file="View\ItemRows.lua"/>
+    <Script file="View\FactionRows.lua"/>
+    <Script file="View\ItemMenu.lua"/>
+    <Script file="View\QuestPanel.lua"/>
+    <Script file="View\BossPanel.lua"/>
+    <!-- Where it shows -->
+    <Script file="UI\DungeonList.lua"/>
+    <Script file="UI\FactionList.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Script file="UI\MapPanel.lua"/>
+    <Script file="UI\Popup.lua"/>
+    <Script file="UI\QuestTracker.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+</Ui>

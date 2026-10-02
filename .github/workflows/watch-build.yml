@@ -1,0 +1,173 @@
+name: watch-build
+
+# Daily: is there a newer WoW Forever build than the one the Journal's data is read from
+# (BUILD in Tools/wago.py)? If so, a pull request that moves to it, with the faction data
+# rebuilt, a CHANGELOG line saying the Journal's data is updated to the build (and what it
+# changes), and a report of what the build changes for the Journal (Tools/watch_build.py).
+# If not, and the data still carries hotfixed rewards over from an older build, whether
+# wago.tools has recorded the build's own hotfixes yet: then a pull request that rebuilds
+# from them, dropping what Blizzard removed.
+# Where the organization does not let workflows open pull requests ("Allow GitHub Actions to
+# create and approve pull requests" off), an issue instead, with the report and a link that
+# opens the pull request in one click. One issue only: each run updates the open one, to the
+# newest build and its report; it is closed once a pull request for the build is open.
+# Only the game's own tables are read, through wago.tools. Run workflow does the same on
+# demand, for a build of your choice or as a report only.
+on:
+  schedule:
+    # New builds and hotfixes come with the US realms' weekly maintenance (Tuesday mornings,
+    # Pacific time, usually over by 11:00). 20:00 UTC is 13:00 Pacific in summer and 12:00 in
+    # winter: after it, every day of the week. GitHub reads cron in UTC and may start a
+    # scheduled run some minutes late.
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "Forever build to check, like 1.60.1.12345 (empty: the newest wago.tools has)"
+        required: false
+        type: string
+      force:
+        description: "Report even when it is the build already in use"
+        type: boolean
+        default: false
+      open_pr:
+        description: "Open a pull request when there is a change (untick: report only)"
+        type: boolean
+        default: true
+      allow_losses:
+        description: "Move even when the new build lacks rewards the current one has (they were really removed)"
+        type: boolean
+        default: false
+
+permissions: {}
+
+# One at a time, and never cut short: a run may be pushing its branch.
+concurrency:
+  group: watch-build
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: watch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # A scheduled run always opens the pull request; a manual one when asked.
+      - name: Compare with the newest Forever build
+        id: watch
+        env:
+          BUILD: ${{ inputs.build }}
+          FORCE: ${{ inputs.force }}
+          OPEN_PR: ${{ github.event_name == 'schedule' || inputs.open_pr }}
+          ALLOW_LOSSES: ${{ inputs.allow_losses }}
+        run: |
+          args=(--report report.md --github-output "$GITHUB_OUTPUT")
+          if [ -n "$BUILD" ]; then
+            if ! [[ "$BUILD" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Build should read like 1.60.1.12345, not '$BUILD'"
+              exit 1
+            fi
+            args+=(--build "$BUILD")
+          fi
+          if [ "$FORCE" = "true" ]; then args+=(--force); fi
+          if [ "$OPEN_PR" = "true" ]; then args+=(--update); fi
+          if [ "$ALLOW_LOSSES" = "true" ]; then args+=(--allow-losses); fi
+          python Tools/watch_build.py "${args[@]}"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # The branch, then the pull request; or, where workflows may not open one, an issue
+      # with a link that does. One issue: a later run finds the watcher's open issue and
+      # brings it up to date (the newest build, its report) instead of opening another.
+      # The script made the change and says what to call it: a new build, or the build's own
+      # hotfixes coming in.
+      - name: Open a pull request
+        if: steps.watch.outputs.made == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.watch.outputs.branch }}
+          TITLE: ${{ steps.watch.outputs.title }}
+          ISSUE_TITLE: ${{ steps.watch.outputs.issue }}
+          CHANGELOG: ${{ steps.watch.outputs.changelog }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          branch="$BRANCH"
+          title="$TITLE"
+          issue_title="$ISSUE_TITLE"
+          # With a changelog line it needs no label; without, it changes nothing for players.
+          label=()
+          link_label=""
+          if [ "$CHANGELOG" != "true" ]; then
+            label=(--label "no changelog")
+            link_label="&labels=no+changelog"
+          fi
+          issue="$(gh issue list --state open --search 'author:app/github-actions in:title "WoW Forever build"' \
+            --json number --jq '.[0].number // empty')"
+          pr="$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')"
+          if [ -n "$pr" ]; then
+            echo "A pull request for this is already open: $pr"
+            if [ -n "$issue" ]; then gh issue close "$issue" --comment "Opened: $pr"; fi
+            exit 0
+          fi
+          cp report.md pr.md
+          {
+            echo
+            echo "---"
+            echo "Opened by the daily build watcher (.github/workflows/watch-build.yml)."
+            echo "Checks do not run on a pull request a workflow opens: close and reopen it to run them."
+          } >> pr.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add Tools/wago.py DungeonJournal/Data CHANGELOG.md
+          git commit -m "$title"
+          gh auth setup-git
+          git push --force origin "$branch"
+          if gh pr create --base main --head "$branch" "${label[@]}" --title "$title" --body-file pr.md; then
+            if [ -n "$issue" ]; then
+              gh issue close "$issue" --comment "Opened: $(gh pr list --head "$branch" --json url --jq '.[0].url')"
+            fi
+            exit 0
+          fi
+          echo "::warning::Workflows may not open pull requests here: an issue instead."
+          # A new issue first, for its number: the link's pull request closes it when merged.
+          if [ -n "$issue" ]; then
+            number="$issue"
+          else
+            url="$(gh issue create --title "$issue_title" --body "The report follows in a moment.")"
+            number="${url##*/}"
+          fi
+          body="$(printf 'Closes #%s, where the build watcher reported what the build changes.' "$number")"
+          link="$SERVER/$REPO/compare/main...$branch?quick_pull=1$link_label"
+          link="$link&title=$(jq -rn --arg t "$title" '$t|@uri')&body=$(jq -rn --arg t "$body" '$t|@uri')"
+          {
+            echo "**[Open the pull request]($link)**: its title and description are filled in,"
+            echo "and it runs the checks as any pull request does. Merging it closes this issue."
+            echo
+            echo "The branch \`$branch\` holds the change. This repository's workflows may not open"
+            echo "pull requests themselves (Settings, Actions, General: \"Allow GitHub Actions to create"
+            echo "and approve pull requests\", which the organization has to allow first)."
+            echo
+            cat report.md
+            echo
+            echo "---"
+            echo "Kept up to date by the daily build watcher (.github/workflows/watch-build.yml);"
+            echo "last run: $SERVER/$REPO/actions/runs/$RUN_ID ($(date -u '+%Y-%m-%d %H:%M') UTC)."
+          } > issue.md
+          gh issue edit "$number" --title "$issue_title" --body-file issue.md
+          echo "Issue #$number is up to date."

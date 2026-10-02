@@ -1,0 +1,6 @@
+<Bindings>
+    <Binding name="CLICK NaowhForeverBlessNext:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="CLICK NaowhForeverBlessNextGreater:LeftButton" category="BINDING_HEADER_NAOWHFOREVER"/>
+    <Binding name="NAOWHFOREVER_BAGSPACE_PICKUP" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_BagSpacePickUp()</Binding>
+    <Binding name="NAOWHFOREVER_BOSSLOOT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_BossLoot()</Binding>
+</Bindings>

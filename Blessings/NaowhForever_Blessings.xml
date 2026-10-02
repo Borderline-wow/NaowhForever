@@ -1,0 +1,6 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Group headers build their buttons from a named template; sized here, not by a restricted snippet. -->
+    <Button name="NaowhForeverBlessButtonTemplate" inherits="SecureActionButtonTemplate" virtual="true">
+        <Size x="30" y="30"/>
+    </Button>
+</Ui>

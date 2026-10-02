@@ -1,0 +1,193 @@
+-------------------------------------------------------------------------------
+--  NaowhForever_LowHealth.lua -- the AuraBuffs low health reminder: the best
+--  healing item in your bags, with a LOW HEALTH warning, while your health is under the
+--  threshold.
+--
+--  Showing it never compares the health: a step curve turns the health percent into 1
+--  below the threshold and 0 above it, and the engine applies that as the frame's alpha
+--  itself, so it works in combat even where health is secret to addons.
+-------------------------------------------------------------------------------
+local ns = _G.NaowhForever
+local S = ns.AuraBuffSettings
+
+-- Classic-era item IDs, best first. The talented healthstones are the second of each pair.
+local HEALTHSTONES = {
+    9421, 19012, 19013,     -- Major
+    5510, 19010, 19011,     -- Greater
+    5509, 19008, 19009,     -- Healthstone
+    5511, 19006, 19007,     -- Lesser
+    5512, 19004, 19005,     -- Minor
+}
+local POTIONS = { 13446, 3928, 1710, 929, 858, 118 }
+ns.HEALTHSTONES, ns.HEALING_POTIONS = HEALTHSTONES, POTIONS
+local FALLBACK_ICON = 134830    -- Healing Potion
+
+local frame, curve, unlocked
+local shownItem, wasLow, glowing
+
+local function On()
+    return S.Get("enabled") and S.Get("lowHealth")
+end
+
+local function FirstCarried(list)
+    for _, id in ipairs(list) do
+        if C_Item.GetItemCount(id) > 0 then return id end
+    end
+end
+
+local function PickItem()
+    local mode = S.Get("lowHealthItem")
+    if mode == "stone" then return FirstCarried(HEALTHSTONES) end
+    if mode == "potion" then return FirstCarried(POTIONS) end
+    return FirstCarried(HEALTHSTONES) or FirstCarried(POTIONS)
+end
+
+local function UpdateItem()
+    local id = PickItem()
+    local count = id and C_Item.GetItemCount(id) or 0
+    frame.count:SetText(count > 1 and count or "")
+    if id == shownItem and frame.itemShown then return end
+    shownItem, frame.itemShown = id, true
+    frame.icon:SetTexture(id and C_Item.GetItemIconByID(id) or FALLBACK_ICON)
+    frame.icon:SetDesaturated(id == nil)
+end
+
+local function SetGlow(on)
+    on = on and true or false
+    if on == glowing then return end
+    glowing = on
+    local LCG = LibStub("LibCustomGlow-1.0", true)
+    if not LCG then return end
+    if on then
+        LCG.PixelGlow_Start(frame, { 1, 0.25, 0.25, 1 }, nil, nil, nil, 2)
+    else
+        LCG.PixelGlow_Stop(frame)
+    end
+end
+
+-- The sound and the glow need the health itself, not just the curve. Where the client hands
+-- it over readable the sound plays once per dip below the threshold and the glow runs only
+-- while low; a secret read skips the sound and leaves the glow running under the alpha.
+local function CheckSound()
+    local pct = UnitHealthPercent("player", true)
+    if issecretvalue and issecretvalue(pct) then
+        SetGlow(S.Get("lowHealthGlow"))
+        return
+    end
+    local low = pct < S.Get("lowHealthBelow") / 100
+    SetGlow(low and S.Get("lowHealthGlow"))
+    if low and not wasLow and S.Get("lowHealthSound") then
+        ns.UI._PlayLSMSound(ns.UI.SoundPathFor(S.Get("lowHealthSoundKey")))
+    end
+    wasLow = low
+end
+
+local function UpdateAlpha()
+    if unlocked then
+        frame:SetAlpha(1)
+    elseif UnitIsDeadOrGhost("player") then
+        frame:SetAlpha(0)
+        SetGlow(false)
+        wasLow = false
+    else
+        frame:SetAlpha(UnitHealthPercent("player", true, curve))
+        CheckSound()
+    end
+end
+
+-- Flat on both sides of the threshold, so a step curve gives the same answer whether it
+-- snaps to the point before or the nearest point.
+local function BuildCurve()
+    local below = S.Get("lowHealthBelow") / 100
+    curve = curve or C_CurveUtil.CreateCurve()
+    curve:SetType(Enum.LuaCurveType.Step)
+    curve:ClearPoints()
+    curve:AddPoint(0, 1)
+    curve:AddPoint(below - 0.001, 1)
+    curve:AddPoint(below, 0)
+    curve:AddPoint(1, 0)
+end
+
+local function Build()
+    frame = CreateFrame("Frame", "NaowhForeverLowHealth", UIParent)
+    frame:SetMovable(true)
+    frame:SetClampedToScreen(true)
+    frame:SetAlpha(0)
+
+    frame.icon = frame:CreateTexture(nil, "ARTWORK")
+    frame.icon:SetAllPoints()
+    frame.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    ns.Border(frame, { r = 0, g = 0, b = 0 })
+
+    frame.count = ns.Font(frame, 14, "OUTLINE")
+    frame.count:SetPoint("BOTTOMRIGHT", -2, 2)
+
+    frame.label = ns.Font(frame, 16, "OUTLINE", { r = 1, g = 0.25, b = 0.25 })
+    frame.label:SetPoint("TOP", frame, "BOTTOM", 0, -4)
+    frame.label:SetText("LOW HEALTH")
+
+    frame.mover = ns.UI.AttachMover(frame, "Low Health", function(pos) S.Set("lowHealthPos", pos) end)
+end
+
+local function Place()
+    local pos = S.Get("lowHealthPos")
+    frame:ClearAllPoints()
+    if pos then
+        frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    else
+        frame:SetPoint("CENTER", UIParent, "CENTER", 0, -180)
+    end
+end
+
+local events = CreateFrame("Frame")
+events:SetScript("OnEvent", function(_, event)
+    if event == "BAG_UPDATE_DELAYED" then UpdateItem() else UpdateAlpha() end
+end)
+
+local function Apply()
+    events:UnregisterAllEvents()
+    if not (On() or unlocked) then
+        if frame then
+            frame:Hide()
+            SetGlow(false)
+        end
+        return
+    end
+    if not frame then Build() end
+    local size = S.Get("lowHealthIconSize")
+    frame:SetSize(size, size)
+    Place()
+    BuildCurve()
+    frame.itemShown = nil
+    UpdateItem()
+    SetGlow(unlocked and S.Get("lowHealthGlow"))
+    frame.mover:SetShown(unlocked == true)
+    frame:Show()
+    if On() then
+        events:RegisterUnitEvent("UNIT_HEALTH", "player")
+        events:RegisterUnitEvent("UNIT_MAXHEALTH", "player")
+        events:RegisterEvent("PLAYER_DEAD")
+        events:RegisterEvent("PLAYER_ALIVE")
+        events:RegisterEvent("PLAYER_UNGHOST")
+        events:RegisterEvent("PLAYER_ENTERING_WORLD")
+        events:RegisterEvent("BAG_UPDATE_DELAYED")
+    end
+    UpdateAlpha()
+end
+
+hooksecurefunc(S, "Set", function(key)
+    if key == "enabled" or (key:find("^lowHealth") and key ~= "lowHealthPos") then Apply() end
+end)
+hooksecurefunc(ns, "Apply", Apply)
+hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
+    unlocked = S.Get("enabled") == true
+    Apply()
+end)
+hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
+    unlocked = false
+    if frame then Apply() end
+end)
+
+local boot = CreateFrame("Frame")
+boot:RegisterEvent("PLAYER_LOGIN")
+boot:SetScript("OnEvent", Apply)

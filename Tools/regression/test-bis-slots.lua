@@ -1,0 +1,480 @@
+-- The BiS list keeps a ranked list of picks per gear slot, #1 being the BiS. Old flat lists,
+-- the unordered secondary picks of the 0.5.12 test builds and version 1 to 3 share strings
+-- must land in the right slots and order. A two-hander as the main hand's #1 leaves the
+-- off-hand's picks unused but never removes them.
+local root = arg[1] or "."
+
+-- itemID -> equip location, standing in for C_Item.GetItemInfoInstant.
+local EQUIP = {
+    [101] = "INVTYPE_HEAD", [102] = "INVTYPE_HEAD", [103] = "INVTYPE_HEAD", [104] = "INVTYPE_HEAD",
+    [105] = "INVTYPE_HEAD",
+    [201] = "INVTYPE_FINGER", [202] = "INVTYPE_FINGER", [203] = "INVTYPE_FINGER",
+    [301] = "INVTYPE_2HWEAPON", [302] = "INVTYPE_WEAPON", [303] = "INVTYPE_HOLDABLE",
+    [304] = "INVTYPE_SHIELD",
+    [401] = "INVTYPE_WAND",
+}
+
+local SPECS = {
+    { class = "MAGE", key = "fire-mage", name = "Fire Mage", slots = { [1] = { 103, 102, 104 }, [11] = { 202, 201 } } },
+    { class = "MAGE", key = "frost-mage", name = "Frost Mage", slots = { [1] = { 104, 103, 102 } } },
+}
+
+local function Fixture(saved, char)
+    local e = { account = { bis = saved }, printed = {} }
+    local ns = {}
+    ns.Print = function(m) e.printed[#e.printed + 1] = m end
+    ns.AccountSettings = function() return e.account end
+    ns.QoLSettings = { Get = function() return true end }
+    ns.THEME = { accent = {}, muted = {}, panel = {}, line = {} }
+    ns.UI = { RefreshPage = function() end }
+    ns.Confirm = function(_, yes) yes() end
+    ns.BiSData = { specs = SPECS, sources = {} }
+
+    -- A stand-in codec: what these cases care about is the payload, not how it is packed.
+    local vault = {}
+    local frame = { SetScript = function() end, RegisterEvent = function() end }
+    local env = setmetatable({ NaowhForever = ns,
+        UnitName = function() return char or "Tester" end,
+        UnitClass = function() return "Mage", "MAGE" end,
+        GetRealmName = function() return "Realm" end,
+        C_Item = {
+            GetItemInfoInstant = function(id)
+                if EQUIP[id] then return id, "", "", EQUIP[id] end
+            end,
+            GetItemNameByID = function(id) return "Item" .. id end,
+        },
+        TooltipDataProcessor = { AddTooltipPostCall = function() end },
+        Enum = { TooltipDataType = { Item = 0 } },
+        hooksecurefunc = function() end,
+        CreateFrame = function() return frame end,
+        LibStub = function(name)
+            if name == "LibSerialize" then
+                return {
+                    Serialize = function(_, v)
+                        local function Copy(t)
+                            if type(t) ~= "table" then return t end
+                            local out = {}
+                            for k, x in pairs(t) do out[k] = Copy(x) end
+                            return out
+                        end
+                        vault[#vault + 1] = Copy(v); return "S" .. #vault
+                    end,
+                    Deserialize = function(_, str)
+                        local k = tonumber(tostring(str):match("^S(%d+)$"))
+                        if not k or not vault[k] then return false end
+                        return true, vault[k]
+                    end,
+                }
+            end
+            local same = function(_, v) return v end
+            return { CompressDeflate = same, DecompressDeflate = same,
+                EncodeForPrint = same, DecodeForPrint = same }
+        end,
+    }, { __index = _G })
+    env._G = env
+    local chunk = assert(loadfile(root .. "/BiS/NaowhForever_BiS.lua", "t", env))
+    if setfenv then setfenv(chunk, env) end
+    chunk()
+    e.ns, e.vault = ns, vault
+    return e
+end
+
+-- The list this character is using, from its class's lists.
+local function Saved(e)
+    e.ns.IsBisItem(0)   -- any read runs the one-time moves
+    for _, list in ipairs(e.account.bisLists.MAGE.lists) do
+        if list.id == e.account.bisActive["Tester-Realm"] then return list end
+    end
+end
+
+-- A slot's picks in order, #1 first.
+local function Picks(e, slot)
+    local list = Saved(e)
+    local out = { list.slots[slot] }
+    for _, id in ipairs(list.extra[slot] or {}) do out[#out + 1] = id end
+    return table.concat(out, ",")
+end
+
+local count = 0
+local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) end
+
+Case("an old flat list moves into slots and names what did not fit", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "Old", items = { 101, 201, 202, 203, 301, 102 } } })
+    local s = Saved(e).slots
+    assert(s[1] == 101 and s[11] == 201 and s[12] == 202 and s[16] == 301, "placed")
+    assert(Saved(e).items == nil, "flat list dropped")
+    assert(#e.printed == 1 and e.printed[1]:find("Item203") and e.printed[1]:find("Item102"), "leftovers named")
+end)
+
+Case("an old one-item-per-slot list keeps its items as BiS picks", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "Mine", slots = { [1] = 101, [16] = 301 } } })
+    assert(Picks(e, 1) == "101" and Picks(e, 16) == "301" and next(Saved(e).extra) == nil)
+    assert(e.ns.IsBisItem(101) == 1 and e.ns.IsBisItem(301) == 1 and #e.printed == 0)
+end)
+
+Case("unordered secondary picks become ranked picks behind the BiS, once", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "Mine", spec = "fire-mage",
+        slots = { [1] = 101, [16] = 301 },
+        extra = { [1] = { [104] = true, [105] = true, [102] = true, [103] = true },
+            [11] = { [201] = true, [202] = true }, [17] = { [303] = true } } } })
+    assert(Picks(e, 1) == "101,103,102,104,105", "ranked order, unranked last")
+    assert(Picks(e, 11) == "202,201", "first ranked secondary becomes #1")
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303", "off-hand kept beside a two-hander")
+    assert(#e.printed == 0)
+    assert(e.ns.IsBisItem(101) == 1 and e.ns.IsBisItem(103) == 2 and e.ns.IsBisItem(105) == 5)
+    Saved(e).extra[1][1] = 104
+    e.ns.RemoveBisItem(999)   -- any change reads the list again
+    assert(Picks(e, 1) == "101,104,102,104,105" and #e.printed == 0, "arrays are left alone")
+end)
+
+Case("picks append in order, #1 first, and a pick is listed once per slot", function()
+    local e = Fixture()
+    e.ns.AddBisPick(1, 101); e.ns.AddBisPick(1, 102); e.ns.AddBisPick(1, 103); e.ns.AddBisPick(1, 102)
+    assert(Picks(e, 1) == "101,102,103")
+    assert(e.ns.IsBisItem(101) == 1 and e.ns.IsBisItem(102) == 2 and e.ns.IsBisItem(103) == 3)
+end)
+
+Case("an item in two slots reports its best pick number", function()
+    local e = Fixture()
+    e.ns.AddBisPick(11, 201); e.ns.AddBisPick(12, 202); e.ns.AddBisPick(12, 201)
+    assert(e.ns.IsBisItem(201) == 1 and e.ns.IsBisItem(202) == 1)
+end)
+
+Case("picks move up and down, and stop at the ends", function()
+    local e = Fixture()
+    e.ns.AddBisPick(1, 101); e.ns.AddBisPick(1, 102); e.ns.AddBisPick(1, 103)
+    e.ns.MoveBisPick(1, 103, -1)
+    assert(Picks(e, 1) == "101,103,102")
+    e.ns.MoveBisPick(1, 103, -1)
+    assert(Picks(e, 1) == "103,101,102" and e.ns.IsBisItem(103) == 1, "new BiS")
+    e.ns.MoveBisPick(1, 103, -1); e.ns.MoveBisPick(1, 102, 1)
+    assert(Picks(e, 1) == "103,101,102", "ends")
+    e.ns.MoveBisPick(1, 103, 1)
+    assert(Picks(e, 1) == "101,103,102")
+end)
+
+Case("removing a pick closes the gap, and removing #1 moves #2 up", function()
+    local e = Fixture()
+    e.ns.AddBisPick(1, 101); e.ns.AddBisPick(1, 102); e.ns.AddBisPick(1, 103)
+    e.ns.RemoveBisPick(1, 102)
+    assert(Picks(e, 1) == "101,103")
+    e.ns.RemoveBisPick(1, 101)
+    assert(Picks(e, 1) == "103" and Saved(e).extra[1] == nil)
+    e.ns.RemoveBisPick(1, 103)
+    assert(Saved(e).slots[1] == nil and Saved(e).extra[1] == nil and not e.ns.IsBisItem(103))
+end)
+
+Case("a two-hander #1 never removes the off-hand picks", function()
+    local e = Fixture()
+    e.ns.AddBisPick(17, 303); e.ns.AddBisPick(17, 304); e.ns.AddBisPick(16, 301)
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303,304" and #e.printed == 0)
+    e.ns.AddBisPick(16, 302); e.ns.MoveBisPick(16, 302, -1)
+    assert(Picks(e, 16) == "302,301" and Picks(e, 17) == "303,304", "one-hander moved up")
+    e.ns.RemoveBisPick(16, 302)
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303,304", "two-hander promoted by a removal")
+    assert(e.ns.IsBisItem(303) == 1 and #e.printed == 0, "still on the list, nothing said")
+end)
+
+Case("Alt+Shift fills the free ring slots, then appends to Ring 1", function()
+    local e = Fixture()
+    e.ns.AddBisItem(201); e.ns.AddBisItem(202); e.ns.AddBisItem(203)
+    assert(Picks(e, 11) == "201,203" and Picks(e, 12) == "202")
+    assert(e.ns.IsBisItem(203) == 2, "lookup follows")
+    assert(e.printed[#e.printed]:find("as #2"), "said so")
+end)
+
+Case("Alt+Shift fills an empty hand even beside a two-hander", function()
+    local e = Fixture()
+    e.ns.AddBisItem(301); e.ns.AddBisItem(303); e.ns.AddBisItem(302)
+    assert(Picks(e, 16) == "301,302" and Picks(e, 17) == "303", "one-hander appended to the main hand")
+    e = Fixture()
+    e.ns.AddBisItem(303); e.ns.AddBisItem(301)
+    assert(Picks(e, 17) == "303" and Picks(e, 16) == "301")
+end)
+
+Case("a one-hander goes to the off-hand when the main hand is taken", function()
+    local e = Fixture()
+    e.ns.AddBisItem(302); e.ns.AddBisItem(303)
+    assert(Picks(e, 16) == "302" and Picks(e, 17) == "303")
+end)
+
+Case("an old list with a two-hander and an off-hand keeps both", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "Old", items = { 301, 303 } } })
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303" and #e.printed == 0)
+end)
+
+Case("an import keeps a two-hander and an off-hand, and can list one weapon twice", function()
+    local e = Fixture()
+    e.vault[1] = { v = 2, name = "Hands", slots = { [16] = 301, [17] = 303 } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "303", "both kept")
+    e.vault[2] = { v = 2, name = "Daggers", slots = { [16] = 302, [17] = 302 } }
+    assert(e.ns.ImportBisList("!NBIS1!S2", true))
+    assert(Picks(e, 16) == "302" and Picks(e, 17) == "302", "same dagger in both hands")
+end)
+
+Case("adding a listed item again does nothing, even with the BiS toggle off", function()
+    local e = Fixture()
+    e.ns.QoLSettings.Get = function() return false end
+    e.ns.AddBisItem(201); e.ns.AddBisItem(201); e.ns.AddBisItem(101); e.ns.AddBisItem(101)
+    assert(Picks(e, 11) == "201" and Picks(e, 12) == "" and Picks(e, 1) == "101", "no second copy")
+    assert(#e.printed == 2, "no second line")
+end)
+
+Case("an item that cannot be equipped is refused", function()
+    local e = Fixture()
+    e.ns.AddBisItem(999)
+    assert(next(Saved(e).slots) == nil and e.printed[1]:find("not an item you can equip"))
+end)
+
+Case("export and import round-trip the ordered picks, name and spec", function()
+    local e = Fixture()
+    e.ns.AddBisPick(1, 104); e.ns.AddBisPick(1, 101); e.ns.AddBisPick(1, 103); e.ns.AddBisItem(201)
+    local list = Saved(e)
+    list.name, list.spec = "Mine", "fire-mage"
+    local text = e.ns.ExportBisList()
+    assert(e.vault[1].v == 4, "version 4")
+    e.ns.AddBisItem(301); e.ns.RemoveBisPick(1, 101)
+    list.name, list.spec = "Changed", "frost-mage"
+    assert(e.ns.ImportBisList(text, true))
+    list = Saved(e)
+    assert(list.name == "Mine" and list.spec == "fire-mage", "name and spec")
+    assert(Picks(e, 1) == "104,101,103" and Picks(e, 11) == "201" and Picks(e, 16) == "", "picks")
+    assert(e.ns.IsBisItem(103) == 3)
+    assert(e.printed[#e.printed]:find("4 items"), "counted")
+end)
+
+Case("a version 2 string imports its items as BiS picks", function()
+    local e = Fixture()
+    e.ns.AddBisPick(1, 101); e.ns.AddBisPick(1, 102)
+    e.vault[1] = { v = 2, name = "Robin's", spec = "fire-mage", slots = { [1] = 101, [11] = 201, [16] = 301 } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    local list = Saved(e)
+    assert(list.name == "Robin's" and list.spec == "fire-mage", "name and spec")
+    assert(Picks(e, 1) == "101" and Picks(e, 11) == "201" and Picks(e, 16) == "301", "slots")
+    assert(next(list.extra) == nil and not e.ns.IsBisItem(102), "replaced the old picks")
+end)
+
+Case("a version 2 string loses items that do not fit their slot", function()
+    local e = Fixture()
+    e.vault[1] = { v = 2, name = "Bad", slots = { [1] = 201, [2] = 999, [11] = 1.5, [99] = 101, [12] = 202 } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    local s = Saved(e).slots
+    assert(s[1] == nil and s[2] == nil and s[11] == nil and s[99] == nil and s[12] == 202)
+end)
+
+Case("a version 3 string ranks its secondary picks by the string's spec and drops misfits", function()
+    local e = Fixture()
+    e.vault[1] = { v = 3, name = "Old", spec = "frost-mage", slots = { [1] = 101 }, extra = {
+        [1] = { [101] = true, [102] = true, [103] = true, [104] = true, [201] = true, [999] = true, [1.5] = true },
+        [2] = "x", [99] = { [101] = true }, [11] = { [202] = "yes", [203] = true },
+    } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    local list = Saved(e)
+    assert(Picks(e, 1) == "101,104,103,102", "frost ranking, BiS not repeated")
+    assert(list.extra[2] == nil and list.extra[99] == nil, "bad slots dropped")
+    assert(Picks(e, 11) == "203", "only true marks, moved up to #1")
+end)
+
+Case("a version 4 string drops misfits and repeats and fills a missing #1", function()
+    local e = Fixture()
+    e.vault[1] = { v = 4, name = "New", slots = { [1] = 101 }, extra = {
+        [1] = { 103, 101, 201, 103, 1.5, 102 }, [12] = { 202, 201 }, [17] = { 303 }, [3] = "x",
+    } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    assert(Picks(e, 1) == "101,103,102" and Picks(e, 12) == "202,201" and Picks(e, 17) == "303")
+    assert(Saved(e).extra[3] == nil)
+end)
+
+Case("a version 1 string is placed like an old saved list", function()
+    local e = Fixture()
+    e.vault[1] = { v = 1, name = "Old share", items = { 101, 201, 202, 301 } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    local s = Saved(e).slots
+    assert(s[1] == 101 and s[11] == 201 and s[12] == 202 and s[16] == 301)
+end)
+
+Case("something that is not a BiS string is refused", function()
+    local e = Fixture()
+    assert(e.ns.ImportBisList("hello", true) == false)
+    assert(e.printed[#e.printed]:find("not a Naowh BiS list"))
+end)
+
+Case("removing takes the item out of every slot that holds it", function()
+    local e = Fixture()
+    e.ns.AddBisItem(201); e.ns.AddBisItem(202); e.ns.AddBisItem(203); e.ns.AddBisPick(12, 203)
+    e.ns.RemoveBisItem(201); e.ns.RemoveBisItem(203)
+    assert(Picks(e, 11) == "" and Picks(e, 12) == "202" and not e.ns.IsBisItem(203))
+end)
+
+Case("fill puts the ranking's first unpicked item in each empty slot and leaves picked ones", function()
+    table.insert(SPECS, { class = "MAGE", key = "ring-mage", name = "Ring Mage",
+        slots = { [1] = { 103, 102 }, [11] = { 202, 201 }, [12] = { 202, 201 } } })
+    local e = Fixture({ ["Tester-Realm"] = { name = "L", spec = "ring-mage", slots = { [11] = 202 }, extra = {} } })
+    assert(e.ns.FillBisFromRanking() == 2)
+    assert(e.ns.FillBisFromRanking() == 0, "nothing left to fill")
+    table.remove(SPECS)
+    assert(Picks(e, 1) == "103" and Picks(e, 11) == "202" and Picks(e, 12) == "201", "ring 2 skips ring 1's pick")
+end)
+
+Case("fill leaves the off hand empty behind a two-hander", function()
+    local spec = { class = "MAGE", key = "arcane-mage", name = "Arcane Mage", slots = { [16] = { 301 }, [17] = { 303 } } }
+    table.insert(SPECS, spec)
+    local e = Fixture({ ["Tester-Realm"] = { name = "L", spec = "arcane-mage", slots = {}, extra = {} } })
+    e.ns.FillBisFromRanking()
+    table.remove(SPECS)
+    assert(Picks(e, 16) == "301" and Picks(e, 17) == "")
+end)
+
+Case("an item ID, a link or a Wowhead URL all read as the item", function()
+    local e = Fixture()
+    e.ns.AddBisItem("101"); e.ns.AddBisItem("|Hitem:102::|h[x]|h"); e.ns.AddBisItem("https://www.wowhead.com/forever/item=201/ring")
+    assert(Picks(e, 1) == "101,102" and Picks(e, 11) == "201")
+end)
+
+-- Run Next on the paperdoll's panel: the real source sliced out, against a list and what is
+-- worn and carried.
+local function RunNextFixture(sources, worn, carried)
+    local f = assert(io.open(root .. "/BiS/NaowhForever_BiS.lua", "rb"))
+    local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+    local function Slice(a, b)
+        local first = assert(source:find(a, 1, true))
+        return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
+    end
+    local env = setmetatable({
+        ns = { BiSData = { sources = sources },
+            BiSSource = function(id) return sources[id] end },
+        SLOT_NAME = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [11] = "Ring 1", [12] = "Ring 2",
+            [16] = "Main Hand", [17] = "Off Hand" },
+        OffHandIdle = function(list) return list.twoHand == true end,
+        GetInventoryItemID = function(_, slot) return worn[slot] end,
+        C_Item = { GetItemCount = function(id, bank) return bank and carried[id] or 0 end },
+    }, { __index = _G })
+    local code = Slice("local SOURCE_SEP", "\n") .. "\n"
+        .. Slice("local function Wearing", "local function Store")
+        .. Slice("-- Where a wowsrc source", "-- The #1 pick in every empty slot")
+        .. "\nreturn RunNext, Place"
+    local chunk = assert(loadstring(code)); setfenv(chunk, env)
+    return chunk()
+end
+
+local DOT = " \194\183 "
+
+Case("run next counts BiS picks you do not have by place, most first, at most three", function()
+    local RunNext = RunNextFixture({
+        [101] = "Boss A" .. DOT .. "Scholomance", [102] = "Boss B" .. DOT .. "Scholomance",
+        [103] = "Boss C" .. DOT .. "Stratholme", [104] = "Crafted", [105] = "Boss D" .. DOT .. "Maraudon",
+        [106] = "Boss E" .. DOT .. "Scholomance",
+    }, { [3] = 103 }, { [104] = 1 })
+    local list = { slots = { [1] = 101, [2] = 102, [3] = 103, [11] = 104, [12] = 105 } }
+    local out = RunNext(list)
+    assert(#out == 2 and out[1].name == "Scholomance" and out[1].bis == 2, "worn and carried left out")
+    assert(out[2].name == "Maraudon" and out[2].bis == 1)
+    list.slots[3], list.slots[11] = 106, 107   -- 107 has no source
+    out = RunNext(list)
+    assert(out[1].bis == 3 and #out == 2, "unlisted sources are not a place")
+end)
+
+Case("run next ties go by name and stop at three", function()
+    local RunNext = RunNextFixture({ [1] = "Zul'Farrak", [2] = "Dire Maul", [3] = "Uldaman",
+        [4] = "Boss" .. DOT .. "Blackrock Depths", [5] = "Gnomeregan" }, {}, {})
+    local out = RunNext({ slots = { [1] = 1, [2] = 2, [3] = 3, [11] = 4, [12] = 5 } })
+    assert(#out == 3 and out[1].name == "Blackrock Depths" and out[2].name == "Dire Maul"
+        and out[3].name == "Gnomeregan")
+    assert(#RunNext({ slots = {} }) == 0, "nothing picked, nothing shown")
+end)
+
+Case("an off-hand pick left unused by a two-hander is not a place to run", function()
+    local RunNext = RunNextFixture({ [301] = "Boss" .. DOT .. "Scholomance",
+        [303] = "Boss" .. DOT .. "Stratholme" }, {}, {})
+    local list = { slots = { [16] = 301, [17] = 303 } }
+    assert(#RunNext(list) == 2)
+    list.twoHand = true
+    local out = RunNext(list)
+    assert(#out == 1 and out[1].name == "Scholomance")
+end)
+
+Case("crafted, quest, world drop and reputation picks are not a place to go", function()
+    local RunNext = RunNextFixture({ [1] = "Crafted", [2] = "Quest (Horde)", [3] = "World drop",
+        [4] = "Ruins of Lordaeron Quest" .. DOT .. "Quest Reward", [5] = "Ratchet - Friendly" .. DOT .. "Reputation",
+        [6] = "Grazlix" .. DOT .. "The Barrens" }, {}, {})
+    local out = RunNext({ slots = { [1] = 1, [2] = 2, [3] = 3, [11] = 4, [12] = 5, [16] = 6 } })
+    assert(#out == 1 and out[1].name == "The Barrens")
+end)
+
+Case("a ring worn in the other ring slot counts as had", function()
+    local RunNext = RunNextFixture({ [201] = "Onyxia" }, { [12] = 201 }, {})
+    assert(#RunNext({ slots = { [11] = 201 } }) == 0)
+end)
+
+Case("a source splits into place and boss at the last middle dot", function()
+    local _, Place = RunNextFixture({}, {}, {})
+    local place, detail = Place("Quest" .. DOT .. "Boss" .. DOT .. "Blackrock Spire")
+    assert(place == "Blackrock Spire" and detail == "Quest" .. DOT .. "Boss")
+    place, detail = Place("World Drop")
+    assert(place == "World Drop" and detail == nil)
+end)
+
+
+Case("an old per-character list joins its class's lists, named for the character", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "My BiS", slots = { [1] = 101 } } })
+    local list = Saved(e)
+    assert(list.name == "Tester" and list.slots[1] == 101, "moved and named")
+    assert(e.account.bis["Tester-Realm"] == nil and #e.account.bisLists.MAGE.lists == 1, "moved once")
+end)
+
+Case("every character of a class sees its lists and keeps its own choice", function()
+    local e = Fixture()
+    e.ns.IsBisItem(0)
+    assert(e.ns.NewBisList("Tank"))
+    local alt = Fixture(nil, "Alt")
+    alt.account = e.account
+    local values, order, active = alt.ns.BisListChoices()
+    assert(#order == 2 and values[order[2]] == "Tank", "shared")
+    assert(active == order[1] and Saved(e).name == "Tank", "each keeps its own")
+end)
+
+Case("lists are made, renamed and deleted, and names stay unique", function()
+    local e = Fixture()
+    assert(e.ns.NewBisList("Raid"))
+    assert(not e.ns.NewBisList(" raid "), "taken, ignoring case and spaces")
+    assert(not e.ns.RenameBisList("   "), "empty")
+    assert(e.ns.RenameBisList("Raid |cffff0000") and Saved(e).name == "Raid ||cffff0000", "escaped")
+    e.ns.DeleteBisList()
+    assert(Saved(e).name == "My BiS" and #e.account.bisLists.MAGE.lists == 1, "moved to what is left")
+    e.ns.DeleteBisList()
+    assert(Saved(e).name == "My BiS" and next(Saved(e).slots) == nil, "never left without one")
+end)
+
+Case("an import adds a list beside the one in use", function()
+    local e = Fixture()
+    e.ns.AddBisPick(1, 101)
+    local mine = Saved(e)
+    e.vault[1] = { v = 2, name = "Robin's", slots = { [1] = 102 } }
+    assert(e.ns.ImportBisList("!NBIS1!S1", true))
+    assert(Saved(e).name == "Robin's" and Picks(e, 1) == "102" and mine.slots[1] == 101, "kept both")
+    assert(e.ns.ImportBisList("!NBIS1!S1", true) and Saved(e).name == "Robin's 2", "a free name")
+end)
+
+Case("switching spec swaps the picks but keeps the list's name", function()
+    local e = Fixture()
+    assert(e.ns.NewBisList("Keep"))
+    e.ns.AddBisPick(1, 103)
+    e.ns.SetBisSpec("frost-mage")
+    assert(Saved(e).name == "Keep" and Picks(e, 1) == "", "frost starts empty")
+    e.ns.SetBisSpec("fire-mage")
+    assert(Picks(e, 1) == "103", "fire's picks came back")
+end)
+
+Case("a moved list whose name is taken gets a free one", function()
+    local e = Fixture({ ["Tester-Realm"] = { name = "Raid", slots = {} } })
+    e.account.bisLists = { MAGE = { lists = { { id = 1, name = "raid", slots = {}, extra = {} } }, nextID = 2 } }
+    assert(Saved(e).name == "Raid 2")
+end)
+
+Case("renaming to the name as shown keeps its pipes as they are", function()
+    local e = Fixture()
+    assert(e.ns.RenameBisList("A|B") and Saved(e).name == "A||B")
+    assert(e.ns.RenameBisList((Saved(e).name:gsub("||", "|"))) and Saved(e).name == "A||B")
+end)
+print(("%d cases passed"):format(count))

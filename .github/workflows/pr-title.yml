@@ -1,0 +1,29 @@
+name: checks
+
+# A squash merge makes the title the commit on main. Its own workflow so editing the
+# description re-runs only this.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+
+  title:
+    name: title
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|perf|refactor|docs|test|ci|build|chore|revert'
+          if [[ "$TITLE" =~ ^($types)(\([a-z0-9-]+\))?!?:\ [^[:space:]] ]]; then
+            echo "OK: $TITLE"
+          else
+            echo "::error::PR title must look like 'type: summary' or 'type(scope): summary'."
+            echo "Types: ${types//|/, }. Example: 'fix(bag-space): keep the row hidden in combat'."
+            echo "Got: $TITLE"
+            exit 1
+          fi

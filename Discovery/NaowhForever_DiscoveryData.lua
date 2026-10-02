@@ -1,0 +1,171 @@
+-------------------------------------------------------------------------------
+--  NaowhForever_DiscoveryData.lua -- the 40 library books on WoW Forever, where each one
+--  lies and who takes it. Positions from foreverchanges.pro/library-books (updated
+--  2026-09-24, beta build 1.60.1.70009), cross-checked with zockify.com and Wowhead Forever;
+--  turn-in quest IDs from Wowhead Forever's quest database.
+--
+--  Each book: quest = the turn-in quest (flagged completed once handed in), item = the book
+--  itself, tier = the quest level of its set, side = "A", "H" or "B" for who can take it,
+--  turnIn = "librarian" or "trainer" (the level 60 set goes to a mage trainer instead).
+--  spots = { uiMapID, x, y, place, note }; a book with two spots lies in either.
+--  unplaced = nobody has found it on Forever yet; missing = it cannot be had on Forever.
+--  Both have no spots and are left off the map, and a missing book off every count.
+--
+--  Positions on Stormwind and the Eastern Plaguelands are already on Forever's redrawn maps.
+--  The Blackrock Mountain books are pinned on the mountain in Burning Steppes, since the
+--  mountain's own map is not the zone you stand in.
+-------------------------------------------------------------------------------
+local ns = _G.NaowhForever
+
+-- Handing in 10 books, then 20, each earns a reward quest. The first 10 count toward the 20.
+-- rewards: the choice of items, { itemID, name }; the name is for before the client has the item.
+ns.LibraryGoals = {
+    { quest = 78150, name = "Friend of the Library", books = 10,
+      rewards = { { 277203, "Scholarly Pendant" }, { 277204, "Erudite's Amulet" } } },
+    { quest = 79536, name = "Greater Friend of the Library", books = 20,
+      rewards = { { 281635, "Philanthropist's Ring" }, { 281634, "Field Researcher's Loop" } } },
+}
+
+ns.LibraryTurnIns = {
+    librarian = {
+        A = { npc = 211033, name = "Garion Wendell", map = 1453, x = 37.6, y = 80.8, place = "Stormwind City, Mage Quarter" },
+        H = { npc = 211022, name = "Owen Thadd", map = 1458, x = 73.4, y = 33.0, place = "Undercity, Magic Quarter" },
+    },
+    trainer = {
+        A = { npc = 5497, name = "Jennea Cannon", map = 1453, x = 38.5, y = 79.5, place = "Stormwind City, Mage Quarter" },
+        H = { npc = 7825, name = "Oran Snakewrithe", map = 1458, x = 73.5, y = 32.5, place = "Undercity, Magic Quarter" },
+    },
+}
+
+ns.LibraryBooks = {
+    -- Level 20 set.
+    { quest = 79092, item = 203755, tier = 20, side = "A", turnIn = "librarian",
+      name = "Archmage Theocritus' Research Journal",
+      spots = { { 1429, 65.4, 70.1, "Tower of Azora", "On a table about halfway up the tower." } } },
+    { quest = 79091, item = 203754, tier = 20, side = "A", turnIn = "librarian",
+      name = "Archmage Antonidas: The Unabridged Autobiography",
+      spots = { { 1455, 75.7, 10.5, "Hall of Explorers", "On a table in the middle of the hall." } } },
+    { quest = 79093, item = 208860, tier = 20, side = "A", turnIn = "librarian",
+      name = "Rumi of Gnomeregan: The Collected Works",
+      spots = {
+          { 1436, 52.7, 53.8, "Sentinel Hill", "In the inn, on a table behind the innkeeper." },
+          { 1432, 35.6, 48.9, "Thelsamar", "Upstairs in the inn." },
+      } },
+    { quest = 79095, item = 208185, tier = 20, side = "H", turnIn = "librarian",
+      name = "The Apothecary's Metaphysical Primer",
+      spots = { { 1420, 59.4, 52.3, "Brill", "In the alchemy shop, on the shelf beside the apothecary." } } },
+    { quest = 79094, item = 207972, tier = 20, side = "H", turnIn = "librarian",
+      name = "The Lessons of Ta'zo",
+      spots = { { 1454, 38.7, 78.4, "Valley of Spirits", "Trace the large mural before the Darkbriar Lodge sign." } } },
+    { quest = 79096, item = 210177, tier = 20, side = "H", turnIn = "librarian", unplaced = true,
+      name = "Ataeric: On Arcane Curiosities",
+      spots = {} },
+    { quest = 78142, item = 209845, tier = 20, side = "B", turnIn = "librarian",
+      name = "Bewitchments and Glamours",
+      spots = { { 1436, 45.4, 70.4, "Moonbrook", "On the bookshelf in the first house on the left." } } },
+    { quest = 78147, item = 209849, tier = 20, side = "B", turnIn = "librarian",
+      name = "Crimes Against Anatomy",
+      spots = { { 1431, 16.6, 28.5, "The Darkened Bank", "In the catacombs, entered from the crypt on the west side." } } },
+    { quest = 78148, item = 209850, tier = 20, side = "B", turnIn = "librarian",
+      name = "Runes of the Sorcerer-Kings",
+      spots = { { 1432, 77.4, 14.0, "Mo'grosh Stronghold", "In the ogre cave." } } },
+    { quest = 78146, item = 209848, tier = 20, side = "B", turnIn = "librarian",
+      name = "Goaz Scrolls",
+      spots = { { 1437, 33.6, 47.9, "Whelgar's Excavation Site", "In an urn on the lowest level." } } },
+    { quest = 78127, item = 209844, tier = 20, side = "B", turnIn = "librarian",
+      name = "The Dalaran Digest, Vol. 23",
+      spots = { { 1421, 63.5, 63.1, "Ambermill", "On a bookshelf in the north-east corner of the main hall." } } },
+    { quest = 78124, item = 209843, tier = 20, side = "B", turnIn = "librarian",
+      name = "Nar'thalas Almanac, Vol. 74",
+      spots = { { 1439, 59.6, 22.2, "Ruins of Mathystra", "Down the stairs, on the third landing." } } },
+    { quest = 78145, item = 209847, tier = 20, side = "B", turnIn = "librarian",
+      name = "Arcanic Systems Manual",
+      spots = { { 1413, 56.3, 8.8, "The Sludge Fen", "On a chair in the control room at the top of the oil rig." } } },
+    { quest = 79097, item = 208800, tier = 20, side = "B", turnIn = "librarian",
+      name = "Baxtan: On Destructive Magics",
+      spots = { { 1413, 62.7, 36.3, "Ratchet", "Next to Gazlowe in the engineering building." } } },
+    { quest = 78143, item = 209846, tier = 20, side = "B", turnIn = "librarian",
+      name = "Secrets of the Dreamers",
+      spots = { { 1413, 46.0, 36.5, "Lushwater Oasis", "Enter the cave here; the scrolls are in the Cavern of Mists by the Wailing Caverns entrance." } } },
+    { quest = 78149, item = 209851, tier = 20, side = "B", turnIn = "librarian",
+      name = "Fury of the Land",
+      spots = { { 1442, 74.4, 85.7, "Grimtotem Post", "On a barrel inside one of the tents." } } },
+
+    -- Level 35 set.
+    { quest = 79535, item = 213165, tier = 35, side = "B", turnIn = "librarian",
+      name = "Basilisks: Should Petrification be Feared?",
+      spots = { { 1434, 41.4, 50.9, "Crystalvein Mine", "On a wooden platform right of the mine's mouth." } } },
+    { quest = 79947, item = 215683, tier = 35, side = "B", turnIn = "librarian",
+      name = "Geomancy: The Stone-Cold Truth",
+      spots = { { 1441, 34.4, 40.1, "Darkcloud Pinnacle", "In the largest hut; the path up starts at 31.0, 37.0." } } },
+    { quest = 79948, item = 215815, tier = 35, side = "B", turnIn = "librarian",
+      name = "Defensive Magics 101",
+      spots = { { 1416, 48.4, 57.6, "Gallows' Corner", "Inside the first tower of the ogre fortress." } } },
+    { quest = 79952, item = 215822, tier = 35, side = "B", turnIn = "librarian",
+      name = "RwlRwlRwlRwl!",
+      spots = { { 1445, 57.2, 20.8, "Witch Hill", "On the ground at the eastern edge of the murloc camp." } } },
+    { quest = 79949, item = 215816, tier = 35, side = "B", turnIn = "librarian",
+      name = "A Web of Lies: Debunking Myths and Legends",
+      spots = { { 1417, 73.6, 65.2, "Witherbark Village", "Outside a tent, toward the hut." } } },
+    { quest = 79950, item = 215817, tier = 35, side = "B", turnIn = "librarian",
+      name = "Demons and You",
+      spots = { { 1443, 55.1, 26.2, "Thunder Axe Fortress", "On a bench against a wall in the big building." } } },
+    { quest = 79951, item = 215820, tier = 35, side = "B", turnIn = "librarian",
+      name = "Mummies: A Guide to the Unsavory Undead",
+      spots = { { 1418, 56.7, 39.9, "Crypt", "In the crypt on the south side of the butte, above a small dwarven camp." } } },
+    { quest = 79953, item = 215824, tier = 35, side = "B", turnIn = "librarian",
+      name = "A Luddite's Guide to Caring for Your Demonic Pet",
+      spots = { { 1435, 61.4, 22.4, "Fallow Sanctuary", "Inside a cage opened by the Rusted Cage Key, a rare drop from the murlocs nearby." } } },
+
+    -- Level 45 set.
+    { quest = 81947, item = 220345, tier = 45, side = "B", turnIn = "librarian",
+      name = "Sanguine Sorcery",
+      spots = { { 1435, 70.0, 51.0, "Pool of Tears", "On top of the Sunken Temple, outside the dungeon." } } },
+    { quest = 81949, item = 220346, tier = 45, side = "B", turnIn = "librarian",
+      name = "Legends of the Tidesages",
+      spots = { { 1446, 72.7, 47.8, "Lost Rigger Cove" } } },
+    { quest = 81952, item = 220348, tier = 45, side = "B", turnIn = "librarian",
+      name = "Everyday Etiquette",
+      spots = { { 1447, 20.7, 62.0, "Haldarr Encampment" } } },
+    { quest = 81953, item = 220349, tier = 45, side = "B", turnIn = "librarian",
+      name = "Stonewrought Design",
+      spots = { { 1428, 29.0, 28.9, "Blackrock Mountain", "In the centre vault on the large platform, outside the dungeons." } } },
+    { quest = 81954, item = 220350, tier = 45, side = "B", turnIn = "librarian",
+      name = "Venomous Journeys",
+      spots = { { 1425, 36.0, 72.8, "Shadra'Alor" } } },
+    { quest = 81955, item = 220352, tier = 45, side = "B", turnIn = "librarian",
+      name = "A Mind of Metal",
+      spots = { { 1427, 37.8, 49.3, "The Cauldron" } } },
+    { quest = 81956, item = 220353, tier = 45, side = "B", turnIn = "librarian",
+      name = "Conjurer's Codex",
+      spots = { { 1419, 55.4, 32.2 } } },
+    { quest = 81951, item = 220347, tier = 45, side = "B", turnIn = "librarian", missing = true,
+      name = "The Liminal and the Arcane",
+      spots = {} },
+
+    -- Level 60 set, handed to a mage trainer.
+    { quest = 84397, item = 228134, tier = 60, side = "B", turnIn = "trainer",
+      name = "Northern Kalimdor - A Comprehensive Guide",
+      spots = { { 1448, 65.2, 3.3, "Timbermaw Hold", "In the tunnel, next to the bridge above the vendor." } } },
+    { quest = 84402, item = 228141, tier = 60, side = "B", turnIn = "trainer",
+      name = "Necromancy 101",
+      spots = { { 1422, 69.4, 72.8, "Caer Darrow", "On a table at the top of the Scholomance building, outside the dungeon." } } },
+    { quest = 84398, item = 228135, tier = 60, side = "B", turnIn = "trainer",
+      name = "A Study of the Light",
+      spots = { { 1423, 71.8, 48.2, "Light's Hope Chapel", "Inside the chapel." } } },
+    { quest = 84399, item = 228136, tier = 60, side = "B", turnIn = "trainer",
+      name = "Ka-Boom!",
+      spots = { { 1452, 60.7, 37.7, "Everlook", "On a shelf behind the alchemy supplier." } } },
+    { quest = 84395, item = 228132, tier = 60, side = "B", turnIn = "trainer",
+      name = "Undead Potatoes",
+      spots = { { 1422, 38.2, 54.6, "Felstone Field", "Upstairs in the farmhouse." } } },
+    { quest = 84396, item = 228133, tier = 60, side = "B", turnIn = "trainer",
+      name = "Magma or Lava?",
+      spots = { { 1428, 29.0, 28.9, "Blackrock Mountain", "On a platform before the Blackrock Depths entrance, outside the dungeon." } } },
+    { quest = 84400, item = 228138, tier = 60, side = "B", turnIn = "trainer",
+      name = "The Knight and the Lady",
+      spots = { { 1423, 47.3, 42.3 } } },
+    { quest = 84401, item = 228140, tier = 60, side = "B", turnIn = "trainer",
+      name = "Scourge: Undead Menace or Misunderstood?",
+      spots = { { 1423, 26.5, 15.0, "Stratholme bridge", "On a table right of the bridge, outside the dungeon." } } },
+}

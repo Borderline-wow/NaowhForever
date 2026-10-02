@@ -1,0 +1,918 @@
+{
+ "1013": {
+  "name": "The Book of Ur",
+  "reqlevel": 16
+ },
+ "1014": {
+  "name": "Arugal Must Die",
+  "reqlevel": 18
+ },
+ "1048": {
+  "name": "Into The Scarlet Monastery",
+  "reqlevel": 33
+ },
+ "1049": {
+  "name": "Compendium of the Fallen",
+  "reqlevel": 28
+ },
+ "1050": {
+  "name": "Mythology of the Titans",
+  "reqlevel": 28
+ },
+ "1051": {
+  "name": "Vorrel's Revenge",
+  "reqlevel": 25
+ },
+ "1053": {
+  "name": "In the Name of the Light",
+  "reqlevel": 34
+ },
+ "1098": {
+  "name": "Deathstalkers in Shadowfang",
+  "reqlevel": 18
+ },
+ "1101": {
+  "name": "The Crone of the Kraul",
+  "reqlevel": 29
+ },
+ "1102": {
+  "name": "A Vengeful Fate",
+  "reqlevel": 29
+ },
+ "1109": {
+  "name": "Going, Going, Guano!",
+  "reqlevel": 30
+ },
+ "1113": {
+  "name": "Hearts of Zeal",
+  "reqlevel": 30
+ },
+ "1139": {
+  "name": "The Lost Tablets of Will",
+  "reqlevel": 35
+ },
+ "1142": {
+  "name": "Mortality Wanes",
+  "reqlevel": 25
+ },
+ "1144": {
+  "name": "Willix the Importer",
+  "reqlevel": 22
+ },
+ "1160": {
+  "name": "Test of Lore",
+  "reqlevel": 25
+ },
+ "1198": {
+  "name": "In Search of Thaelrid",
+  "reqlevel": 18
+ },
+ "1199": {
+  "name": "Twilight Falls",
+  "reqlevel": 20
+ },
+ "1200": {
+  "name": "Blackfathom Villainy",
+  "reqlevel": 18
+ },
+ "1221": {
+  "name": "Blueleaf Tubers",
+  "reqlevel": 20
+ },
+ "1275": {
+  "name": "Researching the Corruption",
+  "reqlevel": 18
+ },
+ "1360": {
+  "name": "Reclaimed Treasures",
+  "reqlevel": 33
+ },
+ "1445": {
+  "name": "The Temple of Atal'Hakkar",
+  "reqlevel": 38
+ },
+ "1446": {
+  "name": "Jammal'an the Prophet",
+  "reqlevel": 38
+ },
+ "1475": {
+  "name": "Into The Temple of Atal'Hakkar",
+  "reqlevel": 38
+ },
+ "1486": {
+  "name": "Deviate Hides",
+  "reqlevel": 13
+ },
+ "1487": {
+  "name": "Deviate Eradication",
+  "reqlevel": 15
+ },
+ "1491": {
+  "name": "Smart Drinks",
+  "reqlevel": 13
+ },
+ "1654": {
+  "name": "The Test of Righteousness",
+  "reqlevel": 20
+ },
+ "166": {
+  "name": "The Defias Brotherhood",
+  "reqlevel": 14
+ },
+ "167": {
+  "name": "Oh Brother...",
+  "reqlevel": 15
+ },
+ "168": {
+  "name": "Collecting Memories",
+  "reqlevel": 14
+ },
+ "17": {
+  "name": "Uldaman Reagent Run",
+  "reqlevel": 38
+ },
+ "1740": {
+  "name": "The Orb of Soran'ruk",
+  "reqlevel": 20
+ },
+ "1947": {
+  "name": "Journey to the Marsh",
+  "reqlevel": 30
+ },
+ "1951": {
+  "name": "Rituals of Power",
+  "reqlevel": 30
+ },
+ "1956": {
+  "name": "Power in Uldaman",
+  "reqlevel": 35
+ },
+ "2040": {
+  "name": "Underground Assault",
+  "reqlevel": 15
+ },
+ "214": {
+  "name": "Red Silk Bandanas",
+  "reqlevel": 14
+ },
+ "2198": {
+  "name": "The Shattered Necklace",
+  "reqlevel": 37
+ },
+ "2202": {
+  "name": "Uldaman Reagent Run",
+  "reqlevel": 36
+ },
+ "2240": {
+  "name": "The Hidden Chamber",
+  "reqlevel": 35
+ },
+ "2278": {
+  "name": "The Platinum Discs",
+  "reqlevel": 40
+ },
+ "2283": {
+  "name": "Necklace Recovery",
+  "reqlevel": 37
+ },
+ "2342": {
+  "name": "Reclaimed Treasures",
+  "reqlevel": 33
+ },
+ "2398": {
+  "name": "The Lost Dwarves",
+  "reqlevel": 35
+ },
+ "2418": {
+  "name": "Power Stones",
+  "reqlevel": 30
+ },
+ "2500": {
+  "name": "Badlands Reagent Run",
+  "reqlevel": 36
+ },
+ "2768": {
+  "name": "Divino-matic Rod",
+  "reqlevel": 40
+ },
+ "2770": {
+  "name": "Gahz'rilla",
+  "reqlevel": 40
+ },
+ "2841": {
+  "name": "Rig Wars",
+  "reqlevel": 25
+ },
+ "2842": {
+  "name": "Chief Engineer Scooty",
+  "reqlevel": 20
+ },
+ "2843": {
+  "name": "Gnomer-gooooone!",
+  "reqlevel": 20
+ },
+ "2846": {
+  "name": "Tiara of the Deep",
+  "reqlevel": 40
+ },
+ "2865": {
+  "name": "Scarab Shells",
+  "reqlevel": 40
+ },
+ "2904": {
+  "name": "A Fine Mess",
+  "reqlevel": 20
+ },
+ "2922": {
+  "name": "Save Techbot's Brain!",
+  "reqlevel": 20
+ },
+ "2924": {
+  "name": "Essential Artificials",
+  "reqlevel": 24
+ },
+ "2926": {
+  "name": "Gnogaine",
+  "reqlevel": 20
+ },
+ "2928": {
+  "name": "Gyrodrillmatic Excavationators",
+  "reqlevel": 20
+ },
+ "2929": {
+  "name": "The Grand Betrayal",
+  "reqlevel": 25
+ },
+ "2930": {
+  "name": "Data Rescue",
+  "reqlevel": 25
+ },
+ "2936": {
+  "name": "The Spider God",
+  "reqlevel": 40
+ },
+ "2945": {
+  "name": "Grime-Encrusted Ring",
+  "reqlevel": 28
+ },
+ "2951": {
+  "name": "The Sparklematic 5200!",
+  "reqlevel": 25
+ },
+ "2962": {
+  "name": "The Only Cure is More Green Glow",
+  "reqlevel": 20
+ },
+ "2991": {
+  "name": "Nekrum's Medallion",
+  "reqlevel": 40
+ },
+ "303": {
+  "name": "The Dark Iron War",
+  "reqlevel": 25
+ },
+ "3042": {
+  "name": "Troll Temper",
+  "reqlevel": 40
+ },
+ "3341": {
+  "name": "Bring the End",
+  "reqlevel": 37
+ },
+ "3373": {
+  "name": "The Essence of Eranikus",
+  "reqlevel": 48
+ },
+ "3441": {
+  "name": "Divine Retribution",
+  "reqlevel": 40
+ },
+ "3446": {
+  "name": "Into the Depths",
+  "reqlevel": 46
+ },
+ "3447": {
+  "name": "Secret of the Circle",
+  "reqlevel": 46
+ },
+ "3523": {
+  "name": "Scourge of the Downs",
+  "reqlevel": 32
+ },
+ "3525": {
+  "name": "Extinguishing the Idol",
+  "reqlevel": 32
+ },
+ "3527": {
+  "name": "The Prophecy of Mosh'aru",
+  "reqlevel": 40
+ },
+ "3528": {
+  "name": "The God Hakkar",
+  "reqlevel": 40
+ },
+ "3636": {
+  "name": "Bring the Light",
+  "reqlevel": 39
+ },
+ "373": {
+  "name": "The Unsent Letter",
+  "reqlevel": 16
+ },
+ "377": {
+  "name": "Crime and Punishment",
+  "reqlevel": 22
+ },
+ "378": {
+  "name": "The Fury Runs Deep",
+  "reqlevel": 22
+ },
+ "3802": {
+  "name": "Dark Iron Legacy",
+  "reqlevel": 48
+ },
+ "386": {
+  "name": "What Comes Around...",
+  "reqlevel": 22
+ },
+ "387": {
+  "name": "Quell the Uprising",
+  "reqlevel": 22
+ },
+ "388": {
+  "name": "The Color of Blood",
+  "reqlevel": 22
+ },
+ "3906": {
+  "name": "Disharmony of Flame",
+  "reqlevel": 48
+ },
+ "3907": {
+  "name": "Disharmony of Fire",
+  "reqlevel": 48
+ },
+ "391": {
+  "name": "The Stockade Riots",
+  "reqlevel": 16
+ },
+ "3981": {
+  "name": "Commander Gor'shak",
+  "reqlevel": 48
+ },
+ "4003": {
+  "name": "The Royal Rescue",
+  "reqlevel": 48
+ },
+ "4024": {
+  "name": "A Taste of Flame",
+  "reqlevel": 52
+ },
+ "4063": {
+  "name": "The Rise of the Machines",
+  "reqlevel": 52
+ },
+ "4081": {
+  "name": "KILL ON SIGHT: Dark Iron Dwarves",
+  "reqlevel": 48
+ },
+ "4082": {
+  "name": "KILL ON SIGHT: High Ranking Dark Iron Officials",
+  "reqlevel": 50
+ },
+ "4122": {
+  "name": "Grark Lorkrub",
+  "reqlevel": 52
+ },
+ "4123": {
+  "name": "The Heart of the Mountain",
+  "reqlevel": 50
+ },
+ "4126": {
+  "name": "Hurley Blackbreath",
+  "reqlevel": 50
+ },
+ "4132": {
+  "name": "Operation: Death to Angerforge",
+  "reqlevel": 52
+ },
+ "4134": {
+  "name": "Lost Thunderbrew Recipe",
+  "reqlevel": 50
+ },
+ "4136": {
+  "name": "Ribbly Screwspigot",
+  "reqlevel": 48
+ },
+ "4143": {
+  "name": "Haze of Evil",
+  "reqlevel": 47
+ },
+ "4146": {
+  "name": "Zapper Fuel",
+  "reqlevel": 47
+ },
+ "4201": {
+  "name": "The Love Potion",
+  "reqlevel": 50
+ },
+ "4241": {
+  "name": "Marshal Windsor",
+  "reqlevel": 48
+ },
+ "4262": {
+  "name": "Overmaster Pyron",
+  "reqlevel": 48
+ },
+ "4263": {
+  "name": "Incendius!",
+  "reqlevel": 48
+ },
+ "4286": {
+  "name": "The Good Stuff",
+  "reqlevel": 50
+ },
+ "4322": {
+  "name": "Jail Break!",
+  "reqlevel": 50
+ },
+ "4341": {
+  "name": "Kharan Mighthammer",
+  "reqlevel": 50
+ },
+ "4362": {
+  "name": "The Fate of the Kingdom",
+  "reqlevel": 50
+ },
+ "4701": {
+  "name": "Put Her Down",
+  "reqlevel": 55
+ },
+ "4724": {
+  "name": "The Pack Mistress",
+  "reqlevel": 55
+ },
+ "4729": {
+  "name": "Kibler's Exotic Pets",
+  "reqlevel": 55
+ },
+ "4735": {
+  "name": "Egg Collection",
+  "reqlevel": 57
+ },
+ "4742": {
+  "name": "Seal of Ascension",
+  "reqlevel": 57
+ },
+ "4764": {
+  "name": "Doomrigger's Clasp",
+  "reqlevel": 57
+ },
+ "4768": {
+  "name": "The Darkstone Tablet",
+  "reqlevel": 57
+ },
+ "4771": {
+  "name": "Dawn's Gambit",
+  "reqlevel": 57
+ },
+ "4788": {
+  "name": "The Final Tablets",
+  "reqlevel": 40
+ },
+ "4862": {
+  "name": "En-Ay-Es-Tee-Why",
+  "reqlevel": 55
+ },
+ "4866": {
+  "name": "Mother's Milk",
+  "reqlevel": 55
+ },
+ "4867": {
+  "name": "Urok Doomhowl",
+  "reqlevel": 55
+ },
+ "4903": {
+  "name": "Warlord's Command",
+  "reqlevel": 55
+ },
+ "4974": {
+  "name": "For The Horde!",
+  "reqlevel": 55
+ },
+ "4981": {
+  "name": "Operative Bijou",
+  "reqlevel": 55
+ },
+ "5001": {
+  "name": "Bijou's Belongings",
+  "reqlevel": 55
+ },
+ "5047": {
+  "name": "Finkle Einhorn, At Your Service!",
+  "reqlevel": 57
+ },
+ "5089": {
+  "name": "General Drakkisath's Command",
+  "reqlevel": 55
+ },
+ "5102": {
+  "name": "General Drakkisath's Demise",
+  "reqlevel": 55
+ },
+ "5122": {
+  "name": "The Medallion of Faith",
+  "reqlevel": 55
+ },
+ "5125": {
+  "name": "Aurius' Reckoning",
+  "reqlevel": 55
+ },
+ "5126": {
+  "name": "Lorax's Tale",
+  "reqlevel": 55
+ },
+ "5127": {
+  "name": "The Demon Forge",
+  "reqlevel": 55
+ },
+ "5160": {
+  "name": "The Matron Protectorate",
+  "reqlevel": 57
+ },
+ "5212": {
+  "name": "The Flesh Does Not Lie",
+  "reqlevel": 55
+ },
+ "5213": {
+  "name": "The Active Agent",
+  "reqlevel": 55
+ },
+ "5214": {
+  "name": "The Great Fras Siabi",
+  "reqlevel": 55
+ },
+ "5243": {
+  "name": "Houses of the Holy",
+  "reqlevel": 55
+ },
+ "5251": {
+  "name": "The Archivist",
+  "reqlevel": 55
+ },
+ "5262": {
+  "name": "The Truth Comes Crashing Down",
+  "reqlevel": 55
+ },
+ "5263": {
+  "name": "Above and Beyond",
+  "reqlevel": 55
+ },
+ "5282": {
+  "name": "The Restless Souls",
+  "reqlevel": 55
+ },
+ "5341": {
+  "name": "Barov Family Fortune",
+  "reqlevel": 52
+ },
+ "5343": {
+  "name": "Barov Family Fortune",
+  "reqlevel": 52
+ },
+ "5382": {
+  "name": "Doctor Theolen Krastinov, the Butcher",
+  "reqlevel": 55
+ },
+ "5384": {
+  "name": "Kirtonos the Herald",
+  "reqlevel": 55
+ },
+ "5463": {
+  "name": "Menethil's Gift",
+  "reqlevel": 57
+ },
+ "5466": {
+  "name": "The Lich, Ras Frostwhisper",
+  "reqlevel": 57
+ },
+ "5515": {
+  "name": "Krastinov's Bag of Horrors",
+  "reqlevel": 55
+ },
+ "5518": {
+  "name": "The Gordok Ogre Suit",
+  "reqlevel": 56
+ },
+ "5525": {
+  "name": "Free Knot!",
+  "reqlevel": 56
+ },
+ "5526": {
+  "name": "Shards of the Felvine",
+  "reqlevel": 56
+ },
+ "5528": {
+  "name": "The Gordok Taste Test",
+  "reqlevel": 56
+ },
+ "5529": {
+  "name": "Plagued Hatchlings",
+  "reqlevel": 55
+ },
+ "5542": {
+  "name": "Demon Dogs",
+  "reqlevel": 52
+ },
+ "5543": {
+  "name": "Blood Tinged Skies",
+  "reqlevel": 52
+ },
+ "5544": {
+  "name": "Carrion Grubbage",
+  "reqlevel": 52
+ },
+ "5582": {
+  "name": "Healthy Dragon Scale",
+  "reqlevel": 55
+ },
+ "5722": {
+  "name": "Searching for the Lost Satchel",
+  "reqlevel": 9
+ },
+ "5723": {
+  "name": "Testing an Enemy's Strength",
+  "reqlevel": 9
+ },
+ "5725": {
+  "name": "The Power to Destroy...",
+  "reqlevel": 9
+ },
+ "5726": {
+  "name": "Hidden Enemies",
+  "reqlevel": 9
+ },
+ "5728": {
+  "name": "Hidden Enemies",
+  "reqlevel": 9
+ },
+ "5761": {
+  "name": "Slaying the Beast",
+  "reqlevel": 9
+ },
+ "5848": {
+  "name": "Of Love and Family",
+  "reqlevel": 52
+ },
+ "6022": {
+  "name": "To Kill With Purpose",
+  "reqlevel": 54
+ },
+ "6133": {
+  "name": "The Ranger Lord's Behest",
+  "reqlevel": 54
+ },
+ "6163": {
+  "name": "Ramstein",
+  "reqlevel": 56
+ },
+ "6502": {
+  "name": "Drakefire Amulet",
+  "reqlevel": 50
+ },
+ "6521": {
+  "name": "An Unholy Alliance",
+  "reqlevel": 28
+ },
+ "6522": {
+  "name": "An Unholy Alliance",
+  "reqlevel": 28
+ },
+ "6561": {
+  "name": "Blackfathom Villainy",
+  "reqlevel": 18
+ },
+ "6563": {
+  "name": "The Essence of Aku'Mai",
+  "reqlevel": 17
+ },
+ "6565": {
+  "name": "Allegiance to the Old Gods",
+  "reqlevel": 17
+ },
+ "6602": {
+  "name": "Blood of the Black Dragon Champion",
+  "reqlevel": 55
+ },
+ "6626": {
+  "name": "A Host of Evil",
+  "reqlevel": 28
+ },
+ "6804": {
+  "name": "Poisoned Water",
+  "reqlevel": 55
+ },
+ "6805": {
+  "name": "Stormers and Rumblers",
+  "reqlevel": 55
+ },
+ "6821": {
+  "name": "Eye of the Emberseer",
+  "reqlevel": 55
+ },
+ "6921": {
+  "name": "Amongst the Ruins",
+  "reqlevel": 21
+ },
+ "6922": {
+  "name": "Baron Aquanis",
+  "reqlevel": 21
+ },
+ "6981": {
+  "name": "The Glowing Shard",
+  "reqlevel": 15
+ },
+ "7028": {
+  "name": "Twisted Evils",
+  "reqlevel": 41
+ },
+ "7029": {
+  "name": "Vyletongue Corruption",
+  "reqlevel": 41
+ },
+ "704": {
+  "name": "Agmond's Fate",
+  "reqlevel": 30
+ },
+ "7041": {
+  "name": "Vyletongue Corruption",
+  "reqlevel": 41
+ },
+ "7044": {
+  "name": "Legends of Maraudon",
+  "reqlevel": 41
+ },
+ "7046": {
+  "name": "The Scepter of Celebras",
+  "reqlevel": 41
+ },
+ "7064": {
+  "name": "Corruption of Earth and Seed",
+  "reqlevel": 45
+ },
+ "7065": {
+  "name": "Corruption of Earth and Seed",
+  "reqlevel": 45
+ },
+ "7066": {
+  "name": "Seed of Life",
+  "reqlevel": 39
+ },
+ "7067": {
+  "name": "The Pariah's Instructions",
+  "reqlevel": 39
+ },
+ "7068": {
+  "name": "Shadowshard Fragments",
+  "reqlevel": 39
+ },
+ "7070": {
+  "name": "Shadowshard Fragments",
+  "reqlevel": 39
+ },
+ "709": {
+  "name": "Solution to Doom",
+  "reqlevel": 30
+ },
+ "7201": {
+  "name": "The Last Element",
+  "reqlevel": 48
+ },
+ "7441": {
+  "name": "Pusillin and the Elder Azj'Tordin",
+  "reqlevel": 54
+ },
+ "7461": {
+  "name": "The Madness Within",
+  "reqlevel": 56
+ },
+ "7463": {
+  "name": "Arcane Refreshment",
+  "reqlevel": 60
+ },
+ "7481": {
+  "name": "Elven Legends",
+  "reqlevel": 54
+ },
+ "7482": {
+  "name": "Elven Legends",
+  "reqlevel": 54
+ },
+ "7488": {
+  "name": "Lethtendris's Web",
+  "reqlevel": 54
+ },
+ "7489": {
+  "name": "Lethtendris's Web",
+  "reqlevel": 54
+ },
+ "7507": {
+  "name": "Foror's Compendium",
+  "reqlevel": 60
+ },
+ "7668": {
+  "name": "The Darkreaver Menace",
+  "reqlevel": 58
+ },
+ "7703": {
+  "name": "Unfinished Gordok Business",
+  "reqlevel": 56
+ },
+ "7761": {
+  "name": "Blackhand's Command",
+  "reqlevel": 55
+ },
+ "7848": {
+  "name": "Attunement to the Core",
+  "reqlevel": 55
+ },
+ "865": {
+  "name": "Raptor Horns",
+  "reqlevel": 13
+ },
+ "8945": {
+  "name": "Dead Man's Plea",
+  "reqlevel": 58
+ },
+ "914": {
+  "name": "Leaders of the Fang",
+  "reqlevel": 10
+ },
+ "92401": {
+  "name": "A Frightened Request",
+  "reqlevel": 15
+ },
+ "92415": {
+  "name": "Remember That I Love You",
+  "reqlevel": 15
+ },
+ "92421": {
+  "name": "Light's Justice",
+  "reqlevel": 15
+ },
+ "92422": {
+  "name": "The Wrath of Rath'mael",
+  "reqlevel": 15
+ },
+ "95195": {
+  "name": "Bloodied Insignia",
+  "reqlevel": 16
+ },
+ "95204": {
+  "name": "Crest of Lordaeron",
+  "reqlevel": 16
+ },
+ "95216": {
+  "name": "The New Plague",
+  "reqlevel": 16
+ },
+ "95250": {
+  "name": "Abominable Creatures",
+  "reqlevel": 16
+ },
+ "959": {
+  "name": "Trouble at the Docks",
+  "reqlevel": 14
+ },
+ "962": {
+  "name": "Serpentbloom",
+  "reqlevel": 14
+ },
+ "96393": {
+  "name": "Old Ironforge Incursion",
+  "reqlevel": 9
+ },
+ "96394": {
+  "name": "The Restless Dead",
+  "reqlevel": 10
+ },
+ "96395": {
+  "name": "An Ancient Grudge",
+  "reqlevel": 10
+ },
+ "96403": {
+  "name": "Important Heirlooms",
+  "reqlevel": 10
+ },
+ "971": {
+  "name": "Knowledge in the Deeps",
+  "reqlevel": 10
+ },
+ "97288": {
+  "name": "Unending Torment",
+  "reqlevel": 16
+ },
+ "98423": {
+  "name": "The Treaty of Understanding",
+  "reqlevel": 9
+ }
+}

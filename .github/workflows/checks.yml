@@ -1,0 +1,102 @@
+name: checks
+
+# labeled/unlabeled: re-run when the "no changelog" or "release" label changes.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+
+  pre-commit:
+    name: pre-commit
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # Ubuntu's lua-check is older and warns differently; use CONTRIBUTING's 1.2.0.
+      - name: Install luacheck 1.2.0
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q lua5.1 liblua5.1-dev luarocks
+          sudo luarocks install luacheck 1.2.0-1
+
+      - name: Run pre-commit on every file
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure --color=always
+
+  tests:
+    name: tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Lua 5.1
+        run: sudo apt-get update -q && sudo apt-get install -y -q lua5.1
+
+      # Libs/ is not in git. -d: no upload, -z: no zip, -l: no localization fetch.
+      - name: Fetch Libs
+        uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
+        with:
+          args: -d -z -l
+
+      - name: Copy Libs into the checkout
+        run: cp -r .release/NaowhForever/Libs/. Libs/
+
+      - name: Run the regression tests
+        run: bash Tools/regression/run-all.sh
+
+      - name: Test the release script
+        run: python3 -m unittest discover -s Tools/tests
+
+  pr-rules:
+    name: pr-rules
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the PR against its base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          NO_CHANGELOG: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') }}
+          RELEASE: ${{ contains(github.event.pull_request.labels.*.name, 'release') }}
+        run: bash Tools/hooks/check-pr.sh "origin/$BASE_REF"
+
+  package:
+    name: package
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # -d: no upload. -l: skip the localization fetch, which needs the release secrets.
+      - name: Package
+        uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
+        with:
+          args: -d -l
+
+      - name: Check the zip
+        run: bash Tools/hooks/check-package.sh
