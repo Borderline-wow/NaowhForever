@@ -41,6 +41,7 @@ local MODULES = {
       tabs = {
           { name = "General", build = "BuildQoLGeneralPage", reuse = true, collapse = true },
           { name = "Questing", build = "BuildQoLQuestingPage", reuse = true, collapse = true },
+          { name = "XP", build = "BuildQoLXPPage", reuse = true, collapse = true },
           { name = "Loot & Items", build = "BuildQoLLootPage", reuse = true, collapse = true },
           { name = "Combat & Alerts", build = "BuildQoLAlertsPage", reuse = true, collapse = true },
           { name = "Interface", build = "BuildQoLInterfacePage", reuse = true, collapse = true },
@@ -354,7 +355,8 @@ function UI.GoToSetting(key, label, feature)
     local wrapper = wrappers[key]
     if not (wrapper and label) then return end
     for _, row in ipairs({ wrapper:GetChildren() }) do
-        if row:IsShown() and row._searchF == feature and (row._searchL == label or row._searchR == label) then
+        if row:IsShown() and row._searchF == feature and (row._searchL == label or row._searchR == label
+            or (row._searchLabels and row._searchLabels[label])) then
             local _, _, _, _, y = row:GetPoint(1)
             scrollFrame:UpdateScrollChildRect()
             scrollFrame:SetVerticalScroll(math.min(scrollFrame:GetVerticalScrollRange(), math.max(0, -y - 60)))

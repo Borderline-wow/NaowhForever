@@ -690,6 +690,14 @@ local function ScanLabel(text, tooltip)
         feature = scan.feature, featureName = scan.featureName }
 end
 
+-- A builder that draws its own controls (the XP Bar preview) names them for the search here;
+-- outside the scan it does nothing. The frame it builds lists them in _searchLabels, so the
+-- search can jump to it.
+function UI.ScanLabels(labels, tooltip)
+    if not UI.searchScan then return end
+    for _, text in ipairs(labels) do ScanLabel(text, tooltip) end
+end
+
 -- While a search is typed (UI.searchWords), rows holding every word in their name or
 -- tooltip get a soft band.
 local function Mark(frame, text, tooltip)

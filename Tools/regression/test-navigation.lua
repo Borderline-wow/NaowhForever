@@ -243,7 +243,7 @@ for _, tab in ipairs(strip.children) do
     Check(tab.points.TOPLEFT[4] == 0, "QoL categories share one row")
     if tab.points.TOPLEFT[3] > lastTab.points.TOPLEFT[3] then lastTab = tab end
 end
-Check(#strip.children == 11, "every QoL category has a tab")
+Check(#strip.children == 12, "every QoL category has a tab")
 Check(lastTab.points.TOPLEFT[3] + lastTab:GetWidth() <= strip:GetWidth() - 30,
     "the last QoL tab stops short of the scrollbar at the default width")
 Button("Interface").scripts.OnClick(); Flush()

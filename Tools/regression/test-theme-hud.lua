@@ -200,23 +200,28 @@ end
 
 do
     local source = Read("QoL/NaowhForever_XPBar.lua")
-    local stmt = assert(source:match('(local shifted = ns%.ThemeTint%("accent", nil%)\n[^\n]*\n[^\n]*SetGradient[^\n]*)'))
-    local function Fill(account)
-        local from, to
+    local fn = assert(source:match('(local function FillGradient%(%).-\nend)'))
+    local FILL_DARK = assert(tonumber(source:match('\nlocal FILL_DARK = ([%d%.]+)')))
+    -- pick is the player's own Fill Colour, nil while it is on the default.
+    local function Fill(account, pick)
         local function CreateColor(r, g, b, a) return { r = r, g = g, b = b, a = a } end
         local FILL_FROM = CreateColor(0x00 / 255, 0x4f / 255, 0x85 / 255, 1)
         local ns = LoadCore(account)
-        Run(stmt, { ns = ns, T = ns.THEME, CreateColor = CreateColor, FILL_FROM = FILL_FROM,
-            bar = { fill = { SetGradient = function(_, _, a, b) from, to = a, b end } } })
-        return from, to, FILL_FROM
+        local env = { ns = ns, T = ns.THEME, CreateColor = CreateColor, FILL_FROM = FILL_FROM,
+            FILL_DARK = FILL_DARK, S = { Get = function() return pick end } }
+        Run(fn .. "\nfrom, to = FillGradient()", env)
+        return env.from, env.to, FILL_FROM
     end
     local from, to, shipped = Fill({})
     Check(from == shipped and to.r == 0 and to.g == 0x91 / 255 and to.b == 0xed / 255,
         "xpbar: the default theme is the original gradient")
     local a = AccentOf(ACCENT_PRESET)
     from, to = Fill(ACCENT_PRESET)
-    Check(from.r == a.r * 0.55 and from.b == a.b * 0.55 and to.r == a.r and to.g == a.g,
+    Check(from.r == a.r * FILL_DARK and from.b == a.b * FILL_DARK and to.r == a.r and to.g == a.g,
         "xpbar: a theme's accent, darkened at the low end")
+    from, to = Fill(ACCENT_PRESET, { r = 0.2, g = 0.8, b = 0.4 })
+    Check(to.r == 0.2 and to.g == 0.8 and to.b == 0.4 and from.g == 0.8 * FILL_DARK,
+        "xpbar: a picked fill colour wins over the theme, darkened at the low end")
 end
 
 -- The light blue of the Library Books and town map hint lines: the shade each one always was,
@@ -376,10 +381,13 @@ do
     local source = Read("QoL/NaowhForever_XPBar.lua")
     local RESTED = assert(loadstring("return " .. assert(source:match("\nlocal RESTED%s+= (%b{})"))))()
     Check(IsRGB(RESTED, 0x1e / 255, 0x40 / 255, 0xaf / 255), "xpbar rested literal is the original")
-    local line = assert(source:match('(local rested = shifted and [^\n]*)'))
+    local restedFn = assert(source:match('(local function RestedDefault%(%).-\nend)'))
+    local RESTED_DARK = assert(tonumber(source:match('\nlocal RESTED_DARK = ([%d%.]+)')))
+    Check(RESTED_DARK == 0.7, "xpbar: rested is the accent at 0.7")
     local function Rested(account)
-        local chunk = assert(loadstring('local shifted = ns.ThemeTint("accent", nil)\n' .. line .. "\nreturn rested"))
-        setfenv(chunk, setmetatable({ ns = LoadCore(account), RESTED = RESTED }, { __index = _G }))
+        local chunk = assert(loadstring(restedFn .. "\nreturn RestedDefault()"))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account), RESTED = RESTED, RESTED_DARK = RESTED_DARK },
+            { __index = _G }))
         return chunk()
     end
     Check(Rested({}) == RESTED, "xpbar: the default theme keeps the royal blue")
@@ -398,9 +406,9 @@ do
     -- Quest XP: the logo's gold by default, the lighter accent in a theme.
     local QUEST = assert(loadstring("return " .. assert(source:match("\nlocal QUEST%s+= (%b{})"))))()
     Check(IsRGB(QUEST, 0xf2 / 255, 0xa9 / 255, 0x00 / 255), "xpbar quest literal is the original")
-    local questLine = assert(source:match('(local quest = ns%.ThemeTint%("accentSoft", QUEST%))'))
+    local questFn = assert(source:match('(local function QuestDefault%(%).-\nend)'))
     local function Quest(account)
-        local chunk = assert(loadstring(questLine .. "\nreturn quest"))
+        local chunk = assert(loadstring(questFn .. "\nreturn QuestDefault()"))
         local ns = LoadCore(account)
         setfenv(chunk, setmetatable({ ns = ns, QUEST = QUEST }, { __index = _G }))
         return chunk(), ns.THEME.accentSoft

@@ -158,6 +158,20 @@
 - The options window's sidebar header shows the NaowhUI Forever logo, and the search box beside it is narrower.
 - Flight Timer: with Land Early Button on, Blizzard's own Request Stop button is hidden
   during the flight, so there is only one. It comes back when you land.
+- QoL has a new XP tab, right after Questing: XP Bar, XP per Hour and Group XP moved there from
+  Questing. Your settings stay as they were.
+- XP Bar settings show a preview of the bar: click a text on it, or a spot around it, to pick
+  what it shows. A text shows in one spot at a time; picking it for another spot moves it
+  there. If your bar already shows a text in two spots, it keeps the first one (top to
+  bottom, left to right) and the other spot is emptied.
+- XP Bar: three more spots for texts, Top (above the middle of the bar), Left and Right (beside
+  the bar).
+- XP Bar: the level inside the bar can be written shorter, as Lvl 20 or just 20.
+- XP Bar: pick your own fill, completed quests, rested and background colours under XP Bar,
+  Colours; Reset Colours puts them back. Reset Size & Texts does the same for the bar's width,
+  height and the text in each spot.
+- XP Bar: Completed Quests (XP) shows the XP of your finished quests as a number; the percent
+  one is now called Completed Quests (%).
 - The Naowh logo now has the closed infinity loop at the bottom, on the addon list, the main window and the small popups.
 - The Minimap Button switch and the per-module minimap buttons moved from Settings to the Top Bar page, so /nf shows them straight away.
 - Loot Feed Appearance options sit inside the Loot Feed dropdown instead of a second one.
@@ -224,6 +238,9 @@
   game blocks sharing.
 - Discovery tracker: the zone picked in its dropdown stays picked once its last book is
   looted, showing "No more books in this area", instead of jumping to another zone.
+- XP Bar: the texts above and below the bar take the room they need, so a long one is no longer
+  cut off with "..." while there is space beside it. On a narrow bar they get smaller to fit,
+  and the bar is at least 400 wide.
 - The Naowh font is only on this addon's own windows and HUD again; the rest of the game keeps
   its own fonts. Settings > Font has Addon Font (Naowh), plus Game Font and Combat Text Font,
   both off unless you pick a font.
