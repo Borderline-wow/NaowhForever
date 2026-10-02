@@ -21,8 +21,10 @@ function ns.BuildQoLBlessingsPage(parent, y)
         .. "anyone dead or out of range. The red number is how many are missing it. Right-click "
         .. "a class to choose its blessing or open its player list, where each player can have "
         .. "their own. A Greater Blessing is only used while the whole class shares one and you "
-        .. "carry Symbols of Kings. In combat a class button keeps the member it had when the "
-        .. "fight began.|n|nNext Blessing and Next Greater Blessing can be bound below, or in Key "
+        .. "carry Symbols of Kings. In combat each click on a class button blesses the next member "
+        .. "of that class who needed it when the fight began.|n|nRed means someone in range is "
+        .. "missing the class blessing, yellow that it is only running out, blue that only players "
+        .. "with their own blessing need theirs.|n|nNext Blessing and Next Greater Blessing can be bound below, or in Key "
         .. "Bindings > AddOns > Naowh Forever. Each press blesses the next player who needs it, most urgent "
         .. "first; in combat a key steps through the players who needed it when the fight began.", y); y = y - h
 
@@ -94,6 +96,48 @@ function ns.BuildBlessingAssignmentsPage(parent, y)
         .. "they give each class. Click an icon to change it: your own row always, anyone's while "
         .. "you lead the group or are an assistant. Only what that paladin has learned is offered, "
         .. "and changes reach them straight away.", y); y = y - h
+
+    _, h = W:SectionHeader(parent, "PLANNING", y); y = y - h
+    local function Allowed()
+        if B.CanPlanAll() then return true end
+        ns.Print("Only the group leader or an assistant can plan every paladin's blessings.")
+    end
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Auto-Assign", buttonText = "Assign",
+          onClick = function()
+              if Allowed() then
+                  ns.Confirm("Replace every paladin's blessings and auras with an automatic plan?",
+                      B.AutoAssign)
+              end
+          end },
+        { type = "button", text = "Preset", buttonText = "Load",
+          onClick = function()
+              if not B.HasPreset() then return ns.Print("No preset saved yet.") end
+              if Allowed() then
+                  ns.Confirm("Load the saved preset for the paladins here now?", function()
+                      if not B.LoadPreset() then ns.Print("Nobody in the preset is in your group.") end
+                  end)
+              end
+          end }
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Save the plan below as the preset", buttonText = "Save",
+          onClick = function()
+              if not B.HasPaladins() then
+                  return ns.Print("No paladins running Naowh Forever to save a plan for.")
+              end
+              local function Save()
+                  if B.SavePreset() then
+                      ns.Print("Blessings preset saved.")
+                  else
+                      ns.Print("No paladins running Naowh Forever to save a plan for.")
+                  end
+              end
+              if B.HasPreset() then ns.Confirm("Replace the saved preset?", Save) else Save() end
+          end },
+        { type = "label", text = "" }
+    ); y = y - h
+
     _, h = W:SectionHeader(parent, "ASSIGNMENTS" .. UI.STATUS.untested, y); y = y - h
 
     local left = UI.CONTENT_PAD
@@ -109,10 +153,12 @@ function ns.BuildBlessingAssignmentsPage(parent, y)
     y = y - CELL - 10
 
     local lead = B.CanAssign("player")
+    local roster = B.Roster()
     local rows = {}
     if B.IsPaladin() then
         local store = B.Store()
-        rows[1] = { who = UnitName("player"), you = true, plan = store, can = B.Learned, set = B.SetOwn }
+        rows[1] = { who = B.MyName(), you = true, plan = store, players = store.players, can = B.Learned,
+            set = B.SetOwn }
     end
     local others = B.Others()
     local names = {}
@@ -120,17 +166,26 @@ function ns.BuildBlessingAssignmentsPage(parent, y)
     table.sort(names)
     for _, who in ipairs(names) do
         local plan = others[who]
-        rows[#rows + 1] = { who = who, plan = plan,
+        rows[#rows + 1] = { who = who, plan = plan, players = plan.players,
             can = function(entry) return plan.known[entry.key] end,
             set = lead and function(column, key)
                 B.SetFor(who, column, key)
                 UI:RefreshPage(true)
             end }
     end
-    for _, member in ipairs(B.Roster()) do
+    for _, member in ipairs(roster) do
         if member.class == "PALADIN" and member.guid ~= UnitGUID("player") and not others[member.who] then
             rows[#rows + 1] = { who = member.who }
         end
+    end
+    -- Who in a class this paladin gives their own blessing instead, for the cell's tooltip.
+    local function Own(players, class)
+        local out = {}
+        for _, member in ipairs(roster) do
+            local key = member.class == class and players and players[member.guid]
+            if key then out[#out + 1] = Ambiguate(member.who, "short") .. ": " .. B.SpellName(key) end
+        end
+        return #out > 0 and ("\n" .. table.concat(out, "\n")) or ""
     end
     if #rows == 0 then
         _, h = W:Note(parent, "No paladins in your group.", y); y = y - h
@@ -160,6 +215,7 @@ function ns.BuildBlessingAssignmentsPage(parent, y)
                 Cell(parent, left + NAME_WIDTH + (i - 1) * (CELL + GAP), y,
                     key and B.SpellIcon(key) or EMPTY, key ~= nil, title,
                     (key and B.SpellName(key) or "Nothing assigned")
+                        .. (aura and "" or Own(row.players, column))
                         .. (onClick and "\nClick to change." or ""), onClick)
             end
         end

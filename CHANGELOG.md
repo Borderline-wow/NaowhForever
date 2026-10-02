@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Added
+- Blessings: in combat each click on a class button blesses the next member of that class who
+  needed it when the fight began, then round again, instead of the same player every time. It
+  follows them by name, so the raid being rearranged mid-fight does not send it to someone
+  else, skips anyone who has left, and a Greater Blessing is cast once for the class.
+- Blessings: class buttons show what is needed at a glance: red when someone in range is
+  missing the class blessing, yellow when it is only running out, blue when only players with
+  their own blessing need theirs.
+- Blessings: Auto-Assign on the Assignments page spreads blessings and auras across every
+  paladin in the group running Naowh Forever, the most useful blessing for each class first,
+  with Salvation first for casters and rogues in a raid and never for warriors, druids or
+  paladins. The
+  group leader or an assistant can run it for everyone; a paladin on their own for themselves.
+- Blessings: a preset on the Assignments page saves the whole group's plan and loads it again
+  later for the paladins who are there.
+- Blessings: a paladin's own blessings for single players are shared with the group, and show
+  in the tooltip of that class on the Assignments page.
 - Group Tools on QoL > Questing: a Disband Group button for leaders and an Invite Player button where you type the name.
 - Dungeon Journal: every dungeon's bosses in the order you meet them, what each one drops
   and how often (Forever's new items included; a boss whose loot is not known yet says so),
@@ -155,6 +171,14 @@
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
 
 ### Fixed
+- Blessings: the class buttons and the player list cast on the right player again in a party.
+  Forever names carry a surname, and the buttons were looking players up by the whole name
+  while the game knows party members by their first name.
+- Blessings: a group leader's or assistant's changes to another paladin's blessings now reach
+  them; they were dropped because of the surname. Changes made during combat are sent once
+  it ends instead of being lost.
+- Blessings: a class button no longer glows red when the only members missing their blessing
+  are out of range. It lights up only for someone you can bless from where you stand.
 - Recipe Finder and rank alerts: Stormwind and Eastern Plaguelands trainers and vendors
   (Lucan Cordell, the Stormwind enchanting trainer, among them) were placed at their Classic
   positions, so their waypoints pointed at the wrong spot on Forever's redrawn maps.
@@ -765,7 +789,7 @@ its page.
 ## 0.5.9-beta
 
 ### Added
-- Blessings: Next Blessing and Next Greater Blessing keybinds, like Pally Power's. Bind
+- Blessings: Next Blessing and Next Greater Blessing keybinds. Bind
   them on the Blessings page or in Key Bindings > AddOns > Naowh Forever. Each press
   blesses the next player who needs it; the Greater key only covers classes that share one
   blessing, while you carry Symbols of Kings. In combat a key steps through the players who

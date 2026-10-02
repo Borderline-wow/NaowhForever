@@ -35,13 +35,17 @@ local AURAS = {
 }
 local FURY = { key = "fury", ranks = { 25780 } }
 
-local BY_KEY, BY_CODE, FAMILY, IDS = {}, {}, {}, {}
+local BY_KEY, BY_CODE, FAMILY, IDS, GREATER = {}, {}, {}, {}, {}
 local function Index(entry)
     BY_KEY[entry.key] = entry
     if entry.code then BY_CODE[entry.code] = entry end
     IDS[entry.key] = {}
     for _, id in ipairs(entry.ranks) do FAMILY[id] = entry.key; IDS[entry.key][id] = true end
-    for _, id in ipairs(entry.greater or {}) do FAMILY[id] = entry.key; IDS[entry.key][id] = true end
+    for _, id in ipairs(entry.greater or {}) do
+        FAMILY[id] = entry.key
+        IDS[entry.key][id] = true
+        GREATER[id] = true
+    end
 end
 for _, entry in ipairs(BLESSINGS) do entry.blessing = true; Index(entry) end
 for _, entry in ipairs(AURAS) do Index(entry) end
@@ -51,10 +55,12 @@ local EXPIRING = 300          -- seconds left that count as due for a refresh
 local SYMBOL_OF_KINGS = 21177 -- the reagent every Greater Blessing uses
 local QUESTION = 134400
 local RED = { r = 0.97, g = 0.27, b = 0.27 }
+local YELLOW = { r = 1, g = 0.85, b = 0.3 }
+local BLUE = { r = 0.35, g = 0.6, b = 1 }
 local ICON_BORDER = { r = 0, g = 0, b = 0 }
 
 local others = {}             -- paladin name (realm when not ours) -> { classes, aura, known }
-local bar, cells, flyout, rows, auraButton, furyButton, keyNext, keyGreater
+local bar, cells, flyout, rows, auraButton, furyButton, keyNext, keyGreater, secureHandler
 local flyoutClass, dirty, ticker, unlocked
 local buildAfterCombat, broadcastAfterCombat
 
@@ -95,6 +101,12 @@ local function ClassName(class)
     return LOCALIZED_CLASS_NAMES_MALE[class] or class
 end
 
+-- Forever names carry a surname: UnitName gives only the first name ("Glyadin"), while
+-- UnitFullName and addon message senders give the whole one ("Glyadin Skywolf").
+local function MyName()
+    return (UnitFullName("player"))
+end
+
 local function Store()
     local account = ns.AccountSettings()
     account.blessings = account.blessings or {}
@@ -115,18 +127,49 @@ end
 -------------------------------------------------------------------------------
 --  The group
 -------------------------------------------------------------------------------
+local function Readable(v)
+    return not Secret(v) and v ~= nil and v ~= ""
+end
+
+-- The names a group header can know a member by: it matches nameList against UnitName in a
+-- party and GetRaidRosterInfo in a raid, which on Forever can be the first name alone.
+-- A name two members share (two of them "Bob" to the header) is left out for both, so the
+-- header cannot pick the wrong one; the class buttons skip them (targetable false).
+local function HeaderNames(member, realm, firstNames, raid)
+    local seen, out = {}, {}
+    local function Add(name)
+        if Readable(name) and not seen[name] then
+            seen[name] = true
+            out[#out + 1] = name
+        end
+    end
+    for _, name in ipairs(member.candidates) do
+        if firstNames[name] == 1 then Add(name) end
+    end
+    if not member.who:find("-", 1, true) then Add(member.who .. "-" .. realm) end
+    -- The name the header itself compares (UnitName, with the server, in a party).
+    local seenBy
+    if raid then
+        seenBy = member.rosterName
+    elseif Readable(member.short) then
+        seenBy = Readable(member.server) and member.short .. "-" .. member.server or member.short
+    end
+    return table.concat(out, ","), Readable(seenBy) and seen[seenBy] == true
+end
+
 -- Names as addon message senders carry them: the realm only when it is not ours.
 local function Roster()
     local units = { "player" }
-    if IsInRaid() then
+    local raid = IsInRaid()
+    if raid then
         units = {}
         for i = 1, GetNumGroupMembers() do units[#units + 1] = "raid" .. i end
     else
         for i = 1, GetNumSubgroupMembers() do units[#units + 1] = "party" .. i end
     end
     local realm = GetNormalizedRealmName()
-    local list = {}
-    for _, unit in ipairs(units) do
+    local list, firstNames = {}, {}
+    for i, unit in ipairs(units) do
         local name, unitRealm = UnitFullName(unit)
         local _, class = UnitClass(unit)
         local guid = UnitGUID(unit)
@@ -135,10 +178,27 @@ local function Roster()
         if name and not (Secret(name) or Secret(unitRealm) or Secret(class) or Secret(guid)) and class then
             local who = name
             if unitRealm and unitRealm ~= "" and unitRealm ~= realm then who = name .. "-" .. unitRealm end
-            list[#list + 1] = { unit = unit, guid = guid, class = class, who = who,
-                -- Group headers know same-realm members by the bare name.
-                names = who == name and (name .. "," .. name .. "-" .. realm) or who }
+            local short, server = UnitName(unit)
+            local member = { unit = unit, guid = guid, class = class, who = who, short = short,
+                server = server, rosterName = raid and (GetRaidRosterInfo(i)) or nil }
+            -- Every name the header could compare for them, each counted once per member.
+            local names = { who, short, member.rosterName }
+            if Readable(short) and Readable(server) then names[4] = short .. "-" .. server end
+            member.candidates = {}
+            local counted = {}
+            for k = 1, 4 do
+                local n = names[k]
+                if Readable(n) and not counted[n] then
+                    counted[n] = true
+                    firstNames[n] = (firstNames[n] or 0) + 1
+                    member.candidates[#member.candidates + 1] = n
+                end
+            end
+            list[#list + 1] = member
         end
+    end
+    for _, member in ipairs(list) do
+        member.names, member.targetable = HeaderNames(member, realm, firstNames, raid)
     end
     return list
 end
@@ -191,18 +251,30 @@ local function BuffState(unit, key)
     return false
 end
 
--- Range does not apply to every spell and unit pair; nil leaves it to the cast.
+-- true in range, false out of it, nil when the game gives no answer (left to the cast). A
+-- secret answer counts as no answer.
 local function InRange(member, spell)
     if member.guid == UnitGUID("player") then return true end
     local inRange = C_Spell.IsSpellInRange(spell, member.unit)
-    return Secret(inRange) or inRange ~= false
+    if Secret(inRange) then return nil end
+    return inRange
 end
 
--- Who a class button blesses next: missing first, then running out, then whoever has the
--- least left, skipping anyone dead, offline or out of range. Also the class summary.
+local function ByUrgency(a, b)
+    if a.rank ~= b.rank then return a.rank < b.rank end
+    return a.left < b.left
+end
+
+-- Who a class button blesses, in order: missing first, then running out, then whoever has
+-- the least left, skipping anyone dead, offline or out of range. Also the class summary, with
+-- how many of those in range are missing it or running out (only they light the button),
+-- and how many of those are on the class blessing rather than their own.
 local function Survey(members)
-    local target, targetSpell, rank, left
-    local missing, shortest, reachable = 0, nil, false
+    local s = { missing = 0, reachable = false, missingNear = 0, expiringNear = 0, classDue = 0,
+        classMissing = 0, queue = {} }
+    local rank, left
+    local queue = s.queue
+    local players = Store().players
     local spells = {}
     for _, member in ipairs(members) do
         local key = Assigned(member)
@@ -211,22 +283,41 @@ local function Survey(members)
         if spell and UnitIsConnected(member.unit) and not UnitIsDeadOrGhost(member.unit) then
             local has, remaining = BuffState(member.unit, key)
             if has == false then
-                missing = missing + 1
-                shortest = 0
-            elseif remaining and (not shortest or remaining < shortest) then
-                shortest = remaining
+                s.missing = s.missing + 1
+                s.shortest = 0
+            elseif remaining and (not s.shortest or remaining < s.shortest) then
+                s.shortest = remaining
             end
-            if has ~= nil and UnitIsVisible(member.unit) and InRange(member, spell) then
-                reachable = true
+            local range = UnitIsVisible(member.unit) and InRange(member, spell)
+            if has ~= nil and range ~= false then
+                s.reachable = true
                 local r = not has and 0 or (remaining and remaining < EXPIRING and 1 or 2)
+                -- Only a member in range the button can reach lights it.
+                if range == true and r < 2 and member.targetable then
+                    if r == 0 then s.missingNear = s.missingNear + 1 else s.expiringNear = s.expiringNear + 1 end
+                    if not players[member.guid] then
+                        s.classDue = s.classDue + 1
+                        if r == 0 then s.classMissing = s.classMissing + 1 end
+                    end
+                end
                 local l = remaining or math.huge
-                if not target or r < rank or (r == rank and l < left) then
-                    target, targetSpell, rank, left = member, spell, r, l
+                if member.targetable then
+                    queue[#queue + 1] = { names = member.names, spell = spell, rank = r, left = l }
+                    if not s.target or r < rank or (r == rank and l < left) then
+                        s.target, s.spell, rank, left = member, spell, r, l
+                    end
                 end
             end
         end
     end
-    return target, targetSpell, missing, shortest, reachable
+    table.sort(queue, ByUrgency)
+    -- Only those who need it; with nobody due, the one with least left. A Greater Blessing
+    -- covers the whole class, so it is cast once.
+    local due = 0
+    for _, entry in ipairs(queue) do if entry.rank < 2 then due = due + 1 end end
+    if GREATER[queue[1] and queue[1].spell] then due = math.min(due, 1) end
+    for i = #queue, math.max(due, 1) + 1, -1 do queue[i] = nil end
+    return s
 end
 
 -------------------------------------------------------------------------------
@@ -247,6 +338,31 @@ local STEP = [[
     self:SetAttribute("step", i + 1)
 ]]
 
+-- A class button's left-click: the next member of its queue, so in combat (where the queue
+-- is the one from before the pull) repeated clicks go through those who needed it, round
+-- again after the last, as a missed click cannot be told from a cast. The button is its group
+-- header's child, and the header finds that member by name, wherever the raid has moved them.
+-- One the header no longer finds (they left) leaves the button without a unit, and a spell
+-- with none would go to the current target, so they are skipped.
+local CLASS_STEP = [[
+    if button ~= "LeftButton" then return end
+    local n = self:GetAttribute("count") or 0
+    local i = self:GetAttribute("step") or 1
+    local header = self:GetParent()
+    if not header:IsVisible() then return false end
+    for _ = 1, n do
+        if i > n then i = 1 end
+        header:SetAttribute("nameList", self:GetAttribute("queueNames" .. i))
+        if self:GetAttribute("unit") then
+            self:SetAttribute("spell1", self:GetAttribute("queueSpell" .. i))
+            self:SetAttribute("step", i + 1)
+            return
+        end
+        i = i + 1
+    end
+    return false
+]]
+
 local function NewKeyButton(name, handler)
     local btn = CreateFrame("Button", name, UIParent, "SecureActionButtonTemplate")
     -- Key down only, so a press casts and steps once whatever ActionButtonUseKeyDown is set to.
@@ -261,15 +377,10 @@ end
 -- Due for a blessing: missing first, then under the refresh time, by time left.
 local function Due(member, key, spell)
     if not (spell and UnitIsConnected(member.unit) and not UnitIsDeadOrGhost(member.unit)
-        and UnitIsVisible(member.unit) and InRange(member, spell)) then return end
+        and UnitIsVisible(member.unit) and InRange(member, spell) ~= false) then return end
     local has, remaining = BuffState(member.unit, key)
     if has == false then return 0, 0 end
     if has and remaining and remaining < EXPIRING then return 1, remaining end
-end
-
-local function ByUrgency(a, b)
-    if a.rank ~= b.rank then return a.rank < b.rank end
-    return a.left < b.left
 end
 
 local function SetQueue(btn, list)
@@ -362,10 +473,51 @@ local function Channel()
     if IsInGroup() then return "PARTY" end
 end
 
-local function Send(msg)
+-- Nothing is sent in combat. What would have been is kept, the latest per kind and target,
+-- and sent once combat ends.
+local pending = {}
+
+local function Send(msg, key)
+    if InCombatLockdown() then
+        pending[key or msg] = msg
+        return
+    end
     local channel = Channel()
-    if channel and not InCombatLockdown() then
-        C_ChatInfo.SendAddonMessage(PREFIX, msg, channel)
+    if channel then C_ChatInfo.SendAddonMessage(PREFIX, msg, channel) end
+end
+
+local function SendPending()
+    for key, msg in pairs(pending) do
+        pending[key] = nil
+        Send(msg)
+    end
+end
+
+-- Per-player choices for members of the group, as GUID=code pairs. "P|1|" starts the list
+-- over, so an empty one clears what the others had.
+local PLAYER_BATCH = 200
+local sentPlayers
+
+local function SendPlayers()
+    local players = Store().players
+    local parts, n, chunk = {}, 1, ""
+    for _, member in ipairs(Roster()) do
+        local key = players[member.guid]
+        if key then
+            local part = member.guid .. "=" .. BY_KEY[key].code
+            if #chunk + #part > PLAYER_BATCH then
+                parts[#parts + 1] = chunk
+                chunk = ""
+            end
+            chunk = chunk == "" and part or chunk .. "," .. part
+        end
+    end
+    parts[#parts + 1] = chunk
+    if chunk == "" and #parts == 1 and not sentPlayers then return end
+    sentPlayers = chunk ~= "" or #parts > 1
+    for _, body in ipairs(parts) do
+        Send("P|" .. n .. "|" .. body, "P|" .. n)
+        n = n + 1
     end
 end
 
@@ -377,6 +529,7 @@ local function Broadcast()
     end
     local store = Store()
     Send("F|" .. EncodePlan(store.classes, store.aura) .. "|" .. KnownCodes())
+    SendPlayers()
 end
 
 -- Every client asks on a roster change, so answers are batched into one send.
@@ -401,7 +554,7 @@ end
 -- leader or an assistant can set someone else's plan.
 local function OnMessage(msg, sender)
     local who = Ambiguate(sender, "none")
-    if who == UnitName("player") then return end
+    if who == MyName() then return end
     if msg == "R" then
         BroadcastSoon()
         return
@@ -411,7 +564,7 @@ local function OnMessage(msg, sender)
         local from = InGroup(who)
         local classes, aura = DecodePlan(plan)
         if not (IsPaladin() and classes and from and CanAssign(from.unit)
-                and target == UnitName("player") .. "-" .. GetNormalizedRealmName()) then
+                and target == MyName() .. "-" .. GetNormalizedRealmName()) then
             return
         end
         local store = Store()
@@ -425,6 +578,18 @@ local function OnMessage(msg, sender)
         Changed()
         return
     end
+    local part, list = msg:match("^P|(%d+)|(.*)$")
+    if part then
+        local from = others[who]
+        if not from then return end
+        if part == "1" then from.players = {} end
+        for guid, code in list:gmatch("(Player%-[%w%-]+)=(%a)") do
+            local entry = BY_CODE[code]
+            if entry and entry.blessing then from.players[guid] = entry.key end
+        end
+        if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
+        return
+    end
     local body, known = msg:match("^F|(%S+)|(%a*)$")
     local member = body and InGroup(who)
     if not (member and member.class == "PALADIN") then return end
@@ -434,7 +599,7 @@ local function OnMessage(msg, sender)
     for code in known:gmatch(".") do
         if BY_CODE[code] then set[BY_CODE[code].key] = true end
     end
-    others[who] = { classes = classes, aura = aura, known = set }
+    others[who] = { classes = classes, aura = aura, known = set, players = others[who] and others[who].players or {} }
     if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
 end
 
@@ -542,9 +707,7 @@ local function Recipient(parent, name)
 end
 
 local function SetNames(header, names)
-    if header.names == names then return end
-    header.names = names
-    header:SetAttribute("nameList", names)
+    if header:GetAttribute("nameList") ~= names then header:SetAttribute("nameList", names) end
 end
 
 local function SizeRecipient(header, button, size)
@@ -596,21 +759,35 @@ end
 
 local function PrepareCell(cell)
     local members = cell.members
-    local target, spell, missing, shortest, reachable = Survey(members)
+    local s = Survey(members)
+    local queue = s.queue
     local key = Store().classes[cell.class]
-    local shown = spell or (key and CastSpell(key, members))
+    local shown = s.spell or (key and CastSpell(key, members))
     cell.icon:SetTexture(shown and C_Spell.GetSpellTexture(shown) or QUESTION)
-    -- With nobody to bless the last target stays, but without a spell to cast on them.
-    if target then SetNames(cell.header, target.names) end
-    cell.cast:SetAttribute("spell1", spell)
-    cell.target = target
-    local due = missing > 0 or (shortest and shortest < EXPIRING)
-    cell.icon:SetDesaturated(not reachable)
-    cell.icon:SetVertexColor(due and RED.r or 1, due and RED.g or 1, due and RED.b or 1)
-    cell.mark:SetText(missing > 0 and missing or "")
-    cell.timer:SetText(S.Get("blessTimers") and shortest and shortest > 0
-        and math.ceil(shortest / 60) .. "m" or "")
-    local glow = missing > 0 and reachable
+    local parts = {}
+    for i, entry in ipairs(queue) do parts[i] = entry.names .. "=" .. entry.spell end
+    local signature = table.concat(parts, ";")
+    if signature ~= cell.signature then
+        cell.signature = signature
+        for i, entry in ipairs(queue) do
+            cell.cast:SetAttribute("queueNames" .. i, entry.names)
+            cell.cast:SetAttribute("queueSpell" .. i, entry.spell)
+        end
+        cell.cast:SetAttribute("count", #queue)
+    end
+    cell.cast:SetAttribute("step", 1)
+    SetNames(cell.header, queue[1] and queue[1].names or "-")
+    cell.target, cell.queued = s.target, #queue
+    -- Red: someone in range is missing the class blessing; yellow: only running out; blue: only
+    -- players on their own blessing need theirs.
+    local color = s.classMissing > 0 and RED or s.classDue > 0 and YELLOW
+        or s.missingNear + s.expiringNear > 0 and BLUE or nil
+    cell.icon:SetDesaturated(not s.reachable)
+    cell.icon:SetVertexColor(color and color.r or 1, color and color.g or 1, color and color.b or 1)
+    cell.mark:SetText(s.missing > 0 and s.missing or "")
+    cell.timer:SetText(S.Get("blessTimers") and s.shortest and s.shortest > 0
+        and math.ceil(s.shortest / 60) .. "m" or "")
+    local glow = s.classMissing > 0
     if glow ~= cell.glowing then
         cell.glowing = glow
         local LCG = LibStub("LibCustomGlow-1.0")
@@ -630,18 +807,28 @@ local function NewCell(class)
     cell.label:SetPoint("TOP", cell, "BOTTOM", 0, -2)
     cell.label:SetText(ClassName(class))
     cell.header, cell.cast = Recipient(cell, "NaowhForeverBless" .. class)
+    -- A mouse click acts on release, so up only: one step per click.
+    cell.cast:RegisterForClicks("AnyUp")
+    cell.cast:SetAttribute("count", 0)
+    -- Out of combat a click re-reads the class first, so it starts from whoever needs it most.
     cell.cast:SetScript("PreClick", function(_, button)
-        if button == "LeftButton" and not InCombatLockdown() then PrepareCell(cell) end
+        if button == "LeftButton" and not InCombatLockdown() and not C_Secrets.ShouldAurasBeSecret() then
+            PrepareCell(cell)
+        end
     end)
+    SecureHandlerWrapScript(cell.cast, "OnClick", secureHandler, CLASS_STEP)
     cell.cast:SetScript("PostClick", function(self, button, down)
         if button == "RightButton" and not down then ClassMenu(self, class) end
     end)
-    ns.Tooltip(cell.cast, ClassName(class), function()
+    local function Tip()
         local target = cell.target and Ambiguate(cell.target.who, "short")
         return (target and "Left-click: bless " .. target .. ".\n" or "")
+            .. ((cell.queued or 0) > 1 and "In combat each click blesses the next who needed it.\n" or "")
             .. "Right-click: choose the blessing, the player list or assignments."
-    end)
+    end
+    ns.Tooltip(cell.cast, ClassName(class), Tip)
     -- The secure button hides while nobody can be blessed; the menu still opens from the icon.
+    ns.Tooltip(cell, ClassName(class), Tip)
     cell:EnableMouse(true)
     cell:SetScript("OnMouseUp", function(self, button)
         if button == "RightButton" then ClassMenu(self, class) end
@@ -658,6 +845,7 @@ local function PlayerMenu(owner, member)
         function() return store.players[member.guid] end,
         function(key)
             store.players[member.guid] = key
+            BroadcastSoon()
             Changed()
         end, "Class default")
 end
@@ -881,9 +1069,9 @@ local function BuildBar()
     furyButton = NewSelfButton("NaowhForeverBlessFury")
     ns.Tooltip(furyButton, C_Spell.GetSpellName(FURY.ranks[1]) or "Righteous Fury",
         "Left-click: cast it on yourself.")
-    local handler = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
-    keyNext = NewKeyButton("NaowhForeverBlessNext", handler)
-    keyGreater = NewKeyButton("NaowhForeverBlessNextGreater", handler)
+    secureHandler = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
+    keyNext = NewKeyButton("NaowhForeverBlessNext", secureHandler)
+    keyGreater = NewKeyButton("NaowhForeverBlessNextGreater", secureHandler)
     BuildFlyout()
 end
 
@@ -933,13 +1121,14 @@ events:SetScript("OnEvent", function(_, event, ...)
         if buildAfterCombat then
             buildAfterCombat = false
             Apply()
-            return
+        elseif dirty then
+            Refresh()
         end
-        if dirty then Refresh() end
         if broadcastAfterCombat then
             broadcastAfterCombat = false
             BroadcastSoon()
         end
+        SendPending()
         if unlocked and bar then bar.mover:Show() end
     elseif event == "PLAYER_REGEN_DISABLED" then
         -- The bar holds secure buttons, so it cannot be dragged in combat.
@@ -1025,19 +1214,167 @@ local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
 
+-------------------------------------------------------------------------------
+--  Auto-assign and presets
+-------------------------------------------------------------------------------
+-- Each class's blessings, most wanted first. In a raid Salvation moves up for classes that
+-- do not tank; warriors, druids and paladins never get it, so a tank is never handed it.
+local WANTED = {
+    WARRIOR = { "might", "kings", "light" },
+    ROGUE = { "might", "kings", "salvation", "light" },
+    HUNTER = { "might", "kings", "wisdom", "salvation", "light" },
+    PALADIN = { "wisdom", "kings", "might", "light" },
+    PRIEST = { "wisdom", "kings", "salvation", "light" },
+    MAGE = { "wisdom", "kings", "salvation", "light" },
+    WARLOCK = { "wisdom", "kings", "salvation", "light" },
+    SHAMAN = { "wisdom", "kings", "might", "salvation", "light" },
+    DRUID = { "wisdom", "kings", "might", "light" },
+}
+local WANTED_RAID = {
+    ROGUE = { "salvation", "might", "kings", "light" },
+    HUNTER = { "salvation", "might", "kings", "wisdom", "light" },
+    PRIEST = { "salvation", "wisdom", "kings", "light" },
+    MAGE = { "salvation", "wisdom", "kings", "light" },
+    WARLOCK = { "salvation", "wisdom", "kings", "light" },
+    SHAMAN = { "salvation", "wisdom", "kings", "might", "light" },
+}
+local AURA_ORDER = { "devotion", "retribution", "concentration", "fire", "frost", "shadow", "sanctity" }
+
+-- The paladins a plan can be made for: you, and every paladin whose plan has arrived.
+local function Paladins()
+    local list = {}
+    if IsPaladin() then
+        local known = {}
+        for _, entry in ipairs(BLESSINGS) do if Learned(entry) then known[entry.key] = true end end
+        for _, entry in ipairs(AURAS) do if Learned(entry) then known[entry.key] = true end end
+        list[1] = { who = MyName(), known = known, you = true }
+    end
+    for who, plan in pairs(others) do list[#list + 1] = { who = who, known = plan.known } end
+    for _, p in ipairs(list) do
+        p.count = 0
+        for _ in pairs(p.known) do p.count = p.count + 1 end
+    end
+    -- Whoever knows least picks first, so a paladin with few blessings is not left with none.
+    table.sort(list, function(a, b)
+        if a.count ~= b.count then return a.count < b.count end
+        return a.who < b.who
+    end)
+    return list
+end
+
+-- Each wanted key in turn goes to the first paladin still free who knows it.
+local function Pick(paladins, wanted, give)
+    local free = {}
+    for _, p in ipairs(paladins) do free[#free + 1] = p end
+    for _, key in ipairs(wanted) do
+        for i, p in ipairs(free) do
+            if p.known[key] then
+                give(p, key)
+                table.remove(free, i)
+                break
+            end
+        end
+    end
+end
+
+-- One blessing per paladin per class, the most wanted first; one aura each.
+local function AutoPlans(raid)
+    local paladins = Paladins()
+    local plans = {}
+    for _, p in ipairs(paladins) do plans[p.who] = { classes = {} } end
+    for _, class in ipairs(CLASSES) do
+        Pick(paladins, raid and WANTED_RAID[class] or WANTED[class],
+            function(p, key) plans[p.who].classes[class] = key end)
+    end
+    Pick(paladins, AURA_ORDER, function(p, key) plans[p.who].aura = key end)
+    return plans
+end
+
+-- Another paladin's plan, kept here until their broadcast confirms it, and sent to them.
+local function SendPlan(who, classes, aura)
+    others[who].classes, others[who].aura = classes, aura
+    local full = who:find("-") and who or who .. "-" .. GetNormalizedRealmName()
+    Send("S|" .. full .. "|" .. EncodePlan(classes, aura), "S|" .. full)
+end
+
+-- Your own plan, and everyone else's through the leader's S message.
+local function ApplyPlans(plans)
+    local store = Store()
+    for who, plan in pairs(plans) do
+        if who == MyName() then
+            store.classes = {}
+            for class, key in pairs(plan.classes) do store.classes[class] = key end
+            store.aura = plan.aura
+            BroadcastSoon()
+        elseif others[who] then
+            SendPlan(who, plan.classes, plan.aura)
+        end
+    end
+    Changed()
+end
+
+-- Everyone's plan when another paladin is involved needs the leader or an assistant.
+local function CanPlanAll()
+    return next(others) == nil or CanAssign("player")
+end
+
+-- One saved set of plans for the account, by paladin name.
+local function Presets()
+    local account = ns.AccountSettings()
+    account.blessingPreset = account.blessingPreset or {}
+    return account.blessingPreset
+end
+
+local function SavePreset()
+    local paladins = Paladins()
+    if #paladins == 0 then return false end
+    local preset = {}
+    for _, p in ipairs(paladins) do
+        local plan = p.you and Store() or others[p.who]
+        local classes = {}
+        for class, key in pairs(plan.classes) do classes[class] = key end
+        preset[p.who] = { classes = classes, aura = plan.aura }
+    end
+    ns.AccountSettings().blessingPreset = preset
+    return true
+end
+
+-- Only the paladins in the preset who are here now; each keeps to what they have learned.
+local function LoadPreset()
+    local plans = {}
+    for _, p in ipairs(Paladins()) do
+        local saved = Presets()[p.who]
+        if saved then
+            local plan = { classes = {} }
+            for class, key in pairs(saved.classes or {}) do
+                if p.known[key] then plan.classes[class] = key end
+            end
+            plan.aura = saved.aura and p.known[saved.aura] and saved.aura or nil
+            plans[p.who] = plan
+        end
+    end
+    ApplyPlans(plans)
+    return next(plans) ~= nil
+end
+
 -- For the options pages.
 ns.Blessings = {
+    AutoAssign = function() ApplyPlans(AutoPlans(IsInRaid())) end,
+    CanPlanAll = CanPlanAll,
+    SavePreset = SavePreset,
+    LoadPreset = LoadPreset,
+    HasPreset = function() return next(Presets()) ~= nil end,
+    HasPaladins = function() return #Paladins() > 0 end,
     CLASSES = CLASSES, BLESSINGS = BLESSINGS, AURAS = AURAS,
-    Store = Store, Roster = Roster, Learned = Learned, IsPaladin = IsPaladin, CanAssign = CanAssign,
+    Store = Store, Roster = Roster, Learned = Learned, IsPaladin = IsPaladin, CanAssign = CanAssign, MyName = MyName,
     SpellName = SpellName, SpellIcon = SpellIcon, ClassName = ClassName, SetOwn = SetOwn,
     Others = function() return others end,
-    -- The leader's edit to another paladin's plan: kept here until their broadcast confirms it.
+    -- The leader's edit to another paladin's plan.
     SetFor = function(who, column, key)
         local plan = others[who]
         if not plan then return end
         if column == "AURA" then plan.aura = key else plan.classes[column] = key end
-        local full = who:find("-") and who or who .. "-" .. GetNormalizedRealmName()
-        Send("S|" .. full .. "|" .. EncodePlan(plan.classes, plan.aura))
+        SendPlan(who, plan.classes, plan.aura)
     end,
     OpenMenu = Menu,
 }
