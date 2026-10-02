@@ -1470,7 +1470,8 @@ function ns.BuildQoLFlightPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("flightEarlyLanding", "Land Early Button",
-            "A button beside the timer that lands you at the next flight point.", "flightTimer"),
+            "A button beside the timer that lands you at the next flight point. Blizzard's "
+            .. "Request Stop button is hidden while it shows.", "flightTimer"),
         S.Slider("flightTimerScale", "Scale", 0.5, 2, 0.05, nil, "flightTimer")
     ); y = y - h
 

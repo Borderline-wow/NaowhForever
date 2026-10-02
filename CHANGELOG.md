@@ -143,6 +143,8 @@
   Bottom by default.
 
 ### Changed
+- Flight Timer: with Land Early Button on, Blizzard's own Request Stop button is hidden
+  during the flight, so there is only one. It comes back when you land.
 - The Naowh logo now has the closed infinity loop at the bottom, on the addon list, the main window and the small popups.
 - The Minimap Button switch and the per-module minimap buttons moved from Settings to the Top Bar page, so /nf shows them straight away.
 - Loot Feed Appearance options sit inside the Loot Feed dropdown instead of a second one.
