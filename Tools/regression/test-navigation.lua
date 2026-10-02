@@ -74,6 +74,7 @@ methods.SetColorTexture = methods.SetTextColor
 methods.SetVertexColor = methods.SetTextColor
 function methods:SetTexture(path) self.texture = path end
 function methods:SetAlpha(a) self.alpha = a end
+function methods:SetBlendMode(mode) self.blend = mode end
 function methods:SetRotation(r) self.rotation = r end
 function methods:SetJustifyH(j) self.justify = j end
 function methods:SetFrameLevel(v) self.level = v end

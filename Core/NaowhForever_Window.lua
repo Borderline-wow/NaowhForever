@@ -10,6 +10,14 @@ local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 790
 local TOP_H, PAGE_HEADER_H = 64, 128
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
+local BRAND_SHIELD = "Interface\\AddOns\\NaowhForever\\Media\\BrandShieldHD.tga"
+local BRAND_WORDMARK = "Interface\\AddOns\\NaowhForever\\Media\\BrandWordmark.tga"
+local BRAND_GLOW = "Interface\\AddOns\\NaowhForever\\Media\\BrandGlow.tga"
+local BRAND = {
+    logoSize = 58, logoLeft = 9, logoTop = 3,
+    wordmarkWidth = 184, wordmarkHeight = 92, wordmarkCenter = 148, wordmarkY = -5,
+    glowWidth = 170, glowHeight = 44, glowY = -15, glowAlpha = 0.85,
+}
 
 -- System pages sit below the module navigation. `build` names the ns builder (resolved at
 -- open time); `arg` is passed after the starting y.
@@ -860,13 +868,27 @@ local function CreateWindow()
     DragRegion(top, window)
     local topLine = ns.Solid(top, "ARTWORK", T.line, 1)
     topLine:SetPoint("BOTTOMLEFT"); topLine:SetPoint("BOTTOMRIGHT"); topLine:SetHeight(1)
-    local logo = top:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(44, 44); logo:SetPoint("LEFT", 18, 0)
-    local name = ns.Font(top, 24, nil)
-    name:SetPoint("LEFT", logo, "RIGHT", 12, 0); name:SetText("Naowh")
-    local forever = ns.Font(top, 24, nil, T.accent)
-    forever:SetPoint("LEFT", name, "RIGHT", 6, 0); forever:SetText("Forever")
+    local brand = CreateFrame("Frame", nil, top)
+    brand:SetPoint("TOPLEFT")
+    brand:SetSize(SIDEBAR_W, TOP_H)
+    ns.Solid(brand, "BACKGROUND", T.panel, 1):SetAllPoints()
+    local brandEdge = ns.Solid(brand, "ARTWORK", T.line, 1)
+    brandEdge:SetPoint("TOPRIGHT"); brandEdge:SetPoint("BOTTOMRIGHT"); brandEdge:SetWidth(1)
+    local glow = brand:CreateTexture(nil, "BORDER")
+    glow:SetTexture(BRAND_GLOW, nil, nil, "TRILINEAR")
+    glow:SetBlendMode("ADD")
+    glow:SetAlpha(BRAND.glowAlpha)
+    glow:SetSize(BRAND.glowWidth, BRAND.glowHeight)
+    glow:SetPoint("CENTER", brand, "LEFT", BRAND.wordmarkCenter, BRAND.glowY)
+    local logo = brand:CreateTexture(nil, "ARTWORK")
+    logo:SetTexture(BRAND_SHIELD, nil, nil, "TRILINEAR")
+    logo:SetSize(BRAND.logoSize, BRAND.logoSize)
+    logo:SetPoint("TOPLEFT", BRAND.logoLeft, -BRAND.logoTop)
+    -- Lettering and its R swash share one asset so they stay joined at every UI scale.
+    local wordmark = brand:CreateTexture(nil, "ARTWORK")
+    wordmark:SetTexture(BRAND_WORDMARK, nil, nil, "TRILINEAR")
+    wordmark:SetSize(BRAND.wordmarkWidth, BRAND.wordmarkHeight)
+    wordmark:SetPoint("CENTER", brand, "LEFT", BRAND.wordmarkCenter, BRAND.wordmarkY)
     local close = ns.Button(top, "X", 28, 28, function() window:Hide() end)
     close:SetPoint("RIGHT", -18, 0)
     local unlock = ns.Button(top, "Unlock Mode", 140, 32, EnterUnlockMode)
