@@ -144,7 +144,7 @@
   Bottom by default.
 
 ### Changed
-- The options window's sidebar header pairs a sharper high-resolution shield with stacked blue-and-white NAOWH FOREVER lettering, the first R flowing into a blue infinity flourish, and a soft blue glow behind FOREVER.
+- The options window's sidebar header shows the NaowhUI Forever logo, and the search box beside it is narrower.
 - Flight Timer: with Land Early Button on, Blizzard's own Request Stop button is hidden
   during the flight, so there is only one. It comes back when you land.
 - The Naowh logo now has the closed infinity loop at the bottom, on the addon list, the main window and the small popups.
