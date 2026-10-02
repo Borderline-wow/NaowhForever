@@ -47,6 +47,8 @@ SOURCES = Path(__file__).resolve().parent / "bis_sources.json"
 WOWHEAD = "https://www.wowhead.com/forever"
 SEP = " \u00b7 "
 
+WOWSRC_AGENT = "NaowhForever-tools (+https://github.com/nwh-gaming-ab/NaowhForever)"   # as wowsrc.py's
+
 CLASSES = ["druid", "hunter", "mage", "paladin", "priest", "rogue", "shaman", "warlock", "warrior"]
 
 # wowsrc slot id -> inventory slot number, in character pane order.
@@ -65,7 +67,10 @@ PROFESSIONS = {164: "Blacksmithing", 165: "Leatherworking", 171: "Alchemy", 197:
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    # wowsrc.com is told who we are, as Tools/wowsrc.py tells it: it answers a bare browser
+    # name from GitHub's runners with 403 (the daily BiS check, 2 Oct 2026).
+    agent = WOWSRC_AGENT if urllib.parse.urlsplit(url).netloc.endswith("wowsrc.com") else "Mozilla/5.0"
+    req = urllib.request.Request(url, headers={"User-Agent": agent})
     # Wowhead's CDN answers 403 once requests come too fast; it lifts after a pause.
     for wait in (30, 60, 120, 240, None):
         try:
