@@ -619,7 +619,8 @@ function ns.BuildSettingsPage(parent, y)
               colorsPending = true
               UI:RefreshPage(true)
           end },
-        { type = "label", text = "" }
+        -- What the selection looks like, before a reload.
+        { type = "palette", text = "", colors = function() return ns.ThemePalette(ns.ThemePresetKey()) end }
     ); y = y - h
     if CustomSelected() then
         -- An action, not a setting: it always reads "Choose a theme...", and picking one

@@ -222,6 +222,23 @@ function ns.CopyThemeToCustom(name)
     ns.AccountSettings().themeColors = PalettePicks(name)
 end
 
+-- The six colors the Theme row previews for a selection ("" for the default theme, a preset
+-- key, or "custom"): background, panels, borders, text, secondary text, accent.
+function ns.ThemePalette(key)
+    local out = {}
+    for i, token in ipairs(ns.THEME_EDITABLE) do
+        local r, g, b
+        if key == "custom" then
+            r, g, b = ns.ThemeSwatchColor(token)
+        else
+            local c = PalettePicks(key)[token]
+            r, g, b = c.r, c.g, c.b
+        end
+        out[i] = { r = r, g = g, b = b }
+    end
+    return out
+end
+
 -- What a swatch shows: the saved pick, else the color the addon ships with.
 function ns.ThemeSwatchColor(key)
     local r, g, b = Pick(ns.AccountSettings().themeColors, key)
