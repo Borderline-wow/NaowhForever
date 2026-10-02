@@ -1211,6 +1211,18 @@ end
 
 -- The launcher position belongs to the account, not an imported settings profile.
 local launcherEvents = CreateFrame("Frame")
+-- The launcher tooltips (minimap, top bar, broker displays): the title is the game's tooltip
+-- gold and the lines white, unless the theme changed Accent / Text, which they follow.
+local TIP_TITLE = { r = 1, g = 0.82, b = 0 }
+local TIP_TEXT = { r = 1, g = 1, b = 1 }
+local function TipTitle(tooltip, text)
+    local c = ns.ThemeTint("accent", TIP_TITLE)
+    tooltip:AddLine(text, c.r, c.g, c.b)
+end
+local function TipLine(tooltip, text)
+    local c = ns.ThemeTint("fg", TIP_TEXT)
+    tooltip:AddLine(text, c.r, c.g, c.b)
+end
 launcherEvents:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
     local account = ns.AccountSettings()
@@ -1223,9 +1235,9 @@ launcherEvents:SetScript("OnEvent", function(self)
         icon = LOGO,
         OnClick = function() ns.ToggleOptionsWindow() end,
         OnTooltipShow = function(tooltip)
-            tooltip:AddLine("Naowh Forever")
-            tooltip:AddLine(ns.L("Click to open settings."), 1, 1, 1)
-            tooltip:AddLine(ns.L("Drag to move the minimap button."), 1, 1, 1)
+            TipTitle(tooltip, "Naowh Forever")
+            TipLine(tooltip, ns.L("Click to open settings."))
+            TipLine(tooltip, ns.L("Drag to move the minimap button."))
         end,
     })
     LibStub("LibDBIcon-1.0"):Register("NaowhForever", launcher, account.minimap)
@@ -1244,8 +1256,8 @@ launcherEvents:SetScript("OnEvent", function(self)
                 icon = mod.icon,
                 OnClick = function() OpenModule(mod) end,
                 OnTooltipShow = function(tooltip)
-                    tooltip:AddLine(mod.name)
-                    tooltip:AddLine(ns.L("Click to open or close it on its own."), 1, 1, 1)
+                    TipTitle(tooltip, mod.name)
+                    TipLine(tooltip, ns.L("Click to open or close it on its own."))
                 end,
             })
             LibStub("LibDBIcon-1.0"):Register("NaowhForever" .. mod.short, obj, db)

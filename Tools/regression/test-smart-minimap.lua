@@ -6,7 +6,8 @@ for _, saved in ipairs({{}, {minimap={minimapPos=47,hide=true}}}) do
     local modules = {}
     local original = saved.minimap
     local ns = { AccountSettings=function() return saved end, L=function(t) return t end,
-        ToggleOptionsWindow=function() clicked=true end }
+        ToggleOptionsWindow=function() clicked=true end,
+        ThemeTint=function(_,literal) return literal end }
     local frame = {
         SetScript=function(_,_,fn) event=fn end,
         RegisterEvent=function(_,name) assert(name=="PLAYER_LOGIN" and event) end,

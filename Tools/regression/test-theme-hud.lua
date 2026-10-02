@@ -217,6 +217,75 @@ do
         "xpbar: a theme's accent, darkened at the low end")
 end
 
+-- The TopBar's clock and tooltips: the greys and whites they always were, or the player's
+-- Secondary Text and Text when the theme changed those.
+do
+    local source = Read("TopBar/NaowhForever_TopBar.lua")
+    local toneSource = assert(source:match("(local shades = {}\nlocal function Tone%(key, v%).-\nend)"))
+    local function ToneFor(account)
+        local chunk = assert(loadstring(toneSource .. "\nreturn Tone"))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account) }, { __index = _G }))
+        return chunk()
+    end
+    local function Rgb(...) return { ... } end
+    local ns = LoadCore(ACCENT_PRESET)
+    local Tone = ToneFor({})
+    Check(Same(Rgb(Tone("fg", 1)), { 1, 1, 1 }), "topbar: white is white with the default theme")
+    Check(Same(Rgb(Tone("muted", 0.7)), { 0.7, 0.7, 0.7 }) and Same(Rgb(Tone("muted", 0.5)), { 0.5, 0.5, 0.5 })
+        and Same(Rgb(Tone("muted", 0.6)), { 0.6, 0.6, 0.6 }), "topbar: the three greys are unchanged with the default theme")
+    Tone = ToneFor(ACCENT_PRESET)
+    Check(Same(Rgb(Tone("fg", 1)), { ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b }), "topbar: a theme's Text replaces the white")
+    Check(Same(Rgb(Tone("muted", 0.7)), { ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b })
+        and Same(Rgb(Tone("muted", 0.5)), { ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b }),
+        "topbar: a theme's Secondary Text replaces every grey")
+    Tone = ToneFor({ themePreset = "custom", themeColors = { bg = { r = 1, g = 0, b = 0 } } })
+    Check(Same(Rgb(Tone("fg", 1)), { 1, 1, 1 }) and Same(Rgb(Tone("muted", 0.7)), { 0.7, 0.7, 0.7 }),
+        "topbar: a theme that left Text and Secondary Text alone keeps white and grey")
+
+    local greyLine = assert(source:match('(local grey = ns%.ThemeTint%("muted", nil%) and [^\n]*)'))
+    local function Grey(account)
+        local chunk = assert(loadstring(greyLine .. "\nreturn grey"))
+        local core = LoadCore(account)
+        setfenv(chunk, setmetatable({ ns = core }, { __index = _G }))
+        return chunk(), core
+    end
+    Check(Grey({}) == "|cff808080", "topbar: the AFK and DND tags keep their grey with the default theme")
+    local tag, core = Grey(ACCENT_PRESET)
+    Check(tag == core.Color("muted"), "topbar: the AFK and DND tags follow Secondary Text")
+    Check(not source:find("SetTextColor(1, 1, 1)", 1, true), "topbar: no fixed white clock text is left")
+end
+
+-- The launcher tooltips: the game's gold title and white lines, or the theme's Accent and Text.
+do
+    local source = Read("Core/NaowhForever_Window.lua")
+    local TIP_TITLE, TIP_TEXT = Const(source, "TIP_TITLE"), Const(source, "TIP_TEXT")
+    Check(IsRGB(TIP_TITLE, 1, 0.82, 0) and IsRGB(TIP_TEXT, 1, 1, 1), "launcher tooltip literals are the originals")
+    local code = assert(source:match("(local function TipTitle%(tooltip, text%).-\nend\nlocal function TipLine%(tooltip, text%).-\nend)"))
+    local function Tips(account)
+        local lines = {}
+        local tooltip = { AddLine = function(_, text, r, g, b) lines[#lines + 1] = { text, r, g, b } end }
+        local chunk = assert(loadstring(code .. "\nTipTitle(tooltip, 'T') TipLine(tooltip, 'L')"))
+        local core = LoadCore(account)
+        setfenv(chunk, setmetatable({ ns = core, tooltip = tooltip, TIP_TITLE = TIP_TITLE, TIP_TEXT = TIP_TEXT }, { __index = _G }))
+        chunk()
+        return lines, core.THEME
+    end
+    local lines = Tips({})
+    Check(Same(lines[1], { "T", 1, 0.82, 0 }) and Same(lines[2], { "L", 1, 1, 1 }), "launcher tooltip: the default theme keeps the gold title and white lines")
+    local t
+    lines, t = Tips(ACCENT_PRESET)
+    Check(Same(lines[1], { "T", t.accent.r, t.accent.g, t.accent.b }), "launcher tooltip: the title follows Accent")
+    Check(Same(lines[2], { "L", t.fg.r, t.fg.g, t.fg.b }), "launcher tooltip: the lines follow Text")
+    Check(not source:find('tooltip:AddLine(mod.name)', 1, true) and not source:find('tooltip:AddLine("Naowh Forever")', 1, true),
+        "launcher tooltip: no untinted title is left")
+end
+
+-- The FPS / MS readout's labels follow Text; its numbers keep their status colors.
+do
+    local source = Read("TopBar/NaowhForever_TopBar.lua")
+    Check(source:find('bar.sys.text:SetTextColor(Tone("fg", 1))', 1, true), "topbar: the FPS / MS labels are set from Text")
+end
+
 -- The Loot Feed: the dark style's fill follows Background, the light style's fill and edge
 -- follow Panels and Borders & Lines (same opacity), the glow follows Accent; nothing changes
 -- with the default theme.
