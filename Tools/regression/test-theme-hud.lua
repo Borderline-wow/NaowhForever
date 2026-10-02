@@ -418,6 +418,40 @@ do
     Check(QuestText(ACCENT_PRESET) == "|cff91b2ff", "xpbar: the quest text follows the lighter accent")
 end
 
+-- Apply Theme to Your Bar (Threat Meter): off by default, the picked color; on, a darker shade of the
+-- theme's Accent for your bar only. The tank and pull aggro bars keep their picked colors.
+do
+    local path = "ThreatMeter/NaowhForever_ThreatMeter.lua"
+    local source = Read(path)
+    local helper = assert(source:match("(local yourShade\nlocal function ThemedColor%(key%).-\nend\n\n%-%- The color a bar setting.-\nlocal function BarColor%(key%).-\nend)"), path .. ": BarColor")
+    local PICKED = { playerColor = { r = 0.8, g = 0.1, b = 0.1 }, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
+        pullColor = { r = 0, g = 0.55, b = 0 } }
+    local function Bar(account, key, themed)
+        local core = LoadCore(account)
+        local env = { T = core.THEME, S = { Get = function(k)
+            if k == "themeColors" then return themed end
+            return PICKED[k]
+        end } }
+        local chunk = assert(loadstring(helper .. "\nreturn BarColor(...)"))
+        setfenv(chunk, setmetatable(env, { __index = _G }))
+        return chunk(key), core.THEME
+    end
+    Check(Bar(ACCENT_PRESET, "playerColor", false) == PICKED.playerColor, "threat meter: the picked color while Apply Theme is off")
+    local c, t = Bar(ACCENT_PRESET, "playerColor", true)
+    Check(c.r == t.accent.r * 0.75 and c.g == t.accent.g * 0.75 and c.b == t.accent.b * 0.75, "threat meter: your bar is the Accent at 75%")
+    Check(Bar(ACCENT_PRESET, "tankColor", true) == PICKED.tankColor, "threat meter: the tank's bar keeps its picked color")
+    Check(Bar(ACCENT_PRESET, "pullColor", true) == PICKED.pullColor, "threat meter: the pull aggro bar keeps its picked color")
+    -- White text has to stay readable on the shade (at least 3:1, before the bar's opacity darkens it further).
+    for _, preset in ipairs({ "midnight", "slate", "obsidian", "aubergine", "forest", "crimson", "rosenoir", "cottoncandy" }) do
+        local got = Bar({ themePreset = preset }, "playerColor", true)
+        local function Lin(v) return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+        local lum = 0.2126 * Lin(got.r) + 0.7152 * Lin(got.g) + 0.0722 * Lin(got.b)
+        Check(1.05 / (lum + 0.05) >= 3, "threat meter: white text reads on " .. preset)
+    end
+    Check(source:find('S.Toggle("themeColors", "Apply Theme to Your Bar"', 1, true), "threat meter: the switch is in the Colours section")
+    Check(source:find('if e.pull then return BarColor("pullColor") end', 1, true), "threat meter: the bars paint through BarColor")
+end
+
 -- Apply Theme to Bar Colours (Swing Timer): off by default, the picked colors; on, the theme's
 -- Accent, lighter Accent and a deeper Accent for the main hand, off hand and ranged bars.
 do

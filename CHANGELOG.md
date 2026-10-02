@@ -151,6 +151,7 @@
 - Threat Meter: Status Line (Layout) moves the line with your distance to pulling aggro and
   the entry count from under the bars to the top, between the title bar and the bars.
   Bottom by default.
+- Threat Meter: Apply Theme to Your Bar (Colours, off by default) colors your bar in a darker shade of your theme's Accent instead of the color picked there. The tank and pull aggro colors are unchanged.
 - Swing Timer: Apply Theme to Bar Colours (Colours, off by default) colors the main hand bar with your theme's Accent, the off hand bar with its lighter Accent and the ranged bar with a deeper shade of it, instead of the colors picked there.
 
 ### Changed

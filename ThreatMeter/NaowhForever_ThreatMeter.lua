@@ -19,6 +19,7 @@ local S = UI.ModuleSettings("threatMeter", {
     playerColorOn = false, playerColor = { r = 0.8, g = 0.1, b = 0.1 },
     tankColorOn = false, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
     pullBar = true, pullColor = { r = 0.0, g = 0.55, b = 0.0 },
+    themeColors = false,
     warnSound = false, warnSoundKey = "none", warnAt = 80, warnSkipTank = true,
 })
 ns.ThreatMeterSettings = S
@@ -371,10 +372,25 @@ end
 -------------------------------------------------------------------------------
 --  Display
 -------------------------------------------------------------------------------
+-- Apply Theme to Your Bar: your bar in a darker shade of the theme's Accent, so the white names
+-- and numbers stay readable on it. The tank and pull aggro bars keep their own colors, which
+-- tell the roles apart. The shade is built once, on first use, after the theme is applied.
+local yourShade
+local function ThemedColor(key)
+    if key ~= "playerColor" then return nil end
+    yourShade = yourShade or { r = T.accent.r * 0.75, g = T.accent.g * 0.75, b = T.accent.b * 0.75 }
+    return yourShade
+end
+
+-- The color a bar setting paints with: the theme's while the switch is on, else the picked one.
+local function BarColor(key)
+    return S.Get("themeColors") and ThemedColor(key) or S.Get(key)
+end
+
 local function RowColor(e)
-    if e.pull then return S.Get("pullColor") end
-    if e.isPlayer and S.Get("playerColorOn") then return S.Get("playerColor") end
-    if e.tanking and S.Get("tankColorOn") then return S.Get("tankColor") end
+    if e.pull then return BarColor("pullColor") end
+    if e.isPlayer and S.Get("playerColorOn") then return BarColor("playerColor") end
+    if e.tanking and S.Get("tankColorOn") then return BarColor("tankColor") end
     return e.class and RAID_CLASS_COLORS[e.class] or FALLBACK_COLOR
 end
 
@@ -566,17 +582,20 @@ end
 -------------------------------------------------------------------------------
 --  Options
 -------------------------------------------------------------------------------
-local function ColorRow(k, text, on)
+local function ColorRow(k, text, on, themed)
     return { type = "colorpicker", text = text, hasAlpha = false,
         getValue = function()
-            local c = S.Get(k)
+            local c = BarColor(k)
             return c.r, c.g, c.b
         end,
         setValue = function(r, g, b)
             S.Set(k, { r = r, g = g, b = b })
             RequestUpdate()
         end,
-        disabled = function() return not S.Get("enabled") or on and not S.Get(on) end }
+        disabled = function()
+            return not S.Get("enabled") or on and not S.Get(on) or (themed and S.Get("themeColors")) or false
+        end,
+        disabledTooltip = themed and "Turn off Apply Theme to Your Bar to pick this color." or nil }
 end
 
 function ns.BuildThreatMeterPage(parent, y)
@@ -660,7 +679,13 @@ function ns.BuildThreatMeterPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("playerColorOn", "Color Your Bar", "Your own bar in one color instead of your class color.",
             "enabled"),
-        ColorRow("playerColor", "Your Color", "playerColorOn")
+        ColorRow("playerColor", "Your Color", "playerColorOn", true)
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("themeColors", "Apply Theme to Your Bar",
+            "Your bar in a darker shade of your theme's Accent instead of the color picked "
+            .. "above. The tank and pull aggro colors stay as picked.", "playerColorOn"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("tankColorOn", "Color the Tank", "Whoever holds aggro in one color.", "enabled"),
