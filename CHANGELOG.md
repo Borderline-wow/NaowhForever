@@ -191,6 +191,10 @@
   the buffs only while the mouse is over the camp icon. Your current setting is kept.
 
 ### Fixed
+- Opening a color swatch and closing it without picking no longer saves that color. A Custom
+  theme color left at the default (including when Custom is first picked) no longer counts as
+  changed, so the loot feed glow, XP bar quest and rested colors and the other HUD colors keep
+  their own shades until you actually change one.
 - Themes: the hint lines in the Library Books tracker and its map pins, and in the town map pins, follow your lighter Accent instead of staying light blue. Looks the same with the default theme.
 - Group XP: every group member running Naowh Forever now shares their XP, even with Group XP
   switched off, so the bars no longer say "no addon" for players who never turned it on.

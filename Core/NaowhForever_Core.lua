@@ -156,12 +156,20 @@ local function Lightened(t, amount)
     return t.r + (1 - t.r) * amount, t.g + (1 - t.g) * amount, t.b + (1 - t.b) * amount
 end
 
+-- A pick that matches the shipped color is not a change: Custom starts as a copy of the
+-- palette, and the color picker hands back what it opened with, so neither may count as one.
+local function Shipped(key, r, g, b)
+    local t = themeShipped[key] or ns.THEME[key]
+    local near = 1 / 255
+    return math.abs(r - t.r) <= near and math.abs(g - t.g) <= near and math.abs(b - t.b) <= near
+end
+
 function ns.ApplyThemeColors()
     local source = ThemeSource()
     if not source then return end
     for _, key in ipairs(ns.THEME_EDITABLE) do
         local r, g, b = Pick(source, key)
-        if r then Paint(key, r, g, b) end
+        if r and not Shipped(key, r, g, b) then Paint(key, r, g, b) end
     end
     if themeShipped.accent then Paint("accentSoft", Lightened(ns.THEME.accent, 0.33)) end
     if themeShipped.line then Paint("grey", Lightened(ns.THEME.line, 0.03)) end
