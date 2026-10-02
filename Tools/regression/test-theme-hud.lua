@@ -383,4 +383,36 @@ do
     Check(QuestText(ACCENT_PRESET) == "|cff91b2ff", "xpbar: the quest text follows the lighter accent")
 end
 
+-- Apply Theme to Bar Colours (Swing Timer): off by default, the picked colors; on, the theme's
+-- Accent, lighter Accent and a deeper Accent for the main hand, off hand and ranged bars.
+do
+    local path = "SwingTimer/NaowhForever_SwingTimer.lua"
+    local source = Read(path)
+    local helper = assert(source:match("(local function ThemedBar%(key%).-\nend\n\nlocal function Color%(key%).-\nend)"), path .. ": Color")
+    local PICKED = { mhColor = { r = 0.9, g = 0.7, b = 0.27 }, ohColor = { r = 0.9, g = 0.45, b = 0.27 }, rColor = { r = 0.27, g = 0.73, b = 0.9 } }
+    local function Bar(account, key, themed)
+        local core = LoadCore(account)
+        local env = { T = core.THEME, S = { Get = function(k)
+            if k == "themeColors" then return themed end
+            return PICKED[k]
+        end } }
+        local chunk = assert(loadstring(helper .. "\nreturn Color(...)"))
+        setfenv(chunk, setmetatable(env, { __index = _G }))
+        return { chunk(key) }, core.THEME
+    end
+    local got = Bar(ACCENT_PRESET, "mhColor", false)
+    Check(Same(got, { 0.9, 0.7, 0.27, 1 }), "swing timer: the picked color while Apply Theme is off")
+    local t
+    got, t = Bar(ACCENT_PRESET, "mhColor", true)
+    Check(Same(got, { t.accent.r, t.accent.g, t.accent.b, 1 }), "swing timer: main hand is the Accent")
+    got = Bar(ACCENT_PRESET, "ohColor", true)
+    Check(Same(got, { t.accentSoft.r, t.accentSoft.g, t.accentSoft.b, 1 }), "swing timer: off hand is the lighter Accent")
+    got = Bar(ACCENT_PRESET, "rColor", true)
+    Check(Same(got, { t.accent.r * 0.6, t.accent.g * 0.6, t.accent.b * 0.6, 1 }), "swing timer: ranged is a deeper Accent")
+    PICKED.queueColor = { r = 1, g = 0.7, b = 0.2 }
+    got = Bar(ACCENT_PRESET, "queueColor", true)
+    Check(Same(got, { 1, 0.7, 0.2, 1 }), "swing timer: the queued attack color is not themed")
+    Check(source:find('S.Toggle("themeColors", "Apply Theme to Bar Colours"', 1, true), "swing timer: the switch beside Ranged")
+end
+
 print("PASS theme HUD: " .. cases .. " checks")
