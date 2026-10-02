@@ -4,3 +4,6 @@ __pycache__/
 # Fetched by the packager from .pkgmeta externals; only the loader is ours.
 /Libs/*
 !/Libs/embeds.xml
+
+# Pages fetched by Tools/wowsrc.py, kept to save asking again.
+/Tools/wowsrc_pages/

@@ -196,6 +196,8 @@ local function fixture(settings)
             return box
         end,
         Print = function(text) state.printed[#state.printed + 1] = text end,
+        -- The copy box: kept, so a test can read what it was given to copy.
+        ShowCopyBox = function(title, text) state.copied = { title = title, text = text } end,
         PlaceWaypoint = function(title, map, x, y, note)
             state.waypoints[#state.waypoints + 1] = { title = title, map = map, x = x, y = y, note = note }
             return true
@@ -273,6 +275,18 @@ local function fixture(settings)
         end,
         QuestLogPushQuest = function(index) state.pushed[#state.pushed + 1] = index end,
         Enum = { SendAddonMessageResult = { Success = 0 }, PvPRanks = { Rank_1 = 5 }, UIMapType = { Zone = 3 } },
+        -- A context menu: its entries kept (text and what a click does) for a test to click.
+        MenuUtil = { CreateContextMenu = function(_, build)
+            local entries = {}
+            local entry = { SetEnabled = function() end, SetTitleAndTextTooltip = function() end }
+            local root = {
+                CreateTitle = function(_, text) entries.title = text end,
+                CreateDivider = function() end,
+                CreateButton = function(_, text, onClick) entries[#entries + 1] = { text = text, click = onClick }; return entry end,
+            }
+            build(nil, root)
+            state.menu = entries
+        end },
         C_ChatInfo = {
             InChatMessagingLockdown = function() return state.locked end,
             RegisterAddonMessagePrefix = function(prefix) state.prefix = prefix end,
@@ -867,6 +881,52 @@ do
     state.instance = { id = 36, name = "The Deadmines" }
     ns.OpenJournalWindow()
     check("the window opens", state.frames > 10)
+    check("the entrance pin is the game's own dungeon mark", state.atlases.dungeon == true)
+    -- A boss with nothing recorded says so in the middle of its card, not in its header.
+    ns.OpenJournalWindow(ns.Journal.Get("Dalaran"))   -- the Shade of the Archmage
+    local inBody = false
+    for _, frame in ipairs(state.made) do
+        local note = rawget(frame, "note")
+        if note and rawget(note, "shown") ~= false and rawget(note, "text") == "No boss loot known yet" then
+            inBody = true
+        end
+    end
+    check("an empty boss's card says so in its body", inBody)
+    -- A wing's trash: a card of its own, last, with no number and no kill count.
+    ns.OpenJournalWindow(ns.Journal.Get("ShadowfangKeep"))
+    local trashRow
+    for _, frame in ipairs(state.made) do
+        local boss = rawget(frame, "boss")
+        if boss and boss.trash and rawget(frame, "badge") then trashRow = frame end
+    end
+    check("Shadowfang Keep lists its trash", trashRow ~= nil)
+    check("the trash has no number", rawget(trashRow.badge, "shown") == false)
+    check("nor a kill count", rawget(trashRow.kills, "shown") == false)
+    -- Right-click: an item's and a boss's Wowhead Forever link, in the copy box.
+    local function MenuEntry(text)
+        for _, e in ipairs(state.menu or {}) do
+            if e.text == text then return e end
+        end
+    end
+    local itemRow, bossRow
+    for _, frame in ipairs(state.made) do
+        if rawget(frame, "itemID") and frame.scripts.OnClick and not itemRow then itemRow = frame end
+        if rawget(frame, "boss") and frame.scripts.OnMouseUp and rawget(frame, "boss").npc and not bossRow then
+            bossRow = frame
+        end
+    end
+    itemRow.scripts.OnClick(itemRow, "RightButton")
+    local link = MenuEntry("Wowhead Link")
+    check("an item's menu has its Wowhead link", link ~= nil)
+    link.click()
+    check("which shows its Wowhead Forever page to copy",
+        state.copied and state.copied.text == "https://www.wowhead.com/forever/item=" .. itemRow.itemID)
+    bossRow.scripts.OnMouseUp(bossRow, "RightButton")
+    MenuEntry("Wowhead Link").click()
+    check("a boss's right-click gives its NPC's page",
+        state.copied.text == "https://www.wowhead.com/forever/npc=" .. bossRow.boss.npc)
+    state.menu, state.copied = nil, nil
+    ns.OpenJournalWindow(ns.Journal.Get("Deadmines"))
     -- The Filters menu: the addon's own, a row per switch; a click flips one, a click
     -- elsewhere closes it.
     local funnel, menu

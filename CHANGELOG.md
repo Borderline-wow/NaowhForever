@@ -5,9 +5,12 @@
 ### Added
 - Group Tools on QoL > Questing: a Disband Group button for leaders and an Invite Player button where you type the name.
 - Dungeon Journal: every dungeon's bosses in the order you meet them, what each one drops
-  and how often, with your BiS marked and how many of them each boss has. Upgrade marks
-  what beats your gear (a higher pick on your BiS list, or a higher item level you can
-  wear), and right-click puts an item on your BiS list. Your quests for the
+  and how often (Forever's new items included; a boss whose loot is not known yet says so),
+  its optional bosses and loot chests, then what its trash drops (a card says how many items
+  your filters hide), with your BiS marked and how many of them each boss has. Upgrade
+  marks what beats your gear (a higher pick on your BiS list, or a higher item level you can
+  wear), and right-click puts an item on your BiS list or gives its Wowhead link (a boss's
+  too). Your quests for the
   dungeon are listed too, with a waypoint each, and right-click one to share it with your
   party. The group icon counts who else is on each quest; click it on one you don't have
   and a member running Naowh Forever shares it with you (Quest Share Requests, in the

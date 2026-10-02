@@ -12,13 +12,13 @@ ns.Journal.AddDungeon("RuinsOfLordaeron", {
     entrance = { map = 1458, x = 71.6, y = 11.4 },
     wings = {
         { bosses = {
-            { npc = 250483, name = "Witherfang", encounters = { 3353 }, loot = { 271201, 271203, 271202 } },
-            { npc = 250660, name = "The Baron", encounters = { 3355 }, loot = { 271204, 271205, 271206 } },
-            { npc = 256035, name = "Viktor the Vile", encounters = { 3411 }, loot = { 271218, 271212, 271211 } },
-            { npc = 250631, name = "The Abandoned", encounters = { 3357 }, loot = { 271216, 271208, 271207 } },
-            { npc = 256097, name = "Bjork", encounters = { 3412 }, loot = { 271217, 271209, 271210 } },
-            { npc = 250657, name = "Rath'mael", encounters = { 3354 }, loot = { 271213, 271215, 271214 } },
-            { npc = 255699, name = "Lordaeron Captain", rare = true, encounters = { 3408 } },
+            { npc = 250483, name = "Witherfang", encounters = { 3353 }, loot = { 271201, 271203, 271202 }, chance = { 33, 30, 27 } },
+            { npc = 250660, name = "The Baron", encounters = { 3355 }, loot = { 271206, 271204, 271205 }, chance = { 44, 28, 22 } },
+            { npc = 256035, name = "Viktor the Vile", encounters = { 3411 }, loot = { 271212, 271211, 271218 }, chance = { 38, 31, 31 } },
+            { npc = 250631, name = "The Abandoned", encounters = { 3357 }, loot = { 271207, 271216, 271208 }, chance = { 45, 33, 21 } },
+            { npc = 256097, name = "Bjork", encounters = { 3412 }, loot = { 271210, 271209, 271217 }, chance = { 46, 31, 23 } },
+            { npc = 250657, name = "Rath'mael", encounters = { 3354 }, loot = { 271213, 271214, 271215 }, chance = { 44, 33, 23 } },
+            { npc = 255699, name = "Lordaeron Captain", rare = true, encounters = { 3408 }, loot = { 6641, 6642 } },
         } },
     },
 })

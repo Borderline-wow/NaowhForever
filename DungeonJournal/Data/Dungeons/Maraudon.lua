@@ -11,15 +11,15 @@ ns.Journal.AddDungeon("Maraudon", {
     entrance = { map = 1443, x = 30.1, y = 61.9 },
     wings = {
         { bosses = {
-            { npc = 13282, name = "Noxxion", encounters = { 422 }, loot = { 17745 }, chance = { 18 } },
-            { npc = 12258, name = "Razorlash", encounters = { 423 }, loot = { 17748 }, chance = { 24 } },
-            { npc = 12236, name = "Lord Vyletongue", encounters = { 424 }, loot = { 17755 }, chance = { 28 } },
-            { npc = 12225, name = "Celebras the Cursed", encounters = { 425 }, loot = { 17739, 17738, 17740 }, chance = { 32, 32, 31 } },
-            { npc = 12203, name = "Landslide", encounters = { 426 }, loot = { 17943 }, chance = { 26 } },
-            { npc = 13601, name = "Tinkerer Gizlock", encounters = { 427 }, loot = { 17719, 17717 }, chance = { 33, 33 } },
+            { npc = 13282, name = "Noxxion", encounters = { 422 }, loot = { 17746, 17744, 17745 }, chance = { 36, 36, 18 } },
+            { npc = 12258, name = "Razorlash", encounters = { 423 }, loot = { 17749, 17750, 17748, 17751 }, chance = { 24, 24, 24, 24 } },
+            { npc = 12236, name = "Lord Vyletongue", encounters = { 424 }, loot = { 17754, 17752, 17755 }, chance = { 29, 29, 28 } },
+            { npc = 12225, name = "Celebras the Cursed", encounters = { 425 }, loot = { 17739, 17738, 17740 }, chance = { 32, 32, 30 } },
+            { npc = 12203, name = "Landslide", encounters = { 426 }, loot = { 17943, 17737, 17736, 17734 }, chance = { 26, 24, 24, 23 } },
+            { npc = 13601, name = "Tinkerer Gizlock", encounters = { 427 }, loot = { 17719, 17718, 17717 }, chance = { 33, 33, 33 } },
             { npc = 13596, name = "Rotgrip", encounters = { 428 }, loot = { 17732, 17728, 17730 }, chance = { 36, 35, 24 } },
-            { npc = 12201, name = "Princess Theradras", encounters = { 429 }, loot = { 17713, 17714, 17766, 17715, 17710 }, chance = { 25, 24, 20, 19, 19 } },
-            { npc = 12237, name = "Meshlok the Harvester", rare = true, loot = { 17741 }, chance = { 29 } },
+            { npc = 12201, name = "Princess Theradras", encounters = { 429 }, loot = { 17713, 17714, 17707, 17766, 17711, 17710, 17715, 17780 }, chance = { 24, 24, 20, 20, 20, 19, 19, 1 } },
+            { npc = 12237, name = "Meshlok the Harvester", rare = true, loot = { 17767, 17741, 17742 }, chance = { 29, 29, 28 } },
         } },
     },
 })

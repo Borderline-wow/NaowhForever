@@ -11,23 +11,28 @@ ns.Journal.AddDungeon("ScarletMonastery", {
     entrance = { map = 1420, x = 83.9, y = 31.6 },
     wings = {
         { name = "Graveyard", bosses = {
-            { npc = 3983, name = "Interrogator Vishas", encounters = { 444 }, loot = { 7683, 7682, 7727 }, chance = { 51, 6, 1 } },
+            { npc = 3983, name = "Interrogator Vishas", encounters = { 444 }, loot = { 7683, 7682 }, chance = { 55, 6 } },
             { npc = 4543, name = "Bloodmage Thalnos", encounters = { 2779 }, loot = { 7685, 7684 }, chance = { 50, 48 } },
             { npc = 6490, name = "Azshir the Sleepless", rare = true, loot = { 7731, 7708, 7709 }, chance = { 34, 32, 31 } },
-            { npc = 6488, name = "Fallen Champion", rare = true, loot = { 7690, 7691, 7689 }, chance = { 40, 38, 18 } },
-            { npc = 6489, name = "Ironspine", rare = true, loot = { 7686, 7688, 7687 }, chance = { 41, 35, 20 } },
+            { npc = 6488, name = "Fallen Champion", rare = true, loot = { 7690, 7691, 7689 }, chance = { 40, 39, 18 } },
+            { npc = 6489, name = "Ironspine", rare = true, loot = { 7686, 7688, 7687 }, chance = { 40, 36, 20 } },
+            { npc = 14693, name = "Scorn", optional = true, loot = { 23169, 23168, 23170 }, chance = { 38, 32, 28 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 10330, 10329, 10333, 10331, 10328, 1992, 2262, 5756, 5819, 7727, 7728, 7729, 7730, 7736, 7752, 7753, 7754, 7755, 7757, 7758, 7759, 7760, 7761, 7786, 7787, 8225, 8226, 10332 }, chance = { 14, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
         } },
         { name = "Library", bosses = {
-            { npc = 3974, name = "Houndmaster Loksey", encounters = { 446 }, loot = { 7710 }, chance = { 14 } },
-            { npc = 6487, name = "Arcanist Doan", encounters = { 447 }, loot = { 7714, 7713, 7711 }, chance = { 47, 47, 46 } },
+            { npc = 3974, name = "Houndmaster Loksey", encounters = { 446 }, loot = { 7756, 7710 }, chance = { 56, 14 } },
+            { npc = 6487, name = "Arcanist Doan", encounters = { 447 }, loot = { 7712, 7714, 7713, 7711 }, chance = { 47, 47, 47, 46 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 10330, 10329, 10333, 10331, 10328, 1992, 2262, 5756, 5819, 7727, 7728, 7729, 7730, 7736, 7752, 7753, 7754, 7755, 7757, 7758, 7759, 7760, 7761, 7786, 7787, 8225, 8226, 10332 }, chance = { 14, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
         } },
         { name = "Armory", bosses = {
-            { npc = 3975, name = "Herod", encounters = { 448 }, loot = { 7719, 10330, 7717 }, chance = { 33, 14, 14 } },
+            { npc = 3975, name = "Herod", encounters = { 448 }, loot = { 7718, 7719, 7717 }, chance = { 33, 32, 14 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 10330, 10329, 10333, 10331, 10328, 1992, 2262, 5756, 5819, 7727, 7728, 7729, 7730, 7736, 7752, 7753, 7754, 7755, 7757, 7758, 7759, 7760, 7761, 7786, 7787, 8225, 8226, 10332 }, chance = { 14, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
         } },
         { name = "Cathedral", bosses = {
             { npc = 4542, name = "High Inquisitor Fairbanks", encounters = { 449 }, loot = { 19507, 19508, 19509 }, chance = { 34, 32, 32 } },
-            { npc = 3976, name = "Scarlet Commander Mograine", loot = { 7726, 7724, 7723, 10330 }, chance = { 43, 20, 19, 14 } },
-            { npc = 3977, name = "High Inquisitor Whitemane", encounters = { 450 }, loot = { 7721 }, chance = { 19 } },
+            { npc = 3976, name = "Scarlet Commander Mograine", loot = { 7726, 7724, 7723 }, chance = { 42, 20, 19 } },
+            { npc = 3977, name = "High Inquisitor Whitemane", encounters = { 450 }, loot = { 7722, 7720, 7721 }, chance = { 37, 37, 19 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 10330, 10329, 10333, 10331, 10328, 1992, 2262, 5756, 5819, 7727, 7728, 7729, 7730, 7736, 7752, 7753, 7754, 7755, 7757, 7758, 7759, 7760, 7761, 7786, 7787, 8225, 8226, 10332 }, chance = { 14, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
         } },
     },
 })

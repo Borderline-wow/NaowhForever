@@ -11,16 +11,18 @@ ns.Journal.AddDungeon("ZulFarrak", {
     entrance = { map = 1446, x = 39.6, y = 21.7 },
     wings = {
         { bosses = {
-            { npc = 8127, name = "Antu'sul", encounters = { 595 }, loot = { 9640, 9639, 9379 }, chance = { 32, 18, 2 } },
+            { npc = 8127, name = "Antu'sul", encounters = { 595 }, loot = { 9641, 9640, 9639, 9379 }, chance = { 34, 32, 18, 3 } },
             { npc = 7272, name = "Theka the Martyr", encounters = { 596 } },
-            { npc = 7271, name = "Witch Doctor Zum'rah", encounters = { 597 }, loot = { 18082 }, chance = { 15 } },
+            { npc = 7271, name = "Witch Doctor Zum'rah", encounters = { 597 }, loot = { 18083, 18082 }, chance = { 35, 15 } },
             { npc = 7796, name = "Nekrum Gutchewer", encounters = { 598 } },
             { npc = 7275, name = "Shadowpriest Sezz'ziz", encounters = { 599 }, loot = { 9470, 9473, 9475, 9474 }, chance = { 23, 22, 22, 22 } },
-            { npc = 7604, name = "Sergeant Bly" },
+            { npc = 7604, name = "Sergeant Bly", loot = { 5616 } },
             { npc = 7795, name = "Hydromancer Velratha", encounters = { 593 } },
-            { npc = 7273, name = "Gahz'rilla", encounters = { 594 }, loot = { 9467, 9469 }, chance = { 46, 44 } },
-            { npc = 7267, name = "Chief Ukorz Sandscalp", encounters = { 600 }, loot = { 9476, 9477, 11086 }, chance = { 33, 23, 2 } },
+            { npc = 7273, name = "Gahz'rilla", encounters = { 594 }, loot = { 9467, 9469 }, chance = { 46, 45 } },
+            { npc = 7267, name = "Chief Ukorz Sandscalp", encounters = { 600 }, loot = { 9476, 9477, 9478, 9479, 11086 }, chance = { 32, 23, 23, 11, 2 } },
             { npc = 10082, name = "Zerillis", rare = true, loot = { 12470 }, chance = { 18 } },
+            { npc = 10081, name = "Dustwraith", rare = true, loot = { 12471 }, chance = { 21 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 9243 }, chance = { 1 } },
         } },
     },
 })

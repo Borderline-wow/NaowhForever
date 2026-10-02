@@ -115,8 +115,7 @@ local function BrandLine()
 end
 
 -- What a click on an item does, at the foot of its tooltip.
-local CLICK_HINT = "Right-click: BiS List" .. PLACE_DOT .. "Shift-click: link"
-local LINK_HINT = "Shift-click: link"   -- what is not gear has no BiS List menu
+local CLICK_HINT = "Right-click: menu" .. PLACE_DOT .. "Shift-click: link"
 
 -- What each mark means, under the item's tooltip: the icon, without the gap it has after a
 -- name, then the words.
@@ -213,7 +212,7 @@ local function ItemEnter(row)
     end
     if row.upgrade then GameTooltip:AddLine(UPGRADE_LINE) end
     if row.newLook then GameTooltip:AddLine(NEW_LOOK_LINE) end
-    GameTooltip:AddLine(Loot.BisGear(row.itemID) and CLICK_HINT or LINK_HINT, muted.r, muted.g, muted.b)
+    GameTooltip:AddLine(CLICK_HINT, muted.r, muted.g, muted.b)
     GameTooltip:Show()
 end
 
@@ -222,11 +221,12 @@ local function ItemLeave(row)
     GameTooltip:Hide()
 end
 
--- Right-click opens the BiS List menu, on gear only; Shift-click links it and Ctrl-click
--- tries it on, as anywhere else in the game. The view redraws after a BiS change.
+-- Right-click opens its menu (the BiS List for gear, its Wowhead link); Shift-click links it
+-- and Ctrl-click tries it on, as anywhere else in the game. The view redraws after a BiS
+-- change.
 local function ItemClick(row, button)
     if button == "RightButton" then
-        if Loot.BisGear(row.itemID) then View.ItemMenu(row, row.itemID, row:GetParent().redrawFn) end
+        View.ItemMenu(row, row.itemID, row:GetParent().redrawFn)
         return
     end
     local _, link = GetItemInfo(row.itemID)

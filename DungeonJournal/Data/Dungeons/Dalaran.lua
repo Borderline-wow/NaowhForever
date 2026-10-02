@@ -12,7 +12,8 @@ ns.Journal.AddDungeon("Dalaran", {
     entrance = { map = 1416, x = 21.7, y = 68.3 },
     wings = {
         { bosses = {
-            { npc = 246020, name = "Shade of the Archmage", encounters = { 3303 } },
+            { npc = 246017, name = "Unstable Sentinel", encounters = { 3302 }, loot = { 273046 } },
+            { npc = 246020, name = "Shade of the Archmage", encounters = { 3303 }, loot = { 273052 } },
             { npc = 247032, name = "Lyn the Ignored", rare = true, encounters = { 3310 } },
         } },
     },

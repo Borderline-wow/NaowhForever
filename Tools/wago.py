@@ -8,7 +8,7 @@ one product name (wow_classic_beta, wow_cn_beta), so a Forever build is told apa
 version instead: 1.60 and up, where the classic game is 1.15.
 
 BUILD is the build the Journal's data is read from: Tools/watch_build.py (daily, in
-.github/workflows/watch-build.yml) moves it on when a newer one is out. Used by
+.github/workflows/daily-watch.yml) moves it on when a newer one is out. Used by
 Tools/build_factions.py and Tools/watch_build.py.
 """
 import csv

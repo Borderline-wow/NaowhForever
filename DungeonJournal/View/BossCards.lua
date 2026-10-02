@@ -20,7 +20,7 @@ local S = J.Settings
 local CHAT_MAX = 255        -- what chat takes in one message
 local NAME_TOP = 11         -- the boss's name from the card's top; the badge sits 2 higher
 local STATS_TOP = 13
-local RARE_W = 42           -- "RARE" and its gap
+local TAG_GAP = 8           -- the name to its tag (RARE, OPTIONAL, CHEST)
 local CHIP_TIP_W = 17       -- the (i) in a chip, and its gap
 local CHIP_BOTTOM = 4
 local CLEAR_ICON = 10       -- the x after "Nothing for your class"
@@ -38,11 +38,16 @@ local KILL_DATE, GOLD_CODE = St.KILL_DATE, St.GOLD_CODE
 
 -- A boss's card: under its header and its loot, a level below them so they draw on top.
 -- Placed only (no Set); its black edge turns the accent while the boss is clicked.
+-- A boss card with nothing listed says why in the middle of its body, under its header: the
+-- grid stretches a card to its row's tallest, and the line stays centred in the space.
 Kinds.card = {
     New = function(view)
         local card = CreateFrame("Frame", nil, view)
         ns.Solid(card, "BACKGROUND", T.fg, CARD_FILL):SetAllPoints()
         card.edge = ns.Border(card, BORDER_RGB)
+        card.note = ns.Font(card, 11, nil, T.muted)
+        card.note:SetPoint("CENTER", 0, -BOSS_HEADER_H / 2)
+        card.note:Hide()
         return card
     end,
 }
@@ -162,13 +167,36 @@ end
 -------------------------------------------------------------------------------
 -- Hover lights the name and says what a click does; the fading is the click's, so moving
 -- across a card changes nothing.
+local MENU_HINT = "Right-click: Wowhead Link"
+local FILTERED = "+%d filtered"
+local FILTERED_LINE = "%d of its items hidden by your filters (top right)."
+
+-- Its Wowhead page: an NPC's, or a chest's (an object); nil for the trash.
+local function WowheadPage(boss)
+    if boss.npc then return "npc", boss.npc end
+    if boss.chest then return "object", boss.chest end
+end
+
+-- The small tag after a name: none for a boss in the kill order.
+local function Tag(boss)
+    return boss.rare and "RARE" or boss.optional and "OPTIONAL" or boss.chest and "CHEST" or nil
+end
+
 local function BossEnter(row)
     row.hovered = true
     local view = row:GetParent()
     view:ApplyPin()
     GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT", 16, 0)
-    GameTooltip:SetText(view.pinned == row.boss and "Click to show all its loot again"
-        or "Click to show only its BiS and upgrades", 1, 1, 1)
+    if row.canPin then
+        GameTooltip:SetText(view.pinned == row.boss and "Click to show all its loot again"
+            or "Click to show only its BiS and upgrades", 1, 1, 1)
+    else
+        GameTooltip:SetText(row.boss.name, 1, 1, 1)
+    end
+    if row.hidden > 0 then
+        GameTooltip:AddLine(FILTERED_LINE:format(row.hidden), T.muted.r, T.muted.g, T.muted.b, true)
+    end
+    if WowheadPage(row.boss) then GameTooltip:AddLine(MENU_HINT, T.muted.r, T.muted.g, T.muted.b) end
     GameTooltip:Show()
 end
 
@@ -178,15 +206,33 @@ local function BossLeave(row)
     GameTooltip:Hide()
 end
 
-local function BossClicked(row)
-    row:GetParent():Pin(row.boss)
+-- Right-click: its Wowhead Forever page, to copy. Left-click lights its BiS and upgrades,
+-- when it has some and something else to fade.
+local function BossClicked(row, button)
+    local boss = row.boss
+    if button == "RightButton" then
+        local kind, id = WowheadPage(boss)
+        if not kind then return end
+        MenuUtil.CreateContextMenu(row, function(_, root)
+            root:CreateTitle(boss.name)
+            root:CreateButton("Wowhead Link", function() J.View.Parts.CopyWowhead(kind, id, boss.name) end)
+        end)
+        return
+    end
+    if not row.canPin then return end
+    row:GetParent():Pin(boss)
     BossEnter(row)   -- the hint follows the click
 end
 
--- When none of its loot is listed, why; nothing otherwise (each item shows its own marks).
-local function EmptyText(shown, boss)
+local NOTE_GAP = 12   -- between the name (and its tip) and the note on the right
+local NOTE_MIN = 40   -- narrower than this, the note is left out rather than cut to a stub
+
+-- When none of its loot is listed, why (the card's note, View's DrawBoss); nothing otherwise,
+-- each item showing its own marks. A boss with no loot at all: none of its own is known yet
+-- (Wowhead lists only the world drops any mob of its level gives, which the Journal leaves out).
+function J.View.Parts.BossEmptyText(shown, boss)
     if shown > 0 then return "" end
-    return ns.Color("muted", boss.loot and "Nothing for your class" or "No loot known yet")
+    return boss.loot and "Nothing for your class" or "No boss loot known yet"
 end
 
 -- Its place in the kill order in a small badge (none for a rare, which says RARE instead),
@@ -206,8 +252,7 @@ Kinds.boss = {
         row.name:SetJustifyH("LEFT")
         row.name:SetWordWrap(false)
         row.rare = ns.Font(row, 10, nil, T.muted)
-        row.rare:SetPoint("LEFT", row.name, "RIGHT", 8, 0)
-        row.rare:SetText("RARE")
+        row.rare:SetPoint("LEFT", row.name, "RIGHT", TAG_GAP, 0)
         row.tipButton = CreateFrame("Button", nil, row)
         row.tipButton:SetSize(TIP_ICON + 4, TIP_ICON + 4)
         row.tipButton.icon = row.tipButton:CreateTexture(nil, "ARTWORK")
@@ -220,6 +265,7 @@ Kinds.boss = {
         row.tipButton:SetScript("OnClick", OpenTipMenu)
         row.stats = ns.Font(row, 11)
         row.stats:SetJustifyH("RIGHT")
+        row.stats:SetWordWrap(false)
         local kills = CreateFrame("Button", nil, row)
         kills:SetHeight(KILL_ICON + 4)
         kills:SetPoint("RIGHT", row, "TOPRIGHT", 0, -(STATS_TOP + 6))
@@ -245,9 +291,10 @@ Kinds.boss = {
     ---@param boss JournalBoss
     ---@param number? number its place in the kill order; nil for a rare or in a search
     ---@param shown number how many of its items are listed
-    Set = function(row, boss, number, shown)
+    ---@param hidden? number how many its filters hide: "+2 filtered" on the right
+    Set = function(row, boss, number, shown, hidden)
         local view = row:GetParent()
-        row.boss, row.hovered = boss, false
+        row.boss, row.hovered, row.hidden = boss, false, hidden or 0
         -- Clickable only once its items are in (the view's DrawBoss), and only with
         -- something to light.
         row:EnableMouse(false)
@@ -258,10 +305,13 @@ Kinds.boss = {
         row.name:SetPoint("TOPLEFT", left, -NAME_TOP)
         row.name:SetWidth(0)   -- unbounded, so it measures the whole name
         row.name:SetText(boss.name)
-        row.rare:SetShown(boss.rare == true)
-        row.stats:SetText(EmptyText(shown, boss))
+        local tag = Tag(boss)
+        row.rare:SetText(tag or "")
+        row.rare:SetShown(tag ~= nil)
+        row.stats:SetWidth(0)   -- unbounded, so it measures the whole note
+        row.stats:SetText(row.hidden > 0 and ns.Color("muted", FILTERED:format(row.hidden)) or "")
         local kills = row.kills
-        local showKills = view.showKills
+        local showKills = view.showKills and not boss.trash and not boss.chest   -- no fight to count
         kills:SetShown(showKills)
         row.stats:ClearAllPoints()
         local right = 0   -- what the kill count takes on the right
@@ -280,10 +330,15 @@ Kinds.boss = {
         button.boss, button.tip = boss, tip
         button:SetShown(tip ~= nil)
         button:ClearAllPoints()
-        button:SetPoint("LEFT", boss.rare and row.rare or row.name, "RIGHT", 4, 0)
-        local after = (boss.rare and RARE_W or 0) + (tip and TIP_ICON + 10 or 0)
-        row.name:SetWidth(math.min(math.ceil(row.name:GetStringWidth()) + 1,
-            row:GetWidth() - left - after - right - math.ceil(row.stats:GetStringWidth()) - 12))
+        button:SetPoint("LEFT", tag and row.rare or row.name, "RIGHT", 4, 0)
+        -- The name first, whole; the note after it takes what is left, cut short or left out.
+        local after = (tag and TAG_GAP + math.ceil(row.rare:GetStringWidth()) or 0) + (tip and TIP_ICON + 10 or 0)
+        local room = row:GetWidth() - left - after - right - NOTE_GAP
+        local nameW = math.min(math.ceil(row.name:GetStringWidth()) + 1, room)
+        row.name:SetWidth(nameW)
+        local noteW = math.min(math.ceil(row.stats:GetStringWidth()), room - nameW)
+        row.stats:SetShown(noteW >= NOTE_MIN)
+        row.stats:SetWidth(math.max(noteW, 1))
         row.rule:SetShown(shown > 0)
         return BOSS_HEADER_H
     end,

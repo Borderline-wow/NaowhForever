@@ -11,12 +11,13 @@ ns.Journal.AddDungeon("Stockade", {
     entrance = { map = 1453, x = 51.0, y = 68.1 },
     wings = {
         { bosses = {
-            { npc = 1696, name = "Targorr the Dread", encounters = { 2756 }, loot = { 12992 }, chance = { 1 } },
-            { npc = 1666, name = "Kam Deepfury", encounters = { 2757 } },
-            { npc = 1717, name = "Hamhock", encounters = { 2758 } },
-            { npc = 1716, name = "Bazil Thredd", encounters = { 2760 } },
-            { npc = 1663, name = "Dextren Ward", encounters = { 2759 } },
-            { npc = 1720, name = "Bruegal Ironknuckle", rare = true, loot = { 3228, 2941, 2942 }, chance = { 55, 19, 18 } },
+            { npc = 1696, name = "Targorr the Dread", encounters = { 2756 }, loot = { 273804, 273805, 273806 } },
+            { npc = 1666, name = "Kam Deepfury", encounters = { 2757 }, loot = { 2280, 273807, 273808 }, chance = { 1, 0, 0 } },
+            { npc = 1717, name = "Hamhock", encounters = { 2758 }, loot = { 273809, 273810, 273811 } },
+            { npc = 1716, name = "Bazil Thredd", encounters = { 2760 }, loot = { 273824, 273825, 273827, 273829 } },
+            { npc = 1663, name = "Dextren Ward", encounters = { 2759 }, loot = { 273819, 273820 } },
+            { npc = 1720, name = "Bruegal Ironknuckle", rare = true, loot = { 3228, 2941, 2942 }, chance = { 56, 19, 18 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 274092, 1076 } },
         } },
     },
 })

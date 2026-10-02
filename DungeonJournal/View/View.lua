@@ -61,6 +61,7 @@ local ViewMixin = {}
 
 local REDRAW_DELAY = 0.15   -- seconds: events in a burst make one redraw
 local BOSS_LOOT_GAP = 4     -- between a boss's header and its first item
+local EMPTY_BODY = 28       -- a boss card's body with nothing listed: room for its centred line
 local EMPTY = {}
 local FACTION_TABS = { "reputation", "pvp" }
 
@@ -220,7 +221,9 @@ function ViewMixin:DrawBoss(boss, number, shown, query, x, w)
     card:SetFrameLevel(self:GetFrameLevel())
     self.left, self.width = x + CARD_PAD, w - CARD_PAD * 2
     local loot, chance = boss.loot or EMPTY, boss.chance
-    local header = self:Add("boss", boss, number, shown)
+    -- What the filters hide of its loot (not in a search, where the rest just does not match).
+    local hidden = not query and #loot - shown or 0
+    local header = self:Add("boss", boss, number, shown, hidden)
     header.card = card
     if shown > 0 then self:Space(BOSS_LOOT_GAP) end
     local kept, faded = 0, 0
@@ -232,8 +235,15 @@ function ViewMixin:DrawBoss(boss, number, shown, query, x, w)
             if item.keep then kept = kept + 1 else faded = faded + 1 end
         end
     end
-    -- Its name lights its BiS and upgrades only when it has some, and something else to fade.
-    header:EnableMouse(kept > 0 and faded > 0)
+    -- Its name lights its BiS and upgrades only when it has some, and something else to fade;
+    -- it always takes a right-click, for its Wowhead link.
+    header.canPin = kept > 0 and faded > 0
+    header:EnableMouse(true)
+    -- Nothing listed: why, in the middle of its body (room for the line when its whole row
+    -- is as empty).
+    card.note:SetText(View.Parts.BossEmptyText(shown, boss))
+    card.note:SetShown(shown == 0)
+    if shown == 0 then self:Space(EMPTY_BODY) end
     self:Space(CARD_BOTTOM)
     self.left, self.width = 0, self:GetWidth()
     local height = self.cursor - top
@@ -252,6 +262,7 @@ function ViewMixin:OpenCard(x, w)
     local card = self:Acquire("card")
     card:SetFrameLevel(self:GetFrameLevel())
     card.edge:SetColor(BORDER_RGB.r, BORDER_RGB.g, BORDER_RGB.b, 1)
+    card.note:Hide()   -- a boss card's line, not this card's
     self.left, self.width = x + CARD_PAD, w - CARD_PAD * 2
     return card
 end
@@ -618,21 +629,25 @@ function ViewMixin:Draw(dungeon)
     wipe(skipped)
     wipe(skippedBoss)
     for i, wing in ipairs(dungeon.wings) do
-        local number = 0
+        -- Numbered in kill order; a rare, an optional boss, a chest and the trash have no
+        -- number, and neither a chest nor the trash counts as a boss.
+        local number, cards = 0, 0
         for _, boss in ipairs(wing.bosses) do
-            if not boss.rare then number = number + 1 end
-            local kill = not boss.rare and number or nil
+            local ordered = not (boss.rare or boss.optional or boss.chest or boss.trash)
+            if ordered then number = number + 1 end
+            local kill = ordered and number or nil
             local shown = self:ShownCount(boss)
             if shown == 0 and boss.loot then
                 skipped[#skipped + 1] = ChipLabel(boss, kill, wing.name)
                 skippedBoss[#skippedBoss + 1] = boss
             else
                 self:Gather(boss, kill, shown)
+                if not (boss.trash or boss.chest) then cards = cards + 1 end
             end
         end
         local title = wing.name or (i == 1 and "Bosses")
         if title then
-            self:Section(title, self.grid.n > 0 and self.grid.n or nil)
+            self:Section(title, cards > 0 and cards or nil)
             self:Space(SECTION_SPACE)
         end
         self:DrawGrid()

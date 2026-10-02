@@ -12,10 +12,10 @@ ns.Journal.AddDungeon("HallOfThanes", {
     entrance = { map = 1455, x = 43.0, y = 51.0 },
     wings = {
         { bosses = {
-            { npc = 261306, name = "Faldrim Anvilmar", encounters = { 3493 }, loot = { 271097, 270227, 271096 } },
-            { npc = 261316, name = "Magmatus", encounters = { 3495 }, loot = { 270230, 270231, 271095 } },
-            { npc = 261311, name = "Plunder", encounters = { 3494 }, loot = { 270228, 271098, 270229 } },
-            { npc = 261319, name = "Durgen Dirgehammer", encounters = { 3496 }, loot = { 270256, 270260, 270261 } },
+            { npc = 261306, name = "Faldrim Anvilmar", encounters = { 3493 }, loot = { 270227, 271096, 271097 }, chance = { 27, 18, 0 } },
+            { npc = 261316, name = "Magmatus", encounters = { 3495 }, loot = { 271095, 270231, 270230 }, chance = { 50, 33, 17 } },
+            { npc = 261311, name = "Plunder", encounters = { 3494 }, loot = { 270228, 270229, 271098 }, chance = { 33, 33, 33 } },
+            { npc = 261319, name = "Durgen Dirgehammer", encounters = { 3496 }, loot = { 270256, 270260, 270261 }, chance = { 29, 24, 24 } },
         } },
     },
 })

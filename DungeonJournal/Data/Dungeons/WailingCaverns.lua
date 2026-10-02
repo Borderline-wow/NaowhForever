@@ -11,15 +11,16 @@ ns.Journal.AddDungeon("WailingCaverns", {
     entrance = { map = 1413, x = 46.0, y = 36.3 },
     wings = {
         { bosses = {
-            { npc = 3671, name = "Lady Anacondra", encounters = { 585 }, loot = { 5404, 10412, 273088 }, chance = { 42, 10, 0 } },
+            { npc = 3671, name = "Lady Anacondra", encounters = { 585 }, loot = { 5404, 10412, 273088 }, chance = { 47, 10, 0 } },
             { npc = 3669, name = "Lord Cobrahn", encounters = { 586 }, loot = { 6465, 6460, 10410 }, chance = { 55, 18, 18 } },
-            { npc = 3653, name = "Kresh", encounters = { 587 }, loot = { 6447, 13245 }, chance = { 66, 14 } },
-            { npc = 3670, name = "Lord Pythas", encounters = { 588 }, loot = { 6473, 6472 }, chance = { 55, 30 } },
-            { npc = 3674, name = "Skum", encounters = { 589 }, loot = { 6449, 6448, 273137 }, chance = { 47, 46, 0 } },
+            { npc = 3653, name = "Kresh", encounters = { 587 }, loot = { 6447, 13245, 273084 }, chance = { 70, 13, 0 } },
+            { npc = 3670, name = "Lord Pythas", encounters = { 588 }, loot = { 6473, 6472, 273089 }, chance = { 55, 30, 0 } },
+            { npc = 3674, name = "Skum", encounters = { 589 }, loot = { 6448, 6449, 273137 }, chance = { 47, 46, 0 } },
             { npc = 3673, name = "Lord Serpentis", encounters = { 590 }, loot = { 6459, 10411, 5970, 6469 }, chance = { 23, 21, 20, 17 } },
-            { npc = 5775, name = "Verdan the Everliving", encounters = { 591 }, loot = { 6630, 6631, 6629 }, chance = { 39, 38, 20 } },
+            { npc = 5775, name = "Verdan the Everliving", encounters = { 591 }, loot = { 6630, 6631, 6629 }, chance = { 39, 38, 19 } },
             { npc = 3654, name = "Mutanus the Devourer", encounters = { 592 }, loot = { 6463, 6461, 6627 }, chance = { 30, 29, 23 } },
             { npc = 5912, name = "Deviate Faerie Dragon", rare = true, loot = { 6632, 5243 }, chance = { 45, 42 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 10413 }, chance = { 2 } },
         } },
     },
 })

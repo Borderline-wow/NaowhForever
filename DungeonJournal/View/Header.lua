@@ -11,7 +11,7 @@ local Quests = J.Quests
 
 local St = J.Style
 local BIS_CODE, LOOK_CODE, LOOK_RGB, TERRITORY_CODE = St.BIS_CODE, St.LOOK_CODE, St.LOOK_RGB, St.TERRITORY_CODE
-local BANG, HANGER, PIN, PLACE_DOT = St.BANG, St.HANGER, St.PIN, St.PLACE_DOT
+local BANG, HANGER, PLACE_DOT = St.BANG, St.HANGER, St.PLACE_DOT
 local STAR, BIS_RGB = St.STAR, St.BIS_RGB
 local STAT_ICON, STAT_GAP, STAT_SPACE, STAT_LINE_H = St.STAT_ICON, St.STAT_GAP, St.STAT_SPACE, St.STAT_LINE_H
 local TITLE_SIZE, TITLE_H, TITLE_GAP = St.TITLE_SIZE, St.TITLE_H, St.TITLE_GAP
@@ -19,10 +19,15 @@ local WHERE_H, HEADER_PAD = St.WHERE_H, St.HEADER_PAD
 
 local Kinds = J.View.Kinds
 
-local PIN_BOX, PIN_ICON = 20, 16
--- The Naowh font leaves room above its capitals, so the letters sit under the middle of the
--- title's box: the pin goes this much under it, level with the letters.
-local PIN_DROP = 2
+local PIN_BOX, PIN_ICON = 20, 18
+-- The entrance pin is the game's own, as its world map marks dungeon and raid entrances (the
+-- "dungeon" and "raid" atlases), in its own colours: a touch faded at rest, full on hover.
+local PIN_ATLAS = { dungeon = "dungeon", raid = "raid" }
+local PIN_REST = 0.85
+-- The round mark on the title's middle. Measured in game (2 Oct 2026): 2px under it put the
+-- mark 4px below the capitals' middle, and 2px above it level with them, which read as high
+-- beside the lower-case letters; on the middle it sits between the two.
+local PIN_DROP = 0
 local STAT_H = 16
 -- Narrow: the stats' line starts this far under the where line, and the header ends this far
 -- under what it holds.
@@ -124,7 +129,7 @@ local function PinClicked(pin, mouse)
 end
 
 local function PinEnter(pin)
-    pin.icon:SetVertexColor(T.fg.r, T.fg.g, T.fg.b)
+    pin.icon:SetAlpha(1)
     GameTooltip:SetOwner(pin, "ANCHOR_RIGHT")
     GameTooltip:SetText("Show the entrance on your map", 1, 1, 1)
     GameTooltip:AddLine("Right-click to share it in chat, or copy it.", T.accentSoft.r, T.accentSoft.g,
@@ -133,7 +138,7 @@ local function PinEnter(pin)
 end
 
 local function PinLeave(pin)
-    pin.icon:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+    pin.icon:SetAlpha(PIN_REST)
     GameTooltip:Hide()
 end
 
@@ -193,10 +198,9 @@ Kinds.header = {
         row.pin:SetSize(PIN_BOX, PIN_BOX)
         row.pin:SetPoint("LEFT", row.title, "RIGHT", 6, -PIN_DROP)
         row.pin.icon = row.pin:CreateTexture(nil, "ARTWORK")
-        row.pin.icon:SetTexture(PIN)
         row.pin.icon:SetSize(PIN_ICON, PIN_ICON)
         row.pin.icon:SetPoint("CENTER")
-        row.pin.icon:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+        row.pin.icon:SetAlpha(PIN_REST)
         row.pin:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         row.pin:SetScript("OnClick", PinClicked)
         row.pin:SetScript("OnEnter", PinEnter)
@@ -234,6 +238,7 @@ Kinds.header = {
         local view = row:GetParent()
         row.dungeon = dungeon
         row.pin:SetShown(dungeon.entrance ~= nil and not view.compact)
+        row.pin.icon:SetAtlas(dungeon.raid and PIN_ATLAS.raid or PIN_ATLAS.dungeon)
         row.title:SetWidth(0)   -- unbounded, so it measures the whole name
         row.title:SetText(dungeon.name)
         row.title:SetWidth(math.min(math.ceil(row.title:GetStringWidth()) + 1, row:GetWidth() - PIN_BOX - 10))

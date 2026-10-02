@@ -1,0 +1,66 @@
+"""Tests for Tools/wowsrc.py's daily check: what wowsrc's pages say now that wowsrc_loot.json
+(what the Journal was built from) does not. Offline, made-up pages. From the repo root:
+
+    python -m unittest discover -s Tools/tests
+"""
+import copy
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import wowsrc  # noqa: E402
+
+
+def item(name, new=False, chance=None):
+    return {"name": name, "new": new, "chance": chance, "quality": "rare", "level": 21, "slot": "trinket", "type": None}
+
+
+OLD = {"shadowfang-keep": {"name": "Shadowfang Keep", "updated": None, "bosses": [
+    {"name": "Commander Springvale", "items": [item("Arced War Axe", chance=35.7), item("Eerie Stable Lantern")]},
+    {"name": "Trash", "items": [item("Shadowfang")]},
+]}}
+
+
+class Check(unittest.TestCase):
+    def setUp(self):
+        self.names = wowsrc.item_names
+        wowsrc.item_names = lambda: {"arced war axe": 3191, "worgenbane talisman": 273643}
+
+    def tearDown(self):
+        wowsrc.item_names = self.names
+
+    def test_nothing_new(self):
+        self.assertEqual(wowsrc.changes(OLD, copy.deepcopy(OLD)), [])
+
+    def test_a_chance_moving_is_not_a_change(self):
+        new = copy.deepcopy(OLD)
+        new["shadowfang-keep"]["bosses"][0]["items"][0]["chance"] = 36.1
+        self.assertEqual(wowsrc.changes(OLD, new), [])
+
+    def test_an_item_moved_and_one_added(self):
+        new = copy.deepcopy(OLD)
+        springvale = new["shadowfang-keep"]["bosses"][0]["items"]
+        springvale.remove(springvale[1])
+        springvale.append(item("Worgenbane Talisman", new=True))
+        text = "\n".join(wowsrc.changes(OLD, new))
+        self.assertIn("Shadowfang Keep / Commander Springvale: Worgenbane Talisman (new in Forever)", text)
+        self.assertIn("Items a boss lost", text)
+        self.assertIn("Commander Springvale: Eerie Stable Lantern", text)
+
+    def test_an_unmapped_name_says_so(self):
+        new = copy.deepcopy(OLD)
+        new["shadowfang-keep"]["bosses"][1]["items"].append(item("Gloomshroud Armor"))
+        self.assertIn("Trash: Gloomshroud Armor (name not mapped yet)", "\n".join(wowsrc.changes(OLD, new)))
+
+    def test_new_boss_and_page(self):
+        new = copy.deepcopy(OLD)
+        new["shadowfang-keep"]["bosses"].append({"name": "Sever", "items": [item("The Axe of Severing")]})
+        new["ruins"] = {"name": "Ruins of Lordaeron", "updated": None, "bosses": []}
+        text = "\n".join(wowsrc.changes(OLD, new))
+        self.assertIn("Shadowfang Keep / Sever: The Axe of Severing", text)
+        self.assertIn("- Ruins of Lordaeron", text)
+
+
+if __name__ == "__main__":
+    unittest.main()

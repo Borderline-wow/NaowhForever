@@ -11,11 +11,14 @@ ns.Journal.AddDungeon("RazorfenDowns", {
     entrance = { map = 1413, x = 50.9, y = 92.9 },
     wings = {
         { bosses = {
-            { npc = 7355, name = "Tuten'kash", encounters = { 2780 }, loot = { 10775 }, chance = { 32 } },
-            { npc = 7357, name = "Mordresh Fire Eye", encounters = { 2782 }, loot = { 10771 }, chance = { 32 } },
+            { npc = 7355, name = "Tuten'kash", encounters = { 2780 }, loot = { 10776, 10775, 10777 }, chance = { 34, 32, 30 } },
+            { npc = 7357, name = "Mordresh Fire Eye", encounters = { 2782 }, loot = { 10770, 10769, 10771 }, chance = { 33, 32, 32 } },
             { npc = 8567, name = "Glutton", encounters = { 2784 }, loot = { 10772, 10774 }, chance = { 50, 48 } },
             { npc = 7358, name = "Amnennar the Coldbringer", encounters = { 2785 }, loot = { 10762, 10763, 10764, 10765, 10761 }, chance = { 39, 37, 29, 27, 19 } },
-            { npc = 7354, name = "Ragglesnout", rare = true, encounters = { 2783 } },
+            { npc = 7354, name = "Ragglesnout", rare = true, encounters = { 2783 }, loot = { 10767, 10768, 10758 }, chance = { 40, 38, 20 } },
+            { npc = 7356, name = "Plaguemaw the Rotting", rare = true, encounters = { 2781 }, loot = { 10760, 10766 }, chance = { 63, 33 } },
+            { npc = 14686, name = "Lady Falther'ess", optional = true, loot = { 23177, 23178 }, chance = { 54, 42 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 10567, 10570, 10572, 10574, 10578, 10581, 10583 } },
         } },
     },
 })

@@ -1,6 +1,6 @@
 """Tells whether a newer WoW Forever build is out than the one the Journal's data is read
 from (wago.BUILD), and what it changes for the Journal. Run daily by
-.github/workflows/watch-build.yml, which opens a pull request when there is one.
+.github/workflows/daily-watch.yml, which opens a pull request when there is one.
 
 What it checks, between the build in use and the new one (the game's own tables, through
 wago.tools; nothing is read from Wowhead, the report only links to it):
@@ -24,6 +24,10 @@ wago.tools; nothing is read from Wowhead, the report only links to it):
   the table does not have yet; those are only counted.)
 - New encounters on the maps of the Journal's dungeons: a boss the Journal may be missing.
 - New dungeon and raid maps: a dungeon the Journal does not have yet.
+- New gear: uncommon or better items the new build adds that can be worn or wielded, and the
+  Journal does not list yet. The game's tables cannot say who drops an item (loot is the
+  server's), so these are for a person to place under their bosses. Information only: it
+  never holds a build back.
 
 A build wago has only just added may not be readable yet (it has to learn each table's
 layout first): then the report says so, ready is false, and the next day's run tries again.
@@ -46,9 +50,12 @@ import sys
 from pathlib import Path
 
 import wago
+from build_dungeon_loot import EQUIPPABLE
 
 ROOT = Path(__file__).resolve().parent.parent
 DUNGEONS = ROOT / "DungeonJournal" / "Data" / "Dungeons"
+# The items the Journal already knows: its boss loot's facts, and its faction rewards'.
+JOURNAL_ITEMS = (ROOT / "DungeonJournal" / "Data" / "Items.lua", ROOT / "DungeonJournal" / "Data" / "FactionItems.lua")
 CHANGELOG = ROOT / "CHANGELOG.md"
 WAGO_PY = Path(__file__).resolve().parent / "wago.py"
 INSTANCE_TYPES = {"1": "dungeon", "2": "raid"}   # the Map table's InstanceType
@@ -57,6 +64,15 @@ ARROW = " &rarr; "
 STANDINGS = {1: "Hated", 2: "Hostile", 3: "Unfriendly", 4: "Neutral", 5: "Friendly", 6: "Honored",
              7: "Revered", 8: "Exalted"}
 QUALITIES = {0: "Poor", 1: "Common", 2: "Uncommon", 3: "Rare", 4: "Epic", 5: "Legendary"}
+UNCOMMON = 2      # the lowest quality the Journal lists, as its boss loot
+GEAR_ROWS = 50    # the new gear table's rows at most; the rest are counted
+# The game's inventory types (Item's InventoryType, the same numbers Wowhead's slots use) that
+# go in a gear slot: EQUIPPABLE, the Journal's own rule for its boss loot. It leaves out the
+# shirt, tabard, bag, ammo and quiver: worn, but nothing a boss's loot list needs.
+SLOTS = {1: "Head", 2: "Neck", 3: "Shoulder", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet", 9: "Wrist",
+         10: "Hands", 11: "Finger", 12: "Trinket", 13: "One-Hand", 14: "Shield", 15: "Ranged", 16: "Back",
+         17: "Two-Hand", 20: "Chest", 21: "Main Hand", 22: "Off Hand", 23: "Held In Off-hand", 25: "Thrown",
+         26: "Ranged", 28: "Relic"}
 # A reward's fields the report compares, and how each reads.
 FIELDS = (("standing", "standing", lambda v: STANDINGS.get(v, v)),
           ("price", "price", lambda v: coins(v)),
@@ -66,6 +82,8 @@ FIELDS = (("standing", "standing", lambda v: STANDINGS.get(v, v)),
 
 BOSS = re.compile(r'name = "((?:[^"\\]|\\.)*)"[^\n]*?encounters = \{ ([\d, ]+) \}')
 DUNGEON_NAME = re.compile(r'^\s*name = "((?:[^"\\]|\\.)*)",', re.M)
+# An item's line in Items.lua ("    [872] = { ...") or FactionItems.lua ("items[1164] = { ...").
+ITEM_LINE = re.compile(r'^\s*(?:items)?\[(\d+)\] = \{', re.M)
 
 
 def coins(copper):
@@ -167,6 +185,64 @@ def rewards(old, carry_old, new, carry_new):
             if changes:
                 found["changed"].append((faction, now[i], changes))
         found["carried"] += [(faction, now[i]) for i in sorted(now) if i in carried]
+    return found
+
+
+def journal_items():
+    """The IDs of every item the Journal already knows (JOURNAL_ITEMS)."""
+    found = set()
+    for path in JOURNAL_ITEMS:
+        found |= {int(i) for i in ITEM_LINE.findall(path.read_text(encoding="utf-8"))}
+    return found
+
+
+def item_rows(build, carry):
+    """The build's item tables, with hotfixes: item ID -> its Item row, and ID -> its ItemSparse
+    row. With carry, a build whose rows fill in the items the build lacks entirely, as the
+    faction data does (build_factions.game_items)."""
+    items, sparse = {}, {}
+    for source in (build, carry):
+        if source:
+            for row in wago.table("Item", source):
+                items.setdefault(row["ID"], row)
+            for row in wago.table("ItemSparse", source):
+                sparse.setdefault(row["ID"], row)
+    return items, sparse
+
+
+def number(row, column):
+    """A column as a number; None when there is no row (the tables do not give it yet)."""
+    return int(row[column] or 0) if row else None
+
+
+def new_gear(old, carry_old, new, carry_new, skip=()):
+    """The gear build new adds (with carry_new's items) that build old (with carry_old's) does
+    not have, and the Journal does not know yet, nor skip (IDs): [{id, name, slot, level,
+    reqlevel, quality}] by ID, None for what the tables do not give.
+
+    Two tables say what an item is. Item has a row for every item the client knows, with its
+    inventory type (the slot); ItemSparse has its name, quality, item level and required
+    level, and often comes later: by hotfix, so a new build may lack it until wago.tools has
+    recorded its hotfixes (carry fills those in). An item is new when the build in use has
+    no row for it, or when it had only its Item row and the new build has its facts too: then
+    it is found once it exists, and again once it can be told what it is. (ItemSearchName
+    holds a share of ItemSparse's rows and nothing else, so it is not read.)"""
+    before_items, before_sparse = item_rows(old, carry_old)
+    after_items, after_sparse = item_rows(new, carry_new)
+    known = journal_items() | set(skip)
+    found = []
+    for key in sorted(set(after_items) | set(after_sparse), key=int):
+        if key in before_sparse or (key in before_items and key not in after_sparse) or int(key) in known:
+            continue
+        sparse = after_sparse.get(key)
+        slot = number(after_items.get(key) or sparse, "InventoryType")
+        quality = number(sparse, "OverallQualityID")
+        # A quality the tables do not give yet may be any: listed, so it is not missed.
+        if slot not in EQUIPPABLE or (quality is not None and quality < UNCOMMON):
+            continue
+        found.append({"id": int(key), "name": (sparse or {}).get("Display_lang") or "", "slot": slot,
+                      "level": number(sparse, "ItemLevel"), "reqlevel": number(sparse, "RequiredLevel"),
+                      "quality": quality})
     return found
 
 
@@ -318,6 +394,30 @@ def players_section(found, removals, allowed, changelog, check_only=False):
     return lines
 
 
+def gear_section(gear, check_only=False):
+    """The new gear the Journal does not list yet, for a person to place: who drops an item is
+    not in the game's tables (loot is the server's). At most GEAR_ROWS rows, the rest counted."""
+    lines = ["### New gear not in the Journal yet", ""]
+    if not gear:
+        if check_only:
+            return lines + ["None: this is the build in use, checked again, so no item is new.", ""]
+        return lines + ["None: the build adds no uncommon or better item that can be equipped, beyond what the "
+                        "Journal lists.", ""]
+    lines += [f"**{plural(len(gear), 'item')}** the build adds, uncommon or better and worn or wielded, that the "
+              "Journal does not list yet. The game's tables do not say who drops an item, so place them under "
+              "their bosses by hand. What the tables do not give yet reads unknown.", "",
+              "| Item | Slot | Item level | Requires level | Quality |", "|---|---|---|---|---|"]
+    for item in gear[:GEAR_ROWS]:
+        level, reqlevel, quality = item["level"], item["reqlevel"], item["quality"]
+        lines.append(f"| {item_link(item)} | {SLOTS.get(item['slot'], item['slot'])} "
+                     f"| {'unknown' if level is None else level} "
+                     f"| {'unknown' if reqlevel is None else reqlevel or 'none'} "
+                     f"| {'unknown' if quality is None else QUALITIES.get(quality, quality)} |")
+    if len(gear) > GEAR_ROWS:
+        lines += ["", f"...and {len(gear) - GEAR_ROWS} more."]
+    return lines + [""]
+
+
 def carried_section(found, carry, build):
     """The rewards carried over, folded away: long, and nothing to act on unless one is wrong."""
     if not found["carried"]:
@@ -332,11 +432,12 @@ def carried_section(found, carry, build):
 
 
 def report(target, old, unreadable=None, dungeons=None, found=None, waiting=False, allowed=False, notes=(),
-           changelog=None, carry=None, coverage=1.0, removals=False, check_only=False):
+           changelog=None, carry=None, coverage=1.0, removals=False, check_only=False, gear=None):
     """The report on moving to a new build, as Markdown lines. carry is the build whose hotfixed
     items fill in the new one's (None: its own are in), coverage how much of the hotfixed items
     the new build has, removals whether rewards it lacks are Blizzard's removals, check_only
-    whether it is the build in use checked again (force), where nothing moves."""
+    whether it is the build in use checked again (force), where nothing moves. gear is the new
+    gear the Journal does not list yet (new_gear; None: not looked at, no section)."""
     new = target["version"]
     seen = ""
     if target["products"]:
@@ -377,10 +478,16 @@ def report(target, old, unreadable=None, dungeons=None, found=None, waiting=Fals
               hotfixes_row(found, carry, coverage),
               f"| **Kill counts** | {kills} |",
               f"| **New encounters in our dungeons** | {len(dungeons['added']) or 'none'} |",
-              f"| **New dungeons and raids** | {len(dungeons['fresh']) or 'none'} |", ""]
+              f"| **New dungeons and raids** | {len(dungeons['fresh']) or 'none'} |"]
+    if gear is not None:
+        lines.append(f"| **New gear not in the Journal** | {len(gear) or 'none'} |")
+    lines.append("")
 
     # A check of the build in use adds nothing to CHANGELOG.md, so it shows no line for it.
     lines += players_section(found, removals, allowed, None if check_only else changelog, check_only)
+    # The new gear is for a person to place: it says nothing in the verdict nor the changelog.
+    if gear is not None:
+        lines += gear_section(gear, check_only)
 
     # The dungeons.
     lines += ["### Dungeons and raids", ""]
@@ -463,6 +570,9 @@ def main():
             carry = carry_source(old, carry_old, coverage)
             dungeons = check(old, new)
             found = rewards(old, carry_old, new, carry)
+            # The new faction rewards are placed by the faction data (and listed above it), not
+            # by hand. Read before --update rewrites FactionItems.lua.
+            gear = new_gear(old, carry_old, new, carry, skip={item["id"] for _, item in found["new"]})
             problems = bool(dungeons["gone"])
             removals = carry is None and newer
             waiting = bool(found["gone"]) and newer and not removals and not args.allow_losses
@@ -479,7 +589,7 @@ def main():
                 issue = f"WoW Forever build {new} is out"
             lines = report(target, old, dungeons=dungeons, found=found, waiting=waiting,
                            allowed=args.allow_losses, notes=notes, changelog=line, carry=carry,
-                           coverage=coverage, removals=removals, check_only=not newer)
+                           coverage=coverage, removals=removals, check_only=not newer, gear=gear)
     elif carry_old and not wago.unreadable(old) and wago.hotfix_coverage(old, [carry_old]) >= wago.CAUGHT_UP:
         # Nothing newer, but wago has caught up with the build in use's own hotfixes: stop
         # carrying over; what the build lacks now is gone from the game.

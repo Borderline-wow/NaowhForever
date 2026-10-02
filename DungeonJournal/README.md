@@ -68,6 +68,9 @@ calls are on `ns`.
 | A colour, a size, spacing, an icon | `View/Style.lua` |
 | A boss tip | `Data/Tips.lua`, keyed by the boss's NPC ID, one short sentence |
 | A dungeon's bosses, wings, kill order, entrance or zone | `Tools/journal_bosses.json`, then `python Tools/build_journal.py` |
+| A rare, an optional boss or a loot chest | `"rare"`, `"optional"` or `"chests": { "Name": objectID }` on its wing in `Tools/journal_bosses.json` |
+| An item a boss drops that no source has placed yet | `"add": { "Boss Name": [itemID] }` on the dungeon (`"Trash"` for its trash) |
+| A boss wowsrc names differently | `"wowsrcNames": { "Their Name": "Our Name" }` on the dungeon |
 | A boss's NPC ID the build cannot find | `"npcs": { "Name": ID }` on the dungeon in `Tools/journal_bosses.json` |
 | An icon's drawing | its function in `Tools/make_media.py`, then run it (writes `Media/*.tga`) |
 | What counts as usable, BiS, an upgrade, a new look | `Loot.lua` |
@@ -75,7 +78,7 @@ calls are on `ns`.
 | A dungeon quest | `Data/Quests.lua`, then `python Tools/build_quest_chains.py` for its chain |
 | A faction, its zone or the dungeons it is earned in | `Tools/journal_factions.json`, then `python Tools/build_factions.py` |
 | What a standing means, prices in short, the PvP rank | `Reputation.lua` |
-| The game build the faction data is read from | `BUILD` in `Tools/wago.py`; the daily build watcher (`.github/workflows/watch-build.yml`) opens a pull request when a newer one is out (or, where the organization does not let workflows open one, an issue with a one-click link to it). Items a new build lacks because wago.tools has not recorded its hotfixes yet are carried over from the build before (`CARRY_FROM`), and the pull request lists them |
+| The game build the faction data is read from | `BUILD` in `Tools/wago.py`; the daily build watcher (`.github/workflows/daily-watch.yml`) opens a pull request when a newer one is out (or, where the organization does not let workflows open one, an issue with a one-click link to it). Items a new build lacks because wago.tools has not recorded its hotfixes yet are carried over from the build before (`CARRY_FROM`), and the pull request lists them |
 | A setting or its default | `Journal.lua` (`UI.ModuleSettings("journal", ...)`) and `UI/SettingsPage.lua` |
 
 `Data/Dungeons/*.lua`, `Data/Factions/*.lua`, `Data/Items.lua`, `Data/FactionItems.lua`, `Data/Build.lua` and
@@ -84,6 +87,53 @@ them, or the next build undoes the edit.
 
 The style rules (named values, 1px black edges, the accent, lining icons up with the
 Naowh font) are the addon's, in `.github/CONTRIBUTING.md` under Style.
+
+## Where the loot comes from
+
+Nothing in the game client says who drops what (loot lives on the server), so the boss loot
+is put together offline by `Tools/build_journal.py` and shipped as data. No source is right
+on its own, so the build stacks them:
+
+```mermaid
+flowchart TD
+    bosses["journal_bosses.json<br/>bosses, rares, optional, chests,<br/>kill order (by hand)"]
+    wowhead["Wowhead Forever<br/>each boss's drops and kill counts"]
+    classic["Wowhead Classic<br/>when Forever has nothing yet"]
+    wowsrc["wowsrc.com<br/>Forever's own list per boss, and trash"]
+    names["item_names.json<br/>wowsrc names to item IDs"]
+    hand["add lists and BiS sources<br/>(by hand)"]
+    wago["wago.tools<br/>the game's own tables"]
+
+    bosses --> build
+    wowhead --> rules
+    classic -.-> rules
+    rules["keep gear, 1%+ chance,<br/>no world drops;<br/>new Forever items once seen twice"] --> merge
+    wowsrc --> names --> merge
+    merge["merge with wowsrc:<br/>their items added, their chances win,<br/>old items they moved dropped"] --> build
+    hand --> build
+    wago -->|"encounter IDs for kill counts"| build
+    build["build_journal.py"] --> out["Data/Dungeons/*.lua<br/>Data/Items.lua"]
+```
+
+The rules, in plain words:
+
+- **Wowhead** gives the drops and how often. It counts Classic Era's kills and Forever's
+  together, so a new Forever item looks rarer than it is: it's kept once it has dropped
+  twice, and shows no chance. A boss that's new in Forever has only Forever's kills, so its
+  chances are real. Under 10 kills, no chance is shown.
+- **wowsrc.com** lists what each boss drops in Forever (they gave us permission to use
+  their site). It wins where it disagrees: its items go in, its chance is used, and an old
+  item it lists somewhere else is taken off the boss. It's also where each Trash card comes
+  from. Its pages have no item IDs, so `Tools/wowsrc.py` maps names to IDs once and keeps
+  them in `Tools/item_names.json`.
+- **By hand** (`"add"`): items two other sources agree on that neither Wowhead nor wowsrc
+  places yet.
+- A boss nobody has loot for yet says so on its card. Keys, quest items and recipes are left
+  out: the Journal lists gear.
+
+To refresh it all: `python Tools/wowsrc.py` (new pages), `python Tools/wowsrc.py --resolve`
+(new names), then `python Tools/build_journal.py`. Read what the build prints at the end:
+bosses it found no loot for, wowsrc bosses we don't list, names it couldn't map.
 
 ## Adding things
 

@@ -11,13 +11,16 @@ ns.Journal.AddDungeon("RazorfenKraul", {
     entrance = { map = 1413, x = 42.2, y = 89.8 },
     wings = {
         { bosses = {
-            { npc = 4424, name = "Aggem Thorncurse", encounters = { 2774 }, loot = { 6681, 1978, 2549 }, chance = { 47, 1, 1 } },
-            { npc = 4428, name = "Death Speaker Jargba", encounters = { 2775 }, loot = { 6685, 6682, 2816 }, chance = { 44, 43, 10 } },
-            { npc = 4420, name = "Overlord Ramtusk", encounters = { 2776 }, loot = { 6686, 6687 }, chance = { 62, 34 } },
-            { npc = 4422, name = "Agathelos the Raging", encounters = { 2777 }, loot = { 6690, 6691 }, chance = { 62, 34 } },
-            { npc = 4421, name = "Charlga Razorflank", encounters = { 2778 }, loot = { 6693, 6692 }, chance = { 66, 17 } },
-            { npc = 4425, name = "Blind Hunter", rare = true, loot = { 6697, 6696, 6695 }, chance = { 34, 34, 26 } },
-            { npc = 4842, name = "Earthcaller Halmgar", rare = true, loot = { 6688, 2264 }, chance = { 46, 12 } },
+            { npc = 4424, name = "Aggem Thorncurse", encounters = { 2774 }, loot = { 6681, 2549 }, chance = { 47, 1 } },
+            { npc = 4428, name = "Death Speaker Jargba", encounters = { 2775 }, loot = { 6685, 6682, 2816 }, chance = { 44, 42, 10 } },
+            { npc = 4420, name = "Overlord Ramtusk", encounters = { 2776 }, loot = { 6686, 6687, 274161 }, chance = { 62, 34, 0 } },
+            { npc = 4422, name = "Agathelos the Raging", encounters = { 2777 }, loot = { 6690, 6691, 274158, 274160 }, chance = { 63, 33, 0, 0 } },
+            { npc = 4421, name = "Charlga Razorflank", encounters = { 2778 }, loot = { 6693, 6694, 6692 }, chance = { 35, 34, 18 } },
+            { npc = 4425, name = "Blind Hunter", rare = true, loot = { 6697, 6696, 6695 }, chance = { 34, 32, 27 } },
+            { npc = 4842, name = "Earthcaller Halmgar", rare = true, loot = { 6689, 6688 }, chance = { 48, 46 } },
+            { npc = 4438, name = "Razorfen Spearhide", rare = true, loot = { 6679 }, chance = { 61 } },
+            { npc = 6168, name = "Roogug", optional = true, encounters = { 2773 }, loot = { 274152, 274155 } },
+            { npc = nil, name = "Trash", trash = true, loot = { 6679, 6681, 3569, 776, 1488, 1727, 1975, 1976, 1978, 2039, 2264, 2549, 4438 }, chance = { 61, 53, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
         } },
     },
 })

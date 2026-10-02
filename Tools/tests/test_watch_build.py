@@ -176,6 +176,103 @@ class Rewards(unittest.TestCase):
                          "nothing else changes: the data is still updated")
 
 
+def item_row(item_id, slot):
+    return {"ID": str(item_id), "ClassID": "4", "SubclassID": "2", "InventoryType": str(slot)}
+
+
+def sparse_row(item_id, slot, quality=3, level=40, reqlevel=35):
+    return {"ID": str(item_id), "Display_lang": f"Gear {item_id}", "OverallQualityID": str(quality),
+            "ItemLevel": str(level), "RequiredLevel": str(reqlevel), "InventoryType": str(slot)}
+
+
+class NewGear(unittest.TestCase):
+    """watch_build.new_gear between two made-up builds, and its section of the report."""
+
+    def setUp(self):
+        self.saved = (wago.table, watch_build.journal_items)
+        tables = {
+            # The build in use: 1 has everything; 2 only its Item row (its facts come later).
+            ("Item", "old"): [item_row(1, 5), item_row(2, 7)],
+            ("ItemSparse", "old"): [sparse_row(1, 5)],
+            # What the build in use carries over: 10, by hotfix.
+            ("Item", "older"): [item_row(10, 1)],
+            ("ItemSparse", "older"): [sparse_row(10, 1)],
+            # The new build: 10 in its own tables now; 2 with its facts; 20 to 26 new.
+            ("Item", "new"): [item_row(i, s) for i, s in ((1, 5), (2, 7), (10, 1), (20, 5), (21, 12), (22, 5),
+                                                          (23, 0), (24, 4), (25, 12), (26, 16))],
+            ("ItemSparse", "new"): [sparse_row(1, 5), sparse_row(2, 7, quality=2, reqlevel=0), sparse_row(10, 1),
+                                    sparse_row(20, 5), sparse_row(21, 12), sparse_row(22, 5, quality=0),
+                                    sparse_row(23, 0, quality=4), sparse_row(24, 4), sparse_row(26, 16)],
+        }
+        wago.table = lambda name, build, hotfixes=True: tables[(name, build)]
+        watch_build.journal_items = lambda: {21}
+
+    def tearDown(self):
+        wago.table, watch_build.journal_items = self.saved
+
+    def test_finds(self):
+        gear = watch_build.new_gear("old", "older", "new", "old", skip={26})
+        self.assertEqual([i["id"] for i in gear], [2, 20, 25],
+                         "not 1 (had), 10 (carried over), 21 (in the Journal), 22 (poor), 23 (not worn), "
+                         "24 (a shirt), 26 (skipped: a new faction reward)")
+        self.assertEqual(gear[1], {"id": 20, "name": "Gear 20", "slot": 5, "level": 40, "reqlevel": 35,
+                                   "quality": 3})
+        self.assertEqual(gear[2], {"id": 25, "name": "", "slot": 12, "level": None, "reqlevel": None,
+                                   "quality": None}, "only an Item row: what the tables do not give is unknown")
+
+    def test_carried_over_counts_as_present(self):
+        self.assertIn(10, [i["id"] for i in watch_build.new_gear("old", None, "new", "old")],
+                      "without the carry-over, the build in use lacks it")
+        self.assertNotIn(10, [i["id"] for i in watch_build.new_gear("old", "older", "new", "old")])
+
+    def test_report(self):
+        gear = watch_build.new_gear("old", "older", "new", "old", skip={26})
+        found = {"kept": 558, "new": [], "gone": [], "changed": [], "carried": []}
+        text = "\n".join(watch_build.report(TARGET, "old", dungeons=CALM, found=found, gear=gear))
+        self.assertIn("> **Ready to merge:** all 558 faction rewards kept; nothing else changes for players.", text,
+                      "information only: the verdict does not change")
+        self.assertIn("| **New gear not in the Journal** | 3 |", text)
+        self.assertLess(text.index("### What changes for players"), text.index("### New gear not in the Journal yet"))
+        self.assertLess(text.index("### New gear not in the Journal yet"), text.index("### Dungeons and raids"))
+        self.assertIn("**3 items** the build adds", text)
+        self.assertIn("| [Gear 2](https://www.wowhead.com/forever/item=2) | Legs | 40 | none | Uncommon |", text)
+        self.assertIn("| [Gear 20](https://www.wowhead.com/forever/item=20) | Chest | 40 | 35 | Rare |", text)
+        self.assertIn("| [Item 25](https://www.wowhead.com/forever/item=25) | Trinket | unknown | unknown | "
+                      "unknown |", text)
+        self.assertNotIn("and 0 more", text)
+
+    def test_none(self):
+        found = {"kept": 558, "new": [], "gone": [], "changed": [], "carried": []}
+        text = "\n".join(watch_build.report(TARGET, "old", dungeons=CALM, found=found, gear=[]))
+        self.assertIn("| **New gear not in the Journal** | none |", text)
+        self.assertIn("None: the build adds no uncommon or better item that can be equipped", text)
+        checked = "\n".join(watch_build.report(TARGET, "old", dungeons=CALM, found=found, gear=[], check_only=True))
+        self.assertIn("None: this is the build in use, checked again, so no item is new.", checked)
+        self.assertNotIn("New gear", "\n".join(watch_build.report(TARGET, "old", dungeons=CALM, found=found)),
+                         "not looked at: no section")
+
+    def test_cap(self):
+        gear = [{"id": i, "name": f"Gear {i}", "slot": 5, "level": 40, "reqlevel": 35, "quality": 3}
+                for i in range(1, watch_build.GEAR_ROWS + 4)]
+        lines = watch_build.gear_section(gear)
+        self.assertIn(f"**{watch_build.GEAR_ROWS + 3} items** the build adds", "\n".join(lines))
+        self.assertEqual(sum(1 for line in lines if line.startswith("| [Gear ")), watch_build.GEAR_ROWS)
+        self.assertIn("...and 3 more.", lines)
+
+    def test_journal_items(self):
+        saved = watch_build.JOURNAL_ITEMS
+        with tempfile.TemporaryDirectory() as tmp:
+            items, faction = Path(tmp) / "Items.lua", Path(tmp) / "FactionItems.lua"
+            items.write_bytes(b"ns.Journal.Items = {\r\n    [872] = { 2, 1, 23, 18, 3 },\r\n"
+                              b"    [888] = { 4, 2, 27, 22, 3 },\r\n}\r\n")
+            faction.write_bytes(b"local items = ns.Journal.Items\r\nitems[1164] = { 4, 0, 1, 0, 1 }\r\n")
+            watch_build.JOURNAL_ITEMS = (items, faction)
+            try:
+                self.assertEqual(self.saved[1](), {872, 888, 1164})
+            finally:
+                watch_build.JOURNAL_ITEMS = saved
+
+
 class Changelog(unittest.TestCase):
     """add_changelog puts the line in Unreleased's Changed, keeping the file's line endings."""
 

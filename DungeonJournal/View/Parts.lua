@@ -111,6 +111,14 @@ function Parts.IconButton(parent, onClick, texture, margin)
     return button
 end
 
+-- An item's or an NPC's page on Wowhead Forever, in the copy box (the game cannot put text
+-- on the clipboard for an addon): kind is "item", "npc" or "object" (a chest).
+local WOWHEAD = "https://www.wowhead.com/forever/%s=%d"
+
+function Parts.CopyWowhead(kind, id, name)
+    ns.ShowCopyBox((name or "Wowhead") .. " on Wowhead", WOWHEAD:format(kind, id))
+end
+
 -- A where line in plain muted grey: its colour codes out (coloured parts would pull the eye
 -- off the titles), and the data's dashes between place and person ("Ratchet- Crane
 -- Operator") as dots. The data's lines are few and fixed, so each is made once.

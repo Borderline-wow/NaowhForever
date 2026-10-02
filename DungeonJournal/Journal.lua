@@ -16,6 +16,9 @@ local ns = _G.NaowhForever
 ---@field npc? number its NPC ID; nil where Wowhead has none yet
 ---@field name string
 ---@field rare? boolean a rare, which does not spawn every run
+---@field optional? boolean a boss a run can skip (an event, a summon): no number
+---@field chest? number a loot chest, by its Wowhead object ID: no number, no kill count
+---@field trash? boolean the wing's trash: what its other mobs drop (no number, no kill count)
 ---@field loot? number[] item IDs, most likely first
 ---@field chance? number[] each item's drop chance in percent, 0 where not known
 ---@field encounters? number[] the encounter IDs ENCOUNTER_END names it by (one per difficulty); nil for a rare

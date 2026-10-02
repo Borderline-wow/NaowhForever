@@ -1,15 +1,21 @@
-"""Build the Dungeon Journal's data from Tools/journal_bosses.json and Wowhead Forever.
+"""Build the Dungeon Journal's data from Tools/journal_bosses.json, Wowhead and wowsrc.com.
 
-The boss lists are kept by hand in journal_bosses.json. For each boss this finds its NPC on
-Wowhead Forever by name and reads the "drops" list on its page: every item with the number
-of kills it dropped from. Gear of uncommon quality or better is kept when it drops from at
-least 1 in 100 kills and Wowhead does not mark it a world drop (the random greens any mob
-of that level carries). The chance is the item's own: the times it dropped out of the kills
-recorded for it (all difficulties together), not out of the page's total, which adds up
-every game version that shares the page. A boss new in Forever has its drops listed with
-no kills counted yet: its gear is kept with the chance unknown. Two more sources add what Wowhead has not
-tied to the boss: the dungeon's Wowhead guide, where it has one, and the boss sources in
-NaowhForever_BiSData.lua (wowsrc.com's). Their items have no chance either.
+The boss lists are kept by hand in journal_bosses.json (bosses, rares, optional bosses and
+loot chests, per wing). For each boss this finds its NPC on Wowhead Forever by name and
+reads the "drops" list on its page (a chest: its object page's "contains"): every item with
+the number of kills it dropped from. Where Wowhead Forever keeps nothing (it has not loaded
+every classic item yet), Wowhead Classic's page for the same NPC is read. Gear of uncommon
+quality or better is kept when it drops from at least 1 in 100 kills and is not a world drop
+(the random greens any mob of that level carries). Wowhead counts Classic Era's kills and
+Forever's together, so an item new in Forever looks rarer than it is: it is kept once it
+has dropped twice, with no chance shown. A boss new in Forever has only Forever's kills, so
+its chances are real; under 10 kills none is shown.
+
+Then wowsrc.com's Forever loot pages (Tools/wowsrc.py, its own data file) say what each
+boss drops in Forever: their items are added, their chances win, and an old item they no
+longer list on that boss is dropped (moved, like Springvale's lantern, now trash's). Each
+wing's trash comes from them too. Last, the items placed by hand ("add") and the BiS
+sources in NaowhForever_BiSData.lua; those have no chance.
 
 Each dungeon also gets the zone its entrance is in and that zone's territory (Alliance, Horde
 or Contested) from Wowhead Forever's zone list, and the entrance itself where
@@ -67,6 +73,18 @@ DUNGEON_DIFFICULTIES = ("0", "1", "201")
 MIN_CHANCE = 1.0   # percent of kills
 MIN_QUALITY = 2    # uncommon
 WORLD_DROP = 16384  # Wowhead's flags2 bit for an item any mob can drop
+# Wowhead's drop counts: "1" is Normal, kills from Classic Era and Forever together (it does
+# not split them); "201" is Season of Discovery, never Forever. On a boss Classic has too, an
+# item new in Forever is counted against all those shared kills, so its chance looks tiny
+# (Trogg Scepter, 6 of 4,227 Oggleflint kills): it is kept whatever its chance, with none
+# shown, once it has dropped NEW_DROPS times (one drop can be a stray world drop: Aku'mai's
+# lone Defender's Leather Helm, beside Forever's new world-drop recipes). A boss new in
+# Forever (Witherfang) has only Forever's kills: its chances are real. Under MIN_KILLS kills
+# no chance is shown (one kill makes every drop 100%).
+NORMAL = "1"
+NEW_DROPS = 2
+MIN_KILLS = 10
+SOD = 201
 
 cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
 
@@ -103,52 +121,196 @@ def find_npc(name):
 
 def npc_drops(npc):
     """[{id, chance, facts}] for the gear the NPC drops, most likely first."""
-    def get():
+    return wowhead_drops("npc", npc)
+
+
+def chest_drops(chest):
+    """The same for a chest (a Wowhead object): what it contains."""
+    return wowhead_drops("object", chest)
+
+
+def wowhead_drops(kind, thing):
+    """An NPC's drops ("npc") or a chest's contents ("object"), from its Wowhead Forever page;
+    where that keeps nothing (Wowhead Forever has not loaded its classic items yet: Blackrock
+    Depths' Secret Safe), from Classic's page for the same NPC or object."""
+    listed = "drops" if kind == "npc" else "contains"
+
+    def page_of(base):
         try:
-            page = fetch(f"{WOWHEAD}/npc={npc}")
+            page = fetch(f"{base}/{kind}={thing}")
         except urllib.error.HTTPError as e:
             if e.code == 404:   # a boss Wowhead has no page for yet (a raid not open)
-                return []
+                return None, -1
             raise
-        start = page.find("template: 'item', id: 'drops'")
+        return page, page.find(f"template: 'item', id: '{listed}'")
+
+    def get():
+        found = read(*page_of(WOWHEAD))
+        if not (found and found["items"]):
+            found = read(*page_of(CLASSIC_WOWHEAD)) or found
+        return found or []
+
+    def read(page, start):
         if start < 0:
-            return []
+            return None
         total = int(page[start:].split("_totalCount:", 1)[1].split(",", 1)[0])
 
         def counted(i):
-            """The item's drops and the kills they are out of: every difficulty ("0"), else
-            its own count, else the page's total."""
-            every = (i.get("modes") or {}).get("0")
-            if every and every.get("outof"):
-                return every.get("count", 0), every["outof"]
+            """The item's drops and the kills they are out of: Normal's, else every
+            difficulty's ("0"), else its own count, else the page's total."""
+            modes = i.get("modes") or {}
+            for mode in (NORMAL, "0"):
+                if (modes.get(mode) or {}).get("outof"):
+                    return modes[mode].get("count", 0), modes[mode]["outof"]
             return i.get("count", 0), i.get("outof") or total
 
-        # Only what could be kept is cached: uncommon or better gear that is not a world drop.
-        return [{"id": i["id"], "count": counted(i)[0], "kills": counted(i)[1], "slot": i.get("slot"),
-                 "class": i.get("classs"), "subclass": i.get("subclass"), "level": i.get("level"),
+        def sod_only(i):
+            seen = (i.get("modes") or {}).get("mode") or []
+            return bool(seen) and all(m == SOD for m in seen)
+
+        # The boss is new in Forever: Wowhead's own entry for it says so.
+        npc_new = kind == "npc" and re.search(r'"id":%d,[^;]*?"envChange":\{"status":"new"' % thing,
+                                              page[:start]) is not None
+        # Only what could be kept is cached: uncommon or better gear that is not a world drop
+        # nor only Season of Discovery's. A chest's own items carry the world-drop flag too
+        # (the Secret Safe's): there only Wowhead's common-drop mark counts.
+        return {"new": npc_new, "items": [{"id": i["id"], "name": i.get("name"), "count": counted(i)[0], "kills": counted(i)[1],
+                 "new": (i.get("envChange") or {}).get("status") == "new",
+                 "slot": i.get("slot"), "class": i.get("classs"), "subclass": i.get("subclass"), "level": i.get("level"),
                  "reqlevel": i.get("reqlevel") or 0, "quality": i.get("quality", 0)}
-                for i in listview(page[start:], "drops")
+                for i in listview(page[start:], listed)
                 if i.get("quality", 0) >= MIN_QUALITY and i.get("slot") in EQUIPPABLE
-                and not (i.get("commondrop") or i.get("flags2", 0) & WORLD_DROP)]
+                and not (i.get("commondrop") or (kind == "npc" and i.get("flags2", 0) & WORLD_DROP))
+                and not sod_only(i)]}
+    found = cached(f"drops5:{thing}" if kind == "npc" else f"contains5:{thing}", get)
+    if isinstance(found, list):   # a page with no drops
+        return []
+    return choose(found["items"], found["new"])
+
+
+def choose(items, npc_new=False):
+    """The gear kept for a boss, with each item's chance, most likely first. On a boss Classic
+    has too, an item new in Forever is kept once it has dropped NEW_DROPS times, whatever its
+    chance, and shows none (it is counted against Classic Era's kills too). No chance either
+    under MIN_KILLS kills."""
     drops = []
-    for item in cached(f"drops2:{npc}", get):
-        if item["kills"] == 0:
+    for item in items:
+        chance = 100 * item["count"] / item["kills"] if item["kills"] else None
+        shared = item["new"] and not npc_new
+        if chance is None:
             drops.append(dict(item, chance=None))
-        elif 100 * item["count"] / item["kills"] >= MIN_CHANCE:
-            drops.append(dict(item, chance=100 * item["count"] / item["kills"]))
+        elif shared and (item["count"] >= NEW_DROPS or chance >= MIN_CHANCE):
+            drops.append(dict(item, chance=None))
+        elif not shared and chance >= MIN_CHANCE:
+            drops.append(dict(item, chance=chance if item["kills"] >= MIN_KILLS else None))
     drops.sort(key=lambda i: (-(i["chance"] or 0), -i["quality"], i["id"]))
     return drops
 
 
+CLASSIC_WOWHEAD = "https://www.wowhead.com/classic"
+
+
 def item_facts(item_id):
-    """What the item's XML says about it, in the fields npc_drops keeps."""
+    """What the item's XML says about it, in the fields npc_drops keeps: Wowhead Forever's, else
+    Classic's (Wowhead Forever has not loaded every classic item yet: Hand of Justice; the IDs
+    are the same)."""
     def get():
         xml = fetch(f"{WOWHEAD}/item={item_id}&xml")
+        if "<json>" not in xml:
+            xml = fetch(f"{CLASSIC_WOWHEAD}/item={item_id}&xml")
         item = json.loads("{" + re.search(r"<json><!\[CDATA\[(.*?)\]\]></json>", xml, re.S).group(1) + "}")
         return {"id": item_id, "slot": item.get("slot"), "class": item.get("classs"),
                 "subclass": item.get("subclass"), "level": item.get("level"),
                 "reqlevel": item.get("reqlevel") or 0, "quality": item.get("quality", 0)}
     return cached(f"item:{item_id}", get)
+
+
+WOWSRC = TOOLS / "wowsrc_loot.json"
+ITEM_NAMES = TOOLS / "item_names.json"
+WING_SUFFIX = re.compile(r"^(.*) \((\w+)\)$")   # Dire Maul's "Hydrospawn (East)"
+wowsrc_pages = json.loads(WOWSRC.read_text(encoding="utf-8")) if WOWSRC.exists() else {}
+item_names = json.loads(ITEM_NAMES.read_text(encoding="utf-8")) if ITEM_NAMES.exists() else {}
+
+
+def name_key(name):
+    """An item name as Tools/item_names.json keys it (wowsrc.py's name_key)."""
+    return re.sub(r"\s+", " ", (name or "").lower().replace("\u2019", "'")).strip()
+
+
+def wowsrc_loot(dungeon, report):
+    """(wing name or None, boss name lower case) -> {"items": [{id, chance, new}], "complete"}
+    from wowsrc.com's Forever loot pages for the dungeon (its "wowsrc": a page's slug, or
+    {wing: slug}); "trash" names a wing's trash. complete: every item name on the page is
+    mapped to an ID. A boss of theirs we do not list, and a name not mapped, are reported."""
+    slugs = dungeon.get("wowsrc")
+    if not slugs:
+        return {}
+    if isinstance(slugs, str):
+        slugs = {None: slugs}
+    ours = {(w.get("name"), b.lower()) for w in dungeon["wings"]
+            for b in w["bosses"] + w.get("rare", []) + w.get("optional", []) + list(w.get("chests", {}))}
+    # One page for a dungeon with wings (Blackrock Depths): each boss in its own wing, the
+    # trash in the last.
+    wing_of = {b: w for w, b in ours}
+    last_wing = dungeon["wings"][-1].get("name")
+    renamed = {k.lower(): v.lower() for k, v in dungeon.get("wowsrcNames", {}).items()}
+    found = {}
+    for wing, slug in slugs.items():
+        for boss in wowsrc_pages[slug]["bosses"]:
+            if not boss["items"]:
+                continue   # nothing listed: not known there, not "drops nothing"
+            name, where = boss["name"], wing
+            suffix = WING_SUFFIX.match(name)
+            if suffix and where is None:
+                name, where = suffix.group(1), suffix.group(2)
+            name = renamed.get(name.lower(), name.lower())
+            if where is None and len(slugs) == 1:
+                where = last_wing if name == "trash" else wing_of.get(name)
+            key = (where, name)
+            if name != "trash" and key not in ours:
+                report.append(f"wowsrc boss not listed: {boss['name']} ({dungeon['name']})")
+                continue
+            items, complete = [], True
+            for item in boss["items"]:
+                item_id = item_names.get(name_key(item["name"]))
+                if item_id is None:
+                    complete = False
+                    report.append(f"wowsrc item not mapped: {item['name']} ({boss['name']}, {dungeon['name']})")
+                else:
+                    chance = item["chance"]
+                    if chance is not None and not 0 < chance <= 100:   # Balzaphon's Chains of the Lich: 127.8%
+                        report.append(f"wowsrc chance not a percent: {item['name']} {chance} ({boss['name']})")
+                        chance = None
+                    items.append({"id": item_id, "chance": chance, "new": item["new"]})
+            if key in found:   # two of theirs are one of ours: Doom'rel's and Anger'rel's, the Seven's chest
+                found[key]["items"] += items
+                found[key]["complete"] = found[key]["complete"] and complete
+            else:
+                found[key] = {"items": items, "complete": complete}
+    return found
+
+
+def merge_wowsrc(loot, listed):
+    """A boss's loot with wowsrc's Forever list for it: its chances where it gives one (the
+    game's own), its items added, and an old item it does not list left out (moved in Forever:
+    Springvale's Eerie Stable Lantern is trash's now) when the list is complete. An item new
+    in Forever that Wowhead ties to the boss stays either way."""
+    if not listed:
+        return loot
+    on_list = {i["id"]: i for i in listed["items"]}
+    kept = []
+    for item in loot:
+        theirs = on_list.pop(item["id"], None)
+        if theirs:
+            kept.append(dict(item, chance=theirs["chance"]) if theirs["chance"] is not None else item)
+        elif item.get("new") or not listed["complete"]:
+            kept.append(item)
+    for theirs in on_list.values():
+        facts = item_facts(theirs["id"])
+        if facts["quality"] >= MIN_QUALITY and facts["slot"] in EQUIPPABLE:
+            kept.append(dict(facts, chance=theirs["chance"], new=theirs["new"]))
+    kept.sort(key=lambda i: (i["chance"] is None, -(i["chance"] or 0), -i["quality"], i["id"]))
+    return kept
 
 
 def plain(dungeon):
@@ -190,9 +352,18 @@ def guide_drops(slug):
     return by_boss
 
 
-def boss_entry(name, rare, pinned, extra, items, report):
+def boss_entry(name, rare, pinned, extra, items, report, listed=None, kind=None, chest=None):
+    """A boss's entry; kind "optional" for one a run can skip (an event, a summon), "chest" for
+    a chest (its Wowhead object ID in chest)."""
+    if kind == "chest":
+        loot = merge_wowsrc(chest_drops(chest), listed)
+        for item in loot:
+            items[item["id"]] = item
+        if not loot:
+            report.append(f"no loot: {name} (object {chest})")
+        return {"npc": None, "name": name, "rare": False, "chest": chest, "loot": loot}
     npc = pinned.get(name) or find_npc(name)
-    loot = npc_drops(npc) if npc else []
+    loot = merge_wowsrc(npc_drops(npc) if npc else [], listed)
     have = {i["id"] for i in loot}
     for item in extra.get(name.lower(), []):
         if item["id"] not in have and item["quality"] >= MIN_QUALITY and item["slot"] in EQUIPPABLE:
@@ -204,7 +375,7 @@ def boss_entry(name, rare, pinned, extra, items, report):
         report.append(f"no loot: {name} ({npc})")
     for item in loot:
         items[item["id"]] = item
-    return {"npc": npc, "name": name, "rare": rare, "loot": loot}
+    return {"npc": npc, "name": name, "rare": rare, "optional": kind == "optional", "loot": loot}
 
 
 tables = {}
@@ -263,6 +434,12 @@ def lua_boss(boss):
     fields = [f"npc = {boss['npc'] or 'nil'}", f"name = {lua_string(boss['name'])}"]
     if boss["rare"]:
         fields.append("rare = true")
+    if boss.get("optional"):
+        fields.append("optional = true")
+    if boss.get("chest"):
+        fields.append(f"chest = {boss['chest']}")
+    if boss.get("trash"):
+        fields.append("trash = true")
     if boss["encounters"]:
         fields.append("encounters = { " + ", ".join(str(e) for e in boss["encounters"]) + " }")
     if boss.get("with"):
@@ -333,8 +510,15 @@ def items_file(items):
 
 
 def extra_loot(dungeon, bis):
-    """Boss name (lower case) -> the items the guide and the BiS sources place on it."""
+    """Boss name (lower case) -> the items the guide, the BiS sources and the dungeon's own
+    "add" list (by hand: items seen dropping that Wowhead has not tied to the boss yet) place
+    on it."""
     extra = guide_drops(dungeon["guide"]) if dungeon.get("guide") else {}
+    for boss, ids in dungeon.get("add", {}).items():
+        for item_id in ids:
+            if not isinstance(item_id, int):
+                sys.exit(f"journal_bosses.json, {dungeon['name']}, {boss}: \"add\" takes item IDs, not {item_id!r}")
+            extra.setdefault(boss.lower(), []).append(dict(item_facts(item_id), chance=None))
     here = plain(dungeon["name"])
     for (where, boss), ids in bis.items():
         # The BiS data names both of Blackrock Spire's halves after the whole spire.
@@ -358,25 +542,44 @@ def main():
         pinned_encounters = dungeon.get("encounterIDs", {})
         counted_with = dungeon.get("countedWith", {})
         encounters = map_encounters(map_of(dungeon["name"]))
+        listed = wowsrc_loot(dungeon, report)
         wings = []
         for wing in dungeon["wings"]:
             # No loot for one whose drops are not known: its items go to a list nobody reads.
             kept = items if dungeon.get("loot", True) else {}
-            bosses = [boss_entry(n, False, pinned, extra, kept, report) for n in wing["bosses"]]
-            bosses += [boss_entry(n, True, pinned, extra, kept, report) for n in wing.get("rare", [])]
+            here = wing.get("name")
+            bosses = [boss_entry(n, False, pinned, extra, kept, report, listed.get((here, n.lower())))
+                      for n in wing["bosses"]]
+            bosses += [boss_entry(n, True, pinned, extra, kept, report, listed.get((here, n.lower())))
+                       for n in wing.get("rare", [])]
+            bosses += [boss_entry(n, False, pinned, extra, kept, report, listed.get((here, n.lower())), "optional")
+                       for n in wing.get("optional", [])]
+            bosses += [boss_entry(n, False, pinned, extra, kept, report, listed.get((here, n.lower())), "chest", o)
+                       for n, o in wing.get("chests", {}).items()]
+            # The wing's trash, last: what its other mobs drop, by wowsrc's list.
+            trash = merge_wowsrc([], (listed.get((here, "trash")) or {"items": [], "complete": True}))
+            if here == dungeon["wings"][-1].get("name"):   # placed by hand ("add": { "Trash": [...] })
+                have = {i["id"] for i in trash}
+                trash += [dict(i, chance=None) for i in extra.get("trash", []) if i["id"] not in have
+                          and i["quality"] >= MIN_QUALITY and i["slot"] in EQUIPPABLE]
+            if trash:
+                for item in trash:
+                    kept[item["id"]] = item
+                bosses.append({"npc": None, "name": "Trash", "rare": False, "trash": True, "loot": trash})
             if not dungeon.get("loot", True):
                 for boss in bosses:
                     boss["loot"] = []
             for boss in bosses:
-                boss["encounters"] = (boss_encounters(boss["name"], renamed, encounters)
-                                      or pinned_encounters.get(boss["name"], []))
+                boss["encounters"] = [] if boss.get("trash") or boss.get("chest") else (
+                    boss_encounters(boss["name"], renamed, encounters) or pinned_encounters.get(boss["name"], []))
             # A boss killed on the way into another's fight counts with that fight.
             for boss in bosses:
                 other = counted_with.get(boss["name"])
                 if other:
                     fight = next(b for b in bosses if b["name"] == other)
                     boss["encounters"], boss["with"] = fight["encounters"], other
-                if not boss["encounters"] and not boss["rare"]:
+                if not boss["encounters"] and not (boss["rare"] or boss.get("optional") or boss.get("trash")
+                                                   or boss.get("chest")):
                     report.append(f"no encounter: {boss['name']} ({dungeon['name']})")
             wings.append({"name": wing.get("name"), "bosses": bosses})
         name = f"{dungeon['key']}.lua"
