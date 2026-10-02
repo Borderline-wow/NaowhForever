@@ -552,8 +552,9 @@
   a drawer beside Blizzard's. /nf recipes prints what the profession API reports.
 
 ### Changed
-- Threat Meter: focus tracking, class icons and rank numbers, and with Lock Window off
-  it can be dragged and resized.
+- Threat Meter: Hide When Empty is now With Threat, a choice under Show, so Always really
+  means always. Your setting carries over; with In Combat it becomes With Threat. In a Group
+  can no longer hide the empty window, so choose With Threat for that.
 - Dungeon Quests: each quest's state sits in its own column on the right, quests are listed
   in the order you work through them (to pick up, in log, complete, finished), and a
   finished quest is greyed with a check in place of its level. The tracker draws each quest

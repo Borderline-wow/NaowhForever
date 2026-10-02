@@ -234,7 +234,11 @@ do
  s=fixture({enabled=true,onlyWithThreat=false})
  check('Hide When Empty off keeps Always',s.settings.visibility=='always' and s.settings.onlyWithThreat==nil)
  s=fixture({enabled=true,onlyWithThreat=true,visibility='combat'})
- check('migration keeps another Show choice',s.settings.visibility=='combat')
+ check('In Combat with Hide When Empty migrates to With Threat',s.settings.visibility=='threat')
+ s=fixture({enabled=true,onlyWithThreat=false,visibility='combat'})
+ check('In Combat without Hide When Empty is kept',s.settings.visibility=='combat')
+ s=fixture({enabled=true,onlyWithThreat=true,visibility='group'})
+ check('In a Group is kept',s.settings.visibility=='group' and s.settings.onlyWithThreat==nil)
  s=fixture({enabled=true,visibilityMerged=true,visibility='always'})
  check('migration runs once per profile',s.settings.visibility=='always')
 end

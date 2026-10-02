@@ -536,7 +536,10 @@ local function MigrateVisibility()
     local hideEmpty = db.onlyWithThreat
     if hideEmpty == nil then hideEmpty = true end   -- the old default
     db.onlyWithThreat = nil
-    if hideEmpty and (db.visibility == nil or db.visibility == "always") then
+    -- In Combat with it on becomes With Threat too: a mob only has a threat list while it is
+    -- being fought. In a Group cannot hide the empty window any more; the changelog says so.
+    local v = db.visibility
+    if hideEmpty and (v == nil or v == "always" or v == "combat") then
         db.visibility = "threat"
     elseif db.visibility == nil then
         db.visibility = "always"   -- had it off on purpose; keep showing when empty
