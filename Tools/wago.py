@@ -38,17 +38,22 @@ CAUGHT_UP = 0.98
 
 
 def fetch(url):
-    """The page's text. A busy answer (429, 503) is retried after a pause."""
+    """The page's text. A busy answer (429, 502 to 504) or a slow one (no answer in time) is
+    retried after a pause: wago.tools has days like that."""
     req = urllib.request.Request(url, headers={"User-Agent": AGENT})
     for wait in (10, 30, 60, None):
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urllib.request.urlopen(req, timeout=120) as r:
                 return r.read().decode("utf-8")
         except urllib.error.HTTPError as e:
-            if e.code not in (429, 503) or wait is None:
+            if e.code not in (429, 502, 503, 504) or wait is None:
                 raise
             print(f"  {e.code} from wago.tools, retrying in {wait}s", file=sys.stderr)
-            time.sleep(wait)
+        except (TimeoutError, urllib.error.URLError) as e:
+            if wait is None:
+                raise
+            print(f"  no answer from wago.tools ({e}), retrying in {wait}s", file=sys.stderr)
+        time.sleep(wait)
 
 
 # The columns the Journal's tools read from each table. For a build wago has only just

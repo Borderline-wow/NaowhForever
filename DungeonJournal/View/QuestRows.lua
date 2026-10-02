@@ -22,7 +22,7 @@ local QUESTION_ICON = 134400   -- the game's question mark icon, for an item not
 local STRIPE = St.STRIPE
 local QUEST_LEVEL_W, QUEST_TOP, QUEST_LINE_GAP, QUEST_BOTTOM = St.QUEST_LEVEL_W, St.QUEST_TOP, St.QUEST_LINE_GAP,
     St.QUEST_BOTTOM
-local MARK, CHAIN_SLOT, WAYPOINT_SLOT, ACTIONS_LINE_H = St.MARK, St.CHAIN_SLOT, St.WAYPOINT_SLOT, St.ACTIONS_LINE_H
+local MARK, CHAIN_SLOT, WAYPOINT_SLOT = St.MARK, St.CHAIN_SLOT, St.WAYPOINT_SLOT
 
 local View = J.View
 local Kinds, Parts = View.Kinds, View.Parts
@@ -191,6 +191,39 @@ local function ProgressLines(entry)
     end
 end
 
+-- The quest itself, a line each, a muted label before what it says: its level and from when
+-- you can pick it up, who it is for, where it starts, its place in its chain (the quest
+-- before and after) and whether it can be shared.
+local SIDE = { A = "Alliance", H = "Horde", B = "Alliance and Horde" }
+
+local function Fact(label, text)
+    GameTooltip:AddLine(ns.Color("muted", label .. "  ") .. text, 1, 1, 1, true)
+end
+
+local function DetailLines(entry)
+    local quest = entry.quest
+    local need = Quests.MinLevel(quest)
+    if entry.level then
+        Fact("Level", entry.level .. (need and ns.Color("muted", ("   picked up from %d"):format(need)) or ""))
+    end
+    local class = quest.class
+    Fact("For", class and (class:sub(1, 1) .. class:sub(2):lower()) .. "s" or SIDE[quest[4]] or "everyone")
+    -- As the guide writes it, its coordinates in it.
+    if quest[6] and quest[6] ~= "" then Fact("Starts", Plain(quest[6])) end
+    local chain, own = Quests.Chain(quest)
+    if chain then
+        local around = {}
+        if chain[own - 1] then around[#around + 1] = "after " .. Quests.StepName(select(2, Quests.StepState(chain[own - 1]))) end
+        if chain[own + 1] then around[#around + 1] = "then " .. Quests.StepName(select(2, Quests.StepState(chain[own + 1]))) end
+        Fact("Chain", ("step %d of %d"):format(own, #chain) .. (#around > 0 and ns.Color("muted", ": ") .. table.concat(around, ", ") or ""))
+    end
+    if quest[5] == true then
+        Fact("Sharing", "can be shared with your party")
+    elseif quest[5] == false then
+        Fact("Sharing", "cannot be shared")
+    end
+end
+
 -- Your party, one line each, from what the game shows of them: on the quest, the wrong
 -- class for it, or too low to pick it up; otherwise only that they are not on it, since
 -- whether they have done it is theirs to know.
@@ -270,21 +303,19 @@ local function QuestEnter(row)
         GameTooltip:AddLine(Plain(entry.where), T.muted.r, T.muted.g, T.muted.b, true)
     end
     if not SAID_BELOW[kind] then GameTooltip:AddLine(StatusText(entry)) end
-    -- The level it can be picked up at, for every quest you can take now: the mark says you
-    -- can, this says from when.
-    local need = Quests.MinLevel(entry.quest)
-    if need and (kind == "pickup" or kind == "next") then
-        GameTooltip:AddLine(("You can pick it up: it needs level %d."):format(need), 1, 1, 1)
-    end
     if entry.tooHigh then
         GameTooltip:AddLine(("It is level %d, five or more above you, so it will be hard for now.")
             :format(entry.level), 1, 1, 1, true)
     end
+    -- In your log: where it stands first.
     ProgressLines(entry)
+    GameTooltip:AddLine(" ")
+    DetailLines(entry)
     PartyLines(entry)
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(entry.loggedID and "Click: details    Right-click: Share, Link, Track"
-        or "Right-click: Share, Link, Track", T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+    local hints = (entry.loggedID and "Click: details    " or "") .. "Right-click: Share, Link, Track"
+        .. (entry.canWaypoint and "    Pin: waypoint" or "")
+    GameTooltip:AddLine(hints, T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
     GameTooltip:Show()
 end
 
@@ -475,20 +506,21 @@ Kinds.quest = {
         local color = entry.level and GetQuestDifficultyColor(entry.level) or T.fg
         row.level:SetText(entry.level or "")
         row.level:SetTextColor(color.r, color.g, color.b)
-        -- Narrow (the map panel): the mark and icons go on a line of their own under the
-        -- text, from its left, so the title keeps the width. Tight (the quest tracker): one
-        -- line, the title and the icons on its right; where to go is in the hover card.
+        -- Narrow (the map panel): the mark and icons on the title's line, on the right in the
+        -- same slots as the wide page, and where to go under both, the row's whole width.
+        -- Tight (the quest tracker): one line, the title and the icons on its right; where to
+        -- go is in the hover card.
         local view = row:GetParent()
         local tight = view.tight
         local compact = view.compact and not tight
         local left = INDENT + QUEST_LEVEL_W + 4
-        local width = row:GetWidth() - left - (compact and 0 or RIGHT_W + GAP * 2)
+        local width = row:GetWidth() - left - RIGHT_W - GAP * 2
         row.party.count = entry.party
         row.party.label:SetText(entry.party)
         PaintParty(row.party)
         row.title:SetWidth(width)
         row.title:SetText(entry.name)
-        row.where:SetWidth(width)
+        row.where:SetWidth(compact and row:GetWidth() - left or width)
         row.where:SetText(Plain(entry.where))
         row.where:SetShown(not tight)
         local height = QUEST_TOP + math.ceil(row.title:GetStringHeight()) + QUEST_BOTTOM
@@ -497,17 +529,15 @@ Kinds.quest = {
         row.chain:ClearAllPoints()
         row.waypoint:ClearAllPoints()
         row.party:ClearAllPoints()
+        -- Level with the title (narrow) or the row's middle.
+        local anchor, y = "RIGHT", 0
         if compact then
-            row.mark:SetPoint("TOPLEFT", left - 2, -(height + 1))
-            row.chain:SetPoint("LEFT", row.mark, "RIGHT", GAP * 2, 0)
-            row.party:SetPoint("LEFT", row.chain, "RIGHT", GAP * 2, 0)
-            row.waypoint:SetPoint("LEFT", row.party, "RIGHT", GAP * 2, 0)
-            return height + ACTIONS_LINE_H
+            anchor, y = "TOPRIGHT", -(QUEST_TOP + math.ceil(row.title:GetStringHeight()) / 2)
         end
-        row.party:SetPoint("RIGHT", -PARTY_RIGHT, 0)
-        row.waypoint:SetPoint("RIGHT", -QUEST_RIGHT, 0)
-        row.mark:SetPoint("RIGHT", -MARK_RIGHT, 0)
-        row.chain:SetPoint("RIGHT", -CHAIN_RIGHT, 0)
+        row.party:SetPoint("RIGHT", row, anchor, -PARTY_RIGHT, y)
+        row.waypoint:SetPoint("RIGHT", row, anchor, -QUEST_RIGHT, y)
+        row.mark:SetPoint("RIGHT", row, anchor, -MARK_RIGHT, y)
+        row.chain:SetPoint("RIGHT", row, anchor, -CHAIN_RIGHT, y)
         return height
     end,
 }

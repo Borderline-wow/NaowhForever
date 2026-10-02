@@ -956,7 +956,10 @@ end
 
 -- Opens the window on the dungeon given, else the one you are in, else where it was.
 ---@param dungeon? JournalDungeon
+local awayForMap = false   -- put away by the world map opening (J.WindowAwayForMap)
+
 function ns.OpenJournalWindow(dungeon)
+    awayForMap = false   -- opened by hand: the map closing has nothing to bring back
     J.TurnOn()
     if not window then Build() end
     window:SetScale(ns.UIScale())
@@ -968,4 +971,28 @@ end
 
 function ns.ToggleJournalWindow()
     if window and window:IsShown() then window:Hide() else ns.OpenJournalWindow() end
+end
+
+-- The world map opening (M) puts the window away while it is open, and the map closing (M
+-- again) brings it back as it was; the map panel (UI/MapPanel.lua) says when.
+
+---@param mapShown boolean
+function J.WindowAwayForMap(mapShown)
+    if mapShown then
+        if window and window:IsShown() then
+            awayForMap = true
+            window:Hide()
+        end
+    elseif awayForMap then
+        awayForMap = false
+        if window and S.Get("enabled") then window:Show() end
+    end
+end
+
+-- A key binding of its own (Bindings.xml, Naowh Forever's section of Key Bindings): opens the
+-- window, or closes it.
+BINDING_NAME_NAOWHFOREVER_JOURNAL = "Open Dungeon Journal"
+
+function NaowhForever_ToggleJournal()
+    ns.ToggleJournalWindow()
 end

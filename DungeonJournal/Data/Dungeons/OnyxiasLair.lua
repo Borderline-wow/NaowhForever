@@ -13,7 +13,7 @@ ns.Journal.AddDungeon("OnyxiasLair", {
     entrance = { map = 1445, x = 52.9, y = 78.2 },
     wings = {
         { bosses = {
-            { npc = 10184, name = "Onyxia", encounters = { 1084 } },
+            { npc = 10184, name = "Onyxia", model = 8570, encounters = { 1084 } },
         } },
     },
 })

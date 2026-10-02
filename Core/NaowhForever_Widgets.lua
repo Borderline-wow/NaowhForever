@@ -935,6 +935,15 @@ function UI.KeyField(rgn, action, label)
     local btn = ns.Button(rgn, "", 150, 26)
     btn:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    -- Its own tooltip, how to use it: the row's says what the key does.
+    btn:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(label or "Key binding", 1, 1, 1)
+        GameTooltip:AddLine("Click, then press the key you want. Right-click to clear it.",
+            T.muted.r, T.muted.g, T.muted.b, true)
+        GameTooltip:Show()
+    end)
+    btn:HookScript("OnLeave", GameTooltip_Hide)
     local capturing
     local function Show()
         local key = GetBindingKey(action)

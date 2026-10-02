@@ -26,7 +26,7 @@ and a lot of quality of life, all in one window.
 | --- | --- |
 | **Smart Reminders** | Tells you what to press when a boss ability is about to land, for dungeon and raid bosses, with cooldown presets for your spec. |
 | **BiS List** | Your best-in-slot list, marked on tooltips and called out when it drops. |
-| **Dungeon Journal** | Every dungeon on Forever, the new ones included, and the raids: its bosses in order and what they drop, your BiS marked, your quests there with what to do first, a tip from Naowh for each boss and how many times you have killed it. Beside the map when you press M in a dungeon. |
+| **Dungeon Journal** | Every dungeon on Forever, the new ones included, and the raids: its bosses in order and what they drop, your BiS marked, your quests there with what to do first, a tip from Naowh for each boss and how many times you have killed it. A map of each classic dungeon with every boss on it, and in a dungeon the world map (M) shows it, with the Journal beside it. Open it with its own key too. |
 | **Professions** | Recipes, reagents and crafting in one window, including the recipes you have not learned yet. |
 | **Gear & Trinkets** | Swap equipment sets from a bar, or automatically while you ride or rest. |
 | **Blessings** | Paladin blessings by class and player, shared with your group's paladins. |

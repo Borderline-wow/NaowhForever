@@ -86,13 +86,15 @@ end
 -------------------------------------------------------------------------------
 --  A dungeon's row and its card
 -------------------------------------------------------------------------------
--- Where it is and whose ground, the levels, your quests there, what it holds for you, or
--- that there is no boss data for it yet.
+-- That you are in it (the dot), where it is and whose ground, the levels, your quests there,
+-- what it holds for you, or that there is no boss data for it yet.
 local function RowEnter(row)
     local dungeon = row.dungeon
     if not row.selected then row.band:SetAlpha(0.05) end
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     GameTooltip:SetText(dungeon.name)
+    -- What the dot before its name means.
+    if row.here:IsShown() then GameTooltip:AddLine("You are here", T.accent.r, T.accent.g, T.accent.b) end
     if dungeon.new then GameTooltip:AddLine("New in WoW Forever", T.accent.r, T.accent.g, T.accent.b) end
     if dungeon.zone then
         local territory = dungeon.territory or "Contested"

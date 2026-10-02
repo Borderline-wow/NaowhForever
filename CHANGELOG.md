@@ -33,9 +33,16 @@
   party. The group icon counts who else is on each quest; click it on one you don't have
   and a member running Naowh Forever shares it with you (Quest Share Requests, in the
   Journal's settings). Tracker opens a dungeon's quests in a small window to keep on
-  screen while you run it. Each dungeon says whose ground its entrance is on, and the pin
+  screen while you run it, and Map opens its map: the bosses where they stand, with their
+  portraits and kill order, and the entrance. Under it, the bosses in kill order with this
+  run's progress (killed ones ticked and dimmed), the ones your quests need, your BiS there,
+  and the loot of the boss you click; fold that away for the map alone, and pin the map to
+  keep it open. Opening the world map (M) puts the Journal away, and M again brings it back. Inside a dungeon its map fills the world map (M), right-click for its zone,
+  and the game's quest log beside it folds away so the Journal sits against the map (back as
+  you had it once you leave). Each dungeon says whose ground its entrance is on, and the pin
   by its name points you there. Open the world map inside a dungeon and it sits beside the map; browse any
-  dungeon in its own window with /nfjournal (or /nfdj), or bind Boss Loot at Cursor to see
+  dungeon in its own window with /nfjournal (or /nfdj) or its own key (Open Dungeon Journal, in
+  its settings or Key Bindings), or bind Boss Loot at Cursor to see
   what the boss you hover drops. Search every dungeon for an item or boss, or list only
   the BiS you are still missing, or only your upgrades. The switch beside the search
   lists the dungeons on Alliance or Horde ground, or both. Loot your class can't use is hidden, and nearly every

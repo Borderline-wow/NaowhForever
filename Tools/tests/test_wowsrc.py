@@ -44,7 +44,7 @@ class Check(unittest.TestCase):
         springvale.remove(springvale[1])
         springvale.append(item("Worgenbane Talisman", new=True))
         text = "\n".join(wowsrc.changes(OLD, new))
-        self.assertIn("Shadowfang Keep / Commander Springvale: Worgenbane Talisman (new in Forever)", text)
+        self.assertIn("Shadowfang Keep / Commander Springvale: Worgenbane Talisman (ID 273643, new in Forever)", text)
         self.assertIn("Items a boss lost", text)
         self.assertIn("Commander Springvale: Eerie Stable Lantern", text)
 
@@ -52,6 +52,12 @@ class Check(unittest.TestCase):
         new = copy.deepcopy(OLD)
         new["shadowfang-keep"]["bosses"][1]["items"].append(item("Gloomshroud Armor"))
         self.assertIn("Trash: Gloomshroud Armor (name not mapped yet)", "\n".join(wowsrc.changes(OLD, new)))
+
+    def test_the_game_names_an_id(self):
+        new = copy.deepcopy(OLD)
+        new["shadowfang-keep"]["bosses"][1]["items"].append(item("Gloomshroud Armor"))
+        text = "\n".join(wowsrc.changes(OLD, new, {"gloomshroud armor": 1489}))
+        self.assertIn("Trash: Gloomshroud Armor (ID 1489)", text)
 
     def test_new_boss_and_page(self):
         new = copy.deepcopy(OLD)

@@ -15,9 +15,12 @@ name: daily-watch
 # demand, for a build of your choice or as a report only.
 # The loot job: whether wowsrc.com's Forever loot pages list something the Journal was not
 # built from (Tools/wowsrc_loot.json): items a boss gained or lost, new bosses and pages.
-# One issue says what, kept up to date each day, and closed once our data matches again.
-# Only wowsrc is read (it allows crawling, and gave us permission); bringing a change in
-# needs Wowhead, so that stays a run on our machines (Tools/README.md).
+# If so, the Journal is rebuilt from them and a pull request says what. The bis job: the
+# same for wowsrc's BiS lists and the BiS List's data. Both ask Wowhead nothing (--offline):
+# a new item's facts come from the game's own tables, and what those cannot settle is listed
+# in the pull request, for a run on our machines (Tools/README.md). wowsrc allows crawling,
+# and gave us permission. One pull request each, brought up to date by each run after
+# (Tools/hooks/daily-pull-request.sh); an issue with a link where workflows may not open one.
 on:
   schedule:
     # New builds and hotfixes come with the US realms' weekly maintenance (Tuesday mornings,
@@ -180,9 +183,10 @@ jobs:
   loot:
     name: loot
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
       issues: write
     steps:
       - name: Checkout
@@ -196,36 +200,82 @@ jobs:
           python-version: "3.12"
 
       - name: Compare wowsrc.com's loot pages with ours
-        id: loot
+        id: check
         run: |
-          python Tools/wowsrc.py --check --report loot.md --github-output "$GITHUB_OUTPUT"
-          cat loot.md >> "$GITHUB_STEP_SUMMARY"
+          python Tools/wowsrc.py --check --report report.md --github-output "$GITHUB_OUTPUT"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
 
-      # One issue: opened when their pages list something ours does not, brought up to date
-      # by each run after, and closed once ours match.
-      - name: Keep the loot issue up to date
+      # The pages the check read (Tools/wowsrc_pages), their names to item IDs, the Journal.
+      - name: Rebuild the Journal from them
+        if: steps.check.outputs.changes == 'true'
+        run: |
+          python Tools/wowsrc.py
+          python Tools/wowsrc.py --resolve --offline 2> resolve.txt
+          python Tools/build_journal.py --offline > /dev/null 2> build.txt
+          {
+            echo
+            echo "### What the build said"
+            echo
+            echo '```'
+            tail -n 60 resolve.txt
+            grep -v "^ *[0-9]*  " build.txt | tail -n 80
+            echo '```'
+          } >> report.md
+
+      - name: Open a pull request
+        if: steps.check.outputs.changes == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          CHANGES: ${{ steps.loot.outputs.changes }}
           REPO: ${{ github.repository }}
           SERVER: ${{ github.server_url }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          title="wowsrc.com lists loot the Journal does not have"
-          issue="$(gh issue list --repo "$REPO" --state open             --search "author:app/github-actions in:title \"$title\"" --json number --jq '.[0].number // empty')"
-          if [ "$CHANGES" != "true" ]; then
-            if [ -n "$issue" ]; then gh issue close "$issue" --repo "$REPO" --comment "Their pages match ours now."; fi
-            exit 0
-          fi
+          bash Tools/hooks/daily-pull-request.sh wowsrc-loot "chore(journal): boss loot from wowsrc.com's latest pages"             report.md "- Dungeon Journal: boss loot updated from the latest Forever loot lists."             Tools/wowsrc_loot.json Tools/item_names.json Tools/journal_cache.json DungeonJournal/Data
+
+  bis:
+    name: bis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Compare wowsrc.com's BiS lists with ours
+        id: check
+        run: |
+          python Tools/build_bis_data.py --check --report report.md --github-output "$GITHUB_OUTPUT"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Rebuild the BiS data from them
+        if: steps.check.outputs.changes == 'true'
+        run: |
+          python Tools/build_bis_data.py --offline 2> build.txt
           {
-            cat loot.md
             echo
-            echo "---"
-            echo "Kept up to date by the daily watch (.github/workflows/daily-watch.yml);"
-            echo "last run: $SERVER/$REPO/actions/runs/$RUN_ID ($(date -u '+%Y-%m-%d %H:%M') UTC)."
-          } > issue.md
-          if [ -n "$issue" ]; then
-            gh issue edit "$issue" --repo "$REPO" --body-file issue.md
-          else
-            gh issue create --repo "$REPO" --title "$title" --body-file issue.md
-          fi
+            echo "### What the build said"
+            echo
+            echo '```'
+            tail -n 80 build.txt
+            echo '```'
+          } >> report.md
+
+      - name: Open a pull request
+        if: steps.check.outputs.changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          bash Tools/hooks/daily-pull-request.sh wowsrc-bis "chore(bis): BiS lists from wowsrc.com's latest pages"             report.md "- BiS List: picks updated from wowsrc.com's latest lists."             BiS/NaowhForever_BiSData.lua Tools/bis_item_ids.json Tools/bis_sources.json
