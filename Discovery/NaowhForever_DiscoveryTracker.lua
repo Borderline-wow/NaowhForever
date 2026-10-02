@@ -9,6 +9,14 @@ local L = ns.Library
 local T = ns.THEME
 
 local GOLD = "|cffffd100"
+-- The light blue of the hint lines: the shade each one always was (r, g, b), or the theme's
+-- lighter Accent once the theme has changed the Accent. Returns r, g, b, so where it is not
+-- the last argument its values are put in locals first.
+local function SoftBlue(r, g, b)
+    local c = ns.ThemeTint("accentSoft", nil)
+    if c then return c.r, c.g, c.b end
+    return r, g, b
+end
 local BLACK = { r = 0, g = 0, b = 0 }
 local BAR_BG = { r = 0x14 / 255, g = 0x16 / 255, b = 0x19 / 255 }
 local READY = { r = 0x19 / 255, g = 1, b = 0x19 / 255 }
@@ -49,7 +57,8 @@ local function BarTooltip(bar)
             state, r, g, b = ("%d to go"):format(goal.books - done), 1, 1, 1
         end
         GameTooltip:AddLine(" ")
-        GameTooltip:AddDoubleLine(("%s (%d)"):format(goal.name, goal.books), state, 0.3, 0.71, 0.96, r, g, b)
+        local sr, sg, sb = SoftBlue(0.3, 0.71, 0.96)
+        GameTooltip:AddDoubleLine(("%s (%d)"):format(goal.name, goal.books), state, sr, sg, sb, r, g, b)
         local names = {}
         for _, reward in ipairs(goal.rewards) do
             names[#names + 1] = C_Item.GetItemNameByID(reward[1]) or reward[2]
@@ -58,7 +67,8 @@ local function BarTooltip(bar)
     end
     local librarian = ns.LibraryTurnIns.librarian[L.Side()]
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Hand in to " .. librarian.name .. ", " .. librarian.place, 0.3, 0.7, 0.95, true)
+    local hr, hg, hb = SoftBlue(0.3, 0.7, 0.95)
+    GameTooltip:AddLine("Hand in to " .. librarian.name .. ", " .. librarian.place, hr, hg, hb, true)
     local bags, bank = 0, 0
     for _, book in ipairs(ns.LibraryBooks) do
         local stored = L.ForMe(book) and L.Stored(book)
@@ -105,7 +115,7 @@ local function BuildPanel()
         panel.title:SetTextColor(c.r, c.g, c.b, 1)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:SetText("Library Books")
-        GameTooltip:AddLine("Click to open the Books page.", 0.3, 0.7, 0.95)
+        GameTooltip:AddLine("Click to open the Books page.", SoftBlue(0.3, 0.7, 0.95))
         GameTooltip:Show()
     end)
     titleBtn:SetScript("OnLeave", function()
@@ -166,7 +176,7 @@ end
 local function PinTooltip(pin)
     GameTooltip:SetOwner(pin, "ANCHOR_LEFT")
     GameTooltip:SetText("Waypoint")
-    GameTooltip:AddLine("Click to mark it on your map.", 0.3, 0.7, 0.95)
+    GameTooltip:AddLine("Click to mark it on your map.", SoftBlue(0.3, 0.7, 0.95))
     GameTooltip:Show()
 end
 
@@ -357,7 +367,8 @@ local function Render(zone, left)
                 GameTooltip:SetText(book.name)
                 if spot[5] then GameTooltip:AddLine(spot[5], 1, 1, 1, true) end
                 local npc = L.TurnIn(book)
-                GameTooltip:AddLine("Hand in to " .. npc.name .. ", " .. npc.place, 0.3, 0.7, 0.95, true)
+                local hr, hg, hb = SoftBlue(0.3, 0.7, 0.95)
+                GameTooltip:AddLine("Hand in to " .. npc.name .. ", " .. npc.place, hr, hg, hb, true)
             end,
         }
     end

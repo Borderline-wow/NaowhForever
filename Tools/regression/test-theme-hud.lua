@@ -57,7 +57,9 @@ local PICKS = { themePreset = "custom", themeColors = {
 -- Every ThemeTint call is inside a function, so it is read when a frame is built or
 -- refreshed and never at file load.
 local files = { "ThreatMeter/NaowhForever_ThreatMeter.lua", "TopBar/NaowhForever_TopBar.lua",
-    "AuraBuffs/NaowhForever_Campfire.lua", "QoL/NaowhForever_LootFeed.lua" }
+    "AuraBuffs/NaowhForever_Campfire.lua", "QoL/NaowhForever_LootFeed.lua",
+    "Discovery/NaowhForever_DiscoveryTracker.lua", "Discovery/NaowhForever_DiscoveryMap.lua",
+    "QoL/NaowhForever_TownMap.lua" }
 for _, path in ipairs(files) do
     local source = Read(path)
     local count = 0
@@ -215,6 +217,39 @@ do
     from, to = Fill(ACCENT_PRESET)
     Check(from.r == a.r * 0.55 and from.b == a.b * 0.55 and to.r == a.r and to.g == a.g,
         "xpbar: a theme's accent, darkened at the low end")
+end
+
+-- The light blue of the Library Books and town map hint lines: the shade each one always was,
+-- or the theme's lighter Accent once the theme changed the Accent.
+do
+    local LITERALS = { { 0.3, 0.71, 0.96 }, { 0.3, 0.7, 0.95 } }
+    for _, path in ipairs({ "Discovery/NaowhForever_DiscoveryTracker.lua", "Discovery/NaowhForever_DiscoveryMap.lua",
+            "QoL/NaowhForever_TownMap.lua" }) do
+        local source = Read(path)
+        local helper = assert(source:match("(local function SoftBlue%(r, g, b%).-\nend)"), path .. ": SoftBlue")
+        local function Blue(account, lit)
+            local chunk = assert(loadstring(helper .. "\nreturn SoftBlue(...)"))
+            local core = LoadCore(account)
+            setfenv(chunk, setmetatable({ ns = core }, { __index = _G }))
+            return { chunk(lit[1], lit[2], lit[3]) }, core.THEME.accentSoft
+        end
+        for _, lit in ipairs(LITERALS) do
+            Check(Same(Blue({}, lit), lit), path .. ": the default theme keeps the shade it had")
+        end
+        local got, soft = Blue(ACCENT_PRESET, LITERALS[1])
+        Check(Same(got, { soft.r, soft.g, soft.b }), path .. ": a theme's lighter Accent replaces it")
+        got = Blue({ themePreset = "custom", themeColors = { bg = { r = 1, g = 0, b = 0 } } }, LITERALS[1])
+        Check(Same(got, LITERALS[1]), path .. ": a theme that left the Accent alone keeps the shade")
+        -- No hint line spells the blue out any more: every use goes through SoftBlue.
+        local left = 0
+        for line in source:gmatch("[^\n]+") do
+            if (line:find("0.3, 0.71, 0.96", 1, true) or line:find("0.3, 0.7, 0.95", 1, true))
+                    and not line:find("SoftBlue(", 1, true) then
+                left = left + 1
+            end
+        end
+        Check(left == 0, path .. ": no hint line has the light blue typed out")
+    end
 end
 
 -- The TopBar's clock and tooltips: the greys and whites they always were, or the player's

@@ -183,6 +183,7 @@
   the buffs only while the mouse is over the camp icon. Your current setting is kept.
 
 ### Fixed
+- Themes: the hint lines in the Library Books tracker and its map pins, and in the town map pins, follow your lighter Accent instead of staying light blue. Looks the same with the default theme.
 - Group XP: every group member running Naowh Forever now shares their XP, even with Group XP
   switched off, so the bars no longer say "no addon" for players who never turned it on.
 - Group XP: bars show everyone's XP again. Forever sends a character's full name with surname
