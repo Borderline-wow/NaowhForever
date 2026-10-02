@@ -394,8 +394,8 @@ function ns.BuildQoLQuestingPage(parent, y)
     _, h = W:SectionHeader(parent, "GROUP XP" .. STATUS.untested, y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("groupXP", "Group XP",
-            "A bar per group member with their level and how far through it they are. Only "
-            .. "members running Naowh Forever with Group XP on share their experience; anyone "
+            "A bar per group member with their level and how far through it they are. Every "
+            .. "member running Naowh Forever shares their experience, even with this off; anyone "
             .. "else shows their level. Updates wait until combat ends. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,

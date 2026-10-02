@@ -178,6 +178,11 @@
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
 
 ### Fixed
+- Group XP: every group member running Naowh Forever now shares their XP, even with Group XP
+  switched off, so the bars no longer say "no addon" for players who never turned it on.
+- Group XP: bars show everyone's XP again. Forever sends a character's full name with surname
+  with each update, which never matched the party list, so every member read "no addon". Older
+  versions can't be read: everyone needs this version to see each other.
 - Themes: the Top Bar's clock, its FPS / MS labels and its tooltips follow your Text and Secondary Text colors instead of staying white and grey, and the tooltips of the Naowh buttons (minimap, top bar) use your Accent for the title and Text for the lines. Looks the same with the default theme.
 - Themes: the Loot Feed follows your theme: the Dark style uses your Background, the Light style uses your Panels and Borders & Lines, and the glow uses your Accent. Looks the same with the default theme.
 - Themes: the XP Bar's quest and rested segments and text follow your theme's Accent instead of staying gold and blue. Looks the same with the default theme.
