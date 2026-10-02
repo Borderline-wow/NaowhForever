@@ -1,8 +1,6 @@
 # Changelog
 
 ## Unreleased
-- Sound dropdowns list None once. The second None was a silent placeholder from
-  SharedMedia.
 
 ### Added
 - Blessings: in combat each click on a class button blesses the next member of that class who
@@ -209,6 +207,9 @@
 - QoL > Tools: a custom slash command that runs another slash command no longer makes your
   next chat message fail. Emotes like /dance work too. Macro commands like /cast, /use and
   /target, and /reload, can't be run this way; the command says so in chat.
+- Sound dropdowns list None once; the second was a silent placeholder from SharedMedia.
+  The QoL sound dropdowns (Combat Alert, Emote, Crosshair, Mouse Ring, Focus Cast Bar)
+  now offer None as well, so a sound can be turned back to silent.
 
 ## 0.5.17-beta
 

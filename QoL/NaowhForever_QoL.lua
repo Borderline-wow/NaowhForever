@@ -828,6 +828,7 @@ function ns.BuildQoLAlertsPage(parent, y)
         S.Slider("combatAlertFontSize", "Font Size", 10, 72, 1, nil, "combatAlert")
     ); y = y - h
     local _, soundNames, soundOrder = ns.SoundChoices()
+    soundNames.none = "None"; table.insert(soundOrder, 1, "none")
     local voices, voiceOrder = ns.TTSVoiceChoices()
     for _, side in ipairs({ { "combatEnter", "Entering" }, { "combatLeave", "Leaving" } }) do
         local k, name = side[1], side[2]
@@ -1066,6 +1067,7 @@ function ns.BuildQoLInterfacePage(parent, y)
 
     _, h = W:SectionHeader(parent, "CROSSHAIR" .. STATUS.untested, y); y = y - h
     local _, soundNames, soundOrder = ns.SoundChoices()
+    soundNames.none = "None"; table.insert(soundOrder, 1, "none")
     _, h = W:Feature(parent, y,
         S.Toggle("crosshair", "Crosshair", "A crosshair at the middle of your screen.")
     ); y = y - h
@@ -1576,6 +1578,7 @@ function ns.BuildQoLCastingPage(parent, y)
     _, h = W:SectionHeader(parent, "FOCUS CAST BAR" .. STATUS.untested, y); y = y - h
     local focusFonts, focusFontOrder = UI.FontChoices(S.Get("focusFont"))
     local _, soundNames, soundOrder = ns.SoundChoices()
+    soundNames.none = "None"; table.insert(soundOrder, 1, "none")
     local voices, voiceOrder = ns.TTSVoiceChoices()
     _, h = W:Feature(parent, y,
         S.Toggle("focusCastBar", "Focus Cast Bar",
