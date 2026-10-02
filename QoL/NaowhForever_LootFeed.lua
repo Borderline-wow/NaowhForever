@@ -42,6 +42,9 @@ local COPPER = COPPER_AMOUNT:gsub("%%d", "(%%d+)")
 -- "Reputation with %s increased by %d."
 local REP_PATTERN = "^" .. FACTION_STANDING_INCREASED:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1")
     :gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)") .. "$"
+-- Experience with no source named ("You gain 6200 experience."), as a quest turn-in sends it.
+local UNNAMED_XP = COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED and "^" .. COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED
+    :gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%d", "(%%d+)")
 
 local function Coins(copper)
     return C_CurrencyInfo.GetCoinTextureString(copper, 12)
@@ -249,9 +252,11 @@ local function MoneyMessage(text)
     if copper > 0 then OnMoney(copper) end
 end
 
--- The combat XP message only ever carries kill experience, so quest experience never shows
--- twice. Its first number is the total gained, rested bonus included.
+-- A quest turn-in also sends its experience as a combat XP message, with no source named.
+-- The quest line already shows it, so that one is skipped while quest lines are on. A
+-- kill's message names the kill; its first number is the total gained, rested bonus included.
 local function KillXP(text)
+    if UNNAMED_XP and S.Get("lootFeedQuest") and text:match(UNNAMED_XP) then return end
     local gained = tonumber(text:match("(%d+)"))
     if gained and gained > 0 then
         Push(XP_ICON, XP_COLOR .. "Experience|r", XP_COLOR .. "+" .. BreakUpLargeNumbers(gained) .. "|r")

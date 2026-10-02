@@ -50,7 +50,7 @@ read_globals = {
     "DeleteCursorItem", "DeleteMacro", "DELETE_GOOD_ITEM", "DELETE_ITEM_CONFIRM_STRING",
     "EditMacro", "EJ_GetCurrentTier", "EJ_GetEncounterInfo", "EJ_GetEncounterInfoByIndex",
     "EJ_GetInstanceByIndex", "EJ_GetInstanceInfo", "EJ_SelectInstance", "EJ_SelectTier",
-    "CommunitiesFrame", "EncounterJournal", "Enum", "EnumerateFrames", "ERR_BAG_FULL", "ERR_INV_FULL", "ERR_QUEST_PUSH_BUSY_S", "ERR_QUEST_PUSH_SUCCESS_S",
+    "COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED", "CommunitiesFrame", "EncounterJournal", "Enum", "EnumerateFrames", "ERR_BAG_FULL", "ERR_INV_FULL", "ERR_QUEST_PUSH_BUSY_S", "ERR_QUEST_PUSH_SUCCESS_S",
     "EventRegistry", "EventToastManagerFrame", "EventUtil", "ScrollBoxListMixin",
     "FACTION_STANDING_INCREASED", "GameFontHighlight", "GameTooltip",
     "GameTooltipTextLeft1", "GameTooltip_Hide", "GetActionInfo", "GetActiveTitle",
