@@ -57,7 +57,7 @@ local function fixture(settings)
     }
     ns.UI.ModuleSettings=function(_, defaults)
         return {Get=function(k) if s.settings[k]~=nil then return s.settings[k] end return defaults[k] end,
-            Set=function(k,v) s.settings[k]=v end}
+            Set=function(k,v) s.settings[k]=v end, DB=function() return s.settings end}
     end
     local env={_G={NaowhForever=ns},MAX_RAID_MEMBERS=40,MAX_PARTY_MEMBERS=4,
         UIParent=frame('Parent'),CreateFrame=frame,
@@ -153,7 +153,7 @@ do
  s.secret=true;s.fire('UNIT_THREAT_LIST_UPDATE','target');s.advance(0.21)
  check('secret threat values are read without error',s.reads>reads)
  check('restricted data hides when empty',not s.window.shown)
- s.set('onlyWithThreat',false);check('empty window can remain visible',s.window.shown and s.window.empty.shown)
+ s.set('visibility','always');check('empty window can remain visible',s.window.shown and s.window.empty.shown)
  s.units.target=nil;s.fire('PLAYER_TARGET_CHANGED');s.advance(0.21)
  check('no mob unregisters threat events',not s.listens('UNIT_THREAT_LIST_UPDATE'))
  s.set('visibility','combat');check('combat visibility hides idle window',not s.window.shown)
@@ -225,5 +225,17 @@ do
  check('header background is unchanged',solid(0.04,0.075,0.095))
  check('window border is unchanged',edge(0.10,0.19,0.24))
  check('row background is unchanged',rowBg(0.065,0.085,0.105))
+end
+do
+ local s=fixture({enabled=true})
+ check('new profile shows only with threat',s.settings.visibility=='threat')
+ s=fixture({enabled=true,onlyWithThreat=true,visibility='always'})
+ check('Hide When Empty on migrates to With Threat',s.settings.visibility=='threat' and s.settings.onlyWithThreat==nil)
+ s=fixture({enabled=true,onlyWithThreat=false})
+ check('Hide When Empty off keeps Always',s.settings.visibility=='always' and s.settings.onlyWithThreat==nil)
+ s=fixture({enabled=true,onlyWithThreat=true,visibility='combat'})
+ check('migration keeps another Show choice',s.settings.visibility=='combat')
+ s=fixture({enabled=true,visibilityMerged=true,visibility='always'})
+ check('migration runs once per profile',s.settings.visibility=='always')
 end
 print(checks..' threat-meter checks passed')
