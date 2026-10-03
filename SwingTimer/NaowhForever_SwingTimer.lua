@@ -27,6 +27,14 @@ local S = UI.ModuleSettings("swingTimer", {
     queueHighlight = true,
     queueColor = { r = 1, g = 0.70, b = 0.20 },
     cleaveColor = { r = 0.95, g = 0.35, b = 0.25 },
+    sealColors = false,
+    sealRighteousColor = { r = 0.95, g = 0.85, b = 0.40 },
+    sealCrusaderColor = { r = 0.95, g = 0.55, b = 0.20 },
+    sealCommandColor = { r = 0.75, g = 0.35, b = 0.95 },
+    sealJusticeColor = { r = 0.60, g = 0.65, b = 0.75 },
+    sealLightColor = { r = 1, g = 0.95, b = 0.70 },
+    sealWisdomColor = { r = 0.35, g = 0.65, b = 1 },
+    sealFuryColor = { r = 0.95, g = 0.25, b = 0.20 },
     swingWindow = false, swingWindowTime = 0.4,
     swingWindowColor = { r = 1, g = 1, b = 1, a = 0.35 },
     windowLatency = false,
@@ -78,6 +86,19 @@ local QUEUE_SPELLS = {
     HUNTER = { { id = 2973, key = "queueColor" } },   -- Raptor Strike
 }
 
+-- Paladin seals by their first rank: every rank shares the seal's name, which is what is
+-- matched. Seal of Fury is Forever's own. Judgement uses the seal up.
+local SEALS = {
+    { id = 20154, key = "sealRighteousColor" },  -- Seal of Righteousness
+    { id = 21082, key = "sealCrusaderColor" },   -- Seal of the Crusader
+    { id = 20375, key = "sealCommandColor" },    -- Seal of Command
+    { id = 20164, key = "sealJusticeColor" },    -- Seal of Justice
+    { id = 20165, key = "sealLightColor" },      -- Seal of Light
+    { id = 20166, key = "sealWisdomColor" },     -- Seal of Wisdom
+    { id = 1311649, key = "sealFuryColor" },     -- Seal of Fury
+}
+local JUDGEMENT = 20271
+
 local SWING, DIR, IMMEDIATE, ROWS
 if SUPPORTED then
     SWING = Enum.PlayerSwingType
@@ -96,6 +117,7 @@ local frame, unlockActive, unlocked, inCombat, pendingApply, timeFormat
 local rows, byType = {}, {}
 local live = 0
 local queueSpells, queued = {}, false
+local sealByName, seal, judgementName = {}, false, nil
 local isHunter, moving, latency, castEnd = false, false, 0, nil
 
 local function On()
@@ -224,6 +246,7 @@ end
 local function RowColor(row)
     local def = row.def
     if def.melee and queued then return Color(queued.key) end
+    if def.melee and seal then return Color(seal.key) end
     if S.Get("classColored") and not def.target then
         local c = RAID_CLASS_COLORS[select(2, UnitClass("player"))]
         if c then return c.r, c.g, c.b, 1 end
@@ -427,6 +450,42 @@ local function QueuedSpell()
     return false
 end
 
+local function SetSeal(s)
+    if s == seal then return end
+    seal = s
+    for i = 1, #rows do
+        if rows[i].def.melee then PaintRow(rows[i]) end
+    end
+end
+
+-- In combat the game keeps the player's auras from addons, so there the seal is the last one
+-- cast; out of combat, and off a boss pull, the auras say which is up.
+local function ReadSeal()
+    if inCombat or C_Secrets.ShouldAurasBeSecret() then return end
+    local found = false
+    for i = 1, 40 do
+        local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
+        if not aura then break end
+        local s = Plain(aura.name) and sealByName[aura.name]
+        if s then
+            found = s
+            break
+        end
+    end
+    SetSeal(found)
+end
+
+local function SealCast(spellID)
+    if not Plain(spellID) then return end
+    local name = C_Spell.GetSpellName(spellID)
+    if not Plain(name) or not name then return end
+    if sealByName[name] then
+        SetSeal(sealByName[name])
+    elseif name == judgementName then
+        SetSeal(false)
+    end
+end
+
 local function PaintQueue()
     local q = S.Get("queueHighlight") and QueuedSpell() or false
     if q == queued then return end
@@ -548,6 +607,14 @@ local function Build()
             queueSpells[#queueSpells + 1] = q
         end
     end
+    if classFile == "PALADIN" then
+        for _, s in ipairs(SEALS) do
+            local name = C_Spell.GetSpellName(s.id)
+            if Plain(name) and name then sealByName[name] = s end
+        end
+        local name = C_Spell.GetSpellName(JUDGEMENT)
+        judgementName = Plain(name) and name or nil
+    end
     Place()
 end
 
@@ -605,6 +672,11 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "PLAYER_STARTED_MOVING" or event == "PLAYER_STOPPED_MOVING" then
         moving = event == "PLAYER_STARTED_MOVING"
         UpdateWindow(byType[SWING.Ranged])
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        -- a3 = spellID
+        SealCast(a3)
+    elseif event == "UNIT_AURA" then
+        ReadSeal()
     elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
         castEnd = nil
         UpdateCastTick()
@@ -614,6 +686,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
     elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
         inCombat = event == "PLAYER_REGEN_DISABLED"
         UpdateVisibility()
+        if not inCombat and S.Get("sealColors") and next(sealByName) then ReadSeal() end
     elseif event == "PLAYER_DEAD" then
         for i = 1, #rows do
             if rows[i].live then IdleRow(rows[i]) end
@@ -669,6 +742,12 @@ local function RegisterEvents()
     if S.Get("castClip") then
         for i = 1, #CAST_EVENTS do events:RegisterUnitEvent(CAST_EVENTS[i], "player") end
         ReadCast()
+    end
+    seal = false
+    if S.Get("sealColors") and next(sealByName) then
+        events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+        events:RegisterUnitEvent("UNIT_AURA", "player")
+        ReadSeal()
     end
 end
 
@@ -842,6 +921,28 @@ function ns.BuildSwingTimerPage(parent, y)
         ColorRow("queueColor", "Heroic Strike / Maul / Raptor Strike", "queueHighlight"),
         ColorRow("cleaveColor", "Cleave", "queueHighlight")
     ); y = y - h
+
+    local _, classFile = UnitClass("player")
+    if classFile == "PALADIN" then
+        _, h = W:SectionHeader(parent, "SEALS" .. UI.STATUS.untested, y); y = y - h
+        _, h = W:Feature(parent, y,
+            S.Toggle("sealColors", "Color by Seal",
+                "The melee bars take the color of the seal you have up. In combat that is the last "
+                .. "seal you cast until a Judgement uses it up, as the game keeps your buffs from "
+                .. "addons there; out of combat it is read from your buffs.", "enabled")
+        ); y = y - h
+        local seals = {
+            { "sealRighteousColor", "Righteousness" }, { "sealCrusaderColor", "the Crusader" },
+            { "sealCommandColor", "Command" }, { "sealJusticeColor", "Justice" },
+            { "sealLightColor", "Light" }, { "sealWisdomColor", "Wisdom" },
+            { "sealFuryColor", "Fury" },
+        }
+        for i = 1, #seals, 2 do
+            local left, right = seals[i], seals[i + 1]
+            _, h = W:DualRow(parent, y, ColorRow(left[1], "Seal of " .. left[2], "sealColors"),
+                right and ColorRow(right[1], "Seal of " .. right[2], "sealColors") or nil); y = y - h
+        end
+    end
     return y
 end
 
