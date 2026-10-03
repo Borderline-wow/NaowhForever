@@ -216,6 +216,9 @@
   the buffs only while the mouse is over the camp icon. Your current setting is kept.
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70178.
 - Sound dropdowns play the sound when you pick it, as Smart Reminders' already did.
+- Threat Meter: Hide When Empty is now With Threat, a choice under Show, so Always really
+  means always. Your setting carries over; with In Combat it becomes With Threat. In a Group
+  can no longer hide the empty window, so choose With Threat for that.
 
 ### Fixed
 - Borders and divider lines no longer lose a side at some UI scales (the trainer popup's X
