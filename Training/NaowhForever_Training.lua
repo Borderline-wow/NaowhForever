@@ -3,8 +3,9 @@
 --  learn, what you can train now and what each level brings, with the trainer's prices. The
 --  spells and base prices come from NaowhForever_TrainingData.lua; the trainer window
 --  updates a price to what it actually asked, kept account-wide. This file sorts the spells
---  (ns.Training) and holds the settings page; the window is NaowhForever_TrainingWindow.lua,
---  the level-up toast and the panel beside the trainer NaowhForever_TrainingTrainer.lua.
+--  (ns.Training), keeps the talent builds saved or imported, and holds the settings page; the
+--  window is NaowhForever_TrainingWindow.lua, the level-up toast and the panel beside the
+--  trainer NaowhForever_TrainingTrainer.lua.
 --
 --  Off by default. While off it registers nothing but its login check.
 -------------------------------------------------------------------------------
@@ -289,6 +290,216 @@ function Training.Coins(copper)
     if s > 0 then Add(s, "s") end
     if c > 0 or #parts == 0 then Add(c, "c") end
     return table.concat(parts, " ")
+end
+
+-------------------------------------------------------------------------------
+--  Talent builds: Naowh's, then the ones saved or imported, kept account-wide
+-------------------------------------------------------------------------------
+local BUILD_PREFIX = "!NFB1!"
+local MAX_POINTS = 51      -- one a level, 10 to 60
+local ROW_POINTS = 5       -- points in a column for each row above a talent
+
+local function Saved(classID)
+    local all = Account("trainingBuilds")
+    all[classID] = all[classID] or {}
+    return all[classID]
+end
+
+-- A class's builds, each { name, spec, points }; saved ones have saved = true.
+function Training.Builds(classID)
+    local list = {}
+    for _, build in ipairs(ns.TrainingBuilds[classID] or {}) do list[#list + 1] = build end
+    for _, build in ipairs(Saved(classID)) do list[#list + 1] = build end
+    return list
+end
+
+-- talent node -> your rank in it, from the active talent config; nil without one.
+function Training.Ranks(talents)
+    local config = C_ClassTalents.GetActiveConfigID()
+    if not config then return nil end
+    local ranks = {}
+    for node in pairs(talents) do ranks[node] = C_Traits.GetNodeInfo(config, node).activeRank end
+    return ranks
+end
+
+-- Why these points cannot be taken in this order, or nil when they can. tree is a class's
+-- entry in ns.TrainingBuilds; the first point that breaks a rule is the one explained.
+function Training.CheckBuild(tree, points)
+    local count, spent = {}, {}
+    for i, node in ipairs(points) do
+        local talent = tree.talents[node]
+        if not talent then return "That talent is not in this class's tree." end
+        if i > MAX_POINTS then return "All " .. MAX_POINTS .. " points are spent." end
+        local rank = (count[node] or 0) + 1
+        if rank > talent[2] then return "Already at full rank." end
+        local need = talent[6]
+        if need and (count[need] or 0) < tree.talents[need][2] then
+            return "Needs " .. (C_Spell.GetSpellName(tree.talents[need][1]) or "the talent above it") .. " at full rank first."
+        end
+        local col, row = talent[4], talent[3]
+        if (spent[col] or 0) < ROW_POINTS * (row - 1) then
+            return ("Needs %d points in %s first."):format(ROW_POINTS * (row - 1), tree.specs[col])
+        end
+        count[node], spent[col] = rank, (spent[col] or 0) + 1
+    end
+end
+
+-- The column with the most points names a build's spec.
+local function MainSpec(tree, points)
+    local spent, best = {}, nil
+    for _, node in ipairs(points) do
+        local col = tree.talents[node][4]
+        spent[col] = (spent[col] or 0) + 1
+        if not best or spent[col] > spent[best] then best = col end
+    end
+    return best and tree.specs[best] or "No points yet"
+end
+
+local function Codec()
+    return LibStub("LibSerialize"), LibStub("LibDeflate")
+end
+
+local function BuildName(text, default)
+    return type(text) == "string" and text ~= "" and (text:sub(1, 40):gsub("|", "||")) or default
+end
+
+function Training.ExportBuild(classID, build)
+    local LS, LD = Codec()
+    return BUILD_PREFIX .. LD:EncodeForPrint(LD:CompressDeflate(LS:Serialize({
+        v = 1, class = classID, name = build.name, spec = build.spec, points = build.points,
+    })))
+end
+
+-- Parsed as data, never run: the class must have a tree here, and its points pass
+-- Training.CheckBuild.
+local function DecodeBuild(text)
+    local LS, LD = Codec()
+    local body = type(text) == "string" and text:match("^%s*" .. BUILD_PREFIX:gsub("!", "%%!") .. "(%S+)%s*$")
+    local packed = body and LD:DecodeForPrint(body)
+    local raw = packed and LD:DecompressDeflate(packed)
+    if not raw then return end
+    local ok, data = LS:Deserialize(raw)
+    if not (ok and type(data) == "table" and data.v == 1 and type(data.points) == "table") then return end
+    local tree = ns.TrainingBuilds[data.class]
+    if not tree then return end
+    local points = {}
+    for i, node in ipairs(data.points) do
+        if i > MAX_POINTS then return end
+        points[i] = node
+    end
+    if #points == 0 or Training.CheckBuild(tree, points) then return end
+    return data.class, { name = BuildName(data.name, "Imported Build"), spec = BuildName(data.spec, "Imported"),
+        points = points, saved = true }
+end
+
+-- onAdded(classID, index) once it is in, index in Training.Builds(classID).
+function Training.ImportBuild(text, onAdded)
+    local classID, build = DecodeBuild(text)
+    if not classID then
+        ns.Print("That is not a Naowh Forever talent build.")
+        return
+    end
+    ns.Confirm(("Add the %s build %s (%d points)?"):format(GetClassInfo(classID), build.name, #build.points), function()
+        local saved = Saved(classID)
+        saved[#saved + 1] = build
+        Changed()
+        ns.Print("Imported " .. build.name .. ".")
+        onAdded(classID, #(ns.TrainingBuilds[classID]) + #saved)
+    end)
+end
+
+-- Your talents as a build, row by row: the game keeps which talents you have, not the order
+-- you took them in. Returns your class and its index in Training.Builds, or nil.
+function Training.SaveMyTalents(name)
+    local _, _, classID = UnitClass("player")
+    local tree = ns.TrainingBuilds[classID]
+    local ranks = tree and Training.Ranks(tree.talents)
+    if not ranks then return end
+    local nodes = {}
+    for node in pairs(tree.talents) do nodes[#nodes + 1] = node end
+    table.sort(nodes, function(a, b)
+        local rowA, rowB = tree.talents[a][3], tree.talents[b][3]
+        if rowA ~= rowB then return rowA < rowB end
+        return a < b
+    end)
+    local points = {}
+    for _, node in ipairs(nodes) do
+        for _ = 1, math.min(ranks[node], tree.talents[node][2]) do points[#points + 1] = node end
+    end
+    if #points == 0 then
+        ns.Print("You have no talent points spent to save.")
+        return
+    end
+    local saved = Saved(classID)
+    saved[#saved + 1] = { name = BuildName(name, "My Talents"), spec = "Your talents", points = points, saved = true }
+    Changed()
+    return classID, #tree + #saved
+end
+
+-- A new saved build, empty or a copy of another. Returns its index in Training.Builds.
+function Training.NewBuild(classID, name, from)
+    local points = {}
+    for i, node in ipairs(from and from.points or {}) do points[i] = node end
+    local saved = Saved(classID)
+    saved[#saved + 1] = { name = BuildName(name, "New Build"), spec = from and from.spec or "No points yet",
+        points = points, saved = true }
+    Changed()
+    return #(ns.TrainingBuilds[classID]) + #saved
+end
+
+-- Editing a saved build: each returns why not, or nil once done.
+function Training.AddPoint(tree, build, node)
+    local points = build.points
+    points[#points + 1] = node
+    local why = Training.CheckBuild(tree, points)
+    if why then
+        points[#points] = nil
+        return why
+    end
+    build.spec = MainSpec(tree, points)
+    Changed()
+end
+
+-- Gives back node's latest point, unless a later point needs it.
+function Training.RemovePoint(tree, build, node)
+    local points = build.points
+    for i = #points, 1, -1 do
+        if points[i] == node then
+            table.remove(points, i)
+            local why = Training.CheckBuild(tree, points)
+            if why then
+                table.insert(points, i, node)
+                return "A later point needs it. " .. why
+            end
+            build.spec = MainSpec(tree, points)
+            Changed()
+            return
+        end
+    end
+    return "No points in it to give back."
+end
+
+function Training.UndoPoint(tree, build)
+    build.points[#build.points] = nil
+    build.spec = MainSpec(tree, build.points)
+    Changed()
+end
+
+function Training.ClearPoints(build)
+    wipe(build.points)
+    build.spec = "No points yet"
+    Changed()
+end
+
+function Training.DeleteBuild(classID, build)
+    local saved = Saved(classID)
+    for i, b in ipairs(saved) do
+        if b == build then
+            table.remove(saved, i)
+            break
+        end
+    end
+    Changed()
 end
 
 -------------------------------------------------------------------------------

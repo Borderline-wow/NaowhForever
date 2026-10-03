@@ -17,6 +17,15 @@
   panel ticks what you can learn with Learn All I Can Afford, then puts the new ranks on your
   bars. Opening the trainer updates prices to what it asks, reputation discounts included.
   Off by default.
+- Training Planner: a Builds tab with a leveling talent build for every class, levels 10 to 30,
+  from Mobalytics' WoW Forever guides (Warrior has Arms/Fury to 15, then Protection). Pick a
+  class and a build to see it level by level, which points you have already taken and which
+  one comes next.
+  New Build opens your class's talent tree: click talents in the order you take them and the
+  build fills in level by level, keeping to the tree's rules (Undo, Clear, right-click to give
+  a point back). Copy makes an editable copy of a built-in build. Export gives any build as text
+  to share, Import a Build adds one someone shared with you, and Save My Talents keeps the
+  talents you have now as a build of your own.
 - Top Bar: Faded Opacity (with Show On Mouseover) sets how visible the bar and the FPS / MS
   readout stay while the mouse is away. 0% by default, invisible as before.
 - Blessings: in combat each click on a class button blesses the next member of that class who
