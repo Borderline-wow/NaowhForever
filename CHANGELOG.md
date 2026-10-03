@@ -252,6 +252,8 @@
   can no longer hide the empty window, so choose With Threat for that.
 
 ### Fixed
+- Blessings: the options window opens again while the bar shows your blessing buffs. Opening
+  it, or changing the UI scale, raised a Lua error and left the window broken.
 - Borders and divider lines no longer lose a side at some UI scales (the trainer popup's X
   missing its left edge, a panel without its top line), and icons keep their black edge all
   round. Every border, line and icon edge is now exactly one screen pixel, refitted when the
