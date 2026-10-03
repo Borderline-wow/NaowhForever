@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- QoL > Loot & Items: Auto-Replace Enchants (off by default) says yes for you when an enchant
+  would replace the one already on an item. Hold Shift to be asked.
 - Unlock Mode: right-click anything on screen for Element Options, which leaves Unlock Mode and
   opens that element's settings in /nf, its section already open.
 - Swing Timer: Color by Seal for paladins (Swing Timer > Bars, under Seals). The melee bars take

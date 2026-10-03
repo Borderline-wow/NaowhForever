@@ -82,6 +82,7 @@ QoL\NaowhForever_DeathRelease.lua
 QoL\NaowhForever_StealthReminder.lua
 QoL\NaowhForever_CoTank.lua
 QoL\NaowhForever_DeleteConfirm.lua
+QoL\NaowhForever_EnchantReplace.lua
 QoL\NaowhForever_Durability.lua
 QoL\NaowhForever_TalentPoints.lua
 QoL\NaowhForever_CombatAlert.lua

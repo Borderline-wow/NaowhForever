@@ -31,7 +31,7 @@ local S = UI.ModuleSettings("qol", {
     coTankDebuffDuration = true, coTankDebuffDurationSize = 10,
     coTankDebuffStacks = true, coTankDebuffStackSize = 10, coTankDebuffTooltips = false,
 
-    deleteConfirm = false, lootConfirm = false,
+    deleteConfirm = false, lootConfirm = false, enchantReplace = false,
     questAccept = false, questTurnIn = false, questGossip = false, questRewardPicks = true,
     questSkipModifier = "ALT",
     questShare = false,
@@ -581,6 +581,11 @@ function ns.BuildQoLLootPage(parent, y)
             "Types DELETE into the confirmation box for you, and names the item in the dialog as a "
             .. "link you can hover for its tooltip."),
         S.Toggle("fastLoot", "Faster Auto Loot", "Loots automatically without hiding the loot window. Hold Shift to loot manually.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("enchantReplace", "Auto-Replace Enchants",
+            "Says yes when an enchant would replace the one already on the item, instead of asking. "
+            .. "Hold Shift while applying it to be asked.")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "VENDORS", y); y = y - h
