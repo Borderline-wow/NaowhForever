@@ -78,8 +78,7 @@ local function Build()
 
     -- A black circle one pixel wider on every side, behind the icon: a 1px round border.
     icon.ring = icon:CreateTexture(nil, "BACKGROUND")
-    icon.ring:SetPoint("TOPLEFT", -1, 1)
-    icon.ring:SetPoint("BOTTOMRIGHT", 1, -1)
+    ns.PixelInset(icon.ring, -1)
     icon.ring:SetColorTexture(0, 0, 0, 1)
     icon.ringMask = icon:CreateMaskTexture()
     icon.ringMask:SetAllPoints(icon.ring)

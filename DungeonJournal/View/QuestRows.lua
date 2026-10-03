@@ -438,7 +438,7 @@ Kinds.quest = {
         row.divider = ns.Solid(row, "BORDER", T.line, 0.6)
         row.divider:SetPoint("BOTTOMLEFT", INDENT, 0)
         row.divider:SetPoint("BOTTOMRIGHT")
-        row.divider:SetHeight(1)
+        ns.Hairline(row.divider, "h")
         row.waypoint = IconButton(row, WaypointClicked, PIN, PIN_MARGIN)
         row.waypoint.tip = "Waypoint"
         row.waypoint.hint = "Right-click to share it in chat, or copy it."

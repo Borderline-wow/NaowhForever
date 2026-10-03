@@ -273,7 +273,7 @@ local function MakeRecent(parent)
     local divider = ns.Solid(block, "ARTWORK", T.line, 0.6)
     divider:SetPoint("TOP", 0, -RECENT_INSET / 2)
     divider:SetPoint("BOTTOM", 0, RECENT_FOOT)
-    divider:SetWidth(1)
+    ns.Hairline(divider, "v")
     return block
 end
 

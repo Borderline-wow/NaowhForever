@@ -208,12 +208,12 @@ local function Row(i)
         local edge = ns.Solid(row, "ARTWORK", BLACK, 1)
         edge:SetPoint(e[1])
         edge:SetPoint(e[2])
-        if e[3] then edge:SetHeight(1) else edge:SetWidth(1) end
+        ns.Hairline(edge, e[3] and "h" or "v")
     end
     row.divider = ns.Solid(row, "ARTWORK", T.accent, 1)
     row.divider:SetPoint("TOPLEFT", row, "BOTTOMLEFT")
     row.divider:SetPoint("TOPRIGHT", row, "BOTTOMRIGHT")
-    row.divider:SetHeight(1)
+    ns.Hairline(row.divider, "h")
     row:SetScript("OnEnter", RowTooltip)
     row:SetScript("OnLeave", GameTooltip_Hide)
     panel.rows[i] = row

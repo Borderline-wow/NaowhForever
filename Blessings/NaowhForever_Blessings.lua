@@ -623,8 +623,7 @@ local function Watch(frame)
             candidateFilters = { includeSpellIDs = {} },
             initializeFrame = function(button)
                 -- Inset like the button's own icon, so its black border still shows.
-                button:SetPoint("TOPLEFT", c, "TOPLEFT", 1, -1)
-                button:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -1, 1)
+                ns.PixelInset(button, 1, c)
                 button:EnableMouse(false)
                 local icon = button:CreateTexture(nil, "ARTWORK")
                 icon:SetAllPoints()
@@ -672,8 +671,7 @@ end
 -- Every icon on the bar: the art inset 1px inside the house black border.
 local function Icon(frame)
     frame.icon = frame:CreateTexture(nil, "ARTWORK")
-    frame.icon:SetPoint("TOPLEFT", 1, -1)
-    frame.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    ns.PixelInset(frame.icon, 1)
     frame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     ns.Border(frame, ICON_BORDER)
     frame.mark = ns.Font(frame, 14, "OUTLINE", RED)

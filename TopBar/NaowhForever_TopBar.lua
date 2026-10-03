@@ -482,7 +482,7 @@ local function Build()
     for i = 1, 3 do
         local seg = bar:CreateTexture(nil, "BACKGROUND")
         local line = bar:CreateTexture(nil, "BORDER")
-        line:SetHeight(1)
+        ns.Hairline(line, "h")
         line:SetPoint("BOTTOMLEFT", seg, "BOTTOMLEFT")
         line:SetPoint("BOTTOMRIGHT", seg, "BOTTOMRIGHT")
         line:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 0.55)

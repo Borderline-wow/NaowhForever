@@ -74,7 +74,7 @@ local function Link(parent, onClick, arrow)
     link.underline = ns.Solid(link, "ARTWORK", T.fg, 1)
     link.underline:SetPoint("TOPLEFT", link.text, "BOTTOMLEFT", 0, -1)
     link.underline:SetPoint("TOPRIGHT", link.text, "BOTTOMRIGHT", 0, -1)
-    link.underline:SetHeight(1)
+    ns.Hairline(link.underline, "h")
     link.underline:Hide()
     link:SetScript("OnClick", onClick)
     link:SetScript("OnEnter", LinkEnter)
@@ -180,7 +180,7 @@ function Backdrop:Card(left, top, right, bottom)
         local line = self:Keep(frame:CreateTexture(nil, "BORDER"), BORDER_RGB, CARD_EDGE)
         line:SetPoint(edge[1], fill)
         line:SetPoint(edge[2], fill)
-        if edge[3] then line:SetWidth(1) else line:SetHeight(1) end
+        ns.Hairline(line, edge[3] and "v" or "h")
         parts[#parts + 1] = line
     end
     return parts
@@ -472,7 +472,7 @@ Kinds.section = {
         row.line = ns.Solid(row, "ARTWORK", T.line, 1)
         row.line:SetPoint("BOTTOMLEFT")
         row.line:SetPoint("BOTTOMRIGHT")
-        row.line:SetHeight(1)
+        ns.Hairline(row.line, "h")
         row.link = Link(row, SectionLinkClicked, true)
         row.link:SetPoint("BOTTOMRIGHT", 0, 4)
         row:SetScript("OnMouseUp", SectionClicked)

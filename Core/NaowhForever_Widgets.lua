@@ -741,7 +741,7 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
 
     if not row._rule then
         row._rule = ns.Solid(row, "ARTWORK", T.line, 0.6)
-        row._rule:SetPoint("BOTTOMLEFT"); row._rule:SetPoint("BOTTOMRIGHT"); row._rule:SetHeight(1)
+        row._rule:SetPoint("BOTTOMLEFT"); row._rule:SetPoint("BOTTOMRIGHT"); ns.Hairline(row._rule, "h")
     end
     local function FitRegions()
         local width = math.max(1, parent:GetWidth() - UI.CONTENT_PAD * 2)
@@ -773,7 +773,7 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
         local divider = ns.Solid(row, "ARTWORK", T.line, 0.6)
         divider:SetPoint("TOP", row, "TOP", 0, -8)
         divider:SetPoint("BOTTOM", row, "BOTTOM", 0, 8)
-        divider:SetWidth(1)
+        ns.Hairline(divider, "v")
     else
         row._leftRegion = BuildRegion(row, leftCfg, 0, w)
     end
@@ -799,7 +799,7 @@ function W:SectionHeader(parent, text, yOffset)
     local sep = ns.Solid(f, "ARTWORK", T.line, 1)
     sep:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
     sep:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
-    sep:SetHeight(1)
+    ns.Hairline(sep, "h")
     return f, HEADER_H
 end
 

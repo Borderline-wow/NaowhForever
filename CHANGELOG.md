@@ -217,6 +217,10 @@
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70178.
 
 ### Fixed
+- Borders and divider lines no longer lose a side at some UI scales (the trainer popup's X
+  missing its left edge, a panel without its top line), and icons keep their black edge all
+  round. Every border, line and icon edge is now exactly one screen pixel, refitted when the
+  UI scale or window scale changes.
 - Opening a color swatch and closing it without picking no longer saves that color. A Custom
   theme color left at the default (including when Custom is first picked) no longer counts as
   changed, so the loot feed glow, XP bar quest and rested colors and the other HUD colors keep

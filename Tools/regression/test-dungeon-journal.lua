@@ -179,6 +179,9 @@ local function fixture(settings)
             return font
         end,
         Solid = function(parent) return Frame(state, parent) end,
+        -- As ns.Hairline and ns.PixelInset: whole-pixel sizing has no effect on these stubs.
+        Hairline = function(region) return region end,
+        PixelInset = function(region) return region end,
         -- As ns.Border: its frame, and a way to colour it.
         -- Its SetColor takes numbers, as the game's SetColorTexture does: a colour table errors.
         Border = function(parent) return { _frame = Frame(state, parent), SetColor = BORDER_SET_COLOR } end,

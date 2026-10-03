@@ -60,6 +60,11 @@ function methods:SetParent(p) self.parent = p end
 function methods:GetParent() return self.parent end
 function methods:GetChildren() return unpack(self.children) end
 function methods:CreateTexture() return New("Texture", nil, self) end
+function methods:GetObjectType() return self.kind end
+-- One unit is one screen pixel here, so ns.Hairline and ns.PixelInset keep the layout's numbers.
+function methods:GetEffectiveScale() return 1 end
+env.PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end }
+function methods:IsVisible() return self:IsShown() end
 function methods:CreateFontString() return New("FontString", nil, self) end
 function methods:SetFont(path, size, flags) self.font, self.size, self.flags = path, size, flags end
 function methods:SetText(t)

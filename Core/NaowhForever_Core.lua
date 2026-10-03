@@ -440,6 +440,69 @@ function ns.Font(parent, size, flags, color)
     return fs
 end
 
+-------------------------------------------------------------------------------
+--  Whole screen pixels
+-------------------------------------------------------------------------------
+-- At most UI scales one unit is less than a screen pixel, and the client snaps every edge to
+-- a pixel: a line one unit thick, or an icon one unit in from its black backing, then rounds
+-- to nothing on some sides and not others (a button's border missing its left edge). These
+-- size and place them in screen pixels instead, worked out from the region's own scale, and
+-- again whenever its frame shows or the scale changes.
+local fitters = setmetatable({}, { __mode = "k" })   -- frame -> { region -> fit(onePixel) }
+
+local function OnePixel(region)
+    return PixelUtil.GetPixelToUIUnitFactor() / region:GetEffectiveScale()
+end
+
+local function FitOwner(owner)
+    for region, fit in pairs(fitters[owner]) do fit(OnePixel(region)) end
+end
+
+local function Register(region, fit)
+    local owner = region:GetObjectType() == "Texture" and region:GetParent() or region
+    if not fitters[owner] then
+        fitters[owner] = setmetatable({}, { __mode = "k" })
+        -- A child frame of ours shows with its owner. Hooking the owner's own OnShow is not
+        -- enough: a module setting OnShow with SetScript after its lines are made drops the hook.
+        local watch = CreateFrame("Frame", nil, owner)
+        watch:SetScript("OnShow", function() FitOwner(owner) end)
+    end
+    fitters[owner][region] = fit
+    fit(OnePixel(region))
+end
+
+-- A line one screen pixel thick: axis "h" for a horizontal one, "v" for a vertical one.
+function ns.Hairline(tex, axis)
+    Register(tex, function(px)
+        if axis == "h" then tex:SetHeight(px) else tex:SetWidth(px) end
+    end)
+    return tex
+end
+
+-- The region filling relativeTo (its parent unless given) less n screen pixels on every side;
+-- a negative n reaches out past it.
+function ns.PixelInset(region, n, relativeTo)
+    Register(region, function(px)
+        local d = n * px
+        region:ClearAllPoints()
+        region:SetPoint("TOPLEFT", relativeTo or region:GetParent(), "TOPLEFT", d, -d)
+        region:SetPoint("BOTTOMRIGHT", relativeTo or region:GetParent(), "BOTTOMRIGHT", -d, d)
+    end)
+    return region
+end
+
+-- After the UI scale or the window scale changes, for whatever is up already.
+function ns.RefitPixels()
+    for owner in pairs(fitters) do
+        if owner:IsVisible() then FitOwner(owner) end
+    end
+end
+
+local pixelEvents = CreateFrame("Frame")
+pixelEvents:RegisterEvent("UI_SCALE_CHANGED")
+pixelEvents:RegisterEvent("DISPLAY_SIZE_CHANGED")
+pixelEvents:SetScript("OnEvent", function() ns.RefitPixels() end)
+
 -- Four 1px edges on a child frame one level up, so the border draws over the panel's own
 -- background but under its content. Returns { _frame, SetColor } -- _frame so a caller can
 -- hide the whole border (the learn-tag does), SetColor for hover restyles.
@@ -455,10 +518,10 @@ function ns.Border(frame, color, alpha)
         t:SetColorTexture(c.r, c.g, c.b, a)
         edges[i] = t
     end
-    edges[1]:SetPoint("TOPLEFT"); edges[1]:SetPoint("TOPRIGHT"); edges[1]:SetHeight(1)
-    edges[2]:SetPoint("BOTTOMLEFT"); edges[2]:SetPoint("BOTTOMRIGHT"); edges[2]:SetHeight(1)
-    edges[3]:SetPoint("TOPLEFT"); edges[3]:SetPoint("BOTTOMLEFT"); edges[3]:SetWidth(1)
-    edges[4]:SetPoint("TOPRIGHT"); edges[4]:SetPoint("BOTTOMRIGHT"); edges[4]:SetWidth(1)
+    edges[1]:SetPoint("TOPLEFT"); edges[1]:SetPoint("TOPRIGHT"); ns.Hairline(edges[1], "h")
+    edges[2]:SetPoint("BOTTOMLEFT"); edges[2]:SetPoint("BOTTOMRIGHT"); ns.Hairline(edges[2], "h")
+    edges[3]:SetPoint("TOPLEFT"); edges[3]:SetPoint("BOTTOMLEFT"); ns.Hairline(edges[3], "v")
+    edges[4]:SetPoint("TOPRIGHT"); edges[4]:SetPoint("BOTTOMRIGHT"); ns.Hairline(edges[4], "v")
     return {
         _frame = bf,
         SetColor = function(_, r, g, b, a2)

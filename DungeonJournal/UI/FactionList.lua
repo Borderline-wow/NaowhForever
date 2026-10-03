@@ -248,7 +248,7 @@ local function Header(parent, text)
     local line = ns.Solid(header, "ARTWORK", T.line, 1)
     line:SetPoint("BOTTOMLEFT", 0, 0)
     line:SetPoint("BOTTOMRIGHT", 0, 0)
-    line:SetHeight(1)
+    ns.Hairline(line, "h")
     return header
 end
 

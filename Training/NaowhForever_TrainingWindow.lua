@@ -189,8 +189,7 @@ local function Icon(parent, size)
     edge:SetColorTexture(0, 0, 0, 1)
     edge:SetSize(size + 2, size + 2)
     local icon = parent:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(size, size)
-    icon:SetPoint("CENTER", edge)
+    ns.PixelInset(icon, 1, edge)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     icon.edge = edge
     return icon
@@ -277,7 +276,7 @@ local function NewHeader()
     local rule = ns.Solid(h, "ARTWORK", T.line, 1)
     rule:SetPoint("BOTTOMLEFT")
     rule:SetPoint("BOTTOMRIGHT")
-    rule:SetHeight(1)
+    ns.Hairline(rule, "h")
     return h
 end
 
@@ -745,7 +744,7 @@ local function BuildHero()
     local rule = ns.Solid(hero, "ARTWORK", T.line, 1)
     rule:SetPoint("BOTTOMLEFT")
     rule:SetPoint("BOTTOMRIGHT")
-    rule:SetHeight(1)
+    ns.Hairline(rule, "h")
     window.hero = hero
 end
 
@@ -776,7 +775,7 @@ local function BuildRoad()
     local rule = ns.Solid(window, "ARTWORK", T.line, 1)
     rule:SetPoint("TOPLEFT", 0, -(HEADER + HERO_H + ROAD_H + 2))
     rule:SetPoint("TOPRIGHT", 0, -(HEADER + HERO_H + ROAD_H + 2))
-    rule:SetHeight(1)
+    ns.Hairline(rule, "h")
     window.road = road
 end
 
@@ -834,7 +833,7 @@ local function Build()
     local rule = ns.Solid(window, "ARTWORK", T.line, 1)
     rule:SetPoint("TOPLEFT", 0, -HEADER)
     rule:SetPoint("TOPRIGHT", 0, -HEADER)
-    rule:SetHeight(1)
+    ns.Hairline(rule, "h")
 
     BuildHero()
     BuildRoad()

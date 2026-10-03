@@ -81,6 +81,7 @@ local function Fixture(opts)
         AuctionPrice = function(id) return opts.ah and opts.ah[id] end,
         Font = function() return Widget("font") end,
         Solid = function() return Widget("texture") end,
+        PixelInset = function(region) return region end,
         Button = function() return Widget("button") end,
         Confirm = function(_, onYes) onYes() end,
         UI = { AttachMover = function() return Widget("mover") end },
