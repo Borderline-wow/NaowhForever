@@ -80,7 +80,7 @@ local S = UI.ModuleSettings("qol", {
     townCapitalsOnly = true, townSpiritHealers = true, townZoneLinks = true,
     townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
-    townVendors = false, townPinSize = 16,
+    townVendors = false, townMail = false, townPinSize = 16,
     gearSets = true, gearBarVisible = true, trinketBar = false, trinketSize = 36, trinketSpacing = 4, gearBarSize = 32, gearMounted = "", gearResting = "",
     bis = true, bisTooltip = true, bisLootAlert = true,
     blessings = true, blessSpacing = 6, blessGroupSpacing = 6, blessTimerSize = 14, blessShowLabels = true, blessBarSize = 30, blessTimers = true, blessShowAura = true,
@@ -1338,7 +1338,7 @@ function ns.BuildQoLInterfacePage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("townVendors", "Other Vendors", "Trade goods and every other merchant.", "townMap"),
-        { type = "label", text = "" }
+        S.Toggle("townMail", "Mailboxes", "Every mailbox, in towns and out in the world.", "townMap")
     ); y = y - h
 
     return y

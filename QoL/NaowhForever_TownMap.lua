@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_TownMap.lua -- the QoL town map: service NPCs from NaowhForever_TownData.lua
---  pinned on the world map for your faction.
+--  NaowhForever_TownMap.lua -- the QoL town map: service NPCs from NaowhForever_TownData.lua,
+--  and mailboxes from NaowhForever_TownMailboxes.lua, pinned on the world map for your faction.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -33,6 +33,7 @@ local CATEGORIES = {
     food       = { "townSupplies", "Interface\\Icons\\INV_Misc_Food_14", "Food & Drink" },
     trade      = { "townVendors", "Interface\\Icons\\INV_Fabric_Linen_01", "Trade Goods" },
     vendor     = { "townVendors", "Interface\\Icons\\INV_Misc_Bag_07", "Vendor" },
+    mail       = { "townMail", "Interface\\Icons\\INV_Letter_15", "Send and collect mail" },
 }
 
 local function On()
@@ -114,7 +115,8 @@ function provider:RefreshAllData()
     self:RemoveAllData()
     if not On() then return end
     local mapID = self:GetMap():GetMapID()
-    local list = (not S.Get("townCapitalsOnly") or CAPITALS[mapID]) and ns.TownNPCs[mapID] or {}
+    local inTown = not S.Get("townCapitalsOnly") or CAPITALS[mapID]
+    local list = inTown and ns.TownNPCs[mapID] or {}
     if S.Get("townSpiritHealers") and C_DeathInfo and C_DeathInfo.GetGraveyardsForMap then
         for _, grave in ipairs(C_DeathInfo.GetGraveyardsForMap(mapID) or {}) do
             local x, y = grave.position:GetXY()
@@ -133,6 +135,11 @@ function provider:RefreshAllData()
         if npc[7]:find(faction, 1, true) and S.Get(cat[1])
             and (npc[3] ~= "class" or npc[6] == class) then
             self:GetMap():AcquirePin(TEMPLATE, npc)
+        end
+    end
+    if inTown and S.Get("townMail") then
+        for _, mailbox in ipairs(ns.TownMailboxes[mapID] or {}) do
+            self:GetMap():AcquirePin(TEMPLATE, mailbox)
         end
     end
 end

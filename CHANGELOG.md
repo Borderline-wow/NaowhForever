@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- QoL > Interface, Town Map Pins: Mailboxes, every mailbox on the world map (off until you turn
+  it on). Positions come from Wowhead's WoW Forever database.
 - QoL > Questing: On-Screen Buttons (off by default) puts Invite and Disband on your screen,
   stacked or side by side, to move in Unlock Mode. Invite invites your target, in combat
   too; Disband removes everyone (group leader, out of combat).
