@@ -932,7 +932,7 @@ local function Apply()
         frame = CreateFrame("Frame", "NaowhForeverBagSpace", UIParent)
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
-        frame.mover = UI.AttachMover(frame, "Bag Space", function(pos) S.Set("bagSpacePos", pos) end)
+        frame.mover = UI.AttachMover(frame, "Bag Space", function(pos) S.Set("bagSpacePos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:Bag Space")
         frame.free = NewFreeCounter(frame)
     end
     Place()

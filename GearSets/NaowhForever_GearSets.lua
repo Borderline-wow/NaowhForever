@@ -282,7 +282,7 @@ local function BuildBar()
     buttons = {}
     addButton = ns.Button(bar, "+", 32, 32, ns.NewGearSet)
     ns.Tooltip(addButton, "New Gear Set", "Saves what you are wearing now as a new set.")
-    bar.mover = ns.UI.AttachMover(bar, "Gear Sets", function(pos) S.Set("gearPos", pos) end)
+    bar.mover = ns.UI.AttachMover(bar, "Gear Sets", function(pos) S.Set("gearPos", pos) end, "Gear & Trinkets/Gear Sets")
     local pos = S.Get("gearPos")
     if pos then
         bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
@@ -543,7 +543,7 @@ do
                 button:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 trinkets.buttons[i] = button
             end
-            trinkets.mover = ns.UI.AttachMover(trinkets, "Trinkets", function(pos) S.Set("trinketPos", pos) end)
+            trinkets.mover = ns.UI.AttachMover(trinkets, "Trinkets", function(pos) S.Set("trinketPos", pos) end, "Gear & Trinkets/Trinkets")
         end
         local size, gap = S.Get("trinketSize"), S.Get("trinketSpacing")
         trinkets:SetSize(size * 2 + gap, size)

@@ -222,7 +222,7 @@ local function Apply()
         ticker.splits = ns.Font(ticker, 14, "OUTLINE")
         ticker.splits:SetPoint("TOPLEFT", ticker.text, "BOTTOMLEFT", 0, -4)
         ticker.splits:SetJustifyH("LEFT")
-        ticker.mover = ns.UI.AttachMover(ticker, "XP per Hour", function(pos) S.Set("xpTickerPos", pos) end)
+        ticker.mover = ns.UI.AttachMover(ticker, "XP per Hour", function(pos) S.Set("xpTickerPos", pos) end, "QoL/XP", "QoL/XP:XP per Hour")
         -- Start, Pause and Reset under the ticker, shown while the mouse is over either.
         local controls = CreateFrame("Frame", nil, ticker)
         controls:SetSize(160, 20)

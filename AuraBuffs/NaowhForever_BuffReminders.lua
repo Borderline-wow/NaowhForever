@@ -339,7 +339,7 @@ local function Build()
     frame = CreateFrame("Frame", "NaowhForeverBuffReminders", UIParent)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
-    frame.mover = ns.UI.AttachMover(frame, "Buff Reminders", function(pos) S.Set("buffsPos", pos) end)
+    frame.mover = ns.UI.AttachMover(frame, "Buff Reminders", function(pos) S.Set("buffsPos", pos) end, "AuraBuffs/Buffs & Consumables")
 end
 
 local function Place()

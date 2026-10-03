@@ -82,7 +82,7 @@ local function Apply()
         frame:SetClampedToScreen(true)
         frame.text = ns.Font(frame, 22, "OUTLINE")
         frame.text:SetPoint("CENTER")
-        frame.mover = ns.UI.AttachMover(frame, "Durability", function(pos) S.Set("durabilityPos", pos) end)
+        frame.mover = ns.UI.AttachMover(frame, "Durability", function(pos) S.Set("durabilityPos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Low Durability Warning")
     end
     frame.text:SetFont(ns.UI.FontPath(S.Get("durabilityFont")), 22, "OUTLINE")
     Place()

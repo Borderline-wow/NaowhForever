@@ -296,7 +296,7 @@ local function Build()
     end)
     frame:EnableMouseWheel(true)
     frame:SetScript("OnMouseWheel", function(_, delta) offset = math.max(0, offset - delta); Update() end)
-    frame.mover = UI.AttachMover(frame, "Threat Meter", function(pos) S.Set("threatPos", pos) end)
+    frame.mover = UI.AttachMover(frame, "Threat Meter", function(pos) S.Set("threatPos", pos) end, "Threat Meter/Meter")
     frame:Hide(); Place()
 end
 

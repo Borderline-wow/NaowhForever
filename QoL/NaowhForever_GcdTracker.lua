@@ -322,7 +322,7 @@ local function Apply()
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
         frame:SetSize(200, 40)
-        frame.mover = UI.AttachMover(frame, "GCD Tracker", function(pos) S.Set("gcdTrackerPos", pos) end)
+        frame.mover = UI.AttachMover(frame, "GCD Tracker", function(pos) S.Set("gcdTrackerPos", pos) end, "QoL/Casting", "QoL/Casting:GCD Tracker")
         frame:SetScript("OnUpdate", function(_, elapsed)
             acc = acc + elapsed
             if acc < UPDATE_INTERVAL then return end

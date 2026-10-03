@@ -300,7 +300,7 @@ local function Build()
         local scale = bar:GetScale()
         S.Set("flightTimerPos", { point = pos.point, relPoint = pos.relPoint,
             x = pos.x * scale, y = pos.y * scale })
-    end)
+    end, "QoL/Flight & Camp", "QoL/Flight & Camp:Flight Timer")
     bar:Hide()
 end
 

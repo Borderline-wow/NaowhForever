@@ -38,7 +38,7 @@ local function Build(label, posKey, defaultY)
     frame.text = ns.Font(frame, 22, "OUTLINE")
     frame.text:SetPoint("CENTER")
     frame.posKey, frame.defaultY = posKey, defaultY
-    frame.mover = UI.AttachMover(frame, label, function(pos) S.Set(posKey, pos) end)
+    frame.mover = UI.AttachMover(frame, label, function(pos) S.Set(posKey, pos) end, "QoL/General", "QoL/General:Enable Stealth Reminder")
     frame:Hide()
     return frame
 end

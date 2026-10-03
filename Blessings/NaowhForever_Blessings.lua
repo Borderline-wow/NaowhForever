@@ -1052,7 +1052,7 @@ local function BuildBar()
     bar:SetMovable(true)
     bar:SetClampedToScreen(true)
     cells = {}
-    bar.mover = ns.UI.AttachMover(bar, "Blessings", function(pos) S.Set("blessPos", pos) end)
+    bar.mover = ns.UI.AttachMover(bar, "Blessings", function(pos) S.Set("blessPos", pos) end, "Blessings/Bar")
     local pos = S.Get("blessPos")
     if pos then
         bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)

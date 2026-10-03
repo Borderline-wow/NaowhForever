@@ -87,7 +87,7 @@ local function Build()
     end)
     button:SetScript("OnLeave", GameTooltip_Hide)
 
-    button.mover = UI.AttachMover(button, "Tracking", function(pos) S.Set("gatherPos", pos) end)
+    button.mover = UI.AttachMover(button, "Tracking", function(pos) S.Set("gatherPos", pos) end, "Professions/Window")
     button:Hide()
 end
 

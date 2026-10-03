@@ -120,7 +120,7 @@ local function Build()
     icon:SetScript("OnEnter", PaintBuffs)
     icon:SetScript("OnLeave", PaintBuffs)
 
-    icon.mover = ns.UI.AttachMover(icon, "Campfire", function(pos) S.Set("campPos", pos) end)
+    icon.mover = ns.UI.AttachMover(icon, "Campfire", function(pos) S.Set("campPos", pos) end, "AuraBuffs/Campfire")
     icon:Hide()
 end
 
@@ -237,7 +237,7 @@ local function BuildAlert()
             self:Hide()
         end
     end)
-    alert.mover = ns.UI.AttachMover(alert, "Camp Nearby", function(pos) S.Set("campAlertPos", pos) end)
+    alert.mover = ns.UI.AttachMover(alert, "Camp Nearby", function(pos) S.Set("campAlertPos", pos) end, "AuraBuffs/Campfire")
     local pos = S.Get("campAlertPos")
     if pos then
         alert:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)

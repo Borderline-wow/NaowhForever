@@ -581,7 +581,7 @@ local function ApplyFoodBar()
             button:SetScript("OnLeave", function() GameTooltip:Hide() end)
             foodBar.buttons[i] = button
         end
-        foodBar.mover = UI.AttachMover(foodBar, "Food & Drink", function(pos) S.Set("foodBarPos", pos) end)
+        foodBar.mover = UI.AttachMover(foodBar, "Food & Drink", function(pos) S.Set("foodBarPos", pos) end, "Macros/Consumables", "Macros/Consumables:Food & Drink Bar")
     end
     local size = S.Get("foodBarSize")
     foodBar:SetSize(size * 2 + FOOD_BAR_GAP, size)

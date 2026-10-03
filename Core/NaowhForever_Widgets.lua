@@ -1189,8 +1189,8 @@ function UI.RefreshMoverSelection()
     local frame, hud = item.frame, placement.hud
     local point, _, relPoint, x, y = frame:GetPoint(1)
     if not point then return end
-    hud.text:SetText(("%s  |  X %.1f   Y %.1f\n%s relative to %s\nArrow keys: 1 unit   |   Shift + arrow: 10 units")
-        :format(item.label, x, y, point, relPoint))
+    hud.text:SetText(("%s  |  X %.1f   Y %.1f\n%s relative to %s\nArrow keys: 1 unit   |   Shift + arrow: 10 units%s")
+        :format(item.label, x, y, point, relPoint, item.page and "\nRight-click for its options" or ""))
     FitPlacementHud()
     local scale = item.handle:GetEffectiveScale() / UIParent:GetEffectiveScale()
     local left, bottom = item.handle:GetLeft(), item.handle:GetBottom()
@@ -1333,13 +1333,30 @@ function UI.StopMoverDrag(handle)
     UI.RefreshMoverSelection()
 end
 
-function UI.BindMover(handle, frame, label, onMoved)
-    local item = { handle = handle, frame = frame, label = label, save = onMoved }
+-- Out of Unlock Mode and onto the element's options: the options window draws over the
+-- movers, so the two cannot share the screen.
+local function OpenElementOptions(item)
+    ns.HideRaidReminderAnchorConfig()
+    ns.OpenOptionsWindow(item.page)
+    if item.feature then UI.GoToSetting(item.page, nil, item.feature) end
+end
+
+-- page: the options page that sets the element up ("QoL/General"); feature: the section on
+-- it to open, if it has one.
+function UI.BindMover(handle, frame, label, onMoved, page, feature)
+    local item = { handle = handle, frame = frame, label = label, save = onMoved, page = page, feature = feature }
     handle._placement = item
     handle:EnableMouse(true)
     handle:RegisterForDrag("LeftButton")
     handle:SetScript("OnMouseDown", function(_, button)
-        if button == "LeftButton" then UI.SelectMover(handle) end
+        if button == "LeftButton" then
+            UI.SelectMover(handle)
+        elseif button == "RightButton" and page and not InCombatLockdown() then
+            MenuUtil.CreateContextMenu(handle, function(_, root)
+                root:CreateTitle(label)
+                root:CreateButton("Element Options", function() OpenElementOptions(item) end)
+            end)
+        end
     end)
     handle:SetScript("OnDragStart", function() UI.StartMoverDrag(handle) end)
     handle:SetScript("OnDragStop", function() UI.StopMoverDrag(handle) end)
@@ -1349,8 +1366,9 @@ function UI.BindMover(handle, frame, label, onMoved)
     end)
 end
 
--- Unlock Mode plate for an on-screen display. Hidden until the caller shows it.
-function UI.AttachMover(frame, label, onMoved)
+-- Unlock Mode plate for an on-screen display. Hidden until the caller shows it. page and
+-- feature: where its options are (UI.BindMover).
+function UI.AttachMover(frame, label, onMoved, page, feature)
     local mover = CreateFrame("Frame", nil, frame)
     mover:SetAllPoints()
     mover:SetFrameLevel(frame:GetFrameLevel() + 20)
@@ -1359,7 +1377,7 @@ function UI.AttachMover(frame, label, onMoved)
     local text = ns.Font(mover, 12, "OUTLINE")
     text:SetPoint("CENTER")
     text:SetText(label)
-    UI.BindMover(mover, frame, label, onMoved)
+    UI.BindMover(mover, frame, label, onMoved, page, feature)
     mover:Hide()
     return mover
 end

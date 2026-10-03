@@ -27,7 +27,7 @@ local function Build()
     frame.icon:SetTexture(ICON)
     frame.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     frame.text = ns.Font(frame, 20, "OUTLINE")
-    frame.mover = UI.AttachMover(frame, "Pet Tracker", function(pos) S.Set("petTrackerPos", pos) end)
+    frame.mover = UI.AttachMover(frame, "Pet Tracker", function(pos) S.Set("petTrackerPos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Pet Tracker")
     frame:Hide()
 end
 

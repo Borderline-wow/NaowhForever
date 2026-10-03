@@ -126,7 +126,7 @@ local function Build()
     frame.label:SetPoint("TOP", frame, "BOTTOM", 0, -4)
     frame.label:SetText("LOW HEALTH")
 
-    frame.mover = ns.UI.AttachMover(frame, "Low Health", function(pos) S.Set("lowHealthPos", pos) end)
+    frame.mover = ns.UI.AttachMover(frame, "Low Health", function(pos) S.Set("lowHealthPos", pos) end, "AuraBuffs/Low Health")
 end
 
 local function Place()

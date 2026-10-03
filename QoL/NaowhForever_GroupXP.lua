@@ -235,7 +235,7 @@ local function Apply()
         frame = CreateFrame("Frame", "NaowhForeverGroupXP", UIParent)
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
-        frame.mover = ns.UI.AttachMover(frame, "Group XP", function(pos) S.Set("groupXPPos", pos) end)
+        frame.mover = ns.UI.AttachMover(frame, "Group XP", function(pos) S.Set("groupXPPos", pos) end, "QoL/XP", "QoL/XP:Group XP")
     end
     Place()
     frame.mover:SetShown(unlocked == true)

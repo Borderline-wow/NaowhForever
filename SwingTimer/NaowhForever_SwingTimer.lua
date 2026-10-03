@@ -597,7 +597,7 @@ local function Build()
         rows[i], byType[ROWS[i].type] = row, row
         IdleRow(row)
     end
-    frame.mover = UI.AttachMover(frame, "Swing Timer", function(pos) S.Set("swingPos", pos) end)
+    frame.mover = UI.AttachMover(frame, "Swing Timer", function(pos) S.Set("swingPos", pos) end, "Swing Timer/Bars")
     local _, classFile = UnitClass("player")
     isHunter = classFile == "HUNTER"
     for _, q in ipairs(QUEUE_SPELLS[classFile] or {}) do

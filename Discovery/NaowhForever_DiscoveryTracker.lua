@@ -150,7 +150,7 @@ local function BuildPanel()
     panel.body:SetWidth(BODY_W)
     panel.rows = {}
 
-    panel.mover = ns.UI.AttachMover(panel, "Library Books", function(pos) S.Set("trackerPos", pos) end)
+    panel.mover = ns.UI.AttachMover(panel, "Library Books", function(pos) S.Set("trackerPos", pos) end, "Discovery/Settings")
     local pos = S.Get("trackerPos")
     if pos then
         panel:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)

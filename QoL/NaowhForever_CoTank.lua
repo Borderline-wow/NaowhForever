@@ -323,7 +323,7 @@ local function Build()
     frame.mover = ns.UI.AttachMover(frame, "Co-Tank", function(pos)
         S.Set("coTankPos", pos)
         S.Set("coTankAnchor", "UIParent")
-    end)
+    end, "QoL/General", "QoL/General:Co-Tank Frame")
 end
 
 -- Anchored to another frame by name, centre on centre plus the X and Y offsets; otherwise

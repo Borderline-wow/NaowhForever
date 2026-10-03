@@ -582,7 +582,7 @@ local function Build()
     Badge(SecureButton("guild", leftGroup), 1, 0.62, 0.1)
     SecureButton("hearth", rightGroup)
 
-    bar.mover = UI.AttachMover(bar, "Top Bar", function(pos) S.Set("pos", pos) end)
+    bar.mover = UI.AttachMover(bar, "Top Bar", function(pos) S.Set("pos", pos) end, "QoL/General", "QoL/General:Bar")
 end
 
 local function Layout(group, keys)

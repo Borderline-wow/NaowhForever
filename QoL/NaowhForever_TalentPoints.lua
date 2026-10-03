@@ -63,7 +63,7 @@ local function Apply()
         frame.text = ns.Font(frame, 22, "OUTLINE")
         frame.text:SetPoint("CENTER")
         frame.text:SetTextColor(1, 0.82, 0, 1)
-        frame.mover = ns.UI.AttachMover(frame, "Talent Points", function(pos) S.Set("talentPointsPos", pos) end)
+        frame.mover = ns.UI.AttachMover(frame, "Talent Points", function(pos) S.Set("talentPointsPos", pos) end, "QoL/Combat & Alerts")
     end
     frame.text:SetFont(ns.UI.FontPath(S.Get("talentPointsFont")), 22, "OUTLINE")
     Place()

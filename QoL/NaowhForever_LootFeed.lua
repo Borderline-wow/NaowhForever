@@ -439,7 +439,7 @@ local function CreateFeed()
     feed:SetClampedToScreen(true)
     gph = ns.Font(feed, 13, "OUTLINE", { r = 1, g = 0.82, b = 0 })
     gph:Hide()
-    feed.mover = ns.UI.AttachMover(feed, "Loot Feed", function(pos) S.Set("lootFeedPos", pos) end)
+    feed.mover = ns.UI.AttachMover(feed, "Loot Feed", function(pos) S.Set("lootFeedPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:Loot Feed")
     PlaceFeed()
 end
 

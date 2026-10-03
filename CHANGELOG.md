@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Unlock Mode: right-click anything on screen for Element Options, which leaves Unlock Mode and
+  opens that element's settings in /nf, its section already open.
 - Swing Timer: Color by Seal for paladins (Swing Timer > Bars, under Seals). The melee bars take
   the color of the seal you have up, one color per seal. In combat that is the last seal you
   cast until a Judgement uses it up; out of combat it is read from your buffs. Off by default.

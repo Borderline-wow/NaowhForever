@@ -721,7 +721,7 @@ local function Create()
         fs:SetPoint(slot.point, bar, slot.rel, dx, slot.y)
     end
 
-    bar.mover = ns.UI.AttachMover(bar, "XP Bar", function(pos) S.Set("xpBarPos", pos) end)
+    bar.mover = ns.UI.AttachMover(bar, "XP Bar", function(pos) S.Set("xpBarPos", pos) end, "QoL/XP", "QoL/XP:XP Bar")
 end
 
 local function Apply()

@@ -179,7 +179,7 @@ local function BuildAlert()
     alert.text = ns.Font(alert, 16, "OUTLINE")
     alert.text:SetPoint("TOP", alert.title, "BOTTOM", 0, -4)
     alert.text:SetJustifyH("CENTER")
-    alert.mover = ns.UI.AttachMover(alert, "Restock", function(pos) S.Set("restockPos", pos) end)
+    alert.mover = ns.UI.AttachMover(alert, "Restock", function(pos) S.Set("restockPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:Restock Reminder")
 
     -- Pulses a few times when it appears, then stays solid until it is dealt with.
     flash = alert:CreateAnimationGroup()

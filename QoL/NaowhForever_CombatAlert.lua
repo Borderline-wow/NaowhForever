@@ -18,7 +18,7 @@ local function Build()
     frame:SetClampedToScreen(true)
     frame.text = ns.Font(frame, 32, "OUTLINE")
     frame.text:SetPoint("CENTER")
-    frame.mover = UI.AttachMover(frame, "Combat Alert", function(pos) S.Set("combatAlertPos", pos) end)
+    frame.mover = UI.AttachMover(frame, "Combat Alert", function(pos) S.Set("combatAlertPos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Combat Alert")
     frame:Hide()
 
     fade = frame:CreateAnimationGroup()

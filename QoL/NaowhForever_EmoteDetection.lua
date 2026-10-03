@@ -43,7 +43,7 @@ local function Build()
     frame.text = ns.Font(frame, 16, "OUTLINE")
     frame.text:SetPoint("LEFT", frame.icon, "RIGHT", 8, 0)
     frame.text:SetJustifyH("LEFT")
-    frame.mover = UI.AttachMover(frame, "Emote Detection", function(pos) S.Set("emotePos", pos) end)
+    frame.mover = UI.AttachMover(frame, "Emote Detection", function(pos) S.Set("emotePos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Emote Detection")
     frame:Hide()
 
     anim = frame:CreateAnimationGroup()

@@ -110,7 +110,7 @@ local function Build()
     timeText:SetPoint("RIGHT", -4, 0)
     timeText:SetJustifyH("RIGHT")
 
-    frame.mover = UI.AttachMover(frame, "Focus Cast Bar", function(pos) S.Set("focusCastBarPos", pos) end)
+    frame.mover = UI.AttachMover(frame, "Focus Cast Bar", function(pos) S.Set("focusCastBarPos", pos) end, "QoL/Casting", "QoL/Casting:Focus Cast Bar")
     frame:Hide()
 end
 

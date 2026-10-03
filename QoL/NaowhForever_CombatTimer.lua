@@ -78,7 +78,7 @@ local function Build()
     frame.bg:SetAllPoints()
     frame.text = ns.Font(frame, 32, "OUTLINE")
     frame.text:SetPoint("CENTER")
-    frame.mover = UI.AttachMover(frame, "Combat Timer", function(pos) S.Set("combatTimerPos", pos) end)
+    frame.mover = UI.AttachMover(frame, "Combat Timer", function(pos) S.Set("combatTimerPos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Combat Timer")
     frame:Hide()
 end
 
