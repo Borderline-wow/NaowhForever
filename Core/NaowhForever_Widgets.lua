@@ -1531,7 +1531,11 @@ function UI.AppendSharedMediaSounds(paths, names, order)
     table.sort(sorted, function(a, b) return a:lower() < b:lower() end)
     for _, name in ipairs(sorted) do
         local key = "sm:" .. name
-        if not names[key] then
+        if name == "None" then
+            -- LibSharedMedia's own silent placeholder. It stays out of the list, but a
+            -- choice saved before keeps a readable name instead of the raw "sm:None".
+            names[key] = names[key] or "None"
+        elseif not names[key] then
             paths[key] = list[name]
             names[key] = name
             order[#order + 1] = key
