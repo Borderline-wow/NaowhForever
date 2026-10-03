@@ -87,6 +87,7 @@ QoL\NaowhForever_Durability.lua
 QoL\NaowhForever_TalentPoints.lua
 QoL\NaowhForever_CombatAlert.lua
 QoL\NaowhForever_QuestAutomation.lua
+QoL\NaowhForever_GroupButtons.lua
 QoL\NaowhForever_LootConfirm.lua
 QoL\NaowhForever_CursorClip.lua
 QoL\NaowhForever_CombatTimer.lua

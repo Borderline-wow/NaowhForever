@@ -34,6 +34,7 @@ local S = UI.ModuleSettings("qol", {
     deleteConfirm = false, lootConfirm = false, enchantReplace = false,
     questAccept = false, questTurnIn = false, questGossip = false, questRewardPicks = true,
     questSkipModifier = "ALT",
+    groupButtons = false, groupButtonsLayout = "stacked",
     questShare = false,
     combatTimer = false, combatTimerInstanceOnly = false, combatTimerChat = true,
     combatTimerSticky = false, combatTimerHidePrefix = false, combatTimerBackground = false,
@@ -285,7 +286,7 @@ local function TextControl(label, title, key)
     end }
 end
 
-local function DisbandGroup()
+function ns.DisbandGroup()
     if not IsInGroup() then ns.Print("You are not in a group."); return end
     if not UnitIsGroupLeader("player") then ns.Print("Only the group leader can disband the group."); return end
     ns.Confirm("Remove everyone from your group?", function()
@@ -331,12 +332,20 @@ function ns.BuildQoLQuestingPage(parent, y)
     _, h = W:SectionHeader(parent, "GROUP TOOLS", y); y = y - h
     _, h = W:DualRow(parent, y,
         { type = "button", text = "Disband Group", buttonText = "Disband",
-          tooltip = "Removes everyone from your group. Group leader only.", onClick = DisbandGroup },
+          tooltip = "Removes everyone from your group. Group leader only.", onClick = ns.DisbandGroup },
         { type = "button", text = "Invite Player", buttonText = "Invite",
           tooltip = "Type a name and invite them. Handy when you play with the same people.",
           onClick = function()
               ns.PromptText("Invite which player?", "", 0, function(name) C_PartyInfo.InviteUnit(name) end)
           end }
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("groupButtons", "On-Screen Buttons",
+            "Invite and Disband as buttons on your screen, to click without opening /nf. Invite "
+            .. "invites your target and works in combat; Disband works out of combat. Move them "
+            .. "in Unlock Mode."),
+        S.Dropdown("groupButtonsLayout", "Button Layout", { stacked = "Stacked", row = "Side by Side" },
+            { "stacked", "row" }, "Invite over Disband, or side by side.", "groupButtons")
     ); y = y - h
 
     return y

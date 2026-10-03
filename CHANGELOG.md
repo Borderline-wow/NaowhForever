@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- QoL > Questing: On-Screen Buttons (off by default) puts Invite and Disband on your screen,
+  stacked or side by side, to move in Unlock Mode. Invite invites your target, in combat
+  too; Disband removes everyone (group leader, out of combat).
 - QoL > Loot & Items: Auto-Replace Enchants (off by default) says yes for you when an enchant
   would replace the one already on an item. Hold Shift to be asked.
 - Unlock Mode: right-click anything on screen for Element Options, which leaves Unlock Mode and
