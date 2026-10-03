@@ -185,6 +185,12 @@
 - Swing Timer: Apply Theme to Bar Colours (Colours, off by default) colors the main hand bar with your theme's Accent, the off hand bar with its lighter Accent and the ranged bar with a deeper shade of it, instead of the colors picked there.
 
 ### Changed
+- Training Planner: the Builds tab is laid out as the Dungeon Journal is, the class's builds in a
+  list down the left and the one you pick beside it, with its buttons (Learn Next Points, Follow
+  This Build, Edit or Copy, Export, Delete) over it. Its lists (a build level by level, the spells
+  waiting on a rank, talent or later level, and the later levels) are one continuous list, every
+  other row faintly banded, instead of a box round each row. In the talent tree each talent's
+  ranks sit under it instead of over its corner.
 - Top Bar settings moved from their own sidebar page to the top of QoL > General, with a Top Bar switch in place of the page's Enable switch. /nf still opens on them.
 - The options window's sidebar header shows the NaowhUI Forever logo, and the search box beside it is narrower.
 - Flight Timer: with Land Early Button on, Blizzard's own Request Stop button is hidden

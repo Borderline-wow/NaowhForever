@@ -180,13 +180,6 @@ Case("deleting a followed build stops following it, and nothing else takes its p
     assert(t.T.Followed() == first, "deleting another build leaves it")
 end)
 
-Case("the pick moves with the list when a build is deleted", function()
-    local t = Fixture()
-    assert(t.T.SelectionAfterDelete(2, 4) == 3, "one above it")
-    assert(t.T.SelectionAfterDelete(5, 4) == 4, "one below it")
-    assert(t.T.SelectionAfterDelete(4, 4) == nil, "itself")
-end)
-
 Case("saving your talents lists them row by row, each up to its ranks", function()
     local t = Fixture({ config = 1, ranks = { [11] = 2, [12] = 1, [13] = 5, [14] = 0 } })
     local class, index = t.T.SaveMyTalents("Mine")

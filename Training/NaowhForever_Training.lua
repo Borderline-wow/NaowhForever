@@ -586,13 +586,6 @@ function Training.DeleteBuild(classID, build)
     Changed()
 end
 
--- Where the build picked at index selected is once the one at deleted is gone; nil when it was
--- that one.
-function Training.SelectionAfterDelete(deleted, selected)
-    if deleted == selected then return nil end
-    return deleted < selected and selected - 1 or selected
-end
-
 -------------------------------------------------------------------------------
 --  At the trainer
 -------------------------------------------------------------------------------

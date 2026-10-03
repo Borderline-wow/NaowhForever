@@ -39,7 +39,10 @@ local ROAD_TICKS = { 1, 10, 20, 30, 40, 50, 60 }
 local MAX_LEVEL = 60
 local COLS = 3
 local CARD_H, CARD_GAP, CARD_ICON = 58, 10, 36
-local ROW_H, ROW_GAP, ROW_ICON = 30, 4, 22
+local ROW_H, ROW_ICON = 30, 22
+-- A list as the Dungeon Journal draws one: rows touching, no edges, every other row a faint
+-- band, and a soft band under the mouse.
+local STRIPE, HOVER = St.STRIPE, 0.05
 local LATER_ICON, LATER_ICONS = 20, 5   -- a later level's spells, as icons before their names
 local SECTION_H = St.SECTION_H
 local SECTION_GAP = 18
@@ -56,11 +59,14 @@ local SEARCH_W = 180
 local LOAD_SETTLE = 0.1    -- seconds to gather spell descriptions arriving together
 local MINI_W, MINI_H, MINI_PAD, MINI_LOGO = 340, 74, 10, 16
 local CLASS_H, CLASS_GAP = 26, 6
-local BUILD_H = 94
-local SHARE_W = 56         -- the buttons on a build card
+local SHARE_W = 64         -- Edit, Copy, Export and Delete over a build
+local LIST_W, LIST_ROW = 250, 44   -- the builds down the left, as the Journal lists its dungeons
+local PANE_GAP = 20        -- the list to the build beside it
+local SELECTED_BAR, PICKED = 2, 0.10   -- the picked build: an accent edge and a firmer band
 local EDIT_W = 80          -- Undo, Clear and Done above the talent tree
 local LEARN_W, FOLLOW_W = 140, 140   -- Learn Next Points and Follow This Build on your build
-local NODE, NODE_GAP, NODE_ROW = 36, 12, 48   -- a talent in the tree, its gap, a row's height
+local NODE, NODE_GAP, NODE_ROW = 36, 12, 56   -- a talent in the tree, its gap, a row's height
+local COUNT_GAP = 2        -- a talent's ranks, under it
 local TREE_ROWS, TREE_SLOTS = 7, 4
 local SPEC_H = 28          -- a tree column's name, above it
 local FIRST_TALENT_LEVEL = 10
@@ -72,6 +78,7 @@ local loadQueued = false
 local tab = "spells"
 local buildClass               -- the class the Builds tab shows; nil is your own
 local buildIndex = 1
+local paneX = 0                -- where the Builds tab's right side starts; 0 on Spells
 local editing = false          -- the picked build is open in the talent tree
 
 -------------------------------------------------------------------------------
@@ -139,7 +146,11 @@ local function UpgradeTag(entry)
 end
 
 local function SpellEnter(self)
-    self.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    if self.band then
+        self.band:SetAlpha(HOVER)
+    else
+        self.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetSpellByID(self.entry[2])
     local up = Training.Upgrade(self.entry)
@@ -160,7 +171,11 @@ local function SpellEnter(self)
 end
 
 local function SpellLeave(self)
-    self.border:SetColor(BLACK.r, BLACK.g, BLACK.b, 1)
+    if self.band then
+        self.band:SetAlpha(0)
+    else
+        self.border:SetColor(BLACK.r, BLACK.g, BLACK.b, 1)
+    end
     GameTooltip:Hide()
 end
 
@@ -190,13 +205,34 @@ local function PriceText(entry)
     return ns.Color("muted", "At the trainer")
 end
 
-local function SpellButton(height)
+local function ListRow(b)
+    b.stripe = ns.Solid(b, "BACKGROUND", T.fg, STRIPE)
+    b.stripe:SetAllPoints()
+    b.band = ns.Solid(b, "BACKGROUND", T.fg, 1)
+    b.band:SetAllPoints()
+    b.band:SetAlpha(0)
+end
+
+-- Every other row of a section is banded, the first plain; a section title starts it again.
+local listed = 0
+
+local function Stripe(row)
+    listed = listed + 1
+    row.stripe:SetShown(listed % 2 == 0)
+end
+
+-- list: a row of a list, banded; else a card in its edge.
+local function SpellButton(height, list)
     local b = CreateFrame("Button", nil, body)
     b:SetHeight(height)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    b.bg = ns.Solid(b, "BACKGROUND", T.fg, FILL)
-    b.bg:SetAllPoints()
-    b.border = ns.Border(b, BLACK)
+    if list then
+        ListRow(b)
+    else
+        b.bg = ns.Solid(b, "BACKGROUND", T.fg, FILL)
+        b.bg:SetAllPoints()
+        b.border = ns.Border(b, BLACK)
+    end
     b:SetScript("OnEnter", SpellEnter)
     b:SetScript("OnLeave", SpellLeave)
     b:SetScript("OnClick", SpellClick)
@@ -255,7 +291,7 @@ local function Card(entry, state, x, y, w)
 end
 
 local function NewRow()
-    local r = SpellButton(ROW_H)
+    local r = SpellButton(ROW_H, true)
     r.icon = Icon(r, ROW_ICON)
     r.icon.edge:SetPoint("LEFT", 5, 0)
     r.name = Text(r, 13, nil)
@@ -287,7 +323,8 @@ local function Row(entry, state, y, why)
     r.why:SetShown(state ~= "ignored")
     r.restore:SetShown(state == "ignored")
     r.restore._onClick = function() Training.SetIgnored(entry[2], false, false) end
-    return y - ROW_H - ROW_GAP
+    Stripe(r)
+    return y - ROW_H
 end
 
 -- A section title as every page draws it: small capitals in the soft accent, a muted count,
@@ -308,10 +345,11 @@ end
 
 local function Header(y, title, count, note)
     local h = Take("header", NewHeader)
-    h:SetPoint("TOPLEFT", body, "TOPLEFT", 0, y)
+    h:SetPoint("TOPLEFT", body, "TOPLEFT", paneX, y)
     h:SetPoint("TOPRIGHT", body, "TOPRIGHT", 0, y)
     h.title:SetText(title .. (count and ("   " .. ns.Color("muted", count)) or ""))
     h.note:SetText(note or "")
+    listed = 0
     return y - SECTION_H - St.SECTION_SPACE
 end
 
@@ -327,9 +365,7 @@ end
 local function NewLater()
     local b = CreateFrame("Button", nil, body)
     b:SetHeight(ROW_H)
-    b.bg = ns.Solid(b, "BACKGROUND", T.fg, FILL)
-    b.bg:SetAllPoints()
-    b.border = ns.Border(b, BLACK)
+    ListRow(b)
     b.level = Text(b, 13, nil)
     b.level:SetPoint("LEFT", 10, 0)
     b.level:SetWidth(70)
@@ -348,8 +384,8 @@ local function NewLater()
     b.names:SetPoint("RIGHT", b.price, "LEFT", -12, 0)
     b.names:SetJustifyH("LEFT")
     b.names:SetWordWrap(false)
-    b:SetScript("OnEnter", function(self) self.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
-    b:SetScript("OnLeave", function(self) self.border:SetColor(BLACK.r, BLACK.g, BLACK.b, 1) end)
+    b:SetScript("OnEnter", function(self) self.band:SetAlpha(HOVER) end)
+    b:SetScript("OnLeave", function(self) self.band:SetAlpha(0) end)
     return b
 end
 
@@ -548,7 +584,8 @@ local function DrawAll(plan, y)
             end
             b.price:SetText(Training.Coins(Training.Total(groups[level])))
             b:SetScript("OnClick", function() Select(level) end)
-            y = y - ROW_H - ROW_GAP
+            Stripe(b)
+            y = y - ROW_H
         end
         if #levels > MAX_LATER then
             y = Header(y, "", nil, ("and %d more levels on the road above"):format(#levels - MAX_LATER))
@@ -597,78 +634,59 @@ local function ClassRow(classID, y)
     return y - CLASS_H - SECTION_GAP
 end
 
-local function NewBuildCard()
-    local c = CreateFrame("Button", nil, body)
-    c:SetHeight(BUILD_H)
-    c.bg = ns.Solid(c, "BACKGROUND", T.fg, FILL)
-    c.bg:SetAllPoints()
-    c.border = ns.Border(c, BLACK)
-    c.name = Text(c, 14, nil)
-    c.name:SetPoint("TOPLEFT", 12, -10)
-    c.spec = Text(c, 12, nil, T.muted)
-    c.spec:SetPoint("TOPLEFT", c.name, "BOTTOMLEFT", 0, -6)
-    c.source = Text(c, 12, nil, T.muted)
-    c.source:SetPoint("TOPLEFT", c.spec, "BOTTOMLEFT", 0, -4)
-    c.edit = ns.Button(c, "Edit", SHARE_W, SKIP_H)
-    c.copy = ns.Button(c, "Copy", SHARE_W, SKIP_H)
-    c.export = ns.Button(c, "Export", SHARE_W, SKIP_H)
-    c.delete = ns.Button(c, "Delete", SHARE_W, SKIP_H)
-    c:SetScript("OnEnter", function(self) self.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
-    c:SetScript("OnLeave", function(self) self.border:SetColor(self.rest.r, self.rest.g, self.rest.b, 1) end)
-    return c
+local function BuildRowEnter(self)
+    if not self.picked then self.band:SetAlpha(HOVER) end
 end
 
-local function BuildCards(classID, builds, y)
-    local w = math.floor((body:GetWidth() - (COLS - 1) * CARD_GAP) / COLS)
+local function BuildRowLeave(self)
+    if not self.picked then self.band:SetAlpha(0) end
+end
+
+local function NewBuildRow()
+    local r = CreateFrame("Button", nil, body)
+    r:SetSize(LIST_W, LIST_ROW)
+    ListRow(r)
+    r.bar = ns.Solid(r, "ARTWORK", T.accent, 1)
+    r.bar:SetPoint("TOPLEFT")
+    r.bar:SetPoint("BOTTOMLEFT")
+    r.bar:SetWidth(SELECTED_BAR)
+    r.name = Text(r, 13, nil)
+    r.name:SetPoint("TOPLEFT", 12, -8)
+    r.spec = Text(r, 11, nil, T.muted)
+    r.spec:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
+    for _, line in ipairs({ r.name, r.spec }) do
+        line:SetPoint("RIGHT", -8, 0)
+        line:SetJustifyH("LEFT")
+        line:SetWordWrap(false)
+    end
+    r:SetScript("OnEnter", BuildRowEnter)
+    r:SetScript("OnLeave", BuildRowLeave)
+    return r
+end
+
+-- The class's builds down the left; a click shows one beside them.
+local function BuildList(builds, y)
     for i, build in ipairs(builds) do
-        local col, line = (i - 1) % COLS, math.floor((i - 1) / COLS)
-        local c = Take("build", NewBuildCard)
-        c:SetPoint("TOPLEFT", body, "TOPLEFT", col * (w + CARD_GAP), y - line * (BUILD_H + CARD_GAP))
-        c:SetWidth(w)
-        c.name:SetText(build.name)
-        c.spec:SetText(build.spec .. ", " .. #build.points .. " points")
-        local saved = build.saved == true
-        c.source:SetText(build.source or (saved and "Saved by you" or ""))
-        c.edit._onClick = function()
-            buildIndex, editing = i, true
-            Render()
-        end
-        -- The built-in builds stay as they are; a copy of one can be changed.
-        c.copy._onClick = function()
-            buildIndex, editing = Training.NewBuild(classID, build.name .. " Copy", build), true
-            Render()
-        end
-        c.export._onClick = function() ns.ShowCopyBox(build.name, Training.ExportBuild(classID, build)) end
-        c.delete._onClick = function()
-            ns.Confirm(("Delete the build %s?"):format(build.name), function()
-                -- The pick moves with the list; deleting the open build closes the editor.
-                local after = Training.SelectionAfterDelete(i, buildIndex)
-                buildIndex, editing = after or 1, after ~= nil and editing
-                Training.DeleteBuild(classID, build)
-            end)
-        end
-        -- A saved build has Edit and Delete, a built-in one Copy; both Export.
-        local shown = { [c.edit] = saved, [c.copy] = not saved, [c.export] = true, [c.delete] = saved }
-        local x = 12
-        for _, b in ipairs({ c.edit, c.copy, c.export, c.delete }) do
-            b:SetShown(shown[b])
-            if shown[b] then
-                b:ClearAllPoints()
-                b:SetPoint("BOTTOMLEFT", x, 8)
-                x = x + SHARE_W + 4
-            end
-        end
-        c.rest = i == buildIndex and T.accent or BLACK
-        c.border:SetColor(c.rest.r, c.rest.g, c.rest.b, 1)
-        c:SetScript("OnClick", function()
+        local r = Take("buildRow", NewBuildRow)
+        r:SetPoint("TOPLEFT", body, "TOPLEFT", 0, y)
+        r.picked = i == buildIndex
+        r.bar:SetShown(r.picked)
+        r.band:SetAlpha(r.picked and PICKED or 0)
+        r.name:SetText(build.name)
+        local source = build.source or (build.saved and "Saved by you")
+        r.spec:SetText(build.spec .. ", " .. #build.points .. " points" .. (source and St.PLACE_DOT .. source or ""))
+        r:SetScript("OnClick", function()
             buildIndex, editing = i, false
             Render()
         end)
+        Stripe(r)
+        y = y - LIST_ROW
     end
-    return y - math.ceil(#builds / COLS) * (BUILD_H + CARD_GAP)
+    return y
 end
 
 local function StepEnter(self)
+    self.band:SetAlpha(HOVER)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetSpellByID(self.spell)
     GameTooltip:Show()
@@ -677,8 +695,7 @@ end
 local function NewStep()
     local r = CreateFrame("Button", nil, body)
     r:SetHeight(ROW_H)
-    ns.Solid(r, "BACKGROUND", T.fg, FILL):SetAllPoints()
-    ns.Border(r, BLACK)
+    ListRow(r)
     r.level = Text(r, 13, nil)
     r.level:SetPoint("LEFT", 10, 0)
     r.level:SetWidth(90)
@@ -692,7 +709,10 @@ local function NewStep()
     r.state = Text(r, 12, nil)
     r.state:SetPoint("RIGHT", -10, 0)
     r:SetScript("OnEnter", StepEnter)
-    r:SetScript("OnLeave", GameTooltip_Hide)
+    r:SetScript("OnLeave", function(self)
+        self.band:SetAlpha(0)
+        GameTooltip:Hide()
+    end)
     return r
 end
 
@@ -710,7 +730,7 @@ local function Steps(build, talents, ranks, level, y)
         count[node] = last
         local from, to = FIRST_TALENT_LEVEL + i - 1, FIRST_TALENT_LEVEL + j - 1
         local r = Take("step", NewStep)
-        r:SetPoint("TOPLEFT", body, "TOPLEFT", 0, y)
+        r:SetPoint("TOPLEFT", body, "TOPLEFT", paneX, y)
         r:SetPoint("TOPRIGHT", body, "TOPRIGHT", 0, y)
         r.spell = spell
         r.level:SetText(from == to and ("Level " .. from) or ("Levels " .. from .. "-" .. to))
@@ -730,7 +750,8 @@ local function Steps(build, talents, ranks, level, y)
         end
         r.state:SetText(text)
         Paint(r.state, color)
-        y = y - ROW_H - ROW_GAP
+        Stripe(r)
+        y = y - ROW_H
         i = j + 1
     end
     return y
@@ -764,8 +785,8 @@ local function NewNode()
     b.icon:SetAllPoints()
     b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     b.border = ns.Border(b, BLACK)
-    b.count = Text(b, 11, "OUTLINE")
-    b.count:SetPoint("BOTTOMRIGHT", 3, -3)
+    b.count = Text(b, 10, nil)
+    b.count:SetPoint("TOP", b, "BOTTOM", 0, -COUNT_GAP)
     b:SetScript("OnEnter", NodeEnter)
     b:SetScript("OnLeave", NodeLeave)
     return b
@@ -798,7 +819,7 @@ local function EditButtons(tree, build, y)
     }
     for i, action in ipairs(actions) do
         local b = Take("edit", NewEditButton)
-        b:SetPoint("TOPLEFT", body, "TOPLEFT", (i - 1) * (EDIT_W + 6), y)
+        b:SetPoint("TOPLEFT", body, "TOPLEFT", paneX + (i - 1) * (EDIT_W + 6), y)
         ns.SetButtonText(b, action[1])
         b._onClick = action[2]
     end
@@ -816,9 +837,9 @@ local function DrawEditor(tree, build, level, y)
         local col = tree.talents[node][4]
         spent[col] = (spent[col] or 0) + 1
     end
-    local colW = math.floor(body:GetWidth() / #tree.specs)
+    local colW = math.floor((body:GetWidth() - paneX) / #tree.specs)
     local gridW = TREE_SLOTS * NODE + (TREE_SLOTS - 1) * NODE_GAP
-    local function Left(col) return (col - 1) * colW + math.floor((colW - gridW) / 2) end
+    local function Left(col) return paneX + (col - 1) * colW + math.floor((colW - gridW) / 2) end
     for col, spec in ipairs(tree.specs) do
         local h = Take("spec", NewSpecTitle)
         h:SetPoint("TOPLEFT", body, "TOPLEFT", Left(col), y)
@@ -856,38 +877,73 @@ local function DrawEditor(tree, build, level, y)
     return Steps(build, tree.talents, nil, level, y)
 end
 
-local function NewLearnButton()
-    return ns.Button(body, "", LEARN_W, SKIP_H + 6)
+local function NewActionButton()
+    return ns.Button(body, "", SHARE_W, SKIP_H + 6)
 end
 
--- Your own class's build: learn its next points now, or follow it as you level.
-local function LearnButtons(classID, build, y)
-    local learn = Take("learn", NewLearnButton)
-    learn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, y)
-    ns.SetButtonText(learn, "Learn Next Points")
-    learn._onClick = function()
-        local bought = Training.LearnBuild(classID, build)
-        if bought > 0 then
-            ns.Print(("Learned %d talent %s from %s."):format(bought, bought == 1 and "point" or "points", build.name))
-        elseif InCombatLockdown() then
-            ns.Print("Talents can be learned once the fight is over.")
-        elseif not C_ClassTalents.HasUnspentTalentPoints() then
-            ns.Print("You have no talent points to spend.")
-        else
-            ns.Print("The build's next talent cannot be taken now: your talents are not the build's.")
-        end
-    end
-    local follow = Take("learn", NewLearnButton)
-    follow:SetWidth(FOLLOW_W)
-    follow:SetPoint("LEFT", learn, "RIGHT", 6, 0)
+-- Over the picked build, in a row: on your own class Learn Next Points and Follow This Build;
+-- then Edit or Copy (the built-in builds stay as they are, a copy of one can be changed),
+-- Export, and Delete on a saved build.
+local function BuildActions(classID, build, ownClass, y)
+    local saved = build.saved == true
     local following = Training.Followed() == build
-    ns.SetButtonText(follow, following and "Stop Following" or "Follow This Build")
-    follow._rest = following and T.accent or BLACK
-    follow._border:SetColor(follow._rest.r, follow._rest.g, follow._rest.b, 1)
-    follow._onClick = function() Training.Follow(classID, not following and build or nil) end
+    local actions = {}
+    if ownClass then
+        actions[#actions + 1] = { "Learn Next Points", LEARN_W, function()
+            local bought = Training.LearnBuild(classID, build)
+            if bought > 0 then
+                ns.Print(("Learned %d talent %s from %s."):format(bought, bought == 1 and "point" or "points",
+                    build.name))
+            elseif InCombatLockdown() then
+                ns.Print("Talents can be learned once the fight is over.")
+            elseif not C_ClassTalents.HasUnspentTalentPoints() then
+                ns.Print("You have no talent points to spend.")
+            else
+                ns.Print("The build's next talent cannot be taken now: your talents are not the build's.")
+            end
+        end }
+        actions[#actions + 1] = { following and "Stop Following" or "Follow This Build", FOLLOW_W, function()
+            Training.Follow(classID, not following and build or nil)
+        end, following }
+    end
+    if saved then
+        actions[#actions + 1] = { "Edit", SHARE_W, function()
+            editing = true
+            Render()
+        end }
+    else
+        actions[#actions + 1] = { "Copy", SHARE_W, function()
+            buildIndex, editing = Training.NewBuild(classID, build.name .. " Copy", build), true
+            Render()
+        end }
+    end
+    actions[#actions + 1] = { "Export", SHARE_W, function()
+        ns.ShowCopyBox(build.name, Training.ExportBuild(classID, build))
+    end }
+    if saved then
+        actions[#actions + 1] = { "Delete", SHARE_W, function()
+            ns.Confirm(("Delete the build %s?"):format(build.name), function()
+                buildIndex, editing = 1, false
+                Training.DeleteBuild(classID, build)
+            end)
+        end }
+    end
+    local x = paneX
+    for _, action in ipairs(actions) do
+        local b = Take("action", NewActionButton)
+        b:SetPoint("TOPLEFT", body, "TOPLEFT", x, y)
+        b:SetWidth(action[2])
+        ns.SetButtonText(b, action[1])
+        b._onClick = action[3]
+        b._rest = action[4] and T.accent or BLACK
+        b._border:SetColor(b._rest.r, b._rest.g, b._rest.b, 1)
+        x = x + action[2] + 6
+    end
     return y - SKIP_H - 6 - SECTION_GAP
 end
 
+-- The class row across the top; under it the class's builds down the left, and the picked one
+-- beside them, level by level, or open in the talent tree.
 local function DrawBuilds(level, y)
     local _, _, myClass = UnitClass("player")
     local classID = buildClass or myClass
@@ -897,23 +953,30 @@ local function DrawBuilds(level, y)
     if #builds == 0 then return Header(y, "NO BUILDS YET", nil, "Builds for this class are on the way") end
     if not builds[buildIndex] then buildIndex = 1 end
     y = Header(y, "BUILDS", #builds, "Leveling builds from Mobalytics' WoW Forever guides, levels 10 to 30")
-    y = BuildCards(classID, builds, y) - SECTION_GAP
+    local listBottom = BuildList(builds, y)
     local build = builds[buildIndex]
-    if editing and build.saved then return DrawEditor(tree, build, level, y) end
-    local ranks = classID == myClass and Training.Ranks(tree.talents) or nil
-    local note = "Another class's build, to look at"
-    if ranks then
-        local taken, count = 0, {}
-        for _, node in ipairs(build.points) do
-            count[node] = (count[node] or 0) + 1
-            if ranks[node] >= count[node] then taken = taken + 1 end
+    paneX = LIST_W + PANE_GAP
+    local bottom
+    if editing and build.saved then
+        bottom = DrawEditor(tree, build, level, y)
+    else
+        local ranks = classID == myClass and Training.Ranks(tree.talents) or nil
+        local note = "Another class's build, to look at"
+        if ranks then
+            local taken, count = 0, {}
+            for _, node in ipairs(build.points) do
+                count[node] = (count[node] or 0) + 1
+                if ranks[node] >= count[node] then taken = taken + 1 end
+            end
+            note = ("%d of %d points taken"):format(taken, #build.points)
+                .. (Training.Followed() == build and ", following it as you level" or "")
         end
-        note = ("%d of %d points taken"):format(taken, #build.points)
-            .. (Training.Followed() == build and ", following it as you level" or "")
+        bottom = Header(y, build.name:upper(), nil, note)
+        bottom = BuildActions(classID, build, ranks ~= nil, bottom)
+        bottom = Steps(build, tree.talents, ranks, level, bottom)
     end
-    y = Header(y, build.name:upper(), nil, note)
-    if ranks then y = LearnButtons(classID, build, y) end
-    return Steps(build, tree.talents, ranks, level, y)
+    paneX = 0
+    return math.min(listBottom, bottom)
 end
 
 -- Every spell of your class whose name holds the search, learned or not, as cards in level order.

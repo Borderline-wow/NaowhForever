@@ -216,6 +216,14 @@ window.search:SetText("")
 window.switch.onPick("builds")
 check("Builds hides the next visit and the road", not window.hero:IsShown() and not window.road:IsShown())
 check("and shows its own controls", window.import:IsShown() and window.new:IsShown() and not window.search:IsShown())
+local rows, picked = 0, 0
+for _, f in ipairs(frames) do
+    if rawget(f, "bar") and rawget(f, "picked") ~= nil and f:IsShown() then
+        rows = rows + 1
+        if f.picked then picked = picked + 1 end
+    end
+end
+check("the builds are a list down the left, one of them picked", rows > 0 and picked == 1)
 
 -- Every button the Builds tab drew, clicked: the class row, the build cards and theirs.
 local function Clickables()
