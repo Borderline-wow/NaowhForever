@@ -82,6 +82,15 @@ Case("a later rank known counts the ranks before it as learned", function()
     local want = "now: 1953 3561; later: 10151 25306; talent: 12505"
     assert(t.Plan() == want, t.Plan())
 end)
+Case("a rank before that is not in the list counts as learned when the game knows it", function()
+    DATA[8][#DATA[8] + 1] = { 30, 5145, 4000, needs = 5144 }
+    DATA[8][#DATA[8] + 1] = { 30, 9999, 4000, needs = 9998 }
+    local t = Fixture({ level = 30, known = { [145] = true, [5144] = true, [1953] = true, [3561] = true, [9998] = true } })
+    local plan = t.Plan()
+    DATA[8][#DATA[8]] = nil
+    DATA[8][#DATA[8]] = nil
+    assert(plan == "now: 5145 9999; later: 10151 25306; talent: 12505", plan)
+end)
 Case("spells two levels away or less are coming soon", function()
     local t = Fixture({ level = 14, known = { [145] = true, [5143] = true } })
     assert(t.Plan() == "soon: 5144; later: 1953 3561 10151 25306; talent: 12505", t.Plan())

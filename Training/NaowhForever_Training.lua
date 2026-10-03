@@ -109,7 +109,9 @@ local function Plan(level)
                 state = "later"
             elseif entry[1] > level then
                 state = "soon"
-            elseif entry.needs and not known[entry.needs] then
+            -- A rank before that no trainer sells (granted at level 1) is not in the list: ask the game.
+            elseif entry.needs and not (known[entry.needs] or known[entry.needs] == nil
+                and C_SpellBook.IsSpellKnown(entry.needs)) then
                 state = "rank"
             end
             local list = plan[state]

@@ -121,12 +121,24 @@ def entries(rows, talents):
         if e["talent"] in sold:
             e["talent"] = None
     kept.sort(key=lambda e: (e["level"], e["name"], e["spell"]))
-    last = {}
+    # The rank before, from every rank in the list, kept or not: a first rank the game grants at
+    # level 1 (Heroic Strike, Fireball) has no trainer, but the second still follows it.
+    ranks = {}
+    for row in rows:
+        number = rank_number(row.get("rank"))
+        if row.get("skill") and number:
+            key = (row["name"], tuple(races(row["reqrace"]) if row.get("reqrace") else []), number)
+            ranks.setdefault(key, row["id"])
     for e in kept:
-        chain = (e["name"], tuple(e["races"]))
-        e["needs"] = last.get(chain) if e["rank"] else None
-        last[chain] = e["spell"]
+        number = rank_number(e["rank"])
+        e["needs"] = number and ranks.get((e["name"], tuple(e["races"]), number - 1))
     return kept
+
+
+def rank_number(rank):
+    """"Rank 3" -> 3; None for a spell without ranks."""
+    match = re.fullmatch(r"Rank (\d+)", rank or "")
+    return int(match.group(1)) if match else None
 
 
 def build(build_id):
