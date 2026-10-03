@@ -11,10 +11,10 @@ ns.Journal.AddDungeon("RagefireChasm", {
     entrance = { map = 1454, x = 53.2, y = 48.7 },
     wings = {
         { bosses = {
-            { npc = 11517, name = "Oggleflint", encounters = { 2732 }, loot = { 272996, 272998, 272999 } },
-            { npc = 11520, name = "Taragaman the Hungerer", encounters = { 2733 }, loot = { 14149, 14148, 14145 }, chance = { 33, 31, 16 } },
-            { npc = 11518, name = "Jergosh the Invoker", encounters = { 2734 }, loot = { 14150, 14147, 14151 }, chance = { 36, 34, 16 } },
-            { npc = 11519, name = "Bazzalan", encounters = { 2735 }, loot = { 273003, 273005, 273007 } },
+            { npc = 11517, name = "Oggleflint", model = 11611, encounters = { 2732 }, loot = { 272996, 272998, 272999 } },
+            { npc = 11520, name = "Taragaman the Hungerer", model = 7970, encounters = { 2733 }, loot = { 14149, 14148, 14145 }, chance = { 33, 31, 16 } },
+            { npc = 11518, name = "Jergosh the Invoker", model = 11429, encounters = { 2734 }, loot = { 14150, 14147, 14151 }, chance = { 36, 34, 16 } },
+            { npc = 11519, name = "Bazzalan", model = 2007, encounters = { 2735 }, loot = { 273003, 273005, 273007 } },
         } },
     },
 })

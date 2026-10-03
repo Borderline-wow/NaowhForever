@@ -8,6 +8,14 @@ local S = ns.DiscoverySettings
 local L = ns.Library
 
 local TEMPLATE = "NaowhForeverLibraryPinTemplate"
+-- The light blue of the hint lines: the shade each one always was (r, g, b), or the theme's
+-- lighter Accent once the theme has changed the Accent. Returns r, g, b, so where it is not
+-- the last argument its values are put in locals first.
+local function SoftBlue(r, g, b)
+    local c = ns.ThemeTint("accentSoft", nil)
+    if c then return c.r, c.g, c.b end
+    return r, g, b
+end
 local BOOK_ICON = "Interface\\Icons\\INV_Misc_Book_11"
 local TURN_IN_ICON = "Interface\\Icons\\INV_Misc_Book_07"
 local PIN_SIZE = 18
@@ -54,14 +62,15 @@ function NaowhForeverLibraryPinMixin:OnMouseEnter()
         GameTooltip:AddLine(L.Where(spot), 0.61, 0.64, 0.69)
         if spot[5] then GameTooltip:AddLine(spot[5], 1, 1, 1, true) end
         local npc = L.TurnIn(book)
-        GameTooltip:AddLine("Hand in to " .. npc.name .. ", " .. npc.place, 0.3, 0.71, 0.96, true)
+        local hr, hg, hb = SoftBlue(0.3, 0.71, 0.96)
+        GameTooltip:AddLine("Hand in to " .. npc.name .. ", " .. npc.place, hr, hg, hb, true)
     else
         local npc = entry.npc
         GameTooltip:SetText(npc.name, 1, 1, 1)
         GameTooltip:AddLine(entry.count == 1 and "Takes the book you carry."
             or ("Takes the %d books you carry."):format(entry.count), 1, 0.82, 0)
     end
-    GameTooltip:AddLine("Click for a waypoint.", 0.3, 0.71, 0.96)
+    GameTooltip:AddLine("Click for a waypoint.", SoftBlue(0.3, 0.71, 0.96))
     GameTooltip:Show()
 end
 

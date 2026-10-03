@@ -282,7 +282,7 @@ Kinds.boss = {
         row.rule = ns.Solid(row, "ARTWORK", T.line, 0.7)
         row.rule:SetPoint("BOTTOMLEFT")
         row.rule:SetPoint("BOTTOMRIGHT")
-        row.rule:SetHeight(1)
+        ns.Hairline(row.rule, "h")
         row:SetScript("OnEnter", BossEnter)
         row:SetScript("OnLeave", BossLeave)
         row:SetScript("OnMouseUp", BossClicked)

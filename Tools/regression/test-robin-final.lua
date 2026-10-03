@@ -51,6 +51,7 @@ local function fixture(kind)
         THEME = { bg = {}, accent = { r = 0, g = 1, b = 1 }, accentSoft = {} },
         UIFontPath = function() return 'font' end,
         Border = function() return frame() end, Solid = function() return frame() end,
+        PixelInset = function(region) return region end,
         ThemeTint = function(_, literal) return literal end,
         Font = function() return frame() end, Tooltip = function() end,
         Button = function(parent, text, w, h, callback)

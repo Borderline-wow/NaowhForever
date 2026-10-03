@@ -55,5 +55,30 @@ class Drops(unittest.TestCase):
         self.assertEqual(kept[0]["chance"], None, "a new boss's drop: kept, its chance unknown")
 
 
+class WowsrcMerge(unittest.TestCase):
+    """merge_wowsrc: wowsrc's Forever list over Wowhead's loot."""
+
+    def setUp(self):
+        self.facts = build_journal.item_facts
+        build_journal.item_facts = lambda item_id: None   # offline: neither cache nor tables have it
+
+    def tearDown(self):
+        build_journal.item_facts = self.facts
+
+    def test_an_item_without_facts_keeps_the_old_loot(self):
+        loot = [dict(drop(6341, 1468, 15624), chance=9.0)]
+        listed = {"items": [{"id": 273643, "chance": None, "new": True}], "complete": True}
+        kept = build_journal.merge_wowsrc(loot, listed)
+        self.assertEqual([i["id"] for i in kept], [6341], "not dropped over an item it could not read")
+
+    def test_a_whole_list_moves_old_items_off(self):
+        build_journal.item_facts = self.facts
+        loot = [dict(drop(6341, 1468, 15624), chance=9.0), dict(drop(3191, 5241, 15624), chance=33.0)]
+        listed = {"items": [{"id": 3191, "chance": 35.7, "new": False}], "complete": True}
+        kept = build_journal.merge_wowsrc(loot, listed)
+        self.assertEqual([i["id"] for i in kept], [3191])
+        self.assertEqual(kept[0]["chance"], 35.7, "wowsrc's chance wins")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,12 +2,16 @@
 --  UI/Popup.lua -- Boss Loot at Cursor: a key binding (Naowh Forever's own section in Key
 --  Bindings) that opens a small panel at the mouse with the loot of the boss you hover, or
 --  else your target, drawn by the Dungeon Journal's view: BiS marked, right-click for the
---  BiS list. Pressing the key again, or the X, closes it. Nothing is made until the key is
+--  BiS list. In the Journal window's look, as the quest tracker and the dungeon map are: its
+--  gradient faded by its Opacity, a card behind the loot, its titles' blue. Pressing the key
+--  again, or the X, closes it. Nothing is made until the key is
 --  first pressed, which turns the module on.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local J = ns.Journal
 
+local T = ns.THEME
+local S = J.Settings
 local St = J.Style
 local PANEL_W, PANEL_PAD, PANEL_HEADER = St.PANEL_W, St.PANEL_PAD, St.PANEL_HEADER
 
@@ -23,7 +27,9 @@ local function Drawn(height)
 end
 
 local function Build()
-    popup = J.View.Parts.Panel("")
+    popup = J.View.Parts.Panel("", true)
+    popup.backdrop:Card(4, PANEL_HEADER, 4, 4)
+    popup.title:SetTextColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
     popup:SetFrameStrata("DIALOG")
     view = J.View.New(popup)
     view:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEADER)
@@ -39,8 +45,16 @@ local function Open(boss, dungeon)
     popup:ClearAllPoints()
     popup:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale + CURSOR_OFFSET, y / scale - CURSOR_OFFSET)
     popup.title:SetText(dungeon.name:upper())
+    popup.backdrop:Paint(S.Get("windowAlpha") or 1)
     popup:Show()
     view:DrawBossLoot(boss, dungeon)
+end
+
+-- A boss pin on the dungeon map opens the same panel, at the mouse; the map closing closes it.
+J.View.OpenBossLoot = Open
+
+function J.View.CloseBossLoot()
+    if popup then popup:Hide() end
 end
 
 -- The binding's action (Bindings.xml).
@@ -62,6 +76,7 @@ function NaowhForever_BossLoot()
         ns.Print("That is not a boss the Dungeon Journal can read right now.")
         return
     end
+    J.View.ForgetMapLoot()
     local boss, dungeon = J.Boss(npc)
     if not boss then
         ns.Print(("%s is not a boss the Dungeon Journal knows."):format(UnitName(unit) or "That"))

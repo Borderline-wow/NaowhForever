@@ -19,6 +19,9 @@ local NOTES = {
             .. "and Ctrl-click the Camp Nearby alert to dismiss it until you leave that campfire.",
         "XP Bar: Ctrl + right-click it to reset the session time and XP/Hour. Other clicks go "
             .. "through the bar.",
+        "QoL, XP: XP Bar, XP per Hour and Group XP moved from Questing to their own tab. The XP "
+            .. "Bar settings show a preview of the bar: click a text on it to change it. Three more "
+            .. "spots for texts: Top, and Left and Right beside the bar.",
         "Skip Modifier (QoL, Questing): pick the key you hold to skip quest automation, Alt, "
             .. "Ctrl or Shift.",
         "Shift-Click Searches AH (Professions): with the auction house open, Shift-click a recipe "
@@ -36,7 +39,7 @@ local NOTES = {
         "New features are off until you turn them on.",
     } },
     { title = "0.5.17-beta", lines = {
-        "Group XP (QoL, Questing): a bar for each group member with their level and XP, for "
+        "Group XP (QoL, XP): a bar for each group member with their level and XP, for "
             .. "levelling together. Everyone who wants to show up needs Naowh Forever with Group "
             .. "XP on.",
         "Share Quests With Group (QoL, Questing): quests you pick up from an NPC are shared "

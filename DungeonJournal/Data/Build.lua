@@ -5,5 +5,5 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 
-ns.Journal.DATA_BUILD = "1.60.1.70170"
-ns.Journal.DATA_DATE = "1 Oct 2026"
+ns.Journal.DATA_BUILD = "1.60.1.70178"
+ns.Journal.DATA_DATE = "2 Oct 2026"

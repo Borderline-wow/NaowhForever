@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Added
+- Training Planner (/nftraining, or its minimap and top bar button): a window with what your
+  next trainer visit costs against your gold, a road to 60 with a dot for every level that
+  brings spells (click one to see them), what is left to pay up to 60, the spells you can train
+  now as cards, and what waits on a rank, a talent or a later level. Each new rank says how much
+  stronger it is than the one before (+100%, and on its tooltip Fire damage 16-24 to 33-47).
+  Search any spell of your class, and Show Learned lists what you know. Mini swaps the window
+  for a small bar with your next visit and your gold, to leave up while you level. Right-click
+  a spell to skip it or all its ranks, shift-click to link it. A toast on level-up says how many spells wait and what they cost, and
+  beside your class trainer a panel ticks what you can learn with Learn All I Can Afford, then
+  puts the new ranks on your bars. Opening the trainer updates prices to what it asks,
+  reputation discounts included. Off by default.
+- Top Bar: Faded Opacity (with Show On Mouseover) sets how visible the bar and the FPS / MS
+  readout stay while the mouse is away. 0% by default, invisible as before.
 - Blessings: in combat each click on a class button blesses the next member of that class who
   needed it when the fight began, then round again, instead of the same player every time. It
   follows them by name, so the raid being rearranged mid-fight does not send it to someone
@@ -31,9 +44,16 @@
   party. The group icon counts who else is on each quest; click it on one you don't have
   and a member running Naowh Forever shares it with you (Quest Share Requests, in the
   Journal's settings). Tracker opens a dungeon's quests in a small window to keep on
-  screen while you run it. Each dungeon says whose ground its entrance is on, and the pin
+  screen while you run it, and Map opens its map: the bosses where they stand, with their
+  portraits and kill order, and the entrance. Under it, the bosses in kill order with this
+  run's progress (killed ones ticked and dimmed), the ones your quests need, your BiS there,
+  and the loot of the boss you click; fold that away for the map alone, and pin the map to
+  keep it open. Opening the world map (M) puts the Journal away, and M again brings it back. Inside a dungeon its map fills the world map (M), right-click for its zone,
+  and the game's quest log beside it folds away so the Journal sits against the map (back as
+  you had it once you leave). Each dungeon says whose ground its entrance is on, and the pin
   by its name points you there. Open the world map inside a dungeon and it sits beside the map; browse any
-  dungeon in its own window with /nfjournal (or /nfdj), or bind Boss Loot at Cursor to see
+  dungeon in its own window with /nfjournal (or /nfdj) or its own key (Open Dungeon Journal, in
+  its settings or Key Bindings), or bind Boss Loot at Cursor to see
   what the boss you hover drops. Search every dungeon for an item or boss, or list only
   the BiS you are still missing, or only your upgrades. The switch beside the search
   lists the dungeons on Alliance or Horde ground, or both. Loot your class can't use is hidden, and nearly every
@@ -84,6 +104,7 @@
 - Professions: Shift-Click Searches AH (off by default). While the auction house is open,
   Shift-click a recipe or a reagent and the search for the item runs straight away; while
   you type in chat, it still links it.
+- Settings: six color chips beside the Theme dropdown preview the selected theme's colors before you reload.
 - Professions: Buy at Vendor (Buying and Selling, off by default). At a merchant, "- [1] +
   Buy" under the chosen recipe's reagents buys every checked reagent the merchant sells for
   that many crafts in one click, such as Coarse Thread or Weak Flux. The total shows beside
@@ -138,8 +159,30 @@
 - Dungeon Journal: Accept Shared Dungeon Quests (off by default, in the Journal's settings)
   accepts a dungeon quest a group member shares with you as soon as it opens. Hold the Skip
   Modifier to look at one first.
+- Threat Meter: Status Line (Layout) moves the line with your distance to pulling aggro and
+  the entry count from under the bars to the top, between the title bar and the bars.
+  Bottom by default.
+- Threat Meter: Apply Theme to Your Bar (Colours, off by default) colors your bar in a darker shade of your theme's Accent instead of the color picked there. The tank and pull aggro colors are unchanged.
+- Swing Timer: Apply Theme to Bar Colours (Colours, off by default) colors the main hand bar with your theme's Accent, the off hand bar with its lighter Accent and the ranged bar with a deeper shade of it, instead of the colors picked there.
 
 ### Changed
+- The options window's sidebar header shows the NaowhUI Forever logo, and the search box beside it is narrower.
+- Flight Timer: with Land Early Button on, Blizzard's own Request Stop button is hidden
+  during the flight, so there is only one. It comes back when you land.
+- QoL has a new XP tab, right after Questing: XP Bar, XP per Hour and Group XP moved there from
+  Questing. Your settings stay as they were.
+- XP Bar settings show a preview of the bar: click a text on it, or a spot around it, to pick
+  what it shows. A text shows in one spot at a time; picking it for another spot moves it
+  there. If your bar already shows a text in two spots, it keeps the first one (top to
+  bottom, left to right) and the other spot is emptied.
+- XP Bar: three more spots for texts, Top (above the middle of the bar), Left and Right (beside
+  the bar).
+- XP Bar: the level inside the bar can be written shorter, as Lvl 20 or just 20.
+- XP Bar: pick your own fill, completed quests, rested and background colours under XP Bar,
+  Colours; Reset Colours puts them back. Reset Size & Texts does the same for the bar's width,
+  height and the text in each spot.
+- XP Bar: Completed Quests (XP) shows the XP of your finished quests as a number; the percent
+  one is now called Completed Quests (%).
 - The Naowh logo now has the closed infinity loop at the bottom, on the addon list, the main window and the small popups.
 - The Minimap Button switch and the per-module minimap buttons moved from Settings to the Top Bar page, so /nf shows them straight away.
 - Loot Feed Appearance options sit inside the Loot Feed dropdown instead of a second one.
@@ -169,10 +212,31 @@
 - QoL: the auction house price on item tooltips is now switched in QoL > Tooltip Display
   (Auction House Price), with the other tooltip settings. Your setting is kept.
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: 4 faction rewards changed (item levels, required levels).
+- Campfire: Show Active Camp Buffs is a dropdown: Off, Always or On Mouseover, which shows
+  the buffs only while the mouse is over the camp icon. Your current setting is kept.
+- Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70178.
 - Threat Meter: Hide When Empty is now With Threat, a choice under Show, so Always really
-  means always. Your setting carries over.
+  means always. Your setting carries over; with In Combat it becomes With Threat. In a Group
+  can no longer hide the empty window, so choose With Threat for that.
 
 ### Fixed
+- Borders and divider lines no longer lose a side at some UI scales (the trainer popup's X
+  missing its left edge, a panel without its top line), and icons keep their black edge all
+  round. Every border, line and icon edge is now exactly one screen pixel, refitted when the
+  UI scale or window scale changes.
+- Opening a color swatch and closing it without picking no longer saves that color. A Custom
+  theme color left at the default (including when Custom is first picked) no longer counts as
+  changed, so the loot feed glow, XP bar quest and rested colors and the other HUD colors keep
+  their own shades until you actually change one.
+- Themes: the hint lines in the Library Books tracker and its map pins, and in the town map pins, follow your lighter Accent instead of staying light blue. Looks the same with the default theme.
+- Group XP: every group member running Naowh Forever now shares their XP, even with Group XP
+  switched off, so the bars no longer say "no addon" for players who never turned it on.
+- Group XP: bars show everyone's XP again. Forever sends a character's full name with surname
+  with each update, which never matched the party list, so every member read "no addon". Older
+  versions can't be read: everyone needs this version to see each other.
+- Themes: the Top Bar's clock, its FPS / MS labels and its tooltips follow your Text and Secondary Text colors instead of staying white and grey, and the tooltips of the Naowh buttons (minimap, top bar) use your Accent for the title and Text for the lines. Looks the same with the default theme.
+- Themes: the Loot Feed follows your theme: the Dark style uses your Background, the Light style uses your Panels and Borders & Lines, and the glow uses your Accent. Looks the same with the default theme.
+- Themes: the XP Bar's quest and rested segments and text follow your theme's Accent instead of staying gold and blue. Looks the same with the default theme.
 - A copy downloaded with GitHub's green Code button has none of the addon's libraries, and
   parts of it then failed with Lua errors (Low Health's glow on a level up, among others). It
   now says at login which libraries are missing and where to download the full addon.
@@ -193,6 +257,9 @@
   game blocks sharing.
 - Discovery tracker: the zone picked in its dropdown stays picked once its last book is
   looted, showing "No more books in this area", instead of jumping to another zone.
+- XP Bar: the texts above and below the bar take the room they need, so a long one is no longer
+  cut off with "..." while there is space beside it. On a narrow bar they get smaller to fit,
+  and the bar is at least 400 wide.
 - The Naowh font is only on this addon's own windows and HUD again; the rest of the game keeps
   its own fonts. Settings > Font has Addon Font (Naowh), plus Game Font and Combat Text Font,
   both off unless you pick a font.
@@ -552,9 +619,8 @@
   a drawer beside Blizzard's. /nf recipes prints what the profession API reports.
 
 ### Changed
-- Threat Meter: Hide When Empty is now With Threat, a choice under Show, so Always really
-  means always. Your setting carries over; with In Combat it becomes With Threat. In a Group
-  can no longer hide the empty window, so choose With Threat for that.
+- Threat Meter: focus tracking, class icons and rank numbers, and with Lock Window off
+  it can be dragged and resized.
 - Dungeon Quests: each quest's state sits in its own column on the right, quests are listed
   in the order you work through them (to pick up, in log, complete, finished), and a
   finished quest is greyed with a check in place of its level. The tracker draws each quest

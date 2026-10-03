@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
---  NaowhForever_GroupXP.lua -- the QoL group XP bars, fed by addon messages from members running
---  Naowh Forever. Messages: "1 level xp max" is someone's numbers, "R" asks everyone for theirs,
---  "O" says the sender switched it off.
+--  NaowhForever_GroupXP.lua -- the QoL group XP bars, fed by addon messages from every member
+--  running Naowh Forever; the setting only shows the bars. Messages: "2 guid level xp max" is
+--  someone's numbers, "R" asks everyone for theirs.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -12,8 +12,9 @@ local GROUP_CHANNELS = { PARTY = true, RAID = true, INSTANCE_CHAT = true }
 local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
 local ROW_H, NAME_W, GAP = 18, 90, 2
 
-local frame, unlocked, prefixed, active, sendQueued, sendAfterCombat, requestPending, offAfterCombat
--- "Name" for your realm, "Name-Realm" otherwise -> { level, xp, max }, from their messages.
+local frame, unlocked, sendQueued, sendAfterCombat, requestPending
+-- GUID -> { level, xp, max }, from their messages. Forever's addon message sender is the
+-- character's full name with surname, which no unit API returns, so members are matched by GUID.
 local others = {}
 local rows = {}
 
@@ -52,13 +53,8 @@ local function Send()
         C_ChatInfo.SendAddonMessage(PREFIX, "R", channel)
     end
     local own = Own()
-    C_ChatInfo.SendAddonMessage(PREFIX, ("1 %d %d %d"):format(own.level, own.xp, own.max), channel)
-end
-
--- Tells the group to drop your bar rather than leave it at your last numbers.
-local function SendOff()
-    local channel = Channel()
-    if channel then C_ChatInfo.SendAddonMessage(PREFIX, "O", channel) end
+    C_ChatInfo.SendAddonMessage(PREFIX, ("2 %s %d %d %d"):format(UnitGUID("player"), own.level, own.xp, own.max),
+        channel)
 end
 
 -- XP arrives with every kill, so sends are held to one every two seconds. request also asks
@@ -69,7 +65,7 @@ local function SendSoon(request)
     sendQueued = true
     C_Timer.After(2, function()
         sendQueued = false
-        if On() then Send() end
+        Send()
     end)
 end
 
@@ -85,15 +81,12 @@ local function Roster()
     else
         for i = 1, GetNumSubgroupMembers() do units[#units + 1] = "party" .. i end
     end
-    local realm = GetNormalizedRealmName()
     local list = {}
     for _, unit in ipairs(units) do
-        local name, unitRealm = UnitFullName(unit)
+        local name, guid = UnitName(unit), UnitGUID(unit)
         local _, class = UnitClass(unit)
-        if name and not (Secret(name) or Secret(unitRealm) or Secret(class)) then
-            local who = name
-            if unitRealm and unitRealm ~= "" and unitRealm ~= realm then who = name .. "-" .. unitRealm end
-            list[#list + 1] = { unit = unit, name = name, class = class, who = who }
+        if name and guid and not (Secret(name) or Secret(guid) or Secret(class)) then
+            list[#list + 1] = { unit = unit, name = name, class = class, guid = guid }
         end
     end
     return list
@@ -162,7 +155,7 @@ local function Refresh()
                 local level = UnitLevel(m.unit)
                 if Secret(level) then level = nil end
                 list[#list + 1] = { name = m.name, class = m.class, level = level,
-                    data = m.unit == "player" and Own() or others[m.who] }
+                    data = m.unit == "player" and Own() or others[m.guid] }
             end
         end
     end
@@ -185,27 +178,21 @@ end
 -- Someone who left the group keeps nothing behind.
 local function Prune()
     local inGroup = {}
-    for _, m in ipairs(Roster()) do inGroup[m.who] = true end
-    for who in pairs(others) do
-        if not inGroup[who] then others[who] = nil end
+    for _, m in ipairs(Roster()) do inGroup[m.guid] = true end
+    for guid in pairs(others) do
+        if not inGroup[guid] then others[guid] = nil end
     end
 end
 
-local function OnMessage(msg, sender)
-    if Secret(sender) then return end
-    local who = Ambiguate(sender, "none")
-    if who == UnitName("player") then return end
+local function OnMessage(msg)
+    if Secret(msg) then return end
     if msg == "R" then
         SendSoon()
         return
-    elseif msg == "O" then
-        others[who] = nil
-        Refresh()
-        return
     end
-    local version, level, xp, max = msg:match("^(%d+) (%d+) (%d+) (%d+)$")
-    if version ~= "1" then return end
-    others[who] = { level = tonumber(level), xp = tonumber(xp), max = tonumber(max) }
+    local guid, level, xp, max = msg:match("^2 (%S+) (%d+) (%d+) (%d+)$")
+    if not guid or guid == UnitGUID("player") then return end
+    others[guid] = { level = tonumber(level), xp = tonumber(xp), max = tonumber(max) }
     Refresh()
 end
 
@@ -222,8 +209,8 @@ end
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, ...)
     if event == "CHAT_MSG_ADDON" then
-        local prefix, msg, channel, sender = ...
-        if prefix == PREFIX and GROUP_CHANNELS[channel] then OnMessage(msg, sender) end
+        local prefix, msg, channel = ...
+        if prefix == PREFIX and GROUP_CHANNELS[channel] then OnMessage(msg) end
         return
     elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
         Prune()
@@ -231,14 +218,6 @@ events:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PLAYER_XP_UPDATE" or event == "PLAYER_LEVEL_UP" then
         SendSoon()
     elseif event == "PLAYER_REGEN_ENABLED" then
-        if offAfterCombat then
-            offAfterCombat = false
-            if not On() then
-                SendOff()
-                events:UnregisterAllEvents()
-                return
-            end
-        end
         if not sendAfterCombat then return end
         sendAfterCombat = false
         Send()
@@ -248,20 +227,7 @@ events:SetScript("OnEvent", function(_, event, ...)
 end)
 
 local function Apply()
-    events:UnregisterAllEvents()
     if not On() then
-        -- Switched off in combat, the message waits for it to end.
-        if active or offAfterCombat then
-            if InCombatLockdown() then
-                offAfterCombat = true
-                events:RegisterEvent("PLAYER_REGEN_ENABLED")
-            else
-                offAfterCombat = false
-                SendOff()
-            end
-        end
-        active = false
-        wipe(others)
         if frame then frame:Hide() end
         return
     end
@@ -271,19 +237,8 @@ local function Apply()
         frame:SetClampedToScreen(true)
         frame.mover = ns.UI.AttachMover(frame, "Group XP", function(pos) S.Set("groupXPPos", pos) end)
     end
-    if not prefixed then
-        prefixed = true
-        C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
-    end
     Place()
     frame.mover:SetShown(unlocked == true)
-    for _, event in ipairs({ "CHAT_MSG_ADDON", "GROUP_ROSTER_UPDATE", "PLAYER_ENTERING_WORLD",
-        "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "UNIT_LEVEL", "PLAYER_REGEN_ENABLED" }) do
-        events:RegisterEvent(event)
-    end
-    Prune()
-    SendSoon(not active)
-    active = true
     Refresh()
 end
 
@@ -305,4 +260,11 @@ end)
 
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
-boot:SetScript("OnEvent", Apply)
+boot:SetScript("OnEvent", function()
+    C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
+    for _, event in ipairs({ "CHAT_MSG_ADDON", "GROUP_ROSTER_UPDATE", "PLAYER_ENTERING_WORLD",
+        "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "UNIT_LEVEL", "PLAYER_REGEN_ENABLED" }) do
+        events:RegisterEvent(event)
+    end
+    Apply()
+end)

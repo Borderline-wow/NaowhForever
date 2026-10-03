@@ -167,6 +167,13 @@ do
  check('mouse wheel scrolls to next entry',s.bars()[1].name.text~=first)
  s.units.target.guid='new';s.fire('PLAYER_TARGET_CHANGED');s.advance(0.21)
  check('target switch resets scroll',s.bars()[1].name.text==first)
+ local downY=s.bars()[1].point[5]
+ s.set('statusPos','top');check('status line moves under the title bar',s.window.footer.point[1]=='TOPRIGHT')
+ check('rows start below a top status line',s.bars()[1].point[5]==downY-24)
+ check('locked grip hides with a top status line',not s.window.grip.shown)
+ s.set('locked',false);check('unlocked grip shows with a top status line',s.window.grip.shown)
+ s.set('locked',true)
+ s.set('statusPos','bottom');check('status line returns to the bottom',s.window.footer.point[1]=='BOTTOMRIGHT')
  s.set('growUp',true);check('grow up anchors rows above footer',s.bars()[1].point[1]=='BOTTOMLEFT')
  s.ns.PreviewThreatMeter();check('preview displays synthetic title',s.window.header.text.text=='Training Dummy')
  s.advance(10);check('preview returns to live target',s.window.header.text.text=='Target')

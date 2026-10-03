@@ -14,6 +14,7 @@ local ns = _G.NaowhForever
 
 ---@class JournalBoss  A boss, as its dungeon's file lists it (shared, read-only).
 ---@field npc? number its NPC ID; nil where Wowhead has none yet
+---@field model? number its creature display, for its portrait on the dungeon map
 ---@field name string
 ---@field rare? boolean a rare, which does not spawn every run
 ---@field optional? boolean a boss a run can skip (an event, a summon): no number

@@ -126,7 +126,6 @@ J.Style = {
     CHAIN_SLOT = 40,        -- Chain and its step ("2/2")
     PARTY_SLOT = 32,        -- the group members on a quest and how many ("2"), while in a group
     WAYPOINT_SLOT = 20,
-    ACTIONS_LINE_H = 20,    -- the mark and icons' own line, when narrow
 
     ---------------------------------------------------------------------------
     --  Boss cards: a faint fill with a hairline edge, as many across as fit at CARD_MIN_W

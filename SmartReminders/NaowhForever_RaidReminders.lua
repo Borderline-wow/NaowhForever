@@ -324,8 +324,7 @@ local function CreateBarRegion(a)
     r.bar:SetStatusBarTexture(StatusBarTexture() or "Interface\\TargetingFrame\\UI-StatusBar")
     local T = ns.THEME
     local bg = r.bar:CreateTexture(nil, "BACKGROUND")
-    bg:SetPoint("TOPLEFT", r.bar, "TOPLEFT", -1, 1)
-    bg:SetPoint("BOTTOMRIGHT", r.bar, "BOTTOMRIGHT", 1, -1)
+    ns.PixelInset(bg, -1, r.bar)
     bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9)
     local fill = r.bar:GetStatusBarTexture()
     if fill then fill:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1) end

@@ -28,7 +28,8 @@ class Dungeons(unittest.TestCase):
     """watch_build.check on two made-up builds."""
 
     def setUp(self):
-        self.saved = (watch_build.journal_encounters, watch_build.encounters, watch_build.instance_maps)
+        self.saved = (watch_build.journal_encounters, watch_build.encounters, watch_build.instance_maps,
+                      watch_build.floor_maps)
         watch_build.journal_encounters = lambda: {"100": ("Deadmines", "Rhahk'Zor"), "101": ("Deadmines", "Sneed"),
                                                   "900": ("Hyjal Summit", "Pinned")}
         enc = {
@@ -45,9 +46,12 @@ class Dungeons(unittest.TestCase):
         }
         watch_build.encounters = lambda build: enc[build]
         watch_build.instance_maps = lambda build: maps[build]
+        floors = {"old": {}, "new": {"201": "Ragefire Chasm"}}
+        watch_build.floor_maps = lambda build: floors[build]
 
     def tearDown(self):
-        watch_build.journal_encounters, watch_build.encounters, watch_build.instance_maps = self.saved
+        (watch_build.journal_encounters, watch_build.encounters, watch_build.instance_maps,
+         watch_build.floor_maps) = self.saved
 
     def test_finds(self):
         found = watch_build.check("old", "new")
@@ -56,6 +60,7 @@ class Dungeons(unittest.TestCase):
         self.assertEqual(found["pinned"], 1)
         self.assertEqual(found["added"], [("Cookie", "102", "Deadmines")], "only the Journal's dungeons' maps")
         self.assertEqual(found["fresh"], [("New Raid", "3000", "raid", "20")])
+        self.assertEqual(found["floors"], [("Ragefire Chasm", "201")], "a dungeon's inside, new")
 
     def test_report_says_check_first(self):
         found = {"kept": 3, "new": [], "gone": [], "changed": [], "carried": []}
@@ -63,6 +68,7 @@ class Dungeons(unittest.TestCase):
         self.assertIn("> **Check before merging:** 1 encounter the Journal counts kills by is gone", text)
         self.assertIn("**Gone:** encounter 101, Sneed (Deadmines)", text)
         self.assertIn("New raid: New Raid (map 3000), for 20 players.", text)
+        self.assertIn("New dungeon floor map: Ragefire Chasm (uiMap 201)", text)
 
 
 class Rewards(unittest.TestCase):

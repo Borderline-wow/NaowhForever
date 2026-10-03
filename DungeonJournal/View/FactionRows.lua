@@ -471,7 +471,7 @@ Kinds.tier = {
         row.rule = ns.Solid(row, "ARTWORK", T.line, 0.7)
         row.rule:SetPoint("BOTTOMLEFT")
         row.rule:SetPoint("BOTTOMRIGHT")
-        row.rule:SetHeight(1)
+        ns.Hairline(row.rule, "h")
         return row
     end,
     ---@param label string
@@ -527,7 +527,7 @@ Kinds.group = {
         row.line = ns.Solid(row, "ARTWORK", T.line, 0.7)
         row.line:SetPoint("LEFT", row.label, "RIGHT", 8, 0)
         row.line:SetPoint("RIGHT")
-        row.line:SetHeight(1)
+        ns.Hairline(row.line, "h")
         row:SetScript("OnClick", GroupClicked)
         row:SetScript("OnEnter", GroupEnter)
         row:SetScript("OnLeave", GroupLeave)
@@ -642,8 +642,7 @@ Kinds.line = {
         frame:SetPoint("LEFT", 0, 0)
         ns.Border(frame, BORDER_RGB)
         row.icon = frame:CreateTexture(nil, "ARTWORK")
-        row.icon:SetPoint("TOPLEFT", 1, -1)
-        row.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+        ns.PixelInset(row.icon, 1)
         row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         row.right = ns.Font(row, 11, nil, T.muted)
         row.right:SetPoint("RIGHT", 0, 0)
@@ -810,8 +809,7 @@ Kinds.reward = {
         frame:SetPoint("LEFT", 0, 0)
         ns.Border(frame, BORDER_RGB)
         row.icon = frame:CreateTexture(nil, "ARTWORK")
-        row.icon:SetPoint("TOPLEFT", 1, -1)
-        row.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+        ns.PixelInset(row.icon, 1)
         row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         row.name = ns.Font(row, 12, nil, T.fg)
         row.name:SetPoint("TOPLEFT", frame, "TOPRIGHT", 8, -1)

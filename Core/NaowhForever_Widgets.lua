@@ -578,6 +578,39 @@ local function BuildRegionControl(rgn, cfg)
         valBox:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
         return track
+    elseif cfg.type == "palette" then
+        -- A row of small chips showing colors; nothing to click. One chip per color that
+        -- cfg.colors() returns, built as they are first needed and hidden when a later call
+        -- returns fewer.
+        local SIZE, GAP = 22, 4
+        local chips = CreateFrame("Frame", nil, rgn)
+        chips:SetHeight(SIZE)
+        chips:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+        local made = {}
+        local function Paint()
+            local colors = cfg.colors()
+            local n = #colors
+            chips:SetWidth(math.max(1, n * (SIZE + GAP) - GAP))
+            for i = 1, n do
+                local chip = made[i]
+                if not chip then
+                    chip = CreateFrame("Frame", nil, chips)
+                    chip:SetSize(SIZE, SIZE)
+                    chip:SetPoint("LEFT", chips, "LEFT", (i - 1) * (SIZE + GAP), 0)
+                    chip.fill = ns.Solid(chip, "BACKGROUND", T.bg, 1)
+                    chip.fill:SetAllPoints()
+                    ns.Border(chip, T.muted, 0.6)
+                    made[i] = chip
+                end
+                local c = colors[i]
+                chip.fill:SetColorTexture(c.r, c.g, c.b, 1)
+                chip:Show()
+            end
+            for i = n + 1, #made do made[i]:Hide() end
+        end
+        chips._refreshValue = Paint
+        Paint()
+        return chips
     elseif cfg.type == "colorpicker" then
         -- Text Color in the custom and Ability Reminder editors.
         local swatch = UI.BuildColorSwatchControl(rgn, Get, Set, cfg.hasAlpha)
@@ -657,6 +690,14 @@ local function ScanLabel(text, tooltip)
         feature = scan.feature, featureName = scan.featureName }
 end
 
+-- A builder that draws its own controls (the XP Bar preview) names them for the search here;
+-- outside the scan it does nothing. The frame it builds lists them in _searchLabels, so the
+-- search can jump to it.
+function UI.ScanLabels(labels, tooltip)
+    if not UI.searchScan then return end
+    for _, text in ipairs(labels) do ScanLabel(text, tooltip) end
+end
+
 -- While a search is typed (UI.searchWords), rows holding every word in their name or
 -- tooltip get a soft band.
 local function Mark(frame, text, tooltip)
@@ -700,7 +741,7 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
 
     if not row._rule then
         row._rule = ns.Solid(row, "ARTWORK", T.line, 0.6)
-        row._rule:SetPoint("BOTTOMLEFT"); row._rule:SetPoint("BOTTOMRIGHT"); row._rule:SetHeight(1)
+        row._rule:SetPoint("BOTTOMLEFT"); row._rule:SetPoint("BOTTOMRIGHT"); ns.Hairline(row._rule, "h")
     end
     local function FitRegions()
         local width = math.max(1, parent:GetWidth() - UI.CONTENT_PAD * 2)
@@ -732,7 +773,7 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
         local divider = ns.Solid(row, "ARTWORK", T.line, 0.6)
         divider:SetPoint("TOP", row, "TOP", 0, -8)
         divider:SetPoint("BOTTOM", row, "BOTTOM", 0, 8)
-        divider:SetWidth(1)
+        ns.Hairline(divider, "v")
     else
         row._leftRegion = BuildRegion(row, leftCfg, 0, w)
     end
@@ -758,7 +799,7 @@ function W:SectionHeader(parent, text, yOffset)
     local sep = ns.Solid(f, "ARTWORK", T.line, 1)
     sep:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
     sep:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
-    sep:SetHeight(1)
+    ns.Hairline(sep, "h")
     return f, HEADER_H
 end
 
@@ -902,6 +943,15 @@ function UI.KeyField(rgn, action, label)
     local btn = ns.Button(rgn, "", 150, 26)
     btn:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    -- Its own tooltip, how to use it: the row's says what the key does.
+    btn:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(label or "Key binding", 1, 1, 1)
+        GameTooltip:AddLine("Click, then press the key you want. Right-click to clear it.",
+            T.muted.r, T.muted.g, T.muted.b, true)
+        GameTooltip:Show()
+    end)
+    btn:HookScript("OnLeave", GameTooltip_Hide)
     local capturing
     local function Show()
         local key = GetBindingKey(action)
@@ -979,22 +1029,33 @@ function UI.BuildColorSwatchControl(parent, get, set, hasAlpha)
     PaintSwatch()
     swatchBtn._refreshValue = PaintSwatch
 
+    -- The picker calls swatchFunc as it opens and cancelFunc on Escape or a click away, so
+    -- nothing is saved until the color actually moves off the one it opened with.
     swatchBtn:SetScript("OnClick", function()
         local r, g, b, a = get()
+        r, g, b, a = r or 1, g or 1, b or 1, a or 1
+        local changed = false
         local function Apply()
             local nr, ng, nb = ColorPickerFrame:GetColorRGB()
             local na = hasAlpha and ColorPickerFrame:GetColorAlpha() or 1
+            local near = 1 / 255
+            if not changed and math.abs(nr - r) <= near and math.abs(ng - g) <= near
+                and math.abs(nb - b) <= near and math.abs(na - a) <= near then
+                return
+            end
+            changed = true
             set(nr, ng, nb, na)
             PaintSwatch()
         end
         ColorPickerFrame:SetupColorPickerAndShow({
-            r = r or 1, g = g or 1, b = b or 1,
-            opacity = a or 1,
+            r = r, g = g, b = b,
+            opacity = a,
             hasOpacity = hasAlpha and true or false,
             swatchFunc = Apply,
             opacityFunc = Apply,
             cancelFunc = function()
-                set(r or 1, g or 1, b or 1, a or 1)
+                if not changed then return end
+                set(r, g, b, a)
                 PaintSwatch()
             end,
         })

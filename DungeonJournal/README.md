@@ -1,7 +1,9 @@
 # Dungeon Journal
 
-Every dungeon's bosses in kill order, what each drops and how often, your BiS marked, your
-quests there, and a tip from Naowh for each boss. Its Reputation tab has each faction's
+Every dungeon's bosses in kill order (rares, optional bosses and loot chests too, and a Trash
+card), what each drops and how often, your BiS marked, your quests there, and a tip from
+Naowh for each boss. Each classic dungeon has a map: the game's own art with every boss where
+it stands, in a window of its own or filling the world map inside the dungeon. Its Reputation tab has each faction's
 rewards by standing, with their prices; its PvP tab your rank this season, what each rank
 gives, and the battleground factions. Off by default: players turn it on in the Dungeon
 Journal settings page.
@@ -19,7 +21,8 @@ DungeonJournal/
   Quests.lua           the quest rules: where each quest stands, its chain, waypoints (J.Quests)
   Reputation.lua       your standing, rewards reached, prices, your PvP rank (J.Reputation)
   Team.lua             who was in your group, kept with a kill or an item (J.Team)
-  Kills.lua            this character's kills of each boss: when, and who was with it (J.Kills)
+  Kills.lua            this character's kills of each boss: when, and who was with it, and
+                       which were this run (J.Kills)
   Looted.lua           what this character has looted in the Journal's dungeons: where, who was
                        with it, and the rolls (J.Looted)
   Sharing.lua          asking a group member with Naowh Forever to share a quest (J.Sharing)
@@ -33,6 +36,7 @@ DungeonJournal/
     Quests.lua         every dungeon quest, from Wowhead's Forever guide, with hand additions
     QuestChains.lua    each quest's chain, prerequisites and required level, generated
     Tips.lua           Naowh's tips, by hand
+    Maps.lua           each dungeon's map art and where its bosses stand, by hand
   View/                draws one page (a dungeon, a faction, the PvP rank); used by the window,
                        the map panel and the popup
     Style.lua          every colour, size, spacing and icon
@@ -49,10 +53,15 @@ DungeonJournal/
   UI/                  where it shows
     DungeonList.lua    the window's list of dungeons, grouped by your level
     FactionList.lua    the window's list on the Reputation and PvP tabs
-    Window.lua         the Journal's window (/nfjournal, /nfdj) and its tabs
-    MapPanel.lua       beside the world map, inside a dungeon
+    Window.lua         the Journal's window (/nfjournal, /nfdj, its own key binding) and its tabs
+    MapPanel.lua       beside the world map, inside a dungeon: puts the window away while the
+                       map is open, folds the game's quest log, says when the dungeon's map
+                       shows on the world map
     Popup.lua          Boss Loot at Cursor (a key binding)
     QuestTracker.lua   a dungeon's quests in a small window, one line each
+    DungeonMap.lua     a dungeon's map: in its own window (with the bosses in kill order, this
+                       run's progress and the picked boss's loot under it), and on the world
+                       map; /nf mappins to place pins, /nf mapcheck for the client's map art
     SettingsPage.lua   its page in the options window
 ```
 
@@ -65,13 +74,16 @@ calls are on `ns`.
 
 | What | Where |
 | --- | --- |
-| A colour, a size, spacing, an icon | `View/Style.lua` |
+| A colour, a size, spacing, an icon | `View/Style.lua` (the dungeon map's own sizes are at the top of `UI/DungeonMap.lua`) |
 | A boss tip | `Data/Tips.lua`, keyed by the boss's NPC ID, one short sentence |
 | A dungeon's bosses, wings, kill order, entrance or zone | `Tools/journal_bosses.json`, then `python Tools/build_journal.py` |
 | A rare, an optional boss or a loot chest | `"rare"`, `"optional"` or `"chests": { "Name": objectID }` on its wing in `Tools/journal_bosses.json` |
 | An item a boss drops that no source has placed yet | `"add": { "Boss Name": [itemID] }` on the dungeon (`"Trash"` for its trash) |
 | A boss wowsrc names differently | `"wowsrcNames": { "Their Name": "Our Name" }` on the dungeon |
 | A boss's NPC ID the build cannot find | `"npcs": { "Name": ID }` on the dungeon in `Tools/journal_bosses.json` |
+| Where a boss stands on its dungeon's map | `/nf mappins` in game, drag the pins, Copy, and paste the line into `Data/Maps.lua`. `/nf mapcheck` says which map art and floors the client has |
+| A dungeon's map | `Data/Maps.lua`: its art folder (`Interface\WorldMap\<art>`) and floor count, as `/nf mapcheck` finds them; with none, Map says "Coming soon" |
+| A key binding | `Bindings.xml` and its `BINDING_NAME_...` line (Open Dungeon Journal is in `UI/Window.lua`, Boss Loot at Cursor in `UI/Popup.lua`) |
 | An icon's drawing | its function in `Tools/make_media.py`, then run it (writes `Media/*.tga`) |
 | What counts as usable, BiS, an upgrade, a new look | `Loot.lua` |
 | A quest's state, the list's order, where its waypoint goes | `Quests.lua` |
@@ -135,6 +147,10 @@ To refresh it all: `python Tools/wowsrc.py` (new pages), `python Tools/wowsrc.py
 (new names), then `python Tools/build_journal.py`. Read what the build prints at the end:
 bosses it found no loot for, wowsrc bosses we don't list, names it couldn't map.
 
+The daily CI does the same when wowsrc's pages change (`.github/workflows/daily-watch.yml`,
+its `loot` job), with `--offline`: Wowhead is never asked there, a new item's facts come from
+the game's own tables, and what they can't settle is listed in the pull request it opens.
+
 ## Adding things
 
 - **A dungeon:** add it to `Tools/journal_bosses.json`, rebuild, and add the line the build
@@ -185,6 +201,10 @@ bosses it found no loot for, wowsrc bosses we don't list, names it couldn't map.
   `DungeonJournal.xml` lists, in order, against stubs, and checks the data, the loot and
   reputation rules, what counting costs, the window's tabs, and that nothing is made or
   hooked while it is off.
+  It also times what runs often (a page's BiS count, the list's repaint, the map and its
+  legend drawn) and fails if one goes over its budget or makes garbage.
 - `lua Tools/regression/test-journal-quests.lua`: the quest rules and the quest data.
+- `python -m unittest discover -s Tools/tests`: the builders' rules (what a boss keeps, the
+  wowsrc merge, the daily checks).
 - In game: `/reload` after changing a file. If a new file or texture does not show up,
   restart the game.

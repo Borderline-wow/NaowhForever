@@ -64,7 +64,8 @@ local S = UI.ModuleSettings("qol", {
     groupXP = false, groupXPShowSelf = true, groupXPWidth = 260,
     xpBar = false, xpBarLeftText = "level", xpBarCenterText = "xp", xpBarRightText = "percent",
     xpBarTopLeft = "played", xpBarTopRight = "none", xpBarBottomLeft = "leveling",
-    xpBarBottom = "none", xpBarBottomRight = "xphour", xpBarIncomplete = false, xpBarMaxLevel = false,
+    xpBarBottom = "none", xpBarBottomRight = "xphour", xpBarTop = "none", xpBarLeft = "none",
+    xpBarRight = "none", xpBarIncomplete = false, xpBarMaxLevel = false,
     xpBarResetOnReload = false, xpBarWidth = 520, xpBarHeight = 26,
     autoRepair = false, sellJunk = false,
     restock = true, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
@@ -249,6 +250,28 @@ local function ColorRow(k, text, on)
         disabled = function() return not S.Get(on) end }
 end
 
+-- XP Bar colours start unset, on their defaults, so the swatch shows the colour in use. The
+-- picker reports the colour it opens with, and again on cancel, so a colour that is still the
+-- default stays unset and keeps following the theme.
+local SAME_COLOR = 1 / 255
+local function XPColorRow(k, text, tooltip)
+    return { type = "colorpicker", text = text, tooltip = tooltip, hasAlpha = false,
+        getValue = function()
+            local c = ns.XPBarColor(k)
+            return c.r, c.g, c.b
+        end,
+        setValue = function(r, g, b)
+            local d = ns.XPBarDefaultColor(k)
+            if math.abs(r - d.r) <= SAME_COLOR and math.abs(g - d.g) <= SAME_COLOR
+                and math.abs(b - d.b) <= SAME_COLOR then
+                if S.Get(k) ~= nil then S.Set(k, nil) end
+            else
+                S.Set(k, { r = r, g = g, b = b })
+            end
+        end,
+        disabled = function() return not S.Get("xpBar") end }
+end
+
 -- The row kit has no text box, so text is set through a prompt holding what is there now.
 local function TextButton(parent, y, label, title, k)
     return UI.Widgets:Button(parent, label, y, function()
@@ -305,6 +328,62 @@ function ns.BuildQoLQuestingPage(parent, y)
             "Hold it to skip Auto Accept, Auto Turn In, Pick Quests From NPCs and sharing for that quest.")
     ); y = y - h
 
+    _, h = W:SectionHeader(parent, "GROUP TOOLS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Disband Group", buttonText = "Disband",
+          tooltip = "Removes everyone from your group. Group leader only.", onClick = DisbandGroup },
+        { type = "button", text = "Invite Player", buttonText = "Invite",
+          tooltip = "Type a name and invite them. Handy when you play with the same people.",
+          onClick = function()
+              ns.PromptText("Invite which player?", "", 0, function(name) C_PartyInfo.InviteUnit(name) end)
+          end }
+    ); y = y - h
+
+    return y
+end
+
+function ns.BuildQoLXPPage(parent, y)
+    local W = UI.Widgets
+    local _, h
+    _, h = W:SectionHeader(parent, "XP BAR", y); y = y - h
+    _, h = W:Feature(parent, y,
+        S.Toggle("xpBar", "XP Bar",
+            "Your level, experience and percentage on one bar, with the XP of completed "
+            .. "quests (gold) and rested experience (dark blue) drawn past the fill. Replaces "
+            .. "Blizzard's experience bar while it is on. Move it in Unlock Mode.|n|n"
+            .. "Ctrl + right-click the bar to reset the session time and XP/Hour.")
+    ); y = y - h
+    _, h = ns.BuildXPBarPreview(parent, y); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("xpBarWidth", "Width", ns.XPBarMinWidth, 1200, 10, nil, "xpBar"),
+        S.Slider("xpBarHeight", "Height", 14, 48, 1, nil, "xpBar")
+    ); y = y - h
+    _, h = W:Button(parent, "Reset Size & Texts", y, function() ns.ResetXPBarLayout() end); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("xpBarMaxLevel", "Show Bar at Max Level", nil, "xpBar"),
+        S.Toggle("xpBarIncomplete", "Show Incomplete Quests Bar",
+            "The XP of quests still in progress, as a faded segment after the completed ones.",
+            "xpBar")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("xpBarResetOnReload", "Reset Session Time and XP/Hour on Reload UI",
+            "Off: a /reload carries on the session. A fresh login always starts a new one.",
+            "xpBar"),
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = W:Disclosure(parent, y, "Colours", "xpBarColours"); y = y - h
+    _, h = W:DualRow(parent, y,
+        XPColorRow("xpBarFillColor", "Fill Colour", "Your experience. Its left end is a darker shade."),
+        XPColorRow("xpBarQuestColor", "Completed Quests Colour",
+            "The XP of completed quests, and their text. Incomplete quests show it faded.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        XPColorRow("xpBarRestedColor", "Rested Colour", "Rested experience, and its text."),
+        XPColorRow("xpBarBgColor", "Background Colour", "Behind the fill.")
+    ); y = y - h
+    _, h = W:Button(parent, "Reset Colours", y, function() ns.ResetXPBarColors() end); y = y - h
+    W:EndDisclosure(parent)
+
     _, h = W:SectionHeader(parent, "XP PER HOUR" .. STATUS.ready, y); y = y - h
     local xpFonts, xpFontOrder = UI.FontChoices(S.Get("xpTickerFont"))
     _, h = W:Feature(parent, y,
@@ -336,82 +415,16 @@ function ns.BuildQoLQuestingPage(parent, y)
         if ns.ResetXPTicker then ns.ResetXPTicker() end
     end); y = y - h
 
-    _, h = W:SectionHeader(parent, "XP BAR", y); y = y - h
-    _, h = W:Feature(parent, y,
-        S.Toggle("xpBar", "XP Bar",
-            "Your level, experience and percentage on one bar, with the XP of completed "
-            .. "quests (gold) and rested experience (dark blue) drawn past the fill. Replaces "
-            .. "Blizzard's experience bar while it is on. Move it in Unlock Mode.|n|n"
-            .. "Ctrl + right-click the bar to reset the session time and XP/Hour.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("xpBarMaxLevel", "Show Bar at Max Level", nil, "xpBar"),
-        S.Toggle("xpBarIncomplete", "Show Incomplete Quests Bar",
-            "The XP of quests still in progress, as a faded segment after the completed ones.",
-            "xpBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("xpBarResetOnReload", "Reset Session Time and XP/Hour on Reload UI",
-            "Off: a /reload carries on the session. A fresh login always starts a new one.",
-            "xpBar"),
-        S.Slider("xpBarWidth", "Width", 200, 1200, 10, nil, "xpBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("xpBarHeight", "Height", 14, 48, 1, nil, "xpBar"),
-        { type = "label", text = "" }
-    ); y = y - h
-
-    local textValues = { none = "None", level = "Level", xp = "Current / Max XP", percent = "XP Percent", rested = "Rested Percent" }
-    local textOrder = { "none", "level", "xp", "percent", "rested" }
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("xpBarLeftText", "Left Text", textValues, textOrder, nil, "xpBar"),
-        S.Dropdown("xpBarCenterText", "Center Text", textValues, textOrder, nil, "xpBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("xpBarRightText", "Right Text", textValues, textOrder, nil, "xpBar"),
-        { type = "label", text = "" }
-    ); y = y - h
-
-    local slotValues = { none = "None", played = "Played Time", session = "Session Time",
-        completed = "Completed Quests", rested = "Rested Experience", leveling = "Time to Level",
-        xphour = "XP per Hour" }
-    local slotOrder = { "none", "played", "session", "completed", "rested", "leveling", "xphour" }
-    local slotTip = "The text shown at this spot outside the bar. Completed Quests, Rested "
-        .. "Experience, Time to Level and XP per Hour are hidden at max level."
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("xpBarTopLeft", "Top Left", slotValues, slotOrder, slotTip, "xpBar"),
-        S.Dropdown("xpBarTopRight", "Top Right", slotValues, slotOrder, slotTip, "xpBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("xpBarBottomLeft", "Bottom Left", slotValues, slotOrder, slotTip, "xpBar"),
-        S.Dropdown("xpBarBottom", "Bottom", slotValues, slotOrder, slotTip, "xpBar")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("xpBarBottomRight", "Bottom Right", slotValues, slotOrder, slotTip, "xpBar"),
-        { type = "label", text = "" }
-    ); y = y - h
-
     _, h = W:SectionHeader(parent, "GROUP XP" .. STATUS.untested, y); y = y - h
     _, h = W:Feature(parent, y,
         S.Toggle("groupXP", "Group XP",
-            "A bar per group member with their level and how far through it they are. Only "
-            .. "members running Naowh Forever with Group XP on share their experience; anyone "
+            "A bar per group member with their level and how far through it they are. Every "
+            .. "member running Naowh Forever shares their experience, even with this off; anyone "
             .. "else shows their level. Updates wait until combat ends. Move it in Unlock Mode.")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("groupXPShowSelf", "Show Yourself", nil, "groupXP"),
         S.Slider("groupXPWidth", "Width", 160, 500, 10, nil, "groupXP")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "GROUP TOOLS", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        { type = "button", text = "Disband Group", buttonText = "Disband",
-          tooltip = "Removes everyone from your group. Group leader only.", onClick = DisbandGroup },
-        { type = "button", text = "Invite Player", buttonText = "Invite",
-          tooltip = "Type a name and invite them. Handy when you play with the same people.",
-          onClick = function()
-              ns.PromptText("Invite which player?", "", 0, function(name) C_PartyInfo.InviteUnit(name) end)
-          end }
     ); y = y - h
 
     return y
@@ -1470,7 +1483,8 @@ function ns.BuildQoLFlightPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("flightEarlyLanding", "Land Early Button",
-            "A button beside the timer that lands you at the next flight point.", "flightTimer"),
+            "A button beside the timer that lands you at the next flight point. Blizzard's "
+            .. "Request Stop button is hidden while it shows.", "flightTimer"),
         S.Slider("flightTimerScale", "Scale", 0.5, 2, 0.05, nil, "flightTimer")
     ); y = y - h
 
