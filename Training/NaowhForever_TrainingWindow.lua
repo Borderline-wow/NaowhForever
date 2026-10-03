@@ -13,13 +13,20 @@ local T = ns.THEME
 local UI = ns.UI
 local Training = ns.Training
 local S = ns.TrainingSettings
+local Parts, St = ns.Shared.Parts, ns.Shared.Style
 
-local WIDTH, HEIGHT = 940, 780
-local HEADER = 52          -- the title bar, to its rule
-local PAD = 18
-local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
-local LOGO_SIZE = 30
-local CIRCLE_MASK = "Interface\\AddOns\\NaowhForever\\Media\\circle_mask.tga"
+local WIDTH, HEIGHT = 940, 850
+local HEADER, FOOTER = St.WINDOW_HEADER, St.WINDOW_FOOTER
+local PAGE = "Training Planner"   -- its options page, opened from the logo and the footer
+local LOGO = St.LOGO
+local CIRCLE_MASK = St.ROUND
+local CARD_INSET = 6       -- the backdrop's cards from the window's edges, as the Journal's
+local INSET = St.CONTENT_INSET     -- a card's edge to what is in it
+local BODY_PAD = 14        -- the lists' card to the lists
+local TOOL_GAP = 10        -- the title bar's rule to the switch, and the switch to the cards
+local SWITCH_W = 180
+local TOP = HEADER + TOOL_GAP + St.TAB_H + TOOL_GAP   -- where the cards start
+local GAP = 6              -- between the cards
 local HERO_H = 140
 local LABEL_Y = 18         -- a strip's small caps label, from its top
 local BAR_W, BAR_H = 440, 6
@@ -34,10 +41,11 @@ local COLS = 3
 local CARD_H, CARD_GAP, CARD_ICON = 58, 10, 36
 local ROW_H, ROW_GAP, ROW_ICON = 30, 4, 22
 local LATER_ICON, LATER_ICONS = 20, 5   -- a later level's spells, as icons before their names
-local SECTION_H = 34
+local SECTION_H = St.SECTION_H
 local SECTION_GAP = 18
 local SKIP_W, SKIP_H = 46, 18
-local BLACK = { r = 0, g = 0, b = 0 }
+local BLACK = St.BORDER_RGB
+local FILL = St.WINDOW_CARD_FILL   -- a spell's card or row: the text colour, this faint
 local WARN = { r = 0.94, g = 0.70, b = 0.29 }   -- short of gold, waiting on something
 local UP = { r = 0.30, g = 0.82, b = 0.48 }     -- how much stronger a rank is
 local UP_COLOR = "|cff4dd17a"
@@ -47,13 +55,11 @@ local MAX_LATER = 12       -- later levels listed before "and N more"
 local SEARCH_W = 180
 local LOAD_SETTLE = 0.1    -- seconds to gather spell descriptions arriving together
 local MINI_W, MINI_H, MINI_PAD, MINI_LOGO = 340, 74, 10, 16
-local TAB_X, TAB_W = 250, 84   -- the Spells and Builds tabs, from the window's left edge
-local TAB_MARK = 2             -- the active tab's underline
 local CLASS_H, CLASS_GAP = 26, 6
 local BUILD_H = 94
 local SHARE_W = 56         -- the buttons on a build card
-local IMPORT_W, SAVE_W, NEW_W = 120, 130, 100
 local EDIT_W = 80          -- Undo, Clear and Done above the talent tree
+local LEARN_W, FOLLOW_W = 140, 140   -- Learn Next Points and Follow This Build on your build
 local NODE, NODE_GAP, NODE_ROW = 36, 12, 48   -- a talent in the tree, its gap, a row's height
 local TREE_ROWS, TREE_SLOTS = 7, 4
 local SPEC_H = 28          -- a tree column's name, above it
@@ -154,7 +160,7 @@ local function SpellEnter(self)
 end
 
 local function SpellLeave(self)
-    self.border:SetColor(T.line.r, T.line.g, T.line.b, 1)
+    self.border:SetColor(BLACK.r, BLACK.g, BLACK.b, 1)
     GameTooltip:Hide()
 end
 
@@ -188,9 +194,9 @@ local function SpellButton(height)
     local b = CreateFrame("Button", nil, body)
     b:SetHeight(height)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    b.bg = ns.Solid(b, "BACKGROUND", T.panel, 1)
+    b.bg = ns.Solid(b, "BACKGROUND", T.fg, FILL)
     b.bg:SetAllPoints()
-    b.border = ns.Border(b, T.line)
+    b.border = ns.Border(b, BLACK)
     b:SetScript("OnEnter", SpellEnter)
     b:SetScript("OnLeave", SpellLeave)
     b:SetScript("OnClick", SpellClick)
@@ -284,13 +290,15 @@ local function Row(entry, state, y, why)
     return y - ROW_H - ROW_GAP
 end
 
+-- A section title as every page draws it: small capitals in the soft accent, a muted count,
+-- over a line; a note on the right.
 local function NewHeader()
     local h = CreateFrame("Frame", nil, body)
     h:SetHeight(SECTION_H)
-    h.title = Text(h, 15, nil)
-    h.title:SetPoint("BOTTOMLEFT", 0, 9)
-    h.note = Text(h, 12, nil, T.muted)
-    h.note:SetPoint("BOTTOMRIGHT", 0, 9)
+    h.title = Text(h, 12, nil, T.accentSoft)
+    h.title:SetPoint("BOTTOMLEFT", 0, 5)
+    h.note = Text(h, 11, nil, T.muted)
+    h.note:SetPoint("BOTTOMRIGHT", 0, 5)
     local rule = ns.Solid(h, "ARTWORK", T.line, 1)
     rule:SetPoint("BOTTOMLEFT")
     rule:SetPoint("BOTTOMRIGHT")
@@ -302,9 +310,9 @@ local function Header(y, title, count, note)
     local h = Take("header", NewHeader)
     h:SetPoint("TOPLEFT", body, "TOPLEFT", 0, y)
     h:SetPoint("TOPRIGHT", body, "TOPRIGHT", 0, y)
-    h.title:SetText(title .. (count and ("  " .. ns.Color("accent", count)) or ""))
+    h.title:SetText(title .. (count and ("   " .. ns.Color("muted", count)) or ""))
     h.note:SetText(note or "")
-    return y - SECTION_H - 8
+    return y - SECTION_H - St.SECTION_SPACE
 end
 
 local function Cards(entries, y, stateOf)
@@ -319,9 +327,9 @@ end
 local function NewLater()
     local b = CreateFrame("Button", nil, body)
     b:SetHeight(ROW_H)
-    b.bg = ns.Solid(b, "BACKGROUND", T.panel, 0.6)
+    b.bg = ns.Solid(b, "BACKGROUND", T.fg, FILL)
     b.bg:SetAllPoints()
-    b.border = ns.Border(b, T.line)
+    b.border = ns.Border(b, BLACK)
     b.level = Text(b, 13, nil)
     b.level:SetPoint("LEFT", 10, 0)
     b.level:SetWidth(70)
@@ -341,7 +349,7 @@ local function NewLater()
     b.names:SetJustifyH("LEFT")
     b.names:SetWordWrap(false)
     b:SetScript("OnEnter", function(self) self.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
-    b:SetScript("OnLeave", function(self) self.border:SetColor(T.line.r, T.line.g, T.line.b, 1) end)
+    b:SetScript("OnLeave", function(self) self.border:SetColor(BLACK.r, BLACK.g, BLACK.b, 1) end)
     return b
 end
 
@@ -592,9 +600,9 @@ end
 local function NewBuildCard()
     local c = CreateFrame("Button", nil, body)
     c:SetHeight(BUILD_H)
-    c.bg = ns.Solid(c, "BACKGROUND", T.panel, 1)
+    c.bg = ns.Solid(c, "BACKGROUND", T.fg, FILL)
     c.bg:SetAllPoints()
-    c.border = ns.Border(c, T.line)
+    c.border = ns.Border(c, BLACK)
     c.name = Text(c, 14, nil)
     c.name:SetPoint("TOPLEFT", 12, -10)
     c.spec = Text(c, 12, nil, T.muted)
@@ -632,7 +640,12 @@ local function BuildCards(classID, builds, y)
         end
         c.export._onClick = function() ns.ShowCopyBox(build.name, Training.ExportBuild(classID, build)) end
         c.delete._onClick = function()
-            ns.Confirm(("Delete the build %s?"):format(build.name), function() Training.DeleteBuild(classID, build) end)
+            ns.Confirm(("Delete the build %s?"):format(build.name), function()
+                -- The pick moves with the list; deleting the open build closes the editor.
+                local after = Training.SelectionAfterDelete(i, buildIndex)
+                buildIndex, editing = after or 1, after ~= nil and editing
+                Training.DeleteBuild(classID, build)
+            end)
         end
         -- A saved build has Edit and Delete, a built-in one Copy; both Export.
         local shown = { [c.edit] = saved, [c.copy] = not saved, [c.export] = true, [c.delete] = saved }
@@ -645,7 +658,7 @@ local function BuildCards(classID, builds, y)
                 x = x + SHARE_W + 4
             end
         end
-        c.rest = i == buildIndex and T.accent or T.line
+        c.rest = i == buildIndex and T.accent or BLACK
         c.border:SetColor(c.rest.r, c.rest.g, c.rest.b, 1)
         c:SetScript("OnClick", function()
             buildIndex, editing = i, false
@@ -664,8 +677,8 @@ end
 local function NewStep()
     local r = CreateFrame("Button", nil, body)
     r:SetHeight(ROW_H)
-    ns.Solid(r, "BACKGROUND", T.panel, 1):SetAllPoints()
-    ns.Border(r, T.line)
+    ns.Solid(r, "BACKGROUND", T.fg, FILL):SetAllPoints()
+    ns.Border(r, BLACK)
     r.level = Text(r, 13, nil)
     r.level:SetPoint("LEFT", 10, 0)
     r.level:SetWidth(90)
@@ -750,7 +763,7 @@ local function NewNode()
     b.icon = b:CreateTexture(nil, "ARTWORK")
     b.icon:SetAllPoints()
     b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    b.border = ns.Border(b, T.line)
+    b.border = ns.Border(b, BLACK)
     b.count = Text(b, 11, "OUTLINE")
     b.count:SetPoint("BOTTOMRIGHT", 3, -3)
     b:SetScript("OnEnter", NodeEnter)
@@ -826,7 +839,7 @@ local function DrawEditor(tree, build, level, y)
         b.icon:SetDesaturated(b.rank == 0 and b.why ~= nil)
         b.count:SetText(b.rank .. "/" .. b.max)
         Paint(b.count, b.rank == b.max and T.accent or b.rank > 0 and T.fg or T.muted)
-        b.rest = b.rank > 0 and T.accent or T.line
+        b.rest = b.rank > 0 and T.accent or BLACK
         b.border:SetColor(b.rest.r, b.rest.g, b.rest.b, 1)
         b:SetScript("OnClick", function(_, button)
             local why
@@ -841,6 +854,38 @@ local function DrawEditor(tree, build, level, y)
     y = top - TREE_ROWS * NODE_ROW - SECTION_GAP
     y = Header(y, "LEVEL BY LEVEL", #points, "The order the points are taken in")
     return Steps(build, tree.talents, nil, level, y)
+end
+
+local function NewLearnButton()
+    return ns.Button(body, "", LEARN_W, SKIP_H + 6)
+end
+
+-- Your own class's build: learn its next points now, or follow it as you level.
+local function LearnButtons(classID, build, y)
+    local learn = Take("learn", NewLearnButton)
+    learn:SetPoint("TOPLEFT", body, "TOPLEFT", 0, y)
+    ns.SetButtonText(learn, "Learn Next Points")
+    learn._onClick = function()
+        local bought = Training.LearnBuild(classID, build)
+        if bought > 0 then
+            ns.Print(("Learned %d talent %s from %s."):format(bought, bought == 1 and "point" or "points", build.name))
+        elseif InCombatLockdown() then
+            ns.Print("Talents can be learned once the fight is over.")
+        elseif not C_ClassTalents.HasUnspentTalentPoints() then
+            ns.Print("You have no talent points to spend.")
+        else
+            ns.Print("The build's next talent cannot be taken now: your talents are not the build's.")
+        end
+    end
+    local follow = Take("learn", NewLearnButton)
+    follow:SetWidth(FOLLOW_W)
+    follow:SetPoint("LEFT", learn, "RIGHT", 6, 0)
+    local following = Training.Followed() == build
+    ns.SetButtonText(follow, following and "Stop Following" or "Follow This Build")
+    follow._rest = following and T.accent or BLACK
+    follow._border:SetColor(follow._rest.r, follow._rest.g, follow._rest.b, 1)
+    follow._onClick = function() Training.Follow(classID, not following and build or nil) end
+    return y - SKIP_H - 6 - SECTION_GAP
 end
 
 local function DrawBuilds(level, y)
@@ -864,8 +909,10 @@ local function DrawBuilds(level, y)
             if ranks[node] >= count[node] then taken = taken + 1 end
         end
         note = ("%d of %d points taken"):format(taken, #build.points)
+            .. (Training.Followed() == build and ", following it as you level" or "")
     end
     y = Header(y, build.name:upper(), nil, note)
+    if ranks then y = LearnButtons(classID, build, y) end
     return Steps(build, tree.talents, ranks, level, y)
 end
 
@@ -986,7 +1033,7 @@ local function BuildMini()
         SavePosition(self, MINI_W, MINI_H, "trainingMini")
     end)
     Restore(mini, "trainingMini", { "TOP", UIParent, "TOP", 0, -60 })
-    ns.Solid(mini, "BACKGROUND", T.bg, 0.95):SetAllPoints()
+    Parts.Backdrop(mini):Paint(1)
     ns.Border(mini, BLACK)
     local logo = mini:CreateTexture(nil, "ARTWORK")
     logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
@@ -1040,14 +1087,25 @@ local function Label(parent, text)
     return fs
 end
 
+-- The three cards on the window's backdrop: the next visit, the road to 60, and the lists
+-- under them. The Builds tab has only the lists' card, from the top.
+local ROAD_TOP = TOP + HERO_H + GAP
+local BODY_TOP = ROAD_TOP + ROAD_H + GAP
+
+local function MakeCards()
+    local backdrop = window.backdrop
+    window.heroCard = backdrop:Card(CARD_INSET, TOP, CARD_INSET, HEIGHT - TOP - HERO_H)
+    window.roadCard = backdrop:Card(CARD_INSET, ROAD_TOP, CARD_INSET, HEIGHT - ROAD_TOP - ROAD_H)
+    window.bodyCard = backdrop:Card(CARD_INSET, BODY_TOP, CARD_INSET, FOOTER + CARD_INSET)
+end
+
 local function BuildHero()
     local hero = CreateFrame("Frame", nil, window)
-    hero:SetPoint("TOPLEFT", 0, -HEADER - 1)
-    hero:SetPoint("TOPRIGHT", 0, -HEADER - 1)
+    hero:SetPoint("TOPLEFT", CARD_INSET, -TOP)
+    hero:SetPoint("TOPRIGHT", -CARD_INSET, -TOP)
     hero:SetHeight(HERO_H)
-    ns.Solid(hero, "BACKGROUND", T.panel, 0.6):SetAllPoints()
     hero.label = Label(hero, "NEXT TRAINER VISIT")
-    hero.label:SetPoint("TOPLEFT", PAD, -LABEL_Y)
+    hero.label:SetPoint("TOPLEFT", INSET, -LABEL_Y)
     hero.cost = Text(hero, 30, nil)
     hero.cost:SetPoint("TOPLEFT", hero.label, "BOTTOMLEFT", 0, -10)
     hero.count = Text(hero, 13, nil, T.muted)
@@ -1061,24 +1119,22 @@ local function BuildHero()
     hero.note = Text(hero, 12, nil, T.muted)
     hero.note:SetPoint("TOPLEFT", hero.track, "BOTTOMLEFT", 0, -10)
     local goldLabel = Label(hero, "YOUR GOLD")
-    goldLabel:SetPoint("TOPRIGHT", -PAD, -LABEL_Y)
+    goldLabel:SetPoint("TOPRIGHT", -INSET, -LABEL_Y)
     hero.gold = Text(hero, 22, nil)
     hero.gold:SetPoint("TOPRIGHT", goldLabel, "BOTTOMRIGHT", 0, -10)
     local sixtyLabel = Label(hero, "LEFT TO 60")
     sixtyLabel:SetPoint("TOPRIGHT", hero.gold, "BOTTOMRIGHT", 0, -14)
     hero.sixty = Text(hero, 16, nil)
     hero.sixty:SetPoint("TOPRIGHT", sixtyLabel, "BOTTOMRIGHT", 0, -6)
-    local rule = ns.Solid(hero, "ARTWORK", T.line, 1)
-    rule:SetPoint("BOTTOMLEFT")
-    rule:SetPoint("BOTTOMRIGHT")
-    ns.Hairline(rule, "h")
     window.hero = hero
 end
 
+local ROAD_X = CARD_INSET + INSET + DOT_MAX / 2   -- the road's ends from the window's edges
+
 local function BuildRoad()
     local road = CreateFrame("Frame", nil, window)
-    road:SetPoint("TOPLEFT", PAD + DOT_MAX / 2, -(HEADER + HERO_H + 2))
-    road:SetPoint("TOPRIGHT", -(PAD + DOT_MAX / 2), -(HEADER + HERO_H + 2))
+    road:SetPoint("TOPLEFT", ROAD_X, -ROAD_TOP)
+    road:SetPoint("TOPRIGHT", -ROAD_X, -ROAD_TOP)
     road:SetHeight(ROAD_H)
     local label = Label(road, "YOUR ROAD TO 60")
     label:SetPoint("TOPLEFT", -DOT_MAX / 2, -LABEL_Y)
@@ -1096,15 +1152,14 @@ local function BuildRoad()
     for _, level in ipairs(ROAD_TICKS) do
         local tick = Text(road, 11, nil, T.muted)
         tick:SetText(level)
-        tick:SetPoint("TOP", road.track, "LEFT", (level - 1) / (MAX_LEVEL - 1) * (WIDTH - 2 * PAD - DOT_MAX),
+        tick:SetPoint("TOP", road.track, "LEFT", (level - 1) / (MAX_LEVEL - 1) * (WIDTH - 2 * ROAD_X),
             -(DOT_MAX / 2 + YOU_GAP))
     end
-    local rule = ns.Solid(window, "ARTWORK", T.line, 1)
-    rule:SetPoint("TOPLEFT", 0, -(HEADER + HERO_H + ROAD_H + 2))
-    rule:SetPoint("TOPRIGHT", 0, -(HEADER + HERO_H + ROAD_H + 2))
-    ns.Hairline(rule, "h")
-    road.rule = rule
     window.road = road
+end
+
+local function ShowCard(card, shown)
+    for _, part in ipairs(card) do part:SetShown(shown) end
 end
 
 -- Spells shows the next visit, the road and the spell lists; Builds only the builds, from
@@ -1112,142 +1167,121 @@ end
 local function SetTab(key)
     tab = key
     local spells = key == "spells"
-    for name, b in pairs(window.tabs) do
-        Paint(b.label, name == key and T.fg or T.muted)
-        b.marker:SetShown(name == key)
-    end
+    Parts.PaintTabs(window.switch, key)
     window.hero:SetShown(spells)
     window.road:SetShown(spells)
-    window.road.rule:SetShown(spells)
+    ShowCard(window.heroCard, spells)
+    ShowCard(window.roadCard, spells)
     window.search:SetShown(spells)
     window.learned:SetShown(spells)
     window.back:SetShown(spells and selected ~= nil)
     window.import:SetShown(not spells)
     window.save:SetShown(not spells)
     window.new:SetShown(not spells)
-    scroll:SetPoint("TOPLEFT", PAD, -(spells and (HEADER + HERO_H + ROAD_H + 2 + PAD) or (HEADER + PAD)))
+    local top = spells and BODY_TOP or TOP
+    window.bodyCard[1]:SetPoint("TOPLEFT", CARD_INSET, -top)
+    scroll:SetPoint("TOPLEFT", CARD_INSET + BODY_PAD, -(top + BODY_PAD))
 end
 
-local function NewTab(text, key)
-    local b = CreateFrame("Button", nil, window)
-    b:SetSize(TAB_W, HEADER)
-    b.label = Text(b, 15, nil, T.muted)
-    b.label:SetPoint("CENTER")
-    b.label:SetText(text)
-    b.marker = ns.Solid(b, "OVERLAY", T.accent, 1)
-    b.marker:SetPoint("BOTTOMLEFT", 10, 0)
-    b.marker:SetPoint("BOTTOMRIGHT", -10, 0)
-    b.marker:SetHeight(TAB_MARK)
-    b:SetScript("OnClick", function()
-        SetTab(key)
-        Render()
-        scroll:SetVerticalScroll(0)
-    end)
-    return b
+local function OpacityGet()
+    return math.floor((S.Get("windowAlpha") or 1) * 100 + 0.5)
 end
+
+local function OpacitySet(value)
+    S.Set("windowAlpha", value / 100)
+end
+Training.OpacityGet, Training.OpacitySet = OpacityGet, OpacitySet
 
 local function Build()
-    window = CreateFrame("Frame", nil, UIParent)
-    window:SetSize(WIDTH, HEIGHT)
-    window:SetFrameStrata("HIGH")
-    window:SetToplevel(true)
-    window:SetClampedToScreen(true)
-    window:SetMovable(true)
-    window:EnableMouse(true)
-    window:RegisterForDrag("LeftButton")
-    window:SetScript("OnDragStart", window.StartMoving)
+    window = Parts.Window(WIDTH, HEIGHT, "trainingWindow")
+    -- Snapped to whole pixels when dropped, or every line in it blurs.
     window:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         SavePosition(self, WIDTH, HEIGHT, "trainingWindow")
     end)
-    Restore(window, "trainingWindow", { "CENTER" })
-    ns.Solid(window, "BACKGROUND", T.bg, 0.97):SetAllPoints()
-    ns.Border(window, BLACK)
+    MakeCards()
 
-    local logo = window:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(LOGO_SIZE, LOGO_SIZE)
-    logo:SetPoint("LEFT", window, "TOPLEFT", PAD, -HEADER / 2)
-    local title = Text(window, 20, nil)
-    title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 10, 1)
-    title:SetText("Training Planner")
-    window.subtitle = Text(window, 12, nil, T.muted)
-    window.subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
-    window.tabs = { spells = NewTab("Spells", "spells"), builds = NewTab("Builds", "builds") }
-    window.tabs.spells:SetPoint("TOPLEFT", TAB_X, 0)
-    window.tabs.builds:SetPoint("TOPLEFT", window.tabs.spells, "TOPRIGHT", 0, 0)
-    -- Right to left: close, Mini, Show Learned, the search, and All Levels while a level shows.
-    local close = ns.Button(window, "x", 24, 24, function() window:Hide() end)
-    close:SetPoint("RIGHT", window, "TOPRIGHT", -10, -HEADER / 2)
-    local miniButton = ns.Button(window, "Mini", 54, 24, function()
+    -- The title bar: right to left, close, opacity and Mini.
+    local close = Parts.TitleBar(window, "Training Planner", "", PAGE)
+    local opacityIcon, slider = Parts.Opacity(window, close, OpacityGet, OpacitySet)
+    window.opacity = slider
+    local miniButton = Parts.BarButton(window, St.LOGO_SMALL, "Mini", "Swap the window for a small bar with "
+        .. "your next visit and your gold, to leave up while you level. Move it by dragging.", function()
         window:Hide()
         S.Set("miniShown", true)
+    end, "Mini")
+    miniButton:SetPoint("RIGHT", opacityIcon, "LEFT", -St.BAR_GAP - 6, 0)
+
+    -- Under it, the switch between Spells and Builds, and on the right what the part shown
+    -- has: the search, Show Learned and All Levels, or the Builds tab's own.
+    window.switch = Parts.Tabs(window, SWITCH_W, {
+        { key = "spells", label = "Spells", tip = "What you can train now and what each level brings." },
+        { key = "builds", label = "Builds", tip = "Talent builds, level by level." },
+    }, function(key)
+        SetTab(key)
+        Render()
+        scroll:SetVerticalScroll(0)
     end)
-    miniButton:SetPoint("RIGHT", close, "LEFT", -8, 0)
-    ns.Tooltip(miniButton, "Mini", "Swap the window for a small bar with your next visit and your gold, "
-        .. "to leave up while you level. Move it by dragging.")
-    window.learned = ns.Button(window, "Show Learned", 110, 24, function()
-        S.Set("showLearned", not S.Get("showLearned"))
-    end)
-    window.learned:SetPoint("RIGHT", miniButton, "LEFT", -8, 0)
-    window.search = ns.NewSearchBox(window, "Search spells", function()
+    window.switch:SetPoint("TOPLEFT", CARD_INSET, -(HEADER + TOOL_GAP))
+    local toolMiddle = -(HEADER + TOOL_GAP + St.TAB_H / 2)
+    window.search = Parts.SearchBox(window, "Search spells", function()
         if window:IsShown() then
             Render()
             scroll:SetVerticalScroll(0)
         end
     end)
-    window.search:SetSize(SEARCH_W, 24)
-    window.search:SetPoint("RIGHT", window.learned, "LEFT", -10, 0)
-    window.back = ns.Button(window, "All Levels", 100, 24, function() Select(nil) end)
-    window.back:SetPoint("RIGHT", window.search, "LEFT", -10, 0)
-    -- The Builds tab's own, where the search sits on Spells.
+    window.search:SetSize(SEARCH_W, St.SEARCH_H)
+    window.search:SetPoint("RIGHT", window, "TOPRIGHT", -CARD_INSET, toolMiddle)
+    window.learned = ns.Button(window, "Show Learned", 110, St.SEARCH_H, function()
+        S.Set("showLearned", not S.Get("showLearned"))
+    end)
+    window.learned:SetPoint("RIGHT", window.search, "LEFT", -8, 0)
+    window.back = ns.Button(window, "All Levels", 100, St.SEARCH_H, function() Select(nil) end)
+    window.back:SetPoint("RIGHT", window.learned, "LEFT", -8, 0)
     local function ShowBuild(classID, index)
         buildClass, buildIndex, editing = classID, index, false
         Render()
     end
-    window.import = ns.Button(window, "Import a Build", IMPORT_W, 24, function()
-        ns.PromptText("Paste a Naowh Forever talent build", "", 0, function(text)
-            Training.ImportBuild(text, ShowBuild)
-        end)
-    end)
-    window.import:SetPoint("RIGHT", miniButton, "LEFT", -8, 0)
-    window.save = ns.Button(window, "Save My Talents", SAVE_W, 24, function()
-        ns.PromptText("Name for your current talents", "", 40, function(name)
-            local classID, index = Training.SaveMyTalents(name)
-            if classID then ShowBuild(classID, index) end
-        end)
-    end)
-    window.save:SetPoint("RIGHT", window.import, "LEFT", -8, 0)
-    window.new = ns.Button(window, "New Build", NEW_W, 24, function()
+    window.import = Parts.BarButton(window, St.IMPORT, "Import a Build", "Paste a build someone shared with you.",
+        function()
+            ns.PromptText("Paste a Naowh Forever talent build", "", 0, function(text)
+                Training.ImportBuild(text, ShowBuild)
+            end)
+        end, "Import")
+    window.import:SetPoint("RIGHT", window, "TOPRIGHT", -CARD_INSET, toolMiddle)
+    window.save = Parts.BarButton(window, St.WAND, "Save My Talents", "Keep the talents you have now as a build "
+        .. "you can export. The game does not keep the order you took them in, so it lists them row by row.",
+        function()
+            ns.PromptText("Name for your current talents", "", 40, function(name)
+                local classID, index = Training.SaveMyTalents(name)
+                if classID then ShowBuild(classID, index) end
+            end)
+        end, "Save My Talents")
+    window.save:SetPoint("RIGHT", window.import, "LEFT", -St.BAR_GAP, 0)
+    window.new = Parts.BarButton(window, St.PLUS, "New Build", "Start an empty build for the class shown and "
+        .. "click its talents in the order they are taken, level by level.", function()
         ns.PromptText("Name the new build", "", 40, function(name)
             local _, _, myClass = UnitClass("player")
             local classID = buildClass or myClass
             buildClass, buildIndex, editing = classID, Training.NewBuild(classID, name), true
             Render()
         end)
-    end)
-    window.new:SetPoint("RIGHT", window.save, "LEFT", -8, 0)
-    ns.Tooltip(window.new, "New Build", "Start an empty build for the class shown and click its talents "
-        .. "in the order they are taken, level by level.")
-    ns.Tooltip(window.save, "Save My Talents", "Keep the talents you have now as a build you can export. "
-        .. "The game does not keep the order you took them in, so it lists them row by row.")
-    local rule = ns.Solid(window, "ARTWORK", T.line, 1)
-    rule:SetPoint("TOPLEFT", 0, -HEADER)
-    rule:SetPoint("TOPRIGHT", 0, -HEADER)
-    ns.Hairline(rule, "h")
+    end, "New Build")
+    window.new:SetPoint("RIGHT", window.save, "LEFT", -St.BAR_GAP, 0)
 
     BuildHero()
     BuildRoad()
 
     scroll = UI.SlimScroll(window)
-    scroll:SetPoint("TOPLEFT", PAD, -(HEADER + HERO_H + ROAD_H + 2 + PAD))
-    scroll:SetPoint("BOTTOMRIGHT", -(PAD + 12), PAD)
+    scroll:SetPoint("TOPLEFT", CARD_INSET + BODY_PAD, -(BODY_TOP + BODY_PAD))
+    scroll:SetPoint("BOTTOMRIGHT", -(CARD_INSET + BODY_PAD + 12), FOOTER + CARD_INSET + BODY_PAD)
     body = CreateFrame("Frame", nil, scroll)
-    body:SetSize(WIDTH - 2 * PAD - 12, 1)
+    body:SetSize(WIDTH - 2 * (CARD_INSET + BODY_PAD) - 12, 1)
     scroll:SetScrollChild(body)
 
-    -- Esc closes it the way it closes the options window, safe in combat.
-    window:SetScript("OnKeyDown", function(self, key) UI.CloseOnEscape(self, key) end)
+    Parts.FooterBrand(window, PAGE, CARD_INSET)
+    Parts.FooterNote(window, "Prices from your trainer")
+
     window:SetScript("OnShow", function(self)
         if not InCombatLockdown() then
             self:EnableKeyboard(true)
@@ -1256,6 +1290,7 @@ local function Build()
         self:RegisterEvent("PLAYER_MONEY")
         self:RegisterEvent("SPELL_DATA_LOAD_RESULT")
         self:RegisterEvent("TRAIT_CONFIG_UPDATED")
+        self.backdrop:Paint(S.Get("windowAlpha") or 1)
         Render()
     end)
     window:SetScript("OnHide", function(self)
@@ -1306,6 +1341,9 @@ S.OnChange(function(key)
         ApplyMini()
     elseif key == "miniShown" then
         ApplyMini()
+    elseif key == "windowAlpha" and window then
+        window.backdrop:Paint(S.Get("windowAlpha") or 1)
+        window.opacity._refreshValue()
     elseif key == "showLearned" and window then
         PaintToggle(window.learned, S.Get("showLearned"))
         ns.SetButtonText(window.learned, S.Get("showLearned") and "Hide Learned" or "Show Learned")

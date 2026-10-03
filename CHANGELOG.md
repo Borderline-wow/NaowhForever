@@ -26,6 +26,13 @@
   a point back). Copy makes an editable copy of a built-in build. Export gives any build as text
   to share, Import a Build adds one someone shared with you, and Save My Talents keeps the
   talents you have now as a build of your own.
+- Training Planner: Learn Next Points on your class's build spends your free talent points on it,
+  in its order, and Follow This Build does it for you each time you get a new point (out of
+  combat; after a fight if you level in one). Off until you pick a build to follow.
+- Training Planner: its window now matches the Dungeon Journal: the Naowh title bar with an
+  opacity slider (also in its settings), Spells and Builds as a switch under it, the search and
+  each tab's buttons beside it, and its strips and lists on cards. Its settings page opens with
+  a card on what you can train now, and has the Mini Bar switch.
 - Top Bar: Faded Opacity (with Show On Mouseover) sets how visible the bar and the FPS / MS
   readout stay while the mouse is away. 0% by default, invisible as before.
 - Blessings: in combat each click on a class button blesses the next member of that class who
