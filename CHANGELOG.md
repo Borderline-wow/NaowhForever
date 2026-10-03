@@ -215,6 +215,7 @@
 - Campfire: Show Active Camp Buffs is a dropdown: Off, Always or On Mouseover, which shows
   the buffs only while the mouse is over the camp icon. Your current setting is kept.
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70178.
+- Sound dropdowns play the sound when you pick it, as Smart Reminders' already did.
 
 ### Fixed
 - Borders and divider lines no longer lose a side at some UI scales (the trainer popup's X

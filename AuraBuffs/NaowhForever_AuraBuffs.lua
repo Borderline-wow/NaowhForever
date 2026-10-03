@@ -189,7 +189,7 @@ function ns.BuildCampfirePage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("campSound", "Play a Sound to Refresh",
             "Plays when it is time to refresh the camp.", "campfire"),
-        S.Dropdown("campSoundKey", "Sound", names, order, nil, "campSound")
+        S.SoundDropdown("campSoundKey", "Sound", names, order, nil, "campSound")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("campNearbyAlert", "Camp Nearby Alert",
@@ -239,7 +239,7 @@ function ns.BuildLowHealthPage(parent, y)
             .. "your health from addons mid-fight, it only plays out of combat.", "lowHealth")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("lowHealthSoundKey", "Sound", names, order, nil, "lowHealthSound"),
+        S.SoundDropdown("lowHealthSoundKey", "Sound", names, order, nil, "lowHealthSound"),
         { type = "label", text = "" }
     ); y = y - h
 
