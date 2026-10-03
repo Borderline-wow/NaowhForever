@@ -55,7 +55,7 @@ read_globals = {
     "FACTION_STANDING_INCREASED", "GameFontHighlight", "GameTooltip",
     "GameTooltipTextLeft1", "GameTooltip_Hide", "GetActionInfo", "GetActiveTitle",
     "GetAddOnMemoryUsage", "GetBindingAction", "GetBindingKey", "GetBindingName",
-    "GetBindingText", "GetBindLocation", "GetClassInfo", "GetCurrentBindingSet",
+    "GetBindingText", "GetBindLocation", "GetChannelList", "GetClassInfo", "GetCurrentBindingSet",
     "GetCurrentArenaSeason", "GetCurrentKeyBoardFocus", "GetCurrentRegion", "GetText", "UnitSex",
     "GetCursorInfo", "GetCursorPosition", "GetCVar",
     "PVP_RANK_0_NAME", "PVP_RANK_REWARDS_VENDOR_ALLIANCE", "PVP_RANK_REWARDS_VENDOR_HORDE", "ITEM_SPELL_KNOWN",

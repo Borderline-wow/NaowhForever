@@ -142,24 +142,21 @@ local function URL(info, id)
     return "https://www.wowhead.com/" .. database .. info.kind .. "=" .. tostring(id)
 end
 
-local function ShowIDCard(info, id, title)
-    if InCombatLockdown() then return end
+-- A copy card: the accent line, an icon, a kicker over the title, X, and a one-line box at
+-- boxY with the hint under it. key keeps each kind of card's frames apart.
+local function Card(key, height, texture, kickerText, title, boxY)
     local UI = ns.UI
-    local dimmer, panel = ns.MakeModal(500, 230, "tooltipCopy")
+    local dimmer, panel = ns.MakeModal(500, height, key)
     local accent = UI.Keep(panel, "accent", function(p) return ns.Solid(p, "OVERLAY", T.accent, 1) end)
     accent:SetPoint("TOPLEFT"); accent:SetPoint("TOPRIGHT"); accent:SetHeight(2)
     local icon = UI.Keep(panel, "icon", function(p) return p:CreateTexture(nil, "ARTWORK") end)
     icon:SetSize(40, 40); icon:SetPoint("TOPLEFT", 18, -20); icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    local texture
-    if info.kind == "spell" then texture = C_Spell.GetSpellTexture(id)
-    elseif info.kind == "item" then texture = C_Item.GetItemIconByID(id) end
-    if not Accessible(texture) then texture = nil end
     icon:SetTexture(texture or "Interface\\Icons\\INV_Misc_Book_09")
     local kicker = UI.KeepFont(panel, "kicker", 10, "OUTLINE", T.accent)
-    kicker:SetPoint("TOPLEFT", 70, -20); kicker:SetText("NAOWH  /  TOOLTIP COPY")
+    kicker:SetPoint("TOPLEFT", 70, -20); kicker:SetText(kickerText)
     local name = UI.KeepFont(panel, "name", 16, "OUTLINE")
     name:SetPoint("TOPLEFT", 70, -38); name:SetPoint("RIGHT", -44, 0)
-    name:SetJustifyH("LEFT"); name:SetWordWrap(false); name:SetText(title or info.label)
+    name:SetJustifyH("LEFT"); name:SetWordWrap(false); name:SetText(title)
     UI.KeepButton(panel, "close", "X", 24, 24, function() dimmer:Hide() end):SetPoint("TOPRIGHT", -10, -10)
     local box = UI.Keep(panel, "value", function(p)
         local edit = CreateFrame("EditBox", nil, p)
@@ -168,18 +165,29 @@ local function ShowIDCard(info, id, title)
         ns.Solid(edit, "BACKGROUND", T.bg, 1):SetAllPoints(); ns.Border(edit)
         return edit
     end)
-    box:SetPoint("TOPLEFT", 18, -112); box:SetSize(464, 36)
+    box:SetPoint("TOPLEFT", 18, boxY); box:SetSize(464, 36)
     box:SetScript("OnEscapePressed", function() box:ClearFocus(); dimmer:Hide() end)
     local hint = UI.KeepFont(panel, "hint", 12, nil, T.muted)
-    hint:SetPoint("TOPLEFT", 18, -161); hint:SetText("Text selected. Press Ctrl+C to copy.")
+    hint:SetPoint("TOPLEFT", 18, boxY - 49); hint:SetText("Text selected. Press Ctrl+C to copy.")
+    return dimmer, panel, box
+end
+
+local function ShowIDCard(info, id, title, mode)
+    if InCombatLockdown() then return end
+    local UI = ns.UI
+    local texture
+    if info.kind == "spell" then texture = C_Spell.GetSpellTexture(id)
+    elseif info.kind == "item" then texture = C_Item.GetItemIconByID(id) end
+    if not Accessible(texture) then texture = nil end
+    local dimmer, panel, box = Card("tooltipCopy", 230, texture, "NAOWH  /  TOOLTIP COPY", title or info.label, -112)
     local note = UI.KeepFont(panel, "note", 10, nil, T.muted)
     note:SetPoint("TOPLEFT", 18, -187); note:SetWidth(464); note:SetJustifyH("LEFT")
     note:SetText("Wowhead may not list Forever-specific entries. Open links in your browser.")
     local idButton, linkButton
-    local function Select(mode)
-        box:SetText(mode == "id" and tostring(id) or URL(info, id))
-        idButton.label:SetTextColor(mode == "id" and T.accent.r or T.muted.r, mode == "id" and T.accent.g or T.muted.g, mode == "id" and T.accent.b or T.muted.b)
-        linkButton.label:SetTextColor(mode == "url" and T.accent.r or T.muted.r, mode == "url" and T.accent.g or T.muted.g, mode == "url" and T.accent.b or T.muted.b)
+    local function Select(pick)
+        box:SetText(pick == "id" and tostring(id) or URL(info, id))
+        idButton.label:SetTextColor(pick == "id" and T.accent.r or T.muted.r, pick == "id" and T.accent.g or T.muted.g, pick == "id" and T.accent.b or T.muted.b)
+        linkButton.label:SetTextColor(pick == "url" and T.accent.r or T.muted.r, pick == "url" and T.accent.g or T.muted.g, pick == "url" and T.accent.b or T.muted.b)
         box:SetFocus(); box:HighlightText()
     end
     idButton = UI.KeepButton(panel, "id", info.label .. ": " .. id, 180, 26, function() Select("id") end)
@@ -187,14 +195,28 @@ local function ShowIDCard(info, id, title)
     linkButton = UI.KeepButton(panel, "link", "Wowhead Link", 150, 26, function() Select("url") end)
     linkButton:SetPoint("LEFT", idButton, "RIGHT", 8, 0)
     dimmer.onClose = function() box:ClearFocus(); Apply() end
-    dimmer:Show(); Select(S.Get("tooltipCopyFormat"))
+    dimmer:Show(); Select(mode or S.Get("tooltipCopyFormat"))
 end
 
 -- The copy card for anything with an ID the tooltips do not cover (the Dungeon Journal's
--- quests): kind is Wowhead's ("quest"), label names the ID.
-function ns.ShowCopyCard(kind, label, id, title)
+-- quests): kind is Wowhead's ("quest"), label names the ID; mode "url" or "id" picks what
+-- is selected first, else the Tooltip Copy setting.
+function ns.ShowCopyCard(kind, label, id, title, mode)
     if InCombatLockdown() then ns.Print("Copy cards are available outside combat."); return end
-    ShowIDCard({ kind = kind, label = label }, id, title)
+    ShowIDCard({ kind = kind, label = label }, id, title, mode)
+end
+
+-- A line to copy (a message for chat, a link), on the same card, selected for Ctrl+C.
+---@param title string
+---@param text string
+---@param texture? number|string the card's icon
+function ns.ShowCopyLine(title, text, texture)
+    if InCombatLockdown() then ns.Print("Copy cards are available outside combat."); return end
+    local dimmer, _, box = Card("copyLine", 150, texture, "NAOWH  /  COPY", title, -76)
+    box:SetText(text)
+    dimmer.onClose = function() box:ClearFocus() end
+    dimmer:Show()
+    box:SetFocus(); box:HighlightText()
 end
 
 function ns.PreviewTooltipCopyCard()

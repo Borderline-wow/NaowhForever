@@ -335,6 +335,124 @@ def bag(x, y, size):
     return (255, 255, 255, int(round(255 * smooth(0, d))))
 
 
+def tray_arrow(up):
+    # An open tray with an arrow down into it (Import) or up out of it (Export).
+    shaft = [(0.5, 0.60), (0.5, 0.12)] if up else [(0.5, 0.12), (0.5, 0.60)]
+    head = [(0.32, 0.30), (0.5, 0.12), (0.68, 0.30)] if up else [(0.32, 0.42), (0.5, 0.60), (0.68, 0.42)]
+    parts = [stroke(64, [(0.16, 0.60), (0.16, 0.86), (0.84, 0.86), (0.84, 0.60)], 0.09),
+             stroke(64, shaft, 0.09), stroke(64, head, 0.09)]
+
+    def pixel(x, y, size):
+        return (255, 255, 255, max(part(x, y, size)[3] for part in parts))
+    return pixel
+
+
+def wand(x, y, size):
+    # A wand with a four-pointed sparkle at its tip: fill in for you.
+    stick = stroke(size, [(0.14, 0.86), (0.56, 0.44)], 0.10)(x, y, size)[3]
+    cx, cy = size * 0.70, size * 0.30
+    points = []
+    for i in range(8):
+        r = size * (0.24 if i % 2 == 0 else 0.06)
+        a = i * math.pi / 4
+        points.append((cx + r * math.cos(a), cy - r * math.sin(a)))
+    spark = int(round(255 * smooth(0, polygon_dist(x, y, points))))
+    return (255, 255, 255, max(stick, spark))
+
+
+def scales(x, y, size):
+    # A balance: a post on a foot, a beam across its top, and a pan hung from each end:
+    # Stat Weights, what each stat weighs.
+    lines = [[(0.5, 0.20), (0.5, 0.84)], [(0.32, 0.84), (0.68, 0.84)], [(0.14, 0.24), (0.86, 0.24)],
+             [(0.14, 0.24), (0.04, 0.54)], [(0.14, 0.24), (0.24, 0.54)],
+             [(0.86, 0.24), (0.76, 0.54)], [(0.86, 0.24), (0.96, 0.54)],
+             [(0.02, 0.54), (0.08, 0.64), (0.20, 0.64), (0.26, 0.54)],
+             [(0.74, 0.54), (0.80, 0.64), (0.92, 0.64), (0.98, 0.54)]]
+    return (255, 255, 255, max(stroke(size, line, 0.07)(x, y, size)[3] for line in lines))
+
+
+
+def write_wide_tga(path, width, height, pixel_fn, samples=4):
+    # As write_tga, for a texture wider than tall, each pixel the average of samples x samples
+    # points across it: a small mark drawn near its own size stays smooth, as text icons are
+    # drawn without mipmaps and a big texture shrunk in them shimmers.
+    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, width, height, 32, 8)
+    rows = []
+    for y in range(height):
+        row = bytearray()
+        for x in range(width):
+            total = [0.0, 0.0, 0.0, 0.0]
+            for sy in range(samples):
+                for sx in range(samples):
+                    px = pixel_fn(x + (sx + 0.5) / samples, height - y - (sy + 0.5) / samples, width, height)
+                    for k in range(4):
+                        total[k] += px[k]
+            r, g, b, a = (int(round(v / (samples * samples))) for v in total)
+            row += bytes((b, g, r, a))
+        rows.append(bytes(row))
+    with open(path, "wb") as f:
+        f.write(header + b"".join(rows))
+    print("wrote", os.path.normpath(path))
+
+
+def infinity_shape(x, y, width, height, grow):
+    # The sign's distance field: how far (x, y) is inside its stroke, grown by grow pixels.
+    best = -1e9
+    for i in range(160):
+        t0, t1 = i * 2 * math.pi / 160, (i + 1) * 2 * math.pi / 160
+        k0, k1 = 1 + math.sin(t0) ** 2, 1 + math.sin(t1) ** 2
+        a = (width * (0.5 + 0.40 * math.cos(t0) / k0), height * (0.5 + 0.80 * math.sin(t0) * math.cos(t0) / k0))
+        b = (width * (0.5 + 0.40 * math.cos(t1) / k1), height * (0.5 + 0.80 * math.sin(t1) * math.cos(t1) / k1))
+        w = height * (0.07 + 0.07 * (abs(math.cos(t0)) ** 2 + abs(math.cos(t1)) ** 2) / 2) + grow
+        best = max(best, w - seg_dist(x, y, *a, *b))
+    return best
+
+
+def infinity_outlined(x, y, width, height):
+    # The sign with a dark outline round it, for a badge on an item's icon: no box, the outline
+    # alone keeps it readable on any icon's art. White inside (it takes the Forever gold),
+    # black in the outline.
+    inside = 1.0 if infinity_shape(x, y, width, height, 0) >= 0 else 0.0
+    edge = 1.0 if infinity_shape(x, y, width, height, 1.4) >= 0 else 0.0
+    v = int(round(255 * inside))
+    return (v, v, v, int(round(255 * edge)))
+
+
+def infinity(x, y, width, height):
+    # An infinity sign, thick at its loops and thin where they cross: WoW Forever's mark, as
+    # wide as twice its height. White, to take the Forever gold; no rim, as it sits on the
+    # addon's dark panels at text size.
+    points, widths = [], []
+    for i in range(161):
+        t = i * 2 * math.pi / 160
+        k = 1 + math.sin(t) ** 2
+        points.append((width * (0.5 + 0.43 * math.cos(t) / k),
+                       height * (0.5 + 0.86 * math.sin(t) * math.cos(t) / k)))
+        widths.append(height * (0.07 + 0.07 * abs(math.cos(t)) ** 2))
+    inner = 0.0
+    for i in range(160):
+        d = seg_dist(x, y, *points[i], *points[i + 1])
+        w = (widths[i] + widths[i + 1]) / 2
+        inner = max(inner, 1.0 if d <= w else 0.0)
+    return (255, 255, 255, int(round(255 * inner)))
+
+
+
+def elbow(x, y, width, height):
+    # The rounded corner of a tree line, 1px wide: down the left edge, then a quarter circle
+    # into the bottom edge, heading right. Drawn at its own size (8 by 8), so it stays a clean
+    # pixel line where it meets the 1px lines either side of it.
+    r = width - 1.5
+    cx, cy = 0.5 + r, height - 0.5 - r
+    if y <= cy:
+        d = abs(x - 0.5)
+    elif x >= cx:
+        d = abs(y - (height - 0.5))
+    else:
+        d = abs(math.hypot(x - cx, y - cy) - r)
+    return (255, 255, 255, int(round(255 * max(0.0, min(1.0, 1.0 - d)))))
+
+
 os.makedirs(OUT, exist_ok=True)
 # y runs down the image.
 write_tga(os.path.join(OUT, "chevron_up.tga"), 64, stroke(64, [(0.22, 0.64), (0.5, 0.36), (0.78, 0.64)], 0.12))
@@ -361,3 +479,13 @@ write_tga(os.path.join(OUT, "star.tga"), 64, star)
 write_tga(os.path.join(OUT, "swords.tga"), 64, crossed_swords)
 write_tga(os.path.join(OUT, "people.tga"), 64, people)
 write_tga(os.path.join(OUT, "bag.tga"), 64, bag)
+write_tga(os.path.join(OUT, "plus.tga"), 64, lambda x, y, s: max(
+    stroke(64, [(0.5, 0.2), (0.5, 0.8)], 0.11)(x, y, s),
+    stroke(64, [(0.2, 0.5), (0.8, 0.5)], 0.11)(x, y, s), key=lambda p: p[3]))
+write_tga(os.path.join(OUT, "import.tga"), 64, tray_arrow(False))
+write_tga(os.path.join(OUT, "export.tga"), 64, tray_arrow(True))
+write_tga(os.path.join(OUT, "wand.tga"), 64, wand)
+write_tga(os.path.join(OUT, "scales.tga"), 64, scales)
+write_wide_tga(os.path.join(OUT, "infinity.tga"), 32, 16, infinity)
+write_wide_tga(os.path.join(OUT, "infinity_outlined.tga"), 32, 16, infinity_outlined)
+write_wide_tga(os.path.join(OUT, "elbow.tga"), 8, 8, elbow)

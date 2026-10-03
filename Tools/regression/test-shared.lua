@@ -1,0 +1,214 @@
+-- Run with Lua 5.1 from the repository root: what the modules share (Shared/), loaded from the
+-- files Shared.xml loads, in order, against stubs. Checks that nothing is made or listened to
+-- at load, the item helpers, the Forever mark, and the row engine a page is drawn with: rows
+-- pooled and reused, a burst of events making one redraw and none while hidden, and a redraw
+-- that makes no garbage.
+local Load = dofile("Tools/regression/load_files.lua")
+local TocFiles = dofile("Tools/regression/toc_files.lua")
+local Measure = dofile("Tools/regression/measure.lua")
+
+local checks = 0
+local function check(label, value) assert(value, label); checks = checks + 1 end
+
+-------------------------------------------------------------------------------
+--  Stubs: a frame keeps its scripts, events, size, text and shown state; every other method
+--  is one shared do-nothing function, so the stubs make no garbage of their own.
+-------------------------------------------------------------------------------
+local NOTHING = function() end
+local Frame
+local made = 0   -- frames made, all told
+local METHODS = {
+    SetScript = function(f, script, fn) f.scripts[script] = fn end,
+    GetScript = function(f, script) return f.scripts[script] end,
+    HookScript = function(f, script, fn) f.scripts[script] = fn end,
+    RegisterEvent = function(f, event) f.events[event] = true end,
+    UnregisterAllEvents = function(f) for event in pairs(f.events) do f.events[event] = nil end end,
+    GetParent = function(f) return rawget(f, "parent") end,
+    SetWidth = function(f, w) f.w = w end,
+    SetHeight = function(f, h) f.h = h end,
+    SetSize = function(f, w, h) f.w, f.h = w, h end,
+    GetWidth = function(f) return rawget(f, "w") or 600 end,
+    GetHeight = function(f) return rawget(f, "h") or 24 end,
+    SetText = function(f, text) f.text = text end,
+    GetText = function(f) return rawget(f, "text") or "" end,
+    GetStringWidth = function() return 40 end,
+    GetStringHeight = function() return 12 end,
+    Show = function(f) f.shown = true end,
+    Hide = function(f) f.shown = false end,
+    SetShown = function(f, shown) f.shown = shown and true or false end,
+    IsShown = function(f) return rawget(f, "shown") ~= false end,
+    IsVisible = function(f) return rawget(f, "shown") ~= false end,
+    GetEffectiveScale = function() return 1 end,
+    CreateTexture = function(f) return Frame(f) end,
+    CreateFontString = function(f) return Frame(f) end,
+    CreateAnimationGroup = function(f) return Frame(f) end,
+    CreateAnimation = function(f) return Frame(f) end,
+}
+local META = { __index = function(_, key)
+    if METHODS[key] then return METHODS[key] end
+    if type(key) == "string" and key:find("^%u") then return NOTHING end
+end }
+function Frame(parent)
+    made = made + 1
+    return setmetatable({ scripts = {}, events = {}, parent = parent }, META)
+end
+
+local WHITE = { r = 1, g = 1, b = 1 }
+local timers = {}
+local tooltip = Frame()
+tooltip.GetOwner = function() return nil end
+
+local ns = {
+    THEME = setmetatable({}, { __index = function() return WHITE end }),
+    Color = function(_, text) return tostring(text) end,
+    Font = function(parent) return Frame(parent) end,
+    Solid = function(parent) return Frame(parent) end,
+    Border = function() return { SetColor = NOTHING } end,
+    AccentBorder = function() return { SetColor = NOTHING } end,
+    Button = function(parent) return Frame(parent) end,
+    UIFontPath = function() return "font" end,
+    AccountSettings = function() return {} end,
+    UI = { Keep = function(parent, key, make)
+        local kept = rawget(parent, key)
+        if not kept then kept = make(parent); parent[key] = kept end
+        return kept
+    end },
+}
+local env = setmetatable({
+    NaowhForever = ns,
+    CreateFrame = function(_, _, parent) return Frame(parent) end,
+    Mixin = function(target, ...)
+        for i = 1, select("#", ...) do
+            for k, v in pairs((select(i, ...))) do target[k] = v end
+        end
+        return target
+    end,
+    wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
+    C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end },
+    C_Item = {
+        GetItemInfoInstant = function(id)
+            if id == 19019 then return id, "", "", "INVTYPE_WEAPONMAINHAND", 135349, 2, 7 end
+            if id == 18348 then return id, "", "", "INVTYPE_2HWEAPON", 135349, 2, 8 end
+        end,
+        GetItemNameByID = function(id) return id == 19019 and "Thunderfury" or nil end,
+        GetItemQualityByID = function(id) return id == 19019 and 5 or nil end,
+        GetItemCount = function() return 0 end,
+        IsItemDataCachedByID = function() return true end,
+        IsEquippedItem = function() return false end,
+    },
+    ITEM_QUALITY_COLORS = { [5] = { hex = "|cffff8000", r = 1, g = 0.5, b = 0 } },
+    GameTooltip = tooltip,
+    GameTooltip_Hide = NOTHING,
+    UIParent = Frame(),
+}, { __index = _G })
+env._G = env
+
+-------------------------------------------------------------------------------
+--  Loading: everything Shared.xml lists, in its order, and nothing made or listened to.
+-------------------------------------------------------------------------------
+local files = TocFiles("^Shared/.*%.lua$")
+check("the TOC loads Shared.xml, and it lists the files", #files >= 9 and files[1] == "Shared/Shared.lua")
+local before = made
+Load(files, env)
+local Shared = ns.Shared
+check("everything there: Style, Items, Parts, View, Kinds", Shared.Style and Shared.Items and Shared.Parts
+    and Shared.View and Shared.Kinds and Shared.ForeverNew)
+check("nothing made at load", made == before and #timers == 0)
+
+-------------------------------------------------------------------------------
+--  Items
+-------------------------------------------------------------------------------
+local Items = Shared.Items
+check("an ID from a number, a link, a Wowhead URL or its digits",
+    Items.IDFrom(19019) == 19019 and Items.IDFrom("|cffff8000|Hitem:19019::::|h[Thunderfury]|h|r") == 19019
+    and Items.IDFrom("https://www.wowhead.com/forever/item=19019/thunderfury") == 19019
+    and Items.IDFrom(" 19019 ") == 19019)
+check("nothing from what names no item", Items.IDFrom("Thunderfury") == nil)
+check("a name, or what it is while it loads", Items.Name(19019) == "Thunderfury" and Items.Name(1) == "item 1")
+check("its quality's colour, white while unknown", Items.QualityHex(19019) == "|cffff8000"
+    and Items.QualityHex(1) == "|cffffffff")
+check("a two-hander is one; a one-hander is not", Items.IsTwoHand(18348) and not Items.IsTwoHand(19019))
+
+-------------------------------------------------------------------------------
+--  The Forever mark: what is new in Forever, by kind and ID.
+-------------------------------------------------------------------------------
+local Parts = Shared.Parts
+local newItem = next(Shared.ForeverNew.items)
+check("an item new in Forever has the mark; one from the original game not", Parts.IsForever("items", newItem)
+    and not Parts.IsForever("items", 19019))
+
+-------------------------------------------------------------------------------
+--  The row engine: a page of rows of its own kind, under a shared section title.
+-------------------------------------------------------------------------------
+local View = Shared.View
+local kinds = View.NewKinds()
+local madeRows = 0
+kinds.line = {
+    New = function(view)
+        madeRows = madeRows + 1
+        local row = Frame(view)
+        row.label = Frame(row)
+        return row
+    end,
+    Set = function(row, text, waiting)
+        row.label:SetText(text)
+        return 20, waiting
+    end,
+}
+local TEXTS = {}
+for i = 1, 50 do TEXTS[i] = "line " .. i end
+local EVENTS = { "BAG_UPDATE_DELAYED" }
+local page = { count = 50, waitOn = nil }
+function page:Redraw()
+    self:Clear()
+    self:Section("Loot", self.count)
+    for i = 1, self.count do self:Add("line", TEXTS[i], i == self.waitOn) end
+    if self.waitOn then self.waitingFor[self.waitOn] = true end
+    self:Fit(EVENTS)
+end
+local view = View.New(Frame(), kinds, page)
+view:Redraw()
+check("a page drawn: each row under the last, as tall as all of them", madeRows == 50
+    and view.h == view.cursor and view.cursor > 50 * 20)
+check("listening for what it asked for", view.events.BAG_UPDATE_DELAYED
+    and not view.events.GET_ITEM_INFO_RECEIVED)
+view.count = 10
+view:Redraw()
+local shownRows = 0
+for i = 1, view.pools.line.used do if view.pools.line[i]:IsShown() then shownRows = shownRows + 1 end end
+check("drawn again shorter: rows reused, none made, the rest hidden", madeRows == 50 and shownRows == 10
+    and view.pools.line[11].shown == false)
+local row = view:Find("line", function(r, text) return r.label.text == text end, "line 7")
+check("a drawn row found by what it shows", row and row.top == view.pools.line[7].top)
+view.waitOn = 3
+view:Redraw()
+check("a row waiting on an item's name: listened for", view.events.GET_ITEM_INFO_RECEIVED)
+view:OnEvent("GET_ITEM_INFO_RECEIVED", 999)
+check("another item's name is not its business", #timers == 0)
+view:OnEvent("GET_ITEM_INFO_RECEIVED", 3)
+view:OnEvent("BAG_UPDATE_DELAYED")
+view:OnEvent("BAG_UPDATE_DELAYED")
+check("a burst of events: one redraw queued", #timers == 1)
+view.waitOn = nil
+local drawn = 0
+local redraw = view.Redraw
+view.Redraw = function(self) drawn = drawn + 1; redraw(self) end
+timers[1](); timers[1] = nil
+check("and drawn once", drawn == 1)
+view:Hide()
+view.scripts.OnHide(view)
+check("hidden: listening to nothing", next(view.events) == nil)
+view:QueueRedraw()
+timers[1](); timers[1] = nil
+check("and not drawn while hidden", drawn == 1)
+view:Show()
+
+local columns, width = View.Columns(600)
+check("cards across: as many as fit, each as wide as shares the width", columns >= 1
+    and width * columns <= 600 and View.Columns(10) == 1)
+
+view.Redraw = redraw
+view.count = 50
+Measure(check)("a page of 50 rows redrawn", 1, function() view:Redraw() end)
+
+print(("test-shared: %d checks passed"):format(checks))
