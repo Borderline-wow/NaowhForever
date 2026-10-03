@@ -729,7 +729,7 @@ function ns.BuildThreatMeterPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("warnAt", "Warn At (%)", 50, 100, 1, nil, "warnSound"),
-        S.Dropdown("warnSoundKey", "Sound", names, order, nil, "warnSound")
+        S.SoundDropdown("warnSoundKey", "Sound", names, order, nil, "warnSound")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("warnSkipTank", "Not While Tanking",

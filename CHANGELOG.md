@@ -215,6 +215,7 @@
 - Campfire: Show Active Camp Buffs is a dropdown: Off, Always or On Mouseover, which shows
   the buffs only while the mouse is over the camp icon. Your current setting is kept.
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70178.
+- Sound dropdowns play the sound when you pick it, as Smart Reminders' already did.
 - Threat Meter: Hide When Empty is now With Threat, a choice under Show, so Always really
   means always. Your setting carries over; with In Combat it becomes With Threat. In a Group
   can no longer hide the empty window, so choose With Threat for that.
@@ -276,6 +277,9 @@
 - QoL > Tools: a custom slash command that runs another slash command no longer makes your
   next chat message fail. Emotes like /dance work too. Macro commands like /cast, /use and
   /target, and /reload, can't be run this way; the command says so in chat.
+- Sound dropdowns list None once; the second was a silent placeholder from SharedMedia.
+  The QoL sound dropdowns (Combat Alert, Emote, Crosshair, Mouse Ring, Focus Cast Bar)
+  now offer None as well, so a sound can be turned back to silent.
 
 ## 0.5.17-beta
 

@@ -841,6 +841,7 @@ function ns.BuildQoLAlertsPage(parent, y)
         S.Slider("combatAlertFontSize", "Font Size", 10, 72, 1, nil, "combatAlert")
     ); y = y - h
     local _, soundNames, soundOrder = ns.SoundChoices()
+    soundNames.none = "None"; table.insert(soundOrder, 1, "none")
     local voices, voiceOrder = ns.TTSVoiceChoices()
     for _, side in ipairs({ { "combatEnter", "Entering" }, { "combatLeave", "Leaving" } }) do
         local k, name = side[1], side[2]
@@ -852,7 +853,7 @@ function ns.BuildQoLAlertsPage(parent, y)
             S.Dropdown(k .. "Audio", name .. " Audio", AUDIO_VALUES, AUDIO_ORDER,
                 "A sound, or the Speech text read aloud. Text to Speech can stutter on some PCs, "
                 .. "as the game waits while Windows speaks it; a Sound costs nothing.", "combatAlert"),
-            S.Dropdown(k .. "Sound", name .. " Sound", soundNames, soundOrder, nil, "combatAlert")
+            S.SoundDropdown(k .. "Sound", name .. " Sound", soundNames, soundOrder, nil, "combatAlert")
         ); y = y - h
         _, h = W:DualRow(parent, y,
             S.Dropdown(k .. "Voice", name .. " Voice", voices, voiceOrder,
@@ -993,7 +994,7 @@ function ns.BuildQoLAlertsPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("emoteSound", "Play a Sound", nil, "emoteDetection"),
-        S.Dropdown("emoteSoundKey", "Sound", soundNames, soundOrder, nil, "emoteSound")
+        S.SoundDropdown("emoteSoundKey", "Sound", soundNames, soundOrder, nil, "emoteSound")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         ColorRow("emoteColor", "Text Colour", "emoteDetection"),
@@ -1079,6 +1080,7 @@ function ns.BuildQoLInterfacePage(parent, y)
 
     _, h = W:SectionHeader(parent, "CROSSHAIR" .. STATUS.untested, y); y = y - h
     local _, soundNames, soundOrder = ns.SoundChoices()
+    soundNames.none = "None"; table.insert(soundOrder, 1, "none")
     _, h = W:Feature(parent, y,
         S.Toggle("crosshair", "Crosshair", "A crosshair at the middle of your screen.")
     ); y = y - h
@@ -1144,7 +1146,7 @@ function ns.BuildQoLInterfacePage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("crossMeleeSound", "Play a Sound",
             "Plays as your target leaves melee range.", "crossMelee"),
-        S.Dropdown("crossMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "crossMeleeSound")
+        S.SoundDropdown("crossMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "crossMeleeSound")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("crossMeleeSoundInterval", "Repeat Every (s)", 0, 10, 1,
@@ -1280,7 +1282,7 @@ function ns.BuildQoLInterfacePage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("mouseMeleeSound", "Play a Sound", "Plays as your target leaves melee range.",
             "mouseMelee"),
-        S.Dropdown("mouseMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "mouseMeleeSound")
+        S.SoundDropdown("mouseMeleeSoundKey", "Sound", soundNames, soundOrder, nil, "mouseMeleeSound")
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Slider("mouseMeleeSoundInterval", "Repeat Every (s)", 0, 10, 1,
@@ -1590,6 +1592,7 @@ function ns.BuildQoLCastingPage(parent, y)
     _, h = W:SectionHeader(parent, "FOCUS CAST BAR" .. STATUS.untested, y); y = y - h
     local focusFonts, focusFontOrder = UI.FontChoices(S.Get("focusFont"))
     local _, soundNames, soundOrder = ns.SoundChoices()
+    soundNames.none = "None"; table.insert(soundOrder, 1, "none")
     local voices, voiceOrder = ns.TTSVoiceChoices()
     _, h = W:Feature(parent, y,
         S.Toggle("focusCastBar", "Focus Cast Bar",
@@ -1665,7 +1668,7 @@ function ns.BuildQoLCastingPage(parent, y)
             "A sound, or the Speech text read aloud, as each cast starts.", "focusCastBar")
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        S.Dropdown("focusSound", "Sound", soundNames, soundOrder, nil, "focusCastBar"),
+        S.SoundDropdown("focusSound", "Sound", soundNames, soundOrder, nil, "focusCastBar"),
         S.Dropdown("focusVoice", "Voice", voices, voiceOrder,
             "Game Default speaks in the voice the rest of the addon uses.", "focusCastBar")
     ); y = y - h
