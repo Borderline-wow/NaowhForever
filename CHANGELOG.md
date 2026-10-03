@@ -255,6 +255,7 @@
 - Threat Meter: Hide When Empty is now With Threat, a choice under Show, so Always really
   means always. Your setting carries over; with In Combat it becomes With Threat. In a Group
   can no longer hide the empty window, so choose With Threat for that.
+- Dungeon Journal: boss loot updated from the latest Forever loot lists.
 
 ### Fixed
 - Blessings: the options window opens again while the bar shows your blessing buffs. Opening

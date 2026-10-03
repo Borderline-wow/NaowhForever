@@ -4918,6 +4918,99 @@
   "name": "Dire Maul",
   "updated": null
  },
+ "excavation-site-wetlands": {
+  "bosses": [
+   {
+    "items": [
+     {
+      "chance": null,
+      "level": 31,
+      "name": "Supple Bellyskin Leggings",
+      "new": false,
+      "quality": "rare",
+      "slot": "legs",
+      "type": "leather"
+     },
+     {
+      "chance": null,
+      "level": 31,
+      "name": "Saltscale Girdle",
+      "new": false,
+      "quality": "rare",
+      "slot": "waist",
+      "type": "mail"
+     },
+     {
+      "chance": null,
+      "level": 31,
+      "name": "Glinteye Slippers",
+      "new": false,
+      "quality": "rare",
+      "slot": "feet",
+      "type": "cloth"
+     }
+    ],
+    "name": "Saltspine"
+   },
+   {
+    "items": [
+     {
+      "chance": null,
+      "level": 31,
+      "name": "Raptorclaw Greaves",
+      "new": false,
+      "quality": "rare",
+      "slot": "feet",
+      "type": "mail"
+     },
+     {
+      "chance": null,
+      "level": 31,
+      "name": "Garb of Florid Feathers",
+      "new": false,
+      "quality": "rare",
+      "slot": "chest",
+      "type": "leather"
+     },
+     {
+      "chance": null,
+      "level": 31,
+      "name": "Raptor's Gaze",
+      "new": false,
+      "quality": "rare",
+      "slot": "held in off-hand",
+      "type": null
+     }
+    ],
+    "name": "Shadetooth"
+   },
+   {
+    "items": [
+     {
+      "chance": null,
+      "level": 33,
+      "name": "Reliquary Mantle",
+      "new": false,
+      "quality": "rare",
+      "slot": "shoulder",
+      "type": "mail"
+     },
+     {
+      "chance": null,
+      "level": 33,
+      "name": "Ring of Power Regulation",
+      "new": false,
+      "quality": "rare",
+      "slot": "finger",
+      "type": null
+     }
+    ],
+    "name": "Relic Guardian"
+   }
+  ],
+  "name": "Excavation Site: Wetlands",
+  "updated": null
+ },
  "gnomeregan": {
   "bosses": [
    {
@@ -5025,28 +5118,28 @@
     "items": [
      {
       "chance": 42.8,
-      "level": null,
+      "level": 35,
       "name": "Emissary Cuffs",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "wrist",
       "type": "leather"
      },
      {
       "chance": 33.5,
-      "level": null,
+      "level": 35,
       "name": "Glass Shooter",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "gun"
      },
      {
       "chance": 20.1,
-      "level": null,
+      "level": 35,
       "name": "Royal Diplomatic Scepter",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "mace"
      }
@@ -5098,10 +5191,10 @@
     "items": [
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Vibroblade",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "one-hand",
       "type": "axe"
      },
@@ -5116,10 +5209,10 @@
      },
      {
       "chance": null,
-      "level": null,
-      "name": "Hi-tech Supergun",
+      "level": 29,
+      "name": "Hi-Tech Supergun",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "gun"
      },
@@ -5134,10 +5227,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "Gyromatic Icemaker",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "wand"
      },
@@ -5152,19 +5245,19 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 32,
       "name": "Hotshot Pilot's Gloves",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "hands",
       "type": "cloth"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "Mechbuilder's Overalls",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "cloth"
      },
@@ -5179,10 +5272,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 32,
       "name": "Caverndeep Trudgers",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "mail"
      }
@@ -6168,10 +6261,10 @@
     "items": [
      {
       "chance": 62.7,
-      "level": null,
+      "level": 34,
       "name": "Ferine Leggings",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "legs",
       "type": "leather"
      },
@@ -6200,28 +6293,28 @@
     "items": [
      {
       "chance": 26.9,
-      "level": null,
+      "level": 34,
       "name": "Stygian Bone Amulet",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "neck",
       "type": null
      },
      {
       "chance": 32.5,
-      "level": null,
+      "level": 34,
       "name": "Nightstalker Bow",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "bow"
      },
      {
       "chance": 34.4,
-      "level": null,
+      "level": 34,
       "name": "Batwing Mantle",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "shoulder",
       "type": "cloth"
      }
@@ -6241,10 +6334,10 @@
      },
      {
       "chance": 48.5,
-      "level": null,
+      "level": 34,
       "name": "Wind Spirit Staff",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "staff"
      }
@@ -6255,10 +6348,10 @@
     "items": [
      {
       "chance": 17.7,
-      "level": null,
+      "level": 35,
       "name": "Pronged Reaver",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "one-hand",
       "type": "axe"
      },
@@ -6273,10 +6366,10 @@
      },
      {
       "chance": 33.5,
-      "level": null,
+      "level": 35,
       "name": "Heart of Agamaggan",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "off hand",
       "type": "shield"
      }
@@ -6296,28 +6389,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "Avenger's Armor",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "mail"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 28,
       "name": "Sword of Decay",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "sword"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 28,
       "name": "Pysan's Old Greatsword",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "sword"
      },
@@ -6377,10 +6470,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Pugilist Bracers",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "wrist",
       "type": "mail"
      },
@@ -6699,10 +6792,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 36,
       "name": "Mark of Kern",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "finger",
       "type": null
      },
@@ -6717,10 +6810,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Sunblaze Coif",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "head",
       "type": "mail"
      },
@@ -6735,19 +6828,19 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 34,
       "name": "Beguiler Robes",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "cloth"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Chesterfall Musket",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "gun"
      },
@@ -6771,28 +6864,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Dreamslayer",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "mace"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 32,
       "name": "Bloodspiller",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Harbinger Boots",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "leather"
      },
@@ -6843,28 +6936,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 38,
       "name": "Steelclaw Reaver",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Headsplitter",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "one-hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "Resplendent Guardian",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "off hand",
       "type": "shield"
      },
@@ -6879,64 +6972,64 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "The Butcher",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "sword"
      },
      {
       "chance": 0.3,
-      "level": null,
+      "level": 39,
       "name": "Scarlet Chestpiece",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "mail"
      },
      {
       "chance": 2.3,
-      "level": null,
+      "level": 37,
       "name": "Scarlet Belt",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "waist",
       "type": "mail"
      },
      {
       "chance": 13.9,
-      "level": null,
+      "level": 44,
       "name": "Scarlet Leggings",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "legs",
       "type": "mail"
      },
      {
       "chance": 2.1,
-      "level": null,
+      "level": 38,
       "name": "Scarlet Gauntlets",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "hands",
       "type": "mail"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 35,
       "name": "Scarlet Boots",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "mail"
      },
      {
       "chance": 2.3,
-      "level": null,
+      "level": 36,
       "name": "Scarlet Wristguards",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "wrist",
       "type": "mail"
      }
@@ -7058,10 +7151,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 36,
       "name": "Mark of Kern",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "finger",
       "type": null
      },
@@ -7076,10 +7169,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Sunblaze Coif",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "head",
       "type": "mail"
      },
@@ -7094,19 +7187,19 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 34,
       "name": "Beguiler Robes",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "cloth"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Chesterfall Musket",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "gun"
      },
@@ -7130,28 +7223,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Dreamslayer",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "mace"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 32,
       "name": "Bloodspiller",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Harbinger Boots",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "leather"
      },
@@ -7202,28 +7295,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 38,
       "name": "Steelclaw Reaver",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Headsplitter",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "one-hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "Resplendent Guardian",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "off hand",
       "type": "shield"
      },
@@ -7238,64 +7331,64 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "The Butcher",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "sword"
      },
      {
       "chance": 0.3,
-      "level": null,
+      "level": 39,
       "name": "Scarlet Chestpiece",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "mail"
      },
      {
       "chance": 2.3,
-      "level": null,
+      "level": 37,
       "name": "Scarlet Belt",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "waist",
       "type": "mail"
      },
      {
       "chance": 13.9,
-      "level": null,
+      "level": 44,
       "name": "Scarlet Leggings",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "legs",
       "type": "mail"
      },
      {
       "chance": 2.1,
-      "level": null,
+      "level": 38,
       "name": "Scarlet Gauntlets",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "hands",
       "type": "mail"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 35,
       "name": "Scarlet Boots",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "mail"
      },
      {
       "chance": 2.3,
-      "level": null,
+      "level": 36,
       "name": "Scarlet Wristguards",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "wrist",
       "type": "mail"
      }
@@ -7335,19 +7428,19 @@
     "items": [
      {
       "chance": 47.7,
-      "level": null,
+      "level": 35,
       "name": "Bloodmage Mantle",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "shoulder",
       "type": "cloth"
      },
      {
       "chance": 49.9,
-      "level": null,
+      "level": 37,
       "name": "Orb of the Forgotten Seer",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "held in off-hand",
       "type": null
      }
@@ -7358,28 +7451,28 @@
     "items": [
      {
       "chance": 40.4,
-      "level": null,
+      "level": 35,
       "name": "Ironspine's Eye",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "finger",
       "type": null
      },
      {
       "chance": 20.3,
-      "level": null,
+      "level": 35,
       "name": "Ironspine's Fist",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "one-hand",
       "type": "mace"
      },
      {
       "chance": 35.7,
-      "level": null,
+      "level": 35,
       "name": "Ironspine's Ribcage",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "mail"
      }
@@ -7390,28 +7483,28 @@
     "items": [
      {
       "chance": 32.0,
-      "level": null,
+      "level": 35,
       "name": "Necrotic Wand",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "wand"
      },
      {
       "chance": 31.3,
-      "level": null,
+      "level": 35,
       "name": "Blighted Leggings",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "legs",
       "type": "cloth"
      },
      {
       "chance": 34.0,
-      "level": null,
+      "level": 35,
       "name": "Ghostshard Talisman",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "neck",
       "type": null
      }
@@ -7422,28 +7515,28 @@
     "items": [
      {
       "chance": 17.8,
-      "level": null,
+      "level": 35,
       "name": "Morbid Dawn",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "sword"
      },
      {
       "chance": 39.5,
-      "level": null,
+      "level": 35,
       "name": "Ebon Vise",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "hands",
       "type": "leather"
      },
      {
       "chance": 39.1,
-      "level": null,
+      "level": 35,
       "name": "Embalmed Shroud",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "head",
       "type": "cloth"
      }
@@ -7495,10 +7588,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 36,
       "name": "Mark of Kern",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "finger",
       "type": null
      },
@@ -7513,10 +7606,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Sunblaze Coif",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "head",
       "type": "mail"
      },
@@ -7531,19 +7624,19 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 34,
       "name": "Beguiler Robes",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "cloth"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Chesterfall Musket",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "gun"
      },
@@ -7567,28 +7660,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Dreamslayer",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "mace"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 32,
       "name": "Bloodspiller",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Harbinger Boots",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "leather"
      },
@@ -7639,28 +7732,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 38,
       "name": "Steelclaw Reaver",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Headsplitter",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "one-hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "Resplendent Guardian",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "off hand",
       "type": "shield"
      },
@@ -7675,64 +7768,64 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "The Butcher",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "sword"
      },
      {
       "chance": 0.3,
-      "level": null,
+      "level": 39,
       "name": "Scarlet Chestpiece",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "mail"
      },
      {
       "chance": 2.3,
-      "level": null,
+      "level": 37,
       "name": "Scarlet Belt",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "waist",
       "type": "mail"
      },
      {
       "chance": 13.9,
-      "level": null,
+      "level": 44,
       "name": "Scarlet Leggings",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "legs",
       "type": "mail"
      },
      {
       "chance": 2.1,
-      "level": null,
+      "level": 38,
       "name": "Scarlet Gauntlets",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "hands",
       "type": "mail"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 35,
       "name": "Scarlet Boots",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "mail"
      },
      {
       "chance": 2.3,
-      "level": null,
+      "level": 36,
       "name": "Scarlet Wristguards",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "wrist",
       "type": "mail"
      }
@@ -7749,28 +7842,28 @@
     "items": [
      {
       "chance": 24.7,
-      "level": null,
+      "level": 30,
       "name": "Dog Whistle",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "trinket",
       "type": null
      },
      {
       "chance": 14.3,
-      "level": null,
+      "level": 36,
       "name": "Loksey's Training Stick",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "staff"
      },
      {
       "chance": 56.0,
-      "level": null,
+      "level": 36,
       "name": "Dog Training Gloves",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "hands",
       "type": "leather"
      }
@@ -7781,37 +7874,37 @@
     "items": [
      {
       "chance": 46.5,
-      "level": null,
+      "level": 39,
       "name": "Robe of Doan",
       "new": false,
-      "quality": null,
+      "quality": "uncommon",
       "slot": "chest",
       "type": "cloth"
      },
      {
       "chance": 47.3,
-      "level": null,
+      "level": 39,
       "name": "Mantle of Doan",
       "new": false,
-      "quality": null,
+      "quality": "uncommon",
       "slot": "shoulder",
       "type": "cloth"
      },
      {
       "chance": 46.7,
-      "level": null,
+      "level": 39,
       "name": "Illusionary Rod",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "staff"
      },
      {
       "chance": 47.1,
-      "level": null,
+      "level": 39,
       "name": "Hypnotic Blade",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "dagger"
      }
@@ -7831,10 +7924,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 36,
       "name": "Mark of Kern",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "finger",
       "type": null
      },
@@ -7849,10 +7942,10 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Sunblaze Coif",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "head",
       "type": "mail"
      },
@@ -7867,19 +7960,19 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 34,
       "name": "Beguiler Robes",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "cloth"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Chesterfall Musket",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "ranged",
       "type": "gun"
      },
@@ -7903,28 +7996,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 33,
       "name": "Dreamslayer",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "mace"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 32,
       "name": "Bloodspiller",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "two-hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Harbinger Boots",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "leather"
      },
@@ -7975,28 +8068,28 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 38,
       "name": "Steelclaw Reaver",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 30,
       "name": "Headsplitter",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "one-hand",
       "type": "axe"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "Resplendent Guardian",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "off hand",
       "type": "shield"
      },
@@ -8011,64 +8104,64 @@
      },
      {
       "chance": null,
-      "level": null,
+      "level": 31,
       "name": "The Butcher",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "main hand",
       "type": "sword"
      },
      {
       "chance": 0.3,
-      "level": null,
+      "level": 39,
       "name": "Scarlet Chestpiece",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "chest",
       "type": "mail"
      },
      {
       "chance": 2.3,
-      "level": null,
+      "level": 37,
       "name": "Scarlet Belt",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "waist",
       "type": "mail"
      },
      {
       "chance": 13.9,
-      "level": null,
+      "level": 44,
       "name": "Scarlet Leggings",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "legs",
       "type": "mail"
      },
      {
       "chance": 2.1,
-      "level": null,
+      "level": 38,
       "name": "Scarlet Gauntlets",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "hands",
       "type": "mail"
      },
      {
       "chance": null,
-      "level": null,
+      "level": 35,
       "name": "Scarlet Boots",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "feet",
       "type": "mail"
      },
      {
       "chance": 2.3,
-      "level": null,
+      "level": 36,
       "name": "Scarlet Wristguards",
       "new": false,
-      "quality": null,
+      "quality": "rare",
       "slot": "wrist",
       "type": "mail"
      }
@@ -11176,6 +11269,15 @@
       "quality": "rare",
       "slot": "wrist",
       "type": "cloth"
+     },
+     {
+      "chance": null,
+      "level": 29,
+      "name": "Demolition Girdle",
+      "new": true,
+      "quality": "rare",
+      "slot": "waist",
+      "type": "leather"
      }
     ],
     "name": "Kam Deepfury"
@@ -11222,6 +11324,15 @@
       "quality": "rare",
       "slot": "thrown",
       "type": "thrown"
+     },
+     {
+      "chance": null,
+      "level": 26,
+      "name": "Defias Renegade Ring",
+      "new": true,
+      "quality": "rare",
+      "slot": "finger",
+      "type": null
      }
     ],
     "name": "Trash"
@@ -11318,9 +11429,50 @@
       "quality": "rare",
       "slot": "hands",
       "type": "mail"
+     },
+     {
+      "chance": null,
+      "level": 30,
+      "name": "Repurposed Rack",
+      "new": true,
+      "quality": "rare",
+      "slot": "off hand",
+      "type": "shield"
      }
     ],
     "name": "Hamhock"
+   },
+   {
+    "items": [
+     {
+      "chance": null,
+      "level": 28,
+      "name": "Graverobber's Shovel",
+      "new": true,
+      "quality": "rare",
+      "slot": "two-hand",
+      "type": "mace"
+     },
+     {
+      "chance": null,
+      "level": 28,
+      "name": "Boneslicer",
+      "new": true,
+      "quality": "rare",
+      "slot": "two-hand",
+      "type": "polearm"
+     },
+     {
+      "chance": null,
+      "level": 28,
+      "name": "Nightskulker Ring",
+      "new": true,
+      "quality": "rare",
+      "slot": "finger",
+      "type": null
+     }
+    ],
+    "name": "Dextren Ward"
    }
   ],
   "name": "The Stockade",
