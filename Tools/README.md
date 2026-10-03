@@ -31,6 +31,12 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 | `build_bis_data.py` | Builds `BiS/NaowhForever_BiSData.lua` from wowsrc.com's per-spec BiS pages. Item IDs are cached in `bis_item_ids.json`. `--check` says what changed on their pages, `--offline` builds without Wowhead (both daily in CI). | The BiS List's picks, with permission from wowsrc. |
 | `build_dungeon_loot.py` | Builds `BiS/NaowhForever_DungeonLoot.lua`: everything a dungeon drops, from Wowhead's zone pages. Also holds the shared Wowhead `fetch`. | So a BiS item can say where it drops. |
 
+## Training Planner
+
+| Tool | What it does | Why |
+| --- | --- | --- |
+| `build_training.py` | Builds `Training/NaowhForever_TrainingData.lua`: every spell each class learns from a trainer or a quest, with its level, base price, the rank before it, the talent it needs and its races. Spells, levels and prices from Wowhead Forever's class lists (cached in `training_cache.json`), talents from the game's tables (via `wago.py`). | The client has no list of what a trainer will teach you later, nor its prices. The addon updates a price from the trainer window once you open it. |
+
 ## Boss reminders
 
 | Tool | What it does | Why |

@@ -66,6 +66,14 @@ local MODULES = {
           { name = "Books", build = "BuildDiscoveryBooksPage", reuse = true, noscan = true },
           { name = "Settings", build = "BuildDiscoverySettingsPage", reuse = true },
       } },
+    -- The planner itself is a window of its own (open); only its settings live here.
+    { name = "Training Planner", group = "ADVENTURE", navIcon = "notes", settings = "TrainingSettings",
+      open = "ToggleTrainingWindow",
+      command = "training", short = "Training", icon = "Interface\\Icons\\INV_Misc_Book_11",
+      subtitle = "What you can train now, what each level brings and what it costs.",
+      tabs = {
+          { name = "Settings", build = "BuildTrainingSettingsPage", reuse = true },
+      } },
     { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
@@ -918,14 +926,15 @@ local function CreateWindow()
         if group ~= "" then
             local label = ns.Font(nav, 11, nil, T.muted)
             label:SetPoint("TOPLEFT", 20, ny - 10); label:SetText(ns.L(group))
-            ny = ny - 30
+            ny = ny - 28
         end
         for _, mod in ipairs(grouped[group]) do
             local btn = NavigationButton(nav, DisplayName(mod), ny,
                 function() ShowPage(lastPages[mod.name] or mod.tabs[1].key) end, mod.navIcon)
-            btn:SetHeight(32)
+            -- Spaced to fit every module in the default 790-high window (test-navigation.lua).
+            btn:SetHeight(30)
             navButtons[mod.name] = btn
-            ny = ny - 34
+            ny = ny - 32
         end
     end
     nav:SetHeight(-ny)
