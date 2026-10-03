@@ -434,6 +434,8 @@ function ns.BuildQoLGeneralPage(parent, y)
     local W = UI.Widgets
     local _, h
 
+    y = ns.BuildTopBarSection(parent, y)
+
     _, h = W:SectionHeader(parent, "Death Release", y); y = y - h
     _, h = W:Note(parent, "Hold to release inside dungeons and raids.", y); y = y - h
     _, h = W:DualRow(parent, y,

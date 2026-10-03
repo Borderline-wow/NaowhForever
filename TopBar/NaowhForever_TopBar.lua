@@ -764,15 +764,15 @@ end)
 -------------------------------------------------------------------------------
 --  Options
 -------------------------------------------------------------------------------
-function ns.BuildTopBarPage(parent, y)
+-- The top of QoL > General.
+function ns.BuildTopBarSection(parent, y)
     local W = UI.Widgets
     local _, h
+    _, h = W:SectionHeader(parent, "TOP BAR", y); y = y - h
     _, h = W:Note(parent, "Friends and guild on the left, the clock in the middle, addon "
         .. "buttons on either side, with FPS and latency underneath. Move it in Unlock Mode.",
         y); y = y - h
-
-    _, h = W:SectionHeader(parent, "TOP BAR", y); y = y - h
-    _, h = W:Feature(parent, y, { type = "label", text = "Bar" }); y = y - h
+    _, h = W:Feature(parent, y, S.Toggle("enabled", "Top Bar"), "Bar"); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("use24h", "24-Hour Clock", nil, "enabled"),
         S.Slider("bgAlpha", "Bar Opacity (%)", 0, 100, 5, nil, "enabled")
@@ -894,12 +894,14 @@ function ns.BuildTopBarPage(parent, y)
             local row
             row, h = W:DualRow(parent, y, Row(names[i]), names[i + 1] and Row(names[i + 1])
                 or { type = "label", text = "" }); y = y - h
-            SideCog(row._leftRegion, names[i])
-            -- Rows are reused, so a blank half can still hold a cog from a longer list.
-            if names[i + 1] then
-                SideCog(row._rightRegion, names[i + 1])
-            elseif row._rightRegion._cog then
-                row._rightRegion._cog:Hide()
+            if row then   -- nil while the settings search scans this page
+                SideCog(row._leftRegion, names[i])
+                -- Rows are reused, so a blank half can still hold a cog from a longer list.
+                if names[i + 1] then
+                    SideCog(row._rightRegion, names[i + 1])
+                elseif row._rightRegion._cog then
+                    row._rightRegion._cog:Hide()
+                end
             end
         end
     end

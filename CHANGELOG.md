@@ -185,6 +185,7 @@
 - Swing Timer: Apply Theme to Bar Colours (Colours, off by default) colors the main hand bar with your theme's Accent, the off hand bar with its lighter Accent and the ranged bar with a deeper shade of it, instead of the colors picked there.
 
 ### Changed
+- Top Bar settings moved from their own sidebar page to the top of QoL > General, with a Top Bar switch in place of the page's Enable switch. /nf still opens on them.
 - The options window's sidebar header shows the NaowhUI Forever logo, and the search box beside it is narrower.
 - Flight Timer: with Land Early Button on, Blizzard's own Request Stop button is hidden
   during the flight, so there is only one. It comes back when you land.

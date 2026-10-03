@@ -143,6 +143,10 @@ Load("Core/NaowhForever_Search.lua")
 Load("QoL/NaowhForever_QoL.lua")
 local UI = ns.UI
 ns.BuildQoLInterfacePage = function(parent, y) return y end
+ns.BuildTopBarSection = function(parent, y)
+    local _, h = UI.Widgets:SectionHeader(parent, "TOP BAR", y)
+    return y - h
+end
 for _, name in ipairs({ "JournalSettings", "DiscoverySettings", "ProfessionSettings", "MacroSettings", "AuraBuffSettings",
     "ThreatMeterSettings", "SwingTimerSettings", "TopBarSettings", "ActionBarSettings" }) do
     ns[name] = UI.ModuleSettings(name, { enabled = false })
@@ -164,16 +168,17 @@ end
 local cases = 0
 local function Check(ok, why) assert(ok, why); cases = cases + 1 end
 ns.OpenOptionsWindow()
-Check(Text("Top Bar / Bar") ~= nil, "opens to the Top Bar")
+Check(Text("Quality of Life / General") ~= nil and Text("TOP BAR") ~= nil, "opens to QoL General, Top Bar first")
 Check(Text("ADVENTURE") and Text("COMBAT") and Text("UTILITIES"), "grouped navigation")
 Check(not Text("Custom Reminders"), "unfinished module is absent from navigation")
 Check(Button("Quality of Life").switch == nil, "navigation does not toggle modules")
 for _, name in ipairs({ "Quality of Life", "Dungeon Journal", "Discovery", "BiS List", "Professions",
     "Gear & Trinkets", "Blessings", "AuraBuffs", "Threat Meter", "Swing Timer", "Smart Reminders",
-    "Macros", "Action Bars", "Top Bar" }) do
+    "Macros", "Action Bars" }) do
     Check(Button(name).icon ~= nil, name .. " is listed with its glyph")
 end
-local moduleList = Button("Top Bar").parent
+Check(not Text("Top Bar"), "Top Bar is no longer its own module")
+local moduleList = Button("Action Bars").parent
 local moduleScroll = moduleList.parent
 local mainWindow = moduleScroll.parent.parent
 local originalHeight = mainWindow:GetHeight()
@@ -181,9 +186,9 @@ mainWindow:SetHeight(790)
 moduleScroll.scripts.OnSizeChanged(moduleScroll)
 Check(moduleScroll:GetVerticalScrollRange() == 0, "all modules fit in the default 790-high window")
 Check(not moduleScroll.ScrollBar:IsShown(), "navigation scrollbar hides when everything fits")
-local lastModule = Button("Top Bar")
+local lastModule = Button("Action Bars")
 Check(-lastModule.points.TOPLEFT[4] + lastModule:GetHeight() <= moduleScroll:GetHeight(),
-    "Top Bar fits fully above the fixed footer")
+    "Action Bars fits fully above the fixed footer")
 mainWindow:SetHeight(620)
 moduleScroll.scripts.OnSizeChanged(moduleScroll)
 Check(moduleScroll.ScrollBar:IsShown(), "short windows display a navigation scrollbar")
@@ -255,8 +260,8 @@ Button("Interface").scripts.OnClick(); Flush()
 Check(Text("Quality of Life / Interface") ~= nil, "category navigation works")
 Button("Swing Timer").scripts.OnClick(); Flush()
 Check(Text("Bars") and Text("Timing Aids") and not Text("General"), "each module shows only its own tabs")
-Button("Top Bar").scripts.OnClick(); Flush()
-Check(not Text("General") and not Text("Bar"), "single-page module shows no tab row")
+Button("Threat Meter").scripts.OnClick(); Flush()
+Check(not Text("General") and not Text("Meter"), "single-page module shows no tab row")
 Button("Quality of Life").scripts.OnClick(); Flush()
 Check(Text("Quality of Life / Interface") ~= nil, "returning to a module remembers its page")
 Button("General").scripts.OnClick(); Flush()
@@ -277,10 +282,10 @@ ns.QoLSettings.Set("deathReleaseHold", 2)
 switch.scripts.OnClick(); Flush()
 Check(ns.QoLSettings.Get("enabled") == false and ns.QoLSettings.Get("deathReleaseHold") == 2,
     "module switch preserves feature settings")
-Button("Top Bar").scripts.OnClick(); Flush()
+Button("Threat Meter").scripts.OnClick(); Flush()
 Check(switch._get() == false, "same switch rebinds to the newly selected module")
 switch.scripts.OnClick(); Flush()
-Check(ns.TopBarSettings.Get("enabled") == true and ns.QoLSettings.Get("enabled") == false,
+Check(ns.ThreatMeterSettings.Get("enabled") == true and ns.QoLSettings.Get("enabled") == false,
     "switch changes only the selected module")
 Button("Quality of Life").scripts.OnClick(); Flush()
 settings = { qol = { enabled = true, deathReleaseHold = 1.5 } }

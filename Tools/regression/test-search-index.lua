@@ -145,7 +145,7 @@ end
 do
     local expected = { ["Patch Notes"] = true, ["Profiles"] = true, ["QoL/Tools"] = true,
         ["Discovery/Books"] = true, ["Blessings/Bar"] = true, ["Blessings/Assignments"] = true,
-        ["BiS List/List"] = true, ["AuraBuffs/Poison & Dispel"] = true, ["Top Bar/Bar"] = true,
+        ["BiS List/List"] = true, ["AuraBuffs/Poison & Dispel"] = true,
         ["Smart Reminders/Setup"] = true, ["Smart Reminders/Cooldown Presets"] = true,
         ["Smart Reminders/Dungeon Bosses"] = true, ["Smart Reminders/Raid Bosses"] = true }
     local module, total, seen = nil, 0, {}
@@ -164,7 +164,7 @@ do
             Check(noscan == (expected[name] == true), name .. ": noscan is " .. tostring(expected[name] == true))
         end
     end
-    Check(total == 43, "the window lists 43 pages (" .. total .. "): decide noscan for a new one")
+    Check(total == 42, "the window lists 42 pages (" .. total .. "): decide noscan for a new one")
     for name in pairs(expected) do Check(seen[name] ~= nil, "the audited page still exists: " .. name) end
 end
 

@@ -132,11 +132,6 @@ local MODULES = {
           { name = "Bars", build = "BuildSwingTimerPage", reuse = true, collapse = true },
           { name = "Timing Aids", build = "BuildSwingTimerAidsPage", reuse = true, collapse = true },
       } },
-    { name = "Top Bar", group = "UTILITIES", navIcon = "window", settings = "TopBarSettings",
-      subtitle = "Friends, guild, the clock and your addon buttons across the top of the screen.",
-      tabs = {
-          { name = "Bar", build = "BuildTopBarPage", reuse = true, collapse = true, noscan = true },
-      } },
     { name = "Custom Reminders", settings = "CustomReminderSettings",
       subtitle = "Your own reminders, driven by the same triggers Smart Reminders uses.",
       tabs = {
@@ -175,7 +170,7 @@ local lastPages = {}
 local navButtons, tabButtons, tabStrips = {}, {}, {}
 local wrappers = {}          -- page key -> built wrapper frame
 -- The first page of a session; after that the window reopens where it was left.
-local currentPage = "Top Bar/Bar"
+local currentPage = "QoL/General"
 local pendingRefresh
 local onShowCallbacks, onHideCallbacks = {}, {}
 local moduleWindows = {}     -- module name -> its standalone window
