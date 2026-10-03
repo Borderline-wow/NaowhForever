@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Macros > Consumables: Food & Drink Bar (off by default), two buttons for the best food and the
+  best drink in your bags, conjured first. Click to eat or drink; move it in Unlock Mode.
 - Training Planner (/nftraining, or its minimap and top bar button): a window with what your
   next trainer visit costs against your gold, a road to 60 with a dot for every level that
   brings spells (click one to see them), what is left to pay up to 60, the spells you can

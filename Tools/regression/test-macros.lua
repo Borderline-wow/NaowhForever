@@ -21,7 +21,24 @@ local function Fixture(opts)
     local account = {}
     local combat, group = false, opts.group
     local consts = { MAX_ACCOUNT_MACROS = opts.max or 30, MAX_CHARACTER_MACROS = opts.maxChar or 30 }
-    local handler, registered = nil, {}
+    local frames = {}
+    local function Frame(name)
+        local fr = { name = name, events = {}, attrs = {}, shown = true }
+        setmetatable(fr, { __index = function() return function() end end })
+        function fr:SetScript(k, fn) if k == "OnEvent" then self.handler = fn end end
+        function fr:RegisterEvent(event) self.events[event] = true end
+        function fr:UnregisterEvent(event) self.events[event] = nil end
+        function fr:UnregisterAllEvents() self.events = {} end
+        function fr:SetAttribute(k, v) self.attrs[k] = v end
+        function fr:Show() self.shown = true end
+        function fr:Hide() self.shown = false end
+        function fr:SetTexture(v) self.texture = v end
+        function fr:SetDesaturated(v) self.desaturated = v end
+        function fr:SetText(v) self.text = v end
+        function fr:CreateTexture() return Frame() end
+        frames[#frames + 1] = fr
+        return fr
+    end
 
     local S = {}
     local ns = {
@@ -30,7 +47,13 @@ local function Fixture(opts)
         Print = function(msg) printed[#printed + 1] = msg end,
         AccountSettings = function() return account end,
         Apply = function() end,
+        ShowRaidReminderAnchorConfig = function() end,
+        HideRaidReminderAnchorConfig = function() end,
+        Font = function() return Frame() end,
+        Border = function() end,
+        PixelInset = function() end,
         UI = {
+            AttachMover = function() return Frame() end,
             STATUS = setmetatable({}, { __index = function() return "" end }),
             ModuleSettings = function(_, defaults)
                 function S.Get(k)
@@ -62,6 +85,7 @@ local function Fixture(opts)
         },
         C_Item = {
             GetItemCount = Count,
+            GetItemIconByID = function(id) return "icon" .. id end,
             GetItemSpell = function(id) return ITEMS[id] and ITEMS[id][1] end,
             GetItemInfo = function(id)
                 return "item", nil, nil, nil, ITEMS[id] and ITEMS[id][2]
@@ -92,12 +116,7 @@ local function Fixture(opts)
         end,
         DeleteMacro = function(i) deleted = deleted + 1; table.remove(macros, i) end,
         InCombatLockdown = function() return combat end,
-        CreateFrame = function()
-            return {
-                SetScript = function(_, _, fn) handler = fn end,
-                RegisterEvent = function(_, event) registered[event] = true end,
-            }
-        end,
+        CreateFrame = function(_, name) return Frame(name) end,
         hooksecurefunc = function(tbl, key, fn)
             local orig = tbl[key]
             tbl[key] = function(...) orig(...); fn(...) end
@@ -116,7 +135,16 @@ local function Fixture(opts)
     chunk()
 
     local t = { ns = ns }
-    function t.Fire(event) if registered[event] then handler(nil, event) end end
+    function t.Fire(event)
+        for _, fr in ipairs(frames) do
+            if fr.events[event] then fr.handler(fr, event) end
+        end
+    end
+    function t.FoodBar()
+        for _, fr in ipairs(frames) do
+            if fr.name == "NaowhForeverFoodBar" then return fr end
+        end
+    end
     function t.Set(k, v) S.Set(k, v) end
     function t.Body(name) local i = Find(name); return i > 0 and macros[i].body or nil end
     function t.Macro(name) local i = Find(name); return i > 0 and macros[i] or nil end
@@ -340,6 +368,39 @@ do
     t.ns.PickupProfileMacro({ name = "Typo", body = "/castt Frostbolt" })
     Check("typo macro still created", t.Body("Typo"), "/castt Frostbolt")
     Check("typo macro warns", t.printed[#t.printed]:find("Typo may not work", 1, true) ~= nil, true)
+end
+
+-- Food & Drink bar: built only once switched on, best food and drink, updates after combat.
+do
+    local t = Fixture({ bags = { 1179, 8766, 5349, 4599 } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    Check("food bar not built while off", t.FoodBar(), nil)
+    t.Set("foodBar", true)
+    local bar = t.FoodBar()
+    local food, drink = bar.buttons[1], bar.buttons[2]
+    Check("food bar shown", bar.shown, true)
+    Check("conjured food first", food.attrs.item1, "item:5349")
+    Check("highest level drink", drink.attrs.item1, "item:8766")
+    Check("food button uses an item", food.attrs.type1, "item")
+    Check("drink icon", drink.icon.texture, "icon8766")
+    Check("food count", food.count.text, 1)
+
+    t.Combat(true)
+    t.Bags({ 4599, 4599 })
+    t.Fire("BAG_UPDATE_DELAYED")
+    Check("no change in combat", food.attrs.item1, "item:5349")
+    t.Combat(false)
+    t.Fire("PLAYER_REGEN_ENABLED")
+    Check("food after combat", food.attrs.item1, "item:4599")
+    Check("count after combat", food.count.text, 2)
+    Check("no drink: button does nothing", drink.attrs.type1, nil)
+    Check("no drink: icon greyed", drink.icon.desaturated, true)
+
+    t.Set("foodBar", false)
+    Check("food bar hidden when off", bar.shown, false)
+    t.Bags({ 1179 })
+    t.Fire("BAG_UPDATE_DELAYED")
+    Check("bag changes ignored while off", food.attrs.item1, "item:4599")
 end
 
 if failures > 0 then

@@ -14,6 +14,7 @@ local S = UI.ModuleSettings("macros", {
     trinket1 = false, trinket2 = false,
     focus = false, focusMark = false, focusMarker = 8, focusAnnounce = false,
     acceptPopup = false,
+    foodBar = false, foodBarSize = 36,
 })
 -- Authored definitions travel with shared packs; presentation settings stay in this module.
 local GetSetting, SetSetting = S.Get, S.Set
@@ -249,6 +250,17 @@ function ns.BuildMacroConsumablesPage(parent, y)
     _, h = W:DualRow(parent, y,
         MacroIcon("bandage", "Bandage Macro",
             "Bandages yourself with the best bandage in your bags."),
+        { type = "label", text = "" }
+    ); y = y - h
+
+    _, h = W:SectionHeader(parent, "FOOD & DRINK BAR" .. STATUS.untested, y); y = y - h
+    _, h = W:Feature(parent, y,
+        S.Toggle("foodBar", "Food & Drink Bar",
+            "Two buttons: the best food and the best drink in your bags, conjured first. Click "
+            .. "to eat or drink. They update as your bags change, after combat. Move it in Unlock Mode.")
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Slider("foodBarSize", "Icon Size", 20, 70, 1, nil, "foodBar"),
         { type = "label", text = "" }
     ); y = y - h
 
@@ -520,3 +532,91 @@ events:RegisterEvent("UPDATE_MACROS")
 
 hooksecurefunc(S, "Set", SettingChanged)
 hooksecurefunc(ns, "Apply", Update)
+
+-------------------------------------------------------------------------------
+--  Food & Drink bar: one button for the best food and one for the best drink.
+-------------------------------------------------------------------------------
+local FOOD_BAR_EMPTY = { { icon = 133971, text = "No food in your bags" },
+    { icon = 132794, text = "No drink in your bags" } }
+local FOOD_BAR_GAP = 4
+local foodBar, foodBarMoving, foodBarPending
+local foodBarEvents = CreateFrame("Frame")
+
+-- The buttons are secure, so the bar is built, shown, hidden and pointed at items out of combat.
+local function ApplyFoodBar()
+    if InCombatLockdown() then
+        foodBarPending = true
+        foodBarEvents:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return
+    end
+    foodBarPending = false
+    if not (S.Get("enabled") and S.Get("foodBar")) then
+        foodBarEvents:UnregisterAllEvents()
+        if foodBar then foodBar:Hide() end
+        return
+    end
+    foodBarEvents:RegisterEvent("BAG_UPDATE_DELAYED")
+    if not foodBar then
+        foodBar = CreateFrame("Frame", "NaowhForeverFoodBar", UIParent)
+        foodBar:SetMovable(true)
+        foodBar:SetClampedToScreen(true)
+        foodBar.buttons = {}
+        for i = 1, 2 do
+            local button = CreateFrame("Button", nil, foodBar, "SecureActionButtonTemplate")
+            button:RegisterForClicks("AnyUp", "AnyDown")
+            button.icon = button:CreateTexture(nil, "ARTWORK")
+            ns.PixelInset(button.icon, 1)
+            button.count = ns.Font(button, 12, "OUTLINE")
+            button.count:SetPoint("BOTTOMRIGHT", -2, 2)
+            ns.Border(button, { r = 0, g = 0, b = 0 })
+            button:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                if self.itemID then
+                    GameTooltip:SetItemByID(self.itemID)
+                else
+                    GameTooltip:SetText(FOOD_BAR_EMPTY[i].text)
+                end
+                GameTooltip:Show()
+            end)
+            button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            foodBar.buttons[i] = button
+        end
+        foodBar.mover = UI.AttachMover(foodBar, "Food & Drink", function(pos) S.Set("foodBarPos", pos) end)
+    end
+    local size = S.Get("foodBarSize")
+    foodBar:SetSize(size * 2 + FOOD_BAR_GAP, size)
+    foodBar:ClearAllPoints()
+    local pos = S.Get("foodBarPos")
+    if pos then foodBar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    else foodBar:SetPoint("CENTER", UIParent, "CENTER", 0, -210) end
+    local items = { BestFoodAndDrink() }
+    for i, button in ipairs(foodBar.buttons) do
+        local id = items[i]
+        button.itemID = id
+        button:SetSize(size, size)
+        button:ClearAllPoints()
+        button:SetPoint("LEFT", (i - 1) * (size + FOOD_BAR_GAP), 0)
+        button:SetAttribute("type1", id and "item" or nil)
+        button:SetAttribute("item1", id and ("item:" .. id) or nil)
+        button.icon:SetTexture(id and C_Item.GetItemIconByID(id) or FOOD_BAR_EMPTY[i].icon)
+        button.icon:SetDesaturated(not id)
+        button.count:SetText(id and C_Item.GetItemCount(id) or "")
+    end
+    foodBar.mover:SetShown(foodBarMoving == true)
+    foodBar:Show()
+end
+
+foodBarEvents:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_REGEN_ENABLED" then
+        foodBarEvents:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        if not foodBarPending then return end
+    end
+    ApplyFoodBar()
+end)
+foodBarEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
+hooksecurefunc(S, "Set", function(key)
+    if key == "enabled" or (key:find("^foodBar") and key ~= "foodBarPos") then ApplyFoodBar() end
+end)
+hooksecurefunc(ns, "Apply", ApplyFoodBar)
+hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function() foodBarMoving = true; ApplyFoodBar() end)
+hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function() foodBarMoving = false; ApplyFoodBar() end)

@@ -35,6 +35,8 @@ local NOTES = {
             .. "and more follow your colours. Thanks to Lyssa.",
         "Campfire: stat tags for each camp benefit, Show Active Camp Buffs on mouseover, and "
             .. "Ctrl-click Camp Nearby to dismiss it.",
+        "Food & Drink Bar (Macros, Consumables): two buttons for the best food and drink in your "
+            .. "bags, conjured first.",
         "Also: Group Tools (Disband, Invite), Skip Modifier for quest automation, Shift-click a "
             .. "recipe to search the AH, Flight Timer hides Blizzard's Request Stop, sound "
             .. "dropdowns play your pick and list None once.",
