@@ -805,8 +805,10 @@ local function NewCell(class)
     cell.label:SetPoint("TOP", cell, "BOTTOM", 0, -2)
     cell.label:SetText(ClassName(class))
     cell.header, cell.cast = Recipient(cell, "NaowhForeverBless" .. class)
-    -- A mouse click acts on release, so up only: one step per click.
+    -- A mouse click acts on release, so up only: one step per click. Addon buttons otherwise
+    -- follow ActionButtonUseKeyDown and act only on the press, which up only never sends.
     cell.cast:RegisterForClicks("AnyUp")
+    cell.cast:SetAttribute("useOnKeyDown", false)
     cell.cast:SetAttribute("count", 0)
     -- Out of combat a click re-reads the class first, so it starts from whoever needs it most.
     cell.cast:SetScript("PreClick", function(_, button)
