@@ -19,8 +19,12 @@ name: daily-watch
 # same for wowsrc's BiS lists and the BiS List's data. Both ask Wowhead nothing (--offline):
 # a new item's facts come from the game's own tables, and what those cannot settle is listed
 # in the pull request, for a run on our machines (Tools/README.md). wowsrc allows crawling,
-# and gave us permission. One pull request each, brought up to date by each run after
-# (Tools/hooks/daily-pull-request.sh); an issue with a link where workflows may not open one.
+# and gave us permission.
+# The three run one after another on one branch, each on what the one before changed, and
+# whatever they change goes in one pull request, one commit (it is squash merged): a title
+# saying what is in it, a short list, and each check's report folded away in its description
+# (Tools/hooks/daily-pull-request.sh). Each run brings the open one up to date; an issue with a
+# link where workflows may not open one. A check that fails leaves out only its own change.
 on:
   schedule:
     # New builds and hotfixes come with the US realms' weekly maintenance (Tuesday mornings,
@@ -39,7 +43,7 @@ on:
         type: boolean
         default: false
       open_pr:
-        description: "Open a pull request when there is a change (untick: report only)"
+        description: "Open the pull request when there is a change (untick: reports only)"
         type: boolean
         default: true
       allow_losses:
@@ -55,14 +59,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  watch:
-    name: watch
+  daily:
+    name: daily
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 75
     permissions:
       contents: write
       pull-requests: write
       issues: write
+    env:
+      # A scheduled run always opens the pull request; a manual one when asked.
+      OPEN_PR: ${{ github.event_name == 'schedule' || inputs.open_pr }}
+      PR: bash Tools/hooks/daily-pull-request.sh
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,16 +82,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      # A scheduled run always opens the pull request; a manual one when asked.
+      # Each check's change is committed as it lands, so a check that fails after it can go back
+      # to it; the pull request squashes them all from BASE into one.
+      - name: Start the branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          echo "BASE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       - name: Compare with the newest Forever build
         id: watch
+        continue-on-error: true
         env:
           BUILD: ${{ inputs.build }}
           FORCE: ${{ inputs.force }}
-          OPEN_PR: ${{ github.event_name == 'schedule' || inputs.open_pr }}
           ALLOW_LOSSES: ${{ inputs.allow_losses }}
         run: |
-          args=(--report report.md --github-output "$GITHUB_OUTPUT")
+          args=(--report "$RUNNER_TEMP/watch.md" --github-output "$GITHUB_OUTPUT")
           if [ -n "$BUILD" ]; then
             if ! [[ "$BUILD" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "::error::Build should read like 1.60.1.12345, not '$BUILD'"
@@ -95,185 +110,118 @@ jobs:
           if [ "$OPEN_PR" = "true" ]; then args+=(--update); fi
           if [ "$ALLOW_LOSSES" = "true" ]; then args+=(--allow-losses); fi
           python Tools/watch_build.py "${args[@]}"
-          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/watch.md" >> "$GITHUB_STEP_SUMMARY"
 
-      # The branch, then the pull request; or, where workflows may not open one, an issue
-      # with a link that does. One issue: a later run finds the watcher's open issue and
-      # brings it up to date (the newest build, its report) instead of opening another.
-      # The script made the change and says what to call it: a new build, or the build's own
-      # hotfixes coming in.
-      - name: Open a pull request
-        if: steps.watch.outputs.made == 'true'
+      # The script made the change and its CHANGELOG line, and says what to call it: a new
+      # build, or the build's own hotfixes coming in.
+      - name: Add the build
+        if: steps.watch.outcome == 'success' && steps.watch.outputs.made == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.watch.outputs.branch }}
           TITLE: ${{ steps.watch.outputs.title }}
-          ISSUE_TITLE: ${{ steps.watch.outputs.issue }}
-          CHANGELOG: ${{ steps.watch.outputs.changelog }}
-          REPO: ${{ github.repository }}
-          SERVER: ${{ github.server_url }}
-          RUN_ID: ${{ github.run_id }}
         run: |
-          branch="$BRANCH"
-          title="$TITLE"
-          issue_title="$ISSUE_TITLE"
-          # With a changelog line it needs no label; without, it changes nothing for players.
-          label=()
-          link_label=""
-          if [ "$CHANGELOG" != "true" ]; then
-            label=(--label "no changelog")
-            link_label="&labels=no+changelog"
-          fi
-          issue="$(gh issue list --state open --search 'author:app/github-actions in:title "WoW Forever build"' \
-            --json number --jq '.[0].number // empty')"
-          pr="$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')"
-          if [ -n "$pr" ]; then
-            echo "A pull request for this is already open: $pr"
-            if [ -n "$issue" ]; then gh issue close "$issue" --comment "Opened: $pr"; fi
-            exit 0
-          fi
-          cp report.md pr.md
-          {
-            echo
-            echo "---"
-            echo "Opened by the daily build watcher (.github/workflows/daily-watch.yml)."
-            echo "Checks do not run on a pull request a workflow opens: close and reopen it to run them."
-          } >> pr.md
-          git config user.name "github-actions[bot]"
-          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git add Tools/wago.py DungeonJournal/Data CHANGELOG.md
-          git commit -m "$title"
-          gh auth setup-git
-          git push --force origin "$branch"
-          if gh pr create --base main --head "$branch" "${label[@]}" --title "$title" --body-file pr.md; then
-            if [ -n "$issue" ]; then
-              gh issue close "$issue" --comment "Opened: $(gh pr list --head "$branch" --json url --jq '.[0].url')"
-            fi
-            exit 0
-          fi
-          echo "::warning::Workflows may not open pull requests here: an issue instead."
-          # A new issue first, for its number: the link's pull request closes it when merged.
-          if [ -n "$issue" ]; then
-            number="$issue"
-          else
-            url="$(gh issue create --title "$issue_title" --body "The report follows in a moment.")"
-            number="${url##*/}"
-          fi
-          body="$(printf 'Closes #%s, where the build watcher reported what the build changes.' "$number")"
-          link="$SERVER/$REPO/compare/main...$branch?quick_pull=1$link_label"
-          link="$link&title=$(jq -rn --arg t "$title" '$t|@uri')&body=$(jq -rn --arg t "$body" '$t|@uri')"
-          {
-            echo "**[Open the pull request]($link)**: its title and description are filled in,"
-            echo "and it runs the checks as any pull request does. Merging it closes this issue."
-            echo
-            echo "The branch \`$branch\` holds the change. This repository's workflows may not open"
-            echo "pull requests themselves (Settings, Actions, General: \"Allow GitHub Actions to create"
-            echo "and approve pull requests\", which the organization has to allow first)."
-            echo
-            cat report.md
-            echo
-            echo "---"
-            echo "Kept up to date by the daily build watcher (.github/workflows/daily-watch.yml);"
-            echo "last run: $SERVER/$REPO/actions/runs/$RUN_ID ($(date -u '+%Y-%m-%d %H:%M') UTC)."
-          } > issue.md
-          gh issue edit "$number" --title "$issue_title" --body-file issue.md
-          echo "Issue #$number is up to date."
-
-  loot:
-    name: loot
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
+          $PR add watch "${TITLE#chore(data): }" "$RUNNER_TEMP/watch.md" "" \
+            Tools/wago.py DungeonJournal/Data CHANGELOG.md
 
       - name: Compare wowsrc.com's loot pages with ours
-        id: check
+        id: loot
+        if: ${{ !cancelled() }}
+        continue-on-error: true
         run: |
-          python Tools/wowsrc.py --check --report report.md --github-output "$GITHUB_OUTPUT"
+          git reset -q --hard HEAD && git clean -fdq -- Tools DungeonJournal BiS
+          python Tools/wowsrc.py --check --report "$RUNNER_TEMP/loot.md" --github-output "$GITHUB_OUTPUT"
+          if grep -q "^changes=true" "$GITHUB_OUTPUT"; then
+            # The pages the check read (Tools/wowsrc_pages), their names to item IDs, the Journal.
+            python Tools/wowsrc.py
+            python Tools/wowsrc.py --resolve --offline 2> "$RUNNER_TEMP/resolve.txt"
+            python Tools/build_journal.py --offline > /dev/null 2> "$RUNNER_TEMP/build.txt"
+            {
+              echo
+              echo "### What the build said"
+              echo
+              echo '```'
+              tail -n 60 "$RUNNER_TEMP/resolve.txt"
+              grep -v "^ *[0-9]*  " "$RUNNER_TEMP/build.txt" | tail -n 80
+              echo '```'
+            } >> "$RUNNER_TEMP/loot.md"
+          fi
+          cat "$RUNNER_TEMP/loot.md" >> "$GITHUB_STEP_SUMMARY"
 
-      # The pages the check read (Tools/wowsrc_pages), their names to item IDs, the Journal.
-      - name: Rebuild the Journal from them
-        if: steps.check.outputs.changes == 'true'
+      - name: Add the boss loot
+        if: steps.loot.outcome == 'success' && steps.loot.outputs.changes == 'true'
         run: |
-          python Tools/wowsrc.py
-          python Tools/wowsrc.py --resolve --offline 2> resolve.txt
-          python Tools/build_journal.py --offline > /dev/null 2> build.txt
-          {
-            echo
-            echo "### What the build said"
-            echo
-            echo '```'
-            tail -n 60 resolve.txt
-            grep -v "^ *[0-9]*  " build.txt | tail -n 80
-            echo '```'
-          } >> report.md
-
-      - name: Open a pull request
-        if: steps.check.outputs.changes == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SERVER: ${{ github.server_url }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          bash Tools/hooks/daily-pull-request.sh wowsrc-loot "chore(journal): boss loot from wowsrc.com's latest pages"             report.md "- Dungeon Journal: boss loot updated from the latest Forever loot lists."             Tools/wowsrc_loot.json Tools/item_names.json Tools/journal_cache.json DungeonJournal/Data
-
-  bis:
-    name: bis
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
+          $PR add loot "boss loot" "$RUNNER_TEMP/loot.md" \
+            "- Dungeon Journal: boss loot updated from the latest Forever loot lists." \
+            Tools/wowsrc_loot.json Tools/item_names.json Tools/journal_cache.json DungeonJournal/Data
 
       - name: Compare wowsrc.com's BiS lists with ours
-        id: check
+        id: bis
+        if: ${{ !cancelled() }}
+        continue-on-error: true
         run: |
-          python Tools/build_bis_data.py --check --report report.md --github-output "$GITHUB_OUTPUT"
+          git reset -q --hard HEAD && git clean -fdq -- Tools DungeonJournal BiS
+          python Tools/build_bis_data.py --check --report "$RUNNER_TEMP/bis.md" --github-output "$GITHUB_OUTPUT"
+          if grep -q "^changes=true" "$GITHUB_OUTPUT"; then
+            python Tools/build_bis_data.py --offline 2> "$RUNNER_TEMP/bis-build.txt"
+            {
+              echo
+              echo "### What the build said"
+              echo
+              echo '```'
+              tail -n 80 "$RUNNER_TEMP/bis-build.txt"
+              echo '```'
+            } >> "$RUNNER_TEMP/bis.md"
+          fi
+          cat "$RUNNER_TEMP/bis.md" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Rebuild the BiS data from them
-        if: steps.check.outputs.changes == 'true'
+      - name: Add the BiS lists
+        if: steps.bis.outcome == 'success' && steps.bis.outputs.changes == 'true'
         run: |
-          python Tools/build_bis_data.py --offline 2> build.txt
+          $PR add bis "BiS lists" "$RUNNER_TEMP/bis.md" \
+            "- BiS List: picks updated from wowsrc.com's latest lists." \
+            BiS/NaowhForever_BiSData.lua Tools/bis_item_ids.json Tools/bis_sources.json
+
+      # A new pick CI could not find a source for (it may not read Wowhead) fails the
+      # regression test every pull request runs: the pull request stays a draft, saying what
+      # to run on our machines, so it is not merged red.
+      - name: Check every BiS pick has a source
+        if: steps.bis.outcome == 'success' && steps.bis.outputs.changes == 'true'
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q lua5.1
+          if lua5.1 Tools/regression/test-bis-dungeon-drops.lua > "$RUNNER_TEMP/sources.txt" 2>&1; then
+            echo "Every pick has a source."
+            exit 0
+          fi
+          missing="$(grep -o 'no source: [0-9, ]*' "$RUNNER_TEMP/sources.txt" | head -n 1 | sed 's/^no source: //')"
           {
-            echo
-            echo "### What the build said"
-            echo
-            echo '```'
-            tail -n 80 build.txt
-            echo '```'
-          } >> report.md
+            echo "Some new BiS picks have no source (CI may not read Wowhead): ${missing:-see the run}."
+            echo "On a branch from main, run \`python Tools/build_bis_data.py --sources-only\` and add what"
+            echo "Wowhead has no source for either to the known list in"
+            echo "\`Tools/regression/test-bis-dungeon-drops.lua\`, in a pull request of its own (as #57"
+            echo "did). Once it is merged, the next run rebuilds this one on it and marks it ready."
+          } > "$RUNNER_TEMP/hold.md"
+          $PR hold "$RUNNER_TEMP/hold.md"
 
-      - name: Open a pull request
-        if: steps.check.outputs.changes == 'true'
+      # A check that failed half way: its files as the last good check left them.
+      - name: Leave out what a failed check left
+        if: ${{ !cancelled() }}
+        run: git reset -q --hard HEAD && git clean -fdq -- Tools DungeonJournal BiS
+
+      - name: Open the pull request
+        if: ${{ !cancelled() && env.OPEN_PR == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SERVER: ${{ github.server_url }}
           RUN_ID: ${{ github.run_id }}
+        run: $PR open daily-data
+
+      # The run says a check failed, after the others' changes went in.
+      - name: Fail if a check failed
+        if: ${{ !cancelled() && (steps.watch.outcome == 'failure' || steps.loot.outcome == 'failure' || steps.bis.outcome == 'failure') }}
+        env:
+          WATCH: ${{ steps.watch.outcome }}
+          LOOT: ${{ steps.loot.outcome }}
+          BIS: ${{ steps.bis.outcome }}
         run: |
-          bash Tools/hooks/daily-pull-request.sh wowsrc-bis "chore(bis): BiS lists from wowsrc.com's latest pages"             report.md "- BiS List: picks updated from wowsrc.com's latest lists."             BiS/NaowhForever_BiSData.lua Tools/bis_item_ids.json Tools/bis_sources.json
+          echo "::error::A check failed (watch: $WATCH, loot: $LOOT, bis: $BIS); the others' changes are in the pull request."
+          exit 1

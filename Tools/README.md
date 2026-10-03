@@ -62,21 +62,26 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 | `hooks/check-pr.sh` | PR rules: a CHANGELOG line for addon changes, TOC version untouched. |
 | `hooks/check_toc.py`, `hooks/toc_files.py` | Every file the TOC loads exists, with the right letter case. |
 | `hooks/check-package.sh` | The built zip has one `NaowhForever/` folder, everything it loads, and no tooling. |
-| `hooks/daily-pull-request.sh` | The daily watch's pull request: commits what a job changed, opens the PR or brings the open one up to date, or an issue with a link where workflows may not open PRs. |
+| `hooks/daily-pull-request.sh` | The daily watch's one pull request: `add` commits what a check changed, `open` squashes them into one commit (a title saying what is in it, a short list) and opens the PR or brings the open one up to date, or an issue with a link where workflows may not open PRs. |
 | `release.py` | Release helper for `.github/workflows/release.yml`: version bump, notes, changelog. |
 
 ## What CI runs
 
 - **Every PR** (`checks.yml`): luacheck and pre-commit, the Lua regression tests, PR rules,
   and a package check.
-- **Daily** (`daily-watch.yml`), three jobs. Each opens one pull request when there's
-  something (`loot` and `bis` through `hooks/daily-pull-request.sh`, which keeps it up to
-  date); where workflows may not open one, an issue with a one-click link:
+- **Daily** (`daily-watch.yml`), three checks, one after another on one branch, each on what
+  the one before changed. Whatever they change goes in **one** pull request, as one commit (we
+  squash merge): its title says what is in it (`chore(data): WoW Forever build 1.60.1.70205,
+  boss loot and BiS lists`), its description lists the changes with each check's report folded
+  away (`hooks/daily-pull-request.sh`, which keeps it up to date). A check that fails leaves out
+  only its own change, and the run says so. A new BiS pick CI could not find a source for (it
+  may not read Wowhead) keeps the pull request a draft that says what to run on our machines. Where workflows may not open a pull request, an
+  issue with a one-click link:
   - `watch`: `watch_build.py`. Only reads the game's tables through wago.tools. If there's a
-    new build, a PR moves our faction data to it, with a report of what changed (new gear
-    the Journal doesn't list yet, new dungeon floor maps in the game's map table).
+    new build, the change moves our faction data to it, with a report of what changed (new
+    gear the Journal doesn't list yet, new dungeon floor maps in the game's map table).
   - `loot`: `wowsrc.py --check`. If wowsrc's loot pages changed (a boss gained or lost items,
-    a new boss or page), it rebuilds the Journal with `--offline` and opens a PR.
+    a new boss or page), it rebuilds the Journal with `--offline`.
   - `bis`: `build_bis_data.py --check`, the same for wowsrc's BiS lists.
 
   `--offline` asks Wowhead nothing: a new item's facts come from the game's own tables, and
