@@ -7,35 +7,40 @@ local UI = ns.UI
 
 local NOTES = {
     { title = "0.5.18-beta", lines = {
-        "New options window: the modules are grouped under Adventure, Combat and Utilities on "
-            .. "the left, a module's categories are tabs under its title, and the search at the top "
-            .. "finds any setting. It fits on a 1080p screen.",
-        "Action Bars (Utilities): save your action bars as a named set and put them back later, "
-            .. "out of combat. Sets are shared by every character of your class. Also /nf bars "
-            .. "save, restore, test, delete or list.",
-        "Top Bar: hover the clock to see your saved instances and when each resets, or type "
-            .. "/nf lockouts. Friends and Guild can each be switched off under Buttons.",
-        "Campfire: each camp benefit shows as a short tag (+Spirit, +ATK, +ARM, +STR and so on), "
-            .. "and Ctrl-click the Camp Nearby alert to dismiss it until you leave that campfire.",
-        "XP Bar: Ctrl + right-click it to reset the session time and XP/Hour. Other clicks go "
-            .. "through the bar.",
-        "QoL, XP: XP Bar, XP per Hour and Group XP moved from Questing to their own tab. The XP "
-            .. "Bar settings show a preview of the bar: click a text on it to change it. Three more "
-            .. "spots for texts: Top, and Left and Right beside the bar.",
-        "Skip Modifier (QoL, Questing): pick the key you hold to skip quest automation, Alt, "
-            .. "Ctrl or Shift.",
-        "Shift-Click Searches AH (Professions): with the auction house open, Shift-click a recipe "
-            .. "or a reagent to search for it.",
-        "Unlock Mode: the position readout sits on the display you select.",
-        "Buttons, dropdowns and input boxes have a black border that lights up blue under the "
-            .. "mouse.",
-        "Supporter badges sit after the name in chat, and show in the Guild & Communities list.",
-        "Dungeon Quests: a quest you can't pick up yet says what to do first.",
-        "QoL, General: Co-Tank Debuffs sits inside Co-Tank Frame, and Stealth Reminder's colours "
-            .. "fold away. Auction House Price moved to QoL, Tooltip Display.",
-        "Fixed: the Naowh font no longer replaces the game's own fonts (Settings, Font has Game "
-            .. "Font and Combat Text Font if you want them), Reload UI buttons, Blessings icon "
-            .. "borders, Bag Space in Unlock Mode, Global Copy and a Buff Reminders error.",
+        "Training Planner (/nftraining, Adventure): what your next trainer visit costs against "
+            .. "your gold, a road to 60 with every level that brings spells, and the spells you "
+            .. "can train now with how much stronger each rank is. A toast on level-up, Learn All "
+            .. "I Can Afford beside your class trainer, search, Show Learned and a Mini bar.",
+        "Dungeon Journal (/nfjournal or /nfdj): every dungeon's bosses in kill order with what "
+            .. "they drop, your BiS and upgrades marked, your quests with waypoints, dungeon maps "
+            .. "with the bosses where they stand, kill counts with who was there and who won what, "
+            .. "and Reputation and PvP tabs with every reward. Dungeon Quests is part of it now.",
+        "Blessings: Auto-Assign spreads blessings across the group's paladins, presets save the "
+            .. "plan, class buttons show who needs a blessing at a glance, and in combat each click "
+            .. "blesses the next player who needs it.",
+        "Professions: Buy at Vendor, favourite recipes, a Shopping List for the auction house, "
+            .. "Train Favorites, Craft Orders with another crafter, a Total Craft Timer for batches "
+            .. "and Bind on Equip / Bind on Pickup filters.",
+        "New options window: modules grouped under Adventure, Combat and Utilities, categories "
+            .. "as tabs, a search that finds any setting, and it fits on a 1080p screen.",
+        "Action Bars (Utilities): save your bars as a named set and put them back later. Also "
+            .. "/nf bars save, restore, test, delete or list.",
+        "Threat Meter: With Threat under Show replaces Hide When Empty, the status line can sit "
+            .. "at the top, and Apply Theme to Your Bar.",
+        "Top Bar: saved instances on the clock (/nf lockouts), Show On Mouseover with Faded "
+            .. "Opacity, and Friends and Guild can be switched off.",
+        "XP Bar: its own QoL tab with a clickable preview, three more text spots, your own "
+            .. "colours, and Ctrl + right-click resets the session.",
+        "Themes: colour chips preview a theme, and the Loot Feed, XP Bar, Top Bar, Swing Timer "
+            .. "and more follow your colours. Thanks to Lyssa.",
+        "Campfire: stat tags for each camp benefit, Show Active Camp Buffs on mouseover, and "
+            .. "Ctrl-click Camp Nearby to dismiss it.",
+        "Also: Group Tools (Disband, Invite), Skip Modifier for quest automation, Shift-click a "
+            .. "recipe to search the AH, Flight Timer hides Blizzard's Request Stop, sound "
+            .. "dropdowns play your pick and list None once.",
+        "Fixed: borders and lines no longer lose a side at some UI scales, Group XP sees "
+            .. "everyone again, Blessings with Forever's surnames, the Naowh font stays on this "
+            .. "addon's windows, a warning at login when libraries are missing, and more.",
         "New features are off until you turn them on.",
     } },
     { title = "0.5.17-beta", lines = {

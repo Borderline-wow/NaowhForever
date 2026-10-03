@@ -5,15 +5,16 @@
 ### Added
 - Training Planner (/nftraining, or its minimap and top bar button): a window with what your
   next trainer visit costs against your gold, a road to 60 with a dot for every level that
-  brings spells (click one to see them), what is left to pay up to 60, the spells you can train
-  now as cards, and what waits on a rank, a talent or a later level. Each new rank says how much
-  stronger it is than the one before (+100%, and on its tooltip Fire damage 16-24 to 33-47).
-  Search any spell of your class, and Show Learned lists what you know. Mini swaps the window
-  for a small bar with your next visit and your gold, to leave up while you level. Right-click
-  a spell to skip it or all its ranks, shift-click to link it. A toast on level-up says how many spells wait and what they cost, and
-  beside your class trainer a panel ticks what you can learn with Learn All I Can Afford, then
-  puts the new ranks on your bars. Opening the trainer updates prices to what it asks,
-  reputation discounts included. Off by default.
+  brings spells (click one to see them), what is left to pay up to 60, the spells you can
+  train now as cards, and what waits on a rank, a talent or a later level. Each new rank says
+  how much stronger it is than the one before (+100%, and on its tooltip Fire damage 16-24 to
+  33-47). Search any spell of your class, and Show Learned lists what you know. Mini swaps
+  the window for a small bar with your next visit and your gold, to leave up while you level.
+  Right-click a spell to skip it or all its ranks, shift-click to link it. A toast on
+  level-up says how many spells wait and what they cost, and beside your class trainer a
+  panel ticks what you can learn with Learn All I Can Afford, then puts the new ranks on your
+  bars. Opening the trainer updates prices to what it asks, reputation discounts included.
+  Off by default.
 - Top Bar: Faded Opacity (with Show On Mouseover) sets how visible the bar and the FPS / MS
   readout stay while the mouse is away. 0% by default, invisible as before.
 - Blessings: in combat each click on a class button blesses the next member of that class who
