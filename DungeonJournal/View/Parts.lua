@@ -39,13 +39,23 @@ local function LinkColor(link, color)
     if link.arrow then link.arrow:SetVertexColor(color.r, color.g, color.b) end
 end
 
+-- A link with nothing behind it yet (a dungeon's Map before its map is drawn) rests muted,
+-- does nothing, and says why on hover.
 local function LinkEnter(link)
+    if link.tip then
+        GameTooltip:SetOwner(link, "ANCHOR_TOP")
+        GameTooltip:SetText(link.tip, 1, 1, 1)
+        if link.tipLine then GameTooltip:AddLine(link.tipLine, T.muted.r, T.muted.g, T.muted.b, true) end
+        GameTooltip:Show()
+    end
+    if link.disabled then return end
     LinkColor(link, T.fg)
     link.underline:Show()
 end
 
 local function LinkLeave(link)
-    LinkColor(link, T.accentSoft)
+    if link.tip then GameTooltip:Hide() end
+    LinkColor(link, link.disabled and T.muted or T.accentSoft)
     link.underline:Hide()
 end
 
@@ -64,7 +74,7 @@ local function Link(parent, onClick, arrow)
     link.underline = ns.Solid(link, "ARTWORK", T.fg, 1)
     link.underline:SetPoint("TOPLEFT", link.text, "BOTTOMLEFT", 0, -1)
     link.underline:SetPoint("TOPRIGHT", link.text, "BOTTOMRIGHT", 0, -1)
-    link.underline:SetHeight(1)
+    ns.Hairline(link.underline, "h")
     link.underline:Hide()
     link:SetScript("OnClick", onClick)
     link:SetScript("OnEnter", LinkEnter)
@@ -170,7 +180,7 @@ function Backdrop:Card(left, top, right, bottom)
         local line = self:Keep(frame:CreateTexture(nil, "BORDER"), BORDER_RGB, CARD_EDGE)
         line:SetPoint(edge[1], fill)
         line:SetPoint(edge[2], fill)
-        if edge[3] then line:SetWidth(1) else line:SetHeight(1) end
+        ns.Hairline(line, edge[3] and "v" or "h")
         parts[#parts + 1] = line
     end
     return parts
@@ -444,9 +454,10 @@ local function SectionClicked(row)
     if row.onToggle then row.onToggle() end
 end
 
+-- The link comes too, for a window to open beside what it was clicked in (Map).
 local function SectionLinkClicked(link)
     local row = link:GetParent()
-    row.onLink(row.linkArg)
+    if row.onLink then row.onLink(row.linkArg, link) end
 end
 
 -- A section title over a line: its title, a muted count after it, and either a chevron
@@ -461,7 +472,7 @@ Kinds.section = {
         row.line = ns.Solid(row, "ARTWORK", T.line, 1)
         row.line:SetPoint("BOTTOMLEFT")
         row.line:SetPoint("BOTTOMRIGHT")
-        row.line:SetHeight(1)
+        ns.Hairline(row.line, "h")
         row.link = Link(row, SectionLinkClicked, true)
         row.link:SetPoint("BOTTOMRIGHT", 0, 4)
         row:SetScript("OnMouseUp", SectionClicked)
@@ -474,7 +485,9 @@ Kinds.section = {
     ---@param linkText? string
     ---@param onLink? fun(arg: any)
     ---@param linkArg? any
-    Set = function(row, title, count, open, onToggle, linkText, onLink, linkArg)
+    ---@param linkTip? string with no onLink: the link rests muted, and this says why on hover
+    ---@param linkTipLine? string a second, muted line under it
+    Set = function(row, title, count, open, onToggle, linkText, onLink, linkArg, linkTip, linkTipLine)
         row.onToggle, row.onLink, row.linkArg = onToggle, onLink, linkArg
         row:EnableMouse(onToggle ~= nil)
         row.arrow:SetShown(onToggle ~= nil)
@@ -483,7 +496,13 @@ Kinds.section = {
         row.text:SetPoint("BOTTOMLEFT", onToggle and 14 or 0, 5)
         row.text:SetText(title:upper() .. (count and "   " .. ns.Color("muted", count) or ""))
         row.link:SetShown(linkText ~= nil)
-        if linkText then SetLink(row.link, linkText) end
+        if linkText then
+            SetLink(row.link, linkText)
+            local link = row.link
+            link.disabled, link.tip, link.tipLine = onLink == nil, linkTip, linkTipLine
+            LinkColor(link, link.disabled and T.muted or T.accentSoft)
+            link.underline:Hide()
+        end
         return SECTION_H
     end,
 }

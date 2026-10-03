@@ -10,6 +10,9 @@ local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 790
 local TOP_H, PAGE_HEADER_H = 64, 128
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
+local BRAND_LOGO = "Interface\\AddOns\\NaowhForever\\Media\\BrandLogo.tga"
+-- The art sits high in its 512x256 canvas, so the texture is pushed down to centre it.
+local BRAND = { width = 186.8, height = 93.4, x = -0.5, y = -14.6 }
 
 -- System pages sit below the module navigation. `build` names the ns builder (resolved at
 -- open time); `arg` is passed after the starting y.
@@ -38,6 +41,7 @@ local MODULES = {
       tabs = {
           { name = "General", build = "BuildQoLGeneralPage", reuse = true, collapse = true },
           { name = "Questing", build = "BuildQoLQuestingPage", reuse = true, collapse = true },
+          { name = "XP", build = "BuildQoLXPPage", reuse = true, collapse = true },
           { name = "Loot & Items", build = "BuildQoLLootPage", reuse = true, collapse = true },
           { name = "Combat & Alerts", build = "BuildQoLAlertsPage", reuse = true, collapse = true },
           { name = "Interface", build = "BuildQoLInterfacePage", reuse = true, collapse = true },
@@ -61,6 +65,14 @@ local MODULES = {
       tabs = {
           { name = "Books", build = "BuildDiscoveryBooksPage", reuse = true, noscan = true },
           { name = "Settings", build = "BuildDiscoverySettingsPage", reuse = true },
+      } },
+    -- The planner itself is a window of its own (open); only its settings live here.
+    { name = "Training Planner", group = "ADVENTURE", navIcon = "notes", settings = "TrainingSettings",
+      open = "ToggleTrainingWindow",
+      command = "training", short = "Training", icon = "Interface\\Icons\\INV_Misc_Book_11",
+      subtitle = "What you can train now, what each level brings and what it costs.",
+      tabs = {
+          { name = "Settings", build = "BuildTrainingSettingsPage", reuse = true },
       } },
     { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
@@ -351,7 +363,8 @@ function UI.GoToSetting(key, label, feature)
     local wrapper = wrappers[key]
     if not (wrapper and label) then return end
     for _, row in ipairs({ wrapper:GetChildren() }) do
-        if row:IsShown() and row._searchF == feature and (row._searchL == label or row._searchR == label) then
+        if row:IsShown() and row._searchF == feature and (row._searchL == label or row._searchR == label
+            or (row._searchLabels and row._searchLabels[label])) then
             local _, _, _, _, y = row:GetPoint(1)
             scrollFrame:UpdateScrollChildRect()
             scrollFrame:SetVerticalScroll(math.min(scrollFrame:GetVerticalScrollRange(), math.max(0, -y - 60)))
@@ -460,12 +473,14 @@ local function FitMainWindow()
     local fit = math.min((UIParent:GetWidth() - 32) / window:GetWidth(),
         (UIParent:GetHeight() - 32) / window:GetHeight())
     window:SetScale(math.min(ns.UIScale(), math.max(0.25, fit)))
+    ns.RefitPixels()
 end
 
 function ns.SetWindowScale(pct)
     ns.AccountSettings().windowScale = tonumber(pct) or 100
     FitMainWindow()
     for _, win in pairs(moduleWindows) do win:SetScale(ns.UIScale()) end
+    ns.RefitPixels()
 end
 
 -- Saved for this computer, like the window scale, under the key of the micro menu these
@@ -611,7 +626,8 @@ function ns.BuildSettingsPage(parent, y)
               colorsPending = true
               UI:RefreshPage(true)
           end },
-        { type = "label", text = "" }
+        -- What the selection looks like, before a reload.
+        { type = "palette", text = "", colors = function() return ns.ThemePalette(ns.ThemePresetKey()) end }
     ); y = y - h
     if CustomSelected() then
         -- An action, not a setting: it always reads "Choose a theme...", and picking one
@@ -859,14 +875,17 @@ local function CreateWindow()
     top:SetPoint("TOPLEFT"); top:SetPoint("TOPRIGHT"); top:SetHeight(TOP_H)
     DragRegion(top, window)
     local topLine = ns.Solid(top, "ARTWORK", T.line, 1)
-    topLine:SetPoint("BOTTOMLEFT"); topLine:SetPoint("BOTTOMRIGHT"); topLine:SetHeight(1)
-    local logo = top:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture(LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(44, 44); logo:SetPoint("LEFT", 18, 0)
-    local name = ns.Font(top, 24, nil)
-    name:SetPoint("LEFT", logo, "RIGHT", 12, 0); name:SetText("Naowh")
-    local forever = ns.Font(top, 24, nil, T.accent)
-    forever:SetPoint("LEFT", name, "RIGHT", 6, 0); forever:SetText("Forever")
+    topLine:SetPoint("BOTTOMLEFT"); topLine:SetPoint("BOTTOMRIGHT"); ns.Hairline(topLine, "h")
+    local brand = CreateFrame("Frame", nil, top)
+    brand:SetPoint("TOPLEFT")
+    brand:SetSize(SIDEBAR_W, TOP_H)
+    ns.Solid(brand, "BACKGROUND", T.panel, 1):SetAllPoints()
+    local brandEdge = ns.Solid(brand, "ARTWORK", T.line, 1)
+    brandEdge:SetPoint("TOPRIGHT"); brandEdge:SetPoint("BOTTOMRIGHT"); ns.Hairline(brandEdge, "v")
+    local logo = brand:CreateTexture(nil, "ARTWORK")
+    logo:SetTexture(BRAND_LOGO, nil, nil, "TRILINEAR")
+    logo:SetSize(BRAND.width, BRAND.height)
+    logo:SetPoint("CENTER", brand, "CENTER", BRAND.x, BRAND.y)
     local close = ns.Button(top, "X", 28, 28, function() window:Hide() end)
     close:SetPoint("RIGHT", -18, 0)
     local unlock = ns.Button(top, "Unlock Mode", 140, 32, EnterUnlockMode)
@@ -876,7 +895,7 @@ local function CreateWindow()
     local search = UI.AttachSearch(top, 0)
     search:ClearAllPoints()
     search:SetPoint("LEFT", top, "LEFT", SIDEBAR_W + 26, 0)
-    search:SetPoint("RIGHT", unlock, "LEFT", -100, 0)
+    search:SetWidth(435)
     search:SetHeight(34)
     search:SetTextInsets(34, 22, 0, 0)
     search.hint:ClearAllPoints(); search.hint:SetPoint("LEFT", 34, 0)
@@ -888,7 +907,7 @@ local function CreateWindow()
     local sidebar = CreateFrame("Frame", nil, window)
     sidebar:SetPoint("TOPLEFT", 0, -TOP_H); sidebar:SetPoint("BOTTOMLEFT"); sidebar:SetWidth(SIDEBAR_W)
     local edge = ns.Solid(sidebar, "ARTWORK", T.line, 1)
-    edge:SetPoint("TOPRIGHT"); edge:SetPoint("BOTTOMRIGHT"); edge:SetWidth(1)
+    edge:SetPoint("TOPRIGHT"); edge:SetPoint("BOTTOMRIGHT"); ns.Hairline(edge, "v")
     local nav = NavigationScroll(sidebar, 16, 140, SIDEBAR_W)
     -- Modules list in MODULES order under their group; one with only unfinished tabs is left out.
     local groups, grouped = {}, {}
@@ -909,14 +928,15 @@ local function CreateWindow()
         if group ~= "" then
             local label = ns.Font(nav, 11, nil, T.muted)
             label:SetPoint("TOPLEFT", 20, ny - 10); label:SetText(ns.L(group))
-            ny = ny - 30
+            ny = ny - 28
         end
         for _, mod in ipairs(grouped[group]) do
             local btn = NavigationButton(nav, DisplayName(mod), ny,
                 function() ShowPage(lastPages[mod.name] or mod.tabs[1].key) end, mod.navIcon)
-            btn:SetHeight(32)
+            -- Spaced to fit every module in the default 790-high window (test-navigation.lua).
+            btn:SetHeight(30)
             navButtons[mod.name] = btn
-            ny = ny - 34
+            ny = ny - 32
         end
     end
     nav:SetHeight(-ny)
@@ -924,7 +944,7 @@ local function CreateWindow()
     local utility = CreateFrame("Frame", nil, sidebar)
     utility:SetPoint("BOTTOMLEFT", 0, 28); utility:SetPoint("BOTTOMRIGHT", 0, 28); utility:SetHeight(108)
     local utilityLine = ns.Solid(utility, "ARTWORK", T.line, 1)
-    utilityLine:SetPoint("TOPLEFT"); utilityLine:SetPoint("TOPRIGHT"); utilityLine:SetHeight(1)
+    utilityLine:SetPoint("TOPLEFT"); utilityLine:SetPoint("TOPRIGHT"); ns.Hairline(utilityLine, "h")
     for i, key in ipairs({ "Settings", "Profiles", "Patch Notes" }) do
         local icon = key == "Settings" and "settings" or (key == "Profiles" and "person" or "notes")
         local btn = NavigationButton(utility, ns.L(key), -4 - (i - 1) * 34, function() ShowPage(key) end, icon)
@@ -959,12 +979,12 @@ local function CreateWindow()
             tabStrips[mod.name]:Hide()
         end
     end
-    tabLine = ns.Solid(window, "ARTWORK", T.line, 1); tabLine:SetHeight(1)
+    tabLine = ns.Solid(window, "ARTWORK", T.line, 1); ns.Hairline(tabLine, "h")
 
     contentFooter = CreateFrame("Frame", nil, window)
     contentFooter:SetHeight(FOOTER_H)
     local footLine = ns.Solid(contentFooter, "ARTWORK", T.line, 1)
-    footLine:SetPoint("TOPLEFT"); footLine:SetPoint("TOPRIGHT"); footLine:SetHeight(1)
+    footLine:SetPoint("TOPLEFT"); footLine:SetPoint("TOPRIGHT"); ns.Hairline(footLine, "h")
     ns.AccentBorder(ns.ReloadButton(contentFooter, "Reload UI", 120, 30)):SetPoint("LEFT", 26, 0)
     ns.AccentBorder(ns.Button(contentFooter, "Close", 120, 30, function() window:Hide() end))
         :SetPoint("RIGHT", -30, 0)
@@ -1095,7 +1115,7 @@ local function CreateModuleWindow(mod)
     local line = ns.Solid(win, "ARTWORK", T.line, 1)
     line:SetPoint("TOPLEFT", win, "TOPLEFT", 0, -offset)
     line:SetPoint("TOPRIGHT", win, "TOPRIGHT", 0, -offset)
-    line:SetHeight(1)
+    ns.Hairline(line, "h")
 
     win.scrollFrame = CreateFrame("ScrollFrame", nil, win, "UIPanelScrollFrameTemplate")
     win.scrollFrame:SetPoint("TOPLEFT", win, "TOPLEFT", 10, -(offset + 5))
@@ -1169,6 +1189,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.RecipeFinderDebug()
     elseif cmd == "townaudit" and ns.TownAudit then
         ns.TownAudit()
+    elseif (cmd == "mappins" or cmd == "mapcheck") and ns.DungeonMapCommand then
+        ns.DungeonMapCommand(cmd)
     elseif cmd == "badges" and ns.BadgesCommand then
         ns.BadgesCommand(arg)
     else
@@ -1188,6 +1210,18 @@ end
 
 -- The launcher position belongs to the account, not an imported settings profile.
 local launcherEvents = CreateFrame("Frame")
+-- The launcher tooltips (minimap, top bar, broker displays): the title is the game's tooltip
+-- gold and the lines white, unless the theme changed Accent / Text, which they follow.
+local TIP_TITLE = { r = 1, g = 0.82, b = 0 }
+local TIP_TEXT = { r = 1, g = 1, b = 1 }
+local function TipTitle(tooltip, text)
+    local c = ns.ThemeTint("accent", TIP_TITLE)
+    tooltip:AddLine(text, c.r, c.g, c.b)
+end
+local function TipLine(tooltip, text)
+    local c = ns.ThemeTint("fg", TIP_TEXT)
+    tooltip:AddLine(text, c.r, c.g, c.b)
+end
 launcherEvents:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
     local account = ns.AccountSettings()
@@ -1200,9 +1234,9 @@ launcherEvents:SetScript("OnEvent", function(self)
         icon = LOGO,
         OnClick = function() ns.ToggleOptionsWindow() end,
         OnTooltipShow = function(tooltip)
-            tooltip:AddLine("Naowh Forever")
-            tooltip:AddLine(ns.L("Click to open settings."), 1, 1, 1)
-            tooltip:AddLine(ns.L("Drag to move the minimap button."), 1, 1, 1)
+            TipTitle(tooltip, "Naowh Forever")
+            TipLine(tooltip, ns.L("Click to open settings."))
+            TipLine(tooltip, ns.L("Drag to move the minimap button."))
         end,
     })
     LibStub("LibDBIcon-1.0"):Register("NaowhForever", launcher, account.minimap)
@@ -1221,8 +1255,8 @@ launcherEvents:SetScript("OnEvent", function(self)
                 icon = mod.icon,
                 OnClick = function() OpenModule(mod) end,
                 OnTooltipShow = function(tooltip)
-                    tooltip:AddLine(mod.name)
-                    tooltip:AddLine(ns.L("Click to open or close it on its own."), 1, 1, 1)
+                    TipTitle(tooltip, mod.name)
+                    TipLine(tooltip, ns.L("Click to open or close it on its own."))
                 end,
             })
             LibStub("LibDBIcon-1.0"):Register("NaowhForever" .. mod.short, obj, db)

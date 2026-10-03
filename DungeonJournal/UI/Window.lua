@@ -194,7 +194,7 @@ local function Tabs(parent)
             local split = ns.Solid(bar, "BORDER", BORDER_RGB, 1)
             split:SetPoint("TOPLEFT", x, 0)
             split:SetPoint("BOTTOMLEFT", x, 0)
-            split:SetWidth(1)
+            ns.Hairline(split, "v")
         end
         x = x + w
     end
@@ -373,8 +373,7 @@ local function MenuRow(option)
     row.edge = ns.Border(box, BORDER_RGB)
     row.tick = box:CreateTexture(nil, "ARTWORK")
     row.tick:SetTexture(TICK)
-    row.tick:SetPoint("TOPLEFT", 1, -1)
-    row.tick:SetPoint("BOTTOMRIGHT", -1, 1)
+    ns.PixelInset(row.tick, 1)
     row.tick:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1)
     local left = MENU_BOX + MENU_BOX_GAP
     row.label = ns.Font(row, 13, nil, T.fg)
@@ -504,7 +503,7 @@ local function FactionSwitch(parent)
     local split = ns.Solid(switch, "BORDER", BORDER_RGB, 1)
     split:SetPoint("TOP", 0, 0)
     split:SetPoint("BOTTOM", 0, 0)
-    split:SetWidth(1)
+    ns.Hairline(split, "v")
     return switch, halves
 end
 
@@ -858,7 +857,7 @@ local function Build()
     local rule = ns.Solid(window, "ARTWORK", BORDER_RGB, 1)
     rule:SetPoint("TOPLEFT", 0, -HEADER)
     rule:SetPoint("TOPRIGHT", 0, -HEADER)
-    rule:SetHeight(1)
+    ns.Hairline(rule, "h")
 
 
     -- The search, then the list, down the left.
@@ -956,7 +955,10 @@ end
 
 -- Opens the window on the dungeon given, else the one you are in, else where it was.
 ---@param dungeon? JournalDungeon
+local awayForMap = false   -- put away by the world map opening (J.WindowAwayForMap)
+
 function ns.OpenJournalWindow(dungeon)
+    awayForMap = false   -- opened by hand: the map closing has nothing to bring back
     J.TurnOn()
     if not window then Build() end
     window:SetScale(ns.UIScale())
@@ -968,4 +970,28 @@ end
 
 function ns.ToggleJournalWindow()
     if window and window:IsShown() then window:Hide() else ns.OpenJournalWindow() end
+end
+
+-- The world map opening (M) puts the window away while it is open, and the map closing (M
+-- again) brings it back as it was; the map panel (UI/MapPanel.lua) says when.
+
+---@param mapShown boolean
+function J.WindowAwayForMap(mapShown)
+    if mapShown then
+        if window and window:IsShown() then
+            awayForMap = true
+            window:Hide()
+        end
+    elseif awayForMap then
+        awayForMap = false
+        if window and S.Get("enabled") then window:Show() end
+    end
+end
+
+-- A key binding of its own (Bindings.xml, Naowh Forever's section of Key Bindings): opens the
+-- window, or closes it.
+BINDING_NAME_NAOWHFOREVER_JOURNAL = "Open Dungeon Journal"
+
+function NaowhForever_ToggleJournal()
+    ns.ToggleJournalWindow()
 end

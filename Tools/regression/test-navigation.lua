@@ -60,6 +60,11 @@ function methods:SetParent(p) self.parent = p end
 function methods:GetParent() return self.parent end
 function methods:GetChildren() return unpack(self.children) end
 function methods:CreateTexture() return New("Texture", nil, self) end
+function methods:GetObjectType() return self.kind end
+-- One unit is one screen pixel here, so ns.Hairline and ns.PixelInset keep the layout's numbers.
+function methods:GetEffectiveScale() return 1 end
+env.PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end }
+function methods:IsVisible() return self:IsShown() end
 function methods:CreateFontString() return New("FontString", nil, self) end
 function methods:SetFont(path, size, flags) self.font, self.size, self.flags = path, size, flags end
 function methods:SetText(t)
@@ -74,6 +79,7 @@ methods.SetColorTexture = methods.SetTextColor
 methods.SetVertexColor = methods.SetTextColor
 function methods:SetTexture(path) self.texture = path end
 function methods:SetAlpha(a) self.alpha = a end
+function methods:SetBlendMode(mode) self.blend = mode end
 function methods:SetRotation(r) self.rotation = r end
 function methods:SetJustifyH(j) self.justify = j end
 function methods:SetFrameLevel(v) self.level = v end
@@ -242,7 +248,7 @@ for _, tab in ipairs(strip.children) do
     Check(tab.points.TOPLEFT[4] == 0, "QoL categories share one row")
     if tab.points.TOPLEFT[3] > lastTab.points.TOPLEFT[3] then lastTab = tab end
 end
-Check(#strip.children == 11, "every QoL category has a tab")
+Check(#strip.children == 12, "every QoL category has a tab")
 Check(lastTab.points.TOPLEFT[3] + lastTab:GetWidth() <= strip:GetWidth() - 30,
     "the last QoL tab stops short of the scrollbar at the default width")
 Button("Interface").scripts.OnClick(); Flush()

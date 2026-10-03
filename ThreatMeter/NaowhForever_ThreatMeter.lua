@@ -14,11 +14,12 @@ local S = UI.ModuleSettings("threatMeter", {
     locked = true, barSpacing = 3, fontSize = 12, font = "",
     showIcons = true, showRanks = true, highlightPlayer = true,
     backgroundAlpha = 0.94, barAlpha = 0.72, texture = "smooth", percentMode = "pull",
-    growUp = false, showHeader = true, ignorePets = false,
+    growUp = false, showHeader = true, ignorePets = false, statusPos = "bottom",
     showValue = true, showPercent = true,
     playerColorOn = false, playerColor = { r = 0.8, g = 0.1, b = 0.1 },
     tankColorOn = false, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
     pullBar = true, pullColor = { r = 0.0, g = 0.55, b = 0.0 },
+    themeColors = false,
     warnSound = false, warnSoundKey = "none", warnAt = 80, warnSkipTank = true,
 })
 ns.ThreatMeterSettings = S
@@ -153,11 +154,13 @@ local function Layout()
     offset = math.max(0, math.min(offset, total - capacity))
     local shown = math.min(total - offset, capacity)
     local growUp = S.Get("growUp")
+    local statusTop = S.Get("statusPos") == "top"
+    local above, below = top + (statusTop and FOOTER or 0), statusTop and 0 or FOOTER
     for i = 1, shown do
         local row = rows[i] or CreateRow(i)
         row:ClearAllPoints()
-        if growUp then row:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", INSET, FOOTER + INSET + (i - 1) * (bh + gap))
-        else row:SetPoint("TOPLEFT", frame, "TOPLEFT", INSET, -top - INSET - (i - 1) * (bh + gap)) end
+        if growUp then row:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", INSET, below + INSET + (i - 1) * (bh + gap))
+        else row:SetPoint("TOPLEFT", frame, "TOPLEFT", INSET, -above - INSET - (i - 1) * (bh + gap)) end
         row:SetSize(w - 2 * INSET, bh)
         row:SetStatusBarTexture(S.Get("texture") == "flat" and "Interface\\Buttons\\WHITE8X8"
             or "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga")
@@ -183,11 +186,17 @@ local function Layout()
     for i = shown + 1, #rows do rows[i]:Hide() end
     frame.header:SetSize(w, math.max(top, 1))
     frame.header:SetShown(top > 0)
+    frame.footer:ClearAllPoints()
+    if statusTop then
+        frame.footer:SetPoint("TOPLEFT", 8, -top); frame.footer:SetPoint("TOPRIGHT", -8, -top)
+    else
+        frame.footer:SetPoint("BOTTOMLEFT", 8, 0); frame.footer:SetPoint("BOTTOMRIGHT", -8, 0)
+    end
     frame.background:SetAlpha(S.Get("backgroundAlpha"))
     frame.source.label:SetText(TrackedUnit() == "focus" and "Focus" or "Target")
     frame.source:SetShown(S.Get("focusEnabled"))
     frame.lock.label:SetText(S.Get("locked") and "L" or "U")
-    frame.grip:SetShown(not unlocked)
+    frame.grip:SetShown(not unlocked and not (statusTop and S.Get("locked")))
     frame.grip:SetAlpha(S.Get("locked") and 0.4 or 1)
     frame.empty:SetShown(shown == 0)
     frame.footer.range:SetText(total > 0 and ((offset + 1) .. "-" .. (offset + shown) .. " / " .. total) or "")
@@ -246,7 +255,7 @@ local function Build()
     end)
     frame.header:SetScript("OnDragStop", function() if frame.moving then frame:StopMovingOrSizing(); frame.moving = false; SavePosition() end end)
     frame.footer = CreateFrame("Frame", nil, frame)
-    frame.footer:SetPoint("BOTTOMLEFT", 8, 0); frame.footer:SetPoint("BOTTOMRIGHT", -8, 0); frame.footer:SetHeight(FOOTER)
+    frame.footer:SetHeight(FOOTER)
     frame.footer.state = ns.Font(frame.footer, 10, "OUTLINE", T.muted)
     frame.footer.state:SetPoint("LEFT"); frame.footer.state:SetJustifyH("LEFT")
     frame.footer.range = ns.Font(frame.footer, 10, "OUTLINE", T.muted)
@@ -363,10 +372,25 @@ end
 -------------------------------------------------------------------------------
 --  Display
 -------------------------------------------------------------------------------
+-- Apply Theme to Your Bar: your bar in a darker shade of the theme's Accent, so the white names
+-- and numbers stay readable on it. The tank and pull aggro bars keep their own colors, which
+-- tell the roles apart. The shade is built once, on first use, after the theme is applied.
+local yourShade
+local function ThemedColor(key)
+    if key ~= "playerColor" then return nil end
+    yourShade = yourShade or { r = T.accent.r * 0.75, g = T.accent.g * 0.75, b = T.accent.b * 0.75 }
+    return yourShade
+end
+
+-- The color a bar setting paints with: the theme's while the switch is on, else the picked one.
+local function BarColor(key)
+    return S.Get("themeColors") and ThemedColor(key) or S.Get(key)
+end
+
 local function RowColor(e)
-    if e.pull then return S.Get("pullColor") end
-    if e.isPlayer and S.Get("playerColorOn") then return S.Get("playerColor") end
-    if e.tanking and S.Get("tankColorOn") then return S.Get("tankColor") end
+    if e.pull then return BarColor("pullColor") end
+    if e.isPlayer and S.Get("playerColorOn") then return BarColor("playerColor") end
+    if e.tanking and S.Get("tankColorOn") then return BarColor("tankColor") end
     return e.class and RAID_CLASS_COLORS[e.class] or FALLBACK_COLOR
 end
 
@@ -558,17 +582,20 @@ end
 -------------------------------------------------------------------------------
 --  Options
 -------------------------------------------------------------------------------
-local function ColorRow(k, text, on)
+local function ColorRow(k, text, on, themed)
     return { type = "colorpicker", text = text, hasAlpha = false,
         getValue = function()
-            local c = S.Get(k)
+            local c = BarColor(k)
             return c.r, c.g, c.b
         end,
         setValue = function(r, g, b)
             S.Set(k, { r = r, g = g, b = b })
             RequestUpdate()
         end,
-        disabled = function() return not S.Get("enabled") or on and not S.Get(on) end }
+        disabled = function()
+            return not S.Get("enabled") or on and not S.Get(on) or (themed and S.Get("themeColors")) or false
+        end,
+        disabledTooltip = themed and "Turn off Apply Theme to Your Bar to pick this color." or nil }
 end
 
 function ns.BuildThreatMeterPage(parent, y)
@@ -611,6 +638,12 @@ function ns.BuildThreatMeterPage(parent, y)
             "enabled")
     ); y = y - h
     _, h = W:DualRow(parent, y,
+        S.Dropdown("statusPos", "Status Line", { bottom = "Bottom", top = "Top" }, { "bottom", "top" },
+            "Where your distance to pulling aggro and the entry count sit: under the bars, or "
+            .. "between the title bar and the bars.", "enabled"),
+        { type = "label", text = "" }
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
         S.Toggle("showValue", "Show Threat", nil, "enabled"),
         S.Toggle("showPercent", "Show Percent",
             "Uses the selected Pull Aggro or Tank Threat percentage mode.", "enabled")
@@ -646,7 +679,13 @@ function ns.BuildThreatMeterPage(parent, y)
     _, h = W:DualRow(parent, y,
         S.Toggle("playerColorOn", "Color Your Bar", "Your own bar in one color instead of your class color.",
             "enabled"),
-        ColorRow("playerColor", "Your Color", "playerColorOn")
+        ColorRow("playerColor", "Your Color", "playerColorOn", true)
+    ); y = y - h
+    _, h = W:DualRow(parent, y,
+        S.Toggle("themeColors", "Apply Theme to Your Bar",
+            "Your bar in a darker shade of your theme's Accent instead of the color picked "
+            .. "above. The tank and pull aggro colors stay as picked.", "playerColorOn"),
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("tankColorOn", "Color the Tank", "Whoever holds aggro in one color.", "enabled"),

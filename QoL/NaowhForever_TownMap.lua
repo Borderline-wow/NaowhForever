@@ -6,6 +6,14 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 
 local TEMPLATE = "NaowhForeverTownPinTemplate"
+-- The light blue of the hint lines: the shade each one always was (r, g, b), or the theme's
+-- lighter Accent once the theme has changed the Accent. Returns r, g, b, so where it is not
+-- the last argument its values are put in locals first.
+local function SoftBlue(r, g, b)
+    local c = ns.ThemeTint("accentSoft", nil)
+    if c then return c.r, c.g, c.b end
+    return r, g, b
+end
 local LINK_TEMPLATE = "NaowhForeverZoneLinkPinTemplate"
 local CAPITALS = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true, [2482] = true, [2521] = true }
 
@@ -61,7 +69,7 @@ function NaowhForeverTownPinMixin:OnMouseEnter()
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(npc[4], 1, 1, 1)
     local title = npc[5] ~= "" and npc[5] or CATEGORIES[npc[3]][3]
-    GameTooltip:AddLine(title, 0.3, 0.71, 0.96)
+    GameTooltip:AddLine(title, SoftBlue(0.3, 0.71, 0.96))
     GameTooltip:Show()
 end
 
@@ -87,7 +95,7 @@ end
 function NaowhForeverZoneLinkPinMixin:OnMouseEnter()
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(self.link.name)
-    GameTooltip:AddLine("Click to open this zone", 0.3, 0.71, 0.96)
+    GameTooltip:AddLine("Click to open this zone", SoftBlue(0.3, 0.71, 0.96))
     GameTooltip:Show()
 end
 function NaowhForeverZoneLinkPinMixin:OnMouseLeave() GameTooltip:Hide() end

@@ -20,7 +20,7 @@ local S = UI.ModuleSettings("swingTimer", {
     showMH = true, showOH = true, showR = true,
     depleteFill = false, showTime = true, showLabel = true, showSpark = true,
     rangeCheck = true, outOfRangeAlpha = 0.4,
-    classColored = false,
+    classColored = false, themeColors = false,
     mhColor = { r = 0.90, g = 0.70, b = 0.27 },
     ohColor = { r = 0.90, g = 0.45, b = 0.27 },
     rColor = { r = 0.27, g = 0.73, b = 0.90 },
@@ -107,7 +107,19 @@ local function Plain(v)
     return not (issecretvalue and issecretvalue(v))
 end
 
+-- Apply Theme to Bar Colours: the main hand bar in the theme's Accent, the off hand bar in its
+-- lighter Accent and the ranged bar in a deeper shade of it, so the three stay apart.
+local function ThemedBar(key)
+    if key == "mhColor" then return T.accent.r, T.accent.g, T.accent.b, 1 end
+    if key == "ohColor" then return T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1 end
+    if key == "rColor" then return T.accent.r * 0.6, T.accent.g * 0.6, T.accent.b * 0.6, 1 end
+end
+
 local function Color(key)
+    if S.Get("themeColors") then
+        local r, g, b, a = ThemedBar(key)
+        if r then return r, g, b, a end
+    end
     local c = S.Get(key)
     return c.r, c.g, c.b, c.a or 1
 end
@@ -168,8 +180,7 @@ local function BuildRow(def)
     row.border = ns.Border(row)
 
     local bar = CreateFrame("StatusBar", nil, row)
-    bar:SetPoint("TOPLEFT", 1, -1)
-    bar:SetPoint("BOTTOMRIGHT", -1, 1)
+    ns.PixelInset(bar, 1)
     bar:SetStatusBarTexture(FLAT_TEX)
     bar:SetMinMaxValues(0, 1)
     bar:SetValue(0)
@@ -705,13 +716,14 @@ end
 -------------------------------------------------------------------------------
 --  Options
 -------------------------------------------------------------------------------
-local function ColorRow(k, text, on, hasAlpha)
+local function ColorRow(k, text, on, hasAlpha, themed)
     return { type = "colorpicker", text = text, hasAlpha = hasAlpha,
         getValue = function() return Color(k) end,
         setValue = function(r, g, b, a)
             S.Set(k, { r = r, g = g, b = b, a = hasAlpha and a or nil })
         end,
-        disabled = function() return not (S.Get("enabled") and S.Get(on)) end }
+        disabled = function() return not (S.Get("enabled") and S.Get(on)) or (themed and S.Get("themeColors")) end,
+        disabledTooltip = themed and "Turn off Apply Theme to Bar Colours to pick this color." or nil }
 end
 
 -- A row that needs every one of `keys` on; S.Slider and S.Toggle take only one.
@@ -809,11 +821,15 @@ function ns.BuildSwingTimerPage(parent, y)
 
     _, h = W:Feature(parent, y, { type = "label", text = "Colours" }); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("mhColor", "Main Hand", "enabled"),
-        ColorRow("ohColor", "Off Hand", "enabled")
+        ColorRow("mhColor", "Main Hand", "enabled", nil, true),
+        ColorRow("ohColor", "Off Hand", "enabled", nil, true)
     ); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorRow("rColor", "Ranged", "enabled")
+        ColorRow("rColor", "Ranged", "enabled", nil, true),
+        S.Toggle("themeColors", "Apply Theme to Bar Colours",
+            "Color the main hand bar with your theme's Accent, the off hand bar with its lighter "
+            .. "Accent and the ranged bar with a deeper shade of it, instead of the colors "
+            .. "picked here.", "enabled")
     ); y = y - h
 
     _, h = W:SectionHeader(parent, "QUEUED ATTACKS", y); y = y - h

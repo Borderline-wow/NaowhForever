@@ -21,7 +21,8 @@ local LOOKAHEAD = 60
 -- Yards per second, fitted to measured Classic flight times.
 local FLIGHT_SPEED = 30.4
 
-local bar, poll, unlocked, Apply
+local bar, poll, unlocked, Apply, FadeBlizzardStop
+local stopFaded = false
 local pending   -- { from, to, points, estimate, at }: a flight bought but not boarded yet
 local flight    -- { from, to, start, known, points, early, sample }
 
@@ -176,6 +177,7 @@ local function Land()
     flight = nil
     StopPoll()
     bar:Hide()
+    FadeBlizzardStop()
     if unlocked then Apply() end
     if ns.QuizDismiss then ns.QuizDismiss("flight") end
 end
@@ -187,6 +189,7 @@ local function Board(route)
         known = route and route.estimate or key and Times()[key] }
     pending = nil
     if On() then Show() end
+    FadeBlizzardStop()
     if ns.QuizOffer then ns.QuizOffer("flight") end
 end
 
@@ -323,13 +326,27 @@ hooksecurefunc("TaxiRequestEarlyLanding", Retarget)
 
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
-events:SetScript("OnEvent", function()
+events:SetScript("OnEvent", function(self, event)
+    if event == "PLAYER_REGEN_ENABLED" then
+        self:UnregisterEvent(event)
+        FadeBlizzardStop()
     -- A reload mid-flight: the route is unknown, so it only counts up and is not learned.
-    if UnitOnTaxi("player") and not flight then
+    elseif UnitOnTaxi("player") and not flight then
         Board(nil)
         StartPoll()
     end
 end)
+
+-- Blizzard's Request Stop is its vehicle leave button. It sits in the action bar's
+-- protected layout, so it is faded rather than hidden, and only outside combat.
+function FadeBlizzardStop()
+    local fade = (On() and S.Get("flightEarlyLanding") and flight and not flight.sample) == true
+    if fade == stopFaded then return end
+    if InCombatLockdown() then events:RegisterEvent("PLAYER_REGEN_ENABLED") return end
+    stopFaded = fade
+    MainMenuBarVehicleLeaveButton:SetAlpha(fade and 0 or 1)
+    MainMenuBarVehicleLeaveButton:EnableMouse(not fade)
+end
 
 -- A two-stop route to place and size the display by in Unlock Mode, looping.
 local SAMPLE = { { name = "Ironforge", at = 0 }, { name = "Thorium Point", at = 50 },
@@ -352,6 +369,7 @@ function Apply()
     if flight and not flight.sample then
         if On() then Show() else bar:Hide() end
     end
+    FadeBlizzardStop()
 end
 
 hooksecurefunc(S, "Set", function(key)

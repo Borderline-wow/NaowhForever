@@ -18,7 +18,7 @@ for name in ("SetFont SetFontObject SetTextColor SetColorTexture SetTexture SetA
     .. "ClearAllPoints SetDrawLayer SetVertexColor SetTexelSnappingBias SetSnapToPixelGrid "
     .. "SetJustifyH SetJustifyV SetWordWrap SetAlpha EnableMouse SetAutoFocus SetTextInsets "
     .. "SetCursorPosition ClearFocus SetFrameStrata SetClampedToScreen SetSpacing "
-    .. "RegisterEvent UnregisterEvent UnregisterAllEvents RegisterUnitEvent"):gmatch("%S+") do
+    .. "RegisterEvent UnregisterEvent UnregisterAllEvents RegisterUnitEvent HookScript"):gmatch("%S+") do
     methods[name] = function() end
 end
 function methods:SetScript(name, fn) self.scripts[name] = fn end
@@ -45,7 +45,10 @@ function methods:CreateFontString() return Object(self) end
 function methods:CreateTexture() return Object(self) end
 
 local env = { STANDARD_TEXT_FONT = "font", LibStub = false,
-    CreateFrame = function(_, _, parent) return Object(parent) end }
+    CreateFrame = function(_, _, parent) return Object(parent) end,
+    PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end } }
+function methods:GetObjectType() return "Frame" end
+function methods:GetEffectiveScale() return 1 end
 env._G = env
 setmetatable(env, { __index = _G })
 local function Eval(s) local f = assert(loadstring(s)); setfenv(f, env); return f() end

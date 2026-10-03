@@ -12,11 +12,11 @@ ns.Journal.AddDungeon("DrownedCity", {
     entrance = { map = 1434, x = 21.4, y = 27.9 },
     wings = {
         { bosses = {
-            { npc = 270882, name = "Zul'Alai" },
-            { npc = 270883, name = "Var'Taka" },
-            { npc = 270884, name = "Captain Dreadrise" },
-            { npc = 270885, name = "Deathless Marrow" },
-            { npc = 270886, name = "Min'loth the Serpent" },
+            { npc = 270882, name = "Zul'Alai", model = 144475 },
+            { npc = 270883, name = "Var'Taka", model = 144487 },
+            { npc = 270884, name = "Captain Dreadrise", model = 142144 },
+            { npc = 270885, name = "Deathless Marrow", model = 142245 },
+            { npc = 270886, name = "Min'loth the Serpent", model = 142286 },
         } },
     },
 })

@@ -159,7 +159,9 @@ end)
 local UNSOURCED = {}
 for _, id in ipairs({ 5821, 263435, 263436, 270039, 270046, 272996, 276727, 277213, 277219,
     277227, 277257, 279392, 279393, 281264, 281290, 281309, 281323, 281660, 281675, 281926,
-    284187, 284386, 284668, 285331, 286535 }) do UNSOURCED[id] = true end
+    284187, 284386, 284668, 285331, 286535,
+    -- wowsrc's lists of 2 Oct 2026: none on Wowhead's item pages either.
+    7948, 276719, 281263, 281295, 281693, 281694, 281702, 285351 }) do UNSOURCED[id] = true end
 
 Case("every ranked item in the generated data has a source", function()
     local ns = {}

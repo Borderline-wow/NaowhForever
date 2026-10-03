@@ -60,6 +60,7 @@ local function Session(settings, opts)
     log.lock = function() ns.HideRaidReminderAnchorConfig() end
     ns.Solid = function() return Widget("Texture", log) end
     ns.Border = function() return {} end
+    ns.PixelInset = function(region) return region end
     ns.Font = function() return Widget("FontString", log) end
     ns.UIFontPath = function() return "font" end
     local speeds = opts.speeds or { 2.6, nil, nil }
