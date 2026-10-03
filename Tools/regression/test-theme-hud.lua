@@ -57,7 +57,9 @@ local PICKS = { themePreset = "custom", themeColors = {
 -- Every ThemeTint call is inside a function, so it is read when a frame is built or
 -- refreshed and never at file load.
 local files = { "ThreatMeter/NaowhForever_ThreatMeter.lua", "TopBar/NaowhForever_TopBar.lua",
-    "AuraBuffs/NaowhForever_Campfire.lua" }
+    "AuraBuffs/NaowhForever_Campfire.lua", "QoL/NaowhForever_LootFeed.lua",
+    "Discovery/NaowhForever_DiscoveryTracker.lua", "Discovery/NaowhForever_DiscoveryMap.lua",
+    "QoL/NaowhForever_TownMap.lua" }
 for _, path in ipairs(files) do
     local source = Read(path)
     local count = 0
@@ -198,23 +200,296 @@ end
 
 do
     local source = Read("QoL/NaowhForever_XPBar.lua")
-    local stmt = assert(source:match('(local shifted = ns%.ThemeTint%("accent", nil%)\n[^\n]*\n[^\n]*SetGradient[^\n]*)'))
-    local function Fill(account)
-        local from, to
+    local fn = assert(source:match('(local function FillGradient%(%).-\nend)'))
+    local FILL_DARK = assert(tonumber(source:match('\nlocal FILL_DARK = ([%d%.]+)')))
+    -- pick is the player's own Fill Colour, nil while it is on the default.
+    local function Fill(account, pick)
         local function CreateColor(r, g, b, a) return { r = r, g = g, b = b, a = a } end
         local FILL_FROM = CreateColor(0x00 / 255, 0x4f / 255, 0x85 / 255, 1)
         local ns = LoadCore(account)
-        Run(stmt, { ns = ns, T = ns.THEME, CreateColor = CreateColor, FILL_FROM = FILL_FROM,
-            bar = { fill = { SetGradient = function(_, _, a, b) from, to = a, b end } } })
-        return from, to, FILL_FROM
+        local env = { ns = ns, T = ns.THEME, CreateColor = CreateColor, FILL_FROM = FILL_FROM,
+            FILL_DARK = FILL_DARK, S = { Get = function() return pick end } }
+        Run(fn .. "\nfrom, to = FillGradient()", env)
+        return env.from, env.to, FILL_FROM
     end
     local from, to, shipped = Fill({})
     Check(from == shipped and to.r == 0 and to.g == 0x91 / 255 and to.b == 0xed / 255,
         "xpbar: the default theme is the original gradient")
     local a = AccentOf(ACCENT_PRESET)
     from, to = Fill(ACCENT_PRESET)
-    Check(from.r == a.r * 0.55 and from.b == a.b * 0.55 and to.r == a.r and to.g == a.g,
+    Check(from.r == a.r * FILL_DARK and from.b == a.b * FILL_DARK and to.r == a.r and to.g == a.g,
         "xpbar: a theme's accent, darkened at the low end")
+    from, to = Fill(ACCENT_PRESET, { r = 0.2, g = 0.8, b = 0.4 })
+    Check(to.r == 0.2 and to.g == 0.8 and to.b == 0.4 and from.g == 0.8 * FILL_DARK,
+        "xpbar: a picked fill colour wins over the theme, darkened at the low end")
+end
+
+-- The light blue of the Library Books and town map hint lines: the shade each one always was,
+-- or the theme's lighter Accent once the theme changed the Accent.
+do
+    local LITERALS = { { 0.3, 0.71, 0.96 }, { 0.3, 0.7, 0.95 } }
+    for _, path in ipairs({ "Discovery/NaowhForever_DiscoveryTracker.lua", "Discovery/NaowhForever_DiscoveryMap.lua",
+            "QoL/NaowhForever_TownMap.lua" }) do
+        local source = Read(path)
+        local helper = assert(source:match("(local function SoftBlue%(r, g, b%).-\nend)"), path .. ": SoftBlue")
+        local function Blue(account, lit)
+            local chunk = assert(loadstring(helper .. "\nreturn SoftBlue(...)"))
+            local core = LoadCore(account)
+            setfenv(chunk, setmetatable({ ns = core }, { __index = _G }))
+            return { chunk(lit[1], lit[2], lit[3]) }, core.THEME.accentSoft
+        end
+        for _, lit in ipairs(LITERALS) do
+            Check(Same(Blue({}, lit), lit), path .. ": the default theme keeps the shade it had")
+        end
+        local got, soft = Blue(ACCENT_PRESET, LITERALS[1])
+        Check(Same(got, { soft.r, soft.g, soft.b }), path .. ": a theme's lighter Accent replaces it")
+        got = Blue({ themePreset = "custom", themeColors = { bg = { r = 1, g = 0, b = 0 } } }, LITERALS[1])
+        Check(Same(got, LITERALS[1]), path .. ": a theme that left the Accent alone keeps the shade")
+        -- No hint line spells the blue out any more: every use goes through SoftBlue.
+        local left = 0
+        for line in source:gmatch("[^\n]+") do
+            if (line:find("0.3, 0.71, 0.96", 1, true) or line:find("0.3, 0.7, 0.95", 1, true))
+                    and not line:find("SoftBlue(", 1, true) then
+                left = left + 1
+            end
+        end
+        Check(left == 0, path .. ": no hint line has the light blue typed out")
+    end
+end
+
+-- The TopBar's clock and tooltips: the greys and whites they always were, or the player's
+-- Secondary Text and Text when the theme changed those.
+do
+    local source = Read("TopBar/NaowhForever_TopBar.lua")
+    local toneSource = assert(source:match("(local shades = {}\nlocal function Tone%(key, v%).-\nend)"))
+    local function ToneFor(account)
+        local chunk = assert(loadstring(toneSource .. "\nreturn Tone"))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account) }, { __index = _G }))
+        return chunk()
+    end
+    local function Rgb(...) return { ... } end
+    local ns = LoadCore(ACCENT_PRESET)
+    local Tone = ToneFor({})
+    Check(Same(Rgb(Tone("fg", 1)), { 1, 1, 1 }), "topbar: white is white with the default theme")
+    Check(Same(Rgb(Tone("muted", 0.7)), { 0.7, 0.7, 0.7 }) and Same(Rgb(Tone("muted", 0.5)), { 0.5, 0.5, 0.5 })
+        and Same(Rgb(Tone("muted", 0.6)), { 0.6, 0.6, 0.6 }), "topbar: the three greys are unchanged with the default theme")
+    Tone = ToneFor(ACCENT_PRESET)
+    Check(Same(Rgb(Tone("fg", 1)), { ns.THEME.fg.r, ns.THEME.fg.g, ns.THEME.fg.b }), "topbar: a theme's Text replaces the white")
+    Check(Same(Rgb(Tone("muted", 0.7)), { ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b })
+        and Same(Rgb(Tone("muted", 0.5)), { ns.THEME.muted.r, ns.THEME.muted.g, ns.THEME.muted.b }),
+        "topbar: a theme's Secondary Text replaces every grey")
+    Tone = ToneFor({ themePreset = "custom", themeColors = { bg = { r = 1, g = 0, b = 0 } } })
+    Check(Same(Rgb(Tone("fg", 1)), { 1, 1, 1 }) and Same(Rgb(Tone("muted", 0.7)), { 0.7, 0.7, 0.7 }),
+        "topbar: a theme that left Text and Secondary Text alone keeps white and grey")
+
+    local greyLine = assert(source:match('(local grey = ns%.ThemeTint%("muted", nil%) and [^\n]*)'))
+    local function Grey(account)
+        local chunk = assert(loadstring(greyLine .. "\nreturn grey"))
+        local core = LoadCore(account)
+        setfenv(chunk, setmetatable({ ns = core }, { __index = _G }))
+        return chunk(), core
+    end
+    Check(Grey({}) == "|cff808080", "topbar: the AFK and DND tags keep their grey with the default theme")
+    local tag, core = Grey(ACCENT_PRESET)
+    Check(tag == core.Color("muted"), "topbar: the AFK and DND tags follow Secondary Text")
+    Check(not source:find("SetTextColor(1, 1, 1)", 1, true), "topbar: no fixed white clock text is left")
+end
+
+-- The launcher tooltips: the game's gold title and white lines, or the theme's Accent and Text.
+do
+    local source = Read("Core/NaowhForever_Window.lua")
+    local TIP_TITLE, TIP_TEXT = Const(source, "TIP_TITLE"), Const(source, "TIP_TEXT")
+    Check(IsRGB(TIP_TITLE, 1, 0.82, 0) and IsRGB(TIP_TEXT, 1, 1, 1), "launcher tooltip literals are the originals")
+    local code = assert(source:match("(local function TipTitle%(tooltip, text%).-\nend\nlocal function TipLine%(tooltip, text%).-\nend)"))
+    local function Tips(account)
+        local lines = {}
+        local tooltip = { AddLine = function(_, text, r, g, b) lines[#lines + 1] = { text, r, g, b } end }
+        local chunk = assert(loadstring(code .. "\nTipTitle(tooltip, 'T') TipLine(tooltip, 'L')"))
+        local core = LoadCore(account)
+        setfenv(chunk, setmetatable({ ns = core, tooltip = tooltip, TIP_TITLE = TIP_TITLE, TIP_TEXT = TIP_TEXT }, { __index = _G }))
+        chunk()
+        return lines, core.THEME
+    end
+    local lines = Tips({})
+    Check(Same(lines[1], { "T", 1, 0.82, 0 }) and Same(lines[2], { "L", 1, 1, 1 }), "launcher tooltip: the default theme keeps the gold title and white lines")
+    local t
+    lines, t = Tips(ACCENT_PRESET)
+    Check(Same(lines[1], { "T", t.accent.r, t.accent.g, t.accent.b }), "launcher tooltip: the title follows Accent")
+    Check(Same(lines[2], { "L", t.fg.r, t.fg.g, t.fg.b }), "launcher tooltip: the lines follow Text")
+    Check(not source:find('tooltip:AddLine(mod.name)', 1, true) and not source:find('tooltip:AddLine("Naowh Forever")', 1, true),
+        "launcher tooltip: no untinted title is left")
+end
+
+-- The FPS / MS readout's labels follow Text; its numbers keep their status colors.
+do
+    local source = Read("TopBar/NaowhForever_TopBar.lua")
+    Check(source:find('bar.sys.text:SetTextColor(Tone("fg", 1))', 1, true), "topbar: the FPS / MS labels are set from Text")
+end
+
+-- The Loot Feed: the dark style's fill follows Background, the light style's fill and edge
+-- follow Panels and Borders & Lines (same opacity), the glow follows Accent; nothing changes
+-- with the default theme.
+do
+    local source = Read("QoL/NaowhForever_LootFeed.lua")
+    local DARK_BG, LIGHT_BG, LIGHT_EDGE, GLOW =
+        Const(source, "DARK_BG"), Const(source, "LIGHT_BG"), Const(source, "LIGHT_EDGE"), Const(source, "GLOW")
+    Check(IsRGB(DARK_BG, 0.05, 0.05, 0.06) and IsRGB(LIGHT_BG, 0.32, 0.23, 0.14), "loot feed fill literals are the originals")
+    Check(IsRGB(LIGHT_EDGE, 0.12, 0.08, 0.04) and IsRGB(GLOW, 1, 0.8, 0.3), "loot feed edge and glow literals are the originals")
+    local block = assert(source:match('(if st == STYLES%.dark then\n.-\n    end)\n    row%.glow:SetShown'))
+    local STYLES = { dark = { bg = { 0.05, 0.05, 0.06, 0.8 }, edge = { 0, 0, 0, 1 } },
+        light = { bg = { 0.32, 0.23, 0.14, 0.7 }, edge = { 0.12, 0.08, 0.04, 1 } } }
+    local function Row(account, style)
+        local fill, edge
+        Run(block, { ns = LoadCore(account), st = STYLES[style], STYLES = STYLES, unpack = unpack,
+            DARK_BG = DARK_BG, LIGHT_BG = LIGHT_BG, LIGHT_EDGE = LIGHT_EDGE,
+            row = { bg = { SetColorTexture = function(_, ...) fill = { ... } end },
+                border = { SetColor = function(_, ...) edge = { ... } end } } })
+        return fill, edge
+    end
+    local ns = LoadCore(ACCENT_PRESET)
+    local T = ns.THEME
+    local fill, edge = Row({}, "dark")
+    Check(Same(fill, { 0.05, 0.05, 0.06, 0.8 }) and Same(edge, { 0, 0, 0, 1 }), "loot feed dark: the default theme is as before")
+    fill, edge = Row({}, "light")
+    Check(Same(fill, { 0.32, 0.23, 0.14, 0.7 }) and Same(edge, { 0.12, 0.08, 0.04, 1 }), "loot feed light: the default theme is as before")
+    fill, edge = Row(ACCENT_PRESET, "dark")
+    Check(Same(fill, { T.bg.r, T.bg.g, T.bg.b, 0.8 }) and Same(edge, { 0, 0, 0, 1 }), "loot feed dark: the Background, edge still black")
+    fill, edge = Row(ACCENT_PRESET, "light")
+    Check(Same(fill, { T.panel.r, T.panel.g, T.panel.b, 0.7 }), "loot feed light: the Panels color at the same opacity")
+    Check(Same(edge, { T.line.r, T.line.g, T.line.b, 1 }), "loot feed light: the Borders & Lines color")
+    fill, edge = Row({ themePreset = "custom", themeColors = { bg = { r = 1, g = 0, b = 0 } } }, "light")
+    Check(Same(fill, { 0.32, 0.23, 0.14, 0.7 }) and Same(edge, { 0.12, 0.08, 0.04, 1 }),
+        "loot feed light: a theme that left Panels and lines alone keeps the brown")
+
+    local glowStmt = assert(source:match('(local glow = ns%.ThemeTint%("accent", GLOW%)\n[^\n]*SetGradient[^\n]*)'))
+    local function Glow(account)
+        local from, to
+        local function CreateColor(r, g, b, a) return { r, g, b, a } end
+        Run(glowStmt, { ns = LoadCore(account), GLOW = GLOW, CreateColor = CreateColor,
+            row = { glow = { SetGradient = function(_, _, a, b) from, to = a, b end } } })
+        return from, to
+    end
+    local from, to = Glow({})
+    Check(Same(from, { 1, 0.8, 0.3, 0.7 }) and Same(to, { 1, 0.8, 0.3, 0 }), "loot feed glow: the default theme keeps its gold")
+    from, to = Glow(ACCENT_PRESET)
+    Check(Same(from, { T.accent.r, T.accent.g, T.accent.b, 0.7 }) and Same(to, { T.accent.r, T.accent.g, T.accent.b, 0 }),
+        "loot feed glow: the accent, fading out")
+end
+
+-- The XP bar's rested segment and its text follow a changed accent; quest gold stays gold.
+do
+    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local RESTED = assert(loadstring("return " .. assert(source:match("\nlocal RESTED%s+= (%b{})"))))()
+    Check(IsRGB(RESTED, 0x1e / 255, 0x40 / 255, 0xaf / 255), "xpbar rested literal is the original")
+    local restedFn = assert(source:match('(local function RestedDefault%(%).-\nend)'))
+    local RESTED_DARK = assert(tonumber(source:match('\nlocal RESTED_DARK = ([%d%.]+)')))
+    Check(RESTED_DARK == 0.7, "xpbar: rested is the accent at 0.7")
+    local function Rested(account)
+        local chunk = assert(loadstring(restedFn .. "\nreturn RestedDefault()"))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account), RESTED = RESTED, RESTED_DARK = RESTED_DARK },
+            { __index = _G }))
+        return chunk()
+    end
+    Check(Rested({}) == RESTED, "xpbar: the default theme keeps the royal blue")
+    local a = AccentOf(ACCENT_PRESET)
+    local on = Rested(ACCENT_PRESET)
+    Check(on.r == a.r * 0.7 and on.g == a.g * 0.7 and on.b == a.b * 0.7, "xpbar: rested is a deeper shade of the accent")
+    local expr = assert(source:match('(ns%.ThemeTint%("accent", nil%) and ns%.Color%("accent"%) or RESTED_HEX)'))
+    local function Text(account)
+        local chunk = assert(loadstring("return " .. expr))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account), RESTED_HEX = "|cff6b8cff" }, { __index = _G }))
+        return chunk()
+    end
+    Check(Text({}) == "|cff6b8cff", "xpbar: the rested text keeps its blue by default")
+    Check(Text(ACCENT_PRESET) == "|cff5b8cff", "xpbar: the rested text follows the accent")
+
+    -- Quest XP: the logo's gold by default, the lighter accent in a theme.
+    local QUEST = assert(loadstring("return " .. assert(source:match("\nlocal QUEST%s+= (%b{})"))))()
+    Check(IsRGB(QUEST, 0xf2 / 255, 0xa9 / 255, 0x00 / 255), "xpbar quest literal is the original")
+    local questFn = assert(source:match('(local function QuestDefault%(%).-\nend)'))
+    local function Quest(account)
+        local chunk = assert(loadstring(questFn .. "\nreturn QuestDefault()"))
+        local ns = LoadCore(account)
+        setfenv(chunk, setmetatable({ ns = ns, QUEST = QUEST }, { __index = _G }))
+        return chunk(), ns.THEME.accentSoft
+    end
+    Check(Quest({}) == QUEST, "xpbar: the default theme keeps the quest gold")
+    local color, soft = Quest(ACCENT_PRESET)
+    Check(color == soft, "xpbar: a theme's quest segment is its lighter accent")
+    local qexpr = assert(source:match('(ns%.ThemeTint%("accentSoft", nil%) and ns%.Color%("accentSoft"%) or QUEST_HEX)'))
+    local function QuestText(account)
+        local chunk = assert(loadstring("return " .. qexpr))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account), QUEST_HEX = "|cfff2a900" }, { __index = _G }))
+        return chunk()
+    end
+    Check(QuestText({}) == "|cfff2a900", "xpbar: the quest text keeps its gold by default")
+    Check(QuestText(ACCENT_PRESET) == "|cff91b2ff", "xpbar: the quest text follows the lighter accent")
+end
+
+-- Apply Theme to Your Bar (Threat Meter): off by default, the picked color; on, a darker shade of the
+-- theme's Accent for your bar only. The tank and pull aggro bars keep their picked colors.
+do
+    local path = "ThreatMeter/NaowhForever_ThreatMeter.lua"
+    local source = Read(path)
+    local helper = assert(source:match("(local yourShade\nlocal function ThemedColor%(key%).-\nend\n\n%-%- The color a bar setting.-\nlocal function BarColor%(key%).-\nend)"), path .. ": BarColor")
+    local PICKED = { playerColor = { r = 0.8, g = 0.1, b = 0.1 }, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
+        pullColor = { r = 0, g = 0.55, b = 0 } }
+    local function Bar(account, key, themed)
+        local core = LoadCore(account)
+        local env = { T = core.THEME, S = { Get = function(k)
+            if k == "themeColors" then return themed end
+            return PICKED[k]
+        end } }
+        local chunk = assert(loadstring(helper .. "\nreturn BarColor(...)"))
+        setfenv(chunk, setmetatable(env, { __index = _G }))
+        return chunk(key), core.THEME
+    end
+    Check(Bar(ACCENT_PRESET, "playerColor", false) == PICKED.playerColor, "threat meter: the picked color while Apply Theme is off")
+    local c, t = Bar(ACCENT_PRESET, "playerColor", true)
+    Check(c.r == t.accent.r * 0.75 and c.g == t.accent.g * 0.75 and c.b == t.accent.b * 0.75, "threat meter: your bar is the Accent at 75%")
+    Check(Bar(ACCENT_PRESET, "tankColor", true) == PICKED.tankColor, "threat meter: the tank's bar keeps its picked color")
+    Check(Bar(ACCENT_PRESET, "pullColor", true) == PICKED.pullColor, "threat meter: the pull aggro bar keeps its picked color")
+    -- White text has to stay readable on the shade (at least 3:1, before the bar's opacity darkens it further).
+    for _, preset in ipairs({ "midnight", "slate", "obsidian", "aubergine", "forest", "crimson", "rosenoir", "cottoncandy" }) do
+        local got = Bar({ themePreset = preset }, "playerColor", true)
+        local function Lin(v) return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+        local lum = 0.2126 * Lin(got.r) + 0.7152 * Lin(got.g) + 0.0722 * Lin(got.b)
+        Check(1.05 / (lum + 0.05) >= 3, "threat meter: white text reads on " .. preset)
+    end
+    Check(source:find('S.Toggle("themeColors", "Apply Theme to Your Bar"', 1, true), "threat meter: the switch is in the Colours section")
+    Check(source:find('if e.pull then return BarColor("pullColor") end', 1, true), "threat meter: the bars paint through BarColor")
+end
+
+-- Apply Theme to Bar Colours (Swing Timer): off by default, the picked colors; on, the theme's
+-- Accent, lighter Accent and a deeper Accent for the main hand, off hand and ranged bars.
+do
+    local path = "SwingTimer/NaowhForever_SwingTimer.lua"
+    local source = Read(path)
+    local helper = assert(source:match("(local function ThemedBar%(key%).-\nend\n\nlocal function Color%(key%).-\nend)"), path .. ": Color")
+    local PICKED = { mhColor = { r = 0.9, g = 0.7, b = 0.27 }, ohColor = { r = 0.9, g = 0.45, b = 0.27 }, rColor = { r = 0.27, g = 0.73, b = 0.9 } }
+    local function Bar(account, key, themed)
+        local core = LoadCore(account)
+        local env = { T = core.THEME, S = { Get = function(k)
+            if k == "themeColors" then return themed end
+            return PICKED[k]
+        end } }
+        local chunk = assert(loadstring(helper .. "\nreturn Color(...)"))
+        setfenv(chunk, setmetatable(env, { __index = _G }))
+        return { chunk(key) }, core.THEME
+    end
+    local got = Bar(ACCENT_PRESET, "mhColor", false)
+    Check(Same(got, { 0.9, 0.7, 0.27, 1 }), "swing timer: the picked color while Apply Theme is off")
+    local t
+    got, t = Bar(ACCENT_PRESET, "mhColor", true)
+    Check(Same(got, { t.accent.r, t.accent.g, t.accent.b, 1 }), "swing timer: main hand is the Accent")
+    got = Bar(ACCENT_PRESET, "ohColor", true)
+    Check(Same(got, { t.accentSoft.r, t.accentSoft.g, t.accentSoft.b, 1 }), "swing timer: off hand is the lighter Accent")
+    got = Bar(ACCENT_PRESET, "rColor", true)
+    Check(Same(got, { t.accent.r * 0.6, t.accent.g * 0.6, t.accent.b * 0.6, 1 }), "swing timer: ranged is a deeper Accent")
+    PICKED.queueColor = { r = 1, g = 0.7, b = 0.2 }
+    got = Bar(ACCENT_PRESET, "queueColor", true)
+    Check(Same(got, { 1, 0.7, 0.2, 1 }), "swing timer: the queued attack color is not themed")
+    Check(source:find('S.Toggle("themeColors", "Apply Theme to Bar Colours"', 1, true), "swing timer: the switch beside Ranged")
 end
 
 print("PASS theme HUD: " .. cases .. " checks")

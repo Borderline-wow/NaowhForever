@@ -273,7 +273,7 @@ local function MakeRecent(parent)
     local divider = ns.Solid(block, "ARTWORK", T.line, 0.6)
     divider:SetPoint("TOP", 0, -RECENT_INSET / 2)
     divider:SetPoint("BOTTOM", 0, RECENT_FOOT)
-    divider:SetWidth(1)
+    ns.Hairline(divider, "v")
     return block
 end
 
@@ -401,6 +401,11 @@ local KEY_ROW = {
         .. "Press it again to close it.",
 }
 
+local OPEN_KEY_ROW = {
+    type = "label", text = "Open Dungeon Journal",
+    tooltip = "Press this key to open the Dungeon Journal, and again to close it.",
+}
+
 function ns.BuildJournalSettingsPage(parent, y)
     local UI = ns.UI
     local W = UI.Widgets
@@ -434,11 +439,14 @@ function ns.BuildJournalSettingsPage(parent, y)
     if row then   -- nil while the settings search scans this page
         UI.KeyField(row._leftRegion, "NAOWHFOREVER_BOSSLOOT", KEY_ROW.text)
     end
-    _, h = W:DualRow(parent, y,
+    row, h = W:DualRow(parent, y, OPEN_KEY_ROW,
         S.Toggle("acceptShared", "Accept Shared Dungeon Quests",
             "Accepts a dungeon quest a group member shares with you as soon as it opens. Other "
             .. "shared quests are left to you. Hold the Skip Modifier (QoL > Questing) to look at "
             .. "one first.", "enabled")); y = y - h
+    if row then
+        UI.KeyField(row._leftRegion, "NAOWHFOREVER_JOURNAL", OPEN_KEY_ROW.text)
+    end
     return Recent(parent, y)
 end
 

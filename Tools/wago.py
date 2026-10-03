@@ -20,7 +20,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-BUILD = "1.60.1.70170"   # the Forever client build the Journal's data is read from
+BUILD = "1.60.1.70178"   # the Forever client build the Journal's data is read from
 # The build before it, whose hotfixed tables fill in the items BUILD's lack entirely. Hotfixes
 # are recorded per build, and wago.tools records a new build's some time after it appears;
 # a hotfix stays in the game from build to build until Blizzard takes it back, so the last
@@ -38,17 +38,22 @@ CAUGHT_UP = 0.98
 
 
 def fetch(url):
-    """The page's text. A busy answer (429, 503) is retried after a pause."""
+    """The page's text. A busy answer (429, 502 to 504) or a slow one (no answer in time) is
+    retried after a pause: wago.tools has days like that."""
     req = urllib.request.Request(url, headers={"User-Agent": AGENT})
     for wait in (10, 30, 60, None):
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urllib.request.urlopen(req, timeout=120) as r:
                 return r.read().decode("utf-8")
         except urllib.error.HTTPError as e:
-            if e.code not in (429, 503) or wait is None:
+            if e.code not in (429, 502, 503, 504) or wait is None:
                 raise
             print(f"  {e.code} from wago.tools, retrying in {wait}s", file=sys.stderr)
-            time.sleep(wait)
+        except (TimeoutError, urllib.error.URLError) as e:
+            if wait is None:
+                raise
+            print(f"  no answer from wago.tools ({e}), retrying in {wait}s", file=sys.stderr)
+        time.sleep(wait)
 
 
 # The columns the Journal's tools read from each table. For a build wago has only just

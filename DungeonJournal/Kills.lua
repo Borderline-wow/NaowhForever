@@ -82,6 +82,47 @@ function Kills.Record(boss)
     if type(record) == "table" and type(record.n) == "number" then return record end
 end
 
+-------------------------------------------------------------------------------
+--  This run: the kills since you came into the dungeon you are in
+-------------------------------------------------------------------------------
+-- Back in the same dungeon this soon after leaving it (a death and the run back, a reload):
+-- the same run. Kept per character (J.CharacterData), so a reload inside keeps it too. A run
+-- is over once a boss of it is killed again (a reset and another go), after RUN_MAX, and at
+-- a login outside (a logout and back is a new day, not the run back).
+local RUN_GRACE = 15 * 60
+local RUN_MAX = 4 * 60 * 60
+
+-- A loading screen: inside a dungeon the Journal lists, a run starts now unless it is the one
+-- you just left; outside, when you left it is kept, or at a login the run is over.
+---@param here? JournalDungeon[] J.Current()
+---@param login? boolean the login's own loading screen (not a reload's)
+function Kills.NoteRun(here, login)
+    local run = J.CharacterData("journalRun", true)
+    if not run then return end
+    local now = time()
+    if here then
+        local _, _, _, _, _, _, _, map = GetInstanceInfo()
+        if run.map ~= map or not run.at or now - run.at > RUN_MAX
+            or (run.left and (login or now - run.left > RUN_GRACE)) then
+            run.map, run.at = map, now
+        end
+        run.left = nil
+    elseif login then
+        run.map, run.at, run.left = nil, nil, nil
+    elseif run.at and not run.left then
+        run.left = now
+    end
+end
+
+-- Killed in this run: its latest kill came after the run started, and you are in the run.
+function Kills.ThisRun(boss)
+    local run = J.CharacterData("journalRun")
+    local record = run and run.at and not run.left and Kills.Record(boss)
+    local at = record and record.at
+    local last = at and at[#at]
+    return type(last) == "number" and last >= run.at
+end
+
 ---@return number kills on this character
 function Kills.Count(boss)
     local record = Kills.Record(boss)
@@ -225,11 +266,17 @@ local function Add(boss, took, team)
         table.remove(teams, 1)
         table.remove(drops, 1)
     end
+    -- Killed again in the same run: the dungeon was reset, and this is a new run.
+    if Kills.ThisRun(boss) then
+        local run = J.CharacterData("journalRun")
+        if run then run.at = now end
+    end
     record.n = record.n + 1
     at[#at + 1] = now
     lengths[#lengths + 1] = length or false
     teams[#teams + 1] = team or false
     drops[#drops + 1] = false
+    J.RedrawDungeonMaps()   -- a map showing ticks and dims it
 end
 Kills.Add = Add
 
@@ -300,7 +347,12 @@ end
 
 -- ENCOUNTER_START: encounterID, name, difficultyID, groupSize.
 -- ENCOUNTER_END: encounterID, name, difficultyID, groupSize, success (1 for a kill).
+-- PLAYER_ENTERING_WORLD: isInitialLogin, isReloadingUi.
 local function OnEvent(_, event, encounterID, _, _, _, success)
+    if event == "PLAYER_ENTERING_WORLD" then
+        Kills.NoteRun(J.Current(), encounterID == true)
+        return
+    end
     if event == "LOOT_HISTORY_UPDATE_DROP" then
         if not issecretvalue(encounterID) then Gather(encounterID) end
         return
@@ -327,6 +379,7 @@ local function Sync()
     if on then
         frame:RegisterEvent("ENCOUNTER_START")
         frame:RegisterEvent("ENCOUNTER_END")
+        frame:RegisterEvent("PLAYER_ENTERING_WORLD")   -- this run's start (the dungeon map's progress)
         if C_LootHistory then frame:RegisterEvent("LOOT_HISTORY_UPDATE_DROP") end
     else
         frame:UnregisterAllEvents()

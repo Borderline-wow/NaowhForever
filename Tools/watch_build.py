@@ -24,6 +24,9 @@ wago.tools; nothing is read from Wowhead, the report only links to it):
   the table does not have yet; those are only counted.)
 - New encounters on the maps of the Journal's dungeons: a boss the Journal may be missing.
 - New dungeon and raid maps: a dungeon the Journal does not have yet.
+- New dungeon floor maps: the game's own map of a dungeon's inside (UiMap type 4), which
+  Forever has none of yet: the Journal's dungeon maps draw the old world map's art, and the
+  dungeons new in Forever have none. Information only.
 - New gear: uncommon or better items the new build adds that can be worn or wielded, and the
   Journal does not list yet. The game's tables cannot say who drops an item (loot is the
   server's), so these are for a person to place under their bosses. Information only: it
@@ -127,6 +130,22 @@ def instance_maps(build):
             if row["InstanceType"] in INSTANCE_TYPES}
 
 
+DUNGEON_FLOOR = "4"   # UiMap Type: a dungeon's inside
+
+
+def floor_maps(build):
+    """uiMap ID -> name of the build's dungeon floor maps; {} where wago cannot read the table
+    (it never holds a build back)."""
+    try:
+        rows = wago.table("UiMap", build, hotfixes=False)
+    except Exception as e:
+        print(f"UiMap could not be read for {build}: {e}", file=sys.stderr)
+        return {}
+    if not rows or "Type" not in rows[0]:
+        return {}
+    return {row["ID"]: row.get("Name_lang", "") for row in rows if row["Type"] == DUNGEON_FLOOR}
+
+
 def newest(wanted):
     """The build to compare with: the one asked for, else the newest Forever build wago has."""
     builds = wago.forever_builds()
@@ -157,8 +176,11 @@ def check(old, new):
     old_maps, new_maps = instance_maps(old), instance_maps(new)
     fresh = [(row["MapName_lang"], row["ID"], INSTANCE_TYPES[row["InstanceType"]], row["MaxPlayers"])
              for m, row in sorted(new_maps.items(), key=lambda kv: int(kv[0])) if m not in old_maps]
+    before_floors, after_floors = floor_maps(old), floor_maps(new)
+    floors = [(name, m) for m, name in sorted(after_floors.items(), key=lambda kv: int(kv[0]))
+              if m not in before_floors]
     return {"total": len(ours) - pinned, "pinned": pinned, "gone": gone, "renamed": renamed,
-            "added": added, "fresh": fresh}
+            "added": added, "fresh": fresh, "floors": floors}
 
 
 def rewards(old, carry_old, new, carry_new):
@@ -491,7 +513,8 @@ def report(target, old, unreadable=None, dungeons=None, found=None, waiting=Fals
 
     # The dungeons.
     lines += ["### Dungeons and raids", ""]
-    if not (dungeons["gone"] or dungeons["renamed"] or dungeons["added"] or dungeons["fresh"]):
+    if not (dungeons["gone"] or dungeons["renamed"] or dungeons["added"] or dungeons["fresh"]
+            or dungeons.get("floors")):
         lines += [f"Nothing changes: all {dungeons['total']} encounter IDs the Journal counts kills by are in "
                   "the new build, and it has no new encounter in our dungeons nor a new dungeon or raid."]
     for e, dungeon, boss in dungeons["gone"]:
@@ -502,6 +525,9 @@ def report(target, old, unreadable=None, dungeons=None, found=None, waiting=Fals
         lines.append(f"- New encounter: {name} (encounter {e}) in {where}.")
     for name, m, kind, players in dungeons["fresh"]:
         lines.append(f"- New {kind}: {name} (map {m}), for {players} players.")
+    for name, m in dungeons.get("floors", []):
+        lines.append(f"- New dungeon floor map: {name} (uiMap {m}). The game draws this dungeon's inside now: "
+                     "the Journal's map (DungeonJournal/Data/Maps.lua) could use its art.")
     if dungeons["pinned"]:
         lines += ["", f"{plural(dungeons['pinned'], 'encounter')} pinned by hand in journal_bosses.json "
                   f"{'is' if dungeons['pinned'] == 1 else 'are'} in neither build's table yet (a raid it lacks)."]

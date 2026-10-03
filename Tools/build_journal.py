@@ -43,7 +43,11 @@ raid whose drops Wowhead has no Forever data for yet: its page only has world dr
 (Sneed's Shredder, which Sneed climbs out of): it takes that fight's encounter IDs, so its
 kills count with it, and says so ("with").
 
-Usage: python Tools/build_journal.py
+--offline (the daily watch, in CI) asks Wowhead nothing: what the cache does not have comes
+from the game's own tables where they have it (a new item's facts, through Tools/wago.py),
+else is left out and listed at the end, for a run on our machines.
+
+Usage: python Tools/build_journal.py [--offline]
 """
 import csv
 import io
@@ -89,10 +93,46 @@ SOD = 201
 cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
 
 
-def cached(key, get):
+OFFLINE = "--offline" in sys.argv
+# What a Wowhead answer is cached under; offline, one not cached yet is not asked.
+WOWHEAD_KEYS = ("npc:", "drops5:", "contains5:", "model:", "item:", "zones", "guide:")
+offline_missed = []
+
+
+def cached(key, get, fallback=None):
     if key not in cache:
+        if OFFLINE and key.startswith(WOWHEAD_KEYS):
+            offline_missed.append(key)
+            return fallback
         cache[key] = get()
     return cache[key]
+
+
+game_items = None
+
+
+def game_item(item_id):
+    """An item's facts from the game's own tables (Item, ItemSparse: the --offline build), in
+    the fields npc_drops keeps; None where they do not have it (an old classic item)."""
+    global game_items
+    if game_items is None:
+        import wago
+        game_items = {}
+        # The build carried from first (wago.CARRY_FROM: hotfixed items wago has not recorded for
+        # the new one yet), then the build itself over it, as the faction data reads them.
+        for build in (wago.CARRY_FROM, wago.BUILD):
+            if build:
+                sparse = {r["ID"]: r for r in wago.table("ItemSparse", build)}
+                game_items.update({r["ID"]: (r, sparse[r["ID"]]) for r in wago.table("Item", build)
+                                   if r["ID"] in sparse})
+    found = game_items.get(str(item_id))
+    if not found:
+        offline_missed.append(f"item:{item_id}")
+        return None
+    item, sparse = found
+    return {"id": item_id, "slot": int(sparse["InventoryType"]), "class": int(item["ClassID"]),
+            "subclass": int(item["SubclassID"]), "level": int(sparse["ItemLevel"]),
+            "reqlevel": int(sparse["RequiredLevel"] or 0), "quality": int(sparse["OverallQualityID"])}
 
 
 def save_cache():
@@ -107,6 +147,21 @@ def save_cache():
     except PermissionError:
         CACHE.write_text(text, encoding="utf-8")
         tmp.unlink()
+
+
+def npc_model(npc):
+    """The NPC's creature display ID, from its Wowhead Forever page (g_npcs' "model"), for its
+    portrait on the dungeon map; None where the page has none."""
+    def get():
+        try:
+            page = fetch(f"{WOWHEAD}/npc={npc}")
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+            raise
+        found = re.search(r'"%d":\{"name_enus":"[^"]*","model":(\d+)' % npc, page)
+        return int(found.group(1)) if found else None
+    return cached(f"model:{npc}", get)
 
 
 def find_npc(name):
@@ -183,7 +238,7 @@ def wowhead_drops(kind, thing):
                 and not (i.get("commondrop") or (kind == "npc" and i.get("flags2", 0) & WORLD_DROP))
                 and not sod_only(i)]}
     found = cached(f"drops5:{thing}" if kind == "npc" else f"contains5:{thing}", get)
-    if isinstance(found, list):   # a page with no drops
+    if not found or isinstance(found, list):   # a page with no drops (or, offline, not read yet)
         return []
     return choose(found["items"], found["new"])
 
@@ -222,6 +277,8 @@ def item_facts(item_id):
         return {"id": item_id, "slot": item.get("slot"), "class": item.get("classs"),
                 "subclass": item.get("subclass"), "level": item.get("level"),
                 "reqlevel": item.get("reqlevel") or 0, "quality": item.get("quality", 0)}
+    if OFFLINE and f"item:{item_id}" not in cache:
+        return game_item(item_id)
     return cached(f"item:{item_id}", get)
 
 
@@ -307,8 +364,13 @@ def merge_wowsrc(loot, listed):
             kept.append(item)
     for theirs in on_list.values():
         facts = item_facts(theirs["id"])
-        if facts["quality"] >= MIN_QUALITY and facts["slot"] in EQUIPPABLE:
+        if facts and facts["quality"] >= MIN_QUALITY and facts["slot"] in EQUIPPABLE:
             kept.append(dict(facts, chance=theirs["chance"], new=theirs["new"]))
+        elif not facts:
+            # Not known here (offline, an item neither cache nor tables have): the list is not
+            # whole, so what the boss had stays rather than lose loot over it.
+            have = {item["id"] for item in kept}
+            kept += [item for item in loot if item["id"] not in have]
     kept.sort(key=lambda i: (i["chance"] is None, -(i["chance"] or 0), -i["quality"], i["id"]))
     return kept
 
@@ -375,7 +437,8 @@ def boss_entry(name, rare, pinned, extra, items, report, listed=None, kind=None,
         report.append(f"no loot: {name} ({npc})")
     for item in loot:
         items[item["id"]] = item
-    return {"npc": npc, "name": name, "rare": rare, "optional": kind == "optional", "loot": loot}
+    return {"npc": npc, "name": name, "rare": rare, "optional": kind == "optional", "loot": loot,
+            "model": npc_model(npc) if npc else None}
 
 
 tables = {}
@@ -432,6 +495,8 @@ def chance(item):
 
 def lua_boss(boss):
     fields = [f"npc = {boss['npc'] or 'nil'}", f"name = {lua_string(boss['name'])}"]
+    if boss.get("model"):
+        fields.append(f"model = {boss['model']}")
     if boss["rare"]:
         fields.append("rare = true")
     if boss.get("optional"):
@@ -518,7 +583,9 @@ def extra_loot(dungeon, bis):
         for item_id in ids:
             if not isinstance(item_id, int):
                 sys.exit(f"journal_bosses.json, {dungeon['name']}, {boss}: \"add\" takes item IDs, not {item_id!r}")
-            extra.setdefault(boss.lower(), []).append(dict(item_facts(item_id), chance=None))
+            facts = item_facts(item_id)
+            if facts:
+                extra.setdefault(boss.lower(), []).append(dict(facts, chance=None))
     here = plain(dungeon["name"])
     for (where, boss), ids in bis.items():
         # The BiS data names both of Blackrock Spire's halves after the whole spire.
@@ -592,6 +659,9 @@ def main():
     print(f"{len(items)} items, {len(files)} dungeons", file=sys.stderr)
     for line in report:
         print(f"  {line}", file=sys.stderr)
+    if offline_missed:
+        print(f"Offline, {len(offline_missed)} answers were not in the cache nor the game's tables "
+              "(run it on your machine for them): " + ", ".join(sorted(set(offline_missed))), file=sys.stderr)
     print("DungeonJournal.xml lines:\n" + "\n".join(f'    <Script file="Data\\Dungeons\\{f}"/>' for f in files))
 
 

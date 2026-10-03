@@ -2259,7 +2259,7 @@ local function NewAbilityRow(parent)
     local div = ns.Solid(row, "ARTWORK", ns.THEME.line, 1)
     div:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
     div:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
-    div:SetHeight(1)
+    ns.Hairline(div, "h")
     return row
 end
 
@@ -3383,7 +3383,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
     local tabDivider = UI.Keep(panel, "tabDivider", function(p) return ns.Solid(p, "ARTWORK", ns.THEME.line, 1) end)
     tabDivider:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, BODY_TOP + 6)
     tabDivider:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, BODY_TOP + 6)
-    tabDivider:SetHeight(1)
+    ns.Hairline(tabDivider, "h")
 
     local tabButtons, tabBodies = {}, {}
 

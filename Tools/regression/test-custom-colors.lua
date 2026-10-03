@@ -264,6 +264,25 @@ do
     for key, l in pairs(lit) do
         Check(rawequal(ns.ThemeTint(key, l), l), "default theme: " .. key .. " returns the literal itself")
     end
+
+    -- A saved pick that is the shipped color, or within a picker's rounding of it, is no change:
+    -- what Custom copied from the default theme, or a swatch opened and closed, leaves it alone.
+    local function Hex(hex, off) return { r = Float(hex, 1) + off, g = Float(hex, 3), b = Float(hex, 5) } end
+    local copied = {}
+    for _, key in ipairs({ "bg", "panel", "line", "fg", "muted", "accent" }) do copied[key] = Hex(SHIPPED[key], 0) end
+    copied.accent = Hex(SHIPPED.accent, 0.5 / 255)
+    ns, handler = Load({ themePreset = "custom", themeColors = copied })
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    for key, l in pairs(lit) do
+        Check(rawequal(ns.ThemeTint(key, l), l), "custom at the shipped colors: " .. key .. " keeps the literal")
+    end
+    Check(Is(ns.THEME.accent, SHIPPED.accent) and Is(ns.THEME.accentSoft, SHIPPED.accentSoft),
+        "custom at the shipped colors: the accents stay as shipped")
+    copied.accent = Hex(SHIPPED.accent, 2 / 255)
+    ns, handler = Load({ themePreset = "custom", themeColors = copied })
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(rawequal(ns.ThemeTint("accent", lit.accent), ns.THEME.accent), "custom: an accent moved off the shipped one is a change")
+    Check(rawequal(ns.ThemeTint("bg", lit.bg), lit.bg), "custom: the rest still at the shipped colors keep the literal")
 end
 
 -- ns.Color: cached per token, and the cache is cleared when the theme is applied.
@@ -274,6 +293,26 @@ do
     Check(ns.Color("accent") == "|cffef4b56", "the cache follows the applied accent")
     Check(ns.Color("accent", "x") == "|cffef4b56x|r", "wrapped text")
     Check(ns.Color("fg") == "|cfff6eff0" and ns.Color("muted") == "|cffac9a9e", "fg and muted follow too")
+end
+
+-- The preview's colors.
+do
+    local ns = Load({})
+    local default = ns.ThemePalette("")
+    Check(#default == 6 and Is(default[1], SHIPPED.bg) and Is(default[6], SHIPPED.accent), "default palette")
+    for i, token in ipairs(KEYS) do Check(Is(default[i], SHIPPED[token]), "default palette: " .. token) end
+    for _, key in ipairs(ORDER) do
+        local palette = ns.ThemePalette(key)
+        Check(#palette == 6, key .. ": six colors")
+        for i, token in ipairs(KEYS) do
+            Check(Is(palette[i], PRESETS[key][i + 1]), key .. " palette: " .. token)
+        end
+    end
+    Check(#ns.ThemePalette("bogus") == 6 and Is(ns.ThemePalette("bogus")[1], SHIPPED.bg), "an unknown key is the default palette")
+    ns = Load({ themeColors = { fg = { r = 1, g = 0, b = 0 } } })
+    local custom = ns.ThemePalette("custom")
+    Check(Is(custom[4], "ff0000") and Is(custom[1], SHIPPED.bg), "custom palette: the saved pick, shipped for the rest")
+    Check(#Load(nil).ThemePalette("custom") == 6, "custom with no account table still gives six")
 end
 
 print("PASS custom colors: " .. cases .. " checks")

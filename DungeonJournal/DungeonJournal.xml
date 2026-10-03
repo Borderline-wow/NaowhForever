@@ -43,6 +43,8 @@
     <Script file="Data\Dungeons\OnyxiasLair.lua"/>
     <Script file="Data\Dungeons\BarrowDeeps.lua"/>
     <Script file="Data\Dungeons\HyjalSummit.lua"/>
+    <!-- Each dungeon's map: its art and where its bosses stand, by hand -->
+    <Script file="Data\Maps.lua"/>
     <!-- The factions: the Reputation tab's, then the PvP tab's -->
     <Script file="Data\Factions\ArgentDawn.lua"/>
     <Script file="Data\Factions\ThoriumBrotherhood.lua"/>
@@ -107,5 +109,6 @@
     <Script file="UI\MapPanel.lua"/>
     <Script file="UI\Popup.lua"/>
     <Script file="UI\QuestTracker.lua"/>
+    <Script file="UI\DungeonMap.lua"/>
     <Script file="UI\SettingsPage.lua"/>
 </Ui>
