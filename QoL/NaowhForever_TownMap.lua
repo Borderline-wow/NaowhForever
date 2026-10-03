@@ -115,8 +115,7 @@ function provider:RefreshAllData()
     self:RemoveAllData()
     if not On() then return end
     local mapID = self:GetMap():GetMapID()
-    local inTown = not S.Get("townCapitalsOnly") or CAPITALS[mapID]
-    local list = inTown and ns.TownNPCs[mapID] or {}
+    local list = (not S.Get("townCapitalsOnly") or CAPITALS[mapID]) and ns.TownNPCs[mapID] or {}
     if S.Get("townSpiritHealers") and C_DeathInfo and C_DeathInfo.GetGraveyardsForMap then
         for _, grave in ipairs(C_DeathInfo.GetGraveyardsForMap(mapID) or {}) do
             local x, y = grave.position:GetXY()
@@ -137,7 +136,9 @@ function provider:RefreshAllData()
             self:GetMap():AcquirePin(TEMPLATE, npc)
         end
     end
-    if inTown and S.Get("townMail") then
+    -- Not held to the capitals: that keeps vendors and trainers off questing maps, and a
+    -- mailbox out in the world is what you look for there.
+    if S.Get("townMail") then
         for _, mailbox in ipairs(ns.TownMailboxes[mapID] or {}) do
             self:GetMap():AcquirePin(TEMPLATE, mailbox)
         end

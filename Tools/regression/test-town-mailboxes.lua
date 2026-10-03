@@ -32,6 +32,7 @@ end
 local map = Read("QoL/NaowhForever_TownMap.lua")
 Check(map:find('mail       = { "townMail",', 1, true), "the town map knows the mail category")
 Check(map:find("ns.TownMailboxes[mapID]", 1, true), "and draws the mailboxes")
+Check(map:find('if S.Get("townMail") then', 1, true), "everywhere: Town Pins Only in Capitals is for vendors and trainers")
 Check(Read("QoL/NaowhForever_QoL.lua"):find("townMail = false", 1, true), "Mailboxes start off")
 
 print(("test-town-mailboxes: %d checks passed"):format(checks))
