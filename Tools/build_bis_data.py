@@ -236,7 +236,7 @@ def fill_sources(sources, ranked):
             missing.append(item_id)
             continue
         source = wowhead_source(item_id, cache)
-        SOURCES.write_text(json.dumps(cache, indent=1, sort_keys=True), encoding="utf-8")
+        SOURCES.write_text(json.dumps(cache, indent=1, sort_keys=True), encoding="utf-8", newline="\r\n")
         if source:
             sources[item_id] = source
         else:
@@ -312,7 +312,7 @@ def main():
                         sources[item_id] = item["source"]
             resolved[inv] = ids
         specs.append((cls, slug, title, updated, resolved))
-        CACHE.write_text(json.dumps(cache, indent=1, sort_keys=True), encoding="utf-8")
+        CACHE.write_text(json.dumps(cache, indent=1, sort_keys=True), encoding="utf-8", newline="\r\n")
 
     lines = [
         "-------------------------------------------------------------------------------",
