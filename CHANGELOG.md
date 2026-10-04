@@ -259,6 +259,7 @@
   means always. Your setting carries over; with In Combat it becomes With Threat. In a Group
   can no longer hide the empty window, so choose With Threat for that.
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70205.
+- BiS List: picks updated from wowsrc.com's latest lists, for every spec.
 
 ### Fixed
 - Blessings: the options window opens again while the bar shows your blessing buffs. Opening
