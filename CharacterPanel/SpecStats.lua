@@ -60,7 +60,9 @@ local BAND_PAD = 4
 local TRACK_ALPHA = 0.08     -- the bar's track: the text colour, this faint
 local BAR_DROP = Parts.CARD_DROP   -- level with the letters, as on the house's cards
 
-local EVENTS = { "PLAYER_EQUIPMENT_CHANGED", "COMBAT_RATING_UPDATE" }
+-- ADDON_RESTRICTION_STATE_CHANGED: your stats can go secret under the game's addon restrictions
+-- (combat, an encounter, some maps); painted again when one lifts.
+local EVENTS = { "PLAYER_EQUIPMENT_CHANGED", "COMBAT_RATING_UPDATE", "ADDON_RESTRICTION_STATE_CHANGED" }
 local UNIT_EVENTS = { "UNIT_STATS", "UNIT_ATTACK_POWER", "UNIT_RANGED_ATTACK_POWER", "UNIT_DAMAGE",
     "UNIT_ATTACK_SPEED", "UNIT_RESISTANCES" }
 
@@ -68,6 +70,7 @@ local UNIT_EVENTS = { "UNIT_STATS", "UNIT_ATTACK_POWER", "UNIT_RANGED_ATTACK_POW
 -- list works them out. A percent's text says so; threat has none to show.
 local SCHOOLS = { holy = 2, fire = 3, nature = 4, frost = 5, shadow = 6, arcane = 7 }
 
+local HIDDEN = "-"   -- a total the game keeps secret for now, as a dps with no weapon speed
 local function Percent(value) return ("%.1f%%"):format(value or 0) end
 local function Whole(value) return ("%d"):format(math.floor((value or 0) + 0.5)) end
 
@@ -116,6 +119,33 @@ local TOTAL = {
 }
 for school, index in pairs(SCHOOLS) do
     TOTAL[school] = function() return Whole(GetSpellBonusDamage(index)) end
+end
+
+-- While the game keeps your stats secret: the ones it can still show, set straight on the row's
+-- text by the calls that take a secret (a font string's SetText and SetFormattedText, and
+-- C_StringUtil's rounding). A total we would have to add up or compare ourselves shows HIDDEN.
+local function Rounded(read)
+    return function(text) text:SetText(C_StringUtil.FloorToNearestString(read())) end
+end
+local function Percented(read)
+    return function(text) text:SetFormattedText("%.1f%%", read()) end
+end
+local SECRET_TOTAL = {
+    armor = Rounded(function() return select(2, UnitArmor("player")) end),
+    heal = Rounded(GetSpellBonusHealing),
+    crit = Percented(GetCritChance),
+    haste = Percented(GetMeleeHaste),
+    scrit = Percented(GetSpellCritChance),
+    dodge = Percented(GetDodgeChance),
+    block = Percented(GetBlockChance),
+    -- Defense skill is never secret.
+    def = function(text) text:SetText(TOTAL.def()) end,
+}
+for i, stat in ipairs({ "str", "agi", "sta", "int", "spi" }) do
+    SECRET_TOTAL[stat] = Rounded(function() return select(2, UnitStat("player", i)) end)
+end
+for school, index in pairs(SCHOOLS) do
+    SECRET_TOTAL[school] = Rounded(function() return GetSpellBonusDamage(index) end)
 end
 
 local NAME = {}
@@ -232,7 +262,13 @@ local function RowEnter(row)
     GameTooltip:SetText(NAME[row.stat] or row.stat, 1, 1, 1)
     GameTooltip:AddLine(WorthLine(row), a.r, a.g, a.b, true)
     if DOES[row.stat] then GameTooltip:AddLine(DOES[row.stat], m.r, m.g, m.b, true) end
-    GameTooltip:AddLine(YOU_LINE:format(row.total:GetText() or ""), fg.r, fg.g, fg.b)
+    if row.secret then
+        -- The total is secret: written into the line by the call that takes one.
+        GameTooltip:AddLine(" ", fg.r, fg.g, fg.b)
+        _G["GameTooltipTextLeft" .. GameTooltip:NumLines()]:SetFormattedText(YOU_LINE, row.total:GetText())
+    else
+        GameTooltip:AddLine(YOU_LINE:format(row.total:GetText() or ""), fg.r, fg.g, fg.b)
+    end
     GameTooltip:Show()
 end
 
@@ -282,6 +318,7 @@ local function Paint()
         end
     end
     Lay(math.min(#keys, ROWS))
+    local hidden = C_Secrets.ShouldUnitStatsBeSecret()
     for i, row in ipairs(view.rows) do
         local stat = keys[i]
         row:SetShown(stat ~= nil)
@@ -289,7 +326,12 @@ local function Paint()
             local weight = weights and weights[stat] or 0
             row.stat, row.weight = stat, weight
             row.name:SetText(SHORT[stat] or NAME[stat] or stat)
-            row.total:SetText(TOTAL[stat]())
+            row.secret = hidden and SECRET_TOTAL[stat] ~= nil
+            if row.secret then
+                SECRET_TOTAL[stat](row.total)
+            else
+                row.total:SetText(hidden and HIDDEN or TOTAL[stat]())
+            end
             -- The worth's bar, as long as its share of the heaviest weight by the square root,
             -- so a small one still shows beside the big ones, as the BiS List's gains.
             row.track:SetShown(weight > 0)

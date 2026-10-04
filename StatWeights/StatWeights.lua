@@ -300,20 +300,44 @@ function SW.DpsShare(slot)
 end
 local DpsShare = SW.DpsShare
 
+-- Your weapon speeds and stats' worth (per weights table) as last read, for while the game
+-- keeps your stats secret: a gain then is against your stats from just before. Forgotten when
+-- your gear or level changes, so no gain is shown from numbers that no longer hold.
+local lastMain, lastOff
+local lastPower = setmetatable({}, { __mode = "k" })
+local forgetter
+
+local function Forget()
+    wipe(lastPower)
+    lastMain, lastOff = nil, nil
+end
+
+local function Remembering()
+    if forgetter then return end
+    forgetter = CreateFrame("Frame")
+    forgetter:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    forgetter:RegisterEvent("PLAYER_LEVEL_UP")
+    forgetter:SetScript("OnEvent", Forget)
+end
+
 --- What a point of weapon damage per swing (an enchant's) is worth in the slot: a point of the
 --- weapon's damage per second over its speed.
 function SW.SwingDamage(weights, slot)
-    local main, off = UnitAttackSpeed("player")
+    local main, off = lastMain, lastOff
+    if not C_Secrets.ShouldUnitStatsBeSecret() then
+        main, off = UnitAttackSpeed("player")
+        lastMain, lastOff = main, off
+        Remembering()
+    end
     local speed = (slot == 17 and off or main) or SPEED
-    if C_Secrets.ShouldUnitStatsBeSecret() then speed = SPEED end
     return (weights.dps or 0) * DpsShare(slot) / (speed > 0 and speed or SPEED)
 end
 
 --- What your stats are worth now: your five stats as the game sums them (gear in them), and
---- the rest from what you wear. nil while the game keeps your stats secret, so no gain is
---- worked out until it lets them go.
+--- the rest from what you wear. While the game keeps your stats secret, the worth last read for
+--- these weights; nil if there is none yet.
 function SW.Power(weights)
-    if C_Secrets.ShouldUnitStatsBeSecret() then return nil end
+    if C_Secrets.ShouldUnitStatsBeSecret() then return lastPower[weights] end
     local power = 0
     for i, key in ipairs(PRIMARY) do power = power + (weights[key] or 0) * select(2, UnitStat("player", i)) end
     for _, slot in ipairs(GEAR_SLOTS) do
@@ -321,6 +345,8 @@ function SW.Power(weights)
         local stats = link and Stats(link)
         if stats then power = power + Worth(stats, weights, DpsShare(slot), true) end
     end
+    lastPower[weights] = power
+    Remembering()
     return power
 end
 
