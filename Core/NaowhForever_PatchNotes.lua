@@ -11,18 +11,38 @@ local NOTES = {
             .. "your gold, a road to 60 with every level that brings spells, and the spells you "
             .. "can train now with how much stronger each rank is. A toast on level-up, Learn All "
             .. "I Can Afford beside your class trainer, search, Show Learned and a Mini bar.",
+        "Talent Builds (Training Planner): a leveling build for every class, an editor to make "
+            .. "your own, Export and Import to share them, and Follow This Build spends each new "
+            .. "talent point for you.",
+        "Naowh's Forge (/nfmacros): a macro window that colours a macro as you type, counts its "
+            .. "255 bytes, flags typos and explains each line in plain words. Smart Macros and "
+            .. "Naowh's Library live there too.",
         "Dungeon Journal (/nfjournal or /nfdj): every dungeon's bosses in kill order with what "
             .. "they drop, your BiS and upgrades marked, your quests with waypoints, dungeon maps "
             .. "with the bosses where they stand, kill counts with who was there and who won what, "
             .. "and Reputation and PvP tabs with every reward. Dungeon Quests is part of it now.",
+        "BiS List (/nfbis): your character in your whole BiS, every pick per slot with where it "
+            .. "drops and how much stronger it makes you, Run Next for where to farm first, a "
+            .. "Quests page, enchant advice and a Drop Alert when one of your picks drops.",
+        "Naowh Score (BiS List): one number for your gear on the item level scale, coloured by "
+            .. "how close it is to the best, on player tooltips and shared with your group and "
+            .. "guild. On by default.",
+        "Stat Weights (BiS List): what each stat is worth to your spec, read from your talents. "
+            .. "Edit them or import from WoWSims, and turn on upgrade lines on gear tooltips.",
+        "Character Panel (BiS List): your character panel in the BiS List's look, with your "
+            .. "Naowh Score and your spec's stats first. Slot Marks (on by default) puts item level "
+            .. "and your BiS star on your gear slots, and Bag Marks does the same in your bags with "
+            .. "an arrow on upgrades.",
         "Blessings: Auto-Assign spreads blessings across the group's paladins, presets save the "
             .. "plan, class buttons show who needs a blessing at a glance, and in combat each click "
             .. "blesses the next player who needs it.",
         "Professions: Buy at Vendor, favourite recipes, a Shopping List for the auction house, "
             .. "Train Favorites, Craft Orders with another crafter, a Total Craft Timer for batches "
             .. "and Bind on Equip / Bind on Pickup filters.",
-        "New options window: modules grouped under Adventure, Combat and Utilities, categories "
-            .. "as tabs, a search that finds any setting, and it fits on a 1080p screen.",
+        "Settings (/nf): rebuilt with one page per module under Adventure, Combat and Utilities. "
+            .. "Each feature is a card with its switch and a live preview of what it shows on "
+            .. "screen, lists and editors moved to each module's own window, and profile strings "
+            .. "now carry every module's settings and positions.",
         "Action Bars (Utilities): save your bars as a named set and put them back later. Also "
             .. "/nf bars save, restore, test, delete or list.",
         "Threat Meter: With Threat under Show replaces Hide When Empty, the status line can sit "
@@ -37,7 +57,13 @@ local NOTES = {
             .. "Ctrl-click Camp Nearby to dismiss it.",
         "Food & Drink Bar (Macros, Consumables): two buttons for the best food and drink in your "
             .. "bags, conjured first.",
-        "Also: Group Tools (Disband, Invite), Skip Modifier for quest automation, Shift-click a "
+        "Swing Timer: Color by Seal for paladins, the melee bars take the colour of your seal, "
+            .. "Seal of Martyrdom included.",
+        "Mailboxes (QoL, Interface): every mailbox on the world map, in towns and out in the "
+            .. "world.",
+        "Also: Group Tools (Disband, Invite, and as buttons on screen), Auto-Replace Enchants "
+            .. "(hold Shift to be asked), right-click anything in Unlock Mode for its options, "
+            .. "Skip Modifier for quest automation, Shift-click a "
             .. "recipe to search the AH, Flight Timer hides Blizzard's Request Stop, sound "
             .. "dropdowns play your pick and list None once.",
         "Fixed: borders and lines no longer lose a side at some UI scales, Group XP sees "
