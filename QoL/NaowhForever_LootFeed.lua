@@ -323,8 +323,8 @@ local function OnMoney(copper)
     AddSessionValue(copper)
     if not S.Get("lootFeedMoney") then return end
     if coinRow then
-        coinRow.coins = coinRow.coins + copper
-        Look.Coins(coinRow, coinRow.coins)
+        coinRow.copper = coinRow.copper + copper
+        Look.Coins(coinRow, coinRow.copper)
         coinRow.appear:SetFromAlpha(1)
         coinRow.fade:SetStartDelay(S.Get("lootFeedFade"))
         coinRow.anim:Restart()
@@ -332,7 +332,7 @@ local function OnMoney(copper)
         return
     end
     coinRow = Push(COIN_ICON, "Coins", nil, nil, nil, copper)
-    coinRow.coins = copper
+    coinRow.copper = copper
 end
 
 -- CHAT_MSG_MONEY carries both your own looted coins and a group share, and only those, so
