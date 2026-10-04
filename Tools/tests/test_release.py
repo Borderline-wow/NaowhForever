@@ -190,6 +190,73 @@ class ReleaseTest(unittest.TestCase):
         self.assertUnchanged()
         self.assertEqual(release.prepare(self.root, "0.6.0-alpha"), "0.6.0-alpha")
 
+    def fetch(self, bodies):
+        def fetch_body(root, number):
+            return bodies[number]
+        return fetch_body
+
+    def test_changelog_from_descriptions(self):
+        self.commit("fix(loot-feed): coins add up (#1)")
+        self.commit("feat(qol): scrap list (#2)")
+        # Wrote its own line, so its description is not read.
+        self.files({release.CHANGELOG: CHANGELOG.replace("- A fix.", "- A fix.\r\n- By hand.")})
+        self.commit("fix: by hand (#3)")
+        self.commit("docs: no section (#4)")
+        self.commit("chore: not a pull request")
+        bodies = {
+            "1": "## What does this PR do?\r\n\r\nStuff.\r\n\r\n## Changelog\r\n\r\n"
+                 "<!-- Added:, Changed: or Fixed: -->\r\nFixed: Loot Feed: coins add up.\r\n\r\n"
+                 "## Checklist\r\n- [x] Fixed: not an entry\r\n",
+            "2": "## Changelog\n- added: Scrap List: Alt-click\n  to mark items.\n"
+                 "Changed: Vendors.\n",
+            "4": "## What does this PR do?\nDocs.\n",
+        }
+        release.prepare(self.root, "0.5.17-beta", fetch_body=self.fetch(bodies))
+        self.assertEqual(self.read(release.CHANGELOG),
+                         "# Changelog\r\n\r\n## 0.5.17-beta\r\n\r\n"
+                         "### Added\r\n- Scrap List: Alt-click to mark items.\r\n\r\n"
+                         "### Changed\r\n- Vendors.\r\n\r\n"
+                         "### Fixed\r\n- A fix.\r\n- By hand.\r\n- Loot Feed: coins add up.\r\n\r\n"
+                         "## 0.5.16-beta\r\n\r\n- Old.\r\n")
+
+    def test_descriptions_fill_an_empty_unreleased(self):
+        self.files({release.CHANGELOG: "# Changelog\n\n## Unreleased\n\n## 0.5.16-beta\n- Old.\n"})
+        self.commit("chore: start the next changelog")
+        self.commit("fix: one (#5)")
+        text = "Fixed: " + " ".join(["word"] * 30)
+        release.prepare(self.root, "0.5.17-beta",
+                        fetch_body=self.fetch({"5": f"## Changelog\n{text}\n"}))
+        changelog = self.read(release.CHANGELOG)
+        self.assertTrue(changelog.startswith(
+            "# Changelog\n\n## 0.5.17-beta\n\n### Fixed\n- word word"))
+        self.assertTrue(changelog.endswith("word\n\n## 0.5.16-beta\n- Old.\n"))
+        entry = changelog.split("### Fixed\n")[1].split("\n\n")[0].split("\n")
+        self.assertEqual(len(entry), 2)
+        self.assertTrue(all(len(line) <= 100 for line in entry))
+        self.assertTrue(entry[1].startswith("  word"))
+
+    def test_bad_description_names_the_pull_request(self):
+        self.commit("fix: one (#6)")
+        with self.assertRaisesRegex(release.ReleaseError, "#6: changelog lines start with"):
+            release.prepare(self.root, "0.5.17-beta",
+                            fetch_body=self.fetch({"6": "## Changelog\nLoot Feed fixed.\n"}))
+        self.assertUnchanged()
+
+    def test_pending(self):
+        self.commit("feat: two (#7)")
+        bodies = {"7": "## Changelog\nAdded: Two.\n"}
+        self.assertEqual(release.pending(self.root, self.fetch(bodies)),
+                         "## Unreleased\n\n### Added\n- Two.\n\n### Fixed\n- A fix.")
+        self.assertUnchanged()
+
+    def test_body_entries(self):
+        self.assertIsNone(release.body_entries(None))
+        self.assertIsNone(release.body_entries("## Checklist\n- [x] Fixed: x\n"))
+        self.assertEqual(release.body_entries("## Changelog\n<!-- Fixed: example -->\n"), [])
+        self.assertEqual(release.body_entries("## Changelog\nFixed:\n"), [])
+        self.assertEqual(release.body_entries("## Changelog\n* CHANGED:  A\nb\n\nFixed: C"),
+                         [("Changed", "A b"), ("Fixed", "C")])
+
     def test_prepare_with_bump_and_no_beta(self):
         self.assertEqual(release.prepare(self.root, bump="major", beta=False), "1.0.0")
         self.assertIn("## Version: 1.0.0\r\n", self.read(release.TOC))

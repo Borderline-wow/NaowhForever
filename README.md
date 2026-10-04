@@ -148,8 +148,10 @@ message Glyalith on [Discord](https://discord.gg/naowh) first.
 
 For maintainers. A release is one click:
 
-1. Check that everything for the release is merged into `main`, and that `## Unreleased` in
-   [CHANGELOG.md](CHANGELOG.md) says what changed for players.
+1. Check that everything for the release is merged into `main`. On an up-to-date `main`,
+   `GH_REPO=nwh-gaming-ab/NaowhForever python Tools/release.py pending` (needs `gh`) prints
+   `## Unreleased` as the release will write it, with the `## Changelog` lines from the
+   merged PRs' descriptions; fix a line by editing that PR's description.
 2. Open **Actions > Release > Run workflow** and keep the branch on `main`.
 3. Pick the **Bump** and click **Run workflow**:
 
@@ -165,17 +167,19 @@ For maintainers. A release is one click:
 
 The workflow then:
 
-- renames `## Unreleased` to the version, sets the TOC `## Version` and `ns.CODE_BUILD`,
-  and pushes that as `chore(release): <version>` to `main`;
+- adds the merged PRs' changelog lines to `## Unreleased` and renames it to the version,
+  sets the TOC `## Version` and `ns.CODE_BUILD`, and pushes that as
+  `chore(release): <version>` to `main`;
 - tags the commit and builds the zip;
 - publishes the GitHub release with the player notes and every commit since the last
   tag, uploads to CurseForge and Wago, and posts the notes to Discord;
-- puts an empty `## Unreleased` back at the top of the changelog on `main`, ready for the
-  next pull request.
+- puts an empty `## Unreleased` back at the top of the changelog on `main`.
 
-It stops before changing anything if `## Unreleased` is empty or not the newest section,
-the tag already exists, or the version is not like `0.5.17-beta`. Pushing a tag by hand
-still releases as before.
+It stops before changing anything if there is nothing for `## Unreleased`, it is not the
+newest section, a merged PR's changelog line does not start with `Added:`, `Changed:` or
+`Fixed:` (the error names the PR), the tag already exists, or the version is not like
+`0.5.17-beta`. Pushing a tag by hand still releases, but only with what `CHANGELOG.md`
+already says: the PRs' lines are added by the workflow.
 
 ## License
 

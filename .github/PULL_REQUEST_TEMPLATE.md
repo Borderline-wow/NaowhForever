@@ -6,6 +6,13 @@
 
 <!-- Player-facing description: what changes for the player? -->
 
+## Changelog
+
+<!-- One line per change, for players: what changed for them and where to find it. Start each
+     with Added:, Changed: or Fixed:. The release copies these into CHANGELOG.md, so don't
+     edit that file. Example:
+     Fixed: Loot Feed: looting coins while the Coins line is up adds to it instead of erroring. -->
+
 ## How was it tested?
 
 <!-- Forever client build, what you did in game, any regression tests run. -->
@@ -25,4 +32,4 @@
 - [ ] Aura reads guarded by `C_Secrets.ShouldAurasBeSecret()` (or N/A)
 - [ ] Tested in the Forever client, no Lua errors in or out of combat
 - [ ] Lua 5.1, ASCII only, CRLF line endings
-- [ ] Line added under `## Unreleased` in `CHANGELOG.md`; TOC version and `ns.CODE_BUILD` untouched
+- [ ] Changelog line above; `CHANGELOG.md`, TOC version and `ns.CODE_BUILD` untouched

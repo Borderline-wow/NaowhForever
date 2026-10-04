@@ -38,9 +38,10 @@ jobs:
 
     runs-on: ubuntu-24.04
 
-    # Pushes the release commit and tag.
+    # Pushes the release commit and tag; reads the merged PRs' changelog lines.
     permissions:
       contents: write
+      pull-requests: read
 
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
@@ -60,6 +61,7 @@ jobs:
           BETA: ${{ inputs.beta }}
           VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           args=(prepare --bump "$BUMP")
           if [ "$BETA" = true ]; then args+=(--beta); else args+=(--no-beta); fi

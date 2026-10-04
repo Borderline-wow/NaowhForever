@@ -68,11 +68,11 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 | --- | --- |
 | `regression/` | Offline Lua tests against stubs. `bash Tools/regression/run-all.sh` runs them all (set `LUA=` to your lua.exe). `load_files.lua` loads a module's real files into a test, `measure.lua` times a draw and fails on garbage, `toc_files.lua` lists what the TOC loads. |
 | `tests/` | Python tests for the tools: `python -m unittest discover -s Tools/tests`. |
-| `hooks/check-pr.sh` | PR rules: a CHANGELOG line for addon changes, TOC version untouched. |
+| `hooks/check-pr.sh` | PR rules: a changelog line in the PR description for addon changes, TOC version untouched. |
 | `hooks/check_toc.py`, `hooks/toc_files.py` | Every file the TOC loads exists, with the right letter case. |
 | `hooks/check-package.sh` | The built zip has one `NaowhForever/` folder, everything it loads, and no tooling. |
 | `hooks/daily-pull-request.sh` | The daily watch's one pull request: `add` commits what a check changed, `open` squashes them into one commit (a title saying what is in it, a short list) and opens the PR or brings the open one up to date, or an issue with a link where workflows may not open PRs. |
-| `release.py` | Release helper for `.github/workflows/release.yml`: version bump, notes, changelog. |
+| `release.py` | Release helper for `.github/workflows/release.yml`: version bump, notes, changelog (from the merged PRs' descriptions). |
 
 ## What CI runs
 

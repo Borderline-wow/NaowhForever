@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# CONTRIBUTING rules: addon changes add a line under "## Unreleased"; the TOC "## Version"
-# and ns.CODE_BUILD stay as they are. Labels "no changelog" and "release" skip them (CI
-# sets NO_CHANGELOG / RELEASE). From the repo root:
+# CONTRIBUTING rules: addon changes have a changelog line under "## Changelog" in the PR
+# description (or under "## Unreleased" in CHANGELOG.md); the TOC "## Version" and
+# ns.CODE_BUILD stay as they are. Labels "no changelog" and "release" skip them (CI sets
+# NO_CHANGELOG / RELEASE, and PR_BODY to the description). From the repo root:
 #   bash Tools/hooks/check-pr.sh origin/main [head]
 set -u
 base="${1:?usage: check-pr.sh <base-ref>}"
@@ -29,10 +30,15 @@ unreleased() {
 if [ -n "$shipped" ] && [ "${NO_CHANGELOG:-false}" != "true" ]; then
     added=$(grep -Fxv -f <(unreleased "$base") <(unreleased "$head") | grep -c '[^[:space:]]' || true)
     if [ "$added" -eq 0 ]; then
-        echo "CHANGELOG.md: this PR changes addon files but adds nothing under '## Unreleased'."
-        echo "  Add a line for players, or label the PR 'no changelog' if nothing changes for them."
-        echo "  Files: $(echo "$shipped" | head -5 | tr '\n' ' ')"
-        problems=$((problems + 1))
+        if [ -z "${PR_BODY+set}" ]; then
+            echo "Changelog: not checked here, it goes under '## Changelog' in the PR description."
+        elif ! printf '%s' "$PR_BODY" | python3 Tools/release.py check-body; then
+            echo "  This PR changes addon files. Under '## Changelog' in the description, add a line"
+            echo "  for players starting Added:, Changed: or Fixed:, or label the PR 'no changelog'"
+            echo "  if nothing changes for them."
+            echo "  Files: $(echo "$shipped" | head -5 | tr '\n' ' ')"
+            problems=$((problems + 1))
+        fi
     fi
 fi
 

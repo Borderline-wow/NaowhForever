@@ -119,10 +119,11 @@ comment, sent back for changes, or merged and fixed up by me.
 
 ## Changelog and versions
 
-- Add a line under `## Unreleased` in `CHANGELOG.md`, written for players: what changed
-  for them and where to find it.
-- Do **not** touch the TOC `## Version`, `ns.CODE_BUILD` or tags. The Release workflow
-  sets them (README, "Releasing a new version").
+- Write the changelog under `## Changelog` in the PR description, for players: what changed
+  for them and where to find it. One line per change, each starting `Added:`, `Changed:`
+  or `Fixed:`. The release copies them into `CHANGELOG.md`, so PRs never conflict over it.
+- Do **not** touch `CHANGELOG.md`, the TOC `## Version`, `ns.CODE_BUILD` or tags. The
+  Release workflow sets them (README, "Releasing a new version").
 
 ## Getting set up
 
@@ -141,7 +142,7 @@ Every pull request runs these on GitHub. Get them green before you ask for a rev
 | --- | --- |
 | `pre-commit` | luacheck; CRLF and ASCII in addon files; every TOC file exists with the right letter case; valid XML and YAML; merge markers, trailing whitespace, mixed line endings, private keys and files over 5 MB; the workflows through actionlint and zizmor. The list is in `.pre-commit-config.yaml`. |
 | `tests` | Every test in `Tools/regression` on Lua 5.1, including `test-syntax.lua`, which compiles every file the TOC loads, so `goto` or `//` fails here instead of at login; and the release script's tests in `Tools/tests`. |
-| `pr-rules` | Addon changes add a line under `## Unreleased` in `CHANGELOG.md`, and the TOC `## Version` and `ns.CODE_BUILD` stay as they are. Label the PR `no changelog` when nothing changes for players, or `release` for the release commit. |
+| `pr-rules` | Addon changes have a changelog line under `## Changelog` in the PR description, and the TOC `## Version` and `ns.CODE_BUILD` stay as they are. Label the PR `no changelog` when nothing changes for players, or `release` for the release commit. Editing the description re-runs it. |
 | `package` | The release packager builds the zip without uploading it, then every TOC file and library must be inside and no tooling may ship. |
 | `title` | The PR title is `type: summary` (see [PR etiquette](#pr-etiquette)), since a squash merge turns it into the commit on main. |
 

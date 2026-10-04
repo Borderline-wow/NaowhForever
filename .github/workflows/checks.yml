@@ -1,9 +1,8 @@
 name: checks
 
-# labeled/unlabeled: re-run when the "no changelog" or "release" label changes.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -65,23 +64,6 @@ jobs:
 
       - name: Test the release script
         run: python3 -m unittest discover -s Tools/tests
-
-  pr-rules:
-    name: pr-rules
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Check the PR against its base branch
-        env:
-          BASE_REF: ${{ github.base_ref }}
-          NO_CHANGELOG: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') }}
-          RELEASE: ${{ contains(github.event.pull_request.labels.*.name, 'release') }}
-        run: bash Tools/hooks/check-pr.sh "origin/$BASE_REF"
 
   package:
     name: package

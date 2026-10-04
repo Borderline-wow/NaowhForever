@@ -1,14 +1,35 @@
 name: checks
 
-# A squash merge makes the title the commit on main. Its own workflow so editing the
-# description re-runs only this.
+# A squash merge makes the title the commit on main, and the release takes the changelog
+# from the description. Its own workflow so editing the description or the labels re-runs
+# only this.
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
 
 permissions: {}
 
 jobs:
+
+  pr-rules:
+    name: pr-rules
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the PR against its base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          NO_CHANGELOG: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') }}
+          RELEASE: ${{ contains(github.event.pull_request.labels.*.name, 'release') }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: bash Tools/hooks/check-pr.sh "origin/$BASE_REF"
 
   title:
     name: title
