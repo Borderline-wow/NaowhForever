@@ -121,6 +121,9 @@ jobs:
 
       - name: Release
         uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
+        with:
+          # CurseForge project, only for a tagged release so main's dev builds stay off CurseForge.
+          args: ${{ env.TAG != '' && '-p 1721187' || '' }}
 
       - name: Post changelog to Discord
         if: env.TAG != ''
