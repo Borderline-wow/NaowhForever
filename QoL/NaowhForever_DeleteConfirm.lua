@@ -45,6 +45,10 @@ hooksecurefunc("StaticPopup_Show", function(which)
     if typed then
         editBox:SetText(DELETE_ITEM_CONFIRM_STRING)
         editBox:Hide()
+        -- Filling and hiding the box left Yes greyed on Forever; the dialog's own check, run
+        -- here, enables it when the text matches.
+        local check = StaticPopupDialogs[which].EditBoxOnTextChanged
+        if check then check(editBox, dialog.data) end
     end
 
     local kind, _, link = GetCursorInfo()
