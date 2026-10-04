@@ -1,6 +1,9 @@
 __pycache__/
 *.pyc
 
+# Written by the release workflow for the packager.
+/RELEASE_NOTES.md
+
 # Fetched by the packager from .pkgmeta externals; only the loader is ours.
 /Libs/*
 !/Libs/embeds.xml

@@ -108,18 +108,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # The whole CHANGELOG.md is past GitHub's 125,000-character limit for release notes, so
+      # the packager is given this release's player notes and the commits since the last tag
+      # (.pkgmeta's manual-changelog, left out of the package; CHANGELOG.md still ships).
+      - name: Release notes
+        run: |
+          if [ -n "$TAG" ]; then
+            python3 Tools/release.py notes "$TAG" > RELEASE_NOTES.md
+          else
+            printf 'Development build of %s.\n' "$GITHUB_SHA" > RELEASE_NOTES.md
+          fi
+
       - name: Release
         uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
-
-      # The packager's notes are the whole CHANGELOG.md; replace them with this release's
-      # player notes and the commits since the last tag.
-      - name: Release notes
-        if: env.TAG != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 Tools/release.py notes "$TAG" > "$RUNNER_TEMP/notes.md"
-          gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
 
       - name: Post changelog to Discord
         if: env.TAG != ''
