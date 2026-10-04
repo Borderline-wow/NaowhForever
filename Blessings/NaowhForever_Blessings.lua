@@ -1133,6 +1133,20 @@ end
 -- Auras and the roster change constantly in a raid: one rescan a second at most, and one
 -- exchange of plans per second.
 local refreshQueued, syncQueued
+-- Except right after our own cast: the bar shows the blessing landing on the next frame, so
+-- a click is not answered by a second of the old red. The window stays open for the second,
+-- at most one rescan a frame: in a group other auras change first, and a Greater Blessing's
+-- class can land over more than one frame.
+local landing, landingQueued
+
+local function RefreshLanded()
+    if landingQueued then return end
+    landingQueued = true
+    C_Timer.After(0, function()
+        landingQueued = false
+        Refresh()
+    end)
+end
 
 local function RefreshSoon()
     if refreshQueued then return end
@@ -1188,17 +1202,21 @@ events:SetScript("OnEvent", function(_, event, ...)
     elseif event == "SPELLS_CHANGED" then
         BroadcastSoon()
         RefreshSoon()
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        local _, _, spellID = ...
+        if not InCombatLockdown() and not Secret(spellID) and FAMILY[spellID] then landing = GetTime() end
     elseif event == "UNIT_AURA" then
         -- Fires for every unit the client tracks. A queued rescan already covers this one,
         -- and in combat Refresh would only mark the bar dirty, so both skip the unit test.
-        if refreshQueued then return end
+        local fresh = landing and GetTime() - landing < 1
+        if refreshQueued and not fresh then return end
         if InCombatLockdown() then
             dirty = true
             return
         end
         local unit = ...
         if unit == "player" or unit:find("party", 1, true) == 1 or unit:find("raid", 1, true) == 1 then
-            RefreshSoon()
+            if fresh then RefreshLanded() else RefreshSoon() end
         end
     end
 end)
@@ -1229,6 +1247,7 @@ function Apply()
         events:RegisterEvent("UNIT_AURA")
         events:RegisterEvent("SPELLS_CHANGED")
         events:RegisterEvent("PLAYER_REGEN_DISABLED")
+        events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
         -- The bar's buttons are secure, so it is only built out of combat (a reload in one).
         if not bar and InCombatLockdown() then
             buildAfterCombat = true
