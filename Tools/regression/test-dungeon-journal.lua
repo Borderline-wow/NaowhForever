@@ -1365,7 +1365,7 @@ do
     end
     check("the Bosses title has Map", mapTitle ~= nil)
     -- A dungeon with no map yet: Map, muted, saying so on hover; a click does nothing.
-    ns.OpenJournalWindow(J.Get("ExcavationSite"))
+    ns.OpenJournalWindow(J.Get("DrownedCity"))
     local soon
     for _, made in ipairs(state.made) do
         local titleLink = rawget(made, "link")
@@ -1512,7 +1512,13 @@ do
     for key, map in pairs(J.Maps) do
         local dungeon = J.Get(key)
         check("a map is for a dungeon the Journal has: " .. key, dungeon ~= nil)
-        check("its art and floors: " .. key, type(map.art) == "string" and map.floors >= 1)
+        check("its art and floors: " .. key, (type(map.art) == "string" or type(map.image) == "string")
+            and map.floors >= 1)
+        -- The addon's own picture is in Media/Maps, one floor, for a dungeon the game has no art for.
+        if map.image then
+            check("its picture is the addon's: " .. key, map.image:find("^Interface\\AddOns\\NaowhForever\\Media\\Maps\\") ~= nil
+                and map.floors == 1 and map.art == nil)
+        end
         -- Every pin is one of its bosses, on one of its floors, on the map.
         local bosses = {}
         for _, wing in ipairs(dungeon.wings) do

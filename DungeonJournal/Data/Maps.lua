@@ -6,15 +6,18 @@
 --
 --  [dungeon key] = {
 --      art = the folder, floors = how many, names = { a name per floor } (else "Floor n"),
+--      or image = the addon's own picture (Media/Maps), for a dungeon the game has no art
+--      for yet: one floor, a 1024 square TGA with the map in its top 1024 by 683. Its
+--      pins are placed on that picture, so when the game's art comes they are placed again.
 --      floor = the one floor it is on, where dungeons share the art (Scarlet Monastery's wings),
 --      entrance = { floor, x, y },
 --      pins = { [NPC ID] = { floor, x, y } },   a chest by minus its object ID
 --  }
 --  x and y run 0 to 1 across and down the map. Placed in game: /nf mappins, drag each pin,
 --  then Copy (UI/DungeonMap.lua). /nf mapcheck says which art and floors the client has.
---  A dungeon not listed has no Map; the ones new in Forever have no art in the client yet,
---  nor has Zul'Farrak (not under "ZulFarrak"). Floor counts as /nf mapcheck found them in
---  the client, build 1.60.1.70170.
+--  A dungeon not listed has no Map; the ones new in Forever have no art in the client yet
+--  (three have the addon's own picture until they do), nor has Zul'Farrak (not under
+--  "ZulFarrak"). Floor counts as /nf mapcheck found them in the client, build 1.60.1.70170.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 
@@ -26,6 +29,16 @@ ns.Journal.Maps = {
             [11520] = { 1, 0.405, 0.57 },   -- Taragaman the Hungerer
             [11518] = { 1, 0.34, 0.815 },   -- Jergosh the Invoker
             [11519] = { 1, 0.422, 0.842 },   -- Bazzalan
+        },
+    },
+    -- Santiago Reyes's recreation, as Ruins of Lordaeron's is.
+    HallOfThanes = { image = "Interface\\AddOns\\NaowhForever\\Media\\Maps\\HallOfThanes", floors = 1,
+        entrance = { 1, 0.512, 0.95 },
+        pins = {
+            [261306] = { 1, 0.479, 0.671 },   -- Faldrim Anvilmar
+            [261316] = { 1, 0.72, 0.47 },   -- Magmatus
+            [261311] = { 1, 0.51, 0.519 },   -- Plunder
+            [261319] = { 1, 0.51, 0.17 },   -- Durgen Dirgehammer
         },
     },
     WailingCaverns = { art = "WailingCaverns", floors = 1,
@@ -54,6 +67,20 @@ ns.Journal.Maps = {
             [645] = { 2, 0.665, 0.43 },   -- Cookie
             [639] = { 2, 0.605, 0.452 },   -- Edwin VanCleef
             [1763] = { 2, 0.122, 0.755 },   -- Gilnid
+        },
+    },
+    -- Santiago Reyes's recreation (Atlas de Azeroth: Forever, 2026), credited on the map,
+    -- until the game has art of its own for Forever's Ruins of Lordaeron.
+    RuinsOfLordaeron = { image = "Interface\\AddOns\\NaowhForever\\Media\\Maps\\RuinsOfLordaeron", floors = 1,
+        entrance = { 1, 0.616, 0.217 },
+        pins = {
+            [250483] = { 1, 0.707, 0.397 },   -- Witherfang
+            [250660] = { 1, 0.594, 0.694 },   -- The Baron
+            [256035] = { 1, 0.382, 0.675 },   -- Viktor the Vile
+            [250631] = { 1, 0.406, 0.532 },   -- The Abandoned
+            [256097] = { 1, 0.409, 0.309 },   -- Bjork
+            [250657] = { 1, 0.468, 0.616 },   -- Rath'mael
+            [255699] = { 1, 0.349, 0.378 },   -- Lordaeron Captain
         },
     },
     ShadowfangKeep = { art = "ShadowfangKeep", floors = 7,
@@ -95,6 +122,12 @@ ns.Journal.Maps = {
             [1717] = { 1, 0.78, 0.455 },   -- Hamhock
             [1663] = { 1, 0.735, 0.575 },   -- Dextren Ward
         },
+    },
+    -- Santiago Reyes's recreation, as Ruins of Lordaeron's is.
+    ExcavationSite = { image = "Interface\\AddOns\\NaowhForever\\Media\\Maps\\ExcavationSite",
+        floors = 1,
+        entrance = { 1, 0.078, 0.611 },
+        pins = {},
     },
     Gnomeregan = { art = "Gnomeregan", floors = 4,
         entrance = { 1, 0.642, 0.278 },

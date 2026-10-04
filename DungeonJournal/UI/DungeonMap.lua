@@ -1,8 +1,10 @@
 -------------------------------------------------------------------------------
 --  UI/DungeonMap.lua -- a dungeon's map: the game's own map art of the dungeon (Data/Maps.lua),
---  its bosses as round portraits where they stand, each with its place in the kill order,
---  and the entrance. Hover a boss for its name, click it for its loot; a dungeon on several
---  floors has a switch under the map. It shows in two places, each a view of its own:
+--  or, for one the game has no art for yet, a picture the addon ships (image), with its
+--  maker's credit in the map's corner; its bosses as round portraits where they stand, each
+--  with its place in the kill order, and the entrance. Hover a boss for its name, click it
+--  for its loot; a dungeon on several floors has a switch under the map. It shows in two
+--  places, each a view of its own:
 --
 --  - A window, from Map on a dungeon page's Bosses title: in front of the window that holds
 --    the page, beside it where the screen has room (else over its top right), as tall as it.
@@ -39,6 +41,9 @@ local PANEL_PAD, PANEL_HEADER = St.PANEL_PAD, St.PANEL_HEADER
 local ART = "Interface\\WorldMap\\%s\\%s%d_%d"   -- folder, folder, floor, tile (1 to 12)
 local TILE = 256
 local MAP_W, MAP_H = 1002, 668   -- the part of the four by three tiles the map shows
+-- An addon picture (a map's image) is a 1024 square TGA with the map in its top 1024 by 683,
+-- drawn over the whole map.
+local IMAGE_BOTTOM = 683 / 1024
 local WINDOW_SCALE = 0.7         -- the map in the window: about 700 by 470
 local PIN = 46                   -- a boss's portrait, in the map's own size
 local BADGE = 20                 -- its number
@@ -260,6 +265,10 @@ local function NewView(parent, holder, editable)
         tile:SetPoint("TOPLEFT", (i - 1) % 4 * TILE, -math.floor((i - 1) / 4) * TILE)
         view.tiles[i] = tile
     end
+    view.picture = canvas:CreateTexture(nil, "BACKGROUND")
+    view.picture:SetAllPoints()
+    view.picture:SetTexCoord(0, 1, 0, IMAGE_BOTTOM)
+    view.picture:Hide()
     local door = CreateFrame("Button", nil, canvas)
     door:SetSize(ENTRANCE, ENTRANCE)
     door.icon = door:CreateTexture(nil, "ARTWORK")
@@ -389,7 +398,14 @@ function View:Draw()
     if not dungeon then return end
     self.inside = Inside(dungeon)
     local map = J.Maps[dungeon.key]
-    for i = 1, 12 do self.tiles[i]:SetTexture(ART:format(map.art, map.art, self.floor, i)) end
+    -- The game's art in twelve tiles, or the addon's own picture of a dungeon without any.
+    local image = map.image
+    self.picture:SetShown(image ~= nil)
+    if image then self.picture:SetTexture(image, nil, nil, "TRILINEAR") end
+    for i = 1, 12 do
+        self.tiles[i]:SetShown(image == nil)
+        if not image then self.tiles[i]:SetTexture(ART:format(map.art, map.art, self.floor, i)) end
+    end
     for i = 1, self.used do self.pins[i]:Hide() end
     self.used, self.tray = 0, 0
     self.drawPin = self.drawPin or DrawPinOf(self)
@@ -432,7 +448,8 @@ end
 
 local function Copy(dungeon)
     local map = J.Maps[dungeon.key]
-    local lines = { ("    %s = { art = %q, floors = %d,%s"):format(dungeon.key, map.art, map.floors,
+    local source = map.image and ("image = %q"):format(map.image) or ("art = %q"):format(map.art)
+    local lines = { ("    %s = { %s, floors = %d,%s"):format(dungeon.key, source, map.floors,
         map.floor and (" floor = %d,"):format(map.floor) or "") }
     if map.names then
         local names = {}
@@ -1098,7 +1115,9 @@ local function MapCheck()
     probe = probe or CreateFrame("Frame"):CreateTexture()
     local seen = {}
     for key, map in pairs(J.Maps) do
-        if not seen[map.art] then
+        if map.image then
+            ns.Print(("%s: the addon's own picture, until the game has art for it"):format(key))
+        elseif not seen[map.art] then
             seen[map.art] = true
             local found = {}
             for n = 1, 10 do

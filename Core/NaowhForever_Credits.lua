@@ -35,6 +35,7 @@ local DATA = {
     { icon = "search", color = GOLD, name = "Wowhead", role = "Data", line = "WoW Forever's items, quests and NPCs, and what is new in Forever." },
     { icon = "trophy", color = GOLD, name = "wowsrc.com", role = "Data", line = "The BiS rankings behind the BiS List." },
     { icon = "bars", color = GOLD, name = "WoWSims", role = "Data", line = "The stat weights each spec starts with." },
+    { icon = "map", color = GOLD, name = "Santiago Reyes", role = "Maps", line = "The maps of Ruins of Lordaeron, Hall of Thanes and the Excavation Site, from his Atlas de Azeroth: Forever." },
 }
 
 local LIBRARIES = { "LibStub", "CallbackHandler-1.0", "LibDataBroker-1.1", "LibDBIcon-1.0", "LibSharedMedia-3.0",
