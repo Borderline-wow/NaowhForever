@@ -2,7 +2,7 @@ name: daily-watch
 
 # Daily, two checks. The watch job: is there a newer WoW Forever build than the one the Journal's data is read from
 # (BUILD in Tools/wago.py)? If so, a pull request that moves to it, with the faction data
-# rebuilt, a CHANGELOG line saying the Journal's data is updated to the build (and what it
+# rebuilt, a changelog line saying the Journal's data is updated to the build (and what it
 # changes), and a report of what the build changes for the Journal (Tools/watch_build.py).
 # If not, and the data still carries hotfixed rewards over from an older build, whether
 # wago.tools has recorded the build's own hotfixes yet: then a pull request that rebuilds
@@ -16,7 +16,8 @@ name: daily-watch
 # With the move, the Naowh Score's constants are refitted to the build's item table
 # (Tools/fit_naowh_score.py): NaowhScore/Data/Formula.lua changes in the same pull request
 # when they move enough and pass its quality gates, and the report gets a "Naowh Score"
-# section either way (a manual run reports it too). A fit that fails only says so.
+# section either way (a manual run reports it too). A fit that fails only says so. A refit
+# that changes Formula.lua gets its own changelog line: every player's score moves.
 # The loot job: whether wowsrc.com's Forever loot pages list something the Journal was not
 # built from (Tools/wowsrc_loot.json): items a boss gained or lost, new bosses and pages.
 # If so, the Journal is rebuilt from them and a pull request says what. The bis job: the
@@ -27,8 +28,10 @@ name: daily-watch
 # The three run one after another on one branch, each on what the one before changed, and
 # whatever they change goes in one pull request, one commit (it is squash merged): a title
 # saying what is in it, a short list, and each check's report folded away in its description
-# (Tools/hooks/daily-pull-request.sh). Each run brings the open one up to date; an issue with a
-# link where workflows may not open one. A check that fails leaves out only its own change.
+# (Tools/hooks/daily-pull-request.sh). The checks' lines for players go under "## Changelog" in
+# the description, for the release to copy into CHANGELOG.md; with none, the pull request is
+# labelled "no changelog". Each run brings the open one up to date; an issue with a link where
+# workflows may not open one. A check that fails leaves out only its own change.
 on:
   schedule:
     # New builds and hotfixes come with the US realms' weekly maintenance (Tuesday mornings,
@@ -138,15 +141,20 @@ jobs:
           { echo; cat "$RUNNER_TEMP/score.md"; } >> "$RUNNER_TEMP/watch.md"
           cat "$RUNNER_TEMP/score.md" >> "$GITHUB_STEP_SUMMARY"
 
-      # The script made the change and its CHANGELOG line, and says what to call it: a new
-      # build, or the build's own hotfixes coming in.
+      # The script made the change, and says what to call it (a new build, or the build's own
+      # hotfixes coming in) and its changelog line, if any. A refitted Naowh Score adds one.
       - name: Add the build
         if: steps.watch.outcome == 'success' && steps.watch.outputs.made == 'true'
         env:
           TITLE: ${{ steps.watch.outputs.title }}
+          CHANGELOG: ${{ steps.watch.outputs.changelog }}
         run: |
-          $PR add watch "${TITLE#chore(data): }" "$RUNNER_TEMP/watch.md" "" \
-            Tools/wago.py DungeonJournal/Data NaowhScore/Data CHANGELOG.md
+          nl=$'\n'
+          if ! git diff --quiet -- NaowhScore/Data/Formula.lua; then
+            CHANGELOG="${CHANGELOG:+$CHANGELOG$nl}Changed: Naowh Score: refitted to the latest Forever items."
+          fi
+          $PR add watch "${TITLE#chore(data): }" "$RUNNER_TEMP/watch.md" "$CHANGELOG" \
+            Tools/wago.py DungeonJournal/Data NaowhScore/Data
 
       - name: Compare wowsrc.com's loot pages with ours
         id: loot
@@ -176,7 +184,7 @@ jobs:
         if: steps.loot.outcome == 'success' && steps.loot.outputs.changes == 'true'
         run: |
           $PR add loot "boss loot" "$RUNNER_TEMP/loot.md" \
-            "- Dungeon Journal: boss loot updated from the latest Forever loot lists." \
+            "Changed: Dungeon Journal: boss loot updated from the latest Forever loot lists." \
             Tools/wowsrc_loot.json Tools/item_names.json Tools/journal_cache.json DungeonJournal/Data
 
       - name: Compare wowsrc.com's BiS lists with ours
@@ -203,7 +211,7 @@ jobs:
         if: steps.bis.outcome == 'success' && steps.bis.outputs.changes == 'true'
         run: |
           $PR add bis "BiS lists" "$RUNNER_TEMP/bis.md" \
-            "- BiS List: picks updated from wowsrc.com's latest lists." \
+            "Changed: BiS List: picks updated from wowsrc.com's latest lists." \
             BiS/Data/BiS.lua Tools/bis_item_ids.json Tools/bis_sources.json
 
       # A new pick CI could not find a source for (it may not read Wowhead) fails the

@@ -37,11 +37,12 @@ layout first): then the report says so, ready is false, and the next day's run t
 
 Writes a Markdown report to stdout (or --report): a verdict and a summary table, then what
 changes for players, then the checks. With --update, makes the change: sets wago.BUILD and
-CARRY_FROM, rebuilds the faction data, and adds a line for players under "## Unreleased" in
-CHANGELOG.md (a new build always has one; its own hotfixes coming in, when they change
-something). With --github-output, writes the workflow's step outputs: newer, ready, build,
-problems, made (a change to open a pull request for), changelog (it has a changelog line),
-branch, title and issue (the issue's title, where the workflow may not open the PR).
+CARRY_FROM and rebuilds the faction data. Its changelog line for players goes under
+"## Changelog" in the pull request's description, not in CHANGELOG.md (a new build always has
+one; its own hotfixes coming in, when they change something). With --github-output, writes the
+workflow's step outputs: newer, ready, build, problems, made (a change to open a pull request
+for), changelog (its changelog line, empty when none), branch, title and issue (the issue's
+title, where the workflow may not open the PR).
 
 Usage: python Tools/watch_build.py [--build 1.60.1.12345] [--force] [--update] [--allow-losses]
                                    [--report report.md] [--github-output $GITHUB_OUTPUT]
@@ -59,7 +60,6 @@ ROOT = Path(__file__).resolve().parent.parent
 DUNGEONS = ROOT / "DungeonJournal" / "Data" / "Dungeons"
 # The items the Journal already knows: its boss loot's facts, and its faction rewards'.
 JOURNAL_ITEMS = (ROOT / "DungeonJournal" / "Data" / "Items.lua", ROOT / "DungeonJournal" / "Data" / "FactionItems.lua")
-CHANGELOG = ROOT / "CHANGELOG.md"
 WAGO_PY = Path(__file__).resolve().parent / "wago.py"
 INSTANCE_TYPES = {"1": "dungeon", "2": "raid"}   # the Map table's InstanceType
 WOWHEAD = "https://www.wowhead.com/forever"      # linked to, for the reader; never fetched
@@ -335,37 +335,18 @@ def changes_said(found):
 
 
 def changelog_line(build, found, hotfixes=False):
-    """The CHANGELOG line for players. A new build: the Journal's data is updated to it, and
-    what that changes in the faction rewards, when it changes something. The build's own
-    hotfixes come in (hotfixes): what they change, or None when they change nothing."""
+    """The changelog line for players, for the pull request's description. A new build: the
+    Journal's data is updated to it, and what that changes in the faction rewards, when it
+    changes something. The build's own hotfixes come in (hotfixes): what they change, or None
+    when they change nothing."""
     parts = changes_said(found)
     if hotfixes:
         if not parts:
             return None
-        return f"- Dungeon Journal: faction rewards follow WoW Forever build {build}'s hotfixes: {', '.join(parts)}."
-    line = f"- Dungeon Journal: its data is updated to WoW Forever build {build}"
+        return (f"Changed: Dungeon Journal: faction rewards follow WoW Forever build {build}'s hotfixes: "
+                f"{', '.join(parts)}.")
+    line = f"Changed: Dungeon Journal: its data is updated to WoW Forever build {build}"
     return line + (": " + ", ".join(parts) if parts else "") + "."
-
-
-def add_changelog(line):
-    """Puts the line under "## Unreleased", in its "### Changed" (made when it has none, before
-    "### Fixed" or at the section's end). Keeps the file's line endings."""
-    raw = CHANGELOG.read_bytes().decode("utf-8")
-    nl = "\r\n" if "\r\n" in raw else "\n"
-    lines = raw.split(nl)
-    start = lines.index("## Unreleased")
-    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
-    changed = next((i for i in range(start, end) if lines[i] == "### Changed"), None)
-    if changed is None:
-        at = next((i for i in range(start, end) if lines[i] == "### Fixed"), end)
-        lines[at:at] = ["### Changed", line, ""]
-    else:
-        # After the section's last line: the next heading, less the blank lines before it.
-        at = next((i for i in range(changed + 1, end) if lines[i].startswith("### ")), end)
-        while at > changed + 1 and lines[at - 1] == "":
-            at -= 1
-        lines.insert(at, line)
-    CHANGELOG.write_bytes(nl.join(lines).encode("utf-8"))
 
 
 def hotfixes_row(found, carry, coverage):
@@ -412,7 +393,7 @@ def players_section(found, removals, allowed, changelog, check_only=False):
             lines += [f"**{plural(len(found['gone']), 'reward')} the new build lacks**: {note}", ""]
         lines += reward_table(found["gone"]) + [""]
     if changelog:
-        lines += ["The line this adds to CHANGELOG.md, under Unreleased:", "", "```", changelog[2:], "```", ""]
+        lines += ["The changelog line this adds to the pull request:", "", "```", changelog, "```", ""]
     return lines
 
 
@@ -505,7 +486,7 @@ def report(target, old, unreadable=None, dungeons=None, found=None, waiting=Fals
         lines.append(f"| **New gear not in the Journal** | {len(gear) or 'none'} |")
     lines.append("")
 
-    # A check of the build in use adds nothing to CHANGELOG.md, so it shows no line for it.
+    # A check of the build in use adds no changelog line, so it shows none.
     lines += players_section(found, removals, allowed, None if check_only else changelog, check_only)
     # The new gear is for a person to place: it says nothing in the verdict nor the changelog.
     if gear is not None:
@@ -568,7 +549,7 @@ def main():
     parser.add_argument("--build", help="the build to compare with (default: the newest Forever build)")
     parser.add_argument("--force", action="store_true", help="check even when it is the build in use")
     parser.add_argument("--update", action="store_true",
-                        help="make the change: set wago.BUILD and CARRY_FROM, rebuild factions, add the changelog")
+                        help="make the change: set wago.BUILD and CARRY_FROM, rebuild factions")
     parser.add_argument("--allow-losses", action="store_true",
                         help="move to a build even when its tables lack rewards the build in use has")
     parser.add_argument("--report", help="write the report here instead of to stdout")
@@ -580,7 +561,7 @@ def main():
     new = target["version"]
     newer = wago.version_key(new) > wago.version_key(old)
     sources = [b for b in (old, carry_old) if b]    # the builds the data's hotfixed items come from
-    ready, problems, made, changelog = True, False, False, False
+    ready, problems, made, changelog = True, False, False, ""
     branch = title = issue = ""
     import build_factions
 
@@ -608,8 +589,7 @@ def main():
             if args.update and newer and ready:
                 set_build(new, carry)
                 notes, _ = build_factions.build_all(new, carry)
-                add_changelog(line)
-                made, changelog = True, True
+                made, changelog = True, line
                 branch = f"forever-build-{new.replace('.', '-')}"
                 title = f"chore(data): WoW Forever build {new}"
                 issue = f"WoW Forever build {new} is out"
@@ -625,9 +605,7 @@ def main():
         if args.update:
             set_build(old, None)
             build_factions.build_all(old, None)
-            if line:
-                add_changelog(line)
-            made, changelog = True, line is not None
+            made, changelog = True, line or ""
             branch = f"forever-hotfixes-{old.replace('.', '-')}"
             title = f"chore(data): WoW Forever build {old}'s own hotfixes"
             issue = f"WoW Forever build {old}: its own hotfixes are in"

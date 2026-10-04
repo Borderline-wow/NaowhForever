@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
 # The daily watch's one pull request (.github/workflows/daily-watch.yml). Its checks run one
 # after another on one branch; each that changed something adds it:
-#   bash Tools/hooks/daily-pull-request.sh add NAME SHORT REPORT CHANGELOG_LINE PATH...
-# commits what changed under the paths (with CHANGELOG_LINE under "## Unreleased", once; empty
-# for none), for a check that fails after it to go back to, and notes SHORT (what it is, a few
-# words for the title), its line for the list (CHANGELOG_LINE, else SHORT) and REPORT (for the
-# description). A check adds only when it found a change, so nothing changed under the paths
-# means CI could not make it (it may not read Wowhead): that is noted as stuck, for the issue
-# below.
+#   bash Tools/hooks/daily-pull-request.sh add NAME SHORT REPORT CHANGELOG PATH...
+# commits what changed under the paths, for a check that fails after it to go back to, and
+# notes SHORT (what it is, a few words for the title), CHANGELOG (its lines for players, one per
+# line, each starting Added:, Changed: or Fixed:, for "## Changelog" in the description; empty
+# for none), its lines for the list (CHANGELOG's, else SHORT) and REPORT (for the description).
+# CHANGELOG.md is left alone: the release copies the description's lines into it. A check adds
+# only when it found a change, so nothing changed under the paths means CI could not make it
+# (it may not read Wowhead): that is noted as stuck, for the issue below.
 #   bash Tools/hooks/daily-pull-request.sh hold REASON_FILE
 # keeps the pull request a draft, REASON_FILE's text at the top of its description: what must
 # be done on our machines before it can be merged (a BiS pick CI could not find a source for).
 #   bash Tools/hooks/daily-pull-request.sh open BRANCH
 # squashes what was added into one commit (it is merged as one: its title and short list are
 # the squash's message), pushes BRANCH and opens the pull request, or brings the one already
-# open up to date. Where the organization does not let workflows open pull requests, one
-# issue with a link that opens it in one click, kept up to date. Nothing added: nothing.
+# open up to date, labelled "no changelog" when no check has a line for players. Where the
+# organization does not let workflows open pull requests, one issue with a link that opens it
+# in one click, kept up to date. Nothing added: nothing.
 # Either way, what is stuck goes in one issue, "Daily data: changes that need a run on our
 # machines" (each check's report, and what to run), kept up to date and closed by the first
 # run with nothing stuck.
@@ -35,14 +37,19 @@ add() {
     cp "$report" "$notes/$name.stuck.md"
     return 0
   fi
-  if [ -n "$changelog" ] && ! grep -qF -- "$changelog" CHANGELOG.md; then
-    python -c 'import sys; sys.path.insert(0, "Tools"); import watch_build; watch_build.add_changelog(sys.argv[1])' \
-      "$changelog"
-  fi
-  git add -- "$@" CHANGELOG.md
+  git add -- "$@"
   git commit -q -m "daily: $name"
-  local line="${changelog#- }"
-  printf '%s\t%s\t%s\n' "$name" "$short" "${line:-$short}" >> "$notes/list"
+  local entry listed=false
+  while IFS= read -r entry; do
+    if [ -z "$entry" ]; then continue; fi
+    if ! grep -qxF -- "$entry" "$notes/changelog" 2> /dev/null; then
+      printf '%s\n' "$entry" >> "$notes/changelog"
+      printf '%s\n' "${entry#*: }" >> "$notes/items"
+      listed=true
+    fi
+  done <<< "$changelog"
+  if [ "$listed" = false ]; then printf '%s\n' "$short" >> "$notes/items"; fi
+  printf '%s\t%s\n' "$name" "$short" >> "$notes/list"
   cp "$report" "$notes/$name.md"
   echo "$name: added ($short)."
 }
@@ -101,6 +108,18 @@ stuck_issue() {
   fi
 }
 
+# "no changelog" on the pull request exactly when no check has a line for players. Its own call
+# once the pull request exists: given with the create, pr-rules can read the pull request first.
+label_pr() {
+  local pr="$1" labelled
+  labelled="$(gh pr view "$pr" --json labels --jq 'any(.labels[]; .name == "no changelog")')"
+  if [ -s "$notes/changelog" ] && [ "$labelled" = true ]; then
+    gh pr edit "$pr" --remove-label "no changelog"
+  elif [ ! -s "$notes/changelog" ] && [ "$labelled" = false ]; then
+    gh pr edit "$pr" --add-label "no changelog"
+  fi
+}
+
 # "a", "a and b", "a, b and c".
 join() {
   local out="" i=0 n=$#
@@ -120,18 +139,17 @@ open_pr() {
     echo "Nothing changed: no pull request."
     return 0
   fi
-  local names=() shorts=() lines=()
-  while IFS=$'\t' read -r name short line; do
+  local names=() shorts=()
+  while IFS=$'\t' read -r name short; do
     names+=("$name")
     shorts+=("$short")
-    lines+=("$line")
   done < "$notes/list"
   local title
   title="chore(data): $(join "${shorts[@]}")"
 
   # One commit: the title, and what is in it.
-  local list=""
-  for line in "${lines[@]}"; do list="$list- $line"$'\n'; done
+  local list="" line
+  while IFS= read -r line; do list="$list- $line"$'\n'; done < "$notes/items"
   git reset -q --soft "$BASE"
   git commit -q -m "$title" -m "${list%$'\n'}"
 
@@ -139,7 +157,9 @@ open_pr() {
   local draft=false
   if [ -s "$notes/hold.md" ]; then draft=true; fi
 
-  # The description: what holds it, the list, each check's report folded away, the run.
+  # The description: what holds it, the list, the changelog lines for players, each check's
+  # report folded away, the run. "## Reports" ends "## Changelog" for the release, which reads
+  # up to the next "## ".
   {
     if [ "$draft" = true ]; then
       echo "> [!WARNING]"
@@ -150,6 +170,16 @@ open_pr() {
     echo "Today's data changes, in one pull request (it squash merges as one commit):"
     echo
     printf '%s' "$list"
+    echo
+    echo "## Changelog"
+    echo
+    if [ -s "$notes/changelog" ]; then
+      cat "$notes/changelog"
+    else
+      echo "<!-- Nothing changes for players: labelled no changelog. -->"
+    fi
+    echo
+    echo "## Reports"
     for i in "${!names[@]}"; do
       echo
       echo "<details><summary>${shorts[$i]}: its report</summary>"
@@ -169,12 +199,8 @@ open_pr() {
     echo "The branch is rebuilt from main by each run: merge or close it, don't push to it."
   } > "$notes/pr.md"
 
-  # A change with no line in the CHANGELOG changes nothing for players: it says so.
-  local label=() link_label=""
-  if git diff --quiet "$BASE" HEAD -- CHANGELOG.md; then
-    label=(--label "no changelog")
-    link_label="&labels=no+changelog"
-  fi
+  local link_label=""
+  if [ ! -s "$notes/changelog" ]; then link_label="&labels=no+changelog"; fi
 
   gh auth setup-git
   git push --force origin "HEAD:refs/heads/$branch"
@@ -188,15 +214,18 @@ open_pr() {
   if [ -n "$pr" ]; then
     gh pr edit "$pr" --title "$title" --body-file "$notes/pr.md"
     if [ "$draft" = true ]; then gh pr ready "$pr" --undo; else gh pr ready "$pr"; fi
+    label_pr "$pr"
     echo "Brought up to date: $pr"
     return 0
   fi
   local as_draft=()
   if [ "$draft" = true ]; then as_draft=(--draft); fi
-  if gh pr create --base main --head "$branch" "${label[@]}" "${as_draft[@]}" --title "$title" \
-      --body-file "$notes/pr.md" 2> "$notes/create.err"; then
+  if pr="$(gh pr create --base main --head "$branch" "${as_draft[@]}" --title "$title" \
+      --body-file "$notes/pr.md" 2> "$notes/create.err")"; then
+    echo "Opened: $pr"
+    label_pr "$pr"
     if [ -n "$issue" ]; then
-      gh issue close "$issue" --comment "Opened: $(gh pr list --head "$branch" --json url --jq '.[0].url')"
+      gh issue close "$issue" --comment "Opened: $pr"
     fi
     return 0
   fi
@@ -227,6 +256,6 @@ case "${1:-}" in
   add) shift; add "$@" ;;
   hold) shift; hold "$@" ;;
   open) shift; open_pr "$@" ;;
-  *) echo "usage: daily-pull-request.sh add NAME SHORT REPORT CHANGELOG_LINE PATH... | hold REASON_FILE | open BRANCH" >&2
+  *) echo "usage: daily-pull-request.sh add NAME SHORT REPORT CHANGELOG PATH... | hold REASON_FILE | open BRANCH" >&2
      exit 2 ;;
 esac

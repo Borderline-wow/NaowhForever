@@ -1,5 +1,5 @@
 """Tests for Tools/watch_build.py: what it finds between two builds, the report it writes and
-the CHANGELOG line it adds. Offline: the game's tables are made up here. From the repo root:
+its changelog line for the pull request. Offline: the game's tables are made up here. From the repo root:
 
     python -m unittest discover -s Tools/tests
 """
@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import build_factions  # noqa: E402
+import release  # noqa: E402
 import wago  # noqa: E402
 import watch_build  # noqa: E402
 
@@ -135,9 +136,9 @@ class Rewards(unittest.TestCase):
     def test_check_only(self):
         found = watch_build.rewards("old", None, "new", "old")
         text = "\n".join(watch_build.report(TARGET, "old", dungeons=CALM, found=found, carry="old", coverage=0.0,
-                                            changelog="- Dungeon Journal: a line", check_only=True))
+                                            changelog="Changed: Dungeon Journal: a line", check_only=True))
         self.assertIn("> **Checked again:** ", text)
-        self.assertNotIn("The line this adds to CHANGELOG.md", text, "a check adds no changelog line")
+        self.assertNotIn("The changelog line this adds", text, "a check adds no changelog line")
         self.assertNotIn("Ready to merge", text)
         self.assertIn("**1 reward the new build lacks**: The build in use, checked again: nothing moves.", text)
 
@@ -153,11 +154,12 @@ class Rewards(unittest.TestCase):
     def test_own_hotfixes_in(self):
         found = watch_build.rewards("old", None, "new", "old")
         line = watch_build.changelog_line("1.60.1.70170", found, hotfixes=True)
-        self.assertEqual(line, "- Dungeon Journal: faction rewards follow WoW Forever build 1.60.1.70170's hotfixes: "
-                               "1 faction reward changed (item levels, required levels), 2 new faction rewards, "
-                               "1 faction reward removed.")
+        self.assertEqual(line, "Changed: Dungeon Journal: faction rewards follow WoW Forever build 1.60.1.70170's "
+                               "hotfixes: 1 faction reward changed (item levels, required levels), 2 new faction "
+                               "rewards, 1 faction reward removed.")
         text = "\n".join(watch_build.hotfixes_report("1.60.1.70170", "1.60.1.70124", found, 1.0, line))
         self.assertIn("## WoW Forever 1.60.1.70170: its own hotfixes are in", text)
+        self.assertIn("The changelog line this adds to the pull request:\n\n```\n" + line + "\n```", text)
         self.assertIn("wago.tools has recorded 1.60.1.70170's own hotfixes, so the rewards that came from "
                       "1.60.1.70124's now come from this build's", text)
         self.assertIn("removed by Blizzard", text)
@@ -167,9 +169,19 @@ class Rewards(unittest.TestCase):
 
     def test_changelog_line(self):
         line = watch_build.changelog_line("1.60.1.70170", watch_build.rewards("old", None, "new", "old"))
-        self.assertEqual(line, "- Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: "
+        self.assertEqual(line, "Changed: Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170: "
                                "1 faction reward changed (item levels, required levels), 2 new faction rewards, "
                                "1 faction reward removed.")
+        self.assertEqual(release.body_entries("## Changelog\n\n" + line),
+                         [("Changed", line[len("Changed: "):])], "the release reads it from the description")
+
+    def test_changelog_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "output"
+            watch_build.outputs(path, made=True, changelog="Changed: Dungeon Journal: a line.")
+            watch_build.outputs(path, made=False, changelog="")
+            self.assertEqual(path.read_text(encoding="utf-8"),
+                             "made=true\nchangelog=Changed: Dungeon Journal: a line.\nmade=false\nchangelog=\n")
 
     def test_ready(self):
         found = {"kept": 558, "new": [], "gone": [], "changed": [], "carried": []}
@@ -178,7 +190,7 @@ class Rewards(unittest.TestCase):
         self.assertIn("Nothing: every faction reward, its standing and its price stay the same.", text)
         self.assertNotIn("<details>", text)
         self.assertEqual(watch_build.changelog_line("1.60.1.70170", found),
-                         "- Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170.",
+                         "Changed: Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70170.",
                          "nothing else changes: the data is still updated")
 
 
@@ -277,35 +289,6 @@ class NewGear(unittest.TestCase):
                 self.assertEqual(self.saved[1](), {872, 888, 1164})
             finally:
                 watch_build.JOURNAL_ITEMS = saved
-
-
-class Changelog(unittest.TestCase):
-    """add_changelog puts the line in Unreleased's Changed, keeping the file's line endings."""
-
-    def write(self, text):
-        self.saved = watch_build.CHANGELOG
-        self.tmp = tempfile.TemporaryDirectory()
-        watch_build.CHANGELOG = Path(self.tmp.name) / "CHANGELOG.md"
-        watch_build.CHANGELOG.write_bytes(text.encode())
-
-    def tearDown(self):
-        watch_build.CHANGELOG = self.saved
-        self.tmp.cleanup()
-
-    def test_after_the_last_change(self):
-        self.write("# Changelog\r\n\r\n## Unreleased\r\n\r\n### Added\r\n- A.\r\n\r\n### Changed\r\n- B.\r\n"
-                   "  more of B.\r\n\r\n### Fixed\r\n- C.\r\n\r\n## 0.5.17-beta\r\n\r\n### Changed\r\n- Old.\r\n")
-        watch_build.add_changelog("- New.")
-        self.assertEqual(watch_build.CHANGELOG.read_bytes().decode(),
-                         "# Changelog\r\n\r\n## Unreleased\r\n\r\n### Added\r\n- A.\r\n\r\n### Changed\r\n- B.\r\n"
-                         "  more of B.\r\n- New.\r\n\r\n### Fixed\r\n- C.\r\n\r\n## 0.5.17-beta\r\n\r\n### Changed\r\n"
-                         "- Old.\r\n")
-
-    def test_makes_changed_before_fixed(self):
-        self.write("## Unreleased\n\n### Added\n- A.\n\n### Fixed\n- C.\n\n## 0.5.17-beta\n")
-        watch_build.add_changelog("- New.")
-        self.assertEqual(watch_build.CHANGELOG.read_bytes().decode(),
-                         "## Unreleased\n\n### Added\n- A.\n\n### Changed\n- New.\n\n### Fixed\n- C.\n\n## 0.5.17-beta\n")
 
 
 class Words(unittest.TestCase):
