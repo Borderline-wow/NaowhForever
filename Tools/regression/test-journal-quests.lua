@@ -161,40 +161,40 @@ end)
 -------------------------------------------------------------------------------
 --  What to do first, and the level it needs
 -------------------------------------------------------------------------------
-Case("nothing done: Do first names the first step, 1 of 6", function()
+Case("nothing done: Requires names the first step, 1 of 6", function()
     local Q, q, _, J = Fixture()
     assert(Q.Kind(q[214]) == "prereq" and Q.ToPickUp("prereq"))
-    assert(EntryFor(Q, J, 214).where == "Do first: The Defias Brotherhood (1/6)")
+    assert(EntryFor(Q, J, 214).where == "Requires: The Defias Brotherhood (1/6)")
 end)
 
-Case("some steps done: Do first names the next step, with where it starts", function()
+Case("some steps done: Requires names the next step, with where it starts", function()
     local Q, q, _, J = Fixture({ done = { 65, 132, 135 } })
     assert(Q.Kind(q[214]) == "prereq")
     local where = EntryFor(Q, J, 214).where
-    assert(where == "Do first: The Defias Brotherhood (4/6) (Gryan Stoutmantle)", where)
+    assert(where == "Requires: The Defias Brotherhood (4/6) (Gryan Stoutmantle)", where)
 end)
 
 Case("a later step done counts the ones before it as done", function()
     local Q, _, _, J = Fixture({ done = { 142 } })
     local where = EntryFor(Q, J, 214).where
-    assert(where == "Do first: The Defias Brotherhood (6/6)", where)
+    assert(where == "Requires: The Defias Brotherhood (6/6)", where)
 end)
 
-Case("the step to do in your log is the in-log Do first", function()
+Case("the step to do in your log is the in-log Requires", function()
     local Q, q, _, J = Fixture({ on = { 141 }, done = { 65, 132, 135 } })
     assert(Q.Kind(q[214]) == "prereqLog")
     local entry = EntryFor(Q, J, 214)
-    assert(entry.where == "Do first (in your log): The Defias Brotherhood (4/6) (Gryan Stoutmantle)", entry.where)
+    assert(entry.where == "Requires (in your log): The Defias Brotherhood (4/6) (Gryan Stoutmantle)", entry.where)
     assert(entry.canWaypoint)
 end)
 
 Case("a step with faction versions: either one done or in the log counts", function()
     local Q, q, _, J = Fixture({ done = { 502 } })
     assert(Q.Kind(q[500]) == "prereq")
-    assert(EntryFor(Q, J, 500).where == "Do first: Middle (2/2)")
+    assert(EntryFor(Q, J, 500).where == "Requires: Middle (2/2)")
     Q, q, _, J = Fixture({ on = { 502 } })
     assert(Q.Kind(q[500]) == "prereqLog")
-    assert(EntryFor(Q, J, 500).where == "Do first (in your log): Horde Start (1/2)")
+    assert(EntryFor(Q, J, 500).where == "Requires (in your log): Horde Start (1/2)")
 end)
 
 Case("all done but your level too low: waiting on your level", function()
@@ -256,7 +256,7 @@ Case("handed in quests are not listed", function()
     assert(EntryFor(Q, J, 600) == nil)
 end)
 
-Case("the list goes Do first, level, pick up, in your log, ready", function()
+Case("the list goes prerequisites, level, pick up, in your log, ready", function()
     local Q, _, _, J = Fixture({ level = 29, levels = AT_30, on = { 801, 800 }, complete = { 801 } })
     local quests = J.QuestData[1].quests
     quests[#quests + 1] = { 801, "Ready", 25, "B", true, "", 1411, 1, 1 }
@@ -357,7 +357,7 @@ end)
 -------------------------------------------------------------------------------
 --  Waypoints
 -------------------------------------------------------------------------------
-Case("Do first goes to where that step starts", function()
+Case("Requires goes to where that step starts", function()
     local Q, q, seen = Fixture({ done = { 65, 132, 135 } })
     Q.Waypoint(q[214])
     local p = seen.placed[1]

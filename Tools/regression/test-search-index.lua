@@ -176,7 +176,7 @@ do
             Check(noscan == (expected[name] == true), name .. ": noscan is " .. tostring(expected[name] == true))
         end
     end
-    Check(total == 27, "the window lists 27 pages (" .. total .. "): decide noscan for a new one")
+    Check(total == 29, "the window lists 29 pages (" .. total .. "): decide noscan for a new one")
     for name in pairs(expected) do Check(seen[name] ~= nil, "the audited page still exists: " .. name) end
 end
 

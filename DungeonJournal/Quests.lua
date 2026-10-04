@@ -14,7 +14,7 @@ local ns = _G.NaowhForever
 local J = ns.Journal
 
 ---@alias JournalQuestKind
----| "prereq"     # a prerequisite is not done yet (Do first)
+---| "prereq"     # a prerequisite is not done yet (Prerequisite)
 ---| "prereqLog"  # the prerequisite to do next is in your log
 ---| "low"        # prerequisites done, your level too low to pick it up
 ---| "pickup"     # you can pick it up
@@ -338,7 +338,7 @@ local function PrereqLine(quest)
     local step, i, n = NextPrereq(quest)
     if not step then return end
     local state, id = StepState(step)
-    local text = ("Do first%s: %s (%d/%d)"):format(state == "active" and " (in your log)" or "", StepName(id), i, n)
+    local text = ("Requires%s: %s (%d/%d)"):format(state == "active" and " (in your log)" or "", StepName(id), i, n)
     return text, step, state, id
 end
 

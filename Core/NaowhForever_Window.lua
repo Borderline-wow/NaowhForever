@@ -67,7 +67,9 @@ local MODULES = {
       command = "journal", alias = "dj", short = "Journal", icon = "Interface\\Icons\\INV_Misc_Book_09",
       subtitle = "Every dungeon and raid: what drops, your quests, and more.",
       tabs = {
-          { name = "Settings", reuse = true },
+          { name = "Journal", reuse = true },
+          { name = "Quest Tracker", reuse = true },
+          { name = "Map", reuse = true },
       } },
     -- The list itself is a window of its own (open); only its settings live here.
     { name = "BiS List", group = "ADVENTURE", navIcon = "trophy", settings = "QoLSettings", enabledKey = "bis",

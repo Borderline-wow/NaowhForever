@@ -1,8 +1,8 @@
 -- Run with Lua 5.1 from the repository root: what the modules share (Shared/), loaded from the
 -- files Shared.xml loads, in order, against stubs. Checks that nothing is made or listened to
 -- at load, the item helpers, the Forever mark, and the row engine a page is drawn with: rows
--- pooled and reused, a burst of events making one redraw and none while hidden, and a redraw
--- that makes no garbage.
+-- pooled and reused, a burst of events making one redraw and none while hidden, a redraw that
+-- makes no garbage, and a tracker's window (Parts.TrackerPanel).
 local Load = dofile("Tools/regression/load_files.lua")
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 local Measure = dofile("Tools/regression/measure.lua")
@@ -241,5 +241,93 @@ check("the second time too", backs == 2)
 view.Redraw = redraw
 view.count = 50
 Measure(check)("a page of 50 rows redrawn", 1, function() view:Redraw() end)
+
+-------------------------------------------------------------------------------
+--  A tracker's window (Parts.TrackerPanel): built only when asked, its parts where the
+--  options ask for them, rows pooled, the body scrolling past its height, its place kept.
+-------------------------------------------------------------------------------
+local opened, wentTo, titled, saved, moved
+ns.OpenOptionsWindow = function(name) opened = name end
+ns.UI.GoToSetting = function(_, _, feature) wentTo = feature end
+ns.UI.COGS_ICON = "cog"
+ns.UI.SlimScroll = function(parent) return Frame(parent) end
+ns.UI.BuildDropdownControl = function(parent) return Frame(parent) end
+env.Menu = { GetManager = function() return { IsAnyMenuOpen = function() return false end } end }
+local createFrame = env.CreateFrame
+local function Level() return 1 end
+env.CreateFrame = function(kind, name, parent)
+    local frame = createFrame(kind, name, parent)
+    frame.GetFrameLevel = Level
+    return frame
+end
+local where
+local tracker = Parts.TrackerPanel("BOOKS", {
+    width = 320, titleRoom = 74, maxHeight = function() return 300 end,
+    onTitle = function() titled = true end, titleTip = "Books", titleHint = "Click for its settings.",
+    bar = true,
+    picker = { values = {}, order = {}, get = NOTHING, set = NOTHING },
+    settings = { page = "Discovery/Library Books", card = "tracker", tip = "Settings" },
+    load = function() if where then return where[1], where[2], where[3], where[4] end end,
+    save = function(point, relativePoint, x, y) saved = { point, relativePoint, x, y } end,
+    place = { "RIGHT", "RIGHT", -60, 60 },
+    mover = function(frame, onMoved) moved = onMoved; return Frame(frame) end,
+})
+check("a tracker: its bar, dropdown, cog, body and mover", tracker.bar and tracker.picker and tracker.settings
+    and tracker.body and tracker.mover and tracker.footer > 0)
+check("its body starts under the title, the bar and the dropdown", tracker:Top() == 30 + 4 + 24 + 6 + 24 + 6)
+tracker.picker:Hide()
+check("a hidden dropdown leaves no room", tracker:Top() == 30 + 4 + 24 + 6)
+tracker.picker:Show()
+check("as wide as asked, its body inside the padding", tracker.w == 320 and tracker.body.w == 300)
+tracker.settings.scripts.OnClick(tracker.settings)
+check("its cog opens its settings, at its card", opened == "Discovery/Library Books"
+    and wentTo == "Discovery/Library Books:tracker")
+tracker.titleButton.scripts.OnClick(tracker.titleButton)
+check("its title is clicked through to the module", titled)
+tracker.GetPoint = function() return "TOP", nil, "TOP", 5, -7 end
+tracker.scripts.OnDragStop(tracker)
+check("dragged, its place is saved", saved and saved[1] == "TOP" and saved[4] == -7)
+moved({ point = "LEFT", relPoint = "LEFT", x = 1, y = 2 })
+check("and Unlock Mode's mover saves through the same", saved[1] == "LEFT" and saved[4] == 2)
+local placed
+tracker.SetPoint = function(_, point, _, _, x) placed = { point, x } end
+tracker:Place()
+check("placed at its default before it has a place", placed[1] == "RIGHT" and placed[2] == -60)
+where = { "TOP", "TOP", 9, 9 }
+tracker:Place()
+check("then where it was left", placed[1] == "TOP" and placed[2] == 9)
+
+local pinned = 0
+local function Waypoint() pinned = pinned + 1 end
+local ENTRIES = {
+    { text = "Book one", sub = "In a crate", waypoint = Waypoint },
+    { text = "Book two", waypoint = Waypoint },
+    { text = "Book three", done = true },
+}
+local height = tracker:SetRows(ENTRIES)
+local rows = tracker.rows
+check("a row each, every other one striped", #rows == 3 and rows[2].stripe:IsShown()
+    and not rows[1].stripe:IsShown())
+check("a pin where there is a waypoint, a tick once done", rows[1].pin:IsShown() and not rows[3].pin:IsShown()
+    and rows[3].tick:IsShown() and not rows[1].tick:IsShown())
+check("a line under each but the last", rows[1].divider:IsShown() and not rows[3].divider:IsShown())
+check("as tall as its rows", height == (6 + 12 + 8) * 3 + 3 + 12 and tracker.body.h == height)
+rows[1].pin.scripts.OnClick(rows[1].pin)
+check("a pin's click is the row's waypoint", pinned == 1)
+local madeBefore = made
+tracker:SetRows({ ENTRIES[1], ENTRIES[2] })
+check("fewer rows: reused, none made, the rest hidden", made == madeBefore and #rows == 3 and rows[3].shown == false)
+check("short: no scrollbar", tracker:Fit(100) == false and tracker.h == tracker:Top() + 100 + tracker.footer + 10
+    and tracker:ScrollGap() == 0)
+check("past its height it scrolls, and says so once", tracker:Fit(1000) == true and tracker.h == 300
+    and tracker:ScrollGap() == 20 and tracker:Fit(1000) == false)
+tracker:SetTrackerWidth(320)
+check("its body leaves the scrollbar room", tracker.body.w == 280)
+check("and stops", tracker:Fit(100) == true and tracker:ScrollGap() == 0)
+Measure(check)("a tracker's rows laid out", 1, function() tracker:SetRows(ENTRIES) end)
+
+local plain = Parts.TrackerPanel("PLAIN", {})
+check("with no options: no bar, dropdown or cog, its body under the title", not plain.bar and not plain.picker
+    and not plain.settings and plain.footer == 0 and plain:Top() == 34 and plain:Fit(100) == false)
 
 print(("test-shared: %d checks passed"):format(checks))

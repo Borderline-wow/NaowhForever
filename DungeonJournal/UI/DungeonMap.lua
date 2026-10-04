@@ -515,7 +515,7 @@ local function Place(from)
 end
 
 local function Paint()
-    window.backdrop:Paint(S.Get("windowAlpha") or 1)
+    window.backdrop:Paint(S.Get("mapAlpha") or 1)
 end
 
 -- The pin: the accent while pinned, muted while not, white under the mouse.
@@ -1132,7 +1132,7 @@ S.OnChange(function(key)
     if key == "enabled" and not S.Get("enabled") then
         if window then window:Hide() end
         if overlay then overlay:Hide() end
-    elseif key == "windowAlpha" and window then
+    elseif key == "mapAlpha" and window then
         Paint()
     end
 end)

@@ -231,8 +231,12 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
         local desc = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
         if not desc then return end
         -- Scrolling is opt-in on Blizzard's menu (IsScrollable is false until this is
-        -- called); unset, a long list ran off the screen. It only engages past this height.
-        if desc.SetScrollMode then desc:SetScrollMode(420) end
+        -- called); unset, a long list ran off the screen. It only engages past this height:
+        -- 420, or the caller's btn._menuHeight (a number, or a function giving one) for a list
+        -- meant to show whole.
+        local menuHeight = btn._menuHeight
+        if type(menuHeight) == "function" then menuHeight = menuHeight() end
+        if desc.SetScrollMode then desc:SetScrollMode(menuHeight or 420) end
         for _, k in ipairs(Keys()) do
             local key = k
             desc:CreateRadio(btn._values[key] or tostring(key),

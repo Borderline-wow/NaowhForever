@@ -478,6 +478,7 @@ local function PartyChat()
     if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then return "INSTANCE_CHAT" end
     return "PARTY"
 end
+Parts.PartyChat = PartyChat
 
 -- The Trade channel's number while you are in it (in a city), else nil.
 local function TradeChannel()

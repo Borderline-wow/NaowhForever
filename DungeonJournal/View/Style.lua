@@ -70,7 +70,6 @@ J.Style = setmetatable({
     MARK = 16,
     CHAIN_SLOT = 40,        -- Chain and its step ("2/2")
     PARTY_SLOT = 32,        -- the group members on a quest and how many, while in a group
-    WAYPOINT_SLOT = 20,
 
     -- Boss cards.
     BADGE = 20,             -- the kill-order number's box

@@ -81,7 +81,11 @@ local S = ns.UI.ModuleSettings("journal", {
     questsOpen = false,
     repQuestsOpen = true,
     missingBisOnly = false,
+    -- Each part's opacity: the Journal's window and its side panels; the quest tracker; the
+    -- map window, the Journal beside the world map and Boss Loot at Cursor.
     windowAlpha = 1,
+    trackerAlpha = 1,
+    mapAlpha = 1,
     listHidden = false,
     closedGroup1 = false,
     closedGroup2 = false,
@@ -91,8 +95,27 @@ local S = ns.UI.ModuleSettings("journal", {
     showHorde = true,
     shareRequests = true,
     acceptShared = false,
+    -- On by default, an exception to off by default: the tracker is the Journal's own, and
+    -- the Journal itself starts off.
+    trackerAuto = true,
+    -- In a dungeon, the game's quest tracker faded while this one is open.
+    hideGameTracker = false,
+    -- Out in the world too, on the dungeon your quests are for (off, as a new option is).
+    trackerOutside = false,
 })
 ns.JournalSettings = S
+
+-- The parts' opacity was one setting (windowAlpha) before each had its own: a player who set
+-- it keeps it on the tracker and the map until they set theirs. Once, on the first login with
+-- them: a part's own setting, once set, is never written over.
+local function SplitOpacity()
+    local was = S.Raw("windowAlpha")
+    if was == nil then return end
+    for _, key in ipairs({ "trackerAlpha", "mapAlpha" }) do
+        if S.Raw(key) == nil then S.Set(key, was) end
+    end
+end
+hooksecurefunc(ns, "Apply", SplitOpacity)
 
 local J = { Settings = S }
 ns.Journal = J
@@ -376,6 +399,19 @@ function J.LevelRange(dungeon)
     if not levels then return nil end
     if levels[1] == levels[2] then return tostring(levels[1]) end
     return levels[1] .. "-" .. levels[2]
+end
+
+-- The range in the quest log's colours for you: still above you, its lowest level's (orange,
+-- red); your level in it, yellow; outgrown, its highest level's (green, then grey). nil
+-- without a range.
+---@return string? range
+function J.ColoredLevelRange(dungeon)
+    local range = J.LevelRange(dungeon)
+    if not range then return nil end
+    local levels, mine = J.Levels(dungeon), UnitLevel("player")
+    local level = mine < levels[1] and levels[1] or mine > levels[2] and levels[2] or mine
+    local c = GetQuestDifficultyColor(level)
+    return ("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, range)
 end
 
 ---@return string? tip Naowh's tip for the boss (Data/Tips.lua); whether to show it is the view's

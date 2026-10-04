@@ -45,7 +45,7 @@ local function Open(boss, dungeon)
     popup:ClearAllPoints()
     popup:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale + CURSOR_OFFSET, y / scale - CURSOR_OFFSET)
     popup.title:SetText(dungeon.name:upper())
-    popup.backdrop:Paint(S.Get("windowAlpha") or 1)
+    popup.backdrop:Paint(S.Get("mapAlpha") or 1)
     popup:Show()
     view:DrawBossLoot(boss, dungeon)
 end

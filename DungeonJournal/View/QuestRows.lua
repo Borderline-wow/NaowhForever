@@ -1,9 +1,9 @@
 -------------------------------------------------------------------------------
---  View/QuestRows.lua -- your quests in the dungeon, as rows laid out like a table: the
---  quest's level in a column of its own; its title with where to go under it (or what to do
---  first); and on the right, in fixed slots so every column lines up, Chain as an icon, its
---  state as the game's own quest mark (a yellow ! to pick up, a ? in your log), and
---  Waypoint as a pin. Hover says what the mark means, how far along it is and who in your
+--  View/QuestRows.lua -- your quests in the dungeon, as rows laid out like a table: Waypoint
+--  as a pin in front, then its state as the game's own quest mark (a yellow ! to pick up, a ?
+--  in your log), each in a column of its own; its title with where to go under it (or what to
+--  do first); and on the right, in fixed slots so every column lines up, who in your group has
+--  it and Chain as an icon. Hover says what the mark means, how far along it is and who in your
 --  party has it; right-click shares it, links it, tracks it or copies its Wowhead link.
 --  The rules are Quests.lua's; the words and colours are here.
 -------------------------------------------------------------------------------
@@ -18,31 +18,27 @@ local Quests = J.Quests
 
 local St = J.Style
 local QUEST_CODE, HAVE_RGB, BANG, QUESTION = St.QUEST_CODE, St.HAVE_RGB, St.BANG, St.QUESTION
-local PIN, CHAIN, CHECK, GAP, INDENT = St.PIN, St.CHAIN, St.CHECK, St.GAP, St.INDENT
+local PIN, CHAIN, CHECK, GAP = St.PIN, St.CHAIN, St.CHECK, St.GAP
 local PEOPLE, PARTY_SLOT, BAG = St.PEOPLE, St.PARTY_SLOT, St.BAG
 local GetItemCount, GetItemIconByID, GetItemNameByID = C_Item.GetItemCount, C_Item.GetItemIconByID,
     C_Item.GetItemNameByID
 local QUESTION_ICON = 134400   -- the game's question mark icon, for an item not loaded yet
-local STRIPE = St.STRIPE
-local QUEST_LEVEL_W, QUEST_TOP, QUEST_LINE_GAP, QUEST_BOTTOM = St.QUEST_LEVEL_W, St.QUEST_TOP, St.QUEST_LINE_GAP,
-    St.QUEST_BOTTOM
+local QUEST_TOP, QUEST_LINE_GAP, QUEST_BOTTOM = St.QUEST_TOP, St.QUEST_LINE_GAP, St.QUEST_BOTTOM
 local MARK, CHAIN_SLOT, WAYPOINT_SLOT = St.MARK, St.CHAIN_SLOT, St.WAYPOINT_SLOT
 
 local View = J.View
 local Kinds, Parts = View.Kinds, View.Parts
 local IconButton, Plain = Parts.IconButton, Parts.Plain
 
--- The fixed slots on the right, from the right: Waypoint, the mark, then Chain.
+-- The columns on the left, from the row's edge: Waypoint's pin (empty for a quest with nowhere
+-- to go, so the columns still line up), then the mark; the title after them.
+local ROW_LEFT = St.ROW_LEFT
+local MARK_LEFT = ROW_LEFT + WAYPOINT_SLOT + 4
+local TITLE_LEFT = MARK_LEFT + MARK + 6
+-- The fixed slots on the right, from the right: who in your group has it (only while you are
+-- in a group; its slot stays, so the columns still line up), then Chain.
 local QUEST_RIGHT = St.QUEST_RIGHT
-local MARK_SLOT = QUEST_RIGHT + WAYPOINT_SLOT + GAP * 2
--- The mark (a thin ! or ? in the middle of its box) goes this much right of its slot, so
--- what you see of it is midway between the pin's shape and the group icon's, which stand in
--- from their boxes by different amounts. Measured in game (2026-10-01): the space either
--- side of it was 20 and 28; this makes both 24.
-local MARK_SHIFT = 4
-local MARK_RIGHT = MARK_SLOT - MARK_SHIFT
--- Who in your group is on it, always shown (0 out of a group), so the slots never leave a gap.
-local PARTY_RIGHT = MARK_SLOT + MARK + GAP * 2
+local PARTY_RIGHT = QUEST_RIGHT
 local CHAIN_RIGHT = PARTY_RIGHT + PARTY_SLOT + GAP * 2
 local RIGHT_W = CHAIN_RIGHT + CHAIN_SLOT
 -- The empty right edge of the pin's and the chain's images at this size (Style's icons).
@@ -52,7 +48,7 @@ local PIN_MARGIN, CHAIN_MARGIN = 4, 2
 --  Words, marks and colours for each state
 -------------------------------------------------------------------------------
 local STATUS = {
-    prereq = "Do first", prereqLog = "Do first", low = "Level %d to pick up", pickup = "To pick up",
+    prereq = "Prerequisite", prereqLog = "Prerequisite", low = "Level %d to pick up", pickup = "To pick up",
     tooHigh = "Too high (%d)", next = "Next step", active = "In log", ready = "Complete",
 }
 local CHAIN_STATE = {
@@ -67,18 +63,20 @@ local function RGB(code)
         b = tonumber(hex:sub(5, 6), 16) / 255 }
 end
 
--- The game's quest marks, as every quest giver shows them: a yellow ! to pick up, a grey ?
--- while it is in your log, a yellow ? to hand in. The tinted ones are greyed and coloured
--- with the state: orange to do something first, grey while your level is too low, red when
--- it is too high for you. (The game's newer in-progress icon, a speech bubble with dots,
--- did not read as a quest.)
+-- The game's quest marks, as every quest giver shows them: a ? grey while it is in your log
+-- and yellow to hand in; a ! yellow when you can pick it up now, grey when other quests come
+-- first, red when it is too high for you (your level too low to take it, or five or more
+-- above you). The tinted ones are greyed and coloured. (The game's newer in-progress icon, a
+-- speech bubble with dots, did not read as a quest.)
+local GREY, RED = RGB(QUEST_CODE.low), RGB(QUEST_CODE.tooHigh)
+local YELLOW = RGB(QUEST_CODE.prereqLog)   -- the quest log's yellow: the untinted marks' words
 local MARKS = {
     pickup = { BANG }, next = { BANG },
-    prereq = { BANG, RGB(QUEST_CODE.prereq) }, prereqLog = { BANG, RGB(QUEST_CODE.prereqLog) },
-    low = { BANG, RGB(QUEST_CODE.low) }, tooHigh = { BANG, RGB(QUEST_CODE.tooHigh) },
+    prereq = { BANG, GREY }, prereqLog = { BANG, GREY },
+    low = { BANG, RED }, tooHigh = { BANG, RED },
     active = { QUESTION, T.muted }, ready = { QUESTION },
 }
--- Do first needs no words on hover: the line under the title names the quest to do.
+-- A prerequisite needs no words on hover: the line under the title names the quest to do.
 local SAID_BELOW = { prereq = true, prereqLog = true }
 
 -- The state the row shows: a quest to pick up that is too high for you is told apart.
@@ -86,12 +84,17 @@ local function Shown(entry)
     return entry.tooHigh and "tooHigh" or entry.kind
 end
 
-local function StatusText(entry)
+-- Its state in words ("Level 30 to pick up").
+local function StatusWords(entry)
     local shown = Shown(entry)
     local text = STATUS[shown]
     if shown == "low" then text = text:format(Quests.MinLevel(entry.quest)) end
     if shown == "tooHigh" then text = text:format(entry.level) end
-    return QUEST_CODE[shown] .. text .. "|r"
+    return text
+end
+
+local function StatusText(entry)
+    return QUEST_CODE[Shown(entry)] .. StatusWords(entry) .. "|r"
 end
 
 local function PaintMark(mark, entry)
@@ -143,13 +146,36 @@ local function QuestLink(id)
     return GetQuestLink(id)
 end
 
--- Into the chat box you have open. Never opened from here: opening it from addon code
--- (ChatFrameUtil.OpenChat) taints it, and the game then blocks the next message you send.
+-- Where Link in Chat sends the quest: your party (or instance group) chat in a group; out of
+-- one, only into the chat box while it is open, never to Say.
+local function LinkChannel()
+    if IsInGroup() then return Parts.PartyChat(), "Party" end
+    return nil, "Chat"
+end
+
+local function ChatBoxOpen()
+    return ChatFrameUtil.GetActiveWindow() ~= nil
+end
+
+local NO_CHAT = "Join a group, or open your chat box first."
+
+local function NoChatTip(tooltip)
+    GameTooltip_SetTitle(tooltip, NO_CHAT)
+end
+
+-- Into the chat box while you have it open, so it joins what you are typing; otherwise sent
+-- straight to your group's chat. The chat box is never opened from here: opening it from
+-- addon code (ChatFrameUtil.OpenChat) taints it, and the game then blocks the next message.
 local function LinkInChat(id)
     local link = QuestLink(id)
-    if link and not ChatFrameUtil.InsertLink(link) then
-        ns.Print("Open your chat box first (Enter), then link the quest.")
+    if not link or ChatFrameUtil.InsertLink(link) then return end
+    local channel = LinkChannel()
+    if not channel then return end
+    if C_ChatInfo.InChatMessagingLockdown() then
+        ns.Print("Chat is locked right now.")
+        return
     end
+    C_ChatInfo.SendChatMessage(link, channel)
 end
 
 -- Sharing first, then finding it, then its Wowhead page. The menu keeps the quest it was
@@ -164,7 +190,12 @@ local function OpenQuestMenu(row)
         root:CreateButton(SHARE_QUEST, function()
             QuestLogPushQuest(C_QuestLog.GetLogIndexForQuestID(logged))
         end):SetEnabled(shareable)
-        root:CreateButton("Link in Chat", function() LinkInChat(linkID) end):SetEnabled(QuestLink(linkID) ~= nil)
+        local channel, where = LinkChannel()
+        local linkable = QuestLink(linkID) ~= nil
+        local reachable = channel ~= nil or ChatBoxOpen()
+        local link = root:CreateButton("Link in " .. where, function() LinkInChat(linkID) end)
+        link:SetEnabled(linkable and reachable)
+        if linkable and not reachable then link:SetTooltip(NoChatTip) end
         root:CreateDivider()
         if canWaypoint then root:CreateButton("Waypoint", function() Quests.Waypoint(quest) end) end
         if Quests.Chain(quest) then root:CreateButton("Show Chain", function() OpenChain(row, quest) end) end
@@ -287,11 +318,14 @@ local function TurnInLines(entry)
     end
 end
 
-local function QuestEnter(row)
+-- Over the quest's name only (row.name, sized to it): the card. The rest of the row lights
+-- up and takes clicks, but shows nothing.
+local function QuestEnter(hit)
+    local row = hit:GetParent()
     row.hover:Show()
     local entry = row.entry
     local kind = entry.kind
-    if not Tip(row, "ANCHOR_CURSOR_RIGHT", 16, 0) then return end
+    if not Tip(hit, "ANCHOR_CURSOR_RIGHT", 16, 0) then return end
     GameTooltip:SetText(entry.name)
     if row.forever then GameTooltip:AddLine(ForeverLine()) end
     if entry.turnin then
@@ -324,9 +358,39 @@ local function QuestEnter(row)
     GameTooltip:Show()
 end
 
-local function QuestLeave(row)
-    row.hover:Hide()
+-- Over the ! or ?: what it means. A prerequisite: the quest to do (the tracker's one line leaves
+-- it out); too high, how hard; in your log, how far along it is.
+local function MarkEnter(hit)
+    local row = hit:GetParent()
+    row.hover:Show()
+    local entry = row.entry
+    if not Tip(hit, "ANCHOR_RIGHT") then return end
+    -- In the mark's own colour.
+    local c = (MARKS[Shown(entry)] or MARKS.pickup)[2] or YELLOW
+    GameTooltip:SetText(StatusWords(entry), c.r, c.g, c.b)
+    if SAID_BELOW[entry.kind] and entry.where then
+        GameTooltip:AddLine(Plain(entry.where), 1, 1, 1, true)
+    end
+    if entry.tooHigh then
+        GameTooltip:AddLine(("It is level %d, five or more above you, so it will be hard for now.")
+            :format(entry.level), 1, 1, 1, true)
+    end
+    ProgressLines(entry)
+    GameTooltip:Show()
+end
+
+local function QuestLeave(hit)
+    local row = hit:GetParent()
+    if not row:IsMouseOver() then row.hover:Hide() end
     GameTooltip:Hide()
+end
+
+local function RowEnter(row)
+    row.hover:Show()
+end
+
+local function RowLeave(row)
+    if not row.name:IsMouseOver() then row.hover:Hide() end
 end
 
 -- Right-click: the menu. Left-click on a quest in your log: its details beside the window.
@@ -336,6 +400,11 @@ local function QuestMouseUp(row, button)
     elseif row.entry.loggedID then
         View.QuestPanel.Show(row.entry.loggedID, row)
     end
+end
+
+-- A click on the name is the row's.
+local function NameClicked(hit, button)
+    QuestMouseUp(hit:GetParent(), button)
 end
 
 -- A click puts the waypoint on your map; a right-click shares where it is, with a map pin
@@ -356,8 +425,8 @@ local function ChainClicked(button)
     OpenChain(button, button:GetParent().quest)
 end
 
--- Its step in its chain, always shown so the slots line up: a quest on its own is 1/1,
--- muted, as the group count is at 0.
+-- Its step in its chain, in the accent. A quest on its own shows nothing there; the slot
+-- stays, so the icons beside it still line up.
 local function PaintChain(button)
     local color = button.chained and T.accentSoft or T.muted
     button.icon:SetVertexColor(color.r, color.g, color.b)
@@ -389,10 +458,7 @@ local function PartyEnter(button)
     button.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b)
     local entry = button:GetParent().entry
     if not Tip(button, "ANCHOR_TOP") then return end
-    if not IsInGroup() then
-        GameTooltip:SetText("Not in a group", 1, 1, 1)
-        GameTooltip:AddLine("In a group, this counts who else is on the quest.", T.muted.r, T.muted.g, T.muted.b)
-    elseif button.count == 0 then
+    if button.count == 0 then
         GameTooltip:SetText("No one else in your group is on this quest", 1, 1, 1)
     else
         GameTooltip:SetText("In your group on this quest", 1, 1, 1)
@@ -435,15 +501,7 @@ end
 Kinds.quest = {
     New = function(view)
         local row = CreateFrame("Frame", nil, view)
-        row.stripe = ns.Solid(row, "BACKGROUND", T.fg, STRIPE)
-        row.stripe:SetAllPoints()
-        row.hover = ns.Solid(row, "BACKGROUND", T.fg, 0.04)
-        row.hover:SetAllPoints()
-        row.hover:Hide()
-        row.divider = ns.Solid(row, "BORDER", T.line, 0.6)
-        row.divider:SetPoint("BOTTOMLEFT", INDENT, 0)
-        row.divider:SetPoint("BOTTOMRIGHT")
-        ns.Hairline(row.divider, "h")
+        Parts.RowBands(row, ROW_LEFT)
         row.waypoint = IconButton(row, WaypointClicked, PIN, PIN_MARGIN)
         row.waypoint.tip = "Waypoint"
         row.waypoint.hint = "Right-click to share it in chat, or copy it."
@@ -462,12 +520,16 @@ Kinds.quest = {
         row.party:SetScript("OnLeave", PartyLeave)
         row.mark = row:CreateTexture(nil, "ARTWORK")
         row.mark:SetSize(MARK, MARK)
-        row.level = ns.Font(row, 12)
-        row.level:SetPoint("TOPLEFT", INDENT, -(QUEST_TOP + 1))
-        row.level:SetWidth(QUEST_LEVEL_W)
-        row.level:SetJustifyH("LEFT")
+        -- Hovered, it says what it means (MarkEnter).
+        row.markHit = CreateFrame("Frame", nil, row)
+        row.markHit:SetSize(MARK + 4, MARK + 4)
+        row.markHit:SetPoint("CENTER", row.mark)
+        row.markHit:EnableMouse(true)
+        row.markHit:SetScript("OnEnter", MarkEnter)
+        row.markHit:SetScript("OnLeave", QuestLeave)
+        row.markHit:SetScript("OnMouseUp", NameClicked)   -- its clicks are the row's
         row.title = ns.Font(row, 13, nil, T.fg)
-        row.title:SetPoint("TOPLEFT", INDENT + QUEST_LEVEL_W + 4, -QUEST_TOP)
+        row.title:SetPoint("TOPLEFT", TITLE_LEFT, -QUEST_TOP)
         row.title:SetJustifyH("LEFT")
         row.title:SetWordWrap(false)
         row.where = ns.Font(row, 11, nil, T.muted)
@@ -475,9 +537,16 @@ Kinds.quest = {
         row.where:SetJustifyH("LEFT")
         row.where:SetWordWrap(true)
         row:EnableMouse(true)
-        row:SetScript("OnEnter", QuestEnter)
-        row:SetScript("OnLeave", QuestLeave)
+        row:SetScript("OnEnter", RowEnter)
+        row:SetScript("OnLeave", RowLeave)
         row:SetScript("OnMouseUp", QuestMouseUp)
+        -- Over the title's text, as wide as the name shows (Set): its hover is the card.
+        row.name = CreateFrame("Button", nil, row)
+        row.name:SetPoint("TOPLEFT", row.title, "TOPLEFT", 0, 2)
+        row.name:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        row.name:SetScript("OnEnter", QuestEnter)
+        row.name:SetScript("OnLeave", QuestLeave)
+        row.name:SetScript("OnClick", NameClicked)
         return row
     end,
     ---@param entry JournalQuestEntry the view's own entry
@@ -506,11 +575,9 @@ Kinds.quest = {
             chain.tip = chain.chained and ("Chain: step %d of %d"):format(entry.step, entry.steps)
                 or "On its own: no quest leads to it or follows it"
         end
+        chain:SetShown(entry.turnin ~= nil or chain.chained)
         PaintChain(chain)
         PaintMark(row.mark, entry)
-        local color = entry.level and GetQuestDifficultyColor(entry.level) or T.fg
-        row.level:SetText(entry.level or "")
-        row.level:SetTextColor(color.r, color.g, color.b)
         -- Narrow (the map panel): the mark and icons on the title's line, on the right in the
         -- same slots as the wide page, and where to go under both, the row's whole width.
         -- Tight (the quest tracker): one line, the title and the icons on its right; where to
@@ -518,10 +585,11 @@ Kinds.quest = {
         local view = row:GetParent()
         local tight = view.tight
         local compact = view.compact and not tight
-        local left = INDENT + QUEST_LEVEL_W + 4
+        local left = TITLE_LEFT
         local width = row:GetWidth() - left - RIGHT_W - GAP * 2
         row.party.count = entry.party
         row.party.label:SetText(entry.party)
+        row.party:SetShown(IsInGroup())
         PaintParty(row.party)
         row.title:SetWidth(width)
         row.forever = entry.quest ~= nil and IsForever("quests", entry.quest[1])
@@ -529,6 +597,8 @@ Kinds.quest = {
         row.where:SetWidth(compact and row:GetWidth() - left or width)
         row.where:SetText(Plain(entry.where))
         row.where:SetShown(not tight)
+        row.name:SetSize(math.max(1, math.min(math.ceil(row.title:GetStringWidth()), width)),
+            math.ceil(row.title:GetStringHeight()) + 4)
         local height = QUEST_TOP + math.ceil(row.title:GetStringHeight()) + QUEST_BOTTOM
         if not tight then height = height + QUEST_LINE_GAP + math.ceil(row.where:GetStringHeight()) end
         row.mark:ClearAllPoints()
@@ -541,9 +611,19 @@ Kinds.quest = {
             anchor, y = "TOPRIGHT", -(QUEST_TOP + math.ceil(row.title:GetStringHeight()) / 2)
         end
         row.party:SetPoint("RIGHT", row, anchor, -PARTY_RIGHT, y)
-        row.waypoint:SetPoint("RIGHT", row, anchor, -QUEST_RIGHT, y)
-        row.mark:SetPoint("RIGHT", row, anchor, -MARK_RIGHT, y)
+        -- The pin and the mark in front of the title, on its line.
+        local line = -(QUEST_TOP + math.ceil(row.title:GetStringHeight()) / 2)
+        row.waypoint:SetPoint("CENTER", row, "TOPLEFT", ROW_LEFT + WAYPOINT_SLOT / 2, line)
+        row.mark:SetPoint("CENTER", row, "TOPLEFT", MARK_LEFT + MARK / 2, line)
         row.chain:SetPoint("RIGHT", row, anchor, -CHAIN_RIGHT, y)
         return height
     end,
 }
+
+-- How wide a quest row must be to show a title this wide in full, beside its pin and mark and
+-- the icons on its right (the quest tracker sizes itself by it).
+---@param titleWidth number
+---@return number width
+function View.QuestRowWidth(titleWidth)
+    return TITLE_LEFT + titleWidth + RIGHT_W + GAP * 2
+end

@@ -135,4 +135,22 @@ Shared.Style = {
     PANEL_PAD = 10,
     PANEL_HEADER = 30,
     PANEL_BUTTONS = 34,     -- a side panel's buttons along its bottom
+
+    ---------------------------------------------------------------------------
+    --  A tracker (Parts.TrackerPanel): a small window kept on screen, its rows a table with
+    --  a waypoint pin in a column of its own
+    ---------------------------------------------------------------------------
+    TRACKER_SLOT = 24,      -- the progress bar and the dropdown under its title
+    TRACKER_GAP = 6,        -- under each of them
+    TRACKER_SCROLL = 20,    -- the body's right edge to the window's, for the scrollbar, while it scrolls
+    CLOSE_ROOM = 34,        -- the title stops short of the close button
+    ROW_LEFT = 6,           -- a row's pin column, from its left edge
+    WAYPOINT_SLOT = 20,     -- the pin's column
+    ROW_TOP = 6,            -- over a row's text
+    ROW_LINE_GAP = 3,       -- between its text and the line under it
+    ROW_BOTTOM = 8,         -- under its text
+    ROW_RIGHT = 10,         -- right of its text
+    ROW_HOVER = 0.04,       -- the row under the mouse: a band in the text colour
+    ROW_DIVIDER = 0.6,      -- the line under each row, in the theme's line colour
+    ROW_TICK = 16,          -- the tick in the pin's column once a row is done
 }

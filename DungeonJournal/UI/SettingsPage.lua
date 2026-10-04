@@ -1,8 +1,9 @@
 -------------------------------------------------------------------------------
---  UI/SettingsPage.lua -- the Dungeon Journal's settings page (Dungeon Journal/Settings in the
---  options window): a card that says where you stand and opens the Journal, then a card per
---  part. What it lists comes from J.OPTION_GROUPS, the same list the window's Filters menu is
---  built from, so the two always match. Your latest kills and loot are in the window (UI/Recent.lua).
+--  UI/SettingsPage.lua -- the Dungeon Journal's settings, three tabs in the options window:
+--  Journal (a card that says where you stand and opens it, what it lists, its window and its
+--  key), Quest Tracker (the tracker and sharing quests) and Map (the Journal beside the world
+--  map, and Boss Loot at Cursor's key). What it lists comes from J.OPTION_GROUPS, the same list
+--  the window's Filters menu is built from, so the two always match. Your latest kills and loot are in the window (UI/Recent.lua).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local J = ns.Journal
@@ -111,17 +112,31 @@ end
 
 local function QuestsSummary(store)
     local ask, accept = store.Get("shareRequests"), store.Get("acceptShared")
-    if ask and accept then return "Asks and accepts shared quests" end
-    if ask then return "Asks for shared quests" end
-    if accept then return "Accepts shared quests" end
-    return "Off"
+    local text = "Off"
+    if ask and accept then
+        text = "Asks and accepts shared quests"
+    elseif ask then
+        text = "Asks for shared quests"
+    elseif accept then
+        text = "Accepts shared quests"
+    end
+    local where = store.Get("trackerAuto") and (store.Get("trackerOutside") and "everywhere" or "in dungeons")
+        or store.Get("trackerOutside") and "outside dungeons"
+    if where then text = text == "Off" and "Tracker " .. where or text .. ", tracker " .. where end
+    return text
 end
 
-local function WindowSummary(store)
-    return ("%d%% opacity"):format(math.floor((store.Get("windowAlpha") or 1) * 100 + 0.5))
+-- "80% opacity", for the part whose setting is key.
+local function OpacitySummary(key)
+    return function(store)
+        return ("%d%% opacity"):format(math.floor((store.Get(key) or 1) * 100 + 0.5))
+    end
 end
 
-local page = Settings.Page("Dungeon Journal/Settings", S)
+-------------------------------------------------------------------------------
+--  Journal
+-------------------------------------------------------------------------------
+local page = Settings.Page("Dungeon Journal/Journal", S)
 
 page:Window({
     text = "Open Dungeon Journal",
@@ -138,52 +153,92 @@ page:Card({
 })
 
 page:Card({
-    id = "map", name = "Beside the World Map", order = 20,
-    help = "The Journal beside the world map (M): a dungeon's bosses and loot inside it, a zone's factions "
-        .. "outside.",
+    id = "window", name = "Window", order = 90,
+    help = "The Journal's own window.",
+    summary = OpacitySummary("windowAlpha"),
+    rows = {
+        { key = "windowAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
+          help = "How solid the Journal's window and its side panels are." },
+    },
+})
+
+page:Card({
+    id = "keys", name = "Key Binding", order = 30,
+    help = "The key that opens the Journal.",
+    rows = {
+        { label = "Open Dungeon Journal", binding = "NAOWHFOREVER_JOURNAL",
+          help = "Press it to open or close the Dungeon Journal." },
+    },
+})
+
+-------------------------------------------------------------------------------
+--  Quest Tracker
+-------------------------------------------------------------------------------
+local tracker = Settings.Page("Dungeon Journal/Quest Tracker", S)
+
+tracker:Card({
+    id = "quests", name = "Quests", order = 10,
+    help = "The quest tracker, and sharing dungeon quests with your group.",
+    summary = QuestsSummary,
+    rows = {
+        { key = "trackerAuto", label = "Open Tracker in Dungeons", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
+          help = "Opens the quest tracker when you enter a dungeon with quests for you." },
+        { key = "trackerOutside", label = "Show Outside Dungeons", toggle = true, needs = JournalOn,
+          why = JOURNAL_OFF,
+          help = "Opens the quest tracker out in the world, on the dungeon your quests are for." },
+        { key = "hideGameTracker", label = "Hide the Game's Quest Tracker", toggle = true, needs = JournalOn,
+          why = JOURNAL_OFF,
+          help = "Fades out the game's quest tracker while this one is open in a dungeon." },
+        { key = "shareRequests", label = "Quest Share Requests", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
+          help = "Ask your group to share a dungeon quest you don't have, from its group icon." },
+        { key = "acceptShared", label = "Accept Shared Dungeon Quests", toggle = true, needs = JournalOn,
+          why = JOURNAL_OFF,
+          help = "Accepts dungeon quests your group shares with you straight away." },
+    },
+})
+
+tracker:Card({
+    id = "trackerwindow", name = "Window", order = 90,
+    help = "The Dungeon Quest Tracker's window.",
+    summary = OpacitySummary("trackerAlpha"),
+    rows = {
+        { key = "trackerAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
+          help = "How solid the Dungeon Quest Tracker is." },
+    },
+})
+
+-------------------------------------------------------------------------------
+--  Map
+-------------------------------------------------------------------------------
+local map = Settings.Page("Dungeon Journal/Map", S)
+
+map:Card({
+    id = "map", name = "Beside the World Map", order = 10,
+    help = "The Journal beside the world map: bosses and loot in dungeons, factions outside.",
     summary = MapSummary,
     rows = {
         { key = "mapPanel", label = "Bosses and Loot in Dungeons", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
-          help = "Inside a dungeon, opening the world map (M) shows its bosses and loot beside it." },
+          help = "Shows a dungeon's bosses and loot beside the world map while you are inside." },
         { key = "mapFactions", label = "Factions Beside the Map", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
-          help = "In a zone or a battleground, opening the world map (M) shows the factions earned there: your "
-              .. "standing, their rewards and the quests that raise them." },
+          help = "Shows the factions earned where you are beside the world map." },
     },
 })
 
-page:Card({
-    id = "quests", name = "Quests", order = 30,
-    help = "Sharing dungeon quests with a group that runs Naowh Forever.",
-    summary = QuestsSummary,
+map:Card({
+    id = "mapwindow", name = "Window", order = 90,
+    help = "The map's window, the Journal beside the world map and Boss Loot at Cursor.",
+    summary = OpacitySummary("mapAlpha"),
     rows = {
-        { key = "shareRequests", label = "Quest Share Requests", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
-          help = "Click the group icon on a dungeon quest you do not have: the members on it are asked one at a "
-              .. "time, and the first running Naowh Forever shares it. Off, you neither ask nor answer." },
-        { key = "acceptShared", label = "Accept Shared Dungeon Quests", toggle = true, needs = JournalOn,
-          why = JOURNAL_OFF,
-          help = "Accepts a dungeon quest a group member shares with you as soon as it opens. Hold the Skip "
-              .. "Modifier (QoL > Questing) to look at one first." },
+        { key = "mapAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
+          help = "How solid the map's window, the Journal beside the map and Boss Loot at Cursor are." },
     },
 })
 
-page:Card({
-    id = "keys", name = "Key Bindings", order = 40,
-    help = "Keys for the Journal, also in the game's Key Bindings under Naowh Forever.",
+map:Card({
+    id = "lootkey", name = "Boss Loot at Cursor", order = 20,
+    help = "A key that shows a boss's loot at your cursor.",
     rows = {
         { label = "Boss Loot at Cursor", binding = "NAOWHFOREVER_BOSSLOOT",
-          help = "Hover a boss, or target one, and press this key: what it drops, at your cursor. Press it "
-              .. "again to close it." },
-        { label = "Open Dungeon Journal", binding = "NAOWHFOREVER_JOURNAL",
-          help = "Press this key to open the Dungeon Journal, and again to close it." },
-    },
-})
-
-page:Card({
-    id = "window", name = "Window", order = 50,
-    help = "The Journal's own window.",
-    summary = WindowSummary,
-    rows = {
-        { key = "windowAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
-          help = "How solid the Journal's window is, in percent. Also on its title bar." },
+          help = "Press it over a boss, or with one targeted, to see what it drops." },
     },
 })

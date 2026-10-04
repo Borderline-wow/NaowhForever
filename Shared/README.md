@@ -22,6 +22,8 @@ Shared/
                money with its coins (Parts.Coins, made once each)
   Window.lua   a window: the frame, title bar, icons, opacity slider, switch, search, footer,
                and a module's card on its settings page
+  Tracker.lua  a tracker's small window (Parts.TrackerPanel), and a list row's bands
+               (Parts.RowBands: stripe, hover, the line under it)
   View.lua     the row engine: pooled rows, cards, the card grid, one redraw per burst
   Kinds.lua    the rows every page has: section title, note, card, and an item in a list you
                keep (icon, name in its quality colour, a line under it, a tag, a value, an X)
@@ -51,6 +53,30 @@ Shared/
   drawn by the module's own drawing code on plain frames, never on its real (secure) frames.
 - **A window:** `Parts.Window`, `Parts.TitleBar`, `Parts.Opacity`, `Parts.BarButton`,
   `Parts.FooterBrand`. See `BiS/UI/Window.lua` for a short one.
+- **A tracker:** `Parts.TrackerPanel(title, opts)` builds a tracker's window once, on first
+  use: the window look, the title (click and drag), a scrolling body, a cog, its place kept.
+  Every option is optional:
+
+  | Option | What it adds |
+  | --- | --- |
+  | `width` | starting width (`PANEL_W`) |
+  | `titleRoom` | room left of the close button for your own buttons |
+  | `onTitle`, `titleTip`, `titleHint` | a click on the title, and its tooltip |
+  | `onClose` | the close button's click, in place of hiding it |
+  | `bar` | a progress bar under the title: `panel.bar`, with `bar.bg` and `bar.text` |
+  | `picker = { values, order, get, set, menuHeight }` | a dropdown under the title or bar: `panel.picker` |
+  | `newBody(scroll)` | what scrolls in the body (a row engine view); else a plain frame for `panel:SetRows` |
+  | `settings = { page, card, tip, hint }` | the cog in the bottom right, opening that settings page and card |
+  | `opacity()` | its Window Opacity, for `panel:Paint()` |
+  | `load()`, `save(point, relativePoint, x, y)`, `place` | its place: read, saved on drag, and the default `{ point, relativePoint, x, y }` |
+  | `mover(panel, onMoved)` | Unlock Mode's mover: return `ns.UI.AttachMover(panel, label, onMoved, page)`; it saves through `save` |
+  | `maxHeight()` | taller than this, its body scrolls |
+
+  The panel has `panel:Paint()`, `panel:Place()`, `panel:SetTrackerWidth(w)`,
+  `panel:Fit(bodyHeight)` (true when it starts or stops scrolling: set its width again and
+  redraw), `panel:ScrollGap()`, `panel:Top()` and `panel:SetRows(entries)`: pooled rows of
+  `{ text, sub, done, waypoint, tip(row), click(row, button) }`, a pin column (a tick once
+  done), returning their height. See `DungeonJournal/UI/QuestTracker.lua`.
 - **Copying:** `Parts.CopyWowhead(kind, id, name)` opens the copy card on an item, quest or
   NPC's Wowhead link; a menu's Copy uses `ns.ShowCopyLine(title, text, icon)` (QoL's Global
   Copy) for any line.
