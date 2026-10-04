@@ -14,13 +14,17 @@ Shared/
   Items.lua    item and gear helpers: an ID from a link or URL, your loot lines, quality colour, In Bag,
                gear slots, what fits where, what you wear, weapons in short ("1h Sword"),
                waiting on item data
+  Bags.lua     the item buttons in your bags, the game's and EllesmereUI's, for the marks
+               painted on them (Bag Marks, Scrap Marker)
   Places.lua   zones by name, and showing one on the world map
   Parts.lua    components: rank stars, item icon and its check, an item's slot marks (item level, star, Forever's mark), links, icon buttons, the
-               backdrop and its cards, panels, the side panel, chat sharing, lined-up numbers
+               backdrop and its cards, panels, the side panel, chat sharing, lined-up numbers,
+               money with its coins (Parts.Coins, made once each)
   Window.lua   a window: the frame, title bar, icons, opacity slider, switch, search, footer,
                and a module's card on its settings page
   View.lua     the row engine: pooled rows, cards, the card grid, one redraw per burst
-  Kinds.lua    the rows every page has: section title, note, card
+  Kinds.lua    the rows every page has: section title, note, card, and an item in a list you
+               keep (icon, name in its quality colour, a line under it, a tag, a value, an X)
   Settings/
     Settings.lua  every settings page, declared once: pages, cards, rows, reset, search index
     Page.lua      a declared page drawn on the row engine: cards, their heads, two-column rows
@@ -41,7 +45,8 @@ Shared/
   32, 1 } }` and `Settings.Group("Clock")` between them (see `Settings/Settings.lua`). The page
   in the options window, its search entries, the dot on what you changed and each card's reset
   all come from that one declaration. Settings pages hold settings only: a module's lists and
-  editors live in its own window, opened from the page's `page:Window{ ... }` card. A card that
+  editors live in its own window, opened from the page's `page:Window{ ... }` card (first on
+  the page, or where its `order` puts it). A card that
   shows something on screen can carry a live preview (`studio`, see `Settings/Studio.lua`),
   drawn by the module's own drawing code on plain frames, never on its real (secure) frames.
 - **A window:** `Parts.Window`, `Parts.TitleBar`, `Parts.Opacity`, `Parts.BarButton`,

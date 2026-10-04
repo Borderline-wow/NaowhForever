@@ -14,7 +14,7 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local B = ns.BiS
 local Shared = ns.Shared
-local Items, Parts = Shared.Items, Shared.Parts
+local Items, Parts, Bags = Shared.Items, Shared.Parts, Shared.Bags
 local SW = ns.StatWeights
 
 local GetContainerItemID = C_Container.GetContainerItemID
@@ -23,11 +23,9 @@ local GetDetailedItemLevelInfo = C_Item.GetDetailedItemLevelInfo
 local GetTime = GetTime
 
 local OVERLAY = "NaowhForever"   -- our name on EllesmereUI's list of item overlays
-local ELLESMERE_BAGS = { "EUI_Bags", "EUI_BagsReagent" }   -- its windows with a refresh of their own
 
 local sets = {}         -- a bag's item button -> our marks over it
 local ellesmere = {}    -- EllesmereUI's buttons among them, whose own item level ours stands in for
-local frames = {}       -- the game's bag frames, hooked
 local installed, registered = false, false
 -- Your spec's weights and what your gear is worth by them, read once a frame: a bag paints
 -- every slot in one go, EllesmereUI one slot per call.
@@ -35,12 +33,6 @@ local weights, power, readAt
 
 local function On()
     return B.On() and S.Get("bisBagMarks") == true
-end
-
--- EllesmereUI's bags, with the hook it offers for other addons' marks.
-local function Ellesmere()
-    local bags = _G.EUI_Bags
-    return C_AddOns.IsAddOnLoaded("EllesmereUIBags") and bags and bags.RegisterItemOverlayIcon and bags or nil
 end
 
 local function Marks(button, over)
@@ -91,15 +83,6 @@ local function GameBag(frame)
     end
 end
 
-local function HookGameBags()
-    local list = ContainerFrameContainer and ContainerFrameContainer.ContainerFrames
-    for i = 1, list and #list or 0 do frames[#frames + 1] = list[i] end
-    frames[#frames + 1] = ContainerFrameCombinedBags
-    for _, frame in ipairs(frames) do
-        if frame.UpdateItems then hooksecurefunc(frame, "UpdateItems", GameBag) end
-    end
-end
-
 -------------------------------------------------------------------------------
 --  EllesmereUI's bags
 -------------------------------------------------------------------------------
@@ -144,26 +127,17 @@ local function EllesmereSlot(button, data)
     TheirLevel(button, shown and 0 or 1)
 end
 
-local function RefreshEllesmere()
-    for _, name in ipairs(ELLESMERE_BAGS) do
-        local frame = _G[name]
-        if frame and frame.RefreshInventory and frame:IsVisible() then frame:RefreshInventory() end
-    end
-end
-
 -------------------------------------------------------------------------------
 --  On and off
 -------------------------------------------------------------------------------
 local function Repaint()
-    for _, frame in ipairs(frames) do
-        if frame:IsShown() then GameBag(frame) end
-    end
-    if registered then RefreshEllesmere() end
+    Bags.RepaintGame(GameBag)
+    if registered then Bags.RefreshEllesmere() end
 end
 
 local function Install()
     installed = true
-    HookGameBags()
+    Bags.OnGameUpdate(GameBag)
     -- A new list or pick: the stars again.
     B.OnListChange(function() if On() then Repaint() end end)
 end
@@ -172,7 +146,7 @@ local function Apply()
     local on = On()
     if on and not installed then Install() end
     if not installed then return end
-    local bags = Ellesmere()
+    local bags = Bags.Ellesmere()
     if bags and on ~= registered then
         registered = on
         if on then

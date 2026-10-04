@@ -79,6 +79,7 @@ local function Fixture(opts)
         HideRaidReminderAnchorConfig = function() end,
         IsBisItem = function(id) return opts.bis and opts.bis[id] end,
         AuctionPrice = function(id) return opts.ah and opts.ah[id] end,
+        ScrapMarker = opts.scrap,
         Font = function() return Widget("font") end,
         Solid = function() return Widget("texture") end,
         PixelInset = function(region) return region end,
@@ -264,6 +265,21 @@ do
     }) } })
     Check("cheapest stack first", t.Row(), "Small Egg, Coyote Meat, Chipped Boar Tusk, Light Feather")
     Check("counter reads free out of total", t.FreeText(), "8/16")
+end
+
+-- Scrap Marker's scrap goes first, even above the quality limit, and the counter shows the
+-- slots it frees at the next vendor; with Scrap Marker off, nothing changes.
+do
+    local scrap = { on = true, ids = { [3] = true, [8] = true } }
+    scrap.On = function() return scrap.on end
+    scrap.IsScrap = function(id) return scrap.on and scrap.ids[id] == true end
+    local t = Fixture({ scrap = scrap, bags = { [0] = Bag(16, { { 3, 2 }, { 1, 3 }, { 4, 2 }, { 8, 1 } }) } })
+    Check("scrap first", t.Row(), "Light Feather, Blue Ring, Small Egg, Chipped Boar Tusk")
+    Check("counter: slots scrap frees", t.FreeText(), "12/16  |cff4db5f5+2|r")
+    scrap.on = false
+    t.ns.BagSpaceRescan()
+    Check("Scrap Marker off: the usual order", t.Row(), "Small Egg, Chipped Boar Tusk, Light Feather")
+    Check("Scrap Marker off: the usual counter", t.FreeText(), "12/16")
 end
 
 -- Grey Items First puts the tusk ahead of everything.

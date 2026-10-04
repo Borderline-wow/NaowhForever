@@ -40,6 +40,7 @@ local frame, unlocked, atMerchant, inCombat, pendingScan, missingInfo, junkFirst
 local buttons = {}
 local pool, picks = {}, {}  -- scan entries are reused; picks is the sorted view
 local free, total, fullUntil = 0, 0, 0
+local scrapSlots = 0   -- slots holding Scrap Marker's scrap, free after the next vendor
 local setItems, setsDirty = {}, true
 local partial, stackSaves = {}, 0   -- itemID -> part-filled stacks in plain bags; slots merging frees
 local merging, mergeSteps, mergeStartFree
@@ -85,7 +86,7 @@ local function RebuildSets()
 end
 
 -- Settings a scan reads for every slot, read once at its start.
-local scanIgnored, scanProtect, scanAuction, scanMaxQuality
+local scanIgnored, scanProtect, scanAuction, scanMaxQuality, scanScrap
 
 local function Protected(itemID, classID)
     if scanIgnored[itemID] then return true end
@@ -152,6 +153,7 @@ local function RebuildQuestNeeds()
 end
 
 local function Cheaper(a, b)
+    if a.scrap ~= b.scrap then return a.scrap end
     -- Anything a quest still needs goes last, whatever it is worth.
     if (a.quest ~= nil) ~= (b.quest ~= nil) then return b.quest ~= nil end
     if junkFirst and (a.quality == 0) ~= (b.quality == 0) then return a.quality == 0 end
@@ -203,11 +205,13 @@ local function Scan()
     for i = #picks, 1, -1 do picks[i] = nil end
     wipe(partial)
     listsUsed, slotsUsed = 0, 0
-    free, total, missingInfo, anyLocked = 0, 0, false, false
+    free, total, missingInfo, anyLocked, scrapSlots = 0, 0, false, false, 0
     if setsDirty then RebuildSets() end
     if questDirty then RebuildQuestNeeds() end
     scanIgnored, scanProtect = Ignored(), S.Get("bagSpaceProtect")
     scanAuction, scanMaxQuality = S.Get("bagSpaceAuction"), S.Get("bagSpaceMaxQuality")
+    local scrapper = ns.ScrapMarker
+    scanScrap = scrapper and scrapper.On() and scrapper.IsScrap or nil
     local level = UnitLevel("player")
     local lastBag = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS
     local n = 0
@@ -227,7 +231,10 @@ local function Scan()
                         missingInfo = true
                     else
                         NotePartial(bag, slot, info.itemID, info.stackCount or 1, maxStack)
-                        if vendor > 0 and quality <= scanMaxQuality and not Protected(info.itemID, classID) then
+                        local scrap = scanScrap ~= nil and vendor > 0 and scanScrap(info.itemID)
+                        if scrap then scrapSlots = scrapSlots + 1 end
+                        if vendor > 0 and (quality <= scanMaxQuality or scrap)
+                            and not Protected(info.itemID, classID) then
                             n = n + 1
                             local e = pool[n] or {}
                             pool[n] = e
@@ -238,6 +245,7 @@ local function Scan()
                             -- Food, drink and potions long outlevelled: classic junk that is not grey.
                             e.old = classID == 0 and (minLevel or 0) > 0 and level - minLevel >= OUTLEVEL
                             e.quest = questNeeds[name]
+                            e.scrap = scrap == true
                             picks[n] = e
                         end
                     end
@@ -780,13 +788,20 @@ local function FillStack(b)
     b.edge:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
 end
 
+local scrapCode
+
 -- Free out of total over the row, orange under a tenth free and red when full.
 local function ShowFree(count, slots)
     local f = frame.free
     f:SetShown(S.Get("bagSpaceShowFree"))
     local c = count == 0 and FULL_COLOR or count < slots * 0.1 and LOW_COLOR or T.fg
     f.text:SetTextColor(c.r, c.g, c.b, 1)
-    f.text:SetText(("%d/%d"):format(count, slots))
+    if scrapSlots > 0 then
+        scrapCode = scrapCode or ns.Color("accentSoft")
+        f.text:SetText(("%d/%d  %s+%d|r"):format(count, slots, scrapCode, scrapSlots))
+    else
+        f.text:SetText(("%d/%d"):format(count, slots))
+    end
     f:SetSize(16 + f.text:GetStringWidth(), 14)
 end
 
@@ -810,6 +825,10 @@ local function FreeTooltip(self)
     end
     if special then
         GameTooltip:AddLine("Quivers and profession bags are not counted.", 0.6, 0.6, 0.6, true)
+    end
+    if scrapSlots > 0 then
+        GameTooltip:AddLine(("%d more free after the next vendor sells your scrap."):format(scrapSlots),
+            T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, true)
     end
     GameTooltip:Show()
 end
@@ -898,6 +917,10 @@ function RequestScan()
     if pendingScan then return end
     pendingScan = true
     C_Timer.After(SCAN_DELAY, Update)
+end
+
+function ns.BagSpaceRescan()
+    if frame and On() then RequestScan() end
 end
 
 events:SetScript("OnEvent", function(_, event, _, message)

@@ -6,6 +6,7 @@
     <Script file="Data\Forever.lua"/>
     <Script file="Style.lua"/>
     <Script file="Items.lua"/>
+    <Script file="Bags.lua"/>
     <Script file="Places.lua"/>
     <Script file="Parts.lua"/>
     <Script file="Window.lua"/>

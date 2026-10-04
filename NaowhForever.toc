@@ -114,6 +114,8 @@ QoL\NaowhForever_XPBar.lua
 QoL\NaowhForever_GroupXP.lua
 QoL\NaowhForever_Restock.lua
 QoL\NaowhForever_BagSpace.lua
+QoL\NaowhForever_ScrapMarker.lua
+QoL\NaowhForever_ScrapList.lua
 QoL\NaowhForever_Alts.lua
 QoL\NaowhForever_Mail.lua
 # Discovery: the library books. The data loads first; the module reads it.

@@ -51,6 +51,8 @@ Shared.Style = {
     HANGER = MEDIA .. "hanger",             -- new looks
     STAR = MEDIA .. "star",                 -- your BiS in BIS_RGB, your second pick in SECOND_RGB
     UPGRADE_ATLAS = "bags-greenarrow",      -- an upgrade: the game's own green arrow from the bags
+    SCRAP_ATLAS = "bags-icon-scrappable",   -- scrap to sell at a vendor: the game's own bag scrap icon
+    SCRAP_RATIO = 32 / 36,                  -- that icon's height to its width
     PIN = MEDIA .. "pin",                   -- waypoints and places
     INFO = MEDIA .. "info",                 -- Naowh's tip
     LOGO = MEDIA .. "LogoAddon",            -- the Naowh logo, left of a window's title
@@ -87,6 +89,7 @@ Shared.Style = {
     NOTE_PAD = 6,           -- under a note
     ACTION = 16,            -- an icon button in a row
     STRIPE = 0.025,         -- every other row of a long list: a faint band in the text colour
+    HOVER = 0.05,           -- the row under the mouse: a band in the text colour, a little stronger
 
     -- Cards: a faint fill with a hairline edge, as many across as fit at CARD_MIN_W each,
     -- up to MAX_COLUMNS; the cards in a row share a height.

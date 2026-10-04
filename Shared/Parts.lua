@@ -176,6 +176,17 @@ function Parts.Fraction(part, whole)
     return text
 end
 
+local coins = {}
+
+function Parts.Coins(copper)
+    local text = coins[copper]
+    if not text then
+        text = C_CurrencyInfo.GetCoinTextureString(copper)
+        coins[copper] = text
+    end
+    return text
+end
+
 -------------------------------------------------------------------------------
 --  Pieces
 -------------------------------------------------------------------------------

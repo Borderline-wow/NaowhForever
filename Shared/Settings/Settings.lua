@@ -125,7 +125,7 @@ end
 
 function Page:Window(spec)
     spec.window = true
-    spec.order = 0
+    spec.order = spec.order or 0
     Insert(self, spec)
     return spec
 end

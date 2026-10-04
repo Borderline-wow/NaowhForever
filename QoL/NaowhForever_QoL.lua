@@ -84,6 +84,8 @@ local S = UI.ModuleSettings("qol", {
     bagSpaceProtect = true, bagSpaceFreeBelow = 0, bagSpaceHideCombat = true,
     bagSpaceOnFull = true, bagSpaceShowFree = true, bagSpaceStack = true, bagSpaceOldFirst = false,
     bagSpaceTipVendor = true, bagSpaceTipAuction = true, bagSpaceTipDelete = true, bagSpaceTipIgnore = true,
+    scrapMarker = false, scrapMarkerVendor = "sell", scrapMarkerScope = "account", scrapMarkerShow = true,
+    scrapMarkerProtect = true, scrapRuleWear = false, scrapRuleOld = false, scrapRuleLevels = 10,
     townCapitalsOnly = true, townSpiritHealers = true, townZoneLinks = true,
     townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,

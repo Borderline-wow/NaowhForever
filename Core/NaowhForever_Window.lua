@@ -1301,6 +1301,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.DungeonMapCommand(cmd)
     elseif cmd == "badges" and ns.BadgesCommand then
         ns.BadgesCommand(arg)
+    elseif cmd == "scrap" and ns.ToggleScrapList then
+        ns.ToggleScrapList()
     else
         ns.ToggleOptionsWindow()
     end

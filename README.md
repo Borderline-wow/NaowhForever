@@ -66,6 +66,7 @@ character or share them with a friend.
 | `/nfbless` | Blessings |
 | `/nfthreat` | Threat Meter |
 | `/nf quiz` | A WoW quiz for flights and campfires |
+| `/nf scrap` | Your Scrap List (Scrap Marker, QoL > Loot & Items) |
 | `/copy` | The text under your mouse, ready to copy (turn on Global Copy in QoL > Tools) |
 | `/nf badges id` | Your badge code, for all your characters (see [Supporter badges](#supporter-badges)) |
 
