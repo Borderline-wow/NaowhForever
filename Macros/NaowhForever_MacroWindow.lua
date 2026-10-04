@@ -536,7 +536,12 @@ local function Gutter()
     end
     local height = math.max(editor.scroll:GetHeight(), y + 12)
     editor.page:SetHeight(height)
-    window.code:SetHeight(height)
+    -- Sizing the edit box fires its OnTextChanged, which draws this again: sized every time,
+    -- that ran every frame and the cursor never got to blink.
+    if height ~= editor.codeHeight then
+        editor.codeHeight = height
+        window.code:SetHeight(height)
+    end
 end
 
 RenderEditor = function()
@@ -663,7 +668,11 @@ local function BuildEditor(parent)
     local page = CreateFrame("Frame", nil, scroll)
     page:SetSize(1, box:GetHeight())
     scroll:SetScrollChild(page)
-    scroll:SetScript("OnSizeChanged", function(_, w) page:SetWidth(w) end)
+    -- The first draw can come before the page has its width: draw again so lines wrap at it.
+    scroll:SetScript("OnSizeChanged", function(_, w)
+        page:SetWidth(w)
+        RenderEditor()
+    end)
     editor.scroll, editor.page = scroll, page
     editor.gutter = CreateFrame("Frame", nil, page)
     editor.gutter:SetPoint("TOPLEFT")
