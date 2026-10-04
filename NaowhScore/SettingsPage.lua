@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
---  SettingsPage.lua -- the Naowh Score's card on the BiS List's settings page: its switch,
---  where it shows and what a score is graded against.
+--  SettingsPage.lua -- the Naowh Score's card on QoL > Character: its switch, where it shows
+--  and what a score is graded against.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local Score = ns.NaowhScore
@@ -16,8 +16,8 @@ local function Summary()
     return "Yours now: " .. Score.Colored((Score.Unit("player")), UnitLevel("player"))
 end
 
-Settings.Page("BiS List/Settings"):Card({
-    id = "naowhScore", name = "Naowh Score", order = 70, switch = "naowhScore", store = S,
+Settings.Page("QoL/Character", S):Card({
+    id = "naowhScore", name = "Naowh Score", order = 30, switch = "naowhScore", store = S,
     help = "One number for a character's gear, on the item level scale: 26.4 means gear worth a set of level "
         .. "26 epics. Yours is shared with your group and guild as it changes. Your own is always on the BiS "
         .. "List's paperdoll.",

@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
---  SettingsPage.lua -- the character panel's cards on the BiS List's settings page: the Naowh
---  Character Panel with what it adds, and Slot Marks, the marks alone on the game's own panel.
+--  SettingsPage.lua -- the character panel's cards on QoL > Character: the Naowh Character
+--  Panel with what it adds, and Slot Marks, the marks alone on the game's own panel.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local CP = ns.CharacterPanel
@@ -18,7 +18,7 @@ end
 
 local function PanelSummary(store)
     if CP.EllesmereSheet() then
-        return store.Get("characterPanel") and "EllesmereUI's panel was turned back on: switch this off and on"
+        return store.Get("characterPanel") and "EllesmereUI's panel is in use: switch this off and on for this one"
             or "Takes over from EllesmereUI's panel, after a reload"
     end
     local badge, score = store.Get("characterPanelBadge"), store.Get("characterPanelScore")
@@ -39,10 +39,10 @@ local function MarksSummary(store)
     return ("%d of 3 marks"):format(shown)
 end
 
-local page = Settings.Page("BiS List/Settings")
+local page = Settings.Page("QoL/Character", S)
 
 page:Card({
-    id = "characterPanel", name = "Character Panel", order = 50, switch = "characterPanel", store = S,
+    id = "characterPanel", name = "Character Panel", order = 10, switch = "characterPanel", store = S,
     help = "Your character panel (C) in the BiS List's look: each slot with its marks, your stats for your "
         .. "spec, and your Naowh Score under your level. The game keeps the panel and everything it does. With "
         .. "EllesmereUI, turning this on turns its character panel off, and off turns it back on, after a reload.",
@@ -58,7 +58,7 @@ page:Card({
 })
 
 page:Card({
-    id = "slotMarks", name = "Slot Marks", order = 60, switch = "characterPanelSlotMarks", store = S,
+    id = "slotMarks", name = "Slot Marks", order = 20, switch = "characterPanelSlotMarks", store = S,
     help = "The marks on the game's own character panel, as it looks (or EllesmereUI's), without the Naowh "
         .. "Character Panel. With it on, its slots have them already.",
     summary = MarksSummary,

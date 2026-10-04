@@ -35,6 +35,7 @@ end
 
 -- EllesmereUI's character sheet switched to suit ours: off when ours goes on, back on when ours
 -- goes off if it was ours that turned it off. A reload swaps EllesmereUI's look.
+local ASK_DELAY = 2
 local RELOAD_OFF = "EllesmereUI's character panel is off, so Naowh's can take over. Reload now to switch?"
 local RELOAD_ON = "EllesmereUI's character panel is back on. Reload now to switch?"
 
@@ -54,4 +55,31 @@ end
 
 S.OnChange(function(key, value)
     if key == "characterPanel" then SwapEllesmere(value == true) end
+end)
+
+local ASK = "EllesmereUI's character panel is on. Naowh Forever has its own, in the BiS List's look. "
+    .. "Use Naowh's instead?"
+
+local function UseOurs()
+    S.Set("characterPanelAsked", true)
+    S.Set("characterPanel", true)
+end
+
+local function KeepTheirs()
+    S.Set("characterPanelAsked", true)
+    S.Set("characterPanel", false)
+end
+
+local function AskOnce()
+    if InCombatLockdown() or S.Get("characterPanelAsked") then return end
+    if not (S.Get("enabled") and S.Get("characterPanel") and CP.EllesmereSheet()) then return end
+    if type(_G.EllesmereUIDB) ~= "table" then return end
+    ns.Confirm(ASK, UseOurs, KeepTheirs, "Use Naowh's", "Keep EllesmereUI's")
+end
+
+local asker = CreateFrame("Frame")
+asker:RegisterEvent("PLAYER_ENTERING_WORLD")
+asker:SetScript("OnEvent", function(self)
+    self:UnregisterAllEvents()
+    C_Timer.After(ASK_DELAY, AskOnce)
 end)

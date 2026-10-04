@@ -2,7 +2,7 @@
 --  NaowhForever_Badges.lua -- supporter badges: the Naowh Forever N next to the name of
 --  Naowh, a Developer, a Moderator or a Legendary Patron in chat, a card when you hover it,
 --  a plate over their player tooltip, and a banner when one joins your group. Each part has its
---  own setting in QoL > Interface: badges, card and tooltip start on so everyone sees them,
+--  own setting in QoL > Character: badges, card and tooltip start on so everyone sees them,
 --  the banner starts off (Naowh's call). /nf badges preview puts one on your own name
 --  (staff only).
 -------------------------------------------------------------------------------
@@ -841,8 +841,8 @@ local function BadgesSummary(store)
     return ("%d of %d on"):format(on, #BADGE_KEYS)
 end
 
-Settings.Page("QoL/Interface", S):Card({
-    id = "supporterBadges", name = "Supporter Badges", order = 30,
+Settings.Page("QoL/Character", S):Card({
+    id = "supporterBadges", name = "Supporter Badges", order = 40,
     help = "Shows who Naowh, the developers, the moderators and our Legendary patrons are: a badge "
         .. "by their name in chat, a line on their tooltip and, if you want it, a banner when one "
         .. "of them joins your group.",

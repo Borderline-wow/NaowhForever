@@ -846,6 +846,8 @@ function ns.ShowCopyBox(title, text, onClose)
 end
 
 -- Confirm for a reload: Reload UI runs the game's own /reload (see Reload UI above).
+local CONFIRM_W, CONFIRM_WIDE = 96, 150
+
 function ns.ConfirmReload(text)
     local UI = ns.UI
     local dimmer, panel = ns.MakeModal(340, 110, "confirmReload")
@@ -860,17 +862,20 @@ function ns.ConfirmReload(text)
     dimmer:Show()
 end
 
-function ns.Confirm(text, onYes)
+function ns.Confirm(text, onYes, onNo, yesText, noText)
     local UI = ns.UI
     local dimmer, panel = ns.MakeModal(340, 110, "confirm")
     local head = UI.KeepFont(panel, "head", 13, nil)
     head:SetPoint("TOP", 0, -18)
     head:SetWidth(310)
     head:SetText(text)
-    UI.KeepButton(panel, "yes", "Yes", 96, 26, function() dimmer:Hide(); onYes() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
-    UI.KeepButton(panel, "no", "No", 96, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
+    local w = (yesText or noText) and CONFIRM_WIDE or CONFIRM_W
+    UI.KeepButton(panel, "yes", yesText or "Yes", w, 26, function() dimmer:Hide(); onYes() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", -(w / 2 + 4), 14)
+    UI.KeepButton(panel, "no", noText or "No", w, 26, function()
+        dimmer:Hide()
+        if onNo then onNo() end
+    end):SetPoint("BOTTOM", panel, "BOTTOM", w / 2 + 4, 14)
     dimmer:Show()
 end
 
