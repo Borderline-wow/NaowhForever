@@ -410,7 +410,6 @@ Kinds.item = {
         local known = not bare and Loot.Recipe(itemID) ~= nil and view:RecipeKnown(itemID)
         row.rank, row.upgrade, row.newLook = rank, upgrade, look == false
         row.forever = IsForever("items", itemID)
-        Parts.MarkForever(row.iconFrame, itemID)
         row.name:SetText("|c" .. hex .. (name or ("Item " .. itemID)) .. "|r"
             .. RankTag(rank) .. (upgrade and UPGRADE_TAG or ""))
         local required = not bare and facts and facts[FACT.REQUIRED] or 0

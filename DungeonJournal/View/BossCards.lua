@@ -5,9 +5,8 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local Tip = ns.Shared.Parts.Tip
--- WoW Forever's mark after the name of what is new in Forever, and its tooltip line.
-local ForeverInline, ForeverLine = ns.Shared.Parts.ForeverInline, ns.Shared.Parts.ForeverLine
-local CARD_DROP = ns.Shared.Parts.CARD_DROP
+-- A boss new in Forever says so in its tooltip; the mark itself stays on the dungeon.
+local ForeverLine = ns.Shared.Parts.ForeverLine
 local T = ns.THEME
 local J = ns.Journal
 
@@ -294,7 +293,7 @@ Kinds.boss = {
         row.name:SetPoint("TOPLEFT", left, -NAME_TOP)
         row.name:SetWidth(0)   -- unbounded, so it measures the whole name
         row.forever = J.IsForeverBoss(boss)
-        row.name:SetText(row.forever and boss.name .. ForeverInline(CARD_NAME_SIZE - 2, CARD_DROP) or boss.name)
+        row.name:SetText(boss.name)
         local tag = Tag(boss)
         row.rare:SetText(tag or "")
         row.rare:SetShown(tag ~= nil)
