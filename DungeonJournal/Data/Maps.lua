@@ -124,9 +124,24 @@ ns.Journal.Maps = {
             [3983] = { 1, 0.724, 0.6 },   -- Interrogator Vishas
         },
     },
-    ScarletMonasteryLibrary = { art = "ScarletMonastery", floors = 4, floor = 2, pins = {} },
-    ScarletMonasteryArmory = { art = "ScarletMonastery", floors = 4, floor = 3, pins = {} },
-    ScarletMonasteryCathedral = { art = "ScarletMonastery", floors = 4, floor = 4, pins = {} },
+    ScarletMonasteryLibrary = { art = "ScarletMonastery", floors = 4, floor = 2,
+        pins = {
+            [3974] = { 2, 0.308, 0.878 },   -- Houndmaster Loksey
+            [6487] = { 2, 0.832, 0.745 },   -- Arcanist Doan
+        },
+    },
+    ScarletMonasteryArmory = { art = "ScarletMonastery", floors = 4, floor = 3,
+        pins = {
+            [3975] = { 3, 0.786, 0.108 },   -- Herod
+        },
+    },
+    ScarletMonasteryCathedral = { art = "ScarletMonastery", floors = 4, floor = 4,
+        pins = {
+            [4542] = { 4, 0.554, 0.261 },   -- High Inquisitor Fairbanks
+            [3976] = { 4, 0.491, 0.272 },   -- Scarlet Commander Mograine
+            [3977] = { 4, 0.49, 0.169 },   -- High Inquisitor Whitemane
+        },
+    },
     RazorfenDowns = { art = "RazorfenDowns", floors = 1, pins = {} },
     Uldaman = { art = "Uldaman", floors = 2, pins = {} },
     Maraudon = { art = "Maraudon", floors = 2, pins = {} },

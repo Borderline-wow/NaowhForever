@@ -606,6 +606,15 @@ do
         and #J.Get("ScarletMonasteryArmory").quests.quests == 0)
     check("each wing on its own floor of the map", J.Maps.ScarletMonasteryCathedral.floor == 4
         and J.Maps.ScarletMonasteryGraveyard.pins[3983] ~= nil)
+    local function Pinned(key, npc)
+        local map = J.Maps[key]
+        local pin = map.pins[npc]
+        return pin ~= nil and pin[1] == map.floor
+    end
+    check("each wing's bosses stand on its own floor", Pinned("ScarletMonasteryLibrary", 3974)
+        and Pinned("ScarletMonasteryLibrary", 6487) and Pinned("ScarletMonasteryArmory", 3975)
+        and Pinned("ScarletMonasteryCathedral", 4542) and Pinned("ScarletMonasteryCathedral", 3976)
+        and Pinned("ScarletMonasteryCathedral", 3977))
     state.instance = { id = 99999, name = "Shaper's Terrace" }
     check("a new dungeon is found by its name", J.Current()[1].key == "ShapersTerrace")
     state.instance = { id = 99998, name = "Onyxia's Lair", kind = "raid" }
