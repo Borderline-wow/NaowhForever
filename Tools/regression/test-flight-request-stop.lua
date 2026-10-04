@@ -1,8 +1,11 @@
--- Offline behavior checks; these do not emulate client taint or rendering.
+-- Offline behavior checks for the Flight Timer's Request Stop fade, its display, and Flight Games
+-- (what opens on a flight, and the one-time move from the old toggles); these do not emulate
+-- client taint or rendering.
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 local function fixture(settings)
-    local s = { now = 0, frames = {}, tickers = {}, taxi = false, combat = false, settings = settings or {} }
+    local s = { now = 0, frames = {}, tickers = {}, taxi = false, combat = false, settings = settings or {},
+        offers = {}, dismissed = {} }
     local any = setmetatable({}, { __index = function(t) return function() return t end end })
     local function frame()
         local f = { events = {}, scripts = {}, shown = false }
@@ -17,6 +20,8 @@ local function fixture(settings)
         function f:GetScale() return 1 end
         function f:GetFrameLevel() return 1 end
         function f:CreateTexture() return frame() end
+        function f:SetText(v) self.text = v end
+        function f:GetStringWidth() return 40 end
         s.frames[#s.frames + 1] = f
         return f
     end
@@ -25,19 +30,31 @@ local function fixture(settings)
     function leave:SetAlpha(a) self.alpha = a end
     function leave:EnableMouse(v) self.mouse = v; self.mouseCalls = self.mouseCalls + 1 end
     s.leave = leave
-    local defaults = { enabled = true, flightTimer = true, flightEarlyLanding = false, flightTimerScale = 1 }
+    local defaults = { enabled = true, flightTimer = true, flightEarlyLanding = false, flightTimerScale = 1,
+        flightGame = 'aim' }
     local S = { Get = function(k) if s.settings[k] ~= nil then return s.settings[k] end return defaults[k] end,
-        Set = function(k, v) s.settings[k] = v end }
-    local ns = { QoLSettings = S, THEME = { accent = {}, bg = {}, muted = {}, accentSoft = {} },
+        Set = function(k, v) s.settings[k] = v end, DB = function() return s.settings end,
+        Raw = function(k) return s.settings[k] end }
+    local ns = { QoLSettings = S, THEME = { accent = {}, bg = {}, muted = {}, accentSoft = {}, fg = {}, line = {} },
         Font = function() return frame() end, Solid = function() return frame() end, Border = function() end,
+        Button = function(_, text) local b = frame(); b.label = text; return b end,
+        AccentBorder = function(f) return f end, PixelInset = function() end,
         Tooltip = function() end, AccountSettings = function() return {} end, FLIGHT_ROUTES = {},
         Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
-        UI = { AttachMover = function() return frame() end } }
+        UI = { AttachMover = function() return frame() end },
+        Shared = { Style = { ROUND = 'round', BORDER_RGB = { r = 0, g = 0, b = 0 }, PLACE_DOT = ' . ' },
+            Parts = { Arrow = function() return frame() end } },
+        QuizOffer = function(reason) s.offers[#s.offers + 1] = 'quiz:' .. reason end,
+        AimOffer = function(reason) s.offers[#s.offers + 1] = 'aim:' .. reason end,
+        QuizDismiss = function(reason) s.dismissed.quiz = reason end,
+        AimDismiss = function(reason) s.dismissed.aim = reason end }
     local env = { _G = { NaowhForever = ns }, UIParent = frame(), CreateFrame = frame,
         MainMenuBarVehicleLeaveButton = leave,
         GetTime = function() return s.now end, UnitOnTaxi = function() return s.taxi end,
         InCombatLockdown = function() return s.combat end,
-        TakeTaxiNode = function() end, TaxiRequestEarlyLanding = function() end,
+        TakeTaxiNode = function() end, TaxiRequestEarlyLanding = function() s.landRequests = (s.landRequests or 0) + 1 end,
+        CreateColor = function() return {} end, UnitFactionGroup = function() return 'Alliance' end,
+        GetFileIDFromPath = function() return 1 end,
         C_Timer = { NewTicker = function(_, fn) local t = { fn = fn }; function t:Cancel() self.cancelled = true end
             s.tickers[#s.tickers + 1] = t; return t end },
     }
@@ -57,6 +74,15 @@ local function fixture(settings)
     function s.land()
         s.taxi = false
         for _, t in ipairs(s.tickers) do if not t.cancelled then t.fn() end end
+    end
+    function s.find(pred)
+        for _, f in ipairs(s.frames) do if pred(f) then return f end end
+    end
+    function s.text(v) return s.find(function(f) return rawget(f, 'text') == v end) end
+    function s.button(label) return s.find(function(f) return rawget(f, 'label') == label end) end
+    function s.tick()
+        local bar = s.find(function(f) return f.scripts.OnUpdate end)
+        bar.scripts.OnUpdate(bar)
     end
     s.fire('PLAYER_LOGIN'); s.fire('PLAYER_ENTERING_WORLD')
     return s
@@ -106,5 +132,99 @@ do
     check('the Unlock Mode sample flight does not fade', s.leave.alpha == 1 and s.leave.mouseCalls == 0)
     s.ns.HideRaidReminderAnchorConfig()
     check('leaving Unlock Mode touches nothing', s.leave.mouseCalls == 0)
+end
+do
+    local s = fixture({ flightEarlyLanding = true })
+    s.ns.ShowRaidReminderAnchorConfig()
+    local key, name = s.text('Next'), s.text('Thorium Point')
+    check('the sample flight names its next stop', key and key.shown and name and name.shown)
+    check('with the time to it', s.text('0:50') and s.text('2:30'))
+    check('the sample has no Land or Games button', not s.button('Land').shown and not s.button('Games').shown)
+    s.now = 60
+    s.tick()
+    check('a passed stop hands over to the next one', s.text('Morgan\'s Vigil').shown and s.text('0:35'))
+    check('the time left counts down', s.text('1:30'))
+    s.now = 160
+    s.tick()
+    check('the looping sample starts its stops again', s.text('Thorium Point') and s.text('0:40'))
+end
+do
+    local s = fixture({ flightEarlyLanding = true })
+    s.board()
+    local land, games = s.button('Land'), s.button('Games')
+    check('a flight shows the Land and Games buttons', land.shown and games.shown)
+    land._onClick()
+    check('Land asks to land early', s.landRequests == 1)
+    check('an unknown route is just in flight', s.text('In flight'))
+    s.now = 5
+    s.tick()
+    check('an unknown route counts up', s.text('0:05'))
+    check('with no next stop', not s.text('Next') or not s.text('Next').shown)
+end
+do
+    local s = fixture()
+    s.board()
+    check('by default a flight offers the Aim Trainer, once', #s.offers == 1 and s.offers[1] == 'aim:flight')
+    s.land()
+    check('landing closes what a flight opened', s.dismissed.quiz == 'flight' and s.dismissed.aim == 'flight')
+end
+do
+    local s = fixture({ flightGame = 'quiz' })
+    s.board()
+    check('Quiz: a flight offers only the Quiz', #s.offers == 1 and s.offers[1] == 'quiz:flight')
+end
+do
+    local s = fixture({ flightGame = 'none' })
+    s.board()
+    check('Nothing: a flight offers no game', #s.offers == 0)
+    check('Nothing: the Games button still shows', s.button('Games').shown)
+end
+do
+    local s = fixture({ flightGame = 'bogus' })
+    s.board()
+    check('an unknown choice falls back to the Aim Trainer', #s.offers == 1 and s.offers[1] == 'aim:flight')
+end
+do
+    local s = fixture({ quizFlight = false, aimAutoFlight = true })
+    check('Quiz While Flying off and Open on Flights on become Aim Trainer', s.settings.flightGame == 'aim'
+        and s.settings.flightGameMigrated == true and s.settings.quizFlight == nil and s.settings.aimAutoFlight == nil)
+    s.board()
+    check('and a flight offers the Aim Trainer', #s.offers == 1 and s.offers[1] == 'aim:flight')
+end
+do
+    local s = fixture({ quizFlight = false, aimAutoFlight = false })
+    check('Quiz While Flying off alone becomes Nothing', s.settings.flightGame == 'none')
+end
+do
+    local s = fixture({ quizFlight = true, aimAutoFlight = true })
+    check('Quiz While Flying on keeps the default', s.settings.flightGame == nil
+        and s.settings.quizFlight == nil and s.settings.aimAutoFlight == nil)
+end
+do
+    local s = fixture()
+    check('a fresh profile is only marked as migrated', s.settings.flightGame == nil
+        and s.settings.flightGameMigrated == true)
+end
+do
+    local s = fixture({ flightGameMigrated = true, quizFlight = false })
+    check('the migration runs once', s.settings.flightGame == nil and s.settings.quizFlight == false)
+    s.ns.Apply()
+    check('and not again on Apply', s.settings.flightGame == nil)
+end
+do
+    local s = fixture({ flightGame = 'quiz', quizFlight = false })
+    check('a choice already made is kept', s.settings.flightGame == 'quiz' and s.settings.quizFlight == nil)
+end
+do
+    local function read(path)
+        local f = assert(io.open(path, 'rb'))
+        local text = f:read('*a')
+        f:close()
+        return text
+    end
+    local qol, quiz = read('QoL/NaowhForever_QoL.lua'), read('QoL/NaowhForever_Quiz.lua')
+    check('Flight Games defaults to the Aim Trainer', qol:find('flightGame = "aim"', 1, true) ~= nil)
+    check('the old flight toggles are gone', not qol:find('quizFlight', 1, true) and not qol:find('aimAutoFlight', 1, true)
+        and not quiz:find('quizFlight', 1, true))
 end
 print(checks .. ' flight request-stop checks passed')

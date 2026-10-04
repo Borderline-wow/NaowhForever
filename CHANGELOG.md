@@ -5,6 +5,17 @@
 ### Added
 - Settings: click the dot beside a setting you changed to put it back to its default; hover it to
   see what the default is.
+- Aim Trainer (QoL > Travel, on by default): a shooting game for flight paths. Click the other
+  faction's races as they pop up, in Hexakill (six targets at once, the default), Gridshot (three)
+  or Reflex (one at a time, shrinking away), for a score, accuracy, combo and reaction time, with
+  your best kept for every character. A miss costs 50, so spam-clicking doesn't pay. Every round
+  is 30 seconds with the same targets for everyone, so scores compare fairly on its Leaderboard:
+  once you have a best and with Share My Scores on, your bests are swapped with the players you
+  group with and your guild's, and the results card shows your rank. Open it with /nfaim or the
+  Flight Timer's Games button, or pick it under Flight Games to open by itself when a flight
+  starts; it closes when you land or enter combat. Move it in Unlock Mode.
+- Flight Games (QoL > Travel, under the Flight Timer): one choice of what opens by itself when a
+  flight starts, Nothing, the Quiz or the Aim Trainer (the default).
 
 ### Changed
 - QoL has a Character tab: Character Panel, Slot Marks and Naowh Score moved there from the BiS
@@ -18,10 +29,17 @@
   height, the wheel for text size (Shift: spacing, Ctrl: lines), click a line's value or bag
   count to show or hide it, and right-click a line for what it shows.
 - QoL's Leveling & Travel tab is two again: XP (XP Bar, XP per Hour, Group XP) and Travel
-  (Flight Timer, Quiz).
+  (Flight Timer, Flight Games, Quiz, Aim Trainer).
+- Quiz: Quiz While Flying is gone, replaced by Flight Games, where the Aim Trainer now opens on
+  flights by default. If you had turned it off, Flight Games is set to Nothing; the Quiz keeps
+  its campfire toggle.
 - XP Bar: click a text on the preview, or an empty spot around the bar, to pick what it shows,
   as before the settings rebuild. The eleven text dropdowns under it are gone; search still
   finds each spot and opens the card.
+- Flight Timer: a new look. A card with where you left and where you land, the time left in
+  blue, and a slim track you ride along on your faction's flight mount, with each stop marked on
+  it (filled once passed) and the next stop and its time under it. Land Early is now a Land
+  button beside Games.
 
 ## 0.5.19-beta
 

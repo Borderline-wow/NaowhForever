@@ -140,6 +140,7 @@ function Parts.TitleBar(window, title, subtitle, page)
     logo:SetScript("OnClick", OpenPage)
     logo:SetScript("OnEnter", LogoEnter)
     logo:SetScript("OnLeave", LogoLeave)
+    window.logo = logo
     window.title = ns.Font(window, 20, nil, T.fg)
     window.title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 10, 1)
     window.title:SetText(title)

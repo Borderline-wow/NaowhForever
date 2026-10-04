@@ -1,5 +1,6 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Quiz.lua -- a WoW quiz for flights and campfires, also opened by /naowh quiz.
+--  NaowhForever_Quiz.lua -- a WoW quiz for campfires and, when Flight Games picks it
+--  (NaowhForever_Flight.lua), flights; also opened by /naowh quiz.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -162,8 +163,12 @@ end
 
 function ns.QuizOffer(reason)
     if not S.Get("enabled") or InCombatLockdown() then return end
-    if reason == "flight" and not S.Get("quizFlight") then return end
     if reason == "camp" and not S.Get("quizCamp") then return end
+    Open(reason)
+end
+
+function ns.QuizPlay(reason)
+    if not S.Get("enabled") or InCombatLockdown() then return end
     Open(reason)
 end
 
@@ -210,7 +215,7 @@ boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
 
 local function Summary(store)
-    local flight, camp = store.Get("quizFlight"), store.Get("quizCamp")
+    local flight, camp = store.Get("flightGame") == "quiz", store.Get("quizCamp")
     if flight and camp then return "While flying and at the campfire" end
     if flight then return "While flying" end
     if camp then return "At the campfire" end
@@ -219,11 +224,9 @@ end
 
 ns.Shared.Settings.Page("QoL/Travel", S):Card({
     id = "quiz", name = "Quiz", order = 20,
-    help = "A WoW quiz to pass the time on a flight or at a campfire. /naowh quiz opens it any time.",
+    help = "A WoW quiz for campfires and flights, or any time with /naowh quiz.",
     summary = Summary,
     rows = {
-        { key = "quizFlight", label = "Quiz While Flying", toggle = true,
-          help = "A WoW quiz opens when a flight starts and closes when you land." },
         { key = "quizCamp", label = "Quiz at the Campfire", toggle = true,
           help = "The quiz opens when you sit down at a campfire and closes when you stand up." },
         { label = "Open the Quiz", buttonText = "Open", button = ns.ToggleQuiz,
