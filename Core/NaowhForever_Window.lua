@@ -23,8 +23,8 @@ local MEDIA = "Interface\\AddOns\\NaowhForever\\Media\\"
 local FOOTER_H_SIDEBAR = 28
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 local BRAND_LOGO = "Interface\\AddOns\\NaowhForever\\Media\\BrandLogo.tga"
--- The art sits high in its 512x256 canvas, so the texture is pushed down to centre it.
-local BRAND = { width = 186.8, height = 93.4, x = -0.5, y = -14.6 }
+-- The art sits high and to the left in its 512x256 canvas, so the texture is moved to centre it.
+local BRAND = { width = 186.8, height = 93.4, x = 11.5, y = -15.1 }
 
 -- System pages sit below the module navigation. `build` names the ns builder (resolved at
 -- open time); `arg` is passed after the starting y.
