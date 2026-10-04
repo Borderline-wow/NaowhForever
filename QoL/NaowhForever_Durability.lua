@@ -82,7 +82,7 @@ local function Apply()
         frame:SetClampedToScreen(true)
         frame.text = ns.Font(frame, 22, "OUTLINE")
         frame.text:SetPoint("CENTER")
-        frame.mover = ns.UI.AttachMover(frame, "Durability", function(pos) S.Set("durabilityPos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Low Durability Warning")
+        frame.mover = ns.UI.AttachMover(frame, "Durability", function(pos) S.Set("durabilityPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:durability")
     end
     frame.text:SetFont(ns.UI.FontPath(S.Get("durabilityFont")), 22, "OUTLINE")
     Place()
@@ -112,3 +112,18 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local function DurabilitySummary(store)
+    return ("Warns below %d%%"):format(store.Get("durabilityBelow"))
+end
+
+ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
+    id = "durability", name = "Durability", order = 80, switch = "durability",
+    help = "Text on screen when any piece of gear drops below the threshold. Hidden in "
+        .. "combat. Move it in Unlock Mode.",
+    summary = DurabilitySummary,
+    rows = {
+        { key = "durabilityBelow", label = "Warn Below", slider = { 5, 100, 1 }, unit = "%" },
+        { key = "durabilityFont", label = "Font", font = true },
+    },
+})

@@ -18,7 +18,6 @@ local function SoftBlue(r, g, b)
 end
 local BOOK_ICON = "Interface\\Icons\\INV_Misc_Book_11"
 local TURN_IN_ICON = "Interface\\Icons\\INV_Misc_Book_07"
-local PIN_SIZE = 18
 
 local function On()
     return S.Get("enabled") and S.Get("mapPins")
@@ -42,7 +41,7 @@ function NaowhForeverLibraryPinMixin:CheckMouseButtonPassthrough() end
 -- entry: { book, spot } for a book, or { npc, count } for where to hand books in.
 function NaowhForeverLibraryPinMixin:OnAcquired(entry)
     self.entry = entry
-    self:SetSize(PIN_SIZE, PIN_SIZE)
+    self:SetSize(S.Get("mapPinSize"), S.Get("mapPinSize"))
     local icon = entry.book and (C_Item.GetItemIconByID(entry.book.item) or BOOK_ICON) or TURN_IN_ICON
     self.Icon:SetTexture(icon)
     self.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -113,6 +112,7 @@ function provider:RefreshAllData()
             counts[kind] = (counts[kind] or 0) + 1
         end
     end
+    if not S.Get("mapTurnIn") then return end
     for kind, n in pairs(counts) do
         local npc = ns.LibraryTurnIns[kind][L.Side()]
         if npc.map == mapID then map:AcquirePin(TEMPLATE, { npc = npc, count = n }) end
@@ -148,7 +148,7 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "mapPins" then Apply() end
+    if key == "enabled" or key == "mapPins" or key == "mapPinSize" or key == "mapTurnIn" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 

@@ -1,7 +1,7 @@
 -- Stat Weights: each spec's weights with your changes kept apart from the defaults, sharing
 -- them as a line, how much stronger an item makes you over what you wear (rings against the
 -- weaker one, a two-hander against both hands), the tooltip line (installed only once the
--- module is on), and its page.
+-- module is on), and its window.
 local Load = dofile("Tools/regression/load_files.lua")
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 
@@ -286,8 +286,9 @@ do
 end
 
 -------------------------------------------------------------------------------
---  The page: one switch and your spec, then only the stats your spec uses, a bar and a
---  number each, points and percents apart; a stat at 0 drops off, Add a stat brings it back
+--  The window: your class's specs, then on the left only the stats the spec uses, a bar and a
+--  number each, points and percents apart, a stat at 0 drops off and Add a stat brings it back;
+--  on the right your best upgrades by these weights; Import, Export and Reset on its title bar
 -------------------------------------------------------------------------------
 do
     local ns, state, env = Fixture("ROGUE")
@@ -304,7 +305,12 @@ do
         IsShown = function(f) return f.shown end,
         SetWidth = function(f, w) f.width = w end,
         GetWidth = function(f) return f.width or 0 end,
+        SetHeight = function(f, h) f.height = h end,
+        SetAlpha = function(f, a) f.alpha = a end,
+        EnableMouse = function(f, on) f.mouse = on end,
+        GetStringWidth = function() return 40 end,
         ClearFocus = function(f) if f.scripts.OnEditFocusLost then f.scripts.OnEditFocusLost(f) end end,
+        SetFocus = function(f) f.focused = true end,
         GetParent = function(f) return f.parent end,
     }
     local Frame
@@ -317,122 +323,177 @@ do
         made[#made + 1] = f
         return f
     end
+    local timers = {}
     env.CreateFrame = function(_, _, parent) return Frame(parent) end
-    env.C_Timer = { After = function(_, fn) fn() end }
+    env.C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
+    local function Flush()
+        local run = timers
+        timers = {}
+        for _, fn in ipairs(run) do fn() end
+    end
     env.GameTooltip_Hide = NOTHING
+    env.IsModifiedClick = function() return state.modified end
+    env.HandleModifiedItemClick = function(link) state.linked = link end
+    local menu
+    env.MenuUtil = { CreateContextMenu = function(_, fill)
+        menu = {}
+        fill(nil, { CreateTitle = NOTHING, CreateButton = function(_, text, fn) menu[#menu + 1] = { text = text, fn = fn } end })
+    end }
     ns.Font = function(parent) return Frame(parent) end
     ns.Solid = function(parent) return Frame(parent) end
     ns.Border = function() return { SetColor = NOTHING } end
     ns.THEME = setmetatable({}, { __index = function() return { r = 1, g = 1, b = 1 } end })
-    local rebuilds = 0
-    local added
-    ns.Shared.Parts.Link = function(parent, onClick) local link = Frame(parent); link.onClick = onClick; return link end
-    ns.Shared.Parts.SetLink = function(link, text) link.text = text end
-    ns.Shared.Parts.Tip = function() return true end
-    local rows = {}
-    ns.UI.CONTENT_PAD = 20
-    ns.UI.Keep = function(parent, key, create)
-        parent.kept = parent.kept or {}
-        parent.kept[key] = parent.kept[key] or create(parent)
-        return parent.kept[key]
+    ns.UIScale = function() return 1 end
+    ns.L = function(text) return text end
+    local qol = { bisWindowAlpha = 0.8 }
+    ns.QoLSettings = { Get = function(k) return qol[k] end, Set = function(k, v) qol[k] = v end, OnChange = NOTHING }
+    ns.UI.SlimScroll = function(parent) return Frame(parent) end
+    local Parts = ns.Shared.Parts
+    local bar = {}
+    Parts.Window = function()
+        local window = Frame()
+        window.backdrop = { Card = NOTHING, Paint = function(_, alpha) state.painted = alpha end }
+        return window
     end
-    ns.UI.BuildDropdownControl = function(parent, _, _, values, _, _, set)
-        local dd = Frame(parent)
-        dd._values, dd._refreshLabel, added = values, NOTHING, set
-        return dd
+    Parts.TitleBar = function(window) return Frame(window) end
+    Parts.Opacity = function(window) return Frame(window), { _refreshValue = NOTHING } end
+    Parts.BarButton = function(parent, _, tip, _, onClick)
+        local button = Frame(parent)
+        button.onClick = onClick
+        bar[tip] = button
+        return button
     end
-    ns.UI.Widgets = {
-        SectionHeader = function() return nil, 30 end,
-        DualRow = function(_, _, _, left, right)
-            rows[#rows + 1] = left
-            rows[#rows + 1] = right
-            return nil, 40
-        end,
-    }
-    -- The page's file again, against these frames (it reads them when it builds).
-    Load({ "StatWeights/UI/SettingsPage.lua" }, env)
-    local page = Frame()
-    page.width = 940
-    local function Build()
-        rebuilds = rebuilds + 1
-        rows = {}
-        return ns.BuildStatWeightsPage(page, 0)
+    Parts.FooterBrand = NOTHING
+    Parts.FooterNote = function(window) local note = Frame(window); note.text = Frame(note); return note end
+    Parts.Tabs = function(parent, _, items, onPick)
+        local tabs = Frame(parent)
+        tabs.items, tabs.onPick = items, onPick
+        return tabs
     end
-    ns.UI.RefreshPage = Build
-    Build()
-    check("one switch and your spec, nothing else in rows", #rows == 2 and rows[1].key == "enabled"
-        and rows[2].type == "dropdown" and rows[2].getValue() == "auto" and rows[2].values.auto == "Automatic")
-    local block = page.kept.statWeightsBlock
-    local function Shown(column)
-        local names = {}
-        for _, row in ipairs(block.columns[column].rows) do
-            if row.shown then names[#names + 1] = row.name.text end
+    Parts.FitTabs = NOTHING
+    Parts.PaintTabs = function(tabs, shown) tabs.picked = shown end
+    Parts.Link = function(parent, onClick) local link = Frame(parent); link.onClick = onClick; return link end
+    Parts.SetLink = function(link, text) link.text = text end
+    Parts.IconButton = function(parent, onClick)
+        local button = Frame(parent)
+        button.onClick, button.icon = onClick, Frame(button)
+        return button
+    end
+    Parts.ItemIcon = function(parent) local icon = Frame(parent); icon.texture = Frame(icon); return icon end
+    Parts.MarkForever = NOTHING
+    Parts.Tip = function() return true end
+    -- The window's file again, against these frames (it reads them when it builds).
+    Load({ "StatWeights/UI/Window.lua" }, env)
+    ns.OpenStatWeightsWindow()
+    local window
+    for _, f in ipairs(made) do
+        if rawget(f, "backdrop") then window = f end
+    end
+    check("it opens at the BiS List's opacity", window and window.shown and state.painted == 0.8)
+    check("a switch with your class's specs, on yours", #window.specs.items == 3 and window.specs.picked == SW.ActiveSpec()
+        and window.specs.items[1].label == "Assassination")
+    local weights = window.weights
+    local function Shown(group)
+        local names, i = {}, 0
+        for _, row in ipairs(weights.rows) do
+            if row.shown and (group == 1) == not ({ hit = 1, crit = 1, haste = 1, dps = 1, dmg = 1 })[row.stat] then
+                i = i + 1
+                names[i] = row.name.text
+            end
         end
         return table.concat(names, ",")
     end
     check("points: only the stats Assassination uses", Shown(1) == "Strength,Agility,Stamina,Attack Power,Armor")
     check("percents and weapon dps apart; an enchant's weapon damage is worked out", Shown(2) == "Weapon DPS,Hit %,Crit %,Haste %")
-    check("the title says whose", block.title.text:find("Assassination", 1, true)
-        and block.status.text == "Default weights  \194\183  3 Oct 2026" and not block.reset.shown)
-    check("what the tooltip line looks like", block.sample.text:find("Assassination", 1, true)
-        and block.sample.text:find("+9% upgrade", 1, true))
-    check("without a BiS list, how to see your best upgrades", block.preview.note.shown
-        and block.preview.note.text:find("BiS List", 1, true))
-    local agility = block.columns[1].rows[2]
-    check("the bar is longest for what counts most", agility.bar.width > block.columns[1].rows[1].bar.width)
+    check("each list under its title", weights.groups[1].text == "PER POINT" and weights.groups[2].text == "PER 1% OR WEAPON DPS")
+    check("the footer says whose weights", window.note.text.text == "Default weights  \194\183  3 Oct 2026"
+        and window.reset.alpha == 0.35 and window.reset.mouse == false)
+    check("what the tooltip line looks like", window.sample.text:find("Assassination", 1, true)
+        and window.sample.text:find("+9% upgrade", 1, true))
+    check("without a BiS list, how to see your best upgrades", window.upgrades.note.shown
+        and window.upgrades.note.text:find("BiS List", 1, true))
+    check("as tall as what it shows, not a screenful of nothing", window.height and window.height < 760
+        and window.height >= 440)
+    local function Row(stat)
+        for _, row in ipairs(weights.rows) do
+            if row.shown and row.stat == stat then return row end
+        end
+    end
+    local agility = Row("agi")
+    check("the bar is longest for what counts most", agility.bar.width > Row("str").bar.width)
+    check("no mark on a default", not agility.dot.shown and not agility.reset.shown)
     agility.box.text = "1,5"
     agility.box:ClearFocus()
+    Flush()
+    agility = Row("agi")
     check("typing a number sets it (a comma counts as the point)", SW.For("assassination-rogue").agi == 1.5)
-    check("the page shows it changed", block.status.text:find("1 changed", 1, true) and block.reset.shown)
-    local stamina = block.columns[1].rows[3]
+    check("the window shows it changed", window.note.text.text:find("1 changed", 1, true) and window.reset.alpha == 1
+        and agility.dot.shown and agility.reset.shown)
+    agility.reset.onClick(agility.reset)
+    Flush()
+    check("its own reset puts it back", SW.For("assassination-rogue").agi ~= 1.5 and not Row("agi").dot.shown)
+    agility = Row("agi")
+    agility.box.text = "1.5"
+    agility.box:ClearFocus()
+    Flush()
+    local stamina = Row("sta")
     stamina.box.text = "0"
     stamina.box:ClearFocus()
+    Flush()
     check("0 takes it off the list", not Shown(1):find("Stamina", 1, true))
+    agility = Row("agi")
     agility.box.text = "lots"
     agility.box:ClearFocus()
     check("what is no number is put back", agility.box.text == "1.5" and SW.For("assassination-rogue").agi == 1.5)
-    added("int")
+    weights.add.onClick(weights.add)
     local intellect
-    for _, row in ipairs(block.columns[1].rows) do
-        if row.shown and row.stat == "int" then intellect = row end
+    for _, item in ipairs(menu) do
+        if item.text == "Intellect" then intellect = item end
     end
-    check("Add a stat puts it on at 0, no made-up weight", intellect and intellect.box.text == "0"
+    check("Add a stat lists the stats not on it", weights.add.shown and intellect ~= nil)
+    intellect.fn()
+    local row = Row("int")
+    check("Add a stat puts it on at 0, its box ready, no made-up weight", row and row.box.text == "0" and row.box.focused
         and SW.For("assassination-rogue").int == nil)
-    intellect.box:ClearFocus()
+    row.box:ClearFocus()
+    Flush()
     check("left at 0, it drops off again", not Shown(1):find("Intellect", 1, true))
-    added("int")
-    for _, row in ipairs(block.columns[1].rows) do
-        if row.shown and row.stat == "int" then intellect = row end
-    end
-    intellect.box.text = "0.2"
-    intellect.box:ClearFocus()
-    check("a number typed in sets it", SW.For("assassination-rogue").int == 0.2 and Shown(1):find("Intellect", 1, true))
+    window.specs.onPick("combat-rogue")
+    check("another spec's weights a click away", window.specs.picked == "combat-rogue"
+        and window.sample.text:find("Combat", 1, true) and window.note.text.text:find("^Default"))
+    window.specs.onPick("assassination-rogue")
     -- With a BiS list: its best upgrades by these weights, and the sample line on the best.
     ns.BiS = { On = function() return true end, Lists = {
         List = function() return { slots = { [10] = 1, [11] = 4 } } end,
         CurrentSpec = function() return { key = "assassination-rogue" } end,
     } }
     state.worn = { [10] = 2, [11] = 4 }
-    Build()
-    local first = block.preview.rows[1]
-    check("your best upgrade, by how much", first and first.shown and first.name.text:find("Item 1", 1, true)
-        and first.gain.text:find("+%d+%%") and not block.preview.note.shown)
-    check("not what you wear", not (block.preview.rows[2] and block.preview.rows[2].shown))
-    check("the sample line on it", block.sample.text:find(first.gain.text:match("%+%d+%%"), 1, true))
-    -- Import and Export on the title, said plainly.
-    local prompt, copied
+    window.specs.onPick("assassination-rogue")
+    local first = window.upgrades.rows[1]
+    check("your best upgrade, its slot, by how much", first and first.shown and first.name.text:find("Item 1", 1, true)
+        and first.slot.text == "Hands" and first.gain.text:find("^%+%d+%%") and not window.upgrades.note.shown)
+    check("not what you wear", not (window.upgrades.rows[2] and window.upgrades.rows[2].shown))
+    check("the sample line on it", window.sample.text:find(first.gain.text:match("%+%d+%%"), 1, true))
+    state.modified = true
+    first.scripts.OnClick(first)
+    check("a shift-click links it, as items do elsewhere", state.linked == "link")
+    -- Import, Export and Reset on the title bar, said plainly.
+    local prompt, copied, confirmed
     ns.PromptText = function(title, _, _, onAccept) prompt = { title = title, accept = onAccept } end
     ns.ShowCopyLine = function(_, text) copied = text end
-    check("Import and Export links", block.import.text == "Import" and block.export.text == "Export")
-    block.import.onClick(block.import)
+    ns.Confirm = function(_, yes) confirmed = yes end
+    bar["Import weights"].onClick()
     check("Import says what it takes, and where WoWSims has it", prompt and prompt.title:find("WoWSims EP export", 1, true))
     prompt.accept('( Pawn: v1: "Sim": Class=Rogue, Agility=2, Ap=1 )')
-    check("and takes a WoWSims export for the spec on the page", SW.For("assassination-rogue").agi == 2
+    check("and takes a WoWSims export for the spec shown", SW.For("assassination-rogue").agi == 2
         and SW.For("assassination-rogue").str == 0)
-    block.export.onClick(block.export)
+    bar["Export these weights"].onClick()
     check("Export copies your weights as a line", copied and copied:find("^NFSW1:assassination%-rogue:"))
-    added("_")
-    check("the dropdown's first line adds nothing", rebuilds > 0)
+    bar["Reset to Default"].onClick()
+    confirmed()
+    Flush()
+    check("Reset asks, then puts them all back", SW.For("assassination-rogue").agi ~= 2
+        and window.note.text.text:find("^Default"))
 end
 
 print(("test-stat-weights: %d checks passed"):format(checks))

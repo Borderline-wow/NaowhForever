@@ -68,6 +68,20 @@ class ReleaseTest(unittest.TestCase):
                          TOC.replace("## Version: 0.5.16-beta", "## Version: 0.5.17-beta"))
         self.assertEqual(self.read(release.CORE), CORE.replace("0.5.16-beta", "0.5.17-beta"))
 
+    def test_in_game_notes_take_the_version(self):
+        notes = ('local NOTES = {\r\n    { title = "Unreleased", lines = { "New." } },\r\n'
+                 '    { title = "0.5.16-beta", lines = { "Old." } },\r\n}\r\n')
+        self.files({release.PATCH_NOTES: notes})
+        self.assertEqual(release.prepare(self.root), "0.5.17-beta")
+        self.assertEqual(self.read(release.PATCH_NOTES),
+                         notes.replace('{ title = "Unreleased"', '{ title = "0.5.17-beta"'))
+
+    def test_in_game_notes_without_unreleased_are_left_alone(self):
+        notes = 'local NOTES = {\r\n    { title = "0.5.16-beta", lines = { "Old." } },\r\n}\r\n'
+        self.files({release.PATCH_NOTES: notes})
+        release.prepare(self.root)
+        self.assertEqual(self.read(release.PATCH_NOTES), notes)
+
     def test_given_version(self):
         self.assertEqual(release.prepare(self.root, "0.6.0-beta"), "0.6.0-beta")
         self.assertIn("## 0.6.0-beta\r\n", self.read(release.CHANGELOG))

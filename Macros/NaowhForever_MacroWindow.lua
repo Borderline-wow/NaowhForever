@@ -15,7 +15,7 @@ local Text = ns.MacroText
 local Parts, St = ns.Shared.Parts, ns.Shared.Style
 
 local NAME = "Naowh's Forge"
-local PAGE = "Macros"   -- its options page, opened from the logo and the footer
+local PAGE = "Macros/Settings"   -- its options page, opened from the logo and the footer
 local WIDTH, HEIGHT = 1100, 720
 local HEADER, FOOTER = St.WINDOW_HEADER, St.WINDOW_FOOTER
 local CARD_INSET, GAP = 6, 6
@@ -1514,17 +1514,13 @@ local function Build()
     Parts.FooterBrand(window, PAGE, CARD_INSET)
     Parts.FooterNote(window, "Macros are kept by the game: Account for every character, Character for this one")
 
-    window:SetScript("OnShow", function(self)
-        if not InCombatLockdown() then
-            self:EnableKeyboard(true)
-            self:SetPropagateKeyboardInput(true)
-        end
+    window:HookScript("OnShow", function(self)
         self:RegisterEvent("UPDATE_MACROS")
         self:RegisterEvent("BAG_UPDATE_DELAYED")
         self.backdrop:Paint(S.Get("windowAlpha") or 1)
         Render()
     end)
-    window:SetScript("OnHide", function(self) self:UnregisterAllEvents() end)
+    window:HookScript("OnHide", function(self) self:UnregisterAllEvents() end)
     window:SetScript("OnEvent", function() Render() end)
     SetTab(tab)
     window:Hide()

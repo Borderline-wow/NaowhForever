@@ -3,7 +3,8 @@
 --  player where one needs something else, shared with the group's other paladins running
 --  Naowh Forever, and a bar that casts it. A class button blesses the next member of that
 --  class who needs it; the player list blesses one person. Aura and Righteous Fury buttons
---  sit at the front. The group leader and assistants can set every paladin's plan.
+--  sit at the front. The group leader and assistants can set every paladin's plan. The
+--  settings card's preview (BlessingsPage) shares the bar's look, tooltips and menus.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -58,6 +59,9 @@ local RED = { r = 0.97, g = 0.27, b = 0.27 }
 local YELLOW = { r = 1, g = 0.85, b = 0.3 }
 local BLUE = { r = 0.35, g = 0.6, b = 1 }
 local ICON_BORDER = { r = 0, g = 0, b = 0 }
+local HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
+local AURA_TIP = "Left-click: cast your aura.\nRight-click: choose it."
+local FURY_TIP = "Left-click: cast it on yourself."
 
 local others = {}             -- paladin name (realm when not ours) -> { classes, aura, known }
 local bar, cells, flyout, rows, auraButton, furyButton, keyNext, keyGreater, secureHandler
@@ -656,21 +660,11 @@ local function SetWatch(frame, unit, key)
     c:SetEnabled(unit ~= nil and key ~= nil)
 end
 
--- The red base and "!" for a missing buff: always, under the managed display when there
--- is one, otherwise from the out-of-combat read.
-local function ShowState(frame, key, has, remaining)
-    local missing = key ~= nil and (frame.watch ~= nil or has == false)
-    frame.icon:SetVertexColor(missing and RED.r or 1, missing and RED.g or 1, missing and RED.b or 1)
-    frame.mark:SetText(missing and "!" or "")
-    frame.timer:SetText(not frame.watch and remaining and S.Get("blessTimers")
-        and math.ceil(remaining / 60) .. "m" or "")
-end
+local Look = {}
+Look.RED, Look.YELLOW, Look.BLUE, Look.HIGHLIGHT = RED, YELLOW, BLUE, HIGHLIGHT
 
--------------------------------------------------------------------------------
---  The bar
--------------------------------------------------------------------------------
 -- Every icon on the bar: the art inset 1px inside the house black border.
-local function Icon(frame)
+function Look.Icon(frame)
     frame.icon = frame:CreateTexture(nil, "ARTWORK")
     ns.PixelInset(frame.icon, 1)
     frame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -681,6 +675,66 @@ local function Icon(frame)
     frame.timer:SetPoint("BOTTOM", 0, 1)
 end
 
+function Look.Label(cell, class)
+    cell.label = ns.Font(cell, 10, "OUTLINE")
+    cell.label:SetPoint("TOP", cell, "BOTTOM", 0, -2)
+    cell.label:SetText(ClassName(class))
+end
+
+function Look.Read()
+    Look.size, Look.gap, Look.groupGap = S.Get("blessBarSize"), S.Get("blessSpacing"), S.Get("blessGroupSpacing")
+    Look.timerSize, Look.labels = S.Get("blessTimerSize"), S.Get("blessShowLabels")
+end
+
+function Look.Place(frame, row, x)
+    local size = Look.size
+    frame:SetSize(size, size)
+    frame.timer:SetFont(ns.UIFontPath(), Look.timerSize, "OUTLINE")
+    if frame.watchText then frame.watchText:SetFont(ns.UIFontPath(), Look.timerSize, "OUTLINE") end
+    if frame.label then frame.label:SetShown(Look.labels) end
+    frame:ClearAllPoints()
+    frame:SetPoint("LEFT", row, "LEFT", x, 0)
+    frame:Show()
+    return x + size + Look.gap
+end
+
+function Look.Gap(x)
+    if x > 0 then return x + Look.groupGap end
+    return x
+end
+
+function Look.Width(x)
+    return math.max(x - Look.gap, Look.size)
+end
+
+function Look.Minutes(seconds)
+    if not (seconds and seconds > 0 and S.Get("blessTimers")) then return "" end
+    return math.ceil(seconds / 60) .. "m"
+end
+
+function Look.Class(cell, colour, reachable, missing, shortest)
+    cell.icon:SetDesaturated(not reachable)
+    cell.icon:SetVertexColor(colour and colour.r or 1, colour and colour.g or 1, colour and colour.b or 1)
+    cell.mark:SetText(missing > 0 and missing or "")
+    cell.timer:SetText(Look.Minutes(shortest))
+end
+
+function Look.Self(frame, missing, remaining)
+    frame.icon:SetVertexColor(missing and RED.r or 1, missing and RED.g or 1, missing and RED.b or 1)
+    frame.mark:SetText(missing and "!" or "")
+    frame.timer:SetText(Look.Minutes(remaining))
+end
+
+-- The red base and "!" for a missing buff: always, under the managed display when there
+-- is one, otherwise from the out-of-combat read.
+local function ShowState(frame, key, has, remaining)
+    local missing = key ~= nil and (frame.watch ~= nil or has == false)
+    Look.Self(frame, missing, not frame.watch and remaining)
+end
+
+-------------------------------------------------------------------------------
+--  The bar
+-------------------------------------------------------------------------------
 -- A secure button that follows one named player through raid reordering, even in combat:
 -- the group header owns its unit. Headers only build their button while visible, so the
 -- parent must be shown when this runs.
@@ -701,7 +755,7 @@ local function Recipient(parent, name)
     local button = header:GetAttribute("child1")
     button:RegisterForClicks("AnyUp", "AnyDown")
     button:SetAttribute("type1", "spell")
-    button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    button:SetHighlightTexture(HIGHLIGHT, "ADD")
     return header, button
 end
 
@@ -736,9 +790,16 @@ local function Menu(owner, title, list, current, choose, noneText, can)
     end)
 end
 
+local function OwnAura() return Store().aura end
+local function SetAura(key) SetOwn("AURA", key) end
+
+local function AuraMenu(owner)
+    Menu(owner, "Aura", AURAS, OwnAura, SetAura, "Default")
+end
+
 local ToggleFlyout
 
-local function ClassMenu(owner, class)
+local function ClassMenu(owner, class, inSettings)
     MenuUtil.CreateContextMenu(owner, function(_, root)
         root:CreateTitle(ClassName(class))
         for _, entry in ipairs(BLESSINGS) do
@@ -750,9 +811,11 @@ local function ClassMenu(owner, class)
         root:CreateRadio("None", function() return Store().classes[class] == nil end,
             function() SetOwn(class, nil) end)
         root:CreateDivider()
-        root:CreateCheckbox("Players", function() return flyoutClass == class end,
-            function() ToggleFlyout(class) end)
-        root:CreateButton("Assignments", function() ns.OpenOptionsWindow("Assignments") end)
+        if not inSettings then
+            root:CreateCheckbox("Players", function() return flyoutClass == class end,
+                function() ToggleFlyout(class) end)
+        end
+        root:CreateButton("Assignments", function() ns.OpenBlessingsWindow() end)
     end)
 end
 
@@ -781,11 +844,7 @@ local function PrepareCell(cell)
     -- players on their own blessing need theirs.
     local color = s.classMissing > 0 and RED or s.classDue > 0 and YELLOW
         or s.missingNear + s.expiringNear > 0 and BLUE or nil
-    cell.icon:SetDesaturated(not s.reachable)
-    cell.icon:SetVertexColor(color and color.r or 1, color and color.g or 1, color and color.b or 1)
-    cell.mark:SetText(s.missing > 0 and s.missing or "")
-    cell.timer:SetText(S.Get("blessTimers") and s.shortest and s.shortest > 0
-        and math.ceil(s.shortest / 60) .. "m" or "")
+    Look.Class(cell, color, s.reachable, s.missing, s.shortest)
     local glow = s.classMissing > 0
     if glow ~= cell.glowing then
         cell.glowing = glow
@@ -801,10 +860,8 @@ end
 local function NewCell(class)
     local cell = CreateFrame("Frame", nil, bar)
     cell.class = class
-    Icon(cell)
-    cell.label = ns.Font(cell, 10, "OUTLINE")
-    cell.label:SetPoint("TOP", cell, "BOTTOM", 0, -2)
-    cell.label:SetText(ClassName(class))
+    Look.Icon(cell)
+    Look.Label(cell, class)
     cell.header, cell.cast = Recipient(cell, "NaowhForeverBless" .. class)
     -- A mouse click acts on release, so up only: one step per click. Addon buttons otherwise
     -- follow ActionButtonUseKeyDown and act only on the press, which up only never sends.
@@ -861,7 +918,7 @@ local function NewRow(index)
     row.slot = CreateFrame("Frame", nil, row)
     row.slot:SetSize(26, 26)
     row.slot:SetPoint("RIGHT", -2, 0)
-    Icon(row.slot)
+    Look.Icon(row.slot)
     row.header, row.cast = Recipient(row.slot, "NaowhForeverBlessRow" .. index)
     SizeRecipient(row.header, row.cast, 26)
     row.cast:SetScript("PostClick", function(self, button, down)
@@ -952,13 +1009,17 @@ local function CurrentAura()
     end
 end
 
+local function FuryName()
+    return C_Spell.GetSpellName(FURY.ranks[1]) or "Righteous Fury"
+end
+
 local function NewSelfButton(name)
     local btn = CreateFrame("Button", name, bar, "SecureActionButtonTemplate")
     btn:RegisterForClicks("AnyUp", "AnyDown")
     btn:SetAttribute("type1", "spell")
     btn:SetAttribute("unit1", "player")
-    btn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-    Icon(btn)
+    btn:SetHighlightTexture(HIGHLIGHT, "ADD")
+    Look.Icon(btn)
     Watch(btn)
     return btn
 end
@@ -991,33 +1052,24 @@ function Refresh()
     end
     bar:Show()
     if not bar:IsVisible() then return end
-    local size, gap = S.Get("blessBarSize"), S.Get("blessSpacing")
+    Look.Read()
+    local size = Look.size
     local x = 0
-    local function Place(frame)
-        frame:SetSize(size, size)
-        frame.timer:SetFont(ns.UIFontPath(), S.Get("blessTimerSize"), "OUTLINE")
-        if frame.watchText then frame.watchText:SetFont(ns.UIFontPath(), S.Get("blessTimerSize"), "OUTLINE") end
-        if frame.label then frame.label:SetShown(S.Get("blessShowLabels")) end
-        frame:ClearAllPoints()
-        frame:SetPoint("LEFT", bar, "LEFT", x, 0)
-        frame:Show()
-        x = x + size + gap
-    end
 
     local aura = S.Get("blessShowAura") and CurrentAura()
     if aura then
         PrepareSelf(auraButton, aura)
-        Place(auraButton)
+        x = Look.Place(auraButton, bar, x)
     else
         auraButton:Hide()
     end
     if S.Get("blessShowFury") and Learned(FURY) then
         PrepareSelf(furyButton, "fury")
-        Place(furyButton)
+        x = Look.Place(furyButton, bar, x)
     else
         furyButton:Hide()
     end
-    if x > 0 then x = x + S.Get("blessGroupSpacing") end
+    x = Look.Gap(x)
 
     local roster = Roster()
     local byClass = {}
@@ -1033,7 +1085,7 @@ function Refresh()
             cells[class] = cell
             cell.members = members
             SizeRecipient(cell.header, cell.cast, size)
-            Place(cell)
+            x = Look.Place(cell, bar, x)
             PrepareCell(cell)
         elseif cell then
             SetNames(cell.header, "-")
@@ -1044,7 +1096,7 @@ function Refresh()
     end
     ArrangeFlyout(roster)
     FillKeys(byClass)
-    bar:SetSize(math.max(x - gap, size), size)
+    bar:SetSize(Look.Width(x), size)
     bar:SetShown(x > 0 or bar.mover:IsShown())
 end
 
@@ -1053,7 +1105,8 @@ local function BuildBar()
     bar:SetMovable(true)
     bar:SetClampedToScreen(true)
     cells = {}
-    bar.mover = ns.UI.AttachMover(bar, "Blessings", function(pos) S.Set("blessPos", pos) end, "Blessings/Bar")
+    bar.mover = ns.UI.AttachMover(bar, "Blessings", function(pos) S.Set("blessPos", pos) end,
+        "Blessings/Settings", "Blessings/Settings:bar")
     local pos = S.Get("blessPos")
     if pos then
         bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
@@ -1063,13 +1116,11 @@ local function BuildBar()
     auraButton = NewSelfButton("NaowhForeverBlessAura")
     auraButton:SetScript("PostClick", function(self, button, down)
         if button ~= "RightButton" or down then return end
-        Menu(self, "Aura", AURAS, function() return Store().aura end,
-            function(key) SetOwn("AURA", key) end, "Default")
+        AuraMenu(self)
     end)
-    ns.Tooltip(auraButton, "Aura", "Left-click: cast your aura.\nRight-click: choose it.")
+    ns.Tooltip(auraButton, "Aura", AURA_TIP)
     furyButton = NewSelfButton("NaowhForeverBlessFury")
-    ns.Tooltip(furyButton, C_Spell.GetSpellName(FURY.ranks[1]) or "Righteous Fury",
-        "Left-click: cast it on yourself.")
+    ns.Tooltip(furyButton, FuryName(), FURY_TIP)
     secureHandler = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
     keyNext = NewKeyButton("NaowhForeverBlessNext", secureHandler)
     keyGreater = NewKeyButton("NaowhForeverBlessNextGreater", secureHandler)
@@ -1193,7 +1244,7 @@ function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key:find("^bless") and key ~= "blessPos" then Apply() end
+    if key:find("^bless") and key ~= "blessPos" and key ~= "blessWindowAlpha" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
@@ -1358,8 +1409,9 @@ local function LoadPreset()
     return next(plans) ~= nil
 end
 
--- For the options pages.
+-- For the settings page and the Blessings window.
 ns.Blessings = {
+    Look = Look,
     AutoAssign = function() ApplyPlans(AutoPlans(IsInRaid())) end,
     CanPlanAll = CanPlanAll,
     SavePreset = SavePreset,
@@ -1378,4 +1430,6 @@ ns.Blessings = {
         SendPlan(who, plan.classes, plan.aura)
     end,
     OpenMenu = Menu,
+    AuraMenu = AuraMenu, ClassMenu = ClassMenu, CurrentAura = CurrentAura, FuryName = FuryName,
+    AURA_TIP = AURA_TIP, FURY_TIP = FURY_TIP,
 }

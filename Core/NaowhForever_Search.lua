@@ -16,7 +16,6 @@ local failed = {}           -- pages whose builder errored in the last scan (for
 -- A parent that answers every call with 0. A builder that does more than call the row
 -- widgets fails on it before it can build anything, and that page stays out of the index.
 local STUB = setmetatable({}, { __index = function() return function() return 0 end end })
-local STATUS_WORDS = { "UNTESTED", "READY", "LIMITED", "NOT POSSIBLE YET" }
 
 local function Trim(text)
     return (text:gsub("^%s+", ""):gsub("%s+$", ""))
@@ -26,7 +25,6 @@ end
 local function Plain(text)
     text = text:gsub("|c%x%x%x%x%x%x%x%x", "")
     text = text:gsub("|r", "")
-    for _, word in ipairs(STATUS_WORDS) do text = text:gsub("%s+" .. word .. "$", "") end
     return Trim(text)
 end
 
@@ -48,10 +46,14 @@ end
 local function BuildIndex()
     local index = {}
     for i = #failed, 1, -1 do failed[i] = nil end
+    local Settings = ns.Shared and ns.Shared.Settings
     for _, page in ipairs(UI.SearchPages()) do
         local crumb = Crumb(page)
         index[#index + 1] = Entry(page, crumb)
-        if not (page.noscan or page.soon) and ns[page.build] then
+        local declared = Settings and Settings.Index(page.key, function(cardUid, label, help, cardName, group)
+            index[#index + 1] = Entry(page, crumb, label, group, help, cardUid, cardName)
+        end)
+        if not declared and not (page.noscan or page.soon) and ns[page.build] then
             local scan = { section = "", items = {}, page = page.key }
             UI.searchScan = scan
             local ok = pcall(ns[page.build], STUB, -6, page.arg)
@@ -126,7 +128,7 @@ end
 local function NewPanel()
     panel = CreateFrame("Frame", nil, box)
     panel:SetFrameLevel(math.min(box:GetFrameLevel() + 100, 9999))
-    panel:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 0, -2)
+    panel:SetPoint("TOPRIGHT", box, "BOTTOMRIGHT", 0, -2)
     panel:SetWidth(PANEL_W)
     panel:EnableMouse(true)
     ns.Solid(panel, "BACKGROUND", T.panel, 0.98):SetAllPoints()
@@ -182,9 +184,7 @@ end
 local function RowHit(entry, words)
     if not entry.labelLower then return false end
     for _, word in ipairs(words) do
-        if not (entry.labelLower:find(word, 1, true) or (entry.tipLower and entry.tipLower:find(word, 1, true))) then
-            return false
-        end
+        if not entry.labelLower:find(word, 1, true) then return false end
     end
     return true
 end
@@ -227,7 +227,8 @@ local function OnText(text)
 end
 
 function UI.AttachSearch(sidebar, top)
-    box = ns.NewSearchBox(sidebar, "Search all settings", OnText)
+    local Parts = ns.Shared and ns.Shared.Parts
+    box = (Parts and Parts.SearchBox or ns.NewSearchBox)(sidebar, "Search settings", OnText)
     box:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 14, -top)
     box:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -14, -top)
     box:SetHeight(24)

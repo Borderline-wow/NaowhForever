@@ -1046,6 +1046,11 @@ function ns.EnsureProfile(name)
     return sv.profiles[name].tankReminder
 end
 
+function ns.ProfileRoot(name)
+    ns.EnsureProfile(name)
+    return DB().profiles[name]
+end
+
 function ns.SwitchProfile(name)
     local sv = DB()
     if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end

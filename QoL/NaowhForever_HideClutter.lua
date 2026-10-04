@@ -129,3 +129,45 @@ hooksecurefunc(ns, "Apply", Apply)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local CLUTTER = { "hideErrors", "hideTutorials", "hideScreenshot", "skipCinematics", "hideAlerts",
+    "hideEventToasts", "hideZoneText", "cursorClip" }
+
+local function ClutterSummary(store)
+    local on = 0
+    for i = 1, #CLUTTER do
+        if store.Get(CLUTTER[i]) then on = on + 1 end
+    end
+    return ("%d of %d on"):format(on, #CLUTTER)
+end
+
+Settings.Page("QoL/Interface", S):Card({
+    id = "uiClutter", name = "UI Clutter", order = 20,
+    help = "Hides the game's messages, pop-ups and banners you can do without, each on its own switch.",
+    summary = ClutterSummary,
+    rows = {
+        { key = "hideErrors", label = "Hide Error Messages", toggle = true,
+          help = "Hides the red error text, like \"not ready yet\" and \"out of range\", and the "
+              .. "voice line that comes with it." },
+        { key = "hideTutorials", label = "Hide Tutorial Pop-ups", toggle = true,
+          help = "Turns off the game's tutorials and help tips. Turning this back off restores "
+              .. "what you had before." },
+        { key = "hideScreenshot", label = "Hide Screenshot Status", toggle = true,
+          help = "Hides the \"Screen captured\" text when you take a screenshot." },
+        { key = "skipCinematics", label = "Skip Cinematics", toggle = true,
+          help = "Skips cinematics you have already seen on this account. Each one plays the "
+              .. "first time." },
+        { key = "hideAlerts", label = "Hide Alert Pop-ups", toggle = true,
+          help = "Hides the pop-ups for achievements, loot won and the like." },
+        { key = "hideEventToasts", label = "Hide Event Toasts", toggle = true,
+          help = "Closes the banners for level ups, new zones and events." },
+        { key = "hideZoneText", label = "Hide Zone Text", toggle = true,
+          help = "Hides the zone and subzone names that appear as you travel." },
+        { key = "cursorClip", label = "Keep Cursor In Window During Combat", toggle = true,
+          help = "Stops the cursor leaving the game window while you fight, for a second monitor. "
+              .. "Your own setting comes back afterwards." },
+    },
+})

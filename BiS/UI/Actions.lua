@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
---  UI/Actions.lua -- what you can do with your lists (ns.BiS.Actions), the same from the
---  window's title bar and list menu as from the settings page.
+--  UI/Actions.lua -- what you can do with your lists (ns.BiS.Actions), from the window's title
+--  bar and list menu, and Play Test on the settings page.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local B = ns.BiS
@@ -34,7 +34,7 @@ function A.Import()
 end
 
 function A.StatWeights()
-    ns.OpenOptionsWindow("BiS List/Stat Weights")
+    ns.OpenStatWeightsWindow()
 end
 
 function A.Export()

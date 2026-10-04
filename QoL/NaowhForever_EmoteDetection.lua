@@ -43,7 +43,7 @@ local function Build()
     frame.text = ns.Font(frame, 16, "OUTLINE")
     frame.text:SetPoint("LEFT", frame.icon, "RIGHT", 8, 0)
     frame.text:SetJustifyH("LEFT")
-    frame.mover = UI.AttachMover(frame, "Emote Detection", function(pos) S.Set("emotePos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Emote Detection")
+    frame.mover = UI.AttachMover(frame, "Emote Detection", function(pos) S.Set("emotePos", pos) end, "QoL/Combat", "QoL/Combat:emotes")
     frame:Hide()
 
     anim = frame:CreateAnimationGroup()
@@ -182,3 +182,42 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+
+local function Summary(store)
+    local alert, auto = store.Get("emoteDetection"), store.Get("autoEmote")
+    if alert and auto then return "Watching emotes and sending your own" end
+    if alert then return "Watching emotes" end
+    if auto then return "Sending your own emotes" end
+    return "Off"
+end
+
+ns.Shared.Settings.Page("QoL/Combat", S):Card({
+    id = "emotes", name = "Emotes", order = 110,
+    help = "Emote Detection alerts you when an emote in a dungeon or raid contains one of your "
+        .. "words. Auto Emotes sends an /emote of your own when you start casting a spell you listed.",
+    summary = Summary,
+    rows = {
+        Group("Emote Detection"),
+        { key = "emoteDetection", label = "Emote Detection", toggle = true,
+          help = "An alert when an emote in a dungeon or raid contains one of your words, such as "
+              .. "someone putting down a feast. Out of combat only. Move it in Unlock Mode." },
+        { key = "emoteSound", label = "Play a Sound", toggle = true, needs = "emoteDetection" },
+        { key = "emoteSoundKey", label = "Sound", sound = true, needs = { "emoteDetection", "emoteSound" } },
+        { key = "emoteColor", label = "Text Colour", colour = true, needs = "emoteDetection" },
+        { key = "emoteFont", label = "Font", font = true, needs = "emoteDetection" },
+        { key = "emoteFontSize", label = "Font Size", slider = { 10, 32, 1 }, needs = "emoteDetection" },
+        { key = "emotePattern", label = "Words to Watch For", text = true, wide = true, needs = "emoteDetection",
+          help = "Words to watch for in emotes, separated by commas." },
+        Group("Auto Emotes"),
+        { key = "autoEmote", label = "Auto Emotes", toggle = true,
+          help = "An /emote of your own in a dungeon or raid when you start casting one of the spells "
+              .. "below, so the group knows a summon is coming. Started in combat, it waits for "
+              .. "the fight to end." },
+        { key = "autoEmoteCooldown", label = "Cooldown", slider = { 0, 30, 1 }, unit = "s", needs = "autoEmote",
+          help = "The shortest time between two auto emotes." },
+        { key = "autoEmoteList", label = "Auto Emote Spells", text = true, wide = true, needs = "autoEmote",
+          help = "Spell ID and emote, separated by semicolons, such as 698: prepares a ritual of summoning." },
+    },
+})

@@ -140,7 +140,7 @@ local function LayoutFixture()
     }
     setmetatable(env, { __index = _G })
     local chunk = assert(loadstring("local ns = ...\n"
-        .. Slice("local function ApplyTextLayout()", "local function NaowhMedia(")
+        .. Slice("local Look = {", "local function NaowhMedia(")
         .. "\nreturn ApplyTextLayout"))
     setfenv(chunk, env)
     e.ns = {}

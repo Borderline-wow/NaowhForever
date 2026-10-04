@@ -219,3 +219,30 @@ boot:SetScript("OnEvent", function()
     Apply()
     if On("mailExpiry") then events:RegisterEvent("PLAYER_ENTERING_WORLD") end
 end)
+
+local function ForgetCharacter()
+    ns.OpenForgetAltMenu(UIParent)
+end
+
+ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
+    id = "mailAlts", name = "Mail & Alts", order = 40,
+    help = "Your characters on this realm and faction, remembered across your account: what they "
+        .. "hold on item tooltips, and help at the mailbox.",
+    rows = {
+        { key = "altCounts", label = "Alt Item Counts", toggle = true,
+          help = "Item tooltips show how many your characters on this realm and faction hold in "
+              .. "their bags, bank and mailbox. Each character is counted once you log in on it, "
+              .. "and its bank once you open it." },
+        { key = "mailAlts", label = "Alts Button on Mail", toggle = true,
+          help = "An Alts button beside the mailbox's Send tab lists your characters on this realm "
+              .. "and faction with their level and gold. Pick one to fill the To box." },
+        { key = "mailQuickAttach", label = "Quick Attach", toggle = true,
+          help = "An Attach button beside the mailbox's Send tab: attach every trade good, one type "
+              .. "of trade good, or your unbound gear in one click." },
+        { key = "mailExpiry", label = "Mail Expiry Warning", toggle = true,
+          help = "At login, names any of your characters with mail that expires within three days. "
+              .. "It knows each character's mail from the last time it opened a mailbox." },
+        { label = "Forget a Character", button = ForgetCharacter, buttonText = "Forget",
+          help = "Removes a deleted or transferred character from the counts and the Alts list." },
+    },
+})

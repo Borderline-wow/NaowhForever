@@ -30,6 +30,7 @@ Core\NaowhForever_Widgets.lua
 # The standalone options window: tabs, scroll, RefreshPage, slash/compartment entry.
 # The page builders it dispatches to live in the later files, resolved at open time.
 Core\NaowhForever_Window.lua
+Core\NaowhForever_GameMenu.lua
 
 # The settings search: finds a setting on any page and jumps to it. Loads after the window,
 # which calls into it when it is made.
@@ -74,6 +75,8 @@ SmartReminders\NaowhForever_Observed.lua
 # The Custom Reminders tab and the MRT note format behind it. Loads last: the page
 # renders through the shared section builder and editors Bosses.lua defines.
 SmartReminders\NaowhForever_Note.lua
+SmartReminders\NaowhForever_SmartRemindersSettings.lua
+SmartReminders\NaowhForever_SmartRemindersWindow.lua
 
 # The Naowh Forever modules and the Patch Notes page. Page builders only, resolved by
 # the window at open time.
@@ -116,6 +119,7 @@ QoL\NaowhForever_Mail.lua
 # Discovery: the library books. The data loads first; the module reads it.
 Discovery\NaowhForever_DiscoveryData.lua
 Discovery\NaowhForever_Discovery.lua
+Discovery\NaowhForever_DiscoveryWindow.lua
 Discovery\NaowhForever_DiscoveryTracker.lua
 Discovery\NaowhForever_DiscoveryMap.xml
 Discovery\NaowhForever_DiscoveryNearby.lua
@@ -129,6 +133,7 @@ QoL\NaowhForever_TownData.lua
 QoL\NaowhForever_TownMailboxes.lua
 QoL\NaowhForever_TownMap.xml
 GearSets\NaowhForever_GearSets.lua
+GearSets\NaowhForever_GearSetsWindow.lua
 # Naowh Score: one number for a character's gear, on the item level scale, for you and the
 # players you hover. Its own XML loads its files in order (see NaowhScore/README.md).
 NaowhScore\NaowhScore.xml
@@ -149,10 +154,12 @@ CharacterPanel\CharacterPanel.xml
 Blessings\NaowhForever_Blessings.xml
 Blessings\NaowhForever_Blessings.lua
 Blessings\NaowhForever_BlessingsPage.lua
+Blessings\NaowhForever_BlessingsWindow.lua
 QoL\NaowhForever_Trainer.lua
 # Professions: Naowh's profession window, and where to learn each recipe you lack. The window
 # file creates the module's settings, so it loads first.
 Professions\NaowhForever_Professions.lua
+Professions\NaowhForever_ProfessionsSettings.lua
 Professions\NaowhForever_RecipeData.lua
 Professions\NaowhForever_RecipeFinder.lua
 Professions\NaowhForever_RankAlert.lua
@@ -171,13 +178,16 @@ Macros\NaowhForever_MacroText.lua
 Macros\NaowhForever_Macros.lua
 Macros\NaowhForever_MacroWindow.lua
 ActionBars\NaowhForever_ActionBars.lua
+ActionBars\NaowhForever_ActionBarsWindow.lua
 AuraBuffs\NaowhForever_AuraBuffs.lua
 AuraBuffs\NaowhForever_Campfire.lua
 AuraBuffs\NaowhForever_LowHealth.lua
 AuraBuffs\NaowhForever_BuffReminderData.lua
 AuraBuffs\NaowhForever_BuffReminders.lua
+AuraBuffs\NaowhForever_AuraBuffsWindow.lua
 # Supporter badges: the staff and patron lists, then the chat name filter and card that read it.
 Badges\NaowhForever_BadgesStaff.lua
 Badges\NaowhForever_BadgesPatrons.lua
 Badges\NaowhForever_Badges.lua
 Core\NaowhForever_PatchNotes.lua
+Core\NaowhForever_Credits.lua

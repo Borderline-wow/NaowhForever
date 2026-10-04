@@ -323,7 +323,7 @@ local function Build()
     frame.mover = ns.UI.AttachMover(frame, "Co-Tank", function(pos)
         S.Set("coTankPos", pos)
         S.Set("coTankAnchor", "UIParent")
-    end, "QoL/General", "QoL/General:Co-Tank Frame")
+    end, "QoL/Combat", "QoL/Combat:coTank")
 end
 
 -- Anchored to another frame by name, centre on centre plus the X and Y offsets; otherwise
@@ -461,3 +461,75 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", function() Refresh() end)
+
+local Group = ns.Shared.Settings.Group
+local FILTER = { { important = "Boss & Important", nonplayer = "Non-Player Auras", all = "All Debuffs",
+    dispellable = "Dispellable by You" }, { "important", "nonplayer", "all", "dispellable" } }
+local POSITION = { { top = "Above", bottom = "Below", left = "Left", right = "Right", topleft = "Top Left",
+    topright = "Top Right", bottomleft = "Bottom Left", bottomright = "Bottom Right", center = "Centre" },
+    { "top", "bottom", "left", "right", "topleft", "topright", "bottomleft", "bottomright", "center" } }
+local GROW = { { CENTER = "Centred", RIGHT = "Right", LEFT = "Left", UP = "Up", DOWN = "Down" },
+    { "CENTER", "RIGHT", "LEFT", "UP", "DOWN" } }
+local FROM_ANCHOR = "From the centre of the anchor frame. Only used while anchored to a frame."
+
+local function OwnHealthColour() return not S.Get("coTankClassColor") end
+local function OwnNameColour() return S.Get("coTankName") and not S.Get("coTankNameClassColor") end
+
+local function Summary(store)
+    return ("%d by %d%s"):format(store.Get("coTankWidth"), store.Get("coTankHeight"),
+        store.Get("coTankDebuffs") and ", with debuffs" or "")
+end
+
+ns.Shared.Settings.Page("QoL/Combat", S):Card({
+    id = "coTank", name = "Co-Tank Frame", order = 40, switch = "coTank",
+    help = "A small health bar for the other tank in your group, shown while you are tanking: "
+        .. "tank role, Bear Form, Defensive Stance or Righteous Fury. The other tank is whoever has "
+        .. "the tank role or the raid's Main Tank assignment. Click it to target them. Changes made "
+        .. "in combat apply when the fight ends. Move it in Unlock Mode.",
+    summary = Summary,
+    rows = {
+        Group("Size"),
+        { key = "coTankWidth", label = "Width", slider = { 50, 400, 5 } },
+        { key = "coTankHeight", label = "Height", slider = { 10, 80, 1 } },
+        Group("Health"),
+        { key = "coTankClassColor", label = "Class Colour Health", toggle = true },
+        { key = "coTankColor", label = "Health Colour", colour = true, needs = OwnHealthColour,
+          why = "Class colour is on" },
+        { key = "coTankBgAlpha", label = "Background Opacity", slider = { 0, 100, 5 }, unit = "%", scale = 0.01 },
+        Group("Name"),
+        { key = "coTankName", label = "Show Name", toggle = true },
+        { key = "coTankNameLength", label = "Name Length", slider = { 0, 20, 1 }, needs = "coTankName",
+          help = "Cuts the name to this many letters. 0 shows it whole." },
+        { key = "coTankNameClassColor", label = "Class Colour Name", toggle = true, needs = "coTankName" },
+        { key = "coTankNameColor", label = "Name Colour", colour = true, needs = OwnNameColour,
+          why = "Needs Show Name, class colour off" },
+        { key = "coTankFont", label = "Font", font = true, needs = "coTankName" },
+        { key = "coTankFontSize", label = "Font Size", slider = { 8, 24, 1 }, needs = "coTankName" },
+        Group("Position"),
+        { key = "coTankAnchor", label = "Anchor to a Frame", text = true, wide = true,
+          help = "Frame to anchor to, such as PlayerFrame. UIParent puts it back on the screen, and so "
+              .. "does dragging it in Unlock Mode." },
+        { key = "coTankX", label = "X Offset", slider = { -2000, 2000, 1 }, help = FROM_ANCHOR },
+        { key = "coTankY", label = "Y Offset", slider = { -2000, 2000, 1 }, help = FROM_ANCHOR },
+        Group("Debuffs"),
+        { key = "coTankDebuffs", label = "Co-Tank Debuffs", toggle = true,
+          help = "Shows the other tank's debuffs beside their health bar, in combat too: tank-buster "
+              .. "stacks, boss debuffs and anything you can dispel." },
+        { key = "coTankDebuffFilter", label = "Filter", choice = FILTER, needs = "coTankDebuffs" },
+        { key = "coTankDebuffCap", label = "Max Icons", slider = { 1, 8, 1 }, needs = "coTankDebuffs" },
+        { key = "coTankDebuffSize", label = "Icon Size", slider = { 10, 48, 1 }, needs = "coTankDebuffs" },
+        { key = "coTankDebuffPosition", label = "Position", choice = POSITION, needs = "coTankDebuffs" },
+        { key = "coTankDebuffGrow", label = "Grow", choice = GROW, needs = "coTankDebuffs" },
+        { key = "coTankDebuffX", label = "Offset X", slider = { -200, 200, 1 }, needs = "coTankDebuffs" },
+        { key = "coTankDebuffY", label = "Offset Y", slider = { -200, 200, 1 }, needs = "coTankDebuffs" },
+        { key = "coTankDebuffSpacing", label = "Spacing", slider = { 0, 12, 1 }, needs = "coTankDebuffs" },
+        { key = "coTankDebuffTooltips", label = "Show Tooltips", toggle = true, needs = "coTankDebuffs",
+          help = "Off by default: the bar under the icons is click-to-target." },
+        { key = "coTankDebuffDuration", label = "Show Time Left", toggle = true, needs = "coTankDebuffs" },
+        { key = "coTankDebuffDurationSize", label = "Time Left Size", slider = { 6, 20, 1 },
+          needs = { "coTankDebuffs", "coTankDebuffDuration" } },
+        { key = "coTankDebuffStacks", label = "Show Stacks", toggle = true, needs = "coTankDebuffs" },
+        { key = "coTankDebuffStackSize", label = "Stacks Size", slider = { 6, 20, 1 },
+          needs = { "coTankDebuffs", "coTankDebuffStacks" } },
+    },
+})

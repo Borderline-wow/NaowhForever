@@ -322,7 +322,7 @@ local function Apply()
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
         frame:SetSize(200, 40)
-        frame.mover = UI.AttachMover(frame, "GCD Tracker", function(pos) S.Set("gcdTrackerPos", pos) end, "QoL/Casting", "QoL/Casting:GCD Tracker")
+        frame.mover = UI.AttachMover(frame, "GCD Tracker", function(pos) S.Set("gcdTrackerPos", pos) end, "QoL/Combat", "QoL/Combat:gcdTracker")
         frame:SetScript("OnUpdate", function(_, elapsed)
             acc = acc + elapsed
             if acc < UPDATE_INTERVAL then return end
@@ -367,3 +367,45 @@ boot:SetScript("OnEvent", function()
     quietUntil = GetTime() + LOGIN_QUIET
     Apply()
 end)
+
+local Group = ns.Shared.Settings.Group
+local DIRECTION = { { RIGHT = "Right", LEFT = "Left", UP = "Up", DOWN = "Down" }, { "RIGHT", "LEFT", "UP", "DOWN" } }
+
+local function Summary(store)
+    local way = DIRECTION[1][store.Get("gcdDirection")] or DIRECTION[1].RIGHT
+    return ("The last %ds, scrolling %s%s"):format(store.Get("gcdDuration"), way:lower(),
+        store.Get("gcdCombatOnly") and ", in combat" or "")
+end
+
+ns.Shared.Settings.Page("QoL/Combat", S):Card({
+    id = "gcdTracker", name = "GCD Tracker", order = 60, switch = "gcdTracker",
+    help = "Your recent casts as icons scrolling away from a point, with a bar underneath while "
+        .. "you were casting or on the global cooldown. Gaps in the bar are time spent doing "
+        .. "nothing. Move it in Unlock Mode.",
+    summary = Summary,
+    rows = {
+        Group("When"),
+        { key = "gcdCombatOnly", label = "Only In Combat", toggle = true },
+        { key = "gcdWorld", label = "Show in the World", toggle = true },
+        { key = "gcdDungeon", label = "Show in Dungeons", toggle = true },
+        { key = "gcdRaid", label = "Show in Raids", toggle = true },
+        { key = "gcdPvP", label = "Show in Battlegrounds", toggle = true },
+        Group("Icons"),
+        { key = "gcdDirection", label = "Direction", choice = DIRECTION },
+        { key = "gcdDuration", label = "Time Shown", slider = { 2, 15, 1 }, unit = "s" },
+        { key = "gcdIconSize", label = "Icon Size", slider = { 16, 64, 1 } },
+        { key = "gcdSpacing", label = "Spacing", slider = { 0, 20, 1 } },
+        { key = "gcdFadeStart", label = "Fade From", slider = { 0, 95, 5 }, unit = "%", scale = 0.01,
+          help = "How far along an icon starts to fade, from 0% (at once) to 95% (at the very end)." },
+        { key = "gcdStack", label = "Stack Overlapping Casts", toggle = true,
+          help = "Casts within 0.3s of each other sit side by side instead of on top of each other." },
+        { key = "gcdBlocklist", label = "Hidden Spells", text = true, wide = true,
+          help = "Spell IDs never shown, separated by commas. 6603 is Auto Attack, 75 is Auto Shot." },
+        Group("Activity Bar"),
+        { key = "gcdTimelineColor", label = "Activity Bar Colour", colour = true },
+        { key = "gcdTimelineHeight", label = "Activity Bar Height", slider = { 1, 12, 1 } },
+        { key = "gcdDowntime", label = "Downtime Summary", toggle = true,
+          help = "After each fight longer than 15 seconds, how long you spent neither casting nor on "
+              .. "the global cooldown, in chat." },
+    },
+})

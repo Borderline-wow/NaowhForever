@@ -291,6 +291,91 @@ function ns.ShowAddSlashCommand(onAdded)
     nameBox:SetFocus()
 end
 
+local EDITOR_W, EDITOR_PAD, EDITOR_TOP, EDITOR_ROW, EDITOR_FOOT = 460, 20, 52, 30, 62
+local EDITOR_NAME_W, EDITOR_GAP, EDITOR_REMOVE_W, EDITOR_BUTTON_H = 90, 10, 76, 22
+local FOOT_BUTTON_W, FOOT_RESTORE_W, FOOT_BUTTON_H, FOOT_Y = 100, 150, 26, 16
+
+local function Edited()
+    ns.RefreshSlashCommands()
+    UI:RefreshPage(true)
+end
+
+function ns.ShowSlashCommandEditor()
+    local list = ns.SlashCommandList()
+    local dimmer, panel = ns.MakeModal(EDITOR_W, EDITOR_TOP + math.max(1, #list) * EDITOR_ROW + EDITOR_FOOT,
+        "slashCommandEditor")
+    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
+    head:SetPoint("TOPLEFT", EDITOR_PAD, -16)
+    head:SetText("Custom Slash Commands")
+
+    if #list == 0 then
+        local none = UI.KeepFont(panel, "none", 12, nil, T.muted)
+        none:SetPoint("TOPLEFT", EDITOR_PAD, -EDITOR_TOP)
+        none:SetText("No commands yet. Add one, or restore the defaults.")
+    end
+    for i, cmd in ipairs(list) do
+        local y = -(EDITOR_TOP + (i - 1) * EDITOR_ROW)
+        local toggle = UI.KeepToggle(panel, "toggle", function() return cmd.enabled end, function(v)
+            cmd.enabled = v
+            Edited()
+        end)
+        toggle:SetPoint("TOPLEFT", EDITOR_PAD, y)
+        local name = UI.KeepFont(panel, "name", 13)
+        name:SetPoint("LEFT", toggle, "RIGHT", EDITOR_GAP, 0)
+        name:SetText("/" .. cmd.name)
+        local remove = UI.KeepButton(panel, "remove", "Remove", EDITOR_REMOVE_W, EDITOR_BUTTON_H, function()
+            if ns.RemoveSlashCommand(cmd.name) then UI:RefreshPage(true) end
+            ns.ShowSlashCommandEditor()
+        end)
+        remove:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -EDITOR_PAD, y + (EDITOR_BUTTON_H - toggle:GetHeight()) / 2)
+        local what = UI.KeepFont(panel, "what", 12, nil, T.muted)
+        what:SetPoint("LEFT", toggle, "RIGHT", EDITOR_GAP + EDITOR_NAME_W, 0)
+        what:SetPoint("RIGHT", remove, "LEFT", -EDITOR_GAP, 0)
+        what:SetJustifyH("LEFT")
+        what:SetWordWrap(false)
+        what:SetText(ns.SlashCommandSummary(cmd))
+    end
+
+    UI.KeepButton(panel, "add", "Add", FOOT_BUTTON_W, FOOT_BUTTON_H, function()
+        ns.ShowAddSlashCommand(function()
+            UI:RefreshPage(true)
+            ns.ShowSlashCommandEditor()
+        end)
+    end):SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", EDITOR_PAD, FOOT_Y)
+    UI.KeepButton(panel, "restore", "Restore Defaults", FOOT_RESTORE_W, FOOT_BUTTON_H, function()
+        ns.Confirm("Replace your commands with the defaults?", function()
+            ns.RestoreSlashCommands()
+            UI:RefreshPage(true)
+            ns.ShowSlashCommandEditor()
+        end)
+    end):SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", EDITOR_PAD + FOOT_BUTTON_W + EDITOR_GAP, FOOT_Y)
+    UI.KeepButton(panel, "close", "Close", FOOT_BUTTON_W, FOOT_BUTTON_H, function() dimmer:Hide() end)
+        :SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -EDITOR_PAD, FOOT_Y)
+    dimmer:Show()
+end
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local function Summary()
+    local list, on = ns.SlashCommandList(), 0
+    for _, cmd in ipairs(list) do
+        if cmd.enabled then on = on + 1 end
+    end
+    return ("%d %s, %d on"):format(#list, #list == 1 and "command" or "commands", on)
+end
+
+Settings.Page("QoL/System", S):Card({
+    id = "slashCommands", name = "Custom Slash Commands", order = 20, switch = "slashCommands",
+    help = "Short commands of your own that open a game window or run another command. A name another "
+        .. "addon already uses is skipped.",
+    summary = Summary,
+    rows = {
+        { label = "Edit Commands", buttonText = "Edit...", button = ns.ShowSlashCommandEditor,
+          help = "Add or remove your commands, turn each one on or off, or restore the defaults." },
+    },
+})
+
 hooksecurefunc(S, "Set", function(key)
     if key == "enabled" or key == "slashCommands" then ns.RefreshSlashCommands() end
 end)

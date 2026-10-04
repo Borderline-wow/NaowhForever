@@ -1,0 +1,142 @@
+-- Top Bar layout: the saved layout, its migration from the old button keys, the order the bar
+-- draws in, and the preview editor's remove, move and add. Cut out of TopBar.lua and run on stubs.
+local f = assert(io.open(arg[1] or "TopBar/NaowhForever_TopBar.lua", "rb"))
+local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+local checks = 0
+local function check(label, ok) assert(ok, label); checks = checks + 1 end
+
+local function Slice(a, b)
+    local first = assert(source:find(a, 1, true), a)
+    return source:sub(first, assert(source:find(b, first + #a, true), b) - 1)
+end
+
+local defaultLayout = assert(loadstring("return " .. assert(source:match("\n    layout = (%b{}),\n"))))()
+local GLYPH = Slice("local GLYPH = {", "\n\n")
+
+local code = table.concat({
+    "local S, LDB, MEDIA = ...",
+    GLYPH,
+    "local Look = {}",
+    Slice("local SIDES = {", "\n-------------------------------------------------------------------------------\n--  Live info"),
+    Slice("local NO_COORDS =", "\nlocal function PaintClock()"),
+    Slice("local function CopyList(list)", "\nlocal function ButtonName(key)"),
+    "return { Look = Look, SavedLayout = SavedLayout, RemoveKey = RemoveKey, MoveKey = MoveKey,",
+    "    AddKey = AddKey, ResetLayout = ResetLayout, InLayoutOf = InLayoutOf }",
+}, "\n")
+
+local function Store(db)
+    local S = { sets = 0 }
+    function S.DB() return db end
+    function S.Get(k)
+        if db[k] == nil then return k == "layout" and defaultLayout or nil end
+        return db[k]
+    end
+    function S.Default(k) return k == "layout" and defaultLayout or nil end
+    function S.Set(k, v) db[k] = v; S.sets = S.sets + 1 end
+    return S
+end
+
+local objects = {}
+local ldb = {
+    GetDataObjectByName = function(_, name) return objects[name] end,
+    DataObjectIterator = function() return pairs(objects) end,
+}
+
+local function Load(db)
+    local chunk = assert(loadstring(code))
+    setfenv(chunk, setmetatable({ wipe = function(t) for k in pairs(t) do t[k] = nil end return t end },
+        { __index = _G }))
+    local S = Store(db)
+    return chunk(S, function() return ldb end, "M\\"), S
+end
+
+local function Join(list) return table.concat(list, ",") end
+local function Sides(layout) return Join(layout.left) .. " | " .. Join(layout.right) end
+
+check("the default is today's default bar: friends and guild left, Journal and BiS right",
+    Sides(defaultLayout) == "friends,guild | ldb:NaowhForeverJournal,ldb:NaowhForeverBiS")
+
+-- A fresh profile keeps the default and only marks itself migrated.
+local db = {}
+local api = Load(db)
+check("fresh: the default layout", Sides(api.SavedLayout()) == Sides(defaultLayout))
+check("fresh: migrated once, nothing saved", db.layoutMigrated == true and db.layout == nil)
+
+-- Old keys become the same bar, in the order the old code drew it.
+db = { showHearth = true, showGuild = false, brokers = { "BugSack", "NaowhForeverDQ", "NaowhForeverBiS" },
+    brokerSide = { BugSack = "left", NaowhForeverDQ = "left" } }
+api = Load(db)
+check("migrated: left brokers, then friends; hearth then the rest on the right",
+    Sides(api.SavedLayout()) == "ldb:BugSack,ldb:NaowhForeverJournal,friends | hearth,ldb:NaowhForeverBiS")
+check("migrated: Dungeon Quests became the Journal on its side", db.brokerSide.NaowhForeverJournal == "left")
+db.layout.left[1] = "guild"
+check("migrated only once: the flag keeps an edited layout", api.SavedLayout().left[1] == "guild")
+
+db = { showFriends = false, brokers = { "NaowhForeverDQ", "NaowhForeverJournal" } }
+api = Load(db)
+check("migrated: Dungeon Quests beside the Journal is dropped, not doubled",
+    Sides(api.SavedLayout()) == "guild | ldb:NaowhForeverJournal")
+
+db = { layout = { left = {}, right = { "hearth" } }, showHearth = false }
+api = Load(db)
+check("a saved layout wins over the old keys", Sides(api.SavedLayout()) == " | hearth")
+
+db = { layoutMigrated = true, layout = { left = "broken" } }
+api = Load(db)
+check("a malformed layout falls back to the default", Sides(api.SavedLayout()) == Sides(defaultLayout))
+
+-- The bar draws each side in its saved order; brokers not loaded are skipped but kept.
+objects = { BugSack = { icon = "bug", label = "Bug Sack" }, NaowhForeverBiS = { icon = "bis" },
+    NoIcon = {} }
+db = { layoutMigrated = true,
+    layout = { left = { "ldb:Missing", "guild", "ldb:BugSack" }, right = { "ldb:NoIcon", "hearth", "ldb:NaowhForeverBiS" } } }
+api = Load(db)
+local drawn = {}
+api.Look.Buttons(function(side, key, texture, glyph, coords, name)
+    drawn[#drawn + 1] = side .. ":" .. key .. ":" .. tostring(texture) .. ":" .. tostring(glyph) .. ":"
+        .. tostring(name) .. ":" .. #coords
+end)
+check("drawn in saved order, missing and iconless brokers skipped", Join(drawn) ==
+    "left:guild:M\\icon-guild.png:true:nil:4,left:ldb:BugSack:bug:false:BugSack:4,"
+    .. "right:hearth:M\\icon-hearth.png:true:nil:4,right:ldb:NaowhForeverBiS:M\\icon-bis.png:true:NaowhForeverBiS:4")
+check("skipped brokers stay in the layout", db.layout.left[1] == "ldb:Missing" and db.layout.right[1] == "ldb:NoIcon")
+
+-- Editing: every change saves a fresh layout through the store.
+local saved = db.layout
+local S
+api, S = Load(db)
+api.RemoveKey("guild")
+check("remove: gone from its side", Sides(db.layout) == "ldb:Missing,ldb:BugSack | ldb:NoIcon,hearth,ldb:NaowhForeverBiS")
+check("remove: saved through the store, the old table untouched", S.sets == 1 and saved.left[2] == "guild")
+api.MoveKey("hearth", "left", "ldb:BugSack")
+check("move: before the button it was dropped on, across the clock",
+    Sides(db.layout) == "ldb:Missing,hearth,ldb:BugSack | ldb:NoIcon,ldb:NaowhForeverBiS")
+api.MoveKey("hearth", "right", nil)
+check("move: to the end of a side", Sides(db.layout) == "ldb:Missing,ldb:BugSack | ldb:NoIcon,ldb:NaowhForeverBiS,hearth")
+api.MoveKey("ldb:BugSack", "left", "ldb:Missing")
+check("move: reorder on the same side", Sides(db.layout) == "ldb:BugSack,ldb:Missing | ldb:NoIcon,ldb:NaowhForeverBiS,hearth")
+api.AddKey("left", "friends")
+api.AddKey("right", "guild")
+check("add: on the outer end of the side, beside its +",
+    Sides(db.layout) == "friends,ldb:BugSack,ldb:Missing | ldb:NoIcon,ldb:NaowhForeverBiS,hearth,guild")
+api.AddKey("right", "friends")
+check("add: a button already on the bar moves, never doubles",
+    Sides(db.layout) == "ldb:BugSack,ldb:Missing | ldb:NoIcon,ldb:NaowhForeverBiS,hearth,guild,friends")
+check("InLayoutOf finds either side", api.InLayoutOf(db.layout, "friends") and api.InLayoutOf(db.layout, "ldb:BugSack")
+    and not api.InLayoutOf(db.layout, "ldb:Other"))
+api.ResetLayout()
+check("reset: back to the default", db.layout == nil and Sides(api.SavedLayout()) == Sides(defaultLayout)
+    and db.layoutMigrated == true)
+
+-- The card: the old per-button rows are gone, the layout has its reset, the preview its tabs.
+check("the old button keys are only read by the migration", not source:find('S%.Get%("show[FGH]')
+    and not source:find('S%.Get%("broker') and not source:find("\n    showFriends = ", 1, true))
+check("no per-broker choice rows", not source:find('left = "Left Side"', 1, true) and not source:find("ADDON_GROUP", 1, true))
+check("Reset Layout is a button row on the layout",
+    source:find('{ key = "layout", label = "Reset Layout", button = ResetLayout,', 1, true) ~= nil)
+check("Faded and In Combat show only while their setting is on",
+    source:find('needs = "mouseover" }', 1, true) and source:find('needs = "hideInCombat" }', 1, true))
+check("the preview's hint", source:find('"Drag to move, x to remove, + to add."', 1, true) ~= nil)
+check("the drag's OnUpdate is removed when it ends", source:find('edit:SetScript("OnUpdate", nil)', 1, true) ~= nil)
+
+print("PASS top bar layout: " .. checks .. " checks")

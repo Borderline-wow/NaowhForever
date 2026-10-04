@@ -169,3 +169,46 @@ hooksecurefunc(ns, "Apply", Apply)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local SKIP = { { ALT = "Alt", CTRL = "Ctrl", SHIFT = "Shift" }, { "ALT", "CTRL", "SHIFT" } }
+local DOING = { { "questAccept", "accepts" }, { "questTurnIn", "turns in" }, { "questGossip", "picks from NPCs" },
+    { "questShare", "shares" } }
+
+local function QuestSummary(store)
+    local text
+    for _, pair in ipairs(DOING) do
+        if store.Get(pair[1]) then text = text and (text .. ", " .. pair[2]) or pair[2] end
+    end
+    if not text then return "All by hand" end
+    return text:sub(1, 1):upper() .. text:sub(2)
+end
+
+
+local page = ns.Shared.Settings.Page("QoL/Questing & Group", S)
+
+page:Card({
+    id = "quests", name = "Quests", order = 10,
+    help = "Accepts, hands in and shares quests for you, and remembers the reward you saved for a "
+        .. "quest. Hold the Skip Modifier to deal with one quest yourself.",
+    summary = QuestSummary,
+    rows = {
+        { key = "questAccept", label = "Auto Accept Quests", toggle = true,
+          help = "Accepts a quest as soon as its text opens. Hold the Skip Modifier to read it first." },
+        { key = "questTurnIn", label = "Auto Turn In Quests", toggle = true,
+          help = "Hands in finished quests. A quest with a choice of rewards waits for you to pick "
+              .. "one, unless you saved a reward for it. Hold the Skip Modifier to skip it." },
+        { key = "questGossip", label = "Pick Quests From NPCs", toggle = true,
+          help = "When an NPC offers several things, goes straight to a finished quest to hand in, "
+              .. "or the first quest on offer. Works with the two options above." },
+        { key = "questRewardPicks", label = "Saved Quest Rewards", toggle = true,
+          help = "Alt-click a reward you can choose, in the quest log or at the quest giver, to save "
+              .. "it for that quest in this profile; Alt-click it again to clear it. It is selected "
+              .. "when you hand the quest in, and Auto Turn In takes it for you." },
+        { key = "questShare", label = "Share Quests With Group", toggle = true,
+          help = "While you are in a group, shares each quest you accept from an NPC with the "
+              .. "others, if the quest can be shared. A quest someone shared with you is not "
+              .. "shared again. Hold the Skip Modifier as you accept to keep it to yourself." },
+        { key = "questSkipModifier", label = "Skip Modifier", choice = SKIP,
+          help = "Hold it to skip Auto Accept, Auto Turn In, Pick Quests From NPCs and sharing for that quest." },
+    },
+})

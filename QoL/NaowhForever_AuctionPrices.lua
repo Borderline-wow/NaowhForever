@@ -40,12 +40,25 @@ local function Age(seconds)
     return math.floor(seconds / 86400) .. "d"
 end
 
-function ns.AuctionScanSummary()
+local priced, pricedAt
+
+local function Priced(house)
+    if pricedAt ~= house.time then
+        priced = 0
+        for _ in pairs(house.prices) do priced = priced + 1 end
+        pricedAt = house.time
+    end
+    return priced
+end
+
+local function ScanLine()
     local house = House()
-    if not (house and house.time) then return "No scan yet for this realm and faction." end
-    local count = 0
-    for _ in pairs(house.prices) do count = count + 1 end
-    return ("Last scan %s ago: %s items priced."):format(Age(time() - house.time), BreakUpLargeNumbers(count))
+    if not (house and house.time) then return "No scan yet for this realm and faction" end
+    return ("Last scan %s ago: %s items priced"):format(Age(time() - house.time), BreakUpLargeNumbers(Priced(house)))
+end
+
+function ns.AuctionScanSummary()
+    return ScanLine() .. "."
 end
 
 local function Label(text)
@@ -163,3 +176,19 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tool
     tooltip:AddDoubleLine(Tag(), C_CurrencyInfo.GetCoinTextureString(price, 12)
         .. " |cff808080each, " .. Age(time() - when) .. " ago|r", 1, 1, 1, 1, 1, 1)
 end)
+
+ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
+    id = "auctionPrices", name = "Auction Prices", order = 30,
+    help = "Prices from your own scans of the auction house, kept for each realm and faction. Item "
+        .. "tooltips, Bag Space and the Loot Feed can use them.",
+    summary = ScanLine,
+    rows = {
+        { key = "ahPrices", label = "Scan Prices Button", toggle = true,
+          help = "A Scan Prices button on the auction house. It reads every listing and keeps the "
+              .. "lowest buyout for each item, for this realm and faction. Blizzard allows one full "
+              .. "scan every 15 minutes." },
+        { key = "ahTooltip", label = "Auction House Price", toggle = true,
+          help = "Item tooltips show the item's price at your last auction house scan, for one of it, "
+              .. "and how long ago that was. Scan with the Scan Prices button on the auction house." },
+    },
+})

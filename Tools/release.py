@@ -5,7 +5,8 @@
     python Tools/release.py notes <tag>
     python Tools/release.py start-next
 
-prepare: "## Unreleased" in CHANGELOG.md becomes "## <version>", and the TOC "## Version"
+prepare: "## Unreleased" in CHANGELOG.md becomes "## <version>", the in-game notes' "Unreleased"
+entry (Core/NaowhForever_PatchNotes.lua) takes the version as its title, and the TOC "## Version"
 and ns.CODE_BUILD are set to it; prints the version. The version is the newest tag bumped
 (patch: 0.5.16-beta -> 0.5.17-beta, minor: -> 0.6.0-beta, major: -> 1.0.0-beta), with
 "-beta" added (--beta), dropped (--no-beta) or kept as the tag has it; --version overrides
@@ -27,6 +28,7 @@ from pathlib import Path
 TOC = "NaowhForever.toc"
 CORE = "Core/NaowhForever_Core.lua"
 CHANGELOG = "CHANGELOG.md"
+PATCH_NOTES = "Core/NaowhForever_PatchNotes.lua"
 
 VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.]+)?")
 TYPES = "feat|fix|perf|refactor|docs|test|ci|build|chore|revert"
@@ -138,10 +140,20 @@ def prepare(root, version=None, bump="patch", beta=None):
                        f"{TOC} has no '## Version' line")
     core = replace_line(read(root, CORE), r'^(ns\.CODE_BUILD = ")[^"\r\n]*(")',
                         rf"\g<1>{version}\g<2>", f"{CORE} has no ns.CODE_BUILD line")
+    # The in-game notes name the coming release "Unreleased" until it has a version, as the
+    # changelog does; a release without in-game notes leaves the file as it is.
+    patch_notes = None
+    if (Path(root) / PATCH_NOTES).exists():
+        text = read(root, PATCH_NOTES)
+        renamed, count = re.subn(r'\{ title = "Unreleased"', f'{{ title = "{version}"', text, count=1)
+        if count:
+            patch_notes = renamed
 
     write(root, CHANGELOG, changelog)
     write(root, TOC, toc)
     write(root, CORE, core)
+    if patch_notes is not None:
+        write(root, PATCH_NOTES, patch_notes)
     return version
 
 

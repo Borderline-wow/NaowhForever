@@ -63,7 +63,7 @@ local function Apply()
         frame.text = ns.Font(frame, 22, "OUTLINE")
         frame.text:SetPoint("CENTER")
         frame.text:SetTextColor(1, 0.82, 0, 1)
-        frame.mover = ns.UI.AttachMover(frame, "Talent Points", function(pos) S.Set("talentPointsPos", pos) end, "QoL/Combat & Alerts")
+        frame.mover = ns.UI.AttachMover(frame, "Talent Points", function(pos) S.Set("talentPointsPos", pos) end, "QoL/Questing & Group", "QoL/Questing & Group:talentPoints")
     end
     frame.text:SetFont(ns.UI.FontPath(S.Get("talentPointsFont")), 22, "OUTLINE")
     Place()
@@ -94,3 +94,12 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+ns.Shared.Settings.Page("QoL/Questing & Group", S):Card({
+    id = "talentPoints", name = "Talent Points", order = 30, switch = "talentPoints",
+    help = "Text on screen while you have talent points to spend. Hidden in combat. Move it in "
+        .. "Unlock Mode.",
+    rows = {
+        { key = "talentPointsFont", label = "Font", font = true },
+    },
+})

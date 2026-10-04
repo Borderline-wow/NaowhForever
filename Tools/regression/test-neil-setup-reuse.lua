@@ -1,5 +1,5 @@
--- Exercises the actual page builders and widget factories. The frame model checks
--- allocation/rebinding, not WoW rendering, protected execution or keyboard input.
+-- Exercises the reusable row widgets the Smart Reminders window's pages are built from. The
+-- frame model checks allocation/rebinding, not WoW rendering, protected execution or keyboard input.
 local root = arg[1] or "."
 local function Read(suffix)
     local name = suffix == "" and "_SmartReminders" or suffix
@@ -57,43 +57,36 @@ local ns = env.NaowhForever
 ns.TTSVoiceChoices = function() return { [""] = "Default" }, { "" } end
 ns.WindowScalePercent = function() return 100 end
 ns.UI.RefreshPage = function() end
-local main = Read("")
-local defaults = assert(main:find("local DEFAULTS =", 1, true))
-local defaultsEnd = assert(main:find("local prepared = setmetatable(", defaults, true))
-local first = assert(main:find("function ns.BuildCoreSettings(", 1, true))
-local last = assert(main:find("function ns.BuildPresetsPage(", first, true))
-env.current = {}
-env.ns = ns
-env.TRDB = function() return env.current end
-env.RefreshSpec = function() end
-env.CombatWarningsOff = function() return false end
-env.DefensiveTextColor = function() return 1, 1, 1, 1 end
-env.CustomTextColor = env.DefensiveTextColor
-env.previewPin = true
-env.canSound = true
-ns.BossSource = function() return "timeline" end
-Eval(main:sub(defaults, defaultsEnd - 1) .. main:sub(first, last - 1))
+local current = {}
 local page = Object()
 local function Build(on)
-    env.current = { enabled = on, soundOn = on, voiceOn = on,
-        defensiveTextColorOn = on, customTextColorOn = on }
+    current = { enabled = on }
     ns.UI.BeginReusableRows(page)
-    ns.BuildSetupPage(page, -6)
+    local W = ns.UI.Widgets
+    W:DualRow(page, -6,
+        { type = "toggle", text = "Reuse Toggle", getValue = function() return current.enabled end,
+          setValue = function(v) current.enabled = v end },
+        { type = "slider", text = "Reuse Slider", min = 1, max = 5, step = 1,
+          getValue = function() return current.leadTime or 3 end,
+          setValue = function(v) current.leadTime = v end })
+    if on then
+        W:DualRow(page, -40, { type = "label", text = "Only While On" }, { type = "label", text = "" })
+    end
 end
 Build(false); Build(true)
 local warm = count
 for i = 1, 100 do Build(i % 2 == 0) end
-assert(count == warm, "Setup allocated after both layouts were warmed: " .. (count - warm))
-print("PASS 100 actual Setup rebuilds create zero additional frame/texture/font objects after warmup (" .. warm .. ")")
+assert(count == warm, "rows allocated after both layouts were warmed: " .. (count - warm))
+print("PASS 100 page rebuilds create zero additional frame/texture/font objects after warmup (" .. warm .. ")")
 for key, rows in pairs(page._rowCache) do
-    if key:find("Warn This Many Seconds Early", 1, true) then
+    if key:find("Reuse Slider", 1, true) then
         for _, child in ipairs(rows[1]._rightRegion.children) do
             if child.scripts.OnEditFocusLost then child.focus = true; child.text = "4" end
         end
     end
 end
 Build(true)
-assert(env.current.leadTime == nil, "old slider text was committed to the new profile")
+assert(current.leadTime == nil, "old slider text was committed to the new profile")
 print("PASS page rebinding does not commit old focused slider text")
 
 -- A reused control must call the current profile's setter, not the original closure.

@@ -699,31 +699,102 @@ local function CardLines()
         Training.Coins(Training.ToSixty(plan)), builds, builds == 1 and "build" or "builds")
 end
 
-function ns.BuildTrainingSettingsPage(parent, y)
-    local W = UI.Widgets
-    local St = ns.Shared.Style
-    local _, h
-    local headline, detail = CardLines()
-    y = ns.Shared.Parts.SettingsCard(parent, y, "trainingCard", "Open Training Planner",
-        function() ns.OpenTrainingWindow() end, headline, detail)
-
-    _, h = W:SectionHeader(parent, "ON THE WAY" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("levelUpToast", "Level-Up Toast",
-            "When you level up with new spells to train, a toast says how many and what they cost, "
-            .. "with a button to open the planner. Move it in Unlock Mode.", "enabled"),
-        S.Toggle("trainerPanel", "Panel at the Trainer",
-            "Beside your class trainer, the spells you can learn now, ticked, with their total "
-            .. "and Learn All I Can Afford. Untick one to leave it.", "enabled")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "WINDOW", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("miniShown", "Mini Bar", "A small bar with your next trainer visit and your gold, to leave "
-            .. "up while you level. Move it by dragging.", "enabled"),
-        { type = "slider", text = "Window Opacity", min = St.OPACITY_MIN, max = 100, step = 5,
-          tooltip = "How solid the planner's window is, in percent. Also on its title bar.",
-          getValue = Training.OpacityGet, setValue = Training.OpacitySet }
-    ); y = y - h
-    return y
+local function CardHeadline()
+    local headline = CardLines()
+    return headline
 end
+
+local function CardDetail()
+    local _, detail = CardLines()
+    return detail
+end
+
+local function OpenPlanner()
+    ns.OpenTrainingWindow()
+end
+
+local function OnTheWaySummary(store)
+    local toast, panel = store.Get("levelUpToast"), store.Get("trainerPanel")
+    if toast and panel then return "Level-up toast and trainer panel" end
+    if toast then return "Level-up toast" end
+    if panel then return "Trainer panel" end
+    return "Nothing on the way"
+end
+
+local function WindowSummary(store)
+    return ("%d%% opacity%s"):format(math.floor((store.Get("windowAlpha") or 1) * 100 + 0.5),
+        store.Get("miniShown") and ", mini bar shown" or "")
+end
+
+local function TrainerSummary(store)
+    local glow, ranks = store.Get("trainerGlow"), store.Get("trainerRanks")
+    if glow and ranks then return "Glows new abilities, offers rank swaps" end
+    if glow then return "Glows new abilities" end
+    if ranks then return "Offers rank swaps" end
+    return "Lists what you learned"
+end
+
+local PLANNER_OFF = "Turn on the Training Planner"
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local page = Settings.Page("Training Planner/Settings", S)
+
+page:Window({
+    text = "Open Training Planner",
+    open = OpenPlanner,
+    headline = CardHeadline,
+    detail = CardDetail,
+})
+
+page:Card({
+    id = "onTheWay", name = "On the Way", order = 10,
+    help = "The Training Planner's help while you level: a toast when you level up with spells to train, "
+        .. "and a panel beside your class trainer.",
+    summary = OnTheWaySummary,
+    rows = {
+        { key = "levelUpToast", label = "Level-Up Toast", toggle = true, needs = On,
+          why = PLANNER_OFF,
+          help = "When you level up with new spells to train, a toast says how many and what they cost, with "
+              .. "a button to open the planner. Move it in Unlock Mode." },
+        { key = "trainerPanel", label = "Panel at the Trainer", toggle = true,
+          needs = On, why = PLANNER_OFF,
+          help = "Beside your class trainer, the spells you can learn now, ticked, with their total and Learn "
+              .. "All I Can Afford. Untick one to leave it." },
+    },
+})
+
+page:Card({
+    id = "window", name = "Window", order = 20,
+    help = "The planner's own window, and a mini bar to leave up while you level.",
+    summary = WindowSummary,
+    rows = {
+        { key = "miniShown", label = "Mini Bar", toggle = true, needs = On,
+          why = PLANNER_OFF,
+          help = "A small bar with your next trainer visit and your gold, to leave up while you level. Move it "
+              .. "by dragging." },
+        { key = "windowAlpha", label = "Window Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 }, unit = "%",
+          scale = 0.01, help = "How solid the planner's window is, in percent. Also on its title bar." },
+    },
+})
+
+page:Card({
+    id = "trainer", name = "Trainer Popup", order = 30, switch = "trainerPopup", store = ns.QoLSettings,
+    help = "After visiting a trainer, a small window lists the abilities you just learned. Abilities from a "
+        .. "tome or a quest show a moment after you learn them. Drag one from the window onto your bars.",
+    summary = TrainerSummary,
+    rows = {
+        { key = "trainerGlow", label = "Glow New Abilities", toggle = true,
+          help = "Lights up the new abilities on your action bars until you use them." },
+        { key = "trainerRanks", label = "Offer to Replace Lower Ranks", toggle = true,
+          help = "Adds a button to the popup that swaps every lower rank on your bars for the highest rank "
+              .. "you know. Keyboard and controller bars land in the same slot. Right-click a spell in the "
+              .. "popup to keep its lower ranks, for downranking. Rank swaps only happen out of combat." },
+        { label = "Check My Bars Now", buttonText = "Check Bars", always = true,
+          button = function() ns.TrainerRankCheck() end,
+          help = "Looks for lower ranks on your bars now, as after a trainer visit (also /naowh ranks). Out of "
+              .. "combat only." },
+        { label = "Forget Kept Spells", buttonText = "Forget Kept", always = true,
+          button = function() ns.TrainerForgetKept() end,
+          help = "Forgets the spells you chose to keep at lower ranks, so the popup offers to swap them again." },
+    },
+})

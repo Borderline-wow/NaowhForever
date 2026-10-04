@@ -209,14 +209,16 @@ local function CreateTextRegion(a)
     return r
 end
 
+local function SizeText(r)
+    local w, fs = TextSize()
+    r:SetSize(w, fs + 10)
+    r.text:SetFont(AlertFontPath(), fs, "OUTLINE")
+end
+
 function ns.ResizeRaidReminderText()
     local a = anchors.text
     if not a then return end
-    local w, fs = TextSize()
-    ForEachRegion(a, function(r)
-        r:SetSize(w, fs + 10)
-        r.text:SetFont(AlertFontPath(), fs, "OUTLINE")
-    end)
+    ForEachRegion(a, SizeText)
     RestackRegions(a)
 end
 
@@ -241,16 +243,17 @@ local function CreateTimerRegion(a)
     return r
 end
 
+local function SizeTimer(r)
+    local cap, num, w, h = TimerSize()
+    r:SetSize(w, h)
+    r.label:SetFont(AlertFontPath(), cap, "OUTLINE")
+    r.number:SetFont(AlertFontPath(), num, "OUTLINE")
+end
+
 function ns.ResizeRaidReminderTimer()
     local a = anchors.timer
     if not a then return end
-    local cap, num, w, h = TimerSize()
-    local function Apply(r)
-        r:SetSize(w, h)
-        r.label:SetFont(AlertFontPath(), cap, "OUTLINE")
-        r.number:SetFont(AlertFontPath(), num, "OUTLINE")
-    end
-    ForEachRegion(a, Apply)
+    ForEachRegion(a, SizeTimer)
     RestackRegions(a)
 end
 
@@ -276,17 +279,18 @@ local function CreateIconRegion(a)
     return r
 end
 
+local function SizeIcon(r)
+    local size = IconSize()
+    local fs = LabelSize("raidReminderIconTextSize")
+    r:SetSize(size, size + fs + 6)
+    r.icon:SetSize(size, size)
+    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+end
+
 function ns.ResizeRaidReminderIcon()
     local a = anchors.icon
     if not a then return end
-    local size = IconSize()
-    local fs = LabelSize("raidReminderIconTextSize")
-    local function Apply(r)
-        r:SetSize(size, size + fs + 6)
-        r.icon:SetSize(size, size)
-        r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
-    end
-    ForEachRegion(a, Apply)
+    ForEachRegion(a, SizeIcon)
     RestackRegions(a)
 end
 
@@ -334,17 +338,18 @@ local function CreateBarRegion(a)
     return r
 end
 
+local function SizeBar(r)
+    local w, h = BarSize()
+    local fs = LabelSize("raidReminderBarTextSize")
+    r:SetSize(w, h + fs + 4)
+    r.bar:SetSize(w, h)
+    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+end
+
 function ns.ResizeRaidReminderBar()
     local a = anchors.bar
     if not a then return end
-    local w, h = BarSize()
-    local fs = LabelSize("raidReminderBarTextSize")
-    local function Apply(r)
-        r:SetSize(w, h + fs + 4)
-        r.bar:SetSize(w, h)
-        r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
-    end
-    ForEachRegion(a, Apply)
+    ForEachRegion(a, SizeBar)
     RestackRegions(a)
 end
 
@@ -445,13 +450,14 @@ local function CreateCircleRegion(a)
     return r
 end
 
+local function SizeCircle(r)
+    LayoutCircle(r, CircleSize(), CircleThickness(), LabelSize("raidReminderCircleTextSize"))
+end
+
 function ns.ResizeRaidReminderCircle()
     local a = anchors.circle
     if not a then return end
-    local size, thickness = CircleSize(), CircleThickness()
-    local fs = LabelSize("raidReminderCircleTextSize")
-    local function Apply(r) LayoutCircle(r, size, thickness, fs) end
-    ForEachRegion(a, Apply)
+    ForEachRegion(a, SizeCircle)
     RestackRegions(a)
 end
 
@@ -476,6 +482,15 @@ local REGION_CTORS = {
     text = CreateTextRegion, timer = CreateTimerRegion, icon = CreateIconRegion,
     bar = CreateBarRegion, circle = CreateCircleRegion,
 }
+local REGION_SIZERS = { text = SizeText, timer = SizeTimer, icon = SizeIcon, bar = SizeBar, circle = SizeCircle }
+
+ns.RaidReminderSizeDefaults = {
+    raidReminderTextWidth = TEXT_WIDTH_DEFAULT, raidReminderTextFontSize = TEXT_FONTSIZE_DEFAULT,
+    raidReminderIconSize = ICON_SIZE_DEFAULT, raidReminderBarWidth = BAR_WIDTH_DEFAULT,
+    raidReminderBarHeight = BAR_HEIGHT_DEFAULT, raidReminderCircleSize = CIRCLE_SIZE_DEFAULT,
+    raidReminderCircleThickness = CIRCLE_THICKNESS_DEFAULT,
+}
+for key, size in pairs(LABEL_SIZE_DEFAULTS) do ns.RaidReminderSizeDefaults[key] = size end
 
 local function AcquireRegion(displayType)
     local a = GetAnchor(displayType)
@@ -830,8 +845,8 @@ castGateWatcher:SetScript("OnEvent", function(_, _, _, _, spellID)
 end)
 
 -------------------------------------------------------------------------------
---  Anchor config -- move and resize every anchor with a live sample, opened from the
---  Setup page's "Customize Anchors" button.
+--  Anchor config -- move and resize every anchor with a live sample, opened from
+--  Unlock Mode.
 -------------------------------------------------------------------------------
 local DISPLAY_TYPE_LABEL = { defensive = "Defensive", text = "Message", timer = "Timer", icon = "Icon", bar = "Bar", circle = "Circle" }
 local CONFIG_ORDER = { "defensive", "text", "timer", "icon", "bar", "circle" }
@@ -842,13 +857,15 @@ for _, dt in ipairs(CONFIG_ORDER) do configShown[dt] = true end
 local configActive = false
 local reopenWindowOnExit = false
 
+local SAMPLE_ICON = "Interface\\Icons\\INV_Misc_PocketWatch_01"
+
 -- Static placeholder content: no countdown, no hide timer.
 local function PopulateSample(displayType, r)
     if displayType == "text" then
         r.text:SetText("Sample Reminder")
         r.text:SetTextColor(1, 1, 1, 1)
     elseif displayType == "icon" then
-        r.icon:SetTexture(134400)
+        r.icon:SetTexture(SAMPLE_ICON)
         r.label:SetText("Sample")
         r.label:Show()
     elseif displayType == "timer" then
@@ -861,7 +878,7 @@ local function PopulateSample(displayType, r)
         r.bar:SetValue(0.6)
     elseif displayType == "circle" then
         r:SetScript("OnUpdate", nil)
-        r.label:SetText("|T134400:0|t Sample (3.4)")
+        r.label:SetText("|T" .. SAMPLE_ICON .. ":0|t Sample (3.4)")
         r.label:SetTextColor(1, 1, 1)
         local T = ns.THEME
         r.fillL:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
@@ -869,6 +886,16 @@ local function PopulateSample(displayType, r)
         -- Parked 40% through so the sweep's direction is visible while placing it.
         SetCircleSweep(r, 0.4 * 360)
     end
+end
+
+function ns.NewRaidReminderSample(displayType, parent)
+    return REGION_CTORS[displayType](parent)
+end
+
+function ns.PaintRaidReminderSample(displayType, r)
+    REGION_SIZERS[displayType](r)
+    PopulateSample(displayType, r)
+    r:Show()
 end
 
 -- The defensive alert keeps its own position field, which the main file's preview drag
@@ -971,29 +998,21 @@ end
 
 local function EnsureConfigHandle(displayType, a)
     if a._configHandle then return a._configHandle end
-    local T = ns.THEME
-    local h = CreateFrame("Button", nil, a)
-    h:SetSize(150, 24)
-    ns.Solid(h, "BACKGROUND", T.panel, 0.95)
-    ns.Border(h)
-
-    local label = ns.Font(h, 12, "OUTLINE", T.accent)
-    label:SetPoint("LEFT", h, "LEFT", 8, 0)
-    label:SetText(DISPLAY_TYPE_LABEL[displayType])
+    a:SetMovable(true)
+    local h = ns.UI.AttachMover(a, "Reminder " .. DISPLAY_TYPE_LABEL[displayType], function(pos)
+        SaveAnchorPos(displayType, pos.point, pos.relPoint, pos.x, pos.y)
+    end, "Smart Reminders/Settings")
+    h.text:ClearAllPoints()
+    h.text:SetPoint("TOP", h, "BOTTOM", 0, -4)
 
     local gear = CreateFrame("Button", nil, h)
-    gear:SetSize(18, 18)
-    gear:SetPoint("RIGHT", h, "RIGHT", -4, 0)
+    gear:SetSize(16, 16)
+    gear:SetPoint("TOPRIGHT", h, "TOPRIGHT", -2, -2)
     local gearTex = gear:CreateTexture(nil, "ARTWORK")
     gearTex:SetAllPoints()
     gearTex:SetTexture("Interface\\Buttons\\UI-OptionsButton")
     gear:SetScript("OnClick", function() ns.ShowRaidReminderAnchorSizePopup(displayType) end)
-
-    h:SetMovable(true)
-    a:SetMovable(true)
-    ns.UI.BindMover(h, a, DISPLAY_TYPE_LABEL[displayType], function(pos)
-        SaveAnchorPos(displayType, pos.point, pos.relPoint, pos.x, pos.y)
-    end)
+    ns.Tooltip(gear, "Size", "Set this display's size and text.")
 
     a._configHandle = h
     return h
@@ -1010,7 +1029,8 @@ local function RefreshConfigVisual(displayType)
         local h = EnsureConfigHandle("defensive", f)
         h:ClearAllPoints()
         local below = (alertBar and alertBar:IsShown()) and alertBar or f
-        h:SetPoint("TOP", below, "BOTTOM", 0, -4)
+        h:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+        h:SetPoint("BOTTOMRIGHT", below, "BOTTOMRIGHT", 0, 0)
         h:Show()
         return
     end
@@ -1029,7 +1049,7 @@ local function RefreshConfigVisual(displayType)
     a._configSample:Show()
 
     h:ClearAllPoints()
-    h:SetPoint("TOP", a._configSample, "BOTTOM", 0, -4)
+    h:SetAllPoints(a._configSample)
     h:Show()
 end
 
@@ -1076,7 +1096,8 @@ local function BuildConfigToolbar()
     local f = CreateFrame("Frame", "NaowhForeverRaidReminderAnchorConfig", UIParent)
     f:SetSize(14 + CONFIG_COL_W * 2 + 14, 116)
     f:SetPoint("TOP", UIParent, "TOP", 0, -140)
-    f:SetFrameStrata("HIGH")
+    f:SetFrameStrata("DIALOG")
+    f:SetToplevel(true)
     f:SetClampedToScreen(true)
     ns.Solid(f, "BACKGROUND", { r = 0, g = 0, b = 0 }, 1):SetAllPoints()
     ns.Border(f)

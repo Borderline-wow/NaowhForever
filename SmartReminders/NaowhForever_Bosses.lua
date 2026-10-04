@@ -1308,7 +1308,7 @@ function ns.ShowCustomReminderEditor(encounterID, uid, callerEUI, initialTrigger
           getValue = function() return enabledVal end,
           setValue = function(v) enabledVal = v end },
         { type = "toggle", text = "Healer Reminder",
-          tooltip = "Mark this reminder so players can opt out with Enable Healer Reminders in Setup.",
+          tooltip = "Mark this reminder so players can opt out with Enable Healer Reminders in Smart Reminders settings.",
           getValue = function() return healerVal end,
           setValue = function(v) healerVal = v end }
     )
@@ -2100,7 +2100,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
             extHint:SetWordWrap(true)
             extHint:SetText("Off means this ability stays silent when your list is empty, "
                 .. "instead of asking the raid for help on a hit nobody was going to answer. "
-                .. "Untouched, it follows the spec-wide setting on the Setup page.")
+                .. "Untouched, it follows the spec-wide setting in Smart Reminders settings.")
             by = by - math.ceil(extHint:GetStringHeight()) - 10
 
             local extCheck = UI.KeepToggle(body, "external",
@@ -2609,21 +2609,6 @@ function ns.BuildBossListPage(parent, y, isRaid)
                 .. "regardless of aggro.")
         y = y - 30
     end
-
-    -- Here rather than on Setup: it only reaches reminders authored from this page.
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Show Target on Boss Casts",
-          tooltip = "When a boss cast you have a Boss Cast Starts reminder for names a "
-          .. "player, puts that player's name on the alert in their class colour. Only "
-          .. "while the cast is going out, since that is the only moment the game will say "
-          .. "who is being targeted, and only for the abilities that name anybody at all.",
-          getValue = function() return ns.DB().castTargetBoss == true end,
-          setValue = function(v)
-              ns.DB().castTargetBoss = v or nil
-              -- Otherwise the cast watch would not rearm until the next pull.
-              if ns.RefreshCastWatch then ns.RefreshCastWatch() end
-          end }
-    ); y = y - h
 
     local data = ns.ScrapeBosses(false)
     if not data or #data.instances == 0 then
@@ -3192,7 +3177,7 @@ function ns.BuildBossReminderSections(content, encounterID, isRaid, startY, opts
                 else
                     why:SetText("Boss Addon is set to Blizzard Timeline, which keeps ability "
                         .. "identity secret, so there is nothing to record from. Switch it to "
-                        .. "BigWigs or DBM on the Smart Reminders > Setup tab.")
+                        .. "BigWigs or DBM in Smart Reminders > Settings.")
                 end
             else
                 why:SetText(("Nothing recorded for this boss yet. Pull it with %s running and "
@@ -4030,7 +4015,7 @@ function ns.ShowRaidReminderEditor(encounterID, uid, callerEUI, isRaid, abilityS
           getValue = function() return enabledVal end,
           setValue = function(v) enabledVal = v end },
         { type = "toggle", text = "Healer Reminder",
-          tooltip = "Mark this reminder so players can opt out with Enable Healer Reminders in Setup.",
+          tooltip = "Mark this reminder so players can opt out with Enable Healer Reminders in Smart Reminders settings.",
           getValue = function() return healerVal end,
           setValue = function(v) healerVal = v end }
     )

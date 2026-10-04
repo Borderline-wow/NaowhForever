@@ -533,25 +533,53 @@ local function DefensiveTextColor()
 end
 
 
+local BAR_DROP, BAR_HEIGHT = 26, 10
+
+local TEXT_GAP = 6
+local REMINDER_SIZE = 15
+
+local Look = { TEXT_GAP = TEXT_GAP }
+ns.DefensiveLook = Look
+
+function Look.TextColour()
+    if TRDB().defensiveTextColorOn then return DefensiveTextColor() end
+    return 1, 1, 1, 1
+end
+
+function Look.PlaceText(block, icon, side, drop)
+    if side == "TOP" then
+        block:SetPoint("BOTTOM", icon, "TOP", 0, TEXT_GAP)
+        return "BOTTOM", 1
+    elseif side == "LEFT" then
+        block:SetPoint("RIGHT", icon, "LEFT", -TEXT_GAP, 0)
+        return "RIGHT", 1
+    elseif side == "RIGHT" then
+        block:SetPoint("LEFT", icon, "RIGHT", TEXT_GAP, 0)
+        return "LEFT", 1
+    end
+    block:SetPoint("TOP", icon, "BOTTOM", 0, -(TEXT_GAP + drop))
+    return "TOP", -1
+end
+
+function Look.Icon(parent)
+    local icon = parent:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    ns.Border(parent, { r = 0, g = 0, b = 0 }, 1)
+    return icon
+end
+
 -- Must color the slot labels as well as frame.reminder: coloring only the latter shipped
 -- first and the toggle looked like it did nothing, since the labels are what shows in combat.
 local function ApplyDefensiveTextColor()
     if not frame then return end
-    local on = TRDB().defensiveTextColorOn
-    local r, g, b, a = 1, 1, 1, 1
-    if on then r, g, b, a = DefensiveTextColor() end
+    local r, g, b, a = Look.TextColour()
 
     if frame.reminder then frame.reminder:SetTextColor(r, g, b, a) end
     for i = 1, #slots do
         if slots[i].label then slots[i].label:SetTextColor(r, g, b, a) end
     end
 end
-
-
-local BAR_DROP, BAR_HEIGHT = 26, 10
-
-local TEXT_GAP = 6
-local REMINDER_SIZE = 15
 
 -- Every line hangs off the same anchor so a hidden line collapses to nothing. The near edge
 -- is anchored, never the centre, which grew both ways and crept into the icon.
@@ -562,22 +590,8 @@ local function ApplyTextLayout()
     local line = (t.textSize or DEFAULTS.textSize) + 4
 
     textFrame:ClearAllPoints()
-    local point, dir
-    if side == "TOP" then
-        textFrame:SetPoint("BOTTOM", frame, "TOP", 0, TEXT_GAP)
-        point, dir = "BOTTOM", 1
-    elseif side == "LEFT" then
-        textFrame:SetPoint("RIGHT", frame, "LEFT", -TEXT_GAP, 0)
-        point, dir = "RIGHT", 1
-    elseif side == "RIGHT" then
-        textFrame:SetPoint("LEFT", frame, "RIGHT", TEXT_GAP, 0)
-        point, dir = "LEFT", 1
-    else
-        -- The bar's toggle is gone from the UI but a stored showBar outlives it.
-        local drop = TEXT_GAP + (t.showBar and (BAR_DROP + BAR_HEIGHT) or 0)
-        textFrame:SetPoint("TOP", frame, "BOTTOM", 0, -drop)
-        point, dir = "TOP", -1
-    end
+    -- The bar's toggle is gone from the UI but a stored showBar outlives it.
+    local point, dir = Look.PlaceText(textFrame, frame, side, t.showBar and (BAR_DROP + BAR_HEIGHT) or 0)
 
     local function place(fs, offset)
         if not fs then return end
@@ -623,11 +637,7 @@ local function CreateSlot(index)
     slot:EnableMouse(false)             -- rest sit at alpha 0 behind it
     slot:SetAlpha(0)
 
-    slot.icon = slot:CreateTexture(nil, "ARTWORK")
-    slot.icon:SetAllPoints()
-    slot.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    ns.Border(slot, { r = 0, g = 0, b = 0 }, 1)
+    slot.icon = Look.Icon(slot)
 
     local T = ns.THEME
 
@@ -4150,8 +4160,8 @@ function ns.WarnIfNoBossMod()
     if (source == "bigwigs" and _G.BigWigsLoader) or (source == "dbm" and _G.DBM) then return end
     warnedNoBossMod = true
     ns.Print(("|cffff6060Boss Addon is set to %s, but it is not loaded|r -- callouts have "
-        .. "nothing to listen to. Install it, or switch Boss Addon on the Smart "
-        .. "Reminders Setup tab."):format(
+        .. "nothing to listen to. Install it, or switch Boss Addon in the Smart "
+        .. "Reminders settings."):format(
         source == "bigwigs" and "BigWigs" or "DBM"))
 end
 
@@ -4254,7 +4264,7 @@ local function UpdatePreview()
         slot = slot or CreateSlot(1)
         slot.spellID = nil
         slot.iconID = 134400
-        slot.icon:SetTexture(134400)
+        slot.icon:SetTexture("Interface\\Icons\\Ability_Warrior_ShieldWall")
         slot.label:SetText("Defensive")
         ApplySize()
     end
@@ -4845,7 +4855,7 @@ SlashCmdList["NAOWHUITANK"] = function(msg)
     end
 
     if arg == "" and ns.ToggleOptionsWindow then
-        ns.ToggleOptionsWindow("Setup")
+        ns.ToggleOptionsWindow("Smart Reminders/Settings")
         return
     end
     if arg ~= "status" then
@@ -5351,103 +5361,35 @@ end
 -------------------------------------------------------------------------------
 -- Every builder returns the raw running y; the window's page wrapper takes math.abs of it.
 -------------------------------------------------------------------------------
---  Setup tab panels
+--  Settings (declared in NaowhForever_SmartRemindersSettings.lua)
 -------------------------------------------------------------------------------
 
--- Shared by the Setup toggle and the module's switch in the sidebar.
+-- The module's switch in the options window.
 function ns.SetEnabled(v)
     TRDB().enabled = v
     ns.Apply()
     UpdatePreview()
 end
 
--- Always shown at the top of the Setup tab.
-function ns.BuildCoreSettings(parent, y)
-    local EUI = ns.UI
-    local W   = EUI.Widgets
-    local _, h
+local function RefitAlert() ApplySize(); UpdatePreview() end
+local function RelayoutAlert() ApplyTextLayout(); UpdatePreview() end
 
-    _, h = W:SectionHeader(parent, "SMART REMINDERS", y); y = y - h
+ns.SmartReminderApply = {
+    bossSource = function() ns.Apply() end,
+    showIcon = RefitAlert, showText = RefitAlert, fontName = RefitAlert,
+    iconSize = RefitAlert, textSize = RefitAlert, textSide = RelayoutAlert,
+    cdmGlow = function(v) if not v then ns.StopCDMGlow() end end,
+    soundOn = function() RegisterEventSounds() end,
+    soundKey = function() RegisterEventSounds() end,
+    defensiveTextColorOn = function() ApplyDefensiveTextColor() end,
+    defensiveTextColor = function() ApplyDefensiveTextColor() end,
+    castTargetBoss = function() if ns.RefreshCastWatch then ns.RefreshCastWatch() end end,
+}
 
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Smart Reminders",
-          tooltip = "Shows what to press when the boss timeline says an ability is about to land. "
-          .. "It picks the highest entry on your own list that you have talented and off "
-          .. "cooldown. Build that list below -- nothing is set up for you. Works on every "
-          .. "specialization.",
-          getValue = function() return TRDB().enabled end,
-          setValue = function(v)
-              ns.SetEnabled(v)
-              EUI:RefreshPage(true)
-          end },
-        -- The stored tankOnly flag (old "Only for Tank Abilities") is ignored, not migrated,
-        -- so downgrading does not lose it.
-        { type = "toggle", text = "Enable Healer Reminders",
-          tooltip = "Show reminders marked Healer Reminder. Turning this off hides them and cancels "
-          .. "their pending alerts. Applies to every character and profile; imports do not change it. "
-          .. "Native debuff sound changes wait until combat and the encounter end.",
-          getValue = ns.HealerRemindersEnabled,
-          setValue = function(v) ns.SetHealerRemindersEnabled(v) end }
-    ); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "dropdown", text = "Boss Addon", width = 180,
-          values = { timeline = "Blizzard Timeline", bigwigs = "BigWigs", dbm = "DBM" },
-          order = { "timeline", "bigwigs", "dbm" },
-          tooltip = "Which single source drives the callouts. Blizzard Timeline is the "
-          .. "game's own encounter feed -- no addons needed, and per-ability sounds only "
-          .. "work here. BigWigs or DBM instead ride that mod's bars and messages -- "
-          .. "what powers timer/message reminders and phase (p2) note lines. Ability-timer "
-          .. "Raid Reminders are BigWigs only. The other two sources are ignored entirely.",
-          getValue = function() return ns.BossSource() end,
-          setValue = function(v)
-              TRDB().bossSource = v
-              ns.Apply()
-              EUI:RefreshPage(true)
-          end },
-        { type = "label", text = "      Callouts follow exactly one source." }
-    ); y = y - h
-
-    -- Not the timeline display toggle: boss mods turn it off and the data still flows.
-    if TRDB().enabled and CombatWarningsOff() then
-        _, h = W:DualRow(parent, y,
-            { type = "label", text = "|cffff6060Boss Warnings are off in the game options.|r" },
-            { type = "label", text = "Options, Advanced, Enable Boss Warnings." }
-        ); y = y - h
-    end
-
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Skip When Already Covered",
-          tooltip = "Stays quiet when one of your defensives is already active as the "
-          .. "warning fires -- you are covered, no need to stack another.",
-          getValue = function() return TRDB().coveredSkip ~= false end,
-          setValue = function(v) TRDB().coveredSkip = v end },
-        { type = "slider", text = "Warn This Many Seconds Early", min = 1, max = 5, step = 1,
-          tooltip = "How close to the hit the alert fires. The game announces abilities about "
-          .. "five seconds out; the alert waits and fires this many seconds before impact, so "
-          .. "lower is closer to the hit. When the game announces later than this, the alert "
-          .. "fires immediately. This is the BASE value every defensive uses -- override "
-          .. "one specifically from an ability's own cog on a boss's page, next to that "
-          .. "defensive on its preset list. That override can go negative too, to call out "
-          .. "AFTER the hit instead of before it.",
-          getValue = function() return TRDB().leadTime or 3 end,
-          setValue = function(v) TRDB().leadTime = v end }
-    ); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "slider", text = "Your Own Cast Covers You For", min = 0, max = 15, step = 1,
-          tooltip = "The client refuses addons the combat log in this build, so a defensive "
-          .. "you press cannot be watched landing -- the press itself is all there is. This "
-          .. "is how long after one the callout stays quiet. Set it to the length of what "
-          .. "you actually press, or to 0 to hear about every hit even while covered. A "
-          .. "tank who pre-pops as the boss engages wants it low: at 10 seconds, a hit "
-          .. "five seconds after the press says nothing at all.",
-          getValue = function() return TRDB().coveredCastWindow or 6 end,
-          setValue = function(v) TRDB().coveredCastWindow = v end }
-    ); y = y - h
-
-    return y
-end
+function ns.DefensivePreviewPinned() return previewPin end
+function ns.SetDefensivePreviewPinned(v) previewPin = v and true or false; UpdatePreview() end
+function ns.CombatWarningsOff() return CombatWarningsOff() end
+function ns.SoundError() return soundError end
 
 -- Alone on its page: RenderPresetListEditor's returned height runs short once the
 -- spare-defensives column gets long, so nothing may stack below it.
@@ -5463,287 +5405,6 @@ function ns.BuildPresetListSettings(parent, y)
     end
 
     return y
-end
-
-function ns.BuildBarsSettings(parent, y)
-    local EUI = ns.UI
-    local W   = EUI.Widgets
-    local _, h
-
-    _, h = W:SectionHeader(parent, "VISIBILITY OPTIONS", y); y = y - h
-
-    -- The countdown bar toggle was removed on tester feedback; stored showBar still works.
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Show Icon",
-          tooltip = "The icon of the defensive to press.",
-          getValue = function() return TRDB().showIcon end,
-          setValue = function(v) TRDB().showIcon = v; ApplySize(); UpdatePreview() end },
-        { type = "toggle", text = "Show Text Call Out",
-          tooltip = "Writes the callout on screen -- \"Barkskin\" -- for whichever defensive "
-          .. "it picked, and your fallback line when nothing is up. Only appears for "
-          .. "abilities enabled in that boss's ability list, in the Bosses tab. Set each "
-          .. "line's own wording in the list below.",
-          getValue = function() return TRDB().showText end,
-          setValue = function(v)
-              TRDB().showText = v; ApplySize(); UpdatePreview()
-          end }
-    ); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Glow It on the Cooldown Manager",
-          tooltip = "Also glows the called defensive on Blizzard's Cooldown Manager bar, so "
-          .. "the answer appears on the bar you are already watching. Needs the Cooldown "
-          .. "Manager turned on and that defensive placed on it.|n|n"
-          .. "|cffff6b5eOff by default:|r this reaches across to Blizzard's own frames, so it "
-          .. "is the first thing to switch off if anything misbehaves in combat.",
-          getValue = function() return TRDB().cdmGlow == true end,
-          setValue = function(v)
-              TRDB().cdmGlow = v and true or false
-              if not v then ns.StopCDMGlow() end
-          end },
-        { type = "label", text = "" }
-    ); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "slider", text = "Icon Display Duration", min = 1, max = 15, step = 1,
-          tooltip = "How many seconds the defensive icon and callout text stay visible. "
-          .. "Defaults to 3 seconds. Hide After Casting can dismiss it early.",
-          getValue = function() return TRDB().lingerSec or DEFAULTS.lingerSec end,
-          setValue = function(v) TRDB().lingerSec = v end },
-        { type = "toggle", text = "Hide After Casting",
-          tooltip = "Dismiss the icon and callout text when you cast the suggested defensive. "
-          .. "Off by default so they remain for the selected display duration.",
-          getValue = function() return TRDB().hideOnCast == true end,
-          setValue = function(v) TRDB().hideOnCast = v and true or nil end }
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "SIZE AND LOCATION", y); y = y - h
-
-    local fontValues, fontOrder = { [""] = "Addon Font" }, { "" }
-    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
-    if LSM then
-        for _, name in ipairs(LSM:List("font")) do
-            fontValues[name] = name
-            fontOrder[#fontOrder + 1] = name
-        end
-    end
-    local selectedFont = TRDB().fontName
-    if type(selectedFont) == "string" and selectedFont ~= "" and not fontValues[selectedFont] then
-        fontValues[selectedFont] = selectedFont .. " (unavailable)"
-        fontOrder[#fontOrder + 1] = selectedFont
-    end
-    _, h = W:DualRow(parent, y,
-        { type = "dropdown", text = "Reminder Font", values = fontValues, order = fontOrder,
-          tooltip = "Font for defensive callouts and ability reminder text. Saved with this "
-          .. "profile. Unavailable fonts use the default font.",
-          getValue = function() return TRDB().fontName or "" end,
-          setValue = function(v)
-              TRDB().fontName = v ~= "" and v or nil
-              ApplySize()
-              UpdatePreview()
-          end },
-        { type = "label", text = "" }
-    ); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "slider", text = "Icon Size", min = 32, max = 128, step = 1,
-          tooltip = "Size of the defensive icon. Independent of the text callout's size.",
-          getValue = function() return TRDB().iconSize or DEFAULTS.iconSize end,
-          setValue = function(v)
-              TRDB().iconSize = v
-              ApplySize()
-              UpdatePreview()
-          end },
-        { type = "slider", text = "Text Size", min = 10, max = 40, step = 1,
-          tooltip = "Size of the text callout -- the defensive name and fallback line. "
-          .. "Independent of the icon's size.",
-          getValue = function() return TRDB().textSize or DEFAULTS.textSize end,
-          setValue = function(v)
-              TRDB().textSize = v
-              ApplySize()
-              UpdatePreview()
-          end }
-    ); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "dropdown", text = "Text Position",
-          values = { TOP = "Above the Icon", BOTTOM = "Below the Icon",
-                     LEFT = "Left of the Icon", RIGHT = "Right of the Icon" },
-          order = { "TOP", "BOTTOM", "LEFT", "RIGHT" },
-          tooltip = "Which side of the icon the text callout sits on. The text is anchored "
-          .. "by its near edge, so it keeps the same gap from the icon however long the "
-          .. "defensive's name is.",
-          getValue = function() return TRDB().textSide or DEFAULTS.textSide end,
-          setValue = function(v)
-              TRDB().textSide = v
-              ApplyTextLayout()
-              UpdatePreview()
-          end },
-        { type = "toggle", text = "Show a Preview",
-          tooltip = "Puts a stand-in of the alert on screen while these options are open -- "
-          .. "the icon and the text callout exactly as a fight would draw them. DRAG IT to "
-          .. "move the alert; the position saves instantly. It hides itself when the "
-          .. "options close.",
-          getValue = function() return previewPin end,
-          setValue = function(v) previewPin = v; UpdatePreview() end }
-    ); y = y - h
-
-    -- A UI-scale change can strand the alert off-screen. ns.Button on a blank DualRow region,
-    -- since W:Button always claims a full row.
-    local resetRow
-    resetRow, h = W:DualRow(parent, y,
-        { type = "label", text = "" },
-        { type = "label", text = "" }
-    ); y = y - h
-
-    if resetRow then
-        if resetRow._leftRegion and not resetRow._resetIcon then
-            local btn = ns.Button(resetRow._leftRegion, "Reset Icon Position", 200, 26, function()
-                TRDB().pos = nil
-                ApplyPosition()
-            end)
-            btn:SetPoint("LEFT", resetRow._leftRegion, "LEFT", 8, 0)
-            resetRow._resetIcon = btn
-        end
-    end
-
-    return y
-end
-
-function ns.BuildSoundsSettings(parent, y)
-    local EUI = ns.UI
-    local W   = EUI.Widgets
-    local _, h
-
-    _, h = W:SectionHeader(parent, "SOUNDS AND VOICE", y); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Play a Sound",
-          tooltip = "Plays a sound when a tank ability is coming. The game plays this one itself, "
-          .. "which is the only way it can be limited to tank abilities -- but it also means the "
-          .. "sound cannot know whether your defensive is ready. Watch the icon for that.|n|n"
-          .. "|cffff6b5eIt plays at most ONCE per boss fight.|r The game will not repeat a "
-          .. "registered sound, so a second cast of the same ability is silent. The icon is "
-          .. "not affected and marks every cast.",
-          getValue = function() return TRDB().soundOn end,
-          setValue = function(v)
-              TRDB().soundOn = v
-              RegisterEventSounds()
-              EUI:RefreshPage(true)
-          end },
-        { type = "toggle", text = "Speak Which Defensive to Use",
-          tooltip = "Says the callout for the defensive it picked, and your fallback line when "
-          .. "nothing is up. On bosses with tank buster data this speaks only for tank "
-          .. "busters; on bosses without it yet, it speaks for every timeline ability. In "
-          .. "combat the pick comes from the addon's own tracking of your casts.",
-          getValue = function() return TRDB().voiceOn end,
-          setValue = function(v) TRDB().voiceOn = v; EUI:RefreshPage(true) end }
-    ); y = y - h
-
-    local voiceValues, voiceOrder = ns.TTSVoiceChoices()
-    _, h = W:DualRow(parent, y,
-        { type = "slider", text = "Voice Volume", min = 0, max = 100, step = 5,
-          tooltip = "Volume of the spoken callouts.",
-          getValue = function() return TRDB().voiceVol or 100 end,
-          setValue = function(v) TRDB().voiceVol = v end },
-        { type = "dropdown", text = "Voice", width = 180,
-          values = voiceValues, order = voiceOrder,
-          tooltip = "Which text-to-speech voice speaks the callouts. Game Default follows "
-          .. "whatever is picked in the game's own Text to Speech options; anything else is "
-          .. "this addon's alone and does not change the game's setting. The list is the "
-          .. "voices your system has installed.",
-          getValue = function() return TRDB().ttsVoiceID or "" end,
-          setValue = function(v)
-              TRDB().ttsVoiceID = (v ~= "" and v) or nil
-          end }
-    ); y = y - h
-
-    if TRDB().soundOn then
-        local paths, names, order = EUI.BuildAlertSoundTables()
-        if EUI.AppendSharedMediaSounds then EUI.AppendSharedMediaSounds(paths, names, order) end
-        _, h = W:DualRow(parent, y,
-            { type = "dropdown", text = "Alert Sound",
-              values = names, order = order,
-              tooltip = "Sound files only. A few entries are built-in game sounds rather than "
-              .. "files, and the game will not accept those for this.",
-              getValue = function() return TRDB().soundKey or "none" end,
-              setValue = function(v)
-                  TRDB().soundKey = v
-                  if EUI._PlayLSMSound and paths[v] then EUI._PlayLSMSound(paths[v]) end
-                  RegisterEventSounds()
-              end },
-            { type = "label", text = "Re-registers when you change it." }
-        ); y = y - h
-
-        if soundError then
-            _, h = W:DualRow(parent, y,
-                { type = "label", text = "|cffff6060" .. soundError .. "|r" },
-                { type = "label", text = "" }
-            ); y = y - h
-        end
-    end
-
-    return y
-end
-
-function ns.BuildColorsSettings(parent, y)
-    local EUI = ns.UI
-    local W   = EUI.Widgets
-    local _, h
-
-    _, h = W:SectionHeader(parent, "COLORS", y); y = y - h
-
-    _, h = W:DualRow(parent, y,
-        { type = "toggle", text = "Color the Defensive Text",
-          tooltip = "Recolor the defensive callout text -- the spell name shown by the "
-          .. "icon. Off uses the default white.",
-          getValue = function() return TRDB().defensiveTextColorOn end,
-          setValue = function(v)
-              TRDB().defensiveTextColorOn = v
-              ApplyDefensiveTextColor()
-              EUI:RefreshPage(true)
-          end },
-        { type = "label", text = "" }
-    ); y = y - h
-
-    if TRDB().defensiveTextColorOn then
-        _, h = W:ColorPicker(parent, "Defensive Text Color", y,
-            DefensiveTextColor,
-            function(r, g, b, a)
-                TRDB().defensiveTextColor = { r = r, g = g, b = b, a = a }
-                ApplyDefensiveTextColor()
-            end,
-            true)
-        y = y - h
-    end
-
-
-    if not TRDB().defensiveTextColorOn then
-        _, h = W:DualRow(parent, y,
-            { type = "label", text = ns.Color("muted", "Nothing else to configure here yet.") },
-            { type = "label", text = "" }
-        ); y = y - h
-    end
-
-    return y
-end
-
--------------------------------------------------------------------------------
---  Setup tab: core settings, visibility, size and location, sounds, colors,
---  and reminder appearance. Profile management has its own tab.
--------------------------------------------------------------------------------
-function ns.BuildSetupPage(parent, yOffset)
-    local EUI = ns.UI
-    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
-    RefreshSpec()
-
-    local y = yOffset
-    if ns.BuildCoreSettings    then y = ns.BuildCoreSettings(parent, y) end
-    if ns.BuildBarsSettings    then y = ns.BuildBarsSettings(parent, y) end
-    if ns.BuildSoundsSettings  then y = ns.BuildSoundsSettings(parent, y) end
-    if ns.BuildColorsSettings  then y = ns.BuildColorsSettings(parent, y) end
-
-    return math.abs(y)
 end
 
 function ns.BuildPresetsPage(parent, yOffset)

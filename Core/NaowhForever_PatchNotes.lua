@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
---  NaowhForever_PatchNotes.lua -- the Patch Notes page. The client cannot read
---  CHANGELOG.md, so the notes players see in game live here, newest first.
+--  NaowhForever_PatchNotes.lua -- the Patch Notes page in the options window: each build's
+--  notes as a card, newest first and open. The client cannot read CHANGELOG.md, so the
+--  notes players see in game live here.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
-local UI = ns.UI
 
 local NOTES = {
-    { title = "0.5.18-beta", lines = {
+    { title = "Unreleased", lines = {
         "Training Planner (/nftraining, Adventure): what your next trainer visit costs against "
             .. "your gold, a road to 60 with every level that brings spells, and the spells you "
             .. "can train now with how much stronger each rank is. A toast on level-up, Learn All "
@@ -125,15 +125,27 @@ local NOTES = {
     } },
 }
 
-function ns.BuildPatchNotesPage(parent, y)
-    local W = UI.Widgets
-    local h
-    for _, entry in ipairs(NOTES) do
-        _, h = W:SectionHeader(parent, entry.title:upper(), y); y = y - h
-        for _, line in ipairs(entry.lines) do
-            _, h = W:Note(parent, "- " .. line, y); y = y - h + 12
-        end
-        y = y - 12
+local page = ns.Shared.Settings.Page("Patch Notes")
+
+local function Line(text)
+    local head, rest = text:match("^([^:]+):%s+(.+)$")
+    if not head or #head > 60 then return { text = text } end
+    local title, where = head:match("^(.-)%s*%((.+)%)$")
+    return { title = title or head, where = where, text = rest }
+end
+
+local latest
+for i, entry in ipairs(NOTES) do
+    local lines = {}
+    for n, text in ipairs(entry.lines) do lines[n] = Line(text) end
+    local coming = entry.title == "Unreleased"
+    local summary = #lines .. " changes"
+    if coming then
+        summary = "In testing, " .. summary
+    elseif not latest then
+        latest = entry
+        summary = "Latest, " .. summary
     end
-    return y
+    page:Info({ id = entry.title, name = coming and "Next Release" or entry.title, open = i == 1, lines = lines,
+        summary = summary })
 end

@@ -392,7 +392,7 @@ local function Build()
     view:SetScript("OnSizeChanged", Resized)
     -- The weights these come from, a click away on the title's line: the scales, as the BiS
     -- List's title bar has them for Stat Weights.
-    local weights = Parts.IconButton(view, function() ns.OpenOptionsWindow("BiS List/Stat Weights") end,
+    local weights = Parts.IconButton(view, function() ns.OpenStatWeightsWindow() end,
         ns.Shared.Style.SCALES, nil, "Stat Weights")
     weights.hint = "What each stat is worth to your spec: change them as you like."
     weights:SetPoint("RIGHT", view, "TOPRIGHT", -EDGE, -(SECTION_TOP + TITLE_SIZE / 2))

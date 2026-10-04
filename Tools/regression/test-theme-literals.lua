@@ -233,10 +233,6 @@ local ROWS = {
       [==[ns.Print((ns.Color("accent", "cooldowns") .. " (build %s), in priority order:"):format(BuildString()))]==],
       [==[(ns.Color("accent", "cooldowns") .. " (build %s), in priority order:"):format("b1")]==],
       [==[("|cff0091edcooldowns|r (build %s), in priority order:"):format("b1")]==] },
-    { [==[SmartReminders/NaowhForever_SmartReminders.lua]==],
-      [==[text = ns.Color("muted", "Nothing else to configure here yet.")]==],
-      [==[ns.Color("muted", "Nothing else to configure here yet.")]==],
-      [==["|cff9a9ea6Nothing else to configure here yet.|r"]==] },
 }
 
 local sources = {}
@@ -292,16 +288,6 @@ for _, t in ipairs(TAGS) do
     Check(Run(code, { ns = ns }) == t[2], t[1] .. ": Tag() is the old TAG")
 end
 
-do -- UI.STATUS: only the muted status is looked up; the others stay as they were.
-    local code = Slice("Core/NaowhForever_Widgets.lua", "UI.STATUS = {", "end })")
-    local UI = {}
-    Run(code, { ns = ns, UI = UI, setmetatable = setmetatable })
-    Check(UI.STATUS.untested == "   |cff9a9ea6UNTESTED|r", "STATUS.untested is the old string")
-    Check(UI.STATUS.ready == "   |cff4dd17aREADY|r" and UI.STATUS.limited == "   |cffffa300LIMITED|r"
-        and UI.STATUS.blocked == "   |cffff6060NOT POSSIBLE YET|r", "the other statuses are untouched")
-    Check(rawget(UI.STATUS, "untested") == nil, "untested is not stored at file load")
-end
-
 do -- the two combat logging prompts
     local acl = Run(Slice("QoL/NaowhForever_CombatLogger.lua", "local function AclText()", "\nend") .. "\nreturn AclText()", { ns = ns })
     Check(acl == "|cff0091edNaowh|r Forever\n\nAdvanced Combat Logging is off. Warcraft Logs needs it "
@@ -313,4 +299,4 @@ do -- the two combat logging prompts
     Check(src:find('.text = AclText()', 1, true) and src:find('.text = LogText()', 1, true), "the text is set when shown")
 end
 
-print("PASS theme literals: " .. cases .. " checks (" .. #ROWS .. " rows, the tag, status and prompt accessors, and a scan for leftovers)")
+print("PASS theme literals: " .. cases .. " checks (" .. #ROWS .. " rows, the tag and prompt accessors, and a scan for leftovers)")

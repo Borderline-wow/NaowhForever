@@ -1,46 +1,26 @@
 -------------------------------------------------------------------------------
---  UI/SettingsPage.lua -- the Dungeon Journal's page in the options window: a card that
---  says where you stand and opens the Journal, then its switches, then this character's
---  latest kills and loot. What it lists and shows
---  comes from J.OPTION_GROUPS, the same list the window's Filters menu is built from, so
---  the two always match; either one changes the other. Page builder only, resolved by the
---  options window at open time.
+--  UI/SettingsPage.lua -- the Dungeon Journal's settings page (Dungeon Journal/Settings in the
+--  options window): a card that says where you stand and opens the Journal, then a card per
+--  part. What it lists comes from J.OPTION_GROUPS, the same list the window's Filters menu is
+--  built from, so the two always match. Your latest kills and loot are in the window (UI/Recent.lua).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
-local T = ns.THEME
 local J = ns.Journal
 local S = J.Settings
 local Loot = J.Loot
 local Quests = J.Quests
-local Kills = J.Kills
-local Looted = J.Looted
 
-local St = J.Style
-local BORDER_RGB, OPACITY_MIN = St.BORDER_RGB, St.OPACITY_MIN
-local SKULL, KILL_DATE = St.SKULL, St.KILL_DATE
+S.OnChange(function(key)
+    if key == "enabled" then ns.UI:RefreshPage(true) end
+end)
 
-local RECENT_ROWS = 5      -- the most kills, and items, listed
-local RECENT_ROW = 26      -- one of them
-local RECENT_HEAD = 30     -- a column's title, above them
-local RECENT_FOOT = 8      -- below the last one
-local RECENT_INSET = 20    -- a column's edge to its text, as in the switches' rows
-local RECENT_ICON = 16     -- the skull, or the item's icon
-local RECENT_GAP = 8       -- the icon to the name
--- On the right, in columns of their own so they line up from row to row: the dungeon from a
--- fixed place, and how long ago against the edge ("30 Sep 2026" is the widest).
-local WHERE_W, AGO_W, COLUMN_GAP = 150, 76, 12
-local RESET_W, RESET_H = 64, 20   -- a column's Reset button, at its top right
-local RESET_TOP = 6
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
 
--- The Journal opens in place of the options window, which would otherwise sit over it.
-local function OpenAt(dungeon)
-    ns.StashOptionsWindow()
-    ns.OpenJournalWindow(dungeon)
-end
+local OPACITY_MIN = J.Style.OPACITY_MIN
+local JOURNAL_OFF = "Turn on the Dungeon Journal"
+local BIS_OFF = "Needs the BiS List"
 
--------------------------------------------------------------------------------
---  The card: where you stand, and the button to open the Journal
--------------------------------------------------------------------------------
 -- The dungeon for you right now: the one you are in, else the first dungeon (not a raid)
 -- whose range holds your level; nil when none does.
 local function ForYou()
@@ -53,7 +33,8 @@ local function ForYou()
     end
 end
 
-local function Headline(dungeon, inside)
+local function Headline()
+    local dungeon, inside = ForYou()
     if not dungeon then return "Every dungeon and raid: what drops, your quests, and more." end
     local name = ns.Color("accentSoft", dungeon.name)
     if inside then return ("You are in %s."):format(name) end
@@ -61,7 +42,8 @@ local function Headline(dungeon, inside)
 end
 
 -- Your quests there, as the Journal counts them; nil when there are none.
-local function QuestLine(dungeon)
+local function Detail()
+    local dungeon = ForYou()
     if not (dungeon and dungeon.quests) then return end
     local toPickUp, inLog = Quests.Count(dungeon.quests)
     if toPickUp + inLog == 0 then return end
@@ -71,237 +53,8 @@ local function QuestLine(dungeon)
     return "Your quests there: " .. table.concat(parts, ", ") .. "."
 end
 
-local function Card(parent, y)
-    local dungeon, inside = ForYou()
-    return J.View.Parts.SettingsCard(parent, y, "journalCard", "Open Dungeon Journal", ns.OpenJournalWindow,
-        Headline(dungeon, inside), QuestLine(dungeon))
-end
-
--------------------------------------------------------------------------------
---  Recent: this character's latest kills, and its latest loot in the Journal's dungeons and
---  raids, side by side. A click opens the dungeon in the Journal.
--------------------------------------------------------------------------------
-local latestKills, latestLoot = {}, {}   -- Kills.Latest's and Looted.Latest's lists, reused
-local FightLength = J.View.Parts.FightLength
-local OPEN_HINT = "Click to open the dungeon in the Journal."
-
--- How long ago: "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago", else the date.
-local function Ago(when)
-    local seconds = time() - when
-    if seconds < 60 then return "just now" end
-    if seconds < 3600 then return ("%d min ago"):format(math.floor(seconds / 60)) end
-    if seconds < 86400 then return ("%d h ago"):format(math.floor(seconds / 3600)) end
-    local days = math.floor(seconds / 86400)
-    if days == 1 then return "yesterday" end
-    if days < 7 then return ("%d days ago"):format(days) end
-    return date("%d %b %Y", when)
-end
-
-local function RecentEnter(row)
-    local muted = T.muted
-    row.hover:Show()
-    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-    local kill, item = row.kill, row.item
-    if kill then
-        GameTooltip:SetText(kill.boss.name, 1, 1, 1)
-        GameTooltip:AddDoubleLine(date(KILL_DATE, kill.at), kill.took and "took " .. FightLength(kill.took) or "",
-            1, 1, 1, muted.r, muted.g, muted.b)
-    else
-        GameTooltip:SetHyperlink(item.link)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddDoubleLine(item.boss and "From " .. item.boss or "Looted", date(KILL_DATE, item.at),
-            1, 1, 1, muted.r, muted.g, muted.b)
-    end
-    GameTooltip:AddLine(row.dungeon.name, T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
-    GameTooltip:AddLine(OPEN_HINT, muted.r, muted.g, muted.b)
-    GameTooltip:Show()
-end
-
-local function RecentLeave(row)
-    row.hover:Hide()
-    GameTooltip:Hide()
-end
-
-local function RecentClick(row)
-    OpenAt(row.dungeon)
-end
-
-local function RecentRow(column, index)
-    local row = CreateFrame("Button", nil, column)
-    row:SetHeight(RECENT_ROW)
-    row:SetPoint("TOPLEFT", RECENT_INSET, -(RECENT_HEAD + (index - 1) * RECENT_ROW))
-    row:SetPoint("RIGHT", -RECENT_INSET, 0)
-    row.hover = ns.Solid(row, "BACKGROUND", T.fg, 0.05)
-    row.hover:SetPoint("TOPLEFT", -RECENT_INSET / 2, 0)
-    row.hover:SetPoint("BOTTOMRIGHT", RECENT_INSET / 2, 0)
-    row.hover:Hide()
-    row.skull = row:CreateTexture(nil, "ARTWORK")
-    row.skull:SetTexture(SKULL)
-    row.skull:SetSize(RECENT_ICON, RECENT_ICON)
-    row.skull:SetPoint("LEFT")
-    row.skull:SetVertexColor(T.muted.r, T.muted.g, T.muted.b)
-    -- An item's icon, in the house's black edge.
-    row.icon = CreateFrame("Frame", nil, row)
-    row.icon:SetSize(RECENT_ICON, RECENT_ICON)
-    row.icon:SetPoint("LEFT")
-    row.icon.texture = row.icon:CreateTexture(nil, "ARTWORK")
-    row.icon.texture:SetAllPoints()
-    ns.Border(row.icon, BORDER_RGB)
-    row.ago = ns.Font(row, 12, nil, T.muted)
-    row.ago:SetPoint("RIGHT")
-    row.ago:SetWidth(AGO_W)
-    row.ago:SetJustifyH("RIGHT")
-    row.where = ns.Font(row, 12, nil, T.muted)
-    row.where:SetPoint("RIGHT", row.ago, "LEFT", -COLUMN_GAP, 0)
-    row.where:SetWidth(WHERE_W)
-    row.where:SetJustifyH("LEFT")
-    row.where:SetWordWrap(false)
-    row.name = ns.Font(row, 13, nil, T.fg)
-    row.name:SetPoint("LEFT", RECENT_ICON + RECENT_GAP, 0)
-    row.name:SetPoint("RIGHT", row.where, "LEFT", -COLUMN_GAP, 0)
-    row.name:SetJustifyH("LEFT")
-    row.name:SetWordWrap(false)
-    row:SetScript("OnEnter", RecentEnter)
-    row:SetScript("OnLeave", RecentLeave)
-    row:SetScript("OnClick", RecentClick)
-    return row
-end
-
--- Forgets a column's list, once you say yes: the page and the Journal's window show it gone.
-local function Forget(question, forget)
-    ns.Confirm(question, function()
-        forget()
-        ns.UI:RefreshPage(true)
-        ns.RedrawJournalWindow()
-    end)
-end
-
-local function ForgetKills()
-    Forget("Forget this character's kills? Every boss's kill count starts again from 0.", Kills.Forget)
-end
-
-local function ForgetLoot()
-    Forget("Forget what this character has looted? This list and the item on each boss start again.",
-        Looted.Forget)
-end
-
-local function RecentColumn(block, title, empty, reset)
-    local column = CreateFrame("Frame", nil, block)
-    column.reset = ns.Button(column, "Reset", RESET_W, RESET_H, reset)
-    column.reset:SetPoint("TOPRIGHT", -RECENT_INSET, -RESET_TOP)
-    -- The title in the button's height, so the two are level.
-    column.title = ns.Font(column, 12, nil, T.muted)
-    column.title:SetPoint("LEFT", RECENT_INSET, 0)
-    column.title:SetPoint("TOP", column.reset, "TOP")
-    column.title:SetPoint("BOTTOM", column.reset, "BOTTOM")
-    column.title:SetText(title)
-    column.rows = {}
-    for i = 1, RECENT_ROWS do column.rows[i] = RecentRow(column, i) end
-    -- Where the first row would be, while there is none.
-    column.empty = ns.Font(column, 12, nil, T.muted)
-    column.empty:SetPoint("LEFT", column.rows[1], "LEFT")
-    column.empty:SetPoint("RIGHT", column.rows[1], "RIGHT")
-    column.empty:SetJustifyH("LEFT")
-    column.empty:SetText(empty)
-    return column
-end
-
-local function MakeRecent(parent)
-    local block = CreateFrame("Frame", nil, parent)
-    block.kills = RecentColumn(block, "Kills", "No kills counted yet. They count while the Journal is on.",
-        ForgetKills)
-    block.kills:SetPoint("TOPLEFT")
-    block.kills:SetPoint("BOTTOMRIGHT", block, "BOTTOM")
-    block.loot = RecentColumn(block, "Loot", "Nothing looted yet. Loot counts in its dungeons and raids.",
-        ForgetLoot)
-    block.loot:SetPoint("TOPLEFT", block, "TOP")
-    block.loot:SetPoint("BOTTOMRIGHT")
-    local divider = ns.Solid(block, "ARTWORK", T.line, 0.6)
-    divider:SetPoint("TOP", 0, -RECENT_INSET / 2)
-    divider:SetPoint("BOTTOM", 0, RECENT_FOOT)
-    ns.Hairline(divider, "v")
-    return block
-end
-
-local function ShowKill(row, kill)
-    row.kill, row.item, row.dungeon = kill, nil, kill.dungeon
-    row.skull:Show()
-    row.icon:Hide()
-    row.name:SetText(kill.boss.name)
-    row.where:SetText(kill.dungeon.name)
-    row.ago:SetText(Ago(kill.at))
-    row:Show()
-end
-
-local function ShowItem(row, item)
-    local dungeon = J.Get(item.dungeon)
-    row.kill, row.item, row.dungeon = nil, item, dungeon
-    row.skull:Hide()
-    row.icon:Show()
-    row.icon.texture:SetTexture(C_Item.GetItemIconByID(item.id))
-    -- The link's name in its quality's colour, without the brackets chat puts round it.
-    row.name:SetText((item.link:gsub("|h%[(.-)%]|h", "|h%1|h")))
-    row.where:SetText(dungeon.name)
-    row.ago:SetText(Ago(item.at))
-    row:Show()
-end
-
--- Fills both columns; returns how many rows the taller one has (at least one, for the line
--- that says there is nothing yet).
-local function FillRecent(block)
-    local kills = Kills.Latest(RECENT_ROWS, latestKills)
-    local rows = block.kills.rows
-    for i = 1, RECENT_ROWS do
-        if kills[i] then ShowKill(rows[i], kills[i]) else rows[i]:Hide() end
-    end
-    block.kills.empty:SetShown(#kills == 0)
-    block.kills.reset:SetShown(#kills > 0)
-
-    local items = Looted.Latest(RECENT_ROWS, latestLoot)
-    rows = block.loot.rows
-    for i = 1, RECENT_ROWS do
-        if items[i] then ShowItem(rows[i], items[i]) else rows[i]:Hide() end
-    end
-    block.loot.empty:SetShown(#items == 0)
-    block.loot.reset:SetShown(#items > 0)
-    return math.max(#kills, #items, 1)
-end
-
-local function Recent(parent, y)
-    local UI = ns.UI
-    local _, h = UI.Widgets:SectionHeader(parent, "RECENT" .. UI.STATUS.untested, y); y = y - h
-    if UI.searchScan then return y end
-    local block = UI.Keep(parent, "journalRecent", MakeRecent)
-    local height = RECENT_HEAD + FillRecent(block) * RECENT_ROW + RECENT_FOOT
-    block:SetHeight(height)
-    block:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, y)
-    block:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, y)
-    return y - height
-end
-
--------------------------------------------------------------------------------
---  The switches
--------------------------------------------------------------------------------
-local function BisOff()
-    return not Loot.BisOn()
-end
-
--- One of J.OPTION_GROUPS as a settings row: the same words as the Filters menu.
-local function OptionRow(option)
-    if not option then return nil end
-    if not option.needsBis then return S.Toggle(option.key, option.label, option.tooltip) end
-    local row = S.Toggle(option.key, option.label, option.tooltip .. " " .. J.NEEDS_BIS)
-    row.disabled = BisOff
-    return row
-end
-
-local function OpacityGet()
-    return math.floor((S.Get("windowAlpha") or 1) * 100 + 0.5)
-end
-
-local function OpacitySet(value)
-    S.Set("windowAlpha", value / 100)
-end
+local function JournalOn() return S.Get("enabled") == true end
+local function BisOn() return Loot.BisOn() end
 
 -- Which side's dungeons are listed: the faction switch beside the window's search, as a
 -- dropdown. Both settings are kept, so the switch and this always agree; the one turned on
@@ -323,82 +76,114 @@ local function FactionSet(value)
     end
 end
 
-local FACTION_ROW = {
-    type = "dropdown", text = "Dungeons Listed", values = FACTION_VALUES, order = FACTION_ORDER,
-    tooltip = "The dungeons on whose ground the list shows. Contested ones and the raids are "
-        .. "always listed. Also the switch beside the Journal's search.",
-    getValue = FactionGet, setValue = FactionSet,
-}
-
-local OPACITY_ROW = {
-    type = "slider", text = "Window Opacity", min = OPACITY_MIN, max = 100, step = 5,
-    tooltip = "How solid the Journal's window is, in percent. Also on its title bar.",
-    getValue = OpacityGet, setValue = OpacitySet,
-}
-
-local SHARE_TIP = "Click the group icon on a dungeon quest you do not have: the members on it are "
-    .. "asked one at a time, and the first running Naowh Forever shares it (with the whole group, "
-    .. "as the game shares quests). You and they are told in chat; they can ask you the same way. "
-    .. "Off, you neither ask nor answer."
-
-local KEY_ROW = {
-    type = "label", text = "Boss Loot at Cursor",
-    tooltip = "Hover a boss, or target one, and press this key: what it drops, at your cursor. "
-        .. "Press it again to close it.",
-}
-
-local OPEN_KEY_ROW = {
-    type = "label", text = "Open Dungeon Journal",
-    tooltip = "Press this key to open the Dungeon Journal, and again to close it.",
-}
-
-function ns.BuildJournalSettingsPage(parent, y)
-    local UI = ns.UI
-    local W = UI.Widgets
-    local _, h, row
-    y = Card(parent, y)
-
-    for g, group in ipairs(J.OPTION_GROUPS) do
-        _, h = W:SectionHeader(parent, group.title:upper() .. UI.STATUS.untested, y); y = y - h
-        local options = group.options
-        for i = 1, #options, 2 do
-            -- What it lists ends on a lone switch: the faction dropdown sits beside it.
-            local right = OptionRow(options[i + 1]) or (g == 1 and FACTION_ROW) or nil
-            _, h = W:DualRow(parent, y, OptionRow(options[i]), right); y = y - h
+-- One of J.OPTION_GROUPS as a row: the same words as the Filters menu.
+local function ListRows()
+    local rows = {}
+    for _, option in ipairs(J.OPTION_GROUPS[1].options) do
+        local row = { key = option.key, label = option.label, toggle = true, help = option.tooltip }
+        if option.needsBis then
+            row.needs, row.why, row.help = BisOn, BIS_OFF, option.tooltip .. " " .. J.NEEDS_BIS
         end
+        rows[#rows + 1] = row
     end
-
-    _, h = W:SectionHeader(parent, "WHERE IT SHOWS" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("mapPanel", "Beside the World Map",
-            "Inside a dungeon, opening the world map (M) shows its bosses and loot beside it.",
-            "enabled"),
-        OPACITY_ROW
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("mapFactions", "Factions Beside the Map",
-            "In a zone or a battleground, opening the world map (M) shows the factions earned there: "
-            .. "your standing, their rewards and the quests that raise them.",
-            "enabled")); y = y - h
-    row, h = W:DualRow(parent, y, KEY_ROW,
-        S.Toggle("shareRequests", "Quest Share Requests", SHARE_TIP, "enabled")); y = y - h
-    if row then   -- nil while the settings search scans this page
-        UI.KeyField(row._leftRegion, "NAOWHFOREVER_BOSSLOOT", KEY_ROW.text)
-    end
-    row, h = W:DualRow(parent, y, OPEN_KEY_ROW,
-        S.Toggle("acceptShared", "Accept Shared Dungeon Quests",
-            "Accepts a dungeon quest a group member shares with you as soon as it opens. Other "
-            .. "shared quests are left to you. Hold the Skip Modifier (QoL > Questing) to look at "
-            .. "one first.", "enabled")); y = y - h
-    if row then
-        UI.KeyField(row._leftRegion, "NAOWHFOREVER_JOURNAL", OPEN_KEY_ROW.text)
-    end
-    return Recent(parent, y)
+    rows[#rows + 1] = { label = "Dungeons Listed", choice = { FACTION_VALUES, FACTION_ORDER },
+        get = FactionGet, set = FactionSet,
+        help = "The dungeons on whose ground the list shows. Contested ones and the raids are always listed. "
+            .. "Also the switch beside the Journal's search." }
+    return rows
 end
 
--- A switch changed somewhere else (the window's Filters menu, its opacity): the page shows
--- the same settings, so it is drawn again if it is open. RefreshPage does nothing while the
--- options window is shut, and runs once per frame however many change.
-S.OnChange(function()
-    ns.UI:RefreshPage(true)
-end)
+local function ListSummary(store)
+    local hiding = 0
+    for _, option in ipairs(J.OPTION_GROUPS[1].options) do
+        if option.hides ~= nil and store.Get(option.key) == option.hides then hiding = hiding + 1 end
+    end
+    return FACTION_VALUES[FactionGet()] .. (hiding == 1 and ", 1 filter on" or (", %d filters on"):format(hiding))
+end
+
+local function MapSummary(store)
+    local panel, factions = store.Get("mapPanel"), store.Get("mapFactions")
+    if panel and factions then return "Dungeons and zones" end
+    if panel then return "In dungeons" end
+    if factions then return "In zones" end
+    return "Nothing beside the map"
+end
+
+local function QuestsSummary(store)
+    local ask, accept = store.Get("shareRequests"), store.Get("acceptShared")
+    if ask and accept then return "Asks and accepts shared quests" end
+    if ask then return "Asks for shared quests" end
+    if accept then return "Accepts shared quests" end
+    return "Off"
+end
+
+local function WindowSummary(store)
+    return ("%d%% opacity"):format(math.floor((store.Get("windowAlpha") or 1) * 100 + 0.5))
+end
+
+local page = Settings.Page("Dungeon Journal/Settings", S)
+
+page:Window({
+    text = "Open Dungeon Journal",
+    open = function() ns.OpenJournalWindow() end,
+    headline = Headline,
+    detail = Detail,
+})
+
+page:Card({
+    id = "lists", name = "What It Lists", order = 10,
+    help = "What the Journal lists on a boss. The same switches as the Filters icon on its title bar.",
+    summary = ListSummary,
+    rows = ListRows(),
+})
+
+page:Card({
+    id = "map", name = "Beside the World Map", order = 20,
+    help = "The Journal beside the world map (M): a dungeon's bosses and loot inside it, a zone's factions "
+        .. "outside.",
+    summary = MapSummary,
+    rows = {
+        { key = "mapPanel", label = "Bosses and Loot in Dungeons", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
+          help = "Inside a dungeon, opening the world map (M) shows its bosses and loot beside it." },
+        { key = "mapFactions", label = "Factions Beside the Map", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
+          help = "In a zone or a battleground, opening the world map (M) shows the factions earned there: your "
+              .. "standing, their rewards and the quests that raise them." },
+    },
+})
+
+page:Card({
+    id = "quests", name = "Quests", order = 30,
+    help = "Sharing dungeon quests with a group that runs Naowh Forever.",
+    summary = QuestsSummary,
+    rows = {
+        { key = "shareRequests", label = "Quest Share Requests", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
+          help = "Click the group icon on a dungeon quest you do not have: the members on it are asked one at a "
+              .. "time, and the first running Naowh Forever shares it. Off, you neither ask nor answer." },
+        { key = "acceptShared", label = "Accept Shared Dungeon Quests", toggle = true, needs = JournalOn,
+          why = JOURNAL_OFF,
+          help = "Accepts a dungeon quest a group member shares with you as soon as it opens. Hold the Skip "
+              .. "Modifier (QoL > Questing) to look at one first." },
+    },
+})
+
+page:Card({
+    id = "keys", name = "Key Bindings", order = 40,
+    help = "Keys for the Journal, also in the game's Key Bindings under Naowh Forever.",
+    rows = {
+        { label = "Boss Loot at Cursor", binding = "NAOWHFOREVER_BOSSLOOT",
+          help = "Hover a boss, or target one, and press this key: what it drops, at your cursor. Press it "
+              .. "again to close it." },
+        { label = "Open Dungeon Journal", binding = "NAOWHFOREVER_JOURNAL",
+          help = "Press this key to open the Dungeon Journal, and again to close it." },
+    },
+})
+
+page:Card({
+    id = "window", name = "Window", order = 50,
+    help = "The Journal's own window.",
+    summary = WindowSummary,
+    rows = {
+        { key = "windowAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
+          help = "How solid the Journal's window is, in percent. Also on its title bar." },
+    },
+})

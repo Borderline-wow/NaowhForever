@@ -76,3 +76,18 @@ hooksecurefunc("StaticPopup_Show", function(which)
     guard:SetFrameLevel(target:GetFrameLevel() + 5)
     guard:Show()
 end)
+
+local function Summary(store)
+    return ("Hold Release Spirit for %ss in dungeons and raids"):format(store.Get("deathReleaseHold"))
+end
+
+ns.Shared.Settings.Page("QoL/Combat", S):Card({
+    id = "deathRelease", name = "Death Release Protection", order = 20, switch = "deathRelease",
+    help = "Release Spirit has to be held down for a moment inside a dungeon or raid, so a stray "
+        .. "click never sends you on a corpse run while a battle res is coming.",
+    summary = Summary,
+    rows = {
+        { key = "deathReleaseHold", label = "Hold Time", slider = { 0.5, 3, 0.1 }, unit = "s",
+          help = "How long Release Spirit has to be held down." },
+    },
+})

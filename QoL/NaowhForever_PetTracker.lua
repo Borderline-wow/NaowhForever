@@ -27,7 +27,7 @@ local function Build()
     frame.icon:SetTexture(ICON)
     frame.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     frame.text = ns.Font(frame, 20, "OUTLINE")
-    frame.mover = UI.AttachMover(frame, "Pet Tracker", function(pos) S.Set("petTrackerPos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Pet Tracker")
+    frame.mover = UI.AttachMover(frame, "Pet Tracker", function(pos) S.Set("petTrackerPos", pos) end, "QoL/Combat", "QoL/Combat:petTracker")
     frame:Hide()
 end
 
@@ -196,3 +196,46 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+
+local function OwnColour() return not S.Get("petClassColor") end
+
+local function Summary(store)
+    local parts = "Missing"
+    if store.Get("petPassive") then parts = parts .. ", passive" end
+    if store.Get("petLowHealth") then parts = parts .. (", below %d%%"):format(store.Get("petLowHealthBelow")) end
+    return parts
+end
+
+ns.Shared.Settings.Page("QoL/Combat", S):Card({
+    id = "petTracker", name = "Pet Tracker", order = 100, switch = "petTracker",
+    help = "A warning while a hunter or warlock has no pet out. A warlock who sacrificed their "
+        .. "demon is left alone. Move it in Unlock Mode.",
+    summary = Summary,
+    rows = {
+        Group("Warnings"),
+        { key = "petPassive", label = "Warn While Passive", toggle = true,
+          help = "Also warns while your pet is set to passive." },
+        { key = "petLowHealth", label = "Warn on Low Pet Health", toggle = true,
+          help = "Also warns while your pet's health is under the threshold, in combat too." },
+        { key = "petLowHealthBelow", label = "Low Health Below", slider = { 5, 90, 1 }, unit = "%",
+          needs = "petLowHealth" },
+        Group("When"),
+        { key = "petCombatOnly", label = "Only In Combat", toggle = true },
+        { key = "petInstanceOnly", label = "Only In Dungeons & Raids", toggle = true },
+        { key = "petHideMounted", label = "Hide While Mounted", toggle = true,
+          help = "Also hidden for a few seconds after you dismount, while the pet comes back." },
+        Group("Text"),
+        { key = "petMissingText", label = "Missing Text", text = true, help = "Text while your pet is missing." },
+        { key = "petPassiveText", label = "Passive Text", text = true, needs = "petPassive",
+          help = "Text while your pet is passive." },
+        { key = "petLowHealthText", label = "Low Health Text", text = true, needs = "petLowHealth",
+          help = "Text while your pet is low on health." },
+        { key = "petShowIcon", label = "Show Icon", toggle = true },
+        { key = "petClassColor", label = "Class Colour", toggle = true },
+        { key = "petColor", label = "Colour", colour = true, needs = OwnColour, why = "Class colour is on" },
+        { key = "petFont", label = "Font", font = true },
+        { key = "petFontSize", label = "Font Size", slider = { 12, 48, 1 } },
+    },
+})

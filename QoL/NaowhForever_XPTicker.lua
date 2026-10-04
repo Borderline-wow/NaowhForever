@@ -4,6 +4,7 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
+local T = ns.THEME
 
 -- Naowh's scheme: his blue for the labels, the theme's near-white for the values.
 local DIM = "|cff9ca3af"
@@ -53,6 +54,50 @@ end
 
 local function Line(label, value)
     return ns.Color("accent", label .. ":") .. " " .. ns.Color("fg", value)
+end
+
+local Look = {}
+
+function Look.New(f)
+    f.text = ns.Font(f, 14, "OUTLINE")
+    f.text:SetPoint("TOPLEFT", 4, -4)
+    f.text:SetJustifyH("LEFT")
+    f.splits = ns.Font(f, 14, "OUTLINE")
+    f.splits:SetPoint("TOPLEFT", f.text, "BOTTOMLEFT", 0, -4)
+    f.splits:SetJustifyH("LEFT")
+end
+
+function Look.Fonts(f)
+    local font, size = ns.UI.FontPath(S.Get("xpTickerFont")), S.Get("xpTickerFontSize")
+    f.text:SetFont(font, size, "OUTLINE")
+    f.splits:SetFont(font, math.max(10, math.floor(size * 0.6)), "OUTLINE")
+end
+
+function Look.Text(rate, ding, elapsed, isPaused)
+    local lines = { Line("XP/hr", Short(rate)) .. (isPaused and "  " .. DIM .. "(paused)|r" or "") }
+    if S.Get("xpTickerLevel") then
+        lines[#lines + 1] = Line("Ding", ding and Duration(ding) or "--")
+    end
+    if S.Get("xpTickerElapsed") then
+        lines[#lines + 1] = Line("Time", Clock(elapsed))
+    end
+    return table.concat(lines, "\n")
+end
+
+function Look.History(keys, levels)
+    local lines = {}
+    for i = 1, math.min(#keys, S.Get("xpTickerHistoryCount") or 10) do
+        local level = keys[i]
+        lines[#lines + 1] = Line("Level " .. level, Clock(levels[level].total))
+    end
+    return table.concat(lines, "\n")
+end
+
+function Look.Fit(f)
+    local width = math.max(f.text:GetStringWidth(), f.splits:GetStringWidth(), 80)
+    local height = f.text:GetStringHeight()
+    if f.splits:GetText() ~= "" then height = height + 4 + f.splits:GetStringHeight() end
+    f:SetSize(width + 8, height + 8)
 end
 
 -------------------------------------------------------------------------------
@@ -108,12 +153,7 @@ local function SplitLines()
         end
     end
     table.sort(keys, function(a, b) return a > b end)
-    local lines = {}
-    for i = 1, math.min(#keys, S.Get("xpTickerHistoryCount") or 10) do
-        local level = keys[i]
-        lines[#lines + 1] = Line("Level " .. level, Clock(levels[level].total))
-    end
-    return table.concat(lines, "\n")
+    return Look.History(keys, levels)
 end
 
 -------------------------------------------------------------------------------
@@ -129,22 +169,13 @@ local function Update()
     local elapsed = now - sessionStart - pausedTotal - (paused and now - pausedAt or 0)
     -- At least a minute, so the first kill after login does not read as millions an hour.
     local rate = sessionXP / (math.max(elapsed, 60) / 3600)
-    local lines = { Line("XP/hr", Short(rate)) .. (paused and "  " .. DIM .. "(paused)|r" or "") }
-    if S.Get("xpTickerLevel") then
-        local left = UnitXPMax("player") - UnitXP("player")
-        lines[#lines + 1] = Line("Ding", rate > 0 and Duration(left / rate * 3600) or "--")
+    local ding
+    if rate > 0 and S.Get("xpTickerLevel") then
+        ding = (UnitXPMax("player") - UnitXP("player")) / rate * 3600
     end
-    if S.Get("xpTickerElapsed") then
-        lines[#lines + 1] = Line("Time", Clock(elapsed))
-    end
-
-    ticker.text:SetText(table.concat(lines, "\n"))
+    ticker.text:SetText(Look.Text(rate, ding, elapsed, paused))
     ticker.splits:SetText(S.Get("xpTickerSplits") and cur and SplitLines() or "")
-
-    local width = math.max(ticker.text:GetStringWidth(), ticker.splits:GetStringWidth(), 80)
-    local height = ticker.text:GetStringHeight()
-    if ticker.splits:GetText() ~= "" then height = height + 4 + ticker.splits:GetStringHeight() end
-    ticker:SetSize(width + 8, height + 8)
+    Look.Fit(ticker)
     ticker.controls.start:SetAlpha(paused and 1 or 0.4)
     ticker.controls.pause:SetAlpha(paused and 0.4 or 1)
     ticker:Show()
@@ -216,13 +247,9 @@ local function Apply()
         ticker = CreateFrame("Frame", "NaowhForeverXPTicker", UIParent)
         ticker:SetMovable(true)
         ticker:SetClampedToScreen(true)
-        ticker.text = ns.Font(ticker, 14, "OUTLINE")
-        ticker.text:SetPoint("TOPLEFT", 4, -4)
-        ticker.text:SetJustifyH("LEFT")
-        ticker.splits = ns.Font(ticker, 14, "OUTLINE")
-        ticker.splits:SetPoint("TOPLEFT", ticker.text, "BOTTOMLEFT", 0, -4)
-        ticker.splits:SetJustifyH("LEFT")
-        ticker.mover = ns.UI.AttachMover(ticker, "XP per Hour", function(pos) S.Set("xpTickerPos", pos) end, "QoL/XP", "QoL/XP:XP per Hour")
+        Look.New(ticker)
+        ticker.mover = ns.UI.AttachMover(ticker, "XP per Hour", function(pos) S.Set("xpTickerPos", pos) end,
+            "QoL/Leveling & Travel", "QoL/Leveling & Travel:xpTicker")
         -- Start, Pause and Reset under the ticker, shown while the mouse is over either.
         local controls = CreateFrame("Frame", nil, ticker)
         controls:SetSize(160, 20)
@@ -247,9 +274,7 @@ local function Apply()
         ticker:SetScript("OnLeave", HideSoon)
         sessionStart, sessionXP = GetTime(), 0
     end
-    local font, size = ns.UI.FontPath(S.Get("xpTickerFont")), S.Get("xpTickerFontSize")
-    ticker.text:SetFont(font, size, "OUTLINE")
-    ticker.splits:SetFont(font, math.max(10, math.floor(size * 0.6)), "OUTLINE")
+    Look.Fonts(ticker)
     Place()
     lastXP, lastXPMax = UnitXP("player"), UnitXPMax("player")
     events:RegisterEvent("PLAYER_XP_UPDATE")
@@ -287,3 +312,83 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+local STAGE_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN = 190, 10, 11, 16
+local SAMPLE_RATE, SAMPLE_DING, SAMPLE_TIME = 48200, 23 * 60, 72 * 60 + 40
+local SAMPLE_KEYS = { 22, 21, 20, 19, 18 }
+local SAMPLE_LEVELS = { [22] = { total = 3125 }, [21] = { total = 2864 }, [20] = { total = 2702 },
+    [19] = { total = 2391 }, [18] = { total = 2248 } }
+local STATES = {
+    { key = "levelling", label = "Levelling", tip = "Out in the world, earning experience." },
+    { key = "resting", label = "Resting", tip = "In a city or an inn, where Hide While Resting hides it.",
+      needs = "xpTickerHideResting" },
+}
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.ticker = CreateFrame("Frame", nil, preview)
+    Look.New(preview.ticker)
+    preview.note = ns.Font(preview, NOTE_SIZE, nil, T.muted)
+    preview.note:SetPoint("BOTTOM", 0, NOTE_Y)
+    return preview
+end
+
+local function Fit(preview)
+    local f = preview.ticker
+    local w, h = f:GetWidth(), f:GetHeight()
+    local roomW = preview:GetWidth() - STAGE_MARGIN * 2
+    local roomH = preview:GetHeight() - STAGE_MARGIN * 2 - NOTE_Y * 2
+    local scale = 1
+    if roomW > 0 and w > roomW then scale = roomW / w end
+    if roomH > 0 and h > 0 and h * scale > roomH then scale = roomH / h end
+    f:SetScale(scale)
+    f:ClearAllPoints()
+    f:SetPoint("CENTER", preview, "CENTER", 0, NOTE_Y / scale)
+end
+
+local function PaintPreview(preview, state)
+    local f = preview.ticker
+    Look.Fonts(f)
+    f.text:SetText(Look.Text(SAMPLE_RATE, SAMPLE_DING, SAMPLE_TIME, false))
+    f.splits:SetText(S.Get("xpTickerSplits") and Look.History(SAMPLE_KEYS, SAMPLE_LEVELS) or "")
+    Look.Fit(f)
+    Fit(preview)
+    local hidden = state == "resting" and S.Get("xpTickerHideResting")
+    f:SetShown(not hidden)
+    preview.note:SetText(hidden and "Hide While Resting is on: hidden in cities and inns." or "")
+end
+
+local function Summary(store)
+    if store.Get("xpTickerSplits") then
+        return ("Rate, time to level and the last %d levels"):format(store.Get("xpTickerHistoryCount"))
+    end
+    return "Rate and time to level"
+end
+
+ns.Shared.Settings.Page("QoL/Leveling & Travel", S):Card({
+    id = "xpTicker", name = "XP per Hour", order = 20, switch = "xpTicker",
+    help = "Your experience per hour on screen, with time to level, session length and recent level "
+        .. "times. Hidden at max level. Hover it for Start, Pause and Reset (also /naowh xp start, pause "
+        .. "or reset). Move it in Unlock Mode.",
+    summary = Summary,
+    studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        Group("Shown"),
+        { key = "xpTickerLevel", label = "Show Ding Time", toggle = true,
+          help = "How long the next level takes at your current rate." },
+        { key = "xpTickerElapsed", label = "Show Time", toggle = true, help = "How long this session has run." },
+        { key = "xpTickerHideResting", label = "Hide While Resting", toggle = true, help = "Hidden in cities and inns." },
+        Group("Level History"),
+        { key = "xpTickerSplits", label = "Level History", toggle = true,
+          help = "Completed levels, newest first. No placeholder rows." },
+        { key = "xpTickerHistoryCount", label = "Levels Shown", slider = { 1, 10, 1 }, needs = "xpTickerSplits",
+          help = "The most recent completed levels." },
+        Group("Text"),
+        { key = "xpTickerFont", label = "Font", font = true },
+        { key = "xpTickerFontSize", label = "Font Size", slider = { 8, 32, 1 } },
+        { label = "Reset XP per Hour", buttonText = "Reset", button = ns.ResetXPTicker,
+          help = "Starts the session again: its time, XP and rate. The XP Bar's XP/Hour starts again with it." },
+    },
+})

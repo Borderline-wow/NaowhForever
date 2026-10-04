@@ -23,6 +23,23 @@ local CLICKS = { { "1", "Left-click" }, { "2", "Right-click" }, { "3", "Middle-c
 
 local button, unlocked, pending
 
+local Look = {}
+
+function Look.New(frame)
+    frame.icon = frame:CreateTexture(nil, "ARTWORK")
+    frame.icon:SetAllPoints()
+    frame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    ns.Border(frame, { r = 0, g = 0, b = 0 })
+    frame.label = ns.Font(frame, 13, "OUTLINE", T.accentSoft)
+    frame.label:SetPoint("TOP", frame, "BOTTOM", 0, -4)
+end
+
+function Look.Fill(frame, size, texture, text)
+    frame:SetSize(size, size)
+    frame.icon:SetTexture(texture)
+    frame.label:SetText(text)
+end
+
 local function On()
     return S.Get("enabled") and S.Get("gatherReminder")
 end
@@ -65,16 +82,10 @@ local function Build()
     button:RegisterForClicks("AnyUp", "AnyDown")
     button:SetAttribute("useOnKeyDown", false)
 
-    button.icon = button:CreateTexture(nil, "ARTWORK")
-    button.icon:SetAllPoints()
-    button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    ns.Border(button, { r = 0, g = 0, b = 0 })
+    Look.New(button)
     button.highlight = button:CreateTexture(nil, "HIGHLIGHT")
     button.highlight:SetAllPoints()
     button.highlight:SetColorTexture(1, 1, 1, 0.15)
-
-    button.label = ns.Font(button, 13, "OUTLINE", T.accentSoft)
-    button.label:SetPoint("TOP", button, "BOTTOM", 0, -4)
 
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
@@ -87,7 +98,7 @@ local function Build()
     end)
     button:SetScript("OnLeave", GameTooltip_Hide)
 
-    button.mover = UI.AttachMover(button, "Tracking", function(pos) S.Set("gatherPos", pos) end, "Professions/Window")
+    button.mover = UI.AttachMover(button, "Tracking", function(pos) S.Set("gatherPos", pos) end, "Professions/Settings", "Professions/Settings:gather")
     button:Hide()
 end
 
@@ -109,12 +120,12 @@ local function Arm(known)
         button:SetAttribute("spell" .. click[1], t and t.spell or nil)
     end
     local shown = known[1] or TRACKINGS[1]
-    button.icon:SetTexture(C_Spell.GetSpellTexture(shown.spell))
     local labels = {}
     for _, t in ipairs(#known > 0 and known or { TRACKINGS[1], TRACKINGS[2] }) do
         labels[#labels + 1] = t.label
     end
-    button.label:SetText("Track " .. table.concat(labels, " / "))
+    Look.Fill(button, S.Get("gatherIconSize"), C_Spell.GetSpellTexture(shown.spell),
+        "Track " .. table.concat(labels, " / "))
 end
 
 local function Update(event)
@@ -188,3 +199,48 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local GATHER_OFF = "Turn on Professions"
+local PREVIEW_LIFT = 8
+local PREVIEW_STATES = {
+    { key = "untracked", label = "Not Tracking", tip = "What shows while you know a find but track none." },
+}
+
+local function ModuleOn() return S.Get("enabled") == true end
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetPoint("CENTER", 0, PREVIEW_LIFT)
+    Look.New(preview)
+    return preview
+end
+
+local function PaintPreview(preview)
+    Look.Fill(preview, S.Get("gatherIconSize"), C_Spell.GetSpellTexture(FIND_HERBS), "Track Herbs / Minerals")
+end
+
+local function GatherSummary(store)
+    return ("%d px icon%s"):format(store.Get("gatherIconSize"),
+        store.Get("gatherInInstances") and ", in instances too" or "")
+end
+
+Settings.Page("Professions/Settings", S):Card({
+    id = "gather", name = "Tracking Reminder", order = 50, switch = "gatherReminder",
+    help = "Shows an icon on screen while you know Find Herbs, Find Minerals or Find Fish but are tracking none "
+        .. "of them. Click it to start tracking: left-click for the first, right-click for the second, "
+        .. "middle-click for the third. Hover it to see which is which. Hidden in combat. Move it in Unlock Mode.",
+    summary = GatherSummary,
+    studio = { height = 130, states = PREVIEW_STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        { key = "gatherIconSize", label = "Icon Size", slider = { 24, 80, 1 }, needs = ModuleOn, why = GATHER_OFF,
+          help = "How big the reminder icon is." },
+        { key = "gatherInInstances", label = "Show in Dungeons and Raids", toggle = true, needs = ModuleOn,
+          why = GATHER_OFF, help = "Also reminds you inside instances. Off by default: few have herbs or ore." },
+        { key = "gatherFish", label = "Include Find Fish", toggle = true, needs = ModuleOn, why = GATHER_OFF,
+          help = "Counts Find Fish as a tracking to remind you of, once you have learned it. Turn off if you only "
+              .. "track fish now and then." },
+    },
+})

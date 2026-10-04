@@ -78,7 +78,7 @@ local function Build()
     frame.bg:SetAllPoints()
     frame.text = ns.Font(frame, 32, "OUTLINE")
     frame.text:SetPoint("CENTER")
-    frame.mover = UI.AttachMover(frame, "Combat Timer", function(pos) S.Set("combatTimerPos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Combat Timer")
+    frame.mover = UI.AttachMover(frame, "Combat Timer", function(pos) S.Set("combatTimerPos", pos) end, "QoL/Combat", "QoL/Combat:combatTimer")
     frame:Hide()
 end
 
@@ -132,3 +132,36 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+
+local function OwnColour() return not S.Get("combatTimerClassColor") end
+
+local function Summary(store)
+    local parts = store.Get("combatTimerInstanceOnly") and "In instances" or "Everywhere"
+    if store.Get("combatTimerChat") then parts = parts .. ", reported to chat" end
+    if store.Get("combatTimerSticky") then parts = parts .. ", kept after the fight" end
+    return parts
+end
+
+ns.Shared.Settings.Page("QoL/Combat", S):Card({
+    id = "combatTimer", name = "Combat Timer", order = 90, switch = "combatTimer",
+    help = "How long the current fight has run, on screen while you fight. Move it in Unlock Mode.",
+    summary = Summary,
+    rows = {
+        Group("When"),
+        { key = "combatTimerInstanceOnly", label = "Only In Instances", toggle = true },
+        { key = "combatTimerChat", label = "Report to Chat", toggle = true,
+          help = "How long the fight lasted, in chat when it ends." },
+        { key = "combatTimerSticky", label = "Keep After the Fight", toggle = true,
+          help = "The last fight's time stays on screen until the next one starts." },
+        Group("Look"),
+        { key = "combatTimerHidePrefix", label = "Hide the COMBAT Label", toggle = true },
+        { key = "combatTimerBackground", label = "Show Background", toggle = true },
+        { key = "combatTimerClassColor", label = "Class Colour", toggle = true },
+        { key = "combatTimerColor", label = "Timer Colour", colour = true, needs = OwnColour,
+          why = "Class colour is on" },
+        { key = "combatTimerFont", label = "Font", font = true },
+        { key = "combatTimerFontSize", label = "Font Size", slider = { 10, 72, 1 } },
+    },
+})

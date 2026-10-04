@@ -230,3 +230,34 @@ hooksecurefunc(ns, "Apply", Apply)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local function CaptureClicked()
+    local count = ns.CaptureEnchants()
+    ns.Print(("Captured %d enchant%s from your gear. The enchant check expects these from now on.")
+        :format(count, count == 1 and "" or "s"))
+end
+
+local function ShowClicked()
+    ns.ShowEquipmentReminder()
+end
+
+ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
+    id = "equipReminder", name = "Equipment Reminder", order = 90, switch = "equipReminder",
+    help = "Your trinkets, weapons and ranged slot in a small window when you enter a dungeon "
+        .. "or raid, or on a ready check, so a wrong trinket gets noticed before the pull. "
+        .. "Drag the window to move it.",
+    rows = {
+        { key = "equipEnchants", label = "Enchant Check", toggle = true,
+          help = "Adds a line that flags any slot whose enchant is missing or differs from the ones "
+              .. "you captured with Capture Current Enchants. Hover it for the details." },
+        { key = "equipOnInstance", label = "Show Entering Dungeons & Raids", toggle = true },
+        { key = "equipOnReadyCheck", label = "Show on Ready Check", toggle = true },
+        { key = "equipAutoHide", label = "Hide After", slider = { 0, 60, 1 }, unit = "s",
+          help = "0 keeps it up until you close it." },
+        { key = "equipIconSize", label = "Icon Size", slider = { 24, 64, 1 } },
+        { label = "Capture Current Enchants", button = CaptureClicked, buttonText = "Capture", always = true,
+          help = "Saves the enchants on your gear now as the ones the Enchant Check expects." },
+        { label = "Show Equipment Check", button = ShowClicked, buttonText = "Show", always = true,
+          help = "Opens the window now, out of combat." },
+    },
+})

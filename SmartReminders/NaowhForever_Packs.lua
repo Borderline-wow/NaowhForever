@@ -211,6 +211,7 @@ local function ValidData(data)
             end
         end
     end
+    if data.modules ~= nil and type(data.modules) ~= "table" then return false end
     if data.settings ~= nil then
         if type(data.settings) ~= "table" then return false end
         if data.settings.pos and not Fields(data.settings.pos,
@@ -309,6 +310,8 @@ function ns.ExportPack(packName, author, allowImported)
             author = tostring(db.importedPack.author) }
     end
     local data, any = DataFromProfile(db)
+    data.modules = ns.ExportModuleSettings and ns.ExportModuleSettings(ns.SettingsRoot())
+    if data.modules then any = true end
     if not any then return nil, "There is nothing to export yet." end
 
     local payload = {
@@ -647,6 +650,9 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
                 if wantSettings and type(data.settings) == "table" then
                     ApplySettings(tr, data.settings)
                 end
+                if wantSettings and ns.ImportModuleSettings then
+                    ns.ImportModuleSettings(ns.ProfileRoot(name), data.modules)
+                end
                 tr.importedPack = {
                     name = tostring(payload.name or "a pack"),
                     author = tostring(payload.author or "its curator"),
@@ -758,6 +764,9 @@ function ns.MergeProfileFromPack(payload, sourceName, targetName, opts)
         end
     end
     if opts.settings and type(data.settings) == "table" then ApplySettings(tr, data.settings) end
+    if opts.settings and ns.ImportModuleSettings then
+        ns.ImportModuleSettings(ns.ProfileRoot(targetName), data.modules)
+    end
     ns.RefreshRuntime()
     return true, specs, entries
 end
@@ -803,6 +812,9 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName, ov
 
     if wantSettings and type(payload.data.settings) == "table" then
         ApplySettings(tr, payload.data.settings)
+    end
+    if wantSettings and ns.ImportModuleSettings then
+        ns.ImportModuleSettings(ns.ProfileRoot(name), payload.data.modules)
     end
     if type(payload.data.leadTime) == "number" then tr.leadTime = payload.data.leadTime end
     if type(payload.data.voiceNone) == "string" and payload.data.voiceNone ~= "" then

@@ -62,7 +62,7 @@ local function Build()
     end)
     Style(bar.disband, "Disband", "Removes everyone from your group. Group leader only, out of combat.")
     bar.mover = UI.AttachMover(bar, "Group Buttons", function(pos) S.Set("groupButtonsPos", pos) end,
-        "QoL/Questing")
+        "QoL/Questing & Group", "QoL/Questing & Group:groupButtons")
 end
 
 -- The Invite button is secure, so the bar is built, shown, hidden and laid out out of combat.
@@ -120,3 +120,35 @@ boot:SetScript("OnEvent", function(self)
     self:UnregisterAllEvents()
     Apply()
 end)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local LAYOUT = { { stacked = "Stacked", row = "Side by Side" }, { "stacked", "row" } }
+
+local function Disband()
+    ns.DisbandGroup()
+end
+
+local function Invite()
+    ns.PromptText("Invite which player?", "", 0, function(name) C_PartyInfo.InviteUnit(name) end)
+end
+
+local function LayoutSummary(store)
+    return store.Get("groupButtonsLayout") == "row" and "Side by side" or "Invite over Disband"
+end
+
+Settings.Page("QoL/Questing & Group", S):Card({
+    id = "groupButtons", name = "On-Screen Buttons", order = 20, switch = "groupButtons",
+    help = "Invite and Disband as buttons on your screen, to click without opening /nf. Invite "
+        .. "invites your target and works in combat; Disband works out of combat. Move them "
+        .. "in Unlock Mode.",
+    summary = LayoutSummary,
+    rows = {
+        { key = "groupButtonsLayout", label = "Button Layout", choice = LAYOUT,
+          help = "Invite over Disband, or side by side." },
+        { label = "Disband Group", button = Disband, buttonText = "Disband", always = true,
+          help = "Removes everyone from your group. Group leader only." },
+        { label = "Invite Player", button = Invite, buttonText = "Invite", always = true,
+          help = "Type a name and invite them. Handy when you play with the same people." },
+    },
+})

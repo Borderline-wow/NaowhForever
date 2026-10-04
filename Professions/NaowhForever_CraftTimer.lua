@@ -66,14 +66,15 @@ local function RestoreCastBars()
     wipe(hidden)
 end
 
+local Look = {}
+
 -- The Flight Timer's layout: an invisible box with the track through its middle, a dot at
 -- each end with a label over it, the time left of the track and the icon right of it.
-local function Build()
-    bar = CreateFrame("Frame", "NaowhForeverCraftTimer", UIParent)
-    bar:SetSize(WIDTH, HEIGHT)
-    bar:SetFrameStrata("MEDIUM")
+function Look.New(parent, name)
+    local frame = CreateFrame("Frame", name, parent)
+    frame:SetSize(WIDTH, HEIGHT)
 
-    local track = CreateFrame("StatusBar", nil, bar)
+    local track = CreateFrame("StatusBar", nil, frame)
     track:SetPoint("LEFT")
     track:SetPoint("RIGHT")
     track:SetHeight(TRACK_H)
@@ -82,40 +83,56 @@ local function Build()
     track:SetMinMaxValues(0, 1)
     ns.Solid(track, "BACKGROUND", T.bg, 0.9):SetAllPoints()
     ns.Border(track, { r = 0, g = 0, b = 0 })
-    bar.track = track
+    frame.track = track
 
     -- A label over each end of the track, above its border.
-    local over = CreateFrame("Frame", nil, bar)
+    local over = CreateFrame("Frame", nil, frame)
     over:SetAllPoints()
     over:SetFrameLevel(track:GetFrameLevel() + 3)
-    bar.labels = {}
+    frame.labels = {}
     for i, side in ipairs({ "LEFT", "RIGHT" }) do
         local label = ns.Font(over, NAME_SIZE, "OUTLINE")
         label:SetWordWrap(false)
         label:SetPoint("BOTTOM" .. side, track, "TOP" .. side, 0, 4)
         label:SetWidth(WIDTH * 0.47)
         label:SetJustifyH(side)
-        bar.labels[i] = label
+        frame.labels[i] = label
     end
 
-    bar.time = ns.Font(bar, 18, "OUTLINE", T.accentSoft)
-    bar.time:SetPoint("RIGHT", bar, "LEFT", -SIDE_GAP, 0)
+    frame.time = ns.Font(frame, 18, "OUTLINE", T.accentSoft)
+    frame.time:SetPoint("RIGHT", frame, "LEFT", -SIDE_GAP, 0)
 
     -- The recipe's icon where the Flight Timer has its Land Early button.
-    local icon = CreateFrame("Frame", nil, bar)
+    local icon = CreateFrame("Frame", nil, frame)
     icon:SetSize(ICON, ICON)
-    icon:SetPoint("LEFT", bar, "RIGHT", SIDE_GAP, 0)
+    icon:SetPoint("LEFT", frame, "RIGHT", SIDE_GAP, 0)
     ns.Border(icon, { r = 0, g = 0, b = 0 })
-    bar.icon = icon:CreateTexture(nil, "ARTWORK")
-    bar.icon:SetAllPoints()
-    bar.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    frame.icon = icon:CreateTexture(nil, "ARTWORK")
+    frame.icon:SetAllPoints()
+    frame.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    return frame
+end
 
+-- The recipe over the left end, how many of the batch are done over the right.
+function Look.Fill(frame, icon, name, done, count)
+    frame.icon:SetTexture(icon)
+    frame.labels[1]:SetText(name or "")
+    frame.labels[2]:SetText(("%d / %d crafted"):format(done, count))
+end
+
+function Look.Progress(frame, share, left)
+    frame.track:SetValue(math.min(share, 1))
+    frame.time:SetText(Clock(left))
+end
+
+local function Build()
+    bar = Look.New(UIParent, "NaowhForeverCraftTimer")
+    bar:SetFrameStrata("MEDIUM")
     bar:SetScript("OnUpdate", function(self)
         if not job then return self:Hide() end
         HideCastBars()
         local elapsed = GetTime() - job.start
-        self.track:SetValue(math.min(elapsed / job.known, 1))
-        self.time:SetText(Clock(job.known - elapsed))
+        Look.Progress(self, elapsed / job.known, job.known - elapsed)
     end)
     bar:Hide()
 end
@@ -132,13 +149,10 @@ local function Place()
     end
 end
 
--- The recipe over the left end, how many of the batch are done over the right.
 local function Show()
     if not bar then Build() end
     Place()
-    bar.icon:SetTexture(job.icon)
-    bar.labels[1]:SetText(job.name or "")
-    bar.labels[2]:SetText(("%d / %d crafted"):format(job.done, job.count))
+    Look.Fill(bar, job.icon, job.name, job.done, job.count)
     HideCastBars()
     bar:Show()
 end
@@ -307,3 +321,33 @@ hooksecurefunc(ns, "Apply", Apply)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local SAMPLE_ICON = "Interface\\Icons\\INV_Ingot_02"
+local SAMPLE_NAME, SAMPLE_DONE, SAMPLE_COUNT = "Smelt Copper", 4, 10
+local SAMPLE_SHARE, SAMPLE_LEFT = 0.4, 15
+local PREVIEW_STATES = {
+    { key = "crafting", label = "Crafting", tip = "A batch of ten, four done, as it shows while you craft." },
+}
+
+local function NewPreview(stage)
+    local preview = Look.New(stage)
+    preview:SetPoint("CENTER")
+    return preview
+end
+
+local function PaintPreview(preview)
+    Look.Fill(preview, SAMPLE_ICON, SAMPLE_NAME, SAMPLE_DONE, SAMPLE_COUNT)
+    Look.Progress(preview, SAMPLE_SHARE, SAMPLE_LEFT)
+end
+
+Settings.Page("Professions/Settings", S):Card({
+    id = "craftTimer", name = "Total Craft Timer", order = 30, switch = "craftTimer",
+    help = "Crafting several at once (Create All, or Create with a count) shows one bar for the whole batch, "
+        .. "drawn like the Flight Timer: the recipe, how many are done and the time left on all of them, in place "
+        .. "of the cast bar that fills for every craft. It sits where the Flight Timer is, as nobody crafts in "
+        .. "flight: move it in Unlock Mode as the Flight Timer.",
+    studio = { height = 100, states = PREVIEW_STATES, new = NewPreview, paint = PaintPreview },
+})

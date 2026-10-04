@@ -29,6 +29,7 @@ local METHODS = {
     Hide = function(f) f.shown = false end,
     SetShown = function(f, shown) f.shown = shown and true or false end,
     IsShown = function(f) return rawget(f, "shown") ~= false end,
+    IsVisible = function(f) return rawget(f, "shown") ~= false end,
     SetAlpha = function(f, alpha) f.alpha = alpha end,
     SetDesaturated = function(f, on) f.desaturated = on end,
     SetWidth = function(f, w) f.w = w end,
@@ -402,11 +403,11 @@ check("each worth a bar, by the square root of its share of the heaviest", rows[
     and rows[1].bar.w == 16 and rows[2].bar.w == 11 and rows[1].bar.shown ~= false)
 check("Stamina and Armor shown whatever your spec weighs them, without a bar", rows[4].bar.shown == false
     and rows[5].track.shown == false and rows[5].total.text == "250")
-local openedPage
-ns.OpenOptionsWindow = function(page) openedPage = page end
+local weightsOpened
+ns.OpenStatWeightsWindow = function() weightsOpened = true end
 spec.weights.scripts.OnClick(spec.weights)
 check("on the title's line, the scales: a click to the stat weights, to change them",
-    spec.weights.tip == "Stat Weights" and openedPage == "BiS List/Stat Weights")
+    spec.weights.tip == "Stat Weights" and weightsOpened)
 check("not what it does not weigh", rows[6].shown == false)
 -- 300 tall, less the title and headings (48) and the bottom gap (4): 5 rows would get 49 each,
 -- held to the roomy 30.

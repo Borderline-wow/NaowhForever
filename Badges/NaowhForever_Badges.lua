@@ -827,3 +827,37 @@ ns._BadgesTest = { DecorateName = DecorateName, ListBadges = listBadges, OnLinkE
     BuildRoster = BuildRoster, BadgeCode = BadgeCode,
     Card = function() return card end, Toast = function() return toast end,
     QueueSize = function() return queueTail - queueHead + 1 end, GroupEvents = groupEvents }
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local BADGE_KEYS = { "badgeChat", "badgeCard", "badgeTooltip", "badgeBanner", "badgeBannerSkipGuild" }
+
+local function BadgesSummary(store)
+    local on = 0
+    for i = 1, #BADGE_KEYS do
+        if store.Get(BADGE_KEYS[i]) then on = on + 1 end
+    end
+    return ("%d of %d on"):format(on, #BADGE_KEYS)
+end
+
+Settings.Page("QoL/Interface", S):Card({
+    id = "supporterBadges", name = "Supporter Badges", order = 30,
+    help = "Shows who Naowh, the developers, the moderators and our Legendary patrons are: a badge "
+        .. "by their name in chat, a line on their tooltip and, if you want it, a banner when one "
+        .. "of them joins your group.",
+    summary = BadgesSummary,
+    rows = {
+        { key = "badgeChat", label = "Chat Badges", toggle = true,
+          help = "The Naowh Forever N next to the name of Naowh, the developers, the moderators and "
+              .. "our Legendary patrons in chat." },
+        { key = "badgeCard", label = "Hover Card", toggle = true, needs = "badgeChat",
+          help = "Hover a badged name in chat to see their card." },
+        { key = "badgeTooltip", label = "Tooltip Line", toggle = true,
+          help = "A line in their colour on their player tooltip." },
+        { key = "badgeBanner", label = "Group Banner", toggle = true,
+          help = "A banner and a sound when one of them joins your group." },
+        { key = "badgeBannerSkipGuild", label = "No Banner For Guild Members", toggle = true,
+          needs = "badgeBanner", help = "Skips the banner when they're in your guild." },
+    },
+})

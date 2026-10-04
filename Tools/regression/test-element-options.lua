@@ -1,7 +1,5 @@
 -- Run with Lua 5.1 from the repository root: Unlock Mode's Element Options. Every mover names
 -- the options page that sets it up, that page is one the options window has, and a section
--- it opens is one that page (or a section it draws) declares with W:Feature. A wrong name
--- would open the wrong page, or none, with no error to say so.
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 
 local function Read(path)
@@ -40,10 +38,12 @@ do
     Check(list, "MODULES found")
     local module
     for line in list:gmatch("[^\n]+") do
-        local name = line:match('^%s*{ name = "([^"]+)",')
-        if name and not line:find("build =", 1, true) then module = name end
+        local name = line:match('^    { name = "([^"]+)",')
+        if name then module = name end
         local tab, build = line:match('{ name = "([^"]+)", build = "([^"]+)"')
         if tab and module then pages[module .. "/" .. tab] = build end
+        local declared = not line:find("build =", 1, true) and line:match('^%s*{ name = "([^"]+)"%s*[,}]')
+        if declared and module then pages[module .. "/" .. declared] = false end
     end
 end
 
@@ -55,6 +55,15 @@ for _, path in ipairs(TocFiles()) do
         sources[path] = s
         for name, body in s:gmatch("\nfunction ns%.(Build[%w_]+)%(.-\n(.-)\nend\n") do bodies[name] = body end
     end
+end
+
+local function DeclaresCard(page, id)
+    for _, s in pairs(sources) do
+        if s:find('Settings.Page("' .. page .. '"', 1, true) and s:find('id = "' .. id .. '"', 1, true) then
+            return true
+        end
+    end
+    return false
 end
 
 -- Whether a page's builder, or a section builder it calls, declares the feature.
@@ -98,8 +107,12 @@ for path, s in pairs(sources) do
                 Check(pages[page] ~= nil, "its page is in the options window: " .. tostring(page) .. " (" .. where .. ")")
                 if feature then
                     Check(feature:sub(1, #page + 1) == page .. ":", "its section is on its page: " .. feature)
-                    Check(Declares(pages[page], feature:sub(#page + 2), 1),
-                        "the page declares the section: " .. feature)
+                    local id = feature:sub(#page + 2)
+                    if pages[page] == false then
+                        Check(DeclaresCard(page, id), "a card on the declared page: " .. feature)
+                    else
+                        Check(Declares(pages[page], id, 1), "the page declares the section: " .. feature)
+                    end
                 end
             end
         end

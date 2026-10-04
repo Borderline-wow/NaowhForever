@@ -207,3 +207,45 @@ function ns.TownAudit()
     ns.Print(("Town audit %s. %d NPCs recorded so far."):format(auditing and "on: open an "
         .. "NPC's window while standing next to them" or "off", count))
 end
+
+local Group = ns.Shared.Settings.Group
+local TOWN_SHOW = { "townSpiritHealers", "townZoneLinks", "townClass", "townProfession", "townFlight",
+    "townInn", "townBank", "townRepair", "townSupplies", "townStable", "townVendors", "townMail" }
+
+local function TownSummary(store)
+    local shown = 0
+    for i = 1, #TOWN_SHOW do
+        if store.Get(TOWN_SHOW[i]) then shown = shown + 1 end
+    end
+    return ("%d of %d shown%s"):format(shown, #TOWN_SHOW,
+        store.Get("townCapitalsOnly") and ", town pins in capitals only" or "")
+end
+
+ns.Shared.Settings.Page("QoL/Interface", S):Card({
+    id = "townMap", name = "Town Map Pins", order = 40, switch = "townMap",
+    help = "Trainers, vendors, innkeepers, flight masters and more pinned on the world map for "
+        .. "your faction, with their name and title on hover. No more asking a guard.",
+    summary = TownSummary,
+    rows = {
+        { key = "townPinSize", label = "Pin Size", slider = { 10, 28, 1 } },
+        { key = "townCapitalsOnly", label = "Town Pins Only in Capitals", toggle = true,
+          help = "Keeps vendors and trainers off questing maps." },
+        Group("Show"),
+        { key = "townSpiritHealers", label = "Spirit Healers", toggle = true,
+          help = "Shows graveyards supplied by the game map." },
+        { key = "townZoneLinks", label = "Clickable Zone Exits", toggle = true,
+          help = "Click an exit to open the adjoining zone map." },
+        { key = "townClass", label = "Class Trainers", toggle = true, help = "Your class's trainers only." },
+        { key = "townProfession", label = "Profession Trainers", toggle = true },
+        { key = "townFlight", label = "Flight Masters", toggle = true },
+        { key = "townInn", label = "Innkeepers", toggle = true },
+        { key = "townBank", label = "Bank & Auction House", toggle = true },
+        { key = "townRepair", label = "Repairs", toggle = true },
+        { key = "townSupplies", label = "Reagents, Ammo & Food", toggle = true },
+        { key = "townStable", label = "Stable Masters", toggle = true },
+        { key = "townVendors", label = "Other Vendors", toggle = true,
+          help = "Trade goods and every other merchant." },
+        { key = "townMail", label = "Mailboxes", toggle = true,
+          help = "Every mailbox, in towns and out in the world." },
+    },
+})

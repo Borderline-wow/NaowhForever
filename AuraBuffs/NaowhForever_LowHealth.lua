@@ -22,6 +22,28 @@ local POTIONS = { 13446, 3928, 1710, 929, 858, 118 }
 ns.HEALTHSTONES, ns.HEALING_POTIONS = HEALTHSTONES, POTIONS
 local FALLBACK_ICON = 134830    -- Healing Potion
 
+local Look = {}
+
+function Look.New(frame)
+    frame.icon = frame:CreateTexture(nil, "ARTWORK")
+    frame.icon:SetAllPoints()
+    frame.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    ns.Border(frame, { r = 0, g = 0, b = 0 })
+
+    frame.count = ns.Font(frame, 14, "OUTLINE")
+    frame.count:SetPoint("BOTTOMRIGHT", -2, 2)
+
+    frame.label = ns.Font(frame, 16, "OUTLINE", { r = 1, g = 0.25, b = 0.25 })
+    frame.label:SetPoint("TOP", frame, "BOTTOM", 0, -4)
+    frame.label:SetText("LOW HEALTH")
+end
+
+function Look.Item(frame, id, count)
+    frame.count:SetText(count > 1 and count or "")
+    frame.icon:SetTexture(id and C_Item.GetItemIconByID(id) or FALLBACK_ICON)
+    frame.icon:SetDesaturated(id == nil)
+end
+
 local frame, curve, unlocked
 local shownItem, wasLow, glowing
 
@@ -45,11 +67,12 @@ end
 local function UpdateItem()
     local id = PickItem()
     local count = id and C_Item.GetItemCount(id) or 0
-    frame.count:SetText(count > 1 and count or "")
-    if id == shownItem and frame.itemShown then return end
+    if id == shownItem and frame.itemShown then
+        frame.count:SetText(count > 1 and count or "")
+        return
+    end
     shownItem, frame.itemShown = id, true
-    frame.icon:SetTexture(id and C_Item.GetItemIconByID(id) or FALLBACK_ICON)
-    frame.icon:SetDesaturated(id == nil)
+    Look.Item(frame, id, count)
 end
 
 local function SetGlow(on)
@@ -114,19 +137,10 @@ local function Build()
     frame:SetClampedToScreen(true)
     frame:SetAlpha(0)
 
-    frame.icon = frame:CreateTexture(nil, "ARTWORK")
-    frame.icon:SetAllPoints()
-    frame.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    ns.Border(frame, { r = 0, g = 0, b = 0 })
+    Look.New(frame)
 
-    frame.count = ns.Font(frame, 14, "OUTLINE")
-    frame.count:SetPoint("BOTTOMRIGHT", -2, 2)
-
-    frame.label = ns.Font(frame, 16, "OUTLINE", { r = 1, g = 0.25, b = 0.25 })
-    frame.label:SetPoint("TOP", frame, "BOTTOM", 0, -4)
-    frame.label:SetText("LOW HEALTH")
-
-    frame.mover = ns.UI.AttachMover(frame, "Low Health", function(pos) S.Set("lowHealthPos", pos) end, "AuraBuffs/Low Health")
+    frame.mover = ns.UI.AttachMover(frame, "Low Health", function(pos) S.Set("lowHealthPos", pos) end,
+        "AuraBuffs/Settings", "AuraBuffs/Settings:lowHealth")
 end
 
 local function Place()
@@ -191,3 +205,78 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local T = ns.THEME
+
+local OFF = "Turn on AuraBuffs"
+local STAGE_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN, LABEL_ROOM = 150, 10, 11, 16, 24
+local GLOW_RGB = { r = 1, g = 0.25, b = 0.25 }
+local GLOW_OUT = 2
+local SAMPLE_POTIONS = 3
+local ITEMS = { { auto = "Best in Bags", stone = "Healthstone", potion = "Healing Potion" },
+    { "auto", "stone", "potion" } }
+local STATES = {
+    { key = "low", label = "Low Health", tip = "Your health under the threshold, with a healing item in your bags." },
+    { key = "none", label = "None in Bags", tip = "Your health under the threshold, with nothing to drink or eat." },
+}
+
+local function Enabled() return S.Get("enabled") and true or false end
+local function SoundOn() return S.Get("enabled") and S.Get("lowHealthSound") and true or false end
+
+local function NewPreview(stage)
+    local shot = CreateFrame("Frame", nil, stage)
+    shot:SetAllPoints()
+    shot.icon = CreateFrame("Frame", nil, shot)
+    Look.New(shot.icon)
+    shot.glow = CreateFrame("Frame", nil, shot.icon)
+    shot.glow:SetPoint("TOPLEFT", -GLOW_OUT, GLOW_OUT)
+    shot.glow:SetPoint("BOTTOMRIGHT", GLOW_OUT, -GLOW_OUT)
+    ns.Border(shot.glow, GLOW_RGB)
+    shot.note = ns.Font(shot, NOTE_SIZE, nil, T.muted)
+    shot.note:SetPoint("BOTTOM", 0, NOTE_Y)
+    return shot
+end
+
+local function PaintPreview(shot, state)
+    local f = shot.icon
+    local size = S.Get("lowHealthIconSize")
+    f:SetSize(size, size)
+    local room = shot:GetHeight() - STAGE_MARGIN * 2 - NOTE_Y * 2 - LABEL_ROOM
+    local scale = (room > 0 and size > room) and room / size or 1
+    f:SetScale(scale)
+    f:ClearAllPoints()
+    f:SetPoint("CENTER", shot, "CENTER", 0, (NOTE_Y + LABEL_ROOM / 2) / scale)
+    local mode = S.Get("lowHealthItem")
+    local id
+    if state == "low" then id = mode == "potion" and POTIONS[1] or HEALTHSTONES[1] end
+    Look.Item(f, id, mode == "potion" and SAMPLE_POTIONS or 1)
+    shot.glow:SetShown(S.Get("lowHealthGlow"))
+    shot.note:SetText(("Shown below %d%% health, in combat too."):format(S.Get("lowHealthBelow")))
+end
+
+local function Summary(store)
+    return ("Below %d%%, %s"):format(store.Get("lowHealthBelow"), ITEMS[1][store.Get("lowHealthItem")] or "")
+end
+
+Settings.Page("AuraBuffs/Settings", S):Card({
+    id = "lowHealth", name = "Low Health", order = 40, switch = "lowHealth",
+    help = "Shows a healing item's icon the moment your health drops below the threshold, in combat too: "
+        .. "the game shows and hides it itself. Move it in Unlock Mode.",
+    summary = Summary,
+    studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        { key = "lowHealthBelow", label = "Show Below", slider = { 10, 90, 1 }, unit = "%", needs = Enabled,
+          why = OFF },
+        { key = "lowHealthItem", label = "Item", choice = ITEMS, needs = Enabled, why = OFF,
+          help = "Best in Bags: your best healthstone, else your best healing potion." },
+        { key = "lowHealthIconSize", label = "Icon Size", slider = { 24, 96, 1 }, needs = Enabled, why = OFF },
+        { key = "lowHealthGlow", label = "Glow", toggle = true, needs = Enabled, why = OFF,
+          help = "A red glow around the icon while it shows." },
+        { key = "lowHealthSound", label = "Play a Sound", toggle = true, needs = Enabled, why = OFF,
+          help = "Plays once each time your health drops below the threshold. If the game hides your "
+              .. "health from addons mid-fight, it only plays out of combat." },
+        { key = "lowHealthSoundKey", label = "Sound", sound = true, needs = SoundOn, why = "Needs Play a Sound" },
+    },
+})

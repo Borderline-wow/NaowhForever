@@ -460,9 +460,9 @@ check("Run Next puts what makes you strongest first, and says by how much",
     and not first.count.text:find("%%")
     and (not view.pools.place[2] or view.pools.place[2].place.gain <= first.place.gain))
 local opened
-ns.OpenOptionsWindow = function(page) opened = page end
+ns.OpenStatWeightsWindow = function() opened = true end
 B.Actions.StatWeights()
-check("the title bar's scales open your weights", opened == "BiS List/Stat Weights")
+check("the title bar's scales open your weights", opened)
 state.worn[2] = nil
 SW.Set(specKey, "agi", nil)
 check("your weights kept only where they differ from the default", next(state.account.statWeights or {}) == nil)
@@ -727,144 +727,66 @@ check("each can go", not toast.star:IsShown() and toast.edge.opacity == 0 and no
 check("and only the parts you keep say anything", toast.detail.text == "Your BiS")
 S.Set("bisToastGain", true)
 
--- The studio on the settings page: the alert as it will look, changed by its chips and parts.
-ns.UI.Keep = function(parent, _, new) return new(parent) end
-root.CreateRadio = function(_, text, _, fn) return Item(text, fn) end
-root.CreateCheckbox = function(_, text, _, fn) return Item(text, fn) end
-env.MenuUtil.CreateRootMenuDescription = function() env.wipe(menu); return root end
-env.MenuVariants, env.AnchorUtil = { GetDefaultMenuMixin = NOTHING }, { CreateAnchor = NOTHING }
-local page = Frame()
-check("the studio takes its room on the page, the gap under it too", B.BuildAlertStudio(page, -10) == 224)
-local studio
-for _, frame in ipairs(state.frames) do
-    if rawget(frame, "parent") == page then studio = frame end
+-- The preview on Drop Alert's card: the alert as it will look, in the moment picked.
+local studio = B.AlertStudio
+check("its moments: up for a roll, dropped, yours", #studio.states == 3 and studio.states[1].key == "roll"
+    and studio.states[3].label == "Yours!")
+local stage = Frame()
+stage.w = 600
+local preview = studio.new(stage)
+local function PreviewOf(parent)
+    for _, frame in ipairs(state.frames) do
+        if rawget(frame, "parent") == parent then return frame end
+    end
 end
-local starChip, lineChip, borderChip = studio.chipList[1], studio.chipList[2], studio.chipList[3]
-check("the search finds it and jumps to it", studio._searchLabels["Glow"] and studio._searchLabels["Text Line"])
-check("with your BiS, as you set it", studio.toast:IsShown() and studio.toast.detail.text:find("^Your BiS") ~= nil
-    and studio.chips:IsShown() and not studio.offNote:IsShown())
+check("drawn on its own frame on the stage", preview and PreviewOf(stage) == preview)
+studio.paint(preview, "dropped")
+check("with your BiS, as you set it", preview.toast:IsShown() and preview.toast.detail.text:find("^Your BiS") ~= nil
+    and not preview.empty:IsShown() and not preview.note:IsShown())
+S.Set("bisToastEvent", true)
+studio.paint(preview, "roll")
+check("Up for a roll", preview.toast.detail.text:find("^Up for a roll") ~= nil)
+studio.paint(preview, "yours")
+check("Yours! too", preview.toast.detail.text:find("^Yours!") ~= nil)
+studio.paint(preview, "dropped")
+check("and dropped", preview.toast.detail.text:find("^Dropped") ~= nil)
+S.Set("bisToastEvent", false)
+S.Set("bisToast", false)
+studio.paint(preview, "dropped")
+check("On-Screen Alert off: faded, with a note", preview.toast.alpha == 0.35 and preview.note:IsShown())
+S.Set("bisToast", true)
 
--- The star hidden: its part still there to click, and its chip says so.
-check("the star hidden, its chip says so and its part stays", starChip.value.text == "Hidden"
-    and not studio.toast.star:IsShown() and studio.starZone:IsShown())
-studio.starZone.scripts.OnEnter(studio.starZone)
-check("its part says what it is set to", state.tip == "Star: Hidden|nClick to change.")
-studio.starZone.scripts.OnLeave(studio.starZone)
-studio.starZone.scripts.OnMouseDown(studio.starZone)
-check("a click on it: where it sits", #menu == 4 and menu[3].text == "Before the name" and menu[4].text == "Hidden")
-menu[1].fn()
-check("and it is back", studio.toast.star:IsShown() and starChip.value.text == "Icon, left")
-starChip.scripts.OnMouseDown(starChip)
-check("its chip opens the same menu", #menu == 4 and menu[1].text == "On the icon, left")
-
--- The line under the name: every part off, and it can still be brought back.
-check("the line's chip counts its parts", lineChip.value.text == "2 of 5")
-S.Set("bisToastRank", false)
-S.Set("bisToastGain", false)
-check("nothing on the line, its chip says so", studio.toast.detail.text == "" and lineChip.value.text == "Nothing")
-check("and its part is a band under the name, still there to click", studio.lineZone:IsShown()
-    and studio.lineZone.h == 14)
-studio.lineZone.scripts.OnMouseDown(studio.lineZone)
-check("a click on it: what it says", menu[1] and menu[1].text == "What happened"
-    and menu[5].text == "How much stronger (+%)")
-menu[1].fn()
-check("and it repaints, as dropped", studio.toast.detail.text == "Dropped" and lineChip.value.text == "1 of 5")
-lineChip.scripts.OnMouseDown(lineChip)
-check("its chip opens the same menu", menu[1].text == "What happened")
-S.Set("bisToastRank", true)
-S.Set("bisToastGain", true)
-
--- The moment it shows: up for a roll, dropped or yours, for the preview only.
-local tabs = studio.tabs.buttons
-tabs[1].scripts.OnClick(tabs[1])
-check("Up for a roll repaints it", studio.toast.detail.text:find("^Up for a roll") ~= nil)
-tabs[3].scripts.OnClick(tabs[3])
-check("Yours! too", studio.toast.detail.text:find("^Yours!") ~= nil)
-tabs[2].scripts.OnClick(tabs[2])
-check("and back to dropped", studio.toast.detail.text:find("^Dropped") ~= nil)
-
--- The border, and the glow with it.
-check("the border's chip", borderChip.value.text == "None")
-borderChip.scripts.OnMouseDown(borderChip)
-check("its chip: the border, then the glow", menu[#menu - 1].text:find("^Your rank") and
-    menu[#menu].text:find("^Glow"))
-menu[#menu - 1].fn()
-menu[#menu].fn()
-check("lit again", studio.toast.edge.opacity == 1 and studio.toast.glow:IsShown()
-    and borderChip.value.text == "Rank colour + glow")
-studio.edgeZone.scripts.OnMouseDown(studio.edgeZone)
-check("its edge opens the same menu", menu[1].text == "None")
-
--- How it looks, beside it.
-check("size, how long it stays and its background, in their units", studio.size.valueBox.text == "100%"
-    and studio.time.valueBox.text == "6s" and studio.background.valueBox.text == "50%")
-studio.size._set(120)
-check("a size in percent is saved as a scale", S.Get("bisToastScale") == 1.2 and studio.size.valueBox.text == "120%")
-studio.size._set(100)
-studio.background._set(95)
-check("the background too", S.Get("bisToastAlpha") == 0.95 and studio.background.valueBox.text == "95%")
-
--- Play test plays your first BiS.
-said = #state.printed
-studio.test._onClick()
-check("Play test plays Drop Alert", #state.printed == said + 1 and studio.test.tipBody:find("^Plays Drop Alert"))
-
--- On-Screen Alert off: how it looks waits, the header stays live.
-studio.toastToggle._set(false)
-check("On-Screen Alert off: the stage and the look fade and take no clicks", studio.stage.alpha == 0.35
-    and studio.look.alpha == 0.35 and studio.starZone.mouse == false and starChip.mouse == false
-    and studio.size.mouse == false and studio.size.valueBox.mouse == false and studio.glow.mouse == false)
-check("its chips give way to a note", not studio.chips:IsShown() and studio.offNote:IsShown()
-    and studio.offNote.text == "Turn on On-Screen Alert to change how it looks.")
-check("and the header stays live", studio.alpha == 1 and studio.test.mouse == true and tabs[1].mouse == true
-    and studio.toastToggle.mouse == true)
-S.Set("bisLootAlert", false)
-check("Drop Alert off: all of it fades and takes no clicks", studio.alpha == 0.35 and studio.test.mouse == false
-    and tabs[1].mouse == false and studio.toastToggle.mouse == false)
-S.Set("bisLootAlert", true)
-studio.toastToggle._set(true)
-check("and back on", studio.alpha == 1 and studio.stage.alpha == 1 and studio.chips:IsShown()
-    and studio.starZone.mouse == true)
-
--- The page: Drop Alert's rows hang on the module and on Drop Alert, and a sound plays as you pick it.
-local cfgs = {}
-local function Row(cfg, key, on)
-    cfg.getValue = function() return S.Get(key) end
-    cfg.setValue = cfg.setValue or function(v) S.Set(key, v) end
-    cfg.on = on
-    return cfg
+-- The page: its cards, and the rows hang on the module and on On-Screen Alert.
+local page = ns.Shared.Settings.pages["BiS List/Settings"]
+local cards, rows = {}, {}
+for _, item in ipairs(page.items) do
+    if item.id then
+        cards[#cards + 1] = item.id
+        for _, row in ipairs(item.rows) do
+            if row.label then rows[row.label] = row end
+        end
+    end
 end
-S.Toggle = function(key, text, tooltip, on) return Row({ type = "toggle", text = text, tooltip = tooltip }, key, on) end
-S.Dropdown = function(key, text, values, order, tooltip, on)
-    return Row({ type = "dropdown", text = text, values = values, order = order, tooltip = tooltip }, key, on)
-end
--- As the kit's: it plays as you pick it, and its play button (preview) plays it again.
-S.SoundDropdown = function(key, text, values, order, tooltip, on, play)
-    return Row({ type = "dropdown", text = text, values = values, order = order, tooltip = tooltip, width = 200,
-        preview = play, setValue = function(v) S.Set(key, v); play(v) end }, key, on)
-end
-ns.UI.Widgets = {
-    SectionHeader = function() return nil, 40 end,
-    DualRow = function(_, _, _, left, right)
-        cfgs[left.text] = left
-        if right then cfgs[right.text] = right end
-        return { _leftRegion = Frame() }, 50
-    end,
-}
-ns.UI.STATUS, ns.UI.KeyField = { untested = "" }, NOTHING
-local bottom = ns.BuildQoLBiSSettingsPage(page, 0)
-check("the page is shorter: about 840 tall, Bag Marks' row included", bottom < -830 and bottom > -850)
-check("its rows by their new names", cfgs["Your List"] and cfgs["Key Binding"] and cfgs["Manage Lists"]
-    and cfgs["Bag Marks"]
-    and #cfgs["Manage Lists"].buttons == 5 and not cfgs["Test Drop Alert"] and not cfgs["Open BiS List"])
-check("what Drop Alert does needs the module and Drop Alert on", cfgs["Chat Line"].on[2] == "bisLootAlert"
-    and cfgs["Alert For"].on[1] == "bis" and cfgs["Drop Alert"].on[1] == "bis")
+check("one page: the window's card, then its cards in order", page.items[1].window
+    and page.items[1].text == "Open BiS List" and table.concat(cards, ",")
+    == "marks,dropAlert,lists,statWeights,window")
+check("Drop Alert: its switch and its preview", page.cards.dropAlert.switch == "bisLootAlert"
+    and page.cards.dropAlert.studio == studio)
+check("no list management on it: that is the window's", rows["Manage Lists"] == nil and rows["Your List"]
+    and rows["Rankings For"] and rows["Key Binding"].binding == "NAOWHFOREVER_BIS")
+check("how it looks needs On-Screen Alert", rows["Size"].needs[2] == "bisToast" and rows["Star"].needs[2] == "bisToast")
+check("a size in percent is saved as a scale", rows["Size"].get() == 100)
+rows["Size"].set(120)
+check("as a fraction", S.Get("bisToastScale") == 1.2)
+rows["Size"].set(100)
 sounds = state.sounds or 0
-cfgs["It's Yours Sound"].setValue("game:epicloot")
+rows["It's Yours Sound"].set("game:epicloot")
 check("a sound plays as you pick it", state.sounds == sounds + 1 and S.Get("bisYoursSound") == "game:epicloot")
-cfgs["Drop Sound"].preview(S.Get("bisDropSound"))
-check("and its play button plays it again, the game's own sounds too", state.sounds == sounds + 2)
-check("the sound dropdowns are wide enough for the game's names", cfgs["Drop Sound"].width == 200)
+local values = rows["Drop Sound"].choice()
+check("the game's own sounds offered too", values["game:raidwarning"] == "Raid Warning (game)")
+said = #state.printed
+rows["Play Test"].button()
+check("Play Test plays Drop Alert", #state.printed == said + 1)
 S.Set("bisToastSlot", true)
 S.Set("bisToastAlpha", 0.95)
 S.Set("bisLootAlert", false)

@@ -86,7 +86,7 @@ local function BuildToast()
         ns.OpenTrainingWindow()
     end))
     toast.dismiss = ns.Button(toast, "Dismiss", 90, 28, function() toast:Hide() end)
-    toast.mover = UI.AttachMover(toast, "Level-Up Toast", function(pos) S.Set("toastPos", pos) end, "Training Planner/Settings")
+    toast.mover = UI.AttachMover(toast, "Level-Up Toast", function(pos) S.Set("toastPos", pos) end, "Training Planner/Settings", "Training Planner/Settings:onTheWay")
     PlaceToast()
     toast:Hide()
 end

@@ -1,10 +1,12 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Crosshair.lua -- the QoL crosshair at the middle of the screen, optionally
---  recoloured while your target is out of melee range.
+--  recoloured while your target is out of melee range, and its card on QoL > Cursor with a
+--  live preview drawn by the same code as the crosshair.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local UI = ns.UI
+local T = ns.THEME
 
 local BAR = "Interface\\Buttons\\WHITE8x8"
 local RING = "Interface\\AddOns\\NaowhForever\\Media\\crosshair_ring.tga"
@@ -25,7 +27,7 @@ local ARMS = {
     { key = "crossLeft", base = 3 * PI / 2 },
 }
 
-local frame, arms, shadows, dot, dotShadow, ring, ringShadow
+local frame, parts
 local inCombat, outOfMelee, lastInRange = false, false, nil
 local alarmTicker, tickAcc = nil, 0
 local ticker = CreateFrame("Frame")
@@ -53,8 +55,8 @@ local function MeleeSpell()
 end
 ns.MeleeRangeSpell = MeleeSpell
 
-local function Texture(layer, sub, path)
-    local t = frame:CreateTexture(nil, layer, nil, sub)
+local function Texture(f, layer, sub, path)
+    local t = f:CreateTexture(nil, layer, nil, sub)
     t:SetTexture(path, "CLAMP", "CLAMP", "TRILINEAR")
     if path == RING then
         t:SetTexCoord(TEXEL_HALF, 1 - TEXEL_HALF, TEXEL_HALF, 1 - TEXEL_HALF)
@@ -64,32 +66,31 @@ local function Texture(layer, sub, path)
     return t
 end
 
-local function Build()
-    frame = CreateFrame("Frame", "NaowhForeverCrosshair", UIParent)
-    frame:SetFrameStrata("HIGH")
-    frame:SetFrameLevel(50)
-    frame:EnableMouse(false)
-    arms, shadows = {}, {}
+local Look = {}
+
+function Look.New(f)
+    local p = { arms = {}, shadows = {} }
     for i = 1, #ARMS do
-        shadows[i] = Texture("ARTWORK", 0, BAR)
-        arms[i] = Texture("ARTWORK", 1, BAR)
+        p.shadows[i] = Texture(f, "ARTWORK", 0, BAR)
+        p.arms[i] = Texture(f, "ARTWORK", 1, BAR)
     end
-    dotShadow, dot = Texture("ARTWORK", 0, BAR), Texture("ARTWORK", 1, BAR)
-    ringShadow, ring = Texture("ARTWORK", 0, RING), Texture("ARTWORK", 1, RING)
+    p.dotShadow, p.dot = Texture(f, "ARTWORK", 0, BAR), Texture(f, "ARTWORK", 1, BAR)
+    p.ringShadow, p.ring = Texture(f, "ARTWORK", 0, RING), Texture(f, "ARTWORK", 1, RING)
+    return p
 end
 
 -- Draws one piece and its outline, centred on (x, y) from the frame's corner.
-local function Place(tex, shadow, w, h, x, y, angle, c, outline, ow, alpha)
+local function Place(f, tex, shadow, w, h, x, y, angle, c, outline, ow, alpha)
     tex:SetSize(w, h)
     tex:ClearAllPoints()
-    tex:SetPoint("CENTER", frame, "BOTTOMLEFT", x, y)
+    tex:SetPoint("CENTER", f, "BOTTOMLEFT", x, y)
     tex:SetRotation(angle)
     tex:SetVertexColor(c.r, c.g, c.b, alpha)
     tex:Show()
     if outline then
         shadow:SetSize(w + ow * 2, h + ow * 2)
         shadow:ClearAllPoints()
-        shadow:SetPoint("CENTER", frame, "BOTTOMLEFT", x, y)
+        shadow:SetPoint("CENTER", f, "BOTTOMLEFT", x, y)
         shadow:SetRotation(angle)
         shadow:SetVertexColor(outline.r, outline.g, outline.b, alpha)
         shadow:Show()
@@ -98,54 +99,67 @@ local function Place(tex, shadow, w, h, x, y, angle, c, outline, ow, alpha)
     end
 end
 
-local function Layout()
+function Look.Paint(f, p, out)
     local size, thick, gap = S.Get("crossSize"), S.Get("crossThickness"), S.Get("crossGap")
     local alpha = S.Get("crossOpacity")
     local base = Color("crossColor", "crossClassColor")
     local outline = S.Get("crossOutline") and S.Get("crossOutlineColor") or nil
     local ow = S.Get("crossOutlineWeight")
 
-    local melee = S.Get("crossMelee") and outOfMelee
+    local melee = S.Get("crossMelee") and out
     local meleeColor = S.Get("crossMeleeColor")
     if melee and S.Get("crossMeleeBorder") then outline = meleeColor end
 
     local span = gap + size + (outline and ow or 0) + 2
-    frame:SetSize(span * 2, span * 2)
-    local scale = UIParent:GetEffectiveScale()
-    frame:ClearAllPoints()
-    frame:SetPoint("CENTER", UIParent, "CENTER",
-        math.floor(S.Get("crossX") * scale + 0.5) / scale, math.floor(S.Get("crossY") * scale + 0.5) / scale)
+    f:SetSize(span * 2, span * 2)
 
     local armColor = melee and S.Get("crossMeleeArms") and meleeColor or base
     for i, def in ipairs(ARMS) do
         if S.Get(def.key) then
             local dist = gap + size / 2
-            Place(arms[i], shadows[i], thick, size, span + dist * sin(def.base),
+            Place(f, p.arms[i], p.shadows[i], thick, size, span + dist * sin(def.base),
                 span + dist * cos(def.base), -def.base, armColor, outline, ow, alpha)
         else
-            arms[i]:Hide()
-            shadows[i]:Hide()
+            p.arms[i]:Hide()
+            p.shadows[i]:Hide()
         end
     end
 
     if S.Get("crossDot") then
         local ds = S.Get("crossDotSize")
-        Place(dot, dotShadow, ds, ds, span, span, 0,
+        Place(f, p.dot, p.dotShadow, ds, ds, span, span, 0,
             melee and S.Get("crossMeleeDot") and meleeColor or base, outline, ow, alpha)
     else
-        dot:Hide()
-        dotShadow:Hide()
+        p.dot:Hide()
+        p.dotShadow:Hide()
     end
 
     if S.Get("crossCircle") then
         local cs = S.Get("crossCircleSize")
-        Place(ring, ringShadow, cs, cs, span, span, 0,
+        Place(f, p.ring, p.ringShadow, cs, cs, span, span, 0,
             melee and S.Get("crossMeleeCircle") and meleeColor or S.Get("crossCircleColor"),
             outline, ow, alpha)
     else
-        ring:Hide()
-        ringShadow:Hide()
+        p.ring:Hide()
+        p.ringShadow:Hide()
     end
+    return span
+end
+
+local function Build()
+    frame = CreateFrame("Frame", "NaowhForeverCrosshair", UIParent)
+    frame:SetFrameStrata("HIGH")
+    frame:SetFrameLevel(50)
+    frame:EnableMouse(false)
+    parts = Look.New(frame)
+end
+
+local function Layout()
+    Look.Paint(frame, parts, outOfMelee)
+    local scale = UIParent:GetEffectiveScale()
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER", UIParent, "CENTER",
+        math.floor(S.Get("crossX") * scale + 0.5) / scale, math.floor(S.Get("crossY") * scale + 0.5) / scale)
 end
 
 local function Visible()
@@ -264,3 +278,102 @@ hooksecurefunc(ns, "Apply", Apply)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+local PREVIEW_FIT = 120
+local PREVIEW_Y = 10
+local NOTE_Y, NOTE_SIZE = 10, 11
+local STATES = {
+    { key = "inRange", label = "In Range", tip = "No target, or your target in melee range: the crosshair in its own colours." },
+    { key = "outOfRange", label = "Out of Range", tip = "Your target out of melee range.", needs = "crossMelee" },
+}
+
+
+local function OwnColour() return not S.Get("crossClassColor") end
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.shape = CreateFrame("Frame", nil, preview)
+    preview.shape:SetPoint("CENTER", 0, PREVIEW_Y)
+    preview.parts = Look.New(preview.shape)
+    preview.note = preview:CreateFontString(nil, "OVERLAY")
+    preview.note:SetPoint("BOTTOM", 0, NOTE_Y)
+    preview.note:SetFont(ns.UIFontPath(), NOTE_SIZE, "")
+    preview.note:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
+    return preview
+end
+
+local function PaintPreview(preview, state)
+    local out = state == "outOfRange"
+    local span = Look.Paint(preview.shape, preview.parts, out)
+    preview.shape:SetScale(math.min(1, PREVIEW_FIT / math.max(1, span * 2)))
+    preview.note:SetText("")
+end
+
+local function Summary(store)
+    local arms = 0
+    for _, def in ipairs(ARMS) do
+        if store.Get(def.key) then arms = arms + 1 end
+    end
+    return ("%d %s%s%s%s"):format(arms, arms == 1 and "arm" or "arms", store.Get("crossDot") and ", dot" or "",
+        store.Get("crossCircle") and ", circle" or "", store.Get("crossCombatOnly") and ", in combat only" or "")
+end
+
+ns.Shared.Settings.Page("QoL/Cursor", S):Card({
+    id = "crosshair", name = "Crosshair", order = 10, switch = "crosshair",
+    help = "A crosshair at the middle of your screen.",
+    summary = Summary,
+    studio = { height = 170, states = STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        Group("When"),
+        { key = "crossCombatOnly", label = "Only In Combat", toggle = true },
+        { key = "crossHideMounted", label = "Hide While Mounted", toggle = true },
+        Group("Shape"),
+        { key = "crossTop", label = "Top Arm", toggle = true },
+        { key = "crossRight", label = "Right Arm", toggle = true },
+        { key = "crossBottom", label = "Bottom Arm", toggle = true },
+        { key = "crossLeft", label = "Left Arm", toggle = true },
+        { key = "crossSize", label = "Arm Length", slider = { 4, 100, 1 } },
+        { key = "crossThickness", label = "Thickness", slider = { 1, 20, 1 } },
+        { key = "crossGap", label = "Gap", slider = { 0, 50, 1 }, wide = true,
+          help = "Space between the middle and each arm." },
+        { key = "crossDot", label = "Centre Dot", toggle = true },
+        { key = "crossDotSize", label = "Dot Size", slider = { 1, 20, 1 }, needs = "crossDot" },
+        { key = "crossCircle", label = "Circle", toggle = true },
+        { key = "crossCircleSize", label = "Circle Size", slider = { 10, 200, 1 }, needs = "crossCircle" },
+        Group("Colour"),
+        { key = "crossClassColor", label = "Class Colour", toggle = true },
+        { key = "crossColor", label = "Colour", colour = true, needs = OwnColour, why = "Class colour is on" },
+        { key = "crossCircleColor", label = "Circle Colour", colour = true, needs = "crossCircle" },
+        { key = "crossOpacity", label = "Opacity", slider = { 10, 100, 5 }, unit = "%", scale = 0.01 },
+        Group("Outline"),
+        { key = "crossOutline", label = "Outline", toggle = true },
+        { key = "crossOutlineWeight", label = "Outline Width", slider = { 1, 5, 1 }, needs = "crossOutline" },
+        { key = "crossOutlineColor", label = "Outline Colour", colour = true, needs = "crossOutline" },
+        Group("Position"),
+        { key = "crossX", label = "X Offset", slider = { -500, 500, 1 } },
+        { key = "crossY", label = "Y Offset", slider = { -500, 500, 1 } },
+        Group("Out of Melee Range"),
+        { key = "crossMelee", label = "Recolour Out of Melee Range", toggle = true,
+          help = "Changes colour while your target is out of melee range. Warriors, rogues, hunters "
+              .. "(Raptor Strike), shamans with Stormstrike, and druids in Cat or Bear Form have "
+              .. "an ability it can check; anyone else can set a spell ID below." },
+        { key = "crossMeleeColor", label = "Out of Range Colour", colour = true, needs = "crossMelee" },
+        { key = "crossMeleeBorder", label = "Recolour Outline", toggle = true, needs = "crossMelee" },
+        { key = "crossMeleeArms", label = "Recolour Arms", toggle = true, needs = "crossMelee" },
+        { key = "crossMeleeDot", label = "Recolour Dot", toggle = true, needs = "crossMelee" },
+        { key = "crossMeleeCircle", label = "Recolour Circle", toggle = true, needs = "crossMelee" },
+        { key = "crossMeleeSound", label = "Play a Sound", toggle = true, needs = "crossMelee",
+          help = "Plays as your target leaves melee range." },
+        { key = "crossMeleeSoundKey", label = "Sound", sound = true, needs = { "crossMelee", "crossMeleeSound" } },
+        { key = "crossMeleeSoundInterval", label = "Repeat Every (s)", slider = { 0, 10, 1 },
+          needs = { "crossMelee", "crossMeleeSound" },
+          help = "Plays the sound again this often while out of range. 0 plays it once." },
+        { key = "crossMeleeSpell", label = "Melee Spell ID", text = true, wide = true, always = true,
+          help = "Spell ID to check melee range with. 0 uses your class's own. The mouse ring's "
+              .. "melee check uses it too.",
+          get = function() return tostring(S.Get("crossMeleeSpell")) end,
+          set = function(v) S.Set("crossMeleeSpell", tonumber(v) or 0) end },
+    },
+})

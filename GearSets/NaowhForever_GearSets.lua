@@ -2,13 +2,20 @@
 --  NaowhForever_GearSets.lua -- the QoL gear sets: a bar of your equipment sets to
 --  swap with a click, saving new ones from what you wear, and automatic swaps to a set while
 --  mounted or resting that put your previous set back afterwards. Built on the client's own
---  equipment manager, so sets are the same ones the character sheet shows.
+--  equipment manager, so sets are the same ones the character sheet shows. Also the trinket
+--  bar, and the module's settings page (Gear & Trinkets/Settings); the sets themselves are in
+--  the Gear Sets window (NaowhForever_GearSetsWindow.lua).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
 
 local bar, buttons, addButton, unlocked
+local BUTTON_GAP = 4
+local EMPTY_ICON = 134400
+local TRINKET_SLOTS = { 13, 14 }
+
+local Look = {}
 local pending          -- set ID waiting for combat to end
 local autoSet          -- the set an automatic swap put on
 
@@ -66,6 +73,8 @@ local function EquipByHand(setID)
     saved[key] = nil
     Equip(setID)
 end
+
+ns.GearSets = { Sets = Sets, EquipByHand = EquipByHand, Look = Look }
 
 -------------------------------------------------------------------------------
 --  Dialogs
@@ -252,6 +261,33 @@ local function NewButton()
     return btn
 end
 
+function Look.SetButton(btn, set, i, size)
+    btn:SetSize(size, size)
+    btn:ClearAllPoints()
+    btn:SetPoint("LEFT", (i - 1) * (size + BUTTON_GAP), 0)
+    btn.icon:SetTexture(set.icon)
+    btn.icon:SetDesaturated(set.lost > 0)
+    if set.equipped then btn.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) else btn.border:SetColor(0, 0, 0, 1) end
+    btn:Show()
+end
+
+function Look.Fit(frame, add, count, size)
+    add:SetSize(size, size)
+    add:ClearAllPoints()
+    add:SetPoint("LEFT", count * (size + BUTTON_GAP), 0)
+    frame:SetSize((count + 1) * (size + BUTTON_GAP), size)
+end
+
+function Look.Trinkets(frame, slots, size, gap)
+    frame:SetSize(size * 2 + gap, size)
+    for i, button in ipairs(slots) do
+        button:SetSize(size, size)
+        button:ClearAllPoints()
+        button:SetPoint("LEFT", (i - 1) * (size + gap), 0)
+        button.icon:SetTexture(GetInventoryItemTexture("player", TRINKET_SLOTS[i]) or EMPTY_ICON)
+    end
+end
+
 local function Layout()
     if not bar then return end
     local size = S.Get("gearBarSize")
@@ -260,19 +296,10 @@ local function Layout()
         local btn = buttons[i] or NewButton()
         buttons[i] = btn
         btn.set = set
-        btn:SetSize(size, size)
-        btn:ClearAllPoints()
-        btn:SetPoint("LEFT", (i - 1) * (size + 4), 0)
-        btn.icon:SetTexture(set.icon)
-        btn.icon:SetDesaturated(set.lost > 0)
-        if set.equipped then btn.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) else btn.border:SetColor(0, 0, 0, 1) end
-        btn:Show()
+        Look.SetButton(btn, set, i, size)
     end
     for i = #sets + 1, #buttons do buttons[i]:Hide() end
-    addButton:SetSize(size, size)
-    addButton:ClearAllPoints()
-    addButton:SetPoint("LEFT", #sets * (size + 4), 0)
-    bar:SetSize((#sets + 1) * (size + 4), size)
+    Look.Fit(bar, addButton, #sets, size)
 end
 
 local function BuildBar()
@@ -282,7 +309,8 @@ local function BuildBar()
     buttons = {}
     addButton = ns.Button(bar, "+", 32, 32, ns.NewGearSet)
     ns.Tooltip(addButton, "New Gear Set", "Saves what you are wearing now as a new set.")
-    bar.mover = ns.UI.AttachMover(bar, "Gear Sets", function(pos) S.Set("gearPos", pos) end, "Gear & Trinkets/Gear Sets")
+    bar.mover = ns.UI.AttachMover(bar, "Gear Sets", function(pos) S.Set("gearPos", pos) end, "Gear & Trinkets/Settings",
+        "Gear & Trinkets/Settings:gearBar")
     local pos = S.Get("gearPos")
     if pos then
         bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
@@ -316,54 +344,6 @@ local function AutoSwap()
         Equip(saved[key])
         saved[key] = nil
     end
-end
-
--------------------------------------------------------------------------------
---  The page
--------------------------------------------------------------------------------
-function ns.BuildQoLGearSetsPage(parent, y)
-    local UI = ns.UI
-    local W = UI.Widgets
-    local _, h
-    _, h = W:Note(parent, "Your equipment sets, the same ones the character sheet keeps. Swap "
-        .. "from the bar, or let a set go on by itself while you ride or rest.", y); y = y - h
-
-    local values, order = { [""] = "None" }, { "" }
-    local sets = Sets()
-    for _, set in ipairs(sets) do
-        values[set.name] = set.name
-        order[#order + 1] = set.name
-    end
-
-    _, h = W:SectionHeader(parent, "GEAR SETS" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("gearBarVisible", "Gear Set Bar",
-            "A button per set: click to equip, Shift-click to save what you wear into it, Ctrl-click "
-            .. "to rename it, right-click to change its icon, and + to save a new one. The set you "
-            .. "wear is outlined. Move it in Unlock Mode."),
-        S.Slider("gearBarSize", "Button Size", 20, 48, 1, nil, "gearBarVisible")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("gearMounted", "Wear While Mounted", values, order,
-            "Put on while you ride, and the set you had on goes back when you dismount.", "gearSets"),
-        S.Dropdown("gearResting", "Wear While Resting", values, order,
-            "Put on in cities and inns, and taken off again when you leave.", "gearSets")
-    ); y = y - h
-    _, h = W:Button(parent, "New Gear Set", y, ns.NewGearSet); y = y - h
-
-    if sets[1] then
-        _, h = W:SectionHeader(parent, "YOUR SETS", y); y = y - h
-    end
-    for _, set in ipairs(sets) do
-        _, h = W:Feature(parent, y, { type = "label",
-            text = set.name .. (set.equipped and "   |cff4dd17aEQUIPPED|r" or "") }, "set" .. set.id); y = y - h
-        _, h = W:Button(parent, "Equip " .. set.name, y, function() EquipByHand(set.id) end); y = y - h
-        _, h = W:Button(parent, "Save Current Gear", y, function() ns.SaveGearSet(set.id, set.name) end); y = y - h
-        _, h = W:Button(parent, "Rename", y, function() ns.RenameGearSet(set.id, set.name) end); y = y - h
-        _, h = W:Button(parent, "Change Icon", y, function() ns.ChangeGearSetIcon(set.id, set.name) end); y = y - h
-        _, h = W:Button(parent, "Delete", y, function() ns.DeleteGearSet(set.id, set.name) end); y = y - h
-    end
-    return y
 end
 
 -------------------------------------------------------------------------------
@@ -413,7 +393,7 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key:find("^gear") and key ~= "gearPos" then Apply() end
+    if key:find("^gear") and key ~= "gearPos" and key ~= "gearWindowAlpha" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
@@ -543,34 +523,19 @@ do
                 button:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 trinkets.buttons[i] = button
             end
-            trinkets.mover = ns.UI.AttachMover(trinkets, "Trinkets", function(pos) S.Set("trinketPos", pos) end, "Gear & Trinkets/Trinkets")
+            trinkets.mover = ns.UI.AttachMover(trinkets, "Trinkets", function(pos) S.Set("trinketPos", pos) end, "Gear & Trinkets/Settings", "Gear & Trinkets/Settings:trinketBar")
         end
-        local size, gap = S.Get("trinketSize"), S.Get("trinketSpacing")
-        trinkets:SetSize(size * 2 + gap, size)
         trinkets:ClearAllPoints()
         local pos = S.Get("trinketPos")
         if pos then trinkets:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
         else trinkets:SetPoint("CENTER", UIParent, "CENTER", 0, -160) end
+        Look.Trinkets(trinkets, trinkets.buttons, S.Get("trinketSize"), S.Get("trinketSpacing"))
         for i, button in ipairs(trinkets.buttons) do
-            button:SetSize(size, size)
-            button:ClearAllPoints()
-            button:SetPoint("LEFT", (i - 1) * (size + gap), 0)
-            button.icon:SetTexture(GetInventoryItemTexture("player", i + 12) or 134400)
             -- The secure item action errors on an empty slot (nil link into C_Item.IsEquippableItem).
             button:SetAttribute("type1", GetInventoryItemID("player", i + 12) and "item" or nil)
         end
         trinkets.mover:SetShown(moving == true)
         trinkets:Show()
-    end
-    function ns.BuildTrinketsPage(parent, y)
-        local W = ns.UI.Widgets
-        local _, h = W:Note(parent, "Two movable trinket slots. Left-click to use; right-click to equip a trinket from your bags outside combat. Enable Gear & Trinkets in the sidebar first.", y)
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            S.Toggle("trinketBar", "Trinket Bar"), S.Slider("trinketSize", "Icon Size", 20, 70, 1)); y = y - h
-        _, h = W:DualRow(parent, y,
-            S.Slider("trinketSpacing", "Spacing", 0, 30, 1), { type = "label", text = "Move in Unlock Mode" })
-        return y - h
     end
     local watcher = CreateFrame("Frame")
     for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "PLAYER_EQUIPMENT_CHANGED" }) do
@@ -586,3 +551,168 @@ do
     hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function() moving = true; ApplyTrinkets() end)
     hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function() moving = false; ApplyTrinkets() end)
 end
+
+-------------------------------------------------------------------------------
+--  Settings page
+-------------------------------------------------------------------------------
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local GEAR_OFF = "Turn on Gear & Trinkets"
+local PREVIEW_NOTE_GAP = 10
+local NO_SETS = "No gear sets yet: + saves what you wear as one."
+local PREVIEW_STATE = { { key = "bar", label = "Bar" } }
+
+local function GearOn() return S.Get("gearSets") == true end
+
+local function PreviewButton(parent)
+    local btn = CreateFrame("Frame", nil, parent)
+    btn.icon = btn:CreateTexture(nil, "ARTWORK")
+    ns.PixelInset(btn.icon, 1)
+    btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    btn.border = ns.Border(btn, { r = 0, g = 0, b = 0 })
+    return btn
+end
+
+local function NewBarPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.row = CreateFrame("Frame", nil, preview)
+    preview.row:SetPoint("CENTER")
+    preview.buttons = {}
+    local add = CreateFrame("Frame", nil, preview.row)
+    ns.Solid(add, "BACKGROUND", T.panel, 1):SetAllPoints()
+    ns.Border(add, { r = 0, g = 0, b = 0 })
+    add.text = ns.Font(add, 14, nil, T.fg)
+    add.text:SetPoint("CENTER")
+    add.text:SetText("+")
+    preview.add = add
+    preview.note = ns.Font(preview, 12, nil, T.muted)
+    preview.note:SetPoint("TOP", preview.row, "BOTTOM", 0, -PREVIEW_NOTE_GAP)
+    preview.note:SetText(NO_SETS)
+    return preview
+end
+
+local function PaintBarPreview(preview)
+    local size = S.Get("gearBarSize")
+    local sets = Sets()
+    for i, set in ipairs(sets) do
+        local btn = preview.buttons[i] or PreviewButton(preview.row)
+        preview.buttons[i] = btn
+        Look.SetButton(btn, set, i, size)
+    end
+    for i = #sets + 1, #preview.buttons do preview.buttons[i]:Hide() end
+    Look.Fit(preview.row, preview.add, #sets, size)
+    preview.note:SetShown(#sets == 0)
+end
+
+local function NewTrinketPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.row = CreateFrame("Frame", nil, preview)
+    preview.row:SetPoint("CENTER")
+    preview.slots = { PreviewButton(preview.row), PreviewButton(preview.row) }
+    return preview
+end
+
+local function PaintTrinketPreview(preview)
+    Look.Trinkets(preview.row, preview.slots, S.Get("trinketSize"), S.Get("trinketSpacing"))
+end
+
+local function SetChoices()
+    local values, order = { [""] = "None" }, { "" }
+    for _, set in ipairs(Sets()) do
+        values[set.name] = set.name
+        order[#order + 1] = set.name
+    end
+    return values, order
+end
+
+local function Headline()
+    local sets = Sets()
+    if #sets == 0 then return "No gear sets yet" end
+    for _, set in ipairs(sets) do
+        if set.equipped then
+            return ("%d gear %s, wearing %s"):format(#sets, #sets == 1 and "set" or "sets", ns.Color("accentSoft", set.name))
+        end
+    end
+    return ("%d gear %s"):format(#sets, #sets == 1 and "set" or "sets")
+end
+
+local function Detail()
+    return "The same sets as the character sheet's: equip, save, rename or delete them in the Gear Sets window."
+end
+
+local function SwapSummary(store)
+    local mounted, resting = store.Get("gearMounted"), store.Get("gearResting")
+    if mounted ~= "" and resting ~= "" then return mounted .. " mounted, " .. resting .. " resting" end
+    if mounted ~= "" then return mounted .. " while mounted" end
+    if resting ~= "" then return resting .. " while resting" end
+    return "None"
+end
+
+local function SizeSummary(key)
+    return function(store) return store.Get(key) .. " px" end
+end
+
+local function WindowSummary(store)
+    return ("%d%% opacity"):format(math.floor((store.Get("gearWindowAlpha") or 1) * 100 + 0.5))
+end
+
+local page = Settings.Page("Gear & Trinkets/Settings", S)
+
+page:Window({
+    text = "Open Gear Sets",
+    open = function() ns.OpenGearSetsWindow() end,
+    headline = Headline,
+    detail = Detail,
+})
+
+page:Card({
+    id = "gearBar", name = "Gear Set Bar", order = 10, switch = "gearBarVisible",
+    help = "A button per set: click to equip, Shift-click to save what you wear into it, Ctrl-click to rename "
+        .. "it, right-click to change its icon, and + to save a new one. The set you wear is outlined. Move it "
+        .. "in Unlock Mode.",
+    summary = SizeSummary("gearBarSize"),
+    studio = { height = 100, states = PREVIEW_STATE, new = NewBarPreview, paint = PaintBarPreview },
+    rows = {
+        { key = "gearBarSize", label = "Button Size", slider = { 20, 48, 1 }, unit = " px", needs = GearOn,
+          why = GEAR_OFF, help = "How big each set's button is." },
+    },
+})
+
+page:Card({
+    id = "autoSwap", name = "Automatic Swaps", order = 20,
+    help = "A set that goes on by itself while you ride or rest, and the set you had on goes back afterwards.",
+    summary = SwapSummary,
+    rows = {
+        { key = "gearMounted", label = "Wear While Mounted", choice = SetChoices, needs = GearOn, why = GEAR_OFF,
+          help = "Put on while you ride, and the set you had on goes back when you dismount." },
+        { key = "gearResting", label = "Wear While Resting", choice = SetChoices, needs = GearOn, why = GEAR_OFF,
+          help = "Put on in cities and inns, and taken off again when you leave." },
+    },
+})
+
+page:Card({
+    id = "trinketBar", name = "Trinket Bar", order = 30, switch = "trinketBar",
+    help = "Your two trinket slots, movable: left-click to use one, right-click to equip a trinket from your "
+        .. "bags outside combat. Move it in Unlock Mode.",
+    summary = SizeSummary("trinketSize"),
+    studio = { height = 110, states = PREVIEW_STATE, new = NewTrinketPreview, paint = PaintTrinketPreview },
+    rows = {
+        { key = "trinketSize", label = "Icon Size", slider = { 20, 70, 1 }, unit = " px", needs = GearOn,
+          why = GEAR_OFF, help = "How big each trinket is." },
+        { key = "trinketSpacing", label = "Spacing", slider = { 0, 30, 1 }, unit = " px", needs = GearOn,
+          why = GEAR_OFF, help = "The gap between the two." },
+    },
+})
+
+page:Card({
+    id = "window", name = "Window", order = 40,
+    help = "The Gear Sets window, with every set and what you can do with it.",
+    summary = WindowSummary,
+    rows = {
+        { key = "gearWindowAlpha", label = "Window Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 },
+          unit = "%", scale = 0.01, help = "How solid the Gear Sets window is, in percent. Also on its title bar." },
+    },
+})

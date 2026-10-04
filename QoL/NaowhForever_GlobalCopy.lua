@@ -238,12 +238,19 @@ local hooked = setmetatable({}, { __mode = "k" })
 -- "Ctrl-Shift-C: copy ID or Wowhead link", as the addon's other tooltip hints read ("Click:
 -- change picks"); made once per key.
 local hints = {}
+local function Capitalise(first, rest)
+    return first:upper() .. rest
+end
+
+local function Combo(modifier, key)
+    return ((modifier .. "-" .. key):lower():gsub("(%a)(%a*)", Capitalise))
+end
+
 local function CopyHint(modifier, key)
     local combo = modifier .. "-" .. key
     local hint = hints[combo]
     if not hint then
-        hint = combo:lower():gsub("(%a)(%a*)", function(first, rest) return first:upper() .. rest end)
-            .. ": copy ID or Wowhead link"
+        hint = Combo(modifier, key) .. ": copy ID or Wowhead link"
         hints[combo] = hint
     end
     return hint
@@ -320,3 +327,98 @@ local boot = CreateFrame("Frame")
 boot:SetScript("OnEvent", Apply)
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+local function SyncShortcut()
+    if S.Get("copyShortcutSynced") then return end
+    local db = S.DB()
+    db.copyTooltipIds = S.Get("tooltipCopy")
+    db.copyModifier = S.Get("tooltipModifier")
+    db.copyKey = S.Get("tooltipKey")
+    db.copyShortcutSynced = true
+end
+hooksecurefunc(ns, "Apply", SyncShortcut)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local Group = Settings.Group
+
+local MODIFIERS = { { CTRL = "Ctrl", SHIFT = "Shift", ALT = "Alt", ["CTRL-SHIFT"] = "Ctrl + Shift",
+    ["CTRL-ALT"] = "Ctrl + Alt", ["ALT-SHIFT"] = "Alt + Shift" },
+    { "CTRL-SHIFT", "CTRL-ALT", "ALT-SHIFT", "CTRL", "SHIFT", "ALT" } }
+local KEY_VALUES, KEY_ORDER = {}, {}
+for i = 65, 90 do
+    local letter = string.char(i)
+    KEY_VALUES[letter] = letter
+    KEY_ORDER[#KEY_ORDER + 1] = letter
+end
+local KEYS = { KEY_VALUES, KEY_ORDER }
+local RESTRICTED = { { hide = "Hide Line", hidden = "Show Hidden" }, { "hide", "hidden" } }
+local COPY_FORMAT = { { id = "ID", url = "Wowhead Link" }, { "id", "url" } }
+local ID_KEYS = { "tooltipSpellID", "tooltipItemID", "tooltipNPCID" }
+local PAIRED = { tooltipCopy = "copyTooltipIds", tooltipModifier = "copyModifier", tooltipKey = "copyKey" }
+
+local Shortcut = {
+    Get = function(key) return S.Get(key) end,
+    Raw = function(key) return S.Raw(key) end,
+    Default = function(key) return S.Default(key) end,
+    Set = function(key, value)
+        S.Set(key, value)
+        S.Set(PAIRED[key], value)
+    end,
+    OnChange = function() end,
+}
+
+local function CopyReachable()
+    return S.Get("tooltipDisplay") or S.Get("globalCopy")
+end
+
+local function ShortcutOn()
+    return S.Get("tooltipCopy") and CopyReachable()
+end
+
+local function TooltipSummary(store)
+    local shown = 0
+    for i = 1, #ID_KEYS do
+        if store.Get(ID_KEYS[i]) then shown = shown + 1 end
+    end
+    if not store.Get("tooltipCopy") then return ("%d of %d IDs"):format(shown, #ID_KEYS) end
+    return ("%d of %d IDs, %s copies"):format(shown, #ID_KEYS,
+        Combo(store.Get("tooltipModifier"), store.Get("tooltipKey")))
+end
+
+Settings.Page("QoL/Interface", S):Card({
+    id = "tooltips", name = "Tooltips", order = 50, switch = "tooltipDisplay",
+    help = "Spell, item and NPC IDs at the bottom of tooltips, where the game lets them be read. "
+        .. "Hover a spell, item or NPC and press your shortcut to open a copy card with its ID and "
+        .. "Wowhead link. Copy cards open outside combat; typing never triggers the shortcut.",
+    summary = TooltipSummary,
+    rows = {
+        Group("IDs"),
+        { key = "tooltipSpellID", label = "Show Spell ID", toggle = true },
+        { key = "tooltipItemID", label = "Show Item ID", toggle = true },
+        { key = "tooltipNPCID", label = "Show NPC ID", toggle = true,
+          help = "Creature and vehicle IDs only; never player GUIDs." },
+        { key = "tooltipRestricted", label = "Restricted IDs", choice = RESTRICTED,
+          help = "An ID the game keeps hidden: Hide Line leaves it off the tooltip, Show Hidden "
+              .. "shows the line with Hidden in place of the number." },
+        Group("Copy"),
+        { key = "tooltipCopy", label = "Copy Shortcut", toggle = true, store = Shortcut, always = true,
+          needs = CopyReachable, why = "Needs Tooltips or Copy Command",
+          help = "Hover a spell, item or NPC and press the shortcut to copy its ID. With Tooltips "
+              .. "on it opens the copy card; with only Copy Command on, a box with the ID." },
+        { key = "tooltipCopyHint", label = "Show Shortcut Hint", toggle = true, needs = "tooltipCopy",
+          help = "A line under the ID saying which keys copy it (Ctrl-Shift-C: copy ID or Wowhead "
+              .. "link). Off, the shortcut still works; the line is just not shown." },
+        { key = "tooltipModifier", label = "Modifier", choice = MODIFIERS, store = Shortcut, always = true,
+          needs = ShortcutOn, why = "Needs Copy Shortcut" },
+        { key = "tooltipKey", label = "Key", choice = KEYS, store = Shortcut, always = true,
+          needs = ShortcutOn, why = "Needs Copy Shortcut" },
+        { key = "tooltipCopyFormat", label = "Initially Select", choice = COPY_FORMAT, needs = "tooltipCopy",
+          help = "What the copy card has selected when it opens." },
+        { label = "Preview Copy Card", button = ns.PreviewTooltipCopyCard, buttonText = "Preview",
+          always = true, help = "Opens the copy card on a sample spell. Select the ID or link, then Ctrl+C." },
+        { key = "globalCopy", label = "Copy Command", toggle = true, always = true,
+          help = "/copy puts the text of whatever is under your cursor in a box you can copy from. "
+              .. "/copy followed by a frame name copies that frame's text instead." },
+    },
+})

@@ -740,9 +740,18 @@ local function Layout(shown)
     for i = shown + 1, #buttons do buttons[i]:Hide() end
     -- The counter sits over the row's left end: the first icon, or the last one when the row
     -- grows left or up.
-    local lead = (dir[1] < 0 or dir[2] > 0) and buttons[math.max(shown, 1)] or buttons[1]
+    local back = dir[1] < 0 or dir[2] > 0
+    local lead = back and buttons[math.max(shown, 1)] or buttons[1]
     frame.free:ClearAllPoints()
     if lead then frame.free:SetPoint("BOTTOMLEFT", lead, "TOPLEFT", 0, 3) end
+    local first, last = buttons[1], buttons[math.max(shown, 1)]
+    frame.mover:ClearAllPoints()
+    if first and last then
+        frame.mover:SetPoint("TOPLEFT", back and last or first, "TOPLEFT")
+        frame.mover:SetPoint("BOTTOMRIGHT", back and first or last, "BOTTOMRIGHT")
+    else
+        frame.mover:SetAllPoints()
+    end
 end
 
 local function Fill(b, e, icon, price, count, quality, old, quest)
@@ -932,7 +941,7 @@ local function Apply()
         frame = CreateFrame("Frame", "NaowhForeverBagSpace", UIParent)
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
-        frame.mover = UI.AttachMover(frame, "Bag Space", function(pos) S.Set("bagSpacePos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:Bag Space")
+        frame.mover = UI.AttachMover(frame, "Bag Space", function(pos) S.Set("bagSpacePos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:bagSpace")
         frame.free = NewFreeCounter(frame)
     end
     Place()
@@ -971,3 +980,73 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local Group = Settings.Group
+local QUALITY = { { [0] = "Poor", [1] = "Common", [2] = "Uncommon", [3] = "Rare", [4] = "Epic" }, { 0, 1, 2, 3, 4 } }
+local DIRECTION = { { RIGHT = "Right", LEFT = "Left", UP = "Up", DOWN = "Down" }, { "RIGHT", "LEFT", "UP", "DOWN" } }
+
+local function ShowIgnoreList()
+    if ns.ShowBagSpaceIgnoreList then ns.ShowBagSpaceIgnoreList() end
+end
+
+local function BagSpaceSummary(store)
+    return ("%d items, %s and below"):format(store.Get("bagSpaceCount"),
+        QUALITY[1][store.Get("bagSpaceMaxQuality")] or "Common")
+end
+
+Settings.Page("QoL/Loot & Items", S):Card({
+    id = "bagSpace", name = "Bag Space", order = 60, switch = "bagSpace",
+    help = "The cheapest items in your bags as a row of icons, cheapest first. Ctrl-click an icon "
+        .. "to delete it, or click it to sell it while a vendor is open. Middle-click to ignore "
+        .. "an item. "
+        .. "Move it in Unlock Mode.",
+    summary = BagSpaceSummary,
+    rows = {
+        Group("Offered"),
+        { key = "bagSpaceCount", label = "Items Shown", slider = { 1, 8, 1 } },
+        { key = "bagSpaceMaxQuality", label = "Highest Quality Offered", choice = QUALITY,
+          help = "Items above this quality are never offered." },
+        { key = "bagSpaceJunkFirst", label = "Grey Items First", toggle = true,
+          help = "Grey items come before everything else, whatever they sell for." },
+        { key = "bagSpaceOldFirst", label = "Outlevelled Food & Potions First", toggle = true,
+          help = "Food, drink and potions 10 or more levels below you are marked OLD; this puts them "
+              .. "first." },
+        { key = "bagSpaceAuction", label = "Count Auction Prices", toggle = true,
+          help = "An item worth more at the auction house than at a vendor is valued at its auction "
+              .. "price, from your last Scan Prices or TradeSkillMaster." },
+        { key = "bagSpaceProtect", label = "Protect Needed Items", toggle = true,
+          help = "Never offers reagents, ammo, quest items, keys, items in an equipment set or items "
+              .. "on your BiS list." },
+        { label = "Ignore List", button = ShowIgnoreList, buttonText = "Ignore List", always = true,
+          help = "Items Bag Space never offers. Search for one, drag one in, or middle-click an icon "
+              .. "on the row." },
+        Group("Showing"),
+        { key = "bagSpaceFreeBelow", label = "Only With Free Slots Below", slider = { 0, 30, 1 },
+          help = "Shows the row only once your bags are this full. 0 shows it all the time." },
+        { key = "bagSpaceOnFull", label = "Show When Bags Are Full", toggle = true,
+          help = "An \"Inventory is full\" error brings the row up for 20 seconds, even with more free "
+              .. "slots than the threshold above." },
+        { key = "bagSpaceHideCombat", label = "Hide in Combat", toggle = true },
+        { key = "bagSpaceShowFree", label = "Show Free Slots", toggle = true,
+          help = "Free bag slots out of your total, above the row. Hover it for each bag." },
+        { key = "bagSpaceStack", label = "Offer to Stack", toggle = true,
+          help = "A Stack button at the start of the row when part-filled stacks of the same item can "
+              .. "be combined, with how many slots it frees. Nothing is deleted." },
+        { label = "Pick Up Cheapest Item", binding = "NAOWHFOREVER_BAGSPACE_PICKUP",
+          help = "Puts the cheapest item on your cursor, to drop or sell." },
+        Group("Look"),
+        { key = "bagSpaceSize", label = "Icon Size", slider = { 24, 56, 1 } },
+        { key = "bagSpaceGrow", label = "Direction", choice = DIRECTION },
+        Group("Tooltips"),
+        { key = "bagSpaceTipVendor", label = "Tooltip: Vendor Price", toggle = true,
+          help = "What the whole stack sells for at a vendor, and each item's price." },
+        { key = "bagSpaceTipAuction", label = "Tooltip: Auction Price", toggle = true,
+          help = "What the stack fetches at the auction house, from your last Scan Prices or "
+              .. "TradeSkillMaster." },
+        { key = "bagSpaceTipDelete", label = "Tooltip: Delete Hint", toggle = true,
+          help = "The Ctrl-click line, and Click to sell while a vendor is open." },
+        { key = "bagSpaceTipIgnore", label = "Tooltip: Ignore Hint", toggle = true, help = "The Middle-click line." },
+    },
+})

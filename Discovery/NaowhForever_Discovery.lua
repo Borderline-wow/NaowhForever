@@ -8,21 +8,15 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
-local T = ns.THEME
 
 local S = UI.ModuleSettings("discovery", {
     enabled = false,
-    tracker = false, trackerAlways = false, mapPins = false,
-    nearbySound = false, nearbyRange = 40,
+    tracker = false, trackerAlways = false, trackerScale = 1, mapPins = false, mapPinSize = 18, mapTurnIn = true,
+    nearbySound = false, nearbyRange = 40, nearbyPing = true, nearbyChat = true, openMap = true, windowAlpha = 1,
 })
 ns.DiscoverySettings = S
 
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
-local IN_BAGS = "|cffffd100In bags|r"
-local IN_BANK = "|cffffd100In bank|r"
-local MISSING = "|cfff87171Missing|r"
-local STRIPE = { r = 0, g = 0, b = 0 }
-local STRIPE_ALPHA = 0.35
 
 local Library = {}
 ns.Library = Library
@@ -115,6 +109,18 @@ end
 function Library.OnMap(mapID) return Spots(mapID, "find") end
 function Library.DoneOnMap(mapID) return Spots(mapID, "done") end
 
+function Library.Waypoint(title, map, x, y, note)
+    if ns.PlaceWaypoint(title, map, x, y, note) and S.Get("openMap") then ns.Shared.Places.ShowMap(map) end
+end
+
+function Library.WaypointBook(book, spot)
+    Library.Waypoint(book.name, spot[1], spot[2], spot[3], spot[4] and (" (" .. spot[4] .. ")"))
+end
+
+function Library.WaypointNpc(npc)
+    Library.Waypoint(npc.name, npc.map, npc.x, npc.y)
+end
+
 function Library.ZoneName(mapID)
     local info = C_Map.GetMapInfo(mapID)
     return info and info.name or ("map " .. mapID)
@@ -125,153 +131,108 @@ function Library.Where(spot)
     return spot[4] and (spot[4] .. " " .. coords) or coords
 end
 
--------------------------------------------------------------------------------
---  Books page
--------------------------------------------------------------------------------
--- Zones in the order their first book appears in the data, so the list reads by set.
-local function ZonesInOrder()
-    local order, seen = {}, {}
-    for _, book in ipairs(ns.LibraryBooks) do
-        for _, spot in ipairs(book.spots) do
-            if not seen[spot[1]] then
-                seen[spot[1]] = true
-                order[#order + 1] = spot[1]
-            end
-        end
-    end
-    return order
-end
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
 
-local function Status(book)
-    if Library.Done(book) then return ns.Color("muted", "Finished") end
-    local stored = Library.Stored(book)
-    if stored == "bags" then return IN_BAGS end
-    if stored == "bank" then return IN_BANK end
-    return MISSING
-end
+local DISCOVERY_OFF = "Turn on Discovery"
 
-local BUTTON_W, STATUS_W = 90, 80
-local function Row(parent, y, text, sub, status, onWaypoint, stripe)
-    local x = UI.CONTENT_PAD + 20
-    local full = (parent:GetWidth() or 0) > 0 and parent:GetWidth() or 960
-    if onWaypoint then
-        local btn = UI.KeepButton(parent, "bookWaypoint", "Waypoint", 80, 20, onWaypoint)
-        btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -x, y - 2)
-    end
-    local st = UI.KeepFont(parent, "bookStatus", 13, nil)
-    st:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -(x + BUTTON_W), y - 4)
-    st:SetJustifyH("RIGHT")
-    st:SetWordWrap(false)
-    st:SetText(status)
-    local statusW = math.max(STATUS_W, math.ceil(st:GetStringWidth()))
-    local fs = UI.KeepFont(parent, "book", 13, nil)
-    fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - 4)
-    fs:SetWidth(full - x * 2 - BUTTON_W - statusW - 10)
-    fs:SetJustifyH("LEFT")
-    fs:SetText(text)
-    local h = math.ceil(fs:GetStringHeight()) + 4
-    local s = UI.KeepFont(parent, "bookSub", 11, nil, T.muted)
-    s:SetPoint("TOPLEFT", fs, "BOTTOMLEFT", 14, -2)
-    s:SetWidth(full - x * 2 - BUTTON_W - 14)
-    s:SetJustifyH("LEFT")
-    s:SetWordWrap(true)
-    s:SetText(sub)
-    h = h + math.ceil(s:GetStringHeight()) + 2
-    if stripe then
-        local band = UI.Keep(parent, "bookStripe", function(p)
-            return ns.Solid(p, "BACKGROUND", STRIPE, STRIPE_ALPHA)
-        end)
-        band:SetPoint("TOPLEFT", parent, "TOPLEFT", x - 6, y)
-        band:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -(x - 6), y)
-        band:SetHeight(h + 6)
-    end
-    return h + 6
-end
+local function On() return S.Get("enabled") == true end
 
-local function ProgressNote(parent, y)
+local function Headline()
     local done, total = Library.Progress()
+    return ("%d of %d books handed in"):format(done, total)
+end
+
+local function Detail()
     local goal = Library.NextGoal()
     local librarian = ns.LibraryTurnIns.librarian[Library.Side()]
-    local status = goal and ("%d of %d handed in toward %s (%d)."):format(done, total, goal.name, goal.books)
-        or ("%d of %d handed in; both rewards earned."):format(done, total)
-    local _, h = UI.Widgets:Note(parent, "Library books hidden around Azeroth. Hand them to "
-        .. librarian.name .. " (" .. librarian.place .. ") for Friend of the Library at 10 and "
-        .. "Greater Friend of the Library at 20. " .. status, y)
-    return y - h
+    if not goal then return "Both rewards earned. " .. librarian.name .. " thanks you." end
+    return ("Next: %s at %d. Hand them to %s."):format(goal.name, goal.books, librarian.name)
 end
 
-function ns.BuildDiscoverySettingsPage(parent, y)
-    local W = UI.Widgets
-    local _, h
-    y = ProgressNote(parent, y)
-
-    _, h = W:SectionHeader(parent, "TRACKER" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("tracker", "Show Tracker",
-            "Pops up when you enter a zone with books you still need, with a waypoint for each "
-            .. "and your progress toward the next reward, and stays while you are in that zone. "
-            .. "The X closes it until you enter another. Move it in Unlock Mode.", "enabled"),
-        S.Toggle("trackerAlways", "Always Show",
-            "Keep the tracker up in every zone, with a dropdown of the zones where you still have "
-            .. "books to find. Entering one selects it. The X on the tracker switches this off.",
-            "tracker")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "MAP PINS" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("mapPins", "Show on World Map",
-            "Pins every book you still need on its zone's map, and your librarian while you "
-            .. "carry books. Hover a pin for the exact spot; click it for a waypoint.", "enabled")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "NEARBY ALERT" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("nearbySound", "Sound When Nearby",
-            "Plays the map ping and names the book in chat when you come within range of one you "
-            .. "still need. Once per book, until you walk away and come back.", "enabled"),
-        S.Slider("nearbyRange", "Range (yards)", 10, 100, 5, nil, "nearbySound")
-    ); y = y - h
-    return y
+local function TrackerSummary(store)
+    return store.Get("trackerAlways") and "In every zone" or "In zones with books to find"
 end
 
-function ns.BuildDiscoveryBooksPage(parent, y)
-    local W = UI.Widgets
-    local _, h
-    y = ProgressNote(parent, y)
-
-    local zones = ZonesInOrder()
-    for i = 1, #zones do
-        local mapID, items = zones[i], {}
-        for _, book in ipairs(ns.LibraryBooks) do
-            if Library.ForMe(book) then
-                for _, spot in ipairs(book.spots) do
-                    if spot[1] == mapID then items[#items + 1] = { book, spot } end
-                end
-            end
-        end
-        if #items > 0 then
-            _, h = W:SectionHeader(parent, Library.ZoneName(mapID):upper(), y); y = y - h
-            for n, item in ipairs(items) do
-                local book, spot = item[1], item[2]
-                local npc = Library.TurnIn(book)
-                local sub = Library.Where(spot) .. "  -  Hand in to " .. npc.name
-                y = y - Row(parent, y, Library.Title(book), sub, Status(book),
-                    function() ns.PlaceWaypoint(book.name, spot[1], spot[2], spot[3]) end,
-                    n % 2 == 1)
-            end
-        end
-    end
-
-    local unplaced = {}
-    for _, book in ipairs(ns.LibraryBooks) do
-        if book.unplaced and Library.ForMe(book) then unplaced[#unplaced + 1] = book end
-    end
-    if #unplaced > 0 then
-        _, h = W:SectionHeader(parent, "NOT FOUND YET", y); y = y - h
-        for n, book in ipairs(unplaced) do
-            y = y - Row(parent, y, Library.Title(book), "Nobody has found this one on Forever yet.",
-                Status(book), nil, n % 2 == 1)
-        end
-    end
-    return y
+local function NearbySummary(store)
+    return ("Within %d yards"):format(store.Get("nearbyRange"))
 end
+
+local function MapSummary(store)
+    return store.Get("mapTurnIn") and "Books and who takes them" or "Books only"
+end
+
+local function WaypointSummary(store)
+    return store.Get("openMap") and "Pins it and opens the map" or "Pins it only"
+end
+
+local page = Settings.Page("Discovery/Settings", S)
+
+page:Window({
+    text = "Open Discovery",
+    open = function() ns.OpenDiscoveryWindow() end,
+    headline = Headline,
+    detail = Detail,
+})
+
+page:Card({
+    id = "tracker", name = "Tracker", order = 10, switch = "tracker",
+    help = "Pops up when you enter a zone with books you still need, with a waypoint for each and your "
+        .. "progress toward the next reward, and stays while you are in that zone. The X closes it until "
+        .. "you enter another. Move it in Unlock Mode.",
+    summary = TrackerSummary,
+    rows = {
+        { key = "trackerAlways", label = "Always Show", toggle = true, needs = On, why = DISCOVERY_OFF,
+          help = "Keep the tracker up in every zone, with a dropdown of the zones where you still have books "
+              .. "to find. Entering one selects it. The X on the tracker switches this off." },
+        { key = "trackerScale", label = "Scale", slider = { 50, 150, 5 }, unit = "%", scale = 0.01, needs = On,
+          why = DISCOVERY_OFF, help = "How big the tracker is." },
+    },
+})
+
+page:Card({
+    id = "mapPins", name = "Map Pins", order = 20, switch = "mapPins",
+    help = "Pins every book you still need on its zone's map, and your librarian while you carry books. "
+        .. "Hover a pin for the exact spot; click it for a waypoint.",
+    summary = MapSummary,
+    rows = {
+        { key = "mapTurnIn", label = "Hand-In Pin", toggle = true, needs = On, why = DISCOVERY_OFF,
+          help = "While you carry books, a pin on who takes them: your librarian, or the mage trainer." },
+        { key = "mapPinSize", label = "Pin Size", slider = { 12, 32, 1 }, needs = On, why = DISCOVERY_OFF,
+          help = "How big the pins are on the map." },
+    },
+})
+
+page:Card({
+    id = "nearby", name = "Nearby Alert", order = 30, switch = "nearbySound",
+    help = "Plays the map ping and names the book in chat when you come within range of one you still need. "
+        .. "Once per book, until you walk away and come back.",
+    summary = NearbySummary,
+    rows = {
+        { key = "nearbyRange", label = "Range", slider = { 10, 100, 5 }, unit = " yd", needs = On,
+          why = DISCOVERY_OFF, help = "How close a book has to be before it pings." },
+        { key = "nearbyPing", label = "Ping Sound", toggle = true, needs = On, why = DISCOVERY_OFF,
+          help = "Plays the map ping when a book is near." },
+        { key = "nearbyChat", label = "Chat Line", toggle = true, needs = On, why = DISCOVERY_OFF,
+          help = "Names the book in chat, with how far it is and where." },
+    },
+})
+
+page:Card({
+    id = "waypoints", name = "Waypoints", order = 35,
+    help = "What a waypoint from the Discovery window or the tracker does.",
+    summary = WaypointSummary,
+    rows = {
+        { key = "openMap", label = "Open the Map", toggle = true,
+          help = "Also opens the world map on the waypoint, so you see where it is. Out of combat only." },
+    },
+})
+
+page:Card({
+    id = "window", name = "Window", order = 40,
+    help = "Discovery's own window, with every book and where to find it.",
+    rows = {
+        { key = "windowAlpha", label = "Window Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 },
+          unit = "%", scale = 0.01, help = "How solid the window is, in percent. Also on its title bar." },
+    },
+})

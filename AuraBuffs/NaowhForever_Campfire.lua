@@ -22,47 +22,9 @@ local TEXT_SIZE = 16
 -- The plate behind the campfire art; ns.ThemeTint swaps in the player's Panels color.
 local PLATE = { r = 0.14, g = 0.15, b = 0.16 }
 
-local icon, unlocked
-local hasCamp       -- nil until the first read
-local shownExpiry   -- the expiry the swipe was last started from
-local alert
-local alertGen = 0   -- invalidates an older Alert Under timer
-local alertArmed     -- the expiry that timer was set for
-local alertDismissed -- Ctrl-clicked away; back once you leave the campfire's range
-local ringGen = 0    -- invalidates an older ring colour change
-local showGen = 0    -- invalidates an older "drops under the Show Only When Low time" timer
-local showArmed      -- the expiry and minutes that timer was set for
+local Look = {}
 
-local function On()
-    return S.Get("enabled") and S.Get("campfire")
-end
-
--- Camp Benefits is earned in the open world, so dungeons, raids and battlegrounds never
--- nag about it.
-local function InOpenWorld()
-    local inInstance = IsInInstance()
-    return not inInstance
-end
-
--- Show Active Camp Buffs: Off, Always or On Mouseover. A profile that never picked one
--- follows the old on/off switch, so nobody's setting changes.
-function ns.CampBuffMode()
-    local mode = S.Get("campBuffMode")
-    if mode then return mode end
-    return S.Get("campBuffs") and "always" or "off"
-end
-
--- On Mouseover: the buff lines stay written but invisible until the icon is hovered.
-local function PaintBuffs()
-    local hidden = ns.CampBuffMode() == "hover" and not unlocked and not icon:IsMouseOver()
-    icon.buffs:SetAlpha(hidden and 0 or 1)
-end
-
-local function Build()
-    icon = CreateFrame("Frame", "NaowhForeverCampfire", UIParent)
-    icon:SetMovable(true)
-    icon:SetClampedToScreen(true)
-
+function Look.New(icon)
     icon.tex = icon:CreateTexture(nil, "ARTWORK")
     icon.tex:SetAllPoints()
     icon.tex:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\CampfireHD.tga")
@@ -114,13 +76,112 @@ local function Build()
     icon.buffs = ns.Font(icon, TEXT_SIZE, "OUTLINE")
     icon.buffs:SetPoint("TOP", icon, "BOTTOM", 0, -4)
     icon.buffs:SetJustifyH("CENTER")
+end
+
+function Look.Layout(icon)
+    local size = S.Get("campIconSize")
+    icon:SetSize(size, size)
+    icon.buffs:SetFont(ns.UIFontPath(), S.Get("campBuffTextSize"), "OUTLINE")
+    icon.buffs:ClearAllPoints()
+    local side = S.Get("campBuffSide")
+    icon.buffs:SetJustifyH(side == "right" and "LEFT" or side == "left" and "RIGHT" or "CENTER")
+    if side == "right" then icon.buffs:SetPoint("LEFT", icon, "RIGHT", 12, 0)
+    elseif side == "left" then icon.buffs:SetPoint("RIGHT", icon, "LEFT", -12, 0)
+    elseif side == "above" then icon.buffs:SetPoint("BOTTOM", icon, "TOP", 0, 12)
+    else icon.buffs:SetPoint("TOP", icon, "BOTTOM", 0, -12) end
+end
+
+function Look.Step(left)
+    for _, step in ipairs(RING_STEPS) do
+        if left > step[1] or step[1] == 0 then return step end
+    end
+end
+
+function Look.Timed(icon, on)
+    icon.timer:SetShown(on)
+    icon.drain:SetShown(on)
+    icon.track:SetShown(on)
+end
+
+function Look.Up(icon, buffs)
+    icon.tex:SetDesaturated(false)
+    icon.label:Hide()
+    icon.buffs:SetText(buffs)
+    icon.buffs:Show()
+end
+
+function Look.Sitting(icon)
+    icon.tex:SetDesaturated(false)
+    icon.label:SetText("Resting")
+    icon.label:Show()
+    icon.buffs:Hide()
+end
+
+function Look.Missing(icon)
+    icon.tex:SetDesaturated(true)
+    icon.label:SetText("Refresh Camp")
+    icon.label:Show()
+    icon.buffs:Hide()
+    Look.Timed(icon, false)
+end
+
+function Look.Alert(alert)
+    alert.text = ns.Font(alert, 28, "OUTLINE", T.accent)
+    alert.text:SetPoint("CENTER")
+    alert.text:SetText("Camp Nearby")
+    alert:SetSize(alert.text:GetStringWidth() + 16, 40)
+end
+
+local icon, unlocked
+local hasCamp       -- nil until the first read
+local shownExpiry   -- the expiry the swipe was last started from
+local alert
+local alertGen = 0   -- invalidates an older Alert Under timer
+local alertArmed     -- the expiry that timer was set for
+local alertDismissed -- Ctrl-clicked away; back once you leave the campfire's range
+local ringGen = 0    -- invalidates an older ring colour change
+local showGen = 0    -- invalidates an older "drops under the Show Only When Low time" timer
+local showArmed      -- the expiry and minutes that timer was set for
+
+local function On()
+    return S.Get("enabled") and S.Get("campfire")
+end
+
+-- Camp Benefits is earned in the open world, so dungeons, raids and battlegrounds never
+-- nag about it.
+local function InOpenWorld()
+    local inInstance = IsInInstance()
+    return not inInstance
+end
+
+-- Show Active Camp Buffs: Off, Always or On Mouseover. A profile that never picked one
+-- follows the old on/off switch, so nobody's setting changes.
+function ns.CampBuffMode()
+    local mode = S.Get("campBuffMode")
+    if mode then return mode end
+    return S.Get("campBuffs") and "always" or "off"
+end
+
+-- On Mouseover: the buff lines stay written but invisible until the icon is hovered.
+local function PaintBuffs()
+    local hidden = ns.CampBuffMode() == "hover" and not unlocked and not icon:IsMouseOver()
+    icon.buffs:SetAlpha(hidden and 0 or 1)
+end
+
+local function Build()
+    icon = CreateFrame("Frame", "NaowhForeverCampfire", UIParent)
+    icon:SetMovable(true)
+    icon:SetClampedToScreen(true)
+
+    Look.New(icon)
 
     -- Hovering the icon shows the buff lines while Show Active Camp Buffs is On Mouseover. The
     -- icon only takes the mouse then (Apply), so clicks and camera drags otherwise go through.
     icon:SetScript("OnEnter", PaintBuffs)
     icon:SetScript("OnLeave", PaintBuffs)
 
-    icon.mover = ns.UI.AttachMover(icon, "Campfire", function(pos) S.Set("campPos", pos) end, "AuraBuffs/Campfire")
+    icon.mover = ns.UI.AttachMover(icon, "Campfire", function(pos) S.Set("campPos", pos) end,
+        "AuraBuffs/Settings", "AuraBuffs/Settings:campfire")
     icon:Hide()
 end
 
@@ -138,25 +199,18 @@ end
 local function ColorRing(expiry)
     ringGen = ringGen + 1
     local left = expiry - GetTime()
-    for _, step in ipairs(RING_STEPS) do
-        if left > step[1] or step[1] == 0 then
-            icon.drain:SetSwipeColor(step[2], step[3], step[4], 1)
-            if step[1] > 0 then
-                local gen = ringGen
-                C_Timer.After(left - step[1] + 0.1, function()
-                    if gen == ringGen then ColorRing(expiry) end
-                end)
-            end
-            return
-        end
+    local step = Look.Step(left)
+    icon.drain:SetSwipeColor(step[2], step[3], step[4], 1)
+    if step[1] > 0 then
+        local gen = ringGen
+        C_Timer.After(left - step[1] + 0.1, function()
+            if gen == ringGen then ColorRing(expiry) end
+        end)
     end
 end
 
 local function ShowUp(duration, expiry, buffs)
-    icon.tex:SetDesaturated(false)
-    icon.label:Hide()
-    icon.buffs:SetText(ns.CampBuffMode() ~= "off" and buffs or "")
-    icon.buffs:Show()
+    Look.Up(icon, ns.CampBuffMode() ~= "off" and buffs or "")
     PaintBuffs()
     if S.Get("campTimer") and duration and duration > 0 then
         if shownExpiry ~= expiry then
@@ -165,13 +219,9 @@ local function ShowUp(duration, expiry, buffs)
             ColorRing(expiry)
             shownExpiry = expiry
         end
-        icon.timer:Show()
-        icon.drain:Show()
-        icon.track:Show()
+        Look.Timed(icon, true)
     else
-        icon.timer:Hide()
-        icon.drain:Hide()
-        icon.track:Hide()
+        Look.Timed(icon, false)
         ringGen = ringGen + 1
         shownExpiry = nil
     end
@@ -179,10 +229,7 @@ local function ShowUp(duration, expiry, buffs)
 end
 
 local function ShowSitting(duration, expiry)
-    icon.tex:SetDesaturated(false)
-    icon.label:SetText("Resting")
-    icon.label:Show()
-    icon.buffs:Hide()
+    Look.Sitting(icon)
     ringGen = ringGen + 1
     local timed = S.Get("campTimer")
     if timed and shownExpiry ~= expiry then
@@ -193,20 +240,12 @@ local function ShowSitting(duration, expiry)
     elseif not timed then
         shownExpiry = nil
     end
-    icon.timer:SetShown(timed)
-    icon.drain:SetShown(timed)
-    icon.track:SetShown(timed)
+    Look.Timed(icon, timed)
     icon:Show()
 end
 
 local function ShowMissing()
-    icon.tex:SetDesaturated(true)
-    icon.label:SetText("Refresh Camp")
-    icon.label:Show()
-    icon.buffs:Hide()
-    icon.timer:Hide()
-    icon.drain:Hide()
-    icon.track:Hide()
+    Look.Missing(icon)
     ringGen = ringGen + 1
     shownExpiry = nil
     icon:SetShown(S.Get("campShowMissing") or unlocked == true)
@@ -218,10 +257,7 @@ local function BuildAlert()
     alert = CreateFrame("Frame", "NaowhForeverCampNearby", UIParent)
     alert:SetMovable(true)
     alert:SetClampedToScreen(true)
-    alert.text = ns.Font(alert, 28, "OUTLINE", T.accent)
-    alert.text:SetPoint("CENTER")
-    alert.text:SetText("Camp Nearby")
-    alert:SetSize(alert.text:GetStringWidth() + 16, 40)
+    Look.Alert(alert)
     -- Ctrl-click dismisses it. It takes the mouse only while Ctrl is down, so an ordinary click
     -- or camera drag in the middle of the screen still reaches the world.
     alert:EnableMouse(false)
@@ -237,7 +273,8 @@ local function BuildAlert()
             self:Hide()
         end
     end)
-    alert.mover = ns.UI.AttachMover(alert, "Camp Nearby", function(pos) S.Set("campAlertPos", pos) end, "AuraBuffs/Campfire")
+    alert.mover = ns.UI.AttachMover(alert, "Camp Nearby", function(pos) S.Set("campAlertPos", pos) end,
+        "AuraBuffs/Settings", "AuraBuffs/Settings:campNearby")
     local pos = S.Get("campAlertPos")
     if pos then
         alert:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
@@ -445,16 +482,7 @@ local function Apply()
     end
     if not icon then Build() end
     icon:EnableMouse(ns.CampBuffMode() == "hover")
-    local size = S.Get("campIconSize")
-    icon:SetSize(size, size)
-    icon.buffs:SetFont(ns.UIFontPath(), S.Get("campBuffTextSize"), "OUTLINE")
-    icon.buffs:ClearAllPoints()
-    local side = S.Get("campBuffSide")
-    icon.buffs:SetJustifyH(side == "right" and "LEFT" or side == "left" and "RIGHT" or "CENTER")
-    if side == "right" then icon.buffs:SetPoint("LEFT", icon, "RIGHT", 12, 0)
-    elseif side == "left" then icon.buffs:SetPoint("RIGHT", icon, "LEFT", -12, 0)
-    elseif side == "above" then icon.buffs:SetPoint("BOTTOM", icon, "TOP", 0, 12)
-    else icon.buffs:SetPoint("TOP", icon, "BOTTOM", 0, -12) end
+    Look.Layout(icon)
     Place()
     icon.mover:SetShown(unlocked == true)
     if On() then
@@ -488,3 +516,166 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local Group = Settings.Group
+
+local OFF = "Turn on AuraBuffs"
+local STAGE_H, ALERT_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN = 230, 90, 10, 11, 16
+local CAMP_HOUR, SIT_TIME, BUFF_GAP = 3600, 60, 12
+local SAMPLE_BUFFS = "+Rested\n+Crit"
+local SAMPLES = { up = 2400, low = 240, sitting = 35 }
+local BUFF_MODES = { { off = "Off", always = "Always", hover = "On Mouseover" }, { "off", "always", "hover" } }
+local SIDES = { { below = "Below", above = "Above", left = "Left", right = "Right" },
+    { "below", "above", "left", "right" } }
+local STATES = {
+    { key = "up", label = "Camp Up", tip = "Camp Benefits with most of its hour left." },
+    { key = "low", label = "Running Low", tip = "Camp Benefits about to run out." },
+    { key = "sitting", label = "Sitting", tip = "Sitting at a campfire, before Camp Benefits lands." },
+    { key = "missing", label = "Refresh Camp", tip = "No Camp Benefits, out in the world.",
+      needs = "campShowMissing" },
+}
+local ALERT_STATES = {
+    { key = "nearby", label = "Camp Nearby", tip = "A campfire in range while your camp needs refreshing." },
+}
+
+local function Enabled() return S.Get("enabled") and true or false end
+local function Needs(key) return function() return S.Get("enabled") and S.Get(key) and true or false end end
+local function CampOn() return S.Get("enabled") and S.Get("campfire") and true or false end
+local function PickBuffMode(v) S.Set("campBuffMode", v) end
+
+local function Hidden(state)
+    if state == "up" and S.Get("campShowUnder") and SAMPLES.up > S.Get("campShowUnderMinutes") * 60 then
+        return ("Show Only When Low: hidden until under %d min."):format(S.Get("campShowUnderMinutes"))
+    end
+end
+
+local function NewPreview(stage)
+    local shot = CreateFrame("Frame", nil, stage)
+    shot:SetAllPoints()
+    shot.icon = CreateFrame("Frame", nil, shot)
+    Look.New(shot.icon)
+    shot.note = ns.Font(shot, NOTE_SIZE, nil, T.muted)
+    shot.note:SetPoint("BOTTOM", 0, NOTE_Y)
+    return shot
+end
+
+local function Fit(shot)
+    local f = shot.icon
+    local reach = f:GetHeight() + (S.Get("campBuffTextSize") + BUFF_GAP) * 2
+    local room = shot:GetHeight() - STAGE_MARGIN * 2 - NOTE_Y * 2
+    local scale = 1
+    if room > 0 and reach > room then scale = room / reach end
+    f:SetScale(scale)
+    f:ClearAllPoints()
+    f:SetPoint("CENTER", shot, "CENTER", 0, NOTE_Y / scale)
+end
+
+local function Run(f, left, duration)
+    local start = GetTime() - (duration - left)
+    f.timer:SetCooldown(start, duration)
+    f.drain:SetCooldown(start, duration)
+    Look.Timed(f, S.Get("campTimer"))
+end
+
+local function PaintPreview(shot, state)
+    local f = shot.icon
+    Look.Layout(f)
+    Fit(shot)
+    local mode = ns.CampBuffMode()
+    local hidden = Hidden(state)
+    local note = hidden
+    if state == "missing" then
+        Look.Missing(f)
+    elseif state == "sitting" then
+        Look.Sitting(f)
+        f.drain:SetSwipeColor(T.accent.r, T.accent.g, T.accent.b, 1)
+        Run(f, SAMPLES.sitting, SIT_TIME)
+    else
+        Look.Up(f, mode ~= "off" and SAMPLE_BUFFS or "")
+        f.buffs:SetAlpha(1)
+        local step = Look.Step(SAMPLES[state])
+        f.drain:SetSwipeColor(step[2], step[3], step[4], 1)
+        Run(f, SAMPLES[state], CAMP_HOUR)
+        if not note and mode == "hover" then note = "The buffs show while you hover the icon." end
+    end
+    f:SetShown(not hidden)
+    shot.note:SetText(note or "")
+end
+
+local function NewAlert(stage)
+    local shot = CreateFrame("Frame", nil, stage)
+    shot:SetAllPoints()
+    shot.alert = CreateFrame("Frame", nil, shot)
+    Look.Alert(shot.alert)
+    shot.alert:SetPoint("CENTER")
+    return shot
+end
+
+local function PaintAlert() end
+
+local function CampSummary(store)
+    local parts = { store.Get("campTimer") and "Timer" or "No timer" }
+    local mode = ns.CampBuffMode()
+    if mode == "always" then parts[#parts + 1] = "camp buffs"
+    elseif mode == "hover" then parts[#parts + 1] = "camp buffs on mouseover" end
+    if store.Get("campSound") then parts[#parts + 1] = "a sound to refresh" end
+    return table.concat(parts, ", ")
+end
+
+local function AlertSummary(store)
+    return ("Under %d min"):format(store.Get("campNearbyMinutes"))
+end
+
+local page = Settings.Page("AuraBuffs/Settings", S)
+
+page:Card({
+    id = "campfire", name = "Campfire", order = 20, switch = "campfire",
+    help = "A round camp icon while Camp Benefits is up, a one minute countdown while you sit at a campfire, "
+        .. "and a reminder when the camp is gone. Open world only. Move it in Unlock Mode.",
+    summary = CampSummary,
+    studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        Group("Icon"),
+        { key = "campIconSize", label = "Icon Size", slider = { 24, 110, 1 }, needs = Enabled, why = OFF },
+        { key = "campTimer", label = "Show Camp Timer", toggle = true, needs = Enabled, why = OFF,
+          help = "A countdown in the icon, and a ring around it that drains as the camp runs down: green "
+              .. "above 30 minutes, yellow above 5, red under 5." },
+        { key = "campShowMissing", label = "Show Refresh Reminder", toggle = true, needs = Enabled, why = OFF,
+          help = "The camp icon, greyed out and saying Refresh Camp, while you have no Camp Benefits." },
+        { key = "campShowUnder", label = "Show Only When Low", toggle = true, needs = Enabled, why = OFF,
+          help = "Keeps the icon hidden while Camp Benefits has more time left than Show Under, and shows "
+              .. "it once the camp drops under that. The sitting countdown and the Refresh Camp reminder "
+              .. "still show." },
+        { key = "campShowUnderMinutes", label = "Show Under", slider = { 1, 59, 1 }, unit = " min",
+          needs = Needs("campShowUnder"), why = "Needs Show Only When Low" },
+        Group("Camp Buffs"),
+        { key = "campBuffMode", label = "Show Active Camp Buffs", choice = BUFF_MODES, get = ns.CampBuffMode,
+          set = PickBuffMode, needs = Enabled, why = OFF,
+          help = "The active effects reported in your Camp Benefits tooltip. On Mouseover shows them while "
+              .. "the mouse is over the camp icon." },
+        { key = "campBuffTextSize", label = "Buff Text Size", slider = { 8, 28, 1 }, needs = Enabled, why = OFF },
+        { key = "campBuffSide", label = "Buff Text Position", choice = SIDES, needs = Enabled, why = OFF },
+        Group("Sound"),
+        { key = "campSound", label = "Play a Sound to Refresh", toggle = true, needs = Enabled, why = OFF,
+          help = "Plays when it is time to refresh the camp." },
+        { key = "campSoundKey", label = "Sound", sound = true, needs = Needs("campSound"),
+          why = "Needs Play a Sound to Refresh" },
+    },
+})
+
+page:Card({
+    id = "campNearby", name = "Camp Nearby", order = 30, switch = "campNearbyAlert",
+    help = "\"Camp Nearby\" in the middle of the screen when a campfire is in range and your camp needs "
+        .. "refreshing: no Camp Benefits, or less than Alert Under minutes left. Ctrl-click it to dismiss "
+        .. "it until you leave that campfire. Part of the Campfire reminder, so it needs that on. Move it "
+        .. "in Unlock Mode.",
+    summary = AlertSummary,
+    studio = { height = ALERT_H, states = ALERT_STATES, new = NewAlert, paint = PaintAlert },
+    rows = {
+        { key = "campNearbyMinutes", label = "Alert Under", slider = { 1, 59, 1 }, unit = " min",
+          needs = CampOn, why = "Needs the Campfire reminder",
+          help = "How little Camp Benefits time counts as needing a refresh." },
+    },
+})

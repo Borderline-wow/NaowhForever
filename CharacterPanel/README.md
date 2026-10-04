@@ -29,7 +29,7 @@ CharacterPanel/
                        the game's All Stats; the switch at the bottom
   Chrome.lua           the frame: our backdrop and title, the game's art faded or tinted,
                        the stats' rows restyled as the game's list makes them
-  SettingsPage.lua     its tab on the BiS List's settings
+  SettingsPage.lua     its cards on the BiS List's settings page
 ```
 
 ## How the slots work

@@ -179,7 +179,7 @@ local function BuildAlert()
     alert.text = ns.Font(alert, 16, "OUTLINE")
     alert.text:SetPoint("TOP", alert.title, "BOTTOM", 0, -4)
     alert.text:SetJustifyH("CENTER")
-    alert.mover = ns.UI.AttachMover(alert, "Restock", function(pos) S.Set("restockPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:Restock Reminder")
+    alert.mover = ns.UI.AttachMover(alert, "Restock", function(pos) S.Set("restockPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:restock")
 
     -- Pulses a few times when it appears, then stays solid until it is dealt with.
     flash = alert:CreateAnimationGroup()
@@ -373,3 +373,103 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+local CARRY_HELP = "How many to carry. 0 stops reminding you about it."
+local CHECKS = { { "restockReagents", "reagents" }, { "restockAmmo", "ammo" }, { "restockFood", "food & drink" },
+    { "restockVendor", "junk & bags" } }
+
+local loot = ns.Shared.Settings.Page("QoL/Loot & Items", S)
+
+loot:Card({
+    id = "vendors", name = "Vendors", order = 20,
+    help = "What happens when you open a vendor. Both work whether or not the Restock Reminder is on.",
+    rows = {
+        { key = "autoRepair", label = "Auto Repair", toggle = true,
+          help = "Repairs all gear when you open a vendor who can." },
+        { key = "sellJunk", label = "Auto Sell Junk", toggle = true, help = "Sells grey items when you open a vendor." },
+    },
+})
+
+local FIXED = {
+    Group("Reagents & Ammo"),
+    { key = "restockReagents", label = "Class Reagents", toggle = true,
+      help = "The reagents your known spells use, such as Arcane Powder, candles, seeds, Symbols "
+          .. "of Kings and Flash Powder, matched to the highest rank you know." },
+    { key = "restockBuy", label = "Buy at Vendors", toggle = true,
+      help = "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
+          .. "and prints what it spent. Off by default: it spends gold for you." },
+    { key = "restockAmmo", label = "Ammo", toggle = true, help = "The arrows or shot in your ammo slot." },
+    { key = "restockAmmoTarget", label = "Ammo to Carry", slider = { 200, 4000, 100 }, needs = "restockAmmo" },
+    Group("Food & Drink"),
+    { key = "restockFood", label = "Food & Drink", toggle = true,
+      help = "Counts food and drink separately across all stacks. Warriors and rogues do not need drink." },
+    { key = "restockFoodBelow", label = "Food & Drink Below", slider = { 1, 40, 1 }, needs = "restockFood" },
+    { key = "restockFoodMinLevel", label = "Food Minimum Required Level", slider = { 0, 60, 1 }, needs = "restockFood",
+      help = "Only count food and drink whose required level is within this range." },
+    { key = "restockFoodMaxLevel", label = "Food Maximum Required Level", slider = { 0, 60, 1 }, needs = "restockFood",
+      help = "The same required-level filter applies to every stack, not each item separately." },
+    Group("Bags"),
+    { key = "restockVendor", label = "Junk & Full Bags", toggle = true,
+      help = "Reminds you to vendor junk, and when your bags are nearly full." },
+    { key = "restockBagsBelow", label = "Free Slots Below", slider = { 1, 20, 1 }, needs = "restockVendor" },
+}
+local CARRY_GROUP = Group("Reagents to Carry")
+
+local restockRows, reagentRows, seenReagents = {}, {}, {}
+
+local function ReagentRow(item)
+    local row = reagentRows[item]
+    if not row then
+        local key = "restockTarget" .. item
+        row = { key = key, slider = { 0, 200, 1 }, help = CARRY_HELP, needs = "restockReagents",
+            get = function() return Target(item) end,
+            set = function(v) S.Set(key, v) end }
+        reagentRows[item] = row
+    end
+    row.label = ItemName(item)
+    return row
+end
+
+local function RestockRows()
+    wipe(restockRows)
+    wipe(seenReagents)
+    for i = 1, #FIXED do restockRows[i] = FIXED[i] end
+    local class = select(2, UnitClass("player"))
+    local grouped = false
+    for _, family in ipairs(FAMILIES) do
+        if family.class == class then
+            for _, rank in ipairs(family) do
+                local item = rank[2]
+                if not seenReagents[item] then
+                    seenReagents[item] = true
+                    if not grouped then
+                        restockRows[#restockRows + 1] = CARRY_GROUP
+                        grouped = true
+                    end
+                    restockRows[#restockRows + 1] = ReagentRow(item)
+                end
+            end
+        end
+    end
+    return restockRows
+end
+
+local function RestockSummary(store)
+    local text
+    for _, pair in ipairs(CHECKS) do
+        if store.Get(pair[1]) then text = text and (text .. ", " .. pair[2]) or pair[2] end
+    end
+    if not text then return "Nothing to check" end
+    text = text:sub(1, 1):upper() .. text:sub(2)
+    return store.Get("restockBuy") and (text .. "; buys at vendors") or text
+end
+
+loot:Card({
+    id = "restock", name = "Restock Reminder", order = 50, switch = "restock",
+    help = "When you reach a city or inn, a flashing list in the middle of the screen of what "
+        .. "you are short on. It stays up until you have what you need or leave. Move it "
+        .. "in Unlock Mode.",
+    summary = RestockSummary,
+    rows = RestockRows,
+})

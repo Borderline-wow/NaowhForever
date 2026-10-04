@@ -40,9 +40,11 @@ local function Check()
         local quest = t[1].quest
         if dist <= range and not alerted[quest] then
             alerted[quest] = true
-            PlaySound(SOUNDKIT.MAP_PING, "Master")
-            ns.Print(("Library book nearby: %s, %d yards%s"):format(t[1].name, math.floor(dist),
-                t[2][4] and (" - " .. t[2][4]) or ""))
+            if S.Get("nearbyPing") then PlaySound(SOUNDKIT.MAP_PING, "Master") end
+            if S.Get("nearbyChat") then
+                ns.Print(("Library book nearby: %s, %d yards%s"):format(t[1].name, math.floor(dist),
+                    t[2][4] and (" - " .. t[2][4]) or ""))
+            end
         elseif dist > range * REARM then
             alerted[quest] = nil
         end

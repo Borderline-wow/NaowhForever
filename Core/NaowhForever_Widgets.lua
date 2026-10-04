@@ -10,6 +10,9 @@ local BLACK = { r = 0, g = 0, b = 0 }
 local UI = {}
 ns.UI = UI
 
+local CHEVRON = "Interface\\AddOns\\NaowhForever\\Media\\chevron.tga"
+UI.CHEVRON = CHEVRON
+
 UI.CONTENT_PAD = 20
 UI.COGS_ICON = "Interface\\AddOns\\NaowhForever\\Media\\cog.tga"
 
@@ -184,9 +187,12 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
     lbl:SetPoint("RIGHT", -18, 0)
     lbl:SetJustifyH("LEFT")
     lbl:SetWordWrap(false)
-    local arrow = ns.Font(btn, 10, nil, T.muted)
+    local arrow = btn:CreateTexture(nil, "ARTWORK")
+    arrow:SetTexture(CHEVRON)
+    arrow:SetSize(10, 10)
+    if arrow.SetRotation then arrow:SetRotation(-math.pi / 2) end
+    arrow:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
     arrow:SetPoint("RIGHT", -7, 0)
-    arrow:SetText("v")
     -- Read through fields so a kept control can be pointed at new data (UI.KeepDropdown).
     btn._values, btn._order, btn._get, btn._set = values, order, get, set
     local function Keys()
@@ -255,16 +261,18 @@ end
 
 function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inputFontSz,
                             inputAlpha, minV, maxV, step, get, set)
-    step = step or 1
+    local track = CreateFrame("Frame", nil, parent)
+    track._minV, track._maxV, track._step = minV, maxV, step or 1
     local function Clamp(v)
         v = tonumber(v)
         if not v then return nil end
-        v = math.floor((v - minV) / step + 0.5) * step + minV
-        if v < minV then v = minV elseif v > maxV then v = maxV end
+        local lo, hi, st = track._minV, track._maxV, track._step
+        v = math.floor((v - lo) / st + 0.5) * st + lo
+        v = tonumber(("%.4f"):format(v))
+        if v < lo then v = lo elseif v > hi then v = hi end
         return v
     end
 
-    local track = CreateFrame("Frame", nil, parent)
     track:SetSize(trackW, math.max(trackH, thumbSz))
     track:EnableMouse(true)
     -- Read through fields so a kept control can be pointed at new callbacks (UI.KeepSlider).
@@ -284,7 +292,8 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     local valBox = CreateFrame("EditBox", nil, parent)
     valBox:SetSize(inputW, inputH)
     valBox:SetAutoFocus(false)
-    valBox:SetFontObject("GameFontHighlight")
+    valBox:SetFont(ns.UIFontPath(), inputFontSz or 12, "")
+    valBox:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
     valBox:SetTextInsets(4, 4, 0, 0)
     valBox:SetJustifyH("CENTER")
     valBox:SetAlpha(inputAlpha or 1)
@@ -295,8 +304,9 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     valBox:SetScript("OnLeave", function() boxBorder:SetColor(0, 0, 0, 1) end)
 
     local function Paint()
-        local v = Clamp(track._get()) or minV
-        local frac = (maxV > minV) and (v - minV) / (maxV - minV) or 0
+        local lo, hi = track._minV, track._maxV
+        local v = Clamp(track._get()) or lo
+        local frac = (hi > lo) and (v - lo) / (hi - lo) or 0
         fill:SetWidth(math.max(0.001, frac * trackW))
         thumb:ClearAllPoints()
         thumb:SetPoint("CENTER", track, "LEFT", frac * trackW, 0)
@@ -311,7 +321,7 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
         if not left then return end
         local frac = (cx - left) / trackW
         if frac < 0 then frac = 0 elseif frac > 1 then frac = 1 end
-        local v = Clamp(minV + frac * (maxV - minV))
+        local v = Clamp(track._minV + frac * (track._maxV - track._minV))
         if v ~= nil and v ~= track._get() then
             track._set(v)
         end
@@ -364,6 +374,10 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     track.rail, track.fill, track.thumb = rail, fill, thumb
     track.valueBox, track.valueFill, track.valueBorder = valBox, boxBg, boxBorder
     return track, valBox, Paint
+end
+
+function UI.SetSliderRange(track, minV, maxV, step)
+    track._minV, track._maxV, track._step = minV, maxV, step or 1
 end
 
 -- What a slider's value box shows, set as track._format (or a row's cfg.format): a percent
@@ -781,10 +795,10 @@ local function Mark(frame, text, tooltip)
     local on = false
     local words = UI.searchWords
     if words and type(text) == "string" and text ~= "" then
-        local name, tip = text:lower(), type(tooltip) == "string" and tooltip:lower() or ""
+        local name = text:lower()
         on = true
         for _, word in ipairs(words) do
-            if not (name:find(word, 1, true) or tip:find(word, 1, true)) then on = false break end
+            if not name:find(word, 1, true) then on = false break end
         end
     end
     if on and not frame._searchMark then
@@ -1100,11 +1114,12 @@ end
 function UI.BuildColorSwatchControl(parent, get, set, hasAlpha)
     local swatchBtn = CreateFrame("Button", nil, parent)
     swatchBtn:SetSize(40, 20)
-    ns.Border(swatchBtn)
+    ns.Border(swatchBtn, BLACK)
     local swatch = ns.Solid(swatchBtn, "BACKGROUND", T.fg, 1)
     swatch:SetAllPoints()
+    swatchBtn._get, swatchBtn._set, swatchBtn._hasAlpha = get, set, hasAlpha
     local function PaintSwatch()
-        local r, g, b = get()
+        local r, g, b = swatchBtn._get()
         swatch:SetColorTexture(r or 1, g or 1, b or 1, 1)
     end
     PaintSwatch()
@@ -1113,30 +1128,31 @@ function UI.BuildColorSwatchControl(parent, get, set, hasAlpha)
     -- The picker calls swatchFunc as it opens and cancelFunc on Escape or a click away, so
     -- nothing is saved until the color actually moves off the one it opened with.
     swatchBtn:SetScript("OnClick", function()
-        local r, g, b, a = get()
+        local read, write, withAlpha = swatchBtn._get, swatchBtn._set, swatchBtn._hasAlpha
+        local r, g, b, a = read()
         r, g, b, a = r or 1, g or 1, b or 1, a or 1
         local changed = false
         local function Apply()
             local nr, ng, nb = ColorPickerFrame:GetColorRGB()
-            local na = hasAlpha and ColorPickerFrame:GetColorAlpha() or 1
+            local na = withAlpha and ColorPickerFrame:GetColorAlpha() or 1
             local near = 1 / 255
             if not changed and math.abs(nr - r) <= near and math.abs(ng - g) <= near
                 and math.abs(nb - b) <= near and math.abs(na - a) <= near then
                 return
             end
             changed = true
-            set(nr, ng, nb, na)
+            write(nr, ng, nb, na)
             PaintSwatch()
         end
         ColorPickerFrame:SetupColorPickerAndShow({
             r = r, g = g, b = b,
             opacity = a,
-            hasOpacity = hasAlpha and true or false,
+            hasOpacity = withAlpha and true or false,
             swatchFunc = Apply,
             opacityFunc = Apply,
             cancelFunc = function()
                 if not changed then return end
-                set(r, g, b, a)
+                write(r, g, b, a)
                 PaintSwatch()
             end,
         })
@@ -1458,6 +1474,7 @@ function UI.AttachMover(frame, label, onMoved, page, feature)
     local text = ns.Font(mover, 12, "OUTLINE")
     text:SetPoint("CENTER")
     text:SetText(label)
+    mover.text = text
     UI.BindMover(mover, frame, label, onMoved, page, feature)
     mover:Hide()
     return mover
@@ -1537,20 +1554,6 @@ function UI.FontPath(name)
     return path or ns.UIFontPath()
 end
 
--- Appended to a section header to say how far along that feature is.
-UI.STATUS = {
-    ready    = "   |cff4dd17aREADY|r",
-    limited  = "   |cffffa300LIMITED|r",
-    blocked  = "   |cffff6060NOT POSSIBLE YET|r",
-}
--- The one status drawn in a theme color is looked up when a page is built, not at load, so
--- it follows the player's Secondary Text color.
-setmetatable(UI.STATUS, { __index = function(_, key)
-    if key == "untested" then return "   " .. ns.Color("muted", "UNTESTED") end
-end })
-UI.PREVIEW_NOTE = "Preview build: these settings save to your profile now, and each "
-    .. "feature switches on as it is built."
-
 -- Settings for the Naowh Forever modules: one table per module inside the active profile,
 -- read through defaults so a key an older profile never wrote picks up the current default.
 -- The row makers return W:DualRow configs; `on` names the master toggle a row depends on, or
@@ -1558,9 +1561,79 @@ UI.PREVIEW_NOTE = "Preview build: these settings save to your profile now, and e
 -- dim and undim with it.
 -- S.OnChange(fn) calls fn(key, value) after every S.Set, in the order they were added: a
 -- module listens to its own settings there instead of wrapping S.Set with hooksecurefunc.
+local moduleDefaults = {}
+local SHARE_DEPTH = 4
+
+local function Plain(v, depth)
+    local t = type(v)
+    if t == "string" or t == "number" or t == "boolean" then return true end
+    if t ~= "table" or depth > SHARE_DEPTH then return false end
+    for k, val in pairs(v) do
+        local kt = type(k)
+        if (kt ~= "string" and kt ~= "number") or not Plain(val, depth + 1) then return false end
+    end
+    return true
+end
+
+local function CopyPlain(v)
+    if type(v) ~= "table" then return v end
+    local out = {}
+    for k, val in pairs(v) do out[k] = CopyPlain(val) end
+    return out
+end
+
+-- What a profile string carries of a module: each setting it has a default for, as that type
+-- (not the lists it keeps, which default to empty), and its Unlock Mode positions.
+local function Shareable(defaults, k, v)
+    if type(k) ~= "string" then return false end
+    local d = defaults[k]
+    if d == nil then return k:find("Pos$") ~= nil and type(v) == "table" and Plain(v, 0) end
+    if type(v) ~= type(d) then return false end
+    if type(d) == "table" then return next(d) ~= nil and Plain(v, 0) end
+    return true
+end
+
+function ns.ExportModuleSettings(root)
+    local out
+    for key, defaults in pairs(moduleDefaults) do
+        local t = root[key]
+        if type(t) == "table" then
+            for k, v in pairs(t) do
+                if Shareable(defaults, k, v) then
+                    out = out or {}
+                    out[key] = out[key] or {}
+                    out[key][k] = CopyPlain(v)
+                end
+            end
+        end
+    end
+    return out
+end
+
+function ns.ImportModuleSettings(root, modules)
+    if type(root) ~= "table" or type(modules) ~= "table" then return end
+    for key, values in pairs(modules) do
+        local defaults = moduleDefaults[key]
+        if defaults and type(values) == "table" then
+            if type(root[key]) ~= "table" then root[key] = {} end
+            for k, v in pairs(values) do
+                if Shareable(defaults, k, v) then root[key][k] = CopyPlain(v) end
+            end
+        end
+    end
+end
+
 function UI.ModuleSettings(key, defaults)
     local S = {}
     local listeners = {}
+    local known = moduleDefaults[key]
+    if known then
+        for k, v in pairs(defaults) do
+            if known[k] == nil then known[k] = v end
+        end
+    else
+        moduleDefaults[key] = defaults
+    end
     function S.DB()
         local root = ns.SettingsRoot()
         if type(root[key]) ~= "table" then root[key] = {} end
@@ -1571,6 +1644,8 @@ function UI.ModuleSettings(key, defaults)
         if v == nil then return defaults[k] end
         return v
     end
+    function S.Raw(k) return S.DB()[k] end
+    function S.Default(k) return defaults[k] end
     function S.Set(k, v)
         S.DB()[k] = v
         for i = 1, #listeners do listeners[i](k, v) end

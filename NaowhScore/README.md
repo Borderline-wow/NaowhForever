@@ -76,7 +76,7 @@ Score.lua          the formula (ns.NaowhScore): a unit's score, a set of links, 
 Inspect.lua        others' scores: kept by GUID, on their tooltips, inspected one at a time,
                    your group walked in the background
 Share.lua          yours sent to your group and guild, theirs kept; always on
-SettingsPage.lua   its tab in QoL
+SettingsPage.lua   its card on the BiS List's settings page
 ```
 
 ## Checking

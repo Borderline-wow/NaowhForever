@@ -49,10 +49,10 @@ BiS/
     Actions.lua      new, rename, delete, import, export, test: the window and page share them
     Picker.lua       a slot's picker, in a side panel beside the window
     Window.lua       the window
-    AlertPreview.lua Drop Alert's studio on the settings page: the on-screen alert as it will look,
-                     changed by clicking its parts or their chips, with its size, time, background
-                     and glow beside it, and Play test
-    SettingsPage.lua its page in the options window
+    AlertPreview.lua Drop Alert's live preview on its settings card: the on-screen alert as it will
+                     look, up for a roll, dropped or yours
+    SettingsPage.lua its settings page (BiS List/Settings): Open BiS List, then its cards; Stat
+                     Weights, the Character Panel and the Naowh Score add theirs
 ```
 
 Other modules call in through `ns`: `ns.IsBisItem` (the Journal, Bag Space, the loot feed),

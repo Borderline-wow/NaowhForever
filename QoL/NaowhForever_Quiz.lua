@@ -208,3 +208,25 @@ hooksecurefunc(ns, "Apply", Apply)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local function Summary(store)
+    local flight, camp = store.Get("quizFlight"), store.Get("quizCamp")
+    if flight and camp then return "While flying and at the campfire" end
+    if flight then return "While flying" end
+    if camp then return "At the campfire" end
+    return "Only when you open it"
+end
+
+ns.Shared.Settings.Page("QoL/Leveling & Travel", S):Card({
+    id = "quiz", name = "Quiz", order = 50,
+    help = "A WoW quiz to pass the time on a flight or at a campfire. /naowh quiz opens it any time.",
+    summary = Summary,
+    rows = {
+        { key = "quizFlight", label = "Quiz While Flying", toggle = true,
+          help = "A WoW quiz opens when a flight starts and closes when you land." },
+        { key = "quizCamp", label = "Quiz at the Campfire", toggle = true,
+          help = "The quiz opens when you sit down at a campfire and closes when you stand up." },
+        { label = "Open the Quiz", buttonText = "Open", button = ns.ToggleQuiz,
+          help = "Opens the quiz now, or closes it." },
+    },
+})

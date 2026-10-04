@@ -7,7 +7,7 @@
 --
 --  Everything the module shares hangs off ns.Journal: Settings, Items, Tips, Loot, Quests,
 --  Style and View. Only the entry points the rest of the addon calls are on ns
---  (OpenJournalWindow, ToggleJournalWindow, BuildJournalSettingsPage), and
+--  (OpenJournalWindow, ToggleJournalWindow, RedrawJournalWindow), and
 --  ns.JournalSettings, which the options window finds its settings by.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever

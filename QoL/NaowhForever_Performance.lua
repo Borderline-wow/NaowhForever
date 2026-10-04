@@ -4,17 +4,16 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
-local STATUS = UI.STATUS
 
 local CATEGORIES = {
-    { name = "RENDER & DISPLAY", cvars = {
+    { name = "Render & Display", cvars = {
         { "renderScale", "1", "Render Scale", "100%, native resolution" },
         { "VSync", "0", "VSync", "Off, for the highest frame rate" },
         { "MSAAQuality", "0", "Multisampling", "None" },
         { "LowLatencyMode", "3", "Low Latency Mode", "Reflex + Boost" },
         { "ffxAntiAliasingMode", "4", "Anti-Aliasing", "Advanced (CMAA2)" },
     } },
-    { name = "GRAPHICS QUALITY", cvars = {
+    { name = "Graphics Quality", cvars = {
         { "graphicsShadowQuality", "1", "Shadow Quality", "Fair" },
         { "graphicsLiquidDetail", "2", "Liquid Detail", "Good" },
         { "graphicsParticleDensity", "3", "Particle Density", "Good" },
@@ -26,12 +25,12 @@ local CATEGORIES = {
         { "graphicsSpellDensity", "0", "Spell Density", "Essential" },
         { "graphicsProjectedTextures", "1", "Projected Textures", "On" },
     } },
-    { name = "VIEW DISTANCE & DETAIL", cvars = {
+    { name = "View Distance & Detail", cvars = {
         { "graphicsViewDistance", "3", "View Distance", "Level 4" },
         { "graphicsEnvironmentDetail", "3", "Environment Detail", "Level 4" },
         { "graphicsGroundClutter", "0", "Ground Clutter", "Level 1" },
     } },
-    { name = "RAID GRAPHICS", cvars = {
+    { name = "Raid Graphics", cvars = {
         { "RAIDsettingsEnabled", "1", "Separate Raid Settings", "On" },
         { "raidGraphicsShadowQuality", "0", "Raid Shadow Quality", "Low" },
         { "raidGraphicsLiquidDetail", "0", "Raid Liquid Detail", "Low" },
@@ -47,7 +46,7 @@ local CATEGORIES = {
         { "raidGraphicsEnvironmentDetail", "0", "Raid Environment Detail", "Level 1" },
         { "raidGraphicsGroundClutter", "0", "Raid Ground Clutter", "Level 1" },
     } },
-    { name = "ADVANCED", cvars = {
+    { name = "Advanced", cvars = {
         { "GxMaxFrameLatency", "2", "Triple Buffering", "Off" },
         { "TextureFilteringMode", "5", "Texture Filtering", "16x Anisotropic" },
         { "shadowRt", "0", "Ray Traced Shadows", "Off" },
@@ -55,7 +54,7 @@ local CATEGORIES = {
         { "GxApi", "D3D12", "Graphics API", "DirectX 12, after a game restart" },
         { "physicsLevel", "1", "Physics Integration", "Player Only" },
     } },
-    { name = "FRAME RATE LIMITS", cvars = {
+    { name = "Frame Rate Limits", cvars = {
         { "useMaxFPS", "1", "Frame Rate Cap", "On" },
         { "maxFPS", "200", "Max Frame Rate", "200" },
         { "useTargetFPS", "0", "Target Frame Rate", "Off" },
@@ -63,7 +62,7 @@ local CATEGORIES = {
         { "maxFPSBk", "30", "Background Frame Rate", "30, while the game is not in focus" },
         { "maxFPSLoading", "30", "Loading Screen Frame Rate", "30" },
     } },
-    { name = "POST PROCESSING & EFFECTS", cvars = {
+    { name = "Post Processing & Effects", cvars = {
         { "ResampleSharpness", "0", "Resample Sharpness", "0, neutral" },
         { "ResampleAlwaysSharpen", "1", "Always Sharpen", "On" },
         { "cameraShake", "0", "Camera Shake", "Off" },
@@ -73,7 +72,7 @@ local CATEGORIES = {
         { "ShakeStrengthCamera", "0", "Camera Shake Strength", "Off" },
         { "ShakeStrengthUI", "0", "UI Shake Strength", "Off" },
     } },
-    { name = "NETWORK, LOGGING & INTERFACE", cvars = {
+    { name = "Network, Logging & Interface", cvars = {
         { "advancedCombatLogging", "1", "Advanced Combat Logging", "On" },
         { "disableServerNagle", "1", "Disable Server Nagle", "On, for lower latency" },
         { "AutoPushSpellToActionBar", "0", "Auto Push Spells to Bars", "Off" },
@@ -151,63 +150,99 @@ local function RestoreAll()
     if count > 0 then OfferReload() end
 end
 
-local function CVarRow(c)
-    if not c then return { type = "label", text = "" } end
-    local cvar, value, name, desc = c[1], c[2], c[3], c[4]
-    return { type = "toggle", text = name,
-        tooltip = ("Recommended: %s.|n|nOn sets it; off puts back the value you had before. "
-            .. "Now: %s."):format(desc, tostring(C_CVar.GetCVar(cvar))),
-        getValue = function() return AtValue(cvar, value) end,
-        setValue = function(v)
-            if CanChange() then
-                if v then
-                    SetRecommended(cvar, value)
-                elseif not Restore(cvar) then
-                    ns.Print(name .. " was already at this value before, so there is nothing to put back.")
-                end
-            end
-            UI:RefreshPage(true)
-        end }
+local function SetOne(cvar, value, name, on)
+    if CanChange() then
+        if on then
+            SetRecommended(cvar, value)
+        elseif not Restore(cvar) then
+            ns.Print(name .. " was already at this value before, so there is nothing to put back.")
+        end
+    end
+    UI:RefreshPage(true)
 end
 
-function ns.BuildQoLPerformancePage(parent, y)
-    local W = UI.Widgets
-    local _, h
+local function SpellQueueGet()
+    return tonumber(C_CVar.GetCVar("SpellQueueWindow")) or 400
+end
 
-    _, h = W:SectionHeader(parent, "RECOMMENDED SETTINGS" .. STATUS.untested, y); y = y - h
-    _, h = W:Note(parent, "NaowhQOL's recommended graphics, frame rate and network settings for "
-        .. "a high, steady frame rate. Your own value is saved the first time each one changes, "
-        .. "on this computer, and Restore All or turning a setting back off puts it back.", y); y = y - h
-    _, h = W:Button(parent, "Apply All Recommended", y, ApplyAll); y = y - h
-    _, h = W:Button(parent, "Restore All", y, function()
-        ns.Confirm("Put back every setting this page has changed?", RestoreAll)
-    end); y = y - h
+local function SpellQueueSet(v)
+    C_CVar.SetCVar("SpellQueueWindow", v)
+end
 
-    _, h = W:SectionHeader(parent, "SPELL QUEUE WINDOW", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        { type = "slider", text = "Spell Queue Window (ms)", min = 0, max = 400, step = 1,
-          tooltip = "How early you can press your next spell before the current one finishes. "
-              .. "100 to 400 suits most: lower is more responsive, higher is more forgiving of "
-              .. "latency. Melee around your ping + 100, ranged around your ping + 150.",
-          getValue = function() return tonumber(C_CVar.GetCVar("SpellQueueWindow")) or 400 end,
-          setValue = function(v) C_CVar.SetCVar("SpellQueueWindow", v) end },
-        { type = "label", text = "" }
-    ); y = y - h
-    _, h = W:ReloadButton(parent, y); y = y - h
+local function ConfirmRestoreAll()
+    ns.Confirm("Put back every setting this page has changed?", RestoreAll)
+end
 
-    _, h = W:SectionHeader(parent, "INDIVIDUAL SETTINGS", y); y = y - h
+local Group = ns.Shared.Settings.Group
+local HEAD = {
+    Group("Recommended"),
+    { label = "Apply All Recommended", buttonText = "Apply All", button = ApplyAll,
+      help = "Sets every recommended setting below. Your own value is saved first, so Restore All can put "
+          .. "it back." },
+    { label = "Restore All", buttonText = "Restore All", button = ConfirmRestoreAll,
+      help = "Puts back every setting this page has changed, to the value you had before." },
+    Group("Spell Queue"),
+    { label = "Spell Queue Window", slider = { 0, 400, 1 }, unit = "ms", get = SpellQueueGet, set = SpellQueueSet,
+      help = "How early you can press your next spell before the current one finishes, in milliseconds. "
+          .. "100 to 400 suits most: lower is more responsive, higher is more forgiving of latency. Melee "
+          .. "around your ping + 100, ranged around your ping + 150." },
+    { label = "Reload UI", buttonText = "Reload UI", button = OfferReload,
+      help = "Some settings only take effect after a reload." },
+}
+for _, cat in ipairs(CATEGORIES) do cat.group = Group(cat.name) end
+
+local cvarRows, rows = {}, {}
+
+local function CVarRow(c)
+    local row = cvarRows[c]
+    if not row then
+        local cvar, value, name = c[1], c[2], c[3]
+        row = { label = name, toggle = true,
+            get = function() return AtValue(cvar, value) end,
+            set = function(on) SetOne(cvar, value, name, on) end }
+        cvarRows[c] = row
+    end
+    row.help = ("Recommended: %s.|n|nOn sets it; off puts back the value you had before. Now: %s."):format(
+        c[4], tostring(C_CVar.GetCVar(c[1])))
+    return row
+end
+
+local function Rows()
+    wipe(rows)
+    for i = 1, #HEAD do rows[i] = HEAD[i] end
     for _, cat in ipairs(CATEGORIES) do
-        local rows = {}
+        local grouped = false
         for _, c in ipairs(cat.cvars) do
-            if Exists(c[1]) then rows[#rows + 1] = c end
-        end
-        if #rows > 0 then
-            _, h = W:Feature(parent, y, { type = "label", text = cat.name }); y = y - h
-            for i = 1, #rows, 2 do
-                _, h = W:DualRow(parent, y, CVarRow(rows[i]), CVarRow(rows[i + 1])); y = y - h
+            if Exists(c[1]) then
+                if not grouped then
+                    rows[#rows + 1] = cat.group
+                    grouped = true
+                end
+                rows[#rows + 1] = CVarRow(c)
             end
         end
     end
-
-    return y
+    return rows
 end
+
+local function Summary()
+    local on, total = 0, 0
+    for _, cat in ipairs(CATEGORIES) do
+        for _, c in ipairs(cat.cvars) do
+            if Exists(c[1]) then
+                total = total + 1
+                if AtValue(c[1], c[2]) then on = on + 1 end
+            end
+        end
+    end
+    return ("%d of %d recommended settings in use"):format(on, total)
+end
+
+ns.Shared.Settings.Page("QoL/System", ns.QoLSettings):Card({
+    id = "performance", name = "Performance", order = 10,
+    help = "NaowhQOL's recommended graphics, frame rate and network settings for a high, steady frame rate. "
+        .. "Your own value is saved the first time each one changes, on this computer, and Restore All or "
+        .. "turning a setting back off puts it back.",
+    summary = Summary,
+    rows = Rows,
+})

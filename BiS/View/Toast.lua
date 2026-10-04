@@ -203,7 +203,7 @@ local function Holder()
     holder:SetMovable(true)
     holder:SetClampedToScreen(true)
     holder.mover = ns.UI.AttachMover(holder, "BiS Drop Alert", function(pos) S.Set("bisToastPos", pos) end,
-        "BiS List/Settings")
+        "BiS List/Settings", "BiS List/Settings:dropAlert")
     return holder
 end
 

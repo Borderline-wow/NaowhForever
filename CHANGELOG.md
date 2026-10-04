@@ -13,6 +13,52 @@
   icon to a bar. Smart Macros shows the macros the module keeps up to date with what each will
   use right now; the Library holds Naowh's macros once you import them. Export and Import share
   macros as a string.
+- /nf settings, rebuilt on the Dungeon Journal's look. Every feature is a card with its
+  switch and a line saying how it is set; open, its settings sit in groups, two to a line. A
+  setting that is off says what it needs, a dot marks what you changed, and each card can reset
+  itself. Search finds a setting by its name and opens its card.
+- Every module has one Settings page, with a card on top saying where you stand. What is not a
+  setting moved to the module's own window: Discovery's books (/nfdiscovery), Macros
+  (/nfmacros), Action Bars (/nfbars), AuraBuffs' consumables and debuff sounds (/nfbuffs), Smart
+  Reminders' presets and boss pages (/nfreminders), Gear Sets, Stat Weights, and the Dungeon
+  Journal's recent kills and loot (the skull on its title bar). Opening a window from /nf closes
+  /nf, and Back to Settings in its title brings you back.
+- Live previews on the settings cards of everything you see on screen: the Top Bar, Crosshair,
+  Mouse Ring, Focus Cast Bar, Loot Feed, XP Bar, XP per Hour, Group XP, Flight Timer, the BiS
+  drop alert, the threat meter, swing timer bars, buff and camp reminders, low health, the
+  gear and trinket bars, the craft timer, tracking and food bars, and Smart Reminders' displays,
+  each in the moments you see it, following every setting as you change it. A moment that only
+  exists with a setting on (faded, in combat, idle...) only has its tab while that is on.
+- Top Bar: arrange its buttons right in the preview: drag to move, x to remove, + to add.
+- Blessings: edit the bar right in its preview: right-click a class for its blessing, click the
+  aura for yours, x hides the aura or Righteous Fury button and + brings it back, the wheel
+  sizes the buttons (Shift: spacing) and the gap after the aura drags wider or narrower.
+- Threat Meter: edit it right in its preview: drag the corner to resize, click the name or the
+  status line to change them, the wheel sets row height (Shift: spacing, Ctrl: text size) and
+  right-click a row for what it shows.
+- Naowh Forever in the game menu (Esc), by the other addons' buttons. Game Menu Button on the
+  Settings page turns it off.
+- Profile strings now carry every module's settings and Unlock Mode positions, not only Smart
+  Reminders'.
+- The sidebar dims the modules you have off and lists them last in their group; a module with a
+  window of its own opens it from the icon on its row.
+- Discovery: a waypoint also opens the world map on it (Open the Map), a waypoint to your
+  librarian, and new settings: tracker scale, map pin size and hand-in pin, and the nearby
+  alert's ping and chat line each on their own.
+- Auto Combat Logging: log raids and dungeons each Ask Once, Always or Never, keep logging when
+  you leave, a chat line when it starts or stops, and the Advanced Logging prompt as a choice.
+- Blessings: one Settings page with a live preview of the bar, in a group and out of range. The
+  assignments grid, Auto-Assign and the preset moved to Blessings' own window: /nfbless, Open
+  Blessings on its settings page, or Assignments on a class button's right-click menu.
+- Quality of Life in 7 tabs instead of 13: Interface, Cursor, Combat, Questing & Group, Loot &
+  Items, Leveling & Travel and System. Mouse Ring is one card, the two copy shortcuts are one,
+  the auction price line sits with Auction Prices, Trainer moved to Training Planner and Naowh
+  Score to BiS List.
+- Credits page with the team, the people we thank, and the data and libraries Naowh Forever is
+  built on; Discord, Website and GitHub links in the sidebar.
+- Patch Notes as cards, the newest open, each change with where it lives.
+- A smaller search box by Unlock Mode, the Dungeon Journal's boxed tabs, and no more
+  UNTESTED / READY tags or "Preview build" notes. Minimap Icons moved to Settings.
 - QoL > Interface, Town Map Pins: Mailboxes, every mailbox on the world map, in towns and out in
   the world, even with Town Pins Only in Capitals on (off until you turn it on). Positions come
   from Wowhead's WoW Forever database.
@@ -413,6 +459,11 @@
   tooltips. What you wear is marked in green.
 
 ### Fixed
+- Unlock Mode: Exit Config shows again (it was under the Level-Up Toast), Smart Reminders'
+  samples move by dragging the whole display like everything else, and Bag Space's plate covers
+  its whole row.
+- Character panel: your Naowh Score no longer stays out beside the panel when you fold the stats
+  side away.
 - Blessings: the options window opens again while the bar shows your blessing buffs. Opening
   it, or changing the UI scale, raised a Lua error and left the window broken.
 - Borders and divider lines no longer lose a side at some UI scales (the trainer popup's X

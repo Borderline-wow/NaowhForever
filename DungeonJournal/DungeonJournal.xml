@@ -107,6 +107,7 @@
     <!-- Where it shows -->
     <Script file="UI\DungeonList.lua"/>
     <Script file="UI\FactionList.lua"/>
+    <Script file="UI\Recent.lua"/>
     <Script file="UI\Window.lua"/>
     <Script file="UI\MapPanel.lua"/>
     <Script file="UI\Popup.lua"/>

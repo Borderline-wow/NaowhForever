@@ -24,16 +24,41 @@ local function World(known)
         Get = function(k) return w.opts[k] end,
         Toggle = function(_, text) return { type = "toggle", text = text } end,
     }
+    local fake = {}
+    local function Fake(key)
+        local f = fake[key]
+        if f then return f end
+        f = {}
+        for _, m in ipairs({ "ClearAllPoints", "SetPoint", "SetShown", "SetHeight", "SetTextColor" }) do
+            f[m] = function() end
+        end
+        f.GetStringHeight = function() return 12 end
+        f.SetText = function(_, text) if key == "barsName" then w.lastName = text end end
+        fake[key] = f
+        return f
+    end
+    local WHITE = { r = 1, g = 1, b = 1 }
     local ns = {
+        THEME = { fg = WHITE, muted = WHITE },
+        Solid = function() return Fake("solid") end,
+        AccentBorder = function(f) return f end,
         AccountSettings = function() return w.account end,
         Print = function(m) w.printed[#w.printed + 1] = m end,
-        UI = { ModuleSettings = function() return S end, RefreshPage = function() end, Widgets = {
+        UI = { ModuleSettings = function() return S end, RefreshPage = function() end, CONTENT_PAD = 12,
+            Keep = function(_, key) return Fake(key) end,
+            KeepFont = function(_, key) return Fake(key) end,
+            KeepButton = function(_, key, text, _, _, fn)
+                if key == "barsMore" then w.rows[#w.rows + 1] = { name = w.lastName, more = fn }
+                else w.buttons[text] = fn end
+                return Fake(key)
+            end,
+            Widgets = {
             Note = function() return nil, 0 end,
             SectionHeader = function() return nil, 0 end,
             Button = function(_, _, text, _, fn) w.buttons[text] = fn; return nil, 0 end,
             DualRow = function(_, _, _, left, right) w.rows[#w.rows + 1] = { left, right }; return nil, 0 end,
         } },
-        OpenOptionsWindow = function(page) w.opened = page end,
+        OpenActionBarsWindow = function() w.opened = "window" end,
         PromptText = function(_, _, _, accept) accept(w.answer) end,
         Confirm = function(text, yes) w.confirmed = text; yes() end,
     }
@@ -118,7 +143,7 @@ local function More(w, name)
     w.rows, w.buttons = {}, {}
     w.ns.BuildActionBarsPage(nil, 0)
     for _, row in ipairs(w.rows) do
-        if row[1].text == name then row[2].onClick() end
+        if row.name == name then row.more() end
     end
     return w.menu
 end
@@ -275,9 +300,9 @@ Case("a test counts the macros it would make against the free room", function()
     w.run("test M")
     assert(w.printed[#w.printed]:find("Slot 2", 1, true), "one free slot, so the second is reported")
 end)
-Case("no name opens the page", function()
+Case("no name opens the window", function()
     local w = World({})
     w.run("")
-    assert(w.opened == "Action Bars/Sets")
+    assert(w.opened == "window")
 end)
 print(count .. " action bar set regressions passed")

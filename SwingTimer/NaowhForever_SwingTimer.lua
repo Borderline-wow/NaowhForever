@@ -199,8 +199,10 @@ local function TexturePath()
     return (LSM and name ~= "" and LSM:Fetch("statusbar", name, true)) or FLAT_TEX
 end
 
-local function BuildRow(def)
-    local row = CreateFrame("Frame", nil, frame)
+local Look = {}
+
+function Look.Row(parent, def)
+    local row = CreateFrame("Frame", nil, parent)
     row.def = def
     row.bg = ns.Solid(row, "BACKGROUND", T.bg, 0.6)
     row.bg:SetAllPoints()
@@ -212,7 +214,6 @@ local function BuildRow(def)
     bar:SetMinMaxValues(0, 1)
     bar:SetValue(0)
     row.bar = bar
-    row.dur = C_DurationUtil.CreateDuration()
 
     local over = CreateFrame("Frame", nil, bar)
     over:SetAllPoints()
@@ -235,6 +236,74 @@ local function BuildRow(def)
     row.time = ns.Font(over, 11, "OUTLINE")
     row.time:SetPoint("RIGHT", row, "RIGHT", -TEXT_PAD, 0)
     row.time:SetText("")
+    return row
+end
+
+function Look.Style(row, tex)
+    local size, h = S.Get("textSize"), S.Get("rowHeight")
+    row.bar:SetStatusBarTexture(tex)
+    row.spark:ClearAllPoints()
+    row.spark:SetPoint("CENTER", row.bar:GetStatusBarTexture(), "RIGHT", 0, 0)
+    row.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, S.Get("bgAlpha"))
+    row.spark:SetSize(8, h * 2)
+    row.tag:SetFont(ns.UIFontPath(), size, "OUTLINE")
+    row.time:SetFont(ns.UIFontPath(), size, "OUTLINE")
+    row.tag:SetShown(S.Get("showLabel"))
+    row.time:SetShown(S.Get("showTime"))
+end
+
+function Look.BarColor(def)
+    if S.Get("classColored") and not def.target then
+        local c = RAID_CLASS_COLORS[select(2, UnitClass("player"))]
+        if c then return c.r, c.g, c.b, 1 end
+    end
+    return Color(def.key .. "Color")
+end
+
+function Look.Tag(row, queuedName)
+    if queuedName then
+        row.tag:SetText(row.def.tag .. " - " .. queuedName)
+    else
+        row.tag:SetText(row.def.tag)
+    end
+end
+
+-- Out of range: the whole bar dims and its text turns red, as Blizzard's own timer does.
+function Look.Range(row, oor)
+    row:SetAlpha(oor and S.Get("outOfRangeAlpha") or 1)
+    local r, g, b = 1, 1, 1
+    if oor then r, g, b = 1, 0.1, 0.1 end
+    row.tag:SetTextColor(r, g, b)
+    row.time:SetTextColor(r, g, b)
+end
+
+function Look.Window(row, share, r, g, b, a)
+    local win = row.window
+    local w = (S.Get("width") - 2) * math.min(share, 1)
+    local side = S.Get("depleteFill") and "LEFT" or "RIGHT"
+    win:ClearAllPoints()
+    win:SetPoint("TOP" .. side, row.bar, "TOP" .. side, 0, 0)
+    win:SetPoint("BOTTOM" .. side, row.bar, "BOTTOM" .. side, 0, 0)
+    win:SetWidth(math.max(w, 1))
+    win:SetColorTexture(r, g, b, a)
+    win:Show()
+end
+
+function Look.Tick(row, frac, r, g, b, a)
+    local tick = row.tick
+    if frac > 1 then frac = 1 elseif frac < 0 then frac = 0 end
+    if S.Get("depleteFill") then frac = 1 - frac end
+    local x = (S.Get("width") - 2) * frac
+    tick:ClearAllPoints()
+    tick:SetPoint("TOP", row.bar, "TOPLEFT", x, 0)
+    tick:SetPoint("BOTTOM", row.bar, "BOTTOMLEFT", x, 0)
+    tick:SetColorTexture(r, g, b, a)
+    tick:Show()
+end
+
+local function BuildRow(def)
+    local row = Look.Row(frame, def)
+    row.dur = C_DurationUtil.CreateDuration()
     -- The client writes the countdown from the row's duration; no Lua runs per frame.
     local text = C_DurationUtil.CreateDurationTextBinding()
     text:SetFontString(row.time)
@@ -252,30 +321,16 @@ local function RowColor(row)
     local def = row.def
     if def.melee and queued then return Color(queued.key) end
     if def.melee and seal then return Color(seal.key) end
-    if S.Get("classColored") and not def.target then
-        local c = RAID_CLASS_COLORS[select(2, UnitClass("player"))]
-        if c then return c.r, c.g, c.b, 1 end
-    end
-    return Color(def.key .. "Color")
+    return Look.BarColor(def)
 end
 
 local function PaintRow(row)
     row.bar:GetStatusBarTexture():SetVertexColor(RowColor(row))
-    if row.def.melee and queued then
-        row.tag:SetText(row.def.tag .. " - " .. queued.name)
-    else
-        row.tag:SetText(row.def.tag)
-    end
+    Look.Tag(row, row.def.melee and queued and queued.name)
 end
 
--- Out of range: the whole bar dims and its text turns red, as Blizzard's own timer does.
 local function PaintRange(row)
-    local oor = row.outOfRange and not unlocked
-    row:SetAlpha(oor and S.Get("outOfRangeAlpha") or 1)
-    local r, g, b = 1, 1, 1
-    if oor then r, g, b = 1, 0.1, 0.1 end
-    row.tag:SetTextColor(r, g, b)
-    row.time:SetTextColor(r, g, b)
+    Look.Range(row, row.outOfRange and not unlocked)
 end
 
 local function SetOutOfRange(row, oor)
@@ -323,21 +378,13 @@ local function WindowSeconds(row)
 end
 
 local function UpdateWindow(row)
-    local win = row.window
     local sec = (row.live or unlocked) and WindowSeconds(row)
-    if not sec then win:Hide() return end
-    local w = (S.Get("width") - 2) * math.min(sec / (row.swing or 2), 1)
-    local side = S.Get("depleteFill") and "LEFT" or "RIGHT"
-    win:ClearAllPoints()
-    win:SetPoint("TOP" .. side, row.bar, "TOP" .. side, 0, 0)
-    win:SetPoint("BOTTOM" .. side, row.bar, "BOTTOM" .. side, 0, 0)
-    win:SetWidth(math.max(w, 1))
+    if not sec then row.window:Hide() return end
     local key
     if row.def.melee then key = "swingWindowColor"
     elseif moving then key = "autoShotMovingColor"
     else key = "autoShotStandColor" end
-    win:SetColorTexture(Color(key))
-    win:Show()
+    Look.Window(row, sec / (row.swing or 2), Color(key))
 end
 
 -- Where the current cast ends on the Main Hand swing in flight, pinned to the end in the
@@ -350,15 +397,8 @@ local function UpdateCastTick()
         tick:Hide()
         return
     end
-    local frac = (castEnd - (row.ends - row.swing)) / row.swing
-    if frac > 1 then frac = 1 elseif frac < 0 then frac = 0 end
-    if S.Get("depleteFill") then frac = 1 - frac end
-    local x = (S.Get("width") - 2) * frac
-    tick:ClearAllPoints()
-    tick:SetPoint("TOP", row.bar, "TOPLEFT", x, 0)
-    tick:SetPoint("BOTTOM", row.bar, "BOTTOMLEFT", x, 0)
-    tick:SetColorTexture(Color(castEnd > row.ends and "castBadColor" or "castOkColor"))
-    tick:Show()
+    Look.Tick(row, (castEnd - (row.ends - row.swing)) / row.swing,
+        Color(castEnd > row.ends and "castBadColor" or "castOkColor"))
 end
 
 local function ReadCast()
@@ -558,19 +598,10 @@ local function RowsChanged()
 end
 
 local function Style()
-    local tex, size, bgA = TexturePath(), S.Get("textSize"), S.Get("bgAlpha")
-    local h = S.Get("rowHeight")
+    local tex = TexturePath()
     for i = 1, #rows do
         local row = rows[i]
-        row.bar:SetStatusBarTexture(tex)
-        row.spark:ClearAllPoints()
-        row.spark:SetPoint("CENTER", row.bar:GetStatusBarTexture(), "RIGHT", 0, 0)
-        row.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, bgA)
-        row.spark:SetSize(8, h * 2)
-        row.tag:SetFont(ns.UIFontPath(), size, "OUTLINE")
-        row.time:SetFont(ns.UIFontPath(), size, "OUTLINE")
-        row.tag:SetShown(S.Get("showLabel"))
-        row.time:SetShown(S.Get("showTime"))
+        Look.Style(row, tex)
         PaintRow(row)
         PaintRange(row)
     end
@@ -622,7 +653,8 @@ local function Build()
         rows[i], byType[ROWS[i].type] = row, row
         IdleRow(row)
     end
-    frame.mover = UI.AttachMover(frame, "Swing Timer", function(pos) S.Set("swingPos", pos) end, "Swing Timer/Bars")
+    frame.mover = UI.AttachMover(frame, "Swing Timer", function(pos) S.Set("swingPos", pos) end, "Swing Timer/Settings",
+        "Swing Timer/Settings:bars")
     local _, classFile = UnitClass("player")
     isHunter = classFile == "HUNTER"
     for _, q in ipairs(QUEUE_SPELLS[classFile] or {}) do
@@ -821,225 +853,6 @@ local function Apply()
     UpdateVisibility()
 end
 
--------------------------------------------------------------------------------
---  Options
--------------------------------------------------------------------------------
-local function ColorRow(k, text, on, hasAlpha, themed)
-    return { type = "colorpicker", text = text, hasAlpha = hasAlpha,
-        getValue = function() return Color(k) end,
-        setValue = function(r, g, b, a)
-            S.Set(k, { r = r, g = g, b = b, a = hasAlpha and a or nil })
-        end,
-        disabled = function() return not (S.Get("enabled") and S.Get(on)) or (themed and S.Get("themeColors")) end,
-        disabledTooltip = themed and "Turn off Apply Theme to Bar Colours to pick this color." or nil }
-end
-
--- A row that needs every one of `keys` on; S.Slider and S.Toggle take only one.
-local function Needs(cfg, ...)
-    local keys = { ... }
-    cfg.disabled = function()
-        for i = 1, #keys do
-            if not S.Get(keys[i]) then return true end
-        end
-        return false
-    end
-    return cfg
-end
-
-local function TextureChoices()
-    local values, order = { [""] = "Flat" }, { "" }
-    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
-    if LSM then
-        for _, name in ipairs(LSM:List("statusbar")) do
-            values[name] = name
-            order[#order + 1] = name
-        end
-    end
-    local cur = S.Get("texture")
-    if cur ~= "" and not values[cur] then
-        values[cur] = cur .. " (unavailable)"
-        order[#order + 1] = cur
-    end
-    return values, order
-end
-
-local function UnsupportedNote(parent, y)
-    local _, h = UI.Widgets:Note(parent, "The swing timer needs WoW: Forever's own swing "
-        .. "event, which this client does not have.", y)
-    return y - h
-end
-
-function ns.BuildSwingTimerPage(parent, y)
-    if not SUPPORTED then return UnsupportedNote(parent, y) end
-    local W = UI.Widgets
-    local _, h
-    _, h = W:Note(parent, "One bar per weapon, timed by the game's own swing event, so parry "
-        .. "haste, swing resets and haste are always right. Move it in Unlock Mode.", y); y = y - h
-
-    _, h = W:SectionHeader(parent, "WEAPON BARS", y); y = y - h
-    _, h = W:Feature(parent, y, { type = "label", text = "Layout" .. UI.STATUS.untested }); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("width", "Width", 80, 600, 1, nil, "enabled"),
-        S.Slider("rowHeight", "Bar Height", 4, 40, 1, nil, "enabled")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("spacing", "Bar Spacing", 0, 20, 1, nil, "enabled"),
-        S.Slider("textSize", "Text Size", 6, 24, 1, nil, "enabled")
-    ); y = y - h
-    local texValues, texOrder = TextureChoices()
-    _, h = W:DualRow(parent, y,
-        S.Dropdown("texture", "Bar Texture", texValues, texOrder, nil, "enabled"),
-        S.Slider("bgAlpha", "Background Opacity", 0, 1, 0.05, nil, "enabled")
-    ); y = y - h
-
-    _, h = W:Feature(parent, y, { type = "label", text = "Bars" }); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("showMH", "Main Hand", nil, "enabled"),
-        S.Toggle("showOH", "Off Hand", "Shown while you have a weapon in your off hand.", "enabled")
-    ); y = y - h
-    local showRow = S.Dropdown("visibility", "Show", { always = "Always", combat = "In Combat" },
-        { "always", "combat" }, nil, "enabled")
-    showRow.setValue = function(v) S.Set("visibility", v); UI:RefreshPage(true) end
-    _, h = W:DualRow(parent, y,
-        S.Toggle("showR", "Ranged", "Shown while you have a bow, gun, crossbow, wand or thrown weapon.",
-            "enabled"),
-        showRow
-    ); y = y - h
-    local idleRow = S.Toggle("hideWhenIdle", "Hide When Idle", "Hide the bars while no swing is running.", "enabled")
-    idleRow.disabled = function() return not S.Get("enabled") or S.Get("visibility") == "always" end
-    idleRow.disabledTooltip = "Only applies when Show is set to In Combat."
-    _, h = W:DualRow(parent, y,
-        idleRow,
-        S.Toggle("depleteFill", "Deplete Fill", "Start each bar full and drain it, instead of filling it up.",
-            "enabled")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("showTime", "Show Time", "Seconds left to the next swing.", "enabled"),
-        S.Toggle("showLabel", "Show Weapon Label", "MH, OH, R or TGT on each bar.", "enabled")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("showSpark", "Show Spark", "A glow on the moving edge of the fill.", "enabled"),
-        S.Toggle("rangeCheck", "Range Check",
-            "Dim a bar and turn its text red while your target is out of that weapon's range.", "enabled")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        Needs(S.Slider("outOfRangeAlpha", "Out of Range Opacity", 0, 1, 0.05), "enabled", "rangeCheck"),
-        S.Toggle("classColored", "Class Colors", "Color the weapon bars in your class color.", "enabled")
-    ); y = y - h
-
-    _, h = W:Feature(parent, y, { type = "label", text = "Colours" }); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("mhColor", "Main Hand", "enabled", nil, true),
-        ColorRow("ohColor", "Off Hand", "enabled", nil, true)
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("rColor", "Ranged", "enabled", nil, true),
-        S.Toggle("themeColors", "Apply Theme to Bar Colours",
-            "Color the main hand bar with your theme's Accent, the off hand bar with its lighter "
-            .. "Accent and the ranged bar with a deeper shade of it, instead of the colors "
-            .. "picked here.", "enabled")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "QUEUED ATTACKS", y); y = y - h
-    _, h = W:Feature(parent, y,
-        S.Toggle("queueHighlight", "Highlight Queued Attacks",
-            "While Heroic Strike, Cleave, Maul or Raptor Strike is queued, the melee bars take "
-            .. "its color and name.", "enabled")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("queueColor", "Heroic Strike / Maul / Raptor Strike", "queueHighlight"),
-        ColorRow("cleaveColor", "Cleave", "queueHighlight")
-    ); y = y - h
-
-    local _, classFile = UnitClass("player")
-    if classFile == "PALADIN" then
-        _, h = W:SectionHeader(parent, "SEALS" .. UI.STATUS.untested, y); y = y - h
-        _, h = W:Feature(parent, y,
-            S.Toggle("sealColors", "Color by Seal",
-                "The melee bars take the color of the seal you have up. In combat that is the last "
-                .. "seal you cast until a Judgement uses it up or it runs out, as the game keeps your "
-                .. "buffs from addons there; out of combat it is read from your buffs.", "enabled")
-        ); y = y - h
-        local seals = {
-            { "sealRighteousColor", "Righteousness" }, { "sealCrusaderColor", "the Crusader" },
-            { "sealCommandColor", "Command" }, { "sealJusticeColor", "Justice" },
-            { "sealLightColor", "Light" }, { "sealWisdomColor", "Wisdom" },
-            { "sealFuryColor", "Fury" }, { "sealMartyrdomColor", "Martyrdom" },
-        }
-        for i = 1, #seals, 2 do
-            local left, right = seals[i], seals[i + 1]
-            _, h = W:DualRow(parent, y, ColorRow(left[1], "Seal of " .. left[2], "sealColors"),
-                right and ColorRow(right[1], "Seal of " .. right[2], "sealColors") or nil); y = y - h
-        end
-    end
-    return y
-end
-
-function ns.BuildSwingTimerAidsPage(parent, y)
-    if not SUPPORTED then return UnsupportedNote(parent, y) end
-    local W = UI.Widgets
-    local _, h
-    local hunter = select(2, UnitClass("player")) == "HUNTER"
-    _, h = W:Note(parent, "Extra marks on the bars for timing what you press against your "
-        .. "swings. Each one is off until you turn it on.", y); y = y - h
-
-    _, h = W:SectionHeader(parent, "TARGET" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("targetSwing", "Target Swing Timer",
-            "A bar for your target's swings, restarted by each physical hit you take while it "
-            .. "is targeting you, and shortened when it parries. It is an estimate: the game "
-            .. "does not say who hit you or with what, so other attackers, physical specials "
-            .. "and bleed ticks restart it too.", "enabled"),
-        ColorRow("tgtColor", "Target Color", "targetSwing")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "SWING END WINDOW" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:Feature(parent, y,
-        S.Toggle("swingWindow", "Swing End Window",
-            "Shade the last part of each melee swing: when to twist a seal, finish a weave or "
-            .. "queue an attack before the hit.", "enabled")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        Needs(S.Slider("swingWindowTime", "Window Length (sec)", 0.1, 2, 0.05), "enabled", "swingWindow"),
-        ColorRow("swingWindowColor", "Window Color", "swingWindow", true)
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("windowLatency", "Add Latency",
-            "Widen the swing and Auto Shot windows by your world latency, so they show when "
-            .. "to press rather than when the server acts.", "enabled"),
-        { type = "label", text = "" }
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "AUTO SHOT" .. UI.STATUS.untested, y); y = y - h
-    local autoShot = S.Toggle("autoShotWindow", "Auto Shot Window",
-        "Shade Auto Shot's cast at the end of the Ranged bar. It turns red while you move, "
-        .. "since moving holds the shot.", "enabled")
-    if not hunter then
-        autoShot.disabled = function() return true end
-        autoShot.disabledTooltip = "For Hunters only."
-    end
-    local stand = ColorRow("autoShotStandColor", "Standing Color", "autoShotWindow", true)
-    local moveRow = ColorRow("autoShotMovingColor", "Moving Color", "autoShotWindow", true)
-    if not hunter then
-        stand.disabled = autoShot.disabled
-        moveRow.disabled = autoShot.disabled
-    end
-    _, h = W:Feature(parent, y, autoShot); y = y - h
-    _, h = W:DualRow(parent, y, stand, moveRow); y = y - h
-
-    _, h = W:SectionHeader(parent, "CAST CLIP" .. UI.STATUS.untested, y); y = y - h
-    _, h = W:Feature(parent, y,
-        S.Toggle("castClip", "Cast Clip Marker",
-            "While you cast, mark where the cast ends on the Main Hand bar. It turns red when "
-            .. "the cast will still be going as the swing comes due.", "enabled")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorRow("castOkColor", "Cast Fits Color", "castClip", true),
-        ColorRow("castBadColor", "Cast Clips Color", "castClip", true)
-    ); y = y - h
-    return y
-end
-
 -- A slider drag sets its key on every step; apply once on the next frame.
 hooksecurefunc(S, "Set", function(key)
     if key == "swingPos" or pendingApply then return end
@@ -1062,3 +875,376 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local Group = Settings.Group
+
+local OFF = "Turn on the Swing Timer"
+local STAGE_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN = 120, 10, 11, 16
+local SAMPLE_LATENCY = 0.06
+local SAMPLES = {
+    melee = { mh = { 0.55, "1.2" }, oh = { 0.3, "1.3" } },
+    ranged = { r = { 0.75, "0.7" } },
+    range = { mh = { 0.55, "1.2" }, oh = { 0.3, "1.3" }, oor = true },
+    queued = { mh = { 0.7, "0.8" }, oh = { 0.45, "1.0" }, queued = true },
+    target = { mh = { 0.55, "1.2" }, tgt = { 0.4, "1.2" } },
+    parry = { mh = { 0.55, "1.2" }, tgt = { 0.8, "0.4" } },
+    window = { mh = { 0.8, "0.5" }, oh = { 0.6, "0.7" }, window = true },
+    standing = { r = { 0.85, "0.4" }, autoShot = true },
+    moving = { r = { 0.85, "0.4" }, autoShot = true, moving = true },
+    castOk = { mh = { 0.3, "1.8" }, cast = 0.75 },
+    castBad = { mh = { 0.6, "1.0" }, cast = 1.3 },
+}
+local HEROIC_STRIKE = 78
+local SAMPLE_SWING = 2.6
+
+local function Enabled() return On() and true or false end
+local function ClassIs(token) return select(2, UnitClass("player")) == token end
+local function Hunter() return ClassIs("HUNTER") end
+local function Paladin() return ClassIs("PALADIN") end
+local function Needs(key) return function() return On() and S.Get(key) and true or false end end
+local function NotThemed() return On() and not S.Get("themeColors") end
+local function WhenIdle() return On() and S.Get("visibility") ~= "always" end
+local function HunterOn() return On() and Hunter() end
+local function PaladinOn() return On() and Paladin() end
+
+local function Themed(key)
+    return function() return Color(key) end
+end
+
+local function Picked(key)
+    return function(r, g, b) S.Set(key, { r = r, g = g, b = b }) end
+end
+
+local function QueueName()
+    local list = QUEUE_SPELLS[select(2, UnitClass("player"))]
+    local id = list and list[1].id or HEROIC_STRIKE
+    local name = C_Spell.GetSpellName(id)
+    return Plain(name) and name or "Heroic Strike"
+end
+
+local function PreviewWindow(row, sample)
+    local def = row.def
+    local sec, key
+    if sample.window and def.melee and S.Get("swingWindow") then
+        sec, key = S.Get("swingWindowTime"), "swingWindowColor"
+    elseif sample.autoShot and def.type == SWING.Ranged and S.Get("autoShotWindow") and Hunter() then
+        sec, key = AUTO_SHOT_CAST, sample.moving and "autoShotMovingColor" or "autoShotStandColor"
+    end
+    if not sec then
+        row.window:Hide()
+        return
+    end
+    if S.Get("windowLatency") then sec = sec + SAMPLE_LATENCY end
+    Look.Window(row, sec / SAMPLE_SWING, Color(key))
+end
+
+local function PaintSampleRow(row, part, sample)
+    local def = row.def
+    local fill = part[1]
+    row.bar:SetValue(S.Get("depleteFill") and 1 - fill or fill)
+    row.time:SetText(part[2])
+    row.spark:SetShown(S.Get("showSpark"))
+    local queuedName = sample.queued and def.melee and QueueName()
+    if queuedName then
+        row.bar:GetStatusBarTexture():SetVertexColor(Color("queueColor"))
+    else
+        row.bar:GetStatusBarTexture():SetVertexColor(Look.BarColor(def))
+    end
+    Look.Tag(row, queuedName)
+    Look.Range(row, sample.oor and S.Get("rangeCheck") and not def.target)
+    PreviewWindow(row, sample)
+    if row.tick then
+        if sample.cast then
+            Look.Tick(row, sample.cast, Color(sample.cast > 1 and "castBadColor" or "castOkColor"))
+        else
+            row.tick:Hide()
+        end
+    end
+end
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.bars = CreateFrame("Frame", nil, preview)
+    preview.rows = {}
+    for i = 1, #ROWS do preview.rows[i] = Look.Row(preview.bars, ROWS[i]) end
+    preview.note = ns.Font(preview, NOTE_SIZE, nil, T.muted)
+    preview.note:SetPoint("BOTTOM", 0, NOTE_Y)
+    return preview
+end
+
+local function Fit(preview, n)
+    local holder = preview.bars
+    local w = S.Get("width")
+    local h = math.max(n * S.Get("rowHeight") + (n - 1) * S.Get("spacing"), 1)
+    holder:SetSize(w, h)
+    local roomW = preview:GetWidth() - STAGE_MARGIN * 2
+    local roomH = preview:GetHeight() - STAGE_MARGIN * 2 - NOTE_Y * 2
+    local scale = 1
+    if roomW > 0 and w > roomW then scale = roomW / w end
+    if roomH > 0 and h * scale > roomH then scale = roomH / h end
+    holder:SetScale(scale)
+    holder:ClearAllPoints()
+    holder:SetPoint("CENTER", preview, "CENTER", 0, NOTE_Y / scale)
+end
+
+local function PaintPreview(preview, state)
+    local sample = SAMPLES[state]
+    local tex = TexturePath()
+    local h, sp, w = S.Get("rowHeight"), S.Get("spacing"), S.Get("width")
+    local n = 0
+    for _, row in ipairs(preview.rows) do
+        local def = row.def
+        local part = sample[def.key]
+        if part and (def.target or S.Get(def.show)) then
+            Look.Style(row, tex)
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", preview.bars, "TOPLEFT", 0, -n * (h + sp))
+            row:SetSize(w, h)
+            PaintSampleRow(row, part, sample)
+            row:Show()
+            n = n + 1
+        else
+            row:Hide()
+        end
+    end
+    Fit(preview, math.max(n, 1))
+    local note = ""
+    if n == 0 then
+        note = "No bar for this is switched on."
+    elseif sample.autoShot and not Hunter() then
+        note = "Hunters only."
+    elseif state == "parry" then
+        note = "A parry by your target took 40% off its swing."
+    end
+    preview.note:SetText(note)
+end
+
+local function Studio(states)
+    return { height = STAGE_H, states = states, new = NewPreview, paint = PaintPreview }
+end
+
+local BAR_STATES = {
+    { key = "melee", label = "Melee", tip = "Your weapons mid-swing." },
+    { key = "ranged", label = "Ranged", tip = "Your ranged weapon between shots." },
+    { key = "range", label = "Out of Range", tip = "Your target out of your weapons' reach.", needs = "rangeCheck" },
+}
+local QUEUE_STATES = {
+    { key = "queued", label = "Queued", tip = "An on-next-swing attack queued on the melee bars." },
+}
+local TARGET_STATES = {
+    { key = "target", label = "Target Swing", tip = "Your target's swing, restarted by its last hit on you." },
+    { key = "parry", label = "Parry Haste", tip = "Your target parried, which cut its swing short." },
+}
+local WINDOW_STATES = {
+    { key = "window", label = "Swing End", tip = "The last part of each melee swing, shaded." },
+}
+local AUTO_SHOT_STATES = {
+    { key = "standing", label = "Standing", tip = "Auto Shot's cast while you stand still." },
+    { key = "moving", label = "Moving", tip = "Moving holds the shot, so the window turns red." },
+}
+local CAST_STATES = {
+    { key = "castOk", label = "Cast Fits", tip = "Your cast ends before the swing comes due." },
+    { key = "castBad", label = "Cast Clips", tip = "Your cast will still be going as the swing comes due." },
+}
+
+local function Shown()
+    local names = {}
+    if S.Get("showMH") then names[#names + 1] = "Main Hand" end
+    if S.Get("showOH") then names[#names + 1] = "Off Hand" end
+    if S.Get("showR") then names[#names + 1] = "Ranged" end
+    if S.Get("targetSwing") then names[#names + 1] = "Target" end
+    return names
+end
+
+local function Headline()
+    if not SUPPORTED then return "This client has no swing event" end
+    if not S.Get("enabled") then return "Swing Timer is off" end
+    local names = Shown()
+    if #names == 0 then return "No bars switched on" end
+    return "Bars for " .. table.concat(names, ", ")
+end
+
+local function Detail()
+    if not SUPPORTED then return "The swing timer needs WoW: Forever's own swing event." end
+    local aids = {}
+    if S.Get("swingWindow") then aids[#aids + 1] = "Swing End Window" end
+    if S.Get("autoShotWindow") then aids[#aids + 1] = "Auto Shot Window" end
+    if S.Get("castClip") then aids[#aids + 1] = "Cast Clip Marker" end
+    local shown = S.Get("visibility") == "always" and "Shown all the time." or "Shown in combat."
+    if #aids == 0 then return shown .. " Move the bars in Unlock Mode." end
+    return shown .. " With " .. table.concat(aids, ", ") .. "."
+end
+
+local function BarsSummary(store)
+    return ("%d by %d, %s"):format(store.Get("width"), store.Get("rowHeight"),
+        store.Get("visibility") == "always" and "always shown" or "in combat")
+end
+
+local function TextureChoices()
+    local values, order = { [""] = "Flat" }, { "" }
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if LSM then
+        for _, name in ipairs(LSM:List("statusbar")) do
+            values[name] = name
+            order[#order + 1] = name
+        end
+    end
+    local cur = S.Get("texture")
+    if cur ~= "" and not values[cur] then
+        values[cur] = cur .. " (unavailable)"
+        order[#order + 1] = cur
+    end
+    return values, order
+end
+
+local SHOW = { { always = "Always", combat = "In Combat" }, { "always", "combat" } }
+
+local page = Settings.Page("Swing Timer/Settings", S)
+
+page:Window({
+    headline = Headline,
+    detail = Detail,
+})
+
+page:Card({
+    id = "bars", name = "Bars", order = 10,
+    help = "One bar per weapon, timed by the game's own swing event, so parry haste, swing resets and "
+        .. "haste are always right. Move them in Unlock Mode.",
+    summary = BarsSummary,
+    studio = SUPPORTED and Studio(BAR_STATES) or nil,
+    rows = {
+        Group("Bars"),
+        { key = "showMH", label = "Main Hand", toggle = true, needs = Enabled, why = OFF },
+        { key = "showOH", label = "Off Hand", toggle = true, needs = Enabled, why = OFF,
+          help = "Shown while you have a weapon in your off hand." },
+        { key = "showR", label = "Ranged", toggle = true, needs = Enabled, why = OFF,
+          help = "Shown while you have a bow, gun, crossbow, wand or thrown weapon." },
+        { key = "visibility", label = "Show", choice = SHOW, needs = Enabled, why = OFF },
+        { key = "hideWhenIdle", label = "Hide When Idle", toggle = true, needs = WhenIdle,
+          why = "Only with Show In Combat", help = "Hide the bars while no swing is running." },
+        Group("Layout"),
+        { key = "width", label = "Width", slider = { 80, 600, 1 }, needs = Enabled, why = OFF },
+        { key = "rowHeight", label = "Bar Height", slider = { 4, 40, 1 }, needs = Enabled, why = OFF },
+        { key = "spacing", label = "Bar Spacing", slider = { 0, 20, 1 }, needs = Enabled, why = OFF },
+        { key = "textSize", label = "Text Size", slider = { 6, 24, 1 }, needs = Enabled, why = OFF },
+        { key = "texture", label = "Bar Texture", choice = TextureChoices, needs = Enabled, why = OFF },
+        { key = "bgAlpha", label = "Background Opacity", slider = { 0, 100, 5 }, unit = "%", scale = 0.01,
+          needs = Enabled, why = OFF },
+        Group("Shown"),
+        { key = "depleteFill", label = "Deplete Fill", toggle = true, needs = Enabled, why = OFF,
+          help = "Start each bar full and drain it, instead of filling it up." },
+        { key = "showTime", label = "Show Time", toggle = true, needs = Enabled, why = OFF,
+          help = "Seconds left to the next swing." },
+        { key = "showLabel", label = "Show Weapon Label", toggle = true, needs = Enabled, why = OFF,
+          help = "MH, OH, R or TGT on each bar." },
+        { key = "showSpark", label = "Show Spark", toggle = true, needs = Enabled, why = OFF,
+          help = "A glow on the moving edge of the fill." },
+        Group("Range"),
+        { key = "rangeCheck", label = "Range Check", toggle = true, needs = Enabled, why = OFF,
+          help = "Dim a bar and turn its text red while your target is out of that weapon's range." },
+        { key = "outOfRangeAlpha", label = "Out of Range Opacity", slider = { 0, 100, 5 }, unit = "%",
+          scale = 0.01, needs = Needs("rangeCheck"), why = "Needs Range Check" },
+        Group("Colours"),
+        { key = "classColored", label = "Class Colours", toggle = true, needs = Enabled, why = OFF,
+          help = "Colour the weapon bars in your class colour." },
+        { key = "themeColors", label = "Apply Theme to Bar Colours", toggle = true, needs = Enabled, why = OFF,
+          help = "Colour the main hand bar with your theme's Accent, the off hand bar with its lighter Accent "
+              .. "and the ranged bar with a deeper shade of it, instead of the colours picked here." },
+        { key = "mhColor", label = "Main Hand Colour", colour = true, get = Themed("mhColor"),
+          set = Picked("mhColor"), needs = NotThemed, why = "Apply Theme to Bar Colours is on" },
+        { key = "ohColor", label = "Off Hand Colour", colour = true, get = Themed("ohColor"),
+          set = Picked("ohColor"), needs = NotThemed, why = "Apply Theme to Bar Colours is on" },
+        { key = "rColor", label = "Ranged Colour", colour = true, get = Themed("rColor"),
+          set = Picked("rColor"), needs = NotThemed, why = "Apply Theme to Bar Colours is on" },
+    },
+})
+
+page:Card({
+    id = "queued", name = "Queued Attacks", order = 20, switch = "queueHighlight",
+    help = "While Heroic Strike, Cleave, Maul or Raptor Strike is queued, the melee bars take its colour "
+        .. "and name.",
+    studio = SUPPORTED and Studio(QUEUE_STATES) or nil,
+    rows = {
+        { key = "queueColor", label = "Queued Attack Colour", colour = true, needs = Enabled, why = OFF,
+          help = "Heroic Strike, Maul or Raptor Strike." },
+        { key = "cleaveColor", label = "Cleave Colour", colour = true, needs = Enabled, why = OFF },
+    },
+})
+
+page:Card({
+    id = "seals", name = "Seal Colours", order = 30, switch = "sealColors",
+    help = "Paladins only. The melee bars take the colour of the seal you have up. In combat that is the "
+        .. "last seal you cast until a Judgement uses it up or it runs out, as the game keeps your buffs "
+        .. "from addons there; out of combat it is read from your buffs.",
+    rows = {
+        { key = "sealRighteousColor", label = "Seal of Righteousness", colour = true, needs = PaladinOn,
+          why = "Paladins only" },
+        { key = "sealCrusaderColor", label = "Seal of the Crusader", colour = true, needs = PaladinOn,
+          why = "Paladins only" },
+        { key = "sealCommandColor", label = "Seal of Command", colour = true, needs = PaladinOn,
+          why = "Paladins only" },
+        { key = "sealJusticeColor", label = "Seal of Justice", colour = true, needs = PaladinOn,
+          why = "Paladins only" },
+        { key = "sealLightColor", label = "Seal of Light", colour = true, needs = PaladinOn,
+          why = "Paladins only" },
+        { key = "sealWisdomColor", label = "Seal of Wisdom", colour = true, needs = PaladinOn,
+          why = "Paladins only" },
+        { key = "sealFuryColor", label = "Seal of Fury", colour = true, needs = PaladinOn,
+          why = "Paladins only" },
+        { key = "sealMartyrdomColor", label = "Seal of Martyrdom", colour = true, needs = PaladinOn,
+          why = "Paladins only" },
+    },
+})
+
+page:Card({
+    id = "target", name = "Target Swing Timer", order = 40, switch = "targetSwing",
+    help = "A bar for your target's swings, restarted by each physical hit you take while it is targeting "
+        .. "you, and shortened when it parries. It is an estimate: the game does not say who hit you or "
+        .. "with what, so other attackers, physical specials and bleed ticks restart it too.",
+    studio = SUPPORTED and Studio(TARGET_STATES) or nil,
+    rows = {
+        { key = "tgtColor", label = "Target Colour", colour = true, needs = Enabled, why = OFF },
+    },
+})
+
+page:Card({
+    id = "swingWindow", name = "Swing End Window", order = 50, switch = "swingWindow",
+    help = "Shade the last part of each melee swing: when to twist a seal, finish a weave or queue an "
+        .. "attack before the hit.",
+    studio = SUPPORTED and Studio(WINDOW_STATES) or nil,
+    rows = {
+        { key = "swingWindowTime", label = "Window Length", slider = { 0.1, 2, 0.05 }, unit = "s",
+          needs = Enabled, why = OFF },
+        { key = "swingWindowColor", label = "Window Colour", colour = "alpha", needs = Enabled, why = OFF },
+        { key = "windowLatency", label = "Add Latency", toggle = true, always = true, needs = Enabled, why = OFF,
+          help = "Widen the swing and Auto Shot windows by your world latency, so they show when to press "
+              .. "rather than when the server acts." },
+    },
+})
+
+page:Card({
+    id = "autoShot", name = "Auto Shot Window", order = 60, switch = "autoShotWindow",
+    help = "Hunters only. Shade Auto Shot's cast at the end of the Ranged bar. It turns red while you move, "
+        .. "since moving holds the shot.",
+    studio = SUPPORTED and Studio(AUTO_SHOT_STATES) or nil,
+    rows = {
+        { key = "autoShotStandColor", label = "Standing Colour", colour = "alpha", needs = HunterOn,
+          why = "Hunters only" },
+        { key = "autoShotMovingColor", label = "Moving Colour", colour = "alpha", needs = HunterOn,
+          why = "Hunters only" },
+    },
+})
+
+page:Card({
+    id = "castClip", name = "Cast Clip Marker", order = 70, switch = "castClip",
+    help = "While you cast, mark where the cast ends on the Main Hand bar. It turns red when the cast will "
+        .. "still be going as the swing comes due.",
+    studio = SUPPORTED and Studio(CAST_STATES) or nil,
+    rows = {
+        { key = "castOkColor", label = "Cast Fits Colour", colour = "alpha", needs = Enabled, why = OFF },
+        { key = "castBadColor", label = "Cast Clips Colour", colour = "alpha", needs = Enabled, why = OFF },
+    },
+})

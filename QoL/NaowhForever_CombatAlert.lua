@@ -18,7 +18,7 @@ local function Build()
     frame:SetClampedToScreen(true)
     frame.text = ns.Font(frame, 32, "OUTLINE")
     frame.text:SetPoint("CENTER")
-    frame.mover = UI.AttachMover(frame, "Combat Alert", function(pos) S.Set("combatAlertPos", pos) end, "QoL/Combat & Alerts", "QoL/Combat & Alerts:Combat Alert")
+    frame.mover = UI.AttachMover(frame, "Combat Alert", function(pos) S.Set("combatAlertPos", pos) end, "QoL/Combat", "QoL/Combat:combatAlert")
     frame:Hide()
 
     fade = frame:CreateAnimationGroup()
@@ -130,3 +130,61 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+local AUDIO = { { none = "None", sound = "Sound", tts = "Text to Speech" }, { "none", "sound", "tts" } }
+local AUDIO_HELP = "A sound, or the Speech text read aloud. Text to Speech can stutter on some PCs, "
+    .. "as the game waits while Windows speaks it; a Sound costs nothing."
+local VOICE_HELP = "Game Default speaks in the voice the rest of the addon uses."
+local SPEAKS_WHY = "Needs Text to Speech"
+
+local function Voices()
+    return ns.TTSVoiceChoices()
+end
+
+local rows = {
+    Group("Font"),
+    { key = "combatAlertFont", label = "Font", font = true },
+    { key = "combatAlertFontSize", label = "Font Size", slider = { 10, 72, 1 } },
+}
+
+local function Side(prefix, name, verb)
+    local function OwnColour() return not S.Get(prefix .. "ClassColor") end
+    local function PlaysSound() return S.Get(prefix .. "Audio") == "sound" end
+    local function Speaks() return S.Get(prefix .. "Audio") == "tts" end
+    local list = {
+        Group(name .. " Combat"),
+        { key = prefix .. "Text", label = name .. " Text", text = true, help = "What it shows as you " .. verb .. " combat." },
+        { key = prefix .. "ClassColor", label = name .. " Class Colour", toggle = true },
+        { key = prefix .. "Color", label = name .. " Colour", colour = true, needs = OwnColour,
+          why = "Class colour is on" },
+        { key = prefix .. "Audio", label = name .. " Audio", choice = AUDIO, help = AUDIO_HELP },
+        { key = prefix .. "Sound", label = name .. " Sound", sound = true, needs = PlaysSound,
+          why = name .. " Audio is not Sound" },
+        { key = prefix .. "Voice", label = name .. " Voice", choice = Voices, help = VOICE_HELP, needs = Speaks,
+          why = SPEAKS_WHY },
+        { key = prefix .. "Volume", label = name .. " Volume", slider = { 0, 100, 1 }, needs = Speaks,
+          why = SPEAKS_WHY },
+        { key = prefix .. "Rate", label = name .. " Speech Rate", slider = { -10, 10, 1 }, needs = Speaks,
+          why = SPEAKS_WHY },
+        { key = prefix .. "Speech", label = name .. " Speech", text = true, needs = Speaks, why = SPEAKS_WHY,
+          help = "Read aloud as you " .. verb .. " combat." },
+    }
+    for _, row in ipairs(list) do rows[#rows + 1] = row end
+end
+
+Side("combatEnter", "Entering", "enter")
+Side("combatLeave", "Leaving", "leave")
+
+local function Summary(store)
+    return ("%s and %s"):format(store.Get("combatEnterText"), store.Get("combatLeaveText"))
+end
+
+local page = ns.Shared.Settings.Page("QoL/Combat", S)
+
+page:Card({
+    id = "combatAlert", name = "Combat Alert", order = 70, switch = "combatAlert",
+    help = "A short flash of text entering and leaving combat. Move it in Unlock Mode.",
+    summary = Summary,
+    rows = rows,
+})

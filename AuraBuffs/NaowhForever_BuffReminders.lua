@@ -236,24 +236,43 @@ local function OpenMenu(cell)
     popup:SetShown(count > 0)
 end
 
-local function Cell(i)
-    local cell = cells[i]
-    if cell then return cell end
-    cell = CreateFrame("Frame", nil, frame)
-    cell:EnableMouse(true)
-    cell:SetScript("OnEnter", OpenMenu)
-    cell:SetScript("OnLeave", LeaveMenu)
-    cell:SetScript("OnHide", function() if popup and popup.owner == cell then HideMenu() end end)
+local Look = {}
+
+function Look.Cell(parent)
+    local cell = CreateFrame("Frame", nil, parent)
     cell.icon = cell:CreateTexture(nil, "ARTWORK")
     cell.icon:SetAllPoints()
     cell.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     ns.Border(cell, { r = 0, g = 0, b = 0 })
+    cell.count = ns.Font(cell, 14, "OUTLINE")
+    cell.count:SetPoint("BOTTOMRIGHT", -2, 2)
+    return cell
+end
+
+function Look.Place(cell, parent, i, size, icon, count)
+    cell:SetSize(size, size)
+    cell:ClearAllPoints()
+    cell:SetPoint("LEFT", parent, "LEFT", (i - 1) * (size + GAP), 0)
+    cell.icon:SetTexture(icon)
+    cell.count:SetText(count or "")
+end
+
+function Look.Fit(parent, n, size)
+    parent:SetSize(math.max(n, 1) * (size + GAP) - GAP, size)
+end
+
+local function Cell(i)
+    local cell = cells[i]
+    if cell then return cell end
+    cell = Look.Cell(frame)
+    cell:EnableMouse(true)
+    cell:SetScript("OnEnter", OpenMenu)
+    cell:SetScript("OnLeave", LeaveMenu)
+    cell:SetScript("OnHide", function() if popup and popup.owner == cell then HideMenu() end end)
     cell.timer = CreateFrame("Cooldown", nil, cell, "CooldownFrameTemplate")
     cell.timer:SetAllPoints()
     cell.timer:SetDrawEdge(false)
     cell.timer:SetReverse(true)
-    cell.count = ns.Font(cell, 14, "OUTLINE")
-    cell.count:SetPoint("BOTTOMRIGHT", -2, 2)
     cells[i] = cell
     return cell
 end
@@ -262,12 +281,8 @@ local function Show(list)
     local size = S.Get("iconSize")
     for i, entry in ipairs(list) do
         local cell = Cell(i)
-        cell:SetSize(size, size)
-        cell:ClearAllPoints()
-        cell:SetPoint("LEFT", frame, "LEFT", (i - 1) * (size + GAP), 0)
+        Look.Place(cell, frame, i, size, entry.icon, entry.count)
         cell.items = entry.items
-        cell.icon:SetTexture(entry.icon)
-        cell.count:SetText(entry.count or "")
         local aura = entry.aura
         if aura and Left(aura) and not Secret(aura.duration) then
             cell.timer:SetCooldown(aura.expirationTime - aura.duration, aura.duration)
@@ -278,7 +293,7 @@ local function Show(list)
         cell:Show()
     end
     for i = #list + 1, #cells do cells[i]:Hide() end
-    frame:SetSize(math.max(#list, 1) * (size + GAP) - GAP, size)
+    Look.Fit(frame, #list, size)
     if popup and popup:IsShown() then
         if popup.owner:IsShown() and popup.owner.items then OpenMenu(popup.owner) else HideMenu() end
     end
@@ -339,7 +354,8 @@ local function Build()
     frame = CreateFrame("Frame", "NaowhForeverBuffReminders", UIParent)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
-    frame.mover = ns.UI.AttachMover(frame, "Buff Reminders", function(pos) S.Set("buffsPos", pos) end, "AuraBuffs/Buffs & Consumables")
+    frame.mover = ns.UI.AttachMover(frame, "Buff Reminders", function(pos) S.Set("buffsPos", pos) end,
+        "AuraBuffs/Settings", "AuraBuffs/Settings:buffs")
 end
 
 local function Place()
@@ -396,3 +412,121 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local Group = Settings.Group
+local T = ns.THEME
+
+local OFF = "Turn on AuraBuffs"
+local STAGE_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN = 120, 10, 11, 16
+local RAID_SAMPLE = #PREVIEW
+local WHERE = { { always = "Everywhere", instance = "Dungeons & Raids", raid = "Raids Only" },
+    { "always", "instance", "raid" } }
+local STATES = {
+    { key = "raid", label = "In a Raid", tip = "In a raid, where every Show In choice reminds you." },
+    { key = "world", label = "Open World", tip = "Out in the world, where only Everywhere reminds you." },
+    { key = "resting", label = "Resting", tip = "In a city or an inn, where Hide While Resting hides them.",
+      needs = "hideResting" },
+}
+
+local function Enabled() return S.Get("enabled") and true or false end
+local function RaidBuffsOn() return S.Get("enabled") and S.Get("raidBuffs") and true or false end
+
+local function OpenList() ns.OpenAuraBuffsWindow("consumables") end
+
+local function EditList()
+    if ns.OpenFromOptions then ns.OpenFromOptions(OpenList) else OpenList() end
+end
+
+local function ConsumablesShown(state)
+    if state == "resting" then return false end
+    return state == "raid" or S.Get("consumablesWhere") == "always"
+end
+
+local function NewPreview(stage)
+    local shot = CreateFrame("Frame", nil, stage)
+    shot:SetAllPoints()
+    shot.row = CreateFrame("Frame", nil, shot)
+    shot.cells = {}
+    for i = 1, #PREVIEW do shot.cells[i] = Look.Cell(shot.row) end
+    shot.note = ns.Font(shot, NOTE_SIZE, nil, T.muted)
+    shot.note:SetPoint("BOTTOM", 0, NOTE_Y)
+    return shot
+end
+
+local function Fit(shot)
+    local row = shot.row
+    local w, h = row:GetWidth(), row:GetHeight()
+    local roomW = shot:GetWidth() - STAGE_MARGIN * 2
+    local roomH = shot:GetHeight() - STAGE_MARGIN * 2 - NOTE_Y * 2
+    local scale = 1
+    if roomW > 0 and w > roomW then scale = roomW / w end
+    if roomH > 0 and h > 0 and h * scale > roomH then scale = roomH / h end
+    row:SetScale(scale)
+    row:ClearAllPoints()
+    row:SetPoint("CENTER", shot, "CENTER", 0, NOTE_Y / scale)
+end
+
+local function PaintPreview(shot, state)
+    local size = S.Get("iconSize")
+    local consumables, raid = ConsumablesShown(state), S.Get("raidBuffs")
+    local n = 0
+    for i, p in ipairs(PREVIEW) do
+        local cell = shot.cells[i]
+        local shown = (i == RAID_SAMPLE and raid) or (i < RAID_SAMPLE and consumables)
+        if shown then
+            n = n + 1
+            Look.Place(cell, shot.row, n, size, p.item and C_Item.GetItemIconByID(p.item)
+                or C_Spell.GetSpellTexture(p.spell), p.count)
+        end
+        cell:SetShown(shown and true or false)
+    end
+    Look.Fit(shot.row, n, size)
+    Fit(shot)
+    local note = ""
+    if n == 0 then
+        note = "Nothing to remind you of here."
+    elseif consumables and #(S.Get("consumableEntries") or {}) == 0 then
+        note = "Sample icons: add the consumables to watch in the AuraBuffs window."
+    end
+    shot.note:SetText(note)
+end
+
+local function Summary(store)
+    local n = #(store.Get("consumableEntries") or {})
+    local text = n == 1 and "1 consumable" or (n .. " consumables")
+    if store.Get("raidBuffs") then text = text .. " and raid buffs" end
+    return text
+end
+
+Settings.Page("AuraBuffs/Settings", S):Card({
+    id = "buffs", name = "Buffs & Consumables", order = 10,
+    help = "A row of icons for missing food, flask, elixir and scroll buffs, and for class buffs missing "
+        .. "in your group. Out of combat only: the game keeps your buffs from addons in combat, so the "
+        .. "icons keep what they showed. Hover one to pick a carried item to use. Move them in Unlock Mode.",
+    summary = Summary,
+    studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        Group("Consumables"),
+        { key = "consumablesWhere", label = "Show In", choice = WHERE, needs = Enabled, why = OFF },
+        { key = "consumablesMinutes", label = "Warn With Minutes Left", slider = { 0, 10, 1 }, unit = " min",
+          needs = Enabled, why = OFF, help = "A buff with less time than this left counts as missing." },
+        { key = "onlyIfCarried", label = "Only If I Carry One", toggle = true, needs = Enabled, why = OFF,
+          help = "Off: a reminder for each kind you watch, even with none in your bags." },
+        { key = "hideResting", label = "Hide While Resting", toggle = true, needs = Enabled, why = OFF,
+          help = "No consumable reminders in cities and inns." },
+        { label = "Consumables to Watch", buttonText = "Edit List", needs = Enabled, why = OFF,
+          button = EditList,
+          help = "Opens the AuraBuffs window, where you add each item by its item ID and buff spell ID." },
+        Group("Raid Buffs"),
+        { key = "raidBuffs", label = "Raid Buff Reminders", toggle = true, needs = Enabled, why = OFF,
+          help = "Missing class buffs in your group, out of combat, with how many are missing them. A camp "
+              .. "buff standing in for one, the Incense Candle for Arcane Intellect for example, is not seen, "
+              .. "so it still counts as missing." },
+        { key = "raidBuffsOwn", label = "Only Buffs I Can Cast", toggle = true, needs = RaidBuffsOn,
+          why = "Needs Raid Buff Reminders", help = "Off: every buff a class in your group can cast." },
+        Group("Icons"),
+        { key = "iconSize", label = "Icon Size", slider = { 20, 64, 1 }, needs = Enabled, why = OFF },
+    },
+})

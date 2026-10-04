@@ -161,9 +161,14 @@ local function Apply()
     if on and not installed and CharacterFrame then
         installed = true
         Build()
+        local pane = CharacterLevelText:GetParent()
+        if pane then
+            pane:HookScript("OnShow", Apply)
+            pane:HookScript("OnHide", Apply)
+        end
     end
     if not installed then return end
-    badge:SetShown(on)
+    badge:SetShown(on and CharacterLevelText:IsVisible())
     if on and badge:IsVisible() then Paint() end
 end
 CP.ApplyScore = Apply

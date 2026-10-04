@@ -33,14 +33,16 @@ end
 
 -- A colour swatch: opening the picker reports the colour it opens with, and so does cancel.
 do
-    local source = Read("QoL/NaowhForever_QoL.lua")
-    local chunk = assert(source:match("(local SAME_COLOR = .-\nlocal function XPColorRow%(.-\nend)\n"))
+    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local chunk = "local SAME_COLOUR = 1 / 255\n"
+        .. assert(source:match("(local function SetColour%(.-\nend\n\nlocal function ColourRow%(.-\nend)\n"))
     local S = Settings({})
     local accent = { r = 0, g = 0x91 / 255, b = 0xed / 255 }
     local ns = { XPBarDefaultColor = function() return accent end }
     function ns.XPBarColor(k) return S.Get(k) or accent end
-    local XPColorRow = Load(chunk .. "\nreturn XPColorRow", { S = S, ns = ns })
-    local row = XPColorRow("xpBarFillColor", "Fill Colour")
+    local ColourRow = Load(chunk .. "\nreturn ColourRow", { S = S, ns = ns })
+    local row = ColourRow("xpBarFillColor", "Fill Colour")
+    row.getValue, row.setValue = row.get, row.set
 
     row.setValue(row.getValue())
     check("opening a swatch on the default saves nothing", S.db.xpBarFillColor == nil)

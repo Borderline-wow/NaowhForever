@@ -59,10 +59,91 @@ local function Coins(copper)
     return C_CurrencyInfo.GetCoinTextureString(copper, 12)
 end
 
-local function FormatGPH()
+local Look = {}
+
+function Look.NewRow(parent)
+    local row = CreateFrame("Frame", nil, parent)
+    row.bg = row:CreateTexture(nil, "BACKGROUND")
+    row.bg:SetAllPoints()
+    row.border = ns.Border(row)
+
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetPoint("LEFT", 1, 0)
+    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    row.glow = row:CreateTexture(nil, "ARTWORK")
+    row.glow:SetColorTexture(1, 1, 1, 1)
+    local glow = ns.ThemeTint("accent", GLOW)
+    row.glow:SetGradient("HORIZONTAL", CreateColor(glow.r, glow.g, glow.b, 0.7), CreateColor(glow.r, glow.g, glow.b, 0))
+    row.glow:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 0, 0)
+    row.glow:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 0, 0)
+    row.glow:SetWidth(12)
+
+    row.bags = ns.Font(row, 11, "OUTLINE")
+    row.bags:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMLEFT", 2, 2)
+
+    row.value = ns.Font(row, 12, "OUTLINE")
+    row.value:SetPoint("RIGHT", -8, 0)
+    row.name = ns.Font(row, 13, "OUTLINE")
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 10, 0)
+    row.name:SetPoint("RIGHT", row.value, "LEFT", -8, 0)
+    row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
+    return row
+end
+
+function Look.StyleRow(row)
+    local st = STYLES[S.Get("lootFeedStyle")] or STYLES.dark
+    if st == STYLES.dark then
+        local c = ns.ThemeTint("bg", DARK_BG)
+        row.bg:SetColorTexture(c.r, c.g, c.b, st.bg[4])
+        row.border:SetColor(unpack(st.edge))
+    else
+        local c, e = ns.ThemeTint("panel", LIGHT_BG), ns.ThemeTint("line", LIGHT_EDGE)
+        row.bg:SetColorTexture(c.r, c.g, c.b, st.bg[4])
+        row.border:SetColor(e.r, e.g, e.b, st.edge[4])
+    end
+    row.glow:SetShown(S.Get("lootFeedGlow"))
+    local h, size = S.Get("lootFeedHeight"), S.Get("lootFeedFontSize")
+    local font = ns.UI.FontPath(S.Get("lootFeedFont"))
+    row:SetSize(S.Get("lootFeedWidth"), h)
+    row.icon:SetSize(h - 2, h - 2)
+    row.name:SetFont(font, size, "OUTLINE")
+    row.value:SetFont(font, size - 1, "OUTLINE")
+    row.bags:SetFont(font, math.max(8, size - 2), "OUTLINE")
+end
+
+function Look.Fill(row, icon, name, value, bags)
+    row.icon:SetTexture(icon)
+    row.name:SetText(name)
+    row.value:SetText(value or "")
+    row.bags:SetText(bags or "")
+end
+
+function Look.Stack(list, holder)
+    local step = S.Get("lootFeedHeight") + S.Get("lootFeedSpacing")
+    local down = S.Get("lootFeedGrowth") == "down"
+    local point = down and "TOP" or "BOTTOM"
+    if down then step = -step end
+    for i, row in ipairs(list) do
+        row:ClearAllPoints()
+        row:SetPoint(point, holder, point, 0, (i - 1) * step)
+    end
+end
+
+function Look.GPHFont(text)
+    text:SetFont(ns.UI.FontPath(S.Get("lootFeedFont")), S.Get("lootFeedFontSize"), "OUTLINE")
+end
+
+function Look.GPH(text, newest, per)
+    text:SetText(("%dg %ds %dc/Hr"):format(math.floor(per / 10000), math.floor(per / 100) % 100, per % 100))
+    text:ClearAllPoints()
+    text:SetPoint("LEFT", newest, "RIGHT", 10, 0)
+end
+
+local function PerHour()
     local hours = (GetTime() - sessionStart) / 3600
-    local per = math.floor(sessionValue / math.max(hours, 1 / 60))
-    return ("%dg %ds %dc/Hr"):format(math.floor(per / 10000), math.floor(per / 100) % 100, per % 100)
+    return math.floor(sessionValue / math.max(hours, 1 / 60))
 end
 
 local function AddSessionValue(copper)
@@ -90,19 +171,10 @@ local function UnitPrice(link, vendor)
 end
 
 local function Layout()
-    local step = S.Get("lootFeedHeight") + S.Get("lootFeedSpacing")
-    local down = S.Get("lootFeedGrowth") == "down"
-    local point = down and "TOP" or "BOTTOM"
-    if down then step = -step end
-    for i, row in ipairs(rows) do
-        row:ClearAllPoints()
-        row:SetPoint(point, feed, point, 0, (i - 1) * step)
-    end
+    Look.Stack(rows, feed)
     local newest = rows[1]
     if gph and newest and S.Get("lootFeedGPH") and sessionStart then
-        gph:SetText(FormatGPH())
-        gph:ClearAllPoints()
-        gph:SetPoint("LEFT", newest, "RIGHT", 10, 0)
+        Look.GPH(gph, newest, PerHour())
         gph:Show()
     elseif gph then
         gph:Hide()
@@ -121,55 +193,8 @@ local function Release(row)
     Layout()
 end
 
-local function StyleRow(row)
-    local st = STYLES[S.Get("lootFeedStyle")] or STYLES.dark
-    if st == STYLES.dark then
-        local c = ns.ThemeTint("bg", DARK_BG)
-        row.bg:SetColorTexture(c.r, c.g, c.b, st.bg[4])
-        row.border:SetColor(unpack(st.edge))
-    else
-        local c, e = ns.ThemeTint("panel", LIGHT_BG), ns.ThemeTint("line", LIGHT_EDGE)
-        row.bg:SetColorTexture(c.r, c.g, c.b, st.bg[4])
-        row.border:SetColor(e.r, e.g, e.b, st.edge[4])
-    end
-    row.glow:SetShown(S.Get("lootFeedGlow"))
-    local h, size = S.Get("lootFeedHeight"), S.Get("lootFeedFontSize")
-    local font = ns.UI.FontPath(S.Get("lootFeedFont"))
-    row:SetSize(S.Get("lootFeedWidth"), h)
-    row.icon:SetSize(h - 2, h - 2)
-    row.name:SetFont(font, size, "OUTLINE")
-    row.value:SetFont(font, size - 1, "OUTLINE")
-    row.bags:SetFont(font, math.max(8, size - 2), "OUTLINE")
-end
-
 local function NewRow()
-    local row = CreateFrame("Frame", nil, feed)
-    row.bg = row:CreateTexture(nil, "BACKGROUND")
-    row.bg:SetAllPoints()
-    row.border = ns.Border(row)
-
-    row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetPoint("LEFT", 1, 0)
-    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    row.glow = row:CreateTexture(nil, "ARTWORK")
-    row.glow:SetColorTexture(1, 1, 1, 1)
-    local glow = ns.ThemeTint("accent", GLOW)
-    row.glow:SetGradient("HORIZONTAL", CreateColor(glow.r, glow.g, glow.b, 0.7), CreateColor(glow.r, glow.g, glow.b, 0))
-    row.glow:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 0, 0)
-    row.glow:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 0, 0)
-    row.glow:SetWidth(12)
-
-    row.bags = ns.Font(row, 11, "OUTLINE")
-    row.bags:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMLEFT", 2, 2)
-
-    row.value = ns.Font(row, 12, "OUTLINE")
-    row.value:SetPoint("RIGHT", -8, 0)
-    row.name = ns.Font(row, 13, "OUTLINE")
-    row.name:SetPoint("LEFT", row.icon, "RIGHT", 10, 0)
-    row.name:SetPoint("RIGHT", row.value, "LEFT", -8, 0)
-    row.name:SetJustifyH("LEFT")
-    row.name:SetWordWrap(false)
+    local row = Look.NewRow(feed)
 
     -- Fades in, holds for the display time, then fades out and frees the slot.
     row.anim = row:CreateAnimationGroup()
@@ -195,11 +220,8 @@ end
 
 local function Push(icon, name, value, bags, link)
     local row = table.remove(pool) or NewRow()
-    StyleRow(row)
-    row.icon:SetTexture(icon)
-    row.name:SetText(name)
-    row.value:SetText(value or "")
-    row.bags:SetText(bags or "")
+    Look.StyleRow(row)
+    Look.Fill(row, icon, name, value, bags)
     row.link = link
     row:EnableMouse(link ~= nil)
     row:SetAlpha(1)
@@ -439,7 +461,7 @@ local function CreateFeed()
     feed:SetClampedToScreen(true)
     gph = ns.Font(feed, 13, "OUTLINE", { r = 1, g = 0.82, b = 0 })
     gph:Hide()
-    feed.mover = ns.UI.AttachMover(feed, "Loot Feed", function(pos) S.Set("lootFeedPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:Loot Feed")
+    feed.mover = ns.UI.AttachMover(feed, "Loot Feed", function(pos) S.Set("lootFeedPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:lootFeed")
     PlaceFeed()
 end
 
@@ -455,10 +477,10 @@ local function Apply()
     end
     if not feed then CreateFeed() end
     feed:SetSize(S.Get("lootFeedWidth"), S.Get("lootFeedHeight"))
-    gph:SetFont(ns.UI.FontPath(S.Get("lootFeedFont")), S.Get("lootFeedFontSize"), "OUTLINE")
+    Look.GPHFont(gph)
     PlaceFeed()
     for _, e in ipairs(EVENTS) do events:RegisterEvent(e) end
-    for _, row in ipairs(rows) do StyleRow(row) end
+    for _, row in ipairs(rows) do Look.StyleRow(row) end
     feed.mover:SetShown(unlocked == true)
     Layout()
 end
@@ -488,3 +510,132 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+local QUALITY = { { [0] = "Poor", [1] = "Common", [2] = "Uncommon", [3] = "Rare", [4] = "Epic" }, { 0, 1, 2, 3, 4 } }
+local STYLE = { { dark = "Dark", light = "Light" }, { "dark", "light" } }
+local PRICE = { { vendor = "Vendor Price", ahscan = "Auction (Naowh Scan)", tsm = "Auction (TSM)" },
+    { "vendor", "ahscan", "tsm" } }
+local GROWTH = { { up = "Up", down = "Down" }, { "up", "down" } }
+
+local SAMPLE_PANTS, SAMPLE_CLOTH, SAMPLE_COINS, SAMPLE_PER_HOUR = 94, 39, 31250, 412550
+local PANTS_ICON = "Interface\\Icons\\INV_Pants_04"
+local CLOTH_ICON = "Interface\\Icons\\INV_Fabric_Linen_01"
+local PREVIEW_LIFT = 10
+local FADING = { 1, 0.6, 0.25 }
+local STATES = {
+    { key = "looting", label = "Looting", tip = "Lines as they come in, newest at the anchor." },
+    { key = "fading", label = "Fading", tip = "Older lines fading out after the display time." },
+}
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetPoint("CENTER", 0, PREVIEW_LIFT)
+    preview.rows = { Look.NewRow(preview), Look.NewRow(preview), Look.NewRow(preview) }
+    preview.shown = {}
+    preview.gph = ns.Font(preview, 13, "OUTLINE", { r = 1, g = 0.82, b = 0 })
+    preview.note = preview:CreateFontString(nil, "OVERLAY")
+    preview.note:SetPoint("BOTTOM", stage, "BOTTOM", 0, 8)
+    preview.note:SetFont(ns.UIFontPath(), 11, "")
+    local muted = ns.THEME.muted
+    preview.note:SetTextColor(muted.r, muted.g, muted.b, 1)
+    return preview
+end
+
+local function PaintPreview(preview, state)
+    local shown, samples = preview.shown, preview.rows
+    wipe(shown)
+    local values = S.Get("lootFeedValue")
+    if S.Get("lootFeedMoney") then
+        Look.Fill(samples[3], COIN_ICON, "Coins", Coins(SAMPLE_COINS))
+        shown[#shown + 1] = samples[3]
+    else
+        samples[3]:Hide()
+    end
+    Look.Fill(samples[2], CLOTH_ICON, "|cffffffffLinen Cloth|r |cff20ff20x3|r", values and Coins(SAMPLE_CLOTH) or nil, 7)
+    shown[#shown + 1] = samples[2]
+    Look.Fill(samples[1], PANTS_ICON, "|cff1eff00Journeyman's Pants|r |cff20ff20x1|r", values and Coins(SAMPLE_PANTS) or nil, 1)
+    shown[#shown + 1] = samples[1]
+    local h, spacing = S.Get("lootFeedHeight"), S.Get("lootFeedSpacing")
+    preview:SetSize(S.Get("lootFeedWidth"), #shown * h + (#shown - 1) * spacing)
+    for i, row in ipairs(shown) do
+        Look.StyleRow(row)
+        row:SetAlpha(state == "fading" and FADING[i] or 1)
+        row:Show()
+    end
+    Look.Stack(shown, preview)
+    local rate = preview.gph
+    if state == "looting" and S.Get("lootFeedGPH") then
+        Look.GPHFont(rate)
+        Look.GPH(rate, shown[1], SAMPLE_PER_HOUR)
+        rate:Show()
+    else
+        rate:Hide()
+    end
+    preview.note:SetText(state == "fading" and ("Each line fades out after %ss."):format(S.Get("lootFeedFade")) or "")
+end
+
+local function ResetGPH()
+    ns.ResetLootFeedSession()
+end
+
+local function LootFeedSummary(store)
+    local style = store.Get("lootFeedStyle") == "light" and "light" or "dark"
+    return ("%d lines, %s%s"):format(store.Get("lootFeedCount"), style,
+        store.Get("lootFeedGPH") and ", gold per hour" or "")
+end
+
+ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
+    id = "lootFeed", name = "Loot Feed", order = 70, switch = "lootFeed",
+    help = "Everything you loot pops up on screen with its icon, amount and value, stacking "
+        .. "in your chosen direction and fading out. Hover a line for the item's tooltip. Move it in Unlock Mode.",
+    summary = LootFeedSummary,
+    studio = { height = 170, states = STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        Group("Lines"),
+        { key = "lootFeedMoney", label = "Show Money", toggle = true },
+        { key = "lootFeedQuest", label = "Show Quest Rewards", toggle = true,
+          help = "A line for each quest you turn in, with the experience and money it gave. "
+              .. "Reward items show as their own lines." },
+        { key = "lootFeedRep", label = "Show Reputation", toggle = true,
+          help = "A line for every reputation gain, from quests and kills alike." },
+        { key = "lootFeedXP", label = "Show Kill Experience", toggle = true,
+          help = "A line for the experience from each kill. Quest experience is on the quest's "
+              .. "own line." },
+        { key = "lootFeedQuality", label = "Lowest Quality Shown", choice = QUALITY },
+        { key = "lootFeedCount", label = "Lines Shown", slider = { 3, 12, 1 } },
+        { key = "lootFeedFade", label = "Display Time", slider = { 0.5, 10, 0.5 }, unit = "s",
+          help = "How long each line stays before it fades." },
+        { key = "lootFeedGrowth", label = "Growth Direction", choice = GROWTH,
+          help = "The newest line stays at the anchor; older lines stack in this direction." },
+        Group("Value"),
+        { key = "lootFeedValue", label = "Show Item Value", toggle = true,
+          help = "What each line is worth, in gold, silver and copper." },
+        { key = "lootFeedPrice", label = "Price Source", choice = PRICE,
+          help = "Auction (Naowh Scan) uses your last Scan Prices at the auction house; Auction (TSM) "
+              .. "needs TradeSkillMaster. An item without an auction price counts at its vendor price." },
+        { key = "lootFeedBank", label = "Count Bank Items", toggle = true,
+          help = "The number on each icon counts your bank as well as your bags." },
+        { key = "lootFeedGPH", label = "Gold per Hour", toggle = true,
+          help = "A running gold per hour beside the newest line, counting money and item value "
+              .. "since your first loot this session." },
+        { label = "Reset Gold per Hour", button = ResetGPH, buttonText = "Reset", always = true,
+          help = "Starts the gold per hour count again from your next loot." },
+        Group("Look"),
+        { key = "lootFeedStyle", label = "Style", choice = STYLE },
+        { key = "lootFeedGlow", label = "Glow", toggle = true, help = "A soft glow beside each icon." },
+        { key = "lootFeedWidth", label = "Width", slider = { 200, 600, 5 } },
+        { key = "lootFeedHeight", label = "Line Height", slider = { 20, 64, 1 },
+          help = "The icon grows and shrinks with it." },
+        { key = "lootFeedSpacing", label = "Spacing", slider = { 0, 20, 1 }, help = "Space between lines." },
+        { key = "lootFeedFont", label = "Font", font = true },
+        { key = "lootFeedFontSize", label = "Font Size", slider = { 8, 24, 1 },
+          help = "The item name. Values and the bag count scale with it." },
+        Group("Loot Window"),
+        { key = "hideLootWindow", label = "Hide Blizzard Loot Window", toggle = true, always = true,
+          help = "Takes everything the moment you loot, with Blizzard's loot window kept out of "
+              .. "sight, so the feed is all you see. Works with or without the game's auto loot. "
+              .. "Hold Shift while looting to get the window back. It also appears whenever "
+              .. "something cannot be taken: a group roll, a locked item, or bags too full." },
+    },
+})

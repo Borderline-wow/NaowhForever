@@ -522,6 +522,7 @@ local function Build()
     window.listToggle:SetScript("OnClick", ToggleClicked)
     window.listToggle:SetScript("OnEnter", ToggleEnter)
     window.listToggle:SetPoint("RIGHT", window.filters, "LEFT", -12, 0)
+    J.Recent.Button(window, Select):SetPoint("RIGHT", window.listToggle, "LEFT", -12, 0)
     window.back = Parts.Link(window, BackClicked, true)
     window.back:SetPoint("LEFT", window.title, "RIGHT", 16, -1)
     window.back:Hide()
@@ -613,7 +614,7 @@ hooksecurefunc(ns, "Apply", function()
 end)
 
 -- Draws the page shown again, when the window is open: for data that changed under it
--- (kills or loot forgotten from the settings page).
+-- (kills or loot forgotten from Recent).
 function ns.RedrawJournalWindow()
     if window and window:IsShown() then view:Redraw() end
     J.View.BossPanel.Refresh()
@@ -659,7 +660,9 @@ function J.WindowAwayForMap(mapShown)
     if mapShown then
         if window and window:IsShown() then
             awayForMap = true
+            window.stepAside = true
             window:Hide()
+            window.stepAside = nil
         end
     elseif awayForMap then
         awayForMap = false

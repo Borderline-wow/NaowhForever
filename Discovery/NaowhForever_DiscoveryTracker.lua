@@ -84,6 +84,7 @@ end
 -------------------------------------------------------------------------------
 local function BuildPanel()
     panel = CreateFrame("Frame", "NaowhForeverLibraryBooks", UIParent)
+    panel:SetScale(S.Get("trackerScale"))
     panel:SetMovable(true)
     panel:SetClampedToScreen(true)
     panel:SetWidth(PANEL_W)
@@ -109,7 +110,7 @@ local function BuildPanel()
     local titleBtn = CreateFrame("Button", nil, panel)
     titleBtn:SetPoint("TOPLEFT", panel.title, "TOPLEFT", -4, 4)
     titleBtn:SetPoint("BOTTOMRIGHT", panel.title, "BOTTOMRIGHT", 0, -4)
-    titleBtn:SetScript("OnClick", function() ns.OpenOptionsWindow("Discovery/Books") end)
+    titleBtn:SetScript("OnClick", function() ns.OpenDiscoveryWindow() end)
     titleBtn:SetScript("OnEnter", function(self)
         local c = T.accentSoft
         panel.title:SetTextColor(c.r, c.g, c.b, 1)
@@ -345,7 +346,7 @@ local function Render(zone, left)
                 entries[#entries + 1] = {
                     text = GOLD .. (n == 1 and "1 book" or (n .. " books")) .. " in your " .. place .. "|r",
                     sub = "Hand in to " .. npc.name .. ", " .. npc.place,
-                    waypoint = function() ns.PlaceWaypoint(npc.name, npc.map, npc.x, npc.y) end,
+                    waypoint = function() L.WaypointNpc(npc) end,
                 }
             end
         end
@@ -360,9 +361,7 @@ local function Render(zone, left)
         if book.turnIn == "trainer" then sub = sub .. " - mage trainer" end
         entries[#entries + 1] = {
             text = L.Title(book), sub = sub,
-            waypoint = function()
-                ns.PlaceWaypoint(book.name, spot[1], spot[2], spot[3], spot[4] and (" (" .. spot[4] .. ")"))
-            end,
+            waypoint = function() L.WaypointBook(book, spot) end,
             tip = function()
                 GameTooltip:SetText(book.name)
                 if spot[5] then GameTooltip:AddLine(spot[5], 1, 1, 1, true) end
@@ -456,6 +455,7 @@ end
 local OWN_KEYS = { enabled = true, tracker = true, trackerAlways = true, trackerZone = true }
 
 hooksecurefunc(S, "Set", function(key, value)
+    if key == "trackerScale" and panel then panel:SetScale(value) end
     if not OWN_KEYS[key] then return end
     -- Switching Always Show back on brings the tracker back here, whatever the X closed.
     -- Switching it off closes it, unless the zone you are in has books to find.

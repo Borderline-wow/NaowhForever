@@ -185,6 +185,7 @@ env._G = env
 Load({
     "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Items.lua", "Shared/Places.lua",
     "Shared/Parts.lua", "Shared/Window.lua", "Shared/View.lua", "Shared/Kinds.lua",
+    "Shared/Settings/Settings.lua",
     "Training/NaowhForever_TrainingData.lua", "Training/NaowhForever_TrainingBuilds.lua",
     "Training/NaowhForever_Training.lua", "Training/NaowhForever_TrainingWindow.lua",
 }, env)
@@ -252,9 +253,10 @@ check("back on Spells", window.hero:IsShown())
 settings.enabled = true
 settings.miniShown = true
 for _, fn in ipairs(listeners) do fn("miniShown") end
-local page = Frame()
-local y = ns.BuildTrainingSettingsPage(page, 0)
-check("the settings page builds", type(y) == "number" and y < 0)
-check("with the module card", rawget(page, "trainingCard") ~= nil)
+local declared = ns.Shared.Settings.pages["Training Planner/Settings"]
+local windowCard, trainer = declared and declared.items[1], declared and declared.cards.trainer
+check("the settings page is declared, the planner's window card first", windowCard and windowCard.window
+    and windowCard.text == "Open Training Planner")
+check("with the trainer popup's card, switched by its own setting", trainer and trainer.switch == "trainerPopup")
 
 print(("test-training-window: %d checks passed"):format(checks))

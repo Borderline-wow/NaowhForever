@@ -21,6 +21,10 @@ Shared/
                and a module's card on its settings page
   View.lua     the row engine: pooled rows, cards, the card grid, one redraw per burst
   Kinds.lua    the rows every page has: section title, note, card
+  Settings/
+    Settings.lua  every settings page, declared once: pages, cards, rows, reset, search index
+    Page.lua      a declared page drawn on the row engine: cards, their heads, two-column rows
+    Studio.lua    a card's live preview: a stage and the moments it can be seen in
 ```
 
 ## Using it
@@ -31,6 +35,15 @@ Shared/
   (`New(view)` makes the frame once, `Set(row, ...)` fills it and returns its height), then
   `ns.Shared.View.New(parent, kinds, mixin)`. Your mixin draws: `self:Clear()`, `self:Add(...)`
   rows, `self:Fit(events)`, and `Redraw()` draws again.
+- **Settings:** a module declares its settings next to its code, on the page they show on:
+  `ns.Shared.Settings.Page("QoL/General", S):Card({ id, name, help, switch, summary, order,
+  studio, rows = { ... } })`, rows like `{ key = "iconSize", label = "Icon Size", slider = { 12,
+  32, 1 } }` and `Settings.Group("Clock")` between them (see `Settings/Settings.lua`). The page
+  in the options window, its search entries, the dot on what you changed and each card's reset
+  all come from that one declaration. Settings pages hold settings only: a module's lists and
+  editors live in its own window, opened from the page's `page:Window{ ... }` card. A card that
+  shows something on screen can carry a live preview (`studio`, see `Settings/Studio.lua`),
+  drawn by the module's own drawing code on plain frames, never on its real (secure) frames.
 - **A window:** `Parts.Window`, `Parts.TitleBar`, `Parts.Opacity`, `Parts.BarButton`,
   `Parts.FooterBrand`. See `BiS/UI/Window.lua` for a short one.
 - **Copying:** `Parts.CopyWowhead(kind, id, name)` opens the copy card on an item, quest or

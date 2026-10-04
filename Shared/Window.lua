@@ -29,11 +29,41 @@ end
 -------------------------------------------------------------------------------
 --  The frame
 -------------------------------------------------------------------------------
+local pendingBack, pendingBackText
+
+function Parts.SetBack(window, back, text)
+    window.onBack = back
+    if not window.back then return end
+    window.back:SetShown(back ~= nil)
+    if back then Parts.SetLink(window.back, text or "Back") end
+end
+
+-- Opens a window from another one, which goes away; the new window's title then has a link
+-- back to it, and closing the new window brings it back.
+function Parts.OpenWithBack(open, from, back, text)
+    pendingBack, pendingBackText = back, text
+    from:Hide()
+    open()
+    pendingBack, pendingBackText = nil, nil
+end
+
 local function OnShow(frame)
     if not InCombatLockdown() then
         frame:EnableKeyboard(true)
         frame:SetPropagateKeyboardInput(true)
     end
+    if pendingBack then
+        Parts.SetBack(frame, pendingBack, pendingBackText)
+        pendingBack, pendingBackText = nil, nil
+    end
+end
+
+local function OnHide(frame)
+    if frame.stepAside then return end
+    local back = frame.onBack
+    if not back then return end
+    Parts.SetBack(frame, nil)
+    back()
 end
 
 local function DragStop(frame)
@@ -66,6 +96,7 @@ function Parts.Window(width, height, positionKey)
     ns.Border(window, BORDER_RGB)
     window:SetScript("OnKeyDown", ns.UI.CloseOnEscape)
     window:SetScript("OnShow", OnShow)
+    window:SetScript("OnHide", OnHide)
     local rule = ns.Solid(window, "ARTWORK", BORDER_RGB, 1)
     rule:SetPoint("TOPLEFT", 0, -HEADER)
     rule:SetPoint("TOPRIGHT", 0, -HEADER)
@@ -91,6 +122,10 @@ local function OpenPage(button)
     ns.OpenOptionsWindow(button.page)
 end
 
+local function BackClicked(link)
+    link:GetParent():Hide()
+end
+
 function Parts.TitleBar(window, title, subtitle, page)
     local middle = -HEADER / 2
     local logo = CreateFrame("Button", nil, window)
@@ -110,6 +145,9 @@ function Parts.TitleBar(window, title, subtitle, page)
     window.subtitle = ns.Font(window, 11, nil, T.muted)
     window.subtitle:SetPoint("TOPLEFT", window.title, "BOTTOMLEFT", 0, -2)
     window.subtitle:SetText(subtitle)
+    window.back = Parts.Link(window, BackClicked, true)
+    window.back:SetPoint("LEFT", window.title, "RIGHT", 16, -1)
+    window.back:Hide()
     local close = ns.Button(window, "x", 24, 24, function() window:Hide() end)
     close:SetPoint("RIGHT", window, "TOPRIGHT", -8, middle)
     return close
@@ -295,6 +333,7 @@ function Parts.SetTabs(bar, items)
     end
     for i = #items + 1, #bar.buttons do bar.buttons[i]:Hide() end
     for i = 1, #bar.splits do bar.splits[i]:Hide() end
+    if #items == 0 then return end
     local spare, x = (width - words) / #items, 0
     for i = 1, #items do
         local button = bar.buttons[i]
@@ -314,6 +353,14 @@ function Parts.SetTabs(bar, items)
         end
         x = x + w
     end
+end
+
+function Parts.FitTabs(bar, items, margin, maxW)
+    Parts.SetTabs(bar, items)
+    local words = 0
+    for i = 1, #items do words = words + bar.buttons[i].want end
+    bar:SetWidth(math.min(maxW or math.huge, words + margin * #items))
+    Parts.SetTabs(bar, items)
 end
 
 function Parts.Tabs(parent, width, items, onPick)
@@ -416,7 +463,7 @@ local CARD_H, CARD_PAD, CARD_ICON = 76, 16, 52
 local CARD_BUTTON_W, CARD_BUTTON_H, CARD_LINE_GAP = 190, 30, 6
 local HEADLINE_SIZE, DETAIL_SIZE = 15, 12
 
-local function MakeCard(parent)
+function Parts.SettingsCardFrame(parent)
     local card = CreateFrame("Frame", nil, parent)
     card:SetHeight(CARD_H)
     ns.Solid(card, "BACKGROUND", T.fg, St.WINDOW_CARD_FILL):SetAllPoints()
@@ -427,8 +474,7 @@ local function MakeCard(parent)
     card.icon:SetTexture(LOGO, nil, nil, "TRILINEAR")
     -- ns.Button calls its click with no arguments, so the card is held here, once.
     card.open = ns.AccentBorder(ns.Button(card, "", CARD_BUTTON_W, CARD_BUTTON_H, function()
-        ns.StashOptionsWindow()
-        card.onOpen()
+        ns.OpenFromOptions(card.onOpen)
     end))
     card.open:SetPoint("RIGHT", -CARD_PAD, 0)
     card.headline = ns.Font(card, HEADLINE_SIZE, nil, T.fg)
@@ -440,27 +486,33 @@ local function MakeCard(parent)
     return card
 end
 
--- Opening the window puts the options window away, as it would sit over it. Returns the y
--- under the card.
 ---@param detail? string a second, muted line
-function Parts.SettingsCard(parent, y, key, buttonText, onOpen, headline, detail)
-    local UI = ns.UI
-    if UI.searchScan then return y - CARD_H - CARD_PAD end
-    local card = UI.Keep(parent, key, MakeCard)
-    card:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, y - CARD_PAD)
-    card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, y - CARD_PAD)
+function Parts.PaintSettingsCard(card, buttonText, onOpen, headline, detail)
     card.onOpen = onOpen
-    ns.SetButtonText(card.open, buttonText)
+    card.open:SetShown(onOpen ~= nil)
+    if onOpen then ns.SetButtonText(card.open, buttonText) end
     card.headline:SetText(headline)
     card.detail:SetText(detail or "")
     card.detail:SetShown(detail ~= nil)
     -- One line, or two, as a block centred beside the logo.
     local height = detail and HEADLINE_SIZE + CARD_LINE_GAP + DETAIL_SIZE or HEADLINE_SIZE
+    local right, rightPoint, rightX = card.open, "LEFT", -CARD_PAD
+    if not onOpen then right, rightPoint, rightX = card, "RIGHT", -CARD_PAD end
     card.headline:ClearAllPoints()
     card.headline:SetPoint("TOPLEFT", card.icon, "RIGHT", CARD_PAD, height / 2)
-    card.headline:SetPoint("RIGHT", card.open, "LEFT", -CARD_PAD, 0)
+    card.headline:SetPoint("RIGHT", right, rightPoint, rightX, 0)
     card.detail:ClearAllPoints()
     card.detail:SetPoint("TOPLEFT", card.headline, "BOTTOMLEFT", 0, -CARD_LINE_GAP)
-    card.detail:SetPoint("RIGHT", card.open, "LEFT", -CARD_PAD, 0)
+    card.detail:SetPoint("RIGHT", right, rightPoint, rightX, 0)
+    return CARD_H
+end
+
+function Parts.SettingsCard(parent, y, key, buttonText, onOpen, headline, detail)
+    local UI = ns.UI
+    if UI.searchScan then return y - CARD_H - CARD_PAD end
+    local card = UI.Keep(parent, key, Parts.SettingsCardFrame)
+    card:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, y - CARD_PAD)
+    card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, y - CARD_PAD)
+    Parts.PaintSettingsCard(card, buttonText, onOpen, headline, detail)
     return y - CARD_H - CARD_PAD
 end

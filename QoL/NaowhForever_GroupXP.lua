@@ -92,10 +92,10 @@ local function Roster()
     return list
 end
 
-local function Row(i)
-    local row = rows[i]
-    if row then return row end
-    row = CreateFrame("Frame", nil, frame)
+local Look = {}
+
+function Look.NewRow(parent)
+    local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(ROW_H)
     row.name = ns.Font(row, 12, "OUTLINE")
     row.name:SetPoint("LEFT")
@@ -112,12 +112,11 @@ local function Row(i)
     ns.Border(row.bar, { r = 0, g = 0, b = 0 })
     row.text = ns.Font(row.bar, 11, "OUTLINE")
     row.text:SetPoint("CENTER")
-    rows[i] = row
     return row
 end
 
 -- data is nil for a member without the addon, who shows their level only.
-local function Paint(row, name, class, level, data)
+function Look.Paint(row, name, class, level, data)
     local color = class and RAID_CLASS_COLORS[class]
     row.name:SetText(name)
     if color then row.name:SetTextColor(color.r, color.g, color.b) else row.name:SetTextColor(1, 1, 1) end
@@ -142,13 +141,33 @@ local SAMPLE = {
     { name = "Rogue", class = "ROGUE", level = 23 },
 }
 
+function Look.Rows(owner, pool, list)
+    owner:SetSize(S.Get("groupXPWidth"), #list * (ROW_H + GAP) - GAP)
+    for i, m in ipairs(list) do
+        local row = pool[i] or Look.NewRow(owner)
+        pool[i] = row
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", 0, -(i - 1) * (ROW_H + GAP))
+        row:SetPoint("TOPRIGHT", 0, -(i - 1) * (ROW_H + GAP))
+        Look.Paint(row, m.name, m.class, m.level, m.data)
+    end
+    for i = #list + 1, #pool do pool[i]:Hide() end
+end
+
+function Look.Sample(list, withSelf)
+    if withSelf then
+        local _, class = UnitClass("player")
+        list[#list + 1] = { name = UnitName("player"), class = class, data = Own() }
+    end
+    for _, m in ipairs(SAMPLE) do list[#list + 1] = m end
+    return list
+end
+
 local function Refresh()
     if not frame then return end
     local list = {}
     if unlocked then
-        local _, class = UnitClass("player")
-        list[1] = { name = UnitName("player"), class = class, data = Own() }
-        for _, m in ipairs(SAMPLE) do list[#list + 1] = m end
+        Look.Sample(list, true)
     elseif On() and IsInGroup() then
         for _, m in ipairs(Roster()) do
             if m.unit ~= "player" or S.Get("groupXPShowSelf") then
@@ -163,15 +182,7 @@ local function Refresh()
         frame:Hide()
         return
     end
-    frame:SetSize(S.Get("groupXPWidth"), #list * (ROW_H + GAP) - GAP)
-    for i, m in ipairs(list) do
-        local row = Row(i)
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", 0, -(i - 1) * (ROW_H + GAP))
-        row:SetPoint("TOPRIGHT", 0, -(i - 1) * (ROW_H + GAP))
-        Paint(row, m.name, m.class, m.level, m.data)
-    end
-    for i = #list + 1, #rows do rows[i]:Hide() end
+    Look.Rows(frame, rows, list)
     frame:Show()
 end
 
@@ -235,7 +246,8 @@ local function Apply()
         frame = CreateFrame("Frame", "NaowhForeverGroupXP", UIParent)
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
-        frame.mover = ns.UI.AttachMover(frame, "Group XP", function(pos) S.Set("groupXPPos", pos) end, "QoL/XP", "QoL/XP:Group XP")
+        frame.mover = ns.UI.AttachMover(frame, "Group XP", function(pos) S.Set("groupXPPos", pos) end,
+            "QoL/Leveling & Travel", "QoL/Leveling & Travel:groupXP")
     end
     Place()
     frame.mover:SetShown(unlocked == true)
@@ -268,3 +280,55 @@ boot:SetScript("OnEvent", function()
     end
     Apply()
 end)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local STAGE_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN = 130, 10, 11, 16
+local STATES = {
+    { key = "group", label = "In a Group", tip = "Your group's bars, with sample members." },
+}
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.group = CreateFrame("Frame", nil, preview)
+    preview.rows, preview.list = {}, {}
+    preview.note = ns.Font(preview, NOTE_SIZE, nil, T.muted)
+    preview.note:SetPoint("BOTTOM", 0, NOTE_Y)
+    preview.note:SetText("Shown while you are in a group.")
+    return preview
+end
+
+local function PaintPreview(preview)
+    local list, group = preview.list, preview.group
+    wipe(list)
+    Look.Rows(group, preview.rows, Look.Sample(list, S.Get("groupXPShowSelf")))
+    local w, h = group:GetWidth(), group:GetHeight()
+    local roomW = preview:GetWidth() - STAGE_MARGIN * 2
+    local roomH = preview:GetHeight() - STAGE_MARGIN * 2 - NOTE_Y * 2
+    local scale = 1
+    if roomW > 0 and w > roomW then scale = roomW / w end
+    if roomH > 0 and h > 0 and h * scale > roomH then scale = roomH / h end
+    group:SetScale(scale)
+    group:ClearAllPoints()
+    group:SetPoint("CENTER", preview, "CENTER", 0, NOTE_Y / scale)
+end
+
+local function Summary(store)
+    return ("%d wide%s"):format(store.Get("groupXPWidth"), store.Get("groupXPShowSelf") and ", with you" or "")
+end
+
+Settings.Page("QoL/Leveling & Travel", S):Card({
+    id = "groupXP", name = "Group XP", order = 30, switch = "groupXP",
+    help = "A bar per group member with their level and how far through it they are. Every member running "
+        .. "Naowh Forever shares their experience, even with this off; anyone else shows their level. "
+        .. "Updates wait until combat ends. Move it in Unlock Mode.",
+    summary = Summary,
+    studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        { key = "groupXPShowSelf", label = "Show Yourself", toggle = true,
+          help = "Your own bar among the group's." },
+        { key = "groupXPWidth", label = "Width", slider = { 160, 500, 10 } },
+    },
+})

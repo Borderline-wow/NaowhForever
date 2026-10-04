@@ -1,7 +1,7 @@
 -- Offline behavior checks; these do not emulate client taint or rendering.
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
-local function fixture(settings)
+local function fixture(settings, withSettings)
     local s = { now = 0, frames = {}, named = {}, timers = {}, tickers = {}, sounds = 0,
         combat = false, secret = false, reads = 0, group = true, raid = false,
         units = {
@@ -11,7 +11,7 @@ local function fixture(settings)
             pet = { name = 'Pet', threat = { false, 0, 10, 11, 110 } },
             target = { name = 'Target', guid = 'mob-a', hostile = true },
             focus = { name = 'Focus', guid = 'mob-b', hostile = true },
-        }, settings = settings or {} }
+        }, settings = settings or {}, cards = {}, cx = 0, cy = 0 }
     local function frame(kind, name, parent)
         local f = { kind = kind, scripts = {}, events = {}, shown = true, w = 280, h = 240, parent = parent }
         setmetatable(f, { __index = function() return function() end end })
@@ -43,7 +43,7 @@ local function fixture(settings)
         s.frames[#s.frames+1]=f; if name then s.named[name]=f end
         return f
     end
-    local ns={ THEME={bg={},muted={},accent={r=0,g=0.7,b=1}},
+    local ns={ THEME={bg={},fg={r=1,g=1,b=1},muted={r=0.6,g=0.6,b=0.6},accent={r=0,g=0.7,b=1}},
         UIFontPath=function() return 'font.ttf' end, Print=function() end,
         Apply=function() end, ShowRaidReminderAnchorConfig=function() end, HideRaidReminderAnchorConfig=function() end,
         Font=function() return frame('FontString') end,
@@ -83,7 +83,19 @@ local function fixture(settings)
         C_Timer={After=function(delay,fn) s.timers[#s.timers+1]={at=s.now+delay,fn=fn} end,
             NewTicker=function(delay,fn) local t={fn=fn,cancelled=false};function t:Cancel() self.cancelled=true end;s.tickers[#s.tickers+1]=t;return t end},
         hooksecurefunc=function(t,k,fn) local old=t[k];t[k]=function(...) old(...);fn(...) end end,
+        GetCursorPosition=function() return s.cx,s.cy end,
+        wipe=function(t) for k in pairs(t) do t[k]=nil end return t end,
+        IsShiftKeyDown=function() return s.shift end,IsControlKeyDown=function() return s.ctrl end,
+        MenuUtil={CreateContextMenu=function(owner,gen) s.menu={owner=owner,gen=gen} end},
     }
+    s.newFrame=frame
+    env.GameTooltip=frame('Tooltip')
+    function env.GameTooltip:SetOwner(o) self.owner=o end
+    function env.GameTooltip:GetOwner() return self.owner end
+    if withSettings then
+        ns.Shared={Settings={Group=function(name) return {group=name} end,
+            Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}}
+    end
     setmetatable(env,{__index=_G})
     local chunk=assert(loadfile('ThreatMeter/NaowhForever_ThreatMeter.lua'));setfenv(chunk,env);chunk()
     s.ns=ns
@@ -248,5 +260,62 @@ do
  check('In a Group is kept',s.settings.visibility=='group' and s.settings.onlyWithThreat==nil)
  s=fixture({enabled=true,visibilityMerged=true,visibility='always'})
  check('migration runs once per profile',s.settings.visibility=='always')
+end
+do
+ -- The Meter card's preview edits settings from the plain preview frames, never the live meter.
+ local s=fixture({enabled=true},true)
+ local studio=s.cards.meter.studio
+ local shot=studio.new(s.newFrame('Frame'))
+ studio.paint(shot,'tanking')
+ local live={w=s.window.w,h=s.window.h}
+ check('preview is editable while on',shot.edit.shown and shot.note.text:find('Drag the corner',1,true)==1)
+ local wheel=shot.rowsHit.scripts.OnMouseWheel
+ wheel(shot.rowsHit,1);check('wheel raises row height by one step',s.settings.barHeight==25)
+ s.shift=true;wheel(shot.rowsHit,1);s.shift=false
+ check('shift wheel sets row spacing',s.settings.barSpacing==4 and s.settings.barHeight==25)
+ s.ctrl=true;wheel(shot.rowsHit,-1);s.ctrl=false
+ check('ctrl wheel sets text size',s.settings.fontSize==11)
+ s.settings.barHeight=72;wheel(shot.rowsHit,1);check('wheel stays inside the slider range',s.settings.barHeight==72)
+ s.settings.barHeight=24.4;wheel(shot.rowsHit,-1);check('wheel snaps to the slider step',s.settings.barHeight==23)
+ shot.headerHit.scripts.OnClick(shot.headerHit,'LeftButton');check('name click hides the target name',s.settings.showHeader==false)
+ studio.paint(shot,'tanking')
+ check('hidden name leaves a strip to click',shot.headerHit.point[1]=='TOPRIGHT')
+ shot.headerHit.scripts.OnClick(shot.headerHit,'LeftButton');check('name click shows it again',s.settings.showHeader==true)
+ shot.statusHit.scripts.OnClick(shot.statusHit,'LeftButton');check('status click moves it to the top',s.settings.statusPos=='top')
+ shot.statusHit.scripts.OnClick(shot.statusHit,'LeftButton');check('status click cycles back',s.settings.statusPos=='bottom')
+ shot.rowsHit.scripts.OnMouseUp(shot.rowsHit,'LeftButton');check('left click opens no menu',s.menu==nil)
+ shot.rowsHit.scripts.OnMouseUp(shot.rowsHit,'RightButton');check('right click opens the row menu',s.menu and s.menu.owner==shot.rowsHit)
+ local boxes={}
+ local root={CreateTitle=function() end,CreateCheckbox=function(_,label,isOn,set,data) boxes[#boxes+1]={label=label,isOn=isOn,set=set,data=data} end}
+ s.menu.gen(nil,root)
+ check('row menu lists five switches',#boxes==5 and boxes[4].label=='Rank Numbers')
+ check('row menu reads the setting',boxes[4].isOn(boxes[4].data)==true)
+ boxes[4].set(boxes[4].data);check('row menu flips the setting',s.settings.showRanks==false)
+ studio.paint(shot,'tanking')
+ local grip,meter=shot.grip,shot.meter
+ shot.part='meter';grip:Show()
+ s.cx,s.cy=500,500;grip.scripts.OnMouseDown(grip,'LeftButton')
+ check('corner drag runs only while dragging',grip.scripts.OnUpdate~=nil)
+ s.cx,s.cy=560,440;grip.scripts.OnUpdate(grip)
+ check('preview follows the drag',meter.w==340 and meter.h==300)
+ check('nothing is saved mid-drag',s.settings.width==nil and s.settings.height==nil)
+ s.cx,s.cy=5000,-5000;grip.scripts.OnUpdate(grip)
+ check('drag stays inside the slider ranges',meter.w==520 and meter.h==700)
+ s.cx,s.cy=560.4,440.3;grip.scripts.OnUpdate(grip)
+ grip.scripts.OnMouseUp(grip,'LeftButton')
+ check('release saves snapped width and height',s.settings.width==340 and s.settings.height==300)
+ check('release stops the drag update',grip.scripts.OnUpdate==nil and not meter.sizing)
+ check('live meter is not resized by the preview',s.window.w==live.w and s.window.h==live.h)
+ studio.paint(shot,'tanking')
+ function meter:GetEffectiveScale() return 0.5 end
+ s.cx,s.cy=100,100;grip.scripts.OnMouseDown(grip,'LeftButton')
+ s.cx,s.cy=130,100;grip.scripts.OnUpdate(grip);grip.scripts.OnMouseUp(grip,'LeftButton')
+ check('cursor moves are converted by the fit scale',s.settings.width==400)
+ s.cx,s.cy=0,0;grip.scripts.OnMouseDown(grip,'LeftButton');grip.scripts.OnMouseUp(grip,'LeftButton')
+ check('a click on the corner saves nothing',s.settings.width==400 and s.settings.height==300)
+ grip.scripts.OnMouseDown(grip,'LeftButton');shot:Hide()
+ check('hiding the preview ends a drag',grip.scripts.OnUpdate==nil)
+ s.settings.enabled=false;studio.paint(shot,'tanking')
+ check('preview is not editable while off',not shot.edit.shown and shot.note.text:find('Turn on',1,true)==1)
 end
 print(checks..' threat-meter checks passed')

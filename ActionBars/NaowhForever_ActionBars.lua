@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 local UI = ns.UI
 local S = UI.ModuleSettings("actionBars", {
     enabled = true, highestRank = false, recreateMacros = false, saveOnLogout = false,
+    windowAlpha = 1,
 })
 ns.ActionBarSettings = S
 
@@ -261,50 +262,63 @@ local function SetMenu(key)
     end)
 end
 
+local SAVE_W, BUTTON_H, ROW_BUTTON_W, ROW_PAD, ROW_GAP = 170, 26, 80, 8, 8
+local STRIPE_ALPHA = 0.025
+
+local function SetRow(parent, y, key, set, stripe)
+    local T, x = ns.THEME, UI.CONTENT_PAD
+    local band = UI.Keep(parent, "barsStripe", function(p) return ns.Solid(p, "BACKGROUND", ns.THEME.fg, STRIPE_ALPHA) end)
+    band:ClearAllPoints()
+    band:SetPoint("TOPLEFT", parent, "TOPLEFT", x - ROW_PAD, y)
+    band:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -(x - ROW_PAD), y)
+    band:SetShown(stripe)
+    local name = UI.KeepFont(parent, "barsName", 13, nil, T.fg)
+    name:ClearAllPoints()
+    name:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - ROW_PAD)
+    name:SetText(key)
+    local saved = UI.KeepFont(parent, "barsSaved", 11, nil, T.muted)
+    saved:ClearAllPoints()
+    saved:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -3)
+    saved:SetText("Saved " .. date("%d %b %Y", set.saved))
+    local h = ROW_PAD * 2 + math.ceil(name:GetStringHeight()) + 3 + math.ceil(saved:GetStringHeight())
+    local more = UI.KeepButton(parent, "barsMore", "More", ROW_BUTTON_W, BUTTON_H, function() SetMenu(key) end)
+    more:ClearAllPoints()
+    more:SetPoint("RIGHT", parent, "TOPRIGHT", -x, y - h / 2)
+    local restore = UI.KeepButton(parent, "barsRestore", "Restore", ROW_BUTTON_W, BUTTON_H, function() Restore(key) end)
+    restore:ClearAllPoints()
+    restore:SetPoint("RIGHT", more, "LEFT", -ROW_GAP, 0)
+    band:SetHeight(h)
+    return h
+end
+
 function ns.BuildActionBarsPage(parent, y)
     local W = UI.Widgets
+    local T, x = ns.THEME, UI.CONTENT_PAD
     local _, h
-    _, h = W:Note(parent, "Save every action bar slot under a name and put it all back later, "
-        .. "for a different spec, a dungeon set-up or a fresh character. Sets are shared by every "
-        .. "character of your class on this account. Saving and restoring work out of combat.", y)
-    y = y - h
+    local save = UI.KeepButton(parent, "barsSave", "Save Current Bars", SAVE_W, BUTTON_H, PromptSave)
+    ns.AccentBorder(save)
+    save:ClearAllPoints()
+    save:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y - ROW_PAD)
+    local hint = UI.KeepFont(parent, "barsHint", 11, nil, T.muted)
+    hint:ClearAllPoints()
+    hint:SetPoint("LEFT", save, "RIGHT", 12, 0)
+    hint:SetText(("Shared by every %s on this account. Saved and restored out of combat."):format(UnitClass("player")))
+    y = y - BUTTON_H - ROW_PAD * 3
 
-    _, h = W:SectionHeader(parent, "BAR SETS", y); y = y - h
-    _, h = W:Button(parent, "Save Current Bars", y, PromptSave); y = y - h
     local names = SortedNames()
+    _, h = W:SectionHeader(parent, "SAVED SETS", y); y = y - h
     if #names == 0 then
-        _, h = W:Note(parent, "No bar sets saved for your class yet.", y)
-        y = y - h
+        _, h = W:Note(parent, "Nothing saved yet. Save your bars as they are now, then put them back for "
+            .. "another spec, a dungeon set-up or a fresh character.", y)
+        return y - h
     end
-    for _, key in ipairs(names) do
-        local set = Sets()[key]
-        _, h = W:DualRow(parent, y,
-            { type = "button", text = key, buttonText = "Restore",
-              onClick = function() Restore(key) end },
-            { type = "button", text = "Saved " .. date("%d %b %Y", set.saved), buttonText = "More",
-              onClick = function() SetMenu(key) end }
-        ); y = y - h
+    for i, key in ipairs(names) do
+        y = y - SetRow(parent, y, key, Sets()[key], i % 2 == 0)
     end
-
-    _, h = W:SectionHeader(parent, "RESTORING", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("highestRank", "Highest Rank",
-            "Restores the highest rank you know of each spell instead of the rank that was saved. "
-            .. "Off, a rank you no longer have still falls back to your highest.", "enabled"),
-        S.Toggle("recreateMacros", "Recreate Deleted Macros",
-            "A macro in the set that you have since deleted is made again from what was saved, "
-            .. "if you have room for it.", "enabled")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("saveOnLogout", "Save on Logout",
-            "When you log out, the set this character saved or restored last is saved again "
-            .. "with your bars as they are.", "enabled"),
-        { type = "label", text = "" }
-    ); y = y - h
     return y
 end
 
--- /nf bars save|restore|test|delete <name>, /nf bars list; on its own it opens the page.
+-- /nf bars save|restore|test|delete <name>, /nf bars list; on its own it opens the window.
 function ns.ActionBarsCommand(text)
     local cmd, name = strtrim(text or ""):match("^(%S*)%s*(.-)$")
     cmd = cmd:lower()
@@ -312,7 +326,7 @@ function ns.ActionBarsCommand(text)
         local names = SortedNames()
         ns.Print(#names > 0 and ("Bar sets: " .. table.concat(names, ", ")) or "No bar sets saved for your class.")
     elseif name == "" or not (cmd == "save" or cmd == "restore" or cmd == "test" or cmd == "delete") then
-        ns.OpenOptionsWindow("Action Bars/Sets")
+        ns.OpenActionBarsWindow()
     elseif cmd == "save" then
         Save(name)
     elseif cmd == "restore" then
@@ -333,3 +347,71 @@ events:SetScript("OnEvent", function()
     local key = last and last.name
     if key and Sets()[key] then Sets()[key] = { saved = time(), slots = Capture() } end
 end)
+
+local function On() return S.Get("enabled") == true end
+
+local function Headline()
+    local n = 0
+    for _ in pairs(Sets()) do n = n + 1 end
+    local class = UnitClass("player")
+    if n == 0 then return ("No bar sets saved for your %s yet"):format(class) end
+    return ("%d bar set%s saved for your %s"):format(n, n == 1 and "" or "s", class)
+end
+
+local function Detail()
+    if not On() then return "Turn on Action Bars to save and restore your bars." end
+    local last = Account("barSetLast")[CharKey()]
+    if last and last.class == Class() and Sets()[last.name] then
+        return ("This character last used %s. Restore any set from the window, out of combat."):format(last.name)
+    end
+    return "Save your bars from the window, or with /nf bars save and a name."
+end
+
+ns.ActionBarSets = { Headline = Headline, Detail = Detail }
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local BARS_OFF = "Turn on Action Bars"
+
+local function RestoringSummary(store)
+    local high, macros, logout = store.Get("highestRank"), store.Get("recreateMacros"), store.Get("saveOnLogout")
+    return (high and "Highest ranks" or "Saved ranks") .. (macros and ", remakes macros" or "")
+        .. (logout and ", saves on logout" or "")
+end
+
+local page = Settings.Page("Action Bars/Settings", S)
+
+page:Window({
+    text = "Open Action Bars",
+    open = function() ns.OpenActionBarsWindow() end,
+    headline = Headline,
+    detail = Detail,
+})
+
+page:Card({
+    id = "restoring", name = "Restoring", order = 10,
+    help = "How a saved set goes back on your bars. Sets are saved and restored from the Action Bars window, "
+        .. "out of combat.",
+    summary = RestoringSummary,
+    rows = {
+        { key = "highestRank", label = "Highest Rank", toggle = true, needs = On, why = BARS_OFF,
+          help = "Restores the highest rank you know of each spell instead of the rank that was saved. Off, a "
+              .. "rank you no longer have still falls back to your highest." },
+        { key = "recreateMacros", label = "Recreate Deleted Macros", toggle = true, needs = On, why = BARS_OFF,
+          help = "A macro in the set that you have since deleted is made again from what was saved, if you have "
+              .. "room for it." },
+        { key = "saveOnLogout", label = "Save on Logout", toggle = true, needs = On, why = BARS_OFF,
+          help = "When you log out, the set this character saved or restored last is saved again with your bars "
+              .. "as they are." },
+    },
+})
+
+page:Card({
+    id = "window", name = "Window", order = 20,
+    help = "Action Bars' own window, with your class's saved sets.",
+    rows = {
+        { key = "windowAlpha", label = "Window Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 },
+          unit = "%", scale = 0.01, help = "How solid the window is, in percent. Also on its title bar." },
+    },
+})

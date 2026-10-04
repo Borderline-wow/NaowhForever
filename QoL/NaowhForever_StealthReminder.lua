@@ -38,7 +38,7 @@ local function Build(label, posKey, defaultY)
     frame.text = ns.Font(frame, 22, "OUTLINE")
     frame.text:SetPoint("CENTER")
     frame.posKey, frame.defaultY = posKey, defaultY
-    frame.mover = UI.AttachMover(frame, label, function(pos) S.Set(posKey, pos) end, "QoL/General", "QoL/General:Enable Stealth Reminder")
+    frame.mover = UI.AttachMover(frame, label, function(pos) S.Set(posKey, pos) end, "QoL/Combat", "QoL/Combat:stealthReminder")
     frame:Hide()
     return frame
 end
@@ -196,3 +196,43 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Group = ns.Shared.Settings.Group
+local DRUID_STEALTH = { { cat = "In Cat Form", always = "In Any Form" }, { "cat", "always" } }
+
+local function StealthedOn() return S.Get("stealthShowStealthed") end
+local function WarningOwnColour() return not S.Get("warningClassColor") end
+local function StealthedOwnColour() return S.Get("stealthShowStealthed") and not S.Get("stealthClassColor") end
+
+ns.Shared.Settings.Page("QoL/Combat", S):Card({
+    id = "stealthReminder", name = "Stealth Reminder", order = 30, switch = "stealthReminder",
+    help = "Out-of-combat stealth status for rogues and druids: a reminder while you are not in "
+        .. "stealth. Move it in Unlock Mode.",
+    rows = {
+        Group("When"),
+        { key = "reminderInGroup", label = "Only In a Group", toggle = true,
+          help = "Reminds you only while you are in a group." },
+        { key = "reminderHideResting", label = "Hide While Resting", toggle = true,
+          help = "No reminder in an inn or a city." },
+        { key = "stealthShowStealthed", label = "Show While Stealthed", toggle = true,
+          help = "The stealthed text while you are in stealth, as well as the reminder when you "
+              .. "are not." },
+        { key = "stealthDruid", label = "Druids", choice = DRUID_STEALTH,
+          help = "In Cat Form reminds a druid only while in Cat Form. In Any Form reminds in every "
+              .. "form but travel forms, for a druid who prowls between fights." },
+        Group("Text"),
+        { key = "warningText", label = "Out of Stealth Text", text = true,
+          help = "What it says while you are out of stealth." },
+        { key = "stealthText", label = "Stealthed Text", text = true, needs = "stealthShowStealthed",
+          help = "What it says while you are in stealth." },
+        { key = "stealthFont", label = "Font", font = true },
+        { key = "stealthFontSize", label = "Font Size", slider = { 10, 60, 1 } },
+        Group("Colour"),
+        { key = "warningClassColor", label = "Out of Stealth in Class Colour", toggle = true },
+        { key = "warningColor", label = "Out of Stealth Colour", colour = true, needs = WarningOwnColour,
+          why = "Class colour is on" },
+        { key = "stealthClassColor", label = "Stealthed in Class Colour", toggle = true, needs = StealthedOn,
+          why = "Needs Show While Stealthed" },
+        { key = "stealthColor", label = "Stealthed Colour", colour = true, needs = StealthedOwnColour },
+    },
+})

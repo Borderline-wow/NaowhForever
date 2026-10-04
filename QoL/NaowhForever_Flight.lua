@@ -14,8 +14,9 @@ local STOP_ICON = "Interface\\Minimap\\Tracking\\FlightMaster"
 local LAND_ICON = "Interface\\Vehicles\\UI-Vehicles-Button-Exit-Up"
 local LAND_ICON_DOWN = "Interface\\Vehicles\\UI-Vehicles-Button-Exit-Down"
 
-local WIDTH, TRACK_H, DOT, PIN, NAME_SIZE = 420, 10, 14, 18, 14
+local WIDTH, TRACK_H, DOT, PIN, NAME_SIZE, LAND = 420, 10, 14, 18, 14, 30
 local HEIGHT = PIN + 2 * (NAME_SIZE + 8)
+local SIDE_GAP = DOT / 2 + 8
 -- A stop slides in at the track's right end this many seconds before it is reached.
 local LOOKAHEAD = 60
 -- Yards per second, fitted to measured Classic flight times.
@@ -86,6 +87,8 @@ end
 -------------------------------------------------------------------------------
 --  Display
 -------------------------------------------------------------------------------
+local Look = {}
+
 local function Mark(parent, texture, w, h, size)
     local m = { icon = parent:CreateTexture(nil, "OVERLAY"), label = ns.Font(parent, size or NAME_SIZE, "OUTLINE") }
     m.icon:SetTexture(texture)
@@ -94,41 +97,98 @@ local function Mark(parent, texture, w, h, size)
     return m
 end
 
+function Look.New(f)
+    f:SetSize(WIDTH, HEIGHT)
+
+    local track = CreateFrame("StatusBar", nil, f)
+    track:SetPoint("LEFT")
+    track:SetPoint("RIGHT")
+    track:SetHeight(TRACK_H)
+    track:SetStatusBarTexture(GRADIENT)
+    track:SetStatusBarColor(T.accent.r, T.accent.g, T.accent.b)
+    track:SetMinMaxValues(0, 1)
+    ns.Solid(track, "BACKGROUND", T.bg, 0.9):SetAllPoints()
+    ns.Border(track, { r = 0, g = 0, b = 0 })
+    f.track = track
+
+    -- Marks sit above the track's border.
+    local over = CreateFrame("Frame", nil, f)
+    over:SetAllPoints()
+    over:SetFrameLevel(track:GetFrameLevel() + 3)
+    f.ends = { Mark(over, DOT_TEX, DOT), Mark(over, DOT_TEX, DOT) }
+    for i, side in ipairs({ "LEFT", "RIGHT" }) do
+        local m = f.ends[i]
+        m.icon:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
+        m.icon:SetPoint("CENTER", f, side)
+        m.label:SetPoint("BOTTOM" .. side, m.icon, "TOP" .. side, 0, 6)
+        m.label:SetWidth(WIDTH * 0.47)
+        m.label:SetJustifyH(side)
+    end
+    f.you = Mark(over, WHITE, 2, PIN + 4, 12)
+    f.you.icon:SetPoint("CENTER")
+    f.you.label:SetPoint("BOTTOM", f.you.icon, "TOP", 0, 2)
+    f.you.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
+    f.you.label:SetText("You")
+
+    -- The stops ride a strip clipped to the room between the two end dots.
+    f.clip = CreateFrame("Frame", nil, f)
+    f.clip:SetFrameLevel(over:GetFrameLevel())
+    f.clip:SetClipsChildren(true)
+    f.clip:SetPoint("BOTTOMLEFT", f, "LEFT", DOT / 2, -PIN / 2 - NAME_SIZE - 8)
+    f.clip:SetPoint("TOPRIGHT", f, "RIGHT", -DOT / 2, PIN / 2 + 2)
+    f.clip.pps = WIDTH / 2 / LOOKAHEAD
+    f.clip.strip = CreateFrame("Frame", nil, f.clip)
+    f.clip.strip:SetSize(1, 1)
+    f.stops = {}
+
+    f.time = ns.Font(f, 18, "OUTLINE", T.accentSoft)
+    f.time:SetPoint("RIGHT", f, "LEFT", -SIDE_GAP, 0)
+
+    f.land = CreateFrame("Button", nil, f)
+    f.land:SetSize(LAND, LAND)
+    f.land:SetPoint("LEFT", f, "RIGHT", SIDE_GAP, 0)
+    f.land:SetNormalTexture(LAND_ICON)
+    f.land:GetNormalTexture():SetTexCoord(0.140625, 0.859375, 0.140625, 0.859375)
+    f.land:SetPushedTexture(LAND_ICON_DOWN)
+    f.land:GetPushedTexture():SetTexCoord(0.140625, 0.859375, 0.140625, 0.859375)
+    f.land:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+end
+
 -- The stops are placed along a strip by their arrival time; sliding the strip left as
 -- time passes carries each one across the "you" post the moment it is reached.
-local function Slide(elapsed)
-    local clip = bar.clip
+function Look.Slide(f, fl, elapsed)
+    local clip = f.clip
     clip.strip:ClearAllPoints()
-    clip.strip:SetPoint("CENTER", bar, "CENTER", -elapsed * clip.pps, 0)
-    for k, m in ipairs(bar.stops) do
-        local p = flight.points[k + 1]
+    clip.strip:SetPoint("CENTER", f, "CENTER", -elapsed * clip.pps, 0)
+    for k, m in ipairs(f.stops) do
+        local p = fl.points[k + 1]
         local passed = m.icon:IsShown() and p.at <= elapsed
         m.icon:SetAlpha(passed and 0.4 or 1)
         m.label:SetAlpha(passed and 0.4 or 1)
     end
 end
 
-local function Layout()
-    local points = flight.points
+function Look.Layout(f, fl, land)
+    local points = fl.points
     local n = points and #points or 0
-    bar.ends[1].label:SetText(n > 0 and points[1].name or flight.from or "")
-    bar.ends[2].label:SetText(n > 0 and points[n].name or flight.to or "In flight")
+    f.ends[1].label:SetText(n > 0 and points[1].name or fl.from or "")
+    f.ends[2].label:SetText(n > 0 and points[n].name or fl.to or "In flight")
 
     -- Stops scroll only when every arrival time is known and there is one on the way.
-    local scroll = flight.known and n > 2 and points[n].at and not flight.early
-    bar.clip:SetShown(scroll and true or false)
-    bar.you.icon:SetShown(scroll and true or false)
-    bar.you.label:SetShown(scroll and true or false)
-    for k = 1, math.max(n - 2, #bar.stops) do
-        local m = bar.stops[k]
+    local scroll = fl.known and n > 2 and points[n].at and not fl.early
+    f.clip:SetShown(scroll and true or false)
+    f.you.icon:SetShown(scroll and true or false)
+    f.you.label:SetShown(scroll and true or false)
+    for k = 1, math.max(n - 2, #f.stops) do
+        local m = f.stops[k]
         if scroll and k <= n - 2 then
             if not m then
-                m = Mark(bar.clip.strip, STOP_ICON, PIN)
+                m = Mark(f.clip.strip, STOP_ICON, PIN)
                 m.label:SetPoint("TOP", m.icon, "BOTTOM", 0, -4)
-                bar.stops[k] = m
+                f.stops[k] = m
             end
             m.icon:ClearAllPoints()
-            m.icon:SetPoint("CENTER", bar.clip.strip, "CENTER", points[k + 1].at * bar.clip.pps, 0)
+            m.icon:SetPoint("CENTER", f.clip.strip, "CENTER", points[k + 1].at * f.clip.pps, 0)
             m.label:SetText(points[k + 1].name)
             m.icon:Show()
             m.label:Show()
@@ -138,24 +198,32 @@ local function Layout()
         end
     end
     -- An elapsed-only flight has no end to fill towards.
-    bar.track:SetValue(0)
-    bar.track:GetStatusBarTexture():SetAlpha(flight.known and 1 or 0)
-    bar.land:SetShown(S.Get("flightEarlyLanding") and not flight.sample)
-    bar.land:SetEnabled(not flight.early)
-    bar.land:SetAlpha(flight.early and 0.4 or 1)
+    f.track:SetValue(0)
+    f.track:GetStatusBarTexture():SetAlpha(fl.known and 1 or 0)
+    f.land:SetShown(land and true or false)
+    f.land:SetEnabled(not fl.early)
+    f.land:SetAlpha(fl.early and 0.4 or 1)
+end
+
+function Look.Progress(f, fl, elapsed)
+    if fl.known and fl.known > 0 then
+        f.time:SetText(Clock(fl.known - elapsed))
+        f.track:SetValue(math.min(elapsed / fl.known, 1))
+        if f.clip:IsShown() then Look.Slide(f, fl, elapsed) end
+    else
+        f.time:SetText(Clock(elapsed))
+    end
+end
+
+local function Layout()
+    Look.Layout(bar, flight, S.Get("flightEarlyLanding") and not flight.sample)
 end
 
 local function Update()
     if not (bar and flight and bar:IsShown()) then return end
     local elapsed = GetTime() - flight.start
     if flight.sample then elapsed = elapsed % flight.known end
-    if flight.known then
-        bar.time:SetText(Clock(flight.known - elapsed))
-        bar.track:SetValue(math.min(elapsed / flight.known, 1))
-        if bar.clip:IsShown() then Slide(elapsed) end
-    else
-        bar.time:SetText(Clock(elapsed))
-    end
+    Look.Progress(bar, flight, elapsed)
 end
 
 local function Show()
@@ -233,62 +301,9 @@ local function Build()
     -- An invisible box around the whole display, so Unlock Mode has something to grab;
     -- the track is the line through its middle.
     bar = CreateFrame("Frame", "NaowhForeverFlightTimer", UIParent)
-    bar:SetSize(WIDTH, HEIGHT)
+    Look.New(bar)
     bar:SetMovable(true)
     bar:SetClampedToScreen(true)
-
-    local track = CreateFrame("StatusBar", nil, bar)
-    track:SetPoint("LEFT")
-    track:SetPoint("RIGHT")
-    track:SetHeight(TRACK_H)
-    track:SetStatusBarTexture(GRADIENT)
-    track:SetStatusBarColor(T.accent.r, T.accent.g, T.accent.b)
-    track:SetMinMaxValues(0, 1)
-    ns.Solid(track, "BACKGROUND", T.bg, 0.9):SetAllPoints()
-    ns.Border(track, { r = 0, g = 0, b = 0 })
-    bar.track = track
-
-    -- Marks sit above the track's border.
-    local over = CreateFrame("Frame", nil, bar)
-    over:SetAllPoints()
-    over:SetFrameLevel(track:GetFrameLevel() + 3)
-    bar.ends = { Mark(over, DOT_TEX, DOT), Mark(over, DOT_TEX, DOT) }
-    for i, side in ipairs({ "LEFT", "RIGHT" }) do
-        local m = bar.ends[i]
-        m.icon:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
-        m.icon:SetPoint("CENTER", bar, side)
-        m.label:SetPoint("BOTTOM" .. side, m.icon, "TOP" .. side, 0, 6)
-        m.label:SetWidth(WIDTH * 0.47)
-        m.label:SetJustifyH(side)
-    end
-    bar.you = Mark(over, WHITE, 2, PIN + 4, 12)
-    bar.you.icon:SetPoint("CENTER")
-    bar.you.label:SetPoint("BOTTOM", bar.you.icon, "TOP", 0, 2)
-    bar.you.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
-    bar.you.label:SetText("You")
-
-    -- The stops ride a strip clipped to the room between the two end dots.
-    bar.clip = CreateFrame("Frame", nil, bar)
-    bar.clip:SetFrameLevel(over:GetFrameLevel())
-    bar.clip:SetClipsChildren(true)
-    bar.clip:SetPoint("BOTTOMLEFT", bar, "LEFT", DOT / 2, -PIN / 2 - NAME_SIZE - 8)
-    bar.clip:SetPoint("TOPRIGHT", bar, "RIGHT", -DOT / 2, PIN / 2 + 2)
-    bar.clip.pps = WIDTH / 2 / LOOKAHEAD
-    bar.clip.strip = CreateFrame("Frame", nil, bar.clip)
-    bar.clip.strip:SetSize(1, 1)
-    bar.stops = {}
-
-    bar.time = ns.Font(bar, 18, "OUTLINE", T.accentSoft)
-    bar.time:SetPoint("RIGHT", bar, "LEFT", -DOT / 2 - 8, 0)
-
-    bar.land = CreateFrame("Button", nil, bar)
-    bar.land:SetSize(30, 30)
-    bar.land:SetPoint("LEFT", bar, "RIGHT", DOT / 2 + 8, 0)
-    bar.land:SetNormalTexture(LAND_ICON)
-    bar.land:GetNormalTexture():SetTexCoord(0.140625, 0.859375, 0.140625, 0.859375)
-    bar.land:SetPushedTexture(LAND_ICON_DOWN)
-    bar.land:GetPushedTexture():SetTexCoord(0.140625, 0.859375, 0.140625, 0.859375)
-    bar.land:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     bar.land:SetScript("OnClick", function() TaxiRequestEarlyLanding() end)
     ns.Tooltip(bar.land, "Land Early", "Land at the next flight point.")
 
@@ -300,7 +315,7 @@ local function Build()
         local scale = bar:GetScale()
         S.Set("flightTimerPos", { point = pos.point, relPoint = pos.relPoint,
             x = pos.x * scale, y = pos.y * scale })
-    end, "QoL/Flight & Camp", "QoL/Flight & Camp:Flight Timer")
+    end, "QoL/Leveling & Travel", "QoL/Leveling & Travel:flightTimer")
     bar:Hide()
 end
 
@@ -393,3 +408,60 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local STAGE_H, STAGE_MARGIN = 150, 16
+local PREVIEW_ELAPSED = 66
+local PREVIEW = { from = "Darkshire", to = "Stormwind", known = 150,
+    points = { { name = "Darkshire", at = 0 }, { name = "Lakeshire", at = 95 }, { name = "Stormwind", at = 150 } } }
+local STATES = {
+    { key = "flying", label = "Flying", tip = "Partway through a flight to Stormwind, 1:24 from landing." },
+}
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.bar = CreateFrame("Frame", nil, preview)
+    Look.New(preview.bar)
+    preview.bar.land:EnableMouse(false)
+    return preview
+end
+
+local function PaintPreview(preview)
+    local f = preview.bar
+    local land = S.Get("flightEarlyLanding") and true or false
+    Look.Layout(f, PREVIEW, land)
+    Look.Progress(f, PREVIEW, PREVIEW_ELAPSED)
+    local left = SIDE_GAP + f.time:GetStringWidth()
+    local right = land and SIDE_GAP + LAND or DOT / 2
+    local width = left + WIDTH + right
+    local scale = S.Get("flightTimerScale")
+    local roomW = preview:GetWidth() - STAGE_MARGIN * 2
+    local roomH = preview:GetHeight() - STAGE_MARGIN * 2
+    if roomW > 0 and width * scale > roomW then scale = roomW / width end
+    if roomH > 0 and HEIGHT * scale > roomH then scale = roomH / HEIGHT end
+    f:SetScale(scale)
+    f:ClearAllPoints()
+    f:SetPoint("CENTER", preview, "CENTER", (left - right) / 2, 0)
+end
+
+local function Summary(store)
+    return ("Scale %d%%%s"):format(math.floor(store.Get("flightTimerScale") * 100 + 0.5),
+        store.Get("flightEarlyLanding") and ", Land Early button" or "")
+end
+
+Settings.Page("QoL/Leveling & Travel", S):Card({
+    id = "flightTimer", name = "Flight Timer", order = 40, switch = "flightTimer",
+    help = "The route you are flying as a line between its two ends, the stops on the way sliding past "
+        .. "you, and the time left to landing. Move it in Unlock Mode.",
+    summary = Summary,
+    studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        { key = "flightEarlyLanding", label = "Land Early Button", toggle = true,
+          help = "A button beside the timer that lands you at the next flight point. Blizzard's Request "
+              .. "Stop button is hidden while it shows." },
+        { key = "flightTimerScale", label = "Scale", slider = { 50, 200, 5 }, unit = "%", scale = 0.01 },
+    },
+})

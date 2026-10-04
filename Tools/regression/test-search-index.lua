@@ -33,7 +33,7 @@ local W = UI.Widgets
 do
     UI.searchScan = { section = "", items = {} }
     local scan = UI.searchScan
-    local row, h = W:SectionHeader({}, "TIMING   |cff9a9ea6UNTESTED|r", -6)
+    local row, h = W:SectionHeader({}, "TIMING", -6)
     Check(row == nil and type(h) == "number" and scan.section:find("TIMING", 1, true), "a header sets the section")
     row, h = W:DualRow({}, -46,
         { type = "toggle", text = "Show Timer", tooltip = "Draws the timer." },
@@ -70,8 +70,7 @@ do
 end
 
 -- Plain: what a section header reads as.
-Check(UI.Search.Plain("UNLEARNED RECIPES   |cff9a9ea6UNTESTED|r") == "UNLEARNED RECIPES", "status tag stripped")
-Check(UI.Search.Plain("BAR|cffff6060 NOT POSSIBLE YET|r") == "BAR", "colour and status stripped")
+Check(UI.Search.Plain("|cff9a9ea6UNLEARNED RECIPES|r") == "UNLEARNED RECIPES", "colour stripped")
 Check(UI.Search.Plain("  FONT ") == "FONT", "trimmed")
 
 -- The index, over pages that stand in for the real ones.
@@ -156,15 +155,15 @@ end
 
 -- The pages the scan leaves out are exactly the ones the audit found unsafe.
 do
-    local expected = { ["Patch Notes"] = true, ["Profiles"] = true, ["QoL/Tools"] = true,
-        ["Discovery/Books"] = true, ["Blessings/Bar"] = true, ["Blessings/Assignments"] = true,
-        ["AuraBuffs/Poison & Dispel"] = true,
-        ["Smart Reminders/Setup"] = true, ["Smart Reminders/Cooldown Presets"] = true,
-        ["Smart Reminders/Dungeon Bosses"] = true, ["Smart Reminders/Raid Bosses"] = true }
+    local expected = { ["Profiles"] = true, ["Credits"] = true }
+    local window = Read("Core/NaowhForever_Window.lua")
+    local system = {}
+    for name in window:match("local SYSTEM_PAGES = (%b{})"):gmatch('\n    { name = "([^"]+)"') do system[name] = true end
     local module, total, seen = nil, 0, {}
-    for line in Read("Core/NaowhForever_Window.lua"):gmatch("[^\n]+") do
-        local systemName = line:match('^    { name = "([^"]+)", build = ')
-        local moduleName = not systemName and line:match('^    { name = "([^"]+)"')
+    for line in window:gmatch("[^\n]+") do
+        local first = line:match('^    { name = "([^"]+)"')
+        local systemName = first and system[first] and first
+        local moduleName = not systemName and first
         local tabName = line:match('^          { name = "([^"]+)"')
         local name
         if systemName then name = systemName
@@ -177,7 +176,7 @@ do
             Check(noscan == (expected[name] == true), name .. ": noscan is " .. tostring(expected[name] == true))
         end
     end
-    Check(total == 44, "the window lists 44 pages (" .. total .. "): decide noscan for a new one")
+    Check(total == 25, "the window lists 25 pages (" .. total .. "): decide noscan for a new one")
     for name in pairs(expected) do Check(seen[name] ~= nil, "the audited page still exists: " .. name) end
 end
 

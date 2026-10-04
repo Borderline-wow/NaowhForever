@@ -5,7 +5,6 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
-local STATUS = UI.STATUS
 
 local S = UI.ModuleSettings("macros", {
     enabled = true, classMacros = {},
@@ -44,16 +43,6 @@ local MARKER_VALUES = { [1] = "Star", [2] = "Circle", [3] = "Diamond", [4] = "Tr
     [5] = "Moon", [6] = "Square", [7] = "Cross", [8] = "Skull" }
 local MARKER_ORDER = { 8, 7, 6, 5, 4, 3, 2, 1 }
 local ACCEPT_ICON = 136814  -- the ready check mark
-
-local function MacroIcon(key, text, tooltip)
-    return { type = "iconbutton", text = text,
-        tooltip = tooltip .. " Right-click to remove the macro.",
-        icon = ({ health = 134829, mana = 134855, food = 133971, bandage = 133682,
-            trinket1 = 134400, trinket2 = 134400, focus = 132212, acceptPopup = ACCEPT_ICON })[key],
-        active = function() return S.Get(key) == true end,
-        onClick = function() ns.PickupManagedMacro(key) end,
-        onRightClick = function() ns.RemoveManagedMacro(key) end }
-end
 
 local ICON = 134400     -- question mark, so #showtooltip shows the item
 local SCRIPT_COMMANDS = { ["/run"] = true, ["/script"] = true, ["/dump"] = true }
@@ -121,8 +110,6 @@ local function MacroIcons()
 end
 ns.MacroIconList = MacroIcons
 
-local PICKER_COLS, PICKER_ROWS, PICKER_ICON = 10, 7, 32
-
 -- Picked icons are the player's own, kept by macro name outside the profile so a pack
 -- export never carries them and Profile Icon can always go back to the author's choice.
 local function IconChoices()
@@ -136,177 +123,6 @@ local function EntryIcon(entry)
 end
 
 ns.MacroEntryIcon = EntryIcon
-
-local function SetEntryIcon(entry, icon)
-    if InCombatLockdown() then ns.Print("Change macro icons outside combat.") return end
-    IconChoices()[entry.name] = icon
-    local index = GetMacroIndexByName(entry.name)
-    if index > 0 and GetMacroBody(index) == entry.body then
-        EditMacro(index, entry.name, EntryIcon(entry) or ICON)
-    end
-    if UI.RefreshPage then UI:RefreshPage(true) end
-end
-
-local function OpenIconPicker(entry)
-    local list = MacroIcons()
-    local perPage = PICKER_COLS * PICKER_ROWS
-    local pages = math.max(1, math.ceil(#list / perPage))
-    local page = 1
-    local dimmer, panel = ns.MakeModal(PICKER_COLS * (PICKER_ICON + 4) + 28,
-        PICKER_ROWS * (PICKER_ICON + 4) + 100, "macroIconPicker")
-    local head = UI.KeepFont(panel, "head", 14, "OUTLINE")
-    head:SetPoint("TOP", 0, -12)
-    head:SetText("Icon for " .. entry.name)
-    local label = UI.KeepFont(panel, "page", 12)
-    label:SetPoint("BOTTOM", 0, 22)
-    local buttons = {}
-    local function Fill()
-        label:SetText(("Page %d of %d"):format(page, pages))
-        for i, button in ipairs(buttons) do
-            local icon = list[(page - 1) * perPage + i]
-            button.icon = icon
-            button.tex:SetTexture(icon)
-            button:SetShown(icon ~= nil)
-        end
-    end
-    for i = 1, perPage do
-        local button = UI.Keep(panel, "icon", function(p)
-            local b = CreateFrame("Button", nil, p)
-            b:SetSize(PICKER_ICON, PICKER_ICON)
-            b.tex = b:CreateTexture(nil, "ARTWORK")
-            b.tex:SetAllPoints()
-            b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-            return b
-        end)
-        local col, row = (i - 1) % PICKER_COLS, math.floor((i - 1) / PICKER_COLS)
-        button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", 14 + col * (PICKER_ICON + 4), -38 - row * (PICKER_ICON + 4))
-        button:SetScript("OnClick", function(self)
-            dimmer:Hide()
-            SetEntryIcon(entry, self.icon)
-        end)
-        buttons[i] = button
-    end
-    local function Turn(step)
-        page = math.min(pages, math.max(1, page + step))
-        Fill()
-    end
-    UI.KeepButton(panel, "prev", "<", 30, 24, function() Turn(-1) end):SetPoint("BOTTOMLEFT", 14, 14)
-    UI.KeepButton(panel, "next", ">", 30, 24, function() Turn(1) end):SetPoint("BOTTOMLEFT", 48, 14)
-    UI.KeepButton(panel, "default", "Profile Icon", 80, 24, function()
-        dimmer:Hide()
-        SetEntryIcon(entry, nil)
-    end):SetPoint("BOTTOMRIGHT", -98, 14)
-    UI.KeepButton(panel, "close", "Close", 80, 24, function() dimmer:Hide() end):SetPoint("BOTTOMRIGHT", -14, 14)
-    panel:EnableMouseWheel(true)
-    panel:SetScript("OnMouseWheel", function(_, delta) Turn(-delta) end)
-    Fill()
-    dimmer:Show()
-end
-
-function ns.BuildClassMacrosPage(parent, y)
-    local W = UI.Widgets
-    local accountCount, characterCount = GetNumMacros()
-    y = ns.Shared.Parts.SettingsCard(parent, y, "forgeCard", "Open Naowh's Forge", function() ns.OpenMacroWindow() end,
-        "Your macros, with an editor that checks and explains them",
-        ("Account %d/%d, Character %d/%d"):format(accountCount, Constants.MacroConsts.MAX_ACCOUNT_MACROS,
-            characterCount, Constants.MacroConsts.MAX_CHARACTER_MACROS))
-    local _, h = W:Note(parent, "Class macros are supplied by your profile and saved as character macros. "
-        .. "Click or drag an icon to put its macro on your action bar, or right-click it to pick another icon.", y)
-    y = y - h
-    local _, class = UnitClass("player")
-    local entries = (S.Get("classMacros") or {})[class] or {}
-    if #entries == 0 then
-        _, h = W:Note(parent, "No class macros configured for this class.", y)
-        return y - h
-    end
-    for _, entry in ipairs(entries) do
-        local body = type(entry.body) == "string" and entry.body or ""
-        local problems = ns.MacroProblems(body)
-        local tip = body
-        if entry.note then tip = entry.note .. "\n\n" .. tip end
-        if #problems > 0 then tip = tip .. "\n\n|cffff8000" .. table.concat(problems, "\n") .. "|r" end
-        local text = entry.note or "Click or drag to action bar"
-        if #problems > 0 then text = "|cffff8000May not work: hover the icon|r" end
-        _, h = W:DualRow(parent, y,
-            { type = "iconbutton", text = entry.name or "Class Macro", icon = EntryIcon(entry), tooltip = tip,
-                onClick = function() ns.PickupProfileMacro(entry) end,
-                onRightClick = function() OpenIconPicker(entry) end },
-            { type = "label", text = text }); y = y - h
-    end
-    return y
-end
-
-function ns.BuildMacroConsumablesPage(parent, y)
-    local W = UI.Widgets
-    local _, h
-    _, h = W:Note(parent, "Click or drag an icon to create a General macro and place it on your action bar. "
-        .. "It keeps itself current as your bags change, updating after combat. Existing character "
-        .. "macros stay in place so their action bar slots are preserved.", y); y = y - h
-
-    _, h = W:SectionHeader(parent, "CONSUMABLE MACROS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        MacroIcon("health", "Health Macro",
-            "Uses the best healthstone or healing potion in your bags."),
-        S.Dropdown("healthOrder", "Health Priority", HEALTH_ORDER_VALUES, HEALTH_ORDER_ORDER,
-            nil, "health")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        MacroIcon("mana", "Mana Potion Macro", "Uses the best mana potion in your bags."),
-        MacroIcon("food", "Food & Drink Macro",
-            "Eats or drinks the best food and water in your bags, conjured first.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        MacroIcon("bandage", "Bandage Macro",
-            "Bandages yourself with the best bandage in your bags."),
-        { type = "label", text = "" }
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "FOOD & DRINK BAR" .. STATUS.untested, y); y = y - h
-    _, h = W:Feature(parent, y,
-        S.Toggle("foodBar", "Food & Drink Bar",
-            "Two buttons: the best food and the best drink in your bags, conjured first. Click "
-            .. "to eat or drink. They update as your bags change, after combat. Move it in Unlock Mode.")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Slider("foodBarSize", "Icon Size", 20, 70, 1, nil, "foodBar"),
-        { type = "label", text = "" }
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "TRINKETS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        MacroIcon("trinket1", "Trinket 1 Macro", "Uses your top trinket slot."),
-        MacroIcon("trinket2", "Trinket 2 Macro", "Uses your bottom trinket slot.")
-    ); y = y - h
-
-    return y
-end
-
-function ns.BuildMacroFocusPage(parent, y)
-    local W = UI.Widgets
-    local _, h
-    _, h = W:SectionHeader(parent, "SET FOCUS" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        MacroIcon("focus", "Set Focus Macro", "Focuses your mouseover, or your target."),
-        S.Toggle("focusAnnounce", "Announce Focus", "Tells your group what you focused.", "focus")
-    ); y = y - h
-    _, h = W:DualRow(parent, y,
-        S.Toggle("focusMark", "Mark Focus", "Puts a raid marker on your focus. Pressing the "
-            .. "macro again on the same focus clears the marker.", "focus"),
-        S.Dropdown("focusMarker", "Focus Marker", MARKER_VALUES, MARKER_ORDER, nil, "focus")
-    ); y = y - h
-
-    _, h = W:SectionHeader(parent, "ACCEPT POPUP" .. STATUS.untested, y); y = y - h
-    _, h = W:DualRow(parent, y,
-        MacroIcon("acceptPopup", "Accept Popup Macro",
-            "Presses the first button of the popup on screen, the same as clicking Accept or "
-            .. "Yes yourself. It presses whichever popup is on top, so it will also confirm "
-            .. "things like releasing your spirit or leaving the group."),
-        { type = "label", text = "" }
-    ); y = y - h
-
-    return y
-end
 
 -------------------------------------------------------------------------------
 --  Runtime
@@ -554,6 +370,33 @@ local FOOD_BAR_GAP = 4
 local foodBar, foodBarMoving, foodBarPending
 local foodBarEvents = CreateFrame("Frame")
 
+local Look = {}
+
+function Look.NewButton(parent, template)
+    local button = CreateFrame("Button", nil, parent, template)
+    button.icon = button:CreateTexture(nil, "ARTWORK")
+    ns.PixelInset(button.icon, 1)
+    button.count = ns.Font(button, 12, "OUTLINE")
+    button.count:SetPoint("BOTTOMRIGHT", -2, 2)
+    ns.Border(button, { r = 0, g = 0, b = 0 })
+    return button
+end
+
+function Look.Layout(bar, size)
+    bar:SetSize(size * 2 + FOOD_BAR_GAP, size)
+    for i, button in ipairs(bar.buttons) do
+        button:SetSize(size, size)
+        button:ClearAllPoints()
+        button:SetPoint("LEFT", (i - 1) * (size + FOOD_BAR_GAP), 0)
+    end
+end
+
+function Look.Fill(button, i, icon, count)
+    button.icon:SetTexture(icon or FOOD_BAR_EMPTY[i].icon)
+    button.icon:SetDesaturated(not icon)
+    button.count:SetText(count or "")
+end
+
 -- The buttons are secure, so the bar is built, shown, hidden and pointed at items out of combat.
 local function ApplyFoodBar()
     if InCombatLockdown() then
@@ -574,13 +417,8 @@ local function ApplyFoodBar()
         foodBar:SetClampedToScreen(true)
         foodBar.buttons = {}
         for i = 1, 2 do
-            local button = CreateFrame("Button", nil, foodBar, "SecureActionButtonTemplate")
+            local button = Look.NewButton(foodBar, "SecureActionButtonTemplate")
             button:RegisterForClicks("AnyUp", "AnyDown")
-            button.icon = button:CreateTexture(nil, "ARTWORK")
-            ns.PixelInset(button.icon, 1)
-            button.count = ns.Font(button, 12, "OUTLINE")
-            button.count:SetPoint("BOTTOMRIGHT", -2, 2)
-            ns.Border(button, { r = 0, g = 0, b = 0 })
             button:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 if self.itemID then
@@ -593,10 +431,9 @@ local function ApplyFoodBar()
             button:SetScript("OnLeave", function() GameTooltip:Hide() end)
             foodBar.buttons[i] = button
         end
-        foodBar.mover = UI.AttachMover(foodBar, "Food & Drink", function(pos) S.Set("foodBarPos", pos) end, "Macros/Consumables", "Macros/Consumables:Food & Drink Bar")
+        foodBar.mover = UI.AttachMover(foodBar, "Food & Drink", function(pos) S.Set("foodBarPos", pos) end, "Macros/Settings", "Macros/Settings:foodBar")
     end
-    local size = S.Get("foodBarSize")
-    foodBar:SetSize(size * 2 + FOOD_BAR_GAP, size)
+    Look.Layout(foodBar, S.Get("foodBarSize"))
     foodBar:ClearAllPoints()
     local pos = S.Get("foodBarPos")
     if pos then foodBar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
@@ -605,14 +442,10 @@ local function ApplyFoodBar()
     for i, button in ipairs(foodBar.buttons) do
         local id = items[i]
         button.itemID = id
-        button:SetSize(size, size)
-        button:ClearAllPoints()
-        button:SetPoint("LEFT", (i - 1) * (size + FOOD_BAR_GAP), 0)
         button:SetAttribute("type1", id and "item" or nil)
         button:SetAttribute("item1", id and ("item:" .. id) or nil)
-        button.icon:SetTexture(id and C_Item.GetItemIconByID(id) or FOOD_BAR_EMPTY[i].icon)
-        button.icon:SetDesaturated(not id)
-        button.count:SetText(id and C_Item.GetItemCount(id) or "")
+        Look.Fill(button, i, id and (C_Item.GetItemIconByID(id) or FOOD_BAR_EMPTY[i].icon),
+            id and C_Item.GetItemCount(id))
     end
     foodBar.mover:SetShown(foodBarMoving == true)
     foodBar:Show()
@@ -632,3 +465,157 @@ end)
 hooksecurefunc(ns, "Apply", ApplyFoodBar)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function() foodBarMoving = true; ApplyFoodBar() end)
 hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function() foodBarMoving = false; ApplyFoodBar() end)
+
+local function On() return S.Get("enabled") == true end
+
+local function Headline()
+    local n = 0
+    for _, m in ipairs(MACROS) do
+        if S.Get(m.key) then n = n + 1 end
+    end
+    return ("%d of %d macros kept current for you"):format(n, #MACROS)
+end
+
+local function Detail()
+    if not On() then return "Turn on Macros to keep them current." end
+    local name, class = UnitClass("player")
+    local count = #((S.Get("classMacros") or {})[class] or {})
+    if count == 0 then return ("Your profile has no class macros for your %s."):format(name) end
+    return ("%d class macro%s from your profile for your %s."):format(count, count == 1 and "" or "s", name)
+end
+
+ns.MacroStatus = { Headline = Headline, Detail = Detail }
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+
+local Group = Settings.Group
+local MACROS_OFF = "Turn on Macros"
+local SAMPLE_COUNTS = { 12, 20 }
+local FOOD_STATES = {
+    { key = "stocked", label = "Stocked", tip = "Your best food and drink, with how many you carry." },
+    { key = "empty", label = "Nothing Carried", tip = "Greyed out while your bags hold no food or drink." },
+}
+
+local function NewFoodPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetPoint("CENTER")
+    preview.buttons = { Look.NewButton(preview), Look.NewButton(preview) }
+    return preview
+end
+
+local function PaintFoodPreview(preview, state)
+    Look.Layout(preview, S.Get("foodBarSize"))
+    local stocked = state == "stocked"
+    for i, button in ipairs(preview.buttons) do
+        Look.Fill(button, i, stocked and FOOD_BAR_EMPTY[i].icon or nil, stocked and SAMPLE_COUNTS[i] or nil)
+    end
+end
+
+local function MarkOn() return On() and S.Get("focusMark") == true end
+
+local function FoodSummary(store)
+    return ("%d px buttons"):format(store.Get("foodBarSize"))
+end
+
+local function HealthSummary(store)
+    return HEALTH_ORDER_VALUES[store.Get("healthOrder")] or ""
+end
+
+local function FocusSummary(store)
+    local announce, mark = store.Get("focusAnnounce"), store.Get("focusMark")
+    if announce and mark then return "Announces and marks your focus" end
+    if announce then return "Announces your focus" end
+    if mark then return "Marks your focus" end
+    return "Just sets your focus"
+end
+
+local function KeptSummary(store)
+    local n = 0
+    for _, m in ipairs(MACROS) do
+        if store.Get(m.key) then n = n + 1 end
+    end
+    return ("%d of %d kept current"):format(n, #MACROS)
+end
+
+local page = Settings.Page("Macros/Settings", S)
+
+page:Window({
+    text = "Open Naowh's Forge",
+    open = function() ns.OpenMacroWindow() end,
+    headline = Headline,
+    detail = Detail,
+})
+
+page:Card({
+    id = "kept", name = "Kept Current", order = 5,
+    help = "The macros the addon writes and keeps up to date for you, out of combat. Switch one on here, "
+        .. "or take it to your bars from Smart Macros in Naowh's Forge.",
+    summary = KeptSummary,
+    rows = {
+        { key = "health", label = "NF Health", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Your best healthstone or healing potion." },
+        { key = "mana", label = "NF Mana", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Your best mana potion." },
+        { key = "food", label = "NF Food", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Your best food and drink, conjured first." },
+        { key = "bandage", label = "NF Bandage", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Your best bandage, on yourself." },
+        { key = "trinket1", label = "NF Trinket 1", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Uses your top trinket." },
+        { key = "trinket2", label = "NF Trinket 2", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Uses your bottom trinket." },
+        { key = "focus", label = "NF Focus", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Focuses your mouseover, or your target." },
+        { key = "acceptPopup", label = "NF Accept", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Accepts the popup on screen: a summons, a resurrection, a group invite." },
+    },
+})
+
+page:Card({
+    id = "foodBar", name = "Food & Drink Bar", order = 10, switch = "foodBar",
+    help = "Two buttons: the best food and the best drink in your bags, conjured first. Click to eat or drink. "
+        .. "They update as your bags change, after combat. Move it in Unlock Mode.",
+    summary = FoodSummary,
+    studio = { height = 100, states = FOOD_STATES, new = NewFoodPreview, paint = PaintFoodPreview },
+    rows = {
+        { key = "foodBarSize", label = "Icon Size", slider = { 20, 70, 1 }, needs = On, why = MACROS_OFF,
+          help = "How big each of the two buttons is." },
+    },
+})
+
+page:Card({
+    id = "health", name = "Health Macro", order = 20,
+    help = "NF Health uses the best healthstone or healing potion in your bags. Switch it on in Kept Current.",
+    summary = HealthSummary,
+    rows = {
+        { key = "healthOrder", label = "Health Priority", choice = { HEALTH_ORDER_VALUES, HEALTH_ORDER_ORDER },
+          needs = On, why = MACROS_OFF,
+          help = "Which the macro uses first when you carry both: a healthstone or a healing potion." },
+    },
+})
+
+page:Card({
+    id = "focus", name = "Focus Macro", order = 30,
+    help = "NF Focus focuses your mouseover, or your target. Switch it on in Kept Current.",
+    summary = FocusSummary,
+    rows = {
+        Group("Announce"),
+        { key = "focusAnnounce", label = "Announce Focus", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Tells your group what you focused." },
+        Group("Marker"),
+        { key = "focusMark", label = "Mark Focus", toggle = true, needs = On, why = MACROS_OFF,
+          help = "Puts a raid marker on your focus. Pressing the macro again on the same focus clears the marker." },
+        { key = "focusMarker", label = "Focus Marker", choice = { MARKER_VALUES, MARKER_ORDER }, needs = MarkOn,
+          why = "Needs Mark Focus", help = "The raid marker Mark Focus puts on your focus." },
+    },
+})
+
+page:Card({
+    id = "window", name = "Window", order = 40,
+    help = "Naowh's Forge, Macros' own window: your macros, the ones kept current, and Naowh's library.",
+    rows = {
+        { key = "windowAlpha", label = "Window Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 },
+          unit = "%", scale = 0.01, help = "How solid the window is, in percent. Also on its title bar." },
+    },
+})

@@ -273,7 +273,9 @@ local function BackFromMap() Back("map") end
 
 function B.StepAside(reason)
     if not (window and window:IsShown()) then return end
+    window.stepAside = true
     window:Hide()
+    window.stepAside = nil
     awayFor = reason
     if reason == "map" and not mapWatched and WorldMapFrame then
         mapWatched = true
