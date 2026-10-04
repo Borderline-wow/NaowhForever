@@ -953,7 +953,7 @@ local function CreateWindow()
     window:SetClampedToScreen(true)
     window:EnableMouse(true)
     ns.Shared.Parts.Backdrop(window):Paint(1)
-    ns.Border(window, ns.Shared.Style.BORDER_RGB)
+    local border = ns.Border(window, ns.Shared.Style.BORDER_RGB)
     window:SetScript("OnKeyDown", CloseOnEscape)
 
     local top = CreateFrame("Frame", nil, window)
@@ -971,6 +971,9 @@ local function CreateWindow()
     logo:SetTexture(BRAND_LOGO, nil, nil, "TRILINEAR")
     logo:SetSize(BRAND.width, BRAND.height)
     logo:SetPoint("CENTER", brand, "CENTER", BRAND.x, BRAND.y)
+    -- The logo's panel sits a level above the border's frame, its fill over the window's top
+    -- left edges; the border goes over it.
+    border._frame:SetFrameLevel(brand:GetFrameLevel() + 1)
     local close = ns.Button(top, "X", 28, 28, function() window:Hide() end)
     close:SetPoint("RIGHT", -18, 0)
     local unlock = ns.Button(top, "Unlock Mode", 140, 32, EnterUnlockMode)

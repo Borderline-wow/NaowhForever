@@ -567,7 +567,15 @@ function Draw:QueueSettingsRedraw()
     C_Timer.After(0, self.settingsRedrawFn)
 end
 
+local DRAG_WAIT = 0.05   -- seconds between looks for the end of a slider drag
+
+-- A slider being dragged (UI.sliderDrag) holds the redraw until it is let go: the redraw
+-- hides and shows the rows again, and hiding the slider ended its drag after one step.
 local function FlushSettings(view)
+    if ns.UI.sliderDrag then
+        C_Timer.After(DRAG_WAIT, view.settingsRedrawFn)
+        return
+    end
     view.settingsQueued = false
     if view:IsVisible() then
         view:Redraw()

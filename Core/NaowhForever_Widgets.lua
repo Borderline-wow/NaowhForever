@@ -329,26 +329,31 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     end
 
     -- The drag ends when the button comes up, wherever the cursor is: OnMouseUp alone
-    -- strands the drag when the release lands outside the track.
+    -- strands the drag when the release lands outside the track. While it runs, UI.sliderDrag
+    -- is the track, so a page that redraws on every change (Shared/Settings/Page.lua) waits
+    -- for the release: its redraw hides the rows, which ended the drag after one step.
+    local function EndDrag()
+        track:SetScript("OnUpdate", nil)
+        if UI.sliderDrag == track then UI.sliderDrag = nil end
+    end
     local function OnDragUpdate()
         if not IsMouseButtonDown("LeftButton") then
-            track:SetScript("OnUpdate", nil)
+            EndDrag()
             Paint()
             return
         end
         FromCursor()
     end
     track:SetScript("OnMouseDown", function()
+        UI.sliderDrag = track
         FromCursor()
         track:SetScript("OnUpdate", OnDragUpdate)
     end)
     track:SetScript("OnMouseUp", function()
-        track:SetScript("OnUpdate", nil)
+        EndDrag()
         Paint()
     end)
-    track:SetScript("OnHide", function()
-        track:SetScript("OnUpdate", nil)
-    end)
+    track:SetScript("OnHide", EndDrag)
 
     local function Commit()
         if UI.rebindingRows then return end

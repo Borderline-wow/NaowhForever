@@ -305,6 +305,16 @@ local barStore = topBar.card.store
 barStore.Set("mouseover", true); barStore.Set("hideInCombat", true); Flush()
 Check(Text("Normal") and Text("Faded") and Text("In Combat"), "an open card with a studio shows its moments")
 Click(Button("Faded")); Flush()
+-- A slider being dragged holds the page's redraw (it would hide the slider and end the drag),
+-- and the page catches up once it is let go.
+UI.sliderDrag = {}
+barStore.Set("mouseoverAlpha", 30)
+local held = timers; timers = {}
+for _, fn in ipairs(held) do fn() end
+Check(#timers > 0, "a slider being dragged holds the settings page's redraw")
+UI.sliderDrag = nil
+Flush()
+Check(#timers == 0, "and the page draws again once it is let go")
 barStore.Set("mouseoverAlpha", 40); Flush()
 local studio
 for _, f in ipairs(frames) do if f.previews and f:IsShown() then studio = f end end
