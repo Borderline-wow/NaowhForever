@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Naowh's Forge (/nfmacros, the Macros page, or its minimap and top bar button): a window for
+  your macros. My Macros lists your account and character macros and your pack's; the editor
+  shows how many of the game's 255 bytes a macro uses, numbers its lines, marks the ones that
+  will not work with what was meant (/castsequnce: did you mean /castsequence?), and beside it
+  Explain says what each line does in plain words. Build conditions with Conditions, insert
+  commands from Commands, pick an icon (star your favourites), Shorten a macro, and drag its
+  icon to a bar. Smart Macros shows the macros the module keeps up to date with what each will
+  use right now; the Library holds Naowh's macros once you import them. Export and Import share
+  macros as a string.
 - QoL > Interface, Town Map Pins: Mailboxes, every mailbox on the world map, in towns and out in
   the world, even with Town Pins Only in Capitals on (off until you turn it on). Positions come
   from Wowhead's WoW Forever database.

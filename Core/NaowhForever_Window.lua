@@ -107,7 +107,9 @@ local MODULES = {
           { name = "Window", build = "BuildProfessionsPage", reuse = true, collapse = true },
       } },
     { name = "Macros", group = "UTILITIES", navIcon = "pen", settings = "MacroSettings",
-      subtitle = "Macros written and kept current for you, out of combat.",
+      open = "ToggleMacroWindow",
+      command = "macros", short = "Macros", icon = "Interface\\Icons\\INV_Misc_Note_01",
+      subtitle = "Naowh's Forge: your macros, checked and explained, and macros kept current for you.",
       tabs = {
           { name = "Class Macros", build = "BuildClassMacrosPage", reuse = true },
           { name = "Consumables", build = "BuildMacroConsumablesPage", reuse = true, collapse = true },

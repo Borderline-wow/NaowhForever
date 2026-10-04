@@ -167,7 +167,9 @@ QoL\NaowhForever_FlightData.lua
 QoL\NaowhForever_Flight.lua
 QoL\NaowhForever_QuizData.lua
 QoL\NaowhForever_Quiz.lua
+Macros\NaowhForever_MacroText.lua
 Macros\NaowhForever_Macros.lua
+Macros\NaowhForever_MacroWindow.lua
 ActionBars\NaowhForever_ActionBars.lua
 AuraBuffs\NaowhForever_AuraBuffs.lua
 AuraBuffs\NaowhForever_Campfire.lua

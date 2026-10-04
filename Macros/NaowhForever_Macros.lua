@@ -14,7 +14,7 @@ local S = UI.ModuleSettings("macros", {
     trinket1 = false, trinket2 = false,
     focus = false, focusMark = false, focusMarker = 8, focusAnnounce = false,
     acceptPopup = false,
-    foodBar = false, foodBarSize = 36,
+    foodBar = false, foodBarSize = 36, windowAlpha = 1,
 })
 -- Authored definitions travel with shared packs; presentation settings stay in this module.
 local GetSetting, SetSetting = S.Get, S.Set
@@ -72,6 +72,7 @@ local function KnownCommands()
     end
     return knownCommands
 end
+ns.MacroKnownCommands = KnownCommands
 
 -- Problems a player would hit when the macro runs: unknown commands, lines that are not
 -- commands, and unbalanced brackets. Script lines are Lua, so only their command is checked.
@@ -118,6 +119,7 @@ local function MacroIcons()
     end
     return icons
 end
+ns.MacroIconList = MacroIcons
 
 local PICKER_COLS, PICKER_ROWS, PICKER_ICON = 10, 7, 32
 
@@ -132,6 +134,8 @@ end
 local function EntryIcon(entry)
     return IconChoices()[entry.name] or entry.icon
 end
+
+ns.MacroEntryIcon = EntryIcon
 
 local function SetEntryIcon(entry, icon)
     if InCombatLockdown() then ns.Print("Change macro icons outside combat.") return end
@@ -202,6 +206,11 @@ end
 
 function ns.BuildClassMacrosPage(parent, y)
     local W = UI.Widgets
+    local accountCount, characterCount = GetNumMacros()
+    y = ns.Shared.Parts.SettingsCard(parent, y, "forgeCard", "Open Naowh's Forge", function() ns.OpenMacroWindow() end,
+        "Your macros, with an editor that checks and explains them",
+        ("Account %d/%d, Character %d/%d"):format(accountCount, Constants.MacroConsts.MAX_ACCOUNT_MACROS,
+            characterCount, Constants.MacroConsts.MAX_CHARACTER_MACROS))
     local _, h = W:Note(parent, "Class macros are supplied by your profile and saved as character macros. "
         .. "Click or drag an icon to put its macro on your action bar, or right-click it to pick another icon.", y)
     y = y - h
@@ -393,6 +402,9 @@ local BODIES = {
         return body
     end,
 }
+
+-- For Naowh's Forge: the Smart Macros, the text each would be written with now, and the bar's picks.
+ns.MacroSmart = { list = MACROS, Body = function(key) return BODIES[key]() end, BestFoodAndDrink = BestFoodAndDrink }
 
 local function Write(m, body, perCharacter)
     local index = GetMacroIndexByName(m.name)
