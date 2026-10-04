@@ -453,6 +453,7 @@ local fitters = setmetatable({}, { __mode = "k" })   -- frame -> { region -> fit
 local function OnePixel(region)
     return PixelUtil.GetPixelToUIUnitFactor() / region:GetEffectiveScale()
 end
+ns.OnePixel = OnePixel
 
 local function FitOwner(owner)
     for region, fit in pairs(fitters[owner]) do fit(OnePixel(region)) end

@@ -55,7 +55,7 @@ local S = UI.ModuleSettings("qol", {
     lootFeedCount = 6, lootFeedFade = 5, lootFeedStyle = "dark", lootFeedGlow = false,
     lootFeedValue = true, lootFeedBank = true, lootFeedPrice = "vendor", lootFeedGPH = false,
     hideLootWindow = false, fastLoot = false,
-    lootFeedWidth = 340, lootFeedHeight = 36, lootFeedSpacing = 0, lootFeedGrowth = "up",
+    lootFeedWidth = 340, lootFeedHeight = 36, lootFeedSpacing = -1, lootFeedGrowth = "up",
     lootFeedFont = "", lootFeedFontSize = 13,
     ahPrices = true, ahTooltip = true,
     altCounts = false, mailAlts = false, mailQuickAttach = false, mailExpiry = false,

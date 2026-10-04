@@ -7,6 +7,11 @@
   see what the default is.
 
 ### Changed
+- Loot Feed: Spacing goes down to -1, now the default, so neighbouring lines share one border
+  instead of two. Its coins line up on every line, and it is the first card on QoL > Loot &
+  Items. Edit it right in its preview: drag its right edge for width and a line's bottom for
+  height, the wheel for text size (Shift: spacing, Ctrl: lines), click a line's value or bag
+  count to show or hide it, and right-click a line for what it shows.
 - QoL's Leveling & Travel tab is two again: XP (XP Bar, XP per Hour, Group XP) and Travel
   (Flight Timer, Quiz).
 - XP Bar: click a text on the preview, or an empty spot around the bar, to pick what it shows,
