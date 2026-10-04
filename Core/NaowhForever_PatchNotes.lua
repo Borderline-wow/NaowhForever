@@ -6,7 +6,7 @@
 local ns = _G.NaowhForever
 
 local NOTES = {
-    { title = "Unreleased", lines = {
+    { title = "0.5.19-beta", lines = {
         "Training Planner (/nftraining, Adventure): what your next trainer visit costs against "
             .. "your gold, a road to 60 with every level that brings spells, and the spells you "
             .. "can train now with how much stronger each rank is. A toast on level-up, Learn All "

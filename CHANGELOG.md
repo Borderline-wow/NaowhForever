@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.19-beta
 
 ### Added
 - Naowh's Forge (/nfmacros, the Macros page, or its minimap and top bar button): a window for
