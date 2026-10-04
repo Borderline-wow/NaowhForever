@@ -186,6 +186,7 @@ local function Fixture()
         -- Each of your five stats at 50, gear in it.
         UnitStat = function() return 50, 50 end,
         UnitAttackSpeed = function() return 2.6, 2.6 end,
+        C_Secrets = { ShouldUnitStatsBeSecret = function() return false end },
         GetRealmName = function() return "Realm" end,
         GetInventoryItemID = function(_, slot) return state.worn[slot] end,
         GetInventoryItemTexture = function(_, slot) return state.worn[slot] and 134400 end,

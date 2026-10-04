@@ -45,6 +45,10 @@
 
 ### Fixed
 - Naowh Score: no more Lua error after seeing more than 300 players, like in a busy city.
+- Hovering items and players no longer fills BugSack with "secret value" errors on Forever: the
+  upgrade line and bag arrows wait while the game keeps your stats hidden, Naowh Score copes with
+  a player it can no longer read, and the supporter plate and ID lines stop hooking the game's
+  tooltip, which was reported breaking its own player-name colours.
 
 ## 0.5.19-beta
 

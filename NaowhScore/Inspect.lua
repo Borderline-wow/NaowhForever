@@ -75,9 +75,12 @@ local function Entry(guid)
     return entry
 end
 
--- The tooltip's line, filled in now that the score is known.
+-- The tooltip's line, filled in now that the score is known, while the tooltip still shows them.
 local function Refresh(guid, entry)
     if guid ~= shownGUID or not shownLine or not GameTooltip:IsShown() then return end
+    local data = GameTooltip:GetPrimaryTooltipData()
+    local showing = data and data.guid
+    if not Readable(showing) or showing ~= guid then return end
     local right = _G["GameTooltipTextRight" .. shownLine]
     if right then
         right:SetText(Score.Tooltip(entry.score, entry.level))
@@ -129,7 +132,8 @@ local function Ready(guid)
     if not (pending and pending.guid == guid) then return false end
     local unit = pending.unit
     pending = nil
-    if not UnitExists(unit) or UnitGUID(unit) ~= guid then return true end
+    local now = UnitExists(unit) and UnitGUID(unit)
+    if not Readable(now) or now ~= guid then return true end
     wipe(links)
     for slot in pairs(Score.SLOTS) do links[slot] = GetInventoryItemLink(unit, slot) end
     local entry = Entry(guid)
@@ -298,7 +302,6 @@ local hooked = false
 -- comes first, and the score under it, as one Naowh block.
 local function Hook()
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnUnit)
-    GameTooltip:HookScript("OnTooltipCleared", function() shownGUID, shownLine = nil, nil end)
 end
 local SCAN_EVENTS = { "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED", "UNIT_INVENTORY_CHANGED" }
 local NEARBY_EVENTS = { "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED", "PLAYER_TARGET_CHANGED",

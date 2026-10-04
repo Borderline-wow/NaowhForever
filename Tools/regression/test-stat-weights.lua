@@ -22,6 +22,9 @@ local ITEMS = {
     [9] = { "INVTYPE_HAND", { ITEM_MOD_STAMINA_SHORT = 1 } },
 }
 
+-- A secret number: any arithmetic or comparison on it fails, as in the game.
+local SECRET = {}
+
 local function Fixture(class)
     local state = { worn = {}, account = {}, printed = {}, postCalls = {}, watchers = {} }
     local ns = { Shared = {}, QoLSettings = {} }
@@ -48,8 +51,13 @@ local function Fixture(class)
     local env = setmetatable({
         _G = { NaowhForever = ns },
         UnitClass = function() return class, class end,
-        UnitStat = function() return 50, 50 end,
-        UnitAttackSpeed = function() return state.speed or 2, state.offSpeed end,
+        -- While state.secret, your stats come back secret, as the game hands them out then.
+        UnitStat = function() if state.secret then return SECRET, SECRET end return 50, 50 end,
+        UnitAttackSpeed = function()
+            if state.secret then return SECRET, SECRET end
+            return state.speed or 2, state.offSpeed
+        end,
+        C_Secrets = { ShouldUnitStatsBeSecret = function() return state.secret == true end },
         -- A frame that keeps its events and its handler, for the talent watcher.
         CreateFrame = function()
             local f = { events = {} }
@@ -231,6 +239,13 @@ do
         SW.SwingDamage(weights, 16) == 7 / 2 and SW.SwingDamage(weights, 17) == 7 * 0.5 / 1.5)
     state.worn[10] = nil
     check("over nothing worn, its whole worth", math.abs(SW.Gain(1, 10, weights, SW.Power(weights)) - 100 * 10 / SW.Power(weights)) < 1e-6)
+    -- Stats the game keeps secret (reported on Forever, every item hovered): no worth, no gain,
+    -- no error.
+    state.secret = true
+    check("secret stats: no worth", SW.Power(weights) == nil)
+    check("secret stats: no gain", SW.Gain(1, 10, weights, SW.Power(weights)) == nil)
+    check("secret stats: a swing at the usual speed", SW.SwingDamage(weights, 16) == 7 / 2.6)
+    state.secret = false
 end
 
 -------------------------------------------------------------------------------

@@ -337,6 +337,15 @@ local function HidePlate()
     if plate then plate:Hide() end
 end
 
+-- Watched from the plate, not by hooking GameTooltip's scripts: OnTooltipCleared runs in the
+-- middle of the game's own tooltip building, and with our hook on it the game's unit colouring
+-- was reported failing on secret values as tainted by Naowh Forever.
+local function PlateUpdate()
+    local data = GameTooltip:IsShown() and GameTooltip:GetPrimaryTooltipData()
+    local guid = data and data.guid
+    if not guid or Secret(guid) or guid ~= plate.guid then plate:Hide() end
+end
+
 local function FitTitle()
     local title = plate.title
     title:SetText(plate.full)
@@ -356,12 +365,12 @@ local function BuildPlate()
     plate.title:SetJustifyH("LEFT")
     plate.title:SetWordWrap(false)
     plate:SetScript("OnSizeChanged", FitTitle)
-    GameTooltip:HookScript("OnHide", HidePlate)
-    GameTooltip:HookScript("OnTooltipCleared", HidePlate)
+    plate:SetScript("OnUpdate", PlateUpdate)
 end
 
-local function ShowPlate(tooltip, entry, tier)
+local function ShowPlate(tooltip, guid, entry, tier)
     if not plate then BuildPlate() end
+    plate.guid = guid
     Paint(plate, tier)
     local c = tier.color
     local title = TitleOf(entry, tier)
@@ -379,9 +388,12 @@ local function AddTooltipLine(tooltip, data)
     if not S.Get("badgeTooltip") then return end
     local entry = EntryOf(data and data.guid)
     local tier = TierOf(entry)
-    if not tier then return end
+    if not tier then
+        if tooltip == GameTooltip then HidePlate() end
+        return
+    end
     if tooltip == GameTooltip then
-        ShowPlate(tooltip, entry, tier)
+        ShowPlate(tooltip, data.guid, entry, tier)
     else
         tooltip:AddLine(tier.tooltipLine)
     end

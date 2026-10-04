@@ -305,12 +305,15 @@ local DpsShare = SW.DpsShare
 function SW.SwingDamage(weights, slot)
     local main, off = UnitAttackSpeed("player")
     local speed = (slot == 17 and off or main) or SPEED
+    if C_Secrets.ShouldUnitStatsBeSecret() then speed = SPEED end
     return (weights.dps or 0) * DpsShare(slot) / (speed > 0 and speed or SPEED)
 end
 
 --- What your stats are worth now: your five stats as the game sums them (gear in them), and
---- the rest from what you wear.
+--- the rest from what you wear. nil while the game keeps your stats secret, so no gain is
+--- worked out until it lets them go.
 function SW.Power(weights)
+    if C_Secrets.ShouldUnitStatsBeSecret() then return nil end
     local power = 0
     for i, key in ipairs(PRIMARY) do power = power + (weights[key] or 0) * select(2, UnitStat("player", i)) end
     for _, slot in ipairs(GEAR_SLOTS) do

@@ -28,6 +28,8 @@ local function Frame()
     function f:GetPrimaryTooltipData() return self.data end
     function f:CreateTexture() return Frame() end
     function f:AddLine(...) self.lines[#self.lines+1]={...} end
+    function f:NumLines() return #self.lines end
+    function f:GetName() return self.name end
     function f:AddDoubleLine(...) self.lines[#self.lines+1]={...} end
     frames[#frames+1]=f;return f
 end
@@ -50,15 +52,24 @@ local env={_G={NaowhForever=ns},GameTooltip=tooltip,ItemRefTooltip=Frame(),Shopp
     hooksecurefunc=function(t,k,fn) local old=t[k];t[k]=function(...) old(...);fn(...) end end,
     strsplit=function(delim,s) local a={};for part in s:gmatch('[^'..delim..']+') do a[#a+1]=part end;return unpack(a) end,
 }
-setmetatable(env,{__index=_G})
+-- A tooltip's line font strings by name, as the game has them: GameTooltipTextLeft2 and so on.
+setmetatable(env,{__index=function(_,key)
+ local name,n=tostring(key):match('^(.-)TextLeft(%d+)$')
+ local tip=name and rawget(env,name)
+ if tip then local line=tip.lines[tonumber(n)];return {GetText=function() return line and line[1] end} end
+ return _G[key]
+end})
+setmetatable(env._G,{__index=env})
 -- The copy box is the Core's (ns.ShowCopyBox): load that function alone from it.
 local core=assert(io.open('Core/NaowhForever_Core.lua','rb')):read('*a')
 local first=assert(core:find('function ns.ShowCopyBox',1,true))
 local last=assert(core:find('-- Confirm for a reload',first,true))
 local copy=assert(loadstring(core:sub(first,last-1)));setfenv(copy,setmetatable({ns=ns},{__index=env}));copy()
 local chunk=assert(loadfile('QoL/NaowhForever_GlobalCopy.lua'));setfenv(chunk,env);chunk()
+for name,tip in pairs({GameTooltip=tooltip,ItemRefTooltip=env.ItemRefTooltip,ShoppingTooltip1=env.ShoppingTooltip1,
+ ShoppingTooltip2=env.ShoppingTooltip2}) do tip.name=name end
 local function clear()
- tooltip.lines={};if tooltip.scripts.OnTooltipCleared then tooltip.scripts.OnTooltipCleared(tooltip) end
+ tooltip.lines={}
 end
 local function show(data)
  clear();tooltip.data=data;callbacks[data.type](tooltip,data)
@@ -66,7 +77,10 @@ end
 local function boot(event) for _,f in ipairs(frames) do if f.events[event] then f.scripts.OnEvent(f,event) end end end
 local function keyboard() for _,f in ipairs(frames) do if f.scripts.OnKeyDown then return f end end end
 show({type=1,id=133});check('spell footer',tooltip.lines[2][1]=='Spell ID' and tooltip.lines[2][2]=='133')
+check('no hook on the tooltip being cleared',tooltip.scripts.OnTooltipCleared==nil)
 callbacks[1](tooltip,tooltip.data);check('no duplicate footer',#tooltip.lines==3)
+-- The game builds a tooltip again in place (an item's data arriving): lines cleared, the post-call run again.
+tooltip.lines={{'Fireball'}};callbacks[1](tooltip,tooltip.data);check('footer back after a rebuild',#tooltip.lines==4 and tooltip.lines[3][2]=='133')
 settings.tooltipCopyHint=false;show({type=1,id=133});check('hint off: the ID stays, its key line goes',#tooltip.lines==2 and tooltip.lines[2][2]=='133');settings.tooltipCopyHint=true
 show({type=2,id=6948});check('item footer',tooltip.lines[2][2]=='6948')
 show({type=3,guid='Creature-0-1-2-3-12345-0001'});check('NPC entry ID',tooltip.lines[2][2]=='12345')

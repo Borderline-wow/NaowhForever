@@ -259,8 +259,10 @@ do  -- chat, card, tooltip
         made[#made + 1] = f
         return f
     end
-    local hooks = {}
-    env.GameTooltip = { AddLine = tooltip.AddLine, HookScript = function(_, script, fn) hooks[script] = fn end }
+    local hooks, tipShown, showing = {}, true, "Player-1-LEG"
+    env.GameTooltip = { AddLine = tooltip.AddLine, HookScript = function(_, script, fn) hooks[script] = fn end,
+        IsShown = function() return tipShown end,
+        GetPrimaryTooltipData = function() return { guid = showing } end }
     s.postCalls[1](env.GameTooltip, { guid = "Player-1-LEG" })
     local plate = made[1]
     check("the game's tooltip: a plate over it, with the title, and no line", plate and plate:IsShown()
@@ -272,11 +274,21 @@ do  -- chat, card, tooltip
     s.fontWidth = nil
     plate.scripts.OnSizeChanged(plate)
     check("and in full again when it widens", plate.title.text:find("^Naowh Forever ") ~= nil)
-    hooks.OnHide()
+    check("no hooks on the game's tooltip", next(hooks) == nil)
+    plate.scripts.OnUpdate(plate)
+    check("the plate stays while the tooltip shows them", plate:IsShown())
+    tipShown = false
+    plate.scripts.OnUpdate(plate)
     check("the plate goes when the tooltip hides", not plate:IsShown())
+    tipShown = true
     s.postCalls[1](env.GameTooltip, { guid = "Player-1-LEG" })
-    hooks.OnTooltipCleared()
+    showing = "Player-1-OTHER"
+    plate.scripts.OnUpdate(plate)
     check("and when it moves on to someone else", not plate:IsShown() and #made == 1)
+    showing = "Player-1-LEG"
+    s.postCalls[1](env.GameTooltip, { guid = "Player-1-LEG" })
+    s.postCalls[1](env.GameTooltip, { guid = "Player-1-NOBADGE" })
+    check("and when the next player has no badge", not plate:IsShown())
     env.GameTooltip, env.CreateFrame = nil, create
 
     -- As a player with no badge sees it: your own taken away for the session.

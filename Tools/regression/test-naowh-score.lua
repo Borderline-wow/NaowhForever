@@ -37,6 +37,8 @@ local function Fixture()
     local lines, rights = {}, {}
     local tooltip = {
         GetUnit = function() return "Someone", state.hovered end,
+        -- The player the tooltip was built for: the one hovered, by the same GUID the game gives.
+        GetPrimaryTooltipData = function() return { guid = state.UnitGUID(state.hovered) } end,
         IsForbidden = function() return false end,
         IsShown = function() return true end,
         Show = NOTHING,
@@ -67,7 +69,7 @@ local function Fixture()
             return n and rights[tonumber(n)]
         end }),
         wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
-        issecretvalue = function() return false end,
+        issecretvalue = function(value) return value ~= nil and rawequal(value, state.SECRET) end,
         C_Item = {
             GetDetailedItemLevelInfo = function(link) local i = Item(link) return i and i[1] end,
             GetItemInfo = function(link) local i = Item(link) if i then return "x", link, i[2], i[1] end end,
@@ -117,6 +119,7 @@ local function Fixture()
         GetNumSubgroupMembers = function() return state.members end,
         GetNumGroupMembers = function() return state.members + 1 end,
     }, { __index = _G })
+    state.UnitGUID, state.units, state.SECRET = env.UnitGUID, units, {}
     Load({ "NaowhScore/Data/Formula.lua", "NaowhScore/Score.lua", "NaowhScore/Inspect.lua", "NaowhScore/Share.lua" },
         env)
     -- An event, to every frame listening for it (Share always; Inspect while on).
@@ -242,6 +245,34 @@ do
     check("then it is asked again", #state.inspected == 2)
     S.Set("naowhScore", false)
     check("off: no line", Hover("party1") == nil)
+end
+
+-- Reported on Forever: a unit's GUID can come back secret by the time its gear arrives, and the
+-- tooltip can have moved on to someone else.
+do
+    local ns, state = Fixture()
+    local S = ns.QoLSettings
+    S.Set("naowhScoreScan", false)
+    S.Set("naowhScore", true)
+    state.RunTimers()
+    local OnUnit = state.postCalls[1]
+    state.gear.party1, state.gear.party2 = Set(26, 4), Set(30, 4)
+    state.hovered = "party1"
+    OnUnit(state.tooltip)
+    state.units.party1 = state.SECRET
+    state.Fire("INSPECT_READY", "Player-1-19")
+    -- Plain Lua cannot make that comparison fail as the game does; this checks the outcome.
+    check("a GUID gone secret when the gear comes: nothing kept",
+        state.rights[#state.lines].text == "...")
+    state.units.party1 = nil
+    state.now = state.now + 5
+    state.hovered = "party1"
+    for k in pairs(state.lines) do state.lines[k] = nil end
+    OnUnit(state.tooltip)
+    state.hovered = "party2"
+    state.Fire("INSPECT_READY", "Player-1-19")
+    check("the tooltip moved on: the old player's line is not filled in",
+        state.rights[#state.lines].text == "...")
 end
 
 -------------------------------------------------------------------------------
