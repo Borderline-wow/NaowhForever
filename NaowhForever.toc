@@ -118,12 +118,15 @@ QoL\NaowhForever_ScrapMarker.lua
 QoL\NaowhForever_ScrapList.lua
 QoL\NaowhForever_Alts.lua
 QoL\NaowhForever_Mail.lua
-# Discovery: the library books. The data loads first; the module reads it.
+# Discovery: the library books and the Cozy Sleeping Bag. The data loads first; the module reads it.
 Discovery\NaowhForever_DiscoveryData.lua
+Discovery\NaowhForever_SleepingBagData.lua
 Discovery\NaowhForever_Discovery.lua
 Discovery\NaowhForever_DiscoveryWindow.lua
 Discovery\NaowhForever_DiscoveryTracker.lua
+Discovery\NaowhForever_SleepingBagTracker.lua
 Discovery\NaowhForever_DiscoveryMap.xml
+Discovery\NaowhForever_SleepingBagMap.xml
 Discovery\NaowhForever_DiscoveryNearby.lua
 # Training Planner: the data loads first; the module reads it.
 Training\NaowhForever_TrainingData.lua

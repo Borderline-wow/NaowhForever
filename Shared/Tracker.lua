@@ -10,7 +10,7 @@ local Shared = ns.Shared
 local Parts = Shared.Parts
 
 local St = Shared.Style
-local PANEL_W, PANEL_PAD, PANEL_HEADER, ACTION = St.PANEL_W, St.PANEL_PAD, St.PANEL_HEADER, St.ACTION
+local TRACKER_W, PANEL_PAD, PANEL_HEADER, ACTION = St.TRACKER_W, St.PANEL_PAD, St.PANEL_HEADER, St.ACTION
 local SLOT_H, SLOT_GAP, SCROLL_GAP, CLOSE_ROOM = St.TRACKER_SLOT, St.TRACKER_GAP, St.TRACKER_SCROLL, St.CLOSE_ROOM
 local ROW_LEFT, WAYPOINT_SLOT, ROW_RIGHT, TICK = St.ROW_LEFT, St.WAYPOINT_SLOT, St.ROW_RIGHT, St.ROW_TICK
 local ROW_TOP, ROW_LINE_GAP, ROW_BOTTOM = St.ROW_TOP, St.ROW_LINE_GAP, St.ROW_BOTTOM
@@ -112,7 +112,7 @@ end
 
 local function PinClick(pin)
     local entry = pin:GetParent().entry
-    if entry and entry.waypoint then entry.waypoint() end
+    if entry and entry.waypoint then entry.waypoint(entry) end
 end
 
 function Tracker:Row(i)
@@ -152,6 +152,8 @@ function Tracker:SetRows(entries)
         row:SetWidth(body:GetWidth())
         row.stripe:SetShown(i % 2 == 0)
         row.hover:Hide()
+        local color = entry.color or T.fg
+        row.text:SetTextColor(color.r, color.g, color.b)
         row.text:SetWidth(width)
         row.text:SetText(entry.text)
         local textH = math.ceil(row.text:GetStringHeight())
@@ -256,14 +258,14 @@ function Parts.TrackerPanel(title, opts)
     titleBtn:SetScript("OnEnter", TitleEnter)
     titleBtn:SetScript("OnLeave", TitleLeave)
     panel.titleButton = titleBtn
-    local width = opts.width or PANEL_W
+    local width = opts.width or TRACKER_W
     local under = -PANEL_HEADER - HEAD_GAP
     if opts.bar then
         local bar = CreateFrame("StatusBar", nil, panel)
         bar:SetSize(width - PANEL_PAD * 2, SLOT_H)
         bar:SetPoint("TOPLEFT", PANEL_PAD, under)
         bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-        bar.bg = ns.Solid(bar, "BACKGROUND", T.panel, 1)
+        bar.bg = ns.Solid(bar, "BACKGROUND", ns.ThemeTint("panel", St.TRACKER_BAR_RGB), 1)
         bar.bg:SetAllPoints()
         ns.Border(bar, St.BORDER_RGB)
         bar.text = ns.Font(bar, 12, "OUTLINE")

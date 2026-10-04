@@ -1,7 +1,9 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Discovery.lua -- the Discovery module: the library books you can still
 --  find, how many you have handed in toward the Friend of the Library rewards, and who takes
---  them for your faction. Books and turn-ins come from NaowhForever_DiscoveryData.lua.
+--  them for your faction (NaowhForever_DiscoveryData.lua); and the Cozy Sleeping Bag's hidden
+--  quest chain, step by step (NaowhForever_SleepingBagData.lua). Its settings are two tabs,
+--  Library Books and Sleeping Bag.
 --
 --  Off by default, every feature too. The tracker, map pin and nearby files register nothing
 --  but a login check until their feature is switched on.
@@ -13,8 +15,23 @@ local S = UI.ModuleSettings("discovery", {
     enabled = false,
     tracker = false, trackerAlways = false, trackerScale = 1, mapPins = false, mapPinSize = 18, mapTurnIn = true,
     nearbySound = false, nearbyRange = 40, nearbyPing = true, nearbyChat = true, openMap = true, windowAlpha = 1,
+    -- Each window's own opacity: the Discovery window (windowAlpha), the Library Books tracker,
+    -- the Sleeping Bag tracker.
+    trackerAlpha = 1,
+    bagTracker = false, bagTrackerScale = 1, bagTrackerAlpha = 1, bagMapPins = false, bagMapPinSize = 20,
 })
 ns.DiscoverySettings = S
+
+-- The windows' opacity was one setting (windowAlpha) before each had its own: a player who set
+-- it keeps it on the trackers until they set theirs. Once: a tracker's own, once set, is kept.
+local function SplitOpacity()
+    local was = S.Raw("windowAlpha")
+    if was == nil then return end
+    for _, key in ipairs({ "trackerAlpha", "bagTrackerAlpha" }) do
+        if S.Raw(key) == nil then S.Set(key, was) end
+    end
+end
+hooksecurefunc(ns, "Apply", SplitOpacity)
 
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
 
@@ -87,6 +104,15 @@ function Library.NextGoal()
     end
 end
 
+-- Where a reward quest stands for you: "claimed" (handed in), "ready" (enough books and the
+-- level it needs), "level" (enough books, your level too low) or "ahead".
+function Library.GoalState(goal, done)
+    if C_QuestLog.IsQuestFlaggedCompleted(goal.quest) then return "claimed" end
+    if done < goal.books then return "ahead" end
+    if goal.level and UnitLevel("player") < goal.level then return "level" end
+    return "ready"
+end
+
 local function State(book)
     if Library.Done(book) then return "done" end
     if Library.Carried(book) then return "carried" end
@@ -131,6 +157,70 @@ function Library.Where(spot)
     return spot[4] and (spot[4] .. " " .. coords) or coords
 end
 
+-------------------------------------------------------------------------------
+--  The Cozy Sleeping Bag's chain
+-------------------------------------------------------------------------------
+local Bag = {}
+ns.SleepingBagChain = Bag
+local names, subs, nowSubs = {}, {}, {}
+
+-- Your faction's steps, in order.
+function Bag.Steps()
+    return ns.SleepingBag.steps[Library.Side()]
+end
+
+-- A step is done once the quest it hands in is; the first, once the quest it starts is in your
+-- log or handed in.
+function Bag.StepDone(step)
+    if step.started then
+        return C_QuestLog.IsQuestFlaggedCompleted(step.started) or C_QuestLog.IsOnQuest(step.started)
+    end
+    return C_QuestLog.IsQuestFlaggedCompleted(step.done)
+end
+
+-- The step to do now, and its place in the chain; nil once you have the bag.
+function Bag.Current()
+    for i, step in ipairs(Bag.Steps()) do
+        if not Bag.StepDone(step) then return step, i end
+    end
+end
+
+function Bag.Level()
+    return UnitLevel("player") >= ns.SleepingBag.level
+end
+
+function Bag.Where(step)
+    return ("%s, %s (%.1f, %.1f)"):format(Library.ZoneName(step.map), step.place, step.x, step.y)
+end
+
+function Bag.Name(step)
+    local name = names[step]
+    if name then return name end
+    name = step.object
+    for _, other in ipairs(Bag.Steps()) do
+        if other ~= step and other.object == step.object and other.map ~= step.map then
+            name = ("%s (%s)"):format(step.object, Library.ZoneName(step.map))
+            break
+        end
+    end
+    names[step] = name
+    return name
+end
+
+function Bag.Sub(step, now)
+    local cache = now and step.tip and nowSubs or subs
+    local sub = cache[step]
+    if sub then return sub end
+    sub = ("%s, %s"):format(Library.ZoneName(step.map), step.place)
+    if cache == nowSubs then sub = sub .. "\n" .. step.tip end
+    cache[step] = sub
+    return sub
+end
+
+function Bag.Waypoint(step)
+    Library.Waypoint(step.object, step.map, step.x, step.y, " (" .. step.place .. ")")
+end
+
 local Settings = ns.Shared and ns.Shared.Settings
 if not Settings then return end
 
@@ -146,7 +236,7 @@ end
 local function Detail()
     local goal = Library.NextGoal()
     local librarian = ns.LibraryTurnIns.librarian[Library.Side()]
-    if not goal then return "Both rewards earned. " .. librarian.name .. " thanks you." end
+    if not goal then return "Every reward earned. " .. librarian.name .. " thanks you." end
     return ("Next: %s at %d. Hand them to %s."):format(goal.name, goal.books, librarian.name)
 end
 
@@ -166,11 +256,14 @@ local function WaypointSummary(store)
     return store.Get("openMap") and "Pins it and opens the map" or "Pins it only"
 end
 
-local page = Settings.Page("Discovery/Settings", S)
+-------------------------------------------------------------------------------
+--  Library Books
+-------------------------------------------------------------------------------
+local page = Settings.Page("Discovery/Library Books", S)
 
 page:Window({
-    text = "Open Discovery",
-    open = function() ns.OpenDiscoveryWindow() end,
+    text = "Open Library Books",
+    open = function() ns.OpenDiscoveryWindow("books") end,
     headline = Headline,
     detail = Detail,
 })
@@ -187,6 +280,8 @@ page:Card({
               .. "to find. Entering one selects it. The X on the tracker switches this off." },
         { key = "trackerScale", label = "Scale", slider = { 50, 150, 5 }, unit = "%", scale = 0.01, needs = On,
           why = DISCOVERY_OFF, help = "How big the tracker is." },
+        { key = "trackerAlpha", label = "Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 }, unit = "%",
+          scale = 0.01, needs = On, why = DISCOVERY_OFF, help = "How solid the tracker is, in percent." },
     },
 })
 
@@ -229,10 +324,63 @@ page:Card({
 })
 
 page:Card({
-    id = "window", name = "Window", order = 40,
+    id = "window", name = "Window", order = 90,
     help = "Discovery's own window, with every book and where to find it.",
     rows = {
         { key = "windowAlpha", label = "Window Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 },
           unit = "%", scale = 0.01, help = "How solid the window is, in percent. Also on its title bar." },
+    },
+})
+
+-------------------------------------------------------------------------------
+--  Sleeping Bag
+-------------------------------------------------------------------------------
+local function BagSummary()
+    local _, at = Bag.Current()
+    if not at then return "You have the Cozy Sleeping Bag" end
+    return ("Step %d of %d"):format(at, #Bag.Steps())
+end
+
+local function BagHeadline()
+    local _, at = Bag.Current()
+    local n = #Bag.Steps()
+    if not at then return "You have the Cozy Sleeping Bag" end
+    return ("Sleeping Bag: step %d of %d"):format(at, n)
+end
+
+local function BagDetail()
+    local step = Bag.Current()
+    if not step then return "Rest in it for a bonus to experience." end
+    if not Bag.Level() then return ("It starts at level %d."):format(ns.SleepingBag.level) end
+    return ("Next: %s, %s."):format(step.object, Library.ZoneName(step.map))
+end
+
+local bags = Settings.Page("Discovery/Sleeping Bag", S)
+
+bags:Window({
+    text = "Open Sleeping Bag",
+    open = function() ns.OpenDiscoveryWindow("bag") end,
+    headline = BagHeadline,
+    detail = BagDetail,
+})
+
+bags:Card({
+    id = "bagtracker", name = "Tracker", order = 10, switch = "bagTracker",
+    help = "Shows each Sleeping Bag step, with how to reach the next one and a waypoint.",
+    summary = BagSummary,
+    rows = {
+        { key = "bagTrackerScale", label = "Scale", slider = { 50, 150, 5 }, unit = "%", scale = 0.01, needs = On,
+          why = DISCOVERY_OFF, help = "How big the tracker is." },
+        { key = "bagTrackerAlpha", label = "Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 }, unit = "%",
+          scale = 0.01, needs = On, why = DISCOVERY_OFF, help = "How solid the tracker is, in percent." },
+    },
+})
+
+bags:Card({
+    id = "bagmappins", name = "Map Pins", order = 20, switch = "bagMapPins",
+    help = "Shows the Sleeping Bag steps still to do on your map; click one for a waypoint.",
+    rows = {
+        { key = "bagMapPinSize", label = "Pin Size", slider = { 12, 32, 1 }, needs = On, why = DISCOVERY_OFF,
+          help = "How big the pins are on the map." },
     },
 })

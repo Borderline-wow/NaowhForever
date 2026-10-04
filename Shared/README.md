@@ -59,11 +59,11 @@ Shared/
 
   | Option | What it adds |
   | --- | --- |
-  | `width` | starting width (`PANEL_W`) |
+  | `width` | starting width (`TRACKER_W`) |
   | `titleRoom` | room left of the close button for your own buttons |
   | `onTitle`, `titleTip`, `titleHint` | a click on the title, and its tooltip |
   | `onClose` | the close button's click, in place of hiding it |
-  | `bar` | a progress bar under the title: `panel.bar`, with `bar.bg` and `bar.text` |
+  | `bar` | a progress bar under the title: `panel.bar`, with `bar.bg` (`TRACKER_BAR_RGB`) and `bar.text` |
   | `picker = { values, order, get, set, menuHeight }` | a dropdown under the title or bar: `panel.picker` |
   | `newBody(scroll)` | what scrolls in the body (a row engine view); else a plain frame for `panel:SetRows` |
   | `settings = { page, card, tip, hint }` | the cog in the bottom right, opening that settings page and card |
@@ -75,8 +75,11 @@ Shared/
   The panel has `panel:Paint()`, `panel:Place()`, `panel:SetTrackerWidth(w)`,
   `panel:Fit(bodyHeight)` (true when it starts or stops scrolling: set its width again and
   redraw), `panel:ScrollGap()`, `panel:Top()` and `panel:SetRows(entries)`: pooled rows of
-  `{ text, sub, done, waypoint, tip(row), click(row, button) }`, a pin column (a tick once
-  done), returning their height. See `DungeonJournal/UI/QuestTracker.lua`.
+  `{ text, sub, color, done, waypoint(entry), tip(row), click(row, button) }`, a pin column (a
+  tick once done), the text in `color` (`T.fg` when nil), returning their height. Keep the
+  entries and refill them, with shared functions that read the entry, and a redraw makes no
+  garbage. See `DungeonJournal/UI/QuestTracker.lua`, and the Discovery trackers for `bar`,
+  `SetRows` and `mover`.
 - **Copying:** `Parts.CopyWowhead(kind, id, name)` opens the copy card on an item, quest or
   NPC's Wowhead link; a menu's Copy uses `ns.ShowCopyLine(title, text, icon)` (QoL's Global
   Copy) for any line.

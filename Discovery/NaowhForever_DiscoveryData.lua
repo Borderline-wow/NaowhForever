@@ -17,13 +17,19 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 
--- Handing in 10 books, then 20, each earns a reward quest. The first 10 count toward the 20.
--- rewards: the choice of items, { itemID, name }; the name is for before the client has the item.
+-- Handing in 10 books, then 20, then 25, each earns a reward quest; the books count toward
+-- every one. rewards: the choice of items, { itemID, name }; the name is for before the client
+-- has the item. level: the level the quest needs. reported: its book count is what players
+-- report (method.gg, 2026-10-04); Wowhead Forever has the quest (82208, its rewards, level 30)
+-- but not how many books it takes.
 ns.LibraryGoals = {
     { quest = 78150, name = "Friend of the Library", books = 10,
       rewards = { { 277203, "Scholarly Pendant" }, { 277204, "Erudite's Amulet" } } },
     { quest = 79536, name = "Greater Friend of the Library", books = 20,
       rewards = { { 281635, "Philanthropist's Ring" }, { 281634, "Field Researcher's Loop" } } },
+    { quest = 82208, name = "Greater Friend of the Library", books = 25, level = 30, reported = true,
+      rewards = { { 277254, "Truthseeker's Bow" }, { 277258, "Crest of Elucidation" },
+          { 277260, "Researcher's Night Light" } } },
 }
 
 ns.LibraryTurnIns = {

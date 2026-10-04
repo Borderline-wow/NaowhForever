@@ -41,6 +41,8 @@ Shared.Style = {
     -- WoW Forever's own: the pale gold of its logo, on what is new in Forever.
     FOREVER_CODE = "|cffeed69e",
     FOREVER_RGB = { r = 0xee / 255, g = 0xd6 / 255, b = 0x9e / 255 },
+    -- What you carry and can hand in, in the game's quest gold.
+    CARRIED_RGB = { r = 1, g = 0.82, b = 0 },
 
     ---------------------------------------------------------------------------
     --  Icons: the addon's own (Media/, drawn by Tools/make_media.py, white so they take
@@ -140,7 +142,9 @@ Shared.Style = {
     --  A tracker (Parts.TrackerPanel): a small window kept on screen, its rows a table with
     --  a waypoint pin in a column of its own
     ---------------------------------------------------------------------------
+    TRACKER_W = 320,
     TRACKER_SLOT = 24,      -- the progress bar and the dropdown under its title
+    TRACKER_BAR_RGB = { r = 0x14 / 255, g = 0x16 / 255, b = 0x19 / 255 },  -- behind the bar, the theme's panel once changed
     TRACKER_GAP = 6,        -- under each of them
     TRACKER_SCROLL = 20,    -- the body's right edge to the window's, for the scrollbar, while it scrolls
     CLOSE_ROOM = 34,        -- the title stops short of the close button

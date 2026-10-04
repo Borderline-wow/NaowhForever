@@ -93,7 +93,8 @@ local MODULES = {
       command = "discovery", short = "Discovery", icon = "Interface\\Icons\\INV_Misc_Book_07",
       subtitle = "Library books to find around Azeroth, and who to hand them to.",
       tabs = {
-          { name = "Settings", reuse = true },
+          { name = "Library Books", reuse = true },
+          { name = "Sleeping Bag", reuse = true },
       } },
     -- The sets are a window of their own (open); only their settings live here.
     { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",

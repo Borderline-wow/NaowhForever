@@ -30,6 +30,7 @@ local METHODS = {
     GetWidth = function(f) return rawget(f, "w") or 600 end,
     GetHeight = function(f) return rawget(f, "h") or 24 end,
     SetText = function(f, text) f.text = text end,
+    SetTextColor = function(f, r, g, b) f.r, f.g, f.b = r, g, b end,
     GetText = function(f) return rawget(f, "text") or "" end,
     GetStringWidth = function() return 40 end,
     GetStringHeight = function() return 12 end,
@@ -62,7 +63,12 @@ local ns = {
     THEME = setmetatable({}, { __index = function() return WHITE end }),
     Color = function(_, text) return tostring(text) end,
     Font = function(parent) return Frame(parent) end,
-    Solid = function(parent) return Frame(parent) end,
+    Solid = function(parent, _, color)
+        local solid = Frame(parent)
+        solid.color = color
+        return solid
+    end,
+    ThemeTint = function(_, literal) return literal end,
     -- As ns.Hairline and ns.PixelInset: whole-pixel sizing has no effect on these stubs.
     Hairline = function(region) return region end,
     PixelInset = function(region) return region end,
@@ -297,12 +303,16 @@ where = { "TOP", "TOP", 9, 9 }
 tracker:Place()
 check("then where it was left", placed[1] == "TOP" and placed[2] == 9)
 
-local pinned = 0
-local function Waypoint() pinned = pinned + 1 end
+check("its bar on the tracker bar's shade, the theme's panel once changed",
+    tracker.bar.bg.color == Shared.Style.TRACKER_BAR_RGB)
+
+local pinned, pinnedEntry = 0, nil
+local function Waypoint(entry) pinned, pinnedEntry = pinned + 1, entry end
+local GREY = { r = 0.5, g = 0.5, b = 0.5 }
 local ENTRIES = {
     { text = "Book one", sub = "In a crate", waypoint = Waypoint },
     { text = "Book two", waypoint = Waypoint },
-    { text = "Book three", done = true },
+    { text = "Book three", done = true, color = GREY },
 }
 local height = tracker:SetRows(ENTRIES)
 local rows = tracker.rows
@@ -313,7 +323,8 @@ check("a pin where there is a waypoint, a tick once done", rows[1].pin:IsShown()
 check("a line under each but the last", rows[1].divider:IsShown() and not rows[3].divider:IsShown())
 check("as tall as its rows", height == (6 + 12 + 8) * 3 + 3 + 12 and tracker.body.h == height)
 rows[1].pin.scripts.OnClick(rows[1].pin)
-check("a pin's click is the row's waypoint", pinned == 1)
+check("a pin's click is the row's waypoint, handed its entry", pinned == 1 and pinnedEntry == ENTRIES[1])
+check("a row's text in its colour, else the theme's text", rows[3].text.r == 0.5 and rows[1].text.r == 1)
 local madeBefore = made
 tracker:SetRows({ ENTRIES[1], ENTRIES[2] })
 check("fewer rows: reused, none made, the rest hidden", made == madeBefore and #rows == 3 and rows[3].shown == false)
@@ -329,5 +340,6 @@ Measure(check)("a tracker's rows laid out", 1, function() tracker:SetRows(ENTRIE
 local plain = Parts.TrackerPanel("PLAIN", {})
 check("with no options: no bar, dropdown or cog, its body under the title", not plain.bar and not plain.picker
     and not plain.settings and plain.footer == 0 and plain:Top() == 34 and plain:Fit(100) == false)
+check("and a tracker's width", plain.w == Shared.Style.TRACKER_W)
 
 print(("test-shared: %d checks passed"):format(checks))
