@@ -101,6 +101,13 @@ Case("/focus with a unit says that unit", function()
     assert(Plain(Text.Explain("/focus")[1]) == "Sets your focus to your target.")
 end)
 
+Case("Explain: a slash with no command yet says nothing", function()
+    assert(#Text.Explain("/") == 0)
+    assert(#Text.Explain("/ cast Blink") == 0)
+    local lines = Text.Explain("#showtooltip\n/\n/dance")
+    assert(#lines == 2 and Plain(lines[2]) == "Runs /dance.", Plain(lines[2] or "nil"))
+end)
+
 Case("bar and vehicle conditions are known", function()
     local said = Issues("/cast [petbattle] A\n/cast [nooverridebar,nopossessbar] B\n/cast [canexitvehicle] C\n"
         .. "/cast [shapeshift] D")

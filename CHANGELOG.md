@@ -52,6 +52,7 @@
   upgrade line and bag arrows wait while the game keeps your stats hidden, Naowh Score copes with
   a player it can no longer read, and the supporter plate and ID lines stop hooking the game's
   tooltip, which was reported breaking its own player-name colours.
+- Naowh's Forge: no more Lua error when a macro line is just a "/" with no command yet.
 
 ## 0.5.19-beta
 

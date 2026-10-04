@@ -262,7 +262,9 @@ function MacroText.Explain(body)
         elseif SCRIPT[lower:match("^(/%a+)") or ""] then
             sentence = "Runs a script (Lua)."
         elseif text:sub(1, 1) == "/" then
-            sentence = "Runs " .. SPELL .. text:match("^(/%S+)") .. "|r."
+            -- A lone "/" names no command yet, so there is nothing to say.
+            local command = text:match("^(/%S+)")
+            sentence = command and ("Runs " .. SPELL .. command .. "|r.")
         end
         said[#said + 1] = sentence or false
     end
