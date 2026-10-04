@@ -35,6 +35,7 @@ local S = UI.ModuleSettings("swingTimer", {
     sealLightColor = { r = 1, g = 0.95, b = 0.70 },
     sealWisdomColor = { r = 0.35, g = 0.65, b = 1 },
     sealFuryColor = { r = 0.95, g = 0.25, b = 0.20 },
+    sealMartyrdomColor = { r = 0.90, g = 0.40, b = 0.70 },
     swingWindow = false, swingWindowTime = 0.4,
     swingWindowColor = { r = 1, g = 1, b = 1, a = 0.35 },
     windowLatency = false,
@@ -88,6 +89,8 @@ local QUEUE_SPELLS = {
 
 -- Paladin seals by their first rank: every rank shares the seal's name, which is what is
 -- matched. Seal of Fury is Forever's own. Judgement uses the seal up.
+-- A seal lasts 30 seconds, 34 with the Seal Duration Increase item effect; a seal buff that can
+-- be read replaces this with its real length.
 local SEALS = {
     { id = 20154, key = "sealRighteousColor" },  -- Seal of Righteousness
     { id = 21082, key = "sealCrusaderColor" },   -- Seal of the Crusader
@@ -96,6 +99,7 @@ local SEALS = {
     { id = 20165, key = "sealLightColor" },      -- Seal of Light
     { id = 20166, key = "sealWisdomColor" },     -- Seal of Wisdom
     { id = 1311649, key = "sealFuryColor" },     -- Seal of Fury
+    { id = 407798, key = "sealMartyrdomColor" },  -- Seal of Martyrdom
 }
 local JUDGEMENT = 20271
 
@@ -118,6 +122,7 @@ local rows, byType = {}, {}
 local live = 0
 local queueSpells, queued = {}, false
 local sealByName, seal, judgementName = {}, false, nil
+local sealTimer, sealSeconds = nil, 30
 local isHunter, moving, latency, castEnd = false, false, 0, nil
 
 local function On()
@@ -451,11 +456,25 @@ local function QueuedSpell()
 end
 
 local function SetSeal(s)
+    if not s and sealTimer then
+        sealTimer:Cancel()
+        sealTimer = nil
+    end
     if s == seal then return end
     seal = s
     for i = 1, #rows do
         if rows[i].def.melee then PaintRow(rows[i]) end
     end
+end
+
+-- Nothing in combat says a seal has run out, so it is counted from the cast, or from its buff
+-- when that could be read.
+local function RunOutIn(seconds)
+    if sealTimer then sealTimer:Cancel() end
+    sealTimer = C_Timer.NewTimer(seconds, function()
+        sealTimer = nil
+        SetSeal(false)
+    end)
 end
 
 -- In combat the game keeps the player's auras from addons, so there the seal is the last one
@@ -469,6 +488,11 @@ local function ReadSeal()
         local s = Plain(aura.name) and sealByName[aura.name]
         if s then
             found = s
+            local ends, length = aura.expirationTime, aura.duration
+            if Plain(length) and type(length) == "number" and length > 0 then sealSeconds = length end
+            if Plain(ends) and type(ends) == "number" and ends > 0 then
+                RunOutIn(math.max(ends - GetTime(), 0))
+            end
             break
         end
     end
@@ -481,6 +505,7 @@ local function SealCast(spellID)
     if not Plain(name) or not name then return end
     if sealByName[name] then
         SetSeal(sealByName[name])
+        RunOutIn(sealSeconds)
     elseif name == judgementName then
         SetSeal(false)
     end
@@ -744,6 +769,10 @@ local function RegisterEvents()
         ReadCast()
     end
     seal = false
+    if sealTimer then
+        sealTimer:Cancel()
+        sealTimer = nil
+    end
     if S.Get("sealColors") and next(sealByName) then
         events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
         events:RegisterUnitEvent("UNIT_AURA", "player")
@@ -928,14 +957,14 @@ function ns.BuildSwingTimerPage(parent, y)
         _, h = W:Feature(parent, y,
             S.Toggle("sealColors", "Color by Seal",
                 "The melee bars take the color of the seal you have up. In combat that is the last "
-                .. "seal you cast until a Judgement uses it up, as the game keeps your buffs from "
-                .. "addons there; out of combat it is read from your buffs.", "enabled")
+                .. "seal you cast until a Judgement uses it up or it runs out, as the game keeps your "
+                .. "buffs from addons there; out of combat it is read from your buffs.", "enabled")
         ); y = y - h
         local seals = {
             { "sealRighteousColor", "Righteousness" }, { "sealCrusaderColor", "the Crusader" },
             { "sealCommandColor", "Command" }, { "sealJusticeColor", "Justice" },
             { "sealLightColor", "Light" }, { "sealWisdomColor", "Wisdom" },
-            { "sealFuryColor", "Fury" },
+            { "sealFuryColor", "Fury" }, { "sealMartyrdomColor", "Martyrdom" },
         }
         for i = 1, #seals, 2 do
             local left, right = seals[i], seals[i + 1]

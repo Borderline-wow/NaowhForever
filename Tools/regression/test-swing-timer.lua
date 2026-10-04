@@ -340,7 +340,7 @@ end)
 
 -- A paladin's seals: every rank of a seal shares its name.
 local SEAL_NAMES = { [20375] = "Seal of Command", [20915] = "Seal of Command", [20154] = "Seal of Righteousness",
-    [20271] = "Judgement" }
+    [20271] = "Judgement", [407798] = "Seal of Martyrdom" }
 
 local function BarColor(log)
     local c = log.bars[1].tex.color
@@ -379,6 +379,57 @@ Case("out of combat the buffs say which seal is up, unless they are kept secret"
     local _, hidden = Session({ enabled = true, sealColors = true },
         { class = "PALADIN", names = SEAL_NAMES, auras = auras, secretAuras = true })
     assert(BarColor(hidden) == "0.90 0.70 0.27", "not read while secret: " .. BarColor(hidden))
+end)
+
+Case("Seal of Martyrdom has a color of its own", function()
+    local _, log = Session({ enabled = true, sealColors = true }, { class = "PALADIN", names = SEAL_NAMES })
+    log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 407798)
+    assert(BarColor(log) == "0.90 0.40 0.70", "Martyrdom: " .. BarColor(log))
+end)
+
+Case("a seal that runs out in combat takes its color with it", function()
+    local _, log = Session({ enabled = true, sealColors = true }, { class = "PALADIN", names = SEAL_NAMES })
+    log.Fire("PLAYER_REGEN_DISABLED")
+    local cast = log.now
+    log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20375)
+    log.Advance(cast + 29)
+    assert(BarColor(log) == "0.75 0.35 0.95", "still up at 29s: " .. BarColor(log))
+    log.Advance(cast + 30.1)
+    assert(BarColor(log) == "0.90 0.70 0.27", "gone at 30s: " .. BarColor(log))
+end)
+
+Case("recasting a seal starts its count again, and a Judgement stops it", function()
+    local _, log = Session({ enabled = true, sealColors = true }, { class = "PALADIN", names = SEAL_NAMES })
+    log.Fire("PLAYER_REGEN_DISABLED")
+    local cast = log.now
+    log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20375)
+    log.now = cast + 20
+    log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20375)
+    log.Advance(cast + 40)
+    assert(BarColor(log) == "0.75 0.35 0.95", "recast at 20s, up at 40s: " .. BarColor(log))
+    log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20271)
+    log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20154)
+    log.Advance(cast + 50.5)
+    assert(BarColor(log) == "0.95 0.85 0.40", "the old count did not clear the new seal: " .. BarColor(log))
+end)
+
+Case("a seal buff that can be read sets how long seals last", function()
+    local auras = { { name = "Seal of Command", duration = 34 } }
+    local _, log = Session({ enabled = true, sealColors = true },
+        { class = "PALADIN", names = SEAL_NAMES, auras = auras })
+    auras[1].expirationTime = log.now + 10
+    log.Fire("UNIT_AURA", "player")
+    local read = log.now
+    log.Advance(read + 10.1)
+    assert(BarColor(log) == "0.90 0.70 0.27", "ran out when its buff said: " .. BarColor(log))
+    auras[1] = nil
+    log.Fire("PLAYER_REGEN_DISABLED")
+    local cast = log.now
+    log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20375)
+    log.Advance(cast + 32)
+    assert(BarColor(log) == "0.75 0.35 0.95", "34s learned from the buff: " .. BarColor(log))
+    log.Advance(cast + 34.1)
+    assert(BarColor(log) == "0.90 0.70 0.27", "gone at 34s: " .. BarColor(log))
 end)
 
 Case("seal colors on a warrior listen to nothing", function()
