@@ -75,7 +75,10 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
   boss loot and BiS lists`), its description lists the changes with each check's report folded
   away (`hooks/daily-pull-request.sh`, which keeps it up to date). A check that fails leaves out
   only its own change, and the run says so. A new BiS pick CI could not find a source for (it
-  may not read Wowhead) keeps the pull request a draft that says what to run on our machines. Where workflows may not open a pull request, an
+  may not read Wowhead) keeps the pull request a draft that says what to run on our machines.
+  A change CI cannot make at all (wowsrc lists items the game's tables don't have yet) goes in
+  one issue, "Daily data: changes that need a run on our machines", with what to run; the
+  first run with nothing stuck closes it. Where workflows may not open a pull request, an
   issue with a one-click link:
   - `watch`: `watch_build.py`. Only reads the game's tables through wago.tools. If there's a
     new build, the change moves our faction data to it, with a report of what changed (new

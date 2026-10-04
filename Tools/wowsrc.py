@@ -185,7 +185,9 @@ def read_all(fresh=False):
         d = loot[slug]
         count = sum(len(b["items"]) for b in d["bosses"])
         new = sum(i["new"] for b in d["bosses"] for i in b["items"])
-        print(f"{slug:32} {len(d['bosses']):3} bosses {count:4} items {new:3} new  {d['updated'] or ''}", file=sys.stderr)
+        # "new" is wowsrc's mark for an item new in WoW Forever, not new since the last read.
+        print(f"{slug:32} {len(d['bosses']):3} bosses {count:4} items {new:3} new in Forever  "
+              f"{d['updated'] or ''}", file=sys.stderr)
     return loot
 
 
