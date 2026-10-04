@@ -249,7 +249,7 @@ local function Apply()
         ticker:SetClampedToScreen(true)
         Look.New(ticker)
         ticker.mover = ns.UI.AttachMover(ticker, "XP per Hour", function(pos) S.Set("xpTickerPos", pos) end,
-            "QoL/Leveling & Travel", "QoL/Leveling & Travel:xpTicker")
+            "QoL/XP", "QoL/XP:xpTicker")
         -- Start, Pause and Reset under the ticker, shown while the mouse is over either.
         local controls = CreateFrame("Frame", nil, ticker)
         controls:SetSize(160, 20)
@@ -367,7 +367,7 @@ local function Summary(store)
     return "Rate and time to level"
 end
 
-ns.Shared.Settings.Page("QoL/Leveling & Travel", S):Card({
+ns.Shared.Settings.Page("QoL/XP", S):Card({
     id = "xpTicker", name = "XP per Hour", order = 20, switch = "xpTicker",
     help = "Your experience per hour on screen, with time to level, session length and recent level "
         .. "times. Hidden at max level. Hover it for Start, Pause and Reset (also /naowh xp start, pause "

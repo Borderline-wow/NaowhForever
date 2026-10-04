@@ -247,7 +247,7 @@ local function Apply()
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
         frame.mover = ns.UI.AttachMover(frame, "Group XP", function(pos) S.Set("groupXPPos", pos) end,
-            "QoL/Leveling & Travel", "QoL/Leveling & Travel:groupXP")
+            "QoL/XP", "QoL/XP:groupXP")
     end
     Place()
     frame.mover:SetShown(unlocked == true)
@@ -319,7 +319,7 @@ local function Summary(store)
     return ("%d wide%s"):format(store.Get("groupXPWidth"), store.Get("groupXPShowSelf") and ", with you" or "")
 end
 
-Settings.Page("QoL/Leveling & Travel", S):Card({
+Settings.Page("QoL/XP", S):Card({
     id = "groupXP", name = "Group XP", order = 30, switch = "groupXP",
     help = "A bar per group member with their level and how far through it they are. Every member running "
         .. "Naowh Forever shares their experience, even with this off; anyone else shows their level. "

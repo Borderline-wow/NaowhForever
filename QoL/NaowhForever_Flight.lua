@@ -315,7 +315,7 @@ local function Build()
         local scale = bar:GetScale()
         S.Set("flightTimerPos", { point = pos.point, relPoint = pos.relPoint,
             x = pos.x * scale, y = pos.y * scale })
-    end, "QoL/Leveling & Travel", "QoL/Leveling & Travel:flightTimer")
+    end, "QoL/Travel", "QoL/Travel:flightTimer")
     bar:Hide()
 end
 
@@ -452,8 +452,8 @@ local function Summary(store)
         store.Get("flightEarlyLanding") and ", Land Early button" or "")
 end
 
-Settings.Page("QoL/Leveling & Travel", S):Card({
-    id = "flightTimer", name = "Flight Timer", order = 40, switch = "flightTimer",
+Settings.Page("QoL/Travel", S):Card({
+    id = "flightTimer", name = "Flight Timer", order = 10, switch = "flightTimer",
     help = "The route you are flying as a line between its two ends, the stops on the way sliding past "
         .. "you, and the time left to landing. Move it in Unlock Mode.",
     summary = Summary,

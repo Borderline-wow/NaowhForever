@@ -114,21 +114,21 @@ local mutedChat = {}
 -- In reading order, which is also the order that keeps a text shown twice (OneEach).
 local SIDE_GAP = 6 -- between the bar and a text beside it
 local SLOTS = {
-    { key = "xpBarTopLeft", label = "Above Left", point = "BOTTOMLEFT", rel = "TOPLEFT", y = 4,
+    { key = "xpBarTopLeft", label = "Top Left", point = "BOTTOMLEFT", rel = "TOPLEFT", y = 4,
       justify = "LEFT" },
-    { key = "xpBarTop", label = "Above", point = "BOTTOM", rel = "TOP", y = 4,
+    { key = "xpBarTop", label = "Top", point = "BOTTOM", rel = "TOP", y = 4,
       justify = "CENTER" },
-    { key = "xpBarTopRight", label = "Above Right", point = "BOTTOMRIGHT", rel = "TOPRIGHT", y = 4,
+    { key = "xpBarTopRight", label = "Top Right", point = "BOTTOMRIGHT", rel = "TOPRIGHT", y = 4,
       justify = "RIGHT" },
-    { key = "xpBarLeft", label = "Beside Left", point = "RIGHT", rel = "LEFT", x = -SIDE_GAP, y = 0,
+    { key = "xpBarLeft", label = "Left", point = "RIGHT", rel = "LEFT", x = -SIDE_GAP, y = 0,
       justify = "RIGHT" },
-    { key = "xpBarRight", label = "Beside Right", point = "LEFT", rel = "RIGHT", x = SIDE_GAP, y = 0,
+    { key = "xpBarRight", label = "Right", point = "LEFT", rel = "RIGHT", x = SIDE_GAP, y = 0,
       justify = "LEFT" },
-    { key = "xpBarBottomLeft", label = "Below Left", point = "TOPLEFT", rel = "BOTTOMLEFT", y = -4,
+    { key = "xpBarBottomLeft", label = "Bottom Left", point = "TOPLEFT", rel = "BOTTOMLEFT", y = -4,
       justify = "LEFT" },
-    { key = "xpBarBottom", label = "Below", point = "TOP", rel = "BOTTOM", y = -4,
+    { key = "xpBarBottom", label = "Bottom", point = "TOP", rel = "BOTTOM", y = -4,
       justify = "CENTER" },
-    { key = "xpBarBottomRight", label = "Below Right", point = "TOPRIGHT", rel = "BOTTOMRIGHT",
+    { key = "xpBarBottomRight", label = "Bottom Right", point = "TOPRIGHT", rel = "BOTTOMRIGHT",
       y = -4, justify = "RIGHT" },
 }
 -- Where each spot sits in SLOTS.
@@ -138,9 +138,9 @@ local BESIDE = { LEFT, RIGHT }
 -- The three texts inside the bar, left to right.
 -- point is the bar edge (or centre) each one sits at, dir the way it is set in from that edge.
 local INSIDE = {
-    { key = "xpBarLeftText", label = "Bar Left", point = "LEFT", dir = 1, justify = "LEFT" },
-    { key = "xpBarCenterText", label = "Bar Centre", point = "CENTER", dir = 0, justify = "CENTER" },
-    { key = "xpBarRightText", label = "Bar Right", point = "RIGHT", dir = -1, justify = "RIGHT" },
+    { key = "xpBarLeftText", label = "Left Text", point = "LEFT", dir = 1, justify = "LEFT" },
+    { key = "xpBarCenterText", label = "Center Text", point = "CENTER", dir = 0, justify = "CENTER" },
+    { key = "xpBarRightText", label = "Right Text", point = "RIGHT", dir = -1, justify = "RIGHT" },
 }
 
 -- Choices that are one text written differently, by the text they show.
@@ -749,8 +749,8 @@ local function Create()
     end)
     Look.New(bar)
 
-    bar.mover = ns.UI.AttachMover(bar, "XP Bar", function(pos) S.Set("xpBarPos", pos) end, "QoL/Leveling & Travel",
-        "QoL/Leveling & Travel:xpBar")
+    bar.mover = ns.UI.AttachMover(bar, "XP Bar", function(pos) S.Set("xpBarPos", pos) end, "QoL/XP",
+        "QoL/XP:xpBar")
 end
 
 local function Apply()
@@ -806,11 +806,12 @@ local SLOT_TEXTS = {
 }
 
 local PREVIEW_PAD = 12         -- around the preview's contents
+local PREVIEW_NOTE_H = 16      -- the line that says the spots can be clicked
 local PREVIEW_SLOT_H = 18      -- a row of texts above or below the bar
 local PREVIEW_SLOT_GAP = 4     -- the live bar's slot.y
 local PREVIEW_BAR_MAX = 48     -- the Height slider's top, so the preview never changes height
 local PREVIEW_FALLBACK_W = 870 -- the options page's content width, before layout has run
-local PREVIEW_H = PREVIEW_PAD * 2 + (PREVIEW_SLOT_H + PREVIEW_SLOT_GAP) * 2 + PREVIEW_BAR_MAX
+local PREVIEW_H = PREVIEW_PAD * 2 + PREVIEW_NOTE_H + (PREVIEW_SLOT_H + PREVIEW_SLOT_GAP) * 2 + PREVIEW_BAR_MAX
 
 local SAMPLE_LEVEL, SAMPLE_MAX, SAMPLE_XP = 24, 23200, 9512
 local SAMPLE_DONE, SAMPLE_OPEN, SAMPLE_RESTED = 2784, 1856, 3596
@@ -842,12 +843,126 @@ local function PreviewSlotText(which, rested)
     return ""
 end
 
+local PREVIEW_HOVER_ALPHA = 0.15
+local ZONE_PAD = 4             -- a clickable spot reaches this far past its text
+local SLOT_HINT = "|n|nCompleted Quests (both), Rested Experience, Time to Level and XP per Hour are "
+    .. "hidden at max level."
+
+-- Blizzard's menu, anchored under the spot, as the settings dropdowns open it.
+local function OpenChoices(zone)
+    if zone._menu and zone._menu:IsShown() then
+        zone._menu:Close()
+        zone._menu = nil
+        return
+    end
+    if not (MenuUtil and MenuUtil.CreateRootMenuDescription and MenuVariants
+        and Menu and Menu.GetManager and AnchorUtil) then return end
+    local desc = MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultMenuMixin())
+    if not desc then return end
+    if desc.CreateTitle then desc:CreateTitle(zone._label) end
+    -- Where each text sits now, so picking one that is shown elsewhere says it will move.
+    local shownAt = {}
+    for _, spot in ipairs(zone._spots) do
+        if spot.key ~= zone._key then shownAt[TextOf(S.Get(spot.key) or "none")] = spot.label end
+    end
+    local muted = ns.Color("muted")
+    for _, k in ipairs(zone._choices.order) do
+        local key = k
+        local name = zone._choices.values[key]
+        local at = key ~= "none" and shownAt[TextOf(key)]
+        if at then name = name .. " " .. muted .. "(on " .. at .. ")|r" end
+        desc:CreateRadio(name,
+            function() return S.Get(zone._key) == key end,
+            function()
+                Claim(zone._spots, zone._key, key)
+                S.Set(zone._key, key)
+            end)
+    end
+    zone._menu = Menu.GetManager():OpenMenu(zone, desc,
+        AnchorUtil.CreateAnchor("TOPLEFT", zone, "BOTTOMLEFT", 0, -2))
+end
+
+local function ChoiceName(zone)
+    return zone._choices.values[S.Get(zone._key)] or zone._choices.values.none
+end
+
+-- A clickable spot over one of the preview's texts. spot is one entry of spots (INSIDE or
+-- SLOTS), the group whose texts it shares. It sits under the text, so its hover tints behind it.
+local function NewZone(parent, fs, spot, spots, choices, hint)
+    local zone = CreateFrame("Button", nil, parent)
+    zone._fs, zone._label, zone._key, zone._spots, zone._choices = fs, spot.label, spot.key, spots, choices
+    zone._hint = hint or ""
+    zone.hover = ns.Solid(zone, "BACKGROUND", T.accent, PREVIEW_HOVER_ALPHA)
+    zone.hover:SetAllPoints()
+    zone.hover:Hide()
+    zone.border = ns.Border(zone, T.accent)
+    zone.border._frame:Hide()
+    -- Answering this keeps the menu manager from closing the menu before OnMouseDown toggles it.
+    zone.HandlesGlobalMouseEvent = function(_, button, event)
+        return event == "GLOBAL_MOUSE_DOWN" and button == "LeftButton"
+    end
+    zone:SetScript("OnMouseDown", OpenChoices)
+    zone:SetScript("OnEnter", function(self)
+        self.hover:Show()
+        self.border._frame:Show()
+        ns.UI.ShowWidgetTooltip(self, self._label .. ": " .. ChoiceName(self) .. "|nClick to change."
+            .. self._hint, { anchor = "cursor", justify = "LEFT" })
+    end)
+    zone:SetScript("OnLeave", function(self)
+        self.hover:Hide()
+        self.border._frame:Hide()
+        ns.UI.HideWidgetTooltip()
+    end)
+    zone:SetScript("OnHide", function(self)
+        if self._menu then self._menu:Close(); self._menu = nil end
+    end)
+    return zone
+end
+
+-- As wide as what the spot shows, on the side its text is set to, so spots in a row never
+-- cover each other.
+local function HugText(zone, h)
+    local fs = zone._fs
+    local w = math.min(Natural(fs), fs:GetWidth()) + ZONE_PAD * 2
+    local justify = fs:GetJustifyH()
+    local point = justify == "LEFT" and "LEFT" or justify == "RIGHT" and "RIGHT" or "CENTER"
+    local dx = point == "LEFT" and -ZONE_PAD or point == "RIGHT" and ZONE_PAD or 0
+    zone:ClearAllPoints()
+    zone:SetPoint(point, fs, point, dx, 0)
+    zone:SetSize(w, h)
+end
+
 local function NewPreview(stage)
     local preview = CreateFrame("Frame", nil, stage)
     preview:SetAllPoints()
-    preview.bar = CreateFrame("Frame", nil, preview)
-    Look.New(preview.bar)
+    preview.note = ns.Font(preview, 12, nil, T.muted)
+    preview.note:SetPoint("TOPLEFT", PREVIEW_PAD, -PREVIEW_PAD)
+    preview.note:SetText("Click a text on the bar, or a spot around it, to change what it shows.")
+    local b = CreateFrame("Frame", nil, preview)
+    preview.bar = b
+    -- Above the spots around it, whose texts it draws.
+    b:SetFrameLevel(preview:GetFrameLevel() + 2)
+    Look.New(b)
+    preview.inside, preview.slots = {}, {}
+    for i, spot in ipairs(INSIDE) do
+        local zone = NewZone(b, b.inside[i], spot, INSIDE, BAR_TEXTS)
+        -- Over the fill, under the bar's border and texts.
+        zone:SetFrameLevel(b:GetFrameLevel() + 3)
+        preview.inside[i] = zone
+    end
+    for i, slot in ipairs(SLOTS) do
+        local zone = NewZone(preview, b.slots[i], slot, SLOTS, SLOT_TEXTS, SLOT_HINT)
+        zone:SetFrameLevel(preview:GetFrameLevel() + 1)
+        preview.slots[i] = zone
+    end
     return preview
+end
+
+-- An empty spot shows its name, so there is something to click.
+local function Placeholder(fs, spot)
+    if S.Get(spot.key) == "none" or not S.Get(spot.key) then
+        fs:SetText(ns.Color("muted") .. "+ " .. spot.label .. "|r")
+    end
 end
 
 local function PaintPreview(preview, state)
@@ -856,6 +971,7 @@ local function PaintPreview(preview, state)
     local rested = state == "rested" and SAMPLE_RESTED or 0
     for i, slot in ipairs(SLOTS) do
         b.slots[i]:SetText(PreviewSlotText(S.Get(slot.key), rested))
+        Placeholder(b.slots[i], slot)
     end
     local beside = 0
     for _, i in ipairs(BESIDE) do
@@ -870,11 +986,15 @@ local function PaintPreview(preview, state)
     PaintBar(b)
     Look.Size(b, w, h)
     b:ClearAllPoints()
-    b:SetPoint("TOP", preview, "TOP", 0, -(PREVIEW_PAD + PREVIEW_SLOT_H + PREVIEW_SLOT_GAP + (PREVIEW_BAR_MAX - h) / 2))
+    b:SetPoint("TOP", preview, "TOP", 0, -(PREVIEW_PAD + PREVIEW_NOTE_H + PREVIEW_SLOT_H + PREVIEW_SLOT_GAP
+        + (PREVIEW_BAR_MAX - h) / 2))
     local pct = SAMPLE_XP / SAMPLE_MAX * 100
     Look.Segments(b, w, pct, SAMPLE_DONE, SAMPLE_OPEN, rested, SAMPLE_MAX, false)
     Look.Texts(b, SAMPLE_LEVEL, SAMPLE_XP, SAMPLE_MAX, false, pct, rested)
+    for i, spot in ipairs(INSIDE) do Placeholder(b.inside[i], spot) end
     Look.Fit(b, w, h)
+    for _, zone in ipairs(preview.inside) do HugText(zone, h) end
+    for _, zone in ipairs(preview.slots) do HugText(zone, PREVIEW_SLOT_H) end
 end
 
 -- Width, height and which text is in each spot back to their defaults. Where the bar sits,
@@ -893,10 +1013,10 @@ end
 
 local Group = ns.Shared.Settings.Group
 local SAME_COLOUR = 1 / 255
-local BAR_TEXT_HELP = "A text on the bar. Each text shows in one place on the bar: picking one shown "
-    .. "elsewhere moves it here."
-local SLOT_TEXT_HELP = "A text around the bar. Each text shows in one place around it: picking one "
-    .. "shown elsewhere moves it here. Completed Quests (both), Rested Experience, Time to Level and "
+local BAR_TEXT_HELP = "A text on the bar: click it on the preview to change it. Each text shows in one "
+    .. "place on the bar: picking one shown elsewhere moves it there."
+local SLOT_TEXT_HELP = "A text around the bar: click it on the preview to change it. Each text shows in "
+    .. "one place around it: picking one shown elsewhere moves it there. Completed Quests (both), Rested Experience, Time to Level and "
     .. "XP per Hour are hidden at max level."
 
 local function SetColour(key, r, g, b)
@@ -917,9 +1037,16 @@ local function ColourRow(key, label, help)
         set = function(r, g, b) SetColour(key, r, g, b) end }
 end
 
+-- The texts are picked on the preview, so their rows are not drawn; they are still declared
+-- for the search, the changed count and the card's Reset.
+local function Hidden(row)
+    row.hidden = true
+    return row
+end
+
 local function TextRow(spot, spots, choices, help)
     local key = spot.key
-    return { key = key, label = spot.label, choice = choices, help = help,
+    return { key = key, label = spot.label, choice = choices, help = help, hidden = true,
         get = function() return S.Get(key) end,
         set = function(which)
             Claim(spots, key, which)
@@ -950,10 +1077,10 @@ local ROWS = {
     ColourRow("xpBarBgColor", "Background Colour", "Behind the fill."),
     { label = "Reset Colours", buttonText = "Reset Colours", button = ns.ResetXPBarColors,
       help = "The four colours back to their defaults, which follow the theme." },
-    Group("Text"),
+    Hidden(Group("Text")),
 }
 for _, spot in ipairs(INSIDE) do ROWS[#ROWS + 1] = TextRow(spot, INSIDE, BAR_TEXTS, BAR_TEXT_HELP) end
-ROWS[#ROWS + 1] = Group("Around the Bar")
+ROWS[#ROWS + 1] = Hidden(Group("Around the Bar"))
 for _, slot in ipairs(SLOTS) do ROWS[#ROWS + 1] = TextRow(slot, SLOTS, SLOT_TEXTS, SLOT_TEXT_HELP) end
 
 local function Summary(store)
@@ -961,7 +1088,7 @@ local function Summary(store)
         store.Get("xpBarMaxLevel") and ", shown at max level" or "")
 end
 
-ns.Shared.Settings.Page("QoL/Leveling & Travel", S):Card({
+ns.Shared.Settings.Page("QoL/XP", S):Card({
     id = "xpBar", name = "XP Bar", order = 10, switch = "xpBar",
     help = "Your level, experience and percentage on one bar, with the XP of completed quests and rested "
         .. "experience drawn past the fill. Replaces Blizzard's experience bar while it is on. Move it in "

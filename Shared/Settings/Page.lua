@@ -492,7 +492,11 @@ function Draw:Settings(card)
     local w = self:GetWidth()
     local columns = w >= TWO_COLUMNS_W and 2 or 1
     local half = math.floor(w / 2)
-    local rows = Settings.Rows(card)
+    -- A hidden row is set on the card's preview instead; it is still searched, counted and reset.
+    local rows = {}
+    for _, row in ipairs(Settings.Rows(card)) do
+        if not row.hidden then rows[#rows + 1] = row end
+    end
     local i = 1
     while i <= #rows do
         local row = rows[i]

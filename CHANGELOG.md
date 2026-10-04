@@ -2,8 +2,12 @@
 
 ## Unreleased
 
-### Fixed
-- Opening the Training Planner from /nf no longer raises a Lua error.
+### Changed
+- QoL's Leveling & Travel tab is two again: XP (XP Bar, XP per Hour, Group XP) and Travel
+  (Flight Timer, Quiz).
+- XP Bar: click a text on the preview, or an empty spot around the bar, to pick what it shows,
+  as before the settings rebuild. The eleven text dropdowns under it are gone; search still
+  finds each spot and opens the card.
 
 ## 0.5.19-beta
 

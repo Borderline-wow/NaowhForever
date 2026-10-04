@@ -55,8 +55,9 @@ local MODULES = {
           { name = "Cursor", reuse = true },
           { name = "Combat", reuse = true },
           { name = "Questing & Group", reuse = true },
+          { name = "XP", reuse = true },
           { name = "Loot & Items", reuse = true },
-          { name = "Leveling & Travel", reuse = true },
+          { name = "Travel", reuse = true },
           { name = "System", reuse = true },
       } },
     -- The journal itself is a window of its own (open); only its settings live here.

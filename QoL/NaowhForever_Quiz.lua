@@ -217,8 +217,8 @@ local function Summary(store)
     return "Only when you open it"
 end
 
-ns.Shared.Settings.Page("QoL/Leveling & Travel", S):Card({
-    id = "quiz", name = "Quiz", order = 50,
+ns.Shared.Settings.Page("QoL/Travel", S):Card({
+    id = "quiz", name = "Quiz", order = 20,
     help = "A WoW quiz to pass the time on a flight or at a campfire. /naowh quiz opens it any time.",
     summary = Summary,
     rows = {
