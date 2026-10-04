@@ -184,7 +184,6 @@ local ns = {
     ShowCopyBox = function(_, text) account.lastCopy = text end,
     StashOptionsWindow = NOTHING, OpenOptionsWindow = NOTHING, Apply = NOTHING,
     DB = function() return { utilityReminders = { classMacros = packMacros } } end,
-    ShowPackImport = function() account.packImport = true end,
     HEALTHSTONES = { 5509 }, HEALING_POTIONS = { 13446 },
 }
 local lastPrompt
@@ -281,12 +280,12 @@ check("dragging a row picks the macro up", picked == MAX_ACCOUNT + 1)
 -- Edit and rename: the game re-sorts, the editor follows it.
 window.name:SetText("Asheep")
 window.code:SetText("#showtooltip Polymorph\n/stopcasting\n/cast [@focus,harm][] Polymorph")
--- The editor's buttons, in the order they are made: Save, Shorten, Export, Revert, Delete.
+-- The editor's buttons, in the order they are made: Save, Shorten, Export, Revert, To Library, Delete.
 local editorButtons = {}
 for _, f in ipairs(frames) do
     if rawget(f, "_onClick") and f.parent == window.editor then editorButtons[#editorButtons + 1] = f end
 end
-check("the editor has Save, Shorten, Export, Revert and Delete", #editorButtons == 5)
+check("the editor has Save, Shorten, Export, Revert, To Library and Delete", #editorButtons == 6)
 Click(editorButtons[1])
 check("saving edits the game's macro", store.character[1].name == "Asheep"
     and store.character[1].body:find("/stopcasting", 1, true))
@@ -314,7 +313,7 @@ window.name:SetText("Mount")
 window.code:SetText("#showtooltip\n/use Swift Brown Steed")
 Click(editorButtons[1])
 check("Create makes an account macro", #store.account == 2 and store.account[2].name == "Mount")
-Click(editorButtons[5])
+Click(editorButtons[6])
 check("Delete removes it from the game", #store.account == 1)
 
 -- Problems show on the right line.
@@ -337,20 +336,19 @@ Click(health.toggle)
 check("its switch turns the macro on", settings.health == true)
 
 window.switch.onPick("lib")
-check("the Library starts empty, with Import", window.lib.empty:IsShown() and window.lib.importEmpty:IsShown())
+check("the Library starts empty, with nothing but the class name", not window.lib.lead:IsShown()
+    and #Shown(function(f) return rawget(f, "open") ~= nil and rawget(f, "add") ~= nil end) == 0)
 packMacros.MAGE = { { name = "Naowh Sheep", body = "#showtooltip Polymorph\n/cast Polymorph", note = "Naowh's" } }
 window.switch.onPick("mine")
 window.switch.onPick("lib")
 local libCards = Shown(function(f) return rawget(f, "open") ~= nil and rawget(f, "add") ~= nil end)
-check("the pack's macros fill it", #libCards == 1 and not window.lib.empty:IsShown())
+check("the pack's macros fill it", #libCards == 1 and window.lib.lead:IsShown())
 Click(libCards[1].add)
 check("Add makes a character macro", store.character[2] and store.character[2].name == "Naowh Sheep")
 
 -------------------------------------------------------------------------------
 --  Import
 -------------------------------------------------------------------------------
-Click(window.lib.importEmpty)
-check("the Library's button opens the profile pack import", account.packImport == true)
 Click(importButton)
 lastPrompt(account.lastCopy)
 check("a macro whose name you already have is not imported again", #store.character == 2
@@ -381,7 +379,7 @@ Click(editorButtons[1])
 check("Save follows the open macro to its new slot", store.account[1].body == "/cast Abc"
     and store.account[2].name == "Zed" and store.account[2].body == "/cast Zed 2")
 macroAPI.CreateMacro("Aaa", 134400, "/cast Aaa", false)
-Click(editorButtons[5])
+Click(editorButtons[6])
 check("Delete removes the open macro, not whatever moved into its slot", #store.account == 2
     and store.account[1].name == "Aaa" and store.account[2].name == "Abc")
 
@@ -483,7 +481,7 @@ packMacros.MAGE = {}
 window.switch.onPick("lib")
 packMacros.MAGE = { { name = "Iconic", body = "/cast Blink", icon = 135736 } }
 for _, fn in ipairs(applyHooks) do fn() end
-check("a pack import fills the open Library", LibCard("Iconic") ~= nil and not window.lib.empty:IsShown())
+check("a pack import fills the open Library", LibCard("Iconic") ~= nil and window.lib.lead:IsShown())
 
 -- Pack macros keep the pack's icon.
 store.character = {}
@@ -565,5 +563,58 @@ window.code.cursor = nil
 window.code:Insert("\n/stopcasting")
 check("text put in is coloured too", window.code:GetText():find("|cff6cc4ff/stopcasting|r", 1, true) ~= nil
     and ns.MacroText.Strip(window.code:GetText()):find("Polymorph\n/stopcasting$") ~= nil)
+
+-------------------------------------------------------------------------------
+--  Your own Library
+-------------------------------------------------------------------------------
+store.account, store.character = {}, {}
+packMacros.MAGE = { { name = "Pack One", body = "/cast Arcane Missiles" } }
+Click(newButton)
+window.name:SetText("My Blink")
+window.code:SetText("/cast Blink")
+Click(editorButtons[5])
+check("To Library keeps a copy under your class, not a game macro", account.libraryMacros.MAGE[1].name == "My Blink"
+    and account.libraryMacros.MAGE[1].body == "/cast Blink" and #store.character == 0)
+window.code:SetText("/cast [@cursor] Blink")
+Click(editorButtons[5])
+check("saving it again replaces it", #account.libraryMacros.MAGE == 1
+    and account.libraryMacros.MAGE[1].body == "/cast [@cursor] Blink" and printed[#printed]:find("Updated", 1, true))
+window.name:SetText("")
+Click(editorButtons[5])
+check("a macro with no name is turned away", #account.libraryMacros.MAGE == 1)
+
+window.switch.onPick("lib")
+local mine, packed = LibCard("My Blink"), LibCard("Pack One")
+check("yours shows in the Library beside the pack's", mine and mine.tag.text == "YOURS" and mine.remove:IsShown()
+    and packed and packed.tag.text:find("NAOWH", 1, true) and not packed.remove:IsShown())
+Click(mine.open)
+check("Open in Editor brings it to the editor", window.name:GetText() == "My Blink"
+    and window.editor.where:GetText():find("From your Library", 1, true))
+
+account.libraryMacros.MAGE[2] = { name = "My Script", body = "/run print(1)" }
+account.lastConfirm = nil
+window.switch.onPick("lib")
+Click(LibCard("My Script").add)
+check("your own script is added without a warning", account.lastConfirm == nil
+    and store.character[1] and store.character[1].name == "My Script")
+
+window.switch.onPick("lib")
+Click(LibCard("My Blink").remove)
+window.switch.onPick("lib")
+check("Remove takes it out of the Library", #account.libraryMacros.MAGE == 1 and LibCard("My Blink") == nil
+    and LibCard("My Script") ~= nil)
+
+-- A pack script copied to the Library keeps the pack's warning.
+store.character = {}
+packMacros.MAGE = { { name = "Pack Run", body = "/run print(2)" } }
+window.switch.onPick("lib")
+Click(LibCard("Pack Run").open)
+Click(editorButtons[5])
+check("a pack macro's copy is marked as from the pack", account.libraryMacros.MAGE[2].pack == true)
+account.lastConfirm = nil
+packMacros.MAGE = {}
+window.switch.onPick("lib")
+Click(LibCard("Pack Run").add)
+check("and its script still asks first", (account.lastConfirm or ""):find("runs a script from a shared pack", 1, true))
 
 print(("test-macro-window: %d checks passed"):format(checks))
