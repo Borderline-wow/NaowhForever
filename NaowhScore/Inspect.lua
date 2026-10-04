@@ -52,12 +52,13 @@ end
 -------------------------------------------------------------------------------
 --  What is kept
 -------------------------------------------------------------------------------
--- The oldest kept score goes when there are too many.
+-- The oldest kept score goes to make room when the list is full.
 local function Prune()
-    if keptCount <= MAX_KEPT then return end
+    if keptCount < MAX_KEPT then return end
     local oldestGUID, oldestAt
     for guid, entry in pairs(kept) do
-        if not oldestAt or entry.at < oldestAt then oldestGUID, oldestAt = guid, entry.at end
+        local at = entry.at or 0
+        if not oldestAt or at < oldestAt then oldestGUID, oldestAt = guid, at end
     end
     kept[oldestGUID] = nil
     keptCount = keptCount - 1
@@ -66,10 +67,10 @@ end
 local function Entry(guid)
     local entry = kept[guid]
     if not entry then
-        entry = {}
+        Prune()
+        entry = { at = GetTime() }
         kept[guid] = entry
         keptCount = keptCount + 1
-        Prune()
     end
     return entry
 end

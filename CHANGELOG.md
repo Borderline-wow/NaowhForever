@@ -41,6 +41,9 @@
   it (filled once passed) and the next stop and its time under it. Land Early is now a Land
   button beside Games.
 
+### Fixed
+- Naowh Score: no more Lua error after seeing more than 300 players, like in a busy city.
+
 ## 0.5.19-beta
 
 ### Added

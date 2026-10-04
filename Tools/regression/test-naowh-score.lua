@@ -451,4 +451,20 @@ do
     state.values.naowhScoreCompare = "max"
 end
 
+-------------------------------------------------------------------------------
+--  A full list: the oldest goes to make room
+-------------------------------------------------------------------------------
+do
+    local ns, state = Fixture()
+    local Score = ns.NaowhScore
+    for i = 1, 300 do
+        state.now = state.now + 1
+        Score.Remember("Player-2-" .. i, i, true, false, 60)
+    end
+    state.now = state.now + 1
+    local ok = pcall(Score.Remember, "Player-2-301", 301, true, false, 60)
+    check("a 301st player is kept without an error", ok and Score.Known("Player-2-301") ~= nil)
+    check("the oldest went to make room", Score.Known("Player-2-1") == nil and Score.Known("Player-2-2") ~= nil)
+end
+
 print(("test-naowh-score: %d checks passed"):format(checks))
