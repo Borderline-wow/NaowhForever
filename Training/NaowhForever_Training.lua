@@ -300,6 +300,55 @@ function Training.Coins(copper)
 end
 
 -------------------------------------------------------------------------------
+--  The nearest class trainer, from the town map's data
+-------------------------------------------------------------------------------
+local function WorldPos(map, x, y)
+    local ok, cont, pos = pcall(C_Map.GetWorldPosFromMapPos, map, CreateVector2D(x, y))
+    if ok and cont and pos then return cont, pos end
+end
+
+-- Your class's trainer for your faction nearest you on your continent. With none there, or no
+-- position to go by (in an instance), one in your faction's capital, then in a shared one.
+function Training.NearestTrainer()
+    local _, class = UnitClass("player")
+    local side = UnitFactionGroup("player") == "Horde" and "H" or "A"
+    local map = C_Map.GetBestMapForUnit("player")
+    local here = map and C_Map.GetPlayerMapPosition(map, "player")
+    local cont, pos
+    if here then cont, pos = WorldPos(map, here:GetXY()) end
+    local best, bestMap, bestTier, bestDist
+    for npcMap, npcs in pairs(ns.TownNPCs) do
+        for _, npc in ipairs(npcs) do
+            if npc[3] == "class" and npc[6] == class and npc[7]:find(side, 1, true) then
+                local tier, dist = 3, 0
+                local c, p = WorldPos(npcMap, npc[1] / 100, npc[2] / 100)
+                if cont and c == cont then
+                    local x1, y1 = pos:GetXY()
+                    local x2, y2 = p:GetXY()
+                    tier, dist = 0, (x1 - x2) ^ 2 + (y1 - y2) ^ 2
+                elseif ns.TownCapitals[npcMap] then
+                    tier = npc[7] == side and 1 or 2
+                end
+                if not best or tier < bestTier or tier == bestTier
+                    and (dist < bestDist or dist == bestDist and npc[4] < best[4]) then
+                    best, bestMap, bestTier, bestDist = npc, npcMap, tier, dist
+                end
+            end
+        end
+    end
+    return best, bestMap
+end
+
+function Training.WaypointToTrainer()
+    local npc, map = Training.NearestTrainer()
+    if not npc then
+        ns.Print("No trainer for your class is known for your faction.")
+        return
+    end
+    ns.PlaceWaypoint(npc[4], map, npc[1], npc[2], " (" .. npc[5] .. ")")
+end
+
+-------------------------------------------------------------------------------
 --  Talent builds: Naowh's, then the ones saved or imported, kept account-wide
 -------------------------------------------------------------------------------
 local BUILD_PREFIX = "!NFB1!"
@@ -755,7 +804,8 @@ page:Card({
         { key = "levelUpToast", label = "Level-Up Toast", toggle = true, needs = On,
           why = PLANNER_OFF,
           help = "When you level up with new spells to train, a toast says how many and what they cost, with "
-              .. "a button to open the planner. Move it in Unlock Mode." },
+              .. "buttons to open the planner and to put a waypoint on your nearest trainer. Move it in "
+              .. "Unlock Mode." },
         { key = "trainerPanel", label = "Panel at the Trainer", toggle = true,
           needs = On, why = PLANNER_OFF,
           help = "Beside your class trainer, the spells you can learn now, ticked, with their total and Learn "

@@ -8,6 +8,10 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 
+-- The capital cities' maps. The game reports them as zones, so this is the only way to tell.
+ns.TownCapitals = { [1453] = true, [1454] = true, [1455] = true, [1456] = true, [1457] = true, [1458] = true,
+    [2482] = true, [2521] = true }
+
 ns.TownNPCs = {
     [1411] = {
         { 42.9, 69.4, "class", "Frang", "Warrior Trainer", "WARRIOR", "H" },

@@ -1289,6 +1289,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.LockoutsCommand()
     elseif cmd == "ranks" and ns.TrainerRankCheck then
         ns.TrainerRankCheck()
+    elseif cmd == "trainer" and ns.Training then
+        ns.Training.WaypointToTrainer()
     elseif cmd == "profrank" and ns.ProfessionRankCheck then
         ns.ProfessionRankCheck()
     elseif cmd == "recipes" and ns.RecipeFinderDebug then

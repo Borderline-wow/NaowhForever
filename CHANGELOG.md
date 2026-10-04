@@ -16,6 +16,9 @@
   starts; it closes when you land or enter combat. Move it in Unlock Mode.
 - Flight Games (QoL > Travel, under the Flight Timer): one choice of what opens by itself when a
   flight starts, Nothing, the Quiz or the Aim Trainer (the default).
+- Training Planner: a waypoint to your nearest class trainer, from Waypoint to nearest trainer at
+  the top of the planner, the Waypoint button on the level-up toast, or /nf trainer. With TomTom
+  loaded, it uses TomTom's arrow.
 
 ### Changed
 - QoL has a Character tab: Character Panel, Slot Marks and Naowh Score moved there from the BiS

@@ -1,10 +1,10 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_TrainingTrainer.lua -- the Training Planner on the way to the trainer and at
 --  it. Level-Up Toast: on a level-up with spells to train, a toast says how many, what they
---  cost and whether you can afford them, with a button to open the planner. Panel at the
---  Trainer: beside your class trainer's window, what it offers you now, ticked, with the
---  total and Learn All I Can Afford; after learning, a button to put the new ranks on your
---  bars (the Trainer popup's rank check).
+--  cost and whether you can afford them, with buttons to open the planner and to put a
+--  waypoint on your nearest class trainer. Panel at the Trainer: beside your class trainer's
+--  window, what it offers you now, ticked, with the total and Learn All I Can Afford; after
+--  learning, a button to put the new ranks on your bars (the Trainer popup's rank check).
 --
 --  Both register nothing while their switch, or the module, is off.
 -------------------------------------------------------------------------------
@@ -85,6 +85,7 @@ local function BuildToast()
         toast:Hide()
         ns.OpenTrainingWindow()
     end))
+    toast.waypoint = ns.Button(toast, "Waypoint", 100, 28, function() Training.WaypointToTrainer() end)
     toast.dismiss = ns.Button(toast, "Dismiss", 90, 28, function() toast:Hide() end)
     toast.mover = UI.AttachMover(toast, "Level-Up Toast", function(pos) S.Set("toastPos", pos) end, "Training Planner/Settings", "Training Planner/Settings:onTheWay")
     PlaceToast()
@@ -118,8 +119,10 @@ local function FillToast(level, plan)
     y = y - TOAST_ICON - 14
     toast.open:ClearAllPoints()
     toast.open:SetPoint("TOPLEFT", TOAST_PAD, y)
+    toast.waypoint:ClearAllPoints()
+    toast.waypoint:SetPoint("LEFT", toast.open, "RIGHT", 8, 0)
     toast.dismiss:ClearAllPoints()
-    toast.dismiss:SetPoint("LEFT", toast.open, "RIGHT", 8, 0)
+    toast.dismiss:SetPoint("LEFT", toast.waypoint, "RIGHT", 8, 0)
     toast:SetHeight(-y + 28 + TOAST_PAD)
 end
 
