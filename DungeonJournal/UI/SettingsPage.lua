@@ -16,14 +16,8 @@ local Kills = J.Kills
 local Looted = J.Looted
 
 local St = J.Style
-local BORDER_RGB, CARD_FILL, OPACITY_MIN, LOGO = St.BORDER_RGB, St.WINDOW_CARD_FILL, St.OPACITY_MIN, St.LOGO
+local BORDER_RGB, OPACITY_MIN = St.BORDER_RGB, St.OPACITY_MIN
 local SKULL, KILL_DATE = St.SKULL, St.KILL_DATE
-
-local CARD_H = 76
-local CARD_PAD = 16
-local ICON = 52
-local BUTTON_W, BUTTON_H = 190, 30
-local LINE_GAP = 6
 
 local RECENT_ROWS = 5      -- the most kills, and items, listed
 local RECENT_ROW = 26      -- one of them
@@ -39,11 +33,6 @@ local RESET_W, RESET_H = 64, 20   -- a column's Reset button, at its top right
 local RESET_TOP = 6
 
 -- The Journal opens in place of the options window, which would otherwise sit over it.
-local function OpenJournal()
-    ns.StashOptionsWindow()
-    ns.OpenJournalWindow()
-end
-
 local function OpenAt(dungeon)
     ns.StashOptionsWindow()
     ns.OpenJournalWindow(dungeon)
@@ -82,53 +71,10 @@ local function QuestLine(dungeon)
     return "Your quests there: " .. table.concat(parts, ", ") .. "."
 end
 
-local function MakeCard(parent)
-    local card = CreateFrame("Frame", nil, parent)
-    card:SetHeight(CARD_H)
-    ns.Solid(card, "BACKGROUND", T.fg, CARD_FILL):SetAllPoints()
-    ns.Border(card, BORDER_RGB)
-    card.icon = card:CreateTexture(nil, "ARTWORK")
-    card.icon:SetSize(ICON, ICON)
-    card.icon:SetPoint("LEFT", CARD_PAD, 0)
-    card.icon:SetTexture(LOGO, nil, nil, "TRILINEAR")
-    card.open = ns.AccentBorder(ns.Button(card, "Open Dungeon Journal", BUTTON_W, BUTTON_H, OpenJournal))
-    card.open:SetPoint("RIGHT", -CARD_PAD, 0)
-    card.headline = ns.Font(card, 15, nil, T.fg)
-    card.detail = ns.Font(card, 12, nil, T.muted)
-    for _, line in ipairs({ card.headline, card.detail }) do
-        line:SetJustifyH("LEFT")
-        line:SetWordWrap(false)
-        line:SetPoint("RIGHT", card.open, "LEFT", -CARD_PAD, 0)
-    end
-    return card
-end
-
--- Lays the card's lines out: one, or two with your quests, as a block centred beside the
--- logo.
-local function FillCard(card)
-    local dungeon, inside = ForYou()
-    local quests = QuestLine(dungeon)
-    card.headline:SetText(Headline(dungeon, inside))
-    card.detail:SetText(quests or "")
-    card.detail:SetShown(quests ~= nil)
-    local height = quests and 15 + LINE_GAP + 12 or 15
-    card.headline:ClearAllPoints()
-    card.headline:SetPoint("TOPLEFT", card.icon, "RIGHT", CARD_PAD, height / 2)
-    card.headline:SetPoint("RIGHT", card.open, "LEFT", -CARD_PAD, 0)
-    card.detail:ClearAllPoints()
-    card.detail:SetPoint("TOPLEFT", card.headline, "BOTTOMLEFT", 0, -LINE_GAP)
-    card.detail:SetPoint("RIGHT", card.open, "LEFT", -CARD_PAD, 0)
-end
-
 local function Card(parent, y)
-    local UI = ns.UI
-    -- The settings search builds no frames: it only needs the rows below.
-    if UI.searchScan then return y - CARD_H - CARD_PAD end
-    local card = UI.Keep(parent, "journalCard", MakeCard)
-    card:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, y - CARD_PAD)
-    card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, y - CARD_PAD)
-    FillCard(card)
-    return y - CARD_H - CARD_PAD
+    local dungeon, inside = ForYou()
+    return J.View.Parts.SettingsCard(parent, y, "journalCard", "Open Dungeon Journal", ns.OpenJournalWindow,
+        Headline(dungeon, inside), QuestLine(dungeon))
 end
 
 -------------------------------------------------------------------------------

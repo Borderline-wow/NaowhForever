@@ -69,7 +69,7 @@ function Parts.Window(width, height, positionKey)
     local rule = ns.Solid(window, "ARTWORK", BORDER_RGB, 1)
     rule:SetPoint("TOPLEFT", 0, -HEADER)
     rule:SetPoint("TOPRIGHT", 0, -HEADER)
-    rule:SetHeight(1)
+    ns.Hairline(rule, "h")
     return window
 end
 
@@ -302,11 +302,14 @@ function Parts.SetTabs(bar, items)
         button:SetSize(w, TAB_H)
         button:SetPoint("LEFT", x, 0)
         if i > 1 then
-            local split = bar.splits[i - 1] or ns.Solid(bar, "BORDER", BORDER_RGB, 1)
-            bar.splits[i - 1] = split
+            local split = bar.splits[i - 1]
+            if not split then
+                split = ns.Solid(bar, "BORDER", BORDER_RGB, 1)
+                ns.Hairline(split, "v")   -- once, when made: the tabs are laid out again on a change
+                bar.splits[i - 1] = split
+            end
             split:SetPoint("TOPLEFT", x, 0)
             split:SetPoint("BOTTOMLEFT", x, 0)
-            split:SetWidth(1)
             split:Show()
         end
         x = x + w

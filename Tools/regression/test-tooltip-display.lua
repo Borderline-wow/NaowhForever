@@ -4,7 +4,7 @@ local function check(name, value) assert(value, name); checks = checks + 1 end
 local secret = setmetatable({}, { __tostring = function() error("formatted secret") end })
 local settings = { enabled=true, tooltipDisplay=true, tooltipSpellID=true, tooltipItemID=true,
     tooltipNPCID=true, tooltipRestricted="hide", tooltipCopy=true, tooltipModifier="CTRL-SHIFT",
-    tooltipKey="C", tooltipWowhead="classic", tooltipCopyFormat="url", copyModifier="CTRL", copyKey="C", copyTooltipIds=true }
+    tooltipKey="C", tooltipCopyFormat="url", tooltipCopyHint=true, copyModifier="CTRL", copyKey="C", copyTooltipIds=true }
 local frames, callbacks, combat, focus, ctrl, shift, alt = {}, {}, false, nil, true, true, false
 local lastPanel, lastDimmer
 local function noop() end
@@ -67,6 +67,7 @@ local function boot(event) for _,f in ipairs(frames) do if f.events[event] then 
 local function keyboard() for _,f in ipairs(frames) do if f.scripts.OnKeyDown then return f end end end
 show({type=1,id=133});check('spell footer',tooltip.lines[2][1]=='Spell ID' and tooltip.lines[2][2]=='133')
 callbacks[1](tooltip,tooltip.data);check('no duplicate footer',#tooltip.lines==3)
+settings.tooltipCopyHint=false;show({type=1,id=133});check('hint off: the ID stays, its key line goes',#tooltip.lines==2 and tooltip.lines[2][2]=='133');settings.tooltipCopyHint=true
 show({type=2,id=6948});check('item footer',tooltip.lines[2][2]=='6948')
 show({type=3,guid='Creature-0-1-2-3-12345-0001'});check('NPC entry ID',tooltip.lines[2][2]=='12345')
 show({type=3,guid='Vehicle-0-1-2-3-678-0001'});check('vehicle entry ID',tooltip.lines[2][2]=='678')
@@ -80,17 +81,18 @@ show({type=1,id=0});check('invalid ID ignored',#tooltip.lines==0)
 settings.tooltipSpellID=false;show({type=1,id=133});check('spell toggle',#tooltip.lines==0);settings.tooltipSpellID=true
 settings.tooltipDisplay=false;show({type=2,id=6948});check('master toggle',#tooltip.lines==0);settings.tooltipDisplay=true
 boot('PLAYER_LOGIN');local k=keyboard();check('shortcut listener enabled',k.keyboard==true)
-show({type=1,id=133});k.scripts.OnKeyDown(k,'C');check('classic spell URL',lastPanel.cache.value.text=='https://www.wowhead.com/classic/spell=133')
+show({type=1,id=133});k.scripts.OnKeyDown(k,'C');check('Forever spell URL',lastPanel.cache.value.text=='https://www.wowhead.com/forever/spell=133')
 check('card gets focus',focus==lastPanel.cache.value);check('listener yields to card',k.keyboard==false)
 lastPanel.cache.id.click();check('ID tab',lastPanel.cache.value.text=='133')
 lastPanel.cache.link.click();check('URL tab',lastPanel.cache.value.text:find('spell=133',1,true)~=nil)
+lastPanel.cache.classic.click();check('Classic, for a page Forever has not got',lastPanel.cache.value.text=='https://www.wowhead.com/classic/spell=133')
 lastDimmer:Hide();check('close restores keyboard',focus==nil and k.keyboard==true)
 local prior=lastPanel;focus={};k.scripts.OnKeyDown(k,'C');check('typing ignored',lastPanel==prior);focus=nil
 shift=false;k.scripts.OnKeyDown(k,'C');check('exact modifier required',lastPanel==prior);shift=true
 combat=true;k.scripts.OnKeyDown(k,'C');check('combat does not open card',lastPanel==prior);combat=false
 show({type=1,id=secret});k.scripts.OnKeyDown(k,'C');check('secret never copied',lastPanel==prior)
-settings.tooltipWowhead='retail';show({type=2,id=6948});k.scripts.OnKeyDown(k,'C');check('retail item URL',lastPanel.cache.value.text=='https://www.wowhead.com/item=6948');lastDimmer:Hide()
-show({type=3,guid='Creature-0-1-2-3-12345-0001'});k.scripts.OnKeyDown(k,'C');check('NPC URL',lastPanel.cache.value.text=='https://www.wowhead.com/npc=12345');lastDimmer:Hide()
+show({type=2,id=6948});k.scripts.OnKeyDown(k,'C');check('Forever item URL',lastPanel.cache.value.text=='https://www.wowhead.com/forever/item=6948');lastDimmer:Hide()
+show({type=3,guid='Creature-0-1-2-3-12345-0001'});k.scripts.OnKeyDown(k,'C');check('NPC URL',lastPanel.cache.value.text=='https://www.wowhead.com/forever/npc=12345');lastDimmer:Hide()
 settings.tooltipItemID=false;show({type=2,id=6948});prior=lastPanel;k.scripts.OnKeyDown(k,'C');check('disabled type not copied',lastPanel==prior)
 ns.QoLSettings.Set('enabled',false);check('disabled listener',k.keyboard==false)
 combat=true;ns.QoLSettings.Set('enabled',true);check('combat settings deferred',k.keyboard==false);combat=false;boot('PLAYER_REGEN_ENABLED');check('deferred listener restored',k.keyboard==true)
@@ -104,7 +106,7 @@ shift=true;settings.globalCopy=false;ns.QoLSettings.Set('tooltipCopy',false);che
 show({type=1,id=133});check('IDs remain with copy disabled',tooltip.lines[2][2]=='133' and #tooltip.lines==2)
 ns.QoLSettings.Set('tooltipCopy',true);settings.tooltipItemID=true
 tooltip.shown=false;env.ItemRefTooltip.data={type=2,id=6948};env.ItemRefTooltipTextLeft1=title
-k.scripts.OnKeyDown(k,'C');check('chat-link tooltip copies its ID',lastPanel.cache.value.text=='https://www.wowhead.com/item=6948');lastDimmer:Hide()
+k.scripts.OnKeyDown(k,'C');check('chat-link tooltip copies its ID',lastPanel.cache.value.text=='https://www.wowhead.com/forever/item=6948');lastDimmer:Hide()
 env.ItemRefTooltip.shown=false;prior=lastPanel;k.scripts.OnKeyDown(k,'C');check('hidden chat link is not copied',lastPanel==prior)
 callbacks[2](env.ShoppingTooltip1,{type=2,id=6948})
 settings.tooltipItemID=true;callbacks[2](env.ShoppingTooltip1,{type=2,id=6948})

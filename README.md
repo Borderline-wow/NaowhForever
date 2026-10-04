@@ -25,7 +25,8 @@ and a lot of quality of life, all in one window.
 | Module | What it does |
 | --- | --- |
 | **Smart Reminders** | Tells you what to press when a boss ability is about to land, for dungeon and raid bosses, with cooldown presets for your spec. |
-| **BiS List** | Your best-in-slot list, marked on tooltips and called out when it drops. |
+| **BiS List** | Your best-in-slot list in its own window: your gear on a paperdoll, every pick per slot ranked with stars, where each drops and where to run next. Marked on tooltips and called out when it drops. Open it with its own key too. |
+| **Stat Weights** | What each stat is worth to your spec, with your own changes: a line on gear tooltips ("Fire: +9% upgrade" and what it is weighed against), and the BiS List's upgrades and enchants. On BiS List's Stat Weights tab. |
 | **Dungeon Journal** | Every dungeon on Forever, the new ones included, and the raids: its bosses in order and what they drop, your BiS marked, your quests there with what to do first, a tip from Naowh for each boss and how many times you have killed it. A map of each classic dungeon with every boss on it, and in a dungeon the world map (M) shows it, with the Journal beside it. Open it with its own key too. |
 | **Professions** | Recipes, reagents and crafting in one window, including the recipes you have not learned yet. |
 | **Gear & Trinkets** | Swap equipment sets from a bar, or automatically while you ride or rest. |
@@ -97,8 +98,8 @@ once.
    `90:Player-4613-006EB819,Player-4613-00ABCDEF`.
 3. Press **Ctrl+C** to copy it.
 4. Send it:
-   - **Legendary patrons:** paste it on naowh.gg after logging in with Patreon. Until that
-     page is live, send it to the team on [Discord](https://discord.gg/naowh).
+   - **Legendary patrons:** send it in a support request on
+     [Discord](https://discord.com/invite/naowh) to be added.
    - **Developers and moderators:** send it to Dieman or Glyalith.
 
 Your badge shows up with the next release. Made a new alt? Log into it, run `/nf badges id`

@@ -137,9 +137,11 @@ local function Resolve(data)
     return info, id, false
 end
 
-local function URL(info, id)
-    local database = S.Get("tooltipWowhead") == "classic" and "classic/" or ""
-    return "https://www.wowhead.com/" .. database .. info.kind .. "=" .. tostring(id)
+-- Wowhead's Forever database, built from the game's own client, classic items and all; its
+-- Classic one on the card's second link, for the odd page Forever's has not got yet (the game
+-- cannot ask Wowhead which).
+local function URL(info, id, classic)
+    return "https://www.wowhead.com/" .. (classic and "classic/" or "forever/") .. info.kind .. "=" .. tostring(id)
 end
 
 -- A copy card: the accent line, an icon, a kicker over the title, X, and a one-line box at
@@ -182,18 +184,24 @@ local function ShowIDCard(info, id, title, mode)
     local dimmer, panel, box = Card("tooltipCopy", 230, texture, "NAOWH  /  TOOLTIP COPY", title or info.label, -112)
     local note = UI.KeepFont(panel, "note", 10, nil, T.muted)
     note:SetPoint("TOPLEFT", 18, -187); note:SetWidth(464); note:SetJustifyH("LEFT")
-    note:SetText("Wowhead may not list Forever-specific entries. Open links in your browser.")
-    local idButton, linkButton
+    note:SetText("Open the link in your browser. No page on Forever's Wowhead yet? Try Classic.")
+    local buttons
     local function Select(pick)
-        box:SetText(pick == "id" and tostring(id) or URL(info, id))
-        idButton.label:SetTextColor(pick == "id" and T.accent.r or T.muted.r, pick == "id" and T.accent.g or T.muted.g, pick == "id" and T.accent.b or T.muted.b)
-        linkButton.label:SetTextColor(pick == "url" and T.accent.r or T.muted.r, pick == "url" and T.accent.g or T.muted.g, pick == "url" and T.accent.b or T.muted.b)
+        box:SetText(pick == "id" and tostring(id) or URL(info, id, pick == "classic"))
+        for key, button in pairs(buttons) do
+            local color = key == pick and T.accent or T.muted
+            button.label:SetTextColor(color.r, color.g, color.b)
+        end
         box:SetFocus(); box:HighlightText()
     end
-    idButton = UI.KeepButton(panel, "id", info.label .. ": " .. id, 180, 26, function() Select("id") end)
-    idButton:SetPoint("TOPLEFT", 18, -76)
-    linkButton = UI.KeepButton(panel, "link", "Wowhead Link", 150, 26, function() Select("url") end)
-    linkButton:SetPoint("LEFT", idButton, "RIGHT", 8, 0)
+    buttons = {
+        id = UI.KeepButton(panel, "id", info.label .. ": " .. id, 170, 26, function() Select("id") end),
+        url = UI.KeepButton(panel, "link", "Wowhead Link", 140, 26, function() Select("url") end),
+        classic = UI.KeepButton(panel, "classic", "Classic", 90, 26, function() Select("classic") end),
+    }
+    buttons.id:SetPoint("TOPLEFT", 18, -76)
+    buttons.url:SetPoint("LEFT", buttons.id, "RIGHT", 8, 0)
+    buttons.classic:SetPoint("LEFT", buttons.url, "RIGHT", 8, 0)
     dimmer.onClose = function() box:ClearFocus(); Apply() end
     dimmer:Show(); Select(mode or S.Get("tooltipCopyFormat"))
 end
@@ -226,6 +234,21 @@ end
 
 local decorated = setmetatable({}, { __mode = "k" })
 local hooked = setmetatable({}, { __mode = "k" })
+
+-- "Ctrl-Shift-C: copy ID or Wowhead link", as the addon's other tooltip hints read ("Click:
+-- change picks"); made once per key.
+local hints = {}
+local function CopyHint(modifier, key)
+    local combo = modifier .. "-" .. key
+    local hint = hints[combo]
+    if not hint then
+        hint = combo:lower():gsub("(%a)(%a*)", function(first, rest) return first:upper() .. rest end)
+            .. ": copy ID or Wowhead link"
+        hints[combo] = hint
+    end
+    return hint
+end
+
 local function Decorate(tooltip, data)
     if not DisplayOn() or tooltip:IsForbidden() then return end
     if tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip and tooltip ~= ShoppingTooltip1 and tooltip ~= ShoppingTooltip2 then return end
@@ -240,8 +263,9 @@ local function Decorate(tooltip, data)
     decorated[tooltip] = true
     tooltip:AddLine(" ")
     tooltip:AddDoubleLine(info.label, hidden and "Hidden" or tostring(id), T.accent.r, T.accent.g, T.accent.b, 0.85, 0.89, 0.93)
-    if not hidden and S.Get("tooltipCopy") and (tooltip == GameTooltip or tooltip == ItemRefTooltip) then
-        tooltip:AddLine(S.Get("tooltipModifier") .. "+" .. S.Get("tooltipKey") .. "  Copy ID / Wowhead link", T.muted.r, T.muted.g, T.muted.b)
+    if not hidden and S.Get("tooltipCopy") and S.Get("tooltipCopyHint")
+        and (tooltip == GameTooltip or tooltip == ItemRefTooltip) then
+        tooltip:AddLine(CopyHint(S.Get("tooltipModifier"), S.Get("tooltipKey")), T.muted.r, T.muted.g, T.muted.b)
     end
 end
 

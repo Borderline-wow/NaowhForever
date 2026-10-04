@@ -30,11 +30,7 @@ local LATE = 120      -- seconds a roll's result can come after the item and sti
 local Looted = { KEEP = KEEP }
 J.Looted = Looted
 
--- The start of the game's line for loot you receive ("You receive loot: "), in the client's
--- language: it tells your own loot from a group member's, and from items handed to you
--- (quest rewards, purchases), which have lines of their own.
-local SELF = type(LOOT_ITEM_SELF) == "string" and LOOT_ITEM_SELF:match("^(.-)%%s") or nil
-if SELF == "" then SELF = nil end
+local Items = ns.Shared.Items
 
 -- This character's list, oldest first; made on the first item when create is set, nil
 -- before that.
@@ -219,15 +215,14 @@ end
 local function OnEvent(_, event, text, lootListKey)
     if event == "PLAYER_ENTERING_WORLD" then return Listen() end
     if event == "LOOT_HISTORY_UPDATE_DROP" then return RollsLate(text, lootListKey) end
-    if not here or issecretvalue(text) or text:find(SELF, 1, true) ~= 1 then return end
-    local link, id = text:match("(|c[^|]*|Hitem:(%d+).-|h|r)")
-    id = tonumber(id)
+    if not here then return end
+    local link, id = Items.YourLoot(text)
     if id then Looted.Add(here, link, id) end
 end
 
 -- Listening runs while the Journal is on: the frame is made the first time it is.
 local function Sync()
-    local on = S.Get("enabled") and SELF ~= nil
+    local on = S.Get("enabled") and Items.READS_LOOT
     if not (on or frame) then return end
     if not frame then
         frame = CreateFrame("Frame")

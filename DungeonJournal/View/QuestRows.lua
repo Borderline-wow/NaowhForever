@@ -8,6 +8,10 @@
 --  The rules are Quests.lua's; the words and colours are here.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
+local Tip = ns.Shared.Parts.Tip
+-- WoW Forever's mark after the name of what is new in Forever, and its tooltip line.
+local ForeverInline, ForeverLine = ns.Shared.Parts.ForeverInline, ns.Shared.Parts.ForeverLine
+local IsForever, CARD_DROP = ns.Shared.Parts.IsForever, ns.Shared.Parts.CARD_DROP
 local T = ns.THEME
 local J = ns.Journal
 local Quests = J.Quests
@@ -287,8 +291,9 @@ local function QuestEnter(row)
     row.hover:Show()
     local entry = row.entry
     local kind = entry.kind
-    GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT", 16, 0)
+    if not Tip(row, "ANCHOR_CURSOR_RIGHT", 16, 0) then return end
     GameTooltip:SetText(entry.name)
+    if row.forever then GameTooltip:AddLine(ForeverLine()) end
     if entry.turnin then
         TurnInLines(entry)
         PartyLines(entry)
@@ -383,7 +388,7 @@ local function PartyEnter(button)
     button.icon:SetVertexColor(T.fg.r, T.fg.g, T.fg.b)
     button.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b)
     local entry = button:GetParent().entry
-    GameTooltip:SetOwner(button, "ANCHOR_TOP")
+    if not Tip(button, "ANCHOR_TOP") then return end
     if not IsInGroup() then
         GameTooltip:SetText("Not in a group", 1, 1, 1)
         GameTooltip:AddLine("In a group, this counts who else is on the quest.", T.muted.r, T.muted.g, T.muted.b)
@@ -519,7 +524,8 @@ Kinds.quest = {
         row.party.label:SetText(entry.party)
         PaintParty(row.party)
         row.title:SetWidth(width)
-        row.title:SetText(entry.name)
+        row.forever = entry.quest ~= nil and IsForever("quests", entry.quest[1])
+        row.title:SetText(row.forever and entry.name .. ForeverInline(11, CARD_DROP) or entry.name)
         row.where:SetWidth(compact and row:GetWidth() - left or width)
         row.where:SetText(Plain(entry.where))
         row.where:SetShown(not tight)

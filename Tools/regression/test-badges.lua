@@ -41,7 +41,13 @@ local function fixture(withChatUtil, settings)
         THEME = { bg = {}, line = {}, fg = {}, muted = {}, accentSoft = {} },
         Solid = function() return frame() end,
         Border = function() return { SetColor = noop } end,
-        Font = function() return frame() end,
+        -- Text 6 wide a character, in a string state.fontWidth wide (wide enough by default).
+        Font = function()
+            local font = frame()
+            function font:GetStringWidth() return #(self.text or "") * 6 end
+            function font:GetWidth() return state.fontWidth or 400 end
+            return font
+        end,
         FontInset = function(size) return size * 0.075 end,
         Print = function(msg) state.printed[#state.printed + 1] = msg end,
         AccountSettings = function() return state.account end,
@@ -245,7 +251,45 @@ do  -- chat, card, tooltip
     s.postCalls[1](tooltip, { guid = "Player-1-NOBODY" })
     check("no tooltip line otherwise", #lines == 1)
 
+    -- The game's own tooltip: a plate over its top instead of the line, gone with the tooltip.
+    local env = getfenv(s.postCalls[1])
+    local made, create = {}, env.CreateFrame
+    env.CreateFrame = function(...)
+        local f = create(...)
+        made[#made + 1] = f
+        return f
+    end
+    local hooks = {}
+    env.GameTooltip = { AddLine = tooltip.AddLine, HookScript = function(_, script, fn) hooks[script] = fn end }
+    s.postCalls[1](env.GameTooltip, { guid = "Player-1-LEG" })
+    local plate = made[1]
+    check("the game's tooltip: a plate over it, with the title, and no line", plate and plate:IsShown()
+        and plate.title.text:find("Legendary Patron", 1, true) and #lines == 1)
+    check("in full where it fits", plate.title.text:find("^Naowh Forever ") ~= nil)
+    s.fontWidth = 100
+    plate.scripts.OnSizeChanged(plate)
+    check("on a narrow tooltip, the title alone, not cut off", plate.title.text == "Legendary Patron")
+    s.fontWidth = nil
+    plate.scripts.OnSizeChanged(plate)
+    check("and in full again when it widens", plate.title.text:find("^Naowh Forever ") ~= nil)
+    hooks.OnHide()
+    check("the plate goes when the tooltip hides", not plate:IsShown())
+    s.postCalls[1](env.GameTooltip, { guid = "Player-1-LEG" })
+    hooks.OnTooltipCleared()
+    check("and when it moves on to someone else", not plate:IsShown() and #made == 1)
+    env.GameTooltip, env.CreateFrame = nil, create
+
+    -- As a player with no badge sees it: your own taken away for the session.
+    s.ns.BadgesCommand("preview none")
+    check("preview none: your own name wears no badge, the panel sees none",
+        not say(filter, "Me", 899, "Player-1-SELF"):find("Badge", 1, true) and s.ns.BadgeOf("Player-1-SELF") == nil)
     s.ns.BadgesCommand("preview developer")
+    -- The card for a preview badge on any name, as the character panel's pitch card shows it.
+    s.ns.ShowBadgeCard("legendary", "Dieman")
+    check("a preview badge's card: the tier's title on the name given", card.title.text == "Legendary Patron"
+        and card.player.text == "Dieman" and card:IsShown())
+    s.ns.HideBadgeCard()
+    check("and it hides", not card:IsShown())
     check("preview badges your own name", say(filter, "Me", 900, "Player-1-SELF"):find("BadgeDeveloper", 1, true))
     enter.fn(enter.owner, {}, "player:Me-Realm:900:SAY", "[Me]")
     check("developer preview: title, no supporter date", card.title.text == "Lead Developer"

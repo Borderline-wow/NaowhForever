@@ -103,6 +103,7 @@ end
 -- ratio means redrawing it.
 local TRACK_TEX = "Interface\\AddOns\\NaowhForever\\Media\\toggle_track.tga"
 local KNOB_TEX = "Interface\\AddOns\\NaowhForever\\Media\\toggle_knob.tga"
+local SPEAKER_TEX = "Interface\\AddOns\\NaowhForever\\Media\\speaker.tga"   -- a sound dropdown's play button
 
 -- w/h/knobSize are optional overrides for a smaller switch; knob and inset scale off the
 -- height (70% and 15%).
@@ -299,7 +300,7 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
         fill:SetWidth(math.max(0.001, frac * trackW))
         thumb:ClearAllPoints()
         thumb:SetPoint("CENTER", track, "LEFT", frac * trackW, 0)
-        valBox:SetText(tostring(v))
+        valBox:SetText(track._format and track._format(v) or tostring(v))
         valBox:SetCursorPosition(0)
     end
 
@@ -341,7 +342,8 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
 
     local function Commit()
         if UI.rebindingRows then return end
-        local v = Clamp(valBox:GetText())
+        -- What a formatted box shows ("120%", "6s") reads back as its number.
+        local v = Clamp((valBox:GetText():gsub("[^%d%.%-]", "")))
         if v ~= nil then track._set(v) end
         Paint()
         valBox:ClearFocus()
@@ -364,6 +366,11 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     return track, valBox, Paint
 end
 
+-- What a slider's value box shows, set as track._format (or a row's cfg.format): a percent
+-- or seconds. The box reads either back as a plain number.
+function UI.FormatPercent(v) return v .. "%" end
+function UI.FormatSeconds(v) return v .. "s" end
+
 -------------------------------------------------------------------------------
 --  Row factory (the W: dialect every options page is written in)
 -------------------------------------------------------------------------------
@@ -371,6 +378,7 @@ local W = {}
 UI.Widgets = W
 
 local ROW_H, HEADER_H = 50, 40
+local BUTTONS_W, BUTTONS_H, BUTTONS_GAP = 84, 24, 6   -- a button row's buttons
 
 -- Features a player has opened this session, by page and name. A feature's options sit
 -- under its row (W:Feature); on a page marked `collapse` they start closed, still built so
@@ -557,24 +565,67 @@ local function BuildRegionControl(rgn, cfg)
         local button = ns.Button(rgn, cfg.buttonText or "Edit", 90, 24, function() cfg.onClick() end)
         button:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         return button
+    elseif cfg.type == "buttons" then
+        -- A row of buttons, right to left from the region's edge: cfg.buttons = { { text,
+        -- onClick, tooltip, width }, ... }. Clicks and tooltips are read from cfg when they
+        -- happen, so a reused row follows its new config.
+        local holder = CreateFrame("Frame", nil, rgn)
+        holder:SetHeight(BUTTONS_H)
+        holder:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+        holder._buttons = {}
+        local x = 0
+        for i = #cfg.buttons, 1, -1 do
+            local w = cfg.buttons[i].width or BUTTONS_W
+            local button = ns.Button(holder, "", w, BUTTONS_H, function() cfg.buttons[i].onClick() end)
+            button:SetPoint("RIGHT", holder, "RIGHT", -x, 0)
+            holder._buttons[i] = button
+            x = x + w + BUTTONS_GAP
+        end
+        holder:SetWidth(math.max(1, x - BUTTONS_GAP))
+        holder._refreshValue = function()
+            for i, button in ipairs(holder._buttons) do
+                local b = cfg.buttons[i]
+                ns.SetButtonText(button, b.text)
+                if b.tooltip then ns.Tooltip(button, b.text, b.tooltip) end
+            end
+        end
+        holder._refreshValue()
+        return holder
     elseif cfg.type == "toggle" then
-        local disabled = type(cfg.disabled) == "function" and cfg.disabled()
         local toggle = UI.BuildToggleControl(rgn, rgn:GetFrameLevel() + 2,
             Get, Set)
         toggle:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
-        if disabled then
-            toggle:SetAlpha(0.3)
-            toggle:EnableMouse(false)
-        end
-        return toggle, disabled
+        return toggle
     elseif cfg.type == "dropdown" then
         local dd = UI.BuildDropdownControl(rgn, cfg.width or 160, rgn:GetFrameLevel() + 2,
             cfg.values, cfg.order, Get, Set)
         dd:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+        -- A sound's: a play button before it (cfg.preview plays the picked one). The dropdown's
+        -- child, so it dims with it, and in _buttons, so it takes no clicks while off.
+        if cfg.preview then
+            local play = CreateFrame("Button", nil, dd)
+            play:SetSize(24, 24)
+            play:SetPoint("RIGHT", dd, "LEFT", -4, 0)
+            ns.Solid(play, "BACKGROUND", T.panel, 1):SetAllPoints()
+            ns.Border(play, BLACK)
+            play.icon = play:CreateTexture(nil, "ARTWORK")
+            play.icon:SetTexture(SPEAKER_TEX)
+            play.icon:SetSize(14, 14)
+            play.icon:SetPoint("CENTER")
+            play.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b)
+            play:SetScript("OnClick", function() cfg.preview(Get()) end)
+            ns.Tooltip(play, "Play it", "Plays the sound picked here.")
+            play:HookScript("OnEnter", function(self) self.icon:SetVertexColor(T.fg.r, T.fg.g, T.fg.b) end)
+            play:HookScript("OnLeave", function(self) self.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b) end)
+            dd._buttons = { play }
+        end
         return dd
     elseif cfg.type == "slider" then
-        local track, valBox = UI.BuildSliderCore(rgn, cfg.trackWidth or 120, 4, 12, 40, 22, 12, 1,
-            cfg.min or 0, cfg.max or 100, cfg.step or 1, Get, Set)
+        local track, valBox = UI.BuildSliderCore(rgn, cfg.trackWidth or 120, 4, 12, cfg.boxWidth or 40, 22, 12,
+            1, cfg.min or 0, cfg.max or 100, cfg.step or 1, Get, Set)
+        -- Read on every paint, so a reused row follows its config's format.
+        track._format = function(v) return cfg.format and cfg.format(v) or tostring(v) end
+        track._refreshValue()
         valBox:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
         track:SetPoint("RIGHT", valBox, "LEFT", -8, 0)
         return track
@@ -619,13 +670,40 @@ local function BuildRegionControl(rgn, cfg)
     end
 end
 
+-- A row that is switched off (cfg.disabled) greys out whatever its control is, and the
+-- control takes no clicks: a slider's value box and every button of a button row included.
+local DIM_ALPHA = 0.3
+
+local function Dim(cfg, lbl, control, off)
+    local alpha = off and DIM_ALPHA or 1
+    lbl:SetAlpha(alpha)
+    if not control then return end
+    control:SetAlpha(alpha)
+    -- A palette and a button row's holder take no clicks themselves.
+    if cfg.type ~= "palette" and cfg.type ~= "buttons" then control:EnableMouse(not off) end
+    local box = control._valBox
+    if box then
+        box:SetAlpha(alpha)
+        box:EnableMouse(not off)
+        if off then box:ClearFocus() end
+    end
+    if control._buttons then
+        for _, button in ipairs(control._buttons) do button:EnableMouse(not off) end
+    end
+    if off and control._menu then
+        control._menu:Close()
+        control._menu = nil
+    end
+end
+
 local function BuildRegion(row, cfg, left, width)
     local rgn = CreateFrame("Frame", nil, row)
     rgn:SetPoint("TOPLEFT", row, "TOPLEFT", left, 0)
     rgn:SetSize(width, ROW_H)
 
-    local control, disabled = BuildRegionControl(rgn, cfg)
+    local control = BuildRegionControl(rgn, cfg)
     rgn._control = control
+    local disabled = type(cfg.disabled) == "function" and cfg.disabled()
 
     local lbl = ns.Font(rgn, 14, nil)
     lbl:SetPoint("LEFT", rgn, "LEFT", 20, 0)
@@ -638,21 +716,15 @@ local function BuildRegion(row, cfg, left, width)
     lbl:SetWordWrap(false)
     lbl:SetText(cfg.text or "")
     rgn._label = lbl
-    if disabled then lbl:SetAlpha(0.3) end
+    Dim(cfg, lbl, control, disabled)
 
     rgn._cfg = cfg
     rgn._refresh = function(newCfg)
         UpdateConfig(cfg, newCfg)
         local off = type(cfg.disabled) == "function" and cfg.disabled()
         lbl:SetText(cfg.text or "")
-        lbl:SetAlpha(off and 0.3 or 1)
-        if control then
-            if cfg.type == "toggle" then
-                control:SetAlpha(off and 0.3 or 1)
-                control:EnableMouse(not off)
-            end
-            if control._refreshValue then control._refreshValue() end
-        end
+        Dim(cfg, lbl, control, off)
+        if control and control._refreshValue then control._refreshValue() end
     end
 
     local tip = disabled and cfg.disabledTooltip or cfg.tooltip
@@ -676,6 +748,11 @@ local function RegionKey(cfg)
     local key = cfg.type .. ":" .. (cfg.text or "")
     if cfg.type == "slider" then
         key = key .. ":" .. tostring(cfg.min) .. ":" .. tostring(cfg.max) .. ":" .. tostring(cfg.trackWidth)
+        if cfg.boxWidth then key = key .. ":" .. cfg.boxWidth end
+    elseif cfg.type == "buttons" then
+        key = key .. ":" .. #cfg.buttons
+    elseif cfg.preview then
+        key = key .. ":preview"
     end
     return key
 end
@@ -727,6 +804,9 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
     if UI.searchScan then
         for _, cfg in ipairs({ leftCfg, rightCfg }) do
             if cfg.type ~= "label" then ScanLabel(cfg.text, cfg.tooltip) end
+            if cfg.type == "buttons" then
+                for _, b in ipairs(cfg.buttons) do ScanLabel(b.text, b.tooltip) end
+            end
         end
         return nil, ROW_H
     end
@@ -735,6 +815,13 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
     -- What the search jumps to: the row that shows this label.
     row._searchL, row._searchR = leftCfg.text, rightCfg and rightCfg.text
     row._searchF = parent._nsuiFeatureId
+    -- A button row's buttons are found by their own names too.
+    for _, cfg in ipairs({ leftCfg, rightCfg }) do
+        if cfg.type == "buttons" then
+            row._searchLabels = row._searchLabels or {}
+            for _, b in ipairs(cfg.buttons) do row._searchLabels[b.text] = true end
+        end
+    end
     row:SetHeight(ROW_H)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
@@ -942,16 +1029,10 @@ function UI.KeyField(rgn, action, label)
     rgn._keyField = true
     local btn = ns.Button(rgn, "", 150, 26)
     btn:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
+    -- The row's label, and the hover area that shows its tooltip, end where the field starts,
+    -- or that tooltip covers the field.
+    if rgn._label then rgn._label:SetPoint("RIGHT", btn, "LEFT", -8, 0) end
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    -- Its own tooltip, how to use it: the row's says what the key does.
-    btn:HookScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(label or "Key binding", 1, 1, 1)
-        GameTooltip:AddLine("Click, then press the key you want. Right-click to clear it.",
-            T.muted.r, T.muted.g, T.muted.b, true)
-        GameTooltip:Show()
-    end)
-    btn:HookScript("OnLeave", GameTooltip_Hide)
     local capturing
     local function Show()
         local key = GetBindingKey(action)
@@ -1472,8 +1553,9 @@ UI.PREVIEW_NOTE = "Preview build: these settings save to your profile now, and e
 
 -- Settings for the Naowh Forever modules: one table per module inside the active profile,
 -- read through defaults so a key an older profile never wrote picks up the current default.
--- The row makers return W:DualRow configs; `on` names the master toggle a row depends on,
--- and every toggle redraws the page so dependants dim and undim with it.
+-- The row makers return W:DualRow configs; `on` names the master toggle a row depends on, or
+-- lists several (off while any of them is), and every toggle redraws the page so dependants
+-- dim and undim with it.
 -- S.OnChange(fn) calls fn(key, value) after every S.Set, in the order they were added: a
 -- module listens to its own settings there instead of wrapping S.Set with hooksecurefunc.
 function UI.ModuleSettings(key, defaults)
@@ -1498,7 +1580,16 @@ function UI.ModuleSettings(key, defaults)
     local function Row(cfg, k, on)
         cfg.getValue = function() return S.Get(k) end
         cfg.setValue = cfg.setValue or function(v) S.Set(k, v) end
-        if on then cfg.disabled = function() return not S.Get(on) end end
+        if type(on) == "table" then
+            cfg.disabled = function()
+                for i = 1, #on do
+                    if not S.Get(on[i]) then return true end
+                end
+                return false
+            end
+        elseif on then
+            cfg.disabled = function() return not S.Get(on) end
+        end
         return cfg
     end
     function S.Toggle(k, text, tooltip, on)
@@ -1513,14 +1604,12 @@ function UI.ModuleSettings(key, defaults)
         return Row({ type = "dropdown", text = text, tooltip = tooltip,
             values = values, order = order }, k, on)
     end
-    -- A sound dropdown that plays the pick, as the Smart Reminders sound rows do.
-    function S.SoundDropdown(k, text, values, order, tooltip, on)
-        local cfg = S.Dropdown(k, text, values, order, tooltip, on)
-        cfg.setValue = function(v)
-            S.Set(k, v)
-            UI._PlayLSMSound(UI.SoundPathFor(v))
-        end
-        return cfg
+    -- A sound to pick: it plays as you pick it, and its play button plays it again. play
+    -- takes the key; UI.PlaySoundKey (the addon's sound list) unless given.
+    function S.SoundDropdown(k, text, values, order, tooltip, on, play)
+        play = play or UI.PlaySoundKey
+        return Row({ type = "dropdown", text = text, tooltip = tooltip, values = values, order = order,
+            width = 200, preview = play, setValue = function(v) S.Set(k, v); play(v) end }, k, on)
     end
     return S
 end
@@ -1568,6 +1657,11 @@ function UI.AppendSharedMediaSounds(paths, names, order)
             order[#order + 1] = key
         end
     end
+end
+
+-- Plays a sound by its key in the addon's sound list (ns.SoundChoices); "none" plays nothing.
+function UI.PlaySoundKey(key)
+    UI._PlayLSMSound(UI.SoundPathFor(key))
 end
 
 function UI._PlayLSMSound(v)

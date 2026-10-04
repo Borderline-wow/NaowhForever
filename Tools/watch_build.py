@@ -53,7 +53,7 @@ import sys
 from pathlib import Path
 
 import wago
-from build_dungeon_loot import EQUIPPABLE
+from wowhead import EQUIPPABLE
 
 ROOT = Path(__file__).resolve().parent.parent
 DUNGEONS = ROOT / "DungeonJournal" / "Data" / "Dungeons"

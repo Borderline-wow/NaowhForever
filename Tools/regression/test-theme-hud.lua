@@ -169,22 +169,6 @@ do
 end
 
 do
-    local source = Read("BiS/NaowhForever_BiS.lua")
-    local BIS_GLOW = Const(source, "BIS_GLOW")
-    Check(IsRGB(BIS_GLOW, 0, 0.57, 0.93), "bis glow literal is the original")
-    local stmt = assert(source:match('(local glow = ns%.ThemeTint%("accent", BIS_GLOW%)\n[^\n]*PixelGlow_Start%(frame, { glow%.r, glow%.g, glow%.b, 1 }, 12, nil, nil, 2, 0, 0, nil, "NaowhBiS"%))'))
-    local function Glow(account)
-        local color
-        Run(stmt, { ns = LoadCore(account), BIS_GLOW = BIS_GLOW, frame = {},
-            LCG = { PixelGlow_Start = function(_, c) color = c end } })
-        return color
-    end
-    Check(Same(Glow({}), { 0, 0.57, 0.93, 1 }), "bis: the default theme is the original glow")
-    local a = AccentOf(ACCENT_PRESET)
-    Check(Same(Glow(ACCENT_PRESET), { a.r, a.g, a.b, 1 }), "bis: a theme's accent")
-end
-
-do
     local source = Read("ThreatMeter/NaowhForever_ThreatMeter.lua")
     local block = assert(source:match('(if own then\n%s+local mark = ns%.ThemeTint%("accent", nil%).-\n        end)'))
     local function Row(account)

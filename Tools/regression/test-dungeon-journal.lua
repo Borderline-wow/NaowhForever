@@ -13,8 +13,13 @@ for line in io.lines("NaowhForever.toc") do
     if line:gsub("\r$", "") == "DungeonJournal\\DungeonJournal.xml" then tocLoads = true end
 end
 check("the TOC loads the journal", tocLoads)
-local files = dofile("Tools/regression/toc_files.lua")("^DungeonJournal/.*%.lua$")
-check("the journal lists its files", #files > 40)
+local TocFiles = dofile("Tools/regression/toc_files.lua")
+local journalFiles = TocFiles("^DungeonJournal/.*%.lua$")
+check("the journal lists its files", #journalFiles > 40)
+-- What the modules share loads first: the Journal is drawn with it.
+local files = TocFiles("^Shared/.*%.lua$")
+check("the shared parts load", #files >= 7)
+for _, path in ipairs(journalFiles) do files[#files + 1] = path end
 
 local RING_SLOTS = { 1, 2 }
 local function BORDER_SET_COLOR(_, r, g, b)
@@ -196,6 +201,7 @@ local function fixture(settings)
         AccentBorder = function(frame) return frame end,
         BisListIsEmpty = function() return false end,
         OpenOptionsWindow = function(page) state.optionsOpened = page end,
+        OpenBisWindow = function() state.bisOpened = true end,
         SetButtonText = function() end,
         Tooltip = function() end,
         ThemeTint = function() return WHITE end,
@@ -209,6 +215,11 @@ local function fixture(settings)
         Print = function(text) state.printed[#state.printed + 1] = text end,
         -- The copy box: kept, so a test can read what it was given to copy.
         ShowCopyBox = function(title, text) state.copied = { title = title, text = text } end,
+        ShowCopyLine = function(title, text) state.copied = { title = title, text = text } end,
+        -- The copy card: what the Forever database's page would be, its link selected.
+        ShowCopyCard = function(kind, _, id, title, mode)
+            state.copied = { title = title, text = mode == "url" and "https://www.wowhead.com/forever/" .. kind .. "=" .. id }
+        end,
         PlaceWaypoint = function(title, map, x, y, note)
             state.waypoints[#state.waypoints + 1] = { title = title, map = map, x = x, y = y, note = note }
             return true
@@ -243,6 +254,7 @@ local function fixture(settings)
         C_ClassColor = { GetClassColor = function() return CLASS_COLOR end },
         UnitLevel = function() return state.level end,
         UnitFactionGroup = function() return "Alliance" end,
+        UnitRace = function() return "Human", "Human", 1 end,
         IsInInstance = function() return state.instance ~= nil, state.instance and (state.instance.kind or "party") end,
         LOOT_ITEM_SELF = "You receive loot: %s.",
         GetInstanceInfo = function()
@@ -290,6 +302,7 @@ local function fixture(settings)
         QuestLogPushQuest = function(index) state.pushed[#state.pushed + 1] = index end,
         Enum = { SendAddonMessageResult = { Success = 0 }, PvPRanks = { Rank_1 = 5 }, UIMapType = { Zone = 3 } },
         -- A context menu: its entries kept (text and what a click does) for a test to click.
+        Menu = { GetManager = function() return { IsAnyMenuOpen = function() return false end } end },
         MenuUtil = { CreateContextMenu = function(_, build)
             local entries = {}
             local entry = { SetEnabled = function() end, SetTitleAndTextTooltip = function() end }
@@ -505,6 +518,18 @@ do
         end
     end
     check("the nine dungeons new in Forever are marked new", new == 9)
+    -- WoW Forever's mark: what Wowhead's Forever database has as new, and not what it has only
+    -- changed (Friend of the Library, 78150, is a classic quest reworked).
+    local Parts = ns.Shared.Parts
+    check("a boss of a dungeon new in Forever is Forever's", J.IsForeverBoss(J.Get("AlcazPrison").wings[1].bosses[1]))
+    check("a classic boss is not", not J.IsForeverBoss(J.Get("RagefireChasm").wings[1].bosses[1]))
+    check("a quest new in Forever is, a changed or classic one not", Parts.IsForever("quests", 95195)
+        and not Parts.IsForever("quests", 78150) and not Parts.IsForever("quests", 1012))
+    check("an item new in Forever is, a classic one not", Parts.IsForever("items", 279868)
+        and not Parts.IsForever("items", 5813))
+    check("nothing is without an ID", not Parts.IsForever("npcs", nil))
+    check("the mark in text is made once per size", Parts.ForeverInline(12) == Parts.ForeverInline(12)
+        and Parts.ForeverLine():find("Forever|r", 1, true))
     -- The raids announced for Forever, and only those: the classic ones wait in the data.
     check("the three announced raids, with their sizes", raids.OnyxiasLair == 40 and raids.BarrowDeeps == 10
         and raids.HyjalSummit == 20)
@@ -1075,7 +1100,7 @@ do
     S.Set("listHidden", false)
     S.Set("windowAlpha", 0.6)
     check("and takes its settings without an error", true)
-    -- The list: the BiS here you still miss, and a check once you have them all.
+    -- The list: the BiS here you still miss, and nothing once you have them all.
     local List, deadmines = ns.Journal.DungeonList, ns.Journal.Get("Deadmines")
     local function BisText()
         for _, font in ipairs(state.fonts) do
@@ -1092,7 +1117,7 @@ do
     check("the list says how many of your BiS here you still miss", BisText() and BisText():find("1$"))
     state.owned[first] = 1
     List.Paint(deadmines)
-    check("and a check once you have them all", BisText() and not BisText():find("%d$"))
+    check("and nothing once you have them all", BisText() == nil)
     Measure("the dungeon list's repaint", 2, function() List.Paint(deadmines) end)
     state.bis[first], state.owned[first] = nil, nil
 
@@ -1644,11 +1669,11 @@ do
     bisStat.scripts.OnEnter(bisStat)
     check("the BiS stat's tip says a click shows your list", hints[#hints] == "Click to see your BiS.")
     bisStat.scripts.OnMouseUp(bisStat, "LeftButton")
-    check("and a click opens it", state.optionsOpened == "BiS List")
-    state.bisList, state.optionsOpened, hints[1] = false, nil, nil
+    check("and a click opens it", state.bisOpened)
+    state.bisList, state.bisOpened, hints[1] = false, nil, nil
     bisStat.scripts.OnEnter(bisStat)
     bisStat.scripts.OnMouseUp(bisStat, "LeftButton")
-    check("not with the BiS List off", #hints == 0 and state.optionsOpened == nil)
+    check("not with the BiS List off", #hints == 0 and not state.bisOpened)
     state.bisList, state.tooltip.AddLine = true, nil
     -- Its Friendly card: its gear, then its recipes folded to a count, opened by a click.
     -- Every card titles its kinds, even one with gear alone, so cards side by side line up.
@@ -1804,7 +1829,7 @@ do
         if rawget(frame, "noneTip") == "None of your BiS drops here" then dungeonBis = frame end
     end
     dungeonBis.scripts.OnMouseUp(dungeonBis, "LeftButton")
-    check("a dungeon's BiS stat opens your BiS list too", state.optionsOpened == "BiS List")
+    check("a dungeon's BiS stat opens your BiS list too", state.bisOpened)
     Measure("the faction list's repaint", 2, function() J.FactionList.Paint(druids) end)
 end
 
@@ -2316,6 +2341,102 @@ do
     -- Off, nothing is answered.
     emmy.Journal.Settings.Set("enabled", false)
     check("off, asks are not listened for", next(emmyFrame.events) == nil)
+end
+
+-------------------------------------------------------------------------------
+--  The BiS List's Quests page: the quests that reward a pick you do not have yet, by zone,
+--  as the Journal's quests, so its rules and rows work on them as on a dungeon's.
+-------------------------------------------------------------------------------
+do
+    local ns, state = fixture()
+    local J = ns.Journal
+    check("the BiS quests load with the Journal", J.BiSQuestData ~= nil and #J.BiSQuestData.quests > 0)
+    local zoned = 0
+    for _, quest in ipairs(J.BiSQuestData.quests) do
+        check("a BiS quest rewards something: " .. quest[1], J.BiSQuestRewards[quest[1]] ~= nil)
+        check("and is a quest record: " .. quest[1], type(quest[2]) == "string" and type(quest[3]) == "number"
+            and (quest[4] == "A" or quest[4] == "H" or quest[4] == "B") and type(quest[6]) == "string")
+        if J.BiSQuestZones[quest[1]] then zoned = zoned + 1 end
+    end
+    check("most say where they start", zoned * 2 > #J.BiSQuestData.quests)
+
+    -- A Journal quest among them, then three of its own: an Alliance one with a choice, a
+    -- Horde one and a warrior's.
+    local journal
+    for _, dungeon in ipairs(J.QuestData) do
+        for _, quest in ipairs(dungeon.quests) do
+            if not journal and quest[4] ~= "H" and not quest.class then journal = quest end
+        end
+    end
+    J.BiSQuestData = { quests = {
+        { journal[1], "Its copy", journal[3], journal[4], true, "Somewhere" },
+        { 990001, "Low One", 10, "A", true, "Elwynn Forest - Marshal (40, 60)", 1429, 40, 60 },
+        { 990002, "Horde One", 12, "H", true, "Durotar - Grunt (50, 50)", 1411, 50, 50 },
+        { 990003, "Warrior One", 14, "A", false, "Elwynn Forest - Trainer (41, 61)", 1429, 41, 61, class = "WARRIOR" },
+        { 990004, "Dwarf One", 11, "A", true, "Dun Morogh - Elder (30, 40)", 1426, 30, 40, races = 4 },
+    } }
+    J.BiSQuestRewards = { [journal[1]] = { 880001 }, [990001] = { 880002, 880009 }, [990002] = { 880003 },
+        [990003] = { 880004 }, [990004] = { 880005 } }
+    J.BiSQuestChoices = { [990001] = true }
+    J.BiSQuestZones = { [990001] = "Elwynn Forest", [990002] = "Durotar", [990003] = "Elwynn Forest" }
+
+    -- Your list, as the BiS List keeps it; then the page's files, as BiS.xml loads them.
+    local list = { slots = { [1] = 880001, [2] = 880002, [3] = 880003, [5] = 880004, [6] = 880005 } }
+    local env = getfenv(J.Quests.List)
+    ns.BiS = { View = {}, Lists = { List = function() return list end },
+        Picks = function(l, slot, out)
+            env.wipe(out)
+            out[1] = l.slots[slot]
+            return out
+        end }
+    for _, path in ipairs({ "BiS/Quests.lua", "BiS/View/QuestsPage.lua" }) do
+        local chunk = assert(loadfile(path))
+        setfenv(chunk, env)
+        chunk()
+    end
+    local Q = ns.BiS.Quests
+    local zones = Q.Zones(list)
+    local byName = {}
+    for _, zone in ipairs(zones) do byName[zone.name] = zone end
+    check("the zones the quests start in", byName["Elwynn Forest"] and byName.Durotar and #zones == 3)
+    check("lowest first", zones[1].level <= zones[2].level and zones[2].level <= zones[3].level)
+    local own
+    for _, zone in ipairs(zones) do
+        if zone.data.quests[1] == journal then own = zone end
+    end
+    check("a quest the Journal lists is its record there", own ~= nil)
+    check("under its quest giver's zone or its dungeon, not Elsewhere", own and own.name ~= "Elsewhere")
+    check("a reward not on your list is not wanted", not Q.Wanted(880009) and Q.Wanted(880002))
+    for _, zone in ipairs(zones) do
+        for _, quest in ipairs(zone.data.quests) do
+            check("a human is not shown a dwarf's quest", quest[1] ~= 990004)
+        end
+    end
+    state.owned[880002] = 1
+    for _, zone in ipairs(Q.Zones(list)) do
+        for _, quest in ipairs(zone.data.quests) do
+            check("a quest whose pick you have is gone", quest[1] ~= 990001)
+        end
+    end
+    state.owned[880002] = nil
+
+    -- The page: each quest for you as the Journal's row, your picks under it.
+    local view = ns.BiS.View.QuestsPage(env.CreateFrame("Frame"))
+    view:SetWidth(700)
+    view:Show()
+    view:Redraw()
+    local rows, items = {}, {}
+    for _, frame in ipairs(state.made) do
+        local entry = rawget(frame, "entry")
+        if entry and rawget(frame, "quest") and frame:IsShown() then rows[entry.quest[1]] = true end
+        if rawget(frame, "itemID") and frame:IsShown() then items[frame.itemID] = true end
+    end
+    check("an Alliance mage sees the Alliance quest", rows[990001])
+    check("not the Horde one, nor the warrior's", not rows[990002] and not rows[990003])
+    check("under it the pick it gives, not what is off your list", items[880002] and not items[880009])
+    check("and says it is a choice", view.pools.note.used >= 1
+        and view.pools.note[1].text.text:find("choice", 1, true) ~= nil)
+    check("Quests counts them for its tab", Q.Count(list) >= 1)
 end
 
 -------------------------------------------------------------------------------

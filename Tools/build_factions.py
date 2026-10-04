@@ -41,7 +41,7 @@ import sys
 from pathlib import Path
 
 import wago
-from build_dungeon_loot import kind, lua_string
+from wowhead import kind, lua_string
 from build_journal import OUT, header, write
 
 FACTIONS = Path(__file__).resolve().parent / "journal_factions.json"

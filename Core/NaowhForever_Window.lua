@@ -48,6 +48,7 @@ local MODULES = {
           { name = "Casting", build = "BuildQoLCastingPage", reuse = true, collapse = true },
           { name = "Tools", build = "BuildQoLToolsPage", reuse = true, collapse = true, noscan = true },
           { name = "Tooltip Display", build = "BuildQoLTooltipPage", reuse = true, collapse = true },
+          { name = "Naowh Score", build = "BuildQoLNaowhScorePage", reuse = true, collapse = true },
           { name = "Performance", build = "BuildQoLPerformancePage", reuse = true, collapse = true },
           { name = "Trainer", build = "BuildQoLTrainerPage", reuse = true },
           { name = "Flight & Camp", build = "BuildQoLFlightPage", reuse = true, collapse = true },
@@ -88,12 +89,17 @@ local MODULES = {
           { name = "Bar", build = "BuildQoLBlessingsPage", reuse = true, collapse = true, noscan = true },
           { name = "Assignments", build = "BuildBlessingAssignmentsPage", reuse = true, noscan = true },
       } },
+    -- The list itself is a window of its own (open); only its settings live here.
     { name = "BiS List", group = "ADVENTURE", navIcon = "trophy", settings = "QoLSettings", enabledKey = "bis",
+      open = "ToggleBisWindow",
       command = "bis", short = "BiS", icon = "Interface\\Icons\\INV_Sword_39",
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
       tabs = {
-          { name = "List", build = "BuildQoLBiSPage", reuse = true, noscan = true },
           { name = "Settings", build = "BuildQoLBiSSettingsPage", reuse = true },
+          -- Its own module (StatWeights/), with its own switches: here as the gear it weighs is.
+          { name = "Stat Weights", build = "BuildStatWeightsPage", reuse = true },
+          -- The game's character panel in the BiS List's look (CharacterPanel/).
+          { name = "Character Panel", build = "BuildQoLCharacterPanelPage", reuse = true },
       } },
     { name = "Professions", group = "ADVENTURE", navIcon = "hammer", settings = "ProfessionSettings",
       subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",

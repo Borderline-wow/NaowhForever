@@ -1,0 +1,1621 @@
+{
+ "quest=1012": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    85.2,
+    44.6
+   ],
+   "npc": "Kayneth Stillwind",
+   "zone": 331,
+   "zoneName": "Ashenvale"
+  }
+ },
+ "quest=1013": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    53.6,
+    54
+   ],
+   "npc": "Keeper Bel'dugur",
+   "zone": 1497,
+   "zoneName": "Undercity"
+  }
+ },
+ "quest=1014": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    44.2,
+    39.8
+   ],
+   "npc": "Dalar Dawnweaver",
+   "zone": 130,
+   "zoneName": "Silverpine Forest"
+  }
+ },
+ "quest=1035": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    37.2,
+    51.8
+   ],
+   "npc": "Pelturas Whitemoon",
+   "zone": 331,
+   "zoneName": "Ashenvale"
+  }
+ },
+ "quest=104": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    30,
+    86
+   ],
+   "npc": "Captain Grayson",
+   "zone": 40,
+   "zoneName": "Westfall"
+  }
+ },
+ "quest=1046": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    50.8,
+    75
+   ],
+   "npc": "Krolg",
+   "zone": 331,
+   "zoneName": "Ashenvale"
+  }
+ },
+ "quest=1058": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    74.4,
+    97.8
+   ],
+   "npc": "Witch Doctor Jin'Zil",
+   "zone": 406,
+   "zoneName": "Stonetalon Mountains"
+  }
+ },
+ "quest=1059": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    37,
+    8
+   ],
+   "npc": "Keeper Albagorm",
+   "zone": 406,
+   "zoneName": "Stonetalon Mountains"
+  }
+ },
+ "quest=1078": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    43,
+    80.2
+   ],
+   "npc": "Collin Mauren",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=1081": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    34.8,
+    49.8
+   ],
+   "npc": "Sentinel Thenysil",
+   "zone": 331,
+   "zoneName": "Ashenvale"
+  }
+ },
+ "quest=1089": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    46,
+    60.4
+   ],
+   "npc": "Braelyn Firehand",
+   "zone": 406,
+   "zoneName": "Stonetalon Mountains"
+  }
+ },
+ "quest=1092": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    71.8,
+    60
+   ],
+   "npc": "Piznik",
+   "zone": 406,
+   "zoneName": "Stonetalon Mountains"
+  }
+ },
+ "quest=1096": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    59,
+    62.4
+   ],
+   "npc": "Ziz Fizziks",
+   "zone": 406,
+   "zoneName": "Stonetalon Mountains"
+  }
+ },
+ "quest=1098": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    43.4,
+    40.8
+   ],
+   "npc": "High Executor Hadrec",
+   "zone": 130,
+   "zoneName": "Silverpine Forest"
+  }
+ },
+ "quest=1197": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    46,
+    51.6
+   ],
+   "npc": "Rau Cliffrunner",
+   "zone": 400,
+   "zoneName": "Thousand Needles"
+  }
+ },
+ "quest=1199": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    55.2,
+    23.6
+   ],
+   "npc": "Argent Guard Manados",
+   "zone": 1657,
+   "zoneName": "Darnassus"
+  }
+ },
+ "quest=1200": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    ""
+   ],
+   "npc": "Argent Guard Thaelrid",
+   "zone": 719,
+   "zoneName": "Blackfathom Deeps"
+  }
+ },
+ "quest=126": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    31,
+    47.4
+   ],
+   "npc": "Verner Osgood",
+   "zone": 44,
+   "zoneName": "Redridge Mountains"
+  }
+ },
+ "quest=1275": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    38.4,
+    43
+   ],
+   "npc": "Gershala Nightwhisper",
+   "zone": 148,
+   "zoneName": "Darkshore"
+  }
+ },
+ "quest=1486": {
+  "item": null,
+  "shareable": true,
+  "start": null
+ },
+ "quest=1487": {
+  "item": null,
+  "shareable": true,
+  "start": null
+ },
+ "quest=150": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    27.8,
+    47.2
+   ],
+   "npc": "Dockmaster Baren",
+   "zone": 44,
+   "zoneName": "Redridge Mountains"
+  }
+ },
+ "quest=1527": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    38.9,
+    58.2
+   ],
+   "npc": "Brazier of the Dormant Flame",
+   "zone": 14,
+   "zoneName": "Durotar"
+  }
+ },
+ "quest=166": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    56.2,
+    47.6
+   ],
+   "npc": "Gryan Stoutmantle",
+   "zone": 40,
+   "zoneName": "Westfall"
+  }
+ },
+ "quest=1706": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    51.6,
+    12.2
+   ],
+   "npc": "Grimand Elmore",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=1709": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    68.2,
+    46.2
+   ],
+   "npc": "Klockmort Spannerspan",
+   "zone": 1537,
+   "zoneName": "Ironforge"
+  }
+ },
+ "quest=1711": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    59.2,
+    45.4
+   ],
+   "npc": "Mathiel",
+   "zone": 1657,
+   "zoneName": "Darnassus"
+  }
+ },
+ "quest=1740": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    49.2,
+    57.2
+   ],
+   "npc": "Doan Karhan",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=1782": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    58,
+    16.8
+   ],
+   "npc": "Furen Longbeard",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=1806": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    52.4,
+    36.8
+   ],
+   "npc": "Jordan Stilwell",
+   "zone": 1,
+   "zoneName": "Dun Morogh"
+  }
+ },
+ "quest=1843": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    56.2,
+    74.4
+   ],
+   "npc": "Ula'elek",
+   "zone": 14,
+   "zoneName": "Durotar"
+  }
+ },
+ "quest=1845": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    39,
+    55.8
+   ],
+   "npc": "Orm Stonehoof",
+   "zone": 1638,
+   "zoneName": "Thunder Bluff"
+  }
+ },
+ "quest=1847": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    62.4,
+    39.2
+   ],
+   "npc": "Velora Nitely",
+   "zone": 1497,
+   "zoneName": "Undercity"
+  }
+ },
+ "quest=1848": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    57.2,
+    30.2
+   ],
+   "npc": "Thun'grim Firegaze",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=19": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    33.4,
+    48.8
+   ],
+   "npc": "Marshal Marris",
+   "zone": 44,
+   "zoneName": "Redridge Mountains"
+  }
+ },
+ "quest=1946": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    52.2,
+    31.6
+   ],
+   "npc": "Kil'hala",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=2040": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    55.4,
+    12.6
+   ],
+   "npc": "Shoni the Shilent",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=214": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    56.6,
+    47.4
+   ],
+   "npc": "Scout Riell",
+   "zone": 40,
+   "zoneName": "Westfall"
+  }
+ },
+ "quest=219": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    28.4,
+    12.6
+   ],
+   "npc": "Corporal Keeshan",
+   "zone": 44,
+   "zoneName": "Redridge Mountains"
+  }
+ },
+ "quest=223": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    75.2,
+    48
+   ],
+   "npc": "Calor",
+   "zone": 10,
+   "zoneName": "Duskwood"
+  }
+ },
+ "quest=247": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    73.6,
+    61.4
+   ],
+   "npc": "Senani Thunderheart",
+   "zone": 331,
+   "zoneName": "Ashenvale"
+  }
+ },
+ "quest=249": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    65.2,
+    69.8
+   ],
+   "npc": "Theocritus",
+   "zone": 12,
+   "zoneName": "Elwynn Forest"
+  }
+ },
+ "quest=256": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    37.2,
+    46.4
+   ],
+   "npc": "WANTED",
+   "zone": 38,
+   "zoneName": "Loch Modan"
+  }
+ },
+ "quest=286": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    13.9,
+    34.9
+   ],
+   "npc": "Half-buried Barrel",
+   "zone": 11,
+   "zoneName": "Wetlands"
+  }
+ },
+ "quest=2904": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    ""
+   ],
+   "npc": "Kernobee",
+   "zone": 721,
+   "zoneName": "Gnomeregan"
+  }
+ },
+ "quest=2928": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    55.4,
+    12.6
+   ],
+   "npc": "Shoni the Shilent",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=296": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    38,
+    51.2
+   ],
+   "npc": "Ormer Ironbraid",
+   "zone": 11,
+   "zoneName": "Wetlands"
+  }
+ },
+ "quest=307": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    24.8,
+    18.2
+   ],
+   "npc": "Mountaineer Stormpike",
+   "zone": 38,
+   "zoneName": "Loch Modan"
+  }
+ },
+ "quest=31": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    56.2,
+    30.4
+   ],
+   "npc": "Dendrite Starblaze",
+   "zone": 493,
+   "zoneName": "Moonglade"
+  }
+ },
+ "quest=3369": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    48.2,
+    32.8
+   ],
+   "npc": "Falla Sagewind",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=3370": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    48.2,
+    32.8
+   ],
+   "npc": "Falla Sagewind",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=3514": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    48,
+    5.4
+   ],
+   "npc": "Kadrak",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=396": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    49,
+    30.2
+   ],
+   "npc": "Baros Alexston",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=442": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    43.4,
+    40.8
+   ],
+   "npc": "High Executor Hadrec",
+   "zone": 130,
+   "zoneName": "Silverpine Forest"
+  }
+ },
+ "quest=452": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    46.4,
+    74.2
+   ],
+   "npc": "Deathstalker Faerleia",
+   "zone": 130,
+   "zoneName": "Silverpine Forest"
+  }
+ },
+ "quest=471": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    8.6,
+    55.6
+   ],
+   "npc": "James Halloran",
+   "zone": 11,
+   "zoneName": "Wetlands"
+  }
+ },
+ "quest=4740": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    37.2,
+    44.2
+   ],
+   "npc": "WANTED: Murkdeep!",
+   "zone": 148,
+   "zoneName": "Darkshore"
+  }
+ },
+ "quest=486": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    56,
+    57.4
+   ],
+   "npc": "Athridas Bearmantle",
+   "zone": 141,
+   "zoneName": "Teldrassil"
+  }
+ },
+ "quest=5061": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    56.2,
+    30.4
+   ],
+   "npc": "Dendrite Starblaze",
+   "zone": 493,
+   "zoneName": "Moonglade"
+  }
+ },
+ "quest=5088": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    70.2,
+    30.8
+   ],
+   "npc": "Magatha Grimtotem",
+   "zone": 1638,
+   "zoneName": "Thunder Bluff"
+  }
+ },
+ "quest=515": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    48.4,
+    69.4
+   ],
+   "npc": "Master Apothecary Faranell",
+   "zone": 1497,
+   "zoneName": "Undercity"
+  }
+ },
+ "quest=530": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    62,
+    43
+   ],
+   "npc": "Raleigh Andrean",
+   "zone": 1497,
+   "zoneName": "Undercity"
+  }
+ },
+ "quest=5321": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    44.4,
+    76.4
+   ],
+   "npc": "Kerlonian Evershade",
+   "zone": 148,
+   "zoneName": "Darkshore"
+  }
+ },
+ "quest=547": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    62.6,
+    20.2
+   ],
+   "npc": "Deathguard Humbert",
+   "zone": 267,
+   "zoneName": "Hillsbrad Foothills"
+  }
+ },
+ "quest=549": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    62.6,
+    20.7
+   ],
+   "npc": "WANTED",
+   "zone": 267,
+   "zoneName": "Hillsbrad Foothills"
+  }
+ },
+ "quest=550": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    62.2,
+    20.2
+   ],
+   "npc": "High Executor Darthalia",
+   "zone": 267,
+   "zoneName": "Hillsbrad Foothills"
+  }
+ },
+ "quest=567": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    62.5,
+    19.7
+   ],
+   "npc": "Dangerous!",
+   "zone": 267,
+   "zoneName": "Hillsbrad Foothills"
+  }
+ },
+ "quest=5724": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    ""
+   ],
+   "npc": "Maur Grimtotem",
+   "zone": 2437,
+   "zoneName": "Ragefire Chasm"
+  }
+ },
+ "quest=5725": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    56.2,
+    92.6
+   ],
+   "npc": "Varimathras",
+   "zone": 1497,
+   "zoneName": "Undercity"
+  }
+ },
+ "quest=5730": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    49.6,
+    50.4
+   ],
+   "npc": "Neeru Fireblade",
+   "zone": 1637,
+   "zoneName": "Orgrimmar"
+  }
+ },
+ "quest=6283": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    47.2,
+    61
+   ],
+   "npc": "Maggran Earthbinder",
+   "zone": 406,
+   "zoneName": "Stonetalon Mountains"
+  }
+ },
+ "quest=6481": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    47.2,
+    64
+   ],
+   "npc": "Mor'rogal",
+   "zone": 406,
+   "zoneName": "Stonetalon Mountains"
+  }
+ },
+ "quest=6561": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    ""
+   ],
+   "npc": "Argent Guard Thaelrid",
+   "zone": 719,
+   "zoneName": "Blackfathom Deeps"
+  }
+ },
+ "quest=6565": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    11.6,
+    34.2
+   ],
+   "npc": "Je'neu Sancrea",
+   "zone": 331,
+   "zoneName": "Ashenvale"
+  }
+ },
+ "quest=741": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    37.4,
+    41.8
+   ],
+   "npc": "Archaeologist Hollee",
+   "zone": 148,
+   "zoneName": "Darkshore"
+  }
+ },
+ "quest=78150": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    37.8,
+    80.2
+   ],
+   "npc": "Garion Wendell",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=78307": {
+  "item": null,
+  "shareable": false,
+  "start": null
+ },
+ "quest=824": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    73.6,
+    60
+   ],
+   "npc": "Mastok Wrilehiss",
+   "zone": 331,
+   "zoneName": "Ashenvale"
+  }
+ },
+ "quest=849": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    46,
+    75.4
+   ],
+   "npc": "Gann Stonespire",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=852": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    45.4,
+    28.4
+   ],
+   "npc": "Regthar Deathgate",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=855": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    45.4,
+    28.4
+   ],
+   "npc": "Regthar Deathgate",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=862": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    55.2,
+    31.8
+   ],
+   "npc": "Grub",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=86574": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    48.6,
+    39.8
+   ],
+   "npc": "Night Elf Courier",
+   "zone": 406,
+   "zoneName": "Stonetalon Mountains"
+  }
+ },
+ "quest=86614": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    48.1,
+    39.7
+   ],
+   "npc": "Discarded Fishing Toolbox",
+   "zone": 38,
+   "zoneName": "Loch Modan"
+  }
+ },
+ "quest=868": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    51,
+    29.6
+   ],
+   "npc": "Korran",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=873": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    65.8,
+    43.8
+   ],
+   "npc": "Mahren Skyseer",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=89": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    32.2,
+    48.6
+   ],
+   "npc": "Foreman Oslow",
+   "zone": 44,
+   "zoneName": "Redridge Mountains"
+  }
+ },
+ "quest=891": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    62.2,
+    39
+   ],
+   "npc": "Captain Thalo'thas Brightsun",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=9": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    56,
+    31.2
+   ],
+   "npc": "Farmer Saldean",
+   "zone": 40,
+   "zoneName": "Westfall"
+  }
+ },
+ "quest=906": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    44.6,
+    59.2
+   ],
+   "npc": "Mangletooth",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=914": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    75.6,
+    31.2
+   ],
+   "npc": "Nara Wildmane",
+   "zone": 1638,
+   "zoneName": "Thunder Bluff"
+  }
+ },
+ "quest=92401": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    44.4,
+    42.8
+   ],
+   "npc": "Tabitha Heartweaver",
+   "zone": 130,
+   "zoneName": "Silverpine Forest"
+  }
+ },
+ "quest=92421": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    57.8,
+    89.8
+   ],
+   "npc": "Morbin Lightbane",
+   "zone": 1497,
+   "zoneName": "Undercity"
+  }
+ },
+ "quest=92422": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    65.2,
+    60.2
+   ],
+   "npc": "Deathguard Kristof",
+   "zone": 85,
+   "zoneName": "Tirisfal Glades"
+  }
+ },
+ "quest=92646": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    65.2,
+    50.4
+   ],
+   "npc": "Valennia Stormfist",
+   "zone": 16593,
+   "zoneName": "Zephras Isle"
+  }
+ },
+ "quest=93835": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    65.2,
+    50.4
+   ],
+   "npc": "Valennia Stormfist",
+   "zone": 16593,
+   "zoneName": "Zephras Isle"
+  }
+ },
+ "quest=94411": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    43.6,
+    44.8
+   ],
+   "npc": "Illaya Amberwind",
+   "zone": 16593,
+   "zoneName": "Zephras Isle"
+  }
+ },
+ "quest=94468": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    38.9,
+    58.2
+   ],
+   "npc": "Brazier of the Dormant Flame",
+   "zone": 14,
+   "zoneName": "Durotar"
+  }
+ },
+ "quest=95126": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    60.4,
+    26
+   ],
+   "npc": "Ott",
+   "zone": 267,
+   "zoneName": "Hillsbrad Foothills"
+  }
+ },
+ "quest=95140": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    43.2,
+    41
+   ],
+   "npc": "Lumina Windsinger",
+   "zone": 130,
+   "zoneName": "Silverpine Forest"
+  }
+ },
+ "quest=95161": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    47.2,
+    38.4
+   ],
+   "npc": "Orphan Matron Nightingale",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=95195": {
+  "item": null,
+  "shareable": false,
+  "start": null
+ },
+ "quest=95216": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    46.6,
+    71.8
+   ],
+   "npc": "Theodore Griffs",
+   "zone": 1497,
+   "zoneName": "Undercity"
+  }
+ },
+ "quest=95250": {
+  "item": null,
+  "shareable": true,
+  "start": null
+ },
+ "quest=95508": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    42,
+    11.4
+   ],
+   "npc": "Walton",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=95885": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    58.1,
+    69.8
+   ],
+   "npc": "Offering Stone",
+   "zone": 130,
+   "zoneName": "Silverpine Forest"
+  }
+ },
+ "quest=95981": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    44,
+    41
+   ],
+   "npc": "Shadow Priest Allister",
+   "zone": 130,
+   "zoneName": "Silverpine Forest"
+  }
+ },
+ "quest=95999": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    24.4,
+    46.3
+   ],
+   "npc": "Wanted: Incinerator Gar'im",
+   "zone": 44,
+   "zoneName": "Redridge Mountains"
+  }
+ },
+ "quest=962": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    23,
+    21
+   ],
+   "npc": "Apothecary Zamah",
+   "zone": 1638,
+   "zoneName": "Thunder Bluff"
+  }
+ },
+ "quest=96261": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    33.4,
+    22.4
+   ],
+   "npc": "Muln Earthfury",
+   "zone": 215,
+   "zoneName": "Mulgore"
+  }
+ },
+ "quest=963": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    35.8,
+    43.6
+   ],
+   "npc": "Cerellean Whiteclaw",
+   "zone": 148,
+   "zoneName": "Darkshore"
+  }
+ },
+ "quest=96393": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    64.8,
+    58.4
+   ],
+   "npc": "Earthseer Farsen",
+   "zone": 1,
+   "zoneName": "Dun Morogh"
+  }
+ },
+ "quest=96394": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    33,
+    48
+   ],
+   "npc": "Afadra Dunwall",
+   "zone": 1537,
+   "zoneName": "Ironforge"
+  }
+ },
+ "quest=96395": {
+  "item": null,
+  "shareable": true,
+  "start": null
+ },
+ "quest=96403": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    32.4,
+    44.8
+   ],
+   "npc": "Thom Filch",
+   "zone": 1537,
+   "zoneName": "Ironforge"
+  }
+ },
+ "quest=971": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    50.4,
+    6
+   ],
+   "npc": "Gerrig Bonegrip",
+   "zone": 1537,
+   "zoneName": "Ironforge"
+  }
+ },
+ "quest=97250": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    44.6,
+    59.2
+   ],
+   "npc": "Grunt Logmar",
+   "zone": 17,
+   "zoneName": "The Barrens"
+  }
+ },
+ "quest=97257": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    51.2,
+    86
+   ],
+   "npc": "Olariaan Swiftburn",
+   "zone": 16593,
+   "zoneName": "Zephras Isle"
+  }
+ },
+ "quest=97290": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    46.2,
+    63
+   ],
+   "npc": "Unfinished Abomination",
+   "zone": 1497,
+   "zoneName": "Undercity"
+  }
+ },
+ "quest=98027": {
+  "item": null,
+  "shareable": false,
+  "start": null
+ },
+ "quest=98028": {
+  "item": null,
+  "shareable": false,
+  "start": null
+ },
+ "quest=98095": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    64,
+    53.8
+   ],
+   "npc": "Deathstalker Masoj",
+   "zone": 267,
+   "zoneName": "Hillsbrad Foothills"
+  }
+ },
+ "quest=981": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    55,
+    24.8
+   ],
+   "npc": "Balthule Shadowstrike",
+   "zone": 148,
+   "zoneName": "Darkshore"
+  }
+ },
+ "quest=98191": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    78,
+    18
+   ],
+   "npc": "Highlord Bolvar Fordragon",
+   "zone": 1519,
+   "zoneName": "Stormwind City"
+  }
+ },
+ "quest=98216": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    38.8,
+    52.2
+   ],
+   "npc": "Prospector Whelgar",
+   "zone": 11,
+   "zoneName": "Wetlands"
+  }
+ },
+ "quest=98223": {
+  "item": null,
+  "shareable": false,
+  "start": null
+ },
+ "quest=98283": {
+  "item": null,
+  "shareable": true,
+  "start": {
+   "coord": [
+    56.2,
+    40.4
+   ],
+   "npc": "Rethiel the Greenwarden",
+   "zone": 11,
+   "zoneName": "Wetlands"
+  }
+ },
+ "quest=98297": {
+  "item": null,
+  "shareable": true,
+  "start": null
+ },
+ "quest=98310": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    38.8,
+    52.2
+   ],
+   "npc": "Prospector Whelgar",
+   "zone": 11,
+   "zoneName": "Wetlands"
+  }
+ },
+ "quest=98545": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    22,
+    44.8
+   ],
+   "npc": "Leonid Barthalomew the Revered",
+   "zone": 85,
+   "zoneName": "Tirisfal Glades"
+  }
+ },
+ "quest=994": {
+  "item": null,
+  "shareable": false,
+  "start": {
+   "coord": [
+    45,
+    85.2
+   ],
+   "npc": "Volcor",
+   "zone": 148,
+   "zoneName": "Darkshore"
+  }
+ }
+}

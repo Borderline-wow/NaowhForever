@@ -56,6 +56,19 @@ do
     UI.searchScan = nil
 end
 
+-- A button row is found by its name and by each of its buttons.
+do
+    UI.searchScan = { section = "LISTS", items = {} }
+    W:DualRow({}, -6, { type = "buttons", text = "Manage Lists", buttons = {
+        { text = "New", tooltip = "Start a list." }, { text = "Delete" } } })
+    local labels = {}
+    for i, item in ipairs(UI.searchScan.items) do labels[i] = item.label end
+    Check(table.concat(labels, ",") == "Manage Lists,New,Delete", "a button row scans its buttons")
+    Check(UI.searchScan.items[2].tooltip == "Start a list.", "with their tooltips")
+    Check(UI.FormatPercent(100) == "100%" and UI.FormatSeconds(6) == "6s", "slider values in their units")
+    UI.searchScan = nil
+end
+
 -- Plain: what a section header reads as.
 Check(UI.Search.Plain("UNLEARNED RECIPES   |cff9a9ea6UNTESTED|r") == "UNLEARNED RECIPES", "status tag stripped")
 Check(UI.Search.Plain("BAR|cffff6060 NOT POSSIBLE YET|r") == "BAR", "colour and status stripped")
@@ -145,7 +158,7 @@ end
 do
     local expected = { ["Patch Notes"] = true, ["Profiles"] = true, ["QoL/Tools"] = true,
         ["Discovery/Books"] = true, ["Blessings/Bar"] = true, ["Blessings/Assignments"] = true,
-        ["BiS List/List"] = true, ["AuraBuffs/Poison & Dispel"] = true,
+        ["AuraBuffs/Poison & Dispel"] = true,
         ["Smart Reminders/Setup"] = true, ["Smart Reminders/Cooldown Presets"] = true,
         ["Smart Reminders/Dungeon Bosses"] = true, ["Smart Reminders/Raid Bosses"] = true }
     local module, total, seen = nil, 0, {}
@@ -164,7 +177,7 @@ do
             Check(noscan == (expected[name] == true), name .. ": noscan is " .. tostring(expected[name] == true))
         end
     end
-    Check(total == 42, "the window lists 42 pages (" .. total .. "): decide noscan for a new one")
+    Check(total == 44, "the window lists 44 pages (" .. total .. "): decide noscan for a new one")
     for name in pairs(expected) do Check(seen[name] ~= nil, "the audited page still exists: " .. name) end
 end
 

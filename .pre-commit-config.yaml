@@ -57,7 +57,7 @@ repos:
         language: pygrep
         entry: '[^\x00-\x7F]'
         files: \.(lua|toc|xml)$
-        exclude: ^Locales/|^BiS/NaowhForever_BiSData\.lua$
+        exclude: ^Locales/|^BiS/Data/BiS\.lua$
 
       - id: toc-files
         name: TOC files exist

@@ -16,7 +16,8 @@ local S = J.Settings
 local St = J.Style
 local BIS_RGB, BIS_CODE, LOOK_CODE, TERRITORY_CODE = St.BIS_RGB, St.BIS_CODE, St.LOOK_CODE, St.TERRITORY_CODE
 local LIST_W, LIST_ROW, GROUP_H, UNUSABLE, STRIPE = St.LIST_W, St.LIST_ROW, St.GROUP_H, St.UNUSABLE, St.STRIPE
-local NAME_SIZE, COUNT_SIZE, NEW_TAG_SIZE = St.LIST_NAME_SIZE, St.LIST_COUNT_SIZE, St.NEW_TAG_SIZE
+local NAME_SIZE, COUNT_SIZE, FOREVER_H = St.LIST_NAME_SIZE, St.LIST_COUNT_SIZE, St.FOREVER_H
+local Parts = ns.Shared.Parts
 local BAR, BAR_GAP = St.LIST_BAR, St.LIST_BAR_GAP
 local PEOPLE = St.PEOPLE
 local SIZE_ICON, SIZE_GAP = 12, 3   -- the group icon before a raid's size, and its gap
@@ -30,14 +31,18 @@ local STAR_TAG = ("|T%s:0:0:0:0:64:64:0:64:0:64:%d:%d:%d|t "):format(St.STAR, BI
 local DONE = ("|T%s:0:0:0:0:64:64:0:64:0:64:%d:%d:%d|t"):format(St.CHECK, St.HAVE_RGB.r * 255,
     St.HAVE_RGB.g * 255, St.HAVE_RGB.b * 255)
 
--- A row, left to right: the accent bar (the one shown), the dot (the one you are in), NEW in
--- its own column so every name starts at NAME_LEFT, the name; then on the right your BiS
--- count, the levels and whose ground it is on.
+-- A row, left to right: the accent bar (the one shown), the dot (the one you are in), WoW
+-- Forever's mark (new in Forever) in its own column so every name starts at NAME_LEFT, the
+-- name; then on the right your BiS count, the levels and whose ground it is on. The mark has
+-- as much room before it, after the bar, as it leaves before the name; the dot sits in the
+-- middle of that room.
 local ROW_W = LIST_W - BAR - BAR_GAP - 2   -- the list's width less its scrollbar
 local SELECTED_BAR = 3
-local HERE_DOT, HERE_LEFT = 5, 6
-local NEW_LEFT = 14
-local NAME_LEFT = 40
+local MARK_GAP = 9
+local NEW_LEFT = SELECTED_BAR + MARK_GAP
+local NAME_LEFT = NEW_LEFT + St.FOREVER_H * 2 + MARK_GAP
+local HERE_DOT = 5
+local HERE_LEFT = SELECTED_BAR + (MARK_GAP - HERE_DOT) / 2
 local NAME_GAP, BIS_GAP, ICON_RIGHT = 8, 8, 8
 -- The levels' digits sit under the middle of their font string (the Naowh font leaves room
 -- above its capitals): the territory icon goes this much under it, level with them.
@@ -95,7 +100,7 @@ local function RowEnter(row)
     GameTooltip:SetText(dungeon.name)
     -- What the dot before its name means.
     if row.here:IsShown() then GameTooltip:AddLine("You are here", T.accent.r, T.accent.g, T.accent.b) end
-    if dungeon.new then GameTooltip:AddLine("New in WoW Forever", T.accent.r, T.accent.g, T.accent.b) end
+    if dungeon.new then GameTooltip:AddLine(Parts.ForeverLine()) end
     if dungeon.zone then
         local territory = dungeon.territory or "Contested"
         GameTooltip:AddLine(dungeon.zone .. "  " .. TERRITORY_CODE[territory] .. territory .. "|r", 1, 1, 1)
@@ -194,12 +199,10 @@ local function Row(parent, dungeon)
     row.name:SetJustifyH("LEFT")
     row.name:SetWordWrap(false)
     row.name:SetText(dungeon.name)
-    -- NEW in the accent, small, in its column before the name and on the name's baseline
-    -- (the bottoms of the two lines, so their letters stand on one line).
+    -- Forever's mark in its column before the name, level with it.
     if dungeon.new then
-        row.new = ns.Font(row, NEW_TAG_SIZE, nil, T.accent)
-        row.new:SetText("NEW")
-        row.new:SetPoint("BOTTOMLEFT", row.name, "BOTTOMLEFT", NEW_LEFT - NAME_LEFT, 0)
+        row.new = Parts.ForeverMark(row, FOREVER_H)
+        row.new:SetPoint("LEFT", NEW_LEFT, 0)
     end
     row:SetScript("OnClick", RowClicked)
     row:SetScript("OnEnter", RowEnter)
@@ -335,8 +338,8 @@ end
 
 -- The one shown: the accent bar and a lighter band. For your level: white, the rest muted.
 -- The one you are in: a dot before its name. The BiS there you still miss, in orange, so the
--- list says where your gear is, and a check once you have them all; a check after its name
--- once you are done with it. Each text changes only when what it says does.
+-- list says where your gear is; nothing once you have them all (one mark per column, the
+-- star and a count); a check after its name once you are done with it. Each text changes only when what it says does.
 ---@param selected? JournalDungeon
 function List.Paint(selected)
     local here = J.Current()
@@ -354,11 +357,11 @@ function List.Paint(selected)
         row:SetAlpha((J.HasBosses(dungeon) or chosen) and 1 or UNUSABLE)
         row.here:SetShown(dungeon == current)
         local bis, haveBis = Loot.DungeonBis(dungeon, filters)
-        -- None here: nothing; all yours: the check; else how many you still miss.
-        local missing = bis > 0 and bis - haveBis or -1
+        -- How many you still miss; nothing when none drop here, or all are yours.
+        local missing = bis - haveBis
         if missing ~= row.missing then
             row.missing = missing
-            row.bis:SetText(missing < 0 and "" or STAR_TAG .. (missing == 0 and DONE or missing))
+            row.bis:SetText(missing > 0 and STAR_TAG .. missing or "")
         end
         local finished = Finished(dungeon, bis, haveBis)
         if finished ~= row.finished then

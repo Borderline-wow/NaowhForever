@@ -1,0 +1,252 @@
+{
+ "item=11304": {
+  "map": 1431,
+  "name": "Avette Fellwood",
+  "npc": 228,
+  "roams": false,
+  "sells": true,
+  "x": 73,
+  "y": 44.4
+ },
+ "item=1189": {
+  "map": 1436,
+  "name": "Riverpaw Overseer",
+  "npc": 125,
+  "roams": true,
+  "sells": false,
+  "x": 61.6,
+  "y": 76.2
+ },
+ "item=1215": {
+  "map": 1432,
+  "name": "Boss Galgosh",
+  "npc": 1398,
+  "roams": true,
+  "sells": false,
+  "x": 70.4,
+  "y": 67.6
+ },
+ "item=1220": null,
+ "item=1314": {
+  "map": 1436,
+  "name": "Leprithus",
+  "npc": 572,
+  "roams": true,
+  "sells": false,
+  "x": 56.4,
+  "y": 58.8
+ },
+ "item=1406": null,
+ "item=211856": {
+  "map": 1413,
+  "name": "Kelm Hargunth",
+  "npc": 14754,
+  "roams": false,
+  "sells": true,
+  "x": 46.6,
+  "y": 8.4
+ },
+ "item=211857": {
+  "map": 1413,
+  "name": "Kelm Hargunth",
+  "npc": 14754,
+  "roams": false,
+  "sells": true,
+  "x": 46.6,
+  "y": 8.4
+ },
+ "item=270227": null,
+ "item=270228": null,
+ "item=270230": null,
+ "item=270231": null,
+ "item=270260": null,
+ "item=270261": null,
+ "item=271096": null,
+ "item=271097": null,
+ "item=271098": null,
+ "item=282283": null,
+ "item=285330": {
+  "map": 1413,
+  "name": "Swiftmane",
+  "npc": 5831,
+  "roams": true,
+  "sells": false,
+  "x": 60.4,
+  "y": 33
+ },
+ "item=285332": {
+  "map": 1413,
+  "name": "Swinegart Spearhide",
+  "npc": 5864,
+  "roams": true,
+  "sells": false,
+  "x": 42.4,
+  "y": 47.8
+ },
+ "item=285339": {
+  "map": 1413,
+  "name": "Rocklance",
+  "npc": 5841,
+  "roams": true,
+  "sells": false,
+  "x": 53.8,
+  "y": 41.2
+ },
+ "item=285345": {
+  "map": 1413,
+  "name": "Sister Rathtalon",
+  "npc": 5830,
+  "roams": true,
+  "sells": false,
+  "x": 39.6,
+  "y": 15.2
+ },
+ "item=286536": {
+  "map": 1413,
+  "name": "Snort the Heckler",
+  "npc": 5829,
+  "roams": true,
+  "sells": false,
+  "x": 40.6,
+  "y": 23.6
+ },
+ "item=286753": null,
+ "item=3018": {
+  "map": 1431,
+  "name": "Lupos",
+  "npc": 521,
+  "roams": true,
+  "sells": false,
+  "x": 38.8,
+  "y": 26.2
+ },
+ "item=3022": {
+  "map": 1437,
+  "name": "Bluegill Muckdweller",
+  "npc": 1028,
+  "roams": true,
+  "sells": false,
+  "x": 16.6,
+  "y": 33.8
+ },
+ "item=3229": null,
+ "item=4436": {
+  "map": 1421,
+  "name": "Dalaran Spellscribe",
+  "npc": 1920,
+  "roams": true,
+  "sells": false,
+  "x": 63,
+  "y": 63.6
+ },
+ "item=4786": null,
+ "item=4793": null,
+ "item=4794": {
+  "map": 1436,
+  "name": "Antonio Perelli",
+  "npc": 844,
+  "roams": true,
+  "sells": true,
+  "x": 57.4,
+  "y": 28.6
+ },
+ "item=4795": {
+  "map": 1436,
+  "name": "Antonio Perelli",
+  "npc": 844,
+  "roams": true,
+  "sells": true,
+  "x": 57.4,
+  "y": 28.6
+ },
+ "item=4796": {
+  "map": 1436,
+  "name": "Antonio Perelli",
+  "npc": 844,
+  "roams": true,
+  "sells": true,
+  "x": 57.4,
+  "y": 28.6
+ },
+ "item=4800": {
+  "map": 1413,
+  "name": "Vrang Wildgore",
+  "npc": 3682,
+  "roams": false,
+  "sells": true,
+  "x": 43.8,
+  "y": 12.2
+ },
+ "item=4822": {
+  "map": 1413,
+  "name": "Grazlix",
+  "npc": 3493,
+  "roams": false,
+  "sells": true,
+  "x": 62.2,
+  "y": 38.4
+ },
+ "item=5183": {
+  "map": 1413,
+  "name": "Gesharahan",
+  "npc": 3398,
+  "roams": false,
+  "sells": false,
+  "x": 46.4,
+  "y": 39.4
+ },
+ "item=5749": {
+  "map": 1437,
+  "name": "Ma'ruk Wyrmscale",
+  "npc": 2090,
+  "roams": false,
+  "sells": false,
+  "x": 47.8,
+  "y": 74.6
+ },
+ "item=5969": {
+  "map": 1421,
+  "name": "Ravenclaw Regent",
+  "npc": 2283,
+  "roams": false,
+  "sells": false,
+  "x": 57.2,
+  "y": 70.8
+ },
+ "item=5975": {
+  "map": 1421,
+  "name": "Rot Hide Bruiser",
+  "npc": 1944,
+  "roams": true,
+  "sells": false,
+  "x": 64.8,
+  "y": 24.6
+ },
+ "item=6332": {
+  "map": 1439,
+  "name": "Lady Vespira",
+  "npc": 7016,
+  "roams": true,
+  "sells": false,
+  "x": 57.8,
+  "y": 18.6
+ },
+ "item=6333": {
+  "map": 1439,
+  "name": "Lady Vespira",
+  "npc": 7016,
+  "roams": true,
+  "sells": false,
+  "x": 57.8,
+  "y": 18.6
+ },
+ "item=892": {
+  "map": 1437,
+  "name": "Mosshide Mistweaver",
+  "npc": 1009,
+  "roams": true,
+  "sells": false,
+  "x": 45.6,
+  "y": 34.6
+ }
+}

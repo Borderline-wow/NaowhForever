@@ -133,6 +133,8 @@ J.NEEDS_BIS = "Needs the BiS List module: turn it on in its page."
 J.FACT = { CLASS = 1, SUBCLASS = 2, ITEM_LEVEL = 3, REQUIRED = 4, QUALITY = 5 }
 
 local ordered, byKey = {}, {}
+-- The bosses of dungeons new in Forever, for the Forever mark.
+local newBosses = {}
 -- NPC ID -> its boss and the dungeon it is in, for the boss loot window. Built on first use.
 local byNpc, dungeonOf
 -- Instance ID -> the dungeons in it (Blackrock Spire holds both halves); a new dungeon whose
@@ -156,6 +158,19 @@ function J.AddDungeon(key, dungeon)
     dungeon.key = key
     ordered[#ordered + 1] = dungeon
     byKey[key] = dungeon
+    if dungeon.new then
+        for _, wing in ipairs(dungeon.wings) do
+            for _, boss in ipairs(wing.bosses) do newBosses[boss] = true end
+        end
+    end
+end
+
+-- New in WoW Forever: a boss of a new dungeon, or one Wowhead has as a new NPC. Not a wing's
+-- trash or a chest, which are no one to meet.
+---@param boss JournalBoss
+function J.IsForeverBoss(boss)
+    if boss.trash or boss.chest then return false end
+    return newBosses[boss] == true or ns.Shared.Parts.IsForever("npcs", boss.npc)
 end
 
 -- Each file in Data/Factions/ hands its faction over once, at load, after the dungeons.

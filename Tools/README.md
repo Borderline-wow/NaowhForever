@@ -28,8 +28,17 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 
 | Tool | What it does | Why |
 | --- | --- | --- |
-| `build_bis_data.py` | Builds `BiS/NaowhForever_BiSData.lua` from wowsrc.com's per-spec BiS pages. Item IDs are cached in `bis_item_ids.json`. `--check` says what changed on their pages, `--offline` builds without Wowhead (both daily in CI). | The BiS List's picks, with permission from wowsrc. |
-| `build_dungeon_loot.py` | Builds `BiS/NaowhForever_DungeonLoot.lua`: everything a dungeon drops, from Wowhead's zone pages. Also holds the shared Wowhead `fetch`. | So a BiS item can say where it drops. |
+| `build_bis_data.py` | Builds `BiS/Data/BiS.lua` from wowsrc.com's per-spec BiS pages. Item IDs are cached in `bis_item_ids.json`. `--check` says what changed on their pages, `--offline` builds without Wowhead (both daily in CI). | The BiS List's picks, with permission from wowsrc. |
+| `wowhead.py` | Not a build: reading Wowhead's Forever pages (a polite `fetch`, listviews, a dungeon guide's loot) and writing Lua strings, for the tools that do. | Shared by `build_journal.py`, `build_factions.py`, `watch_build.py` and `wowsrc.py`. |
+| `build_bis_spots.py` | Builds `BiS/Data/Spots.lua`: where the NPC that drops or sells a BiS item stands out in the world, from Wowhead's item and NPC pages. Cached in `bis_spots.json`. | The BiS List's Run Next puts a waypoint on them. |
+| `build_enchants.py` | Builds `BiS/Data/Enchants.lua`: every Enchanting recipe, what it gives and goes on, from the game's tables (wago.tools), and the skill it needs and who teaches it, from Wowhead (cached in `enchant_skills.json`). | The BiS List's best enchant for what you wear. |
+| `build_bis_quests.py` | Builds `DungeonJournal/Data/BiSQuests.lua`: every quest that rewards a ranked BiS item, from Wowhead's item pages ("Reward from") and quest pages (where it starts, who can take it). Cached in `bis_quests.json` and `bis_quest_pages.json`. Run `build_quest_chains.py` after it. | The BiS List's Quests page. |
+
+## Naowh Score
+
+| Tool | What it does | Why |
+| --- | --- | --- |
+| `fit_naowh_score.py` | Fits the Naowh Score's constants (`NaowhScore/Data/Formula.lua`: slot weights, each quality's worth in epic item levels) to a Forever build's own item table through wago.tools: ItemSparse's stats (`StatModifier_bonusStat_N` and `StatPercentEditor_N`, with `ItemLevel`, `OverallQualityID`, `InventoryType`), RandPropPoints' budgets and ItemDamageOneHand's DPS. Prints a report (`--report`); `--write` rewrites `Formula.lua` only when the fit passes its quality gates and a slot moves 0.02 or a quality's worth at item level 60 moves 0.5. `--build`, `--cache DIR`, `--bootstrap N` (the report's intervals, seeded). The method is in its docstring and `NaowhScore/README.md`. | So the score follows the game's own numbers, build after build, with nothing read from Wowhead. |
 
 ## Training Planner
 
@@ -57,7 +66,7 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 
 | Tool | What it does |
 | --- | --- |
-| `regression/` | Offline Lua tests against stubs. `bash Tools/regression/run-all.sh` runs them all (set `LUA=` to your lua.exe). |
+| `regression/` | Offline Lua tests against stubs. `bash Tools/regression/run-all.sh` runs them all (set `LUA=` to your lua.exe). `load_files.lua` loads a module's real files into a test, `measure.lua` times a draw and fails on garbage, `toc_files.lua` lists what the TOC loads. |
 | `tests/` | Python tests for the tools: `python -m unittest discover -s Tools/tests`. |
 | `hooks/check-pr.sh` | PR rules: a CHANGELOG line for addon changes, TOC version untouched. |
 | `hooks/check_toc.py`, `hooks/toc_files.py` | Every file the TOC loads exists, with the right letter case. |
@@ -82,7 +91,11 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
   issue with a one-click link:
   - `watch`: `watch_build.py`. Only reads the game's tables through wago.tools. If there's a
     new build, the change moves our faction data to it, with a report of what changed (new
-    gear the Journal doesn't list yet, new dungeon floor maps in the game's map table).
+    gear the Journal doesn't list yet, new dungeon floor maps in the game's map table). The same
+    change refits the Naowh Score (`fit_naowh_score.py --write`): `Formula.lua` changes when
+    the constants move enough, and the report gets a "Naowh Score" section (old against
+    new, the fit's quality, its gates). A manual run reports it too; a failed fit only says
+    so.
   - `loot`: `wowsrc.py --check`. If wowsrc's loot pages changed (a boss gained or lost items,
     a new boss or page), it rebuilds the Journal with `--offline`.
   - `bis`: `build_bis_data.py --check`, the same for wowsrc's BiS lists.
@@ -90,5 +103,6 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
   `--offline` asks Wowhead nothing: a new item's facts come from the game's own tables, and
   what they can't settle (an old classic item) is listed in the PR for a run on our machines.
 - **Not in CI:** anything that reads Wowhead. Their terms don't allow scraping it from a
-  server, so a full `build_journal.py` (CI only runs it `--offline`), `build_quest_chains.py`
-  and `build_dungeon_loot.py` run on our machines, by hand.
+  server, so a full `build_journal.py` (CI only runs it `--offline`), `build_quest_chains.py`,
+  `build_bis_spots.py`, `build_enchants.py` and `build_bis_quests.py` run
+  on our machines, by hand.

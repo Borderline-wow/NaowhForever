@@ -1,0 +1,1082 @@
+{
+ "7411": {
+  "skill": 9999,
+  "source": "trainer"
+ },
+ "7412": {
+  "skill": 50,
+  "source": "trainer"
+ },
+ "7413": {
+  "skill": 125,
+  "source": "trainer"
+ },
+ "7418": {
+  "skill": 20,
+  "source": null
+ },
+ "7420": {
+  "skill": 15,
+  "source": "trainer"
+ },
+ "7421": {
+  "skill": 1,
+  "source": null
+ },
+ "7426": {
+  "skill": 40,
+  "source": "trainer"
+ },
+ "7428": {
+  "skill": 80,
+  "source": null
+ },
+ "7443": {
+  "skill": 20,
+  "source": "vendor"
+ },
+ "7454": {
+  "skill": 45,
+  "source": "trainer"
+ },
+ "7457": {
+  "skill": 50,
+  "source": "trainer"
+ },
+ "7745": {
+  "skill": 100,
+  "source": "trainer"
+ },
+ "7748": {
+  "skill": 60,
+  "source": "trainer"
+ },
+ "7766": {
+  "skill": 60,
+  "source": "drop"
+ },
+ "7771": {
+  "skill": 70,
+  "source": "trainer"
+ },
+ "7776": {
+  "skill": 80,
+  "source": "vendor"
+ },
+ "7779": {
+  "skill": 80,
+  "source": "trainer"
+ },
+ "7782": {
+  "skill": 80,
+  "source": "drop"
+ },
+ "7786": {
+  "skill": 90,
+  "source": "drop"
+ },
+ "7788": {
+  "skill": 90,
+  "source": "trainer"
+ },
+ "7793": {
+  "skill": 100,
+  "source": "vendor"
+ },
+ "7795": {
+  "skill": 100,
+  "source": "trainer"
+ },
+ "7857": {
+  "skill": 120,
+  "source": "trainer"
+ },
+ "7859": {
+  "skill": 120,
+  "source": "drop"
+ },
+ "7861": {
+  "skill": 125,
+  "source": "trainer"
+ },
+ "7863": {
+  "skill": 125,
+  "source": "trainer"
+ },
+ "7867": {
+  "skill": 125,
+  "source": "vendor"
+ },
+ "13262": {
+  "skill": 20,
+  "source": null
+ },
+ "13378": {
+  "skill": 105,
+  "source": "trainer"
+ },
+ "13380": {
+  "skill": 110,
+  "source": "drop"
+ },
+ "13419": {
+  "skill": 110,
+  "source": "vendor"
+ },
+ "13421": {
+  "skill": 115,
+  "source": "trainer"
+ },
+ "13464": {
+  "skill": 115,
+  "source": "drop"
+ },
+ "13485": {
+  "skill": 130,
+  "source": "trainer"
+ },
+ "13501": {
+  "skill": 130,
+  "source": "trainer"
+ },
+ "13503": {
+  "skill": 140,
+  "source": "trainer"
+ },
+ "13522": {
+  "skill": 135,
+  "source": "drop"
+ },
+ "13529": {
+  "skill": 145,
+  "source": "trainer"
+ },
+ "13536": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "13538": {
+  "skill": 140,
+  "source": "trainer"
+ },
+ "13607": {
+  "skill": 145,
+  "source": "trainer"
+ },
+ "13612": {
+  "skill": 145,
+  "source": "drop"
+ },
+ "13617": {
+  "skill": 145,
+  "source": "drop"
+ },
+ "13620": {
+  "skill": 145,
+  "source": "drop"
+ },
+ "13622": {
+  "skill": 150,
+  "source": "trainer"
+ },
+ "13626": {
+  "skill": 150,
+  "source": "trainer"
+ },
+ "13628": {
+  "skill": 150,
+  "source": "trainer"
+ },
+ "13631": {
+  "skill": 155,
+  "source": "trainer"
+ },
+ "13635": {
+  "skill": 155,
+  "source": "trainer"
+ },
+ "13637": {
+  "skill": 160,
+  "source": "trainer"
+ },
+ "13640": {
+  "skill": 160,
+  "source": "trainer"
+ },
+ "13642": {
+  "skill": 165,
+  "source": "trainer"
+ },
+ "13644": {
+  "skill": 170,
+  "source": "trainer"
+ },
+ "13646": {
+  "skill": 170,
+  "source": "vendor"
+ },
+ "13648": {
+  "skill": 170,
+  "source": "trainer"
+ },
+ "13653": {
+  "skill": 175,
+  "source": "drop"
+ },
+ "13655": {
+  "skill": 175,
+  "source": "drop"
+ },
+ "13657": {
+  "skill": 175,
+  "source": "trainer"
+ },
+ "13659": {
+  "skill": 180,
+  "source": "trainer"
+ },
+ "13661": {
+  "skill": 180,
+  "source": "trainer"
+ },
+ "13663": {
+  "skill": 185,
+  "source": "trainer"
+ },
+ "13687": {
+  "skill": 190,
+  "source": "drop"
+ },
+ "13689": {
+  "skill": 195,
+  "source": "drop"
+ },
+ "13693": {
+  "skill": 195,
+  "source": "trainer"
+ },
+ "13695": {
+  "skill": 200,
+  "source": "trainer"
+ },
+ "13698": {
+  "skill": 200,
+  "source": "drop"
+ },
+ "13700": {
+  "skill": 200,
+  "source": "trainer"
+ },
+ "13702": {
+  "skill": 200,
+  "source": "trainer"
+ },
+ "13746": {
+  "skill": 205,
+  "source": "trainer"
+ },
+ "13794": {
+  "skill": 205,
+  "source": "trainer"
+ },
+ "13815": {
+  "skill": 210,
+  "source": "trainer"
+ },
+ "13817": {
+  "skill": 210,
+  "source": "drop"
+ },
+ "13822": {
+  "skill": 210,
+  "source": "trainer"
+ },
+ "13836": {
+  "skill": 215,
+  "source": "trainer"
+ },
+ "13841": {
+  "skill": 215,
+  "source": "drop"
+ },
+ "13846": {
+  "skill": 220,
+  "source": "drop"
+ },
+ "13858": {
+  "skill": 220,
+  "source": "trainer"
+ },
+ "13868": {
+  "skill": 225,
+  "source": "drop"
+ },
+ "13882": {
+  "skill": 225,
+  "source": "drop"
+ },
+ "13887": {
+  "skill": 225,
+  "source": "trainer"
+ },
+ "13890": {
+  "skill": 225,
+  "source": "trainer"
+ },
+ "13898": {
+  "skill": 265,
+  "source": "drop"
+ },
+ "13905": {
+  "skill": 230,
+  "source": "trainer"
+ },
+ "13915": {
+  "skill": 230,
+  "source": "drop"
+ },
+ "13917": {
+  "skill": 230,
+  "source": "trainer"
+ },
+ "13920": {
+  "skill": 200,
+  "source": "trainer"
+ },
+ "13931": {
+  "skill": 235,
+  "source": "vendor"
+ },
+ "13933": {
+  "skill": 235,
+  "source": "drop"
+ },
+ "13935": {
+  "skill": 235,
+  "source": "trainer"
+ },
+ "13937": {
+  "skill": 240,
+  "source": "trainer"
+ },
+ "13939": {
+  "skill": 240,
+  "source": "trainer"
+ },
+ "13941": {
+  "skill": 245,
+  "source": "trainer"
+ },
+ "13943": {
+  "skill": 245,
+  "source": "trainer"
+ },
+ "13945": {
+  "skill": 245,
+  "source": "drop"
+ },
+ "13947": {
+  "skill": 250,
+  "source": "drop"
+ },
+ "13948": {
+  "skill": 250,
+  "source": "trainer"
+ },
+ "14293": {
+  "skill": 10,
+  "source": "trainer"
+ },
+ "14807": {
+  "skill": 70,
+  "source": "trainer"
+ },
+ "14809": {
+  "skill": 155,
+  "source": "trainer"
+ },
+ "14810": {
+  "skill": 175,
+  "source": "trainer"
+ },
+ "15596": {
+  "skill": 265,
+  "source": "drop"
+ },
+ "17180": {
+  "skill": 250,
+  "source": "trainer"
+ },
+ "17181": {
+  "skill": 250,
+  "source": "trainer"
+ },
+ "20008": {
+  "skill": 255,
+  "source": "drop"
+ },
+ "20009": {
+  "skill": 270,
+  "source": "drop"
+ },
+ "20010": {
+  "skill": 295,
+  "source": "drop"
+ },
+ "20011": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "20012": {
+  "skill": 270,
+  "source": "drop"
+ },
+ "20013": {
+  "skill": 295,
+  "source": "drop"
+ },
+ "20014": {
+  "skill": 265,
+  "source": "drop"
+ },
+ "20015": {
+  "skill": 285,
+  "source": "vendor"
+ },
+ "20016": {
+  "skill": 280,
+  "source": "drop"
+ },
+ "20017": {
+  "skill": 265,
+  "source": "vendor"
+ },
+ "20020": {
+  "skill": 260,
+  "source": "drop"
+ },
+ "20023": {
+  "skill": 295,
+  "source": "drop"
+ },
+ "20024": {
+  "skill": 275,
+  "source": "drop"
+ },
+ "20025": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "20026": {
+  "skill": 275,
+  "source": "vendor"
+ },
+ "20028": {
+  "skill": 290,
+  "source": "drop"
+ },
+ "20029": {
+  "skill": 285,
+  "source": "drop"
+ },
+ "20030": {
+  "skill": 295,
+  "source": "drop"
+ },
+ "20031": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "20032": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "20033": {
+  "skill": 295,
+  "source": "drop"
+ },
+ "20034": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "20035": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "20036": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "20051": {
+  "skill": 290,
+  "source": "vendor"
+ },
+ "21931": {
+  "skill": 190,
+  "source": "drop"
+ },
+ "22749": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "22750": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "23799": {
+  "skill": 290,
+  "source": "vendor"
+ },
+ "23800": {
+  "skill": 290,
+  "source": "vendor"
+ },
+ "23801": {
+  "skill": 290,
+  "source": "vendor"
+ },
+ "23802": {
+  "skill": 300,
+  "source": "vendor"
+ },
+ "23803": {
+  "skill": 300,
+  "source": "vendor"
+ },
+ "23804": {
+  "skill": 300,
+  "source": "vendor"
+ },
+ "25072": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25073": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25074": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25078": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25079": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25080": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25081": {
+  "skill": 300,
+  "source": "vendor"
+ },
+ "25082": {
+  "skill": 300,
+  "source": "vendor"
+ },
+ "25083": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25084": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25086": {
+  "skill": 300,
+  "source": "drop"
+ },
+ "25124": {
+  "skill": 45,
+  "source": "vendor"
+ },
+ "25125": {
+  "skill": 150,
+  "source": "vendor"
+ },
+ "25126": {
+  "skill": 200,
+  "source": "vendor"
+ },
+ "25127": {
+  "skill": 250,
+  "source": "vendor"
+ },
+ "25128": {
+  "skill": 275,
+  "source": "vendor"
+ },
+ "25129": {
+  "skill": 300,
+  "source": "vendor"
+ },
+ "25130": {
+  "skill": 300,
+  "source": "vendor"
+ },
+ "27837": {
+  "skill": 290,
+  "source": "vendor"
+ },
+ "430409": {
+  "skill": 100,
+  "source": null
+ },
+ "435481": {
+  "skill": 200,
+  "source": "vendor"
+ },
+ "435903": {
+  "skill": 200,
+  "source": "vendor"
+ },
+ "439134": {
+  "skill": 175,
+  "source": "trainer"
+ },
+ "439156": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "446243": {
+  "skill": 250,
+  "source": null
+ },
+ "448624": {
+  "skill": 120,
+  "source": "drop"
+ },
+ "463866": {
+  "skill": 305,
+  "source": "vendor"
+ },
+ "463869": {
+  "skill": 285,
+  "source": "vendor"
+ },
+ "463871": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "471400": {
+  "skill": 310,
+  "source": "vendor"
+ },
+ "1213593": {
+  "skill": 320,
+  "source": null
+ },
+ "1213595": {
+  "skill": 320,
+  "source": null
+ },
+ "1213598": {
+  "skill": 320,
+  "source": null
+ },
+ "1213600": {
+  "skill": 320,
+  "source": null
+ },
+ "1213603": {
+  "skill": 320,
+  "source": null
+ },
+ "1213607": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1213610": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1213616": {
+  "skill": 320,
+  "source": null
+ },
+ "1213622": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1213626": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1213628": {
+  "skill": 320,
+  "source": null
+ },
+ "1213633": {
+  "skill": 320,
+  "source": null
+ },
+ "1213635": {
+  "skill": 320,
+  "source": null
+ },
+ "1216005": {
+  "skill": 320,
+  "source": null
+ },
+ "1216007": {
+  "skill": 320,
+  "source": null
+ },
+ "1216010": {
+  "skill": 320,
+  "source": null
+ },
+ "1216014": {
+  "skill": 320,
+  "source": null
+ },
+ "1216016": {
+  "skill": 320,
+  "source": null
+ },
+ "1216018": {
+  "skill": 320,
+  "source": null
+ },
+ "1216020": {
+  "skill": 320,
+  "source": null
+ },
+ "1216022": {
+  "skill": 320,
+  "source": null
+ },
+ "1216024": {
+  "skill": 320,
+  "source": null
+ },
+ "1217189": {
+  "skill": 320,
+  "source": null
+ },
+ "1217203": {
+  "skill": 320,
+  "source": null
+ },
+ "1219577": {
+  "skill": 320,
+  "source": null
+ },
+ "1219578": {
+  "skill": 320,
+  "source": null
+ },
+ "1219579": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1219580": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1219581": {
+  "skill": 320,
+  "source": null
+ },
+ "1219587": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1220623": {
+  "skill": 320,
+  "source": null
+ },
+ "1220624": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1230643": {
+  "skill": 20,
+  "source": "trainer"
+ },
+ "1231128": {
+  "skill": 305,
+  "source": null
+ },
+ "1231139": {
+  "skill": 305,
+  "source": null
+ },
+ "1231164": {
+  "skill": 305,
+  "source": null
+ },
+ "1232172": {
+  "skill": 305,
+  "source": null
+ },
+ "1240946": {
+  "skill": 9999,
+  "source": null
+ },
+ "1240957": {
+  "skill": 9999,
+  "source": null
+ },
+ "1240968": {
+  "skill": 9999,
+  "source": null
+ },
+ "1240981": {
+  "skill": 9999,
+  "source": null
+ },
+ "1245320": {
+  "skill": 10,
+  "source": null
+ },
+ "1245321": {
+  "skill": 10,
+  "source": null
+ },
+ "1248458": {
+  "skill": 110,
+  "source": "drop"
+ },
+ "1248459": {
+  "skill": 120,
+  "source": null
+ },
+ "1248460": {
+  "skill": 165,
+  "source": "vendor"
+ },
+ "1248461": {
+  "skill": 205,
+  "source": null
+ },
+ "1248497": {
+  "skill": 225,
+  "source": null
+ },
+ "1248498": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1248500": {
+  "skill": 260,
+  "source": null
+ },
+ "1248505": {
+  "skill": 265,
+  "source": null
+ },
+ "1248509": {
+  "skill": 235,
+  "source": null
+ },
+ "1248510": {
+  "skill": 230,
+  "source": null
+ },
+ "1248511": {
+  "skill": 240,
+  "source": null
+ },
+ "1248515": {
+  "skill": 285,
+  "source": null
+ },
+ "1248528": {
+  "skill": 270,
+  "source": null
+ },
+ "1248599": {
+  "skill": 315,
+  "source": null
+ },
+ "1248607": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1248636": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1248640": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1248645": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1248650": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1248661": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1248665": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1248668": {
+  "skill": 290,
+  "source": null
+ },
+ "1248703": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248739": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248745": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248748": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248752": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248754": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248755": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248757": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248760": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248805": {
+  "skill": 140,
+  "source": "vendor"
+ },
+ "1248974": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249006": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249015": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249019": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249057": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249058": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249059": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249060": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249061": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249064": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249069": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249070": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249071": {
+  "skill": 225,
+  "source": "vendor"
+ },
+ "1249107": {
+  "skill": 285,
+  "source": null
+ },
+ "1249112": {
+  "skill": 285,
+  "source": null
+ },
+ "1249114": {
+  "skill": 285,
+  "source": null
+ },
+ "1249128": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1249152": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1249154": {
+  "skill": 320,
+  "source": "vendor"
+ },
+ "1263056": {
+  "skill": 140,
+  "source": null
+ },
+ "1263082": {
+  "skill": 300,
+  "source": null
+ },
+ "1294054": {
+  "skill": 285,
+  "source": null
+ },
+ "1306520": {
+  "skill": 310,
+  "source": null
+ },
+ "1306521": {
+  "skill": 310,
+  "source": null
+ },
+ "1306522": {
+  "skill": 310,
+  "source": null
+ },
+ "1306523": {
+  "skill": 310,
+  "source": null
+ },
+ "1306524": {
+  "skill": 310,
+  "source": null
+ },
+ "1306525": {
+  "skill": 310,
+  "source": null
+ }
+}

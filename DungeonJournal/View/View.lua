@@ -7,12 +7,10 @@
 --  card for each rank's rewards. One component, used by the Journal's window, the panel
 --  beside the world map and the boss loot popup.
 --
---  View.New(parent) makes one; view:Draw(dungeon) draws it at the view's width and sets the
---  view's height to fit. The rows it draws are kinds (View.Kinds), each in its own file:
---  Parts (section titles, notes), Header, QuestRows, BossCards and ItemRows; how they look
---  is View/Style.lua. Rows are pooled per kind and reused on every draw. A kind is
---  { New(view) -> frame, made once; Set(row, ...) -> height, waiting? }, Set left out for a
---  kind only placed (a card).
+--  View.New(parent) makes one, on the shared engine (ns.Shared.View: pooled rows, cards,
+--  the grid, one redraw per burst of events); view:Draw(dungeon) draws it at the view's
+--  width. Its own kinds (View.Kinds, over the shared section, note and card) are in
+--  Header, QuestRows, BossCards, ItemRows and FactionRows; how they look is View/Style.lua.
 --
 --  While a draw runs, a row reads its view (row:GetParent()) for what holds for the whole
 --  draw, read once in Begin: view.compact (narrower than COMPACT_W: the map panel),
@@ -46,20 +44,19 @@ local Quests = J.Quests
 local Rep = J.Reputation
 local S = J.Settings
 
+local Shared = ns.Shared
+
 local St = J.Style
-local CARD_PAD, CARD_GAP, CARD_BOTTOM = St.CARD_PAD, St.CARD_GAP, St.CARD_BOTTOM
-local CARD_MIN_W, MAX_COLUMNS, COMPACT_W = St.CARD_MIN_W, St.MAX_COLUMNS, St.COMPACT_W
-local SECTION_SPACE, FADED, BORDER_RGB = St.SECTION_SPACE, St.FADED, St.BORDER_RGB
+local COMPACT_W, SECTION_SPACE, FADED, BORDER_RGB = St.COMPACT_W, St.SECTION_SPACE, St.FADED, St.BORDER_RGB
 local PLACE_DOT = St.PLACE_DOT
 
-local View = { Kinds = {}, Parts = {} }
+local View = { Kinds = Shared.View.NewKinds(), Parts = setmetatable({}, { __index = Shared.Parts }) }
 J.View = View
-local Kinds = View.Kinds
+View.Columns = Shared.View.Columns
 
 ---@class JournalView: Frame
 local ViewMixin = {}
 
-local REDRAW_DELAY = 0.15   -- seconds: events in a burst make one redraw
 local BOSS_LOOT_GAP = 4     -- between a boss's header and its first item
 local EMPTY_BODY = 28       -- a boss card's body with nothing listed: room for its centred line
 local EMPTY = {}
@@ -77,59 +74,6 @@ local QUEST_EVENTS = { QUEST_LOG_UPDATE = true, QUEST_DATA_LOAD_RESULT = true }
 local GROUP_EVENTS = { GROUP_ROSTER_UPDATE = true, UNIT_QUEST_LOG_CHANGED = true }
 -- On the rank's page: a rank up, and your honor and rank points.
 local RANK_EVENTS = { "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "CURRENCY_DISPLAY_UPDATE" }
-
--------------------------------------------------------------------------------
---  Rows
--------------------------------------------------------------------------------
-function ViewMixin:Acquire(kind)
-    local pool = self.pools[kind]
-    pool.used = pool.used + 1
-    local row = pool[pool.used]
-    if not row then
-        row = Kinds[kind].New(self)
-        pool[pool.used] = row
-    end
-    -- Sized now, not only anchored, so wrapped text measures at the right width. Inside a
-    -- card, left and width are the card's inside.
-    row:ClearAllPoints()
-    row:SetPoint("TOPLEFT", self.left, -self.cursor)
-    row:SetWidth(self.width)
-    row:Show()
-    return row
-end
-
--- Places a row of the kind at the cursor, fills it and moves the cursor past it.
-function ViewMixin:Add(kind, ...)
-    local row = self:Acquire(kind)
-    local height, waiting = Kinds[kind].Set(row, ...)
-    row:SetHeight(height)
-    self.cursor = self.cursor + height
-    if waiting then self.waiting = true end
-    return row
-end
-
-function ViewMixin:Space(height)
-    self.cursor = self.cursor + height
-end
-
--- A section's title over a line, with a muted count after it.
-function ViewMixin:Section(title, count)
-    return self:Add("section", title, count)
-end
-
--- A section that opens and closes: a chevron before its title, a click anywhere on it.
-function ViewMixin:SectionToggle(title, count, open, onToggle)
-    return self:Add("section", title, count, open, onToggle)
-end
-
--- A section with a link on its right: onLink(linkArg) when clicked.
-function ViewMixin:SectionLink(title, linkText, onLink, linkArg)
-    return self:Add("section", title, nil, nil, nil, linkText, onLink, linkArg)
-end
-
-function ViewMixin:Note(text)
-    return self:Add("note", text)
-end
 
 -------------------------------------------------------------------------------
 --  Per draw: each item's answers, worked out once
@@ -216,10 +160,7 @@ end
 -- ends under it.
 function ViewMixin:DrawBoss(boss, number, shown, query, x, w)
     local top = self.cursor
-    self.left, self.width = x, w
-    local card = self:Acquire("card")
-    card:SetFrameLevel(self:GetFrameLevel())
-    self.left, self.width = x + CARD_PAD, w - CARD_PAD * 2
+    local card = self:OpenCard(x, w)
     local loot, chance = boss.loot or EMPTY, boss.chance
     -- What the filters hide of its loot (not in a search, where the rest just does not match).
     local hidden = not query and #loot - shown or 0
@@ -244,38 +185,12 @@ function ViewMixin:DrawBoss(boss, number, shown, query, x, w)
     card.note:SetText(View.Parts.BossEmptyText(shown, boss))
     card.note:SetShown(shown == 0)
     if shown == 0 then self:Space(EMPTY_BODY) end
-    self:Space(CARD_BOTTOM)
-    self.left, self.width = 0, self:GetWidth()
-    local height = self.cursor - top
-    card:SetHeight(height)
-    return card, height
+    return self:CloseCard(card, top)
 end
 
 -------------------------------------------------------------------------------
 --  A faction's standing and a rank, as cards
 -------------------------------------------------------------------------------
--- A card at x, width w, from the cursor, for what is drawn in it; returns the card, and
--- the rows added after go inside it. Its edge is reset: a card last used for a clicked
--- boss has the accent's.
-function ViewMixin:OpenCard(x, w)
-    self.left, self.width = x, w
-    local card = self:Acquire("card")
-    card:SetFrameLevel(self:GetFrameLevel())
-    card.edge:SetColor(BORDER_RGB.r, BORDER_RGB.g, BORDER_RGB.b, 1)
-    card.note:Hide()   -- a boss card's line, not this card's
-    self.left, self.width = x + CARD_PAD, w - CARD_PAD * 2
-    return card
-end
-
--- Ends the card opened at top: returns it and its height.
-function ViewMixin:CloseCard(card, top)
-    self:Space(CARD_BOTTOM)
-    self.left, self.width = 0, self:GetWidth()
-    local height = self.cursor - top
-    card:SetHeight(height)
-    return card, height
-end
-
 -- A standing's rewards come in three kinds, drawn in this order: gear, recipes, the rest.
 local GEAR, RECIPES, OTHER = 1, 2, 3
 local KIND_TITLES = { "Gear", "Recipes", "Other" }
@@ -372,55 +287,12 @@ function ViewMixin:DrawRankCard(entry, x, w)
     return self:CloseCard(card, top)
 end
 
--------------------------------------------------------------------------------
---  The grid
--------------------------------------------------------------------------------
--- What is gathered for a grid (a boss, a standing's rewards, a rank's), drawn as many
--- across as fit, up to MAX_COLUMNS, or one under the other in a narrow view; the cards in a
--- row share the tallest one's height.
-function ViewMixin:Gather(entry, number, shown, query)
-    local grid = self.grid
-    local n = grid.n + 1
-    grid.n = n
-    grid.entry[n], grid.number[n], grid.shown[n], grid.query[n] = entry, number, shown, query
-end
-
+-- What the grid gathered (Gather(entry, number, shown, query)): a boss, a standing's
+-- rewards, or a rank's.
 function ViewMixin:DrawCard(entry, number, shown, query, x, w)
     if entry.standing then return self:DrawTier(entry, shown, query, x, w) end
     if entry.rewards then return self:DrawRankCard(entry, x, w) end
     return self:DrawBoss(entry, number, shown, query, x, w)
-end
-
--- How many cards fit across a view this wide, up to MAX_COLUMNS and at least one, and each
--- card's width.
----@param width number
----@return number columns
----@return number cardWidth
-function View.Columns(width)
-    local columns = math.max(1, math.min(MAX_COLUMNS, math.floor((width + CARD_GAP) / (CARD_MIN_W + CARD_GAP))))
-    return columns, math.floor((width - CARD_GAP * (columns - 1)) / columns)
-end
-local Columns = View.Columns
-
-function ViewMixin:DrawGrid()
-    local grid, cards = self.grid, self.rowCards
-    local columns, w = Columns(self:GetWidth())
-    local i = 1
-    while i <= grid.n do
-        local top, height = self.cursor, 0
-        local last = math.min(i + columns - 1, grid.n)
-        for k = i, last do
-            self.cursor = top
-            local card, cardHeight = self:DrawCard(grid.entry[k], grid.number[k], grid.shown[k], grid.query[k],
-                (k - i) * (w + CARD_GAP), w)
-            cards[k - i + 1] = card
-            if cardHeight > height then height = cardHeight end
-        end
-        for k = 1, last - i + 1 do cards[k]:SetHeight(height) end
-        self.cursor = top + height + CARD_GAP
-        i = last + 1
-    end
-    grid.n = 0
 end
 
 -------------------------------------------------------------------------------
@@ -456,19 +328,6 @@ end
 -------------------------------------------------------------------------------
 --  Drawing
 -------------------------------------------------------------------------------
--- Closes the tooltip when one of this view's rows owns it: the redraw reuses that row for
--- something else.
-local function CloseOwnTooltip(view)
-    local owner = GameTooltip:GetOwner()
-    while owner do
-        if owner == view then
-            GameTooltip:Hide()
-            return
-        end
-        owner = owner:GetParent()
-    end
-end
-
 -- Every draw starts here: all rows back in their pools, the per-draw answers cleared, and
 -- what holds for the whole draw read once.
 function ViewMixin:Begin(dungeon, boss, query, page)
@@ -477,8 +336,8 @@ function ViewMixin:Begin(dungeon, boss, query, page)
         self.pinned = nil
     end
     self.dungeon, self.boss, self.query, self.page = dungeon, boss, query, page
-    self.cursor, self.left, self.width = 0, 0, self:GetWidth()
-    self.waiting, self.questsDrawn = false, false
+    self:Clear()
+    self.questsDrawn = false
     self.compact = self.width < COMPACT_W
     self.playerLevel = UnitLevel("player")
     Loot.ReadFilters(self.filters)
@@ -491,21 +350,12 @@ function ViewMixin:Begin(dungeon, boss, query, page)
     wipe(self.shownCache)
     wipe(self.rankCache)
     wipe(self.upgradeCache)
-    wipe(self.waitingFor)
     wipe(self.knownCache)
-    CloseOwnTooltip(self)
-    for _, pool in pairs(self.pools) do
-        for i = 1, pool.used do pool[i]:Hide() end
-        pool.used = 0
-    end
 end
 
 -- And ends here: the view as tall as what it drew, and listening for what can change it.
 function ViewMixin:Finish()
-    self:SetHeight(math.max(self.cursor, 1))
-    self:UnregisterAllEvents()
-    for i = 1, #STATE_EVENTS do self:RegisterEvent(STATE_EVENTS[i]) end
-    if self.waiting then self:RegisterEvent("GET_ITEM_INFO_RECEIVED") end
+    self:Fit(STATE_EVENTS)
     if self.questsDrawn then
         for event in pairs(QUEST_EVENTS) do self:RegisterEvent(event) end
         for event in pairs(GROUP_EVENTS) do self:RegisterEvent(event) end
@@ -545,12 +395,16 @@ function ViewMixin:DrawQuests(list)
     self:Space(SECTION_SPACE)
 end
 
--- Without the BiS List, a word on what it adds; with it but empty, a link to fill it.
+local function OpenBisList()
+    ns.OpenBisWindow()
+end
+
+-- Without the BiS List, a word on what it adds; with it but empty, a link to it, to pick them.
 function ViewMixin:DrawBisNote()
     if not self.filters.bisOn then
         self:Note("Turn on the BiS List module to see your BiS marked here.")
     elseif ns.BisListIsEmpty() then
-        self:SectionLink("Your BiS list is empty", "Fill My BiS List", self.fillFn)
+        self:SectionLink("Your BiS list is empty", "Open BiS List", OpenBisList)
     end
 end
 
@@ -978,20 +832,16 @@ end
 function ViewMixin:OnEvent(event, arg)
     if event == "GET_ITEM_INFO_RECEIVED" then
         if not self.waitingFor[arg] then return end
-        self.dirty = true
     elseif QUEST_EVENTS[event] then
         self.questsDirty = true
+        return self:QueueFlush()
     elseif event == "UNIT_QUEST_LOG_CHANGED" and arg == "player" then
         return   -- yours: QUEST_LOG_UPDATE covers it
-    else
-        self.dirty = true
     end
-    if self.flushQueued then return end
-    self.flushQueued = true
-    C_Timer.After(REDRAW_DELAY, self.flushFn)
+    self:QueueRedraw()
 end
 
-local function OnHide(self)
+function ViewMixin:OnHide()
     self:UnregisterAllEvents()
     self.dirty, self.questsDirty = false, false
 end
@@ -999,15 +849,10 @@ end
 ---@param parent Frame
 ---@return JournalView view
 function View.New(parent)
-    local view = CreateFrame("Frame", nil, parent)
-    Mixin(view, ViewMixin)
-    view.pools = {}
-    for kind in pairs(Kinds) do view.pools[kind] = { used = 0 } end
+    local view = Shared.View.New(parent, View.Kinds, ViewMixin)
     view.filters = {}                                   ---@type JournalFilters
     view.shownCache, view.rankCache, view.upgradeCache = {}, {}, {}
-    view.waitingFor = {}                                -- item IDs whose names it waits on
     view.knownCache = {}                                -- recipe ID -> you know it, this draw
-    view.grid = { n = 0, entry = {}, number = {}, shown = {}, query = {} }
     view.rankEntries = {}                               -- the rank page's cards, reused
     view.kindCounts = {}                                -- a standing's rewards of each kind, per card
     view.repLog = {}                                    -- a faction page's quests in your log
@@ -1016,16 +861,7 @@ function View.New(parent)
     view.repList, view.repPool = {}, {}                 -- its hand-ins' rows' entries
     view.trackCounts = {}                               -- standing -> its rewards listed, for the track
     view.openRecipes = {}                               -- tier -> its folded recipes opened, this session
-    view.rowCards = {}                                  -- the cards of the grid row being drawn
     view.questList, view.questPool = {}, {}             -- this view's own quest entries
     view.skipped, view.skippedBoss = {}, {}             -- the folded bosses' labels and bosses
-    view.redrawFn = function() view:Redraw() end
-    view.flushFn = function() view:Flush() end
-    view.fillFn = function()
-        ns.FillBisFromRanking()
-        view:Redraw()
-    end
-    view:SetScript("OnEvent", view.OnEvent)
-    view:SetScript("OnHide", OnHide)
     return view
 end

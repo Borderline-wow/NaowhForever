@@ -18,7 +18,8 @@ local S = J.Settings
 local St = J.Style
 local BIS_RGB, BIS_CODE, TERRITORY_CODE, PLACE_DOT = St.BIS_RGB, St.BIS_CODE, St.TERRITORY_CODE, St.PLACE_DOT
 local LIST_W, LIST_ROW, GROUP_H, STRIPE = St.LIST_W, St.LIST_ROW, St.GROUP_H, St.STRIPE
-local NAME_SIZE, COUNT_SIZE, NEW_TAG_SIZE = St.LIST_NAME_SIZE, St.LIST_COUNT_SIZE, St.NEW_TAG_SIZE
+local NAME_SIZE, COUNT_SIZE, FOREVER_H = St.LIST_NAME_SIZE, St.LIST_COUNT_SIZE, St.FOREVER_H
+local Parts = ns.Shared.Parts
 local BAR, BAR_GAP, STANDING_W, ROUND = St.LIST_BAR, St.LIST_BAR_GAP, St.LIST_STANDING_W, St.ROUND
 local TERRITORY_ICON, FACTION_ATLAS = St.TERRITORY_ICON, St.FACTION_ATLAS
 
@@ -27,11 +28,14 @@ local STAR_TAG = ("|T%s:0:0:0:0:64:64:0:64:0:64:%d:%d:%d|t "):format(St.STAR, BI
 local DONE = ("|T%s:0:0:0:0:64:64:0:64:0:64:%d:%d:%d|t"):format(St.CHECK, St.HAVE_RGB.r * 255,
     St.HAVE_RGB.g * 255, St.HAVE_RGB.b * 255)
 
--- A row as the Dungeon List's: the accent bar, NEW in its column, the name; then on the right
--- your BiS count, the standing and its bar, and a battleground faction's crest.
+-- A row as the Dungeon List's: the accent bar, Forever's mark in its column, the name; then
+-- on the right your BiS count, the standing and its bar, and a battleground faction's crest.
 local ROW_W = LIST_W - BAR - BAR_GAP - 2
 local SELECTED_BAR = 3
-local NEW_LEFT, NAME_LEFT = 14, 40
+-- The mark with as much room before it, after the bar, as it leaves before the name.
+local MARK_GAP = 9
+local NEW_LEFT = SELECTED_BAR + MARK_GAP
+local NAME_LEFT = NEW_LEFT + St.FOREVER_H * 2 + MARK_GAP
 local GAP, RIGHT = 8, 8
 local PILL = 4              -- the standing's bar: as thick as a drop chance's
 local ICON_DROP = 1         -- the crest level with the digits, as the Dungeon List's
@@ -122,7 +126,7 @@ local function RowEnter(row)
         GameTooltip:Show()
         return
     end
-    if page.new then GameTooltip:AddLine("New in WoW Forever", T.accent.r, T.accent.g, T.accent.b) end
+    if page.new then GameTooltip:AddLine(Parts.ForeverLine()) end
     if page.side then
         GameTooltip:AddLine(TERRITORY_CODE[page.side] .. page.side .. "|r"
             .. (page.battleground and PLACE_DOT .. page.battleground or ""), 1, 1, 1)
@@ -205,9 +209,8 @@ local function Row(parent, page)
     row.label = page.rank and "PvP Rank" or page.name
     row.name:SetText(row.label)
     if page.new then
-        row.new = ns.Font(row, NEW_TAG_SIZE, nil, T.accent)
-        row.new:SetText("NEW")
-        row.new:SetPoint("BOTTOMLEFT", row.name, "BOTTOMLEFT", NEW_LEFT - NAME_LEFT, 0)
+        row.new = Parts.ForeverMark(row, FOREVER_H)
+        row.new:SetPoint("LEFT", NEW_LEFT, 0)
     end
     row:SetScript("OnClick", RowClicked)
     row:SetScript("OnEnter", RowEnter)
@@ -376,7 +379,7 @@ end
 
 -- The one shown: the accent bar and a lighter band. Factions you have met in white, the
 -- rest faint; your standing with each in its colour, the BiS among its rewards you still
--- miss in orange (a check once you have them all), and a check after the name at Exalted.
+-- miss in orange (nothing once you have them all), and a check after the name at Exalted.
 ---@param selected? JournalFaction|table
 function List.Paint(selected)
     if not shownTab then return end
@@ -405,10 +408,11 @@ function List.Paint(selected)
                 row.name:SetTextColor(name.r, name.g, name.b)
                 row:SetAlpha((reaction or chosen) and 1 or UNMET)
                 local bis, haveBis = Rep.Bis(page)
-                local missing = bis > 0 and bis - haveBis or -1
+                -- How many you still miss, as the Dungeon List: nothing once all are yours.
+                local missing = bis - haveBis
                 if missing ~= row.missing then
                     row.missing = missing
-                    row.bis:SetText(missing < 0 and "" or STAR_TAG .. (missing == 0 and DONE or missing))
+                    row.bis:SetText(missing > 0 and STAR_TAG .. missing or "")
                 end
                 local exalted = reaction == Rep.EXALTED
                 if exalted ~= row.exalted then

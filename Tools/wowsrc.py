@@ -106,7 +106,6 @@ def parse(page):
 
 
 NAMES = TOOLS / "item_names.json"
-DUNGEON_LOOT = TOOLS / "dungeon_loot.json"
 JOURNAL_CACHE = TOOLS / "journal_cache.json"
 SOD_COPIES = (200000, 250000)
 CLASSIC_SEARCH = "https://www.wowhead.com/classic/search/suggestions-template?q="
@@ -123,20 +122,17 @@ def item_names():
 
 
 def resolve():
-    """Adds to item_names.json every wowsrc item name it does not map yet: from the dungeon
-    loot list and the game's item tables first, else Wowhead's Classic search, keeping only an
+    """Adds to item_names.json every wowsrc item name it does not map yet: from the Journal's
+    bosses' drops and the game's item tables first, else Wowhead's Classic search, keeping only an
     ID Forever's item table has. Ambiguous or unknown names are listed, not mapped."""
     import urllib.parse
     import wago
-    from build_dungeon_loot import fetch as wowhead   # waits and retries when Wowhead says slow down
+    from wowhead import fetch as wowhead   # waits and retries when Wowhead says slow down
     loot = json.loads(OUT.read_text(encoding="utf-8"))
     mapped = item_names()
     wanted = sorted({name_key(i["name"]) for d in loot.values() for b in d["bosses"] for i in b["items"]} - set(mapped))
     forever = {int(r["ID"]) for build in (wago.BUILD, wago.CARRY_FROM) if build for r in wago.table("Item", build)}
     local = {}
-    for rows in json.loads(DUNGEON_LOOT.read_text(encoding="utf-8")).values():
-        for r in rows:
-            local.setdefault(name_key(r["name"]), set()).add(r["id"])
     # The bosses' drops build_journal.py read from Wowhead, names kept.
     for key, found in json.loads(JOURNAL_CACHE.read_text(encoding="utf-8")).items():
         if key.startswith("drops5:") and isinstance(found, dict):

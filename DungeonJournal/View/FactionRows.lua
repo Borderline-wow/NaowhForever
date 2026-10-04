@@ -7,6 +7,7 @@
 --  an item.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
+local Tip = ns.Shared.Parts.Tip
 local T = ns.THEME
 local J = ns.Journal
 local Loot = J.Loot
@@ -18,7 +19,7 @@ local STAR, HANGER, CHECK, ROUND, PLACE_DOT = St.STAR, St.HANGER, St.CHECK, St.R
 local TERRITORY_CODE, HAVE_RGB, BORDER_RGB = St.TERRITORY_CODE, St.HAVE_RGB, St.BORDER_RGB
 local TITLE_SIZE, TITLE_H, TITLE_GAP, WHERE_H, HEADER_PAD = St.TITLE_SIZE, St.TITLE_H, St.TITLE_GAP, St.WHERE_H,
     St.HEADER_PAD
-local STAT_GAP, BOSS_HEADER_H, BOSS_NAME_SIZE = St.STAT_GAP, St.BOSS_HEADER_H, St.BOSS_NAME_SIZE
+local STAT_GAP, CARD_HEADER_H, CARD_NAME_SIZE = St.STAT_GAP, St.CARD_HEADER_H, St.CARD_NAME_SIZE
 local ICON, ITEM_H, BAR_H, STAT_ICON = St.ICON, St.ITEM_H, St.STANDING_BAR, St.STAT_ICON
 
 local View = J.View
@@ -49,7 +50,9 @@ local function FactionWhere(faction)
     if faction.zone then
         parts[#parts + 1] = (#faction.tiers > 0 and "Quartermaster in " or "") .. ns.Color("fg", faction.zone)
     end
-    if faction.new then parts[#parts + 1] = ns.Color("accent", "New in WoW Forever") end
+    if faction.new then
+        parts[#parts + 1] = ns.Shared.Parts.ForeverInline(12, 0):sub(2) .. " " .. St.FOREVER_CODE .. "Forever|r"
+    end
     line = table.concat(parts, PLACE_DOT)
     whereLines[faction] = line
     return line
@@ -80,7 +83,7 @@ local function CurrencyText(id)
 end
 
 local function CurrencyEnter(frame)
-    GameTooltip:SetOwner(frame, "ANCHOR_BOTTOM")
+    if not Tip(frame, "ANCHOR_BOTTOM") then return end
     GameTooltip:SetCurrencyByID(frame.currency)
     GameTooltip:Show()
 end
@@ -318,7 +321,7 @@ local SEG_LABEL_PAD = 6
 local function SegmentEnter(hit)
     local s, info = hit.standing, hit:GetParent().info
     local color, muted = Rep.Color(s), T.muted
-    GameTooltip:SetOwner(hit, "ANCHOR_BOTTOM")
+    if not Tip(hit, "ANCHOR_BOTTOM") then return end
     GameTooltip:SetText(Rep.Label(s), color.r, color.g, color.b)
     local count = info.counts[s] or 0
     GameTooltip:AddLine(count > 0 and ("%d %s for you %s here"):format(count, count == 1 and "reward" or "rewards",
@@ -456,7 +459,7 @@ Kinds.track = {
 Kinds.tier = {
     New = function(view)
         local row = CreateFrame("Frame", nil, view)
-        row.name = ns.Font(row, BOSS_NAME_SIZE, nil, T.fg)
+        row.name = ns.Font(row, CARD_NAME_SIZE, nil, T.fg)
         row.name:SetPoint("TOPLEFT", 0, -NAME_TOP)
         row.name:SetJustifyH("LEFT")
         row.name:SetWordWrap(false)
@@ -489,7 +492,7 @@ Kinds.tier = {
         row.name:SetWidth(math.min(math.ceil(row.name:GetStringWidth()) + 1,
             row:GetWidth() - CHECK_ICON - 12 - math.ceil(row.right:GetStringWidth())))
         row.rule:SetShown(shown > 0)
-        return BOSS_HEADER_H
+        return CARD_HEADER_H
     end,
 }
 
@@ -629,7 +632,7 @@ local LINE_H, LINE_ICON = 26, 20
 
 local function LineEnter(row)
     if not row.itemID then return end
-    GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT", 16, 0)
+    if not Tip(row, "ANCHOR_CURSOR_RIGHT", 16, 0) then return end
     GameTooltip:SetItemByID(row.itemID)
     GameTooltip:Show()
 end
@@ -787,7 +790,7 @@ local KEPT_CODE = ("|cff%02x%02x%02x"):format(HAVE_RGB.r * 200, HAVE_RGB.g * 200
 -- gives for the rest.
 local function RewardEnter(row)
     local reward = row.reward
-    GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT", 16, 0)
+    if not Tip(row, "ANCHOR_CURSOR_RIGHT", 16, 0) then return end
     local itemID = reward.itemID or reward.transmogID and C_Transmog.GetItemIDForSource(reward.transmogID)
     local mountSpell = reward.mountID and select(2, C_MountJournal.GetMountInfoByID(reward.mountID))
     if itemID then

@@ -46,6 +46,51 @@
   opacity slider (also in its settings), Spells and Builds as a switch under it, the search and
   each tab's buttons beside it, and its strips and lists on cards. Its settings page opens with
   a card on what you can train now, and has the Mini Bar switch.
+- Naowh Score (QoL > Naowh Score, on by default): one number for a character's gear, on the
+  item level scale (26.4 means gear worth a set of level 26 epics), fitted to Forever's own
+  items: each item counts as the level of an epic with the same stats, weighted by how many
+  stats its slot carries. It is coloured by how close it is to the best, on a smooth ramp from
+  grey through greens, blues and purples to orange; Grade Against picks the best in the game,
+  the best for the player's level, or Both (the score against the game's best, then in gold
+  "44% of level 20"). Under the BiS List's paperdoll, a score card shows yours with your BiS or
+  as you are now and the gain, over a bar filled to what you wear and dimmer on to your BiS,
+  with your level's goal in gold under Both. Your score is shared with your group and guild
+  as it changes, so other Naowh Forever players see it at once, at any distance. Player
+  tooltips show anyone's: a Naowh Forever player's as they share it, anyone else's read from
+  their gear as the game's Inspect does (within inspect range, out of combat). In the
+  background, Scan Your Group and Scan Players Nearby (your target, focus and mouseover, and
+  everyone whose nameplate shows) read theirs, so the scores are ready before you hover.
+- Character Panel (BiS List > Character Panel, off by default): your character panel in the BiS
+  List's look: our dark frame and title, the model on the dark panel, the stats as plain rows
+  under accent titles, the tabs and buttons in our colours, and your Naowh Score big under your
+  level with a bar of how close it is to the best (hover it for your score with your BiS, click
+  it for the BiS List). Its stats show your spec's first: the stats your spec weighs, in a fixed
+  order (Agility, Strength, Attack Power, Crit, Hit, Haste, then Stamina and Armor), each with
+  a bar for what it is worth against your spec's yardstick (VS AGI) and your total now; hover a
+  row for what the stat is worth and what it does, or click the scales by its title to change
+  the weights. A switch at the bottom gives the game's All Stats. A BiS List
+  button replaces the model's zoom buttons (drag the model to turn it, scroll to zoom). Your
+  supporter badge sits big in its top corner; without one, the Legendary badge in grey: click
+  it for what it is and where it shows, with more on Naowh's Discord.
+  Its slots: each item's level in
+  its corner, its edge in its quality's colour,
+  Forever's mark on what is new in Forever, your BiS's star, and a dot where a better enchant
+  waits. With EllesmereUI, turning it on swaps EllesmereUI's character panel for
+  this one, and turning it off swaps them back (after a reload). Rather keep the game's own
+  panel (or EllesmereUI's)? Slot Marks, on the same page and on by default, puts just the
+  marks on its slots.
+- Bag Marks (BiS List > Settings, off by default): the BiS List's slot marks on the items in
+  your bags: each piece of gear's item level, your BiS's star, Forever's mark on what is new in
+  Forever, and the green upgrade arrow on gear better than what you wear by your spec's stat
+  weights (BiS or not). Works in the game's bags and in EllesmereUI's bags, reagent bag and bank, where
+  ours replace its item level and leave room for its BoE text and Pawn's upgrade arrow.
+- Stat Weights (BiS List > Stat Weights, and the scales in the BiS List's title bar): what each
+  stat is worth to your spec, which it reads from your talents, only the stats it uses, each a
+  bar and a number you can type over, with your BiS list's best upgrades by them right under
+  them. Reset, Export to copy your weights, and Import for someone's or a WoWSims EP export.
+  Upgrades on Tooltips (off by default): gear that is an upgrade for your spec says by how much
+  ("+9% upgrade"). The BiS List's upgrades and enchants
+  use your weights.
 - Top Bar: Faded Opacity (with Show On Mouseover) sets how visible the bar and the FPS / MS
   readout stay while the mouse is away. 0% by default, invisible as before.
 - Blessings: in combat each click on a class button blesses the next member of that class who
@@ -196,6 +241,25 @@
   Bottom by default.
 - Threat Meter: Apply Theme to Your Bar (Colours, off by default) colors your bar in a darker shade of your theme's Accent instead of the color picked there. The tank and pull aggro colors are unchanged.
 - Swing Timer: Apply Theme to Bar Colours (Colours, off by default) colors the main hand bar with your theme's Accent, the off hand bar with its lighter Accent and the ranged bar with a deeper shade of it, instead of the colors picked there.
+- BiS List: its own window, in the Dungeon Journal's look. On the left your spec, your list
+  and your character wearing your whole BiS, or what you wear now with each slot's BiS tried
+  on as you hover it: drag to turn it, scroll to zoom. The slots are laid out as the game's
+  character frame, each BiS in its quality's edge with a check once it is yours, and under
+  them what your BiS gets you over what you wear: average item level and the stats it adds. On the right how many of
+  your BiS are yours, then where to run next (which slots each place is for; a click opens
+  the dungeon in the Journal, or out in the world puts a waypoint on who drops or sells your
+  BiS there and shows it on your map, and the BiS List comes back when you
+  close them), then a row per slot: its BiS, where it
+  drops (a weapon says what it is), the level it needs while above yours, and its backups,
+  opened under it. A wand on a slot shows the best enchant for your spec on what you wear
+  there, for that item's level (no endgame enchants on a level 19 sword), and what is on it
+  now; a click asks for it in Trade chat, or copies the message. A Quests page lists the
+  quests that reward a pick you do not have yet, by the zone they start in, as the Dungeon
+  Journal lists its own: what to do first, the level it needs, its chain, a waypoint, and the
+  picks it gives under it. All, To get, In bag or To enchant filters the list. Click a slot to change its picks
+  beside the window, where the ranking shows its own order. Import and Export are on the
+  title bar, and the footer says when your spec's rankings were last updated.
+  Open it with `/nfbis`, its own key, or the BiS stat in the Journal.
 
 ### Changed
 - Training Planner: the Builds tab is laid out as the Dungeon Journal is, the class's builds in a
@@ -205,6 +269,62 @@
   other row faintly banded, instead of a box round each row. In the talent tree each talent's
   ranks sit under it instead of over its corner.
 - Top Bar settings moved from their own sidebar page to the top of QoL > General, with a Top Bar switch in place of the page's Enable switch. /nf still opens on them.
+- Supporter badges: on a player's tooltip the badge is a plate of its own over the top, the
+  badge and title in the tier's colour, instead of a line in the tooltip.
+- BiS List and Dungeon Journal: an item new in WoW Forever has Forever's badge on its icon's
+  corner, and what you wear a green bar at the row's edge. The paperdoll's slots show their
+  item level in the corner and a green line under what you wear.
+- BiS List: tidier rows. A slot's backups hang from it on a line; names get more room; a quest
+  for your own side says just "Quest"; and an item with no known source says "World drop".
+  Run Next's star counts, gains and links line up in columns. Each gain has a bar as long as
+  its share of your biggest, brighter the bigger it is. A better enchant for what you wear
+  shows as a small dot on that slot's icon in the paperdoll: hover for the advice, click to ask
+  in Trade. Text, titles and columns share one grid.
+- BiS List: right-click an item for its copy card (its ID and Wowhead link), the same card
+  as the tooltips' Ctrl-Shift-C. Move and remove stay on a backup pick's icons and in the
+  picker.
+- Tooltip Display: the line saying which keys copy an ID is off by default; Show Shortcut Hint
+  brings it back. The shortcut works either way.
+- Copy cards link to Wowhead's Forever database; a Classic button beside it is there for a
+  page Forever's has not got yet. The Wowhead Database setting is gone.
+- BiS List: Run Next ranks quests, crafts and faction rewards with the dungeons and zones by
+  how much stronger they make you, so a quest reward worth +18% comes first. Click one for
+  the quest, the recipe or the faction.
+- BiS List: "Your BiS over what you wear" shows the stats that matter most to your spec, by
+  its stat weights, and leaves out what it does not weigh. No more "+14 more" and its
+  tooltip.
+- BiS List: the picker's items use the whole row for their name and where they come from,
+  and the level shows only when it is above yours. A source still cut short shows in full
+  when you hover it.
+- Small icons are smoother: the check on gear you have, the button icons and the Forever
+  mark, and item icons at any UI scale.
+- BiS List: where an item comes from is a link. A dungeon drop opens the Dungeon Journal on
+  that item, a reputation or PvP reward its faction there, a quest's reward the quest on the
+  Quests page, an NPC's item a waypoint on them, a crafted item its recipe (if you have the
+  profession), a zone its map; anything else copies its Wowhead link. Hover it to see where
+  it goes.
+- BiS List: a slot's backup picks open as rows like the slot's own: the rank (2nd, 3rd)
+  where the slot's name is, the item, how much stronger it makes you and where it comes
+  from in the same columns, move and remove on hover.
+- Every sound setting (Combat Alert, Crosshair, Mouse Ring, Emotes, Focus Cast Bar, Campfire,
+  Low Health, Threat Meter, Drop Alert) has a play button beside it, and plays the sound as you
+  pick it.
+- Dungeon Journal: the dungeon and faction lists count only the BiS you still miss there, and
+  show nothing once they are all yours, instead of a second check.
+- What is new in WoW Forever wears its infinity sign instead of NEW: dungeons and factions in
+  the Dungeon Journal's lists and its dungeon page, and the bosses, quests and items new in
+  Forever, in the Journal and the BiS List. Hover it, or the row, and the tooltip says
+  "New in WoW Forever".
+- Item tooltips are shorter: one line each for your BiS rank, how much of an upgrade it is and
+  whether it is new in Forever, written the same way in the BiS List, the Dungeon Journal and
+  on every tooltip, with nothing said twice.
+- BiS List: each BiS you do not wear yet says how much stronger it makes you (+9%), by the
+  stats your spec values, and Run Next puts the place that makes you strongest first, with its
+  total, so you know what to farm first.
+- BiS List: what drops in a dungeon is the Dungeon Journal's, so both list the same items under
+  the same bosses and dungeon names, and a slot's picker offers every dungeon drop for your
+  class (about three times as many as before).
+- BiS List: Fill Empty Slots is gone. Pick each slot's BiS from its picker, or import a list.
 - The options window's sidebar header shows the NaowhUI Forever logo, and the search box beside it is narrower.
 - Flight Timer: with Land Early Button on, Blizzard's own Request Stop button is hidden
   during the flight, so there is only one. It comes back when you land.
@@ -260,6 +380,26 @@
   can no longer hide the empty window, so choose With Threat for that.
 - Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70205.
 - BiS List: picks updated from wowsrc.com's latest lists, for every spec.
+- BiS List: Drop Alert says each drop once: a roll for one of your picks, then its boss's
+  loot window opened as often as you like, is one line in chat with its star, the item and
+  the slot it is for ("up for a roll: your BiS for Shoulder"), and another when it is yours.
+  Its roll frame shows a badge with the star and "Your BiS" in place of the blue glow. Test
+  in its settings plays it all for your first BiS.
+- BiS List: Drop Alert is yours to set up. An alert on screen (on by default, moved in Unlock
+  Mode) shows the item with your star, the line under its name and its border as you pick
+  them: click them in the preview on its settings page to change them, and set its size, how
+  long it stays, its background and glow. Choose which picks alert (your BiS, your top two, or
+  all), a sound for a drop and one for when it is yours, and turn the chat line and the roll
+  frame badge on or off.
+- BiS List settings: a shorter page. Drop Alert's on-screen alert has a panel of its own: see
+  it up for a roll, dropped or yours, click its star, line or border (or the chips under it)
+  to change them, set its size, how long it stays, background and glow beside it, and Play
+  test. Sounds play as you pick them, the list buttons sit on one row, and the star on the
+  alert shows over the item's icon. On every settings page, greyed-out options can no longer
+  be changed.
+- BiS ranks look the same everywhere: an orange star for your BiS, a silver star for your
+  second pick and a number for the rest, in the BiS List, the Dungeon Journal and on
+  tooltips. What you wear is marked in green.
 
 ### Fixed
 - Blessings: the options window opens again while the bar shows your blessing buffs. Opening

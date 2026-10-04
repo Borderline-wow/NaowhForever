@@ -1,16 +1,20 @@
 -------------------------------------------------------------------------------
---  View/BossCards.lua -- a boss as a card: the card itself; its header (kill order, name,
+--  View/BossCards.lua -- a boss as a card (the shared card kind): its header (kill order, name,
 --  Naowh's tip behind an (i), and what it holds for you); sharing a tip in chat; and the
 --  chips of the bosses with nothing for you at the end of the page.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
+local Tip = ns.Shared.Parts.Tip
+-- WoW Forever's mark after the name of what is new in Forever, and its tooltip line.
+local ForeverInline, ForeverLine = ns.Shared.Parts.ForeverInline, ns.Shared.Parts.ForeverLine
+local CARD_DROP = ns.Shared.Parts.CARD_DROP
 local T = ns.THEME
 local J = ns.Journal
 
 local St = J.Style
 local TIP_RGB, INFO = St.TIP_RGB, St.INFO
 local BORDER_RGB, SKULL, CROSS = St.BORDER_RGB, St.SKULL, St.CROSS
-local CARD_FILL, BADGE, BOSS_HEADER_H, BOSS_NAME_SIZE = St.CARD_FILL, St.BADGE, St.BOSS_HEADER_H, St.BOSS_NAME_SIZE
+local BADGE, CARD_HEADER_H, CARD_NAME_SIZE = St.BADGE, St.CARD_HEADER_H, St.CARD_NAME_SIZE
 local TIP_ICON, CHIP_H, CHIP_PAD, CHIP_GAP = St.TIP_ICON, St.CHIP_H, St.CHIP_PAD, St.CHIP_GAP
 
 local Kinds = J.View.Kinds
@@ -35,22 +39,6 @@ local KILLS_GAP = 12        -- the kill count to what the boss holds for you, le
 -- a pixel low).
 local KILL_DROP = 1
 local KILL_DATE, GOLD_CODE = St.KILL_DATE, St.GOLD_CODE
-
--- A boss's card: under its header and its loot, a level below them so they draw on top.
--- Placed only (no Set); its black edge turns the accent while the boss is clicked.
--- A boss card with nothing listed says why in the middle of its body, under its header: the
--- grid stretches a card to its row's tallest, and the line stays centred in the space.
-Kinds.card = {
-    New = function(view)
-        local card = CreateFrame("Frame", nil, view)
-        ns.Solid(card, "BACKGROUND", T.fg, CARD_FILL):SetAllPoints()
-        card.edge = ns.Border(card, BORDER_RGB)
-        card.note = ns.Font(card, 11, nil, T.muted)
-        card.note:SetPoint("CENTER", 0, -BOSS_HEADER_H / 2)
-        card.note:Hide()
-        return card
-    end,
-}
 
 -------------------------------------------------------------------------------
 --  Naowh's tips: read on hover, shared in chat on a click
@@ -82,7 +70,7 @@ end
 
 local function TipEnter(button)
     button.icon:SetVertexColor(T.fg.r, T.fg.g, T.fg.b)
-    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+    if not Tip(button, "ANCHOR_RIGHT") then return end
     AddTip(button.tip)
     GameTooltip:Show()
 end
@@ -113,7 +101,7 @@ local function KillsEnter(button)
     button.icon:SetVertexColor(accent.r, accent.g, accent.b)
     local boss = button.boss
     local record = Kills.Record(boss)
-    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+    if not Tip(button, "ANCHOR_RIGHT") then return end
     GameTooltip:SetText(boss.name, 1, 1, 1)
     if not Kills.Counted(boss) then
         GameTooltip:AddLine(J.View.BossPanel.NotCounted(button:GetParent():GetParent().dungeon),
@@ -186,13 +174,14 @@ local function BossEnter(row)
     row.hovered = true
     local view = row:GetParent()
     view:ApplyPin()
-    GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT", 16, 0)
+    if not Tip(row, "ANCHOR_CURSOR_RIGHT", 16, 0) then return end
     if row.canPin then
         GameTooltip:SetText(view.pinned == row.boss and "Click to show all its loot again"
             or "Click to show only its BiS and upgrades", 1, 1, 1)
     else
         GameTooltip:SetText(row.boss.name, 1, 1, 1)
     end
+    if row.forever then GameTooltip:AddLine(ForeverLine()) end
     if row.hidden > 0 then
         GameTooltip:AddLine(FILTERED_LINE:format(row.hidden), T.muted.r, T.muted.g, T.muted.b, true)
     end
@@ -248,7 +237,7 @@ Kinds.boss = {
         ns.Border(row.badge, BORDER_RGB)
         row.number = ns.Font(row.badge, 11, nil, T.fg)
         row.number:SetPoint("CENTER", 0, 0)
-        row.name = ns.Font(row, BOSS_NAME_SIZE, nil, T.fg)
+        row.name = ns.Font(row, CARD_NAME_SIZE, nil, T.fg)
         row.name:SetJustifyH("LEFT")
         row.name:SetWordWrap(false)
         row.rare = ns.Font(row, 10, nil, T.muted)
@@ -304,7 +293,8 @@ Kinds.boss = {
         row.name:ClearAllPoints()
         row.name:SetPoint("TOPLEFT", left, -NAME_TOP)
         row.name:SetWidth(0)   -- unbounded, so it measures the whole name
-        row.name:SetText(boss.name)
+        row.forever = J.IsForeverBoss(boss)
+        row.name:SetText(row.forever and boss.name .. ForeverInline(CARD_NAME_SIZE - 2, CARD_DROP) or boss.name)
         local tag = Tag(boss)
         row.rare:SetText(tag or "")
         row.rare:SetShown(tag ~= nil)
@@ -340,7 +330,7 @@ Kinds.boss = {
         row.stats:SetShown(noteW >= NOTE_MIN)
         row.stats:SetWidth(math.max(noteW, 1))
         row.rule:SetShown(shown > 0)
-        return BOSS_HEADER_H
+        return CARD_HEADER_H
     end,
 }
 
@@ -352,7 +342,7 @@ Kinds.boss = {
 -- card does. The chips run on and wrap.
 local function ChipEnter(chip)
     chip.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b)
-    GameTooltip:SetOwner(chip, "ANCHOR_TOP")
+    if not Tip(chip, "ANCHOR_TOP") then return end
     GameTooltip:SetText(chip.boss.name, 1, 1, 1)
     GameTooltip:AddLine(chip.reason, T.muted.r, T.muted.g, T.muted.b)
     if chip.tip then
@@ -397,7 +387,7 @@ end
 
 local function ClearEnter(button)
     button.icon:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
-    GameTooltip:SetOwner(button, "ANCHOR_TOP")
+    if not Tip(button, "ANCHOR_TOP") then return end
     GameTooltip:SetText("Show their loot", 1, 1, 1)
     GameTooltip:AddLine(("Turns off %s."):format(OptionLabel(button.filterKey)), T.muted.r, T.muted.g, T.muted.b)
     GameTooltip:Show()

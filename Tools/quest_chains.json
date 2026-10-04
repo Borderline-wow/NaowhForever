@@ -1,11 +1,144 @@
 {
+ "1012": null,
  "1013": null,
  "1014": null,
+ "1035": null,
+ "104": null,
+ "1046": {
+  "chain": [
+   [
+    1024
+   ],
+   [
+    1026
+   ],
+   [
+    1027
+   ],
+   [
+    1028
+   ],
+   [
+    1055
+   ],
+   [
+    1029
+   ],
+   [
+    1030
+   ],
+   [
+    1045
+   ],
+   [
+    1046
+   ]
+  ],
+  "names": {
+   "1024": "Raene's Cleansing",
+   "1026": "Raene's Cleansing",
+   "1027": "Raene's Cleansing",
+   "1028": "Raene's Cleansing",
+   "1029": "Raene's Cleansing",
+   "1030": "Raene's Cleansing",
+   "1045": "Raene's Cleansing",
+   "1046": "Raene's Cleansing",
+   "1055": "Raene's Cleansing"
+  }
+ },
  "1048": null,
  "1049": null,
  "1050": null,
  "1051": null,
  "1053": null,
+ "1058": null,
+ "1059": {
+  "chain": [
+   [
+    1057
+   ],
+   [
+    1059
+   ]
+  ],
+  "names": {
+   "1057": "Reclaiming the Charred Vale",
+   "1059": "Reclaiming the Charred Vale"
+  }
+ },
+ "1078": null,
+ "1081": {
+  "chain": [
+   [
+    1082
+   ],
+   [
+    1081
+   ]
+  ],
+  "names": {
+   "1081": "Reception from Tyrande",
+   "1082": "Update for Sentinel Thenysil"
+  }
+ },
+ "1089": {
+  "chain": [
+   [
+    1087
+   ],
+   [
+    1088
+   ],
+   [
+    1089
+   ]
+  ],
+  "names": {
+   "1087": "Cenarius' Legacy",
+   "1088": "Ordanus",
+   "1089": "The Den"
+  }
+ },
+ "1092": {
+  "chain": [
+   [
+    1090
+   ],
+   [
+    1092
+   ]
+  ],
+  "names": {
+   "1090": "Gerenzo's Orders",
+   "1092": "Gerenzo's Orders"
+  }
+ },
+ "1096": {
+  "chain": [
+   [
+    1483
+   ],
+   [
+    1093
+   ],
+   [
+    1094
+   ],
+   [
+    1095
+   ],
+   [
+    1096
+   ]
+  ],
+  "names": {
+   "1093": "Super Reaper 6000",
+   "1094": "Further Instructions",
+   "1095": "Further Instructions",
+   "1096": "Gerenzo Wrenchwhistle",
+   "1483": "Ziz Fizziks"
+  }
+ },
  "1098": null,
  "1100": {
   "chain": [
@@ -159,6 +292,24 @@
    "6628": "Test of Lore"
   }
  },
+ "1197": {
+  "chain": [
+   [
+    1195
+   ],
+   [
+    1196
+   ],
+   [
+    1197
+   ]
+  ],
+  "names": {
+   "1195": "The Sacred Flame",
+   "1196": "The Sacred Flame",
+   "1197": "The Sacred Flame"
+  }
+ },
  "1198": {
   "chain": [
    [
@@ -189,6 +340,20 @@
   }
  },
  "1221": null,
+ "126": {
+  "chain": [
+   [
+    124
+   ],
+   [
+    126
+   ]
+  ],
+  "names": {
+   "124": "A Baying of Gnolls",
+   "126": "Howling in the Hills"
+  }
+ },
  "1275": {
   "chain": [
    [
@@ -292,6 +457,39 @@
  "1486": null,
  "1487": null,
  "1491": null,
+ "150": null,
+ "1527": {
+  "chain": [
+   [
+    1522,
+    1523,
+    2983,
+    2984
+   ],
+   [
+    1524
+   ],
+   [
+    1525
+   ],
+   [
+    1526
+   ],
+   [
+    1527
+   ]
+  ],
+  "names": {
+   "1522": "Call of Fire",
+   "1523": "Call of Fire",
+   "1524": "Call of Fire",
+   "1525": "Call of Fire",
+   "1526": "Call of Fire",
+   "1527": "Call of Fire",
+   "2983": "Call of Fire",
+   "2984": "Call of Fire"
+  }
+ },
  "1654": {
   "chain": [
    [
@@ -335,7 +533,60 @@
  "167": null,
  "168": null,
  "17": null,
+ "1706": null,
+ "1709": null,
+ "1711": null,
  "1740": null,
+ "1782": null,
+ "1806": {
+  "chain": [
+   [
+    1651
+   ],
+   [
+    1652
+   ],
+   [
+    1653
+   ],
+   [
+    1654
+   ],
+   [
+    1806
+   ]
+  ],
+  "names": {
+   "1651": "The Tome of Valor",
+   "1652": "The Tome of Valor",
+   "1653": "The Test of Righteousness",
+   "1654": "The Test of Righteousness",
+   "1806": "The Test of Righteousness"
+  }
+ },
+ "1843": null,
+ "1845": null,
+ "1847": null,
+ "1848": null,
+ "19": {
+  "chain": [
+   [
+    20,
+    98386,
+    98387
+   ],
+   [
+    19
+   ]
+  ],
+  "names": {
+   "19": "Tharil'zun",
+   "20": "Blackrock Menace",
+   "98386": "Alther's Mill",
+   "98387": "Blackrock Blockade"
+  }
+ },
+ "1946": null,
  "1947": null,
  "1951": {
   "chain": [
@@ -422,6 +673,7 @@
   }
  },
  "214": null,
+ "219": null,
  "2198": {
   "chain": [
    [
@@ -460,6 +712,28 @@
   "names": {
    "2202": "Uldaman Reagent Run",
    "2258": "Badlands Reagent Run"
+  }
+ },
+ "223": {
+  "chain": [
+   [
+    173
+   ],
+   [
+    221
+   ],
+   [
+    222
+   ],
+   [
+    223
+   ]
+  ],
+  "names": {
+   "173": "Worgen in the Woods",
+   "221": "Worgen in the Woods",
+   "222": "Worgen in the Woods",
+   "223": "Worgen in the Woods"
   }
  },
  "2240": {
@@ -529,7 +803,10 @@
   }
  },
  "2418": null,
+ "247": null,
+ "249": null,
  "2500": null,
+ "256": null,
  "2768": null,
  "2770": {
   "chain": [
@@ -586,6 +863,44 @@
   "names": {
    "2846": "Tiara of the Deep",
    "2861": "Tabetha's Task"
+  }
+ },
+ "286": {
+  "chain": [
+   [
+    279
+   ],
+   [
+    281
+   ],
+   [
+    284
+   ],
+   [
+    285
+   ],
+   [
+    286
+   ],
+   [
+    98189
+   ],
+   [
+    98190
+   ],
+   [
+    98191
+   ]
+  ],
+  "names": {
+   "279": "Claws from the Deep",
+   "281": "Reclaiming Goods",
+   "284": "The Search Continues",
+   "285": "Search More Hovels",
+   "286": "Return the Statuette",
+   "98189": "Return the Statuette",
+   "98190": "A Friend of the Family",
+   "98191": "A Friend of the Family"
   }
  },
  "2865": {
@@ -702,6 +1017,24 @@
  },
  "2945": null,
  "2951": null,
+ "296": {
+  "chain": [
+   [
+    294
+   ],
+   [
+    295
+   ],
+   [
+    296
+   ]
+  ],
+  "names": {
+   "294": "Ormer's Revenge",
+   "295": "Ormer's Revenge",
+   "296": "Ormer's Revenge"
+  }
+ },
  "2962": null,
  "2988": {
   "chain": [
@@ -773,6 +1106,29 @@
  },
  "303": null,
  "3042": null,
+ "307": null,
+ "31": {
+  "chain": [
+   [
+    27
+   ],
+   [
+    28
+   ],
+   [
+    30
+   ],
+   [
+    31
+   ]
+  ],
+  "names": {
+   "27": "A Lesson to Learn",
+   "28": "Trial of the Lake",
+   "30": "Trial of the Sea Lion",
+   "31": "Aquatic Form"
+  }
+ },
  "3341": null,
  "3366": null,
  "3369": null,
@@ -813,6 +1169,20 @@
  },
  "3446": null,
  "3447": null,
+ "3514": {
+  "chain": [
+   [
+    3513
+   ],
+   [
+    3514
+   ]
+  ],
+  "names": {
+   "3513": "The Runed Scroll",
+   "3514": "Horde Presence"
+  }
+ },
  "3520": {
   "chain": [
    [
@@ -1057,6 +1427,28 @@
    "391": "The Stockade Riots",
    "392": "The Curious Visitor",
    "393": "Shadow of the Past"
+  }
+ },
+ "396": {
+  "chain": [
+   [
+    434
+   ],
+   [
+    394
+   ],
+   [
+    395
+   ],
+   [
+    396
+   ]
+  ],
+  "names": {
+   "394": "The Head of the Beast",
+   "395": "Brotherhood's End",
+   "396": "An Audience with the King",
+   "434": "The Attack!"
   }
  },
  "3981": {
@@ -1455,7 +1847,44 @@
    "4363": "The Princess's Surprise"
   }
  },
+ "442": {
+  "chain": [
+   [
+    446
+   ],
+   [
+    448
+   ],
+   [
+    442
+   ]
+  ],
+  "names": {
+   "442": "Assault on Fenris Isle",
+   "446": "Thule Ravenclaw",
+   "448": "Report to Hadrec"
+  }
+ },
+ "452": null,
  "4701": null,
+ "471": {
+  "chain": [
+   [
+    469
+   ],
+   [
+    484
+   ],
+   [
+    471
+   ]
+  ],
+  "names": {
+   "469": "Daily Delivery",
+   "471": "Apprentice's Duties",
+   "484": "Young Crocolisk Skins"
+  }
+ },
  "4724": null,
  "4726": {
   "chain": [
@@ -1495,6 +1924,7 @@
   }
  },
  "4735": null,
+ "4740": null,
  "4742": {
   "chain": [
    [
@@ -1573,6 +2003,28 @@
    "5065": "The Lost Tablets of Mosh'aru"
   }
  },
+ "486": {
+  "chain": [
+   [
+    475
+   ],
+   [
+    476
+   ],
+   [
+    483
+   ],
+   [
+    486
+   ]
+  ],
+  "names": {
+   "475": "A Troubling Breeze",
+   "476": "Gnarlpine Corruption",
+   "483": "The Relics of Wakening",
+   "486": "Ursal the Mauler"
+  }
+ },
  "4862": null,
  "4866": null,
  "4867": null,
@@ -1649,6 +2101,29 @@
   }
  },
  "5047": null,
+ "5061": {
+  "chain": [
+   [
+    26
+   ],
+   [
+    29
+   ],
+   [
+    272
+   ],
+   [
+    5061
+   ]
+  ],
+  "names": {
+   "26": "A Lesson to Learn",
+   "272": "Trial of the Sea Lion",
+   "29": "Trial of the Lake",
+   "5061": "Aquatic Form"
+  }
+ },
+ "5088": null,
  "5089": {
   "chain": [
    [
@@ -1681,6 +2156,32 @@
  "5125": null,
  "5126": null,
  "5127": null,
+ "515": {
+  "chain": [
+   [
+    509
+   ],
+   [
+    513
+   ],
+   [
+    515
+   ],
+   [
+    517
+   ],
+   [
+    524
+   ]
+  ],
+  "names": {
+   "509": "Elixir of Agony",
+   "513": "Elixir of Agony",
+   "515": "Elixir of Agony",
+   "517": "Elixir of Agony",
+   "524": "Elixir of Agony"
+  }
+ },
  "5160": {
   "chain": [
    [
@@ -1776,6 +2277,25 @@
    "5282": "The Restless Souls"
   }
  },
+ "530": {
+  "chain": [
+   [
+    440
+   ],
+   [
+    441
+   ],
+   [
+    530
+   ]
+  ],
+  "names": {
+   "440": "The Engraved Ring",
+   "441": "Raleigh and the Undercity",
+   "530": "A Husband's Revenge"
+  }
+ },
+ "5321": null,
  "5341": {
   "chain": [
    [
@@ -1900,6 +2420,42 @@
    "5466": "The Lich, Ras Frostwhisper"
   }
  },
+ "547": null,
+ "549": null,
+ "550": {
+  "chain": [
+   [
+    527
+   ],
+   [
+    528
+   ],
+   [
+    529
+   ],
+   [
+    532
+   ],
+   [
+    539
+   ],
+   [
+    541
+   ],
+   [
+    550
+   ]
+  ],
+  "names": {
+   "527": "Battle of Hillsbrad",
+   "528": "Battle of Hillsbrad",
+   "529": "Battle of Hillsbrad",
+   "532": "Battle of Hillsbrad",
+   "539": "Battle of Hillsbrad",
+   "541": "Battle of Hillsbrad",
+   "550": "Battle of Hillsbrad"
+  }
+ },
  "5515": {
   "chain": [
    [
@@ -1954,6 +2510,7 @@
  "5543": null,
  "5544": null,
  "5582": null,
+ "567": null,
  "5722": {
   "chain": [
    [
@@ -1986,6 +2543,28 @@
  "5725": null,
  "5726": null,
  "5728": {
+  "chain": [
+   [
+    5727
+   ],
+   [
+    5728
+   ],
+   [
+    5729
+   ],
+   [
+    5730
+   ]
+  ],
+  "names": {
+   "5727": "Hidden Enemies",
+   "5728": "Hidden Enemies",
+   "5729": "Hidden Enemies",
+   "5730": "Hidden Enemies"
+  }
+ },
+ "5730": {
   "chain": [
    [
     5727
@@ -2063,6 +2642,21 @@
   }
  },
  "6163": null,
+ "6283": {
+  "chain": [
+   [
+    6282
+   ],
+   [
+    6283
+   ]
+  ],
+  "names": {
+   "6282": "Harpies Threaten",
+   "6283": "Bloodfury Bloodline"
+  }
+ },
+ "6481": null,
  "65": {
   "chain": [
    [
@@ -2321,6 +2915,28 @@
   }
  },
  "7201": null,
+ "741": {
+  "chain": [
+   [
+    731
+   ],
+   [
+    741
+   ],
+   [
+    942
+   ],
+   [
+    943
+   ]
+  ],
+  "names": {
+   "731": "The Absent Minded Prospector",
+   "741": "The Absent Minded Prospector",
+   "942": "The Absent Minded Prospector",
+   "943": "The Absent Minded Prospector"
+  }
+ },
  "7441": null,
  "7461": {
   "chain": [
@@ -2385,8 +3001,74 @@
  "7668": null,
  "7703": null,
  "7761": null,
+ "78150": null,
+ "78307": {
+  "chain": [
+   [
+    78261
+   ],
+   [
+    78307
+   ]
+  ],
+  "names": {
+   "78261": "The Horn of Xelthos",
+   "78307": "The Horn of Xelthos"
+  }
+ },
  "7848": null,
+ "824": {
+  "chain": [
+   [
+    1918
+   ],
+   [
+    824
+   ]
+  ],
+  "names": {
+   "1918": "The Befouled Element",
+   "824": "Je'neu of the Earthen Ring"
+  }
+ },
+ "849": {
+  "chain": [
+   [
+    843
+   ],
+   [
+    846
+   ],
+   [
+    849
+   ]
+  ],
+  "names": {
+   "843": "Gann's Reclamation",
+   "846": "Revenge of Gann",
+   "849": "Revenge of Gann"
+  }
+ },
+ "852": {
+  "chain": [
+   [
+    851
+   ],
+   [
+    852
+   ]
+  ],
+  "names": {
+   "851": "Verog the Dervish",
+   "852": "Hezrul Bloodmark"
+  }
+ },
+ "855": null,
+ "862": null,
  "865": null,
+ "86574": null,
+ "86614": null,
+ "868": null,
  "870": {
   "chain": [
    [
@@ -2409,6 +3091,62 @@
    "886": "The Barrens Oases"
   }
  },
+ "873": {
+  "chain": [
+   [
+    860
+   ],
+   [
+    844
+   ],
+   [
+    845
+   ],
+   [
+    903
+   ],
+   [
+    881
+   ],
+   [
+    905
+   ],
+   [
+    3261
+   ],
+   [
+    882
+   ],
+   [
+    907
+   ],
+   [
+    913
+   ],
+   [
+    874
+   ],
+   [
+    873
+   ]
+  ],
+  "names": {
+   "3261": "Jorn Skyseer",
+   "844": "Plainstrider Menace",
+   "845": "The Zhevra",
+   "860": "Sergra Darkthorn",
+   "873": "Isha Awak",
+   "874": "Mahren Skyseer",
+   "881": "Echeyakee",
+   "882": "Ishamuhale",
+   "903": "Prowlers of the Barrens",
+   "905": "The Angry Scytheclaws",
+   "907": "Enraged Thunder Lizards",
+   "913": "Cry of the Thunderhawk"
+  }
+ },
+ "89": null,
+ "891": null,
  "8922": {
   "chain": [
    [
@@ -2535,6 +3273,21 @@
    "8950": "The Instigator's Enchantment"
   }
  },
+ "9": null,
+ "906": {
+  "chain": [
+   [
+    879
+   ],
+   [
+    906
+   ]
+  ],
+  "names": {
+   "879": "Betrayal from Within",
+   "906": "Betrayal from Within"
+  }
+ },
  "914": {
   "chain": [
    [
@@ -2570,13 +3323,170 @@
  },
  "92421": null,
  "92422": null,
+ "92646": {
+  "chain": [
+   [
+    92646
+   ],
+   [
+    93836
+   ],
+   [
+    93090
+   ],
+   [
+    95349
+   ],
+   [
+    95350
+   ],
+   [
+    93739
+   ]
+  ],
+  "names": {
+   "92646": "Confront Lorthuna",
+   "93090": "What Comes Next",
+   "93739": "Exploring the Horde",
+   "93836": "The Fate of Zephras",
+   "95349": "The Earthen Ring",
+   "95350": "Welcome to Azeroth"
+  }
+ },
+ "93835": {
+  "chain": [
+   [
+    93835
+   ],
+   [
+    94369
+   ],
+   [
+    93089
+   ],
+   [
+    94946
+   ],
+   [
+    94947
+   ],
+   [
+    93963
+   ]
+  ],
+  "names": {
+   "93089": "What Comes Next",
+   "93835": "Confront Lorthuna",
+   "93963": "Exploring the Alliance",
+   "94369": "The Fate of Zephras",
+   "94946": "The Magical City of Dalaran",
+   "94947": "Welcome to Azeroth"
+  }
+ },
+ "94411": null,
+ "94468": {
+  "chain": [
+   [
+    94449
+   ],
+   [
+    94465
+   ],
+   [
+    94466
+   ],
+   [
+    94467
+   ],
+   [
+    94468
+   ]
+  ],
+  "names": {
+   "94449": "Call of Fire",
+   "94465": "Call of Fire",
+   "94466": "Call of Fire",
+   "94467": "Call of Fire",
+   "94468": "Call of Fire"
+  }
+ },
+ "95126": null,
+ "95140": null,
+ "95161": {
+  "chain": [
+   [
+    92415
+   ],
+   [
+    95161
+   ]
+  ],
+  "names": {
+   "92415": "Remember That I Love You",
+   "95161": "Remember That I Love You"
+  }
+ },
  "95189": null,
  "95195": null,
  "95204": null,
  "95216": null,
  "95250": null,
+ "95508": null,
+ "95885": {
+  "chain": [
+   [
+    95884
+   ],
+   [
+    95883
+   ],
+   [
+    95885
+   ]
+  ],
+  "names": {
+   "95883": "The Tortured Soul",
+   "95884": "The Offering Stone",
+   "95885": "The Offering of Blood"
+  }
+ },
  "959": null,
+ "95981": {
+  "chain": [
+   [
+    477
+   ],
+   [
+    478
+   ],
+   [
+    481
+   ],
+   [
+    482
+   ],
+   [
+    95981,
+    479
+   ],
+   [
+    480
+   ]
+  ],
+  "names": {
+   "477": "Border Crossings",
+   "478": "Maps and Runes",
+   "479": "Ambermill Investigations",
+   "480": "The Weaver",
+   "481": "Dalar's Analysis",
+   "482": "Dalaran's Intentions",
+   "95981": "Watching the Roads"
+  }
+ },
+ "95999": null,
  "962": null,
+ "96261": null,
+ "963": null,
  "96393": {
   "chain": [
    [
@@ -2595,6 +3505,21 @@
  "96395": null,
  "96403": null,
  "971": null,
+ "97250": null,
+ "97257": {
+  "chain": [
+   [
+    97245
+   ],
+   [
+    97257
+   ]
+  ],
+  "names": {
+   "97245": "Call of Fire",
+   "97257": "Call of Fire"
+  }
+ },
  "97288": {
   "chain": [
    [
@@ -2725,5 +3650,168 @@
    "97292": "Unending Torment"
   }
  },
- "98423": null
+ "98027": null,
+ "98028": null,
+ "98095": {
+  "chain": [
+   [
+    98094
+   ],
+   [
+    98095
+   ]
+  ],
+  "names": {
+   "98094": "Scout Support",
+   "98095": "Valuable Vantages"
+  }
+ },
+ "981": {
+  "chain": [
+   [
+    973
+   ],
+   [
+    1140
+   ],
+   [
+    1167
+   ],
+   [
+    1143
+   ],
+   [
+    981
+   ]
+  ],
+  "names": {
+   "1140": "The Tower of Althalaxx",
+   "1143": "The Tower of Althalaxx",
+   "1167": "The Tower of Althalaxx",
+   "973": "The Tower of Althalaxx",
+   "981": "The Tower of Althalaxx"
+  }
+ },
+ "98191": {
+  "chain": [
+   [
+    279
+   ],
+   [
+    281
+   ],
+   [
+    284
+   ],
+   [
+    285
+   ],
+   [
+    286
+   ],
+   [
+    98189
+   ],
+   [
+    98190
+   ],
+   [
+    98191
+   ]
+  ],
+  "names": {
+   "279": "Claws from the Deep",
+   "281": "Reclaiming Goods",
+   "284": "The Search Continues",
+   "285": "Search More Hovels",
+   "286": "Return the Statuette",
+   "98189": "Return the Statuette",
+   "98190": "A Friend of the Family",
+   "98191": "A Friend of the Family"
+  }
+ },
+ "98216": {
+  "chain": [
+   [
+    299
+   ],
+   [
+    98216
+   ]
+  ],
+  "names": {
+   "299": "Uncovering the Past",
+   "98216": "Understanding Our Present"
+  }
+ },
+ "98223": null,
+ "98283": {
+  "chain": [
+   [
+    463
+   ],
+   [
+    276
+   ],
+   [
+    277
+   ],
+   [
+    275
+   ],
+   [
+    98283
+   ]
+  ],
+  "names": {
+   "275": "Blisters on the Land",
+   "276": "Tramping Paws",
+   "277": "Fire Taboo",
+   "463": "The Greenwarden",
+   "98283": "Carnage"
+  }
+ },
+ "98297": null,
+ "98310": {
+  "chain": [
+   [
+    299
+   ],
+   [
+    98216
+   ],
+   [
+    98310
+   ],
+   [
+    98313
+   ]
+  ],
+  "names": {
+   "299": "Uncovering the Past",
+   "98216": "Understanding Our Present",
+   "98310": "Gleaning Our Future",
+   "98313": "For Further Study"
+  }
+ },
+ "98423": null,
+ "98545": {
+  "chain": [
+   [
+    96899
+   ],
+   [
+    96896
+   ],
+   [
+    98545
+   ]
+  ],
+  "names": {
+   "96896": "A Righteous Cause",
+   "96899": "Bandarion Keep",
+   "98545": "Leonid's Letter"
+  }
+ },
+ "994": null
 }

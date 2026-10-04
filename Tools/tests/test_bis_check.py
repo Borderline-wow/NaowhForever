@@ -38,6 +38,18 @@ class BisChanges(unittest.TestCase):
         self.assertIn("added Fairywing Mantle (not in the game's tables yet)", text)
 
 
+class Updated(unittest.TestCase):
+    def test_the_page_date_as_the_addon_shows_it(self):
+        page = '<p class="updated">\nLast updated <time datetime="2026-09-30">30 September 2026</time>'
+        self.assertEqual(build_bis_data.updated_on(page), "30 Sep 2026")
+        self.assertIsNone(build_bis_data.updated_on("<p>no date</p>"))
+
+    def test_the_data_still_reads_with_dates(self):
+        text = build_bis_data.OUT.read_text(encoding="utf-8")
+        self.assertIn("updated = ", text, "the data carries each spec page's date")
+        self.assertGreater(len(build_bis_data.current_specs()), 20)
+
+
 class ShortList(unittest.TestCase):
     RUN = {"GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "7"}
 

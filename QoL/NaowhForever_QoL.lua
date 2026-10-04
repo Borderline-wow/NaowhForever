@@ -48,7 +48,7 @@ local S = UI.ModuleSettings("qol", {
     badgeBanner = false, badgeBannerSkipGuild = true,
     tooltipDisplay = true, tooltipSpellID = true, tooltipNPCID = true, tooltipItemID = true,
     tooltipRestricted = "hide", tooltipCopy = true, tooltipModifier = "CTRL-SHIFT", tooltipKey = "C",
-    tooltipCopyFormat = "url", tooltipWowhead = "classic",
+    tooltipCopyFormat = "url", tooltipCopyHint = false,
     slashCommands = false,
     lootFeed = true, lootFeedMoney = true, lootFeedXP = false, lootFeedQuality = 1,
     lootFeedQuest = true, lootFeedRep = false,
@@ -63,6 +63,13 @@ local S = UI.ModuleSettings("qol", {
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24,
     xpTickerSplits = true, xpTickerSplitCount = 4, xpTickerCompare = true, xpTickerHistoryCount = 10,
     groupXP = false, groupXPShowSelf = true, groupXPWidth = 260,
+    naowhScore = true, naowhScoreTooltip = true, naowhScoreScan = true, naowhScoreNearby = true,
+    naowhScoreCompare = "max",
+    characterPanel = false,
+    -- On by default, an exception to off by default: marks on the game's own panel, no restyle.
+    characterPanelSlotMarks = true, characterPanelLevels = true, characterPanelMarks = true,
+    characterPanelEnchants = true, characterPanelScore = true, characterPanelBadge = true, characterPanelStats = "spec",
+    characterPanelTookOver = false,
     xpBar = false, xpBarLeftText = "level", xpBarCenterText = "xp", xpBarRightText = "percent",
     xpBarTopLeft = "played", xpBarTopRight = "none", xpBarBottomLeft = "leveling",
     xpBarBottom = "none", xpBarBottomRight = "xphour", xpBarTop = "none", xpBarLeft = "none",
@@ -82,7 +89,13 @@ local S = UI.ModuleSettings("qol", {
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
     townVendors = false, townMail = false, townPinSize = 16,
     gearSets = true, gearBarVisible = true, trinketBar = false, trinketSize = 36, trinketSpacing = 4, gearBarSize = 32, gearMounted = "", gearResting = "",
-    bis = true, bisTooltip = true, bisLootAlert = true,
+    bis = true, bisTooltip = true, bisBagMarks = false, bisLootAlert = true, bisWindowAlpha = 1,
+    -- Drop Alert: which picks, what it does, and its on-screen alert (BiS/View/Toast.lua).
+    bisAlertFor = "all", bisAlertChat = true, bisAlertBadge = true, bisToast = true,
+    bisDropSound = "game:raidwarning", bisYoursSound = "game:epicloot",
+    bisToastScale = 1, bisToastTime = 6, bisToastAlpha = 0.95, bisToastGlow = true, bisToastStar = "icon",
+    bisToastBorder = "rank", bisToastEvent = true, bisToastRank = true, bisToastSlot = true,
+    bisToastSource = false, bisToastGain = true,
     blessings = true, blessSpacing = 6, blessGroupSpacing = 6, blessTimerSize = 14, blessShowLabels = true, blessBarSize = 30, blessTimers = true, blessShowAura = true,
     blessShowFury = false,
 
@@ -1527,7 +1540,9 @@ function ns.BuildQoLTooltipPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Toggle("tooltipCopy", "Mouseover Copy Shortcut", nil, "tooltipDisplay"),
-        { type = "label", text = "" }
+        S.Toggle("tooltipCopyHint", "Show Shortcut Hint",
+            "A line under the ID saying which keys copy it (Ctrl-Shift-C: copy ID or Wowhead link). "
+            .. "Off, the shortcut still works; the line is just not shown.", { "tooltipDisplay", "tooltipCopy" })
     ); y = y - h
     _, h = W:Feature(parent, y, { type = "label", text = "Copy Card" }); y = y - h
     _, h = W:DualRow(parent, y,
@@ -1537,7 +1552,7 @@ function ns.BuildQoLTooltipPage(parent, y)
     ); y = y - h
     _, h = W:DualRow(parent, y,
         S.Dropdown("tooltipCopyFormat", "Initially Select", { id = "ID", url = "Wowhead Link" }, { "id", "url" }, nil, "tooltipCopy"),
-        S.Dropdown("tooltipWowhead", "Wowhead Database", { classic = "Classic", retail = "Retail" }, { "classic", "retail" }, "Forever-specific entries may not have a matching Wowhead page.", "tooltipCopy")
+        { type = "label", text = "" }
     ); y = y - h
     _, h = W:DualRow(parent, y,
         { type = "button", text = "Preview Copy Card", buttonText = "Preview", onClick = function() ns.PreviewTooltipCopyCard() end },

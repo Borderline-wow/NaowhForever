@@ -50,7 +50,7 @@ Kinds.section = {
         row.line = ns.Solid(row, "ARTWORK", T.line, 1)
         row.line:SetPoint("BOTTOMLEFT")
         row.line:SetPoint("BOTTOMRIGHT")
-        row.line:SetHeight(1)
+        ns.Hairline(row.line, "h")
         row.link = Parts.Link(row, SectionLinkClicked, true)
         row.link:SetPoint("BOTTOMRIGHT", 0, 4)
         row:SetScript("OnMouseUp", SectionClicked)

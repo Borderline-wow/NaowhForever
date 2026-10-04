@@ -1,13 +1,18 @@
 -------------------------------------------------------------------------------
 --  View/ItemRows.lua -- one item of a boss's loot: its icon in a black border; its name in
---  its quality colour with its marks after it (an orange star for your BiS, its pick number
---  for the rest of your list, the game's green arrow for an upgrade); under that, muted, what
+--  its quality colour with its marks after it (its rank on your BiS list, the game's green
+--  arrow for an upgrade); under that, muted, what
 --  it is and the level it needs (red while above yours), then In Bag or In Bank and the
 --  hanger for a look you do not have; and the drop chance on the right, over its bar, or a
---  faction reward's price. What you wear has a green bar at the card's edge. Its tooltip is
+--  faction reward's price. What you wear has a green bar at the card's edge, as the BiS
+--  List's rows; one new in WoW Forever has Forever's badge on its icon. Its tooltip is
 --  the game's with a line for each mark, and right-click is the BiS List.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
+local Tip = ns.Shared.Parts.Tip
+-- WoW Forever's line in the tooltip of what is new in Forever (its badge is on the icon).
+local ForeverLine = ns.Shared.Parts.ForeverLine
+local IsForever = ns.Shared.Parts.IsForever
 local T = ns.THEME
 local J = ns.Journal
 local Loot = J.Loot
@@ -18,38 +23,28 @@ local GetItemInfo = C_Item.GetItemInfo
 local GetItemInfoInstant = C_Item.GetItemInfoInstant
 local GetItemIconByID = C_Item.GetItemIconByID
 local GetItemQualityColor = C_Item.GetItemQualityColor
-local GetItemCount = C_Item.GetItemCount
 local IsEquippedItem = C_Item.IsEquippedItem
 -- Forever has the money string only here: the global GetCoinTextureString is not loaded.
 local GetCoinTextureString = C_CurrencyInfo.GetCoinTextureString
 
 local St = J.Style
-local RED_CODE, BIS_CODE, BIS_RGB, UPGRADE_CODE = St.RED_CODE, St.BIS_CODE, St.BIS_RGB, St.UPGRADE_CODE
+local RED_CODE, UPGRADE_CODE = St.RED_CODE, St.UPGRADE_CODE
 local LOOK_CODE, LOOK_RGB, HAVE_RGB, HANGER = St.LOOK_CODE, St.LOOK_RGB, St.HAVE_RGB, St.HANGER
-local STAR, UPGRADE_ATLAS, LOGO_SMALL = St.STAR, St.UPGRADE_ATLAS, St.LOGO_SMALL
+local UPGRADE_ATLAS = St.UPGRADE_ATLAS
 local PLACE_DOT, CARD_PAD, ICON, ITEM_H = St.PLACE_DOT, St.CARD_PAD, St.ICON, St.ITEM_H
 local CHANCE_W, CHANCE_BAR_W, CHANCE_HIGH, CHANCE_FAIR = St.CHANCE_W, St.CHANCE_BAR_W, St.CHANCE_HIGH,
     St.CHANCE_FAIR
-local UNUSABLE, BORDER_RGB, ROUND, BAG = St.UNUSABLE, St.BORDER_RGB, St.ROUND, St.BAG
+local UNUSABLE, ROUND, BAG = St.UNUSABLE, St.ROUND, St.BAG
 
 local View = J.View
-local Kinds = View.Kinds
+local Kinds, Parts = View.Kinds, View.Parts
+local Items = ns.Shared.Items
+local Inline, RankMark = Parts.Inline, Parts.RankMark
+local INLINE_DROP, CARD_DROP = Parts.TOOLTIP_DROP, Parts.CARD_DROP
 
 local WEAPON, ARMOR, RECIPE = 2, 4, 9   -- the game's item classes
 local ARMOR_TYPES = { [1] = true, [2] = true, [3] = true, [4] = true }   -- cloth, leather, mail, plate
--- A weapon that only goes in one hand, and how it is said in short.
-local ONE_HAND_ONLY = { INVTYPE_WEAPONMAINHAND = "MH", INVTYPE_WEAPONOFFHAND = "OH" }
--- Weapons in short, as players say them ("1h Sword", "Bow"), by the game's weapon subclass
--- (Enum.ItemWeaponSubclass) rather than its words, so any client language gets them: the
--- noun, and the hands where the type says ("1h", "2h"). One of these only goes in one hand
--- says which instead ("MH Sword", "OH Dagger"). Any other weapon has the game's own name.
-local WEAPON_SHORT = {
-    [0] = { "Axe", "1h" }, [1] = { "Axe", "2h" }, [2] = { "Bow" }, [3] = { "Gun" },
-    [4] = { "Mace", "1h" }, [5] = { "Mace", "2h" }, [6] = { "Polearm" }, [7] = { "Sword", "1h" },
-    [8] = { "Sword", "2h" }, [10] = { "Staff" }, [13] = { "Fist Weapon" }, [15] = { "Dagger" },
-    [16] = { "Thrown" }, [18] = { "Crossbow" }, [19] = { "Wand" },
-}
-local weaponNames = {}   -- subclass and hand -> its short name, made once each
+local ONE_HAND_ONLY = Items.ONE_HAND_ONLY
 local NAME_TOP, CHANCE_TOP, BAR_BOTTOM = 1, 8, 11
 local BAR_H = 4             -- the chance's bar, a pill as thick as the opacity slider's track
 local DEEP = 0.6            -- the bar's fill starts at its colour this dark, as the slider's does
@@ -57,46 +52,26 @@ local DEEP = 0.6            -- the bar's fill starts at its colour this dark, as
 -------------------------------------------------------------------------------
 --  Tags
 -------------------------------------------------------------------------------
--- An icon in a line of text is centred on the line. In a tooltip's lines the icons go this
--- much lower, level with the letters.
-local INLINE_DROP = 1
--- On an item's card they stay centred: there the Naowh font's capitals fill the middle of the
--- line, measured in game (2 Oct 2026: a name's capitals on rows 13 to 21 of a 12px line, and
--- the arrow dropped by INLINE_DROP 1.5px under them, its tip at the capitals' top).
-local CARD_DROP = 0
-
--- A texture in a line of text at the text's height, tinted; drop is how much lower.
-local function Inline(texture, color, drop)
-    return ("|T%s:0:0:0:%d:64:64:0:64:0:64:%d:%d:%d|t"):format(texture, -(drop or INLINE_DROP), color.r * 255,
-        color.g * 255, color.b * 255)
-end
-
--- After the name: the orange star for your #1, the pick number for the rest of your list.
-local STAR_ICON = Inline(STAR, BIS_RGB)
-local STAR_TAG = "  " .. Inline(STAR, BIS_RGB, CARD_DROP)
-
 local function RankTag(rank)
-    if not rank then return "" end
-    return rank == 1 and STAR_TAG or ("  %s#%d|r"):format(BIS_CODE, rank)
+    return rank and "  " .. RankMark(rank, CARD_DROP) or ""
 end
 
 -- After that: the game's green arrow when it beats what you wear in its slot.
 local UPGRADE_ICON = ("|A:%s:0:0:0:%d|a"):format(UPGRADE_ATLAS, -INLINE_DROP)
 local UPGRADE_TAG = "  " .. ("|A:%s:0:0:0:%d|a"):format(UPGRADE_ATLAS, -CARD_DROP)
 
--- On the second line: In Bag when it is in your bags, else In Bank when it is in your bank.
--- What you wear has its bar.
--- In the worn bar's green, muted: a state of the item, quieter than its name.
-local KEPT_CODE = ("|cff%02x%02x%02x"):format(HAVE_RGB.r * 200, HAVE_RGB.g * 200, HAVE_RGB.b * 200)
-local IN_BAG_TAG = "   " .. KEPT_CODE .. "In Bag|r"
-local IN_BANK_TAG = "   " .. KEPT_CODE .. "In Bank|r"
--- A recipe you already know: the game's check and Known, in the same green.
-local KNOWN_TAG = "   " .. Inline(St.CHECK, HAVE_RGB) .. " " .. KEPT_CODE .. "Known|r"
+-- On the second line: In Bag or In Bank (what you wear has its bar), or a recipe you know.
+local KNOWN_TAG = "   " .. Inline(St.CHECK, HAVE_RGB) .. " " .. Items.KEPT_CODE .. "Known|r"
+local keptTags = { [""] = "" }
 
 local function Kept(itemID)
-    if GetItemCount(itemID) > 0 then return IN_BAG_TAG end
-    if GetItemCount(itemID, true) > 0 then return IN_BANK_TAG end
-    return ""
+    local kept = Items.Kept(itemID)
+    local tag = keptTags[kept]
+    if not tag then
+        tag = "   " .. kept
+        keptTags[kept] = tag
+    end
+    return tag
 end
 
 -- With Show Appearances on: the hanger in the looks' cyan (as on the header) on the second
@@ -105,38 +80,14 @@ end
 local NEW_LOOK_ICON = Inline(HANGER, LOOK_RGB)
 local NEW_LOOK_TAG = "   " .. Inline(HANGER, LOOK_RGB, CARD_DROP)
 
--- The first of the Journal's lines in an item's tooltip, so they read as ours among other
--- addons': the Naowh N, then "Naowh" in white and "Forever" in the accent, as the options
--- window writes it. Made when shown, so it follows the theme's accent.
-local LOGO_ICON = ("|T%s:0:0:0:%d|t"):format(LOGO_SMALL, -INLINE_DROP)
-
-local function BrandLine()
-    return LOGO_ICON .. " Naowh " .. ns.Color("accent", "Forever")
-end
-
 -- What a click on an item does, at the foot of its tooltip.
 local CLICK_HINT = "Right-click: menu" .. PLACE_DOT .. "Shift-click: link"
 
 -- What each mark means, under the item's tooltip: the icon, without the gap it has after a
 -- name, then the words.
-local STAR_LINE = STAR_ICON .. " " .. BIS_CODE .. "Your BiS|r"
-local RANK_LINE = BIS_CODE .. "#%d on your BiS list|r"
-local UPGRADE_LINE = UPGRADE_ICON .. " " .. UPGRADE_CODE .. "An upgrade over what you wear|r"
+local UPGRADE_LINE = UPGRADE_ICON .. " " .. UPGRADE_CODE .. "Upgrade over what you wear|r"
 local NEW_LOOK_LINE = NEW_LOOK_ICON .. " " .. LOOK_CODE .. "A look you do not have yet|r"
 
--- A weapon's short name: "1h Sword", "MH Sword", "Bow"; nil for one with none.
-local function WeaponShort(subclass, equipLoc)
-    local short = WEAPON_SHORT[subclass]
-    if not short then return nil end
-    local hand = ONE_HAND_ONLY[equipLoc] or short[2]
-    local key = subclass .. (hand or "")
-    local name = weaponNames[key]
-    if not name then
-        name = hand and hand .. " " .. short[1] or short[1]
-        weaponNames[key] = name
-    end
-    return name
-end
 
 -- "Leather, Chest". Weapons in short ("1h Sword", "MH Dagger", "Bow"), else by the game's
 -- type, plus the hand for one that only goes in one ("Fishing Poles, Main Hand"). Just the
@@ -149,7 +100,7 @@ local function ItemType(itemID)
     if not (facts and subType) then return slot end
     local class = facts[FACT.CLASS]
     if class == WEAPON then
-        return WeaponShort(facts[FACT.SUBCLASS], equipLoc)
+        return Items.WeaponName(facts[FACT.SUBCLASS], equipLoc)
             or (ONE_HAND_ONLY[equipLoc] and subType .. ", " .. slot or subType)
     end
     if class == ARMOR and ARMOR_TYPES[facts[FACT.SUBCLASS]] then return subType .. ", " .. slot end
@@ -187,10 +138,9 @@ end
 local function ItemEnter(row)
     row.hover:Show()
     local muted = T.muted
-    GameTooltip:SetOwner(row, "ANCHOR_CURSOR_RIGHT", 16, 0)
+    if not Tip(row, "ANCHOR_CURSOR_RIGHT", 16, 0) then return end
     GameTooltip:SetItemByID(row.itemID)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(BrandLine(), 1, 1, 1)
+    if row.forever then GameTooltip:AddLine(ForeverLine()) end
     -- A reward your standing has not reached: which it needs, and how much reputation to go.
     if row.needs then
         local color = J.Style.STANDING_RGB[row.needs]
@@ -208,9 +158,10 @@ local function ItemEnter(row)
     end
     -- Where it is on your BiS list, unless the BiS List already says so on every tooltip.
     if row.rank and not ns.QoLSettings.Get("bisTooltip") then
-        GameTooltip:AddLine(row.rank == 1 and STAR_LINE or RANK_LINE:format(row.rank))
+        GameTooltip:AddLine(Parts.RankLine(row.rank))
     end
-    if row.upgrade then GameTooltip:AddLine(UPGRADE_LINE) end
+    -- Stat Weights, when on, says how much on every tooltip: the bare word would be twice.
+    if row.upgrade and not (ns.StatWeights and ns.StatWeights.On()) then GameTooltip:AddLine(UPGRADE_LINE) end
     if row.newLook then GameTooltip:AddLine(NEW_LOOK_LINE) end
     GameTooltip:AddLine(CLICK_HINT, muted.r, muted.g, muted.b)
     GameTooltip:Show()
@@ -257,7 +208,7 @@ local function ChanceEnter(zone)
     local row = zone:GetParent()
     row.hover:Show()
     local muted = T.muted
-    GameTooltip:SetOwner(zone, "ANCHOR_RIGHT")
+    if not Tip(zone, "ANCHOR_RIGHT") then return end
     if row.priced then return PriceEnter(row) end
     GameTooltip:SetText("Drop chance", 1, 1, 1)
     local chance = row.chance
@@ -377,17 +328,10 @@ Kinds.item = {
         row.stripe = ns.Solid(row, "BACKGROUND", T.fg, St.STRIPE)
         row.stripe:SetPoint("TOPLEFT", -CARD_PAD + 1, 0)
         row.stripe:SetPoint("BOTTOMRIGHT", CARD_PAD - 1, 0)
-        row.worn = ns.Solid(row, "ARTWORK", HAVE_RGB, 1)
-        row.worn:SetPoint("TOPLEFT", -CARD_PAD + 2, -4)
-        row.worn:SetPoint("BOTTOMLEFT", -CARD_PAD + 2, 4)
-        row.worn:SetWidth(2)
-        local frame = CreateFrame("Frame", nil, row)
-        frame:SetSize(ICON, ICON)
+        row.worn = Parts.WornBar(row, CARD_PAD)
+        local frame = Parts.ItemIcon(row, ICON)
         frame:SetPoint("LEFT", 0, 0)
-        ns.Border(frame, BORDER_RGB)
-        row.icon = frame:CreateTexture(nil, "ARTWORK")
-        ns.PixelInset(row.icon, 1)
-        row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        row.iconFrame, row.icon = frame, frame.texture
         row.chanceText = ns.Font(row, 11, nil, T.fg)
         row.chanceText:SetJustifyH("RIGHT")
         local zone = CreateFrame("Frame", nil, row)
@@ -465,6 +409,8 @@ Kinds.item = {
         if view.filters.showAppearance and not (worn or bare) then look = Loot.Appearance(itemID) end
         local known = not bare and Loot.Recipe(itemID) ~= nil and view:RecipeKnown(itemID)
         row.rank, row.upgrade, row.newLook = rank, upgrade, look == false
+        row.forever = IsForever("items", itemID)
+        Parts.MarkForever(row.iconFrame, itemID)
         row.name:SetText("|c" .. hex .. (name or ("Item " .. itemID)) .. "|r"
             .. RankTag(rank) .. (upgrade and UPGRADE_TAG or ""))
         local required = not bare and facts and facts[FACT.REQUIRED] or 0

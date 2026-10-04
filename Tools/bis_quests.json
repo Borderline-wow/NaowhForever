@@ -1,0 +1,2997 @@
+{
+ "item=10048": [],
+ "item=10399": [],
+ "item=10400": [],
+ "item=10401": [],
+ "item=10402": [],
+ "item=10403": [],
+ "item=10410": [],
+ "item=10411": [],
+ "item=10412": [],
+ "item=10413": [],
+ "item=10653": [
+  {
+   "choice": true,
+   "id": 3514,
+   "level": 29,
+   "name": "Horde Presence",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=10654": [
+  {
+   "choice": true,
+   "id": 3514,
+   "level": 29,
+   "name": "Horde Presence",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=10657": [
+  {
+   "choice": true,
+   "id": 3369,
+   "level": 25,
+   "name": "In Nightmares",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  },
+  {
+   "choice": true,
+   "id": 3370,
+   "level": 25,
+   "name": "In Nightmares",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=10658": [
+  {
+   "choice": true,
+   "id": 3369,
+   "level": 25,
+   "name": "In Nightmares",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  },
+  {
+   "choice": true,
+   "id": 3370,
+   "level": 25,
+   "name": "In Nightmares",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=10919": [
+  {
+   "choice": false,
+   "id": 862,
+   "level": 23,
+   "name": "Dig Rat Stew",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  },
+  {
+   "choice": false,
+   "id": 962,
+   "level": 18,
+   "name": "Serpentbloom",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=1116": [
+  {
+   "choice": false,
+   "id": 1046,
+   "level": 30,
+   "name": "Raene's Cleansing",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=1121": [],
+ "item=11304": [],
+ "item=1156": [],
+ "item=1172": [
+  {
+   "choice": true,
+   "id": 104,
+   "level": 20,
+   "name": "The Coastal Menace",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=1189": [],
+ "item=11936": [
+  {
+   "choice": true,
+   "id": 741,
+   "level": 20,
+   "name": "The Absent Minded Prospector",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=12054": [],
+ "item=1215": [],
+ "item=1220": [],
+ "item=1292": [],
+ "item=12977": [],
+ "item=12978": [],
+ "item=12979": [],
+ "item=12982": [],
+ "item=12983": [],
+ "item=12984": [],
+ "item=12985": [],
+ "item=12987": [],
+ "item=12989": [],
+ "item=12994": [],
+ "item=12996": [],
+ "item=12997": [],
+ "item=12998": [],
+ "item=12999": [],
+ "item=1310": [
+  {
+   "choice": true,
+   "id": 89,
+   "level": 20,
+   "name": "The Everstill Bridge",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=13136": [],
+ "item=1314": [],
+ "item=1319": [
+  {
+   "choice": true,
+   "id": 126,
+   "level": 25,
+   "name": "Howling in the Hills",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=13245": [],
+ "item=1406": [],
+ "item=14148": [],
+ "item=14149": [],
+ "item=14373": [],
+ "item=14376": [],
+ "item=1449": [
+  {
+   "choice": false,
+   "id": 256,
+   "level": 22,
+   "name": "WANTED: Chok'sul",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=14562": [],
+ "item=14566": [],
+ "item=14567": [],
+ "item=14568": [],
+ "item=14569": [],
+ "item=14571": [],
+ "item=14572": [],
+ "item=14748": [],
+ "item=1482": [],
+ "item=1484": [],
+ "item=1489": [],
+ "item=15109": [
+  {
+   "choice": true,
+   "id": 1740,
+   "level": 25,
+   "name": "The Orb of Soran'ruk",
+   "reqclass": 256,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=15205": [
+  {
+   "choice": true,
+   "id": 5321,
+   "level": 20,
+   "name": "The Sleeper Has Awakened",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=15404": [
+  {
+   "choice": true,
+   "id": 4740,
+   "level": 18,
+   "name": "WANTED: Murkdeep!",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=15443": [
+  {
+   "choice": true,
+   "id": 5730,
+   "level": 16,
+   "name": "Hidden Enemies",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=15444": [
+  {
+   "choice": true,
+   "id": 5730,
+   "level": 16,
+   "name": "Hidden Enemies",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=15451": [
+  {
+   "choice": true,
+   "id": 5725,
+   "level": 16,
+   "name": "The Power to Destroy...",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=15452": [
+  {
+   "choice": true,
+   "id": 5724,
+   "level": 16,
+   "name": "Returning the Lost Satchel",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=15453": [
+  {
+   "choice": true,
+   "id": 5724,
+   "level": 16,
+   "name": "Returning the Lost Satchel",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=15465": [
+  {
+   "choice": true,
+   "id": 5088,
+   "level": 28,
+   "name": "Arikara",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=15513": [],
+ "item=1557": [
+  {
+   "choice": true,
+   "id": 104,
+   "level": 20,
+   "name": "The Coastal Menace",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=15926": [],
+ "item=15946": [],
+ "item=16658": [
+  {
+   "choice": false,
+   "id": 247,
+   "level": 30,
+   "name": "The Hunt Completed",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=16660": [
+  {
+   "choice": true,
+   "id": 824,
+   "level": 27,
+   "name": "Je'neu of the Earthen Ring",
+   "reqclass": 0,
+   "reqlevel": 23,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=16981": [
+  {
+   "choice": true,
+   "id": 6481,
+   "level": 20,
+   "name": "Earthen Arise",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=16987": [
+  {
+   "choice": true,
+   "id": 6283,
+   "level": 26,
+   "name": "Bloodfury Bloodline",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=16990": [
+  {
+   "choice": true,
+   "id": 6283,
+   "level": 26,
+   "name": "Bloodfury Bloodline",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=17046": [
+  {
+   "choice": true,
+   "id": 1046,
+   "level": 30,
+   "name": "Raene's Cleansing",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=17047": [
+  {
+   "choice": true,
+   "id": 1035,
+   "level": 30,
+   "name": "Fallen Sky Lake",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=17694": [
+  {
+   "choice": true,
+   "id": 6565,
+   "level": 26,
+   "name": "Allegiance to the Old Gods",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=17695": [
+  {
+   "choice": true,
+   "id": 6565,
+   "level": 26,
+   "name": "Allegiance to the Old Gods",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=1929": [],
+ "item=1934": [],
+ "item=1935": [],
+ "item=1936": [],
+ "item=1937": [],
+ "item=1951": [],
+ "item=1974": [],
+ "item=2041": [
+  {
+   "choice": true,
+   "id": 166,
+   "level": 22,
+   "name": "The Defias Brotherhood",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=2042": [
+  {
+   "choice": true,
+   "id": 166,
+   "level": 22,
+   "name": "The Defias Brotherhood",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=2059": [],
+ "item=211856": [],
+ "item=211857": [],
+ "item=2167": [],
+ "item=2169": [],
+ "item=2194": [],
+ "item=2205": [],
+ "item=2236": [],
+ "item=2271": [],
+ "item=2292": [],
+ "item=2316": [],
+ "item=2317": [],
+ "item=249396": [],
+ "item=249397": [],
+ "item=249398": [],
+ "item=250482": [],
+ "item=250483": [],
+ "item=250488": [],
+ "item=250489": [],
+ "item=250490": [],
+ "item=250491": [],
+ "item=250492": [],
+ "item=250493": [],
+ "item=250494": [],
+ "item=250495": [],
+ "item=250496": [],
+ "item=250497": [],
+ "item=250503": [],
+ "item=250504": [],
+ "item=250505": [],
+ "item=250506": [],
+ "item=250507": [],
+ "item=250508": [],
+ "item=250509": [],
+ "item=250510": [],
+ "item=250511": [],
+ "item=250512": [],
+ "item=250513": [],
+ "item=250514": [],
+ "item=250515": [],
+ "item=250516": [],
+ "item=250517": [],
+ "item=250528": [],
+ "item=250529": [],
+ "item=250530": [],
+ "item=250531": [],
+ "item=250532": [],
+ "item=250603": [],
+ "item=250621": [],
+ "item=251485": [
+  {
+   "choice": true,
+   "id": 92401,
+   "level": 22,
+   "name": "A Frightened Request",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=251486": [
+  {
+   "choice": true,
+   "id": 92401,
+   "level": 22,
+   "name": "A Frightened Request",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=251533": [
+  {
+   "choice": true,
+   "id": 92422,
+   "level": 22,
+   "name": "The Wrath of Rath'mael",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=251534": [
+  {
+   "choice": true,
+   "id": 92422,
+   "level": 22,
+   "name": "The Wrath of Rath'mael",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=252424": [],
+ "item=252426": [],
+ "item=252427": [],
+ "item=252428": [],
+ "item=252429": [],
+ "item=252430": [],
+ "item=252431": [],
+ "item=252432": [],
+ "item=252433": [],
+ "item=252434": [],
+ "item=252435": [],
+ "item=252439": [],
+ "item=252440": [],
+ "item=252441": [],
+ "item=252442": [],
+ "item=252443": [],
+ "item=252444": [],
+ "item=252445": [],
+ "item=252446": [],
+ "item=252447": [],
+ "item=252448": [],
+ "item=252490": [],
+ "item=252491": [],
+ "item=252492": [],
+ "item=252493": [],
+ "item=252494": [],
+ "item=252495": [],
+ "item=252496": [],
+ "item=252497": [],
+ "item=252498": [],
+ "item=252499": [],
+ "item=252500": [],
+ "item=252501": [],
+ "item=252502": [],
+ "item=252503": [],
+ "item=252504": [],
+ "item=252505": [],
+ "item=252506": [],
+ "item=252507": [],
+ "item=253885": [],
+ "item=253887": [],
+ "item=253889": [],
+ "item=253891": [],
+ "item=253893": [],
+ "item=253895": [],
+ "item=253897": [],
+ "item=253901": [],
+ "item=253903": [],
+ "item=253905": [],
+ "item=253907": [],
+ "item=253909": [],
+ "item=253913": [],
+ "item=253915": [],
+ "item=253917": [],
+ "item=253919": [],
+ "item=253921": [],
+ "item=253925": [],
+ "item=253927": [],
+ "item=253929": [],
+ "item=253931": [],
+ "item=253933": [],
+ "item=253937": [],
+ "item=253939": [],
+ "item=253941": [],
+ "item=253943": [],
+ "item=253945": [],
+ "item=253949": [],
+ "item=253951": [],
+ "item=253953": [],
+ "item=253955": [],
+ "item=253957": [],
+ "item=253959": [],
+ "item=2545": [
+  {
+   "choice": true,
+   "id": 471,
+   "level": 26,
+   "name": "Apprentice's Duties",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=2567": [],
+ "item=2582": [],
+ "item=2583": [],
+ "item=2585": [],
+ "item=263406": [
+  {
+   "choice": true,
+   "id": 92646,
+   "level": 12,
+   "name": "Confront Lorthuna",
+   "reqclass": 0,
+   "reqlevel": 7,
+   "reqrace": 0,
+   "side": 2
+  },
+  {
+   "choice": true,
+   "id": 93835,
+   "level": 12,
+   "name": "Confront Lorthuna",
+   "reqclass": 0,
+   "reqlevel": 7,
+   "reqrace": 4294967296,
+   "side": 1
+  }
+ ],
+ "item=263411": [
+  {
+   "choice": true,
+   "id": 31,
+   "level": 16,
+   "name": "Aquatic Form",
+   "reqclass": 1024,
+   "reqlevel": 16,
+   "reqrace": 32,
+   "side": 2
+  },
+  {
+   "choice": true,
+   "id": 5061,
+   "level": 16,
+   "name": "Aquatic Form",
+   "reqclass": 1024,
+   "reqlevel": 16,
+   "reqrace": 4294967304,
+   "side": 1
+  },
+  {
+   "choice": true,
+   "id": 94411,
+   "level": 6,
+   "name": "Meddlesome Mages",
+   "reqclass": 0,
+   "reqlevel": 4,
+   "reqrace": 32,
+   "side": 2
+  }
+ ],
+ "item=263412": [
+  {
+   "choice": true,
+   "id": 1527,
+   "level": 13,
+   "name": "Call of Fire",
+   "reqclass": 64,
+   "reqlevel": 10,
+   "reqrace": 162,
+   "side": 2
+  },
+  {
+   "choice": true,
+   "id": 94411,
+   "level": 6,
+   "name": "Meddlesome Mages",
+   "reqclass": 0,
+   "reqlevel": 4,
+   "reqrace": 32,
+   "side": 2
+  },
+  {
+   "choice": true,
+   "id": 94468,
+   "level": 14,
+   "name": "Call of Fire",
+   "reqclass": 64,
+   "reqlevel": 10,
+   "reqrace": 4,
+   "side": 1
+  },
+  {
+   "choice": true,
+   "id": 97257,
+   "level": 10,
+   "name": "Call of Fire",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=263435": [],
+ "item=263436": [],
+ "item=267369": [
+  {
+   "choice": false,
+   "id": 95140,
+   "level": 26,
+   "name": "Old Fire-Eye",
+   "reqclass": 2,
+   "reqlevel": 20,
+   "reqrace": 16,
+   "side": 2
+  }
+ ],
+ "item=268484": [
+  {
+   "choice": false,
+   "id": 95126,
+   "level": 25,
+   "name": "The Moonsilver Blade",
+   "reqclass": 2,
+   "reqlevel": 20,
+   "reqrace": 16,
+   "side": 2
+  }
+ ],
+ "item=269742": [
+  {
+   "choice": true,
+   "id": 95508,
+   "level": 18,
+   "name": "Unwelcome Guests",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270003": [
+  {
+   "choice": true,
+   "id": 5724,
+   "level": 16,
+   "name": "Returning the Lost Satchel",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270005": [
+  {
+   "choice": true,
+   "id": 214,
+   "level": 17,
+   "name": "Red Silk Bandanas",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270008": [
+  {
+   "choice": true,
+   "id": 962,
+   "level": 18,
+   "name": "Serpentbloom",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270010": [
+  {
+   "choice": true,
+   "id": 6481,
+   "level": 20,
+   "name": "Earthen Arise",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270015": [
+  {
+   "choice": true,
+   "id": 2040,
+   "level": 20,
+   "name": "Underground Assault",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270016": [
+  {
+   "choice": true,
+   "id": 2040,
+   "level": 20,
+   "name": "Underground Assault",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270018": [
+  {
+   "choice": true,
+   "id": 914,
+   "level": 22,
+   "name": "Leaders of the Fang",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270020": [
+  {
+   "choice": true,
+   "id": 442,
+   "level": 24,
+   "name": "Assault on Fenris Isle",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270021": [
+  {
+   "choice": true,
+   "id": 1275,
+   "level": 24,
+   "name": "Researching the Corruption",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270023": [
+  {
+   "choice": true,
+   "id": 1098,
+   "level": 25,
+   "name": "Deathstalkers in Shadowfang",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270024": [
+  {
+   "choice": true,
+   "id": 1098,
+   "level": 25,
+   "name": "Deathstalkers in Shadowfang",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270025": [
+  {
+   "choice": false,
+   "id": 1199,
+   "level": 25,
+   "name": "Twilight Falls",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270028": [
+  {
+   "choice": true,
+   "id": 6283,
+   "level": 26,
+   "name": "Bloodfury Bloodline",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270030": [
+  {
+   "choice": true,
+   "id": 1013,
+   "level": 26,
+   "name": "The Book of Ur",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270031": [
+  {
+   "choice": true,
+   "id": 1200,
+   "level": 27,
+   "name": "Blackfathom Villainy",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  },
+  {
+   "choice": true,
+   "id": 6561,
+   "level": 27,
+   "name": "Blackfathom Villainy",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270032": [
+  {
+   "choice": true,
+   "id": 1200,
+   "level": 27,
+   "name": "Blackfathom Villainy",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  },
+  {
+   "choice": true,
+   "id": 6561,
+   "level": 27,
+   "name": "Blackfathom Villainy",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270033": [
+  {
+   "choice": true,
+   "id": 249,
+   "level": 27,
+   "name": "Morganth",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270034": [
+  {
+   "choice": true,
+   "id": 249,
+   "level": 27,
+   "name": "Morganth",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270038": [
+  {
+   "choice": true,
+   "id": 3514,
+   "level": 29,
+   "name": "Horde Presence",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270039": [
+  {
+   "choice": true,
+   "id": 296,
+   "level": 29,
+   "name": "Ormer's Revenge",
+   "reqclass": 0,
+   "reqlevel": 22,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270042": [
+  {
+   "choice": true,
+   "id": 2904,
+   "level": 30,
+   "name": "A Fine Mess",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=270045": [
+  {
+   "choice": true,
+   "id": 2928,
+   "level": 30,
+   "name": "Gyrodrillmatic Excavationators",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270046": [
+  {
+   "choice": true,
+   "id": 547,
+   "level": 30,
+   "name": "Humbert's Sword",
+   "reqclass": 0,
+   "reqlevel": 26,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=270048": [
+  {
+   "choice": true,
+   "id": 1012,
+   "level": 32,
+   "name": "Insane Druids",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270049": [
+  {
+   "choice": true,
+   "id": 1012,
+   "level": 32,
+   "name": "Insane Druids",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=270227": [],
+ "item=270228": [],
+ "item=270230": [],
+ "item=270231": [],
+ "item=270260": [],
+ "item=270261": [],
+ "item=271096": [],
+ "item=271097": [],
+ "item=271098": [],
+ "item=271201": [],
+ "item=271202": [],
+ "item=271203": [],
+ "item=271204": [],
+ "item=271205": [],
+ "item=271206": [],
+ "item=271207": [],
+ "item=271208": [],
+ "item=271209": [],
+ "item=271210": [],
+ "item=271211": [],
+ "item=271212": [],
+ "item=271213": [],
+ "item=271214": [],
+ "item=271215": [],
+ "item=271216": [],
+ "item=271217": [],
+ "item=272996": [],
+ "item=272999": [],
+ "item=273007": [],
+ "item=273088": [],
+ "item=273137": [],
+ "item=273289": [],
+ "item=273293": [],
+ "item=273297": [],
+ "item=273298": [],
+ "item=273457": [],
+ "item=274740": [],
+ "item=274741": [],
+ "item=274742": [],
+ "item=274743": [],
+ "item=274744": [],
+ "item=276695": [
+  {
+   "choice": true,
+   "id": 9,
+   "level": 15,
+   "name": "The Killing Fields",
+   "reqclass": 0,
+   "reqlevel": 8,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=276719": [],
+ "item=276720": [
+  {
+   "choice": false,
+   "id": 549,
+   "level": 22,
+   "name": "WANTED: Syndicate Personnel",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=276727": [
+  {
+   "choice": true,
+   "id": 515,
+   "level": 30,
+   "name": "Elixir of Agony",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=276895": [
+  {
+   "choice": false,
+   "id": 96261,
+   "level": 31,
+   "name": "The Broodmother",
+   "reqclass": 0,
+   "reqlevel": 23,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=277203": [
+  {
+   "choice": true,
+   "id": 78150,
+   "level": 20,
+   "name": "Friend of the Library",
+   "reqclass": 0,
+   "reqlevel": 1,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=277204": [
+  {
+   "choice": true,
+   "id": 78150,
+   "level": 20,
+   "name": "Friend of the Library",
+   "reqclass": 0,
+   "reqlevel": 1,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=277210": [
+  {
+   "choice": false,
+   "id": 78307,
+   "level": 23,
+   "name": "The Horn of Xelthos",
+   "reqclass": 8,
+   "reqlevel": 1,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=277213": [],
+ "item=277218": [
+  {
+   "choice": true,
+   "id": 95999,
+   "level": 25,
+   "name": "WANTED: Incinerator Gar'im",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 4294967372,
+   "side": 1
+  }
+ ],
+ "item=277219": [],
+ "item=277226": [
+  {
+   "choice": true,
+   "id": 95999,
+   "level": 25,
+   "name": "WANTED: Incinerator Gar'im",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 4294967372,
+   "side": 1
+  }
+ ],
+ "item=277227": [],
+ "item=277234": [
+  {
+   "choice": true,
+   "id": 95999,
+   "level": 25,
+   "name": "WANTED: Incinerator Gar'im",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 4294967372,
+   "side": 1
+  }
+ ],
+ "item=277255": [
+  {
+   "choice": true,
+   "id": 98545,
+   "level": 13,
+   "name": "Leonid's Letter",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 16,
+   "side": 2
+  }
+ ],
+ "item=277257": [],
+ "item=277286": [
+  {
+   "choice": true,
+   "id": 97250,
+   "level": 23,
+   "name": "Wrongly Blamed, Justly Corrected",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=277288": [
+  {
+   "choice": true,
+   "id": 97250,
+   "level": 23,
+   "name": "Wrongly Blamed, Justly Corrected",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=277289": [
+  {
+   "choice": true,
+   "id": 97250,
+   "level": 23,
+   "name": "Wrongly Blamed, Justly Corrected",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=279392": [],
+ "item=279393": [],
+ "item=279865": [
+  {
+   "choice": true,
+   "id": 95250,
+   "level": 21,
+   "name": "Abominable Creatures",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 1
+  },
+  {
+   "choice": true,
+   "id": 97290,
+   "level": 21,
+   "name": "Unending Torment",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=279867": [
+  {
+   "choice": true,
+   "id": 95250,
+   "level": 21,
+   "name": "Abominable Creatures",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 1
+  },
+  {
+   "choice": true,
+   "id": 97290,
+   "level": 21,
+   "name": "Unending Torment",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=279868": [
+  {
+   "choice": true,
+   "id": 95195,
+   "level": 22,
+   "name": "Bloodied Insignia",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=279869": [
+  {
+   "choice": true,
+   "id": 95195,
+   "level": 22,
+   "name": "Bloodied Insignia",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=279870": [
+  {
+   "choice": true,
+   "id": 95161,
+   "level": 22,
+   "name": "Remember That I Love You",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 4294967372,
+   "side": 1
+  }
+ ],
+ "item=279874": [
+  {
+   "choice": true,
+   "id": 92421,
+   "level": 22,
+   "name": "Light's Justice",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=279875": [
+  {
+   "choice": true,
+   "id": 92421,
+   "level": 22,
+   "name": "Light's Justice",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=279877": [
+  {
+   "choice": true,
+   "id": 95216,
+   "level": 22,
+   "name": "The New Plague",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=279894": [
+  {
+   "choice": true,
+   "id": 96393,
+   "level": 16,
+   "name": "Old Ironforge Incursion",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 4294967372,
+   "side": 1
+  }
+ ],
+ "item=279897": [
+  {
+   "choice": true,
+   "id": 96394,
+   "level": 15,
+   "name": "The Restless Dead",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 4294967372,
+   "side": 1
+  }
+ ],
+ "item=279898": [
+  {
+   "choice": true,
+   "id": 96403,
+   "level": 15,
+   "name": "Important Heirlooms",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=279899": [
+  {
+   "choice": true,
+   "id": 96395,
+   "level": 15,
+   "name": "An Ancient Grudge",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=279900": [
+  {
+   "choice": true,
+   "id": 96395,
+   "level": 15,
+   "name": "An Ancient Grudge",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=280095": [
+  {
+   "choice": true,
+   "id": 96394,
+   "level": 15,
+   "name": "The Restless Dead",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 4294967372,
+   "side": 1
+  }
+ ],
+ "item=2807": [],
+ "item=281251": [
+  {
+   "choice": false,
+   "id": 86574,
+   "level": 24,
+   "name": "Stonetalon Supply Run",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281256": [
+  {
+   "choice": false,
+   "id": 86614,
+   "level": 20,
+   "name": "Silver of the Waves",
+   "reqclass": 0,
+   "reqlevel": 13,
+   "reqrace": 4294967372,
+   "side": 1
+  }
+ ],
+ "item=281263": [],
+ "item=281264": [],
+ "item=281265": [
+  {
+   "choice": false,
+   "id": 95981,
+   "level": 20,
+   "name": "Watching the Roads",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 50,
+   "side": 2
+  }
+ ],
+ "item=281290": [
+  {
+   "choice": false,
+   "id": 98027,
+   "level": 29,
+   "name": "Gleaming Crescent Necklace",
+   "reqclass": 0,
+   "reqlevel": 25,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281291": [
+  {
+   "choice": true,
+   "id": 98028,
+   "level": 21,
+   "name": "Baron Marinous",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281292": [
+  {
+   "choice": true,
+   "id": 98028,
+   "level": 21,
+   "name": "Baron Marinous",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281294": [
+  {
+   "choice": true,
+   "id": 98095,
+   "level": 25,
+   "name": "Valuable Vantages",
+   "reqclass": 0,
+   "reqlevel": 19,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=281295": [],
+ "item=281296": [
+  {
+   "choice": true,
+   "id": 98191,
+   "level": 25,
+   "name": "A Friend of the Family",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281304": [
+  {
+   "choice": true,
+   "id": 98216,
+   "level": 31,
+   "name": "Understanding Our Present",
+   "reqclass": 0,
+   "reqlevel": 23,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281305": [
+  {
+   "choice": true,
+   "id": 98216,
+   "level": 31,
+   "name": "Understanding Our Present",
+   "reqclass": 0,
+   "reqlevel": 23,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281306": [
+  {
+   "choice": true,
+   "id": 98223,
+   "level": 31,
+   "name": "Old Habits",
+   "reqclass": 0,
+   "reqlevel": 23,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281307": [
+  {
+   "choice": true,
+   "id": 98223,
+   "level": 31,
+   "name": "Old Habits",
+   "reqclass": 0,
+   "reqlevel": 23,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281309": [
+  {
+   "choice": true,
+   "id": 98283,
+   "level": 30,
+   "name": "Carnage",
+   "reqclass": 0,
+   "reqlevel": 22,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=281312": [
+  {
+   "choice": true,
+   "id": 98297,
+   "level": 34,
+   "name": "Stopping the Cycle",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281313": [
+  {
+   "choice": true,
+   "id": 98297,
+   "level": 34,
+   "name": "Stopping the Cycle",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281314": [
+  {
+   "choice": true,
+   "id": 98297,
+   "level": 34,
+   "name": "Stopping the Cycle",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281319": [
+  {
+   "choice": true,
+   "id": 98310,
+   "level": 32,
+   "name": "Gleaning Our Future",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281320": [
+  {
+   "choice": true,
+   "id": 98310,
+   "level": 32,
+   "name": "Gleaning Our Future",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281321": [
+  {
+   "choice": true,
+   "id": 98310,
+   "level": 32,
+   "name": "Gleaning Our Future",
+   "reqclass": 0,
+   "reqlevel": 24,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=281323": [],
+ "item=281660": [],
+ "item=281673": [
+  {
+   "choice": false,
+   "id": 95885,
+   "level": 23,
+   "name": "The Offering of Blood",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=281675": [],
+ "item=281693": [],
+ "item=281694": [],
+ "item=281702": [],
+ "item=281926": [],
+ "item=282283": [],
+ "item=284187": [],
+ "item=284386": [],
+ "item=284668": [],
+ "item=284715": [],
+ "item=285275": [],
+ "item=285279": [],
+ "item=285330": [],
+ "item=285331": [],
+ "item=285332": [],
+ "item=285339": [],
+ "item=285345": [],
+ "item=285351": [],
+ "item=2865": [],
+ "item=286535": [],
+ "item=286536": [],
+ "item=2866": [],
+ "item=2867": [],
+ "item=286753": [],
+ "item=2868": [],
+ "item=2879": [],
+ "item=2902": [
+  {
+   "choice": true,
+   "id": 223,
+   "level": 31,
+   "name": "Worgen in the Woods",
+   "reqclass": 0,
+   "reqlevel": 23,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=2910": [
+  {
+   "choice": true,
+   "id": 126,
+   "level": 25,
+   "name": "Howling in the Hills",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=2911": [],
+ "item=2933": [
+  {
+   "choice": false,
+   "id": 396,
+   "level": 31,
+   "name": "An Audience with the King",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=2949": [
+  {
+   "choice": true,
+   "id": 286,
+   "level": 25,
+   "name": "Return the Statuette",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=2950": [
+  {
+   "choice": true,
+   "id": 286,
+   "level": 25,
+   "name": "Return the Statuette",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=3018": [],
+ "item=3021": [],
+ "item=3022": [],
+ "item=3039": [],
+ "item=3040": [],
+ "item=3057": [],
+ "item=3058": [],
+ "item=3066": [],
+ "item=3160": [
+  {
+   "choice": true,
+   "id": 307,
+   "level": 15,
+   "name": "Filthy Paws",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=3202": [],
+ "item=3229": [],
+ "item=3235": [
+  {
+   "choice": false,
+   "id": 530,
+   "level": 20,
+   "name": "A Husband's Revenge",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=3313": [],
+ "item=3324": [
+  {
+   "choice": true,
+   "id": 1098,
+   "level": 25,
+   "name": "Deathstalkers in Shadowfang",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=3429": [],
+ "item=3431": [
+  {
+   "choice": true,
+   "id": 219,
+   "level": 25,
+   "name": "Missing In Action",
+   "reqclass": 0,
+   "reqlevel": 19,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=3449": [
+  {
+   "choice": true,
+   "id": 452,
+   "level": 15,
+   "name": "Pyrewood Ambush",
+   "reqclass": 0,
+   "reqlevel": 12,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=3461": [
+  {
+   "choice": true,
+   "id": 442,
+   "level": 24,
+   "name": "Assault on Fenris Isle",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=3480": [],
+ "item=3481": [],
+ "item=3490": [],
+ "item=3561": [
+  {
+   "choice": true,
+   "id": 471,
+   "level": 26,
+   "name": "Apprentice's Duties",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=3567": [
+  {
+   "choice": false,
+   "id": 150,
+   "level": 20,
+   "name": "Murloc Poachers",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=3645": [],
+ "item=3647": [],
+ "item=3742": [
+  {
+   "choice": true,
+   "id": 567,
+   "level": 28,
+   "name": "Dangerous!",
+   "reqclass": 0,
+   "reqlevel": 19,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=3743": [
+  {
+   "choice": true,
+   "id": 567,
+   "level": 28,
+   "name": "Dangerous!",
+   "reqclass": 0,
+   "reqlevel": 19,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=3750": [
+  {
+   "choice": true,
+   "id": 547,
+   "level": 30,
+   "name": "Humbert's Sword",
+   "reqclass": 0,
+   "reqlevel": 26,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=3761": [
+  {
+   "choice": true,
+   "id": 550,
+   "level": 32,
+   "name": "Battle of Hillsbrad",
+   "reqclass": 0,
+   "reqlevel": 19,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=3822": [
+  {
+   "choice": true,
+   "id": 550,
+   "level": 32,
+   "name": "Battle of Hillsbrad",
+   "reqclass": 0,
+   "reqlevel": 19,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=4243": [],
+ "item=4249": [],
+ "item=4250": [],
+ "item=4311": [],
+ "item=4313": [],
+ "item=4314": [],
+ "item=4315": [],
+ "item=4316": [],
+ "item=4317": [],
+ "item=4320": [],
+ "item=4331": [],
+ "item=4362": [],
+ "item=4368": [],
+ "item=4369": [],
+ "item=4372": [],
+ "item=4373": [],
+ "item=4381": [],
+ "item=4385": [],
+ "item=4436": [],
+ "item=4534": [
+  {
+   "choice": true,
+   "id": 1013,
+   "level": 26,
+   "name": "The Book of Ur",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=4576": [],
+ "item=4577": [],
+ "item=4706": [],
+ "item=4709": [],
+ "item=4786": [],
+ "item=4793": [],
+ "item=4794": [],
+ "item=4795": [],
+ "item=4796": [],
+ "item=4800": [],
+ "item=4822": [],
+ "item=4998": [],
+ "item=5183": [],
+ "item=5187": [],
+ "item=5191": [],
+ "item=5192": [],
+ "item=5193": [],
+ "item=5194": [],
+ "item=5195": [],
+ "item=5198": [],
+ "item=5200": [],
+ "item=5201": [],
+ "item=5202": [],
+ "item=5243": [],
+ "item=5250": [
+  {
+   "choice": true,
+   "id": 567,
+   "level": 28,
+   "name": "Dangerous!",
+   "reqclass": 0,
+   "reqlevel": 19,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5254": [],
+ "item=5274": [
+  {
+   "choice": true,
+   "id": 249,
+   "level": 27,
+   "name": "Morganth",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=5309": [
+  {
+   "choice": true,
+   "id": 891,
+   "level": 20,
+   "name": "The Guns of Northwatch",
+   "reqclass": 0,
+   "reqlevel": 13,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5313": [
+  {
+   "choice": false,
+   "id": 849,
+   "level": 26,
+   "name": "Revenge of Gann",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5316": [
+  {
+   "choice": true,
+   "id": 906,
+   "level": 25,
+   "name": "Betrayal from Within",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5317": [
+  {
+   "choice": true,
+   "id": 906,
+   "level": 25,
+   "name": "Betrayal from Within",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5346": [
+  {
+   "choice": true,
+   "id": 855,
+   "level": 14,
+   "name": "Centaur Bracers",
+   "reqclass": 0,
+   "reqlevel": 9,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5351": [
+  {
+   "choice": false,
+   "id": 852,
+   "level": 19,
+   "name": "Hezrul Bloodmark",
+   "reqclass": 0,
+   "reqlevel": 11,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5355": [
+  {
+   "choice": false,
+   "id": 873,
+   "level": 27,
+   "name": "Isha Awak",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5356": [
+  {
+   "choice": true,
+   "id": 873,
+   "level": 27,
+   "name": "Isha Awak",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5357": [
+  {
+   "choice": true,
+   "id": 873,
+   "level": 27,
+   "name": "Isha Awak",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=5404": [],
+ "item=5443": [],
+ "item=5444": [],
+ "item=5542": [],
+ "item=5587": [
+  {
+   "choice": true,
+   "id": 486,
+   "level": 12,
+   "name": "Ursal the Mauler",
+   "reqclass": 0,
+   "reqlevel": 4,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=5609": [
+  {
+   "choice": false,
+   "id": 994,
+   "level": 22,
+   "name": "Escape Through Force",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=5611": [
+  {
+   "choice": false,
+   "id": 963,
+   "level": 16,
+   "name": "For Love Eternal",
+   "reqclass": 0,
+   "reqlevel": 11,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=5614": [
+  {
+   "choice": true,
+   "id": 981,
+   "level": 31,
+   "name": "The Tower of Althalaxx",
+   "reqclass": 0,
+   "reqlevel": 13,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=5629": [
+  {
+   "choice": true,
+   "id": 741,
+   "level": 20,
+   "name": "The Absent Minded Prospector",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=5630": [
+  {
+   "choice": true,
+   "id": 741,
+   "level": 20,
+   "name": "The Absent Minded Prospector",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=5749": [],
+ "item=5781": [],
+ "item=5815": [
+  {
+   "choice": true,
+   "id": 1046,
+   "level": 30,
+   "name": "Raene's Cleansing",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=5821": [],
+ "item=5943": [],
+ "item=5961": [],
+ "item=5969": [],
+ "item=5970": [],
+ "item=5975": [],
+ "item=6087": [
+  {
+   "choice": true,
+   "id": 166,
+   "level": 22,
+   "name": "The Defias Brotherhood",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6093": [
+  {
+   "choice": true,
+   "id": 19,
+   "level": 25,
+   "name": "Tharil'zun",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6094": [
+  {
+   "choice": true,
+   "id": 214,
+   "level": 17,
+   "name": "Red Silk Bandanas",
+   "reqclass": 0,
+   "reqlevel": 14,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6189": [
+  {
+   "choice": true,
+   "id": 256,
+   "level": 22,
+   "name": "WANTED: Chok'sul",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6191": [
+  {
+   "choice": true,
+   "id": 256,
+   "level": 22,
+   "name": "WANTED: Chok'sul",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6226": [],
+ "item=6282": [
+  {
+   "choice": true,
+   "id": 550,
+   "level": 32,
+   "name": "Battle of Hillsbrad",
+   "reqclass": 0,
+   "reqlevel": 19,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6332": [],
+ "item=6333": [],
+ "item=6335": [
+  {
+   "choice": true,
+   "id": 1013,
+   "level": 26,
+   "name": "The Book of Ur",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6378": [],
+ "item=6382": [],
+ "item=6383": [],
+ "item=6414": [
+  {
+   "choice": false,
+   "id": 1014,
+   "level": 27,
+   "name": "Arugal Must Die",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6448": [],
+ "item=6449": [],
+ "item=6459": [],
+ "item=6460": [],
+ "item=6465": [],
+ "item=6468": [],
+ "item=6469": [],
+ "item=6473": [],
+ "item=6480": [
+  {
+   "choice": false,
+   "id": 1486,
+   "level": 17,
+   "name": "Deviate Hides",
+   "reqclass": 0,
+   "reqlevel": 13,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=6481": [
+  {
+   "choice": true,
+   "id": 1487,
+   "level": 21,
+   "name": "Deviate Eradication",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=6502": [
+  {
+   "choice": true,
+   "id": 868,
+   "level": 22,
+   "name": "Egg Hunt",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6504": [
+  {
+   "choice": true,
+   "id": 914,
+   "level": 22,
+   "name": "Leaders of the Fang",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6505": [
+  {
+   "choice": true,
+   "id": 914,
+   "level": 22,
+   "name": "Leaders of the Fang",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6627": [],
+ "item=6629": [],
+ "item=6630": [],
+ "item=6631": [],
+ "item=6632": [],
+ "item=6633": [],
+ "item=6664": [
+  {
+   "choice": true,
+   "id": 1058,
+   "level": 26,
+   "name": "Jin'Zil's Forest Magic",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6665": [
+  {
+   "choice": true,
+   "id": 1058,
+   "level": 26,
+   "name": "Jin'Zil's Forest Magic",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6666": [
+  {
+   "choice": false,
+   "id": 1092,
+   "level": 22,
+   "name": "Gerenzo's Orders",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=6667": [
+  {
+   "choice": true,
+   "id": 1096,
+   "level": 27,
+   "name": "Gerenzo Wrenchwhistle",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=6668": [
+  {
+   "choice": true,
+   "id": 1096,
+   "level": 27,
+   "name": "Gerenzo Wrenchwhistle",
+   "reqclass": 0,
+   "reqlevel": 16,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=6669": [
+  {
+   "choice": false,
+   "id": 1089,
+   "level": 29,
+   "name": "The Den",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6670": [
+  {
+   "choice": false,
+   "id": 1089,
+   "level": 29,
+   "name": "The Den",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6671": [
+  {
+   "choice": false,
+   "id": 1089,
+   "level": 29,
+   "name": "The Den",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6675": [
+  {
+   "choice": true,
+   "id": 1059,
+   "level": 27,
+   "name": "Reclaiming the Charred Vale",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6676": [
+  {
+   "choice": true,
+   "id": 1059,
+   "level": 27,
+   "name": "Reclaiming the Charred Vale",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6677": [
+  {
+   "choice": false,
+   "id": 1078,
+   "level": 26,
+   "name": "Retrieval for Mauren",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6709": [],
+ "item=6722": [
+  {
+   "choice": true,
+   "id": 1035,
+   "level": 30,
+   "name": "Fallen Sky Lake",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6739": [
+  {
+   "choice": true,
+   "id": 1197,
+   "level": 29,
+   "name": "The Sacred Flame",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6740": [
+  {
+   "choice": true,
+   "id": 1197,
+   "level": 29,
+   "name": "The Sacred Flame",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=6743": [
+  {
+   "choice": false,
+   "id": 971,
+   "level": 23,
+   "name": "Knowledge in the Deeps",
+   "reqclass": 0,
+   "reqlevel": 10,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6898": [
+  {
+   "choice": true,
+   "id": 1740,
+   "level": 25,
+   "name": "The Orb of Soran'ruk",
+   "reqclass": 256,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=6953": [
+  {
+   "choice": false,
+   "id": 1806,
+   "level": 22,
+   "name": "The Test of Righteousness",
+   "reqclass": 2,
+   "reqlevel": 20,
+   "reqrace": 5,
+   "side": 1
+  }
+ ],
+ "item=6971": [
+  {
+   "choice": false,
+   "id": 1706,
+   "level": 30,
+   "name": "Grimand's Armor",
+   "reqclass": 1,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6972": [
+  {
+   "choice": false,
+   "id": 1782,
+   "level": 28,
+   "name": "Furen's Armor",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6973": [
+  {
+   "choice": false,
+   "id": 1711,
+   "level": 30,
+   "name": "Mathiel's Armor",
+   "reqclass": 1,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6974": [
+  {
+   "choice": false,
+   "id": 1709,
+   "level": 30,
+   "name": "Klockmort's Creation",
+   "reqclass": 1,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=6998": [
+  {
+   "choice": false,
+   "id": 1199,
+   "level": 25,
+   "name": "Twilight Falls",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=7000": [
+  {
+   "choice": false,
+   "id": 1199,
+   "level": 25,
+   "name": "Twilight Falls",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=7001": [
+  {
+   "choice": true,
+   "id": 1200,
+   "level": 27,
+   "name": "Blackfathom Villainy",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  },
+  {
+   "choice": true,
+   "id": 6561,
+   "level": 27,
+   "name": "Blackfathom Villainy",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=7002": [
+  {
+   "choice": true,
+   "id": 1200,
+   "level": 27,
+   "name": "Blackfathom Villainy",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  },
+  {
+   "choice": true,
+   "id": 6561,
+   "level": 27,
+   "name": "Blackfathom Villainy",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=7003": [
+  {
+   "choice": true,
+   "id": 1275,
+   "level": 24,
+   "name": "Researching the Corruption",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=7004": [
+  {
+   "choice": true,
+   "id": 1275,
+   "level": 24,
+   "name": "Researching the Corruption",
+   "reqclass": 0,
+   "reqlevel": 18,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=7129": [
+  {
+   "choice": false,
+   "id": 1843,
+   "level": 30,
+   "name": "Brutal Gauntlets",
+   "reqclass": 1,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=7130": [
+  {
+   "choice": false,
+   "id": 1845,
+   "level": 30,
+   "name": "Brutal Helm",
+   "reqclass": 1,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=7132": [
+  {
+   "choice": false,
+   "id": 1847,
+   "level": 30,
+   "name": "Brutal Legguards",
+   "reqclass": 1,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=7133": [
+  {
+   "choice": false,
+   "id": 1848,
+   "level": 30,
+   "name": "Brutal Hauberk",
+   "reqclass": 1,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=7230": [],
+ "item=7283": [],
+ "item=7285": [],
+ "item=7335": [
+  {
+   "choice": true,
+   "id": 1081,
+   "level": 28,
+   "name": "Reception from Tyrande",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=7336": [
+  {
+   "choice": true,
+   "id": 1081,
+   "level": 28,
+   "name": "Reception from Tyrande",
+   "reqclass": 0,
+   "reqlevel": 17,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=7348": [],
+ "item=7506": [],
+ "item=7512": [
+  {
+   "choice": true,
+   "id": 1946,
+   "level": 26,
+   "name": "Nether-lace Garment",
+   "reqclass": 128,
+   "reqlevel": 26,
+   "reqrace": 0,
+   "side": 2
+  }
+ ],
+ "item=7607": [
+  {
+   "choice": true,
+   "id": 2040,
+   "level": 20,
+   "name": "Underground Assault",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=7608": [],
+ "item=7948": [],
+ "item=8071": [
+  {
+   "choice": true,
+   "id": 1487,
+   "level": 21,
+   "name": "Deviate Eradication",
+   "reqclass": 0,
+   "reqlevel": 15,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=872": [],
+ "item=890": [],
+ "item=892": [],
+ "item=9535": [
+  {
+   "choice": true,
+   "id": 2904,
+   "level": 30,
+   "name": "A Fine Mess",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=9536": [
+  {
+   "choice": true,
+   "id": 2904,
+   "level": 30,
+   "name": "A Fine Mess",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 3
+  }
+ ],
+ "item=9608": [
+  {
+   "choice": true,
+   "id": 2928,
+   "level": 30,
+   "name": "Gyrodrillmatic Excavationators",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ],
+ "item=9609": [
+  {
+   "choice": true,
+   "id": 2928,
+   "level": 30,
+   "name": "Gyrodrillmatic Excavationators",
+   "reqclass": 0,
+   "reqlevel": 20,
+   "reqrace": 0,
+   "side": 1
+  }
+ ]
+}

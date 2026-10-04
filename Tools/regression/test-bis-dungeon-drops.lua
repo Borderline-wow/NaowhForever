@@ -1,13 +1,12 @@
 -- BiS picker: below the spec's ranking it offers every dungeon drop for the slot that the
 -- player's class can use and the ranking leaves out, near the player's level unless Show
--- All is on, highest required level first. Sources fall back to the dungeon that drops it.
-local root = arg[1] or "."
-local f = assert(io.open(root .. "/BiS/NaowhForever_BiS.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local function Slice(a, b)
-    local first = assert(source:find(a, 1, true))
-    return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
-end
+-- All is on, highest required level first. What drops where is the Dungeon Journal's, so an
+-- item's source is the Journal's boss and dungeon, and wowsrc's wording only for the rest.
+local Load = dofile("Tools/regression/load_files.lua")
+local TocFiles = dofile("Tools/regression/toc_files.lua")
+local RULES = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/Items.lua", "BiS/BiS.lua", "BiS/Rankings.lua",
+    "BiS/Sources.lua" }
+local SEP = " \194\183 "
 
 local EQUIP = {
     [1] = "INVTYPE_HEAD", [2] = "INVTYPE_HEAD", [3] = "INVTYPE_HEAD", [4] = "INVTYPE_HEAD",
@@ -16,47 +15,58 @@ local EQUIP = {
     [12] = "INVTYPE_FINGER", [13] = "INVTYPE_HEAD", [14] = "INVTYPE_2HWEAPON",
 }
 
-local LOOT = {
-    [1] = { 4, 1, 20, 15, "Boss \194\183 Cloth Place" },
-    [2] = { 4, 2, 30, 25, "Boss \194\183 Leather Place" },
-    [3] = { 4, 3, 45, 40, "Boss \194\183 Mail Place" },
-    [4] = { 4, 3, 35, 30, "Boss \194\183 Early Mail Place" },
-    [5] = { 4, 4, 50, 45, "Boss \194\183 Plate Place" },
-    [6] = { 4, 0, 25, 20, "Boss \194\183 Cloak Place" },
-    [7] = { 4, 6, 25, 20, "Boss \194\183 Shield Place" },
-    [8] = { 4, 8, 55, 50, "Boss \194\183 Idol Place" },
-    [9] = { 2, 15, 25, 20, "Boss \194\183 Dagger Place" },
-    [10] = { 2, 4, 25, 20, "Boss \194\183 Mace Place" },
-    [11] = { 2, 19, 25, 20, "Boss \194\183 Wand Place" },
-    [12] = { 4, 0, 25, 20, "Boss \194\183 Ring Place" },
-    [13] = { 4, 2, 32, 25, "Boss \194\183 Leather Place" },
-    [14] = { 2, 6, 40, 35, "Boss \194\183 Polearm Place" },
+-- [itemID] = { class, subclass, item level, required level, quality }, as the Journal's
+-- Data/Items.lua, and the dungeon that drops it.
+local FACTS = {
+    [1] = { 4, 1, 20, 15, 3 }, [2] = { 4, 2, 30, 25, 3 }, [3] = { 4, 3, 45, 40, 3 }, [4] = { 4, 3, 35, 30, 3 },
+    [5] = { 4, 4, 50, 45, 3 }, [6] = { 4, 0, 25, 20, 3 }, [7] = { 4, 6, 25, 20, 3 }, [8] = { 4, 8, 55, 50, 3 },
+    [9] = { 2, 15, 25, 20, 3 }, [10] = { 2, 4, 25, 20, 3 }, [11] = { 2, 19, 25, 20, 3 }, [12] = { 4, 0, 25, 20, 3 },
+    [13] = { 4, 2, 32, 25, 3 }, [14] = { 2, 6, 40, 35, 3 },
 }
 
-local function Fixture(class, level, sources)
-    local ns = { BiSDungeonLoot = LOOT, BiSData = { sources = sources or {} } }
-    local env = setmetatable({
-        ns = ns,
+-- A dungeon a boss, its loot; and Trash Place's trash drops item 1 likelier than its boss.
+local function Dungeons()
+    local dungeons = {}
+    for id = 1, 14 do
+        dungeons[#dungeons + 1] = { name = "Place " .. id,
+            wings = { { bosses = { { name = "Boss " .. id, loot = { id }, chance = { 10 } } } } } }
+    end
+    dungeons[#dungeons + 1] = { name = "Trash Place", wings = { { bosses = {
+        { name = "Trash", trash = true, loot = { 1 }, chance = { 50 } },
+    } } } }
+    return dungeons
+end
+
+local function Env(ns, class, level)
+    return setmetatable({
+        _G = { NaowhForever = ns },
         UnitClass = function() return class, class end,
         UnitLevel = function() return level end,
+        wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
         C_Item = {
             GetItemInfoInstant = function(id)
                 if EQUIP[id] then return id, "", "", EQUIP[id] end
             end,
+            GetItemInfo = function() return nil end,
+            GetItemNameByID = function(id) return "Item " .. id end,
         },
     }, { __index = _G })
-    local code = Slice("-- Where an item can go, first choice first.", "\nlocal function IsTwoHand")
-        .. Slice("-- Where an item comes from:", "\nlocal function SetItemLine")
-        .. Slice("-- The armor type a class wears","\nlocal function NewPickRow")
-        .. "\nreturn { Usable = Usable, DungeonDrops = DungeonDrops, ns = ns }"
-    local chunk = assert(loadstring(code)); setfenv(chunk, env)
-    return chunk()
+end
+
+-- With journal false, the Journal has not loaded.
+local function Fixture(class, level, sources, journal)
+    local list = Dungeons()
+    local ns = { BiSData = { sources = sources or {}, specs = {} }, QoLSettings = {},
+        Journal = journal ~= false and { Items = FACTS, Dungeons = function() return list end } or nil }
+    Load(RULES, Env(ns, class, level))
+    local R = ns.BiS.Rankings
+    return { Usable = R.Usable, DungeonDrops = R.DungeonDrops, R = R, ns = ns }
 end
 
 local count = 0
 local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) end
 
-local function Can(class, id) return Fixture(class, 30).Usable(class, LOOT[id]) end
+local function Can(class, id) return Fixture(class, 30).Usable(class, FACTS[id]) end
 
 Case("armor slots offer only the class's armor type", function()
     assert(Can("MAGE", 1) and not Can("MAGE", 2) and not Can("MAGE", 3))
@@ -133,29 +143,29 @@ Case("only classes that dual wield get weapons in the off hand", function()
     assert(List(m.DungeonDrops(17, {}, true)) == "7", "a shield, no weapon")
 end)
 
-Case("sources come from wowsrc first, then the dungeon", function()
-    local m = Fixture("MAGE", 20, { [1] = "Quest", [99] = "Crafted" })
-    assert(m.ns.BiSSource(1) == "Quest" and m.ns.BiSSource(99) == "Crafted")
-    assert(m.ns.BiSSource(2) == "Boss \194\183 Leather Place" and m.ns.BiSSource(100) == nil)
+Case("an item's source is the Journal's boss and dungeon, a boss before trash", function()
+    local m = Fixture("MAGE", 20)
+    assert(m.ns.BiSSource(2) == "Boss 2" .. SEP .. "Place 2")
+    assert(m.ns.BiSSource(1) == "Boss 1" .. SEP .. "Place 1", m.ns.BiSSource(1))
 end)
 
-Case("the generated loot file is well formed", function()
-    local ns = {}
-    local chunk = assert(loadfile(root .. "/BiS/NaowhForever_DungeonLoot.lua"))
-    setfenv(chunk, setmetatable({ _G = { NaowhForever = ns } }, { __index = _G }))
-    chunk()
-    local n = 0
-    for id, item in pairs(ns.BiSDungeonLoot) do
-        n = n + 1
-        assert(type(id) == "number" and #item == 5, id)
-        assert(item[1] == 2 or item[1] == 4, id)
-        assert(type(item[2]) == "number" and item[3] > 0 and item[4] >= 0, id)
-        assert(item[5]:find("^.+ \194\183 .+$"), id)
-    end
-    assert(n > 300, n)
+Case("the Journal's wording wins over wowsrc's; wowsrc's for what drops nowhere", function()
+    local m = Fixture("MAGE", 20, { [2] = "Boss 2" .. SEP .. "Old Name", [99] = "Crafted" })
+    assert(m.ns.BiSSource(2) == "Boss 2" .. SEP .. "Place 2" and m.ns.BiSSource(99) == "Crafted")
+    assert(m.ns.BiSSource(100) == nil)
 end)
 
--- Ranked items that neither wowsrc nor Wowhead's Forever database gives a source for.
+Case("levels are the Journal's facts", function()
+    local m = Fixture("MAGE", 20)
+    assert(m.R.ReqLevel(3) == 40 and m.R.ItemLevel(3) == 45 and m.R.ItemLevel(100) == nil)
+end)
+
+Case("before the Journal loads, nothing drops and wowsrc's wording stands", function()
+    local m = Fixture("MAGE", 20, { [2] = "Quest" }, false)
+    assert(List(m.DungeonDrops(1, {}, false)) == "" and m.ns.BiSSource(2) == "Quest")
+end)
+
+-- Ranked items that neither wowsrc nor the Journal gives a source for.
 local UNSOURCED = {}
 for _, id in ipairs({ 5821, 263435, 263436, 270039, 270046, 272996, 276727, 277213, 277219,
     277227, 277257, 279392, 279393, 281264, 281290, 281309, 281323, 281660, 281675, 281926,
@@ -173,17 +183,17 @@ for _, id in ipairs({ 5821, 263435, 263436, 270039, 270046, 272996, 276727, 2772
     -- on either.
     282653, 282710, 284459 }) do UNSOURCED[id] = true end
 
-Case("every ranked item in the generated data has a source", function()
-    local ns = {}
-    local env = setmetatable({ _G = { NaowhForever = ns }, ns = ns }, { __index = _G })
-    for _, file in ipairs({ "NaowhForever_BiSData.lua", "NaowhForever_DungeonLoot.lua" }) do
-        local chunk = assert(loadfile(root .. "/BiS/" .. file))
-        setfenv(chunk, env)
-        chunk()
-    end
-    local chunk = assert(loadstring(Slice("-- Where an item comes from:", "\nlocal function SetItemLine")))
-    setfenv(chunk, env)
-    chunk()
+Case("every ranked item has a source, from the Journal's dungeons or wowsrc", function()
+    local dungeons = {}
+    local ns = { QoLSettings = {}, Journal = {
+        AddDungeon = function(_, dungeon) dungeons[#dungeons + 1] = dungeon end,
+        Dungeons = function() return dungeons end,
+    } }
+    local env = Env(ns, "MAGE", 60)
+    local files = { "BiS/Data/BiS.lua", "DungeonJournal/Data/Items.lua" }
+    for _, path in ipairs(TocFiles("^DungeonJournal/Data/Dungeons/.*%.lua$")) do files[#files + 1] = path end
+    Load(files, env)
+    Load(RULES, env)
     local missing = {}
     for _, spec in ipairs(ns.BiSData.specs) do
         for _, ids in pairs(spec.slots) do
@@ -193,6 +203,31 @@ Case("every ranked item in the generated data has a source", function()
         end
     end
     assert(#missing == 0, "no source: " .. table.concat(missing, ", "))
+    assert(#dungeons > 30, #dungeons)
+end)
+
+Case("a click on a source: the dungeon in the Journal, on the item; a faction; a quest", function()
+    local f = Fixture("MAGE", 30)
+    local ns, J = f.ns, f.ns.Journal
+    local kirinTor = { name = "Kirin Tor", tiers = { { items = { 15 } } } }
+    J.Factions = function(tab) return tab == "reputation" and { kirinTor } or {} end
+    J.BiSQuestRewards = { [500] = { 16 } }
+    local Sources = ns.BiS.Sources
+    local kind, dungeon = Sources.Of(2)
+    assert(kind == "dungeon" and dungeon == J.Dungeons()[2], kind)
+    assert(Sources.Of(1) == "dungeon" and select(2, Sources.Of(1)).name == "Place 1",
+        "its boss's dungeon before trash, as its source says")
+    assert(Sources.Hint(2) == "Click: open it in the Dungeon Journal")
+    local opened, stepped
+    ns.BiS.StepAside = function(reason) stepped = reason end
+    ns.BiS.BackFromJournal = function() end
+    ns.OpenJournalWindow = function(page, back, text, itemID) opened = { page, back, text, itemID } end
+    Sources.Go(2)
+    assert(stepped == "journal" and opened[1] == dungeon and opened[2] == ns.BiS.BackFromJournal
+        and opened[4] == 2, "the BiS List steps aside and the Journal opens on the item")
+    kind, dungeon = Sources.Of(15)
+    assert(kind == "faction" and dungeon == kirinTor and Sources.Hint(15) == "Click: open Kirin Tor in the Dungeon Journal")
+    assert(Sources.Of(16) == "quest" and select(2, Sources.Of(16)) == 500)
 end)
 
 print(("%d cases passed"):format(count))

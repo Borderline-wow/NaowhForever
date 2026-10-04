@@ -4,6 +4,7 @@
 --  ground it is, and its levels) and, on the right, small stats of what is there for you.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
+local Tip = ns.Shared.Parts.Tip
 local T = ns.THEME
 local J = ns.Journal
 local Loot = J.Loot
@@ -39,7 +40,7 @@ local COMPACT_STAT_TOP, COMPACT_PAD = 6, 12
 -- The tooltip is written when it opens, from the count and the stat's own line. A stat a
 -- click does something on (the BiS's) says what, as a hint under it, while the click works.
 local function StatEnter(stat)
-    GameTooltip:SetOwner(stat, "ANCHOR_BOTTOM")
+    if not Tip(stat, "ANCHOR_BOTTOM") then return end
     local tip = stat.done and stat.doneTip or stat.total == 0 and stat.noneTip
         or stat.tipFormat:format(stat.have, stat.total)
     GameTooltip:SetText(tip, 1, 1, 1)
@@ -85,10 +86,10 @@ local function Stat(parent, label, tipFormat, doneTip, icon, tint, gap, dy)
     return stat
 end
 
--- The BiS stat, on a dungeon's page and a faction's, opens your BiS list in the addon's
--- options (as the window's logo opens the Journal's page), while the BiS List module is on.
+-- The BiS stat, on a dungeon's page and a faction's, opens the BiS List's window while the
+-- module is on.
 local function OpenBisList()
-    ns.OpenOptionsWindow("BiS List")
+    ns.OpenBisWindow()
 end
 
 local function OpensBisList(stat)
@@ -130,7 +131,7 @@ end
 
 local function PinEnter(pin)
     pin.icon:SetAlpha(1)
-    GameTooltip:SetOwner(pin, "ANCHOR_RIGHT")
+    if not Tip(pin, "ANCHOR_RIGHT") then return end
     GameTooltip:SetText("Show the entrance on your map", 1, 1, 1)
     GameTooltip:AddLine("Right-click to share it in chat, or copy it.", T.accentSoft.r, T.accentSoft.g,
         T.accentSoft.b)
@@ -142,13 +143,22 @@ local function PinLeave(pin)
     GameTooltip:Hide()
 end
 
+-- WoW Forever's mark after a new dungeon's name, and what it means.
+local FOREVER_H, FOREVER_GAP = 12, 8
+
+local function ForeverEnter(mark)
+    if not Tip(mark, "ANCHOR_RIGHT") then return end
+    GameTooltip:SetText(ns.Shared.Parts.ForeverLine())
+    GameTooltip:Show()
+end
+
 local TERRITORY_TIP = {
     Alliance = "Alliance territory", Horde = "Horde territory",
     Contested = "Contested territory: both factions",
 }
 
 local function ZoneEnter(zone)
-    GameTooltip:SetOwner(zone, "ANCHOR_BOTTOM")
+    if not Tip(zone, "ANCHOR_BOTTOM") then return end
     GameTooltip:SetText(zone.name, 1, 1, 1)
     GameTooltip:AddLine(TERRITORY_CODE[zone.territory] .. TERRITORY_TIP[zone.territory] .. "|r")
     GameTooltip:Show()
@@ -194,9 +204,15 @@ Kinds.header = {
         row.title:SetPoint("TOPLEFT")
         row.title:SetJustifyH("LEFT")
         row.title:SetWordWrap(false)
+        row.forever = CreateFrame("Frame", nil, row)
+        row.forever:SetSize(FOREVER_H * 2, FOREVER_H)
+        row.forever:SetPoint("LEFT", row.title, "RIGHT", FOREVER_GAP, 0)
+        row.forever:EnableMouse(true)
+        ns.Shared.Parts.ForeverMark(row.forever, FOREVER_H):SetAllPoints()
+        row.forever:SetScript("OnEnter", ForeverEnter)
+        row.forever:SetScript("OnLeave", GameTooltip_Hide)
         row.pin = CreateFrame("Button", nil, row)
         row.pin:SetSize(PIN_BOX, PIN_BOX)
-        row.pin:SetPoint("LEFT", row.title, "RIGHT", 6, -PIN_DROP)
         row.pin.icon = row.pin:CreateTexture(nil, "ARTWORK")
         row.pin.icon:SetSize(PIN_ICON, PIN_ICON)
         row.pin.icon:SetPoint("CENTER")
@@ -239,9 +255,15 @@ Kinds.header = {
         row.dungeon = dungeon
         row.pin:SetShown(dungeon.entrance ~= nil and not view.compact)
         row.pin.icon:SetAtlas(dungeon.raid and PIN_ATLAS.raid or PIN_ATLAS.dungeon)
+        -- New in Forever: its mark after the name, then the pin.
+        local new = dungeon.new == true
+        row.forever:SetShown(new)
+        row.pin:ClearAllPoints()
+        row.pin:SetPoint("LEFT", new and row.forever or row.title, "RIGHT", new and 2 or 6, -PIN_DROP)
         row.title:SetWidth(0)   -- unbounded, so it measures the whole name
         row.title:SetText(dungeon.name)
-        row.title:SetWidth(math.min(math.ceil(row.title:GetStringWidth()) + 1, row:GetWidth() - PIN_BOX - 10))
+        row.title:SetWidth(math.min(math.ceil(row.title:GetStringWidth()) + 1,
+            row:GetWidth() - PIN_BOX - 10 - (new and FOREVER_H * 2 + FOREVER_GAP or 0)))
 
         local zone = row.zone
         local territory = dungeon.territory or "Contested"

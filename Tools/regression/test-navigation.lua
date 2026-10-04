@@ -253,7 +253,7 @@ for _, tab in ipairs(strip.children) do
     Check(tab.points.TOPLEFT[4] == 0, "QoL categories share one row")
     if tab.points.TOPLEFT[3] > lastTab.points.TOPLEFT[3] then lastTab = tab end
 end
-Check(#strip.children == 12, "every QoL category has a tab")
+Check(#strip.children == 13, "every QoL category has a tab")
 Check(lastTab.points.TOPLEFT[3] + lastTab:GetWidth() <= strip:GetWidth() - 30,
     "the last QoL tab stops short of the scrollbar at the default width")
 Button("Interface").scripts.OnClick(); Flush()
@@ -315,8 +315,8 @@ UI.GoToSetting("QoL/General", "Max Icons", iconHit.feature); Flush()
 Check(Text("Co-Tank Debuffs") and Text("Max Icons"), "search jump reveals both co-tank levels")
 UI.SearchPages = pages
 for _, page in ipairs(UI.SearchPages()) do Check(not page.soon, "unfinished pages are not search results") end
-ns.OpenOptionsWindow("BiS List/List"); Flush()
-Check(Text("BiS List / List") ~= nil, "existing module/tab deep links still work")
+ns.OpenOptionsWindow("Blessings/Assignments"); Flush()
+Check(Text("Blessings / Assignments") ~= nil, "existing module/tab deep links still work")
 ns.OpenOptionsWindow("QoL/General"); Flush()
 print(cases .. " navigation checks passed")
 -- Available only to an offline renderer that loads this test environment.

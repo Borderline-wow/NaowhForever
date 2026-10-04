@@ -9,7 +9,9 @@ gives, and the battleground factions. Off by default: players turn it on in the 
 Journal settings page.
 
 This module is the addon's reference for how a module is laid out and written. Its folder
-holds everything it needs, and it loads through its own `DungeonJournal.xml`.
+holds everything that is only its own, and it loads through its own `DungeonJournal.xml`.
+What any module can use (the house style, components, windows, the row engine) is in
+[`Shared/`](../Shared/README.md); the BiS List is built the same way.
 
 ## Layout
 
@@ -35,13 +37,14 @@ DungeonJournal/
     Build.lua          the game build the data is read from and its date, generated
     Quests.lua         every dungeon quest, from Wowhead's Forever guide, with hand additions
     QuestChains.lua    each quest's chain, prerequisites and required level, generated
+    BiSQuests.lua      the quests that reward a BiS, for the BiS List's Quests page, generated
     Tips.lua           Naowh's tips, by hand
     Maps.lua           each dungeon's map art and where its bosses stand, by hand
   View/                draws one page (a dungeon, a faction, the PvP rank); used by the window,
                        the map panel and the popup
-    Style.lua          every colour, size, spacing and icon
-    View.lua           the engine: pooled rows, the card grid, search, redraws
-    Parts.lua          shared pieces, the side panel, and the section title and note rows
+    Style.lua          what only the Journal draws (the house look is Shared/Style.lua)
+    View.lua           a dungeon, a faction, the rank and search, on the shared engine
+    Parts.lua          a fight's length, and its side panels at the Journal's opacity
     Header.lua         the dungeon's name, entrance pin, zone and stats
     QuestRows.lua      your quests: marks, hover card, right-click menu
     BossCards.lua      boss cards, tips and sharing them, the folded-boss chips
@@ -74,7 +77,7 @@ calls are on `ns`.
 
 | What | Where |
 | --- | --- |
-| A colour, a size, spacing, an icon | `View/Style.lua` (the dungeon map's own sizes are at the top of `UI/DungeonMap.lua`) |
+| A colour, a size, spacing, an icon | `View/Style.lua`; the house look every module shares (borders, BiS stars, cards, item rows, windows) is `Shared/Style.lua`. The dungeon map's own sizes are at the top of `UI/DungeonMap.lua` |
 | A boss tip | `Data/Tips.lua`, keyed by the boss's NPC ID, one short sentence |
 | A dungeon's bosses, wings, kill order, entrance or zone | `Tools/journal_bosses.json`, then `python Tools/build_journal.py` |
 | A rare, an optional boss or a loot chest | `"rare"`, `"optional"` or `"chests": { "Name": objectID }` on its wing in `Tools/journal_bosses.json` |
@@ -94,7 +97,7 @@ calls are on `ns`.
 | A setting or its default | `Journal.lua` (`UI.ModuleSettings("journal", ...)`) and `UI/SettingsPage.lua` |
 
 `Data/Dungeons/*.lua`, `Data/Factions/*.lua`, `Data/Items.lua`, `Data/FactionItems.lua`, `Data/Build.lua` and
-`Data/QuestChains.lua` are generated: change their source and rebuild rather than editing
+`Data/QuestChains.lua` and `Data/BiSQuests.lua` are generated: change their source and rebuild rather than editing
 them, or the next build undoes the edit.
 
 The style rules (named values, 1px black edges, the accent, lining icons up with the
@@ -192,6 +195,7 @@ the game's own tables, and what they can't settle is listed in the pull request 
 - **A row kind:** a file in `View/` that fills `J.View.Kinds.<name>` with `New(view)`
   (makes the frame once) and `Set(row, ...)` (fills it and returns its height). List it in
   `DungeonJournal.xml` after `View/View.lua`, and draw it with `view:Add("<name>", ...)`.
+  A kind every module could use goes in `Shared/Kinds.lua` instead.
 - **A file:** list it in `DungeonJournal.xml`, never in the TOC.
 
 ## Checking

@@ -2,7 +2,11 @@
 -- the unordered secondary picks of the 0.5.12 test builds and version 1 to 3 share strings
 -- must land in the right slots and order. A two-hander as the main hand's #1 leaves the
 -- off-hand's picks unused but never removes them.
-local root = arg[1] or "."
+local Load = dofile("Tools/regression/load_files.lua")
+
+-- The BiS List's rules, on what they share.
+local FILES = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/Items.lua", "BiS/BiS.lua", "BiS/Rankings.lua",
+    "BiS/Lists.lua", "BiS/Sharing.lua", "BiS/Sources.lua" }
 
 -- itemID -> equip location, standing in for C_Item.GetItemInfoInstant.
 local EQUIP = {
@@ -19,7 +23,8 @@ local SPECS = {
     { class = "MAGE", key = "frost-mage", name = "Frost Mage", slots = { [1] = { 104, 103, 102 } } },
 }
 
-local function Fixture(saved, char)
+-- worn: slot -> item ID you wear there; carried: item ID -> how many in your bags and bank.
+local function Fixture(saved, char, worn, carried)
     local e = { account = { bis = saved }, printed = {} }
     local ns = {}
     ns.Print = function(m) e.printed[#e.printed + 1] = m end
@@ -37,11 +42,14 @@ local function Fixture(saved, char)
         UnitName = function() return char or "Tester" end,
         UnitClass = function() return "Mage", "MAGE" end,
         GetRealmName = function() return "Realm" end,
+        wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
+        GetInventoryItemID = function(_, slot) return worn and worn[slot] end,
         C_Item = {
             GetItemInfoInstant = function(id)
                 if EQUIP[id] then return id, "", "", EQUIP[id] end
             end,
             GetItemNameByID = function(id) return "Item" .. id end,
+            GetItemCount = function(id, bank) return bank and carried and carried[id] or 0 end,
         },
         TooltipDataProcessor = { AddTooltipPostCall = function() end },
         Enum = { TooltipDataType = { Item = 0 } },
@@ -72,9 +80,7 @@ local function Fixture(saved, char)
         end,
     }, { __index = _G })
     env._G = env
-    local chunk = assert(loadfile(root .. "/BiS/NaowhForever_BiS.lua", "t", env))
-    if setfenv then setfenv(chunk, env) end
-    chunk()
+    Load(FILES, env)
     e.ns, e.vault = ns, vault
     return e
 end
@@ -307,58 +313,34 @@ Case("removing takes the item out of every slot that holds it", function()
     assert(Picks(e, 11) == "" and Picks(e, 12) == "202" and not e.ns.IsBisItem(203))
 end)
 
-Case("fill puts the ranking's first unpicked item in each empty slot and leaves picked ones", function()
-    table.insert(SPECS, { class = "MAGE", key = "ring-mage", name = "Ring Mage",
-        slots = { [1] = { 103, 102 }, [11] = { 202, 201 }, [12] = { 202, 201 } } })
-    local e = Fixture({ ["Tester-Realm"] = { name = "L", spec = "ring-mage", slots = { [11] = 202 }, extra = {} } })
-    assert(e.ns.FillBisFromRanking() == 2)
-    assert(e.ns.FillBisFromRanking() == 0, "nothing left to fill")
-    table.remove(SPECS)
-    assert(Picks(e, 1) == "103" and Picks(e, 11) == "202" and Picks(e, 12) == "201", "ring 2 skips ring 1's pick")
-end)
-
-Case("fill leaves the off hand empty behind a two-hander", function()
-    local spec = { class = "MAGE", key = "arcane-mage", name = "Arcane Mage", slots = { [16] = { 301 }, [17] = { 303 } } }
-    table.insert(SPECS, spec)
-    local e = Fixture({ ["Tester-Realm"] = { name = "L", spec = "arcane-mage", slots = {}, extra = {} } })
-    e.ns.FillBisFromRanking()
-    table.remove(SPECS)
-    assert(Picks(e, 16) == "301" and Picks(e, 17) == "")
-end)
-
 Case("an item ID, a link or a Wowhead URL all read as the item", function()
     local e = Fixture()
     e.ns.AddBisItem("101"); e.ns.AddBisItem("|Hitem:102::|h[x]|h"); e.ns.AddBisItem("https://www.wowhead.com/forever/item=201/ring")
     assert(Picks(e, 1) == "101,102" and Picks(e, 11) == "201")
 end)
 
--- Run Next on the paperdoll's panel: the real source sliced out, against a list and what is
--- worn and carried.
+-- Run Next, against a list and what is worn and carried.
 local function RunNextFixture(sources, worn, carried)
-    local f = assert(io.open(root .. "/BiS/NaowhForever_BiS.lua", "rb"))
-    local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-    local function Slice(a, b)
-        local first = assert(source:find(a, 1, true))
-        return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
-    end
-    local env = setmetatable({
-        ns = { BiSData = { sources = sources },
-            BiSSource = function(id) return sources[id] end },
-        SLOT_NAME = { [1] = "Head", [2] = "Neck", [3] = "Shoulder", [11] = "Ring 1", [12] = "Ring 2",
-            [16] = "Main Hand", [17] = "Off Hand" },
-        OffHandIdle = function(list) return list.twoHand == true end,
-        GetInventoryItemID = function(_, slot) return worn[slot] end,
-        C_Item = { GetItemCount = function(id, bank) return bank and carried[id] or 0 end },
-    }, { __index = _G })
-    local code = Slice("local SOURCE_SEP", "\n") .. "\n"
-        .. Slice("local function Wearing", "local function Store")
-        .. Slice("-- Where a wowsrc source", "-- The #1 pick in every empty slot")
-        .. "\nreturn RunNext, Place"
-    local chunk = assert(loadstring(code)); setfenv(chunk, env)
-    return chunk()
+    local e = Fixture(nil, nil, worn, carried)
+    e.ns.BiSData.sources = sources
+    local R = e.ns.BiS.Rankings
+    return R.RunNext, R.Place
 end
 
 local DOT = " \194\183 "
+
+Case("run next ranks a quest's reward by its gain, named by the quest; a world drop is nowhere", function()
+    local e = Fixture()
+    e.ns.BiSData.sources = { [101] = "Boss A" .. DOT .. "Scholomance", [102] = "The Horn of Xelthos" .. DOT .. "Quest",
+        [103] = "World drop" }
+    e.ns.Journal = { BiSQuestRewards = { [500] = { 102 } } }
+    local list = { slots = { [1] = 101, [11] = 102, [3] = 103 } }
+    local out = e.ns.BiS.Rankings.RunNext(list, { [1] = 3, [11] = 18 })
+    assert(#out == 2, #out)
+    assert(out[1].name == "The Horn of Xelthos" and out[1].kind == "quest" and out[1].via == 102 and out[1].gain == 18,
+        "the quest first, its +18% beats the dungeon's +3%")
+    assert(out[2].name == "Scholomance" and out[2].via == nil)
+end)
 
 Case("run next counts BiS picks you do not have by place, most first, at most three", function()
     local RunNext = RunNextFixture({
@@ -385,11 +367,11 @@ Case("run next ties go by name and stop at three", function()
 end)
 
 Case("an off-hand pick left unused by a two-hander is not a place to run", function()
-    local RunNext = RunNextFixture({ [301] = "Boss" .. DOT .. "Scholomance",
+    local RunNext = RunNextFixture({ [301] = "Boss" .. DOT .. "Scholomance", [302] = "Boss" .. DOT .. "Scholomance",
         [303] = "Boss" .. DOT .. "Stratholme" }, {}, {})
-    local list = { slots = { [16] = 301, [17] = 303 } }
+    local list = { slots = { [16] = 302, [17] = 303 } }
     assert(#RunNext(list) == 2)
-    list.twoHand = true
+    list.slots[16] = 301
     local out = RunNext(list)
     assert(#out == 1 and out[1].name == "Scholomance")
 end)

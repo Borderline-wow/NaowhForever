@@ -63,6 +63,9 @@ local ns = {
     Color = function(_, text) return tostring(text) end,
     Font = function(parent) return Frame(parent) end,
     Solid = function(parent) return Frame(parent) end,
+    -- As ns.Hairline and ns.PixelInset: whole-pixel sizing has no effect on these stubs.
+    Hairline = function(region) return region end,
+    PixelInset = function(region) return region end,
     Border = function() return { SetColor = NOTHING } end,
     AccentBorder = function() return { SetColor = NOTHING } end,
     Button = function(parent) return Frame(parent) end,

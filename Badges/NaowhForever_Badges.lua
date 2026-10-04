@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Badges.lua -- supporter badges: the Naowh Forever N next to the name of
 --  Naowh, a Developer, a Moderator or a Legendary Patron in chat, a card when you hover it,
---  a line on their player tooltip, and a banner when one joins your group. Each part has its
+--  a plate over their player tooltip, and a banner when one joins your group. Each part has its
 --  own setting in QoL > Interface: badges, card and tooltip start on so everyone sees them,
 --  the banner starts off (Naowh's call). /nf badges preview puts one on your own name
 --  (staff only).
@@ -280,8 +280,8 @@ local function BuildCard()
     card.site:SetText("naowh.gg")
 end
 
-local function ShowCard(guid, playerName)
-    local entry = EntryOf(guid)
+-- The card for a roster entry (or a preview's), at the cursor.
+local function ShowEntryCard(entry, playerName)
     local tier = TierOf(entry)
     if not tier then return end
     if not card then BuildCard() end
@@ -304,6 +304,10 @@ local function ShowCard(guid, playerName)
     card:Show()
 end
 
+local function ShowCard(guid, playerName)
+    ShowEntryCard(EntryOf(guid), playerName)
+end
+
 -- Chat frames report hovered links through EventRegistry; a player link reads
 -- "player:Name-Realm:lineID:chatType...".
 local function OnLinkEnter(_, _, link)
@@ -319,12 +323,68 @@ local function OnLinkLeave()
 end
 
 -------------------------------------------------------------------------------
---  Player tooltips
+--  Player tooltips: on the game's tooltip a plate of its own over its top, as wide as it, the
+--  badge and the title in the tier's colour, as the hover card has them; on any other, a line.
+--  The plate is ours, anchored to the tooltip (never the other way round), and goes when the
+--  tooltip hides or moves on to someone else. The tooltip sizes itself after we add to it, so
+--  the title is fitted each time the plate's width changes: in full where it fits, else the
+--  title alone (the badge says it is Naowh Forever's), never cut off.
 -------------------------------------------------------------------------------
+local PLATE_H, PLATE_ICON, PLATE_GAP, PLATE_PAD = 26, 18, 2, 6
+local plate
+
+local function HidePlate()
+    if plate then plate:Hide() end
+end
+
+local function FitTitle()
+    local title = plate.title
+    title:SetText(plate.full)
+    if plate.short and title:GetStringWidth() > title:GetWidth() then title:SetText(plate.short) end
+end
+
+local function BuildPlate()
+    plate = CreateFrame("Frame", nil, UIParent)
+    plate:SetFrameStrata("TOOLTIP")
+    plate:SetHeight(PLATE_H)
+    plate:Hide()
+    Chrome(plate, PLATE_ICON)
+    plate.glow:SetPoint("LEFT", PLATE_PAD - 2, 0)
+    plate.title = ns.Font(plate, 12)
+    plate.title:SetPoint("LEFT", plate.icon, "RIGHT", PLATE_PAD, 0)
+    plate.title:SetPoint("RIGHT", -PLATE_PAD, 0)
+    plate.title:SetJustifyH("LEFT")
+    plate.title:SetWordWrap(false)
+    plate:SetScript("OnSizeChanged", FitTitle)
+    GameTooltip:HookScript("OnHide", HidePlate)
+    GameTooltip:HookScript("OnTooltipCleared", HidePlate)
+end
+
+local function ShowPlate(tooltip, entry, tier)
+    if not plate then BuildPlate() end
+    Paint(plate, tier)
+    local c = tier.color
+    local title = TitleOf(entry, tier)
+    plate.full = tier.label or ("Naowh Forever " .. title)
+    plate.short = not tier.label and title or nil
+    FitTitle()
+    plate.title:SetTextColor(c.r, c.g, c.b, 1)
+    plate:ClearAllPoints()
+    plate:SetPoint("BOTTOMLEFT", tooltip, "TOPLEFT", 0, PLATE_GAP)
+    plate:SetPoint("BOTTOMRIGHT", tooltip, "TOPRIGHT", 0, PLATE_GAP)
+    plate:Show()
+end
+
 local function AddTooltipLine(tooltip, data)
     if not S.Get("badgeTooltip") then return end
-    local tier = TierOf(EntryOf(data and data.guid))
-    if tier then tooltip:AddLine(tier.tooltipLine) end
+    local entry = EntryOf(data and data.guid)
+    local tier = TierOf(entry)
+    if not tier then return end
+    if tooltip == GameTooltip then
+        ShowPlate(tooltip, entry, tier)
+    else
+        tooltip:AddLine(tier.tooltipLine)
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -666,6 +726,10 @@ local function BadgeCode()
     return table.concat(groups, ";"), count
 end
 
+-- Naowh's Discord: where a badge is asked for (a support request), and more on the badges.
+local DISCORD = "https://discord.com/invite/naowh"
+ns.NAOWH_DISCORD = DISCORD
+
 local function ShowCode(code, count)
     local UI = ns.UI
     local dimmer, panel = ns.MakeModal(440, 150, "badgeCode")
@@ -674,8 +738,9 @@ local function ShowCode(code, count)
     head:SetText("Your badge code")
     local hint = UI.KeepFont(panel, "hint", 11, nil, T.muted)
     hint:SetPoint("TOP", head, "BOTTOM", 0, -6)
+    hint:SetWidth(400)   -- two lines at most: the code box sits under it
     hint:SetText(count .. (count == 1 and " character" or " characters")
-        .. ". Ctrl+C to copy it, then paste it on naowh.gg.")
+        .. ". Ctrl+C to copy it, then send it in a support request on Discord to be added.")
     local box = UI.Keep(panel, "box", ns.NewEditBox)
     box:SetPoint("TOP", hint, "BOTTOM", 0, -12)
     box:SetSize(400, 28)
@@ -686,8 +751,13 @@ local function ShowCode(code, count)
         if byUser then self:SetText(code); self:HighlightText() end
     end)
     box:SetScript("OnEscapePressed", function() dimmer:Hide() end)
+    -- Discord's link to copy beside Close (the game opens no browser): the code first, then it.
+    UI.KeepButton(panel, "discord", "Discord", 96, 26, function()
+        dimmer:Hide()
+        ns.ShowCopyLine("Naowh's Discord", DISCORD, TIERS.legendary.large)
+    end):SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
     UI.KeepButton(panel, "close", "Close", 96, 26, function() dimmer:Hide() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", 0, 14)
+        :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
     dimmer:Show()
     box:SetFocus()
     box:HighlightText()
@@ -703,6 +773,12 @@ function ns.BadgesCommand(arg)
         RememberCharacter()
         local code, count = BadgeCode()
         ShowCode(code, count)
+    elseif previewTier == "none" then
+        -- You as a player with no badge, to see what everyone else sees (the character panel's
+        -- grey Legendary Patron and its card): until the reload, or preview off.
+        previewEntry = false
+        previewGUID = UnitGUID("player")
+        ns.Print("Preview on: you wear no badge until you reload, as a player without one sees it.")
     elseif previewTier and TIERS[previewTier] then
         previewEntry = PreviewEntry(previewTier)
         previewGUID = UnitGUID("player")
@@ -714,8 +790,35 @@ function ns.BadgesCommand(arg)
     elseif word == "toast" then
         QueueToast(previewEntry or PreviewEntry("legendary"), FullName("player"), IsInRaid())
     else
-        ns.Print("/nf badges id | preview [legendary|moderator|developer|naowh] | preview off | toast")
+        ns.Print("/nf badges id | preview [legendary|moderator|developer|naowh|none] | preview off | toast")
     end
+end
+
+-- For the other modules (the character panel's badge): the badge a character wears, as its
+-- tier ({ title, label, about, color, large }) and roster entry, nil for none; the tiers; a
+-- patron's "Supporter since" line; and the badge code's card.
+function ns.BadgeOf(guid)
+    local entry = EntryOf(guid)
+    local tier = TierOf(entry)
+    if not tier then return nil end
+    return tier, entry
+end
+ns.BADGE_TIERS = TIERS
+ns.BadgeSince = SinceOf
+
+function ns.ShowBadgeCode()
+    RememberCharacter()
+    ShowCode(BadgeCode())
+end
+
+-- The card people see when they hover a badged name, for a tier's badge on playerName: what
+-- the character panel's "Become a Legendary Patron" card shows on its sample chat line.
+function ns.ShowBadgeCard(tierKey, playerName)
+    ShowEntryCard(PreviewEntry(tierKey), playerName)
+end
+
+function ns.HideBadgeCard()
+    if card then card:Hide() end
 end
 
 -- For the offline test.

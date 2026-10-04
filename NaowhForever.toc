@@ -129,12 +129,23 @@ QoL\NaowhForever_TownData.lua
 QoL\NaowhForever_TownMailboxes.lua
 QoL\NaowhForever_TownMap.xml
 GearSets\NaowhForever_GearSets.lua
-BiS\NaowhForever_BiSData.lua
-BiS\NaowhForever_DungeonLoot.lua
-BiS\NaowhForever_BiS.lua
+# Naowh Score: one number for a character's gear, on the item level scale, for you and the
+# players you hover. Its own XML loads its files in order (see NaowhScore/README.md).
+NaowhScore\NaowhScore.xml
+
+# Stat Weights: what each stat is worth to your spec, for gear tooltips and the BiS List's
+# upgrades and enchants. Its own XML loads its files in order (see StatWeights/README.md).
+StatWeights\StatWeights.xml
+
+# BiS List: your best-in-slot picks, their window and where they drop. Its own XML loads its
+# files in order (see BiS/README.md).
+BiS\BiS.xml
 # Dungeon Journal: every dungeon's bosses, loot and quests. Its own XML loads its files in
 # order (see DungeonJournal/README.md). Loads after BiS, whose list and class rules it reads.
 DungeonJournal\DungeonJournal.xml
+# Character Panel: the game's character panel in the BiS List's look. Its own XML loads its
+# files in order (see CharacterPanel/README.md). Loads after BiS, whose lists it shows.
+CharacterPanel\CharacterPanel.xml
 Blessings\NaowhForever_Blessings.xml
 Blessings\NaowhForever_Blessings.lua
 Blessings\NaowhForever_BlessingsPage.lua

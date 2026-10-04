@@ -414,7 +414,8 @@ end)
 Case("the generated quest and chain data is well formed and free of loops", function()
     local J = {}
     local env = setmetatable({ _G = { NaowhForever = { Journal = J } } }, { __index = _G })
-    for _, path in ipairs({ "DungeonJournal/Data/Quests.lua", "DungeonJournal/Data/QuestChains.lua" }) do
+    for _, path in ipairs({ "DungeonJournal/Data/Quests.lua", "DungeonJournal/Data/QuestChains.lua",
+        "DungeonJournal/Data/BiSQuests.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()
@@ -438,6 +439,15 @@ Case("the generated quest and chain data is well formed and free of loops", func
             Log(quest.alt); Log(quest.steps); Log(quest.lead)
         end
     end
+    -- The BiS List's quests are quest records too, with their chains in the same data.
+    for _, quest in ipairs(J.BiSQuestData.quests) do
+        assert(type(quest[1]) == "number" and type(quest[2]) == "string", "bad BiS quest")
+        assert(quest[4] == "A" or quest[4] == "H" or quest[4] == "B", "bad side for " .. quest[1])
+        assert(not quest[7] or (quest[8] > 0 and quest[8] < 100 and quest[9] > 0 and quest[9] < 100),
+            "quest giver off the map for " .. quest[1])
+        byID[quest[1]] = byID[quest[1]] or quest
+        logged[quest[1]] = true
+    end
     local function IDs(step)
         if type(step) == "number" then return { step } end
         assert(type(step) == "table" and #step > 0, "a step is an ID or a table of IDs")
@@ -446,7 +456,7 @@ Case("the generated quest and chain data is well formed and free of loops", func
     end
     local lists = 0
     for questID, list in pairs(J.QuestPrereqs) do
-        assert(byID[questID], "prerequisites for " .. questID .. ", which is not a dungeon quest")
+        assert(byID[questID], "prerequisites for " .. questID .. ", which is not a quest in the data")
         assert(type(list) == "table" and #list > 0, "empty list for " .. questID)
         local seen = {}
         for _, step in ipairs(list) do

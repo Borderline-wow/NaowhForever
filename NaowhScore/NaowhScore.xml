@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- The Naowh Score, in load order: the formula's constants (generated) and the formula, other
+         players' scores (kept, inspected, on their tooltips), yours shared with your group and
+         guild, and its QoL tab. See README.md. -->
+    <Script file="Data/Formula.lua"/>
+    <Script file="Score.lua"/>
+    <Script file="Inspect.lua"/>
+    <Script file="Share.lua"/>
+    <Script file="SettingsPage.lua"/>
+</Ui>

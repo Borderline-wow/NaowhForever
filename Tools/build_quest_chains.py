@@ -4,7 +4,8 @@ Each quest page (/forever/quest=<id>) with a chain has a "Series" box in its inf
 <table class="series"> with one row per step in order, each step a link to its quest, or
 <b> for the page's own quest. A row can hold more than one quest (the faction or class
 versions of that step). Every quest ID in DungeonJournal/Data/Quests.lua is looked up,
-including its alt, steps and lead IDs. Answers are cached in quest_chains.json (null for
+including its alt, steps and lead IDs, and every one in Data/BiSQuests.lua (the BiS List's
+quests, from Tools/build_bis_quests.py, which runs first). Answers are cached in quest_chains.json (null for
 a quest with no chain); delete an entry to fetch it again.
 
 It also works out what must be done before each dungeon quest can be picked up. Wowhead's
@@ -31,6 +32,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "DungeonJournal" / "Data" / "Quests.lua"
+BIS_DATA = ROOT / "DungeonJournal" / "Data" / "BiSQuests.lua"
 OUT = ROOT / "DungeonJournal" / "Data" / "QuestChains.lua"
 CACHE = Path(__file__).resolve().parent / "quest_chains.json"
 # Where each chain step starts, from the quest page's map: { zone, coord, npc, npcId }, or
@@ -60,6 +62,7 @@ ZONE_MAP = {
     141: 1438, 148: 1439, 215: 1412, 267: 1424, 331: 1440, 357: 1444, 361: 1448,
     400: 1441, 405: 1443, 406: 1442, 440: 1446, 490: 1449, 493: 1450, 618: 1452,
     1377: 1451, 1497: 1458, 1519: 1453, 1537: 1455, 1637: 1454, 1638: 1456, 1657: 1457,
+    16593: 2521,   # Zephras Isle, Forever's
 }
 # Forever redrew these, and Wowhead still gives their classic coordinates. Stormwind has
 # enough known quest givers to fit the conversion; on the others a step only gets a spot
@@ -82,10 +85,15 @@ def fetch(url):
             time.sleep(wait)
 
 
+def data_text():
+    """Data/Quests.lua, then Data/BiSQuests.lua once it is built: the Journal's quests first."""
+    return "\n".join(p.read_text(encoding="utf-8") for p in (DATA, BIS_DATA) if p.exists())
+
+
 def quest_ids():
-    """Every quest ID in Data/Quests.lua, its own first, in file order."""
+    """Every quest ID in Data/Quests.lua and Data/BiSQuests.lua, its own first, in file order."""
     ids = []
-    src = DATA.read_text(encoding="utf-8")
+    src = data_text()
     for line in re.findall(r'^\s+\{ \d+, ".*$|^\s+steps = .*$', src, re.M):
         own = re.match(r'\s+\{ (\d+), "', line)
         found = [own.group(1)] if own else []
@@ -227,7 +235,7 @@ def own_spots():
     for line in DATA.read_text(encoding="utf-8").splitlines():
         m = re.match(r'\s+\{ (\d+), ".*?", \d+, "[ABH]", .*?"(?:, (\d+), ([\d.]+), ([\d.]+))?(?:,|\s*\})', line)
         if m and m.group(2):
-            spots[int(m.group(1))] = (int(m.group(2)), float(m.group(3)), float(m.group(4)))
+            spots.setdefault(int(m.group(1)), (int(m.group(2)), float(m.group(3)), float(m.group(4))))
     return spots
 
 
@@ -283,7 +291,8 @@ def main():
     failed = []
     fill(cache, CACHE, ids, parse, failed, "chain")
 
-    own = set(int(i) for i in re.findall(r'^\s+\{ (\d+), "', DATA.read_text(encoding="utf-8"), re.M))
+    journal = set(int(i) for i in re.findall(r'^\s+\{ (\d+), "', DATA.read_text(encoding="utf-8"), re.M))
+    own = set(int(i) for i in re.findall(r'^\s+\{ (\d+), "', data_text(), re.M))
     chains, names = {}, {}
     for quest_id in ids:
         entry = cache.get(str(quest_id))
@@ -292,7 +301,7 @@ def main():
         chains[quest_id] = entry["chain"]
         for step in entry["chain"]:
             for i in step:
-                if i not in own:
+                if i not in journal:
                     names[i] = entry["names"][str(i)]
 
     # What each dungeon quest needs done first (see the top of this file).
@@ -425,15 +434,15 @@ def main():
     # Names for the prerequisite steps that are neither in Data/Quests.lua nor in a chain.
     for entry in cache.values():
         for i, name in (entry or {}).get("names", {}).items():
-            if int(i) not in own:
+            if int(i) not in journal:
                 names.setdefault(int(i), name)
     wanted = sorted({i for steps in prereq_lists.values() for step in steps for i in step
-                     if i not in own and i not in names})
+                     if i not in journal and i not in names})
     fill(info, INFO, wanted, lambda _, page: parse_info(page), failed, "name")
     for steps in prereq_lists.values():
         for step in steps:
             for i in step:
-                if i not in own:
+                if i not in journal:
                     name = names.get(i) or (info.get(str(i)) or {}).get("name")
                     if name:
                         names[i] = name
