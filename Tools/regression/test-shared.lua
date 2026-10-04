@@ -102,6 +102,8 @@ local env = setmetatable({
     ITEM_QUALITY_COLORS = { [5] = { hex = "|cffff8000", r = 1, g = 0.5, b = 0 } },
     GameTooltip = tooltip,
     GameTooltip_Hide = NOTHING,
+    InCombatLockdown = function() return false end,
+    CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end,
     UIParent = Frame(),
 }, { __index = _G })
 env._G = env
@@ -209,6 +211,32 @@ view:Show()
 local columns, width = View.Columns(600)
 check("cards across: as many as fit, each as wide as shares the width", columns >= 1
     and width * columns <= 600 and View.Columns(10) == 1)
+
+-- A module's window opened from /nf the first time, as the game does it: a frame is made
+-- shown, Show() runs OnShow only on a hidden frame and Hide() runs OnHide only on a shown one.
+local function GameShow(f)
+    if f:IsShown() then return end
+    f.shown = true
+    if f.scripts.OnShow then f.scripts.OnShow(f) end
+end
+local function GameHide(f)
+    if not f:IsShown() then return end
+    f.shown = false
+    if f.scripts.OnHide then f.scripts.OnHide(f) end
+end
+local window
+local function OpenWindow()
+    if not window then window = Parts.Window(400, 300, "testWindow") end
+    GameShow(window)
+end
+local backs = 0
+Parts.OpenWithBack(OpenWindow, Frame(), function() backs = backs + 1 end, "Back to Settings")
+check("a window opened from another one the first time knows its way back", window.onBack ~= nil)
+GameHide(window)
+check("and closing it brings that one back", backs == 1)
+Parts.OpenWithBack(OpenWindow, Frame(), function() backs = backs + 1 end, "Back to Settings")
+GameHide(window)
+check("the second time too", backs == 2)
 
 view.Redraw = redraw
 view.count = 50

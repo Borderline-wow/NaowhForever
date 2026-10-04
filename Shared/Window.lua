@@ -77,6 +77,9 @@ end
 -- backdrop is window.backdrop, for the caller's cards and opacity.
 function Parts.Window(width, height, positionKey)
     local window = CreateFrame("Frame", nil, UIParent)
+    -- A frame is made shown, and Show() on a shown frame runs no OnShow: hidden, the first
+    -- open runs it too, and takes the link back to the window it was opened from.
+    window:Hide()
     window:SetSize(width, height)
     window:SetFrameStrata("HIGH")
     window:SetToplevel(true)
