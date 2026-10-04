@@ -114,7 +114,7 @@ local S = {
 -- Slot Marks is on by default; off here, to start from nothing (its own checks turn it on).
 state.values = { enabled = true, characterPanel = false, characterPanelSlotMarks = false, characterPanelLevels = true,
     characterPanelMarks = true, characterPanelEnchants = true, characterPanelScore = true,
-    characterPanelBadge = true, characterPanelStats = "spec" }
+    characterPanelBadge = true, characterPanelBadgeAsk = false, characterPanelStats = "spec" }
 
 -- Your list: the head's BiS is 101 (you wear it), the chest's 202 (you wear 200 there).
 local LIST = { slots = { [1] = 101, [5] = 202 }, extra = {} }
@@ -332,6 +332,8 @@ check("Naowh Score off: no score in the corner", badge.shown == false)
 
 -- Your supporter badge, in the left pane's top corner.
 state.badgeTiers = ns.BADGE_TIERS
+check("no badge, Legendary Badge Preview off (the default): nothing in the corner", CP.supportBadge == nil)
+S.Set("characterPanelBadgeAsk", true)
 local support = CP.supportBadge
 check("your supporter badge in the left pane's corner", support and support.parent == character.LeftPaneHost
     and support.shown ~= false)
@@ -370,6 +372,14 @@ check("hovering the sample shows the badge's own card, as on a badged name in ch
 S.Set("characterPanelBadge", false)
 check("Supporter Badge off: no badge", support.shown == false)
 S.Set("characterPanelBadge", true)
+S.Set("characterPanelBadgeAsk", false)
+check("Legendary Badge Preview off: no grey badge", support.shown == false)
+state.badges = { ["Player-1-ME"] = "developer" }
+character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
+check("a badge of your own shows with the preview off, looked at again as the panel opens", support.shown == true)
+state.badges = nil
+character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
+check("and goes once you have none", support.shown == false)
 
 -- The stats: your spec's first (the default), the game's list under it; the switch at the
 -- pane's bottom.

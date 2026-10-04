@@ -1,10 +1,10 @@
 -------------------------------------------------------------------------------
 --  Badge.lua -- your supporter badge on the character panel, big in the left pane's top
 --  corner: Naowh's, a Developer's, a Moderator's or a Legendary Patron's in its own colour
---  with its glow and title (and since when, for a patron). Without one, the Legendary badge in
---  grey: click it for what it is and where it shows, with more on Naowh's Discord. It informs
---  and asks for nothing (Blizzard's add-on policy keeps donation requests out of the game):
---  and how to get it.
+--  with its glow and title (and since when, for a patron). Without one, nothing, unless
+--  Legendary Badge Preview (off by default) shows the Legendary badge in grey: click it for
+--  what it is and where it shows, with more on Naowh's Discord. It informs and asks for
+--  nothing (Blizzard's add-on policy keeps donation requests out of the game).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -55,7 +55,8 @@ local ALREADY = "Have the badge? My Badge Code gives you a code to send us on Di
 local frame, installed
 
 local function BadgeOn()
-    return CP.On() and S.Get("characterPanelBadge") == true
+    if not (CP.On() and S.Get("characterPanelBadge") == true) then return false end
+    return S.Get("characterPanelBadgeAsk") == true or ns.BadgeOf(UnitGUID("player")) ~= nil
 end
 
 -- How a name reads in chat with the badge: the name in its class's colour, the badge after it,
@@ -243,6 +244,7 @@ local function Apply()
     if on and not installed and CharacterFrame then
         installed = true
         Build()
+        CharacterFrame.LeftPaneHost:HookScript("OnShow", Apply)
     end
     if not installed then return end
     frame:SetShown(on)
