@@ -285,14 +285,45 @@ function J.Boss(npc)
     if boss then return boss, dungeonOf[boss] end
 end
 
+-- Dungeons sharing one instance (Scarlet Monastery's four wings) are told apart by the
+-- subzone you stand in, as the client names it -> the dungeon's key. These are classic's
+-- names; one Forever names otherwise leaves the data's order (the first wing first).
+local SUBZONES = {
+    ["Chamber of Atonement"] = "ScarletMonasteryGraveyard",
+    ["Forlorn Cloister"] = "ScarletMonasteryGraveyard",
+    ["Honor's Tomb"] = "ScarletMonasteryGraveyard",
+    ["Huntsman's Cloister"] = "ScarletMonasteryLibrary",
+    ["Gallery of Treasures"] = "ScarletMonasteryLibrary",
+    ["Athenaeum"] = "ScarletMonasteryLibrary",
+    ["Training Grounds"] = "ScarletMonasteryArmory",
+    ["Footman's Armory"] = "ScarletMonasteryArmory",
+    ["Crusader's Armory"] = "ScarletMonasteryArmory",
+    ["Hall of Champions"] = "ScarletMonasteryArmory",
+    ["Chapel Gardens"] = "ScarletMonasteryCathedral",
+    ["Crusader's Chapel"] = "ScarletMonasteryCathedral",
+}
+local inFront = {}   -- a dungeon's key -> its instance's dungeons with it first, made once
+
 ---@return JournalDungeon[]? dungeons the dungeons of the instance you are in (usually one): a
----dungeon or a raid
+---dungeon or a raid; where several share it, the one whose subzone you stand in first
 function J.Current()
     local inInstance, kind = IsInInstance()
     if not (inInstance and (kind == "party" or kind == "raid")) then return end
     if not byMap then Join() end
     local name, _, _, _, _, _, _, id = GetInstanceInfo()
-    return byMap[id] or byName[name]
+    local list = byMap[id] or byName[name]
+    if not list or #list < 2 then return list end
+    local key = SUBZONES[GetSubZoneText()]
+    if not key or list[1].key == key then return list end
+    local front = inFront[key]
+    if not front then
+        front = { byKey[key] }
+        for _, dungeon in ipairs(list) do
+            if dungeon.key ~= key then front[#front + 1] = dungeon end
+        end
+        inFront[key] = front
+    end
+    return front
 end
 
 -- The factions earned where you are, for the map panel: in a battleground, your side's for

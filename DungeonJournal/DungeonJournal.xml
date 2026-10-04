@@ -24,7 +24,10 @@
     <Script file="Data\Dungeons\Gnomeregan.lua"/>
     <Script file="Data\Dungeons\RazorfenKraul.lua"/>
     <Script file="Data\Dungeons\Dalaran.lua"/>
-    <Script file="Data\Dungeons\ScarletMonastery.lua"/>
+    <Script file="Data\Dungeons\ScarletMonasteryGraveyard.lua"/>
+    <Script file="Data\Dungeons\ScarletMonasteryLibrary.lua"/>
+    <Script file="Data\Dungeons\ScarletMonasteryArmory.lua"/>
+    <Script file="Data\Dungeons\ScarletMonasteryCathedral.lua"/>
     <Script file="Data\Dungeons\RazorfenDowns.lua"/>
     <Script file="Data\Dungeons\DrownedCity.lua"/>
     <Script file="Data\Dungeons\Uldaman.lua"/>

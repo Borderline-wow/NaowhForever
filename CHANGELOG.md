@@ -33,6 +33,10 @@
   loaded, it uses TomTom's arrow.
 
 ### Changed
+- Dungeon Journal: Scarlet Monastery is its four wings, each a dungeon of its own: Scarlet
+  Monastery - Graveyard (26-36), Library (29-39), Armory (32-42) and Cathedral (35-45), with its
+  bosses, loot, quests and floor of the map. Inside, the subzone you stand in says which wing
+  you are in; where it cannot tell, the Graveyard comes first.
 - QoL has a Character tab: Character Panel, Slot Marks and Naowh Score moved there from the BiS
   List's settings, and Supporter Badges from Interface. The BiS List's page keeps what is about
   your BiS.

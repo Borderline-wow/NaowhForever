@@ -106,16 +106,25 @@
       "add": { "Shade of the Archmage": [273052], "Unstable Sentinel": [273046] },
       "wings": [
       { "bosses": ["Unstable Sentinel", "Shade of the Archmage"], "rare": ["Lyn the Ignored"] } ] },
-    { "key": "ScarletMonastery", "name": "Scarlet Monastery", "wowsrc": { "Graveyard": "scarlet-monastery-graveyard", "Library": "scarlet-monastery-library", "Armory": "scarlet-monastery-armory", "Cathedral": "scarlet-monastery-cathedral" }, "zone": 796,
-      "entranceZone": 85, "entrance": { "map": 1420, "x": 83.9, "y": 31.6, "source": "Wowhead Classic dungeon page" },
+    { "key": "ScarletMonasteryGraveyard", "name": "Scarlet Monastery - Graveyard", "wowsrc": "scarlet-monastery-graveyard", "zone": 796,
+      "entranceZone": 85, "entrance": { "map": 1420, "x": 83.9, "y": 31.6, "source": "Wowhead Classic dungeon page; the monastery, where all four wings' doors are" },
       "wings": [
-      { "name": "Graveyard", "bosses": ["Interrogator Vishas", "Bloodmage Thalnos"],
+      { "bosses": ["Interrogator Vishas", "Bloodmage Thalnos"],
         "rare": ["Azshir the Sleepless", "Fallen Champion", "Ironspine"],
-        "optional": ["Scorn"] },
-      { "name": "Library", "bosses": ["Houndmaster Loksey", "Arcanist Doan"] },
-      { "name": "Armory", "bosses": ["Herod"] },
-      { "name": "Cathedral", "bosses": ["High Inquisitor Fairbanks", "Scarlet Commander Mograine",
-                                        "High Inquisitor Whitemane"] } ] },
+        "optional": ["Scorn"] } ] },
+    { "key": "ScarletMonasteryLibrary", "name": "Scarlet Monastery - Library", "wowsrc": "scarlet-monastery-library", "zone": 796,
+      "entranceZone": 85, "entrance": { "map": 1420, "x": 83.9, "y": 31.6, "source": "Wowhead Classic dungeon page; the monastery, where all four wings' doors are" },
+      "wings": [
+      { "bosses": ["Houndmaster Loksey", "Arcanist Doan"] } ] },
+    { "key": "ScarletMonasteryArmory", "name": "Scarlet Monastery - Armory", "wowsrc": "scarlet-monastery-armory", "zone": 796,
+      "entranceZone": 85, "entrance": { "map": 1420, "x": 83.9, "y": 31.6, "source": "Wowhead Classic dungeon page; the monastery, where all four wings' doors are" },
+      "wings": [
+      { "bosses": ["Herod"] } ] },
+    { "key": "ScarletMonasteryCathedral", "name": "Scarlet Monastery - Cathedral", "wowsrc": "scarlet-monastery-cathedral", "zone": 796,
+      "entranceZone": 85, "entrance": { "map": 1420, "x": 83.9, "y": 31.6, "source": "Wowhead Classic dungeon page; the monastery, where all four wings' doors are" },
+      "wings": [
+      { "bosses": ["High Inquisitor Fairbanks", "Scarlet Commander Mograine",
+                   "High Inquisitor Whitemane"] } ] },
     { "key": "RazorfenDowns", "name": "Razorfen Downs", "wowsrc": "razorfen-downs", "zone": 722,
       "entranceZone": 17, "entrance": { "map": 1413, "x": 50.9, "y": 92.9, "source": "the Classic client's instance portal (area trigger), on the Forever map, at the mouth" },
       "wings": [

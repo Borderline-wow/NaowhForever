@@ -127,15 +127,24 @@ J.QuestData = {
         { 1144, "Willix the Importer", 22, "B", false, "Razorfen Kraul, Tent near final boss - Willix the Importer" },
     } },
     { name = "City of Dalaran", map = 2959, levels = { 28, 33 }, quests = {} },
-    { name = "Scarlet Monastery", map = 189, levels = { 26, 45 }, quests = {
-        { 1048, "Into The Scarlet Monastery", 33, "H", true, "Undercity, Royal Quarter - Varimathras (56.2, 92.2)", 1458, 56.2, 92.2 },
-        { 1053, "In the Name of the Light", 34, "A", true, "Hillsbrad Foothills, Southshore - Raleigh the Devout 3 prerequisite quests, starting with Brother Anton (51.5, 58.4)", 1424, 51.5, 58.4 },
+    -- Scarlet Monastery's four wings share one instance (189), each its own dungeon here with
+    -- classic's ranges; the Journal tells them apart by the subzone you stand in (Journal.lua).
+    -- A quest goes under the wing it is done in: Hearts of Zeal (hearts from any wing) under the
+    -- first, the two that kill Loksey, Herod, Mograine and Whitemane under the Cathedral.
+    { name = "Scarlet Monastery - Graveyard", map = 189, levels = { 26, 36 }, quests = {
         { 1051, "Vorrel's Revenge", 25, "H", true, "Scarlet Monastery, Graveyard - Vorrel Sengutz" },
         { 1113, "Hearts of Zeal", 30, "H", true, "Undercity, The Apothecarium - Master Apothecary Faranell Complete Going, Going, Guano!, Razorfen Kraul (48.8, 69.3)", 1458, 48.8, 69.3 },
+    } },
+    { name = "Scarlet Monastery - Library", map = 189, levels = { 29, 39 }, quests = {
         { 1049, "Compendium of the Fallen", 28, "H", true, "Thunder Bluff, First Rise - Sage Truthseeker Undead cannot pick up this quest (34.4, 46.9)", 1456, 34.4, 46.9 },
         { 1160, "Test of Lore", 25, "H", "pre", "Undercity, The Apothecarium - Parqual Fintallas Complete 6 quests in chain, starting with Test of Faith (57.8, 65.4)", 1458, 57.8, 65.4 },
         { 1050, "Mythology of the Titans", 28, "A", true, "Ironforge, Hall of Explorers - Librarian Mae Paledust (75, 12.5)", 1455, 75.0, 12.5 },
         { 1951, "Rituals of Power", 30, "B", "pre", "Mage only - Thousand Needles , Shimmering Flats Raceway - Magus Tirth Complete 3 quests, starting with Journey to the Marsh (78.3, 75.7)", 1441, 78.3, 75.7, class = "MAGE" },
+    } },
+    { name = "Scarlet Monastery - Armory", map = 189, levels = { 32, 42 }, quests = {} },
+    { name = "Scarlet Monastery - Cathedral", map = 189, levels = { 35, 45 }, quests = {
+        { 1048, "Into The Scarlet Monastery", 33, "H", true, "Undercity, Royal Quarter - Varimathras (56.2, 92.2)", 1458, 56.2, 92.2 },
+        { 1053, "In the Name of the Light", 34, "A", true, "Hillsbrad Foothills, Southshore - Raleigh the Devout 3 prerequisite quests, starting with Brother Anton (51.5, 58.4)", 1424, 51.5, 58.4 },
     } },
     { name = "Razorfen Downs", map = 129, levels = { 37, 46 }, quests = {
         { 3341, "Bring the End", 37, "H", true, "Undercity, Magic Quarter - Andrew Brownell (74, 33.3)", 1458, 74.0, 33.3 },

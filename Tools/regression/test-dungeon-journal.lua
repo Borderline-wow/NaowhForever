@@ -262,6 +262,7 @@ local function fixture(settings)
             return i.name, nil, nil, nil, nil, nil, nil, i.id
         end,
         InCombatLockdown = function() return state.combat end,
+        GetSubZoneText = function() return state.subzone or "" end,
         -- The game's settings, kept for a test to read.
         GetCVar = function(name) return state.cvars[name] end,
         SetCVar = function(name, value) state.cvars[name] = tostring(value) end,
@@ -546,7 +547,7 @@ do
     check("The Glowing Shard is listed", glowing ~= nil)
     check("and has a waypoint: the dungeon's entrance", glowing.canWaypoint)
     check("hundreds of bosses", bosses > 150)
-    check("the entrances with a source that matches Forever's map", entrances == 29)
+    check("the entrances with a source that matches Forever's map", entrances == 32)
     local boss, dungeon = J.Boss(639)
     check("the boss loot window finds a boss by its NPC ID", boss and boss.name == "Edwin VanCleef"
         and dungeon.key == "Deadmines")
@@ -588,6 +589,23 @@ do
     check("and the page opens on it", J.Suggested().key == "Deadmines")
     state.instance = { id = 229, name = "Blackrock Spire" }
     check("Blackrock Spire is both halves", #J.Current() == 2)
+    -- Scarlet Monastery: four wings, one instance, the one you are in told by its subzone.
+    state.instance = { id = 189, name = "Scarlet Monastery" }
+    check("Scarlet Monastery is four wings", #J.Current() == 4
+        and J.Get("ScarletMonasteryLibrary").name == "Scarlet Monastery - Library")
+    check("the old single dungeon is gone", J.Get("ScarletMonastery") == nil)
+    state.subzone = "Athenaeum"
+    check("in the Athenaeum, the Library first", J.Current()[1].key == "ScarletMonasteryLibrary"
+        and #J.Current() == 4)
+    state.subzone = "Crusader's Chapel"
+    check("in the Crusader's Chapel, the Cathedral", J.Current()[1].key == "ScarletMonasteryCathedral")
+    state.subzone = "Somewhere Forever names otherwise"
+    check("a subzone not known: the first wing", J.Current()[1].key == "ScarletMonasteryGraveyard")
+    state.subzone = nil
+    check("each wing's quests: the Library's books", #J.Get("ScarletMonasteryLibrary").quests.quests == 4
+        and #J.Get("ScarletMonasteryArmory").quests.quests == 0)
+    check("each wing on its own floor of the map", J.Maps.ScarletMonasteryCathedral.floor == 4
+        and J.Maps.ScarletMonasteryGraveyard.pins[3983] ~= nil)
     state.instance = { id = 99999, name = "Shaper's Terrace" }
     check("a new dungeon is found by its name", J.Current()[1].key == "ShapersTerrace")
     state.instance = { id = 99998, name = "Onyxia's Lair", kind = "raid" }
