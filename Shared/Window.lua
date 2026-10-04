@@ -33,9 +33,10 @@ local pendingBack, pendingBackText
 
 function Parts.SetBack(window, back, text)
     window.onBack = back
-    if not window.back then return end
-    window.back:SetShown(back ~= nil)
-    if back then Parts.SetLink(window.back, text or "Back") end
+    local link = window.backLink
+    if not link then return end
+    link:SetShown(back ~= nil)
+    if back then Parts.SetLink(link, text or "Back") end
 end
 
 -- Opens a window from another one, which goes away; the new window's title then has a link
@@ -145,9 +146,9 @@ function Parts.TitleBar(window, title, subtitle, page)
     window.subtitle = ns.Font(window, 11, nil, T.muted)
     window.subtitle:SetPoint("TOPLEFT", window.title, "BOTTOMLEFT", 0, -2)
     window.subtitle:SetText(subtitle)
-    window.back = Parts.Link(window, BackClicked, true)
-    window.back:SetPoint("LEFT", window.title, "RIGHT", 16, -1)
-    window.back:Hide()
+    window.backLink = Parts.Link(window, BackClicked, true)
+    window.backLink:SetPoint("LEFT", window.title, "RIGHT", 16, -1)
+    window.backLink:Hide()
     local close = ns.Button(window, "x", 24, 24, function() window:Hide() end)
     close:SetPoint("RIGHT", window, "TOPRIGHT", -8, middle)
     return close

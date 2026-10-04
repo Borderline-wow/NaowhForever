@@ -3,9 +3,7 @@
 ## Unreleased
 
 ### Fixed
-- Settings: sliders drag again. A drag stopped after its first step, as the page drew itself
-  again under it; the page now waits for the slider to be let go.
-- Settings: the window's border runs unbroken around its top left, over the logo's panel.
+- Opening the Training Planner from /nf no longer raises a Lua error.
 
 ## 0.5.19-beta
 

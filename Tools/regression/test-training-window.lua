@@ -16,7 +16,10 @@ local frames = {}
 local METHODS = {
     SetScript = function(f, script, fn) f.scripts[script] = fn end,
     GetScript = function(f, script) return f.scripts[script] end,
-    HookScript = function(f, script, fn) f.scripts[script] = fn end,
+    HookScript = function(f, script, fn)
+        local old = f.scripts[script]
+        f.scripts[script] = old and function(...) old(...); fn(...) end or fn
+    end,
     GetParent = function(f) return rawget(f, "parent") end,
     SetWidth = function(f, w) f.w = w end,
     SetHeight = function(f, h) f.h = h end,
@@ -35,7 +38,11 @@ local METHODS = {
         f.shown = true
         if was == false and f.scripts.OnShow then f.scripts.OnShow(f) end
     end,
-    Hide = function(f) f.shown = false end,
+    Hide = function(f)
+        local was = rawget(f, "shown") ~= false
+        f.shown = false
+        if was and f.scripts.OnHide then f.scripts.OnHide(f) end
+    end,
     SetShown = function(f, shown) f.shown = shown and true or false end,
     IsShown = function(f) return rawget(f, "shown") ~= false end,
     IsVisible = function(f) return rawget(f, "shown") ~= false end,
@@ -258,5 +265,15 @@ local windowCard, trainer = declared and declared.items[1], declared and declare
 check("the settings page is declared, the planner's window card first", windowCard and windowCard.window
     and windowCard.text == "Open Training Planner")
 check("with the trainer popup's card, switched by its own setting", trainer and trainer.switch == "trainerPopup")
+
+local backed = 0
+window:Hide()
+ns.Shared.Parts.OpenWithBack(function() ns.OpenTrainingWindow() end, Frame(), function() backed = backed + 1 end,
+    "Back to Settings")
+check("opened from /nf, its title links back", window.backLink and window.backLink:IsShown()
+    and window.backLink.text:GetText() == "Back to Settings")
+check("and All Levels stays its own button", window.back ~= window.backLink)
+window:Hide()
+check("closing it goes back to /nf, once", backed == 1 and not window.backLink:IsShown())
 
 print(("test-training-window: %d checks passed"):format(checks))
