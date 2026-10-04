@@ -11,7 +11,7 @@ local DIALOGS = { DELETE_ITEM = true, DELETE_QUEST_ITEM = true, DELETE_GOOD_ITEM
 local patched
 
 -- DELETE_GOOD_ITEM's second paragraph is the "type DELETE" instruction, which no longer
--- applies once the box is filled in and hidden.
+-- applies once the box is filled in.
 local function StripInstruction(text)
     local cut = DELETE_GOOD_ITEM:find("\n")
     if not cut then return text end
@@ -41,11 +41,9 @@ hooksecurefunc("StaticPopup_Show", function(which)
 
     local name = dialog:GetName()
     local editBox = _G[name .. "EditBox"]
-    local typed = editBox:IsShown()
-    if typed then
+    if editBox:IsShown() then
         editBox:SetText(DELETE_ITEM_CONFIRM_STRING)
-        editBox:Hide()
-        -- Filling and hiding the box left Yes greyed on Forever; the dialog's own check, run
+        -- Filling the box from code left Yes greyed on Forever; the dialog's own check, run
         -- here, enables it when the text matches.
         local check = StaticPopupDialogs[which].EditBoxOnTextChanged
         if check then check(editBox, dialog.data) end
@@ -55,8 +53,8 @@ hooksecurefunc("StaticPopup_Show", function(which)
     local text = _G[name .. "Text"]
     if kind == "item" and link then
         text:SetText(StripInstruction(text:GetText() or "") .. "\n\n" .. link)
-        -- The hidden box leaves room for the link; the plain dialog needs the space added.
-        if not typed then dialog:SetHeight(dialog:GetHeight() + 32) end
+        -- The dialog only sizes itself to its text on show, and the box sits under the text.
+        dialog:Resize()
     end
 end)
 

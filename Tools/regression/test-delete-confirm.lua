@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: Auto-Fill Delete Confirmation fills in DELETE,
--- hides the box, names the item, and leaves Yes clickable, as a tester found it did not on
--- Forever: the box filled in by code never told the dialog, so Yes stayed greyed. The box here
--- does the same: SetText runs no change handler.
+-- leaves the box showing it, names the item, and leaves Yes clickable, as a tester found it did
+-- not on Forever: the box filled in by code never told the dialog, so Yes stayed greyed. The box
+-- here does the same: SetText runs no change handler.
 local settings = { enabled = true }
 local hook
 local function Frame()
@@ -21,6 +21,7 @@ yes.enabled = false
 function yes:SetEnabled(on) self.enabled = on end
 function dialog:GetName() return "StaticPopup1" end
 function dialog:GetButton1() return yes end
+function dialog:Resize() self.resized = true end
 local box, text = Frame(), Frame()
 function box:GetParent() return dialog end
 
@@ -52,7 +53,8 @@ chunk()
 
 local count = 0
 local function Case(name, fn)
-    box.shown, box.text, yes.enabled, cursor = true, nil, false, "|Hitem:6948|h[Hearthstone]|h"
+    box.shown, box.text, yes.enabled, dialog.resized = true, nil, false, false
+    cursor = "|Hitem:6948|h[Hearthstone]|h"
     text.text = "Do you want to destroy Hearthstone?\n\nType \"DELETE\" into the field to confirm."
     fn()
     count = count + 1
@@ -64,14 +66,15 @@ Case("off by default: the box is left to type in", function()
     assert(box.shown and box.text == nil and not yes.enabled)
 end)
 settings.deleteConfirm = true
-Case("on: DELETE filled in, the box hidden, and Yes clickable", function()
+Case("on: DELETE filled in, the box left showing, and Yes clickable", function()
     hook("DELETE_GOOD_ITEM")
-    assert(box.text == "DELETE" and not box.shown, "filled in and hidden")
+    assert(box.text == "DELETE" and box.shown, "filled in and showing")
     assert(yes.enabled, "Yes clickable")
 end)
 Case("the item named as a link in place of the instruction", function()
     hook("DELETE_GOOD_ITEM")
     assert(text.text == "Do you want to destroy Hearthstone?\n\n|Hitem:6948|h[Hearthstone]|h", text.text)
+    assert(dialog.resized, "dialog laid out again around the link")
 end)
 Case("a dialog with no box: nothing typed, Yes left as the game set it", function()
     box.shown = false
