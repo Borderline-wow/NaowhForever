@@ -48,6 +48,7 @@ local METHODS = {
     SetEnabled = function(f, on) f.enabled = on end,
     SetClipsChildren = function(f, on) f.clips = on end,
     SetCursorPosition = function(f, at) f.cursor = at end,
+    GetCursorPosition = function(f) return rawget(f, "cursor") or #(rawget(f, "text") or "") end,
     CreateTexture = function(f) return Frame(f) end,
     CreateFontString = function(f) return Frame(f) end,
 }
@@ -264,8 +265,8 @@ ns.OpenMacroWindow()
 local window = Window()
 check("Naowh's Forge is built by the kit", window and window.backdrop and window.switch)
 check("its title is Naowh's Forge", window.title:GetText() == "Naowh's Forge")
-check("the subtitle counts the slots", window.subtitle:GetText():find("Account 1/120", 1, true)
-    and window.subtitle:GetText():find("Character 1/18", 1, true))
+check("the subtitle names the character and meters the slots", window.subtitle:GetText() == "Glyalith, MAGE"
+    and window.meters[1].label:GetText() == "Account 1/120" and window.meters[2].label:GetText() == "MAGE 1/18")
 check("a new macro waits in the editor", window.name:GetText() == "New Macro")
 
 local rows = Shown(function(f) return rawget(f, "macro") ~= nil end)
@@ -273,7 +274,7 @@ check("both macros are listed", #rows == 2)
 local sheepRow
 for _, r in ipairs(rows) do if r.macro.name == "Sheep" then sheepRow = r end end
 Click(sheepRow)
-check("clicking one opens it", window.name:GetText() == "Sheep" and window.code:GetText():find("Polymorph"))
+check("clicking one opens it", window.name:GetText() == "Sheep" and ns.MacroText.Strip(window.code:GetText()):find("Polymorph"))
 sheepRow.scripts.OnDragStart(sheepRow)
 check("dragging a row picks the macro up", picked == MAX_ACCOUNT + 1)
 
@@ -294,7 +295,7 @@ check("and says so", printed[#printed]:find("Saved Asheep", 1, true))
 -- Shorten, Export.
 window.code:SetText("/cast [ target=focus ] Polymorph ; Frostbolt")
 Click(editorButtons[2])
-check("Shorten rewrites it", window.code:GetText() == "/cast [@focus] Polymorph;Frostbolt")
+check("Shorten rewrites it", ns.MacroText.Strip(window.code:GetText()) == "/cast [@focus] Polymorph;Frostbolt")
 Click(editorButtons[3])
 check("Export gives a share string", (account.lastCopy or ""):find("^!NFM1!"))
 
@@ -441,7 +442,7 @@ window.code:SetText("/cast Zed 3")
 window.switch.onPick("lib")
 window.switch.onPick("mine")
 check("a tab switch keeps an unsaved name and text", window.name:GetText() == "Zed Renamed"
-    and window.code:GetText() == "/cast Zed 3")
+    and ns.MacroText.Strip(window.code:GetText()) == "/cast Zed 3")
 
 -- Export only what Import takes.
 account.lastCopy = nil
@@ -514,7 +515,7 @@ window.name:SetText("Typed")
 window.code:SetText("/cast Typed")
 Click(editorButtons[4])
 check("Revert restores the name and the text", window.name:GetText() == "Iconic"
-    and window.code:GetText() == "/cast Something Else")
+    and ns.MacroText.Strip(window.code:GetText()) == "/cast Something Else")
 
 -- A name that is only stripped characters is turned away.
 vault[1] = { v = 1, macros = { { name = "|", body = "/cast X" } } }
@@ -549,5 +550,20 @@ check("an export with an empty macro imports whole", #store.character == 2
 -- A macro opens at its first line.
 OpenNamed("Mine")
 check("an opened macro starts at the top", window.code.cursor == 0)
+
+-------------------------------------------------------------------------------
+--  Looks: colours in the code box, never in the game's macros
+-------------------------------------------------------------------------------
+store.account, store.character = {}, {}
+Click(newButton)
+window.name:SetText("Coloured")
+window.code:SetText("#showtooltip\n/cast [@focus,harm] Polymorph")
+check("the code box shows the macro in colour", window.code:GetText():find("|cff6cc4ff/cast|r", 1, true) ~= nil)
+Click(editorButtons[1])
+check("what is saved has no colour codes", store.character[1].body == "#showtooltip\n/cast [@focus,harm] Polymorph")
+window.code.cursor = nil
+window.code:Insert("\n/stopcasting")
+check("text put in is coloured too", window.code:GetText():find("|cff6cc4ff/stopcasting|r", 1, true) ~= nil
+    and ns.MacroText.Strip(window.code:GetText()):find("Polymorph\n/stopcasting$") ~= nil)
 
 print(("test-macro-window: %d checks passed"):format(checks))

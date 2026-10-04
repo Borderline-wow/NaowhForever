@@ -5,7 +5,8 @@
 ### Added
 - Naowh's Forge (/nfmacros, the Macros page, or its minimap and top bar button): a window for
   your macros. My Macros lists your account and character macros and your pack's; the editor
-  shows how many of the game's 255 bytes a macro uses, numbers its lines, marks the ones that
+  colours a macro as you type it, in a code font (JetBrains Mono), shows how many of the
+  game's 255 bytes it uses, numbers its lines, marks the ones that
   will not work with what was meant (/castsequnce: did you mean /castsequence?), and beside it
   Explain says what each line does in plain words. Build conditions with Conditions, insert
   commands from Commands, pick an icon (star your favourites), Shorten a macro, and drag its

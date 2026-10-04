@@ -30,7 +30,8 @@ local BLACK = St.BORDER_RGB
 local STRIPE, HOVER, PICKED = St.STRIPE, 0.05, 0.10
 local SELECTED_BAR = 2
 local BIG_ICON = 56
-local CODE_FONT, CODE_SIZE = nil, 14   -- the house font, read when the window is built
+local CODE_FONT = "Interface\\AddOns\\NaowhForever\\Media\\Fonts\\JetBrainsMonoNL-Regular.ttf"
+local CODE_SIZE = 13
 local CODE_LINES = 10      -- lines the editor shows; a macro rarely needs more
 local GUTTER_W = 30
 local METER_H = 6
@@ -40,6 +41,7 @@ local QUESTION = 134400    -- the question mark: #showtooltip then shows the spe
 local WARN = { r = 0.94, g = 0.70, b = 0.29 }
 local ERR = { r = 0.97, g = 0.44, b = 0.44 }
 local OK = { r = 0.30, g = 0.82, b = 0.48 }
+local METER_W = 54         -- the slot meters beside the subtitle
 local GOLD_CODE = St.GOLD_CODE
 local CARD_COLS, CARD_GAP = 3, 10
 local SMART_H, LIB_H = 150, 168
@@ -111,8 +113,8 @@ local function NewSection(parent)
 end
 
 local function SetSection(h, title, count, note)
-    h.title:SetText(title:upper() .. (count and ("   " .. ns.Color("muted", count)) or ""))
-    h.note:SetText(note or "")
+    h.title:SetText(title:upper() .. (count and note and ("   " .. ns.Color("muted", count)) or ""))
+    h.note:SetText(note or count or "")
 end
 
 -- The banded list rows of the Journal: a faint band on every other row, a soft one under the
@@ -209,6 +211,15 @@ end
 -------------------------------------------------------------------------------
 local Render, RenderEditor
 
+-- The macro in the editor, without the colour codes it is shown with.
+local function Code()
+    return Text.Strip(window.code:GetText())
+end
+
+local function SetCode(body)
+    window.code:SetText(Text.Colorize(body))
+end
+
 local function Open(macro)
     draft = { index = macro.index, account = macro.account == true, name = macro.name or "New Macro",
         icon = macro.icon or QUESTION, body = macro.body or "", source = macro.source or "game" }
@@ -218,7 +229,7 @@ local function Open(macro)
     draft.picked = draft.source == "pack" and macro.icon ~= nil or nil
     if window then
         window.name:SetText(draft.name)
-        window.code:SetText(draft.body)
+        SetCode(draft.body)
         window.code:SetCursorPosition(0)
         window.editor.scroll:SetVerticalScroll(0)
     end
@@ -246,7 +257,7 @@ end
 -- written only when one was picked; otherwise a question mark keeps following #showtooltip.
 local function Save()
     if InCombatLockdown() then Toast("Macros can be saved once the fight is over.") return end
-    local name, body = strtrim(window.name:GetText()), window.code:GetText()
+    local name, body = strtrim(window.name:GetText()), Code()
     if name == "" or #name > 16 then Toast("A macro's name is 1 to 16 bytes.") return end
     if #body > Text.LIMIT then Toast(("%d bytes over the game's 255: shorten it first."):format(#body - Text.LIMIT)) return end
     if name ~= draft.savedName and GetMacroIndexByName(name) > 0 then
@@ -381,17 +392,17 @@ local function NewMacroRow(parent)
     r.icon.edge:SetPoint("LEFT", PAD, 0)
     r.name = Text14(r, 13)
     r.name:SetPoint("TOPLEFT", r.icon.edge, "TOPRIGHT", 10, -2)
-    r.name:SetPoint("RIGHT", -PAD - 12, 0)
+    r.name:SetPoint("RIGHT", -PAD, 0)
     r.name:SetJustifyH("LEFT")
     r.name:SetWordWrap(false)
     r.line = Text14(r, 11, T.muted)
+    r.line:SetFont(CODE_FONT, 10, "")
     r.line:SetPoint("BOTTOMLEFT", r.icon.edge, "BOTTOMRIGHT", 10, 2)
     r.line:SetPoint("RIGHT", -PAD, 0)
     r.line:SetJustifyH("LEFT")
     r.line:SetWordWrap(false)
     r.dot = ns.Solid(r, "OVERLAY", ERR, 1)
     r.dot:SetSize(6, 6)
-    r.dot:SetPoint("RIGHT", -PAD, 6)
     r:SetScript("OnDragStart", function(self)
         if self.macro.index and not InCombatLockdown() then PickupMacro(self.macro.index) end
     end)
@@ -451,6 +462,8 @@ local function DrawList()
                     worst = WARN
                 end
                 r.dot:SetShown(worst ~= nil)
+                r.dot:ClearAllPoints()
+                r.dot:SetPoint("LEFT", r.name, "LEFT", math.min(r.name:GetStringWidth(), LIST_W - 2 * PAD - ROW_ICON - 40) + 6, 0)
                 if worst then r.dot:SetColorTexture(worst.r, worst.g, worst.b, 1) end
                 r.stripe:SetShown(i % 2 == 0)
                 Pick(r, draft ~= nil and ((m.index and m.index == current)
@@ -480,7 +493,7 @@ local function Gutter()
             issues[issue.line] = (issues[issue.line] == "error" or issue.kind == "error") and "error" or "warning"
         end
     end
-    for line in (window.code:GetText() .. "\n"):gmatch("([^\n]*)\n") do
+    for line in (Code() .. "\n"):gmatch("([^\n]*)\n") do
         n = n + 1
         local label = editor.numbers.Take()
         label:SetPoint("TOPRIGHT", editor.gutter, "TOPRIGHT", -6, -(6 + y))
@@ -497,7 +510,7 @@ end
 
 RenderEditor = function()
     if not (window and draft) then return end
-    local editor, body = window.editor, window.code:GetText()
+    local editor, body = window.editor, Code()
     draft.body = body
     local bytes = #body
     local fill = math.min(1, bytes / Text.LIMIT)
@@ -513,7 +526,7 @@ RenderEditor = function()
             fs:SetText((issue.line > 0 and ("L" .. issue.line .. "   ") or "") .. issue.text)
             Paint(fs, issue.kind == "error" and ERR or WARN)
         elseif i == 1 and body ~= "" then
-            fs:SetText("Every command and condition is one the game knows.")
+            fs:SetText("Looks good: every command and condition is one the game knows.")
             Paint(fs, OK)
         else
             fs:SetText("")
@@ -531,6 +544,10 @@ RenderEditor = function()
     editor.scopeCharacter.fill:SetShown(not draft.account)
     editor.where:SetText(draft.index and "Drag the icon to an action bar" or
         (draft.source == "pack" and "From your pack: Create makes it yours" or "Not saved yet"))
+    editor.grip:SetShown(draft.index ~= nil)
+    local dirty = draft.saved ~= nil and changed
+    editor.revert:SetEnabled(dirty)
+    editor.revert:SetAlpha(dirty and 1 or 0.45)
     if window.inspector and window.inspector.Refresh then window.inspector.Refresh() end
 end
 
@@ -582,15 +599,24 @@ local function BuildEditor(parent)
     editor.where = Text14(editor, 11, T.muted)
     editor.where:SetPoint("RIGHT", -PAD, 0)
     editor.where:SetPoint("BOTTOM", saveTo, "BOTTOM")
+    editor.grip = CreateFrame("Frame", nil, editor)
+    editor.grip:SetSize(6, 10)
+    editor.grip:SetPoint("RIGHT", editor.where, "LEFT", -8, 0)
+    for i = 0, 5 do
+        local dot = ns.Solid(editor.grip, "ARTWORK", T.muted, 1)
+        dot:SetSize(2, 2)
+        dot:SetPoint("TOPLEFT", (i % 2) * 4, -math.floor(i / 2) * 4)
+    end
     -- The byte meter.
     editor.track = ns.Solid(editor, "ARTWORK", T.line, 1)
     editor.track:SetPoint("TOPLEFT", iconButton, "BOTTOMLEFT", 0, -16)
-    editor.track:SetPoint("RIGHT", -150, 0)
+    editor.track:SetPoint("RIGHT", -200, 0)
     editor.track:SetHeight(METER_H)
     editor.fill = editor:CreateTexture(nil, "OVERLAY")
     editor.fill:SetPoint("TOPLEFT", editor.track)
     editor.fill:SetHeight(METER_H)
     editor.count = Text14(editor, 12, T.muted)
+    editor.count:SetFont(CODE_FONT, 11, "")
     editor.count:SetPoint("LEFT", editor.track, "RIGHT", 10, 0)
     -- The text, with its line numbers beside it.
     local box = CreateFrame("Frame", nil, editor)
@@ -626,7 +652,17 @@ local function BuildEditor(parent)
     code:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
     code:SetTextInsets(10, 10, 6, 6)
     code:SetScript("OnEscapePressed", code.ClearFocus)
-    code:SetScript("OnTextChanged", function() RenderEditor() end)
+    code:SetScript("OnTextChanged", function(self)
+        local shown = self:GetText()
+        local colored = Text.Colorize(Text.Strip(shown))
+        if colored ~= shown then
+            local at = Text.PlainPos(shown, self:GetCursorPosition())
+            self:SetText(colored)
+            self:SetCursorPosition(Text.CodedPos(colored, at))
+            return
+        end
+        RenderEditor()
+    end)
     -- Keep the cursor's line in view; the range can grow a frame after the text does.
     local cursorTop, cursorHeight = 0, 0
     local function Follow()
@@ -666,9 +702,9 @@ local function BuildEditor(parent)
     save:SetPoint("BOTTOMLEFT", PAD, PAD)
     editor.saveLabel = save.label
     local shorten = ns.Button(editor, "Shorten", 86, BUTTON_H, function()
-        local before = window.code:GetText()
+        local before = Code()
         local after = Text.Shorten(before)
-        window.code:SetText(after)
+        SetCode(after)
         Toast(#after < #before and ("Shortened by %d bytes. It does the same."):format(#before - #after)
             or "It is as short as it safely gets.")
     end)
@@ -676,7 +712,7 @@ local function BuildEditor(parent)
     ns.Tooltip(shorten, "Shorten", "Saves bytes with spellings the game reads the same way: @ for target=, "
         .. "mod: and btn:, and no spaces around ; and ,.")
     local export = ns.Button(editor, "Export", 76, BUTTON_H, function()
-        local name, body = strtrim(window.name:GetText()), window.code:GetText()
+        local name, body = strtrim(window.name:GetText()), Code()
         if name == "" or #name > 16 then Toast("A macro's name is 1 to 16 bytes.") return end
         if body == "" or #body > Text.LIMIT then Toast("A macro's text is 1 to 255 bytes.") return end
         ns.ShowCopyBox(name, Export({ { name = name, body = body } }))
@@ -685,10 +721,11 @@ local function BuildEditor(parent)
     local revert = ns.Button(editor, "Revert", 76, BUTTON_H, function()
         if not draft.saved then return end
         window.name:SetText(draft.savedName)
-        window.code:SetText(draft.saved)
+        SetCode(draft.saved)
         RenderEditor()
     end)
     revert:SetPoint("LEFT", export, "RIGHT", 6, 0)
+    editor.revert = revert
     local delete = ns.Button(editor, "Delete", 76, BUTTON_H, Delete)
     delete:SetPoint("BOTTOMRIGHT", -PAD, PAD)
 end
@@ -752,12 +789,18 @@ local function BuildInspector(parent)
     hint:SetText("What this macro does, line by line.")
     local lines = Pool(function()
         local row = CreateFrame("Frame", nil, panes.explain)
-        row.number = Text14(row, 11, T.muted)
-        row.number:SetPoint("TOPLEFT", 0, -1)
+        row.box = CreateFrame("Frame", nil, row)
+        row.box:SetSize(20, 20)
+        row.box:SetPoint("TOPLEFT", 0, 1)
+        ns.Solid(row.box, "BACKGROUND", T.bg, 1):SetAllPoints()
+        ns.Border(row.box, BLACK)
+        row.number = Text14(row.box, 11, T.muted)
+        row.number:SetPoint("CENTER")
         row.text = Text14(row, 13)
-        row.text:SetPoint("TOPLEFT", 22, 0)
-        row.text:SetPoint("RIGHT")
+        row.text:SetPoint("TOPLEFT", 30, 0)
+        row.text:SetWidth(INSPECTOR_W - 2 * PAD - 30)
         row.text:SetJustifyH("LEFT")
+        row.text:SetWordWrap(true)
         row.text:SetSpacing(2)
         return row
     end)
@@ -882,12 +925,13 @@ local function BuildInspector(parent)
         if key == "explain" then
             lines.Release()
             local y = -22
-            local said = Text.Explain(window.code:GetText())
+            local said = Text.Explain(Code())
             for i, sentence in ipairs(said) do
                 local row = lines.Take()
                 row:SetPoint("TOPLEFT", 0, y)
-                row:SetPoint("RIGHT")
+                row:SetPoint("TOPRIGHT", 0, y)
                 row.number:SetText(i)
+                row.box:Show()
                 row.text:SetText(sentence)
                 local h = math.max(18, row.text:GetStringHeight())
                 row:SetHeight(h)
@@ -896,8 +940,8 @@ local function BuildInspector(parent)
             if #said == 0 then
                 local row = lines.Take()
                 row:SetPoint("TOPLEFT", 0, y)
-                row:SetPoint("RIGHT")
-                row.number:SetText("")
+                row:SetPoint("TOPRIGHT", 0, y)
+                row.box:Hide()
                 row.text:SetText(ns.Color("muted", "Write a line and this says what it does."))
                 row:SetHeight(18)
             end
@@ -976,17 +1020,17 @@ local function Uses(key, body)
             text = id and (C_Item.GetItemNameByID(id) or "Your trinket") or "No trinket worn", count = "slot " .. slot }
     end
     if key == "focus" then
-        uses[#uses + 1] = { icon = 132212, text = "Focus your mouseover, else your target", count = "" }
+        uses[#uses + 1] = { icon = 132212, text = "Mouseover, else target", count = "" }
     elseif key == "acceptPopup" then
-        uses[#uses + 1] = { icon = 136814, text = "Clicks Yes on the popup on top", count = "" }
+        uses[#uses + 1] = { icon = 136814, text = "Clicks Yes on popups", count = "" }
     end
-    if #uses == 0 then uses[1] = { icon = QUESTION, text = "Nothing in your bags for it", count = "" } end
+    if #uses == 0 then uses[1] = { icon = QUESTION, text = "Nothing in your bags", count = "" } end
     return uses
 end
 
-local SMART_NOTES = { health = "Healthstone or potion, as you set", mana = "Your best mana potion",
-    food = "Best food and drink, conjured first", bandage = "On yourself", trinket1 = "Top trinket slot",
-    trinket2 = "Bottom trinket slot", focus = "Optionally marks and announces it", acceptPopup = "Ready checks, summons" }
+local SMART_NOTES = { health = "Healthstone or potion", mana = "Best mana potion", food = "Conjured food first",
+    bandage = "On yourself", trinket1 = "Top trinket slot", trinket2 = "Bottom trinket slot",
+    focus = "Marks and announces", acceptPopup = "Ready checks, summons" }
 
 local function NewSmartCard(parent)
     local c = CreateFrame("Frame", nil, parent)
@@ -1001,8 +1045,12 @@ local function NewSmartCard(parent)
     c.icon.edge:SetPoint("TOPLEFT")
     c.title = Text14(c, 16)
     c.title:SetPoint("TOPLEFT", c.drag, "TOPRIGHT", 10, 0)
+    c.title:SetJustifyH("LEFT")
+    c.title:SetWordWrap(false)
     c.note = Text14(c, 11, T.muted)
     c.note:SetPoint("TOPLEFT", c.title, "BOTTOMLEFT", 0, -3)
+    c.note:SetJustifyH("LEFT")
+    c.note:SetWordWrap(false)
     c.toggle = UI.BuildToggleControl(c, c:GetFrameLevel() + 2, function() return S.Get(c.key) == true end,
         function(v) S.Set(c.key, v) end)
     c.toggle:SetPoint("TOPRIGHT", -12, -14)
@@ -1018,17 +1066,15 @@ local function NewSmartCard(parent)
         row.lead:SetJustifyH("LEFT")
         row.icon = Icon(row, 20)
         row.icon.edge:SetPoint("LEFT", 36, 0)
-        row.text = Text14(row, 12)
-        row.text:SetPoint("LEFT", row.icon.edge, "RIGHT", 8, 0)
-        row.text:SetPoint("RIGHT", -50, 0)
-        row.text:SetJustifyH("LEFT")
-        row.text:SetWordWrap(false)
         row.count = Text14(row, 11, T.muted)
         row.count:SetPoint("RIGHT")
+        row.text = Text14(row, 12)
+        row.text:SetPoint("LEFT", row.icon.edge, "RIGHT", 8, 0)
+        row.text:SetPoint("RIGHT", row.count, "LEFT", -6, 0)
+        row.text:SetJustifyH("LEFT")
+        row.text:SetWordWrap(false)
         c.uses[i] = row
     end
-    c.foot = Text14(c, 11, T.muted)
-    c.foot:SetPoint("BOTTOMLEFT", 12, 10)
     c.dragHint = Text14(c, 11, T.muted)
     c.dragHint:SetPoint("BOTTOMRIGHT", -12, 10)
     c.dragHint:SetText("Drag the icon to a bar")
@@ -1049,6 +1095,10 @@ local function DrawSmart()
         c.key = m.key
         local on = S.Get(m.key) == true
         c:SetAlpha(on and 1 or 0.6)
+        -- The title and note stop short of the switch.
+        local textW = w - 12 - (ROW_ICON + 2) - 10 - 8 - c.toggle:GetWidth() - 12
+        c.title:SetWidth(textW)
+        c.note:SetWidth(textW)
         c.title:SetText(m.name)
         c.note:SetText(SMART_NOTES[m.key] or "")
         c.toggle._refreshValue()
@@ -1065,7 +1115,6 @@ local function DrawSmart()
                 row.count:SetText(use.count)
             end
         end
-        c.foot:SetText(on and "On your account" or "Off")
     end
     view.body:SetHeight(math.ceil(#ns.MacroSmart.list / CARD_COLS) * (SMART_H + CARD_GAP))
     local side = window.smartSide
@@ -1146,7 +1195,7 @@ local function NewLibCard(parent)
     c.tag:SetPoint("TOPRIGHT", -12, -16)
     c.note = Text14(c, 12, T.muted)
     c.note:SetPoint("TOPLEFT", c.icon.edge, "BOTTOMLEFT", 0, -8)
-    c.note:SetPoint("RIGHT", -12, 0)
+    c.note:SetPoint("TOPRIGHT", -12, -(12 + ROW_ICON + 2 + 8))
     c.note:SetJustifyH("LEFT")
     local code = CreateFrame("Frame", nil, c)
     code:SetPoint("TOPLEFT", c.note, "BOTTOMLEFT", 0, -8)
@@ -1236,8 +1285,15 @@ local function Subtitle()
         return n >= max and ns.Color("accent", text) or text
     end
     local _, class = UnitClass("player")
-    window.subtitle:SetText(("%s, %s      Account %s      Character %s"):format(UnitName("player"),
-        LOCALIZED_CLASS_NAMES_MALE[class] or class, Count(accountCount, maxAccount), Count(characterCount, maxCharacter)))
+    local className = LOCALIZED_CLASS_NAMES_MALE[class] or class
+    local classColor = RAID_CLASS_COLORS[class]
+    window.subtitle:SetText(classColor:WrapTextInColorCode(UnitName("player") .. ", " .. className))
+    local meters = window.meters
+    meters[1].fill:SetWidth(math.max(1, METER_W * math.min(1, accountCount / maxAccount)))
+    meters[1].label:SetText("Account " .. Count(accountCount, maxAccount))
+    meters[2].fill:SetWidth(math.max(1, METER_W * math.min(1, characterCount / maxCharacter)))
+    meters[2].fill:SetColorTexture(classColor.r, classColor.g, classColor.b, 1)
+    meters[2].label:SetText(className .. " " .. Count(characterCount, maxCharacter))
 end
 
 Render = function()
@@ -1295,11 +1351,24 @@ local function OpacitySet(value) S.Set("windowAlpha", value / 100) end
 ns.MacroOpacityGet, ns.MacroOpacitySet = OpacityGet, OpacitySet
 
 local function Build()
-    CODE_FONT = ns.UIFontPath()
     window = Parts.Window(WIDTH, HEIGHT, "macroWindow")
     local close = Parts.TitleBar(window, NAME, "", PAGE)
     local opacityIcon, slider = Parts.Opacity(window, close, OpacityGet, OpacitySet)
     window.opacity = slider
+    window.meters = {}
+    local after = window.subtitle
+    for i = 1, 2 do
+        local track = ns.Solid(window, "ARTWORK", T.line, 1)
+        track:SetSize(METER_W, 3)
+        track:SetPoint("LEFT", after, "RIGHT", i == 1 and 12 or 14, 0)
+        local fill = ns.Solid(window, "OVERLAY", T.accent, 1)
+        fill:SetPoint("TOPLEFT", track)
+        fill:SetHeight(3)
+        local label = Text14(window, 11, T.muted)
+        label:SetPoint("LEFT", track, "RIGHT", 6, 0)
+        window.meters[i] = { fill = fill, label = label }
+        after = label
+    end
     local exportButton = Parts.BarButton(window, St.EXPORT, "Export", "Every macro in the list, as one string to share.",
         function()
             local all = {}

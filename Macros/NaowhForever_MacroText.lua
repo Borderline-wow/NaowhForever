@@ -274,6 +274,82 @@ function MacroText.Explain(body)
 end
 
 -------------------------------------------------------------------------------
+--  Colours in the editor
+-------------------------------------------------------------------------------
+-- An edit box cannot colour its own text, so the editor holds the macro with colour codes in
+-- it: Colorize puts them in, Strip takes them out, and the two Pos functions move a cursor
+-- between the two. A | the player types is doubled, as the game shows || as one |.
+local SHOW, COMMAND = "|cff7bd88f", "|cff6cc4ff"
+
+function MacroText.Colorize(body)
+    local lines = {}
+    for line in (body .. "\n"):gmatch("([^\n]*)\n") do
+        line = line:gsub("|", "||")
+        local lead, command, rest = line:match("^(%s*)(/[^%s%[]+)(.*)$")
+        if line:match("^%s*#") then
+            line = SHOW .. line .. "|r"
+        elseif command then
+            if not SCRIPT[command:lower()] then rest = rest:gsub("%b[]", WHEN .. "%0|r") end
+            line = lead .. COMMAND .. command .. "|r" .. rest
+        end
+        lines[#lines + 1] = line
+    end
+    return table.concat(lines, "\n")
+end
+
+-- Walks coded text: each step is a colour code (no letters of the macro) or one letter.
+local function Walk(coded, step)
+    local i, n = 1, #coded
+    while i <= n do
+        local size, letter = 1, coded:sub(i, i)
+        if letter == "|" then
+            local nxt = coded:sub(i + 1, i + 1)
+            if nxt == "c" and coded:find("^|c%x%x%x%x%x%x%x%x", i) then
+                size, letter = 10, nil
+            elseif nxt == "r" then
+                size, letter = 2, nil
+            elseif nxt == "|" then
+                size = 2
+            end
+        end
+        if step(i, size, letter) then return end
+        i = i + size
+    end
+end
+
+function MacroText.Strip(coded)
+    local out = {}
+    Walk(coded, function(_, _, letter) out[#out + 1] = letter end)
+    return table.concat(out)
+end
+
+-- The cursor at byte `at` of the coded text, as a place in the macro.
+function MacroText.PlainPos(coded, at)
+    local plain = 0
+    Walk(coded, function(i, size, letter)
+        if i + size - 1 > at then return true end
+        if letter then plain = plain + 1 end
+    end)
+    return plain
+end
+
+-- A place in the macro, as a cursor in the coded text: just after its letter.
+function MacroText.CodedPos(coded, plain)
+    if plain <= 0 then return 0 end
+    local at, seen = #coded, 0
+    Walk(coded, function(i, size, letter)
+        if letter then
+            seen = seen + 1
+            if seen == plain then
+                at = i + size - 1
+                return true
+            end
+        end
+    end)
+    return at
+end
+
+-------------------------------------------------------------------------------
 --  Shorter
 -------------------------------------------------------------------------------
 -- Commands that take [conditions]. Everything else (chat, emotes, scripts) is left as written.
