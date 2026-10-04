@@ -80,6 +80,20 @@ comment, sent back for changes, or merged and fixed up by me.
   and movable frames through `UI.AttachMover` so they show up in Unlock Mode.
 - Keep comments short and only where the code cannot speak for itself.
 
+### Shared components
+
+- Build every piece of UI from the shared components: `Shared/` (listed in
+  `Shared/README.md`) and the `ns.UI` widgets in `Core/NaowhForever_Widgets.lua`. Windows,
+  title bars, buttons, tabs, links, borders, fonts, colours, settings cards, confirmations
+  and tooltips all have one.
+- Never hand-roll a part that already exists, and never copy one into your module to change
+  it.
+- If a shared part is close but not quite what you need, make it more flexible: add an
+  optional input that leaves every current caller working as before.
+- If nothing fits, add a new component to `Shared/`, list it in `Shared/README.md`, and use
+  it from your module, so the next module can use it too.
+- Colours come from `ns.THEME` and `Shared/Style.lua`, never written as numbers in a module.
+
 ### Style
 
 - Every colour, size and gap is a named value, with a comment when the name alone does not

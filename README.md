@@ -138,7 +138,9 @@ writes it. Staff can check a badge with
 
 Bug fixes and ideas are welcome. Read the [contributing guide](.github/CONTRIBUTING.md)
 before you start: it has the rules every change is reviewed against, how to set up the
-checks, and how commits and pull requests are named. For anything bigger than a fix,
+checks, and how commits and pull requests are named. All UI is built from the shared
+components in [`Shared/`](Shared/README.md): use them, extend them, or add a new one there,
+never a copy inside a module. For anything bigger than a fix,
 message Glyalith on [Discord](https://discord.gg/naowh) first.
 
 ## Releasing a new version
