@@ -95,6 +95,14 @@ comment, sent back for changes, or merged and fixed up by me.
   `PIN_DROP`, the Discovery tracker's `NUDGE`), never an unnamed number. Measure it in game
   rather than guessing.
 
+### Help text
+
+- A settings card's or row's `help`, and a button's tooltip, is **one short sentence**:
+  what it does, in a player's words. Aim for under 100 characters.
+- Leave out rules, numbers, slash commands, Unlock Mode and edge cases. They belong in
+  the CHANGELOG or the module's own window, not in a tooltip.
+- If it needs a second sentence, the setting does too much or its label is wrong.
+
 ## Changelog and versions
 
 - Add a line under `## Unreleased` in `CHANGELOG.md`, written for players: what changed
