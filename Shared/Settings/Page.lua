@@ -17,6 +17,7 @@ local GROUP_H = 30
 local FOOT_H = 30
 local PAD = 14
 local DOT_X = 5
+local DOT_SIZE, DOT_HIT = 6, 12
 local LABEL_SIZE, NAME_SIZE, SMALL_SIZE = 13, 14, 11
 local RULE_ALPHA = 0.6
 local TWO_COLUMNS_W = 620
@@ -151,45 +152,6 @@ local function RowSet(row, ...)
     if setting.kind == "sound" then SoundSet(setting, ...) else setting.set(...) end
 end
 
-local function NewSetting(view)
-    local row = CreateFrame("Frame", nil, view)
-    row:SetHeight(ROW_H)
-    row.Get = function() return RowGet(row) end
-    row.Set = function(...) RowSet(row, ...) end
-    row.controls = {}
-    row.band = ns.Solid(row, "BACKGROUND", T.accent, 0.18)
-    row.band:SetAllPoints()
-    row.rule = Rule(row)
-    row.split = ns.Solid(row, "ARTWORK", T.line, RULE_ALPHA)
-    row.split:SetPoint("TOPRIGHT")
-    row.split:SetPoint("BOTTOMRIGHT")
-    ns.Hairline(row.split, "v")
-    row.dot = row:CreateTexture(nil, "ARTWORK")
-    row.dot:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\circle_mask.tga", nil, nil, "TRILINEAR")
-    row.dot:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1)
-    row.dot:SetSize(6, 6)
-    row.dot:SetPoint("LEFT", DOT_X, 0)
-    row.label = ns.Font(row, LABEL_SIZE, nil, T.fg)
-    row.label:SetPoint("LEFT", PAD, 0)
-    row.label:SetJustifyH("LEFT")
-    row.label:SetWordWrap(false)
-    row.why = ns.Font(row, SMALL_SIZE, nil, T.muted)
-    row.why:SetJustifyH("RIGHT")
-    row.why:SetWordWrap(false)
-    row.hit = HelpHit(row, row.label)
-    return row
-end
-
-local function Control(row, kind)
-    local control = row.controls[kind]
-    if not control then
-        control = Controls[kind](row)
-        if kind ~= "slider" then control:SetPoint("RIGHT", row, "RIGHT", -PAD, 0) end
-        row.controls[kind] = control
-    end
-    return control
-end
-
 local function FontValues(setting)
     return ns.UI.FontChoices(setting.get())
 end
@@ -206,6 +168,98 @@ local function SoundValues()
         soundOrder[#soundOrder + 1] = key
     end
     return soundValues, soundOrder
+end
+
+local function ChoiceValues(setting)
+    local kind = setting.kind
+    if kind == "font" then return FontValues(setting) end
+    if kind == "sound" then return SoundValues() end
+    if type(setting.choice) == "function" then return setting.choice() end
+    return setting.choice[1] or setting.choice.values, setting.choice[2] or setting.choice.order
+end
+
+local function ShownValue(setting, v)
+    local kind = setting.kind
+    if kind == "toggle" then return v and "On" or "Off" end
+    if kind == "slider" and type(v) == "number" then
+        if setting.scale then v = math.floor(v / setting.scale + 0.5) end
+        return tostring(v) .. (setting.unit or "")
+    end
+    if kind == "choice" or kind == "font" or kind == "sound" then
+        local values = ChoiceValues(setting)
+        local label = values and values[v]
+        return label and tostring(label) or nil
+    end
+    if kind == "text" and type(v) == "string" then return v == "" and "empty" or ('"' .. v .. '"') end
+end
+
+local function DotEnter(dot)
+    local setting = dot:GetParent().setting
+    dot.mark:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    GameTooltip:SetOwner(dot, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Changed", 1, 1, 1)
+    local default = ShownValue(setting, setting.store.Default(setting.key))
+    GameTooltip:AddLine(default and ("The default is " .. default .. ". Click to put it back.")
+        or "Click to put back the default.", T.muted.r, T.muted.g, T.muted.b, true)
+    GameTooltip:Show()
+end
+
+local function DotLeave(dot)
+    dot.mark:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1)
+    GameTooltip:Hide()
+end
+
+local function DotClicked(dot)
+    local row = dot:GetParent()
+    DotLeave(dot)
+    Settings.ResetRow(row.setting)
+    row:GetParent():QueueSettingsRedraw()
+end
+
+local function NewSetting(view)
+    local row = CreateFrame("Frame", nil, view)
+    row:SetHeight(ROW_H)
+    row.Get = function() return RowGet(row) end
+    row.Set = function(...) RowSet(row, ...) end
+    row.controls = {}
+    row.band = ns.Solid(row, "BACKGROUND", T.accent, 0.18)
+    row.band:SetAllPoints()
+    row.rule = Rule(row)
+    row.split = ns.Solid(row, "ARTWORK", T.line, RULE_ALPHA)
+    row.split:SetPoint("TOPRIGHT")
+    row.split:SetPoint("BOTTOMRIGHT")
+    ns.Hairline(row.split, "v")
+    row.dot = CreateFrame("Button", nil, row)
+    row.dot:SetSize(DOT_HIT, DOT_HIT)
+    row.dot:SetPoint("CENTER", row, "LEFT", DOT_X + DOT_SIZE / 2, 0)
+    row.dot.mark = row.dot:CreateTexture(nil, "ARTWORK")
+    row.dot.mark:SetTexture("Interface\\AddOns\\NaowhForever\\Media\\circle_mask.tga", nil, nil, "TRILINEAR")
+    row.dot.mark:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1)
+    row.dot.mark:SetSize(DOT_SIZE, DOT_SIZE)
+    row.dot.mark:SetPoint("CENTER")
+    row.dot:SetScript("OnClick", DotClicked)
+    row.dot:SetScript("OnEnter", DotEnter)
+    row.dot:SetScript("OnLeave", DotLeave)
+    row.label = ns.Font(row, LABEL_SIZE, nil, T.fg)
+    row.label:SetPoint("LEFT", PAD, 0)
+    row.label:SetJustifyH("LEFT")
+    row.label:SetWordWrap(false)
+    row.why = ns.Font(row, SMALL_SIZE, nil, T.muted)
+    row.why:SetJustifyH("RIGHT")
+    row.why:SetWordWrap(false)
+    row.hit = HelpHit(row, row.label)
+    row.dot:SetFrameLevel(row.hit:GetFrameLevel() + 1)
+    return row
+end
+
+local function Control(row, kind)
+    local control = row.controls[kind]
+    if not control then
+        control = Controls[kind](row)
+        if kind ~= "slider" then control:SetPoint("RIGHT", row, "RIGHT", -PAD, 0) end
+        row.controls[kind] = control
+    end
+    return control
 end
 
 function SoundSet(setting, v)
@@ -236,17 +290,7 @@ local function Bind(control, setting)
         control._format = unit and function(v) return v .. unit end or nil
         control._refreshValue()
     elseif kind == "choice" or kind == "font" or kind == "sound" then
-        local values, order
-        if kind == "font" then
-            values, order = FontValues(setting)
-        elseif kind == "sound" then
-            values, order = SoundValues()
-        elseif type(setting.choice) == "function" then
-            values, order = setting.choice()
-        else
-            values, order = setting.choice[1] or setting.choice.values, setting.choice[2] or setting.choice.order
-        end
-        control._values, control._order = values, order
+        control._values, control._order = ChoiceValues(setting)
         control._refreshLabel()
     elseif kind == "colour" then
         control._hasAlpha = setting.colour == "alpha"

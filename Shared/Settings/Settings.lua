@@ -182,13 +182,15 @@ function Settings.ChangedCount(card)
     return n
 end
 
-function Settings.Reset(card)
-    for _, row in ipairs(card.rows) do
-        local store, key = row.store, row.key
-        if key and store and store.Default and Settings.Changed(row) then
-            store.Set(key, Copy(store.Default(key)))
-        end
+function Settings.ResetRow(row)
+    local store, key = row.store, row.key
+    if key and store and store.Default and Settings.Changed(row) then
+        store.Set(key, Copy(store.Default(key)))
     end
+end
+
+function Settings.Reset(card)
+    for _, row in ipairs(card.rows) do Settings.ResetRow(row) end
 end
 
 local function LabelOf(card, key)
