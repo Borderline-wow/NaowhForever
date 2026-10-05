@@ -197,8 +197,9 @@ Kinds.item = {
         row.itemID, row.onRemove, row.onTag = itemID, onRemove, onTag
         row.hover:Hide()
         row.icon:SetTexture(GetItemIconByID(itemID))
-        local name = GetItemInfo(itemID)
-        if not name then view.waitingFor[itemID] = true end
+        local refused = Items.Refused(itemID)
+        local name = not refused and GetItemInfo(itemID) or nil
+        if not (name or refused) then view.waitingFor[itemID] = true end
         local color = Items.QualityColor(itemID) or T.fg
         row.name:SetTextColor(color.r, color.g, color.b)
         row.name:SetText(name or Items.Name(itemID))
@@ -217,6 +218,6 @@ Kinds.item = {
         end
         row.name:SetPoint("RIGHT", right, "LEFT", -GAP, 0)
         row.meta:SetPoint("RIGHT", right, "LEFT", -GAP, 0)
-        return ITEM_H, name == nil
+        return ITEM_H, name == nil and not refused
     end,
 }

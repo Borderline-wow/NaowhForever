@@ -21,7 +21,7 @@ ns.Journal.AddDungeon("ShadowfangKeep", {
             { npc = 4275, name = "Archmage Arugal", model = 2353, encounters = { 2755 }, loot = { 6324, 6392, 6220 }, chance = { 35, 35, 18 } },
             { npc = 3872, name = "Deathsworn Captain", model = 3224, rare = true, loot = { 6641, 6642, 2205 }, chance = { 57, 34, 2 } },
             { npc = 3864, name = "Fel Steed", model = 1951, rare = true, loot = { 6341 }, chance = { 6 } },
-            { npc = 14682, name = "Sever", model = 1061, optional = true, loot = { 23173, 23171 }, chance = { 51, 44 } },
+            { npc = 14682, name = "Sever", model = 1061, optional = true, notInGame = 2 },
             { npc = 4627, name = "Arugal's Voidwalker", model = 1131, optional = true, loot = { 5943 } },
             { npc = nil, name = "Trash", trash = true, loot = { 6341, 5943, 1318, 1482, 1483, 1484, 1489, 1935, 1974, 2205, 2292, 2807, 3194 }, chance = { 8, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
         } },
