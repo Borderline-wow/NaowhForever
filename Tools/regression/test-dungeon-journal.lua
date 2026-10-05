@@ -82,6 +82,14 @@ local METHODS = {
     CreateTexture = function(frame) return Frame(rawget(frame, "state"), frame) end,
     CreateMaskTexture = function(frame) return Frame(rawget(frame, "state"), frame) end,
     CreateFontString = function(frame) return Frame(rawget(frame, "state"), frame) end,
+    -- The world map: maximised when a test says so.
+    IsMaximized = function(frame)
+        local state = rawget(frame, "state")
+        return state ~= nil and state.mapMaximised == true
+    end,
+    -- Animations: groups and their steps, which play nothing here.
+    CreateAnimationGroup = function(frame) return Frame(rawget(frame, "state"), frame) end,
+    CreateAnimation = function(frame) return Frame(rawget(frame, "state"), frame) end,
     IsMouseOver = function(frame)
         local state = rawget(frame, "state")
         return state ~= nil and state.mouseOver == true
@@ -149,7 +157,7 @@ local function fixture(settings)
         enabled = false, mapPanel = true, usableOnly = true, showChance = true,
         showAlliance = true, showHorde = true, showKills = true, shareRequests = true,
         showAppearance = false, showTips = true, missingBisOnly = false, myRecipes = true, showCosmetic = true,
-        repQuestsOpen = true,
+        repQuestsOpen = true, bossTipOpen = true, bossQuestsOpen = true, bossAbilitiesOpen = true,
     }
     for k, v in pairs(settings or {}) do values[k] = v end
     -- The kit's module settings: Set tells every listener, as UI.ModuleSettings does.
@@ -394,6 +402,11 @@ local function fixture(settings)
         GetTime = function() return state.clock end,
         WorldMapFrame = Frame(state),
         EventUtil = { ContinueOnAddOnLoaded = function() end },
+        -- A boss's abilities: every spell loaded, with a name and a line saying what it does.
+        C_Spell = { GetSpellName = function(id) return "Spell " .. id end,
+            GetSpellTexture = function() return 136243 end,
+            GetSpellDescription = function() return "Hits the tank." end,
+            IsSpellDataCached = function() return true end },
         C_Map = { OpenWorldMap = function(map) state.mapOpened = map end,
             GetMapInfo = function(map)
                 return state.mapInfo and state.mapInfo[map] or map == 52 and { name = "Westfall" } or nil
@@ -609,6 +622,23 @@ do
     end
     check("nearly every boss has a tip", tips > 150)
     check("a boss with no NPC ID has no tip", J.Tip({ name = "Nobody" }) == nil)
+    -- Each boss names an ability once: Wowhead lists Old Serra'kis's Dazed four times.
+    local withAbilities = 0
+    for line in io.lines("DungeonJournal/Data/Abilities.lua") do
+        local npc, ids, names = line:match("^%s*%[(%d+)%] = { ([%d, ]+) },  %-%- [^:]+: (.-)\r?$")
+        if npc then
+            local seen, count = {}, 0
+            for name in (names .. ", "):gmatch("(.-), ") do
+                check("boss " .. npc .. " lists " .. name .. " once", not seen[name])
+                seen[name], count = true, count + 1
+            end
+            local _, commas = ids:gsub(",", "")
+            check("boss " .. npc .. " names each of its spells", count == commas + 1
+                and #J.Abilities[tonumber(npc)] == count)
+            withAbilities = withAbilities + 1
+        end
+    end
+    check("hundreds of bosses have abilities", withAbilities > 150)
 
     -- The Filters menu and the settings page are both built from J.OPTION_GROUPS.
     local labels, offered = {}, {}
@@ -1399,6 +1429,68 @@ do
         and legendRows["Taragaman the Hungerer"] and legendRows["Jergosh the Invoker"])
     pickRow.scripts.OnClick(pickRow)
     check("a row picks its boss", rawget(pickRow.bar, "shown") == true)
+    -- Its loot, and under it what it does in the fight.
+    local spells, ability = J.Abilities[11519], nil
+    for _, made in ipairs(state.made) do
+        if spells and rawget(made, "spell") == spells[1] and rawget(made, "shown") ~= false then ability = made end
+    end
+    check("its abilities are under its loot", ability ~= nil and rawget(ability.desc, "text") == "Hits the tank.")
+    local tipRow
+    for _, made in ipairs(state.made) do
+        if rawget(made, "mark") and rawget(made, "text") and rawget(made.text, "text") == J.Tips[11519]
+            and rawget(made, "shown") ~= false then tipRow = made end
+    end
+    check("and Naowh's tip, written out", tipRow ~= nil)
+    local bossHeader
+    for _, made in ipairs(state.made) do
+        if rawget(made, "about") and rawget(made.title, "text") == "Bazzalan" and rawget(made, "shown") ~= false then
+            bossHeader = made
+        end
+    end
+    check("its page has its name on top", bossHeader ~= nil)
+    check("and its level, where Wowhead has it", not J.BossInfo[11519]
+        or tostring(rawget(bossHeader.about, "text")):find("Level") ~= nil)
+    -- Each of its sections opens and closes by its title.
+    local abilitiesTitle
+    for _, made in ipairs(state.made) do
+        local text = rawget(made, "text")
+        if rawget(made, "onToggle") and text and tostring(rawget(text, "text")):find("^ABILITIES")
+            and rawget(made, "shown") ~= false then abilitiesTitle = made end
+    end
+    abilitiesTitle.onToggle()
+    check("a section closes by its title", rawget(ability, "shown") == false)
+    abilitiesTitle.onToggle()
+    check("and opens again", rawget(ability, "shown") ~= false)
+    -- Loot opens again on the next boss: closing it lasts for that boss only.
+    local function LootTitle()
+        for _, made in ipairs(state.made) do
+            local text = rawget(made, "text")
+            if rawget(made, "onToggle") and text and tostring(rawget(text, "text")):find("^LOOT")
+                and rawget(made, "shown") ~= false then return made end
+        end
+    end
+    local lootPage = rawget(LootTitle(), "parent")
+    local function LootShown(name)
+        for _, made in ipairs(state.made) do
+            local boss = rawget(made, "boss")
+            if rawget(made, "chanceText") and boss and boss.name == name and rawget(made, "shown") ~= false
+                and rawget(made, "parent") == lootPage then
+                return true
+            end
+        end
+        return false
+    end
+    check("its loot shows", LootShown("Bazzalan"))
+    LootTitle().onToggle()
+    check("its loot closes by its title", not LootShown("Bazzalan"))
+    local otherRow
+    for _, made in ipairs(state.made) do
+        local boss = rawget(made, "boss")
+        if rawget(made, "tick") and boss and boss.name == "Oggleflint" then otherRow = made end
+    end
+    otherRow.scripts.OnClick(otherRow)
+    check("and opens again on the next boss", LootShown("Oggleflint"))
+    pickRow.scripts.OnClick(pickRow)
     -- A drag on a pin while not placing keeps nothing: only placing saves where a pin stands.
     state.account.journalMapPins = nil
     for _, made in ipairs(state.made) do
@@ -1485,16 +1577,27 @@ do
     local open, close = J.View.OpenBossLoot, J.View.CloseBossLoot
     J.View.OpenBossLoot = function() opened = opened + 1 end
     J.View.CloseBossLoot = function() closed = closed + 1 end
+    local bazil
     for _, made in ipairs(state.made) do
         local boss = rawget(made, "boss")
         if boss and boss.name == "Bazil Thredd" and made.scripts.OnClick and rawget(made, "shown") ~= false then
-            made.scripts.OnClick(made, "LeftButton")
+            bazil = made
         end
     end
+    -- The small map has the Journal beside it: the pin is only ringed in gold.
+    bazil.scripts.OnClick(bazil, "LeftButton")
+    check("the small map opens no loot at the mouse", opened == 0)
+    check("but rings the boss", rawget(bazil.gold, "shown") == true)
+    bazil.scripts.OnClick(bazil, "LeftButton")
+    check("clicked again, it is no longer picked", rawget(bazil.gold, "shown") == false)
+    state.mapMaximised = true
+    bazil.scripts.OnClick(bazil, "LeftButton")
     overlay:Hide()
     if overlay.scripts.OnHide then overlay.scripts.OnHide(overlay) end
     check("a boss's pin opens its loot", opened == 1)
     check("which closes with the map", closed == 1)
+    check("and takes the ring with it", rawget(bazil.gold, "shown") == false)
+    state.mapMaximised = nil
     J.View.OpenBossLoot, J.View.CloseBossLoot = open, close
     J.ShowMapOnWorldMap(stockade)
     state.mapOpened = nil

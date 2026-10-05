@@ -1,0 +1,5990 @@
+{
+ "10081": {
+  "abilities": [
+   [
+    12251,
+    "Virulent Poison"
+   ],
+   [
+    15667,
+    "Sinister Strike"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 45,
+   "minlevel": 45,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "10082": {
+  "abilities": [
+   [
+    6533,
+    "Net"
+   ],
+   [
+    12551,
+    "Frost Shot"
+   ],
+   [
+    15547,
+    "Shoot"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 45,
+   "minlevel": 45,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "10184": {
+  "abilities": [
+   [
+    15847,
+    "Tail Sweep"
+   ],
+   [
+    17086,
+    "Breath"
+   ],
+   [
+    18351,
+    "Breath"
+   ],
+   [
+    18392,
+    "Fireball"
+   ],
+   [
+    18435,
+    "Flame Breath"
+   ],
+   [
+    18500,
+    "Wing Buffet"
+   ],
+   [
+    18564,
+    "Breath"
+   ],
+   [
+    18576,
+    "Breath"
+   ],
+   [
+    18584,
+    "Breath"
+   ],
+   [
+    18596,
+    "Breath"
+   ],
+   [
+    18609,
+    "Breath"
+   ],
+   [
+    18617,
+    "Breath"
+   ],
+   [
+    19633,
+    "Knock Away"
+   ],
+   [
+    19983,
+    "Cleave"
+   ],
+   [
+    20019,
+    "Engulfing Flames"
+   ],
+   [
+    20279,
+    "Summon Player"
+   ],
+   [
+    20311,
+    "Summon Player"
+   ],
+   [
+    21131,
+    "Breath"
+   ],
+   [
+    22191,
+    "Heated Ground"
+   ],
+   [
+    22195,
+    "Heated Ground"
+   ],
+   [
+    22199,
+    "Heated Ground"
+   ],
+   [
+    22200,
+    "Heated Ground"
+   ],
+   [
+    22201,
+    "Heated Ground"
+   ],
+   [
+    22202,
+    "Heated Ground"
+   ]
+  ],
+  "npc": {
+   "classification": 3,
+   "maxlevel": 9999,
+   "minlevel": 9999,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "10220": {
+  "abilities": [
+   [
+    3391,
+    "Thrash"
+   ],
+   [
+    13738,
+    "Rend"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "10263": {
+  "abilities": [
+   [
+    15548,
+    "Thunderclap"
+   ],
+   [
+    15580,
+    "Strike"
+   ],
+   [
+    16046,
+    "Blast Wave"
+   ],
+   [
+    16074,
+    "Burning Felguard Spawn"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 57,
+   "minlevel": 56,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "10264": {
+  "abilities": [
+   [
+    16727,
+    "War Stomp"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "10268": {
+  "abilities": [
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    16128,
+    "Infected Bite"
+   ],
+   [
+    16495,
+    "Fatal Bite"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "10339": {
+  "abilities": [
+   [
+    10101,
+    "Knock Away"
+   ],
+   [
+    16328,
+    "Summon Rend Blackhand"
+   ],
+   [
+    16350,
+    "Freeze"
+   ],
+   [
+    16359,
+    "Corrosive Acid Breath"
+   ],
+   [
+    16390,
+    "Flame Breath"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 62,
+   "minlevel": 62,
+   "tag": "Rend Blackhand's Mount",
+   "type": 2
+  }
+ },
+ "10363": {
+  "abilities": [
+   [
+    15588,
+    "Thunderclap"
+   ]
+  ],
+  "npc": {
+   "classification": 3,
+   "maxlevel": 9999,
+   "minlevel": 9999,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "10376": {
+  "abilities": [
+   [
+    16416,
+    "Summon Spire Spiderling"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "10393": {
+  "abilities": [
+   [
+    6136,
+    "Chilled"
+   ],
+   [
+    12544,
+    "Frost Armor"
+   ],
+   [
+    15230,
+    "Arcane Bolt"
+   ],
+   [
+    15499,
+    "Frost Shock"
+   ],
+   [
+    16799,
+    "Frostbolt"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10429": {
+  "abilities": [
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    13736,
+    "Whirlwind"
+   ],
+   [
+    15708,
+    "Mortal Strike"
+   ],
+   [
+    15754,
+    "Cleave"
+   ]
+  ],
+  "npc": {
+   "classification": 3,
+   "maxlevel": 9999,
+   "minlevel": 9999,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "10430": {
+  "abilities": [
+   [
+    14100,
+    "Terrifying Roar"
+   ],
+   [
+    15570,
+    "Immolate"
+   ],
+   [
+    16144,
+    "Fire Blast"
+   ],
+   [
+    16636,
+    "Berserker Charge"
+   ],
+   [
+    16785,
+    "Flamebreak"
+   ],
+   [
+    16788,
+    "Fireball"
+   ],
+   [
+    20477,
+    "Summon Player"
+   ]
+  ],
+  "npc": {
+   "classification": 3,
+   "maxlevel": 9999,
+   "minlevel": 9999,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "10432": {
+  "abilities": [
+   [
+    16046,
+    "Blast Wave"
+   ],
+   [
+    18399,
+    "Flamestrike"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10433": {
+  "abilities": [
+   [
+    17697,
+    "Defiling Aura"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10435": {
+  "abilities": [
+   [
+    10887,
+    "Crowd Pummel"
+   ],
+   [
+    14099,
+    "Mighty Blow"
+   ],
+   [
+    16791,
+    "Furious Anger"
+   ],
+   [
+    16793,
+    "Draining Blow"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10436": {
+  "abilities": [
+   [
+    16867,
+    "Banshee Curse"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10437": {
+  "abilities": [
+   [
+    4962,
+    "Encasing Webs"
+   ],
+   [
+    6016,
+    "Pierce Armor"
+   ],
+   [
+    16795,
+    "Crypt Scarabs"
+   ],
+   [
+    17235,
+    "Raise Undead Scarab"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10438": {
+  "abilities": [
+   [
+    6136,
+    "Chilled"
+   ],
+   [
+    16869,
+    "Ice Tomb"
+   ],
+   [
+    17238,
+    "Drain Life"
+   ],
+   [
+    17243,
+    "Drain Mana"
+   ],
+   [
+    17503,
+    "Frostbolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "10439": {
+  "abilities": [
+   [
+    5568,
+    "Trample"
+   ],
+   [
+    17307,
+    "Knockout"
+   ],
+   [
+    17687,
+    "Flurry"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10440": {
+  "abilities": [
+   [
+    15708,
+    "Mortal Strike"
+   ],
+   [
+    15754,
+    "Cleave"
+   ],
+   [
+    17393,
+    "Shadow Bolt"
+   ],
+   [
+    17434,
+    "Shadow Bolt"
+   ],
+   [
+    17435,
+    "Shadow Bolt"
+   ],
+   [
+    17467,
+    "Unholy Aura"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 62,
+   "minlevel": 62,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10502": {
+  "abilities": [
+   [
+    12528,
+    "Silence"
+   ],
+   [
+    12542,
+    "Fear"
+   ],
+   [
+    14515,
+    "Dominate Mind"
+   ],
+   [
+    17289,
+    "Shadow Shock"
+   ],
+   [
+    18671,
+    "Curse of Agony"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10503": {
+  "abilities": [
+   [
+    16098,
+    "Curse of Blood"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10504": {
+  "abilities": [
+   [
+    15570,
+    "Immolate"
+   ],
+   [
+    17467,
+    "Unholy Aura"
+   ],
+   [
+    17820,
+    "Veil of Shadow"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10505": {
+  "abilities": [
+   [
+    8362,
+    "Renew"
+   ],
+   [
+    13747,
+    "Slow"
+   ],
+   [
+    15586,
+    "Heal"
+   ],
+   [
+    17831,
+    "Call of the Grave"
+   ],
+   [
+    17843,
+    "Flash Heal"
+   ],
+   [
+    18376,
+    "Corruption"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "10506": {
+  "abilities": [
+   [
+    6016,
+    "Pierce Armor"
+   ],
+   [
+    8379,
+    "Disarm"
+   ],
+   [
+    12882,
+    "Wing Flap"
+   ],
+   [
+    12889,
+    "Curse of Tongues"
+   ],
+   [
+    14515,
+    "Dominate Mind"
+   ],
+   [
+    16467,
+    "Kirtonos Transform"
+   ],
+   [
+    17228,
+    "Shadow Bolt Volley"
+   ],
+   [
+    18144,
+    "Swoop"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10507": {
+  "abilities": [
+   [
+    15550,
+    "Trample"
+   ],
+   [
+    15584,
+    "Cleave"
+   ],
+   [
+    17963,
+    "Sundering Cleave"
+   ],
+   [
+    18670,
+    "Knock Away"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10508": {
+  "abilities": [
+   [
+    8398,
+    "Frostbolt Volley"
+   ],
+   [
+    11130,
+    "Knock Away"
+   ],
+   [
+    12096,
+    "Fear"
+   ],
+   [
+    18099,
+    "Chill Nova"
+   ],
+   [
+    18100,
+    "Frost Armor"
+   ],
+   [
+    18101,
+    "Chilled"
+   ],
+   [
+    18763,
+    "Freeze"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 62,
+   "minlevel": 62,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10509": {
+  "abilities": [
+   [
+    11972,
+    "Shield Bash"
+   ],
+   [
+    14516,
+    "Strike"
+   ],
+   [
+    15749,
+    "Shield Charge"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": "Blackhand Legion",
+   "type": 7
+  }
+ },
+ "10516": {
+  "abilities": [
+   [
+    6136,
+    "Chilled"
+   ],
+   [
+    14907,
+    "Frost Nova"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10558": {
+  "abilities": [
+   [
+    14443,
+    "Multi-Shot"
+   ],
+   [
+    16100,
+    "Shoot"
+   ],
+   [
+    16244,
+    "Demoralizing Shout"
+   ],
+   [
+    16798,
+    "Enchanting Lullaby"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10584": {
+  "abilities": [
+   [
+    15580,
+    "Strike"
+   ],
+   [
+    16508,
+    "Intimidating Roar"
+   ],
+   [
+    16509,
+    "Rend"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "10596": {
+  "abilities": [
+   [
+    16103,
+    "Summon Spire Spiderling"
+   ],
+   [
+    16104,
+    "Crystallize"
+   ],
+   [
+    16468,
+    "Mother's Milk"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "10808": {
+  "abilities": [
+   [
+    8599,
+    "Enrage"
+   ],
+   [
+    17470,
+    "Ravenous Claw"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10809": {
+  "abilities": [
+   [
+    14331,
+    "Vicious Rend"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10811": {
+  "abilities": [
+   [
+    17274,
+    "Pyroblast"
+   ],
+   [
+    17293,
+    "Burning Winds"
+   ],
+   [
+    17366,
+    "Fire Nova"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "10812": {
+  "abilities": [
+   [
+    12098,
+    "Sleep"
+   ],
+   [
+    13704,
+    "Psychic Scream"
+   ],
+   [
+    17281,
+    "Crusader Strike"
+   ],
+   [
+    17284,
+    "Holy Strike"
+   ],
+   [
+    17286,
+    "Crusader's Hammer"
+   ],
+   [
+    17287,
+    "Mind Blast"
+   ],
+   [
+    17399,
+    "Shadow Shock"
+   ],
+   [
+    17405,
+    "Domination"
+   ],
+   [
+    18647,
+    "Banish"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 62,
+   "minlevel": 62,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "10813": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "10899": {
+  "abilities": [
+   [
+    6253,
+    "Backhand"
+   ],
+   [
+    15580,
+    "Strike"
+   ],
+   [
+    16172,
+    "Head Crack"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": "Blackhand Legion Armorsmith",
+   "type": 7
+  }
+ },
+ "10901": {
+  "abilities": [
+   [
+    8245,
+    "Corrosive Acid"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "10997": {
+  "abilities": [
+   [
+    10101,
+    "Knock Away"
+   ],
+   [
+    15615,
+    "Pummel"
+   ],
+   [
+    16496,
+    "Shoot"
+   ],
+   [
+    17279,
+    "Summon Crimson Rifleman"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "11143": {
+  "abilities": [
+   [
+    12741,
+    "Curse of Weakness"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "11261": {
+  "abilities": [
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    16509,
+    "Rend"
+   ],
+   [
+    18103,
+    "Backhand"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": "The Butcher",
+   "type": 7
+  }
+ },
+ "11467": {
+  "abilities": [
+   [
+    12540,
+    "Gouge"
+   ],
+   [
+    15581,
+    "Sinister Strike"
+   ],
+   [
+    15582,
+    "Backstab"
+   ],
+   [
+    21060,
+    "Blind"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "11486": {
+  "abilities": [
+   [
+    3391,
+    "Thrash"
+   ],
+   [
+    15589,
+    "Whirlwind"
+   ],
+   [
+    20537,
+    "Counterspell"
+   ],
+   [
+    22920,
+    "Arcane Blast"
+   ],
+   [
+    22995,
+    "Summon"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "11487": {
+  "abilities": [
+   [
+    7645,
+    "Dominate Mind"
+   ],
+   [
+    17146,
+    "Shadow Word: Pain"
+   ],
+   [
+    17287,
+    "Mind Blast"
+   ],
+   [
+    22917,
+    "Shadowform"
+   ],
+   [
+    22919,
+    "Mind Flay"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "11488": {
+  "abilities": [
+   [
+    14301,
+    "Immolation Trap Effect"
+   ],
+   [
+    20735,
+    "Multi-Shot"
+   ],
+   [
+    22908,
+    "Volley"
+   ],
+   [
+    22910,
+    "Immolation Trap"
+   ],
+   [
+    22914,
+    "Concussive Shot"
+   ],
+   [
+    22915,
+    "Improved Concussive Shot"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "11489": {
+  "abilities": [
+   [
+    5568,
+    "Trample"
+   ],
+   [
+    22916,
+    "Uppercut"
+   ],
+   [
+    22924,
+    "Grasping Vines"
+   ],
+   [
+    22994,
+    "Entangle"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "11490": {
+  "abilities": [
+   [
+    22478,
+    "Intense Pain"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "11492": {
+  "abilities": [
+   [
+    22662,
+    "Wither"
+   ],
+   [
+    22689,
+    "Mangle"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "11496": {
+  "abilities": [
+   [
+    5568,
+    "Trample"
+   ],
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    16128,
+    "Infected Bite"
+   ],
+   [
+    22899,
+    "Eye of Immol'thar"
+   ],
+   [
+    22950,
+    "Portal of Immol'thar"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "11501": {
+  "abilities": [
+   [
+    15572,
+    "Sunder Armor"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 62,
+   "minlevel": 62,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "11517": {
+  "abilities": [
+   [
+    5532,
+    "Cleave"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 16,
+   "minlevel": 16,
+   "tag": "Ragefire Chieftain",
+   "type": 7
+  }
+ },
+ "11518": {
+  "abilities": [
+   [
+    18267,
+    "Curse of Weakness"
+   ],
+   [
+    20800,
+    "Immolate"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 16,
+   "minlevel": 16,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "11519": {
+  "abilities": [
+   [
+    744,
+    "Poison"
+   ],
+   [
+    14873,
+    "Sinister Strike"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 16,
+   "minlevel": 16,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "11520": {
+  "abilities": [
+   [
+    11970,
+    "Fire Nova"
+   ],
+   [
+    18072,
+    "Uppercut"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 16,
+   "minlevel": 16,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "11622": {
+  "abilities": [
+   [
+    16727,
+    "War Stomp"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "12201": {
+  "abilities": [
+   [
+    3391,
+    "Thrash"
+   ],
+   [
+    21832,
+    "Boulder"
+   ],
+   [
+    21869,
+    "Repulsive Gaze"
+   ],
+   [
+    21909,
+    "Dust Field"
+   ],
+   [
+    22592,
+    "Knockdown"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 51,
+   "minlevel": 51,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "12203": {
+  "abilities": [
+   [
+    5568,
+    "Trample"
+   ],
+   [
+    18670,
+    "Knock Away"
+   ],
+   [
+    21727,
+    "Summon Player"
+   ],
+   [
+    21808,
+    "Summon Shardlings"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 50,
+   "minlevel": 50,
+   "tag": null,
+   "type": 5
+  }
+ },
+ "12225": {
+  "abilities": [
+   [
+    12747,
+    "Entangling Roots"
+   ],
+   [
+    21793,
+    "Twisted Tranquility"
+   ],
+   [
+    21807,
+    "Wrath"
+   ],
+   [
+    21968,
+    "Corrupt Forces of Nature"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 49,
+   "minlevel": 49,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "12236": {
+  "abilities": [
+   [
+    7964,
+    "Smoke Bomb"
+   ],
+   [
+    16100,
+    "Shoot"
+   ],
+   [
+    21390,
+    "Multi-Shot"
+   ],
+   [
+    21655,
+    "Blink"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 47,
+   "minlevel": 47,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "12237": {
+  "abilities": [
+   [
+    13446,
+    "Strike"
+   ],
+   [
+    15593,
+    "War Stomp"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 48,
+   "minlevel": 48,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "12258": {
+  "abilities": [
+   [
+    11427,
+    "Cleave"
+   ],
+   [
+    15976,
+    "Puncture"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 48,
+   "minlevel": 48,
+   "tag": null,
+   "type": 10
+  }
+ },
+ "12876": {
+  "abilities": [
+   [
+    15043,
+    "Frostbolt"
+   ],
+   [
+    15531,
+    "Frost Nova"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 28,
+   "minlevel": 28,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "12902": {
+  "abilities": [
+   [
+    12167,
+    "Lightning Bolt"
+   ],
+   [
+    12550,
+    "Lightning Shield"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 26,
+   "minlevel": 26,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "13280": {
+  "abilities": [
+   [
+    22420,
+    "Submersion"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "13282": {
+  "abilities": [
+   [
+    21687,
+    "Toxic Volley"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 48,
+   "minlevel": 48,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "13596": {
+  "abilities": [
+   [
+    15976,
+    "Puncture"
+   ],
+   [
+    16495,
+    "Fatal Bite"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 50,
+   "minlevel": 50,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "13601": {
+  "abilities": [
+   [
+    9143,
+    "Bomb"
+   ],
+   [
+    16100,
+    "Shoot"
+   ],
+   [
+    21833,
+    "Goblin Dragon Gun"
+   ],
+   [
+    29419,
+    "Flash Bomb"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 50,
+   "minlevel": 50,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "14321": {
+  "abilities": [
+   [
+    22817,
+    "Fengus' Ferocity"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 58,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "14322": {
+  "abilities": [
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    15577,
+    "Whirlwind"
+   ],
+   [
+    16740,
+    "War Stomp"
+   ],
+   [
+    22833,
+    "Booze Spit"
+   ],
+   [
+    22835,
+    "Drunken Rage"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": "The Drunk",
+   "type": 7
+  }
+ },
+ "14323": {
+  "abilities": [
+   [
+    22820,
+    "Slip'kik's Savvy"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "14324": {
+  "abilities": [
+   [
+    15531,
+    "Frost Nova"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "14325": {
+  "abilities": [
+   [
+    8599,
+    "Enrage"
+   ],
+   [
+    19134,
+    "Intimidating Shout"
+   ],
+   [
+    22857,
+    "Retaliation"
+   ],
+   [
+    22859,
+    "Mortal Cleave"
+   ],
+   [
+    22860,
+    "Call Reavers"
+   ],
+   [
+    29544,
+    "Intimidating Shout"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "14326": {
+  "abilities": [
+   [
+    22818,
+    "Mol'dar's Moxie"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "14327": {
+  "abilities": [
+   [
+    12742,
+    "Immolate"
+   ],
+   [
+    13338,
+    "Curse of Tongues"
+   ],
+   [
+    16247,
+    "Curse of Thorns"
+   ],
+   [
+    17228,
+    "Shadow Bolt Volley"
+   ],
+   [
+    22709,
+    "Void Bolt"
+   ],
+   [
+    22710,
+    "Enlarge"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "14354": {
+  "abilities": [
+   [
+    14145,
+    "Fire Blast"
+   ],
+   [
+    15228,
+    "Fireball"
+   ],
+   [
+    22424,
+    "Blast Wave"
+   ],
+   [
+    22735,
+    "Spirit of Runn Tum"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "14506": {
+  "abilities": [
+   [
+    17146,
+    "Shadow Word: Pain"
+   ],
+   [
+    18670,
+    "Knock Away"
+   ],
+   [
+    20989,
+    "Sleep"
+   ],
+   [
+    23224,
+    "Veil of Shadow"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 62,
+   "minlevel": 62,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "14516": {
+  "abilities": [
+   [
+    15754,
+    "Cleave"
+   ],
+   [
+    17393,
+    "Shadow Bolt"
+   ],
+   [
+    22644,
+    "Blood Leech"
+   ],
+   [
+    23261,
+    "Summon Darkreaver's Fallen Charger"
+   ],
+   [
+    429688,
+    "Dominate Mind"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 62,
+   "minlevel": 62,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "14682": {
+  "abilities": [
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    16508,
+    "Intimidating Roar"
+   ],
+   [
+    17745,
+    "Diseased Spit"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 25,
+   "minlevel": 25,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "14684": {
+  "abilities": [
+   [
+    8398,
+    "Frostbolt Volley"
+   ],
+   [
+    12096,
+    "Fear"
+   ],
+   [
+    15244,
+    "Cone of Cold"
+   ],
+   [
+    16799,
+    "Frostbolt"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "14686": {
+  "abilities": [
+   [
+    16838,
+    "Banshee Shriek"
+   ],
+   [
+    17105,
+    "Banshee Curse"
+   ],
+   [
+    22743,
+    "Ribbon of Souls"
+   ],
+   [
+    429688,
+    "Dominate Mind"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "14690": {
+  "abilities": [
+   [
+    6136,
+    "Chilled"
+   ],
+   [
+    14907,
+    "Frost Nova"
+   ],
+   [
+    15245,
+    "Shadow Bolt Volley"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "14693": {
+  "abilities": [
+   [
+    15531,
+    "Frost Nova"
+   ],
+   [
+    17165,
+    "Mind Flay"
+   ],
+   [
+    22643,
+    "Frostbolt Volley"
+   ],
+   [
+    28873,
+    "Lich Slap"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 34,
+   "minlevel": 34,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "14695": {
+  "abilities": [
+   [
+    7964,
+    "Smoke Bomb"
+   ],
+   [
+    11972,
+    "Shield Bash"
+   ],
+   [
+    16496,
+    "Shoot"
+   ],
+   [
+    21390,
+    "Multi-Shot"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "16042": {
+  "abilities": [
+   [
+    27249,
+    "Summon Spectral Assassin"
+   ],
+   [
+    27286,
+    "Shadow Wrath"
+   ],
+   [
+    27338,
+    "Shadow Staff"
+   ],
+   [
+    27382,
+    "Shadow Bolt Volley"
+   ]
+  ],
+  "npc": {
+   "classification": 3,
+   "maxlevel": 9999,
+   "minlevel": 9999,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "16080": {
+  "abilities": [
+   [
+    15605,
+    "Shock"
+   ],
+   [
+    20989,
+    "Sleep"
+   ],
+   [
+    22271,
+    "Arcane Explosion"
+   ],
+   [
+    27527,
+    "Healing Touch"
+   ],
+   [
+    27530,
+    "Hurricane"
+   ],
+   [
+    27532,
+    "Rejuvenation"
+   ],
+   [
+    27543,
+    "Bear Form"
+   ],
+   [
+    27545,
+    "Cat Form"
+   ],
+   [
+    27546,
+    "Faerie Dragon Form"
+   ],
+   [
+    27551,
+    "Demoralizing Roar"
+   ],
+   [
+    27553,
+    "Maul"
+   ],
+   [
+    27554,
+    "Swipe"
+   ],
+   [
+    27555,
+    "Shred"
+   ],
+   [
+    27556,
+    "Rake"
+   ],
+   [
+    27557,
+    "Ferocious Bite"
+   ],
+   [
+    27564,
+    "Reflection"
+   ],
+   [
+    27567,
+    "Chain Lightning"
+   ],
+   [
+    27737,
+    "Moonfire"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "16097": {
+  "abilities": [
+   [
+    12024,
+    "Net"
+   ],
+   [
+    14443,
+    "Multi-Shot"
+   ],
+   [
+    22907,
+    "Shoot"
+   ],
+   [
+    25164,
+    "Vengeance"
+   ],
+   [
+    27636,
+    "Starshards"
+   ],
+   [
+    27637,
+    "Regrowth"
+   ],
+   [
+    27639,
+    "Call Pet"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 9999,
+   "minlevel": 9999,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "16118": {
+  "abilities": [
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    17228,
+    "Shadow Bolt Volley"
+   ],
+   [
+    27687,
+    "Summon Bone Minions"
+   ],
+   [
+    27688,
+    "Bone Shield"
+   ],
+   [
+    27689,
+    "Bloodlust"
+   ],
+   [
+    27695,
+    "Summon Bone Mages"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "1663": {
+  "abilities": [
+   [
+    7165,
+    "Battle Stance"
+   ],
+   [
+    11976,
+    "Strike"
+   ],
+   [
+    19134,
+    "Intimidating Shout"
+   ],
+   [
+    29544,
+    "Intimidating Shout"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 26,
+   "minlevel": 26,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "1666": {
+  "abilities": [
+   [
+    3419,
+    "Improved Blocking"
+   ],
+   [
+    7164,
+    "Defensive Stance"
+   ],
+   [
+    8242,
+    "Shield Slam"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 27,
+   "minlevel": 27,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "1696": {
+  "abilities": [
+   [
+    3391,
+    "Thrash"
+   ],
+   [
+    8599,
+    "Enrage"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 24,
+   "minlevel": 24,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "1716": {
+  "abilities": [
+   [
+    7964,
+    "Smoke Bomb"
+   ],
+   [
+    9128,
+    "Battle Shout"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 29,
+   "minlevel": 29,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "1717": {
+  "abilities": [
+   [
+    421,
+    "Chain Lightning"
+   ],
+   [
+    6742,
+    "Bloodlust"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 28,
+   "minlevel": 28,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "1720": {
+  "abilities": [
+   [
+    1604,
+    "Dazed"
+   ],
+   [
+    5101,
+    "Dazed"
+   ],
+   [
+    13496,
+    "Dazed"
+   ],
+   [
+    15571,
+    "Dazed"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 26,
+   "minlevel": 26,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "1763": {
+  "abilities": [
+   [
+    5213,
+    "Molten Metal"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": "The Smelter",
+   "type": 7
+  }
+ },
+ "1853": {
+  "abilities": [
+   [
+    12040,
+    "Shadow Shield"
+   ],
+   [
+    17950,
+    "Shadow Portal"
+   ],
+   [
+    18702,
+    "Curse of the Darkmaster"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 61,
+   "minlevel": 61,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "246017": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "246020": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "247032": {
+  "abilities": [],
+  "npc": {
+   "classification": 2,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "249787": {
+  "abilities": [],
+  "npc": null
+ },
+ "249790": {
+  "abilities": [],
+  "npc": null
+ },
+ "250070": {
+  "abilities": [],
+  "npc": null
+ },
+ "250074": {
+  "abilities": [],
+  "npc": null
+ },
+ "250075": {
+  "abilities": [],
+  "npc": null
+ },
+ "250076": {
+  "abilities": [],
+  "npc": null
+ },
+ "250077": {
+  "abilities": [],
+  "npc": null
+ },
+ "250078": {
+  "abilities": [],
+  "npc": null
+ },
+ "250079": {
+  "abilities": [],
+  "npc": null
+ },
+ "250082": {
+  "abilities": [],
+  "npc": null
+ },
+ "250483": {
+  "abilities": [
+   [
+    3358,
+    "Leech Poison"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "250631": {
+  "abilities": [
+   [
+    6136,
+    "Chilled"
+   ],
+   [
+    14907,
+    "Frost Nova"
+   ],
+   [
+    1266011,
+    "Life Drain"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "250657": {
+  "abilities": [
+   [
+    13376,
+    "Fire Shield"
+   ],
+   [
+    18399,
+    "Flamestrike"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "250660": {
+  "abilities": [
+   [
+    5568,
+    "Trample"
+   ],
+   [
+    17307,
+    "Knockout"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "253861": {
+  "abilities": [],
+  "npc": null
+ },
+ "255699": {
+  "abilities": [],
+  "npc": {
+   "classification": 2,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "256035": {
+  "abilities": [
+   [
+    3358,
+    "Leech Poison"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "256097": {
+  "abilities": [
+   [
+    14099,
+    "Mighty Blow"
+   ],
+   [
+    1301635,
+    "Anti-Magic Shield"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "257638": {
+  "abilities": [],
+  "npc": null
+ },
+ "259866": {
+  "abilities": [],
+  "npc": null
+ },
+ "259867": {
+  "abilities": [],
+  "npc": null
+ },
+ "259902": {
+  "abilities": [],
+  "npc": null
+ },
+ "259904": {
+  "abilities": [],
+  "npc": null
+ },
+ "259905": {
+  "abilities": [],
+  "npc": null
+ },
+ "259907": {
+  "abilities": [],
+  "npc": null
+ },
+ "259911": {
+  "abilities": [],
+  "npc": null
+ },
+ "259912": {
+  "abilities": [],
+  "npc": null
+ },
+ "260322": {
+  "abilities": [
+   [
+    3604,
+    "Tendon Rip"
+   ],
+   [
+    16495,
+    "Fatal Bite"
+   ],
+   [
+    1316382,
+    "Dust Storm"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "260325": {
+  "abilities": [
+   [
+    13445,
+    "Rend"
+   ],
+   [
+    14100,
+    "Terrifying Roar"
+   ],
+   [
+    1284435,
+    "Enrage"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "260326": {
+  "abilities": [
+   [
+    8078,
+    "Thunderclap"
+   ],
+   [
+    8374,
+    "Arcing Smash"
+   ],
+   [
+    10101,
+    "Knock Away"
+   ],
+   [
+    11876,
+    "War Stomp"
+   ],
+   [
+    1284450,
+    "Stasis"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "260808": {
+  "abilities": [
+   [
+    9616,
+    "Wild Regeneration"
+   ],
+   [
+    1316480,
+    "Entangling Roots"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 28,
+   "minlevel": 28,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "261306": {
+  "abilities": [
+   [
+    13860,
+    "Mind Blast"
+   ],
+   [
+    1292602,
+    "Anvilmar's Curse"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "261311": {
+  "abilities": [
+   [
+    11130,
+    "Knock Away"
+   ],
+   [
+    21055,
+    "Crush Armor"
+   ],
+   [
+    22911,
+    "Charge"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "261316": {
+  "abilities": [
+   [
+    11970,
+    "Fire Nova"
+   ],
+   [
+    1293228,
+    "Combust"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "261319": {
+  "abilities": [
+   [
+    11977,
+    "Rend"
+   ],
+   [
+    19134,
+    "Intimidating Shout"
+   ],
+   [
+    25710,
+    "Heroic Strike"
+   ],
+   [
+    29544,
+    "Intimidating Shout"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "270882": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": "Staging Area 1",
+   "type": 6
+  }
+ },
+ "270883": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": "Staging Area 2",
+   "type": 7
+  }
+ },
+ "270884": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": "Staging Area 3",
+   "type": 7
+  }
+ },
+ "270885": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": "Staging Area 4",
+   "type": 4
+  }
+ },
+ "270886": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": "Staging Area 6",
+   "type": 7
+  }
+ },
+ "2748": {
+  "abilities": [
+   [
+    6524,
+    "Ground Tremor"
+   ],
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    10252,
+    "Awaken Earthen Guardians"
+   ],
+   [
+    10258,
+    "Awaken Vault Warder"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 47,
+   "minlevel": 47,
+   "tag": "Ancient Stone Watcher",
+   "type": 5
+  }
+ },
+ "3586": {
+  "abilities": [],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 19,
+   "minlevel": 19,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "3653": {
+  "abilities": [
+   [
+    14917,
+    "Growl"
+   ],
+   [
+    14918,
+    "Growl"
+   ],
+   [
+    17256,
+    "Bite"
+   ],
+   [
+    17257,
+    "Bite"
+   ],
+   [
+    17258,
+    "Bite"
+   ],
+   [
+    26064,
+    "Shell Shield"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "3654": {
+  "abilities": [
+   [
+    7399,
+    "Terrify"
+   ],
+   [
+    7967,
+    "Naralex's Nightmare"
+   ],
+   [
+    8150,
+    "Thundercrack"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 22,
+   "minlevel": 22,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "3669": {
+  "abilities": [
+   [
+    744,
+    "Poison"
+   ],
+   [
+    5188,
+    "Healing Touch"
+   ],
+   [
+    7965,
+    "Cobrahn Serpent Form"
+   ],
+   [
+    8040,
+    "Druid's Slumber"
+   ],
+   [
+    9532,
+    "Lightning Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": "Fanglord",
+   "type": 7
+  }
+ },
+ "3670": {
+  "abilities": [
+   [
+    700,
+    "Sleep"
+   ],
+   [
+    5187,
+    "Healing Touch"
+   ],
+   [
+    8147,
+    "Thunderclap"
+   ],
+   [
+    9532,
+    "Lightning Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 21,
+   "minlevel": 21,
+   "tag": "Fanglord",
+   "type": 7
+  }
+ },
+ "3671": {
+  "abilities": [
+   [
+    700,
+    "Sleep"
+   ],
+   [
+    5187,
+    "Healing Touch"
+   ],
+   [
+    8148,
+    "Thorns Aura"
+   ],
+   [
+    9532,
+    "Lightning Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": "Fanglord",
+   "type": 7
+  }
+ },
+ "3673": {
+  "abilities": [
+   [
+    700,
+    "Sleep"
+   ],
+   [
+    6778,
+    "Healing Touch"
+   ],
+   [
+    9532,
+    "Lightning Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 21,
+   "minlevel": 21,
+   "tag": "Fanglord",
+   "type": 7
+  }
+ },
+ "3674": {
+  "abilities": [
+   [
+    6254,
+    "Chained Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 21,
+   "minlevel": 21,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "3864": {
+  "abilities": [
+   [
+    7139,
+    "Fel Stomp"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 19,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "3872": {
+  "abilities": [
+   [
+    5532,
+    "Cleave"
+   ],
+   [
+    7165,
+    "Battle Stance"
+   ],
+   [
+    9080,
+    "Hamstring"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 25,
+   "minlevel": 25,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "3886": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 22,
+   "minlevel": 22,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "3887": {
+  "abilities": [
+   [
+    7068,
+    "Veil of Shadow"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 24,
+   "minlevel": 24,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "3914": {
+  "abilities": [
+   [
+    7295,
+    "Soul Drain"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": "The Cell Keeper",
+   "type": 7
+  }
+ },
+ "3927": {
+  "abilities": [
+   [
+    7487,
+    "Call Bleak Worg"
+   ],
+   [
+    7488,
+    "Call Slavering Worg"
+   ],
+   [
+    7489,
+    "Call Lupine Horror"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 25,
+   "minlevel": 25,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "3974": {
+  "abilities": [
+   [
+    6192,
+    "Battle Shout"
+   ],
+   [
+    6742,
+    "Bloodlust"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 34,
+   "minlevel": 34,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "3975": {
+  "abilities": [
+   [
+    8260,
+    "Rushing Charge"
+   ],
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    8989,
+    "Whirlwind"
+   ],
+   [
+    22540,
+    "Cleave"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": "The Scarlet Champion",
+   "type": 7
+  }
+ },
+ "3976": {
+  "abilities": [
+   [
+    1020,
+    "Divine Shield"
+   ],
+   [
+    5589,
+    "Hammer of Justice"
+   ],
+   [
+    8990,
+    "Retribution Aura"
+   ],
+   [
+    9257,
+    "Lay on Hands"
+   ],
+   [
+    14518,
+    "Crusader Strike"
+   ],
+   [
+    25771,
+    "Forbearance"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 42,
+   "minlevel": 42,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "3977": {
+  "abilities": [
+   [
+    9232,
+    "Scarlet Resurrection"
+   ],
+   [
+    9256,
+    "Deep Sleep"
+   ],
+   [
+    9481,
+    "Holy Smite"
+   ],
+   [
+    12039,
+    "Heal"
+   ],
+   [
+    14515,
+    "Dominate Mind"
+   ],
+   [
+    22187,
+    "Power Word: Shield"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 42,
+   "minlevel": 42,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "3983": {
+  "abilities": [
+   [
+    2767,
+    "Shadow Word: Pain"
+   ],
+   [
+    9034,
+    "Immolate"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 32,
+   "minlevel": 32,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "4274": {
+  "abilities": [
+   [
+    7125,
+    "Toxic Saliva"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 25,
+   "minlevel": 25,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "4275": {
+  "abilities": [
+   [
+    6547,
+    "Rend"
+   ],
+   [
+    7588,
+    "Void Bolt"
+   ],
+   [
+    7621,
+    "Arugal's Curse"
+   ],
+   [
+    7803,
+    "Thundershock"
+   ],
+   [
+    13797,
+    "Immolation Trap Effect"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 26,
+   "minlevel": 26,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "4278": {
+  "abilities": [
+   [
+    642,
+    "Divine Shield"
+   ],
+   [
+    1026,
+    "Holy Light"
+   ],
+   [
+    5588,
+    "Hammer of Justice"
+   ],
+   [
+    25771,
+    "Forbearance"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 24,
+   "minlevel": 24,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "4279": {
+  "abilities": [
+   [
+    7481,
+    "Howling Rage"
+   ],
+   [
+    7483,
+    "Howling Rage"
+   ],
+   [
+    7484,
+    "Howling Rage"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 24,
+   "minlevel": 24,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "4420": {
+  "abilities": [
+   [
+    7165,
+    "Battle Stance"
+   ],
+   [
+    9128,
+    "Battle Shout"
+   ],
+   [
+    15548,
+    "Thunderclap"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 32,
+   "minlevel": 32,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "4421": {
+  "abilities": [
+   [
+    6077,
+    "Renew"
+   ],
+   [
+    8292,
+    "Chain Bolt"
+   ],
+   [
+    8358,
+    "Mana Spike"
+   ],
+   [
+    8361,
+    "Purity"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 33,
+   "minlevel": 33,
+   "tag": "The Crone",
+   "type": 7
+  }
+ },
+ "4422": {
+  "abilities": [
+   [
+    8260,
+    "Rushing Charge"
+   ],
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    8285,
+    "Rampage"
+   ],
+   [
+    8359,
+    "Left for Dead"
+   ],
+   [
+    8555,
+    "Left for Dead"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 33,
+   "minlevel": 33,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "4424": {
+  "abilities": [
+   [
+    6192,
+    "Battle Shout"
+   ],
+   [
+    8286,
+    "Summon Boar Spirit"
+   ],
+   [
+    14900,
+    "Chain Heal"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 30,
+   "minlevel": 30,
+   "tag": "Death's Head Prophet",
+   "type": 7
+  }
+ },
+ "4425": {
+  "abilities": [
+   [
+    14920,
+    "Growl"
+   ],
+   [
+    17260,
+    "Bite"
+   ],
+   [
+    23147,
+    "Dive"
+   ],
+   [
+    23148,
+    "Dive"
+   ],
+   [
+    24577,
+    "Demoralizing Screech"
+   ],
+   [
+    24578,
+    "Demoralizing Screech"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 32,
+   "minlevel": 32,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "4428": {
+  "abilities": [
+   [
+    9613,
+    "Shadow Bolt"
+   ],
+   [
+    14515,
+    "Dominate Mind"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 30,
+   "minlevel": 30,
+   "tag": "Death's Head Captain",
+   "type": 7
+  }
+ },
+ "4438": {
+  "abilities": [
+   [
+    8148,
+    "Thorns Aura"
+   ],
+   [
+    8259,
+    "Whirling Barrage"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 30,
+   "minlevel": 29,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "4542": {
+  "abilities": [
+   [
+    8282,
+    "Curse of Blood"
+   ],
+   [
+    8399,
+    "Sleep"
+   ],
+   [
+    11647,
+    "Power Word: Shield"
+   ],
+   [
+    12039,
+    "Heal"
+   ],
+   [
+    12096,
+    "Fear"
+   ],
+   [
+    15090,
+    "Dispel Magic"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "4543": {
+  "abilities": [
+   [
+    8053,
+    "Flame Shock"
+   ],
+   [
+    8814,
+    "Flame Spike"
+   ],
+   [
+    9613,
+    "Shadow Bolt"
+   ],
+   [
+    12470,
+    "Fire Nova"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 34,
+   "minlevel": 34,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "4627": {
+  "abilities": [
+   [
+    7154,
+    "Dark Offering"
+   ]
+  ],
+  "npc": {
+   "classification": 0,
+   "maxlevel": 25,
+   "minlevel": 24,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "4829": {
+  "abilities": [
+   [
+    3490,
+    "Frenzied Rage"
+   ],
+   [
+    3815,
+    "Poison Cloud"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 28,
+   "minlevel": 28,
+   "tag": null,
+   "type": 10
+  }
+ },
+ "4830": {
+  "abilities": [
+   [
+    8433,
+    "Leech Pulse"
+   ],
+   [
+    1604,
+    "Dazed"
+   ],
+   [
+    5101,
+    "Dazed"
+   ],
+   [
+    13496,
+    "Dazed"
+   ],
+   [
+    15571,
+    "Dazed"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 26,
+   "minlevel": 26,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "4831": {
+  "abilities": [
+   [
+    246,
+    "Slow"
+   ],
+   [
+    865,
+    "Frost Nova"
+   ],
+   [
+    6660,
+    "Shoot"
+   ],
+   [
+    8435,
+    "Forked Lightning"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 25,
+   "minlevel": 25,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "4832": {
+  "abilities": [
+   [
+    8399,
+    "Sleep"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 27,
+   "minlevel": 27,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "4842": {
+  "abilities": [
+   [
+    2484,
+    "Earthbind Totem"
+   ],
+   [
+    8270,
+    "Summon Earth Rumbler"
+   ],
+   [
+    9532,
+    "Lightning Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 32,
+   "minlevel": 32,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "4854": {
+  "abilities": [
+   [
+    6742,
+    "Bloodlust"
+   ],
+   [
+    8143,
+    "Tremor Totem"
+   ],
+   [
+    8292,
+    "Chain Bolt"
+   ],
+   [
+    9532,
+    "Lightning Bolt"
+   ],
+   [
+    11892,
+    "Shrink"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 45,
+   "minlevel": 45,
+   "tag": "Stonevault Chieftain",
+   "type": 7
+  }
+ },
+ "4887": {
+  "abilities": [
+   [
+    5568,
+    "Trample"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 25,
+   "minlevel": 25,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "5708": {
+  "abilities": [
+   [
+    12280,
+    "Acid of Hakkar"
+   ],
+   [
+    17260,
+    "Bite"
+   ],
+   [
+    23148,
+    "Dive"
+   ],
+   [
+    25011,
+    "Lightning Breath"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 51,
+   "minlevel": 50,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "5709": {
+  "abilities": [
+   [
+    3391,
+    "Thrash"
+   ],
+   [
+    11876,
+    "War Stomp"
+   ],
+   [
+    12890,
+    "Deep Slumber"
+   ],
+   [
+    12891,
+    "Acid Breath"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 55,
+   "minlevel": 55,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "5710": {
+  "abilities": [
+   [
+    8376,
+    "Earthgrab Totem"
+   ],
+   [
+    12468,
+    "Flamestrike"
+   ],
+   [
+    12480,
+    "Hex of Jammal'an"
+   ],
+   [
+    12492,
+    "Healing Wave"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 54,
+   "minlevel": 54,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "5711": {
+  "abilities": [
+   [
+    11639,
+    "Shadow Word: Pain"
+   ],
+   [
+    12471,
+    "Shadow Bolt"
+   ],
+   [
+    12493,
+    "Curse of Weakness"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 53,
+   "minlevel": 53,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "5719": {
+  "abilities": [
+   [
+    12882,
+    "Wing Flap"
+   ],
+   [
+    12884,
+    "Acid Breath"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 52,
+   "minlevel": 52,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "5720": {
+  "abilities": [
+   [
+    12882,
+    "Wing Flap"
+   ],
+   [
+    12884,
+    "Acid Breath"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 51,
+   "minlevel": 51,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "5721": {
+  "abilities": [
+   [
+    12882,
+    "Wing Flap"
+   ],
+   [
+    12884,
+    "Acid Breath"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 53,
+   "minlevel": 53,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "5722": {
+  "abilities": [
+   [
+    12882,
+    "Wing Flap"
+   ],
+   [
+    12884,
+    "Acid Breath"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 53,
+   "minlevel": 53,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "5775": {
+  "abilities": [
+   [
+    8142,
+    "Grasping Vines"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 21,
+   "minlevel": 21,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "5912": {
+  "abilities": [],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "6168": {
+  "abilities": [
+   [
+    8270,
+    "Summon Earth Rumbler"
+   ],
+   [
+    9532,
+    "Lightning Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 28,
+   "minlevel": 28,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "6228": {
+  "abilities": [
+   [
+    184,
+    "Fire Shield II"
+   ],
+   [
+    2601,
+    "Fire Shield III"
+   ],
+   [
+    9053,
+    "Fireball"
+   ],
+   [
+    10870,
+    "Summon Burning Servant"
+   ],
+   [
+    15228,
+    "Fireball"
+   ],
+   [
+    22425,
+    "Fireball Volley"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 41,
+   "minlevel": 33,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "6229": {
+  "abilities": [
+   [
+    5568,
+    "Trample"
+   ],
+   [
+    8374,
+    "Arcing Smash"
+   ],
+   [
+    10887,
+    "Crowd Pummel"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 32,
+   "minlevel": 32,
+   "tag": null,
+   "type": 9
+  }
+ },
+ "6231": {
+  "abilities": [
+   [
+    10852,
+    "Battle Net"
+   ],
+   [
+    10855,
+    "Lag"
+   ],
+   [
+    10858,
+    "Summon Dupe Bug"
+   ],
+   [
+    10860,
+    "Patch"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 26,
+   "minlevel": 26,
+   "tag": null,
+   "type": 9
+  }
+ },
+ "6235": {
+  "abilities": [
+   [
+    11082,
+    "Megavolt"
+   ],
+   [
+    11084,
+    "Shock"
+   ],
+   [
+    11085,
+    "Chain Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 32,
+   "minlevel": 32,
+   "tag": null,
+   "type": 9
+  }
+ },
+ "6243": {
+  "abilities": [
+   [
+    6533,
+    "Net"
+   ],
+   [
+    7165,
+    "Battle Stance"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 26,
+   "minlevel": 26,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "639": {
+  "abilities": [
+   [
+    3391,
+    "Thrash"
+   ],
+   [
+    5200,
+    "VanCleef's Allies"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 21,
+   "minlevel": 21,
+   "tag": "Defias Kingpin",
+   "type": 7
+  }
+ },
+ "642": {
+  "abilities": [
+   [
+    3603,
+    "Distracting Pain"
+   ],
+   [
+    5141,
+    "Eject Sneed"
+   ],
+   [
+    7399,
+    "Terrify"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": "Lumbermaster",
+   "type": 9
+  }
+ },
+ "643": {
+  "abilities": [
+   [
+    6713,
+    "Disarm"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": "Lumbermaster",
+   "type": 7
+  }
+ },
+ "644": {
+  "abilities": [
+   [
+    6304,
+    "Rhahk'Zor Slam"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 19,
+   "minlevel": 19,
+   "tag": "The Foreman",
+   "type": 7
+  }
+ },
+ "645": {
+  "abilities": [
+   [
+    5174,
+    "Cookie's Cooking"
+   ],
+   [
+    6306,
+    "Acid Splash"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": "The Ship's Cook",
+   "type": 7
+  }
+ },
+ "646": {
+  "abilities": [
+   [
+    3391,
+    "Thrash"
+   ],
+   [
+    6264,
+    "Nimble Reflexes"
+   ],
+   [
+    6432,
+    "Smite Stomp"
+   ],
+   [
+    6435,
+    "Smite Slam"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": "The Ship's First Mate",
+   "type": 7
+  }
+ },
+ "647": {
+  "abilities": [
+   [
+    5208,
+    "Poisoned Harpoon"
+   ],
+   [
+    5532,
+    "Cleave"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 20,
+   "minlevel": 20,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "6487": {
+  "abilities": [
+   [
+    8988,
+    "Silence"
+   ],
+   [
+    9433,
+    "Arcane Explosion"
+   ],
+   [
+    9435,
+    "Detonation"
+   ],
+   [
+    9438,
+    "Arcane Bubble"
+   ],
+   [
+    13323,
+    "Polymorph"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 37,
+   "minlevel": 37,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "6488": {
+  "abilities": [
+   [
+    7366,
+    "Berserker Stance"
+   ],
+   [
+    15496,
+    "Cleave"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 33,
+   "minlevel": 33,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "6489": {
+  "abilities": [
+   [
+    3815,
+    "Poison Cloud"
+   ],
+   [
+    21007,
+    "Curse of Weakness"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 33,
+   "minlevel": 33,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "6490": {
+  "abilities": [
+   [
+    5137,
+    "Call of the Grave"
+   ],
+   [
+    7399,
+    "Terrify"
+   ],
+   [
+    9373,
+    "Soul Siphon"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 33,
+   "minlevel": 33,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "6906": {
+  "abilities": [
+   [
+    14516,
+    "Strike"
+   ],
+   [
+    15620,
+    "Shoot"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 41,
+   "minlevel": 41,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "6907": {
+  "abilities": [
+   [
+    6268,
+    "Rushing Charge"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "6908": {
+  "abilities": [
+   [
+    8242,
+    "Shield Slam"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "6910": {
+  "abilities": [
+   [
+    15801,
+    "Lightning Bolt"
+   ],
+   [
+    16006,
+    "Chain Lightning"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7023": {
+  "abilities": [
+   [
+    10061,
+    "Summon Obsidian Shard"
+   ],
+   [
+    10072,
+    "Splintered Obsidian"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 42,
+   "minlevel": 42,
+   "tag": null,
+   "type": 9
+  }
+ },
+ "7079": {
+  "abilities": [
+   [
+    1604,
+    "Dazed"
+   ],
+   [
+    5101,
+    "Dazed"
+   ],
+   [
+    13496,
+    "Dazed"
+   ],
+   [
+    15571,
+    "Dazed"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 30,
+   "minlevel": 30,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "7206": {
+  "abilities": [
+   [
+    10094,
+    "Sand Storms"
+   ],
+   [
+    10132,
+    "Sand Storms"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 44,
+   "minlevel": 44,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "7228": {
+  "abilities": [
+   [
+    8374,
+    "Arcing Smash"
+   ],
+   [
+    10101,
+    "Knock Away"
+   ],
+   [
+    11876,
+    "War Stomp"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 5
+  }
+ },
+ "7267": {
+  "abilities": [
+   [
+    7366,
+    "Berserker Stance"
+   ],
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    11837,
+    "Wide Slash"
+   ],
+   [
+    15623,
+    "Cleave"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 48,
+   "minlevel": 48,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7271": {
+  "abilities": [
+   [
+    11086,
+    "Ward of Zum'rah"
+   ],
+   [
+    12491,
+    "Healing Wave"
+   ],
+   [
+    12739,
+    "Shadow Bolt"
+   ],
+   [
+    15245,
+    "Shadow Bolt Volley"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 46,
+   "minlevel": 46,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7272": {
+  "abilities": [
+   [
+    8600,
+    "Fevered Plague"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 46,
+   "minlevel": 45,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "7273": {
+  "abilities": [
+   [
+    11131,
+    "Icicle"
+   ],
+   [
+    11836,
+    "Freeze Solid"
+   ],
+   [
+    11902,
+    "Gahz'rilla Slam"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 46,
+   "minlevel": 46,
+   "tag": null,
+   "type": 10
+  }
+ },
+ "7275": {
+  "abilities": [
+   [
+    8362,
+    "Renew"
+   ],
+   [
+    12039,
+    "Heal"
+   ],
+   [
+    13704,
+    "Psychic Scream"
+   ],
+   [
+    15537,
+    "Shadow Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 47,
+   "minlevel": 47,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7291": {
+  "abilities": [
+   [
+    3356,
+    "Flame Lash"
+   ],
+   [
+    8053,
+    "Flame Shock"
+   ],
+   [
+    9482,
+    "Amplify Flames"
+   ],
+   [
+    11969,
+    "Fire Nova"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 45,
+   "minlevel": 45,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7354": {
+  "abilities": [
+   [
+    7645,
+    "Dominate Mind"
+   ],
+   [
+    11639,
+    "Shadow Word: Pain"
+   ],
+   [
+    12039,
+    "Heal"
+   ],
+   [
+    12471,
+    "Shadow Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7355": {
+  "abilities": [
+   [
+    12255,
+    "Curse of Tuten'kash"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "7356": {
+  "abilities": [
+   [
+    11442,
+    "Withered Touch"
+   ],
+   [
+    12946,
+    "Putrid Stench"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7357": {
+  "abilities": [
+   [
+    12466,
+    "Fireball"
+   ],
+   [
+    12470,
+    "Fire Nova"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 39,
+   "minlevel": 39,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "7358": {
+  "abilities": [
+   [
+    6136,
+    "Chilled"
+   ],
+   [
+    12642,
+    "Summon Frost Spectres"
+   ],
+   [
+    13009,
+    "Amnennar's Wrath"
+   ],
+   [
+    15530,
+    "Frostbolt"
+   ],
+   [
+    15531,
+    "Frost Nova"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 41,
+   "minlevel": 41,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "7361": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 32,
+   "minlevel": 32,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7604": {
+  "abilities": [
+   [
+    3639,
+    "Improved Blocking"
+   ],
+   [
+    11972,
+    "Shield Bash"
+   ],
+   [
+    12170,
+    "Revenge"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 45,
+   "minlevel": 45,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7795": {
+  "abilities": [
+   [
+    11086,
+    "Ward of Zum'rah"
+   ],
+   [
+    12491,
+    "Healing Wave"
+   ],
+   [
+    12739,
+    "Shadow Bolt"
+   ],
+   [
+    15245,
+    "Shadow Bolt Volley"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 46,
+   "minlevel": 46,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "7796": {
+  "abilities": [
+   [
+    8600,
+    "Fevered Plague"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 46,
+   "minlevel": 45,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "7800": {
+  "abilities": [
+   [
+    10101,
+    "Knock Away"
+   ],
+   [
+    11130,
+    "Knock Away"
+   ],
+   [
+    11518,
+    "Activate Bomb 01"
+   ],
+   [
+    11521,
+    "Activate Bomb 02"
+   ],
+   [
+    11524,
+    "Activate Bomb 04"
+   ],
+   [
+    11526,
+    "Activate Bomb 05"
+   ],
+   [
+    11527,
+    "Activate Bomb 06"
+   ],
+   [
+    11798,
+    "Activate Bomb 03B"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 34,
+   "minlevel": 34,
+   "tag": null,
+   "type": 9
+  }
+ },
+ "8127": {
+  "abilities": [
+   [
+    2860,
+    "Chain Lightning"
+   ],
+   [
+    8376,
+    "Earthgrab Totem"
+   ],
+   [
+    10413,
+    "Earth Shock"
+   ],
+   [
+    10915,
+    "Flash Heal"
+   ],
+   [
+    11893,
+    "Warder Despawn"
+   ],
+   [
+    11894,
+    "Antu'sul's Minion"
+   ],
+   [
+    11895,
+    "Healing Wave of Antu'sul"
+   ],
+   [
+    11899,
+    "Healing Ward"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 48,
+   "minlevel": 48,
+   "tag": "Overseer of Sul",
+   "type": 7
+  }
+ },
+ "8443": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 10
+  }
+ },
+ "8567": {
+  "abilities": [
+   [
+    12627,
+    "Disease Cloud"
+   ],
+   [
+    12795,
+    "Enrage"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 40,
+   "minlevel": 40,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "8580": {
+  "abilities": [
+   [
+    6524,
+    "Ground Tremor"
+   ],
+   [
+    12887,
+    "Sweeping Slam"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 50,
+   "minlevel": 50,
+   "tag": "Guardian of the Idol",
+   "type": 7
+  }
+ },
+ "8923": {
+  "abilities": [
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "8929": {
+  "abilities": [
+   [
+    8362,
+    "Renew"
+   ],
+   [
+    15537,
+    "Shadow Bolt"
+   ],
+   [
+    15586,
+    "Heal"
+   ],
+   [
+    15587,
+    "Mind Blast"
+   ],
+   [
+    15654,
+    "Shadow Word: Pain"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": "Princess of Ironforge",
+   "type": 7
+  }
+ },
+ "8983": {
+  "abilities": [
+   [
+    15305,
+    "Chain Lightning"
+   ],
+   [
+    15507,
+    "Lightning Shield"
+   ],
+   [
+    15605,
+    "Shock"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9016": {
+  "abilities": [
+   [
+    13895,
+    "Summon Spawn of Bael'Gar"
+   ],
+   [
+    23379,
+    "Magma Splash"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 54,
+   "minlevel": 54,
+   "tag": null,
+   "type": 5
+  }
+ },
+ "9017": {
+  "abilities": [
+   [
+    13899,
+    "Fire Storm"
+   ],
+   [
+    13900,
+    "Fiery Burst"
+   ],
+   [
+    14099,
+    "Mighty Blow"
+   ],
+   [
+    26977,
+    "Curse of the Elemental Lord"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 55,
+   "minlevel": 55,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "9018": {
+  "abilities": [
+   [
+    12040,
+    "Shadow Shield"
+   ],
+   [
+    13704,
+    "Psychic Scream"
+   ],
+   [
+    14032,
+    "Shadow Word: Pain"
+   ],
+   [
+    14033,
+    "Mana Burn"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 52,
+   "minlevel": 52,
+   "tag": "Twilight's Hammer Interrogator",
+   "type": 7
+  }
+ },
+ "9019": {
+  "abilities": [
+   [
+    15636,
+    "Avatar of Flame"
+   ],
+   [
+    17492,
+    "Hand of Thaurissan"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9024": {
+  "abilities": [
+   [
+    15038,
+    "Scorching Totem"
+   ],
+   [
+    15041,
+    "Fire Ward"
+   ],
+   [
+    15095,
+    "Molten Blast"
+   ],
+   [
+    15616,
+    "Flame Shock"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 52,
+   "minlevel": 52,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9025": {
+  "abilities": [
+   [
+    6524,
+    "Ground Tremor"
+   ],
+   [
+    13728,
+    "Earth Shock"
+   ],
+   [
+    13729,
+    "Flame Shock"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 51,
+   "minlevel": 51,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "9027": {
+  "abilities": [
+   [
+    13736,
+    "Whirlwind"
+   ],
+   [
+    15708,
+    "Mortal Strike"
+   ],
+   [
+    21049,
+    "Bloodlust"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 56,
+   "minlevel": 56,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9028": {
+  "abilities": [
+   [
+    6524,
+    "Ground Tremor"
+   ],
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    15579,
+    "Cleave"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 54,
+   "minlevel": 54,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9029": {
+  "abilities": [
+   [
+    7121,
+    "Anti-Magic Shield"
+   ],
+   [
+    14331,
+    "Vicious Rend"
+   ],
+   [
+    15245,
+    "Shadow Bolt Volley"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 54,
+   "minlevel": 54,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9030": {
+  "abilities": [
+   [
+    13323,
+    "Polymorph"
+   ],
+   [
+    13747,
+    "Slow"
+   ],
+   [
+    15254,
+    "Arcane Bolt"
+   ],
+   [
+    15453,
+    "Arcane Explosion"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 53,
+   "minlevel": 53,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9031": {
+  "abilities": [
+   [
+    8994,
+    "Banish"
+   ],
+   [
+    12493,
+    "Curse of Weakness"
+   ],
+   [
+    13787,
+    "Demon Armor"
+   ],
+   [
+    15470,
+    "Curse of Tongues"
+   ],
+   [
+    15471,
+    "Enveloping Web"
+   ],
+   [
+    15472,
+    "Shadow Bolt"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 54,
+   "minlevel": 54,
+   "tag": null,
+   "type": 6
+  }
+ },
+ "9032": {
+  "abilities": [
+   [
+    15475,
+    "Baneful Poison"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 53,
+   "minlevel": 53,
+   "tag": null,
+   "type": 1
+  }
+ },
+ "9033": {
+  "abilities": [
+   [
+    15572,
+    "Sunder Armor"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9041": {
+  "abilities": [
+   [
+    6136,
+    "Chilled"
+   ],
+   [
+    12544,
+    "Frost Armor"
+   ],
+   [
+    12674,
+    "Frost Nova"
+   ],
+   [
+    12675,
+    "Frostbolt"
+   ],
+   [
+    15044,
+    "Frost Ward"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 56,
+   "minlevel": 56,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9042": {
+  "abilities": [
+   [
+    15042,
+    "Curse of Blood"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 55,
+   "minlevel": 55,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "9056": {
+  "abilities": [
+   [
+    8258,
+    "Devotion Aura"
+   ],
+   [
+    11978,
+    "Kick"
+   ],
+   [
+    13953,
+    "Holy Strike"
+   ],
+   [
+    15346,
+    "Seal of Reckoning"
+   ],
+   [
+    15493,
+    "Holy Light"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 54,
+   "minlevel": 54,
+   "tag": "Chief Architect",
+   "type": 7
+  }
+ },
+ "9156": {
+  "abilities": [
+   [
+    14744,
+    "Burning Spirit"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9196": {
+  "abilities": [
+   [
+    8269,
+    "Enrage"
+   ],
+   [
+    10101,
+    "Knock Away"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9217": {
+  "abilities": [
+   [
+    8365,
+    "Enlarge"
+   ],
+   [
+    13323,
+    "Polymorph"
+   ],
+   [
+    15230,
+    "Arcane Bolt"
+   ],
+   [
+    16170,
+    "Bloodlust"
+   ],
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9218": {
+  "abilities": [
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9219": {
+  "abilities": [
+   [
+    403233,
+    "Meathook"
+   ],
+   [
+    1604,
+    "Dazed"
+   ],
+   [
+    5101,
+    "Dazed"
+   ],
+   [
+    13496,
+    "Dazed"
+   ],
+   [
+    15571,
+    "Dazed"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9236": {
+  "abilities": [
+   [
+    16098,
+    "Curse of Blood"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 58,
+   "minlevel": 58,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9237": {
+  "abilities": [
+   [
+    3391,
+    "Thrash"
+   ],
+   [
+    10966,
+    "Uppercut"
+   ],
+   [
+    15615,
+    "Pummel"
+   ],
+   [
+    15618,
+    "Snap Kick"
+   ],
+   [
+    15708,
+    "Mortal Strike"
+   ],
+   [
+    15754,
+    "Cleave"
+   ],
+   [
+    16075,
+    "Throw Axe"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9319": {
+  "abilities": [
+   [
+    13730,
+    "Demoralizing Shout"
+   ],
+   [
+    15615,
+    "Pummel"
+   ],
+   [
+    21049,
+    "Bloodlust"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 52,
+   "minlevel": 52,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9499": {
+  "abilities": [
+   [
+    8994,
+    "Banish"
+   ],
+   [
+    12739,
+    "Shadow Bolt"
+   ],
+   [
+    12742,
+    "Immolate"
+   ],
+   [
+    13338,
+    "Curse of Tongues"
+   ],
+   [
+    13787,
+    "Demon Armor"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 55,
+   "minlevel": 55,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9502": {
+  "abilities": [
+   [
+    14099,
+    "Mighty Blow"
+   ],
+   [
+    15285,
+    "Fireball Volley"
+   ],
+   [
+    15588,
+    "Thunderclap"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 55,
+   "minlevel": 55,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "9537": {
+  "abilities": [
+   [
+    9573,
+    "Flame Breath"
+   ],
+   [
+    14872,
+    "Drunken Rage"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 55,
+   "minlevel": 55,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9543": {
+  "abilities": [
+   [
+    9080,
+    "Hamstring"
+   ],
+   [
+    12540,
+    "Gouge"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 53,
+   "minlevel": 53,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "9568": {
+  "abilities": [
+   [
+    12887,
+    "Sweeping Slam"
+   ],
+   [
+    15663,
+    "Cleave"
+   ],
+   [
+    16244,
+    "Demoralizing Shout"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 60,
+   "minlevel": 60,
+   "tag": null,
+   "type": 2
+  }
+ },
+ "9596": {
+  "abilities": [
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": "Firebrand Legion Champion",
+   "type": 7
+  }
+ },
+ "9718": {
+  "abilities": [
+   [
+    403233,
+    "Meathook"
+   ]
+  ],
+  "npc": {
+   "classification": 2,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": "Bloodaxe Champion",
+   "type": 7
+  }
+ },
+ "9736": {
+  "abilities": [
+   [
+    15504,
+    "Drink Healing Potion"
+   ],
+   [
+    15609,
+    "Hooked Net"
+   ],
+   [
+    16496,
+    "Shoot"
+   ],
+   [
+    16497,
+    "Stun Bomb"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 59,
+   "minlevel": 59,
+   "tag": "Bloodaxe Legion",
+   "type": 7
+  }
+ },
+ "9816": {
+  "abilities": [
+   [
+    16078,
+    "Emberseer Despawn"
+   ],
+   [
+    16079,
+    "Fire Nova"
+   ],
+   [
+    16536,
+    "Flame Buffet"
+   ]
+  ],
+  "npc": {
+   "classification": 3,
+   "maxlevel": 9999,
+   "minlevel": 9999,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "9938": {
+  "abilities": [
+   [
+    15593,
+    "War Stomp"
+   ],
+   [
+    15668,
+    "Fiery Burst"
+   ]
+  ],
+  "npc": {
+   "classification": 1,
+   "maxlevel": 57,
+   "minlevel": 57,
+   "tag": null,
+   "type": 5
+  }
+ }
+}

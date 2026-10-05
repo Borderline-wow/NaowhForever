@@ -21,6 +21,8 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 | `journal_cache.json`, `wowsrc_loot.json`, `item_names.json` | Every Wowhead answer the build used; wowsrc's pages as last read; their item names to IDs. | Committed, so a rebuild (and CI) gives the same data without asking again. |
 | `build_factions.py` | Builds the Reputation and PvP tabs from `journal_factions.json` and the game's own item tables. | Rewards, standings and prices are in the client, so we read them from there, not a website. |
 | `build_quest_chains.py` | Builds each dungeon quest's chain and what you need first, from Wowhead Forever. | So the Journal can say "do this first". |
+| `build_abilities.py` | Builds `DungeonJournal/Data/Abilities.lua` (each boss's spell IDs, each name once) and `BossInfo.lua` (its level, classification, creature type and title) from its Wowhead Forever NPC page. Cached in `abilities_cache.json`; `--offline` writes what the cache has. | A boss's page shows its abilities and header. The game gives each spell's name, icon and description. |
+| `build_boss_quests.py` | Builds `DungeonJournal/Data/BossQuests.lua`: the dungeon quests whose objective on Wowhead Forever names or links a boss. Cached in `quest_objectives_cache.json`. | A boss's page lists the quests that need it. |
 | `wago.py` | Reads the game's own tables (DB2) for a Forever build from wago.tools, hotfixes included. `BUILD` is the build our data comes from. | The one source that is the game itself. |
 | `watch_build.py` | Compares a new Forever build with ours: faction rewards, kill-count encounters, new dungeons, new dungeon floor maps, new gear the Journal doesn't list yet. `--update` moves us to it. | Runs daily in CI (`.github/workflows/daily-watch.yml`), so a new build never sneaks past us. |
 
@@ -106,5 +108,5 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
   what they can't settle (an old classic item) is listed in the PR for a run on our machines.
 - **Not in CI:** anything that reads Wowhead. Their terms don't allow scraping it from a
   server, so a full `build_journal.py` (CI only runs it `--offline`), `build_quest_chains.py`,
-  `build_bis_spots.py`, `build_enchants.py` and `build_bis_quests.py` run
-  on our machines, by hand.
+  `build_bis_spots.py`, `build_enchants.py`, `build_bis_quests.py`, `build_abilities.py`
+  and `build_boss_quests.py` run on our machines, by hand.

@@ -208,6 +208,13 @@ local function ForMe(quest, class, faction)
     return side == "B" or (side == "A" and faction == "Alliance") or (side == "H" and faction == "Horde")
 end
 
+-- For a boss's page (its quests, done ones too): whether the quest is for you.
+---@param quest JournalQuest
+function Q.ForMe(quest)
+    local _, class = UnitClass("player")
+    return ForMe(quest, class, UnitFactionGroup("player"))
+end
+
 -- Listed: for you, not handed in, and not a grey one you have not picked up. A faction's
 -- hand-in is listed grey too: its reputation is worth it at any level.
 local function Listed(quest, kind, class, faction)
@@ -229,6 +236,11 @@ local function QuestByID(id)
     end
     return byID[id]
 end
+
+-- The quest in the data by its ID, or nil.
+---@param id number
+---@return JournalQuest?
+Q.ByID = QuestByID
 
 -- The quest's whole path, first step first, and which step of it the quest is: its
 -- prerequisites, then its own chain from Wowhead's Series, each step once. The Series alone

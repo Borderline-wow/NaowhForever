@@ -43,6 +43,9 @@ Shared.Style = {
     FOREVER_RGB = { r = 0xee / 255, g = 0xd6 / 255, b = 0x9e / 255 },
     -- What you carry and can hand in, in the game's quest gold.
     CARRIED_RGB = { r = 1, g = 0.82, b = 0 },
+    -- A boss picked on a dungeon map: its pin's ring, in the same gold, until the player
+    -- picks an Accent of their own.
+    PICKED_RGB = { r = 1, g = 0.82, b = 0 },
 
     ---------------------------------------------------------------------------
     --  Icons: the addon's own (Media/, drawn by Tools/make_media.py, white so they take

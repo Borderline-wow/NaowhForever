@@ -30,6 +30,8 @@ local hooked, waitingForMap = false, false
 -- or the factions earned where you are; shownIndex is the one drawn.
 local pages, pagesAreFactions, shownIndex = nil, false, 1
 local factionsHere = {}
+-- The boss whose page shows instead of its dungeon's: a pin clicked on the dungeon's map.
+local shownBoss
 
 local function On()
     return S.Get("enabled") and (S.Get("mapPanel") or S.Get("mapFactions"))
@@ -37,7 +39,13 @@ end
 
 local function DrawShown()
     local page = pages[shownIndex]
-    if pagesAreFactions then view:DrawFaction(page) else view:Draw(page) end
+    if pagesAreFactions then
+        view:DrawFaction(page)
+    elseif shownBoss then
+        view:DrawBossLoot(shownBoss, page)
+    else
+        view:Draw(page)
+    end
     -- The dungeon's map on the world map, while its page shows.
     J.ShowMapOnWorldMap(not pagesAreFactions and page or nil)
 end
@@ -46,8 +54,16 @@ end
 local function OtherHalf()
     if not pages then return end
     shownIndex = shownIndex % #pages + 1
+    shownBoss = nil
+    J.UnpickOnWorldMap()
     DrawShown()
     panel.scroll:SetVerticalScroll(0)
+end
+
+-- Back from a boss's page to its dungeon's.
+local function Back()
+    J.ShowBossBesideMap(nil)
+    J.UnpickOnWorldMap()
 end
 
 -- My Class Only, the same setting as the window's; the settings listener redraws the panel.
@@ -61,6 +77,18 @@ local function Paint()
     panel.backdrop:Paint(S.Get("mapAlpha") or 1)
 end
 
+-- The page as wide as the panel, or less the scrollbar's room; drawn again when it changes
+-- while shown (narrower makes it taller, so it only flips back once it fits again).
+local function Widen(wide)
+    local gap = wide and 0 or SCROLL_GAP
+    panel.scroll:SetPoint("BOTTOMRIGHT", -PANEL_PAD - gap, PANEL_PAD)
+    view:SetWidth(PANEL_W - PANEL_PAD * 2 - gap)
+    if panel:IsShown() then view:Redraw() end
+end
+
+local function Narrow() Widen(false) end
+local function WidenAll() Widen(true) end
+
 local function Build()
     panel = J.View.Parts.Panel("DUNGEON JOURNAL", true)
     panel.onWorldMap = true   -- its Map shows the dungeon's map on the world map
@@ -69,14 +97,18 @@ local function Build()
     panel.switch = ns.Button(panel, "Other half", 90, 20, OtherHalf)
     panel.switch:SetPoint("RIGHT", panel.close, "LEFT", -6, 0)
     panel.classOnly = ns.Button(panel, "", 90, 20, ToggleClass)
+    panel.back = ns.Button(panel, "Back", 50, 20, Back)
+    panel.back:SetPoint("RIGHT", panel.classOnly, "LEFT", -6, 0)
     local scroll = ns.UI.SlimScroll(panel)
     scroll:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEADER - 4)
-    scroll:SetPoint("BOTTOMRIGHT", -PANEL_PAD - SCROLL_GAP, PANEL_PAD)
     view = J.View.New(scroll)
     view.onWorldMap = true   -- no Map: the dungeon's map is on the world map beside it
-    view:SetWidth(PANEL_W - PANEL_PAD * 2 - SCROLL_GAP)
     scroll:SetScrollChild(view)
     panel.scroll = scroll
+    Widen(true)
+    -- Room for the scrollbar only while it shows: a page that fits takes the whole width.
+    scroll.bar:HookScript("OnShow", Narrow)
+    scroll.bar:HookScript("OnHide", WidenAll)
 end
 
 local function Place()
@@ -105,6 +137,7 @@ local function PaintButtons()
     panel.classOnly:ClearAllPoints()
     panel.classOnly:SetPoint("RIGHT", two and panel.switch or panel.close, "LEFT", -6, 0)
     ns.SetButtonText(panel.classOnly, S.Get("usableOnly") and "My class" or "All classes")
+    panel.back:SetShown(shownBoss ~= nil)
 end
 
 -- What to show where you are: a dungeon's page inside one, else the factions earned here.
@@ -138,6 +171,7 @@ local function Refresh()
 end
 
 local function Hide()
+    shownBoss = nil
     if panel then panel:Hide() end
     J.ShowMapOnWorldMap(nil)
 end
@@ -188,7 +222,26 @@ local function MapChanged()
     if not (panel and panel:IsShown()) then return end
     local away = J.DungeonMapAway()
     J.WorldMapChanged()
-    if J.DungeonMapAway() ~= away then view:Redraw() end
+    if J.DungeonMapAway() == away then return end
+    -- Stepped aside: its boss is no longer picked on it, so the dungeon's page shows again.
+    if shownBoss and J.DungeonMapAway() then
+        shownBoss = nil
+        PaintButtons()
+        view:Draw(pages[shownIndex])
+    else
+        view:Redraw()
+    end
+end
+
+-- A pin on the dungeon's map: its boss's page (its loot and abilities) instead of the
+-- dungeon's, from the top; nil for the dungeon's again.
+---@param boss? JournalBoss
+function J.ShowBossBesideMap(boss)
+    if not (panel and panel:IsShown() and pages) or pagesAreFactions then return end
+    shownBoss = boss
+    PaintButtons()
+    DrawShown()
+    panel.scroll:SetVerticalScroll(0)
 end
 
 local function Hook()

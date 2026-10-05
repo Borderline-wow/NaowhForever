@@ -18,12 +18,13 @@ local PANEL_W, PANEL_PAD, PANEL_HEADER = St.PANEL_W, St.PANEL_PAD, St.PANEL_HEAD
 BINDING_NAME_NAOWHFOREVER_BOSSLOOT = "Boss Loot at Cursor"
 
 local CURSOR_OFFSET = 12
+local VIEW_TOP = 4   -- the card's top edge to the page, as the Journal beside the map has it
 
 local popup, view
 
 -- The panel grows with what the view draws, also when a late item name redraws it.
 local function Drawn(height)
-    popup:SetHeight(height + PANEL_HEADER + PANEL_PAD)
+    popup:SetHeight(height + PANEL_HEADER + VIEW_TOP + PANEL_PAD)
 end
 
 local function Build()
@@ -32,9 +33,11 @@ local function Build()
     popup.title:SetTextColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
     popup:SetFrameStrata("DIALOG")
     view = J.View.New(popup)
-    view:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEADER)
+    view:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEADER - VIEW_TOP)
     view:SetWidth(PANEL_W - PANEL_PAD * 2)
     view.onResize = Drawn
+    -- Closed (its X, the key, its map): the pin that opened it is no longer ringed.
+    popup:HookScript("OnHide", J.View.ForgetMapLoot)
 end
 
 local function Open(boss, dungeon)

@@ -112,7 +112,7 @@ read_globals = {
     "QuestGetAutoAccept", "QuestInfoFrame", "QuestInfoItem_OnClick", "QuestInfoRewardsFrame", "QuestLogPushQuest",
     "RAID_CLASS_COLORS", "RegisterStateDriver", "RequestRaidInfo", "ReloadUI", "RepairAllItems",
     "RequestTimePlayed", "SaveBindings", "SEARCH", "SecondsToTime", "SecureHandlerWrapScript",
-    "SelectActiveQuest", "SelectAvailableQuest", "SendChatMessage", "SetPortraitTextureFromCreatureDisplayID", "SetBinding", "SetCVar", "SetItemRef", "C_Minimap", "GameTooltip_SetTitle",
+    "SelectActiveQuest", "SelectAvailableQuest", "SendChatMessage", "SetPortraitTextureFromCreatureDisplayID", "SetBinding", "SetCVar", "SetItemRef", "Spell", "C_Minimap", "GameTooltip_SetTitle",
     "GameTooltip_AddNormalLine",
     "SHARE_QUEST", "ShoppingTooltip1", "ShoppingTooltip2", "SILVER_AMOUNT", "SOUNDKIT",
     "StaticPopup_FindVisible", "StaticPopup_Hide", "StaticPopup_Show", "StatusTrackingBarInfo",

@@ -1,0 +1,995 @@
+{
+ "1013": {
+  "npcs": [],
+  "text": "Bring the Book of Ur to Keeper Bel'dugur at the Apothecarium in the Undercity. The Book of Ur ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(6283, 0, 1, null, null));"
+ },
+ "1014": {
+  "npcs": [],
+  "text": "Kill Arugal and bring his head to Dalar Dawnweaver at the Sepulcher. Head of Arugal ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5442, 0, 1, null, null));"
+ },
+ "1048": {
+  "npcs": [
+   3977,
+   3976,
+   3975,
+   3974
+  ],
+  "text": "Kill High Inquisitor Whitemane , Scarlet Commander Mograine , Herod , the Scarlet Champion and Houndmaster Loksey and then report back to Varimathras in the Undercity. High Inquisitor Whitemane slain ( 1 ) Scarlet Commander Mograine slain ( 1 ) Herod slain ( 1 ) Houndmaster Loksey slain ( 1 )"
+ },
+ "1049": {
+  "npcs": [],
+  "text": "Retrieve the Compendium of the Fallen from the Monastery in Tirisfal Glades and return to Sage Truthseeker in Thunder Bluff. Compendium of the Fallen ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5535, 0, 1, null, null));"
+ },
+ "1050": {
+  "npcs": [],
+  "text": "Retrieve Mythology of the Titans from the Monastery and bring it to Librarian Mae Paledust in Ironforge. Mythology of the Titans ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5536, 0, 1, null, null));"
+ },
+ "1051": {
+  "npcs": [],
+  "text": "Return Vorrel Sengutz 's wedding ring to Monika Sengutz in Tarren Mill. Vorrel's Wedding Ring ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5538, 0, 1, null, null));"
+ },
+ "1053": {
+  "npcs": [
+   3977,
+   3976,
+   3975,
+   3974
+  ],
+  "text": "Kill High Inquisitor Whitemane , Scarlet Commander Mograine , Herod , the Scarlet Champion and Houndmaster Loksey and then report back to Raleigh the Devout in Southshore. High Inquisitor Whitemane slain ( 1 ) Scarlet Commander Mograine slain ( 1 ) Herod slain ( 1 ) Houndmaster Loksey slain ( 1 )"
+ },
+ "1098": {
+  "npcs": [],
+  "text": "Find the Deathstalker Adamant and Deathstalker Vincent ."
+ },
+ "1101": {
+  "npcs": [],
+  "text": "Bring Razorflank's Medallion to Falfindel Waywarder in Thalanaar. Razorflank's Medallion ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5792, 0, 1, null, null));"
+ },
+ "1102": {
+  "npcs": [],
+  "text": "Bring Razorflank's Heart to Auld Stonespire in Thunder Bluff. Razorflank's Heart ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5793, 0, 1, null, null));"
+ },
+ "1109": {
+  "npcs": [],
+  "text": "Bring 1 pile of Kraul Guano to Master Apothecary Faranell in the Undercity. Kraul Guano ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5801, 0, 1, null, null));"
+ },
+ "1113": {
+  "npcs": [],
+  "text": "Master Apothecary Faranell in the Undercity wants 20 Hearts of Zeal . Heart of Zeal ( 20 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5805, 0, 20, null, null));"
+ },
+ "1139": {
+  "npcs": [],
+  "text": "Find the Tablet of Will , and return them to Advisor Belgrum in Ironforge. Tablet of Will ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5824, 0, 1, null, null));"
+ },
+ "1142": {
+  "npcs": [],
+  "text": "Find and return Treshala's Pendant to Treshala Fallowbrook in Darnassus. Treshala's Pendant ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5825, 0, 1, null, null));"
+ },
+ "1144": {
+  "npcs": [],
+  "text": "Escort Willix the Importer out of Razorfen Kraul . Help Willix the Importer escape from Razorfen Kraul ( 1 )"
+ },
+ "1160": {
+  "npcs": [],
+  "text": "Find The Beginnings of the Undead Threat , and return it to Parqual Fintallas in Undercity. Beginnings of the Undead Threat ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5861, 0, 1, null, null));"
+ },
+ "1198": {
+  "npcs": [],
+  "text": "Seek out Argent Guard Thaelrid in Blackfathom Deeps ."
+ },
+ "1199": {
+  "npcs": [],
+  "text": "Bring 10 Twilight Pendants to Argent Guard Manados in Darnassus. Twilight Pendant ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5879, 0, 10, null, null));"
+ },
+ "1200": {
+  "npcs": [],
+  "text": "Bring the head of Twilight Lord Kelris to Dawnwatcher Selgorm in Darnassus. Head of Kelris ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5881, 0, 1, null, null));"
+ },
+ "1221": {
+  "npcs": [],
+  "text": "Grab a Crate with Holes . Grab a Snufflenose Command Stick . Grab and read the Snufflenose Owner's Manual . In Razorfen Kraul , use the Crate with Holes to summon a Snufflenose Gopher, and use the Command Stick on the gopher to make it search for Tubers. Bring 6 Blueleaf Tubers , the Snufflenose Command Stick and the Crate with Holes to Mebok Mizzyrix in Ratchet. Blueleaf Tuber ( 6 ) Crate With Holes ( 1 ) Snufflenose Owner's Manual ( 1 ) Snufflenose Command Stick ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5876, 0, 6, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(5880, 0, 1, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(5897, 0, 1, null, null)); WH.ge('icon-list-icon4').appendChild(g_items.createIcon(6684, 0, 1, null, null));"
+ },
+ "1275": {
+  "npcs": [],
+  "text": "Gershala Nightwhisper in Auberdine wants 8 Corrupt Brain stems. Corrupted Brain Stem ( 8 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5952, 0, 8, null, null));"
+ },
+ "1360": {
+  "npcs": [],
+  "text": "Get Krom Stoutarm 's treasured possession from his chest in the North Common Hall of Uldaman , and bring it to him in Ironforge. Krom Stoutarm's Treasure ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8027, 0, 1, null, null));"
+ },
+ "1445": {
+  "npcs": [],
+  "text": "Collect 20 Fetishes of Hakkar and bring them to Fel'Zerul in Stonard. Fetish of Hakkar ( 20 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(6181, 0, 20, null, null));"
+ },
+ "1446": {
+  "npcs": [],
+  "text": "The Atal'ai Exile in The Hinterlands wants the Head of Jammal'an . Head of Jammal'an ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(6212, 0, 1, null, null));"
+ },
+ "1475": {
+  "npcs": [],
+  "text": "Gather 10 Atal'ai Tablets for Brohann Caskbelly in Stormwind. Atal'ai Tablet ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(6288, 0, 10, null, null));"
+ },
+ "1486": {
+  "npcs": [],
+  "text": "Nalpak in the Wailing Caverns wants 20 Deviate Hides . Deviate Hide ( 20 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(6443, 0, 20, null, null));"
+ },
+ "1487": {
+  "npcs": [
+   3636,
+   5755,
+   5761,
+   5056
+  ],
+  "text": "Ebru in the Wailing Caverns wants you to kill 7 Deviate Ravagers , 7 Deviate Vipers , 7 Deviate Shamblers and 7 Deviate Dreadfangs . Deviate Ravager slain ( 7 ) Deviate Viper slain ( 7 ) Deviate Shambler slain ( 7 ) Deviate Dreadfang slain ( 7 )"
+ },
+ "1491": {
+  "npcs": [],
+  "text": "Bring 6 portions of Wailing Essence to Mebok Mizzyrix in Ratchet. Wailing Essence ( 6 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(6464, 0, 6, null, null));"
+ },
+ "1654": {
+  "npcs": [],
+  "text": "Using Jordan's Weapon Notes , find some Whitestone Oak Lumber , Bailor's Refined Ore Shipment, Jordan's Smithing Hammer , and a Kor Gem, and return them to Jordan Stilwell in Ironforge. Whitestone Oak Lumber ( 1 ) Jordan's Refined Ore Shipment ( 1 ) Jordan's Smithing Hammer ( 1 ) Purified Kor Gem ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(6994, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(6993, 0, 1, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(6895, 0, 1, null, null)); WH.ge('icon-list-icon4').appendChild(g_items.createIcon(7083, 0, 1, null, null)); Provided item: Jordan's Weapon Notes ( 1 ) WH.ge('icon-list-icon5').appendChild(g_items.createIcon(6996, 0, 0, null, null));"
+ },
+ "166": {
+  "npcs": [],
+  "text": "Kill Edwin VanCleef and bring his head to Gryan Stoutmantle . Head of VanCleef ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(3637, 0, 1, null, null));"
+ },
+ "167": {
+  "npcs": [],
+  "text": "Bring Foreman Thistlenettle's Explorers' League Badge to Wilder Thistlenettle in Stormwind. Thistlenettle's Badge ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(1875, 0, 1, null, null));"
+ },
+ "168": {
+  "npcs": [],
+  "text": "Retrieve 4 Miners' Union Cards and return them to Wilder Thistlenettle in Stormwind. Miners' Union Card ( 4 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(1894, 0, 4, null, null));"
+ },
+ "17": {
+  "npcs": [],
+  "text": "Bring 12 Magenta Fungus Caps to Ghak Healtouch in Thelsamar. Magenta Fungus Cap ( 12 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8047, 0, 12, null, null));"
+ },
+ "1740": {
+  "npcs": [],
+  "text": "Find 3 Soran'ruk Fragments and 1 Large Soran'ruk Fragment and return them to Doan Karhan in the Barrens. Soran'ruk Fragment ( 3 ) Large Soran'ruk Fragment ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(6914, 0, 3, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(6915, 0, 1, null, null));"
+ },
+ "1951": {
+  "npcs": [],
+  "text": "Bring the book Rituals of Power to Tabetha in Dustwallow Marsh. Rituals of Power ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(7274, 0, 1, null, null));"
+ },
+ "1956": {
+  "npcs": [],
+  "text": "Retrieve an Obsidian Power Source and bring it to Tabetha in Dustwallow Marsh. Obsidian Power Source ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8053, 0, 1, null, null));"
+ },
+ "2040": {
+  "npcs": [],
+  "text": "Retrieve the Gnoam Sprecklesprocket from the Deadmines and return it to Shoni the Shilent in Stormwind. Gnoam Sprecklesprocket ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(7365, 0, 1, null, null));"
+ },
+ "214": {
+  "npcs": [],
+  "text": "Scout Riell at the Sentinel Hill Tower wants you to bring her 10 Red Silk Bandanas . Red Silk Bandana ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(915, 0, 10, null, null));"
+ },
+ "2198": {
+  "npcs": [],
+  "text": "Search for the original creator of the shattered necklace to learn of its potential value. Shattered Necklace (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(7666, 0, 1, null, null));"
+ },
+ "2202": {
+  "npcs": [],
+  "text": "Bring 12 Magenta Fungus Caps to Jarkal Mossmeld in Kargath. Magenta Fungus Cap ( 12 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8047, 0, 12, null, null));"
+ },
+ "2240": {
+  "npcs": [],
+  "text": "Read Baelog 's Journal, explore the hidden chamber, then report to Prospector Stormpike . Explore Zone ( 1 ) Explore the Hidden Chamber ( 1 )"
+ },
+ "2278": {
+  "npcs": [],
+  "text": "Speak with stone watcher and learn what ancient lore it keeps. Once you have learned what lore it has to offer, activate the Discs of Norgannon . Learn what lore that the stone watcher has to offer ( 1 )"
+ },
+ "2283": {
+  "npcs": [],
+  "text": "Look for a valuable necklace within the Uldaman dig site and bring it back to Dran Droffers in Orgrimmar. The necklace may be damaged. Shattered Necklace ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(7666, 0, 1, null, null));"
+ },
+ "2342": {
+  "npcs": [],
+  "text": "Get Patrick Garrett 's family treasure from their family chest in the South Common Hall of Uldaman , and bring it to him in the Undercity. Garrett Family Treasure ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8026, 0, 1, null, null));"
+ },
+ "2398": {
+  "npcs": [],
+  "text": "Find Baelog in Uldaman ."
+ },
+ "2418": {
+  "npcs": [],
+  "text": "Bring 8 Dentrium Power Stones and 8 An'Alleum Power Stones to Rigglefuzz in the Badlands. Dentrium Power Stone ( 8 ) An'Alleum Power Stone ( 8 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8009, 0, 8, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(8052, 0, 8, null, null));"
+ },
+ "2768": {
+  "npcs": [],
+  "text": "Bring the Divino-matic Rod to Chief Engineer Bilgewhizzle in Gadgetzan. Divino-matic Rod ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8548, 0, 1, null, null));"
+ },
+ "2770": {
+  "npcs": [],
+  "text": "Bring Gahz'rilla's Electrified Scale to Wizzle Brassbolts in the Shimmering Flats. Gahz'rilla's Electrified Scale ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8707, 0, 1, null, null));"
+ },
+ "2841": {
+  "npcs": [],
+  "text": "Retrieve the Rig Blueprints and Thermaplugg's Safe Combination from Gnomeregan and bring them to Nogg in Orgrimmar. Rig Blueprints ( 1 ) Thermaplugg's Safe Combination ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9153, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(9299, 0, 1, null, null));"
+ },
+ "2842": {
+  "npcs": [],
+  "text": "Speak with Scooty in Booty Bay."
+ },
+ "2843": {
+  "npcs": [],
+  "text": "Wait for Scooty to calibrate the Goblin Transponder . Goblin Transponder ( 1 )"
+ },
+ "2846": {
+  "npcs": [],
+  "text": "Bring the Tiara of the Deep to Tabetha in Dustwallow Marsh. Tiara of the Deep ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9234, 0, 1, null, null));"
+ },
+ "2865": {
+  "npcs": [],
+  "text": "Bring 5 Uncracked Scarab Shells to Tran'rek in Gadgetzan. Uncracked Scarab Shell ( 5 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9238, 0, 5, null, null));"
+ },
+ "2904": {
+  "npcs": [],
+  "text": "Escort Kernobee to the Clockwerk Run exit and then report to Scooty in Booty Bay. Kernobee Rescue ( 1 )"
+ },
+ "2922": {
+  "npcs": [],
+  "text": "Bring Techbot's Memory Core to Tinkmaster Overspark in Ironforge. Techbot's Memory Core ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9277, 0, 1, null, null));"
+ },
+ "2924": {
+  "npcs": [],
+  "text": "Bring 12 Essential Artificials to Klockmort Spannerspan in Ironforge. Essential Artificial ( 12 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9278, 0, 12, null, null));"
+ },
+ "2926": {
+  "npcs": [],
+  "text": "Use the Empty Leaden Collection Phial on Irradiated Invaders or Irradiated Pillagers to collect radioactive fallout. Once it is full, take it back to Ozzie Togglevolt in Kharanos. Full Leaden Collection Phial ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9284, 0, 1, null, null)); Provided item: Empty Leaden Collection Phial ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(9283, 0, 0, null, null));"
+ },
+ "2928": {
+  "npcs": [],
+  "text": "Bring twenty-four Robo-mechanical Guts to Shoni in Stormwind. Robo-mechanical Guts ( 24 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9309, 0, 24, null, null));"
+ },
+ "2929": {
+  "npcs": [
+   7800
+  ],
+  "text": "Venture to Gnomeregan and kill Mekgineer Thermaplugg . Return to High Tinker Mekkatorque when the task is complete. Mekgineer Thermaplugg slain ( 1 )"
+ },
+ "2930": {
+  "npcs": [],
+  "text": "Bring a Prismatic Punch Card to Master Mechanic Castpipe in Ironforge. Prismatic Punch Card ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9316, 0, 1, null, null));"
+ },
+ "2936": {
+  "npcs": [],
+  "text": "Read from the Tablet of Theka to learn the name of the Witherbark spider god, then return to Master Gadrin . Find the Spider God's Name ( 1 )"
+ },
+ "2945": {
+  "npcs": [],
+  "text": "Figure out a way to remove the grime from the Grime-Encrusted Ring . Grime-Encrusted Ring (Provided) ( 1 ) Required money: 3 ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9326, 0, 1, null, null));"
+ },
+ "2951": {
+  "npcs": [],
+  "text": "Insert a Grime-Encrusted Item into the Sparklematic 5200 , and be sure to have three silver coins to start the machine. Grime-Encrusted Object ( 1 ) Required money: 3 ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9308, 0, 1, null, null));"
+ },
+ "2962": {
+  "npcs": [],
+  "text": "Travel to Gnomeregan and bring back High Potency Radioactive Fallout . Be warned, the fallout is unstable and will collapse rather quickly. Ozzie will also require your Heavy Leaden Collection Phial when the task is complete. High Potency Radioactive Fallout ( 1 ) Heavy Leaden Collection Phial (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9365, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(9364, 0, 1, null, null));"
+ },
+ "2991": {
+  "npcs": [],
+  "text": "Bring Nekrum's Medallion to Thadius Grimshade in the Blasted Lands. Nekrum's Medallion ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9471, 0, 1, null, null));"
+ },
+ "3042": {
+  "npcs": [],
+  "text": "Bring 20 Vials of Troll Temper to Trenton Lighthammer in Gadgetzan. Troll Temper ( 20 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9523, 0, 20, null, null));"
+ },
+ "3341": {
+  "npcs": [],
+  "text": "Andrew Brownell wants you to kill Amnennar the Coldbringer and return his skull. Skull of the Coldbringer ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10420, 0, 1, null, null));"
+ },
+ "3366": {
+  "npcs": [],
+  "text": "Travel to Ratchet to find the meaning behind the Nightmare Shard. Glowing Shard (Provided) ( 1 ) Speak with someone about the Nightmare Shard ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10441, 0, 1, null, null));"
+ },
+ "3369": {
+  "npcs": [],
+  "text": "Bring the Nightmare Shard to Hamuul Runetotem on Elder Rise. Nightmare Shard (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10649, 0, 1, null, null));"
+ },
+ "3370": {
+  "npcs": [],
+  "text": "Bring the Nightmare Shard to Mathrengyl Bearwalker in Darnassus. Nightmare Shard (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10649, 0, 1, null, null));"
+ },
+ "3373": {
+  "npcs": [],
+  "text": "Place the Essence of Eranikus in the Essence Font located in this lair in the Sunken Temple. Essence of Eranikus (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10454, 0, 1, null, null));"
+ },
+ "3446": {
+  "npcs": [],
+  "text": "Find the Altar of Hakkar in the Sunken Temple in Swamp of Sorrows. Atal'ai Stone Circle (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10466, 0, 1, null, null));"
+ },
+ "3447": {
+  "npcs": [],
+  "text": "Travel into the Sunken Temple and discover the secret hidden in the circle of statues."
+ },
+ "3523": {
+  "npcs": [],
+  "text": "If you agree to aid Belnistrasz , speak with him again and hand the Oathstone he gave you back to him. Belnistrasz's Oathstone (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10682, 0, 1, null, null));"
+ },
+ "3525": {
+  "npcs": [],
+  "text": "Escort Belnistrasz to the Quilboar's idol in Razorfen Downs . Protect Belnistrasz while he performs the ritual to shut down the idol. Protect Belnistrasz while he performs the ritual to shut down the idol ( 1 )"
+ },
+ "3527": {
+  "npcs": [],
+  "text": "Bring the First and Second Mosh'aru Tablets to Yeh'kinya in Tanaris. First Mosh'aru Tablet ( 1 ) Second Mosh'aru Tablet ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10660, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(10661, 0, 1, null, null));"
+ },
+ "3528": {
+  "npcs": [],
+  "text": "Bring the Filled Egg of Hakkar to Yeh'kinya in Tanaris. Filled Egg of Hakkar ( 1 ) Essence of Hakkar ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10662, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(10663, 0, 1, null, null)); Provided item: Egg of Hakkar ( 1 ) WH.ge('icon-list-icon3').appendChild(g_items.createIcon(10465, 0, 0, null, null));"
+ },
+ "3636": {
+  "npcs": [
+   7358
+  ],
+  "text": "Archbishop Bendictus wants you to slay Amnennar the Coldbringer in Razorfen Downs . Amnennar the Coldbringer slain ( 1 )"
+ },
+ "373": {
+  "npcs": [],
+  "text": "Deliver the Letter to the City Architect to Baros Alexston in Stormwind. An Unsent Letter (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(2874, 0, 1, null, null));"
+ },
+ "377": {
+  "npcs": [],
+  "text": "Councilman Millstipe of Darkshire wants you to bring him the hand of Dextren Ward . Hand of Dextren Ward ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(3628, 0, 1, null, null));"
+ },
+ "378": {
+  "npcs": [],
+  "text": "Motley Garmason wants Kam Deepfury's head brought to him at Dun Modr. Head of Deepfury ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(3640, 0, 1, null, null));"
+ },
+ "3802": {
+  "npcs": [],
+  "text": "Slay Fineous Darkvire and recover the great hammer, Ironfel . Take Ironfel to the Shrine of Thaurissan and place it on the statue of Franclorn Forgewright . Ironfel ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10999, 0, 1, null, null));"
+ },
+ "386": {
+  "npcs": [],
+  "text": "Bring the head of Targorr the Dread to Guard Berton in Lakeshire. Head of Targorr ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(3630, 0, 1, null, null));"
+ },
+ "387": {
+  "npcs": [
+   1706,
+   1711,
+   1715
+  ],
+  "text": "Warden Thelwater of Stormwind wants you to kill 10 Defias Prisoners , 8 Defias Convicts , and 8 Defias Insurgents in The Stockade . Defias Prisoner slain ( 10 ) Defias Convict slain ( 8 ) Defias Insurgent slain ( 8 )"
+ },
+ "388": {
+  "npcs": [],
+  "text": "Nikova Raskol of Stormwind wants you to collect 10 Red Wool Bandanas . Red Wool Bandana ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(2909, 0, 10, null, null));"
+ },
+ "3906": {
+  "npcs": [
+   9026
+  ],
+  "text": "Travel to the quarry in Blackrock Mountain and slay Overmaster Pyron . Return to Thunderheart when you have completed this assignment. Overmaster Pyron slain ( 1 )"
+ },
+ "3907": {
+  "npcs": [
+   9017
+  ],
+  "text": "Enter Blackrock Depths and track down Lord Incendius . Slay him and return any source of information you may find to Thunderheart . Lord Incendius slain ( 1 ) Tablet of Kurniya ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11126, 0, 1, null, null));"
+ },
+ "391": {
+  "npcs": [],
+  "text": "Kill Bazil Thredd and bring his head back to Warden Thelwater at the Stockade . Head of Bazil Thredd ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(2926, 0, 1, null, null));"
+ },
+ "3981": {
+  "npcs": [],
+  "text": "Find Commander Gor'shak in Blackrock Depths . You recall that the crudely drawn picture of the orc included bars drawn over the portrait. Perhaps you should search for a prison of some sort."
+ },
+ "4003": {
+  "npcs": [
+   9019
+  ],
+  "text": "Slay Emperor Dagran Thaurissan and free Princess Moira Bronzebeard from his evil spell. Emperor Dagran Thaurissan slain ( 1 )"
+ },
+ "4024": {
+  "npcs": [],
+  "text": "Travel to Blackrock Depths and slay Bael'Gar. You only know that the giant resides inside Blackrock Depths . Remember to use the Altered Black Dragonflight Molt on Bael'Gar's remains to capture the Fiery Essence. Return the Encased Fiery Essence to Cyrus Therepentous . Encased Fiery Essence ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11230, 0, 1, null, null)); Provided item: Altered Black Dragonflight Molt ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(11231, 0, 0, null, null));"
+ },
+ "4063": {
+  "npcs": [],
+  "text": "Find and slay Golem Lord Argelmach. Return his head to Lotwil. You will also need to collect 10 Intact Elemental Cores from the Ragereaver Golems and Warbringer Constructs protecting Argelmach. You know this because you are psychic. Head of Argelmach ( 1 ) Intact Elemental Core ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11268, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(11269, 0, 10, null, null));"
+ },
+ "4081": {
+  "npcs": [
+   8891,
+   8890,
+   8892
+  ],
+  "text": "Venture to Blackrock Depths and destroy the vile aggressors! Warlord Goretooth wants you to kill 15 Anvilrage Guardsmen, 10 Anvilrage Wardens and 5 Anvilrage Footmen. Return to him once your task is complete. Anvilrage Guardsman slain ( 15 ) Anvilrage Warden slain ( 10 ) Anvilrage Footman slain ( 5 )"
+ },
+ "4082": {
+  "npcs": [
+   8894,
+   8893,
+   8895
+  ],
+  "text": "Venture to Blackrock Depths and destroy the vile aggressors! Warlord Goretooth wants you to kill 10 Anvilrage Medics , 10 Anvilrage Soldiers and 10 Anvilrage Officers . Return to him once your task is complete. Anvilrage Medic slain ( 10 ) Anvilrage Soldier slain ( 10 ) Anvilrage Officer slain ( 10 )"
+ },
+ "4123": {
+  "npcs": [],
+  "text": "Bring the Heart of the Mountain to Maxwort Uberglint in the Burning Steppes. The Heart of the Mountain ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11309, 0, 1, null, null));"
+ },
+ "4126": {
+  "npcs": [],
+  "text": "Bring the Lost Thunderbrew Recipe to Ragnar Thunderbrew in Kharanos. Lost Thunderbrew Recipe ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11312, 0, 1, null, null));"
+ },
+ "4132": {
+  "npcs": [
+   9033
+  ],
+  "text": "Travel to Blackrock Depths and slay General Angerforge ! Return to Warlord Goretooth when the task is complete. General Angerforge slain ( 1 )"
+ },
+ "4134": {
+  "npcs": [],
+  "text": "Bring the Lost Thunderbrew Recipe to Vivian Lagrave in Kargath. Lost Thunderbrew Recipe ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11312, 0, 1, null, null));"
+ },
+ "4136": {
+  "npcs": [],
+  "text": "Bring Ribbly's Head to Yuka Screwspigot in the Burning Steppes. Ribbly's Head ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11313, 0, 1, null, null));"
+ },
+ "4143": {
+  "npcs": [],
+  "text": "Collect 5 samples of Atal'ai Haze , then return to Muigin in Un'Goro Crater . Atal'ai Haze ( 5 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11318, 0, 5, null, null));"
+ },
+ "4146": {
+  "npcs": [],
+  "text": "Deliver the Unloaded Zapper and 5 samples of Atal'ai Haze to Larion in Marshal's Refuge. Unloaded Zapper (Provided) ( 1 ) Atal'ai Haze ( 5 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11319, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(11318, 0, 5, null, null));"
+ },
+ "4201": {
+  "npcs": [],
+  "text": "Bring 4 Gromsblood , 10 Giant Silver Veins and Nagmara's Filled Vial to Mistress Nagmara in Blackrock Depths . Gromsblood ( 4 ) Giant Silver Vein ( 10 ) Nagmara's Filled Vial ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(8846, 0, 4, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(11405, 0, 10, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(11413, 0, 1, null, null)); Provided item: Nagmara's Vial ( 1 ) WH.ge('icon-list-icon4').appendChild(g_items.createIcon(11412, 0, 0, null, null));"
+ },
+ "4241": {
+  "npcs": [],
+  "text": "Travel to Blackrock Mountain in the northwest and enter Blackrock Depths . Find out what became of Marshal Windsor . You recall Ragged John talking about Windsor being dragged off to a prison."
+ },
+ "4262": {
+  "npcs": [
+   9026
+  ],
+  "text": "Slay Overmaster Pyron and return to Jalinda Sprig . You recall Jalinda talking about Pyron guarding the quarry. Perhaps you should search there? Overmaster Pyron slain ( 1 )"
+ },
+ "4263": {
+  "npcs": [
+   9017
+  ],
+  "text": "Find Lord Incendius in Blackrock Depths and destroy him! Lord Incendius slain ( 1 )"
+ },
+ "4286": {
+  "npcs": [],
+  "text": "Travel to Blackrock Depths and recover 20 Dark Iron Fanny Packs . Return to Oralius when you have completed this task. You assume that the Dark Iron dwarves inside Blackrock Depths carry these 'fanny pack' contraptions. Dark Iron Fanny Pack ( 20 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11468, 0, 20, null, null));"
+ },
+ "4322": {
+  "npcs": [],
+  "text": "Help Marshal Windsor get his gear back and free his friends. Return to Marshal Maxwell if you succeed. Jail Break! ( 1 )"
+ },
+ "4341": {
+  "npcs": [],
+  "text": "Travel to Blackrock Depths and find Kharan Mighthammer . The King mentioned that Kharan was being held prisoner there - perhaps you should try looking for a prison."
+ },
+ "4362": {
+  "npcs": [
+   9019
+  ],
+  "text": "Return to Blackrock Depths and rescue Princess Moira Bronzebeard from the evil clutches of Emperor Dagran Thaurissan . Emperor Dagran Thaurissan slain ( 1 )"
+ },
+ "4701": {
+  "npcs": [
+   10220
+  ],
+  "text": "Travel to Blackrock Spire and destroy the source of the worg menace. As you left Helendis, he shouted a name: Halycon . It is what the orcs refer to in regards to the worg. Halycon slain ( 1 )"
+ },
+ "4724": {
+  "npcs": [
+   10220
+  ],
+  "text": "Slay Halycon , pack mistress of the Bloodaxe worg. Halycon slain ( 1 )"
+ },
+ "4729": {
+  "npcs": [],
+  "text": "Travel to Blackrock Spire and find Bloodaxe Worg Pups. Use the cage to carry the ferocious little beasts. Bring back a Caged Worg Pup to Kibler . Caged Worg Pup ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12263, 0, 1, null, null)); Provided item: Empty Worg Pup Cage ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(12262, 0, 0, null, null));"
+ },
+ "4735": {
+  "npcs": [],
+  "text": "Bring 8 Collected Dragon Eggs and the Collectronic Module to Tinkee Steamboil at Flame Crest in the Burning Steppes. Collected Dragon Egg ( 8 ) Collectronic Module (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12241, 0, 8, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(12287, 0, 1, null, null));"
+ },
+ "4742": {
+  "npcs": [],
+  "text": "Find the three gemstones of command: The Gemstone of Smolderthorn , Gemstone of Spirestone , and Gemstone of Bloodaxe . Return them, along with the Unadorned Seal of Ascension , to Vaelan. The Generals, as told to you by Vaelan, are: War Master Voone of the Smolderthorn; Highlord Omokk of the Spirestone; and Overlord Wyrmthalak of the Bloodaxe. Gemstone of Spirestone ( 1 ) Gemstone of Smolderthorn ( 1 ) Gemstone of Bloodaxe ( 1 ) Unadorned Seal of Ascension ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12336, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(12335, 0, 1, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(12337, 0, 1, null, null)); WH.ge('icon-list-icon4').appendChild(g_items.createIcon(12219, 0, 1, null, null));"
+ },
+ "4764": {
+  "npcs": [],
+  "text": "Bring Doomrigger's Clasp to Mayara Brightwing in the Burning Steppes. Doomrigger's Clasp ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12352, 0, 1, null, null));"
+ },
+ "4768": {
+  "npcs": [],
+  "text": "Bring the Darkstone Tablet to Shadow Mage Vivian Lagrave in Kargath. Darkstone Tablet ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12358, 0, 1, null, null));"
+ },
+ "4771": {
+  "npcs": [
+   10432
+  ],
+  "text": "Place Dawn's Gambit in the Viewing Room of the Scholomance . Defeat Vectus , then return to Betina Bigglezink . Vectus slain ( 1 ) Place Dawn's Gambit ( 1 ) Provided item: Dawn's Gambit ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12368, 0, 0, null, null));"
+ },
+ "4788": {
+  "npcs": [],
+  "text": "Bring the Fifth and Sixth Mosh'aru Tablets to Prospector Ironboot in Tanaris. Fifth Mosh'aru Tablet ( 1 ) Sixth Mosh'aru Tablet ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12740, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(12741, 0, 1, null, null));"
+ },
+ "4862": {
+  "npcs": [],
+  "text": "Travel to Blackrock Spire and collect 15 Spire Spider Eggs for Kibler . By the sound of it, these eggs could be found near spiders. Spire Spider Egg ( 15 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12530, 0, 15, null, null));"
+ },
+ "4866": {
+  "npcs": [],
+  "text": "In the heart of Blackrock Spire you will find Mother Smolderweb. Engage her and get her to poison you. Chances are good that you will have to kill her as well. Return to Ragged John when you are poisoned so that he can 'milk' you. Milked ( 1 )"
+ },
+ "4867": {
+  "npcs": [],
+  "text": "Read Warosh's Scroll . Bring Warosh's Mojo to Warosh . Warosh's Mojo ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12712, 0, 1, null, null)); Provided item: Warosh's Scroll ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(12730, 0, 0, null, null));"
+ },
+ "4903": {
+  "npcs": [
+   9568,
+   9196,
+   9237
+  ],
+  "text": "Slay Highlord Omokk , War Master Voone , and Overlord Wyrmthalak . Recover Important Blackrock Documents . Return to Warlord Goretooth in Kargath when the mission has been accomplished. Overlord Wyrmthalak slain ( 1 ) Highlord Omokk slain ( 1 ) War Master Voone slain ( 1 ) Important Blackrock Documents ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12562, 0, 1, null, null));"
+ },
+ "4974": {
+  "npcs": [],
+  "text": "Travel to Blackrock Spire and slay Warchief Rend Blackhand. Take his head and return to Orgrimmar. Head of Rend Blackhand ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12630, 0, 1, null, null));"
+ },
+ "4981": {
+  "npcs": [],
+  "text": "Travel to Blackrock Spire and find out what happened to Bijou ."
+ },
+ "5001": {
+  "npcs": [],
+  "text": "Find Bijou's Belongings and return them to her. Good luck! Bijou's Belongings ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12345, 0, 1, null, null));"
+ },
+ "5047": {
+  "npcs": [],
+  "text": "Talk to Malyfous Darkhammer in Everlook. Glowing Hunk of the Beast's Flesh (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12710, 0, 1, null, null));"
+ },
+ "5089": {
+  "npcs": [],
+  "text": "Take General Drakkisath's Command to Marshal Maxwell in Burning Steppes. General Drakkisath's Command (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12780, 0, 1, null, null));"
+ },
+ "5102": {
+  "npcs": [
+   10363
+  ],
+  "text": "Travel to Blackrock Spire and destroy General Drakkisath . Return to Marshal Maxwell when the job is done. General Drakkisath slain ( 1 )"
+ },
+ "5122": {
+  "npcs": [],
+  "text": "Progress The power of this chapel gives me the strength to resist the corruption in my heart. If I leave it, I will become a death knight. But there is a medallion, the medallion of faith , that will give me the strength I need to leave. Please, <name>, retrieve the medallion. It is guarded by Malor the Zealous, a crazed member of the Scarlet Brotherhood who resides deep in the Scarlet Bastion in western Stratholme . Medallion of Faith ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12845, 0, 1, null, null));"
+ },
+ "5125": {
+  "npcs": [],
+  "text": "Completion <name>, I am dying... but my soul is saved. For that, I owe you more than words can say. Please, take this... and fight on, brave <class>!"
+ },
+ "5127": {
+  "npcs": [],
+  "text": "Travel to Blackrock Spire and find Goraluk Anvilcrack. Slay him and then use the Blood Stained Pike upon his corpse. After his soul has been siphoned, the pike will be Soul Stained. You must also find the Unforged Rune Covered Breastplate . Return both the Soul Stained Pike and the Unforged Rune Covered Breastplate to Lorax in Winterspring. Soul Stained Pike ( 1 ) Unforged Rune Covered Breastplate ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12847, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(12806, 0, 1, null, null)); Provided item: Blood Stained Pike ( 1 ) WH.ge('icon-list-icon3').appendChild(g_items.createIcon(12848, 0, 0, null, null));"
+ },
+ "5160": {
+  "npcs": [],
+  "text": "Travel to Winterspring and find Haleh . Give her Awbee's scale . Awbee's Scale (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(12923, 0, 1, null, null));"
+ },
+ "5212": {
+  "npcs": [],
+  "text": "Recover 20 Plagued Flesh Samples from Stratholme and return them to Betina Bigglezink . You suspect that any creature in Stratholme would have said flesh sample. Plagued Flesh Sample ( 20 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13174, 0, 20, null, null));"
+ },
+ "5213": {
+  "npcs": [],
+  "text": "Travel to Stratholme and search the ziggurats. Find and return new Scourge Data to Betina Bigglezink . Scourge Data ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13176, 0, 1, null, null));"
+ },
+ "5214": {
+  "npcs": [],
+  "text": "Find Fras Siabi's smoke shop in Stratholme and recover a box of Siabi's Premium Tobacco. Return to Smokey LaRue when the job is done. Grimm's Premium Tobacco ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13172, 0, 1, null, null));"
+ },
+ "5243": {
+  "npcs": [],
+  "text": "Travel to Stratholme , in the north. Search the supply crates that litter the city and recover 5 Stratholme Holy Water . Return to Leonid Barthalomew the Revered when you have collected enough of the blessed fluid. Stratholme Holy Water ( 5 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13180, 0, 5, null, null));"
+ },
+ "5251": {
+  "npcs": [
+   10811
+  ],
+  "text": "Travel to Stratholme and find Archivist Galford of the Scarlet Crusade. Destroy him and burn down the Scarlet Archive . Archivist Galford slain ( 1 ) Archive Burned ( 1 )"
+ },
+ "5262": {
+  "npcs": [],
+  "text": "Take the Head of Balnazzar to Duke Nicholas Zverenhoff in the Eastern Plaguelands. Head of Balnazzar (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13250, 0, 1, null, null));"
+ },
+ "5263": {
+  "npcs": [],
+  "text": "Venture to Stratholme and destroy Baron Rivendare. Take his head and return to Duke Nicholas Zverenhoff . Head of Baron Rivendare ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13251, 0, 1, null, null));"
+ },
+ "5282": {
+  "npcs": [
+   11122
+  ],
+  "text": "Use Egan's Blaster on the ghostly and spectral citizens of Stratholme . When the restless souls break free from their ghostly shells, use the blaster again - freedom will be theirs! Free 15 restless souls and return to Egan . Souls Freed ( 15 ) Provided item: Egan's Blaster ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13289, 0, 0, null, null));"
+ },
+ "5341": {
+  "npcs": [],
+  "text": "Venture to the Scholomance and recover the Barov family fortune. Four deeds make up this fortune: The Deed to Caer Darrow ; The Deed to Brill ; The Deed to Tarren Mill ; and The Deed to Southshore . Return to Alexi Barov when you have completed this task. The Deed to Brill ( 1 ) The Deed to Caer Darrow ( 1 ) The Deed to Southshore ( 1 ) The Deed to Tarren Mill ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13471, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(13448, 0, 1, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(13450, 0, 1, null, null)); WH.ge('icon-list-icon4').appendChild(g_items.createIcon(13451, 0, 1, null, null));"
+ },
+ "5343": {
+  "npcs": [],
+  "text": "Venture to the Scholomance and recover the Barov family fortune. Four deeds make up this fortune: The Deed to Caer Darrow ; The Deed to Brill ; The Deed to Tarren Mill ; and The Deed to Southshore . Return to Weldon Barov when you have completed this task. The Deed to Brill ( 1 ) The Deed to Caer Darrow ( 1 ) The Deed to Southshore ( 1 ) The Deed to Tarren Mill ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13471, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(13448, 0, 1, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(13450, 0, 1, null, null)); WH.ge('icon-list-icon4').appendChild(g_items.createIcon(13451, 0, 1, null, null));"
+ },
+ "5382": {
+  "npcs": [
+   11261
+  ],
+  "text": "Find Doctor Theolen Krastinov inside the Scholomance . Destroy him, then burn the Remains of Eva Sarkhoff and the Remains of Lucien Sarkhoff . Return to Eva Sarkhoff when the task is complete. Doctor Theolen Krastinov slain ( 1 ) Remains of Eva Sarkhoff Burned ( 1 ) Remains of Lucien Sarkhoff Burned ( 1 )"
+ },
+ "5384": {
+  "npcs": [
+   10506
+  ],
+  "text": "Return to the Scholomance with the Blood of Innocents . Find the porch and place the Blood of Innocents in the brazier. Kirtonos will come to feast upon your soul. Fight valiantly, do not give an inch! Destroy Kirtonos and return to Eva Sarkhoff . Kirtonos the Herald slain ( 1 ) Provided item: Blood of Innocents ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13523, 0, 0, null, null));"
+ },
+ "5463": {
+  "npcs": [],
+  "text": "Travel to Stratholme and find Menethil's Gift . Place the Keepsake of Remembrance upon the unholy ground. Keepsake of Remembrance (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13585, 0, 1, null, null));"
+ },
+ "5466": {
+  "npcs": [],
+  "text": "Find Ras Frostwhisper in the Scholomance . When you have found him, use the Soulbound Keepsake on his undead visage. Should you succeed in reverting him to a mortal, strike him down and recover the Human Head of Ras Frostwhisper . Take the head back to Magistrate Marduke . Human Head of Ras Frostwhisper ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13626, 0, 1, null, null)); Provided item: Soulbound Keepsake ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(13752, 0, 0, null, null));"
+ },
+ "5515": {
+  "npcs": [],
+  "text": "Locate Jandice Barov in the Scholomance and destroy her. From her corpse recover Krastinov's Bag of Horrors . Return the bag to Eva Sarkhoff . Krastinov's Bag of Horrors ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13725, 0, 1, null, null));"
+ },
+ "5518": {
+  "npcs": [],
+  "text": "Bring 4 Bolts of Runecloth , 8 Rugged Leather , 2 Rune Threads , and Ogre Tannin to Knot Thimblejack . He is currently chained inside the Gordok wing of Dire Maul . Bolt of Runecloth ( 4 ) Rugged Leather ( 8 ) Rune Thread ( 2 ) Ogre Tannin ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(14048, 0, 4, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(8170, 0, 8, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(14341, 0, 2, null, null)); WH.ge('icon-list-icon4').appendChild(g_items.createIcon(18240, 0, 1, null, null));"
+ },
+ "5525": {
+  "npcs": [],
+  "text": "Progress It's called the Gordok Shackle Key - well, that's what these \"tons o' fun\" keep calling it. I think any of the ogres might have it, but I'm not sure if any specific ones do. Maybe the guards have a better chance of having one... What am I talking about - you have it already, don't you?! Is that it there??! Gordok Shackle Key ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18250, 0, 1, null, null));"
+ },
+ "5526": {
+  "npcs": [],
+  "text": "Find the Felvine in Dire Maul and acquire a shard from it. Chances are you'll only be able to procure one with the demise of Alzzin the Wildshaper. Use the Reliquary of Purity to securely seal the shard inside, and return it to Rabine Saturna in Nighthaven, Moonglade . Sealed Reliquary of Purity ( 1 ) Felvine Shard ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18540, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(18501, 0, 1, null, null)); Provided item: Reliquary of Purity ( 1 ) WH.ge('icon-list-icon3').appendChild(g_items.createIcon(18539, 0, 0, null, null));"
+ },
+ "5528": {
+  "npcs": [],
+  "text": "Completion You da big boss now, so you get free sample of my better brews! These drinks boost you up AND give you good buzz! These are da good ones, chief... you try and tell Kreeg yourself!"
+ },
+ "5529": {
+  "npcs": [
+   10678
+  ],
+  "text": "Kill 20 Plagued Hatchlings , then return to Betina Bigglezink at the Light's Hope Chapel. Plagued Hatchling slain ( 20 )"
+ },
+ "5582": {
+  "npcs": [],
+  "text": "Bring the Healthy Dragon Scale to Betina Bigglezink at the Light's Hope Chapel in Eastern Plaguelands. Healthy Dragon Scale (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(13920, 0, 1, null, null));"
+ },
+ "5722": {
+  "npcs": [],
+  "text": "Search Ragefire Chasm for Maur Grimtotem 's corpse and search it for any items of interest."
+ },
+ "5723": {
+  "npcs": [
+   11318,
+   11319
+  ],
+  "text": "Search Orgrimmar for Ragefire Chasm , then kill 8 Ragefire Troggs and 8 Ragefire Shaman before returning to Rahauro in Thunder Bluff. Ragefire Trogg slain ( 8 ) Ragefire Shaman slain ( 8 )"
+ },
+ "5724": {
+  "npcs": [],
+  "text": "Take the Grimtotem Satchel to Rahauro in Thunder Bluff. Grimtotem Satchel (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(14381, 0, 1, null, null));"
+ },
+ "5725": {
+  "npcs": [],
+  "text": "Bring the books Spells of Shadow and Incantations from the Nether to Varimathras in Undercity. Spells of Shadow ( 1 ) Incantations from the Nether ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(14395, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(14396, 0, 1, null, null));"
+ },
+ "5728": {
+  "npcs": [
+   11519,
+   11518
+  ],
+  "text": "Kill Bazzalan and Jergosh the Invoker before returning to Thrall in Orgrimmar. Bazzalan slain ( 1 ) Jergosh the Invoker slain ( 1 )"
+ },
+ "5761": {
+  "npcs": [],
+  "text": "Enter Ragefire Chasm and slay Taragaman the Hungerer, then bring his heart back to Neeru Fireblade in Orgrimmar. Taragaman the Hungerer's Heart ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(14540, 0, 1, null, null));"
+ },
+ "5848": {
+  "npcs": [],
+  "text": "Travel to Stratholme , in the northern part of the Plaguelands. It is in the Scarlet Bastion that you will find the painting ' Of Love and Family ,' hidden behind another painting depicting the twin moons of our world. Return the painting to Tirion Fordring . Of Love and Family ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(14679, 0, 1, null, null));"
+ },
+ "6163": {
+  "npcs": [],
+  "text": "Travel to Stratholme and slay Ramstein the Gorger. Take his head as a souvenir for Nathanos. Head of Ramstein the Gorger ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(15880, 0, 1, null, null));"
+ },
+ "6502": {
+  "npcs": [],
+  "text": "You must retrieve the Blood of the Black Dragon Champion from General Drakkisath. Drakkisath can be found in his throne room behind the Halls of Ascension in Blackrock Spire . Blood of the Black Dragon Champion ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(16663, 0, 1, null, null));"
+ },
+ "6521": {
+  "npcs": [],
+  "text": "Bring Ambassador Malcin's Head to Varimathras in the Undercity. Ambassador Malcin's Head ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17009, 0, 1, null, null));"
+ },
+ "6522": {
+  "npcs": [],
+  "text": "Take the Small Scroll to Varimathras in the Undercity. Small Scroll (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17008, 0, 1, null, null));"
+ },
+ "6561": {
+  "npcs": [],
+  "text": "Bring the head of Twilight Lord Kelris to Bashana Runetotem in Thunder Bluff. Head of Kelris ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5881, 0, 1, null, null));"
+ },
+ "6563": {
+  "npcs": [],
+  "text": "Bring 20 Sapphires of Aku'Mai to Je'neu Sancrea in Ashenvale. Sapphire of Aku'Mai ( 20 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(16784, 0, 20, null, null));"
+ },
+ "6564": {
+  "npcs": [],
+  "text": "Bring the Damp Note to Je'neu Sancrea in Ashenvale. Damp Note (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(16790, 0, 1, null, null));"
+ },
+ "6565": {
+  "npcs": [
+   12902
+  ],
+  "text": "Kill Lorgus Jett in Blackfathom Deeps and then return to Je'neu Sancrea in Ashenvale. Lorgus Jett slain ( 1 )"
+ },
+ "6602": {
+  "npcs": [],
+  "text": "Travel to Blackrock Spire and slay General Drakkisath. Gather his blood and return it to Rexxar . Blood of the Black Dragon Champion ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(16663, 0, 1, null, null));"
+ },
+ "6626": {
+  "npcs": [
+   7873,
+   7874,
+   7872
+  ],
+  "text": "Kill 8 Razorfen Battleguard , 8 Razorfen Thornweavers , and 8 Death's Head Cultists and return to Myriam Moonsinger near the entrance to Razorfen Downs . Razorfen Battleguard slain ( 8 ) Razorfen Thornweaver slain ( 8 ) Death's Head Cultist slain ( 8 )"
+ },
+ "6821": {
+  "npcs": [],
+  "text": "Bring the Eye of the Emberseer to Duke Hydraxis in Azshara . Eye of the Emberseer ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17322, 0, 1, null, null));"
+ },
+ "6921": {
+  "npcs": [],
+  "text": "Bring the Fathom Core to Je'neu Sancrea at Zoram'gar Outpost, Ashenvale. Fathom Core ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(16762, 0, 1, null, null));"
+ },
+ "6922": {
+  "npcs": [],
+  "text": "Bring the Strange Water Globe to Je'neu Sancrea at Zoram'gar Outpost, Ashenvale . Strange Water Globe (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(16782, 0, 1, null, null));"
+ },
+ "6981": {
+  "npcs": [],
+  "text": "Travel to Ratchet to find someone that can tell you more about the glowing shard . Then, deliver the shard as you are directed. Glowing Shard (Provided) ( 1 ) Speak with someone in Ratchet about the Glowing Shard ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(10441, 0, 1, null, null));"
+ },
+ "7028": {
+  "npcs": [],
+  "text": "Collect 25 Theradric Crystal Carvings for Willow in Desolace. Theradric Crystal Carving ( 25 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17684, 0, 25, null, null));"
+ },
+ "7029": {
+  "npcs": [
+   13696
+  ],
+  "text": "Fill the Coated Cerulean Vial at the orange crystal pool in Maraudon . Use the Filled Cerulean Vial on the Vylestem Vines to force the corrupted Noxxious Scion to emerge. Heal 8 plants by killing these Noxxious Scion , then return to Vark Battlescar in Shadowprey Village. Vylestem Vines healed ( 8 ) Filled Cerulean Vial ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17696, 0, 1, null, null)); Provided item: Coated Cerulean Vial ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(17693, 0, 0, null, null));"
+ },
+ "704": {
+  "npcs": [],
+  "text": "Bring 4 Carved Stone Urns to Prospector Ironband in Loch Modan. Carved Stone Urn ( 4 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(4610, 0, 4, null, null));"
+ },
+ "7041": {
+  "npcs": [
+   13696
+  ],
+  "text": "Fill the Coated Cerulean Vial at the orange crystal pool in Maraudon . Use the Filled Cerulean Vial on the Vylestem Vines to force the corrupted Noxxious Scion to emerge. Heal 8 plants by killing these Noxxious Scion , then return to Talendria in Nijel's Point. Vylestem Vines healed ( 8 ) Filled Cerulean Vial ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17696, 0, 1, null, null)); Provided item: Coated Cerulean Vial ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(17693, 0, 0, null, null));"
+ },
+ "7044": {
+  "npcs": [],
+  "text": "Recover the two parts of the Scepter of Celebras: the Celebrian Rod and the Celebrian Diamond . Find a way to speak with Celebras. Celebrian Diamond ( 1 ) Celebrian Rod ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17703, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(17702, 0, 1, null, null));"
+ },
+ "7046": {
+  "npcs": [],
+  "text": "Assist Celebras the Redeemed while he creates the Scepter of Celebras . Speak with him when the ritual is complete. Create the Scepter of Celebras ( 1 )"
+ },
+ "7064": {
+  "npcs": [
+   12201
+  ],
+  "text": "Slay Princess Theradras and return to Selendra near Shadowprey Village in Desolace. Princess Theradras slain ( 1 )"
+ },
+ "7065": {
+  "npcs": [
+   12201
+  ],
+  "text": "Slay Princess Theradras and return to Keeper Marandis at Nijel's Point in Desolace. Princess Theradras slain ( 1 )"
+ },
+ "7066": {
+  "npcs": [],
+  "text": "Seek out Remulos in Moonglade and give him the Seed of Life . Seed of Life (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17760, 0, 1, null, null));"
+ },
+ "7067": {
+  "npcs": [],
+  "text": "Read the Pariah's Instructions . Afterwards, obtain the Amulet of Union from Maraudon and return it to the Centaur Pariah in southern Desolace. Amulet of Union ( 1 ) Amulet of Spirits ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17758, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(17757, 0, 1, null, null)); Provided item: The Pariah's Instructions ( 1 ) WH.ge('icon-list-icon3').appendChild(g_items.createIcon(17781, 0, 0, null, null));"
+ },
+ "7068": {
+  "npcs": [],
+  "text": "Collect 10 Shadowshard Fragments from Maraudon and return them to Uthel'nay in Orgrimmar. Shadowshard Fragment ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17756, 0, 10, null, null));"
+ },
+ "7070": {
+  "npcs": [],
+  "text": "Collect 10 Shadowshard Fragments from Maraudon and return them to Archmage Tervosh in Theramore on the coast of Dustwallow Marsh. Shadowshard Fragment ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(17756, 0, 10, null, null));"
+ },
+ "709": {
+  "npcs": [],
+  "text": "Bring the Tablet of Ryun'eh to Theldurin the Lost . Tablet of Ryun'eh ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(4631, 0, 1, null, null));"
+ },
+ "7201": {
+  "npcs": [],
+  "text": "Travel to Blackrock Depths and recover 10 Essence of the Elements . Your first inclination is to search the golems and golem makers. You remember Vivian Lagrave also muttering something about elementals. Essence of the Elements ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(11129, 0, 10, null, null));"
+ },
+ "7441": {
+  "npcs": [],
+  "text": "Travel to Dire Maul and locate the Imp, Pusillin. Convince Pusillin to give you Azj'Tordin 's Book of Incantations through any means necessary. Return to Azj'Tordin at the Lariss Pavilion in Feralas should you recover the Book of Incantations . Book of Incantations ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18261, 0, 1, null, null));"
+ },
+ "7461": {
+  "npcs": [
+   11496,
+   11486
+  ],
+  "text": "You must destroy the guardians surrounding the 5 Pylons that power the Prison of Immol'thar . Once the Pylons have powered down, the force field surrounding Immol'thar will have dissipated. Enter the Prison of Immol'thar and eradicate the foul demon that stands at its heart. Finally, confront Prince Tortheldrin in Athenaeum. Return to the Shen'dralar Ancient in the courtyard should you complete this quest. Immol'thar slain ( 1 ) Prince Tortheldrin slain ( 1 )"
+ },
+ "7463": {
+  "npcs": [],
+  "text": "Travel to the Warpwood Quarter of Dire Maul and slay the water elemental, Hydrospawn. Return to Lorekeeper Lydros in the Athenaeum with the Hydrospawn Essence . Hydrospawn Essence ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18299, 0, 1, null, null));"
+ },
+ "7481": {
+  "npcs": [],
+  "text": "Search Dire Maul for Kariel Winthalus. Report back to Sage Korolusk at Camp Mojache with whatever information that you may find. Master Kariel Winthalus Found ( 1 )"
+ },
+ "7482": {
+  "npcs": [],
+  "text": "Search Dire Maul for Kariel Winthalus. Report back to Scholar Runethorn at Feathermoon with whatever information that you may find. Master Kariel Winthalus Found ( 1 )"
+ },
+ "7488": {
+  "npcs": [],
+  "text": "Bring Lethtendris' Web to Latronicus Moonspear at the Feathermoon Stronghold in Feralas. Lethtendris's Web ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18426, 0, 1, null, null));"
+ },
+ "7489": {
+  "npcs": [],
+  "text": "Bring Lethtendris's Web to Talo Thornhoof at Camp Mojache in Feralas. Lethtendris's Web ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18426, 0, 1, null, null));"
+ },
+ "7507": {
+  "npcs": [],
+  "text": "Return Foror's Compendium of Dragon Slaying to the Athenaeum. Nostro's Compendium of Dragon Slaying (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18401, 0, 1, null, null));"
+ },
+ "7668": {
+  "npcs": [],
+  "text": "Use the Divination Scryer in the heart of the Great Ossuary's basement in the Scholomance. Doing so will bring forth spirits you must fight. Defeating these spirits will summon forth Death Knight Darkreaver; defeat him. Bring Darkreaver's Head to Sagorne Creststrider in the Valley of Wisdom, Orgrimmar. Darkreaver's Head ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18880, 0, 1, null, null)); Provided item: Divination Scryer ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(18746, 0, 0, null, null));"
+ },
+ "7703": {
+  "npcs": [],
+  "text": "Find the Gauntlet of Gordok Might and return it to Captain Kromcrush in Dire Maul . According to Kromcrush, the \"old timey story\" says that Tortheldrin - a \"creepy\" elf who called himself a prince - stole it from one of the Gordok kings. Gauntlet of Gordok Might ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18336, 0, 1, null, null));"
+ },
+ "7761": {
+  "npcs": [],
+  "text": "That is one stupid orc. It would appear as if you need to find this brand and gain the Mark of Drakkisath in order to access the Orb of Command. The letter indicates that General Drakkisath guards the brand. Perhaps you should investigate."
+ },
+ "7848": {
+  "npcs": [],
+  "text": "Venture to the Molten Core entry portal in Blackrock Depths and recover a Core Fragment . Return to Lothos Riftwaker in Blackrock Mountain when you have recovered the Core Fragment . Core Fragment ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(18412, 0, 1, null, null));"
+ },
+ "8945": {
+  "npcs": [
+   16031
+  ],
+  "text": "Go into Stratholme and rescue Ysida Harmon from Baron Rivendare. Ysida Freed ( 1 )"
+ },
+ "914": {
+  "npcs": [],
+  "text": "Bring the Gems of Cobrahn, Anacondra, Pythas and Serpentis to Nara Wildmane in Thunder Bluff. Gem of Cobrahn ( 1 ) Gem of Anacondra ( 1 ) Gem of Pythas ( 1 ) Gem of Serpentis ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(9738, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(9739, 0, 1, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(9740, 0, 1, null, null)); WH.ge('icon-list-icon4').appendChild(g_items.createIcon(9741, 0, 1, null, null));"
+ },
+ "92401": {
+  "npcs": [],
+  "text": "Investigate the disappearance of Edward Heartweaver in the Ruins of Lordaeron. Investigate the disappearance of Edward Heartweaver in the Ruins of Lordaeron. ( 1 )"
+ },
+ "92415": {
+  "npcs": [],
+  "text": "Bring the Blood-Stained Letter to Orphan Matron Nightingale in Stormwind City. Blood-Stained Letter (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(251522, 0, 1, null, null));"
+ },
+ "92421": {
+  "npcs": [],
+  "text": "Collect 25 Intact Limbs within The Ruins of Lordaeron for Morbin Lightbane in the Undercity. Intact Limbs ( 25 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(268580, 0, 25, null, null));"
+ },
+ "92422": {
+  "npcs": [
+   250657
+  ],
+  "text": "Kill Rath'mael in the Ruins of Lordaeron for Deathguard Kristof in Brill. Rath'mael slain ( 1 )"
+ },
+ "95195": {
+  "npcs": [],
+  "text": "Collect 10 Bloodied Insignias and take them to General Marcus Jonathan in Stormwind City. Bloodied Insignia (Provided) ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(268540, 0, 10, null, null));"
+ },
+ "95204": {
+  "npcs": [],
+  "text": "Bring the Crest of Lordaeron to Oran Snakewrithe in Undercity. Crest of Lordaeron (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(275521, 0, 1, null, null));"
+ },
+ "95216": {
+  "npcs": [],
+  "text": "Collect the Highly Toxic Strain from Witherfang in Ruins of Lordaeron for Theodore Griffs in Undercity. Highly Toxic Strain ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(275443, 0, 1, null, null));"
+ },
+ "95250": {
+  "npcs": [],
+  "text": "Collect the Head of the Baron in the Ruins of Lordaeron and bring it back to Captain Truman. Head of the Baron ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(268518, 0, 1, null, null));"
+ },
+ "959": {
+  "npcs": [],
+  "text": "Crane Operator Bigglefuzz in Ratchet wants you to retrieve the bottle of 99-Year-Old Port from Mad Magglish who is hiding in the Wailing Caverns . 99-Year-Old Port ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5334, 0, 1, null, null));"
+ },
+ "962": {
+  "npcs": [],
+  "text": "Apothecary Zamah in Thunder Bluff wants you to collect 10 Serpentbloom . Serpentbloom ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5339, 0, 10, null, null));"
+ },
+ "96393": {
+  "npcs": [],
+  "text": "Enter the Hall of Thanes beneath Old Ironforge and claim the Head of Durgen Dirgehammer. Durgen Dirgehammer's Head ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(274286, 0, 1, null, null));"
+ },
+ "96394": {
+  "npcs": [
+   263389,
+   263390
+  ],
+  "text": "Kill 15 Enraged Apparitions , 10 Tormented Souls and put the spirit of Anvilmar to rest. Enraged Apparition slain ( 15 ) Tormented Soul slain ( 10 )"
+ },
+ "96395": {
+  "npcs": [
+   261306
+  ],
+  "text": "Put the spirit of Faldrim Anvilmar to rest and then return to the Ghostly Attendant in the Hall of Thanes . Faldrim Anvilmar slain ( 1 )"
+ },
+ "96403": {
+  "npcs": [],
+  "text": "Collect 8 Dwarven Heirlooms from the Hall of Thanes . Dwarven Heirloom ( 8 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(274289, 0, 8, null, null));"
+ },
+ "971": {
+  "npcs": [],
+  "text": "Bring the Lorgalis Manuscript to Gerrig Bonegrip in the Forlorn Cavern in Ironforge. Lorgalis Manuscript ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5359, 0, 1, null, null));"
+ },
+ "97288": {
+  "npcs": [],
+  "text": "Deliver the Abominable Head to Master Apothecary Faranell within the Undercity. Abominable Head (Provided) ( 1 ) Deliver the Abominable Head to someone within the Undercity. ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(280438, 0, 1, null, null));"
+ },
+ "97289": {
+  "npcs": [],
+  "text": "Bring the Head of the Baron to the body of Othmar in the Undercity. Head of the Baron (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(268518, 0, 1, null, null));"
+ },
+ "97290": {
+  "npcs": [],
+  "text": "Report your findings to Master Apothecary Faranell in Undercity ."
+ },
+ "97291": {
+  "npcs": [],
+  "text": "Collect a Toxic Skullcap from Tawny Grisette in the Trade Quarter, Blisterweed near the Herbalism Trainer, and Essence of Agony from the poison vendor in the Rogues' Quarter for Master Apothecary Faranell in Undercity. Toxic Skullcap ( 1 ) Blisterweed ( 1 ) Essence of Agony ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(281246, 0, 1, null, null)); WH.ge('icon-list-icon2').appendChild(g_items.createIcon(281300, 0, 1, null, null)); WH.ge('icon-list-icon3').appendChild(g_items.createIcon(8923, 0, 1, null, null));"
+ },
+ "97292": {
+  "npcs": [
+   272513
+  ],
+  "text": "Inject the Hissing Serum into the system above Othmar's body for Master Apothecary Faranell . Hissing Serum administered ( 1 ) Hissing Serum (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(281327, 0, 1, null, null));"
+ },
+ "98423": {
+  "npcs": [],
+  "text": "Deliver the Treaty of Understanding to Magni Bronzebeard in Ironforge. Treaty of Understanding (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(281030, 0, 1, null, null));"
+ }
+}

@@ -64,6 +64,11 @@ local SCROLL_GAP = 16
 local UNDER_MAP_GAP = 6          -- the map to the floor switch's line
 local KILLED_ALPHA = 0.45        -- a pin killed this run, on the map
 local UNPLACED_ALPHA = 0.7       -- placing: a pin waiting along the top
+-- The picked pin's ring and its glow: gold, or the theme's Accent once the player picked one.
+local PICKED_RGB = St.PICKED_RGB
+local PICKED_RING = 8            -- the ring round the picked pin's portrait, edge to edge
+local PICKED_GLOW = 24           -- and the glow pulsing round it
+local GLOW_LOW, GLOW_HIGH, GLOW_PULSE = 0.15, 0.55, 0.9
 -- A legend row, left to right: its number, portrait and name, each after a gap; what the
 -- quest mark, the star and its count take on the right.
 local ROW_PAD, NUMBER_W, ROW_GAP, MARKS_W = 6, 18, 6, 70
@@ -145,14 +150,31 @@ local function PinClicked(pin, button)
         return
     end
     if pin.view:Placing() then return end
-    -- The window shows it in its own loot pane; the world map at the mouse.
-    if pin.view.onPick then return pin.view.onPick(pin.boss) end
-    lootFrom = pin.view
-    J.View.OpenBossLoot(pin.boss, pin.view.dungeon)
+    local view = pin.view
+    -- The window shows it in its own loot pane.
+    if view.onPick then return view.onPick(pin.boss) end
+    -- The world map: the Journal beside it shows the boss's page (its loot and abilities);
+    -- the boss clicked again, the dungeon's page again.
+    local again = view.picked == pin.key
+    view:Pick(not again and pin.key or nil)
+    J.ShowBossBesideMap(not again and pin.boss or nil)
+    if again then
+        if lootFrom == view then
+            lootFrom = nil
+            J.View.CloseBossLoot()
+        end
+        return
+    end
+    -- Maximised, the Journal sits over the map's edge: its loot at the mouse too.
+    if not WorldMapFrame:IsMaximized() then return end
+    lootFrom = view
+    J.View.OpenBossLoot(pin.boss, view.dungeon)
 end
 
--- A map closes (the world map, M again; the window): the loot one of its pins opened goes too.
+-- A map closes (the world map, M again; the window): no pin is picked, and the loot one of
+-- its pins opened goes too.
 local function ViewHidden(view)
+    view:Pick(nil)
     if lootFrom == view then
         lootFrom = nil
         J.View.CloseBossLoot()
@@ -203,8 +225,30 @@ function View:NewPin()
     pin.view = self
     pin:SetSize(PIN, PIN)
     pin:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    -- Picked (its loot is showing): a ring round its portrait in a slow glow, gold or the
+    -- theme's Accent (PICKED_RGB).
+    pin.halo = pin:CreateTexture(nil, "BACKGROUND", nil, -3)
+    pin.halo:SetPoint("CENTER")
+    pin.halo:SetSize(PIN + PICKED_GLOW, PIN + PICKED_GLOW)
+    pin.halo:SetColorTexture(1, 1, 1, 1)   -- its colour is set as it shows (ShowPicked)
+    pin.halo:SetBlendMode("ADD")
+    Round(pin, pin.halo)
+    pin.halo:Hide()
+    pin.pulse = pin.halo:CreateAnimationGroup()
+    pin.pulse:SetLooping("BOUNCE")
+    local fade = pin.pulse:CreateAnimation("Alpha")
+    fade:SetFromAlpha(GLOW_LOW)
+    fade:SetToAlpha(GLOW_HIGH)
+    fade:SetDuration(GLOW_PULSE)
+    fade:SetSmoothing("IN_OUT")
+    pin.gold = pin:CreateTexture(nil, "BACKGROUND", nil, -1)
+    pin.gold:SetPoint("CENTER")
+    pin.gold:SetSize(PIN + PICKED_RING, PIN + PICKED_RING)
+    pin.gold:SetColorTexture(1, 1, 1, 1)
+    Round(pin, pin.gold)
+    pin.gold:Hide()
     -- Lit while its legend row is hovered: the accent, round, just outside its ring.
-    pin.glow = pin:CreateTexture(nil, "BACKGROUND", nil, -1)
+    pin.glow = pin:CreateTexture(nil, "BACKGROUND", nil, -2)
     pin.glow:SetPoint("CENTER")
     pin.glow:SetSize(PIN + 12, PIN + 12)
     pin.glow:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 0.9)
@@ -251,6 +295,21 @@ local function SetFace(pin, boss, number, ring)
     pin.badge.text:SetText(number or "")
 end
 
+-- The gold ring and its glow on or off; the glow only pulses while it shows.
+local function ShowPicked(pin, on)
+    pin.gold:SetShown(on)
+    pin.halo:SetShown(on)
+    if on then
+        -- Read as it shows, so a theme changed since follows on the next pick.
+        local c = ns.ThemeTint("accent", PICKED_RGB)
+        pin.gold:SetColorTexture(c.r, c.g, c.b, 1)
+        pin.halo:SetColorTexture(c.r, c.g, c.b, 1)
+        if not pin.pulse:IsPlaying() then pin.pulse:Play() end
+    else
+        pin.pulse:Stop()
+    end
+end
+
 -- The view's switch: back, the floor's name, on; its caller places self.down.
 local function NewView(parent, holder, editable)
     local view = setmetatable({ pins = {}, used = 0, tray = 0, floors = {}, editable = editable }, View)
@@ -286,6 +345,15 @@ local function NewView(parent, holder, editable)
     view.up = ns.Button(holder, ">", FLOOR_STEP_W, FLOOR_H - 2, function() view:Step(1) end)
     view.up:SetPoint("LEFT", view.floorName, "RIGHT", 8, 0)
     return view
+end
+
+-- The boss whose loot shows (its key), ringed in gold; nil for none.
+function View:Pick(key)
+    self.picked = key
+    for i = 1, self.used do
+        local pin = self.pins[i]
+        ShowPicked(pin, key ~= nil and pin.key == key and not self:Placing())
+    end
 end
 
 function View:Placing()
@@ -340,7 +408,7 @@ end
 
 -- Shows the dungeon, on the floor its first placed boss is on, else its first.
 function View:Open(dungeon)
-    self.dungeon, self.floor = dungeon, nil
+    self.dungeon, self.floor, self.picked = dungeon, nil, nil
     filling = self
     EachBoss(dungeon, FirstFloor)
     self:FillFloors()
@@ -361,6 +429,7 @@ function View:DrawPin(boss, number, key)
     pin.boss, pin.key = boss, key
     SetFace(pin, boss, number, 1 / self.scale)
     pin.glow:Hide()
+    ShowPicked(pin, self.picked ~= nil and key == self.picked and not self:Placing())
     if here then
         self:At(pin, spot[2], spot[3])
         -- Killed this run, in the dungeon you are in: dimmed.
@@ -406,7 +475,10 @@ function View:Draw()
         self.tiles[i]:SetShown(image == nil)
         if not image then self.tiles[i]:SetTexture(ART:format(map.art, map.art, self.floor, i)) end
     end
-    for i = 1, self.used do self.pins[i]:Hide() end
+    for i = 1, self.used do
+        self.pins[i]:Hide()
+        ShowPicked(self.pins[i], false)
+    end
     self.used, self.tray = 0, 0
     self.drawPin = self.drawPin or DrawPinOf(self)
     EachBoss(dungeon, self.drawPin)
@@ -640,6 +712,7 @@ end
 
 local function Pick(boss)
     picked = boss
+    windowView:Pick(boss and KeyOf(boss))
     for _, row in ipairs(rows) do
         row.bar:SetShown(row:IsShown() and row.boss == picked)
         row.hover:SetShown(row:IsShown() and row.boss == picked)
@@ -883,6 +956,7 @@ local function Build()
     windowView.onPick = function(boss)
         if not Folded() then return Pick(boss) end
         lootFrom = windowView
+        windowView:Pick(KeyOf(boss))
         J.View.OpenBossLoot(boss, windowView.dungeon)
     end
     windowView.onPinHover = Light
@@ -1012,6 +1086,7 @@ local function BuildOverlay()
     bar:SetFrameLevel(overlayView.canvas:GetFrameLevel() + 20)
     overlay:SetScript("OnHide", function() ViewHidden(overlayView) end)
     overlayView.onRightClick = UpToZone
+    overlayView.onWorldMap = true
     overlayView.down:SetPoint("LEFT", HINT_PAD, 0)
     overlay.hint = ns.Font(bar, 12, nil, T.fg)
     overlay.hint:SetPoint("RIGHT", -HINT_PAD, 0)
@@ -1026,7 +1101,10 @@ function J.ShowMapOnWorldMap(dungeon)
         return
     end
     if not overlay then BuildOverlay() end
+    -- Drawn again on the same dungeon (a setting, the panel placed again): its boss stays picked.
+    local keep = overlay:IsShown() and overlayView.dungeon == dungeon and overlayView.picked or nil
     overlayView:Open(dungeon)
+    overlayView.picked = keep
     overlay.hint:SetText(dungeon.entrance and dungeon.zone and ("Right-click: " .. dungeon.zone) or "")
     overlay:Show()
     overlay.mapID = WorldMapFrame:GetMapID()   -- the map it covers; another one, and it steps aside
@@ -1051,13 +1129,27 @@ function J.RedrawDungeonMaps()
     if overlay and overlay:IsShown() then overlayView:Draw() end
 end
 
--- The key's Boss Loot opens its own: the map no longer closes it.
+-- The key's Boss Loot opens its own, or the loot at the mouse closed: the map no longer
+-- closes it, and the window's pin loses its gold ring (the world map's follows the Journal
+-- beside it, which still shows the boss).
 function J.View.ForgetMapLoot()
+    if lootFrom and not lootFrom.onWorldMap then lootFrom:Pick(nil) end
     lootFrom = nil
+end
+
+-- The Journal beside the world map went back to the dungeon's page: no pin is picked.
+function J.UnpickOnWorldMap()
+    if overlayView then overlayView:Pick(nil) end
 end
 
 -- The world map changed size (maximised, or small again).
 function J.FitMapOnWorldMap()
+    -- Small again: the loot a pin opened at the mouse goes, the Journal beside it has it; its
+    -- pin stays ringed.
+    if overlayView and lootFrom == overlayView and not WorldMapFrame:IsMaximized() then
+        lootFrom = nil
+        J.View.CloseBossLoot()
+    end
     if overlay and overlay:IsShown() then
         Fit()
         overlayView:Draw()
