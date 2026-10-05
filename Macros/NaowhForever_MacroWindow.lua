@@ -714,32 +714,8 @@ local function BuildEditor(parent)
             scroll:SetVerticalScroll(cursorTop + cursorHeight - shown)
         end
     end
-    -- The client draws no insertion cursor in this box, so it gets its own.
-    local caret = code:CreateTexture(nil, "OVERLAY")
-    caret:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
-    caret:SetWidth(2)
-    caret:Hide()
-    local blink = 0
-    local function Blink(self, elapsed)
-        blink = blink + elapsed
-        caret:SetShown(blink % (2 * self:GetBlinkSpeed()) < self:GetBlinkSpeed())
-    end
-    code:SetScript("OnEditFocusGained", function(self)
-        blink = 0
-        caret:Show()
-        self:SetScript("OnUpdate", Blink)
-    end)
-    code:SetScript("OnEditFocusLost", function(self)
-        self:SetScript("OnUpdate", nil)
-        caret:Hide()
-    end)
-    code:SetScript("OnCursorChanged", function(self, x, y, _, h)
+    code:SetScript("OnCursorChanged", function(_, _, y, _, h)
         cursorTop, cursorHeight = -y, h
-        caret:ClearAllPoints()
-        caret:SetPoint("TOPLEFT", x, y)
-        caret:SetHeight(h)
-        blink = 0
-        caret:SetShown(self:HasFocus())
         Follow()
     end)
     scroll:HookScript("OnScrollRangeChanged", Follow)
