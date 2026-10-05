@@ -321,8 +321,8 @@ check("painted with your score, in its grade's colour, as the panel opens", badg
 check("only the score: its bar's legend the best it is graded against", badge.best.text == "Best 58.8"
     and badge.rest.shown ~= false)
 
--- Grade Against Both (the default): your level's goal as a gold tick on the bar, labelled under it,
--- while it is short of the best in the game; with Best in the Game, no tick.
+-- Grade Against Both (the default): your level's goal as a gold tick on the bar, with no label
+-- (the tooltip names it), while it is short of the best in the game; with Best in the Game, no tick.
 do
     local Score = ns.NaowhScore
     local best = Score.Best
@@ -330,10 +330,9 @@ do
     S.Set("naowhScoreCompare", "both")
     check("Both: your level's goal ticked on the bar", badge.goal.shown == true
         and badge.goal.points.CENTER == badge.bar)
-    check("and labelled under it", badge.goalLabel.shown == true and badge.goalLabel.text == "Level 20 goal 24.4"
-        and badge.best.text == "Best 58.8")
+    check("no label for it, only the best's", badge.goalLabel == nil and badge.best.text == "Best 58.8")
     S.Set("naowhScoreCompare", "max")
-    check("Best in the Game: no goal on the bar", badge.goal.shown == false and badge.goalLabel.shown == false)
+    check("Best in the Game: no goal on the bar", badge.goal.shown == false)
     Score.Best = best
     S.Set("naowhScoreCompare", nil)
 end
