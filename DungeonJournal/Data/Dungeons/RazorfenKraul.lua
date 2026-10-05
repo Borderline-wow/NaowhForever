@@ -11,7 +11,7 @@ ns.Journal.AddDungeon("RazorfenKraul", {
     entrance = { map = 1413, x = 42.2, y = 89.8 },
     wings = {
         { bosses = {
-            { npc = 4424, name = "Aggem Thorncurse", model = 6097, encounters = { 2774 }, loot = { 6681, 2549, 274159 }, chance = { 47, 1, 0 } },
+            { npc = 4424, name = "Aggem Thorncurse", model = 6097, encounters = { 2774 }, loot = { 6681, 1975, 2549, 274158, 274159 }, chance = { 47, 6, 1, 0, 0 } },
             { npc = 4428, name = "Death Speaker Jargba", model = 4644, encounters = { 2775 }, loot = { 6685, 6682, 2816 }, chance = { 44, 42, 10 } },
             { npc = 4420, name = "Overlord Ramtusk", model = 4652, encounters = { 2776 }, loot = { 6686, 6687, 274161 }, chance = { 62, 34, 0 } },
             { npc = 4422, name = "Agathelos the Raging", model = 2450, encounters = { 2777 }, loot = { 6690, 6691, 274158, 274160 }, chance = { 63, 33, 0, 0 } },

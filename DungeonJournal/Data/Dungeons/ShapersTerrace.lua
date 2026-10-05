@@ -8,6 +8,7 @@ local ns = _G.NaowhForever
 ns.Journal.AddDungeon("ShapersTerrace", {
     name = "Shaper's Terrace",
     new = true,
+    closed = true,
     zone = "Un'Goro Crater", territory = "Contested",
     entrance = { map = 1441, x = 12.2, y = 66.7 },
     wings = {

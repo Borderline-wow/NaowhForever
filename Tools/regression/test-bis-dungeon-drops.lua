@@ -155,6 +155,14 @@ Case("the Journal's wording wins over wowsrc's; wowsrc's for what drops nowhere"
     assert(m.ns.BiSSource(100) == nil)
 end)
 
+Case("an item not in Forever yet drops nowhere: no source, never offered", function()
+    local m = Fixture("MAGE", 20, { [2] = "Boss 2" .. SEP .. "Old Name" })
+    m.ns.Journal.NotYet = { [1] = FACTS[1], [2] = FACTS[2] }
+    m.ns.Journal.Items = { [3] = FACTS[3] }
+    assert(m.ns.BiSSource(2) == "Boss 2" .. SEP .. "Old Name" and m.R.DropDungeon(1) == nil)
+    assert(List(m.DungeonDrops(1, {}, true)) == "")
+end)
+
 Case("levels are the Journal's facts", function()
     local m = Fixture("MAGE", 20)
     assert(m.R.ReqLevel(3) == 40 and m.R.ItemLevel(3) == 45 and m.R.ItemLevel(100) == nil)

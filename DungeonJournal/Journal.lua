@@ -22,7 +22,6 @@ local ns = _G.NaowhForever
 ---@field trash? boolean the wing's trash: what its other mobs drop (no number, no kill count)
 ---@field loot? number[] item IDs, most likely first
 ---@field chance? number[] each item's drop chance in percent, 0 where not known
----@field notInGame? number how many of its items the build left out, not in Forever's item tables yet
 ---@field encounters? number[] the encounter IDs ENCOUNTER_END names it by (one per difficulty); nil for a rare
 ---@field with? string the boss whose fight it falls in, when the game runs none for it (Sneed's
 ---Shredder, which Sneed climbs out of): its encounters are that fight's, and its kills that boss's
@@ -38,6 +37,7 @@ local ns = _G.NaowhForever
 ---@field new? boolean new in WoW Forever, not in the classic game
 ---@field raid? number a raid: how many players it is for
 ---@field note? string a line at the top of its page (what is not known yet)
+---@field closed? boolean not open on Forever yet: its page says so, its loot is Classic's
 ---@field territory? "Alliance"|"Horde"|"Contested" whose ground that zone is
 ---@field entrance? { map: number, x: number, y: number } where a source matches Forever's map
 ---@field wings JournalWing[]
@@ -159,7 +159,19 @@ J.NEEDS_BIS = "Needs the BiS List module: turn it on in its page."
 -- What the Journal knows about an item before the client has loaded it: Data/Items.lua
 -- fills J.Items with { class, subclass, item level, required level, quality } per item ID,
 -- read by these field numbers. class and subclass are the game's (2 weapon, 4 armor).
-J.FACT = { CLASS = 1, SUBCLASS = 2, ITEM_LEVEL = 3, REQUIRED = 4, QUALITY = 5 }
+J.FACT = { CLASS = 1, SUBCLASS = 2, ITEM_LEVEL = 3, REQUIRED = 4, QUALITY = 5, ICON = 6, NAME = 7 }
+J.NotYet = {}
+
+function J.Facts(itemID)
+    return J.Items[itemID] or J.NotYet[itemID]
+end
+
+function J.IsNotYet(itemID)
+    return J.NotYet[itemID] ~= nil
+end
+
+J.NOT_YET = "Not in Forever yet"
+J.CLOSED_NOTE = "Not open on Forever yet."
 
 local ordered, byKey = {}, {}
 -- The bosses of dungeons new in Forever, for the Forever mark.

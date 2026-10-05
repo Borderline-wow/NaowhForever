@@ -8,8 +8,6 @@ local ns = _G.NaowhForever
 local J = ns.Journal
 local Loot = J.Loot
 
-local GetItemInfo = C_Item.GetItemInfo
-
 -- onChange runs after the list changed, so the caller can redraw.
 ---@param owner Frame
 ---@param itemID number
@@ -19,10 +17,10 @@ function J.View.ItemMenu(owner, itemID, onChange)
         change(itemID)
         if onChange then onChange() end
     end
-    local name = GetItemInfo(itemID)
+    local name = Loot.Name(itemID)
     MenuUtil.CreateContextMenu(owner, function(_, root)
         root:CreateTitle(name or ("Item " .. itemID))
-        if Loot.BisGear(itemID) then
+        if Loot.BisGear(itemID) and not J.IsNotYet(itemID) then
             if not Loot.BisOn() then
                 root:CreateButton("Turn on BiS List", function()
                     ns.QoLSettings.Set("bis", true)
