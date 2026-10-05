@@ -3374,6 +3374,37 @@ local function Deactivate()
     end
 end
 
+-- Once the window has been dragged it stays where it was put, and Blizzard's window is pinned
+-- under it so none of it is left clickable elsewhere. The overview's secure buttons hang off
+-- both windows, so neither may move in combat. One table: the file is at Lua's local limit.
+local Drag = {}
+
+function Drag.Follow()
+    if not (win and win:IsShown() and S.Get("windowPos")) then return end
+    if InCombatLockdown() then
+        Drag.pending = true
+        return
+    end
+    Drag.pending, Drag.following = nil, true
+    ProfessionsFrame:ClearAllPoints()
+    ProfessionsFrame:SetPoint("TOPLEFT", win, "TOPLEFT", 0, 0)
+    Drag.following = false
+end
+
+function Drag.Place()
+    local pos = S.Get("windowPos")
+    win:ClearAllPoints()
+    if pos then
+        win:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pos.x, pos.y)
+    else
+        win:SetPoint("TOPLEFT", ProfessionsFrame, "TOPLEFT", 0, 0)
+    end
+end
+
+function Drag.Save()
+    S.Set("windowPos", { x = win:GetLeft(), y = win:GetTop() })
+end
+
 -- mode is "craft" (a profession's recipes), "linked" (another player's, to order from) or
 -- "book" (the overview).
 local function Activate(mode)
@@ -3382,7 +3413,24 @@ local function Activate(mode)
         Build()
         if ns.ShoppingListAttach then ns.ShoppingListAttach(win) end
         win:SetFrameStrata(NextStrata(pf:GetFrameStrata()))
-        win:SetPoint("TOPLEFT", pf, "TOPLEFT", 0, 0)
+        win:SetMovable(true)
+        win:SetClampedToScreen(true)
+        ns.AllowOffscreen(win)
+        win:RegisterForDrag("LeftButton")
+        win:SetScript("OnDragStart", function(self)
+            if InCombatLockdown() then return end
+            -- Off Blizzard's window first, or pinning that one under this would anchor in a loop.
+            Drag.Save()
+            Drag.Place()
+            Drag.Follow()
+            self:StartMoving()
+        end)
+        win:SetScript("OnDragStop", function(self)
+            self:StopMovingOrSizing()
+            Drag.Save()
+            Drag.Place()
+        end)
+        Drag.Place()
     end
     pf:SetAlpha(0)
     local linked = mode == "linked"
@@ -3397,6 +3445,7 @@ local function Activate(mode)
     if not win:IsShown() or linked ~= linkedMode then
         selectedID, selectedUnlearned, offset = nil, nil, 0
         win:Show()
+        Drag.Follow()
     end
     linkedMode = linked
     win.rank:SetWidth(width - PAD * 2 - 4)
@@ -3553,6 +3602,7 @@ events:SetScript("OnEvent", function(_, event, name)
         events:UnregisterEvent("ADDON_LOADED")
     elseif event == "PLAYER_REGEN_ENABLED" then
         if bookPending ~= nil then DockBook(bookPending) end
+        if Drag.pending then Drag.Follow() end
     end
     if not hooked and ProfessionsFrame then
         hooked = true
@@ -3562,6 +3612,10 @@ events:SetScript("OnEvent", function(_, event, name)
             Deactivate()
         end)
         ProfessionsFrame:HookScript("OnSizeChanged", Queue)
+        -- The panel manager re-places it whenever any panel opens, closes or resizes.
+        hooksecurefunc(ProfessionsFrame, "SetPoint", function()
+            if not Drag.following then Drag.Follow() end
+        end)
         local book = ProfessionsFrame.BookPage
         if book then
             book:HookScript("OnShow", Queue)
