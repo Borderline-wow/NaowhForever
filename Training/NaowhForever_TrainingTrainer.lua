@@ -42,7 +42,7 @@ end
 -------------------------------------------------------------------------------
 --  Level-up toast
 -------------------------------------------------------------------------------
-local toast, toastGen, unlocked = nil, 0, false
+local toast, toastGen = nil, 0
 
 local function PlaceToast()
     local pos = S.Get("toastPos")
@@ -54,6 +54,20 @@ local function PlaceToast()
     end
 end
 
+-- Not in Unlock Mode: it drags by itself.
+local function ToastDragStart()
+    toast.dragging = true
+    toast:StartMoving()
+end
+
+local function ToastDragStop()
+    toast:StopMovingOrSizing()
+    toast.dragging = false
+    S.Set("toastPos", UI.CenterPosition(toast))
+    -- Its time ran out mid-drag.
+    if toast.expired then toast:Hide() end
+end
+
 local function BuildToast()
     toast = CreateFrame("Frame", "NaowhForeverTrainingToast", UIParent)
     toast:SetWidth(TOAST_W)
@@ -61,6 +75,9 @@ local function BuildToast()
     toast:SetClampedToScreen(true)
     toast:SetMovable(true)
     toast:EnableMouse(true)
+    toast:RegisterForDrag("LeftButton")
+    toast:SetScript("OnDragStart", ToastDragStart)
+    toast:SetScript("OnDragStop", ToastDragStop)
     ns.Solid(toast, "BACKGROUND", T.bg, 0.97):SetAllPoints()
     ns.Border(toast, T.accent)
     local logo = toast:CreateTexture(nil, "ARTWORK")
@@ -87,7 +104,6 @@ local function BuildToast()
     end))
     toast.waypoint = ns.Button(toast, "Waypoint", 100, 28, function() Training.WaypointToTrainer() end)
     toast.dismiss = ns.Button(toast, "Dismiss", 90, 28, function() toast:Hide() end)
-    toast.mover = UI.AttachMover(toast, "Level-Up Toast", function(pos) S.Set("toastPos", pos) end, "Training Planner/Settings", "Training Planner/Settings:onTheWay")
     PlaceToast()
     toast:Hide()
 end
@@ -132,10 +148,13 @@ local function ShowToast(level)
     if not toast then BuildToast() end
     FillToast(level, plan)
     toast:Show()
+    toast.expired = false
     toastGen = toastGen + 1
     local gen = toastGen
     C_Timer.After(TOAST_SECONDS, function()
-        if gen == toastGen and not unlocked then toast:Hide() end
+        if gen ~= toastGen then return end
+        toast.expired = true
+        if not toast.dragging then toast:Hide() end
     end)
 end
 
@@ -421,7 +440,7 @@ end)
 
 local function Apply()
     events:UnregisterAllEvents()
-    if toast and not ToastOn() and not unlocked then toast:Hide() end
+    if toast and not ToastOn() then toast:Hide() end
     if panel and not PanelOn() then panel:Hide() end
     if ToastOn() then events:RegisterEvent("PLAYER_LEVEL_UP") end
     if PanelOn() then
@@ -436,23 +455,6 @@ S.OnChange(function(key)
     if key == "enabled" or key == "levelUpToast" or key == "trainerPanel" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
-
--- Unlock Mode shows the toast as it would look now, to place it.
-hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
-    if not ToastOn() then return end
-    unlocked = true
-    if not toast then BuildToast() end
-    local level = UnitLevel("player")
-    FillToast(level, Training.Plan(level))
-    toast.mover:Show()
-    toast:Show()
-end)
-hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
-    if not unlocked then return end
-    unlocked = false
-    toast.mover:Hide()
-    toast:Hide()
-end)
 
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
