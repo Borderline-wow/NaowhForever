@@ -1,10 +1,12 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_XPBar.lua -- the QoL XP bar, with completed quest XP and rested drawn on it and
---  a choice of texts around it. Replaces Blizzard's experience bar while on.
+--  a choice of texts around it. Replaces Blizzard's experience bar while on. Its Played text
+--  comes from Shared.Played.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
+local Played = ns.Shared.Played
 
 -- Naowh's blue for the fill, his logo's gold for quest XP, a darker blue for rested.
 local FILL_FROM = CreateColor(0x00 / 255, 0x4f / 255, 0x85 / 255, 1)
@@ -106,9 +108,6 @@ local bar, clock, unlocked, questTimer
 local sessionStart, sessionXP = nil, 0
 local lastXP, lastXPMax
 local questDone, questOpen = 0, 0
--- TIME_PLAYED_MSG totals and the GetTime() they arrived at, so the clock can run on.
-local playedTotal, playedLevel, playedAt
-local mutedChat = {}
 
 -- The spots around the bar a text can go, each the setting that picks its text.
 -- In reading order, which is also the order that keeps a text shown twice (OneEach).
@@ -291,29 +290,6 @@ local function ScanQuests()
 end
 
 -------------------------------------------------------------------------------
---  Played time
--------------------------------------------------------------------------------
--- RequestTimePlayed prints to every chat frame; they are muted for our own request only
--- and given the event back on the next frame, or after a few seconds if no answer comes.
-local function RestoreChat()
-    for _, cf in ipairs(mutedChat) do cf:RegisterEvent("TIME_PLAYED_MSG") end
-    wipe(mutedChat)
-end
-
-local function RequestPlayed()
-    if #mutedChat > 0 then return end
-    for i = 1, NUM_CHAT_WINDOWS or 10 do
-        local cf = _G["ChatFrame" .. i]
-        if cf and cf:IsEventRegistered("TIME_PLAYED_MSG") then
-            cf:UnregisterEvent("TIME_PLAYED_MSG")
-            mutedChat[#mutedChat + 1] = cf
-        end
-    end
-    RequestTimePlayed()
-    C_Timer.After(5, RestoreChat)
-end
-
--------------------------------------------------------------------------------
 --  Session
 -------------------------------------------------------------------------------
 -- Kept per character in the account store, so a /reload carries on the session unless
@@ -357,10 +333,10 @@ local function SlotText(which, maxed, max)
     local LABEL, VALUE = ns.Color("muted"), ns.Color("fg")
     local elapsed = time() - sessionStart
     if which == "played" then
-        if not playedTotal then return "" end
-        local since = GetTime() - playedAt
-        return LABEL .. "Played:|r " .. VALUE .. Duration(playedTotal + since) .. "|r - "
-            .. LABEL .. "This Level:|r " .. VALUE .. Duration(playedLevel + since) .. "|r"
+        local total = Played.Total()
+        if not total then return "" end
+        return LABEL .. "Played:|r " .. VALUE .. Duration(total) .. "|r - "
+            .. LABEL .. "This Level:|r " .. VALUE .. Duration(Played.Level()) .. "|r"
     elseif which == "session" then
         return LABEL .. "Session:|r " .. VALUE .. Duration(elapsed) .. "|r"
     elseif maxed then
@@ -689,6 +665,10 @@ local function QueueQuestScan()
     questTimer = C_Timer.NewTimer(0.3, function() ScanQuests(); Update() end)
 end
 
+local function PlayedChanged()
+    if bar and On() then Update() end
+end
+
 function ns.ResetXPBarSession()
     if not sessionStart then return end
     sessionStart, sessionXP = time(), 0
@@ -697,7 +677,7 @@ function ns.ResetXPBarSession()
 end
 
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event, arg1, arg2)
+events:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_LOGOUT" then
         SaveSession()
         return
@@ -712,13 +692,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2)
         bar:EnableMouse(IsControlKeyDown())
         return
     end
-    if event == "TIME_PLAYED_MSG" then
-        playedTotal, playedLevel, playedAt = arg1, arg2, GetTime()
-        C_Timer.After(0, RestoreChat)
-    elseif event == "PLAYER_LEVEL_UP" then
-        if playedTotal then
-            playedTotal, playedLevel, playedAt = playedTotal + GetTime() - playedAt, 0, GetTime()
-        end
+    if event == "PLAYER_LEVEL_UP" then
         QueueQuestScan()
     elseif event == "PLAYER_XP_UPDATE" then
         local xp, max = UnitXP("player"), UnitXPMax("player")
@@ -761,6 +735,7 @@ local function Apply()
     if not On() then
         events:UnregisterAllEvents()
         events:RegisterEvent("PLAYER_LOGOUT")
+        Played.Drop("xpBar")
         if clock then clock:Cancel(); clock = nil end
         if bar then bar:Hide() end
         SetBlizzardHidden(false)
@@ -776,11 +751,11 @@ local function Apply()
 
     lastXP, lastXPMax = UnitXP("player"), UnitXPMax("player")
     for _, e in ipairs({ "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "UPDATE_EXHAUSTION",
-                         "PLAYER_UPDATE_RESTING", "QUEST_LOG_UPDATE", "TIME_PLAYED_MSG",
+                         "PLAYER_UPDATE_RESTING", "QUEST_LOG_UPDATE",
                          "DISABLE_XP_GAIN", "ENABLE_XP_GAIN", "PLAYER_LOGOUT", "MODIFIER_STATE_CHANGED" }) do
         events:RegisterEvent(e)
     end
-    if ShowsText("played") and not playedTotal then RequestPlayed() end
+    if ShowsText("played") then Played.Want("xpBar") else Played.Drop("xpBar") end
     if not clock then clock = C_Timer.NewTicker(1, Update) end
 
     SetBlizzardHidden(true)
@@ -1102,6 +1077,8 @@ hooksecurefunc(S, "Set", function(key)
     if key == "enabled" or (key:find("^xpBar") and key ~= "xpBarPos") then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
+hooksecurefunc(Played, "Answered", PlayedChanged)
+hooksecurefunc(Played, "LeveledUp", PlayedChanged)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
     unlocked = On() == true
     Apply()

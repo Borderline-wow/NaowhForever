@@ -1,17 +1,21 @@
 -------------------------------------------------------------------------------
---  NaowhForever_XPTicker.lua -- the QoL XP per hour ticker: a small card with the rate, time to
---  level, session time and recent level times, and its settings card with a live preview.
---  Level times are kept per character by GUID; a character's first login after that change takes
---  over the old entry under its first name and realm, once, if no one else has and its level fits.
---  Its Background is the card, a soft fade or none (Parts.HudBackdrop); the old on/off setting is
---  read as Card for on and Soft for off, and saved that way on the next Apply.
+--  NaowhForever_XPTicker.lua -- the QoL XP per hour ticker: a small card with the rate, played
+--  time, time to level, session time and recent level times, and its settings card with a live
+--  preview. Played time comes from Shared.Played. Level times are kept per character by GUID, with
+--  the played time each level was reached at (shown beside each past level), which Compare
+--  Characters reads for every character on the account to mark your pace and color past levels
+--  against the fastest. A character's first login after the GUID change takes over the old entry
+--  under its first name and realm, once, if no one else has and its level fits. Its Background is
+--  the card, a soft fade or none (Parts.HudBackdrop); the old on/off setting is read as Card for
+--  on and Soft for off, and saved that way on the next Apply. The pace arrow sits a share of the
+--  text size lower (DROP_SHARE), level with the letters: the Naowh font leaves room above capitals.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
 local Parts, St = ns.Shared.Parts, ns.Shared.Style
-local CharacterData = ns.Shared.CharacterData
-local SPLITS_KEY = "levelSplits"
+local CharacterData, Played = ns.Shared.CharacterData, ns.Shared.Played
+local SPLITS_KEY, WANT_KEY, CHARACTER_PREFIX = "levelSplits", "xpTicker", "Player-"
 
 local OUTLINE = "OUTLINE"
 local PAD, UNIT_GAP, LABEL_GAP, HEAD_GAP, COL_GAP = 8, 4, 4, 10, 16
@@ -21,11 +25,17 @@ local DESCENT_SHARE, PERCENT_ROUNDING = 0.2, 1e-9
 local WIDTH_PER_SIZE, WIDTH_STEP = 6, 8
 local LINE_H, TREND_SHARE, TREND_MIN, TREND_GAP = 2, 0.5, 8, 4
 local TREND_WINDOW, TREND_MIN_SHARE, DING_SOON = 180, 0.05, 600
+local PACE_SHARE, PACE_GAP, PACE_MAX, DROP_SHARE = 0.75, 2, 8, 0.1
+local MINUTE, HOUR, DAY, HOUR_TENTH = 60, 3600, 86400, 360
 local UNIT, PAUSED, EMPTY, NONE = "xp/hr", "paused", "no XP yet", "--"
 local DING, LEVEL, PERCENT, DOT, PARTIAL = "Ding", "Level %d", "%d%%", St.PLACE_DOT, "+"
+local PLAYED = "Played"
 local TIP_TITLE, TIP_RESTED, TIP_PAUSED = "XP per Hour", "%s" .. St.PLACE_DOT .. "rested +%s", "Paused"
 local TIP_SESSION, TIP_GAINED, TIP_RATE, TIP_DING = "Session", "XP gained", "Rate", "Ding in"
 local TIP_LEVEL_TIME, TIP_PARTIAL = "This level", "Timed from part way through the level."
+local PACE_TIP = { gap = " ", you = "You", ahead = "%s ahead", behind = "%s behind", unknown = "Unknown",
+    head = "Your characters at level %d", headPart = "Your characters at level %d (%s)", atLevel = " at level %d",
+    none = "None of your other characters has reached level %d yet." }
 local PAUSE_TIP, PAUSE_HINT = "Pause", "Stops the clock and the XP count."
 local START_TIP, START_HINT = "Start", "Carries on from where you paused."
 local RESET_TIP, RESET_HINT = "Reset", "Starts the session again from zero."
@@ -39,6 +49,7 @@ local historyKeys = {}
 local running = { level = 0, time = 0, partial = false }
 local trendBase, trendAt, trendDir = 0, 0, 0
 local LEGACY_BACKGROUND = { [true] = "card", [false] = "soft" }
+local COLUMNS_TIP = "Past levels: how long each took, then your played time at its ding."
 
 local function On()
     return S.Get("enabled") and S.Get("xpTicker")
@@ -71,20 +82,29 @@ local function Short(n)
 end
 
 local function Duration(seconds)
-    if seconds >= 3600 then return ("%.1fh"):format(seconds / 3600) end
-    return math.max(math.floor(seconds / 60), 1) .. "m"
+    if seconds >= HOUR then return ("%.1fh"):format(seconds / HOUR) end
+    return math.max(math.floor(seconds / MINUTE), 1) .. "m"
 end
 
 local function Clock(seconds)
     seconds = math.max(0, math.floor(seconds + 0.5))
-    if seconds >= 3600 then
-        return ("%d:%02d:%02d"):format(math.floor(seconds / 3600), math.floor(seconds / 60) % 60,
+    if seconds >= DAY then
+        return ("%dd %dh %dm"):format(math.floor(seconds / DAY), math.floor(seconds / HOUR) % 24,
+            math.floor(seconds / MINUTE) % 60)
+    end
+    if seconds >= HOUR then
+        return ("%d:%02d:%02d"):format(math.floor(seconds / HOUR), math.floor(seconds / MINUTE) % 60,
             seconds % 60)
     end
-    return ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
+    return ("%d:%02d"):format(math.floor(seconds / MINUTE), seconds % 60)
+end
+
+local function ClockKey(seconds)
+    return seconds >= DAY and -math.floor(seconds / MINUTE) or seconds
 end
 
 local Look = {}
+local Pace = { rows = {}, order = {}, tones = {}, dirty = true }
 local percents = {}
 
 local function Percent(share)
@@ -117,6 +137,57 @@ local function TipLine(left, right)
     GameTooltip:AddDoubleLine(left, right, m.r, m.g, m.b, c.r, c.g, c.b)
 end
 
+function Pace.ClassColor(class)
+    local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    if not c and class and C_ClassColor then c = C_ClassColor.GetClassColor(class) end
+    return c or T.fg
+end
+
+function Pace.Faster(a, b)
+    return a.delta < b.delta
+end
+
+function Pace.Row(n, name, class, theirs, delta, atLevel, you)
+    local row = Pace.rows[n]
+    if not row then
+        row = {}
+        Pace.rows[n] = row
+    end
+    row.name, row.class, row.theirs, row.delta = name or PACE_TIP.unknown, class, theirs, delta
+    row.atLevel, row.you = atLevel and true or false, you and true or false
+    Pace.order[n] = row
+end
+
+function Pace.Line(row, level)
+    local time = Clock(row.theirs) .. (row.atLevel and PACE_TIP.atLevel:format(level) or "")
+    local c, v = row.you and T.accent or Pace.ClassColor(row.class), T.fg
+    if not row.you then
+        local gap = math.abs(row.delta)
+        local ahead = row.delta >= 0
+        time = time .. DOT .. ns.Color(ahead and St.HAVE_RGB or St.RED_RGB,
+            (ahead and PACE_TIP.ahead or PACE_TIP.behind):format(Duration(gap)))
+    end
+    GameTooltip:AddDoubleLine(row.name, time, c.r, c.g, c.b, v.r, v.g, v.b)
+end
+
+function Pace.Tip(f)
+    local n, level, share, interpolated = f.fillPace()
+    local m = T.muted
+    GameTooltip:AddLine(PACE_TIP.gap)
+    if n == 0 then
+        GameTooltip:AddLine(PACE_TIP.none:format(level), m.r, m.g, m.b, true)
+        return
+    end
+    GameTooltip:AddLine(interpolated and PACE_TIP.headPart:format(level, Percent(share)) or PACE_TIP.head:format(level),
+        m.r, m.g, m.b)
+    local you = 1
+    for i = 1, n do
+        if Pace.order[i].you then you = i end
+    end
+    local first = math.max(1, math.min(you - math.floor(PACE_MAX / 2), n - PACE_MAX + 1))
+    for i = first, math.min(n, first + PACE_MAX - 1) do Pace.Line(Pace.order[i], level) end
+end
+
 local function ShowTip(f)
     if not Parts.Tip(f, "ANCHOR_TOP") then return end
     GameTooltip:SetText(TIP_TITLE, T.fg.r, T.fg.g, T.fg.b)
@@ -127,6 +198,7 @@ local function ShowTip(f)
     end
     local run = f.running
     if run then TipLine(TIP_LEVEL_TIME, Clock(run.time) .. (run.partial and PARTIAL or "")) end
+    if f.playedValue then TipLine(PLAYED, Clock(f.playedValue)) end
     if f.elapsed then
         TipLine(TIP_SESSION, Clock(f.elapsed))
         TipLine(TIP_GAINED, Short(f.xp))
@@ -135,6 +207,8 @@ local function ShowTip(f)
     end
     if run and run.partial then GameTooltip:AddLine(TIP_PARTIAL, T.muted.r, T.muted.g, T.muted.b, true) end
     if f.paused then GameTooltip:AddLine(TIP_PAUSED, T.muted.r, T.muted.g, T.muted.b) end
+    if f.columns then GameTooltip:AddLine(COLUMNS_TIP, T.muted.r, T.muted.g, T.muted.b, true) end
+    if f.fillPace and S.Get("xpTickerPace") then Pace.Tip(f) end
     GameTooltip:Show()
 end
 
@@ -177,9 +251,22 @@ function Look.New(f)
     f.trend:SetPoint("LEFT", f.unit, "RIGHT", TREND_GAP, 0)
     f.trend:Hide()
     f.trendDir = 0
+    f.played = NewRow(f, PLAYED)
+    f.paceIcon = f:CreateTexture(nil, "OVERLAY")
+    f.paceIcon:SetTexture(St.UP)
+    f.paceIcon:Hide()
+    f.paceText = NewText(f, St.HAVE_RGB)
+    f.paceText:Hide()
+    f.paceDir = 0
     f.current = NewRow(f, nil, T.muted)
     f.history = {}
-    for i = 1, HISTORY_MAX do f.history[i] = NewRow(f) end
+    for i = 1, HISTORY_MAX do
+        local row = NewRow(f)
+        row.played = NewText(f, T.muted)
+        row.played:SetJustifyH("RIGHT")
+        row.played:Hide()
+        f.history[i] = row
+    end
     f.ding = NewRow(f, DING)
     f.ding.value:SetJustifyH("LEFT")
     f.ding.value:SetPoint("LEFT", f.ding.label, "RIGHT", LABEL_GAP, 0)
@@ -226,8 +313,20 @@ function Look.Fonts(f)
     f.unit:SetPoint("BOTTOMLEFT", f.rate, "BOTTOMRIGHT", UNIT_GAP, (size - small) * DESCENT_SHARE)
     f.trendSize = math.max(TREND_MIN, math.floor(size * TREND_SHARE))
     f.trend:SetSize(f.trendSize, f.trendSize)
+    RowFont(f.played, font, small, flags)
+    f.paceText:SetFont(font, small, flags)
+    f.paceSize = math.max(TREND_MIN, math.floor(small * PACE_SHARE))
+    f.paceIcon:SetSize(f.paceSize, f.paceSize)
+    local drop = math.floor(small * DROP_SHARE + 0.5)
+    f.paceIcon:ClearAllPoints()
+    f.paceIcon:SetPoint("LEFT", f.played.label, "RIGHT", LABEL_GAP, -drop)
+    f.paceText:ClearAllPoints()
+    f.paceText:SetPoint("LEFT", f.paceIcon, "RIGHT", PACE_GAP, drop)
     RowFont(f.current, font, small, flags)
-    for i = 1, HISTORY_MAX do RowFont(f.history[i], font, small, flags) end
+    for i = 1, HISTORY_MAX do
+        RowFont(f.history[i], font, small, flags)
+        f.history[i].played:SetFont(font, small, flags)
+    end
     RowFont(f.ding, font, small, flags)
     RowFont(f.time, font, small, flags)
     f.dot:SetFont(font, small, flags)
@@ -242,6 +341,7 @@ function Look.Fonts(f)
 end
 
 local function PlaceRow(f, row, y)
+    row.y = y
     row.label:ClearAllPoints()
     row.label:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -y)
     row.value:ClearAllPoints()
@@ -272,13 +372,16 @@ local function PlaceFooter(f, showDing, showTime, y)
     return y + f.percent:GetStringHeight()
 end
 
-local function Arrange(f, showDing, showTime, showCurrent, count)
-    local key = (showDing and 1 or 0) + (showTime and 2 or 0) + (showCurrent and 4 or 0) + count * 8
+local function Arrange(f, showDing, showTime, showCurrent, count, showPlayed)
+    local key = (showDing and 1 or 0) + (showTime and 2 or 0) + (showCurrent and 4 or 0) + (showPlayed and 8 or 0)
+        + count * 16
     if f.arranged == key then return false end
-    f.arranged = key
+    f.arranged, f.fitW = key, nil
     local rateH = f.rate:GetStringHeight()
     local y = math.ceil(PAD + math.max(rateH, (rateH + f.controls:GetHeight()) / 2))
     local gap = SECTION_GAP
+    ShowRow(f.played, showPlayed)
+    if showPlayed then y, gap = PlaceRow(f, f.played, y + gap), ROW_GAP end
     ShowRow(f.current, showCurrent)
     if showCurrent then y, gap = PlaceRow(f, f.current, y + gap), ROW_GAP end
     for i = 1, HISTORY_MAX do
@@ -293,9 +396,16 @@ local function Arrange(f, showDing, showTime, showCurrent, count)
     return true
 end
 
-local function RowWidth(w, row)
+local function RowWidth(w, row, column)
     if not row.on then return w end
-    return math.max(w, row.label:GetStringWidth() + COL_GAP + row.value:GetStringWidth())
+    return math.max(w, row.label:GetStringWidth() + COL_GAP + row.value:GetStringWidth() + (column or 0))
+end
+
+function Look.PlayedWidth(w, f)
+    local row = f.played
+    if not row.on then return w end
+    local mark = f.paceDir ~= 0 and LABEL_GAP + f.paceSize + PACE_GAP + f.paceText:GetStringWidth() or 0
+    return math.max(w, row.label:GetStringWidth() + mark + COL_GAP + row.value:GetStringWidth())
 end
 
 local function FooterWidth(f)
@@ -311,8 +421,12 @@ function Look.Fit(f)
     local head = f.rate:GetStringWidth() + UNIT_GAP + f.unit:GetStringWidth()
         + (f.trendDir ~= 0 and TREND_GAP + f.trendSize or 0)
     local w = math.max(f.minW, head + HEAD_GAP + f.controls:GetWidth(), FooterWidth(f))
-    w = RowWidth(w, f.current)
-    for i = 1, HISTORY_MAX do w = RowWidth(w, f.history[i]) end
+    w = Look.PlayedWidth(w, f)
+    local column = f.colOffset
+    w = RowWidth(w, f.current, column)
+    for i = 1, HISTORY_MAX do w = RowWidth(w, f.history[i], column) end
+    w = math.max(w, f.fitW or 0)
+    f.fitW = w
     f:SetSize(math.ceil(w / WIDTH_STEP) * WIDTH_STEP + 2 * PAD, f.height)
 end
 
@@ -333,17 +447,77 @@ local function ShowPaused(f, isPaused)
     f.line:Paint(isPaused and T.muted or T.accent, isPaused and T.muted or T.accentSoft)
 end
 
+function Look.Arrow(arrow, dir)
+    arrow:SetShown(dir ~= 0)
+    if dir > 0 then
+        arrow:SetTexCoord(0, 1, 0, 1)
+        arrow:SetVertexColor(St.HAVE_RGB.r, St.HAVE_RGB.g, St.HAVE_RGB.b)
+    elseif dir < 0 then
+        arrow:SetTexCoord(0, 1, 1, 0)
+        arrow:SetVertexColor(St.RED_RGB.r, St.RED_RGB.g, St.RED_RGB.b)
+    end
+end
+
 local function ShowTrend(f, dir)
     if f.trendDir == dir then return false end
     f.trendDir = dir
-    local trend = f.trend
-    trend:SetShown(dir ~= 0)
-    if dir > 0 then
-        trend:SetTexCoord(0, 1, 0, 1)
-        trend:SetVertexColor(St.HAVE_RGB.r, St.HAVE_RGB.g, St.HAVE_RGB.b)
-    elseif dir < 0 then
-        trend:SetTexCoord(0, 1, 1, 0)
-        trend:SetVertexColor(St.RED_RGB.r, St.RED_RGB.g, St.RED_RGB.b)
+    Look.Arrow(f.trend, dir)
+    return true
+end
+
+function Look.Pace(f, delta)
+    local dir = delta and (delta >= 0 and 1 or -1) or 0
+    local changed = false
+    if f.paceDir ~= dir then
+        f.paceDir = dir
+        Look.Arrow(f.paceIcon, dir)
+        f.paceText:SetShown(dir ~= 0)
+        if dir ~= 0 then Tone(f.paceText, dir > 0 and St.HAVE_RGB or St.RED_RGB) end
+        changed = true
+    end
+    if dir == 0 then return changed end
+    local gap = math.abs(delta)
+    local key = gap >= HOUR and -math.floor(gap / HOUR_TENTH + 0.5) or math.max(math.floor(gap / MINUTE), 1)
+    if f.paceKey ~= key then
+        f.paceKey = key
+        f.paceText:SetText(Duration(gap))
+        changed = true
+    end
+    return changed
+end
+
+function Look.Played(row, total)
+    local sec = total and math.max(0, math.floor(total + 0.5)) or false
+    local key = sec and ClockKey(sec)
+    if row.sec == key then return false end
+    row.sec = key
+    row.value:SetText(sec and Clock(sec) or NONE)
+    Tone(row.value, sec and T.fg or T.muted)
+    return true
+end
+
+function Look.Columns(f, count, show, arranged)
+    local w = 0
+    if show then
+        for i = 1, count do w = math.max(w, f.history[i].played:GetStringWidth()) end
+    end
+    local offset = (show and count > 0) and w + COL_GAP or 0
+    if not arranged and f.colOffset == offset then return false end
+    f.colOffset = offset
+    local rows = f.history
+    if f.current.on then
+        f.current.value:ClearAllPoints()
+        f.current.value:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD - offset, -f.current.y)
+    end
+    for i = 1, HISTORY_MAX do
+        local row = rows[i]
+        row.played:SetShown(show and i <= count)
+        if i <= count then
+            row.value:ClearAllPoints()
+            row.value:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD - offset, -row.y)
+            row.played:ClearAllPoints()
+            row.played:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, -row.y)
+        end
     end
     return true
 end
@@ -370,9 +544,10 @@ local function ShowCurrent(row, run)
     return changed
 end
 
-function Look.Paint(f, rate, ding, elapsed, isPaused, keys, levels, trend, xp, run)
+function Look.Paint(f, rate, ding, elapsed, isPaused, keys, levels, trend, xp, run, played, pace)
     isPaused = isPaused and true or false
     f.rateValue, f.dingValue, f.elapsed, f.xp, f.running = rate, ding, elapsed, xp, run
+    f.playedValue = played
     local empty = rate <= 0
     local changed = SetValue(f.rate, empty and NONE or Short(rate))
     if SetValue(f.unit, isPaused and PAUSED or empty and EMPTY or UNIT) then changed = true end
@@ -394,9 +569,14 @@ function Look.Paint(f, rate, ding, elapsed, isPaused, keys, levels, trend, xp, r
             changed = true
         end
     end
+    local showPlayed = S.Get("xpTickerPlayed") and true or false
+    if showPlayed and Look.Played(f.played, played) then changed = true end
+    if Look.Pace(f, showPlayed and pace or nil) then changed = true end
     local showCurrent = (run and S.Get("xpTickerSplits")) and true or false
     if showCurrent and ShowCurrent(f.current, run) then changed = true end
     local count = math.min(#keys, S.Get("xpTickerHistoryCount") or HISTORY_MAX, HISTORY_MAX)
+    local showAt = S.Get("xpTickerSplitPlayed") and true or false
+    local tones, reached, columns = f.tones, f.reached, false
     for i = 1, count do
         local row, level = f.history[i], keys[i]
         local total = levels[level].total
@@ -410,8 +590,19 @@ function Look.Paint(f, rate, ding, elapsed, isPaused, keys, levels, trend, xp, r
             row.value:SetText(Clock(total))
             changed = true
         end
+        Tone(row.value, tones and tones[level] or T.fg)
+        local at = showAt and reached and reached[level + 1]
+        at = type(at) == "number" and math.floor(at + 0.5) or false
+        if showAt and row.at ~= at then
+            row.at = at
+            row.played:SetText(at and Clock(at) or NONE)
+            columns = true
+        end
     end
-    if Arrange(f, showDing, showTime, showCurrent, count) then changed = true end
+    f.columns = showAt and count > 0
+    local arranged = Arrange(f, showDing, showTime, showCurrent, count, showPlayed)
+    if (arranged or columns) and Look.Columns(f, count, showAt, arranged) then changed = true end
+    if arranged then changed = true end
     if changed then Look.Fit(f) end
 end
 
@@ -482,6 +673,107 @@ local function TrackSplits(newLevel)
     end
 end
 
+function Pace.Record(level, at)
+    local splits = Splits()
+    if not splits then return end
+    if type(splits.reached) ~= "table" then splits.reached = {} end
+    local name = UnitName("player")
+    splits.name, splits.class = name and name:match("^[^-]+") or name, select(2, UnitClass("player"))
+    splits.reached[1] = 0
+    splits.reached[level] = at
+end
+
+function Pace.Share()
+    local max = UnitXPMax("player")
+    return max > 0 and UnitXP("player") / max or 0
+end
+
+function Pace.ReachedAt(record, level)
+    local reached = type(record) == "table" and record.reached
+    local at = type(reached) == "table" and reached[level]
+    return type(at) == "number" and at or nil
+end
+
+function Pace.IsOther(key, other, guid)
+    return key ~= guid and type(key) == "string" and key:find(CHARACTER_PREFIX, 1, true) == 1
+        and type(other) == "table"
+end
+
+function Pace.Gap(other, level, share, total, mineAt)
+    local at, nextAt = Pace.ReachedAt(other, level), Pace.ReachedAt(other, level + 1)
+    if not at then return end
+    if total and nextAt then
+        local theirs = at + share * (nextAt - at)
+        return theirs - total, theirs, false
+    end
+    if mineAt then return at - mineAt, at, true end
+end
+
+function Pace.Fastest(total)
+    local all, guid = ns.AccountSettings()[SPLITS_KEY], UnitGUID("player")
+    if type(all) ~= "table" or not guid then return end
+    local level, share = UnitLevel("player"), Pace.Share()
+    local mineAt, best = Pace.ReachedAt(all[guid], level), nil
+    for key, other in pairs(all) do
+        if Pace.IsOther(key, other, guid) then
+            local delta = Pace.Gap(other, level, share, total, mineAt)
+            if delta and (not best or delta < best) then best = delta end
+        end
+    end
+    return best
+end
+
+function Pace.Live()
+    wipe(Pace.order)
+    local all, guid = ns.AccountSettings()[SPLITS_KEY], UnitGUID("player")
+    local level, share, total = UnitLevel("player"), Pace.Share(), Played.Total()
+    if type(all) ~= "table" or not guid then return 0, level, share, false end
+    local mineAt, n, interpolated = Pace.ReachedAt(all[guid], level), 0, false
+    for key, other in pairs(all) do
+        if Pace.IsOther(key, other, guid) then
+            local delta, theirs, atLevel = Pace.Gap(other, level, share, total, mineAt)
+            if delta then
+                n = n + 1
+                Pace.Row(n, other.name, other.class, theirs, delta, atLevel)
+                if not atLevel then interpolated = true end
+            end
+        end
+    end
+    if n == 0 then return 0, level, share, false end
+    n = n + 1
+    Pace.Row(n, PACE_TIP.you, nil, interpolated and total or mineAt, 0, not interpolated, true)
+    table.sort(Pace.order, Pace.Faster)
+    return n, level, share, interpolated
+end
+
+function Pace.LevelTime(record, level)
+    local at, nextAt = Pace.ReachedAt(record, level), Pace.ReachedAt(record, level + 1)
+    if at and nextAt then return nextAt - at end
+    local levels = record.levels
+    local split = type(levels) == "table" and type(levels[level]) == "table" and levels[level].total
+    return type(split) == "number" and split or nil
+end
+
+function Pace.Tones(levels)
+    local tones = Pace.tones
+    wipe(tones)
+    local all, guid = ns.AccountSettings()[SPLITS_KEY], UnitGUID("player")
+    if not (levels and S.Get("xpTickerPace") and type(all) == "table" and guid) then return end
+    for level, record in pairs(levels) do
+        local mine = type(level) == "number" and type(record) == "table" and record.total
+        if type(mine) == "number" then
+            local best
+            for key, other in pairs(all) do
+                if Pace.IsOther(key, other, guid) then
+                    local theirs = Pace.LevelTime(other, level)
+                    if theirs and (not best or theirs < best) then best = theirs end
+                end
+            end
+            if best then tones[level] = mine <= best and St.HAVE_RGB or St.RED_RGB end
+        end
+    end
+end
+
 local function Newest(a, b)
     return a > b
 end
@@ -491,13 +783,17 @@ local function History()
     local splits = cur and S.Get("xpTickerSplits") and Splits()
     if not splits then return historyKeys end
     local levels = splits.levels
+    if Pace.dirty then
+        Pace.dirty = false
+        Pace.Tones(levels)
+    end
     for level, record in pairs(levels) do
         if type(level) == "number" and level < cur.level and record.total then
             historyKeys[#historyKeys + 1] = level
         end
     end
     table.sort(historyKeys, Newest)
-    return historyKeys, levels
+    return historyKeys, levels, splits.reached
 end
 
 local function Update()
@@ -518,13 +814,16 @@ local function Update()
         trendDir = (trendBase > 0 and math.abs(diff) > trendBase * TREND_MIN_SHARE) and (diff > 0 and 1 or -1) or 0
         trendBase, trendAt = rate, now
     end
-    local keys, levels = History()
+    local keys, levels, reached = History()
+    ticker.reached = reached
     local run
     if cur then
         running.level, running.time, running.partial = cur.level, LevelTime(), cur.partial == true
         run = running
     end
-    Look.Paint(ticker, rate, ding, elapsed, paused, keys, levels, trendDir, sessionXP, run)
+    local played = Played.Total()
+    local pace = S.Get("xpTickerPace") and S.Get("xpTickerPlayed") and Pace.Fastest(played) or nil
+    Look.Paint(ticker, rate, ding, elapsed, paused, keys, levels, trendDir, sessionXP, run, played, pace)
     ticker:Show()
 end
 
@@ -558,6 +857,28 @@ function ns.StartXPTicker()
     Update()
 end
 
+local function PlayedAnswered(total, levelTime)
+    if not On() then return end
+    Pace.Record(UnitLevel("player"), total - levelTime)
+    Pace.dirty = true
+    Update()
+end
+
+local function PlayedLeveledUp(level, total)
+    if total and On() then
+        Pace.Record(level, total)
+        Pace.dirty = true
+    end
+end
+
+local function WantPlayed()
+    if On() and (S.Get("xpTickerPlayed") or S.Get("xpTickerPace")) and (unlocked or not AtMaxLevel()) then
+        Played.Want(WANT_KEY)
+    else
+        Played.Drop(WANT_KEY)
+    end
+end
+
 local function TogglePause()
     if paused then ns.StartXPTicker() else ns.PauseXPTicker() end
 end
@@ -584,6 +905,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
         if not paused then sessionXP = sessionXP + gained end
         Progress()
     end
+    if event == "PLAYER_LEVEL_UP" then Pace.dirty = true end
     TrackSplits(event == "PLAYER_LEVEL_UP" and arg1 or nil)
     Update()
 end)
@@ -603,6 +925,7 @@ local function Apply()
     if not On() then
         if cur and anchor then cur.base, anchor = LevelTime(), nil end
         events:UnregisterAllEvents()
+        Played.Drop(WANT_KEY)
         if clock then clock:Cancel(); clock = nil end
         if ticker then ticker:Hide() end
         return
@@ -612,6 +935,7 @@ local function Apply()
         ticker:SetMovable(true)
         ticker:SetClampedToScreen(true)
         Look.New(ticker)
+        ticker.fillPace, ticker.tones = Pace.Live, Pace.tones
         ticker.toggle:SetScript("OnClick", TogglePause)
         ticker.reset:SetScript("OnClick", ResetClicked)
         ticker.mover = ns.UI.AttachMover(ticker, "XP per Hour", function(pos) S.Set("xpTickerPos", pos) end,
@@ -628,7 +952,9 @@ local function Apply()
     events:RegisterEvent("PLAYER_LOGOUT")
     TrackSplits()
     Progress()
-    local rate = S.Get("xpTickerSplits") and 1 or 5
+    WantPlayed()
+    Pace.dirty = true
+    local rate = (S.Get("xpTickerSplits") or S.Get("xpTickerPlayed")) and 1 or 5
     if AtMaxLevel() and not unlocked then rate = nil end
     if clock and clockRate ~= rate then clock:Cancel(); clock = nil end
     if rate and not clock then clock, clockRate = C_Timer.NewTicker(rate, Update), rate end
@@ -640,6 +966,8 @@ hooksecurefunc(S, "Set", function(key, value)
     if key == "enabled" or (key:find("^xpTicker") and key ~= "xpTickerPos") then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
+hooksecurefunc(Played, "Answered", PlayedAnswered)
+hooksecurefunc(Played, "LeveledUp", PlayedLeveledUp)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
     unlocked = S.Get("enabled") == true
     Apply()
@@ -667,13 +995,29 @@ local SAMPLE_PAUSED_TIME, SAMPLE_RESTING_RATE, SAMPLE_RESTING_DING = 41 * 60 + 5
 local SAMPLE_LEVEL, SAMPLE_START_TIME, SECONDS_PER_HOUR = 23, 3 * 60 + 12, 3600
 local SAMPLE_RUN = { level = SAMPLE_LEVEL, time = 14 * 60 + 2, partial = false }
 local SAMPLE_START_RUN = { level = SAMPLE_LEVEL, time = 9 * 60 + 47, partial = true }
+local SAMPLE_PLAYED = DAY + 4 * HOUR + 12 * MINUTE + 33
+local SAMPLE_PACE = {
+    { name = "Thornwick", class = "WARRIOR", delta = 12 * MINUTE + 20 },
+    { name = "Maelis", class = "MAGE", delta = 27 * MINUTE + 5 },
+    { name = "Brakka", class = "SHAMAN", delta = 74 * MINUTE + 40 },
+}
 local SAMPLE_KEYS = { 22, 21, 20, 19, 18 }
 local SAMPLE_LEVELS = { [22] = { total = 3125 }, [21] = { total = 2864 }, [20] = { total = 2702 },
     [19] = { total = 2391 }, [18] = { total = 2248 } }
+SAMPLE_PACE.tones = { [22] = St.HAVE_RGB, [21] = St.RED_RGB, [20] = St.HAVE_RGB, [19] = St.RED_RGB,
+    [18] = St.HAVE_RGB }
+SAMPLE_PACE.reached = { [SAMPLE_LEVEL] = SAMPLE_PLAYED - SAMPLE_RUN.time }
+for i = 1, #SAMPLE_KEYS do
+    local level = SAMPLE_KEYS[i]
+    SAMPLE_PACE.reached[level] = SAMPLE_PACE.reached[level + 1] - SAMPLE_LEVELS[level].total
+end
 local NO_KEYS = {}
 local HINT = "Wheel: text size. Click a line to hide it. Right-click for more."
 local OFF_HINT = "Turn on XP per Hour to edit it here."
 local HIDDEN_NOTE = "Hide While Resting is on: hidden in cities and inns."
+local SUMMARY = { base = "Rate and time to level", some = "Rate, time to level and %s",
+    splits = "Rate, time to level%s, this level and the last %d", played = "played time",
+    pace = "played time against your characters" }
 local STATES = {
     { key = "levelling", label = "Levelling", tip = "Out in the world, earning experience." },
     { key = "starting", label = "Starting", tip = "A new session, before any experience." },
@@ -682,9 +1026,12 @@ local STATES = {
 }
 local BACKGROUNDS = Parts.HUD_BACKGROUNDS
 local LINE_TOGGLES = {
+    { "xpTickerPlayed", "Show Played Time" },
+    { "xpTickerPace", "Compare Characters" },
     { "xpTickerLevel", "Show Ding Time" },
     { "xpTickerElapsed", "Show Time" },
     { "xpTickerSplits", "Level History" },
+    { "xpTickerSplitPlayed", "Show Played at Ding" },
 }
 
 local function Toggled(key)
@@ -757,7 +1104,7 @@ local function NewHit(preview, row, key)
     local f = preview.ticker
     local hit = CreateFrame("Frame", nil, f)
     hit:SetPoint("TOPLEFT", row.label or row.value, "TOPLEFT", -HIT_PAD, HIT_PAD)
-    hit:SetPoint("BOTTOMRIGHT", row.value, "BOTTOMRIGHT", HIT_PAD, -HIT_PAD)
+    hit:SetPoint("BOTTOMRIGHT", row.played or row.value, "BOTTOMRIGHT", HIT_PAD, -HIT_PAD)
     hit.wash = ns.Solid(hit, "BACKGROUND", T.accent, HOVER_ALPHA)
     hit.wash:SetAllPoints()
     hit.wash:Hide()
@@ -772,6 +1119,18 @@ local function NewHit(preview, row, key)
     preview.hits[#preview.hits + 1] = hit
 end
 
+function Pace.Sample()
+    wipe(Pace.order)
+    for i = 1, #SAMPLE_PACE do
+        local c = SAMPLE_PACE[i]
+        Pace.Row(i, c.name, c.class, SAMPLE_PLAYED + c.delta, c.delta, false)
+    end
+    local n = #SAMPLE_PACE + 1
+    Pace.Row(n, PACE_TIP.you, nil, SAMPLE_PLAYED, 0, false, true)
+    table.sort(Pace.order, Pace.Faster)
+    return n, SAMPLE_LEVEL, SAMPLE_PROGRESS, true
+end
+
 local function NewPreview(stage)
     local preview = CreateFrame("Frame", nil, stage)
     preview:SetAllPoints()
@@ -781,12 +1140,14 @@ local function NewPreview(stage)
     local f = CreateFrame("Frame", nil, preview)
     preview.ticker, f.preview = f, preview
     Look.New(f)
+    f.fillPace = Pace.Sample
     f.toggle:EnableMouse(false)
     f.reset:EnableMouse(false)
     f:EnableMouseWheel(true)
     f:SetScript("OnMouseWheel", Wheel)
     f:SetScript("OnMouseUp", CardUp)
     preview.hits = {}
+    NewHit(preview, f.played, "xpTickerPlayed")
     NewHit(preview, f.ding, "xpTickerLevel")
     NewHit(preview, f.time, "xpTickerElapsed")
     NewHit(preview, f.current, "xpTickerSplits")
@@ -815,20 +1176,23 @@ local function PaintPreview(preview, state)
     local f = preview.ticker
     Look.Fonts(f)
     local keys = S.Get("xpTickerSplits") and SAMPLE_KEYS or NO_KEYS
+    local pace = S.Get("xpTickerPace") and SAMPLE_PACE[1].delta or nil
+    f.tones, f.reached = pace and SAMPLE_PACE.tones, SAMPLE_PACE.reached
     if state == "paused" then
         Look.Paint(f, SAMPLE_RATE, SAMPLE_DING, SAMPLE_PAUSED_TIME, true, keys, SAMPLE_LEVELS, 1,
-            SAMPLE_RATE * SAMPLE_PAUSED_TIME / SECONDS_PER_HOUR, SAMPLE_RUN)
+            SAMPLE_RATE * SAMPLE_PAUSED_TIME / SECONDS_PER_HOUR, SAMPLE_RUN, SAMPLE_PLAYED, pace)
         Look.Progress(f, SAMPLE_PROGRESS, SAMPLE_RESTED, SAMPLE_LEVEL)
     elseif state == "resting" then
         Look.Paint(f, SAMPLE_RESTING_RATE, SAMPLE_RESTING_DING, SAMPLE_TIME, false, keys, SAMPLE_LEVELS, -1,
-            SAMPLE_RESTING_RATE * SAMPLE_TIME / SECONDS_PER_HOUR, SAMPLE_RUN)
+            SAMPLE_RESTING_RATE * SAMPLE_TIME / SECONDS_PER_HOUR, SAMPLE_RUN, SAMPLE_PLAYED, pace)
         Look.Progress(f, SAMPLE_PROGRESS, SAMPLE_RESTING_RESTED, SAMPLE_LEVEL)
     elseif state == "starting" then
-        Look.Paint(f, 0, nil, SAMPLE_START_TIME, false, keys, SAMPLE_LEVELS, 0, 0, SAMPLE_START_RUN)
+        Look.Paint(f, 0, nil, SAMPLE_START_TIME, false, keys, SAMPLE_LEVELS, 0, 0, SAMPLE_START_RUN,
+            SAMPLE_PLAYED, pace)
         Look.Progress(f, SAMPLE_PROGRESS, SAMPLE_RESTED, SAMPLE_LEVEL)
     else
         Look.Paint(f, SAMPLE_RATE, SAMPLE_DING, SAMPLE_TIME, false, keys, SAMPLE_LEVELS, 1,
-            SAMPLE_RATE * SAMPLE_TIME / SECONDS_PER_HOUR, SAMPLE_RUN)
+            SAMPLE_RATE * SAMPLE_TIME / SECONDS_PER_HOUR, SAMPLE_RUN, SAMPLE_PLAYED, pace)
         Look.Progress(f, SAMPLE_PROGRESS, SAMPLE_RESTED, SAMPLE_LEVEL)
     end
     FitPreview(preview)
@@ -847,21 +1211,26 @@ local function PaintPreview(preview, state)
 end
 
 local function Summary(store)
+    local played = store.Get("xpTickerPlayed") and (store.Get("xpTickerPace") and SUMMARY.pace or SUMMARY.played)
     if store.Get("xpTickerSplits") then
-        return ("Rate, time to level, this level and the last %d"):format(store.Get("xpTickerHistoryCount"))
+        return SUMMARY.splits:format(played and ", " .. played or "", store.Get("xpTickerHistoryCount"))
     end
-    return "Rate and time to level"
+    return played and SUMMARY.some:format(played) or SUMMARY.base
 end
 
 ns.Shared.Settings.Page("QoL/XP", S):Card({
     id = "xpTicker", name = "XP per Hour", order = 20, switch = "xpTicker",
-    help = "Your experience per hour on a small card, with time to level, session length and recent level "
-        .. "times. Hidden at max level. Hover it for Start, Pause and Reset (also /naowh xp start, pause "
+    help = "Your experience per hour on a small card, with time to level, played time, session length and "
+        .. "recent level times. Hidden at max level. Hover it for Start, Pause and Reset (also /naowh xp start, pause "
         .. "or reset). Move it in Unlock Mode.",
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
         Group("Shown"),
+        { key = "xpTickerPlayed", label = "Show Played Time", toggle = true,
+          help = "Your total played time on this character, from level 1." },
+        { key = "xpTickerPace", label = "Compare Characters", toggle = true,
+          help = "Shows if you're ahead of or behind your other characters, and colors past levels by it." },
         { key = "xpTickerLevel", label = "Show Ding Time", toggle = true,
           help = "How long the next level takes at your current rate." },
         { key = "xpTickerElapsed", label = "Show Time", toggle = true, help = "How long this session has run." },
@@ -871,6 +1240,8 @@ ns.Shared.Settings.Page("QoL/XP", S):Card({
           help = "The level you are on as it runs, then completed levels, newest first." },
         { key = "xpTickerHistoryCount", label = "Levels Shown", slider = { 1, HISTORY_MAX, 1 }, needs = "xpTickerSplits",
           help = "The most recent completed levels." },
+        { key = "xpTickerSplitPlayed", label = "Show Played at Ding", toggle = true, needs = "xpTickerSplits",
+          help = "Your played time when you reached each level, beside how long it took." },
         Group("Look"),
         { key = "xpTickerBackground", label = "Background", choice = BACKGROUNDS, get = Background,
           set = SetBackground, help = "A card behind the text, a soft dark fade, or nothing at all." },

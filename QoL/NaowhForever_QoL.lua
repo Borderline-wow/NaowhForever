@@ -62,6 +62,7 @@ local S = UI.ModuleSettings("qol", {
     xpTicker = true, xpTickerLevel = true, xpTickerElapsed = true,
     xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24, xpTickerOutline = false,
     xpTickerSplits = true, xpTickerHistoryCount = 10, xpTickerBackground = "card",
+    xpTickerPlayed = true, xpTickerPace = false, xpTickerSplitPlayed = true,
     groupXP = false, groupXPShowSelf = true, groupXPWidth = 260,
     naowhScore = true, naowhScoreTooltip = true, naowhScoreScan = true, naowhScoreNearby = true,
     naowhScoreCompare = "both",

@@ -9,6 +9,7 @@
 --            slider, switch, search and footer (Window.lua)
 --    View    the engine that draws a page as pooled rows (View.lua)
 --    Kinds   the rows every page has: a section title, a note, a card (Kinds.lua)
+--    Played  the character's /played time, asked for once and kept running (Played.lua)
 --
 --  And Shared.CharacterData(key, create): what this character keeps under key in the account's
 --  saved data, by its GUID (first names are not unique on Forever); nil before the game knows

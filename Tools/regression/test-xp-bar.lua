@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: the XP Bar's settings. A colour swatch that is
 -- only opened, or cancelled, leaves the colour unset so it keeps following the theme; a text
--- shows in one spot at a time, the level's three forms counting as one; and the texts are
--- measured again only when one of them changed.
+-- shows in one spot at a time, the level's three forms counting as one; the texts are
+-- measured again only when one of them changed; and its Played text comes from Shared.Played.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
@@ -98,6 +98,90 @@ do
     list[2].text = "2510 / 23200"
     check("one text changed", TextsChanged(list))
     check("and is remembered", not TextsChanged(list))
+end
+
+-- Played time, from the shared helper: nothing made or asked for at load, one muted /played for
+-- whoever wants it first, the chat given it back, the clock running on through a ding, and the
+-- bar's Played text drawn from it the same way as before.
+do
+    local now, requests, made, timers, level = 1000, 0, 0, {}, 20
+    local function Events(f) return f.events end
+    local META = { __index = {
+        RegisterEvent = function(f, e) f.events[e] = true end,
+        UnregisterEvent = function(f, e) f.events[e] = nil end,
+        UnregisterAllEvents = function(f) for e in pairs(f.events) do f.events[e] = nil end end,
+        IsEventRegistered = function(f, e) return f.events[e] == true end,
+        SetScript = function(f, _, fn) f.onEvent = fn end,
+    } }
+    local function Frame() return setmetatable({ events = {} }, META) end
+    local chat1, chat2 = Frame(), Frame()
+    chat1.events.TIME_PLAYED_MSG = true
+    local frame
+    local env = {
+        NaowhForever = { Shared = {} },
+        GetTime = function() return now end,
+        UnitLevel = function() return level end,
+        CreateFrame = function() made = made + 1; frame = Frame(); return frame end,
+        C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end },
+        RequestTimePlayed = function() requests = requests + 1 end,
+        NUM_CHAT_WINDOWS = 2, ChatFrame1 = chat1, ChatFrame2 = chat2,
+        wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
+    }
+    env._G = env
+    Load(Read("Shared/Played.lua"), env)
+    local Played = env.NaowhForever.Shared.Played
+    check("nothing made or asked for at load", made == 0 and requests == 0 and #timers == 0)
+    check("nothing known yet", Played.Total() == nil and Played.Level() == nil)
+    Played.Drop("xpBar")
+    check("dropping what was never wanted is fine", made == 0)
+
+    local answers, dings = 0, 0
+    local hooked = { Answered = Played.Answered, LeveledUp = Played.LeveledUp }
+    Played.Answered = function(...) hooked.Answered(...); answers = answers + 1 end
+    Played.LeveledUp = function(...) hooked.LeveledUp(...); dings = dings + 1 end
+
+    Played.Want("xpBar")
+    check("the first want listens and asks once", made == 1 and Events(frame).TIME_PLAYED_MSG
+        and Events(frame).PLAYER_LEVEL_UP and requests == 1)
+    check("with the chat print muted", chat1.events.TIME_PLAYED_MSG == nil and chat2.events.TIME_PLAYED_MSG == nil)
+    Played.Want("xpTicker")
+    check("a second want does not ask again", made == 1 and requests == 1)
+
+    now = now + 2
+    frame.onEvent(frame, "TIME_PLAYED_MSG", 368520, 12540)
+    check("the answer is heard", answers == 1 and Played.Total() == 368520 and Played.Level() == 12540)
+    for _, fn in ipairs(timers) do fn() end
+    check("the chat frames get the event back", chat1.events.TIME_PLAYED_MSG == true
+        and chat2.events.TIME_PLAYED_MSG == nil)
+    now = now + 30
+    check("the clock runs on", Played.Total() == 368550 and Played.Level() == 12570)
+    level = 21
+    frame.onEvent(frame, "PLAYER_LEVEL_UP", 21)
+    check("a ding: the total keeps running, this level starts again", dings == 1
+        and Played.Total() == 368550 and Played.Level() == 0)
+    now = now + 10
+    check("and counts up", Played.Total() == 368560 and Played.Level() == 10)
+
+    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local chunk = assert(source:match("(local function Duration%(seconds%).-\nend)\n"))
+        .. "\n" .. assert(source:match("(local function SlotText%(which, maxed, max%).-\nend)\n"))
+    local SlotText = Load(chunk .. "\nreturn SlotText", { Played = Played, sessionStart = 0,
+        time = function() return 0 end, ns = { Color = function() return "" end } })
+    check("the bar's Played text, from the helper", SlotText("played", false, 1)
+        == "Played:|r 4d 6h 22m|r - This Level:|r 0m|r")
+
+    Played.Drop("xpBar")
+    check("still listening while someone wants it", Events(frame).TIME_PLAYED_MSG)
+    Played.Drop("xpTicker")
+    check("nobody wants it: nothing listening", next(Events(frame)) == nil)
+    Played.Want("xpBar")
+    check("wanted again at the level it knows: no new /played", requests == 1 and Events(frame).TIME_PLAYED_MSG)
+    Played.Drop("xpBar")
+    level = 22
+    Played.Want("xpBar")
+    check("a ding missed while nobody listened asks again", requests == 2)
+    check("the bar asks only while its Played text shows", source:find(
+        'if ShowsText("played") then Played.Want("xpBar") else Played.Drop("xpBar") end', 1, true))
 end
 
 print(("test-xp-bar: %d checks passed"):format(checks))
