@@ -381,34 +381,38 @@ local function Decode(text)
     return #out > 0 and out or nil
 end
 
-local function Import()
-    ns.PromptText("Paste a Naowh Forever macro string", "", 0, function(text)
-        local macros = Decode(text)
-        if not macros then Toast("That is not a Naowh Forever macro string.") return end
-        local runs = false
-        for _, m in ipairs(macros) do runs = runs or RunsScript(m.body) end
-        ns.Confirm(("Add %d %s as character macros?%s"):format(#macros, #macros == 1 and "macro" or "macros",
-            runs and " One runs a script: read it in the editor before you use it." or ""), function()
-            if InCombatLockdown() then Toast("Macros can be added once the fight is over.") return end
-            local added, taken, full = 0, 0, 0
-            for _, m in ipairs(macros) do
-                if GetMacroIndexByName(m.name) > 0 then
-                    taken = taken + 1
-                elseif Room(false) then
-                    CreateMacro(m.name, QUESTION, m.body, true)
-                    added = added + 1
-                else
-                    full = full + 1
-                end
+-- A macro string's macros as character macros, once the player confirms. The Profiles import
+-- hands Forge strings here too.
+function ns.ImportMacroString(text)
+    local macros = Decode(text)
+    if not macros then Toast("That is not a Naowh Forever macro string.") return end
+    local runs = false
+    for _, m in ipairs(macros) do runs = runs or RunsScript(m.body) end
+    ns.Confirm(("Add %d %s as character macros?%s"):format(#macros, #macros == 1 and "macro" or "macros",
+        runs and " One runs a script: read it in the editor before you use it." or ""), function()
+        if InCombatLockdown() then Toast("Macros can be added once the fight is over.") return end
+        local added, taken, full = 0, 0, 0
+        for _, m in ipairs(macros) do
+            if GetMacroIndexByName(m.name) > 0 then
+                taken = taken + 1
+            elseif Room(false) then
+                CreateMacro(m.name, QUESTION, m.body, true)
+                added = added + 1
+            else
+                full = full + 1
             end
-            local why = {}
-            if taken > 0 then why[#why + 1] = taken .. (taken == 1 and " uses" or " use") .. " a name you already have" end
-            if full > 0 then why[#why + 1] = "character macros are full" end
-            Toast(added == #macros and ("Added %d."):format(added)
-                or ("Added %d of %d: %s."):format(added, #macros, table.concat(why, ", ")))
-            Render()
-        end)
+        end
+        local why = {}
+        if taken > 0 then why[#why + 1] = taken .. (taken == 1 and " uses" or " use") .. " a name you already have" end
+        if full > 0 then why[#why + 1] = "character macros are full" end
+        Toast(added == #macros and ("Added %d."):format(added)
+            or ("Added %d of %d: %s."):format(added, #macros, table.concat(why, ", ")))
+        Render()
     end)
+end
+
+local function Import()
+    ns.PromptText("Paste a Naowh Forever macro string", "", 0, ns.ImportMacroString)
 end
 
 -------------------------------------------------------------------------------
