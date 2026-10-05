@@ -86,7 +86,7 @@ local CARD_H = CARD_PAD + CARD_TITLE_H + ROW_H + #RESULT_LABELS * ROW_H + CARD_G
 local GAME_SOUNDS = { ["game:click"] = SOUNDKIT.IG_MAINMENU_OPTION, ["game:ping"] = SOUNDKIT.MAP_PING }
 local GAME_SOUND_NAMES = { ["game:click"] = "Click (game)", ["game:ping"] = "Ping (game)" }
 
-local panel, openedFor, unlocked, faceIDs, lockTimer
+local panel, openedFor, faceIDs, lockTimer
 local state = IDLE
 local mode, pulse, soundKey, faces, faceCount = MODE_HEXA, false, nil, nil, 0
 local areaW, areaH, endAt, lastTenth, nextSpawn, active = 0, 0, 0, nil, 0, 0
@@ -697,18 +697,13 @@ local function Close()
     panel:Hide()
 end
 
-local function SavePos(pos)
-    S.Set("aimPos", { point = pos.point, relPoint = pos.relPoint, x = pos.x, y = pos.y })
-end
-
 local function DragStart()
     panel:StartMoving()
 end
 
 local function DragStop()
     panel:StopMovingOrSizing()
-    local point, _, relPoint, x, y = panel:GetPoint()
-    S.Set("aimPos", { point = point, relPoint = relPoint, x = x, y = y })
+    S.Set("aimPos", UI.CenterPosition(panel))
 end
 
 local function Shown(self)
@@ -749,7 +744,6 @@ local function Build()
     panel:SetScript("OnShow", Shown)
     panel:SetScript("OnHide", Hidden)
     panel:SetScript("OnEvent", Close)
-    panel.mover = UI.AttachMover(panel, "Aim Trainer", SavePos, "QoL/Travel", "QoL/Travel:aimTrainer")
     panel:Hide()
 end
 
@@ -812,7 +806,6 @@ end
 local function Apply()
     if not panel then return end
     if not On() then
-        panel.mover:Hide()
         panel:Hide()
     elseif panel:IsShown() then
         Place()
@@ -832,19 +825,6 @@ hooksecurefunc(S, "Set", function(key)
     end
 end)
 hooksecurefunc(ns, "Apply", Apply)
-hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
-    unlocked = true
-    if not On() then return end
-    Open("unlock")
-    if panel and panel:IsShown() then panel.mover:Show() end
-end)
-hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
-    if not unlocked then return end
-    unlocked = false
-    if not panel then return end
-    panel.mover:Hide()
-    ns.AimDismiss("unlock")
-end)
 
 SLASH_NAOWHFOREVERAIM1 = "/nfaim"
 SlashCmdList.NAOWHFOREVERAIM = function()
