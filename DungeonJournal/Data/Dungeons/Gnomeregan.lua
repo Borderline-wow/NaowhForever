@@ -11,7 +11,7 @@ ns.Journal.AddDungeon("Gnomeregan", {
     entrance = { map = 1426, x = 24.0, y = 40.0 },
     wings = {
         { bosses = {
-            { npc = 7361, name = "Grubbis", model = 144378, encounters = { 2768 }, loot = { 9445 }, chance = { 8 } },
+            { npc = 7361, name = "Grubbis", model = 144378, encounters = { 2768 }, loot = { 9445, 274043 }, chance = { 8, 0 } },
             { npc = 7079, name = "Viscous Fallout", model = 5497, encounters = { 2769 }, loot = { 9454, 9452, 9453 }, chance = { 60, 20, 18 } },
             { npc = 6235, name = "Electrocutioner 6000", model = 6915, encounters = { 2770 }, loot = { 9448, 9447, 9446 }, chance = { 40, 32, 16 } },
             { npc = 6229, name = "Crowd Pummeler 9-60", model = 6774, encounters = { 2771 }, loot = { 9450, 9449 }, chance = { 65, 33 } },

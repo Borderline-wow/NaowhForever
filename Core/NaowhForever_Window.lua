@@ -1384,6 +1384,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.RecipeFinderDebug()
     elseif cmd == "townaudit" and ns.TownAudit then
         ns.TownAudit()
+    elseif cmd == "itemprobe" and ns.JournalItemProbe then
+        ns.JournalItemProbe()
     elseif (cmd == "mappins" or cmd == "mapcheck") and ns.DungeonMapCommand then
         ns.DungeonMapCommand(cmd)
     elseif cmd == "badges" and ns.BadgesCommand then

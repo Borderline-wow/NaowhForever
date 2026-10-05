@@ -130,7 +130,8 @@ end
 local Columns = View.Columns
 
 -- Gathered entries are drawn by DrawGrid as the mixin's DrawCard(entry, a, b, c, x, w) ->
--- card, height; the cards in a row share the tallest one's height.
+-- card, height; the cards in a row share the tallest one's height. DrawGrid(most) puts at
+-- most that many cards in a row, wider.
 function Engine:Gather(entry, a, b, c)
     local grid = self.grid
     local n = grid.n + 1
@@ -138,9 +139,14 @@ function Engine:Gather(entry, a, b, c)
     grid.entry[n], grid.a[n], grid.b[n], grid.c[n] = entry, a, b, c
 end
 
-function Engine:DrawGrid()
+function Engine:DrawGrid(most)
     local grid, cards = self.grid, self.rowCards
-    local columns, w = Columns(self:GetWidth())
+    local width = self:GetWidth()
+    local columns, w = Columns(width)
+    if most and columns > most then
+        columns = most
+        w = math.floor((width - CARD_GAP * (columns - 1)) / columns)
+    end
     local i = 1
     while i <= grid.n do
         local top, height = self.cursor, 0
