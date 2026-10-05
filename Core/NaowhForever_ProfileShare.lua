@@ -55,6 +55,18 @@ local function Plain(v, depth, budget)
     return out
 end
 
+-- Forever's Lua raises on 1 / 0, which LibSerialize does to every 0 it writes (to spot -0), so
+-- a 0 travels as ZERO and is put back on import.
+local ZERO = "\0"
+
+local function Swap(v, from, to)
+    if v == from then return to end
+    if type(v) ~= "table" then return v end
+    local out = {}
+    for k, val in pairs(v) do out[Swap(k, from, to)] = Swap(val, from, to) end
+    return out
+end
+
 -- A module's values as its settings keep them: a value with a default only as that type.
 local function Checked(values, defaults)
     local out = {}
@@ -129,7 +141,7 @@ function ns.ExportProfile()
         format = FORMAT, name = ns.ActiveProfileName(), author = UnitName("player"),
         made = date("%Y-%m-%d"), build = ns.CODE_BUILD, parts = parts,
     }
-    return PREFIX .. LD:EncodeForPrint(LD:CompressDeflate(LS:Serialize(payload))), note
+    return PREFIX .. LD:EncodeForPrint(LD:CompressDeflate(LS:Serialize(Swap(payload, 0, ZERO)))), note
 end
 
 --- A string back into what it holds. "pack" for a Smart Reminders pack string.
@@ -151,7 +163,7 @@ function ns.DecodeProfile(text)
     end
     if payload.format ~= FORMAT then return nil, "This string is from a newer Naowh Forever: update first." end
     local budget = { n = 0 }
-    payload.parts = Plain(payload.parts, 1, budget)
+    payload.parts = Plain(Swap(payload.parts, ZERO, 0), 1, budget)
     if budget.over then return nil, "This string is too big." end
     return payload
 end
