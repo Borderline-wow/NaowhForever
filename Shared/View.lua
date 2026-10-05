@@ -17,6 +17,7 @@ local Shared = ns.Shared
 local View = Shared.View
 
 local St = Shared.Style
+local Refuse = Shared.Items.Refuse
 local CARD_PAD, CARD_GAP, CARD_BOTTOM = St.CARD_PAD, St.CARD_GAP, St.CARD_BOTTOM
 local CARD_MIN_W, MAX_COLUMNS, BORDER_RGB = St.CARD_MIN_W, St.MAX_COLUMNS, St.BORDER_RGB
 
@@ -209,8 +210,15 @@ function Engine:Flush()
     if self:IsVisible() then self:Redraw() end
 end
 
-function Engine:OnEvent(event, arg)
-    if event == "GET_ITEM_INFO_RECEIVED" and not self.waitingFor[arg] then return end
+function Engine:OnEvent(event, arg, success)
+    if event == "GET_ITEM_INFO_RECEIVED" then
+        if not self.waitingFor[arg] then return end
+        if success == false then
+            Refuse(arg)
+            self.waitingFor[arg] = nil
+            return
+        end
+    end
     self:QueueRedraw()
 end
 

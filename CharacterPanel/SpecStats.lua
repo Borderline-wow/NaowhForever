@@ -32,7 +32,7 @@ local ROOM = 20
 
 -- The order the stats show in: primary stats, power, the ratings, then what keeps you alive.
 local ORDER = { "agi", "str", "int", "spi", "ap", "rap", "spell", "heal", "fire", "frost", "shadow",
-    "nature", "arcane", "holy", "crit", "scrit", "hit", "haste", "dps", "mp5", "def", "dodge",
+    "nature", "arcane", "holy", "crit", "scrit", "hit", "shit", "haste", "dps", "mp5", "def", "dodge",
     "block", "sta", "armor" }
 local ALWAYS = { sta = true, armor = true }   -- shown whatever your spec weighs them
 local ROWS = 16
@@ -103,6 +103,7 @@ local TOTAL = {
         return speed and speed > 0 and ("%.1f"):format((low + high) / 2 / speed) or "-"
     end,
     hit = function() return Percent(GetCombatRatingBonus(CR_HIT_MELEE) + GetHitModifier()) end,
+    shit = function() return Percent(GetCombatRatingBonus(CR_HIT_SPELL) + GetSpellHitModifier()) end,
     crit = function() return Percent(GetCritChance()) end,
     haste = function() return Percent(GetMeleeHaste()) end,
     spell = function() return Whole(SpellDamage()) end,
@@ -173,6 +174,7 @@ local DOES = {
     crit = "Chance for a hit to deal double damage.",
     scrit = "Chance for a spell to crit.",
     hit = "Chance not to miss: worth the most until you stop missing.",
+    shit = "Chance for a spell not to miss: worth the most until you stop missing.",
     haste = "Faster attacks.",
     dps = "Your weapon's damage per second.",
     mp5 = "Mana back every 5 seconds, even while casting.",
@@ -185,7 +187,7 @@ local DOES = {
 local SCHOOL_NAME = { fire = "Fire", frost = "Frost", shadow = "Shadow", nature = "Nature", arcane = "Arcane",
     holy = "Holy" }
 for school, name in pairs(SCHOOL_NAME) do DOES[school] = "More damage from your " .. name .. " spells." end
-local PERCENT = { hit = true, crit = true, haste = true, scrit = true, dodge = true, block = true }
+local PERCENT = { hit = true, shit = true, crit = true, haste = true, scrit = true, dodge = true, block = true }
 local WORTH_LINE = "%s %s is worth %s %s to %s."      -- "1% Crit is worth 14 Agility to Combat."
 local YARDSTICK_LINE = "%s is the yardstick: every other stat is weighed against it."
 local UNCOUNTED_LINE = "%s does not count it."

@@ -174,7 +174,7 @@ jobs:
               echo
               echo '```'
               tail -n 60 "$RUNNER_TEMP/resolve.txt"
-              grep -v "^ *[0-9]*  " "$RUNNER_TEMP/build.txt" | tail -n 80
+              grep -Ev "^ *[0-9]+  " "$RUNNER_TEMP/build.txt" | tail -n 80
               echo '```'
             } >> "$RUNNER_TEMP/loot.md"
           fi

@@ -35,6 +35,7 @@
 local ns = _G.NaowhForever
 local J = ns.Journal
 local Loot = J.Loot
+local Refuse, Refused = ns.Shared.Items.Refuse, ns.Shared.Items.Refused
 local GetItemCount = C_Item.GetItemCount
 local IsEquippedItem = C_Item.IsEquippedItem
 local GetCoinTextureString = C_CurrencyInfo.GetCoinTextureString
@@ -114,6 +115,7 @@ function ViewMixin:Listed(itemID, query)
     if not query then return true end
     local name = Loot.LowerName(itemID)
     if not name then
+        if Refused(itemID) then return false end
         self.waitingFor[itemID] = true
         self.waiting = true
         return false
@@ -942,9 +944,14 @@ function ViewMixin:Flush()
     self:Redraw()
 end
 
-function ViewMixin:OnEvent(event, arg)
+function ViewMixin:OnEvent(event, arg, success)
     if event == "GET_ITEM_INFO_RECEIVED" then
         if not self.waitingFor[arg] then return end
+        if success == false then
+            Refuse(arg)
+            self.waitingFor[arg] = nil
+            return
+        end
     elseif QUEST_EVENTS[event] then
         self.questsDirty = true
         return self:QueueFlush()

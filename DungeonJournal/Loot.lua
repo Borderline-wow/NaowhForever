@@ -15,6 +15,7 @@ local GetItemInfoInstant = C_Item.GetItemInfoInstant
 local GetItemNameByID = C_Item.GetItemNameByID
 local IsEquippedItem = C_Item.IsEquippedItem
 local RequestLoadItemDataByID = C_Item.RequestLoadItemDataByID
+local Refused = ns.Shared.Items.Refused
 local IsDressableItemByID = C_Item.IsDressableItemByID
 local GetInventoryItemID = GetInventoryItemID
 local GetInventoryItemLink = GetInventoryItemLink
@@ -230,7 +231,7 @@ local Appearance = Loot.Appearance
 -- load is asked for, and GET_ITEM_INFO_RECEIVED brings it.
 function Loot.Name(itemID)
     local name = GetItemNameByID(itemID)
-    if not name then RequestLoadItemDataByID(itemID) end
+    if not name and not Refused(itemID) then RequestLoadItemDataByID(itemID) end
     return name
 end
 

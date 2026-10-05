@@ -33,8 +33,6 @@ Settings.Page("QoL/Character", S):Card({
           help = "Reads the gear of the players around you in the background: your target, focus, mouseover "
               .. "and everyone whose nameplate shows, one at a time in inspect range and out of combat." },
         { key = "naowhScoreCompare", label = "Grade Against", choice = COMPARE,
-          help = "A score takes the colour of an item's quality by its share of the best: the best in the game, "
-              .. "the best for the player's level, or Both (the game's best, then in gold its share of the best "
-              .. "for their level)." },
+          help = "Grades a score by its share of the best: in the game, for their level, or Both." },
     },
 })

@@ -30,7 +30,8 @@ SW.STATS = {
     { "hit", "Hit %", 0, 30, 0.5 },
     { "crit", "Crit %", 0, 30, 0.5 }, { "haste", "Haste %", 0, 30, 0.5 },
     { "spell", "Spell Damage", 0, 3, 0.05 }, { "heal", "Healing", 0, 3, 0.05 },
-    { "scrit", "Spell Crit %", 0, 30, 0.5 }, { "mp5", "Mana every 5 sec", 0, 5, 0.1 },
+    { "shit", "Spell Hit %", 0, 30, 0.5 }, { "scrit", "Spell Crit %", 0, 30, 0.5 },
+    { "mp5", "Mana every 5 sec", 0, 5, 0.1 },
     { "fire", "Fire Damage", 0, 3, 0.05 }, { "frost", "Frost Damage", 0, 3, 0.05 },
     { "shadow", "Shadow Damage", 0, 3, 0.05 }, { "nature", "Nature Damage", 0, 3, 0.05 },
     { "arcane", "Arcane Damage", 0, 3, 0.05 }, { "holy", "Holy Damage", 0, 3, 0.05 },
@@ -41,17 +42,26 @@ SW.STATS = {
 local STAT_KEY, STAT_NAME = {}, {}
 for _, stat in ipairs(SW.STATS) do STAT_KEY[stat[1]], STAT_NAME[stat[1]] = true, stat[2] end
 
--- The game's stat keys -> the weights' (one key may count for two).
+-- The game's stat keys -> the weights' (one key may count for two). Forever's hit and crit are
+-- one rating each, for weapons and spells alike, so they count as both.
 local KEYS = {
     ITEM_MOD_STRENGTH_SHORT = "str", ITEM_MOD_AGILITY_SHORT = "agi", ITEM_MOD_STAMINA_SHORT = "sta",
     ITEM_MOD_INTELLECT_SHORT = "int", ITEM_MOD_SPIRIT_SHORT = "spi", ITEM_MOD_ATTACK_POWER_SHORT = "ap",
     ITEM_MOD_RANGED_ATTACK_POWER_SHORT = "rap", ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = "spell",
     ITEM_MOD_SPELL_POWER_SHORT = { "spell", "heal" }, ITEM_MOD_SPELL_HEALING_DONE_SHORT = "heal",
-    ITEM_MOD_HIT_RATING_SHORT = "hit", ITEM_MOD_CRIT_RATING_SHORT = "crit",
+    ITEM_MOD_HIT_RATING_SHORT = { "hit", "shit" }, ITEM_MOD_CRIT_RATING_SHORT = { "crit", "scrit" },
+    ITEM_MOD_HIT_SPELL_RATING_SHORT = "shit", ITEM_MOD_CRIT_SPELL_RATING_SHORT = "scrit",
     ITEM_MOD_SPELL_CRIT_RATING_SHORT = "scrit", ITEM_MOD_MANA_REGENERATION_SHORT = "mp5",
     ITEM_MOD_DEFENSE_SKILL_RATING_SHORT = "def", ITEM_MOD_DODGE_RATING_SHORT = "dodge",
     ITEM_MOD_BLOCK_RATING_SHORT = "block", ITEM_MOD_HASTE_RATING_SHORT = "haste", RESISTANCE0_NAME = "armor",
     ITEM_MOD_DAMAGE_PER_SECOND_SHORT = "dps",
+}
+-- A rating's points per 1% at 60, as the game's tooltips read them (10 hit rating is "1.0%");
+-- the weights are per 1%.
+local PER_PERCENT = {
+    ITEM_MOD_HIT_RATING_SHORT = 10, ITEM_MOD_HIT_SPELL_RATING_SHORT = 10, ITEM_MOD_CRIT_RATING_SHORT = 14,
+    ITEM_MOD_CRIT_SPELL_RATING_SHORT = 14, ITEM_MOD_SPELL_CRIT_RATING_SHORT = 14, ITEM_MOD_DODGE_RATING_SHORT = 12,
+    ITEM_MOD_BLOCK_RATING_SHORT = 5, ITEM_MOD_HASTE_RATING_SHORT = 10,
 }
 -- What a weapon's damage per second counts for, by slot: the main hand's whole, the off
 -- hand's half; a hunter's ranged weapon's only.
@@ -77,11 +87,17 @@ local TREES = {
 -- A weapon's speed, for when the game has none to give (nothing in the hand).
 local SPEED = 2.6
 
+--- An amount of one of the game's stats in the weights' units: a rating as its percent.
+function SW.KeyAmount(gameKey, amount)
+    return amount / (PER_PERCENT[gameKey] or 1)
+end
+
 --- What an amount of one of the game's stats ("ITEM_MOD_AGILITY_SHORT") is worth by weights:
 --- 0 for one they do not weigh.
 function SW.KeyWorth(gameKey, amount, weights)
     local mapped = KEYS[gameKey]
     if not mapped then return 0 end
+    amount = amount / (PER_PERCENT[gameKey] or 1)
     if type(mapped) == "string" then return amount * (weights[mapped] or 0) end
     local worth = 0
     for i = 1, #mapped do worth = worth + amount * (weights[mapped[i]] or 0) end
@@ -281,6 +297,8 @@ function SW.Worth(stats, weights, dpsShare, skipPrimary)
     local worth = 0
     for key, value in pairs(stats) do
         local mine = KEYS[key]
+        local per = PER_PERCENT[key]
+        if per then value = value / per end
         if type(mine) == "table" then
             for i = 1, #mine do worth = worth + (weights[mine[i]] or 0) * value end
         elseif mine == "dps" then
@@ -438,7 +456,7 @@ end
 local SIM_KEYS = {
     strength = "str", agility = "agi", stamina = "sta", intellect = "int", spirit = "spi",
     ap = "ap", rap = "rap", dps = "dps", meleedps = "dps", mainhanddps = "dps", onehanddps = "dps",
-    twohanddps = "dps", hitrating = "hit", spellhitrating = "hit", critrating = "crit",
+    twohanddps = "dps", hitrating = "hit", spellhitrating = "shit", critrating = "crit",
     spellcritrating = "scrit", hasterating = "haste", spellhasterating = "haste", spelldamage = "spell",
     spellpower = "spell", healing = "heal", mp5 = "mp5", armor = "armor", defenserating = "def",
     dodgerating = "dodge", blockrating = "block", firespelldamage = "fire", frostspelldamage = "frost",
