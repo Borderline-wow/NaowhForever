@@ -21,8 +21,13 @@ local MIN_W, MAX_W = 420, 640   -- it widens to show its longest quest name in f
 -- Taller than this it scrolls: 70% of the screen's height, at the window's scale, and 420 at
 -- the least.
 local MIN_MAX_H, SCREEN_SHARE = 420, 0.7
+
+-- The add-on's Window Scale, times the tracker's own Scale (trackerScale).
+local function Scale()
+    return ns.UIScale() * (S.Get("trackerScale") or 1)
+end
 local function MaxH()
-    local screen = (UIParent:GetHeight() or 0) * SCREEN_SHARE / ns.UIScale()
+    local screen = (UIParent:GetHeight() or 0) * SCREEN_SHARE / Scale()
     return math.max(MIN_MAX_H, math.floor(screen))
 end
 local NAME_SIZE = 13      -- a quest row's title font (View/QuestRows.lua)
@@ -131,10 +136,7 @@ local function Opacity()
     return S.Get("trackerAlpha") or 1
 end
 
--- The add-on's Window Scale, times the tracker's own Scale (trackerScale).
-local function Scale()
-    return ns.UIScale() * (S.Get("trackerScale") or 1)
-end
+
 
 local function Paint()
     panel:Paint()
@@ -334,5 +336,6 @@ S.OnChange(function(key)
         Paint()
     elseif key == "trackerScale" then
         panel:SetScale(Scale())
+        Redraw()
     end
 end)
