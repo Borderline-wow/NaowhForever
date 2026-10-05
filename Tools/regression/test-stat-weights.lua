@@ -1,4 +1,5 @@
--- Stat Weights: each spec's weights with your changes kept apart from the defaults, sharing
+-- Stat Weights: every spec's own defaults (anchored at 1, in range, a caster's spell hit read off
+-- Forever's shared hit rating), your changes kept apart from them and through new ones, sharing
 -- them as a line, how much stronger an item makes you over what you wear (rings against the
 -- weaker one, a two-hander against both hands), the tooltip line (installed only once the
 -- module is on), and its window.
@@ -148,6 +149,111 @@ do
 end
 
 -------------------------------------------------------------------------------
+--  Each spec's own weights: all 28, measured in their anchor, within the editor's ranges, and
+--  the specs that play differently weighed differently
+-------------------------------------------------------------------------------
+do
+    local ns = Fixture("MAGE")
+    local SW = ns.StatWeights
+    -- Every spec, by its anchor: a fighter's main stat, a caster's spell damage, a healer's
+    -- healing, a tank's Stamina.
+    local ANCHOR = {
+        ["balance-druid"] = "spell", ["feral-dps-druid"] = "str", ["feral-tank-druid"] = "sta",
+        ["restoration-druid"] = "heal", ["beast-mastery-hunter"] = "agi", ["marksmanship-hunter"] = "agi",
+        ["survival-hunter"] = "agi", ["arcane-mage"] = "spell", ["fire-mage"] = "spell", ["frost-mage"] = "spell",
+        ["holy-paladin"] = "heal", ["protection-paladin"] = "sta", ["retribution-paladin"] = "str",
+        ["discipline-priest"] = "heal", ["holy-priest"] = "heal", ["shadow-priest"] = "spell",
+        ["assassination-rogue"] = "agi", ["combat-rogue"] = "agi", ["subtlety-rogue"] = "agi",
+        ["elemental-shaman"] = "spell", ["enhancement-shaman"] = "str", ["restoration-shaman"] = "heal",
+        ["affliction-warlock"] = "spell", ["demonology-warlock"] = "spell", ["destruction-warlock"] = "spell",
+        ["arms-warrior"] = "str", ["fury-warrior"] = "str", ["protection-warrior"] = "sta",
+    }
+    local CASTERS = { "balance-druid", "arcane-mage", "fire-mage", "frost-mage", "shadow-priest",
+        "elemental-shaman", "affliction-warlock", "demonology-warlock", "destruction-warlock" }
+    local range = {}
+    for _, stat in ipairs(SW.STATS) do range[stat[1]] = stat end
+    local count = 0
+    for _, spec in ipairs(ns.StatWeightDefaults) do
+        count = count + 1
+        local anchor = ANCHOR[spec.key]
+        check("a spec we know: " .. spec.key, anchor ~= nil)
+        check("its anchor is 1: " .. spec.key, spec.weights[anchor] == 1)
+        for stat, worth in pairs(spec.weights) do
+            check("no negative weight: " .. spec.key .. " " .. stat, worth >= 0)
+            check("within the editor's range: " .. spec.key .. " " .. stat,
+                worth >= range[stat][3] and worth <= range[stat][4])
+        end
+        -- Plate wearers (Warriors, and Paladins who melee or tank) never value Agility over Strength.
+        if (spec.class == "WARRIOR" or spec.class == "PALADIN") and (spec.weights.str or 0) > 0 then
+            check("plate: Strength over Agility: " .. spec.key, spec.weights.str > (spec.weights.agi or 0))
+        end
+    end
+    check("28 specs: three a class, and a druid's Feral Tank", count == 28 and SW.Spec("feral-tank-druid") ~= nil)
+    -- A druid picks between all four, the bear by hand.
+    local druid = Fixture("DRUID").StatWeights.ClassSpecs()
+    check("a druid has four, Feral Tank one of them", #druid == 4 and druid[3].key == "feral-tank-druid")
+    -- A caster's hit: Forever's items carry one hit rating for weapons and spells alike (10 a 1%).
+    for _, key in ipairs(CASTERS) do
+        local weights = SW.For(key)
+        check("a caster weighs spell hit: " .. key, (weights.shit or 0) > 0 and (weights.hit or 0) == 0)
+        check("and reads it off a hit item: " .. key,
+            math.abs(SW.Worth({ ITEM_MOD_HIT_RATING_SHORT = 10 }, weights) - weights.shit) < 1e-9)
+        check("and its crit off a crit item: " .. key, (weights.scrit or 0) > 0
+            and math.abs(SW.Worth({ ITEM_MOD_CRIT_RATING_SHORT = 14 }, weights) - weights.scrit) < 1e-9)
+    end
+    -- A fighter's hit and crit off the same ratings; a percent from its rating.
+    local fury = SW.For("fury-warrior")
+    check("a fighter's hit item: its hit", math.abs(SW.Worth({ ITEM_MOD_HIT_RATING_SHORT = 20 }, fury)
+        - 2 * fury.hit) < 1e-9)
+    check("a rating in percents", SW.KeyAmount("ITEM_MOD_CRIT_RATING_SHORT", 28) == 2
+        and SW.KeyAmount("ITEM_MOD_DODGE_RATING_SHORT", 12) == 1 and SW.KeyAmount("ITEM_MOD_BLOCK_RATING_SHORT", 5) == 1
+        and SW.KeyAmount("ITEM_MOD_AGILITY_SHORT", 7) == 7)
+    check("KeyWorth reads the rating too", math.abs(SW.KeyWorth("ITEM_MOD_HIT_RATING_SHORT", 10, fury) - fury.hit) < 1e-9)
+    -- Specs that play differently are weighed differently.
+    local function Differ(a, b)
+        local x, y = SW.Spec(a).weights, SW.Spec(b).weights
+        for stat in pairs(range) do
+            if (x[stat] or 0) ~= (y[stat] or 0) then return true end
+        end
+        return false
+    end
+    for _, pair in ipairs({ { "assassination-rogue", "combat-rogue" }, { "combat-rogue", "subtlety-rogue" },
+        { "assassination-rogue", "subtlety-rogue" }, { "arms-warrior", "fury-warrior" },
+        { "beast-mastery-hunter", "marksmanship-hunter" }, { "marksmanship-hunter", "survival-hunter" },
+        { "discipline-priest", "holy-priest" }, { "affliction-warlock", "demonology-warlock" } }) do
+        check("its own weights: " .. pair[1] .. " and " .. pair[2], Differ(pair[1], pair[2]))
+    end
+    check("Fury's hit over Arms' (two weapons miss more)", fury.hit > SW.For("arms-warrior").hit)
+    for _, key in ipairs({ "beast-mastery-hunter", "marksmanship-hunter", "survival-hunter" }) do
+        check("a hunter's ranged power over melee: " .. key, SW.For(key).rap > SW.For(key).ap)
+    end
+    check("a simulator's spell hit is spell hit", SW.Import('( Pawn: v1: "x": Class=Mage, SpellHitRating=12.5, '
+        .. 'SpellDamage=1 )', "frost-mage") and SW.For("frost-mage").shit == 12.5 and (SW.For("frost-mage").hit or 0) == 0)
+    SW.Reset("frost-mage")
+    check("a fire mage weighs no frost", (SW.For("fire-mage").frost or 0) == 0
+        and (SW.For("frost-mage").fire or 0) == 0 and (SW.For("shadow-priest").holy or 0) == 0)
+end
+
+-------------------------------------------------------------------------------
+--  New defaults keep your changes: only what you changed is yours, the rest follows ours
+-------------------------------------------------------------------------------
+do
+    local ns, state = Fixture("MAGE")
+    local SW = ns.StatWeights
+    local key = "fire-mage"
+    -- Saved before these defaults: a Spirit of your own, and a Fire Damage at what is now ours.
+    state.account.statWeights = { [key] = { spi = 0.75, fire = SW.Default(key, "fire") } }
+    local weights = SW.For(key)
+    check("your own weight stays", weights.spi == 0.75 and SW.Changed(key, "spi"))
+    check("one the new default caught up with stays yours", weights.fire == SW.Default(key, "fire")
+        and SW.Changed(key, "fire"))
+    check("what you never changed is the new default", weights.int == SW.Default(key, "int")
+        and weights.shit == SW.Default(key, "shit") and not SW.Changed(key, "int"))
+    check("another spec untouched", SW.For("frost-mage").spi == SW.Default("frost-mage", "spi")
+        and state.account.statWeights["frost-mage"] == nil)
+end
+
+-------------------------------------------------------------------------------
 --  Automatic: your talents say your spec
 -------------------------------------------------------------------------------
 do
@@ -202,7 +308,7 @@ do
     SW.Set(key, "fire", 3)
     local ok = SW.Import(line, "arcane-mage")
     check("Import puts Naowh's back, then the line's changes on top", ok and SW.For(key).agi == 1.25
-        and SW.For(key).spi == 0.5 and SW.For(key).str == 0.5 and SW.For(key).fire == nil)
+        and SW.For(key).spi == 0.5 and SW.For(key).str == SW.Default(key, "str") and SW.For(key).fire == nil)
     -- A simulator's export: its stats for the spec on the page, the rest to 0.
     ok = SW.Import('( Pawn: v1: "Combat WoWSims Weights": Class=Rogue,Agility=2.100,Ap=1.000,'
         .. 'HitRating=13.200,MeleeDps=3.000,RangedDps=9.000,SpellPen=1.000 )', key)
@@ -225,18 +331,20 @@ do
     local SW = ns.StatWeights
     local weights = SW.For("combat-rogue")
     state.worn = { [10] = 2, [11] = 4, [12] = 5, [16] = 7, [17] = 8 }
-    -- Your five stats at 50 each: 0.5 Strength, 1 Agility, 0.15 Stamina; then the 10 Attack
-    -- Power on your gloves (0.5) and your weapons' damage per second (7, the off hand's half).
+    -- Your five stats at 50 each; then the 10 Attack Power on your gloves and your weapons'
+    -- damage per second (20 and 15, the off hand's half).
+    local w = weights
     local power = SW.Power(weights)
-    check("your stats' worth: yours, then what you wear adds", math.abs(power - (25 + 50 + 7.5 + 5 + 140 + 52.5)) < 1e-6)
+    check("your stats' worth: yours, then what you wear adds", math.abs(power - (50 * (w.str + w.agi + w.sta)
+        + 10 * w.ap + 20 * w.dps + 7.5 * w.dps)) < 1e-6)
     local gloves = SW.Gain(1, 10, weights, power)
-    check("10 Agility over 10 Attack Power", math.abs(gloves - 100 * 5 / power) < 1e-6)
+    check("10 Agility over 10 Attack Power", math.abs(gloves - 100 * 10 * (w.agi - w.ap) / power) < 1e-6)
     check("a ring over the weaker one you wear", SW.Gain(3, 12, weights, power) > 0 and SW.Gain(3, 11, weights, power) < 0)
     local twoHand = SW.Gain(6, 16, weights, power, 17)
-    check("a two-hander against both hands", math.abs(twoHand - 100 * (280 - 140 - 52.5) / power) < 1e-6)
+    check("a two-hander against both hands", math.abs(twoHand - 100 * (40 - 20 - 7.5) * w.dps / power) < 1e-6)
     state.speed, state.offSpeed = 2, 1.5
     check("an enchant's point of weapon damage: a point of dps over the weapon's speed",
-        SW.SwingDamage(weights, 16) == 7 / 2 and SW.SwingDamage(weights, 17) == 7 * 0.5 / 1.5)
+        SW.SwingDamage(weights, 16) == w.dps / 2 and SW.SwingDamage(weights, 17) == w.dps * 0.5 / 1.5)
     state.worn[10] = nil
     check("over nothing worn, its whole worth", math.abs(SW.Gain(1, 10, weights, SW.Power(weights)) - 100 * 10 / SW.Power(weights)) < 1e-6)
     -- Stats the game keeps secret (reported on Forever, every item hovered): no error, and gains
@@ -245,14 +353,14 @@ do
     state.secret = true
     check("secret stats: the worth last read", SW.Power(weights) == before)
     check("secret stats: gains go on", math.abs(SW.Gain(1, 10, weights, SW.Power(weights)) - 100 * 10 / before) < 1e-6)
-    check("secret stats: a swing at the speed last read", SW.SwingDamage(weights, 16) == 7 / 2)
+    check("secret stats: a swing at the speed last read", SW.SwingDamage(weights, 16) == w.dps / 2)
     check("secret stats, weights never read: no worth", SW.Power({ agi = 1 }) == nil)
     -- Your gear changes while they are secret: the worth last read no longer holds.
     for _, watcher in ipairs(state.watchers) do
         if watcher.events.PLAYER_EQUIPMENT_CHANGED then watcher.onEvent(watcher, "PLAYER_EQUIPMENT_CHANGED") end
     end
     check("secret stats after a gear change: no worth", SW.Power(weights) == nil)
-    check("secret stats after a gear change: a swing at the usual speed", SW.SwingDamage(weights, 16) == 7 / 2.6)
+    check("secret stats after a gear change: a swing at the usual speed", SW.SwingDamage(weights, 16) == w.dps / 2.6)
     state.secret = false
 end
 
@@ -281,7 +389,7 @@ do
     state.worn = { [10] = 2, [11] = 4, [12] = 5 }
     local lines = Lines(1)
     check("an upgrade: one line, the arrow, how much, then the spec", #lines == 1
-        and lines[1]:find("^|A:bags%-greenarrow") and lines[1]:find("+6% upgrade|r", 1, true)
+        and lines[1]:find("^|A:bags%-greenarrow") and lines[1]:find("+5% upgrade|r", 1, true)
         and lines[1]:find("Assassination", 1, true))
     check("nothing on what is worse", #Lines(9) == 0)
     check("nor on what you wear", #Lines(2) == 0)
@@ -429,7 +537,7 @@ do
     check("points: only the stats Assassination uses", Shown(1) == "Strength,Agility,Stamina,Attack Power,Armor")
     check("percents and weapon dps apart; an enchant's weapon damage is worked out", Shown(2) == "Weapon DPS,Hit %,Crit %,Haste %")
     check("each list under its title", weights.groups[1].text == "PER POINT" and weights.groups[2].text == "PER 1% OR WEAPON DPS")
-    check("the footer says whose weights", window.note.text.text == "Default weights  \194\183  3 Oct 2026"
+    check("the footer says whose weights", window.note.text.text == "Default weights  \194\183  5 Oct 2026"
         and window.reset.alpha == 0.35 and window.reset.mouse == false)
     check("what the tooltip line looks like", window.sample.text:find("Assassination", 1, true)
         and window.sample.text:find("+9% upgrade", 1, true))

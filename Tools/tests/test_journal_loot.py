@@ -5,12 +5,16 @@ npc_drops caches. From the repo root:
 
     python -m unittest discover -s Tools/tests
 """
+import re
+import struct
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import build_journal  # noqa: E402
+import items_in_game  # noqa: E402
+import wago  # noqa: E402
 
 
 def drop(item_id, count, kills, new=False, quality=3):
@@ -78,6 +82,219 @@ class WowsrcMerge(unittest.TestCase):
         kept = build_journal.merge_wowsrc(loot, listed)
         self.assertEqual([i["id"] for i in kept], [3191])
         self.assertEqual(kept[0]["chance"], 35.7, "wowsrc's chance wins")
+
+
+class InGame(unittest.TestCase):
+    def setUp(self):
+        self.saved = build_journal.game_items, build_journal.era_items, build_journal.sent, wago.table
+        build_journal.game_items = build_journal.era_items = None
+        build_journal.sent = {"loads": {7717}, "refused": {7718, 10800}}
+        forever = {"Item": [{"ID": "10800", "ClassID": "4", "SubclassID": "2"},
+                            {"ID": "3191", "ClassID": "2", "SubclassID": "1"}],
+                   "ItemSparse": [{"ID": "3191"}]}
+        era = {"Item": [{"ID": "10800", "ClassID": "4", "SubclassID": "2", "IconFileDataID": "132607"},
+                        {"ID": "7718", "ClassID": "4", "SubclassID": "3", "IconFileDataID": "135032"}],
+               "ItemSparse": [{"ID": "10800", "Display_lang": "Darkwater Bracers", "ItemLevel": "52",
+                               "RequiredLevel": "47", "OverallQualityID": "3", "InventoryType": "9"},
+                              {"ID": "7718", "Display_lang": "Herod\u2019s Shoulder", "ItemLevel": "42",
+                               "RequiredLevel": "37", "OverallQualityID": "3", "InventoryType": "3"}]}
+        wago.table = lambda name, build=None, hotfixes=True: (era if build == build_journal.CLASSIC_ERA else forever)[name]
+
+    def tearDown(self):
+        build_journal.game_items, build_journal.era_items, build_journal.sent, wago.table = self.saved
+
+    def test_the_game_names_only_items_with_a_sparse_row(self):
+        self.assertEqual(set(build_journal.game_tables()), {"3191"})
+
+    def test_the_list_of_items_the_game_sent_is_read(self):
+        build_journal.sent = None
+        found = build_journal.in_game_list()
+        self.assertIn(7717, found["loads"], "Ravager: no ItemSparse row on wago, loads in game")
+        self.assertIn(10800, found["refused"])
+
+    def test_an_item_only_on_the_list_is_in_forever(self):
+        self.assertTrue(build_journal.known(7717))
+        self.assertTrue(build_journal.known(3191), "in the game's tables")
+
+    def test_a_refused_item_is_not_yet(self):
+        self.assertFalse(build_journal.known(10800))
+        self.assertFalse(build_journal.known(7718))
+
+    def test_an_item_not_yet_is_named_from_classic_era(self):
+        facts, name, icon = build_journal.not_yet_facts(10800)
+        self.assertEqual((facts["level"], facts["reqlevel"], facts["quality"], name, icon),
+                         (52, 47, 3, "Darkwater Bracers", 132607))
+        self.assertIsNone(build_journal.not_yet_facts(273046), "a Forever item Classic Era never had")
+
+    def test_items_file_keeps_the_two_apart_in_ascii(self):
+        lines = build_journal.items_file({3191: drop(3191, 1, 1)},
+                                         {7718: build_journal.not_yet_facts(7718)})
+        text = "\n".join(lines)
+        self.assertIn("[3191] = { 2, 1, 26, 21, 3 },", text)
+        self.assertIn('[7718] = { 4, 3, 42, 37, 3, 135032, "Herod\\226\\128\\153s Shoulder" },', text)
+        self.assertLess(text.index("[3191]"), text.index("ns.Journal.NotYet"))
+        text.encode("ascii")
+
+    def test_a_boss_lists_its_loot_with_no_count_left_out(self):
+        boss = {"npc": 3975, "name": "Herod", "rare": False, "encounters": [448],
+                "loot": [dict(drop(7718, 4167, 12682), chance=33.0), dict(drop(7717, 1776, 12682), chance=14.0)]}
+        self.assertIn("loot = { 7718, 7717 }", build_journal.lua_boss(boss))
+        self.assertNotIn("notInGame", build_journal.lua_boss(boss))
+
+
+class ItemsInGame(unittest.TestCase):
+    PROBE = """
+NaowhForeverDB = {
+["observed"] = {
+["v"] = 1,
+},
+["journalProbe"] = {
+["refused"] = {
+7718, -- [1]
+10800, -- [2]
+},
+["build"] = 70300,
+["loads"] = {
+7717, -- [1]
+9384, -- [2]
+},
+},
+["dbVersion"] = 1,
+}
+"""
+
+    def test_the_probe_is_read_from_saved_variables(self):
+        build, answers = items_in_game.read_probe(self.PROBE)
+        self.assertEqual(build, 70300)
+        self.assertEqual(answers, {7718: False, 10800: False, 7717: True, 9384: True})
+
+    def test_no_probe_no_answers(self):
+        self.assertEqual(items_in_game.read_probe('NaowhForeverDB = {\n["dbVersion"] = 1,\n}\n'), (0, {}))
+
+    def test_a_newer_answer_replaces_the_old(self):
+        known = {"build": 70205, "loads": [7717, 10330], "refused": [9384, 10800]}
+        build, answers = items_in_game.read_probe(self.PROBE)
+        found = items_in_game.merge(known, build, answers)
+        self.assertEqual(found, {"build": 70300, "loads": [7717, 9384, 10330], "refused": [7718, 10800]})
+
+    def test_the_client_cache_last_answer_counts(self):
+        def entry(record, status, size=0):
+            return items_in_game.ENTRY.pack(b"XFTH", 70, -1, 0, items_in_game.ITEM_SPARSE, record, size, status) + b"x" * size
+        data = struct.pack("<4sII", b"XFTH", 9, 70205) + b"\0" * 32
+        data += entry(7717, 3) + entry(7717, 1, 4) + entry(7718, 3) + entry(273023, 1, 8)
+        data += items_in_game.ENTRY.pack(b"XFTH", 70, 1, 0, 0x1234, 7718, 0, 1)
+        build, answers = items_in_game.read_cache(data)
+        self.assertEqual(build, 70205)
+        self.assertEqual(answers, {7717: True, 7718: False, 273023: True},
+                         "refused, then sent: loads; another table's record of 7718 does not count")
+
+    def test_a_file_that_is_not_the_cache_is_refused(self):
+        with self.assertRaises(ValueError):
+            items_in_game.read_cache(b"WDB5" + b"\0" * 64)
+
+
+class NewBosses(unittest.TestCase):
+    def test_a_new_boss_read_from_few_kills_is_read_again(self):
+        self.assertTrue(build_journal.stale({"new": True, "items": [drop(273023, 1, 2)]}),
+                        "Saltspine at 2 kills: no chance to show")
+        self.assertTrue(build_journal.stale({"new": True, "items": []}))
+        self.assertFalse(build_journal.stale({"new": True, "items": [drop(273023, 62, 210)]}))
+        self.assertFalse(build_journal.stale({"new": False, "items": [drop(7717, 1, 2)]}), "a classic boss")
+        self.assertFalse(build_journal.stale([]))
+
+    def test_a_world_drop_flag_on_its_own_item(self):
+        drape = dict(drop(271097, 59, 157, new=True), world=True)    # Faldrim Anvilmar's, 38%
+        stray = dict(drop(3047, 2, 68), world=True)                   # Highland Horror's, 3%
+        kept = build_journal.choose([drape, stray], npc_new=True)
+        self.assertEqual([i["id"] for i in kept], [271097])
+        self.assertAlmostEqual(kept[0]["chance"], 100 * 59 / 157)
+
+
+class SharedDrops(unittest.TestCase):
+    def setUp(self):
+        self.cache = build_journal.cache
+        helm = drop(252455, 2, 5377, new=True)
+        build_journal.cache = {f"drops5:{npc}": {"new": False, "items": [helm]} for npc in (4829, 4842, 4543)}
+        build_journal.cache["drops5:3983"] = {"new": False, "items": [drop(274290, 22, 13863, new=True)]}
+
+    def tearDown(self):
+        build_journal.cache = self.cache
+
+    def test_a_helm_from_many_bosses_is_left_out(self):
+        helm = dict(drop(252455, 2, 5377, new=True), chance=None)
+        buckler = dict(drop(274290, 22, 13863, new=True), chance=None)
+        boss = {"loot": [helm, buckler]}
+        shared = build_journal.shared_drops([({}, [{"bosses": [boss]}])])
+        self.assertEqual(shared, {252455})
+        self.assertEqual([i["id"] for i in boss["loot"]], [274290], "Painwalker Buckler: Vishas's alone")
+
+    def test_wowsrc_or_a_hand_list_keeps_it(self):
+        listed = dict(drop(252455, 2, 5377, new=True), chance=None, listed=True)
+        by_hand = {"id": 252455, "chance": None, "quality": 3, "slot": 1}
+        boss = {"loot": [listed, by_hand]}
+        build_journal.shared_drops([({}, [{"bosses": [boss]}])])
+        self.assertEqual(len(boss["loot"]), 2)
+
+
+class OpenDungeons(unittest.TestCase):
+    def setUp(self):
+        self.game_items = build_journal.game_items
+        build_journal.game_items = {str(i): None for i in (1, 2, 3)}
+
+    def tearDown(self):
+        build_journal.game_items = self.game_items
+
+    @staticmethod
+    def wing(*loot):
+        return [{"bosses": [{"loot": [{"id": i} for i in ids]} for ids in loot]}]
+
+    def test_wings_of_one_instance_count_together(self):
+        built = [({"key": "Graveyard", "name": "SM - Graveyard"}, self.wing([1, 2, 3])),
+                 ({"key": "Armory", "name": "SM - Armory"}, self.wing([7717, 7718])),
+                 ({"key": "Uldaman", "name": "Uldaman"}, self.wing([1, 9384, 9387, 9388]))]
+        maps = {"SM - Graveyard": "189", "SM - Armory": "189", "Uldaman": "70"}
+        found = {d["key"]: is_open for d, _, is_open in build_journal.opened(built, maps.get)}
+        self.assertEqual(found, {"Graveyard": True, "Armory": True, "Uldaman": False})
+
+    def test_items_the_server_sends_do_not_open_a_dungeon(self):
+        saved = build_journal.sent
+        build_journal.sent = {"loads": {9384, 9387, 9388}, "refused": set()}
+        try:
+            built = [({"key": "Uldaman", "name": "Uldaman"}, self.wing([1, 9384, 9387, 9388]))]
+            self.assertFalse(next(build_journal.opened(built, lambda name: None))[2])
+        finally:
+            build_journal.sent = saved
+
+    def test_no_loot_known_is_not_open_and_the_list_can_say_so(self):
+        built = [({"key": "DrownedCity", "name": "The Drowned City"}, self.wing([])),
+                 ({"key": "Dalaran", "name": "City of Dalaran", "open": True}, self.wing([4]))]
+        found = {d["key"]: is_open for d, _, is_open in build_journal.opened(built, lambda name: None)}
+        self.assertEqual(found, {"DrownedCity": False, "Dalaran": True})
+
+
+class DailyWatchLog(unittest.TestCase):
+    """The loot job's filter on the build's output (.github/workflows/daily-watch.yml) hides the
+    per-dungeon counts and keeps the build's report lines, which start with two spaces."""
+
+    def setUp(self):
+        workflow = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "daily-watch.yml"
+        found = re.search(r'grep -Ev "([^"]+)" "\$RUNNER_TEMP/build.txt"', workflow.read_text(encoding="utf-8"))
+        self.assertIsNotNone(found, "the loot job filters build.txt with grep -Ev")
+        self.hidden = re.compile(found.group(1))
+
+    def test_counts_are_hidden(self):
+        self.assertTrue(self.hidden.search("   12  Ragefire Chasm"))
+        self.assertTrue(self.hidden.search("  133  Dire Maul"))
+
+    def test_report_lines_are_kept(self):
+        for line in ("  not in the game's item tables, left out: 47 items (Sunken Temple): 10624",
+                     "  no NPC found: Lord Roccor",
+                     "  wowsrc item not mapped: Dreadmist Mask (Darkmaster Gandling, Scholomance)",
+                     "  dropped by many bosses, left out: 252455, 252512",
+                     "  not open yet: Razorfen Downs",
+                     "  not in Forever yet, listed from Classic Era: 2 items (Shadowfang Keep): 23171, 23173",
+                     "383 items, 35 dungeons"):
+            self.assertFalse(self.hidden.search(line), line)
 
 
 if __name__ == "__main__":

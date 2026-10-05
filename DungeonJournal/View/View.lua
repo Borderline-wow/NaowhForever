@@ -35,6 +35,7 @@
 local ns = _G.NaowhForever
 local J = ns.Journal
 local Loot = J.Loot
+local Refuse, Refused = ns.Shared.Items.Refuse, ns.Shared.Items.Refused
 local GetItemCount = C_Item.GetItemCount
 local IsEquippedItem = C_Item.IsEquippedItem
 local GetCoinTextureString = C_CurrencyInfo.GetCoinTextureString
@@ -58,6 +59,7 @@ View.Columns = Shared.View.Columns
 local ViewMixin = {}
 
 local BOSS_LOOT_GAP = 4     -- between a boss's header and its first item
+local TRASH_TOP, TRASH_GAP = 6, 16
 local EMPTY_BODY = 28       -- a boss card's body with nothing listed: room for its centred line
 local EMPTY = {}
 local FACTION_TABS = { "reputation", "pvp" }
@@ -114,6 +116,7 @@ function ViewMixin:Listed(itemID, query)
     if not query then return true end
     local name = Loot.LowerName(itemID)
     if not name then
+        if Refused(itemID) then return false end
         self.waitingFor[itemID] = true
         self.waiting = true
         return false
@@ -185,6 +188,31 @@ function ViewMixin:DrawBoss(boss, number, shown, query, x, w)
     card.note:SetText(View.Parts.BossEmptyText(shown, boss))
     card.note:SetShown(shown == 0)
     if shown == 0 then self:Space(EMPTY_BODY) end
+    return self:CloseCard(card, top)
+end
+
+function ViewMixin:DrawTrash(boss, shown, query, x, w)
+    local top = self.cursor
+    local card = self:OpenCard(x, w)
+    local loot, chance = boss.loot or EMPTY, boss.chance
+    local left, width = self.left, self.width
+    local columnW = math.floor((width - TRASH_GAP) / 2)
+    self:Space(TRASH_TOP)
+    local start, bottom, n, half = self.cursor, self.cursor, 0, math.ceil(shown / 2)
+    self.width = columnW
+    for i = 1, #loot do
+        local id = loot[i]
+        if self:Listed(id, query) then
+            n = n + 1
+            if n == half + 1 then
+                bottom, self.cursor, self.left = self.cursor, start, left + columnW + TRASH_GAP
+            end
+            local item = self:Add("item", id, chance and chance[i], self:ItemRank(id), self:ItemUpgrade(id))
+            item.boss = boss
+        end
+    end
+    self.cursor = math.max(self.cursor, bottom)
+    self.left, self.width = left, width
     return self:CloseCard(card, top)
 end
 
@@ -292,6 +320,7 @@ end
 function ViewMixin:DrawCard(entry, number, shown, query, x, w)
     if entry.standing then return self:DrawTier(entry, shown, query, x, w) end
     if entry.rewards then return self:DrawRankCard(entry, x, w) end
+    if entry.trash and self.trashColumns then return self:DrawTrash(entry, shown, query, x, w) end
     return self:DrawBoss(entry, number, shown, query, x, w)
 end
 
@@ -572,6 +601,7 @@ function ViewMixin:Draw(dungeon)
     end
     self:Add("header", dungeon)
     if dungeon.note then self:Note(dungeon.note) end
+    if dungeon.closed then self:Note(J.CLOSED_NOTE) end
     -- The factions earned here, each a link to its page.
     if self.navigate and dungeon.factions then
         self:Add("links", "Reputation", dungeon.factions)
@@ -596,9 +626,11 @@ function ViewMixin:Draw(dungeon)
     -- Bosses with nothing listed for you share one row at the very end, after every wing,
     -- each still with its tip; in a dungeon with wings each is named with its wing, whose
     -- numbers start again.
-    local skipped, skippedBoss = self.skipped, self.skippedBoss
+    local skipped, skippedBoss, trash = self.skipped, self.skippedBoss, self.trash
     wipe(skipped)
     wipe(skippedBoss)
+    wipe(trash)
+    local trashShown = 0
     for i, wing in ipairs(dungeon.wings) do
         -- Numbered in kill order; a rare, an optional boss, a chest and the trash have no
         -- number, and neither a chest nor the trash counts as a boss.
@@ -611,6 +643,9 @@ function ViewMixin:Draw(dungeon)
             if shown == 0 and boss.loot then
                 skipped[#skipped + 1] = ChipLabel(boss, kill, wing.name)
                 skippedBoss[#skippedBoss + 1] = boss
+            elseif boss.trash then
+                trash[#trash + 1] = boss
+                trashShown = trashShown + shown
             else
                 self:Gather(boss, kill, shown)
                 if not (boss.trash or boss.chest) then cards = cards + 1 end
@@ -633,6 +668,14 @@ function ViewMixin:Draw(dungeon)
             self:Space(SECTION_SPACE)
         end
         self:DrawGrid()
+    end
+    if #trash > 0 then
+        self:Section("Trash", trashShown)
+        self:Space(SECTION_SPACE)
+        for k = 1, #trash do self:Gather(trash[k], nil, self:ShownCount(trash[k])) end
+        self.trashColumns = #trash == 1
+        self:DrawGrid(#trash == 1 and 1 or nil)
+        self.trashColumns = false
     end
     self:DrawBisNote()
     -- Always last: the bosses with nothing listed for you, as chips that keep their tips.
@@ -942,9 +985,14 @@ function ViewMixin:Flush()
     self:Redraw()
 end
 
-function ViewMixin:OnEvent(event, arg)
+function ViewMixin:OnEvent(event, arg, success)
     if event == "GET_ITEM_INFO_RECEIVED" then
         if not self.waitingFor[arg] then return end
+        if success == false then
+            Refuse(arg)
+            self.waitingFor[arg] = nil
+            return
+        end
     elseif QUEST_EVENTS[event] then
         self.questsDirty = true
         return self:QueueFlush()
@@ -976,5 +1024,6 @@ function View.New(parent)
     view.openRecipes = {}                               -- tier -> its folded recipes opened, this session
     view.questList, view.questPool = {}, {}             -- this view's own quest entries
     view.skipped, view.skippedBoss = {}, {}             -- the folded bosses' labels and bosses
+    view.trash = {}
     return view
 end

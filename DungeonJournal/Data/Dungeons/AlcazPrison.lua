@@ -8,6 +8,7 @@ local ns = _G.NaowhForever
 ns.Journal.AddDungeon("AlcazPrison", {
     name = "Alcaz Prison",
     new = true,
+    closed = true,
     zone = "Dustwallow Marsh", territory = "Contested",
     wings = {
         { bosses = {

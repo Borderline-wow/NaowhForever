@@ -15,6 +15,7 @@ local GetItemInfoInstant = C_Item.GetItemInfoInstant
 local GetItemNameByID = C_Item.GetItemNameByID
 local IsEquippedItem = C_Item.IsEquippedItem
 local RequestLoadItemDataByID = C_Item.RequestLoadItemDataByID
+local Refused = ns.Shared.Items.Refused
 local IsDressableItemByID = C_Item.IsDressableItemByID
 local GetInventoryItemID = GetInventoryItemID
 local GetInventoryItemLink = GetInventoryItemLink
@@ -86,12 +87,13 @@ end
 
 -- True when your class can use it, or when the Journal knows nothing about the item.
 function Loot.Usable(itemID)
-    local facts = J.Items[itemID]
+    local facts = J.Facts(itemID)
     return facts == nil or ClassCanUse(playerClass, facts)
 end
 
 ---@return number? rank its pick number on your BiS list (1 is BiS); nil with the BiS List off
 function Loot.Rank(itemID)
+    if J.IsNotYet(itemID) then return nil end
     return IsBisItem(itemID)
 end
 local Rank = Loot.Rank
@@ -217,7 +219,7 @@ end
 -- item's own look is all it can say.
 ---@return boolean?
 function Loot.Appearance(itemID)
-    if not Wearable(itemID) then return nil end
+    if J.IsNotYet(itemID) or not Wearable(itemID) then return nil end
     local _, sourceID = Collection.GetItemInfo(itemID)
     local info = sourceID and Collection.GetAppearanceInfoBySource(sourceID)
     if info then return info.appearanceIsCollected or info.sourceIsCollected end
@@ -229,8 +231,10 @@ local Appearance = Loot.Appearance
 -- The item's name in the player's language, or nil while the client has yet to load it; the
 -- load is asked for, and GET_ITEM_INFO_RECEIVED brings it.
 function Loot.Name(itemID)
+    local notYet = J.NotYet[itemID]
+    if notYet then return notYet[J.FACT.NAME] end
     local name = GetItemNameByID(itemID)
-    if not name then RequestLoadItemDataByID(itemID) end
+    if not name and not Refused(itemID) then RequestLoadItemDataByID(itemID) end
     return name
 end
 

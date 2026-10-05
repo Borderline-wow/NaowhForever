@@ -17,6 +17,24 @@ longer list on that boss is dropped (moved, like Springvale's lantern, now trash
 wing's trash comes from them too. Last, the items placed by hand ("add") and the BiS
 sources in BiS/Data/BiS.lua; those have no chance.
 
+Every item is listed, the ones not in Forever yet too, so the Journal is whole the day they
+come. An item is in the game (known) when the game's tables have it (wago.tools' ItemSparse,
+hotfixes in) or the game sent it (Tools/items_in_game.json, read from a client by
+Tools/items_in_game.py); else it is not in Forever yet, and Data/Items.lua carries all the
+Journal shows of it (its name, quality, levels, icon) from Classic Era's tables
+(CLASSIC_ERA), so the client never asks the server for it. One Classic Era does not have
+either is left out, and listed at the end.
+A new Forever item Wowhead ties to SHARED_DROP or more bosses, and wowsrc to none of them, is a
+shared random drop, not any one boss's: it is left out. On a boss new in Forever, an item
+Wowhead flags as a world drop is the boss's own when it drops from WORLD_DROP_BOSS percent of
+its kills or more (Spiritwraith Drape, Faldrim Anvilmar's).
+
+A dungeon is open when the game's own tables (not items_in_game.json: an item the server
+sends on request does not open its dungeon) have at least OPEN_SHARE of its instance's boss
+loot (Scarlet Monastery's four wings are one instance), or "open" in journal_bosses.json says
+so; one not open says so at the top of its page (closed). A boss new in Forever whose drops
+were read from fewer than MIN_KILLS kills is read again on a run that asks Wowhead.
+
 Each dungeon also gets the zone its entrance is in and that zone's territory (Alliance, Horde
 or Contested) from Wowhead Forever's zone list, and the entrance itself where
 journal_bosses.json has one.
@@ -89,6 +107,11 @@ NORMAL = "1"
 NEW_DROPS = 2
 MIN_KILLS = 10
 SOD = 201
+OPEN_SHARE = 0.5
+SHARED_DROP = 3
+WORLD_DROP_BOSS = 10
+CLASSIC_ERA = "1.15.9.70003"
+IN_GAME = TOOLS / "items_in_game.json"
 
 cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
 
@@ -111,9 +134,9 @@ def cached(key, get, fallback=None):
 game_items = None
 
 
-def game_item(item_id):
-    """An item's facts from the game's own tables (Item, ItemSparse: the --offline build), in
-    the fields npc_drops keeps; None where they do not have it (an old classic item)."""
+def game_tables():
+    """Item ID (a string) -> (its Item row, its ItemSparse row), for every item the game's own
+    tables name: wago.BUILD's with its hotfixes, over CARRY_FROM's."""
     global game_items
     if game_items is None:
         import wago
@@ -125,7 +148,41 @@ def game_item(item_id):
                 sparse = {r["ID"]: r for r in wago.table("ItemSparse", build)}
                 game_items.update({r["ID"]: (r, sparse[r["ID"]]) for r in wago.table("Item", build)
                                    if r["ID"] in sparse})
-    found = game_items.get(str(item_id))
+    return game_items
+
+
+sent = None
+
+
+def in_game_list():
+    global sent
+    if sent is None:
+        found = json.loads(IN_GAME.read_text(encoding="ascii")) if IN_GAME.exists() else {}
+        sent = {"loads": set(found.get("loads", [])), "refused": set(found.get("refused", []))}
+    return sent
+
+
+def known(item_id):
+    return str(item_id) in game_tables() or item_id in in_game_list()["loads"]
+
+
+era_items = None
+
+
+def era_tables():
+    global era_items
+    if era_items is None:
+        import wago
+        sparse = {r["ID"]: r for r in wago.table("ItemSparse", CLASSIC_ERA, hotfixes=False)}
+        era_items = {r["ID"]: (r, sparse[r["ID"]]) for r in wago.table("Item", CLASSIC_ERA, hotfixes=False)
+                     if r["ID"] in sparse}
+    return era_items
+
+
+def game_item(item_id):
+    """An item's facts from the game's own tables (Item, ItemSparse: the --offline build), in
+    the fields npc_drops keeps; None where they do not have it (an old classic item)."""
+    found = game_tables().get(str(item_id)) or era_tables().get(str(item_id))
     if not found:
         offline_missed.append(f"item:{item_id}")
         return None
@@ -141,11 +198,11 @@ def save_cache():
     scan); then it is written in place."""
     text = json.dumps(cache, indent=1, sort_keys=True)
     tmp = CACHE.with_suffix(".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8", newline="\n")
     try:
         tmp.replace(CACHE)
     except PermissionError:
-        CACHE.write_text(text, encoding="utf-8")
+        CACHE.write_text(text, encoding="utf-8", newline="\n")
         tmp.unlink()
 
 
@@ -232,15 +289,25 @@ def wowhead_drops(kind, thing):
         return {"new": npc_new, "items": [{"id": i["id"], "name": i.get("name"), "count": counted(i)[0], "kills": counted(i)[1],
                  "new": (i.get("envChange") or {}).get("status") == "new",
                  "slot": i.get("slot"), "class": i.get("classs"), "subclass": i.get("subclass"), "level": i.get("level"),
-                 "reqlevel": i.get("reqlevel") or 0, "quality": i.get("quality", 0)}
+                 "reqlevel": i.get("reqlevel") or 0, "quality": i.get("quality", 0),
+                 **({"world": True} if kind == "npc" and i.get("flags2", 0) & WORLD_DROP else {})}
                 for i in listview(page[start:], listed)
                 if i.get("quality", 0) >= MIN_QUALITY and i.get("slot") in EQUIPPABLE
-                and not (i.get("commondrop") or (kind == "npc" and i.get("flags2", 0) & WORLD_DROP))
+                and not (i.get("commondrop") or (kind == "npc" and i.get("flags2", 0) & WORLD_DROP and not npc_new))
                 and not sod_only(i)]}
-    found = cached(f"drops5:{thing}" if kind == "npc" else f"contains5:{thing}", get)
+    key = f"drops5:{thing}" if kind == "npc" else f"contains5:{thing}"
+    if not OFFLINE and stale(cache.get(key)):
+        del cache[key]
+    found = cached(key, get)
     if not found or isinstance(found, list):   # a page with no drops (or, offline, not read yet)
         return []
     return choose(found["items"], found["new"])
+
+
+def stale(found):
+    if not isinstance(found, dict) or not found.get("new"):
+        return False
+    return max((item["kills"] for item in found["items"]), default=0) < MIN_KILLS
 
 
 def choose(items, npc_new=False):
@@ -251,6 +318,8 @@ def choose(items, npc_new=False):
     drops = []
     for item in items:
         chance = 100 * item["count"] / item["kills"] if item["kills"] else None
+        if item.get("world") and (chance or 0) < WORLD_DROP_BOSS:
+            continue
         shared = item["new"] and not npc_new
         if chance is None:
             drops.append(dict(item, chance=None))
@@ -359,13 +428,13 @@ def merge_wowsrc(loot, listed):
     for item in loot:
         theirs = on_list.pop(item["id"], None)
         if theirs:
-            kept.append(dict(item, chance=theirs["chance"]) if theirs["chance"] is not None else item)
+            kept.append(dict(item, listed=True, chance=item["chance"] if theirs["chance"] is None else theirs["chance"]))
         elif item.get("new") or not listed["complete"]:
             kept.append(item)
     for theirs in on_list.values():
         facts = item_facts(theirs["id"])
         if facts and facts["quality"] >= MIN_QUALITY and facts["slot"] in EQUIPPABLE:
-            kept.append(dict(facts, chance=theirs["chance"], new=theirs["new"]))
+            kept.append(dict(facts, chance=theirs["chance"], new=theirs["new"], listed=True))
         elif not facts:
             # Not known here (offline, an item neither cache nor tables have): the list is not
             # whole, so what the boss had stays rather than lose loot over it.
@@ -540,6 +609,8 @@ def dungeon_file(dungeon, wings, zone_names):
         lines.append(f"    raid = {dungeon['raid']},")
     if dungeon.get("note"):
         lines.append(f"    note = {lua_string(dungeon['note'])},")
+    if dungeon.get("closed"):
+        lines.append("    closed = true,")
     zone = zone_names.get(str(dungeon["entranceZone"]))
     if zone:
         territory = TERRITORY.get(zone[1], "Contested")
@@ -557,19 +628,43 @@ def dungeon_file(dungeon, wings, zone_names):
     return lines
 
 
-def items_file(items):
+def ascii_string(s):
+    return "".join(c if ord(c) < 128 else "".join(f"\\{b}" for b in c.encode("utf-8")) for c in lua_string(s))
+
+
+def not_yet_facts(item_id):
+    found = era_tables().get(str(item_id))
+    if not found:
+        return None
+    item, sparse = found
+    facts = {"id": item_id, "class": int(item["ClassID"]), "subclass": int(item["SubclassID"]),
+             "level": int(sparse["ItemLevel"]), "reqlevel": int(sparse["RequiredLevel"] or 0),
+             "quality": int(sparse["OverallQualityID"])}
+    return facts, sparse["Display_lang"], int(item["IconFileDataID"] or 0)
+
+
+def items_file(items, not_yet):
     lines = header(
         "Data/Items.lua -- what the Dungeon Journal knows about each item it lists, before the",
         "client has loaded the item. Generated by Tools/build_journal.py; do not edit.",
         "",
         "[itemID] = { class, subclass, item level, required level, quality }, with class and",
         "subclass the game's (2 weapon, 4 armor; 0 no armor type).",
+        "NotYet: the items not in Forever yet, which the client cannot load: the same, then",
+        "their icon and name, from Classic Era's tables.",
     )
     lines.append("ns.Journal.Items = {")
     for item_id in sorted(items):
         item = items[item_id]
         cls, sub = kind(item)
         lines.append(f"    [{item_id}] = {{ {cls}, {sub}, {item['level']}, {item['reqlevel']}, {item['quality']} }},")
+    lines.append("}")
+    lines.append("ns.Journal.NotYet = {")
+    for item_id in sorted(not_yet):
+        item, name, icon = not_yet[item_id]
+        cls, sub = kind(item)
+        lines.append(f"    [{item_id}] = {{ {cls}, {sub}, {item['level']}, {item['reqlevel']}, {item['quality']}, "
+                     f"{icon}, {ascii_string(name)} }},")
     lines.append("}")
     return lines
 
@@ -594,12 +689,41 @@ def extra_loot(dungeon, bis):
     return extra
 
 
+def shared_drops(built):
+    npcs = {}
+    for key, found in cache.items():
+        if key.startswith("drops5:") and isinstance(found, dict):
+            for item in found["items"]:
+                if item["new"]:
+                    npcs.setdefault(item["id"], set()).add(key)
+    shared = {i for i, found in npcs.items() if len(found) >= SHARED_DROP}
+    for _, wings in built:
+        for boss in (b for w in wings for b in w["bosses"]):
+            boss["loot"] = [item for item in boss["loot"]
+                            if item["id"] not in shared or item.get("listed") or "count" not in item]
+    return shared
+
+
+def opened(built, map_of):
+    have, total = {}, {}
+    tables = game_tables()
+    for dungeon, wings in built:
+        where = map_of(dungeon["name"]) or dungeon["key"]
+        for boss in (b for w in wings for b in w["bosses"] if not b.get("trash")):
+            have[where] = have.get(where, 0) + sum(1 for i in boss["loot"] if str(i["id"]) in tables)
+            total[where] = total.get(where, 0) + len(boss["loot"])
+    for dungeon, wings in built:
+        where = map_of(dungeon["name"]) or dungeon["key"]
+        share = have.get(where, 0) / total[where] if total.get(where) else 0
+        yield dungeon, wings, dungeon.get("open", share >= OPEN_SHARE)
+
+
 def main():
     config = json.loads(BOSSES.read_text(encoding="utf-8"))
     bis = bis_sources()
     zone_names = zones()
     map_of = instance_maps()
-    items, report, files = {}, [], []
+    items, report, files, built = {}, [], [], []
     for dungeon in config["dungeons"]:
         if dungeon.get("announced") is False:
             continue   # a raid not announced for Forever: kept in the list, not built
@@ -629,10 +753,11 @@ def main():
                 have = {i["id"] for i in trash}
                 trash += [dict(i, chance=None) for i in extra.get("trash", []) if i["id"] not in have
                           and i["quality"] >= MIN_QUALITY and i["slot"] in EQUIPPABLE]
-            if trash:
-                for item in trash:
+            trash = {"npc": None, "name": "Trash", "rare": False, "trash": True, "loot": trash}
+            if trash["loot"]:
+                for item in trash["loot"]:
                     kept[item["id"]] = item
-                bosses.append({"npc": None, "name": "Trash", "rare": False, "trash": True, "loot": trash})
+                bosses.append(trash)
             if not dungeon.get("loot", True):
                 for boss in bosses:
                     boss["loot"] = []
@@ -649,14 +774,45 @@ def main():
                                                    or boss.get("chest")):
                     report.append(f"no encounter: {boss['name']} ({dungeon['name']})")
             wings.append({"name": wing.get("name"), "bosses": bosses})
+        built.append((dungeon, wings))
+        save_cache()
+    shared = shared_drops(built)
+    if shared:
+        report.append("dropped by many bosses, left out: " + ", ".join(str(i) for i in sorted(shared)))
+    not_yet, nameless = {}, set()
+    for dungeon, wings in built:
+        for wing in wings:
+            for boss in wing["bosses"]:
+                for item in boss["loot"]:
+                    if not known(item["id"]) and item["id"] not in not_yet:
+                        found = not_yet_facts(item["id"])
+                        if found:
+                            not_yet[item["id"]] = found
+                        else:
+                            nameless.add(item["id"])
+                boss["loot"] = [item for item in boss["loot"] if item["id"] not in nameless]
+            wing["bosses"] = [b for b in wing["bosses"] if b["loot"] or not b.get("trash")]
+        here = {item["id"] for wing in wings for b in wing["bosses"] for item in b["loot"]}
+        later = sorted(here & set(not_yet))
+        if later:
+            report.append(f"not in Forever yet, listed from Classic Era: {len(later)} items ({dungeon['name']}): "
+                          + ", ".join(str(i) for i in later))
+    if nameless:
+        report.append("not in Forever nor Classic Era's tables, left out: " + ", ".join(str(i) for i in sorted(nameless)))
+    for dungeon, wings, is_open in opened(built, map_of):
+        dungeon["closed"] = not is_open and dungeon.get("loot", True)
+        if dungeon["closed"]:
+            report.append(f"not open yet: {dungeon['name']}")
         name = f"{dungeon['key']}.lua"
         write(OUT / "Data" / "Dungeons" / name, dungeon_file(dungeon, wings, zone_names))
         files.append(name)
-        save_cache()
         count = sum(len(b["loot"]) for w in wings for b in w["bosses"])
         print(f"{count:5d}  {dungeon['name']}", file=sys.stderr)
-    write(OUT / "Data" / "Items.lua", items_file(items))
-    print(f"{len(items)} items, {len(files)} dungeons", file=sys.stderr)
+    used = {item["id"] for _, wings in built for w in wings for b in w["bosses"] for item in b["loot"]}
+    items = {i: item for i, item in items.items() if known(i) and i in used}
+    not_yet = {i: found for i, found in not_yet.items() if i in used}
+    write(OUT / "Data" / "Items.lua", items_file(items, not_yet))
+    print(f"{len(items)} items in Forever, {len(not_yet)} not yet, {len(files)} dungeons", file=sys.stderr)
     for line in report:
         print(f"  {line}", file=sys.stderr)
     if offline_missed:

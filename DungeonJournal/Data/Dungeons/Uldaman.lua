@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 
 ns.Journal.AddDungeon("Uldaman", {
     name = "Uldaman",
+    closed = true,
     zone = "Badlands", territory = "Contested",
     entrance = { map = 1418, x = 44.0, y = 12.0 },
     wings = {

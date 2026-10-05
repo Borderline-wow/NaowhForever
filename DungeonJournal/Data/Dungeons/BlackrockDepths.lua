@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 
 ns.Journal.AddDungeon("BlackrockDepths", {
     name = "Blackrock Depths",
+    closed = true,
     zone = "Blackrock Mountain", territory = "Contested",
     entrance = { map = 1427, x = 27.6, y = 72.4 },
     wings = {

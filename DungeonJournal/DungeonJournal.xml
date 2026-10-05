@@ -99,6 +99,7 @@
     <Script file="Looted.lua"/>
     <Script file="Sharing.lua"/>
     <Script file="Quartermasters.lua"/>
+    <Script file="ItemProbe.lua"/>
     <!-- Drawing a page: its look, the engine, then its row kinds (a faction's and the PvP
          rank's too), the item menu and the side panels (a quest, a boss's kills and loot) -->
     <Script file="View\Style.lua"/>

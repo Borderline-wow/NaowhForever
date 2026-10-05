@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 
 ns.Journal.AddDungeon("RazorfenDowns", {
     name = "Razorfen Downs",
+    closed = true,
     zone = "The Barrens", territory = "Horde",
     entrance = { map = 1413, x = 50.9, y = 92.9 },
     wings = {

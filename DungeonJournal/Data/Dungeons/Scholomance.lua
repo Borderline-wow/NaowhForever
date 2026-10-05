@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 
 ns.Journal.AddDungeon("Scholomance", {
     name = "Scholomance",
+    closed = true,
     zone = "Western Plaguelands", territory = "Contested",
     entrance = { map = 1422, x = 70.7, y = 71.0 },
     wings = {

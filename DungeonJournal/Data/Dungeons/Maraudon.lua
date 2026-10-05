@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 
 ns.Journal.AddDungeon("Maraudon", {
     name = "Maraudon",
+    closed = true,
     zone = "Desolace", territory = "Contested",
     entrance = { map = 1443, x = 30.1, y = 61.9 },
     wings = {

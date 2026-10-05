@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever
 ## Notes: Naowh's Forever companion: Smart Reminders, QoL, macros and buff reminders.
 ## Author: NaowhUI
-## Version: 0.5.20-beta
+## Version: 0.5.21-beta
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhForeverDB, NaowhUI_SmartRemindersDB
 ## Group: NaowhUI
@@ -30,6 +30,9 @@ RXPThemes\NaowhForever_RXPThemes.lua
 # The widget kit: ns.UI, the shim every options page calls in place of EllesmereUI's
 # factory. Needs ns.THEME and the Core primitives.
 Core\NaowhForever_Widgets.lua
+
+# Unlock Mode: the movers and their anchors. Needs the widget kit.
+Core\NaowhForever_UnlockMode.lua
 
 # The standalone options window: tabs, scroll, RefreshPage, slash/compartment entry.
 # The page builders it dispatches to live in the later files, resolved at open time.

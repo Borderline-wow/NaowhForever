@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 
 ns.Journal.AddDungeon("ZulFarrak", {
     name = "Zul'Farrak",
+    closed = true,
     zone = "Tanaris", territory = "Contested",
     entrance = { map = 1446, x = 39.6, y = 21.7 },
     wings = {

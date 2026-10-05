@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 
 ns.Journal.AddDungeon("Stratholme", {
     name = "Stratholme",
+    closed = true,
     zone = "Eastern Plaguelands", territory = "Contested",
     entrance = { map = 1423, x = 26.9, y = 11.8 },
     wings = {

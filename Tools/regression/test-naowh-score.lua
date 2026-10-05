@@ -418,16 +418,18 @@ do
         [5] = { 60, 0, 4, "INVTYPE_CHEST" },   -- a faction reward: no required level
         [6] = { 60, 55, 4, "INVTYPE_2HWEAPON" }, [7] = { 60, 55, 4, "INVTYPE_WEAPON" },
     }
-    ns.Journal = { Items = {} }
+    ns.Journal = { Items = {}, NotYet = { [8] = { 4, 0, 90, 60, 5, 134400, "Not Yet" } } }
     for id, g in pairs(GEAR) do ns.Journal.Items[id] = { 4, 0, g[1], g[2], g[3] } end
     state.instant = {}
     for id, g in pairs(GEAR) do state.instant[id] = g[4] end
+    state.instant[8] = "INVTYPE_HEAD"
     local W = Score.SLOTS
     local total = 0
     for _, slot in ipairs(SLOTS) do total = total + W[slot] end
     local expected = (W[1] * 60 + W[11] * 60 + W[12] * 58 + W[5] * 60 + (W[16] + W[17]) * 60) / total
     check("the best in the game: each slot's best, two different rings, a two-hander for both hands",
         math.abs(Score.Best() - expected) < 1e-9)
+    check("an item not in Forever yet is not the best in the game", ns.Journal.NotYet[8] and Score.Best() == expected)
     -- A level's best: a full set of blues five item levels over it (the data has little that
     -- low), never over the best in the game.
     local blue = function(level) return level * Score.SCALE[3] + Score.SHIFT[3] end

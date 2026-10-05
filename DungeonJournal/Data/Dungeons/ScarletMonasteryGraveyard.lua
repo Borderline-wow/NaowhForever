@@ -11,8 +11,8 @@ ns.Journal.AddDungeon("ScarletMonasteryGraveyard", {
     entrance = { map = 1420, x = 83.9, y = 31.6 },
     wings = {
         { bosses = {
-            { npc = 3983, name = "Interrogator Vishas", model = 2044, encounters = { 444 }, loot = { 7683, 7682 }, chance = { 55, 6 } },
-            { npc = 4543, name = "Bloodmage Thalnos", model = 11396, encounters = { 2779 }, loot = { 7685, 7684 }, chance = { 50, 48 } },
+            { npc = 3983, name = "Interrogator Vishas", model = 2044, encounters = { 444 }, loot = { 7683, 7682, 274290 }, chance = { 55, 6, 0 } },
+            { npc = 4543, name = "Bloodmage Thalnos", model = 11396, encounters = { 2779 }, loot = { 7685, 7684, 274291 }, chance = { 50, 48, 0 } },
             { npc = 6490, name = "Azshir the Sleepless", model = 5534, rare = true, loot = { 7731, 7708, 7709 }, chance = { 34, 32, 31 } },
             { npc = 6488, name = "Fallen Champion", model = 5230, rare = true, loot = { 7690, 7691, 7689 }, chance = { 40, 39, 18 } },
             { npc = 6489, name = "Ironspine", model = 5231, rare = true, loot = { 7686, 7688, 7687 }, chance = { 40, 36, 20 } },
