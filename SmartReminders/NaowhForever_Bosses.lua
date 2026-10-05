@@ -1554,18 +1554,9 @@ function ns.BuildProfileSettings(parent, y)
               ns.SwitchProfile(v)
               EUI:RefreshPage(true)
           end },
-        { type = "toggle", text = "Match My Spec",
-          tooltip = "Loads the profile bound to whatever spec you switch to, on login and on "
-          .. "every spec change. A whole-file import sets those bindings up; after that, "
-          .. "picking a profile yourself binds it to the spec you are playing.",
-          getValue = function() return ns.AutoSpecProfile() end,
-          setValue = function(v)
-              ns.AutoSpecProfile(v)
-              if v and ns.ApplySpecProfile and ns.CurrentSpec then
-                  ns.ApplySpecProfile((ns.CurrentSpec()))
-              end
-              EUI:RefreshPage(true)
-          end }
+        -- No Match My Spec: Forever gives each class one spec, so picking a profile already
+        -- is the binding it would make.
+        { type = "label", text = "" }
     ); y = y - h
 
     -- Assigned below; the save buttons' closures need it in scope.
@@ -1581,10 +1572,9 @@ function ns.BuildProfileSettings(parent, y)
             EUI:RefreshPage(true)
         end
         -- The rows are reused, so their buttons are made once and re-pointed on each build.
-        local left, right = profRow._leftRegion, profRow._rightRegion
+        local left = profRow._leftRegion
         left._newBtn = left._newBtn or ns.Button(left, "New Profile", 110, 22)
         left._copyBtn = left._copyBtn or ns.Button(left, "Save As New Profile", 150, 22)
-        right._mergeBtn = right._mergeBtn or ns.Button(right, "Merge a Profile In", 150, 22)
 
         local newBtn = left._newBtn
         newBtn._onClick = function()
@@ -1638,17 +1628,6 @@ function ns.BuildProfileSettings(parent, y)
         ns.Tooltip(copyBtn, "Save As New Profile", "Stores everything set up right now as a "
             .. "new profile under a name you choose, and switches to it. Your current "
             .. "profile is left as it was.")
-
-        -- Import always lands a new profile; this merges into an existing one.
-        local mergeBtn = right._mergeBtn
-        mergeBtn._onClick = function()
-            if ns.ShowProfileMergeDialog then ns.ShowProfileMergeDialog() end
-        end
-        mergeBtn:SetPoint("LEFT", profRow._rightRegion, "LEFT", 20, 0)
-        ns.Tooltip(mergeBtn, "Merge a Profile In", "Takes a profile string somebody else "
-            .. "maintains and merges it into one of yours. A spec they look after "
-            .. "replaces yours for that spec; specs they do not cover are left exactly "
-            .. "as they are, and per-boss reminders are added rather than swapped.")
     end
 
     -- Reset and Delete pick their target, so deleting a profile does not mean loading it first.
@@ -1705,40 +1684,26 @@ function ns.BuildProfileSettings(parent, y)
                   .. "account's default profile.", "Delete", v, ns.DeleteProfile)
           end }
     ); y = y - h
-    local packRow
-    packRow, h = W:DualRow(parent, y,
-        { type = "label", text = "      Share your Smart Reminders" },
+    -- The whole profile as one string, out and back in (NaowhForever_ProfileShare.lua).
+    local shareRow
+    shareRow, h = W:DualRow(parent, y,
+        { type = "label", text = "" },
         { type = "label", text = "" }
     ); y = y - h
-    -- Not AttachInline: this right half has no control, so it would anchor off the row's
-    -- midpoint and overlap the label.
-    if packRow and packRow._rightRegion then
-        local rgn = packRow._rightRegion
-        rgn._btn = rgn._btn or ns.Button(rgn, "Share your Profile", 130, 22, function()
-            if ns.ShowPackExport then ns.ShowPackExport() end
-        end)
-        local btn = rgn._btn
-        btn:SetPoint("RIGHT", packRow._rightRegion, "RIGHT", -14, 0)
-        ns.Tooltip(btn, "Share your Smart Reminders",
-            "Everything a curator sets up -- priority lists, per-boss orders, callouts and "
-            .. "written reminders -- as one string to share. A profile built from someone "
-            .. "else's imported pack cannot be shared onward.")
-    end
-    local packRow2
-    packRow2, h = W:DualRow(parent, y,
-        { type = "label", text = "      Import Smart Reminder Profile" },
-        { type = "label", text = "" }
-    ); y = y - h
-    if packRow2 and packRow2._rightRegion then
-        local rgn = packRow2._rightRegion
-        rgn._btn = rgn._btn or ns.Button(rgn, "Import Profile", 120, 22, function()
-            if ns.ShowPackImport then ns.ShowPackImport() end
-        end)
-        local btn = rgn._btn
-        btn:SetPoint("RIGHT", packRow2._rightRegion, "RIGHT", -14, 0)
-        ns.Tooltip(btn, "Import Profile",
-            "Paste a profile string. Nothing applies until you press Import, and a damaged "
-            .. "string is refused outright.")
+    if shareRow then
+        local left, right = shareRow._leftRegion, shareRow._rightRegion
+        left._exportBtn = left._exportBtn or ns.Button(left, "Export Profile", 150, 22,
+            function() ns.ShowProfileExport() end)
+        left._exportBtn:SetPoint("LEFT", left, "LEFT", 20, 0)
+        ns.Tooltip(left._exportBtn, "Export Profile", "The profile you are in as one string to "
+            .. "share: every module's settings and positions, your macros, Smart Reminders, "
+            .. "your BiS lists and the look (theme, font, window scale).")
+        right._importBtn = right._importBtn or ns.Button(right, "Import Profile", 150, 22,
+            function() ns.ShowProfileImport() end)
+        right._importBtn:SetPoint("LEFT", right, "LEFT", 20, 0)
+        ns.Tooltip(right._importBtn, "Import Profile", "Paste a profile string, untick what you "
+            .. "don't want, and it lands as a new profile you switch to. Your profiles are not "
+            .. "touched. A Smart Reminders pack string opens in the pack import.")
     end
 
     return y

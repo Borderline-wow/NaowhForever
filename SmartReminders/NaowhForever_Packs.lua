@@ -924,6 +924,8 @@ local function WrapForDisplay(str, maxWidth)
     end
     return table.concat(lines, "\n")
 end
+-- The Profiles page's export shows its string the same way.
+ns.WrapForDisplay = WrapForDisplay
 
 local function MakeToggleRow(parent, w, h, frameLevel, get, set, toggleW, toggleH)
     local row = CreateFrame("Frame", nil, parent)
@@ -1354,9 +1356,10 @@ function ns.ShowProfileMergeDialog()
     box:SetFocus()
 end
 
-function ns.ShowPackImport()
+-- text: a pack string to start with, as the Profiles page's Import hands one over.
+function ns.ShowPackImport(text)
     if packImport then
-        packImport.box:SetText("")
+        packImport.box:SetText(text or "")
         packImport.Revalidate()
         packImport.dimmer:Show()
         packImport.box:SetFocus()
@@ -1729,6 +1732,7 @@ function ns.ShowPackImport()
         :SetPoint("BOTTOM", panel, "BOTTOM", 70, 14)
 
     packImport = { dimmer = dimmer, box = box, Revalidate = Revalidate }
+    if text then box:SetText(text) end
     Revalidate()
     dimmer:Show()
     box:SetFocus()

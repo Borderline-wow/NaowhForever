@@ -1595,6 +1595,11 @@ function ns.ExportModuleSettings(root)
     return out
 end
 
+-- A module's defaults by its settings key; nil for a key no module registered.
+function ns.ModuleDefaults(key)
+    return moduleDefaults[key]
+end
+
 function ns.ImportModuleSettings(root, modules)
     if type(root) ~= "table" or type(modules) ~= "table" then return end
     for key, values in pairs(modules) do

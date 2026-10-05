@@ -68,6 +68,10 @@ SmartReminders\NaowhForever_Verify.lua
 
 SmartReminders\NaowhForever_Packs.lua
 
+# The Profiles page's Export and Import: the whole profile as one string. Uses the pack
+# dialogs' text box and hands pack strings to them.
+Core\NaowhForever_ProfileShare.lua
+
 # Reads this season's bosses and their tank-flagged abilities out of the player's own
 # Dungeon Journal. Lazy: nothing is read until the page is opened.
 SmartReminders\NaowhForever_Bosses.lua

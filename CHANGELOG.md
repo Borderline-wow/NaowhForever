@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+- Profiles: Export Profile and Import Profile share your whole setup as one string: every
+  module's settings and positions, your macros, Smart Reminders, your BiS lists and the look
+  (theme, font, window scale). Import shows what a string holds, lets you untick parts, and
+  lands it as a new profile; your own profiles and BiS lists are never overwritten. They replace
+  the Smart Reminders-only Share and Import buttons, and a Smart Reminders pack string pasted
+  into Import still opens in the pack import.
+
+### Changed
+- Profiles: Match My Spec and Merge a Profile In are gone. Forever gives each class one spec, so
+  picking a profile already is what Match My Spec did, and Merge was for Smart Reminders packs,
+  which come back with that module.
+
 ## 0.5.20-beta
 
 ### Added
