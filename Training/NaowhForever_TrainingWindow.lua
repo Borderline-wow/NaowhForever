@@ -950,9 +950,9 @@ local function DrawBuilds(level, y)
     y = ClassRow(classID, y)
     local tree = ns.TrainingBuilds[classID]
     local builds = Training.Builds(classID)
-    if #builds == 0 then return Header(y, "NO BUILDS YET", nil, "Builds for this class are on the way") end
+    if #builds == 0 then return Header(y, "NO BUILDS YET", nil, "Save your talents, start a new build, or import one") end
     if not builds[buildIndex] then buildIndex = 1 end
-    y = Header(y, "BUILDS", #builds, "Leveling builds from Mobalytics' WoW Forever guides, levels 10 to 30")
+    y = Header(y, "BUILDS", #builds, "Builds you saved or imported")
     local listBottom = BuildList(builds, y)
     local build = builds[buildIndex]
     paneX = LIST_W + PANE_GAP

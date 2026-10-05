@@ -35,11 +35,23 @@ local function World()
             themePreset = "slate", uiFont = "Naowh", windowScale = 1.1,
             bisLists = { PALADIN = { lists = { { id = 1, name = "Prot", slots = { [1] = 100 } } }, nextID = 2 } },
             barSets = { PALADIN = { Raid = {} } },
+            libraryMacros = { PALADIN = { { name = "Seal", body = "/cast Seal", icon = 135 },
+                { name = "Packed", body = "/cast Pack", pack = true } } },
+            trainingBuilds = { [2] = { { name = "Ret", spec = "Retribution", points = { 11, 12 }, saved = true } } },
         },
     }
     w.active = "Default"
+    w.buildsChanged = 0
     local ns = {
         UI = {}, CODE_BUILD = "test",
+        MacroText = { LIMIT = 255 },
+        TrainingBuilds = { [2] = { talents = {} } },
+        -- Points that cannot be taken start with 0 here; the real rules are Training's own test.
+        Training = {
+            CheckBuild = function(_, points) return points[1] == 0 and "Already at full rank." or nil end,
+            BuildName = function(text, default) return type(text) == "string" and text ~= "" and text or default end,
+            Changed = function() w.buildsChanged = w.buildsChanged + 1 end,
+        },
         SettingsRoot = function() return w.db.profiles[w.active] end,
         AccountSettings = function() return w.db.account end,
         ModuleDefaults = function(key) return DEFAULTS[key] end,
@@ -61,7 +73,8 @@ local function World()
     return w
 end
 
-local ALL = { settings = true, macros = true, smartReminders = true, bisLists = true, look = true }
+local ALL = { settings = true, macros = true, library = true, smartReminders = true, builds = true,
+    bisLists = true, look = true }
 
 Case("export: one string with every part, personal data left home", function()
     local w = World()
@@ -77,8 +90,22 @@ Case("export: one string with every part, personal data left home", function()
     assert(parts.smartReminders.leadTime == 5 and parts.smartReminders.utilityReminders.other == 1)
     assert(parts.smartReminders.utilityReminders.classMacros == nil, "class macros only as Macros")
     assert(parts.bisLists.PALADIN[1].name == "Prot")
+    assert(parts.library.PALADIN[1].name == "Seal" and parts.library.PALADIN[1].icon == 135)
+    assert(#parts.library.PALADIN == 1, "a pack macro's Library copy stays home")
+    assert(parts.builds[2][1].name == "Ret" and parts.builds[2][1].points[2] == 12)
+    assert(parts.builds[2][1].saved == nil)
     assert(parts.look.themePreset == "slate" and parts.look.windowScale == 1.1)
     assert(parts.barSets == nil and parts.look.barSets == nil, "no personal data")
+end)
+
+Case("export: only the ticked parts go in", function()
+    local w = World()
+    local text, note = w.ns.ExportProfile({ builds = true, library = true })
+    local parts = assert(w.ns.DecodeProfile(text)).parts
+    assert(parts.builds and parts.library and parts.settings == nil and parts.look == nil)
+    assert(note and note:find("copied from a pack", 1, true), tostring(note))
+    text, note = w.ns.ExportProfile({})
+    assert(text == nil and note == "Tick a part to share.", tostring(note))
 end)
 
 Case("the string survives being wrapped and pasted with spaces", function()
@@ -103,8 +130,8 @@ Case("the parts a string holds, for the import's ticks", function()
     local list = w.ns.ProfileStringParts(assert(w.ns.DecodeProfile((w.ns.ExportProfile()))))
     local keys = {}
     for _, part in ipairs(list) do keys[#keys + 1] = part.key .. (part.detail and (":" .. part.detail) or "") end
-    assert(table.concat(keys, ",") == "settings:2 modules,macros:1 class macros,smartReminders,bisLists:1 lists,look",
-        table.concat(keys, ","))
+    assert(table.concat(keys, ",") == "settings:2 modules,macros:1 class macros,library:1 macros,smartReminders,"
+        .. "builds:1 builds,bisLists:1 lists,look", table.concat(keys, ","))
 end)
 
 Case("import: a new profile with every part, switched to, the old one untouched", function()
@@ -118,7 +145,8 @@ Case("import: a new profile with every part, switched to, the old one untouched"
     assert(p.qol.fastLoot == true and p.topBar.mouseoverAlpha == 0.4 and p.macros.foodBar == true)
     assert(p.tankReminder.leadTime == 5 and p.tankReminder.utilityReminders.classMacros.PALADIN[1].name == "BoP")
     assert(w.db.account.themePreset == "slate", "the look comes in")
-    assert(added == 0, "the same BiS list is not added twice")
+    assert(added.bisLists == 0 and added.library == 0 and added.builds == 0, "what you have is not added twice")
+    assert(#w.db.account.libraryMacros.PALADIN == 2 and #w.db.account.trainingBuilds[2] == 1)
     assert(w.db.profiles.Default.qol.fastLoot == before)
 end)
 
@@ -147,9 +175,44 @@ Case("BiS lists join yours under a free name, never over them", function()
     payload.parts.bisLists.MAGE = { { name = "Fire", slots = { [5] = 300 } } }
     local _, added = w.ns.ImportProfile(payload, { bisLists = true }, "B")
     local paladin = w.db.account.bisLists.PALADIN.lists
-    assert(added == 2 and #paladin == 2 and paladin[1].slots[1] == 100, "yours kept")
+    assert(added.bisLists == 2 and #paladin == 2 and paladin[1].slots[1] == 100, "yours kept")
     assert(paladin[2].name == "Prot 2" and paladin[2].id == 2 and w.db.account.bisLists.PALADIN.nextID == 3)
     assert(w.db.account.bisLists.MAGE.lists[1].name == "Fire")
+end)
+
+Case("Library macros join yours; a name you have, or one that is no macro, stays out", function()
+    local w = World()
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    local paladin = payload.parts.library.PALADIN
+    paladin[1].body = "/cast Theirs"
+    paladin[2] = { name = "Wings|r\n", body = "/cast Wings", icon = { 1 } }
+    paladin[3] = { name = "SeventeenLetters!", body = "/x" }
+    paladin[4] = { name = "Empty", body = "" }
+    paladin[5] = { name = "Long", body = string.rep("x", 256) }
+    payload.parts.library.MAGE = { { name = "Blink", body = "/cast Blink" } }
+    local _, added = w.ns.ImportProfile(payload, { library = true }, "L")
+    local mine = w.db.account.libraryMacros
+    assert(added.library == 2, added.library)
+    assert(mine.PALADIN[1].body == "/cast Seal", "yours kept")
+    assert(mine.PALADIN[3].name == "Wingsr" and mine.PALADIN[3].icon == nil and mine.PALADIN[3].pack == nil)
+    assert(mine.MAGE[1].name == "Blink" and #mine.PALADIN == 3)
+end)
+
+Case("talent builds join yours when they can be taken; a class with no tree stays out", function()
+    local w = World()
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    local list = payload.parts.builds[2]
+    list[2] = { name = "Ret", spec = "Retribution", points = { 11, 13 } }
+    list[3] = { name = "", points = { 14 } }
+    list[4] = { name = "Broken", points = { 0, 1 } }
+    list[5] = { name = "Nothing", points = {} }
+    payload.parts.builds[99] = { { name = "Ghost", points = { 1 } } }
+    local _, added = w.ns.ImportProfile(payload, { builds = true }, "T")
+    local saved = w.db.account.trainingBuilds
+    assert(added.builds == 2 and #saved[2] == 3, added.builds)
+    assert(saved[2][2].points[2] == 13 and saved[2][2].saved == true)
+    assert(saved[2][3].name == "Imported Build" and saved[2][3].spec == "Imported")
+    assert(saved[99] == nil and w.buildsChanged == 1)
 end)
 
 Case("a value of the wrong type, or for no module, is not taken in", function()
@@ -162,6 +225,27 @@ Case("a value of the wrong type, or for no module, is not taken in", function()
     local p = w.db.profiles.Checked
     assert(p.qol.fastLoot == nil and p.qol.bisSlots[1] == 6948 and p.bogus == nil)
     assert(p.tankReminder.importedPack == nil, "a string cannot claim a pack")
+end)
+
+-- Forever raises on 1 / 0, which LibSerialize does to each 0 it writes: none may reach it.
+Case("a 0 comes back as 0 and never reaches the serializer", function()
+    local w = World()
+    w.db.profiles.Default.topBar.mouseoverAlpha = 0
+    w.db.profiles.Default.qol.lootFeedPos = { "TOP", 0, -20 }
+    local LS = LibStub("LibSerialize")
+    local serialize = LS.Serialize
+    local function NoZero(v)
+        assert(v ~= 0, "Division by zero")
+        if type(v) == "table" then for k, val in pairs(v) do NoZero(k); NoZero(val) end end
+    end
+    LS.Serialize = function(self, ...)
+        for i = 1, select("#", ...) do NoZero((select(i, ...))) end
+        return serialize(self, ...)
+    end
+    local text = w.ns.ExportProfile()
+    LS.Serialize = serialize
+    local parts = assert(w.ns.DecodeProfile(assert(text))).parts
+    assert(parts.settings.topBar.mouseoverAlpha == 0 and parts.settings.qol.lootFeedPos[2] == 0)
 end)
 
 Case("pack strings go to the pack import; damaged or newer ones are refused", function()
@@ -230,6 +314,9 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     env.CreateFrame = function() return Frame() end
     env.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 
+    ns.ShowProfileExport({ settings = true, builds = true })
+    local parts = ns.DecodeProfile(boxes[1].text).parts
+    assert(parts.settings and parts.builds and parts.library == nil, "only the parts the page ticked")
     ns.ShowProfileExport()
     local text = boxes[1].text
     assert(text:sub(1, 11) == "NFPROFILE1:" and assert(ns.DecodeProfile(text)), "the export box holds the string")
@@ -239,11 +326,11 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     assert(import.shown == false, "nothing to import yet")
     paste.text = text
     paste.scripts.OnTextChanged(paste, true)
-    assert(import.shown and import.label == "Import" and #toggles == 5, #toggles)
+    assert(import.shown and import.label == "Import" and #toggles == 7, #toggles)
     for _, t in ipairs(toggles) do assert(t._get() == true, "every part ticked to start") end
-    toggles[5]._set(false)   -- Look
+    toggles[7]._set(false)   -- Look
     paste.scripts.OnTextChanged(paste, true)
-    assert(toggles[5]._get() == false, "an untick survives a repaint")
+    assert(toggles[7]._get() == false, "an untick survives a repaint")
     w.db.account.themePreset = "midnight"
     import.click()
     assert(w.switched == "Default 2" and w.db.profiles["Default 2"].qol.fastLoot == true)
@@ -256,6 +343,116 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     assert(import.label == "Open Pack Import")
     import.click()
     assert(opened == "NSRPACK2:abcdef", "the pack goes to the pack import")
+
+    ns.Training.ImportBuild = function(t) opened = t end
+    ns.ShowProfileImport()
+    paste.text = "  !NFB1!abc\n"
+    paste.scripts.OnTextChanged(paste, true)
+    assert(import.label == "Add Build" and import.shown)
+    import.click()
+    assert(opened == "  !NFB1!abc\n", "a build goes to the Training Planner's import")
+end)
+
+-- The Profiles page on stub frames and a small stand-in for the row engine.
+Case("the page: a row per part with its status, ticks count and go to the export", function()
+    local w = World()
+    w.db.account.trainingBuilds = nil
+    local NOTHING = function() end
+    local function Frame()
+        return setmetatable({ scripts = {} }, { __index = function(_, k)
+            if k == "SetScript" then return function(self, s, fn) self.scripts[s] = fn end end
+            if k == "SetText" then return function(self, t) self.text = t end end
+            if k == "GetWidth" then return function() return 700 end end
+            if k == "CreateTexture" then return function() return Frame() end end
+            return NOTHING
+        end })
+    end
+    local ns, exported, links, buttons, toggles = w.ns, nil, {}, {}, {}
+    ns.THEME = setmetatable({}, { __index = function() return { r = 1, g = 1, b = 1 } end })
+    ns.Solid, ns.Border, ns.Font = Frame, Frame, Frame
+    ns.Hairline, ns.Print = NOTHING, NOTHING
+    ns.AccentBorder = function(f) return f end
+    ns.Button = function(_, text, _, _, fn)
+        local b = Frame()
+        b.click = fn
+        buttons[text] = b
+        return b
+    end
+    ns.ListProfiles = function() return { "Default" } end
+    ns.UI.CONTENT_PAD = 20
+    ns.UI.RefreshPage = NOTHING
+    ns.UI.BuildDropdownControl = function()
+        local d = Frame()
+        d._refreshLabel = NOTHING
+        return d
+    end
+    ns.UI.BuildToggleControl = function(_, _, get, set)
+        local t = Frame()
+        t._get, t._set, t._refreshValue = get, set, NOTHING
+        toggles[#toggles + 1] = t
+        return t
+    end
+    local Engine = {}
+    function Engine:Clear() self.cursor, self.left, self.width, self.drawn = 0, 0, 700, {} end
+    function Engine:Space(h) self.cursor = self.cursor + h end
+    function Engine:OpenCard() return Frame() end
+    Engine.CloseCard, Engine.Fit = NOTHING, NOTHING
+    function Engine:GetHeight() return self.cursor end
+    function Engine:GetWidth() return 700 end
+    function Engine:Add(kind, ...)
+        local list = self.drawn[kind] or {}
+        self.drawn[kind] = list
+        local pool = self.pools[kind] or {}
+        self.pools[kind] = pool
+        local row = pool[#list + 1] or self.kinds[kind].New(self)
+        pool[#list + 1], list[#list + 1] = row, row
+        self.cursor = self.cursor + self.kinds[kind].Set(row, ...)
+        return row
+    end
+    ns.Shared = {
+        Style = { IMPORT = "import", PLUS = "plus", HAVE_RGB = { r = 0, g = 1, b = 0 }, WARN_RGB = { r = 1, g = 0.5, b = 0 } },
+        Parts = { Smooth = NOTHING, SetLink = NOTHING,
+            Link = function(_, fn)
+                local l = Frame()
+                l.click = fn
+                links[#links + 1] = l
+                return l
+            end },
+        View = { NewKinds = function() return {} end,
+            New = function(_, kinds, mixin)
+                local view = setmetatable({ kinds = kinds, pools = {} }, { __index = function(_, k)
+                    return mixin[k] or Engine[k] or NOTHING
+                end })
+                return view
+            end },
+    }
+    local env = getfenv(ns.ExportProfile)
+    env.CreateFrame = function() return Frame() end
+    env.ns = ns
+    function ns.ShowProfileExport(ticks) exported = ticks end
+
+    local parent = Frame()
+    parent.profilesView = false
+    assert(ns.BuildProfileSettings(parent, -10) < -10)
+    local view = parent.profilesView
+    local rows, foot = view.drawn.part, view.drawn.foot[1]
+    assert(#rows == 7 and #view.drawn.action == 2 and #view.drawn.bar == 1, #rows)
+    assert(rows[5].key == "builds" and rows[5].status.text == "Nothing yet", tostring(rows[5].status.text))
+    assert(rows[1].status.text == "Ready" and rows[1].line.text:find("frames sit", 1, true))
+    assert(foot.count.text == "Export will include 6 of 6 parts.", foot.count.text)
+    toggles[3]._set(false)   -- Macro Library
+    foot = view.drawn.foot[1]
+    assert(foot.count.text == "Export will include 5 of 6 parts.", foot.count.text)
+    buttons["Export Profile"].click()
+    assert(exported.library == nil and exported.settings == true and exported.look == true)
+    links[1].click()   -- Deselect All
+    assert(view.drawn.foot[1].count.text == "Tick a part to export.")
+    links[2].click()   -- Select All
+    assert(view.drawn.foot[1].count.text == "Export will include 6 of 6 parts.")
+
+    w.db.profiles.Default.tankReminder.importedPack = { name = "Naowh's Pack" }
+    ns.BuildProfileSettings(parent, -10)
+    assert(view.drawn.part[4].status.text == "From a pack", view.drawn.part[4].status.text)
 end)
 
 print(count .. " profile share regressions passed")

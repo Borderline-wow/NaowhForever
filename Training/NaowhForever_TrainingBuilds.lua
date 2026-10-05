@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
---  NaowhForever_TrainingBuilds.lua -- the talent builds the Training Planner's Builds tab
---  shows, by class ID: Mobalytics' WoW Forever leveling guides, levels 10 to 30, used with
---  their permission. specs names the tree's three columns.
+--  NaowhForever_TrainingBuilds.lua -- each class's talent tree for the Training Planner, by
+--  class ID, and the builds that come with the addon after it (none yet). specs names the
+--  tree's three columns.
 --  talents is every node of the class tree: { spell, ranks, row, column, slot in the row,
 --  the node it needs at full rank first }. A build's points are tree nodes, one per talent
 --  point from level 10.
@@ -66,14 +66,6 @@ ns.TrainingBuilds = {
             [110857] = { 12962, 5, 2, 2, 2 },
             [110858] = { 12862, 2, 6, 1, 1 },
         },
-        { name = "Arms/Fury Leveling 10-15", spec = "Arms/Fury", source = "Test leveling build",
-            points = { 105956, 105956, 105956, 105939, 105939, 105939 },
-        },
-        { name = "Protection Leveling from 16", spec = "Protection", source = "Test leveling build",
-            points = { 105976, 105976, 105976, 105976, 105976, 105972, 105972, 105972, 105974, 105974,
-                105969, 105969, 105969, 105971, 105971, 105966, 105968, 105968, 105968, 105970,
-                105962 },
-        },
     },
     [2] = { -- Paladin
         specs = { "Holy", "Protection", "Retribution" },
@@ -129,11 +121,6 @@ ns.TrainingBuilds = {
             [110880] = { 1311085, 2, 6, 3, 3 },
             [110882] = { 1311084, 3, 6, 3, 2 },
         },
-        { name = "Retribution Leveling 10-30", spec = "Retribution", source = "Test leveling build",
-            points = { 105706, 105706, 105706, 105706, 105706, 105703, 105703, 105703, 105703, 105703,
-                105699, 105699, 105696, 105701, 105701, 105700, 105701, 105702, 105702, 105702,
-                105693 },
-        },
     },
     [3] = { -- Hunter
         specs = { "Beast Mastery", "Marksmanship", "Survival" },
@@ -188,11 +175,6 @@ ns.TrainingBuilds = {
             [110860] = { 1310496, 2, 5, 3, 3 },
             [110861] = { 1310627, 5, 4, 3, 2 },
             [110870] = { 1310661, 3, 2, 2, 1 },
-        },
-        { name = "Beast Mastery Leveling 10-30", spec = "Beast Mastery", source = "Test leveling build",
-            points = { 104960, 104960, 104960, 104960, 104960, 104975, 104975, 104973, 104973, 104972,
-                104972, 104969, 104969, 104969, 104969, 104969, 104970, 104966, 104967, 104967,
-                104964 },
         },
     },
     [4] = { -- Rogue
@@ -252,11 +234,6 @@ ns.TrainingBuilds = {
             [110868] = { 14084, 2, 3, 3, 3 },
             [113398] = { 13712, 5, 1, 2, 3 },
         },
-        { name = "Combat Leveling 10-30", spec = "Combat", source = "Test leveling build",
-            points = { 105741, 105741, 105708, 105708, 105708, 105738, 105738, 105738, 105737, 105737,
-                105737, 105735, 105736, 105736, 105732, 105740, 105740, 105740, 105740, 105740,
-                105728 },
-        },
     },
     [5] = { -- Priest
         specs = { "Discipline", "Holy", "Shadow Magic" },
@@ -315,11 +292,6 @@ ns.TrainingBuilds = {
             [110854] = { 1310076, 2, 6, 3, 1 },
             [110855] = { 14889, 5, 1, 2, 3 },
         },
-        { name = "Shadow Leveling 10-30", spec = "Shadow", source = "Test leveling build",
-            points = { 105850, 105850, 105833, 105833, 105833, 105833, 105833, 105830, 105830, 110851,
-                110851, 110851, 105829, 105829, 105826, 105825, 105825, 105820, 105821, 105821,
-                105821 },
-        },
     },
     [7] = { -- Shaman
         specs = { "Elemental Combat", "Enhancement", "Restoration" },
@@ -374,11 +346,6 @@ ns.TrainingBuilds = {
             [104771] = { 28996, 3, 2, 1, 1 },
             [104772] = { 16035, 5, 1, 1, 3 },
             [104773] = { 16039, 5, 1, 1, 2 },
-        },
-        { name = "Enhancement Leveling 10-30", spec = "Enhancement", source = "Test leveling build",
-            points = { 104753, 104753, 104753, 104753, 104753, 104755, 104755, 104755, 104752, 104752,
-                104749, 104750, 104750, 104750, 104756, 104743, 104747, 104747, 104747, 104747,
-                104742 },
         },
     },
     [8] = { -- Mage
@@ -439,11 +406,6 @@ ns.TrainingBuilds = {
             [105814] = { 11222, 5, 1, 1, 2 },
             [105815] = { 6057, 2, 1, 1, 1 },
         },
-        { name = "Frost Leveling 10-30", spec = "Frost", source = "Test leveling build",
-            points = { 105779, 105779, 105779, 105779, 105779, 105774, 105774, 105777, 105777, 105777,
-                105773, 105773, 105773, 105767, 105771, 105777, 105777, 105768, 105768, 105768,
-                105764 },
-        },
     },
     [9] = { -- Warlock
         specs = { "Affliction", "Demonology", "Destruction" },
@@ -501,11 +463,6 @@ ns.TrainingBuilds = {
             [105925] = { 18174, 5, 1, 1, 2 },
             [110876] = { 1310949, 5, 4, 1, 1 },
         },
-        { name = "Affliction Leveling 10-30", spec = "Affliction", source = "Test leveling build",
-            points = { 105924, 105924, 105924, 105924, 105924, 105925, 105925, 105925, 105923, 105923,
-                105923, 105923, 105923, 105917, 105917, 105917, 105914, 105914, 105916, 105919,
-                105919 },
-        },
     },
     [11] = { -- Druid
         specs = { "Balance", "Feral Combat", "Restoration" },
@@ -562,11 +519,6 @@ ns.TrainingBuilds = {
             [104958] = { 17056, 5, 1, 3, 3 },
             [110844] = { 17245, 2, 5, 1, 1 },
             [113563] = { 1322670, 2, 5, 2, 1, 104951 },
-        },
-        { name = "Feral Leveling 10-30", spec = "Feral", source = "Test leveling build",
-            points = { 104938, 104938, 104938, 104938, 104938, 104939, 104939, 104939, 104943, 104943,
-                104944, 104946, 104946, 104948, 104948, 104952, 104952, 104952, 104947, 104947,
-                104955 },
         },
     },
 }
