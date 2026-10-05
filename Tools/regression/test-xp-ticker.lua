@@ -314,35 +314,21 @@ do
     check("the buttons inside the card", 8 + 12 - c.h / 2 >= 0 and t.h >= 8 + 12 + c.h / 2)
     t.scripts.OnEnter(t)
     check("shown on hover", c.shown)
-    check("the card's tooltip", tip.shown and tip.owner == t and tip.lines[1].left == "XP per Hour")
-    check("tooltip: level, percent and rested", TipRight("Level 20") == "70%" and TipRight("Session") == "0:00")
-    check("tooltip: the session's numbers", TipRight("XP gained") == "200" and TipRight("Rate") == "12.0k xp/hr"
-        and TipRight("Ding in") == "1m")
-    check("tooltip: this level, and why it has a +", TipRight("This level") == "0:00+"
-        and TipRight("Timed from part way through the level.") ~= nil)
+    check("no tooltip with Compare Characters off: the card already shows its numbers", not tip.shown)
     t.over = true
     t.scripts.OnLeave(t)
     check("still shown moving onto a button", c.shown)
     t.over = false
     t.toggle.hooks.OnLeave(t.toggle)
     check("hidden once the mouse leaves the card", c.shown == false and not tip.shown)
-    rested = 150
-    s.events.scripts.OnEvent(s.events, "PLAYER_XP_UPDATE")
-    t.scripts.OnEnter(t)
-    check("tooltip: rested XP as a share of the level", TipRight("Level 20") == "70% \194\183 rested +15%")
-    t.scripts.OnLeave(t)
     menuOpen = true
     t.scripts.OnEnter(t)
     check("no tooltip while a menu is open", not tip.shown)
     t.scripts.OnLeave(t)
     menuOpen = false
-    rested = nil
 
     t.toggle.scripts.OnClick(t.toggle)
     check("the pause button pauses", t.unit.text == "paused" and t.toggle.icon.tex == St.PLAY and t.toggle.tip == "Start")
-    t.scripts.OnEnter(t)
-    check("tooltip: paused", tip.lines[#tip.lines].left == "Paused")
-    t.scripts.OnLeave(t)
     t.toggle.scripts.OnClick(t.toggle)
     check("and starts again", t.unit.text == "xp/hr" and t.toggle.icon.tex == St.PAUSE)
     ns.XPTickerCommand("pause")
@@ -516,9 +502,6 @@ do
     check("starting: no rate yet", p.rate.text == "--" and p.unit.text == "no XP yet" and not p.ding.on
         and p.time.value.text == "3:12")
     check("starting: a level timed from part way", p.current.value.text == "9:47+")
-    p.scripts.OnEnter(p)
-    check("starting: the tooltip's rate", TipRight("Rate") == "--" and TipRight("Level 23") == "62% \194\183 rested +15%")
-    p.scripts.OnLeave(p)
     studio.paint(preview, "paused")
     check("paused: the unit and the play icon", p.unit.text == "paused" and p.toggle.icon.tex == St.PLAY)
     studio.paint(preview, "resting")
@@ -884,9 +867,7 @@ do
     tick()
     check("and it ticks on from the answer", t.played.value.text == "1d 3h 47m")
     t.scripts.OnEnter(t)
-    check("tooltip: Played", TipRight("Played") == "1d 3h 47m")
-    check("tooltip: no pace section while Compare Characters is off",
-        select(2, TipSection("Your characters")) == false and select(2, TipSection("None of your")) == false)
+    check("no tooltip while Compare Characters is off", not tip.shown)
     t.scripts.OnLeave(t)
     check("no pace mark while it is off", t.paceIcon.shown == false and t.paceText.shown == false)
 
@@ -981,6 +962,8 @@ do
     t.scripts.OnEnter(t)
     local lines, found = TipSection("Your characters at level 20 (50%)")
     check("tooltip: the heading with your progress", found)
+    check("tooltip: only your characters, not what the card shows", tip.lines[1].left == "XP per Hour"
+        and TipRight("Session") == nil and TipRight("Rate") == nil and TipRight("Played") == nil)
     check("tooltip: fastest first, You in its place, the rest skipped", Names(lines) == "Alpha,You,Charlie,Bravo")
     local alpha, you, charlie, bravo = lines[1], lines[2], lines[3], lines[4]
     check("their played time at your point, and how far behind you are",
@@ -1098,7 +1081,7 @@ do
     check("from the menu: Played back, Compare off", p.played.on and p.paceIcon.shown == false
         and s.S.Get("xpTickerPace") == false)
     p.scripts.OnEnter(p)
-    check("preview tooltip: no characters with Compare off", select(2, TipSection("Your characters")) == false)
+    check("preview: no tooltip with Compare off", not tip.shown)
     p.scripts.OnLeave(p)
     studio.paint(preview, "starting")
     check("preview starting: played shown too", p.played.value.text == "1d 4h 12m" and Is(p.played.value, T.fg))
@@ -1148,16 +1131,9 @@ do
     check("the level in progress lined up with them, no second column", t.current.value.p4 == offset
         and t.current.played == nil)
     check("the card wide enough for both", t.w >= 2 * 8 + h[1].label.text:len() * 6 + 16 + 4 * 6 + 16 + 8 * 6)
-    t.scripts.OnEnter(t)
-    check("tooltip: the two columns explained",
-        TipRight("Past levels: how long each took, then your played time at its ding.") ~= nil)
-    t.scripts.OnLeave(t)
     s.S.Set("xpTickerSplitPlayed", false)
     check("off: the second column hidden, the times back at the edge", h[1].played.shown == false
         and h[4].played.shown == false and h[1].value.p4 == -8 and t.current.value.p4 == -8)
-    t.scripts.OnEnter(t)
-    check("and not explained", TipRight("Past levels: how long each took, then your played time at its ding.") == nil)
-    t.scripts.OnLeave(t)
     s.S.Set("xpTickerSplitPlayed", true)
 
     local cardRows = {}

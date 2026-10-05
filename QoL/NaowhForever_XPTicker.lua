@@ -30,10 +30,8 @@ local MINUTE, HOUR, DAY, HOUR_TENTH = 60, 3600, 86400, 360
 local UNIT, PAUSED, EMPTY, NONE = "xp/hr", "paused", "no XP yet", "--"
 local DING, LEVEL, PERCENT, DOT, PARTIAL = "Ding", "Level %d", "%d%%", St.PLACE_DOT, "+"
 local PLAYED = "Played"
-local TIP_TITLE, TIP_RESTED, TIP_PAUSED = "XP per Hour", "%s" .. St.PLACE_DOT .. "rested +%s", "Paused"
-local TIP_SESSION, TIP_GAINED, TIP_RATE, TIP_DING = "Session", "XP gained", "Rate", "Ding in"
-local TIP_LEVEL_TIME, TIP_PARTIAL = "This level", "Timed from part way through the level."
-local PACE_TIP = { gap = " ", you = "You", ahead = "%s ahead", behind = "%s behind", unknown = "Unknown",
+local TIP_TITLE = "XP per Hour"
+local PACE_TIP = { you = "You", ahead = "%s ahead", behind = "%s behind", unknown = "Unknown",
     head = "Your characters at level %d", headPart = "Your characters at level %d (%s)", atLevel = " at level %d",
     none = "None of your other characters has reached level %d yet." }
 local PAUSE_TIP, PAUSE_HINT = "Pause", "Stops the clock and the XP count."
@@ -49,7 +47,6 @@ local historyKeys = {}
 local running = { level = 0, time = 0, partial = false }
 local trendBase, trendAt, trendDir = 0, 0, 0
 local LEGACY_BACKGROUND = { [true] = "card", [false] = "soft" }
-local COLUMNS_TIP = "Past levels: how long each took, then your played time at its ding."
 
 local function On()
     return S.Get("enabled") and S.Get("xpTicker")
@@ -132,11 +129,6 @@ local function NewRow(f, label, valueColor)
     return row
 end
 
-local function TipLine(left, right)
-    local m, c = T.muted, T.fg
-    GameTooltip:AddDoubleLine(left, right, m.r, m.g, m.b, c.r, c.g, c.b)
-end
-
 function Pace.ClassColor(class)
     local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
     if not c and class and C_ClassColor then c = C_ClassColor.GetClassColor(class) end
@@ -173,7 +165,6 @@ end
 function Pace.Tip(f)
     local n, level, share, interpolated = f.fillPace()
     local m = T.muted
-    GameTooltip:AddLine(PACE_TIP.gap)
     if n == 0 then
         GameTooltip:AddLine(PACE_TIP.none:format(level), m.r, m.g, m.b, true)
         return
@@ -189,26 +180,10 @@ function Pace.Tip(f)
 end
 
 local function ShowTip(f)
+    if not (f.fillPace and S.Get("xpTickerPace")) then return end
     if not Parts.Tip(f, "ANCHOR_TOP") then return end
     GameTooltip:SetText(TIP_TITLE, T.fg.r, T.fg.g, T.fg.b)
-    if f.level then
-        local percent = Percent(f.progress)
-        if f.restedShare > 0 then percent = TIP_RESTED:format(percent, Percent(f.restedShare)) end
-        TipLine(LEVEL:format(f.level), percent)
-    end
-    local run = f.running
-    if run then TipLine(TIP_LEVEL_TIME, Clock(run.time) .. (run.partial and PARTIAL or "")) end
-    if f.playedValue then TipLine(PLAYED, Clock(f.playedValue)) end
-    if f.elapsed then
-        TipLine(TIP_SESSION, Clock(f.elapsed))
-        TipLine(TIP_GAINED, Short(f.xp))
-        TipLine(TIP_RATE, f.rateValue > 0 and Short(f.rateValue) .. " " .. UNIT or NONE)
-        if f.dingValue then TipLine(TIP_DING, Duration(f.dingValue)) end
-    end
-    if run and run.partial then GameTooltip:AddLine(TIP_PARTIAL, T.muted.r, T.muted.g, T.muted.b, true) end
-    if f.paused then GameTooltip:AddLine(TIP_PAUSED, T.muted.r, T.muted.g, T.muted.b) end
-    if f.columns then GameTooltip:AddLine(COLUMNS_TIP, T.muted.r, T.muted.g, T.muted.b, true) end
-    if f.fillPace and S.Get("xpTickerPace") then Pace.Tip(f) end
+    Pace.Tip(f)
     GameTooltip:Show()
 end
 
@@ -524,7 +499,6 @@ end
 
 function Look.Progress(f, value, rested, level)
     f.line:SetProgress(value, rested)
-    f.level, f.progress, f.restedShare = level, value, math.max(0, rested or 0)
     if SetValue(f.percent, Percent(value)) then Look.Fit(f) end
 end
 
@@ -546,8 +520,6 @@ end
 
 function Look.Paint(f, rate, ding, elapsed, isPaused, keys, levels, trend, xp, run, played, pace)
     isPaused = isPaused and true or false
-    f.rateValue, f.dingValue, f.elapsed, f.xp, f.running = rate, ding, elapsed, xp, run
-    f.playedValue = played
     local empty = rate <= 0
     local changed = SetValue(f.rate, empty and NONE or Short(rate))
     if SetValue(f.unit, isPaused and PAUSED or empty and EMPTY or UNIT) then changed = true end
@@ -599,7 +571,6 @@ function Look.Paint(f, rate, ding, elapsed, isPaused, keys, levels, trend, xp, r
             columns = true
         end
     end
-    f.columns = showAt and count > 0
     local arranged = Arrange(f, showDing, showTime, showCurrent, count, showPlayed)
     if (arranged or columns) and Look.Columns(f, count, showAt, arranged) then changed = true end
     if arranged then changed = true end
