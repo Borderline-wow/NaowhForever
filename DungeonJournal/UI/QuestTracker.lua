@@ -131,6 +131,11 @@ local function Opacity()
     return S.Get("trackerAlpha") or 1
 end
 
+-- The add-on's Window Scale, times the tracker's own Scale (trackerScale).
+local function Scale()
+    return ns.UIScale() * (S.Get("trackerScale") or 1)
+end
+
 local function Paint()
     panel:Paint()
 end
@@ -205,7 +210,7 @@ end
 
 local function Show(dungeon)
     if not panel then Build() end
-    panel:SetScale(ns.UIScale())
+    panel:SetScale(Scale())
     Paint()
     panel:Place()
     panel:Show()
@@ -317,7 +322,8 @@ local function SyncAuto()
 end
 hooksecurefunc(ns, "Apply", SyncAuto)
 
--- The Journal switched off: the tracker goes with it. Its own Opacity (trackerAlpha): it follows.
+-- The Journal switched off: the tracker goes with it. Its own Opacity (trackerAlpha) and
+-- Scale (trackerScale): they follow.
 S.OnChange(function(key)
     if key == "enabled" or key == "trackerAuto" or key == "trackerOutside" then SyncAuto() end
     if key == "enabled" or key == "hideGameTracker" then SyncGameTracker() end
@@ -326,5 +332,7 @@ S.OnChange(function(key)
         panel:Hide()
     elseif key == "trackerAlpha" then
         Paint()
+    elseif key == "trackerScale" then
+        panel:SetScale(Scale())
     end
 end)
