@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.20-beta
 
 ### Added
 - Settings: click the dot beside a setting you changed to put it back to its default; hover it to
@@ -31,6 +31,68 @@
 - Training Planner: a waypoint to your nearest class trainer, from Waypoint to nearest trainer at
   the top of the planner, the Waypoint button on the level-up toast, or /nf trainer. With TomTom
   loaded, it uses TomTom's arrow.
+- Naowh's Forge: To Library in the editor saves the macro to the Library under your class, for every
+  character of that class. Your Library macros show as YOURS, with Add, Open in Editor and Remove;
+  saving one again under the same name replaces it.
+- Dungeon Journal: Scarlet Monastery's Library, Armory and Cathedral maps show where their bosses
+  stand.
+- Dungeon Journal: the quest tracker is now the Dungeon Quest Tracker. Click its title for its
+  settings. A dropdown under it shows any dungeon with quests, each level range in the quest log's
+  colours for your level. It widens to show quest names in full, grows to 70% of the screen before
+  it scrolls, has Share All, and a cog for its settings.
+- Dungeon Journal: Open Tracker in Dungeons (on by default, Dungeon Journal > Quest Tracker) opens
+  the quest tracker when you enter a dungeon with quests for you. Close it and it stays closed until
+  you leave that dungeon.
+- Dungeon Journal: Show Outside Dungeons (off by default, Dungeon Journal > Quest Tracker) opens the
+  quest tracker out in the world after a loading screen, on the dungeon your quests are for.
+- Dungeon Journal: Hide the Game's Quest Tracker (off by default, Dungeon Journal > Quest Tracker)
+  fades out the game's quest tracker while yours is open in a dungeon.
+- Discovery: the Cozy Sleeping Bag, its hidden quest chain step by step (from level 14). A Sleeping
+  Bag tab in the Discovery window lists every step: what to click, where, how to get there (the
+  jumps and climbs), and a waypoint; the optional campfire too. Two steps with the same name show
+  their zone.
+- Discovery: a Sleeping Bag tracker (off by default, Discovery > Sleeping Bag) shows the steps, the
+  next one with its way there, until you have the bag; its X switches it off.
+- Discovery: Sleeping Bag map pins (off by default): the bag's icon with the step's number on every
+  step still to do, the next one in full; click one for a waypoint.
+- Discovery: the third library reward, Greater Friend of the Library at 25 books (level 30):
+  Truthseeker's Bow, Crest of Elucidation or Researcher's Night Light. The book count is what
+  players report so far.
+- Discovery: the progress at the top of its window is a road, like the Training Planner's: a stripe
+  per book (blue once handed in), YOU where you are, and a dot at 10, 20 and 25 books with the
+  rewards under each (hover one for the item).
+- Dungeon map: Ruins of Lordaeron, Hall of Thanes and the Excavation Site have a map, from Santiago
+  Reyes's Atlas de Azeroth: Forever (credited on the map and in Credits), until the game has art of
+  its own for them. Ruins of Lordaeron's and Hall of Thanes's bosses stand on theirs; the Excavation
+  Site's are still to be placed.
+- Settings > RESTEDXP (shown when RestedXP Guides is installed, off by default): Add Themes to
+  RestedXP puts NaowhUI, the Naowh themes and Naowh (current), which follows your own theme, in
+  RestedXP's theme list. Pick one with RestedXP Theme or in RestedXP's own settings.
+- With a Naowh theme on, RestedXP's window takes Naowh's look: Panels-colored surfaces with a 1px
+  black frame, thin rules between quest rows, and the theme's color in the title bar and footer.
+- RestedXP Arrow colors RestedXP's waypoint arrow with your Accent, or swaps it for Naowh's own
+  arrow with its shape, glow, size and text gap. Show Arrow Text hides the text under it.
+- Use Addon Font and Use Theme Text Color can be turned off to keep RestedXP's own font and text
+  color.
+- Dungeon Journal: click a boss on the dungeon map for its own page beside the world map: its level
+  and type, Naowh's tip with a button to share it, the quests that need it, its abilities and its
+  loot.
+- Professions: drag the profession window to move it; it opens there from then on.
+- Campfire has a Simple style (AuraBuffs > Settings > Campfire > Style): a slim bar in the house
+  panel look listing every camp bonus with its amount and a time line, the same size in every state,
+  with a fuller tooltip and a mouse-editable preview. It reads Camp Benefits in any client language.
+- XP per Hour shows the level you're on as it runs, under Level History.
+- Bag Space has a Background choice (Card, Soft or None) and a live preview on its settings card
+  with Bags, Low and Full views.
+- A welcome window on your first login with how to get started and a link to our Discord; see it
+  again with /nf welcome or QoL > System > Welcome.
+- Settings > COLORS: a Classic theme in the Theme dropdown, with dark brown panels, parchment text
+  and an antique gold accent.
+- Action Bars Save Current Bars opens a set builder: leave out slots or whole bars, choose whether
+  keybinds come along and which macros, then name the set.
+- Action Bars Import shows a preview first (new macros marked NEW, spells you haven't learned yet
+  with their level), and Fill In As You Learn (off by default) places those spells once you learn
+  them.
 
 ### Changed
 - Dungeon Journal: Scarlet Monastery is its four wings, each a dungeon of its own: Scarlet
@@ -61,6 +123,65 @@
   button beside Games.
 - Character Panel: the grey Legendary badge for players without a badge is gone; only your own
   badge shows.
+- Naowh's Forge: the Smart Macros tab no longer has the Food & Drink Bar panel (it stays under
+  Macros settings); that side now explains how Smart Macros keep themselves up to date.
+- Naowh's Forge: a class with nothing in the Library shows just its name, without the import message
+  and button.
+- Dungeon Journal: the Forever mark shows on the dungeon only; its bosses and items no longer carry
+  it (their tooltips still say they're new in Forever).
+- Dungeon Journal: its settings are three tabs: Journal (what it lists, its window, the Open Dungeon
+  Journal key), Quest Tracker (the tracker and sharing quests) and Map (beside the world map, and
+  Boss Loot at Cursor's key).
+- Dungeon Journal: the Journal, the Dungeon Quest Tracker and the map each have their own Window
+  Opacity. They start at the opacity you had set for them all.
+- Dungeon Journal: a quest row starts with its waypoint pin and its quest mark (! or ?) in place of
+  its level. The ! is yellow when you can take the quest, grey when other quests come first and red
+  when it is too high for you; hover the mark for what it means.
+- Dungeon Journal: a quest that needs another one first says Requires: (the quest) under its name
+  and Prerequisite as its state, in place of Do first. A quest on its own shows no chain icon.
+- Dungeon Journal: a quest's card shows only when you hover its name, on the tracker, the dungeon's
+  page and beside the map.
+- Dungeon Journal: the group count on quest rows shows only while you are in a group.
+- Dungeon Journal: Link in Chat on a quest's menu sends to party chat in a group, or into your chat
+  box while it is open. Out of a group with the chat box closed, it is greyed out.
+- Discovery: its window has two tabs, Library Books (every book for your faction, a tick on those
+  handed in, in place of To Find and All Books) and Sleeping Bag.
+- Discovery: its settings are two tabs, Library Books and Sleeping Bag, and each tracker has its own
+  opacity apart from the Discovery window's (they start at the one you had set).
+- Discovery: the Library Books tracker has the Dungeon Quest Tracker's look: the progress bar and
+  zone dropdown under its title, a waypoint pin in front of each book (a tick once handed in), a
+  book's level in its tooltip, and a cog for its settings. Drag it by its title or body (Unlock Mode
+  still moves it too).
+- BiS List: three picks that were missing are back (Guerrilla's Jagged Mace, Rotmender's Garb,
+  Precision Bow).
+- Quality of Life > Loot & Items > Auto-Fill Delete Confirmation: the confirmation box stays visible
+  with DELETE already typed in, instead of being hidden.
+- Dungeon Journal: the boss you pick on a dungeon map gets a glowing gold ring, in your theme's
+  Accent if you picked one.
+- Dungeon Journal: the Journal beside the world map uses its full width while everything fits.
+- Dungeon Journal: a boss's loot at the mouse opens only on the maximised world map.
+- Naowh Forever's windows, trackers and panels can be dragged up to 90% off the left, right and
+  bottom of the screen; the title bar always stays reachable.
+- The Camp Nearby alert is a compact bar in the same look: the fire, "Camp Nearby Â· sit to refresh"
+  and the time left inline, fading in and out (Fade and Alert Size in AuraBuffs > Campfire).
+  Right-click hides it until you leave the campfire.
+- Campfire settings only show the rows for the style you picked (Round or Simple), with shorter
+  help.
+- XP per Hour sits on a small card: the rate and "xp/hr" on one line, Ding and session time on a
+  footer line, and a thin level progress line with your rested XP just ahead of it. The rate glows
+  blue while you earn, with a green or red arrow as it climbs or falls, Ding turns blue in the last
+  10 minutes, and it greys out while paused. Pause and Reset show as small icons on hover, it says
+  "no XP yet" until you earn some, and its tooltip has your level, rested XP and the session
+  numbers.
+- XP per Hour's Background is a choice of Card, Soft (a soft dark fade with no edge) or None; if you
+  had it off you now get Soft, and Outlined Text works with every background (QoL > XP).
+- Bag Space sits on a clean card in the house colors: free slots and a Stack button in a slim
+  header, a small clock on outlevelled food, the game's quest "!" on quest items, and small muted
+  prices with coin icons, each in its largest coin (QoL > Loot & Items > Bag Space).
+- Unlock Mode no longer shows a position box over the display you select, so nothing covers it while
+  you place it.
+- Action Bars sets now save your keybinds and every macro with your bars, and Restore is now Import:
+  import a set on an alt to get its bars, keybinds and missing macros, never copying a macro twice.
 
 ### Fixed
 - Naowh Score: no more Lua error after seeing more than 300 players, like in a busy city.
@@ -81,6 +202,16 @@
 - Settings: a module's window opened from /nf (Open Dungeon Journal, or the small window button
   beside a module) brings /nf back when you close it the first time too, not only from the
   second time on.
+- Blessings: a class button clears as soon as your blessing lands, instead of staying red for about
+  a second.
+- Macros: the macro editor shows a blinking cursor again while you type.
+- Quality of Life > Cursor > Mouse Ring: with Cast Sweep on, a hard cast no longer shows its GCD
+  sweep first and then restarts as the cast sweep, or sweeps the rest of the GCD again after the
+  cast.
+- XP per Hour's level history is kept per character, so characters with the same first name no
+  longer share it.
+- Bag Space gives Poor items the same black edge as Common ones; only Uncommon and better show their
+  color.
 
 ## 0.5.19-beta
 
