@@ -153,6 +153,7 @@ ns.SettingsRoot = function() return settings end
 ns.RegisterReapply = function() end
 ns.QueueReapply = function() end
 Load("Core/NaowhForever_Widgets.lua")
+Load("Core/NaowhForever_UnlockMode.lua")
 Load("Core/NaowhForever_Window.lua")
 Load("Core/NaowhForever_Search.lua")
 for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^Shared/.*%.lua$")) do Load(path) end

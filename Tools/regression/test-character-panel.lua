@@ -166,7 +166,7 @@ local ns = {
     StatWeights = {
         OnChange = NOTHING,
         STATS = { { "agi", "Agility" }, { "str", "Strength" }, { "hit", "Hit %" }, { "int", "Intellect" },
-            { "sta", "Stamina" }, { "armor", "Armor" } },
+            { "sta", "Stamina" }, { "armor", "Armor" }, { "shit", "Spell Hit %" } },
         ActiveSpec = function() return "assassination-rogue" end,
         Spec = function(key) return key == "assassination-rogue" and ASSASSINATION or nil end,
         For = function() return WEIGHTS end,
@@ -263,6 +263,8 @@ local env = setmetatable({
         return tostring(math.floor(type(n) == "table" and n.value or n))
     end },
     GetHitModifier = function() return 3 end,
+    GetSpellHitModifier = function() return 2 end,
+    CR_HIT_SPELL = 8,
     CR_HIT_MELEE = 6,
     -- What a spec weighing many stats reads (its totals' own numbers do not matter here).
     UnitAttackPower = function() return 100, 0, 0 end,
@@ -320,6 +322,22 @@ badge.scripts.OnShow(badge)
 check("painted with your score, in its grade's colour, as the panel opens", badge.value.text == "|cff1eff008.3|r")
 check("only the score: its bar's legend the best it is graded against", badge.best.text == "Best 58.8"
     and badge.rest.shown ~= false)
+
+-- Grade Against Both (the default): your level's goal as a gold tick on the bar, with no label
+-- (the tooltip names it), while it is short of the best in the game; with Best in the Game, no tick.
+do
+    local Score = ns.NaowhScore
+    local best = Score.Best
+    Score.Best = function(level) return level and 24.4 or 58.8 end
+    S.Set("naowhScoreCompare", "both")
+    check("Both: your level's goal ticked on the bar", badge.goal.shown == true
+        and badge.goal.points.CENTER == badge.bar)
+    check("no label for it, only the best's", badge.goalLabel == nil and badge.best.text == "Best 58.8")
+    S.Set("naowhScoreCompare", "max")
+    check("Best in the Game: no goal on the bar", badge.goal.shown == false)
+    Score.Best = best
+    S.Set("naowhScoreCompare", nil)
+end
 
 -- Ours: the frame the module made on the game's button.
 local function Ours(button) return button.children and button.children[1] end
@@ -471,6 +489,11 @@ end
 statsList.hooks.OnShow(statsList)
 check("many stats: every row fits above the switch", rows[14].shown ~= false and rows[15].shown == false
     and 14 * rows[1].h <= 300 - 52)
+-- A caster: its spell hit, the game's spell hit (rating and talents) as its total.
+ns.StatWeights.For = function() return { spell = 1, int = 0.3, shit = 14, sta = 0.05, armor = 0.005 } end
+statsList.hooks.OnShow(statsList)
+check("a caster's spell hit, its own total, after its power", rows[3].name.text == "Spell Hit %"
+    and rows[3].total.text == "2.0%")
 ns.StatWeights.For = For
 statsList.hooks.OnShow(statsList)
 statsList.shown = false

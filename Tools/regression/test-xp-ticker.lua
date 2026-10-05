@@ -12,6 +12,9 @@
 -- Ding turning soft blue near a level, and paused muting the rate and the line. And level history
 -- kept per character by GUID: three characters sharing a first name, the old name-keyed entry
 -- taken over once by the one whose level fits, kept in place, and a GUID not known yet at login.
+-- Then played time through Shared.Played (the row, the muted /played request, the levels reached
+-- saved from it) and Compare Characters (the gap to each character on the account, the mark
+-- against the fastest, the tooltip's list, and no garbage per update).
 local Load = dofile("Tools/regression/load_files.lua")
 
 local checks = 0
@@ -25,6 +28,8 @@ local METHODS = {
     SetScript = function(f, script, fn) f.scripts[script] = fn end,
     HookScript = function(f, script, fn) f.hooks[script] = fn end,
     RegisterEvent = function(f, event) f.events[event] = true end,
+    UnregisterEvent = function(f, event) f.events[event] = nil end,
+    IsEventRegistered = function(f, event) return f.events[event] == true end,
     UnregisterAllEvents = function(f) for event in pairs(f.events) do f.events[event] = nil end end,
     SetSize = function(f, w, h) f.w, f.h = w, h end,
     SetWidth = function(f, w) f.w = w end,
@@ -87,6 +92,14 @@ local xp, xpMax, rested = 500, 1000, nil
 local MAIN = "Player-4613-006EB819"
 local guid, level = MAIN, 20
 local tick
+local requests, timers = 0, {}
+local chat = {}
+local function RunTimers()
+    local list = {}
+    for i = 1, #timers do list[i] = timers[i] end
+    for i = #timers, 1, -1 do timers[i] = nil end
+    for i = 1, #list do list[i]() end
+end
 local menu, menuOpen
 local tip = { lines = {} }
 local function TipRecord(kind)
@@ -114,6 +127,10 @@ local function Boot(account, settings, who)
     now, tick, menu, menuOpen = 1000, nil, nil, false
     tip.owner, tip.shown = nil, false
     xp, xpMax, rested = 500, 1000, nil
+    requests = 0
+    for i = #timers, 1, -1 do timers[i] = nil end
+    chat[1], chat[2] = Frame(), Frame()
+    chat[1].events.TIME_PLAYED_MSG = true
     local env = {
         CreateFrame = function(_, name, parent) return Frame(parent, name) end,
         NaowhForeverDB = { account = account or {}, profiles = {}, charActive = {} },
@@ -135,7 +152,12 @@ local function Boot(account, settings, who)
         IsXPUserDisabled = function() return false end,
         IsResting = function() return false end,
         wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
-        C_Timer = { After = NOTHING, NewTicker = function(_, fn) tick = fn; return { Cancel = NOTHING } end },
+        C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end,
+            NewTicker = function(_, fn) tick = fn; return { Cancel = NOTHING } end },
+        RequestTimePlayed = function() requests = requests + 1 end,
+        NUM_CHAT_WINDOWS = 2, ChatFrame1 = chat[1], ChatFrame2 = chat[2],
+        UnitClass = function() return "Warrior", "WARRIOR", 1 end,
+        RAID_CLASS_COLORS = { WARRIOR = { r = 0.78, g = 0.61, b = 0.43 }, MAGE = { r = 0.25, g = 0.78, b = 0.92 } },
         MenuUtil = { CreateContextMenu = function(owner, gen) menu = { owner = owner, gen = gen } end },
         Menu = { GetManager = function() return { IsAnyMenuOpen = function() return menuOpen end } end },
         GameTooltip = GameTooltip,
@@ -151,11 +173,12 @@ local function Boot(account, settings, who)
     core("NaowhForever")
     local ns = env.NaowhForever
     ns.ApplyThemeColors()
-    Load({ "Shared/Shared.lua", "Shared/Style.lua", "Shared/Parts.lua", "Shared/Window.lua" }, env)
+    Load({ "Shared/Shared.lua", "Shared/Style.lua", "Shared/Parts.lua", "Shared/Window.lua", "Shared/Played.lua" }, env)
 
     local defaults = { enabled = true, xpTicker = true, xpTickerLevel = true, xpTickerElapsed = true,
         xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24, xpTickerOutline = false,
-        xpTickerSplits = true, xpTickerHistoryCount = 10, xpTickerBackground = "card" }
+        xpTickerSplits = true, xpTickerHistoryCount = 10, xpTickerBackground = "card",
+        xpTickerPlayed = true, xpTickerPace = false, xpTickerSplitPlayed = true }
     local db = settings or {}
     ns.QoLSettings = {
         Get = function(k) if db[k] == nil then return defaults[k] end return db[k] end,
@@ -180,12 +203,13 @@ local function Boot(account, settings, who)
     for _, f in ipairs(created) do
         if f.name == "NaowhForeverXPTicker" then ticker = f end
     end
-    local events
+    local events, played
     for _, f in ipairs(created) do
         if f.events.PLAYER_XP_UPDATE then events = f end
+        if f.events.TIME_PLAYED_MSG and f ~= chat[1] and f ~= chat[2] then played = f end
     end
     return { ns = ns, S = ns.QoLSettings, ticker = ticker, card = card, T = ns.THEME, events = events,
-        account = env.NaowhForeverDB.account, db = db }
+        account = env.NaowhForeverDB.account, db = db, played = played }
 end
 
 local St
@@ -252,7 +276,7 @@ do
         and t.current.label.p5 > t.percent.p5)
     check("timed from part way: marked +", t.current.value.text == "0:00+")
     check("all muted", Is(t.current.label, T.muted) and Is(t.current.value, T.muted))
-    check("a short card: the rate, this level, the footer", t.h == 8 + 24 + 6 + 12 + 6 + 12 + 8)
+    check("a short card: the rate, played, this level, the footer", t.h == 8 + 24 + 6 + 12 + 3 + 12 + 6 + 12 + 8)
 
     xp = 700
     s.events.scripts.OnEvent(s.events, "PLAYER_XP_UPDATE")
@@ -290,35 +314,21 @@ do
     check("the buttons inside the card", 8 + 12 - c.h / 2 >= 0 and t.h >= 8 + 12 + c.h / 2)
     t.scripts.OnEnter(t)
     check("shown on hover", c.shown)
-    check("the card's tooltip", tip.shown and tip.owner == t and tip.lines[1].left == "XP per Hour")
-    check("tooltip: level, percent and rested", TipRight("Level 20") == "70%" and TipRight("Session") == "0:00")
-    check("tooltip: the session's numbers", TipRight("XP gained") == "200" and TipRight("Rate") == "12.0k xp/hr"
-        and TipRight("Ding in") == "1m")
-    check("tooltip: this level, and why it has a +", TipRight("This level") == "0:00+"
-        and TipRight("Timed from part way through the level.") ~= nil)
+    check("no tooltip with Compare Characters off: the card already shows its numbers", not tip.shown)
     t.over = true
     t.scripts.OnLeave(t)
     check("still shown moving onto a button", c.shown)
     t.over = false
     t.toggle.hooks.OnLeave(t.toggle)
     check("hidden once the mouse leaves the card", c.shown == false and not tip.shown)
-    rested = 150
-    s.events.scripts.OnEvent(s.events, "PLAYER_XP_UPDATE")
-    t.scripts.OnEnter(t)
-    check("tooltip: rested XP as a share of the level", TipRight("Level 20") == "70% \194\183 rested +15%")
-    t.scripts.OnLeave(t)
     menuOpen = true
     t.scripts.OnEnter(t)
     check("no tooltip while a menu is open", not tip.shown)
     t.scripts.OnLeave(t)
     menuOpen = false
-    rested = nil
 
     t.toggle.scripts.OnClick(t.toggle)
     check("the pause button pauses", t.unit.text == "paused" and t.toggle.icon.tex == St.PLAY and t.toggle.tip == "Start")
-    t.scripts.OnEnter(t)
-    check("tooltip: paused", tip.lines[#tip.lines].left == "Paused")
-    t.scripts.OnLeave(t)
     t.toggle.scripts.OnClick(t.toggle)
     check("and starts again", t.unit.text == "xp/hr" and t.toggle.icon.tex == St.PAUSE)
     ns.XPTickerCommand("pause")
@@ -492,9 +502,6 @@ do
     check("starting: no rate yet", p.rate.text == "--" and p.unit.text == "no XP yet" and not p.ding.on
         and p.time.value.text == "3:12")
     check("starting: a level timed from part way", p.current.value.text == "9:47+")
-    p.scripts.OnEnter(p)
-    check("starting: the tooltip's rate", TipRight("Rate") == "--" and TipRight("Level 23") == "62% \194\183 rested +15%")
-    p.scripts.OnLeave(p)
     studio.paint(preview, "paused")
     check("paused: the unit and the play icon", p.unit.text == "paused" and p.toggle.icon.tex == St.PLAY)
     studio.paint(preview, "resting")
@@ -620,7 +627,7 @@ do
         and t.current.value.shown == false)
     local short = t.h
     s.S.Set("xpTickerSplits", true)
-    check("and back on with it, the card a row taller", t.current.on and t.h == short + 6 + 12)
+    check("and back on with it, the card a row taller", t.current.on and t.h == short + 3 + 12)
     xp, xpMax = 0, 2000
     s.events.scripts.OnEvent(s.events, "PLAYER_LEVEL_UP", 21)
     check("a ding starts the next level, timed from its start", t.current.label.text == "Level 21"
@@ -800,6 +807,394 @@ do
     studio.paint(preview, "resting")
     check("preview resting: more rested, the rate falling", math.abs(p.line.ahead.value - 0.92) < 1e-9
         and p.trend.shown and p.trend.t == 1 and Is(p.rate, T.accent))
+end
+
+local function TipSection(heading)
+    local out, inside = {}, false
+    for _, line in ipairs(tip.lines) do
+        if inside then out[#out + 1] = line end
+        if line.left and line.left:find(heading, 1, true) == 1 then inside = true end
+    end
+    return out, inside
+end
+local function Garbage(n, fn)
+    for _ = 1, 50 do fn() end
+    collectgarbage("collect")
+    collectgarbage("stop")
+    local mem = collectgarbage("count")
+    for _ = 1, n do fn() end
+    local grown = collectgarbage("count") - mem
+    collectgarbage("restart")
+    return grown
+end
+local function Names(lines)
+    local names = {}
+    for i, line in ipairs(lines) do names[i] = line.left end
+    return table.concat(names, ",")
+end
+
+do
+    local s = Boot()
+    local t, T, pf = s.ticker, s.T, s.played
+    check("Show Played Time on by default", s.S.Get("xpTickerPlayed") == true
+        and Read("QoL/NaowhForever_QoL.lua"):find("xpTickerPlayed = true, xpTickerPace = false", 1, true))
+    check("a Played row under the rate", t.played.on and t.played.label.text == "Played"
+        and t.played.label.p5 <= -(8 + 24) and Is(t.played.label, T.muted))
+    check("over the level in progress", t.current.on and t.played.label.p5 > t.current.label.p5)
+    check("its value on the right", t.played.value.p1 == "TOPRIGHT" and t.played.value.p4 == -8
+        and t.played.value.size == 12)
+    check("-- in muted before the answer", t.played.value.text == "--" and Is(t.played.value, T.muted))
+    check("one /played asked for, through the shared helper", requests == 1 and pf and pf.events.PLAYER_LEVEL_UP)
+    check("the chat print muted for it", chat[1].events.TIME_PLAYED_MSG == nil and chat[2].events.TIME_PLAYED_MSG == nil)
+    s.S.Set("xpTickerFontSize", 24)
+    check("asked once, not on every Apply", requests == 1)
+
+    pf.scripts.OnEvent(pf, "TIME_PLAYED_MSG", 100000, 600)
+    check("the answer shows, with days past 24 hours", t.played.value.text == "1d 3h 46m" and Is(t.played.value, T.fg))
+    RunTimers()
+    check("the chat frames get the event back", chat[1].events.TIME_PLAYED_MSG == true
+        and chat[2].events.TIME_PLAYED_MSG == nil)
+    local mine = s.account.levelSplits[MAIN]
+    check("the answer saves the time this level was reached", mine.reached[20] == 100000 - 600
+        and mine.reached[1] == 0)
+    check("with the name and the class", mine.name == "Die" and mine.class == "WARRIOR")
+    local sets = 0
+    t.played.value.SetText = function(fs, text) sets = sets + 1; fs.text = text end
+    now = now + 5
+    tick()
+    check("past a day: no text set within the minute", t.played.value.text == "1d 3h 46m" and sets == 0)
+    now = now + 55
+    tick()
+    check("and it ticks on from the answer", t.played.value.text == "1d 3h 47m")
+    t.scripts.OnEnter(t)
+    check("no tooltip while Compare Characters is off", not tip.shown)
+    t.scripts.OnLeave(t)
+    check("no pace mark while it is off", t.paceIcon.shown == false and t.paceText.shown == false)
+
+    now = now + 100
+    level, xp, xpMax = 21, 0, 2000
+    pf.scripts.OnEvent(pf, "PLAYER_LEVEL_UP", 21)
+    s.events.scripts.OnEvent(s.events, "PLAYER_LEVEL_UP", 21)
+    check("a ding saves the played time it came at", mine.reached[21] == 100000 + 160 and mine.reached[20] == 99400)
+    tick()
+    check("the total runs on through the ding", t.played.value.text == "1d 3h 49m")
+    s.S.Set("xpTickerFontSize", 23)
+    check("no new /played after a ding it heard", requests == 1)
+
+    local tall = t.h
+    s.S.Set("xpTickerPlayed", false)
+    check("Show Played Time off hides the row", not t.played.on and t.played.label.shown == false
+        and t.played.value.shown == false and t.h == tall - t.played.label.size - 3)
+    check("and stops listening for /played", pf.events.TIME_PLAYED_MSG == nil and pf.events.PLAYER_LEVEL_UP == nil)
+    s.S.Set("xpTickerPlayed", true)
+    check("back on: listening again, no new /played", pf.events.TIME_PLAYED_MSG and requests == 1 and t.played.on)
+    now = now + 10
+    pf.scripts.OnEvent(pf, "TIME_PLAYED_MSG", 200000, 50)
+    check("a /played you type updates it, its print left alone", t.played.value.text == "2d 7h 33m"
+        and chat[1].events.TIME_PLAYED_MSG == true and #timers == 0)
+    check("and overwrites the level reached", mine.reached[21] == 200000 - 50)
+
+    local cardRows = {}
+    for _, r in ipairs(s.card.rows) do
+        if r.key then cardRows[r.key] = r end
+    end
+    local played, pace = cardRows.xpTickerPlayed, cardRows.xpTickerPace
+    check("Show Played Time on the card", played and played.toggle and played.label == "Show Played Time"
+        and played.help == "Your total played time on this character, from level 1.")
+    check("Compare Characters on the card", pace and pace.toggle and pace.label == "Compare Characters"
+        and pace.help == "Shows if you're ahead of or behind your other characters, and colors past levels by it.")
+    for _, r in ipairs({ played, pace }) do
+        check(r.label .. ": one short sentence", #r.help < 100 and not r.help:find("%. %u"))
+    end
+    check("the card's help mentions played time", s.card.help:find("played time", 1, true))
+    check("the summary names it", s.card.summary(s.S):find("played time", 1, true))
+    s.S.Set("xpTickerPace", true)
+    check("and the comparison", s.card.summary(s.S):find("against your characters", 1, true))
+    s.S.Set("xpTickerSplits", false)
+    s.S.Set("xpTickerPlayed", false)
+    s.S.Set("xpTickerPace", false)
+    check("nothing extra: rate and time to level", s.card.summary(s.S) == "Rate and time to level")
+end
+
+do
+    local s = Boot(nil, { xpTicker = false })
+    check("XP per Hour off: no /played asked for", requests == 0 and s.played == nil)
+    s = Boot(nil, { xpTickerPlayed = false })
+    check("Played and Compare off: no /played, nothing listening", requests == 0 and s.played == nil
+        and not s.ticker.played.on and chat[1].events.TIME_PLAYED_MSG == true)
+    s = Boot(nil, { xpTickerPlayed = false, xpTickerPace = true })
+    check("Compare alone still asks for /played", requests == 1 and s.played)
+    s = Boot()
+    level = 60
+    s.S.Set("xpTickerFontSize", 25)
+    check("at max level: the card hides and stops listening", s.ticker.shown == false
+        and s.played.events.TIME_PLAYED_MSG == nil)
+end
+
+do
+    local ALPHA, BRAVO, CHARLIE = "Player-4613-0000000A", "Player-4614-0000000B", "Player-4613-0000000C"
+    local splits = {
+        [MAIN] = { levels = {}, reached = { [1] = 0, [20] = 1 } },
+        [ALPHA] = { name = "Alpha", class = "MAGE", reached = { [1] = 0, [20] = 54000, [21] = 56560 } },
+        [BRAVO] = { name = "Bravo", class = "PRIEST", reached = { [1] = 0, [20] = 55000, [21] = 57960 } },
+        [CHARLIE] = { name = "Charlie", class = "ROGUE", reached = { [1] = 0, [20] = 55300 } },
+        ["Player-4613-0000000D"] = { name = "Delta", class = "MAGE", reached = { [1] = 0, [30] = 90000 } },
+        ["Player-4613-0000000E"] = { name = "Echo", reached = "junk" },
+        ["Player-4613-0000000F"] = { name = "Foxtrot", levels = {} },
+        ["Die-Realm"] = { name = "Old", reached = { [20] = 1, [21] = 2 }, levels = {} },
+    }
+    local s = Boot({ levelSplits = splits })
+    local t, T, pf = s.ticker, s.T, s.played
+    check("Compare Characters off by default", s.S.Get("xpTickerPace") == false)
+    pf.scripts.OnEvent(pf, "TIME_PLAYED_MSG", 56000, 1000)
+    tick()
+    check("off: no mark", t.paceIcon.shown == false and t.paceText.shown == false)
+    s.S.Set("xpTickerPace", true)
+    check("on: a mark against the fastest, Alpha, 12m behind", t.paceIcon.shown and t.paceText.shown
+        and t.paceText.text == "12m")
+    check("the shared arrow turned down, in red", t.paceIcon.tex == St.UP and t.paceIcon.t == 1
+        and t.paceIcon.vr == St.RED_RGB.r and Is(t.paceText, St.RED_RGB))
+    check("after the Played label", t.paceIcon.p1 == "LEFT" and t.paceIcon.p2 == t.played.label
+        and t.paceText.p2 == t.paceIcon)
+    check("the card wide enough for it", t.w >= 8 * 2 + t.played.label.text:len() * 6 + t.paceText.text:len() * 6)
+    check("the old name-keyed entry never counts", t.paceText.text == "12m")
+
+    t.scripts.OnEnter(t)
+    local lines, found = TipSection("Your characters at level 20 (50%)")
+    check("tooltip: the heading with your progress", found)
+    check("tooltip: only your characters, not what the card shows", tip.lines[1].left == "XP per Hour"
+        and TipRight("Session") == nil and TipRight("Rate") == nil and TipRight("Played") == nil)
+    check("tooltip: fastest first, You in its place, the rest skipped", Names(lines) == "Alpha,You,Charlie,Bravo")
+    local alpha, you, charlie, bravo = lines[1], lines[2], lines[3], lines[4]
+    check("their played time at your point, and how far behind you are",
+        alpha.right == "15:21:20" .. St.PLACE_DOT .. s.ns.Color(St.RED_RGB, "12m behind"))
+    check("or ahead", bravo.right == "15:41:20" .. St.PLACE_DOT .. s.ns.Color(St.HAVE_RGB, "8m ahead"))
+    check("one not past this level yet: compared at level 20", charlie.right
+        == "15:21:40 at level 20" .. St.PLACE_DOT .. s.ns.Color(St.HAVE_RGB, "5m ahead"))
+    check("You with your own time", you.right == "15:33:20")
+    t.scripts.OnLeave(t)
+
+    local recorded = {}
+    local add = GameTooltip.AddDoubleLine
+    GameTooltip.AddDoubleLine = function(_, left, right, r, g, b)
+        recorded[left] = { r = r, g = g, b = b }
+        add(_, left, right)
+    end
+    t.scripts.OnEnter(t)
+    check("names in their class color", recorded.Alpha.r == 0.25 and recorded.Alpha.b == 0.92)
+    check("You in the accent", recorded.You.r == T.accent.r and recorded.You.g == T.accent.g)
+    check("a class with no color in the text color", recorded.Bravo.r == T.fg.r)
+    t.scripts.OnLeave(t)
+    GameTooltip.AddDoubleLine = add
+
+    now = now + 60
+    tick()
+    check("the gap grows as you take longer", t.paceText.text == "13m")
+    splits[ALPHA] = nil
+    tick()
+    check("ahead of everyone: the arrow up, in green", t.paceText.text == "5m" and t.paceIcon.t == 0
+        and t.paceIcon.vr == St.HAVE_RGB.r and Is(t.paceText, St.HAVE_RGB))
+
+    local before = textsSet
+    local grown = Garbage(2000, tick)
+    check(("Compare on: no garbage per update (%.3f KB over 2000)"):format(grown), grown < 0.05)
+    check("and no text set while nothing changed", textsSet == before)
+
+    s.S.Set("xpTickerPlayed", false)
+    check("no mark without the Played row", t.paceIcon.shown == false and t.paceText.shown == false)
+    t.scripts.OnEnter(t)
+    check("the tooltip still compares", select(2, TipSection("Your characters at level 20")))
+    t.scripts.OnLeave(t)
+end
+
+do
+    local s = Boot({ levelSplits = { [MAIN] = { levels = {} } } }, { xpTickerPace = true })
+    local t, pf = s.ticker, s.played
+    pf.scripts.OnEvent(pf, "TIME_PLAYED_MSG", 5000, 100)
+    tick()
+    check("under a day: h:mm:ss", t.played.value.text == "1:23:20")
+    now = now + 1
+    tick()
+    check("ticking each second", t.played.value.text == "1:23:21")
+    check("no one to compare with: no mark", t.paceIcon.shown == false)
+    t.scripts.OnEnter(t)
+    local last = tip.lines[#tip.lines]
+    check("and a muted line saying so", last.kind == "line"
+        and last.left == "None of your other characters has reached level 20 yet.")
+    t.scripts.OnLeave(t)
+end
+
+do
+    local splits = { [MAIN] = { levels = {} } }
+    for k = -6, 6 do
+        if k ~= 0 then
+            splits[("Player-4613-%08d"):format(k + 100)] = { name = ("Char%02d"):format(k + 7), class = "MAGE",
+                reached = { [20] = 56000 + k * 60 - 500, [21] = 56000 + k * 60 + 500 } }
+        end
+    end
+    local s = Boot({ levelSplits = splits }, { xpTickerPace = true })
+    local t, pf = s.ticker, s.played
+    pf.scripts.OnEvent(pf, "TIME_PLAYED_MSG", 56000, 1000)
+    t.scripts.OnEnter(t)
+    check("twelve characters: eight lines, the closest around you",
+        Names(TipSection("Your characters at level 20")) == "Char03,Char04,Char05,Char06,You,Char08,Char09,Char10")
+    t.scripts.OnLeave(t)
+    check("the fastest marked: 6m behind Char01", t.paceText.text == "6m" and t.paceIcon.t == 1)
+end
+
+do
+    local s = Boot(nil, { xpTickerPace = true })
+    local studio, T = s.card.studio, s.T
+    local preview = studio.new(Frame())
+    local p = preview.ticker
+    studio.paint(preview, "levelling")
+    check("preview: a sample played time", p.played.on and p.played.value.text == "1d 4h 12m")
+    check("preview: a sample pace mark, ahead", p.paceIcon.shown and p.paceText.text == "12m" and p.paceIcon.t == 0
+        and Is(p.paceText, St.HAVE_RGB))
+    p.scripts.OnEnter(p)
+    check("preview tooltip: sample characters",
+        Names(TipSection("Your characters at level 23 (62%)")) == "You,Thornwick,Maelis,Brakka")
+    p.scripts.OnLeave(p)
+    local playedHit
+    for _, hit in ipairs(preview.hits) do
+        if hit.row == p.played then playedHit = hit end
+    end
+    check("the Played row can be clicked", playedHit and playedHit.shown and playedHit.key == "xpTickerPlayed")
+    playedHit.over = true
+    playedHit.scripts.OnMouseUp(playedHit, "LeftButton")
+    check("clicking it hides it", s.S.Get("xpTickerPlayed") == false)
+    studio.paint(preview, "levelling")
+    check("and the preview drops it, with its mark", not p.played.on and p.paceIcon.shown == false
+        and playedHit.shown == false)
+    p.scripts.OnMouseUp(p, "RightButton")
+    local items = {}
+    local root = {
+        CreateTitle = NOTHING, CreateDivider = NOTHING, CreateRadio = NOTHING, CreateButton = NOTHING,
+        CreateCheckbox = function(_, label, _, set, data) items[label] = { set = set, data = data } end,
+    }
+    menu.gen(p, root)
+    check("the menu has Show Played Time and Compare Characters", items["Show Played Time"]
+        and items["Compare Characters"])
+    items["Show Played Time"].set(items["Show Played Time"].data)
+    items["Compare Characters"].set(items["Compare Characters"].data)
+    studio.paint(preview, "levelling")
+    check("from the menu: Played back, Compare off", p.played.on and p.paceIcon.shown == false
+        and s.S.Get("xpTickerPace") == false)
+    p.scripts.OnEnter(p)
+    check("preview: no tooltip with Compare off", not tip.shown)
+    p.scripts.OnLeave(p)
+    studio.paint(preview, "starting")
+    check("preview starting: played shown too", p.played.value.text == "1d 4h 12m" and Is(p.played.value, T.fg))
+end
+
+do
+    local ALPHA, BRAVO = "Player-4613-0000000A", "Player-4614-0000000B"
+    local splits = {
+        [MAIN] = { current = { level = 20, base = 0 },
+            levels = { [19] = { total = 2000 }, [18] = { total = 1500 }, [17] = { total = 1000 }, [16] = { total = 900 } },
+            reached = { [1] = 0, [18] = 60000, [19] = 61500, [20] = 90000 } },
+        [ALPHA] = { name = "Alpha", class = "MAGE", reached = { [18] = 10000, [19] = 11400 },
+            levels = { [19] = { total = 2500 } } },
+        [BRAVO] = { name = "Bravo", class = "PRIEST", levels = { [19] = { total = 2000 }, [17] = { total = 1200 } } },
+        ["Die-Realm"] = { levels = { [16] = { total = 1 } } },
+    }
+    local s = Boot({ levelSplits = splits })
+    local t, T, h = s.ticker, s.T, s.ticker.history
+    check("history rows, newest first", h[1].label.text == "Level 19" and h[4].label.text == "Level 16")
+    check("Compare off: the level times in the normal color", Is(h[1].value, T.fg) and Is(h[2].value, T.fg)
+        and Is(h[3].value, T.fg) and Is(h[4].value, T.fg))
+    s.S.Set("xpTickerPace", true)
+    check("as fast as the fastest: green", Is(h[1].value, St.HAVE_RGB))
+    check("slower than one (their ding to ding): red", Is(h[2].value, St.RED_RGB))
+    check("faster than their split: green", Is(h[3].value, St.HAVE_RGB))
+    check("no one else has it, the old name entry skipped: normal", Is(h[4].value, T.fg))
+    check("the labels stay muted", Is(h[1].label, T.muted) and Is(h[2].label, T.muted))
+    splits[BRAVO].levels[17].total = 100
+    tick()
+    check("not worked out again every second", Is(h[3].value, St.HAVE_RGB))
+    s.S.Set("xpTickerFontSize", 24)
+    check("but on a setting change", Is(h[3].value, St.RED_RGB))
+    splits[BRAVO].levels[17].total = 1200
+    s.events.scripts.OnEvent(s.events, "PLAYER_LEVEL_UP", 20)
+    check("and on a ding", Is(h[3].value, St.HAVE_RGB))
+
+    check("Show Played at Ding on by default", s.S.Get("xpTickerSplitPlayed") == true
+        and Read("QoL/NaowhForever_QoL.lua"):find("xpTickerSplitPlayed = true", 1, true))
+    check("the played time at each ding, muted", h[1].played.text == "1d 1h 0m" and h[2].played.text == "17:05:00"
+        and h[3].played.text == "16:40:00" and Is(h[1].played, T.muted) and h[1].played.shown)
+    check("-- where it was not known yet", h[4].played.text == "--")
+    check("the second column right-aligned at the card's edge", h[1].played.p1 == "TOPRIGHT" and h[1].played.p4 == -8
+        and h[4].played.p4 == -8 and h[1].played.p5 == h[1].value.p5)
+    local offset = -8 - (8 * 6 + 16)
+    check("the level times lined up left of it, at the widest", h[1].value.p4 == offset and h[2].value.p4 == offset
+        and h[4].value.p4 == offset and h[1].value.p1 == "TOPRIGHT")
+    check("the level in progress lined up with them, no second column", t.current.value.p4 == offset
+        and t.current.played == nil)
+    check("the card wide enough for both", t.w >= 2 * 8 + h[1].label.text:len() * 6 + 16 + 4 * 6 + 16 + 8 * 6)
+    s.S.Set("xpTickerSplitPlayed", false)
+    check("off: the second column hidden, the times back at the edge", h[1].played.shown == false
+        and h[4].played.shown == false and h[1].value.p4 == -8 and t.current.value.p4 == -8)
+    s.S.Set("xpTickerSplitPlayed", true)
+
+    local cardRows = {}
+    for _, r in ipairs(s.card.rows) do
+        if r.key then cardRows[r.key] = r end
+    end
+    local at = cardRows.xpTickerSplitPlayed
+    check("Show Played at Ding on the card, under Level History", at and at.toggle and at.needs == "xpTickerSplits"
+        and at.label == "Show Played at Ding" and #at.help < 100 and not at.help:find("%. %u"))
+    check("Compare's help, still one sentence", #cardRows.xpTickerPace.help < 100
+        and not cardRows.xpTickerPace.help:find("%. %u"))
+
+    local grown = Garbage(2000, tick)
+    check(("history colors and columns: no garbage per update (%.3f KB)"):format(grown), grown < 0.05)
+end
+
+do
+    local s = Boot()
+    local t, pf = s.ticker, s.played
+    pf.scripts.OnEvent(pf, "TIME_PLAYED_MSG", 86398, 100)
+    local wide = t.w
+    now = now + 10
+    pf.scripts.OnEvent(pf, "TIME_PLAYED_MSG", 50, 10)
+    check("a shorter value does not shrink the card", t.played.value.text == "0:50" and t.w == wide)
+    s.S.Set("xpTickerPace", true)
+    local drop = math.floor(12 * 0.1 + 0.5)
+    check("the pace arrow dropped level with the letters, its text back up", t.paceIcon.p5 == -drop
+        and t.paceText.p5 == drop and drop == 1)
+end
+
+do
+    local s = Boot(nil, { xpTickerPace = true })
+    local studio, T = s.card.studio, s.T
+    local preview = studio.new(Frame())
+    local p = preview.ticker
+    studio.paint(preview, "levelling")
+    local h = p.history
+    check("preview: green and red past levels", Is(h[1].value, St.HAVE_RGB) and Is(h[2].value, St.RED_RGB)
+        and Is(h[4].value, St.RED_RGB) and Is(h[5].value, St.HAVE_RGB))
+    check("preview: the played column", h[1].played.text == "1d 3h 58m" and h[5].played.text == "1d 0h 53m"
+        and h[1].played.shown)
+    s.S.Set("xpTickerPace", false)
+    studio.paint(preview, "levelling")
+    check("preview without Compare: no colors", Is(h[1].value, T.fg) and Is(h[2].value, T.fg))
+    s.S.Set("xpTickerSplitPlayed", false)
+    studio.paint(preview, "levelling")
+    check("preview without Show Played at Ding: no column", h[1].played.shown == false)
+    p.scripts.OnMouseUp(p, "RightButton")
+    local items = {}
+    menu.gen(p, { CreateTitle = NOTHING, CreateDivider = NOTHING, CreateRadio = NOTHING, CreateButton = NOTHING,
+        CreateCheckbox = function(_, label, _, set, data) items[label] = { set = set, data = data } end })
+    check("the menu has Show Played at Ding", items["Show Played at Ding"])
+    items["Show Played at Ding"].set(items["Show Played at Ding"].data)
+    check("and turns it back on", s.S.Get("xpTickerSplitPlayed") == true)
+end
+
+do
+    local bar = Read("QoL/NaowhForever_XPBar.lua")
+    check("the XP Bar asks through the shared helper", bar:find('Played.Want("xpBar")', 1, true)
+        and bar:find("Played.Total()", 1, true) and not bar:find("RequestTimePlayed", 1, true)
+        and not bar:find("TIME_PLAYED_MSG", 1, true))
 end
 
 print(("PASS xp ticker: %d checks"):format(checks))

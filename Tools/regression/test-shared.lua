@@ -207,6 +207,15 @@ local redraw = view.Redraw
 view.Redraw = function(self) drawn = drawn + 1; redraw(self) end
 timers[1](); timers[1] = nil
 check("and drawn once", drawn == 1)
+view.waitOn = 4
+redraw(view)
+view:OnEvent("GET_ITEM_INFO_RECEIVED", 4, false)
+check("an item the server will not send: no redraw for it", #timers == 0)
+check("nor waited on any more", view.waitingFor[4] == nil)
+check("and remembered for the session, alone", Items.Refused(4) and not Items.Refused(3))
+view:OnEvent("GET_ITEM_INFO_RECEIVED", 4, false)
+check("told again: still nothing to do", #timers == 0)
+view.waitOn = nil
 view:Hide()
 view.scripts.OnHide(view)
 check("hidden: listening to nothing", next(view.events) == nil)

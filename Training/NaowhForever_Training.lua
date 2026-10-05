@@ -420,6 +420,7 @@ local function BuildName(text, default)
     local name = type(text) == "string" and text:gsub("[|\r\n]", ""):sub(1, 40) or ""
     return name ~= "" and name or default
 end
+Training.BuildName = BuildName
 
 function Training.ExportBuild(classID, build)
     local LS, LD = Codec()

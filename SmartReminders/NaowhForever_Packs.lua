@@ -429,25 +429,41 @@ function ns.DescribeProfilePack(str, opts)
     return table.concat(lines, "|n"), info
 end
 
+-- ImportPackAsProfile maps the current spec to the profile it lands. Callers that then set the
+-- account profile put this entry back, so per-spec switching turned on again keeps the
+-- player's own choice.
+local function CurrentSpecEntry()
+    local spec = ns.CurrentSpec and ns.CurrentSpec()
+    if not spec or spec <= 0 then return nil end
+    return tostring(spec), ns.SpecProfileMap()[tostring(spec)]
+end
+
 -- opts, all optional:
 --   accountProfile  point every character at this profile (must be one the pack carries).
 --                   Turns per-spec switching off, so bindSpecs bindings land dormant.
 --   bindSpecs       bind each landed profile to its specs and switch matching on. Default true.
 --   settings        take the curator's display, sound and behaviour settings. Default true.
--- Returns true and the number of profiles landed, or false and a reason. Never throws.
+--   profileName     land a single-profile pack under this name, replacing a profile already
+--                   there, so a rerun refreshes it instead of adding "Naowh 2".
+-- Returns true and the number of profiles landed (the profile's name for a single-profile
+-- pack), or false and a reason. Never throws.
 function ns.InstallProfilePack(str, opts)
     opts = type(opts) == "table" and opts or {}
     local payload, err = ns.DecodePack(str)
     if not payload then return false, err or "the string could not be read" end
 
     local settings = opts.settings ~= false
+    local multi = type(payload.profiles) == "table"
+    local specKey, specWas = CurrentSpecEntry()
     local ok, landed
-    if type(payload.profiles) == "table" then
+    if multi then
         local bind = opts.bindSpecs ~= false
         ok, landed = ns.ApplyProfiles(payload, nil, settings, bind)
         if ok and bind then ns.AutoSpecProfile(true) end
     else
-        ok, landed = ns.ImportPackAsProfile(payload, nil, settings)
+        local name = type(opts.profileName) == "string" and opts.profileName or nil
+        ok, landed = ns.ImportPackAsProfile(payload, nil, settings, name,
+            name ~= nil and name:match("%S") ~= nil)
     end
     if not ok then return false, "the pack could not be applied" end
 
@@ -457,9 +473,36 @@ function ns.InstallProfilePack(str, opts)
             return false, ("imported, but %s is not a profile in this pack (%s)"):format(
                 tostring(opts.accountProfile), tostring(why))
         end
+        if specKey and not multi then ns.SpecProfileMap()[specKey] = specWas end
     end
 
     if ns.ApplySpecProfile and ns.CurrentSpec then ns.ApplySpecProfile((ns.CurrentSpec())) end
+    return true, landed
+end
+
+-- Public entry point for the NaowhUI installer, so it never calls into ns:
+--   NaowhForever_API:ImportProfile(str, "Naowh")
+-- A single-profile pack lands as profileName and becomes the account profile for every
+-- character. A whole-file pack keeps its own names and binds them to specs instead.
+local API = {}
+_G.NaowhForever_API = API
+
+function API:ImportProfile(str, profileName)
+    local specKey, specWas = CurrentSpecEntry()
+    local ok, landed = ns.InstallProfilePack(str, { profileName = profileName })
+    -- The installer ignores the return values, so failures are reported here.
+    if not ok then
+        ns.Print("Naowh Forever import failed: " .. tostring(landed))
+        return false, landed
+    end
+    if type(landed) == "string" then
+        local set, autoOff = ns.SetAccountProfile(landed)
+        if set and specKey then ns.SpecProfileMap()[specKey] = specWas end
+        if set and autoOff then
+            ns.Print(("Per-spec profile switching is off while every character shares '%s'; "
+                .. "your spec choices are kept if you switch it back on."):format(landed))
+        end
+    end
     return true, landed
 end
 

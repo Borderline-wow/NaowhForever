@@ -27,8 +27,8 @@ local TITLE_SIZE, LABEL_SIZE, SMALL_SIZE = 13, 12, 11
 local PAGE = "BiS List/Settings"
 local DOT = "  \194\183  "
 -- Worth a percent or a weapon point: too big for the points' bars.
-local BIG = { hit = true, crit = true, haste = true, scrit = true, dodge = true, block = true, threat = true,
-    dps = true, dmg = true }
+local BIG = { hit = true, shit = true, crit = true, haste = true, scrit = true, dodge = true, block = true,
+    threat = true, dps = true, dmg = true }
 local GROUP_TITLES = { "PER POINT", "PER 1% OR WEAPON DPS" }
 local UPGRADE_RGB = { r = 0.12, g = 1, b = 0 }
 

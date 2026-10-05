@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  Items.lua -- item and gear helpers every module can use (ns.Shared.Items): an item's ID
 --  from whatever names it, its name and quality colour, what you keep, the slots it goes in,
---  and a call once its data has loaded. Functions only, no frames.
+--  a call once its data has loaded, and the items the server would not send this session.
+--  Functions only, no frames.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local Items = ns.Shared.Items
@@ -21,6 +22,16 @@ function Items.IDFrom(value)
     if type(value) == "number" then return value end
     local text = tostring(value)
     return tonumber(text:match("item[:=](%d+)") or text:match("^%s*(%d+)%s*$"))
+end
+
+local refused = {}
+
+function Items.Refuse(itemID)
+    refused[itemID] = true
+end
+
+function Items.Refused(itemID)
+    return refused[itemID] == true
 end
 
 -- Its name, or "item 12345" while the client has not loaded it.

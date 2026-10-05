@@ -248,7 +248,8 @@ local NOTE_MIN = 40   -- narrower than this, the note is left out rather than cu
 -- (Wowhead lists only the world drops any mob of its level gives, which the Journal leaves out).
 function J.View.Parts.BossEmptyText(shown, boss)
     if shown > 0 then return "" end
-    return boss.loot and "Nothing for your class" or "No boss loot known yet"
+    if boss.loot then return "Nothing for your class" end
+    return boss.notInGame and "Loot arrives when Forever opens this dungeon" or "No boss loot known yet"
 end
 
 -- Its place in the kill order in a small badge (none for a rare, which says RARE instead),

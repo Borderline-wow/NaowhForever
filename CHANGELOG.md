@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.5.21-beta
+
 ### Added
 - Profiles: Export Profile and Import Profile share your whole setup as one string: every
   module's settings and positions, your macros, Smart Reminders, your BiS lists and the look
@@ -9,11 +11,35 @@
   lands it as a new profile; your own profiles and BiS lists are never overwritten. They replace
   the Smart Reminders-only Share and Import buttons, and a Smart Reminders pack string pasted
   into Import still opens in the pack import.
+- XP per Hour shows your total played time on the character, and each past level shows your played
+  time when you reached it (Show Played at Ding).
+- Compare Characters (off by default) on XP per Hour marks whether you're ahead of or behind your
+  other characters at the same point, colors past levels green or red against them, and lists them
+  in the tooltip.
 
 ### Changed
 - Profiles: Match My Spec and Merge a Profile In are gone. Forever gives each class one spec, so
   picking a profile already is what Match My Spec did, and Merge was for Smart Reminders packs,
   which come back with that module.
+- Naowh Score grades against Both by default: the best in the game and, in gold, the best for your
+  level, now also on the character panel's score bar.
+- XP per Hour and the XP Bar share one muted /played request.
+- XP per Hour's tooltip only lists your characters (with Compare Characters on); the card already
+  shows the rest.
+- Character panel: the Naowh Score bar shows your level's goal as a gold tick only; hover it for the
+  number.
+- Stat Weights: every spec now has its own default weights for level 60, built for Forever's
+  talents. Weights you changed yourself are kept.
+
+### Fixed
+- Bag Space: items marked as scrap no longer jump to the front; it shows the cheapest first, as
+  before.
+- Naowh's Forge: the macro editor shows one cursor, not two.
+- Stat Weights now read hit, crit, haste, dodge and block on gear as the percent they give, and
+  casters now value the hit and crit on their gear.
+- Dungeon Journal: bosses no longer list Classic items that are not in Forever yet, which showed as
+  "Item 10800" with a tooltip stuck on Retrieving item information; their cards say the loot arrives
+  when Forever opens the dungeon.
 
 ## 0.5.20-beta
 

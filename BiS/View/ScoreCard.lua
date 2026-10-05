@@ -200,7 +200,7 @@ function B.View.PaintScoreCard(card, list, look)
     for i, cell in ipairs(grid.cells) do
         local key = shown[i]
         cell.name:SetText(key and StatName(key) or "")
-        cell.value:SetText(key and Amount(gains.stats[key]) or "")
+        cell.value:SetText(key and Amount(ns.StatWeights.KeyAmount(key, gains.stats[key])) or "")
     end
     for line, band in ipairs(grid.bands) do
         band:SetShown(line % 2 == 1 and shown[(line - 1) * grid.columns + 1] ~= nil)

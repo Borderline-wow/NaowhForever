@@ -351,14 +351,15 @@ do
         t.Row() .. " " .. tostring(t.border.white == true), "Small Egg, Chipped Boar Tusk false")
 end
 
--- Scrap Marker's scrap goes first, even above the quality limit, and the counter shows the
--- slots it frees at the next vendor; with Scrap Marker off, nothing changes.
+-- Scrap Marker's scrap keeps the cheapest-first order and the quality limit; only the counter
+-- shows the slots it frees at the next vendor. With Scrap Marker off, there's no +N.
 do
     local scrap = { on = true, ids = { [3] = true, [8] = true } }
     scrap.On = function() return scrap.on end
     scrap.IsScrap = function(id) return scrap.on and scrap.ids[id] == true end
     local t = Fixture({ scrap = scrap, bags = { [0] = Bag(16, { { 3, 2 }, { 1, 3 }, { 4, 2 }, { 8, 1 } }) } })
-    Check("scrap first", t.Row(), "Light Feather, Blue Ring, Small Egg, Chipped Boar Tusk")
+    Check("scrap is not moved first or let past the quality limit", t.Row(),
+        "Small Egg, Chipped Boar Tusk, Light Feather")
     Check("header: free out of total", t.FreeText(), "12/16")
     Check("header: slots scrap frees", t.ScrapText(), "+2")
     scrap.on = false

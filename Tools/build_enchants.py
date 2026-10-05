@@ -36,8 +36,8 @@ ITEM_MOD = {3: "agi", 4: "str", 5: "int", 6: "spi", 7: "sta", 12: "def", 41: "he
 STAT_AURA = {0: "str", 1: "agi", 2: "sta", 3: "int", 4: "spi"}
 SCHOOL = {126: "spell", 2: "holy", 4: "fire", 8: "nature", 16: "frost", 32: "shadow", 64: "arcane"}
 # Equip-spell auras (SpellEffect.EffectAura) -> our stat, read with their points
-AURA = {85: "mp5", 52: "crit", 57: "scrit", 54: "hit", 99: "ap", 124: "rap", 135: "heal", 49: "dodge",
-        51: "block", 65: "haste"}
+AURA = {85: "mp5", 52: "crit", 57: "scrit", 54: "hit", 55: "shit", 99: "ap", 124: "rap", 135: "heal",
+        49: "dodge", 51: "block", 65: "haste"}
 
 # Enchant ID -> what its proc is worth on average, from its buff and a typical uptime: Crusader
 # is +100 Strength for 15 sec about once a minute, Grand Crusader +120 for 20 sec.
@@ -52,7 +52,7 @@ NAMES = {"str": "Strength", "agi": "Agility", "sta": "Stamina", "int": "Intellec
          "def": "Defense", "heal": "Healing", "spell": "Spell Damage", "holy": "Holy Damage",
          "fire": "Fire Damage", "nature": "Nature Damage", "frost": "Frost Damage",
          "shadow": "Shadow Damage", "arcane": "Arcane Damage", "mp5": "Mana every 5 sec",
-         "crit": "% Crit", "scrit": "% Spell Crit", "hit": "% Hit", "ap": "Attack Power",
+         "crit": "% Crit", "scrit": "% Spell Crit", "hit": "% Hit", "shit": "% Spell Hit", "ap": "Attack Power",
          "rap": "Ranged Attack Power", "dodge": "% Dodge", "block": "% Block", "haste": "% Haste",
          "armor": "Armor", "dmg": "Weapon Damage", "threat": "% Threat"}
 ORDER = list(NAMES)
