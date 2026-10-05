@@ -13,7 +13,7 @@ max_line_length = false
 -- key bindings, map pin mixins, popups, the Global Font setting's font paths, and the table
 -- RestedXP imports its themes from.
 globals = {
-    "NaowhForever", "NaowhForeverDB", "NaowhUI_SmartRemindersDB",
+    "NaowhForever", "NaowhForever_API", "NaowhForeverDB", "NaowhUI_SmartRemindersDB",
     "NaowhForever_OnCompartmentClick", "NaowhForever_BagSpacePickUp", "NaowhForever_BossLoot", "NaowhForever_ToggleJournal", "NaowhForever_ToggleBis",
     "SLASH_NAOWHFOREVER1", "SLASH_NAOWHFOREVER2", "SLASH_NAOWHFOREVER3",
     "SLASH_NAOWHFOREVER4", "SLASH_NAOWHFOREVER5",
