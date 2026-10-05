@@ -284,6 +284,7 @@ local function fixture(settings)
         GetNumGroupMembers = function() return state.party and #state.party + 1 or 0 end,
         C_ClassColor = { GetClassColor = function() return CLASS_COLOR end },
         UnitLevel = function() return state.level end,
+        GetBuildInfo = function() return "1.60.1", "70205" end,
         UnitFactionGroup = function() return "Alliance" end,
         UnitRace = function() return "Human", "Human", 1 end,
         IsInInstance = function() return state.instance ~= nil, state.instance and (state.instance.kind or "party") end,
@@ -508,6 +509,7 @@ local function fixture(settings)
         PVP_RANK_REWARDS_VENDOR_ALLIANCE = "Rank rewards are sold in Stormwind.",
     }
     setmetatable(env, { __index = _G })
+    state.G = env._G
     for _, path in ipairs(files) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
@@ -556,15 +558,16 @@ do
                         check("chance is a percent, 0 when unknown: " .. boss.name, c >= 0 and c <= 100)
                     end
                 end
-                if boss.notInGame then
-                    check("left out by the build: a count, " .. boss.name,
-                        type(boss.notInGame) == "number" and boss.notInGame > 0 and boss.notInGame % 1 == 0)
-                end
                 for _, id in ipairs(boss.loot or {}) do
                     items = items + 1
-                    local facts = J.Items[id]
+                    local facts = J.Items[id] or J.NotYet[id]
                     check("item " .. id .. " has its facts", facts ~= nil)
                     check("item " .. id .. " is uncommon or better", facts[J.FACT.QUALITY] >= 2)
+                    check("item " .. id .. " is in Forever or not yet, not both", not (J.Items[id] and J.NotYet[id]))
+                    if J.NotYet[id] then
+                        check("item " .. id .. " not in Forever yet has its icon and name",
+                            facts[J.FACT.ICON] > 0 and type(facts[J.FACT.NAME]) == "string" and facts[J.FACT.NAME] ~= "")
+                    end
                 end
                 -- A tip is shared in chat whole: "Naowh's tip for <boss>: <tip>" in one message.
                 local tip = J.Tip(boss)
@@ -1079,25 +1082,108 @@ do
         end
     end
     check("an empty boss's card says so in its body", inBody)
-    -- A boss whose loot is all still to come in Forever says that instead.
-    local Parts = ns.Journal.View.Parts
-    check("loot left out by the build: still to come",
-        Parts.BossEmptyText(0, { notInGame = 3 }) == "Loot arrives when Forever opens this dungeon")
+    local DJ = ns.Journal
+    local Parts = DJ.View.Parts
     check("none known: unknown", Parts.BossEmptyText(0, {}) == "No boss loot known yet")
-    check("loot, all filtered: for your class", Parts.BossEmptyText(0, { loot = { 1 }, notInGame = 2 })
-        == "Nothing for your class")
-    check("loot shown: nothing to say", Parts.BossEmptyText(2, { notInGame = 2 }) == "")
-    ns.OpenJournalWindow(ns.Journal.Get("SunkenTemple"))
-    local toCome, unknown = 0, 0
-    for _, frame in ipairs(state.made) do
-        local note = rawget(frame, "note")
-        if note and rawget(note, "shown") ~= false then
-            local text = rawget(note, "text")
-            if text == "Loot arrives when Forever opens this dungeon" then toCome = toCome + 1 end
-            if text == "No boss loot known yet" then unknown = unknown + 1 end
+    check("loot, all filtered: for your class", Parts.BossEmptyText(0, { loot = { 1 } }) == "Nothing for your class")
+    check("loot shown: nothing to say", Parts.BossEmptyText(2, { loot = { 1, 2 } }) == "")
+    local function PageSays(text)
+        for _, frame in ipairs(state.made) do
+            local line = rawget(frame, "text")
+            if type(line) == "table" and rawget(frame, "shown") ~= false and rawget(line, "text") == text then
+                return true
+            end
+        end
+        return false
+    end
+    local function Row(itemID)
+        local found
+        for _, frame in ipairs(state.made) do
+            if rawget(frame, "itemID") == itemID and rawget(frame, "shown") ~= false then found = frame end
+        end
+        return found
+    end
+    local function findBoss(key, name)
+        for _, wing in ipairs(DJ.Get(key).wings) do
+            for _, b in ipairs(wing.bosses) do
+                if b.name == name then return b end
+            end
         end
     end
-    check("Sunken Temple's bosses say their loot is still to come", toCome >= 10 and unknown == 0)
+    local function Has(list, id)
+        for _, v in ipairs(list or {}) do if v == id then return true end end
+        return false
+    end
+    ns.OpenJournalWindow(DJ.Get("Deadmines"))
+    check("an open dungeon: no line saying it is not open", not PageSays(DJ.CLOSED_NOTE))
+    local trashTitle, trashItem
+    for _, frame in ipairs(state.made) do
+        local line = rawget(frame, "text")
+        if type(line) == "table" and rawget(frame, "shown") ~= false and type(rawget(line, "text")) == "string"
+            and rawget(line, "text"):upper():find("^TRASH") then trashTitle = true end
+    end
+    for _, wing in ipairs(DJ.Get("Deadmines").wings) do
+        for _, b in ipairs(wing.bosses) do
+            if b.trash then
+                for _, id in ipairs(b.loot) do
+                    if not trashItem and Row(id) then trashItem = id end
+                end
+            end
+        end
+    end
+    check("the trash in its own section, after the bosses", trashTitle and trashItem ~= nil)
+    local notYet
+    for _, wing in ipairs(DJ.Get("SunkenTemple").wings) do
+        for _, b in ipairs(wing.bosses) do
+            for _, id in ipairs(b.loot or {}) do
+                local facts = DJ.NotYet[id]
+                if not notYet and facts and facts[1] == 4 and facts[2] <= 1 then notYet = id end
+            end
+        end
+    end
+    check("Sunken Temple lists loot not in Forever yet", notYet ~= nil)
+    local notYetName = DJ.NotYet[notYet][DJ.FACT.NAME]
+    state.requested = {}
+    state.bis[notYet] = 1
+    local tipLines, setByID = {}, 0
+    rawset(state.tooltip, "AddLine", function(_, text) tipLines[#tipLines + 1] = text end)
+    rawset(state.tooltip, "SetItemByID", function() setByID = setByID + 1 end)
+    ns.OpenJournalWindow(DJ.Get("SunkenTemple"))
+    check("a dungeon not open says so at the top of its page", DJ.Get("SunkenTemple").closed and PageSays(DJ.CLOSED_NOTE))
+    check("its bosses list their whole loot", Has(findBoss("SunkenTemple", "Atal'alarion").loot, 10800))
+    local row = Row(notYet)
+    check("an item not in Forever yet has its row", row ~= nil)
+    check("named from the Journal's data", rawget(row.name, "text"):find(notYetName, 1, true) ~= nil)
+    check("tagged, muted, on its second line", rawget(row.metaTail, "text"):find(DJ.NOT_YET, 1, true) ~= nil)
+    check("its icon from the Journal's data", DJ.NotYet[notYet][DJ.FACT.ICON] > 0)
+    check("never asked of the server", not Has(state.requested, notYet))
+    local notYetView = row:GetParent()
+    check("nor waited on", notYetView.waitingFor[notYet] == nil)
+    check("not your BiS while not in Forever", DJ.Loot.Rank(notYet) == nil and not DJ.Loot.BisUpgrade(notYet))
+    check("not an upgrade, no look to collect", not DJ.Loot.Upgrade(notYet) and DJ.Loot.Appearance(notYet) == nil)
+    check("found by a search for its name", notYetView:Listed(notYet, notYetName:lower()))
+    row.scripts.OnEnter(row)
+    check("its tooltip is the Journal's own", setByID == 0 and rawget(state.tooltip, "text") == notYetName)
+    check("which says it is not in Forever yet", Has(tipLines, DJ.NOT_YET))
+    check("and offers the menu, not a link it cannot give", Has(tipLines, "Right-click: menu"))
+    state.bis[notYet] = nil
+    local herod = findBoss("ScarletMonasteryArmory", "Herod")
+    check("Herod: Ravager, which Forever sends", Has(herod.loot, 7717) and DJ.Items[7717] ~= nil)
+    check("and his Classic loot, not in Forever yet", Has(herod.loot, 7718) and DJ.IsNotYet(7718))
+    check("each with its chance", herod.chance and #herod.chance == #herod.loot)
+    for _, name in ipairs({ "Saltspine", "Shadetooth", "Relic Guardian" }) do
+        local b = findBoss("ExcavationSite", name)
+        local known = b.loot and #b.loot >= 3 and b.chance and #b.chance == #b.loot
+        for _, c in ipairs(known and b.chance or {}) do known = known and c > 0 end
+        check("Excavation Site: " .. name .. "'s loot, each with its chance", known)
+    end
+    for _, key in ipairs({ "ScarletMonasteryGraveyard", "ScarletMonasteryLibrary", "ScarletMonasteryArmory",
+        "ScarletMonasteryCathedral", "ExcavationSite", "HallOfThanes", "RuinsOfLordaeron", "Deadmines" }) do
+        check("open on Forever: " .. key, not DJ.Get(key).closed)
+    end
+    for _, key in ipairs({ "RazorfenDowns", "Uldaman", "Scholomance", "Dalaran" }) do
+        check("not open on Forever yet: " .. key, DJ.Get(key).closed)
+    end
     -- An item the server will not send: no redraw for it, never waited on again.
     ns.OpenJournalWindow(ns.Journal.Get("Deadmines"))
     local view, refusedID
@@ -1111,16 +1197,20 @@ do
     check("refused: no redraw", #state.timers == queued and view.waitingFor[refusedID] == nil)
     view:Redraw()
     check("drawn again: not waited on", view.waitingFor[refusedID] == nil and next(view.waitingFor) ~= nil)
-    -- A wing's trash: a card of its own, last, with no number and no kill count.
+    -- The trash: under its own section title, in two columns, with no header of its own.
     ns.OpenJournalWindow(ns.Journal.Get("ShadowfangKeep"))
-    local trashRow
+    local trashHeader, items = nil, {}
     for _, frame in ipairs(state.made) do
         local boss = rawget(frame, "boss")
-        if boss and boss.trash and rawget(frame, "badge") then trashRow = frame end
+        if boss and boss.trash and rawget(frame, "shown") ~= false then
+            if rawget(frame, "badge") then
+                trashHeader = frame
+            elseif rawget(frame, "itemID") then
+                items[#items + 1] = frame
+            end
+        end
     end
-    check("Shadowfang Keep lists its trash", trashRow ~= nil)
-    check("the trash has no number", rawget(trashRow.badge, "shown") == false)
-    check("nor a kill count", rawget(trashRow.kills, "shown") == false)
+    check("Shadowfang Keep lists its trash, with no header of its own", #items > 1 and trashHeader == nil)
     -- Right-click: an item's and a boss's Wowhead Forever link, in the copy box.
     local function MenuEntry(text)
         for _, e in ipairs(state.menu or {}) do
@@ -1650,6 +1740,23 @@ do
     overlay.scripts.OnMouseUp(overlay, "RightButton")
     check("in combat it only steps aside", state.mapOpened == nil and rawget(overlay, "shown") == false)
     state.combat = false
+    local bfd = J.Get("BlackfathomDeeps")
+    J.ShowMapOnWorldMap(bfd)
+    local floorText, up
+    for _, font in ipairs(state.fonts) do
+        if rawget(font, "text") == "Floor 1" and rawget(font, "shown") ~= false then floorText = font end
+    end
+    for _, button in ipairs(state.buttons) do
+        if button.label == ">" and floorText and button:GetParent() == floorText:GetParent() then up = button end
+    end
+    check("Blackfathom Deeps opens on its first floor, with a switch", floorText ~= nil and up ~= nil)
+    up.onClick()
+    check("the switch goes to its second floor", floorText.text == "Floor 2")
+    J.ShowMapOnWorldMap(bfd)
+    check("and drawn again for a boss's page, it stays there", floorText.text == "Floor 2")
+    J.ShowMapOnWorldMap(stockade)
+    J.ShowMapOnWorldMap(bfd)
+    check("another dungeon in between: it starts on its first floor again", floorText.text == "Floor 1")
     J.ShowMapOnWorldMap(nil)
     state.account.journalMapPins, state.copied = nil, nil
     J.Maps.RagefireChasm.pins[11519] = bazzalan
@@ -2869,6 +2976,56 @@ do
         end
     end
     check("no addon code opens the chat box (" .. table.concat(opens, ", ") .. ")", #opens == 0)
+end
+
+do
+    local ns, state = fixture({ enabled = true })
+    ns.Apply()
+    local J = ns.Journal
+    local function Listening()
+        for _, frame in ipairs(state.made) do
+            if frame.events.ITEM_DATA_LOAD_RESULT then return frame end
+        end
+    end
+    check("the probe listens to nothing until it is run", Listening() == nil)
+    state.G.NaowhForeverDB = {}
+    local named = next(J.Items)
+    state.names[named] = "Loaded"
+    state.requested, state.timers = {}, {}
+    ns.JournalItemProbe()
+    local probe = Listening()
+    check("run, it listens for the answers", probe ~= nil)
+    local silent = state.requested[#state.requested]
+    local seen, rounds = {}, 0
+    while not state.G.NaowhForeverDB.journalProbe and rounds < 200 do
+        rounds = rounds + 1
+        local asked = state.requested
+        state.requested = {}
+        if #asked == 0 then
+            local fire = table.remove(state.timers)
+            check("a batch with no answer is timed out", fire ~= nil)
+            fire()
+        end
+        for _, id in ipairs(asked) do
+            seen[id] = true
+            if id ~= silent then probe.scripts.OnEvent(probe, "ITEM_DATA_LOAD_RESULT", id, not J.NotYet[id]) end
+        end
+    end
+    local saved = state.G.NaowhForeverDB.journalProbe
+    check("the answers are kept, with the build", saved ~= nil and saved.build == 70205)
+    local loads, refused = {}, {}
+    for _, id in ipairs(saved.loads) do loads[id] = true end
+    for _, id in ipairs(saved.refused) do refused[id] = true end
+    check("an item with a name already loads, unasked", loads[named] and not seen[named])
+    check("one the server would not send is refused", refused[next(J.NotYet)] == true)
+    check("one with no answer in time counts by its name", refused[silent] == true)
+    local all, kept = 0, 0
+    for _ in pairs(J.Items) do all = all + 1 end
+    for id in pairs(J.NotYet) do if not J.Items[id] then all = all + 1 end end
+    for _ in pairs(loads) do kept = kept + 1 end
+    for _ in pairs(refused) do kept = kept + 1 end
+    check("every item the Journal lists is answered", kept == all)
+    check("done, it listens to nothing", next(probe.events) == nil)
 end
 
 print(("test-dungeon-journal: %d checks passed"):format(checks))

@@ -6,7 +6,8 @@
 --  hanger for a look you do not have; and the drop chance on the right, over its bar, or a
 --  faction reward's price. What you wear has a green bar at the card's edge, as the BiS
 --  List's rows; one new in WoW Forever has Forever's badge on its icon. Its tooltip is
---  the game's with a line for each mark, and right-click is the BiS List.
+--  the game's with a line for each mark, and right-click is the BiS List. One not in Forever
+--  yet is drawn from the Journal's own facts, never asked of the server, and says so.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local Tip = ns.Shared.Parts.Tip
@@ -81,8 +82,11 @@ end
 local NEW_LOOK_ICON = Inline(HANGER, LOOK_RGB)
 local NEW_LOOK_TAG = "   " .. Inline(HANGER, LOOK_RGB, CARD_DROP)
 
+local NOT_YET_TAG = "   " .. J.NOT_YET
+
 -- What a click on an item does, at the foot of its tooltip.
 local CLICK_HINT = "Right-click: menu" .. PLACE_DOT .. "Shift-click: link"
+local MENU_HINT = "Right-click: menu"
 
 -- What each mark means, under the item's tooltip: the icon, without the gap it has after a
 -- name, then the words.
@@ -97,7 +101,7 @@ local NEW_LOOK_LINE = NEW_LOOK_ICON .. " " .. LOOK_CODE .. "A look you do not ha
 local function ItemType(itemID)
     local _, itemType, subType, equipLoc, _, classID = GetItemInfoInstant(itemID)
     local slot = equipLoc and _G[equipLoc] or ""
-    local facts = J.Items[itemID]
+    local facts = J.Facts(itemID)
     if not (facts and subType) then return slot end
     local class = facts[FACT.CLASS]
     if class == WEAPON then
@@ -133,6 +137,17 @@ local function ChanceLine(chance)
     return Inline(BAG, T[key]) .. " " .. ns.Color(key, chance .. "% drop chance") .. ns.Color("muted", PLACE_DOT .. often)
 end
 
+local function NotYetTip(itemID, facts)
+    local r, g, b = GetItemQualityColor(facts[FACT.QUALITY])
+    local muted = T.muted
+    GameTooltip:SetText(facts[FACT.NAME], r, g, b)
+    local kind = ItemType(itemID)
+    if kind ~= "" then GameTooltip:AddLine(kind, 1, 1, 1) end
+    GameTooltip:AddLine("Item Level " .. facts[FACT.ITEM_LEVEL], 1, 1, 1)
+    if facts[FACT.REQUIRED] > 0 then GameTooltip:AddLine("Requires Level " .. facts[FACT.REQUIRED], 1, 1, 1) end
+    GameTooltip:AddLine(J.NOT_YET, muted.r, muted.g, muted.b)
+end
+
 -- Under the game's own lines: the drop chance as a label and its value, as the game sets
 -- out "Legs ... Leather"; the item's marks, each saying what it means; and last, muted, what
 -- a click does.
@@ -140,7 +155,8 @@ local function ItemEnter(row)
     row.hover:Show()
     local muted = T.muted
     if not Tip(row, "ANCHOR_CURSOR_RIGHT", 16, 0) then return end
-    GameTooltip:SetItemByID(row.itemID)
+    local notYet = J.NotYet[row.itemID]
+    if notYet then NotYetTip(row.itemID, notYet) else GameTooltip:SetItemByID(row.itemID) end
     if row.forever then GameTooltip:AddLine(ForeverLine()) end
     -- A reward your standing has not reached: which it needs, and how much reputation to go.
     if row.needs then
@@ -164,7 +180,7 @@ local function ItemEnter(row)
     -- Stat Weights, when on, says how much on every tooltip: the bare word would be twice.
     if row.upgrade and not (ns.StatWeights and ns.StatWeights.On()) then GameTooltip:AddLine(UPGRADE_LINE) end
     if row.newLook then GameTooltip:AddLine(NEW_LOOK_LINE) end
-    GameTooltip:AddLine(CLICK_HINT, muted.r, muted.g, muted.b)
+    GameTooltip:AddLine(notYet and MENU_HINT or CLICK_HINT, muted.r, muted.g, muted.b)
     GameTooltip:Show()
 end
 
@@ -181,6 +197,7 @@ local function ItemClick(row, button)
         View.ItemMenu(row, row.itemID, row:GetParent().redrawFn)
         return
     end
+    if J.IsNotYet(row.itemID) then return end
     local _, link = GetItemInfo(row.itemID)
     if link then HandleModifiedItemClick(link) end
 end
@@ -394,14 +411,19 @@ Kinds.item = {
         row.needs, row.toGo, row.exact = nil, nil, nil   -- a faction's card sets them after
         row.hover:Hide()
         row.stripe:SetShown(view.striped)
-        row.icon:SetTexture(GetItemIconByID(itemID))
-        local refused = Refused(itemID)
+        local notYet = J.NotYet[itemID]
+        row.icon:SetTexture(notYet and notYet[FACT.ICON] or GetItemIconByID(itemID))
+        local refused = notYet ~= nil or Refused(itemID)
         local name, _, quality
-        if not refused then name, _, quality = GetItemInfo(itemID) end
+        if notYet then
+            name = notYet[FACT.NAME]
+        elseif not refused then
+            name, _, quality = GetItemInfo(itemID)
+        end
         -- Not loaded yet: GetItemInfo has asked the server, and the view draws again when
         -- GET_ITEM_INFO_RECEIVED names this item.
         if not (name or refused) then view.waitingFor[itemID] = true end
-        local facts = J.Items[itemID]
+        local facts = J.Facts(itemID)
         quality = quality or (facts and facts[FACT.QUALITY]) or 1
         local _, _, _, hex = GetItemQualityColor(quality)
         -- Bare (a boss's history): what the item is, and nothing about you.
@@ -420,7 +442,7 @@ Kinds.item = {
             .. "|r") or ""
         local kind = ItemType(itemID)
         row.metaTail:SetText(((kind ~= "" and level ~= "") and PLACE_DOT or "") .. level
-            .. (known and KNOWN_TAG or not (worn or bare) and Kept(itemID) or "")
+            .. (notYet and NOT_YET_TAG or known and KNOWN_TAG or not (worn or bare) and Kept(itemID) or "")
             .. (look == false and NEW_LOOK_TAG or ""))
         -- What it is gets what the rest of the line leaves.
         row.meta:SetWidth(0)   -- unbounded, so it measures the whole text

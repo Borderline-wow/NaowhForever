@@ -124,16 +124,18 @@ local function Drops()
     local J = ns.Journal
     if not (J and J.Dungeons) then return EMPTY end
     drops, dropIDs = {}, {}
-    local best = {}
+    local best, notYet = {}, J.NotYet or EMPTY
     for _, dungeon in ipairs(J.Dungeons()) do
         for _, wing in ipairs(dungeon.wings) do
             for _, boss in ipairs(wing.bosses) do
                 local who = (boss.trash and TRASH or boss.name) .. SOURCE_SEP .. dungeon.name
                 for i, id in ipairs(boss.loot or EMPTY) do
                     local chance = boss.trash and -1 or boss.chance and boss.chance[i] or 0
-                    if not drops[id] then dropIDs[#dropIDs + 1] = id end
-                    if not drops[id] or chance > best[id] then
-                        drops[id], best[id], dropDungeon[id] = who, chance, dungeon
+                    if not notYet[id] then
+                        if not drops[id] then dropIDs[#dropIDs + 1] = id end
+                        if not drops[id] or chance > best[id] then
+                            drops[id], best[id], dropDungeon[id] = who, chance, dungeon
+                        end
                     end
                 end
             end

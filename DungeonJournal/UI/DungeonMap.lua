@@ -1102,10 +1102,13 @@ function J.ShowMapOnWorldMap(dungeon)
         return
     end
     if not overlay then BuildOverlay() end
-    -- Drawn again on the same dungeon (a setting, the panel placed again): its boss stays picked.
-    local keep = overlay:IsShown() and overlayView.dungeon == dungeon and overlayView.picked or nil
+    -- Drawn again on the same dungeon (a setting, the panel placed again, a pin's boss page):
+    -- its boss stays picked and its floor stays.
+    local same = overlay:IsShown() and overlayView.dungeon == dungeon
+    local keep, floor = same and overlayView.picked or nil, same and overlayView.floor or nil
     overlayView:Open(dungeon)
     overlayView.picked = keep
+    if floor and overlayView:FloorAt(floor) then overlayView.floor = floor end
     overlay.hint:SetText(dungeon.entrance and dungeon.zone and ("Right-click: " .. dungeon.zone) or "")
     overlay:Show()
     overlay.mapID = WorldMapFrame:GetMapID()   -- the map it covers; another one, and it steps aside

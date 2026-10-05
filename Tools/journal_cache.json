@@ -2052,9 +2052,9 @@
   "items": [
    {
     "class": 2,
-    "count": 6,
+    "count": 39,
     "id": 272996,
-    "kills": 4227,
+    "kills": 4323,
     "level": 18,
     "name": "Trogg Scepter",
     "new": true,
@@ -2065,9 +2065,9 @@
    },
    {
     "class": 2,
-    "count": 3,
+    "count": 32,
     "id": 272998,
-    "kills": 4227,
+    "kills": 4323,
     "level": 18,
     "name": "Bone Knuckles",
     "new": true,
@@ -2078,9 +2078,9 @@
    },
    {
     "class": 2,
-    "count": 6,
+    "count": 37,
     "id": 272999,
-    "kills": 4227,
+    "kills": 4323,
     "level": 18,
     "name": "Barbaric Crossbow",
     "new": true,
@@ -2096,9 +2096,9 @@
   "items": [
    {
     "class": 4,
-    "count": 4961,
+    "count": 4989,
     "id": 14147,
-    "kills": 14708,
+    "kills": 14791,
     "level": 18,
     "name": "Cavedweller Bracers",
     "new": false,
@@ -2109,9 +2109,9 @@
    },
    {
     "class": 4,
-    "count": 5408,
+    "count": 5440,
     "id": 14150,
-    "kills": 14708,
+    "kills": 14791,
     "level": 18,
     "name": "Robe of Evocation",
     "new": false,
@@ -2122,9 +2122,9 @@
    },
    {
     "class": 2,
-    "count": 2375,
+    "count": 2395,
     "id": 14151,
-    "kills": 14708,
+    "kills": 14791,
     "level": 18,
     "name": "Chanting Blade",
     "new": false,
@@ -2140,9 +2140,9 @@
   "items": [
    {
     "class": 2,
-    "count": 7,
+    "count": 44,
     "id": 273003,
-    "kills": 5219,
+    "kills": 5333,
     "level": 18,
     "name": "Searing Dagger",
     "new": true,
@@ -2153,9 +2153,9 @@
    },
    {
     "class": 4,
-    "count": 8,
+    "count": 50,
     "id": 273005,
-    "kills": 5219,
+    "kills": 5333,
     "level": 18,
     "name": "Satyrskin Cloak",
     "new": true,
@@ -2166,9 +2166,9 @@
    },
    {
     "class": 4,
-    "count": 9,
+    "count": 42,
     "id": 273007,
-    "kills": 5219,
+    "kills": 5333,
     "level": 18,
     "name": "Chasm Walkers",
     "new": true,
@@ -2184,9 +2184,9 @@
   "items": [
    {
     "class": 2,
-    "count": 2881,
+    "count": 2921,
     "id": 14145,
-    "kills": 17764,
+    "kills": 17903,
     "level": 18,
     "name": "Cursed Felblade",
     "new": false,
@@ -2197,9 +2197,9 @@
    },
    {
     "class": 4,
-    "count": 5424,
+    "count": 5455,
     "id": 14148,
-    "kills": 17764,
+    "kills": 17903,
     "level": 18,
     "name": "Crystalline Cuffs",
     "new": false,
@@ -2210,9 +2210,9 @@
    },
    {
     "class": 4,
-    "count": 5740,
+    "count": 5780,
     "id": 14149,
-    "kills": 17764,
+    "kills": 17903,
     "level": 18,
     "name": "Subterranean Cape",
     "new": false,
@@ -2434,7 +2434,7 @@
     "class": 2,
     "count": 2,
     "id": 2271,
-    "kills": 2732,
+    "kills": 2789,
     "level": 25,
     "name": "Staff of the Blessed Seer",
     "new": false,
@@ -2449,10 +2449,36 @@
  "drops5:12902": {
   "items": [
    {
+    "class": 4,
+    "count": 1,
+    "id": 252455,
+    "kills": 1231,
+    "level": 30,
+    "name": "Defender's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252513,
+    "kills": 1231,
+    "level": 30,
+    "name": "Trapper's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
     "class": 2,
-    "count": 5,
+    "count": 83,
     "id": 273841,
-    "kills": 1030,
+    "kills": 1231,
     "level": 28,
     "name": "Twilight Maul",
     "new": true,
@@ -2463,9 +2489,9 @@
    },
    {
     "class": 4,
-    "count": 5,
+    "count": 63,
     "id": 273842,
-    "kills": 1030,
+    "kills": 1231,
     "level": 28,
     "name": "Treacherous Treads",
     "new": true,
@@ -2476,9 +2502,9 @@
    },
    {
     "class": 2,
-    "count": 2,
+    "count": 63,
     "id": 273843,
-    "kills": 1030,
+    "kills": 1231,
     "level": 28,
     "name": "Fallenroot Longbow",
     "new": true,
@@ -2670,10 +2696,49 @@
  "drops5:1663": {
   "items": [
    {
-    "class": 2,
+    "class": 4,
     "count": 1,
+    "id": 252456,
+    "kills": 9751,
+    "level": 30,
+    "name": "Totemic Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252512,
+    "kills": 9751,
+    "level": 30,
+    "name": "Brawler's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 2,
+    "id": 252515,
+    "kills": 9751,
+    "level": 30,
+    "name": "Wisdom's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 2,
+    "count": 53,
     "id": 273817,
-    "kills": 9572,
+    "kills": 9751,
     "level": 28,
     "name": "Graverobber's Shovel",
     "new": true,
@@ -2684,9 +2749,9 @@
    },
    {
     "class": 2,
-    "count": 5,
+    "count": 70,
     "id": 273819,
-    "kills": 9572,
+    "kills": 9751,
     "level": 28,
     "name": "Boneslicer",
     "new": true,
@@ -2697,9 +2762,9 @@
    },
    {
     "class": 4,
-    "count": 1,
+    "count": 35,
     "id": 273820,
-    "kills": 9572,
+    "kills": 9751,
     "level": 28,
     "name": "Nightskulker Ring",
     "new": true,
@@ -2715,9 +2780,9 @@
   "items": [
    {
     "class": 2,
-    "count": 71,
+    "count": 105,
     "id": 2280,
-    "kills": 7434,
+    "kills": 7568,
     "level": 29,
     "name": "Kam's Walking Stick",
     "new": false,
@@ -2728,9 +2793,35 @@
    },
    {
     "class": 4,
-    "count": 2,
+    "count": 1,
+    "id": 252455,
+    "kills": 7568,
+    "level": 30,
+    "name": "Defender's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252515,
+    "kills": 7568,
+    "level": 30,
+    "name": "Wisdom's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 56,
     "id": 273807,
-    "kills": 7434,
+    "kills": 7568,
     "level": 29,
     "name": "Demolition Girdle",
     "new": true,
@@ -2741,9 +2832,9 @@
    },
    {
     "class": 4,
-    "count": 1,
+    "count": 34,
     "id": 273808,
-    "kills": 7434,
+    "kills": 7568,
     "level": 29,
     "name": "Bridgebreaker Bindings",
     "new": true,
@@ -2772,9 +2863,9 @@
    },
    {
     "class": 4,
-    "count": 3,
+    "count": 53,
     "id": 273804,
-    "kills": 11780,
+    "kills": 12004,
     "level": 26,
     "name": "Executioner Mantle",
     "new": true,
@@ -2785,9 +2876,9 @@
    },
    {
     "class": 4,
-    "count": 3,
+    "count": 74,
     "id": 273805,
-    "kills": 11780,
+    "kills": 12004,
     "level": 26,
     "name": "Blackrock Harness",
     "new": true,
@@ -2798,9 +2889,9 @@
    },
    {
     "class": 4,
-    "count": 5,
+    "count": 81,
     "id": 273806,
-    "kills": 11780,
+    "kills": 12004,
     "level": 26,
     "name": "Dark Horde Band",
     "new": true,
@@ -2816,9 +2907,9 @@
   "items": [
    {
     "class": 4,
-    "count": 3,
+    "count": 36,
     "id": 273824,
-    "kills": 10730,
+    "kills": 10898,
     "level": 31,
     "name": "Defias Jailbreakers",
     "new": true,
@@ -2829,9 +2920,9 @@
    },
    {
     "class": 4,
-    "count": 2,
+    "count": 27,
     "id": 273825,
-    "kills": 10730,
+    "kills": 10898,
     "level": 31,
     "name": "Red Wool Cloak",
     "new": true,
@@ -2842,9 +2933,9 @@
    },
    {
     "class": 2,
-    "count": 2,
+    "count": 43,
     "id": 273827,
-    "kills": 10730,
+    "kills": 10898,
     "level": 31,
     "name": "Debt Collector",
     "new": true,
@@ -2852,6 +2943,19 @@
     "reqlevel": 26,
     "slot": 21,
     "subclass": 7
+   },
+   {
+    "class": 2,
+    "count": 33,
+    "id": 273829,
+    "kills": 10898,
+    "level": 31,
+    "name": "Concealed Hand Crossbow",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 15,
+    "subclass": 18
    }
   ],
   "new": false
@@ -2859,10 +2963,23 @@
  "drops5:1717": {
   "items": [
    {
+    "class": 4,
+    "count": 1,
+    "id": 252513,
+    "kills": 7625,
+    "level": 30,
+    "name": "Trapper's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
     "class": 2,
-    "count": 3,
+    "count": 34,
     "id": 273809,
-    "kills": 7519,
+    "kills": 7625,
     "level": 30,
     "name": "Hamhock's Cleaver",
     "new": true,
@@ -2873,9 +2990,9 @@
    },
    {
     "class": 4,
-    "count": 3,
+    "count": 33,
     "id": 273810,
-    "kills": 7519,
+    "kills": 7625,
     "level": 30,
     "name": "Ogre Grips",
     "new": true,
@@ -2886,9 +3003,9 @@
    },
    {
     "class": 4,
-    "count": 3,
+    "count": 40,
     "id": 273811,
-    "kills": 7519,
+    "kills": 7625,
     "level": 30,
     "name": "Repurposed Rack",
     "new": true,
@@ -2904,9 +3021,9 @@
   "items": [
    {
     "class": 2,
-    "count": 429,
+    "count": 437,
     "id": 2941,
-    "kills": 2224,
+    "kills": 2238,
     "level": 28,
     "name": "Prison Shank",
     "new": false,
@@ -2917,9 +3034,9 @@
    },
    {
     "class": 2,
-    "count": 410,
+    "count": 412,
     "id": 2942,
-    "kills": 2224,
+    "kills": 2238,
     "level": 28,
     "name": "Iron Knuckles",
     "new": false,
@@ -2930,9 +3047,9 @@
    },
    {
     "class": 4,
-    "count": 1226,
+    "count": 1229,
     "id": 3228,
-    "kills": 2224,
+    "kills": 2238,
     "level": 28,
     "name": "Jimmied Handcuffs",
     "new": false,
@@ -2948,9 +3065,9 @@
   "items": [
    {
     "class": 4,
-    "count": 5249,
+    "count": 5287,
     "id": 1156,
-    "kills": 13921,
+    "kills": 14068,
     "level": 22,
     "name": "Lavishly Jeweled Ring",
     "new": false,
@@ -2961,9 +3078,9 @@
    },
    {
     "class": 4,
-    "count": 7810,
+    "count": 7853,
     "id": 5199,
-    "kills": 13921,
+    "kills": 14068,
     "level": 21,
     "name": "Smelting Pants",
     "new": false,
@@ -2974,9 +3091,9 @@
    },
    {
     "class": 2,
-    "count": 16,
+    "count": 80,
     "id": 273297,
-    "kills": 13921,
+    "kills": 14068,
     "level": 23,
     "name": "Goblin Hammer",
     "new": true,
@@ -3130,9 +3247,9 @@
   "items": [
    {
     "class": 4,
-    "count": 10,
+    "count": 48,
     "id": 271201,
-    "kills": 30,
+    "kills": 203,
     "level": 20,
     "name": "Atrophic Girdle",
     "new": true,
@@ -3143,9 +3260,9 @@
    },
    {
     "class": 4,
-    "count": 8,
+    "count": 66,
     "id": 271202,
-    "kills": 30,
+    "kills": 203,
     "level": 20,
     "name": "Witherbite Bracers",
     "new": true,
@@ -3156,9 +3273,9 @@
    },
    {
     "class": 2,
-    "count": 9,
+    "count": 62,
     "id": 271203,
-    "kills": 30,
+    "kills": 203,
     "level": 20,
     "name": "Segmented Spider Leg",
     "new": true,
@@ -3174,9 +3291,9 @@
   "items": [
    {
     "class": 4,
-    "count": 15,
+    "count": 80,
     "id": 271207,
-    "kills": 33,
+    "kills": 204,
     "level": 22,
     "name": "Rotmender's Leggings",
     "new": true,
@@ -3187,9 +3304,9 @@
    },
    {
     "class": 4,
-    "count": 7,
+    "count": 58,
     "id": 271208,
-    "kills": 33,
+    "kills": 204,
     "level": 22,
     "name": "Grip of Fear",
     "new": true,
@@ -3200,9 +3317,9 @@
    },
    {
     "class": 2,
-    "count": 11,
+    "count": 66,
     "id": 271216,
-    "kills": 33,
+    "kills": 204,
     "level": 22,
     "name": "Scepter of the Abandoned",
     "new": true,
@@ -3218,9 +3335,9 @@
   "items": [
    {
     "class": 4,
-    "count": 17,
+    "count": 84,
     "id": 271213,
-    "kills": 39,
+    "kills": 208,
     "level": 24,
     "name": "Mirror of Rath'mael",
     "new": true,
@@ -3231,9 +3348,9 @@
    },
    {
     "class": 4,
-    "count": 13,
+    "count": 73,
     "id": 271214,
-    "kills": 39,
+    "kills": 208,
     "level": 24,
     "name": "Rotmender's Treads",
     "new": true,
@@ -3244,9 +3361,9 @@
    },
    {
     "class": 2,
-    "count": 9,
+    "count": 51,
     "id": 271215,
-    "kills": 39,
+    "kills": 208,
     "level": 24,
     "name": "Coldspire Staff",
     "new": true,
@@ -3262,9 +3379,9 @@
   "items": [
    {
     "class": 2,
-    "count": 10,
+    "count": 68,
     "id": 271204,
-    "kills": 36,
+    "kills": 262,
     "level": 20,
     "name": "Meathook Slicer",
     "new": true,
@@ -3275,9 +3392,9 @@
    },
    {
     "class": 4,
-    "count": 8,
+    "count": 76,
     "id": 271205,
-    "kills": 36,
+    "kills": 262,
     "level": 20,
     "name": "Abomination Bones",
     "new": true,
@@ -3288,9 +3405,9 @@
    },
    {
     "class": 4,
-    "count": 16,
+    "count": 97,
     "id": 271206,
-    "kills": 36,
+    "kills": 262,
     "level": 20,
     "name": "Leftover Abomination Skin",
     "new": true,
@@ -3307,9 +3424,9 @@
   "items": [
    {
     "class": 2,
-    "count": 1,
+    "count": 5,
     "id": 6641,
-    "kills": 1,
+    "kills": 6,
     "level": 27,
     "name": "Haunting Blade",
     "new": false,
@@ -3317,6 +3434,19 @@
     "reqlevel": 22,
     "slot": 17,
     "subclass": 8
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 6642,
+    "kills": 6,
+    "level": 27,
+    "name": "Phantom Armor",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 22,
+    "slot": 5,
+    "subclass": 3
    }
   ],
   "new": true
@@ -3325,9 +3455,9 @@
   "items": [
    {
     "class": 4,
-    "count": 8,
+    "count": 61,
     "id": 271211,
-    "kills": 26,
+    "kills": 181,
     "level": 22,
     "name": "Vilewalkers",
     "new": true,
@@ -3338,9 +3468,9 @@
    },
    {
     "class": 4,
-    "count": 10,
+    "count": 69,
     "id": 271212,
-    "kills": 26,
+    "kills": 181,
     "level": 22,
     "name": "Bloodied Chestwraps",
     "new": true,
@@ -3351,9 +3481,9 @@
    },
    {
     "class": 2,
-    "count": 8,
+    "count": 51,
     "id": 271218,
-    "kills": 26,
+    "kills": 181,
     "level": 22,
     "name": "Vileblood Scimitar",
     "new": true,
@@ -3369,9 +3499,9 @@
   "items": [
    {
     "class": 4,
-    "count": 8,
+    "count": 75,
     "id": 271209,
-    "kills": 26,
+    "kills": 206,
     "level": 21,
     "name": "Bonerust Leggings",
     "new": true,
@@ -3382,9 +3512,9 @@
    },
    {
     "class": 4,
-    "count": 12,
+    "count": 74,
     "id": 271210,
-    "kills": 26,
+    "kills": 206,
     "level": 21,
     "name": "Tuskwrap Belt",
     "new": true,
@@ -3395,9 +3525,9 @@
    },
    {
     "class": 2,
-    "count": 6,
+    "count": 57,
     "id": 271217,
-    "kills": 26,
+    "kills": 206,
     "level": 21,
     "name": "Corpse Chopper",
     "new": true,
@@ -3422,9 +3552,22 @@
   "items": [
    {
     "class": 4,
-    "count": 1,
+    "count": 76,
+    "id": 273022,
+    "kills": 210,
+    "level": 31,
+    "name": "Supple Bellyskin Leggings",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 7,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 62,
     "id": 273023,
-    "kills": 2,
+    "kills": 210,
     "level": 31,
     "name": "Saltscale Girdle",
     "new": false,
@@ -3435,9 +3578,9 @@
    },
    {
     "class": 4,
-    "count": 1,
+    "count": 72,
     "id": 273024,
-    "kills": 2,
+    "kills": 210,
     "level": 31,
     "name": "Glinteye Slippers",
     "new": false,
@@ -3453,9 +3596,9 @@
   "items": [
    {
     "class": 4,
-    "count": 1,
+    "count": 49,
     "id": 273025,
-    "kills": 1,
+    "kills": 164,
     "level": 31,
     "name": "Raptorclaw Greaves",
     "new": true,
@@ -3463,6 +3606,32 @@
     "reqlevel": 26,
     "slot": 8,
     "subclass": 3
+   },
+   {
+    "class": 4,
+    "count": 43,
+    "id": 273026,
+    "kills": 164,
+    "level": 31,
+    "name": "Garb of Florid Feathers",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 5,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 61,
+    "id": 273027,
+    "kills": 164,
+    "level": 31,
+    "name": "Raptor's Gaze",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 23,
+    "subclass": -5
    }
   ],
   "new": true
@@ -3471,9 +3640,35 @@
   "items": [
    {
     "class": 4,
-    "count": 2,
+    "count": 93,
+    "id": 273028,
+    "kills": 272,
+    "level": 33,
+    "name": "Reliquary Mantle",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 28,
+    "slot": 3,
+    "subclass": 3
+   },
+   {
+    "class": 2,
+    "count": 91,
+    "id": 273029,
+    "kills": 272,
+    "level": 33,
+    "name": "Golemsight Long Gun",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 28,
+    "slot": 15,
+    "subclass": 3
+   },
+   {
+    "class": 4,
+    "count": 77,
     "id": 273030,
-    "kills": 2,
+    "kills": 272,
     "level": 33,
     "name": "Ring of Power Regulation",
     "new": false,
@@ -3493,9 +3688,9 @@
   "items": [
    {
     "class": 4,
-    "count": 6,
+    "count": 49,
     "id": 270227,
-    "kills": 22,
+    "kills": 157,
     "level": 18,
     "name": "Ephemeral Choker",
     "new": true,
@@ -3506,9 +3701,9 @@
    },
    {
     "class": 4,
-    "count": 4,
+    "count": 49,
     "id": 271096,
-    "kills": 22,
+    "kills": 157,
     "level": 18,
     "name": "Aetherwisp Bracers",
     "new": true,
@@ -3516,6 +3711,20 @@
     "reqlevel": 13,
     "slot": 9,
     "subclass": 1
+   },
+   {
+    "class": 4,
+    "count": 59,
+    "id": 271097,
+    "kills": 157,
+    "level": 18,
+    "name": "Spiritwraith Drape",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 13,
+    "slot": 16,
+    "subclass": -6,
+    "world": true
    }
   ],
   "new": true
@@ -3524,9 +3733,9 @@
   "items": [
    {
     "class": 2,
-    "count": 5,
+    "count": 47,
     "id": 270228,
-    "kills": 15,
+    "kills": 126,
     "level": 18,
     "name": "Golemheart Stave",
     "new": true,
@@ -3537,9 +3746,9 @@
    },
    {
     "class": 4,
-    "count": 5,
+    "count": 43,
     "id": 270229,
-    "kills": 15,
+    "kills": 126,
     "level": 18,
     "name": "Treads of the Protector Golem",
     "new": true,
@@ -3550,9 +3759,9 @@
    },
    {
     "class": 4,
-    "count": 5,
+    "count": 36,
     "id": 271098,
-    "kills": 15,
+    "kills": 126,
     "level": 18,
     "name": "Golemguard Chest",
     "new": true,
@@ -3568,9 +3777,9 @@
   "items": [
    {
     "class": 4,
-    "count": 2,
+    "count": 34,
     "id": 270230,
-    "kills": 12,
+    "kills": 93,
     "level": 18,
     "name": "Kindlegem Girdle",
     "new": true,
@@ -3581,9 +3790,9 @@
    },
    {
     "class": 4,
-    "count": 4,
+    "count": 29,
     "id": 270231,
-    "kills": 12,
+    "kills": 93,
     "level": 18,
     "name": "Flamefist Grips",
     "new": true,
@@ -3594,9 +3803,9 @@
    },
    {
     "class": 2,
-    "count": 6,
+    "count": 30,
     "id": 271095,
-    "kills": 12,
+    "kills": 93,
     "level": 18,
     "name": "Fang of Magmatus",
     "new": true,
@@ -3612,9 +3821,9 @@
   "items": [
    {
     "class": 2,
-    "count": 6,
+    "count": 37,
     "id": 270256,
-    "kills": 21,
+    "kills": 130,
     "level": 18,
     "name": "Durgen's Crescent Axe",
     "new": true,
@@ -3625,9 +3834,9 @@
    },
    {
     "class": 4,
-    "count": 5,
+    "count": 32,
     "id": 270260,
-    "kills": 21,
+    "kills": 130,
     "level": 18,
     "name": "Direhammer Leggings",
     "new": true,
@@ -3638,9 +3847,9 @@
    },
    {
     "class": 4,
-    "count": 5,
+    "count": 28,
     "id": 270261,
-    "kills": 21,
+    "kills": 130,
     "level": 18,
     "name": "Robes of the Disgraced Thane",
     "new": true,
@@ -3679,9 +3888,9 @@
   "items": [
    {
     "class": 4,
-    "count": 1072,
+    "count": 1079,
     "id": 5443,
-    "kills": 2615,
+    "kills": 2627,
     "level": 22,
     "name": "Gold-plated Buckler",
     "new": false,
@@ -3692,9 +3901,9 @@
    },
    {
     "class": 4,
-    "count": 1445,
+    "count": 1450,
     "id": 5444,
-    "kills": 2615,
+    "kills": 2627,
     "level": 22,
     "name": "Miner's Cape",
     "new": false,
@@ -3710,9 +3919,9 @@
   "items": [
    {
     "class": 4,
-    "count": 4269,
+    "count": 4396,
     "id": 6447,
-    "kills": 6484,
+    "kills": 6828,
     "level": 21,
     "name": "Worn Turtle Shell Shield",
     "new": false,
@@ -3723,9 +3932,9 @@
    },
    {
     "class": 4,
-    "count": 894,
+    "count": 1041,
     "id": 13245,
-    "kills": 6484,
+    "kills": 6828,
     "level": 23,
     "name": "Kresh's Back",
     "new": false,
@@ -3733,6 +3942,19 @@
     "reqlevel": 18,
     "slot": 14,
     "subclass": 6
+   },
+   {
+    "class": 4,
+    "count": 36,
+    "id": 273084,
+    "kills": 6828,
+    "level": 22,
+    "name": "Cloak of Hermitic Bliss",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 17,
+    "slot": 16,
+    "subclass": -6
    }
   ],
   "new": false
@@ -3741,9 +3963,9 @@
   "items": [
    {
     "class": 4,
-    "count": 2646,
+    "count": 2728,
     "id": 6461,
-    "kills": 8983,
+    "kills": 9300,
     "level": 25,
     "name": "Slime-encrusted Pads",
     "new": false,
@@ -3754,9 +3976,9 @@
    },
    {
     "class": 4,
-    "count": 2713,
+    "count": 2806,
     "id": 6463,
-    "kills": 8983,
+    "kills": 9300,
     "level": 24,
     "name": "Deep Fathom Ring",
     "new": false,
@@ -3767,9 +3989,9 @@
    },
    {
     "class": 4,
-    "count": 2071,
+    "count": 2173,
     "id": 6627,
-    "kills": 8983,
+    "kills": 9300,
     "level": 23,
     "name": "Mutant Scale Breastplate",
     "new": false,
@@ -3785,9 +4007,9 @@
   "items": [
    {
     "class": 4,
-    "count": 1832,
+    "count": 1939,
     "id": 6460,
-    "kills": 10169,
+    "kills": 10496,
     "level": 22,
     "name": "Cobrahn's Grasp",
     "new": false,
@@ -3798,9 +4020,9 @@
    },
    {
     "class": 4,
-    "count": 5543,
+    "count": 5651,
     "id": 6465,
-    "kills": 10169,
+    "kills": 10496,
     "level": 22,
     "name": "Robe of the Moccasin",
     "new": false,
@@ -3811,9 +4033,9 @@
    },
    {
     "class": 4,
-    "count": 1846,
+    "count": 1936,
     "id": 10410,
-    "kills": 10169,
+    "kills": 10496,
     "level": 22,
     "name": "Leggings of the Fang",
     "new": false,
@@ -3829,9 +4051,9 @@
   "items": [
    {
     "class": 2,
-    "count": 2584,
+    "count": 2662,
     "id": 6472,
-    "kills": 8733,
+    "kills": 8982,
     "level": 24,
     "name": "Stinging Viper",
     "new": false,
@@ -3842,9 +4064,9 @@
    },
    {
     "class": 4,
-    "count": 4803,
+    "count": 4888,
     "id": 6473,
-    "kills": 8733,
+    "kills": 8982,
     "level": 23,
     "name": "Armor of the Fang",
     "new": false,
@@ -3852,6 +4074,19 @@
     "reqlevel": 18,
     "slot": 5,
     "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 60,
+    "id": 273089,
+    "kills": 8982,
+    "level": 22,
+    "name": "Slither Cord",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 17,
+    "slot": 6,
+    "subclass": 1
    }
   ],
   "new": false
@@ -3860,9 +4095,9 @@
   "items": [
    {
     "class": 4,
-    "count": 3307,
+    "count": 3346,
     "id": 5404,
-    "kills": 7772,
+    "kills": 8003,
     "level": 23,
     "name": "Serpent's Shoulders",
     "new": false,
@@ -3873,9 +4108,9 @@
    },
    {
     "class": 4,
-    "count": 767,
+    "count": 838,
     "id": 10412,
-    "kills": 7772,
+    "kills": 8003,
     "level": 21,
     "name": "Belt of the Fang",
     "new": false,
@@ -3886,9 +4121,9 @@
    },
    {
     "class": 4,
-    "count": 12,
+    "count": 80,
     "id": 273088,
-    "kills": 7772,
+    "kills": 8003,
     "level": 22,
     "name": "Snake Eye Kaleidoscope",
     "new": true,
@@ -3904,9 +4139,9 @@
   "items": [
    {
     "class": 4,
-    "count": 1738,
+    "count": 1773,
     "id": 5970,
-    "kills": 8885,
+    "kills": 9042,
     "level": 23,
     "name": "Serpent Gloves",
     "new": false,
@@ -3917,9 +4152,9 @@
    },
    {
     "class": 4,
-    "count": 2056,
+    "count": 2081,
     "id": 6459,
-    "kills": 8885,
+    "kills": 9042,
     "level": 23,
     "name": "Savage Trodders",
     "new": false,
@@ -3930,9 +4165,9 @@
    },
    {
     "class": 2,
-    "count": 1520,
+    "count": 1544,
     "id": 6469,
-    "kills": 8885,
+    "kills": 9042,
     "level": 24,
     "name": "Venomstrike",
     "new": false,
@@ -3943,9 +4178,9 @@
    },
    {
     "class": 4,
-    "count": 1892,
+    "count": 1915,
     "id": 10411,
-    "kills": 8885,
+    "kills": 9042,
     "level": 22,
     "name": "Footpads of the Fang",
     "new": false,
@@ -3961,9 +4196,9 @@
   "items": [
    {
     "class": 2,
-    "count": 3748,
+    "count": 3830,
     "id": 6448,
-    "kills": 8139,
+    "kills": 8415,
     "level": 21,
     "name": "Tail Spike",
     "new": false,
@@ -3974,9 +4209,9 @@
    },
    {
     "class": 4,
-    "count": 3760,
+    "count": 3842,
     "id": 6449,
-    "kills": 8139,
+    "kills": 8415,
     "level": 23,
     "name": "Glowing Lizardscale Cloak",
     "new": false,
@@ -3987,9 +4222,9 @@
    },
    {
     "class": 4,
-    "count": 16,
+    "count": 103,
     "id": 273137,
-    "kills": 8139,
+    "kills": 8415,
     "level": 22,
     "name": "Skum's Bucket",
     "new": true,
@@ -4007,7 +4242,7 @@
     "class": 2,
     "count": 2,
     "id": 1483,
-    "kills": 8043,
+    "kills": 8264,
     "level": 21,
     "name": "Face Smasher",
     "new": false,
@@ -4017,10 +4252,23 @@
     "subclass": 4
    },
    {
+    "class": 2,
+    "count": 1,
+    "id": 3194,
+    "kills": 8264,
+    "level": 21,
+    "name": "Black Malice",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 16,
+    "slot": 17,
+    "subclass": 5
+   },
+   {
     "class": 4,
-    "count": 515,
+    "count": 553,
     "id": 6341,
-    "kills": 8043,
+    "kills": 8264,
     "level": 21,
     "name": "Eerie Stable Lantern",
     "new": false,
@@ -4049,9 +4297,9 @@
    },
    {
     "class": 2,
-    "count": 2109,
+    "count": 2145,
     "id": 6641,
-    "kills": 3696,
+    "kills": 3764,
     "level": 27,
     "name": "Haunting Blade",
     "new": false,
@@ -4062,9 +4310,9 @@
    },
    {
     "class": 4,
-    "count": 1255,
+    "count": 1284,
     "id": 6642,
-    "kills": 3696,
+    "kills": 3764,
     "level": 27,
     "name": "Phantom Armor",
     "new": false,
@@ -4080,9 +4328,9 @@
   "items": [
    {
     "class": 2,
-    "count": 1442,
+    "count": 1522,
     "id": 1292,
-    "kills": 16235,
+    "kills": 16486,
     "level": 25,
     "name": "Butcher's Cleaver",
     "new": false,
@@ -4095,7 +4343,7 @@
     "class": 2,
     "count": 4,
     "id": 1318,
-    "kills": 16235,
+    "kills": 16486,
     "level": 23,
     "name": "Night Reaver",
     "new": false,
@@ -4119,9 +4367,9 @@
    },
    {
     "class": 4,
-    "count": 6860,
+    "count": 6937,
     "id": 6226,
-    "kills": 16235,
+    "kills": 16486,
     "level": 24,
     "name": "Bloody Apron",
     "new": false,
@@ -4132,9 +4380,9 @@
    },
    {
     "class": 2,
-    "count": 6476,
+    "count": 6541,
     "id": 6633,
-    "kills": 16235,
+    "kills": 16486,
     "level": 23,
     "name": "Butcher's Slicer",
     "new": false,
@@ -4191,7 +4439,7 @@
     "class": 2,
     "count": 2,
     "id": 3194,
-    "kills": 16156,
+    "kills": 16432,
     "level": 21,
     "name": "Black Malice",
     "new": false,
@@ -4202,9 +4450,9 @@
    },
    {
     "class": 4,
-    "count": 3014,
+    "count": 3098,
     "id": 6321,
-    "kills": 16156,
+    "kills": 16432,
     "level": 26,
     "name": "Silverlaine's Family Seal",
     "new": false,
@@ -4215,9 +4463,9 @@
    },
    {
     "class": 2,
-    "count": 6168,
+    "count": 6255,
     "id": 6323,
-    "kills": 16156,
+    "kills": 16432,
     "level": 26,
     "name": "Baron's Scepter",
     "new": false,
@@ -4225,6 +4473,19 @@
     "reqlevel": 21,
     "slot": 21,
     "subclass": 4
+   },
+   {
+    "class": 2,
+    "count": 115,
+    "id": 273637,
+    "kills": 16432,
+    "level": 26,
+    "name": "Blade of Silverlaine",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 21,
+    "slot": 21,
+    "subclass": 7
    }
   ],
   "new": false
@@ -4235,7 +4496,7 @@
     "class": 2,
     "count": 2,
     "id": 1484,
-    "kills": 10729,
+    "kills": 10957,
     "level": 22,
     "name": "Witching Stave",
     "new": false,
@@ -4248,7 +4509,7 @@
     "class": 4,
     "count": 3,
     "id": 1974,
-    "kills": 10729,
+    "kills": 10957,
     "level": 22,
     "name": "Mindthrust Bracers",
     "new": false,
@@ -4259,9 +4520,9 @@
    },
    {
     "class": 4,
-    "count": 9103,
+    "count": 9174,
     "id": 5254,
-    "kills": 10729,
+    "kills": 10957,
     "level": 22,
     "name": "Rugged Spaulders",
     "new": false,
@@ -4269,6 +4530,32 @@
     "reqlevel": 17,
     "slot": 3,
     "subclass": 2
+   },
+   {
+    "class": 2,
+    "count": 68,
+    "id": 273456,
+    "kills": 10957,
+    "level": 22,
+    "name": "Cell Keeper's Claws",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 17,
+    "slot": 21,
+    "subclass": 13
+   },
+   {
+    "class": 4,
+    "count": 81,
+    "id": 273457,
+    "kills": 10957,
+    "level": 22,
+    "name": "Sorcerer Collar",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 17,
+    "slot": 2,
+    "subclass": -3
    }
   ],
   "new": false
@@ -4279,7 +4566,7 @@
     "class": 2,
     "count": 3,
     "id": 1318,
-    "kills": 11720,
+    "kills": 11950,
     "level": 23,
     "name": "Night Reaver",
     "new": false,
@@ -4290,9 +4577,9 @@
    },
    {
     "class": 4,
-    "count": 6732,
+    "count": 6807,
     "id": 3748,
-    "kills": 11720,
+    "kills": 11950,
     "level": 28,
     "name": "Feline Mantle",
     "new": false,
@@ -4303,9 +4590,9 @@
    },
    {
     "class": 4,
-    "count": 4423,
+    "count": 4488,
     "id": 6314,
-    "kills": 11720,
+    "kills": 11950,
     "level": 27,
     "name": "Wolfmaster Cape",
     "new": false,
@@ -4313,12 +4600,38 @@
     "reqlevel": 22,
     "slot": 16,
     "subclass": -6
+   },
+   {
+    "class": 4,
+    "count": 83,
+    "id": 273647,
+    "kills": 11950,
+    "level": 26,
+    "name": "Worgpelt Leggings",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 21,
+    "slot": 7,
+    "subclass": 2
    }
   ],
   "new": false
  },
  "drops5:3974": {
   "items": [
+   {
+    "class": 4,
+    "count": 4501,
+    "id": 3456,
+    "kills": 17981,
+    "level": 30,
+    "name": "Dog Whistle",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 12,
+    "subclass": -4
+   },
    {
     "class": 2,
     "count": 2576,
@@ -4347,6 +4660,45 @@
    },
    {
     "class": 2,
+    "count": 2,
+    "id": 7729,
+    "kills": 17981,
+    "level": 33,
+    "name": "Chesterfall Musket",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 28,
+    "slot": 15,
+    "subclass": 3
+   },
+   {
+    "class": 4,
+    "count": 10077,
+    "id": 7756,
+    "kills": 17981,
+    "level": 36,
+    "name": "Dog Training Gloves",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 31,
+    "slot": 10,
+    "subclass": 2
+   },
+   {
+    "class": 2,
+    "count": 1,
+    "id": 7761,
+    "kills": 498,
+    "level": 38,
+    "name": "Steelclaw Reaver",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 33,
+    "slot": 21,
+    "subclass": 0
+   },
+   {
+    "class": 2,
     "count": 3,
     "id": 7786,
     "kills": 17981,
@@ -4357,6 +4709,32 @@
     "reqlevel": 25,
     "slot": 13,
     "subclass": 0
+   },
+   {
+    "class": 4,
+    "count": 4,
+    "id": 7787,
+    "kills": 17981,
+    "level": 31,
+    "name": "Resplendent Guardian",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 14,
+    "subclass": 6
+   },
+   {
+    "class": 2,
+    "count": 2,
+    "id": 8226,
+    "kills": 17981,
+    "level": 31,
+    "name": "The Butcher",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 21,
+    "subclass": 7
    },
    {
     "class": 4,
@@ -4376,6 +4754,32 @@
  },
  "drops5:3975": {
   "items": [
+   {
+    "class": 4,
+    "count": 1,
+    "id": 2262,
+    "kills": 116,
+    "level": 36,
+    "name": "Mark of Kern",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 31,
+    "slot": 11,
+    "subclass": -2
+   },
+   {
+    "class": 2,
+    "count": 1,
+    "id": 5756,
+    "kills": 12682,
+    "level": 37,
+    "name": "Sliverblade",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 32,
+    "slot": 13,
+    "subclass": 15
+   },
    {
     "class": 2,
     "count": 1776,
@@ -4414,6 +4818,32 @@
     "reqlevel": 29,
     "slot": 17,
     "subclass": 5
+   },
+   {
+    "class": 2,
+    "count": 2,
+    "id": 7761,
+    "kills": 4987,
+    "level": 38,
+    "name": "Steelclaw Reaver",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 33,
+    "slot": 21,
+    "subclass": 0
+   },
+   {
+    "class": 2,
+    "count": 2,
+    "id": 8226,
+    "kills": 4987,
+    "level": 31,
+    "name": "The Butcher",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 21,
+    "subclass": 7
    },
    {
     "class": 4,
@@ -4473,6 +4903,19 @@
     "subclass": 6
    },
    {
+    "class": 4,
+    "count": 1,
+    "id": 7728,
+    "kills": 19971,
+    "level": 34,
+    "name": "Beguiler Robes",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 29,
+    "slot": 5,
+    "subclass": 1
+   },
+   {
     "class": 2,
     "count": 4,
     "id": 7752,
@@ -4512,6 +4955,19 @@
     "subclass": 10
    },
    {
+    "class": 2,
+    "count": 4,
+    "id": 8226,
+    "kills": 19971,
+    "level": 31,
+    "name": "The Butcher",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 21,
+    "subclass": 7
+   },
+   {
     "class": 4,
     "count": 2832,
     "id": 10330,
@@ -4548,10 +5004,23 @@
  "drops5:3983": {
   "items": [
    {
+    "class": 4,
+    "count": 1,
+    "id": 5819,
+    "kills": 96,
+    "level": 33,
+    "name": "Sunblaze Coif",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 28,
+    "slot": 1,
+    "subclass": 3
+   },
+   {
     "class": 2,
-    "count": 891,
+    "count": 904,
     "id": 7682,
-    "kills": 13807,
+    "kills": 13863,
     "level": 34,
     "name": "Torturing Poker",
     "new": false,
@@ -4562,9 +5031,9 @@
    },
    {
     "class": 2,
-    "count": 7116,
+    "count": 7133,
     "id": 7683,
-    "kills": 13807,
+    "kills": 13863,
     "level": 34,
     "name": "Bloody Brass Knuckles",
     "new": false,
@@ -4598,6 +5067,19 @@
     "reqlevel": 28,
     "slot": 21,
     "subclass": 4
+   },
+   {
+    "class": 4,
+    "count": 22,
+    "id": 274290,
+    "kills": 13863,
+    "level": 34,
+    "name": "Painwalker Buckler",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 29,
+    "slot": 14,
+    "subclass": 6
    }
   ],
   "new": false
@@ -4634,7 +5116,7 @@
     "class": 2,
     "count": 2,
     "id": 3194,
-    "kills": 13735,
+    "kills": 14026,
     "level": 21,
     "name": "Black Malice",
     "new": false,
@@ -4645,9 +5127,9 @@
    },
    {
     "class": 4,
-    "count": 2426,
+    "count": 2500,
     "id": 3230,
-    "kills": 13735,
+    "kills": 14026,
     "level": 27,
     "name": "Black Wolf Bracers",
     "new": false,
@@ -4658,9 +5140,9 @@
    },
    {
     "class": 4,
-    "count": 10119,
+    "count": 10210,
     "id": 6340,
-    "kills": 13735,
+    "kills": 14026,
     "level": 27,
     "name": "Fenrus' Hide",
     "new": false,
@@ -4668,6 +5150,19 @@
     "reqlevel": 22,
     "slot": 16,
     "subclass": -6
+   },
+   {
+    "class": 4,
+    "count": 107,
+    "id": 273646,
+    "kills": 14026,
+    "level": 27,
+    "name": "Half-Eaten Boots",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 22,
+    "slot": 8,
+    "subclass": 3
    }
   ],
   "new": false
@@ -4691,7 +5186,7 @@
     "class": 2,
     "count": 2,
     "id": 1484,
-    "kills": 14128,
+    "kills": 14424,
     "level": 22,
     "name": "Witching Stave",
     "new": false,
@@ -4715,9 +5210,9 @@
    },
    {
     "class": 2,
-    "count": 2501,
+    "count": 2588,
     "id": 6220,
-    "kills": 14128,
+    "kills": 14424,
     "level": 28,
     "name": "Meteor Shard",
     "new": false,
@@ -4728,9 +5223,9 @@
    },
    {
     "class": 4,
-    "count": 4966,
+    "count": 5043,
     "id": 6324,
-    "kills": 14128,
+    "kills": 14424,
     "level": 28,
     "name": "Robes of Arugal",
     "new": false,
@@ -4741,9 +5236,9 @@
    },
    {
     "class": 4,
-    "count": 4838,
+    "count": 4940,
     "id": 6392,
-    "kills": 14128,
+    "kills": 14424,
     "level": 28,
     "name": "Belt of Arugal",
     "new": false,
@@ -4761,7 +5256,7 @@
     "class": 2,
     "count": 3,
     "id": 1318,
-    "kills": 15484,
+    "kills": 15746,
     "level": 23,
     "name": "Night Reaver",
     "new": false,
@@ -4774,7 +5269,7 @@
     "class": 2,
     "count": 2,
     "id": 1482,
-    "kills": 15484,
+    "kills": 15746,
     "level": 24,
     "name": "Shadowfang",
     "new": false,
@@ -4800,7 +5295,7 @@
     "class": 4,
     "count": 7,
     "id": 1974,
-    "kills": 15484,
+    "kills": 15746,
     "level": 22,
     "name": "Mindthrust Bracers",
     "new": false,
@@ -4811,9 +5306,9 @@
    },
    {
     "class": 2,
-    "count": 5183,
+    "count": 5274,
     "id": 3191,
-    "kills": 15484,
+    "kills": 15746,
     "level": 26,
     "name": "Arced War Axe",
     "new": false,
@@ -4824,9 +5319,9 @@
    },
    {
     "class": 4,
-    "count": 4450,
+    "count": 4531,
     "id": 6320,
-    "kills": 15484,
+    "kills": 15746,
     "level": 26,
     "name": "Commander's Crest",
     "new": false,
@@ -4837,9 +5332,9 @@
    },
    {
     "class": 4,
-    "count": 1455,
+    "count": 1480,
     "id": 6341,
-    "kills": 15484,
+    "kills": 15746,
     "level": 21,
     "name": "Eerie Stable Lantern",
     "new": false,
@@ -4847,6 +5342,19 @@
     "reqlevel": 19,
     "slot": 23,
     "subclass": -5
+   },
+   {
+    "class": 4,
+    "count": 99,
+    "id": 273643,
+    "kills": 15746,
+    "level": 26,
+    "name": "Worgenbane Talisman",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 21,
+    "slot": 12,
+    "subclass": -4
    }
   ],
   "new": false
@@ -4894,9 +5402,9 @@
    },
    {
     "class": 2,
-    "count": 4975,
+    "count": 5057,
     "id": 6318,
-    "kills": 14840,
+    "kills": 15099,
     "level": 26,
     "name": "Odo's Ley Staff",
     "new": false,
@@ -4907,9 +5415,9 @@
    },
    {
     "class": 4,
-    "count": 8675,
+    "count": 8744,
     "id": 6319,
-    "kills": 14840,
+    "kills": 15099,
     "level": 26,
     "name": "Girdle of the Blindwatcher",
     "new": false,
@@ -4917,6 +5425,19 @@
     "reqlevel": 21,
     "slot": 6,
     "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 103,
+    "id": 273645,
+    "kills": 15099,
+    "level": 26,
+    "name": "Blindwatcher's Sight",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 21,
+    "slot": 1,
+    "subclass": 0
    }
   ],
   "new": false
@@ -4927,7 +5448,7 @@
     "class": 2,
     "count": 1,
     "id": 776,
-    "kills": 5192,
+    "kills": 5249,
     "level": 31,
     "name": "Vendetta",
     "new": false,
@@ -4937,10 +5458,23 @@
     "subclass": 15
    },
    {
+    "class": 2,
+    "count": 2,
+    "id": 1727,
+    "kills": 5249,
+    "level": 28,
+    "name": "Sword of Decay",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 23,
+    "slot": 21,
+    "subclass": 7
+   },
+   {
     "class": 4,
-    "count": 3238,
+    "count": 3254,
     "id": 6686,
-    "kills": 5192,
+    "kills": 5249,
     "level": 34,
     "name": "Tusken Helm",
     "new": false,
@@ -4951,9 +5485,9 @@
    },
    {
     "class": 2,
-    "count": 1759,
+    "count": 1781,
     "id": 6687,
-    "kills": 5192,
+    "kills": 5249,
     "level": 34,
     "name": "Corpsemaker",
     "new": false,
@@ -4961,6 +5495,32 @@
     "reqlevel": 29,
     "slot": 17,
     "subclass": 1
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252513,
+    "kills": 5249,
+    "level": 30,
+    "name": "Trapper's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 19,
+    "id": 274161,
+    "kills": 5249,
+    "level": 34,
+    "name": "Quillord Mail Leggings",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 29,
+    "slot": 7,
+    "subclass": 3
    }
   ],
   "new": false
@@ -4971,7 +5531,7 @@
     "class": 2,
     "count": 2,
     "id": 776,
-    "kills": 6164,
+    "kills": 6229,
     "level": 31,
     "name": "Vendetta",
     "new": false,
@@ -4981,10 +5541,49 @@
     "subclass": 15
    },
    {
+    "class": 4,
+    "count": 1,
+    "id": 1488,
+    "kills": 6423,
+    "level": 31,
+    "name": "Avenger's Armor",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 5,
+    "subclass": 3
+   },
+   {
     "class": 2,
-    "count": 1082,
+    "count": 2,
+    "id": 1727,
+    "kills": 6229,
+    "level": 28,
+    "name": "Sword of Decay",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 23,
+    "slot": 21,
+    "subclass": 7
+   },
+   {
+    "class": 2,
+    "count": 1,
+    "id": 1975,
+    "kills": 195,
+    "level": 28,
+    "name": "Pysan's Old Greatsword",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 23,
+    "slot": 17,
+    "subclass": 8
+   },
+   {
+    "class": 2,
+    "count": 1102,
     "id": 6692,
-    "kills": 6164,
+    "kills": 6229,
     "level": 35,
     "name": "Pronged Reaver",
     "new": false,
@@ -4995,9 +5594,9 @@
    },
    {
     "class": 4,
-    "count": 2170,
+    "count": 2187,
     "id": 6693,
-    "kills": 6164,
+    "kills": 6229,
     "level": 35,
     "name": "Agamaggan's Clutch",
     "new": false,
@@ -5008,9 +5607,9 @@
    },
    {
     "class": 4,
-    "count": 2068,
+    "count": 2091,
     "id": 6694,
-    "kills": 6164,
+    "kills": 6229,
     "level": 35,
     "name": "Heart of Agamaggan",
     "new": false,
@@ -5018,6 +5617,32 @@
     "reqlevel": 30,
     "slot": 14,
     "subclass": 6
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252456,
+    "kills": 6229,
+    "level": 30,
+    "name": "Totemic Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 2,
+    "id": 252515,
+    "kills": 6229,
+    "level": 30,
+    "name": "Wisdom's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
    }
   ],
   "new": false
@@ -5026,9 +5651,9 @@
   "items": [
    {
     "class": 4,
-    "count": 3128,
+    "count": 3155,
     "id": 6690,
-    "kills": 5017,
+    "kills": 5087,
     "level": 34,
     "name": "Ferine Leggings",
     "new": false,
@@ -5039,9 +5664,9 @@
    },
    {
     "class": 2,
-    "count": 1672,
+    "count": 1694,
     "id": 6691,
-    "kills": 5017,
+    "kills": 5087,
     "level": 35,
     "name": "Swinetusk Shank",
     "new": false,
@@ -5049,6 +5674,58 @@
     "reqlevel": 30,
     "slot": 21,
     "subclass": 15
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252455,
+    "kills": 5087,
+    "level": 30,
+    "name": "Defender's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252512,
+    "kills": 5087,
+    "level": 30,
+    "name": "Brawler's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252513,
+    "kills": 5087,
+    "level": 30,
+    "name": "Trapper's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 2,
+    "count": 19,
+    "id": 274160,
+    "kills": 5087,
+    "level": 36,
+    "name": "Quilrager Throwing Axe",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 31,
+    "slot": 25,
+    "subclass": 16
    }
   ],
   "new": false
@@ -5057,9 +5734,22 @@
   "items": [
    {
     "class": 2,
+    "count": 1,
+    "id": 1975,
+    "kills": 17,
+    "level": 28,
+    "name": "Pysan's Old Greatsword",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 23,
+    "slot": 17,
+    "subclass": 8
+   },
+   {
+    "class": 2,
     "count": 2,
     "id": 1976,
-    "kills": 2529,
+    "kills": 2585,
     "level": 29,
     "name": "Slaghammer",
     "new": false,
@@ -5083,9 +5773,9 @@
    },
    {
     "class": 2,
-    "count": 1189,
+    "count": 1216,
     "id": 6681,
-    "kills": 2529,
+    "kills": 2585,
     "level": 32,
     "name": "Thornspike",
     "new": false,
@@ -5093,6 +5783,45 @@
     "reqlevel": 27,
     "slot": 13,
     "subclass": 15
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252512,
+    "kills": 2585,
+    "level": 30,
+    "name": "Brawler's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 2,
+    "count": 14,
+    "id": 274158,
+    "kills": 2585,
+    "level": 31,
+    "name": "Death Prophet Spine",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 17,
+    "subclass": 10
+   },
+   {
+    "class": 4,
+    "count": 15,
+    "id": 274159,
+    "kills": 2585,
+    "level": 33,
+    "name": "Thorncursed Grips",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 27,
+    "slot": 10,
+    "subclass": 2
    }
   ],
   "new": false
@@ -5101,9 +5830,9 @@
   "items": [
    {
     "class": 4,
-    "count": 216,
+    "count": 218,
     "id": 6695,
-    "kills": 833,
+    "kills": 847,
     "level": 34,
     "name": "Stygian Bone Amulet",
     "new": false,
@@ -5114,9 +5843,9 @@
    },
    {
     "class": 2,
-    "count": 282,
+    "count": 286,
     "id": 6696,
-    "kills": 833,
+    "kills": 847,
     "level": 34,
     "name": "Nightstalker Bow",
     "new": false,
@@ -5127,9 +5856,9 @@
    },
    {
     "class": 4,
-    "count": 282,
+    "count": 288,
     "id": 6697,
-    "kills": 833,
+    "kills": 847,
     "level": 34,
     "name": "Batwing Mantle",
     "new": false,
@@ -5143,6 +5872,32 @@
  },
  "drops5:4428": {
   "items": [
+   {
+    "class": 2,
+    "count": 1,
+    "id": 1727,
+    "kills": 4452,
+    "level": 28,
+    "name": "Sword of Decay",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 23,
+    "slot": 21,
+    "subclass": 7
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 2039,
+    "kills": 4452,
+    "level": 29,
+    "name": "Plains Ring",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 24,
+    "slot": 11,
+    "subclass": -2
+   },
    {
     "class": 4,
     "count": 3,
@@ -5158,9 +5913,9 @@
    },
    {
     "class": 2,
-    "count": 448,
+    "count": 460,
     "id": 2816,
-    "kills": 4397,
+    "kills": 4452,
     "level": 33,
     "name": "Death Speaker Scepter",
     "new": false,
@@ -5171,9 +5926,9 @@
    },
    {
     "class": 4,
-    "count": 1871,
+    "count": 1889,
     "id": 6682,
-    "kills": 4397,
+    "kills": 4452,
     "level": 31,
     "name": "Death Speaker Robes",
     "new": false,
@@ -5184,9 +5939,9 @@
    },
    {
     "class": 4,
-    "count": 1914,
+    "count": 1938,
     "id": 6685,
-    "kills": 4397,
+    "kills": 4452,
     "level": 32,
     "name": "Death Speaker Mantle",
     "new": false,
@@ -5194,6 +5949,19 @@
     "reqlevel": 27,
     "slot": 3,
     "subclass": 1
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252512,
+    "kills": 4452,
+    "level": 30,
+    "name": "Brawler's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
    }
   ],
   "new": false
@@ -5202,9 +5970,22 @@
   "items": [
    {
     "class": 4,
+    "count": 2,
+    "id": 1488,
+    "kills": 4269,
+    "level": 31,
+    "name": "Avenger's Armor",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 5,
+    "subclass": 3
+   },
+   {
+    "class": 4,
     "count": 8,
     "id": 1978,
-    "kills": 4228,
+    "kills": 4269,
     "level": 27,
     "name": "Wolfclaw Gloves",
     "new": false,
@@ -5217,7 +5998,7 @@
     "class": 2,
     "count": 2,
     "id": 2549,
-    "kills": 4228,
+    "kills": 4269,
     "level": 27,
     "name": "Staff of the Shade",
     "new": false,
@@ -5228,9 +6009,9 @@
    },
    {
     "class": 2,
-    "count": 2576,
+    "count": 2601,
     "id": 6679,
-    "kills": 4228,
+    "kills": 4269,
     "level": 29,
     "name": "Armor Piercer",
     "new": false,
@@ -5269,6 +6050,19 @@
     "reqlevel": 25,
     "slot": 13,
     "subclass": 0
+   },
+   {
+    "class": 2,
+    "count": 1,
+    "id": 8226,
+    "kills": 12875,
+    "level": 31,
+    "name": "The Butcher",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 21,
+    "subclass": 7
    },
    {
     "class": 4,
@@ -5329,9 +6123,22 @@
   "items": [
    {
     "class": 4,
-    "count": 8024,
+    "count": 1,
+    "id": 2262,
+    "kills": 16791,
+    "level": 36,
+    "name": "Mark of Kern",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 31,
+    "slot": 11,
+    "subclass": -2
+   },
+   {
+    "class": 4,
+    "count": 8036,
     "id": 7684,
-    "kills": 16755,
+    "kills": 16791,
     "level": 35,
     "name": "Bloodmage Mantle",
     "new": false,
@@ -5342,9 +6149,9 @@
    },
    {
     "class": 4,
-    "count": 8374,
+    "count": 8384,
     "id": 7685,
-    "kills": 16755,
+    "kills": 16791,
     "level": 37,
     "name": "Orb of the Forgotten Seer",
     "new": false,
@@ -5355,9 +6162,35 @@
    },
    {
     "class": 4,
+    "count": 1,
+    "id": 7728,
+    "kills": 339,
+    "level": 34,
+    "name": "Beguiler Robes",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 29,
+    "slot": 5,
+    "subclass": 1
+   },
+   {
+    "class": 2,
+    "count": 4,
+    "id": 7729,
+    "kills": 11720,
+    "level": 33,
+    "name": "Chesterfall Musket",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 28,
+    "slot": 15,
+    "subclass": 3
+   },
+   {
+    "class": 4,
     "count": 3,
     "id": 7754,
-    "kills": 16755,
+    "kills": 16791,
     "level": 30,
     "name": "Harbinger Boots",
     "new": false,
@@ -5367,16 +6200,55 @@
     "subclass": 2
    },
    {
+    "class": 2,
+    "count": 3,
+    "id": 7761,
+    "kills": 16791,
+    "level": 38,
+    "name": "Steelclaw Reaver",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 33,
+    "slot": 21,
+    "subclass": 0
+   },
+   {
     "class": 4,
     "count": 2,
     "id": 10332,
-    "kills": 16755,
+    "kills": 16791,
     "level": 35,
     "name": "Scarlet Boots",
     "new": false,
     "quality": 3,
     "reqlevel": 30,
     "slot": 8,
+    "subclass": 3
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252455,
+    "kills": 16791,
+    "level": 30,
+    "name": "Defender's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 13,
+    "id": 274291,
+    "kills": 16791,
+    "level": 36,
+    "name": "Polished Skullcap",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 31,
+    "slot": 1,
     "subclass": 3
    }
   ],
@@ -5389,10 +6261,23 @@
  "drops5:4829": {
   "items": [
    {
+    "class": 2,
+    "count": 2,
+    "id": 2567,
+    "kills": 5377,
+    "level": 25,
+    "name": "Evocator's Blade",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 20,
+    "slot": 21,
+    "subclass": 15
+   },
+   {
     "class": 4,
     "count": 1,
     "id": 3416,
-    "kills": 5001,
+    "kills": 5377,
     "level": 28,
     "name": "Martyr's Chain",
     "new": false,
@@ -5403,9 +6288,9 @@
    },
    {
     "class": 2,
-    "count": 994,
+    "count": 1126,
     "id": 6909,
-    "kills": 5001,
+    "kills": 5377,
     "level": 31,
     "name": "Strike of the Hydra",
     "new": false,
@@ -5416,9 +6301,9 @@
    },
    {
     "class": 4,
-    "count": 1836,
+    "count": 1955,
     "id": 6910,
-    "kills": 5001,
+    "kills": 5377,
     "level": 29,
     "name": "Leech Pants",
     "new": false,
@@ -5429,9 +6314,9 @@
    },
    {
     "class": 4,
-    "count": 1900,
+    "count": 1984,
     "id": 6911,
-    "kills": 5001,
+    "kills": 5377,
     "level": 30,
     "name": "Moss Cinch",
     "new": false,
@@ -5442,11 +6327,50 @@
    },
    {
     "class": 4,
-    "count": 1,
+    "count": 2,
     "id": 252455,
-    "kills": 5001,
+    "kills": 5377,
     "level": 30,
     "name": "Defender's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 2,
+    "id": 252456,
+    "kills": 5377,
+    "level": 30,
+    "name": "Totemic Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252512,
+    "kills": 5377,
+    "level": 30,
+    "name": "Brawler's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 2,
+    "id": 252515,
+    "kills": 5377,
+    "level": 30,
+    "name": "Wisdom's Leather Helm",
     "new": true,
     "quality": 3,
     "reqlevel": 25,
@@ -5462,7 +6386,7 @@
     "class": 2,
     "count": 2,
     "id": 3417,
-    "kills": 3478,
+    "kills": 3684,
     "level": 28,
     "name": "Onyx Claymore",
     "new": false,
@@ -5473,9 +6397,9 @@
    },
    {
     "class": 4,
-    "count": 1378,
+    "count": 1440,
     "id": 6901,
-    "kills": 3478,
+    "kills": 3684,
     "level": 29,
     "name": "Glowing Thresher Cape",
     "new": false,
@@ -5486,9 +6410,9 @@
    },
    {
     "class": 4,
-    "count": 1149,
+    "count": 1217,
     "id": 6902,
-    "kills": 3478,
+    "kills": 3684,
     "level": 27,
     "name": "Bands of Serra'kis",
     "new": false,
@@ -5499,9 +6423,9 @@
    },
    {
     "class": 2,
-    "count": 754,
+    "count": 807,
     "id": 6904,
-    "kills": 3478,
+    "kills": 3684,
     "level": 28,
     "name": "Bite of Serra'kis",
     "new": false,
@@ -5509,6 +6433,19 @@
     "reqlevel": 23,
     "slot": 13,
     "subclass": 15
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252455,
+    "kills": 3684,
+    "level": 30,
+    "name": "Defender's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
    }
   ],
   "new": false
@@ -5517,9 +6454,9 @@
   "items": [
    {
     "class": 4,
-    "count": 1724,
+    "count": 1790,
     "id": 888,
-    "kills": 4647,
+    "kills": 4869,
     "level": 27,
     "name": "Naga Battle Gloves",
     "new": false,
@@ -5529,10 +6466,23 @@
     "subclass": 2
    },
    {
+    "class": 4,
+    "count": 1,
+    "id": 1491,
+    "kills": 4869,
+    "level": 27,
+    "name": "Ring of Precision",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 22,
+    "slot": 11,
+    "subclass": -2
+   },
+   {
     "class": 2,
-    "count": 899,
+    "count": 968,
     "id": 3078,
-    "kills": 4647,
+    "kills": 4869,
     "level": 27,
     "name": "Naga Heartpiercer",
     "new": false,
@@ -5543,9 +6493,9 @@
    },
    {
     "class": 2,
-    "count": 1798,
+    "count": 1879,
     "id": 11121,
-    "kills": 4647,
+    "kills": 4869,
     "level": 27,
     "name": "Darkwater Talwar",
     "new": false,
@@ -5561,9 +6511,9 @@
   "items": [
    {
     "class": 2,
-    "count": 3592,
+    "count": 3679,
     "id": 1155,
-    "kills": 7184,
+    "kills": 7504,
     "level": 29,
     "name": "Rod of the Sleepwalker",
     "new": false,
@@ -5589,7 +6539,7 @@
     "class": 4,
     "count": 1,
     "id": 3416,
-    "kills": 7184,
+    "kills": 7504,
     "level": 28,
     "name": "Martyr's Chain",
     "new": false,
@@ -5600,9 +6550,9 @@
    },
    {
     "class": 4,
-    "count": 2396,
+    "count": 2500,
     "id": 6903,
-    "kills": 7184,
+    "kills": 7504,
     "level": 28,
     "name": "Gaze Dreamer Pants",
     "new": false,
@@ -5613,9 +6563,9 @@
    },
    {
     "class": 4,
-    "count": 1,
+    "count": 2,
     "id": 252456,
-    "kills": 7184,
+    "kills": 7504,
     "level": 30,
     "name": "Totemic Leather Helm",
     "new": true,
@@ -5626,9 +6576,22 @@
    },
    {
     "class": 4,
-    "count": 5,
+    "count": 3,
+    "id": 252513,
+    "kills": 7504,
+    "level": 30,
+    "name": "Trapper's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 105,
     "id": 273846,
-    "kills": 7184,
+    "kills": 7504,
     "level": 30,
     "name": "Twilight Lord Girdle",
     "new": true,
@@ -5642,6 +6605,19 @@
  },
  "drops5:4842": {
   "items": [
+   {
+    "class": 2,
+    "count": 1,
+    "id": 1727,
+    "kills": 14,
+    "level": 28,
+    "name": "Sword of Decay",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 23,
+    "slot": 21,
+    "subclass": 7
+   },
    {
     "class": 4,
     "count": 1,
@@ -5657,9 +6633,9 @@
    },
    {
     "class": 4,
-    "count": 388,
+    "count": 394,
     "id": 6688,
-    "kills": 840,
+    "kills": 850,
     "level": 34,
     "name": "Whisperwind Headdress",
     "new": false,
@@ -5670,9 +6646,9 @@
    },
    {
     "class": 2,
-    "count": 407,
+    "count": 411,
     "id": 6689,
-    "kills": 840,
+    "kills": 850,
     "level": 34,
     "name": "Wind Spirit Staff",
     "new": false,
@@ -5680,6 +6656,19 @@
     "reqlevel": 29,
     "slot": 17,
     "subclass": 10
+   },
+   {
+    "class": 4,
+    "count": 2,
+    "id": 252455,
+    "kills": 850,
+    "level": 30,
+    "name": "Defender's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
    }
   ],
   "new": false
@@ -5734,7 +6723,7 @@
     "class": 4,
     "count": 3,
     "id": 1486,
-    "kills": 6085,
+    "kills": 6392,
     "level": 26,
     "name": "Tree Bark Jacket",
     "new": false,
@@ -5747,7 +6736,7 @@
     "class": 2,
     "count": 2,
     "id": 2567,
-    "kills": 6085,
+    "kills": 6392,
     "level": 25,
     "name": "Evocator's Blade",
     "new": false,
@@ -5760,7 +6749,7 @@
     "class": 2,
     "count": 2,
     "id": 3413,
-    "kills": 6085,
+    "kills": 6392,
     "level": 27,
     "name": "Doomspike",
     "new": false,
@@ -5773,7 +6762,7 @@
     "class": 2,
     "count": 6,
     "id": 3415,
-    "kills": 6085,
+    "kills": 6392,
     "level": 26,
     "name": "Staff of the Friar",
     "new": false,
@@ -5799,7 +6788,7 @@
     "class": 2,
     "count": 1,
     "id": 3417,
-    "kills": 6085,
+    "kills": 6392,
     "level": 28,
     "name": "Onyx Claymore",
     "new": false,
@@ -5810,9 +6799,9 @@
    },
    {
     "class": 4,
-    "count": 2290,
+    "count": 2380,
     "id": 6907,
-    "kills": 6085,
+    "kills": 6392,
     "level": 27,
     "name": "Tortoise Armor",
     "new": false,
@@ -5823,9 +6812,9 @@
    },
    {
     "class": 4,
-    "count": 3428,
+    "count": 3529,
     "id": 6908,
-    "kills": 6085,
+    "kills": 6392,
     "level": 27,
     "name": "Ghamoo-ra's Bind",
     "new": false,
@@ -5836,9 +6825,9 @@
    },
    {
     "class": 4,
-    "count": 7,
+    "count": 101,
     "id": 273839,
-    "kills": 6085,
+    "kills": 6392,
     "level": 27,
     "name": "Spiked Shell Band",
     "new": true,
@@ -6101,9 +7090,9 @@
   "items": [
    {
     "class": 4,
-    "count": 1621,
+    "count": 1716,
     "id": 6629,
-    "kills": 8206,
+    "kills": 8502,
     "level": 22,
     "name": "Sporid Cape",
     "new": false,
@@ -6114,9 +7103,9 @@
    },
    {
     "class": 4,
-    "count": 3166,
+    "count": 3265,
     "id": 6630,
-    "kills": 8206,
+    "kills": 8502,
     "level": 24,
     "name": "Seedcloud Buckler",
     "new": false,
@@ -6127,9 +7116,9 @@
    },
    {
     "class": 2,
-    "count": 3139,
+    "count": 3236,
     "id": 6631,
-    "kills": 8206,
+    "kills": 8502,
     "level": 23,
     "name": "Living Root",
     "new": false,
@@ -6145,9 +7134,9 @@
   "items": [
    {
     "class": 2,
-    "count": 393,
+    "count": 403,
     "id": 5243,
-    "kills": 956,
+    "kills": 980,
     "level": 23,
     "name": "Firebelcher",
     "new": false,
@@ -6158,9 +7147,9 @@
    },
    {
     "class": 4,
-    "count": 440,
+    "count": 453,
     "id": 6632,
-    "kills": 956,
+    "kills": 980,
     "level": 21,
     "name": "Feyscale Cloak",
     "new": false,
@@ -6186,21 +7175,113 @@
     "reqlevel": 22,
     "slot": 10,
     "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252512,
+    "kills": 1189,
+    "level": 30,
+    "name": "Brawler's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 274149,
+    "kills": 1189,
+    "level": 30,
+    "name": "Thornweaver Drape",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 16,
+    "subclass": -6
+   },
+   {
+    "class": 4,
+    "count": 4,
+    "id": 274152,
+    "kills": 1189,
+    "level": 30,
+    "name": "Roogug's Severed Head",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 12,
+    "subclass": -4
+   },
+   {
+    "class": 4,
+    "count": 5,
+    "id": 274155,
+    "kills": 1189,
+    "level": 30,
+    "name": "Geomancer Headdress",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
    }
   ],
   "new": false
  },
  "drops5:6228": {
-  "items": [],
+  "items": [
+   {
+    "class": 4,
+    "count": 120,
+    "id": 9455,
+    "kills": 297,
+    "level": 35,
+    "name": "Emissary Cuffs",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 30,
+    "slot": 9,
+    "subclass": 2
+   },
+   {
+    "class": 2,
+    "count": 101,
+    "id": 9456,
+    "kills": 297,
+    "level": 35,
+    "name": "Glass Shooter",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 30,
+    "slot": 15,
+    "subclass": 3
+   },
+   {
+    "class": 2,
+    "count": 66,
+    "id": 9457,
+    "kills": 297,
+    "level": 35,
+    "name": "Royal Diplomatic Scepter",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 30,
+    "slot": 21,
+    "subclass": 4
+   }
+  ],
   "new": false
  },
  "drops5:6229": {
   "items": [
    {
     "class": 2,
-    "count": 2683,
+    "count": 2685,
     "id": 9449,
-    "kills": 8115,
+    "kills": 8134,
     "level": 34,
     "name": "Manual Crowd Pummeler",
     "new": false,
@@ -6211,9 +7292,9 @@
    },
    {
     "class": 4,
-    "count": 5281,
+    "count": 5287,
     "id": 9450,
-    "kills": 8115,
+    "kills": 8134,
     "level": 34,
     "name": "Gnomebot Operating Boots",
     "new": false,
@@ -6231,7 +7312,7 @@
     "class": 2,
     "count": 1,
     "id": 9490,
-    "kills": 3592,
+    "kills": 3611,
     "level": 29,
     "name": "Gizmotron Megachopper",
     "new": false,
@@ -6247,9 +7328,9 @@
   "items": [
    {
     "class": 2,
-    "count": 1291,
+    "count": 1298,
     "id": 9446,
-    "kills": 7902,
+    "kills": 7918,
     "level": 34,
     "name": "Electrocutioner Leg",
     "new": false,
@@ -6260,9 +7341,9 @@
    },
    {
     "class": 4,
-    "count": 2522,
+    "count": 2526,
     "id": 9447,
-    "kills": 7902,
+    "kills": 7918,
     "level": 34,
     "name": "Electrocutioner Lagnut",
     "new": false,
@@ -6273,9 +7354,9 @@
    },
    {
     "class": 4,
-    "count": 3152,
+    "count": 3155,
     "id": 9448,
-    "kills": 7902,
+    "kills": 7918,
     "level": 34,
     "name": "Spidertank Oilrag",
     "new": false,
@@ -6306,7 +7387,7 @@
     "class": 4,
     "count": 1,
     "id": 1491,
-    "kills": 62,
+    "kills": 5476,
     "level": 27,
     "name": "Ring of Precision",
     "new": false,
@@ -6317,9 +7398,9 @@
    },
    {
     "class": 2,
-    "count": 2494,
+    "count": 2564,
     "id": 6905,
-    "kills": 5231,
+    "kills": 5476,
     "level": 27,
     "name": "Reef Axe",
     "new": false,
@@ -6330,9 +7411,9 @@
    },
    {
     "class": 4,
-    "count": 2311,
+    "count": 2387,
     "id": 6906,
-    "kills": 5231,
+    "kills": 5476,
     "level": 28,
     "name": "Algae Fists",
     "new": false,
@@ -6343,9 +7424,74 @@
    },
    {
     "class": 4,
-    "count": 4,
+    "count": 3,
+    "id": 252456,
+    "kills": 5476,
+    "level": 30,
+    "name": "Totemic Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 3,
+    "id": 252512,
+    "kills": 5476,
+    "level": 30,
+    "name": "Brawler's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252513,
+    "kills": 5476,
+    "level": 30,
+    "name": "Trapper's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252514,
+    "kills": 5476,
+    "level": 30,
+    "name": "Stormrider's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 252515,
+    "kills": 5476,
+    "level": 30,
+    "name": "Wisdom's Leather Helm",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 1,
+    "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 96,
     "id": 273840,
-    "kills": 5231,
+    "kills": 5476,
     "level": 29,
     "name": "Cursed Murloc Eye",
     "new": true,
@@ -6361,9 +7507,9 @@
   "items": [
    {
     "class": 2,
-    "count": 2840,
+    "count": 2877,
     "id": 5191,
-    "kills": 18048,
+    "kills": 18234,
     "level": 24,
     "name": "Cruel Barb",
     "new": false,
@@ -6374,9 +7520,9 @@
    },
    {
     "class": 4,
-    "count": 4156,
+    "count": 4186,
     "id": 5193,
-    "kills": 18048,
+    "kills": 18234,
     "level": 24,
     "name": "Cape of the Brotherhood",
     "new": false,
@@ -6387,9 +7533,9 @@
    },
    {
     "class": 4,
-    "count": 4259,
+    "count": 4287,
     "id": 5202,
-    "kills": 18048,
+    "kills": 18234,
     "level": 22,
     "name": "Corsair's Overshirt",
     "new": false,
@@ -6400,9 +7546,9 @@
    },
    {
     "class": 4,
-    "count": 2740,
+    "count": 2785,
     "id": 10399,
-    "kills": 18048,
+    "kills": 18234,
     "level": 22,
     "name": "Blackened Defias Armor",
     "new": false,
@@ -6418,9 +7564,9 @@
   "items": [
    {
     "class": 2,
-    "count": 1230,
+    "count": 1289,
     "id": 1937,
-    "kills": 12268,
+    "kills": 12496,
     "level": 23,
     "name": "Buzz Saw",
     "new": false,
@@ -6431,9 +7577,9 @@
    },
    {
     "class": 2,
-    "count": 6329,
+    "count": 6390,
     "id": 2169,
-    "kills": 12268,
+    "kills": 12496,
     "level": 21,
     "name": "Buzzer Blade",
     "new": false,
@@ -6444,9 +7590,9 @@
    },
    {
     "class": 2,
-    "count": 17,
+    "count": 97,
     "id": 285292,
-    "kills": 12268,
+    "kills": 12496,
     "level": 21,
     "name": "Dull Sawblade",
     "new": true,
@@ -6462,9 +7608,9 @@
   "items": [
    {
     "class": 2,
-    "count": 3966,
+    "count": 3990,
     "id": 5194,
-    "kills": 14471,
+    "kills": 14576,
     "level": 23,
     "name": "Taskmaster Axe",
     "new": false,
@@ -6475,9 +7621,9 @@
    },
    {
     "class": 4,
-    "count": 9804,
+    "count": 9837,
     "id": 5195,
-    "kills": 14471,
+    "kills": 14576,
     "level": 22,
     "name": "Gold-flecked Gloves",
     "new": false,
@@ -6488,9 +7634,9 @@
    },
    {
     "class": 4,
-    "count": 9,
+    "count": 50,
     "id": 273293,
-    "kills": 14471,
+    "kills": 14576,
     "level": 21,
     "name": "Bandsaw Wristbands",
     "new": true,
@@ -6506,9 +7652,9 @@
   "items": [
    {
     "class": 2,
-    "count": 424,
+    "count": 469,
     "id": 872,
-    "kills": 10268,
+    "kills": 10424,
     "level": 23,
     "name": "Rockslicer",
     "new": false,
@@ -6519,9 +7665,9 @@
    },
    {
     "class": 2,
-    "count": 7413,
+    "count": 7460,
     "id": 5187,
-    "kills": 10268,
+    "kills": 10424,
     "level": 21,
     "name": "Rhahk'Zor's Hammer",
     "new": false,
@@ -6532,9 +7678,9 @@
    },
    {
     "class": 4,
-    "count": 12,
+    "count": 71,
     "id": 273289,
-    "kills": 10268,
+    "kills": 10424,
     "level": 22,
     "name": "Ogre Loincloth",
     "new": true,
@@ -6550,9 +7696,9 @@
   "items": [
    {
     "class": 2,
-    "count": 7690,
+    "count": 7724,
     "id": 5197,
-    "kills": 14037,
+    "kills": 14182,
     "level": 21,
     "name": "Cookie's Tenderizer",
     "new": false,
@@ -6563,9 +7709,9 @@
    },
    {
     "class": 2,
-    "count": 4802,
+    "count": 4845,
     "id": 5198,
-    "kills": 14037,
+    "kills": 14182,
     "level": 22,
     "name": "Cookie's Stirring Rod",
     "new": false,
@@ -6576,9 +7722,9 @@
    },
    {
     "class": 4,
-    "count": 14,
+    "count": 70,
     "id": 273298,
-    "kills": 14037,
+    "kills": 14182,
     "level": 23,
     "name": "Lookie's Spyglass",
     "new": true,
@@ -6594,9 +7740,9 @@
   "items": [
    {
     "class": 2,
-    "count": 5711,
+    "count": 5765,
     "id": 5192,
-    "kills": 14769,
+    "kills": 14975,
     "level": 22,
     "name": "Thief's Blade",
     "new": false,
@@ -6607,9 +7753,9 @@
    },
    {
     "class": 2,
-    "count": 5524,
+    "count": 5573,
     "id": 5196,
-    "kills": 14769,
+    "kills": 14975,
     "level": 21,
     "name": "Smite's Reaver",
     "new": false,
@@ -6620,9 +7766,9 @@
    },
    {
     "class": 2,
-    "count": 2732,
+    "count": 2775,
     "id": 7230,
-    "kills": 14769,
+    "kills": 14975,
     "level": 23,
     "name": "Smite's Mighty Hammer",
     "new": false,
@@ -6633,9 +7779,9 @@
    },
    {
     "class": 4,
-    "count": 8,
+    "count": 59,
     "id": 284715,
-    "kills": 14769,
+    "kills": 14975,
     "level": 22,
     "name": "First Mate Band",
     "new": true,
@@ -6651,9 +7797,9 @@
   "items": [
    {
     "class": 2,
-    "count": 3889,
+    "count": 3932,
     "id": 5200,
-    "kills": 13785,
+    "kills": 13927,
     "level": 22,
     "name": "Impaling Harpoon",
     "new": false,
@@ -6664,9 +7810,9 @@
    },
    {
     "class": 2,
-    "count": 5260,
+    "count": 5296,
     "id": 5201,
-    "kills": 13785,
+    "kills": 13927,
     "level": 22,
     "name": "Emberstone Staff",
     "new": false,
@@ -6677,9 +7823,9 @@
    },
    {
     "class": 4,
-    "count": 3636,
+    "count": 3688,
     "id": 10403,
-    "kills": 13785,
+    "kills": 13927,
     "level": 22,
     "name": "Blackened Defias Belt",
     "new": false,
@@ -6704,6 +7850,19 @@
     "quality": 2,
     "reqlevel": 34,
     "slot": 5,
+    "subclass": 1
+   },
+   {
+    "class": 4,
+    "count": 9188,
+    "id": 7712,
+    "kills": 19392,
+    "level": 39,
+    "name": "Mantle of Doan",
+    "new": false,
+    "quality": 2,
+    "reqlevel": 34,
+    "slot": 3,
     "subclass": 1
    },
    {
@@ -6733,6 +7892,19 @@
     "subclass": 15
    },
    {
+    "class": 2,
+    "count": 1,
+    "id": 7729,
+    "kills": 524,
+    "level": 33,
+    "name": "Chesterfall Musket",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 28,
+    "slot": 15,
+    "subclass": 3
+   },
+   {
     "class": 4,
     "count": 2,
     "id": 7754,
@@ -6744,6 +7916,19 @@
     "reqlevel": 25,
     "slot": 8,
     "subclass": 2
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 7759,
+    "kills": 19392,
+    "level": 38,
+    "name": "Archon Chestpiece",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 33,
+    "slot": 5,
+    "subclass": 3
    }
   ],
   "new": false
@@ -6752,9 +7937,9 @@
   "items": [
    {
     "class": 2,
-    "count": 468,
+    "count": 470,
     "id": 7689,
-    "kills": 2556,
+    "kills": 2565,
     "level": 35,
     "name": "Morbid Dawn",
     "new": false,
@@ -6765,9 +7950,9 @@
    },
    {
     "class": 4,
-    "count": 1015,
+    "count": 1020,
     "id": 7690,
-    "kills": 2556,
+    "kills": 2565,
     "level": 35,
     "name": "Ebon Vise",
     "new": false,
@@ -6778,9 +7963,9 @@
    },
    {
     "class": 4,
-    "count": 987,
+    "count": 989,
     "id": 7691,
-    "kills": 2556,
+    "kills": 2565,
     "level": 35,
     "name": "Embalmed Shroud",
     "new": false,
@@ -6796,9 +7981,9 @@
   "items": [
    {
     "class": 4,
-    "count": 1050,
+    "count": 1055,
     "id": 7686,
-    "kills": 2553,
+    "kills": 2565,
     "level": 35,
     "name": "Ironspine's Eye",
     "new": false,
@@ -6809,9 +7994,9 @@
    },
    {
     "class": 2,
-    "count": 512,
+    "count": 513,
     "id": 7687,
-    "kills": 2553,
+    "kills": 2565,
     "level": 35,
     "name": "Ironspine's Fist",
     "new": false,
@@ -6822,9 +8007,9 @@
    },
    {
     "class": 4,
-    "count": 903,
+    "count": 909,
     "id": 7688,
-    "kills": 2553,
+    "kills": 2565,
     "level": 35,
     "name": "Ironspine's Ribcage",
     "new": false,
@@ -6832,6 +8017,19 @@
     "reqlevel": 30,
     "slot": 5,
     "subclass": 3
+   },
+   {
+    "class": 4,
+    "count": 1,
+    "id": 7728,
+    "kills": 2565,
+    "level": 34,
+    "name": "Beguiler Robes",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 29,
+    "slot": 5,
+    "subclass": 1
    },
    {
     "class": 4,
@@ -6852,10 +8050,23 @@
  "drops5:6490": {
   "items": [
    {
+    "class": 4,
+    "count": 3,
+    "id": 5819,
+    "kills": 1226,
+    "level": 33,
+    "name": "Sunblaze Coif",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 28,
+    "slot": 1,
+    "subclass": 3
+   },
+   {
     "class": 2,
-    "count": 839,
+    "count": 841,
     "id": 7708,
-    "kills": 2581,
+    "kills": 2589,
     "level": 35,
     "name": "Necrotic Wand",
     "new": false,
@@ -6866,9 +8077,9 @@
    },
    {
     "class": 4,
-    "count": 801,
+    "count": 805,
     "id": 7709,
-    "kills": 2581,
+    "kills": 2589,
     "level": 35,
     "name": "Blighted Leggings",
     "new": false,
@@ -6881,7 +8092,7 @@
     "class": 2,
     "count": 2,
     "id": 7730,
-    "kills": 2581,
+    "kills": 2589,
     "level": 34,
     "name": "Cobalt Crusher",
     "new": false,
@@ -6892,9 +8103,9 @@
    },
    {
     "class": 4,
-    "count": 871,
+    "count": 873,
     "id": 7731,
-    "kills": 2581,
+    "kills": 2589,
     "level": 35,
     "name": "Ghostshard Talisman",
     "new": false,
@@ -6902,6 +8113,19 @@
     "reqlevel": 30,
     "slot": 2,
     "subclass": -3
+   },
+   {
+    "class": 4,
+    "count": 2,
+    "id": 7787,
+    "kills": 168,
+    "level": 31,
+    "name": "Resplendent Guardian",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 26,
+    "slot": 14,
+    "subclass": 6
    }
   ],
   "new": false
@@ -6971,9 +8195,9 @@
   "items": [
    {
     "class": 2,
-    "count": 1267,
+    "count": 1270,
     "id": 9452,
-    "kills": 6466,
+    "kills": 6477,
     "level": 32,
     "name": "Hydrocane",
     "new": false,
@@ -6984,9 +8208,9 @@
    },
    {
     "class": 2,
-    "count": 1160,
+    "count": 1165,
     "id": 9453,
-    "kills": 6466,
+    "kills": 6477,
     "level": 32,
     "name": "Toxic Revenger",
     "new": false,
@@ -6997,9 +8221,9 @@
    },
    {
     "class": 4,
-    "count": 3859,
+    "count": 3862,
     "id": 9454,
-    "kills": 6466,
+    "kills": 6477,
     "level": 32,
     "name": "Acidic Walkers",
     "new": false,
@@ -7007,6 +8231,19 @@
     "reqlevel": 27,
     "slot": 8,
     "subclass": 1
+   },
+   {
+    "class": 2,
+    "count": 1,
+    "id": 9485,
+    "kills": 59,
+    "level": 30,
+    "name": "Vibroblade",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 13,
+    "subclass": 0
    }
   ],
   "new": false
@@ -7323,9 +8560,9 @@
   "items": [
    {
     "class": 4,
-    "count": 265,
+    "count": 270,
     "id": 9445,
-    "kills": 3071,
+    "kills": 3087,
     "level": 34,
     "name": "Grubbis Paws",
     "new": false,
@@ -7333,6 +8570,19 @@
     "reqlevel": 29,
     "slot": 10,
     "subclass": 3
+   },
+   {
+    "class": 4,
+    "count": 6,
+    "id": 274043,
+    "kills": 3087,
+    "level": 34,
+    "name": "Irradiated Shield",
+    "new": true,
+    "quality": 3,
+    "reqlevel": 29,
+    "slot": 14,
+    "subclass": 6
    }
   ],
   "new": false
@@ -7353,9 +8603,9 @@
   "items": [
    {
     "class": 4,
-    "count": 1811,
+    "count": 1813,
     "id": 9458,
-    "kills": 5679,
+    "kills": 5696,
     "level": 36,
     "name": "Thermaplugg's Central Core",
     "new": false,
@@ -7365,10 +8615,23 @@
     "subclass": 6
    },
    {
+    "class": 2,
+    "count": 1045,
+    "id": 9459,
+    "kills": 5696,
+    "level": 36,
+    "name": "Thermaplugg's Left Arm",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 31,
+    "slot": 17,
+    "subclass": 1
+   },
+   {
     "class": 4,
-    "count": 1877,
+    "count": 1882,
     "id": 9461,
-    "kills": 5679,
+    "kills": 5696,
     "level": 36,
     "name": "Charged Gear",
     "new": false,
@@ -7376,6 +8639,32 @@
     "reqlevel": 31,
     "slot": 11,
     "subclass": -2
+   },
+   {
+    "class": 2,
+    "count": 1,
+    "id": 9485,
+    "kills": 90,
+    "level": 30,
+    "name": "Vibroblade",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 25,
+    "slot": 13,
+    "subclass": 0
+   },
+   {
+    "class": 4,
+    "count": 541,
+    "id": 9492,
+    "kills": 5696,
+    "level": 36,
+    "name": "Electromagnetic Gigaflux Reactivator",
+    "new": false,
+    "quality": 3,
+    "reqlevel": 31,
+    "slot": 1,
+    "subclass": 1
    }
   ],
   "new": false
@@ -10414,6 +11703,15 @@
   "reqlevel": 41,
   "slot": 16,
   "subclass": -6
+ },
+ "item:1155": {
+  "class": 2,
+  "id": 1155,
+  "level": 29,
+  "quality": 3,
+  "reqlevel": 24,
+  "slot": 17,
+  "subclass": 10
  },
  "item:1156": {
   "class": 4,
@@ -16292,6 +17590,33 @@
   "slot": 7,
   "subclass": 2
  },
+ "item:273023": {
+  "class": 4,
+  "id": 273023,
+  "level": 31,
+  "quality": 3,
+  "reqlevel": 26,
+  "slot": 6,
+  "subclass": 3
+ },
+ "item:273025": {
+  "class": 4,
+  "id": 273025,
+  "level": 31,
+  "quality": 3,
+  "reqlevel": 26,
+  "slot": 8,
+  "subclass": 3
+ },
+ "item:273026": {
+  "class": 4,
+  "id": 273026,
+  "level": 31,
+  "quality": 3,
+  "reqlevel": 26,
+  "slot": 5,
+  "subclass": 2
+ },
  "item:273027": {
   "class": 4,
   "id": 273027,
@@ -16463,6 +17788,33 @@
   "slot": 7,
   "subclass": 2
  },
+ "item:273804": {
+  "class": 4,
+  "id": 273804,
+  "level": 26,
+  "quality": 3,
+  "reqlevel": 21,
+  "slot": 3,
+  "subclass": 2
+ },
+ "item:273805": {
+  "class": 4,
+  "id": 273805,
+  "level": 26,
+  "quality": 3,
+  "reqlevel": 21,
+  "slot": 5,
+  "subclass": 2
+ },
+ "item:273806": {
+  "class": 4,
+  "id": 273806,
+  "level": 26,
+  "quality": 3,
+  "reqlevel": 21,
+  "slot": 11,
+  "subclass": -2
+ },
  "item:273808": {
   "class": 4,
   "id": 273808,
@@ -16471,6 +17823,24 @@
   "reqlevel": 24,
   "slot": 9,
   "subclass": 1
+ },
+ "item:273810": {
+  "class": 4,
+  "id": 273810,
+  "level": 30,
+  "quality": 3,
+  "reqlevel": 25,
+  "slot": 10,
+  "subclass": 3
+ },
+ "item:273811": {
+  "class": 4,
+  "id": 273811,
+  "level": 30,
+  "quality": 3,
+  "reqlevel": 25,
+  "slot": 14,
+  "subclass": 6
  },
  "item:273820": {
   "class": 4,
@@ -16481,6 +17851,33 @@
   "slot": 11,
   "subclass": -2
  },
+ "item:273824": {
+  "class": 4,
+  "id": 273824,
+  "level": 31,
+  "quality": 3,
+  "reqlevel": 26,
+  "slot": 10,
+  "subclass": 2
+ },
+ "item:273825": {
+  "class": 4,
+  "id": 273825,
+  "level": 31,
+  "quality": 3,
+  "reqlevel": 26,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:273827": {
+  "class": 2,
+  "id": 273827,
+  "level": 31,
+  "quality": 3,
+  "reqlevel": 26,
+  "slot": 21,
+  "subclass": 7
+ },
  "item:273829": {
   "class": 2,
   "id": 273829,
@@ -16489,6 +17886,33 @@
   "reqlevel": 26,
   "slot": 15,
   "subclass": 18
+ },
+ "item:273840": {
+  "class": 4,
+  "id": 273840,
+  "level": 29,
+  "quality": 3,
+  "reqlevel": 24,
+  "slot": 12,
+  "subclass": -4
+ },
+ "item:273842": {
+  "class": 4,
+  "id": 273842,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 8,
+  "subclass": 3
+ },
+ "item:273843": {
+  "class": 2,
+  "id": 273843,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 15,
+  "subclass": 2
  },
  "item:274092": {
   "class": 2,
@@ -16526,6 +17950,15 @@
   "slot": 17,
   "subclass": 10
  },
+ "item:274159": {
+  "class": 4,
+  "id": 274159,
+  "level": 33,
+  "quality": 3,
+  "reqlevel": 27,
+  "slot": 10,
+  "subclass": 2
+ },
  "item:274160": {
   "class": 2,
   "id": 274160,
@@ -16553,6 +17986,15 @@
   "slot": 21,
   "subclass": 0
  },
+ "item:2816": {
+  "class": 2,
+  "id": 2816,
+  "level": 33,
+  "quality": 3,
+  "reqlevel": 28,
+  "slot": 21,
+  "subclass": 4
+ },
  "item:284715": {
   "class": 4,
   "id": 284715,
@@ -16562,6 +18004,33 @@
   "slot": 11,
   "subclass": -2
  },
+ "item:285292": {
+  "class": 2,
+  "id": 285292,
+  "level": 21,
+  "quality": 3,
+  "reqlevel": 16,
+  "slot": 25,
+  "subclass": 16
+ },
+ "item:286978": {
+  "class": 4,
+  "id": 286978,
+  "level": 23,
+  "quality": 3,
+  "reqlevel": 18,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:2941": {
+  "class": 2,
+  "id": 2941,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 13,
+  "subclass": 15
+ },
  "item:3194": {
   "class": 2,
   "id": 3194,
@@ -16570,6 +18039,24 @@
   "reqlevel": 16,
   "slot": 17,
   "subclass": 5
+ },
+ "item:3228": {
+  "class": 4,
+  "id": 3228,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 9,
+  "subclass": 3
+ },
+ "item:3230": {
+  "class": 4,
+  "id": 3230,
+  "level": 27,
+  "quality": 3,
+  "reqlevel": 22,
+  "slot": 9,
+  "subclass": 2
  },
  "item:3413": {
   "class": 2,
@@ -16632,6 +18119,15 @@
   "quality": 2,
   "reqlevel": 21,
   "slot": 5,
+  "subclass": 1
+ },
+ "item:3748": {
+  "class": 4,
+  "id": 3748,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 3,
   "subclass": 1
  },
  "item:4438": {
@@ -16823,6 +18319,51 @@
   "slot": 5,
   "subclass": 1
  },
+ "item:6314": {
+  "class": 4,
+  "id": 6314,
+  "level": 27,
+  "quality": 3,
+  "reqlevel": 22,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:6318": {
+  "class": 2,
+  "id": 6318,
+  "level": 26,
+  "quality": 3,
+  "reqlevel": 21,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:6321": {
+  "class": 4,
+  "id": 6321,
+  "level": 26,
+  "quality": 3,
+  "reqlevel": 21,
+  "slot": 11,
+  "subclass": -2
+ },
+ "item:6324": {
+  "class": 4,
+  "id": 6324,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:6340": {
+  "class": 4,
+  "id": 6340,
+  "level": 27,
+  "quality": 3,
+  "reqlevel": 22,
+  "slot": 16,
+  "subclass": -6
+ },
  "item:6341": {
   "class": 4,
   "id": 6341,
@@ -16831,6 +18372,15 @@
   "reqlevel": 19,
   "slot": 23,
   "subclass": -5
+ },
+ "item:6392": {
+  "class": 4,
+  "id": 6392,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 6,
+  "subclass": 1
  },
  "item:6448": {
   "class": 2,
@@ -16949,6 +18499,15 @@
   "slot": 13,
   "subclass": 7
  },
+ "item:6641": {
+  "class": 2,
+  "id": 6641,
+  "level": 27,
+  "quality": 3,
+  "reqlevel": 22,
+  "slot": 17,
+  "subclass": 8
+ },
  "item:6642": {
   "class": 4,
   "id": 6642,
@@ -16975,6 +18534,168 @@
   "reqlevel": 27,
   "slot": 13,
   "subclass": 15
+ },
+ "item:6682": {
+  "class": 4,
+  "id": 6682,
+  "level": 31,
+  "quality": 3,
+  "reqlevel": 26,
+  "slot": 5,
+  "subclass": 1
+ },
+ "item:6685": {
+  "class": 4,
+  "id": 6685,
+  "level": 32,
+  "quality": 3,
+  "reqlevel": 27,
+  "slot": 3,
+  "subclass": 1
+ },
+ "item:6686": {
+  "class": 4,
+  "id": 6686,
+  "level": 34,
+  "quality": 3,
+  "reqlevel": 29,
+  "slot": 1,
+  "subclass": 3
+ },
+ "item:6687": {
+  "class": 2,
+  "id": 6687,
+  "level": 34,
+  "quality": 3,
+  "reqlevel": 29,
+  "slot": 17,
+  "subclass": 1
+ },
+ "item:6688": {
+  "class": 4,
+  "id": 6688,
+  "level": 34,
+  "quality": 3,
+  "reqlevel": 29,
+  "slot": 1,
+  "subclass": 2
+ },
+ "item:6689": {
+  "class": 2,
+  "id": 6689,
+  "level": 34,
+  "quality": 3,
+  "reqlevel": 29,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:6690": {
+  "class": 4,
+  "id": 6690,
+  "level": 34,
+  "quality": 3,
+  "reqlevel": 29,
+  "slot": 7,
+  "subclass": 2
+ },
+ "item:6691": {
+  "class": 2,
+  "id": 6691,
+  "level": 35,
+  "quality": 3,
+  "reqlevel": 30,
+  "slot": 21,
+  "subclass": 15
+ },
+ "item:6692": {
+  "class": 2,
+  "id": 6692,
+  "level": 35,
+  "quality": 3,
+  "reqlevel": 30,
+  "slot": 13,
+  "subclass": 0
+ },
+ "item:6694": {
+  "class": 4,
+  "id": 6694,
+  "level": 35,
+  "quality": 3,
+  "reqlevel": 30,
+  "slot": 14,
+  "subclass": 6
+ },
+ "item:6697": {
+  "class": 4,
+  "id": 6697,
+  "level": 34,
+  "quality": 3,
+  "reqlevel": 29,
+  "slot": 3,
+  "subclass": 1
+ },
+ "item:6901": {
+  "class": 4,
+  "id": 6901,
+  "level": 29,
+  "quality": 3,
+  "reqlevel": 24,
+  "slot": 16,
+  "subclass": -6
+ },
+ "item:6902": {
+  "class": 4,
+  "id": 6902,
+  "level": 27,
+  "quality": 3,
+  "reqlevel": 22,
+  "slot": 9,
+  "subclass": 2
+ },
+ "item:6903": {
+  "class": 4,
+  "id": 6903,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 7,
+  "subclass": 1
+ },
+ "item:6906": {
+  "class": 4,
+  "id": 6906,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 10,
+  "subclass": 3
+ },
+ "item:6908": {
+  "class": 4,
+  "id": 6908,
+  "level": 27,
+  "quality": 3,
+  "reqlevel": 22,
+  "slot": 6,
+  "subclass": 1
+ },
+ "item:6910": {
+  "class": 4,
+  "id": 6910,
+  "level": 29,
+  "quality": 3,
+  "reqlevel": 24,
+  "slot": 7,
+  "subclass": 1
+ },
+ "item:6911": {
+  "class": 4,
+  "id": 6911,
+  "level": 30,
+  "quality": 3,
+  "reqlevel": 25,
+  "slot": 6,
+  "subclass": 2
  },
  "item:7230": {
   "class": 2,
@@ -17210,6 +18931,15 @@
   "slot": 17,
   "subclass": 1
  },
+ "item:888": {
+  "class": 4,
+  "id": 888,
+  "level": 27,
+  "quality": 3,
+  "reqlevel": 22,
+  "slot": 10,
+  "subclass": 2
+ },
  "item:9243": {
   "class": 4,
   "id": 9243,
@@ -17443,6 +19173,51 @@
   "reqlevel": 40,
   "slot": 9,
   "subclass": 4
+ },
+ "item:9449": {
+  "class": 2,
+  "id": 9449,
+  "level": 34,
+  "quality": 3,
+  "reqlevel": 29,
+  "slot": 17,
+  "subclass": 5
+ },
+ "item:9450": {
+  "class": 4,
+  "id": 9450,
+  "level": 34,
+  "quality": 3,
+  "reqlevel": 29,
+  "slot": 8,
+  "subclass": 2
+ },
+ "item:9452": {
+  "class": 2,
+  "id": 9452,
+  "level": 32,
+  "quality": 3,
+  "reqlevel": 27,
+  "slot": 17,
+  "subclass": 10
+ },
+ "item:9453": {
+  "class": 2,
+  "id": 9453,
+  "level": 32,
+  "quality": 3,
+  "reqlevel": 27,
+  "slot": 13,
+  "subclass": 15
+ },
+ "item:9454": {
+  "class": 4,
+  "id": 9454,
+  "level": 32,
+  "quality": 3,
+  "reqlevel": 27,
+  "slot": 8,
+  "subclass": 1
  },
  "item:9455": {
   "class": 4,
