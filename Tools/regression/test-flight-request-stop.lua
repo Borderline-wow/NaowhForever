@@ -16,6 +16,7 @@ local function fixture(settings)
         function f:Show() self.shown = true end
         function f:Hide() self.shown = false end
         function f:SetShown(v) self.shown = v and true or false end
+        function f:SetAlpha(a) self.alpha = a end
         function f:IsShown() return self.shown end
         function f:GetScale() return 1 end
         function f:GetFrameLevel() return 1 end
@@ -31,13 +32,19 @@ local function fixture(settings)
     function leave:EnableMouse(v) self.mouse = v; self.mouseCalls = self.mouseCalls + 1 end
     s.leave = leave
     local defaults = { enabled = true, flightTimer = true, flightEarlyLanding = false, flightTimerScale = 1,
-        flightGame = 'aim' }
+        flightTimerAlpha = 1, flightGame = 'aim' }
     local S = { Get = function(k) if s.settings[k] ~= nil then return s.settings[k] end return defaults[k] end,
         Set = function(k, v) s.settings[k] = v end, DB = function() return s.settings end,
         Raw = function(k) return s.settings[k] end }
     local ns = { QoLSettings = S, THEME = { accent = {}, bg = {}, muted = {}, accentSoft = {}, fg = {}, line = {} },
-        Font = function() return frame() end, Solid = function() return frame() end, Border = function() end,
-        Button = function(_, text) local b = frame(); b.label = text; return b end,
+        Font = function() return frame() end, Solid = function() return frame() end,
+        Border = function() return { _frame = frame() } end,
+        Button = function(_, text)
+            local b = frame()
+            b.name, b.label = text, frame()
+            b._bg, b._border = frame(), { _frame = frame() }
+            return b
+        end,
         AccentBorder = function(f) return f end, PixelInset = function() end,
         Tooltip = function() end, AccountSettings = function() return {} end, FLIGHT_ROUTES = {},
         Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
@@ -79,7 +86,7 @@ local function fixture(settings)
         for _, f in ipairs(s.frames) do if pred(f) then return f end end
     end
     function s.text(v) return s.find(function(f) return rawget(f, 'text') == v end) end
-    function s.button(label) return s.find(function(f) return rawget(f, 'label') == label end) end
+    function s.button(label) return s.find(function(f) return rawget(f, 'name') == label end) end
     function s.tick()
         local bar = s.find(function(f) return f.scripts.OnUpdate end)
         bar.scripts.OnUpdate(bar)
@@ -105,14 +112,13 @@ do
     check('landing restores the button', s.leave.alpha == 1 and s.leave.mouse)
 end
 do
-    local s = fixture({ flightEarlyLanding = true })
+    local s = fixture({ flightEarlyLanding = true, flightTimerAlpha = 0 })
     s.board()
-    s.set('flightEarlyLanding', false)
-    check('turning Land Early off mid-flight restores', s.leave.alpha == 1 and s.leave.mouse)
-    s.set('flightEarlyLanding', true)
-    check('turning it back on fades again', s.leave.alpha == 0)
-    s.set('flightTimer', false)
-    check('turning the timer off restores', s.leave.alpha == 1 and s.leave.mouse)
+    local land, games = s.button('Land'), s.button('Games')
+    check('a see-through card still shows its buttons', land.shown and games.shown)
+    check('Background Opacity fades the buttons\' backgrounds', land._bg.alpha == 0 and games._border._frame.alpha == 0)
+    s.set('flightTimerAlpha', 1)
+    check('and brings them back', land._bg.alpha == 1 and games._border._frame.alpha == 1)
 end
 do
     local s = fixture({ flightEarlyLanding = true })
