@@ -39,6 +39,7 @@ local UNUSABLE, ROUND, BAG = St.UNUSABLE, St.ROUND, St.BAG
 local View = J.View
 local Kinds, Parts = View.Kinds, View.Parts
 local Items = ns.Shared.Items
+local Refused = Items.Refused
 local Inline, RankMark = Parts.Inline, Parts.RankMark
 local INLINE_DROP, CARD_DROP = Parts.TOOLTIP_DROP, Parts.CARD_DROP
 
@@ -394,10 +395,12 @@ Kinds.item = {
         row.hover:Hide()
         row.stripe:SetShown(view.striped)
         row.icon:SetTexture(GetItemIconByID(itemID))
-        local name, _, quality = GetItemInfo(itemID)
+        local refused = Refused(itemID)
+        local name, _, quality
+        if not refused then name, _, quality = GetItemInfo(itemID) end
         -- Not loaded yet: GetItemInfo has asked the server, and the view draws again when
         -- GET_ITEM_INFO_RECEIVED names this item.
-        if not name then view.waitingFor[itemID] = true end
+        if not (name or refused) then view.waitingFor[itemID] = true end
         local facts = J.Items[itemID]
         quality = quality or (facts and facts[FACT.QUALITY]) or 1
         local _, _, _, hex = GetItemQualityColor(quality)
@@ -436,6 +439,6 @@ Kinds.item = {
         row.keep = rank ~= nil or upgrade
         row.rest = (bare or Loot.Usable(itemID)) and 1 or UNUSABLE
         row:SetAlpha(row.rest)
-        return ITEM_H, name == nil
+        return ITEM_H, name == nil and not refused
     end,
 }

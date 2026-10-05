@@ -167,7 +167,6 @@ local function RebuildQuestNeeds()
 end
 
 local function Cheaper(a, b)
-    if a.scrap ~= b.scrap then return a.scrap end
     -- Anything a quest still needs goes last, whatever it is worth.
     if (a.quest ~= nil) ~= (b.quest ~= nil) then return b.quest ~= nil end
     if junkFirst and (a.quality == 0) ~= (b.quality == 0) then return a.quality == 0 end
@@ -247,7 +246,7 @@ local function Scan()
                         NotePartial(bag, slot, info.itemID, info.stackCount or 1, maxStack)
                         local scrap = scanScrap ~= nil and vendor > 0 and scanScrap(info.itemID)
                         if scrap then scrapSlots = scrapSlots + 1 end
-                        if vendor > 0 and (quality <= scanMaxQuality or scrap)
+                        if vendor > 0 and quality <= scanMaxQuality
                             and not Protected(info.itemID, classID) then
                             n = n + 1
                             local e = pool[n] or {}
@@ -259,7 +258,6 @@ local function Scan()
                             -- Food, drink and potions long outlevelled: classic junk that is not grey.
                             e.old = classID == 0 and (minLevel or 0) > 0 and level - minLevel >= OUTLEVEL
                             e.quest = questNeeds[name]
-                            e.scrap = scrap == true
                             picks[n] = e
                         end
                     end
@@ -1153,7 +1151,7 @@ local function Samples()
         { name = "Jade Ring", icon = "Interface\\Icons\\INV_Jewelry_Ring_03", quality = 3, count = 1, vendor = 920 },
     }
     for i, e in ipairs(list) do
-        e.bag, e.slot, e.scrap, e.value = 0, i, false, e.vendor * e.count
+        e.bag, e.slot, e.value = 0, i, e.vendor * e.count
     end
     return list
 end

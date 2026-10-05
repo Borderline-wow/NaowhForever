@@ -1,6 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
     <!-- What the modules share, in load order: the namespace, the house style, item and gear
-         helpers, the components of a page and of a window, then the engine that draws a page
+         helpers, /played time, the components of a page and of a window, then the engine that draws a page
          in rows and its common rows. Each file uses only the ones above it. See README.md. -->
     <Script file="Shared.lua"/>
     <Script file="Data\Forever.lua"/>
@@ -8,6 +8,7 @@
     <Script file="Items.lua"/>
     <Script file="Bags.lua"/>
     <Script file="Places.lua"/>
+    <Script file="Played.lua"/>
     <Script file="Parts.lua"/>
     <Script file="Window.lua"/>
     <Script file="Tracker.lua"/>
