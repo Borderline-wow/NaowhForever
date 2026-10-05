@@ -59,8 +59,8 @@
   blue, and a slim track you ride along on your faction's flight mount, with each stop marked on
   it (filled once passed) and the next stop and its time under it. Land Early is now a Land
   button beside Games.
-- Character Panel: the grey Legendary badge for players without a badge is now off by default;
-  turn on Legendary Badge Preview (QoL > Character) to see it. Your own badge still shows.
+- Character Panel: the grey Legendary badge for players without a badge is gone; only your own
+  badge shows.
 
 ### Fixed
 - Naowh Score: no more Lua error after seeing more than 300 players, like in a busy city.
