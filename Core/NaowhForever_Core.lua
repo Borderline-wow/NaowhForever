@@ -576,6 +576,7 @@ function ns.Button(parent, text, w, h, onClick)
     local border = ns.Border(btn, BLACK)
     -- The border and the colour it rests at, so a caller can restyle a button (AccentButton).
     btn._border, btn._rest = border, BLACK
+    btn._bg = bg
     local lbl = ns.Font(btn, 12, nil)
     lbl:SetPoint("CENTER")
     lbl:SetText(ns.L(text))

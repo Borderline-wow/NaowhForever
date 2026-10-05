@@ -186,7 +186,8 @@ local S = UI.ModuleSettings("qol", {
 
     trainerPopup = true, trainerGlow = true, trainerRanks = true,
 
-    flightTimer = true, flightTimerScale = 1, flightEarlyLanding = false, flightGame = "aim", quizCamp = true,
+    flightTimer = true, flightTimerScale = 1, flightTimerAlpha = 1, flightEarlyLanding = false,
+    flightGame = "aim", quizCamp = true,
     aimTrainer = true, aimMode = "hexakill", aimPulse = true, aimSound = true,
     aimSoundKey = "game:click", aimShare = true,
 })

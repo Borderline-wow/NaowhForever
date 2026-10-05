@@ -126,6 +126,26 @@ local function Fit(fs, cap)
     if fs:GetStringWidth() > cap then fs:SetWidth(cap) end
 end
 
+-- A shadow for the card's text once its background is mostly gone, so it still reads over
+-- the world. The font's own shadow is kept to go back to.
+local SHADOW_BELOW = 0.5
+
+local function Shadow(fs, on)
+    if not fs._shadow then
+        local r, g, b, a = fs:GetShadowColor()
+        local x, y = fs:GetShadowOffset()
+        fs._shadow = { r, g, b, a, x, y }
+    end
+    local s = fs._shadow
+    if on then
+        fs:SetShadowColor(0, 0, 0, 1)
+        fs:SetShadowOffset(1, -1)
+    else
+        fs:SetShadowColor(s[1], s[2], s[3], s[4])
+        fs:SetShadowOffset(s[5], s[6])
+    end
+end
+
 local function NewStop(f)
     local m = {}
     m.ring = Disc(f.marks, "ARTWORK", 1, STOP, T.fg)
@@ -135,6 +155,8 @@ local function NewStop(f)
     m.hole:SetPoint("CENTER", m.ring)
     m.label = ns.Font(f, LABEL_SIZE)
     m.label:SetWordWrap(false)
+    f.texts[#f.texts + 1] = m.label
+    if f.shadowed then Shadow(m.label, true) end
     return m
 end
 
@@ -217,8 +239,9 @@ end
 
 function Look.New(f)
     f:SetSize(WIDTH + 2 * PAD, 2 * PAD + HEAD_H)
-    ns.Solid(f, "BACKGROUND", T.bg, CARD_ALPHA):SetAllPoints()
-    ns.Border(f, BORDER_RGB)
+    f.bg = ns.Solid(f, "BACKGROUND", T.bg, CARD_ALPHA)
+    f.bg:SetAllPoints()
+    f.border = ns.Border(f, BORDER_RGB)
 
     f.time = ns.Font(f, TIME_SIZE, nil, T.accent)
     f.time:SetPoint("BOTTOMRIGHT", f, "TOPRIGHT", -PAD, -PAD - HEAD_H)
@@ -243,9 +266,30 @@ function Look.New(f)
     f.sep:SetPoint("LEFT", f.nextName, "RIGHT", 0, 0)
     f.nextTime = ns.Font(f, FOOT_SIZE, nil, T.accentSoft)
     f.nextTime:SetPoint("LEFT", f.sep, "RIGHT", 0, 0)
+    f.texts = { f.time, f.from, f.to, f.nextKey, f.nextName, f.sep, f.nextTime }
 
     f.land = ns.Button(f, "Land", BTN_W, BTN_H)
     f.games = ns.Button(f, "Games", BTN_W, BTN_H)
+    f.texts[#f.texts + 1] = f.land.label
+    f.texts[#f.texts + 1] = f.games.label
+end
+
+-- Background Opacity (flightTimerAlpha): only the card's and its buttons' backgrounds and
+-- edges fade, never the route, the track or the text; below half, the text gets a shadow
+-- and the muted labels go bright so they still read over the world.
+function Look.Opacity(f, alpha)
+    f.bg:SetAlpha(alpha)
+    f.border._frame:SetAlpha(alpha)
+    for _, b in ipairs({ f.land, f.games }) do
+        b._bg:SetAlpha(alpha)
+        b._border._frame:SetAlpha(alpha)
+    end
+    local shadowed = alpha < SHADOW_BELOW
+    if shadowed == f.shadowed then return end
+    f.shadowed = shadowed
+    for _, fs in ipairs(f.texts) do Shadow(fs, shadowed) end
+    local c = shadowed and T.fg or T.muted
+    for _, fs in ipairs({ f.from, f.nextKey, f.sep }) do fs:SetTextColor(c.r, c.g, c.b, 1) end
 end
 
 local function ShowNext(f, m)
@@ -624,6 +668,7 @@ function Apply()
     MigrateGame()
     if not bar then Build() end
     bar:SetScale(S.Get("flightTimerScale"))
+    Look.Opacity(bar, S.Get("flightTimerAlpha") or 1)
     Place()
     if unlocked then
         bar.mover:Show()
@@ -643,7 +688,7 @@ end
 
 hooksecurefunc(S, "Set", function(key)
     if key == "enabled" or key == "flightTimer" or key == "flightEarlyLanding" or key == "flightTimerScale"
-        or key == "aimTrainer" then
+        or key == "flightTimerAlpha" or key == "aimTrainer" then
         Apply()
     end
 end)
@@ -689,6 +734,7 @@ local function PaintPreview(preview)
     local f = preview.bar
     Look.Layout(f, PREVIEW, S.Get("flightEarlyLanding") and true or false, S.Get("enabled") and true or false)
     Look.Progress(f, PREVIEW, PREVIEW_ELAPSED)
+    Look.Opacity(f, S.Get("flightTimerAlpha") or 1)
     local w, h = f:GetWidth(), f:GetHeight()
     local scale = S.Get("flightTimerScale")
     local roomW = preview:GetWidth() - STAGE_MARGIN * 2
@@ -701,7 +747,9 @@ local function PaintPreview(preview)
 end
 
 local function Summary(store)
-    return ("Scale %d%%%s"):format(math.floor(store.Get("flightTimerScale") * 100 + 0.5),
+    local alpha = store.Get("flightTimerAlpha") or 1
+    return ("Scale %d%%%s%s"):format(math.floor(store.Get("flightTimerScale") * 100 + 0.5),
+        alpha < 1 and (", %d%% background"):format(math.floor(alpha * 100 + 0.5)) or "",
         store.Get("flightEarlyLanding") and ", Land Early button" or "")
 end
 
@@ -714,6 +762,9 @@ Settings.Page("QoL/Travel", S):Card({
         { key = "flightEarlyLanding", label = "Land Early Button", toggle = true,
           help = "A Land button that lands you at the next flight point." },
         { key = "flightTimerScale", label = "Scale", slider = { 50, 200, 5 }, unit = "%", scale = 0.01 },
+        { key = "flightTimerAlpha", label = "Background Opacity", slider = { 0, 100, 5 }, unit = "%",
+          scale = 0.01,
+          help = "How much of the card's background and border shows; 0% leaves just the timer." },
     },
 })
 
