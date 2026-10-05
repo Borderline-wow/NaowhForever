@@ -23,8 +23,9 @@ local MEDIA = "Interface\\AddOns\\NaowhForever\\Media\\"
 local FOOTER_H_SIDEBAR = 28
 local LOGO = "Interface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga"
 local BRAND_LOGO = "Interface\\AddOns\\NaowhForever\\Media\\BrandLogo.tga"
--- The art sits high and to the left in its 512x256 canvas, so the texture is moved to centre it.
-local BRAND = { width = 186.8, height = 93.4, x = 11.5, y = -15.1 }
+-- The art fills the top left 448x139 of its 512x256 canvas (the size mipmaps need) and is drawn
+-- cropped to it, 56 tall, 8 in from the panel's top left.
+local BRAND = { artW = 448, artH = 139, texW = 512, texH = 256, height = 56, inset = 8 }
 
 -- System pages sit below the module navigation. `build` names the ns builder (resolved at
 -- open time); `arg` is passed after the starting y.
@@ -1058,8 +1059,9 @@ local function CreateWindow()
     brandEdge:SetPoint("TOPRIGHT"); brandEdge:SetPoint("BOTTOMRIGHT"); ns.Hairline(brandEdge, "v")
     local logo = brand:CreateTexture(nil, "ARTWORK")
     logo:SetTexture(BRAND_LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(BRAND.width, BRAND.height)
-    logo:SetPoint("CENTER", brand, "CENTER", BRAND.x, BRAND.y)
+    logo:SetTexCoord(0, BRAND.artW / BRAND.texW, 0, BRAND.artH / BRAND.texH)
+    logo:SetSize(BRAND.height * BRAND.artW / BRAND.artH, BRAND.height)
+    logo:SetPoint("TOPLEFT", brand, "TOPLEFT", BRAND.inset, -BRAND.inset)
     -- The logo's panel sits a level above the border's frame, its fill over the window's top
     -- left edges; the border goes over it.
     border._frame:SetFrameLevel(brand:GetFrameLevel() + 1)
