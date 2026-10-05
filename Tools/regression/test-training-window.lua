@@ -111,6 +111,7 @@ local ns = {
     Font = function(parent) return Frame(parent) end,
     Solid = function(parent) return Frame(parent) end,
     Border = function(parent) return { SetColor = NOTHING, _frame = Frame(parent) } end,
+    AllowOffscreen = NOTHING,
     AccentBorder = function(b) return b end,
     Button = function(parent, _, _, _, onClick)
         local b = Frame(parent)

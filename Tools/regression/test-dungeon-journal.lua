@@ -220,6 +220,7 @@ local function fixture(settings)
         -- As ns.Border: its frame, and a way to colour it.
         -- Its SetColor takes numbers, as the game's SetColorTexture does: a colour table errors.
         Border = function(parent) return { _frame = Frame(state, parent), SetColor = BORDER_SET_COLOR } end,
+        AllowOffscreen = function() end,
         -- Its words and what a click does, kept for a test to press it.
         Button = function(parent, text, _, _, onClick)
             local button = Frame(state, parent)

@@ -169,6 +169,7 @@ local ns = {
     Font = function(parent) return Frame(parent) end,
     Solid = function(parent) return Frame(parent) end,
     Border = function() return { SetColor = NOTHING } end,
+    AllowOffscreen = NOTHING,
     AccentBorder = function(b) return b end,
     Hairline = function(region) return region end,
     UIFontPath = function() return "font" end,

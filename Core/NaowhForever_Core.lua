@@ -542,6 +542,19 @@ function ns.Solid(parent, layer, color, alpha)
     return t
 end
 
+-- For a clamped frame the player drags: up to 90% of it can go off the sides and bottom,
+-- but the top edge stays on screen so its title bar can always be grabbed again.
+local OFFSCREEN = 0.9
+
+local function ClampOffscreen(frame, w, h)
+    frame:SetClampRectInsets(w * OFFSCREEN, -w * OFFSCREEN, 0, h * OFFSCREEN)
+end
+
+function ns.AllowOffscreen(frame)
+    ClampOffscreen(frame, frame:GetWidth(), frame:GetHeight())
+    frame:HookScript("OnSizeChanged", ClampOffscreen)
+end
+
 -- NaowhUI's 1px black border on buttons and input boxes, lit blue on hover.
 local BLACK = { r = 0, g = 0, b = 0 }
 

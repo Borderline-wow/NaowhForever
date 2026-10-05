@@ -73,6 +73,7 @@ local ns = {
     Hairline = function(region) return region end,
     PixelInset = function(region) return region end,
     Border = function() return { SetColor = NOTHING } end,
+    AllowOffscreen = NOTHING,
     AccentBorder = function() return { SetColor = NOTHING } end,
     Button = function(parent) return Frame(parent) end,
     UIFontPath = function() return "font" end,

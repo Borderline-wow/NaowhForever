@@ -303,6 +303,7 @@ local function Build()
     frame:SetScript("OnSizeChanged", function()
         if frame.sizing then Render(renderedTitle, renderedPlayer) end
     end)
+    ns.AllowOffscreen(frame)
     frame:SetScript("OnHide", function()
         if frame.moving or frame.sizing then
             frame:StopMovingOrSizing(); frame.moving, frame.sizing = false, false

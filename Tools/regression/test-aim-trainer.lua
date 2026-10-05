@@ -127,6 +127,7 @@ local function fixture(opts)
     function ns.Hairline(t) return t end
     function ns.Solid(parent) return parent:CreateTexture() end
     function ns.Border() end
+    function ns.AllowOffscreen() end
     function ns.Button(parent, _, w, h, onClick)
         local b = frame("Button", nil, parent)
         b:SetSize(w, h)

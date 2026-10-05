@@ -152,6 +152,7 @@ local function Fixture()
         -- As ns.Hairline and ns.PixelInset: whole-pixel sizing has no effect on these stubs.
         Hairline = function(region) return region end,
         PixelInset = function(region) return region end,
+        AllowOffscreen = function() end,
         Border = function(parent)
             local edge = Frame(parent)
             edge.SetColor = function(self, r, _, _, a) self.red, self.opacity = r, a end
