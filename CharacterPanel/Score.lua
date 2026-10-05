@@ -3,7 +3,8 @@
 --  under your level at the top of the stats' pane (SpecStats.lua makes the room, moving the
 --  game's list down), on the same left edge as the stats under it: the kicker, the score big
 --  in its grade's colour, and a bar the card's width on the score's colour ramp, filled to its
---  share of the best it is graded against, that best under its end. Only the score: your
+--  share of the best it is graded against, that best under its end, and with Both your level's
+--  goal as a gold tick on it while short of the best in the game. Only the score: your
 --  BiS's is the BiS List's. Hover it for the score with your BiS, your level's goal and the
 --  best in the game; click it for the BiS List. Painted when the panel opens and, while it is
 --  open, when your gear changes.
@@ -24,6 +25,8 @@ local BAR_TOP, BAR_H = 46, 6
 local LEGEND_GAP, LEGEND_SIZE = 4, 10
 local TRACK_RGB = 0.16               -- the bar past your score, as the score card's
 local GOAL_RGB = { r = 1, g = 0.82, b = 0 }   -- a level's goal, gold as on the score card
+local TICK_W, TICK_OUT = 2, 3       -- the goal's tick, and how far it stands out over and under the bar
+local LEGEND_SPACE = 8              -- at least this between the goal's label and the best's
 CP.BADGE_GAP = GAP
 CP.BADGE_H = BAR_TOP + BAR_H + LEGEND_GAP + LEGEND_SIZE + 2
 
@@ -52,6 +55,44 @@ local function Legend(ofLevel, level, best)
     return text
 end
 
+-- "Level 27 goal 24.4": made once per level and tenth.
+local goals = {}
+local function GoalLegend(level, goal)
+    local byLevel = goals[level]
+    if not byLevel then
+        byLevel = {}
+        goals[level] = byLevel
+    end
+    local tenths = math.floor(goal * 10 + 0.5)
+    local text = byLevel[tenths]
+    if not text then
+        text = ("Level " .. level .. " goal %.1f"):format(tenths / 10)
+        byLevel[tenths] = text
+    end
+    return text
+end
+
+-- With Both, your level's goal on the bar while it is short of the best in the game: a gold
+-- tick, and its label under it when it fits beside the best's.
+local function PaintGoal(level, best)
+    local goal = S.Get("naowhScoreCompare") == "both" and ns.NaowhScore.Best(level)
+    local show = goal and best and goal < best
+    badge.goal:SetShown(show and true or false)
+    badge.goalLabel:SetShown(false)
+    if not show then return end
+    local x = math.floor(CARD_W * goal / best + 0.5)
+    badge.goal:ClearAllPoints()
+    badge.goal:SetPoint("CENTER", badge.bar, "LEFT", x, 0)
+    local label = badge.goalLabel
+    label:SetText(GoalLegend(level, goal))
+    local w = label:GetStringWidth()
+    local left = math.max(0, x - w / 2)
+    if left + w + LEGEND_SPACE + badge.best:GetStringWidth() > CARD_W then return end
+    label:ClearAllPoints()
+    label:SetPoint("TOPLEFT", badge.bar, "BOTTOMLEFT", left, -LEGEND_GAP)
+    label:Show()
+end
+
 local function Paint()
     local Score = ns.NaowhScore
     local score, level = Score.Unit("player"), UnitLevel("player")
@@ -67,6 +108,7 @@ local function Paint()
     rest:SetPoint("BOTTOMRIGHT", badge.bar, "BOTTOMRIGHT")
     rest:SetShown(x < CARD_W)
     badge.best:SetText(best and Legend(ofLevel, level, best) or "")
+    PaintGoal(level, best)
 end
 
 -- The ramp, a gradient between each of its stops, its plain track drawn over the part past
@@ -91,6 +133,12 @@ local function Bar(parent)
     parent.rest:SetColorTexture(TRACK_RGB, TRACK_RGB, TRACK_RGB, 1)
     parent.best = ns.Font(parent, LEGEND_SIZE, nil, T.muted)
     parent.best:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -LEGEND_GAP)
+    parent.goal = bar:CreateTexture(nil, "OVERLAY", nil, 2)
+    parent.goal:SetColorTexture(GOAL_RGB.r, GOAL_RGB.g, GOAL_RGB.b, 1)
+    parent.goal:SetSize(TICK_W, BAR_H + TICK_OUT * 2)
+    parent.goal:Hide()
+    parent.goalLabel = ns.Font(parent, LEGEND_SIZE, nil, GOAL_RGB)
+    parent.goalLabel:Hide()
     return bar
 end
 
