@@ -24,6 +24,7 @@ local GetSpellName = C_Spell.GetSpellName
 local GetSpellTexture = C_Spell.GetSpellTexture
 local GetSpellDescription = C_Spell.GetSpellDescription
 local IsSpellDataCached = C_Spell.IsSpellDataCached
+local GetSpellLink = C_Spell.GetSpellLink
 
 local Quests = J.Quests
 
@@ -50,6 +51,7 @@ local TICK_GAP = 4        -- a done quest's tick to its state
 local SHARE = St.ACTION   -- the tip's share button
 local TIP_MARK = St.ICON  -- the Naowh mark beside the tip, as big as a loot icon
 local BUBBLE = "Interface\\GossipFrame\\GossipGossipIcon"
+local LINK_HINT = "Shift-click: link"
 
 -------------------------------------------------------------------------------
 --  The page's header
@@ -220,7 +222,14 @@ local function AbilityEnter(row)
     row.hover:Show()
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     GameTooltip:SetSpellByID(row.spell)
+    GameTooltip:AddLine(LINK_HINT, T.muted.r, T.muted.g, T.muted.b)
     GameTooltip:Show()
+end
+
+local function AbilityClick(row)
+    if not IsModifiedClick("CHATLINK") then return end
+    local link = GetSpellLink(row.spell)
+    if link then ChatFrameUtil.InsertLink(link) end
 end
 
 local function AbilityLeave(row)
@@ -257,6 +266,7 @@ Kinds.ability = {
         row.desc:SetWordWrap(true)
         row:SetScript("OnEnter", AbilityEnter)
         row:SetScript("OnLeave", AbilityLeave)
+        row:SetScript("OnClick", AbilityClick)
         row.loaded = Loaded(view)
         return row
     end,

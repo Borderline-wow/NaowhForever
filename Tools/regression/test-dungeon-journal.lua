@@ -297,7 +297,7 @@ local function fixture(settings)
         GetQuestLink = function(id) return "|Hquest:" .. id .. "|h[Quest " .. id .. "]|h" end,
         -- The chat box: open while state.chatOpen.
         ChatFrameUtil = {
-            InsertLink = function() return state.chatOpen == true end,
+            InsertLink = function(link) state.inserted = link; return state.chatOpen == true end,
             GetActiveWindow = function() return state.chatOpen and {} or nil end,
         },
         GameTooltip_SetTitle = function(tooltip, text) tooltip.title = text end,
@@ -405,7 +405,9 @@ local function fixture(settings)
         WorldMapFrame = Frame(state),
         EventUtil = { ContinueOnAddOnLoaded = function() end },
         -- A boss's abilities: every spell loaded, with a name and a line saying what it does.
+        IsModifiedClick = function(kind) return kind == "CHATLINK" and state.shift == true end,
         C_Spell = { GetSpellName = function(id) return "Spell " .. id end,
+            GetSpellLink = function(id) return "|Hspell:" .. id .. "|h[Spell " .. id .. "]|h" end,
             GetSpellTexture = function() return 136243 end,
             GetSpellDescription = function() return "Hits the tank." end,
             IsSpellDataCached = function() return true end },
@@ -1566,6 +1568,13 @@ do
         if spells and rawget(made, "spell") == spells[1] and rawget(made, "shown") ~= false then ability = made end
     end
     check("its abilities are under its loot", ability ~= nil and rawget(ability.desc, "text") == "Hits the tank.")
+    state.inserted = nil
+    ability.scripts.OnClick(ability)
+    check("a plain click on an ability links nothing", state.inserted == nil)
+    state.shift = true
+    ability.scripts.OnClick(ability)
+    state.shift = nil
+    check("Shift-click puts its spell link in chat", state.inserted == "|Hspell:" .. spells[1] .. "|h[Spell " .. spells[1] .. "]|h")
     local tipRow
     for _, made in ipairs(state.made) do
         if rawget(made, "mark") and rawget(made, "text") and rawget(made.text, "text") == J.Tips[11519]
