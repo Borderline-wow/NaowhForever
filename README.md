@@ -170,10 +170,13 @@ The workflow then:
 - adds the merged PRs' changelog lines to `## Unreleased` and renames it to the version,
   sets the TOC `## Version` and `ns.CODE_BUILD`, and pushes that as
   `chore(release): <version>` to `main`;
-- tags the commit and builds the zip;
-- publishes the GitHub release with the player notes and every commit since the last
+- tags the commit, and the tag starts a second Release run that builds the zip,
+  publishes the GitHub release with the player notes and every commit since the last
   tag, uploads to CurseForge and Wago, and posts the notes to Discord;
 - puts an empty `## Unreleased` back at the top of the changelog on `main`.
+
+The push uses the `RELEASE_DEPLOY_KEY` secret: a deploy key with write access, on Protect
+main's bypass list. Without it, `main` rejects the release commit and nothing is published.
 
 It stops before changing anything if there is nothing for `## Unreleased`, it is not the
 newest section, a merged PR's changelog line does not start with `Added:`, `Changed:` or
