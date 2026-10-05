@@ -472,6 +472,43 @@ def speaker(x, y, size):
     return (255, 255, 255, int(round(255 * max(shape, waves))))
 
 
+def play(x, y, size):
+    corner = size * 0.05
+    points = [(0.34 * size, 0.24 * size), (0.74 * size, 0.50 * size), (0.34 * size, 0.76 * size)]
+    return (255, 255, 255, int(round(255 * smooth(0, polygon_dist(x, y, points) - corner))))
+
+
+def pause(x, y, size):
+    d = min(rounded_rect_dist(x, y, size * 0.36, size * 0.5, size * 0.085, size * 0.27, size * 0.04),
+            rounded_rect_dist(x, y, size * 0.64, size * 0.5, size * 0.085, size * 0.27, size * 0.04))
+    return (255, 255, 255, int(round(255 * smooth(0, d))))
+
+
+def reset(x, y, size):
+    cx, cy, r = 0.5, 0.5, 0.28
+    start, sweep = math.radians(60), math.radians(285)
+    arc = [(cx + r * math.cos(start + sweep * i / 32), cy - r * math.sin(start + sweep * i / 32))
+           for i in range(33)]
+    ring = stroke(size, arc, 0.10)(x, y, size)[3]
+    px, py = cx + r * math.cos(start), cy - r * math.sin(start)
+    dx, dy = math.sin(start), math.cos(start)
+    nx, ny = math.cos(start), -math.sin(start)
+    head = [((px + dx * 0.20) * size, (py + dy * 0.20) * size),
+            ((px - dx * 0.02 + nx * 0.14) * size, (py - dy * 0.02 + ny * 0.14) * size),
+            ((px - dx * 0.02 - nx * 0.14) * size, (py - dy * 0.02 - ny * 0.14) * size)]
+    tip = int(round(255 * smooth(0, polygon_dist(x, y, head))))
+    return (255, 255, 255, max(ring, tip))
+
+
+def soft_shade(x, y, size):
+    # Soft's fade behind HUD text (Parts.HudBackdrop): opaque in the middle, clear at the edge, a
+    # smoothstep with no slope at either end. Sliced nine ways and stretched, it shows no edge: the
+    # middle row and column are the sides' fades, the quarters the rounded corners.
+    c = size / 2.0
+    t = max(0.0, min(1.0, 1.0 - math.hypot(x - c, y - c) / c))
+    return (255, 255, 255, int(round(255 * t * t * (3 - 2 * t))))
+
+
 def write_wide_tga(path, width, height, pixel_fn, samples=4):
     # As write_tga, for a texture wider than tall, each pixel the average of samples x samples
     # points across it: a small mark drawn near its own size stays smooth, as text icons are
@@ -596,3 +633,7 @@ write_wide_tga(os.path.join(OUT, "infinity.tga"), 32, 16, infinity)
 write_wide_tga(os.path.join(OUT, "infinity_outlined.tga"), 32, 16, infinity_outlined)
 write_wide_tga(os.path.join(OUT, "elbow.tga"), 8, 8, elbow)
 write_tga(os.path.join(OUT, "speaker.tga"), 64, speaker)
+write_tga(os.path.join(OUT, "play.tga"), 64, play)
+write_tga(os.path.join(OUT, "pause.tga"), 64, pause)
+write_tga(os.path.join(OUT, "reset.tga"), 64, reset)
+write_tga(os.path.join(OUT, "soft_shade.tga"), 64, soft_shade)

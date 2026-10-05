@@ -539,7 +539,9 @@ function Draw:Settings(card)
     -- A hidden row is set on the card's preview instead; it is still searched, counted and reset.
     local rows = {}
     for _, row in ipairs(Settings.Rows(card)) do
-        if not row.hidden then rows[#rows + 1] = row end
+        local hidden = row.hidden
+        if type(hidden) == "function" then hidden = hidden() end
+        if not hidden then rows[#rows + 1] = row end
     end
     local i = 1
     while i <= #rows do

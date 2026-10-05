@@ -16,7 +16,7 @@ local MOUNT_ICONS = { Alliance = "Interface\\Icons\\Ability_Mount_Gryphon_01",
 local ICON_CROP = 0.08
 local BORDER_RGB = St.BORDER_RGB
 
-local WIDTH, PAD, ROW_GAP, CARD_ALPHA = 380, 10, 6, 0.85
+local WIDTH, PAD, ROW_GAP, CARD_ALPHA = 380, 10, 6, St.HUD_CARD_ALPHA
 local HEAD_H, ROUTE_SIZE, TIME_SIZE, TIME_ROOM = 22, 14, 20, 70
 local TRACK_H, ZONE_H, MOUNT, STOP, STOP_HOLE = 6, 22, 20, 10, 6
 local LABEL_SIZE, LABEL_H, LABEL_GAP, LABEL_SPACE = 11, 12, 3, 8

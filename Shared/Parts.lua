@@ -3,7 +3,9 @@
 --  icon buttons, icons inline in text, rank stars, an item's icon and its marks, the backdrop with its
 --  cards, the panel a view sits in and the side panel that opens beside a window, numbers
 --  lined up to the pixel, and sharing a line in chat. A window's own pieces (title bar,
---  opacity, switch, search, footer) are Window.lua's.
+--  opacity, switch, search, footer) are Window.lua's. Also a timer line the client runs down by
+--  itself (Parts.TimerLine), a row of short labels spread evenly (Parts.LabelRow), and a HUD
+--  card's background: the card, a soft fade or none (Parts.HudBackdrop).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -27,6 +29,7 @@ local SHADE_SHARE, SHADE_ALPHA = 0.5, 0.8
 local MARK_STAR_DROP = -1
 Parts.MARK_IN = MARK_IN
 local MARK_UP = 14   -- the upgrade arrow, square, in the top-right corner
+local BADGE_SIZE, BADGE_ART, BADGE_ALPHA, BADGE_IN = 14, 12, 0.75, 1
 
 -------------------------------------------------------------------------------
 --  Icons in text
@@ -42,6 +45,142 @@ function Parts.Inline(texture, color, drop)
         color.r * 255, color.g * 255, color.b * 255)
 end
 local Inline = Parts.Inline
+
+local HUD_SHADOW, HUD_ALPHA = St.HUD_SHADOW_RGB, St.HUD_SHADOW_ALPHA
+local HUD_X, HUD_Y = St.HUD_SHADOW_X, St.HUD_SHADOW_Y
+
+local HOUSE_SHADOW = { x = HUD_X, y = HUD_Y, a = HUD_ALPHA }
+local SHADOWS = {
+    card = HOUSE_SHADOW,
+    soft = { x = HUD_X, y = HUD_Y, a = St.HUD_SOFT_SHADOW_ALPHA },
+    none = { x = St.HUD_BARE_SHADOW_X, y = St.HUD_BARE_SHADOW_Y, a = St.HUD_BARE_SHADOW_ALPHA },
+}
+
+function Parts.HudText(fs, shadow)
+    if shadow == false then
+        fs:SetShadowOffset(0, 0)
+        fs:SetShadowColor(HUD_SHADOW.r, HUD_SHADOW.g, HUD_SHADOW.b, 0)
+    else
+        local s = SHADOWS[shadow] or HOUSE_SHADOW
+        fs:SetShadowOffset(s.x, s.y)
+        fs:SetShadowColor(HUD_SHADOW.r, HUD_SHADOW.g, HUD_SHADOW.b, s.a)
+    end
+    return fs
+end
+
+Parts.HUD_BACKGROUNDS = { { card = "Card", soft = "Soft", none = "None" }, { "card", "soft", "none" } }
+local BACKGROUND_NAMES, NO_OPTS = Parts.HUD_BACKGROUNDS[1], {}
+local SOFT_CORNERS = {   -- point, its x and y outwards, then the round texture's quarter: left, right, top, bottom
+    { "TOPLEFT", -1, 1, 0, 0.5, 0, 0.5 },
+    { "TOPRIGHT", 1, 1, 0.5, 1, 0, 0.5 },
+    { "BOTTOMLEFT", -1, -1, 0, 0.5, 0.5, 1 },
+    { "BOTTOMRIGHT", 1, -1, 0.5, 1, 0.5, 1 },
+}
+local SOFT_SPANS = {     -- from a corner's point to another's, over the texture's middle row, column or texel
+    { 1, "TOPRIGHT", 2, "BOTTOMLEFT", 0.5, 0.5, 0, 0.5 },
+    { 3, "TOPRIGHT", 4, "BOTTOMLEFT", 0.5, 0.5, 0.5, 1 },
+    { 1, "BOTTOMLEFT", 3, "TOPRIGHT", 0, 0.5, 0.5, 0.5 },
+    { 2, "BOTTOMLEFT", 4, "TOPRIGHT", 0.5, 1, 0.5, 0.5 },
+    { 1, "BOTTOMRIGHT", 4, "TOPLEFT", 0.5, 0.5, 0.5, 0.5 },
+}
+
+local function SoftPiece(backdrop, l, r, t, b)
+    local tex = Parts.Smooth(backdrop.frame:CreateTexture(nil, "BACKGROUND"), St.SOFT_SHADE)
+    tex:SetTexCoord(l, r, t, b)
+    local c = backdrop.color
+    tex:SetVertexColor(c.r, c.g, c.b, backdrop.softAlpha)
+    local soft = backdrop.soft
+    soft[#soft + 1] = tex
+    return tex
+end
+
+local function BuildSoft(backdrop)
+    backdrop.soft = {}
+    local frame, fade = backdrop.frame, backdrop.fade
+    local out = fade - backdrop.inset
+    for i = 1, #SOFT_CORNERS do
+        local c = SOFT_CORNERS[i]
+        local tex = SoftPiece(backdrop, c[4], c[5], c[6], c[7])
+        tex:SetSize(fade, fade)
+        tex:SetPoint(c[1], frame, c[1], c[2] * out, c[3] * out)
+    end
+    local soft = backdrop.soft
+    for i = 1, #SOFT_SPANS do
+        local s = SOFT_SPANS[i]
+        local tex = SoftPiece(backdrop, s[5], s[6], s[7], s[8])
+        tex:SetPoint("TOPLEFT", soft[s[1]], s[2])
+        tex:SetPoint("BOTTOMRIGHT", soft[s[3]], s[4])
+    end
+end
+
+local function BackdropMode(backdrop, mode)
+    if not BACKGROUND_NAMES[mode] then mode = "card" end
+    if backdrop.mode == mode then return mode end
+    backdrop.mode = mode
+    local card, soft = mode == "card", mode == "soft"
+    backdrop.fill:SetShown(card)
+    backdrop.border._frame:SetShown(card)
+    if soft and not backdrop.soft then BuildSoft(backdrop) end
+    local pieces = backdrop.soft
+    if pieces then
+        for i = 1, #pieces do pieces[i]:SetShown(soft) end
+    end
+    return mode
+end
+
+function Parts.HudBackdrop(frame, opts)
+    opts = opts or NO_OPTS
+    local color = opts.color or T.bg
+    local backdrop = { frame = frame, color = color, SetMode = BackdropMode,
+        softAlpha = opts.softAlpha or St.HUD_SOFT_ALPHA, fade = opts.fade or St.HUD_SOFT_FADE,
+        inset = opts.inset or St.HUD_SOFT_INSET }
+    backdrop.fill = ns.Solid(frame, "BACKGROUND", color, opts.alpha or St.HUD_CARD_ALPHA)
+    backdrop.fill:SetAllPoints()
+    backdrop.border = ns.Border(frame, BORDER_RGB)
+    BackdropMode(backdrop, opts.mode)
+    return backdrop
+end
+
+local PROGRESS_TEXTURE = "Interface\\Buttons\\WHITE8X8"
+local PROGRESS_TRACK_ALPHA, PROGRESS_FROM_SHARE, PROGRESS_AHEAD_ALPHA = 1, 0.45, 0.45
+
+local function ProgressBar(line)
+    local bar = CreateFrame("StatusBar", nil, line)
+    bar:SetAllPoints()
+    bar:SetStatusBarTexture(PROGRESS_TEXTURE)
+    bar:SetMinMaxValues(0, 1)
+    bar:SetValue(0)
+    return bar
+end
+
+local function ProgressSet(line, value, ahead)
+    value = math.max(0, math.min(1, value))
+    line.fill:SetValue(value)
+    line.ahead:SetValue(math.min(1, value + math.max(0, ahead or 0)))
+end
+
+local function ProgressPaint(line, color, aheadColor)
+    local share = PROGRESS_FROM_SHARE
+    line.from:SetRGBA(color.r * share, color.g * share, color.b * share, 1)
+    line.to:SetRGBA(color.r, color.g, color.b, 1)
+    line.fill:GetStatusBarTexture():SetGradient("HORIZONTAL", line.from, line.to)
+    local c = aheadColor or color
+    line.ahead:SetStatusBarColor(c.r, c.g, c.b, PROGRESS_AHEAD_ALPHA)
+end
+
+function Parts.ProgressLine(parent, height)
+    local line = CreateFrame("Frame", nil, parent)
+    line:SetHeight(height)
+    line.track = ns.Solid(line, "BACKGROUND", T.line, PROGRESS_TRACK_ALPHA)
+    line.track:SetAllPoints()
+    line.ahead = ProgressBar(line)
+    line.fill = ProgressBar(line)
+    line.fill:SetFrameLevel(line.ahead:GetFrameLevel() + 1)
+    line.from, line.to = CreateColor(1, 1, 1, 1), CreateColor(1, 1, 1, 1)
+    line.SetProgress, line.Paint = ProgressSet, ProgressPaint
+    ProgressPaint(line, T.accent)
+    return line
+end
 
 -------------------------------------------------------------------------------
 --  Ranks on your BiS list: your BiS (#1) an orange star, your second pick a silver one, the
@@ -177,8 +316,16 @@ function Parts.Fraction(part, whole)
 end
 
 local coins = {}
+local GOLD, SILVER = 10000, 100   -- copper in a gold coin, in a silver one
 
-function Parts.Coins(copper)
+-- The amount with the game's coin icons ("1g 50s 25c"), made once each. With compact, only its
+-- largest coin, to the nearest ("1g", "2s", "36c"), for a price under a small icon.
+---@param compact? boolean
+function Parts.Coins(copper, compact)
+    if compact then
+        local unit = copper >= GOLD and GOLD or copper >= SILVER and SILVER or 1
+        copper = math.floor(copper / unit + 0.5) * unit
+    end
     local text = coins[copper]
     if not text then
         text = C_CurrencyInfo.GetCoinTextureString(copper)
@@ -278,6 +425,27 @@ function Parts.PaintItemMarks(set, level, rank, forever, upgrade)
     set.up:SetShown(upgrade == true)
     set.shade:SetShown(shown or rank ~= nil)
     return shown
+end
+
+-- After the icon is resized: its shade to the new height.
+function Parts.SizeItemMarks(set, size)
+    set.shade:SetHeight(size * SHADE_SHARE)
+end
+
+function Parts.ItemBadge(set, corner, atlas, color)
+    local badge = CreateFrame("Frame", nil, set)
+    badge:SetSize(BADGE_SIZE, BADGE_SIZE)
+    badge:SetPoint(corner, corner == "TOPLEFT" and BADGE_IN or -BADGE_IN, -BADGE_IN)
+    badge.back = Smooth(badge:CreateTexture(nil, "BACKGROUND"), St.ROUND)
+    badge.back:SetAllPoints()
+    badge.back:SetVertexColor(BORDER_RGB.r, BORDER_RGB.g, BORDER_RGB.b, BADGE_ALPHA)
+    badge.art = Smooth(badge:CreateTexture(nil, "ARTWORK"))
+    badge.art:SetAtlas(atlas)
+    badge.art:SetSize(BADGE_ART, BADGE_ART)
+    badge.art:SetPoint("CENTER")
+    if color then badge.art:SetVertexColor(color.r, color.g, color.b) end
+    badge:Hide()
+    return badge
 end
 
 -- The tooltip's owner set, for a hover card; nothing while a menu is open, so moving the mouse
@@ -606,6 +774,232 @@ function Parts.Cells(parent, size, color, count)
         cells[i] = cell
     end
     return cells
+end
+
+local WHITE = "Interface\\Buttons\\WHITE8X8"
+local LINE_TRACK_ALPHA = 1
+local LINE_FROM_SHARE = 0.45
+local LINE_GLOW_W, LINE_GLOW_ALPHA = 28, 0.55
+local shortTimes = {}
+
+function Parts.ShortTime(prefix)
+    prefix = prefix or ""
+    local formatter = shortTimes[prefix]
+    if formatter then return formatter end
+    local Up, Down = Enum.NumericRuleFormatRounding.Up, Enum.NumericRuleFormatRounding.Down
+    formatter = C_StringUtil.CreateNumericRuleFormatter()
+    formatter:SetBreakpoints({
+        { threshold = 0, format = prefix .. "%ds", step = 1, rounding = Up },
+        { threshold = 60, format = prefix .. "%dm", step = 1, rounding = Up, components = { { div = 60 } } },
+        { threshold = 61, format = prefix .. "%dm", step = 1, rounding = Down, components = { { div = 60 } } },
+        { threshold = 3600, format = prefix .. "%dh", step = 1, rounding = Down, components = { { div = 3600 } } },
+    })
+    shortTimes[prefix] = formatter
+    return formatter
+end
+
+local function LineTimed()
+    return C_DurationUtil and C_DurationUtil.CreateDuration and Enum and Enum.StatusBarTimerDirection
+        and Enum.StatusBarInterpolation and true or false
+end
+
+local function LineRun(line, start, duration, prefix)
+    if line.dur then
+        line.dur:SetTimeFromStart(start, duration)
+        if line.binding then
+            local formatter = Parts.ShortTime(prefix)
+            if formatter ~= line.formatter then
+                line.formatter = formatter
+                line.binding:SetFormatter(formatter)
+            end
+        end
+        line:SetTimerDuration(line.dur, Enum.StatusBarInterpolation.Immediate,
+            Enum.StatusBarTimerDirection.RemainingTime)
+        if line.binding then line.binding:SetEnabled(true) end
+    else
+        line:SetValue(math.max(0, math.min(1, (start + duration - GetTime()) / duration)))
+    end
+    line.glow:Show()
+end
+
+local function LineStop(line)
+    if line.dur then
+        line.dur:SetTimeFromStart(GetTime() - 1, 1)
+        line:SetTimerDuration(line.dur, Enum.StatusBarInterpolation.Immediate,
+            Enum.StatusBarTimerDirection.RemainingTime)
+        if line.binding then line.binding:SetEnabled(false) end
+    end
+    line:SetValue(0)
+    line.glow:Hide()
+    if line.text then line.text:SetText("") end
+end
+
+local function LinePaint(line, color, textColor)
+    local share = LINE_FROM_SHARE
+    line.from:SetRGBA(color.r * share, color.g * share, color.b * share, 1)
+    line.to:SetRGBA(color.r, color.g, color.b, 1)
+    line:GetStatusBarTexture():SetGradient("HORIZONTAL", line.from, line.to)
+    line.glowFrom:SetRGBA(color.r, color.g, color.b, 0)
+    line.glowTo:SetRGBA(color.r, color.g, color.b, LINE_GLOW_ALPHA)
+    line.glow:SetGradient("HORIZONTAL", line.glowFrom, line.glowTo)
+    local c = textColor or color
+    if line.text then line.text:SetTextColor(c.r, c.g, c.b) end
+end
+
+function Parts.TimerLine(parent, height, text)
+    local line = CreateFrame("StatusBar", nil, parent)
+    line:SetHeight(height)
+    line:SetStatusBarTexture(WHITE)
+    line:SetMinMaxValues(0, 1)
+    line:SetValue(0)
+    line:SetClipsChildren(true)
+    ns.Solid(line, "BACKGROUND", T.line, LINE_TRACK_ALPHA):SetAllPoints()
+    line.from, line.to = CreateColor(1, 1, 1, 1), CreateColor(1, 1, 1, 1)
+    line.glowFrom, line.glowTo = CreateColor(1, 1, 1, 0), CreateColor(1, 1, 1, 1)
+    local over = CreateFrame("Frame", nil, line)
+    over:SetAllPoints()
+    line.glow = over:CreateTexture(nil, "OVERLAY")
+    line.glow:SetTexture(WHITE)
+    line.glow:SetBlendMode("ADD")
+    line.glow:SetSize(LINE_GLOW_W, height)
+    line.glow:SetPoint("RIGHT", line:GetStatusBarTexture(), "RIGHT")
+    line.glow:Hide()
+    line.text = text
+    if LineTimed() then
+        line.dur = C_DurationUtil.CreateDuration()
+        if text and C_DurationUtil.CreateDurationTextBinding and C_StringUtil
+            and C_StringUtil.CreateNumericRuleFormatter and Enum.NumericRuleFormatRounding then
+            local binding = C_DurationUtil.CreateDurationTextBinding()
+            binding:SetFontString(text)
+            binding:SetDuration(line.dur)
+            line.formatter = Parts.ShortTime()
+            binding:SetFormatter(line.formatter)
+            binding:SetZeroDurationText("")
+            binding:SetExpiredText("")
+            binding:SetEnabled(false)
+            line.binding = binding
+        end
+    end
+    line.Run, line.Stop, line.Paint = LineRun, LineStop, LinePaint
+    LinePaint(line, T.accent)
+    return line
+end
+
+local function RowItem(row, i)
+    local label = row.labels[i]
+    if label then return label end
+    label = ns.Font(row, row.size, row.flags, row.color)
+    label:SetJustifyH("CENTER")
+    label:SetWordWrap(false)
+    row.labels[i] = label
+    if row.iconSize then
+        local icon = Parts.ItemIcon(row, row.iconSize)
+        icon:Hide()
+        row.icons[i] = icon
+    end
+    if row.sep and i > 1 then
+        local sep = ns.Font(row, row.size, row.flags, row.sepColor)
+        sep:SetText(row.sep)
+        row.seps[i] = sep
+    end
+    return label
+end
+
+local function RowSetLabels(row, list, n, icons)
+    local labels, widest = row.labels, 0
+    for i = 1, math.max(n, #labels) do
+        local label = i <= n and RowItem(row, i) or labels[i]
+        local icon, sep = row.icons[i], row.seps[i]
+        if i <= n then
+            label:SetText(list[i])
+            label:Show()
+            local w = label:GetStringWidth()
+            if w > widest then widest = w end
+            if icon then
+                local texture = icons and icons[i]
+                if texture then icon.texture:SetTexture(texture) end
+                icon:SetShown(texture and true or false)
+            end
+            if sep then sep:Show() end
+        else
+            label:Hide()
+            if icon then icon:Hide() end
+            if sep then sep:Hide() end
+        end
+    end
+    row.count = n
+    return widest
+end
+
+local function RowSpread(row, width)
+    row:SetWidth(width)
+    local n = row.count
+    if n == 0 then return end
+    local share = width / n
+    local labels = row.labels
+    for i = 1, n do
+        labels[i]:ClearAllPoints()
+        labels[i]:SetPoint("CENTER", row, "LEFT", share * (i - 0.5), 0)
+    end
+end
+
+local function RowPack(row)
+    local x, gap = 0, row.gap
+    for i = 1, row.count do
+        local sep, icon, label = row.seps[i], row.icons[i], row.labels[i]
+        if i > 1 then x = x + gap end
+        if sep then
+            sep:ClearAllPoints()
+            sep:SetPoint("LEFT", row, "LEFT", x, 0)
+            x = x + sep:GetStringWidth()
+        end
+        if icon and icon:IsShown() then
+            icon:ClearAllPoints()
+            icon:SetPoint("LEFT", row, "LEFT", x, -row.iconDrop)
+            x = x + row.iconSize + row.iconGap
+        end
+        label:ClearAllPoints()
+        label:SetPoint("LEFT", row, "LEFT", x, 0)
+        x = x + label:GetStringWidth()
+    end
+    row:SetWidth(math.max(1, x))
+    return x
+end
+
+local function RowTextSize(row, size)
+    if size == row.size then return end
+    row.size = size
+    row:SetHeight(size)
+    if row.iconGrow then row.iconSize = size + row.iconGrow end
+    local font, labels, seps, icons = ns.UIFontPath(), row.labels, row.seps, row.icons
+    for i = 1, #labels do
+        labels[i]:SetFont(font, size, row.flags or "")
+        if seps[i] then seps[i]:SetFont(font, size, row.flags or "") end
+        if icons[i] then icons[i]:SetSize(row.iconSize, row.iconSize) end
+    end
+end
+
+local function RowColor(row, color)
+    row.color = color
+    local labels = row.labels
+    for i = 1, #labels do labels[i]:SetTextColor(color.r, color.g, color.b) end
+end
+
+function Parts.LabelRow(parent, size, flags, color, opts)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(size)
+    row.size, row.flags, row.color = size, flags, color or T.fg
+    row.labels, row.icons, row.seps, row.count, row.gap = {}, {}, {}, 0, 0
+    if opts then
+        row.gap = opts.gap or 0
+        row.iconGrow = opts.iconGrow
+        row.iconSize = opts.icon or (opts.iconGrow and size + opts.iconGrow)
+        row.iconGap, row.iconDrop = opts.iconGap or St.GAP, opts.iconDrop or 0
+        row.sep, row.sepColor = opts.separator, opts.separatorColor or T.muted
+    end
+    row.SetLabels, row.Spread, row.Pack, row.SetColor = RowSetLabels, RowSpread, RowPack, RowColor
+    row.SetTextSize = RowTextSize
+    return row
 end
 
 -------------------------------------------------------------------------------

@@ -53,6 +53,8 @@ local function fixture(kind)
         Border = function() return frame() end, Solid = function() return frame() end,
         PixelInset = function(region) return region end,
         ThemeTint = function(_, literal) return literal end,
+        Shared = { Style = { TIME_OK_RGB = {}, TIME_LOW_RGB = {}, TIME_OUT_RGB = {} },
+            Parts = { Smooth = function(t) return t end, HudText = function(t) return t end } },
         Font = function() return frame() end, Tooltip = function() end,
         Button = function(parent, text, w, h, callback)
             local f = frame(nil, parent); f.scripts.OnClick = callback; return f

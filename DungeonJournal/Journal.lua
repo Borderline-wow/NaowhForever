@@ -466,24 +466,7 @@ end
 ---@param key string
 ---@param create? boolean
 ---@return table? mine
-function J.CharacterData(key, create)
-    local guid = UnitGUID("player")
-    if not guid then return end
-    local account = ns.AccountSettings()
-    local all = account[key]
-    if type(all) ~= "table" then
-        if not create then return end
-        all = {}
-        account[key] = all
-    end
-    local mine = all[guid]
-    if type(mine) ~= "table" then
-        if not create then return end
-        mine = {}
-        all[guid] = mine
-    end
-    return mine
-end
+J.CharacterData = ns.Shared.CharacterData
 
 -- Opening the Journal (its window, Boss Loot at Cursor) turns the module on, as its settings
 -- page's switch does; off, nothing of it is made until then.

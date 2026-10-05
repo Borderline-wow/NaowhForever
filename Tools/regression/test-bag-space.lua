@@ -1,8 +1,13 @@
--- Loads NaowhForever_BagSpace.lua against stubbed bag, item and frame APIs and checks what
--- the row offers, what the clicks do, stacking, and what a scan costs.
+-- Loads NaowhForever_BagSpace.lua, after the Shared files it draws with, against stubbed bag,
+-- item and frame APIs and checks what the row offers, what the clicks do, stacking, the card's
+-- look (header, shared marks, the clock and quest badges drawn from the game's atlases, prices in
+-- their largest coin centred under even cells, no outline, colors by state), its Background (the
+-- card, a soft fade or none, from the shared HUD backdrop, with the matching text shadow), the
+-- tooltip lines that explain the badges, its settings preview, and what a scan costs.
 -- Run from the repo root: lua Tools/regression/test-bag-space.lua
 local f = assert(io.open(arg[1] or "QoL/NaowhForever_BagSpace.lua", "rb"))
 local source = f:read("*a"); f:close()
+local SHARED = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/Parts.lua" }
 
 -- itemID -> name, quality, required level, max stack, vendor price, class
 local ITEMS = {
@@ -21,6 +26,8 @@ local ITEMS = {
 
 local WHITE = { r = 1, g = 1, b = 1, hex = "|cffffffff" }
 local HEX = { accent = "0091ed", muted = "9a9ea6", fg = "f0f1f3", accentSoft = "4db5f5" }
+-- The game's coin string, stubbed: what Parts.Coins caches, so prices can be traced to it.
+local function CoinString(copper) return "<" .. copper .. ">" end
 
 local function Fixture(opts)
     local settings = opts.settings or {}
@@ -29,9 +36,12 @@ local function Fixture(opts)
         bagSpaceGrow = "RIGHT", bagSpaceMaxQuality = 2, bagSpaceJunkFirst = false,
         bagSpaceAuction = true, bagSpaceProtect = true, bagSpaceFreeBelow = 0,
         bagSpaceHideCombat = true, bagSpaceOnFull = true, bagSpaceShowFree = true,
-        bagSpaceStack = true, bagSpaceOldFirst = false,
+        bagSpaceStack = true, bagSpaceOldFirst = false, bagSpacePrices = true,
+        bagSpaceTipVendor = true, bagSpaceTipAuction = true, bagSpaceTipDelete = true, bagSpaceTipIgnore = true,
+        bagSpaceBackground = "card",
     }
     local db, printed, buttons = {}, {}, {}
+    local made = 0                         -- frames made, all told
     local bags = opts.bags                 -- bags[bag][slot] = { id, count } or nil
     local cursor, ctrl, now = nil, false, 1000
     local registered = {}
@@ -44,8 +54,8 @@ local function Fixture(opts)
 
     -- Methods are made once and shared, so the stubs add no garbage to the cost measured below.
     local function Noop() end
-    local noopMeta = { __index = function() return Noop end }
-    local function Stub() return setmetatable({}, noopMeta) end
+    -- Any method a stub lacks does nothing; a field never set is nil, as on a real frame.
+    local noopMeta = { __index = function(_, k) if type(k) == "string" and k:find("^%u") then return Noop end end }
     local Widget
     local methods = setmetatable({
         Show = function(self) self.shown = true end,
@@ -53,8 +63,22 @@ local function Fixture(opts)
         SetShown = function(self, v) self.shown = v and true or false end,
         IsShown = function(self) return self.shown end,
         SetText = function(self, v) self.text = v end,
+        SetTextColor = function(self, r, g, b) self.r, self.g, self.b = r, g, b end,
+        SetShadowOffset = function(self, x, y) self.shadowX, self.shadowY = x, y end,
+        SetShadowColor = function(self, _, _, _, a) self.shadowA = a end,
+        SetTexCoord = function(self, l, r, t, b) self.coords = l + r * 10 + t * 100 + b * 1000 end,
+        SetSize = function(self, w, h) self.w, self.h = w, h end,
+        SetWidth = function(self, w) self.w = w end,
+        SetHeight = function(self, h) self.h = h end,
+        GetWidth = function(self) return self.w or 0 end,
+        GetHeight = function(self) return self.h or 0 end,
+        SetPoint = function(self, point, _, _, x, y) self.point, self.x, self.y = point, x, y end,
+        SetScale = function(self, s) self.scale = s end,
+        GetFrameLevel = function() return 1 end,
         GetStringWidth = function() return 20 end,
         SetTexture = function(self, v) self.texture = v end,
+        SetAtlas = function(self, v) self.atlas = v end,
+        SetVertexColor = function(self, r, g, b, a) self.vr, self.vg, self.vb, self.va = r, g, b, a end,
         SetScript = function(self, name, fn) self[name] = fn end,
         CreateTexture = function() return Widget("region") end,
         CreateFontString = function() return Widget("region") end,
@@ -64,14 +88,26 @@ local function Fixture(opts)
     }, noopMeta)
     local widgetMeta = { __index = methods }
     function Widget(kind)
+        made = made + 1
         return setmetatable({ kind = kind, shown = true }, widgetMeta)
     end
+    local border = {}
+    function border.SetColor(_, r, g, b)
+        if r == WHITE.r and g == WHITE.g and b == WHITE.b then border.white = true end
+    end
+    local borderMeta = { __index = border }
+    local tipLines = {}
+    local tooltip = setmetatable({
+        SetOwner = function() for i = #tipLines, 1, -1 do tipLines[i] = nil end end,
+        AddLine = function(_, text, r, g, b) tipLines[#tipLines + 1] = { text = text, r = r, g = g, b = b } end,
+    }, noopMeta)
+    local cards = {}
 
     local ns = {
         Color = function(token, text) return "|cff" .. HEX[token] .. (text and (text .. "|r") or "") end,
         THEME = { accent = { r = 0, g = 0.57, b = 0.93 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
             fg = { r = 0.94, g = 0.95, b = 0.95 }, bg = { r = 0.05, g = 0.06, b = 0.07 },
-            line = { r = 0.18, g = 0.19, b = 0.21 } },
+            line = { r = 0.18, g = 0.19, b = 0.21 }, accentSoft = { r = 0.3, g = 0.71, b = 0.96 } },
         QoLSettings = S,
         Print = function(msg) printed[#printed + 1] = msg end,
         Apply = function() end,
@@ -80,10 +116,23 @@ local function Fixture(opts)
         IsBisItem = function(id) return opts.bis and opts.bis[id] end,
         AuctionPrice = function(id) return opts.ah and opts.ah[id] end,
         ScrapMarker = opts.scrap,
-        Font = function() return Widget("font") end,
+        Font = function(_, size, flags, color)
+            local w = Widget("font")
+            w.size, w.flags, w.color = size, flags, color
+            return w
+        end,
         Solid = function() return Widget("texture") end,
         PixelInset = function(region) return region end,
-        Button = function() return Widget("button") end,
+        Border = function() return setmetatable({ _frame = Widget("frame") }, borderMeta) end,
+        -- ns.Button, keeping its label and click so the Stack button can be read and pressed.
+        Button = function(_, text, _, _, onClick)
+            local w = Widget("button")
+            w.label, w._onClick = Widget("font"), onClick
+            w.label.text = text
+            return w
+        end,
+        SetButtonText = function(button, text) button.label.text = text end,
+        AccentBorder = function(frame) return frame end,
         Confirm = function(_, onYes) onYes() end,
         UI = { AttachMover = function() return Widget("mover") end },
     }
@@ -128,7 +177,7 @@ local function Fixture(opts)
         InCombatLockdown = function() return false end,
         IsControlKeyDown = function() return ctrl end,
         IsModifiedClick = function() return false end,
-        GameTooltip = Stub(),
+        GameTooltip = tooltip,
         GameTooltip_Hide = function() end,
         C_Timer = { After = function(_, fn) fn() end },
         C_Container = {
@@ -162,6 +211,8 @@ local function Fixture(opts)
             GetInfo = function(i) return { questID = i, title = opts.quests[i].title, isHeader = false } end,
             GetQuestObjectives = function(id) return opts.quests[id].objectives end,
         },
+        C_CurrencyInfo = { GetCoinTextureString = CoinString },
+        CreateColor = function() return WHITE end,
         GetCursorInfo = function() if cursor then return "item", cursor.id end end,
         ClearCursor = function() cursor = nil end,
         DeleteCursorItem = function() cursor = nil end,
@@ -178,22 +229,40 @@ local function Fixture(opts)
     }
     env._G = { NaowhForever = ns }
     setmetatable(env, { __index = _G })
-    local chunk
-    if setfenv then
-        chunk = assert(loadstring(source)); setfenv(chunk, env)
-    else
-        chunk = assert(load(source, "BagSpace", "t", env))
+    for _, path in ipairs(SHARED) do
+        local shared = assert(loadfile(path))
+        setfenv(shared, env)
+        shared()
     end
+    local Parts = ns.Shared.Parts
+    -- Every corner badge the shared part makes, so the row's clock and "!" can be traced to it.
+    local tags, ItemBadge = {}, Parts.ItemBadge
+    function Parts.ItemBadge(...)
+        local badge = ItemBadge(...)
+        tags[badge] = true
+        return badge
+    end
+    if opts.studio then
+        ns.Shared.Settings = {
+            Group = function(name) return { group = name } end,
+            Page = function() return { Card = function(_, card) cards[card.id] = card end } end,
+        }
+    end
+    local chunk = assert(loadstring(source)); setfenv(chunk, env)
     chunk()
 
-    local t = { ns = ns, printed = printed, env = env, buttons = buttons }
+    local t = { ns = ns, printed = printed, env = env, buttons = buttons, Parts = Parts, tags = tags, tipLines = tipLines,
+        border = border,
+        Style = ns.Shared.Style, cards = cards, settings = settings }
+    function t.Made() return made end
     function t.Fire(event, ...)
         for frame in pairs(registered[event] or {}) do frame.OnEvent(frame, event, ...) end
     end
-    -- What the row shows, left to right: item names, or "Stack" for the stack button.
+    -- What the row shows, left to right: "Stack" for the header's Stack button, then item names.
     function t.Row()
         local out = {}
         if not (buttons.row and buttons.row.shown) then return "" end
+        if buttons.row.stack.shown then out[1] = "Stack" end
         for _, b in ipairs(buttons) do
             if b.shown and b.pick then
                 out[#out + 1] = b.pick.stack and "Stack" or ITEMS[b.pick.itemID][1]
@@ -203,6 +272,14 @@ local function Fixture(opts)
     end
     function t.FreeText()
         return buttons.row and buttons.row.free and buttons.row.free.text.text
+    end
+    -- Scrap Marker's "+N" beside the count, nil while hidden.
+    function t.ScrapText()
+        local scrap = buttons.row.free.scrap
+        return scrap.shown and scrap.text or nil
+    end
+    function t.ClickStack()
+        buttons.row.stack._onClick()
     end
     function t.Button(i)
         local n = 0
@@ -267,6 +344,13 @@ do
     Check("counter reads free out of total", t.FreeText(), "8/16")
 end
 
+-- Poor and Common items keep the house 1px black edge; only Uncommon and better show their color.
+do
+    local t = Fixture({ bags = { [0] = Bag(16, { { 4, 2 }, { 1, 3 } }) } })
+    Check("Poor and Common items keep the black edge, not their quality color",
+        t.Row() .. " " .. tostring(t.border.white == true), "Small Egg, Chipped Boar Tusk false")
+end
+
 -- Scrap Marker's scrap goes first, even above the quality limit, and the counter shows the
 -- slots it frees at the next vendor; with Scrap Marker off, nothing changes.
 do
@@ -275,11 +359,13 @@ do
     scrap.IsScrap = function(id) return scrap.on and scrap.ids[id] == true end
     local t = Fixture({ scrap = scrap, bags = { [0] = Bag(16, { { 3, 2 }, { 1, 3 }, { 4, 2 }, { 8, 1 } }) } })
     Check("scrap first", t.Row(), "Light Feather, Blue Ring, Small Egg, Chipped Boar Tusk")
-    Check("counter: slots scrap frees", t.FreeText(), "12/16  |cff4db5f5+2|r")
+    Check("header: free out of total", t.FreeText(), "12/16")
+    Check("header: slots scrap frees", t.ScrapText(), "+2")
     scrap.on = false
     t.ns.BagSpaceRescan()
     Check("Scrap Marker off: the usual order", t.Row(), "Small Egg, Chipped Boar Tusk, Light Feather")
     Check("Scrap Marker off: the usual counter", t.FreeText(), "12/16")
+    Check("Scrap Marker off: no +N", t.ScrapText(), nil)
 end
 
 -- Grey Items First puts the tusk ahead of everything.
@@ -386,7 +472,7 @@ do
     local bags = { [0] = Bag(16, { { 1, 3 }, { 1, 5 }, { 2, 11 } }) }
     local t = Fixture({ bags = bags })
     bags[0][4], bags[0][1] = bags[0][1], { id = 10, count = 3 }
-    t.Click(1)
+    t.ClickStack()
     for _ = 1, 5 do t.Fire("BAG_UPDATE_DELAYED") end
     Check("linen left alone", bags[0][1] and bags[0][1].id, 10)
     Check("moved eggs merged", t.Slots(1), 1)
@@ -397,7 +483,8 @@ end
 do
     local t = Fixture({ bags = { [0] = Bag(16, { { 1, 3 }, { 1, 5 }, { 2, 11 } }) } })
     Check("stack button first", t.Row():match("^[^,]+"), "Stack")
-    t.Click(1)
+    Check("stack button says what it frees", t.buttons.row.stack.label.text, "Stack +1")
+    t.ClickStack()
     for _ = 1, 5 do t.Fire("BAG_UPDATE_DELAYED") end
     Check("eggs merged into one slot", t.Slots(1), 1)
     Check("no eggs lost", t.Count(1), 8)
@@ -411,6 +498,277 @@ do
     Check("hidden with room to spare", t.Row(), "")
     t.Fire("UI_ERROR_MESSAGE", 0, "Inventory is full.")
     Check("shown after inventory full", t.Row(), "Small Egg, Coyote Meat")
+end
+
+-- The card's look: the outlevelled clock and the quest "!" are the shared corner badges, the
+-- game's own atlases on a dark round backing, no text; the stack count is the shared marks'
+-- number, prices are the shared compact coins centred under each icon, the text has the house
+-- shadow and no outline, and the free count is colored by how full the bags are.
+do
+    local t = Fixture({
+        settings = { bagSpaceOldFirst = true },
+        quests = { { title = "Linen Trouble", objectives = {
+            { type = "item", text = "2/6 Linen Cloth", finished = false, numFulfilled = 2, numRequired = 6 },
+        } } },
+        bags = { [0] = Bag(16, { { 9, 20 }, { 1, 3 }, { 10, 1 } }) },
+    })
+    local St, Parts, T = t.Style, t.Parts, t.ns.THEME
+    Check("look: the order", t.Row(), "Tough Jerky, Small Egg, Linen Cloth")
+    local old, egg, quest = t.Button(1), t.Button(2), t.Button(3)
+    Check("look: the old mark is a shared badge", t.tags[old.old] and old.old.shown, true)
+    Check("look: a clock from the game's atlas", old.old.art.atlas, St.CLOCK_ATLAS)
+    Check("look: the clock atlas", St.CLOCK_ATLAS, "auctionhouse-icon-clock")
+    Check("look: the white clock tinted the warning color", old.old.art.vr == St.WARN_RGB.r
+        and old.old.art.vg == St.WARN_RGB.g and old.old.art.vb == St.WARN_RGB.b, true)
+    Check("look: no text on the badge", old.old.text, nil)
+    Check("look: in the top-left corner", old.old.point, "TOPLEFT")
+    Check("look: about 12px of art on a 14px round backing", old.old.art.w == 12 and old.old.w == 14
+        and old.old.back.texture == St.ROUND, true)
+    Check("look: the backing dark, in the house edge color", old.old.back.vr == St.BORDER_RGB.r
+        and old.old.back.va == 0.75, true)
+    Check("look: no clock on fresh food", egg.old.shown, false)
+    Check("look: the quest mark is a shared badge", t.tags[quest.quest] and quest.quest.shown, true)
+    Check("look: the game's quest bang", quest.quest.art.atlas, St.QUEST_ATLAS)
+    Check("look: the quest bang atlas", St.QUEST_ATLAS, "smallquestbang")
+    Check("look: its own gold, untinted", quest.quest.art.vr, nil)
+    Check("look: in the top-right corner", quest.quest.point, "TOPRIGHT")
+    Check("look: no OLD or ! text left", source:find('"OLD"', 1, true) == nil and source:find('"!"', 1, true) == nil, true)
+    local function TipHas(cell, atlas, words)
+        cell.OnEnter(cell)
+        for _, line in ipairs(t.tipLines) do
+            if type(line.text) == "string" and line.text:find("|A:" .. atlas .. ":", 1, true)
+                and line.text:find(words, 1, true) then return line end
+        end
+    end
+    local oldTip = TipHas(old, St.CLOCK_ATLAS, "Outlevelled: 10 or more levels below you")
+    Check("look: the tooltip explains the clock, with it", oldTip ~= nil, true)
+    Check("look: in the warning color", oldTip and oldTip.r == St.WARN_RGB.r, true)
+    Check("look: the clock in the tooltip tinted too", oldTip and oldTip.text:find(":251:146:60|a", 1, true) ~= nil, true)
+    Check("look: the tooltip explains the bang", TipHas(quest, St.QUEST_ATLAS, "Needed for Linen Trouble (2/6)") ~= nil, true)
+    Check("look: no clock line on fresh food", TipHas(egg, St.CLOCK_ATLAS, "Outlevelled"), nil)
+    Check("look: stack count in the shared marks", old.marks.level.text, 20)
+    Check("look: no count on a single item", quest.marks.level.text, "")
+    Check("look: price from the shared coins", old.price.text, Parts.Coins(20, true))
+    Check("look: the coins are the game's", old.price.text, CoinString(20))
+    Check("look: compact coins keep the largest, to the nearest", Parts.Coins(12345, true), CoinString(10000))
+    Check("look: silver to the nearest", Parts.Coins(236, true), CoinString(200))
+    Check("look: half a silver rounds up", Parts.Coins(250, true), CoinString(300))
+    Check("look: copper as it is", Parts.Coins(95, true), CoinString(95))
+    Check("look: the full amount without compact", Parts.Coins(236), CoinString(236))
+    Check("look: the price centred under its icon", old.price.point == "TOP" and old.price.x == 0
+        and old.price.y == -3, true)
+    Check("look: cells as wide as the icons, evenly spaced", egg.x - old.x == 36 + 6 and quest.x - egg.x == 36 + 6, true)
+    Check("look: prices muted", old.price.color, T.muted)
+    Check("look: no own money formatter", source:find("Money(", 1, true), nil)
+    local free = t.buttons.row.free
+    for _, text in ipairs({ old.price, free.text, free.word, free.scrap }) do
+        Check("look: no outline", text.flags, nil)
+        Check("look: the house shadow", text.shadowX == St.HUD_SHADOW_X and text.shadowY == St.HUD_SHADOW_Y, true)
+    end
+    Check("look: room to spare in the text color", free.text.r, T.fg.r)
+    local backdrop = t.buttons.row.backdrop
+    Check("look: the card is the shared HUD backdrop", backdrop and backdrop.mode, "card")
+    Check("look: the card and its edge shown", backdrop.fill.shown and backdrop.border._frame.shown, true)
+    Check("look: no soft fade made until it is picked", backdrop.soft, nil)
+    Check("look: the card wraps the row", t.buttons.row.card.w, 3 * 36 + 2 * 6 + 2 * 6)
+    t.Set("bagSpaceSize", 24)
+    Check("look: small icons keep room for a price", egg.x - old.x, 32 + 6)
+    t.Set("bagSpaceSize", 36)
+    t.Set("bagSpacePrices", false)
+    Check("look: Show Prices off", old.price.shown, false)
+    t.Set("bagSpaceGrow", "DOWN")
+    Check("look: down, one under another", egg.x == 0 and egg.y < 0, true)
+end
+
+-- Background: the card by default; Soft swaps it for the shared fade with the stronger shadow on
+-- the header and the prices, cells made afterwards too; None shows neither, the icons keep their
+-- edges; and a scan in either makes no garbage.
+do
+    local t = Fixture({ settings = { bagSpaceCount = 2 },
+        bags = { [0] = Bag(16, { { 9, 20 }, { 1, 3 }, { 2, 4 }, { 3, 5 }, { 10, 1 }, { 4, 2 } }) } })
+    local St, row = t.Style, t.buttons.row
+    local backdrop, free = row.backdrop, row.free
+    local function Texts()
+        local list = { free.text, free.word, free.scrap }
+        for _, b in ipairs(row.cells) do list[#list + 1] = b.price end
+        return list
+    end
+    local function AllShadow(x, y, a)
+        for _, text in ipairs(Texts()) do
+            if text.flags ~= nil or text.shadowX ~= x or text.shadowY ~= y or text.shadowA ~= a then return false end
+        end
+        return true
+    end
+    local function SoftShown(on)
+        if not backdrop.soft then return not on end
+        for _, tex in ipairs(backdrop.soft) do
+            if tex.shown ~= on then return false end
+        end
+        return true
+    end
+    Check("background: Card by default", backdrop.mode == "card" and backdrop.fill.shown
+        and backdrop.border._frame.shown, true)
+    Check("background: the card's alpha", St.HUD_CARD_ALPHA, 0.85)
+    Check("background: the house shadow on the card", AllShadow(St.HUD_SHADOW_X, St.HUD_SHADOW_Y, St.HUD_SHADOW_ALPHA), true)
+    t.Set("bagSpaceBackground", "soft")
+    Check("background: Soft hides the card and its edge", backdrop.fill.shown or backdrop.border._frame.shown, false)
+    Check("background: Soft is nine pieces of the round shade", backdrop.soft and #backdrop.soft, 9)
+    Check("background: all shown", SoftShown(true), true)
+    local shade = true
+    for _, tex in ipairs(backdrop.soft) do
+        if tex.texture ~= St.SOFT_SHADE or tex.va ~= St.HUD_SOFT_ALPHA or tex.vr ~= t.ns.THEME.bg.r then shade = false end
+    end
+    Check("background: the shade in the theme's background, at the soft alpha", shade, true)
+    Check("background: Soft's stronger shadow, no outline", AllShadow(St.HUD_SHADOW_X, St.HUD_SHADOW_Y,
+        St.HUD_SOFT_SHADOW_ALPHA), true)
+    local cells = #row.cells
+    t.Set("bagSpaceCount", 6)
+    Check("background: more cells made in Soft", #row.cells > cells, true)
+    Check("background: a cell made in Soft gets its shadow", AllShadow(St.HUD_SHADOW_X, St.HUD_SHADOW_Y,
+        St.HUD_SOFT_SHADOW_ALPHA), true)
+    local pieces = backdrop.soft
+    t.Set("bagSpaceBackground", "none")
+    Check("background: None shows no card", backdrop.fill.shown or backdrop.border._frame.shown, false)
+    Check("background: and no fade", SoftShown(false) and backdrop.soft == pieces, true)
+    Check("background: None's shadow, no outline", AllShadow(St.HUD_BARE_SHADOW_X, St.HUD_BARE_SHADOW_Y,
+        St.HUD_BARE_SHADOW_ALPHA), true)
+    Check("background: the icons keep their edges", row.cells[1].edge._frame ~= nil and row.cells[1].edge._frame.shown, true)
+    for _, mode in ipairs({ "soft", "none" }) do
+        t.Set("bagSpaceBackground", mode)
+        for _ = 1, 50 do t.Fire("BAG_UPDATE_DELAYED") end
+        collectgarbage("collect")
+        collectgarbage("stop")
+        local kb = collectgarbage("count")
+        for _ = 1, 500 do t.Fire("BAG_UPDATE_DELAYED") end
+        local grown = collectgarbage("count") - kb
+        collectgarbage("restart")
+        Check("background: no garbage per scan in " .. mode, grown / 500 < 0.05, true)
+    end
+    t.Set("bagSpaceBackground", "card")
+    Check("background: back to the card", backdrop.fill.shown and backdrop.border._frame.shown and SoftShown(false), true)
+    Check("background: the house shadow again", AllShadow(St.HUD_SHADOW_X, St.HUD_SHADOW_Y, St.HUD_SHADOW_ALPHA), true)
+    local qol = io.open("QoL/NaowhForever_QoL.lua", "rb")
+    local defaults = qol:read("*a"); qol:close()
+    Check("background: Card by default in the settings", defaults:find('bagSpaceBackground = "card"', 1, true) ~= nil, true)
+end
+
+-- Few slots free: the count turns orange; none: red.
+do
+    local function Filled(n)
+        local items = {}
+        for slot = 1, n do items[slot] = { 1, 1 } end
+        return Fixture({ bags = { [0] = Bag(16, items) } })
+    end
+    local low, full = Filled(15), Filled(16)
+    Check("low: one free", low.FreeText(), "1/16")
+    Check("low: orange", low.buttons.row.free.text.r, low.Style.WARN_RGB.r)
+    Check("full: none free", full.FreeText(), "0/16")
+    Check("full: red", full.buttons.row.free.text.r, full.Style.RED_RGB.r)
+end
+
+-- The settings card's preview: nothing built until the card opens (and nothing at all while Bag
+-- Space is off), then the same card from the addon's samples, following Items Shown, Highest
+-- Quality Offered, Icon Size, Direction, the sort settings, Offer to Stack and Show Free Slots,
+-- with Low and Full states, a hover that acts on nothing, and no garbage per paint.
+do
+    local t = Fixture({ studio = true, settings = { bagSpace = false }, bags = { [0] = Bag(16, { { 1, 3 } }) } })
+    local studio = t.cards.bagSpace and t.cards.bagSpace.studio
+    Check("studio: declared on the card", studio ~= nil, true)
+    Check("studio: no card while Bag Space is off", t.buttons.row, nil)
+    local before = t.Made()
+    local stage = t.env.CreateFrame("Frame")
+    local preview = studio.new(stage)
+    Check("studio: built when the card opens", t.Made() > before + 1, true)
+    preview.w, preview.h = 500, studio.height
+    local view = preview.view
+    local function Names()
+        local out = {}
+        for _, b in ipairs(view.cells) do
+            if b.shown then out[#out + 1] = b.pick.name end
+        end
+        return table.concat(out, ", ")
+    end
+    studio.paint(preview, "bags")
+    Check("studio: cheapest first, the quest item last", Names(),
+        "Worn Leather Pants, Ruined Pelt, Tough Jerky, Linen Cloth")
+    Check("studio: the free count", view.free.text.text, "28/52")
+    Check("studio: Scrap Marker's +N", view.free.scrap.text, "+2")
+    Check("studio: the Stack button", view.stack.shown, true)
+    Check("studio: the clock on the jerky", view.cells[3].old.shown and view.cells[3].old.art.atlas == t.Style.CLOCK_ATLAS, true)
+    Check("studio: the quest mark on the linen", view.cells[4].quest.shown, true)
+    Check("studio: prices from the shared coins", view.cells[1].price.text, t.Parts.Coins(150, true))
+    local made = t.Made()
+    studio.paint(preview, "bags")
+    Check("studio: a repaint makes no frames", t.Made(), made)
+    t.Set("bagSpaceCount", 2)
+    studio.paint(preview, "bags")
+    Check("studio: Items Shown", Names(), "Worn Leather Pants, Ruined Pelt")
+    t.Set("bagSpaceCount", 8)
+    t.Set("bagSpaceMaxQuality", 0)
+    studio.paint(preview, "bags")
+    Check("studio: Highest Quality Offered", Names(), "Ruined Pelt")
+    t.Set("bagSpaceMaxQuality", 3)
+    t.Set("bagSpaceJunkFirst", true)
+    studio.paint(preview, "bags")
+    Check("studio: Grey Items First", Names(), "Ruined Pelt, Worn Leather Pants, Tough Jerky, Jade Ring, Linen Cloth")
+    t.Set("bagSpaceJunkFirst", false)
+    t.Set("bagSpaceOldFirst", true)
+    studio.paint(preview, "bags")
+    Check("studio: Outlevelled First", Names():match("^[^,]+"), "Tough Jerky")
+    t.Set("bagSpaceSize", 48)
+    t.Set("bagSpaceGrow", "UP")
+    studio.paint(preview, "bags")
+    Check("studio: Icon Size", view.cells[1].w, 48)
+    Check("studio: Direction", view.cells[2].x == 0 and view.cells[2].y > 0, true)
+    Check("studio: shrunk to fit the stage", view.scale < 1, true)
+    t.Set("bagSpaceStack", false)
+    studio.paint(preview, "bags")
+    Check("studio: Offer to Stack off", view.stack.shown, false)
+    studio.paint(preview, "low")
+    Check("studio: Low", view.free.text.text, "4/52")
+    Check("studio: Low in orange", view.free.text.r, t.Style.WARN_RGB.r)
+    studio.paint(preview, "full")
+    Check("studio: Full", view.free.text.text, "0/52")
+    Check("studio: Full in red", view.free.text.r, t.Style.RED_RGB.r)
+    Check("studio: Low and Full need the free count", studio.states[2].needs == "bagSpaceShowFree"
+        and studio.states[3].needs == "bagSpaceShowFree", true)
+    t.Set("bagSpaceShowFree", false)
+    studio.paint(preview, "bags")
+    Check("studio: Show Free Slots off", view.free.shown, false)
+    view.cells[1].OnEnter(view.cells[1])
+    Check("studio: a sample only shows a tooltip", rawget(view.cells[1], "OnClick"), nil)
+    Check("studio: the card by default", view.backdrop.mode == "card" and view.backdrop.fill.shown, true)
+    t.Set("bagSpaceBackground", "soft")
+    studio.paint(preview, "bags")
+    Check("studio: Soft in the preview", view.backdrop.mode == "soft" and view.backdrop.fill.shown == false
+        and view.backdrop.soft ~= nil and view.backdrop.soft[1].shown, true)
+    Check("studio: its prices with Soft's shadow", view.cells[1].price.shadowA, t.Style.HUD_SOFT_SHADOW_ALPHA)
+    t.Set("bagSpaceBackground", "none")
+    studio.paint(preview, "bags")
+    Check("studio: None in the preview", view.backdrop.mode == "none" and view.backdrop.fill.shown == false
+        and view.backdrop.soft[1].shown == false, true)
+    t.Set("bagSpaceBackground", "card")
+    studio.paint(preview, "bags")
+    local rows = {}
+    for _, r in ipairs(t.cards.bagSpace.rows) do
+        if r.key then rows[r.key] = r end
+    end
+    local bg = rows.bagSpaceBackground
+    Check("studio: Background is a choice", bg and bg.choice == t.Parts.HUD_BACKGROUNDS and bg.label, "Background")
+    Check("studio: its help one short sentence", bg.help and #bg.help < 100 and not bg.help:find("%. %u"), true)
+    local look
+    for i, r in ipairs(t.cards.bagSpace.rows) do
+        if r.group == "Look" then look = i end
+        if r == bg then Check("studio: Background in the Look group", look ~= nil and i > look, true) end
+    end
+    for _ = 1, 20 do studio.paint(preview, "bags") end
+    collectgarbage("collect")
+    collectgarbage("stop")
+    local kb = collectgarbage("count")
+    for _ = 1, 500 do studio.paint(preview, "full") end
+    local grown = collectgarbage("count") - kb
+    collectgarbage("restart")
+    Check("studio: no garbage per paint", grown / 500 < 0.05, true)
 end
 
 -- Cost: a full set of bags, scanned the way loot triggers it.

@@ -1,11 +1,14 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_BagSpace.lua -- the QoL Bag Space row: the cheapest things in your bags as
---  icons, to delete, sell or ignore.
+--  icons on a small card, under your free slots, to delete, sell or ignore. Its Background is the
+--  card, a soft fade or none (Parts.HudBackdrop); the icons keep their own edges in each.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
 local S = ns.QoLSettings
+local Parts, St = ns.Shared.Parts, ns.Shared.Style
+local Coins = Parts.Coins
 
 -- Called for every bag slot on every scan, so looked up once.
 local GetContainerItemInfo = C_Container.GetContainerItemInfo
@@ -14,18 +17,42 @@ local GetContainerNumFreeSlots = C_Container.GetContainerNumFreeSlots
 local GetItemInfo = C_Item.GetItemInfo
 local GetItemInfoInstant = C_Item.GetItemInfoInstant
 
-local GAP = 6
 local SCAN_DELAY = 0.2
 local SAMPLE_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
-local STACK_ICON = "Interface\\Icons\\INV_Misc_Bag_10"
-local BAG_ICON = "Interface\\Icons\\INV_Misc_Bag_08"
-local FULL_COLOR = { r = 1, g = 0.25, b = 0.25 }
-local LOW_COLOR = { r = 1, g = 0.6, b = 0.2 }
+local SAMPLE_PRICE = 12   -- Unlock Mode's sample icons: this many copper, times their place
+local SAMPLE_FREE, SAMPLE_SLOTS = 28, 96   -- and its free count before the first scan
 local FULL_SHOW = 20      -- seconds the row stays up after an "Inventory is full" error
 local OUTLEVEL = 10       -- a consumable this many levels below you is flagged as old
 local MERGE_STEPS = 60    -- a stack merge gives up after this many moves
 local QUEST_CONFIRM = 5   -- seconds a second Ctrl-click has to delete an item a quest needs
+local EDGE_COLORED = 2     -- Uncommon: from here up an item's edge shows its quality color
 local DIRECT_DELETE = 1   -- highest quality Ctrl-click deletes; better goes on the cursor
+
+-- The card: the house panel (the theme's background, a 1px black edge) round a slim header
+-- (the bag, free slots out of your total, Scrap Marker's "+N", the Stack button) over a cell
+-- per item (its icon, its marks, its price under it).
+local BORDER_RGB = St.BORDER_RGB
+local CARD_ALPHA = 0.85   -- the panel's fill, as the Flight Timer's card
+local PAD = 6             -- the card's edge to what is in it
+local GAP = 6             -- between cells
+local HEAD_H = 16         -- the header line, and the Stack button's height
+local HEAD_GAP = 5        -- under the header
+local HEAD_SPACE = 12     -- at least this between the free count and the Stack button
+local HEAD_SIZE = 12      -- the header's text
+local HEAD_ICON = 12      -- the bag before it
+local ICON_DROP = Parts.CARD_DROP   -- the bag lowered to the letters, as on a card
+local TEXT_GAP = 4        -- between the header's words
+local STACK_PAD = 8       -- the Stack button's label to its edges
+local PRICE_SIZE = 10     -- the price under each icon: small and muted
+local PRICE_H = 12
+local PRICE_GAP = 3       -- an icon to its price
+local PRICE_W = 32
+local LOW_SHARE = 0.1     -- under this share of your slots free, the count turns orange
+local QUEST_RGB = St.CARRIED_RGB    -- the game's quest gold
+local FREE_TEXT = "free"
+local OLD_TIP = ("Outlevelled: %d or more levels below you"):format(OUTLEVEL)
+local TIP_ICON, TIP_ICON_TINTED = "|A:%s:0:0:0:%d|a ", "|A:%s:0:0:0:%d:%d:%d:%d|a "
+local STACK_TEXT = "Stack +%d"
 
 -- Never offered whatever they are worth: you need them, or they free no bag space.
 local PROTECTED_CLASS = {
@@ -37,14 +64,12 @@ local PROTECTED_CLASS = {
 }
 
 local frame, unlocked, atMerchant, inCombat, pendingScan, missingInfo, junkFirst, oldFirst
-local buttons = {}
 local pool, picks = {}, {}  -- scan entries are reused; picks is the sorted view
 local free, total, fullUntil = 0, 0, 0
 local scrapSlots = 0   -- slots holding Scrap Marker's scrap, free after the next vendor
 local setItems, setsDirty = {}, true
 local partial, stackSaves = {}, 0   -- itemID -> part-filled stacks in plain bags; slots merging frees
 local merging, mergeSteps, mergeStartFree
-local stackEntry = { stack = true }
 
 local function On()
     return S.Get("enabled") and S.Get("bagSpace")
@@ -55,17 +80,6 @@ local function Ignored()
     local db = S.DB()
     db.bagSpaceIgnore = db.bagSpaceIgnore or {}
     return db.bagSpaceIgnore
-end
-
-local GOLD, SILVER, COPPER = "|cffffd700%dg|r", "|cffc7c7cf%ds|r", "|cffeda55f%dc|r"
-local BLACK = { r = 0, g = 0, b = 0 }
-
--- The two largest coins that are not zero, coloured: "1g 20s", "35s", "12c".
-local function Money(copper)
-    local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
-    if g > 0 then return s > 0 and (GOLD .. " " .. SILVER):format(g, s) or GOLD:format(g) end
-    if s > 0 then return c > 0 and (SILVER .. " " .. COPPER):format(s, c) or SILVER:format(s) end
-    return COPPER:format(c)
 end
 
 -------------------------------------------------------------------------------
@@ -307,7 +321,7 @@ end
 local function GroundHint(p)
     if p.quest then ns.Print(("careful: %s is needed for %s."):format(p.link, QuestText(p.quest))) end
     ns.Print(("%s (%s) is on your cursor: click the ground to delete it, or a bag slot to "
-        .. "put it back."):format(Label(p), Money(p.value)))
+        .. "put it back."):format(Label(p), Coins(p.value)))
 end
 
 -- A quest item takes a second Ctrl-click within a few seconds: a warning, not a popup, since
@@ -340,7 +354,7 @@ local function Delete(p)
         GroundHint(p)
         return
     end
-    ns.Print(("deleted %s (%s)."):format(Label(p), Money(p.value)))
+    ns.Print(("deleted %s (%s)."):format(Label(p), Coins(p.value)))
 end
 
 local function Sell(p)
@@ -638,15 +652,11 @@ function NaowhForever_BagSpacePickUp()
 end
 
 -------------------------------------------------------------------------------
---  Row
+--  The card
 -------------------------------------------------------------------------------
 local function OnClick(self, button)
     local e = self.pick
     if not e or unlocked then return end
-    if e.stack then
-        if button == "LeftButton" then StartMerge() end
-        return
-    end
     local p = Snapshot(e)
     -- ChatFrameUtil, not ChatEdit_InsertLink: that is a deprecated shim Forever does not load.
     if IsModifiedClick("CHATLINK") then
@@ -662,35 +672,34 @@ end
 
 -- The whole stack goes, so the total is what is lost; the split says how it adds up.
 local function Worth(each, count)
-    if count <= 1 then return Money(each) end
-    return Money(each * count) .. ("  " .. ns.Color("muted", "(%s each x%d)")):format(Money(each), count)
+    if count <= 1 then return Coins(each) end
+    return Coins(each * count) .. ("  " .. ns.Color("muted", "(%s each x%d)")):format(Coins(each), count)
 end
 
-local function OnEnter(self)
-    local e = self.pick
-    if not e or unlocked then return end
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    if e.stack then
-        GameTooltip:SetText("Stack Your Bags")
-        GameTooltip:AddLine(("Combines part-filled stacks of the same item, freeing %d slot%s. "
-            .. "Nothing is deleted."):format(stackSaves, stackSaves == 1 and "" or "s"), 1, 1, 1, true)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(ns.Color("accent", "Click") .. "  stack now", 1, 1, 1)
-        GameTooltip:Show()
-        return
-    end
-    GameTooltip:SetBagItem(e.bag, e.slot)
-    -- Each added line can be turned off; the quest warning always shows, since it is what
-    -- stops a needed item going by mistake.
+local oldLine, questMark
+
+local function TipMarks()
+    local c = St.WARN_RGB
+    oldLine = TIP_ICON_TINTED:format(St.CLOCK_ATLAS, -Parts.TOOLTIP_DROP, c.r * 255, c.g * 255, c.b * 255) .. OLD_TIP
+    questMark = TIP_ICON:format(St.QUEST_ATLAS, -Parts.TOOLTIP_DROP)
+end
+
+-- The lines Bag Space adds under an item's own tooltip; ah is its auction price each, if known.
+-- Each can be turned off; the quest warning always shows, since it is what stops a needed item
+-- going by mistake.
+local function AddTipLines(e, ah)
+    if not oldLine then TipMarks() end
     local vendor, auction = S.Get("bagSpaceTipVendor"), S.Get("bagSpaceTipAuction")
     local deleteHint, ignoreHint = S.Get("bagSpaceTipDelete"), S.Get("bagSpaceTipIgnore")
-    if vendor or auction or deleteHint or ignoreHint or e.quest then GameTooltip:AddLine(" ") end
+    if vendor or auction or deleteHint or ignoreHint or e.quest or e.old then GameTooltip:AddLine(" ") end
     if vendor then GameTooltip:AddDoubleLine("Vendor", Worth(e.vendor, e.count), 1, 1, 1, 1, 1, 1) end
     if auction then
-        local ah = AuctionEach(e.itemID, e.link)
         GameTooltip:AddDoubleLine("Auction", ah and Worth(ah, e.count) or ns.Color("muted", "unknown"), 1, 1, 1, 1, 1, 1)
     end
-    if e.quest then GameTooltip:AddLine("Needed for " .. QuestText(e.quest), 1, 0.82, 0) end
+    if e.old then GameTooltip:AddLine(oldLine, St.WARN_RGB.r, St.WARN_RGB.g, St.WARN_RGB.b) end
+    if e.quest then
+        GameTooltip:AddLine(questMark .. "Needed for " .. QuestText(e.quest), QUEST_RGB.r, QUEST_RGB.g, QUEST_RGB.b)
+    end
     if deleteHint then
         if e.quest then
             GameTooltip:AddLine(ns.Color("accent", "Ctrl-click") .. "  twice to delete", 1, 1, 1)
@@ -702,107 +711,31 @@ local function OnEnter(self)
         if atMerchant then GameTooltip:AddLine(ns.Color("accent", "Click") .. "  sell", 1, 1, 1) end
     end
     if ignoreHint then GameTooltip:AddLine(ns.Color("accent", "Middle-click") .. "  ignore this item", 1, 1, 1) end
+end
+
+local function OnEnter(self)
+    local e = self.pick
+    if not e or unlocked then return end
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetBagItem(e.bag, e.slot)
+    AddTipLines(e, S.Get("bagSpaceTipAuction") and AuctionEach(e.itemID, e.link) or nil)
     GameTooltip:Show()
 end
 
-local function CreateButton(i)
-    local b = CreateFrame("Button", nil, frame)
-    b:RegisterForClicks("LeftButtonUp", "MiddleButtonUp")
-    -- A quality-coloured frame, so a grey item reads apart from a white one.
-    b.edge = b:CreateTexture(nil, "BACKGROUND")
-    b.edge:SetAllPoints()
-    b.icon = b:CreateTexture(nil, "ARTWORK")
-    ns.PixelInset(b.icon, 1, b)
-    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    b.count = ns.Font(b, 12, "OUTLINE")
-    b.count:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -2, 2)
-    b.price = ns.Font(b, 11, "OUTLINE")
-    b.price:SetPoint("TOP", b, "BOTTOM", 0, -2)
-    b.old = ns.Font(b, 9, "OUTLINE", { r = 0.95, g = 0.6, b = 0.2 })
-    b.old:SetPoint("TOPLEFT", b, "TOPLEFT", 2, -2)
-    b.old:SetText("OLD")
-    b.quest = ns.Font(b, 13, "OUTLINE", { r = 1, g = 0.82, b = 0 })
-    b.quest:SetPoint("TOPRIGHT", b, "TOPRIGHT", -2, -1)
-    b.quest:SetText("!")
-    b:SetScript("OnClick", OnClick)
-    b:SetScript("OnEnter", OnEnter)
-    b:SetScript("OnLeave", GameTooltip_Hide)
-    buttons[i] = b
-    return b
+-- The Stack button: how many slots it frees is kept on it at each draw.
+local function StackTip(self)
+    local saves = self.saves or 0
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText("Stack Your Bags")
+    GameTooltip:AddLine(("Combines part-filled stacks of the same item, freeing %d slot%s. "
+        .. "Nothing is deleted."):format(saves, saves == 1 and "" or "s"), 1, 1, 1, true)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(ns.Color("accent", "Click") .. "  stack now", 1, 1, 1)
+    GameTooltip:Show()
 end
 
-local STEP = { RIGHT = { 1, 0 }, LEFT = { -1, 0 }, UP = { 0, 1 }, DOWN = { 0, -1 } }
-
-local function Layout(shown)
-    local size = S.Get("bagSpaceSize")
-    local dir = STEP[S.Get("bagSpaceGrow")] or STEP.RIGHT
-    local step = size + GAP
-    frame:SetSize(size, size)
-    for i = 1, shown do
-        local b = buttons[i] or CreateButton(i)
-        b:SetSize(size, size)
-        b:ClearAllPoints()
-        b:SetPoint("CENTER", frame, "CENTER", (i - 1) * step * dir[1], (i - 1) * step * dir[2])
-        b:Show()
-    end
-    for i = shown + 1, #buttons do buttons[i]:Hide() end
-    -- The counter sits over the row's left end: the first icon, or the last one when the row
-    -- grows left or up.
-    local back = dir[1] < 0 or dir[2] > 0
-    local lead = back and buttons[math.max(shown, 1)] or buttons[1]
-    frame.free:ClearAllPoints()
-    if lead then frame.free:SetPoint("BOTTOMLEFT", lead, "TOPLEFT", 0, 3) end
-    local first, last = buttons[1], buttons[math.max(shown, 1)]
-    frame.mover:ClearAllPoints()
-    if first and last then
-        frame.mover:SetPoint("TOPLEFT", back and last or first, "TOPLEFT")
-        frame.mover:SetPoint("BOTTOMRIGHT", back and first or last, "BOTTOMRIGHT")
-    else
-        frame.mover:SetAllPoints()
-    end
-end
-
-local function Fill(b, e, icon, price, count, quality, old, quest)
-    b.pick = e
-    b.icon:SetTexture(icon)
-    b.price:SetText(price)
-    b.count:SetText(count and count > 1 and count or "")
-    b.old:SetShown(old == true)
-    b.quest:SetShown(quest ~= nil)
-    -- Common items take the house 1px black border; every other quality shows its colour.
-    local c = quality ~= 1 and ITEM_QUALITY_COLORS[quality] or BLACK
-    b.edge:SetColorTexture(c.r, c.g, c.b, 1)
-end
-
--- Built on first use, once the theme is applied, then reused: a scan fills this every time.
-local stackLabel
-
-local function FillStack(b)
-    b.pick = stackEntry
-    b.icon:SetTexture(STACK_ICON)
-    stackLabel = stackLabel or ns.Color("accent", "Stack")
-    b.price:SetText(stackLabel)
-    b.count:SetText("+" .. stackSaves)
-    b.old:Hide()
-    b.quest:Hide()
-    b.edge:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
-end
-
-local scrapCode
-
--- Free out of total over the row, orange under a tenth free and red when full.
-local function ShowFree(count, slots)
-    local f = frame.free
-    f:SetShown(S.Get("bagSpaceShowFree"))
-    local c = count == 0 and FULL_COLOR or count < slots * 0.1 and LOW_COLOR or T.fg
-    f.text:SetTextColor(c.r, c.g, c.b, 1)
-    if scrapSlots > 0 then
-        scrapCode = scrapCode or ns.Color("accentSoft")
-        f.text:SetText(("%d/%d  %s+%d|r"):format(count, slots, scrapCode, scrapSlots))
-    else
-        f.text:SetText(("%d/%d"):format(count, slots))
-    end
-    f:SetSize(16 + f.text:GetStringWidth(), 14)
+local function StackClicked()
+    if not unlocked then StartMerge() end
 end
 
 -- Hovering the counter: each plain bag's free and total slots.
@@ -824,7 +757,7 @@ local function FreeTooltip(self)
         end
     end
     if special then
-        GameTooltip:AddLine("Quivers and profession bags are not counted.", 0.6, 0.6, 0.6, true)
+        GameTooltip:AddLine("Quivers and profession bags are not counted.", T.muted.r, T.muted.g, T.muted.b, true)
     end
     if scrapSlots > 0 then
         GameTooltip:AddLine(("%d more free after the next vendor sells your scrap."):format(scrapSlots),
@@ -833,20 +766,192 @@ local function FreeTooltip(self)
     GameTooltip:Show()
 end
 
-local function NewFreeCounter(parent)
+-- The header's left: the bag, "28/52" in its state's color, "free", and Scrap Marker's "+2".
+-- With live, hovering it lists your bags.
+local function NewFreeCounter(parent, live)
     local f = CreateFrame("Frame", nil, parent)
-    f:SetSize(60, 14)
-    f:EnableMouse(true)
-    f.icon = f:CreateTexture(nil, "ARTWORK")
-    f.icon:SetSize(12, 12)
-    f.icon:SetPoint("LEFT", f, "LEFT", 0, 0)
-    f.icon:SetTexture(BAG_ICON)
-    f.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    f.text = ns.Font(f, 11, "OUTLINE")
-    f.text:SetPoint("LEFT", f.icon, "RIGHT", 4, 0)
-    f:SetScript("OnEnter", FreeTooltip)
-    f:SetScript("OnLeave", GameTooltip_Hide)
+    f:SetHeight(HEAD_H)
+    f.icon = Parts.Smooth(f:CreateTexture(nil, "ARTWORK"), St.BAG)
+    f.icon:SetSize(HEAD_ICON, HEAD_ICON)
+    f.icon:SetPoint("LEFT", 0, -ICON_DROP)
+    f.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b)
+    f.text = Parts.HudText(ns.Font(f, HEAD_SIZE))
+    f.text:SetPoint("LEFT", HEAD_ICON + TEXT_GAP, 0)
+    f.word = Parts.HudText(ns.Font(f, HEAD_SIZE, nil, T.muted))
+    f.word:SetPoint("LEFT", f.text, "RIGHT", TEXT_GAP, 0)
+    f.word:SetText(FREE_TEXT)
+    f.scrap = Parts.HudText(ns.Font(f, HEAD_SIZE, nil, T.accentSoft))
+    f.scrap:SetPoint("LEFT", f.word, "RIGHT", TEXT_GAP, 0)
+    if live then
+        f:EnableMouse(true)
+        f:SetScript("OnEnter", FreeTooltip)
+        f:SetScript("OnLeave", GameTooltip_Hide)
+    end
     return f
+end
+
+-- view is where the first icon goes: Unlock Mode moves it and saves its place, so a place saved
+-- before the card keeps the icons where they were. The card is drawn round the icons from it.
+-- onClick (nil on the settings preview) acts on an icon, onEnter shows its tooltip and onStack
+-- stacks; live: the real row, whose counter lists your bags on hover.
+local function NewView(view, onClick, onEnter, onStack, live)
+    local card = CreateFrame("Frame", nil, view)
+    view.backdrop = Parts.HudBackdrop(card, { alpha = CARD_ALPHA })
+    view.card = card
+    view.free = NewFreeCounter(card, live)
+    view.free:SetPoint("TOPLEFT", PAD, -PAD)
+    view.stack = ns.AccentBorder(ns.Button(card, "Stack", HEAD_H, HEAD_H, onStack))
+    view.stack:SetPoint("TOPRIGHT", -PAD, -PAD)
+    view.stack:HookScript("OnEnter", StackTip)
+    view.stack:HookScript("OnLeave", GameTooltip_Hide)
+    view.stack:Hide()
+    view.cells, view.onClick, view.onEnter = {}, onClick, onEnter
+    return view
+end
+
+-- An item's cell: the house item icon (1px edge in its quality's color), the shared marks (the
+-- stack count in the bottom-right over a shade), the outlevelled clock and the quest bang as corner
+-- badges, and the price under it in its largest coin.
+local function NewCell(view, i, size)
+    local b = CreateFrame("Button", nil, view.card)
+    local icon = Parts.ItemIcon(b, size)
+    icon:SetAllPoints()
+    b.icon, b.edge = icon.texture, icon.edge
+    b.marks = Parts.ItemMarks(icon, size)
+    b.old = Parts.ItemBadge(b.marks, "TOPLEFT", St.CLOCK_ATLAS, St.WARN_RGB)
+    b.quest = Parts.ItemBadge(b.marks, "TOPRIGHT", St.QUEST_ATLAS)
+    b.price = Parts.HudText(ns.Font(b, PRICE_SIZE, nil, T.muted), view.shadow)
+    b.price:SetPoint("TOP", b, "BOTTOM", 0, -PRICE_GAP)
+    b.price:SetWordWrap(false)
+    if view.onClick then
+        b:RegisterForClicks("LeftButtonUp", "MiddleButtonUp")
+        b:SetScript("OnClick", view.onClick)
+    end
+    b:SetScript("OnEnter", view.onEnter)
+    b:SetScript("OnLeave", GameTooltip_Hide)
+    view.cells[i] = b
+    return b
+end
+
+-- Free out of total, orange under a tenth free and red when full. Returns the counter's width,
+-- 0 while it is off.
+local function ShowFree(view, count, slots, scrap)
+    local f = view.free
+    if not S.Get("bagSpaceShowFree") then
+        f:Hide()
+        return 0
+    end
+    local c = count == 0 and St.RED_RGB or count < slots * LOW_SHARE and St.WARN_RGB or T.fg
+    f.text:SetTextColor(c.r, c.g, c.b, 1)
+    f.text:SetText(Parts.Fraction(count, slots))
+    local w = HEAD_ICON + TEXT_GAP + f.text:GetStringWidth() + TEXT_GAP + f.word:GetStringWidth()
+    if scrap > 0 then
+        f.scrap:SetText("+" .. scrap)
+        w = w + TEXT_GAP + f.scrap:GetStringWidth()
+    end
+    f.scrap:SetShown(scrap > 0)
+    w = math.ceil(w)
+    f:SetWidth(w)
+    f:Show()
+    return w
+end
+
+-- The Stack button with the slots it frees, or none. Returns its width, 0 while hidden.
+local function ShowStack(view, saves)
+    local b = view.stack
+    if saves <= 0 then
+        b:Hide()
+        return 0
+    end
+    ns.SetButtonText(b, STACK_TEXT:format(saves))
+    local w = math.ceil(b.label:GetStringWidth()) + STACK_PAD * 2
+    b:SetWidth(w)
+    b.saves = saves
+    b:Show()
+    return w
+end
+
+local function ShowBackground(view)
+    local mode = view.backdrop:SetMode(S.Get("bagSpaceBackground"))
+    if view.shadow == mode then return end
+    view.shadow = mode
+    local f, cells = view.free, view.cells
+    Parts.HudText(f.text, mode)
+    Parts.HudText(f.word, mode)
+    Parts.HudText(f.scrap, mode)
+    for i = 1, #cells do Parts.HudText(cells[i].price, mode) end
+end
+
+local STEP = { RIGHT = { 1, 0 }, LEFT = { -1, 0 }, UP = { 0, 1 }, DOWN = { 0, -1 } }
+
+-- shown cells from the first icon in the row's direction, even gaps between them, and the card
+-- round them with the header (headW wide, 0 for none) along its top. Keeps the card's centre
+-- and size on the view (cardX, cardY from the first icon's centre, cardW, cardH).
+local function Layout(view, shown, headW)
+    local size = S.Get("bagSpaceSize")
+    local prices = S.Get("bagSpacePrices")
+    local dir = STEP[S.Get("bagSpaceGrow")] or STEP.RIGHT
+    ShowBackground(view)
+    local half = size / 2
+    local cellW = prices and math.max(size, PRICE_W) or size
+    local cellH = prices and size + PRICE_GAP + PRICE_H or size
+    local stepX, stepY = (cellW + GAP) * dir[1], (cellH + GAP) * dir[2]
+    view:SetSize(size, size)
+    local cells = view.cells
+    for i = 1, shown do
+        local b = cells[i] or NewCell(view, i, size)
+        b:SetSize(size, size)
+        Parts.SizeItemMarks(b.marks, size)
+        b:ClearAllPoints()
+        b:SetPoint("CENTER", view, "CENTER", (i - 1) * stepX, (i - 1) * stepY)
+        b.price:SetShown(prices)
+        b:Show()
+    end
+    for i = shown + 1, #cells do cells[i]:Hide() end
+    local spanX, spanY = (shown - 1) * stepX, (shown - 1) * stepY
+    local left, right = math.min(0, spanX) - cellW / 2, math.max(0, spanX) + cellW / 2
+    local top, bottom = math.max(0, spanY) + half, math.min(0, spanY) + half - cellH
+    local head = headW > 0 and HEAD_H + HEAD_GAP or 0
+    if shown == 0 then
+        -- The Stack button alone: the header over where the first icon would be.
+        left, right, top, bottom, head = -half, -half, half, half, HEAD_H
+    end
+    -- A header wider than the icons widens the card away from the first icon.
+    if headW > right - left then
+        if dir[1] < 0 then left = right - headW else right = left + headW end
+    end
+    local x, y = left - PAD, top + head + PAD
+    local w, h = right - left + PAD * 2, top - bottom + head + PAD * 2
+    local card = view.card
+    card:ClearAllPoints()
+    card:SetPoint("TOPLEFT", view, "CENTER", x, y)
+    card:SetSize(w, h)
+    view.cardX, view.cardY, view.cardW, view.cardH = x + w / 2, y - h / 2, w, h
+    -- Kept on screen whole, not just the first icon.
+    view:SetClampRectInsets(x + half, x + w - half, y - half, y - h + half)
+end
+
+local function Fill(b, e, icon, price, count, quality, old, quest)
+    b.pick = e
+    b.icon:SetTexture(icon)
+    b.price:SetText(price)
+    Parts.PaintItemMarks(b.marks, count, nil, false, false)
+    b.old:SetShown(old == true)
+    b.quest:SetShown(quest ~= nil)
+    -- Poor and Common items take the house 1px black border; Uncommon and better show their color.
+    local c = quality and quality >= EDGE_COLORED and ITEM_QUALITY_COLORS[quality] or BORDER_RGB
+    b.edge:SetColor(c.r, c.g, c.b, 1)
+end
+
+-- The card from a list of entries (the scan's, or the settings preview's samples).
+local function Draw(view, list, shown, count, slots, scrap, saves)
+    local freeW, stackW = ShowFree(view, count, slots, scrap), ShowStack(view, saves)
+    Layout(view, shown, freeW + stackW + (freeW > 0 and stackW > 0 and HEAD_SPACE or 0))
+    local cells = view.cells
+    for i = 1, shown do
+        local e = list[i]
+        Fill(cells[i], e, e.icon, Coins(e.value, true), e.count, e.quality, e.old, e.quest)
+    end
 end
 
 local function Render()
@@ -855,16 +960,23 @@ local function Render()
     -- while unlocked.
     if unlocked then
         local n = S.Get("bagSpaceCount")
-        Layout(n)
+        local freeW
+        if total > 0 then
+            freeW = ShowFree(frame, free, total, scrapSlots)
+        else
+            freeW = ShowFree(frame, SAMPLE_FREE, SAMPLE_SLOTS, 0)
+        end
+        ShowStack(frame, 0)
+        Layout(frame, n, freeW)
+        local cells = frame.cells
         for i = 1, n do
             local e = picks[i]
             if e then
-                Fill(buttons[i], nil, e.icon, Money(e.value), e.count, e.quality, e.old, e.quest)
+                Fill(cells[i], nil, e.icon, Coins(e.value, true), e.count, e.quality, e.old, e.quest)
             else
-                Fill(buttons[i], nil, SAMPLE_ICON, Money(12 * i), nil, 1, i == 1)
+                Fill(cells[i], nil, SAMPLE_ICON, Coins(SAMPLE_PRICE * i, true), nil, 1, i == 1)
             end
         end
-        if total > 0 then ShowFree(free, total) else ShowFree(28, 96) end
         frame:Show()
         return
     end
@@ -877,14 +989,7 @@ local function Render()
         frame:Hide()
         return
     end
-    local first = offerStack and 1 or 0
-    Layout(shown + first)
-    if offerStack then FillStack(buttons[1]) end
-    for i = 1, shown do
-        local e = picks[i]
-        Fill(buttons[i + first], e, e.icon, Money(e.value), e.count, e.quality, e.old, e.quest)
-    end
-    ShowFree(free, total)
+    Draw(frame, picks, shown, free, total, scrapSlots, offerStack and stackSaves or 0)
     frame:Show()
 end
 
@@ -964,8 +1069,11 @@ local function Apply()
         frame = CreateFrame("Frame", "NaowhForeverBagSpace", UIParent)
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
+        NewView(frame, OnClick, OnEnter, StackClicked, true)
         frame.mover = UI.AttachMover(frame, "Bag Space", function(pos) S.Set("bagSpacePos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:bagSpace")
-        frame.free = NewFreeCounter(frame)
+        -- Over the whole card; dragging it moves the first icon's place, which is what is saved.
+        frame.mover:ClearAllPoints()
+        frame.mover:SetAllPoints(frame.card)
     end
     Place()
     frame.mover:SetShown(unlocked == true)
@@ -1019,6 +1127,84 @@ local function BagSpaceSummary(store)
         QUALITY[1][store.Get("bagSpaceMaxQuality")] or "Common")
 end
 
+-- The card's preview on its settings page: the same card, drawn by the code above on plain
+-- frames, from samples of the addon's own; no bags are read and no click acts. Hovering a
+-- sample shows the lines its tooltip would have.
+local STAGE_H, STAGE_MARGIN = 150, 14
+local PREVIEW_SLOTS, PREVIEW_SCRAP, PREVIEW_STACK = 52, 2, 1
+local PREVIEW_FREE = { bags = 28, low = 4, full = 0 }
+local STATES = {
+    { key = "bags", label = "Bags", tip = "Room to spare: 28 of 52 slots free." },
+    { key = "low", label = "Low", tip = "Under a tenth of your slots free.", needs = "bagSpaceShowFree" },
+    { key = "full", label = "Full", tip = "Not a slot free.", needs = "bagSpaceShowFree" },
+}
+
+-- Made when the card first opens: an item of each quality from Poor to Rare, with a stack, an
+-- outlevelled one and one a quest needs.
+local function Samples()
+    local quest = { title = "Linen for Lakeshire", have = 2, need = 6 }
+    local list = {
+        { name = "Worn Leather Pants", icon = "Interface\\Icons\\INV_Pants_04", quality = 2, count = 1, vendor = 150 },
+        { name = "Ruined Pelt", icon = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01", quality = 0, count = 4, vendor = 59 },
+        { name = "Tough Jerky", icon = "Interface\\Icons\\INV_Misc_Food_14", quality = 1, count = 20, vendor = 15,
+          old = true },
+        { name = "Linen Cloth", icon = "Interface\\Icons\\INV_Fabric_Linen_01", quality = 1, count = 7, vendor = 13,
+          quest = quest },
+        { name = "Jade Ring", icon = "Interface\\Icons\\INV_Jewelry_Ring_03", quality = 3, count = 1, vendor = 920 },
+    }
+    for i, e in ipairs(list) do
+        e.bag, e.slot, e.scrap, e.value = 0, i, false, e.vendor * e.count
+    end
+    return list
+end
+
+local function PreviewEnter(self)
+    local e = self.pick
+    if not e then return end
+    local c = ITEM_QUALITY_COLORS[e.quality] or ITEM_QUALITY_COLORS[1]
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText(e.name, c.r, c.g, c.b)
+    AddTipLines(e, nil)
+    GameTooltip:Show()
+end
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.view = NewView(CreateFrame("Frame", nil, preview), nil, PreviewEnter, nil, false)
+    preview.samples, preview.list, preview.n = Samples(), {}, 0
+    return preview
+end
+
+-- The samples the card's settings offer, in its order, then the card, shrunk to fit the stage.
+local function PaintPreview(preview, state)
+    local list, samples, maxQuality = preview.list, preview.samples, S.Get("bagSpaceMaxQuality")
+    local n = 0
+    for i = 1, #samples do
+        local e = samples[i]
+        if e.quality <= maxQuality then
+            n = n + 1
+            list[n] = e
+        end
+    end
+    for i = n + 1, preview.n do list[i] = nil end
+    preview.n = n
+    -- A scan sets these again before it sorts.
+    junkFirst, oldFirst = S.Get("bagSpaceJunkFirst"), S.Get("bagSpaceOldFirst")
+    table.sort(list, Cheaper)
+    local view = preview.view
+    Draw(view, list, math.min(n, S.Get("bagSpaceCount")), PREVIEW_FREE[state] or PREVIEW_FREE.bags,
+        PREVIEW_SLOTS, PREVIEW_SCRAP, S.Get("bagSpaceStack") and PREVIEW_STACK or 0)
+    local scale = 1
+    local roomW = preview:GetWidth() - STAGE_MARGIN * 2
+    local roomH = preview:GetHeight() - STAGE_MARGIN * 2
+    if roomW > 0 and view.cardW > roomW then scale = roomW / view.cardW end
+    if roomH > 0 and view.cardH * scale > roomH then scale = roomH / view.cardH end
+    view:SetScale(scale)
+    view:ClearAllPoints()
+    view:SetPoint("CENTER", preview, "CENTER", -view.cardX, -view.cardY)
+end
+
 Settings.Page("QoL/Loot & Items", S):Card({
     id = "bagSpace", name = "Bag Space", order = 60, switch = "bagSpace",
     help = "The cheapest items in your bags as a row of icons, cheapest first. Ctrl-click an icon "
@@ -1026,6 +1212,7 @@ Settings.Page("QoL/Loot & Items", S):Card({
         .. "an item. "
         .. "Move it in Unlock Mode.",
     summary = BagSpaceSummary,
+    studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
         Group("Offered"),
         { key = "bagSpaceCount", label = "Items Shown", slider = { 1, 8, 1 } },
@@ -1034,8 +1221,7 @@ Settings.Page("QoL/Loot & Items", S):Card({
         { key = "bagSpaceJunkFirst", label = "Grey Items First", toggle = true,
           help = "Grey items come before everything else, whatever they sell for." },
         { key = "bagSpaceOldFirst", label = "Outlevelled Food & Potions First", toggle = true,
-          help = "Food, drink and potions 10 or more levels below you are marked OLD; this puts them "
-              .. "first." },
+          help = "Puts food, drink and potions 10 or more levels below you, marked with a clock, first." },
         { key = "bagSpaceAuction", label = "Count Auction Prices", toggle = true,
           help = "An item worth more at the auction house than at a vendor is valued at its auction "
               .. "price, from your last Scan Prices or TradeSkillMaster." },
@@ -1055,13 +1241,16 @@ Settings.Page("QoL/Loot & Items", S):Card({
         { key = "bagSpaceShowFree", label = "Show Free Slots", toggle = true,
           help = "Free bag slots out of your total, above the row. Hover it for each bag." },
         { key = "bagSpaceStack", label = "Offer to Stack", toggle = true,
-          help = "A Stack button at the start of the row when part-filled stacks of the same item can "
-              .. "be combined, with how many slots it frees. Nothing is deleted." },
+          help = "A Stack button on the card when part-filled stacks of an item can be combined." },
         { label = "Pick Up Cheapest Item", binding = "NAOWHFOREVER_BAGSPACE_PICKUP",
           help = "Puts the cheapest item on your cursor, to drop or sell." },
         Group("Look"),
         { key = "bagSpaceSize", label = "Icon Size", slider = { 24, 56, 1 } },
         { key = "bagSpaceGrow", label = "Direction", choice = DIRECTION },
+        { key = "bagSpacePrices", label = "Show Prices", toggle = true,
+          help = "What each stack is worth, in its largest coin, under its icon." },
+        { key = "bagSpaceBackground", label = "Background", choice = Parts.HUD_BACKGROUNDS,
+          help = "A card behind the row, a soft dark fade, or nothing at all." },
         Group("Tooltips"),
         { key = "bagSpaceTipVendor", label = "Tooltip: Vendor Price", toggle = true,
           help = "What the whole stack sells for at a vendor, and each item's price." },

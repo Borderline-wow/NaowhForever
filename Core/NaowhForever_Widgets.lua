@@ -1260,11 +1260,6 @@ local function SavePlacement(item, point, relPoint, x, y)
     item.save({ point = point, relPoint = relPoint, x = x, y = y })
 end
 
-local function FitPlacementHud()
-    local hud = placement.hud
-    hud:SetSize(math.ceil(hud.text:GetStringWidth()) + 24, math.ceil(hud.text:GetStringHeight()) + 16)
-end
-
 local function StopPlacementDrag(item)
     if not item or not item.dragging then return end
     if InCombatLockdown() and item.frame:IsProtected() then placement.pendingDrag = item; return end
@@ -1277,27 +1272,19 @@ end
 function UI.ClearMoverSelection()
     StopPlacementDrag(placement.selected)
     placement.selected = nil
-    if not placement.hud then return end
+    if not placement.keys then return end
     placement.outline:Hide()
     placement.vertical:Hide()
     placement.horizontal:Hide()
-    placement.hud.text:SetText("Select a display to see its position.\nArrow keys move it; Shift + arrow moves it 10 units.")
-    FitPlacementHud()
-    placement.hud:ClearAllPoints()
-    placement.hud:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 70)
-    if not InCombatLockdown() then placement.hud:SetPropagateKeyboardInput(true) end
+    if not InCombatLockdown() then placement.keys:SetPropagateKeyboardInput(true) end
 end
 
 function UI.RefreshMoverSelection()
     local item = placement.selected
     if not item or InCombatLockdown() then return end
     if not item.handle:IsVisible() then UI.ClearMoverSelection(); return end
-    local frame, hud = item.frame, placement.hud
-    local point, _, relPoint, x, y = frame:GetPoint(1)
-    if not point then return end
-    hud.text:SetText(("%s  |  X %.1f   Y %.1f\n%s relative to %s\nArrow keys: 1 unit   |   Shift + arrow: 10 units%s")
-        :format(item.label, x, y, point, relPoint, item.page and "\nRight-click for its options" or ""))
-    FitPlacementHud()
+    local frame = item.frame
+    if not frame:GetPoint(1) then return end
     local scale = item.handle:GetEffectiveScale() / UIParent:GetEffectiveScale()
     local left, bottom = item.handle:GetLeft(), item.handle:GetBottom()
     if left and bottom then
@@ -1307,13 +1294,6 @@ function UI.RefreshMoverSelection()
         placement.outline:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
         placement.outline:SetSize(width, height)
         placement.outline:Show()
-        -- Sit above the display, or below it when it is too close to the top of the screen.
-        hud:ClearAllPoints()
-        if bottom + height + 4 + hud:GetHeight() <= UIParent:GetHeight() then
-            hud:SetPoint("BOTTOM", UIParent, "BOTTOMLEFT", left + width / 2, bottom + height + 4)
-        else
-            hud:SetPoint("TOP", UIParent, "BOTTOMLEFT", left + width / 2, bottom - 4)
-        end
     end
     local cx, cy = frame:GetCenter()
     if cx and cy then
@@ -1351,18 +1331,14 @@ end
 
 function UI.BeginMoverMode()
     placement.active = true
-    if not placement.hud then
-        local hud = CreateFrame("Frame", nil, UIParent)
-        placement.hud = hud
-        hud:SetFrameStrata("FULLSCREEN_DIALOG")
-        hud:SetFrameLevel(500)
-        hud:SetClampedToScreen(true)
-        ns.Solid(hud, "BACKGROUND", T.bg, 0.96):SetAllPoints()
-        ns.Border(hud, T.accent)
-        hud.text = ns.Font(hud, 13, nil)
-        hud.text:SetPoint("CENTER")
-        hud:SetScript("OnKeyDown", PlacementKey)
-        hud:SetScript("OnKeyUp", function(self)
+    if not placement.keys then
+        local keys = CreateFrame("Frame", nil, UIParent)
+        placement.keys = keys
+        keys:SetFrameStrata("FULLSCREEN_DIALOG")
+        keys:SetFrameLevel(500)
+        keys:SetAllPoints()
+        keys:SetScript("OnKeyDown", PlacementKey)
+        keys:SetScript("OnKeyUp", function(self)
             if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
         end)
         placement.outline = CreateFrame("Frame", nil, UIParent)
@@ -1377,40 +1353,40 @@ function UI.BeginMoverMode()
         placement.horizontal = ns.Solid(guides, "OVERLAY", T.accentSoft, 0.9)
         -- Keep selection geometry aligned when owners resize or reposition their previews.
         local refreshElapsed = 0
-        hud:SetScript("OnUpdate", function(_, elapsed)
+        keys:SetScript("OnUpdate", function(_, elapsed)
             refreshElapsed = refreshElapsed + elapsed
             if refreshElapsed < 0.05 then return end
             refreshElapsed = 0
             if placement.active and placement.selected then UI.RefreshMoverSelection() end
         end)
-        hud:SetScript("OnEvent", function(_, event)
+        keys:SetScript("OnEvent", function(_, event)
             if event == "PLAYER_REGEN_DISABLED" then
                 UI.ClearMoverSelection()
-                hud:Hide()
+                keys:Hide()
             else
                 StopPlacementDrag(placement.pendingDrag)
                 placement.pendingDrag = nil
-                if placement.active then UI.BeginMoverMode() else hud:UnregisterAllEvents() end
+                if placement.active then UI.BeginMoverMode() else keys:UnregisterAllEvents() end
             end
         end)
     end
     if not InCombatLockdown() then
-        placement.hud:EnableKeyboard(true)
-        placement.hud:SetPropagateKeyboardInput(true)
+        placement.keys:EnableKeyboard(true)
+        placement.keys:SetPropagateKeyboardInput(true)
     end
     UI.ClearMoverSelection()
-    placement.hud:RegisterEvent("PLAYER_REGEN_DISABLED")
-    placement.hud:RegisterEvent("PLAYER_REGEN_ENABLED")
-    placement.hud:SetShown(not InCombatLockdown())
+    placement.keys:RegisterEvent("PLAYER_REGEN_DISABLED")
+    placement.keys:RegisterEvent("PLAYER_REGEN_ENABLED")
+    placement.keys:SetShown(not InCombatLockdown())
 end
 
 function UI.EndMoverMode()
     placement.active = false
     UI.ClearMoverSelection()
-    if placement.hud then
-        placement.hud:Hide()
-        if not InCombatLockdown() then placement.hud:EnableKeyboard(false) end
-        if not placement.pendingDrag then placement.hud:UnregisterAllEvents() end
+    if placement.keys then
+        placement.keys:Hide()
+        if not InCombatLockdown() then placement.keys:EnableKeyboard(false) end
+        if not placement.pendingDrag then placement.keys:UnregisterAllEvents() end
     end
 end
 

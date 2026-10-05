@@ -10,9 +10,32 @@
 --    View    the engine that draws a page as pooled rows (View.lua)
 --    Kinds   the rows every page has: a section title, a note, a card (Kinds.lua)
 --
+--  And Shared.CharacterData(key, create): what this character keeps under key in the account's
+--  saved data, by its GUID (first names are not unique on Forever); nil before the game knows
+--  who you are. The Journal's kills and loot, and the XP Ticker's level history.
+--
 --  Loaded after Core and before every module. Nothing is made or listened to at load: a
 --  module builds what it uses when it first shows it.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 
 ns.Shared = { Parts = {}, Kinds = {}, Items = {}, View = {} }
+
+function ns.Shared.CharacterData(key, create)
+    local guid = UnitGUID("player")
+    if not guid then return end
+    local account = ns.AccountSettings()
+    local all = account[key]
+    if type(all) ~= "table" then
+        if not create then return end
+        all = {}
+        account[key] = all
+    end
+    local mine = all[guid]
+    if type(mine) ~= "table" then
+        if not create then return end
+        mine = {}
+        all[guid] = mine
+    end
+    return mine
+end
