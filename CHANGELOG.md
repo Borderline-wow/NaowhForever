@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.5.21-beta
 
 ### Added
