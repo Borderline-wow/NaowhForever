@@ -9,7 +9,7 @@ ns.Journal.AddDungeon("ExcavationSite", {
     name = "Excavation Site: Wetlands",
     new = true,
     zone = "Wetlands", territory = "Contested",
-    entrance = { map = 1437, x = 48.1, y = 56.5 },
+    entrance = { map = 1437, x = 53.4, y = 65.3 },
     wings = {
         { bosses = {
             { npc = 260322, name = "Saltspine", model = 144209, encounters = { 3480 }, loot = { 273022, 273024, 273023 }, chance = { 36, 34, 30 } },

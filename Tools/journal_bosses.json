@@ -81,7 +81,7 @@
         "rare": ["Bruegal Ironknuckle"] } ] },
     { "key": "ExcavationSite", "name": "Excavation Site: Wetlands", "new": true, "zone": 16732,
       "npcs": { "Saltspine": 260322, "Shadetooth": 260325, "Highland Horror": 260808, "Relic Guardian": 260326 },
-      "entranceZone": 11, "entrance": { "map": 1437, "x": 48.1, "y": 56.5, "source": "Forever guide sites" },
+      "entranceZone": 11, "entrance": { "map": 1437, "x": 53.4, "y": 65.3, "source": "Wowhead Forever guide: the meeting stone, where the road up to the portal starts" },
       "add": { "Relic Guardian": [273028, 273029], "Saltspine": [273022], "Shadetooth": [273027] },
       "wings": [
       { "bosses": ["Saltspine", "Shadetooth", "Highland Horror", "Relic Guardian"] } ] },

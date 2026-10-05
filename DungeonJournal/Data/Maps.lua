@@ -130,6 +130,7 @@ ns.Journal.Maps = {
         pins = {
             [260322] = { 1, 0.486, 0.464 },   -- Saltspine
             [260325] = { 1, 0.343, 0.464 },   -- Shadetooth
+            [260808] = { 1, 0.080, 0.460 },   -- Highland Horror
             [260326] = { 1, 0.340, 0.665 },   -- Relic Guardian
         },
     },

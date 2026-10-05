@@ -933,6 +933,43 @@
   "npcs": [],
   "text": "Collect the Head of the Baron in the Ruins of Lordaeron and bring it back to Captain Truman. Head of the Baron ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(268518, 0, 1, null, null));"
  },
+ "95646": {
+  "npcs": [],
+  "text": "Kill a Highland Horror within Excavation Sites and bring its root core to Rethiel the Greenwarden in the Wetlands. Horrible Rootcore ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270180, 0, 1, null, null));"
+ },
+ "95647": {
+  "npcs": [
+   262681
+  ],
+  "text": "Find Ardin Grassman in the Excavation Sites. Learn what happened to Ardin Grassman ( 1 )"
+ },
+ "95664": {
+  "npcs": [],
+  "text": "Take the Titan Relic to the Elder Rise in Thunder Bluff and look for someone who can tell you more about it. Titan Relic ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270866, 0, 1, null, null));"
+ },
+ "95682": {
+  "npcs": [
+   275045,
+   275044
+  ],
+  "text": "Slay the Dragonmaw forces within the Excavation Site and return to the Deathstalker Agent outside with anything you recover. Dragonmaw Saboteur slain ( 2 ) Dragonmaw Warder slain ( 4 ) Dragonmaw Dispatch ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(284844, 0, 1, null, null));"
+ },
+ "95697": {
+  "npcs": [],
+  "text": "Enter the Excavation Sites in the Wetlands and bring back Thicket Raptor Meat . Thicket Raptor Meat ( 4 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(271100, 0, 4, null, null));"
+ },
+ "95772": {
+  "npcs": [],
+  "text": "Look for Dorin Songblade 's brother, Daewyn, in Whelgar's Excavation Site."
+ },
+ "95809": {
+  "npcs": [],
+  "text": "Return to Caitlin Grassman in Menethil Harbor. Reed-woven Heart (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270901, 0, 1, null, null));"
+ },
+ "95810": {
+  "npcs": [],
+  "text": "Bring the Titan Relic to Prospector Whelgar in the Wetlands excavation site. Titan Relic ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270865, 0, 1, null, null));"
+ },
  "959": {
   "npcs": [],
   "text": "Crane Operator Bigglefuzz in Ratchet wants you to retrieve the bottle of 99-Year-Old Port from Mad Magglish who is hiding in the Wailing Caverns . 99-Year-Old Port ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5334, 0, 1, null, null));"
@@ -991,5 +1028,17 @@
  "98423": {
   "npcs": [],
   "text": "Deliver the Treaty of Understanding to Magni Bronzebeard in Ironforge. Treaty of Understanding (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(281030, 0, 1, null, null));"
+ },
+ "98815": {
+  "npcs": [],
+  "text": "Return 4 Thicket Raptor Hides to James Halloran , the tanner, in Menethil Harbor. Thicket Raptor Hide ( 4 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(284845, 0, 4, null, null));"
+ },
+ "98823": {
+  "npcs": [],
+  "text": "Bring the Titan Relic to Muln Earthfury at the Skywatcher Plateau in northwest Mulgore. Titan Relic ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270866, 0, 1, null, null));"
+ },
+ "98824": {
+  "npcs": [],
+  "text": "Bring the Titan Relic to High Explorer Magellas in Ironforge's Hall of Explorers. Titan Relic ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270865, 0, 1, null, null));"
  }
 }

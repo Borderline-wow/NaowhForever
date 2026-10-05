@@ -60,6 +60,20 @@ def dungeon_quests():
     return out
 
 
+def dungeon_maps():
+    """{dungeon name: instance map ID} from Data/Quests.lua; the wings of one instance share it."""
+    with open(QUESTS, encoding="utf-8") as f:
+        text = f.read()
+    return {name: int(m) for name, m in re.findall(r'\n    \{ name = "([^"]+)", map = (\d+)', text)}
+
+
+def kin_bosses(dungeon, bosses, maps):
+    """The bosses a dungeon's quests can need: every wing of its instance, else its own."""
+    m = maps.get(dungeon)
+    kin = [d for d in bosses if m is not None and maps.get(d) == m] or [dungeon]
+    return [boss for d in kin for boss in bosses.get(d, [])]
+
+
 def dungeon_bosses():
     """{dungeon name: [(npc, boss name)]} from Data/Dungeons."""
     out = {}
@@ -126,9 +140,10 @@ def main():
         with open(CACHE, encoding="utf-8") as f:
             cache = json.load(f)
     bosses = dungeon_bosses()
+    maps = dungeon_maps()
     found = {}   # npc -> [(quest ID, quest name)]
     for dungeon, quests in dungeon_quests().items():
-        here = bosses.get(dungeon)
+        here = kin_bosses(dungeon, bosses, maps)
         if not here:
             print(f"  no bosses for {dungeon}", file=sys.stderr)
             continue
@@ -138,7 +153,7 @@ def main():
             lower = text.lower()
             npcs = {n for p in pages for n in p["npcs"]}
             for npc, name in here:
-                if npc in npcs or name.lower() in lower or short_name(name, text):
+                if (npc in npcs or name.lower() in lower or short_name(name, text))                         and (qid, qname) not in found.get(npc, []):
                     found.setdefault(npc, []).append((qid, qname))
     lines = []
     for dungeon, here in bosses.items():

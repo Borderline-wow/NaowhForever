@@ -29,6 +29,8 @@ ns.Journal.BossQuests = {
     [11496] = { 7461 },  -- Immol'thar: The Madness Within
     [11486] = { 7461, 7703 },  -- Prince Tortheldrin: The Madness Within; Unfinished Gordok Business
     [14325] = { 7703 },  -- Captain Kromcrush: Unfinished Gordok Business
+    -- Excavation Site: Wetlands
+    [260808] = { 95646 },  -- Highland Horror: Horrors in the Highland
     -- Gnomeregan
     [7800] = { 2841, 2929 },  -- Mekgineer Thermaplugg: Rig Wars; The Grand Betrayal
     [6231] = { 2922 },  -- Techbot: Save Techbot's Brain!
@@ -53,11 +55,13 @@ ns.Journal.BossQuests = {
     [250483] = { 95216 },  -- Witherfang: The New Plague
     [250660] = { 97288, 95250 },  -- The Baron: Unending Torment; Abominable Creatures
     [250657] = { 92422 },  -- Rath'mael: The Wrath of Rath'mael
-    -- Scarlet Monastery
-    [3974] = { 1048, 1053 },  -- Houndmaster Loksey: Into The Scarlet Monastery; In the Name of the Light
+    -- Scarlet Monastery - Armory
     [3975] = { 1048, 1053 },  -- Herod: Into The Scarlet Monastery; In the Name of the Light
+    -- Scarlet Monastery - Cathedral
     [3976] = { 1048, 1053 },  -- Scarlet Commander Mograine: Into The Scarlet Monastery; In the Name of the Light
     [3977] = { 1048, 1053 },  -- High Inquisitor Whitemane: Into The Scarlet Monastery; In the Name of the Light
+    -- Scarlet Monastery - Library
+    [3974] = { 1048, 1053 },  -- Houndmaster Loksey: Into The Scarlet Monastery; In the Name of the Light
     -- Scholomance
     [10506] = { 5384 },  -- Kirtonos the Herald: Kirtonos the Herald
     [10503] = { 5515 },  -- Jandice Barov: Krastinov's Bag of Horrors
@@ -84,7 +88,7 @@ ns.Journal.BossQuests = {
     [10899] = { 5127 },  -- Goraluk Anvilcrack: The Demon Forge
     [10429] = { 4974 },  -- Warchief Rend Blackhand: For The Horde!
     [10430] = { 5047 },  -- The Beast: Finkle Einhorn, At Your Service!
-    [10363] = { 6602, 5102, 6502, 7761 },  -- General Drakkisath: Blood of the Black Dragon Champion; General Drakkisath's Demise; Drakefire Amulet; Blackhand's Command
+    [10363] = { 5089, 6602, 5102, 6502, 7761 },  -- General Drakkisath: General Drakkisath's Command; Blood of the Black Dragon Champion; General Drakkisath's Demise; Drakefire Amulet; Blackhand's Command
     -- Wailing Caverns
     [3671] = { 914 },  -- Lady Anacondra: Leaders of the Fang
     [3669] = { 914 },  -- Lord Cobrahn: Leaders of the Fang
