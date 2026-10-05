@@ -786,8 +786,8 @@ function ns.BadgesCommand(arg)
         local code, count = BadgeCode()
         ShowCode(code, count)
     elseif previewTier == "none" then
-        -- You as a player with no badge, to see what everyone else sees (the character panel's
-        -- grey Legendary Patron and its card): until the reload, or preview off.
+        -- You as a player with no badge, to see what everyone else sees (no badge on your name
+        -- or your character panel): until the reload, or preview off.
         previewEntry = false
         previewGUID = UnitGUID("player")
         ns.Print("Preview on: you wear no badge until you reload, as a player without one sees it.")
@@ -823,8 +823,8 @@ function ns.ShowBadgeCode()
     ShowCode(BadgeCode())
 end
 
--- The card people see when they hover a badged name, for a tier's badge on playerName: what
--- the character panel's "Become a Legendary Patron" card shows on its sample chat line.
+-- The card people see when they hover a badged name, for a tier's badge on playerName, as a
+-- preview.
 function ns.ShowBadgeCard(tierKey, playerName)
     ShowEntryCard(PreviewEntry(tierKey), playerName)
 end

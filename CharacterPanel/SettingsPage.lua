@@ -50,9 +50,6 @@ page:Card({
     rows = {
         { key = "characterPanelBadge", label = "Supporter Badge", toggle = true,
           help = "Your supporter badge, big in the panel's top corner, if you have one." },
-        { key = "characterPanelBadgeAsk", label = "Legendary Badge Preview", toggle = true,
-          needs = "characterPanelBadge",
-          help = "Without a badge, shows the Legendary badge in grey with what it is." },
         { key = "characterPanelScore", label = "Naowh Score", toggle = true,
           help = "Your Naowh Score, big under your level: hover it for your score with your BiS and the best "
               .. "in the game, click it for the BiS List." },

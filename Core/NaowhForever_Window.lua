@@ -1390,6 +1390,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.BadgesCommand(arg)
     elseif cmd == "scrap" and ns.ToggleScrapList then
         ns.ToggleScrapList()
+    elseif cmd == "welcome" and ns.ShowWelcome then
+        ns.ShowWelcome()
     else
         ns.ToggleOptionsWindow()
     end

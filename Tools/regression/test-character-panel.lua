@@ -4,7 +4,8 @@
 -- edge, item level, Forever's mark and your BiS's star, and no upgrade arrow; your score and your
 -- spec's stats (their yardstick, worth bars, row height and hover cards); Slot Marks alone puts
 -- the marks on the game's own panel as it looks; it stands down while
--- EllesmereUI styles the panel; off again, the game's art comes back; and neither a slot's update
+-- EllesmereUI styles the panel; your supporter badge shows only when you have one, never a grey
+-- one or a pitch; off again, the game's art comes back; and neither a slot's update
 -- nor a repaint of the stats makes garbage.
 local Load = dofile("Tools/regression/load_files.lua")
 local TocFiles = dofile("Tools/regression/toc_files.lua")
@@ -122,7 +123,7 @@ local S = {
 -- Slot Marks is on by default; off here, to start from nothing (its own checks turn it on).
 state.values = { enabled = true, characterPanel = false, characterPanelSlotMarks = false, characterPanelLevels = true,
     characterPanelMarks = true, characterPanelEnchants = true, characterPanelScore = true,
-    characterPanelBadge = true, characterPanelBadgeAsk = false, characterPanelStats = "spec" }
+    characterPanelBadge = true, characterPanelStats = "spec" }
 
 -- Your list: the head's BiS is 101 (you wear it), the chest's 202 (you wear 200 there).
 local LIST = { slots = { [1] = 101, [5] = 202 }, extra = {} }
@@ -351,56 +352,46 @@ S.Set("characterPanelEnchants", true)
 S.Set("characterPanelScore", false)
 check("Naowh Score off: no score in the corner", badge.shown == false)
 
--- Your supporter badge, in the left pane's top corner.
+-- Your supporter badge, in the left pane's top corner: only ever a badge of your own. A player
+-- without one sees nothing there, and nothing asks them for one.
 state.badgeTiers = ns.BADGE_TIERS
-check("no badge, Legendary Badge Preview off (the default): nothing in the corner", CP.supportBadge == nil)
-S.Set("characterPanelBadgeAsk", true)
+local opened = 0
+ns.MakeModal = function() opened = opened + 1; return Frame(), Frame() end
+S.Set("characterPanelBadge", true)
+check("no badge: nothing in the corner, nothing made", CP.supportBadge == nil)
+state.badges = { ["Player-1-ME"] = { tier = "developer", title = "Lead Developer" } }
+S.Set("characterPanelBadge", true)
 local support = CP.supportBadge
 check("your supporter badge in the left pane's corner", support and support.parent == character.LeftPaneHost
     and support.shown ~= false)
 support.scripts.OnShow(support)
-check("none yet: the Legendary Patron's in grey, with what it takes", support.emblem.desaturated == true
-    and support.emblem.alpha < 1 and support.title.text == "Legendary Badge"
-    and support.line.text == "Learn more" and support.glow.shown == false and support.has == false)
-state.badges = { ["Player-1-ME"] = { tier = "developer", title = "Lead Developer" } }
-support.scripts.OnShow(support)
-check("yours: in its colour, with its glow and your own title", support.emblem.desaturated == false
-    and support.emblem.alpha == 1 and support.title.text == "Lead Developer" and support.glow.shown == true
-    and support.has == true)
-local opened = 0
-ns.MakeModal = function() opened = opened + 1; return Frame(), Frame() end
--- The card's own parts, as the options' widgets make them.
-local cardText = {}   -- the card's texts by their key, to read back
-local cardParts = {}  -- its kept frames by their key
-ns.UI = { Keep = function(parent, key, make) local f = make(parent); cardParts[key] = f; return f end,
-    KeepFont = function(parent, key) local f = Frame(parent); cardText[key] = f; return f end,
-    KeepButton = function(parent) return Frame(parent) end }
-support.scripts.OnClick(support)
-check("your own badge's click opens no card", opened == 0)
-state.badges = nil
-support.scripts.OnShow(support)
-support.scripts.OnClick(support)
-check("the grey one's click opens what it gives you and how to get it", opened == 1)
-check("it says what the badge is, and shows Dieman in warrior colour wearing it in chat",
-    cardText.head.text == "The Legendary Badge" and cardText.perk1 ~= nil
-    and cardText.sample.text == "|cffc79c6eDieman|r |TlegendaryChat:0:0:0:1|t: Ready for Deadmines?")
-local shownCard
-ns.ShowBadgeCard = function(tier, name) shownCard = tier .. " " .. name end
-ns.HideBadgeCard = function() shownCard = nil end
-cardParts.sampleBox.scripts.OnEnter(cardParts.sampleBox)
-check("hovering the sample shows the badge's own card, as on a badged name in chat",
-    shownCard == "legendary Dieman")
+check("yours: in its colour, with your own title", support.title.text == "Lead Developer"
+    and support.line.text == "Naowh Forever Team" and support.emblem.desaturated ~= true)
+check("a click on it opens nothing", support.scripts.OnClick == nil and opened == 0)
 S.Set("characterPanelBadge", false)
 check("Supporter Badge off: no badge", support.shown == false)
 S.Set("characterPanelBadge", true)
-S.Set("characterPanelBadgeAsk", false)
-check("Legendary Badge Preview off: no grey badge", support.shown == false)
-state.badges = { ["Player-1-ME"] = "developer" }
-character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
-check("a badge of your own shows with the preview off, looked at again as the panel opens", support.shown == true)
+check("and back on", support.shown == true)
 state.badges = nil
 character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
-check("and goes once you have none", support.shown == false)
+check("once you have none, it goes as the panel opens", support.shown == false)
+support.scripts.OnShow(support)
+check("and a repaint without a badge hides it, never a grey one", support.shown == false and opened == 0)
+state.badges = { ["Player-1-ME"] = "developer" }
+character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
+check("a badge of your own shows again, looked at as the panel opens", support.shown == true)
+state.badges = nil
+character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
+
+-- No preview setting, grey badge or pitch is left in the panel's files.
+for _, path in ipairs({ "CharacterPanel/Badge.lua", "CharacterPanel/SettingsPage.lua", "QoL/NaowhForever_QoL.lua" }) do
+    local f = assert(io.open(path, "rb"))
+    local source = f:read("*a")
+    f:close()
+    for _, word in ipairs({ "characterPanelBadgeAsk", "Badge Preview", "Learn more", "MakeModal", "Patreon" }) do
+        check(path .. " has no " .. word, not source:find(word, 1, true))
+    end
+end
 
 -- The stats: your spec's first (the default), the game's list under it; the switch at the
 -- pane's bottom.
