@@ -182,6 +182,18 @@ local function Affordable(offers)
     return out
 end
 
+-- A pet trainer shares the class trainer's window but teaches your pet, for training points:
+-- none of its services is a class spell. With nothing listed, it is the class trainer.
+local function ClassServices()
+    local count = GetNumTrainerServices()
+    if count == 0 then return true end
+    local byKey = Training.SpellsByService()
+    for i = 1, count do
+        if Training.ServiceSpell(byKey, i) then return true end
+    end
+    return false
+end
+
 local RenderPanel
 
 -- Last index first: buying a service can renumber the ones after it, and one whose index now
@@ -301,7 +313,7 @@ end
 
 RenderPanel = function()
     local frame = _G.ClassTrainerFrame
-    if not (PanelOn() and frame and frame:IsShown()) or IsTradeskillTrainer() then
+    if not (PanelOn() and frame and frame:IsShown()) or IsTradeskillTrainer() or not ClassServices() then
         return panel and panel:Hide()
     end
     if not panel then BuildPanel() end
