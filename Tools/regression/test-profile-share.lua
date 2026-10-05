@@ -164,6 +164,27 @@ Case("a value of the wrong type, or for no module, is not taken in", function()
     assert(p.tankReminder.importedPack == nil, "a string cannot claim a pack")
 end)
 
+-- Forever raises on 1 / 0, which LibSerialize does to each 0 it writes: none may reach it.
+Case("a 0 comes back as 0 and never reaches the serializer", function()
+    local w = World()
+    w.db.profiles.Default.topBar.mouseoverAlpha = 0
+    w.db.profiles.Default.qol.lootFeedPos = { "TOP", 0, -20 }
+    local LS = LibStub("LibSerialize")
+    local serialize = LS.Serialize
+    local function NoZero(v)
+        assert(v ~= 0, "Division by zero")
+        if type(v) == "table" then for k, val in pairs(v) do NoZero(k); NoZero(val) end end
+    end
+    LS.Serialize = function(self, ...)
+        for i = 1, select("#", ...) do NoZero((select(i, ...))) end
+        return serialize(self, ...)
+    end
+    local text = w.ns.ExportProfile()
+    LS.Serialize = serialize
+    local parts = assert(w.ns.DecodeProfile(assert(text))).parts
+    assert(parts.settings.topBar.mouseoverAlpha == 0 and parts.settings.qol.lootFeedPos[2] == 0)
+end)
+
 Case("pack strings go to the pack import; damaged or newer ones are refused", function()
     local w = World()
     local _, err = w.ns.DecodeProfile("NSRPACK2:abcdef")
