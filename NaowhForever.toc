@@ -23,6 +23,10 @@ Core\NaowhForever_Core.lua
 # ns.PlaceWaypoint: a waypoint (or TomTom's) for any module. Needs the Core.
 Core\NaowhForever_Waypoint.lua
 
+# NaowhUI, the Naowh themes and your own theme in RestedXP Guides, when Settings > RESTEDXP turns it
+# on. Needs the Core's theme palettes.
+RXPThemes\NaowhForever_RXPThemes.lua
+
 # The widget kit: ns.UI, the shim every options page calls in place of EllesmereUI's
 # factory. Needs ns.THEME and the Core primitives.
 Core\NaowhForever_Widgets.lua

@@ -385,10 +385,14 @@ function ns.FontInset(size)
     return size * STEM_INSET
 end
 
+--- The Addon Font as a file path, looked up each time; UIFontPath keeps its first answer.
+---@return string
+function ns.AddonFontPath()
+    return FontPath(ns.AccountSettings().uiFont or "Naowh") or STANDARD_TEXT_FONT
+end
+
 function ns.UIFontPath()
-    if not uiFontPath then
-        uiFontPath = FontPath(ns.AccountSettings().uiFont or "Naowh") or STANDARD_TEXT_FONT
-    end
+    if not uiFontPath then uiFontPath = ns.AddonFontPath() end
     return uiFontPath
 end
 

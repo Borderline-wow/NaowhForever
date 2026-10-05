@@ -10,7 +10,8 @@ ignore = { "212" }
 max_line_length = false
 
 -- Globals the addon writes on purpose: its namespace and saved variables, slash commands,
--- key bindings, map pin mixins, popups, and the Global Font setting's font paths.
+-- key bindings, map pin mixins, popups, the Global Font setting's font paths, and the table
+-- RestedXP imports its themes from.
 globals = {
     "NaowhForever", "NaowhForeverDB", "NaowhUI_SmartRemindersDB",
     "NaowhForever_OnCompartmentClick", "NaowhForever_BagSpacePickUp", "NaowhForever_BossLoot", "NaowhForever_ToggleJournal", "NaowhForever_ToggleBis",
@@ -21,7 +22,7 @@ globals = {
     "BINDING_NAME_NAOWHFOREVER_BOSSLOOT", "BINDING_NAME_NAOWHFOREVER_JOURNAL", "BINDING_NAME_NAOWHFOREVER_BIS",
     "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin", "NaowhForeverLibraryPinMixin", "NaowhForeverSleepingBagPinMixin",
     "SlashCmdList", "hash_SlashCmdList", "StaticPopupDialogs",
-    "STANDARD_TEXT_FONT", "UNIT_NAME_FONT", "DAMAGE_TEXT_FONT",
+    "STANDARD_TEXT_FONT", "UNIT_NAME_FONT", "DAMAGE_TEXT_FONT", "RXPGuides_Themes",
 }
 
 -- The game's API and constants the addon reads. A name missing here is flagged, which is
