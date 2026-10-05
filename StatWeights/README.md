@@ -25,6 +25,11 @@ what differs from the defaults); Import takes one, or a WoWSims EP export (Stat 
 Current EP, Export), which replaces the spec's weights. An enchant's weapon damage is worth a
 point of dps over the weapon's speed, so it has no weight of its own.
 
+Forever's gear carries hit, crit, haste, dodge and block as ratings, read as their percent at
+60 (10 hit rating is 1%; `PER_PERCENT` in `StatWeights.lua`). Hit and crit are one rating each
+for weapons and spells alike, so a hit item counts for Hit % and Spell Hit %, and a crit item
+for Crit % and Spell Crit %: a spec weighs the one it uses.
+
 The defaults are estimates for now (dated in the window's footer); simulated weights from WoWSims will
 replace them once its Forever sim is out.
 
@@ -55,5 +60,6 @@ StatWeights/
 
 ## Checking
 
-- `lua Tools/regression/test-stat-weights.lua`: the defaults, your changes, sharing, the gain
-  math, the tooltip line and its hook only once on, the window.
+- `lua Tools/regression/test-stat-weights.lua`: the defaults (every spec, its anchor, ranges,
+  ratings), your changes and new defaults, sharing, the gain math, the tooltip line and its
+  hook only once on, the window.

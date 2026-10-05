@@ -166,7 +166,7 @@ local ns = {
     StatWeights = {
         OnChange = NOTHING,
         STATS = { { "agi", "Agility" }, { "str", "Strength" }, { "hit", "Hit %" }, { "int", "Intellect" },
-            { "sta", "Stamina" }, { "armor", "Armor" } },
+            { "sta", "Stamina" }, { "armor", "Armor" }, { "shit", "Spell Hit %" } },
         ActiveSpec = function() return "assassination-rogue" end,
         Spec = function(key) return key == "assassination-rogue" and ASSASSINATION or nil end,
         For = function() return WEIGHTS end,
@@ -263,6 +263,8 @@ local env = setmetatable({
         return tostring(math.floor(type(n) == "table" and n.value or n))
     end },
     GetHitModifier = function() return 3 end,
+    GetSpellHitModifier = function() return 2 end,
+    CR_HIT_SPELL = 8,
     CR_HIT_MELEE = 6,
     -- What a spec weighing many stats reads (its totals' own numbers do not matter here).
     UnitAttackPower = function() return 100, 0, 0 end,
@@ -487,6 +489,11 @@ end
 statsList.hooks.OnShow(statsList)
 check("many stats: every row fits above the switch", rows[14].shown ~= false and rows[15].shown == false
     and 14 * rows[1].h <= 300 - 52)
+-- A caster: its spell hit, the game's spell hit (rating and talents) as its total.
+ns.StatWeights.For = function() return { spell = 1, int = 0.3, shit = 14, sta = 0.05, armor = 0.005 } end
+statsList.hooks.OnShow(statsList)
+check("a caster's spell hit, its own total, after its power", rows[3].name.text == "Spell Hit %"
+    and rows[3].total.text == "2.0%")
 ns.StatWeights.For = For
 statsList.hooks.OnShow(statsList)
 statsList.shown = false
