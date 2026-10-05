@@ -93,17 +93,19 @@ local function Texts(e)
     return out
 end
 
--- The dropdown: Naowh (default) first, the presets, Custom last.
+-- The dropdown: Naowh (default) first, the presets as Core lists them, Custom last.
 do
     local e = Page({})
     local t = e.theme
+    local presets, want = e.ns.THEME_PRESET_ORDER, {}
+    for _, key in ipairs(presets) do want[#want + 1] = e.ns.THEME_PRESETS[key].name end
     Check(t.type == "dropdown" and t.text == "Theme", "a Theme dropdown")
     Check(t.order[1] == "" and t.values[""] == "Naowh (default)", "the default comes first")
     Check(t.order[#t.order] == "custom" and t.values.custom == "Custom", "Custom comes last")
     local names = {}
     for i = 2, #t.order - 1 do names[#names + 1] = t.values[t.order[i]] end
-    Check(table.concat(names, ",") == "Midnight,Slate,Obsidian,Aubergine,Forest,Crimson,Rose Noir,Cotton Candy", "the presets in order")
-    Check(#t.order == 10, "ten options")
+    Check(table.concat(names, ",") == table.concat(want, ","), "the presets in order")
+    Check(#t.order == #presets + 2, "the default, every preset and Custom")
     Check(t.getValue() == "", "the default is selected when nothing is saved")
     for _, word in ipairs({ "Theme presets", "windows and HUD frames", "Custom", "Naowh (default)", "/reload" }) do
         Check(t.tooltip:find(word, 1, true), "tooltip mentions " .. word)
@@ -115,7 +117,7 @@ end
 -- Swatches show for Custom and for nothing else.
 do
     Check(#Page({}).rows == 1, "no swatches for the default theme")
-    for _, key in ipairs({ "midnight", "slate", "obsidian", "aubergine", "forest", "crimson", "rosenoir", "cottoncandy" }) do
+    for _, key in ipairs(Page({}).ns.THEME_PRESET_ORDER) do
         local e = Page({ themePreset = key })
         Check(#e.rows == 1 and e.theme.getValue() == key, "no swatches for " .. key)
     end
@@ -183,7 +185,7 @@ do
     local start = e.rows[2][1]
     Check(start.order[1] == "" and start.values[""] == "Choose a theme...", "the placeholder comes first")
     Check(start.order[2] == "default" and start.values.default == "Naowh (default)", "the default is offered")
-    Check(#start.order == 10 and start.values.custom == nil, "the eight presets, and not Custom itself")
+    Check(#start.order == #e.ns.THEME_PRESET_ORDER + 2 and start.values.custom == nil, "every preset, and not Custom itself")
     Check(start.getValue() == "", "it always shows the placeholder")
     start.setValue("")
     Check(#e.confirms == 0, "the placeholder does nothing")

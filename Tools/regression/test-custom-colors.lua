@@ -74,8 +74,9 @@ local PRESETS = {
     crimson   = { "Crimson",   "140a0c", "201316", "3d2429", "f6eff0", "ac9a9e", "ef4b56", "f4868e", "432b2f" },
     rosenoir  = { "Rose Noir", "1a0b14", "27121d", "4a2438", "fdeef5", "c9a3b6", "ff5fa2", "ff94c1", "4f2b3e" },
     cottoncandy = { "Cotton Candy", "1c1832", "272245", "463f70", "f8f2ff", "bbb2dc", "f78fc8", "fab4da", "4c4574" },
+    classic   = { "Classic",   "15100b", "221a12", "4d3c26", "f4e8cc", "a89a7c", "d68e35", "e4b378", "52422d" },
 }
-local ORDER = { "midnight", "slate", "obsidian", "aubergine", "forest", "crimson", "rosenoir", "cottoncandy" }
+local ORDER = { "midnight", "slate", "obsidian", "aubergine", "forest", "crimson", "rosenoir", "cottoncandy", "classic" }
 local KEYS = { "bg", "panel", "line", "fg", "muted", "accent" }
 
 -- The default theme applies nothing, whatever else is saved.

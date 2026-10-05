@@ -435,7 +435,7 @@ do
     Check(Bar(ACCENT_PRESET, "tankColor", true) == PICKED.tankColor, "threat meter: the tank's bar keeps its picked color")
     Check(Bar(ACCENT_PRESET, "pullColor", true) == PICKED.pullColor, "threat meter: the pull aggro bar keeps its picked color")
     -- White text has to stay readable on the shade (at least 3:1, before the bar's opacity darkens it further).
-    for _, preset in ipairs({ "midnight", "slate", "obsidian", "aubergine", "forest", "crimson", "rosenoir", "cottoncandy" }) do
+    for _, preset in ipairs(LoadCore({}).THEME_PRESET_ORDER) do
         local got = Bar({ themePreset = preset }, "playerColor", true)
         local function Lin(v) return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
         local lum = 0.2126 * Lin(got.r) + 0.7152 * Lin(got.g) + 0.0722 * Lin(got.b)
