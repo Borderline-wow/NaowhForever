@@ -127,16 +127,18 @@ local function Fit(fs, cap)
 end
 
 -- A shadow for the card's text once its background is mostly gone, so it still reads over
--- the world. The font's own shadow is kept to go back to.
+-- the world. Each font's own shadow is kept here to go back to.
 local SHADOW_BELOW = 0.5
+local ownShadow = setmetatable({}, { __mode = "k" })
 
 local function Shadow(fs, on)
-    if not fs._shadow then
+    local s = ownShadow[fs]
+    if not s then
         local r, g, b, a = fs:GetShadowColor()
         local x, y = fs:GetShadowOffset()
-        fs._shadow = { r, g, b, a, x, y }
+        s = { r, g, b, a, x, y }
+        ownShadow[fs] = s
     end
-    local s = fs._shadow
     if on then
         fs:SetShadowColor(0, 0, 0, 1)
         fs:SetShadowOffset(1, -1)
@@ -267,6 +269,7 @@ function Look.New(f)
     f.nextTime = ns.Font(f, FOOT_SIZE, nil, T.accentSoft)
     f.nextTime:SetPoint("LEFT", f.sep, "RIGHT", 0, 0)
     f.texts = { f.time, f.from, f.to, f.nextKey, f.nextName, f.sep, f.nextTime }
+    f.shadowed = false
 
     f.land = ns.Button(f, "Land", BTN_W, BTN_H)
     f.games = ns.Button(f, "Games", BTN_W, BTN_H)
