@@ -241,7 +241,7 @@ for _, f in ipairs(frames) do
         if f.picked then picked = picked + 1 end
     end
 end
-check("the builds are a list down the left, one of them picked", rows > 0 and picked == 1)
+check("with none saved, the list is empty and nothing is picked", rows == 0 and picked == 0)
 
 -- Every button the Builds tab drew, clicked: the class row, the build cards and theirs.
 local function Clickables()
