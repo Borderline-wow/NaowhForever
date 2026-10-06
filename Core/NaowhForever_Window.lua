@@ -8,7 +8,7 @@ local UI = ns.UI
 
 local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 790
 local TOP_H, PAGE_HEADER_H = 64, 128
-local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
+local HEADER_H, TAB_H, NAV_H = 76, 32, 32
 local SEARCH_W = 120
 local SCROLL_BAR_GAP = 12 -- the page scrollbar sits this far right of the page, in its margin
 local LINK_ICONS = "Interface\\AddOns\\NaowhForever\\Media\\Links\\"
@@ -64,7 +64,7 @@ local MODULES = {
           { name = "System", reuse = true },
       } },
     -- The journal itself is a window of its own (open); only its settings live here.
-    { name = "Dungeon Journal", group = "ADVENTURE", navIcon = "map", settings = "JournalSettings",
+    { name = "Dungeon Journal", navIcon = "map", settings = "JournalSettings",
       addon = "NaowhForever_DungeonJournal", needs = { "NaowhForever_BiS" },
       open = "ToggleJournalWindow",
       command = "journal", alias = "dj", short = "Journal", icon = "Interface\\Icons\\INV_Misc_Book_09",
@@ -75,7 +75,7 @@ local MODULES = {
           { name = "Map", reuse = true },
       } },
     -- The list itself is a window of its own (open); only its settings live here.
-    { name = "BiS List", group = "ADVENTURE", navIcon = "trophy", settings = "QoLSettings", enabledKey = "bis",
+    { name = "BiS List", navIcon = "trophy", settings = "QoLSettings", enabledKey = "bis",
       addon = "NaowhForever_BiS", needs = { "NaowhForever_DungeonJournal" },
       open = "ToggleBisWindow",
       command = "bis", short = "BiS", icon = "Interface\\Icons\\INV_Sword_39",
@@ -84,7 +84,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     -- The planner itself is a window of its own (open); only its settings live here.
-    { name = "Training Planner", group = "ADVENTURE", navIcon = "notes", settings = "TrainingSettings",
+    { name = "Training Planner", navIcon = "notes", settings = "TrainingSettings",
       addon = "NaowhForever_Training", needs = { "NaowhForever_Professions" },
       open = "ToggleTrainingWindow",
       command = "training", short = "Training", icon = "Interface\\Icons\\INV_Misc_Book_11",
@@ -93,7 +93,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     -- The books are a window of their own (open); only their settings live here.
-    { name = "Discovery", group = "ADVENTURE", navIcon = "compass", settings = "DiscoverySettings",
+    { name = "Discovery", navIcon = "compass", settings = "DiscoverySettings",
       addon = "NaowhForever_Discovery",
       open = "ToggleDiscoveryWindow",
       command = "discovery", short = "Discovery", icon = "Interface\\Icons\\INV_Misc_Book_07",
@@ -103,7 +103,13 @@ local MODULES = {
           { name = "Sleeping Bag", reuse = true },
       } },
     -- The sets are a window of their own (open); only their settings live here.
-    { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
+    { name = "Professions", navIcon = "hammer", settings = "ProfessionSettings",
+      addon = "NaowhForever_Professions",
+      subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Gear & Trinkets", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
       addon = "NaowhForever_GearSets",
       open = "ToggleGearSetsWindow",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
@@ -111,7 +117,7 @@ local MODULES = {
       tabs = {
           { name = "Settings", reuse = true },
       } },
-    { name = "Blessings", group = "COMBAT", navIcon = "spark", settings = "QoLSettings", enabledKey = "blessings",
+    { name = "Blessings", navIcon = "spark", settings = "QoLSettings", enabledKey = "blessings",
       addon = "NaowhForever_Blessings",
       open = "ToggleBlessingsWindow",
       command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
@@ -119,29 +125,7 @@ local MODULES = {
       tabs = {
           { name = "Settings", reuse = true },
       } },
-    { name = "Professions", group = "ADVENTURE", navIcon = "hammer", settings = "ProfessionSettings",
-      addon = "NaowhForever_Professions",
-      subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",
-      tabs = {
-          { name = "Settings", reuse = true },
-      } },
-    { name = "Macros", group = "UTILITIES", navIcon = "pen", settings = "MacroSettings",
-      addon = "NaowhForever_Macros",
-      open = "ToggleMacroWindow",
-      command = "macros", short = "Macros", icon = "Interface\\Icons\\INV_Misc_Note_01",
-      subtitle = "Naowh's Forge: your macros, checked and explained, and macros kept current for you.",
-      tabs = {
-          { name = "Settings", reuse = true },
-      } },
-    { name = "Action Bars", group = "UTILITIES", navIcon = "grid", settings = "ActionBarSettings",
-      addon = "NaowhForever_ActionBars",
-      open = "ToggleActionBarsWindow",
-      command = "bars", short = "Bars", icon = "Interface\\Icons\\INV_Misc_Gear_01",
-      subtitle = "Your action bars saved by name and put back whenever you want them.",
-      tabs = {
-          { name = "Settings", reuse = true },
-      } },
-    { name = "AuraBuffs", group = "COMBAT", navIcon = "aura", settings = "AuraBuffSettings",
+    { name = "AuraBuffs", navIcon = "aura", settings = "AuraBuffSettings",
       addon = "NaowhForever_AuraBuffs",
       open = "ToggleAuraBuffsWindow",
       command = "buffs", short = "Buffs", icon = "Interface\\Icons\\Spell_Holy_WordFortitude",
@@ -149,14 +133,14 @@ local MODULES = {
       tabs = {
           { name = "Settings", reuse = true },
       } },
-    { name = "Threat Meter", group = "COMBAT", navIcon = "bars", settings = "ThreatMeterSettings",
+    { name = "Threat Meter", navIcon = "bars", settings = "ThreatMeterSettings",
       addon = "NaowhForever_ThreatMeter",
       command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
       tabs = {
           { name = "Settings", reuse = true },
       } },
-    { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
+    { name = "Swing Timer", navIcon = "infinity", settings = "SwingTimerSettings",
       addon = "NaowhForever_SwingTimer",
       subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",
       tabs = {
@@ -170,10 +154,26 @@ local MODULES = {
               .. "reminders still carry their own text, set per reminder from the boss "
               .. "pages." },
       } },
-    { name = "Smart Reminders", group = "COMBAT", navIcon = "bell",
+    { name = "Smart Reminders", navIcon = "bell",
       open = "ToggleSmartRemindersWindow",
       command = "reminders", short = "Reminders", icon = "Interface\\Icons\\Ability_Warrior_ShieldWall",
       subtitle = "Calls out what to press when a boss ability is about to land.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Macros", navIcon = "pen", settings = "MacroSettings",
+      addon = "NaowhForever_Macros",
+      open = "ToggleMacroWindow",
+      command = "macros", short = "Macros", icon = "Interface\\Icons\\INV_Misc_Note_01",
+      subtitle = "Naowh's Forge: your macros, checked and explained, and macros kept current for you.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Action Bars", navIcon = "grid", settings = "ActionBarSettings",
+      addon = "NaowhForever_ActionBars",
+      open = "ToggleActionBarsWindow",
+      command = "bars", short = "Bars", icon = "Interface\\Icons\\INV_Misc_Gear_01",
+      subtitle = "Your action bars saved by name and put back whenever you want them.",
       tabs = {
           { name = "Settings", reuse = true },
       } },
@@ -194,9 +194,9 @@ for _, mod in ipairs(MODULES) do
 end
 
 local window, scrollFrame, scrollChild, tabLine, headerTitle, headerSub
-local contentHeader, contentFooter, searchBar, breadcrumb, moduleSwitch, moduleLabel
+local contentHeader, searchBar, breadcrumb, moduleSwitch, moduleLabel
 local lastPages = {}
-local navButtons, tabStrips, navBlocks = {}, {}, {}
+local navButtons, tabStrips, navMods = {}, {}, {}
 local wrappers = {}          -- page key -> built wrapper frame
 -- The first page of a session; after that the window reopens where it was left.
 local currentPage = "QoL/Interface"
@@ -334,18 +334,16 @@ end
 
 local NAV_ROW, NAV_OFF_ALPHA = 32, 0.45
 
--- Within each group the modules that are on come first, then the ones you have off.
+-- The modules that are on come first, then the ones you have off.
 local function LayoutNav()
-    for _, block in ipairs(navBlocks) do
-        local y = block.top
-        for pass = 1, 2 do
-            for _, mod in ipairs(block.mods) do
-                if (not ModuleOn(mod)) == (pass == 2) then
-                    local btn = navButtons[mod.name]
-                    btn:SetPoint("TOPLEFT", 8, y)
-                    btn:SetPoint("TOPRIGHT", -8, y)
-                    y = y - NAV_ROW
-                end
+    local y = 0
+    for pass = 1, 2 do
+        for _, mod in ipairs(navMods) do
+            if (not ModuleOn(mod)) == (pass == 2) then
+                local btn = navButtons[mod.name]
+                btn:SetPoint("TOPLEFT", 8, y)
+                btn:SetPoint("TOPRIGHT", -8, y)
+                y = y - NAV_ROW
             end
         end
     end
@@ -405,11 +403,8 @@ local function LayoutContent()
     tabLine:SetPoint("TOPRIGHT", window, "TOPRIGHT", -30, -(top + headerH))
     scrollFrame:ClearAllPoints()
     scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", left + 6, -(top + headerH + 8))
-    scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, FOOTER_H + 4)
+    scrollFrame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -30, 14)
     scrollChild:SetWidth(window:GetWidth() - left - 36)
-    contentFooter:ClearAllPoints()
-    contentFooter:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", left, 0)
-    contentFooter:SetPoint("BOTTOMRIGHT")
 end
 
 -- Each window keeps its own wrappers, so a page open in the main window and in a module's
@@ -1140,8 +1135,10 @@ local function CreateWindow()
     ns.AccentBorder(unlock)
     unlock:SetPoint("RIGHT", close, "LEFT", -18, 0)
     ns.Tooltip(unlock, "Layout Mode", "Place and size each display. Exit Config returns to this window.")
+    local reload = ns.ReloadButton(top, "Reload UI", 110, 32)
+    reload:SetPoint("RIGHT", unlock, "LEFT", -18, 0)
     local search = ns.Button(top, "Search  " .. ns.Color("muted", "Ctrl+F"), SEARCH_W, 32, function() UI.OpenSearch() end)
-    search:SetPoint("RIGHT", unlock, "LEFT", -18, 0)
+    search:SetPoint("RIGHT", reload, "LEFT", -18, 0)
     ns.Tooltip(search, "Search", "Step through every setting that matches what you type.")
 
     local sidebar = CreateFrame("Frame", nil, window)
@@ -1149,38 +1146,22 @@ local function CreateWindow()
     local edge = ns.Solid(sidebar, "ARTWORK", T.line, 1)
     edge:SetPoint("TOPRIGHT"); edge:SetPoint("BOTTOMRIGHT"); ns.Hairline(edge, "v")
     local nav = NavigationScroll(sidebar, 16, FOOTER_H_SIDEBAR + 6 + NAV_STEP * #SYSTEM_NAV, SIDEBAR_W)
-    -- Modules list in MODULES order under their group; one with only unfinished tabs, or whose
-    -- addon is switched off, is left out.
-    local groups, grouped = {}, {}
+    -- Modules list in MODULES order; one with only unfinished tabs, or whose addon is switched
+    -- off, is left out.
     for _, mod in ipairs(MODULES) do
         local ready = false
         for _, tab in ipairs(mod.tabs) do ready = ready or not tab.soon end
-        if ready and Loaded(mod) then
-            local group = mod.group or ""
-            if not grouped[group] then
-                grouped[group] = {}
-                groups[#groups + 1] = group
-            end
-            table.insert(grouped[group], mod)
-        end
+        if ready and Loaded(mod) then navMods[#navMods + 1] = mod end
     end
     local ny = 0
-    for _, group in ipairs(groups) do
-        if group ~= "" then
-            local label = ns.Font(nav, 11, nil, T.muted)
-            label:SetPoint("TOPLEFT", 20, ny - 10); label:SetText(ns.L(group))
-            ny = ny - 28
-        end
-        navBlocks[#navBlocks + 1] = { top = ny, mods = grouped[group] }
-        for _, mod in ipairs(grouped[group]) do
-            local btn = NavigationButton(nav, DisplayName(mod), ny,
-                function() ShowPage(lastPages[mod.name] or mod.tabs[1].key) end, mod.navIcon)
-            -- Spaced to fit every module in the default 790-high window (test-navigation.lua).
-            btn:SetHeight(30)
-            NavExtras(btn, mod)
-            navButtons[mod.name] = btn
-            ny = ny - NAV_ROW
-        end
+    for _, mod in ipairs(navMods) do
+        local btn = NavigationButton(nav, DisplayName(mod), ny,
+            function() ShowPage(lastPages[mod.name] or mod.tabs[1].key) end, mod.navIcon)
+        -- Spaced to fit every module in the default 790-high window (test-navigation.lua).
+        btn:SetHeight(30)
+        NavExtras(btn, mod)
+        navButtons[mod.name] = btn
+        ny = ny - NAV_ROW
     end
     nav:SetHeight(-ny)
 
@@ -1238,13 +1219,6 @@ local function CreateWindow()
     end
     tabLine = ns.Solid(window, "ARTWORK", T.line, 1); ns.Hairline(tabLine, "h")
 
-    contentFooter = CreateFrame("Frame", nil, window)
-    contentFooter:SetHeight(FOOTER_H)
-    local footLine = ns.Solid(contentFooter, "ARTWORK", T.line, 1)
-    footLine:SetPoint("TOPLEFT"); footLine:SetPoint("TOPRIGHT"); ns.Hairline(footLine, "h")
-    ns.AccentBorder(ns.ReloadButton(contentFooter, "Reload UI", 120, 30)):SetPoint("LEFT", 26, 0)
-    ns.AccentBorder(ns.Button(contentFooter, "Close", 120, 30, function() window:Hide() end))
-        :SetPoint("RIGHT", -30, 0)
     searchBar = UI.AttachSearchBar(window, function() LayoutContent() end)
     scrollFrame = UI.SlimScroll(window, nil, SCROLL_BAR_GAP)
     scrollChild = CreateFrame("Frame", nil, scrollFrame)
