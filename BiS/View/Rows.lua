@@ -185,10 +185,11 @@ local function TipZone(row, icon, height, onEnter)
     local zone = CreateFrame("Frame", nil, row)
     zone:SetPoint("LEFT", icon, "LEFT")
     zone:SetHeight(height)
-    zone:SetMouseMotionEnabled(true)
-    zone:SetMouseClickEnabled(false)
     zone:SetScript("OnEnter", onEnter)
     zone:SetScript("OnLeave", TipLeave)
+    -- After SetScript: setting mouse scripts turns clicks back on.
+    zone:SetMouseMotionEnabled(true)
+    zone:SetMouseClickEnabled(false)
     row.tipZone = zone
 end
 
