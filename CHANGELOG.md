@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.5.24-beta
 
 ### Added
