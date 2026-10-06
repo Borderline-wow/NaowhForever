@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.5.24-beta
+
+### Added
+- Move Elements: Anchor on the selected element's tag. Click it, then click another element, and it
+  follows that element from then on. Unanchor lets go.
+
+### Changed
+- Options window: the sidebar's Adventure, Combat and Utilities groups are back.
 
 ## 0.5.23-beta
 
