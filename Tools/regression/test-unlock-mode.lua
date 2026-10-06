@@ -165,6 +165,19 @@ local ns = {
         return b
     end,
     Font = function(parent) return parent:CreateFontString() end,
+    NewEditBox = function(parent)
+        local box = NewFrame("EditBox", parent)
+        function box:SetFocus() self.focus = true end
+        function box:HasFocus() return self.focus == true end
+        function box:ClearFocus()
+            if not self.focus then return end
+            self.focus = false
+            Fire(self, "OnEditFocusLost")
+        end
+        return box
+    end,
+    Tooltip = NOOP,
+    Shared = { Parts = { HudText = function(fs) return fs end } },
     UIFontPath = function() return "font" end,
     L = function(text) return text end,
     Color = function(_, text) return text end,
@@ -313,6 +326,43 @@ Fire(keys, "OnKeyDown", "DOWN")
 for _ = 1, 99 do Fire(keys, "OnKeyDown", "DOWN") end
 Check(info.offsetY == 0, "and back")
 
+-- The toolbar's position readout: anchored, the offsets from its target, kept up by the arrow
+-- keys, and typed to move it.
+local readout = UI.PositionReadout(UIParent)
+local function Reads(x, y) return readout.x:GetText() == x and readout.y:GetText() == y end
+local function Type(box, text)
+    box:SetFocus()
+    box:SetText(text)
+    Fire(box, "OnEnterPressed")
+end
+Check(readout.name:GetText() == "Swing Timer" and readout.where:GetText() == "Offset from Threat Meter" and Reads("1", "0"),
+    "the readout shows the selected element's offsets from its target")
+Fire(keys, "OnKeyDown", "LEFT")
+Check(Reads("0", "0"), "an arrow key updates it")
+Type(readout.x, "25")
+Check(info.offsetX == 25 and Near(Center(swing), 985) and Reads("25", "0"), "a typed X moves it by its offset")
+Type(readout.y, "abc")
+Check(info.offsetY == 0 and Reads("25", "0") and not readout.y:HasFocus(), "what is not a number goes back")
+Type(readout.x, "1")
+
+-- Not anchored: its centre from the screen's, live while it is dragged.
+UI.SelectMover(meterMover)
+Check(readout.name:GetText() == "Threat Meter" and readout.where:GetText() == "From the screen center" and Reads("0", "-200"),
+    "an element with no anchor reads its centre from the screen centre")
+cursor.x, cursor.y = 960, 340
+UI.StartMoverDrag(meterMover)
+cursor.x, cursor.y = 1000, 330
+Drive()
+Check(Reads("40", "-210"), "and follows a drag as it happens")
+UI.StopMoverDrag(meterMover)
+Type(readout.x, "0")
+Type(readout.y, "-200")
+Check(Near(Center(meter), 960) and Near(select(2, Center(meter)), 340) and Near(Last(meterSaved).y, -200),
+    "typed numbers move it there and save it")
+Check(Near(Center(swing), 961), "and what is anchored to it follows")
+UI.ClearMoverSelection()
+Check(readout.name:GetText() == "Nothing selected" and not readout.boxes:IsShown(), "with nothing selected the boxes hide")
+
 -- Dragging the target: the anchored element follows the whole way.
 cursor.x, cursor.y = 960, 340
 UI.StartMoverDrag(meterMover)
@@ -329,6 +379,7 @@ cursor.x, cursor.y = 1061, 420
 UI.StartMoverDrag(swingMover)
 cursor.x, cursor.y = 1091, 420
 Drive()
+Check(readout.x:GetText() == "31" and readout.y:GetText() == "0", "the readout shows the offset it will keep, live")
 UI.StopMoverDrag(swingMover)
 info = settings.anchors["Swing Timer"]
 Check(info.target == "Threat Meter" and info.side == "TOP" and Near(info.offsetX, 31) and Near(info.offsetY, 0),

@@ -912,11 +912,15 @@ local function SaveAnchorPos(displayType, point, relPoint, x, y)
     end
 end
 
--- Alignment grid matching EllesmereUI's unlock mode, measured outward from screen centre.
--- Alphas sit above EUI's 0.30/0.50, which read faint against the game world.
+-- Unlock Mode's grid, measured out from the screen's centre: faint lines in the text colour,
+-- every GRID_MAJOR-th one stronger, and the centre lines in the accent with a square where
+-- they cross.
 local GRID_SPACING = 32
-local GRID_LINE_ALPHA = 0.45
-local GRID_CENTER_ALPHA = 0.70
+local GRID_MAJOR = 4
+local GRID_LINE_ALPHA = 0.08
+local GRID_MAJOR_ALPHA = 0.18
+local GRID_CENTER_ALPHA = 0.6
+local GRID_MARK = 6        -- the centre square, in pixels
 local gridOverlay
 
 -- One physical pixel at any UI scale; fractional widths blur across two pixels.
@@ -939,14 +943,15 @@ local function BuildGridOverlay()
     function gridOverlay:Rebuild()
         for i = 1, #self._lines do self._lines[i]:Hide() end
         local w, h = UIParent:GetWidth(), UIParent:GetHeight()
-        local c = ns.THEME.accent
+        local T = ns.THEME
         local mult = PixelMult()
         local spacing = GRID_SPACING * mult
         local function Snap(v) return math.floor(v / mult + 0.5) * mult end
         local centerX, centerY = Snap(w / 2), Snap(h / 2)
         local idx = 0
 
-        local function Line(isVert, pos, alpha)
+        local function Line(isVert, pos, alpha, c)
+            c = c or T.fg
             idx = idx + 1
             local tex = self._lines[idx]
             if not tex then
@@ -969,18 +974,25 @@ local function BuildGridOverlay()
             tex:Show()
         end
 
-        local x = centerX - spacing
-        while x > 0 do Line(true, Snap(x), GRID_LINE_ALPHA); x = x - spacing end
-        x = centerX + spacing
-        while x < w do Line(true, Snap(x), GRID_LINE_ALPHA); x = x + spacing end
+        local function Lines(isVert, center, size)
+            for dir = -1, 1, 2 do
+                local n, pos = 1, center + dir * spacing
+                while pos > 0 and pos < size do
+                    Line(isVert, Snap(pos), n % GRID_MAJOR == 0 and GRID_MAJOR_ALPHA or GRID_LINE_ALPHA)
+                    n, pos = n + 1, pos + dir * spacing
+                end
+            end
+        end
+        Lines(true, centerX, w)
+        Lines(false, centerY, h)
+        Line(true, centerX, GRID_CENTER_ALPHA, T.accent)
+        Line(false, centerY, GRID_CENTER_ALPHA, T.accent)
 
-        local y = centerY - spacing
-        while y > 0 do Line(false, Snap(y), GRID_LINE_ALPHA); y = y - spacing end
-        y = centerY + spacing
-        while y < h do Line(false, Snap(y), GRID_LINE_ALPHA); y = y + spacing end
-
-        Line(true, centerX, GRID_CENTER_ALPHA)
-        Line(false, centerY, GRID_CENTER_ALPHA)
+        if not self._mark then self._mark = self:CreateTexture(nil, "BACKGROUND", nil, -6) end
+        self._mark:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
+        self._mark:SetSize(GRID_MARK * mult, GRID_MARK * mult)
+        self._mark:ClearAllPoints()
+        self._mark:SetPoint("CENTER", UIParent, "TOPLEFT", centerX, -centerY)
     end
 
     return gridOverlay
@@ -1086,70 +1098,95 @@ end
 
 local configToolbar
 
--- Exit Config takes the slot after the last checkbox. Column width fits the longest
--- label, "Show Defensive Anchor".
-local CONFIG_COL_W, CONFIG_ROW_H = 162, 24
+-- Unlock Mode's toolbar: the windows' backdrop and black edge, a header with the logo, the
+-- title and Exit Config, the selected element's position, then the switches.
+local BAR_W, BAR_PAD, BAR_GAP = 352, 14, 10
+local BAR_HEAD = 40                   -- the header, down to its rule
+local BAR_LOGO = 20
+local EXIT_W, EXIT_H = 96, 22
+local SWITCH_W, SWITCH_H = 28, 14
+local SWITCH_ROW = 22
+local SWITCH_COL = (BAR_W - 2 * BAR_PAD) / 2
+local LABEL_GAP = 8                   -- a switch to its label
+local SECTION_H = 18                  -- a section's muted name over its switches
+local OFF_ALPHA = 0.4                 -- Smart Reminders' switches while it is off
+
+local function BarRule(f, y)
+    local rule = ns.Solid(f, "ARTWORK", ns.Shared.Style.BORDER_RGB, 1)
+    rule:SetPoint("TOPLEFT", 0, -y)
+    rule:SetPoint("TOPRIGHT", 0, -y)
+    ns.Hairline(rule, "h")
+end
+
+-- A house switch with its label, at y below the toolbar's top in column col (0 or 1).
+local function BarSwitch(f, text, col, y, get, set)
+    local switch = ns.UI.BuildToggleControl(f, nil, get, set, SWITCH_W, SWITCH_H)
+    switch:SetPoint("TOPLEFT", f, "TOPLEFT", BAR_PAD + col * SWITCH_COL, -y)
+    switch.label = ns.Font(f, 11)
+    switch.label:SetPoint("LEFT", switch, "RIGHT", LABEL_GAP, 0)
+    switch.label:SetText(text)
+    return switch
+end
 
 local function BuildConfigToolbar()
     if configToolbar then return configToolbar end
-    local T = ns.THEME
+    local T, St = ns.THEME, ns.Shared.Style
     local f = CreateFrame("Frame", "NaowhForeverRaidReminderAnchorConfig", UIParent)
-    f:SetSize(14 + CONFIG_COL_W * 2 + 14, 116)
+    f:SetWidth(BAR_W)
     f:SetPoint("TOP", UIParent, "TOP", 0, -140)
     f:SetFrameStrata("FULLSCREEN_DIALOG")
     f:SetFrameLevel(510)
     f:SetToplevel(true)
     f:SetClampedToScreen(true)
     ns.AllowOffscreen(f)
-    ns.Solid(f, "BACKGROUND", { r = 0, g = 0, b = 0 }, 1):SetAllPoints()
-    ns.Border(f)
+    ns.Shared.Parts.Backdrop(f):Paint(St.BACKDROP_ALPHA)
+    ns.Border(f, St.BORDER_RGB)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", function(self) self:StartMoving() end)
     f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
-    local head = ns.Font(f, 12, "OUTLINE", T.accent)
-    head:SetPoint("TOP", f, "TOP", 0, -10)
-    head:SetText("Reminder Anchors")
-    f._head = head
+    local logo = f:CreateTexture(nil, "ARTWORK")
+    logo:SetTexture(St.LOGO, nil, nil, "TRILINEAR")
+    logo:SetSize(BAR_LOGO, BAR_LOGO)
+    logo:SetPoint("LEFT", f, "TOPLEFT", BAR_PAD, -BAR_HEAD / 2)
+    local title = ns.Font(f, 14)
+    title:SetPoint("LEFT", logo, "RIGHT", LABEL_GAP, 0)
+    title:SetText("Layout Mode")
+    local exit = ns.AccentBorder(ns.Button(f, "Exit Config", EXIT_W, EXIT_H, function() ns.HideRaidReminderAnchorConfig() end))
+    exit:SetPoint("RIGHT", f, "TOPRIGHT", -BAR_PAD, -BAR_HEAD / 2)
+    BarRule(f, BAR_HEAD)
 
-    local checks = {}
-    local lastRow = 0
+    local y = BAR_HEAD + BAR_GAP
+    local readout = ns.UI.PositionReadout(f)
+    readout:SetPoint("TOPLEFT", BAR_PAD, -y)
+    readout:SetPoint("TOPRIGHT", -BAR_PAD, -y)
+    y = y + readout:GetHeight() + BAR_GAP
+    BarRule(f, y)
+
+    y = y + BAR_GAP
+    f._section = ns.Font(f, 11, nil, T.muted)
+    f._section:SetPoint("TOPLEFT", BAR_PAD, -y)
+    y = y + SECTION_H
+    local switches = {}
     for i, displayType in ipairs(CONFIG_ORDER) do
-        local col = (i - 1) % 2
-        local row = math.floor((i - 1) / 2)
-        lastRow = row
-        local chk = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
-        chk:SetSize(20, 20)
-        chk:SetPoint("TOPLEFT", f, "TOPLEFT", 14 + col * CONFIG_COL_W, -32 - row * CONFIG_ROW_H)
-        local lbl = ns.Font(f, 11, nil, T.fg)
-        lbl:SetPoint("LEFT", chk, "RIGHT", 2, 1)
-        lbl:SetText("Show " .. DISPLAY_TYPE_LABEL[displayType] .. " Anchor")
-        chk:SetScript("OnClick", function(self)
-            ns.SetRaidReminderAnchorConfigShown(displayType, self:GetChecked() and true or false)
-        end)
-        checks[displayType] = chk
+        local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
+        switches[displayType] = BarSwitch(f, DISPLAY_TYPE_LABEL[displayType], col, y + row * SWITCH_ROW,
+            function() return configShown[displayType] == true end,
+            function(on) ns.SetRaidReminderAnchorConfigShown(displayType, on) end)
     end
+    y = y + math.ceil(#CONFIG_ORDER / 2) * SWITCH_ROW + BAR_GAP / 2
+    BarRule(f, y)
 
-    local exitCol = (#CONFIG_ORDER % 2 == 1) and 1 or 0
-    local exitRow = (#CONFIG_ORDER % 2 == 1) and lastRow or (lastRow + 1)
-    ns.Button(f, "Exit Config", CONFIG_COL_W - 14, 22, function() ns.HideRaidReminderAnchorConfig() end)
-        :SetPoint("TOPLEFT", f, "TOPLEFT", 14 + exitCol * CONFIG_COL_W, -31 - exitRow * CONFIG_ROW_H)
-    local snapCol = 1 - exitCol
-    local snapRow = exitCol == 0 and exitRow or exitRow + 1
-    local snap = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
-    snap:SetSize(20, 20)
-    snap:SetPoint("TOPLEFT", f, "TOPLEFT", 14 + snapCol * CONFIG_COL_W, -32 - snapRow * CONFIG_ROW_H)
-    local snapLbl = ns.Font(f, 11, nil, T.fg)
-    snapLbl:SetPoint("LEFT", snap, "RIGHT", 2, 1)
-    snapLbl:SetText("Snap Elements")
-    snap:SetScript("OnClick", function(self) ns.UnlockModeSettings.Set("snap", self:GetChecked() and true or false) end)
-    ns.Tooltip(snap, "Snap Elements", "A dragged element lines its edges and centre up with the nearest one.")
-    f._snap = snap
-    f:SetHeight(44 + (snapRow + 1) * CONFIG_ROW_H)
+    y = y + BAR_GAP
+    f._snap = BarSwitch(f, "Snap Elements", 0, y,
+        function() return ns.UnlockModeSettings.Get("snap") ~= false end,
+        function(on) ns.UnlockModeSettings.Set("snap", on) end)
+    ns.Tooltip(f._snap, "Snap Elements", "A dragged element lines its edges and centre up with the nearest one.")
+    f:SetHeight(y + SWITCH_ROW + BAR_GAP / 2)
 
-    f._checks = checks
+    f._switches = switches
     configToolbar = f
     return f
 end
@@ -1162,17 +1199,16 @@ function ns.ShowRaidReminderAnchorConfig()
     ns.UI.BeginMoverMode()
     reopenWindowOnExit = reopen
     local f = BuildConfigToolbar()
-    -- With Smart Reminders off its anchors stay hidden; the toolbar still carries Exit Config.
+    -- With Smart Reminders off its anchors stay hidden and its switches rest.
     local on = ns.DB().enabled == true
-    f._head:SetText(on and "Reminder Anchors" or "Smart Reminders is off")
-    for _, displayType in ipairs(CONFIG_ORDER) do
-        local chk = f._checks[displayType]
-        if chk then
-            chk:SetChecked(configShown[displayType] == true)
-            chk:SetEnabled(on)
-        end
+    f._section:SetText(on and "Smart Reminders" or "Smart Reminders is off")
+    for _, switch in pairs(f._switches) do
+        switch._refreshValue()
+        switch:EnableMouse(on)
+        switch:SetAlpha(on and 1 or OFF_ALPHA)
+        switch.label:SetAlpha(on and 1 or OFF_ALPHA)
     end
-    f._snap:SetChecked(ns.UnlockModeSettings.Get("snap") ~= false)
+    f._snap._refreshValue()
     f:Show()
     ns.SetAnchorGridShown(true)
     RefreshAllConfigVisuals()

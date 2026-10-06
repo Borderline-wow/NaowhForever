@@ -16,8 +16,13 @@ local HOVER_DELAY, ANIM_DUR = 0.12, 0.15
 local SNAP_THRESH = 6          -- UI units a dragged edge snaps from
 local DIM_ALPHA, DIM_FADE = 0.30, 0.5
 local MAX_DEPTH = 20           -- anchor chain length followed at most
-local LINE_TEX = "Interface\\AddOns\\NaowhForever\\Media\\soft-line.tga"
-local PULSE_TEX = "Interface\\AnimaChannelingDevice\\AnimaChannelingDeviceLineVerticalMask"
+-- A mover: the theme's background as dark glass over the element, an accent strip across its
+-- top, and an edge in the line colour, muted grey under the mouse and the accent once selected.
+local MOVER_FILL, MOVER_FILL_LIT = 0.55, 0.75
+local MOVER_STRIP = 2          -- the accent strip's height
+local LINK_W = 2               -- the line from an anchored element to its target
+local LINK_ALPHA = 0.8
+local GUIDE_ALPHA = 0.6        -- a snapped axis, in the text colour
 
 local placement = { active = false, items = {}, byLabel = {}, unsaved = {} }
 
@@ -307,7 +312,7 @@ end
 -------------------------------------------------------------------------------
 --  Unlock Mode visuals shared by every mover: the dimmer, red flash, connector lines.
 -------------------------------------------------------------------------------
-local Refresh, CancelPick, CloseMenus
+local Refresh, CancelPick, CloseMenus, ShowPosition
 
 local function Dim(on)
     if not placement.dim then
@@ -378,10 +383,7 @@ local function Reject(item, text)
     end)
 end
 
--- Lines from each anchored mover to its target while either is hovered or dragged: they grow
--- from the child in half a second, then a pulse runs along them every 2.5 seconds.
-local LINE_DUR, PULSE_CYCLE, PULSE_SWEEP = 0.5, 2.5, 0.56
-
+-- A flat line from each anchored mover to its target while either is hovered or dragged.
 local function UIPoint(handle)
     local l, r, t, b = Bounds(handle)
     if l then return (l + r) / 2, (t + b) / 2 end
@@ -389,52 +391,30 @@ end
 
 local function UpdateLines()
     local lines = placement.lines
-    local idx, now = 0, GetTime()
+    local idx = 0
     for child, info in pairs(Anchors()) do
         local cm = type(info) == "table" and placement.byLabel[child]
         local tm = cm and placement.byLabel[info.target]
-        if cm and tm and cm.handle:IsVisible() and tm.handle:IsVisible() then
-            local key = child .. ":" .. info.target
-            if cm.hoverConfirmed or cm.dragging or tm.hoverConfirmed or tm.dragging then
-                lines.anim[key] = lines.anim[key] or now
-                local t = math.min((now - lines.anim[key]) / LINE_DUR, 1)
-                local ease = 1 - (1 - t) * (1 - t)
-                local x1, y1 = UIPoint(cm.handle)
-                local x2, y2 = UIPoint(tm.handle)
-                if x1 and x2 then
-                    idx = idx + 1
-                    local line, pulse = lines.Get(idx)
-                    line:SetStartPoint("BOTTOMLEFT", UIParent, x1, y1)
-                    line:SetEndPoint("BOTTOMLEFT", UIParent, x1 + (x2 - x1) * ease, y1 + (y2 - y1) * ease)
-                    line:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 0.75 * ease)
-                    line:Show()
-                    pulse:Hide()
-                    if ease >= 1 then
-                        local cycle = ((now - lines.anim[key] - 0.3) % PULSE_CYCLE) / PULSE_CYCLE
-                        if cycle <= PULSE_SWEEP then
-                            local st = cycle / PULSE_SWEEP
-                            local s = st * st * (3 - 2 * st)
-                            local head, tail = math.min(1, s * 2), math.min(1, math.max(0, s * 2 - 1))
-                            local fade = 1
-                            if s < 0.1 then fade = s / 0.1 elseif s > 0.7 then fade = (1 - s) / 0.3 end
-                            if head > tail then
-                                pulse:SetStartPoint("BOTTOMLEFT", UIParent, x1 + (x2 - x1) * tail, y1 + (y2 - y1) * tail)
-                                pulse:SetEndPoint("BOTTOMLEFT", UIParent, x1 + (x2 - x1) * head, y1 + (y2 - y1) * head)
-                                pulse:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 0.5 * math.max(0, fade))
-                                pulse:Show()
-                            end
-                        end
-                    end
+        if cm and tm and cm.handle:IsVisible() and tm.handle:IsVisible()
+            and (cm.hoverConfirmed or cm.dragging or tm.hoverConfirmed or tm.dragging) then
+            local x1, y1 = UIPoint(cm.handle)
+            local x2, y2 = UIPoint(tm.handle)
+            if x1 and x2 then
+                idx = idx + 1
+                local line = lines.pool[idx]
+                if not line then
+                    line = lines.frame:CreateLine(nil, "ARTWORK")
+                    line:SetThickness(LINK_W)
+                    line:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, LINK_ALPHA)
+                    lines.pool[idx] = line
                 end
-            else
-                lines.anim[key] = nil
+                line:SetStartPoint("BOTTOMLEFT", UIParent, x1, y1)
+                line:SetEndPoint("BOTTOMLEFT", UIParent, x2, y2)
+                line:Show()
             end
         end
     end
-    for i = idx + 1, #lines.pool do
-        lines.pool[i]:Hide()
-        lines.pulses[i]:Hide()
-    end
+    for i = idx + 1, #lines.pool do lines.pool[i]:Hide() end
 end
 
 local function ShowLines(on)
@@ -444,30 +424,13 @@ local function ShowLines(on)
         f:SetFrameLevel(1)
         f:SetAllPoints()
         f:EnableMouse(false)
-        local lines = { frame = f, pool = {}, pulses = {}, anim = {} }
-        function lines.Get(i)
-            if not lines.pool[i] then
-                local line = f:CreateLine(nil, "ARTWORK", nil, 1)
-                line:SetThickness(3)
-                line:SetTexture(LINE_TEX)
-                local pulse = f:CreateLine(nil, "ARTWORK", nil, 2)
-                pulse:SetThickness(3)
-                pulse:SetTexture(PULSE_TEX)
-                lines.pool[i], lines.pulses[i] = line, pulse
-            end
-            return lines.pool[i], lines.pulses[i]
-        end
-        placement.lines = lines
+        placement.lines = { frame = f, pool = {} }
     end
     local f = placement.lines.frame
     f:SetShown(on)
     f:SetScript("OnUpdate", on and UpdateLines or nil)
     if not on then
-        for i = 1, #placement.lines.pool do
-            placement.lines.pool[i]:Hide()
-            placement.lines.pulses[i]:Hide()
-        end
-        wipe(placement.lines.anim)
+        for _, line in ipairs(placement.lines.pool) do line:Hide() end
     end
 end
 
@@ -744,7 +707,7 @@ local function SnapPosition(item, cx, cy, halfW, halfH)
     return cx - moveX, cy - moveY
 end
 
--- Full-screen guides on a snapped axis, and a pulse on the mover snapped to.
+-- Full-screen guides on a snapped axis, and the mover snapped to edged in the soft accent.
 local function ShowGuides()
     local g, snap = placement.guides, placement.snapInfo
     if not g then
@@ -752,8 +715,7 @@ local function ShowGuides()
         f:SetFrameStrata("BACKGROUND")
         f:SetFrameLevel(2)
         f:SetAllPoints()
-        g = { frame = f, x = ns.Solid(f, "OVERLAY", T.accent, 0.5), y = ns.Solid(f, "OVERLAY", T.accent, 0.5),
-            pulse = CreateFrame("Frame", nil, f) }
+        g = { frame = f, x = ns.Solid(f, "OVERLAY", T.fg, GUIDE_ALPHA), y = ns.Solid(f, "OVERLAY", T.fg, GUIDE_ALPHA) }
         placement.guides = g
     end
     g.frame:Show()
@@ -776,16 +738,10 @@ local function ShowGuides()
         if target then
             local h = target.handle
             if not h._snapBorder then
-                h._snapBorder = ns.Border(h, T.fg, 0)
+                h._snapBorder = ns.Border(h, T.accentSoft, 0)
                 h._snapBorder._frame:SetFrameLevel(h:GetFrameLevel() + 3)
             end
-            local elapsed = 0
-            g.pulse:SetScript("OnUpdate", function(_, dt)
-                elapsed = elapsed + dt
-                h._snapBorder:SetColor(T.fg.r, T.fg.g, T.fg.b, (0.45 + 0.45 * math.sin(elapsed * 9.42)) * 0.9)
-            end)
-        else
-            g.pulse:SetScript("OnUpdate", nil)
+            h._snapBorder:SetColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1)
         end
     end
 end
@@ -796,7 +752,6 @@ local function HideGuides()
     g.frame:Hide()
     if g.target and g.target.handle._snapBorder then g.target.handle._snapBorder:SetColor(1, 1, 1, 0) end
     g.target = nil
-    g.pulse:SetScript("OnUpdate", nil)
 end
 
 local function DragUpdate()
@@ -836,6 +791,7 @@ local function DragUpdate()
             Propagate(child, visited)
         end
     end
+    ShowPosition()
 end
 
 local function StopPlacementDrag(item)
@@ -1199,15 +1155,138 @@ local function OpenCogMenu(item)
 end
 
 -------------------------------------------------------------------------------
+--  Position: the selected element's X and Y in whole pixels, live while it moves, and typed
+--  to move it. Anchored, they are its offsets from its target (a screen edge's offset on the
+--  axis it holds); otherwise its centre from the screen's centre, as it is saved.
+-------------------------------------------------------------------------------
+local READOUT_H, BOX_W, BOX_H = 40, 54, 20
+local LETTER_W, AXIS_GAP, PAIR_GAP = 8, 4, 10   -- an axis letter, from it to its box, between the pairs
+local BOXES_W = 2 * (LETTER_W + AXIS_GAP + BOX_W) + PAIR_GAP
+
+local function Position(item)
+    local info = not item.ownAnchor and AnchorOf(item.label)
+    if not info then
+        local l, r, t, b = Bounds(item.frame)
+        if not l then return end
+        return ToPixels((l + r - UIParent:GetWidth()) / 2), ToPixels((t + b - UIParent:GetHeight()) / 2)
+    end
+    local ox, oy = info.offsetX or 0, info.offsetY or 0
+    if item.dragging then ox, oy = CaptureOffsets(item, info.target, info.side) end
+    if not ox then return end
+    local e = info.edge
+    if type(e) == "table" and SCREEN[e.key] and e.offset then
+        local off = item.dragging and CaptureEdgeOffset(item, e.key, e.side) or e.offset
+        if SCREEN[e.key] == "X" then ox = off else oy = off end
+    end
+    return ToPixels(ox), ToPixels(oy), info
+end
+
+local function SetBox(box, v)
+    if box:HasFocus() or box.value == v then return end
+    box.value = v
+    box:SetText(tostring(v))
+end
+
+function ShowPosition()
+    local r = placement.readout
+    if not r then return end
+    local item = placement.selected
+    local x, y, info
+    if item then x, y, info = Position(item) end
+    r.boxes:SetShown(x ~= nil)
+    local target = info and info.target
+    if r.item ~= item or r.target ~= target or not x then
+        r.item, r.target = item, target
+        r.x.value, r.y.value = nil, nil
+        if not x then
+            r.name:SetText(ns.L("Nothing selected"))
+            r.where:SetText(ns.L("Click an element to see where it is"))
+            return
+        end
+        r.name:SetText(item.label)
+        r.where:SetText(info and ns.L("Offset from %s"):format(LabelOf(target)) or ns.L("From the screen center"))
+    end
+    SetBox(r.x, x)
+    SetBox(r.y, y)
+end
+
+-- Enter moves the element by what the typed number differs from where it is.
+local function Typed(box)
+    local v = tonumber(box:GetText())
+    box:ClearFocus()
+    local item = placement.selected
+    if not (item and v) then return end
+    local x, y = Position(item)
+    if not x then return end
+    local d = math.floor(v + 0.5) - (box.axis == "X" and x or y)
+    if d == 0 then return end
+    if box.axis == "X" then Nudge(item, FromPixels(d), 0) else Nudge(item, 0, FromPixels(d)) end
+end
+
+local function Revert(box)
+    box.value = nil
+    ShowPosition()
+end
+
+--- The selected element's position for Unlock Mode's toolbar: its name, what X and Y are
+--- measured from, and a box for each. Made once.
+function UI.PositionReadout(parent)
+    if placement.readout then return placement.readout end
+    local r = CreateFrame("Frame", nil, parent)
+    r:SetHeight(READOUT_H)
+    r.boxes = CreateFrame("Frame", nil, r)
+    r.boxes:SetPoint("TOPRIGHT")
+    r.boxes:SetPoint("BOTTOMRIGHT")
+    r.boxes:SetWidth(BOXES_W)
+    r.name = ns.Font(r, 12)
+    r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 0, -4)
+    r.name:SetPoint("RIGHT", r.boxes, "LEFT", -PAIR_GAP, 0)
+    r.where = ns.Font(r, 11, nil, T.muted)
+    r.where:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
+    r.where:SetPoint("RIGHT", r.name, "RIGHT")
+    for _, fs in ipairs({ r.name, r.where }) do
+        fs:SetJustifyH("LEFT")
+        fs:SetWordWrap(false)
+    end
+    local left = r.boxes
+    for _, axis in ipairs({ "X", "Y" }) do
+        local letter = ns.Font(r.boxes, 12, nil, T.muted)
+        letter:SetText(axis)
+        letter:SetWidth(LETTER_W)
+        letter:SetPoint("LEFT", left, left == r.boxes and "LEFT" or "RIGHT", left == r.boxes and 0 or PAIR_GAP, 0)
+        local box = ns.NewEditBox(r.boxes)
+        box.axis = axis
+        box:SetSize(BOX_W, BOX_H)
+        box:SetPoint("LEFT", letter, "RIGHT", AXIS_GAP, 0)
+        box:SetFont(ns.UIFontPath(), 12, "")
+        box:SetJustifyH("CENTER")
+        box:SetMaxLetters(6)
+        box:SetScript("OnEnterPressed", Typed)
+        box:SetScript("OnEscapePressed", box.ClearFocus)
+        box:SetScript("OnEditFocusLost", Revert)
+        r[axis:lower()] = box
+        left = box
+    end
+    r.x:SetScript("OnTabPressed", function() r.y:SetFocus() end)
+    r.y:SetScript("OnTabPressed", function() r.x:SetFocus() end)
+    placement.readout = r
+    ShowPosition()
+    return r
+end
+
+-------------------------------------------------------------------------------
 --  Selection and the arrow keys
 -------------------------------------------------------------------------------
--- The mover's border and name for its state: white when hovered or selected, accent at rest;
--- the name orange while anchored.
+-- The mover's edge and fill for its state (see MOVER_FILL), and the chain by its name while
+-- anchored.
 function Refresh(item)
     if not item then return end
     local h = item.handle
-    local lit = item.selected or item.hovered or item.dragging
-    if lit then h._border:SetColor(T.fg.r, T.fg.g, T.fg.b, 1) else h._border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end
+    local picked = item.selected or item.dragging
+    local lit = picked or item.hovered
+    local edge = picked and T.accent or item.hovered and T.muted or T.line
+    h._border:SetColor(edge.r, edge.g, edge.b, 1)
+    h._fill:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, lit and MOVER_FILL_LIT or MOVER_FILL)
     h:SetFrameLevel(item.baseLevel + (lit and 100 or 0))
     if item.cog then item.cog:SetFrameLevel(h:GetFrameLevel() + 10) end
     local anchored = not item.ownAnchor and AnchorOf(item.label) ~= nil
@@ -1217,6 +1296,7 @@ function Refresh(item)
         local c = item.link:IsMouseOver() and T.accentSoft or T.fg
         item.link.label:SetTextColor(c.r, c.g, c.b, 1)
     end
+    if item == placement.selected then ShowPosition() end
 end
 
 function UI.ClearMoverSelection()
@@ -1227,6 +1307,7 @@ function UI.ClearMoverSelection()
         item.selected = false
         Refresh(item)
     end
+    ShowPosition()
     if placement.snapPicker then CancelPick() end
     if placement.keys and not InCombatLockdown() then placement.keys:SetPropagateKeyboardInput(true) end
 end
@@ -1649,9 +1730,14 @@ function UI.AttachMover(frame, label, onMoved, page, feature, ownAnchor)
     local mover = CreateFrame("Frame", nil, frame)
     mover:SetAllPoints()
     mover:SetFrameLevel(frame:GetFrameLevel() + 20)
-    ns.Solid(mover, "BACKGROUND", T.accent, 0.35):SetAllPoints()
-    mover._border = ns.Border(mover, T.accent)
-    local text = ns.Font(mover, 12, "OUTLINE")
+    mover._fill = ns.Solid(mover, "BACKGROUND", T.bg, MOVER_FILL)
+    mover._fill:SetAllPoints()
+    local strip = ns.Solid(mover, "ARTWORK", T.accent, 1)
+    strip:SetPoint("TOPLEFT")
+    strip:SetPoint("TOPRIGHT")
+    strip:SetHeight(MOVER_STRIP)
+    mover._border = ns.Border(mover, T.line)
+    local text = ns.Shared.Parts.HudText(ns.Font(mover, 12))
     text:SetPoint("CENTER", mover, "CENTER")
     text:SetText(label)
     mover.text = text
