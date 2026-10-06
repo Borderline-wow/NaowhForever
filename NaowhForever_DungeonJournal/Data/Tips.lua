@@ -86,6 +86,12 @@ ns.Journal.Tips = {
     [4421] = "Spread out for Chain Bolt and dispel her Renew; she's immune to shadow damage, stuns and silences.",  -- Charlga Razorflank
     [4425] = "Rare bat with an AoE silence; pull it away and keep casters and the healer at range.",  -- Blind Hunter
     [4842] = "Interrupt Lightning Bolt, break his Earthbind Totem and pick up the Stone Rumbler he summons.",  -- Earthcaller Halmgar
+    -- City of Dalaran (from a playthrough video)
+    [247126] = "He disarms the tank and summons skeletons; pick up the skeletons and AoE them down before they swarm the healer.",  -- Atrexis the Grave Knight
+    [245999] = "Arcane Bolt hits his target, so heal the tank; dodge Focal Blast, a beam he sweeps around as he turns.",  -- Arcane Anomaly
+    [246016] = "Casts Manamorph and a 10 second Silence, so don't rely on one healer's casts; kill the Arcane Manalings he calls.",  -- Arcanic Enigma
+    [246017] = "When he starts casting Malfunction, run out of its 25 yard reach before it turns into a channeled AoE.",  -- Unstable Sentinel
+    [246020] = "Don't stand in line with the player Bounding Mana targets; he also casts Arcane Bolt, Mass Polymorph and Evocation, and resets if anyone leaves the room.",  -- Shade of the Archmage
     -- Scarlet Monastery
     [3983] = "Priests and paladins can dispel his Immolate and Shadow Word: Pain to save the healer's mana.",  -- Interrogator Vishas
     [4543] = "Move out of his Flame Spike pillars, and melee should mind his Fire Nova up close.",  -- Bloodmage Thalnos

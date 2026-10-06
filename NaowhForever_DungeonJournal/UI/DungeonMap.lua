@@ -33,12 +33,17 @@
 --    Map on the panel beside it brings it back.
 --
 --  Where the bosses stand is placed by hand. /nf mappins turns placing on in the window:
---  every boss gets a pin to drag (those not placed yet wait along the top), the entrance too,
---  and Copy gives the dungeon's line for Data/Maps.lua. What you place is kept for the
---  account until then, and shown over the data. /nf mapcheck prints which map art and floors
---  the client has. The switch only offers the floors something stands on, once anything is
---  placed: the art has floors with nothing of the dungeon on them (Shadowfang Keep's fifth).
---  Placing, or before anything is placed, it offers them all.
+--  every boss gets a pin to drag (those not placed yet, or on another floor, wait along the
+--  top; a right-click takes one off its floor), the entrance too, and Copy gives the
+--  dungeon's line for Data/Maps.lua. What you place is kept for the account until then, and
+--  shown over the data. /nf mapcheck prints which map art and floors the client has. The
+--  switch only offers the floors something stands on, once anything is placed, in the order
+--  you walk them: the art has floors with nothing of the dungeon on them (Shadowfang Keep's
+--  fifth). Placing, or before anything is placed, it offers them all (a map's order, where
+--  it has one). A floor the art lacks is the addon's own picture.
+--
+--  The window follows the Journal it was opened beside: another dungeon's page there shows
+--  that dungeon's map (one with no map closes it).
 --
 --  Nothing is made until a map is first shown, and it listens to nothing: the window draws
 --  again on a pick, a kill, a setting, and its page on the item or spell data it waits on.
@@ -68,6 +73,7 @@ local BIG_SIZE = 18
 local LIT_RING, LIT_ALPHA = 12, 0.9
 local ENTRANCE = 28
 local TRAY_STEP = PIN + 10       -- placing: the pins not placed yet, along the top
+local TRAY_ROW = math.floor((MAP_W - 16) / TRAY_STEP)   -- that many to a row, across the map
 local FLOOR_H = 22               -- the floor switch under the map
 local FLOOR_STEP_W = 22
 local COPY_W = 52
@@ -114,7 +120,8 @@ local placing = false            -- /nf mappins, in the window
 local lootFrom                   -- the view whose pin opened the boss's loot, to close it with
 
 -------------------------------------------------------------------------------
---  Where a pin stands: what was placed on this account while placing, else the data
+--  Where a pin stands: what was placed on this account while placing, else the data.
+--  Taken off while placing (right-click), it is kept as false: on no floor, whatever the data says.
 -------------------------------------------------------------------------------
 local function Placed(dungeon)
     local all = ns.AccountSettings().journalMapPins
@@ -125,6 +132,7 @@ local function Spot(dungeon, key)
     local placed = Placed(dungeon)
     local spot = placed and placed[key]
     if type(spot) == "table" then return spot end
+    if spot == false then return nil end
     local map = J.Maps[dungeon.key]
     if key == "entrance" then return map.entrance end
     return map.pins[key]
@@ -168,8 +176,13 @@ local function PinEnter(pin)
     GameTooltip:SetText(boss.name, 1, 1, 1)
     local tag = J.BossTag(boss)
     if tag then GameTooltip:AddLine(TAG_WORDS[tag], T.muted.r, T.muted.g, T.muted.b) end
-    GameTooltip:AddLine(pin.view:Placing() and "Drag to place it." or "Click for its loot.",
-        T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+    local hint = "Click for its loot."
+    if pin.view:Placing() then
+        hint = pin.elsewhere and ("On %s: drag it here to move it."):format(pin.elsewhere)
+            or Spot(pin.view.dungeon, pin.key) and "Drag to move it, right-click to take it off."
+            or "Drag to place it."
+    end
+    GameTooltip:AddLine(hint, T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
     GameTooltip:Show()
     if pin.view.onPinHover then pin.view.onPinHover(pin.key, true) end
 end
@@ -180,6 +193,13 @@ local function PinLeave(pin)
 end
 
 local function PinClicked(pin, button)
+    -- Placing, a right-click takes the pin off its floor, back along the top.
+    if button == "RightButton" and pin.view:Placing() then
+        Keep(pin.view.dungeon, pin.key, false)
+        GameTooltip:Hide()
+        pin.view:Draw()
+        return
+    end
     -- A right-click goes to the view (on the world map: up to the zone).
     if button == "RightButton" then
         if pin.view.onRightClick then pin.view.onRightClick() end
@@ -410,6 +430,19 @@ function View:Placing()
     return placing and self.editable
 end
 
+-- Where art floor n comes as you walk the dungeon: map.order lists the art's floors in that
+-- order, where the art numbers them otherwise (Shadowfang Keep's top is its seventh).
+local function Walked(map, n)
+    if not map.order then return n end
+    for i = 1, #map.order do
+        if map.order[i] == n then return i end
+    end
+    return n
+end
+
+local sorting   -- the map FillFloors sorts by, for the comparison below (made once)
+local function ByWalk(a, b) return Walked(sorting, a) < Walked(sorting, b) end
+
 -- Where n is in the switch's floors, or nil.
 function View:FloorAt(n)
     for i = 1, #self.floors do
@@ -442,7 +475,8 @@ function View:FillFloors()
         self:Offer(Spot(dungeon, "entrance"))
         filling = self
         EachBoss(dungeon, OfferBoss)
-        table.sort(floors)
+        sorting = J.Maps[dungeon.key]
+        table.sort(floors, ByWalk)
     end
     if #floors == 0 then
         local map = J.Maps[dungeon.key]
@@ -450,7 +484,8 @@ function View:FillFloors()
         if map.floor then
             floors[1] = map.floor
         else
-            for n = 1, map.floors do floors[n] = n end
+            -- map.order: only the floors it lists, where shared art has another dungeon's too.
+            for n = 1, map.order and #map.order or map.floors do floors[n] = map.order and map.order[n] or n end
         end
     end
     if not self:FloorAt(self.floor) then self.floor = floors[1] end
@@ -469,16 +504,22 @@ function View:At(frame, x, y)
     frame:SetPoint("CENTER", self.canvas, "TOPLEFT", x * MAP_W, -y * MAP_H)
 end
 
+local function FloorName(map, n)
+    return map.names and map.names[n] or ("Floor %d"):format(Walked(map, n))
+end
+
 function View:DrawPin(boss, number, key)
     local spot = Spot(self.dungeon, key)
     local here = type(spot) == "table" and spot[1] == self.floor
-    if not here and not (self:Placing() and spot == nil) then return end
+    -- Placing, a pin on another floor waits along the top too, to drag onto this one.
+    if not here and not self:Placing() then return end
     self.used = self.used + 1
     local pin = self.pins[self.used] or self:NewPin()
     self.pins[self.used] = pin
     pin.boss, pin.key = boss, key
     local killed = self.inside and J.Kills.ThisRun(boss) or false
     SetMark(pin, boss, number, 1 / self.scale, killed)
+    pin.elsewhere = not here and type(spot) == "table" and FloorName(J.Maps[self.dungeon.key], spot[1]) or nil
     pin.glow:Hide()
     ShowPicked(pin, self.picked ~= nil and key == self.picked and not self:Placing())
     pin.atX = here and spot[2] * MAP_W or nil
@@ -486,10 +527,11 @@ function View:DrawPin(boss, number, key)
     if here then
         self:At(pin, spot[2], spot[3])
     else
-        -- Not placed yet: along the top, to drag from.
+        -- Not placed yet, or on another floor: along the top, to drag from.
         self.tray = self.tray + 1
+        local row, col = math.floor((self.tray - 1) / TRAY_ROW), (self.tray - 1) % TRAY_ROW
         pin:ClearAllPoints()
-        pin:SetPoint("TOPLEFT", self.canvas, "TOPLEFT", (self.tray - 1) * TRAY_STEP + 8, -8)
+        pin:SetPoint("TOPLEFT", self.canvas, "TOPLEFT", col * TRAY_STEP + 8, -8 - row * TRAY_STEP)
         pin:SetAlpha(UNPLACED_ALPHA)
     end
     pin:Show()
@@ -540,10 +582,6 @@ function View:PlaceDoorLabel(cx, cy)
     text:SetPoint(anchor[1], self.door, anchor[2], anchor[3], anchor[4])
 end
 
-local function FloorName(map, n)
-    return map.names and map.names[n] or ("Floor %d"):format(n)
-end
-
 local function DrawPinOf(view)
     return function(boss, number, key) view:DrawPin(boss, number, key) end
 end
@@ -563,8 +601,11 @@ function View:Draw()
     if not dungeon then return end
     self.inside = Inside(dungeon)
     local map = J.Maps[dungeon.key]
-    -- The game's art in twelve tiles, or the addon's own picture of a dungeon without any.
-    local image = map.image
+    -- The game's art in twelve tiles, or the addon's own picture of a dungeon without any
+    -- (a floor after the first is its own picture, the floor's number after the name), or of
+    -- a floor the art lacks (map.images).
+    local image = map.images and map.images[self.floor]
+    if not image and map.image then image = self.floor > 1 and map.image .. self.floor or map.image end
     self.picture:SetShown(image ~= nil)
     if image then self.picture:SetTexture(image, nil, nil, "TRILINEAR") end
     for i = 1, 12 do
@@ -619,12 +660,23 @@ end
 local function Copy(dungeon)
     local map = J.Maps[dungeon.key]
     local source = map.image and ("image = %q"):format(map.image) or ("art = %q"):format(map.art)
-    local lines = { ("    %s = { %s, floors = %d,%s"):format(dungeon.key, source, map.floors,
-        map.floor and (" floor = %d,"):format(map.floor) or "") }
+    local lines = { ("    %s = { %s, floors = %d,%s%s"):format(dungeon.key, source, map.floors,
+        map.floor and (" floor = %d,"):format(map.floor) or "",
+        map.order and (" order = { %s },"):format(table.concat(map.order, ", ")) or "") }
     if map.names then
         local names = {}
-        for i, name in ipairs(map.names) do names[i] = ("%q"):format(name) end
+        for i = 1, map.floors do
+            if map.names[i] then names[#names + 1] = ("[%d] = %q"):format(i, map.names[i]) end
+        end
         lines[#lines + 1] = "        names = { " .. table.concat(names, ", ") .. " },"
+    end
+    -- One images line, as with names: a second `images =` in the table would replace the first.
+    if map.images then
+        local images = {}
+        for i = 1, map.floors do
+            if map.images[i] then images[#images + 1] = ("[%d] = %q"):format(i, map.images[i]) end
+        end
+        lines[#lines + 1] = "        images = { " .. table.concat(images, ", ") .. " },"
     end
     local door = Spot(dungeon, "entrance")
     if door then lines[#lines + 1] = "        entrance = " .. SpotText(door) .. "," end
@@ -1351,6 +1403,22 @@ end
 -------------------------------------------------------------------------------
 --  Opening
 -------------------------------------------------------------------------------
+-- The window on the dungeon, with the boss to go for next picked: the first in kill order not
+-- killed this run.
+local function ShowDungeon(dungeon)
+    windowView:Open(dungeon)
+    Size(window.owner)
+    picked = nil
+    windowView:Draw()
+    if not Folded() then
+        local next
+        EachBoss(dungeon, function(boss, number)
+            if not next and number and not (windowView.inside and J.Kills.ThisRun(boss)) then next = boss end
+        end)
+        Pick(next)
+    end
+end
+
 -- Opens the map of the dungeon: from the panel beside the world map, on the world map; else
 -- in the window, beside the window holding from. On the dungeon the window shows already,
 -- it closes.
@@ -1365,23 +1433,26 @@ function J.OpenDungeonMap(dungeon, from)
         window:Hide()
         return
     end
-    windowView:Open(dungeon)
     Paint()
     Place(from)
     window.owner = from and Owner(from)
-    Size(window.owner)
     window:Show()
     window:Raise()
-    -- The boss to go for next: the first in kill order not killed this run.
-    picked = nil
-    windowView:Draw()
-    if not Folded() then
-        local next
-        EachBoss(dungeon, function(boss, number)
-            if not next and number and not (windowView.inside and J.Kills.ThisRun(boss)) then next = boss end
-        end)
-        Pick(next)
+    ShowDungeon(dungeon)
+end
+
+-- The Journal the window was opened beside went to another dungeon's page: the window, where
+-- it is, shows that dungeon's map; a dungeon with no map closes it.
+---@param view Frame the Journal's view drawing the page
+---@param dungeon JournalDungeon
+function J.FollowDungeonMap(view, dungeon)
+    if not (window and window:IsShown()) or windowView.dungeon == dungeon then return end
+    if not window.owner or Owner(view) ~= window.owner then return end
+    if not J.Maps[dungeon.key] then
+        window:Hide()
+        return
     end
+    ShowDungeon(dungeon)
 end
 
 -- What the window shows, drawn again (a test, a setting).
@@ -1394,6 +1465,26 @@ end
 -------------------------------------------------------------------------------
 local probe
 
+-- Names the client might keep a dungeon's art under, for the dungeons its art was not found
+-- for yet: mapcheck tries each (paths ignore case, so only spellings differ).
+local MAYBE_ART = {
+    ZulFarrak = { "ZulFarrak", "ZulFarak", "ZulFarrakDungeon", "ZulFarrak1" },
+    SunkenTemple = { "TheTempleOfAtalHakkar", "TempleOfAtalHakkar", "SunkenTemple", "TheSunkenTemple",
+        "AtalHakkar", "TempleOfAtalHakkar1" },
+    UpperBlackrockSpire = { "UpperBlackrockSpire", "BlackrockSpireUpper", "UpperBlackrock", "BlackrockSpire2" },
+}
+
+-- The floors of art the client has under the name, 1 to 10.
+local function FloorsOf(art)
+    local found = {}
+    for n = 1, 10 do
+        probe:SetTexture(ART:format(art, art, n, 1))
+        local id = probe:GetTextureFileID()
+        if type(id) == "number" and id > 0 then found[#found + 1] = n end
+    end
+    return found
+end
+
 -- Which floors of each map's art the client has: a file the client holds has an ID, one it
 -- does not has none (SetTexture's own answer is true either way, measured 2 Oct 2026).
 local function MapCheck()
@@ -1404,15 +1495,18 @@ local function MapCheck()
             ns.Print(("%s: the addon's own picture, until the game has art for it"):format(key))
         elseif not seen[map.art] then
             seen[map.art] = true
-            local found = {}
-            for n = 1, 10 do
-                probe:SetTexture(ART:format(map.art, map.art, n, 1))
-                local id = probe:GetTextureFileID()
-                if type(id) == "number" and id > 0 then found[#found + 1] = n end
-            end
+            local found = FloorsOf(map.art)
             ns.Print(("%s (%s): %s, data says %d"):format(map.art, key,
                 #found > 0 and "floors " .. table.concat(found, ",") or "no art", map.floors))
         end
+    end
+    for key, names in pairs(MAYBE_ART) do
+        local hits = {}
+        for _, art in ipairs(names) do
+            local found = FloorsOf(art)
+            if #found > 0 then hits[#hits + 1] = art .. " (floors " .. table.concat(found, ",") .. ")" end
+        end
+        ns.Print(("%s, other names tried: %s"):format(key, #hits > 0 and table.concat(hits, ", ") or "none found"))
     end
     probe:SetTexture(nil)
     ns.Print(("Portraits: %s. Your position in here: %s."):format(

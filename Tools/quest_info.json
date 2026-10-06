@@ -1155,6 +1155,22 @@
   "name": "The Wrath of Rath'mael",
   "reqlevel": 15
  },
+ "92456": {
+  "name": "A Green Sample",
+  "reqlevel": 24
+ },
+ "92457": {
+  "name": "Starving Arcane",
+  "reqlevel": 24
+ },
+ "92458": {
+  "name": "Heart of Disruption",
+  "reqlevel": 24
+ },
+ "92489": {
+  "name": "Power Overwhelming",
+  "reqlevel": 24
+ },
  "92646": {
   "name": "Confront Lorthuna",
   "reqlevel": 7
@@ -1246,6 +1262,22 @@
  "96403": {
   "name": "Important Heirlooms",
   "reqlevel": 10
+ },
+ "96984": {
+  "name": "Heart of Disruption",
+  "reqlevel": 24
+ },
+ "96986": {
+  "name": "The Grave Knight",
+  "reqlevel": 24
+ },
+ "96987": {
+  "name": "Opportunistic Education",
+  "reqlevel": 24
+ },
+ "96988": {
+  "name": "Source of Power",
+  "reqlevel": 24
  },
  "971": {
   "name": "Knowledge in the Deeps",

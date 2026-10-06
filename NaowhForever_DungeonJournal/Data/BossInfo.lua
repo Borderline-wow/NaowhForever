@@ -45,9 +45,15 @@ ns.Journal.BossInfo = {
     [8923] = { 57, 57, 2, 4, nil },  -- Panzor the Invincible
     [8929] = { 58, 58, 1, 7, "Princess of Ironforge" },  -- Princess Moira Bronzebeard
     -- City of Dalaran
+    [247126] = { -1, -1, 1, 7, nil },  -- Atrexis the Grave Knight
+    [245999] = { -1, -1, 1, 4, nil },  -- Arcane Anomaly
+    [246003] = { -1, -1, 1, 3, nil },  -- Fel Ancient
     [246017] = { -1, -1, 1, 4, nil },  -- Unstable Sentinel
     [246020] = { -1, -1, 1, 4, nil },  -- Shade of the Archmage
     [247032] = { -1, -1, 2, 7, nil },  -- Lyn the Ignored
+    [246931] = { -1, -1, 1, 4, nil },  -- Mana Wraith
+    [246008] = { -1, -1, 1, 3, nil },  -- Mana Devourer
+    [246016] = { -1, -1, 1, 4, nil },  -- Arcanic Enigma
     -- The Deadmines
     [644] = { 19, 19, 1, 7, "The Foreman" },  -- Rhahk'Zor
     [642] = { 20, 20, 1, 9, "Lumbermaster" },  -- Sneed's Shredder

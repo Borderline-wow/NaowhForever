@@ -368,6 +368,8 @@ function ViewMixin:Begin(dungeon, boss, query, page)
     if dungeon ~= self.dungeon or boss ~= self.boss or query ~= self.query or page ~= self.page then
         self.pinned = nil
     end
+    -- On another dungeon: a map window opened from this Journal shows that one's map.
+    if dungeon and dungeon ~= self.dungeon then J.FollowDungeonMap(self, dungeon) end
     self.dungeon, self.boss, self.query, self.page = dungeon, boss, query, page
     self:Clear()
     self.questsDrawn = false

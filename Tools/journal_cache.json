@@ -3227,12 +3227,18 @@
   ],
   "new": false
  },
+ "drops5:245999": [],
+ "drops5:246003": [],
+ "drops5:246008": [],
+ "drops5:246016": [],
  "drops5:246017": [],
  "drops5:246020": {
   "items": [],
   "new": true
  },
+ "drops5:246931": [],
  "drops5:247032": [],
+ "drops5:247126": [],
  "drops5:249787": [],
  "drops5:249790": [],
  "drops5:250070": [],
@@ -17644,6 +17650,15 @@
   "slot": 15,
   "subclass": 3
  },
+ "item:273045": {
+  "class": 4,
+  "id": 273045,
+  "level": 32,
+  "quality": 3,
+  "reqlevel": 27,
+  "slot": 16,
+  "subclass": -6
+ },
  "item:273046": {
   "class": 2,
   "id": 273046,
@@ -17841,6 +17856,15 @@
   "reqlevel": 25,
   "slot": 14,
   "subclass": 6
+ },
+ "item:273817": {
+  "class": 2,
+  "id": 273817,
+  "level": 28,
+  "quality": 3,
+  "reqlevel": 23,
+  "slot": 17,
+  "subclass": 5
  },
  "item:273820": {
   "class": 4,
@@ -19493,9 +19517,15 @@
  "model:1720": 2142,
  "model:1763": 7124,
  "model:1853": 11070,
+ "model:245999": 129891,
+ "model:246003": 129894,
+ "model:246008": 129895,
+ "model:246016": 129900,
  "model:246017": 129954,
  "model:246020": 130061,
+ "model:246931": 130220,
  "model:247032": 130235,
+ "model:247126": 145787,
  "model:249787": null,
  "model:249790": null,
  "model:250070": null,

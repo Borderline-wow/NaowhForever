@@ -2493,6 +2493,46 @@
    "type": 7
   }
  },
+ "245999": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 4
+  }
+ },
+ "246003": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "246008": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 3
+  }
+ },
+ "246016": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 4
+  }
+ },
  "246017": {
   "abilities": [],
   "npc": {
@@ -2513,10 +2553,30 @@
    "type": 4
   }
  },
+ "246931": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 4
+  }
+ },
  "247032": {
   "abilities": [],
   "npc": {
    "classification": 2,
+   "maxlevel": null,
+   "minlevel": null,
+   "tag": null,
+   "type": 7
+  }
+ },
+ "247126": {
+  "abilities": [],
+  "npc": {
+   "classification": 1,
    "maxlevel": null,
    "minlevel": null,
    "tag": null,

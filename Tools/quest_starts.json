@@ -3594,6 +3594,34 @@
   "zone": 1638
  },
  "92415": null,
+ "92432": {
+  "coord": [
+   48.3,
+   60.1
+  ],
+  "npc": "Emissary Jacques",
+  "npcId": 247264,
+  "zone": 267
+ },
+ "92434": {
+  "coord": [
+   61.6,
+   20.8
+  ],
+  "npc": "Magus Wordeen Voidglare",
+  "npcId": 2410,
+  "zone": 267
+ },
+ "92458": null,
+ "92489": {
+  "coord": [
+   37.6,
+   81.6
+  ],
+  "npc": "High Sorcerer Andromath",
+  "npcId": 5694,
+  "zone": 1519
+ },
  "92646": {
   "coord": [
    65.2,

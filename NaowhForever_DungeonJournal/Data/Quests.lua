@@ -14,6 +14,8 @@
 --  ranges, which Forever's quest levels still match. map is nil where the instance ID is not
 --  in the client's Map table yet (still encrypted in 1.60.1); those are matched by the
 --  instance name GetInstanceInfo reports, so the name must be the client's own.
+--  City of Dalaran's quests are by hand too, from their Wowhead Forever quest pages
+--  (2026-10-05); the Stormwind spot is converted like the guide's.
 --
 --  Optional per quest, from Wowhead's Forever quest database (2026-09-26), filled in
 --  for the dungeons up to level 20 so far: alt = the same quest's other versions (one
@@ -138,7 +140,16 @@ J.QuestData = {
         { 1221, "Blueleaf Tubers", 20, "B", false, "The Barrens, Ratchet - Mebok Mizzyrix Don't forget quest items next to Mizzyrix. (62.4, 37.6)", 1413, 62.4, 37.6 },
         { 1144, "Willix the Importer", 22, "B", false, "Razorfen Kraul, Tent near final boss - Willix the Importer" },
     } },
-    { name = "City of Dalaran", map = 2959, levels = { 28, 33 }, quests = {} },
+    { name = "City of Dalaran", map = 2959, levels = { 28, 33 }, quests = {
+        { 92457, "Starving Arcane", 33, "B", true, "Outside the City of Dalaran - Archmage Modera" },
+        { 92489, "Power Overwhelming", 33, "A", true, "Stormwind - High Sorcerer Andromath (48.7, 87.8)", 1453, 48.7, 87.8 },
+        { 92458, "Heart of Disruption", 33, "A", false, "Near the City of Dalaran - Image of Archmage Modera, after An Alarming Request" },
+        { 92456, "A Green Sample", 33, "A", true, "Stormwind - Shylamiir" },
+        { 96986, "The Grave Knight", 33, "H", true, "Hillsbrad Foothills, Tarren Mill - Melisara (62.6, 20.6)", 1424, 62.6, 20.6 },
+        { 96988, "Source of Power", 33, "H", true, "Undercity - Doctor Martin Felben (46.6, 74.4)", 1458, 46.6, 74.4 },
+        { 96984, "Heart of Disruption", 33, "H", false, "Silverpine Forest, near the City of Dalaran - Image of Archmage Modera, after Blood in the Streets (68.6, 45.2)", 1421, 68.6, 45.2 },
+        { 96987, "Opportunistic Education", 33, "H", true, "By the City of Dalaran's sewer entrance - Rexxie Copperclutch" },
+    } },
     -- Scarlet Monastery's four wings share one instance (189), each its own dungeon here with
     -- classic's ranges; the Journal tells them apart by the subzone you stand in (Journal.lua).
     -- A quest goes under the wing it is done in: Hearts of Zeal (hearts from any wing) under the

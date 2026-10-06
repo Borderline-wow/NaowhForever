@@ -1981,6 +1981,266 @@ do
     ns.DungeonMapCommand("mappins")
     J.OpenDungeonMap(ragefire)
     check("a second Map closes it", true)
+    -- A dungeon with two floors of the addon's own pictures: one images line keeps both.
+    local ubrs = J.Get("UpperBlackrockSpire")
+    J.OpenDungeonMap(ubrs)
+    ns.DungeonMapCommand("mappins")
+    for _, button in ipairs(state.buttons) do
+        if button.label == "Copy" then copy = button end
+    end
+    state.copied = nil
+    copy.onClick()
+    text = state.copied and state.copied.text or ""
+    local _, imageLines = text:gsub("images = ", "")
+    check("Copy gives one images line", imageLines == 1)
+    local pasted = assert(loadstring("return {\n" .. text .. "\n}"))().UpperBlackrockSpire
+    check("which keeps every floor's picture", pasted.images[8] == J.Maps.UpperBlackrockSpire.images[8]
+        and pasted.images[9] == J.Maps.UpperBlackrockSpire.images[9])
+    check("and the floors in the order you walk them", text:find("order = { 9, 8, 7 },", 1, true) ~= nil)
+    ns.DungeonMapCommand("mappins")
+    J.OpenDungeonMap(ubrs)
+
+    local NOT_PLACED = {
+        BlackrockDepths = { [9024] = "Pyromancer Loregrain", [9499] = "Plugger Spazzring",
+            [9537] = "Hurley Blackbreath", [9543] = "Ribbly Screwspigot" },
+        Dalaran = { [246008] = "Mana Devourer", [246931] = "Mana Wraith", [247032] = "Lyn the Ignored" },
+        LowerBlackrockSpire = { [10584] = "Urok Doomhowl" },
+        RazorfenKraul = { [6168] = "Roogug" },
+        Scholomance = { [10432] = "Vectus", [10433] = "Marduk Blackpool", [10508] = "Ras Frostwhisper",
+            [16118] = "Kormok" },
+        Stratholme = { [10393] = "Skul", [10809] = "Stonespine", [11143] = "Postmaster Malown" },
+        SunkenTemple = { [8580] = "Atal'alarion" },
+        UpperBlackrockSpire = { [16042] = "Lord Valthalak" },
+    }
+    local function MapFloorsAndGaps(key, map, dungeon)
+        local function Offered(n)
+            if map.floor then return n == map.floor end
+            if map.order then
+                for _, m in ipairs(map.order) do
+                    if m == n then return true end
+                end
+                return false
+            end
+            return n >= 1 and n <= map.floors
+        end
+        for id, spot in pairs(map.pins) do
+            check("on a floor its switch offers: " .. key .. " " .. id, Offered(spot[1]))
+        end
+        check("its entrance on a floor its switch offers: " .. key, map.entrance == nil or Offered(map.entrance[1]))
+        local function Shipped(path)
+            local file = io.open(path:gsub("^Interface\\AddOns\\NaowhForever\\", ""):gsub("\\", "/") .. ".tga", "rb")
+            if file then file:close() end
+            return file ~= nil
+        end
+        if map.image then
+            check("its picture is shipped: " .. key, Shipped(map.image))
+            for n = 2, map.floors do
+                check("its floor's picture is shipped: " .. key .. " " .. n, Shipped(map.image .. n))
+            end
+        end
+        for n, path in pairs(map.images or {}) do
+            check("its floor's picture is shipped: " .. key .. " " .. n, Shipped(path))
+            check("and offered: " .. key .. " " .. n, Offered(n))
+        end
+        if next(map.pins) == nil then return end
+        local waiting = NOT_PLACED[key] or {}
+        for _, wing in ipairs(dungeon.wings) do
+            for _, boss in ipairs(wing.bosses) do
+                if boss.npc and boss.encounters and #boss.encounters > 0 then
+                    check("a boss with an encounter is pinned or listed as not placed yet: " .. key .. " "
+                        .. boss.name, (map.pins[boss.npc] ~= nil) ~= (waiting[boss.npc] ~= nil))
+                end
+            end
+        end
+    end
+
+    local function FloorsAndFollowing()
+        local function FloorsOf(shownView)
+            local list = {}
+            for i, n in ipairs(shownView.floors) do list[i] = n end
+            return table.concat(list, ",")
+        end
+        local function ShownView(name)
+            local pin = PinFor(name)
+            return pin and pin.view
+        end
+        local savedPins = state.account.journalMapPins
+        state.account.journalMapPins = nil
+        J.OpenDungeonMap(ubrs)
+        local ubrsView = ShownView("Pyroguard Emberseer")
+        check("Upper Blackrock Spire: its three floors, walked from Dragonspire Hall", ubrsView ~= nil
+            and FloorsOf(ubrsView) == "9,8,7")
+        check("on its first boss's floor, the addon's picture of it", ubrsView.floor == 8
+            and rawget(ubrsView.picture, "shown") == true
+            and ubrsView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\UpperBlackrockSpire8"
+            and rawget(ubrsView.tiles[1], "shown") == false)
+        check("named for the switch", rawget(ubrsView.floorName, "text") == "Hall of Binding and the Rookery")
+        ubrsView:Step(1)
+        check("the art's seventh floor next, numbered as walked", ubrsView.floor == 7
+            and rawget(ubrsView.floorName, "text") == "Floor 3" and rawget(ubrsView.picture, "shown") == false
+            and ubrsView.tiles[1].texture == "Interface\\WorldMap\\BlackrockSpire\\BlackrockSpire7_1")
+        check("with Rend's pin on it", PinFor("Warchief Rend Blackhand") ~= nil and PinFor("Pyroguard Emberseer") == nil)
+        ubrsView:Step(1)
+        check("then round to Dragonspire Hall, where you come in", ubrsView.floor == 9
+            and rawget(ubrsView.floorName, "text") == "Dragonspire Hall"
+            and ubrsView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\UpperBlackrockSpire9")
+        local rend = RowFor("Warchief Rend Blackhand")
+        rend.scripts.OnClick(rend)
+        check("a mapRow of a boss on another floor goes to its floor", ubrsView.floor == 7
+            and rawget(PinFor("Warchief Rend Blackhand").gold, "shown") == true)
+        J.OpenDungeonMap(J.Get("LowerBlackrockSpire"))
+        check("Lower Blackrock Spire: only the art's first six floors",
+            FloorsOf(ShownView("War Master Voone") or ShownView("Highlord Omokk")) == "1,2,3,4,5,6")
+        J.OpenDungeonMap(J.Get("ShadowfangKeep"))
+        local sfkView = ShownView("Rethilgore")
+        check("Shadowfang Keep: the art's seventh floor third", FloorsOf(sfkView) == "1,2,7,4,6")
+        sfkView:Step(2)
+        check("and called Floor 3", sfkView.floor == 7 and rawget(sfkView.floorName, "text") == "Floor 3")
+        local odo = RowFor("Odo the Blindwatcher")
+        odo.scripts.OnEnter(odo)
+        check("hovering a mapRow lights its pin on the floor shown", rawget(PinFor("Odo the Blindwatcher").glow, "shown") == true)
+        odo.scripts.OnLeave(odo)
+        sfkView:Step(1)
+        check("Floor 5 after it", sfkView.floor == 4 and rawget(sfkView.floorName, "text") == "Floor 5"
+            and PinFor("Odo the Blindwatcher") == nil and PinFor("Fenrus the Devourer") ~= nil)
+        for _, key in ipairs({ "RazorfenDowns", "Uldaman", "Maraudon", "SunkenTemple", "BlackrockDepths", "DireMaul",
+            "LowerBlackrockSpire", "UpperBlackrockSpire", "Scholomance", "Stratholme", "Dalaran", "ShadowfangKeep",
+            "Deadmines" }) do
+            local dungeon = J.Get(key)
+            J.OpenDungeonMap(dungeon)
+            local shownView
+            for _, mapRow in ipairs(Rows()) do
+                shownView = shownView or (PinFor(mapRow.boss.name) and PinFor(mapRow.boss.name).view)
+            end
+            local lit, linked, seen = true, true, 0
+            for _ = 1, shownView and #shownView.floors or 0 do
+                for _, mapRow in ipairs(Rows()) do
+                    local pin = PinFor(mapRow.boss.name)
+                    if pin then
+                        seen = seen + 1
+                        mapRow.scripts.OnEnter(mapRow)
+                        lit = lit and rawget(pin.glow, "shown") == true
+                        mapRow.scripts.OnLeave(mapRow)
+                        pin.scripts.OnEnter(pin)
+                        lit = lit and rawget(mapRow.hover, "shown") == true
+                        pin.scripts.OnLeave(pin)
+                    end
+                    local spot = J.Maps[key].pins[mapRow.key]
+                    if spot and spot[1] ~= shownView.floor then
+                        local at = shownView.floor
+                        mapRow.scripts.OnClick(mapRow)
+                        local there = PinFor(mapRow.boss.name)
+                        linked = linked and shownView.floor == spot[1] and there ~= nil and rawget(there.gold, "shown") == true
+                        shownView.floor = at
+                        shownView:Draw()
+                    end
+                end
+                shownView:Step(1)
+            end
+            local pinned = 0
+            for _ in pairs(J.Maps[key].pins) do pinned = pinned + 1 end
+            check(key .. ": its rows and pins light each other on every floor", shownView ~= nil and lit and seen == pinned)
+            check(key .. ": a mapRow goes to its pin's floor", linked)
+            J.OpenDungeonMap(dungeon)
+        end
+
+        local dalaran = J.Get("Dalaran")
+        J.OpenDungeonMap(dalaran)
+        local dalRows = Rows()
+        check("City of Dalaran: a mapRow for each of its nine bosses", #dalRows == 9 and #KillOrder(dalaran) == 9
+            and dalRows[1].boss.name == "Atrexis the Grave Knight")
+        local inKillOrder = true
+        for i, name in ipairs({ "Atrexis the Grave Knight", "Arcane Anomaly", "Fel Ancient", "Unstable Sentinel",
+            "Shade of the Archmage" }) do
+            if dalRows[i].boss.name ~= name or rawget(dalRows[i].mark.badge.text, "text") ~= i then inKillOrder = false end
+        end
+        check("numbered in kill order", inKillOrder)
+        check("Lyn the Ignored a rare", rawget(RowFor("Lyn the Ignored").tag, "text") == "RARE")
+        check("the Mana Wraith optional", rawget(RowFor("Mana Wraith").tag, "text") == "OPTIONAL")
+        local dalView = ShownView("Atrexis the Grave Knight")
+        check("opens in the Underbelly, its first picture", dalView ~= nil and dalView.floor == 1
+            and FloorsOf(dalView) == "1,2"
+            and dalView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\Dalaran"
+            and rawget(dalView.floorName, "text") == "The Underbelly")
+        check("Atrexis alone there", PinFor("Arcane Anomaly") == nil)
+        local shade = RowFor("Shade of the Archmage")
+        shade.scripts.OnClick(shade)
+        check("a mapRow on the city's floor goes up to it", dalView.floor == 2
+            and dalView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\Dalaran2"
+            and rawget(dalView.floorName, "text") == "City of Dalaran")
+        check("its pin ringed there, Atrexis's gone", rawget(PinFor("Shade of the Archmage").gold, "shown") == true
+            and PinFor("Atrexis the Grave Knight") == nil)
+        local anomaly = PinFor("Arcane Anomaly")
+        anomaly.scripts.OnEnter(anomaly)
+        check("its pins light their rows", rawget(RowFor("Arcane Anomaly").hover, "shown") == true)
+        anomaly.scripts.OnLeave(anomaly)
+
+        dalView:Step(-1)
+        ns.DungeonMapCommand("mappins")
+        check("placing: Arcane Anomaly waits along the top, from the city", PinFor("Arcane Anomaly") ~= nil
+            and PinFor("Arcane Anomaly").atX == nil and PinFor("Arcane Anomaly").elsewhere == "City of Dalaran")
+        check("Atrexis stays where it is", PinFor("Atrexis the Grave Knight").atX ~= nil
+            and PinFor("Atrexis the Grave Knight").elsewhere == nil)
+        check("and the Mana Wraith, on no floor yet, waits too", PinFor("Mana Wraith").atX == nil
+            and PinFor("Mana Wraith").elsewhere == nil)
+        local tray, apart = {}, true
+        for i = 1, dalView.used do
+            if not dalView.pins[i].atX then tray[#tray + 1] = dalView.pins[i] end
+        end
+        for i = 2, #tray do
+            if tray[i].pointX == tray[i - 1].pointX then apart = false end
+        end
+        check("each in its own place along the top", #tray == 8 and apart)
+        local atrexis = PinFor("Atrexis the Grave Knight")
+        atrexis.scripts.OnClick(atrexis, "RightButton")
+        check("a right-click takes a pin off its floor", state.account.journalMapPins.Dalaran[247126] == false
+            and PinFor("Atrexis the Grave Knight").atX == nil)
+        state.copied = nil
+        copy.onClick()
+        text = state.copied and state.copied.text or ""
+        check("Copy leaves it out", text:find("[247126]", 1, true) == nil and text:find("[245999]", 1, true) ~= nil)
+        check("and keeps the floors' names",
+            text:find('names = { [1] = "The Underbelly", [2] = "City of Dalaran" },', 1, true) ~= nil)
+        ns.DungeonMapCommand("mappins")
+        check("taken off, it is on no floor, whatever the data says", PinFor("Atrexis the Grave Knight") == nil)
+        state.account.journalMapPins = nil
+        J.DrawDungeonMap()
+        check("until the placings are cleared", PinFor("Atrexis the Grave Knight") ~= nil)
+        J.OpenDungeonMap(dalaran)
+
+        local function MapLink(dungeon)
+            for _, made in ipairs(state.made) do
+                local titleLink = rawget(made, "link")
+                if rawget(made, "linkArg") == dungeon and titleLink and rawget(titleLink.text, "text") == "Map"
+                    and rawget(made, "shown") ~= false then
+                    return made
+                end
+            end
+        end
+        local folded = state.account.journalMapFolded
+        state.account.journalMapFolded = nil
+        ns.OpenJournalWindow(ragefire)
+        local mapLink = MapLink(ragefire)
+        mapLink.onLink(mapLink.linkArg, mapLink.link)
+        check("Map opens Ragefire Chasm's map beside the Journal", rawget(mapWindow, "shown") ~= false
+            and PinFor("Oggleflint") ~= nil)
+        ns.OpenJournalWindow(wailing)
+        check("the Journal on Wailing Caverns: the map follows", rawget(mapWindow, "shown") ~= false
+            and PinFor("Mutanus the Devourer") ~= nil and PinFor("Oggleflint") == nil and #Rows() == 9)
+        check("with its first boss picked", rawget(RowFor(wailing.wings[1].bosses[1].name).fill, "shown") == true)
+        ns.OpenJournalWindow(dalaran)
+        check("and to City of Dalaran", PinFor("Atrexis the Grave Knight") ~= nil and #Rows() == 9)
+        ns.OpenJournalWindow(J.Get("DrownedCity"))
+        check("a dungeon with no map closes it", rawget(mapWindow, "shown") == false)
+        ns.OpenJournalWindow(wailing)
+        check("closed, it stays closed", rawget(mapWindow, "shown") == false)
+        J.OpenDungeonMap(J.Get("Stockade"))
+        ns.OpenJournalWindow(ragefire)
+        check("a map opened from nothing stays on its dungeon", PinFor("Bazil Thredd") ~= nil and PinFor("Oggleflint") == nil)
+        J.OpenDungeonMap(J.Get("Stockade"))
+        state.account.journalMapPins, state.account.journalMapFolded = savedPins, folded
+    end
+    FloorsAndFollowing()
     -- The world map opening (M) puts the Journal's window away; closing it brings it back.
     ns.OpenJournalWindow(ragefire)
     local journalWindow
@@ -2071,10 +2331,15 @@ do
         check("a map is for a dungeon the Journal has: " .. key, dungeon ~= nil)
         check("its art and floors: " .. key, (type(map.art) == "string" or type(map.image) == "string")
             and map.floors >= 1)
-        -- The addon's own picture is in Media/Maps, one floor, for a dungeon the game has no art for.
+        -- The addon's own picture is in Media/Maps, for a dungeon the game has no art for.
         if map.image then
             check("its picture is the addon's: " .. key, map.image:find("^Interface\\AddOns\\NaowhForever\\Media\\Maps\\") ~= nil
-                and map.floors == 1 and map.art == nil)
+                and map.art == nil)
+        end
+        -- A floor the art lacks, as the addon's own picture.
+        for n, path in pairs(map.images or {}) do
+            check("its floor's picture is the addon's: " .. key .. " " .. n, type(map.art) == "string"
+                and n >= 1 and n <= map.floors and path:find("^Interface\\AddOns\\NaowhForever\\Media\\Maps\\") ~= nil)
         end
         -- Every pin is one of its bosses, on one of its floors, on the map.
         local bosses = {}
@@ -2089,6 +2354,7 @@ do
             check("on its map: " .. key .. " " .. id, spot[1] >= 1 and spot[1] <= map.floors
                 and spot[2] >= 0 and spot[2] <= 1 and spot[3] >= 0 and spot[3] <= 1)
         end
+        MapFloorsAndGaps(key, map, dungeon)
     end
 
     -- Ctrl+F, with the mouse on the window: the search box.

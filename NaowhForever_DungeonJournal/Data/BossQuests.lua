@@ -19,6 +19,9 @@ ns.Journal.BossQuests = {
     [8983] = { 4063 },  -- Golem Lord Argelmach: The Rise of the Machines
     [9019] = { 4003, 4362 },  -- Emperor Dagran Thaurissan: The Royal Rescue; The Fate of the Kingdom
     [8929] = { 4003, 4362 },  -- Princess Moira Bronzebeard: The Royal Rescue; The Fate of the Kingdom
+    -- City of Dalaran
+    [247126] = { 96986 },  -- Atrexis the Grave Knight: The Grave Knight
+    [246016] = { 92489 },  -- Arcanic Enigma: Power Overwhelming
     -- The Deadmines
     [639] = { 166 },  -- Edwin VanCleef: The Defias Brotherhood
     -- Dire Maul
