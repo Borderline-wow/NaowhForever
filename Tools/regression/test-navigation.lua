@@ -116,9 +116,10 @@ for _, name in ipairs({ "RegisterEvent", "RegisterUnitEvent", "UnregisterEvent",
     "SetFrameStrata", "SetScale", "SetMovable", "SetClampedToScreen", "EnableKeyboard", "SetPropagateKeyboardInput",
     "RegisterForDrag", "RegisterForClicks", "SetResizable", "SetResizeBounds", "SetNormalTexture", "SetHighlightTexture",
     "SetPushedTexture", "SetTexCoord", "SetTexelSnappingBias", "SetSnapToPixelGrid", "SetOrientation", "SetValueStep",
-    "SetObeyStepOnDrag", "SetThumbTexture", "EnableMouseWheel", "UpdateScrollChildRect", "SetToplevel",
+    "SetObeyStepOnDrag", "EnableMouseWheel", "UpdateScrollChildRect", "SetToplevel",
     "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor", "SetHitRectInsets", "HighlightText",
     "StartMoving", "StopMovingOrSizing", "StartSizing" }) do methods[name] = function() end end
+function methods:SetThumbTexture(t) self.thumbTexture = t end
 env.CreateFrame = New
 local VERBS = { "^Set", "^Get", "^Register", "^Unregister", "^Enable", "^Disable", "^Clear", "^Update",
     "^Start", "^Stop", "^Add", "^Remove", "^Play", "^Lock", "^Unlock" }
@@ -269,6 +270,46 @@ mainWindow:SetHeight(originalHeight)
 moduleScroll.scripts.OnSizeChanged(moduleScroll)
 Check(moduleScroll:GetVerticalScroll() == 0 and not moduleScroll.ScrollBar:IsShown(),
     "growing the window clears the scroll offset and hides the scrollbar")
+
+-- The page scrollbar drags itself: the thumb follows the cursor from where it was grabbed.
+local pageScroll
+for _, f in ipairs(frames) do if f.bar and f.parent == mainWindow then pageScroll = f end end
+local pageBar = pageScroll.bar
+local pageThumb, grip = pageBar.thumbTexture
+for _, f in ipairs(pageBar.children) do if f.scripts.OnMouseDown then grip = f end end
+Check(pageBar.mouse == false and grip.mouse, "the page scrollbar's own Slider drag is off, its grip takes the mouse")
+local cursorY, buttonDown = 0, true
+env.GetCursorPosition = function() return 0, cursorY end
+env.IsMouseButtonDown = function() return buttonDown end
+local BAR_TOP, THUMB_H, RANGE = 1000, 100, 1000
+local travel = pageBar:GetHeight() - THUMB_H
+pageThumb:SetHeight(THUMB_H)
+pageBar:SetMinMaxValues(0, RANGE)
+pageBar:SetValue(0)
+pageThumb.GetCenter = function() return 0, BAR_TOP - THUMB_H / 2 - pageBar:GetValue() / RANGE * travel end
+pageScroll.child:SetHeight(pageScroll:GetHeight() + RANGE)
+pageScroll.scripts.OnMouseWheel(pageScroll, -1)
+Check(pageScroll.scripts.OnUpdate ~= nil, "the page wheel glides")
+cursorY = BAR_TOP - THUMB_H / 2 + 10
+grip.scripts.OnMouseDown(grip, "LeftButton")
+Check(pageScroll.scripts.OnUpdate == nil, "grabbing the scrollbar stops a wheel glide")
+Check(pageBar:GetValue() == 0, "grabbing the thumb does not move it")
+cursorY = cursorY - travel / 2
+grip.scripts.OnUpdate(grip)
+Check(pageBar:GetValue() == RANGE / 2, "dragging down scrolls down, in step with the cursor")
+cursorY = cursorY + travel / 4
+grip.scripts.OnUpdate(grip)
+Check(pageBar:GetValue() == RANGE / 4, "dragging up scrolls back up")
+buttonDown = false
+grip.scripts.OnUpdate(grip)
+Check(grip.scripts.OnUpdate == nil, "letting go ends the drag")
+buttonDown = true
+cursorY = BAR_TOP - pageBar:GetHeight()
+grip.scripts.OnMouseDown(grip, "LeftButton")
+Check(pageBar:GetValue() == RANGE, "a press on the track brings the thumb to the cursor")
+grip.scripts.OnMouseUp(grip, "LeftButton")
+pageBar:SetValue(0)
+pageScroll:SetVerticalScroll(0)
 
 ns.OpenOptionsWindow("QoL/Combat"); Flush()
 local S = ns.QoLSettings

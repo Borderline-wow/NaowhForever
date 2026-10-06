@@ -1316,8 +1316,39 @@ function UI.SlimScroll(parent, width, gap)
     bar:SetMinMaxValues(0, 0)
     bar:Hide()
     bar:SetScript("OnValueChanged", function(_, value) scroll:SetVerticalScroll(value) end)
-    bar:SetScript("OnEnter", function() thumb:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1) end)
-    bar:SetScript("OnLeave", function() thumb:SetColorTexture(T.muted.r, T.muted.g, T.muted.b, 0.8) end)
+
+    -- The Slider's own thumb drag runs against the cursor on Forever, so a grip over the bar
+    -- takes the mouse and the drag is done here. A press on the track brings the thumb's
+    -- middle to the cursor, then drags from there.
+    bar:EnableMouse(false)
+    local grip = CreateFrame("Frame", nil, bar)
+    grip:SetAllPoints()
+    grip:EnableMouse(true)
+    grip:SetScript("OnEnter", function() thumb:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    grip:SetScript("OnLeave", function() thumb:SetColorTexture(T.muted.r, T.muted.g, T.muted.b, 0.8) end)
+    local grabY, grabValue
+    local function CursorY()
+        local _, y = GetCursorPosition()
+        return y / bar:GetEffectiveScale()
+    end
+    local function Drag(self)
+        if not IsMouseButtonDown("LeftButton") then return self:SetScript("OnUpdate", nil) end
+        local _, range = bar:GetMinMaxValues()
+        local travel = bar:GetHeight() - thumb:GetHeight()
+        if travel <= 0 then return end
+        bar:SetValue(math.max(0, math.min(range, grabValue + (grabY - CursorY()) / travel * range)))
+    end
+    grip:SetScript("OnMouseDown", function(self, button)
+        if button ~= "LeftButton" then return end
+        StopGlide(scroll)
+        grabY, grabValue = CursorY(), bar:GetValue()
+        local _, middle = thumb:GetCenter()
+        if math.abs(grabY - middle) > thumb:GetHeight() / 2 then grabY = middle end
+        self:SetScript("OnUpdate", Drag)
+        Drag(self)
+    end)
+    grip:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
+    grip:SetScript("OnHide", function(self) self:SetScript("OnUpdate", nil) end)
 
     scroll:SetScript("OnScrollRangeChanged", function(self, _, range)
         range = range or self:GetVerticalScrollRange()
@@ -1331,8 +1362,8 @@ function UI.SlimScroll(parent, width, gap)
         if math.abs(bar:GetValue() - offset) > 0.5 then bar:SetValue(offset) end
     end)
     UI.SmoothWheel(scroll)
-    bar:EnableMouseWheel(true)
-    bar:SetScript("OnMouseWheel", function(_, delta) scroll:GetScript("OnMouseWheel")(scroll, delta) end)
+    grip:EnableMouseWheel(true)
+    grip:SetScript("OnMouseWheel", function(_, delta) scroll:GetScript("OnMouseWheel")(scroll, delta) end)
     scroll.bar = bar
     return scroll
 end
