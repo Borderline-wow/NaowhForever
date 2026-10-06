@@ -25,7 +25,7 @@ end
 -- Bumped by hand on every code change sent to a tester and printed beside the TOC version,
 -- which only moves on release. A report naming a stamp the reporter was not sent comes from
 -- a client that was not reloaded after the files changed.
-ns.CODE_BUILD = "0.5.22-beta"
+ns.CODE_BUILD = "0.5.23-beta"
 
 ns.FEATURE_BADGES = 0
 

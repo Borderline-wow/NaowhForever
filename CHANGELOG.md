@@ -1,6 +1,50 @@
 # Changelog
 
-## Unreleased
+## 0.5.23-beta
+
+### Added
+- Move Elements: the selected element shows its X and Y on a small tag just outside it. Type a
+  number and press Enter to move it there.
+- World map: a zone exit arrow on the new road between Stonetalon Mountains and Skywatcher Plateau,
+  above Thunder Bluff.
+
+### Changed
+- Unlock Mode is now called Move Elements.
+- Move Elements has its own look: dark movers with a blue strip, a quieter grid, and a toolbar in
+  the Naowh window style.
+- Move Elements: elements can no longer be anchored to each other or to a screen edge. Anchored
+  elements stay where they are.
+- Profiles: a new layout in cards. The profile in use sits on top with Reset, Copy and Delete
+  buttons and your other profiles under it with Use, the parts to share are a grid of switches
+  showing what each holds, and Import is a paste box with an Import button.
+- World map: zone exit arrows are longer and easier to see, and right-click no longer places a
+  waypoint (QoL > Town Map Pins).
+- World map: Unexplored Areas are darkened instead of greyed out, at 50% opacity by default (QoL >
+  Interface).
+- Quality of Life: six options have new names. Type DELETE For You (was Auto-Fill Delete
+  Confirmation), Hide Red Error Text, Turn Off Tutorials, Hide Screen Captured Text, Accept Quests
+  and Hand In Quests. Your settings are kept.
+- Options window: the search box is now Search (Ctrl+F), a bar under the header that steps through
+  every matching setting.
+- Options window: the Reload UI / Close bar at the bottom is gone. Reload UI is in the header, close
+  with the X or Escape. The sidebar is one list without the Adventure, Combat and Utilities titles.
+- Move Elements: the tag under the selected element also has Center and Settings. Snapping, the cog
+  menu and the hover animation are gone. Shift + arrow keys move 10 pixels.
+- Move Elements: Restock, Pet Tracker, Durability, Talent Points and Camp Nearby move together as
+  one Alerts group, and alerts showing at the same time stack upward instead of overlapping.
+- QoL > Combat: Emote Detection is gone, and Auto Emotes is now Summon Emote, an /emote of your own
+  when you start casting a summon.
+- AddOns list: Naowh Forever is its own entry, with its modules under it, instead of sitting under
+  NaowhUI.
+- Smart Reminders is now its own addon that you switch on and off under Settings > Modules, like the
+  other modules. Restart the game once after updating (a /reload is not enough) so it finds the new
+  addon.
+
+### Fixed
+- Scrollbars in the settings window and the module windows follow the cursor when dragged, instead
+  of jumping and moving the wrong way.
+- Minimap: mailboxes show with Mailboxes & Spirit Healers on Minimap on, even when the world map's
+  Mailboxes toggle is off.
 
 ## 0.5.22-beta
 

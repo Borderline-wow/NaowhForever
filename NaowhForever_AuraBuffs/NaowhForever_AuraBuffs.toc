@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: AuraBuffs
 ## Notes: Buff, campfire and low health reminders.
 ## Author: Naowh
-## Version: 0.5.22-beta
+## Version: 0.5.23-beta
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
