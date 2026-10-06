@@ -20,7 +20,7 @@ globals = {
     "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHUITANK1", "SLASH_NAOWHFOREVERAIM1",
     "BINDING_HEADER_NAOWHFOREVER", "BINDING_NAME_NAOWHFOREVER_BAGSPACE_PICKUP",
     "BINDING_NAME_NAOWHFOREVER_BOSSLOOT", "BINDING_NAME_NAOWHFOREVER_JOURNAL", "BINDING_NAME_NAOWHFOREVER_BIS",
-    "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin", "NaowhForeverLibraryPinMixin", "NaowhForeverSleepingBagPinMixin",
+    "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin", "NaowhForeverUnexploredPinMixin", "NaowhForeverLibraryPinMixin", "NaowhForeverSleepingBagPinMixin",
     "SlashCmdList", "hash_SlashCmdList", "StaticPopupDialogs",
     "STANDARD_TEXT_FONT", "UNIT_NAME_FONT", "DAMAGE_TEXT_FONT", "RXPGuides_Themes",
 }
@@ -102,6 +102,7 @@ read_globals = {
     "LOCALIZED_CLASS_NAMES_MALE", "LoggingCombat", "LootFrame", "LootSlot",
     "LOOT_ITEM_PUSHED_SELF", "LOOT_ITEM_PUSHED_SELF_MULTIPLE", "LOOT_ITEM_SELF",
     "LOOT_ITEM_SELF_MULTIPLE", "MainMenuBarVehicleLeaveButton", "MapCanvasDataProviderMixin", "MapCanvasPinMixin",
+    "C_MapExplorationInfo", "CreateTexturePool",
     "MAX_PARTY_MEMBERS", "MAX_RAID_MEMBERS", "Menu", "MenuUtil", "MenuVariants",
     "MerchantFrame", "Mixin", "MovieFrame", "MuteSoundFile", "NumTaxiNodes",
     "NUM_BAG_SLOTS", "NUM_CHAT_WINDOWS", "NUM_PET_ACTION_SLOTS",
