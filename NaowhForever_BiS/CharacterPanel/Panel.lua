@@ -9,7 +9,9 @@
 --  EllesmereUI's Character Sheet off (its own switch, EllesmereUIDB.themedCharacterSheet, as its
 --  options set it), and turning Naowh's off turns it back on, if it was Naowh's that turned it
 --  off; either way after a reload, which EllesmereUI needs to swap its look. Should EllesmereUI's
---  come back on by other means, Naowh's stands down.
+--  come back on by other means, Naowh's stands down. With both on, a player new to Naowh Forever
+--  (the welcome not seen yet) gets Naowh's from the next reload, told in chat; anyone else is
+--  asked once.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -57,7 +59,7 @@ S.OnChange(function(key, value)
     if key == "characterPanel" then SwapEllesmere(value == true) end
 end)
 
-local ASK = "EllesmereUI's character panel is on. Naowh Forever has its own, in the BiS List's look. "
+local ASK = "EllesmereUI's character panel is on. Naowh's is recommended, as it comes with more features. "
     .. "Use Naowh's instead?"
 
 local function UseOurs()
@@ -70,10 +72,21 @@ local function KeepTheirs()
     S.Set("characterPanel", false)
 end
 
+local TAKEN = "Naowh's character panel takes over from EllesmereUI's after your next reload."
+local newcomer
+
+local function TakeOver()
+    S.Set("characterPanelAsked", true)
+    _G.EllesmereUIDB.themedCharacterSheet = false
+    S.Set("characterPanelTookOver", true)
+    ns.Print(TAKEN)
+end
+
 local function AskOnce()
     if InCombatLockdown() or S.Get("characterPanelAsked") then return end
     if not (S.Get("enabled") and S.Get("characterPanel") and CP.EllesmereSheet()) then return end
     if type(_G.EllesmereUIDB) ~= "table" then return end
+    if newcomer then return TakeOver() end
     ns.Confirm(ASK, UseOurs, KeepTheirs, "Use Naowh's", "Keep EllesmereUI's")
 end
 
@@ -81,5 +94,11 @@ local asker = CreateFrame("Frame")
 asker:RegisterEvent("PLAYER_ENTERING_WORLD")
 asker:SetScript("OnEvent", function(self)
     self:UnregisterAllEvents()
+    newcomer = not ns.AccountSettings().welcomeSeen
     C_Timer.After(ASK_DELAY, AskOnce)
 end)
+
+function CP._AskForTest(isNew)
+    newcomer = isNew
+    AskOnce()
+end

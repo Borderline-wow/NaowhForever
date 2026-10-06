@@ -118,6 +118,8 @@ page:Card({
         { key = "bisBagMarks", label = "Bag Marks", toggle = true, needs = "bis", why = BIS_OFF,
           help = "Your BiS List's slot marks on the items in your bags: item level, your BiS's star, Forever's "
               .. "mark and the green arrow on an upgrade. In the game's bags or EllesmereUI's." },
+        { key = "bisBagLevels", label = "Item Level in Bags", toggle = true, needs = "bisBagMarks",
+          why = "Turn on Bag Marks", help = "Each gear item's level in the corner of its bag slot." },
     },
 })
 

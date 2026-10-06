@@ -371,6 +371,12 @@ S.Set("characterPanelMarks", true)
 S.Set("characterPanelEnchants", false)
 check("Enchant Dots off: no dot", c.wand.shown == false)
 S.Set("characterPanelEnchants", true)
+statsList.shown = false
+CP.ApplyScore()
+check("the game's titles or gear sets in the pane: no score over them", badge.shown == false)
+statsList.shown = nil
+CP.ApplyScore()
+check("its stats back: the score back", badge.shown == true)
 S.Set("characterPanelScore", false)
 check("Naowh Score off: no score in the corner", badge.shown == false)
 
@@ -593,10 +599,38 @@ S.Set("characterPanel", true)
 S.Set("characterPanel", false)
 check("EllesmereUI's turned off by you: ours on and off leaves it off, no reload asked",
     db.themedCharacterSheet == false and state.reloads == 2)
+-- With both on at login: a newcomer gets ours from the next reload, told in chat; anyone else is
+-- asked, once.
+local asked, printed = 0, {}
+env.InCombatLockdown = function() return false end
+ns.Confirm = function() asked = asked + 1 end
+ns.Print = function(text) printed[#printed + 1] = text end
+local function BothOn()
+    db.themedCharacterSheet = true
+    S.Set("characterPanelAsked", false)
+    S.Set("characterPanelTookOver", false)
+    S.Set("characterPanel", true)
+    db.themedCharacterSheet = true
+end
+BothOn()
+local reloads = state.reloads
+CP._AskForTest(true)
+check("a newcomer: ours from the next reload, no question, no reload popup, told in chat",
+    db.themedCharacterSheet == false and asked == 0 and state.reloads == reloads and #printed == 1
+    and printed[1]:find("next reload", 1, true) and S.Get("characterPanelTookOver") and S.Get("characterPanelAsked"))
+CP._AskForTest(true)
+check("and only once", #printed == 1)
+BothOn()
+CP._AskForTest(false)
+check("anyone else: asked, EllesmereUI's left as it is", asked == 1 and db.themedCharacterSheet == true and #printed == 1)
+S.Set("characterPanelAsked", true)
+CP._AskForTest(false)
+check("once", asked == 1)
 env.EllesmereUIDB, env.EllesmereUI = nil, nil
+reloads = state.reloads
 S.Set("characterPanel", true)
 S.Set("characterPanel", false)
-check("without EllesmereUI: nothing to swap, no reload asked", state.reloads == 2)
+check("without EllesmereUI: nothing to swap, no reload asked", state.reloads == reloads)
 
 -------------------------------------------------------------------------------
 --  ns.FEATURE_BADGES = 0: the badge file builds and hooks nothing, and the panel's card has

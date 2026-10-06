@@ -8,7 +8,8 @@
 --
 --  Ours is a frame over each bag button, kept in our own table (nothing stored on theirs), and
 --  painted after the bag paints the slot. Off, nothing is hooked or made; turned off after
---  being on, ours hide and EllesmereUI's hook is let go. Item levels show on gear only.
+--  being on, ours hide and EllesmereUI's hook is let go. Item levels show on gear only, and
+--  only with Item Level in Bags on (EllesmereUI's own shows again when ours is off).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -65,7 +66,7 @@ local function Paint(set, id, link)
     end
     set:Show()
     local gear = Items.SlotsFor(id) ~= nil
-    local level = gear and GetDetailedItemLevelInfo(link or id) or nil
+    local level = gear and S.Get("bisBagLevels") and GetDetailedItemLevelInfo(link or id) or nil
     local upgrade = gear and SW.BestGain(id, link, Weights()) ~= nil
     return Parts.PaintItemMarks(set, level, ns.IsBisItem(id), Parts.IsForever("items", id), upgrade)
 end
@@ -167,6 +168,6 @@ end
 B.ApplyBagMarks = Apply
 
 S.OnChange(function(key)
-    if key == "enabled" or key == "bis" or key == "bisBagMarks" then Apply() end
+    if key == "enabled" or key == "bis" or key == "bisBagMarks" or key == "bisBagLevels" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)

@@ -95,7 +95,7 @@ local S = UI.ModuleSettings("qol", {
     mapUnexplored = false, mapUnexploredDark = 0.5,
     gearSets = true, gearBarVisible = true, trinketBar = false, trinketSize = 36, trinketSpacing = 4, gearBarSize = 32, gearMounted = "", gearResting = "",
     gearWindowAlpha = 1,
-    bis = true, bisTooltip = true, bisBagMarks = true, bisLootAlert = true, bisWindowAlpha = 1,
+    bis = true, bisTooltip = true, bisBagMarks = true, bisBagLevels = true, bisLootAlert = true, bisWindowAlpha = 1,
     -- Drop Alert: which picks, what it does, and its on-screen alert (BiS/View/Toast.lua).
     bisAlertFor = "all", bisAlertChat = true, bisAlertBadge = true, bisToast = true,
     bisDropSound = "game:raidwarning", bisYoursSound = "game:epicloot",

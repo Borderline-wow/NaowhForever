@@ -6,8 +6,9 @@
 --  share of the best it is graded against, that best under its end, and with Both your level's
 --  goal as a gold tick on it (named in the tooltip) while short of the best in the game. Only
 --  the score: your BiS's is the BiS List's. Hover it for the score with your BiS, your level's
---  goal and the best in the game; click it for the BiS List. Painted when the panel opens
---  and, while it is open, when your gear changes.
+--  goal and the best in the game; click it for the BiS List. Shown only with the game's stats,
+--  not its titles or gear sets, which take the same room. Painted when the panel opens and,
+--  while it is open, when your gear changes.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -185,9 +186,14 @@ local function Apply()
             pane:HookScript("OnShow", Apply)
             pane:HookScript("OnHide", Apply)
         end
+        if CharacterStatsPaneScrollBox then
+            CharacterStatsPaneScrollBox:HookScript("OnShow", Apply)
+            CharacterStatsPaneScrollBox:HookScript("OnHide", Apply)
+        end
     end
     if not installed then return end
-    badge:SetShown(on and CharacterLevelText:IsVisible())
+    local stats = CharacterStatsPaneScrollBox
+    badge:SetShown(on and CharacterLevelText:IsVisible() and (not stats or stats:IsVisible()))
     if on and badge:IsVisible() then Paint() end
 end
 CP.ApplyScore = Apply
