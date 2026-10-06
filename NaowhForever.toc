@@ -92,6 +92,7 @@ SmartReminders\NaowhForever_SmartRemindersWindow.lua
 # The Naowh Forever modules and the Patch Notes page. Page builders only, resolved by
 # the window at open time.
 QoL\NaowhForever_QoL.lua
+QoL\NaowhForever_AlertStack.lua
 QoL\NaowhForever_DeathRelease.lua
 QoL\NaowhForever_StealthReminder.lua
 QoL\NaowhForever_CoTank.lua
@@ -114,7 +115,7 @@ QoL\NaowhForever_FPS.lua
 QoL\NaowhForever_MouseRing.lua
 QoL\NaowhForever_PetTracker.lua
 QoL\NaowhForever_EquipmentReminder.lua
-QoL\NaowhForever_EmoteDetection.lua
+QoL\NaowhForever_SummonEmote.lua
 QoL\NaowhForever_GcdTracker.lua
 QoL\NaowhForever_FocusCastBar.lua
 QoL\NaowhForever_Performance.lua

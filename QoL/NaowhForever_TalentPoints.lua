@@ -29,16 +29,6 @@ local function Update()
     end
 end
 
-local function Place()
-    local pos = S.Get("talentPointsPos")
-    frame:ClearAllPoints()
-    if pos then
-        frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
-    else
-        frame:SetPoint("CENTER", UIParent, "CENTER", 0, 210)
-    end
-end
-
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_REGEN_DISABLED" then
@@ -63,11 +53,9 @@ local function Apply()
         frame.text = ns.Font(frame, 22, "OUTLINE")
         frame.text:SetPoint("CENTER")
         frame.text:SetTextColor(1, 0.82, 0, 1)
-        frame.mover = ns.UI.AttachMover(frame, "Talent Points", function(pos) S.Set("talentPointsPos", pos) end, "QoL/Questing & Group", "QoL/Questing & Group:talentPoints")
+        ns.AlertStack(frame, 2)
     end
     frame.text:SetFont(ns.UI.FontPath(S.Get("talentPointsFont")), 22, "OUTLINE")
-    Place()
-    frame.mover:SetShown(unlocked == true)
     inCombat = UnitAffectingCombat("player")
     events:RegisterEvent("PLAYER_LEVEL_UP")
     events:RegisterEvent("TRAIT_CONFIG_UPDATED")
@@ -79,7 +67,7 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or (key:find("^talentPoints") and key ~= "talentPointsPos") then Apply() end
+    if key == "enabled" or key:find("^talentPoints") then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()

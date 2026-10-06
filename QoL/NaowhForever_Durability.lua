@@ -49,16 +49,6 @@ local function Update()
     end
 end
 
-local function Place()
-    local pos = S.Get("durabilityPos")
-    frame:ClearAllPoints()
-    if pos then
-        frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
-    else
-        frame:SetPoint("CENTER", UIParent, "CENTER", 0, 250)
-    end
-end
-
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_REGEN_DISABLED" then
@@ -82,11 +72,9 @@ local function Apply()
         frame:SetClampedToScreen(true)
         frame.text = ns.Font(frame, 22, "OUTLINE")
         frame.text:SetPoint("CENTER")
-        frame.mover = ns.UI.AttachMover(frame, "Durability", function(pos) S.Set("durabilityPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:durability")
+        ns.AlertStack(frame, 3)
     end
     frame.text:SetFont(ns.UI.FontPath(S.Get("durabilityFont")), 22, "OUTLINE")
-    Place()
-    frame.mover:SetShown(unlocked == true)
     inCombat = UnitAffectingCombat("player")
     events:RegisterEvent("UPDATE_INVENTORY_DURABILITY")
     events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
@@ -97,7 +85,7 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or (key:find("^durability") and key ~= "durabilityPos") then Apply() end
+    if key == "enabled" or key:find("^durability") then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()

@@ -141,8 +141,6 @@ local S = UI.ModuleSettings("qol", {
     petMissingText = "Pet Missing", petPassiveText = "Pet Passive", petLowHealthText = "Pet Low HP",
     equipReminder = false, equipOnInstance = true, equipOnReadyCheck = true, equipAutoHide = 10,
     equipIconSize = 40, equipEnchants = false, equipEnchantRules = {},
-    emoteDetection = false, emotePattern = "prepares,places", emoteColor = { r = 1, g = 1, b = 1 },
-    emoteFont = "", emoteFontSize = 16, emoteSound = true, emoteSoundKey = "none",
     autoEmote = false, autoEmoteCooldown = 2, autoEmoteList = "698: prepares a ritual of summoning",
 
     mouseRing = false, mouseShape = "ring.tga", mouseSize = 48,

@@ -9,12 +9,12 @@
 --  (MIN_LABELS), and its text never under 11. Hovering it lists each bonus, the time left and
 --  when to refresh. The Camp Nearby alert is the same bar (Bar.Nearby) drawn bare: no backdrop,
 --  edge or line, the fire and words alone, larger by its own scale, sized to what it says and
---  centred on its spot, with the camp's time left inline after a dot when it still runs; it fades
---  in, breathes and fades out through animation groups (FADE), never OnUpdate. With Simple it shows
---  only while Camp Benefits is still up and low: once it is gone, the bar's own Camp Nearby pill
---  says it. Right-click (or Ctrl-click) hides it until you leave the campfire's range; only right
---  clicks are taken (SetPassThroughButtons, set out of combat), so left clicks and camera drags
---  reach the world.
+--  stacked in the Alerts group (ns.AlertStack), with the camp's time left inline after a dot when
+--  it still runs; it fades in, breathes and fades out through animation groups (FADE), never
+--  OnUpdate. With Simple it shows only while Camp Benefits is still up and low: once it is gone,
+--  the bar's own Camp Nearby pill says it. Right-click (or Ctrl-click) hides it until you leave
+--  the campfire's range; only right clicks are taken (SetPassThroughButtons, set out of combat),
+--  so left clicks and camera drags reach the world.
 --  The bonuses come from the hidden aura each camp feature puts on you, by spell ID, and for the
 --  rest from Camp Benefits' tooltip (spell 1229741, wago.tools build 1.60.1.70205), in FEATURES
 --  order with no feature twice. The tooltip is kept once per Camp Benefits as soon as a read finds
@@ -59,8 +59,8 @@ local BAR = { PAD = St.PANEL_PAD, TEXT = 12, TEXT_MIN = 11, LINE_H = 2, FONT_LIF
 local MIN_LABELS = { "+8% Stats", "+308 Armor", "+2% Crit", "+29 MP5" }
 local SIT_PREFIX = "in "
 local TIME_SAMPLE, SIT_SAMPLE = "44m", SIT_PREFIX .. "44s"
-local DEFAULT_X, DEFAULT_Y, ALERT_Y = -260, 120, 150
-local Spot = { DEFAULT = { point = "CENTER", relPoint = "CENTER", x = DEFAULT_X, y = DEFAULT_Y }, EDGE = { 1, 0 } }
+local DEFAULT_X, DEFAULT_Y = -260, 120
+local Spot = { DEFAULT = { point = "CENTER", relPoint = "CENTER", x = DEFAULT_X, y = DEFAULT_Y } }
 Spot.CORNERS = { TOPLEFT = { 1, -1 }, TOP = { 0, -1 }, TOPRIGHT = { -1, -1 }, RIGHT = { -1, 0 },
     BOTTOMLEFT = { 1, 1 }, BOTTOM = { 0, 1 }, BOTTOMRIGHT = { -1, 1 } }
 local UNLOCK_TEXT = "+Rested\n+Crit"
@@ -879,12 +879,6 @@ local function ShowMissing(nearby)
     icon:SetShown(S.Get("campShowMissing") or unlocked == true)
 end
 
-function Spot.Centred(pos, w, h)
-    local c = pos.point == "LEFT" and Spot.EDGE or Spot.CORNERS[pos.point]
-    if not c then return pos end
-    return { point = "CENTER", relPoint = pos.relPoint, x = pos.x + c[1] * w / 2, y = pos.y + c[2] * h / 2 }
-end
-
 local function AlertTip(self)
     if unlocked or not Parts.Tip(self, "ANCHOR_TOP") then return end
     GameTooltip:SetText(DISMISS_TIP, T.fg.r, T.fg.g, T.fg.b)
@@ -931,36 +925,13 @@ local function BuildAlert()
     alert.click:SetScript("OnClick", AlertDismiss)
     alert.click:SetScript("OnEnter", AlertTip)
     alert.click:SetScript("OnLeave", HideTip)
-    alert.mover = ns.UI.AttachMover(alert, "Camp Nearby", function(pos)
-        local scale = alert:GetScale()
-        local x, y = alert:GetCenter()
-        if x and y then
-            pos = { point = "CENTER", relPoint = "BOTTOMLEFT", x = x, y = y }
-        else
-            pos = Spot.Centred(pos, alert:GetWidth(), alert:GetHeight())
-        end
-        alert:ClearAllPoints()
-        alert:SetPoint("CENTER", UIParent, pos.relPoint, pos.x, pos.y)
-        S.Set("campAlertPos", { point = "CENTER", relPoint = pos.relPoint, x = pos.x * scale, y = pos.y * scale })
-    end, "AuraBuffs/Settings", "AuraBuffs/Settings:campNearby")
     alert:Hide()
+    ns.AlertStack(alert, 1)
 end
 
 local function LayoutAlert()
-    local scale = S.Get("campAlertScale")
-    alert:SetScale(scale)
+    alert:SetScale(S.Get("campAlertScale"))
     Bar.Layout(alert.bar)
-    local pos = S.Get("campAlertPos")
-    if pos and pos.point ~= "CENTER" then
-        pos = Spot.Centred(pos, alert.bar.width * scale, alert.bar.height * scale)
-        S.Set("campAlertPos", pos)
-    end
-    alert:ClearAllPoints()
-    if pos then
-        alert:SetPoint(pos.point, UIParent, pos.relPoint, pos.x / scale, pos.y / scale)
-    else
-        alert:SetPoint("CENTER", UIParent, "CENTER", 0, ALERT_Y / scale)
-    end
 end
 
 local function SetAlert(show, start, duration)
@@ -1340,16 +1311,13 @@ local function Apply()
     end
     shownExpiry = nil
     Refresh()
-    if alert then
-        LayoutAlert()
-        alert.mover:SetShown(unlocked == true)
-    end
+    if alert then LayoutAlert() end
 end
 
 hooksecurefunc(S, "Set", function(key)
     -- A timer armed for the old threshold would fire at the wrong time.
     if key == "campNearbyMinutes" then DisarmAlert() end
-    if key == "enabled" or (key:find("^camp") and key ~= "campPos" and key ~= "campAlertPos") then
+    if key == "enabled" or (key:find("^camp") and key ~= "campPos") then
         Apply()
     end
 end)

@@ -13,7 +13,7 @@
 -- shows while the camp is still up and low, and the bar's own pill covers it once gone. While
 -- resting, every bar setting repaints the live bar at once. A feature's own aura and the tooltip
 -- merge, and an empty tooltip is tried again every few seconds until it lists something. The bare
--- alert is sized to its words with the time inline, centred on its spot, and a right-click hides
+-- alert is sized to its words with the time inline, at the bottom of the Alerts group, and a right-click hides
 -- it until you leave the campfire while left clicks pass through.
 
 local Load = dofile("Tools/regression/load_files.lua")
@@ -238,6 +238,7 @@ local function Fixture(settings)
         UIFontPath = function() return "font" end,
         AccountSettings = function() return {} end,
         Apply = NOTHING, ShowRaidReminderAnchorConfig = NOTHING, HideRaidReminderAnchorConfig = NOTHING,
+        AlertStack = function(frame, order) state.stacked = { frame = frame, order = order } end,
         UI = {
             Keep = function(parent, key, make)
                 local kept = rawget(parent, key)
@@ -603,9 +604,9 @@ do
         and rawget(ab.camp, "plate") == nil and rawget(alert, "text") == nil)
     check("Camp Nearby is drawn bare: no backdrop, edge or line, the fire and words alone", ab.bare == true
         and ab.edges.shown == false and ab.line.shown == false)
-    check("Camp Nearby is sized to what it says, centred on its spot, the bar's height",
+    check("Camp Nearby is sized to what it says, the bar's height, at the bottom of the Alerts group",
         alert.w == math.ceil(ab.labelX + W(ab.note.text) + 10) and alert.w < bar.width and alert.h == 26
-        and math.abs(alert.pt.CENTER) < 1e-9 and math.abs(alert.pty.CENTER - 150 / 1.4) < 1e-9)
+        and s.stacked.frame == alert and s.stacked.order == 1 and rawget(alert, "mover") == nil)
     check("Unlock Mode: the alert takes no clicks, its mover does", alert.click.mouse == false)
     s.ns.HideRaidReminderAnchorConfig()
     check("leaving Unlock Mode fades it out, then hides it, its animations stopped", alert.shown == false
@@ -1165,25 +1166,14 @@ do
 end
 
 do
-    local s = Fixture({ campAlertPos = { point = "LEFT", relPoint = "CENTER", x = -252, y = 210 } })
+    local saved = { point = "LEFT", relPoint = "CENTER", x = -252, y = 210 }
+    local s = Fixture({ campAlertPos = saved })
     s.fire("PLAYER_LOGIN")
     s.auras[NEARBY] = {}
     s.fire("UNIT_AURA")
     local alert = s.named.NaowhForeverCampNearby
-    local pos = s.S.Get("campAlertPos")
-    check("an older edge spot is turned once into the centre of the full-width bar it was saved for",
-        pos.point == "CENTER" and pos.relPoint == "CENTER" and math.abs(pos.x) < 1e-9 and pos.y == 210
-        and math.abs(alert.pt.CENTER) < 1e-9 and math.abs(alert.pty.CENTER - 150) < 1e-9)
-    alert.cx, alert.cy = 500, 400
-    alert.mover.onMoved({ point = "TOPLEFT", relPoint = "TOPLEFT", x = 1, y = 2 })
-    pos = s.S.Get("campAlertPos")
-    check("moving it saves its centre", pos.point == "CENTER" and pos.relPoint == "BOTTOMLEFT"
-        and math.abs(pos.x - 700) < 1e-9 and math.abs(pos.y - 560) < 1e-9 and alert.pt.CENTER == 500)
-    alert.cx, alert.cy = nil, nil
-    alert.mover.onMoved({ point = "TOPLEFT", relPoint = "TOPLEFT", x = 10, y = -20 })
-    pos = s.S.Get("campAlertPos")
-    check("moved with no centre to read: its corner turned into the centre", pos.point == "CENTER"
-        and math.abs(pos.x - (10 + alert.w / 2) * 1.4) < 1e-9 and math.abs(pos.y - (-20 - alert.h / 2) * 1.4) < 1e-9)
+    check("its old spot is left for the Alerts group to start from", s.S.Get("campAlertPos") == saved
+        and s.stacked.frame == alert)
 
     local click = alert.click
     check("only right clicks, the left ones and camera drags pass through", #click.clicks == 1

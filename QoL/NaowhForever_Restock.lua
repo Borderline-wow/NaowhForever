@@ -179,7 +179,6 @@ local function BuildAlert()
     alert.text = ns.Font(alert, 16, "OUTLINE")
     alert.text:SetPoint("TOP", alert.title, "BOTTOM", 0, -4)
     alert.text:SetJustifyH("CENTER")
-    alert.mover = ns.UI.AttachMover(alert, "Restock", function(pos) S.Set("restockPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:restock")
 
     -- Pulses a few times when it appears, then stays solid until it is dealt with.
     flash = alert:CreateAnimationGroup()
@@ -193,13 +192,8 @@ local function BuildAlert()
     pulse:SetToAlpha(0.35)
     pulse:SetDuration(0.6)
 
-    local pos = S.Get("restockPos")
-    if pos then
-        alert:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
-    else
-        alert:SetPoint("CENTER", UIParent, "CENTER", 0, 220)
-    end
     alert:Hide()
+    ns.AlertStack(alert, 4)
 end
 
 local function HideAlert()
@@ -353,7 +347,7 @@ end
 
 hooksecurefunc(S, "Set", function(key)
     if key == "enabled" or key == "sellJunk" or key == "autoRepair"
-        or (key:find("^restock") and key ~= "restockPos") then
+        or key:find("^restock") then
         Apply()
     end
 end)
@@ -361,14 +355,8 @@ hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
     if not On() then return end
     ShowAlert({ "Arcane Powder  3 / 20", "Rough Arrow  150 / 1000", "Junk to sell  6" })
-    alert.mover:Show()
 end)
-hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
-    if alert then
-        alert.mover:Hide()
-        HideAlert()
-    end
-end)
+hooksecurefunc(ns, "HideRaidReminderAnchorConfig", HideAlert)
 
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
