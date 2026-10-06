@@ -12,7 +12,11 @@ local TRADE_GOODS = Enum.ItemClass.Tradegoods
 local GEAR = { [Enum.ItemClass.Weapon] = true, [Enum.ItemClass.Armor] = true }
 
 local altsButton, attachButton
-local queue = {}
+local qBag, qSlot, qItem = {}, {}, {}
+local qHead, qCount = 1, 0
+local pendingSlot, pendingItem, pendingBag, pendingBagSlot
+local clicking = false
+local counts, labels, order = {}, {}, {}
 
 local function On(key)
     return S.Get("enabled") and S.Get(key)
@@ -44,8 +48,8 @@ local function OpenAltsMenu(owner)
 end
 
 -------------------------------------------------------------------------------
---  Quick attach: one item per MAIL_SEND_INFO_UPDATE, since the next pickup has to wait for
---  the last attachment to land.
+--  Quick attach: one stack at a time from a scan made at the click, each checked in its bag
+--  slot and on the cursor before it goes in, and the next only once it has landed.
 -------------------------------------------------------------------------------
 local events = CreateFrame("Frame")
 
@@ -56,66 +60,132 @@ local function FreeSlot()
 end
 
 local function StopAttaching()
-    wipe(queue)
+    qHead, qCount = 1, 0
+    pendingSlot, pendingItem, pendingBag, pendingBagSlot = nil, nil, nil, nil
+    clicking = false
     events:UnregisterEvent("MAIL_SEND_INFO_UPDATE")
+    events:UnregisterEvent("MAIL_SEND_SUCCESS")
+end
+
+local function Mailable(bag, slot)
+    local itemID = C_Container.GetContainerItemID(bag, slot)
+    if not itemID then return end
+    local _, _, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(itemID)
+    if classID ~= TRADE_GOODS and not GEAR[classID] then return end
+    local info = C_Container.GetContainerItemInfo(bag, slot)
+    if not info or info.isBound or info.isLocked or info.itemID ~= itemID then return end
+    if GEAR[classID] and (info.quality or 0) < Enum.ItemQuality.Uncommon then return end
+    return itemID, classID, subClassID or -1, subType
+end
+
+local function Matches(key, classID, subClassID)
+    if key == "gear" then return GEAR[classID] end
+    return classID == TRADE_GOODS and (key == "all" or key == subClassID)
+end
+
+local function Landed()
+    if not HasSendMailItem(pendingSlot) then return false end
+    local _, itemID = GetSendMailItem(pendingSlot)
+    return itemID == pendingItem
 end
 
 local function AttachNext()
-    if GetCursorInfo() then
-        ClearCursor()
-        StopAttaching()
-        return
-    end
-    while #queue > 0 do
-        local e = table.remove(queue, 1)
-        local slot = FreeSlot()
-        if not slot then
-            ns.Print(Tag() .. ": all " .. SEND_SLOTS .. " attachment slots are full. Send this one and attach again.")
+    if clicking then return end
+    while true do
+        if pendingSlot then
+            if not Landed() then
+                local info = C_Container.GetContainerItemInfo(pendingBag, pendingBagSlot)
+                if not GetCursorInfo() and not (info and info.isLocked) then StopAttaching() end
+                return
+            end
+            pendingSlot = nil
+        end
+        if qHead > qCount or GetCursorInfo() then
             StopAttaching()
             return
         end
-        local info = C_Container.GetContainerItemInfo(e.bag, e.slot)
-        if info and info.itemID == e.itemID and not info.isLocked then
-            C_Container.PickupContainerItem(e.bag, e.slot)
-            ClickSendMailItemButton(slot)
+        local slot = FreeSlot()
+        if not slot then
+            local left = qCount - qHead + 1
+            ns.Print(("%s: %d %s didn't fit, all %d attachment slots are full. Send this one and attach again.")
+                :format(Tag(), left, left == 1 and "stack" or "stacks", SEND_SLOTS))
+            StopAttaching()
             return
         end
+        local bag, bagSlot, itemID = qBag[qHead], qSlot[qHead], qItem[qHead]
+        qHead = qHead + 1
+        local info = C_Container.GetContainerItemInfo(bag, bagSlot)
+        if info and info.itemID == itemID and not info.isLocked and not info.isBound then
+            C_Container.PickupContainerItem(bag, bagSlot)
+            local kind, cursorID = GetCursorInfo()
+            if kind ~= "item" or cursorID ~= itemID then
+                if kind then ClearCursor() end
+                StopAttaching()
+                return
+            end
+            pendingSlot, pendingItem, pendingBag, pendingBagSlot = slot, itemID, bag, bagSlot
+            clicking = true
+            ClickSendMailItemButton(slot)
+            clicking = false
+            kind, cursorID = GetCursorInfo()
+            if kind == "item" and cursorID == itemID then
+                ClearCursor()
+                StopAttaching()
+                return
+            end
+        end
     end
-    StopAttaching()
 end
 
--- Mailable stacks in the bags, grouped for the menu: every trade good, each trade goods
--- type, and unbound gear of uncommon quality or better.
-local function Groups()
-    local groups, order = {}, {}
-    local function Add(key, label, entry)
-        if not groups[key] then
-            groups[key] = { label = label, items = {} }
-            order[#order + 1] = key
-        end
-        local items = groups[key].items
-        items[#items + 1] = entry
-    end
+local function Attach(key)
+    StopAttaching()
+    local n = 0
     for bag = BACKPACK_CONTAINER, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
         for slot = 1, C_Container.GetContainerNumSlots(bag) do
-            local info = C_Container.GetContainerItemInfo(bag, slot)
-            if info and info.itemID and not info.isBound and not info.isLocked then
-                local _, _, subType, _, _, classID = C_Item.GetItemInfoInstant(info.itemID)
-                local entry = { bag = bag, slot = slot, itemID = info.itemID }
+            local itemID, classID, subClassID = Mailable(bag, slot)
+            if itemID and Matches(key, classID, subClassID) then
+                n = n + 1
+                qBag[n], qSlot[n], qItem[n] = bag, slot, itemID
+            end
+        end
+    end
+    if n == 0 then return end
+    qHead, qCount = 1, n
+    events:RegisterEvent("MAIL_SEND_INFO_UPDATE")
+    events:RegisterEvent("MAIL_SEND_SUCCESS")
+    AttachNext()
+end
+
+local function Tally(key, label)
+    if not counts[key] then
+        counts[key] = 0
+        labels[key] = label
+        order[#order + 1] = key
+    end
+    counts[key] = counts[key] + 1
+end
+
+local function Count()
+    wipe(counts)
+    wipe(labels)
+    wipe(order)
+    for bag = BACKPACK_CONTAINER, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
+        for slot = 1, C_Container.GetContainerNumSlots(bag) do
+            local itemID, classID, subClassID, subType = Mailable(bag, slot)
+            if itemID then
                 if classID == TRADE_GOODS then
-                    Add("all", "All trade goods", entry)
-                    Add("sub:" .. (subType or ""), subType or "Other trade goods", entry)
-                elseif GEAR[classID] and (info.quality or 0) >= Enum.ItemQuality.Uncommon then
-                    Add("gear", "Unbound gear", entry)
+                    Tally("all", "All trade goods")
+                    Tally(subClassID, subType or "Other trade goods")
+                else
+                    Tally("gear", "Unbound gear")
                 end
             end
         end
     end
-    return groups, order
 end
 
 local function OpenAttachMenu(owner)
-    local groups, order = Groups()
+    Count()
     MenuUtil.CreateContextMenu(owner, function(_, root)
         root:CreateTitle("Attach from your bags")
         if #order == 0 then
@@ -123,12 +193,9 @@ local function OpenAttachMenu(owner)
             return
         end
         for _, key in ipairs(order) do
-            local group = groups[key]
-            root:CreateButton(("%s (%d)"):format(group.label, #group.items), function()
-                StopAttaching()
-                for _, entry in ipairs(group.items) do queue[#queue + 1] = entry end
-                events:RegisterEvent("MAIL_SEND_INFO_UPDATE")
-                AttachNext()
+            local n = counts[key]
+            root:CreateButton(("%s (%d %s)"):format(labels[key], n, n == 1 and "stack" or "stacks"), function()
+                Attach(key)
             end)
         end
     end)
@@ -187,7 +254,7 @@ events:SetScript("OnEvent", function(_, event, isLogin)
     elseif event == "MAIL_SHOW" then
         Build()
         Place()
-    elseif event == "MAIL_CLOSED" then
+    elseif event == "MAIL_CLOSED" or event == "MAIL_SEND_SUCCESS" then
         StopAttaching()
     elseif event == "PLAYER_ENTERING_WORLD" then
         events:UnregisterEvent("PLAYER_ENTERING_WORLD")

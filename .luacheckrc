@@ -135,6 +135,7 @@ read_globals = {
     "UpdateAddOnMemoryUsage", "WHITE_FONT_COLOR", "wipe", "WorldFrame", "WorldMapFrame",
     "ZoneTextFrame",
     "ClickSendMailItemButton", "GetInboxHeaderInfo", "GetInboxItem", "GetInboxNumItems",
+    "GetSendMailItem",
     "GetLooseMacroIcons", "GetLooseMacroItemIcons", "GetMacroIcons", "GetMacroItemIcons",
     "HasSendMailItem", "MailFrame", "SendMailFrame", "SendMailNameEditBox", "SendMailSubjectEditBox",
 }
