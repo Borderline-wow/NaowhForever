@@ -15,6 +15,7 @@ local function SoftBlue(r, g, b)
     return r, g, b
 end
 local LINK_TEMPLATE = "NaowhForeverZoneLinkPinTemplate"
+local TRAVEL_ATLAS = "vehicle-templeofkotmogu-cyanball"
 local EXIT_ATLAS = "house-reward-green-arrow-up"
 local CAPITALS = ns.TownCapitals
 
@@ -92,21 +93,31 @@ function NaowhForeverZoneLinkPinMixin:OnAcquired(link)
     self.Icon:SetRotation(link.rotation or 0)
     self:SetPosition(link.position:GetXY())
 end
--- A zone exit's right click puts a waypoint on the road, for the way there.
+-- A zeppelin tower's pin has a second destination on right click, a zone exit a waypoint to
+-- the road.
 function NaowhForeverZoneLinkPinMixin:OnClick(button)
     local link = self.link
-    if button == "RightButton" and link.exitX then
+    if button == "RightButton" and link.rightUiMapID then
+        self:GetMap():SetMapID(link.rightUiMapID)
+    elseif button == "RightButton" and link.exitX then
         ns.PlaceWaypoint("Road to " .. link.name, self:GetMap():GetMapID(), link.exitX, link.exitY)
     elseif button == "LeftButton" then
         self:GetMap():SetMapID(link.linkedUiMapID)
     end
 end
 function NaowhForeverZoneLinkPinMixin:OnMouseEnter()
+    local link = self.link
     local r, g, b = SoftBlue(0.3, 0.71, 0.96)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(self.link.name)
-    GameTooltip:AddLine("Click to open this zone", r, g, b)
-    if self.link.exitX then GameTooltip:AddLine("Right-click for a waypoint to this road", r, g, b) end
+    GameTooltip:SetText(link.name)
+    if link.rightUiMapID then
+        GameTooltip:AddLine(link.rightName, 1, 1, 1)
+        GameTooltip:AddLine("Left-click: " .. C_Map.GetMapInfo(link.linkedUiMapID).name, r, g, b)
+        GameTooltip:AddLine("Right-click: " .. C_Map.GetMapInfo(link.rightUiMapID).name, r, g, b)
+    elseif link.linkedUiMapID ~= self:GetMap():GetMapID() then
+        GameTooltip:AddLine("Click to open this zone", r, g, b)
+    end
+    if link.exitX then GameTooltip:AddLine("Right-click for a waypoint to this road", r, g, b) end
     GameTooltip:Show()
 end
 function NaowhForeverZoneLinkPinMixin:OnMouseLeave() GameTooltip:Hide() end
@@ -136,6 +147,15 @@ function provider:RefreshAllData()
     end
     local faction = UnitFactionGroup("player") == "Horde" and "H" or "A"
     local _, class = UnitClass("player")
+    if S.Get("townTravel") then
+        for _, dock in ipairs(ns.TownTravel[mapID] or {}) do
+            if dock[3]:find(faction, 1, true) then
+                self:GetMap():AcquirePin(LINK_TEMPLATE, { name = dock[4], atlasName = TRAVEL_ATLAS,
+                    position = CreateVector2D(dock[1] / 100, dock[2] / 100), linkedUiMapID = dock[5],
+                    rightName = dock[6], rightUiMapID = dock[7] })
+            end
+        end
+    end
     for _, npc in ipairs(list or {}) do
         local cat = CATEGORIES[npc[3]]
         if npc[7]:find(faction, 1, true) and S.Get(cat[1])
@@ -221,7 +241,7 @@ function ns.TownAudit()
 end
 
 local Group = ns.Shared.Settings.Group
-local TOWN_SHOW = { "townSpiritHealers", "townZoneLinks", "townClass", "townProfession", "townFlight",
+local TOWN_SHOW = { "townSpiritHealers", "townZoneLinks", "townTravel", "townClass", "townProfession", "townFlight",
     "townInn", "townBank", "townRepair", "townSupplies", "townStable", "townVendors", "townMail" }
 
 local function TownSummary(store)
@@ -247,6 +267,8 @@ ns.Shared.Settings.Page("QoL/Interface", S):Card({
           help = "Every graveyard's spirit healer, in towns and out in the world." },
         { key = "townZoneLinks", label = "Clickable Zone Exits", toggle = true,
           help = "Click an exit to open the adjoining zone map." },
+        { key = "townTravel", label = "Boats & Zeppelins", toggle = true,
+          help = "Every dock and zeppelin tower; click one to open where it goes." },
         { key = "townClass", label = "Class Trainers", toggle = true, help = "Your class's trainers only." },
         { key = "townProfession", label = "Profession Trainers", toggle = true },
         { key = "townFlight", label = "Flight Masters", toggle = true },

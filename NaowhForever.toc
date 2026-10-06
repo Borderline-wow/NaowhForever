@@ -148,6 +148,7 @@ Training\NaowhForever_TrainingTrainer.lua
 QoL\NaowhForever_TownData.lua
 QoL\NaowhForever_TownMailboxes.lua
 QoL\NaowhForever_TownSpiritHealers.lua
+QoL\NaowhForever_TownTravel.lua
 QoL\NaowhForever_ZoneExits.lua
 QoL\NaowhForever_TownMap.xml
 QoL\NaowhForever_MapOverlays.lua
