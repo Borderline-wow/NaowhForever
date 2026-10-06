@@ -144,6 +144,11 @@ components in [`Shared/`](Shared/README.md): use them, extend them, or add a new
 never a copy inside a module. For anything bigger than a fix,
 message Glyalith on [Discord](https://discord.gg/naowh) first.
 
+By submitting a contribution you confirm it is your own work, or that you have the right
+to submit it, and you take responsibility for it: nothing may be copied from another
+addon, site or tool against its license or terms. See
+[Your responsibility for what you submit](.github/CONTRIBUTING.md#your-responsibility-for-what-you-submit).
+
 ## Releasing a new version
 
 For maintainers. A release is one click:

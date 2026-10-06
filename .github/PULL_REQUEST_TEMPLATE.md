@@ -33,3 +33,4 @@
 - [ ] Tested in the Forever client, no Lua errors in or out of combat
 - [ ] Lua 5.1, ASCII only, CRLF line endings
 - [ ] Changelog line above; `CHANGELOG.md`, TOC version and `ns.CODE_BUILD` untouched
+- [ ] My own work, or I have the right to submit it: nothing copied from another addon, site or tool against its license or terms, and I take responsibility for what I submit ([details](https://github.com/nwh-gaming-ab/NaowhForever/blob/main/.github/CONTRIBUTING.md#your-responsibility-for-what-you-submit))

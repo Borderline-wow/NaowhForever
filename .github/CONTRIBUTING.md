@@ -237,3 +237,21 @@ If a hook fails, it prints the file and line: fix it and commit again. Skipping 
 By submitting a PR, you keep the copyright to your contribution but grant Naowh Forever
 a perpetual, worldwide, royalty-free license to use, modify, incorporate and distribute
 it as part of Naowh Forever.
+
+## Your responsibility for what you submit
+
+Naowh Forever is a free project that anyone can contribute to. By submitting a PR, you
+confirm that:
+
+- the contribution is your own work, or you have the right to submit it: its license, or
+  its author's permission, allows it to be included and distributed in Naowh Forever;
+- it does not copy code, art, text or data from another addon, game, website or tool
+  unless that source's license or terms allow it, and the PR says where anything taken
+  from such a source comes from;
+- you, not the Naowh Forever maintainers, are responsible for any breach of a third
+  party's copyright, license or terms that your contribution contains.
+
+The maintainers review changes for quality and fit, and cannot check where every line
+comes from. They accept contributions on the strength of this confirmation. Anything
+found to break a third party's rights is removed, and the responsibility for it stays
+with the person who submitted it.
