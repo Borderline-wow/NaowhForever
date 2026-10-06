@@ -184,7 +184,7 @@ local page = ns.Shared.Settings.Page("QoL/Combat", S)
 
 page:Card({
     id = "combatAlert", name = "Combat Alert", order = 70, switch = "combatAlert",
-    help = "A short flash of text entering and leaving combat. Move it in Unlock Mode.",
+    help = "A short flash of text entering and leaving combat. Move it in Layout Mode.",
     summary = Summary,
     rows = rows,
 })

@@ -806,7 +806,7 @@ page:Card({
           why = PLANNER_OFF,
           help = "When you level up with new spells to train, a toast says how many and what they cost, with "
               .. "buttons to open the planner and to put a waypoint on your nearest trainer. Move it in "
-              .. "Unlock Mode." },
+              .. "Layout Mode." },
         { key = "trainerPanel", label = "Panel at the Trainer", toggle = true,
           needs = On, why = PLANNER_OFF,
           help = "Beside your class trainer, the spells you can learn now, ticked, with their total and Learn "

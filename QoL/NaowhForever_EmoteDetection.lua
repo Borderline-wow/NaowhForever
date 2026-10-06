@@ -202,7 +202,7 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         Group("Emote Detection"),
         { key = "emoteDetection", label = "Emote Detection", toggle = true,
           help = "An alert when an emote in a dungeon or raid contains one of your words, such as "
-              .. "someone putting down a feast. Out of combat only. Move it in Unlock Mode." },
+              .. "someone putting down a feast. Out of combat only. Move it in Layout Mode." },
         { key = "emoteSound", label = "Play a Sound", toggle = true, needs = "emoteDetection" },
         { key = "emoteSoundKey", label = "Sound", sound = true, needs = { "emoteDetection", "emoteSound" } },
         { key = "emoteColor", label = "Text Colour", colour = true, needs = "emoteDetection" },

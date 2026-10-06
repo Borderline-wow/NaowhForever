@@ -485,7 +485,7 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
     help = "A small health bar for the other tank in your group, shown while you are tanking: "
         .. "tank role, Bear Form, Defensive Stance or Righteous Fury. The other tank is whoever has "
         .. "the tank role or the raid's Main Tank assignment. Click it to target them. Changes made "
-        .. "in combat apply when the fight ends. Move it in Unlock Mode.",
+        .. "in combat apply when the fight ends. Move it in Layout Mode.",
     summary = Summary,
     rows = {
         Group("Size"),
@@ -508,7 +508,7 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         Group("Position"),
         { key = "coTankAnchor", label = "Anchor to a Frame", text = true, wide = true,
           help = "Frame to anchor to, such as PlayerFrame. UIParent puts it back on the screen, and so "
-              .. "does dragging it in Unlock Mode." },
+              .. "does dragging it in Layout Mode." },
         { key = "coTankX", label = "X Offset", slider = { -2000, 2000, 1 }, help = FROM_ANCHOR },
         { key = "coTankY", label = "Y Offset", slider = { -2000, 2000, 1 }, help = FROM_ANCHOR },
         Group("Debuffs"),

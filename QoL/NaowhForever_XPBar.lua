@@ -1100,7 +1100,7 @@ ns.Shared.Settings.Page("QoL/XP", S):Card({
     id = "xpBar", name = "XP Bar", order = 10, switch = "xpBar",
     help = "Your level, experience and percentage on one bar, with the XP of completed quests and rested "
         .. "experience drawn past the fill. Replaces Blizzard's experience bar while it is on. Move it in "
-        .. "Unlock Mode. Ctrl + right-click the bar to reset the session time and XP/Hour.",
+        .. "Layout Mode. Ctrl + right-click the bar to reset the session time and XP/Hour.",
     summary = Summary,
     studio = { height = PREVIEW_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = ROWS,

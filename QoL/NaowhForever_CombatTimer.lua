@@ -146,7 +146,7 @@ end
 
 ns.Shared.Settings.Page("QoL/Combat", S):Card({
     id = "combatTimer", name = "Combat Timer", order = 90, switch = "combatTimer",
-    help = "How long the current fight has run, on screen while you fight. Move it in Unlock Mode.",
+    help = "How long the current fight has run, on screen while you fight. Move it in Layout Mode.",
     summary = Summary,
     rows = {
         Group("When"),

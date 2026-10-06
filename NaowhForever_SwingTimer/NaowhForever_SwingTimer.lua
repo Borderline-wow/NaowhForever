@@ -1074,7 +1074,7 @@ local function Detail()
     if S.Get("autoShotWindow") then aids[#aids + 1] = "Auto Shot Window" end
     if S.Get("castClip") then aids[#aids + 1] = "Cast Clip Marker" end
     local shown = S.Get("visibility") == "always" and "Shown all the time." or "Shown in combat."
-    if #aids == 0 then return shown .. " Move the bars in Unlock Mode." end
+    if #aids == 0 then return shown .. " Move the bars in Layout Mode." end
     return shown .. " With " .. table.concat(aids, ", ") .. "."
 end
 
@@ -1112,7 +1112,7 @@ page:Window({
 page:Card({
     id = "bars", name = "Bars", order = 10,
     help = "One bar per weapon, timed by the game's own swing event, so parry haste, swing resets and "
-        .. "haste are always right. Move them in Unlock Mode.",
+        .. "haste are always right. Move them in Layout Mode.",
     summary = BarsSummary,
     studio = SUPPORTED and Studio(BAR_STATES) or nil,
     rows = {

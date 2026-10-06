@@ -211,7 +211,7 @@ end
 ns.Shared.Settings.Page("QoL/Combat", S):Card({
     id = "petTracker", name = "Pet Tracker", order = 100, switch = "petTracker",
     help = "A warning while a hunter or warlock has no pet out. A warlock who sacrificed their "
-        .. "demon is left alone. Move it in Unlock Mode.",
+        .. "demon is left alone. Move it in Layout Mode.",
     summary = Summary,
     rows = {
         Group("Warnings"),

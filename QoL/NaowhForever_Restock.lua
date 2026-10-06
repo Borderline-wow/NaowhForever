@@ -469,7 +469,7 @@ loot:Card({
     id = "restock", name = "Restock Reminder", order = 50, switch = "restock",
     help = "When you reach a city or inn, a flashing list in the middle of the screen of what "
         .. "you are short on. It stays up until you have what you need or leave. Move it "
-        .. "in Unlock Mode.",
+        .. "in Layout Mode.",
     summary = RestockSummary,
     rows = RestockRows,
 })
