@@ -1,6 +1,103 @@
 # Changelog
 
-## Unreleased
+## 0.5.22-beta
+
+### Added
+- Profiles: profile strings now carry your Forge macro Library and your saved talent builds, added
+  next to yours on import.
+- Unlock Mode: anchor an element to another one. Hover it, click Anchor under its name, click the
+  element it goes beside and pick a side; it follows that element from then on. Click Anchored to
+  let it go.
+- Unlock Mode: Relative to Screen in an element's cog menu holds it to a screen edge, or two for a
+  corner, so one profile fits every resolution.
+- Unlock Mode: an element's cog menu types an anchored element's Offset X and Y, picks its Snap
+  Target and centres it on the screen; dragged elements snap to the nearest one (Snap Elements in
+  the toolbar turns it off).
+- Dungeon Journal: the Excavation Site: Wetlands map shows where its bosses are.
+- Dungeon Journal: Excavation Site: Wetlands lists its quests, and Highland Horror is on its map
+  with the quest that needs him.
+- Dungeon Journal: Shift-click a boss's ability to link it in chat.
+- World map: Unexplored Areas shows the parts of a zone you haven't explored yet, greyed out (QoL >
+  Interface).
+- World map: boats and zeppelins, each with where it goes; click one to open that zone (QoL > Town
+  Map Pins > Boats & Zeppelins).
+- Minimap: mailboxes and spirit healers near you show on the minimap too (QoL > Town Map Pins).
+- Flight Games: new Off choice under QoL > Travel hides the Flight Timer's Games button; "Nothing"
+  is now called "Button only".
+- XP Bar: pick the Incomplete Quests and Border colours under Colours.
+- Dungeon map: bosses are placed on the maps of 16 more dungeons, Blackrock Depths to Uldaman.
+- Dungeon map: City of Dalaran has a map of the Underbelly and the city, from Santiago Reyes's Atlas
+  de Azeroth: Forever.
+- Dungeon map: Upper Blackrock Spire has its Hall of Binding and Rookery and its Dragonspire Hall,
+  the levels the game has no map of yet.
+- Dungeon Journal: City of Dalaran lists all its bosses in kill order, its eight quests and tips for
+  five of its bosses.
+
+### Changed
+- Profiles: the page is redone as cards, with Import and New Profile on top and Export on the page,
+  part by part, so you can share only what you want.
+- Profiles: Reset and Delete now act on the profile in use.
+- Profiles: Import Profile also takes Forge macro, talent build and BiS list strings and hands each
+  one to its own import.
+- Training Planner: the test leveling builds are gone; the Builds tab lists the builds you save or
+  import.
+- The Level-Up Toast and the Aim Trainer are no longer in Unlock Mode: drag them where they are, and
+  they stay there.
+- Dungeon Journal: the trash has its own section under the bosses, in two columns.
+- Dungeon Journal: the Excavation Site: Wetlands map is the updated one, with the entrance where it
+  is now.
+- The Naowh Forever logo in the options window sits tight in its corner, a little bigger, with the
+  wordmark lined up to the emblem.
+- Each module is now its own addon. Switching a module off disables it for every character after a
+  reload, and it leaves the sidebar until you turn it back on under Settings > Modules.
+- Dungeon Journal and BiS List switch on and off together, and Training Planner goes off with
+  Professions.
+- The mouse wheel now scrolls smoothly in the settings window, its sidebar and the module windows
+  (Dungeon Journal, BiS List and the rest); the settings scrollbar is slim and hides when the page
+  fits.
+- The Dungeon Journal's dungeon map shows its bosses as a grid of portraits under the map and the
+  picked boss's loot and abilities side by side, with Naowh's tip and its quests, so it fits without
+  scrolling; quest bosses like Highland Horror are tagged QUEST and no longer numbered.
+- The dungeon map's bosses are a list beside the map, with the same portraits as its pins and
+  grouped by wing, and the boss page gets the full width under both.
+- XP Bar: its border is black, like the rest of the UI.
+- Dungeon map: with a map open from the Journal, picking another dungeon shows that dungeon's map.
+
+### Fixed
+- Profiles: Export Profile no longer does nothing when your profile has a setting at 0.
+- Training Planner: the Train Now panel no longer shows at the hunter pet trainer, where Learn All
+  gave a Lua error and taught the pet nothing.
+- Dungeon Journal: every dungeon lists its full loot again, with items not in Forever yet tagged
+  "Not in Forever yet", dungeons not open yet say so at the top, and Excavation Site, Hall of Thanes
+  and Ruins of Lordaeron show drop chances.
+- Dungeon Journal: clicking a boss on a dungeon map's second floor, on the world map, no longer
+  jumps back to the first floor.
+- Raid Reminders: the anchor config toolbar no longer gets covered by other unlock-mode elements
+  (e.g. the Level Up toast) after login or /reload, so Exit Config is always reachable.
+- Dungeon Journal: the Excavation Site waypoint leads to the meeting stone, where the road up to the
+  entrance starts.
+- Dungeon Journal: General Drakkisath lists General Drakkisath's Command, which starts in Lower
+  Blackrock Spire.
+- Escape closes the settings window again while the Top Bar preview is on screen.
+- World map: Clickable Zone Exits shows green arrows on the roads out of each zone; click one to
+  open the next zone, right-click for a waypoint to the road (QoL > Town Map Pins).
+- World map: Spirit Healers pins show every graveyard's spirit healer (QoL > Town Map Pins).
+- BiS List: clicking an item's name or icon selects it, not just the empty part of the row.
+- Settings: Escape closes the window after a Top Bar preview drag that ended in combat.
+- Minimap pins: they no longer keep updating after being switched off and back on while standing
+  still, and cost less while you move.
+- Pressing Escape on a confirmation now cancels it, so a Settings > Modules switch goes back to how
+  it was.
+- XP Bar: turning on Incomplete Quests no longer changes the colour of your rested XP.
+- Professions: pressing K after viewing another player's profession link opens your own professions
+  again, not theirs.
+- Spelling and grammar across the addon: Dungeon Journal quest giver places (Darnassus,
+  Stranglethorn Vale, Steamwheedle Port and more) and boss tips, "1 second" and "1 spell" instead of
+  "1 seconds" and "1 spells", "an Ability Reminder", and Show Text Callout. A debuff sound's tooltip
+  now says "stack increased" instead of a raw game value, and asking for crafts in an instance says
+  instance chat, not party chat.
+- Dungeon map: Shadowfang Keep's floors are numbered in the order you reach them, and Lower and
+  Upper Blackrock Spire each show only their own floors.
 
 ## 0.5.21-beta
 

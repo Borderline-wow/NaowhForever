@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Dungeon Journal
 ## Notes: Every dungeon's bosses, loot and quests.
 ## Author: NaowhUI
-## Version: 0.5.21-beta
+## Version: 0.5.22-beta
 ## Dependencies: NaowhForever, NaowhForever_BiS
 ## Group: NaowhUI
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
