@@ -147,6 +147,7 @@ Training\NaowhForever_TrainingWindow.lua
 Training\NaowhForever_TrainingTrainer.lua
 QoL\NaowhForever_TownData.lua
 QoL\NaowhForever_TownMailboxes.lua
+QoL\NaowhForever_ZoneExits.lua
 QoL\NaowhForever_TownMap.xml
 GearSets\NaowhForever_GearSets.lua
 GearSets\NaowhForever_GearSetsWindow.lua
