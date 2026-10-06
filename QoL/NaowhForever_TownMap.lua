@@ -187,6 +187,9 @@ local MINI_INTERVAL = 0.05
 local MINI_EVENTS = { "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "PLAYER_ENTERING_WORLD" }
 local miniPins, miniSpots = {}, {}
 local miniMap, miniWidth, miniHeight   -- the zone shown and its size in yards
+-- The zone's map in world coordinates: its continent, top left corner and the steps for one
+-- whole map across and down. UnitPosition makes no table each tick, GetPlayerMapPosition does.
+local miniCont, miniOX, miniOY, miniUX, miniUY, miniVX, miniVY, miniDet
 local mini = CreateFrame("Frame")
 local moving, elapsed = false, 0
 
@@ -194,13 +197,28 @@ local function MiniOn()
     return On() and S.Get("townMinimap")
 end
 
+local function MiniFit(map)
+    local cont, o = C_Map.GetWorldPosFromMapPos(map, CreateVector2D(0, 0))
+    local _, u = C_Map.GetWorldPosFromMapPos(map, CreateVector2D(1, 0))
+    local _, v = C_Map.GetWorldPosFromMapPos(map, CreateVector2D(0, 1))
+    if not (o and u and v) then return false end
+    miniCont, miniOX, miniOY = cont, o:GetXY()
+    local ux, uy = u:GetXY()
+    local vx, vy = v:GetXY()
+    miniUX, miniUY, miniVX, miniVY = ux - miniOX, uy - miniOY, vx - miniOX, vy - miniOY
+    miniDet = miniUX * miniVY - miniUY * miniVX
+    return miniDet ~= 0
+end
+
 local function MiniPlace()
-    local here = C_Map.GetPlayerMapPosition(miniMap, "player")
-    if not here then
+    local wx, wy, _, cont = UnitPosition("player")
+    if not wx or cont ~= miniCont then
         for _, pin in ipairs(miniPins) do pin:Hide() end
         return
     end
-    local px, py = here:GetXY()
+    local rx, ry = wx - miniOX, wy - miniOY
+    local px = (rx * miniVY - ry * miniVX) / miniDet
+    local py = (miniUX * ry - miniUY * rx) / miniDet
     local radius = C_Minimap.GetViewRadius()
     local facing = C_CVar.GetCVarBool("rotateMinimap") and GetPlayerFacing() or 0
     local sin, cos = math.sin(facing), math.cos(facing)
@@ -237,7 +255,7 @@ end
 local function MiniRefresh()
     wipe(miniSpots)
     miniMap = MiniOn() and C_Map.GetBestMapForUnit("player")
-    if miniMap then
+    if miniMap and MiniFit(miniMap) then
         if S.Get("townMail") then
             for _, mailbox in ipairs(ns.TownMailboxes[miniMap] or {}) do miniSpots[#miniSpots + 1] = mailbox end
         end
@@ -264,6 +282,7 @@ local function MiniRefresh()
         mini:RegisterEvent("PLAYER_STARTED_MOVING")
         mini:RegisterEvent("PLAYER_STOPPED_MOVING")
         mini:RegisterEvent("MINIMAP_UPDATE_ZOOM")
+        moving = IsPlayerMoving()
         MiniPlace()
     else
         mini:UnregisterEvent("PLAYER_STARTED_MOVING")

@@ -37,7 +37,10 @@ local function NewFrame()
 end
 
 local player = { 0.5, 0.5 }
-local facing, rotate = 0, false
+local facing, rotate, walking, continent = 0, false, false, 0
+-- World coordinates as the game has them: the axes swapped and mirrored from the map's.
+local function World(x, y) return 5000 - y * 1000, 3000 - x * 1000 end
+local function Vector(x, y) return { GetXY = function() return x, y end } end
 local env = setmetatable({
     _G = { NaowhForever = ns },
     CreateFromMixins = function() return {} end,
@@ -50,8 +53,15 @@ local env = setmetatable({
     C_Map = {
         GetBestMapForUnit = function() return 1 end,
         GetMapWorldSize = function() return 1000, 1000 end,
-        GetPlayerMapPosition = function() return { GetXY = function() return player[1], player[2] end } end,
+        GetWorldPosFromMapPos = function(_, pos) return 0, Vector(World(pos:GetXY())) end,
+        GetPlayerMapPosition = function() error("makes a table on every tick") end,
     },
+    CreateVector2D = Vector,
+    UnitPosition = function()
+        local wx, wy = World(player[1], player[2])
+        return wx, wy, 0, continent
+    end,
+    IsPlayerMoving = function() return walking end,
     C_Minimap = { GetViewRadius = function() return 100 end },
     C_CVar = { GetCVarBool = function() return rotate end },
     GetPlayerFacing = function() return facing end,
@@ -97,10 +107,25 @@ player[1] = 0.5
 rotate, facing = true, math.pi / 2
 mini.scripts.OnEvent(mini, "MINIMAP_UPDATE_ZOOM")
 Check(math.abs(east.x) < 1e-6 and math.abs(east.y + 50) < 1e-6, "facing west, east is behind you")
+rotate, facing = false, 0
 
+continent = 1
+mini.scripts.OnEvent(mini, "MINIMAP_UPDATE_ZOOM")
+Check(not east.shown and not south.shown, "on another continent the pins hide")
+continent = 0
+
+walking = true
+mini.scripts.OnEvent(mini, "PLAYER_STARTED_MOVING")
 settings.townMinimap = false
 boot.scripts.OnEvent()
 Check(not east.shown and not south.shown and next(mini.events) == nil, "turning it off clears the minimap")
+Check(mini.scripts.OnUpdate == nil, "and stops placing pins")
+walking = false
+settings.townMinimap = true
+boot.scripts.OnEvent()
+Check(mini.scripts.OnUpdate == nil, "back on while standing still, nothing runs")
+settings.townMinimap = false
+boot.scripts.OnEvent()
 
 Check(Read("QoL/NaowhForever_QoL.lua"):find("townMinimap = false", 1, true), "Minimap pins start off")
 
