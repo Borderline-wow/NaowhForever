@@ -255,6 +255,12 @@ mainWindow:SetHeight(620)
 moduleScroll.scripts.OnSizeChanged(moduleScroll)
 Check(moduleScroll.ScrollBar:IsShown(), "short windows display a navigation scrollbar")
 moduleScroll.scripts.OnMouseWheel(moduleScroll, -100)
+Check(moduleScroll:GetVerticalScroll() == 0 and moduleScroll.scripts.OnUpdate, "the wheel glides instead of jumping")
+for _ = 1, 100 do
+    if not moduleScroll.scripts.OnUpdate then break end
+    moduleScroll.scripts.OnUpdate(moduleScroll, 0.016)
+end
+Check(not moduleScroll.scripts.OnUpdate, "the glide stops once it lands")
 Check(moduleScroll:GetVerticalScroll() == moduleScroll:GetVerticalScrollRange(), "wheel reaches the last module")
 Check(moduleScroll.ScrollBar:GetValue() == moduleScroll:GetVerticalScroll(), "scrollbar follows wheel scrolling")
 moduleScroll.ScrollBar.scripts.OnValueChanged(moduleScroll.ScrollBar, 20)

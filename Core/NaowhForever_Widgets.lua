@@ -1243,7 +1243,62 @@ end
 -- one with its arrow buttons: a track and a thumb sized to how much of the content shows,
 -- dragged, clicked or moved with the mouse wheel. It hides while everything fits. The bar
 -- sits to the right of the frame, width + gap inside whatever the frame is anchored in.
-local SCROLL_STEP = 40
+local SCROLL_STEP = 60
+local GLIDE_RATE = 14   -- how fast a wheel glide closes on its target; higher is snappier
+local GLIDE_DONE = 0.5  -- a glide this close to its target lands on it
+
+-- Rounds toward the target on the screen's pixel grid, so text never rests between pixels.
+local function OnPixel(scroll, value, target)
+    local px = ns.OnePixel(scroll)
+    local snapped = target > value and math.ceil(value / px) * px or math.floor(value / px) * px
+    if target > value then return math.min(snapped, target) end
+    return math.max(snapped, target)
+end
+
+local function StopGlide(scroll)
+    scroll._gliding = nil
+    scroll:SetScript("OnUpdate", nil)
+end
+
+local function Glide(self, elapsed)
+    local at = self:GetVerticalScroll()
+    -- Moved by something else (a page change, a drag on the bar): that move wins.
+    if math.abs(at - self._glideAt) > GLIDE_DONE then return StopGlide(self) end
+    local target = math.max(0, math.min(self:GetVerticalScrollRange(), self._glideTo))
+    local nextAt
+    if math.abs(target - at) <= GLIDE_DONE then
+        nextAt = target
+        StopGlide(self)
+    else
+        nextAt = OnPixel(self, at + (target - at) * (1 - math.exp(-GLIDE_RATE * elapsed)), target)
+    end
+    self._glideAt = nextAt
+    self:SetVerticalScroll(nextAt)
+end
+
+-- The mouse wheel eases the frame toward where it was sent instead of jumping there. Each
+-- notch is `step` further on from where the glide is headed, so quick notches add up.
+-- The OnUpdate runs only while a glide is moving.
+function UI.SmoothWheel(scroll, step)
+    step = step or SCROLL_STEP
+    scroll:EnableMouseWheel(true)
+    scroll:SetScript("OnMouseWheel", function(self, delta)
+        local range = self:GetVerticalScrollRange()
+        if range <= 0 then return end
+        -- A glide something else has since moved is over, even before its next tick notices.
+        local at = self:GetVerticalScroll()
+        local continuing = self._gliding and math.abs(at - self._glideAt) <= GLIDE_DONE
+        local from = continuing and self._glideTo or at
+        local px = ns.OnePixel(self)
+        local target = math.max(0, math.min(range, from - delta * step))
+        self._glideTo = math.min(range, math.floor(target / px + 0.5) * px)
+        self._glideAt = at
+        if not self._gliding then
+            self._gliding = true
+            self:SetScript("OnUpdate", Glide)
+        end
+    end)
+end
 
 function UI.SlimScroll(parent, width, gap)
     width, gap = width or 6, gap or 6
@@ -1277,10 +1332,9 @@ function UI.SlimScroll(parent, width, gap)
     scroll:SetScript("OnVerticalScroll", function(_, offset)
         if math.abs(bar:GetValue() - offset) > 0.5 then bar:SetValue(offset) end
     end)
-    scroll:EnableMouseWheel(true)
-    scroll:SetScript("OnMouseWheel", function(_, delta)
-        bar:SetValue(bar:GetValue() - delta * SCROLL_STEP)
-    end)
+    UI.SmoothWheel(scroll)
+    bar:EnableMouseWheel(true)
+    bar:SetScript("OnMouseWheel", function(_, delta) scroll:GetScript("OnMouseWheel")(scroll, delta) end)
     scroll.bar = bar
     return scroll
 end

@@ -10,6 +10,7 @@ local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 790
 local TOP_H, PAGE_HEADER_H = 64, 128
 local HEADER_H, TAB_H, FOOTER_H, NAV_H = 76, 32, 46, 32
 local SEARCH_W, SEARCH_H = 240, 26
+local SCROLL_BAR_GAP = 12 -- the page scrollbar sits this far right of the page, in its margin
 local LINK_ICONS = "Interface\\AddOns\\NaowhForever\\Media\\Links\\"
 local LINKS = {
     { "Discord", "discord", function() return ns.NAOWH_DISCORD or "https://discord.com/invite/naowh" end },
@@ -1042,11 +1043,7 @@ local function NavigationScroll(parent, top, bottom, width)
     bar:Hide()
     scroll:SetScript("OnScrollRangeChanged", UpdateRange)
     scroll:SetScript("OnShow", UpdateRange)
-    scroll:EnableMouseWheel(true)
-    scroll:SetScript("OnMouseWheel", function(self, delta)
-        self:SetVerticalScroll(math.max(0, math.min(self:GetVerticalScrollRange(),
-            self:GetVerticalScroll() - delta * NAV_H)))
-    end)
+    UI.SmoothWheel(scroll, NAV_H)
     scroll:SetScript("OnSizeChanged", function(self)
         self:UpdateScrollChildRect()
         UpdateRange()
@@ -1284,16 +1281,7 @@ local function CreateWindow()
     ns.AccentBorder(ns.ReloadButton(contentFooter, "Reload UI", 120, 30)):SetPoint("LEFT", 26, 0)
     ns.AccentBorder(ns.Button(contentFooter, "Close", 120, 30, function() window:Hide() end))
         :SetPoint("RIGHT", -30, 0)
-    scrollFrame = CreateFrame("ScrollFrame", nil, window, "UIPanelScrollFrameTemplate")
-    local bar = scrollFrame.ScrollBar
-    if bar then
-        bar:SetWidth(8)
-        bar.ThumbTexture:SetTexture("Interface\\Buttons\\WHITE8x8")
-        bar.ThumbTexture:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 0.7)
-        bar.ThumbTexture:SetSize(6, 40)
-        bar.ScrollUpButton:SetAlpha(0); bar.ScrollUpButton:EnableMouse(false)
-        bar.ScrollDownButton:SetAlpha(0); bar.ScrollDownButton:EnableMouse(false)
-    end
+    scrollFrame = UI.SlimScroll(window, nil, SCROLL_BAR_GAP)
     scrollChild = CreateFrame("Frame", nil, scrollFrame)
     scrollChild:SetSize(WINDOW_W - SIDEBAR_W - 36, 1)
     scrollFrame:SetScrollChild(scrollChild)
@@ -1420,7 +1408,7 @@ local function CreateModuleWindow(mod)
     line:SetPoint("TOPRIGHT", win, "TOPRIGHT", 0, -offset)
     ns.Hairline(line, "h")
 
-    win.scrollFrame = CreateFrame("ScrollFrame", nil, win, "UIPanelScrollFrameTemplate")
+    win.scrollFrame = UI.SlimScroll(win, nil, SCROLL_BAR_GAP)
     win.scrollFrame:SetPoint("TOPLEFT", win, "TOPLEFT", 10, -(offset + 5))
     win.scrollFrame:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -30, 22)
     win.scrollChild = CreateFrame("Frame", nil, win.scrollFrame)
