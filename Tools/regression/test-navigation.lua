@@ -413,6 +413,24 @@ Check(Text("Co-Tank Debuffs") and Text("Max Icons"), "the jump opens its card")
 UI.SearchPages = pages
 for _, page in ipairs(UI.SearchPages()) do Check(not page.soon, "unfinished pages are not search results") end
 
+-- A confirm: No, Escape and a newer confirm taking its place all count as no; Yes does not.
+do
+    local yes, no = 0, 0
+    local function Ask() ns.Confirm("Sure?", function() yes = yes + 1 end, function() no = no + 1 end) end
+    Ask(); Click(Button("Yes")); Flush()
+    Check(yes == 1 and no == 0, "Yes confirms without counting as no")
+    Ask(); Click(Button("No")); Flush()
+    Check(yes == 1 and no == 1, "No cancels")
+    Ask()
+    local dimmer = Text("Sure?").parent.parent
+    dimmer.scripts.OnKeyDown(dimmer, "ESCAPE"); Flush()
+    Check(yes == 1 and no == 2 and not dimmer:IsShown(), "Escape cancels")
+    Ask(); Ask()
+    Check(no == 3, "a confirm taking another's place cancels that one")
+    Click(Button("No")); Flush()
+    Check(no == 4 and yes == 1, "and the new one still answers once")
+end
+
 -- A module shipped as its own addon: switching it off disables the addon, with every module
 -- linked to it, once the player confirms.
 local confirmText, confirmYes, reloadText

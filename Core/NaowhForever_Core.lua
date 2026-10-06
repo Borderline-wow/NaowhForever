@@ -894,12 +894,15 @@ function ns.Confirm(text, onYes, onNo, yesText, noText)
     head:SetWidth(310)
     head:SetText(text)
     local w = (yesText or noText) and CONFIRM_WIDE or CONFIRM_W
-    UI.KeepButton(panel, "yes", yesText or "Yes", w, 26, function() dimmer:Hide(); onYes() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", -(w / 2 + 4), 14)
-    UI.KeepButton(panel, "no", noText or "No", w, 26, function()
+    UI.KeepButton(panel, "yes", yesText or "Yes", w, 26, function()
+        dimmer.onClose = nil
         dimmer:Hide()
-        if onNo then onNo() end
-    end):SetPoint("BOTTOM", panel, "BOTTOM", w / 2 + 4, 14)
+        onYes()
+    end):SetPoint("BOTTOM", panel, "BOTTOM", -(w / 2 + 4), 14)
+    UI.KeepButton(panel, "no", noText or "No", w, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", w / 2 + 4, 14)
+    -- No, Escape and a newer confirm taking this one's place all count as no.
+    dimmer.onClose = onNo
     dimmer:Show()
 end
 
