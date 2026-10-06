@@ -2,7 +2,8 @@
 --  NaowhForever_Flight.lua -- the QoL flight timer: a card with the route and the time left, a
 --  track you ride along with the stops marked on it, the next stop, and Land Early and Games.
 --  Also Flight Games (flightGame): the one choice of what opens by itself when a flight starts,
---  nothing, the Quiz or the Aim Trainer, migrated once from the old quizFlight and aimAutoFlight.
+--  the button only, the Quiz or the Aim Trainer (Off hides the button), migrated once from the old
+--  quizFlight and aimAutoFlight.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -440,7 +441,7 @@ end
 
 local function Layout()
     local land = S.Get("flightEarlyLanding") and not flight.sample
-    local games = S.Get("enabled") and not flight.sample
+    local games = S.Get("enabled") and S.Get("flightGame") ~= "off" and not flight.sample
     Look.Layout(bar, flight, land and true or false, games and true or false)
 end
 
@@ -476,7 +477,7 @@ local function Land()
     if ns.AimDismiss then ns.AimDismiss("flight") end
 end
 
-local FLIGHT_GAMES = { none = true, quiz = true, aim = true }
+local FLIGHT_GAMES = { off = true, none = true, quiz = true, aim = true }
 
 local function MigrateGame()
     local db = S.DB()
@@ -642,8 +643,8 @@ function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "flightTimer" or key == "flightEarlyLanding" or key == "flightTimerScale"
-        or key == "aimTrainer" then
+    if key == "enabled" or key == "flightTimer" or key == "flightEarlyLanding" or key == "flightGame"
+        or key == "flightTimerScale" or key == "aimTrainer" then
         Apply()
     end
 end)
@@ -687,7 +688,8 @@ end
 
 local function PaintPreview(preview)
     local f = preview.bar
-    Look.Layout(f, PREVIEW, S.Get("flightEarlyLanding") and true or false, S.Get("enabled") and true or false)
+    local games = S.Get("enabled") and S.Get("flightGame") ~= "off"
+    Look.Layout(f, PREVIEW, S.Get("flightEarlyLanding") and true or false, games and true or false)
     Look.Progress(f, PREVIEW, PREVIEW_ELAPSED)
     local w, h = f:GetWidth(), f:GetHeight()
     local scale = S.Get("flightTimerScale")
@@ -717,12 +719,13 @@ Settings.Page("QoL/Travel", S):Card({
     },
 })
 
-local GAME_NAMES = { none = "Nothing", quiz = "Quiz", aim = "Aim Trainer" }
-local GAMES = { GAME_NAMES, { "none", "quiz", "aim" } }
+local GAME_NAMES = { off = "Off", none = "Button only", quiz = "Quiz", aim = "Aim Trainer" }
+local GAMES = { GAME_NAMES, { "off", "none", "quiz", "aim" } }
 
 local function GamesSummary()
     local game = Game()
-    if game == "none" then return "Nothing opens by itself" end
+    if game == "off" then return "Off: no Games button" end
+    if game == "none" then return "Games button, nothing opens by itself" end
     if game == "aim" and not (ns.AimTrainerOn and ns.AimTrainerOn()) then
         return "Aim Trainer, but it is off: nothing opens"
     end
@@ -736,6 +739,6 @@ Settings.Page("QoL/Travel", S):Card({
     rows = {
         { key = "flightGame", label = "On Flights", choice = GAMES,
           get = Game, set = function(v) S.Set("flightGame", v) end,
-          help = "What opens when a flight starts; the Aim Trainer needs its own switch on." },
+          help = "What opens when a flight starts; Off hides the Games button." },
     },
 })
