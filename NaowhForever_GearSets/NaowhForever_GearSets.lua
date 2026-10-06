@@ -672,7 +672,7 @@ page:Card({
     id = "gearBar", name = "Gear Set Bar", order = 10, switch = "gearBarVisible",
     help = "A button per set: click to equip, Shift-click to save what you wear into it, Ctrl-click to rename "
         .. "it, right-click to change its icon, and + to save a new one. The set you wear is outlined. Move it "
-        .. "in Move Elements.",
+        .. "with Move Elements.",
     summary = SizeSummary("gearBarSize"),
     studio = { height = 100, states = PREVIEW_STATE, new = NewBarPreview, paint = PaintBarPreview },
     rows = {
