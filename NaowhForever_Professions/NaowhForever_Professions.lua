@@ -3479,6 +3479,11 @@ end
 
 local function Update()
     if not (On() and ProfessionsFrame and ProfessionsFrame:IsShown()) then return Deactivate() end
+    -- K opens the book while the game still holds the last linked profession: the book wins,
+    -- unless a link was just clicked.
+    if BookOpen() and not viewingLink and not C_TradeSkillUI.IsTradeSkillGuild() then
+        return Activate("book")
+    end
     if Linked() then
         if Profession() then return Activate("linked") end
         return Deactivate()
@@ -3510,9 +3515,10 @@ local retrying
 -- you open one of your own professions, which is a cast of its spell. Casts are only listened
 -- to while a link is being viewed.
 local casts = CreateFrame("Frame")
+local SETTLE = 1
 
 local function Settled()
-    return viewingLink and GetTime() - linkClicked > 1
+    return viewingLink and GetTime() - linkClicked > SETTLE
 end
 
 local function StopLinkView()
@@ -3520,8 +3526,15 @@ local function StopLinkView()
     casts:UnregisterAllEvents()
 end
 
+-- Closed in the first second, the close may be the click's own on its way to the link, so look
+-- again once that has passed: still closed, the link view is over.
 local function EndLinkView()
-    if Settled() then StopLinkView() end
+    if not viewingLink then return end
+    if Settled() then return StopLinkView() end
+    local clicked = linkClicked
+    C_Timer.After(SETTLE - (GetTime() - clicked) + 0.05, function()
+        if viewingLink and linkClicked == clicked and not ProfessionsFrame:IsShown() then StopLinkView() end
+    end)
 end
 
 local function OwnProfessionSpell(spellID)
@@ -3542,8 +3555,9 @@ casts:SetScript("OnEvent", function(_, _, _, _, spellID)
 end)
 
 -- A trade link reads trade:<crafter GUID>:<spell>:<skill line>; your own links stay yours.
+-- Only a plain click opens the link: Shift or Ctrl puts it in chat and no window opens.
 hooksecurefunc("SetItemRef", function(link, text, button, chatFrame)
-    if not On() then return end
+    if not On() or IsShiftKeyDown() or IsControlKeyDown() then return end
     local guid = type(link) == "string" and link:match("^trade:([^:]+)")
     if not guid or guid == UnitGUID("player") then return end
     viewingLink, linkClicked, linkGUID = true, GetTime(), guid
