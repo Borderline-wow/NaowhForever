@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: Move Elements' movers, run against frame stubs
 -- with real geometry. Drags, arrow keys, typed X and Y and Center save the element CENTER on
--- the screen centre, and anchors and the snap switch from before are dropped without moving
--- anything.
+-- the screen centre; Anchor ties an element to another so it follows; and the anchors and snap
+-- switch from before are dropped without moving anything.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local function Near(a, b) return a and b and math.abs(a - b) < 0.01 end
@@ -182,9 +182,12 @@ local ns = {
         local b = NewFrame("Button", parent)
         b:SetSize(w, h)
         b.text_ = text
+        b.label = b:CreateFontString()
+        b._border = { SetColor = function(self, r, g, bl) self.color = { r, g, bl } end }
         b:SetScript("OnClick", onClick)
         return b
     end,
+    SetButtonText = function(b, text) b.text_ = text end,
     Shared = { Parts = { HudText = function(fs) return fs end } },
     UIFontPath = function() return "font" end,
     L = function(text) return text end,
@@ -227,12 +230,12 @@ local chunk = assert(loadstring(source, "Core/NaowhForever_UnlockMode.lua"))
 setfenv(chunk, env)
 chunk()
 
-local function Display(label, w, h, x, y)
+local function Display(label, w, h, x, y, ownAnchor)
     local frame = NewFrame("Frame", UIParent)
     frame:SetSize(w, h)
     frame:SetPoint("CENTER", UIParent, "CENTER", x, y)
     local saved = {}
-    local mover = UI.AttachMover(frame, label, function(pos) saved[#saved + 1] = pos end, "QoL/General")
+    local mover = UI.AttachMover(frame, label, function(pos) saved[#saved + 1] = pos end, "QoL/General", nil, ownAnchor)
     mover:Show()
     return frame, mover, saved
 end
@@ -362,18 +365,108 @@ Drive()
 UI.StopMoverDrag(swingMover)
 Check(Near(swing:GetLeft(), mL + 4), "a drag near another element's edge stays where it is dropped")
 
+-- Anchor on the tag: lit while it waits for a target, the next element clicked becomes the
+-- target, and from then on the element follows it, keeping its gap.
+local boss, bossMover = Display("Boss Bar", 100, 20, 0, 300)
+local add, addMover, addSaved = Display("Add Bar", 60, 20, 20, 270)
+Flush()
+Click(addMover, "LeftButton")
+Check(tag.anchor:IsShown() and tag.anchor:GetText() == "Anchor", "the tag has Anchor")
+Fire(tag.anchor, "OnClick")
+Check(tag.anchor._border.color[3] == T.accent.b and tag.anchor.label.color[3] == T.accent.b,
+    "Anchor lights up while it waits for a target")
+Click(bossMover, "LeftButton")
+local link = settings.anchoredTo["Add Bar"]
+Check(link and link.target == "Boss Bar" and link.side == "BOTTOM" and Near(link.x, 20) and Near(link.y, -10),
+    "clicking another element anchors to its nearest side, where it is")
+Check(tag.item == addMover._placement and tag.anchor:GetText() == "Unanchor"
+    and tag.anchor._border.color[3] == 0, "the element stays selected and its button reads Unanchor")
+
+UI.SelectMover(bossMover)
+shift = true
+Fire(keys, "OnKeyDown", "RIGHT")
+shift = false
+Check(Near(Center(add), 990) and Near(Last(addSaved).x, 30) and Near(Last(addSaved).y, 270),
+    "moving the target takes the anchored element along and saves it")
+local addSaves = #addSaved
+cursor.x, cursor.y = Center(boss)
+UI.StartMoverDrag(bossMover)
+cursor.x = cursor.x + 50
+Drive()
+Check(Near(Center(add), 1040) and #addSaved == addSaves, "it follows a drag as it happens")
+UI.StopMoverDrag(bossMover)
+Check(Near(Last(addSaved).x, 80), "and is saved on the drop")
+boss:SetHeight(40)
+Flush()
+Check(Near(add:GetTop(), boss:GetBottom() - 10), "a target that grows pushes it out, keeping the gap")
+
+UI.SelectMover(addMover)
+Fire(keys, "OnKeyDown", "DOWN")
+Check(Near(link.y, -11), "moving the element itself keeps the anchor with the new gap")
+boss:ClearAllPoints()
+boss:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+Flush()
+Check(Near(add:GetTop(), boss:GetBottom() - 11) and Near(Last(addSaved).y, -41),
+    "a target the module moves itself takes it along too")
+
+UI.SelectMover(bossMover)
+Fire(tag.anchor, "OnClick")
+Click(addMover, "LeftButton")
+Check(settings.anchoredTo["Boss Bar"] == nil and printed[#printed]:find("Boss Bar", 1, true),
+    "an element cannot anchor to one that already follows it")
+Fire(tag.anchor, "OnClick")
+Fire(keys, "OnKeyDown", "ESCAPE")
+Check(tag:IsShown() and tag.item == bossMover._placement and tag.anchor._border.color[3] == 0,
+    "Escape calls a pick off and keeps the selection")
+Fire(tag.anchor, "OnClick")
+Click(bossMover, "LeftButton")
+Check(settings.anchoredTo["Boss Bar"] == nil and tag.item == bossMover._placement, "so does clicking the element itself")
+Fire(tag.anchor, "OnClick")
+Fire(tag.anchor, "OnClick")
+Check(tag.anchor._border.color[3] == 0, "and Anchor again")
+
+UI.SelectMover(addMover)
+local addSpot = { Center(add) }
+Fire(tag.anchor, "OnClick")
+Check(settings.anchoredTo["Add Bar"] == nil and tag.anchor:GetText() == "Anchor", "Unanchor lets go")
+Fire(tag.anchor, "OnClick")
+Fire(keys, "OnKeyDown", "ESCAPE")
+boss:ClearAllPoints()
+boss:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+Flush()
+Check(Near(Center(add), addSpot[1]) and Near(select(2, Center(add)), addSpot[2]), "and it stays put after")
+
+local _, fireMover = Display("Fire", 30, 30, -300, 0, true)
+Click(fireMover, "LeftButton")
+Check(not tag.anchor:IsShown() and tag.settings:IsShown(), "an element that holds its own spot has no Anchor")
+UI.ClearMoverSelection()
+
+-- Profile switches put anchored elements back on their targets, parents first.
+settings.anchoredTo = {
+    ["Add Bar"] = { target = "Boss Bar", side = "BOTTOM", x = 0, y = -5 },
+    ["Fire"] = { target = "Boss Bar", side = "TOP", x = 0, y = 5 },
+}
+local login
+for _, fr in ipairs(made) do
+    if fr.events.PLAYER_LOGIN then login = fr end
+end
+settings.snap = false
+ns.Apply()
+Check(settings.snap == false, "nothing is dropped before the profile loads")
+login.scripts.OnEvent(login, "PLAYER_LOGIN")
+ns.Apply()
+Flush()
+Check(Near(add:GetTop(), boss:GetBottom() - 5) and Near(Center(add), 960), "a profile switch re-places anchored elements")
+Check(Near(select(2, Center(fireMover._placement.frame)), 540), "but not one that holds its own spot")
+settings.anchoredTo = nil
+for _, m in ipairs({ bossMover, addMover, fireMover }) do m:Hide() end
+
 -- Anchors and the snap switch saved before they were dropped: both go at login and on every
 -- profile switch, and nothing moves, since each element's own position already holds where its
 -- anchor put it.
 settings.anchors = { ["Swing Timer"] = { target = "Threat Meter", side = "TOP", offsetX = 0, offsetY = 0 } }
 settings.snap = false
 local before, saves = { Center(swing) }, #swingSaved
-local login
-for _, fr in ipairs(made) do
-    if fr.events.PLAYER_LOGIN then login = fr end
-end
-login.scripts.OnEvent(login, "PLAYER_LOGIN")
-Check(settings.anchors ~= nil, "nothing is dropped before the profile loads")
 ns.Apply()
 Check(settings.anchors == nil and settings.snap == nil, "the profile's anchors and snap switch are dropped")
 Check(Near(Center(swing), before[1]) and #swingSaved == saves, "without moving or saving anything")

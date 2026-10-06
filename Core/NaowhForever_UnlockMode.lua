@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_UnlockMode.lua -- Move Elements' movers. An element is placed CENTER on the
 --  screen centre and saved there. Clicking one selects it; its tag holds its X and Y and what
---  can be done with it.
+--  can be done with it. An element anchored to another follows it, keeping its gap.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -13,8 +13,9 @@ local BLACK = { r = 0, g = 0, b = 0 }
 local MOVER_FILL, MOVER_FILL_LIT = 0.55, 0.75
 local MOVER_STRIP = 2          -- the accent strip's height
 local NUDGE_FAR = 10           -- pixels a Shift + arrow moves
+local MAX_DEPTH = 20           -- anchor chain length followed at most
 
-local placement = { active = false, items = {}, byLabel = {} }
+local placement = { active = false, items = {}, byLabel = {}, unsaved = {} }
 
 -------------------------------------------------------------------------------
 --  Geometry
@@ -50,15 +51,23 @@ local function Place(item, x, y)
     return x, y
 end
 
--- Puts the element's centre (its Box) at (cx, cy) in UIParent units, and saves it.
+-- Puts the element's centre (its Box) at (cx, cy) in UIParent units, and saves it; during a
+-- drag the save waits for the drop.
 local function MoveTo(item, cx, cy)
     local bl, br, bt, bb = Box(item)
     local fl, fr, ft, fb, ratio = Bounds(item.frame)
     if not (bl and fl) then return end
-    local x = (cx - ((bl + br) - (fl + fr)) / 2 - UIParent:GetWidth() / 2) / ratio
-    local y = (cy - ((bt + bb) - (ft + fb)) / 2 - UIParent:GetHeight() / 2) / ratio
-    x, y = Place(item, x, y)
-    item.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
+    local es = item.frame:GetEffectiveScale()
+    local x = PixelUtil.GetNearestPixelSize((cx - ((bl + br) - (fl + fr)) / 2 - UIParent:GetWidth() / 2) / ratio, es)
+    local y = PixelUtil.GetNearestPixelSize((cy - ((bt + bb) - (ft + fb)) / 2 - UIParent:GetHeight() / 2) / ratio, es)
+    local point, rel, relPoint, px, py = item.frame:GetPoint(1)
+    if point == "CENTER" and rel == UIParent and relPoint == "CENTER" and px == x and py == y then return end
+    Place(item, x, y)
+    if placement.dragging then
+        placement.unsaved[item] = true
+    else
+        item.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
+    end
 end
 
 -- The element's centre from the screen's centre, in whole pixels, as the tag shows it.
@@ -67,6 +76,132 @@ local function Position(item)
     if not l then return end
     local px = Pixel()
     return math.floor((l + r - UIParent:GetWidth()) / 2 / px + 0.5), math.floor((t + b - UIParent:GetHeight()) / 2 / px + 0.5)
+end
+
+-------------------------------------------------------------------------------
+--  Anchors: anchoredTo[label] = { target, side, x, y }. side is the target's side the element
+--  sits off; along it x or y is centre to centre, across it the gap between the facing edges,
+--  so a target that grows pushes the element out.
+-------------------------------------------------------------------------------
+local function Anchors()
+    local db = ns.UnlockModeSettings.DB()
+    if type(db.anchoredTo) ~= "table" then db.anchoredTo = {} end
+    return db.anchoredTo
+end
+
+local function AnchorOf(label)
+    local info = Anchors()[label]
+    if type(info) == "table" and type(info.target) == "string" then return info end
+end
+
+-- The target's side the element is furthest out from.
+local function SideOf(item, target)
+    local cl, cr, ct, cb = Box(item)
+    local tl, tr, tt, tb = Box(target)
+    if not (cl and tl) then return "BOTTOM" end
+    local dx = (cl + cr - tl - tr) / math.max(1, cr - cl + tr - tl)
+    local dy = (ct + cb - tt - tb) / math.max(1, ct - cb + tt - tb)
+    if math.abs(dx) > math.abs(dy) then return dx > 0 and "RIGHT" or "LEFT" end
+    return dy > 0 and "TOP" or "BOTTOM"
+end
+
+-- info.x and info.y from where the element is now.
+local function Capture(item, info)
+    local target = placement.byLabel[info.target]
+    if not target then return end
+    local tl, tr, tt, tb = Box(target)
+    local cl, cr, ct, cb = Box(item)
+    if not (tl and cl) then return end
+    local side = info.side
+    if side == "LEFT" then info.x, info.y = cr - tl, (ct + cb - tt - tb) / 2
+    elseif side == "RIGHT" then info.x, info.y = cl - tr, (ct + cb - tt - tb) / 2
+    elseif side == "TOP" then info.x, info.y = (cl + cr - tl - tr) / 2, cb - tt
+    else info.x, info.y = (cl + cr - tl - tr) / 2, ct - tb end
+end
+
+-- An anchored element to its place. A protected one waits for the end of combat.
+local function Apply(item)
+    local info = not item.ownAnchor and AnchorOf(item.label)
+    local target = info and placement.byLabel[info.target]
+    if not target then return end
+    local tl, tr, tt, tb = Box(target)
+    local cl, cr, ct, cb = Box(item)
+    if not (tl and cl) then return end
+    if InCombatLockdown() and item.frame:IsProtected() then
+        placement.parked = true
+        return
+    end
+    local w, h, x, y, side = cr - cl, ct - cb, info.x or 0, info.y or 0, info.side
+    if side == "LEFT" then MoveTo(item, tl + x - w / 2, (tt + tb) / 2 + y)
+    elseif side == "RIGHT" then MoveTo(item, tr + x + w / 2, (tt + tb) / 2 + y)
+    elseif side == "TOP" then MoveTo(item, (tl + tr) / 2 + x, tt + y + h / 2)
+    else MoveTo(item, (tl + tr) / 2 + x, tb + y - h / 2) end
+end
+
+-- Everything anchored to label, and on down the chain.
+local function Propagate(label, visited)
+    visited = visited or {}
+    if visited[label] then return end
+    visited[label] = true
+    for child, info in pairs(Anchors()) do
+        if type(info) == "table" and info.target == label then
+            local item = placement.byLabel[child]
+            if item and item ~= placement.dragging then
+                Apply(item)
+                Propagate(child, visited)
+            end
+        end
+    end
+end
+
+local function Depth(label)
+    local depth, info = 0, AnchorOf(label)
+    while info and depth < MAX_DEPTH do
+        depth = depth + 1
+        info = AnchorOf(info.target)
+    end
+    return depth
+end
+
+-- Every anchor, parents first so a child never reads its target's old spot.
+local function ReapplyAll()
+    local list = {}
+    for label in pairs(Anchors()) do
+        local item = placement.byLabel[label]
+        if item then list[#list + 1] = { item = item, depth = Depth(label) } end
+    end
+    table.sort(list, function(a, b) return a.depth < b.depth end)
+    for _, e in ipairs(list) do Apply(e.item) end
+end
+
+-- After the element itself moved: its own anchor keeps the new gap, and what follows it comes
+-- along.
+local function Moved(item)
+    local info = not item.ownAnchor and AnchorOf(item.label)
+    if info then Capture(item, info) end
+    Propagate(item.label)
+end
+
+-- Size and position changes from anywhere: one pass a frame. A size change re-places the
+-- element itself; a move only takes what is anchored to it along.
+local queued, batchQueued = {}, false
+
+local function RunBatch()
+    batchQueued = false
+    local labels = queued
+    queued = {}
+    for label, kind in pairs(labels) do
+        local item = placement.byLabel[label]
+        if kind == "size" and item and item ~= placement.dragging and not item.sizing then Apply(item) end
+        Propagate(label)
+    end
+end
+
+local function Queue(label, kind)
+    if queued[label] ~= "size" then queued[label] = kind or "move" end
+    if batchQueued then return end
+    batchQueued = true
+    C_Timer.After(0, RunBatch)
 end
 
 -------------------------------------------------------------------------------
@@ -80,6 +215,7 @@ local function Nudge(item, dx, dy)
     local l, r, t, b = Box(item)
     if not l then return end
     MoveTo(item, (l + r) / 2 + dx, (t + b) / 2 + dy)
+    Moved(item)
     Refresh(item)
 end
 
@@ -94,6 +230,7 @@ local function DragUpdate()
     local _, _, _, _, ratio = Bounds(item.frame)
     if not ratio then return end
     Place(item, (cx - item.boxX - w / 2) / ratio, (cy - item.boxY - h / 2) / ratio)
+    Propagate(item.label)
     ShowTag()
 end
 
@@ -109,6 +246,12 @@ local function StopDrag(item)
         local x, y = Place(item, ((l + r) / 2 - UIParent:GetWidth() / 2) / ratio, ((t + b) / 2 - UIParent:GetHeight() / 2) / ratio)
         item.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
     end
+    Moved(item)
+    for other in pairs(placement.unsaved) do
+        local _, _, _, x, y = other.frame:GetPoint(1)
+        other.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
+    end
+    wipe(placement.unsaved)
     Refresh(item)
 end
 
@@ -128,12 +271,12 @@ end
 
 -------------------------------------------------------------------------------
 --  The tag: just outside the selected mover, its X and Y in whole pixels (live while it moves,
---  typed to move it), Center, and Settings when the element has a page.
+--  typed to move it), Center, Anchor, and Settings when the element has a page.
 -------------------------------------------------------------------------------
 local BOX_W, BOX_H = 46, 18
 local TAG_PAD, TAG_GAP = 3, 4                    -- inside the tag's edge, from it to the mover
 local LETTER_W, AXIS_GAP, PAIR_GAP = 8, 3, 8     -- an axis letter, from it to its box, between the parts
-local CENTER_W, SETTINGS_W = 52, 62
+local CENTER_W, ANCHOR_W, SETTINGS_W = 52, 66, 62
 local TAG_H = BOX_H + 2 * TAG_PAD
 local TAG_LEVEL = 230                            -- over the movers
 
@@ -160,6 +303,56 @@ local function Revert(box)
     box.border:SetColor(0, 0, 0, 1)
     box.value = nil
     ShowTag()
+end
+
+-- Anchor arms a pick: the next element clicked becomes the target, the element itself or Escape
+-- calls it off. A target that already follows the element is refused.
+local function PickTarget(target)
+    local item = placement.picking
+    placement.picking = nil
+    if target ~= item then
+        local walk, depth = target.label, 0
+        while walk and depth < MAX_DEPTH do
+            if walk == item.label then
+                ns.Print(("%s already moves with %s."):format(target.label, item.label))
+                ShowTag()
+                return
+            end
+            local info = AnchorOf(walk)
+            walk, depth = info and info.target, depth + 1
+        end
+        local info = { target = target.label, side = SideOf(item, target) }
+        Capture(item, info)
+        Anchors()[item.label] = info
+    end
+    ShowTag()
+end
+
+local function AnchorClicked(tag)
+    local item = tag.item
+    if not item then return end
+    if AnchorOf(item.label) then
+        Anchors()[item.label] = nil
+    else
+        placement.picking = placement.picking ~= item and item or nil
+    end
+    ShowTag()
+end
+
+-- Unanchor while anchored; lit in the accent while a pick is armed.
+local function PaintAnchor(button, item)
+    local info = AnchorOf(item.label)
+    local picking = placement.picking == item
+    ns.SetButtonText(button, info and "Unanchor" or "Anchor")
+    if info then
+        ns.Tooltip(button, "Unanchor", ("Anchored to %s. Lets go of it; it stays where it is."):format(info.target))
+    else
+        ns.Tooltip(button, "Anchor", "Click another element to anchor to. It then moves with that element.")
+    end
+    local edge, text = picking and T.accent or BLACK, picking and T.accent or T.fg
+    button._rest = edge
+    button._border:SetColor(edge.r, edge.g, edge.b, 1)
+    button.label:SetTextColor(text.r, text.g, text.b, 1)
 end
 
 local function BuildTag()
@@ -206,10 +399,11 @@ local function BuildTag()
     end)
     tag.center:SetPoint("LEFT", left, "RIGHT", PAIR_GAP, 0)
     ns.Tooltip(tag.center, "Center", "Moves it to the middle of the screen, left to right.")
+    tag.anchor = ns.Button(tag, "Anchor", ANCHOR_W, BOX_H, function() AnchorClicked(tag) end)
+    tag.anchor:SetPoint("LEFT", tag.center, "RIGHT", AXIS_GAP, 0)
     tag.settings = ns.Button(tag, "Settings", SETTINGS_W, BOX_H, function()
         if tag.item then OpenSettings(tag.item) end
     end)
-    tag.settings:SetPoint("LEFT", tag.center, "RIGHT", AXIS_GAP, 0)
     ns.Tooltip(tag.settings, "Settings", "Opens its settings and leaves Move Elements.")
     return tag
 end
@@ -236,8 +430,12 @@ function ShowTag()
     if tag.item ~= item or tag.above ~= above then
         tag.item, tag.above = item, above
         tag.x.value, tag.y.value = nil, nil
+        tag.anchor:SetShown(not item.ownAnchor)
         tag.settings:SetShown(item.page ~= nil)
+        tag.settings:ClearAllPoints()
+        tag.settings:SetPoint("LEFT", item.ownAnchor and tag.center or tag.anchor, "RIGHT", AXIS_GAP, 0)
         local w = 2 * (LETTER_W + AXIS_GAP + BOX_W) + 2 * PAIR_GAP + CENTER_W + 2 * TAG_PAD
+        if not item.ownAnchor then w = w + AXIS_GAP + ANCHOR_W end
         if item.page then w = w + AXIS_GAP + SETTINGS_W end
         tag:SetWidth(w)
         tag:ClearAllPoints()
@@ -250,6 +448,7 @@ function ShowTag()
     tag:Show()
     SetBox(tag.x, x)
     SetBox(tag.y, y)
+    if not item.ownAnchor then PaintAnchor(tag.anchor, item) end
 end
 
 -------------------------------------------------------------------------------
@@ -271,7 +470,7 @@ end
 function UI.ClearMoverSelection()
     local item = placement.selected
     StopDrag(item)
-    placement.selected = nil
+    placement.selected, placement.picking = nil, nil
     if item then
         item.selected = false
         Refresh(item)
@@ -293,7 +492,12 @@ local function PlacementKey(self, key)
     if not placement.active or GetCurrentKeyBoardFocus() then return end
     if key == "ESCAPE" then
         if not placement.selected then return end
-        UI.ClearMoverSelection()
+        if placement.picking then
+            placement.picking = nil
+            ShowTag()
+        else
+            UI.ClearMoverSelection()
+        end
         self:SetPropagateKeyboardInput(false)
         return
     end
@@ -390,9 +594,11 @@ end
 --  Movers
 -------------------------------------------------------------------------------
 -- page: the options page that sets the element up ("QoL/General"); feature: the section on
--- it to open, if it has one.
-function UI.BindMover(handle, frame, label, onMoved, page, feature)
-    local item = { handle = handle, frame = frame, label = label, save = onMoved, page = page, feature = feature }
+-- it to open, if it has one. ownAnchor: it holds itself to the screen its own way, so it takes
+-- no anchor (others can still anchor to it).
+function UI.BindMover(handle, frame, label, onMoved, page, feature, ownAnchor)
+    local item = { handle = handle, frame = frame, label = label, save = onMoved, page = page, feature = feature,
+        ownAnchor = ownAnchor }
     item.baseLevel = handle:GetFrameLevel()
     handle._placement = item
     local old = placement.byLabel[label]
@@ -403,6 +609,20 @@ function UI.BindMover(handle, frame, label, onMoved, page, feature)
     end
     placement.items[#placement.items + 1] = item
     placement.byLabel[label] = item
+    -- The mover can cover more than the frame (a reminder's sample), and grows with it.
+    frame:HookScript("OnSizeChanged", function() Queue(label, "size") end)
+    handle:HookScript("OnSizeChanged", function() Queue(label, "size") end)
+    hooksecurefunc(frame, "SetPoint", function()
+        if not item.dragging then Queue(label) end
+    end)
+    -- A module's own resize grip sizes the frame from a corner of its choosing: the anchor
+    -- leaves it be until the grip lets go.
+    hooksecurefunc(frame, "StartSizing", function() item.sizing = true end)
+    hooksecurefunc(frame, "StopMovingOrSizing", function()
+        item.sizing = nil
+        C_Timer.After(0, function() Moved(item) end)
+    end)
+    Queue(label, "size")
     handle:EnableMouse(true)
     handle:RegisterForDrag("LeftButton")
     handle:SetScript("OnEnter", function()
@@ -418,7 +638,13 @@ function UI.BindMover(handle, frame, label, onMoved, page, feature)
     handle:SetScript("OnMouseUp", function(_, button)
         if not placement.active or InCombatLockdown() or item.dragging or item.dragged then return end
         if button ~= "LeftButton" then return end
-        if placement.selected == item then UI.ClearMoverSelection() else UI.SelectMover(handle) end
+        if placement.picking then
+            PickTarget(item)
+        elseif placement.selected == item then
+            UI.ClearMoverSelection()
+        else
+            UI.SelectMover(handle)
+        end
     end)
     handle:SetScript("OnDragStart", function() UI.StartMoverDrag(handle) end)
     handle:SetScript("OnDragStop", function() UI.StopMoverDrag(handle) end)
@@ -430,9 +656,9 @@ function UI.BindMover(handle, frame, label, onMoved, page, feature)
     Refresh(item)
 end
 
--- Move Elements plate for an on-screen display. Hidden until the caller shows it. page and
--- feature: as UI.BindMover's.
-function UI.AttachMover(frame, label, onMoved, page, feature)
+-- Move Elements plate for an on-screen display. Hidden until the caller shows it. page,
+-- feature and ownAnchor: as UI.BindMover's.
+function UI.AttachMover(frame, label, onMoved, page, feature, ownAnchor)
     local mover = CreateFrame("Frame", nil, frame)
     mover:SetAllPoints()
     mover:SetFrameLevel(frame:GetFrameLevel() + 20)
@@ -447,7 +673,7 @@ function UI.AttachMover(frame, label, onMoved, page, feature)
     text:SetPoint("CENTER", mover, "CENTER")
     text:SetText(label)
     mover.text = text
-    UI.BindMover(mover, frame, label, onMoved, page, feature)
+    UI.BindMover(mover, frame, label, onMoved, page, feature, ownAnchor)
     mover:Hide()
     return mover
 end
@@ -464,17 +690,24 @@ function UI.CenterPosition(frame)
     return { point = "CENTER", relPoint = "CENTER", x = x, y = y }
 end
 
--- Element anchors and snapping were dropped; every move an anchor made was saved as the
--- element's own position, so only the old keys go. ns.Apply runs at login and on a profile
--- switch.
-local forget = CreateFrame("Frame")
-forget:RegisterEvent("PLAYER_LOGIN")
-forget:SetScript("OnEvent", function(self)
-    self:UnregisterAllEvents()
-    hooksecurefunc(ns, "Apply", function()
-        local db = ns.UnlockModeSettings.DB()
-        db.anchors, db.snap = nil, nil
-    end)
+-- Anchors catch up on entering the world, after every profile switch (ns.Apply) and after
+-- combat held a protected one back. The old anchors and snap switch were dropped before; every
+-- move they made was saved as the element's own position, so only their keys go.
+local watch = CreateFrame("Frame")
+watch:RegisterEvent("PLAYER_LOGIN")
+watch:RegisterEvent("PLAYER_ENTERING_WORLD")
+watch:RegisterEvent("PLAYER_REGEN_ENABLED")
+watch:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_LOGIN" then
+        hooksecurefunc(ns, "Apply", function()
+            local db = ns.UnlockModeSettings.DB()
+            db.anchors, db.snap = nil, nil
+            C_Timer.After(0, ReapplyAll)
+        end)
+    elseif event == "PLAYER_ENTERING_WORLD" or placement.parked then
+        placement.parked = nil
+        C_Timer.After(0, ReapplyAll)
+    end
 end)
 
 -------------------------------------------------------------------------------

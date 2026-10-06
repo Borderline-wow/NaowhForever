@@ -749,7 +749,8 @@ local function Build()
     icon:SetScript("OnEnter", PaintBuffs)
     icon:SetScript("OnLeave", PaintBuffs)
 
-    icon.mover = ns.UI.AttachMover(icon, "Campfire", SavePos, "AuraBuffs/Settings", "AuraBuffs/Settings:campfire")
+    -- Its spot follows its style (Spot.ForStyle), held to a corner of its own choosing.
+    icon.mover = ns.UI.AttachMover(icon, "Campfire", SavePos, "AuraBuffs/Settings", "AuraBuffs/Settings:campfire", true)
     icon:Hide()
 end
 
