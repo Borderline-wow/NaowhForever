@@ -62,7 +62,7 @@ View.Columns = Shared.View.Columns
 local ViewMixin = {}
 
 local BOSS_LOOT_GAP = 4     -- between a boss's header and its first item
-local PAGE_GAP, COLUMN_GAP, COLUMN_TITLE_GAP = 6, 16, 2
+local PAGE_GAP, COLUMN_GAP, COLUMN_TITLE_GAP = St.BOSS_PAGE_GAP, 16, 2
 local TRASH_TOP, TRASH_GAP = 6, 16
 local EMPTY_BODY = 28       -- a boss card's body with nothing listed: room for its centred line
 local EMPTY = {}

@@ -64,10 +64,10 @@ DungeonJournal/
                        shows on the world map
     Popup.lua          Boss Loot at Cursor (a key binding)
     QuestTracker.lua   a dungeon's quests in a small window, one line each
-    DungeonMap.lua     a dungeon's map: in its own window (under it, the bosses in kill order as
-                       a strip of chips, this run's progress, and the picked boss's page: loot
-                       and abilities side by side), and on the world map; /nf mappins to place
-                       pins, /nf mapcheck for the client's map art
+    DungeonMap.lua     a dungeon's map: in its own window (beside it, the bosses in kill order
+                       with their pins' marks, by wing, and this run's progress; under both,
+                       the picked boss's page: loot and abilities side by side), and on the
+                       world map; /nf mappins to place pins, /nf mapcheck for the client's map art
     SettingsPage.lua   its settings page (Dungeon Journal/Settings), declared as cards
 ```
 
@@ -230,7 +230,7 @@ the game's own tables, and what they can't settle is listed in the pull request 
   reputation rules, what counting costs, the window's tabs, and that nothing is made or
   hooked while it is off.
   It also times what runs often (a page's BiS count, the list's repaint, the map and its
-  strip of bosses drawn, a boss picked on it) and fails if one goes over its budget or makes garbage.
+  list of bosses drawn, a boss picked on it) and fails if one goes over its budget or makes garbage.
 - `lua Tools/regression/test-journal-quests.lua`: the quest rules and the quest data.
 - `python -m unittest discover -s Tools/tests`: the builders' rules (what a boss keeps, the
   wowsrc merge, the daily checks).

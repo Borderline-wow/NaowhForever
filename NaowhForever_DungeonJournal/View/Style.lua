@@ -86,6 +86,7 @@ J.Style = setmetatable({
     CHANCE_HIGH = 25,
     CHANCE_FAIR = 10,
 
+    BOSS_PAGE_GAP = 6,
     DENSE_H = 30,
     DENSE_TALL_H = 44,
     DENSE_ICON = 26,
@@ -96,6 +97,7 @@ J.Style = setmetatable({
     CHIP_H = 20,
     CHIP_PAD = 8,
     CHIP_GAP = 6,
+    CHEST_ICON = "Interface\\Icons\\INV_Box_02",
 
     ---------------------------------------------------------------------------
     --  The window and its list
