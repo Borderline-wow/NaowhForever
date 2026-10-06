@@ -226,8 +226,6 @@ end
 local open = {}
 
 function Settings.IsOpen(card)
-    local searched = ns.UI.searchOpen
-    if searched and searched[card.uid] then return true end
     local state = open[card.uid]
     if state ~= nil then return state end
     if card.info then return card.open == true end
