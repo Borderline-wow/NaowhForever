@@ -377,7 +377,7 @@ RenderPanel = function()
 
     local any, hasBars = #offers > 0, learned > 0 and ns.TrainerRankCheck ~= nil
     panel.done:SetShown(not any)
-    panel.done:SetText(learned > 0 and ("Learned " .. learned .. " spells. Nothing else to train here for now.")
+    panel.done:SetText(learned > 0 and ("Learned %d spell%s. Nothing else to train here for now."):format(learned, learned == 1 and "" or "s")
         or "Nothing to train here for now.")
     panel.total:SetShown(any)
     panel.note:SetShown(any)

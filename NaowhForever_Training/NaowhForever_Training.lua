@@ -741,7 +741,7 @@ local function CardLines()
     elseif plan.soon[1] or plan.later[1] then
         headline = "New spells at level " .. (plan.soon[1] or plan.later[1])[1]
     else
-        headline = "Every spell your class trains, you know"
+        headline = "You know every spell your class trains"
     end
     local _, _, classID = UnitClass("player")
     local builds = #Training.Builds(classID)

@@ -704,7 +704,7 @@ page:Card({
     summary = ImportingSummary,
     rows = {
         { key = "highestRank", label = "Highest Rank", toggle = true, needs = On, why = BARS_OFF,
-          help = "Imports the highest rank you know of each spell instead of the rank that was saved. Off, a "
+          help = "Imports the highest rank you know of each spell instead of the rank that was saved. When off, a "
               .. "rank you no longer have still falls back to your highest." },
         { key = "importMacros", label = "Import Macros", toggle = true, needs = On, why = BARS_OFF,
           help = "Makes the set's macros that this character does not have. A macro you already have, by name "

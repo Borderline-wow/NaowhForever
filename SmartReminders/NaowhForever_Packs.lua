@@ -1745,7 +1745,7 @@ function ns.ShowPackImport(text)
             if accountSet then
                 local known = ns.KnownCharacters and #ns.KnownCharacters() or 0
                 ns.Print(("imported as the profile '%s'. %s on this account use%s it now, and "
-                    .. "one logged into later will too. Switching a single character "
+                    .. "any you log into later will too. Switching a single character "
                     .. "afterwards moves only that one.%s"):format(
                     tostring(newName),
                     known == 1 and "The one character" or ("All " .. known .. " characters"),

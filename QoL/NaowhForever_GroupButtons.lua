@@ -134,7 +134,7 @@ local function Invite()
 end
 
 local function LayoutSummary(store)
-    return store.Get("groupButtonsLayout") == "row" and "Side by side" or "Invite over Disband"
+    return store.Get("groupButtonsLayout") == "row" and "Side by Side" or "Invite over Disband"
 end
 
 Settings.Page("QoL/Questing & Group", S):Card({

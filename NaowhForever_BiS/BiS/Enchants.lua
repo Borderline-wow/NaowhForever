@@ -14,7 +14,7 @@ B.Enchants = E
 
 local GetItemInfo, GetItemInfoInstant = C_Item.GetItemInfo, C_Item.GetItemInfoInstant
 
--- The slots an enchanter can enchant: neck, chest, feet, wrists, hands, back and the hands.
+-- The slots an enchanter can enchant: neck, chest, feet, wrists, hands, back and the weapons.
 E.SLOTS = { [2] = true, [5] = true, [8] = true, [9] = true, [10] = true, [15] = true, [16] = true, [17] = true }
 
 local INV_TYPE = { INVTYPE_NECK = 2, INVTYPE_CHEST = 5, INVTYPE_ROBE = 20, INVTYPE_FEET = 8,

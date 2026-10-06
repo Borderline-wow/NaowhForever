@@ -232,7 +232,7 @@ local function SetTooltip(btn)
     GameTooltip:SetOwner(btn, "ANCHOR_TOP")
     GameTooltip:SetText(set.name, 1, 1, 1)
     if set.equipped then GameTooltip:AddLine("Equipped", 0.29, 0.87, 0.5) end
-    if set.lost > 0 then GameTooltip:AddLine(set.lost .. " item(s) missing", 0.97, 0.44, 0.44) end
+    if set.lost > 0 then GameTooltip:AddLine(("%d item%s missing"):format(set.lost, set.lost == 1 and "" or "s"), 0.97, 0.44, 0.44) end
     GameTooltip:AddLine("Click to equip. Shift-click to save what you wear into it. Ctrl-click to "
         .. "rename it. Right-click to change its icon.", 0.6, 0.62, 0.65, true)
     GameTooltip:Show()

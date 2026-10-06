@@ -159,11 +159,11 @@ local function PaintAlert(preview)
     icon:SetPoint("CENTER", preview.group, "CENTER", x, y)
     local note = ""
     if not showIcon and not showText then
-        note = "Show Icon and Show Text Call Out are off: faded here, nothing in a fight."
+        note = "Show Icon and Show Text Callout are off: faded here, nothing in a fight."
     elseif not showIcon then
         note = "Show Icon is off: faded here, not shown in a fight."
     elseif not showText then
-        note = "Show Text Call Out is off: faded here, not shown in a fight."
+        note = "Show Text Callout is off: faded here, not shown in a fight."
     end
     preview.note:SetText(note)
 end
@@ -286,7 +286,7 @@ page:Card({
         Group("Show"),
         { key = "showIcon", label = "Show Icon", toggle = true, needs = On, why = OFF,
           help = "The icon of the defensive to press." },
-        { key = "showText", label = "Show Text Call Out", toggle = true, needs = On, why = OFF,
+        { key = "showText", label = "Show Text Callout", toggle = true, needs = On, why = OFF,
           help = "Writes the callout on screen for the defensive it picked. Set each line's wording in the "
               .. "Smart Reminders window." },
         { key = "lingerSec", label = "Icon Display Duration", slider = { 1, 15, 1 }, unit = "s",

@@ -1058,7 +1058,8 @@ function Order.Send()
             send(m, channel, nil, channel == "WHISPER" and who or nil)
         end)
     end
-    o.sent = ("Asked %s %sfor %s."):format(short, channel == "WHISPER" and "" or "in party chat ",
+    o.sent = ("Asked %s %sfor %s."):format(short, channel == "WHISPER" and ""
+        or channel == "INSTANCE_CHAT" and "in instance chat " or "in party chat ",
         #o.list == 1 and "1 craft" or (#o.list .. " crafts"))
     wipe(o.list)
     wipe(o.drafts)

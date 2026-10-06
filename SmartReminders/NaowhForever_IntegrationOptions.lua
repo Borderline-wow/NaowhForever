@@ -74,6 +74,8 @@ local function KeepListScroll(scroll, key, contentHeight)
     scroll:UpdateScrollChildRect()
     scroll:SetVerticalScroll(math.min(want, math.max(0, contentHeight - scroll:GetHeight())))
 end
+-- The When choices, by the aura sound trigger each one saves.
+local WHEN = { Added = "Applied", ApplicationsIncreased = "Stack increased", Removed = "Removed" }
 local function Editor(parent, uid)
     local editedRules, editedSpec = I.Rules(true), I.Spec()
     local AutoSave
@@ -135,7 +137,7 @@ local function Editor(parent, uid)
             mapChoice, yWhen, 268))
         yWhen = yWhen - gap
     end
-    Dropdown(cast, "When", { Added = "Applied", ApplicationsIncreased = "Stack increased", Removed = "Removed" },
+    Dropdown(cast, "When", WHEN,
         { "Added", "ApplicationsIncreased", "Removed" }, function() return auraEvent end,
         function(v) auraEvent = v; AutoSave() end, yWhen, 268)
     Dropdown(cast, "Unit", { player = "Me", party = "Party members" }, { "player", "party" },
@@ -430,9 +432,9 @@ function ns.BuildDebuffsPage(parent, y)
                     end,
                     nil, 12)
                 ns.Tooltip(row, rule.name or "Debuff alert",
-                    ("Aura %s on %s, when %s."):format(tostring(rule.trigger.spellID),
+                    ("Aura %s on %s: %s."):format(tostring(rule.trigger.spellID),
                         rule.trigger.target == "party" and "a party member" or "you",
-                        (rule.trigger.auraEvent or "Added"):lower()))
+                        (WHEN[rule.trigger.auraEvent] or WHEN.Added):lower()))
                 ly = ly + ROW_H + 1
             end
         end

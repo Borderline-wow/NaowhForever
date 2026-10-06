@@ -1941,7 +1941,7 @@ function ns.ShowAbilityReminderPicker(encounterID, ability, callerEUI)
                 noneLbl:SetText("None yet for this ability.")
                 by = by - 26
 
-                local addBtn = UI.KeepButton(body, "add", "+ Add a Ability Reminder", 200, 26, function()
+                local addBtn = UI.KeepButton(body, "add", "+ Add an Ability Reminder", 200, 26, function()
                     local nestedDimmer = ns.ShowRaidReminderEditor(
                         encounterID, nil, EUI, nil, ability.spellID)
                     if nestedDimmer then nestedDimmer.onClose = RebuildBody end

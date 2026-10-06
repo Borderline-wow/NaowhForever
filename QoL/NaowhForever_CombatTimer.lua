@@ -50,7 +50,7 @@ local function Report(duration)
     elseif m > 0 then
         text = ("%d:%02d minutes"):format(m, s)
     else
-        text = ("%d seconds"):format(s)
+        text = ("%d second%s"):format(s, s == 1 and "" or "s")
     end
     ns.Print("You were in combat for: |cffffa300" .. text .. "|r")
 end

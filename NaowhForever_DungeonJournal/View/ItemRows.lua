@@ -235,8 +235,8 @@ local function ChanceEnter(zone)
     local chance = row.chance
     if chance then
         GameTooltip:AddLine(ChanceValue(chance), 1, 1, 1)
-        GameTooltip:AddLine("From the kills recorded so far. The bar fills, and turns a "
-            .. "brighter blue, the likelier it is.", muted.r, muted.g, muted.b, true)
+        GameTooltip:AddLine("From the kills recorded so far. The bar fills, and grows "
+            .. "brighter, the likelier it is.", muted.r, muted.g, muted.b, true)
     else
         GameTooltip:AddLine("Not known yet: there is no count of how often it drops.",
             muted.r, muted.g, muted.b, true)

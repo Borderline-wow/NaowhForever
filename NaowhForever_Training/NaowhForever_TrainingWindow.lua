@@ -455,7 +455,8 @@ local function DrawRoad(plan)
             if plan.known[entry[2]] then learned = learned + 1 end
         end
         d.level = level
-        d.summary = ("%d spells, %s; %d learned"):format(#group, Training.Coins(cost), learned)
+        d.summary = ("%d spell%s, %s; %d learned"):format(#group, #group == 1 and "" or "s",
+            Training.Coins(cost), learned)
         d:SetSize(size, size)
         d:SetPoint("CENTER", road.track, "LEFT", RoadX(level), 0)
         -- Done: filled grey. Trainable now: filled accent. Coming soon: an accent ring. Later: a grey ring.
@@ -1018,7 +1019,7 @@ Render = function()
     elseif selected then
         y = DrawLevel(plan, 0)
     elseif #plan.now + #plan.rank + #plan.soon + #plan.later + #plan.talent + #plan.ignored == 0 then
-        y = Header(0, "NOTHING LEFT TO LEARN", nil, "Every spell your class trains, you know")
+        y = Header(0, "NOTHING LEFT TO LEARN", nil, "You know every spell your class trains")
     else
         y = DrawAll(plan, 0)
     end
