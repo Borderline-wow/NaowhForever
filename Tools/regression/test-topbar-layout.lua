@@ -139,4 +139,28 @@ check("Faded and In Combat show only while their setting is on",
 check("the preview's hint", source:find('"Drag to move, x to remove, + to add."', 1, true) ~= nil)
 check("the drag's OnUpdate is removed when it ends", source:find('edit:SetScript("OnUpdate", nil)', 1, true) ~= nil)
 
+-- The edit layer sits over the options window: its keyboard is off until a drag starts, and
+-- Escape passes through to close the window unless it cancels a drag.
+local layer = Slice("local function NewEditLayer(preview)", "\n    preview.edit = edit")
+local keyScript = assert(layer:find('edit:SetScript("OnKeyDown", DragKey)', 1, true))
+check("the edit layer's keyboard is turned off once its key script is set",
+    (layer:find("\n    edit:EnableKeyboard(false)", keyScript, true) or 0) > keyScript)
+
+local ended
+local keyChunk = assert(loadstring(Slice("local function DragKey(edit, key)", "\nlocal function PreviewHidden")
+    .. "\nreturn DragKey"))
+setfenv(keyChunk, { InCombatLockdown = function() return false end,
+    EndDrag = function(preview, commit) ended = { preview, commit } end })
+local DragKey = keyChunk()
+local edit = { preview = {} }
+function edit:SetPropagateKeyboardInput(v) self.propagate = v end
+DragKey(edit, "ESCAPE")
+check("Escape with no drag passes through to the window", edit.propagate == true and ended == nil)
+edit.preview.drag = {}
+DragKey(edit, "ESCAPE")
+check("Escape during a drag is kept and cancels it",
+    edit.propagate == false and ended and ended[1] == edit.preview and ended[2] == false)
+DragKey(edit, "A")
+check("other keys pass through during a drag", edit.propagate == true)
+
 print("PASS top bar layout: " .. checks .. " checks")

@@ -1089,7 +1089,9 @@ end
 
 local function DragKey(edit, key)
     if InCombatLockdown() then return end
-    if key == "ESCAPE" then
+    -- A drag that ends in combat cannot turn the keyboard off; with no drag, Escape still
+    -- reaches the options window.
+    if key == "ESCAPE" and edit.preview.drag then
         edit:SetPropagateKeyboardInput(false)
         EndDrag(edit.preview, false)
     else
