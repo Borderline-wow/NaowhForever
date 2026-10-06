@@ -177,6 +177,121 @@ function provider:RefreshAllData()
     end
 end
 
+-------------------------------------------------------------------------------
+--  Minimap: the mailboxes and spirit healers of the zone you are in
+-------------------------------------------------------------------------------
+-- The game says when you start and stop moving but not where you are, so the pins are placed
+-- several times a second while you move (or always, with a rotating minimap, for turning).
+local MINI_SIZE = 12
+local MINI_INTERVAL = 0.05
+local MINI_EVENTS = { "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "PLAYER_ENTERING_WORLD" }
+local miniPins, miniSpots = {}, {}
+local miniMap, miniWidth, miniHeight   -- the zone shown and its size in yards
+local mini = CreateFrame("Frame")
+local moving, elapsed = false, 0
+
+local function MiniOn()
+    return On() and S.Get("townMinimap")
+end
+
+local function MiniPlace()
+    local here = C_Map.GetPlayerMapPosition(miniMap, "player")
+    if not here then
+        for _, pin in ipairs(miniPins) do pin:Hide() end
+        return
+    end
+    local px, py = here:GetXY()
+    local radius = C_Minimap.GetViewRadius()
+    local facing = C_CVar.GetCVarBool("rotateMinimap") and GetPlayerFacing() or 0
+    local sin, cos = math.sin(facing), math.cos(facing)
+    local square = GetMinimapShape and GetMinimapShape() == "SQUARE"
+    local scaleX, scaleY = Minimap:GetWidth() / 2 / radius, Minimap:GetHeight() / 2 / radius
+    for i, spot in ipairs(miniSpots) do
+        local dx = (spot[1] / 100 - px) * miniWidth
+        local dy = (py - spot[2] / 100) * miniHeight
+        dx, dy = dx * cos + dy * sin, dy * cos - dx * sin
+        local inside
+        if square then
+            inside = math.abs(dx) <= radius and math.abs(dy) <= radius
+        else
+            inside = dx * dx + dy * dy <= radius * radius
+        end
+        local pin = miniPins[i]
+        pin:SetPoint("CENTER", Minimap, "CENTER", dx * scaleX, dy * scaleY)
+        pin:SetShown(inside)
+    end
+end
+
+local function MiniTick(_, delta)
+    elapsed = elapsed + delta
+    if elapsed < MINI_INTERVAL then return end
+    elapsed = 0
+    MiniPlace()
+end
+
+local function MiniUpdate()
+    local live = #miniSpots > 0 and (moving or C_CVar.GetCVarBool("rotateMinimap"))
+    mini:SetScript("OnUpdate", live and MiniTick or nil)
+end
+
+local function MiniRefresh()
+    wipe(miniSpots)
+    miniMap = MiniOn() and C_Map.GetBestMapForUnit("player")
+    if miniMap then
+        if S.Get("townMail") then
+            for _, mailbox in ipairs(ns.TownMailboxes[miniMap] or {}) do miniSpots[#miniSpots + 1] = mailbox end
+        end
+        if S.Get("townSpiritHealers") then
+            for _, healer in ipairs(ns.TownSpiritHealers[miniMap] or {}) do miniSpots[#miniSpots + 1] = healer end
+        end
+        miniWidth, miniHeight = C_Map.GetMapWorldSize(miniMap)
+    end
+    for i = #miniSpots + 1, #miniPins do miniPins[i]:Hide() end
+    for i, spot in ipairs(miniSpots) do
+        local pin = miniPins[i]
+        if not pin then
+            pin = CreateFrame("Frame", nil, Minimap, TEMPLATE)
+            pin:SetSize(MINI_SIZE, MINI_SIZE)
+            pin.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            pin:SetScript("OnEnter", pin.OnMouseEnter)
+            pin:SetScript("OnLeave", pin.OnMouseLeave)
+            miniPins[i] = pin
+        end
+        pin.npc = spot
+        pin.Icon:SetTexture(CATEGORIES[spot[3]][2])
+    end
+    if #miniSpots > 0 then
+        mini:RegisterEvent("PLAYER_STARTED_MOVING")
+        mini:RegisterEvent("PLAYER_STOPPED_MOVING")
+        mini:RegisterEvent("MINIMAP_UPDATE_ZOOM")
+        MiniPlace()
+    else
+        mini:UnregisterEvent("PLAYER_STARTED_MOVING")
+        mini:UnregisterEvent("PLAYER_STOPPED_MOVING")
+        mini:UnregisterEvent("MINIMAP_UPDATE_ZOOM")
+    end
+    MiniUpdate()
+end
+
+mini:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_STARTED_MOVING" or event == "PLAYER_STOPPED_MOVING" then
+        moving = event == "PLAYER_STARTED_MOVING"
+        MiniPlace()
+        MiniUpdate()
+    elseif event == "MINIMAP_UPDATE_ZOOM" then
+        MiniPlace()
+    else
+        MiniRefresh()
+    end
+end)
+
+local function MiniApply()
+    for _, event in ipairs(MINI_EVENTS) do
+        if MiniOn() then mini:RegisterEvent(event) else mini:UnregisterEvent(event) end
+    end
+    MiniRefresh()
+end
+
 local added
 local function Apply()
     if not added then
@@ -184,6 +299,7 @@ local function Apply()
         added = true
     end
     if WorldMapFrame:IsShown() then provider:RefreshAllData() end
+    MiniApply()
 end
 
 hooksecurefunc(S, "Set", function(key)
@@ -262,6 +378,8 @@ ns.Shared.Settings.Page("QoL/Interface", S):Card({
         { key = "townPinSize", label = "Pin Size", slider = { 10, 28, 1 } },
         { key = "townCapitalsOnly", label = "Town Pins Only in Capitals", toggle = true,
           help = "Keeps vendors and trainers off questing maps." },
+        { key = "townMinimap", label = "Mailboxes & Spirit Healers on Minimap", toggle = true,
+          help = "Pins the ones near you on the minimap too." },
         Group("Show"),
         { key = "townSpiritHealers", label = "Spirit Healers", toggle = true,
           help = "Every graveyard's spirit healer, in towns and out in the world." },

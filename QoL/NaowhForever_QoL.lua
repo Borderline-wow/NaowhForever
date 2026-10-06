@@ -91,7 +91,7 @@ local S = UI.ModuleSettings("qol", {
     townCapitalsOnly = true, townSpiritHealers = true, townZoneLinks = true,
     townMap = true, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
-    townVendors = false, townMail = false, townPinSize = 16, townTravel = false,
+    townVendors = false, townMail = false, townPinSize = 16, townMinimap = false, townTravel = false,
     mapUnexplored = false, mapUnexploredAlpha = 0.6,
     gearSets = true, gearBarVisible = true, trinketBar = false, trinketSize = 36, trinketSpacing = 4, gearBarSize = 32, gearMounted = "", gearResting = "",
     gearWindowAlpha = 1,
