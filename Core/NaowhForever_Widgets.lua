@@ -1391,10 +1391,9 @@ local function CopyPlain(v)
 end
 
 -- What a profile string carries of a module: each setting it has a default for, as that type
--- (not the lists it keeps, which default to empty), and its Unlock Mode positions and anchors.
+-- (not the lists it keeps, which default to empty), and its Unlock Mode positions.
 local function Shareable(defaults, k, v)
     if type(k) ~= "string" then return false end
-    if k == "anchors" then return type(v) == "table" and Plain(v, 0) end
     local d = defaults[k]
     if d == nil then return k:find("Pos$") ~= nil and type(v) == "table" and Plain(v, 0) end
     if type(v) ~= type(d) then return false end
@@ -1530,7 +1529,7 @@ function UI.ModuleSettings(key, defaults)
     return S
 end
 
-ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { anchors = {}, snap = true })
+ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { snap = true })
 
 -------------------------------------------------------------------------------
 --  Sounds

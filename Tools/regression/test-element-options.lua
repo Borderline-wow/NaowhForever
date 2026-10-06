@@ -94,8 +94,7 @@ for path, s in pairs(sources) do
         if not a then break end
         i = b + 1
         if not s:sub(a - 9, a - 1):find("function") then
-            -- A trailing true (it keeps its own screen anchor) is not part of where its options are.
-            local call = Call(s, b):gsub(",%s*true%s*%)$", ")")
+            local call = Call(s, b)
             local page, feature = call:match(',%s*"([^"]+)"%s*,%s*"([^"]+)"%s*%)$')
             if not page then page = call:match(',%s*"([^"]+)"%s*%)$') end
             local where = path .. ": " .. call:sub(1, 60)

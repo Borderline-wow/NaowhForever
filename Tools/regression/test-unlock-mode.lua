@@ -1,7 +1,7 @@
--- Run with Lua 5.1 from the repository root: Unlock Mode and its anchors, run against frame
--- stubs with real geometry. Anchoring snaps an element flush to the side picked, nudges and
--- drags move it by its offsets, it follows its target, screen edges hold their distance, and
--- loops are refused.
+-- Run with Lua 5.1 from the repository root: Unlock Mode's movers, run against frame stubs
+-- with real geometry. Drags, arrow keys and typed X and Y save the element CENTER on the screen
+-- centre, a drag snaps to the nearest element or the one picked, and anchors from before are
+-- dropped without moving anything.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local function Near(a, b) return a and b and math.abs(a - b) < 0.01 end
@@ -146,8 +146,8 @@ end
 
 local cursor = { x = 0, y = 0 }
 local combat, shift = false, false
-local settings = { anchors = {} }
-local printed, tooltip = {}, nil
+local settings = {}
+local printed = {}
 local T = { accent = { r = 0, g = 0.5, b = 1 }, accentSoft = { r = 0.3, g = 0.7, b = 1 }, fg = { r = 1, g = 1, b = 1 },
     muted = { r = 0.6, g = 0.6, b = 0.6 }, line = { r = 0.2, g = 0.2, b = 0.2 }, grey = { r = 0.2, g = 0.2, b = 0.2 },
     panel = { r = 0.1, g = 0.1, b = 0.1 }, bg = { r = 0, g = 0, b = 0 } }
@@ -167,6 +167,7 @@ local ns = {
     Font = function(parent) return parent:CreateFontString() end,
     NewEditBox = function(parent)
         local box = NewFrame("EditBox", parent)
+        box.border = { SetColor = NOOP }
         function box:SetFocus() self.focus = true end
         function box:HasFocus() return self.focus == true end
         function box:ClearFocus()
@@ -188,9 +189,6 @@ local ns = {
 }
 local UI = {
     COGS_ICON = "cog",
-    CHEVRON = "chevron",
-    ShowWidgetTooltip = function(_, text) tooltip = text end,
-    HideWidgetTooltip = function() tooltip = nil end,
 }
 ns.UI = UI
 
@@ -232,7 +230,6 @@ local function Display(label, w, h, x, y)
 end
 
 local function Center(frame) return frame:GetCenter() end
-local watcherFor
 local function Last(saved) return saved[#saved] end
 
 -- A shown menu's row by its text.
@@ -277,185 +274,115 @@ for _, fr in ipairs(made) do
 end
 Check(keys and keys.keyboard and keys.events.PLAYER_REGEN_DISABLED, "Unlock Mode takes the arrow keys and watches combat")
 
--- The hover row: the name moves up and "Anchor" shows under it, with the cog.
-Hover(swingMover)
-local link = swingMover._placement.link
-Check(link:IsShown() and link.label:GetText() == "Anchor", "hovering shows the Anchor link")
-Check(swingMover._placement.cog:IsShown(), "and the cog")
-Check(swingMover:GetHeight() > swing:GetHeight() and Near(select(2, swingMover:GetCenter()), select(2, swing:GetCenter())),
-    "a mover too small for its row grows around its centre")
-swingMover._placement.Collapse(true)
-Check(swingMover:GetLeft() == swing:GetLeft() and swingMover:GetTop() == swing:GetTop() and swingMover:GetHeight() == 40,
+-- Hovering shows the cog; a mover too small for its name grows around its centre.
+local dura, duraMover = Display("Durability", 40, 40, 500, 300)
+Hover(duraMover)
+Check(duraMover._placement.cog:IsShown(), "hovering shows the cog")
+Check(duraMover:GetWidth() > dura:GetWidth() and Near(select(1, duraMover:GetCenter()), select(1, dura:GetCenter())),
+    "a mover too small for its name grows around its centre")
+duraMover._placement.Collapse(true)
+Check(duraMover:GetLeft() == dura:GetLeft() and duraMover:GetTop() == dura:GetTop() and duraMover:GetWidth() == 40,
     "and covers its element again after")
-Hover(swingMover)
+duraMover:Hide()
 
--- Anchor: pick mode, then the target, then the side. A new anchor sits flush on that side,
--- centred on the other axis.
-Fire(link, "OnClick")
-Check(not link:IsShown(), "picking hides the link row")
-local pickText
-for _, fr in ipairs(made) do
-    if fr.kind == "FontString" and fr.parent == swingMover and fr:GetText() == "Click any element\nto anchor to it" then pickText = fr end
-end
-Check(pickText and pickText:IsShown(), "the mover asks for the element to anchor to")
-Click(meterMover, "LeftButton")
-Check(MenuRow("Anchor to Left") and MenuRow("Anchor to Right") and MenuRow("Anchor to Top") and MenuRow("Anchor to Bottom"),
-    "clicking the target offers its four sides")
-Check(not MenuRow("Remove Anchor"), "nothing to remove yet")
-Fire(MenuRow("Anchor to Top"), "OnClick")
-Flush()
-local cx, cy = Center(swing)
-Check(Near(cx, 960) and Near(cy, 370), "Anchor to Top puts it flush on top, centred")
-local info = settings.anchors["Swing Timer"]
-Check(info and info.target == "Threat Meter" and info.side == "TOP" and info.offsetX == 0 and info.offsetY == 0,
-    "the anchor is kept with no offset")
-Check(Last(swingSaved).point == "CENTER" and Near(Last(swingSaved).x, 0) and Near(Last(swingSaved).y, -170),
-    "its spot is saved too, CENTER on the screen centre")
-Check(swingMover._placement.chain:IsShown(), "an anchored element shows the chain by its name")
-Check(link.label:GetText() == "Anchored", "the link reads Anchored")
-
--- Arrow keys move an anchored element by its offsets, one pixel at a time.
+-- Arrow keys move it a pixel, Shift + arrow 100, saved CENTER on the screen centre.
 UI.SelectMover(swingMover)
 Fire(keys, "OnKeyDown", "RIGHT")
-Check(info.offsetX == 1 and Near(Center(swing), 961), "an arrow nudges the offset by a pixel")
+Check(Near(Center(swing), 921), "an arrow nudges it a pixel")
+Check(Last(swingSaved).point == "CENTER" and Last(swingSaved).relPoint == "CENTER" and Near(Last(swingSaved).x, -39)
+    and Near(Last(swingSaved).y, 25), "and saves it CENTER on the screen centre")
 shift = true
 Fire(keys, "OnKeyDown", "UP")
 shift = false
-Check(info.offsetY == 100, "Shift + arrow nudges by 100")
+Check(Near(Last(swingSaved).y, 125), "Shift + arrow nudges by 100")
 Fire(keys, "OnKeyDown", "DOWN")
 for _ = 1, 99 do Fire(keys, "OnKeyDown", "DOWN") end
-Check(info.offsetY == 0, "and back")
+Check(Near(Last(swingSaved).y, 25), "and back")
+Check(settings.anchors == nil, "nothing is anchored")
 
--- The toolbar's position readout: anchored, the offsets from its target, kept up by the arrow
--- keys, and typed to move it.
-local readout = UI.PositionReadout(UIParent)
-local function Reads(x, y) return readout.x:GetText() == x and readout.y:GetText() == y end
+-- The X and Y tag on the selected mover: its centre from the screen centre, kept up by the
+-- arrow keys, and typed to move it. Just below the mover, above it at the screen's bottom.
+local function Tag()
+    for _, fr in ipairs(made) do
+        if fr.x and fr.y and fr.x.axis == "X" then return fr end
+    end
+end
+local tag = Tag()
+local function Reads(x, y) return tag.x:GetText() == x and tag.y:GetText() == y end
 local function Type(box, text)
     box:SetFocus()
     box:SetText(text)
     Fire(box, "OnEnterPressed")
 end
-Check(readout.name:GetText() == "Swing Timer" and readout.where:GetText() == "Offset from Threat Meter" and Reads("1", "0"),
-    "the readout shows the selected element's offsets from its target")
+local function Below(handle) return tag:IsShown() and tag:GetTop() < handle:GetBottom() and tag:GetTop() > handle:GetBottom() - 10 end
+Check(tag and tag.parent == UIParent and tag:GetPoint() == "TOP" and select(2, tag:GetPoint()) == swingMover and Below(swingMover),
+    "the tag sits just below the selected mover")
+Check(Reads("-39", "25"), "and shows its centre from the screen centre")
 Fire(keys, "OnKeyDown", "LEFT")
-Check(Reads("0", "0"), "an arrow key updates it")
-Type(readout.x, "25")
-Check(info.offsetX == 25 and Near(Center(swing), 985) and Reads("25", "0"), "a typed X moves it by its offset")
-Type(readout.y, "abc")
-Check(info.offsetY == 0 and Reads("25", "0") and not readout.y:HasFocus(), "what is not a number goes back")
-Type(readout.x, "1")
+Check(Reads("-40", "25") and Below(swingMover), "an arrow key updates it and it moves along")
+Type(tag.x, "25")
+Check(Near(Center(swing), 985) and Near(Last(swingSaved).x, 25) and Reads("25", "25"), "a typed X moves it there and saves it")
+Type(tag.y, "abc")
+Check(Reads("25", "25") and not tag.y:HasFocus(), "what is not a number goes back")
 
--- Not anchored: its centre from the screen's, live while it is dragged.
 UI.SelectMover(meterMover)
-Check(readout.name:GetText() == "Threat Meter" and readout.where:GetText() == "From the screen center" and Reads("0", "-200"),
-    "an element with no anchor reads its centre from the screen centre")
+Check(select(2, tag:GetPoint()) == meterMover and Reads("0", "-200"), "selecting another element moves the tag to it")
 cursor.x, cursor.y = 960, 340
 UI.StartMoverDrag(meterMover)
 cursor.x, cursor.y = 1000, 330
 Drive()
-Check(Reads("40", "-210"), "and follows a drag as it happens")
+Check(Reads("40", "-210") and Below(meterMover), "and it follows a drag as it happens")
 UI.StopMoverDrag(meterMover)
-Type(readout.x, "0")
-Type(readout.y, "-200")
+Check(Last(meterSaved).point == "CENTER" and Near(Last(meterSaved).x, 40) and Near(Last(meterSaved).y, -210),
+    "the drop saves it CENTER on the screen centre")
+Check(Near(Center(swing), 985), "and nothing else moves with it")
+Type(tag.x, "0")
+Type(tag.y, "-200")
 Check(Near(Center(meter), 960) and Near(select(2, Center(meter)), 340) and Near(Last(meterSaved).y, -200),
     "typed numbers move it there and save it")
-Check(Near(Center(swing), 961), "and what is anchored to it follows")
-UI.ClearMoverSelection()
-Check(readout.name:GetText() == "Nothing selected" and not readout.boxes:IsShown(), "with nothing selected the boxes hide")
-
--- Dragging the target: the anchored element follows the whole way.
-cursor.x, cursor.y = 960, 340
-UI.StartMoverDrag(meterMover)
-cursor.x, cursor.y = 1060, 390
-Drive()
-local mx, my = Center(meter)
-Check(Near(mx, 1060) and Near(my, 390), "the target moves with the cursor")
-Check(Near(Center(swing), 1061), "its anchored element follows while it is dragged")
-UI.StopMoverDrag(meterMover)
-Check(Near(Last(meterSaved).x, 100) and Near(Last(meterSaved).y, -150), "the drop saves the target's spot")
-
--- Dragging the anchored element keeps the anchor and its side; the offset is where it landed.
-cursor.x, cursor.y = 1061, 420
-UI.StartMoverDrag(swingMover)
-cursor.x, cursor.y = 1091, 420
-Drive()
-Check(readout.x:GetText() == "31" and readout.y:GetText() == "0", "the readout shows the offset it will keep, live")
-UI.StopMoverDrag(swingMover)
-info = settings.anchors["Swing Timer"]
-Check(info.target == "Threat Meter" and info.side == "TOP" and Near(info.offsetX, 31) and Near(info.offsetY, 0),
-    "a drag rewrites the offsets, not the anchor")
-
--- A target that changes size pushes its anchored element out.
-meter:SetSize(200, 60)
-Flush()
-Check(Near(select(2, Center(swing)), 390 + 30 + 20), "a target that grows pushes it out")
-
--- Loops are refused: the target already follows the element.
-Hover(meterMover)
-Fire(meterMover._placement.link, "OnClick")
-Click(swingMover, "LeftButton")
-Check(tooltip == "This would create a circular anchor" and not MenuRow("Anchor to Top"), "a loop is refused")
-Check(not settings.anchors["Threat Meter"], "and nothing is anchored")
-Flush()
-
--- The cog menu: who it is anchored to, and its offsets typed in pixels.
-Click(swingMover, "RightButton")
-Check(MenuRow("Anchored to: Threat Meter") and MenuRow("Offset X") and MenuRow("Offset Y"), "the cog menu shows the anchor")
-Check(MenuRow("Element Options") and MenuRow("Center on Screen") and MenuRow("Relative to Screen"),
-    "with Element Options, Center on Screen and Relative to Screen")
-local box = MenuRow("Offset X").box
-Check(box:GetText() == "31", "Offset X reads the offset in pixels")
-box:SetText("40")
-Fire(box, "OnEnterPressed")
-Check(Near(info.offsetX, 40) and Near(Center(swing), 1100), "typing an offset moves it there")
-
--- Clicking Anchored lets go; the element stays where it is.
+Type(tag.y, "-525")
+Check(tag:GetPoint() == "BOTTOM" and tag:GetBottom() > meterMover:GetTop() and tag:GetBottom() < meterMover:GetTop() + 10,
+    "with no room below it flips above the mover")
+Type(tag.y, "-200")
+Check(tag:GetPoint() == "TOP" and Below(meterMover), "and back below with room again")
+Click(meterMover, "RightButton")
+Check(not tag:IsShown(), "the cog menu hides it")
 Fire(keys, "OnKeyDown", "ESCAPE")
-Check(not MenuRow("Offset X"), "Escape closes the menu")
-local before = Center(swing)
-Fire(link, "OnClick")
-Check(not settings.anchors["Swing Timer"] and Near(Center(swing), before), "clicking Anchored unanchors it in place")
-Check(not swingMover._placement.chain:IsShown(), "and the chain goes")
-Check(Last(swingSaved).point == "CENTER" and Near(Last(swingSaved).x, before - 960), "and saves where it is")
-Check(link.label:GetText() == "Anchor", "the link reads Anchor again")
+Check(Below(meterMover), "and closing the menu brings it back")
+UI.ClearMoverSelection()
+Check(not tag:IsShown(), "with nothing selected there is no tag")
 
--- Relative to Screen: the element stays put and keeps its distance to that edge.
+-- The cog menu: Element Options, Select Snap Target and Center on Screen, and nothing about
+-- anchoring.
 Click(swingMover, "RightButton")
-Fire(MenuRow("Relative to Screen"), "OnEnter")
-Check(MenuRow("Left") and MenuRow("Right") and MenuRow("Top") and MenuRow("Bottom") and MenuRow("Center"),
-    "Relative to Screen offers the four edges and Center")
-Check(MenuRow("Center").label.color[3] == T.accent.b and MenuRow("Left").label.color[3] == T.fg.b,
-    "Center is the current one while nothing is anchored")
-local x0, y0 = Center(swing)
-Fire(MenuRow("Right"), "OnClick")
-info = settings.anchors["Swing Timer"]
-Check(info.target == "SCREEN_RIGHT" and info.side == "LEFT" and Near(info.offsetX, x0 + 50 - W), "Right holds the distance to the right edge")
-Check(Near(Center(swing), x0), "without moving it")
-Click(swingMover, "RightButton")
-Fire(MenuRow("Relative to Screen"), "OnEnter")
-Fire(MenuRow("Top"), "OnClick")
-Check(info.edge and info.edge.key == "SCREEN_TOP" and Near(info.edge.offset, y0 + 20 - H), "Top holds the other axis")
-W, H = 2560, 1440
-for _, fr in ipairs(made) do
-    if fr.allRel == UIParent and fr.scripts.OnSizeChanged then fr.scripts.OnSizeChanged(fr) end
-end
-Flush()
-local x1, y1 = Center(swing)
-Check(Near(x1 + 50, W - (1920 - x0 - 50)) and Near(y1 + 20, H - (1080 - y0 - 20)), "a bigger screen keeps it in the corner")
-Click(swingMover, "RightButton")
-Fire(MenuRow("Relative to Screen"), "OnEnter")
-Fire(MenuRow("Center"), "OnClick")
-Check(not settings.anchors["Swing Timer"] and Near(Center(swing), x1), "Center lets go of the screen")
-W, H = 1920, 1080
-
--- Center on Screen: the X centre goes to the middle.
-Click(swingMover, "RightButton")
+Check(MenuRow("Element Options") and MenuRow("Select Snap Target") and MenuRow("Center on Screen"),
+    "the cog menu has Element Options, Select Snap Target and Center on Screen")
+Check(not MenuRow("Relative to Screen") and not MenuRow("Offset X"), "and no anchor rows")
 Fire(MenuRow("Center on Screen"), "OnClick")
-Check(Near(Center(swing), 960), "Center on Screen centres it across")
+Check(Near(Center(swing), 960) and Near(Last(swingSaved).x, 0), "Center on Screen centres it across")
+
+-- A drag snaps an edge to the nearest element's.
+local sx, sy = Center(swing)
+local mL = meter:GetLeft()
+cursor.x, cursor.y = sx, sy
+UI.StartMoverDrag(swingMover)
+cursor.x, cursor.y = sx + (mL - swing:GetLeft()) + 4, 450
+Drive()
+UI.StopMoverDrag(swingMover)
+Check(Near(swing:GetLeft(), mL), "a drag near an edge snaps to it")
+settings.snap = false
+sx, sy = Center(swing)
+cursor.x, cursor.y = sx, sy
+UI.StartMoverDrag(swingMover)
+cursor.x = sx + 4
+Drive()
+UI.StopMoverDrag(swingMover)
+Check(Near(swing:GetLeft(), mL + 4), "with Snap Elements off it does not")
+settings.snap = nil
 
 -- A picked snap target is what a drag lines up with, even with another element nearer.
 local nx, ny = Center(swing)
-local _, nearMover = Display("Durability", 40, 40, nx - W / 2 + 90, ny - H / 2 + 50)
+local _, nearMover = Display("Bag Space", 40, 40, nx - W / 2 + 90, ny - H / 2 + 50)
 Click(swingMover, "RightButton")
 Fire(MenuRow("Select Snap Target"), "OnClick")
 Click(meterMover, "LeftButton")
@@ -463,79 +390,15 @@ Check(swingMover._placement.snapTarget == "Threat Meter", "clicking an element m
 Click(swingMover, "RightButton")
 Check(MenuRow("Snap Target: Threat Meter"), "the cog menu names it")
 Fire(keys, "OnKeyDown", "ESCAPE")
-local mL = meter:GetLeft()
-local sx, sy = Center(swing)
+local mR = meter:GetRight()
+sx, sy = Center(swing)
 cursor.x, cursor.y = sx, sy
 UI.StartMoverDrag(swingMover)
-cursor.x = sx + (mL - swing:GetLeft()) + 4
+cursor.x = sx + (mR - swing:GetRight()) - 4
 Drive()
 UI.StopMoverDrag(swingMover)
-Check(Near(swing:GetLeft(), mL), "a drag near its edge snaps to the snap target")
+Check(Near(swing:GetRight(), mR), "a drag near its edge snaps to the snap target")
 nearMover:Hide()
-
--- A mover laid over something other than its frame (a reminder's sample hangs below its small
--- anchor frame): anchoring reads what is seen.
-local anchorFrame = NewFrame("Frame", UIParent)
-anchorFrame:SetSize(10, 10)
-anchorFrame:SetPoint("CENTER", UIParent, "CENTER", 500, 0)
-local reminderSaved = {}
-local reminderMover = UI.AttachMover(anchorFrame, "Reminder Bar", function(pos) reminderSaved[#reminderSaved + 1] = pos end)
-local sample = NewFrame("Frame", anchorFrame)
-sample:SetSize(120, 50)
-sample:SetPoint("TOP", anchorFrame, "TOP", 0, 0)
-reminderMover:ClearAllPoints()
-reminderMover:SetAllPoints(sample)
-reminderMover:Show()
-settings.anchors["Reminder Bar"] = { target = "Threat Meter", side = "TOP" }
-watcherFor = nil
-for _, fr in ipairs(made) do
-    if fr.events.PLAYER_ENTERING_WORLD then watcherFor = fr end
-end
-watcherFor.scripts.OnEvent(watcherFor, "PLAYER_ENTERING_WORLD")
-Flush()
-Check(Near(sample:GetBottom(), meter:GetTop()) and Near(select(1, sample:GetCenter()), select(1, meter:GetCenter())),
-    "the sample, not the frame behind it, sits flush on its target")
-Check(Last(reminderSaved).point == "CENTER", "and the frame's spot is saved")
-sample:SetSize(120, 80)
-reminderMover:SetAllPoints(sample)
-Fire(reminderMover, "OnSizeChanged")
-Flush()
-Check(Near(sample:GetBottom(), meter:GetTop()), "a sample that grows is put back flush")
-settings.anchors["Reminder Bar"] = nil
-reminderMover:Hide()
-
--- A module's own drag of an anchored element keeps the anchor with the new gap.
-settings.anchors["Swing Timer"] = { target = "Threat Meter", side = "BOTTOM", offsetX = 0, offsetY = 0 }
-UI.ReapplyAnchors()
-local sx0, sy0 = Center(swing)
-swing:ClearAllPoints()
-swing:SetPoint("CENTER", UIParent, "CENTER", sx0 - W / 2 + 25, sy0 - H / 2)
-swing:StopMovingOrSizing()
-Flush()
-info = settings.anchors["Swing Timer"]
-Check(info and Near(info.offsetX, 25) and Near(Center(swing), sx0 + 25), "a module drag keeps the anchor with the new offset")
-
--- While a module's grip resizes it, the anchor leaves it be; letting go keeps the new gap.
-swing:StartSizing("BOTTOMRIGHT")
-local gx, gt = swing:GetLeft(), swing:GetTop()
-swing:ClearAllPoints()
-swing:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", gx, gt)
-swing:SetSize(160, 40)
-Flush()
-Check(Near(swing:GetLeft(), gx), "a grip resize from its corner is not fought")
-swing:StopMovingOrSizing()
-Flush()
-Check(settings.anchors["Swing Timer"] and Near(settings.anchors["Swing Timer"].offsetX, 55), "and letting go keeps the new gap")
-swing:SetSize(100, 40)
-Flush()
-
--- A nudge waits while the target is missing, instead of piling up.
-settings.anchors["Swing Timer"] = { target = "Gone", side = "BOTTOM", offsetX = 0, offsetY = 0 }
-UI.SelectMover(swingMover)
-Fire(keys, "OnKeyDown", "RIGHT")
-Check(settings.anchors["Swing Timer"].offsetX == 0, "no nudge while the target is missing")
-settings.anchors["Swing Timer"] = nil
-UI.ClearMoverSelection()
 
 -- Closing the cog menu with the cursor elsewhere shrinks the mover back.
 Hover(swingMover)
@@ -543,38 +406,26 @@ Click(swingMover, "RightButton")
 swingMover.mouseOver = false
 Fire(swingMover, "OnLeave")
 Flush()
-Check(swingMover._placement.hoverConfirmed, "the open menu keeps it grown")
+Check(swingMover._placement.hovered and swingMover._placement.cog:IsShown(), "the open menu keeps it hovered")
 Fire(keys, "OnKeyDown", "ESCAPE")
-Check(not swingMover._placement.hoverConfirmed and not swingMover._placement.hovered, "closing the menu lets it go")
+Check(not swingMover._placement.hovered, "closing the menu lets it go")
 
--- At login and after a profile switch every anchor is re-applied, parents first.
-settings.anchors["Swing Timer"] = { target = "Threat Meter", side = "BOTTOM", offsetX = 0, offsetY = -10 }
-UI.EndMoverMode()
-meter:ClearAllPoints()
-meter:SetPoint("CENTER", UIParent, "CENTER", -300, 0)
-Flush()
-local watcher
+-- Anchors saved before they were dropped: the table goes at login and on every profile
+-- switch, and nothing moves, since each element's own position already holds where its anchor
+-- put it.
+settings.anchors = { ["Swing Timer"] = { target = "Threat Meter", side = "TOP", offsetX = 0, offsetY = 0 } }
+local before, saves = { Center(swing) }, #swingSaved
+local login
 for _, fr in ipairs(made) do
-    if fr.events.PLAYER_ENTERING_WORLD then watcher = fr end
+    if fr.events.PLAYER_LOGIN then login = fr end
 end
-watcher.scripts.OnEvent(watcher, "PLAYER_ENTERING_WORLD")
-Flush()
-cx, cy = Center(swing)
-Check(Near(cx, 660) and Near(cy, 540 - 30 - 10 - 20), "a login places it under its target")
-meter:ClearAllPoints()
-meter:SetPoint("CENTER", UIParent, "CENTER", -200, 0)
-Flush()
-Check(Near(Center(swing), 760), "a target its module moves takes it along")
-
--- In combat a protected element waits.
-swing.protected, combat = true, true
-meter:ClearAllPoints()
-meter:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-Flush()
-Check(Near(Center(swing), 760), "a protected element does not move in combat")
-combat = false
-watcher.scripts.OnEvent(watcher, "PLAYER_REGEN_ENABLED")
-Flush()
-Check(Near(Center(swing), 960), "and catches up after it")
+login.scripts.OnEvent(login, "PLAYER_LOGIN")
+Check(settings.anchors ~= nil, "nothing is dropped before the profile loads")
+ns.Apply()
+Check(settings.anchors == nil, "the profile's anchors are dropped")
+Check(Near(Center(swing), before[1]) and #swingSaved == saves, "without moving or saving anything")
+settings.anchors = { ["Threat Meter"] = { target = "SCREEN_LEFT", side = "RIGHT" } }
+ns.Apply()
+Check(settings.anchors == nil, "and a switched-to profile's are dropped too")
 
 print(("test-unlock-mode: %d checks passed"):format(checks))

@@ -30,7 +30,8 @@ local S = UI.ModuleSettings("topBar", {
     sets = {},
 })
 local Q = UI.ModuleSettings("qol", { mouseRing = false })
-local U = UI.ModuleSettings("unlockMode", { anchors = {}, snap = true })
+-- Element anchors were dropped from Unlock Mode; a profile from before still has them.
+local U = UI.ModuleSettings("unlockMode", { snap = true })
 U.Set("anchors", { ["Swing Timer"] = { target = "Threat Meter", side = "TOP", offsetX = 0, offsetY = 2,
     edge = { key = "SCREEN_LEFT", side = "RIGHT", offset = 30 } } })
 UI.ModuleSettings("qol", { xpBar = true })
@@ -49,7 +50,7 @@ check("set values go out", out.topBar.enabled == true and out.topBar.clockSize =
 check("colours and layouts go out", out.topBar.fill.g == 1 and out.topBar.layout.right[1] == "hearth")
 check("Unlock Mode positions go out", out.topBar.topBarPos.y == -4)
 check("lists a module keeps stay home", out.topBar.sets == nil)
-check("Unlock Mode anchors go out", out.unlockMode.anchors["Swing Timer"].edge.offset == 30)
+check("old Unlock Mode anchors stay home", out.unlockMode == nil)
 check("keys with no default stay home", out.topBar.scratch == nil)
 check("a second store under one key shares it", out.qol.xpBar == false)
 check("the export is a copy", out.topBar.fill ~= root.topBar.fill)
@@ -59,18 +60,19 @@ ns.ImportModuleSettings(other, out)
 check("an import lands every value", other.topBar.clockSize == 26 and other.topBar.fill.g == 1
     and other.topBar.layout.left[1] == "guild" and other.qol.xpBar == false)
 check("an import lands positions", other.topBar.topBarPos.point == "TOP")
-check("an import lands anchors", other.unlockMode.anchors["Swing Timer"].target == "Threat Meter")
 
 local bad = {}
 ns.ImportModuleSettings(bad, {
     topBar = { clockSize = "huge", enabled = 1, fill = "red", sets = { {} }, junk = true,
         evilPos = function() end },
     nobody = { x = 1 },
+    unlockMode = { anchors = { ["Swing Timer"] = { target = "Threat Meter", side = "TOP" } } },
 })
 check("wrong types are refused", bad.topBar.clockSize == nil and bad.topBar.enabled == nil and bad.topBar.fill == nil)
 check("lists and unknown keys are refused", bad.topBar.sets == nil and bad.topBar.junk == nil
     and bad.topBar.evilPos == nil)
 check("unknown modules are refused", bad.nobody == nil)
+check("an old profile string's anchors are refused", bad.unlockMode.anchors == nil)
 check("nothing to share is nil", ns.ExportModuleSettings({}) == nil)
 
 -- A module switched off is an addon that does not load, so it registers no defaults: the ones

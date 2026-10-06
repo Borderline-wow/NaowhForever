@@ -1159,13 +1159,6 @@ local function BuildConfigToolbar()
     BarRule(f, BAR_HEAD)
 
     local y = BAR_HEAD + BAR_GAP
-    local readout = ns.UI.PositionReadout(f)
-    readout:SetPoint("TOPLEFT", BAR_PAD, -y)
-    readout:SetPoint("TOPRIGHT", -BAR_PAD, -y)
-    y = y + readout:GetHeight() + BAR_GAP
-    BarRule(f, y)
-
-    y = y + BAR_GAP
     f._section = ns.Font(f, 11, nil, T.muted)
     f._section:SetPoint("TOPLEFT", BAR_PAD, -y)
     y = y + SECTION_H

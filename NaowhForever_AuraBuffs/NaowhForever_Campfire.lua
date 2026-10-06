@@ -749,8 +749,7 @@ local function Build()
     icon:SetScript("OnEnter", PaintBuffs)
     icon:SetScript("OnLeave", PaintBuffs)
 
-    -- Its spot follows its style (Spot.ForStyle), held to a corner of its own choosing.
-    icon.mover = ns.UI.AttachMover(icon, "Campfire", SavePos, "AuraBuffs/Settings", "AuraBuffs/Settings:campfire", true)
+    icon.mover = ns.UI.AttachMover(icon, "Campfire", SavePos, "AuraBuffs/Settings", "AuraBuffs/Settings:campfire")
     icon:Hide()
 end
 
@@ -943,7 +942,7 @@ local function BuildAlert()
         alert:ClearAllPoints()
         alert:SetPoint("CENTER", UIParent, pos.relPoint, pos.x, pos.y)
         S.Set("campAlertPos", { point = "CENTER", relPoint = pos.relPoint, x = pos.x * scale, y = pos.y * scale })
-    end, "AuraBuffs/Settings", "AuraBuffs/Settings:campNearby", true)
+    end, "AuraBuffs/Settings", "AuraBuffs/Settings:campNearby")
     alert:Hide()
 end
 
