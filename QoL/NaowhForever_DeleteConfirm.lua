@@ -63,7 +63,7 @@ ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
     help = "Fewer clicks around loot and items: the delete confirmation filled in, auto loot that "
         .. "keeps the loot window, and enchants that replace the old one without asking.",
     rows = {
-        { key = "deleteConfirm", label = "Auto-Fill Delete Confirmation", toggle = true,
+        { key = "deleteConfirm", label = "Type DELETE For You", toggle = true,
           help = "Types DELETE into the confirmation box for you, and names the item in the dialog as a "
               .. "link you can hover for its tooltip." },
         { key = "fastLoot", label = "Faster Auto Loot", toggle = true,

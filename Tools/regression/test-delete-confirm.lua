@@ -1,4 +1,4 @@
--- Run with Lua 5.1 from the repository root: Auto-Fill Delete Confirmation fills in DELETE,
+-- Run with Lua 5.1 from the repository root: Type DELETE For You fills in DELETE,
 -- leaves the box showing it, names the item, and leaves Yes clickable, as a tester found it did
 -- not on Forever: the box filled in by code never told the dialog, so Yes stayed greyed. The box
 -- here does the same: SetText runs no change handler.

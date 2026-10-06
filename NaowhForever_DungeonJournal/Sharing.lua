@@ -416,7 +416,7 @@ local function OnQuestDetail()
     local qol = ns.QoLSettings
     local held = SKIP_HELD[qol.Get("questSkipModifier")]
     if (held and held()) or not UnitIsPlayer("questnpc") or not dungeonQuestIDs[GetQuestID()] then return end
-    -- QoL's Auto Accept Quests takes every quest already.
+    -- QoL's Accept Quests takes every quest already.
     if qol.Get("enabled") and qol.Get("questAccept") then return end
     if QuestGetAutoAccept() then CloseQuest() else AcceptQuest() end
 end
