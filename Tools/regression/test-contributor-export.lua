@@ -42,7 +42,7 @@ local function Fixture()
         end,
     }, { __index = _G })
     env._G = env
-    local chunk = assert(loadfile(root .. "/SmartReminders/NaowhForever_Packs.lua"))
+    local chunk = assert(loadfile(root .. "/Core/NaowhForever_Packs.lua"))
     setfenv(chunk, env); chunk()
     e.ns, e.env = ns, env
     return e

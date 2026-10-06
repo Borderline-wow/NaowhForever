@@ -152,5 +152,5 @@ files["DungeonQuests/NaowhForever_DungeonQuests.lua"] = { ignore = { "421/id" } 
 files["NaowhForever_Professions/NaowhForever_Professions.lua"] = { ignore = { "431/rows", "421/bar", "431/W" } }
 files["NaowhForever_Professions/NaowhForever_RecipeFinder.lua"] = { ignore = { "431/list" } }
 files["QoL/NaowhForever_QoL.lua"] = { ignore = { "211/DRUID_FORM_VALUES", "211/DRUID_FORM_ORDER" } }
-files["SmartReminders/NaowhForever_Bosses.lua"] = { ignore = { "311/y", "431/set" } }
+files["NaowhForever_SmartReminders/NaowhForever_Bosses.lua"] = { ignore = { "311/y", "431/set" } }
 files["Tools/regression/test-buff-reminders.lua"] = { ignore = { "432/self" } }

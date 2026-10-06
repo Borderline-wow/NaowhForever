@@ -1,4 +1,4 @@
-local f = assert(io.open(arg[1] or "SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
     local first = assert(source:find(a, 1, true))
@@ -8,7 +8,7 @@ local function Fixture()
     local e = { now = 0, timers = {}, calls = 0, builds = 0, allowed = true,
         set = { one = { defensive = true, specID = 250, preset = "mobility", dur = 7,
             trigger = { type = "bwmsg", spellID = 123, delay = "2" } } } }
-    local env = { ns = {}, specID = 250, currentEncounter = 3202,
+    local env = { ns = { SettingDefault = function(key) return ({ lingerSec = 3 })[key] end }, specID = 250, currentEncounter = 3202,
         hasCustomReminders = true, customCounters = {}, canSelect = true,
         frame = { Show = function() e.shown = true end },
         GetTime = function() return e.now end,
@@ -21,7 +21,7 @@ local function Fixture()
         RebuildSlots = function(_, _, preset) e.builds = e.builds + 1; e.preset = preset; return true end,
         ApplyPriorityAlpha = function() end, ClearTankGate = function() end,
         SpeakCallout = function() e.calls = e.calls + 1 end,
-        HideReminder = function() e.shown = false end, DEFAULTS = { lingerSec = 3 },
+        HideReminder = function() e.shown = false end,
         AppendLog = function() end,
         ParseCounterCondition = function(v) return tonumber(v) end,
         CheckCounterCondition = function(want, count) return want == count end,

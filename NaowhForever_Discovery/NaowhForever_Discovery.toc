@@ -1,10 +1,10 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100, 16001
 ## Title: |cff0091edNaowh|r Forever: Discovery
 ## Notes: The library books and the Cozy Sleeping Bag: where to find each one, on the map and nearby.
-## Author: NaowhUI
+## Author: Naowh
 ## Version: 0.5.22-beta
 ## Dependencies: NaowhForever
-## Group: NaowhUI
+## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
 
 # The data loads first; the module reads it.

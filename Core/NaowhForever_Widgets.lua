@@ -1535,3 +1535,15 @@ function UI.SoundPathFor(key)
     end
     return soundPaths[key]
 end
+
+-- Fresh tables per call: the SharedMedia appender mutates in place and caches by
+-- table identity, so handing the same tables to two dropdowns collapses them into one.
+function ns.SoundChoices()
+    local paths, names, order = UI.BuildAlertSoundTables()
+    UI.AppendSharedMediaSounds(paths, names, order)
+    names["none"] = nil
+    for i = #order, 1, -1 do
+        if order[i] == "none" then table.remove(order, i) end
+    end
+    return paths, names, order
+end

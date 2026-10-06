@@ -10,7 +10,7 @@ cd "$(dirname "$0")/../.." || exit 1
 args_for() {
     case "$1" in
         test-feint-recharge.lua | test_smart_charge_regressions.lua | test-smart-display-review-fixes.lua)
-            echo "SmartReminders/NaowhForever_SmartReminders.lua" ;;
+            echo "NaowhForever_SmartReminders/NaowhForever_SmartReminders.lua" ;;
         test-smart-minimap.lua)
             echo "Core/NaowhForever_Window.lua" ;;
         *) echo "" ;;

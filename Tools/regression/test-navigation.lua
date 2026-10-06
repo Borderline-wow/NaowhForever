@@ -591,6 +591,17 @@ ns.OpenOptionsWindow("Professions/Settings"); Flush()
 Check(Text("MODULES") ~= nil, "a link to a module that is off lands on Settings, where it is turned back on")
 missingAddOns.NaowhForever_Professions = nil
 
+-- Smart Reminders is a module addon too. While it is off, the core still owns Unlock Mode.
+missingAddOns.NaowhForever_SmartReminders = true
+for _, page in ipairs(UI.SearchPages()) do
+    Check(not (page.module and page.module.name == "Smart Reminders"), "Smart Reminders off is not searched")
+end
+ns.ShowRaidReminderAnchorConfig(); Flush()
+Check(Text("Move Elements") and Text("Exit Config") and not Text("Snap Elements"), "Move Elements opens without Smart Reminders")
+Click(Button("Exit Config")); Flush()
+Check(not Text("Exit Config") and not ns.IsRaidReminderAnchorConfigActive(), "and Exit Config closes it")
+missingAddOns.NaowhForever_SmartReminders = nil
+
 ns.OpenOptionsWindow("Blessings/Settings"); Flush()
 Check(Text("Blessings / Settings") ~= nil, "existing module/tab deep links still work")
 ns.OpenOptionsWindow("QoL/Combat"); Flush()

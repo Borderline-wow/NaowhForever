@@ -1,10 +1,10 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100, 16001
 ## Title: |cff0091edNaowh|r Forever: BiS List
 ## Notes: Best-in-slot lists, stat weights, Naowh Score and the character panel.
-## Author: NaowhUI
+## Author: Naowh
 ## Version: 0.5.22-beta
 ## Dependencies: NaowhForever
-## Group: NaowhUI
+## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
 
 # Naowh Score: one number for a character's gear, on the item level scale. Its own XML loads

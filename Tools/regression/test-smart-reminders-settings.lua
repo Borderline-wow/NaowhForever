@@ -26,7 +26,7 @@ local ns = {
 }
 local env = setmetatable({ NaowhForever = ns }, { __index = _G })
 env._G = env
-Load({ "Shared/Settings/Settings.lua", "SmartReminders/NaowhForever_SmartRemindersSettings.lua" }, env)
+Load({ "Shared/Settings/Settings.lua", "NaowhForever_SmartReminders/NaowhForever_SmartRemindersSettings.lua" }, env)
 
 local Settings = ns.Shared.Settings
 local Store = ns.SmartReminderSettings

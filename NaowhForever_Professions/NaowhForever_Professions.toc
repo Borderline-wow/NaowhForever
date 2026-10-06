@@ -1,10 +1,10 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100, 16001
 ## Title: |cff0091edNaowh|r Forever: Professions
 ## Notes: Recipes, reagents and crafting in one window, with the recipes you have not learned yet.
-## Author: NaowhUI
+## Author: Naowh
 ## Version: 0.5.22-beta
 ## Dependencies: NaowhForever
-## Group: NaowhUI
+## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
 
 # The window file creates the module's settings, so it loads first.

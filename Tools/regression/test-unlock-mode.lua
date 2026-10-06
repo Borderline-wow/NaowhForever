@@ -342,8 +342,9 @@ Fire(tag.center, "OnClick")
 Check(Near(Center(swing), 960) and Near(Last(swingSaved).x, 0) and Near(Last(swingSaved).y, 25),
     "Center moves it across to the middle and keeps its height")
 Fire(tag.settings, "OnClick")
-Check(printed[#printed - 1] == "left Move Elements" and printed[#printed] == "opened QoL/General",
+Check(not tag:IsShown() and printed[#printed] == "opened QoL/General",
     "Settings leaves Move Elements, then opens its page")
+UI.BeginMoverMode()
 local _, bareMover = Display("Loose", 60, 20, 300, 0)
 bareMover._placement.page = nil
 Click(bareMover, "LeftButton")

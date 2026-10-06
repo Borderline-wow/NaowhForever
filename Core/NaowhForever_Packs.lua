@@ -204,7 +204,12 @@ local function ValidData(data)
                                 if not ValidEntry(binding) then return false end
                             end
                         elseif sec.field == "integrationRules" then
-                            if not (ns.Integrations and ns.Integrations.ValidRule(entry)) then return false end
+                            -- Smart Reminders checks its own rules. While it is off they only need
+                            -- the shape its rule list reads, and it checks each one before use.
+                            if ns.Integrations then
+                                if not ns.Integrations.ValidRule(entry) then return false end
+                            elseif not (ValidEntry(entry) and type(entry.trigger) == "table"
+                                and type(entry.display) == "table") then return false end
                         elseif not ValidEntry(entry) then return false end
                     end
                 end
@@ -719,7 +724,7 @@ function ns.ApplyProfiles(payload, wantProfiles, wantSettings, bindSpecs)
         end
     end
     if landed == 0 then return false end
-    ns.RefreshRuntime()
+    if ns.RefreshRuntime then ns.RefreshRuntime() end
     return true, landed
 end
 
@@ -810,7 +815,7 @@ function ns.MergeProfileFromPack(payload, sourceName, targetName, opts)
     if opts.settings and ns.ImportModuleSettings then
         ns.ImportModuleSettings(ns.ProfileRoot(targetName), data.modules)
     end
-    ns.RefreshRuntime()
+    if ns.RefreshRuntime then ns.RefreshRuntime() end
     return true, specs, entries
 end
 
@@ -873,7 +878,7 @@ function ns.ImportPackAsProfile(payload, wantSpecs, wantSettings, customName, ov
     tr.bindingsBySpec = payload.data.bindingsBySpec ~= false
 
     if ns.SwitchProfile then ns.SwitchProfile(name) end
-    ns.RefreshRuntime()
+    if ns.RefreshRuntime then ns.RefreshRuntime() end
     return true, name
 end
 

@@ -1,4 +1,4 @@
-local file = assert(io.open(arg[1] or "SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
+local file = assert(io.open(arg[1] or "NaowhForever_SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
 local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
 local function Slice(first, last)
     local a = assert(source:find(first, 1, true))
@@ -12,7 +12,7 @@ local function Fixture()
     local e = { now = 0, timers = {}, calls = 0, checks = 0, logs = {}, readyAt = 9,
         db = { enabled = true, voiceOn = true, trace = true, coveredSkip = false },
         encounter = true, enabled = true, list = { 48265 }, builds = 0 }
-    local env = { ns = {}, pendingBWFires = {}, SAME_CAST_WINDOW = 0.5,
+    local env = { ns = { SettingDefault = function(key) return ({ lingerSec = 5 })[key] end }, pendingBWFires = {}, SAME_CAST_WINDOW = 0.5,
         GetTime = function() return e.now end, TRDB = function() return e.db end,
         AppendLog = function(row) e.logs[#e.logs + 1] = row end,
         C_Timer = { NewTimer = function(delay, fn)
@@ -34,7 +34,7 @@ local function Fixture()
             if e.external or e.now >= e.readyAt then e.calls = e.calls + 1; return end
             return "waiting"
         end,
-        HideReminder = function() end, DEFAULTS = { lingerSec = 5 },
+        HideReminder = function() end,
     }
     env.ns.HasMessageDefensive = function() return false end
     env.ns.AbilityEnabledForBinding = function() return e.enabled end

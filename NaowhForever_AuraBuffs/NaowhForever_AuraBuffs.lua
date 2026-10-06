@@ -131,6 +131,11 @@ function ns.BuildPoisonDispelPage(parent, y)
         .. "combat. Add each debuff by its aura spell ID. Sound only, no on-screen glow. "
         .. "Dwarves can pick the Stoneform voice, which only speaks while Stoneform is "
         .. "ready.", y); y = y - h
+    -- The debuff sounds run in Smart Reminders.
+    if not ns.BuildDebuffsPage then
+        _, h = W:Note(parent, "Turn on Smart Reminders under Settings > Modules to add debuff sounds.", y)
+        return y - h
+    end
     return ns.BuildDebuffsPage(parent, y)
 end
 

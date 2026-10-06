@@ -1,4 +1,4 @@
-local path = arg[1] or "SmartReminders/NaowhForever_SmartReminders.lua"
+local path = arg[1] or "NaowhForever_SmartReminders/NaowhForever_SmartReminders.lua"
 local f = assert(io.open(path, "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(first, last)

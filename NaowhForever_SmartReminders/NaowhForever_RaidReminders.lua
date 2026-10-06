@@ -854,8 +854,6 @@ local CONFIG_ORDER = { "defensive", "text", "timer", "icon", "bar", "circle" }
 -- Session-local.
 local configShown = {}
 for _, dt in ipairs(CONFIG_ORDER) do configShown[dt] = true end
-local configActive = false
-local reopenWindowOnExit = false
 
 local SAMPLE_ICON = "Interface\\Icons\\INV_Misc_PocketWatch_01"
 
@@ -910,102 +908,6 @@ local function SaveAnchorPos(displayType, point, relPoint, x, y)
         db.raidReminderAnchorPos = db.raidReminderAnchorPos or {}
         db.raidReminderAnchorPos[displayType] = { point = point, relPoint = relPoint, x = x, y = y }
     end
-end
-
--- Unlock Mode's grid, measured out from the screen's centre: faint lines in the text colour,
--- every GRID_MAJOR-th one stronger, and the centre lines in the accent with a square where
--- they cross.
-local GRID_SPACING = 32
-local GRID_MAJOR = 4
-local GRID_LINE_ALPHA = 0.08
-local GRID_MAJOR_ALPHA = 0.18
-local GRID_CENTER_ALPHA = 0.6
-local GRID_MARK = 6        -- the centre square, in pixels
-local gridOverlay
-
--- One physical pixel at any UI scale; fractional widths blur across two pixels.
-local function PixelMult()
-    local _, screenH = GetPhysicalScreenSize()
-    local scale = UIParent:GetEffectiveScale()
-    if not screenH or screenH <= 0 or not scale or scale <= 0 then return 1 end
-    return (768 / screenH) / scale
-end
-
-local function BuildGridOverlay()
-    if gridOverlay then return gridOverlay end
-    gridOverlay = CreateFrame("Frame", nil, UIParent)
-    gridOverlay:SetFrameStrata("BACKGROUND")
-    gridOverlay:SetFrameLevel(1)
-    gridOverlay:SetAllPoints(UIParent)
-    gridOverlay._lines = {}
-    gridOverlay:Hide()
-
-    function gridOverlay:Rebuild()
-        for i = 1, #self._lines do self._lines[i]:Hide() end
-        local w, h = UIParent:GetWidth(), UIParent:GetHeight()
-        local T = ns.THEME
-        local mult = PixelMult()
-        local spacing = GRID_SPACING * mult
-        local function Snap(v) return math.floor(v / mult + 0.5) * mult end
-        local centerX, centerY = Snap(w / 2), Snap(h / 2)
-        local idx = 0
-
-        local function Line(isVert, pos, alpha, c)
-            c = c or T.fg
-            idx = idx + 1
-            local tex = self._lines[idx]
-            if not tex then
-                tex = self:CreateTexture(nil, "BACKGROUND", nil, -7)
-                if tex.SetSnapToPixelGrid then
-                    tex:SetSnapToPixelGrid(false)
-                    tex:SetTexelSnappingBias(0)
-                end
-                self._lines[idx] = tex
-            end
-            tex:SetColorTexture(c.r, c.g, c.b, alpha)
-            tex:ClearAllPoints()
-            if isVert then
-                tex:SetSize(mult, h)
-                tex:SetPoint("TOPLEFT", UIParent, "TOPLEFT", pos, 0)
-            else
-                tex:SetSize(w, mult)
-                tex:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -pos)
-            end
-            tex:Show()
-        end
-
-        local function Lines(isVert, center, size)
-            for dir = -1, 1, 2 do
-                local n, pos = 1, center + dir * spacing
-                while pos > 0 and pos < size do
-                    Line(isVert, Snap(pos), n % GRID_MAJOR == 0 and GRID_MAJOR_ALPHA or GRID_LINE_ALPHA)
-                    n, pos = n + 1, pos + dir * spacing
-                end
-            end
-        end
-        Lines(true, centerX, w)
-        Lines(false, centerY, h)
-        Line(true, centerX, GRID_CENTER_ALPHA, T.accent)
-        Line(false, centerY, GRID_CENTER_ALPHA, T.accent)
-
-        if not self._mark then self._mark = self:CreateTexture(nil, "BACKGROUND", nil, -6) end
-        self._mark:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
-        self._mark:SetSize(GRID_MARK * mult, GRID_MARK * mult)
-        self._mark:ClearAllPoints()
-        self._mark:SetPoint("CENTER", UIParent, "TOPLEFT", centerX, -centerY)
-    end
-
-    return gridOverlay
-end
-
-function ns.SetAnchorGridShown(shown)
-    if not shown then
-        if gridOverlay then gridOverlay:Hide() end
-        return
-    end
-    local g = BuildGridOverlay()
-    g:Rebuild()
-    g:Show()
 end
 
 local function EnsureConfigHandle(displayType, a)
@@ -1079,7 +981,7 @@ local function HideConfigVisual(displayType)
 end
 
 local function RefreshAllConfigVisuals()
-    if not configActive or ns.DB().enabled ~= true then return end
+    if not ns.IsRaidReminderAnchorConfigActive() or ns.DB().enabled ~= true then return end
     for _, displayType in ipairs(CONFIG_ORDER) do
         if configShown[displayType] then RefreshConfigVisual(displayType) end
     end
@@ -1088,7 +990,7 @@ ns.RefreshRaidReminderAnchorConfig = RefreshAllConfigVisuals
 
 function ns.SetRaidReminderAnchorConfigShown(displayType, shown)
     configShown[displayType] = shown or nil
-    if not configActive then return end
+    if not ns.IsRaidReminderAnchorConfigActive() then return end
     if shown then RefreshConfigVisual(displayType) else HideConfigVisual(displayType) end
 end
 
@@ -1096,124 +998,22 @@ function ns.IsRaidReminderAnchorConfigShown(displayType)
     return configShown[displayType] == true
 end
 
-local configToolbar
+local function AnchorsOn() return ns.DB().enabled == true end
 
--- Move Elements' toolbar: the windows' backdrop and black edge, a header with the logo, the
--- title and Exit Config, then the switches.
-local BAR_W, BAR_PAD, BAR_GAP = 352, 14, 10
-local BAR_HEAD = 40                   -- the header, down to its rule
-local BAR_LOGO = 20
-local EXIT_W, EXIT_H = 96, 22
-local SWITCH_W, SWITCH_H = 28, 14
-local SWITCH_ROW = 22
-local SWITCH_COL = (BAR_W - 2 * BAR_PAD) / 2
-local LABEL_GAP = 8                   -- a switch to its label
-local SECTION_H = 18                  -- a section's muted name over its switches
-local OFF_ALPHA = 0.4                 -- Smart Reminders' switches while it is off
-
-local function BarRule(f, y)
-    local rule = ns.Solid(f, "ARTWORK", ns.Shared.Style.BORDER_RGB, 1)
-    rule:SetPoint("TOPLEFT", 0, -y)
-    rule:SetPoint("TOPRIGHT", 0, -y)
-    ns.Hairline(rule, "h")
+-- With Smart Reminders off its anchors stay hidden; the toolbar still carries Exit Config.
+local toolbarChecks = {}
+for _, displayType in ipairs(CONFIG_ORDER) do
+    toolbarChecks[#toolbarChecks + 1] = { label = DISPLAY_TYPE_LABEL[displayType],
+        get = function() return configShown[displayType] == true end,
+        set = function(v) ns.SetRaidReminderAnchorConfigShown(displayType, v) end,
+        enabled = AnchorsOn }
 end
-
--- A house switch with its label, at y below the toolbar's top in column col (0 or 1).
-local function BarSwitch(f, text, col, y, get, set)
-    local switch = ns.UI.BuildToggleControl(f, nil, get, set, SWITCH_W, SWITCH_H)
-    switch:SetPoint("TOPLEFT", f, "TOPLEFT", BAR_PAD + col * SWITCH_COL, -y)
-    switch.label = ns.Font(f, 11)
-    switch.label:SetPoint("LEFT", switch, "RIGHT", LABEL_GAP, 0)
-    switch.label:SetText(text)
-    return switch
-end
-
-local function BuildConfigToolbar()
-    if configToolbar then return configToolbar end
-    local T, St = ns.THEME, ns.Shared.Style
-    local f = CreateFrame("Frame", "NaowhForeverRaidReminderAnchorConfig", UIParent)
-    f:SetWidth(BAR_W)
-    f:SetPoint("TOP", UIParent, "TOP", 0, -140)
-    f:SetFrameStrata("FULLSCREEN_DIALOG")
-    f:SetFrameLevel(510)
-    f:SetToplevel(true)
-    f:SetClampedToScreen(true)
-    ns.AllowOffscreen(f)
-    ns.Shared.Parts.Backdrop(f):Paint(St.BACKDROP_ALPHA)
-    ns.Border(f, St.BORDER_RGB)
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-
-    local logo = f:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture(St.LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(BAR_LOGO, BAR_LOGO)
-    logo:SetPoint("LEFT", f, "TOPLEFT", BAR_PAD, -BAR_HEAD / 2)
-    local title = ns.Font(f, 14)
-    title:SetPoint("LEFT", logo, "RIGHT", LABEL_GAP, 0)
-    title:SetText("Move Elements")
-    local exit = ns.AccentBorder(ns.Button(f, "Exit Config", EXIT_W, EXIT_H, function() ns.HideRaidReminderAnchorConfig() end))
-    exit:SetPoint("RIGHT", f, "TOPRIGHT", -BAR_PAD, -BAR_HEAD / 2)
-    BarRule(f, BAR_HEAD)
-
-    local y = BAR_HEAD + BAR_GAP
-    f._section = ns.Font(f, 11, nil, T.muted)
-    f._section:SetPoint("TOPLEFT", BAR_PAD, -y)
-    y = y + SECTION_H
-    local switches = {}
-    for i, displayType in ipairs(CONFIG_ORDER) do
-        local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
-        switches[displayType] = BarSwitch(f, DISPLAY_TYPE_LABEL[displayType], col, y + row * SWITCH_ROW,
-            function() return configShown[displayType] == true end,
-            function(on) ns.SetRaidReminderAnchorConfigShown(displayType, on) end)
-    end
-    f:SetHeight(y + math.ceil(#CONFIG_ORDER / 2) * SWITCH_ROW + BAR_GAP / 2)
-
-    f._switches = switches
-    configToolbar = f
-    return f
-end
-
-function ns.ShowRaidReminderAnchorConfig()
-    -- Stash before arming: hiding the window runs HideRaidReminderAnchorConfig via
-    -- OnHide, which disarmed the mode in the same click when armed first.
-    local reopen = ns.StashOptionsWindow and ns.StashOptionsWindow() or false
-    configActive = true
-    ns.UI.BeginMoverMode()
-    reopenWindowOnExit = reopen
-    local f = BuildConfigToolbar()
-    -- With Smart Reminders off its anchors stay hidden and its switches rest.
-    local on = ns.DB().enabled == true
-    f._section:SetText(on and "Smart Reminders" or "Smart Reminders is off")
-    for _, switch in pairs(f._switches) do
-        switch._refreshValue()
-        switch:EnableMouse(on)
-        switch:SetAlpha(on and 1 or OFF_ALPHA)
-        switch.label:SetAlpha(on and 1 or OFF_ALPHA)
-    end
-    f:Show()
-    ns.SetAnchorGridShown(true)
-    RefreshAllConfigVisuals()
-end
-
--- windowClosing: called from the options window's own OnHide, which must not reopen it.
-function ns.HideRaidReminderAnchorConfig(windowClosing)
-    configActive = false
-    ns.UI.EndMoverMode()
-    ns.SetAnchorGridShown(false)
-    if configToolbar then configToolbar:Hide() end
+ns.AddUnlockModeChecks(function() return AnchorsOn() and "Smart Reminders" or "Smart Reminders is off" end,
+    toolbarChecks)
+hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", RefreshAllConfigVisuals)
+hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
     for _, displayType in ipairs(CONFIG_ORDER) do HideConfigVisual(displayType) end
-    if reopenWindowOnExit then
-        reopenWindowOnExit = false
-        if not windowClosing and ns.OpenOptionsWindow then ns.OpenOptionsWindow() end
-    end
-end
-
-function ns.IsRaidReminderAnchorConfigActive()
-    return configActive
-end
+end)
 
 -- Rows for each anchor's gear popup. Timer has no box, so its two font sizes are its rows.
 local TEXT_SIZE_MIN, TEXT_SIZE_MAX = 8, 48

@@ -49,7 +49,7 @@ repos:
         entry: '(?<!\r)\n'
         args: [--multiline]
         files: \.(lua|toc|xml)$
-        exclude: ^(Tools|Locales)/|^SmartReminders/NaowhForever_Verify\.lua$
+        exclude: ^(Tools|Locales)/|^Core/NaowhForever_Verify\.lua$
 
       # Translations and the generated BiS source names are the exceptions.
       - id: addon-ascii

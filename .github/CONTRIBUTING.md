@@ -136,7 +136,8 @@ comment, sent back for changes, or merged and fixed up by me.
   the checkout. Point an `Interface\AddOns\NaowhForever_<Module>` folder at each one too. A
   folder the game has not seen before may need a restart to show up in the AddOns list.
 - A new module addon gets its own TOC with `## Dependencies: NaowhForever` (and any module
-  it needs), a `move-folders` line in `.pkgmeta` after the modules it needs, and `addon =`
+  it needs) and `## Group: NaowhForever`, which files it under Naowh Forever in the AddOns
+  list, a `move-folders` line in `.pkgmeta` after the modules it needs, and `addon =`
   on its entry in `MODULES` (`needs =` too when it cannot work without another module).
 - A new global the addon writes goes in `globals` in `.luacheckrc`, a new game API it
   reads in `read_globals`.

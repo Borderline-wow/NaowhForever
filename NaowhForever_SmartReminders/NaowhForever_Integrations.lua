@@ -340,7 +340,7 @@ events:SetScript("OnEvent", function(_, event, name, state)
             return
         end
     end
-    if event == "ADDON_LOADED" and name ~= "NaowhForever" then return end
+    if event == "ADDON_LOADED" and name ~= "NaowhForever_SmartReminders" then return end
     if event == "PLAYER_SPECIALIZATION_CHANGED" and name ~= "player" then return end
     I.Refresh()
 end)

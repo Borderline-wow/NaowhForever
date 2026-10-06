@@ -1,4 +1,4 @@
-local f = assert(io.open(arg[1] or "SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local a = assert(source:find("local bwCdEndsAt = {}", 1, true))
 local b = assert(source:find("local function OnDBMEvent", a, true))
