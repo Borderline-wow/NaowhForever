@@ -138,6 +138,25 @@ do
         "the own-row highlight keeps its tint")
 end
 
+-- XP Bar: the border with no colour picked is black, and follows Borders & Lines once the
+-- theme changes it, in the bar and its settings swatch alike.
+do
+    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local EDGE = Const(source, "EDGE")
+    Check(IsRGB(EDGE, 0, 0, 0), "xp bar border literal is black")
+    local body = assert(source:match('\nlocal function BorderDefault%(%)\n(.-)\nend\n'))
+    Check(source:find('S.Get("xpBarBorderColor") or BorderDefault()', 1, true), "the bar paints the default border")
+    Check(source:find('if key == "xpBarBorderColor" then return BorderDefault() end', 1, true),
+        "the swatch shows the default border")
+    local function Border(account)
+        local chunk = assert(loadstring(body))
+        setfenv(chunk, setmetatable({ ns = LoadCore(account), EDGE = EDGE }, { __index = _G }))
+        return chunk()
+    end
+    Check(Border({}) == EDGE, "xp bar border: the shipped theme keeps black")
+    Check(IsRGB(Border(PICKS), 0.7, 0.8, 0.9), "xp bar border: Custom follows Borders & Lines")
+end
+
 -- The accent-tinted HUD surfaces: the shipped blue with the default theme, the accent otherwise.
 local ACCENT_PRESET = { themePreset = "midnight" }
 local function AccentOf(account) return LoadCore(account).THEME.accent end

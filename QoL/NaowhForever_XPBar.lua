@@ -15,13 +15,15 @@ local RESTED    = { r = 0x1e / 255, g = 0x40 / 255, b = 0xaf / 255 }
 local QUEST_HEX, RESTED_HEX = "|cfff2a900", "|cff6b8cff"
 local OPEN_ALPHA = 0.4  -- incomplete quests: the completed quests colour, faded
 local BG_ALPHA = 0.85
+local EDGE = { r = 0, g = 0, b = 0 }  -- the bar's border: black, as the rest of the UI's
 local FILL_DARK = 0.55  -- how dark the fill's left end is against its colour
 local RESTED_DARK = 0.7 -- how dark rested is against a theme's changed accent
 
 -- The colours a player picked (Colours, under XP Bar) win; unset ones follow the theme, and
 -- the shipped colours above while the theme leaves the accent alone. Text in a quest or
 -- rested colour follows the bar.
-local COLOR_KEYS = { "xpBarFillColor", "xpBarQuestColor", "xpBarRestedColor", "xpBarBgColor" }
+local COLOR_KEYS = { "xpBarFillColor", "xpBarQuestColor", "xpBarOpenColor", "xpBarRestedColor", "xpBarBgColor",
+    "xpBarBorderColor" }
 local questHex, restedHex = QUEST_HEX, RESTED_HEX
 
 local function FillGradient()
@@ -50,16 +52,41 @@ local function RestedDefault()
         or RESTED
 end
 
+-- The border is black, as the rest of the UI's; a theme changes it to its line colour, as it
+-- does the other themed borders.
+local function BorderDefault()
+    return ns.ThemeTint("line", EDGE)
+end
+
+-- Incomplete quests, unpicked: the completed quests colour faded over the background, as
+-- its swatch shows it.
+local function OpenDefault()
+    local q = S.Get("xpBarQuestColor") or QuestDefault()
+    local bg = S.Get("xpBarBgColor") or T.bg
+    return { r = q.r * OPEN_ALPHA + bg.r * (1 - OPEN_ALPHA), g = q.g * OPEN_ALPHA + bg.g * (1 - OPEN_ALPHA),
+        b = q.b * OPEN_ALPHA + bg.b * (1 - OPEN_ALPHA) }
+end
+
 -- Colours a bar: the live one and the settings preview alike.
 local function PaintBar(b)
     b.fill:SetGradient("HORIZONTAL", FillGradient())
     local q = S.Get("xpBarQuestColor") or QuestDefault()
     local r = S.Get("xpBarRestedColor") or RestedDefault()
     local bg = S.Get("xpBarBgColor") or T.bg
+    local e = S.Get("xpBarBorderColor") or BorderDefault()
     b.done:SetColorTexture(q.r, q.g, q.b, 1)
-    if b.open then b.open:SetColorTexture(q.r, q.g, q.b, OPEN_ALPHA) end
+    if b.open then
+        -- A picked colour is drawn as picked; unpicked, the quest colour faded.
+        local o = S.Get("xpBarOpenColor")
+        if o then
+            b.open:SetColorTexture(o.r, o.g, o.b, 1)
+        else
+            b.open:SetColorTexture(q.r, q.g, q.b, OPEN_ALPHA)
+        end
+    end
     b.rested:SetColorTexture(r.r, r.g, r.b, 1)
     b.bg:SetColorTexture(bg.r, bg.g, bg.b, BG_ALPHA)
+    b.edge:SetColor(e.r, e.g, e.b, 1)
 end
 
 -- The rested text keeps its lighter blue by default, which reads better than the bar's own.
@@ -81,7 +108,9 @@ end
 function ns.XPBarDefaultColor(key)
     if key == "xpBarFillColor" then return T.accent end
     if key == "xpBarQuestColor" then return QuestDefault() end
+    if key == "xpBarOpenColor" then return OpenDefault() end
     if key == "xpBarRestedColor" then return RestedDefault() end
+    if key == "xpBarBorderColor" then return BorderDefault() end
     return T.bg
 end
 
@@ -536,12 +565,14 @@ function Look.New(b)
     b.done = ns.Solid(b.track, "ARTWORK", QUEST, 1)
     b.open = ns.Solid(b.track, "ARTWORK", QUEST, OPEN_ALPHA)
     b.rested = ns.Solid(b.track, "ARTWORK", RESTED, 1)
+    -- Completed quests over rested; incomplete ones, faded, under it, so they never tint it.
+    b.open:SetDrawLayer("ARTWORK", -1)
     b.rested:SetDrawLayer("ARTWORK", 0)
     b.done:SetDrawLayer("ARTWORK", 1)
-    b.open:SetDrawLayer("ARTWORK", 1)
 
     -- Above the track, whose own frame would otherwise cover the border.
-    ns.Border(b)._frame:SetFrameLevel(b:GetFrameLevel() + 4)
+    b.edge = ns.Border(b, EDGE)   -- coloured by PaintBar
+    b.edge._frame:SetFrameLevel(b:GetFrameLevel() + 4)
 
     local text = CreateFrame("Frame", nil, b)
     text:SetAllPoints()
@@ -596,7 +627,7 @@ function Look.Segments(b, total, pct, done, open, rested, max, maxed)
         b.open:Hide()
     end
     -- Rested runs from the end of your XP like Blizzard's, the full height of the bar and
-    -- drawn over the quest segments, so a bar full of quest XP cannot push it off the
+    -- drawn over the incomplete quests, so a bar full of quest XP cannot push it off the
     -- end. At least 3px, so a sliver of rest still reads.
     local from = total * pct / 100
     local w = math.min(math.max(total * rested / max, 3), total - from)
@@ -1046,12 +1077,14 @@ local ROWS = {
           .. "session. A fresh login always starts a new one." },
     Group("Colours"),
     ColourRow("xpBarFillColor", "Fill Colour", "Your experience. Its left end is a darker shade."),
-    ColourRow("xpBarQuestColor", "Completed Quests Colour",
-        "The XP of completed quests, and their text. Incomplete quests show it faded."),
+    ColourRow("xpBarQuestColor", "Completed Quests Colour", "The XP of completed quests, and their text."),
+    ColourRow("xpBarOpenColor", "Incomplete Quests Colour",
+        "The XP of quests still in progress. By default the completed quests colour, faded."),
     ColourRow("xpBarRestedColor", "Rested Colour", "Rested experience, and its text."),
     ColourRow("xpBarBgColor", "Background Colour", "Behind the fill."),
+    ColourRow("xpBarBorderColor", "Border Colour", "The line round the bar."),
     { label = "Reset Colours", buttonText = "Reset Colours", button = ns.ResetXPBarColors,
-      help = "The four colours back to their defaults, which follow the theme." },
+      help = "The colours back to their defaults, which follow the theme." },
     Hidden(Group("Text")),
 }
 for _, spot in ipairs(INSIDE) do ROWS[#ROWS + 1] = TextRow(spot, INSIDE, BAR_TEXTS, BAR_TEXT_HELP) end
