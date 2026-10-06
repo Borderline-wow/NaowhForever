@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  Badge.lua -- your supporter badge on the character panel, big in the left pane's top
 --  corner: Naowh's, a Developer's, a Moderator's or a Legendary Patron's in its own colour
---  with its glow and title (and since when, for a patron). Without one, nothing at all.
+--  with its glow and title (and since when, for a patron). Without one, nothing at all. While
+--  ns.FEATURE_BADGES is 0 only the team's badges exist, and the setting's default holds.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -27,7 +28,9 @@ local TIP_GAP = 4            -- the hover card, under the art
 local frame, installed
 
 local function BadgeOn()
-    if not (CP.On() and S.Get("characterPanelBadge") == true) then return false end
+    local wanted = S.Get("characterPanelBadge")
+    if ns.FEATURE_BADGES ~= 1 then wanted = S.Default("characterPanelBadge") end
+    if not (CP.On() and wanted == true) then return false end
     return ns.BadgeOf(UnitGUID("player")) ~= nil
 end
 

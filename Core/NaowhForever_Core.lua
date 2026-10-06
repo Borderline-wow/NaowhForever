@@ -1,6 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Core.lua -- theme, chrome primitives, DB and profile plumbing.
 --  Standalone addon: no EllesmereUI dependency.
+--  ns.FEATURE_BADGES: 0 hides supporter badges, badge settings and support mentions until they
+--  launch; the team's badges still show, on their defaults.
 -------------------------------------------------------------------------------
 local ADDON_NAME = ...
 
@@ -24,6 +26,8 @@ end
 -- which only moves on release. A report naming a stamp the reporter was not sent comes from
 -- a client that was not reloaded after the files changed.
 ns.CODE_BUILD = "0.5.21-beta"
+
+ns.FEATURE_BADGES = 0
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {

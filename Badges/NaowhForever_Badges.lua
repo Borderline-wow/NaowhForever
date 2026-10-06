@@ -4,11 +4,19 @@
 --  a plate over their player tooltip, and a banner when one joins your group. Each part has its
 --  own setting in QoL > Character: badges, card and tooltip start on so everyone sees them,
 --  the banner starts off (Naowh's call). /nf badges preview puts one on your own name
---  (staff only).
+--  (staff only). While ns.FEATURE_BADGES (Core) is 0 only the team's badges show, on the
+--  settings' defaults whatever a profile saved: no patron tier or list, no settings card, and
+--  no words about support.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
 local S = ns.QoLSettings
+local PATRONS = ns.FEATURE_BADGES == 1
+
+local function Setting(key)
+    if PATRONS then return S.Get(key) end
+    return S.Default(key)
+end
 
 local MEDIA = "Interface\\AddOns\\NaowhForever\\Media\\Badges\\"
 local CACHE_SIZE = 200    -- chat lines remembered for the hover card
@@ -54,6 +62,7 @@ local TIERS = {
         showsSince = true,  -- "Supporter since" is a patron's line, not a developer's
     },
 }
+if not PATRONS then TIERS.legendary = nil end
 -- The chat badge is as tall as the chat's text, so a line is no taller for it, and goes
 -- this much lower: the Naowh and game fonts leave room above their capitals, so letters sit
 -- under the middle of the line an icon is centred on.
@@ -82,7 +91,7 @@ local roster = {}
 local function BuildRoster()
     wipe(roster)
     local region = GetCurrentRegion and GetCurrentRegion()
-    local patrons = region and ns.BADGE_PATRONS and ns.BADGE_PATRONS[region]
+    local patrons = PATRONS and region and ns.BADGE_PATRONS and ns.BADGE_PATRONS[region]
     if patrons then
         for guid, entry in pairs(patrons) do
             entry.tier = "legendary"
@@ -385,7 +394,7 @@ local function ShowPlate(tooltip, guid, entry, tier)
 end
 
 local function AddTooltipLine(tooltip, data)
-    if not S.Get("badgeTooltip") then return end
+    if not Setting("badgeTooltip") then return end
     local entry = EntryOf(data and data.guid)
     local tier = TierOf(entry)
     if not tier then
@@ -466,7 +475,7 @@ function ShowNextToast()
     end
     Paint(toast, tier)
     local c = tier.color
-    toast.text:SetText((name or "A supporter") .. " joined your " .. (raid and "raid" or "party"))
+    toast.text:SetText((name or (PATRONS and "A supporter" or "A team member")) .. " joined your " .. (raid and "raid" or "party"))
     toast.title:SetText(TitleOf(entry, tier))
     toast.title:SetTextColor(c.r, c.g, c.b, 1)
     toast:Show()
@@ -543,7 +552,7 @@ local function ScanGroup(quiet)
             local entry = roster[guid]
             if TierOf(entry) then
                 announced[guid] = true
-                if not quiet and not (S.Get("badgeBannerSkipGuild") and InMyGuild(unit)) then
+                if not quiet and not (Setting("badgeBannerSkipGuild") and InMyGuild(unit)) then
                     QueueToast(entry, FullName(unit), raid)
                 end
             end
@@ -650,7 +659,7 @@ local chatOn, cardOn, tooltipHooked
 
 local function Apply()
     local chatAPI = (ChatFrameUtil and ChatFrameUtil.AddSenderNameFilter) ~= nil
-    local chat = chatAPI and S.Get("badgeChat") == true
+    local chat = chatAPI and Setting("badgeChat") == true
     if chat ~= (chatOn or false) then
         chatOn = chat
         if chat then
@@ -662,7 +671,7 @@ local function Apply()
     SyncList(chat)
 
     -- The card needs the chat badges: it finds its player through the line they wrote.
-    local cardWanted = chat and S.Get("badgeCard") == true
+    local cardWanted = chat and Setting("badgeCard") == true
     if cardWanted ~= (cardOn or false) then
         cardOn = cardWanted
         if cardWanted then
@@ -677,12 +686,12 @@ local function Apply()
 
     -- A tooltip post-call can't be removed, so it's added the first time the line is wanted
     -- and checks the setting itself.
-    if S.Get("badgeTooltip") and not tooltipHooked then
+    if Setting("badgeTooltip") and not tooltipHooked then
         tooltipHooked = true
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, AddTooltipLine)
     end
 
-    local banner = S.Get("badgeBanner") == true
+    local banner = Setting("badgeBanner") == true
     if banner ~= (bannerOn or false) then
         bannerOn = banner
         if banner then
@@ -752,7 +761,8 @@ local function ShowCode(code, count)
     hint:SetPoint("TOP", head, "BOTTOM", 0, -6)
     hint:SetWidth(400)   -- two lines at most: the code box sits under it
     hint:SetText(count .. (count == 1 and " character" or " characters")
-        .. ". Ctrl+C to copy it, then send it in a support request on Discord to be added.")
+        .. (PATRONS and ". Ctrl+C to copy it, then send it in a support request on Discord to be added."
+            or ". Ctrl+C to copy it, then send it to the team on Discord to be added."))
     local box = UI.Keep(panel, "box", ns.NewEditBox)
     box:SetPoint("TOP", hint, "BOTTOM", 0, -12)
     box:SetSize(400, 28)
@@ -766,7 +776,7 @@ local function ShowCode(code, count)
     -- Discord's link to copy beside Close (the game opens no browser): the code first, then it.
     UI.KeepButton(panel, "discord", "Discord", 96, 26, function()
         dimmer:Hide()
-        ns.ShowCopyLine("Naowh's Discord", DISCORD, TIERS.legendary.large)
+        ns.ShowCopyLine("Naowh's Discord", DISCORD, (TIERS.legendary or TIERS.naowh).large)
     end):SetPoint("BOTTOM", panel, "BOTTOM", -52, 14)
     UI.KeepButton(panel, "close", "Close", 96, 26, function() dimmer:Hide() end)
         :SetPoint("BOTTOM", panel, "BOTTOM", 52, 14)
@@ -775,9 +785,11 @@ local function ShowCode(code, count)
     box:HighlightText()
 end
 
+local PREVIEW_TIER = PATRONS and "legendary" or "developer"
+
 function ns.BadgesCommand(arg)
     local word = strtrim(arg or ""):lower()
-    local previewTier = word == "preview" and "legendary" or word:match("^preview (%a+)$")
+    local previewTier = word == "preview" and PREVIEW_TIER or word:match("^preview (%a+)$")
     local staffOnly = previewTier or word == "toast"
     if staffOnly and not IsStaff(UnitGUID("player")) then
         ns.Print("Badge previews are for the Naowh Forever team.")
@@ -800,9 +812,10 @@ function ns.BadgesCommand(arg)
         previewGUID, previewEntry = nil, nil
         ns.Print("Preview off.")
     elseif word == "toast" then
-        QueueToast(previewEntry or PreviewEntry("legendary"), FullName("player"), IsInRaid())
+        QueueToast(previewEntry or PreviewEntry(PREVIEW_TIER), FullName("player"), IsInRaid())
     else
-        ns.Print("/nf badges id | preview [legendary|moderator|developer|naowh|none] | preview off | toast")
+        ns.Print("/nf badges id | preview [" .. (PATRONS and "legendary|" or "")
+            .. "moderator|developer|naowh|none] | preview off | toast")
     end
 end
 
@@ -840,7 +853,7 @@ ns._BadgesTest = { DecorateName = DecorateName, ListBadges = listBadges, OnLinkE
     Card = function() return card end, Toast = function() return toast end,
     QueueSize = function() return queueTail - queueHead + 1 end, GroupEvents = groupEvents }
 
-local Settings = ns.Shared and ns.Shared.Settings
+local Settings = PATRONS and ns.Shared and ns.Shared.Settings
 if not Settings then return end
 
 local BADGE_KEYS = { "badgeChat", "badgeCard", "badgeTooltip", "badgeBanner", "badgeBannerSkipGuild" }

@@ -1,6 +1,7 @@
 -------------------------------------------------------------------------------
 --  SettingsPage.lua -- the character panel's cards on QoL > Character: the Naowh Character
---  Panel with what it adds, and Slot Marks, the marks alone on the game's own panel.
+--  Panel with what it adds, and Slot Marks, the marks alone on the game's own panel. The
+--  Supporter Badge row is there only while ns.FEATURE_BADGES is 1.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local CP = ns.CharacterPanel
@@ -21,7 +22,8 @@ local function PanelSummary(store)
         return store.Get("characterPanel") and "EllesmereUI's panel is in use: switch this off and on for this one"
             or "Takes over from EllesmereUI's panel, after a reload"
     end
-    local badge, score = store.Get("characterPanelBadge"), store.Get("characterPanelScore")
+    local badge = ns.FEATURE_BADGES == 1 and store.Get("characterPanelBadge")
+    local score = store.Get("characterPanelScore")
     if badge and score then return "With your badge and Naowh Score" end
     if badge then return "With your badge" end
     if score then return "With your Naowh Score" end
@@ -39,6 +41,16 @@ local function MarksSummary(store)
     return ("%d of 3 marks"):format(shown)
 end
 
+local panelRows = {
+    { key = "characterPanelScore", label = "Naowh Score", toggle = true,
+      help = "Your Naowh Score, big under your level: hover it for your score with your BiS and the best "
+          .. "in the game, click it for the BiS List." },
+}
+if ns.FEATURE_BADGES == 1 then
+    table.insert(panelRows, 1, { key = "characterPanelBadge", label = "Supporter Badge", toggle = true,
+        help = "Your supporter badge, big in the panel's top corner, if you have one." })
+end
+
 local page = Settings.Page("QoL/Character", S)
 
 page:Card({
@@ -47,13 +59,7 @@ page:Card({
         .. "spec, and your Naowh Score under your level. The game keeps the panel and everything it does. With "
         .. "EllesmereUI, turning this on turns its character panel off, and off turns it back on, after a reload.",
     summary = PanelSummary,
-    rows = {
-        { key = "characterPanelBadge", label = "Supporter Badge", toggle = true,
-          help = "Your supporter badge, big in the panel's top corner, if you have one." },
-        { key = "characterPanelScore", label = "Naowh Score", toggle = true,
-          help = "Your Naowh Score, big under your level: hover it for your score with your BiS and the best "
-              .. "in the game, click it for the BiS List." },
-    },
+    rows = panelRows,
 })
 
 page:Card({

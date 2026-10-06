@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_PatchNotes.lua -- the Patch Notes page in the options window: each build's
 --  notes as a card, newest first and open. The client cannot read CHANGELOG.md, so the
---  notes players see in game live here.
+--  notes players see in game live here. A line in a table ({ badges = true, "..." }) is about
+--  supporter badges and shows only while ns.FEATURE_BADGES is 1.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 
@@ -28,7 +29,8 @@ local NOTES = {
             .. "flight mount riding its track, and a Classic theme (thanks to Lyssa).",
         "RestedXP Guides: add the Naowh themes to RestedXP and give its window and arrow "
             .. "Naowh's look.",
-        "QoL has a Character tab for the Character Panel, Slot Marks, Naowh Score and badges. "
+        "QoL has a Character tab for the Character Panel, Slot Marks"
+            .. (ns.FEATURE_BADGES == 1 and ", Naowh Score and badges. " or " and Naowh Score. ")
             .. "The Character Panel and Bag Marks are now on by default.",
         "Windows and trackers can be dragged up to 90% off the screen, and the profession "
             .. "window stays where you put it.",
@@ -122,8 +124,8 @@ local NOTES = {
             .. "Attach buttons on the mailbox, and a warning for mail about to expire.",
         "Search box at the top of the sidebar: finds a setting and takes you to it. Thanks to "
             .. "Lyssa.",
-        "Supporter Badges (QoL, Interface) for Naowh's Legendary patrons, the developers and "
-            .. "the moderators.",
+        { badges = true, "Supporter Badges (QoL, Interface) for Naowh's Legendary patrons, the developers "
+            .. "and the moderators." },
         "Themes (Settings, Colors): eight colour presets or your own colours for this window. "
             .. "Thanks to Lyssa.",
         "Discovery: track the 40 library books around Azeroth, with a zone tracker, world map "
@@ -197,7 +199,10 @@ end
 local latest
 for i, entry in ipairs(NOTES) do
     local lines = {}
-    for n, text in ipairs(entry.lines) do lines[n] = Line(text) end
+    for _, text in ipairs(entry.lines) do
+        if type(text) == "table" then text = ns.FEATURE_BADGES == 1 and text[1] or nil end
+        if text then lines[#lines + 1] = Line(text) end
+    end
     local coming = entry.title == "Unreleased"
     local summary = #lines .. " changes"
     if coming then
