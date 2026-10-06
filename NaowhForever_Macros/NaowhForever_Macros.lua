@@ -575,7 +575,7 @@ page:Card({
 page:Card({
     id = "foodBar", name = "Food & Drink Bar", order = 10, switch = "foodBar",
     help = "Two buttons: the best food and the best drink in your bags, conjured first. Click to eat or drink. "
-        .. "They update as your bags change, after combat. Move it in Layout Mode.",
+        .. "They update as your bags change, after combat. Move it with Move Elements.",
     summary = FoodSummary,
     studio = { height = 100, states = FOOD_STATES, new = NewFoodPreview, paint = PaintFoodPreview },
     rows = {

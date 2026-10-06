@@ -504,7 +504,7 @@ Settings.Page("AuraBuffs/Settings", S):Card({
     id = "buffs", name = "Buffs & Consumables", order = 10,
     help = "A row of icons for missing food, flask, elixir and scroll buffs, and for class buffs missing "
         .. "in your group. Out of combat only: the game keeps your buffs from addons in combat, so the "
-        .. "icons keep what they showed. Hover one to pick a carried item to use. Move them in Layout Mode.",
+        .. "icons keep what they showed. Hover one to pick a carried item to use. Move them with Move Elements.",
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {

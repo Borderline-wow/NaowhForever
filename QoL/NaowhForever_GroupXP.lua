@@ -323,7 +323,7 @@ Settings.Page("QoL/XP", S):Card({
     id = "groupXP", name = "Group XP", order = 30, switch = "groupXP",
     help = "A bar per group member with their level and how far through it they are. Every member running "
         .. "Naowh Forever shares their experience, even with this off; anyone else shows their level. "
-        .. "Updates wait until combat ends. Move it in Layout Mode.",
+        .. "Updates wait until combat ends. Move it with Move Elements.",
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {

@@ -1193,7 +1193,7 @@ ns.Shared.Settings.Page("QoL/XP", S):Card({
     id = "xpTicker", name = "XP per Hour", order = 20, switch = "xpTicker",
     help = "Your experience per hour on a small card, with time to level, played time, session length and "
         .. "recent level times. Hidden at max level. Hover it for Start, Pause and Reset (also /naowh xp start, pause "
-        .. "or reset). Move it in Layout Mode.",
+        .. "or reset). Move it with Move Elements.",
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {

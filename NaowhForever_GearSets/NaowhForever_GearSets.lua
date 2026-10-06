@@ -672,7 +672,7 @@ page:Card({
     id = "gearBar", name = "Gear Set Bar", order = 10, switch = "gearBarVisible",
     help = "A button per set: click to equip, Shift-click to save what you wear into it, Ctrl-click to rename "
         .. "it, right-click to change its icon, and + to save a new one. The set you wear is outlined. Move it "
-        .. "in Layout Mode.",
+        .. "in Move Elements.",
     summary = SizeSummary("gearBarSize"),
     studio = { height = 100, states = PREVIEW_STATE, new = NewBarPreview, paint = PaintBarPreview },
     rows = {
@@ -696,7 +696,7 @@ page:Card({
 page:Card({
     id = "trinketBar", name = "Trinket Bar", order = 30, switch = "trinketBar",
     help = "Your two trinket slots, movable: left-click to use one, right-click to equip a trinket from your "
-        .. "bags outside combat. Move it in Layout Mode.",
+        .. "bags outside combat. Move it with Move Elements.",
     summary = SizeSummary("trinketSize"),
     studio = { height = 110, states = PREVIEW_STATE, new = NewTrinketPreview, paint = PaintTrinketPreview },
     rows = {

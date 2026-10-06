@@ -1098,8 +1098,8 @@ end
 
 local configToolbar
 
--- Unlock Mode's toolbar: the windows' backdrop and black edge, a header with the logo, the
--- title and Exit Config, the selected element's position, then the switches.
+-- Move Elements' toolbar: the windows' backdrop and black edge, a header with the logo, the
+-- title and Exit Config, then the switches.
 local BAR_W, BAR_PAD, BAR_GAP = 352, 14, 10
 local BAR_HEAD = 40                   -- the header, down to its rule
 local BAR_LOGO = 20
@@ -1153,7 +1153,7 @@ local function BuildConfigToolbar()
     logo:SetPoint("LEFT", f, "TOPLEFT", BAR_PAD, -BAR_HEAD / 2)
     local title = ns.Font(f, 14)
     title:SetPoint("LEFT", logo, "RIGHT", LABEL_GAP, 0)
-    title:SetText("Layout Mode")
+    title:SetText("Move Elements")
     local exit = ns.AccentBorder(ns.Button(f, "Exit Config", EXIT_W, EXIT_H, function() ns.HideRaidReminderAnchorConfig() end))
     exit:SetPoint("RIGHT", f, "TOPRIGHT", -BAR_PAD, -BAR_HEAD / 2)
     BarRule(f, BAR_HEAD)
@@ -1169,15 +1169,7 @@ local function BuildConfigToolbar()
             function() return configShown[displayType] == true end,
             function(on) ns.SetRaidReminderAnchorConfigShown(displayType, on) end)
     end
-    y = y + math.ceil(#CONFIG_ORDER / 2) * SWITCH_ROW + BAR_GAP / 2
-    BarRule(f, y)
-
-    y = y + BAR_GAP
-    f._snap = BarSwitch(f, "Snap Elements", 0, y,
-        function() return ns.UnlockModeSettings.Get("snap") ~= false end,
-        function(on) ns.UnlockModeSettings.Set("snap", on) end)
-    ns.Tooltip(f._snap, "Snap Elements", "A dragged element lines its edges and centre up with the nearest one.")
-    f:SetHeight(y + SWITCH_ROW + BAR_GAP / 2)
+    f:SetHeight(y + math.ceil(#CONFIG_ORDER / 2) * SWITCH_ROW + BAR_GAP / 2)
 
     f._switches = switches
     configToolbar = f
@@ -1201,7 +1193,6 @@ function ns.ShowRaidReminderAnchorConfig()
         switch:SetAlpha(on and 1 or OFF_ALPHA)
         switch.label:SetAlpha(on and 1 or OFF_ALPHA)
     end
-    f._snap._refreshValue()
     f:Show()
     ns.SetAnchorGridShown(true)
     RefreshAllConfigVisuals()

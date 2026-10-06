@@ -1434,7 +1434,7 @@ function UI.ModuleSettings(key, defaults)
     return S
 end
 
-ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { snap = true })
+ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", {})
 
 -------------------------------------------------------------------------------
 --  Sounds

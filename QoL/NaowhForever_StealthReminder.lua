@@ -207,7 +207,7 @@ local function StealthedOwnColour() return S.Get("stealthShowStealthed") and not
 ns.Shared.Settings.Page("QoL/Combat", S):Card({
     id = "stealthReminder", name = "Stealth Reminder", order = 30, switch = "stealthReminder",
     help = "Out-of-combat stealth status for rogues and druids: a reminder while you are not in "
-        .. "stealth. Move it in Layout Mode.",
+        .. "stealth. Move it with Move Elements.",
     rows = {
         Group("When"),
         { key = "reminderInGroup", label = "Only In a Group", toggle = true,

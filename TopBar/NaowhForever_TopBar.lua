@@ -1403,7 +1403,7 @@ ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "topBar", name = "Top Bar", order = 10, switch = "enabled",
     help = "Your buttons on either side of the clock, with FPS and latency underneath. Arrange the "
         .. "buttons in the preview: drag one to move it, its x removes it, a side's + adds one. Move "
-        .. "the bar in Layout Mode.",
+        .. "the bar with Move Elements.",
     summary = Summary,
     studio = { height = 120, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = ROWS,

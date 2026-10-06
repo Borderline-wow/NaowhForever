@@ -348,6 +348,6 @@ Settings.Page("Professions/Settings", S):Card({
     help = "Crafting several at once (Create All, or Create with a count) shows one bar for the whole batch, "
         .. "drawn like the Flight Timer: the recipe, how many are done and the time left on all of them, in place "
         .. "of the cast bar that fills for every craft. It sits where the Flight Timer is, as nobody crafts in "
-        .. "flight: move it in Layout Mode as the Flight Timer.",
+        .. "flight: move it with Move Elements as the Flight Timer.",
     studio = { height = 100, states = PREVIEW_STATES, new = NewPreview, paint = PaintPreview },
 })

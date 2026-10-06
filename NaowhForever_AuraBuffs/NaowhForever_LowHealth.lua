@@ -263,7 +263,7 @@ end
 Settings.Page("AuraBuffs/Settings", S):Card({
     id = "lowHealth", name = "Low Health", order = 40, switch = "lowHealth",
     help = "Shows a healing item's icon the moment your health drops below the threshold, in combat too: "
-        .. "the game shows and hides it itself. Move it in Layout Mode.",
+        .. "the game shows and hides it itself. Move it with Move Elements.",
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {

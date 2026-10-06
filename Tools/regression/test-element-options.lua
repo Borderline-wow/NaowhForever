@@ -120,13 +120,10 @@ for path, s in pairs(sources) do
 end
 Check(movers >= 30, "every mover was found (" .. movers .. ")")
 
--- The cog menu (a right-click opens it too) has Element Options only with a page; opening the
--- options leaves Unlock Mode.
+-- The selected element's tag has Settings only with a page; opening it leaves Move Elements.
 local unlock = Read("Core/NaowhForever_UnlockMode.lua")
-Check(unlock:find('if item.page then\n        Action(menu, "Element Options"', 1, true), "Element Options needs a page")
-Check(unlock:find('elseif button == "RightButton" then', 1, true) and unlock:find("UI.SelectMover(handle)\n            OpenCogMenu(item)", 1, true),
-    "a right-click opens the cog menu")
+Check(unlock:find("tag.settings:SetShown(item.page ~= nil)", 1, true), "Settings needs a page")
 Check(unlock:find("ns.HideRaidReminderAnchorConfig()\n    ns.OpenOptionsWindow(item.page)", 1, true),
-    "Element Options leaves Unlock Mode before opening the page")
+    "Settings leaves Move Elements before opening the page")
 
 print(("test-element-options: %d checks passed"):format(checks))

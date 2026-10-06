@@ -1,7 +1,7 @@
--- Run with Lua 5.1 from the repository root: Unlock Mode's movers, run against frame stubs
--- with real geometry. Drags, arrow keys and typed X and Y save the element CENTER on the screen
--- centre, a drag snaps to the nearest element or the one picked, and anchors from before are
--- dropped without moving anything.
+-- Run with Lua 5.1 from the repository root: Move Elements' movers, run against frame stubs
+-- with real geometry. Drags, arrow keys, typed X and Y and Center save the element CENTER on
+-- the screen centre, and anchors and the snap switch from before are dropped without moving
+-- anything.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local function Near(a, b) return a and b and math.abs(a - b) < 0.01 end
@@ -178,25 +178,33 @@ local ns = {
         return box
     end,
     Tooltip = NOOP,
+    Button = function(parent, text, w, h, onClick)
+        local b = NewFrame("Button", parent)
+        b:SetSize(w, h)
+        b.text_ = text
+        b:SetScript("OnClick", onClick)
+        return b
+    end,
     Shared = { Parts = { HudText = function(fs) return fs end } },
     UIFontPath = function() return "font" end,
     L = function(text) return text end,
     Color = function(_, text) return text end,
     Print = function(msg) printed[#printed + 1] = msg end,
-    HideRaidReminderAnchorConfig = NOOP,
-    OpenOptionsWindow = NOOP,
+    HideRaidReminderAnchorConfig = function() printed[#printed + 1] = "left Move Elements" end,
+    OpenOptionsWindow = function(page) printed[#printed + 1] = "opened " .. page end,
     Apply = NOOP,
 }
-local UI = {
-    COGS_ICON = "cog",
-}
+local UI = {}
 ns.UI = UI
 
 local env = setmetatable({
     NaowhForever = ns,
     UIParent = UIParent,
     CreateFrame = function(kind, _, parent) return NewFrame(kind, parent) end,
-    PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end },
+    PixelUtil = {
+        GetPixelToUIUnitFactor = function() return 1 end,
+        GetNearestPixelSize = function(v, scale) return math.floor(v * scale + 0.5) / scale end,
+    },
     C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end },
     InCombatLockdown = function() return combat end,
     IsShiftKeyDown = function() return shift end,
@@ -232,17 +240,6 @@ end
 local function Center(frame) return frame:GetCenter() end
 local function Last(saved) return saved[#saved] end
 
--- A shown menu's row by its text.
-local function MenuRow(text)
-    for _, fr in ipairs(made) do
-        if fr.rows and fr:IsShown() then
-            for _, row in ipairs(fr.rows) do
-                if row:IsShown() and row.label and row.label:GetText() == text then return row end
-            end
-        end
-    end
-end
-
 local function Click(handle, button)
     Fire(handle, "OnMouseDown", button)
     Fire(handle, "OnMouseUp", button)
@@ -255,16 +252,6 @@ local function Drive()
     end
 end
 
--- Hover long enough for the row to grow in all the way.
-local function Hover(item)
-    item.mouseOver = true
-    Fire(item, "OnEnter")
-    Flush()
-    for _, fr in ipairs(made) do
-        if fr.parent == item and fr.scripts.OnUpdate then fr.scripts.OnUpdate(fr, 1) end
-    end
-end
-
 local meter, meterMover, meterSaved = Display("Threat Meter", 200, 20, 0, -200)
 local swing, swingMover, swingSaved = Display("Swing Timer", 100, 40, -40, 25)
 UI.BeginMoverMode()
@@ -272,20 +259,18 @@ local keys
 for _, fr in ipairs(made) do
     if fr.scripts.OnKeyDown then keys = fr end
 end
-Check(keys and keys.keyboard and keys.events.PLAYER_REGEN_DISABLED, "Unlock Mode takes the arrow keys and watches combat")
+Check(keys and keys.keyboard and keys.events.PLAYER_REGEN_DISABLED, "Move Elements takes the arrow keys and watches combat")
 
--- Hovering shows the cog; a mover too small for its name grows around its centre.
+-- Hovering lights the mover up and leaves its size alone.
 local dura, duraMover = Display("Durability", 40, 40, 500, 300)
-Hover(duraMover)
-Check(duraMover._placement.cog:IsShown(), "hovering shows the cog")
-Check(duraMover:GetWidth() > dura:GetWidth() and Near(select(1, duraMover:GetCenter()), select(1, dura:GetCenter())),
-    "a mover too small for its name grows around its centre")
-duraMover._placement.Collapse(true)
-Check(duraMover:GetLeft() == dura:GetLeft() and duraMover:GetTop() == dura:GetTop() and duraMover:GetWidth() == 40,
-    "and covers its element again after")
+Fire(duraMover, "OnEnter")
+Flush()
+Check(duraMover._placement.hovered and duraMover:GetWidth() == 40 and duraMover:GetLeft() == dura:GetLeft(),
+    "hovering lights a mover without growing it")
+Fire(duraMover, "OnLeave")
 duraMover:Hide()
 
--- Arrow keys move it a pixel, Shift + arrow 100, saved CENTER on the screen centre.
+-- Arrow keys move it a pixel, Shift + arrow 10, saved CENTER on the screen centre.
 UI.SelectMover(swingMover)
 Fire(keys, "OnKeyDown", "RIGHT")
 Check(Near(Center(swing), 921), "an arrow nudges it a pixel")
@@ -294,9 +279,8 @@ Check(Last(swingSaved).point == "CENTER" and Last(swingSaved).relPoint == "CENTE
 shift = true
 Fire(keys, "OnKeyDown", "UP")
 shift = false
-Check(Near(Last(swingSaved).y, 125), "Shift + arrow nudges by 100")
-Fire(keys, "OnKeyDown", "DOWN")
-for _ = 1, 99 do Fire(keys, "OnKeyDown", "DOWN") end
+Check(Near(Last(swingSaved).y, 35), "Shift + arrow nudges by 10")
+for _ = 1, 10 do Fire(keys, "OnKeyDown", "DOWN") end
 Check(Near(Last(swingSaved).y, 25), "and back")
 Check(settings.anchors == nil, "nothing is anchored")
 
@@ -346,74 +330,42 @@ Check(tag:GetPoint() == "BOTTOM" and tag:GetBottom() > meterMover:GetTop() and t
 Type(tag.y, "-200")
 Check(tag:GetPoint() == "TOP" and Below(meterMover), "and back below with room again")
 Click(meterMover, "RightButton")
-Check(not tag:IsShown(), "the cog menu hides it")
+Check(Below(meterMover) and meterMover._placement.selected, "a right-click does nothing")
 Fire(keys, "OnKeyDown", "ESCAPE")
-Check(Below(meterMover), "and closing the menu brings it back")
-UI.ClearMoverSelection()
-Check(not tag:IsShown(), "with nothing selected there is no tag")
+Check(not tag:IsShown(), "Escape lets the selection go and the tag with it")
 
--- The cog menu: Element Options, Select Snap Target and Center on Screen, and nothing about
--- anchoring.
-Click(swingMover, "RightButton")
-Check(MenuRow("Element Options") and MenuRow("Select Snap Target") and MenuRow("Center on Screen"),
-    "the cog menu has Element Options, Select Snap Target and Center on Screen")
-Check(not MenuRow("Relative to Screen") and not MenuRow("Offset X"), "and no anchor rows")
-Fire(MenuRow("Center on Screen"), "OnClick")
-Check(Near(Center(swing), 960) and Near(Last(swingSaved).x, 0), "Center on Screen centres it across")
+-- The tag's Center and Settings: Center moves it across to the middle and saves it, Settings
+-- leaves Move Elements for the element's page.
+Click(swingMover, "LeftButton")
+Check(tag.center:IsShown() and tag.settings:IsShown(), "the tag has Center and Settings")
+Fire(tag.center, "OnClick")
+Check(Near(Center(swing), 960) and Near(Last(swingSaved).x, 0) and Near(Last(swingSaved).y, 25),
+    "Center moves it across to the middle and keeps its height")
+Fire(tag.settings, "OnClick")
+Check(printed[#printed - 1] == "left Move Elements" and printed[#printed] == "opened QoL/General",
+    "Settings leaves Move Elements, then opens its page")
+local _, bareMover = Display("Loose", 60, 20, 300, 0)
+bareMover._placement.page = nil
+Click(bareMover, "LeftButton")
+Check(tag.item == bareMover._placement and not tag.settings:IsShown(), "an element with no page has no Settings")
+bareMover:Hide()
+Check(not tag:IsShown(), "hiding the selected mover lets it go")
 
--- A drag snaps an edge to the nearest element's.
+-- A drag goes where the cursor takes it: nothing pulls it onto another element's edge.
 local sx, sy = Center(swing)
 local mL = meter:GetLeft()
 cursor.x, cursor.y = sx, sy
 UI.StartMoverDrag(swingMover)
-cursor.x, cursor.y = sx + (mL - swing:GetLeft()) + 4, 450
+cursor.x, cursor.y = sx + (mL - swing:GetLeft()) + 4, sy
 Drive()
 UI.StopMoverDrag(swingMover)
-Check(Near(swing:GetLeft(), mL), "a drag near an edge snaps to it")
-settings.snap = false
-sx, sy = Center(swing)
-cursor.x, cursor.y = sx, sy
-UI.StartMoverDrag(swingMover)
-cursor.x = sx + 4
-Drive()
-UI.StopMoverDrag(swingMover)
-Check(Near(swing:GetLeft(), mL + 4), "with Snap Elements off it does not")
-settings.snap = nil
+Check(Near(swing:GetLeft(), mL + 4), "a drag near another element's edge stays where it is dropped")
 
--- A picked snap target is what a drag lines up with, even with another element nearer.
-local nx, ny = Center(swing)
-local _, nearMover = Display("Bag Space", 40, 40, nx - W / 2 + 90, ny - H / 2 + 50)
-Click(swingMover, "RightButton")
-Fire(MenuRow("Select Snap Target"), "OnClick")
-Click(meterMover, "LeftButton")
-Check(swingMover._placement.snapTarget == "Threat Meter", "clicking an element makes it the snap target")
-Click(swingMover, "RightButton")
-Check(MenuRow("Snap Target: Threat Meter"), "the cog menu names it")
-Fire(keys, "OnKeyDown", "ESCAPE")
-local mR = meter:GetRight()
-sx, sy = Center(swing)
-cursor.x, cursor.y = sx, sy
-UI.StartMoverDrag(swingMover)
-cursor.x = sx + (mR - swing:GetRight()) - 4
-Drive()
-UI.StopMoverDrag(swingMover)
-Check(Near(swing:GetRight(), mR), "a drag near its edge snaps to the snap target")
-nearMover:Hide()
-
--- Closing the cog menu with the cursor elsewhere shrinks the mover back.
-Hover(swingMover)
-Click(swingMover, "RightButton")
-swingMover.mouseOver = false
-Fire(swingMover, "OnLeave")
-Flush()
-Check(swingMover._placement.hovered and swingMover._placement.cog:IsShown(), "the open menu keeps it hovered")
-Fire(keys, "OnKeyDown", "ESCAPE")
-Check(not swingMover._placement.hovered, "closing the menu lets it go")
-
--- Anchors saved before they were dropped: the table goes at login and on every profile
--- switch, and nothing moves, since each element's own position already holds where its anchor
--- put it.
+-- Anchors and the snap switch saved before they were dropped: both go at login and on every
+-- profile switch, and nothing moves, since each element's own position already holds where its
+-- anchor put it.
 settings.anchors = { ["Swing Timer"] = { target = "Threat Meter", side = "TOP", offsetX = 0, offsetY = 0 } }
+settings.snap = false
 local before, saves = { Center(swing) }, #swingSaved
 local login
 for _, fr in ipairs(made) do
@@ -422,7 +374,7 @@ end
 login.scripts.OnEvent(login, "PLAYER_LOGIN")
 Check(settings.anchors ~= nil, "nothing is dropped before the profile loads")
 ns.Apply()
-Check(settings.anchors == nil, "the profile's anchors are dropped")
+Check(settings.anchors == nil and settings.snap == nil, "the profile's anchors and snap switch are dropped")
 Check(Near(Center(swing), before[1]) and #swingSaved == saves, "without moving or saving anything")
 settings.anchors = { ["Threat Meter"] = { target = "SCREEN_LEFT", side = "RIGHT" } }
 ns.Apply()

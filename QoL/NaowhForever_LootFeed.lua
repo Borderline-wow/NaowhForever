@@ -990,7 +990,7 @@ end
 ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
     id = "lootFeed", name = "Loot Feed", order = 5, switch = "lootFeed",
     help = "Everything you loot pops up on screen with its icon, amount and value, stacking "
-        .. "in your chosen direction and fading out. Hover a line for the item's tooltip. Move it in Layout Mode.",
+        .. "in your chosen direction and fading out. Hover a line for the item's tooltip. Move it with Move Elements.",
     summary = LootFeedSummary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {

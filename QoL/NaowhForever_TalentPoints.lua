@@ -97,8 +97,8 @@ boot:SetScript("OnEvent", Apply)
 
 ns.Shared.Settings.Page("QoL/Questing & Group", S):Card({
     id = "talentPoints", name = "Talent Points", order = 30, switch = "talentPoints",
-    help = "Text on screen while you have talent points to spend. Hidden in combat. Move it in "
-        .. "Layout Mode.",
+    help = "Text on screen while you have talent points to spend. Hidden in combat. Move it with "
+        .. "Move Elements.",
     rows = {
         { key = "talentPointsFont", label = "Font", font = true },
     },
