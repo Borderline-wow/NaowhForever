@@ -115,7 +115,7 @@ end
 
 do
     local s = fixture('gear')
-    s.load('GearSets/NaowhForever_GearSets.lua'); s.fire('PLAYER_LOGIN')
+    s.load('NaowhForever_GearSets/NaowhForever_GearSets.lua'); s.fire('PLAYER_LOGIN')
     check('hidden set bar stays hidden', not s.named.NaowhForeverGearBar.shown)
     local swaps = false
     for _, f in ipairs(s.frames) do if f.events.PLAYER_MOUNT_DISPLAY_CHANGED then swaps = true end end
@@ -146,13 +146,13 @@ end
 
 do
     local s = fixture('camp')
-    s.load('AuraBuffs/NaowhForever_AuraBuffs.lua')
+    s.load('NaowhForever_AuraBuffs/NaowhForever_AuraBuffs.lua')
     local parse = s.ns.ParseConsumableEntry
     check('explicit item and buff IDs parse', parse('food', '123, 456, 789').auras[2] == 789)
     check('item alone rejected', not parse('food', '123'))
     check('invalid category rejected', not parse('other', '123 456'))
     check('invalid IDs rejected', not parse('food', '123, x') and not parse('food', '0, 1'))
-    s.load('AuraBuffs/NaowhForever_Campfire.lua'); s.fire('PLAYER_LOGIN')
+    s.load('NaowhForever_AuraBuffs/NaowhForever_Campfire.lua'); s.fire('PLAYER_LOGIN')
     local icon = s.named.NaowhForeverCampfire
     check('no icon swipe', icon.timer.swipe == false)
     check('missing shown by default', icon.shown)
@@ -176,7 +176,7 @@ do
     local s = fixture('profile')
     local active = {}
     s.ns.DB = function() return active end
-    s.load('AuraBuffs/NaowhForever_AuraBuffs.lua')
+    s.load('NaowhForever_AuraBuffs/NaowhForever_AuraBuffs.lua')
     local entry = { category = "food", itemID = 123, auras = { 456 } }
     s.S.Set("consumableEntries", { entry })
     check('editor writes pack-backed definitions', active.utilityReminders.consumables[1] == entry)
@@ -184,7 +184,7 @@ do
     check('profile change clears previous definitions', #s.S.Get("consumableEntries") == 0)
     local m = fixture('profile')
     m.ns.DB = function() return active end
-    m.load('Macros/NaowhForever_Macros.lua')
+    m.load('NaowhForever_Macros/NaowhForever_Macros.lua')
     m.S.Set("classMacros", { PALADIN = { { name = "Test", body = "/say test" } } })
     check('class macros use pack-backed data', active.utilityReminders.classMacros.PALADIN[1].name == "Test")
     active = {}

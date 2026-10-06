@@ -41,7 +41,7 @@ local ROWS = {
       [==[return ns.Color("accent", frame._tipTitle) .. "\n" .. b]==],
       [==[ns.Color("accent", "Title") .. "\n" .. "body"]==],
       [==["|cff0091ed" .. "Title" .. "|r\n" .. "body"]==] },
-    { [==[DungeonJournal/View/QuestRows.lua]==],
+    { [==[NaowhForever_DungeonJournal/View/QuestRows.lua]==],
       [==[text = text .. "  " .. ns.Color("accentSoft", "(dungeon quest)")]==],
       [==["x" .. "  " .. ns.Color("accentSoft", "(dungeon quest)")]==],
       [==["x" .. "  |cff4db5f5(dungeon quest)|r"]==] },
@@ -273,7 +273,7 @@ local function Run(code, env)
     return chunk()
 end
 
-local TAGS = { { "BiS/Alerts.lua", "|cff0091edNaowh BiS|r" }, { "QoL/NaowhForever_Alts.lua", "|cff0091edNaowh|r" },
+local TAGS = { { "NaowhForever_BiS/BiS/Alerts.lua", "|cff0091edNaowh BiS|r" }, { "QoL/NaowhForever_Alts.lua", "|cff0091edNaowh|r" },
     { "QoL/NaowhForever_AuctionPrices.lua", "|cff0091edNaowh AH|r" }, { "QoL/NaowhForever_Mail.lua", "|cff0091edNaowh Mail|r" } }
 for _, t in ipairs(TAGS) do
     local code = Slice(t[1], "local function Tag()", " end") .. "\nreturn Tag()"

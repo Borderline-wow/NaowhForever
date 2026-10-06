@@ -1,4 +1,4 @@
-"""Checks that every file NaowhForever.toc loads exists, with the same letter case.
+"""Checks that every file the TOCs load exists, with the same letter case.
 
 The game only reports a missing file as an error at login, and a path whose case differs
 works on one machine and fails on another. Follows the XML files the TOC includes (see

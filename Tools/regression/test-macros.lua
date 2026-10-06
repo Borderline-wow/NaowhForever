@@ -1,6 +1,6 @@
 -- Loads NaowhForever_Macros.lua against stubbed macro, bag and item APIs and checks what
 -- it writes. Run from the repo root: lua Tools/regression/test-macros.lua
-local f = assert(io.open(arg[1] or "Macros/NaowhForever_Macros.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_Macros/NaowhForever_Macros.lua", "rb"))
 local source = f:read("*a"); f:close()
 
 local FOOD, DRINK = "Food", "Drink"

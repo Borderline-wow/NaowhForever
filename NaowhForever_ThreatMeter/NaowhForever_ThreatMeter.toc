@@ -1,0 +1,10 @@
+## Interface: 120000, 120001, 120005, 120007, 120100, 16001
+## Title: |cff0091edNaowh|r Forever: Threat Meter
+## Notes: Your threat on the target and the nameplates around you.
+## Author: NaowhUI
+## Version: 0.5.21-beta
+## Dependencies: NaowhForever
+## Group: NaowhUI
+## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+
+NaowhForever_ThreatMeter.lua

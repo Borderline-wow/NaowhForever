@@ -9,12 +9,12 @@ local function check(label, value) assert(value, label); checks = checks + 1 end
 
 -- The journal's files, in load order, from its XML; the TOC loads that XML.
 local tocLoads = false
-for line in io.lines("NaowhForever.toc") do
-    if line:gsub("\r$", "") == "DungeonJournal\\DungeonJournal.xml" then tocLoads = true end
+for line in io.lines("NaowhForever_DungeonJournal/NaowhForever_DungeonJournal.toc") do
+    if line:gsub("\r$", "") == "DungeonJournal.xml" then tocLoads = true end
 end
 check("the TOC loads the journal", tocLoads)
 local TocFiles = dofile("Tools/regression/toc_files.lua")
-local journalFiles = TocFiles("^DungeonJournal/.*%.lua$")
+local journalFiles = TocFiles("^NaowhForever_DungeonJournal/.*%.lua$")
 check("the journal lists its files", #journalFiles > 40)
 -- What the modules share loads first: the Journal is drawn with it.
 local files = TocFiles("^Shared/.*%.lua$")
@@ -634,7 +634,7 @@ do
     check("a boss with no NPC ID has no tip", J.Tip({ name = "Nobody" }) == nil)
     -- Each boss names an ability once: Wowhead lists Old Serra'kis's Dazed four times.
     local withAbilities = 0
-    for line in io.lines("DungeonJournal/Data/Abilities.lua") do
+    for line in io.lines("NaowhForever_DungeonJournal/Data/Abilities.lua") do
         local npc, ids, names = line:match("^%s*%[(%d+)%] = { ([%d, ]+) },  %-%- [^:]+: (.-)\r?$")
         if npc then
             local seen, count = {}, 0
@@ -2920,7 +2920,7 @@ do
             out[1] = l.slots[slot]
             return out
         end }
-    for _, path in ipairs({ "BiS/Quests.lua", "BiS/View/QuestsPage.lua" }) do
+    for _, path in ipairs({ "NaowhForever_BiS/BiS/Quests.lua", "NaowhForever_BiS/BiS/View/QuestsPage.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()

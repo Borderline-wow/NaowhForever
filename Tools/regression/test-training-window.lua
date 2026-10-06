@@ -200,8 +200,8 @@ Load({
     "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Items.lua", "Shared/Places.lua",
     "Shared/Parts.lua", "Shared/Window.lua", "Shared/View.lua", "Shared/Kinds.lua",
     "Shared/Settings/Settings.lua",
-    "Training/NaowhForever_TrainingData.lua", "Training/NaowhForever_TrainingBuilds.lua",
-    "Training/NaowhForever_Training.lua", "Training/NaowhForever_TrainingWindow.lua",
+    "NaowhForever_Training/NaowhForever_TrainingData.lua", "NaowhForever_Training/NaowhForever_TrainingBuilds.lua",
+    "NaowhForever_Training/NaowhForever_Training.lua", "NaowhForever_Training/NaowhForever_TrainingWindow.lua",
 }, env)
 
 -------------------------------------------------------------------------------

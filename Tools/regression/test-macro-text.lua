@@ -7,7 +7,7 @@ local env = setmetatable({
     strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end,
 }, { __index = _G })
 env._G = env
-local chunk = assert(loadfile("Macros/NaowhForever_MacroText.lua"))
+local chunk = assert(loadfile("NaowhForever_Macros/NaowhForever_MacroText.lua"))
 setfenv(chunk, env)
 chunk()
 local Text = ns.MacroText

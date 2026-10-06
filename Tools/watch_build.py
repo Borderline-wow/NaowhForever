@@ -18,7 +18,7 @@ wago.tools; nothing is read from Wowhead, the report only links to it):
 - Its own hotfixes coming in: with nothing newer out, while the build in use still carries
   items over, the same measure tells when wago.tools has recorded its own hotfixes; then the
   data is rebuilt from them alone (what is still missing was removed by Blizzard).
-- Kill counts: every encounter ID a boss in DungeonJournal/Data/Dungeons is counted by,
+- Kill counts: every encounter ID a boss in NaowhForever_DungeonJournal/Data/Dungeons is counted by,
   that the build in use has, is still in the new build's DungeonEncounter table. One that is
   gone stops counting kills. (A few are pinned by hand in journal_bosses.json, for a raid
   the table does not have yet; those are only counted.)
@@ -508,7 +508,7 @@ def report(target, old, unreadable=None, dungeons=None, found=None, waiting=Fals
         lines.append(f"- New {kind}: {name} (map {m}), for {players} players.")
     for name, m in dungeons.get("floors", []):
         lines.append(f"- New dungeon floor map: {name} (uiMap {m}). The game draws this dungeon's inside now: "
-                     "the Journal's map (DungeonJournal/Data/Maps.lua) could use its art.")
+                     "the Journal's map (NaowhForever_DungeonJournal/Data/Maps.lua) could use its art.")
     if dungeons["pinned"]:
         lines += ["", f"{plural(dungeons['pinned'], 'encounter')} pinned by hand in journal_bosses.json "
                   f"{'is' if dungeons['pinned'] == 1 else 'are'} in neither build's table yet (a raid it lacks)."]

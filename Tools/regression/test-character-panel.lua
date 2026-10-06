@@ -285,8 +285,8 @@ env._G = env
 env.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 
 local files = TocFiles("^Shared/.*%.lua$")
-for _, path in ipairs(TocFiles("^CharacterPanel/.*%.lua$")) do files[#files + 1] = path end
-check("the TOC loads the module's files", files[#files] == "CharacterPanel/SettingsPage.lua")
+for _, path in ipairs(TocFiles("^NaowhForever_BiS/CharacterPanel/.*%.lua$")) do files[#files + 1] = path end
+check("the TOC loads the module's files", files[#files] == "NaowhForever_BiS/CharacterPanel/SettingsPage.lua")
 Load(files, env)
 local CP = ns.CharacterPanel
 ns.Shared.ForeverNew.items[101] = true   -- the head's item is new in Forever
@@ -402,7 +402,7 @@ state.badges = nil
 character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
 
 -- No preview setting, grey badge or pitch is left in the panel's files.
-for _, path in ipairs({ "CharacterPanel/Badge.lua", "CharacterPanel/SettingsPage.lua", "QoL/NaowhForever_QoL.lua" }) do
+for _, path in ipairs({ "NaowhForever_BiS/CharacterPanel/Badge.lua", "NaowhForever_BiS/CharacterPanel/SettingsPage.lua", "QoL/NaowhForever_QoL.lua" }) do
     local f = assert(io.open(path, "rb"))
     local source = f:read("*a")
     f:close()

@@ -56,9 +56,9 @@ local PICKS = { themePreset = "custom", themeColors = {
 
 -- Every ThemeTint call is inside a function, so it is read when a frame is built or
 -- refreshed and never at file load.
-local files = { "ThreatMeter/NaowhForever_ThreatMeter.lua", "TopBar/NaowhForever_TopBar.lua",
-    "AuraBuffs/NaowhForever_Campfire.lua", "QoL/NaowhForever_LootFeed.lua",
-    "Discovery/NaowhForever_DiscoveryTracker.lua", "Discovery/NaowhForever_DiscoveryMap.lua",
+local files = { "NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua", "TopBar/NaowhForever_TopBar.lua",
+    "NaowhForever_AuraBuffs/NaowhForever_Campfire.lua", "QoL/NaowhForever_LootFeed.lua",
+    "NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua", "NaowhForever_Discovery/NaowhForever_DiscoveryMap.lua",
     "QoL/NaowhForever_TownMap.lua" }
 for _, path in ipairs(files) do
     local source = Read(path)
@@ -74,7 +74,7 @@ end
 
 -- Campfire plate.
 do
-    local source = Read("AuraBuffs/NaowhForever_Campfire.lua")
+    local source = Read("NaowhForever_AuraBuffs/NaowhForever_Campfire.lua")
     local PLATE = Const(source, "PLATE")
     Check(IsRGB(PLATE, 0.14, 0.15, 0.16), "plate literal is the original")
     local stmt = assert(source:match('(local plate = ns%.ThemeTint%("panel", PLATE%)\n[^\n]*)'))
@@ -122,7 +122,7 @@ end
 
 -- ThreatMeter: the literals, the token each surface follows, and what stays as it was.
 do
-    local source = Read("ThreatMeter/NaowhForever_ThreatMeter.lua")
+    local source = Read("NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua")
     Check(IsRGB(Const(source, "WINDOW_BG"), 0.025, 0.04, 0.055), "window literal is the original")
     Check(IsRGB(Const(source, "WINDOW_EDGE"), 0.10, 0.19, 0.24), "border literal is the original")
     Check(IsRGB(Const(source, "HEADER_BG"), 0.04, 0.075, 0.095), "header literal is the original")
@@ -169,7 +169,7 @@ do
 end
 
 do
-    local source = Read("ThreatMeter/NaowhForever_ThreatMeter.lua")
+    local source = Read("NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua")
     local block = assert(source:match('(if own then\n%s+local mark = ns%.ThemeTint%("accent", nil%).-\n        end)'))
     local function Row(account)
         local color
@@ -212,7 +212,7 @@ end
 -- or the theme's lighter Accent once the theme changed the Accent.
 do
     local LITERALS = { { 0.3, 0.71, 0.96 }, { 0.3, 0.7, 0.95 } }
-    for _, path in ipairs({ "Discovery/NaowhForever_DiscoveryTracker.lua", "Discovery/NaowhForever_DiscoveryMap.lua",
+    for _, path in ipairs({ "NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua", "NaowhForever_Discovery/NaowhForever_DiscoveryMap.lua",
             "QoL/NaowhForever_TownMap.lua" }) do
         local source = Read(path)
         local helper = assert(source:match("(local function SoftBlue%(r, g, b%).-\nend)"), path .. ": SoftBlue")
@@ -414,7 +414,7 @@ end
 -- Apply Theme to Your Bar (Threat Meter): off by default, the picked color; on, a darker shade of the
 -- theme's Accent for your bar only. The tank and pull aggro bars keep their picked colors.
 do
-    local path = "ThreatMeter/NaowhForever_ThreatMeter.lua"
+    local path = "NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua"
     local source = Read(path)
     local helper = assert(source:match("(local yourShade\nlocal function ThemedColor%(key%).-\nend\n\n%-%- The color a bar setting.-\nlocal function BarColor%(key%).-\nend)"), path .. ": BarColor")
     local PICKED = { playerColor = { r = 0.8, g = 0.1, b = 0.1 }, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
@@ -448,7 +448,7 @@ end
 -- Apply Theme to Bar Colours (Swing Timer): off by default, the picked colors; on, the theme's
 -- Accent, lighter Accent and a deeper Accent for the main hand, off hand and ranged bars.
 do
-    local path = "SwingTimer/NaowhForever_SwingTimer.lua"
+    local path = "NaowhForever_SwingTimer/NaowhForever_SwingTimer.lua"
     local source = Read(path)
     local helper = assert(source:match("(local function ThemedBar%(key%).-\nend\n\nlocal function Color%(key%).-\nend)"), path .. ": Color")
     local PICKED = { mhColor = { r = 0.9, g = 0.7, b = 0.27 }, ohColor = { r = 0.9, g = 0.45, b = 0.27 }, rColor = { r = 0.27, g = 0.73, b = 0.9 } }

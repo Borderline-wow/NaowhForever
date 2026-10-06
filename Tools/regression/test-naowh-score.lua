@@ -120,7 +120,7 @@ local function Fixture()
         GetNumGroupMembers = function() return state.members + 1 end,
     }, { __index = _G })
     state.UnitGUID, state.units, state.SECRET = env.UnitGUID, units, {}
-    Load({ "NaowhScore/Data/Formula.lua", "NaowhScore/Score.lua", "NaowhScore/Inspect.lua", "NaowhScore/Share.lua" },
+    Load({ "NaowhForever_BiS/NaowhScore/Data/Formula.lua", "NaowhForever_BiS/NaowhScore/Score.lua", "NaowhForever_BiS/NaowhScore/Inspect.lua", "NaowhForever_BiS/NaowhScore/Share.lua" },
         env)
     -- An event, to every frame listening for it (Share always; Inspect while on).
     function state.Fire(event, ...)

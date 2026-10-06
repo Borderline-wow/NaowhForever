@@ -129,22 +129,6 @@ QoL\NaowhForever_ScrapMarker.lua
 QoL\NaowhForever_ScrapList.lua
 QoL\NaowhForever_Alts.lua
 QoL\NaowhForever_Mail.lua
-# Discovery: the library books and the Cozy Sleeping Bag. The data loads first; the module reads it.
-Discovery\NaowhForever_DiscoveryData.lua
-Discovery\NaowhForever_SleepingBagData.lua
-Discovery\NaowhForever_Discovery.lua
-Discovery\NaowhForever_DiscoveryWindow.lua
-Discovery\NaowhForever_DiscoveryTracker.lua
-Discovery\NaowhForever_SleepingBagTracker.lua
-Discovery\NaowhForever_DiscoveryMap.xml
-Discovery\NaowhForever_SleepingBagMap.xml
-Discovery\NaowhForever_DiscoveryNearby.lua
-# Training Planner: the data loads first; the module reads it.
-Training\NaowhForever_TrainingData.lua
-Training\NaowhForever_TrainingBuilds.lua
-Training\NaowhForever_Training.lua
-Training\NaowhForever_TrainingWindow.lua
-Training\NaowhForever_TrainingTrainer.lua
 QoL\NaowhForever_TownData.lua
 QoL\NaowhForever_TownMailboxes.lua
 QoL\NaowhForever_TownSpiritHealers.lua
@@ -153,43 +137,7 @@ QoL\NaowhForever_ZoneExits.lua
 QoL\NaowhForever_TownMap.xml
 QoL\NaowhForever_MapOverlays.lua
 QoL\NaowhForever_Unexplored.xml
-GearSets\NaowhForever_GearSets.lua
-GearSets\NaowhForever_GearSetsWindow.lua
-# Naowh Score: one number for a character's gear, on the item level scale, for you and the
-# players you hover. Its own XML loads its files in order (see NaowhScore/README.md).
-NaowhScore\NaowhScore.xml
-
-# Stat Weights: what each stat is worth to your spec, for gear tooltips and the BiS List's
-# upgrades and enchants. Its own XML loads its files in order (see StatWeights/README.md).
-StatWeights\StatWeights.xml
-
-# BiS List: your best-in-slot picks, their window and where they drop. Its own XML loads its
-# files in order (see BiS/README.md).
-BiS\BiS.xml
-# Dungeon Journal: every dungeon's bosses, loot and quests. Its own XML loads its files in
-# order (see DungeonJournal/README.md). Loads after BiS, whose list and class rules it reads.
-DungeonJournal\DungeonJournal.xml
-# Character Panel: the game's character panel in the BiS List's look. Its own XML loads its
-# files in order (see CharacterPanel/README.md). Loads after BiS, whose lists it shows.
-CharacterPanel\CharacterPanel.xml
-Blessings\NaowhForever_Blessings.xml
-Blessings\NaowhForever_Blessings.lua
-Blessings\NaowhForever_BlessingsPage.lua
-Blessings\NaowhForever_BlessingsWindow.lua
 QoL\NaowhForever_Trainer.lua
-# Professions: Naowh's profession window, and where to learn each recipe you lack. The window
-# file creates the module's settings, so it loads first.
-Professions\NaowhForever_Professions.lua
-Professions\NaowhForever_ProfessionsSettings.lua
-Professions\NaowhForever_RecipeData.lua
-Professions\NaowhForever_RecipeFinder.lua
-Professions\NaowhForever_RankAlert.lua
-Professions\NaowhForever_GatherTracking.lua
-Professions\NaowhForever_CraftTimer.lua
-Professions\NaowhForever_FavoriteRecipes.lua
-Professions\NaowhForever_ShoppingList.lua
-ThreatMeter\NaowhForever_ThreatMeter.lua
-SwingTimer\NaowhForever_SwingTimer.lua
 TopBar\NaowhForever_TopBar.lua
 QoL\NaowhForever_FlightData.lua
 QoL\NaowhForever_Flight.lua
@@ -197,17 +145,6 @@ QoL\NaowhForever_QuizData.lua
 QoL\NaowhForever_Quiz.lua
 QoL\NaowhForever_AimTrainer.lua
 QoL\NaowhForever_AimBoard.lua
-Macros\NaowhForever_MacroText.lua
-Macros\NaowhForever_Macros.lua
-Macros\NaowhForever_MacroWindow.lua
-ActionBars\NaowhForever_ActionBars.lua
-ActionBars\NaowhForever_ActionBarsWindow.lua
-AuraBuffs\NaowhForever_AuraBuffs.lua
-AuraBuffs\NaowhForever_Campfire.lua
-AuraBuffs\NaowhForever_LowHealth.lua
-AuraBuffs\NaowhForever_BuffReminderData.lua
-AuraBuffs\NaowhForever_BuffReminders.lua
-AuraBuffs\NaowhForever_AuraBuffsWindow.lua
 # Supporter badges: the staff and patron lists, then the chat name filter and card that read it.
 Badges\NaowhForever_BadgesStaff.lua
 Badges\NaowhForever_BadgesPatrons.lua

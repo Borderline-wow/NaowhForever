@@ -330,10 +330,6 @@ end
 -- Next Blessing and Next Greater Blessing, bound in Key Bindings > AddOns (Bindings.xml).
 -- Out of combat each key is re-aimed on every refresh; in combat, where buffs cannot be read,
 -- it steps through the list it had when the fight began, one press per entry.
-BINDING_HEADER_NAOWHFOREVER = "Naowh Forever"
-_G["BINDING_NAME_CLICK NaowhForeverBlessNext:LeftButton"] = "Next Blessing"
-_G["BINDING_NAME_CLICK NaowhForeverBlessNextGreater:LeftButton"] = "Next Greater Blessing"
-
 local STEP = [[
     local i, n = self:GetAttribute("step") or 1, self:GetAttribute("count") or 0
     if i > n then return false end

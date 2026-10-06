@@ -131,7 +131,13 @@ end })
 env.UIParent = New("Frame"); env.UIParent:SetSize(1920, 1080)
 env.C_Timer = { After = function(_, f) timers[#timers + 1] = f end,
     NewTicker = function() return { Cancel = function() end } end }
-env.C_AddOns = { GetAddOnMetadata = function() return "test" end }
+-- missingAddOns: not loaded this session. disabled: switched off for the next reload.
+local missingAddOns, disabled = {}, {}
+env.C_AddOns = { GetAddOnMetadata = function() return "test" end,
+    IsAddOnLoaded = function(name) return not missingAddOns[name] end,
+    GetAddOnEnableState = function(name) return (missingAddOns[name] or disabled[name]) and 0 or 2 end,
+    DisableAddOn = function(name) disabled[name] = true end,
+    EnableAddOn = function(name) disabled[name] = nil end }
 env.SlashCmdList = {}
 env.InCombatLockdown = function() return false end
 env.LibStub = function() return nil end
@@ -400,6 +406,43 @@ UI.GoToSetting("QoL/Combat", "Max Icons", iconHit.feature); Flush()
 Check(Text("Co-Tank Debuffs") and Text("Max Icons"), "the jump opens its card")
 UI.SearchPages = pages
 for _, page in ipairs(UI.SearchPages()) do Check(not page.soon, "unfinished pages are not search results") end
+
+-- A module shipped as its own addon: switching it off disables the addon, with every module
+-- linked to it, once the player confirms.
+local confirmText, confirmYes, reloadText
+ns.Confirm = function(text, yes) confirmText, confirmYes = text, yes end
+ns.ConfirmReload = function(text) reloadText = text end
+Click(Button("Dungeon Journal")); Flush()
+switch.scripts.OnClick(); Flush()
+Check(ns.JournalSettings.Get("enabled") == true and confirmText == nil, "switching an addon module on needs no reload")
+switch.scripts.OnClick(); Flush()
+Check(confirmText and confirmText:find("BiS List", 1, true) and confirmText:find("both", 1, true),
+    "switching the journal off says BiS List goes with it")
+Check(next(disabled) == nil, "nothing is disabled before the player confirms")
+confirmYes()
+Check(disabled.NaowhForever_DungeonJournal and disabled.NaowhForever_BiS, "confirming disables both addons")
+Check(reloadText and reloadText:find("reload", 1, true), "then offers the reload")
+Check(ns.JournalSettings.Get("enabled") == true, "the module's own switch is kept for when it comes back")
+Check(switch._get() == false, "the switch reads off while the disable waits for its reload")
+switch.scripts.OnClick(); Flush()
+Check(not disabled.NaowhForever_DungeonJournal and not disabled.NaowhForever_BiS and switch._get() == true,
+    "switching it back on before the reload cancels the disable, for both")
+confirmText = nil
+Click(Button("Professions")); Flush()
+switch.scripts.OnClick(); Flush()
+switch.scripts.OnClick(); Flush()
+Check(confirmText and confirmText:find("Training Planner", 1, true), "Professions takes Training Planner with it")
+confirmYes()
+Check(disabled.NaowhForever_Professions and disabled.NaowhForever_Training and not disabled.NaowhForever_BiS,
+    "and only the modules that need it")
+missingAddOns.NaowhForever_Professions = true
+for _, page in ipairs(UI.SearchPages()) do
+    Check(not (page.module and page.module.name == "Professions"), "a module addon that is not loaded is not searched")
+end
+ns.OpenOptionsWindow("Professions/Settings"); Flush()
+Check(Text("MODULES") ~= nil, "a link to a module that is off lands on Settings, where it is turned back on")
+missingAddOns.NaowhForever_Professions = nil
+
 ns.OpenOptionsWindow("Blessings/Settings"); Flush()
 Check(Text("Blessings / Settings") ~= nil, "existing module/tab deep links still work")
 ns.OpenOptionsWindow("QoL/Combat"); Flush()

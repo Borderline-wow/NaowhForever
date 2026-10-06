@@ -8,8 +8,8 @@ local function Read(path)
     local source = f:read("*a"); f:close()
     return source
 end
-local DATA = Read("AuraBuffs/NaowhForever_BuffReminderData.lua")
-local MODULE = Read("AuraBuffs/NaowhForever_BuffReminders.lua")
+local DATA = Read("NaowhForever_AuraBuffs/NaowhForever_BuffReminderData.lua")
+local MODULE = Read("NaowhForever_AuraBuffs/NaowhForever_BuffReminders.lua")
 
 -- itemID -> use spell, for the food scan.
 local ITEM_SPELLS = { [13931] = 1249513, [2679] = 433, [21023] = 25660 }

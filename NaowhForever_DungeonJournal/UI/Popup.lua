@@ -15,8 +15,6 @@ local S = J.Settings
 local St = J.Style
 local PANEL_W, PANEL_PAD, PANEL_HEADER = St.PANEL_W, St.PANEL_PAD, St.PANEL_HEADER
 
-BINDING_NAME_NAOWHFOREVER_BOSSLOOT = "Boss Loot at Cursor"
-
 local CURSOR_OFFSET = 12
 local VIEW_TOP = 4   -- the card's top edge to the page, as the Journal beside the map has it
 

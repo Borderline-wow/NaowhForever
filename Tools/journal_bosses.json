@@ -1,8 +1,8 @@
 {
   "_about": [
     "The Dungeon Journal's bosses, kept by hand; Tools/build_journal.py turns this into one Lua",
-    "file per dungeon in DungeonJournal/Data/Dungeons. Dungeons in level order, named as the",
-    "client and DungeonJournal/Data/Quests.lua name them. Each wing lists its bosses in kill order,",
+    "file per dungeon in NaowhForever_DungeonJournal/Data/Dungeons. Dungeons in level order, named as the",
+    "client and NaowhForever_DungeonJournal/Data/Quests.lua name them. Each wing lists its bosses in kill order,",
     "named as Wowhead Forever names the NPC; npcs pins an ID where the name is ambiguous. A",
     "boss listed under rare is optional and may not spawn. zone is the Wowhead zone, guide a",
     "Wowhead guide with a Loot tab per boss for dungeons whose bosses have no drop data yet.",

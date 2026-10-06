@@ -322,8 +322,8 @@ local function Fixture(settings)
     }, { __index = _G })
     env._G = env
     local files = TocFiles("^Shared/.*%.lua$")
-    files[#files + 1] = "AuraBuffs/NaowhForever_AuraBuffs.lua"
-    files[#files + 1] = "AuraBuffs/NaowhForever_Campfire.lua"
+    files[#files + 1] = "NaowhForever_AuraBuffs/NaowhForever_AuraBuffs.lua"
+    files[#files + 1] = "NaowhForever_AuraBuffs/NaowhForever_Campfire.lua"
     Load(files, env)
     state.ns, state.S, state.T, state.values, state.Frame = ns, ns.AuraBuffSettings, T, values, Frame
     state.St = ns.Shared.Style
@@ -489,7 +489,7 @@ do
 
     check("the house backdrop and black edge, no custom alpha", bar.backdrop and rawget(bar, "bg") == nil
         and bar.top.color == s.St.BORDER_RGB and s.St.BACKDROP_ALPHA
-        and not Read("AuraBuffs/NaowhForever_Campfire.lua"):find("BAR%.ALPHA"))
+        and not Read("NaowhForever_AuraBuffs/NaowhForever_Campfire.lua"):find("BAR%.ALPHA"))
     local behind = 0
     for _, f in ipairs(s.frames) do if f.parent == bar.camp then behind = behind + 1 end end
     local c = bar.camp.tex.coords

@@ -239,7 +239,7 @@ env._G = env
 Load({
     "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Items.lua", "Shared/Places.lua",
     "Shared/Parts.lua", "Shared/Window.lua", "Shared/View.lua", "Shared/Kinds.lua",
-    "Macros/NaowhForever_MacroText.lua", "Macros/NaowhForever_Macros.lua", "Macros/NaowhForever_MacroWindow.lua",
+    "NaowhForever_Macros/NaowhForever_MacroText.lua", "NaowhForever_Macros/NaowhForever_Macros.lua", "NaowhForever_Macros/NaowhForever_MacroWindow.lua",
 }, env)
 
 local function Window()

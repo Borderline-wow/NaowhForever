@@ -13,13 +13,17 @@ local code = src:sub(first, last - 1) .. "    return S\nend\n"
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
-local root = {}
-local ns = { SettingsRoot = function() return root end }
-local env = setmetatable({ ns = ns, UI = {} }, { __index = _G })
-local chunk = assert(loadstring(code))
-setfenv(chunk, env)
-chunk()
-local UI = env.UI
+local root, account = {}, {}
+-- A fresh load of the file, as a reload is: its own registered defaults, the same saved data.
+local function Load()
+    local ns = { SettingsRoot = function() return root end, AccountSettings = function() return account end }
+    local env = setmetatable({ ns = ns, UI = {} }, { __index = _G })
+    local chunk = assert(loadstring(code))
+    setfenv(chunk, env)
+    chunk()
+    return ns, env.UI
+end
+local ns, UI = Load()
 
 local S = UI.ModuleSettings("topBar", {
     enabled = false, clockSize = 20, fill = { r = 1, g = 0, b = 0 }, layout = { left = { "friends" } },
@@ -68,5 +72,19 @@ check("lists and unknown keys are refused", bad.topBar.sets == nil and bad.topBa
     and bad.topBar.evilPos == nil)
 check("unknown modules are refused", bad.nobody == nil)
 check("nothing to share is nil", ns.ExportModuleSettings({}) == nil)
+
+-- A module switched off is an addon that does not load, so it registers no defaults: the ones
+-- saved at the last login it was on stand in.
+local T = UI.ModuleSettings("threatMeter", { enabled = false, width = 240 })
+T.Set("width", 300)
+ns.SaveModuleDefaults()
+check("login keeps every module's defaults", account.moduleDefaults.threatMeter.width == 240)
+local offNs = Load()
+check("a module that is off still has its defaults", offNs.ModuleDefaults("threatMeter").width == 240)
+local offOut = offNs.ExportModuleSettings(root)
+check("its settings still go out", offOut.threatMeter.width == 300)
+local offIn = {}
+offNs.ImportModuleSettings(offIn, { threatMeter = { width = 320, enabled = "yes" } })
+check("and come in, checked", offIn.threatMeter.width == 320 and offIn.threatMeter.enabled == nil)
 
 print(("test-module-settings-share: %d checks passed"):format(checks))

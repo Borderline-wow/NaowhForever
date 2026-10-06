@@ -70,10 +70,11 @@ comment, sent back for changes, or merged and fixed up by me.
 - **Match the surrounding code.** Before building an options row, slider or popup, find
   the nearest existing example in the same module and copy its shape.
 - Each module has its own folder with `NaowhForever_<Name>.lua` files. Add new files to
-  `NaowhForever.toc` next to the rest of that module's files.
+  the TOC that loads that module (`NaowhForever.toc` for the core, or the module addon's
+  own `NaowhForever_<Module>.toc`) next to the rest of its files.
 - A module with many files loads them through its own XML file, which the TOC lists once,
   and names its files plainly inside its folder. The Dungeon Journal is the example:
-  `DungeonJournal/DungeonJournal.xml`, with its layout in `DungeonJournal/README.md`. Add a
+  `NaowhForever_DungeonJournal/DungeonJournal.xml`, with its layout in `NaowhForever_DungeonJournal/README.md`. Add a
   new file to that XML. The checks read the XML too, so its files are linted and compiled.
 - Settings go through `UI.ModuleSettings`, option widgets through the `ns.UI` kit in
   `Core/NaowhForever_Widgets.lua`, confirmations through `ns.Confirm` / `ns.PromptText`,
@@ -131,6 +132,12 @@ comment, sent back for changes, or merged and fixed up by me.
   from a release build into your checkout, or the addon will not load.
 - Point your Forever `Interface\AddOns\NaowhForever` folder at your checkout (a junction
   or symlink works). `/reload` picks up new files and TOC changes, no restart needed.
+- Modules ship as their own addons, in the `NaowhForever_<Module>/` folders at the root of
+  the checkout. Point an `Interface\AddOns\NaowhForever_<Module>` folder at each one too. A
+  folder the game has not seen before may need a restart to show up in the AddOns list.
+- A new module addon gets its own TOC with `## Dependencies: NaowhForever` (and any module
+  it needs), a `move-folders` line in `.pkgmeta` after the modules it needs, and `addon =`
+  on its entry in `MODULES` (`needs =` too when it cannot work without another module).
 - A new global the addon writes goes in `globals` in `.luacheckrc`, a new game API it
   reads in `read_globals`.
 

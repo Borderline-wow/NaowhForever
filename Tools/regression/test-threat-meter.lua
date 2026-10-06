@@ -98,7 +98,7 @@ local function fixture(settings, withSettings)
             Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}}
     end
     setmetatable(env,{__index=_G})
-    local chunk=assert(loadfile('ThreatMeter/NaowhForever_ThreatMeter.lua'));setfenv(chunk,env);chunk()
+    local chunk=assert(loadfile('NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua'));setfenv(chunk,env);chunk()
     s.ns=ns
     function s.fire(event,unit)
         local all={};for i,f in ipairs(s.frames) do all[i]=f end

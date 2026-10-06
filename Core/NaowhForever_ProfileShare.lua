@@ -413,8 +413,10 @@ function ns.ImportProfile(payload, wanted, name)
     end
     local added = { bisLists = 0, library = 0, builds = 0 }
     if wanted.bisLists and type(parts.bisLists) == "table" then added.bisLists = AddBisLists(parts.bisLists) end
-    if wanted.library and type(parts.library) == "table" then added.library = AddLibrary(parts.library) end
-    if wanted.builds and type(parts.builds) == "table" then added.builds = AddBuilds(parts.builds) end
+    -- The Library and builds are checked by the Macros and Training Planner code, so they wait
+    -- for those modules to be on.
+    if wanted.library and ns.MacroText and type(parts.library) == "table" then added.library = AddLibrary(parts.library) end
+    if wanted.builds and ns.Training and type(parts.builds) == "table" then added.builds = AddBuilds(parts.builds) end
     if wanted.look and type(parts.look) == "table" then
         local account = ns.AccountSettings()
         for _, key in ipairs(LOOK) do
@@ -436,17 +438,18 @@ local PAD, ROW_H, BUTTON_W, BUTTON_H = 14, 24, 120, 26
 local TOGGLE_W, TOGGLE_H = 32, 16
 
 -- Strings another import takes in: what the dialog says, and the button that hands them over.
+-- `needs` is the ns function the hand-off calls, missing while its `module` is switched off.
 local HANDOFFS = {
     { prefix = PACK_PREFIX, button = "Open Pack Import",
       what = "This is a Smart Reminders pack. The pack import takes it in, with its specs and licence.",
       go = function(text) ns.ShowPackImport(text) end },
-    { prefix = "!NFM1!", button = "Add Macros",
+    { prefix = "!NFM1!", button = "Add Macros", module = "Macros", needs = "ImportMacroString",
       what = "These are Forge macros. They are added as character macros on this character.",
       go = function(text) ns.ImportMacroString(text) end },
-    { prefix = "!NFB1!", button = "Add Build",
+    { prefix = "!NFB1!", button = "Add Build", module = "Training Planner", needs = "Training",
       what = "This is a talent build. It is added to your builds in the Training Planner.",
       go = function(text) ns.Training.ImportBuild(text, function() end) end },
-    { prefix = "!NBIS1!", button = "Add BiS List",
+    { prefix = "!NBIS1!", button = "Add BiS List", module = "BiS List", needs = "ImportBisList",
       what = "This is a BiS list. It is added next to your own lists.",
       go = function(text) ns.ImportBisList(text) end },
 }
@@ -508,6 +511,11 @@ local function PaintImport()
     if import.handoff then
         import.payload = nil
         import.nameRow:Hide()
+        if import.handoff.needs and not ns[import.handoff.needs] then
+            import.preview:SetText(("Turn on %s under Settings > Modules to add this."):format(import.handoff.module))
+            import.go:Hide()
+            return
+        end
         import.preview:SetText(import.handoff.what)
         ns.SetButtonText(import.go, import.handoff.button)
         import.go:Show()

@@ -1,6 +1,6 @@
 -- Bar sets against a small fake of the action bars, spellbook, macros and cursor, driven
 -- through the /nf bars command the way a player would.
-local PATH = arg[1] or "ActionBars/NaowhForever_ActionBars.lua"
+local PATH = arg[1] or "NaowhForever_ActionBars/NaowhForever_ActionBars.lua"
 
 -- Spells by id: name, rank and the level it is learned at.
 local SPELLS = {

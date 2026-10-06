@@ -5,8 +5,8 @@
 local Load = dofile("Tools/regression/load_files.lua")
 
 -- The BiS List's rules, on what they share.
-local FILES = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/Items.lua", "BiS/BiS.lua", "BiS/Rankings.lua",
-    "BiS/Lists.lua", "BiS/Sharing.lua", "BiS/Sources.lua" }
+local FILES = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/Items.lua", "NaowhForever_BiS/BiS/BiS.lua", "NaowhForever_BiS/BiS/Rankings.lua",
+    "NaowhForever_BiS/BiS/Lists.lua", "NaowhForever_BiS/BiS/Sharing.lua", "NaowhForever_BiS/BiS/Sources.lua" }
 
 -- itemID -> equip location, standing in for C_Item.GetItemInfoInstant.
 local EQUIP = {

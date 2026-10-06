@@ -670,8 +670,6 @@ function J.WindowAwayForMap(mapShown)
     end
 end
 
-BINDING_NAME_NAOWHFOREVER_JOURNAL = "Open Dungeon Journal"
-
 function NaowhForever_ToggleJournal()
     ns.ToggleJournalWindow()
 end

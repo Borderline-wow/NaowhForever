@@ -28,13 +28,13 @@ FULL = 900
 # addon's files that mention it.
 KINDS = {
     "items": {"page": "items", "filter": 151, "top": 400000, "files": [
-        "DungeonJournal/Data/Items.lua", "DungeonJournal/Data/Dungeons/*.lua",
-        "DungeonJournal/Data/FactionItems.lua", "DungeonJournal/Data/Factions/*.lua",
-        "DungeonJournal/Data/BiSQuests.lua", "DungeonJournal/Data/Quests.lua", "BiS/Data/*.lua"]},
+        "NaowhForever_DungeonJournal/Data/Items.lua", "NaowhForever_DungeonJournal/Data/Dungeons/*.lua",
+        "NaowhForever_DungeonJournal/Data/FactionItems.lua", "NaowhForever_DungeonJournal/Data/Factions/*.lua",
+        "NaowhForever_DungeonJournal/Data/BiSQuests.lua", "NaowhForever_DungeonJournal/Data/Quests.lua", "NaowhForever_BiS/BiS/Data/*.lua"]},
     "quests": {"page": "quests", "filter": 30, "top": 200000, "files": [
-        "DungeonJournal/Data/Quests.lua", "DungeonJournal/Data/QuestChains.lua",
-        "DungeonJournal/Data/BiSQuests.lua"]},
-    "npcs": {"page": "npcs", "filter": 37, "top": 400000, "files": ["DungeonJournal/Data/Dungeons/*.lua"]},
+        "NaowhForever_DungeonJournal/Data/Quests.lua", "NaowhForever_DungeonJournal/Data/QuestChains.lua",
+        "NaowhForever_DungeonJournal/Data/BiSQuests.lua"]},
+    "npcs": {"page": "npcs", "filter": 37, "top": 400000, "files": ["NaowhForever_DungeonJournal/Data/Dungeons/*.lua"]},
 }
 
 # A row of a listview, items' (JavaScript) or the others' (JSON): its ID, then its status,

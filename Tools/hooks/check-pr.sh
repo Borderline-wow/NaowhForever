@@ -43,8 +43,9 @@ if [ -n "$shipped" ] && [ "${NO_CHANGELOG:-false}" != "true" ]; then
 fi
 
 if [ "${RELEASE:-false}" != "true" ]; then
-    if git diff -U0 "$range" -- NaowhForever.toc | grep -qE '^[-+]## Version:'; then
-        echo "NaowhForever.toc: '## Version' changed. Only a release changes it."
+    # A new module addon's TOC is added with the current version; only edits to one count.
+    if git diff -U0 --diff-filter=M "$range" -- '*.toc' | grep -qE '^[-+]## Version:'; then
+        echo "A TOC's '## Version' changed. Only a release changes it."
         problems=$((problems + 1))
     fi
     if git diff -U0 "$range" -- '*.lua' | grep -qE '^[-+][[:space:]]*ns\.CODE_BUILD[[:space:]]*='; then

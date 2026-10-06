@@ -1,0 +1,19 @@
+## Interface: 120000, 120001, 120005, 120007, 120100, 16001
+## Title: |cff0091edNaowh|r Forever: Professions
+## Notes: Recipes, reagents and crafting in one window, with the recipes you have not learned yet.
+## Author: NaowhUI
+## Version: 0.5.21-beta
+## Dependencies: NaowhForever
+## Group: NaowhUI
+## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+
+# The window file creates the module's settings, so it loads first.
+NaowhForever_Professions.lua
+NaowhForever_ProfessionsSettings.lua
+NaowhForever_RecipeData.lua
+NaowhForever_RecipeFinder.lua
+NaowhForever_RankAlert.lua
+NaowhForever_GatherTracking.lua
+NaowhForever_CraftTimer.lua
+NaowhForever_FavoriteRecipes.lua
+NaowhForever_ShoppingList.lua

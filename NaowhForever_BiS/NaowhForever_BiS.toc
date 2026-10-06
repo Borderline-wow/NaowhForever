@@ -1,0 +1,23 @@
+## Interface: 120000, 120001, 120005, 120007, 120100, 16001
+## Title: |cff0091edNaowh|r Forever: BiS List
+## Notes: Best-in-slot lists, stat weights, Naowh Score and the character panel.
+## Author: NaowhUI
+## Version: 0.5.21-beta
+## Dependencies: NaowhForever
+## Group: NaowhUI
+## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+
+# Naowh Score: one number for a character's gear, on the item level scale. Its own XML loads
+# its files in order (see NaowhScore/README.md).
+NaowhScore\NaowhScore.xml
+
+# Stat Weights: what each stat is worth to your spec, for gear tooltips and the BiS List's
+# upgrades and enchants (see StatWeights/README.md).
+StatWeights\StatWeights.xml
+
+# BiS List: your best-in-slot picks, their window and where they drop (see BiS/README.md).
+BiS\BiS.xml
+
+# Character Panel: the game's character panel in the BiS List's look (see
+# CharacterPanel/README.md). Loads after BiS, whose lists it shows.
+CharacterPanel\CharacterPanel.xml

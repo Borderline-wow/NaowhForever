@@ -15,7 +15,7 @@ Then wowsrc.com's Forever loot pages (Tools/wowsrc.py, its own data file) say wh
 boss drops in Forever: their items are added, their chances win, and an old item they no
 longer list on that boss is dropped (moved, like Springvale's lantern, now trash's). Each
 wing's trash comes from them too. Last, the items placed by hand ("add") and the BiS
-sources in BiS/Data/BiS.lua; those have no chance.
+sources in NaowhForever_BiS/BiS/Data/BiS.lua; those have no chance.
 
 Every item is listed, the ones not in Forever yet too, so the Journal is whole the day they
 come. An item is in the game (known) when the game's tables have it (wago.tools' ItemSparse,
@@ -47,9 +47,9 @@ the boss's name, or its encounterNames entry in journal_bosses.json. Every row o
 201, with their own rows in some dungeons. The first ID listed is the one kills are saved
 under. A rare, or a boss fought inside a shared encounter (the Ring of Law), has none.
 
-Writes one file per dungeon, DungeonJournal/Data/Dungeons/<Key>.lua, and
-DungeonJournal/Data/Items.lua with what the addon needs to know about each item before
-the client has loaded it; a new dungeon's file also goes in DungeonJournal/DungeonJournal.xml. Answers are cached in journal_cache.json; delete an
+Writes one file per dungeon, NaowhForever_DungeonJournal/Data/Dungeons/<Key>.lua, and
+NaowhForever_DungeonJournal/Data/Items.lua with what the addon needs to know about each item before
+the client has loaded it; a new dungeon's file also goes in NaowhForever_DungeonJournal/DungeonJournal.xml. Answers are cached in journal_cache.json; delete an
 entry to fetch it again.
 
 Raids are in the same list with "raid" (how many players) and "announced": only the
@@ -82,8 +82,8 @@ TOOLS = Path(__file__).resolve().parent
 ROOT = TOOLS.parent
 BOSSES = TOOLS / "journal_bosses.json"
 CACHE = TOOLS / "journal_cache.json"
-OUT = ROOT / "DungeonJournal"
-BIS_DATA = ROOT / "BiS" / "Data" / "BiS.lua"
+OUT = ROOT / "NaowhForever_DungeonJournal"
+BIS_DATA = ROOT / "NaowhForever_BiS" / "BiS" / "Data" / "BiS.lua"
 QUESTS = OUT / "Data" / "Quests.lua"
 
 BUILD = "1.60.1.70094"   # the Forever client build the game's tables are read from

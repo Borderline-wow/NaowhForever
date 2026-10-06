@@ -282,10 +282,10 @@ local function Fixture()
         end },
     }, { __index = _G })
     local files = TocFiles("^Shared/.*%.lua$")
-    files[#files + 1] = "NaowhScore/Data/Formula.lua"   -- the paperdoll's score; not its tooltips
-    files[#files + 1] = "NaowhScore/Score.lua"
-    for _, path in ipairs(TocFiles("^StatWeights/.*%.lua$")) do files[#files + 1] = path end
-    for _, path in ipairs(TocFiles("^BiS/.*%.lua$")) do files[#files + 1] = path end
+    files[#files + 1] = "NaowhForever_BiS/NaowhScore/Data/Formula.lua"   -- the paperdoll's score; not its tooltips
+    files[#files + 1] = "NaowhForever_BiS/NaowhScore/Score.lua"
+    for _, path in ipairs(TocFiles("^NaowhForever_BiS/StatWeights/.*%.lua$")) do files[#files + 1] = path end
+    for _, path in ipairs(TocFiles("^NaowhForever_BiS/BiS/.*%.lua$")) do files[#files + 1] = path end
     Load(files, env)
     for _, spec in ipairs(ns.BiSData.specs) do
         for slot, ids in pairs(spec.slots) do
@@ -311,7 +311,7 @@ local Measure = dofile("Tools/regression/measure.lua")(check)
 -------------------------------------------------------------------------------
 local ns, state, S = Fixture()
 local B = ns.BiS
-check("BiS.xml loads its files", #TocFiles("^BiS/.*%.lua$") == 26)
+check("BiS.xml loads its files", #TocFiles("^NaowhForever_BiS/BiS/.*%.lua$") == 26)
 
 ns.OpenBisWindow()
 local view = Views(state, B)[1]

@@ -1348,9 +1348,36 @@ local function Shareable(defaults, k, v)
     return true
 end
 
+-- Every module's defaults are kept in the account at login, so a module switched off (its addon
+-- not loaded, so it registered none) still has its settings checked, exported and imported.
+local function SavedDefaults()
+    local account = ns.AccountSettings()
+    if type(account.moduleDefaults) ~= "table" then account.moduleDefaults = {} end
+    return account.moduleDefaults
+end
+
+local function AllDefaults()
+    local all = {}
+    for key, defaults in pairs(SavedDefaults()) do all[key] = defaults end
+    for key, defaults in pairs(moduleDefaults) do all[key] = defaults end
+    return all
+end
+
+-- At login, once every module that is on has loaded (Window.lua).
+function ns.SaveModuleDefaults()
+    local saved = SavedDefaults()
+    for key, defaults in pairs(moduleDefaults) do
+        local copy = {}
+        for k, v in pairs(defaults) do
+            if type(k) == "string" and Plain(v, 1) then copy[k] = CopyPlain(v) end
+        end
+        saved[key] = copy
+    end
+end
+
 function ns.ExportModuleSettings(root)
     local out
-    for key, defaults in pairs(moduleDefaults) do
+    for key, defaults in pairs(AllDefaults()) do
         local t = root[key]
         if type(t) == "table" then
             for k, v in pairs(t) do
@@ -1365,15 +1392,15 @@ function ns.ExportModuleSettings(root)
     return out
 end
 
--- A module's defaults by its settings key; nil for a key no module registered.
+-- A module's defaults by its settings key; nil for a key no module has registered.
 function ns.ModuleDefaults(key)
-    return moduleDefaults[key]
+    return moduleDefaults[key] or SavedDefaults()[key]
 end
 
 function ns.ImportModuleSettings(root, modules)
     if type(root) ~= "table" or type(modules) ~= "table" then return end
     for key, values in pairs(modules) do
-        local defaults = moduleDefaults[key]
+        local defaults = ns.ModuleDefaults(key)
         if defaults and type(values) == "table" then
             if type(root[key]) ~= "table" then root[key] = {} end
             for k, v in pairs(values) do

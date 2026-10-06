@@ -36,6 +36,8 @@ local BRAND = { artW = 448, artH = 139, texW = 512, texH = 256, height = 56, ins
 --             with `open`, ns[open] toggles the module's own window instead
 --   noscan    left out of the search scan: its builder makes frames, writes the profile or
 --             reads the Encounter Journal, so it is found by name only
+--   addon     module shipped as its own addon, left out of the window while it is not loaded
+--   needs     module addons it cannot work without; turning one off turns this one off too
 local SYSTEM_PAGES = {
     { name = "Settings", build = "BuildSettingsPage", reuse = true,
       subtitle = "Options for the whole addon, saved for this computer." },
@@ -64,6 +66,7 @@ local MODULES = {
       } },
     -- The journal itself is a window of its own (open); only its settings live here.
     { name = "Dungeon Journal", group = "ADVENTURE", navIcon = "map", settings = "JournalSettings",
+      addon = "NaowhForever_DungeonJournal", needs = { "NaowhForever_BiS" },
       open = "ToggleJournalWindow",
       command = "journal", alias = "dj", short = "Journal", icon = "Interface\\Icons\\INV_Misc_Book_09",
       subtitle = "Every dungeon and raid: what drops, your quests, and more.",
@@ -74,6 +77,7 @@ local MODULES = {
       } },
     -- The list itself is a window of its own (open); only its settings live here.
     { name = "BiS List", group = "ADVENTURE", navIcon = "trophy", settings = "QoLSettings", enabledKey = "bis",
+      addon = "NaowhForever_BiS", needs = { "NaowhForever_DungeonJournal" },
       open = "ToggleBisWindow",
       command = "bis", short = "BiS", icon = "Interface\\Icons\\INV_Sword_39",
       subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
@@ -82,6 +86,7 @@ local MODULES = {
       } },
     -- The planner itself is a window of its own (open); only its settings live here.
     { name = "Training Planner", group = "ADVENTURE", navIcon = "notes", settings = "TrainingSettings",
+      addon = "NaowhForever_Training", needs = { "NaowhForever_Professions" },
       open = "ToggleTrainingWindow",
       command = "training", short = "Training", icon = "Interface\\Icons\\INV_Misc_Book_11",
       subtitle = "What you can train now, what each level brings and what it costs.",
@@ -90,6 +95,7 @@ local MODULES = {
       } },
     -- The books are a window of their own (open); only their settings live here.
     { name = "Discovery", group = "ADVENTURE", navIcon = "compass", settings = "DiscoverySettings",
+      addon = "NaowhForever_Discovery",
       open = "ToggleDiscoveryWindow",
       command = "discovery", short = "Discovery", icon = "Interface\\Icons\\INV_Misc_Book_07",
       subtitle = "Library books to find around Azeroth, and who to hand them to.",
@@ -99,6 +105,7 @@ local MODULES = {
       } },
     -- The sets are a window of their own (open); only their settings live here.
     { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
+      addon = "NaowhForever_GearSets",
       open = "ToggleGearSetsWindow",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
@@ -106,6 +113,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Blessings", group = "COMBAT", navIcon = "spark", settings = "QoLSettings", enabledKey = "blessings",
+      addon = "NaowhForever_Blessings",
       open = "ToggleBlessingsWindow",
       command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
       subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
@@ -113,11 +121,13 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Professions", group = "ADVENTURE", navIcon = "hammer", settings = "ProfessionSettings",
+      addon = "NaowhForever_Professions",
       subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",
       tabs = {
           { name = "Settings", reuse = true },
       } },
     { name = "Macros", group = "UTILITIES", navIcon = "pen", settings = "MacroSettings",
+      addon = "NaowhForever_Macros",
       open = "ToggleMacroWindow",
       command = "macros", short = "Macros", icon = "Interface\\Icons\\INV_Misc_Note_01",
       subtitle = "Naowh's Forge: your macros, checked and explained, and macros kept current for you.",
@@ -125,6 +135,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Action Bars", group = "UTILITIES", navIcon = "grid", settings = "ActionBarSettings",
+      addon = "NaowhForever_ActionBars",
       open = "ToggleActionBarsWindow",
       command = "bars", short = "Bars", icon = "Interface\\Icons\\INV_Misc_Gear_01",
       subtitle = "Your action bars saved by name and put back whenever you want them.",
@@ -132,6 +143,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "AuraBuffs", group = "COMBAT", navIcon = "aura", settings = "AuraBuffSettings",
+      addon = "NaowhForever_AuraBuffs",
       open = "ToggleAuraBuffsWindow",
       command = "buffs", short = "Buffs", icon = "Interface\\Icons\\Spell_Holy_WordFortitude",
       subtitle = "Buff, consumable and campfire reminders, low health and debuff sounds.",
@@ -139,12 +151,14 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Threat Meter", group = "COMBAT", navIcon = "bars", settings = "ThreatMeterSettings",
+      addon = "NaowhForever_ThreatMeter",
       command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
       tabs = {
           { name = "Settings", reuse = true },
       } },
     { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
+      addon = "NaowhForever_SwingTimer",
       subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",
       tabs = {
           { name = "Settings", reuse = true },
@@ -224,14 +238,83 @@ local function BuildPageInto(page, parent)
     return fn(parent, -6, page.arg)
 end
 
+local function DisplayName(mod)
+    return ns.L(mod.name == "QoL" and "Quality of Life" or mod.name)
+end
+
+local function Loaded(mod)
+    return not mod.addon or C_AddOns.IsAddOnLoaded(mod.addon)
+end
+
+local function Has(list, value)
+    for _, v in ipairs(list or {}) do
+        if v == value then return true end
+    end
+    return false
+end
+
+-- The module addons that switch along with mod: turning it off takes every module that
+-- needs it, turning it on brings every module it needs.
+local function Linked(mod, on)
+    local mods, seen = { mod }, { [mod.addon] = true }
+    local i = 1
+    while mods[i] do
+        local cur = mods[i]
+        for _, other in ipairs(MODULES) do
+            if other.addon and not seen[other.addon]
+                and (on and Has(cur.needs, other.addon) or not on and Has(other.needs, cur.addon)) then
+                seen[other.addon] = true
+                mods[#mods + 1] = other
+            end
+        end
+        i = i + 1
+    end
+    return mods
+end
+
+local function NameList(mods)
+    local names = {}
+    for i, m in ipairs(mods) do names[i] = DisplayName(m) end
+    if #names == 1 then return names[1] end
+    return table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+end
+
+-- Enables or disables a module addon, with the ones linked to it, for every character. The
+-- game applies it at the next reload, so the reload prompt follows.
+local function SwitchModuleAddon(mod, on)
+    local mods = Linked(mod, on)
+    local verb = on and "enable" or "disable"
+    local text = ("%s %s?"):format(on and "Enable" or "Disable", DisplayName(mod))
+    if #mods > 1 then
+        local others = { unpack(mods, 2) }
+        text = text .. (on and " It needs %s, so %s will be %sd." or " %s needs it, so %s will be %sd.")
+            :format(NameList(others), #mods == 2 and "both" or "all of them", verb)
+    end
+    local yes = (on and "Enable" or "Disable") .. (#mods == 2 and " Both" or #mods > 2 and " All" or "")
+    ns.Confirm(text, function()
+        for _, m in ipairs(mods) do
+            if on then C_AddOns.EnableAddOn(m.addon) else C_AddOns.DisableAddOn(m.addon) end
+        end
+        UI:RefreshPage(true)
+        ns.ConfirmReload(("%s will be %sd when you reload. Reload now?"):format(NameList(mods), verb))
+    end, function() UI:RefreshPage(true) end, yes, "Cancel")
+end
+
 -- A module's on/off switch. Smart Reminders keeps its own master switch; the newer modules
--- store `enabled` (or their `enabledKey`) in their settings table.
+-- store `enabled` (or their `enabledKey`) in their settings table. Switching off a module
+-- shipped as its own addon disables the addon, so it is gone after a reload; until then it
+-- reads as off, and switching it back on cancels that.
 local function ModuleOn(mod)
+    if mod.addon and C_AddOns.GetAddOnEnableState(mod.addon) == 0 then return false end
     if mod.settings then return ns[mod.settings].Get(mod.enabledKey or "enabled") end
     return ns.DB().enabled == true
 end
 
 local function SetModuleOn(mod, on)
+    if mod.addon and not on then return SwitchModuleAddon(mod, false) end
+    if mod.addon then
+        for _, m in ipairs(Linked(mod, true)) do C_AddOns.EnableAddOn(m.addon) end
+    end
     if mod.settings then ns[mod.settings].Set(mod.enabledKey or "enabled", on) else ns.SetEnabled(on) end
     UI:RefreshPage(true)
 end
@@ -248,10 +331,6 @@ local function PaintTabs(bar, shown)
     for _, button in ipairs(bar.buttons) do
         if PAGES[button.key] and PAGES[button.key].soon then button.text:SetAlpha(0.45) end
     end
-end
-
-local function DisplayName(mod)
-    return ns.L(mod.name == "QoL" and "Quality of Life" or mod.name)
 end
 
 local NAV_ROW, NAV_OFF_ALPHA = 32, 0.45
@@ -358,6 +437,8 @@ local function ShowWrapper(pageWrappers, child, key)
 end
 
 local function ShowPage(key)
+    -- A link to a module that is switched off lands where it can be turned back on.
+    if PAGES[key].module and not Loaded(PAGES[key].module) then key = "Settings" end
     currentPage = key
     if PAGES[key].module then lastPages[PAGES[key].module.name] = key end
     LayoutContent()
@@ -372,7 +453,7 @@ function UI.SearchPages()
     for _, page in ipairs(SYSTEM_PAGES) do pages[#pages + 1] = page end
     for _, mod in ipairs(MODULES) do
         for _, tab in ipairs(mod.tabs) do
-            if not tab.soon then pages[#pages + 1] = tab end
+            if not tab.soon and Loaded(mod) then pages[#pages + 1] = tab end
         end
     end
     return pages
@@ -580,7 +661,7 @@ function ns.BuildMinimapIcons(parent, y)
     ); y = y - h
     local rows = {}
     for _, mod in ipairs(MODULES) do
-        if mod.command then
+        if mod.command and Loaded(mod) then
             rows[#rows + 1] = { type = "toggle", text = mod.name,
                 tooltip = ("A minimap button that opens %s on its own. /nf%s does the same, "
                     .. "and the Top Bar can carry it too. Saved for this computer.")
@@ -605,6 +686,32 @@ end
 function ns.BuildSettingsPage(parent, y)
     local W = UI.Widgets
     local _, h
+
+    -- Every module shipped as its own addon, switched on or off for the next reload. A module
+    -- that is off is only here, so this is where it comes back.
+    _, h = W:SectionHeader(parent, "MODULES", y); y = y - h
+    local rows = {}
+    for _, mod in ipairs(MODULES) do
+        if mod.addon then
+            local tip = mod.subtitle
+            if mod.needs then
+                local needs = {}
+                for i, addon in ipairs(mod.needs) do
+                    for _, other in ipairs(MODULES) do
+                        if other.addon == addon then needs[i] = other end
+                    end
+                end
+                tip = tip .. "|n|nSwitches with " .. NameList(needs) .. "."
+            end
+            rows[#rows + 1] = { type = "toggle", text = mod.name,
+                tooltip = tip,
+                getValue = function() return C_AddOns.GetAddOnEnableState(mod.addon) > 0 end,
+                setValue = function(v) SwitchModuleAddon(mod, v) end }
+        end
+    end
+    for i = 1, #rows, 2 do
+        _, h = W:DualRow(parent, y, rows[i], rows[i + 1] or { type = "label", text = "" }); y = y - h
+    end
 
     y = ns.BuildMinimapIcons(parent, y)
 
@@ -1081,12 +1188,13 @@ local function CreateWindow()
     local edge = ns.Solid(sidebar, "ARTWORK", T.line, 1)
     edge:SetPoint("TOPRIGHT"); edge:SetPoint("BOTTOMRIGHT"); ns.Hairline(edge, "v")
     local nav = NavigationScroll(sidebar, 16, FOOTER_H_SIDEBAR + 6 + NAV_STEP * #SYSTEM_NAV, SIDEBAR_W)
-    -- Modules list in MODULES order under their group; one with only unfinished tabs is left out.
+    -- Modules list in MODULES order under their group; one with only unfinished tabs, or whose
+    -- addon is switched off, is left out.
     local groups, grouped = {}, {}
     for _, mod in ipairs(MODULES) do
         local ready = false
         for _, tab in ipairs(mod.tabs) do ready = ready or not tab.soon end
-        if ready then
+        if ready and Loaded(mod) then
             local group = mod.group or ""
             if not grouped[group] then
                 grouped[group] = {}
@@ -1350,6 +1458,9 @@ end
 
 -- A module's own window: the one it names in `open`, else its tabs on their own.
 local function OpenModule(mod)
+    if not Loaded(mod) then
+        return ns.Print(("%s is switched off. Turn it on under Settings > Modules."):format(DisplayName(mod)))
+    end
     if mod.open and ns[mod.open] then ns[mod.open]() else ToggleModuleWindow(mod) end
 end
 
@@ -1357,6 +1468,22 @@ end
 function _G.NaowhForever_OnCompartmentClick()
     ns.ToggleOptionsWindow()
 end
+
+-- Key Bindings > AddOns (Bindings.xml), named here so the list reads the same whichever modules
+-- are on. A module's key calls a function its addon defines over the stub below when it loads.
+BINDING_HEADER_NAOWHFOREVER = "Naowh Forever"
+BINDING_NAME_NAOWHFOREVER_JOURNAL = "Open Dungeon Journal"
+BINDING_NAME_NAOWHFOREVER_BOSSLOOT = "Boss Loot at Cursor"
+BINDING_NAME_NAOWHFOREVER_BIS = "Open BiS List"
+_G["BINDING_NAME_CLICK NaowhForeverBlessNext:LeftButton"] = "Next Blessing"
+_G["BINDING_NAME_CLICK NaowhForeverBlessNextGreater:LeftButton"] = "Next Greater Blessing"
+
+local function SwitchedOff(name)
+    return function() ns.Print(("%s is switched off. Turn it on under Settings > Modules."):format(name)) end
+end
+NaowhForever_ToggleJournal = SwitchedOff("Dungeon Journal")
+NaowhForever_BossLoot = SwitchedOff("Dungeon Journal")
+NaowhForever_ToggleBis = SwitchedOff("BiS List")
 
 SLASH_NAOWHFOREVER1 = "/smartreminders"
 SLASH_NAOWHFOREVER2 = "/naowh"
@@ -1427,6 +1554,7 @@ local function TipLine(tooltip, text)
 end
 launcherEvents:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_LOGIN")
+    ns.SaveModuleDefaults()
     local account = ns.AccountSettings()
     if type(account.minimap) ~= "table" then
         account.minimap = { minimapPos = 220 }
@@ -1448,7 +1576,7 @@ launcherEvents:SetScript("OnEvent", function(self)
     -- Minimap Buttons switch is on.
     account.moduleButtons = account.moduleButtons or {}
     for _, mod in ipairs(MODULES) do
-        if mod.command then
+        if mod.command and Loaded(mod) then
             local db = account.moduleButtons[mod.name] or { minimapPos = 220 }
             account.moduleButtons[mod.name] = db
             db.hide = not MinimapButtonOn(mod)

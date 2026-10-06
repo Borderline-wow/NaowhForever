@@ -1,6 +1,6 @@
--- Every file NaowhForever.toc loads, in load order, following XML includes: the Lua twin of
+-- Every file the TOCs load, in load order, following XML includes: the Lua twin of
 -- Tools/hooks/toc_files.py, for the tests. A module can load through its own XML file
--- (DungeonJournal/DungeonJournal.xml) instead of listing each file in the TOC; this walks
+-- (NaowhForever_DungeonJournal/DungeonJournal.xml) instead of listing each file in the TOC; this walks
 -- the TOC and expands each XML's <Script file> and <Include file> entries, recursively. As
 -- the game does, a path in an XML is looked up next to that XML first, then from the root.
 --
@@ -57,13 +57,26 @@ function Expand(path, out, seen)
     if path:lower():find("%.xml$") then ExpandXml(path, out, seen) end
 end
 
+-- NaowhForever.toc, then each module addon .pkgmeta moves out of NaowhForever/, in the order it
+-- lists them. A module's TOC paths are relative to its own folder.
+local function Tocs()
+    local tocs = { { dir = "", toc = "NaowhForever.toc" } }
+    for line in io.lines(".pkgmeta") do
+        local child = line:gsub("\r$", ""):match("^%s+NaowhForever/(%S+):")
+        if child then tocs[#tocs + 1] = { dir = child .. "/", toc = child .. "/" .. child .. ".toc" } end
+    end
+    return tocs
+end
+
 return function(pattern, toc)
     local all, seen = {}, {}
-    for line in io.lines(toc or "NaowhForever.toc") do
-        line = line:gsub("\r$", "")
-        if line ~= "" and not line:find("^#") then
-            -- "Locales\deDE.lua [AllowLoadTextLocale deDE]": the path is the first word.
-            Expand((line:match("^(%S+)"):gsub("\\", "/")), all, seen)
+    for _, t in ipairs(toc and { { dir = "", toc = toc } } or Tocs()) do
+        for line in io.lines(t.toc) do
+            line = line:gsub("\r$", "")
+            if line ~= "" and not line:find("^#") then
+                -- "Locales\deDE.lua [AllowLoadTextLocale deDE]": the path is the first word.
+                Expand(t.dir .. line:match("^(%S+)"):gsub("\\", "/"), all, seen)
+            end
         end
     end
     if not pattern then return all end

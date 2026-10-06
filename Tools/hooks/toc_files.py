@@ -1,6 +1,6 @@
-"""Every file NaowhForever.toc loads, in load order, following XML includes.
+"""Every file the TOCs load, in load order, following XML includes.
 
-A module can load through its own XML file (DungeonJournal/DungeonJournal.xml) instead of
+A module can load through its own XML file (NaowhForever_DungeonJournal/DungeonJournal.xml) instead of
 listing each file in the TOC, so a check that reads only the TOC's lines would miss those
 files. files() walks the TOC and expands each XML's <Script file> and <Include file>
 entries, recursively. As the game does, a path in an XML is looked up next to that XML
@@ -36,10 +36,25 @@ def resolve(xml_path, entry):
     return beside if os.path.exists(beside) else entry
 
 
-def files(toc=TOC):
+def tocs():
+    """NaowhForever.toc, then each module addon .pkgmeta moves out of NaowhForever/, in the
+    order it lists them: (folder prefix, TOC path). A module's TOC paths are relative to its
+    own folder."""
+    found = [("", TOC)]
+    with open(".pkgmeta", encoding="utf-8") as meta:
+        for line in meta:
+            child = re.match(r"\s+NaowhForever/(\S+):", line)
+            if child:
+                name = child.group(1)
+                found.append((name + "/", f"{name}/{name}.toc"))
+    return found
+
+
+def files(toc=None):
     """(path, where it is listed) for every file loaded, XML files included, in order."""
-    for number, path in toc_paths(toc):
-        yield from expand(path, f"{toc}:{number}")
+    for prefix, name in [("", toc)] if toc else tocs():
+        for number, path in toc_paths(name):
+            yield from expand(prefix + path, f"{name}:{number}")
 
 
 def expand(path, listed_at, seen=None):

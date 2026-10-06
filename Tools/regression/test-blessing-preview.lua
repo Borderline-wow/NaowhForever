@@ -135,8 +135,8 @@ local function Load(path)
     setfenv(fn, env)
     fn("NaowhForever", ns)
 end
-Load("Blessings/NaowhForever_Blessings.lua")
-Load("Blessings/NaowhForever_BlessingsPage.lua")
+Load("NaowhForever_Blessings/NaowhForever_Blessings.lua")
+Load("NaowhForever_Blessings/NaowhForever_BlessingsPage.lua")
 local B = ns.Blessings
 local studio = assert(cards.bar and cards.bar.studio, "the Blessing Bar card has a preview")
 

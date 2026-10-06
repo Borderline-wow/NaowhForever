@@ -1,9 +1,9 @@
-"""Build DungeonJournal/Data/QuestChains.lua from Wowhead's Forever quest pages.
+"""Build NaowhForever_DungeonJournal/Data/QuestChains.lua from Wowhead's Forever quest pages.
 
 Each quest page (/forever/quest=<id>) with a chain has a "Series" box in its infobox: a
 <table class="series"> with one row per step in order, each step a link to its quest, or
 <b> for the page's own quest. A row can hold more than one quest (the faction or class
-versions of that step). Every quest ID in DungeonJournal/Data/Quests.lua is looked up,
+versions of that step). Every quest ID in NaowhForever_DungeonJournal/Data/Quests.lua is looked up,
 including its alt, steps and lead IDs, and every one in Data/BiSQuests.lua (the BiS List's
 quests, from Tools/build_bis_quests.py, which runs first). Answers are cached in quest_chains.json (null for
 a quest with no chain); delete an entry to fetch it again.
@@ -31,9 +31,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "DungeonJournal" / "Data" / "Quests.lua"
-BIS_DATA = ROOT / "DungeonJournal" / "Data" / "BiSQuests.lua"
-OUT = ROOT / "DungeonJournal" / "Data" / "QuestChains.lua"
+DATA = ROOT / "NaowhForever_DungeonJournal" / "Data" / "Quests.lua"
+BIS_DATA = ROOT / "NaowhForever_DungeonJournal" / "Data" / "BiSQuests.lua"
+OUT = ROOT / "NaowhForever_DungeonJournal" / "Data" / "QuestChains.lua"
 CACHE = Path(__file__).resolve().parent / "quest_chains.json"
 # Where each chain step starts, from the quest page's map: { zone, coord, npc, npcId }, or
 # null for a quest with no start on a map. Delete an entry to fetch it again.

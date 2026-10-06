@@ -1,11 +1,11 @@
 """Which dungeon quests need which boss, for a boss's page in the Dungeon Journal: a quest
 needs a boss when the objective on its Wowhead Forever page (or an item or NPC it asks for)
-names the boss, or links the boss's NPC. Written to DungeonJournal/Data/BossQuests.lua as
+names the boss, or links the boss's NPC. Written to NaowhForever_DungeonJournal/Data/BossQuests.lua as
 quest IDs (Data/Quests.lua's) keyed by NPC ID. The rest of a quest's chain (its steps)
 counts too: the quest is listed for a boss any step needs.
 
-The quests are read from DungeonJournal/Data/Quests.lua, the bosses from
-DungeonJournal/Data/Dungeons; pages are kept in Tools/quest_objectives_cache.json, so a run
+The quests are read from NaowhForever_DungeonJournal/Data/Quests.lua, the bosses from
+NaowhForever_DungeonJournal/Data/Dungeons; pages are kept in Tools/quest_objectives_cache.json, so a run
 only fetches quests not seen yet. --refresh fetches all.
 
 Usage: py Tools/build_boss_quests.py [--refresh]
@@ -20,9 +20,9 @@ import urllib.error
 import wowhead
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-QUESTS = os.path.join(ROOT, "DungeonJournal", "Data", "Quests.lua")
-DUNGEONS = os.path.join(ROOT, "DungeonJournal", "Data", "Dungeons")
-OUT = os.path.join(ROOT, "DungeonJournal", "Data", "BossQuests.lua")
+QUESTS = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "Quests.lua")
+DUNGEONS = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "Dungeons")
+OUT = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "BossQuests.lua")
 CACHE = os.path.join(ROOT, "Tools", "quest_objectives_cache.json")
 
 HEADER = """-------------------------------------------------------------------------------

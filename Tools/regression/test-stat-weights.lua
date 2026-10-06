@@ -112,7 +112,7 @@ local function Fixture(class)
     }, { __index = _G })
     local files = { "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Items.lua",
         "Shared/Parts.lua" }
-    for _, path in ipairs(TocFiles("^StatWeights/.*%.lua$")) do files[#files + 1] = path end
+    for _, path in ipairs(TocFiles("^NaowhForever_BiS/StatWeights/.*%.lua$")) do files[#files + 1] = path end
     Load(files, env)
     return ns, state, env
 end
@@ -136,7 +136,7 @@ do
     end
     -- Every spec the BiS List ranks has weights.
     local bis = { QoLSettings = {} }
-    Load({ "BiS/Data/BiS.lua" }, setmetatable({ _G = { NaowhForever = bis } }, { __index = _G }))
+    Load({ "NaowhForever_BiS/BiS/Data/BiS.lua" }, setmetatable({ _G = { NaowhForever = bis } }, { __index = _G }))
     for _, spec in ipairs(bis.BiSData.specs) do
         check("the BiS List's spec has weights: " .. spec.key, SW.Spec(spec.key) ~= nil)
     end
@@ -514,7 +514,7 @@ do
     Parts.MarkForever = NOTHING
     Parts.Tip = function() return true end
     -- The window's file again, against these frames (it reads them when it builds).
-    Load({ "StatWeights/UI/Window.lua" }, env)
+    Load({ "NaowhForever_BiS/StatWeights/UI/Window.lua" }, env)
     ns.OpenStatWeightsWindow()
     local window
     for _, f in ipairs(made) do

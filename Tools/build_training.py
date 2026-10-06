@@ -20,7 +20,7 @@ Shot, Holy Shock); then nothing waits on the talent.
 
 Wowhead's answers are kept in Tools/training_cache.json; delete a class's entry to ask again.
 
-Writes Training/NaowhForever_TrainingData.lua.
+Writes NaowhForever_Training/NaowhForever_TrainingData.lua.
 
 Usage: python Tools/build_training.py [--build 1.60.1.70170]
 """
@@ -32,7 +32,7 @@ import wago
 from build_dungeon_loot import WOWHEAD, fetch
 from build_journal import ROOT, TOOLS, header, write
 
-OUT = ROOT / "Training" / "NaowhForever_TrainingData.lua"
+OUT = ROOT / "NaowhForever_Training" / "NaowhForever_TrainingData.lua"
 CACHE = TOOLS / "training_cache.json"
 # The game's class IDs and Wowhead's names for them.
 CLASSES = {1: "warrior", 2: "paladin", 3: "hunter", 4: "rogue", 5: "priest", 7: "shaman", 8: "mage",

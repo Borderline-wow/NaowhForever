@@ -300,8 +300,6 @@ function ns.ToggleBisWindow()
     if window and window:IsShown() then window:Hide() else ns.OpenBisWindow() end
 end
 
-BINDING_NAME_NAOWHFOREVER_BIS = "Open BiS List"
-
 function NaowhForever_ToggleBis()
     ns.ToggleBisWindow()
 end

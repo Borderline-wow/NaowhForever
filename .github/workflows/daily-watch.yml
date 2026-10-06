@@ -14,7 +14,7 @@ name: daily-watch
 # Only the game's own tables are read, through wago.tools. Run workflow does the same on
 # demand, for a build of your choice or as a report only.
 # With the move, the Naowh Score's constants are refitted to the build's item table
-# (Tools/fit_naowh_score.py): NaowhScore/Data/Formula.lua changes in the same pull request
+# (Tools/fit_naowh_score.py): NaowhForever_BiS/NaowhScore/Data/Formula.lua changes in the same pull request
 # when they move enough and pass its quality gates, and the report gets a "Naowh Score"
 # section either way (a manual run reports it too). A fit that fails only says so. A refit
 # that changes Formula.lua gets its own changelog line: every player's score moves.
@@ -150,11 +150,11 @@ jobs:
           CHANGELOG: ${{ steps.watch.outputs.changelog }}
         run: |
           nl=$'\n'
-          if ! git diff --quiet -- NaowhScore/Data/Formula.lua; then
+          if ! git diff --quiet -- NaowhForever_BiS/NaowhScore/Data/Formula.lua; then
             CHANGELOG="${CHANGELOG:+$CHANGELOG$nl}Changed: Naowh Score: refitted to the latest Forever items."
           fi
           $PR add watch "${TITLE#chore(data): }" "$RUNNER_TEMP/watch.md" "$CHANGELOG" \
-            Tools/wago.py DungeonJournal/Data NaowhScore/Data
+            Tools/wago.py NaowhForever_DungeonJournal/Data NaowhForever_BiS/NaowhScore/Data
 
       - name: Compare wowsrc.com's loot pages with ours
         id: loot
@@ -185,7 +185,7 @@ jobs:
         run: |
           $PR add loot "boss loot" "$RUNNER_TEMP/loot.md" \
             "Changed: Dungeon Journal: boss loot updated from the latest Forever loot lists." \
-            Tools/wowsrc_loot.json Tools/item_names.json Tools/journal_cache.json DungeonJournal/Data
+            Tools/wowsrc_loot.json Tools/item_names.json Tools/journal_cache.json NaowhForever_DungeonJournal/Data
 
       - name: Compare wowsrc.com's BiS lists with ours
         id: bis
@@ -212,7 +212,7 @@ jobs:
         run: |
           $PR add bis "BiS lists" "$RUNNER_TEMP/bis.md" \
             "Changed: BiS List: picks updated from wowsrc.com's latest lists." \
-            BiS/Data/BiS.lua Tools/bis_item_ids.json Tools/bis_sources.json
+            NaowhForever_BiS/BiS/Data/BiS.lua Tools/bis_item_ids.json Tools/bis_sources.json
 
       # A new pick CI could not find a source for (it may not read Wowhead) fails the
       # regression test every pull request runs: the pull request stays a draft, saying what
