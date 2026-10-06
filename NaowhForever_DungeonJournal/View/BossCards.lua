@@ -23,7 +23,7 @@ local S = J.Settings
 local CHAT_MAX = 255        -- what chat takes in one message
 local NAME_TOP = 11         -- the boss's name from the card's top; the badge sits 2 higher
 local STATS_TOP = 13
-local TAG_GAP = 8           -- the name to its tag (RARE, OPTIONAL, CHEST)
+local TAG_GAP = 8           -- the name to its tag (RARE, OPTIONAL, QUEST, CHEST)
 local CHIP_TIP_W = 17       -- the (i) in a chip, and its gap
 local CHIP_BOTTOM = 4
 local CLEAR_ICON = 10       -- the x after "Nothing for your class"
@@ -193,9 +193,7 @@ local function WowheadPage(boss)
 end
 
 -- The small tag after a name: none for a boss in the kill order.
-local function Tag(boss)
-    return boss.rare and "RARE" or boss.optional and "OPTIONAL" or boss.chest and "CHEST" or nil
-end
+local Tag = J.BossTag
 
 local function BossEnter(row)
     row.hovered = true

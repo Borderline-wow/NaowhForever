@@ -15,6 +15,9 @@
 --  While a draw runs, a row reads its view (row:GetParent()) for what holds for the whole
 --  draw, read once in Begin: view.compact (narrower than COMPACT_W: the map panel),
 --  view.playerLevel, view.filters (JournalFilters), view.showChance, view.showTips,
+--  view.dense and view.tightTitles (the dungeon map's compact boss page: shorter rows and
+--  titles; its abilities on two lines each while it fits in view.fitHeight, set by its
+--  caller, else one: view.abilityLines),
 --  view.showKills, view.column (the items' right column: nil the drop chance, "price" or
 --  "none"; set by its caller around them), view.tight (each quest on one line: the quest
 --  tracker), view.bare (items
@@ -59,6 +62,7 @@ View.Columns = Shared.View.Columns
 local ViewMixin = {}
 
 local BOSS_LOOT_GAP = 4     -- between a boss's header and its first item
+local PAGE_GAP, COLUMN_GAP, COLUMN_TITLE_GAP = 6, 16, 2
 local TRASH_TOP, TRASH_GAP = 6, 16
 local EMPTY_BODY = 28       -- a boss card's body with nothing listed: room for its centred line
 local EMPTY = {}
@@ -374,6 +378,7 @@ function ViewMixin:Begin(dungeon, boss, query, page)
     -- Begin (a boss's history shows no chances, the quest panel's rewards neither).
     self.showChance, self.showTips, self.showKills = true, true, true
     self.bare, self.striped, self.tight, self.column = false, false, false, nil
+    self.dense, self.tightTitles = false, false
     self.factionLinks, self.watchMoney = false, false
     self.watchQuestLog = false
     wipe(self.shownCache)
@@ -443,6 +448,7 @@ end
 -- too, under a title that opens and closes it (kept: bossTipOpen and the rest; Loot opens
 -- again on the next boss) and left out where there is none.
 function ViewMixin:DrawBossLoot(boss, dungeon)
+    self.bossPage = false
     self:Begin(dungeon, boss)
     local tip = self.showTips and J.Tip(boss)
     self.showTips = false
@@ -454,6 +460,94 @@ function ViewMixin:DrawBossLoot(boss, dungeon)
     self:DrawBossDetails(boss)
     self:DrawBossItems(boss)
     self:Finish()
+end
+
+function ViewMixin:DrawBossPage(boss, dungeon)
+    local room = self.fitHeight
+    self.abilityLines = room and 2 or 1
+    self:DrawBossPageRows(boss, dungeon)
+    if room and self.cursor > room and self.abilitiesDrawn then
+        self.abilityLines = 1
+        self:DrawBossPageRows(boss, dungeon)
+    end
+    self:Finish()
+end
+
+function ViewMixin:DrawBossPageRows(boss, dungeon)
+    self.bossPage = true
+    self:Begin(dungeon, boss)
+    self.abilitiesDrawn = false
+    self.dense, self.tightTitles = true, true
+    self:Add("bossTitle", boss)
+    local tip = self.showTips and J.Tip(boss)
+    if tip then
+        self:Space(PAGE_GAP)
+        local top = self.cursor
+        local card = self:OpenCard(0, self:GetWidth())
+        self:Add("tip", boss, tip)
+        self:CloseCard(card, top)
+    end
+    local quests = self:BossQuests(boss)
+    local loot = boss.loot or EMPTY
+    local spells = boss.npc and J.Abilities[boss.npc] or EMPTY
+    if quests and #loot == 0 then
+        self:Space(PAGE_GAP)
+        self:Add("questChips", quests)
+    end
+    self:Space(PAGE_GAP)
+    if #loot > 0 or #spells > 0 then
+        self:DrawBossColumns(boss, loot, spells)
+    else
+        self:Note(View.Parts.BossEmptyText(0, boss))
+    end
+    if quests and #loot > 0 then
+        self:Space(PAGE_GAP)
+        self:Add("questChips", quests)
+    end
+end
+
+function ViewMixin:Column(x, w, top)
+    self.left, self.width, self.cursor = x, w, top
+end
+
+function ViewMixin:DrawBossColumns(boss, loot, spells)
+    local width, top = self:GetWidth(), self.cursor
+    local half = math.floor((width - COLUMN_GAP) / 2)
+    local bottom = top
+    if #loot > 0 then
+        local split = #spells == 0
+        local shown = self:ShownCount(boss)
+        self:Column(0, split and width or half, top)
+        self:Section("Loot", shown)
+        self:Space(COLUMN_TITLE_GAP)
+        local start, leftCount, n = self.cursor, split and math.ceil(shown / 2) or shown, 0
+        self.width = half
+        local chance = boss.chance
+        for i = 1, #loot do
+            local id = loot[i]
+            if self:Listed(id) then
+                n = n + 1
+                if n == leftCount + 1 then
+                    bottom = math.max(bottom, self.cursor)
+                    self:Column(width - half, half, start)
+                end
+                local item = self:Add("item", id, chance and chance[i], self:ItemRank(id), self:ItemUpgrade(id))
+                item.boss = boss
+            end
+        end
+        if shown == 0 then self:Note(View.Parts.BossEmptyText(shown, boss)) end
+        bottom = math.max(bottom, self.cursor)
+    end
+    if #spells > 0 then
+        local whole = #loot == 0
+        self:Column(whole and 0 or width - half, whole and width or half, top)
+        self.abilitiesDrawn = true
+        self:Section("Abilities", #spells)
+        self:Space(COLUMN_TITLE_GAP)
+        for i = 1, #spells do self:Add("ability", spells[i]) end
+        bottom = math.max(bottom, self.cursor)
+    end
+    self:Column(0, width, bottom)
 end
 
 -- Its name, kill count and what it is, on top as a dungeon's page has its own: the sections
@@ -537,22 +631,25 @@ function ViewMixin:DrawBossItems(boss)
     self:CloseCard(self.detailCard, self.detailTop)
 end
 
--- The quests that need it (for you, done ones too) and what it does in the fight.
-function ViewMixin:DrawBossDetails(boss)
+function ViewMixin:BossQuests(boss)
     local ids = boss.npc and J.BossQuests[boss.npc]
-    if ids then
-        local list = self.bossQuests or {}
-        self.bossQuests = list
-        wipe(list)
-        for i = 1, #ids do
-            local quest = Quests.ByID(ids[i])
-            if quest and Quests.ForMe(quest) then list[#list + 1] = quest end
-        end
-        if #list > 0 then
-            self:DetailCard("Quests", #list, "bossQuest", list)
-            self.watchQuestLog = true   -- drawn again as they move on
-        end
+    if not ids then return nil end
+    local list = self.bossQuests or {}
+    self.bossQuests = list
+    wipe(list)
+    for i = 1, #ids do
+        local quest = Quests.ByID(ids[i])
+        if quest and Quests.ForMe(quest) then list[#list + 1] = quest end
     end
+    if #list == 0 then return nil end
+    self.watchQuestLog = true
+    return list
+end
+
+-- The quests that need it and what it does in the fight.
+function ViewMixin:DrawBossDetails(boss)
+    local list = self:BossQuests(boss)
+    if list then self:DetailCard("Quests", #list, "bossQuest", list) end
     local spells = boss.npc and J.Abilities[boss.npc]
     if spells then self:DetailCard("Abilities", #spells, "ability", spells) end
 end
@@ -632,11 +729,11 @@ function ViewMixin:Draw(dungeon)
     wipe(trash)
     local trashShown = 0
     for i, wing in ipairs(dungeon.wings) do
-        -- Numbered in kill order; a rare, an optional boss, a chest and the trash have no
-        -- number, and neither a chest nor the trash counts as a boss.
+        -- Numbered in kill order; a rare, an optional or quest boss, a chest and the trash have
+        -- no number, and neither a chest nor the trash counts as a boss.
         local number, cards = 0, 0
         for _, boss in ipairs(wing.bosses) do
-            local ordered = not (boss.rare or boss.optional or boss.chest or boss.trash)
+            local ordered = J.Numbered(boss)
             if ordered then number = number + 1 end
             local kill = ordered and number or nil
             local shown = self:ShownCount(boss)
@@ -957,7 +1054,11 @@ function ViewMixin:Redraw()
     elseif self.page then
         if self.page.rank then self:DrawRank() else self:DrawFaction(self.page) end
     elseif self.boss then
-        self:DrawBossLoot(self.boss, self.dungeon)
+        if self.bossPage then
+            self:DrawBossPage(self.boss, self.dungeon)
+        else
+            self:DrawBossLoot(self.boss, self.dungeon)
+        end
     elseif self.dungeon then
         self:Draw(self.dungeon)
     end

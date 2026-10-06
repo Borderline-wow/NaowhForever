@@ -1,20 +1,26 @@
 -------------------------------------------------------------------------------
---  View/BossDetails.lua -- the rows of a boss's own page (ViewMixin:DrawBossLoot) beside
---  its loot, each list in a card of its own:
+--  View/BossDetails.lua -- the rows of a boss's own page beside its loot: the stacked page
+--  (ViewMixin:DrawBossLoot, each list in a card of its own) and the dungeon map's compact one
+--  (ViewMixin:DrawBossPage, on a dense view: shorter rows, one line each):
 --
---  - bossHeader: the page's top, as a dungeon's is: its name, large, with its kill count on
---    the right; under it its title, level and classification and creature type, as its
---    Wowhead Forever page has them (Data/BossInfo.lua).
+--  - bossHeader: the stacked page's top, as a dungeon's is: its name, large, with its kill
+--    count on the right; under it its title, level and classification and creature type, as
+--    its Wowhead Forever page has them (Data/BossInfo.lua).
+--  - bossTitle: the compact page's top, on one line: its name, large, then the same muted,
+--    and its kill count on the right.
 --  - tip: Naowh's tip (Data/Tips.lua), written out beside the Naowh mark (a loot icon's
---    size), at the top of the page; the chat bubble on its right shares it (Say, Party,
---    Raid, Guild, your target).
+--    size, smaller when dense), at the top of the page; the chat bubble on its right shares
+--    it (Say, Party, Raid, Guild, your target).
 --  - bossQuest: a dungeon quest that needs the boss (Data/BossQuests.lua): its name in the
---    quest log's colour for where it stands for you, and on the right that state in words,
+--    quest log's color for where it stands for you, and on the right that state in words,
 --    a tick once it is done. Its tooltip says where it starts.
+--  - questChips: the same quests as chips on one line (wrapping when they do not fit), each
+--    its name in that color and its state, for the compact page.
 --  - ability: one of its abilities (Data/Abilities.lua): its icon in a black border, its
---    name, and under it, muted and wrapped, what the game says it does. Its tooltip is the
---    game's. A spell the client has not loaded yet draws again once it has, as an item's
---    name does.
+--    name, and under it, muted, what the game says it does: wrapped, or when dense cut short
+--    on two lines (view.abilityLines 2: the page has the room) or one. Its tooltip is the
+--    game's, whole, and Shift-click links it. A spell the client has not loaded yet draws
+--    again once it has, as an item's name does.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -50,6 +56,19 @@ local STATE_W = 120       -- a quest's state, on the right
 local TICK_GAP = 4        -- a done quest's tick to its state
 local SHARE = St.ACTION   -- the tip's share button
 local TIP_MARK = St.ICON  -- the Naowh mark beside the tip, as big as a loot icon
+local DENSE_H, DENSE_TALL_H, DENSE_ICON = St.DENSE_H, St.DENSE_TALL_H, St.DENSE_ICON
+local DENSE_TALL_TOP = 4
+local TALL_LINES = 2
+local DENSE_PAD = St.CARD_BOTTOM
+local DENSE_NAME_TOP = 1
+local TITLE_LINE_TOP = 2
+local TITLE_LINE_PAD = 4
+local ABOUT_GAP = 10
+local ABOUT_RISE = 2
+local CHIP_H, CHIP_PAD, CHIP_GAP = St.CHIP_H, St.CHIP_PAD, St.CHIP_GAP
+local CHIP_FILL = 0.04
+local STATE_GAP = 6
+local QUESTS_LABEL = "QUESTS"
 local BUBBLE = "Interface\\GossipFrame\\GossipGossipIcon"
 local LINK_HINT = "Shift-click: link"
 
@@ -82,7 +101,13 @@ local function AboutText(boss)
         parts[#parts + 1] = LevelText(info)
         if CREATURE_TYPE[info[4]] then parts[#parts + 1] = CREATURE_TYPE[info[4]] end
     end
-    if boss.rare then parts[#parts + 1] = "Rare spawn" elseif boss.optional then parts[#parts + 1] = "Optional" end
+    if boss.rare then
+        parts[#parts + 1] = "Rare spawn"
+    elseif boss.optional then
+        parts[#parts + 1] = "Optional"
+    elseif boss.quest then
+        parts[#parts + 1] = "Quest boss"
+    end
     return table.concat(parts, PLACE_DOT)
 end
 
@@ -115,6 +140,38 @@ Kinds.bossHeader = {
     end,
 }
 
+Kinds.bossTitle = {
+    New = function(view)
+        local row = CreateFrame("Frame", nil, view)
+        row.title = ns.Font(row, TITLE_SIZE, nil, T.fg)
+        row.title:SetPoint("TOPLEFT", 0, -TITLE_LINE_TOP)
+        row.title:SetJustifyH("LEFT")
+        row.title:SetWordWrap(false)
+        row.about = ns.Font(row, 12, nil, T.muted)
+        row.about:SetPoint("BOTTOMLEFT", row.title, "BOTTOMRIGHT", ABOUT_GAP, ABOUT_RISE)
+        row.about:SetJustifyH("LEFT")
+        row.about:SetWordWrap(false)
+        row.kills = Parts.KillCount(row)
+        row.kills:SetPoint("RIGHT", row, "TOPRIGHT", 0, -TITLE_LINE_TOP - TITLE_H / 2)
+        return row
+    end,
+    Set = function(row, boss)
+        local showKills = row:GetParent().showKills and not boss.trash and not boss.chest
+        row.kills:SetShown(showKills)
+        if showKills then Parts.SetKillCount(row.kills, boss) end
+        local room = row:GetWidth() - (showKills and row.kills:GetWidth() + KILLS_GAP or 0)
+        row.title:SetWidth(0)
+        row.title:SetText(boss.name)
+        local nameW = math.min(math.ceil(row.title:GetStringWidth()) + 1, room)
+        row.title:SetWidth(nameW)
+        row.about:SetText(AboutText(boss))
+        local aboutW = room - nameW - ABOUT_GAP
+        row.about:SetShown(aboutW > 0)
+        row.about:SetWidth(math.max(1, aboutW))
+        return TITLE_LINE_TOP + TITLE_H + TITLE_LINE_PAD
+    end,
+}
+
 -------------------------------------------------------------------------------
 --  Naowh's tip
 -------------------------------------------------------------------------------
@@ -127,10 +184,7 @@ Kinds.tip = {
         local row = CreateFrame("Frame", nil, view)
         row.mark = row:CreateTexture(nil, "ARTWORK")
         row.mark:SetTexture(St.LOGO_SMALL, nil, nil, "TRILINEAR")
-        row.mark:SetSize(TIP_MARK, TIP_MARK)
-        row.mark:SetPoint("TOPLEFT", 0, -ROW_PAD)
         row.share = Parts.IconButton(row, ShareClicked, BUBBLE, 0, "Share Naowh's tip in chat")
-        row.share:SetPoint("RIGHT", 0, 0)
         row.text = ns.Font(row, 12, nil, T.fg)
         row.text:SetPoint("TOPLEFT", row.mark, "TOPRIGHT", TEXT_GAP, 0)
         row.text:SetJustifyH("LEFT")
@@ -140,13 +194,18 @@ Kinds.tip = {
     ---@param boss JournalBoss
     ---@param tip string
     Set = function(row, boss, tip)
+        local dense = row:GetParent().dense
+        local mark, pad = dense and MARK or TIP_MARK, dense and DENSE_PAD or ROW_PAD
+        row.mark:SetSize(mark, mark)
+        row.mark:SetPoint("TOPLEFT", 0, -pad)
+        row.share:SetPoint("RIGHT", 0, dense and -pad / 2 or 0)
         row.share.boss, row.share.tipText = boss, tip
-        row.text:SetWidth(row:GetWidth() - TIP_MARK - TEXT_GAP * 2 - SHARE)
+        row.text:SetWidth(row:GetWidth() - mark - TEXT_GAP * 2 - SHARE)
         row.text:SetText(tip)
         -- Beside the mark, in the middle of it while it is the taller.
         local text = row.text:GetStringHeight()
-        row.text:SetPoint("TOPLEFT", row.mark, "TOPRIGHT", TEXT_GAP, -math.max(0, (TIP_MARK - text) / 2))
-        return math.ceil(math.max(TIP_MARK, text)) + ROW_PAD * 2
+        row.text:SetPoint("TOPLEFT", row.mark, "TOPRIGHT", TEXT_GAP, -math.max(0, (mark - text) / 2))
+        return math.ceil(math.max(mark, text)) + (dense and pad or pad * 2)
     end,
 }
 
@@ -214,6 +273,85 @@ Kinds.bossQuest = {
     end,
 }
 
+local function ChipEnter(chip)
+    chip.hover:Show()
+    GameTooltip:SetOwner(chip, "ANCHOR_TOP")
+    GameTooltip:SetText(Quests.Name(chip.quest), 1, 1, 1)
+    GameTooltip:AddLine(chip.quest[6], T.muted.r, T.muted.g, T.muted.b, true)
+    GameTooltip:Show()
+end
+
+local function ChipLeave(chip)
+    chip.hover:Hide()
+    GameTooltip:Hide()
+end
+
+local function QuestChip(row)
+    local chip = CreateFrame("Frame", nil, row)
+    chip:SetHeight(CHIP_H)
+    ns.Solid(chip, "BACKGROUND", T.fg, CHIP_FILL):SetAllPoints()
+    chip.hover = ns.Solid(chip, "BACKGROUND", T.fg, HOVER)
+    chip.hover:SetAllPoints()
+    chip.hover:Hide()
+    ns.Border(chip, St.BORDER_RGB)
+    chip.name = ns.Font(chip, 11)
+    chip.name:SetPoint("LEFT", CHIP_PAD, 0)
+    chip.name:SetJustifyH("LEFT")
+    chip.name:SetWordWrap(false)
+    chip.state = ns.Font(chip, 11, nil, T.muted)
+    chip.state:SetPoint("LEFT", chip.name, "RIGHT", STATE_GAP, 0)
+    chip.state:SetWordWrap(false)
+    chip:EnableMouse(true)
+    chip:SetScript("OnEnter", ChipEnter)
+    chip:SetScript("OnLeave", ChipLeave)
+    return chip
+end
+
+Kinds.questChips = {
+    New = function(view)
+        local row = CreateFrame("Frame", nil, view)
+        row.label = ns.Font(row, 12, nil, T.accentSoft)
+        row.label:SetPoint("LEFT", row, "TOPLEFT", 0, -CHIP_H / 2)
+        row.label:SetText(QUESTS_LABEL)
+        row.chips = {}
+        return row
+    end,
+    Set = function(row, list)
+        local width = row:GetWidth()
+        local start = math.ceil(row.label:GetStringWidth()) + CHIP_GAP * 2
+        local x, y = start, 0
+        for i = 1, #list do
+            local quest = list[i]
+            local chip = row.chips[i] or QuestChip(row)
+            row.chips[i] = chip
+            chip.quest = quest
+            local kind = Quests.Kind(quest)
+            chip.name:SetWidth(0)
+            chip.name:SetText((QUEST_CODE[kind] or "") .. Quests.Name(quest) .. "|r")
+            local state = STATE[kind]
+            if kind == "low" then state = state:format(Quests.MinLevel(quest) or 0) end
+            chip.state:SetText(state)
+            local color = kind == "done" and HAVE_RGB or T.muted
+            chip.state:SetTextColor(color.r, color.g, color.b)
+            local stateW = math.ceil(chip.state:GetStringWidth())
+            local nameW = math.min(math.ceil(chip.name:GetStringWidth()) + 1,
+                width - start - CHIP_PAD * 2 - STATE_GAP - stateW)
+            chip.name:SetWidth(math.max(1, nameW))
+            local w = CHIP_PAD * 2 + nameW + STATE_GAP + stateW
+            if x + w > width and x > start then
+                x, y = start, y + CHIP_H + CHIP_GAP
+            end
+            chip:SetWidth(w)
+            chip:ClearAllPoints()
+            chip:SetPoint("TOPLEFT", x, -y)
+            chip:Show()
+            x = x + w + CHIP_GAP
+        end
+        for i = #list + 1, #row.chips do row.chips[i]:Hide() end
+        return y + CHIP_H
+    end,
+}
+
 -------------------------------------------------------------------------------
 --  Its abilities
 -------------------------------------------------------------------------------
@@ -237,6 +375,17 @@ local function AbilityLeave(row)
     GameTooltip:Hide()
 end
 
+local oneLine = {}
+
+local function OneLine(spell, desc)
+    local line = oneLine[spell]
+    if not line then
+        line = desc:gsub("%s*[\r\n]+%s*", " ")
+        oneLine[spell] = line
+    end
+    return line
+end
+
 -- A spell loaded after its row was drawn: the view draws again, once for a burst of them.
 local function Loaded(view)
     return function()
@@ -253,7 +402,6 @@ Kinds.ability = {
         row.hover:SetPoint("BOTTOMRIGHT", CARD_PAD - 1, 0)
         row.hover:Hide()
         local frame = Parts.ItemIcon(row, ICON)
-        frame:SetPoint("TOPLEFT", 0, -ROW_PAD)
         row.icon, row.iconFrame = frame.texture, frame
         row.name = ns.Font(row, 12, nil, T.fg)
         row.name:SetPoint("TOPLEFT", frame, "TOPRIGHT", TEXT_GAP, 0)
@@ -261,9 +409,7 @@ Kinds.ability = {
         row.name:SetJustifyH("LEFT")
         row.name:SetWordWrap(false)
         row.desc = ns.Font(row, 11, nil, T.muted)
-        row.desc:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -NAME_DESC_GAP)
         row.desc:SetJustifyH("LEFT")
-        row.desc:SetWordWrap(true)
         row:SetScript("OnEnter", AbilityEnter)
         row:SetScript("OnLeave", AbilityLeave)
         row:SetScript("OnClick", AbilityClick)
@@ -279,6 +425,32 @@ Kinds.ability = {
         if desc == "" and IsSpellDataCached and not IsSpellDataCached(spell) and Spell then
             Spell:CreateFromSpellID(spell):ContinueOnSpellLoad(row.loaded)
         end
+        local view = row:GetParent()
+        local frame, dense = row.iconFrame, view.dense
+        local tall = dense and view.abilityLines == TALL_LINES
+        frame:ClearAllPoints()
+        row.desc:ClearAllPoints()
+        row.desc:SetWordWrap(not dense or tall)
+        row.desc:SetMaxLines(tall and TALL_LINES or 0)
+        if dense then
+            frame:SetSize(DENSE_ICON, DENSE_ICON)
+            row.desc:SetWidth(row:GetWidth() - DENSE_ICON - TEXT_GAP)
+            row.desc:SetText(desc ~= "" and OneLine(spell, desc) or "")
+            row.desc:SetShown(desc ~= "")
+            if tall then
+                frame:SetPoint("TOPLEFT", 0, -DENSE_TALL_TOP)
+                row.name:SetPoint("TOPLEFT", frame, "TOPRIGHT", TEXT_GAP, -DENSE_NAME_TOP)
+                row.desc:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -NAME_DESC_GAP)
+                return DENSE_TALL_H
+            end
+            frame:SetPoint("LEFT", 0, 0)
+            row.name:SetPoint("TOPLEFT", frame, "TOPRIGHT", TEXT_GAP, -DENSE_NAME_TOP)
+            row.desc:SetPoint("BOTTOMLEFT", frame, "BOTTOMRIGHT", TEXT_GAP, DENSE_NAME_TOP)
+            return DENSE_H
+        end
+        frame:SetSize(ICON, ICON)
+        frame:SetPoint("TOPLEFT", 0, -ROW_PAD)
+        row.desc:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -NAME_DESC_GAP)
         row.desc:SetWidth(row:GetWidth() - ICON - TEXT_GAP)
         row.desc:SetText(desc)
         row.desc:SetShown(desc ~= "")

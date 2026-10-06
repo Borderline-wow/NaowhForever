@@ -84,7 +84,7 @@
       "entranceZone": 11, "entrance": { "map": 1437, "x": 53.4, "y": 65.3, "source": "Wowhead Forever guide: the meeting stone, where the road up to the portal starts" },
       "add": { "Relic Guardian": [273028, 273029], "Saltspine": [273022], "Shadetooth": [273027] },
       "wings": [
-      { "bosses": ["Saltspine", "Shadetooth", "Highland Horror", "Relic Guardian"] } ] },
+      { "bosses": ["Saltspine", "Shadetooth", "Highland Horror", "Relic Guardian"], "quest": ["Highland Horror"] } ] },
     { "key": "Gnomeregan", "name": "Gnomeregan", "wowsrc": "gnomeregan", "zone": 721,
       "entranceZone": 1, "entrance": { "map": 1426, "x": 24.0, "y": 40.0, "source": "Warcraft Tavern classic guide, front entrance; portal (17.5, 39.1) further in" },
       "wings": [

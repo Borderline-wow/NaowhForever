@@ -29,7 +29,7 @@ Shared/
   Tracker.lua  a tracker's small window (Parts.TrackerPanel), and a list row's bands
                (Parts.RowBands: stripe, hover, the line under it)
   View.lua     the row engine: pooled rows, cards, the card grid, one redraw per burst
-  Kinds.lua    the rows every page has: section title, note, card, and an item in a list you
+  Kinds.lua    the rows every page has: section title (shorter with view.tightTitles), note, card, and an item in a list you
                keep (icon, name in its quality colour, a line under it, a tag, a value, an X)
   Settings/
     Settings.lua  every settings page, declared once: pages, cards, rows, reset, search index

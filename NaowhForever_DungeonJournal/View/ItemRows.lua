@@ -7,7 +7,8 @@
 --  faction reward's price. What you wear has a green bar at the card's edge, as the BiS
 --  List's rows; one new in WoW Forever has Forever's badge on its icon. Its tooltip is
 --  the game's with a line for each mark, and right-click is the BiS List. One not in Forever
---  yet is drawn from the Journal's own facts, never asked of the server, and says so.
+--  yet is drawn from the Journal's own facts, never asked of the server, and says so. On a
+--  dense view (the dungeon map's boss page) the row is shorter and its icon smaller.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local Tip = ns.Shared.Parts.Tip
@@ -36,6 +37,8 @@ local PLACE_DOT, CARD_PAD, ICON, ITEM_H = St.PLACE_DOT, St.CARD_PAD, St.ICON, St
 local CHANCE_W, CHANCE_BAR_W, CHANCE_HIGH, CHANCE_FAIR = St.CHANCE_W, St.CHANCE_BAR_W, St.CHANCE_HIGH,
     St.CHANCE_FAIR
 local UNUSABLE, ROUND, BAG = St.UNUSABLE, St.ROUND, St.BAG
+local DENSE_H, DENSE_ICON, DENSE_CHANCE_TOP, DENSE_BAR_BOTTOM = St.DENSE_H, St.DENSE_ICON, St.DENSE_CHANCE_TOP,
+    St.DENSE_BAR_BOTTOM
 
 local View = J.View
 local Kinds, Parts = View.Kinds, View.Parts
@@ -280,12 +283,12 @@ local function Tier(chance)
     return tier
 end
 
-local function SetChance(row, chance, shown)
+local function SetChance(row, chance, shown, top)
     local known = chance ~= nil and chance > 0
     row.chance, row.priced, row.price = known and chance or nil, false, nil
     row.chanceText:ClearAllPoints()
     if known then
-        row.chanceText:SetPoint("TOPRIGHT", 0, -CHANCE_TOP)
+        row.chanceText:SetPoint("TOPRIGHT", 0, -top)
         row.chanceText:SetTextColor(T.fg.r, T.fg.g, T.fg.b)
         row.chanceText:SetText(shown and (chance < 1 and "<1" or chance) .. PERCENT or "")
         local tier = Tier(chance)
@@ -336,7 +339,6 @@ end
 Kinds.item = {
     New = function(view)
         local row = CreateFrame("Button", nil, view)
-        row:SetHeight(ITEM_H)
         -- The hover reaches out to the card's edges.
         row.hover = ns.Solid(row, "BACKGROUND", T.fg, 0.05)
         row.hover:SetPoint("TOPLEFT", -CARD_PAD + 1, 0)
@@ -363,7 +365,6 @@ Kinds.item = {
         row.chanceZone = zone
         -- The track between its two round ends, the fill between its own.
         row.chanceTrack = ns.Solid(row, "BORDER", T.line, 1)
-        row.chanceTrack:SetPoint("BOTTOMRIGHT", -BAR_H / 2, BAR_BOTTOM)
         row.chanceTrack:SetSize(CHANCE_BAR_W - BAR_H, BAR_H)
         row.chanceTrackStart = Round(row, "BORDER", T.line)
         row.chanceTrackStart:SetPoint("CENTER", row.chanceTrack, "LEFT")
@@ -407,6 +408,10 @@ Kinds.item = {
     ---@param price? number copper, with view.column "price" (a faction's reward)
     Set = function(row, itemID, chance, rank, upgrade, price)
         local view = row:GetParent()
+        local dense = view.dense
+        local icon = dense and DENSE_ICON or ICON
+        row.iconFrame:SetSize(icon, icon)
+        row.chanceTrack:SetPoint("BOTTOMRIGHT", -BAR_H / 2, dense and DENSE_BAR_BOTTOM or BAR_BOTTOM)
         row.itemID = itemID
         row.needs, row.toGo, row.exact = nil, nil, nil   -- a faction's card sets them after
         row.hover:Hide()
@@ -447,7 +452,7 @@ Kinds.item = {
         -- What it is gets what the rest of the line leaves.
         row.meta:SetWidth(0)   -- unbounded, so it measures the whole text
         row.meta:SetText(kind)
-        local room = row:GetWidth() - ICON - 8 - (CHANCE_W + 8) - math.ceil(row.metaTail:GetStringWidth())
+        local room = row:GetWidth() - icon - 8 - (CHANCE_W + 8) - math.ceil(row.metaTail:GetStringWidth())
         row.meta:SetWidth(math.max(1, math.min(math.ceil(row.meta:GetStringWidth()) + 1, room)))
         -- The right column: the drop chance, a faction reward's price, or nothing (a rank's
         -- reward), as the view's column says.
@@ -455,12 +460,12 @@ Kinds.item = {
         if column == "price" then
             SetPrice(row, price)
         else
-            SetChance(row, chance, column == nil and view.showChance)
+            SetChance(row, chance, column == nil and view.showChance, dense and DENSE_CHANCE_TOP or CHANCE_TOP)
         end
         -- Kept lit when its boss is clicked: its BiS and upgrades; the rest fade.
         row.keep = rank ~= nil or upgrade
         row.rest = (bare or Loot.Usable(itemID)) and 1 or UNUSABLE
         row:SetAlpha(row.rest)
-        return ITEM_H, name == nil and not refused
+        return dense and DENSE_H or ITEM_H, name == nil and not refused
     end,
 }

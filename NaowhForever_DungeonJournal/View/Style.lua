@@ -86,6 +86,12 @@ J.Style = setmetatable({
     CHANCE_HIGH = 25,
     CHANCE_FAIR = 10,
 
+    DENSE_H = 30,
+    DENSE_TALL_H = 44,
+    DENSE_ICON = 26,
+    DENSE_CHANCE_TOP = 5,
+    DENSE_BAR_BOTTOM = 6,
+
     -- The bosses with nothing for you, as chips at the end.
     CHIP_H = 20,
     CHIP_PAD = 8,

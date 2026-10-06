@@ -1,9 +1,10 @@
 """Build the Dungeon Journal's data from Tools/journal_bosses.json, Wowhead and wowsrc.com.
 
 The boss lists are kept by hand in journal_bosses.json (bosses, rares, optional bosses and
-loot chests, per wing). For each boss this finds its NPC on Wowhead Forever by name and
-reads the "drops" list on its page (a chest: its object page's "contains"): every item with
-the number of kills it dropped from. Where Wowhead Forever keeps nothing (it has not loaded
+loot chests, per wing; "quest" names those of a wing's bosses there only for a quest, kept in
+kill order with no number, as Highland Horror). For each boss this finds its NPC on Wowhead
+Forever by name and reads the "drops" list on its page (a chest: its object page's
+"contains"): every item with the number of kills it dropped from. Where Wowhead Forever keeps nothing (it has not loaded
 every classic item yet), Wowhead Classic's page for the same NPC is read. Gear of uncommon
 quality or better is kept when it drops from at least 1 in 100 kills and is not a world drop
 (the random greens any mob of that level carries). Wowhead counts Classic Era's kills and
@@ -484,8 +485,8 @@ def guide_drops(slug):
 
 
 def boss_entry(name, rare, pinned, extra, items, report, listed=None, kind=None, chest=None):
-    """A boss's entry; kind "optional" for one a run can skip (an event, a summon), "chest" for
-    a chest (its Wowhead object ID in chest)."""
+    """A boss's entry; kind "optional" for one a run can skip (an event, a summon), "quest" for
+    one there only for a quest, "chest" for a chest (its Wowhead object ID in chest)."""
     if kind == "chest":
         loot = merge_wowsrc(chest_drops(chest), listed)
         for item in loot:
@@ -506,8 +507,8 @@ def boss_entry(name, rare, pinned, extra, items, report, listed=None, kind=None,
         report.append(f"no loot: {name} ({npc})")
     for item in loot:
         items[item["id"]] = item
-    return {"npc": npc, "name": name, "rare": rare, "optional": kind == "optional", "loot": loot,
-            "model": npc_model(npc) if npc else None}
+    return {"npc": npc, "name": name, "rare": rare, "optional": kind == "optional", "quest": kind == "quest",
+            "loot": loot, "model": npc_model(npc) if npc else None}
 
 
 tables = {}
@@ -570,6 +571,8 @@ def lua_boss(boss):
         fields.append("rare = true")
     if boss.get("optional"):
         fields.append("optional = true")
+    if boss.get("quest"):
+        fields.append("quest = true")
     if boss.get("chest"):
         fields.append(f"chest = {boss['chest']}")
     if boss.get("trash"):
@@ -739,7 +742,9 @@ def main():
             # No loot for one whose drops are not known: its items go to a list nobody reads.
             kept = items if dungeon.get("loot", True) else {}
             here = wing.get("name")
-            bosses = [boss_entry(n, False, pinned, extra, kept, report, listed.get((here, n.lower())))
+            quest = wing.get("quest", [])
+            bosses = [boss_entry(n, False, pinned, extra, kept, report, listed.get((here, n.lower())),
+                                 "quest" if n in quest else None)
                       for n in wing["bosses"]]
             bosses += [boss_entry(n, True, pinned, extra, kept, report, listed.get((here, n.lower())))
                        for n in wing.get("rare", [])]

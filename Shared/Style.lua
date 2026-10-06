@@ -118,6 +118,7 @@ Shared.Style = {
     GAP = 6,                -- between the parts of a row
     INDENT = 20,            -- notes line up here
     SECTION_H = 28,         -- a section title over its line
+    SECTION_TIGHT_H = 20,
     SECTION_SPACE = 8,      -- under a section title, before what it holds
     NOTE_PAD = 6,           -- under a note
     ACTION = 16,            -- an icon button in a row

@@ -432,6 +432,15 @@ function J.ColoredLevelRange(dungeon)
     return ("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, range)
 end
 
+function J.Numbered(boss)
+    return not (boss.rare or boss.optional or boss.quest or boss.chest or boss.trash)
+end
+
+function J.BossTag(boss)
+    return boss.rare and "RARE" or boss.optional and "OPTIONAL" or boss.quest and "QUEST"
+        or boss.chest and "CHEST" or nil
+end
+
 ---@return string? tip Naowh's tip for the boss (Data/Tips.lua); whether to show it is the view's
 function J.Tip(boss)
     return boss.npc and J.Tips[boss.npc] or nil
