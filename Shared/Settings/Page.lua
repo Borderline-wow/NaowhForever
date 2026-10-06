@@ -28,6 +28,7 @@ local BINDING_W = 170
 local DIM = 0.35
 local TOGGLE_GAP = 10
 local CHEVRON_SIZE = 12
+local FIND_MARK_W = 3     -- the accent bar left of the setting the search bar is on
 local NO_EVENTS = {}
 
 local function HelpEnter(hit)
@@ -51,14 +52,17 @@ local function HelpHit(parent, region)
     return hit
 end
 
-local function Searched(label)
-    local words = ns.UI.searchWords
-    if not (words and label) then return false end
-    local name = label:lower()
-    for _, word in ipairs(words) do
-        if not name:find(word, 1, true) then return false end
-    end
-    return true
+local function Found(label, cardUid)
+    local focus = ns.UI.searchFocus
+    return focus ~= nil and focus.label == label and focus.card == cardUid
+end
+
+local function FindMark(frame, layer)
+    local mark = ns.Solid(frame, layer, T.accent, 1)
+    mark:SetPoint("TOPLEFT")
+    mark:SetPoint("BOTTOMLEFT")
+    mark:SetWidth(FIND_MARK_W)
+    return mark
 end
 
 local function Rule(frame, alpha)
@@ -222,8 +226,7 @@ local function NewSetting(view)
     row.Get = function() return RowGet(row) end
     row.Set = function(...) RowSet(row, ...) end
     row.controls = {}
-    row.band = ns.Solid(row, "BACKGROUND", T.accent, 0.18)
-    row.band:SetAllPoints()
+    row.found = FindMark(row, "ARTWORK")
     row.rule = Rule(row)
     row.split = ns.Solid(row, "ARTWORK", T.line, RULE_ALPHA)
     row.split:SetPoint("TOPRIGHT")
@@ -336,7 +339,7 @@ local function SetSetting(row, setting, split)
     row.hit.help = setting.help
     row.dot:SetShown(Settings.Changed(setting))
     row.split:SetShown(split)
-    row.band:SetShown(Searched(setting.label))
+    row.found:SetShown(Found(setting.label, setting.card.uid))
     local off, why = Settings.Off(setting)
     Dim(row, control, off)
     local left = control._valBox and control or control
@@ -372,8 +375,7 @@ local function NewHead(view)
     head:SetHeight(HEAD_H)
     ns.Solid(head, "BACKGROUND", T.panel, 1):SetAllPoints()
     head.rule = Rule(head, 1)
-    head.band = ns.Solid(head, "BORDER", T.accent, 0.18)
-    head.band:SetAllPoints()
+    head.found = FindMark(head, "ARTWORK")
     head.chevron = head:CreateTexture(nil, "ARTWORK")
     head.chevron:SetTexture(ns.UI.CHEVRON)
     head.chevron:SetSize(CHEVRON_SIZE, CHEVRON_SIZE)
@@ -405,7 +407,7 @@ local function SetHead(head, card, isOpen)
     head.chevron:SetRotation(isOpen and -math.pi / 2 or 0)
     head.chevron:SetShown(Openable(card))
     head.rule:SetShown(isOpen)
-    head.band:SetShown(Searched(card.name))
+    head.found:SetShown(Found(card.name, card.uid))
     local anchor = head.name
     if card.switchGet then
         head.switch:Show()

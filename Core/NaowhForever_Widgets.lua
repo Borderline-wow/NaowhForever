@@ -407,24 +407,6 @@ local BUTTONS_W, BUTTONS_H, BUTTONS_GAP = 84, 24, 6   -- a button row's buttons
 -- under its row (W:Feature); on a page marked `collapse` they start closed, still built so
 -- callers keep the frames they expect, but hidden and taking no height.
 local openFeatures = {}
-local featureParents = {}
-
--- The settings search opens the feature holding the setting it jumps to.
-function UI.OpenFeature(id)
-    while id do
-        openFeatures[id] = true
-        id = featureParents[id]
-    end
-end
-
-function UI.MarkFeatureParents(open)
-    local parents = {}
-    for id in pairs(open) do
-        local parent = featureParents[id]
-        while parent do parents[parent] = true; parent = featureParents[parent] end
-    end
-    for id in pairs(parents) do open[id] = true end
-end
 
 local function Collapsed(parent, frame, h)
     if parent._nsuiCollapsed then
@@ -780,71 +762,9 @@ local function RegionKey(cfg)
     return key
 end
 
--- While the settings search builds its index (Core/NaowhForever_Search.lua sets
--- UI.searchScan), the row widgets only record what they would show and build nothing.
-local function ScanLabel(text, tooltip)
-    if type(text) ~= "string" or text == "" then return end
-    local scan = UI.searchScan
-    scan.items[#scan.items + 1] = { section = scan.section, label = text,
-        tooltip = type(tooltip) == "string" and tooltip or nil,
-        feature = scan.feature, featureName = scan.featureName }
-end
-
--- A builder that draws its own controls (the XP Bar preview) names them for the search here;
--- outside the scan it does nothing. The frame it builds lists them in _searchLabels, so the
--- search can jump to it.
-function UI.ScanLabels(labels, tooltip)
-    if not UI.searchScan then return end
-    for _, text in ipairs(labels) do ScanLabel(text, tooltip) end
-end
-
--- While a search is typed (UI.searchWords), rows holding every word in their name or
--- tooltip get a soft band.
-local function Mark(frame, text, tooltip)
-    local on = false
-    local words = UI.searchWords
-    if words and type(text) == "string" and text ~= "" then
-        local name = text:lower()
-        on = true
-        for _, word in ipairs(words) do
-            if not name:find(word, 1, true) then on = false break end
-        end
-    end
-    if on and not frame._searchMark then
-        frame._searchMark = ns.Solid(frame, "BACKGROUND", T.accent, 0.18)
-        frame._searchMark:SetAllPoints()
-    end
-    if frame._searchMark then frame._searchMark:SetShown(on) end
-end
-
-local function MarkRow(parent, row, leftCfg, rightCfg)
-    Mark(row._leftRegion, leftCfg.text, leftCfg.tooltip)
-    if rightCfg then Mark(row._rightRegion, rightCfg.text, rightCfg.tooltip) end
-    return Collapsed(parent, row, ROW_H)
-end
-
 function W:DualRow(parent, yOffset, leftCfg, rightCfg)
-    if UI.searchScan then
-        for _, cfg in ipairs({ leftCfg, rightCfg }) do
-            if cfg.type ~= "label" then ScanLabel(cfg.text, cfg.tooltip) end
-            if cfg.type == "buttons" then
-                for _, b in ipairs(cfg.buttons) do ScanLabel(b.text, b.tooltip) end
-            end
-        end
-        return nil, ROW_H
-    end
     local key = "row:" .. RegionKey(leftCfg) .. ":" .. (rightCfg and RegionKey(rightCfg) or "")
     local row = CachedRow(parent, key) or CreateFrame("Frame", nil, parent)
-    -- What the search jumps to: the row that shows this label.
-    row._searchL, row._searchR = leftCfg.text, rightCfg and rightCfg.text
-    row._searchF = parent._nsuiFeatureId
-    -- A button row's buttons are found by their own names too.
-    for _, cfg in ipairs({ leftCfg, rightCfg }) do
-        if cfg.type == "buttons" then
-            row._searchLabels = row._searchLabels or {}
-            for _, b in ipairs(cfg.buttons) do row._searchLabels[b.text] = true end
-        end
-    end
     row:SetHeight(ROW_H)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
@@ -866,7 +786,7 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
         row._leftRegion._refresh(leftCfg)
         if rightCfg then row._rightRegion._refresh(rightCfg) end
         FitRegions()
-        return MarkRow(parent, row, leftCfg, rightCfg)
+        return Collapsed(parent, row, ROW_H)
     end
 
     local w = row:GetWidth()
@@ -887,14 +807,10 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
     else
         row._leftRegion = BuildRegion(row, leftCfg, 0, w)
     end
-    return MarkRow(parent, row, leftCfg, rightCfg)
+    return Collapsed(parent, row, ROW_H)
 end
 
 function W:SectionHeader(parent, text, yOffset)
-    if UI.searchScan then
-        UI.searchScan.section, UI.searchScan.feature, UI.searchScan.featureName = text, nil, nil
-        return nil, HEADER_H
-    end
     parent._nsuiRowCount = 0
     parent._nsuiCollapsed, parent._nsuiFeatureId = nil, nil
     local f = CachedRow(parent, "header:" .. text) or CreateFrame("Frame", nil, parent)
@@ -918,13 +834,6 @@ end
 -- the rows after it, up to the next section header, feature or W:EndFeature. key names the
 -- feature for its open state when cfg.text is not stable.
 function W:Feature(parent, yOffset, cfg, key)
-    local scan = UI.searchScan
-    if scan then
-        scan.feature, scan.featureName = nil, nil
-        ScanLabel(cfg.text, cfg.tooltip)
-        scan.feature, scan.featureName = scan.page .. ":" .. (key or cfg.text), cfg.text
-        return nil, ROW_H
-    end
     parent._nsuiCollapsed, parent._nsuiFeatureId = nil, nil
     local collapsible = parent._collapsible == true
     local id = collapsible and (parent._pageKey .. ":" .. (key or cfg.text)) or nil
@@ -933,7 +842,6 @@ function W:Feature(parent, yOffset, cfg, key)
         local set = cfg.setValue
         cfg.setValue = function(v)
             openFeatures[id] = v and true or nil
-            if not v and UI.searchOpen then UI.searchOpen[id] = nil end
             set(v)
         end
     end
@@ -967,7 +875,7 @@ function W:Feature(parent, yOffset, cfg, key)
         end)
     end
     row.hit._id, row.hit._cfg = id, cfg
-    local closed = collapsible and not openFeatures[id] and not (UI.searchOpen and UI.searchOpen[id])
+    local closed = collapsible and not openFeatures[id]
     row.hit:SetShown(collapsible)
     row.arrow:SetShown(collapsible)
     -- One chevron: pointing right while closed, turned to point down while open.
@@ -978,57 +886,30 @@ function W:Feature(parent, yOffset, cfg, key)
 end
 
 -- A presentation-only disclosure nested inside an existing feature. Settings keep
--- their original keys; search opens both levels before measuring the destination row.
+-- their original keys.
 function W:Disclosure(parent, yOffset, text, key)
     local cfg = type(text) == "table" and text or { type = "label", text = text }
-    local scan = UI.searchScan
-    local parentId = scan and scan.feature or parent._nsuiFeatureId
+    local parentId = parent._nsuiFeatureId
     local nestedKey = (parentId or "") .. ":" .. key
-    local pageKey = scan and scan.page or (parent._pageKey or "")
-    local id = pageKey .. ":" .. nestedKey
-    featureParents[id] = parentId
-    if scan then
-        scan.disclosure = { feature = scan.feature, featureName = scan.featureName }
-        ScanLabel(cfg.text, cfg.tooltip)
-        scan.feature, scan.featureName = id, cfg.text
-        return nil, ROW_H
-    end
     local saved = { closed = parent._nsuiCollapsed, feature = parentId }
     local row, h = self:Feature(parent, yOffset, cfg, nestedKey)
-    row._searchF = parentId
     parent._nsuiDisclosure = saved
     if saved.closed then row:Hide(); parent._nsuiCollapsed = true; h = 0 end
     return row, h
 end
 
 function W:EndDisclosure(parent)
-    local scan = UI.searchScan
-    if scan then
-        local saved = scan.disclosure
-        scan.feature, scan.featureName = saved.feature, saved.featureName
-        scan.disclosure = nil
-        return
-    end
     local saved = parent._nsuiDisclosure
     parent._nsuiCollapsed, parent._nsuiFeatureId = saved.closed, saved.feature
     parent._nsuiDisclosure = nil
 end
 
 function W:EndFeature(parent)
-    if UI.searchScan then
-        UI.searchScan.feature, UI.searchScan.featureName = nil, nil
-        return
-    end
     parent._nsuiCollapsed, parent._nsuiFeatureId = nil, nil
 end
 
 function W:Button(parent, text, yOffset, onClick)
-    if UI.searchScan then
-        ScanLabel(text)
-        return nil, ROW_H
-    end
     local row = CachedRow(parent, "button:" .. text) or CreateFrame("Frame", nil, parent)
-    row._searchL, row._searchF = text, parent._nsuiFeatureId
     row:SetHeight(ROW_H)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, yOffset)
@@ -1037,7 +918,6 @@ function W:Button(parent, text, yOffset, onClick)
         row._btn = ns.Button(row, text, 200, 26, function() row._onClick() end)
         row._btn:SetPoint("LEFT", row, "LEFT", 20, 0)
     end
-    Mark(row, text)
     return Collapsed(parent, row, ROW_H)
 end
 
@@ -1170,12 +1050,7 @@ function UI.BuildColorSwatchControl(parent, get, set, hasAlpha)
 end
 
 function W:ColorPicker(parent, text, yOffset, get, set, hasAlpha)
-    if UI.searchScan then
-        ScanLabel(text)
-        return nil, ROW_H
-    end
     local row = CachedRow(parent, "color:" .. text) or CreateFrame("Frame", nil, parent)
-    row._searchL = text
     row._colorGet, row._colorSet = get, set
     row:SetHeight(ROW_H)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, yOffset)
@@ -1210,7 +1085,6 @@ end
 -- A wrapped line of muted text across the content width, for context a row label cannot
 -- carry. On a page that reuses its rows the font string is reused too, in build order.
 function W:Note(parent, text, yOffset)
-    if UI.searchScan then return nil, ROW_H end
     local row = CachedRow(parent, "note")
     if row then
         row:SetPoint("TOPLEFT")

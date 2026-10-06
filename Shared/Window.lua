@@ -515,7 +515,6 @@ end
 
 function Parts.SettingsCard(parent, y, key, buttonText, onOpen, headline, detail)
     local UI = ns.UI
-    if UI.searchScan then return y - CARD_H - CARD_PAD end
     local card = UI.Keep(parent, key, Parts.SettingsCardFrame)
     card:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, y - CARD_PAD)
     card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, y - CARD_PAD)
