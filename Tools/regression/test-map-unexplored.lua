@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: the world map's unexplored areas. The overlay data
 -- has a tile for every 256px of each area on every zone, and the pin draws the areas the game
 -- does not report as explored, tile by tile in the art's pixels (the last row and column cut
--- from a power-of-two file), greyed out, and nothing while the setting is off.
+-- from a power-of-two file), darkened, and nothing while the setting is off.
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
@@ -103,7 +103,7 @@ Check(first.file == 11 and first.w == 256 and first.h == 100 and first.x == 10 a
 Check(first.coords[2] == 1 and first.coords[4] == 100 / 128, "a full-width tile, cut to 100 of a 128px file")
 Check(second.file == 12 and second.w == 44 and second.x == 266 and second.coords[2] == 44 / 64,
     "the last column holds what is left, from a 64px file")
-Check(first.desaturated and first.grey < 1 and first.shown, "greyed out")
+Check(first.desaturated and first.grey < 0.2 and first.shown, "darkened, not greyed")
 
 explored = { { textureWidth = 300, textureHeight = 100, offsetX = 10, offsetY = 20 } }
 pin:Refresh()

@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Unexplored.lua -- the world map's unexplored areas drawn greyed out instead
+--  NaowhForever_Unexplored.lua -- the world map's unexplored areas drawn darkened instead
 --  of left blank, from NaowhForever_MapOverlays.lua.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
@@ -7,7 +7,7 @@ local S = ns.QoLSettings
 
 local TEMPLATE = "NaowhForeverUnexploredPinTemplate"
 local TILE = 256   -- the overlays' tile size, see Tools/build_map_overlays.py
-local GREY = 0.6   -- vertex colour over the desaturated art
+local SHADE = 0.12   -- vertex colour over the desaturated art: near black, so the area darkens
 
 local function On()
     return S.Get("enabled") and S.Get("mapUnexplored")
@@ -66,7 +66,7 @@ function NaowhForeverUnexploredPinMixin:Refresh()
                     tex:SetPoint("TOPLEFT", x + TILE * (col - 1), -(y + TILE * (row - 1)))
                     tex:SetTexture(area[4 + (row - 1) * wide + col], nil, nil, "TRILINEAR")
                     tex:SetDesaturated(true)
-                    tex:SetVertexColor(GREY, GREY, GREY)
+                    tex:SetVertexColor(SHADE, SHADE, SHADE)
                     tex:Show()
                 end
             end
@@ -135,7 +135,7 @@ boot:SetScript("OnEvent", Apply)
 
 ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "mapUnexplored", name = "Unexplored Areas", order = 45, switch = "mapUnexplored",
-    help = "Shows the parts of the world map you have not explored yet, greyed out.",
+    help = "Shows the parts of the world map you have not explored yet, darkened.",
     summary = function(store)
         return ("%d%% opacity"):format(math.floor(store.Get("mapUnexploredAlpha") * 100 + 0.5))
     end,

@@ -1,8 +1,8 @@
 -- Run with Lua 5.1 from the repository root: the town map's zone exit arrows. Forever has no map
 -- links of its own, so they come from data: every arrow is on its map, turned, and leads to
 -- another map; the main roads are there both ways, Forever's Riverglades and Shen'dralas too; the town map draws them as clickable
--- links on the Clickable Zone Exits setting, turned to face out of the zone, with a waypoint to
--- the road on right click.
+-- links on the Clickable Zone Exits setting, turned to face out of the zone, longer than wide,
+-- and with no waypoint on right click.
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
@@ -34,7 +34,7 @@ local function Leads(from, to)
     end
 end
 for _, pair in ipairs({ { 1413, 1411 }, { 1429, 1436 }, { 1429, 1431 }, { 1440, 1413 }, { 1420, 1421 },
-    { 2548, 1433 }, { 2652, 1443 } }) do
+    { 2548, 1433 }, { 2652, 1443 }, { 1442, 1412 } }) do
     Check(Leads(pair[1], pair[2]) and Leads(pair[2], pair[1]), ("both ways: %d and %d"):format(pair[1], pair[2]))
 end
 Check(Leads(1411, 1454) and Leads(1429, 1453), "city gates: Orgrimmar, Stormwind")
@@ -44,7 +44,8 @@ Check(map:find("ns.ZoneExits[mapID]", 1, true) and not map:find("GetMapLinksForM
     "the town map draws our own exits")
 Check(map:find('if S.Get("townZoneLinks") then', 1, true), "on the Clickable Zone Exits setting")
 Check(map:find("self.Icon:SetRotation(link.rotation or 0)", 1, true), "each arrow turned to face out")
-Check(map:find('ns.PlaceWaypoint("Road to " .. link.name, self:GetMap():GetMapID(), link.exitX, link.exitY)', 1, true)
-    and map:find("exitX = exit[1], exitY = exit[2]", 1, true), "right click: a waypoint to the road")
+Check(map:find("local length = link.atlasName == EXIT_ATLAS and size * EXIT_LENGTH or size", 1, true)
+    and map:find("self.Icon:SetSize(size, length)", 1, true), "each arrow stretched along its length")
+Check(not map:find("PlaceWaypoint", 1, true) and not map:find("exitX", 1, true), "right click: no waypoint")
 
 print(("test-zone-exits: %d checks passed"):format(checks))

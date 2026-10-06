@@ -1,7 +1,8 @@
 -- Run with Lua 5.1 from the repository root: the town map's minimap pins. With the setting on,
--- the zone's mailboxes and spirit healers are pinned around the player in yards, scaled to the
--- minimap's view radius, hidden out of range, turned with a rotating minimap, placed often only
--- while moving, and nothing is registered while the setting is off.
+-- the zone's mailboxes and spirit healers (whatever the world map's toggles for them say) are
+-- pinned around the player in yards, scaled to the minimap's view radius, hidden out of range,
+-- turned with a rotating minimap, placed often only while moving, and nothing is registered
+-- while the setting is off.
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
@@ -11,7 +12,7 @@ end
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
-local settings = { enabled = true, townMap = true, townMinimap = false, townMail = true, townSpiritHealers = true }
+local settings = { enabled = true, townMap = true, townMinimap = false, townMail = false, townSpiritHealers = false }
 local S = { Get = function(key) return settings[key] end, Set = function() end }
 local ns = {
     QoLSettings = S, Apply = function() end, ThemeTint = function() end,
@@ -88,7 +89,7 @@ for _, f in ipairs(frames) do
     if f.parent == env.Minimap then pins[#pins + 1] = f end
 end
 Check(#pins == 3 and mini.events.PLAYER_STARTED_MOVING and mini.events.ZONE_CHANGED_NEW_AREA,
-    "a pin for each mailbox and spirit healer, and the events it needs")
+    "a pin for each mailbox and spirit healer, with the world map's toggles for them off")
 local east, north, south = pins[1], pins[2], pins[3]
 Check(math.abs(east.x - 50) < 1e-6 and math.abs(east.y) < 1e-6 and east.shown, "50 yards east, in range")
 Check(not north.shown, "200 yards north is out of range")
