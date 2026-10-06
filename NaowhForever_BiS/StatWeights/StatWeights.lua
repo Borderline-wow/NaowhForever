@@ -464,6 +464,8 @@ local SIM_KEYS = {
     holyspelldamage = "holy",
 }
 local SIM_STRING = '^%s*%(%s*%a+%s*:%s*v1%s*:%s*"([^"]*)"%s*:%s*(.-)%s*%)%s*$'
+local MAX_WORTH = 1000
+local MAX_NAME = 40
 
 -- A simulator's weights for key: every stat it names, the rest to 0.
 local function ImportSim(name, body, key)
@@ -476,13 +478,13 @@ local function ImportSim(name, body, key)
         stat = stat and stat:lower()
         if stat == "class" then
             if value:upper():gsub("%s", "") ~= class then
-                return false, ("Those weights are for a %s."):format(value)
+                return false, ("Those weights are for a %s."):format(ns.Shared.Decode.Text(value, MAX_NAME))
             end
         else
             -- A hunter's weapon is the ranged one; anyone else's ranged weapon is not weighed.
             local mine = stat == "rangeddps" and (class == "HUNTER" and "dps") or SIM_KEYS[stat]
             local worth = tonumber(value)
-            if mine and worth and worth > 0 then
+            if mine and worth and worth > 0 and worth < MAX_WORTH then
                 read[mine] = (read[mine] or 0) + worth
                 count = count + 1
             end
@@ -490,6 +492,7 @@ local function ImportSim(name, body, key)
     end
     if count == 0 then return false, "Those weights name no stat it can read." end
     for _, stat in ipairs(SW.STATS) do SW.Set(key, stat[1], read[stat[1]] or 0) end
+    name = ns.Shared.Decode.Text(name, MAX_NAME)
     return true, ("%s imported for %s."):format(name ~= "" and name or "The weights", spec.name)
 end
 

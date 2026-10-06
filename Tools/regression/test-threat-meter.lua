@@ -14,7 +14,7 @@ local function fixture(settings, withSettings)
         }, settings = settings or {}, cards = {}, cx = 0, cy = 0 }
     local function frame(kind, name, parent)
         local f = { kind = kind, scripts = {}, events = {}, shown = true, w = 280, h = 240, parent = parent }
-        setmetatable(f, { __index = function() return function() end end })
+        setmetatable(f, { __index = function(_, k) if k:match('^%u') then return function() end end end })
         function f:SetScript(k, fn) self.scripts[k] = fn end
         function f:RegisterEvent(k) self.events[k] = true end
         function f:RegisterUnitEvent(k) self.events[k] = true end

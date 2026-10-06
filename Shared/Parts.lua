@@ -315,7 +315,8 @@ function Parts.Fraction(part, whole)
     return text
 end
 
-local coins = {}
+local coins, coinsKept = {}, 0
+local COINS_KEPT = 500
 local GOLD, SILVER = 10000, 100   -- copper in a gold coin, in a silver one
 
 -- The amount with the game's coin icons ("1g 50s 25c"), made once each. With compact, only its
@@ -328,8 +329,13 @@ function Parts.Coins(copper, compact)
     end
     local text = coins[copper]
     if not text then
+        if coinsKept >= COINS_KEPT then
+            wipe(coins)
+            coinsKept = 0
+        end
         text = C_CurrencyInfo.GetCoinTextureString(copper)
         coins[copper] = text
+        coinsKept = coinsKept + 1
     end
     return text
 end

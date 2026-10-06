@@ -40,6 +40,7 @@ local wasActive = false
 local combatStart, downtime, idleSince, downtimeTicker = 0, 0, nil, nil
 local blocked = {}
 local acc = 0
+local awake = false
 
 local function On()
     return S.Get("enabled") and S.Get("gcdTracker")
@@ -190,6 +191,23 @@ local function Layout()
     end
 end
 
+local function Tick(_, elapsed)
+    acc = acc + elapsed
+    if acc < UPDATE_INTERVAL then return end
+    acc = 0
+    Layout()
+    if not (history[1] or segments[1] or wasActive) then
+        awake = false
+        frame:SetScript("OnUpdate", nil)
+    end
+end
+
+local function Wake()
+    if awake or not frame then return end
+    awake = true
+    frame:SetScript("OnUpdate", Tick)
+end
+
 local function Visible()
     if unlocked then return true end
     if not On() then return false end
@@ -283,6 +301,7 @@ end
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, unit, guid, spellID)
+    if unit == "player" then Wake() end
     if event == "PLAYER_REGEN_DISABLED" then
         CombatStart()
     elseif event == "PLAYER_REGEN_ENABLED" then
@@ -323,13 +342,8 @@ local function Apply()
         frame:SetClampedToScreen(true)
         frame:SetSize(200, 40)
         frame.mover = UI.AttachMover(frame, "GCD Tracker", function(pos) S.Set("gcdTrackerPos", pos) end, "QoL/Combat", "QoL/Combat:gcdTracker")
-        frame:SetScript("OnUpdate", function(_, elapsed)
-            acc = acc + elapsed
-            if acc < UPDATE_INTERVAL then return end
-            acc = 0
-            Layout()
-        end)
     end
+    Wake()
     Place()
     frame.mover:SetShown(unlocked == true)
     wipe(blocked)
@@ -340,8 +354,9 @@ local function Apply()
         for _, event in ipairs({ "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD" }) do
             events:RegisterEvent(event)
         end
-        for _, event in ipairs({ "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_FAILED",
-            "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP" }) do
+        for _, event in ipairs({ "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_SUCCEEDED",
+            "UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_CHANNEL_START",
+            "UNIT_SPELLCAST_CHANNEL_STOP" }) do
             events:RegisterUnitEvent(event, "player")
         end
     end

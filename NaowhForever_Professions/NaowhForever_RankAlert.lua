@@ -74,7 +74,7 @@ local function Where(data, rank)
     if rank.item then
         local npc = RF.Nearest(rank.vendors or {}, 1)[1]
         local name = C_Item.GetItemNameByID(rank.item)
-        if not name then C_Item.RequestLoadItemDataByID(rank.item) end
+        if not name then (ns.ProfRequestItem or C_Item.RequestLoadItemDataByID)(rank.item) end
         return npc, ("Buy and read %s%s|r (%s)"):format(RF.Hex(T.accent), name or "its book",
             RF.Money(npc and npc[7]))
     elseif rank.quest then

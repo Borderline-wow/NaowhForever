@@ -212,16 +212,19 @@ function UI:ClearContentHeader() end
 -- The builders return their raw running y (negative), and the wrapper takes math.abs of it.
 local function BuildPageInto(page, parent)
     if page.soon then
-        local head = ns.Font(parent, 16, "OUTLINE", T.muted)
-        head:SetPoint("TOP", parent, "TOP", 0, -60)
+        local head, body = parent.soonHead, parent.soonBody
+        if not head then
+            head = ns.Font(parent, 16, "OUTLINE", T.muted)
+            head:SetPoint("TOP", parent, "TOP", 0, -60)
+            body = ns.Font(parent, 12, nil, T.muted)
+            body:SetPoint("TOP", head, "BOTTOM", 0, -12)
+            body:SetPoint("LEFT", parent, "LEFT", 60, 0)
+            body:SetPoint("RIGHT", parent, "RIGHT", -60, 0)
+            body:SetJustifyH("CENTER")
+            body:SetWordWrap(true)
+            parent.soonHead, parent.soonBody = head, body
+        end
         head:SetText(ns.L("Coming soon"))
-
-        local body = ns.Font(parent, 12, nil, T.muted)
-        body:SetPoint("TOP", head, "BOTTOM", 0, -12)
-        body:SetPoint("LEFT", parent, "LEFT", 60, 0)
-        body:SetPoint("RIGHT", parent, "RIGHT", -60, 0)
-        body:SetJustifyH("CENTER")
-        body:SetWordWrap(true)
         body:SetText(page.soon)
         return -180
     end
@@ -491,7 +494,7 @@ end
 
 local function InvalidatePages(pageWrappers)
     for name, w in pairs(pageWrappers) do
-        if PAGES[name].reuse then
+        if PAGES[name].reuse or PAGES[name].soon then
             w._dirty = true
         else
             w:Hide()

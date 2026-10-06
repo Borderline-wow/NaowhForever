@@ -360,14 +360,12 @@ end
 
 -- Parsed as data, never run: names and bodies within the game's limits, no more than the game
 -- holds in all.
+local DECODE_LIMITS = { maxChars = 100000, maxBytes = 1048576, maxDepth = 8, maxValues = 20000 }
+
 local function Decode(text)
-    local LS, LD = Codec()
     local body = type(text) == "string" and text:match("^%s*" .. SHARE:gsub("!", "%%!") .. "(%S+)%s*$")
-    local packed = body and LD:DecodeForPrint(body)
-    local raw = packed and LD:DecompressDeflate(packed)
-    if not raw then return end
-    local ok, data = LS:Deserialize(raw)
-    if not (ok and type(data) == "table" and data.v == 1 and type(data.macros) == "table") then return end
+    local data = body and ns.Shared.Decode.String(body, DECODE_LIMITS)
+    if not (type(data) == "table" and data.v == 1 and type(data.macros) == "table") then return end
     local out = {}
     local maxAccount, maxCharacter = Limits()
     for i, m in ipairs(data.macros) do
@@ -381,15 +379,57 @@ local function Decode(text)
     return #out > 0 and out or nil
 end
 
+local SHOWN_COMMANDS = 4
+local COMMAND_KINDS = {
+    { kind = "own", text = "use%s Naowh Forever's own commands (%s)" },
+    { kind = "addon", text = "use%s other addons' commands (%s)" },
+    { kind = "unknown", text = "use%s commands the game does not know (%s)" },
+}
+local foundCommands = { own = {}, addon = {}, unknown = {} }
+
+local function CommandWarning(macros)
+    for _, list in pairs(foundCommands) do wipe(list) end
+    local flagged, script = 0, false
+    for _, m in ipairs(macros) do
+        local hit = false
+        for line in m.body:gmatch("[^\n]+") do
+            local command = line:match("^%s*(/[^%s%[]+)")
+            local kind = command and ns.MacroCommandKind(command)
+            if kind == "script" then
+                script, hit = true, true
+            elseif kind then
+                local list = foundCommands[kind]
+                command = command:lower()
+                if not list[command] and #list < SHOWN_COMMANDS then
+                    list[command] = true
+                    list[#list + 1] = command
+                end
+                hit = true
+            end
+        end
+        if hit then flagged = flagged + 1 end
+    end
+    if flagged == 0 then return "" end
+    local s = flagged == 1 and "s" or ""
+    local pieces = {}
+    if script then pieces[1] = ("run%s a script"):format(s) end
+    for _, k in ipairs(COMMAND_KINDS) do
+        local list = foundCommands[k.kind]
+        if #list > 0 then pieces[#pieces + 1] = k.text:format(s, table.concat(list, ", ")) end
+    end
+    local what = #pieces == 1 and pieces[1]
+        or table.concat(pieces, ", ", 1, #pieces - 1) .. " and " .. pieces[#pieces]
+    local it = flagged == 1 and "it" or "them"
+    return (" %s %s: read %s in the editor before you use %s."):format(flagged == 1 and "One" or "Some", what, it, it)
+end
+
 -- A macro string's macros as character macros, once the player confirms. The Profiles import
 -- hands Forge strings here too.
 function ns.ImportMacroString(text)
     local macros = Decode(text)
     if not macros then Toast("That is not a Naowh Forever macro string.") return end
-    local runs = false
-    for _, m in ipairs(macros) do runs = runs or RunsScript(m.body) end
     ns.Confirm(("Add %d %s as character macros?%s"):format(#macros, #macros == 1 and "macro" or "macros",
-        runs and " One runs a script: read it in the editor before you use it." or ""), function()
+        CommandWarning(macros)), function()
         if InCombatLockdown() then Toast("Macros can be added once the fight is over.") return end
         local added, taken, full = 0, 0, 0
         for _, m in ipairs(macros) do

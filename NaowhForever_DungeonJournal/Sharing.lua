@@ -12,7 +12,9 @@
 --  Each names who it is for and who it is from, by GUID: everyone in the group receives it,
 --  the sender too, and an answer from a member no longer asked is not taken for the next.
 --  Listened for only while the Journal and Quest Share Requests (shareRequests) are on and you
---  are in a group; off, nothing is made or registered, and you neither ask nor answer.
+--  are in a group; off, nothing is made or registered, and you neither ask nor answer. A member's
+--  asks past ASK_LIMIT in ASK_WINDOW seconds are dropped unanswered, and what they asked is
+--  said in your chat at most once every ASK_PRINT_GAP seconds, so a member cannot flood chat.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local J = ns.Journal
@@ -25,12 +27,17 @@ local PARTY = { "party1", "party2", "party3", "party4" }
 local WAIT = 5        -- seconds for an answer before the next member on it is asked
 local MAX_IDS = 8     -- quest IDs in one ask: a quest and its other versions
 local COOLDOWN = 3    -- seconds between two quests shared on request, against spam
+local ASK_LIMIT, ASK_WINDOW = 4, 10
+local GUID_PATTERN = "^Player%-%d+%-%x+$"
+local ASK_PRINT_GAP, ASKERS_MAX = 30, 40
+local ID_PATTERN = "^%d%d?%d?%d?%d?%d?%d?$"
 
 local Sharing = {}
 J.Sharing = Sharing
 
 local frame, prefixed
 local lastShared = 0  -- GetTime() of the last quest shared on request
+local askers, askerCount = {}, 0
 
 -- The ask in flight, while active: the quest's name and IDs, the members on it, and which
 -- of them is asked now (at, guid). generation rejects the timer of an ask since answered.
@@ -146,42 +153,72 @@ end
 -------------------------------------------------------------------------------
 --  Answering
 -------------------------------------------------------------------------------
+local function Asker(asker, now)
+    local a = askers[asker]
+    if not a then
+        if askerCount >= ASKERS_MAX then
+            wipe(askers)
+            askerCount = 0
+        end
+        a = { window = now, count = 0 }
+        askers[asker], askerCount = a, askerCount + 1
+    end
+    if now - a.window >= ASK_WINDOW then a.window, a.count = now, 0 end
+    return a
+end
+
+local function AskPrint(a, text, who, title)
+    local now = GetTime()
+    if a.printed and now - a.printed < ASK_PRINT_GAP then return end
+    a.printed = now
+    ns.Print(text:format(who, title))
+end
+
 -- An ask for you: shares the first of its quests in your log, and says so to both sides.
 -- The IDs are as many as one addon message holds, at most.
 local function OnAsk(asker, ids, sender)
-    if not asker:find("^Player%-") then return end
+    if not asker:find(GUID_PATTERN) then return end
+    local a = Asker(asker, GetTime())
+    if a.count >= ASK_LIMIT then return end
+    a.count = a.count + 1
     local who = Short(sender)
     local found, index
-    for id in ids:gmatch("%d+") do
-        index = C_QuestLog.GetLogIndexForQuestID(tonumber(id))
-        if index then found = tonumber(id) break end
+    local tried = 0
+    for id in ids:gmatch("[^,]+") do
+        tried = tried + 1
+        if tried > MAX_IDS then break end
+        if id:find(ID_PATTERN) then
+            index = C_QuestLog.GetLogIndexForQuestID(tonumber(id))
+            if index then found = tonumber(id) break end
+        end
     end
     local code
     if not found then
         code = "N"
-        ns.Print(("%s asked you to share a quest you are not on."):format(who))
+        AskPrint(a, "%s asked you to share a quest you are not on.", who)
     else
         local title = C_QuestLog.GetTitleForQuestID(found) or "a quest"
         if not C_QuestLog.IsPushableQuest(found) then
             code = "P"
-            ns.Print(("%s asked you to share %s, but the game does not let it be shared."):format(who, title))
+            AskPrint(a, "%s asked you to share %s, but the game does not let it be shared.", who, title)
         elseif GetTime() - lastShared < COOLDOWN then
             code = "W"
-            ns.Print(("%s asked you to share %s: you shared one a moment ago."):format(who, title))
+            AskPrint(a, "%s asked you to share %s: you shared one a moment ago.", who, title)
         else
             code, lastShared = "S", GetTime()
             -- The same call Blizzard's own Share button makes.
             QuestLogPushQuest(index)
-            ns.Print(("%s asked you to share %s: shared it with your group."):format(who, title))
+            AskPrint(a, "%s asked you to share %s: shared it with your group.", who, title)
         end
     end
     Send(("%s R %s %s %d %s"):format(VERSION, asker, UnitGUID("player"), found or 0, code))
 end
 
 -- Only messages for you: an ask for your quest, or the answer to yours.
-local function OnMessage(text, sender)
+local function OnMessage(text, sender, channel)
     local version, kind, to, from, rest = strsplit(" ", text, 5)
     if version ~= VERSION or not rest or to ~= UnitGUID("player") then return end
+    if not (from and from:find(GUID_PATTERN) and ns.SenderIs(sender, channel, from)) then return end
     if kind == "A" then
         OnAsk(from, rest, sender)
     elseif kind == "R" then
@@ -369,7 +406,7 @@ local function OnEvent(_, event, prefix, text, channel, sender)
     if event == "GROUP_ROSTER_UPDATE" then return Listen() end
     if issecretvalue(prefix) or prefix ~= PREFIX then return end
     if issecretvalue(text) or issecretvalue(channel) or issecretvalue(sender) then return end
-    if GROUP_CHANNELS[channel] then OnMessage(text, sender) end
+    if GROUP_CHANNELS[channel] then OnMessage(text, sender, channel) end
 end
 
 -- Listening runs while it is on: the frame is made the first time it is.

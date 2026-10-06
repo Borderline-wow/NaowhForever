@@ -7,6 +7,8 @@ dofile("Libs/LibStub/LibStub.lua")
 dofile("Libs/LibDeflate/LibDeflate.lua")
 dofile("Libs/LibSerialize/LibSerialize.lua")
 
+local PlainText = dofile("Tools/regression/plain_text.lua")()
+
 local count = 0
 local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) end
 
@@ -43,7 +45,7 @@ local function World()
     w.active = "Default"
     w.buildsChanged = 0
     local ns = {
-        UI = {}, CODE_BUILD = "test",
+        UI = {}, CODE_BUILD = "test", PlainText = PlainText,
         MacroText = { LIMIT = 255 },
         TrainingBuilds = { [2] = { talents = {} } },
         -- Points that cannot be taken start with 0 here; the real rules are Training's own test.
@@ -63,10 +65,12 @@ local function World()
         end,
         SwitchProfile = function(name) w.switched, w.active = name, name end,
         RefreshRuntime = function() w.refreshed = w.refreshed + 1 end,
+        ValidPackData = function(data) return type(data) == "table" end,
     }
     w.ns = ns
     local env = setmetatable({ _G = { NaowhForever = ns }, UnitName = function() return "Glyadin" end,
         date = os.date }, { __index = _G })
+    ns.Shared = { Decode = dofile("Tools/regression/load_decode.lua")(env) }
     local chunk = assert(loadfile("Core/NaowhForever_ProfileShare.lua"))
     setfenv(chunk, env)
     chunk()
@@ -263,6 +267,31 @@ Case("pack strings go to the pack import; damaged or newer ones are refused", fu
     assert(w.ns.DecodeProfile("") == nil)
 end)
 
+local function Live(text)
+    return (text:gsub("||", "")):find("|", 1, true) ~= nil or text:find("[\r\n]") ~= nil
+end
+
+Case("a crafted string's name, author, date and list names show as plain text", function()
+    local w = World()
+    local LS, LD = LibStub("LibSerialize"), LibStub("LibDeflate")
+    local BADGE = "|TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:16|t"
+    local text = "NFPROFILE1:" .. LD:EncodeForPrint(LD:CompressDeflate(LS:Serialize({
+        format = 1, name = BADGE .. " |cffe6cc80Naowh's Official|r\nVerified by the team",
+        author = "%s%d%n |Hplayer:Naowh|h[Naowh]|h", made = ("|cffff0000x|r"):rep(400),
+        parts = { bisLists = { PALADIN = { { name = BADGE .. "|n Best", slots = { [1] = 100 } } } } } })))
+    local payload = assert(w.ns.DecodeProfile(text))
+    assert(not Live(payload.name) and not Live(payload.author) and not Live(payload.made), payload.name)
+    assert(payload.name:find("TInterface", 1, true) and payload.author:find("%s%d%n", 1, true))
+    assert(#payload.made <= 200, "a long field is cut")
+    assert(("%s, shared by %s on %s."):format(payload.name, payload.author, payload.made), "format takes them as arguments")
+    w.ns.ImportProfile(payload, { bisLists = true })
+    local lists = w.db.account.bisLists.PALADIN.lists
+    assert(not Live(lists[#lists].name), lists[#lists].name)
+    local fresh = World()
+    local clean = fresh.ns.DecodeProfile((fresh.ns.ExportProfile()))
+    assert(clean.name == "Default" and clean.author == "Glyadin", "plain names are left as they are")
+end)
+
 -- The dialogs on stub frames: every method a no-op unless kept here.
 Case("the dialogs: export shows the string, import ticks parts and lands what is ticked", function()
     local w = World()
@@ -275,6 +304,7 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
             if k == "GetText" then return function(self) return self.text or "" end end
             if k == "GetParent" then return function() return Frame() end end
             if k == "GetWidth" then return function() return 500 end end
+            if k == "GetStringHeight" then return function() return 14 end end
             if k == "Show" then return function(self) self.shown = true end end
             if k == "Hide" then return function(self) self.shown = false end end
             if k == "SetShown" then return function(self, on) self.shown = on end end
@@ -303,7 +333,12 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     ns.WrapForDisplay = function(s) return s end
     ns.ConfirmReload = function(text) reload = text end
     ns.ShowPackImport = function(text) opened = text end
-    ns.UI.KeepFont = function() return Frame() end
+    local fonts = {}
+    ns.UI.KeepFont = function(_, key)
+        local f = Frame()
+        fonts[key] = f
+        return f
+    end
     ns.UI.BuildToggleControl = function(_, _, get, set)
         local t = Frame()
         t._get, t._set, t._refreshValue = get, set, NOTHING
@@ -351,6 +386,48 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     assert(import.label == "Add Build" and import.shown)
     import.click()
     assert(opened == "  !NFB1!abc\n", "a build goes to the Training Planner's import")
+
+    w.active = "Default"
+    w.db.profiles.Default.qol.sellJunk = true
+    ns.ShowProfileImport()
+    paste.text = ns.ExportProfile()
+    paste.scripts.OnTextChanged(paste, true)
+    assert(#toggles == 8 and toggles[8]._get() == false, "Also Import is a row of its own, left unticked")
+    assert(fonts.preview.text:find("act for you: Auto Sell Junk;", 1, true), fonts.preview.text)
+    import.click()
+    assert(w.db.profiles[w.switched].qol.sellJunk == nil, "left unticked, Auto Sell Junk stays off")
+    w.active = "Default"
+    ns.ShowProfileImport()
+    paste.text = ns.ExportProfile()
+    paste.scripts.OnTextChanged(paste, true)
+    toggles[8]._set(true)
+    import.click()
+    assert(w.db.profiles[w.switched].qol.sellJunk == true, "ticked, it comes along")
+end)
+
+Case("settings that act for you are named, and stay off unless asked for", function()
+    local w = World()
+    local qol = w.db.profiles.Default.qol
+    qol.autoEmote, qol.sellJunk, qol.questAccept = true, true, false
+    qol.autoEmoteList = "698: |TInterface\\Icons\\X:0|t prepares a ritual|n; 29893: makes a soulwell"
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    local acting = w.ns.ProfileActing(payload)
+    assert(#acting == 2 and acting[1]:find('Summon Emote, which says "', 1, true) == 1, acting[1])
+    assert(acting[1]:find("prepares a ritual||n / makes a soulwell", 1, true), acting[1])
+    assert(not Live(acting[1]), "the emote's text is shown escaped")
+    assert(acting[2] == "Auto Sell Junk")
+    w.ns.ImportProfile(payload, ALL)
+    local landed = w.db.profiles[w.switched].qol
+    assert(landed.autoEmote == nil and landed.autoEmoteList == nil and landed.sellJunk == nil, "left out")
+    assert(landed.fastLoot == true and landed.questAccept == false, "every other setting comes along")
+    local all = { acting = true }
+    for k, v in pairs(ALL) do all[k] = v end
+    w.active = "Default"
+    w.ns.ImportProfile(payload, all)
+    landed = w.db.profiles[w.switched].qol
+    assert(landed.autoEmote == true and landed.sellJunk == true and landed.autoEmoteList, "taken when asked for")
+    assert(#w.ns.ProfileActing(assert(World().ns.DecodeProfile((World().ns.ExportProfile())))) == 0,
+        "a profile that acts for nobody names nothing")
 end)
 
 -- The Profiles page on stub frames and a small stand-in for the row engine.

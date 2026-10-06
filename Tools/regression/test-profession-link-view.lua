@@ -46,7 +46,7 @@ local env = {
     SetItemRef = function(...) refHook(...) end,
     IsShiftKeyDown = function() return modifier end,
     IsControlKeyDown = function() return false end,
-    UnitGUID = function() return "Player-1-SELF" end,
+    UnitGUID = function() return "Player-1-5E1F" end,
     On = function() return true end,
     Queue = function() end,
     ProfessionsFrame = { IsShown = function() return shown end },
@@ -73,8 +73,15 @@ check("a modified click starts no link view", not api.Viewing())
 modifier = false
 
 -- Your own link stays yours.
-Click("trade:Player-1-SELF:2259:171")
+Click("trade:Player-1-5E1F:2259:171")
 check("your own link starts no link view", not api.Viewing())
+
+for _, link in ipairs({ "trade:|TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t:2259:171",
+    "trade:%s%d:2259:171", "trade:Player-1-ZZZZ:2259:171", "trade:Player-1-AAAA", "trade:" .. ("x"):rep(4000),
+    "trade::2259:171", 42 }) do
+    Click(link)
+end
+check("a crafted trade link starts no link view", not api.Viewing() and #timers == 0)
 
 -- The reviewer's repro: open A, close it inside a second, shift-click B, then K.
 Click(LINK_A); shown = true

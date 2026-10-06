@@ -128,6 +128,12 @@ function ns.Color(token, text)
     return prefix .. text .. "|r"
 end
 
+function ns.PlainText(text, max)
+    if type(text) ~= "string" then return nil end
+    if max and #text > max then text = text:sub(1, max) end
+    return (text:gsub("%c", " "):gsub("||", "\1"):gsub("|", "||"):gsub("\1", "||"))
+end
+
 -- Player colors from Settings > COLORS, saved for this computer. They are written into the
 -- THEME tables above in place, once per load and before any window is built, so every
 -- file's `local T = ns.THEME` sees them; a new pick takes effect after a reload.
@@ -277,11 +283,14 @@ end
 -- A secret-tainted message is silently dropped by the display, so a combat diagnostic can
 -- vanish as if the code never ran. tostring() on a secret returns a secret string that taints
 -- whatever it is joined to, so issecretvalue() must be asked before the value is coerced.
+local PRINT_LOGO_DROP = 1
+ns.PRINT_LOGO = ("|TInterface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga:0:0:0:%d|t"):format(-PRINT_LOGO_DROP)
+
 function ns.Print(msg)
     if issecretvalue and issecretvalue(msg) then
         msg = ns.Color("accent", "(withheld: this line contained a secret value)")
     end
-    print(ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
+    print(ns.PRINT_LOGO .. " " .. ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
 end
 
 -- Libs/ is not in git; the packager adds it. An install from the repository's source zip has
@@ -875,6 +884,7 @@ end
 
 -- Confirm for a reload: Reload UI runs the game's own /reload (see Reload UI above).
 local CONFIRM_W, CONFIRM_WIDE = 96, 150
+local CONFIRM_H, CONFIRM_ROOM = 110, 74
 
 function ns.ConfirmReload(text)
     local UI = ns.UI
@@ -892,11 +902,12 @@ end
 
 function ns.Confirm(text, onYes, onNo, yesText, noText)
     local UI = ns.UI
-    local dimmer, panel = ns.MakeModal(340, 110, "confirm")
+    local dimmer, panel = ns.MakeModal(340, CONFIRM_H, "confirm")
     local head = UI.KeepFont(panel, "head", 13, nil)
     head:SetPoint("TOP", 0, -18)
     head:SetWidth(310)
     head:SetText(text)
+    panel:SetHeight(math.max(CONFIRM_H, head:GetStringHeight() + CONFIRM_ROOM))
     local w = (yesText or noText) and CONFIRM_WIDE or CONFIRM_W
     UI.KeepButton(panel, "yes", yesText or "Yes", w, 26, function()
         dimmer.onClose = nil

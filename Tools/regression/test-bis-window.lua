@@ -824,4 +824,12 @@ state.journalBack()
 S.Set("bis", false)
 check("turning the module off closes it", not window:IsShown())
 
+do
+    local f = assert(io.open("NaowhForever_BiS/BiS/Gains.lua", "rb"))
+    local source = f:read("*a")
+    f:close()
+    check("your BiS's stats are read through the stat weights' bounded cache, not a copy of their own",
+        source:find("ns.StatWeights.Stats", 1, true) ~= nil and not source:find("GetItemStats", 1, true))
+end
+
 print(("test-bis-window: %d checks passed"):format(checks))

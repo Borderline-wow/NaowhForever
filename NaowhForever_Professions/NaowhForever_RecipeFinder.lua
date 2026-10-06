@@ -13,6 +13,8 @@ local GREEN = { r = 0.35, g = 1, b = 0.35 }
 local ORANGE = { r = 1, g = 0.6, b = 0.2 }
 
 local list, state = {}, nil
+local current, EMPTY, skillOf = {}, {}, {}
+local learnedNow
 
 local function On()
     return S.Get("enabled") and S.Get("recipeFinder")
@@ -65,8 +67,12 @@ local function ReadProfession()
 end
 
 local function Learned(spell)
-    local info = C_TradeSkillUI.GetRecipeInfo(spell)
-    if info and info.learned then return true end
+    local known = learnedNow and learnedNow[spell]
+    if known then return true end
+    if known == nil then
+        local info = C_TradeSkillUI.GetRecipeInfo(spell)
+        if info and info.learned then return true end
+    end
     return C_SpellBook.IsSpellKnown(spell)
 end
 
@@ -91,8 +97,9 @@ end
 -- "ready": learnable now. "later": your cap allows it, your skill does not yet.
 -- "rank": your cap is below it, so the next profession rank comes first.
 local function Status(r)
-    if state.skill >= Skill(r) then return "ready" end
-    if state.max < Skill(r) then return "rank" end
+    local need = Skill(r)
+    if state.skill >= need then return "ready" end
+    if state.max < need then return "rank" end
     return "later"
 end
 
@@ -108,6 +115,11 @@ end
 local function WorldPos(map, x, y)
     local ok, cont, pos = pcall(C_Map.GetWorldPosFromMapPos, map, CreateVector2D(x, y))
     if ok and cont and pos then return cont, pos end
+end
+
+local function NearestFirst(a, b)
+    if a.dist ~= b.dist then return a.dist < b.dist end
+    return a.npc[2] < b.npc[2]
 end
 
 -- The NPCs your faction can use, nearest first. Anything on another continent (or while
@@ -132,10 +144,7 @@ local function Nearest(npcs, n)
             out[#out + 1] = { npc = npc, dist = dist }
         end
     end
-    table.sort(out, function(a, b)
-        if a.dist ~= b.dist then return a.dist < b.dist end
-        return a.npc[2] < b.npc[2]
-    end)
+    table.sort(out, NearestFirst)
     local picked = {}
     for i = 1, math.min(n or #out, #out) do picked[i] = out[i].npc end
     return picked
@@ -149,7 +158,11 @@ end
 local function ItemName(itemID)
     local name = C_Item.GetItemNameByID(itemID)
     if name then return Hex(T.accent) .. name .. "|r" end
-    C_Item.RequestLoadItemDataByID(itemID)
+    if ns.ProfRequestItem then
+        ns.ProfRequestItem(itemID)
+    else
+        C_Item.RequestLoadItemDataByID(itemID)
+    end
     return "its manual"
 end
 
@@ -288,29 +301,38 @@ end
 local SOURCE_TAG = { trainer = "Trainer", teacher = "Trainer", vendor = "Vendor", drop = "Drop",
     quest = "Quest", unknown = "?" }
 
+local function BySkill(x, y)
+    local sx, sy = skillOf[x], skillOf[y]
+    if sx ~= sy then return sx < sy end
+    return x.spell < y.spell
+end
+
 -- False when the open profession has no data, or is not your own.
 local function Compute()
     local id, skill, max = ReadProfession()
+    wipe(list)
     if not id then
-        state, list = nil, {}
+        state = nil
         return false
     end
-    state = { id = id, data = ns.RecipeData[id], skill = skill, max = max }
-    list = {}
+    state = current
+    state.id, state.data, state.skill, state.max = id, ns.RecipeData[id], skill, max
     for _, r in ipairs(state.data.recipes) do
-        if not Learned(r.spell) then list[#list + 1] = r end
+        if not Learned(r.spell) then
+            list[#list + 1] = r
+            skillOf[r] = Skill(r)
+        end
     end
-    table.sort(list, function(x, y)
-        local sx, sy = Skill(x), Skill(y)
-        if sx ~= sy then return sx < sy end
-        return x.spell < y.spell
-    end)
+    table.sort(list, BySkill)
     return true
 end
 
 ns.RecipeFinder = {
-    Unlearned = function()
-        if not (On() and Compute()) then return {} end
+    Unlearned = function(learned)
+        learnedNow = learned
+        local ok = On() and Compute()
+        learnedNow = nil
+        if not ok then return EMPTY end
         return list
     end,
     Color = function(r) return RowColor(r) end,
@@ -366,7 +388,7 @@ local function ScanTrainer()
             end
         end
     end
-    if changed and ns.ProfWindowRefresh then ns.ProfWindowRefresh() end
+    if changed and ns.ProfWindowRefresh then ns.ProfWindowRefresh(true) end
 end
 
 local trainerQueued = false
@@ -428,7 +450,7 @@ end
 hooksecurefunc(S, "Set", function(key)
     if key == "enabled" or key == "recipeFinder" then
         Apply()
-        if ns.ProfWindowRefresh then ns.ProfWindowRefresh() end
+        if ns.ProfWindowRefresh then ns.ProfWindowRefresh(true) end
     end
 end)
 hooksecurefunc(ns, "Apply", Apply)

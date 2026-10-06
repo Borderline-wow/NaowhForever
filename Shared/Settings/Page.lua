@@ -282,6 +282,17 @@ local function BindingField(control, setting)
     field:Show()
 end
 
+local unitFormats = {}
+
+local function UnitFormat(unit)
+    local format = unitFormats[unit]
+    if not format then
+        format = function(v) return v .. unit end
+        unitFormats[unit] = format
+    end
+    return format
+end
+
 local function Bind(control, setting)
     local kind = setting.kind
     if kind == "toggle" then
@@ -290,7 +301,7 @@ local function Bind(control, setting)
         local range = setting.slider
         ns.UI.SetSliderRange(control, range[1], range[2], range[3])
         local unit = setting.unit
-        control._format = unit and function(v) return v .. unit end or nil
+        control._format = unit and UnitFormat(unit) or nil
         control._refreshValue()
     elseif kind == "choice" or kind == "font" or kind == "sound" then
         control._values, control._order = ChoiceValues(setting)
@@ -539,7 +550,7 @@ function Draw:Settings(card)
     local columns = w >= TWO_COLUMNS_W and 2 or 1
     local half = math.floor(w / 2)
     -- A hidden row is set on the card's preview instead; it is still searched, counted and reset.
-    local rows = {}
+    local rows = wipe(self.shownRows)
     for _, row in ipairs(Settings.Rows(card)) do
         local hidden = row.hidden
         if type(hidden) == "function" then hidden = hidden() end
@@ -654,6 +665,7 @@ end
 local function NewView(parent)
     local view = View.New(parent, kinds, Draw)
     view.settingsRedrawFn = function() FlushSettings(view) end
+    view.shownRows = {}
     return view
 end
 

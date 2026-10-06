@@ -114,6 +114,7 @@ local function Fixture(class)
         "Shared/Parts.lua" }
     for _, path in ipairs(TocFiles("^NaowhForever_BiS/StatWeights/.*%.lua$")) do files[#files + 1] = path end
     Load(files, env)
+    ns.Shared.Decode = dofile("Tools/regression/load_decode.lua")(env)
     return ns, state, env
 end
 
@@ -232,6 +233,23 @@ do
     SW.Reset("frost-mage")
     check("a fire mage weighs no frost", (SW.For("fire-mage").frost or 0) == 0
         and (SW.For("frost-mage").fire or 0) == 0 and (SW.For("shadow-priest").holy or 0) == 0)
+end
+
+-------------------------------------------------------------------------------
+--  A pasted export cannot save a weight that breaks the saved data, or print escape codes
+-------------------------------------------------------------------------------
+do
+    local ns = Fixture("MAGE")
+    local SW = ns.StatWeights
+    local before = SW.For("fire-mage").int
+    local ok = SW.Import('( Pawn: v1: "x": Class=Mage, Intellect=1e999, Spirit=5000 )', "fire-mage")
+    check("an infinite or huge weight is not read", not ok and SW.For("fire-mage").int == before)
+    local message
+    ok, message = SW.Import('( Pawn: v1: "|cffe6cc80Naowh|r|n|Hurl:x|h": Class=Mage, Intellect=2 )', "fire-mage")
+    check("the export's name prints as plain text", ok and not message:find("|", 1, true))
+    ok, message = SW.Import('( Pawn: v1: "x": Class=|TBadge:0|tRogue, Agility=2 )', "fire-mage")
+    check("so does a class it names", not ok and not message:find("|", 1, true))
+    SW.Reset("fire-mage")
 end
 
 -------------------------------------------------------------------------------

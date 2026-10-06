@@ -38,6 +38,7 @@
 local ns = _G.NaowhForever
 local J = ns.Journal
 local Loot = J.Loot
+local KnownLowerName = Loot.KnownLowerName
 local Refuse, Refused = ns.Shared.Items.Refuse, ns.Shared.Items.Refused
 local GetItemCount = C_Item.GetItemCount
 local IsEquippedItem = C_Item.IsEquippedItem
@@ -116,6 +117,10 @@ end
 -- Listed: passes the filters and, in a search for items, has the search in its name. A name
 -- not loaded yet does not match; the view waits on it and draws again once it has loaded.
 function ViewMixin:Listed(itemID, query)
+    if query then
+        local known = KnownLowerName(itemID)
+        if known and not known:find(query, 1, true) then return false end
+    end
     if not self:ItemShown(itemID) then return false end
     if not query then return true end
     local name = Loot.LowerName(itemID)

@@ -81,6 +81,7 @@ local function Fixture(saved, char, worn, carried)
     }, { __index = _G })
     env._G = env
     Load(FILES, env)
+    ns.Shared.Decode = dofile("Tools/regression/load_decode.lua")(env, true)
     e.ns, e.vault = ns, vault
     return e
 end

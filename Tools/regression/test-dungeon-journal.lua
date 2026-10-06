@@ -400,6 +400,12 @@ local function fixture(settings)
         -- The level asked about kept, for a test to read.
         GetQuestDifficultyColor = function(level) state.difficultyAsked = level; return { r = 1, g = 1, b = 1 } end,
         QuestDifficultyColors = { trivial = {} },
+        UnitFullName = function(unit)
+            if unit == "player" then return "Die Man" end
+            local member = state.party and state.party[tonumber(unit:match("^party(%d)$") or 0)]
+            return member and member.name
+        end,
+        GetNormalizedRealmName = function() return "Realm" end,
         UnitGUID = function(unit)
             if unit == "player" then return state.guid end
             local member = state.party and state.party[tonumber(unit:match("^party(%d)$") or 0)]
@@ -518,6 +524,9 @@ local function fixture(settings)
     }
     setmetatable(env, { __index = _G })
     state.G = env._G
+    local senders = assert(loadfile("Core/NaowhForever_Senders.lua"))
+    setfenv(senders, env)
+    senders()
     for _, path in ipairs(files) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
@@ -3386,7 +3395,7 @@ do
     check("and the asker is told to wait", Printed(mine):find("a moment ago", 1, true))
 
     -- A quest the game will not share.
-    hers.clock = hers.clock + 10
+    hers.clock = hers.clock + 30
     hers.unpushable = QUEST
     asker.Journal.Sharing.Ask(entry)
     Deliver(mine, askerFrame, "Die Man-Realm", hers, emmyFrame)
@@ -3417,6 +3426,30 @@ do
     mine.timers[1]()
     check("and the first timer, run late, does nothing", Printed(mine):find("Emmy shared", 1, true))
 
+    -- A flood of asks: a few are answered, the rest dropped; what is not a quest ID is skipped.
+    hers.clock = hers.clock + 60
+    local printedBefore, sentBefore = #hers.printed, #hers.sent
+    for _ = 1, 20 do
+        emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal",
+            "1 A " .. EMMY .. " " .. ME .. " 99999999999999999999,1e5,|cff", "PARTY", "Die Man-Realm")
+    end
+    check("twenty asks in a moment: four answered, the rest dropped, and said in chat once",
+        #hers.sent - sentBefore == 4 and #hers.printed - printedBefore == 1 and #hers.pushed == 2)
+    hers.clock = hers.clock + 11
+    emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal", "1 A " .. EMMY .. " " .. ME .. " 1",
+        "PARTY", "Die Man-Realm")
+    check("answered again after the window, still not said again inside 30 seconds",
+        #hers.sent - sentBefore == 5 and #hers.printed - printedBefore == 1)
+    hers.clock = hers.clock + 20
+    emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal", "1 A " .. EMMY .. " " .. ME .. " 1",
+        "PARTY", "Die Man-Realm")
+    check("and said again once 30 seconds have passed", #hers.printed - printedBefore == 2)
+    sentBefore = #hers.sent - 4
+    emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal",
+        "1 A " .. EMMY .. " Player-1-" .. string.rep("A", 200) .. " 6981", "PARTY", "Die Man-Realm")
+    check("an asker that is not a GUID is not answered", #hers.sent - sentBefore == 4)
+    hers.sent = {}
+
     -- In an encounter the game passes no addon messages.
     mine.locked = true
     asker.Journal.Sharing.Ask(entry)
@@ -3435,6 +3468,38 @@ do
     -- Off, nothing is answered.
     emmy.Journal.Settings.Set("enabled", false)
     check("off, asks are not listened for", next(emmyFrame.events) == nil)
+end
+
+do
+    local ME, EMMY = "Player-4613-006EB819", "Player-4613-00E33333"
+    local emmy, hers = fixture({ enabled = true })
+    emmy.Apply()
+    hers.guid = EMMY
+    hers.party = { { name = "Die Man", guid = ME, quests = {} } }
+    local emmyFrame = hers.made[3]
+    emmyFrame.scripts.OnEvent(emmyFrame, "GROUP_ROSTER_UPDATE")
+    local lookups = 0
+    setmetatable(hers.logged, { __index = function() lookups = lookups + 1 end })
+    local function Ask(text, sender)
+        emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal", text, "PARTY", sender or "Die Man-Realm")
+    end
+    Ask("1 A " .. EMMY .. " |TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t 6981")
+    Ask("1 A " .. EMMY .. " Player-%s%d 6981")
+    check("an ask from something that is not a player's GUID is not answered", #hers.sent == 0 and lookups == 0)
+    local ids = {}
+    for i = 1, 120 do ids[i] = tostring(100 + i) end
+    Ask("1 A " .. EMMY .. " " .. ME .. " " .. table.concat(ids, ","))
+    check("only the first few IDs of a long ask are looked up", lookups == 8 and #hers.sent == 1)
+    lookups = 0
+    hers.sent = {}
+    Ask("1 A " .. EMMY .. " " .. ME .. " " .. ("9"):rep(200) .. ",6981")
+    check("an ID too long to be a quest is skipped", lookups == 1 and #hers.sent == 1)
+    hers.sent = {}
+    hers.clock = hers.clock + 30
+    hers.party[1].name = "Bad%s%dName"
+    Ask("1 A " .. EMMY .. " " .. ME .. " 6981", "Bad%s%dName-Realm")
+    check("a sender's name with format codes prints as written",
+        (hers.printed[#hers.printed] or ""):find("Bad%s%dName asked you", 1, true) ~= nil)
 end
 
 -------------------------------------------------------------------------------
@@ -3598,6 +3663,30 @@ do
     for _ in pairs(refused) do kept = kept + 1 end
     check("every item the Journal lists is answered", kept == all)
     check("done, it listens to nothing", next(probe.events) == nil)
+end
+
+do
+    local ns, state = fixture({ enabled = true })
+    local J = ns.Journal
+    ns.Apply()
+    for id in pairs(J.Items) do state.names[id] = "Item " .. id end
+    local filters, hidden = J.Loot.ReadFilters({}), nil
+    for id in pairs(J.Items) do
+        if not J.Loot.Shown(id, filters) then hidden = id end
+    end
+    state.names[hidden] = "Zq Hidden"
+    ns.OpenJournalWindow(J.Get("Stratholme"))
+    state.searchBox:SetText("zq")
+    state.onSearch()
+    for i = #state.timers, 1, -1 do table.remove(state.timers, i)() end
+    local view
+    for _, frame in ipairs(state.made) do
+        if rawget(frame, "waitingFor") and frame:IsVisible() and frame.query == "zq" then view = frame end
+    end
+    check("a search draws on the window's page", view ~= nil)
+    check("a name that matches is still left out when the filters hide it", not view:Listed(hidden, "zq"))
+    check("a name that does not match is left out", not view:Listed(next(J.Items), "zq"))
+    Measure("a search over every dungeon and faction redrawn", 2, function() view:Redraw() end)
 end
 
 print(("test-dungeon-journal: %d checks passed"):format(checks))

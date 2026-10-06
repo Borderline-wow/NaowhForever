@@ -38,16 +38,28 @@ end
 local function Money(copper)
     copper = math.floor((copper or 0) + 0.5)
     local g, s, c = math.floor(copper / 10000), math.floor(copper % 10000 / 100), copper % 100
-    local parts = {}
-    if g > 0 then parts[#parts + 1] = g .. "g" end
-    if s > 0 then parts[#parts + 1] = s .. "s" end
-    if c > 0 or #parts == 0 then parts[#parts + 1] = c .. "c" end
-    return table.concat(parts, " ")
+    if g > 0 then
+        if s > 0 then
+            if c > 0 then return ("%dg %ds %dc"):format(g, s, c) end
+            return ("%dg %ds"):format(g, s)
+        end
+        if c > 0 then return ("%dg %dc"):format(g, c) end
+        return ("%dg"):format(g)
+    end
+    if s > 0 then
+        if c > 0 then return ("%ds %dc"):format(s, c) end
+        return ("%ds"):format(s)
+    end
+    return ("%dc"):format(c)
 end
 
+local waiting = {}
 local function ItemName(item)
     local name = C_Item.GetItemNameByID(item)
-    if not name then C_Item.RequestLoadItemDataByID(item) end
+    if not name then
+        waiting[item] = true
+        C_Item.RequestLoadItemDataByID(item)
+    end
     return name
 end
 
@@ -64,22 +76,31 @@ local function List()
     return account.profShopping[key]
 end
 
+local totals, materialList, materialPool = {}, {}, {}
+local function ByName(a, b)
+    if a.name ~= b.name then return a.name < b.name end
+    return a.item < b.item
+end
+
 -- Every material on the list with its total amount, by name.
 local function Materials()
-    local total = {}
+    wipe(totals)
     for _, craft in pairs(List()) do
         for item, per in pairs(craft.need) do
-            total[item] = (total[item] or 0) + per * craft.count - (craft.got and craft.got[item] or 0)
+            totals[item] = (totals[item] or 0) + per * craft.count - (craft.got and craft.got[item] or 0)
         end
     end
-    local out = {}
-    for item, qty in pairs(total) do out[#out + 1] = { item = item, qty = qty } end
-    table.sort(out, function(a, b)
-        local na, nb = ItemName(a.item) or "", ItemName(b.item) or ""
-        if na ~= nb then return na < nb end
-        return a.item < b.item
-    end)
-    return out
+    local n = 0
+    for item, qty in pairs(totals) do
+        n = n + 1
+        local m = materialPool[n] or {}
+        materialPool[n] = m
+        m.item, m.qty, m.name = item, qty, ItemName(item) or ""
+        materialList[n] = m
+    end
+    for i = n + 1, #materialList do materialList[i] = nil end
+    table.sort(materialList, ByName)
+    return materialList
 end
 
 -- A material taken off every craft; a craft with nothing left goes too.
@@ -90,6 +111,17 @@ local function Drop(item)
         if craft.got then craft.got[item] = nil end
         if next(craft.need) == nil then list[recipeID] = nil end
     end
+end
+
+local function HasNeeds(recipeID)
+    local api = ns.ProfWindowAPI
+    local owned = api.Owned()
+    local ok, reagents = pcall(api.Reagents, recipeID)
+    if not ok then return false end
+    for _, r in ipairs(reagents) do
+        if not owned[r.itemID] and not api.IsVendorItem(r.itemID) then return true end
+    end
+    return false
 end
 
 -- What Add to List would add for a recipe: its checked reagents vendors do not sell.
@@ -134,6 +166,8 @@ end
 -- the last scan, and Clear. Add to List fills it at once, so it is plain what it did.
 local SIDE_W, SIDE_ROW_H, SIDE_CRAFTS, SIDE_MATERIALS = 260, 20, 6, 12
 local side
+local crafts, craftPool = {}, {}
+local function ByCraftName(a, b) return (a.craft.name or "") < (b.craft.name or "") end
 
 -- The profession window widens for the column (its Activate asks).
 function ns.ShoppingListWide()
@@ -217,9 +251,16 @@ local function SideRender()
     local api = ns.ProfWindowAPI
     if not On() or (api and api.Linked()) then return side:Hide() end
     local list, materials = List(), Materials()
-    local crafts = {}
-    for recipeID, craft in pairs(list) do crafts[#crafts + 1] = { id = recipeID, craft = craft } end
-    table.sort(crafts, function(a, b) return (a.craft.name or "") < (b.craft.name or "") end)
+    local n = 0
+    for recipeID, craft in pairs(list) do
+        n = n + 1
+        local e = craftPool[n] or {}
+        craftPool[n] = e
+        e.id, e.craft = recipeID, craft
+        crafts[n] = e
+    end
+    for i = n + 1, #crafts do crafts[i] = nil end
+    table.sort(crafts, ByCraftName)
     side.hint:SetShown(#crafts == 0)
     side.craftsHead:SetShown(#crafts > 0)
     side.materialsHead:SetShown(#materials > 0)
@@ -343,9 +384,9 @@ end
 -- Called on every draw of the recipe pane: the chosen recipe and its last reagent row, or nil
 -- to hide the row. Under Buy on AH's row when that shows, else under the reagents.
 function ns.ShoppingListRender(info, last)
-    SideRender()
+    if not info then SideRender() end
     if not addRow then return end
-    if not (On() and info and last) or next(Needs(info.recipeID)) == nil then return addRow:Hide() end
+    if not (On() and info and last) or not HasNeeds(info.recipeID) then return addRow:Hide() end
     if info.recipeID ~= addRecipe then
         addRecipe = info.recipeID
         addRow.qty:SetText("1")
@@ -663,15 +704,23 @@ local function RowNote(m)
     return scan and (Hex(T.muted) .. "~" .. Money(scan * m.qty) .. "|r") or (Hex(T.muted) .. "no price|r")
 end
 
+local PROBLEMS = {
+    noquote = "The auction house gave no final price.",
+    unavailable = "The auction house has no price for it right now.",
+    failed = "The purchase failed; the price may have changed.",
+    unconfirmed = "No answer to the purchase yet; check your mail before trying again.",
+}
+local craftNames = {}
+
 -- What the run says, and what its buttons do, for its state.
-local function RunText()
+local function RunText(materials)
     local muted = Hex(T.muted)
     local state = run and run.state
     local e = Current()
     local name = e and (ItemName(e.item) or ("item " .. e.item))
     if not run then
         local est, missing = 0, 0
-        for _, m in ipairs(Materials()) do
+        for _, m in ipairs(materials) do
             local scan = ns.AuctionPrice and ns.AuctionPrice(m.item)
             if scan then est = est + scan * m.qty else missing = missing + 1 end
         end
@@ -715,13 +764,7 @@ local function RunText()
         return ("Bought %d %s."):format(run.bought, run.bought == 1 and "material" or "materials"),
             muted .. "They wait in your mailbox.|r", "Close", true, "Close", false
     end
-    local problem = {
-        noquote = "The auction house gave no final price.",
-        unavailable = "The auction house has no price for it right now.",
-        failed = "The purchase failed; the price may have changed.",
-        unconfirmed = "No answer to the purchase yet; check your mail before trying again.",
-    }
-    return RED .. (problem[state] or "") .. "|r", muted .. ("%dx %s"):format(e and e.buy or 0, name or "") .. "|r",
+    return RED .. (PROBLEMS[state] or "") .. "|r", muted .. ("%dx %s"):format(e and e.buy or 0, name or "") .. "|r",
         "Try Again", true, "Cancel", true
 end
 
@@ -753,14 +796,15 @@ Render = function()
     panel.more:SetText(#materials > MAX_ROWS and ("+%d more"):format(#materials - MAX_ROWS) or "")
     if #materials > MAX_ROWS then y = y - 16 end
     -- What it is all for.
-    local names = {}
+    local names = craftNames
+    wipe(names)
     for _, craft in pairs(List()) do names[#names + 1] = ("%dx %s"):format(craft.count, craft.name or "?") end
     table.sort(names)
     panel.crafts:ClearAllPoints()
     panel.crafts:SetPoint("TOPLEFT", 10, y - 4)
     panel.crafts:SetText(#names > 0 and ("For " .. table.concat(names, ", ")) or "")
     y = y - 4 - (#names > 0 and panel.crafts:GetStringHeight() or 0) - 10
-    local line1, line2, primary, enabled, cancel, skip = RunText()
+    local line1, line2, primary, enabled, cancel, skip = RunText(materials)
     panel.line1:ClearAllPoints()
     panel.line1:SetPoint("TOPLEFT", 10, y)
     panel.line1:SetText(line1)
@@ -782,6 +826,12 @@ end
 -------------------------------------------------------------------------------
 --  Events
 -------------------------------------------------------------------------------
+local pending = false
+local function Flush()
+    pending = false
+    Render()
+end
+
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, a, b)
     if event == "AUCTION_HOUSE_SHOW" then
@@ -791,7 +841,12 @@ events:SetScript("OnEvent", function(_, event, a, b)
         if panel then panel:Hide() end
         return
     elseif event == "ITEM_DATA_LOAD_RESULT" then
-        if panel and panel:IsShown() then Render() end
+        if not waiting[a] then return end
+        waiting[a] = nil
+        if b and not pending then
+            pending = true
+            C_Timer.After(0, Flush)
+        end
         return
     end
     local e = Current()

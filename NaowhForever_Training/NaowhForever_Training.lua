@@ -286,17 +286,19 @@ end
 -- Text stays sharp at any size; the game's coin icons blur when drawn large.
 local COIN_COLORS = { g = "ffd100", s = "c7ccd3", c = "e0904f" }
 
+local function Coin(text, n, unit)
+    local coin = n .. "|cff" .. COIN_COLORS[unit] .. unit .. "|r"
+    return text and text .. " " .. coin or coin
+end
+
 function Training.Coins(copper)
     copper = math.floor(copper + 0.5)
-    local parts = {}
-    local function Add(n, unit)
-        parts[#parts + 1] = n .. "|cff" .. COIN_COLORS[unit] .. unit .. "|r"
-    end
     local g, s, c = math.floor(copper / 10000), math.floor(copper % 10000 / 100), copper % 100
-    if g > 0 then Add(g, "g") end
-    if s > 0 then Add(s, "s") end
-    if c > 0 or #parts == 0 then Add(c, "c") end
-    return table.concat(parts, " ")
+    local text
+    if g > 0 then text = Coin(nil, g, "g") end
+    if s > 0 then text = Coin(text, s, "s") end
+    if c > 0 or not text then text = Coin(text, c, "c") end
+    return text
 end
 
 -------------------------------------------------------------------------------
@@ -431,14 +433,12 @@ end
 
 -- Parsed as data, never run: the class must have a tree here, and its points pass
 -- Training.CheckBuild.
+local DECODE_LIMITS = { maxChars = 100000, maxBytes = 1048576, maxDepth = 8, maxValues = 20000 }
+
 local function DecodeBuild(text)
-    local LS, LD = Codec()
     local body = type(text) == "string" and text:match("^%s*" .. BUILD_PREFIX:gsub("!", "%%!") .. "(%S+)%s*$")
-    local packed = body and LD:DecodeForPrint(body)
-    local raw = packed and LD:DecompressDeflate(packed)
-    if not raw then return end
-    local ok, data = LS:Deserialize(raw)
-    if not (ok and type(data) == "table" and data.v == 1 and type(data.points) == "table") then return end
+    local data = body and ns.Shared.Decode.String(body, DECODE_LIMITS)
+    if not (type(data) == "table" and data.v == 1 and type(data.points) == "table") then return end
     local tree = ns.TrainingBuilds[data.class]
     if not tree then return end
     local points = {}

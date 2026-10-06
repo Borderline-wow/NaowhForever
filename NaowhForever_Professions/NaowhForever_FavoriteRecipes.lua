@@ -41,11 +41,19 @@ end
 local function Money(copper)
     copper = math.floor((copper or 0) + 0.5)
     local g, s, c = math.floor(copper / 10000), math.floor(copper % 10000 / 100), copper % 100
-    local parts = {}
-    if g > 0 then parts[#parts + 1] = g .. "g" end
-    if s > 0 then parts[#parts + 1] = s .. "s" end
-    if c > 0 or #parts == 0 then parts[#parts + 1] = c .. "c" end
-    return table.concat(parts, " ")
+    if g > 0 then
+        if s > 0 then
+            if c > 0 then return ("%dg %ds %dc"):format(g, s, c) end
+            return ("%dg %ds"):format(g, s)
+        end
+        if c > 0 then return ("%dg %dc"):format(g, c) end
+        return ("%dg"):format(g)
+    end
+    if s > 0 then
+        if c > 0 then return ("%ds %dc"):format(s, c) end
+        return ("%ds"):format(s)
+    end
+    return ("%dc"):format(c)
 end
 
 -------------------------------------------------------------------------------
@@ -170,12 +178,14 @@ local function TrainerOffers()
     return out
 end
 
-local RenderTrainer
+local RenderTrainer, Learn
+
+local function LearnClick(row) Learn({ row.offer }) end
 
 -- Learns the offers you can pay for, from Learn's click. Last index first: buying a service
 -- can renumber the ones after it, and one whose index now names another service (a click
 -- before the list was drawn again) is skipped.
-local function Learn(offers)
+function Learn(offers)
     local money = GetMoney()
     table.sort(offers, function(a, b) return a.index > b.index end)
     for _, o in ipairs(offers) do
@@ -204,7 +214,7 @@ RenderTrainer = function()
     for i, o in ipairs(offers) do
         total = total + o.cost
         if i <= MAX_ROWS then
-            local row = Row(trainer, i, "Learn", function(self) Learn({ self.offer }) end)
+            local row = Row(trainer, i, "Learn", LearnClick)
             row.offer, row.item, row.spell = o, nil, o.spell
             row.icon:SetTexture(o.icon)
             row.name:SetText(o.name)
@@ -255,31 +265,46 @@ local function Owned(item)
     return false
 end
 
+local mine, patterns, patternPool, NONE = {}, {}, {}, {}
+
+local function Mine(index)
+    local line = index and select(7, GetProfessionInfo(index))
+    if line then mine[line] = true end
+end
+
+local function PricedFirst(a, b)
+    if (a.price ~= nil) ~= (b.price ~= nil) then return a.price ~= nil end
+    if a.price and b.price and a.price ~= b.price then return a.price < b.price end
+    return a.r.spell < b.r.spell
+end
+
 -- The patterns, plans and manuals of your favourites that you have not learned or got yet,
 -- for the professions you have: priced ones (listed at the last scan) first, cheapest first.
 local function Patterns()
-    local mine = {}
-    for _, index in pairs({ GetProfessions() }) do
-        local line = select(7, GetProfessionInfo(index))
-        if line then mine[line] = true end
-    end
-    local favorites, out = Favorites(), {}
-    for line, data in pairs(ns.RecipeData or {}) do
+    wipe(mine)
+    local p1, p2, p3, p4, p5 = GetProfessions()
+    Mine(p1)
+    Mine(p2)
+    Mine(p3)
+    Mine(p4)
+    Mine(p5)
+    local favorites, n = Favorites(), 0
+    for line, data in pairs(ns.RecipeData or NONE) do
         if mine[line] then
             for _, r in ipairs(data.recipes) do
                 if r.recipe and favorites[r.spell] and not Known(r.spell) and not Owned(r.recipe) then
-                    out[#out + 1] = { r = r, item = r.recipe,
-                        price = ns.AuctionPrice and ns.AuctionPrice(r.recipe) }
+                    n = n + 1
+                    local e = patternPool[n] or {}
+                    patternPool[n] = e
+                    e.r, e.item, e.price = r, r.recipe, ns.AuctionPrice and ns.AuctionPrice(r.recipe)
+                    patterns[n] = e
                 end
             end
         end
     end
-    table.sort(out, function(a, b)
-        if (a.price ~= nil) ~= (b.price ~= nil) then return a.price ~= nil end
-        if a.price and b.price and a.price ~= b.price then return a.price < b.price end
-        return a.r.spell < b.r.spell
-    end)
-    return out
+    for i = n + 1, #patterns do patterns[i] = nil end
+    table.sort(patterns, PricedFirst)
+    return patterns
 end
 
 -- Types the name into the auction house's search on its Buy tab and runs it.
@@ -321,6 +346,7 @@ end
 -- What each pattern costs now, from searches while the auction house is open: itemID ->
 -- the cheapest buyout, or false for none listed. Emptied when the auction house closes.
 local live = {}
+local waiting = {}
 
 -- The cheapest listing with a buyout that is not your own, from the last search for `key`.
 local function Cheapest(key)
@@ -353,6 +379,8 @@ local LOOKUP_TIMEOUT, LOOKUP_GAP = 3, 0.3
 local lookup, lookups, looked = nil, {}, {}
 local lookupWait    -- the LOOKUP_GAP after an answer, before the next search
 local RenderMarket
+
+local function BuyClick(row) StartBuy(row.item, row.searchName) end
 
 local function NextLookup()
     if lookup or lookupWait or (buy and (buy.state == "searching" or buy.state == "placing")) then return end
@@ -510,9 +538,12 @@ RenderMarket = function()
     local scanned = ns.AuctionScanTime and ns.AuctionScanTime()
     for i = 1, math.min(#list, MAX_ROWS) do
         local e = list[i]
-        local row = Row(market, i, "Buy", function(self) StartBuy(self.item, self.searchName) end)
+        local row = Row(market, i, "Buy", BuyClick)
         local name = C_Item.GetItemNameByID(e.item)
-        if not name then C_Item.RequestLoadItemDataByID(e.item) end
+        if not name then
+            waiting[e.item] = true
+            C_Item.RequestLoadItemDataByID(e.item)
+        end
         row.item, row.spell, row.searchName = e.item, nil, name
         row.icon:SetTexture(C_Item.GetItemIconByID(e.item))
         row.name:SetText(name or C_Spell.GetSpellName(e.r.spell) or "?")
@@ -548,14 +579,16 @@ end
 --  Events
 -------------------------------------------------------------------------------
 local pending = false
+local function Flush()
+    pending = false
+    RenderTrainer()
+    RenderMarket()
+end
+
 local function Queue()
     if pending then return end
     pending = true
-    C_Timer.After(0.2, function()
-        pending = false
-        RenderTrainer()
-        RenderMarket()
-    end)
+    C_Timer.After(0.2, Flush)
 end
 
 -- A trainer's services can arrive a moment after the trainer opens, with no event to say so,
@@ -583,7 +616,7 @@ local function HookTrainerFrame()
 end
 
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event, name)
+events:SetScript("OnEvent", function(_, event, name, loaded)
     if event == "ADDON_LOADED" then
         if name == "Blizzard_TrainerUI" then HookTrainerFrame() end
         return
@@ -602,6 +635,7 @@ events:SetScript("OnEvent", function(_, event, name)
         wipe(live)
         wipe(lookups)
         wipe(looked)
+        wipe(waiting)
         if market then market:Hide() end
         return
     elseif event == "ITEM_SEARCH_RESULTS_UPDATED" then
@@ -631,8 +665,10 @@ events:SetScript("OnEvent", function(_, event, name)
             RenderConfirm()
         end
         return
-    elseif event == "ITEM_DATA_LOAD_RESULT" and not (market and market:IsShown()) then
-        return
+    elseif event == "ITEM_DATA_LOAD_RESULT" then
+        if not waiting[name] then return end
+        waiting[name] = nil
+        if not (loaded and market and market:IsShown()) then return end
     end
     Queue()
 end)

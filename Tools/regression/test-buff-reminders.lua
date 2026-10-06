@@ -52,6 +52,8 @@ local function Fixture(opts)
         function f:RegisterEvent(e) f.events[e] = true end
         function f:RegisterUnitEvent(e) f.events[e] = true end
         function f:UnregisterAllEvents() f.events = {} end
+        function f:SetPoint(_, relativeTo) f.anchor = relativeTo end
+        function f:ClearAllPoints() f.anchor = nil end
         function f:CreateTexture()
             local t = Recorder()
             function t:SetTexture(tex) t.texture = tex end
@@ -142,7 +144,15 @@ local function Fixture(opts)
         C_SpellBook = { IsSpellKnown = function(id) return state.known[id] == true end },
         C_Timer = {
             After = function(delay, fn) timers[#timers + 1] = { at = state.now + delay, fn = fn } end,
+            NewTimer = function(delay, fn)
+                local t = { at = state.now + delay, fn = fn }
+                function t:Cancel() self.cancelled = true end
+                timers[#timers + 1] = t
+                return t
+            end,
         },
+        wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
+        MAX_PARTY_MEMBERS = 4, MAX_RAID_MEMBERS = 40,
         CreateFrame = function(_, _, _, template) return NewFrame(template) end,
         hooksecurefunc = function(tbl, key, fn)
             local orig = tbl[key]
@@ -176,9 +186,14 @@ local function Fixture(opts)
             if not nextTimer or nextTimer.at > stop then break end
             table.remove(timers, 1)
             state.now = nextTimer.at
-            nextTimer.fn()
+            if not nextTimer.cancelled then nextTimer.fn() end
         end
         state.now = stop
+    end
+    function t.Pending()
+        local n = 0
+        for _, timer in ipairs(timers) do if not timer.cancelled then n = n + 1 end end
+        return n
     end
     function t.Set(k, v) S.Set(k, v) end
     function t.Login() t.Fire("PLAYER_LOGIN") end
@@ -282,6 +297,29 @@ do
     Check("0 waits until it is gone", t.Shown(), "")
 end
 
+-- Aura bursts keep one wake timer, not one per refresh; in combat they queue nothing.
+do
+    local t = Fixture({ instance = "raid", settings = { flasks = false, elixirs = false },
+        bags = { 13931 }, auras = { player = { { 1249520, 300, 900 } } } })
+    t.Login()
+    for _ = 1, 50 do
+        t.Fire("UNIT_AURA", "player")
+        t.Advance(0.5)
+    end
+    Check("bursts leave one wake timer", t.Pending(), 1)
+    t.Advance(185)
+    Check("the kept timer still wakes", t.Shown(), "item:13931(t)")
+    t.state.combat = true
+    t.Fire("UNIT_AURA", "player")
+    t.Fire("UNIT_AURA", "raid3")
+    Check("combat aura events queue nothing", t.Pending(), 0)
+    t.Fire("UNIT_AURA", "nameplate4")
+    t.state.combat = false
+    t.Fire("UNIT_AURA", "nameplate4")
+    t.Fire("UNIT_AURA", "partypet1")
+    Check("non-member units queue nothing", t.Pending(), 0)
+end
+
 -- Frozen while auras are secret or in combat: no read, the icons keep what they showed.
 do
     local t = Fixture({ instance = "raid", settings = { flasks = false, elixirs = false },
@@ -378,8 +416,10 @@ do
     popup.buttons[1].scripts.PostClick(popup.buttons[1])
     Check("using an item closes the menu", popup.shown, false)
     cell.scripts.OnEnter(cell)
+    Check("open menu hangs under its cell", popup.anchor, cell)
     t.Fire("PLAYER_REGEN_DISABLED")
     Check("combat entry closes hover menu", popup.shown, false)
+    Check("closed menu lets go of its cell, so the cell stays movable in combat", rawget(popup, "anchor"), nil)
     t.state.combat = true
     cell.scripts.OnEnter(cell)
     Check("no menu in combat", popup.shown, false)

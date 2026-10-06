@@ -22,9 +22,11 @@ local function Fixture(opts)
     local combat, group = false, opts.group
     local consts = { MAX_ACCOUNT_MACROS = opts.max or 30, MAX_CHARACTER_MACROS = opts.maxChar or 30 }
     local frames = {}
+    local function Noop() end
+    local frameMeta = { __index = function() return Noop end }
     local function Frame(name)
         local fr = { name = name, events = {}, attrs = {}, shown = true }
-        setmetatable(fr, { __index = function() return function() end end })
+        setmetatable(fr, frameMeta)
         function fr:SetScript(k, fn) if k == "OnEvent" then self.handler = fn end end
         function fr:RegisterEvent(event) self.events[event] = true end
         function fr:UnregisterEvent(event) self.events[event] = nil end
@@ -32,6 +34,7 @@ local function Fixture(opts)
         function fr:SetAttribute(k, v) self.attrs[k] = v end
         function fr:Show() self.shown = true end
         function fr:Hide() self.shown = false end
+        function fr:IsShown() return self.shown end
         function fr:SetTexture(v) self.texture = v end
         function fr:SetDesaturated(v) self.desaturated = v end
         function fr:SetText(v) self.text = v end
@@ -146,6 +149,12 @@ local function Fixture(opts)
         end
     end
     function t.Set(k, v) S.Set(k, v) end
+    function t.Listening(event)
+        for _, fr in ipairs(frames) do
+            if fr.events[event] then return true end
+        end
+        return false
+    end
     function t.Body(name) local i = Find(name); return i > 0 and macros[i].body or nil end
     function t.Macro(name) local i = Find(name); return i > 0 and macros[i] or nil end
     function t.Combat(on) combat = on end
@@ -401,6 +410,46 @@ do
     t.Bags({ 1179 })
     t.Fire("BAG_UPDATE_DELAYED")
     Check("bag changes ignored while off", food.attrs.item1, "item:4599")
+end
+
+-- Free while off: bag, macro, group and combat events only while a kept macro needs them.
+do
+    local t = Fixture({ bags = { 929 } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    local function Heard()
+        local list = {}
+        for _, e in ipairs({ "BAG_UPDATE_DELAYED", "UPDATE_MACROS", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED" }) do
+            if t.Listening(e) then list[#list + 1] = e end
+        end
+        return table.concat(list, ",")
+    end
+    Check("nothing kept: no events", Heard(), "")
+    t.Set("trinket1", true)
+    Check("a trinket macro: macro changes only", Heard(), "UPDATE_MACROS")
+    t.Set("food", true)
+    Check("a food macro: bag changes too", Heard(), "BAG_UPDATE_DELAYED,UPDATE_MACROS")
+    t.Set("focus", true)
+    t.Set("focusAnnounce", true)
+    Check("an announced focus: group changes too", Heard(), "BAG_UPDATE_DELAYED,UPDATE_MACROS,GROUP_ROSTER_UPDATE")
+    t.Combat(true)
+    t.Fire("BAG_UPDATE_DELAYED")
+    Check("a change in combat waits for its end", t.Listening("PLAYER_REGEN_ENABLED"), true)
+    t.Combat(false)
+    t.Fire("PLAYER_REGEN_ENABLED")
+    Check("and stops listening after it", t.Listening("PLAYER_REGEN_ENABLED"), false)
+    t.Set("enabled", false)
+    Check("module off: no events", Heard(), "")
+    t.Profile({ health = true })
+    Check("a profile switch listens for what it keeps", Heard(), "BAG_UPDATE_DELAYED,UPDATE_MACROS")
+end
+
+-- A bag change with NF Food, NF Health and the food bar on: no garbage.
+do
+    local t = Fixture({ settings = { food = true, health = true, foodBar = true },
+        bags = { 1179, 8766, 5349, 4599, 929, 5509 } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    local Measure = dofile("Tools/regression/measure.lua")(function(label, ok) Check(label, ok, true) end)
+    Measure("a bag change", 0.05, function() t.Fire("BAG_UPDATE_DELAYED") end)
 end
 
 if failures > 0 then

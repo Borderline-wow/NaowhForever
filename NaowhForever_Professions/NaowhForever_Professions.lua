@@ -107,6 +107,16 @@ local SMELTING = 2656
 local win, hooked
 local categories, entries, rows, unlearned = {}, {}, {}, {}
 local collapsed = {}
+local Reuse = { prof = {}, cats = {}, byID = {}, learned = {}, pool = {}, shown = {}, shownU = {},
+    inGroup = {}, lines = {}, parts = {}, reagents = {}, waiting = {}, none = {}, status = {}, queued = false,
+    quiet = { ITEM_DATA_LOAD_RESULT = true, BAG_UPDATE_DELAYED = true, PLAYERBANKSLOTS_CHANGED = true,
+        AUCTION_HOUSE_SHOW = true, AUCTION_HOUSE_CLOSED = true, TRACKED_RECIPE_UPDATE = true,
+        GROUP_ROSTER_UPDATE = true },
+    reread = { APPLY = true, ADDON_LOADED = true, TRADE_SKILL_SHOW = true, TRADE_SKILL_CLOSE = true,
+        TRADE_SKILL_DATA_SOURCE_CHANGED = true, TRADE_SKILL_NAME_UPDATE = true, NEW_RECIPE_LEARNED = true,
+        SKILL_LINES_CHANGED = true, TRADE_SKILL_FAVORITES_CHANGED = true },
+    stale = true, listChanged = false, count = 0, sig = {}, BURST = 0.1 }
+ns.ProfBagChanges = 0
 local selectedID, offset, query = nil, 0, ""
 -- An unlearned recipe (a RecipeData row) when one is chosen; it takes over the middle column.
 local selectedUnlearned
@@ -154,12 +164,12 @@ local function Profession()
     local child, base = C_TradeSkillUI.GetChildProfessionInfo(), C_TradeSkillUI.GetBaseProfessionInfo()
     local src = (child and (child.maxSkillLevel or 0) > 0) and child or base
     if not src then return end
-    return {
-        id = base and base.professionID or src.professionID,
-        name = (base and base.professionName) or src.professionName or "",
-        skill = src.skillLevel or 0,
-        max = src.maxSkillLevel or 0,
-    }
+    local p = Reuse.prof
+    p.id = base and base.professionID or src.professionID
+    p.name = (base and base.professionName) or src.professionName or ""
+    p.skill = src.skillLevel or 0
+    p.max = src.maxSkillLevel or 0
+    return p
 end
 
 local function NextStrata(strata)
@@ -182,29 +192,45 @@ end
 -------------------------------------------------------------------------------
 --  Recipes
 -------------------------------------------------------------------------------
+function Reuse.ByOrder(a, b)
+    if a.order ~= b.order then return a.order < b.order end
+    return a.name < b.name
+end
+
 local function Collect()
     wipe(categories)
-    local byID = {}
-    for _, id in ipairs(C_TradeSkillUI.GetAllRecipeIDs() or {}) do
+    local byID, learned, used = Reuse.byID, Reuse.learned, 0
+    wipe(byID)
+    wipe(learned)
+    local ids = C_TradeSkillUI.GetAllRecipeIDs() or Reuse.none
+    Reuse.count = #ids
+    for _, id in ipairs(ids) do
         local info = C_TradeSkillUI.GetRecipeInfo(id)
+        if info then
+            learned[id] = info.learned and true or false
+            info.numAvailable = nil
+        end
         if info and info.learned then
             local catID = info.categoryID or 0
             local cat = byID[catID]
             if not cat then
                 local ci = catID > 0 and C_TradeSkillUI.GetCategoryInfo(catID)
-                cat = { id = catID, name = ci and ci.name or OTHER or "Other", order = ci and ci.uiOrder or 999,
-                    recipes = {}, sub = true }
+                used = used + 1
+                cat = Reuse.cats[used]
+                if not cat then
+                    cat = { recipes = {}, sub = true }
+                    Reuse.cats[used] = cat
+                end
+                cat.id, cat.name, cat.order = catID, ci and ci.name or OTHER or "Other", ci and ci.uiOrder or 999
+                wipe(cat.recipes)
                 byID[catID] = cat
                 categories[#categories + 1] = cat
             end
             cat.recipes[#cat.recipes + 1] = info
         end
     end
-    table.sort(categories, function(a, b)
-        if a.order ~= b.order then return a.order < b.order end
-        return a.name < b.name
-    end)
-    unlearned = not linkedMode and ns.RecipeFinder and ns.RecipeFinder.Unlearned() or {}
+    table.sort(categories, Reuse.ByOrder)
+    unlearned = not linkedMode and ns.RecipeFinder and ns.RecipeFinder.Unlearned(learned) or Reuse.none
 end
 
 local function GroupClosed(group)
@@ -240,54 +266,70 @@ local HasBuyableMaterials, ResetBuyCount
 -- Buy at Vendor, filled in after Buy on AH: the open merchant's reagents for a recipe.
 local Vendor = {}
 
+function Reuse.Add(kind, value)
+    local n = #entries + 1
+    local e = Reuse.pool[n]
+    if not e then
+        e = {}
+        Reuse.pool[n] = e
+    end
+    e.cat, e.recipe, e.unlearned = nil, nil, nil
+    e[kind] = value
+    entries[n] = e
+end
+
 local function BuildEntries()
     wipe(entries)
     local first, found
     local learnedAt, learnedCount = #entries + 1, 0
-    entries[learnedAt] = { cat = LEARNED }
+    Reuse.Add("cat", LEARNED)
     local learnedOpen = not IsCollapsed(LEARNED)
+    local shown = Reuse.shown
     for _, cat in ipairs(categories) do
-        local shown = {}
+        wipe(shown)
         for _, info in ipairs(cat.recipes) do
             if Matches(info) and PassesFilter(info) then shown[#shown + 1] = info end
         end
         if #shown > 0 then
             learnedCount = learnedCount + #shown
-            if learnedOpen then entries[#entries + 1] = { cat = cat } end
+            if learnedOpen then Reuse.Add("cat", cat) end
             -- A search opens every category, so a match is never hidden in a closed one.
             local open = learnedOpen and not IsCollapsed(cat)
             for _, info in ipairs(shown) do
                 first = first or info.recipeID
                 if info.recipeID == selectedID then found = true end
-                if open then entries[#entries + 1] = { recipe = info } end
+                if open then Reuse.Add("recipe", info) end
             end
         end
     end
     LEARNED.count = learnedCount
-    if learnedCount == 0 then table.remove(entries, learnedAt) end
+    if learnedCount == 0 then entries[learnedAt] = nil end
 
-    local shownU, foundU = {}, false
+    local shownU, foundU = Reuse.shownU, false
+    wipe(shownU)
     for _, r in ipairs(unlearned) do
-        local name = C_Spell.GetSpellName(r.spell) or ""
-        if (query == "" or name:lower():find(query, 1, true)) and PassesFilter(nil, r) then
+        if (query == "" or (C_Spell.GetSpellName(r.spell) or ""):lower():find(query, 1, true))
+            and PassesFilter(nil, r) then
             shownU[#shownU + 1] = r
+            Reuse.status[r] = ns.RecipeFinder.Status(r)
         end
     end
     if #shownU > 0 then
         UNLEARNED.count = #shownU
-        entries[#entries + 1] = { cat = UNLEARNED }
+        Reuse.Add("cat", UNLEARNED)
         local open = not IsCollapsed(UNLEARNED)
+        local inGroup = Reuse.inGroup
         for _, group in ipairs(UNLEARNED_GROUPS) do
-            local inGroup = {}
+            wipe(inGroup)
             for _, r in ipairs(shownU) do
-                if ns.RecipeFinder.Status(r) == group.status then inGroup[#inGroup + 1] = r end
+                if Reuse.status[r] == group.status then inGroup[#inGroup + 1] = r end
             end
             group.count = #inGroup
-            if open and #inGroup > 0 then entries[#entries + 1] = { cat = group } end
+            if open and #inGroup > 0 then Reuse.Add("cat", group) end
             local groupOpen = open and not IsCollapsed(group)
             for _, r in ipairs(inGroup) do
                 if r == selectedUnlearned then foundU = true end
-                if groupOpen then entries[#entries + 1] = { unlearned = r } end
+                if groupOpen then Reuse.Add("unlearned", r) end
             end
         end
     end
@@ -301,28 +343,37 @@ local function SelectedInfo()
 end
 
 -- itemID and quantity per reagent. The schematic call is the current API; the reagent-info
--- pair is the older one, kept as a fallback in case Forever still answers only that.
+-- pair is the older one, kept as a fallback in case Forever still answers only that. A
+-- recipe's reagents never change, so the schematic's list is read once and shared: callers
+-- only read it.
 local function Reagents(recipeID)
-    local out = {}
+    local cached = Reuse.reagents[recipeID]
+    if cached then return cached end
+    local out
     local ok, schematic = pcall(C_TradeSkillUI.GetRecipeSchematic, recipeID, false)
     if ok and schematic and schematic.reagentSlotSchematics then
         for _, slot in ipairs(schematic.reagentSlotSchematics) do
             local reagent = slot.reagents and slot.reagents[1]
             if slot.required ~= false and reagent and reagent.itemID then
+                out = out or {}
                 out[#out + 1] = { itemID = reagent.itemID, need = slot.quantityRequired or 1 }
             end
         end
-        return out
+        Reuse.reagents[recipeID] = out
+        return out or Reuse.none
     end
     if C_TradeSkillUI.GetRecipeNumReagents then
         for i = 1, C_TradeSkillUI.GetRecipeNumReagents(recipeID) or 0 do
             local _, _, need = C_TradeSkillUI.GetRecipeReagentInfo(recipeID, i)
             local link = C_TradeSkillUI.GetRecipeReagentItemLink(recipeID, i)
             local itemID = link and C_Item.GetItemInfoInstant(link)
-            if itemID then out[#out + 1] = { itemID = itemID, need = need or 1 } end
+            if itemID then
+                out = out or {}
+                out[#out + 1] = { itemID = itemID, need = need or 1 }
+            end
         end
     end
-    return out
+    return out or Reuse.none
 end
 
 -- The item a recipe makes and how many of it one craft makes at least, or nil for a recipe
@@ -356,11 +407,17 @@ local function AuctionHouseOpen()
     return ah and ah:IsShown() and ah.SearchBar ~= nil
 end
 
--- An item's name, or nil while the client has yet to load it; ITEM_DATA_LOAD_RESULT then
--- redraws the window.
+-- An item's name, or nil while the client has yet to load it; ITEM_DATA_LOAD_RESULT for an
+-- item asked for here then redraws the window, once it has loaded.
+function Reuse.Request(itemID)
+    Reuse.waiting[itemID] = true
+    C_Item.RequestLoadItemDataByID(itemID)
+end
+ns.ProfRequestItem = Reuse.Request
+
 local function ItemName(itemID)
     local name = itemID and C_Item.GetItemNameByID(itemID)
-    if itemID and not name then C_Item.RequestLoadItemDataByID(itemID) end
+    if itemID and not name then Reuse.Request(itemID) end
     return name
 end
 
@@ -493,16 +550,20 @@ end
 ns.ProfWindowAPI = { SelectedInfo = SelectedInfo, Reagents = Reagents, Owned = Owned,
     IsVendorItem = IsVendorItem, Linked = function() return linkedMode end }
 
--- What one craft costs in bought reagents and fetches on the auction house after its cut.
--- `sale` is nil when the item had no listing at the last scan, or makes no item at all.
-local function CraftValue(recipeID, output, made)
-    local v = { cost = 0, missing = 0, owned = 0, parts = {}, output = output, made = made or 1 }
+-- What one craft costs in bought reagents and fetches on the auction house after its cut,
+-- filled into `v` (its block's own table). `sale` is nil when the item had no listing at the
+-- last scan, or makes no item at all.
+local function CraftValue(recipeID, output, made, v)
+    v.cost, v.missing, v.owned, v.output, v.made = 0, 0, 0, output, made or 1
     local ok, reagents = pcall(Reagents, recipeID)
-    local owned = Owned()
-    for _, r in ipairs(ok and reagents or {}) do
+    local owned, n = Owned(), 0
+    for _, r in ipairs(ok and reagents or Reuse.none) do
         local each, from = BuyPrice(r.itemID)
         local have = owned[r.itemID] == true
-        v.parts[#v.parts + 1] = { itemID = r.itemID, need = r.need, each = each, from = from, owned = have }
+        n = n + 1
+        local p = v.parts[n] or {}
+        v.parts[n] = p
+        p.itemID, p.need, p.each, p.from, p.owned = r.itemID, r.need, each, from, have
         if have then
             v.owned = v.owned + 1
         elseif each then
@@ -511,6 +572,7 @@ local function CraftValue(recipeID, output, made)
             v.missing = v.missing + 1
         end
     end
+    for i = n + 1, #v.parts do v.parts[i] = nil end
     local each = output and ns.AuctionPrice and ns.AuctionPrice(output)
     v.each = each
     v.sale = each and math.floor(each * v.made * (1 - AH_CUT))
@@ -519,21 +581,15 @@ end
 
 -- "12g 07s 09c", "6s 00c", "8c": from the largest coin down to copper, the smaller coins two
 -- digits wide so amounts line up. Plain text: the letters take the amount's own colour.
+-- `plus` puts a "+" before an amount that is not negative.
 local COINS = { { 10000, "g" }, { 100, "s" }, { 1, "c" } }
-local function Money(copper)
+local function Money(copper, plus)
     local left = math.floor(math.abs(copper) + 0.5)
-    local parts = {}
-    for _, coin in ipairs(COINS) do
-        local n = math.floor(left / coin[1])
-        left = left - n * coin[1]
-        if #parts > 0 then
-            parts[#parts + 1] = ("%02d"):format(n) .. coin[2]
-        elseif n > 0 or coin[1] == 1 then
-            parts[#parts + 1] = n .. coin[2]
-        end
-    end
-    local text = table.concat(parts, " ")
-    return copper < 0 and ("-" .. text) or text
+    local g, s, c = math.floor(left / 10000), math.floor(left % 10000 / 100), left % 100
+    local sign = copper < 0 and "-" or plus and "+" or ""
+    if g > 0 then return ("%s%dg %02ds %02dc"):format(sign, g, s, c) end
+    if s > 0 then return ("%s%ds %02dc"):format(sign, s, c) end
+    return ("%s%dc"):format(sign, c)
 end
 
 -- How many you could make buying the vendor reagents: only the others limit it. Nil when
@@ -582,8 +638,23 @@ local function RecipeProfit(recipeID, output, made)
     if not (output and ProfitShown()) then return end
     local profit = profitCache[recipeID]
     if profit == nil then
-        local v = CraftValue(recipeID, output, made)
-        profit = v.sale and v.missing == 0 and #v.parts > 0 and v.sale - v.cost or false
+        profit = false
+        local each = ns.AuctionPrice and ns.AuctionPrice(output)
+        local ok, reagents = pcall(Reagents, recipeID)
+        if each and ok and #reagents > 0 then
+            local owned, cost, missing = Owned(), 0, 0
+            for _, r in ipairs(reagents) do
+                if owned[r.itemID] ~= true then
+                    local price = BuyPrice(r.itemID)
+                    if price then
+                        cost = cost + price * r.need
+                    else
+                        missing = missing + 1
+                    end
+                end
+            end
+            if missing == 0 then profit = math.floor(each * (made or 1) * (1 - AH_CUT)) - cost end
+        end
         profitCache[recipeID] = profit
     end
     return profit or nil
@@ -594,7 +665,7 @@ local function ListProfit(recipeID, output, made)
     -- Not in another player's list: you are ordering those, not crafting to sell.
     local profit = not linkedMode and S.Get("craftProfitList") and RecipeProfit(recipeID, output, made)
     if not profit then return "", T.fg end
-    return (profit >= 0 and "+" or "") .. Money(profit), profit >= 0 and PROFIT_GREEN or RED
+    return Money(profit, true), profit >= 0 and PROFIT_GREEN or RED
 end
 
 -------------------------------------------------------------------------------
@@ -698,7 +769,7 @@ PassesFilter = function(info, r)
             item = r.item or OutputItem(r.spell)
         end
         local bind = item and select(14, C_Item.GetItemInfo(item))
-        if item and bind == nil then C_Item.RequestLoadItemDataByID(item) end
+        if item and bind == nil then Reuse.Request(item) end
         -- On the beta much crafted gear does not bind at all and still sells on the auction
         -- house, so for now an item that never binds (0) counts as Bind on Equip too.
         local asBoE = bind == FILTERS.filterBoE.bind or bind == 0
@@ -769,7 +840,7 @@ local function RenderProfit(block, recipeID, output, made)
         block.value = nil
         return block:Hide()
     end
-    local v = CraftValue(recipeID, output, made)
+    local v = CraftValue(recipeID, output, made, block.calc)
     block.value = v
     if #v.parts == 0 then
         block.value = nil
@@ -789,7 +860,7 @@ local function RenderProfit(block, recipeID, output, made)
             profit, profitNote = none, "some reagents have no price"
         else
             local p = v.sale - v.cost
-            profit = Hex(p >= 0 and PROFIT_GREEN or RED) .. (p >= 0 and "+" or "") .. Money(p) .. "|r"
+            profit = Hex(p >= 0 and PROFIT_GREEN or RED) .. Money(p, true) .. "|r"
             profitNote = "after the 5% cut"
         end
     end
@@ -1198,7 +1269,7 @@ local function FillReagents(rows, reagents, target, max)
         local data = i <= max and reagents[i]
         if data then
             local name = C_Item.GetItemNameByID(data.itemID)
-            if not name then C_Item.RequestLoadItemDataByID(data.itemID) end
+            if not name then Reuse.Request(data.itemID) end
             local have = ItemCount(data.itemID)
             r.itemID = data.itemID
             r.icon:SetTexture(C_Item.GetItemIconByID(data.itemID))
@@ -1496,15 +1567,18 @@ RenderDetail = function()
         RenderProfit(d.profit, info.recipeID, output, made)
     end
 
-    local ok, desc = pcall(C_TradeSkillUI.GetRecipeDescription, info.recipeID, {})
-    local lines = { ok and desc or "" }
+    local ok, desc = pcall(C_TradeSkillUI.GetRecipeDescription, info.recipeID, Reuse.none)
+    local lines = Reuse.lines
+    wipe(lines)
+    lines[1] = ok and desc or ""
     local okReq, reqs = pcall(C_TradeSkillUI.GetRecipeRequirements, info.recipeID)
     -- A requirement not met (not at an anvil, no hammer in the bags) greys out the craft buttons.
     -- Another player's recipe is theirs to meet, so it shows none.
     local unmet = false
     if linkedMode then okReq = false end
     if okReq and reqs and #reqs > 0 then
-        local parts = {}
+        local parts = Reuse.parts
+        wipe(parts)
         for _, req in ipairs(reqs) do
             if req.met == false then unmet = true end
             local c = req.met and T.fg or RED
@@ -1516,6 +1590,8 @@ RenderDetail = function()
     if not linkedMode and okCd and cooldown and cooldown > 0 then
         lines[#lines + 1] = "|cffff4d4dCooldown: " .. SecondsToTime(cooldown) .. "|r"
     end
+    Reuse.drawnRecipe, Reuse.drawnUnmet = info.recipeID, unmet
+    Reuse.drawnCooldown = okCd and cooldown and cooldown > 0 and math.floor(cooldown) or 0
     -- More crafts than the bags have room for: Create All stops at what fits.
     local can = Craftable(info)
     local room = not linkedMode and ns.CraftBagRoom and ns.CraftBagRoom(output, made, Reagents(info.recipeID), can)
@@ -1609,7 +1685,18 @@ Render = function()
     win.rankText:SetText(("%s %d/%d"):format(name, prof.skill, prof.max))
     RenderRankBanner(prof)
 
-    Collect()
+    local sig = Reuse.sig
+    if Reuse.listChanged and not Reuse.stale
+        and #(C_TradeSkillUI.GetAllRecipeIDs() or Reuse.none) ~= Reuse.count then
+        Reuse.stale = true
+    end
+    Reuse.listChanged = false
+    if Reuse.stale or sig.id ~= prof.id or sig.skill ~= prof.skill or sig.max ~= prof.max
+        or sig.linked ~= linkedMode or sig.who ~= who then
+        Reuse.stale = false
+        sig.id, sig.skill, sig.max, sig.linked, sig.who = prof.id, prof.skill, prof.max, linkedMode, who
+        Collect()
+    end
     BuildEntries()
     RenderList()
     RenderDetail()
@@ -1626,17 +1713,8 @@ end
 -- chain hangs off the overview tab, and they ignore their invisible parent's alpha.
 local savedTabPoints
 
-local function BlizzardTabs()
-    local pf = ProfessionsFrame
-    local head = pf.ProfessionsOverviewTab
-    if not head then return end
-    local all = { head }
-    for _, tab in ipairs(pf.rightProfessionTabs or {}) do all[#all + 1] = tab end
-    return head, all
-end
-
 local function DockTabs(on)
-    local head, all = BlizzardTabs()
+    local head = ProfessionsFrame.ProfessionsOverviewTab
     if not head then return end
     if on then
         if not savedTabPoints then
@@ -1650,7 +1728,8 @@ local function DockTabs(on)
         for _, pt in ipairs(savedTabPoints) do head:SetPoint(unpack(pt)) end
         savedTabPoints = nil
     end
-    for _, tab in ipairs(all) do
+    if head.SetIgnoreParentAlpha then head:SetIgnoreParentAlpha(on) end
+    for _, tab in ipairs(ProfessionsFrame.rightProfessionTabs or Reuse.none) do
         if tab.SetIgnoreParentAlpha then tab:SetIgnoreParentAlpha(on) end
     end
 end
@@ -1831,6 +1910,7 @@ end
 -- reagent.
 local function BuildProfit(parent)
     local block = BuildLines(parent, { "buy", "sell", "profit" })
+    block.calc = { parts = {} }
     block:SetScript("OnEnter", function(self)
         local v = self.value
         if not v then return end
@@ -2347,13 +2427,30 @@ end
 -- only while the window is open; the event fires often, so only the recipe pane redraws, at
 -- most twice a second.
 local usable, usablePending = CreateFrame("Frame"), false
+function Reuse.UsableChanged()
+    if linkedMode or selectedUnlearned then return true end
+    local info = SelectedInfo()
+    if not info or info.recipeID ~= Reuse.drawnRecipe then return true end
+    local unmet = false
+    local okReq, reqs = pcall(C_TradeSkillUI.GetRecipeRequirements, info.recipeID)
+    if okReq and reqs then
+        for i = 1, #reqs do
+            if reqs[i].met == false then unmet = true end
+        end
+    end
+    local okCd, cooldown = pcall(C_TradeSkillUI.GetRecipeCooldown, info.recipeID)
+    local cd = okCd and cooldown and cooldown > 0 and math.floor(cooldown) or 0
+    return unmet ~= Reuse.drawnUnmet or cd ~= Reuse.drawnCooldown
+end
+
+function Reuse.Usable()
+    usablePending = false
+    if win:IsShown() and win.detail:IsShown() and Reuse.UsableChanged() then RenderDetail() end
+end
 usable:SetScript("OnEvent", function()
     if usablePending then return end
     usablePending = true
-    C_Timer.After(0.5, function()
-        usablePending = false
-        if win:IsShown() and win.detail:IsShown() then RenderDetail() end
-    end)
+    C_Timer.After(0.5, Reuse.Usable)
 end)
 
 -- The order row in the middle column, where the craft buttons are in your own profession.
@@ -3367,7 +3464,13 @@ end
 --  Taking over from Blizzard's window
 -------------------------------------------------------------------------------
 local function Deactivate()
-    if win then win:Hide() end
+    wipe(Reuse.waiting)
+    ns.ProfBagChanges = ns.ProfBagChanges + 1
+    if win and bookDocked and InCombatLockdown() then
+        win:SetAlpha(0)
+    elseif win then
+        win:Hide()
+    end
     if ProfessionsFrame then
         DockTabs(false)
         DockBook(false)
@@ -3434,6 +3537,7 @@ local function Activate(mode)
         Drag.Place()
     end
     pf:SetAlpha(0)
+    win:SetAlpha(1)
     local linked = mode == "linked"
     -- The right column: another player's order, or your shopping list while that is on.
     local wide = linked or (mode == "craft" and ns.ShoppingListWide and ns.ShoppingListWide())
@@ -3443,6 +3547,8 @@ local function Activate(mode)
     if not InCombatLockdown() then
         win:SetSize(math.max(width, pf:GetWidth()), math.max(MIN_H, pf:GetHeight()))
     end
+    if not win:IsShown() or linked ~= linkedMode or mode ~= Reuse.mode then Reuse.stale = true end
+    Reuse.mode = mode
     if not win:IsShown() or linked ~= linkedMode then
         selectedID, selectedUnlearned, offset = nil, nil, 0
         win:Show()
@@ -3461,7 +3567,7 @@ local function Activate(mode)
     win.mid:SetShown(not book)
     win.rank:SetShown(not book)
     if book then win.rankBanner:Hide() end
-    win.book:SetShown(book)
+    if not (bookDocked and InCombatLockdown()) then win.book:SetShown(book) end
     DockBook(book)
     if book then
         RenderBook()
@@ -3495,16 +3601,28 @@ local function Update()
     Deactivate()
 end
 
-local queued = false
-local function Queue()
-    if queued then return end
-    queued = true
-    C_Timer.After(0, function()
-        queued = false
-        Update()
-    end)
+function Reuse.Flush()
+    Reuse.queued = false
+    Update()
 end
-ns.ProfWindowRefresh = Queue
+
+local function Queue()
+    if Reuse.queued then return end
+    Reuse.queued = true
+    C_Timer.After(0, Reuse.Flush)
+end
+
+function Reuse.Soon()
+    if Reuse.queued then return end
+    Reuse.queued = true
+    C_Timer.After(Reuse.BURST, Reuse.Flush)
+end
+
+function Reuse.Refresh(reread)
+    if reread then Reuse.stale = true end
+    Queue()
+end
+ns.ProfWindowRefresh = Reuse.Refresh
 
 -- A link clicked while Blizzard's window was loaded but closed makes Forever cast every one of
 -- your own professions at once and land on the last, never the link's. A second click opens it,
@@ -3559,7 +3677,7 @@ end)
 -- Only a plain click opens the link: Shift or Ctrl puts it in chat and no window opens.
 hooksecurefunc("SetItemRef", function(link, text, button, chatFrame)
     if not On() or IsShiftKeyDown() or IsControlKeyDown() then return end
-    local guid = type(link) == "string" and link:match("^trade:([^:]+)")
+    local guid = type(link) == "string" and link:match("^trade:(Player%-%d+%-%x+):")
     if not guid or guid == UnitGUID("player") then return end
     viewingLink, linkClicked, linkGUID = true, GetTime(), guid
     casts:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
@@ -3611,7 +3729,15 @@ merchant:SetScript("OnEvent", function(_, event)
 end)
 
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event, name)
+events:SetScript("OnEvent", function(_, event, name, loaded)
+    if event == "BAG_UPDATE_DELAYED" then ns.ProfBagChanges = ns.ProfBagChanges + 1 end
+    if event == "ITEM_DATA_LOAD_RESULT" then
+        if not Reuse.waiting[name] then return end
+        Reuse.waiting[name] = nil
+        if not loaded then return end
+    end
+    if Reuse.quiet[event] and not (win and win:IsShown()) then return end
+    if event == "GROUP_ROSTER_UPDATE" and not linkedMode then return end
     if event == "ADDON_LOADED" then
         if name ~= "Blizzard_Professions" then return end
         events:UnregisterEvent("ADDON_LOADED")
@@ -3639,6 +3765,9 @@ events:SetScript("OnEvent", function(_, event, name)
             if book.FormatProfession then hooksecurefunc(book, "FormatProfession", Redock) end
         end
     end
+    if Reuse.reread[event] then Reuse.stale = true end
+    if event == "TRADE_SKILL_LIST_UPDATE" then Reuse.listChanged = true end
+    if Reuse.quiet[event] or event == "TRADE_SKILL_LIST_UPDATE" then return Reuse.Soon() end
     Queue()
 end)
 

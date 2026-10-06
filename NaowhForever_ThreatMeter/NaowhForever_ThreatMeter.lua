@@ -180,46 +180,65 @@ function Look.Layout(f, total, first, bh, gap, fontSize)
     local growUp = S.Get("growUp")
     local statusTop = S.Get("statusPos") == "top"
     local above, below = top + (statusTop and FOOTER or 0), statusTop and 0 or FOOTER
+    local texture, font = S.Get("texture"), FontPath()
+    local showRanks, showIcons = S.Get("showRanks"), S.Get("showIcons")
+    local showPercent, showValue = S.Get("showPercent"), S.Get("showValue")
+    local last = f.laid
+    if not last then last = { gen = 0 }; f.laid = last end
+    if f.sizing or last.w ~= w or last.h ~= h or last.bh ~= bh or last.gap ~= gap or last.fontSize ~= fontSize
+        or last.iconSize ~= iconSize or last.growUp ~= growUp or last.above ~= above or last.below ~= below
+        or last.texture ~= texture or last.font ~= font or last.showRanks ~= showRanks
+        or last.showIcons ~= showIcons or last.showPercent ~= showPercent or last.showValue ~= showValue then
+        last.w, last.h, last.bh, last.gap, last.fontSize, last.iconSize = w, h, bh, gap, fontSize, iconSize
+        last.growUp, last.above, last.below, last.texture, last.font = growUp, above, below, texture, font
+        last.showRanks, last.showIcons, last.showPercent, last.showValue = showRanks, showIcons, showPercent, showValue
+        last.gen = last.gen + 1
+        f.header:SetSize(w, math.max(top, 1))
+        f.header:SetShown(top > 0)
+        f.footer:ClearAllPoints()
+        if statusTop then
+            f.footer:SetPoint("TOPLEFT", 8, -top); f.footer:SetPoint("TOPRIGHT", -8, -top)
+        else
+            f.footer:SetPoint("BOTTOMLEFT", 8, 0); f.footer:SetPoint("BOTTOMRIGHT", -8, 0)
+        end
+    end
     local rows = f.rows
     for i = 1, shown do
         local row = rows[i] or Look.Row(f, i)
-        row:ClearAllPoints()
-        if growUp then row:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", INSET, below + INSET + (i - 1) * (bh + gap))
-        else row:SetPoint("TOPLEFT", f, "TOPLEFT", INSET, -above - INSET - (i - 1) * (bh + gap)) end
-        row:SetSize(w - 2 * INSET, bh)
-        row:SetStatusBarTexture(S.Get("texture") == "flat" and "Interface\\Buttons\\WHITE8X8"
-            or "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga")
-        local left = TEXT_PAD
-        row.rank:ClearAllPoints(); row.rank:SetPoint("LEFT", left, 0); row.rank:SetWidth(16)
-        row.rank:SetShown(S.Get("showRanks"))
-        if S.Get("showRanks") then left = left + 18 end
-        row.icon:ClearAllPoints(); row.icon:SetPoint("LEFT", left, 0); row.icon:SetSize(iconSize, iconSize)
-        row.icon:SetShown(S.Get("showIcons"))
-        left = left + iconWidth
-        local percentWidth = S.Get("showPercent") and 45 * fontSize / 12 or 0
-        local valueWidth = S.Get("showValue") and 54 * fontSize / 12 or 0
-        row.percent:ClearAllPoints(); row.percent:SetPoint("RIGHT", -TEXT_PAD, 0); row.percent:SetWidth(math.max(1, percentWidth))
-        row.value:ClearAllPoints(); row.value:SetPoint("RIGHT", -TEXT_PAD - percentWidth, 0); row.value:SetWidth(math.max(1, valueWidth))
-        row.name:ClearAllPoints(); row.name:SetPoint("LEFT", left, 0)
-        row.name:SetPoint("RIGHT", -TEXT_PAD - percentWidth - valueWidth - 5, 0)
-        local font = FontPath()
-        row.name:SetFont(font, fontSize, "OUTLINE")
-        row.value:SetFont(font, fontSize, "OUTLINE")
-        row.percent:SetFont(font, fontSize, "OUTLINE")
+        if row.laid ~= last.gen then
+            row.laid = last.gen
+            row:ClearAllPoints()
+            if growUp then row:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", INSET, below + INSET + (i - 1) * (bh + gap))
+            else row:SetPoint("TOPLEFT", f, "TOPLEFT", INSET, -above - INSET - (i - 1) * (bh + gap)) end
+            row:SetSize(w - 2 * INSET, bh)
+            row:SetStatusBarTexture(texture == "flat" and "Interface\\Buttons\\WHITE8X8"
+                or "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga")
+            local left = TEXT_PAD
+            row.rank:ClearAllPoints(); row.rank:SetPoint("LEFT", left, 0); row.rank:SetWidth(16)
+            row.rank:SetShown(showRanks)
+            if showRanks then left = left + 18 end
+            row.icon:ClearAllPoints(); row.icon:SetPoint("LEFT", left, 0); row.icon:SetSize(iconSize, iconSize)
+            row.icon:SetShown(showIcons)
+            left = left + iconWidth
+            local percentWidth = showPercent and 45 * fontSize / 12 or 0
+            local valueWidth = showValue and 54 * fontSize / 12 or 0
+            row.percent:ClearAllPoints(); row.percent:SetPoint("RIGHT", -TEXT_PAD, 0); row.percent:SetWidth(math.max(1, percentWidth))
+            row.value:ClearAllPoints(); row.value:SetPoint("RIGHT", -TEXT_PAD - percentWidth, 0); row.value:SetWidth(math.max(1, valueWidth))
+            row.name:ClearAllPoints(); row.name:SetPoint("LEFT", left, 0)
+            row.name:SetPoint("RIGHT", -TEXT_PAD - percentWidth - valueWidth - 5, 0)
+            row.name:SetFont(font, fontSize, "OUTLINE")
+            row.value:SetFont(font, fontSize, "OUTLINE")
+            row.percent:SetFont(font, fontSize, "OUTLINE")
+        end
         row:Show()
     end
     for i = shown + 1, #rows do rows[i]:Hide() end
-    f.header:SetSize(w, math.max(top, 1))
-    f.header:SetShown(top > 0)
-    f.footer:ClearAllPoints()
-    if statusTop then
-        f.footer:SetPoint("TOPLEFT", 8, -top); f.footer:SetPoint("TOPRIGHT", -8, -top)
-    else
-        f.footer:SetPoint("BOTTOMLEFT", 8, 0); f.footer:SetPoint("BOTTOMRIGHT", -8, 0)
-    end
     f.background:SetAlpha(S.Get("backgroundAlpha"))
     f.empty:SetShown(shown == 0)
-    f.footer.range:SetText(total > 0 and ((first + 1) .. "-" .. (first + shown) .. " / " .. total) or "")
+    if last.total ~= total or last.first ~= first or last.shown ~= shown then
+        last.total, last.first, last.shown = total, first, shown
+        f.footer.range:SetText(total > 0 and ((first + 1) .. "-" .. (first + shown) .. " / " .. total) or "")
+    end
     return shown, first
 end
 
@@ -332,6 +351,18 @@ local function Clear()
     for i = #list, 1, -1 do list[i] = nil end
 end
 
+local RAID, RAID_PETS, PARTY, PARTY_PETS = {}, {}, {}, {}
+local OWNER, GROUP_UNIT = { player = "player", pet = "player" }, { player = true, pet = true }
+for i = 1, MAX_RAID_MEMBERS do RAID[i], RAID_PETS[i] = "raid" .. i, "raidpet" .. i end
+for i = 1, MAX_PARTY_MEMBERS do PARTY[i], PARTY_PETS[i] = "party" .. i, "partypet" .. i end
+for _, pair in ipairs({ { RAID, RAID_PETS }, { PARTY, PARTY_PETS } }) do
+    for i, unit in ipairs(pair[1]) do
+        local pet = pair[2][i]
+        OWNER[unit], OWNER[pet] = unit, unit
+        GROUP_UNIT[unit], GROUP_UNIT[pet] = true, true
+    end
+end
+
 local function Add(unit, mob)
     if not UnitExists(unit) then return end
     local tanking, _, scaled, rawPct, raw = UnitDetailedThreatSituation(unit, mob)
@@ -342,15 +373,11 @@ local function Add(unit, mob)
     e.isPlayer, e.pull = Readable(own) and own, nil
     e.rawPct = Readable(rawPct) and rawPct or nil
     e.order, e.class = count, nil
-    local owner = unit == "pet" and "player" or unit:gsub("pet", "")
+    local owner = OWNER[unit]
     e.isPet = owner ~= unit
     local _, class = UnitClass(owner)
     if Readable(class) then e.class = class end
 end
-
-local RAID, RAID_PETS, PARTY, PARTY_PETS = {}, {}, {}, {}
-for i = 1, MAX_RAID_MEMBERS do RAID[i], RAID_PETS[i] = "raid" .. i, "raidpet" .. i end
-for i = 1, MAX_PARTY_MEMBERS do PARTY[i], PARTY_PETS[i] = "party" .. i, "partypet" .. i end
 
 local function Collect(mob)
     Clear()
@@ -419,6 +446,13 @@ function Look.State(me)
     return "NO PLAYER THREAT"
 end
 
+local classIcons = {}
+local function ClassIcon(class)
+    local path = classIcons[class]
+    if not path then path = "Interface\\Icons\\ClassIcon_" .. class; classIcons[class] = path end
+    return path
+end
+
 function Look.Paint(f, shownList, first, shown, title, state)
     local top = shownList[1] and shownList[1].raw or 0
     f.header.text:SetText(title)
@@ -428,6 +462,8 @@ function Look.Paint(f, shownList, first, shown, title, state)
         e.rank = rank
     end
     local rowBg = ns.ThemeTint("panel", ROW_BG)
+    local showValue, showPercent = S.Get("showValue"), S.Get("showPercent")
+    local tankPercent = S.Get("percentMode") == "tank"
     for i = 1, shown do
         local e, row = shownList[first + i], f.rows[i]
         local c = RowColor(e)
@@ -445,12 +481,20 @@ function Look.Paint(f, shownList, first, shown, title, state)
             else row.bg:SetColorTexture(0.04, 0.19, 0.25, 1) end
         end
         row.icon:SetTexture(e.pull and "Interface\\Icons\\Ability_Warrior_Challange"
-            or e.class and ("Interface\\Icons\\ClassIcon_" .. e.class) or "Interface\\Icons\\Ability_Hunter_BeastCall")
+            or e.class and ClassIcon(e.class) or "Interface\\Icons\\Ability_Hunter_BeastCall")
         row.icon:SetDesaturated(e.isPet == true)
-        row.value:SetText(S.Get("showValue") and ShortThreat(e.raw) or "")
+        local value = showValue and e.raw or false
+        if row.shownValue ~= value then
+            row.shownValue = value
+            row.value:SetText(value and ShortThreat(value) or "")
+        end
         local percent = e.scaled
-        if S.Get("percentMode") == "tank" then percent = e.rawPct end
-        row.percent:SetText(S.Get("showPercent") and percent and ("%.0f%%"):format(percent) or "")
+        if tankPercent then percent = e.rawPct end
+        percent = showPercent and percent or false
+        if row.shownPercent ~= percent then
+            row.shownPercent = percent
+            row.percent:SetText(percent and ("%.0f%%"):format(percent) or "")
+        end
         local danger = not e.pull and not e.tanking and e.scaled >= S.Get("warnAt")
         row.percent:SetTextColor(1, danger and 0.35 or 1, danger and 0.25 or 1)
     end
@@ -571,9 +615,7 @@ events:SetScript("OnEvent", function(_, event, unit)
         local same = UnitIsUnit(unit, currentMob)
         if Readable(same) and not same then return end
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "UNIT_PET" then
-        if not Readable(unit) then return end
-        if unit ~= "player" and unit ~= "pet" and not unit:match("^party%d+$")
-            and not unit:match("^raid%d+$") and not unit:match("^partypet%d+$") and not unit:match("^raidpet%d+$") then return end
+        if not Readable(unit) or not GROUP_UNIT[unit] then return end
     end
     RequestUpdate()
 end)

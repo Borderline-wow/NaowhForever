@@ -87,6 +87,9 @@ local ITEMS = {
     [208] = { "Worn Shortsword", 2, 7, "INVTYPE_WEAPON", 1, 5, 10 },
     [209] = { "Plate Helm", 4, 4, "INVTYPE_HEAD", 3, 28, 100 },
     [210] = { "Mail Boots", 4, 3, "INVTYPE_FEET", 2, 25, 80 },
+    [211] = { "Rare Ring", 4, 0, "INVTYPE_FINGER", 3, 30, 20000 },
+    [212] = { "Silver Bar", 7, 0, "", 2, 0, 15000 },
+    [213] = { "Copper Ore", 7, 0, "", 1, 0, 1 },
 }
 local LINKS = {}
 for id, item in pairs(ITEMS) do LINKS[id] = "[" .. item[1] .. "]" end
@@ -794,11 +797,21 @@ for i = 1, 600 do long[i] = i end
 check("Import stops at 500 items", #Scrap.Parse("NFSCRAP:1:" .. table.concat(long, ",")) == 500)
 state.paste, state.answer = "NFSCRAP:1:208,201,202,99999", false
 state.importButton.scripts.OnClick()
-check("Import asks first, counting only what is new and allowed", state.asked == "Add 1 item to your scrap list?"
-    and state.account.scrapItems[208] == nil)
+check("Import asks first, counting only what is new and allowed, by name",
+    state.asked == "Add 1 item to your scrap list: |cffffffffWorn Shortsword|r?" and state.account.scrapItems[208] == nil)
 state.answer = nil
 state.importButton.scripts.OnClick()
 check("yes: merged in, nothing replaced", state.account.scrapItems[208] == true and state.account.scrapItems[201] == true)
+state.paste, state.answer = "NFSCRAP:1:213,212,208,207,211", false
+state.importButton.scripts.OnClick()
+check("Import names the best first, by quality, and warns about what is worth keeping", state.asked
+    == "Add 4 items to your scrap list: |cff0070ddRare Ring|r, |cff1eff00Apprentice Wand|r, |cff1eff00Silver Bar|r"
+    .. " and 1 more?|n|cfffb923c1 of these is Rare or better, and 2 sell for 1g or more.|r" and state.account.scrapItems[211] == nil)
+state.paste = "NFSCRAP:1:207"
+state.importButton.scripts.OnClick()
+check("one Uncommon item is called out too", state.asked
+    == "Add 1 item to your scrap list: |cff1eff00Apprentice Wand|r?|n|cfffb923c1 of these is Uncommon.|r")
+state.answer = nil
 
 -- Clear All, after asking.
 RunTimers()

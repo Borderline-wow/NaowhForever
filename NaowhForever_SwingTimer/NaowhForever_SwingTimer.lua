@@ -438,10 +438,13 @@ end
 -- left is one timer per swing to catch its end.
 local function ScheduleEnd(row)
     if row.endTimer then row.endTimer:Cancel() end
-    row.endTimer = C_Timer.NewTimer(math.max(row.ends - GetTime(), 0) + END_GRACE, function()
-        row.endTimer = nil
-        IdleRow(row)
-    end)
+    if not row.onEnd then
+        row.onEnd = function()
+            row.endTimer = nil
+            IdleRow(row)
+        end
+    end
+    row.endTimer = C_Timer.NewTimer(math.max(row.ends - GetTime(), 0) + END_GRACE, row.onEnd)
 end
 
 local function RunRow(row)

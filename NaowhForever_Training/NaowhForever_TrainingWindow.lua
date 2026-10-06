@@ -1065,22 +1065,29 @@ end
 --  The mini bar: the next visit and your gold, small enough to leave up while you level
 -------------------------------------------------------------------------------
 local mini
+local miniCost = 0
+
+local function PaintMiniGold()
+    local cost, gold = miniCost, GetMoney()
+    mini.gold:SetText(Training.Coins(gold))
+    local fill = cost > 0 and math.min(1, gold / cost) or 0
+    mini.fill:SetShown(fill > 0)
+    mini.fill:SetWidth(math.max(1, (MINI_W - 2 * MINI_PAD) * fill))
+    local c = gold >= cost and T.accent or WARN
+    mini.fill:SetColorTexture(c.r, c.g, c.b, 1)
+end
 
 local function RenderMini()
     if not (mini and mini:IsShown()) then return end
     local plan = Training.Plan()
     local list, atLevel = NextVisit(plan)
-    local cost, gold = Training.Total(list), GetMoney()
+    local cost = Training.Total(list)
+    miniCost = cost
     mini.label:SetText(atLevel and ("NEXT VISIT, LEVEL " .. atLevel) or (#list > 0 and "TRAIN NOW" or "NEXT VISIT"))
     mini.cost:SetText(#list > 0 and (Training.Coins(cost) .. "  " .. ns.Color("muted", #list .. (#list == 1 and " spell" or " spells")))
         or "Nothing left to learn")
-    mini.gold:SetText(Training.Coins(gold))
-    local fill = cost > 0 and math.min(1, gold / cost) or 0
     mini.track:SetShown(cost > 0)
-    mini.fill:SetShown(fill > 0)
-    mini.fill:SetWidth(math.max(1, (MINI_W - 2 * MINI_PAD) * fill))
-    local c = gold >= cost and T.accent or WARN
-    mini.fill:SetColorTexture(c.r, c.g, c.b, 1)
+    PaintMiniGold()
 end
 
 local function BuildMini()
@@ -1128,7 +1135,7 @@ local function BuildMini()
         RenderMini()
     end)
     mini:SetScript("OnHide", function(self) self:UnregisterEvent("PLAYER_MONEY") end)
-    mini:SetScript("OnEvent", RenderMini)
+    mini:SetScript("OnEvent", PaintMiniGold)
     mini:Hide()
 end
 

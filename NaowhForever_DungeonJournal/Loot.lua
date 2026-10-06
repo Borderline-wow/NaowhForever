@@ -241,14 +241,23 @@ end
 -- The name in lower case, for search: kept once made, as a name does not change.
 local lowerNames = {}
 
-function Loot.LowerName(itemID)
-    local lower = lowerNames[itemID]
-    if lower then return lower end
-    local name = Loot.Name(itemID)
+local function Lower(itemID, name)
     if not name then return nil end
-    lower = name:lower()
+    local lower = name:lower()
     lowerNames[itemID] = lower
     return lower
+end
+
+function Loot.LowerName(itemID)
+    return lowerNames[itemID] or Lower(itemID, Loot.Name(itemID))
+end
+
+function Loot.KnownLowerName(itemID)
+    local lower = lowerNames[itemID]
+    if lower then return lower end
+    local notYet = J.NotYet[itemID]
+    if notYet then return Lower(itemID, notYet[J.FACT.NAME]) end
+    return Lower(itemID, GetItemNameByID(itemID))
 end
 
 -- Whether you have the item: worn, or in your bags or bank.

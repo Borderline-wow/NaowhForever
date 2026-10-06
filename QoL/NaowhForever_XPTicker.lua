@@ -860,7 +860,7 @@ end
 
 function ns.XPTickerCommand(arg)
     local run = ({ start = ns.StartXPTicker, pause = ns.PauseXPTicker, reset = ns.ResetXPTicker })[arg]
-    if run then run() else print(ns.Color("accent", "Naowh") .. ": /naowh xp start, pause or reset") end
+    if run then run() else ns.Print("/naowh xp start, pause or reset") end
 end
 
 local events = CreateFrame("Frame")

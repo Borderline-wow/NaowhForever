@@ -205,6 +205,16 @@ Case("a main hand swing runs its bar for the swing's duration", function()
     assert(mh.obj.dur == 1 and log.Live() == 0, "parked once the grace runs out")
 end)
 
+Case("each swing reuses its bar's end callback instead of making a new one", function()
+    local _, log = Session({ enabled = true })
+    log.Fire("PLAYER_SWING", 2.6, 0)
+    log.Fire("PLAYER_SWING", 2.6, 0)
+    local first, second = log.timers[#log.timers - 1], log.timers[#log.timers]
+    assert(first.cancelled and second.fn == first.fn and log.Live() == 1)
+    log.Advance(103)
+    assert(log.bars[1].obj.dur == 1 and log.Live() == 0, "the reused callback still parks the bar")
+end)
+
 Case("a mage with a wand and no off-hand weapon gets no Off Hand bar", function()
     local _, log = Session({ enabled = true }, { class = "MAGE", speeds = { 2.2, nil, 1.5 } })
     local b = log.bars

@@ -50,18 +50,34 @@ local SCRIPT_COMMANDS = { ["/run"] = true, ["/script"] = true, ["/dump"] = true 
 -- Every slash command and emote the client knows, from its SLASH_ and EMOTE_CMD strings.
 -- Commands from addons that are not loaded are missing, so an unknown command is a warning.
 local knownCommands
+local ownCommands, addonCommands = {}, {}
 local function KnownCommands()
     if knownCommands then return knownCommands end
     knownCommands = {}
     for key, value in pairs(_G) do
         if type(key) == "string" and type(value) == "string"
             and (key:find("^SLASH_") or key:find("^EMOTE%d+_CMD%d+$")) and value:sub(1, 1) == "/" then
-            knownCommands[value:lower()] = true
+            local command = value:lower()
+            knownCommands[command] = true
+            if key:find("^SLASH_NAOWH") then
+                ownCommands[command] = true
+            elseif key:find("^SLASH_") and issecurevariable and not issecurevariable(key) then
+                addonCommands[command] = true
+            end
         end
     end
     return knownCommands
 end
 ns.MacroKnownCommands = KnownCommands
+
+function ns.MacroCommandKind(command)
+    command = command:lower()
+    if SCRIPT_COMMANDS[command] then return "script" end
+    local known = KnownCommands()
+    if ownCommands[command] then return "own" end
+    if addonCommands[command] then return "addon" end
+    if not known[command] and not command:find("^/%d+$") then return "unknown" end
+end
 
 -- Problems a player would hit when the macro runs: unknown commands, lines that are not
 -- commands, and unbalanced brackets. Script lines are Lua, so only their command is checked.
@@ -151,6 +167,8 @@ local MACROS = {
 local ready, pending
 local warnedFull = {}
 local toDelete = {}
+local events = CreateFrame("Frame")
+local BAG_MACROS = { health = true, mana = true, food = true, bandage = true }
 
 local function FirstCarried(list)
     for _, id in ipairs(list) do
@@ -161,29 +179,28 @@ end
 -- Best food and best drink in the bags: conjured first, then the highest required level.
 local function BestFoodAndDrink()
     local foodName, drinkName = C_Spell.GetSpellName(FOOD_SPELL), C_Spell.GetSpellName(DRINK_SPELL)
-    local best, score = {}, {}
+    local food, drink, foodScore, drinkScore
     for bag = 0, NUM_BAG_SLOTS do
         for slot = 1, C_Container.GetContainerNumSlots(bag) do
             local id = C_Container.GetContainerItemID(bag, slot)
             local spell = id and C_Item.GetItemSpell(id)
-            local kind = (spell == foodName and "food") or (spell == drinkName and "drink")
-            if kind then
+            if spell and (spell == foodName or spell == drinkName) then
                 local s = (CONJURED[id] and 1000 or 0) + (select(5, C_Item.GetItemInfo(id)) or 0)
-                if not score[kind] or s > score[kind] then best[kind], score[kind] = id, s end
+                if spell == foodName then
+                    if not foodScore or s > foodScore then food, foodScore = id, s end
+                elseif not drinkScore or s > drinkScore then
+                    drink, drinkScore = id, s
+                end
             end
         end
     end
-    return best.food, best.drink
+    return food, drink
 end
 
-local function UseLines(...)
-    local lines = { "#showtooltip" }
-    for i = 1, select("#", ...) do
-        local line = select(i, ...)
-        if line then lines[#lines + 1] = line end
-    end
-    if #lines == 1 then return end
-    return table.concat(lines, "\n")
+local function UseLines(first, second)
+    if first and second then return "#showtooltip\n" .. first .. "\n" .. second end
+    local line = first or second
+    if line then return "#showtooltip\n" .. line end
 end
 
 local function ItemLine(id, prefix)
@@ -247,13 +264,34 @@ local function Write(m, body, perCharacter)
     CreateMacro(m.name, m.icon or ICON, body, perCharacter or false)
 end
 
+local function SyncEvents()
+    local on, any, bags = S.Get("enabled"), false, false
+    if on then
+        for _, m in ipairs(MACROS) do
+            if S.Get(m.key) then
+                any = true
+                if BAG_MACROS[m.key] then bags = true end
+            end
+        end
+    end
+    if bags then events:RegisterEvent("BAG_UPDATE_DELAYED") else events:UnregisterEvent("BAG_UPDATE_DELAYED") end
+    if any then events:RegisterEvent("UPDATE_MACROS") else events:UnregisterEvent("UPDATE_MACROS") end
+    if on and S.Get("focus") and S.Get("focusAnnounce") then
+        events:RegisterEvent("GROUP_ROSTER_UPDATE")
+    else
+        events:UnregisterEvent("GROUP_ROSTER_UPDATE")
+    end
+end
+
 local function Update()
     if not ready then return end
     if InCombatLockdown() then
         pending = true
+        events:RegisterEvent("PLAYER_REGEN_ENABLED")
         return
     end
     pending = false
+    events:UnregisterEvent("PLAYER_REGEN_ENABLED")
     local on = S.Get("enabled")
     for _, m in ipairs(MACROS) do
         if on and S.Get(m.key) then
@@ -335,15 +373,23 @@ local function SettingChanged(key, value)
             if key == "enabled" or key == m.key then toDelete[m.name] = true end
         end
     end
+    SyncEvents()
+    Update()
+end
+
+local function Reapply()
+    SyncEvents()
     Update()
 end
 
 -- Nothing is written before the first PLAYER_ENTERING_WORLD, when the character's macros
 -- are loaded; GetMacroIndexByName misses them earlier and every macro would be made twice.
-local events = CreateFrame("Frame")
+-- UPDATE_MACROS fires when a macro is deleted, so a macro that did not fit is made once there
+-- is room.
 events:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_ENTERING_WORLD" then
         ready = true
+        SyncEvents()
     elseif event == "PLAYER_REGEN_ENABLED" and not pending then
         return
     elseif event == "GROUP_ROSTER_UPDATE" and not (S.Get("focus") and S.Get("focusAnnounce")) then
@@ -352,14 +398,9 @@ events:SetScript("OnEvent", function(_, event)
     Update()
 end)
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
-events:RegisterEvent("BAG_UPDATE_DELAYED")
-events:RegisterEvent("PLAYER_REGEN_ENABLED")
-events:RegisterEvent("GROUP_ROSTER_UPDATE")
--- Fires when a macro is deleted, so a macro that did not fit is made once there is room.
-events:RegisterEvent("UPDATE_MACROS")
 
 hooksecurefunc(S, "Set", SettingChanged)
-hooksecurefunc(ns, "Apply", Update)
+hooksecurefunc(ns, "Apply", Reapply)
 
 -------------------------------------------------------------------------------
 --  Food & Drink bar: one button for the best food and one for the best drink.
@@ -395,6 +436,21 @@ function Look.Fill(button, i, icon, count)
     button.icon:SetTexture(icon or FOOD_BAR_EMPTY[i].icon)
     button.icon:SetDesaturated(not icon)
     button.count:SetText(count or "")
+end
+
+local function FillFoodButton(button, i, id)
+    if id ~= button.itemID then
+        button.itemID = id
+        button:SetAttribute("type1", id and "item" or nil)
+        button:SetAttribute("item1", id and ("item:" .. id) or nil)
+    end
+    Look.Fill(button, i, id and (C_Item.GetItemIconByID(id) or FOOD_BAR_EMPTY[i].icon), id and C_Item.GetItemCount(id))
+end
+
+local function FillFoodBar()
+    local food, drink = BestFoodAndDrink()
+    FillFoodButton(foodBar.buttons[1], 1, food)
+    FillFoodButton(foodBar.buttons[2], 2, drink)
 end
 
 -- The buttons are secure, so the bar is built, shown, hidden and pointed at items out of combat.
@@ -438,15 +494,7 @@ local function ApplyFoodBar()
     local pos = S.Get("foodBarPos")
     if pos then foodBar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
     else foodBar:SetPoint("CENTER", UIParent, "CENTER", 0, -210) end
-    local items = { BestFoodAndDrink() }
-    for i, button in ipairs(foodBar.buttons) do
-        local id = items[i]
-        button.itemID = id
-        button:SetAttribute("type1", id and "item" or nil)
-        button:SetAttribute("item1", id and ("item:" .. id) or nil)
-        Look.Fill(button, i, id and (C_Item.GetItemIconByID(id) or FOOD_BAR_EMPTY[i].icon),
-            id and C_Item.GetItemCount(id))
-    end
+    FillFoodBar()
     foodBar.mover:SetShown(foodBarMoving == true)
     foodBar:Show()
 end
@@ -455,6 +503,9 @@ foodBarEvents:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_REGEN_ENABLED" then
         foodBarEvents:UnregisterEvent("PLAYER_REGEN_ENABLED")
         if not foodBarPending then return end
+    elseif event == "BAG_UPDATE_DELAYED" and foodBar and foodBar:IsShown() and not InCombatLockdown() then
+        FillFoodBar()
+        return
     end
     ApplyFoodBar()
 end)

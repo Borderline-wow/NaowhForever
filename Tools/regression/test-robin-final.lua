@@ -17,6 +17,7 @@ local function fixture(kind)
         end
         function f:RegisterEvent(e) self.events[e] = true end
         function f:RegisterUnitEvent(e) self.events[e] = true end
+        function f:UnregisterEvent(e) self.events[e] = nil end
         function f:UnregisterAllEvents() self.events = {} end
         function f:Show() self.shown = true end
         function f:Hide() self.shown = false; if self.scripts.OnHide then self.scripts.OnHide(self) end end
@@ -142,6 +143,28 @@ do
     check('combat blocks equips and layout', #s.equips == 1 and bar.buttons[1].width == 36)
     s.combat = false; s.fire('PLAYER_REGEN_ENABLED')
     check('deferred settings apply', bar.buttons[1].width == 50)
+end
+
+do
+    local s = fixture('gear')
+    s.settings.trinketBar = false
+    s.load('NaowhForever_GearSets/NaowhForever_GearSets.lua'); s.fire('PLAYER_LOGIN')
+    local function Listening(e)
+        for _, f in ipairs(s.frames) do if f.events[e] then return f end end
+    end
+    check('trinket bar off: no combat events of its own', not Listening('PLAYER_REGEN_DISABLED'))
+    s.S.Set('trinketBar', true)
+    local watcher = Listening('PLAYER_REGEN_DISABLED')
+    check('trinket bar on: it listens', watcher and watcher.events.PLAYER_EQUIPMENT_CHANGED)
+    local bar = s.named.NaowhForeverTrinkets
+    bar.buttons[1].width = nil
+    watcher.scripts.OnEvent(watcher, 'PLAYER_EQUIPMENT_CHANGED', 5)
+    check('another slot changing leaves the trinkets alone', rawget(bar.buttons[1], 'width') == nil)
+    watcher.scripts.OnEvent(watcher, 'PLAYER_EQUIPMENT_CHANGED', 13)
+    check('a trinket slot changing redraws them', bar.buttons[1].width == 36)
+    s.S.Set('trinketBar', false)
+    check('switched off again: it stops listening', not watcher.events.PLAYER_REGEN_DISABLED
+        and not watcher.events.PLAYER_EQUIPMENT_CHANGED and not watcher.events.PLAYER_REGEN_ENABLED)
 end
 
 do

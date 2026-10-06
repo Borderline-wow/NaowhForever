@@ -20,6 +20,9 @@ Locales\ruRU.lua [AllowLoadTextLocale ruRU]
 # hang off.
 Core\NaowhForever_Core.lua
 
+# ns.SenderIs: whether an addon message's sender is the player its GUID names. Needs the Core.
+Core\NaowhForever_Senders.lua
+
 # ns.PlaceWaypoint: a waypoint (or TomTom's) for any module. Needs the Core.
 Core\NaowhForever_Waypoint.lua
 

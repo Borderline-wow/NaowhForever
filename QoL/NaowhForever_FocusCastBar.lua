@@ -26,6 +26,7 @@ local frame, bar, tickBar, icon, shield, nameText, targetText, timeText
 local unlocked, casting, channeling, fadeTimer
 local interrupt, tickSnapshot
 local acc = 0
+local readyFill, cooldownFill, nonIntFill
 
 local function On()
     return S.Get("enabled") and S.Get("focusCastBar")
@@ -260,6 +261,12 @@ local function NotInterruptible()
     if channeling then return select(7, UnitChannelInfo("focus")) end
 end
 
+local function Fill(color, c)
+    if not color then return CreateColor(c.r, c.g, c.b, 1) end
+    color:SetRGBA(c.r, c.g, c.b, 1)
+    return color
+end
+
 local function Colors(interrupted)
     if interrupted then
         Look.Paint(frame, Look.StateColour("interrupted"))
@@ -268,14 +275,14 @@ local function Colors(interrupted)
     end
     local tex = bar:GetStatusBarTexture()
     local ready = KickReady()
-    local rc, cc = Look.StateColour("ready"), Look.StateColour("cooldown")
-    local color = C_CurveUtil.EvaluateColorFromBoolean(ready, CreateColor(rc.r, rc.g, rc.b, 1),
-        CreateColor(cc.r, cc.g, cc.b, 1))
+    readyFill = Fill(readyFill, Look.StateColour("ready"))
+    cooldownFill = Fill(cooldownFill, Look.StateColour("cooldown"))
+    local color = C_CurveUtil.EvaluateColorFromBoolean(ready, readyFill, cooldownFill)
     local notInt = NotInterruptible()
     local hasNotInt = Secret(notInt) or notInt ~= nil
     if hasNotInt and S.Get("focusColorNonInt") then
-        local nc = Look.StateColour("nonint")
-        color = C_CurveUtil.EvaluateColorFromBoolean(notInt, CreateColor(nc.r, nc.g, nc.b, 1), color)
+        nonIntFill = Fill(nonIntFill, Look.StateColour("nonint"))
+        color = C_CurveUtil.EvaluateColorFromBoolean(notInt, nonIntFill, color)
     end
     tex:SetVertexColor(color:GetRGBA())
 

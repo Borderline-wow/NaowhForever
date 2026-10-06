@@ -122,7 +122,11 @@ end
 
 function Look.Progress(frame, share, left)
     frame.track:SetValue(math.min(share, 1))
-    frame.time:SetText(Clock(left))
+    local seconds = math.max(0, math.floor(left + 0.5))
+    if seconds ~= frame.seconds then
+        frame.seconds = seconds
+        frame.time:SetText(Clock(left))
+    end
 end
 
 local function Build()
@@ -237,13 +241,16 @@ end
 -- "Inventory is full", as counted here).
 -- A profession bag takes only items of its kind, the reagent bag only crafting reagents.
 -- The profession window caps Create All with it.
+local bagStacks, bagLists, bagRecords, NONE, memo = {}, {}, {}, {}, {}
+local function SmallestFirst(a, b) return a.count < b.count end
+
 local function BagTakes(bag, family, isReagent)
     if Enum.BagIndex and bag == Enum.BagIndex.ReagentBag then return isReagent end
     local _, bagType = C_Container.GetContainerNumFreeSlots(bag)
     return (bagType or 0) == 0 or bit.band(family, bagType) ~= 0
 end
 
-function ns.CraftBagRoom(output, made, reagents, limit)
+local function BagRoom(output, made, reagents, limit)
     if not output or not limit or limit < 1 then return end
     local stack = C_Item.GetItemMaxStackSizeByID and C_Item.GetItemMaxStackSizeByID(output)
         or select(8, C_Item.GetItemInfo(output))
@@ -254,9 +261,15 @@ function ns.CraftBagRoom(output, made, reagents, limit)
 
     -- What the bags hold: free slots and room on the item's stacks where it can go, and every
     -- stack of each reagent, marked by whether its slot could take the item once empty.
-    local free, room = 0, 0
-    local stacks = {}   -- reagent itemID -> { { count, takes } }
-    for _, r in ipairs(reagents or {}) do stacks[r.itemID] = {} end
+    local free, room, used = 0, 0, 0
+    local stacks = bagStacks   -- reagent itemID -> { { count, takes } }
+    wipe(stacks)
+    for i, r in ipairs(reagents or NONE) do
+        local list = bagLists[i] or {}
+        bagLists[i] = list
+        wipe(list)
+        stacks[r.itemID] = list
+    end
     for bag = 0, (NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4) do
         local takes = BagTakes(bag, family, isReagent)
         for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
@@ -267,13 +280,15 @@ function ns.CraftBagRoom(output, made, reagents, limit)
                 if takes then room = room + math.max(0, stack - (info.stackCount or 0)) end
             elseif stacks[info.itemID] then
                 local list = stacks[info.itemID]
-                list[#list + 1] = { count = info.stackCount or 1, takes = takes }
+                used = used + 1
+                local rec = bagRecords[used] or {}
+                bagRecords[used] = rec
+                rec.count, rec.takes = info.stackCount or 1, takes
+                list[#list + 1] = rec
             end
         end
     end
-    for _, list in pairs(stacks) do
-        table.sort(list, function(a, b) return a.count < b.count end)
-    end
+    for _, list in pairs(stacks) do table.sort(list, SmallestFirst) end
 
     for n = 1, limit do
         -- The item: onto stacks with room first, the rest into new slots.
@@ -286,7 +301,7 @@ function ns.CraftBagRoom(output, made, reagents, limit)
             room = room + slots * stack - made
         end
         -- The reagents, smallest stacks first; each one emptied frees its slot.
-        for _, r in ipairs(reagents or {}) do
+        for _, r in ipairs(reagents or NONE) do
             local need, list = r.need, stacks[r.itemID]
             for _, s in ipairs(list) do
                 if need <= 0 then break end
@@ -299,6 +314,18 @@ function ns.CraftBagRoom(output, made, reagents, limit)
         end
     end
     return limit
+end
+
+function ns.CraftBagRoom(output, made, reagents, limit)
+    local changes = ns.ProfBagChanges
+    if changes and memo.changes == changes and memo.output == output and memo.made == made
+        and memo.reagents == reagents and memo.limit == limit then
+        return memo.room
+    end
+    local room = BagRoom(output, made, reagents, limit)
+    memo.changes, memo.output, memo.made, memo.reagents, memo.limit, memo.room =
+        changes, output, made, reagents, limit, room
+    return room
 end
 
 -- Nothing is hooked until Total Craft Timer is first switched on: crafting, and Blizzard's

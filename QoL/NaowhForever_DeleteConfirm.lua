@@ -8,7 +8,7 @@ local S = ns.QoLSettings
 local DIALOGS = { DELETE_ITEM = true, DELETE_QUEST_ITEM = true, DELETE_GOOD_ITEM = true,
     DELETE_GOOD_QUEST_ITEM = true }
 
-local patched
+local hooked = {}
 
 -- DELETE_GOOD_ITEM's second paragraph is the "type DELETE" instruction, which no longer
 -- applies once the box is filled in.
@@ -22,21 +22,24 @@ local function StripInstruction(text)
 end
 
 local function LinkEnter(self, link)
+    if not DIALOGS[self.which] then return end
     GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetHyperlink(link)
     GameTooltip:Show()
+end
+
+local function LinkLeave(self)
+    if DIALOGS[self.which] then GameTooltip:Hide() end
 end
 
 hooksecurefunc("StaticPopup_Show", function(which)
     if not (DIALOGS[which] and S.Get("enabled") and S.Get("deleteConfirm")) then return end
     local dialog = StaticPopup_FindVisible(which)
     if not dialog then return end
-    if not patched then
-        for name in pairs(DIALOGS) do
-            StaticPopupDialogs[name].OnHyperlinkEnter = LinkEnter
-            StaticPopupDialogs[name].OnHyperlinkLeave = GameTooltip_Hide
-        end
-        patched = true
+    if not hooked[dialog] then
+        hooked[dialog] = true
+        dialog:HookScript("OnHyperlinkEnter", LinkEnter)
+        dialog:HookScript("OnHyperlinkLeave", LinkLeave)
     end
 
     local name = dialog:GetName()

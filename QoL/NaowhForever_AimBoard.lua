@@ -6,7 +6,9 @@
 --  view and the results card's rank. Messages on "NaowhAim": "2 B guid mode score accuracy class
 --  day" is a best ("-" for no accuracy), "2 R guid" asks for everyone's. Sent after login, on
 --  joining a group, on a new best and in answer to a request, never in combat; what arrives is
---  checked, rate limited and capped.
+--  checked, rate limited and capped. A best is kept only from the player its GUID names, found
+--  in your group or guild (ns.SenderIs), and an entry saved under one name is not replaced
+--  from another.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -157,6 +159,7 @@ end
 local function Keep(m, guid, who, score, accuracy, class, day, guild)
     local list = List(m, true)
     local entry = list[guid]
+    if type(entry) == "table" and entry.name ~= nil and entry.name ~= who then return false end
     if type(entry) ~= "table" then
         if entry == nil then
             local count, weakest, low, lowDay = Weakest(list)
@@ -324,6 +327,7 @@ local function Received(message, channel, sender)
         accuracy = tonumber(accuracy)
         if not accuracy or accuracy < 0 or accuracy > MAX_ACCURACY or accuracy ~= floor(accuracy) then return end
     end
+    if not ns.SenderIs(sender, channel, guid) then return end
     local who = sender:gsub("%-", " ", 1)
     if Keep(m, guid, who, score, accuracy, class, day, channel == "GUILD") then RefreshSoon() end
 end

@@ -270,6 +270,23 @@ check("back on Spells", window.hero:IsShown())
 settings.enabled = true
 settings.miniShown = true
 for _, fn in ipairs(listeners) do fn("miniShown") end
+local mini
+for _, f in ipairs(frames) do
+    if rawget(f, "gold") and rawget(f, "fill") and rawget(f, "track") and f.scripts.OnEvent then mini = f end
+end
+check("the mini bar shows, with your gold", mini and mini:IsShown() and mini.gold:GetText():find("|cffffd100g|r", 1, true))
+local plans = 0
+local Plan = ns.Training.Plan
+ns.Training.Plan = function(...) plans = plans + 1 return Plan(...) end
+mini.scripts.OnEvent(mini, "PLAYER_MONEY")
+ns.Training.Plan = Plan
+check("your gold changing repaints the gold, not the plan", plans == 0)
+check("Coins reads as before", ns.Training.Coins(12345) == "1|cffffd100g|r 23|cffc7ccd3s|r 45|cffe0904fc|r"
+    and ns.Training.Coins(0) == "0|cffe0904fc|r" and ns.Training.Coins(10005) == "1|cffffd100g|r 5|cffe0904fc|r"
+    and ns.Training.Coins(200) == "2|cffc7ccd3s|r")
+dofile("Tools/regression/measure.lua")(check)("the mini bar on a change of gold", 0.05, function()
+    mini.scripts.OnEvent(mini, "PLAYER_MONEY")
+end)
 local declared = ns.Shared.Settings.pages["Training Planner/Settings"]
 local windowCard, trainer = declared and declared.items[1], declared and declared.cards.trainer
 check("the settings page is declared, the planner's window card first", windowCard and windowCard.window

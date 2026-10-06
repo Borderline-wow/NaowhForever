@@ -32,6 +32,7 @@ local pickedZone      -- the zone the dropdown is listing, while it shows
 local zoneNames, zoneOrder = {}, {}
 local entries, pool, count = {}, {}, 0
 local carried = {}
+local toFind, doneHere, hereList = {}, {}, {}
 
 local function On()
     return S.Get("enabled") and S.Get("tracker")
@@ -183,19 +184,36 @@ end
 -- Every zone with a book still to find, in the data's order (by set), with how many:
 -- { uiMapID, count } pairs. keep, the zone picked in the dropdown, stays in the list at 0
 -- once its last book is looted, so the pick does not jump to another zone under you.
+local zonesLeft, zonePool, zoneAt = {}, {}, {}
+
 local function ZonesLeft(keep)
-    local out, seen = {}, {}
+    wipe(zoneAt)
+    local zones = 0
     for _, book in ipairs(ns.LibraryBooks) do
+        local find = L.ToFind(book)
         for _, spot in ipairs(book.spots) do
             local id = spot[1]
-            if not seen[id] then
-                seen[id] = true
-                local n = #L.OnMap(id)
-                if n > 0 or id == keep then out[#out + 1] = { id, n } end
+            local zone = zoneAt[id]
+            if not zone then
+                zones = zones + 1
+                zone = zonePool[zones] or {}
+                zonePool[zones] = zone
+                zone[1], zone[2] = id, 0
+                zoneAt[id] = zone
             end
+            if find then zone[2] = zone[2] + 1 end
         end
     end
-    return out
+    local n = 0
+    for i = 1, zones do
+        local zone = zonePool[i]
+        if zone[2] > 0 or zone[1] == keep then
+            n = n + 1
+            zonesLeft[n] = zone
+        end
+    end
+    for i = n + 1, #zonesLeft do zonesLeft[i] = nil end
+    return zonesLeft
 end
 
 -- Points the dropdown at the zones left and returns the one to list: the saved pick, which
@@ -262,7 +280,7 @@ local function Render(zone, left)
             end
         end
     end
-    local toFind = L.OnMap(listZone)
+    L.OnMap(listZone, toFind)
     if #toFind == 0 then Add("No more books in this area.", T.muted) end
     for _, item in ipairs(toFind) do
         local book, spot = item[1], item[2]
@@ -272,7 +290,7 @@ local function Render(zone, left)
         entry.sub, entry.book, entry.spot = sub, book, spot
         entry.waypoint, entry.tip = BookWaypoint, BookTip
     end
-    for _, item in ipairs(L.DoneOnMap(listZone)) do
+    for _, item in ipairs(L.DoneOnMap(listZone, doneHere)) do
         Add(item[1].name, T.muted).done = true
     end
     for i = count + 1, #entries do entries[i] = nil end
@@ -301,7 +319,7 @@ local function Refresh()
     if not On() then return Hide() end
     local zone = L.PlayerZone()
     if zone ~= dismissedZone then dismissedZone = nil end
-    local here = zone and #L.OnMap(zone) > 0
+    local here = zone and #L.OnMap(zone, hereList) > 0
     local always = S.Get("trackerAlways")
     local entered = zone ~= lastZone
     lastZone = zone
@@ -374,7 +392,7 @@ hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
     if not On() then return end
     if not panel then BuildPanel() end
     local zone = L.PlayerZone()
-    if not zone or #L.OnMap(zone) == 0 then
+    if not zone or #L.OnMap(zone, hereList) == 0 then
         zone = L.Side() == "H" and 1413 or 1436
     end
     Render(zone)

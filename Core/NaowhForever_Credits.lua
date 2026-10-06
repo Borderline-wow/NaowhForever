@@ -203,6 +203,7 @@ local function SetChips(row, names)
 end
 
 local kinds, view
+local NO_EVENTS = {}
 
 local Draw = {}
 
@@ -228,7 +229,7 @@ function Draw:Redraw()
         if section.chips then self:Add("chips", section.chips) end
         self:Space(SECTION_GAP)
     end
-    self:Fit({})
+    self:Fit(NO_EVENTS)
 end
 
 local function Kinds()

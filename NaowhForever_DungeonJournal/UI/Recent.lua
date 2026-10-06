@@ -35,17 +35,7 @@ local FightLength = Parts.FightLength
 local OPEN_HINT = "Click to show the dungeon."
 local panel, button, show
 
--- How long ago: "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago", else the date.
-local function Ago(when)
-    local seconds = time() - when
-    if seconds < 60 then return "just now" end
-    if seconds < 3600 then return ("%d min ago"):format(math.floor(seconds / 60)) end
-    if seconds < 86400 then return ("%d h ago"):format(math.floor(seconds / 3600)) end
-    local days = math.floor(seconds / 86400)
-    if days == 1 then return "yesterday" end
-    if days < 7 then return ("%d days ago"):format(days) end
-    return date("%d %b %Y", when)
-end
+local Ago = ns.Shared.Ago
 
 local function RecentEnter(row)
     local muted = T.muted

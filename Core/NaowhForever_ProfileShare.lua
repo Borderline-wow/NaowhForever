@@ -14,6 +14,12 @@ local PACK_PREFIX = "NSRPACK2:"
 local FORMAT = 1
 local MAX_DEPTH = 12
 local MAX_VALUES = 200000   -- values a string may hold; more is refused as too big
+local LIMITS = { maxChars = 1000000, maxBytes = 4194304, maxDepth = 32, maxValues = 1000000 }
+local TEXT_MAX = 64
+local LOOK_TYPES = { themePreset = "string", themeColors = "table", uiFont = "string", windowScale = "number" }
+local GEAR_SLOT = { [1] = true, [2] = true, [3] = true, [5] = true, [6] = true, [7] = true, [8] = true, [9] = true,
+    [10] = true, [11] = true, [12] = true, [13] = true, [14] = true, [15] = true, [16] = true, [17] = true, [18] = true }
+local MAX_PICKS = 50
 
 -- The account's look: every profile shares it, so it travels as its own part.
 local LOOK = { "themePreset", "themeColors", "uiFont", "windowScale" }
@@ -44,6 +50,14 @@ local function Codec()
     local LS = LibStub and LibStub("LibSerialize", true)
     local LD = LibStub and LibStub("LibDeflate", true)
     if LS and LD then return LS, LD end
+end
+
+local function ValidReminders(data)
+    return type(data) == "table" and ns.ValidPackData ~= nil and ns.ValidPackData(data) == true
+end
+
+local function ValidClassMacros(list)
+    return ValidReminders({ utilityReminders = { classMacros = list } })
 end
 
 -- Plain data only (strings, numbers, booleans, tables keyed by strings or numbers), so
@@ -203,19 +217,24 @@ function ns.DecodeProfile(text)
     if text == "" then return nil end
     if text:sub(1, #PACK_PREFIX) == PACK_PREFIX then return nil, "pack" end
     if text:sub(1, #PREFIX) ~= PREFIX then return nil, "This is not a Naowh Forever profile string." end
-    local LS, LD = Codec()
-    if not LS then return nil, "The serializer libraries are missing from this build." end
-    local compressed = LD:DecodeForPrint(text:sub(#PREFIX + 1))
-    local raw = compressed and LD:DecompressDeflate(compressed)
-    if not raw then return nil, "The string is damaged: copy it again in full." end
-    local ok, payload = LS:Deserialize(raw)
-    if not ok or type(payload) ~= "table" or type(payload.parts) ~= "table" then
+    local payload, why = ns.Shared.Decode.String(text:sub(#PREFIX + 1), LIMITS)
+    if why == "missing" then return nil, "The serializer libraries are missing from this build." end
+    if why == "big" then return nil, "This string is too big." end
+    if type(payload) ~= "table" or type(payload.parts) ~= "table" then
         return nil, "The string is damaged: copy it again in full."
     end
     if payload.format ~= FORMAT then return nil, "This string is from a newer Naowh Forever: update first." end
     local budget = { n = 0 }
     payload.parts = Plain(Swap(payload.parts, ZERO, 0), 1, budget)
     if budget.over then return nil, "This string is too big." end
+    local Text, parts = ns.Shared.Decode.Text, payload.parts
+    payload.name, payload.author = Text(payload.name, TEXT_MAX), Text(payload.author, TEXT_MAX)
+    payload.made = Text(payload.made, TEXT_MAX)
+    if parts.smartReminders ~= nil and not ValidReminders(parts.smartReminders) then parts.smartReminders = nil end
+    local macros = parts.macros
+    if type(macros) == "table" and macros.classMacros ~= nil and not ValidClassMacros(macros.classMacros) then
+        macros.classMacros = nil
+    end
     return payload
 end
 
@@ -254,6 +273,53 @@ function ns.ProfileStringParts(payload)
     return out
 end
 
+local SAYS_MAX = 80
+
+local function SellsScrap(values)
+    return (values.scrapMarkerVendor or "sell") == "sell"
+end
+
+local function EmoteLines(list)
+    if type(list) ~= "string" then return nil end
+    local lines = {}
+    for text in list:gmatch("%d+%s*:%s*([^;]+)") do lines[#lines + 1] = text:match("^%s*(.-)%s*$") end
+    if #lines == 0 then return nil end
+    return ns.PlainText(table.concat(lines, " / "), SAYS_MAX)
+end
+
+local ACTING = {
+    { module = "qol", key = "autoEmote", label = "Summon Emote", says = "autoEmoteList" },
+    { module = "qol", key = "questAccept", label = "Accept Quests" },
+    { module = "qol", key = "questTurnIn", label = "Hand In Quests" },
+    { module = "qol", key = "questShare", label = "Share Quests With Group" },
+    { module = "qol", key = "autoRepair", label = "Auto Repair" },
+    { module = "qol", key = "sellJunk", label = "Auto Sell Junk" },
+    { module = "qol", key = "restockBuy", label = "Buy at Vendors" },
+    { module = "qol", key = "lootConfirm", label = "Skip Loot Confirmations" },
+    { module = "qol", key = "enchantReplace", label = "Auto-Replace Enchants" },
+    { module = "qol", key = "scrapMarker", label = "Scrap Marker, which sells what it marks", when = SellsScrap },
+    { module = "journal", key = "acceptShared", label = "Accept Shared Dungeon Quests" },
+}
+
+local function ActingOn(settings, item)
+    local values = type(settings) == "table" and settings[item.module]
+    if type(values) ~= "table" or values[item.key] ~= true then return false end
+    local defaults = ns.ModuleDefaults(item.module)
+    if defaults and defaults[item.key] == true then return false end
+    return not item.when or item.when(values)
+end
+
+function ns.ProfileActing(payload)
+    local out, settings = {}, type(payload.parts) == "table" and payload.parts.settings
+    for _, item in ipairs(ACTING) do
+        if ActingOn(settings, item) then
+            local says = item.says and EmoteLines(settings[item.module][item.says])
+            out[#out + 1] = says and ('%s, which says "%s"'):format(item.label, says) or item.label
+        end
+    end
+    return out
+end
+
 -------------------------------------------------------------------------------
 --  Taking a string in
 -------------------------------------------------------------------------------
@@ -274,6 +340,30 @@ local function SameList(a, b)
     return true
 end
 
+local function ItemID(id)
+    return type(id) == "number" and id >= 1 and id < 2147483648 and id % 1 == 0
+end
+
+local function CleanBisList(list)
+    if type(list) ~= "table" or type(list.slots) ~= "table" then return nil end
+    local name = ns.Shared.Decode.Text(list.name, 40)
+    if not name or name == "" then return nil end
+    local out = { name = name, spec = ns.Shared.Decode.Text(list.spec, 40), slots = {}, extra = {} }
+    for slot, id in pairs(list.slots) do
+        if GEAR_SLOT[slot] and ItemID(id) then out.slots[slot] = id end
+    end
+    for slot, ids in pairs(type(list.extra) == "table" and list.extra or {}) do
+        if GEAR_SLOT[slot] and type(ids) == "table" then
+            local keep = {}
+            for _, id in ipairs(ids) do
+                if ItemID(id) and #keep < MAX_PICKS then keep[#keep + 1] = id end
+            end
+            out.extra[slot] = keep[1] and keep or nil
+        end
+    end
+    return out
+end
+
 -- Each list joins its class's lists under a free name; one already there as it is, is skipped.
 local function AddBisLists(incoming)
     local account = ns.AccountSettings()
@@ -287,13 +377,15 @@ local function AddBisLists(incoming)
                 account.bisLists[class] = store
             end
             store.nextID = tonumber(store.nextID) or #store.lists + 1
-            for _, list in ipairs(lists) do
+            for _, raw in ipairs(lists) do
+                local list = CleanBisList(raw)
                 local have = false
                 for _, mine in ipairs(store.lists) do
                     if type(list) == "table" and SameList(mine, list) then have = true end
                 end
                 if type(list) == "table" and type(list.name) == "string" and not have then
-                    local name, n = list.name, 1
+                    local base = list.name
+                    local name, n = base, 1
                     local function Taken(try)
                         for _, mine in ipairs(store.lists) do
                             if type(mine.name) == "string" and mine.name:lower() == try:lower() then return true end
@@ -301,7 +393,7 @@ local function AddBisLists(incoming)
                     end
                     while Taken(name) do
                         n = n + 1
-                        name = ("%s %d"):format(list.name, n)
+                        name = ("%s %d"):format(base, n)
                     end
                     list.name, list.id = name, store.nextID
                     store.nextID = store.nextID + 1
@@ -397,15 +489,24 @@ function ns.ImportProfile(payload, wanted, name)
                 root[key] = Checked(values, defaults)
             end
         end
+        if not wanted.acting then
+            for _, item in ipairs(ACTING) do
+                local values = root[item.module]
+                if type(values) == "table" and ActingOn(parts.settings, item) then
+                    values[item.key] = nil
+                    if item.says then values[item.says] = nil end
+                end
+            end
+        end
     end
-    if wanted.smartReminders and type(parts.smartReminders) == "table" then
+    if wanted.smartReminders and ValidReminders(parts.smartReminders) then
         root.tankReminder = parts.smartReminders
         root.tankReminder.importedPack = nil
     end
     if wanted.macros and type(parts.macros) == "table" then
         local macros = parts.macros
         if type(macros.module) == "table" then root.macros = Checked(macros.module, ns.ModuleDefaults("macros") or {}) end
-        if type(macros.classMacros) == "table" then
+        if type(macros.classMacros) == "table" and ValidClassMacros(macros.classMacros) then
             local sr = root.tankReminder
             if type(sr.utilityReminders) ~= "table" then sr.utilityReminders = {} end
             sr.utilityReminders.classMacros = macros.classMacros
@@ -420,7 +521,7 @@ function ns.ImportProfile(payload, wanted, name)
     if wanted.look and type(parts.look) == "table" then
         local account = ns.AccountSettings()
         for _, key in ipairs(LOOK) do
-            if parts.look[key] ~= nil then account[key] = parts.look[key] end
+            if type(parts.look[key]) == LOOK_TYPES[key] then account[key] = parts.look[key] end
         end
     end
 
@@ -435,6 +536,9 @@ end
 local EXPORT_W, EXPORT_H, BOX_H = 560, 360, 180
 local IMPORT_W, IMPORT_H, PASTE_H = 600, 520, 110
 local PAD, ROW_H, BUTTON_W, BUTTON_H = 14, 24, 120, 26
+local PREVIEW_GAP = 16
+local ACTING_LINE = "It also turns on settings that act for you: %s; they stay off unless you tick Also Import."
+local ACTING_HELP = "Turns those settings on in the new profile"
 local TOGGLE_W, TOGGLE_H = 32, 16
 
 -- Strings another import takes in: what the dialog says, and the button that hands them over.
@@ -530,10 +634,19 @@ local function PaintImport()
         import.preview:SetText(err or "Paste a profile, macro, talent build or BiS list string above.")
         return
     end
-    import.preview:SetText(("%s, shared by %s on %s. Untick what you don't want."):format(
-        tostring(payload.name or "A profile"), tostring(payload.author or "someone"), tostring(payload.made or "?")))
-    local y = -(40 + PASTE_H + 44)
-    for i, part in ipairs(ns.ProfileStringParts(payload)) do
+    local preview = ("%s, shared by %s on %s. Untick what you don't want."):format(
+        tostring(payload.name or "A profile"), tostring(payload.author or "someone"), tostring(payload.made or "?"))
+    local acting = ns.ProfileActing(payload)
+    if #acting > 0 then
+        preview = preview .. "|n" .. ACTING_LINE:format(table.concat(acting, ", "))
+    end
+    import.preview:SetText(preview)
+    local y = math.min(-(40 + PASTE_H + 44), -(40 + PASTE_H + 14 + import.preview:GetStringHeight() + PREVIEW_GAP))
+    local list = ns.ProfileStringParts(payload)
+    if #acting > 0 then
+        list[#list + 1] = { key = "acting", label = "Also Import", help = ACTING_HELP, off = true }
+    end
+    for i, part in ipairs(list) do
         local row = import.rows[i]
         if not row then
             row = CreateFrame("Frame", nil, import.panel)
@@ -548,7 +661,7 @@ local function PaintImport()
             import.rows[i] = row
         end
         row.key = part.key
-        if import.wanted[part.key] == nil then import.wanted[part.key] = true end
+        if import.wanted[part.key] == nil then import.wanted[part.key] = not part.off end
         row.label:SetText(part.label)
         row.help:SetText(part.detail and (part.help .. " (" .. part.detail .. ")") or part.help)
         row.toggle._refreshValue()
@@ -1125,6 +1238,7 @@ end
 -------------------------------------------------------------------------------
 local kinds
 local Draw = {}
+local NO_EVENTS = {}
 
 function Draw:BeginCard()
     self.left, self.width = 0, self:GetWidth()
@@ -1194,7 +1308,7 @@ function Draw:Redraw()
     self:Add("head", "Import", "Profiles, Forge macros, talent builds, BiS lists and Smart Reminders packs.")
     self:Add("paste")
     self:EndCard(card)
-    self:Fit({})
+    self:Fit(NO_EVENTS)
 end
 
 local function Kinds()

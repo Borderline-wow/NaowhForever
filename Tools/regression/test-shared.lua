@@ -24,6 +24,7 @@ local METHODS = {
     RegisterEvent = function(f, event) f.events[event] = true end,
     UnregisterAllEvents = function(f) for event in pairs(f.events) do f.events[event] = nil end end,
     GetParent = function(f) return rawget(f, "parent") end,
+    IsForbidden = function() return false end,
     SetWidth = function(f, w) f.w = w end,
     SetHeight = function(f, h) f.h = h end,
     SetSize = function(f, w, h) f.w, f.h = w, h end,
@@ -56,6 +57,7 @@ end
 
 local WHITE = { r = 1, g = 1, b = 1 }
 local timers = {}
+local coinCalls = 0
 local tooltip = Frame()
 tooltip.GetOwner = function() return nil end
 
@@ -112,6 +114,10 @@ local env = setmetatable({
     InCombatLockdown = function() return false end,
     CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end,
     UIParent = Frame(),
+    C_CurrencyInfo = { GetCoinTextureString = function(copper)
+        coinCalls = coinCalls + 1
+        return "<" .. copper .. ">"
+    end },
 }, { __index = _G })
 env._G = env
 
@@ -148,6 +154,17 @@ local Parts = Shared.Parts
 local newItem = next(Shared.ForeverNew.items)
 check("an item new in Forever has the mark; one from the original game not", Parts.IsForever("items", newItem)
     and not Parts.IsForever("items", 19019))
+
+local partsSource = assert(io.open("Shared/Parts.lua", "rb")):read("*a")
+local COINS_KEPT = tonumber(partsSource:match("local COINS_KEPT = (%d+)"))
+check("a price in coins, asked for again, is made once", Parts.Coins(12345) == "<12345>"
+    and Parts.Coins(12345) == "<12345>" and coinCalls == 1)
+for copper = 1, COINS_KEPT * 3 do Parts.Coins(copper) end
+local calls = coinCalls
+Parts.Coins(COINS_KEPT * 3)
+check("the prices kept are bounded: the newest are still there", coinCalls == calls)
+Parts.Coins(1)
+check("and the oldest go", coinCalls == calls + 1)
 
 -------------------------------------------------------------------------------
 --  The row engine: a page of rows of its own kind, under a shared section title.
@@ -192,6 +209,18 @@ check("drawn again shorter: rows reused, none made, the rest hidden", madeRows =
     and view.pools.line[11].shown == false)
 local row = view:Find("line", function(r, text) return r.label.text == text end, "line 7")
 check("a drawn row found by what it shows", row and row.top == view.pools.line[7].top)
+local forbidden = setmetatable({}, { __index = function(_, key)
+    if key == "IsForbidden" then return function() return true end end
+    error("touched a forbidden frame: " .. key)
+end })
+tooltip.GetOwner = function() return forbidden end
+tooltip.shown = true
+check("a redraw leaves a tooltip on a forbidden frame (a nameplate aura in combat) alone",
+    pcall(view.Redraw, view) and tooltip.shown == true)
+tooltip.GetOwner = function() return view.pools.line[1] end
+view:Redraw()
+check("and still closes its own row's tooltip", tooltip.shown == false)
+tooltip.GetOwner = function() return nil end
 view.waitOn = 3
 view:Redraw()
 check("a row waiting on an item's name: listened for", view.events.GET_ITEM_INFO_RECEIVED)
@@ -257,6 +286,40 @@ check("the second time too", backs == 2)
 view.Redraw = redraw
 view.count = 50
 Measure(check)("a page of 50 rows redrawn", 1, function() view:Redraw() end)
+
+-------------------------------------------------------------------------------
+--  A declared settings page, drawn again after a change: no garbage.
+-------------------------------------------------------------------------------
+local function Control(parent)
+    local control = Frame(parent)
+    control._refreshValue, control._refreshLabel = NOTHING, NOTHING
+    return control
+end
+METHODS.GetFrameLevel = function() return 1 end
+ns.UI.BuildToggleControl = Control
+ns.UI.BuildSliderCore = function(parent) return Control(parent), Frame(parent) end
+ns.UI.SetSliderRange = NOTHING
+ns.UI.CHEVRON, ns.UI.CONTENT_PAD = "chevron", 20
+local values = { on = true, size = 12 }
+local store = {
+    Get = function(k) return values[k] end,
+    Raw = function(k) return values[k] end,
+    Default = function() return nil end,
+    Set = function(k, v) values[k] = v end,
+    OnChange = NOTHING,
+}
+local Settings = Shared.Settings
+Settings.Page("Test/Costs", store):Card({ id = "costs", name = "Costs", switch = "on", rows = {
+    Settings.Group("Look"),
+    { key = "shown", label = "Shown", toggle = true },
+    { key = "size", label = "Size", slider = { 8, 32, 1 }, unit = "px", needs = "shown" },
+    { key = "alpha", label = "Opacity", slider = { 0, 100, 5 }, unit = "%" },
+} })
+local settingsParent = Frame()
+Settings.Render(settingsParent, "Test/Costs", NOTHING)
+local settingsView = settingsParent.settingsView
+check("the settings page drew its card", settingsView.pools.setting.used == 3 and settingsView.pools.group.used == 1)
+Measure(check)("a settings page redrawn", 1, function() settingsView:Redraw() end)
 
 -------------------------------------------------------------------------------
 --  A tracker's window (Parts.TrackerPanel): built only when asked, its parts where the

@@ -72,6 +72,7 @@ local function Fixture(o)
         end,
     }
     setmetatable(env, { __index = _G })
+    env.ns.Shared = { Decode = dofile("Tools/regression/load_decode.lua")(env, true) }
     local code = "local Training = {}\n" .. Slice("local BUILD_PREFIX", "-------------------------------------------------------------------------------\n--  At the trainer")
         .. "\nreturn Training"
     local chunk = assert(loadstring(code)); setfenv(chunk, env)

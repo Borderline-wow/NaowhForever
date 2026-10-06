@@ -236,22 +236,57 @@ local function CastSpell(key, members)
     return greater or HighestKnown(entry.ranks)
 end
 
+local memoAt
+local memo, scratch = {}, {}
+
+local function BeginAuraMemo()
+    memoAt = GetTime()
+    for _, seen in pairs(memo) do seen.stale = true end
+end
+
+local function EndAuraMemo()
+    memoAt = nil
+end
+
+local function Found(v)
+    if v == true then return true end
+    return true, v - GetTime()
+end
+
 -- Present, with the time left when it runs out; nil when unreadable. Aura access can be
 -- withdrawn outside combat lockdown too (seen on boss pulls), and GetAuraDataByIndex then
 -- raises instead of returning nil, so the restriction is checked before the call.
 local function BuffState(unit, key)
     if C_Secrets.ShouldAurasBeSecret() then return nil end
-    for i = 1, 40 do
+    local seen
+    if memoAt and memoAt == GetTime() then
+        seen = memo[unit]
+        if not seen then seen = {}; memo[unit] = seen end
+        if seen.stale then wipe(seen) end
+    else
+        wipe(scratch)
+        seen = scratch
+    end
+    local v = seen[key]
+    if v then return Found(v) end
+    if seen.ended == "none" then return false end
+    if seen.ended then return nil end
+    for i = seen.next or 1, 40 do
         local aura = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
-        if not aura then return false end
+        if not aura then seen.ended = "none" return false end
         local id = aura.spellId
-        if Secret(id) then return nil end
-        if FAMILY[id] == key then
+        if Secret(id) then seen.ended = "secret" return nil end
+        local family = FAMILY[id]
+        if family and seen[family] == nil then
             local expires = aura.expirationTime
-            if Secret(expires) or not expires or expires == 0 then return true end
-            return true, expires - GetTime()
+            seen[family] = (Secret(expires) or not expires or expires == 0) and true or expires
+        end
+        if family and family == key then
+            seen.next = i + 1
+            return Found(seen[family])
         end
     end
+    seen.ended = "none"
     return false
 end
 
@@ -496,6 +531,7 @@ end
 -- Per-player choices for members of the group, as GUID=code pairs. "P|1|" starts the list
 -- over, so an empty one clears what the others had.
 local PLAYER_BATCH = 200
+local MAX_PLAYER_CHOICES = 40
 local sentPlayers
 
 local function SendPlayers()
@@ -582,10 +618,14 @@ local function OnMessage(msg, sender)
     if part then
         local from = others[who]
         if not from then return end
-        if part == "1" then from.players = {} end
+        if part == "1" then from.players, from.choices = {}, 0 end
         for guid, code in list:gmatch("(Player%-[%w%-]+)=(%a)") do
             local entry = BY_CODE[code]
-            if entry and entry.blessing then from.players[guid] = entry.key end
+            local choices = from.choices or 0
+            if entry and entry.blessing and (from.players[guid] or choices < MAX_PLAYER_CHOICES) then
+                if not from.players[guid] then from.choices = choices + 1 end
+                from.players[guid] = entry.key
+            end
         end
         if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
         return
@@ -599,7 +639,9 @@ local function OnMessage(msg, sender)
     for code in known:gmatch(".") do
         if BY_CODE[code] then set[BY_CODE[code].key] = true end
     end
-    others[who] = { classes = classes, aura = aura, known = set, players = others[who] and others[who].players or {} }
+    local was = others[who]
+    others[who] = { classes = classes, aura = aura, known = set, players = was and was.players or {},
+        choices = was and was.choices or 0 }
     if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
 end
 
@@ -1048,6 +1090,7 @@ function Refresh()
     end
     bar:Show()
     if not bar:IsVisible() then return end
+    BeginAuraMemo()
     Look.Read()
     local size = Look.size
     local x = 0
@@ -1092,6 +1135,7 @@ function Refresh()
     end
     ArrangeFlyout(roster)
     FillKeys(byClass)
+    EndAuraMemo()
     bar:SetSize(Look.Width(x), size)
     bar:SetShown(x > 0 or bar.mover:IsShown())
 end
@@ -1135,22 +1179,26 @@ local refreshQueued, syncQueued
 -- class can land over more than one frame.
 local landing, landingQueued
 
+local function RunLanded()
+    landingQueued = false
+    Refresh()
+end
+
 local function RefreshLanded()
     if landingQueued then return end
     landingQueued = true
-    C_Timer.After(0, function()
-        landingQueued = false
-        Refresh()
-    end)
+    C_Timer.After(0, RunLanded)
+end
+
+local function RunQueued()
+    refreshQueued = false
+    Refresh()
 end
 
 local function RefreshSoon()
     if refreshQueued then return end
     refreshQueued = true
-    C_Timer.After(1, function()
-        refreshQueued = false
-        Refresh()
-    end)
+    C_Timer.After(1, RunQueued)
 end
 
 local function SyncSoon()
@@ -1173,6 +1221,7 @@ local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, ...)
     if event == "CHAT_MSG_ADDON" then
         local prefix, msg, channel, sender = ...
+        if Secret(prefix) or Secret(msg) or Secret(channel) or Secret(sender) then return end
         if prefix == PREFIX and GROUP_CHANNELS[channel] then OnMessage(msg, sender) end
     elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
         SyncSoon()

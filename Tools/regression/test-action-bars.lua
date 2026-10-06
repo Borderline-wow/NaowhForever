@@ -590,4 +590,19 @@ Case("with Fill In off nothing waits", function()
     alt.ns.ActionBarSettings.Set("fillLater", true)
     assert(not alt.events.registered.LEARNED_SPELL_IN_SKILL_LINE, "nothing pending, so nothing to wait for")
 end)
+Case("/nf bars delete asks first, and keeps the set on No", function()
+    local w = World({ 2055 })
+    w.bars = { [1] = Spell(2055) }
+    w.run("save Raid")
+    local asked, yes
+    w.ns.Confirm = function(text, onYes) asked, yes = text, onYes end
+    w.run("delete Raid")
+    assert(asked and asked:find("Raid", 1, true), "the delete is confirmed first")
+    assert(w.account.barSets.PRIEST.Raid, "nothing is deleted before Yes")
+    yes()
+    assert(w.account.barSets.PRIEST.Raid == nil, "Yes deletes it")
+    asked = nil
+    w.run("delete %s%d|TInterface\\Icons\\X:0|t")
+    assert(not asked and w.printed[#w.printed]:find("%s%d", 1, true), "an unknown name with format codes is only named")
+end)
 print(count .. " action bar set regressions passed")

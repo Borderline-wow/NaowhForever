@@ -10,6 +10,7 @@ local SLOT_NAME, Fits = Items.SLOT_NAME, Items.Fits
 
 local PREFIX = "!NBIS1!"
 local VERSION = 4
+local LIMITS = { maxChars = 100000, maxBytes = 1048576, maxDepth = 8, maxValues = 20000 }
 
 local function Codec()
     return LibStub("LibSerialize"), LibStub("LibDeflate")
@@ -30,15 +31,12 @@ end
 -- Version 1: a flat item list, placed as an old saved list is. 2: BiS picks only. 3: next
 -- picks unordered, put in the spec's ranked order. 4: next picks in order.
 local function Decode(text)
-    local LS, LD = Codec()
     local body = type(text) == "string" and text:match("^%s*" .. PREFIX:gsub("!", "%%!") .. "(%S+)%s*$")
-    local packed = body and LD:DecodeForPrint(body)
-    local raw = packed and LD:DecompressDeflate(packed)
-    if not raw then return end
-    local ok, data = LS:Deserialize(raw)
-    if not (ok and type(data) == "table") then return end
-    local name = type(data.name) == "string" and data.name:sub(1, 40):gsub("|", "||") or "Imported BiS"
-    local spec = type(data.spec) == "string" and data.spec:sub(1, 40) or nil
+    local data = body and ns.Shared.Decode.String(body, LIMITS)
+    if type(data) ~= "table" then return end
+    local name = ns.Shared.Decode.Text(data.name, 40)
+    if not name or name == "" then name = "Imported BiS" end
+    local spec = ns.Shared.Decode.Text(data.spec, 40)
     local list = { slots = {}, extra = {} }
     if data.v == 1 and type(data.items) == "table" then
         for _, id in ipairs(data.items) do

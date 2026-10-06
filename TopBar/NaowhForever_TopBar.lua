@@ -208,42 +208,61 @@ function ns.LockoutsCommand()
     for _, l in ipairs(list) do print(("   %s: resets in %s"):format(l.name, l.reset)) end
 end
 
-local function FpsRGB(fps)
-    if fps >= 100 then return 0.25, 1, 0.25 end
-    if fps >= 60 then return 0.55, 1, 0.25 end
-    if fps >= 30 then return 1, 1, 0.25 end
-    return 1, 0.35, 0.25
-end
-
-local function MsRGB(ms)
-    if ms < 75 then return 0.25, 1, 0.25 end
-    if ms < 150 then return 1, 1, 0.25 end
-    return 1, 0.35, 0.25
-end
-
 local function Hex(r, g, b)
     return ("ff%02x%02x%02x"):format(math.floor(r * 255 + 0.5), math.floor(g * 255 + 0.5),
         math.floor(b * 255 + 0.5))
+end
+
+local function Band(r, g, b) return { r = r, g = g, b = b, hex = Hex(r, g, b) } end
+local FPS_GREAT, FPS_GOOD, FPS_OK, FPS_LOW = Band(0.25, 1, 0.25), Band(0.55, 1, 0.25), Band(1, 1, 0.25),
+    Band(1, 0.35, 0.25)
+local MS_GOOD, MS_OK, MS_HIGH = Band(0.25, 1, 0.25), Band(1, 1, 0.25), Band(1, 0.35, 0.25)
+
+local function FpsBand(fps)
+    if fps >= 100 then return FPS_GREAT end
+    if fps >= 60 then return FPS_GOOD end
+    if fps >= 30 then return FPS_OK end
+    return FPS_LOW
+end
+
+local function MsBand(ms)
+    if ms < 75 then return MS_GOOD end
+    if ms < 150 then return MS_OK end
+    return MS_HIGH
+end
+
+local function FpsRGB(fps)
+    local c = FpsBand(fps)
+    return c.r, c.g, c.b
+end
+
+local function MsRGB(ms)
+    local c = MsBand(ms)
+    return c.r, c.g, c.b
 end
 
 -------------------------------------------------------------------------------
 --  Tooltips
 -------------------------------------------------------------------------------
 -- The bar's own tooltips at Tooltip Size; GameTooltip's own scale comes back when it hides.
-local tipBase
+local tipBase, tipHooked
 
-local function OwnTooltip(owner)
-    GameTooltip:SetOwner(owner, "ANCHOR_BOTTOM")
-    tipBase = tipBase or GameTooltip:GetScale()
-    GameTooltip:SetScale(tipBase * S.Get("tooltipScale") / 100)
-end
-
-GameTooltip:HookScript("OnHide", function(self)
+local function TipHidden(self)
     if tipBase then
         self:SetScale(tipBase)
         tipBase = nil
     end
-end)
+end
+
+local function OwnTooltip(owner)
+    if not tipHooked then
+        tipHooked = true
+        GameTooltip:HookScript("OnHide", TipHidden)
+    end
+    GameTooltip:SetOwner(owner, "ANCHOR_BOTTOM")
+    tipBase = tipBase or GameTooltip:GetScale()
+    GameTooltip:SetScale(tipBase * S.Get("tooltipScale") / 100)
+end
 
 -- Online Battle.net friends in WoW, then character friends.
 local function AddFriendsRoster()
@@ -504,12 +523,16 @@ local function BrokerButton(name)
     return b
 end
 
+local function SetBadge(b, n)
+    if b.count == n then return end
+    b.count = n
+    b.badge:SetText(n and n > 0 and n or "")
+end
+
 local function UpdateBadges()
     if not bar then return end
-    local n = FriendsOnline()
-    buttons.friends.badge:SetText(n > 0 and n or "")
-    n = GuildOnline()
-    buttons.guild.badge:SetText(n and n > 0 and n or "")
+    SetBadge(buttons.friends, FriendsOnline())
+    SetBadge(buttons.guild, GuildOnline())
     if InLayoutOf(SavedLayout(), "guild") and IsInGuild() and not InCombatLockdown() and GetTime() - lastRoster >= 15 then
         lastRoster = GetTime()
         C_GuildInfo.GuildRoster()
@@ -600,8 +623,10 @@ function Look.SystemFont(text)
     text:SetTextColor(Tone("fg", 1))
 end
 
+local SYSTEM_TEXT = "FPS: |c%s%d|r  MS: |c%s%d|r"
+
 function Look.SystemText(text, fps, ms)
-    text:SetText(("FPS: |c%s%d|r  MS: |c%s%d|r"):format(Hex(FpsRGB(fps)), fps, Hex(MsRGB(ms)), ms))
+    text:SetText(SYSTEM_TEXT:format(FpsBand(fps).hex, fps, MsBand(ms).hex, ms))
 end
 
 local NO_COORDS = { 0.08, 0.92, 0.08, 0.92 }
@@ -645,9 +670,17 @@ end
 
 local function UpdateSystem()
     local sys = bar.sys
-    if not (On() and S.Get("showSystem")) then sys:Hide(); return end
-    Look.SystemText(sys.text, math.floor(GetFramerate() + 0.5), math.floor(select(3, GetNetStats())))
-    sys:SetWidth(math.max(40, sys.text:GetStringWidth() + 10))
+    if not (On() and S.Get("showSystem")) then
+        sys:Hide()
+        sys.fps = nil
+        return
+    end
+    local fps, ms = math.floor(GetFramerate() + 0.5), math.floor(select(3, GetNetStats()))
+    if fps ~= sys.fps or ms ~= sys.ms then
+        sys.fps, sys.ms = fps, ms
+        Look.SystemText(sys.text, fps, ms)
+        sys:SetWidth(math.max(40, sys.text:GetStringWidth() + 10))
+    end
     sys:Show()
 end
 
@@ -780,8 +813,12 @@ local function GroupKeys()
     return left, right
 end
 
+local BAR_EVENTS = { "PLAYER_UPDATE_RESTING", "FRIENDLIST_UPDATE", "BN_FRIEND_INFO_CHANGED", "GUILD_ROSTER_UPDATE" }
+local events = CreateFrame("Frame")
+
 local function StartTicker()
     if ticker then return end
+    for i = 1, #BAR_EVENTS do events:RegisterEvent(BAR_EVENTS[i]) end
     local n = 0
     ticker = C_Timer.NewTicker(1, function()
         UpdateSystem()
@@ -794,6 +831,7 @@ end
 
 local function StopTicker()
     if ticker then ticker:Cancel(); ticker = nil end
+    for i = 1, #BAR_EVENTS do events:UnregisterEvent(BAR_EVENTS[i]) end
 end
 
 local pending = CreateFrame("Frame")
@@ -831,6 +869,7 @@ local function Apply()
     clockText.last = nil
     PaintClock()
     Look.SystemFont(bar.sys.text)
+    bar.sys.fps = nil
     bar.sys:SetHeight(S.Get("sysSize") + 3)
 
     local left, right = GroupKeys()
@@ -1422,13 +1461,8 @@ hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
     if bar then Apply() end
 end)
 
-local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
-events:RegisterEvent("PLAYER_UPDATE_RESTING")
-events:RegisterEvent("FRIENDLIST_UPDATE")
-events:RegisterEvent("BN_FRIEND_INFO_CHANGED")
-events:RegisterEvent("GUILD_ROSTER_UPDATE")
 events:RegisterEvent("UPDATE_INSTANCE_INFO")
 events:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_UPDATE_RESTING" then

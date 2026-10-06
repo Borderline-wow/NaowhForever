@@ -3,10 +3,12 @@
          helpers, /played time, the components of a page and of a window, then the engine that draws a page
          in rows and its common rows. Each file uses only the ones above it. See README.md. -->
     <Script file="Shared.lua"/>
+    <Script file="Decode.lua"/>
     <Script file="Data\Forever.lua"/>
     <Script file="Style.lua"/>
     <Script file="Items.lua"/>
     <Script file="Bags.lua"/>
+    <Script file="Roster.lua"/>
     <Script file="Places.lua"/>
     <Script file="Played.lua"/>
     <Script file="Parts.lua"/>

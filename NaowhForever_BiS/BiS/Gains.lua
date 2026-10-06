@@ -8,26 +8,13 @@ local ns = _G.NaowhForever
 local B = ns.BiS
 local Items = ns.Shared.Items
 
-local GetItemStats = C_Item.GetItemStats
 local GetItemInfo = C_Item.GetItemInfo
 local GetItemInfoInstant = C_Item.GetItemInfoInstant
 local NaowhScore = ns.NaowhScore
-local IsItemDataCachedByID = C_Item.IsItemDataCachedByID
+local Stats = ns.StatWeights.Stats
 
 local G = {}
 B.Gains = G
-
-local statsOf = {}   -- item ID or link -> its stats
-
--- nil while an item ID's data has not loaded: asked again next time.
-local function Stats(item)
-    local stats = statsOf[item]
-    if stats then return stats end
-    if type(item) == "number" and not IsItemDataCachedByID(item) then return nil end
-    stats = GetItemStats(type(item) == "number" and "item:" .. item or item) or {}
-    statsOf[item] = stats
-    return stats
-end
 
 local function Add(into, stats, sign)
     if not stats then return end

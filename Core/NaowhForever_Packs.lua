@@ -14,6 +14,8 @@ local PREFIX = "NSRPACK2:"
 local PACK_FORMAT = 1
 local LICENSE_MARKER = ":LIC1:"
 local MAX_PACK_CHARS = 1000000
+local LIMITS = { maxChars = MAX_PACK_CHARS, maxBytes = 4194304, maxDepth = 40, maxValues = 1000000 }
+local TEXT_MAX = 64
 
 -- Sections a pack may carry, in display order. value: what every entry of a flat section
 -- must be. perEntry: merged reminder by reminder rather than a boss at a time.
@@ -241,6 +243,8 @@ local function Codec()
     return Ser, LD
 end
 
+ns.ValidPackData = ValidData
+
 -- Deep copy, so a pack never aliases live settings tables.
 local function Copy(v)
     if type(v) ~= "table" then return v end
@@ -402,7 +406,7 @@ function ns.DescribeProfilePack(str, opts)
     for i = 1, #profiles do
         local p = profiles[i]
         local specText = #p.specs > 0 and (" -- " .. table.concat(p.specs, ", ")) or ""
-        lines[#lines + 1] = ("  " .. ns.Color("accent", "%s") .. "%s"):format(p.name, specText)
+        lines[#lines + 1] = ("  " .. ns.Color("accent", "%s") .. "%s"):format(ns.PlainText(p.name), specText)
     end
     lines[#lines + 1] = "Your own existing profiles are not changed."
     if wantSettings then
@@ -514,8 +518,7 @@ end
 -- Decode and validate; returns the payload plus a human description, or nil
 -- and a reason. Applies nothing.
 function ns.DecodePack(str)
-    local Ser, LD = Codec()
-    if not Ser then return nil, "The serializer libraries are missing from this build." end
+    if not Codec() then return nil, "The serializer libraries are missing from this build." end
     if type(str) ~= "string" then return nil, "Nothing to read." end
     str = str:gsub("%s+", "")
     if str == "" then return nil, "Nothing to read." end
@@ -533,12 +536,8 @@ function ns.DecodePack(str)
     if str:sub(1, #PREFIX) ~= PREFIX then
         return nil, "Not a Reminder Pack string (missing the " .. PREFIX .. " prefix)."
     end
-    local decoded = LD:DecodeForPrint(str:sub(#PREFIX + 1))
-    if not decoded then return nil, "The string is damaged (encoding)." end
-    local decompressed = LD:DecompressDeflate(decoded)
-    if not decompressed then return nil, "The string is damaged (compression)." end
-    local ok, payload = pcall(Ser.Deserialize, decompressed)
-    if not ok or type(payload) ~= "table" then
+    local payload = ns.Shared.Decode.String(str:sub(#PREFIX + 1), LIMITS)
+    if type(payload) ~= "table" then
         return nil, "The string is damaged (contents)."
     end
     if payload.format ~= PACK_FORMAT then
@@ -551,8 +550,26 @@ function ns.DecodePack(str)
         if not licOk then return nil, licErr end
         payload.licensed = true
     end
+    local Text = ns.Shared.Decode.Text
+    payload.name, payload.author = Text(payload.name, TEXT_MAX), Text(payload.author, TEXT_MAX)
+    payload.made = Text(payload.made, TEXT_MAX)
+    if type(payload.derivedFrom) == "table" then
+        payload.derivedFrom = { name = Text(payload.derivedFrom.name, TEXT_MAX),
+            author = Text(payload.derivedFrom.author, TEXT_MAX) }
+    else
+        payload.derivedFrom = nil
+    end
     local multi = type(payload.profiles) == "table" and next(payload.profiles) ~= nil
     if not multi and type(payload.data) ~= "table" then return nil, "The pack is empty." end
+    if multi then
+        local clean = {}
+        for name, data in pairs(payload.profiles) do
+            local fixed = Text(name, TEXT_MAX)
+            if not fixed or fixed == "" or clean[fixed] then return nil, "The string is damaged (profile name)." end
+            clean[fixed] = data
+        end
+        payload.profiles = clean
+    end
     for name, data in pairs(multi and payload.profiles or { payload.data }) do
         if multi and (type(name) ~= "string" or name == "") then
             return nil, "The string is damaged (profile name)."

@@ -22,6 +22,11 @@ function yes:SetEnabled(on) self.enabled = on end
 function dialog:GetName() return "StaticPopup1" end
 function dialog:GetButton1() return yes end
 function dialog:Resize() self.resized = true end
+dialog.hooks = {}
+function dialog:HookScript(script, fn)
+    assert(not self.hooks[script], "hooked once")
+    self.hooks[script] = fn
+end
 local box, text = Frame(), Frame()
 function box:GetParent() return dialog end
 
@@ -41,6 +46,9 @@ local env = setmetatable({
     DELETE_ITEM_CONFIRM_STRING = "DELETE",
     strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end,
     GameTooltip_Hide = function() end,
+    GameTooltip = { SetOwner = function(self) self.owned = true end,
+        SetHyperlink = function(self, link) self.link = link end,
+        Show = function(self) self.shown = true end, Hide = function(self) self.shown = false end },
 }, { __index = _G })
 env._G = env
 -- The game's dialogs: the typed ones enable Yes once the box reads DELETE.
@@ -84,5 +92,20 @@ end)
 Case("other popups are not touched", function()
     hook("CONFIRM_LOOT_ROLL")
     assert(box.shown and box.text == nil and not yes.enabled)
+end)
+Case("the link tooltip hooks the dialog frame, not the game's dialog tables", function()
+    for name, info in pairs(env.StaticPopupDialogs) do
+        assert(info.OnHyperlinkEnter == nil and info.OnHyperlinkLeave == nil, name .. " written into")
+    end
+    local tip = env.GameTooltip
+    dialog.which = "DELETE_GOOD_ITEM"
+    dialog.hooks.OnHyperlinkEnter(dialog, "item:6948")
+    assert(tip.shown and tip.link == "item:6948", "tooltip shown on a delete dialog")
+    dialog.hooks.OnHyperlinkLeave(dialog)
+    assert(not tip.shown, "tooltip hidden on leave")
+    tip.link = nil
+    dialog.which = "CONFIRM_LOOT_ROLL"
+    dialog.hooks.OnHyperlinkEnter(dialog, "item:1")
+    assert(tip.link == nil, "the pooled dialog reused by another popup shows nothing")
 end)
 print(count .. " delete confirmation regressions passed")

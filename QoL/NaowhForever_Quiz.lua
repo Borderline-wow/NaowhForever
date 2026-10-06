@@ -185,7 +185,7 @@ events:SetScript("OnEvent", function(_, event)
         ns.QuizDismiss(openedFor)
         return
     end
-    if InCombatLockdown() then return end
+    if InCombatLockdown() or C_Secrets.ShouldAurasBeSecret() then return end
     local here = C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_SEATED) ~= nil
     if here == atCamp then return end
     atCamp = here

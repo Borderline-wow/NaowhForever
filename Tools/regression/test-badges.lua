@@ -12,7 +12,7 @@ local DEFAULTS = { badgeChat = true, badgeCard = true, badgeTooltip = true,
 local function fixture(withChatUtil, settings, flag)
     local state = { nameFilters = {}, callbacks = {}, postCalls = {}, printed = {}, sounds = 0,
         group = {}, raid = false, combat = false, region = 3, me = "Player-1-SELF", account = {},
-        guild = {}, onLoaded = {}, frames = 0, hooks = 0, cards = {} }
+        guild = {}, onLoaded = {}, frames = 0, hooks = 0, cards = {}, roster = {} }
     local values = {}
     for k, v in pairs(DEFAULTS) do values[k] = v end
     for k, v in pairs(settings or {}) do values[k] = v end
@@ -62,7 +62,8 @@ local function fixture(withChatUtil, settings, flag)
         BADGE_STAFF = { [1] = { ["Player-1-SELF"] = "developer" }, [3] = {} },
         BADGE_PATRONS = { [3] = {} },
         FEATURE_BADGES = flag or 1,
-        Shared = { Settings = { Page = function(key)
+        Shared = { Roster = { AddTooltip = function(fn) state.roster[#state.roster + 1] = fn end },
+            Settings = { Page = function(key)
             return { Card = function(_, def) state.cards[key .. ":" .. def.id] = def end }
         end } },
     }
@@ -296,6 +297,21 @@ do  -- chat, card, tooltip
     s.postCalls[1](env.GameTooltip, { guid = "Player-1-LEG" })
     s.postCalls[1](env.GameTooltip, { guid = "Player-1-NOBADGE" })
     check("and when the next player has no badge", not plate:IsShown())
+
+    local row, owned = {}, true
+    s.ns.Shared.Roster.Showing = function(r) return owned and r == row end
+    check("the guild and friends lists' tooltips are asked for once", #s.roster == 1)
+    s.roster[1](env.GameTooltip, "Player-1-LEG", { guid = "Player-1-LEG" }, row, env.GameTooltip)
+    check("a badged player in the guild or friends list: the same plate", plate:IsShown() and #made == 1
+        and plate.title.text:find("Legendary Patron", 1, true))
+    plate.scripts.OnUpdate(plate)
+    check("it stays while the tooltip is that member's", plate:IsShown())
+    owned = false
+    plate.scripts.OnUpdate(plate)
+    check("and goes when the list's tooltip leaves the row", not plate:IsShown())
+    owned = true
+    s.roster[1](env.GameTooltip, "Player-1-NOBADGE", { guid = "Player-1-NOBADGE" }, row, env.GameTooltip)
+    check("a member with no badge: no plate", not plate:IsShown())
     env.GameTooltip, env.CreateFrame = nil, create
 
     -- As a player with no badge sees it: your own taken away for the session.
@@ -719,6 +735,36 @@ do  -- ns.FEATURE_BADGES = 0: the team's badges only, on the defaults, with no s
     ns.BadgesCommand("id")
     check("flag 0: the badge code asks no support request", hint and not hint:lower():find("support", 1, true))
     check("flag 0: Naowh's Discord link is still set", ns.NAOWH_DISCORD == "https://discord.com/invite/naowh")
+end
+
+do
+    local s = fixture(true)
+    s.staff("Player-1-DEV", "developer")
+    local filter = s.nameFilters[1]
+    local fake = "Naowh |TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0:0:0:-1|t"
+    check("a name wearing the badge's texture gets no badge of ours", say(filter, fake, 1, "Player-1-FAKE") == fake)
+    check("a name like the team's, on another GUID, gets nothing", say(filter, "Glyalith", 2, "Player-1-NOPE") == "Glyalith")
+    local long = ("|cffff0000Naowh Forever:|r "):rep(160)
+    local started = os.clock()
+    local out
+    for line = 3, 1002 do
+        out = filter("CHAT_MSG_SAY", "Glyalith", long, "Glyalith", "", "", "", "", 0, 0, "", 0, line, "Player-1-DEV")
+    end
+    check("a 4000-letter line of colour codes costs the filter nothing", #long > 4000
+        and out == "Glyalith " .. s.api.TIERS.developer.markup and os.clock() - started < 0.5)
+    check("the filter returns the name, never the message", not out:find("Naowh Forever:", 1, true))
+
+    local enter = s.callbacks["ChatFrame.OnHyperlinkEnter"]
+    for _, link in ipairs({ "player", "player:", "player::", "player:Glyalith-Realm:abc:SAY",
+        "player:Glyalith-Realm:" .. ("9"):rep(400) .. ":SAY", "player:%s%d:5:SAY",
+        "player:|TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t:7:SAY",
+        "garrmission:1:2", ("player:" .. ("x"):rep(4000)) }) do
+        enter.fn(enter.owner, {}, link, "[x]")
+    end
+    check("crafted player links show no card", s.api.Card() == nil or not s.api.Card().visible)
+    enter.fn(enter.owner, {}, "player:%s%d-Realm:1002:SAY", "[x]")
+    check("a name with format codes on a badged line shows as written", s.api.Card().visible
+        and s.api.Card().player.text == "%s%d")
 end
 
 print(checks .. " badge checks passed")

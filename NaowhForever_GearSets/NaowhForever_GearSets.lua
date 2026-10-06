@@ -23,6 +23,8 @@ local function On()
     return S.Get("gearSets")
 end
 
+local function ByName(a, b) return a.name < b.name end
+
 local function Sets()
     local sets = {}
     for _, id in ipairs(C_EquipmentSet.GetEquipmentSetIDs()) do
@@ -32,7 +34,7 @@ local function Sets()
                 items = numItems, lost = numLost }
         end
     end
-    table.sort(sets, function(a, b) return a.name < b.name end)
+    table.sort(sets, ByName)
     return sets
 end
 
@@ -351,13 +353,15 @@ end
 -------------------------------------------------------------------------------
 -- A set swap fires PLAYER_EQUIPMENT_CHANGED once per slot; one redraw covers the burst.
 local layoutQueued
+local function LayoutNow()
+    layoutQueued = false
+    Layout()
+end
+
 local function LayoutSoon()
     if layoutQueued then return end
     layoutQueued = true
-    C_Timer.After(0, function()
-        layoutQueued = false
-        Layout()
-    end)
+    C_Timer.After(0, LayoutNow)
 end
 
 local events = CreateFrame("Frame")
@@ -415,6 +419,8 @@ boot:SetScript("OnEvent", Apply)
 -------------------------------------------------------------------------------
 do
     local trinkets, picker, moving
+    local watcher = CreateFrame("Frame")
+    local WATCHED = { "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "PLAYER_EQUIPMENT_CHANGED" }
     local function ClosePicker()
         if picker then picker:Hide() end
     end
@@ -488,9 +494,15 @@ do
         picker:Show()
     end
     local function ApplyTrinkets()
-        if InCombatLockdown() then return end
+        if InCombatLockdown() then
+            watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
+            return
+        end
         ClosePicker()
         local on = S.Get("gearSets") and S.Get("trinketBar")
+        for _, event in ipairs(WATCHED) do
+            if on then watcher:RegisterEvent(event) else watcher:UnregisterEvent(event) end
+        end
         if not on then
             if trinkets then trinkets:Hide() end
             return
@@ -537,12 +549,13 @@ do
         trinkets.mover:SetShown(moving == true)
         trinkets:Show()
     end
-    local watcher = CreateFrame("Frame")
-    for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "PLAYER_EQUIPMENT_CHANGED" }) do
-        watcher:RegisterEvent(event)
-    end
-    watcher:SetScript("OnEvent", function(_, event)
-        if event == "PLAYER_REGEN_DISABLED" then ClosePicker() else ApplyTrinkets() end
+    watcher:RegisterEvent("PLAYER_LOGIN")
+    watcher:SetScript("OnEvent", function(_, event, slot)
+        if event == "PLAYER_REGEN_DISABLED" then
+            ClosePicker()
+        elseif event ~= "PLAYER_EQUIPMENT_CHANGED" or slot == TRINKET_SLOTS[1] or slot == TRINKET_SLOTS[2] then
+            ApplyTrinkets()
+        end
     end)
     hooksecurefunc(S, "Set", function(key)
         if key == "gearSets" or key:find("^trinket") and key ~= "trinketPos" then ApplyTrinkets() end

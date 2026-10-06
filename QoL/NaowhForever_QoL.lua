@@ -195,6 +195,10 @@ function ns.DisbandGroup()
     if not IsInGroup() then ns.Print("You are not in a group."); return end
     if not UnitIsGroupLeader("player") then ns.Print("Only the group leader can disband the group."); return end
     ns.Confirm("Remove everyone from your group?", function()
+        if InCombatLockdown() then
+            ns.Print("The group can be disbanded once the fight is over.")
+            return
+        end
         for _, unit in ipairs(IsInRaid() and { "raid" } or { "party" }) do
             for i = GetNumGroupMembers(), 1, -1 do
                 local u = unit .. i

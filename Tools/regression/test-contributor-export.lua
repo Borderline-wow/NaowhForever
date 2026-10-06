@@ -12,6 +12,7 @@ local function Fixture()
     ns.UI = { Widgets = {} }
     ns.THEME = { accent = {}, muted = {}, fg = {}, panel = {}, bg = {}, line = {} }
     ns.Color = function(token, text) return "|cff" .. ({ accent = "0091ed", muted = "9a9ea6", fg = "f0f1f3", accentSoft = "4db5f5" })[token] .. (text and (text .. "|r") or "") end
+    ns.PlainText = dofile(root .. "/Tools/regression/plain_text.lua")(root)
     ns.ListProfiles = function() return {} end
     ns.SettingDefault = function() return nil end
 
@@ -44,6 +45,7 @@ local function Fixture()
     env._G = env
     local chunk = assert(loadfile(root .. "/Core/NaowhForever_Packs.lua"))
     setfenv(chunk, env); chunk()
+    ns.Shared = { Decode = dofile("Tools/regression/load_decode.lua")(env, true) }
     e.ns, e.env = ns, env
     return e
 end
