@@ -1,13 +1,12 @@
 -------------------------------------------------------------------------------
---  NaowhForever_Unexplored.lua -- the world map's unexplored areas drawn darkened instead
---  of left blank, from NaowhForever_MapOverlays.lua.
+--  NaowhForever_Unexplored.lua -- the world map's unexplored areas drawn in full, darkened
+--  (by the Darkness setting) instead of left blank, from NaowhForever_MapOverlays.lua.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 
 local TEMPLATE = "NaowhForeverUnexploredPinTemplate"
 local TILE = 256   -- the overlays' tile size, see Tools/build_map_overlays.py
-local SHADE = 0.12   -- vertex colour over the desaturated art: near black, so the area darkens
 
 local function On()
     return S.Get("enabled") and S.Get("mapUnexplored")
@@ -46,7 +45,8 @@ function NaowhForeverUnexploredPinMixin:Refresh()
     local overlays = On() and ns.MapOverlays[mapID]
     if not overlays then return end
     self:SetSize(map:DenormalizeHorizontalSize(1), map:DenormalizeVerticalSize(1))
-    self:SetAlpha(S.Get("mapUnexploredAlpha") * map:GetGlobalAlpha())
+    self:SetAlpha(map:GetGlobalAlpha())
+    local shade = 1 - S.Get("mapUnexploredDark")
 
     local explored = {}
     for _, info in ipairs(C_MapExplorationInfo.GetExploredMapTextures(mapID) or {}) do
@@ -66,7 +66,7 @@ function NaowhForeverUnexploredPinMixin:Refresh()
                     tex:SetPoint("TOPLEFT", x + TILE * (col - 1), -(y + TILE * (row - 1)))
                     tex:SetTexture(area[4 + (row - 1) * wide + col], nil, nil, "TRILINEAR")
                     tex:SetDesaturated(true)
-                    tex:SetVertexColor(SHADE, SHADE, SHADE)
+                    tex:SetVertexColor(shade, shade, shade)
                     tex:Show()
                 end
             end
@@ -104,7 +104,7 @@ function provider:RefreshAllData()
 end
 
 function provider:OnGlobalAlphaChanged()
-    self.pin:SetAlpha(S.Get("mapUnexploredAlpha") * self:GetMap():GetGlobalAlpha())
+    self.pin:SetAlpha(self:GetMap():GetGlobalAlpha())
 end
 
 local added
@@ -137,9 +137,9 @@ ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "mapUnexplored", name = "Unexplored Areas", order = 45, switch = "mapUnexplored",
     help = "Shows the parts of the world map you have not explored yet, darkened.",
     summary = function(store)
-        return ("%d%% opacity"):format(math.floor(store.Get("mapUnexploredAlpha") * 100 + 0.5))
+        return ("%d%% dark"):format(math.floor(store.Get("mapUnexploredDark") * 100 + 0.5))
     end,
     rows = {
-        { key = "mapUnexploredAlpha", label = "Opacity", slider = { 10, 100, 5 }, unit = "%", scale = 0.01 },
+        { key = "mapUnexploredDark", label = "Darkness", slider = { 10, 90, 5 }, unit = "%", scale = 0.01 },
     },
 })
