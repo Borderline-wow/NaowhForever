@@ -2,7 +2,8 @@
 --  NaowhForever_Flight.lua -- the QoL flight timer: a card with the route and the time left, a
 --  track you ride along with the stops marked on it, the next stop, and Land Early and Games.
 --  Also Flight Games (flightGame): the one choice of what opens by itself when a flight starts,
---  nothing, the Quiz or the Aim Trainer, migrated once from the old quizFlight and aimAutoFlight.
+--  the button only, the Quiz or the Aim Trainer (Off hides the button), migrated once from the old
+--  quizFlight and aimAutoFlight.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -738,7 +739,6 @@ Settings.Page("QoL/Travel", S):Card({
     rows = {
         { key = "flightGame", label = "On Flights", choice = GAMES,
           get = Game, set = function(v) S.Set("flightGame", v) end,
-          help = "Off hides the Games button; Button only keeps it without opening anything. "
-              .. "The Aim Trainer needs its own switch on." },
+          help = "What opens when a flight starts; Off hides the Games button." },
     },
 })
