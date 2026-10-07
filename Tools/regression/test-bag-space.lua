@@ -2,8 +2,9 @@
 -- item and frame APIs and checks what the row offers, what the clicks do, stacking, the card's
 -- look (header, shared marks, the clock and quest badges drawn from the game's atlases, prices in
 -- their largest coin centred under even cells, no outline, colors by state), its Background (the
--- card, a soft fade or none, from the shared HUD backdrop, with the matching text shadow), the
--- tooltip lines that explain the badges, its settings preview, and what a scan costs.
+-- card, a soft fade or none, from the shared HUD backdrop, with the matching text shadow), its
+-- Font, Font Size and Outline (the header and prices scale with the size), the tooltip lines that
+-- explain the badges, its settings preview and card rows, and what a scan costs.
 -- Run from the repo root: lua Tools/regression/test-bag-space.lua
 local f = assert(io.open(arg[1] or "QoL/NaowhForever_BagSpace.lua", "rb"))
 local source = f:read("*a"); f:close()
@@ -38,7 +39,7 @@ local function Fixture(opts)
         bagSpaceHideCombat = true, bagSpaceOnFull = true, bagSpaceShowFree = true,
         bagSpaceStack = true, bagSpaceOldFirst = false, bagSpacePrices = true,
         bagSpaceTipVendor = true, bagSpaceTipAuction = true, bagSpaceTipDelete = true, bagSpaceTipIgnore = true,
-        bagSpaceBackground = "card",
+        bagSpaceBackground = "card", bagSpaceFont = "", bagSpaceFontSize = 12, bagSpaceOutline = "",
     }
     local db, printed, buttons = {}, {}, {}
     local made = 0                         -- frames made, all told
@@ -63,6 +64,7 @@ local function Fixture(opts)
         SetShown = function(self, v) self.shown = v and true or false end,
         IsShown = function(self) return self.shown end,
         SetText = function(self, v) self.text = v end,
+        SetFont = function(self, font, size, flags) self.font, self.size, self.flags = font, size, flags end,
         SetTextColor = function(self, r, g, b) self.r, self.g, self.b = r, g, b end,
         SetShadowOffset = function(self, x, y) self.shadowX, self.shadowY = x, y end,
         SetShadowColor = function(self, _, _, _, a) self.shadowA = a end,
@@ -134,7 +136,8 @@ local function Fixture(opts)
         SetButtonText = function(button, text) button.label.text = text end,
         AccentBorder = function(frame) return frame end,
         Confirm = function(_, onYes) onYes() end,
-        UI = { AttachMover = function() return Widget("mover") end },
+        UI = { AttachMover = function() return Widget("mover") end,
+            FontPath = function(name) return name == "" and "addon-font" or name end },
     }
 
     local function Item(bag, slot) return bags[bag] and bags[bag][slot] end
@@ -243,13 +246,13 @@ local function Fixture(opts)
         return badge
     end
     if opts.studio then
-        ns.Shared.Settings = {
-            Group = function(name) return { group = name } end,
-            Page = function() return { Card = function(_, card) cards[card.id] = card end } end,
-        }
+        local settingsFile = assert(loadfile("Shared/Settings/Settings.lua"))
+        setfenv(settingsFile, env)
+        settingsFile()
     end
     local chunk = assert(loadstring(source)); setfenv(chunk, env)
     chunk()
+    if opts.studio then cards = ns.Shared.Settings.pages["QoL/Loot & Items"].cards end
 
     local t = { ns = ns, printed = printed, env = env, buttons = buttons, Parts = Parts, tags = tags, tipLines = tipLines,
         border = border,
@@ -563,7 +566,8 @@ do
     Check("look: no own money formatter", source:find("Money(", 1, true), nil)
     local free = t.buttons.row.free
     for _, text in ipairs({ old.price, free.text, free.word, free.scrap }) do
-        Check("look: no outline", text.flags, nil)
+        Check("look: no outline", text.flags, "")
+        Check("look: the Addon Font", text.font, "addon-font")
         Check("look: the house shadow", text.shadowX == St.HUD_SHADOW_X and text.shadowY == St.HUD_SHADOW_Y, true)
     end
     Check("look: room to spare in the text color", free.text.r, T.fg.r)
@@ -596,7 +600,7 @@ do
     end
     local function AllShadow(x, y, a)
         for _, text in ipairs(Texts()) do
-            if text.flags ~= nil or text.shadowX ~= x or text.shadowY ~= y or text.shadowA ~= a then return false end
+            if text.flags ~= "" or text.shadowX ~= x or text.shadowY ~= y or text.shadowA ~= a then return false end
         end
         return true
     end
@@ -651,6 +655,51 @@ do
     local qol = io.open("QoL/NaowhForever_QoL.lua", "rb")
     local defaults = qol:read("*a"); qol:close()
     Check("background: Card by default in the settings", defaults:find('bagSpaceBackground = "card"', 1, true) ~= nil, true)
+end
+
+-- Text: today's look by default (the Addon Font, 12 in the header and 10 under the icons, the
+-- header 16 tall, no outline); Font, Font Size and Outline reach the header and the prices, the
+-- header line, the bag and the price room scale with the size, and a scan after a change makes
+-- no garbage.
+do
+    local t = Fixture({ settings = { bagSpaceCount = 2 }, bags = { [0] = Bag(16, { { 1, 3 }, { 2, 4 }, { 4, 2 } }) } })
+    local row = t.buttons.row
+    local free, price = row.free, row.cells[1].price
+    Check("text: header at 12 by default", free.text.size == 12 and free.word.size == 12 and free.scrap.size == 12, true)
+    Check("text: prices at 10 by default", price.size, 10)
+    Check("text: the header line 16 tall", free.h == 16 and row.stack.h == 16, true)
+    Check("text: the bag 12 wide", free.icon.w, 12)
+    Check("text: cells 36 apart with prices", row.cells[2].x - row.cells[1].x, 36 + 6)
+    Check("text: the card under the header", row.card.h, 16 + 5 + 36 + 3 + 12 + 6 * 2)
+    t.Set("bagSpaceFont", "Friz Quadrata TT")
+    Check("text: Font on the header", free.text.font, "Friz Quadrata TT")
+    Check("text: Font on the prices", price.font, "Friz Quadrata TT")
+    t.Set("bagSpaceFontSize", 18)
+    Check("text: Font Size on the header", free.text.size, 18)
+    Check("text: the prices scale with it", price.size, 15)
+    Check("text: the header line too", free.h == 24 and row.stack.h == 24, true)
+    Check("text: and the bag", free.icon.w, 18)
+    Check("text: the price room grows", row.card.h, 24 + 5 + 36 + 3 + 18 + 6 * 2)
+    Check("text: wide prices widen the cells", row.cells[2].x - row.cells[1].x, 48 + 6)
+    t.Set("bagSpaceOutline", "THICKOUTLINE")
+    Check("text: Outline on the header", free.word.flags, "THICKOUTLINE")
+    Check("text: Outline on the prices", price.flags, "THICKOUTLINE")
+    Check("text: outlined text drops the shadow", price.shadowA, 0)
+    t.Set("bagSpaceCount", 3)
+    Check("text: a cell made later gets the look", row.cells[3].price.size == 15
+        and row.cells[3].price.flags == "THICKOUTLINE" and row.cells[3].price.font == "Friz Quadrata TT", true)
+    for _ = 1, 50 do t.Fire("BAG_UPDATE_DELAYED") end
+    collectgarbage("collect")
+    collectgarbage("stop")
+    local kb = collectgarbage("count")
+    for _ = 1, 500 do t.Fire("BAG_UPDATE_DELAYED") end
+    local grown = collectgarbage("count") - kb
+    collectgarbage("restart")
+    Check("text: no garbage per scan", grown / 500 < 0.05, true)
+    local qol = io.open("QoL/NaowhForever_QoL.lua", "rb")
+    local defaults = qol:read("*a"); qol:close()
+    Check("text: today's look in the settings", defaults:find('bagSpaceFont = "", bagSpaceFontSize = 12, '
+        .. 'bagSpaceOutline = ""', 1, true) ~= nil, true)
 end
 
 -- Few slots free: the count turns orange; none: red.
@@ -757,11 +806,31 @@ do
     local bg = rows.bagSpaceBackground
     Check("studio: Background is a choice", bg and bg.choice == t.Parts.HUD_BACKGROUNDS and bg.label, "Background")
     Check("studio: its help one short sentence", bg.help and #bg.help < 100 and not bg.help:find("%. %u"), true)
-    local look
-    for i, r in ipairs(t.cards.bagSpace.rows) do
-        if r.group == "Look" then look = i end
-        if r == bg then Check("studio: Background in the Look group", look ~= nil and i > look, true) end
+    local group, groups, groupOf = nil, {}, {}
+    for _, r in ipairs(t.cards.bagSpace.rows) do
+        if r.group then
+            group = r.group
+            groups[#groups + 1] = group
+        elseif r.key then
+            groupOf[r.key] = group
+        end
     end
+    Check("studio: the standard groups after its own", table.concat(groups, ", "),
+        "Offered, Showing, Tooltips, Size, Text, Background, Visibility")
+    Check("studio: Background in the Background group", groupOf.bagSpaceBackground, "Background")
+    Check("studio: Font, Font Size and Outline in Text", groupOf.bagSpaceFont == "Text"
+        and groupOf.bagSpaceFontSize == "Text" and groupOf.bagSpaceOutline == "Text", true)
+    Check("studio: Outline is the shared choice", rows.bagSpaceOutline.choice, t.Parts.HUD_OUTLINES)
+    Check("studio: Hide in Combat under Visibility", groupOf.bagSpaceHideCombat, "Visibility")
+    Check("studio: Icon Size under Size", groupOf.bagSpaceSize, "Size")
+    t.Set("bagSpaceFontSize", 18)
+    t.Set("bagSpaceOutline", "OUTLINE")
+    studio.paint(preview, "bags")
+    Check("studio: the preview follows Font Size", view.free.text.size, 18)
+    Check("studio: and Outline", view.cells[1].price.flags, "OUTLINE")
+    t.Set("bagSpaceFontSize", 12)
+    t.Set("bagSpaceOutline", "")
+    studio.paint(preview, "bags")
     for _ = 1, 20 do studio.paint(preview, "bags") end
     collectgarbage("collect")
     collectgarbage("stop")

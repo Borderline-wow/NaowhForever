@@ -7,11 +7,13 @@
 local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 local S = UI.ModuleSettings("topBar", {
     enabled = true,
     -- The clock font is EllesmereUI's, found through SharedMedia; without it the Addon Font.
-    iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", use24h = true,
+    iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", clockOutline = "NONE", use24h = true,
+    font = "", outline = "OUTLINE",
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
     hideInCombat = false, mouseover = false, mouseoverAlpha = 0,
     showSystem = true, systemTooltip = true, sysSize = 13, tooltipScale = 120,
@@ -23,6 +25,7 @@ local MEDIA = "Interface\\AddOns\\NaowhForever\\Media\\TopBar\\"
 local HEARTHSTONE = 6948
 local BTN_PAD, GAP, EDGE, CLOCK_GAP, CLOCK_PAD, SEG_PAD = 8, 4, 14, 22, 6, 6
 local ROSTER_CAP = 40   -- keeps a big guild's tooltip on the screen
+local BADGE_SIZE = 10   -- the online count on Friends and Guild
 
 -- Our own glyphs for our modules; any other source's icon is desaturated and tinted to match.
 local GLYPH = {
@@ -467,7 +470,7 @@ end
 
 local function Badge(b, r, g, bl)
     b.badge = b:CreateFontString(nil, "OVERLAY")
-    b.badge:SetFont(ns.UIFontPath(), 10, "OUTLINE")
+    b.badge:SetFont(ns.UIFontPath(), BADGE_SIZE, "OUTLINE")
     b.badge:SetPoint("CENTER", b.icon, "BOTTOM", 0, 1)
     b.badge:SetTextColor(r, g, bl)
 end
@@ -580,9 +583,12 @@ function Look.PaintPills(frame, segs, left, right, clock, nLeft, nRight)
 end
 
 function Look.ClockFont(clock)
-    if not clock:SetFont(UI.FontPath(S.Get("clockFont")), S.Get("clockSize"), "") then
-        clock:SetFont(ns.UIFontPath(), S.Get("clockSize"), "")
+    local size, outline = S.Get("clockSize"), S.Get("clockOutline")
+    local flags = outline == "NONE" and "" or outline
+    if not clock:SetFont(UI.FontPath(S.Get("clockFont")), size, flags) then
+        clock:SetFont(ns.UIFontPath(), size, flags)
     end
+    Parts.HudText(clock, outline == "" and "card" or false)
     clock:SetTextColor(Tone("fg", 1))
 end
 
@@ -595,6 +601,7 @@ end
 
 function Look.Row(group, list, n)
     local size, icon, x = BtnSize(), S.Get("iconSize"), 0
+    local font, outline = S.Get("font"), S.Get("outline")
     for i = 1, n do
         local b = list[i]
         b:SetSize(size, size)
@@ -602,6 +609,7 @@ function Look.Row(group, list, n)
         b:SetPoint("LEFT", group, "LEFT", x, 0)
         b.icon:SetSize(icon, icon)
         b.icon:SetVertexColor(IconColor())
+        if b.badge then Parts.HudFont(b.badge, font, BADGE_SIZE, outline) end
         b:Show()
         x = x + size + GAP
     end
@@ -619,7 +627,7 @@ function Look.Fit(frame, left, right, clock)
 end
 
 function Look.SystemFont(text)
-    text:SetFont(ns.UIFontPath(), S.Get("sysSize"), "OUTLINE")
+    Parts.HudFont(text, S.Get("font"), S.Get("sysSize"), S.Get("outline"))
     text:SetTextColor(Tone("fg", 1))
 end
 
@@ -1410,20 +1418,33 @@ end
 local ROWS = {
     Group("Clock"),
     { key = "use24h", label = "24-Hour Clock", toggle = true },
-    { key = "clockSize", label = "Clock Size", slider = { 10, 36, 1 } },
-    { key = "clockFont", label = "Clock Font", font = true },
-    Group("Bar"),
-    { key = "iconSize", label = "Icon Size", slider = { 12, 32, 1 } },
-    { key = "iconColor", label = "Icon Colour", colour = true,
-      help = "The tint on every button's icon: Naowh's own and any addon's." },
-    { key = "bgAlpha", label = "Bar Opacity", slider = { 0, 100, 5 }, unit = "%" },
-    { key = "tooltipScale", label = "Tooltip Size", slider = { 80, 160, 5 }, unit = "%",
-      help = "Size of the friends, guild, Hearthstone, clock and FPS tooltips." },
     Group("Buttons"),
     { key = "layout", label = "Reset Layout", button = ResetLayout, buttonText = "Reset",
       help = "Puts the bar's buttons back as they came: Friends and Guild on the left, the Dungeon "
           .. "Journal and BiS List on the right." },
-    Group("Fading"),
+    Group("FPS / MS"),
+    { key = "showSystem", label = "Show FPS / MS", toggle = true },
+    { key = "systemTooltip", label = "Tooltip", toggle = true, needs = "showSystem",
+      help = "Latency and addon memory when you hover the readout." },
+    Group("Size"),
+    { key = "iconSize", label = "Icon Size", slider = { 12, 32, 1 } },
+    { key = "tooltipScale", label = "Tooltip Size", slider = { 80, 160, 5 }, unit = "%",
+      help = "Size of the friends, guild, Hearthstone, clock and FPS tooltips." },
+    Group("Text"),
+    { key = "font", label = "Font", font = true, help = "The FPS / MS readout and the online counts on the buttons." },
+    { key = "outline", label = "Outline", choice = Parts.HUD_OUTLINES,
+      help = "A black outline round the FPS / MS readout and the counts, in place of the soft shadow." },
+    { key = "sysSize", label = "FPS / MS Size", slider = { 6, 24, 1 }, needs = "showSystem" },
+    { key = "clockFont", label = "Clock Font", font = true },
+    { key = "clockSize", label = "Clock Size", slider = { 10, 36, 1 } },
+    { key = "clockOutline", label = "Clock Outline", choice = Parts.HUD_OUTLINES,
+      help = "A black outline round the clock." },
+    Group("Background"),
+    { key = "bgAlpha", label = "Bar Opacity", slider = { 0, 100, 5 }, unit = "%" },
+    Group("Colours"),
+    { key = "iconColor", label = "Icon Colour", colour = true,
+      help = "The tint on every button's icon: Naowh's own and any addon's." },
+    Group("Visibility"),
     { key = "hideInCombat", label = "Hide In Combat", toggle = true, help = "The FPS / MS readout stays up." },
     { key = "mouseover", label = "Show On Mouseover", toggle = true,
       help = "The bar and the FPS / MS readout fade to Faded Opacity until you hover them. Their "
@@ -1431,11 +1452,6 @@ local ROWS = {
     { key = "mouseoverAlpha", label = "Faded Opacity", slider = { 0, 100, 5 }, unit = "%", needs = "mouseover",
       help = "How visible the bar and the FPS / MS readout stay while the mouse is away. At 0 they "
           .. "are invisible." },
-    Group("FPS / MS"),
-    { key = "showSystem", label = "Show FPS / MS", toggle = true },
-    { key = "sysSize", label = "Text Size", slider = { 6, 24, 1 }, needs = "showSystem" },
-    { key = "systemTooltip", label = "Tooltip", toggle = true, needs = "showSystem",
-      help = "Latency and addon memory when you hover the readout." },
 }
 
 ns.Shared.Settings.Page("QoL/Interface", S):Card({

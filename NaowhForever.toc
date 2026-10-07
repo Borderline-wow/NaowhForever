@@ -84,7 +84,6 @@ QoL\NaowhForever_GlobalCopy.lua
 QoL\NaowhForever_SlashCommands.lua
 QoL\NaowhForever_HideClutter.lua
 QoL\NaowhForever_Crosshair.lua
-QoL\NaowhForever_FPS.lua
 QoL\NaowhForever_MouseRing.lua
 QoL\NaowhForever_PetTracker.lua
 QoL\NaowhForever_EquipmentReminder.lua
