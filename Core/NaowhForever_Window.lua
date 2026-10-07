@@ -109,6 +109,15 @@ local MODULES = {
           { name = "Library Books", reuse = true },
           { name = "Sleeping Bag", reuse = true },
       } },
+    -- The collections are a window of their own (open); only their settings live here.
+    { name = "Completo", group = "ADVENTURE", navIcon = "checklist", settings = "CompletoSettings",
+      addon = "NaowhForever_Completo",
+      open = "ToggleCompletoWindow",
+      command = "completo", short = "Completo", icon = "Interface\\Icons\\INV_Misc_Book_08",
+      subtitle = "Everything there is to do, and how much of it you have done.",
+      tabs = {
+          { name = "Quests", reuse = true },
+      } },
     -- The sets are a window of their own (open); only their settings live here.
     { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
       addon = "NaowhForever_GearSets",
@@ -1529,6 +1538,7 @@ BINDING_NAME_NAOWHFOREVER_JOURNAL = "Open Dungeon Journal"
 BINDING_NAME_NAOWHFOREVER_BOSSLOOT = "Boss Loot at Cursor"
 BINDING_NAME_NAOWHFOREVER_BIS = "Open BiS List"
 BINDING_NAME_NAOWHFOREVER_GROUPINSPECT = "Open Group Inspect"
+BINDING_NAME_NAOWHFOREVER_COMPLETO = "Open Completo"
 _G["BINDING_NAME_CLICK NaowhForeverBlessNext:LeftButton"] = "Next Blessing"
 _G["BINDING_NAME_CLICK NaowhForeverBlessNextGreater:LeftButton"] = "Next Greater Blessing"
 
@@ -1539,6 +1549,7 @@ NaowhForever_ToggleJournal = SwitchedOff("Dungeon Journal")
 NaowhForever_BossLoot = SwitchedOff("Dungeon Journal")
 NaowhForever_ToggleBis = SwitchedOff("BiS List")
 NaowhForever_ToggleGroupInspect = SwitchedOff("Group Inspect")
+NaowhForever_ToggleCompleto = SwitchedOff("Completo")
 
 SLASH_NAOWHFOREVER1 = "/smartreminders"
 SLASH_NAOWHFOREVER2 = "/naowh"

@@ -28,6 +28,7 @@ and a lot of quality of life, all in one window.
 | **BiS List** | Your best-in-slot list in its own window: your gear on a paperdoll, every pick per slot ranked with stars, where each drops and where to run next. Marked on tooltips and called out when it drops. Open it with its own key too. |
 | **Stat Weights** | What each stat is worth to your spec, with your own changes: a line on gear tooltips ("Fire: +9% upgrade" and what it is weighed against), and the BiS List's upgrades and enchants. On BiS List's Stat Weights tab. |
 | **Dungeon Journal** | Every dungeon on Forever, the new ones included, and the raids: its bosses in order and what they drop, your BiS marked, your quests there with what to do first, a tip from Naowh for each boss and how many times you have killed it. A map of each classic dungeon with every boss on it, and in a dungeon the world map (M) shows it, with the Journal beside it. Open it with its own key too. |
+| **Completo** | Everything there is to do, and how much of it you have done. First up, Quests: every quest of every zone for your character, your progress per zone, and every quest chain with the step you are on. Mounts, transmog and more to follow. Open it with `/nfcompleto`. |
 | **Professions** | Recipes, reagents and crafting in one window, including the recipes you have not learned yet. |
 | **Gear & Trinkets** | Swap equipment sets from a bar, or automatically while you ride or rest. |
 | **Blessings** | Paladin blessings by class and player, shared with your group's paladins. |
@@ -63,6 +64,7 @@ character or share them with a friend.
 | `/nf` | The main window (also `/naowh`, `/nao` and `/nsr`) |
 | `/nfbis` | Your BiS list |
 | `/nfjournal` | Dungeon Journal (also `/nfdj`) |
+| `/nfcompleto` | Completo: your quests per zone and quest chains |
 | `/nfgear` | Gear Sets |
 | `/nfbless` | Blessings |
 | `/nfthreat` | Threat Meter |

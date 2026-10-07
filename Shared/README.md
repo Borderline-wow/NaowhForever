@@ -72,7 +72,8 @@ Shared/
   on release), and a hover mark: `wash` (a faint fill) or `edge` (an accent line down its middle).
   Nothing runs per frame except while dragging. The Campfire's Simple bar preview uses it.
 - **A window:** `Parts.Window`, `Parts.TitleBar`, `Parts.Opacity`, `Parts.BarButton`,
-  `Parts.FooterBrand`. See `BiS/UI/Window.lua` for a short one.
+  `Parts.FooterBrand`, `Parts.Resizable` (a corner grip; the size is kept). See
+  `BiS/UI/Window.lua` for a short one.
 - **A tracker:** `Parts.TrackerPanel(title, opts)` builds a tracker's window once, on first
   use: the window look, the title (click and drag), a scrolling body, a cog, its place kept.
   Every option is optional:

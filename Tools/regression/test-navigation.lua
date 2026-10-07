@@ -205,7 +205,8 @@ for _, path in ipairs({ "TopBar/NaowhForever_TopBar.lua", "QoL/NaowhForever_Deat
 local UI = ns.UI
 ns.BuildQoLInterfacePage = function(parent, y) return y end
 for _, name in ipairs({ "JournalSettings", "DiscoverySettings", "ProfessionSettings", "MacroSettings", "AuraBuffSettings",
-    "ThreatMeterSettings", "SwingTimerSettings", "TopBarSettings", "ActionBarSettings", "TrainingSettings" }) do
+    "ThreatMeterSettings", "SwingTimerSettings", "TopBarSettings", "ActionBarSettings", "TrainingSettings",
+    "CompletoSettings" }) do
     ns[name] = UI.ModuleSettings(name, { enabled = false })
 end
 ns.DB = function() return settings end
@@ -240,7 +241,7 @@ Check(disabled.NaowhForever_SmartReminders, "a Smart Reminders folder left from 
 disabled.NaowhForever_SmartReminders = nil
 Check(Button("Quality of Life").switch == nil, "navigation does not toggle modules")
 for _, name in ipairs({ "Quality of Life", "Dungeon Journal", "Discovery", "BiS List", "Professions",
-    "Gear & Trinkets", "Blessings", "AuraBuffs", "Threat Meter", "Swing Timer",
+    "Gear & Trinkets", "Blessings", "Completo", "AuraBuffs", "Threat Meter", "Swing Timer",
     "Macros", "Action Bars" }) do
     Check(Button(name).icon ~= nil, name .. " is listed with its glyph")
 end
