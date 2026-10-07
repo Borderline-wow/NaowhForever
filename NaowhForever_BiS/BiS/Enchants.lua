@@ -117,6 +117,32 @@ local function Read(a, link, weights, slot)
     return true
 end
 
+local enchantable = {}   -- inventory type, class and subclass -> whether any of our enchants fits
+
+--- Whether an enchanter can enchant the item (one of ours fits it, at any level), and the enchant
+--- on it now (0 for none): for anyone's gear, by its link.
+---@return boolean can
+---@return number current
+function E.Enchantable(link)
+    local _, _, _, equipLoc, _, class, subclass = GetItemInfoInstant(link)
+    local inv = INV_TYPE[equipLoc]
+    local current = tonumber(link:match("item:%d+:(%d*)") or "") or 0
+    if not (inv and class and subclass) then return false, current end
+    local key = (inv * 100 + class) * 100 + subclass
+    local can = enchantable[key]
+    if can == nil then
+        can = false
+        for _, enchant in pairs(ns.BiSEnchants) do
+            if Fits(enchant, inv, class, subclass) then
+                can = true
+                break
+            end
+        end
+        enchantable[key] = can
+    end
+    return can, current
+end
+
 --- What to enchant on what you wear in the slot. Read again when that item or your list's
 --- spec changes; the same table until then.
 ---@param slot number inventory slot

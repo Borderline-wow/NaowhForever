@@ -1,6 +1,7 @@
 -- Source scan for the taint rules in CONTRIBUTING over every file the TOCs load: game-frame
--- calls, protected calls with no combat check before them, writes into the game's tables and
--- unguarded aura reads. Reviewed sites are listed below with why they are safe. Source text
+-- calls (on the frame's name or a local holding it), protected calls with no combat check
+-- before them, writes into the game's tables and unguarded aura reads. Reviewed sites are
+-- listed below with why they are safe. Source text
 -- only, so it does not replace /console taintLog 1 in the game. From the repo root:
 --   lua5.1 Tools/regression/test-taint-scan.lua
 local TocFiles = dofile("Tools/regression/toc_files.lua")
@@ -25,8 +26,19 @@ local FRAME_ALLOWED = {
             ["ActionStatus:UnregisterEvent"] = 2, ["ActionStatus:RegisterEvent"] = 2 } },
     ["QoL/NaowhForever_LootFeed.lua"] = { why = "loot window shrunk and restored, never hidden",
         calls = { ["LootFrame:SetScale"] = 2 } },
-    ["NaowhForever_Professions/NaowhForever_Professions.lua"] = { why = "pinned under ours out of combat",
-        calls = { ["ProfessionsFrame:ClearAllPoints"] = 1, ["ProfessionsFrame:SetPoint"] = 1 } },
+    ["NaowhForever_Professions/NaowhForever_Professions.lua"] = {
+        why = "pinned under ours out of combat; its overview tab docked beside ours, its points put back",
+        calls = { ["ProfessionsFrame:ClearAllPoints"] = 1, ["ProfessionsFrame:SetPoint"] = 1,
+            ["ProfessionsFrame.ProfessionsOverviewTab:ClearAllPoints"] = 2,
+            ["ProfessionsFrame.ProfessionsOverviewTab:SetPoint"] = 2 } },
+    ["NaowhForever_BiS/InspectPanel/Panel.lua"] = {
+        why = "the inspect window (no secure frames) a pane wider, its tabs' frames and inset kept left; put back off",
+        calls = { ["InspectFrame:SetWidth"] = 1, ["InspectFrame.Inset:SetPoint"] = 1,
+            ["_G[...]:ClearAllPoints"] = 1, ["_G[...]:SetPoint"] = 2, ["_G[...]:SetAllPoints"] = 1 } },
+    ["NaowhForever_BiS/CharacterPanel/SpecStats.lua"] = { why = "the stats list moved under your score; put back off",
+        calls = { ["CharacterStatsPaneScrollBox:ClearAllPoints"] = 1, ["CharacterStatsPaneScrollBox:SetPoint"] = 2 } },
+    ["Shared/Played.lua"] = { why = "the chat frames' /played line muted while ours asks, registered again after",
+        calls = { ["_G[...]:UnregisterEvent"] = 1 } },
 }
 
 local PROTECTED = { "PickupAction", "PlaceAction", "SetBinding", "CreateMacro", "EditMacro",
@@ -112,13 +124,33 @@ local function CheckCounts(path, counts, allowed, what)
     end
 end
 
-local function FrameCalls(line, counts)
+local function FrameCalls(line, counts, aliases)
     for receiver, method in line:gmatch("([%w_%.]+):([%w_]+)%(") do
         local root = receiver:match("^_G%.([%w_]+)$") or receiver:match("^([%w_]+)$")
-        if root and BLIZZARD[root] and not FRAME_FREE[root .. ":" .. method] then
+        local name = root and (BLIZZARD[root] and root or aliases[root])
+        if name and not FRAME_FREE[name .. ":" .. method] then
             for _, m in ipairs(FRAME_METHODS) do
-                if m == method then Bump(counts, root .. ":" .. method) end
+                if m == method then Bump(counts, name .. ":" .. method) end
             end
+        end
+    end
+end
+
+-- Locals that hold one of the game's frames (local frame = InspectFrame, local inset =
+-- InspectFrame.Inset, local sub = _G[name]), until the name is declared again or a function starts.
+local function Aliases(line, aliases)
+    if line:find("^%s*local%s+function%f[%W]") or line:find("^%s*function%f[%W]") then
+        for k in pairs(aliases) do aliases[k] = nil end
+    end
+    for name, value in line:gmatch("local%s+([%w_]+)[%w_,%s]*=%s*([^\n]+)") do
+        local path = value:match("^_G%.([%w_%.]+)") or value:match("^([%w_%.]+)")
+        local root = path and path:match("^[%w_]+")
+        if value:find("^_G%[") then
+            aliases[name] = "_G[...]"
+        elseif root and BLIZZARD[root] and not value:find("^[%w_%.]+%s*[%(:]") then
+            aliases[name] = path
+        else
+            aliases[name] = nil
         end
     end
 end
@@ -164,10 +196,11 @@ for _, path in ipairs(TocFiles("%.lua$")) do
     if not path:find("^Libs/") and not path:find("/Libs/") then
         scanned = scanned + 1
         local lines = Lines(path)
-        local frameCounts, unguarded, writes = {}, {}, {}
+        local frameCounts, unguarded, writes, aliases = {}, {}, {}, {}
         local auraRead, secretGuard = false, false
         for i, line in ipairs(lines) do
-            FrameCalls(line, frameCounts)
+            Aliases(line, aliases)
+            FrameCalls(line, frameCounts, aliases)
             ProtectedCalls(lines, i, unguarded)
             TableWrites(path, i, line, writes)
             if line:find("C_UnitAuras%.Get") or line:find("GetAuraData") or line:find("AuraUtil%.ForEachAura") then

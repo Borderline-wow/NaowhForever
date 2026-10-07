@@ -11,7 +11,8 @@
 --  off; either way after a reload, which EllesmereUI needs to swap its look. Should EllesmereUI's
 --  come back on by other means, Naowh's stands down. With both on, a player new to Naowh Forever
 --  (the welcome not seen yet) gets Naowh's from the next reload, told in chat; anyone else is
---  asked once.
+--  asked once. CP.Rival is that rule for any of the game's windows both style: the Naowh Inspect
+--  Panel (InspectPanel/) uses it for the inspect window.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -24,70 +25,102 @@ ns.CharacterPanel = CP
 CP.PANE_W = 233
 CP.EDGE = 16
 
+-- EllesmereUI's window switched to suit ours: off when ours goes on, back on when ours goes off
+-- if it was ours that turned it off. A reload swaps EllesmereUI's look.
+local ASK_DELAY = 2
+local RELOAD_OFF = "EllesmereUI's %s is off, so Naowh's can take over. Reload now to switch?"
+local RELOAD_ON = "EllesmereUI's %s is back on. Reload now to switch?"
+local ASK = "EllesmereUI's %s is on. Naowh's is recommended, as it comes with more features. "
+    .. "Use Naowh's instead?"
+local TAKEN = "Naowh's %s takes over from EllesmereUI's after your next reload."
+
+local rivals = {}
+
+--- One of the game's windows EllesmereUI styles too: r.key our switch (r.key .. "TookOver" and
+--- r.key .. "Asked" beside it), r.winKey EllesmereUI's name for the window (its public getter's),
+--- r.dbKey its own switch in EllesmereUIDB, r.name the window in a player's words.
+---@return table rival .Styled() EllesmereUI styles it, .On() ours is on and not standing down
+function CP.Rival(r)
+    local rival = {}
+    local tookOver, asked = r.key .. "TookOver", r.key .. "Asked"
+
+    function rival.Styled()
+        local E = _G.EllesmereUI
+        return E ~= nil and E.GetBlizzWindowStyle ~= nil and E.GetBlizzWindowStyle(r.winKey) ~= "off"
+    end
+
+    function rival.On()
+        return S.Get("enabled") == true and S.Get(r.key) == true and not rival.Styled()
+    end
+
+    local function Swap(on)
+        local db = _G.EllesmereUIDB
+        if type(db) ~= "table" or not (_G.EllesmereUI and _G.EllesmereUI.GetBlizzWindowStyle) then return end
+        if on and db[r.dbKey] ~= false then
+            db[r.dbKey] = false
+            S.Set(tookOver, true)
+            ns.ConfirmReload(RELOAD_OFF:format(r.name))
+        elseif not on and S.Get(tookOver) then
+            db[r.dbKey] = true
+            S.Set(tookOver, false)
+            ns.ConfirmReload(RELOAD_ON:format(r.name))
+        end
+    end
+
+    S.OnChange(function(key, value)
+        if key == r.key then Swap(value == true) end
+    end)
+
+    local function UseOurs()
+        S.Set(asked, true)
+        S.Set(r.key, true)
+    end
+
+    local function KeepTheirs()
+        S.Set(asked, true)
+        S.Set(r.key, false)
+    end
+
+    function rival.Due()
+        if S.Get(asked) or not (S.Get("enabled") and S.Get(r.key) and rival.Styled()) then return false end
+        return type(_G.EllesmereUIDB) == "table"
+    end
+
+    function rival.Ask()
+        ns.Confirm(ASK:format(r.name), UseOurs, KeepTheirs, "Use Naowh's", "Keep EllesmereUI's")
+    end
+
+    function rival.TakeOver()
+        S.Set(asked, true)
+        _G.EllesmereUIDB[r.dbKey] = false
+        S.Set(tookOver, true)
+        ns.Print(TAKEN:format(r.name))
+    end
+
+    rivals[#rivals + 1] = rival
+    return rival
+end
+
+local sheet = CP.Rival({ key = "characterPanel", winKey = "charsheet", dbKey = "themedCharacterSheet",
+    name = "character panel" })
+
 --- EllesmereUI styles the character panel: its Character Sheet style is anything but Blizz
 --- Default (its own public getter; nil when its window skins are not loaded).
-function CP.EllesmereSheet()
-    local E = _G.EllesmereUI
-    return E ~= nil and E.GetBlizzWindowStyle ~= nil and E.GetBlizzWindowStyle("charsheet") ~= "off"
-end
+CP.EllesmereSheet = sheet.Styled
+CP.On = sheet.On
 
-function CP.On()
-    return S.Get("enabled") == true and S.Get("characterPanel") == true and not CP.EllesmereSheet()
-end
-
--- EllesmereUI's character sheet switched to suit ours: off when ours goes on, back on when ours
--- goes off if it was ours that turned it off. A reload swaps EllesmereUI's look.
-local ASK_DELAY = 2
-local RELOAD_OFF = "EllesmereUI's character panel is off, so Naowh's can take over. Reload now to switch?"
-local RELOAD_ON = "EllesmereUI's character panel is back on. Reload now to switch?"
-
-local function SwapEllesmere(on)
-    local db = _G.EllesmereUIDB
-    if type(db) ~= "table" or not (_G.EllesmereUI and _G.EllesmereUI.GetBlizzWindowStyle) then return end
-    if on and db.themedCharacterSheet ~= false then
-        db.themedCharacterSheet = false
-        S.Set("characterPanelTookOver", true)
-        ns.ConfirmReload(RELOAD_OFF)
-    elseif not on and S.Get("characterPanelTookOver") then
-        db.themedCharacterSheet = true
-        S.Set("characterPanelTookOver", false)
-        ns.ConfirmReload(RELOAD_ON)
-    end
-end
-
-S.OnChange(function(key, value)
-    if key == "characterPanel" then SwapEllesmere(value == true) end
-end)
-
-local ASK = "EllesmereUI's character panel is on. Naowh's is recommended, as it comes with more features. "
-    .. "Use Naowh's instead?"
-
-local function UseOurs()
-    S.Set("characterPanelAsked", true)
-    S.Set("characterPanel", true)
-end
-
-local function KeepTheirs()
-    S.Set("characterPanelAsked", true)
-    S.Set("characterPanel", false)
-end
-
-local TAKEN = "Naowh's character panel takes over from EllesmereUI's after your next reload."
+-- A newcomer gets every window of ours, told in chat; anyone else one question a login at most,
+-- the character panel's first: a second confirm would close the first.
 local newcomer
 
-local function TakeOver()
-    S.Set("characterPanelAsked", true)
-    _G.EllesmereUIDB.themedCharacterSheet = false
-    S.Set("characterPanelTookOver", true)
-    ns.Print(TAKEN)
-end
-
 local function AskOnce()
-    if InCombatLockdown() or S.Get("characterPanelAsked") then return end
-    if not (S.Get("enabled") and S.Get("characterPanel") and CP.EllesmereSheet()) then return end
-    if type(_G.EllesmereUIDB) ~= "table" then return end
-    if newcomer then return TakeOver() end
-    ns.Confirm(ASK, UseOurs, KeepTheirs, "Use Naowh's", "Keep EllesmereUI's")
+    if InCombatLockdown() then return end
+    for _, rival in ipairs(rivals) do
+        if rival.Due() then
+            if not newcomer then return rival.Ask() end
+            rival.TakeOver()
+        end
+    end
 end
 
 local asker = CreateFrame("Frame")

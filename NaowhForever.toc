@@ -96,6 +96,7 @@ QoL\NaowhForever_AuctionPrices.lua
 QoL\NaowhForever_XPTicker.lua
 QoL\NaowhForever_XPBar.lua
 QoL\NaowhForever_GroupXP.lua
+QoL\NaowhForever_PlayerHistory.lua
 QoL\NaowhForever_Restock.lua
 QoL\NaowhForever_FoodBar.lua
 QoL\NaowhForever_BagSpace.lua

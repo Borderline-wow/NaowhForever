@@ -4,7 +4,9 @@
 --  Used by every module that keeps what a message says about its sender (Naowh Score, the Aim
 --  Trainer's board, Group XP, Journal quest sharing); anything it cannot match is dropped.
 --  And ns.InGuild(guid): whether that player is in your guild (Naowh Score keeps guildmates'
---  scores for the guild list's offline members).
+--  scores for the guild list's offline members). And ns.SenderIsUnit(sender, unit, guid): whether
+--  the sender is the player on that unit token, with that GUID, wherever they are (the Naowh
+--  Inspect Panel's answers come from whoever you inspect, often a stranger).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 
@@ -122,6 +124,16 @@ function ns.SenderIs(sender, channel, guid)
     if channel == "GUILD" then return InGuild(sender, guid) end
     if channel == "WHISPER" then return Friend(sender, guid) or InGroup(sender, guid) or InGuild(sender, guid) end
     return false
+end
+
+function ns.SenderIsUnit(sender, unit, guid)
+    if not (Readable(sender) and Readable(unit) and Readable(guid) and UnitFullName) then return false end
+    local g = UnitGUID(unit)
+    if not Readable(g) or g ~= guid then return false end
+    local first, second = UnitFullName(unit)
+    if Secret(first) or Secret(second) then return false end
+    local realm = OwnRealm()
+    return NameIs(sender, first, second, realm) or NameIs(Strip(sender, realm), first, second, realm)
 end
 
 ns._SendersTest = { NameIs = NameIs, Strip = Strip, GuildChanged = GuildChanged }

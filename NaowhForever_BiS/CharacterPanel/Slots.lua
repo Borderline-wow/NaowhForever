@@ -9,7 +9,8 @@
 --  each (state on it, none on theirs), painted from a post-hook of the game's slot update. With
 --  the Naowh Character Panel, their art fades and ours draws the edge; with Slot Marks alone,
 --  the marks go on the game's own panel (or EllesmereUI's) as it looks. Turned off, the art
---  comes back and ours hides.
+--  comes back and ours hides. CP.SlotOver, CP.PaintEdge, CP.FadeSlot and CP.CropSlot are the
+--  same on the Naowh Inspect Panel's slots (InspectPanel/).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -33,6 +34,8 @@ local SLOTS = {
 local overs = {}         -- the game's slot button -> ours over it
 local installed = false
 
+CP.SLOTS = SLOTS
+
 -- The game's art on a slot: its frame, its quality border and the slot's own border frame.
 local function Fade(button, alpha)
     local normal = button:GetNormalTexture()
@@ -46,6 +49,7 @@ local function Crop(button, on)
     if not icon then return end
     if on then icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) else icon:SetTexCoord(0, 1, 0, 1) end
 end
+CP.FadeSlot, CP.CropSlot = Fade, Crop
 
 local function Paint(over)
     local slot = over.slot
@@ -53,8 +57,7 @@ local function Paint(over)
     local id = GetInventoryItemID("player", slot)
     if id == 0 then id = nil end
     over:Show()
-    local color = id and Items.QualityColor(id) or St.BORDER_RGB
-    over.edge:SetColor(color.r, color.g, color.b, 1)
+    CP.PaintEdge(over, id)
     local link = id and S.Get("characterPanelLevels") and GetInventoryItemLink("player", slot)
     local marks = id and S.Get("characterPanelMarks")
     Parts.PaintItemMarks(over.marks, link and GetDetailedItemLevelInfo(link), marks and ns.IsBisItem(id) or nil,
@@ -85,7 +88,15 @@ local function SlotUpdated(button)
     Paint(over)
 end
 
-local function Over(button, slot)
+--- The edge in the item's quality colour; black for an empty slot.
+function CP.PaintEdge(over, id)
+    local color = id and Items.QualityColor(id) or St.BORDER_RGB
+    over.edge:SetColor(color.r, color.g, color.b, 1)
+end
+
+--- Ours over one of the game's slot buttons: our look's edge (over.look, shown with the panel's
+--- look), the marks (Parts.ItemMarks), over.slot its inventory slot. Nothing on the game's button.
+function CP.SlotOver(button, slot)
     local over = CreateFrame("Frame", nil, button)
     over:SetAllPoints()
     over:SetFrameLevel(button:GetFrameLevel() + 3)
@@ -100,6 +111,11 @@ local function Over(button, slot)
     ns.PixelInset(ring, -1, over)
     ns.Border(ring, St.BORDER_RGB)
     over.marks = Parts.ItemMarks(over, button:GetHeight())
+    return over
+end
+
+local function Over(button, slot)
+    local over = CP.SlotOver(button, slot)
     over.wand = B.View.EnchantBadge(over)
     return over
 end

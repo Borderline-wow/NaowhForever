@@ -32,6 +32,10 @@ CharacterPanel/
   SettingsPage.lua     its cards on the BiS List's settings page
 ```
 
+The Inspect Panel (`InspectPanel/`) dresses the inspect window with the same parts: the rule
+for EllesmereUI (`CP.Rival`), the frame (`CP.Restyler`, `CP.Chrome`), the slots (`CP.SlotOver`),
+the score card (`CP.ScoreCard`) and the badge plate (`CP.BadgePlate`).
+
 ## How the slots work
 
 Ours is a frame over each of the game's slot buttons (`Character<Name>Slot`), kept in a side

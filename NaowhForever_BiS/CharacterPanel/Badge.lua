@@ -3,6 +3,8 @@
 --  corner: Naowh's, a Developer's, a Moderator's or a Legendary Patron's in its own colour
 --  with its glow and title (and since when, for a patron). Without one, nothing at all. While
 --  ns.FEATURE_BADGES is 0 only the team's badges exist, and the setting's default holds.
+--  CP.BadgePlate and CP.PaintBadgePlate draw the same plate for another player on the Naowh
+--  Inspect Panel (InspectPanel/).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -25,7 +27,7 @@ local TITLE_SIZE, LINE_SIZE = 15, 11
 local TEXT_GAP = 8           -- the title and its line, right of the art
 local TIP_GAP = 4            -- the hover card, under the art
 
-local frame, installed
+local mine, installed
 
 local function BadgeOn()
     local wanted = S.Get("characterPanelBadge")
@@ -34,11 +36,14 @@ local function BadgeOn()
     return ns.BadgeOf(UnitGUID("player")) ~= nil
 end
 
-local function Paint()
-    local tier, entry = ns.BadgeOf(UnitGUID("player"))
+--- The plate painted for the character with that GUID; hidden, and false, when they have no badge.
+---@return boolean shown
+function CP.PaintBadgePlate(frame, guid)
+    frame.guid = guid
+    local tier, entry = ns.BadgeOf(guid)
     if not tier then
         frame:Hide()
-        return
+        return false
     end
     local c = tier.color
     frame.emblem:SetTexture(tier.large, nil, nil, FILTER)
@@ -53,6 +58,11 @@ local function Paint()
     -- As wide as what it shows, so it takes the mouse where you see it.
     local text = math.max(frame.title:GetStringWidth(), frame.line:GetStringWidth())
     frame:SetWidth(EMBLEM + TEXT_GAP + math.ceil(text))
+    return true
+end
+
+local function Paint()
+    CP.PaintBadgePlate(mine, UnitGUID("player"))
 end
 
 local function Enter(self)
@@ -60,7 +70,7 @@ local function Enter(self)
     if not ns.Shared.Parts.Tip(self, "ANCHOR_NONE") then return end
     GameTooltip:ClearAllPoints()
     GameTooltip:SetPoint("TOPLEFT", self.emblem, "BOTTOMLEFT", 0, -TIP_GAP)
-    local tier = ns.BadgeOf(UnitGUID("player"))
+    local tier = ns.BadgeOf(self.guid)
     if not tier then return GameTooltip:Hide() end
     local c = tier.color
     GameTooltip:SetText(tier.label or ("Naowh Forever " .. tier.title), c.r, c.g, c.b)
@@ -68,12 +78,11 @@ local function Enter(self)
     GameTooltip:Show()
 end
 
-local function Build()
-    local left = CharacterFrame.LeftPaneHost
-    frame = CreateFrame("Button", nil, left)
-    frame:SetPoint("TOPLEFT", INSET, -INSET)
+--- The plate on parent, EMBLEM tall: the badge's art with its glow and shadow, the title and its
+--- line right of it, the hover card under the art. Placed by the caller, painted by GUID.
+function CP.BadgePlate(parent)
+    local frame = CreateFrame("Button", nil, parent)
     frame:SetSize(EMBLEM + 150, EMBLEM)
-    frame:SetFrameLevel(left:GetFrameLevel() + 60)   -- over the model, which sits at 50
     frame.glow = frame:CreateTexture(nil, "BACKGROUND")
     frame.glow:SetSize(EMBLEM * GLOW, EMBLEM * GLOW)
     frame.glow:SetPoint("CENTER", frame, "LEFT", EMBLEM / 2, 0)
@@ -95,8 +104,17 @@ local function Build()
     end
     frame:SetScript("OnEnter", Enter)
     frame:SetScript("OnLeave", GameTooltip_Hide)
-    frame:SetScript("OnShow", Paint)
-    CP.supportBadge = frame
+    return frame
+end
+CP.BADGE_INSET = INSET
+
+local function Build()
+    local left = CharacterFrame.LeftPaneHost
+    mine = CP.BadgePlate(left)
+    mine:SetPoint("TOPLEFT", INSET, -INSET)
+    mine:SetFrameLevel(left:GetFrameLevel() + 60)   -- over the model, which sits at 50
+    mine:SetScript("OnShow", Paint)
+    CP.supportBadge = mine
 end
 
 local function Apply()
@@ -107,8 +125,8 @@ local function Apply()
         CharacterFrame.LeftPaneHost:HookScript("OnShow", Apply)
     end
     if not installed then return end
-    frame:SetShown(on)
-    if on and frame:IsVisible() then Paint() end
+    mine:SetShown(on)
+    if on and mine:IsVisible() then Paint() end
 end
 
 S.OnChange(function(key)

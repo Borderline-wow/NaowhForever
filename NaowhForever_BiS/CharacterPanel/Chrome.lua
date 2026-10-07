@@ -8,6 +8,9 @@
 --  under the game's frames, at the panel's own frame level, so the
 --  game's slots, model and stats draw over it. The stats' rows are styled as the game's list
 --  makes them (its scroll box's initialized-frame callback), the same on every reuse.
+--
+--  CP.Restyler and CP.Chrome are the same for any of the game's windows: the Naowh Inspect
+--  Panel (InspectPanel/) dresses the inspect window with them.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -17,70 +20,159 @@ local St = ns.Shared.Style
 
 local HEADER = 20        -- the game's title strip: its panes start this far down
 local LOGO = 14          -- Naowh's logo, left in the title strip
+local LOGO_IN = 6        -- in from the left edge
 local MODEL_INSET = 4    -- the model's panel, in from the left pane's edges
 local CLOSE = 10         -- our cross, on the game's close button
 local TITLE_SIZE, LEVEL_SIZE, STAT_SIZE, CATEGORY_SIZE = 12, 14, 12, 11
 local BACKDROP_ALPHA = 0.97
+local MODEL_ALPHA = 0.35 -- the model's dark panel
+CP.HEADER, CP.TITLE_SIZE, CP.LEVEL_SIZE, CP.MODEL_ALPHA = HEADER, TITLE_SIZE, LEVEL_SIZE, MODEL_ALPHA
 
-local faded = {}         -- the game's art we faded -> true, to bring back
-local tinted = {}        -- the game's art we tinted -> true, to bring back
+local TAB_RGB = { r = 0.16, g = 0.16, b = 0.17 }   -- a tab's own art, as dark as our panels
+CP.TAB_RGB = TAB_RGB
+
 local uppers = {}        -- a stats title -> its capitals, made once each
-local fonts = {}         -- the game's text we restyled -> its font object, to bring back
 local styled = setmetatable({}, { __mode = "k" })   -- the stats' rows we styled
 local chrome, installed
 
-local function Fade(region)
-    if region and region.SetAlpha then
-        region:SetAlpha(0)
-        faded[region] = true
+--- The game's art faded or tinted to our look, each piece remembered so Restore brings it all
+--- back: one per window.
+function CP.Restyler()
+    local r = {}
+    local faded, tinted, fonts = {}, {}, {}
+
+    function r.Fade(region)
+        if type(region) == "table" and region.SetAlpha then
+            region:SetAlpha(0)
+            faded[region] = true
+        end
     end
-end
 
-local function FadeRegions(frame)
-    if not frame then return end
-    for _, region in ipairs({ frame:GetRegions() }) do Fade(region) end
-end
-
--- The game's art in our colour: its own shape, desaturated and coloured.
-local function Tint(region, color, alpha)
-    if not (region and region.SetDesaturated) then return end
-    region:SetDesaturated(true)
-    region:SetVertexColor(color.r, color.g, color.b, alpha or 1)
-    tinted[region] = true
-end
-
--- Every texture of a frame and the frames in it (a scroll bar's arrows, track and thumb).
-local function TintTree(frame, color)
-    if not frame then return end
-    for _, region in ipairs({ frame:GetRegions() }) do
-        if region:GetObjectType() == "Texture" then Tint(region, color) end
+    function r.FadeRegions(frame)
+        if not frame then return end
+        for _, region in ipairs({ frame:GetRegions() }) do r.Fade(region) end
     end
-    for _, child in ipairs({ frame:GetChildren() }) do TintTree(child, color) end
+
+    -- Every texture of a frame and the frames in it (a model's buttons: the game sets their
+    -- frame's alpha itself on hover, never their art's).
+    function r.FadeTree(frame)
+        if not frame then return end
+        for _, region in ipairs({ frame:GetRegions() }) do
+            if region:GetObjectType() == "Texture" then r.Fade(region) end
+        end
+        for _, child in ipairs({ frame:GetChildren() }) do r.FadeTree(child) end
+    end
+
+    -- The game's art in our colour: its own shape, desaturated and coloured.
+    function r.Tint(region, color, alpha)
+        if not (type(region) == "table" and region.SetDesaturated) then return end
+        region:SetDesaturated(true)
+        region:SetVertexColor(color.r, color.g, color.b, alpha or 1)
+        tinted[region] = true
+    end
+
+    -- Every texture of a frame and the frames in it (a scroll bar's arrows, track and thumb).
+    function r.TintTree(frame, color)
+        if not frame then return end
+        for _, region in ipairs({ frame:GetRegions() }) do
+            if region:GetObjectType() == "Texture" then r.Tint(region, color) end
+        end
+        for _, child in ipairs({ frame:GetChildren() }) do r.TintTree(child, color) end
+    end
+
+    -- Text of the game's in our font and colour; its own font object kept to bring back.
+    function r.Restyle(fontString, size, color)
+        if not fontString then return end
+        if not fonts[fontString] then fonts[fontString] = fontString:GetFontObject() or GameFontNormal end
+        fontString:SetFont(ns.UIFontPath(), size, "")
+        fontString:SetTextColor(color.r, color.g, color.b, 1)
+    end
+
+    -- A side tab (Character, Reputation, Guild...) dark, with the accent where it is picked and hovered.
+    function r.TintSideTab(tab)
+        if not tab then return end
+        r.Tint(tab.Background, TAB_RGB)
+        r.Tint(tab.SelectedTexture, T.accent)
+        r.Tint(tab.HighlightTexture, T.accent, 0.5)
+        r.Fade(tab.TabGlow)
+    end
+
+    -- The close button's own look gone, under our cross (CP.Chrome).
+    function r.FadeClose(close)
+        if not close then return end
+        r.Fade(close:GetNormalTexture()); r.Fade(close:GetPushedTexture())
+        r.Fade(close:GetHighlightTexture()); r.Fade(close:GetDisabledTexture())
+    end
+
+    function r.Restore()
+        for region in pairs(faded) do region:SetAlpha(1) end
+        wipe(faded)
+        for region in pairs(tinted) do
+            region:SetDesaturated(false)
+            region:SetVertexColor(1, 1, 1, 1)
+        end
+        wipe(tinted)
+        for fontString, object in pairs(fonts) do fontString:SetFontObject(object) end
+        wipe(fonts)
+    end
+
+    return r
 end
 
-local TAB_RGB = { r = 0.16, g = 0.16, b = 0.17 }   -- a tab's own art, as dark as our panels
+local game = CP.Restyler()
 
--- Every texture of a frame and the frames in it, faded (the model's buttons: the game sets
--- their frame's alpha itself on hover, never their art's).
-local function FadeTree(frame)
-    if not frame then return end
-    for _, region in ipairs({ frame:GetRegions() }) do
-        if region:GetObjectType() == "Texture" then Fade(region) end
+--- Ours under a window of the game's: our backdrop, border, the title strip's rule with Naowh's
+--- logo, and our cross on its close button (which keeps closing it), as .cross: shown and
+--- hidden with the rest by the caller.
+function CP.Chrome(frame)
+    local back = CreateFrame("Frame", nil, frame)
+    back:SetAllPoints()
+    back:SetFrameLevel(frame:GetFrameLevel())
+    back.backdrop = ns.Shared.Parts.Backdrop(back)
+    back.backdrop:Paint(BACKDROP_ALPHA)
+    ns.Border(back, St.BORDER_RGB)
+    local rule = ns.Solid(back, "ARTWORK", St.BORDER_RGB, 1)
+    rule:SetPoint("TOPLEFT", 0, -HEADER)
+    rule:SetPoint("TOPRIGHT", 0, -HEADER)
+    ns.Hairline(rule, "h")
+    local logo = back:CreateTexture(nil, "ARTWORK")
+    logo:SetTexture(St.LOGO_SMALL, nil, nil, "TRILINEAR")
+    logo:SetSize(LOGO, LOGO)
+    logo:SetPoint("LEFT", back, "TOPLEFT", LOGO_IN, -HEADER / 2)
+    local close = frame.CloseButton
+    if close then
+        local cross = close:CreateTexture(nil, "OVERLAY")
+        cross:SetTexture(St.CROSS, nil, nil, "TRILINEAR")
+        cross:SetSize(CLOSE, CLOSE)
+        cross:SetPoint("CENTER")
+        cross:SetVertexColor(T.muted.r, T.muted.g, T.muted.b)
+        close:HookScript("OnEnter", function() cross:SetVertexColor(T.fg.r, T.fg.g, T.fg.b) end)
+        close:HookScript("OnLeave", function() cross:SetVertexColor(T.muted.r, T.muted.g, T.muted.b) end)
+        back.cross = cross
     end
-    for _, child in ipairs({ frame:GetChildren() }) do FadeTree(child) end
+    return back
+end
+
+--- A model's dark panel, as the BiS List's: inset from its box.
+function CP.ModelPanel(back, box)
+    local panel = ns.Solid(back, "BACKGROUND", T.panel, MODEL_ALPHA)
+    panel:SetPoint("TOPLEFT", box, "TOPLEFT", MODEL_INSET, -MODEL_INSET)
+    panel:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -MODEL_INSET, MODEL_INSET)
+    return panel
+end
+
+--- A hairline down the left edge of a pane, for the game's divider.
+function CP.Split(back, pane)
+    local split = ns.Solid(back, "ARTWORK", St.BORDER_RGB, 1)
+    split:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, 0)
+    split:SetPoint("BOTTOMLEFT", pane, "BOTTOMLEFT", 0, 0)
+    ns.Hairline(split, "v")
+    return split
 end
 
 -- The BiS List's link in the left pane's top-right corner, on your badge's middle, clear of
 -- the game's toggle for the stats there (28px, 6px in).
 local TOGGLE_EDGE, TOGGLE_W, LINK_GAP = 6, 28, 12
-
--- Text of the game's in our font and colour; its own font object kept to bring back.
-local function Restyle(fontString, size, color)
-    if not fontString then return end
-    if not fonts[fontString] then fonts[fontString] = fontString:GetFontObject() or GameFontNormal end
-    fontString:SetFont(ns.UIFontPath(), size, "")
-    fontString:SetTextColor(color.r, color.g, color.b, 1)
-end
 
 -------------------------------------------------------------------------------
 --  The stats: each row as the game's list makes it
@@ -92,7 +184,7 @@ local function StyleStat(_, frame)
         -- A category: an accent title in capitals on the left, over a hairline, as the BiS
         -- List's section titles.
         local title = frame.Title
-        Restyle(title, CATEGORY_SIZE, T.accentSoft)
+        game.Restyle(title, CATEGORY_SIZE, T.accentSoft)
         local text = title:GetText()
         if text then
             local upper = uppers[text]
@@ -114,8 +206,8 @@ local function StyleStat(_, frame)
         end
         line:Show()
     else
-        Restyle(frame.Label, STAT_SIZE, T.muted)
-        Restyle(frame.Value, STAT_SIZE, T.fg)
+        game.Restyle(frame.Label, STAT_SIZE, T.muted)
+        game.Restyle(frame.Value, STAT_SIZE, T.fg)
         styled[frame] = styled[frame] or true
     end
 end
@@ -134,35 +226,13 @@ end
 -------------------------------------------------------------------------------
 --  Ours: under the game's frames
 -------------------------------------------------------------------------------
-local function CloseEnter() chrome.cross:SetVertexColor(T.fg.r, T.fg.g, T.fg.b) end
-local function CloseLeave() chrome.cross:SetVertexColor(T.muted.r, T.muted.g, T.muted.b) end
-
 local function Build()
     local frame = CharacterFrame
-    chrome = CreateFrame("Frame", nil, frame)
-    chrome:SetAllPoints()
-    chrome:SetFrameLevel(frame:GetFrameLevel())
-    chrome.backdrop = ns.Shared.Parts.Backdrop(chrome)
-    chrome.backdrop:Paint(BACKDROP_ALPHA)
-    ns.Border(chrome, St.BORDER_RGB)
-    local rule = ns.Solid(chrome, "ARTWORK", St.BORDER_RGB, 1)
-    rule:SetPoint("TOPLEFT", 0, -HEADER)
-    rule:SetPoint("TOPRIGHT", 0, -HEADER)
-    ns.Hairline(rule, "h")
-    local logo = chrome:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture(St.LOGO_SMALL, nil, nil, "TRILINEAR")
-    logo:SetSize(LOGO, LOGO)
-    logo:SetPoint("LEFT", chrome, "TOPLEFT", 6, -HEADER / 2)
+    chrome = CP.Chrome(frame)
     -- The model on the BiS List's dark panel.
-    local left = frame.LeftPaneHost
-    local panel = ns.Solid(chrome, "BACKGROUND", T.panel, 0.35)
-    panel:SetPoint("TOPLEFT", left, "TOPLEFT", MODEL_INSET, -MODEL_INSET)
-    panel:SetPoint("BOTTOMRIGHT", left, "BOTTOMRIGHT", -MODEL_INSET, MODEL_INSET)
+    CP.ModelPanel(chrome, frame.LeftPaneHost)
     -- A hairline between the panes, for the game's divider.
-    local split = ns.Solid(chrome, "ARTWORK", St.BORDER_RGB, 1)
-    split:SetPoint("TOPLEFT", frame.RightPaneHost, "TOPLEFT", 0, 0)
-    split:SetPoint("BOTTOMLEFT", frame.RightPaneHost, "BOTTOMLEFT", 0, 0)
-    ns.Hairline(split, "v")
+    CP.Split(chrome, frame.RightPaneHost)
     -- The model's buttons faded, a frame over their whole strip so they take no clicks, and the
     -- BiS List's link on it.
     local controls = CharacterModelScene and CharacterModelScene.ControlFrame
@@ -181,17 +251,6 @@ local function Build()
             -(CP.BADGE_MID or 32))
         chrome.cover = cover
     end
-    -- Our cross on the game's close button, which keeps closing the panel.
-    local close = frame.CloseButton
-    if close then
-        chrome.cross = close:CreateTexture(nil, "OVERLAY")
-        chrome.cross:SetTexture(St.CROSS, nil, nil, "TRILINEAR")
-        chrome.cross:SetSize(CLOSE, CLOSE)
-        chrome.cross:SetPoint("CENTER")
-        CloseLeave()
-        close:HookScript("OnEnter", CloseEnter)
-        close:HookScript("OnLeave", CloseLeave)
-    end
 end
 
 -- The game's art the restyle covers: its border and portrait, both panes' backgrounds and the
@@ -199,68 +258,56 @@ end
 -- close button's own look.
 local function FadeGame()
     local frame = CharacterFrame
-    Fade(frame.NineSlice)
-    Fade(frame.PortraitContainer)
-    FadeRegions(frame.LeftPaneHost)
+    game.Fade(frame.NineSlice)
+    game.Fade(frame.PortraitContainer)
+    game.FadeRegions(frame.LeftPaneHost)
     local right = frame.RightPaneHost
-    FadeRegions(right)
+    game.FadeRegions(right)
     if right then
-        for _, child in ipairs({ right:GetChildren() }) do Fade(child) end
+        for _, child in ipairs({ right:GetChildren() }) do game.Fade(child) end
     end
     local model = CharacterModelScene
     if model then
-        Fade(model.BackgroundTopLeft); Fade(model.BackgroundTopRight)
-        Fade(model.BackgroundBotLeft); Fade(model.BackgroundBotRight)
-        Fade(model.BackgroundOverlay)
+        game.Fade(model.BackgroundTopLeft); game.Fade(model.BackgroundTopRight)
+        game.Fade(model.BackgroundBotLeft); game.Fade(model.BackgroundBotRight)
+        game.Fade(model.BackgroundOverlay)
     end
-    Fade(CharacterLevelTextBackground)
-    FadeRegions(CharacterStatsPaneScrollBox)
+    game.Fade(CharacterLevelTextBackground)
+    game.FadeRegions(CharacterStatsPaneScrollBox)
     -- The ammo slot's own bracket round its icon.
     local ammo = _G.CharacterAmmoSlot
     if ammo then
         for _, region in ipairs({ ammo:GetRegions() }) do
-            if region ~= ammo.icon and region:GetObjectType() == "Texture" then Fade(region) end
+            if region ~= ammo.icon and region:GetObjectType() == "Texture" then game.Fade(region) end
         end
     end
-    local close = frame.CloseButton
-    if close then
-        Fade(close:GetNormalTexture()); Fade(close:GetPushedTexture())
-        Fade(close:GetHighlightTexture()); Fade(close:GetDisabledTexture())
-    end
+    game.FadeClose(frame.CloseButton)
 end
 
 -- The game's tabs and buttons in our colours: the side tabs (Character, Reputation and the
 -- rest) and the stats' three tabs dark with the accent where they are picked and hovered, the
 -- panes' toggle and the stats' scroll bar muted.
 local function TintGame()
-    for i = 1, 6 do
-        local tab = _G["CharacterFrameModeTab" .. i]
-        if tab then
-            Tint(tab.Background, TAB_RGB)
-            Tint(tab.SelectedTexture, T.accent)
-            Tint(tab.HighlightTexture, T.accent, 0.5)
-            Fade(tab.TabGlow)
-        end
-    end
+    for i = 1, 6 do game.TintSideTab(_G["CharacterFrameModeTab" .. i]) end
     for i = 1, 3 do
         local tab = _G["PaperDollSidebarTab" .. i]
         if tab then
             for _, region in ipairs({ tab:GetRegions() }) do
-                if region ~= tab.Icon and region:GetObjectType() == "Texture" then Tint(region, TAB_RGB) end
+                if region ~= tab.Icon and region:GetObjectType() == "Texture" then game.Tint(region, TAB_RGB) end
             end
-            Tint(tab:GetCheckedTexture(), T.accent)
-            Tint(tab:GetHighlightTexture(), T.accent, 0.5)
+            game.Tint(tab:GetCheckedTexture(), T.accent)
+            game.Tint(tab:GetHighlightTexture(), T.accent, 0.5)
         end
     end
     local toggle = CharacterFrame.RightPaneToggleButton
     if toggle then
-        Tint(toggle:GetNormalTexture(), T.muted)
-        Tint(toggle:GetPushedTexture(), T.accent)
+        game.Tint(toggle:GetNormalTexture(), T.muted)
+        game.Tint(toggle:GetPushedTexture(), T.accent)
     end
-    TintTree(CharacterStatsPaneScrollBox and CharacterStatsPaneScrollBox.ScrollBar, T.muted)
+    game.TintTree(CharacterStatsPaneScrollBox and CharacterStatsPaneScrollBox.ScrollBar, T.muted)
     -- The model's zoom and turn buttons: gone (dragging the model turns it, the wheel zooms);
     -- the BiS List's link up in the corner (Build).
-    FadeTree(CharacterModelScene and CharacterModelScene.ControlFrame)
+    game.FadeTree(CharacterModelScene and CharacterModelScene.ControlFrame)
 end
 
 local function Install()
@@ -279,23 +326,15 @@ local function Apply()
     if on then
         FadeGame()
         TintGame()
-        Restyle(CharacterFrameTitleText, TITLE_SIZE, T.fg)
-        Restyle(CharacterLevelText, LEVEL_SIZE, T.fg)
+        game.Restyle(CharacterFrameTitleText, TITLE_SIZE, T.fg)
+        game.Restyle(CharacterLevelText, LEVEL_SIZE, T.fg)
         chrome:Show()
         if chrome.cross then chrome.cross:Show() end
         if chrome.cover then chrome.cover:Show() end
         local list = CharacterStatsPaneScrollBox and CharacterStatsPaneScrollBox.ScrollBox
         if list and list.ForEachFrame then list:ForEachFrame(function(frame) StyleStat(nil, frame) end) end
     else
-        for region in pairs(faded) do region:SetAlpha(1) end
-        wipe(faded)
-        for region in pairs(tinted) do
-            region:SetDesaturated(false)
-            region:SetVertexColor(1, 1, 1, 1)
-        end
-        wipe(tinted)
-        for fontString, object in pairs(fonts) do fontString:SetFontObject(object) end
-        wipe(fonts)
+        game.Restore()
         UnstyleStats()
         chrome:Hide()
         if chrome.cross then chrome.cross:Hide() end

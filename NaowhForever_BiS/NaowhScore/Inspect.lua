@@ -6,13 +6,14 @@
 --  A player running Naowh Forever sends theirs as it changes (Share.lua); that one is kept for
 --  the session and always wins. Anyone else is inspected: one request at a time, INSPECT_GAP
 --  apart, only in inspect range and out of combat, and never while the game's Inspect window
---  (or another request) holds the one inspect the game keeps; that score is kept KEEP seconds,
---  and dropped when they change gear. In the background, your group (Scan Your Group) and the
---  players around you (Scan Players Nearby: your target, focus and mouseover, and every player
---  whose nameplate shows) are read a step at a time, on their own events; while one not known
---  yet is out of inspect range the walk looks again RETRY later, and stops once none is left.
---  A tooltip shows "..." until the gear comes, and fills in when it does. On by default (QoL >
---  Naowh Score); turned off, its events go quiet and its hook does nothing.
+--  (or the talents opened from it, or another request) holds the one inspect the game keeps;
+--  that score is kept KEEP seconds, and dropped when they change gear. In the background, your
+--  group (Scan Your Group) and the players around you (Scan Players Nearby: your target, focus
+--  and mouseover, and every player whose nameplate shows) are read a step at a time, on their
+--  own events; while one not known yet is out of inspect range the walk looks again RETRY
+--  later, and stops once none is left. A tooltip shows "..." until the gear comes, and fills in
+--  when it does. On by default (QoL > Naowh Score); turned off, its events go quiet and its hook
+--  does nothing.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local Score = ns.NaowhScore
@@ -23,6 +24,7 @@ local INSPECT_GAP = 2      -- seconds between two requests: the server drops one
 local WAIT_FOR = 4         -- seconds a request is waited on before another may go
 local KEEP = 300           -- seconds an inspected score is kept
 local RETRY = 5            -- seconds before looking again at a player not known yet but out of range
+local USER_WAIT = 8        -- seconds your own inspect keeps ours waiting while its window loads
 local MAX_KEPT = 300       -- players kept at most; the oldest goes first
 local SAVED_MAX = 500      -- guildmates' scores saved for the guild list at most; the oldest goes first
 local SAVED_DAYS = 30      -- a saved score older than this is dropped
@@ -120,7 +122,7 @@ end
 
 -- The tooltip's line, filled in now that the score is known, while the tooltip still shows them.
 local function Refresh(guid, entry)
-    if guid ~= shownGUID or not shownLine or not GameTooltip:IsShown() then return end
+    if guid ~= shownGUID or not shownLine or GameTooltip:IsForbidden() or not GameTooltip:IsShown() then return end
     local data = GameTooltip:GetPrimaryTooltipData()
     local showing = data and data.guid
     if not Readable(showing) or showing ~= guid then return end
@@ -154,9 +156,27 @@ end
 -------------------------------------------------------------------------------
 local events = CreateFrame("Frame")
 
--- The game's Inspect window, or a request of ours, holds the inspect the game keeps.
+local userAt = -USER_WAIT
+
+-- Your own inspect: the game's window open, or asked for and waiting for its gear.
+local function UserInspecting()
+    local talents = PlayerSpellsFrame
+    if talents and talents.IsInspecting and talents:IsInspecting() then return true end
+    local frame = InspectFrame
+    if not frame then return false end
+    return frame:IsShown() or (frame.unit ~= nil and GetTime() - userAt < USER_WAIT)
+end
+
+-- Your inspect wins: ours is dropped, so its answer can't clear yours, and waits its turn after.
+local function UserInspected()
+    userAt = GetTime()
+    lastAsked = userAt
+    pending = nil
+end
+
+-- Your inspect, or a request of ours, holds the inspect the game keeps.
 local function Busy()
-    return (InspectFrame and InspectFrame:IsShown()) or (pending and GetTime() - pending.at < WAIT_FOR)
+    return UserInspecting() or (pending and GetTime() - pending.at < WAIT_FOR)
 end
 
 local function CanAsk(unit)
@@ -181,15 +201,19 @@ local function Ready(guid)
     wipe(links)
     for slot in pairs(Score.SLOTS) do links[slot] = GetInventoryItemLink(unit, slot) end
     local entry = Entry(guid)
-    entry.links = entry.links or {}
-    wipe(entry.links)
-    for slot, link in pairs(links) do entry.links[slot] = link end
-    local score, complete = Score.Links(entry.links)
-    Score.Remember(guid, score, complete, false, UnitLevel(unit))
+    local score, complete = Score.Links(links)
     -- An item's data still loading: worked out again when it comes.
+    if not complete then
+        entry.links = entry.links or {}
+        wipe(entry.links)
+        for slot, link in pairs(links) do entry.links[slot] = link end
+    else
+        entry.links = nil
+    end
+    Score.Remember(guid, score, complete, false, UnitLevel(unit))
     if not complete then events:RegisterEvent("GET_ITEM_INFO_RECEIVED") end
-    -- Let the inspect go, unless the game's own window is using it.
-    if not (InspectFrame and InspectFrame:IsShown()) then ClearInspectPlayer() end
+    -- Let the inspect go, unless it is yours now.
+    if not UserInspecting() then ClearInspectPlayer() end
     return true
 end
 
@@ -202,7 +226,10 @@ local function ItemsLoaded()
         if entry.links and not entry.complete and not entry.shared then
             local score, complete = Score.Links(entry.links)
             entry.score, entry.complete = score, complete
-            if complete then Save(guid, score, entry.level) end
+            if complete then
+                entry.links = nil
+                Save(guid, score, entry.level)
+            end
             Refresh(guid, entry)
             if not complete then waiting = true end
         end
@@ -223,13 +250,15 @@ end
 local scanQueued = false
 local Scan
 
+local function ScanDue()
+    scanQueued = false
+    Scan()
+end
+
 local function ScanSoon(delay)
     if scanQueued then return end
     scanQueued = true
-    C_Timer.After(delay, function()
-        scanQueued = false
-        Scan()
-    end)
+    C_Timer.After(delay, ScanDue)
 end
 
 -- The unit names walked, made once: the walk makes no strings of its own.
@@ -374,6 +403,7 @@ local hooked = false
 -- post-calls run in the order they were added, so the badge line (Badges, added in its Apply)
 -- comes first, and the score under it, as one Naowh block.
 local function Hook()
+    if InspectUnit then hooksecurefunc("InspectUnit", UserInspected) end
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnUnit)
     ns.Shared.Roster.AddTooltip(OnRoster)
 end

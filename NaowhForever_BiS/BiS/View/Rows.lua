@@ -414,10 +414,18 @@ end
 -- corner (Forever's mark has the top-left, the item level the bottom-right), shown only while
 -- a better enchant waits for what you wear there. Hovered, the advice; clicked, ask in Trade
 -- or copy. Its parent is the slot's button, whose slot it reads; its hit area is a little
--- bigger than the dot, as the dot is small.
+-- bigger than the dot, as the dot is small. With opts ({ color, tip }), a plain mark in that
+-- colour saying tip on hover, for someone else's gear (the Naowh Inspect Panel's unenchanted
+-- slots): no advice, no click.
 local DOT, DOT_RIM, DOT_HIT, DOT_IN = 6, 2, 14, 3
 
-function B.View.EnchantBadge(button)
+local function TipEnter(badge)
+    if not Parts.Tip(badge, "ANCHOR_RIGHT") then return end
+    GameTooltip:SetText(badge.tip, 1, 1, 1)
+    GameTooltip:Show()
+end
+
+function B.View.EnchantBadge(button, opts)
     local badge = CreateFrame("Button", nil, button)
     badge:SetSize(DOT_HIT, DOT_HIT)
     badge:SetPoint("CENTER", button, "TOPRIGHT", -DOT_IN - DOT / 2, -DOT_IN - DOT / 2)
@@ -429,10 +437,12 @@ function B.View.EnchantBadge(button)
     local dot = Parts.Smooth(badge:CreateTexture(nil, "OVERLAY"), St.ROUND)
     dot:SetSize(DOT, DOT)
     dot:SetPoint("CENTER")
-    dot:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
-    badge:SetScript("OnEnter", EnchantEnter)
+    local color = opts and opts.color or T.accent
+    dot:SetVertexColor(color.r, color.g, color.b)
+    badge.tip = opts and opts.tip
+    badge:SetScript("OnEnter", badge.tip and TipEnter or EnchantEnter)
     badge:SetScript("OnLeave", GameTooltip_Hide)
-    badge:SetScript("OnClick", EnchantClicked)
+    if not badge.tip then badge:SetScript("OnClick", EnchantClicked) end
     badge:Hide()
     return badge
 end

@@ -21,6 +21,7 @@ end
 local GATED = {
     ["Badges/NaowhForever_Badges.lua"] = true,
     ["CharacterPanel/SettingsPage.lua"] = true,
+    ["InspectPanel/SettingsPage.lua"] = true,
     ["Core/NaowhForever_Credits.lua"] = true,
     ["Core/NaowhForever_PatchNotes.lua"] = true,
 }
@@ -161,6 +162,7 @@ local function Shown(flag)
         BADGE_STAFF = { [1] = { [TEAM_GUID] = "developer" } },
         BADGE_PATRONS = { [1] = { ["Player-1-PATRON"] = { since = "2026-03" } } },
         CharacterPanel = { EllesmereSheet = function() return false end },
+        InspectPanel = { EllesmereSheet = function() return false end },
         Solid = function() return Stub() end, Border = function() return Stub() end,
         Font = function() return Stub() end, Color = function(_, text) return text end,
         FontInset = function() return 0 end,
@@ -211,6 +213,7 @@ local function Shown(flag)
         date = os.date,
     }, { __index = _G })
     Load({ Located("Badges/NaowhForever_Badges.lua"), Located("CharacterPanel/SettingsPage.lua"),
+        Located("InspectPanel/SettingsPage.lua"),
         Located("Core/NaowhForever_Credits.lua"), Located("Core/NaowhForever_PatchNotes.lua") }, env)
     ns.BuildCreditsPage({ GetWidth = function() return 800 end }, 0)
 

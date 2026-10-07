@@ -84,6 +84,13 @@ local TREES = {
     WARLOCK = { "affliction-warlock", "demonology-warlock", "destruction-warlock" },
     WARRIOR = { "arms-warrior", "fury-warrior", "protection-warrior" },
 }
+--- A class's talent tree as a spec: index 1 to 3, in the game's order (another player's too).
+---@return string? key
+function SW.TreeSpec(class, index)
+    local trees = TREES[class]
+    return trees and trees[index]
+end
+
 -- A weapon's speed, for when the game has none to give (nothing in the hand).
 local SPEED = 2.6
 

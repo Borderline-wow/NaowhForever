@@ -1,0 +1,12 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- The Naowh inspect panel, in load order: its namespace, switch and window, the slots, their
+         BiS asked of their Naowh Forever, the score card and badge, the Player and History tabs,
+         and its settings card. Loads after the Character Panel, whose parts it reuses. -->
+    <Script file="Panel.lua"/>
+    <Script file="Slots.lua"/>
+    <Script file="TheirBiS.lua"/>
+    <Script file="Card.lua"/>
+    <Script file="Details.lua"/>
+    <Script file="History.lua"/>
+    <Script file="SettingsPage.lua"/>
+</Ui>
