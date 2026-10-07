@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: The HUD Editor's movers, run against frame stubs
 -- with real geometry. Drags, arrow keys, typed X and Y and Center save the element CENTER on
--- the screen centre; a drag lines up on guides; Anchor ties an element to another so it
--- follows from the side picked, keeping a typed gap; the Elements panel finds, hides and locks
+-- the screen centre; a drag lines up on guides and even gaps; Anchor ties an element to another
+-- so it follows from the side picked on the tag or the target's tabs, keeping a typed gap; the Elements panel finds, hides and locks
 -- them; every change can be undone; Shift-click selects several to move, align and space
 -- together; layouts keep every position under a name; and the anchors and snap switch from
 -- before are dropped without moving anything.
@@ -126,6 +126,7 @@ function Frame:SetText(text) self.text_ = text end
 function Frame:GetText() return self.text_ end
 function Frame:HasFocus() return false end
 function Frame:CreateTexture() return NewFrame("Texture", self) end
+function Frame:SetColorTexture(r, g, b, a) self.colorTex = { r, g, b, a } end
 function Frame:CreateLine() return NewFrame("Line", self) end
 function Frame:CreateFontString() return NewFrame("FontString", self) end
 function Frame:GetStringWidth() return #(self.text_ or "") * 6 end
@@ -532,6 +533,27 @@ Check(tag.sides:IsShown() and tag.side.BOTTOM._border.color[3] == T.accent.b and
 Check(tag.gap:GetText() == "11" and tag:GetHeight() > 30, "and the gap, on a second row")
 local function AnchorGap() return Gaps() end
 Check(AnchorGap() == "11", "the anchor is drawn from the target, its gap written on it")
+local function Tabs()
+    local out = {}
+    for _, fr in ipairs(made) do
+        if fr.parent == Overlay() and fr.kind == "Button" and fr:IsShown() then out[#out + 1] = fr end
+    end
+    return out
+end
+local function TabAt(x, y)
+    for _, tab in ipairs(Tabs()) do
+        local cx, cy = tab:GetCenter()
+        if Near(cx, x) and Near(cy, y) then return tab end
+    end
+end
+local bx, by = Center(boss)
+Check(#Tabs() == 4 and TabAt(bx, boss:GetBottom()).fill.colorTex[3] == T.accent.b
+    and TabAt(boss:GetLeft(), by).fill.colorTex[3] == T.bg.b, "the target shows a tab on each side, the one it sits off filled")
+Fire(TabAt(boss:GetRight(), by), "OnClick")
+Check(link.side == "RIGHT" and Near(add:GetLeft(), boss:GetRight() + 11)
+    and TabAt(boss:GetRight(), by).fill.colorTex[3] == T.accent.b, "a click on another tab moves it to that side")
+Fire(TabAt(bx, boss:GetBottom()), "OnClick")
+Check(link.side == "BOTTOM" and Near(add:GetTop(), boss:GetBottom() - 11), "and back")
 Fire(tag.side.RIGHT, "OnClick")
 Check(link.side == "RIGHT" and Near(add:GetLeft(), boss:GetRight() + 11) and Near(select(2, Center(add)), select(2, Center(boss))),
     "a new side moves it off that side, keeping the gap, centred along it")
@@ -551,7 +573,7 @@ UI.SelectMover(addMover)
 local addSpot = { Center(add) }
 Fire(tag.anchor, "OnClick")
 Check(settings.anchoredTo["Add Bar"] == nil and tag.anchor:GetText() == "Anchor", "Unanchor lets go")
-Check(not tag.sides:IsShown() and Gaps() == "", "and the side row and the anchor line go with it")
+Check(not tag.sides:IsShown() and Gaps() == "" and #Tabs() == 0, "and the side row, the anchor line and the tabs go with it")
 Fire(tag.anchor, "OnClick")
 Fire(keys, "OnKeyDown", "ESCAPE")
 boss:ClearAllPoints()
@@ -887,6 +909,61 @@ Check(not settings.layouts.Dungeon and settings.layouts.Raid and settings.layout
     and toolbar._layout.label:GetText() == "Layouts", "and deletes it, nothing current")
 UI.ClearMoverSelection()
 settings.anchoredTo = nil
+ns.HideRaidReminderAnchorConfig()
+
+-- Even gaps: a drag lands midway between two elements in line with it, a pair's gap past the
+-- pair, or mirrored about the screen's centre, drawn as two equal gaps.
+ns.ShowRaidReminderAnchorConfig()
+for _, fr in ipairs(made) do
+    if fr._placement then fr:Hide() end
+end
+local function LabelAt(x, y)
+    for _, plate in ipairs(Shown("Frame")) do
+        local cx, cy = plate:GetCenter()
+        if Near(cx, x) and Near(cy, y) then return plate.text:GetText() end
+    end
+end
+local function DragTo(handle, frame, left, bottom)
+    DragBy(handle, frame, left - frame:GetLeft(), bottom - frame:GetBottom(), true)
+end
+local _, e1Mover = Display("E1", 100, 20, -600, -400)
+local e2, e2Mover = Display("E2", 100, 20, -200, -400)
+local m, mMover = Display("M", 60, 20, -420, -350)
+DragTo(mMover, m, 533, 130)
+Check(Near(m:GetLeft(), 530), "a drag lands midway between two elements")
+Check(LabelAt(470, 140) == "120" and LabelAt(650, 140) == "120", "the two equal gaps drawn")
+UI.StopMoverDrag(mMover)
+
+e2:ClearAllPoints()
+e2:SetPoint("CENTER", UIParent, "CENTER", -400, -400)
+Flush()
+DragTo(mMover, m, 713, 130)
+Check(Near(m:GetLeft(), 710) and LabelAt(460, 140) == "100" and LabelAt(660, 140) == "100",
+    "a pair's gap past the pair, both gaps drawn")
+UI.StopMoverDrag(mMover)
+alt = true
+DragTo(mMover, m, 713, 130)
+Check(Near(m:GetLeft(), 713), "Alt lets it go there too")
+UI.StopMoverDrag(mMover)
+alt = false
+
+e1Mover:Hide()
+e2:ClearAllPoints()
+e2:SetPoint("CENTER", UIParent, "CENTER", -300, -400)
+Flush()
+DragTo(mMover, m, 1213, 130)
+Check(Near(m:GetLeft(), 1210) and LabelAt(835, 140) == "250" and LabelAt(1085, 140) == "250",
+    "mirrored about the screen's centre")
+UI.StopMoverDrag(mMover)
+e2Mover:Hide()
+mMover:Hide()
+
+Display("V1", 100, 20, 500, 0)
+Display("V2", 100, 20, 500, -60)
+local v3, v3Mover = Display("V3", 100, 20, 500, -200)
+DragTo(v3Mover, v3, v3:GetLeft(), 413)
+Check(Near(v3:GetBottom(), 410) and LabelAt(1460, 450) == "40" and LabelAt(1460, 510) == "40", "and up and down")
+UI.StopMoverDrag(v3Mover)
 ns.HideRaidReminderAnchorConfig()
 
 print(("test-unlock-mode: %d checks passed"):format(checks))

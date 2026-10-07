@@ -254,12 +254,13 @@ end
 --  redraws. While an element is dragged its left, middle and right are pulled onto another
 --  element's left, middle or right within GUIDE_SNAP pixels (its top, middle and bottom the
 --  same), and onto the screen's centre lines. Each one it lands on is drawn from it to the
---  other element, with the gap between the two written on it. Alt holds them off for a drag,
---  the toolbar's Guides switch for good.
+--  other element, with the gap between the two written on it. It is also pulled onto even
+--  spacing with the elements in line with it, drawn as two equal gaps. Alt holds them off for
+--  a drag, the toolbar's Guides switch for good.
 -------------------------------------------------------------------------------
 local GUIDE_SNAP = 6           -- physical pixels an edge is pulled from
 local GUIDE_LEVEL = 220        -- over the movers, under the tag
-local LABEL_PAD, LABEL_H, LABEL_SIZE = 4, 16, 11
+local LABEL = { pad = 4, h = 16, size = 11 }
 local OUTLINE_ALPHA = 0.45     -- the outline of where a drag started
 local overlay
 
@@ -306,14 +307,14 @@ local function DrawLabel(layer, x, y, length, c, textColor)
         label = CreateFrame("Frame", nil, Overlay())
         label.fill = ns.Solid(label, "BACKGROUND", c, 1)
         label.fill:SetAllPoints()
-        label.text = ns.Font(label, LABEL_SIZE)
+        label.text = ns.Font(label, LABEL.size)
         label.text:SetPoint("CENTER")
         layer.labels[layer.usedLabels] = label
     end
     label.fill:SetColorTexture(c.r, c.g, c.b, 1)
     label.text:SetTextColor(textColor.r, textColor.g, textColor.b, 1)
     label.text:SetText(tostring(math.floor(length / Pixel() + 0.5)))
-    label:SetSize(label.text:GetStringWidth() + 2 * LABEL_PAD, LABEL_H)
+    label:SetSize(label.text:GetStringWidth() + 2 * LABEL.pad, LABEL.h)
     label:ClearAllPoints()
     label:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
     label:Show()
@@ -325,6 +326,13 @@ local function GuidesOn() return ns.UnlockModeSettings.Get("guides") ~= false en
 local function Guiding(item, other)
     return other ~= item and other.handle:IsVisible() and not IsHidden(other) and not Follows(other.label, item.label)
         and not (other.selected and Grouped())
+end
+
+-- The middle of where two spans overlap, else of the first.
+local function Middle(a1, a2, b1, b2)
+    local lo, hi = math.max(a1, b1), math.min(a2, b2)
+    if lo <= hi then return (lo + hi) / 2 end
+    return (a1 + a2) / 2
 end
 
 -- best, or theirs - ours when that is nearer and within reach.
@@ -339,6 +347,49 @@ local function Pull(best, reach, a1, a2, a3, b1, b2, b3)
     best = Nearer(Nearer(Nearer(best, a1, b1, reach), a1, b2, reach), a1, b3, reach)
     best = Nearer(Nearer(Nearer(best, a2, b1, reach), a2, b2, reach), a2, b3, reach)
     return Nearer(Nearer(Nearer(best, a3, b1, reach), a3, b2, reach), a3, b3, reach)
+end
+
+-- Where the box lo..hi on one axis (a1..a2 across it) sits evenly with the elements in line
+-- with it: midway between two, a pair's gap past either end of the pair, or mirrored about the
+-- screen's centre line. Each spot is { at = where lo goes, then two gaps, each from, to and
+-- where across to draw it }.
+local function EvenSpots(item, lo, hi, a1, a2, horizontal)
+    local size = hi - lo
+    local mid = (horizontal and UIParent:GetWidth() or UIParent:GetHeight()) / 2
+    local line, spots = {}, {}
+    for _, other in ipairs(placement.items) do
+        if Guiding(item, other) then
+            local l, r, t, b = Box(other)
+            if l then
+                local o = horizontal and { l, r, b, t } or { b, t, l, r }
+                if o[3] < a2 and o[4] > a1 then line[#line + 1] = o end
+            end
+        end
+    end
+    for _, p in ipairs(line) do
+        local across = Middle(a1, a2, p[3], p[4])
+        if p[2] < mid then
+            local at = 2 * mid - p[2]
+            spots[#spots + 1] = { at = at, p[2], mid, across, mid, at, across }
+        elseif p[1] > mid then
+            local at = 2 * mid - p[1] - size
+            spots[#spots + 1] = { at = at, at + size, mid, across, mid, p[1], across }
+        end
+        for _, q in ipairs(line) do
+            local gap = q[1] - p[2]
+            if gap > 0 then
+                local pair = Middle(p[3], p[4], q[3], q[4])
+                local qAcross = Middle(a1, a2, q[3], q[4])
+                if gap > size then
+                    local at = (p[2] + q[1] - size) / 2
+                    spots[#spots + 1] = { at = at, p[2], at, across, at + size, q[1], qAcross }
+                end
+                spots[#spots + 1] = { at = q[2] + gap, p[2], q[1], pair, q[2], q[2] + gap, qAcross }
+                spots[#spots + 1] = { at = p[1] - gap - size, p[2], q[1], pair, p[1] - gap, p[1], across }
+            end
+        end
+    end
+    return spots
 end
 
 -- How far the box l, r, t, b moves to land on the nearest guide, nil on an axis with none.
@@ -356,6 +407,8 @@ local function SnapBy(item, l, r, t, b)
             end
         end
     end
+    for _, spot in ipairs(EvenSpots(item, l, r, b, t, true)) do dx = Nearer(dx, l, spot.at, reach) end
+    for _, spot in ipairs(EvenSpots(item, b, t, l, r, false)) do dy = Nearer(dy, b, spot.at, reach) end
     return dx, dy
 end
 
@@ -396,6 +449,26 @@ local function DrawGuides(item)
             end
         end
     end
+    for _, spot in ipairs(EvenSpots(item, l, r, b, t, true)) do
+        if math.abs(spot.at - l) <= near then
+            for i = 1, 4, 3 do
+                local from, to, y = spot[i], spot[i + 1], spot[i + 2]
+                DrawLine(dragLayer, from, y, to, y, c)
+                DrawLabel(dragLayer, (from + to) / 2, y, to - from, c, T.bg)
+            end
+            break
+        end
+    end
+    for _, spot in ipairs(EvenSpots(item, b, t, l, r, false)) do
+        if math.abs(spot.at - b) <= near then
+            for i = 1, 4, 3 do
+                local from, to, x = spot[i], spot[i + 1], spot[i + 2]
+                DrawLine(dragLayer, x, from, x, to, c)
+                DrawLabel(dragLayer, x, (from + to) / 2, to - from, c, T.bg)
+            end
+            break
+        end
+    end
 end
 
 -- Where the drag started, a faint outline the element can be put back on.
@@ -408,22 +481,67 @@ local function DrawOutline(item)
     DrawLine(dragLayer, r, b, r, t, c, OUTLINE_ALPHA)
 end
 
--- The middle of where two spans overlap, else of the first.
-local function Middle(a1, a2, b1, b2)
-    local lo, hi = math.max(a1, b1), math.min(a2, b2)
-    if lo <= hi then return (lo + hi) / 2 end
-    return (a1 + a2) / 2
+local SetSide, PlaceSideTabs
+
+-- A tab on each side of the anchor's target, the one the element sits off filled in the accent;
+-- a click on another moves the element to that side. No side hides them. A do block: this chunk
+-- is at Lua's 200-local ceiling.
+do
+    local TAB_W, TAB_H, TAB_HIT = 10, 7, 4   -- physical pixels; the hit area reaches past the tab
+    local tabs
+
+    local function Build()
+        tabs = {}
+        for _, side in ipairs({ "TOP", "LEFT", "RIGHT", "BOTTOM" }) do
+            local tab = CreateFrame("Button", nil, Overlay())
+            tab.fill = ns.Solid(tab, "ARTWORK", T.bg, 1)
+            tab.fill:SetAllPoints()
+            tab.border = ns.Border(tab, T.accentSoft)
+            tab:SetScript("OnClick", function() SetSide(placement.selected, side) end)
+            ns.Tooltip(tab, side:sub(1, 1) .. side:sub(2):lower(), "Anchors to this side.")
+            tabs[side] = tab
+        end
+    end
+
+    function PlaceSideTabs(used, tl, tr, tt, tb)
+        if not tabs then
+            if not used then return end
+            Build()
+        end
+        local px = Pixel()
+        local hit = -TAB_HIT * px
+        for side, tab in pairs(tabs) do
+            if used then
+                local across = side == "TOP" or side == "BOTTOM"
+                tab:SetSize((across and TAB_W or TAB_H) * px, (across and TAB_H or TAB_W) * px)
+                tab:SetHitRectInsets(hit, hit, hit, hit)
+                tab:ClearAllPoints()
+                if side == "TOP" then tab:SetPoint("CENTER", UIParent, "BOTTOMLEFT", (tl + tr) / 2, tt)
+                elseif side == "BOTTOM" then tab:SetPoint("CENTER", UIParent, "BOTTOMLEFT", (tl + tr) / 2, tb)
+                elseif side == "LEFT" then tab:SetPoint("CENTER", UIParent, "BOTTOMLEFT", tl, (tt + tb) / 2)
+                else tab:SetPoint("CENTER", UIParent, "BOTTOMLEFT", tr, (tt + tb) / 2) end
+                local fill = side == used and T.accent or T.bg
+                local edge = side == used and T.accent or T.accentSoft
+                tab.fill:SetColorTexture(fill.r, fill.g, fill.b, 1)
+                tab.border:SetColor(edge.r, edge.g, edge.b, 1)
+            end
+            tab:SetShown(used ~= nil)
+        end
+    end
 end
 
--- The selected element's anchor: a line from its target's side to it, with the gap on it.
+-- The selected element's anchor: a line from its target's side to it, with the gap on it, and
+-- the target's side tabs.
 local function DrawAnchor(item)
     Clear(anchorLayer)
+    PlaceSideTabs(nil)
     local info = item and not item.ownAnchor and AnchorOf(item.label)
     local target = info and placement.byLabel[info.target]
     if not target then return end
     local tl, tr, tt, tb = Box(target)
     local cl, cr, ct, cb = Box(item)
     if not (tl and cl) then return end
+    PlaceSideTabs(info.side, tl, tr, tt, tb)
     local side, x1, y1, x2, y2 = info.side
     if side == "TOP" or side == "BOTTOM" then
         x1 = Middle(tl, tr, cl, cr)
@@ -671,8 +789,8 @@ local function Reanchor(item)
 end
 
 -- A new side keeps the gap, and the offset along the side when it runs the same way.
-local function SetSide(item, side)
-    local info = AnchorOf(item.label)
+function SetSide(item, side)
+    local info = item and AnchorOf(item.label)
     if not info or info.side == side or not Change(item) then return end
     local gap = Gap(info)
     if ACROSS[side] ~= ACROSS[info.side] then info.x, info.y = 0, 0 end
