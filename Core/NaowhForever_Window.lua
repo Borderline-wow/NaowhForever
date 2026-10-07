@@ -185,15 +185,11 @@ local MODULES = {
               .. "reminders still carry their own text, set per reminder from the boss "
               .. "pages." },
       } },
-    { name = "Smart Reminders", group = "COMBAT", navIcon = "bell",
-      addon = "NaowhForever_SmartReminders",
-      open = "ToggleSmartRemindersWindow",
-      command = "reminders", short = "Reminders", icon = "Interface\\Icons\\Ability_Warrior_ShieldWall",
-      subtitle = "Calls out what to press when a boss ability is about to land.",
-      tabs = {
-          { name = "Settings", reuse = true },
-      } },
 }
+
+-- Smart Reminders is no longer shipped. A zip extracted over 0.5.25 or older leaves its folder
+-- behind, and with no entry above it could not be switched off here.
+C_AddOns.DisableAddOn("NaowhForever_SmartReminders")
 
 -- Page key -> page. Module tabs are keyed "Module/Tab", since two modules may share a tab
 -- name; the window's own pages are their own key.
