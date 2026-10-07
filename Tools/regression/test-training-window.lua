@@ -138,7 +138,10 @@ local ns = {
     Print = function(m) printed[#printed + 1] = m end,
     TownNPCs = { [1453] = { { 38.4, 79.4, "class", "Elsharin", "Mage Trainer", "MAGE", "A" } } },
     TownCapitals = { [1453] = true },
-    PlaceWaypoint = function(title, map, x, y, note) waypoint = { title, map, x, y, note } end,
+    PlaceWaypointRoute = function(_, stops)
+        local s = stops[1]
+        waypoint = { s[1], s[2], s[3], s[4], s[5], #stops }
+    end,
     Confirm = function(_, yes) yes() end,
     PromptText = function(_, _, _, accept) accept("Mine") end,
     ShowCopyBox = NOTHING,
@@ -163,6 +166,7 @@ local env = setmetatable({
     UnitRace = function() return "Human", "Human", 1 end,
     UnitLevel = function() return 20 end,
     UnitFactionGroup = function() return "Alliance" end,
+    GetProfessions = NOTHING,
     CreateVector2D = function() end,
     C_Map = { GetBestMapForUnit = function() end, GetWorldPosFromMapPos = function() end },
     UnitName = function() return "Me" end,
@@ -219,7 +223,7 @@ check("the Spells tab shows the next visit and the road", window.hero:IsShown() 
 check("and its own controls", window.search:IsShown() and not window.import:IsShown())
 Click(window.hero.trainer)
 check("its trainer link puts a waypoint on your class's trainer", waypoint and waypoint[1] == "Elsharin"
-    and waypoint[2] == 1453 and waypoint[5] == " (Mage Trainer)")
+    and waypoint[2] == 1453 and waypoint[5] == " (Mage Trainer)" and waypoint[6] == 1)
 
 ns.OpenTrainingWindow(20)
 check("a level opens on Spells with All Levels", window.back:IsShown())

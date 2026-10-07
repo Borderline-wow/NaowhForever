@@ -35,7 +35,7 @@ local RUN_SPEED = 7                          -- yards a second on foot, while st
 local NAV_W, NAV_H, NAV_PAD, NAV_ICON, NAV_ARROW = 320, 40, 10, 20, 14
 local NAV_NAME, NAV_SUB, NAV_DIST = 14, 11, 16
 local NAV_Y = -70                            -- the navigator under the screen's top, until moved
-local ARRIVED_HOLD = 4                       -- seconds the arrival shows
+local ARRIVED_HOLD = ns.WAYPOINT_HOLD        -- seconds the arrival shows
 
 local function On()
     return S.Get("enabled") and S.Get("waypoints")
@@ -252,7 +252,7 @@ local function Target()
         if placed and point and placed.map == point.uiMapID
             and math.abs(placed.x - point.position.x * 100) < 0.05
             and math.abs(placed.y - point.position.y * 100) < 0.05 then
-            return placed.title, where, NoteText(placed.note), placed.icon
+            return placed.title, where, NoteText(placed.note), placed.icon, true
         end
         return "Map Pin", where
     elseif kind == types.Quest then
@@ -267,6 +267,7 @@ local function Build()
     pin = Look.NewPin(UIParent)
     pin:SetFrameStrata("LOW")
     pin:Hide()
+    -- Clearing the waypoint also ends a route it is on.
     nav = Look.NewNav(UIParent, function()
         C_Map.ClearUserWaypoint()
         C_SuperTrack.ClearAllSuperTracked()
@@ -365,9 +366,13 @@ end
 
 local function Retitle()
     painted = nil
-    local where
-    shown.name, where, shown.note, shown.icon = Target()
+    local where, placed
+    shown.name, where, shown.note, shown.icon, placed = Target()
     shown.sub = shown.note and where and (shown.note .. St.PLACE_DOT .. where) or shown.note or where
+    -- A stop on a route: the route and how far along it, in the navigator.
+    local route, at, n = ns.WaypointRoute()
+    shown.onRoute = placed and route ~= nil
+    if shown.onRoute then shown.sub = ("%s%s%d of %d"):format(route, St.PLACE_DOT, at, n) end
     shown.shape = S.Get("waypointShape")
     shown.card, shown.beam = S.Get("waypointCard"), S.Get("waypointBeam")
 end
@@ -422,6 +427,11 @@ local function Arrived()
     pin:SetPoint("CENTER", UIParent, "BOTTOMLEFT", lastX / scale, lastY / scale)
     pin.onNav = false
     shown.mode = "arrived"
+    if shown.onRoute then
+        local route, _, _, nextTitle = ns.WaypointRoute()
+        shown.note = nextTitle and ("Next: " .. nextTitle) or (route .. " done")
+        shown.sub = shown.note
+    end
     Look.PaintPin(pin, shown)
     pin:Show()
     cue:Hide()

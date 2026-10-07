@@ -69,8 +69,11 @@ local gameMarker = {}
 for _, key in ipairs({ "Icon", "Arrow", "DistanceText", "IconBorder" }) do gameMarker[key] = NewFrame("Texture") end
 
 local function Theme() return { r = 0, g = 0.57, b = 0.93 } end
+local routeInfo   -- { title, at, n, next } while a route is followed
 local ns = {
     QoLSettings = S,
+    WAYPOINT_HOLD = 4,
+    WaypointRoute = function() if routeInfo then return unpack(routeInfo) end end,
     THEME = { accent = Theme(), accentSoft = Theme(), fg = Theme(), muted = Theme(), bg = Theme() },
     Font = function(parent) return parent:CreateFontString() end,
     Solid = function(parent) return parent:CreateTexture() end,
@@ -269,9 +272,33 @@ Check(pin:IsShown() and pin.card.dist.text == "Arrived" and navBar:IsShown(), "c
 timers[#timers].fn()
 Check(not pin:IsShown() and not navBar:IsShown(), "until its time is up")
 
+-- A stop on a route: the navigator says which, and the arrival names the next stop, or says the
+-- route is done on its last.
+tracking = 1
+ns.placedWaypoint = { title = "Mage Trainer", map = 88, x = 46.2, y = 49.8 }
+userWaypoint = { uiMapID = 88, position = { x = 0.462, y = 0.498 } }
+routeInfo = { "Training run", 2, 4, "Weapon Master" }
+nav.frame = navFrame
+events.scripts.OnEvent(events, "NAVIGATION_FRAME_CREATED")
+Check(navBar.sub.text == "Training run . 2 of 4", "the navigator shows the route and the stop")
+events.scripts.OnEvent(events, "NAVIGATION_DESTINATION_REACHED", false)
+Check(pin.card.note.text == "Next: Weapon Master" and navBar.sub.text == "Next: Weapon Master", "the arrival names the next stop")
+timers[#timers].fn()
+routeInfo = { "Training run", 4, 4, nil }
+events.scripts.OnEvent(events, "USER_WAYPOINT_UPDATED")
+events.scripts.OnEvent(events, "NAVIGATION_DESTINATION_REACHED", false)
+Check(pin.card.note.text == "Training run done", "the last stop says the route is done")
+timers[#timers].fn()
+routeInfo = nil
+-- A spot the route did not place (a quest) is not shown as a stop.
+tracking = 0
+routeInfo = { "Training run", 2, 4, "Weapon Master" }
+events.scripts.OnEvent(events, "NAVIGATION_FRAME_CREATED")
+Check(navBar.sub.text == "", "a quest is not a stop on it")
+routeInfo = nil
+
 -- A quest the game keeps tracking: the arrival shows, then the pin follows it again. An older
 -- arrival's timer does nothing.
-tracking = 0
 nav.frame = navFrame
 events.scripts.OnEvent(events, "NAVIGATION_FRAME_CREATED")
 Check(pin.card.name.text == "The Barrens Oases", "a quest is named from the quest log")

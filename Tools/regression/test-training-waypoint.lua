@@ -90,4 +90,71 @@ Case("your faction's capital before one both factions share", function()
     assert(got == "Akeri Duskblade@2521", got)
 end)
 
+-- The route Training.WaypointToTrainer places: your class trainer, then your professions'
+-- trainers in that town, each the nearest to the stop before it.
+local function Route(class, faction, professions, at)
+    local placed
+    local lines = {}
+    for i, p in ipairs(professions) do lines[i] = p end
+    local env = {
+        ns = {
+            TownNPCs = NPCS, TownCapitals = { [1453] = true, [1454] = true, [2521] = true },
+            Print = function() end,
+            PlaceWaypointRoute = function(title, stops) placed = { title = title, stops = stops } end,
+        },
+        Training = {},
+        UnitClass = function() return "", class end,
+        UnitFactionGroup = function() return faction end,
+        CreateVector2D = Vector,
+        GetProfessions = function() return 1, 2, nil, 4 end,
+        GetProfessionInfo = function(index)
+            local p = lines[index]
+            if p then return p.name, p.icon, 1, 75, 0, 0, p.line end
+        end,
+        C_Map = {
+            GetBestMapForUnit = function() return at[1] end,
+            GetPlayerMapPosition = function() return Vector(at[2], at[3]) end,
+            GetWorldPosFromMapPos = function(map, pos)
+                local m = MAPS[map]
+                local x, y = pos:GetXY()
+                return m.cont, Vector(m.x + x * m.size, m.y + y * m.size)
+            end,
+        },
+    }
+    setmetatable(env, { __index = _G })
+    local code = "local ns, Training = ns, Training\n"
+        .. Slice("local function WorldPos", "\n---------")
+        .. "\nreturn Training.WaypointToTrainer"
+    local chunk = assert(loadstring(code)); setfenv(chunk, env)
+    chunk()()
+    return placed
+end
+
+NPCS[1454][#NPCS[1454] + 1] = { 30.0, 30.0, "profession", "Far Herbalist", "Herbalism Trainer", nil, "H" }
+NPCS[1454][#NPCS[1454] + 1] = { 79.0, 31.0, "profession", "Near Herbalist", "Herbalist", nil, "H" }
+NPCS[1454][#NPCS[1454] + 1] = { 70.0, 40.0, "profession", "Ore", "Miner", nil, "H" }
+NPCS[1454][#NPCS[1454] + 1] = { 78.0, 31.0, "profession", "Ally Miner", "Mining Trainer", nil, "A" }
+NPCS[1454][#NPCS[1454] + 1] = { 79.5, 30.5, "profession", "Swords", "Weapon Master", nil, "H" }
+
+Case("your professions' trainers in that town follow the class trainer, nearest first", function()
+    local route = Route("WARRIOR", "Horde", {
+        { name = "Mining", icon = 136248, line = 186 },
+        { name = "Herbalism", icon = 136246, line = 182 },
+        [4] = { name = "Fishing", icon = 136245, line = 356 },
+    }, { 1454, 0.5, 0.5 })
+    assert(route.title == "Training run", route.title)
+    local s = route.stops
+    assert(#s == 3, #s)
+    assert(s[1][1] == "Grezz Ragefist" and s[1][2] == 1454 and s[1][5] == " (Warrior Trainer)"
+        and s[1][6] == "Interface\\Icons\\ClassIcon_Warrior", s[1][6])
+    assert(s[2][1] == "Near Herbalist" and s[2][6] == 136246, s[2][1])
+    assert(s[3][1] == "Ore" and s[3][5] == " (Miner)" and s[3][6] == 136248, s[3][1])
+end)
+Case("no professions, or none trained in that town: the class trainer alone", function()
+    local route = Route("ROGUE", "Horde", {}, { 1454, 0.5, 0.5 })
+    assert(#route.stops == 1 and route.stops[1][1] == "Shenthul", route.stops[1][1])
+    route = Route("WARRIOR", "Horde", { { name = "Tailoring", icon = 1, line = 197 } }, { 1454, 0.5, 0.5 })
+    assert(#route.stops == 1, #route.stops)
+end)
+
 print(("%d cases passed"):format(count))
