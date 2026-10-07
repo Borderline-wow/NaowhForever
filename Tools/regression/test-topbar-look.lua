@@ -13,13 +13,14 @@ end
 
 local code = table.concat({
     "local S, Parts, UI, ns, Group, ResetLayout = ...",
-    "local BADGE_SIZE, BTN_PAD, GAP = 10, 8, 4",
+    "local BADGE_SIZE, BTN_PAD, GAP, EDGE, CLOCK_GAP = 10, 8, 4, 14, 22",
     "local function Tone() return 1, 1, 1, 1 end",
     "local function IconColor() return 1, 1, 1 end",
     "local function BtnSize() return S.Get('iconSize') + BTN_PAD end",
     "local Look = {}",
     Slice("function Look.ClockFont(clock)", "\nfunction Look.ClockText()"),
     Slice("function Look.Row(group, list, n)", "\nfunction Look.Fit("),
+    Slice("function Look.Fit(", "\nfunction Look.SystemFont("),
     Slice("function Look.SystemFont(text)", "\nlocal SYSTEM_TEXT"),
     Slice("local ROWS = {", "\nns.Shared.Settings.Page("),
     "return { Look = Look, ROWS = ROWS }",
@@ -115,5 +116,31 @@ check("Hide In Combat and the mouseover fade under Visibility", groupOf.hideInCo
     and groupOf.mouseover == "Visibility" and groupOf.mouseoverAlpha == "Visibility")
 check("the defaults are today's look", defaults.font == "" and defaults.outline == "OUTLINE"
     and defaults.clockOutline == "NONE")
+
+-- Without the clock: one row centred as a whole, the two sides CLOCK_GAP apart.
+local function Box(w)
+    local b = { w = w, points = {} }
+    function b.GetWidth(self) return self.w end
+    function b.SetWidth(self, v) self.w = v end
+    function b.ClearAllPoints(self) self.points = {} end
+    function b.SetPoint(self, point, _, _, x) self.points[point] = x end
+    return b
+end
+local frame, left, right = Box(0), Box(60), Box(90)
+local clockText = { GetStringWidth = function() return 70 end }
+check("the clock is off by default", source:find("enabled = true,%s+showClock = false,") ~= nil)
+Look.Fit(frame, left, right, clockText, 2, 3)
+check("no clock: the row is both sides and the gap", frame.w == 2 * 14 + 60 + 22 + 90
+    and left.points.LEFT == 14 and right.points.RIGHT == -14)
+Look.Fit(frame, left, Box(1), clockText, 2, 0)
+check("no clock, one side empty: that side alone, centred", frame.w == 2 * 14 + 60 and left.points.LEFT == 14)
+settings.showClock = true
+Look.Fit(frame, left, right, clockText, 2, 3)
+check("with the clock: both sides the widest's width round it", frame.w == 2 * (14 + 90 + 22) + 78
+    and left.points.LEFT == 14 + 90 - 60 and right.points.RIGHT == -14)
+settings.showClock = nil
+check("Show Clock heads the Clock group, its settings wait on it", groupOf.showClock == "Clock"
+    and rows.use24h.needs == "showClock" and rows.clockFont.needs == "showClock"
+    and rows.clockSize.needs == "showClock" and rows.clockOutline.needs == "showClock")
 
 print("PASS top bar look: " .. checks .. " checks")

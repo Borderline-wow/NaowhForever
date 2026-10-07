@@ -11,6 +11,7 @@ local Parts = ns.Shared.Parts
 
 local S = UI.ModuleSettings("topBar", {
     enabled = true,
+    showClock = false,
     -- The clock font is EllesmereUI's, found through SharedMedia; without it the Addon Font.
     iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", clockOutline = "NONE", use24h = false,
     font = "", outline = "OUTLINE",
@@ -68,7 +69,9 @@ local function IconColor()
     return c.r, c.g, c.b
 end
 local function BtnSize() return S.Get("iconSize") + BTN_PAD end
-local function BarHeight() return math.max(S.Get("clockSize") + CLOCK_PAD, BtnSize() + 2) end
+local function BarHeight()
+    return math.max(S.Get("showClock") and S.Get("clockSize") + CLOCK_PAD or 0, BtnSize() + 2)
+end
 
 -- Show On Mouseover fades rather than hides: the bar holds secure buttons. Every enter and
 -- leave on the bar or its buttons calls this, since a leave into a gap fires nothing else.
@@ -577,6 +580,8 @@ function Look.PaintPills(frame, segs, left, right, clock, nLeft, nRight)
     segR:SetShown(nRight > 0)
     segR.line:SetShown(nRight > 0)
     segC:ClearAllPoints()
+    segC:SetShown(S.Get("showClock"))
+    segC.line:SetShown(S.Get("showClock"))
     segC:SetPoint("LEFT", clock, "LEFT", -(SEG_PAD + 4), 0)
     segC:SetPoint("RIGHT", clock, "RIGHT", SEG_PAD + 4, 0)
     segC:SetPoint("TOP", frame, "TOP")
@@ -617,13 +622,23 @@ function Look.Row(group, list, n)
     group:SetSize(math.max(1, x - GAP), size)
 end
 
-function Look.Fit(frame, left, right, clock)
+function Look.Fit(frame, left, right, clock, nLeft, nRight)
+    left:ClearAllPoints()
+    right:ClearAllPoints()
+    if not S.Get("showClock") then
+        -- One row centred as a whole, the two pills as far apart as they sit beside the clock.
+        local leftW = nLeft > 0 and left:GetWidth() or 0
+        local rightW = nRight > 0 and right:GetWidth() or 0
+        local gap = (nLeft > 0 and nRight > 0) and CLOCK_GAP or 0
+        frame:SetWidth(2 * EDGE + leftW + gap + rightW)
+        left:SetPoint("LEFT", frame, "LEFT", EDGE, 0)
+        right:SetPoint("RIGHT", frame, "RIGHT", -EDGE, 0)
+        return
+    end
     local side = math.max(left:GetWidth(), right:GetWidth())
     local clockW = math.max(24, clock:GetStringWidth() + 8)
     frame:SetWidth(2 * (EDGE + side + CLOCK_GAP) + clockW)
-    left:ClearAllPoints()
     left:SetPoint("LEFT", frame, "LEFT", EDGE + side - left:GetWidth(), 0)
-    right:ClearAllPoints()
     right:SetPoint("RIGHT", frame, "RIGHT", -(EDGE + side - right:GetWidth()), 0)
 end
 
@@ -674,7 +689,7 @@ end
 local function FitWidth()
     if InCombatLockdown() then fitPending = true; return end
     fitPending = false
-    Look.Fit(bar, leftGroup, rightGroup, clockText)
+    Look.Fit(bar, leftGroup, rightGroup, clockText, bar.nLeft, bar.nRight)
 end
 
 local function UpdateSystem()
@@ -694,7 +709,7 @@ local function UpdateSystem()
 end
 
 local function UpdateResting()
-    if bar then bar.rest:SetShown(IsResting()) end
+    if bar then bar.rest:SetShown(S.Get("showClock") and IsResting()) end
 end
 
 -- Below the bar while it shows; where the clock was once Hide In Combat hides it.
@@ -832,7 +847,7 @@ local function StartTicker()
     ticker = C_Timer.NewTicker(1, function()
         UpdateSystem()
         if not bar:IsShown() then return end
-        if PaintClock() or fitPending then FitWidth() end
+        if (S.Get("showClock") and PaintClock()) or fitPending then FitWidth() end
         n = n + 1
         if n >= 10 then n = 0; UpdateBadges() end
     end)
@@ -872,6 +887,8 @@ local function Apply()
     local h = BarHeight()
     bar:SetHeight(h)
     bar.clockBtn:SetSize(80, h)
+    bar.clockBtn:SetShown(S.Get("showClock"))
+    clockText:SetShown(S.Get("showClock"))
     local rest = math.max(12, math.floor(h * 0.55 + 0.5))
     bar.rest:SetSize(rest, rest)
     Look.ClockFont(clockText)
@@ -884,6 +901,7 @@ local function Apply()
     local left, right = GroupKeys()
     Layout(leftGroup, left)
     Layout(rightGroup, right)
+    bar.nLeft, bar.nRight = #left, #right
     FitWidth()
     Look.PaintPills(bar, bar.segs, leftGroup, rightGroup, clockText, #left, #right)
 
@@ -1371,9 +1389,10 @@ local function PaintPreview(preview, state)
     preview:SetHeight(BarHeight())
     Look.ClockFont(preview.clock)
     preview.clock:SetText(Look.ClockText())
+    preview.clock:SetShown(S.Get("showClock"))
     Look.Row(preview.left, lists.left, #lists.left)
     Look.Row(preview.right, lists.right, #lists.right)
-    Look.Fit(preview, preview.left, preview.right, preview.clock)
+    Look.Fit(preview, preview.left, preview.right, preview.clock, #lists.left, #lists.right)
     Look.PaintPills(preview, preview.segs, preview.left, preview.right, preview.clock, #lists.left, #lists.right)
     local sys = preview.sys
     Look.SystemFont(sys)
@@ -1393,7 +1412,7 @@ local function PaintPreview(preview, state)
     local editable = alpha > 0
     preview:SetAlpha(alpha)
     for i = 1, #preview.pool do preview.pool[i]:EnableMouse(editable) end
-    preview.clockHit:EnableMouse(editable)
+    preview.clockHit:EnableMouse(editable and S.Get("showClock"))
     local size = BtnSize()
     preview.plusLeft:SetSize(size, size)
     preview.plusRight:SetSize(size, size)
@@ -1412,13 +1431,17 @@ end
 
 local function Summary(store)
     local layout = SavedLayout()
-    return ("%s clock, %d buttons%s"):format(store.Get("use24h") and "24-hour" or "12-hour",
+    local clock = not store.Get("showClock") and "No clock"
+        or store.Get("use24h") and "24-hour clock" or "12-hour clock"
+    return ("%s, %d buttons%s"):format(clock,
         #layout.left + #layout.right, store.Get("mouseover") and ", fades until hovered" or "")
 end
 
 local ROWS = {
     Group("Clock"),
-    { key = "use24h", label = "24-Hour Clock", toggle = true },
+    { key = "showClock", label = "Show Clock", toggle = true,
+      help = "The time between the two sides. Click it for the calendar." },
+    { key = "use24h", label = "24-Hour Clock", toggle = true, needs = "showClock" },
     Group("Buttons"),
     { key = "layout", label = "Reset Layout", button = ResetLayout, buttonText = "Reset",
       help = "Puts the bar's buttons back as they came: Friends and Guild on the left, the Dungeon "
@@ -1436,9 +1459,9 @@ local ROWS = {
     { key = "outline", label = "Outline", choice = Parts.HUD_OUTLINES,
       help = "A black outline round the FPS / MS readout and the counts, in place of the soft shadow." },
     { key = "sysSize", label = "FPS / MS Size", slider = { 6, 24, 1 }, needs = "showSystem" },
-    { key = "clockFont", label = "Clock Font", font = true },
-    { key = "clockSize", label = "Clock Size", slider = { 10, 36, 1 } },
-    { key = "clockOutline", label = "Clock Outline", choice = Parts.HUD_OUTLINES,
+    { key = "clockFont", label = "Clock Font", font = true, needs = "showClock" },
+    { key = "clockSize", label = "Clock Size", slider = { 10, 36, 1 }, needs = "showClock" },
+    { key = "clockOutline", label = "Clock Outline", choice = Parts.HUD_OUTLINES, needs = "showClock",
       help = "A black outline round the clock." },
     Group("Background"),
     { key = "bgAlpha", label = "Bar Opacity", slider = { 0, 100, 5 }, unit = "%" },
@@ -1457,7 +1480,7 @@ local ROWS = {
 
 ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "topBar", name = "Top Bar", order = 10, switch = "enabled",
-    help = "Your buttons on either side of the clock, with FPS and latency underneath. Arrange the "
+    help = "Your buttons on either side of an optional clock, with FPS and latency underneath. Arrange the "
         .. "buttons in the preview: drag one to move it, its x removes it, a side's + adds one. Move "
         .. "the bar in the HUD Editor.",
     summary = Summary,
