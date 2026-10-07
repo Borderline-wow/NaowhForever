@@ -139,8 +139,6 @@ local SECRET_TOTAL = {
     scrit = Percented(GetSpellCritChance),
     dodge = Percented(GetDodgeChance),
     block = Percented(GetBlockChance),
-    -- Defense skill is never secret.
-    def = function(text) text:SetText(TOTAL.def()) end,
 }
 for i, stat in ipairs({ "str", "agi", "sta", "int", "spi" }) do
     SECRET_TOTAL[stat] = Rounded(function() return select(2, UnitStat("player", i)) end)
