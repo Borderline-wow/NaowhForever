@@ -10,6 +10,7 @@ local function Read(path)
 end
 local DATA = Read("NaowhForever_AuraBuffs/NaowhForever_BuffReminderData.lua")
 local MODULE = Read("NaowhForever_AuraBuffs/NaowhForever_BuffReminders.lua")
+local SETTINGS = Read("Shared/Settings/Settings.lua")
 
 -- itemID -> use spell, for the food scan.
 local ITEM_SPELLS = { [13931] = 1249513, [2679] = 433, [21023] = 25660 }
@@ -66,9 +67,6 @@ local function Fixture(opts)
         return f
     end
 
-    local S = {}
-    function S.Get(k) return settings[k] end
-    function S.Set(k, v) settings[k] = v end
     local defaults = {
         enabled = true, food = true, elixirs = true, flasks = true,
         consumablesWhere = "instance", consumablesMinutes = 2,
@@ -76,8 +74,16 @@ local function Fixture(opts)
         scrolls = true, scrollsSkipActive = true,
         raidBuffs = false, raidBuffsOwn = true, iconSize = 36,
         buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
+        raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
     }
-    for k, v in pairs(defaults) do if settings[k] == nil then settings[k] = v end end
+    local S = {}
+    function S.Get(k)
+        if settings[k] == nil then return defaults[k] end
+        return settings[k]
+    end
+    function S.Set(k, v) settings[k] = v end
+    function S.Raw(k) return settings[k] end
+    function S.Default(k) return defaults[k] end
 
     local ns = {
         AuraBuffSettings = S,
@@ -92,9 +98,8 @@ local function Fixture(opts)
             return fs
         end,
         UI = { AttachMover = function() return NewFrame() end },
-        Shared = { Parts = { HudFont = function(fs, font, size, outline)
-            fs.font, fs.size, fs.outline = font, size, outline
-        end } },
+        Shared = { Parts = { HUD_OUTLINES = { { NONE = "None", [""] = "Shadow", OUTLINE = "Outline" }, { "NONE", "", "OUTLINE" } },
+            HudFont = function(fs, font, size, outline) fs.font, fs.size, fs.outline = font, size, outline end } },
     }
 
     local function Count(id)
@@ -165,7 +170,7 @@ local function Fixture(opts)
     }
     env._G = { NaowhForever = ns }
     setmetatable(env, { __index = _G })
-    for _, source in ipairs({ DATA, MODULE }) do
+    for _, source in ipairs(opts.page and { SETTINGS, DATA, MODULE } or { DATA, MODULE }) do
         local chunk
         if setfenv then
             chunk = assert(loadstring(source)); setfenv(chunk, env)
@@ -175,7 +180,7 @@ local function Fixture(opts)
         chunk()
     end
 
-    local t = { state = state, frames = frames }
+    local t = { state = state, frames = frames, ns = ns }
     function t.Fire(event, ...)
         for _, f in ipairs(frames) do
             if f.events[event] and f.handler then f.handler(f, event, ...) end
@@ -397,6 +402,48 @@ do
     t.Fire("UNIT_AURA", "party1")
     t.Advance(0.5)
     Check("everyone buffed", t.Shown(), "")
+end
+
+-- Picked raid buffs: paladin blessings start off, the rest on; a buff switched off never reminds.
+do
+    local t = Fixture({ settings = { raidBuffs = true, raidBuffsOwn = false, scrolls = false },
+        group = "party", units = { player = "MAGE", party1 = "PALADIN", party2 = "PRIEST", party3 = "DRUID" },
+        auras = { player = {}, party1 = {}, party2 = {}, party3 = {} } })
+    t.Login()
+    Check("default picks: no blessing", t.Shown(), "spell:10157x4 spell:10938x4 spell:9885x4")
+    t.Set("raidBuffPicks", { intellect = true, stamina = false, spirit = true, wild = true, blessing = false })
+    Check("fortitude switched off", t.Shown(), "spell:10157x4 spell:9885x4")
+    t.Set("raidBuffPicks", { intellect = true, stamina = true, spirit = true, wild = true, blessing = true })
+    Check("blessings switched on", t.Shown(), "spell:10157x4 spell:10938x4 spell:9885x4 spell:25291x4")
+    t.Set("raidBuffPicks", { intellect = false })
+    Check("a buff the picks do not name follows its class", t.Shown(), "spell:10938x4 spell:9885x4")
+    t.state.known = { [1460] = true }
+    t.Set("raidBuffsOwn", true)
+    Check("own and not picked: nothing", t.Shown(), "")
+end
+
+-- The card has a switch per raid buff, each with its own changed dot and reset.
+do
+    local t = Fixture({ page = true })
+    local Settings = t.ns.Shared.Settings
+    local card = Settings.pages["AuraBuffs/Settings"].cards.buffs
+    local picks = {}
+    for _, row in ipairs(card.rows) do
+        if row.field then picks[row.field] = row end
+    end
+    Check("blessings switch starts off", picks.blessing.get(), false)
+    Check("fortitude switch starts on", picks.stamina.get(), true)
+    picks.stamina.set(false)
+    Check("switching one off keeps the rest", picks.blessing.get(), false)
+    Check("only the switched row is changed", Settings.ChangedCount(card), 1)
+    Check("its dot", Settings.Changed(picks.stamina), true)
+    picks.blessing.set(true)
+    Settings.ResetRow(picks.stamina)
+    Check("row reset: back on", picks.stamina.get(), true)
+    Check("row reset leaves the other", picks.blessing.get(), true)
+    Settings.Reset(card)
+    Check("card reset: blessings off again", picks.blessing.get(), false)
+    Check("card reset: nothing changed", Settings.ChangedCount(card), 0)
 end
 
 -- Disabled means inactive; Unlock Mode shows a preview to drag.

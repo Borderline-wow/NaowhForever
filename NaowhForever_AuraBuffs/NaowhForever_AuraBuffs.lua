@@ -18,6 +18,7 @@ local S = UI.ModuleSettings("auraBuffs", {
     onlyIfCarried = true, hideResting = true,
     scrolls = true, scrollsSkipActive = true,
     raidBuffs = false, raidBuffsOwn = true,
+    raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
     iconSize = 36, buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
 
     campfire = true, campTimer = true, campBuffs = true,

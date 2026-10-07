@@ -227,7 +227,9 @@ do
     for i = 1, RAID do unitClass[RAID_UNITS[i]] = CLASSES[i % 9 + 1] end
     local values = { enabled = true, raidBuffs = true, raidBuffsOwn = false, scrolls = false,
         consumablesWhere = "always", consumablesMinutes = 2, onlyIfCarried = true, hideResting = true,
-        iconSize = 36, buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE", consumableEntries = {
+        iconSize = 36, buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
+        raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = true },
+        consumableEntries = {
             { category = "food", itemID = 13931, auras = { 1249520 } },
             { category = "flask", itemID = 13510, auras = { 17626 } },
         } }

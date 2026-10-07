@@ -227,12 +227,17 @@ local function Copy(value)
     return out
 end
 
+-- A row with `field` is one entry of a table setting: its dot and reset are that entry's own.
 function Settings.Changed(row)
-    local store, key = row.store, row.key
+    local store, key, field = row.store, row.key, row.field
     if not (key and store and store.Raw) then return false end
-    local raw = store.Raw(key)
+    local raw, default = store.Raw(key), store.Default(key)
+    if field then
+        if type(raw) ~= "table" then return false end
+        raw, default = raw[field], default[field]
+    end
     if raw == nil then return false end
-    return not Same(raw, store.Default(key))
+    return not Same(raw, default)
 end
 
 function Settings.ChangedCount(card)
@@ -245,9 +250,14 @@ end
 
 function Settings.ResetRow(row)
     local store, key = row.store, row.key
-    if key and store and store.Default and Settings.Changed(row) then
-        store.Set(key, Copy(store.Default(key)))
+    if not (key and store and store.Default and Settings.Changed(row)) then return end
+    local value = Copy(store.Default(key))
+    if row.field then
+        local entries = Copy(store.Raw(key))
+        entries[row.field] = value[row.field]
+        value = entries
     end
+    store.Set(key, value)
 end
 
 function Settings.Reset(card)

@@ -58,17 +58,18 @@ D.SCROLLS = {
 
 -- Every rank and the group version, which is also the aura ID. `skip` is the classes the buff
 -- does nothing for; `talent` buffs only count when you can cast them, since another
--- player's talents cannot be seen.
+-- player's talents cannot be seen. `key` is what the raidBuffPicks setting keeps.
 D.RAID = {
-    { key = "intellect", class = "MAGE", skip = { WARRIOR = true, ROGUE = true },
+    { key = "intellect", name = "Arcane Intellect", class = "MAGE", skip = { WARRIOR = true, ROGUE = true },
         spells = { 10157, 10156, 1461, 1460, 1459, 23028 } },
-    { key = "stamina", class = "PRIEST",
+    { key = "stamina", name = "Power Word: Fortitude", class = "PRIEST",
         spells = { 10938, 10937, 2791, 1245, 1244, 1243, 21564, 21562 } },
-    { key = "spirit", class = "PRIEST", talent = true, skip = { WARRIOR = true, ROGUE = true },
+    { key = "spirit", name = "Divine Spirit", class = "PRIEST", talent = true,
+        skip = { WARRIOR = true, ROGUE = true },
         spells = { 27841, 14819, 14818, 14752, 27681 } },
-    { key = "wild", class = "DRUID",
+    { key = "wild", name = "Mark of the Wild", class = "DRUID",
         spells = { 9885, 9884, 8907, 5234, 6756, 5232, 1126, 21850, 21849 } },
-    { key = "blessing", class = "PALADIN",
+    { key = "blessing", name = "Paladin Blessings", class = "PALADIN",
         spells = { 25291, 19838, 19837, 19836, 19835, 19834, 19740, 25916, 25782,
             25290, 19854, 19853, 19852, 19850, 19742, 25918, 25894,
             20217, 25898, 1038, 25895, 19979, 19978, 19977, 25890 } },

@@ -52,7 +52,9 @@ Shared/
 - **Settings:** a module declares its settings next to its code, on the page they show on:
   `ns.Shared.Settings.Page("QoL/General", S):Card({ id, name, help, switch, summary, order,
   studio, rows = { ... } })`, rows like `{ key = "iconSize", label = "Icon Size", slider = { 12,
-  32, 1 } }` and `Settings.Group("Clock")` between them (see `Settings/Settings.lua`). A row or
+  32, 1 } }` and `Settings.Group("Clock")` between them (see `Settings/Settings.lua`). A
+  row with `field` (and its own `get`/`set`) is one entry of a table setting `key`, with its own dot
+  and reset (AuraBuffs' raid buff switches). A row or
   group with `hidden` is left off the page: `true` for one set on the preview instead, or a
   function, so rows for one choice only (the Campfire's Round and Simple rows) show with it. The page
   in the options window, its search entries, the dot on what you changed and each card's reset
