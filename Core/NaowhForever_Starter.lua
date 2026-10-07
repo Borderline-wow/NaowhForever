@@ -193,7 +193,7 @@ ns.STARTER = {
                 point = "CENTER",
                 relPoint = "CENTER",
                 x = 0,
-                y = 533.3333292315084,
+                y = 513.3333292315084,
             },
             xpTicker = false,
             xpTickerPos = {
