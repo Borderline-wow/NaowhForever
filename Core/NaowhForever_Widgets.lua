@@ -1462,7 +1462,7 @@ function UI.ModuleSettings(key, defaults)
     return S
 end
 
-ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { anchoredTo = {} })
+ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { anchoredTo = {}, guides = true })
 
 -------------------------------------------------------------------------------
 --  Sounds

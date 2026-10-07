@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_UnlockMode.lua -- The HUD Editor's movers. An element is placed CENTER on the
 --  screen centre and saved there. Clicking one selects it; its tag holds its X and Y and what
---  can be done with it. An element anchored to another follows it, keeping its gap.
+--  can be done with it. An element anchored to another follows it from the side picked on the
+--  tag, keeping its gap. A drag lines up with other elements and the screen centre on guides.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -105,6 +106,33 @@ local function SideOf(item, target)
     return dy > 0 and "TOP" or "BOTTOM"
 end
 
+-- The gap between the facing edges, in UIParent units: what info keeps across its side.
+local function Gap(info)
+    local side = info.side
+    if side == "LEFT" then return -(info.x or 0) end
+    if side == "RIGHT" then return info.x or 0 end
+    if side == "TOP" then return info.y or 0 end
+    return -(info.y or 0)
+end
+
+local function SetGap(info, gap)
+    local side = info.side
+    if side == "LEFT" then info.x = -gap
+    elseif side == "RIGHT" then info.x = gap
+    elseif side == "TOP" then info.y = gap
+    else info.y = -gap end
+end
+
+-- Whether label's anchors lead, one after another, to root.
+local function Follows(label, root)
+    local info, depth = AnchorOf(label), 0
+    while info and depth < MAX_DEPTH do
+        if info.target == root then return true end
+        info, depth = AnchorOf(info.target), depth + 1
+    end
+    return false
+end
+
 -- info.x and info.y from where the element is now.
 local function Capture(item, info)
     local target = placement.byLabel[info.target]
@@ -205,6 +233,194 @@ local function Queue(label, kind)
 end
 
 -------------------------------------------------------------------------------
+--  Guides: lines and numbers drawn over the screen in layers, each a pool its owner clears and
+--  redraws. While an element is dragged its left, middle and right are pulled onto another
+--  element's left, middle or right within GUIDE_SNAP pixels (its top, middle and bottom the
+--  same), and onto the screen's centre lines. Each one it lands on is drawn from it to the
+--  other element, with the gap between the two written on it. Alt holds them off for a drag,
+--  the toolbar's Guides switch for good.
+-------------------------------------------------------------------------------
+local GUIDE_SNAP = 6           -- physical pixels an edge is pulled from
+local GUIDE_LEVEL = 220        -- over the movers, under the tag
+local LABEL_PAD, LABEL_H, LABEL_SIZE = 4, 16, 11
+local OUTLINE_ALPHA = 0.45     -- the outline of where a drag started
+local overlay
+
+local function NewLayer() return { lines = {}, labels = {}, used = 0, usedLabels = 0 } end
+local dragLayer, anchorLayer = NewLayer(), NewLayer()
+
+local function Overlay()
+    if not overlay then
+        overlay = CreateFrame("Frame", nil, UIParent)
+        overlay:SetAllPoints(UIParent)
+        overlay:SetFrameStrata("FULLSCREEN_DIALOG")
+        overlay:SetFrameLevel(GUIDE_LEVEL)
+    end
+    return overlay
+end
+
+local function Clear(layer)
+    for i = 1, layer.used do layer.lines[i]:Hide() end
+    for i = 1, layer.usedLabels do layer.labels[i]:Hide() end
+    layer.used, layer.usedLabels = 0, 0
+end
+
+-- A level or upright line from (x1, y1) to (x2, y2), in UIParent units.
+local function DrawLine(layer, x1, y1, x2, y2, c, alpha)
+    layer.used = layer.used + 1
+    local tex = layer.lines[layer.used]
+    if not tex then
+        tex = Overlay():CreateTexture(nil, "OVERLAY")
+        layer.lines[layer.used] = tex
+    end
+    local px = Pixel()
+    tex:SetColorTexture(c.r, c.g, c.b, alpha or 1)
+    tex:ClearAllPoints()
+    tex:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", math.min(x1, x2), math.min(y1, y2))
+    tex:SetSize(math.max(px, math.abs(x2 - x1)), math.max(px, math.abs(y2 - y1)))
+    tex:Show()
+end
+
+-- A length in UIParent units, written in whole pixels on a c plate centred at (x, y).
+local function DrawLabel(layer, x, y, length, c, textColor)
+    layer.usedLabels = layer.usedLabels + 1
+    local label = layer.labels[layer.usedLabels]
+    if not label then
+        label = CreateFrame("Frame", nil, Overlay())
+        label.fill = ns.Solid(label, "BACKGROUND", c, 1)
+        label.fill:SetAllPoints()
+        label.text = ns.Font(label, LABEL_SIZE)
+        label.text:SetPoint("CENTER")
+        layer.labels[layer.usedLabels] = label
+    end
+    label.fill:SetColorTexture(c.r, c.g, c.b, 1)
+    label.text:SetTextColor(textColor.r, textColor.g, textColor.b, 1)
+    label.text:SetText(tostring(math.floor(length / Pixel() + 0.5)))
+    label:SetSize(label.text:GetStringWidth() + 2 * LABEL_PAD, LABEL_H)
+    label:ClearAllPoints()
+    label:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+    label:Show()
+end
+
+local function GuidesOn() return ns.UnlockModeSettings.Get("guides") ~= false end
+
+-- The elements a drag lines up with: shown, and not carried along by it.
+local function Guiding(item, other)
+    return other ~= item and other.handle:IsVisible() and not Follows(other.label, item.label)
+end
+
+-- best, or theirs - ours when that is nearer and within reach.
+local function Nearer(best, ours, theirs, reach)
+    local d = theirs - ours
+    if math.abs(d) <= reach and (not best or math.abs(d) < math.abs(best)) then return d end
+    return best
+end
+
+-- The nearest pull of three edges (a1..a3) onto three others (b1..b3).
+local function Pull(best, reach, a1, a2, a3, b1, b2, b3)
+    best = Nearer(Nearer(Nearer(best, a1, b1, reach), a1, b2, reach), a1, b3, reach)
+    best = Nearer(Nearer(Nearer(best, a2, b1, reach), a2, b2, reach), a2, b3, reach)
+    return Nearer(Nearer(Nearer(best, a3, b1, reach), a3, b2, reach), a3, b3, reach)
+end
+
+-- How far the box l, r, t, b moves to land on the nearest guide, nil on an axis with none.
+local function SnapBy(item, l, r, t, b)
+    local reach = GUIDE_SNAP * Pixel()
+    local cx, cy = (l + r) / 2, (t + b) / 2
+    local dx = Nearer(nil, cx, UIParent:GetWidth() / 2, reach)
+    local dy = Nearer(nil, cy, UIParent:GetHeight() / 2, reach)
+    for _, other in ipairs(placement.items) do
+        if Guiding(item, other) then
+            local ol, oright, ot, ob = Box(other)
+            if ol then
+                dx = Pull(dx, reach, l, cx, r, ol, (ol + oright) / 2, oright)
+                dy = Pull(dy, reach, b, cy, t, ob, (ot + ob) / 2, ot)
+            end
+        end
+    end
+    return dx, dy
+end
+
+-- The first of a1..a3 on one of b1..b3, half a pixel either way.
+local function OnOne(near, a1, a2, a3, b1, b2, b3)
+    for i = 1, 3 do
+        local a = i == 1 and a1 or i == 2 and a2 or a3
+        if math.abs(a - b1) <= near or math.abs(a - b2) <= near or math.abs(a - b3) <= near then return a end
+    end
+end
+
+-- The guides the dragged element sits on, and the gap to each element it lines up with.
+local function DrawGuides(item)
+    local l, r, t, b = Box(item)
+    if not l then return end
+    local St, px = ns.Shared.Style, Pixel()
+    local c, near = St.GUIDE_RGB, px / 2
+    local w, h = UIParent:GetWidth(), UIParent:GetHeight()
+    local cx, cy = (l + r) / 2, (t + b) / 2
+    if math.abs(cx - w / 2) <= near then DrawLine(dragLayer, w / 2, 0, w / 2, h, c) end
+    if math.abs(cy - h / 2) <= near then DrawLine(dragLayer, 0, h / 2, w, h / 2, c) end
+    for _, other in ipairs(placement.items) do
+        if Guiding(item, other) then
+            local ol, oright, ot, ob = Box(other)
+            if ol then
+                local x = OnOne(near, l, cx, r, ol, (ol + oright) / 2, oright)
+                if x then
+                    DrawLine(dragLayer, x, math.min(b, ob), x, math.max(t, ot), c)
+                    if ob - t > near then DrawLabel(dragLayer, x, (t + ob) / 2, ob - t, c, T.bg)
+                    elseif b - ot > near then DrawLabel(dragLayer, x, (ot + b) / 2, b - ot, c, T.bg) end
+                end
+                local y = OnOne(near, b, cy, t, ob, (ot + ob) / 2, ot)
+                if y then
+                    DrawLine(dragLayer, math.min(l, ol), y, math.max(r, oright), y, c)
+                    if ol - r > near then DrawLabel(dragLayer, (r + ol) / 2, y, ol - r, c, T.bg)
+                    elseif l - oright > near then DrawLabel(dragLayer, (oright + l) / 2, y, l - oright, c, T.bg) end
+                end
+            end
+        end
+    end
+end
+
+-- Where the drag started, a faint outline the element can be put back on.
+local function DrawOutline(item)
+    local l, r, t, b = item.startBox.l, item.startBox.r, item.startBox.t, item.startBox.b
+    local c = T.fg
+    DrawLine(dragLayer, l, t, r, t, c, OUTLINE_ALPHA)
+    DrawLine(dragLayer, l, b, r, b, c, OUTLINE_ALPHA)
+    DrawLine(dragLayer, l, b, l, t, c, OUTLINE_ALPHA)
+    DrawLine(dragLayer, r, b, r, t, c, OUTLINE_ALPHA)
+end
+
+-- The middle of where two spans overlap, else of the first.
+local function Middle(a1, a2, b1, b2)
+    local lo, hi = math.max(a1, b1), math.min(a2, b2)
+    if lo <= hi then return (lo + hi) / 2 end
+    return (a1 + a2) / 2
+end
+
+-- The selected element's anchor: a line from its target's side to it, with the gap on it.
+local function DrawAnchor(item)
+    Clear(anchorLayer)
+    local info = item and not item.ownAnchor and AnchorOf(item.label)
+    local target = info and placement.byLabel[info.target]
+    if not target then return end
+    local tl, tr, tt, tb = Box(target)
+    local cl, cr, ct, cb = Box(item)
+    if not (tl and cl) then return end
+    local side, x1, y1, x2, y2 = info.side
+    if side == "TOP" or side == "BOTTOM" then
+        x1 = Middle(tl, tr, cl, cr)
+        x2 = x1
+        if side == "TOP" then y1, y2 = tt, cb else y1, y2 = tb, ct end
+    else
+        y1 = Middle(tb, tt, cb, ct)
+        y2 = y1
+        if side == "RIGHT" then x1, x2 = tr, cl else x1, x2 = tl, cr end
+    end
+    DrawLine(anchorLayer, x1, y1, x2, y2, T.accent)
+    DrawLabel(anchorLayer, (x1 + x2) / 2, (y1 + y2) / 2, Gap(info), T.accent, T.fg)
+end
+
+-------------------------------------------------------------------------------
 --  Moving: arrow keys, typed numbers, drags and Center, all ending in a saved CENTER spot.
 -------------------------------------------------------------------------------
 local Refresh, ShowTag
@@ -229,8 +445,17 @@ local function DragUpdate()
     local cy = math.max(0, math.min(h, my / scale + item.grabY))
     local _, _, _, _, ratio = Bounds(item.frame)
     if not ratio then return end
+    Clear(dragLayer)
+    local guided = GuidesOn() and not IsAltKeyDown()
+    if guided then
+        local hw, hh = item.boxW / 2, item.boxH / 2
+        local dx, dy = SnapBy(item, cx - hw, cx + hw, cy + hh, cy - hh)
+        cx, cy = cx + (dx or 0), cy + (dy or 0)
+    end
     Place(item, (cx - item.boxX - w / 2) / ratio, (cy - item.boxY - h / 2) / ratio)
     Propagate(item.label)
+    DrawOutline(item)
+    if guided then DrawGuides(item) end
     ShowTag()
 end
 
@@ -241,6 +466,7 @@ local function StopDrag(item)
     item.dragged = true
     placement.dragging = nil
     placement.driver:SetScript("OnUpdate", nil)
+    Clear(dragLayer)
     local l, r, t, b, ratio = Bounds(item.frame)
     if l and (math.abs(l - item.startL) > 0.5 or math.abs(t - item.startT) > 0.5) then
         local x, y = Place(item, ((l + r) / 2 - UIParent:GetWidth() / 2) / ratio, ((t + b) / 2 - UIParent:GetHeight() / 2) / ratio)
@@ -277,8 +503,14 @@ local BOX_W, BOX_H = 46, 18
 local TAG_PAD, TAG_GAP = 3, 4                    -- inside the tag's edge, from it to the mover
 local LETTER_W, AXIS_GAP, PAIR_GAP = 8, 3, 8     -- an axis letter, from it to its box, between the parts
 local CENTER_W, ANCHOR_W, SETTINGS_W = 52, 66, 62
+local SIDE_W, SIDE_LABEL_W, GAP_LABEL_W = 50, 28, 26
+local ROW_GAP = 4                                -- between the tag's rows
 local TAG_H = BOX_H + 2 * TAG_PAD
+local TAG_H_ANCHORED = 2 * BOX_H + ROW_GAP + 2 * TAG_PAD
 local TAG_LEVEL = 230                            -- over the movers
+local SIDES = { "TOP", "LEFT", "RIGHT", "BOTTOM" }
+local SIDE_NAMES = { TOP = "Top", LEFT = "Left", RIGHT = "Right", BOTTOM = "Bottom" }
+local ACROSS = { TOP = "y", BOTTOM = "y", LEFT = "x", RIGHT = "x" }
 
 local function SetBox(box, v)
     if box:HasFocus() or box.value == v then return end
@@ -303,6 +535,34 @@ local function Revert(box)
     box.border:SetColor(0, 0, 0, 1)
     box.value = nil
     ShowTag()
+end
+
+-- The anchored element back on its target after its side or gap changed, and saved there.
+local function Reanchor(item)
+    Apply(item)
+    Propagate(item.label)
+    Refresh(item)
+end
+
+-- A new side keeps the gap, and the offset along the side when it runs the same way.
+local function SetSide(item, side)
+    local info = AnchorOf(item.label)
+    if not info or info.side == side then return end
+    local gap = Gap(info)
+    if ACROSS[side] ~= ACROSS[info.side] then info.x, info.y = 0, 0 end
+    info.side = side
+    SetGap(info, gap)
+    Reanchor(item)
+end
+
+local function TypedGap(box)
+    local v = tonumber(box:GetText())
+    box:ClearFocus()
+    local item = placement.selected
+    local info = item and AnchorOf(item.label)
+    if not (info and v) then return end
+    SetGap(info, math.floor(v + 0.5) * Pixel())
+    Reanchor(item)
 end
 
 -- Anchor arms a pick: the next element clicked becomes the target, the element itself or Escape
@@ -368,11 +628,11 @@ local function BuildTag()
     for _, axis in ipairs({ "X", "Y" }) do
         local letter = ns.Font(tag, 11, nil, T.muted)
         letter:SetText(axis)
-        letter:SetWidth(LETTER_W)
+        letter:SetSize(LETTER_W, BOX_H)
         if left then
             letter:SetPoint("LEFT", left, "RIGHT", PAIR_GAP, 0)
         else
-            letter:SetPoint("LEFT", tag, "LEFT", TAG_PAD, 0)
+            letter:SetPoint("TOPLEFT", tag, "TOPLEFT", TAG_PAD, -TAG_PAD)
         end
         local box = ns.NewEditBox(tag)
         box.axis = axis
@@ -405,7 +665,55 @@ local function BuildTag()
         if tag.item then OpenSettings(tag.item) end
     end)
     ns.Tooltip(tag.settings, "Settings", "Opens its settings and leaves the HUD Editor.")
+
+    -- The second row, while anchored: the target's side it sits off, and the gap.
+    local sides = CreateFrame("Frame", nil, tag)
+    sides:SetPoint("TOPLEFT", tag, "TOPLEFT", TAG_PAD, -(TAG_PAD + BOX_H + ROW_GAP))
+    sides:SetPoint("TOPRIGHT", tag, "TOPRIGHT", -TAG_PAD, -(TAG_PAD + BOX_H + ROW_GAP))
+    sides:SetHeight(BOX_H)
+    local sideLabel = ns.Font(sides, 11, nil, T.muted)
+    sideLabel:SetText("Side")
+    sideLabel:SetSize(SIDE_LABEL_W, BOX_H)
+    sideLabel:SetPoint("LEFT")
+    local prev = sideLabel
+    tag.side = {}
+    for _, side in ipairs(SIDES) do
+        local button = ns.Button(sides, SIDE_NAMES[side], SIDE_W, BOX_H, function()
+            if tag.item then SetSide(tag.item, side) end
+        end)
+        button:SetPoint("LEFT", prev, "RIGHT", AXIS_GAP, 0)
+        ns.Tooltip(button, SIDE_NAMES[side], "Sits off this side of what it is anchored to, keeping the gap.")
+        tag.side[side] = button
+        prev = button
+    end
+    local gapLabel = ns.Font(sides, 11, nil, T.muted)
+    gapLabel:SetText("Gap")
+    gapLabel:SetSize(GAP_LABEL_W, BOX_H)
+    gapLabel:SetPoint("LEFT", prev, "RIGHT", PAIR_GAP, 0)
+    local gap = ns.NewEditBox(sides)
+    gap:SetSize(BOX_W, BOX_H)
+    gap:SetPoint("LEFT", gapLabel, "RIGHT", AXIS_GAP, 0)
+    gap:SetFont(ns.UIFontPath(), 12, "")
+    gap:SetJustifyH("CENTER")
+    gap:SetMaxLetters(5)
+    gap:SetScript("OnEnterPressed", TypedGap)
+    gap:SetScript("OnEscapePressed", gap.ClearFocus)
+    gap:SetScript("OnEditFocusGained", function() gap.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    gap:SetScript("OnEditFocusLost", Revert)
+    tag.gap = gap
+    tag.sides = sides
     return tag
+end
+
+-- The side the element sits off, lit in the accent.
+local function PaintSides(tag, info)
+    for side, button in pairs(tag.side) do
+        local on = info.side == side
+        local edge, text = on and T.accent or BLACK, on and T.accent or T.fg
+        button._rest = edge
+        button._border:SetColor(edge.r, edge.g, edge.b, 1)
+        button.label:SetTextColor(text.r, text.g, text.b, 1)
+    end
 end
 
 -- Below the mover, above it when the screen ends first.
@@ -419,17 +727,23 @@ function ShowTag()
             tag:Hide()
             tag.item = nil
         end
+        DrawAnchor(nil)
         return
     end
     if not tag then
         tag = BuildTag()
         placement.tag = tag
     end
+    local info = not item.ownAnchor and AnchorOf(item.label)
+    local anchored = info and true or false
+    local height = anchored and TAG_H_ANCHORED or TAG_H
     local _, _, _, bottom = Bounds(item.handle)
-    local above = bottom ~= nil and bottom - TAG_GAP - TAG_H < 0
-    if tag.item ~= item or tag.above ~= above then
-        tag.item, tag.above = item, above
-        tag.x.value, tag.y.value = nil, nil
+    local above = bottom ~= nil and bottom - TAG_GAP - height < 0
+    if tag.item ~= item or tag.above ~= above or tag.anchored ~= anchored then
+        tag.item, tag.above, tag.anchored = item, above, anchored
+        tag.x.value, tag.y.value, tag.gap.value = nil, nil, nil
+        tag:SetHeight(height)
+        tag.sides:SetShown(anchored)
         tag.anchor:SetShown(not item.ownAnchor)
         tag.settings:SetShown(item.page ~= nil)
         tag.settings:ClearAllPoints()
@@ -437,6 +751,10 @@ function ShowTag()
         local w = 2 * (LETTER_W + AXIS_GAP + BOX_W) + 2 * PAIR_GAP + CENTER_W + 2 * TAG_PAD
         if not item.ownAnchor then w = w + AXIS_GAP + ANCHOR_W end
         if item.page then w = w + AXIS_GAP + SETTINGS_W end
+        if anchored then
+            local sidesW = SIDE_LABEL_W + 4 * (AXIS_GAP + SIDE_W) + PAIR_GAP + GAP_LABEL_W + AXIS_GAP + BOX_W
+            w = math.max(w, sidesW + 2 * TAG_PAD)
+        end
         tag:SetWidth(w)
         tag:ClearAllPoints()
         if above then
@@ -449,6 +767,11 @@ function ShowTag()
     SetBox(tag.x, x)
     SetBox(tag.y, y)
     if not item.ownAnchor then PaintAnchor(tag.anchor, item) end
+    if info then
+        SetBox(tag.gap, math.floor(Gap(info) / Pixel() + 0.5))
+        PaintSides(tag, info)
+    end
+    DrawAnchor(item)
 end
 
 -------------------------------------------------------------------------------
@@ -549,6 +872,7 @@ end
 function UI.EndMoverMode()
     placement.active = false
     UI.ClearMoverSelection()
+    Clear(dragLayer)
     if placement.keys then
         placement.keys:Hide()
         if not InCombatLockdown() then placement.keys:EnableKeyboard(false) end
@@ -578,7 +902,10 @@ function UI.StartMoverDrag(handle)
     local mx, my = GetCursorPosition()
     item.grabX, item.grabY = (l + r) / 2 - mx / scale, (t + b) / 2 - my / scale
     item.boxX, item.boxY = (l + r - fl - fr) / 2, (t + b - ft - fb) / 2
+    item.boxW, item.boxH = r - l, t - b
     item.startL, item.startT = fl, ft
+    item.startBox = item.startBox or {}
+    item.startBox.l, item.startBox.r, item.startBox.t, item.startBox.b = l, r, t, b
     item.dragging = true
     placement.dragging = item
     placement.driver:SetScript("OnUpdate", DragUpdate)
@@ -874,7 +1201,10 @@ local function BuildConfigToolbar()
     exit:SetPoint("RIGHT", f, "TOPRIGHT", -BAR_PAD, -BAR_HEAD / 2)
     BarRule(f, BAR_HEAD)
 
-    local y = BAR_HEAD
+    local y = BAR_HEAD + BAR_GAP
+    f._guides = BarSwitch(f, "Guides", 0, y, GuidesOn, function(v) ns.UnlockModeSettings.Set("guides", v) end)
+    ns.Tooltip(f._guides, "Guides", "Lines a dragged element up with the others and the screen centre. Hold Alt to drag freely.")
+    y = y + SWITCH_ROW
     local switches = {}
     if #toolbarChecks > 0 then
         y = y + BAR_GAP
@@ -902,6 +1232,7 @@ function ns.ShowRaidReminderAnchorConfig()
     UI.BeginMoverMode()
     reopenWindowOnExit = reopen
     local f = BuildConfigToolbar()
+    f._guides._refreshValue()
     if f._section then f._section:SetText(toolbarSection()) end
     for i, c in ipairs(toolbarChecks) do
         local switch, on = f._switches[i], c.enabled()

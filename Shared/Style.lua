@@ -68,6 +68,9 @@ Shared.Style = {
     -- A boss picked on a dungeon map: its pin's ring, in the same gold, until the player
     -- picks an Accent of their own.
     PICKED_RGB = { r = 1, g = 0.82, b = 0 },
+    -- The HUD Editor's guides: where a dragged element lines up, in amber so it never reads as
+    -- the accent's selection.
+    GUIDE_RGB = { r = 0xf2 / 255, g = 0xa3 / 255, b = 0x3a / 255 },
 
     ---------------------------------------------------------------------------
     --  Icons: the addon's own (Media/, drawn by Tools/make_media.py, white so they take

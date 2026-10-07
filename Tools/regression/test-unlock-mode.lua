@@ -1,7 +1,8 @@
 -- Run with Lua 5.1 from the repository root: The HUD Editor's movers, run against frame stubs
 -- with real geometry. Drags, arrow keys, typed X and Y and Center save the element CENTER on
--- the screen centre; Anchor ties an element to another so it follows; and the anchors and snap
--- switch from before are dropped without moving anything.
+-- the screen centre; a drag lines up on guides; Anchor ties an element to another so it
+-- follows from the side picked, keeping a typed gap; and the anchors and snap switch from
+-- before are dropped without moving anything.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local function Near(a, b) return a and b and math.abs(a - b) < 0.01 end
@@ -145,7 +146,7 @@ local function Flush()
 end
 
 local cursor = { x = 0, y = 0 }
-local combat, shift = false, false
+local combat, shift, alt = false, false, false
 local settings = {}
 local printed = {}
 local T = { accent = { r = 0, g = 0.5, b = 1 }, accentSoft = { r = 0.3, g = 0.7, b = 1 }, fg = { r = 1, g = 1, b = 1 },
@@ -188,7 +189,7 @@ local ns = {
         return b
     end,
     SetButtonText = function(b, text) b.text_ = text end,
-    Shared = { Parts = { HudText = function(fs) return fs end } },
+    Shared = { Parts = { HudText = function(fs) return fs end }, Style = { GUIDE_RGB = { r = 0.95, g = 0.64, b = 0.23 } } },
     UIFontPath = function() return "font" end,
     L = function(text) return text end,
     Color = function(_, text) return text end,
@@ -211,6 +212,7 @@ local env = setmetatable({
     C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end },
     InCombatLockdown = function() return combat end,
     IsShiftKeyDown = function() return shift end,
+    IsAltKeyDown = function() return alt end,
     GetCurrentKeyBoardFocus = function() return nil end,
     GetCursorPosition = function() return cursor.x, cursor.y end,
     GetTime = function() return 0 end,
@@ -357,15 +359,67 @@ Check(tag.item == bareMover._placement and not tag.settings:IsShown(), "an eleme
 bareMover:Hide()
 Check(not tag:IsShown(), "hiding the selected mover lets it go")
 
--- A drag goes where the cursor takes it: nothing pulls it onto another element's edge.
-local sx, sy = Center(swing)
+-- Guides: a drag within a few pixels of another element's edge, or of the screen centre, lands
+-- on it, the guide drawn with the gap to that element; Alt, or the Guides switch off, lets it
+-- go where it is dropped. Where the drag started shows as a faint outline until the drop.
+local overlayFrame
+local function Overlay()
+    for _, fr in ipairs(made) do
+        if fr.level == 220 and fr.allRel == UIParent then return fr end
+    end
+end
+local function Shown(kind)
+    local out = {}
+    local o = Overlay()
+    for _, fr in ipairs(made) do
+        if fr.parent == o and fr.kind == kind and fr:IsShown() then out[#out + 1] = fr end
+    end
+    return out
+end
+local function Gaps()
+    local out = {}
+    for _, plate in ipairs(Shown("Frame")) do out[#out + 1] = plate.text:GetText() end
+    return table.concat(out, " ")
+end
+local function DragBy(handle, frame, dx, dy, keep)
+    local cx, cy = Center(frame)
+    cursor.x, cursor.y = cx, cy
+    UI.StartMoverDrag(handle)
+    cursor.x, cursor.y = cx + dx, cy + dy
+    Drive()
+    if not keep then UI.StopMoverDrag(handle) end
+end
+-- swing is 100 x 40 at (0, 25) after Center; meter is 200 x 20 at (0, -200): line swing's left up
+-- 4 pixels off meter's left, well off the screen centre.
 local mL = meter:GetLeft()
-cursor.x, cursor.y = sx, sy
-UI.StartMoverDrag(swingMover)
-cursor.x, cursor.y = sx + (mL - swing:GetLeft()) + 4, sy
-Drive()
+swing:ClearAllPoints()
+swing:SetPoint("CENTER", UIParent, "CENTER", -300, 25)
+Flush()
+DragBy(swingMover, swing, mL - swing:GetLeft() + 4, 0, true)
+overlayFrame = Overlay()
+Check(Near(swing:GetLeft(), mL), "a drag a few pixels off another element's edge lands on it")
+local lines = Shown("Texture")
+Check(#lines >= 5 and overlayFrame and overlayFrame.level > swingMover.level, "the guide is drawn, with the start's outline, over the movers")
+Check(Gaps() == tostring(math.floor(swing:GetBottom() - meter:GetTop() + 0.5)), "with the gap to the element it lines up with")
 UI.StopMoverDrag(swingMover)
-Check(Near(swing:GetLeft(), mL + 4), "a drag near another element's edge stays where it is dropped")
+Check(#Shown("Texture") == 0 and Gaps() == "", "the drop clears the guides and the outline")
+Check(Near(Last(swingSaved).x, (mL + 50) - 960), "and saves where it landed")
+
+DragBy(swingMover, swing, 0, 0, true)
+cursor.x = cursor.x + (960 - Center(swing)) - 3
+Drive()
+Check(Near(Center(swing), 960), "the screen centre pulls it too")
+UI.StopMoverDrag(swingMover)
+
+alt = true
+DragBy(swingMover, swing, mL - swing:GetLeft() + 4, 0)
+alt = false
+Check(Near(swing:GetLeft(), mL + 4), "with Alt held it stays where it is dropped")
+settings.guides = false
+DragBy(swingMover, swing, -8, 0, true)
+Check(Near(swing:GetLeft(), mL - 4) and #Shown("Texture") == 4, "and with the Guides switch off, only the outline shows")
+UI.StopMoverDrag(swingMover)
+settings.guides = nil
 
 -- Anchor on the tag: lit while it waits for a target, the next element clicked becomes the
 -- target, and from then on the element follows it, keeping its gap.
@@ -427,10 +481,34 @@ Fire(tag.anchor, "OnClick")
 Fire(tag.anchor, "OnClick")
 Check(tag.anchor._border.color[3] == 0, "and Anchor again")
 
+-- The tag's second row while anchored: the side it sits off, and the gap, typed. A new side keeps
+-- the gap; the anchor shows as a line from the target with the gap on it.
+UI.SelectMover(addMover)
+Check(tag.sides:IsShown() and tag.side.BOTTOM._border.color[3] == T.accent.b and tag.side.TOP._border.color[3] == 0,
+    "an anchored element's tag shows its side, lit")
+Check(tag.gap:GetText() == "11" and tag:GetHeight() > 30, "and the gap, on a second row")
+local function AnchorGap() return Gaps() end
+Check(AnchorGap() == "11", "the anchor is drawn from the target, its gap written on it")
+Fire(tag.side.RIGHT, "OnClick")
+Check(link.side == "RIGHT" and Near(add:GetLeft(), boss:GetRight() + 11) and Near(select(2, Center(add)), select(2, Center(boss))),
+    "a new side moves it off that side, keeping the gap, centred along it")
+Check(tag.side.RIGHT._border.color[3] == T.accent.b and tag.side.BOTTOM._border.color[3] == 0, "and lights it")
+Check(Near(Last(addSaved).x, (boss:GetRight() + 11 + 30) - 960), "and saves it")
+Type(tag.gap, "20")
+Check(Near(add:GetLeft(), boss:GetRight() + 20) and tag.gap:GetText() == "20" and AnchorGap() == "20", "a typed gap moves it out")
+Fire(tag.side.LEFT, "OnClick")
+Check(Near(add:GetRight(), boss:GetLeft() - 20), "left keeps the gap too")
+Fire(tag.side.TOP, "OnClick")
+Check(Near(add:GetBottom(), boss:GetTop() + 20) and Near(Center(add), Center(boss)), "and so does top")
+Fire(tag.side.BOTTOM, "OnClick")
+Type(tag.gap, "11")
+Check(Near(add:GetTop(), boss:GetBottom() - 11), "back under it")
+
 UI.SelectMover(addMover)
 local addSpot = { Center(add) }
 Fire(tag.anchor, "OnClick")
 Check(settings.anchoredTo["Add Bar"] == nil and tag.anchor:GetText() == "Anchor", "Unanchor lets go")
+Check(not tag.sides:IsShown() and Gaps() == "", "and the side row and the anchor line go with it")
 Fire(tag.anchor, "OnClick")
 Fire(keys, "OnKeyDown", "ESCAPE")
 boss:ClearAllPoints()
