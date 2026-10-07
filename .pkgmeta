@@ -8,6 +8,7 @@ move-folders:
   NaowhForever/NaowhForever_Training: NaowhForever_Training
   NaowhForever/NaowhForever_BiS: NaowhForever_BiS
   NaowhForever/NaowhForever_DungeonJournal: NaowhForever_DungeonJournal
+  NaowhForever/NaowhForever_GroupInspect: NaowhForever_GroupInspect
   NaowhForever/NaowhForever_Discovery: NaowhForever_Discovery
   NaowhForever/NaowhForever_GearSets: NaowhForever_GearSets
   NaowhForever/NaowhForever_Blessings: NaowhForever_Blessings

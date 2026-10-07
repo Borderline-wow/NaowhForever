@@ -5,7 +5,9 @@
 --  their item level, how many of their items would be upgrades for you), their guild and how
 --  you know them (friend, guildmate, grouped before), and your own note and tag on them
 --  (Player History's, edited here). Talents are read from the game's inspect talent data only
---  while it is that player's (IP.Ready); anything not known yet reads "...".
+--  while it is that player's (IP.Ready); anything not known yet reads "...". The reading itself
+--  (IP.ReadTalentTrees, IP.ReadInspectTalents: points per tree, lead tree, role) is shared with
+--  Group Inspect.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -97,19 +99,15 @@ local function BuildName(classID, configID, total)
     end
 end
 
-local function ReadTalents(unit, guid)
-    talents.guid, talents.ok = guid, false
-    if not (C_Traits and C_Traits.HasValidInspectData and C_Traits.HasValidInspectData()) then return end
-    local consts = Constants and Constants.TraitConsts
-    local configID = consts and consts.INSPECT_TRAIT_CONFIG_ID
+function IP.ReadTalentTrees(configID, class, out)
     local config = configID and C_Traits.GetConfigInfo(configID)
     local treeID = config and config.treeIDs and config.treeIDs[1]
-    if not treeID then return end
+    if not treeID then return false end
     local groups = C_Traits.GetGroupDisplayInfoByTreeID(treeID) or NONE
-    wipe(talents.ids)
-    for i, group in ipairs(groups) do talents.ids[i] = group.groupID end
-    local infos = C_Traits.GetGroupCurrencyInfo(configID, talents.ids) or NONE
-    wipe(talents.spent)
+    wipe(out.ids)
+    for i, group in ipairs(groups) do out.ids[i] = group.groupID end
+    local infos = C_Traits.GetGroupCurrencyInfo(configID, out.ids) or NONE
+    wipe(out.spent)
     local best, most, total = nil, 0, 0
     for i, group in ipairs(groups) do
         local spent = 0
@@ -117,15 +115,31 @@ local function ReadTalents(unit, guid)
             local currency = info.traitNodeGroupID == group.groupID and info.currencyInfos and info.currencyInfos[1]
             if currency then spent = currency.spent or 0 end
         end
-        talents.spent[i] = spent
+        out.spent[i] = spent
         total = total + spent
         if spent > most then best, most = i, spent end
     end
+    out.count, out.total = #groups, total
+    out.tree = best and groups[best].displayName
+    out.role = best and (ROLE[SW.TreeSpec(class, best) or ""] or DAMAGE)
+    return true
+end
+
+local function InspectConfig()
+    local consts = Constants and Constants.TraitConsts
+    return consts and consts.INSPECT_TRAIT_CONFIG_ID
+end
+
+function IP.ReadInspectTalents(class, out)
+    if not (C_Traits and C_Traits.HasValidInspectData and C_Traits.HasValidInspectData()) then return false end
+    return IP.ReadTalentTrees(InspectConfig(), class, out)
+end
+
+local function ReadTalents(unit, guid)
+    talents.guid, talents.ok = guid, false
     local _, class, classID = UnitClass(unit)
-    talents.count, talents.total = #groups, total
-    talents.tree = best and groups[best].displayName
-    talents.role = best and (ROLE[SW.TreeSpec(class, best) or ""] or DAMAGE)
-    talents.build = BuildName(classID, configID, total)
+    if not IP.ReadInspectTalents(class, talents) then return end
+    talents.build = BuildName(classID, InspectConfig(), talents.total)
     talents.ok = true
 end
 

@@ -6,7 +6,7 @@ local ns = _G.NaowhForever
 local T = ns.THEME
 local UI = ns.UI
 
-local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 790
+local SIDEBAR_W, CONTENT_W, WINDOW_W, WINDOW_H = 240, 1000, 1440, 822
 local TOP_H, PAGE_HEADER_H = 64, 128
 local HEADER_H, TAB_H, NAV_H = 76, 32, 32
 -- A sidebar row sits NAV_INSET in from the sidebar's left and from the list's right, which
@@ -160,6 +160,14 @@ local MODULES = {
       addon = "NaowhForever_ThreatMeter",
       command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Group Inspect", group = "COMBAT", navIcon = "group", settings = "QoLSettings",
+      enabledKey = "groupInspect", addon = "NaowhForever_GroupInspect", needs = { "NaowhForever_BiS" },
+      open = "ToggleGroupInspect",
+      command = "group", short = "Group", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
+      subtitle = "Everyone in your party or raid: their Naowh Score, gear, talents and stats.",
       tabs = {
           { name = "Settings", reuse = true },
       } },
@@ -1265,7 +1273,7 @@ local function CreateWindow()
         for _, mod in ipairs(grouped[group]) do
             local btn = NavigationButton(nav, DisplayName(mod), ny,
                 function() ShowPage(lastPages[mod.name] or mod.tabs[1].key) end, mod.navIcon)
-            -- Spaced to fit every module in the default 790-high window (test-navigation.lua).
+            -- Spaced to fit every module in the default 822-high window (test-navigation.lua).
             btn:SetHeight(30)
             NavExtras(btn, mod)
             navButtons[mod.name] = btn
@@ -1511,6 +1519,7 @@ BINDING_HEADER_NAOWHFOREVER = "Naowh Forever"
 BINDING_NAME_NAOWHFOREVER_JOURNAL = "Open Dungeon Journal"
 BINDING_NAME_NAOWHFOREVER_BOSSLOOT = "Boss Loot at Cursor"
 BINDING_NAME_NAOWHFOREVER_BIS = "Open BiS List"
+BINDING_NAME_NAOWHFOREVER_GROUPINSPECT = "Open Group Inspect"
 _G["BINDING_NAME_CLICK NaowhForeverBlessNext:LeftButton"] = "Next Blessing"
 _G["BINDING_NAME_CLICK NaowhForeverBlessNextGreater:LeftButton"] = "Next Greater Blessing"
 
@@ -1520,6 +1529,7 @@ end
 NaowhForever_ToggleJournal = SwitchedOff("Dungeon Journal")
 NaowhForever_BossLoot = SwitchedOff("Dungeon Journal")
 NaowhForever_ToggleBis = SwitchedOff("BiS List")
+NaowhForever_ToggleGroupInspect = SwitchedOff("Group Inspect")
 
 SLASH_NAOWHFOREVER1 = "/smartreminders"
 SLASH_NAOWHFOREVER2 = "/naowh"
@@ -1534,6 +1544,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.XPTickerCommand(arg)
     elseif cmd == "dungeon" and ns.ToggleJournalWindow then
         ns.ToggleJournalWindow()
+    elseif cmd == "group" and ns.ToggleGroupInspect then
+        ns.ToggleGroupInspect()
     elseif cmd == "bars" and ns.ActionBarsCommand then
         -- Set names keep the case they were typed in.
         ns.ActionBarsCommand(strtrim(msg):match("^%S+%s*(.-)$"))

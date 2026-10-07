@@ -15,6 +15,7 @@ max_line_length = false
 globals = {
     "NaowhForever", "NaowhForever_API", "NaowhForeverDB", "NaowhUI_SmartRemindersDB",
     "NaowhForever_OnCompartmentClick", "NaowhForever_BagSpacePickUp", "NaowhForever_BossLoot", "NaowhForever_ToggleJournal", "NaowhForever_ToggleBis",
+    "NaowhForever_ToggleGroupInspect", "BINDING_NAME_NAOWHFOREVER_GROUPINSPECT",
     "SLASH_NAOWHFOREVER1", "SLASH_NAOWHFOREVER2", "SLASH_NAOWHFOREVER3",
     "SLASH_NAOWHFOREVER4", "SLASH_NAOWHFOREVER5",
     "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHUITANK1", "SLASH_NAOWHFOREVERAIM1",
@@ -36,8 +37,8 @@ read_globals = {
     "GameMenuFrame", "GAMEMENU_OPTIONS",
     "CharacterFrame", "CharacterFrameTitleText", "CharacterLevelText", "CharacterLevelTextBackground",
     "CharacterModelScene", "CharacterStatsPaneScrollBox", "CharacterFrameRightPaneHostStoneBg", "ScrollUtil",
-    "CR_HIT_MELEE", "CR_HIT_SPELL", "GetBlockChance", "GetCombatRatingBonus", "GetCritChance", "GetDodgeChance",
-    "GetHitModifier", "GetManaRegen", "GetMeleeHaste", "GetSpellBonusDamage", "GetSpellBonusHealing",
+    "CLASS_ICON_TCOORDS", "CR_HIT_MELEE", "CR_HIT_SPELL", "GetBlockChance", "GetCombatRatingBonus", "GetCritChance", "GetDodgeChance",
+    "GetAverageItemLevel", "GetHitModifier", "GetManaRegen", "GetMeleeHaste", "GetSpellBonusDamage", "GetSpellBonusHealing",
     "GetSpellCritChance", "GetSpellHitModifier", "UnitArmor", "UnitAttackPower", "UnitAttackSpeed", "UnitDamage",
     "UnitDefenseSkill", "UnitRangedAttackPower",
     "CheckInteractDistance", "ClearInspectPlayer", "InspectFrame", "NotifyInspect",

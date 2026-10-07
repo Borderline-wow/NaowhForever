@@ -6,8 +6,8 @@ upkeep it adds and how much code it brings. If you want to build a feature, mess
 Glyalith on [Discord](https://discord.gg/naowh) before you start.**
 
 Naowh Forever is Naowh's companion addon for the WoW Forever client: Smart Reminders,
-BiS, Dungeon Journal, Professions, Gear Sets, Swing Timer, Threat Meter, QoL, macros and
-buff reminders, in one window.
+BiS, Dungeon Journal, Professions, Gear Sets, Swing Timer, Threat Meter, Group Inspect, QoL,
+macros and buff reminders, in one window.
 
 Thanks for wanting to help! Pull requests are welcome. This document explains how PRs
 are reviewed and the rules the codebase lives by, so your change can merge quickly

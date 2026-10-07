@@ -76,6 +76,8 @@ local S = UI.ModuleSettings("qol", {
     characterPanelTookOver = false, characterPanelAsked = false,
     inspectPanel = true, inspectPanelScore = true, inspectPanelBadge = true, inspectPanelShareBis = true,
     inspectPanelTookOver = false, inspectPanelAsked = false,
+    groupInspect = false, groupInspectShare = true, groupInspectSort = "score", groupInspectView = "gear",
+    groupInspectAlpha = 1,
     xpBar = false, xpBarLeftText = "level", xpBarCenterText = "xp", xpBarRightText = "percent",
     xpBarTopLeft = "played", xpBarTopRight = "none", xpBarBottomLeft = "leveling",
     xpBarBottom = "none", xpBarBottomRight = "xphour", xpBarTop = "none", xpBarLeft = "none",

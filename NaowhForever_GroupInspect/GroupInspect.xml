@@ -1,0 +1,11 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Group Inspect, in load order: its data and inspect walk, the Naowh Forever exchange and
+         stats, the window, its party cards and raid rows, and its settings card. Loads after the
+         Inspect Panel and Naowh Score, whose parts it reuses. See README.md. -->
+    <Script file="Data.lua"/>
+    <Script file="Share.lua"/>
+    <Script file="Window.lua"/>
+    <Script file="Party.lua"/>
+    <Script file="Raid.lua"/>
+    <Script file="SettingsPage.lua"/>
+</Ui>

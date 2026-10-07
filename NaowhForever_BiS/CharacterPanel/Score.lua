@@ -64,7 +64,7 @@ local function PaintGoal(card, level, best)
     local show = goal and best and goal < best
     card.goal:SetShown(show and true or false)
     if not show then return end
-    local x = math.floor(CARD_W * goal / best + 0.5)
+    local x = math.floor(card.barW * goal / best + 0.5)
     card.goal:ClearAllPoints()
     card.goal:SetPoint("CENTER", card.bar, "LEFT", x, 0)
 end
@@ -75,7 +75,7 @@ local function Fill(card, x)
     rest:ClearAllPoints()
     rest:SetPoint("TOPLEFT", card.bar, "TOPLEFT", x, 0)
     rest:SetPoint("BOTTOMRIGHT", card.bar, "BOTTOMRIGHT")
-    rest:SetShown(x < CARD_W)
+    rest:SetShown(x < card.barW)
 end
 
 --- A score card painted for a score at a level (a player's own level, for Grade Against).
@@ -86,7 +86,7 @@ function CP.PaintScoreCard(card, score, level)
     local ofLevel = S.Get("naowhScoreCompare") == "level"
     local best = Score.Best(ofLevel and level or nil)
     local share = Score.Grade(score, level) or 0
-    Fill(card, math.floor(CARD_W * math.min(1, share) + 0.5))
+    Fill(card, math.floor(card.barW * math.min(1, share) + 0.5))
     card.best:SetText(best and Legend(ofLevel, level, best) or "")
     PaintGoal(card, level, best)
 end
@@ -109,18 +109,18 @@ end
 local function Bar(parent)
     local bar = CreateFrame("Frame", nil, parent)
     bar:SetPoint("TOPLEFT", 0, -BAR_TOP)
-    bar:SetSize(CARD_W, BAR_H)
+    bar:SetHeight(BAR_H)
     local edge = bar:CreateTexture(nil, "BACKGROUND")
     edge:SetColorTexture(0, 0, 0, 1)
     ns.PixelInset(edge, -1)
     local ramp = ns.NaowhScore.RAMP
+    parent.segments = {}
     for i = 1, #ramp - 1 do
         local a, b = ramp[i], ramp[i + 1]
         local segment = bar:CreateTexture(nil, "ARTWORK")
         segment:SetColorTexture(1, 1, 1, 1)
         segment:SetGradient("HORIZONTAL", CreateColor(a[2], a[3], a[4], 1), CreateColor(b[2], b[3], b[4], 1))
-        segment:SetPoint("TOPLEFT", a[1] * CARD_W, 0)
-        segment:SetSize((b[1] - a[1]) * CARD_W, BAR_H)
+        parent.segments[i] = segment
     end
     parent.rest = bar:CreateTexture(nil, "ARTWORK", nil, 2)
     parent.rest:SetColorTexture(TRACK_RGB, TRACK_RGB, TRACK_RGB, 1)
@@ -172,9 +172,22 @@ end
 
 --- The score card on parent, CARD_W wide and CP.BADGE_H tall: the kicker, the value (big),
 --- the bar on the score's ramp and the best under its end. Placed and painted by the caller.
-function CP.ScoreCard(parent)
+function CP.SizeScoreCard(card, width)
+    card.barW = width
+    card:SetWidth(width)
+    card.bar:SetWidth(width)
+    local ramp = ns.NaowhScore.RAMP
+    for i, segment in ipairs(card.segments) do
+        local a, b = ramp[i], ramp[i + 1]
+        segment:ClearAllPoints()
+        segment:SetPoint("TOPLEFT", a[1] * width, 0)
+        segment:SetSize((b[1] - a[1]) * width, BAR_H)
+    end
+end
+
+function CP.ScoreCard(parent, width)
     local card = CreateFrame("Button", nil, parent)
-    card:SetSize(CARD_W, CP.BADGE_H)
+    card:SetHeight(CP.BADGE_H)
     local kicker = ns.Font(card, KICKER_SIZE, nil, T.accentSoft)
     kicker:SetPoint("TOPLEFT")
     kicker:SetText("NAOWH SCORE")
@@ -185,6 +198,7 @@ function CP.ScoreCard(parent)
     card.value:SetShadowColor(0, 0, 0, SHADOW_ALPHA)
     card.value:SetShadowOffset(SHADOW_X, -SHADOW_X)
     card.bar = Bar(card)
+    CP.SizeScoreCard(card, width or CARD_W)
     return card
 end
 CP.CARD_W, CP.LEGEND_SIZE, CP.LEGEND_GAP, CP.GOAL_RGB = CARD_W, LEGEND_SIZE, LEGEND_GAP, GOAL_RGB

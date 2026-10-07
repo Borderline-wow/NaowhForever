@@ -246,9 +246,9 @@ local moduleList = Button("Action Bars").parent
 local moduleScroll = moduleList.parent
 local mainWindow = moduleScroll.parent.parent
 local originalHeight = mainWindow:GetHeight()
-mainWindow:SetHeight(790)
+mainWindow:SetHeight(822)
 moduleScroll.scripts.OnSizeChanged(moduleScroll)
-Check(moduleScroll:GetVerticalScrollRange() == 0, "all modules fit in the default 790-high window")
+Check(moduleScroll:GetVerticalScrollRange() == 0, "all modules fit in the default 822-high window")
 Check(not moduleScroll.ScrollBar:IsShown(), "navigation scrollbar hides when everything fits")
 local lastModule = Button("Action Bars")
 Check(-lastModule.points.TOPLEFT[4] + lastModule:GetHeight() <= moduleScroll:GetHeight(),
@@ -580,8 +580,8 @@ Click(Button("Dungeon Journal")); Flush()
 switch.scripts.OnClick(); Flush()
 Check(ns.JournalSettings.Get("enabled") == true and confirmText == nil, "switching an addon module on needs no reload")
 switch.scripts.OnClick(); Flush()
-Check(confirmText and confirmText:find("BiS List", 1, true) and confirmText:find("both", 1, true),
-    "switching the journal off says BiS List goes with it")
+Check(confirmText and confirmText:find("BiS List", 1, true) and confirmText:find("Group Inspect", 1, true)
+    and confirmText:find("all of them", 1, true), "switching the journal off says BiS List, and Group Inspect with it, go too")
 Check(next(disabled) == nil, "nothing is disabled before the player confirms")
 confirmYes()
 Check(disabled.NaowhForever_DungeonJournal and disabled.NaowhForever_BiS, "confirming disables both addons")
@@ -618,6 +618,16 @@ Click(Button("Exit Config")); Flush()
 Check(not Text("Exit Config") and not ns.IsRaidReminderAnchorConfigActive(), "and Exit Config closes it")
 missingAddOns.NaowhForever_SmartReminders = nil
 
+ns.OpenOptionsWindow("Settings"); Flush()
+local groupInspectRows = 0
+for _, f in ipairs(frames) do
+    if f.text == "Group Inspect" and f:IsShown() and f.parent and f.parent:IsShown() then
+        groupInspectRows = groupInspectRows + 1
+    end
+end
+Check(groupInspectRows >= 3, "Group Inspect: in the sidebar, under Settings > Modules and in Minimap Icons")
+ns.OpenOptionsWindow("Group Inspect/Settings"); Flush()
+Check(Text("Group Inspect / Settings") ~= nil, "Group Inspect has a settings page of its own")
 ns.OpenOptionsWindow("Blessings/Settings"); Flush()
 Check(Text("Blessings / Settings") ~= nil, "existing module/tab deep links still work")
 ns.OpenOptionsWindow("QoL/Combat"); Flush()

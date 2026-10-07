@@ -464,6 +464,33 @@ function Parts.ItemBadge(set, corner, atlas, color)
     return badge
 end
 
+local PILL_PAD, PILL_FILL = 4, St.TAB_FILL
+
+function Parts.Pill(parent, size, color)
+    local pill = CreateFrame("Frame", nil, parent)
+    pill.fill = ns.Solid(pill, "BACKGROUND", color, PILL_FILL)
+    pill.fill:SetAllPoints()
+    pill.edge = ns.Border(pill, color)
+    pill.text = ns.Font(pill, size, nil, color)
+    pill.text:SetPoint("CENTER")
+    pill:SetHeight(size + PILL_PAD)
+    return pill
+end
+
+function Parts.ColorPill(pill, color)
+    if pill.color == color then return end
+    pill.color = color
+    pill.fill:SetColorTexture(color.r, color.g, color.b, PILL_FILL)
+    pill.edge:SetColor(color.r, color.g, color.b)
+    pill.text:SetTextColor(color.r, color.g, color.b)
+end
+
+function Parts.SetPill(pill, text)
+    pill.text:SetText(text)
+    pill:SetWidth(math.ceil(pill.text:GetStringWidth()) + 2 * PILL_PAD)
+    return pill:GetWidth()
+end
+
 -- The tooltip's owner set, for a hover card; nothing while a menu is open, so moving the mouse
 -- from a menu's owner over other rows to reach it does not cover the menu with their cards.
 ---@return boolean shown false while a menu is open: the caller shows nothing

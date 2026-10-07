@@ -34,6 +34,7 @@ and a lot of quality of life, all in one window.
 | **Macros** | Class, consumable and focus macros, written and kept up to date for you. |
 | **Buffs & Reminders** | Buff, consumable and campfire reminders, a low health warning and debuff sounds. |
 | **Threat Meter** | Threat on your target for the whole group, and a warning before you pull. |
+| **Group Inspect** | Everyone in your party or raid in one window: their Naowh Score, item level, gear, talents and stats, and who runs Naowh Forever. Also on a party or raid member's right-click menu. |
 | **Swing Timer** | Your swings from the game's own timer, with marks for timing around them. |
 | **Top Bar** | Friends, guild, the clock and your addon buttons across the top of the screen. |
 | **Quality of Life** | Questing, loot and bag space, alerts, casting, tooltips, trainer ranks, flight and camp, mail and more. |
@@ -65,6 +66,7 @@ character or share them with a friend.
 | `/nfgear` | Gear Sets |
 | `/nfbless` | Blessings |
 | `/nfthreat` | Threat Meter |
+| `/nfgroup` | Group Inspect (also `/nf group`) |
 | `/nf quiz` | A WoW quiz for flights and campfires |
 | `/nf scrap` | Your Scrap List (Scrap Marker, QoL > Loot & Items) |
 | `/copy` | The text under your mouse, ready to copy (turn on Global Copy in QoL > Tools) |

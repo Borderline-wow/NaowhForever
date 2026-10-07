@@ -31,6 +31,7 @@ local BADGE_SIZE = 10   -- the online count on Friends and Guild
 local GLYPH = {
     NaowhForeverJournal = MEDIA .. "icon-journal.png",
     NaowhForeverBiS = MEDIA .. "icon-bis.png",
+    NaowhForeverGroup = MEDIA .. "icon-group.png",
 }
 
 -- Clicks pass through to Blizzard's own button, the first of these that exists.
