@@ -4,6 +4,11 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
+local T = ns.THEME
+local Parts, St = ns.Shared.Parts, ns.Shared.Style
+
+local GOLD = { r = 1, g = 0.82, b = 0 }
+local WIDTH, ROOM = 300, 10   -- the frame's width, and its height over the font size
 
 local frame, unlocked, inCombat
 
@@ -13,6 +18,8 @@ end
 
 local function Show(points)
     frame.text:SetText(points == 1 and "1 Unspent Talent Point" or ("%d Unspent Talent Points"):format(points))
+    -- Fitted to the text only with a background, so elements anchored to it keep their spot.
+    frame:SetWidth(frame.mode == "none" and WIDTH or frame.text:GetStringWidth() + 2 * St.CARD_PAD)
     frame:Show()
 end
 
@@ -47,15 +54,19 @@ local function Apply()
     end
     if not frame then
         frame = CreateFrame("Frame", "NaowhForeverTalentPoints", UIParent)
-        frame:SetSize(300, 32)
         frame:SetMovable(true)
         frame:SetClampedToScreen(true)
         frame.text = ns.Font(frame, 22, "OUTLINE")
         frame.text:SetPoint("CENTER")
-        frame.text:SetTextColor(1, 0.82, 0, 1)
+        frame.backdrop = Parts.HudBackdrop(frame, { mode = "none" })
         ns.AlertStack(frame, 2)
     end
-    frame.text:SetFont(ns.UI.FontPath(S.Get("talentPointsFont")), 22, "OUTLINE")
+    local size = S.Get("talentPointsFontSize")
+    frame.mode = frame.backdrop:SetMode(S.Get("talentPointsBackground"))
+    Parts.HudFont(frame.text, S.Get("talentPointsFont"), size, S.Get("talentPointsOutline"), frame.mode)
+    local c = S.Get("talentPointsTheme") and T.accent or GOLD
+    frame.text:SetTextColor(c.r, c.g, c.b, 1)
+    frame:SetSize(WIDTH, size + ROOM)
     inCombat = UnitAffectingCombat("player")
     events:RegisterEvent("PLAYER_LEVEL_UP")
     events:RegisterEvent("TRAIT_CONFIG_UPDATED")
@@ -83,11 +94,16 @@ local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
 
-ns.Shared.Settings.Page("QoL/Questing & Group", S):Card({
+local Settings = ns.Shared.Settings
+
+Settings.Page("QoL/Questing & Group", S):Card({
     id = "talentPoints", name = "Talent Points", order = 30, switch = "talentPoints",
     help = "Text on screen while you have talent points to spend. Hidden in combat. Move it with "
         .. "Move Elements.",
     rows = {
-        { key = "talentPointsFont", label = "Font", font = true },
+        Settings.Look("talentPoints", { text = true, size = { 10, 48, 1 }, background = "card" }),
+        Settings.Group("Colours"),
+        { key = "talentPointsTheme", label = "Apply Theme to Text Colour", toggle = true,
+          help = "The text in the theme's accent colour instead of gold." },
     },
 })

@@ -5,6 +5,7 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 -- Class spells that use a vendor reagent on Forever, from its SpellReagents data
 -- (build 1.60.1.69913). Each family lists its ranks from lowest; the highest rank you know
@@ -45,6 +46,7 @@ local TARGETS = {
 
 local AMMO_SLOT = 0
 local FOOD_CLASS, FOOD_SUBCLASS = 0, 5   -- Consumable: Food & Drink
+local TITLE_GROW = 6   -- the title's font size over the list's
 
 local alert, flash
 local wasResting
@@ -179,6 +181,7 @@ local function BuildAlert()
     alert.text = ns.Font(alert, 16, "OUTLINE")
     alert.text:SetPoint("TOP", alert.title, "BOTTOM", 0, -4)
     alert.text:SetJustifyH("CENTER")
+    alert.backdrop = Parts.HudBackdrop(alert, { mode = "none" })
 
     -- Pulses a few times when it appears, then stays solid until it is dealt with.
     flash = alert:CreateAnimationGroup()
@@ -203,8 +206,16 @@ local function HideAlert()
     end
 end
 
+local function Style()
+    local font, size, outline = S.Get("restockFont"), S.Get("restockFontSize"), S.Get("restockOutline")
+    local mode = alert.backdrop:SetMode(S.Get("restockBackground"))
+    Parts.HudFont(alert.title, font, size + TITLE_GROW, outline, mode)
+    Parts.HudFont(alert.text, font, size, outline, mode)
+end
+
 local function ShowAlert(lines)
     if not alert then BuildAlert() end
+    Style()
     alert.text:SetText(table.concat(lines, "\n"))
     alert:SetSize(math.max(alert.title:GetStringWidth(), alert.text:GetStringWidth()) + 16,
         alert.title:GetStringHeight() + alert.text:GetStringHeight() + 12)
@@ -403,6 +414,7 @@ local FIXED = {
     { key = "restockBagsBelow", label = "Free Slots Below", slider = { 1, 20, 1 }, needs = "restockVendor" },
 }
 local CARRY_GROUP = Group("Reagents to Carry")
+local LOOK = ns.Shared.Settings.Look("restock", { text = true, size = { 10, 32, 1 }, background = "card" })
 
 local restockRows, reagentRows, seenReagents = {}, {}, {}
 
@@ -440,6 +452,7 @@ local function RestockRows()
             end
         end
     end
+    restockRows[#restockRows + 1] = LOOK
     return restockRows
 end
 

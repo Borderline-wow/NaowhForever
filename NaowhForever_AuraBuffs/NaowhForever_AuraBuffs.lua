@@ -24,6 +24,7 @@ local S = UI.ModuleSettings("auraBuffs", {
     campSound = true, campSoundKey = "none", campIconSize = 64, campNearbyAlert = true,
     campShowUnder = false, campShowUnderMinutes = 10, campNearbyMinutes = 2, campStyle = "round",
     campAlertScale = 1.4, campAlertFade = true,
+    campAlertFont = "", campAlertOutline = "", campAlertBackground = "none",
     campSimpleWidth = 360, campSimpleHeight = 26, campSimpleTextSize = 12, campBonusIcons = false,
     campHiddenBonuses = {},
 

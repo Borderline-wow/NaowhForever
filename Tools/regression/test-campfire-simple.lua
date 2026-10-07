@@ -130,7 +130,7 @@ local function Fixture(settings)
         GetText = function(f) return rawget(f, "text") or "" end,
         SetTextColor = function(f, r, g, b) f.r, f.g, f.b = r, g, b end,
         GetStringWidth = function(f) return Width(rawget(f, "text") or "", rawget(f, "size") or 12) end,
-        SetFont = function(f, _, size) f.size = size end,
+        SetFont = function(f, path, size, outline) f.font, f.size, f.outline = path, size, outline end,
         SetAlpha = function(f, a) f.alpha = a end,
         SetDesaturated = function(f, on) f.desaturated = on end,
         SetVertexColor = function(f, r, g, b, a) f.r, f.g, f.b, f.a = r, g, b, a end,
@@ -258,6 +258,7 @@ local function Fixture(settings)
                 return S
             end,
             _PlayLSMSound = NOTHING, SoundPathFor = NOTHING,
+            FontPath = function(name) return name and name ~= "" and "lsm:" .. name or "font" end,
         },
     }
     local tooltip = Frame()
@@ -1073,16 +1074,48 @@ do
     check("alert preview with Fade off: still, at full strength", not a.breathe.playing and a.alpha == 1)
     local rows = {}
     for _, row in ipairs(card.rows) do rows[#rows + 1] = row.key end
-    check("alert card: Alert Under, Alert Size and Fade", table.concat(rows, " ")
-        == "campNearbyMinutes campAlertScale campAlertFade")
+    check("alert card: Alert Under, Fade, Alert Size, then its Font, Outline and Background", table.concat(rows, " ")
+        == "campNearbyMinutes campAlertFade campAlertScale campAlertFont campAlertOutline campAlertBackground")
     s.values.campStyle = "simple"
     card.studio.paint(shot, "nearby")
     check("alert preview: editable with the Simple style too", shot.zone.shown ~= false
         and shot.hint.text:find("Wheel", 1, true))
     local live = true
-    for _, row in ipairs(card.rows) do live = live and row.needs() end
+    for _, row in ipairs(card.rows) do live = live and (row.kind == "group" or row.needs()) end
     check("alert card: its rows work with either style", live and #card.help < 100
         and not card.help:find("Round", 1, true))
+end
+
+-- Camp Nearby's Font, Outline and Background: today's look until one is set, each applied at once,
+-- and the card's preview drawn with them.
+do
+    local s = Fixture()
+    s.fire("PLAYER_LOGIN")
+    s.auras[NEARBY] = {}
+    s.fire("UNIT_AURA")
+    local ab = s.named.NaowhForeverCampNearby.bar
+    local St = s.St
+    check("Camp Nearby by default: the addon font, no outline, the card's shadow and no background",
+        ab.note.font == "font" and ab.note.outline == "" and ab.dot.outline == "" and ab.time.outline == ""
+        and ab.note.shadow == St.HUD_SHADOW_ALPHA and ab.plate.mode == "none")
+    s.S.Set("campAlertFont", "Friz")
+    s.S.Set("campAlertOutline", "THICKOUTLINE")
+    check("its Font and Outline apply at once, the outline in place of the shadow", ab.note.font == "lsm:Friz"
+        and ab.time.font == "lsm:Friz" and ab.dot.font == "lsm:Friz" and ab.note.outline == "THICKOUTLINE"
+        and ab.note.shadow == 0)
+    s.S.Set("campAlertOutline", "")
+    s.S.Set("campAlertBackground", "soft")
+    check("Background Soft: the soft fade, the words with its stronger shadow", ab.plate.mode == "soft"
+        and ab.note.shadow == St.HUD_SOFT_SHADOW_ALPHA)
+    s.S.Set("campAlertBackground", "card")
+    check("Background Card: the card behind it", ab.plate.mode == "card" and ab.plate.fill.shown ~= false
+        and ab.note.shadow == St.HUD_SHADOW_ALPHA)
+    local card = s.ns.Shared.Settings.pages["AuraBuffs/Settings"].cards.campNearby
+    local shot = card.studio.new(s.Frame())
+    shot.w, shot.h = 700, 120
+    card.studio.paint(shot, "nearby")
+    check("the card's preview draws them too", shot.alert.bar.note.font == "lsm:Friz"
+        and shot.alert.bar.plate.mode == "card")
 end
 
 do

@@ -4,10 +4,11 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
-local UI = ns.UI
+local Parts, St = ns.Shared.Parts, ns.Shared.Style
 
 local CALL_PET, SUMMON_IMP = 883, 688
 local ICON = 132161
+local WIDTH, ICON_GAP = 220, 8
 local DISMOUNT_DELAY = 5
 -- Demonic Sacrifice leaves one of these on the warlock in place of the demon.
 local SACRIFICE_BUFFS = { 18789, 18790, 18791, 18792 }
@@ -27,6 +28,7 @@ local function Build()
     frame.icon:SetTexture(ICON)
     frame.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     frame.text = ns.Font(frame, 20, "OUTLINE")
+    frame.backdrop = Parts.HudBackdrop(frame, { mode = "none" })
     frame:Hide()
     -- On top: its low health warning stays shown at alpha 0 (the health is secret in combat,
     -- so it cannot be hidden), and on top that leaves no gap between the others.
@@ -35,20 +37,29 @@ end
 
 local function Style()
     local size = S.Get("petFontSize")
-    frame.text:SetFont(UI.FontPath(S.Get("petFont")), size, "OUTLINE")
+    frame.mode = frame.backdrop:SetMode(S.Get("petBackground"))
+    Parts.HudFont(frame.text, S.Get("petFont"), size, S.Get("petOutline"), frame.mode)
     local c = S.Get("petClassColor") and RAID_CLASS_COLORS[class] or S.Get("petColor")
     frame.text:SetTextColor(c.r, c.g, c.b, 1)
     frame.text:ClearAllPoints()
     if S.Get("petShowIcon") then
         frame.icon:SetSize(size + 12, size + 12)
-        frame.icon:SetPoint("LEFT", frame, "LEFT", 0, 0)
+        frame.icon:SetPoint("LEFT", frame, "LEFT", frame.mode == "none" and 0 or St.CARD_PAD, 0)
         frame.icon:Show()
-        frame.text:SetPoint("LEFT", frame.icon, "RIGHT", 8, 0)
+        frame.text:SetPoint("LEFT", frame.icon, "RIGHT", ICON_GAP, 0)
     else
         frame.icon:Hide()
         frame.text:SetPoint("CENTER")
     end
-    frame:SetSize(220, size + 16)
+    frame:SetSize(WIDTH, size + 16)
+end
+
+-- Fitted to the warning only with a background, so elements anchored to it keep their spot.
+local function Fit()
+    if frame.mode == "none" then return end
+    local w = frame.text:GetStringWidth() + 2 * St.CARD_PAD
+    if frame.icon:IsShown() then w = w + frame.icon:GetWidth() + ICON_GAP end
+    frame:SetWidth(w)
 end
 
 local function BuildCurve()
@@ -104,6 +115,7 @@ end
 local function Update()
     if unlocked then
         frame.text:SetText(S.Get("petMissingText"))
+        Fit()
         frame:SetAlpha(1)
         frame:Show()
         return
@@ -114,6 +126,7 @@ local function Update()
         return
     end
     frame.text:SetText(S.Get(key))
+    Fit()
     if lowHealth then
         frame:SetAlpha(UnitHealthPercent("pet", true, curve))
     else
@@ -216,16 +229,16 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         { key = "petInstanceOnly", label = "Only In Dungeons & Raids", toggle = true },
         { key = "petHideMounted", label = "Hide While Mounted", toggle = true,
           help = "Also hidden for a few seconds after you dismount, while the pet comes back." },
-        Group("Text"),
+        Group("Messages"),
         { key = "petMissingText", label = "Missing Text", text = true, help = "Text while your pet is missing." },
         { key = "petPassiveText", label = "Passive Text", text = true, needs = "petPassive",
           help = "Text while your pet is passive." },
         { key = "petLowHealthText", label = "Low Health Text", text = true, needs = "petLowHealth",
           help = "Text while your pet is low on health." },
         { key = "petShowIcon", label = "Show Icon", toggle = true },
+        ns.Shared.Settings.Look("pet", { text = true, size = { 12, 48, 1 }, background = "card" }),
+        Group("Colours"),
         { key = "petClassColor", label = "Class Colour", toggle = true },
         { key = "petColor", label = "Colour", colour = true, needs = OwnColour, why = "Class colour is on" },
-        { key = "petFont", label = "Font", font = true },
-        { key = "petFontSize", label = "Font Size", slider = { 12, 48, 1 } },
     },
 })
