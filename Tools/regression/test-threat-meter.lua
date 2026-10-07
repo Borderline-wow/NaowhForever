@@ -28,6 +28,7 @@ local function fixture(settings, withSettings)
         function f:GetWidth() return self.w end
         function f:GetHeight() return self.h end
         function f:GetEffectiveScale() return 1 end
+        function f:SetAlpha(a) self.alpha=a end
         function f:GetFrameLevel() return 1 end
         function f:GetLeft() return 100 end
         function f:GetTop() return 600 end
@@ -48,7 +49,7 @@ local function fixture(settings, withSettings)
         UIFontPath=function() return 'font.ttf' end, Print=function() end,
         Apply=function() end, ShowRaidReminderAnchorConfig=function() end, HideRaidReminderAnchorConfig=function() end,
         Font=function() return frame('FontString') end,
-        Border=function(_,color) local b=frame('Border'); b.edge=color; return b end,
+        Border=function(_,color) local b=frame('Border'); b.edge=color; return {_frame=b} end,
         AllowOffscreen=function() end,
         Solid=function(_,_,color,alpha) local t=frame('Texture'); t.solid={color=color,alpha=alpha}; return t end,
         ThemeTint=function(_,literal) return literal end, Tooltip=function() end,
@@ -234,6 +235,39 @@ do
  local nameSpace=row.w-16-18-38-5-99*row.name.fontSize/12
  check('narrow window reserves readable names',nameSpace>=47.99)
  check('render fit preserves font preference',s.settings.fontSize==24)
+end
+do
+ local s=fixture({enabled=true})
+ local bg,border=s.window.background,s.window.border._frame
+ check('default background follows the theme',bg.colorTexture[1]==0.025 and bg.colorTexture[2]==0.04 and bg.colorTexture[3]==0.055)
+ check('border is drawn at full background',bg.alpha==0.94 and border.alpha==0.94)
+ s.set('backgroundAlpha',0);check('hidden background hides the border',bg.alpha==0 and border.alpha==0)
+ s.set('backgroundAlpha',0.5);check('border fades with the background',border.alpha==0.5)
+ s.set('backgroundColor',{r=0.3,g=0.2,b=0.1})
+ check('picked background colour paints the window',bg.colorTexture[1]==0.3 and bg.colorTexture[2]==0.2 and bg.colorTexture[3]==0.1)
+ check('picked colour keeps the opacity',bg.alpha==0.5)
+end
+do
+ local s=fixture({enabled=true},true)
+ local row
+ for _,r in ipairs(s.cards.meter.rows) do if r.key=='backgroundColor' then row=r end end
+ check('background colour row sits in the card',row and row.colour==true)
+ local r,g,b=row.get();check('colour row shows the theme colour while unset',r==0.025 and g==0.04 and b==0.055)
+ row.set(0.5,0.6,0.7);local c=s.settings.backgroundColor
+ check('colour row saves the pick',c.r==0.5 and c.g==0.6 and c.b==0.7)
+end
+do
+ local s=fixture({enabled=true,showHeader=false,width=160,height=50,pullBar=false},true)
+ check('narrow width is kept',s.window.w==160)
+ check('short window keeps one row and the status line',s.window.h==24+24+16 and #s.bars()==1)
+ s.set('width',100);check('width stops at the minimum',s.window.w==160)
+ local row=s.bar(s.bars()[1].name.text)
+ check('narrow rows keep the name inside the row',row.w-8-18-(row.icon.w+6)-5-99*row.name.fontSize/12-8>0)
+ local width,height
+ for _,r in ipairs(s.cards.meter.rows) do
+     if r.key=='width' then width=r.slider[1] elseif r.key=='height' then height=r.slider[1] end
+ end
+ check('sliders go below the old minimums',width==160 and height==50)
 end
 do
  -- With Custom Colors off the window paints exactly the surfaces it always did.

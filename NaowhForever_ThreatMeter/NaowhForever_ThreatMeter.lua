@@ -15,7 +15,7 @@ local S = UI.ModuleSettings("threatMeter", {
     source = "target", focusEnabled = false, visibility = "threat",
     locked = true, barSpacing = 3, fontSize = 12, font = "", outline = "OUTLINE",
     showIcons = true, showRanks = true, highlightPlayer = true,
-    backgroundAlpha = 0.94, barAlpha = 0.72, texture = "", percentMode = "pull",
+    backgroundAlpha = 0.94, backgroundColor = false, barAlpha = 0.72, texture = "", percentMode = "pull",
     growUp = false, showHeader = true, ignorePets = false, statusPos = "bottom",
     showValue = true, showPercent = true,
     playerColorOn = false, playerColor = { r = 0.8, g = 0.1, b = 0.1 },
@@ -30,6 +30,7 @@ local UPDATE_DELAY = 0.2
 local FOLLOW_INTERVAL = 0.5
 local TEXT_PAD = 8
 local INSET, FOOTER = 8, 24
+local MIN_WIDTH, MIN_HEIGHT = 160, 50
 local Update, RequestUpdate, RenderSample, Render
 local renderedTitle, renderedPlayer
 local offset, currentMob, warnedMob, preview = 0, nil, nil, false
@@ -47,11 +48,16 @@ local ROW_BG = { r = 0.065, g = 0.085, b = 0.105 }
 
 local Look = {}
 
+-- Unset follows the theme's background.
+local function BackgroundColor()
+    return S.Get("backgroundColor") or ns.ThemeTint("bg", WINDOW_BG)
+end
+
 function Look.New(frame)
     frame.rows = {}
     frame.background = ns.Solid(frame, "BACKGROUND", ns.ThemeTint("bg", WINDOW_BG), 1)
     frame.background:SetAllPoints()
-    ns.Border(frame, ns.ThemeTint("line", WINDOW_EDGE))
+    frame.border = ns.Border(frame, ns.ThemeTint("line", WINDOW_EDGE))
     frame.header = CreateFrame("Frame", nil, frame)
     frame.header:SetPoint("TOPLEFT")
     ns.Solid(frame.header, "BACKGROUND", ns.ThemeTint("panel", HEADER_BG), 1):SetAllPoints()
@@ -67,8 +73,10 @@ function Look.New(frame)
     frame.footer:SetHeight(FOOTER)
     frame.footer.state = ns.Font(frame.footer, 10, "OUTLINE", T.muted)
     frame.footer.state:SetPoint("LEFT"); frame.footer.state:SetJustifyH("LEFT")
+    frame.footer.state:SetWordWrap(false)
     frame.footer.range = ns.Font(frame.footer, 10, "OUTLINE", T.muted)
     frame.footer.range:SetPoint("RIGHT", -12, 0)
+    frame.footer.state:SetPoint("RIGHT", frame.footer.range, "LEFT", -4, 0)
     frame.empty = ns.Font(frame, 12, "OUTLINE", T.muted)
     frame.empty:SetPoint("CENTER", 0, -10); frame.empty:SetText("Waiting for threat")
 end
@@ -159,8 +167,8 @@ function Look.Row(f, i)
 end
 
 function Look.Layout(f, total, first, bh, gap, fontSize)
-    local w, top = math.max(240, S.Get("width")), HeaderHeight()
-    local minHeight = math.max(120, top + FOOTER + 2 * INSET + bh)
+    local w, top = math.max(MIN_WIDTH, S.Get("width")), HeaderHeight()
+    local minHeight = math.max(MIN_HEIGHT, top + FOOTER + 2 * INSET + bh)
     local h = math.max(minHeight, S.Get("height"))
     if not f.sizing then f:SetSize(w, h) else w, h = f:GetWidth(), f:GetHeight() end
     local iconSize = math.min(32, bh - 6)
@@ -230,7 +238,10 @@ function Look.Layout(f, total, first, bh, gap, fontSize)
         row:Show()
     end
     for i = shown + 1, #rows do rows[i]:Hide() end
-    f.background:SetAlpha(S.Get("backgroundAlpha"))
+    local bg, bgAlpha = BackgroundColor(), S.Get("backgroundAlpha")
+    f.background:SetColorTexture(bg.r, bg.g, bg.b, 1)
+    f.background:SetAlpha(bgAlpha)
+    f.border._frame:SetAlpha(bgAlpha)
     f.empty:SetShown(shown == 0)
     if last.total ~= total or last.first ~= first or last.shown ~= shown then
         last.total, last.first, last.shown = total, first, shown
@@ -242,7 +253,7 @@ end
 local function Layout()
     local bh, gap, fontSize = S.Get("barHeight"), S.Get("barSpacing"), S.Get("fontSize")
     if frame.sizing then bh, gap, fontSize = ResizeMetrics() end
-    frame:SetResizeBounds(240, math.max(120, HeaderHeight() + FOOTER + 2 * INSET + bh), 520, 700)
+    frame:SetResizeBounds(MIN_WIDTH, math.max(MIN_HEIGHT, HeaderHeight() + FOOTER + 2 * INSET + bh), 520, 700)
     local shown
     shown, offset = Look.Layout(frame, math.min(#list, S.Get("maxBars")), offset, bh, gap, fontSize)
     frame.source.label:SetText(TrackedUnit() == "focus" and "Focus" or "Target")
@@ -274,7 +285,7 @@ end
 local function Build()
     frame = CreateFrame("Frame", "NaowhForeverThreatMeter", UIParent)
     frame:SetMovable(true); frame:SetClampedToScreen(true); frame:SetResizable(true)
-    frame:SetResizeBounds(240, 120, 520, 700)
+    frame:SetResizeBounds(MIN_WIDTH, MIN_HEIGHT, 520, 700)
     Look.New(frame)
     frame.source = ns.Button(frame.header, "Target", 58, 18, function()
         S.Set("source", TrackedUnit() == "focus" and "target" or "focus")
@@ -719,7 +730,7 @@ local EDIT_LEVEL, TOP_LEVEL = 10, 12
 local HOVER_ALPHA = 0.12
 local GRIP_SIZE, GRIP_INSET = 16, 2
 local HEADER_STUB = 8
-local WIDTH_RANGE, HEIGHT_RANGE = { 240, 520, 1 }, { 120, 700, 1 }
+local WIDTH_RANGE, HEIGHT_RANGE = { MIN_WIDTH, 520, 1 }, { MIN_HEIGHT, 700, 1 }
 local ROW_H_RANGE, SPACING_RANGE, TEXT_RANGE = { 12, 72, 1 }, { 0, 16, 1 }, { 8, 24, 1 }
 local SAMPLES = {
     solo = { title = "Defias Pillager",
@@ -1129,7 +1140,13 @@ page:Card({
         { key = "growUp", label = "Grow Upward", toggle = true, needs = Enabled, why = OFF,
           help = "New bars stack above the first instead of below." },
         { key = "backgroundAlpha", label = "Background Opacity", slider = { 0, 100, 5 }, unit = "%",
-          scale = 0.01, needs = Enabled, why = OFF },
+          scale = 0.01, needs = Enabled, why = OFF, help = "The window's border fades with it." },
+        { key = "backgroundColor", label = "Background Colour", colour = true, needs = Enabled, why = OFF,
+          get = function()
+              local c = BackgroundColor()
+              return c.r, c.g, c.b, 1
+          end,
+          set = Picked("backgroundColor"), help = "Follows your theme until you pick one." },
         Group("Rows"),
         { key = "barHeight", label = "Row Height", slider = ROW_H_RANGE, needs = Enabled, why = OFF },
         { key = "barSpacing", label = "Row Spacing", slider = SPACING_RANGE, needs = Enabled, why = OFF },
