@@ -230,6 +230,7 @@ local arrived, arrivals = false, 0
 local lastX, lastY   -- where the pin last stood, in UIParent units, for an arrival
 local shown = {}
 local painted   -- what the texts and look were last drawn for; the place and arrows move every frame
+local knownSpeed = 0   -- your last readable speed: it reads secret at times, as in restricted content
 local NavSample = { name = "Mage Trainer", sub = "Thunder Bluff", yards = 312, mode = "world", angle = math.pi / 2 }
 
 -- A placed spot's note as a line of its own: " (entrance)" is "Entrance".
@@ -350,7 +351,8 @@ local function Update()
     cue:SetShown(behind and S.Get("waypointEdge"))
 
     local speed = GetUnitSpeed("player")
-    local seconds = S.Get("waypointTime") and yards / (speed > 0 and speed or RUN_SPEED) or nil
+    if not (issecretvalue and issecretvalue(speed)) then knownSpeed = speed end
+    local seconds = S.Get("waypointTime") and yards / (knownSpeed > 0 and knownSpeed or RUN_SPEED) or nil
     shown.angle = angle
     local key = ("%s %s %d %d"):format(mode, side or "", yards + 0.5, (seconds or -1) + 0.5)
     if key ~= painted then

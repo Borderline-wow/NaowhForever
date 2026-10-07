@@ -123,6 +123,7 @@ local env = setmetatable({
     Enum = { SuperTrackingType = { Quest = 0, UserWaypoint = 1, Corpse = 2 } },
     SuperTrackedFrame = gameMarker,
     GetUnitSpeed = function() return speed end,
+    issecretvalue = function(v) return v == "secret" end,
     GetTime = function() return 0 end,
     BreakUpLargeNumbers = function(n)
         local s = tostring(n)
@@ -182,6 +183,10 @@ Check(pin.card.time.text == "about 0:45", "standing still, the walking time is a
 speed = 14
 driver.scripts.OnUpdate(driver, 0)
 Check(pin.card.time.text == "about 0:22", "moving, at your own speed")
+speed = "secret"
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.time.text == "about 0:22", "a speed that reads secret keeps the last readable one")
+speed = 14
 Check(navBar:IsShown() and navBar.name.text == "Mage Trainer" and navBar.sub.text == "Thunder Bluff",
     "the navigator names it and its zone")
 Check(navBar.dist.text == "312 yd" and pin.scale < 1 and pin.scale > 0.65, "and shrinks the pin with distance")
