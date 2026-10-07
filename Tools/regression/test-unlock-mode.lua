@@ -2,8 +2,8 @@
 -- with real geometry. Drags, arrow keys, typed X and Y and Center save the element CENTER on
 -- the screen centre; a drag lines up on guides; Anchor ties an element to another so it
 -- follows from the side picked, keeping a typed gap; the Elements panel finds, hides and locks
--- them; every change can be undone; and the anchors and snap switch from before are dropped
--- without moving anything.
+-- them; every change can be undone; Shift-click selects several to move, align and space
+-- together; and the anchors and snap switch from before are dropped without moving anything.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local function Near(a, b) return a and b and math.abs(a - b) < 0.01 end
@@ -692,5 +692,97 @@ Fire(toolbar._elements, "OnClick")
 Check(panel:IsShown() and settings.elementsPanel == true, "and shows it again")
 ns.HideRaidReminderAnchorConfig()
 Check(not panel:IsShown(), "leaving the HUD Editor hides the panel")
+
+-- Several selected: Shift-click adds and takes away, the tag gives way to a bar over an outline
+-- round them all, and they align, space out, move and lock together.
+for _, m in ipairs({ meterMover, swingMover, timerMover }) do m:Hide() end
+local a1, a1Mover = Display("A1", 100, 20, -300, -300)
+local a2, a2Mover = Display("A2", 60, 20, -200, -260)
+local a3, a3Mover, a3Saved = Display("A3", 80, 20, -50, -320)
+ns.ShowRaidReminderAnchorConfig()
+Flush()
+local function Bar()
+    for _, fr in ipairs(made) do
+        if fr.align and fr.count and fr.across then return fr end
+    end
+end
+local function ShiftClick(handle)
+    shift = true
+    Click(handle, "LeftButton")
+    shift = false
+end
+Click(a1Mover, "LeftButton")
+ShiftClick(a2Mover)
+ShiftClick(a3Mover)
+Flush()
+local bar = Bar()
+Check(bar and bar:IsShown() and bar.count:GetText() == "3 selected" and not tag:IsShown(),
+    "Shift-click selects several: the tag gives way to the bar")
+Check(#Shown("Texture") == 4 and bar:GetBottom() > a2:GetTop(), "an outline round them all, the bar over it")
+Check(a1Mover._placement.selected and a2Mover._placement.selected and a3Mover._placement.selected
+    and RowOf("A1").fill:IsShown() and RowOf("A3").fill:IsShown(), "each plate and row is lit")
+
+Fire(bar.align.left, "OnClick")
+Check(Near(a1:GetLeft(), 610) and Near(a2:GetLeft(), 610) and Near(a3:GetLeft(), 610), "Line up left edges")
+Check(Near(Last(a3Saved).x, 650 - 960), "and saves each")
+Fire(toolbar._undo, "OnClick")
+Check(Near(a2:GetLeft(), 730) and Near(a3:GetLeft(), 870), "one Undo puts them all back")
+Fire(bar.align.top, "OnClick")
+Check(Near(a1:GetTop(), 290) and Near(a3:GetTop(), 290), "Line up top edges")
+Fire(toolbar._undo, "OnClick")
+Fire(bar.align.hcenter, "OnClick")
+Check(Near(Center(a1), 780) and Near(Center(a3), 780), "Line up middles")
+Fire(toolbar._undo, "OnClick")
+
+Fire(bar.across, "OnClick")
+Check(Near(a1:GetLeft(), 610) and Near(a2:GetLeft(), 760) and Near(a3:GetLeft(), 870) and bar.gap:GetText() == "50",
+    "Space evenly across: first and last stay, the gaps equal, the gap shown")
+Type(bar.gap, "10")
+Check(Near(a2:GetLeft(), 720) and Near(a3:GetLeft(), 790), "a typed gap spaces them by it")
+
+local p1, p3 = { Center(a1) }, { Center(a3) }
+alt = true
+DragBy(a1Mover, a1, 30, 15)
+alt = false
+Check(Near(Center(a1), p1[1] + 30) and Near(Center(a3), p3[1] + 30) and Near(select(2, Center(a3)), p3[2] + 15),
+    "dragging one moves them all")
+Check(Near(Last(a3Saved).x, p3[1] + 30 - 960), "and the drop saves each")
+for _ = 1, 3 do Fire(keys, "OnKeyDown", "RIGHT") end
+Check(Near(Center(a3), p3[1] + 33), "arrow keys move them all")
+Fire(toolbar._undo, "OnClick")
+Check(Near(Center(a3), p3[1] + 30), "and the run is one Undo")
+
+Fire(bar.lock, "OnClick")
+Check(settings.locked.A1 and settings.locked.A2 and settings.locked.A3 and bar.lock.tip == "Unlock all", "Lock all")
+local l3 = a3:GetLeft()
+Fire(bar.align.left, "OnClick")
+for _ = 1, 2 do Fire(keys, "OnKeyDown", "LEFT") end
+Check(Near(a3:GetLeft(), l3), "locked, they stay put")
+Fire(bar.lock, "OnClick")
+Check(not settings.locked.A1 and not settings.locked.A3, "and Unlock all")
+
+ShiftClick(a2Mover)
+Check(bar.count:GetText() == "2 selected" and not a2Mover._placement.selected, "Shift-click takes one away")
+ShiftClick(a3Mover)
+Check(not bar:IsShown() and tag:IsShown() and tag.item == a1Mover._placement, "back to one, the tag is back")
+ShiftClick(a3Mover)
+Fire(keys, "OnKeyDown", "ESCAPE")
+Check(not bar:IsShown() and not a1Mover._placement.selected and not a3Mover._placement.selected,
+    "Escape lets them all go")
+
+-- One that follows another selected element comes along with it, once.
+settings.anchoredTo = { A2 = { target = "A1", side = "BOTTOM", x = 0, y = -12 } }
+ns.Apply()
+Flush()
+Click(a1Mover, "LeftButton")
+ShiftClick(a2Mover)
+local gapBefore = a1:GetBottom() - a2:GetTop()
+alt = true
+DragBy(a1Mover, a1, 0, 40)
+alt = false
+Check(Near(a1:GetBottom() - a2:GetTop(), gapBefore), "an anchored one in the selection moves once, keeping its gap")
+Fire(keys, "OnKeyDown", "ESCAPE")
+settings.anchoredTo = nil
+ns.HideRaidReminderAnchorConfig()
 
 print(("test-unlock-mode: %d checks passed"):format(checks))

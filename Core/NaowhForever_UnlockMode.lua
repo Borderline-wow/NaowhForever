@@ -4,7 +4,7 @@
 --  can be done with it. An element anchored to another follows it from the side picked on the
 --  tag, keeping its gap. A drag lines up with other elements and the screen centre on guides.
 --  The Elements panel lists them all, to find, hide while editing and lock in place, and every
---  change by hand can be undone.
+--  change by hand can be undone. Shift-click selects several, to move, align and space together.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -18,7 +18,11 @@ local MOVER_STRIP = 2          -- the accent strip's height
 local NUDGE_FAR = 10           -- pixels a Shift + arrow moves
 local MAX_DEPTH = 20           -- anchor chain length followed at most
 
-local placement = { active = false, items = {}, byLabel = {}, unsaved = {} }
+-- group: every selected element; selected: the one clicked last; groupKey: changes with the
+-- selection, so a run of arrow nudges to one selection counts once.
+local placement = { active = false, items = {}, byLabel = {}, unsaved = {}, group = {}, groupKey = {} }
+
+local function Grouped() return #placement.group > 1 end
 
 -------------------------------------------------------------------------------
 --  Geometry
@@ -259,7 +263,7 @@ local OUTLINE_ALPHA = 0.45     -- the outline of where a drag started
 local overlay
 
 local function NewLayer() return { lines = {}, labels = {}, used = 0, usedLabels = 0 } end
-local dragLayer, anchorLayer = NewLayer(), NewLayer()
+local dragLayer, anchorLayer, groupLayer = NewLayer(), NewLayer(), NewLayer()
 
 local function Overlay()
     if not overlay then
@@ -319,6 +323,7 @@ local function GuidesOn() return ns.UnlockModeSettings.Get("guides") ~= false en
 -- The elements a drag lines up with: shown, and not carried along by it.
 local function Guiding(item, other)
     return other ~= item and other.handle:IsVisible() and not IsHidden(other) and not Follows(other.label, item.label)
+        and not (other.selected and Grouped())
 end
 
 -- best, or theirs - ours when that is nearer and within reach.
@@ -440,7 +445,17 @@ end
 local UNDO_MAX = 50
 local undo, redo = {}, {}
 local lastNudged
-local Refresh, ShowTag, RefreshPanel, PaintHistory, PaintMarks
+local Refresh, ShowTag, RefreshPanel, PaintHistory, PaintMarks, ShowSelection
+
+-- A selected element the selection's moves take: not locked, and not one that follows another
+-- selected element (it comes along with that one).
+local function Moves(item)
+    if IsLocked(item) then return false end
+    for _, other in ipairs(placement.group) do
+        if other ~= item and Follows(item.label, other.label) then return false end
+    end
+    return true
+end
 
 local function Snapshot()
     local snap = { spots = {}, anchors = {} }
@@ -543,6 +558,18 @@ local function DragUpdate()
     end
     Place(item, (cx - item.boxX - w / 2) / ratio, (cy - item.boxY - h / 2) / ratio)
     Propagate(item.label)
+    if Grouped() then
+        local l, r, t, b = Box(item)
+        local dx = (l + r - item.startBox.l - item.startBox.r) / 2
+        local dy = (t + b - item.startBox.t - item.startBox.b) / 2
+        for _, other in ipairs(placement.group) do
+            if other.fromX then
+                MoveTo(other, other.fromX + dx, other.fromY + dy)
+                Propagate(other.label)
+            end
+        end
+        ShowSelection()
+    end
     DrawOutline(item)
     if guided then DrawGuides(item) end
     ShowTag()
@@ -569,7 +596,14 @@ local function StopDrag(item)
     end
     wipe(placement.unsaved)
     item.before = nil
+    for _, other in ipairs(placement.group) do
+        if other.fromX then
+            other.fromX, other.fromY = nil, nil
+            Moved(other)
+        end
+    end
     Refresh(item)
+    ShowSelection()
 end
 
 -- Across to the middle of the screen; its height stays.
@@ -811,7 +845,7 @@ end
 
 -- Below the mover, above it when the screen ends first.
 function ShowTag()
-    local item = placement.selected
+    local item = not Grouped() and placement.selected or nil
     local x, y
     if item then x, y = Position(item) end
     local tag = placement.tag
@@ -885,14 +919,16 @@ function Refresh(item)
 end
 
 function UI.ClearMoverSelection()
-    local item = placement.selected
-    StopDrag(item)
+    StopDrag(placement.dragging)
+    local group = placement.group
     placement.selected, placement.picking = nil, nil
-    if item then
+    placement.group, placement.groupKey = {}, {}
+    for _, item in ipairs(group) do
         item.selected = false
         Refresh(item)
     end
     ShowTag()
+    ShowSelection()
     if placement.keys and not InCombatLockdown() then placement.keys:SetPropagateKeyboardInput(true) end
 end
 
@@ -930,8 +966,16 @@ local function PlacementKey(self, key)
     if dx == 0 and dy == 0 then return end
     if not item.handle:IsVisible() then UI.ClearMoverSelection(); return end
     self:SetPropagateKeyboardInput(false)
-    if not Change(item, item) then return end
     local step = Pixel() * (IsShiftKeyDown() and NUDGE_FAR or 1)
+    if Grouped() then
+        Checkpoint(nil, placement.groupKey)
+        for _, member in ipairs(placement.group) do
+            if Moves(member) then Nudge(member, dx * step, dy * step) end
+        end
+        ShowSelection()
+        return
+    end
+    if not Change(item, item) then return end
     Nudge(item, dx * step, dy * step)
 end
 
@@ -984,21 +1028,50 @@ function UI.EndMoverMode()
     end
 end
 
-function UI.SelectMover(handle)
+local function Join(item)
+    local group = placement.group
+    group[#group + 1] = item
+    placement.groupKey = {}
+    item.selected = true
+    local last = placement.selected
+    placement.selected = item
+    if last and last ~= item then Refresh(last) end
+    Refresh(item)
+    ShowSelection()
+end
+
+local function Unselect(item)
+    local group = placement.group
+    for i, member in ipairs(group) do
+        if member == item then table.remove(group, i); break end
+    end
+    if #group == 0 then return UI.ClearMoverSelection() end
+    placement.groupKey = {}
+    item.selected = false
+    placement.selected = group[#group]
+    Refresh(item)
+    Refresh(placement.selected)
+    ShowSelection()
+end
+
+-- add: Shift held, so the element joins the selection, or leaves it when already in.
+function UI.SelectMover(handle, add)
     if not placement.active or InCombatLockdown() or not handle:IsVisible() then return end
     local item = handle._placement
     if not item or IsHidden(item) then return end
-    if placement.selected ~= item then UI.ClearMoverSelection() end
-    placement.selected = item
-    item.selected = true
-    Refresh(item)
+    if add and placement.selected then
+        if item.selected then Unselect(item) else Join(item) end
+        return
+    end
+    if placement.selected ~= item or Grouped() then UI.ClearMoverSelection() end
+    if item.selected then Refresh(item) else Join(item) end
 end
 
 function UI.StartMoverDrag(handle)
     if not placement.active or InCombatLockdown() or not handle:IsVisible() then return end
     local item = handle._placement
     if not item or IsHidden(item) then return end
-    UI.SelectMover(handle)
+    if not item.selected then UI.SelectMover(handle) end
     if IsLocked(item) then return end
     item.before = Snapshot()
     local l, r, t, b = Box(item)
@@ -1012,6 +1085,13 @@ function UI.StartMoverDrag(handle)
     item.startL, item.startT = fl, ft
     item.startBox = item.startBox or {}
     item.startBox.l, item.startBox.r, item.startBox.t, item.startBox.b = l, r, t, b
+    for _, other in ipairs(placement.group) do
+        other.fromX, other.fromY = nil, nil
+        if other ~= item and Moves(other) then
+            local ol, oright, ot, ob = Box(other)
+            if ol then other.fromX, other.fromY = (ol + oright) / 2, (ot + ob) / 2 end
+        end
+    end
     item.dragging = true
     placement.dragging = item
     placement.driver:SetScript("OnUpdate", DragUpdate)
@@ -1021,6 +1101,226 @@ end
 function UI.StopMoverDrag(handle)
     StopDrag(handle._placement)
     UI.RefreshMoverSelection()
+end
+
+-------------------------------------------------------------------------------
+--  Several selected: an outline round them all and a bar over it to line them up on an edge
+--  or a middle, space them evenly or by a typed gap across or down, and lock them all. Locked
+--  elements stay put, and an element that follows another selected one comes along with it.
+-------------------------------------------------------------------------------
+local GROUP_PAD = 6                    -- the outline, out from the elements
+local GROUP_ALPHA = 0.6
+local SEL_H, SEL_PAD, SEL_GAP, SEL_SEP = 30, 8, 4, 10
+local SEL_ICON = 18
+local SEL_COUNT_W = 78                 -- room for "12 selected"
+local SEL_OFFSET = 6                   -- from the outline to the bar
+local EDGES = { "left", "hcenter", "right", "top", "vcenter", "bottom" }
+local EDGE_TIPS = { left = "Line up left edges", hcenter = "Line up middles, left to right",
+    right = "Line up right edges", top = "Line up top edges", vcenter = "Line up middles, top to bottom",
+    bottom = "Line up bottom edges" }
+
+-- The box round every selected element, in UIParent units.
+local function GroupBox()
+    local l, r, t, b
+    for _, item in ipairs(placement.group) do
+        local il, ir, it, ib = Box(item)
+        if il then
+            l, r = l and math.min(l, il) or il, r and math.max(r, ir) or ir
+            t, b = t and math.max(t, it) or it, b and math.min(b, ib) or ib
+        end
+    end
+    return l, r, t, b
+end
+
+-- After the selection moved: its elements' anchors keep the new gaps, what follows comes
+-- along, and the plates, the outline and the bar catch up.
+local function Arranged(moved)
+    for _, item in ipairs(moved) do Moved(item) end
+    for _, item in ipairs(placement.group) do Refresh(item) end
+    ShowSelection()
+end
+
+function UI.AlignSelection(edge)
+    if InCombatLockdown() or not Grouped() then return end
+    local l, r, t, b = GroupBox()
+    if not l then return end
+    Checkpoint()
+    local moved = {}
+    for _, item in ipairs(placement.group) do
+        local il, ir, it, ib = Box(item)
+        if il and Moves(item) then
+            local w, h = ir - il, it - ib
+            local cx, cy = (il + ir) / 2, (it + ib) / 2
+            if edge == "left" then cx = l + w / 2
+            elseif edge == "hcenter" then cx = (l + r) / 2
+            elseif edge == "right" then cx = r - w / 2
+            elseif edge == "top" then cy = t - h / 2
+            elseif edge == "vcenter" then cy = (t + b) / 2
+            else cy = b + h / 2 end
+            MoveTo(item, cx, cy)
+            moved[#moved + 1] = item
+        end
+    end
+    Arranged(moved)
+end
+
+-- Spaces the selection out across or down, first and last where they are, the gaps between
+-- them equal; with pixels, that gap instead, from the first on. axis nil: the last one used,
+-- else the way the selection is longer.
+function UI.SpreadSelection(axis, pixels)
+    if InCombatLockdown() or not Grouped() then return end
+    local list = {}
+    for _, item in ipairs(placement.group) do
+        if Moves(item) and Box(item) then list[#list + 1] = item end
+    end
+    if #list < 2 then return end
+    local l, r, t, b = GroupBox()
+    axis = axis or placement.spreadAxis or ((r - l) >= (t - b) and "across" or "down")
+    placement.spreadAxis = axis
+    local across = axis == "across"
+    table.sort(list, function(a, c)
+        local al, ar, at, ab = Box(a)
+        local cl, cr, ct, cb = Box(c)
+        if across then return al + ar < cl + cr end
+        return at + ab > ct + cb
+    end)
+    local fl, _, ft = Box(list[1])
+    local _, lr, _, lb = Box(list[#list])
+    local total = 0
+    for _, item in ipairs(list) do
+        local il, ir, it, ib = Box(item)
+        total = total + (across and ir - il or it - ib)
+    end
+    local gap
+    if pixels then
+        gap = math.floor(pixels + 0.5) * Pixel()
+    elseif #list > 2 then
+        gap = ((across and lr - fl or ft - lb) - total) / (#list - 1)
+    else
+        return
+    end
+    Checkpoint()
+    local pos = across and fl or ft
+    for _, item in ipairs(list) do
+        local il, ir, it, ib = Box(item)
+        if across then
+            MoveTo(item, pos + (ir - il) / 2, (it + ib) / 2)
+            pos = pos + (ir - il) + gap
+        else
+            MoveTo(item, (il + ir) / 2, pos - (it - ib) / 2)
+            pos = pos - (it - ib) - gap
+        end
+    end
+    placement.spreadGap = gap
+    Arranged(list)
+end
+
+-- Locks them all, or unlocks them all when every one is locked already.
+function UI.LockSelection()
+    local marks, all = Marks("locked"), true
+    for _, item in ipairs(placement.group) do
+        if not marks[item.label] then all = false end
+    end
+    for _, item in ipairs(placement.group) do
+        marks[item.label] = not all or nil
+        PaintMarks(item)
+        Refresh(item)
+    end
+    ShowSelection()
+end
+
+local function BuildSelectionBar()
+    local Parts, St = ns.Shared.Parts, ns.Shared.Style
+    local bar = CreateFrame("Frame", nil, UIParent)
+    bar:SetHeight(SEL_H)
+    bar:SetFrameStrata("FULLSCREEN_DIALOG")
+    bar:SetFrameLevel(TAG_LEVEL)
+    bar:SetClampedToScreen(true)
+    bar:EnableMouse(true)
+    ns.Solid(bar, "BACKGROUND", T.panel, 0.98):SetAllPoints()
+    ns.Border(bar, BLACK)
+    bar.count = ns.Font(bar, 12)
+    bar.count:SetPoint("LEFT", SEL_PAD, 0)
+    local x = SEL_PAD + SEL_COUNT_W
+    local function Icon(texture, tip, onClick)
+        local button = Parts.IconButton(bar, onClick, texture, nil, tip)
+        button:SetSize(SEL_ICON, SEL_ICON)
+        button.icon:SetSize(SEL_ICON, SEL_ICON)
+        button.icon:SetVertexColor(T.fg.r, T.fg.g, T.fg.b)
+        button:SetPoint("LEFT", x, 0)
+        x = x + SEL_ICON + SEL_GAP
+        return button
+    end
+    bar.align = {}
+    for i, edge in ipairs(EDGES) do
+        if i == 4 then x = x + SEL_SEP end
+        bar.align[edge] = Icon(St["ALIGN_" .. edge:upper()], EDGE_TIPS[edge], function() UI.AlignSelection(edge) end)
+    end
+    x = x + SEL_SEP
+    bar.across = Icon(St.ALIGN_ACROSS, "Space evenly across", function() UI.SpreadSelection("across") end)
+    bar.down = Icon(St.ALIGN_DOWN, "Space evenly down", function() UI.SpreadSelection("down") end)
+    x = x + SEL_SEP
+    local gapLabel = ns.Font(bar, 11, nil, T.muted)
+    gapLabel:SetText("Gap")
+    gapLabel:SetPoint("LEFT", x, 0)
+    x = x + GAP_LABEL_W
+    local gap = ns.NewEditBox(bar)
+    gap:SetSize(BOX_W, BOX_H)
+    gap:SetPoint("LEFT", x, 0)
+    gap:SetFont(ns.UIFontPath(), 12, "")
+    gap:SetJustifyH("CENTER")
+    gap:SetMaxLetters(5)
+    gap:SetScript("OnEnterPressed", function(box)
+        local v = tonumber(box:GetText())
+        box:ClearFocus()
+        if v then UI.SpreadSelection(nil, v) end
+    end)
+    gap:SetScript("OnEscapePressed", gap.ClearFocus)
+    gap:SetScript("OnEditFocusGained", function() gap.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    gap:SetScript("OnEditFocusLost", function() gap.border:SetColor(0, 0, 0, 1); gap.value = nil; ShowSelection() end)
+    bar.gap = gap
+    x = x + BOX_W + SEL_SEP
+    bar.lock = Icon(St.LOCK, "Lock all", function() UI.LockSelection() end)
+    bar:SetWidth(x - SEL_GAP + SEL_PAD)
+    bar:Hide()
+    return bar
+end
+
+function ShowSelection()
+    Clear(groupLayer)
+    local bar = placement.bar
+    local l, r, t, b
+    if Grouped() then l, r, t, b = GroupBox() end
+    if not l then
+        if bar then bar:Hide() end
+        return
+    end
+    local pad = GROUP_PAD * Pixel()
+    l, r, t, b = l - pad, r + pad, t + pad, b - pad
+    DrawLine(groupLayer, l, t, r, t, T.accent, GROUP_ALPHA)
+    DrawLine(groupLayer, l, b, r, b, T.accent, GROUP_ALPHA)
+    DrawLine(groupLayer, l, b, l, t, T.accent, GROUP_ALPHA)
+    DrawLine(groupLayer, r, b, r, t, T.accent, GROUP_ALPHA)
+    if not bar then
+        bar = BuildSelectionBar()
+        placement.bar = bar
+    end
+    bar.count:SetText(#placement.group .. " selected")
+    bar:ClearAllPoints()
+    if t + SEL_OFFSET + SEL_H <= UIParent:GetHeight() then
+        bar:SetPoint("BOTTOM", UIParent, "BOTTOMLEFT", (l + r) / 2, t + SEL_OFFSET)
+    else
+        bar:SetPoint("TOP", UIParent, "BOTTOMLEFT", (l + r) / 2, b - SEL_OFFSET)
+    end
+    if placement.spreadGap then SetBox(bar.gap, math.floor(placement.spreadGap / Pixel() + 0.5)) end
+    local all = true
+    for _, item in ipairs(placement.group) do
+        if not IsLocked(item) then all = false end
+    end
+    local c = all and T.accent or T.fg
+    bar.lock.icon:SetVertexColor(c.r, c.g, c.b)
+    bar.lock.tip = all and "Unlock all" or "Lock all"
+    bar:Show()
 end
 
 -------------------------------------------------------------------------------
@@ -1091,7 +1391,9 @@ function UI.BindMover(handle, frame, label, onMoved, page, feature, ownAnchor)
         if button ~= "LeftButton" then return end
         if placement.picking then
             PickTarget(item)
-        elseif placement.selected == item then
+        elseif IsShiftKeyDown() then
+            UI.SelectMover(handle, true)
+        elseif placement.selected == item and not Grouped() then
             UI.ClearMoverSelection()
         else
             UI.SelectMover(handle)
@@ -1346,7 +1648,7 @@ local function NewRow(child)
     row.label:SetJustifyH("LEFT")
     row.label:SetWordWrap(false)
     row:SetScript("OnClick", function(self)
-        if self.item then UI.SelectMover(self.item.handle) end
+        if self.item then UI.SelectMover(self.item.handle, IsShiftKeyDown()) end
     end)
     row:SetScript("OnEnter", RowEnter)
     row:SetScript("OnLeave", RowLeave)
@@ -1355,7 +1657,7 @@ end
 
 local function PaintRow(row, item)
     local St = ns.Shared.Style
-    local hidden, locked, picked = IsHidden(item), IsLocked(item), placement.selected == item
+    local hidden, locked, picked = IsHidden(item), IsLocked(item), item.selected == true
     row.item = item
     row.label:SetText(item.label)
     row.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, hidden and ROW_HIDDEN_ALPHA or 1)

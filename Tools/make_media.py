@@ -617,6 +617,35 @@ def padlock(x, y, size):
         arch = smooth(w / 2, abs(math.hypot(x - c, y - size * 0.40) - size * 0.17))
     return (255, 255, 255, int(round(255 * max(body, arch))))
 
+def align(edge):
+    # The HUD Editor's align buttons: two bars of different lengths and the line they line up
+    # on. edge: "left", "hcenter", "right" (the line upright), "top", "vcenter", "bottom" (level),
+    # or "across" and "down" for spacing evenly: two lines either side of one bar.
+    def pixel(x, y, size):
+        u, v = x / size, y / size
+        if edge in ("top", "vcenter", "bottom", "down"):
+            u, v = v, u
+        w = 0.08
+        if edge in ("across", "down"):
+            line = min(abs(u - 0.14), abs(u - 0.86))
+            a = smooth(w * size / 2, line * size) if 0.12 <= v <= 0.88 else 0.0
+            box = rounded_rect_dist(u, v, 0.5, 0.5, 0.14, 0.24, 0.03)
+            return (255, 255, 255, int(round(255 * max(a, smooth(0.0, box * size)))))
+        at = {"left": 0.14, "top": 0.14, "hcenter": 0.5, "vcenter": 0.5, "right": 0.86, "bottom": 0.86}[edge]
+        a = smooth(w * size / 2, abs(u - at) * size) if 0.1 <= v <= 0.9 else 0.0
+        bars = ((0.33, 0.30), (0.67, 0.18))
+        for cy, half in bars:
+            if at == 0.14:
+                cx = 0.22 + half
+            elif at == 0.86:
+                cx = 0.78 - half
+            else:
+                cx = 0.5
+            d = rounded_rect_dist(u, v, cx, cy, half, 0.09, 0.03)
+            a = max(a, smooth(0.0, d * size))
+        return (255, 255, 255, int(round(255 * a)))
+    return pixel
+
 
 write_tga(os.path.join(OUT, "chevron_up.tga"), 64, stroke(64, [(0.22, 0.64), (0.5, 0.36), (0.78, 0.64)], 0.12))
 write_tga(os.path.join(OUT, "cross.tga"), 64, lambda x, y, s: max(
@@ -666,3 +695,11 @@ write_tga(os.path.join(OUT, "soft_shade.tga"), 64, soft_shade)
 write_tga(os.path.join(OUT, "eye.tga"), 64, eye(False))
 write_tga(os.path.join(OUT, "eye_off.tga"), 64, eye(True))
 write_tga(os.path.join(OUT, "lock.tga"), 64, padlock)
+write_tga(os.path.join(OUT, "align_left.tga"), 64, align("left"))
+write_tga(os.path.join(OUT, "align_hcenter.tga"), 64, align("hcenter"))
+write_tga(os.path.join(OUT, "align_right.tga"), 64, align("right"))
+write_tga(os.path.join(OUT, "align_top.tga"), 64, align("top"))
+write_tga(os.path.join(OUT, "align_vcenter.tga"), 64, align("vcenter"))
+write_tga(os.path.join(OUT, "align_bottom.tga"), 64, align("bottom"))
+write_tga(os.path.join(OUT, "align_across.tga"), 64, align("across"))
+write_tga(os.path.join(OUT, "align_down.tga"), 64, align("down"))
