@@ -116,6 +116,7 @@ QoL\NaowhForever_Trainer.lua
 TopBar\NaowhForever_TopBar.lua
 QoL\NaowhForever_FlightData.lua
 QoL\NaowhForever_Flight.lua
+QoL\NaowhForever_Waypoints.lua
 QoL\NaowhForever_QuizData.lua
 QoL\NaowhForever_Quiz.lua
 QoL\NaowhForever_AimTrainer.lua

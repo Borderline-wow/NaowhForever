@@ -73,6 +73,7 @@ function ns.PlaceWaypoint(title, map, x, y, note)
     end
     C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, x / 100, y / 100))
     if C_SuperTrack then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+    ns.placedWaypoint = { title = title, map = map, x = x, y = y }
     ns.Print("Waypoint for " .. ns.WaypointText(title, map, x, y, note))
     return true
 end

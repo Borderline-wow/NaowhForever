@@ -283,6 +283,21 @@ def polygon_dist(x, y, points):
     return -d if inside else d
 
 
+def waypoint_shape(sides, ring):
+    # A regular polygon, point up: the Waypoint Pin's hex (6) or diamond (4), filled or as an
+    # outline a tenth of its size thick.
+    def pixel(x, y, size):
+        c, r = size / 2.0, size * 0.46
+        points = [(c + r * math.sin(2 * math.pi * i / sides), c - r * math.cos(2 * math.pi * i / sides))
+                  for i in range(sides)]
+        d = polygon_dist(x, y, points)
+        a = smooth(0, d)
+        if ring:
+            a *= 1.0 - smooth(0, d + size * 0.1)
+        return (255, 255, 255, int(round(255 * a)))
+    return pixel
+
+
 def star(x, y, size):
     # A five-pointed star, point up: the Journal's mark for your BiS.
     c, outer = size / 2.0, size * 0.47
@@ -703,3 +718,7 @@ write_tga(os.path.join(OUT, "align_vcenter.tga"), 64, align("vcenter"))
 write_tga(os.path.join(OUT, "align_bottom.tga"), 64, align("bottom"))
 write_tga(os.path.join(OUT, "align_across.tga"), 64, align("across"))
 write_tga(os.path.join(OUT, "align_down.tga"), 64, align("down"))
+write_tga(os.path.join(OUT, "waypoint_hex.tga"), 128, waypoint_shape(6, False))
+write_tga(os.path.join(OUT, "waypoint_hex_ring.tga"), 128, waypoint_shape(6, True))
+write_tga(os.path.join(OUT, "waypoint_diamond.tga"), 128, waypoint_shape(4, False))
+write_tga(os.path.join(OUT, "waypoint_diamond_ring.tga"), 128, waypoint_shape(4, True))

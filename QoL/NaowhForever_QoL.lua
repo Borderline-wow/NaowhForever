@@ -202,6 +202,9 @@ local S = UI.ModuleSettings("qol", {
     flightTimerFont = "", flightTimerOutline = "NONE", flightTimerTexture = "",
     aimTrainer = true, aimMode = "hexakill", aimPulse = true, aimSound = true,
     aimSoundKey = "game:click", aimShare = true,
+    waypoints = false, waypointShape = "hex", waypointScale = 1, waypointCard = true,
+    waypointTime = true, waypointBeam = true, waypointFadeNear = 40, waypointEdge = true,
+    waypointNav = true, waypointSound = "none", waypointHideGame = true,
 })
 ns.QoLSettings = S
 
