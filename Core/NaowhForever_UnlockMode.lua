@@ -5,6 +5,7 @@
 --  tag, keeping its gap. A drag lines up with other elements and the screen centre on guides.
 --  The Elements panel lists them all, to find, hide while editing and lock in place, and every
 --  change by hand can be undone. Shift-click selects several, to move, align and space together.
+--  Layouts keep every position under a name, to go back to.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -1786,6 +1787,7 @@ local LABEL_GAP = 8                   -- a switch to its label
 local SECTION_H = 18                  -- a section's muted name over its switches
 local OFF_ALPHA = 0.4                 -- a module's switches while it is off; Undo with nothing to undo
 local HISTORY_W, ELEMENTS_W = 64, 84
+local LAYOUT_LETTERS = 20
 
 local function BarRule(f, y)
     local rule = ns.Solid(f, "ARTWORK", ns.Shared.Style.BORDER_RGB, 1)
@@ -1820,6 +1822,109 @@ function PaintHistory()
     local edge = on and T.accent or BLACK
     f._elements._rest = edge
     f._elements._border:SetColor(edge.r, edge.g, edge.b, 1)
+end
+
+-------------------------------------------------------------------------------
+--  Layouts: every element's spot and anchor kept under a name, per profile. Loading one is a
+--  change like any other, so Undo takes it back; a locked element stays where it is.
+-------------------------------------------------------------------------------
+local function Layouts()
+    local db = ns.UnlockModeSettings.DB()
+    if type(db.layouts) ~= "table" then db.layouts = {} end
+    return db.layouts
+end
+
+-- The layout last saved or loaded, while it still exists.
+local function CurrentLayout()
+    local name = ns.UnlockModeSettings.Get("layout")
+    return name and Layouts()[name] and name
+end
+
+local function PaintLayout()
+    if configToolbar then configToolbar._layout.label:SetText(CurrentLayout() or ns.L("Layouts")) end
+end
+
+local function SaveLayout(name)
+    Layouts()[name] = Snapshot()
+    ns.UnlockModeSettings.Set("layout", name)
+    PaintLayout()
+end
+
+local function LoadLayout(name)
+    local saved = Layouts()[name]
+    if InCombatLockdown() or placement.dragging or not saved then return end
+    local locked, snap = Marks("locked"), { spots = {}, anchors = {} }
+    for label, spot in pairs(saved.spots) do
+        if not locked[label] then snap.spots[label] = spot end
+    end
+    for label, info in pairs(saved.anchors) do
+        if not locked[label] then snap.anchors[label] = info end
+    end
+    for label, info in pairs(Anchors()) do
+        if locked[label] and type(info) == "table" then snap.anchors[label] = info end
+    end
+    Checkpoint()
+    Restore(snap)
+    ReapplyAll()
+    if Grouped() then ShowSelection() end
+    ns.UnlockModeSettings.Set("layout", name)
+    PaintLayout()
+end
+
+-- "|" starts an escape code wherever the name is drawn.
+local function NamePrompt(title, text, save)
+    ns.PromptText(title, text, LAYOUT_LETTERS, function(name)
+        name = strtrim((name:gsub("|", "")))
+        if name ~= "" then save(name) end
+    end)
+end
+
+local function NewLayout()
+    NamePrompt("Name the new layout", "", function(name)
+        if not Layouts()[name] then return SaveLayout(name) end
+        ns.Confirm(("Replace the layout %s with where everything is now?"):format(name), function() SaveLayout(name) end)
+    end)
+end
+
+local function RenameLayout()
+    local current = CurrentLayout()
+    NamePrompt("Rename this layout", current, function(name)
+        local layouts = Layouts()
+        if name == current then return end
+        if layouts[name] then return ns.Print(("There is already a layout named %s."):format(name)) end
+        layouts[name], layouts[current] = layouts[current], nil
+        ns.UnlockModeSettings.Set("layout", name)
+        PaintLayout()
+    end)
+end
+
+local function DeleteLayout()
+    local current = CurrentLayout()
+    ns.Confirm(("Delete the layout %s? Everything stays where it is now."):format(current), function()
+        Layouts()[current] = nil
+        ns.UnlockModeSettings.Set("layout", nil)
+        PaintLayout()
+    end)
+end
+
+local function LayoutMenu(owner)
+    local names = {}
+    for name in pairs(Layouts()) do names[#names + 1] = name end
+    table.sort(names, function(a, b) return a:lower() < b:lower() end)
+    local current = CurrentLayout()
+    MenuUtil.CreateContextMenu(owner, function(_, root)
+        root:CreateTitle("Layouts")
+        for _, name in ipairs(names) do
+            root:CreateRadio(name, function() return name == CurrentLayout() end, LoadLayout, name)
+        end
+        root:CreateDivider()
+        if current then root:CreateButton("Save to " .. current, function() SaveLayout(current) end) end
+        root:CreateButton("Save as New Layout", NewLayout)
+        if current then
+            root:CreateButton("Rename " .. current, RenameLayout)
+            root:CreateButton("Delete " .. current, DeleteLayout)
+        end
+    end)
 end
 
 local function BuildConfigToolbar()
@@ -1873,6 +1978,9 @@ local function BuildConfigToolbar()
     y = y + EXIT_H + BAR_GAP
     f._guides = BarSwitch(f, "Guides", 0, y, GuidesOn, function(v) ns.UnlockModeSettings.Set("guides", v) end)
     ns.Tooltip(f._guides, "Guides", "Lines a dragged element up with the others and the screen centre. Hold Alt to drag freely.")
+    f._layout = ns.Button(f, "Layouts", SWITCH_COL, EXIT_H, function() LayoutMenu(f._layout) end)
+    f._layout:SetPoint("TOPRIGHT", -BAR_PAD, -(y + (SWITCH_H - EXIT_H) / 2))
+    ns.Tooltip(f._layout, "Layouts", "Saves where everything is under a name, to load again later.")
     y = y + SWITCH_ROW
     local switches = {}
     if #toolbarChecks > 0 then
@@ -1903,6 +2011,7 @@ function ns.ShowRaidReminderAnchorConfig()
     local f = BuildConfigToolbar()
     f._guides._refreshValue()
     PaintHistory()
+    PaintLayout()
     ShowPanel(ns.UnlockModeSettings.Get("elementsPanel") ~= false)
     for _, item in ipairs(placement.items) do PaintMarks(item) end
     if f._section then f._section:SetText(toolbarSection()) end

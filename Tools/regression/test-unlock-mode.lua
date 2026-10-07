@@ -3,7 +3,8 @@
 -- the screen centre; a drag lines up on guides; Anchor ties an element to another so it
 -- follows from the side picked, keeping a typed gap; the Elements panel finds, hides and locks
 -- them; every change can be undone; Shift-click selects several to move, align and space
--- together; and the anchors and snap switch from before are dropped without moving anything.
+-- together; layouts keep every position under a name; and the anchors and snap switch from
+-- before are dropped without moving anything.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local function Near(a, b) return a and b and math.abs(a - b) < 0.01 end
@@ -153,6 +154,7 @@ local cursor = { x = 0, y = 0 }
 local combat, shift, alt, ctrl = false, false, false, false
 local settings = {}
 local printed = {}
+local menu, prompt, confirm
 local T = { accent = { r = 0, g = 0.5, b = 1 }, accentSoft = { r = 0.3, g = 0.7, b = 1 }, fg = { r = 1, g = 1, b = 1 },
     muted = { r = 0.6, g = 0.6, b = 0.6 }, line = { r = 0.2, g = 0.2, b = 0.2 }, grey = { r = 0.2, g = 0.2, b = 0.2 },
     panel = { r = 0.1, g = 0.1, b = 0.1 }, bg = { r = 0, g = 0, b = 0 } }
@@ -222,6 +224,10 @@ local ns = {
     L = function(text) return text end,
     Color = function(_, text) return text end,
     Print = function(msg) printed[#printed + 1] = msg end,
+    PromptText = function(title, text, maxLetters, onAccept)
+        prompt = { title = title, text = text, maxLetters = maxLetters, accept = onAccept }
+    end,
+    Confirm = function(text, onYes) confirm = { text = text, yes = onYes } end,
     HideRaidReminderAnchorConfig = function() printed[#printed + 1] = "left HUD Editor" end,
     OpenOptionsWindow = function(page) printed[#printed + 1] = "opened " .. page end,
     Apply = NOOP,
@@ -249,6 +255,8 @@ local env = setmetatable({
     IsAltKeyDown = function() return alt end,
     IsControlKeyDown = function() return ctrl end,
     GetCurrentKeyBoardFocus = function() return nil end,
+    MenuUtil = { CreateContextMenu = function(owner, gen) menu = { owner = owner, gen = gen } end },
+    strtrim = function(text) return (text:gsub("^%s+", ""):gsub("%s+$", "")) end,
     GetCursorPosition = function() return cursor.x, cursor.y end,
     GetTime = function() return 0 end,
     wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
@@ -696,7 +704,7 @@ Check(not panel:IsShown(), "leaving the HUD Editor hides the panel")
 -- Several selected: Shift-click adds and takes away, the tag gives way to a bar over an outline
 -- round them all, and they align, space out, move and lock together.
 for _, m in ipairs({ meterMover, swingMover, timerMover }) do m:Hide() end
-local a1, a1Mover = Display("A1", 100, 20, -300, -300)
+local a1, a1Mover, a1Saved = Display("A1", 100, 20, -300, -300)
 local a2, a2Mover = Display("A2", 60, 20, -200, -260)
 local a3, a3Mover, a3Saved = Display("A3", 80, 20, -50, -320)
 ns.ShowRaidReminderAnchorConfig()
@@ -782,6 +790,102 @@ DragBy(a1Mover, a1, 0, 40)
 alt = false
 Check(Near(a1:GetBottom() - a2:GetTop(), gapBefore), "an anchored one in the selection moves once, keeping its gap")
 Fire(keys, "OnKeyDown", "ESCAPE")
+settings.anchoredTo = nil
+ns.HideRaidReminderAnchorConfig()
+
+-- Layouts: every spot and anchor kept under a name, loaded back as one change; a locked element
+-- stays where it is.
+local function Menu()
+    Fire(toolbar._layout, "OnClick")
+    local entries = {}
+    local root = {}
+    function root.CreateTitle(_, text) entries[#entries + 1] = { kind = "title", text = text } end
+    function root.CreateDivider() entries[#entries + 1] = { kind = "divider" } end
+    function root.CreateButton(_, text, fn) entries[#entries + 1] = { kind = "button", text = text, fn = fn } end
+    function root.CreateRadio(_, text, isSel, setSel, data)
+        entries[#entries + 1] = { kind = "radio", text = text, on = isSel(data), fn = function() setSel(data) end }
+    end
+    menu.gen(menu.owner, root)
+    return entries
+end
+local function Entry(entries, text)
+    for _, e in ipairs(entries) do
+        if e.text == text then return e end
+    end
+end
+local function Texts(entries)
+    local out = {}
+    for _, e in ipairs(entries) do out[#out + 1] = e.text or "-" end
+    return table.concat(out, ", ")
+end
+ns.ShowRaidReminderAnchorConfig()
+Flush()
+Check(toolbar._layout.label:GetText() == "Layouts" and Texts(Menu()) == "Layouts, -, Save as New Layout",
+    "with none saved the Layouts menu only saves a new one")
+Entry(Menu(), "Save as New Layout").fn()
+prompt.accept("Raid|")
+local raid1, raid2 = { Center(a1) }, { Center(a2) }
+Check(settings.layouts.Raid and settings.layout == "Raid" and toolbar._layout.label:GetText() == "Raid",
+    "a new layout is named, its name kept clear of escape codes, and shown on the button")
+
+UI.SelectMover(a1Mover)
+for _ = 1, 4 do Fire(keys, "OnKeyDown", "UP") end
+UI.SelectMover(a2Mover)
+for _ = 1, 6 do Fire(keys, "OnKeyDown", "LEFT") end
+settings.anchoredTo = { A3 = { target = "A1", side = "BOTTOM", x = 0, y = -8 } }
+Entry(Menu(), "Save as New Layout").fn()
+prompt.accept("  Solo ")
+Check(settings.layouts.Solo and settings.layouts.Solo.anchors.A3.target == "A1", "a second one, anchors and all")
+local entries = Menu()
+Check(Texts(entries) == "Layouts, Raid, Solo, -, Save to Solo, Save as New Layout, Rename Solo, Delete Solo"
+    and Entry(entries, "Solo").on and not Entry(entries, "Raid").on, "the menu lists them by name, the current one ticked")
+
+local solo1 = { Center(a1) }
+Entry(Menu(), "Raid").fn()
+Check(Near(Center(a1), raid1[1]) and Near(select(2, Center(a1)), raid1[2]) and Near(Center(a2), raid2[1])
+    and settings.anchoredTo.A3 == nil and toolbar._layout.label:GetText() == "Raid",
+    "loading one puts every element and anchor back")
+Check(Near(Last(a1Saved).y, raid1[2] - 540), "and saves each")
+Fire(toolbar._undo, "OnClick")
+Check(Near(select(2, Center(a1)), solo1[2]) and settings.anchoredTo.A3.target == "A1", "Undo takes the load back")
+
+settings.locked = { A2 = true }
+local held = { Center(a2) }
+Entry(Menu(), "Raid").fn()
+Check(Near(Center(a2), held[1]) and Near(Center(a1), raid1[1]) and Near(select(2, Center(a1)), raid1[2]),
+    "a locked element stays where it is")
+settings.locked = {}
+
+combat = true
+Entry(Menu(), "Solo").fn()
+combat = false
+Check(Near(select(2, Center(a1)), raid1[2]) and settings.layout == "Raid", "not in combat")
+
+UI.SelectMover(a1Mover)
+Fire(keys, "OnKeyDown", "DOWN")
+Entry(Menu(), "Save to Raid").fn()
+Check(Near(settings.layouts.Raid.spots.A1[2], raid1[2] - 1 - 540), "Save to keeps where everything is now")
+Entry(Menu(), "Save as New Layout").fn()
+prompt.accept("Solo")
+Check(confirm and confirm.text:find("Solo") and settings.layout == "Raid", "a name in use asks before replacing it")
+confirm.yes()
+Check(Near(settings.layouts.Solo.spots.A1[2], raid1[2] - 1 - 540) and settings.layout == "Solo", "and replaces it")
+
+Entry(Menu(), "Rename Solo").fn()
+Check(prompt.text == "Solo", "Rename starts from the name")
+prompt.accept("Raid")
+Check(settings.layouts.Solo and printed[#printed]:find("already"), "a name in use is refused")
+Entry(Menu(), "Rename Solo").fn()
+prompt.accept("Dungeon")
+Check(settings.layouts.Dungeon and not settings.layouts.Solo and settings.layout == "Dungeon"
+    and toolbar._layout.label:GetText() == "Dungeon", "renamed")
+confirm = nil
+Entry(Menu(), "Delete Dungeon").fn()
+Check(confirm and settings.layouts.Dungeon, "Delete asks first")
+confirm.yes()
+Check(not settings.layouts.Dungeon and settings.layouts.Raid and settings.layout == nil
+    and toolbar._layout.label:GetText() == "Layouts", "and deletes it, nothing current")
+UI.ClearMoverSelection()
 settings.anchoredTo = nil
 ns.HideRaidReminderAnchorConfig()
 
