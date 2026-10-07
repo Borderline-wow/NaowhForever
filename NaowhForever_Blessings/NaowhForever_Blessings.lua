@@ -61,6 +61,8 @@ local YELLOW = { r = 1, g = 0.85, b = 0.3 }
 local BLUE = { r = 0.35, g = 0.6, b = 1 }
 local ICON_BORDER = { r = 0, g = 0, b = 0 }
 local MARK_SIZE, LABEL_SIZE, LABEL_MIN = 14, 10, 7
+local CLASS_ICONS = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
+local CLASS_ICON_MIN, CLASS_ICON_MAX = 12, 24
 local HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
 local AURA_TIP = "Left-click: cast your aura.\nRight-click: choose it."
 local FURY_TIP = "Left-click: cast it on yourself."
@@ -755,9 +757,24 @@ local function FitLabel(label, text, width, font, outline)
     if label:GetUnboundedStringWidth() > width then label:SetWidth(width) end
 end
 
+-- The class's own icon under its button, for Class Label Style: Class Icon. Made the first
+-- time it is asked for, so the default Name style builds nothing extra.
+local function ClassIcon(frame)
+    local icon = frame.classIcon
+    if icon then return icon end
+    icon = frame:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOP", frame, "BOTTOM", 0, -2)
+    icon:SetTexture(CLASS_ICONS)
+    local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[frame.class]
+    if coords then icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4]) end
+    frame.classIcon = icon
+    return icon
+end
+
 function Look.Read()
     Look.size, Look.gap, Look.groupGap = S.Get("blessBarSize"), S.Get("blessSpacing"), S.Get("blessGroupSpacing")
     Look.timerSize, Look.labels = S.Get("blessTimerSize"), S.Get("blessShowLabels")
+    Look.icons = S.Get("blessLabelStyle") == "icon"
     Look.font, Look.outline = S.Get("blessFont"), S.Get("blessOutline")
     if S.Get("blessThemeColors") then
         deepAccent = deepAccent or { r = T.accent.r * 0.6, g = T.accent.g * 0.6, b = T.accent.b * 0.6 }
@@ -776,13 +793,27 @@ function Look.Place(frame, row, x)
     Parts.HudFont(frame.mark, font, MARK_SIZE, outline)
     frame.mark:SetTextColor(missing.r, missing.g, missing.b)
     if frame.label then
-        frame.label:SetShown(Look.labels)
-        FitLabel(frame.label, frame.labelText, size + Look.gap, font, outline)
+        local name, icon = Look.labels and not Look.icons, Look.labels and Look.icons
+        frame.label:SetShown(name)
+        if name then FitLabel(frame.label, frame.labelText, size + Look.gap, font, outline) end
+        if icon then
+            local classIcon, side = ClassIcon(frame), Look.IconSize()
+            classIcon:SetSize(side, side)
+            classIcon:Show()
+        elseif frame.classIcon then
+            frame.classIcon:Hide()
+        end
     end
     frame:ClearAllPoints()
     frame:SetPoint("LEFT", row, "LEFT", x, 0)
     frame:Show()
     return x + size + Look.gap
+end
+
+-- The class icon: two thirds of the button, kept between CLASS_ICON_MIN and CLASS_ICON_MAX so
+-- it stays readable and always fits under its button.
+function Look.IconSize()
+    return math.max(CLASS_ICON_MIN, math.min(CLASS_ICON_MAX, math.floor(Look.size * 2 / 3 + 0.5)))
 end
 
 function Look.Gap(x)

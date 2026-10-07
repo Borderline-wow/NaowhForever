@@ -48,6 +48,7 @@ function methods:SetText(t) self.text = t end
 -- Roughly how wide text draws: half its font size per letter.
 function methods:GetUnboundedStringWidth() return #(self.text or "") * (self.size or 10) / 2 end
 function methods:SetTexture(t) self.texture = t end
+function methods:SetTexCoord(...) self.coords = { ... } end
 function methods:SetVertexColor(r, g, b) self.vertex = { r, g, b } end
 function methods:SetTextColor(r, g, b) self.color = { r, g, b } end
 function methods:CreateTexture() return New("Texture", self) end
@@ -55,7 +56,8 @@ function methods:CreateFontString() return New("FontString", self) end
 
 local settings = {}
 local defaults = { blessings = true, blessBarSize = 30, blessSpacing = 6, blessGroupSpacing = 6,
-    blessTimerSize = 14, blessShowLabels = true, blessTimers = true, blessShowAura = true, blessShowFury = false }
+    blessTimerSize = 14, blessShowLabels = true, blessTimers = true, blessShowAura = true, blessShowFury = false,
+    blessLabelStyle = "name" }
 local sets = 0
 local S = {}
 function S.Get(k) local v = settings[k]; if v == nil then return defaults[k] end return v end
@@ -126,6 +128,8 @@ local env = setmetatable({
     UnitName = function() return "Glyadin" end,
     GetRealmName = function() return "Forever" end,
     LOCALIZED_CLASS_NAMES_MALE = { WARRIOR = "Warrior", PRIEST = "Priest", ROGUE = "Rogue", MAGE = "Mage" },
+    CLASS_ICON_TCOORDS = { WARRIOR = { 0, 0.25, 0, 0.25 }, PRIEST = { 0.49, 0.74, 0.25, 0.5 },
+        ROGUE = { 0.49, 0.74, 0, 0.25 }, MAGE = { 0.25, 0.49, 0, 0.25 } },
     MenuUtil = { CreateContextMenu = function(owner, generate)
         menu = Root()
         menu.owner = owner
@@ -274,6 +278,30 @@ settings.blessBarSize, settings.blessSpacing = nil, nil
 studio.paint(preview, "group")
 check("with room again the full name comes back at its size", warriorCell.label.text == "Warrior"
     and warriorCell.label.size == 10 and mageCell.label.text == "Mage" and mageCell.label.size == 10)
+check("the Name style builds no class icon", warriorCell.classIcon == nil)
+
+-- Class Label Style: Class Icon shows the class's icon under its button instead of its name,
+-- two thirds of the button, between 12 and 24 px.
+settings.blessLabelStyle = "icon"
+studio.paint(preview, "group")
+local classIcon = warriorCell.classIcon
+check("Class Icon shows the class's icon in place of the name", classIcon and classIcon.shown
+    and not warriorCell.label.shown and classIcon.coords and classIcon.coords[2] == 0.25
+    and mageCell.classIcon.coords[1] == 0.25)
+check("the icon is two thirds of the button", classIcon.w == 20 and classIcon.h == 20)
+settings.blessBarSize = 70
+studio.paint(preview, "group")
+check("the icon stops at 24 px on big buttons", classIcon.w == 24)
+settings.blessBarSize = 20
+studio.paint(preview, "group")
+check("and keeps two thirds on small ones", classIcon.w == 13)
+settings.blessShowLabels = false
+studio.paint(preview, "group")
+check("Class Labels off hides the icon too", not classIcon.shown and not warriorCell.label.shown)
+settings.blessBarSize, settings.blessShowLabels, settings.blessLabelStyle = nil, nil, nil
+studio.paint(preview, "group")
+check("back on Name the name returns and the icon hides", warriorCell.label.shown and not classIcon.shown
+    and warriorCell.label.text == "Warrior")
 
 -- Off: nothing in the preview edits.
 settings.blessings = false

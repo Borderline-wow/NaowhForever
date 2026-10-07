@@ -205,6 +205,8 @@ if not Settings then return end
 local Group = Settings.Group
 
 local BLESSINGS_OFF = "Turn on Blessings"
+local LABELS_OFF = "Turn on Blessings and Class Labels"
+local LABEL_STYLES = { values = { name = "Name", icon = "Class Icon" }, order = { "name", "icon" } }
 local St = ns.Shared.Style
 local STAGE_H, STAGE_MARGIN, LABEL_ROOM = 160, 16, 14
 local NOTE_Y, NOTE_SIZE, NOTE_LINE = 10, 11, 15
@@ -245,6 +247,7 @@ local NOTES = {
 local THEMED_GROUP = "Accent: missing the class blessing. Lighter: running out. Deeper: only players with their own."
 
 local function On() return S.Get("blessings") == true end
+local function LabelsOn() return On() and S.Get("blessShowLabels") == true end
 
 local function Wheel(_, delta)
     if not On() then return end
@@ -475,7 +478,7 @@ end
 
 local function Fit(preview)
     local bar = preview.bar
-    local below = Look.labels and LABEL_ROOM or 0
+    local below = Look.labels and (Look.icons and Look.IconSize() + 2 or LABEL_ROOM) or 0
     local w, h = bar:GetWidth(), bar:GetHeight() + below
     local roomW = preview:GetWidth() - STAGE_MARGIN * 2
     local roomH = preview:GetHeight() - STAGE_MARGIN * 2 - TEXT_ROOM
@@ -584,7 +587,9 @@ page:Card({
         { key = "blessShowFury", label = FURY_LABEL, toggle = true, needs = On, why = BLESSINGS_OFF,
           help = "Casts Righteous Fury on yourself. A red ! means it is not up." },
         { key = "blessShowLabels", label = "Class Labels", toggle = true, needs = On, why = BLESSINGS_OFF,
-          help = "Each class's name under its button." },
+          help = "Each class's name or icon under its button." },
+        { key = "blessLabelStyle", label = "Class Label Style", choice = LABEL_STYLES, needs = LabelsOn,
+          why = LABELS_OFF, help = "The class's name, or its class icon, which fits however small the buttons are." },
         { key = "blessTimers", label = "Minutes Left", toggle = true, needs = On, why = BLESSINGS_OFF,
           help = "Minutes left on each class's shortest blessing, and on each player's." },
         Group("Size"),
