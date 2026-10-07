@@ -116,10 +116,10 @@ for path, s in pairs(sources) do
 end
 Check(movers >= 29, "every mover was found (" .. movers .. ")")
 
--- The selected element's tag has Settings only with a page; opening it leaves Move Elements.
+-- The selected element's tag has Settings only with a page; opening it leaves the HUD Editor.
 local unlock = Read("Core/NaowhForever_UnlockMode.lua")
 Check(unlock:find("tag.settings:SetShown(item.page ~= nil)", 1, true), "Settings needs a page")
 Check(unlock:find("ns.HideRaidReminderAnchorConfig()\n    ns.OpenOptionsWindow(item.page)", 1, true),
-    "Settings leaves Move Elements before opening the page")
+    "Settings leaves the HUD Editor before opening the page")
 
 print(("test-element-options: %d checks passed"):format(checks))

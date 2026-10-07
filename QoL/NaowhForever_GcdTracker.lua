@@ -402,7 +402,7 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
     id = "gcdTracker", name = "GCD Tracker", order = 60, switch = "gcdTracker",
     help = "Your recent casts as icons scrolling away from a point, with a bar underneath while "
         .. "you were casting or on the global cooldown. Gaps in the bar are time spent doing "
-        .. "nothing. Move it with Move Elements.",
+        .. "nothing. Move it in the HUD Editor.",
     summary = Summary,
     rows = {
         Group("When"),

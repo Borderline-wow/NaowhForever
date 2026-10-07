@@ -119,7 +119,7 @@ local Settings = ns.Shared.Settings
 Settings.Page("QoL/Loot & Items", S):Card({
     id = "durability", name = "Durability", order = 80, switch = "durability",
     help = "Text on screen when any piece of gear drops below the threshold. Hidden in "
-        .. "combat. Move it with Move Elements.",
+        .. "combat. Move it in the HUD Editor.",
     summary = DurabilitySummary,
     rows = {
         { key = "durabilityBelow", label = "Warn Below", slider = { 5, 100, 1 }, unit = "%" },

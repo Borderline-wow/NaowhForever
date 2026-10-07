@@ -1458,7 +1458,7 @@ ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "topBar", name = "Top Bar", order = 10, switch = "enabled",
     help = "Your buttons on either side of the clock, with FPS and latency underneath. Arrange the "
         .. "buttons in the preview: drag one to move it, its x removes it, a side's + adds one. Move "
-        .. "the bar with Move Elements.",
+        .. "the bar in the HUD Editor.",
     summary = Summary,
     studio = { height = 120, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = ROWS,

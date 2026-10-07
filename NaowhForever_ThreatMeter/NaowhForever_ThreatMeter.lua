@@ -1076,7 +1076,7 @@ end
 local function Detail()
     local shown = "Shown " .. (VISIBILITY[S.Get("visibility")] or VISIBILITY.threat):lower()
     if S.Get("warnSound") then return ("%s, warns at %d%% of pulling aggro."):format(shown, S.Get("warnAt")) end
-    return shown .. ". Unlock its window to drag and resize it, or place it with Move Elements."
+    return shown .. ". Unlock its window to drag and resize it, or place it in the HUD Editor."
 end
 
 local function MeterSummary(store)
@@ -1099,7 +1099,7 @@ page:Card({
     id = "meter", name = "Meter", order = 10,
     help = "Threat on your target or focus for everyone in your group, one bar each. A friendly target "
         .. "shows the enemy it is fighting. Scroll the meter for more entries; unlock its window to drag "
-        .. "and resize it, or place it with Move Elements.",
+        .. "and resize it, or place it in the HUD Editor.",
     summary = MeterSummary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
@@ -1119,7 +1119,7 @@ page:Card({
         { key = "width", label = "Width", slider = WIDTH_RANGE, needs = Enabled, why = OFF },
         { key = "height", label = "Window Height", slider = HEIGHT_RANGE, needs = Enabled, why = OFF },
         { key = "locked", label = "Lock Window", toggle = true, needs = Enabled, why = OFF,
-          help = "Off: drag the title bar or resize with the corner grip, outside combat. Move Elements "
+          help = "Off: drag the title bar or resize with the corner grip, outside combat. The HUD Editor "
               .. "works either way." },
         { key = "showHeader", label = "Show Target Name", toggle = true, needs = Enabled, why = OFF,
           help = "A title bar naming the mob the threat is on." },

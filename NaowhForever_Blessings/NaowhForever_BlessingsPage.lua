@@ -572,7 +572,7 @@ page:Card({
     id = "bar", name = "Blessing Bar", order = 10,
     help = "For paladins, a button per class in your group. Left-click blesses the next member of that class "
         .. "who needs it, missing first, skipping anyone dead or out of range. Right-click a class to choose "
-        .. "its blessing or open its player list. Move it with Move Elements. The preview edits it: right-click a "
+        .. "its blessing or open its player list. Move it in the HUD Editor. The preview edits it: right-click a "
         .. "class for its blessing, click the aura to choose it, wheel for size and Shift-wheel for spacing, drag "
         .. "the gap after the aura, x hides a button and + brings it back.",
     summary = BarSummary,

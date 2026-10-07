@@ -285,7 +285,7 @@ page:Card({
 
 page:Card({
     id = "alert", name = "Defensive Alert", order = 20,
-    help = "The icon and callout that tell you which defensive to press. Move it with Move Elements.",
+    help = "The icon and callout that tell you which defensive to press.",
     summary = AlertSummary,
     studio = { height = STAGE_H, states = ALERT_STATES, new = NewAlert, paint = PaintAlert },
     rows = {
@@ -344,8 +344,7 @@ page:Card({
 
 page:Card({
     id = "displays", name = "Reminder Displays", order = 40,
-    help = "How the reminders written on the boss pages look: a message, a timer, an icon, a bar or a "
-        .. "circle. Move each one with Move Elements.",
+    help = "How the reminders written on the boss pages look: a message, a timer, an icon, a bar or a circle.",
     studio = { height = STAGE_H, states = DISPLAY_STATES, new = NewDisplays, paint = PaintDisplays },
     rows = {
         Group("Message"),

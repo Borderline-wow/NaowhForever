@@ -1,6 +1,6 @@
 -- Run with Lua 5.1 from the repository root: the QoL text alerts' look settings (Combat Alert,
 -- Combat Timer, Stealth Reminder, Talent Points, Durability, Restock, Pet Tracker), loaded from
--- the real Shared files against stubs and shown through Move Elements. Each draws today's look
+-- the real Shared files against stubs and shown through the HUD Editor. Each draws today's look
 -- until a setting is touched: its font and size, outlined text, no background. Font, Font Size,
 -- Outline and Background then apply at once; a background fits the frame to its words. Combat
 -- Timer's old on/off background is saved as Card (its black panel) and None; Talent Points and

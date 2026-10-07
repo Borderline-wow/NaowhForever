@@ -613,7 +613,7 @@ for _, page in ipairs(UI.SearchPages()) do
     Check(not (page.module and page.module.name == "Smart Reminders"), "Smart Reminders off is not searched")
 end
 ns.ShowRaidReminderAnchorConfig(); Flush()
-Check(Text("Move Elements") and Text("Exit Config") and not Text("Snap Elements"), "Move Elements opens without Smart Reminders")
+Check(Text("HUD Editor") and Text("Exit Config") and not Text("Snap Elements"), "HUD Editor opens without Smart Reminders")
 Click(Button("Exit Config")); Flush()
 Check(not Text("Exit Config") and not ns.IsRaidReminderAnchorConfigActive(), "and Exit Config closes it")
 missingAddOns.NaowhForever_SmartReminders = nil

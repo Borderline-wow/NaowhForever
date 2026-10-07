@@ -34,20 +34,6 @@ function ns.BuildCustomRemindersPage(parent, yOffset)
         .. "work on trash and out in the world too.")
     y = y - 36
 
-    -- Anchors are profile-wide, so this sits before the journal check and stays reachable
-    -- on the first open, when the Dungeon Journal has not answered yet.
-    if ns.ShowRaidReminderAnchorConfig then
-        local anchorBtn = ns.Button(parent, "Customize Anchors", 200, 26, function()
-            ns.ShowRaidReminderAnchorConfig()
-        end)
-        anchorBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADX, y)
-        ns.Tooltip(anchorBtn, "Customize Anchors",
-            "Place and size each reminder display -- Message, Timer, Icon, Bar and Circle. "
-            .. "An alignment grid appears while you are in there. This window steps aside "
-            .. "and comes back when you press Exit Config.")
-        y = y - 36
-    end
-
     local data = ns.ScrapeBosses and ns.ScrapeBosses()
     if not (data and data.instances and #data.instances > 0) then
         local wait = ns.Font(parent, 12, nil, ns.THEME.muted)

@@ -284,7 +284,7 @@ page:Card({
     id = "tracker", name = "Tracker", order = 10, switch = "tracker",
     help = "Pops up when you enter a zone with books you still need, with a waypoint for each and your "
         .. "progress toward the next reward, and stays while you are in that zone. The X closes it until "
-        .. "you enter another. Move it with Move Elements.",
+        .. "you enter another. Move it in the HUD Editor.",
     summary = TrackerSummary,
     rows = {
         { key = "trackerAlways", label = "Always Show", toggle = true, needs = On, why = DISCOVERY_OFF,

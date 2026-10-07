@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  NaowhForever_UnlockMode.lua -- Move Elements' movers. An element is placed CENTER on the
+--  NaowhForever_UnlockMode.lua -- The HUD Editor's movers. An element is placed CENTER on the
 --  screen centre and saved there. Clicking one selects it; its tag holds its X and Y and what
 --  can be done with it. An element anchored to another follows it, keeping its gap.
 -------------------------------------------------------------------------------
@@ -9,7 +9,7 @@ local UI = ns.UI
 
 local BLACK = { r = 0, g = 0, b = 0 }
 -- A mover: the theme's background as dark glass over the element, an accent strip across its
--- top, and an edge in the line colour, muted grey under the mouse and the accent once selected.
+-- top, and a black edge, muted grey under the mouse and the accent once selected.
 local MOVER_FILL, MOVER_FILL_LIT = 0.55, 0.75
 local MOVER_STRIP = 2          -- the accent strip's height
 local NUDGE_FAR = 10           -- pixels a Shift + arrow moves
@@ -261,7 +261,7 @@ local function CenterAcross(item)
     if x and x ~= 0 then Nudge(item, -x * Pixel(), 0) end
 end
 
--- Out of Move Elements and onto the element's settings: the options window draws over the
+-- Out of the HUD Editor and onto the element's settings: the options window draws over the
 -- movers, so the two cannot share the screen.
 local function OpenSettings(item)
     ns.HideRaidReminderAnchorConfig()
@@ -404,7 +404,7 @@ local function BuildTag()
     tag.settings = ns.Button(tag, "Settings", SETTINGS_W, BOX_H, function()
         if tag.item then OpenSettings(tag.item) end
     end)
-    ns.Tooltip(tag.settings, "Settings", "Opens its settings and leaves Move Elements.")
+    ns.Tooltip(tag.settings, "Settings", "Opens its settings and leaves the HUD Editor.")
     return tag
 end
 
@@ -460,7 +460,7 @@ function Refresh(item)
     local h = item.handle
     local picked = item.selected or item.dragging
     local lit = picked or item.hovered
-    local edge = picked and T.accent or item.hovered and T.muted or T.line
+    local edge = picked and T.accent or item.hovered and T.muted or BLACK
     h._border:SetColor(edge.r, edge.g, edge.b, 1)
     h._fill:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, lit and MOVER_FILL_LIT or MOVER_FILL)
     h:SetFrameLevel(item.baseLevel + (lit and 100 or 0))
@@ -656,7 +656,7 @@ function UI.BindMover(handle, frame, label, onMoved, page, feature, ownAnchor)
     Refresh(item)
 end
 
--- Move Elements plate for an on-screen display. Hidden until the caller shows it. page,
+-- HUD Editor plate for an on-screen display. Hidden until the caller shows it. page,
 -- feature and ownAnchor: as UI.BindMover's.
 function UI.AttachMover(frame, label, onMoved, page, feature, ownAnchor)
     local mover = CreateFrame("Frame", nil, frame)
@@ -668,7 +668,7 @@ function UI.AttachMover(frame, label, onMoved, page, feature, ownAnchor)
     strip:SetPoint("TOPLEFT")
     strip:SetPoint("TOPRIGHT")
     strip:SetHeight(MOVER_STRIP)
-    mover._border = ns.Border(mover, T.line)
+    mover._border = ns.Border(mover, BLACK)
     local text = ns.Shared.Parts.HudText(ns.Font(mover, 12))
     text:SetPoint("CENTER", mover, "CENTER")
     text:SetText(label)
@@ -678,7 +678,7 @@ function UI.AttachMover(frame, label, onMoved, page, feature, ownAnchor)
     return mover
 end
 
---- The position to save for a window that drags itself outside Move Elements: CENTER on the
+--- The position to save for a window that drags itself outside the HUD Editor: CENTER on the
 --- screen centre, where it is now. Nil before it has a size.
 function UI.CenterPosition(frame)
     local l, r, t, b, ratio = Bounds(frame)
@@ -814,7 +814,7 @@ function ns.AddUnlockModeChecks(section, checks)
     for _, c in ipairs(checks) do toolbarChecks[#toolbarChecks + 1] = c end
 end
 
--- Move Elements' toolbar: the windows' backdrop and black edge, a header with the logo, the
+-- The HUD Editor's toolbar: the windows' backdrop and black edge, a header with the logo, the
 -- title and Exit Config, then the switches.
 local BAR_W, BAR_PAD, BAR_GAP = 352, 14, 10
 local BAR_HEAD = 40                   -- the header, down to its rule
@@ -869,7 +869,7 @@ local function BuildConfigToolbar()
     logo:SetPoint("LEFT", f, "TOPLEFT", BAR_PAD, -BAR_HEAD / 2)
     local title = ns.Font(f, 14)
     title:SetPoint("LEFT", logo, "RIGHT", LABEL_GAP, 0)
-    title:SetText("Move Elements")
+    title:SetText("HUD Editor")
     local exit = ns.AccentBorder(ns.Button(f, "Exit Config", EXIT_W, EXIT_H, function() ns.HideRaidReminderAnchorConfig() end))
     exit:SetPoint("RIGHT", f, "TOPRIGHT", -BAR_PAD, -BAR_HEAD / 2)
     BarRule(f, BAR_HEAD)

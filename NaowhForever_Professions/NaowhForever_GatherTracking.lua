@@ -233,7 +233,7 @@ Settings.Page("Professions/Settings", S):Card({
     id = "gather", name = "Tracking Reminder", order = 50, switch = "gatherReminder",
     help = "Shows an icon on screen while you know Find Herbs, Find Minerals or Find Fish but are tracking none "
         .. "of them. Click it to start tracking: left-click for the first, right-click for the second, "
-        .. "middle-click for the third. Hover it to see which is which. Hidden in combat. Move it with Move Elements.",
+        .. "middle-click for the third. Hover it to see which is which. Hidden in combat. Move it in the HUD Editor.",
     summary = GatherSummary,
     studio = { height = 130, states = PREVIEW_STATES, new = NewPreview, paint = PaintPreview },
     rows = {

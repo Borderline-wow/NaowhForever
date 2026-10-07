@@ -610,7 +610,7 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
     help = "Your focus target's casts on a bar of their own, coloured by whether your interrupt "
         .. "is ready, with a tick where it comes off cooldown and a shield on casts you cannot "
         .. "interrupt. Your interrupt is the first you know of Pummel, Shield Bash, Kick, "
-        .. "Counterspell, Earth Shock, Silence and Feral Charge. Move it with Move Elements.",
+        .. "Counterspell, Earth Shock, Silence and Feral Charge. Move it in the HUD Editor.",
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {

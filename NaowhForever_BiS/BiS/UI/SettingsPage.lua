@@ -126,7 +126,7 @@ page:Card({
 page:Card({
     id = "dropAlert", name = "Drop Alert", order = 20, switch = "bisLootAlert",
     help = "When an item on your list is up for a roll or in the loot window, and again when it is yours. "
-        .. "Move the on-screen alert with Move Elements.",
+        .. "Move the on-screen alert in the HUD Editor.",
     summary = AlertSummary,
     studio = B.AlertStudio,
     rows = {

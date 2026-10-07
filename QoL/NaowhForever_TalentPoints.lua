@@ -98,8 +98,8 @@ local Settings = ns.Shared.Settings
 
 Settings.Page("QoL/Questing & Group", S):Card({
     id = "talentPoints", name = "Talent Points", order = 30, switch = "talentPoints",
-    help = "Text on screen while you have talent points to spend. Hidden in combat. Move it with "
-        .. "Move Elements.",
+    help = "Text on screen while you have talent points to spend. Hidden in combat. Move it in the "
+        .. "HUD Editor.",
     rows = {
         Settings.Look("talentPoints", { text = true, size = { 10, 48, 1 }, background = "card" }),
         Settings.Group("Colours"),

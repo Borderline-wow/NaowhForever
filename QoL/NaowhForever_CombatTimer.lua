@@ -158,7 +158,7 @@ end
 
 Settings.Page("QoL/Combat", S):Card({
     id = "combatTimer", name = "Combat Timer", order = 90, switch = "combatTimer",
-    help = "How long the current fight has run, on screen while you fight. Move it with Move Elements.",
+    help = "How long the current fight has run, on screen while you fight. Move it in the HUD Editor.",
     summary = Summary,
     rows = {
         Group("When"),

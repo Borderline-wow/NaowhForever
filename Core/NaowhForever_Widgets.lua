@@ -1323,7 +1323,7 @@ local function CopyPlain(v)
 end
 
 -- What a profile string carries of a module: each setting it has a default for, as that type
--- (not the lists it keeps, which default to empty), and its Move Elements positions and anchors.
+-- (not the lists it keeps, which default to empty), and its HUD Editor positions and anchors.
 local function Shareable(defaults, k, v)
     if type(k) ~= "string" then return false end
     if k == "anchoredTo" then return type(v) == "table" and Plain(v, 0) end

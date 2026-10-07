@@ -1225,7 +1225,7 @@ Settings.Page("QoL/Loot & Items", S):Card({
     help = "The cheapest items in your bags as a row of icons, cheapest first. Ctrl-click an icon "
         .. "to delete it, or click it to sell it while a vendor is open. Middle-click to ignore "
         .. "an item. "
-        .. "Move it with Move Elements.",
+        .. "Move it in the HUD Editor.",
     summary = BagSpaceSummary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
