@@ -325,6 +325,17 @@ local function ModuleOn(mod)
     return ns.DB().enabled == true
 end
 
+function ns.ModuleSwitches()
+    local list = {}
+    for _, mod in ipairs(MODULES) do
+        local store = mod.addon and mod.settings and ns[mod.settings]
+        if store then
+            list[#list + 1] = { name = DisplayName(mod), store = store, key = mod.enabledKey or "enabled" }
+        end
+    end
+    return list
+end
+
 local function SetModuleOn(mod, on)
     if mod.addon and not on then return SwitchModuleAddon(mod, false) end
     if mod.addon then

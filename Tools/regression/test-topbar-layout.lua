@@ -101,6 +101,19 @@ check("drawn in saved order, missing and iconless brokers skipped", Join(drawn) 
     .. "right:hearth:M\\icon-hearth.png:true:nil:4,right:ldb:NaowhForeverBiS:M\\icon-bis.png:true:NaowhForeverBiS:4")
 check("skipped brokers stay in the layout", db.layout.left[1] == "ldb:Missing" and db.layout.right[1] == "ldb:NoIcon")
 
+-- Every Naowh Forever launcher in the default layout has its own glyph, and the file is there.
+local glyphs = assert(loadstring("local MEDIA = ...\n" .. GLYPH .. "\nreturn GLYPH"))("Media/TopBar/")
+local missing = {}
+for _, side in ipairs({ "left", "right" }) do
+    for _, key in ipairs(defaultLayout[side]) do
+        local name = key:match("^ldb:(NaowhForever.*)$")
+        local path = name and glyphs[name]
+        local file = path and io.open(path, "rb")
+        if file then file:close() elseif name then missing[#missing + 1] = name end
+    end
+end
+check("the default launchers all have a glyph file: " .. table.concat(missing, ", "), #missing == 0)
+
 -- Editing: every change saves a fresh layout through the store.
 local saved = db.layout
 local S

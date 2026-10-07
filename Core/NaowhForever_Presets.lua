@@ -252,6 +252,7 @@ ns.PRESETS = {
                 swingWindow = false,
             },
             threatMeter = {
+                enabled = false,
                 showHeader = false,
                 threatPos = {
                     point = "CENTER",

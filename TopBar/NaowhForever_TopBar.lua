@@ -34,6 +34,8 @@ local GLYPH = {
     NaowhForeverJournal = MEDIA .. "icon-journal.png",
     NaowhForeverBiS = MEDIA .. "icon-bis.png",
     NaowhForeverGroup = MEDIA .. "icon-group.png",
+    NaowhForeverTraining = MEDIA .. "icon-training.png",
+    NaowhForeverDiscovery = MEDIA .. "icon-discovery.png",
 }
 
 -- Clicks pass through to Blizzard's own button, the first of these that exists.

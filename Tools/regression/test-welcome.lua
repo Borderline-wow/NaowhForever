@@ -1,6 +1,7 @@
 -- Run with Lua 5.1 from the repository root: the welcome window (Core/NaowhForever_Welcome.lua)
 -- against stubs of the shared window parts. Checks that nothing is made at load; it shows a few
--- seconds after the first login, never on a reload, never during a loading screen, and waits
+-- seconds after the first login, or after a reload while it is still unseen (another addon's
+-- setup reloading over it), never during a loading screen, and waits
 -- for combat to end; once seen (closed, Esc or any button) it never shows by itself again; Join
 -- Discord puts the Discord link on the copy card, Open Settings opens the options; /nf welcome
 -- and the settings button open it again; and none of its words ask for support.
@@ -170,13 +171,27 @@ do
 end
 
 -------------------------------------------------------------------------------
---  A reload: never
+--  A reload before it was seen (another addon's setup reloaded over it): it comes back
 -------------------------------------------------------------------------------
 do
     local s = Setup()
     Event(s, "PLAYER_ENTERING_WORLD", false, true)
-    check("a reload starts no timer and stops listening", #s.timers == 0 and next(s.login.events) == nil)
+    check("an unseen reload waits a few seconds, like a login", #s.timers == 1 and s.timers[1].delay > 0
+        and s.windows == 0)
+    RunTimer(s)
+    check("then the window shows", Shown(s))
+end
+do
+    local s = Setup({ welcomeSeen = true })
+    Event(s, "PLAYER_ENTERING_WORLD", false, true)
+    check("seen: a reload starts no timer and stops listening", #s.timers == 0 and next(s.login.events) == nil)
     check("and makes nothing", s.windows == 0)
+end
+do
+    local s = Setup()
+    Event(s, "PLAYER_ENTERING_WORLD", false, false)
+    check("a world entry that is neither login nor reload does not start it", #s.timers == 0
+        and s.windows == 0)
 end
 
 -------------------------------------------------------------------------------

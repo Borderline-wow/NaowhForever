@@ -27,9 +27,10 @@ on:
 
 permissions: {}
 
-# Never cancel a release halfway through publishing.
+# Never cancel a release halfway through publishing. One queue per tag, so a push to main
+# straight after a release can never replace the tag run still waiting to publish.
 concurrency:
-  group: release
+  group: release-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

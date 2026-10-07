@@ -5,9 +5,10 @@
 -- SavedVariables) with its author's name after it; the other presets are kept as they are.
 -- Takes every module's settings and positions, the Macros settings and the look; Smart
 -- Reminders and what the exporter answered about EllesmereUI's windows (ns.PROFILE_OWN) are
--- left out, so a player asks as on a first run. Run from the repo root with Libs/:
---   lua5.1 Tools/build_presets.lua minimalist profile.txt
---   lua5.1 Tools/build_presets.lua recommended profile.lua Naowh
+-- left out, so a player asks as on a first run. Naowh's two are kept beside it, edited there
+-- and rebuilt from the repo root with Libs/:
+--   lua5.1 Tools/build_presets.lua minimalist Tools/preset_minimalist.lua Naowh
+--   lua5.1 Tools/build_presets.lua recommended Tools/preset_recommended.lua Naowh
 local INFO = {
     minimalist = { order = 1, name = "Minimalist", about = "Almost everything off, to turn on what you want." },
     recommended = { order = 2, name = "Recommended", about = "Naowh's recommended setup, with the modules he uses on." },

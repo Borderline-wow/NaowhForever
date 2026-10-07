@@ -2,7 +2,8 @@
 -- asks, then puts the profile in use to it: every module's settings and positions, keeping Smart
 -- Reminders and what this player answered about EllesmereUI's windows, telling the character and
 -- inspect panels so they swap back, remembering which it is, and offering the reload. Hovering
--- it lists what each other preset turns on and off, read from the feature cards' switches.
+-- it lists what each other preset turns on and off, read from the modules' and the feature
+-- cards' switches.
 -- Run from the repo root: lua5.1 Tools/regression/test-reset-defaults.lua
 local passed = 0
 local function check(name, ok)
@@ -31,6 +32,7 @@ local PRESETS = {
         qol = { characterPanel = false, lootFeed = false, preset = "minimalist",
             lootFeedPos = { point = "CENTER", x = 0, y = -124 } },
         topBar = { use24h = true },
+        threatMeter = { enabled = false },
         auraBuffs = { iconSize = 48 },
     }, account = {} },
     recommended = { name = "Recommended", about = "Naowh's setup.", profile = {
@@ -55,9 +57,17 @@ local pages = { ["QoL/Character"] = { cards = {
     lootFeed = { name = "Loot Feed", switch = "lootFeed", store = S },
     custom = { name = "Not A Switch", switch = { get = function() return true end }, store = S },
 } } }
+local T = { key = "threatMeter" }
+function T.Default(k) return k == "enabled" or nil end
+function T.Get(k)
+    local v = root.threatMeter and root.threatMeter[k]
+    if v == nil then return T.Default(k) end
+    return v
+end
 local card, asked, reload
 local ns = {
     QoLSettings = S, PRESETS = PRESETS,
+    ModuleSwitches = function() return { { name = "Threat Meter", store = T, key = "enabled" } } end,
     PROFILE_OWN = { qol = { "characterPanelAsked", "characterPanelTookOver", "inspectPanelAsked", "inspectPanelTookOver" } },
     SettingsRoot = function() return root end,
     Confirm = function(text, yes) asked = text; yes() end,
@@ -79,8 +89,8 @@ check("its choices are the presets by name", row.choice[1].minimalist == "Minima
     and row.choice[1].recommended == "Recommended")
 check("a profile no preset was applied to reads Custom", row.get() == "custom" and card.summary() == "Custom")
 local tip = row.tip()
-check("hovering lists what each preset turns on and off against yours now",
-    tip:find("Minimalist turns off: Character Panel", 1, true) ~= nil
+check("hovering lists what each preset turns on and off against yours now, modules too",
+    tip:find("Minimalist turns off: Character Panel, Threat Meter", 1, true) ~= nil
     and tip:find("Recommended turns on: Loot Feed", 1, true) ~= nil
     and not tip:find("Not A Switch", 1, true))
 row.set("minimalist")
@@ -98,6 +108,8 @@ check("the dropdown and the card now read Minimalist", row.get() == "minimalist"
 check("and the hover leaves out the one you have", not row.tip():find("Minimalist", 1, true)
     and row.tip():find("Recommended turns on: Loot Feed, Character Panel", 1, true) == nil
     and row.tip():find("Recommended turns on: Character Panel, Loot Feed", 1, true) ~= nil)
+check("a module a preset left off reads as turned back on by the other",
+    row.tip():find("Loot Feed, Threat Meter", 1, true) ~= nil)
 root.qol.lootFeedPos.y = 5
 check("a copy: the preset itself untouched", PRESETS.minimalist.profile.qol.lootFeedPos.y == -124)
 row.set("recommended")

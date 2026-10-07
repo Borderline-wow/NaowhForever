@@ -2,8 +2,8 @@
 --  NaowhForever_Defaults.lua -- QoL > System > Defaults: a Setup dropdown of Naowh's presets
 --  (ns.PRESETS). Picking one puts the profile in use to it after a confirm, then offers the
 --  reload (ns.UsePreset, also the welcome window's choice); hovering it lists what each one
---  turns on and off against your settings now (ns.PresetChanges), read from the feature cards'
---  own switches. Smart Reminders, what you answered about EllesmereUI's windows and the
+--  turns on and off against your settings now (ns.PresetChanges), read from the modules' and
+--  the feature cards' own switches. Smart Reminders, what you answered about EllesmereUI's windows and the
 --  account's data stay.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
@@ -47,22 +47,31 @@ end
 
 local function ByName(a, b) return a < b end
 
+local function Compare(profile, on, off, seen, name, store, switch)
+    if seen[name] or not (store and store.key) then return end
+    local values = profile[store.key]
+    local want = values and values[switch]
+    if want == nil then want = store.Default(switch) end
+    local now = store.Get(switch)
+    if want == true and now ~= true then
+        on[#on + 1], seen[name] = name, true
+    elseif want ~= true and now == true then
+        off[#off + 1], seen[name] = name, true
+    end
+end
+
 function ns.PresetChanges(key)
     local profile = P[key].profile
     local on, off, seen = {}, {}, {}
+    if ns.ModuleSwitches then
+        for _, mod in ipairs(ns.ModuleSwitches()) do
+            Compare(profile, on, off, seen, mod.name, mod.store, mod.key)
+        end
+    end
     for _, page in pairs(Settings.pages) do
         for _, card in pairs(page.cards) do
-            local store, switch = card.store, card.switch
-            if type(switch) == "string" and store and store.key and not seen[card.name] then
-                local values = profile[store.key]
-                local want = values and values[switch]
-                if want == nil then want = store.Default(switch) end
-                local now = store.Get(switch)
-                if want == true and now ~= true then
-                    on[#on + 1], seen[card.name] = card.name, true
-                elseif want ~= true and now == true then
-                    off[#off + 1], seen[card.name] = card.name, true
-                end
+            if type(card.switch) == "string" then
+                Compare(profile, on, off, seen, card.name, card.store, card.switch)
             end
         end
     end

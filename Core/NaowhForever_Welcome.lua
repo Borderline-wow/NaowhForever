@@ -1,8 +1,9 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Welcome.lua -- the welcome window: what Naowh Forever is, how to start, which
 --  of Naowh's setups to start from (ns.PRESETS: Minimalist or Recommended), and our Discord.
---  Shown once per account, a few seconds into the first login and out of combat; /nf welcome
---  and QoL > System open it again. Nothing is made until it shows. A preset picked on a new
+--  Shown once per account, a few seconds into the first login (or the reload another addon's
+--  setup asks for before it is seen) and out of combat; /nf welcome and QoL > System open it
+--  again. Nothing is made until it shows. A preset picked on a new
 --  account applies at once; picked again later, it asks first, as on the Defaults card.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
@@ -166,9 +167,11 @@ local function Due()
     ns.ShowWelcome()
 end
 
-login:SetScript("OnEvent", function(self, event, isInitialLogin)
+login:SetScript("OnEvent", function(self, event, isInitialLogin, isReloadingUi)
     if event == "PLAYER_ENTERING_WORLD" then
-        if not (armed or isInitialLogin) or ns.AccountSettings().welcomeSeen then return Stop() end
+        if not (armed or isInitialLogin or isReloadingUi) or ns.AccountSettings().welcomeSeen then
+            return Stop()
+        end
         armed = true
         if timer then timer:Cancel() end
         timer = C_Timer.NewTimer(SHOW_DELAY, Due)
