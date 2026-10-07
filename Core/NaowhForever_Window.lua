@@ -19,7 +19,7 @@ local SEARCH = { h = 26, top = 10, gap = 4, left = NAV_INSET, right = NAV_INSET 
 local SCROLL_BAR_GAP = 12 -- the page scrollbar sits this far right of the page, in its margin
 local LINK_ICONS = "Interface\\AddOns\\NaowhForever\\Media\\Links\\"
 local LINKS = {
-    { "Discord", "discord", function() return ns.NAOWH_DISCORD or "https://discord.com/invite/naowh" end },
+    { "Discord", "discord", function() return "https://discord.gg/V2eSJMBynn" end },
     { "Website", "website", function() return "https://naowh.gg" end },
     { "GitHub", "github", function() return "https://github.com/nwh-gaming-ab/NaowhForever" end },
 }
