@@ -25,6 +25,9 @@ local FOOT_SIZE, NEXT_ROOM, BTN_W, BTN_H, BTN_GAP = 12, 90, 48, 22, 6
 local CHEVRON_SIZE, TEXT_GAP, TEXT_DROP = 10, 5, 1
 local TRAIL_W, TRAIL_ALPHA, FILL_MIN = 48, 0.45, 0.01
 local HALOS = { { size = 32, alpha = 0.14 }, { size = 26, alpha = 0.22 } }
+-- Below this Background Opacity the card's text gets a shadow and its muted labels go bright,
+-- so they still read over the world.
+local SHADOW_BELOW = 0.5
 local SPAN = WIDTH - TRACK_H
 local ZONE_TOP = PAD + HEAD_H + ROW_GAP
 local LABEL_TOP = ZONE_TOP + ZONE_H + LABEL_GAP
@@ -33,7 +36,7 @@ local NEXT_CAP = WIDTH - 2 * (BTN_W + BTN_GAP) - NEXT_ROOM
 -- Yards per second, fitted to measured Classic flight times.
 local FLIGHT_SPEED = 30.4
 
-local bar, poll, unlocked, Apply, FadeBlizzardStop
+local bar, poll, unlocked, Apply, FadeBlizzardStop, StyleText
 local stopFaded = false
 local pending   -- { from, to, points, estimate, at }: a flight bought but not boarded yet
 local flight    -- { from, to, start, known, points, early, sample }
@@ -136,6 +139,8 @@ local function NewStop(f)
     m.hole:SetPoint("CENTER", m.ring)
     m.label = ns.Font(f, LABEL_SIZE)
     m.label:SetWordWrap(false)
+    f.texts[#f.texts + 1] = { m.label, LABEL_SIZE }
+    if f.font then StyleText(f, m.label, LABEL_SIZE) end
     return m
 end
 
@@ -188,12 +193,9 @@ local function NewTrack(f)
     body:SetPoint("BOTTOMRIGHT", -TRACK_H / 2, 0)
 
     f.lit = { HalfDisc(track, "BORDER", "LEFT", T.accent) }
-    f.fill = track:CreateTexture(nil, "BORDER")
-    f.fill:SetTexture(WHITE)
+    f.fill = track:CreateTexture(nil, "BORDER")   -- textured by Look.Style
     f.fill:SetPoint("LEFT", TRACK_H / 2, 0)
     f.fill:SetHeight(TRACK_H)
-    f.fill:SetGradient("HORIZONTAL", CreateColor(T.accent.r, T.accent.g, T.accent.b, 1),
-        CreateColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1))
     f.lit[2] = f.fill
     f.trail = track:CreateTexture(nil, "ARTWORK")
     f.trail:SetTexture(WHITE)
@@ -218,8 +220,10 @@ end
 
 function Look.New(f)
     f:SetSize(WIDTH + 2 * PAD, 2 * PAD + HEAD_H)
-    ns.Solid(f, "BACKGROUND", T.bg, CARD_ALPHA):SetAllPoints()
-    ns.Border(f, BORDER_RGB)
+    f.bg = ns.Solid(f, "BACKGROUND", T.bg, CARD_ALPHA)
+    f.bg:SetAllPoints()
+    f.border = ns.Border(f, BORDER_RGB)
+    f.texts = {}
 
     f.time = ns.Font(f, TIME_SIZE, nil, T.accent)
     f.time:SetPoint("BOTTOMRIGHT", f, "TOPRIGHT", -PAD, -PAD - HEAD_H)
@@ -244,9 +248,44 @@ function Look.New(f)
     f.sep:SetPoint("LEFT", f.nextName, "RIGHT", 0, 0)
     f.nextTime = ns.Font(f, FOOT_SIZE, nil, T.accentSoft)
     f.nextTime:SetPoint("LEFT", f.sep, "RIGHT", 0, 0)
+    for _, t in ipairs({ { f.time, TIME_SIZE }, { f.from, ROUTE_SIZE }, { f.to, ROUTE_SIZE }, { f.nextKey, FOOT_SIZE },
+        { f.nextName, FOOT_SIZE }, { f.sep, FOOT_SIZE }, { f.nextTime, FOOT_SIZE } }) do
+        f.texts[#f.texts + 1] = t
+    end
 
     f.land = ns.Button(f, "Land", BTN_W, BTN_H)
     f.games = ns.Button(f, "Games", BTN_W, BTN_H)
+end
+
+function StyleText(f, fs, size)
+    fs:SetFont(f.font, size, f.outline == "NONE" and "" or f.outline)
+    Parts.HudText(fs, f.shadow)
+end
+
+-- Background Opacity fades only the card's and its buttons' backgrounds and edges, never the
+-- route, the track or the text.
+function Look.Style(f)
+    local alpha = S.Get("flightTimerAlpha")
+    f.bg:SetAlpha(alpha)
+    f.border._frame:SetAlpha(alpha)
+    for _, b in ipairs({ f.land, f.games }) do
+        b._bg:SetAlpha(alpha)
+        b._border._frame:SetAlpha(alpha)
+    end
+    local bare = alpha < SHADOW_BELOW
+    f.font, f.outline = ns.UI.FontPath(S.Get("flightTimerFont")), S.Get("flightTimerOutline")
+    -- Over a faded card plain text takes a shadow too, or the world behind it swallows it.
+    if f.outline == "" then
+        f.shadow = bare and "none" or "card"
+    else
+        f.shadow = bare and f.outline == "NONE" and "none"
+    end
+    for _, t in ipairs(f.texts) do StyleText(f, t[1], t[2]) end
+    local c = bare and T.fg or T.muted
+    for _, fs in ipairs({ f.from, f.nextKey, f.sep }) do fs:SetTextColor(c.r, c.g, c.b, 1) end
+    f.fill:SetTexture(ns.UI.TexturePath(S.Get("flightTimerTexture"), WHITE))
+    f.fill:SetGradient("HORIZONTAL", CreateColor(T.accent.r, T.accent.g, T.accent.b, 1),
+        CreateColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1))
 end
 
 local function ShowNext(f, m)
@@ -625,6 +664,7 @@ function Apply()
     MigrateGame()
     if not bar then Build() end
     bar:SetScale(S.Get("flightTimerScale"))
+    Look.Style(bar)
     Place()
     if unlocked then
         bar.mover:Show()
@@ -643,8 +683,8 @@ function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "flightTimer" or key == "flightEarlyLanding" or key == "flightGame"
-        or key == "flightTimerScale" or key == "aimTrainer" then
+    if key == "enabled" or key == "flightEarlyLanding" or key == "flightGame"
+        or (key:find("^flightTimer") and key ~= "flightTimerPos") or key == "aimTrainer" then
         Apply()
     end
 end)
@@ -689,6 +729,7 @@ end
 local function PaintPreview(preview)
     local f = preview.bar
     local games = S.Get("enabled") and S.Get("flightGame") ~= "off"
+    Look.Style(f)
     Look.Layout(f, PREVIEW, S.Get("flightEarlyLanding") and true or false, games and true or false)
     Look.Progress(f, PREVIEW, PREVIEW_ELAPSED)
     local w, h = f:GetWidth(), f:GetHeight()
@@ -703,7 +744,9 @@ local function PaintPreview(preview)
 end
 
 local function Summary(store)
-    return ("Scale %d%%%s"):format(math.floor(store.Get("flightTimerScale") * 100 + 0.5),
+    local alpha = store.Get("flightTimerAlpha")
+    return ("Scale %d%%%s%s"):format(math.floor(store.Get("flightTimerScale") * 100 + 0.5),
+        alpha < 1 and (", %d%% background"):format(math.floor(alpha * 100 + 0.5)) or "",
         store.Get("flightEarlyLanding") and ", Land Early button" or "")
 end
 
@@ -715,7 +758,10 @@ Settings.Page("QoL/Travel", S):Card({
     rows = {
         { key = "flightEarlyLanding", label = "Land Early Button", toggle = true,
           help = "A Land button that lands you at the next flight point." },
+        Settings.Group("Size"),
         { key = "flightTimerScale", label = "Scale", slider = { 50, 200, 5 }, unit = "%", scale = 0.01 },
+        Settings.Look("flightTimer", { text = true, bar = "Flat", background = "alpha",
+            keys = { FontSize = false, BgAlpha = "flightTimerAlpha" } }),
     },
 })
 

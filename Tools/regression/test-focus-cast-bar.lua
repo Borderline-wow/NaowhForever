@@ -1,6 +1,8 @@
 -- Loads NaowhForever_FocusCastBar.lua against stubbed frames and cast APIs and checks the bar's
 -- colour while a focus cast runs (interrupt ready, on cooldown, uninterruptible), and what one
--- throttled update of a running cast costs: it must not build colour objects every tick.
+-- throttled update of a running cast costs: it must not build colour objects every tick. Also its
+-- look: the defaults draw today's flat, outlined bar, and font, outline, bar texture, background
+-- opacity and Apply Theme each apply on change.
 -- Run from the repo root: lua Tools/regression/test-focus-cast-bar.lua
 local f = assert(io.open(arg[1] or "QoL/NaowhForever_FocusCastBar.lua", "rb"))
 local source = f:read("*a"); f:close()
@@ -12,6 +14,8 @@ local Measure = dofile("Tools/regression/measure.lua")(check)
 local READY = { r = 0, g = 0.5, b = 1 }
 local COOLDOWN = { r = 0.5, g = 0.5, b = 0.5 }
 local NONINT = { r = 0.8, g = 0.2, b = 0.2 }
+local ACCENT, THEME_BG = { r = 0.3, g = 0.2, b = 0.9 }, { r = 0.05, g = 0.06, b = 0.07 }
+local FLAT = "Interface\\Buttons\\WHITE8X8"
 
 -- Blizzard's ColorMixin, cut down: CreateColor copies every method into a new table, as the
 -- client's CreateFromMixins does, so each one made is real garbage.
@@ -47,7 +51,8 @@ local methods = {
     IsShown = function(self) return self.shown end,
     SetAlpha = function(self, a) self.alpha = a end,
     GetAlpha = function(self) return self.alpha or 1 end,
-    SetVertexColor = function(self, r, g, b) self.r, self.g, self.b = r, g, b end,
+    SetVertexColor = function(self, r, g, b, a) self.r, self.g, self.b, self.a = r, g, b, a end,
+    SetStatusBarTexture = function(self, path) self.texture = path end,
     GetFrameLevel = function() return 1 end,
     GetWidth = function() return 300 end,
     CreateTexture = function(self) return Widget("Texture", self) end,
@@ -75,6 +80,7 @@ local values = {
     focusIcon = true, focusIconSide = "LEFT", focusSpellName = true, focusNameLength = 0,
     focusTarget = false, focusTime = true, focusShield = true, focusTick = false,
     focusTickColor = { r = 1, g = 1, b = 1 }, focusFont = "", focusFontSize = 12,
+    focusOutline = "OUTLINE", focusTexture = "", focusThemeColors = false,
     focusTextColor = { r = 1, g = 1, b = 1 }, focusFadeTime = 0.75, focusAudio = "none",
 }
 local S = { Get = function(k) return values[k] end, Set = function(k, v) values[k] = v end }
@@ -86,10 +92,12 @@ local kick = { IsZero = function() return state.kickReady end, GetRemainingDurat
 
 local frames = {}
 local ns = {
-    QoLSettings = S, THEME = { muted = {} },
-    UI = { FontPath = function() return "font" end, AttachMover = function() return Widget("Mover") end },
-    Shared = { Settings = { Group = function() return {} end,
-        Page = function() return { Card = Noop } end } },
+    QoLSettings = S, THEME = { muted = {}, accent = ACCENT, bg = THEME_BG },
+    UI = { FontPath = function() return "font" end, AttachMover = function() return Widget("Mover") end,
+        TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end },
+    Shared = { Settings = { Group = function() return {} end, Look = function() return {} end,
+        Page = function() return { Card = Noop } end },
+        Parts = { HudFont = function(fs, font, size, outline) fs.font = { font, size, outline } end } },
     Font = function(parent) return Widget("FontString", parent) end,
     Border = Noop,
     Apply = Noop, ShowRaidReminderAnchorConfig = Noop, HideRaidReminderAnchorConfig = Noop,
@@ -170,5 +178,32 @@ made = 0
 state.notInt = true
 Measure("an update of a running focus cast", 0.05, function() tick(cast, 0.05) end)
 check("no colour objects made per update", made == 0)
+
+local main
+for _, w in ipairs(frames) do
+    if w.bar == bar then main = w end
+end
+local function Font(fs, font, size, outline)
+    return fs.font[1] == font and fs.font[2] == size and fs.font[3] == outline
+end
+check("default: the flat bar", bar.texture == FLAT)
+check("default: outlined text in the Addon Font at 12", Font(main.nameText, "", 12, "OUTLINE")
+    and Font(main.timeText, "", 12, "OUTLINE"))
+check("default: the picked background", main.bg.r == 0.1 and main.bg.a == 0.8)
+S.Set("focusTexture", "Smooth")
+check("Bar Texture applies", bar.texture == "lsm:Smooth")
+S.Set("focusFont", "Arial")
+S.Set("focusFontSize", 16)
+S.Set("focusOutline", "")
+check("Font, Font Size and Outline apply", Font(main.nameText, "Arial", 16, "") and Font(main.targetText, "Arial", 16, ""))
+S.Set("focusBgAlpha", 0.4)
+check("Background Opacity applies", main.bg.a == 0.4)
+state.notInt, state.kickReady = false, true
+S.Set("focusThemeColors", true)
+check("Apply Theme: the theme's background", main.bg.r == THEME_BG.r and main.bg.a == 0.4)
+check("Apply Theme: the Accent for a ready interrupt", Is(ACCENT))
+env.RAID_CLASS_COLORS.ROGUE = { r = 1, g = 0.96, b = 0.41 }
+S.Set("focusReadyClassColor", true)
+check("Class Colour Ready still wins over the theme", Is(env.RAID_CLASS_COLORS.ROGUE))
 
 print(("PASS focus cast bar: %d checks"):format(checks))

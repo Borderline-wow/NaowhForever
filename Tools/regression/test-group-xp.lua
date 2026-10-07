@@ -6,7 +6,9 @@ local NO_ADDON = "|cff9ca3afno addon|r"
 -- Methods a stub frame lacks do nothing, from one shared function, so stubs add no garbage.
 local function Noop() end
 local NOOP_META = { __index = function() return Noop end }
-local DEFAULTS = { enabled = true, groupXP = true, groupXPShowSelf = true, groupXPWidth = 260 }
+local DEFAULTS = { enabled = true, groupXP = true, groupXPShowSelf = true, groupXPWidth = 260,
+    groupXPFont = "", groupXPFontSize = 12, groupXPOutline = "OUTLINE", groupXPTexture = "", groupXPBgAlpha = 0.85 }
+local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
 
 local function boot(settings)
     local s = { now = 0, timers = {}, sent = {}, created = {}, combat = false, group = true,
@@ -26,6 +28,9 @@ local function boot(settings)
         function f:Hide() self.shown = false end
         function f:SetShown(v) self.shown = v and true or false end
         function f:SetSize(w, h) self.w, self.h = w, h end
+        function f:SetHeight(h) self.h = h end
+        function f:SetStatusBarTexture(path) self.texture = path end
+        function f:SetColorTexture(_, _, _, a) self.alpha = a end
         function f:SetText(t) self.text = t end
         function f:SetValue(v) self.value = v end
         return f
@@ -39,7 +44,9 @@ local function boot(settings)
         Solid = function() return frame("Texture") end, Border = function() return frame("Border") end,
         Apply = function() end, ShowRaidReminderAnchorConfig = function() end,
         HideRaidReminderAnchorConfig = function() end,
-        UI = { AttachMover = function() return frame("Mover") end } }
+        UI = { AttachMover = function() return frame("Mover") end,
+            TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end },
+        Shared = { Parts = { HudFont = function(fs, font, size, outline) fs.font = font .. " " .. size .. " " .. outline end } } }
     ns.QoLSettings = {
         Get = function(k)
             local v = s.settings[k]
@@ -313,6 +320,25 @@ do
     check("and with your realm after it", s.rows():find("Tank: Lv 21  50.0%", 1, true) ~= nil)
     s.msg("2 Player-1-02 21 900 1200", "Tank Ironhide-Elsewhere")
     check("another realm's same name is not them", s.rows():find("Tank: Lv 21  50.0%", 1, true) ~= nil)
+end
+
+do -- the look: today's rows by default, then each option applies, a bigger font making taller rows
+    local s = boot()
+    local row, bar
+    for _, f in ipairs(s.created) do
+        if f.kind == "StatusBar" and f.parent.shown and not bar then bar, row = f, f.parent end
+    end
+    check("default: the gradient bar on its 85% background", bar.texture == GRADIENT and row.bg.alpha == 0.85)
+    check("default: outlined names at 12, bar text at 11, 18 tall", row.fonts[1].font == " 12 OUTLINE"
+        and bar.fonts[1].font == " 11 OUTLINE" and row.h == 18 and s.display.h == 3 * 20 - 2)
+    s.S.Set("groupXPTexture", "Smooth")
+    s.S.Set("groupXPBgAlpha", 0.4)
+    check("Bar Texture and Background Opacity apply", bar.texture == "lsm:Smooth" and row.bg.alpha == 0.4)
+    s.S.Set("groupXPFont", "Arial")
+    s.S.Set("groupXPOutline", "")
+    s.S.Set("groupXPFontSize", 16)
+    check("Font, Outline and Font Size apply", row.fonts[1].font == "Arial 16 " and bar.fonts[1].font == "Arial 15 ")
+    check("a bigger font makes taller rows", row.h == 22 and s.display.h == 3 * 24 - 2)
 end
 
 print(("PASS group XP: %d checks"):format(checks))

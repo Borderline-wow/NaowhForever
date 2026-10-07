@@ -6,13 +6,17 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 local PREFIX = "NaowhGroupXP"
 local GROUP_CHANNELS = { PARTY = true, RAID = true, INSTANCE_CHAT = true }
 local GUID_PATTERN = "^Player%-%d+%-%x+$"
 local MAX_LEVEL, MAX_XP = 1000, 2 ^ 31
 local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
-local ROW_H, NAME_W, GAP = 18, 90, 2
+-- At the default Font Size; a bigger font makes the rows taller and the names wider.
+local ROW_H, NAME_W, GAP, BASE_SIZE = 18, 90, 2, 12
+local ROW_PAD = ROW_H - BASE_SIZE
+local TEXT_SMALLER = 1 -- the bar's text, under the name's size
 
 local frame, unlocked, sendQueued, sendAfterCombat, requestPending
 -- GUID -> { level, xp, max }, from their messages. Forever's addon message sender is the
@@ -105,23 +109,32 @@ local Look = {}
 
 function Look.NewRow(parent)
     local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(ROW_H)
-    row.name = ns.Font(row, 12, "OUTLINE")
+    row.name = ns.Font(row, BASE_SIZE, "OUTLINE")
     row.name:SetPoint("LEFT")
-    row.name:SetWidth(NAME_W - 4)
     row.name:SetJustifyH("LEFT")
     row.name:SetWordWrap(false)
     row.bar = CreateFrame("StatusBar", nil, row)
-    row.bar:SetPoint("TOPLEFT", NAME_W, 0)
     row.bar:SetPoint("BOTTOMRIGHT")
-    row.bar:SetStatusBarTexture(GRADIENT)
-    row.bar:SetStatusBarColor(T.accent.r, T.accent.g, T.accent.b)
     row.bar:SetMinMaxValues(0, 1)
-    ns.Solid(row.bar, "BACKGROUND", T.bg, 0.85):SetAllPoints()
+    row.bg = ns.Solid(row.bar, "BACKGROUND", T.bg)
+    row.bg:SetAllPoints()
     ns.Border(row.bar, { r = 0, g = 0, b = 0 })
-    row.text = ns.Font(row.bar, 11, "OUTLINE")
+    row.text = ns.Font(row.bar, BASE_SIZE - TEXT_SMALLER, "OUTLINE")
     row.text:SetPoint("CENTER")
     return row
+end
+
+function Look.Style(row, size)
+    local font, outline = S.Get("groupXPFont"), S.Get("groupXPOutline")
+    local nameW = NAME_W * size / BASE_SIZE
+    row:SetHeight(math.max(ROW_H, size + ROW_PAD))
+    Parts.HudFont(row.name, font, size, outline)
+    row.name:SetWidth(nameW - 4)
+    Parts.HudFont(row.text, font, size - TEXT_SMALLER, outline)
+    row.bar:SetPoint("TOPLEFT", nameW, 0)
+    row.bar:SetStatusBarTexture(ns.UI.TexturePath(S.Get("groupXPTexture"), GRADIENT))
+    row.bar:SetStatusBarColor(T.accent.r, T.accent.g, T.accent.b)
+    row.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, S.Get("groupXPBgAlpha"))
 end
 
 -- data is nil for a member without the addon, who shows their level only.
@@ -151,13 +164,16 @@ local SAMPLE = {
 }
 
 function Look.Rows(owner, pool, list)
-    owner:SetSize(S.Get("groupXPWidth"), #list * (ROW_H + GAP) - GAP)
+    local size = S.Get("groupXPFontSize")
+    local step = math.max(ROW_H, size + ROW_PAD) + GAP
+    owner:SetSize(S.Get("groupXPWidth"), #list * step - GAP)
     for i, m in ipairs(list) do
         local row = pool[i] or Look.NewRow(owner)
         pool[i] = row
         row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", 0, -(i - 1) * (ROW_H + GAP))
-        row:SetPoint("TOPRIGHT", 0, -(i - 1) * (ROW_H + GAP))
+        row:SetPoint("TOPLEFT", 0, -(i - 1) * step)
+        row:SetPoint("TOPRIGHT", 0, -(i - 1) * step)
+        Look.Style(row, size)
         Look.Paint(row, m.name, m.class, m.level, m.data)
     end
     for i = #list + 1, #pool do pool[i]:Hide() end
@@ -348,6 +364,8 @@ Settings.Page("QoL/XP", S):Card({
     rows = {
         { key = "groupXPShowSelf", label = "Show Yourself", toggle = true,
           help = "Your own bar among the group's." },
+        Settings.Group("Size"),
         { key = "groupXPWidth", label = "Width", slider = { 160, 500, 10 } },
+        Settings.Look("groupXP", { text = true, size = { 8, 20, 1 }, bar = "Naowh Gradient", background = "alpha" }),
     },
 })

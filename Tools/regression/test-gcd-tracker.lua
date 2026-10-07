@@ -1,6 +1,7 @@
 -- Loads NaowhForever_GcdTracker.lua against stubbed frames and spell APIs and checks that the
 -- tracker draws a cast and its busy bar, then stops updating once nothing is left on it, wakes
--- again on the next cast, and what a frame costs while there is nothing to draw.
+-- again on the next cast, and what a frame costs while there is nothing to draw. Its busy bar
+-- is flat by default and takes the Bar Texture picked.
 -- Run from the repo root: lua Tools/regression/test-gcd-tracker.lua
 local f = assert(io.open(arg[1] or "QoL/NaowhForever_GcdTracker.lua", "rb"))
 local source = f:read("*a"); f:close()
@@ -21,6 +22,8 @@ local methods = {
     SetShown = function(self, v) self.shown = v and true or false end,
     IsShown = function(self) return self.shown end,
     CreateTexture = function(self) return Widget("Texture", self) end,
+    SetTexture = function(self, path) self.texture = path end,
+    SetVertexColor = function(self, r, g, b, a) self.r, self.g, self.b, self.a = r, g, b, a end,
 }
 local meta = { __index = function(_, k)
     local m = methods[k]
@@ -35,7 +38,7 @@ local values = {
     enabled = true, gcdTracker = true, gcdDuration = 5, gcdIconSize = 32, gcdSpacing = 4, gcdDirection = "RIGHT",
     gcdFadeStart = 0.5, gcdStack = true, gcdCombatOnly = false, gcdWorld = true, gcdDungeon = true,
     gcdRaid = true, gcdPvP = true, gcdBlocklist = "6603, 75", gcdTimelineColor = { r = 0, g = 0.5, b = 1 },
-    gcdTimelineHeight = 4, gcdDowntime = false,
+    gcdTimelineHeight = 4, gcdDowntime = false, gcdTexture = "",
 }
 local S = { Get = function(k) return values[k] end, Set = function(k, v) values[k] = v end }
 
@@ -44,8 +47,10 @@ local frames = {}
 local ns = {
     QoLSettings = S, ThemeTint = function(_, c) return c end, PixelInset = Noop,
     Apply = Noop, ShowRaidReminderAnchorConfig = Noop, HideRaidReminderAnchorConfig = Noop,
-    UI = { AttachMover = function() return Widget("Mover") end },
-    Shared = { Settings = { Group = function() return {} end, Page = function() return { Card = Noop } end } },
+    UI = { AttachMover = function() return Widget("Mover") end,
+        TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end },
+    Shared = { Settings = { Group = function() return {} end, Look = function() return {} end,
+        Page = function() return { Card = Noop } end } },
 }
 local env = setmetatable({
     _G = { NaowhForever = ns },
@@ -113,6 +118,15 @@ for _, w in ipairs(frames) do
     if w.tex and w.shown and w.parent == tracker then icons = icons + 1 end
 end
 check("the cast and its busy bar are drawn", icons >= 2)
+local seg
+for _, w in ipairs(frames) do
+    if w.tex and not w.glow and w.parent == tracker then seg = w end
+end
+check("the busy bar is flat by default, in its colour", seg.tex.texture == "Interface\\Buttons\\WHITE8X8"
+    and seg.tex.b == 1 and seg.tex.a == 0.6)
+S.Set("gcdTexture", "Smooth")
+Step(0.03)
+check("Bar Texture applies to the busy bar", seg.tex.texture == "lsm:Smooth" and seg.tex.b == 1)
 for _ = 1, 20 do Step(0.1) end
 check("still updating while the cast scrolls by", tracker.scripts.OnUpdate ~= nil)
 for _ = 1, 80 do Step(0.1) end

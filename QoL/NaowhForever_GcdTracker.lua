@@ -8,6 +8,7 @@ local UI = ns.UI
 
 -- The blue glow and border while a cast runs; ns.ThemeTint swaps in the player's Accent.
 local GCD_BLUE = { r = 0.01, g = 0.56, b = 0.91 }
+local FLAT = "Interface\\Buttons\\WHITE8X8"
 
 -- A baseline spell per class with no cooldown of its own, so any cooldown it shows is the
 -- global cooldown. Forever has no dedicated global cooldown spell.
@@ -167,6 +168,7 @@ local function Layout()
 
     local height = S.Get("gcdTimelineHeight")
     local c = S.Get("gcdTimelineColor")
+    local texture = UI.TexturePath(S.Get("gcdTexture"), FLAT)
     local perp = size / 2 + TIMELINE_GAP + height / 2
     for _, seg in ipairs(segments) do
         local startAge = math.min(now - seg.start, duration)
@@ -177,7 +179,11 @@ local function Layout()
             f = table.remove(segPool) or NewSeg()
             seg.frame = f
         end
-        f.tex:SetColorTexture(c.r, c.g, c.b, 0.6)
+        if f.texture ~= texture then
+            f.texture = texture
+            f.tex:SetTexture(texture)
+        end
+        f.tex:SetVertexColor(c.r, c.g, c.b, 0.6)
         f:ClearAllPoints()
         if dir.x ~= 0 then
             f:SetSize(length, height)
@@ -408,8 +414,6 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         Group("Icons"),
         { key = "gcdDirection", label = "Direction", choice = DIRECTION },
         { key = "gcdDuration", label = "Time Shown", slider = { 2, 15, 1 }, unit = "s" },
-        { key = "gcdIconSize", label = "Icon Size", slider = { 16, 64, 1 } },
-        { key = "gcdSpacing", label = "Spacing", slider = { 0, 20, 1 } },
         { key = "gcdFadeStart", label = "Fade From", slider = { 0, 95, 5 }, unit = "%", scale = 0.01,
           help = "How far along an icon starts to fade, from 0% (at once) to 95% (at the very end)." },
         { key = "gcdStack", label = "Stack Overlapping Casts", toggle = true,
@@ -417,10 +421,15 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         { key = "gcdBlocklist", label = "Hidden Spells", text = true, wide = true,
           help = "Spell IDs never shown, separated by commas. 6603 is Auto Attack, 75 is Auto Shot." },
         Group("Activity Bar"),
-        { key = "gcdTimelineColor", label = "Activity Bar Colour", colour = true },
-        { key = "gcdTimelineHeight", label = "Activity Bar Height", slider = { 1, 12, 1 } },
         { key = "gcdDowntime", label = "Downtime Summary", toggle = true,
           help = "After each fight longer than 15 seconds, how long you spent neither casting nor on "
               .. "the global cooldown, in chat." },
+        Group("Size"),
+        { key = "gcdIconSize", label = "Icon Size", slider = { 16, 64, 1 } },
+        { key = "gcdSpacing", label = "Spacing", slider = { 0, 20, 1 } },
+        { key = "gcdTimelineHeight", label = "Activity Bar Height", slider = { 1, 12, 1 } },
+        ns.Shared.Settings.Look("gcd", { bar = "Flat" }),
+        Group("Colours"),
+        { key = "gcdTimelineColor", label = "Activity Bar Colour", colour = true },
     },
 })

@@ -6,6 +6,7 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local UI = ns.UI
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 local BAR = "Interface\\Buttons\\WHITE8X8"
 local THROTTLE = 0.033
@@ -38,6 +39,12 @@ end
 
 local function ClassColor(key, classKey)
     if S.Get(classKey) then return RAID_CLASS_COLORS[select(2, UnitClass("player"))] end
+    return S.Get(key)
+end
+
+-- Apply Theme: the theme's Accent for the ready colour and its Background behind the bar.
+local function Themed(key, themeKey)
+    if S.Get("focusThemeColors") then return T[themeKey] end
     return S.Get(key)
 end
 
@@ -118,8 +125,9 @@ end
 function Look.Layout(f)
     local w, h = S.Get("focusWidth"), S.Get("focusHeight")
     f:SetSize(w, h)
-    local c = S.Get("focusBgColor")
+    local c = Themed("focusBgColor", "bg")
     f.bg:SetVertexColor(c.r, c.g, c.b, S.Get("focusBgAlpha"))
+    f.bar:SetStatusBarTexture(UI.TexturePath(S.Get("focusTexture"), BAR))
 
     local spell = f.icon
     spell:ClearAllPoints()
@@ -136,10 +144,10 @@ function Look.Layout(f)
     end
     spell:SetShown(S.Get("focusIcon"))
 
-    local font, size = UI.FontPath(S.Get("focusFont")), S.Get("focusFontSize")
+    local font, size, outline = S.Get("focusFont"), S.Get("focusFontSize"), S.Get("focusOutline")
     local tc = ClassColor("focusTextColor", "focusTextClassColor")
     for _, fs in ipairs({ f.nameText, f.targetText, f.timeText }) do
-        fs:SetFont(font, size, "OUTLINE")
+        Parts.HudFont(fs, font, size, outline)
         fs:SetTextColor(tc.r, tc.g, tc.b, 1)
     end
     local chars = S.Get("focusNameLength")
@@ -158,7 +166,10 @@ function Look.Layout(f)
 end
 
 function Look.StateColour(state)
-    if state == "ready" then return ClassColor("focusReadyColor", "focusReadyClassColor") end
+    if state == "ready" then
+        if S.Get("focusReadyClassColor") then return ClassColor("focusReadyColor", "focusReadyClassColor") end
+        return Themed("focusReadyColor", "accent")
+    end
     if state == "cooldown" then return S.Get("focusCooldownColor") end
     if state == "nonint" then return S.Get("focusNonIntColor") end
     return S.Get("focusInterruptedColor")
@@ -548,7 +559,8 @@ local function Voices()
     return ns.TTSVoiceChoices()
 end
 
-local function OwnReadyColour() return not S.Get("focusReadyClassColor") end
+local function OwnReadyColour() return not (S.Get("focusReadyClassColor") or S.Get("focusThemeColors")) end
+local function OwnBgColour() return not S.Get("focusThemeColors") end
 local function OwnTextColour() return not S.Get("focusTextClassColor") end
 local function OwnTickColour() return S.Get("focusTick") and not S.Get("focusTickClassColor") end
 local function PlaysSound() return S.Get("focusAudio") == "sound" end
@@ -602,19 +614,6 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
-        Group("Bar"),
-        { key = "focusWidth", label = "Width", slider = { 100, 600, 5 } },
-        { key = "focusHeight", label = "Height", slider = { 10, 60, 1 } },
-        { key = "focusBgColor", label = "Background Colour", colour = true },
-        { key = "focusBgAlpha", label = "Background Opacity", slider = { 0, 100, 5 }, unit = "%", scale = 0.01 },
-        Group("Colours"),
-        { key = "focusReadyClassColor", label = "Class Colour Ready", toggle = true },
-        { key = "focusReadyColor", label = "Interrupt Ready Colour", colour = true, needs = OwnReadyColour,
-          why = "Class colour is on" },
-        { key = "focusCooldownColor", label = "Interrupt on Cooldown Colour", colour = true },
-        { key = "focusInterruptedColor", label = "Interrupted Colour", colour = true },
-        { key = "focusColorNonInt", label = "Colour Uninterruptible Casts", toggle = true },
-        { key = "focusNonIntColor", label = "Uninterruptible Colour", colour = true, needs = "focusColorNonInt" },
         Group("Shown"),
         { key = "focusIcon", label = "Show Icon", toggle = true },
         { key = "focusIconSide", label = "Icon Side", choice = SIDE, needs = "focusIcon" },
@@ -637,12 +636,6 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         { key = "focusHideOnCooldown", label = "Hide While Interrupt Is on Cooldown", toggle = true },
         { key = "focusFadeTime", label = "Interrupted Fade", slider = { 0, 3, 0.05 }, unit = "s",
           help = "How long an interrupted cast stays up. 0 hides it at once." },
-        Group("Text"),
-        { key = "focusFont", label = "Font", font = true },
-        { key = "focusFontSize", label = "Font Size", slider = { 8, 24, 1 } },
-        { key = "focusTextClassColor", label = "Class Colour Text", toggle = true },
-        { key = "focusTextColor", label = "Text Colour", colour = true, needs = OwnTextColour,
-          why = "Class colour is on" },
         Group("Sound"),
         { key = "focusAudio", label = "Cast Start Audio", choice = AUDIO, help = AUDIO_HELP },
         { key = "focusSound", label = "Sound", sound = true, needs = PlaysSound, why = "Cast Start Audio is not Sound" },
@@ -653,5 +646,24 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
           why = "Needs Text to Speech" },
         { key = "focusSpeech", label = "Speech Text", text = true, needs = Speaks, why = "Needs Text to Speech",
           help = "Spoken as a cast starts." },
+        Group("Size"),
+        { key = "focusWidth", label = "Width", slider = { 100, 600, 5 } },
+        { key = "focusHeight", label = "Height", slider = { 10, 60, 1 } },
+        ns.Shared.Settings.Look("focus", { text = true, size = { 8, 24, 1 }, bar = "Flat", background = "alpha" }),
+        { key = "focusBgColor", label = "Background Colour", colour = true, needs = OwnBgColour,
+          why = "Apply Theme to Bar Colours is on" },
+        Group("Colours"),
+        { key = "focusThemeColors", label = "Apply Theme to Bar Colours", toggle = true,
+          help = "Colour the ready bar with your theme's Accent and its background with the theme's Background." },
+        { key = "focusReadyClassColor", label = "Class Colour Ready", toggle = true },
+        { key = "focusReadyColor", label = "Interrupt Ready Colour", colour = true, needs = OwnReadyColour,
+          why = "Class colour or Apply Theme is on" },
+        { key = "focusCooldownColor", label = "Interrupt on Cooldown Colour", colour = true },
+        { key = "focusInterruptedColor", label = "Interrupted Colour", colour = true },
+        { key = "focusColorNonInt", label = "Colour Uninterruptible Casts", toggle = true },
+        { key = "focusNonIntColor", label = "Uninterruptible Colour", colour = true, needs = "focusColorNonInt" },
+        { key = "focusTextClassColor", label = "Class Colour Text", toggle = true },
+        { key = "focusTextColor", label = "Text Colour", colour = true, needs = OwnTextColour,
+          why = "Class colour is on" },
     },
 })

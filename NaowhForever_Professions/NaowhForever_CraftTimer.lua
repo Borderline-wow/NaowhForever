@@ -16,6 +16,7 @@
 local ns = _G.NaowhForever
 local S = ns.ProfessionSettings
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 -- The Flight Timer's measures and art (QoL/NaowhForever_Flight.lua), so the two look alike.
 local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
@@ -23,6 +24,8 @@ local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
 local WIDTH, TRACK_H, PIN, NAME_SIZE, ICON = 420, 20, 18, 14, 30
 -- Between the track and the time left of it, and the icon right of it.
 local SIDE_GAP = 10
+-- The time left, this much bigger than the labels' Font Size.
+local TIME_LARGER = 4
 local HEIGHT = PIN + 2 * (NAME_SIZE + 8)
 -- A first guess at the pause between one craft ending and the next starting, until one is
 -- measured.
@@ -78,10 +81,9 @@ function Look.New(parent, name)
     track:SetPoint("LEFT")
     track:SetPoint("RIGHT")
     track:SetHeight(TRACK_H)
-    track:SetStatusBarTexture(GRADIENT)
-    track:SetStatusBarColor(T.accent.r, T.accent.g, T.accent.b)
     track:SetMinMaxValues(0, 1)
-    ns.Solid(track, "BACKGROUND", T.bg, 0.9):SetAllPoints()
+    frame.bg = ns.Solid(track, "BACKGROUND", T.bg)
+    frame.bg:SetAllPoints()
     ns.Border(track, { r = 0, g = 0, b = 0 })
     frame.track = track
 
@@ -113,6 +115,15 @@ function Look.New(parent, name)
     return frame
 end
 
+function Look.Style(frame)
+    local font, size, outline = S.Get("craftTimerFont"), S.Get("craftTimerFontSize"), S.Get("craftTimerOutline")
+    for _, label in ipairs(frame.labels) do Parts.HudFont(label, font, size, outline) end
+    Parts.HudFont(frame.time, font, size + TIME_LARGER, outline)
+    frame.track:SetStatusBarTexture(ns.UI.TexturePath(S.Get("craftTimerTexture"), GRADIENT))
+    frame.track:SetStatusBarColor(T.accent.r, T.accent.g, T.accent.b)
+    frame.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, S.Get("craftTimerBgAlpha"))
+end
+
 -- The recipe over the left end, how many of the batch are done over the right.
 function Look.Fill(frame, icon, name, done, count)
     frame.icon:SetTexture(icon)
@@ -131,6 +142,7 @@ end
 
 local function Build()
     bar = Look.New(UIParent, "NaowhForeverCraftTimer")
+    Look.Style(bar)
     bar:SetFrameStrata("MEDIUM")
     bar:SetScript("OnUpdate", function(self)
         if not job then return self:Hide() end
@@ -341,7 +353,11 @@ local function Apply()
 end
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "craftTimer" then Apply() end
+    if key == "enabled" or key == "craftTimer" then
+        Apply()
+    elseif bar and key:find("^craftTimer") then
+        Look.Style(bar)
+    end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 
@@ -366,6 +382,7 @@ local function NewPreview(stage)
 end
 
 local function PaintPreview(preview)
+    Look.Style(preview)
     Look.Fill(preview, SAMPLE_ICON, SAMPLE_NAME, SAMPLE_DONE, SAMPLE_COUNT)
     Look.Progress(preview, SAMPLE_SHARE, SAMPLE_LEFT)
 end
@@ -377,4 +394,7 @@ Settings.Page("Professions/Settings", S):Card({
         .. "of the cast bar that fills for every craft. It sits where the Flight Timer is, as nobody crafts in "
         .. "flight: move it with Move Elements as the Flight Timer.",
     studio = { height = 100, states = PREVIEW_STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        Settings.Look("craftTimer", { text = true, size = { 8, 24, 1 }, bar = "Naowh Gradient", background = "alpha" }),
+    },
 })
