@@ -597,7 +597,7 @@ function ns.ShowProfileExport(wanted)
     export.what:SetText(("Profile: %s. %s."):format(ns.ActiveProfileName() or "?", table.concat(labels, ", ")))
     local text, note = ns.ExportProfile(wanted)
     if text then
-        export.text = ns.WrapForDisplay(text, export.box:GetParent():GetWidth())
+        export.text = text
         export.box:SetText(export.text)
         export.status:SetText(("%d characters. Click the text, then Ctrl+A and Ctrl+C.%s"):format(#text,
             note and ("\n" .. note) or ""))

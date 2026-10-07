@@ -349,7 +349,6 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     end
     ns.AccentBorder = function(f) return f end
     ns.SetButtonText = function(b, t) b.label = t end
-    ns.WrapForDisplay = function(s) return s end
     ns.ConfirmReload = function(text) reload = text end
     ns.ShowPackImport = function(text) opened = text end
     local fonts = {}
@@ -374,6 +373,7 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     ns.ShowProfileExport()
     local text = boxes[1].text
     assert(text:sub(1, 11) == "NFPROFILE1:" and assert(ns.DecodeProfile(text)), "the export box holds the string")
+    assert(not text:find("%s"), "one unbroken line, so it pastes into a quoted Lua string")
 
     ns.ShowProfileImport()
     local paste, import = boxes[2], buttons.Import
