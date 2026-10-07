@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Badges.lua -- supporter badges: the Naowh Forever N next to the name of
---  Naowh, a Developer, a Moderator or a Legendary Patron in chat, a card when you hover it,
+--  Naowh, a Developer, a Moderator, EllesmereUI's creator or a Legendary Patron in chat, a card when you hover it,
 --  a plate over their player tooltip, and a banner when one joins your group. Each part has its
 --  own setting in QoL > Character: badges, card and tooltip start on so everyone sees them,
 --  the banner starts off (Naowh's call). /nf badges preview puts one on your own name
@@ -51,6 +51,15 @@ local TIERS = {
         chat = MEDIA .. "BadgeModeratorChat.tga",
         large = MEDIA .. "BadgeModeratorLarge.tga",
         sound = "UI_PVP_HONOR_PRESTIGE_RANK_UP",
+    },
+    ellesmere = {
+        title = "EllesmereUI Creator",
+        about = "Makes EllesmereUI.",
+        label = "Ellesmere, creator of EllesmereUI",
+        color = { r = 0x0e / 255, g = 0xd2 / 255, b = 0x9b / 255 },
+        chat = MEDIA .. "BadgeEllesmereChat.tga",
+        large = MEDIA .. "BadgeEllesmereLarge.tga",
+        sound = "UI_72_ARTIFACT_FORGE_ACTIVATE_FINAL_TIER",
     },
     legendary = {
         title = "Legendary Patron",
@@ -827,7 +836,7 @@ function ns.BadgesCommand(arg)
         QueueToast(previewEntry or PreviewEntry(PREVIEW_TIER), FullName("player"), IsInRaid())
     else
         ns.Print("/nf badges id | preview [" .. (PATRONS and "legendary|" or "")
-            .. "moderator|developer|naowh|none] | preview off | toast")
+            .. "moderator|developer|ellesmere|naowh|none] | preview off | toast")
     end
 end
 
