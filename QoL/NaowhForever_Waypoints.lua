@@ -340,12 +340,15 @@ local function Update()
         side = math.abs(dx) >= math.abs(dy) and (dx > 0 and "right" or "left") or (dy > 0 and "top" or "bottom")
         lastX, lastY = cx + dx * t, cy + dy * t
     else
+        -- The navigation point is the spot on the ground: the ring at the line's foot goes there and
+        -- the pin stands above it.
+        local lift = S.Get("waypointBeam") and PIN / 2 + BEAM_H or 0
         if not pin.onNav then
             pin:ClearAllPoints()
-            pin:SetPoint("CENTER", navFrame, "CENTER")
+            pin:SetPoint("CENTER", navFrame, "CENTER", 0, lift)
             pin.onNav = true
         end
-        lastX, lastY = nx, ny
+        lastX, lastY = nx, ny + lift * scale
     end
     pin:SetShown(not behind and (mode ~= "edge" or S.Get("waypointEdge")))
     cue:SetShown(behind and S.Get("waypointEdge"))
