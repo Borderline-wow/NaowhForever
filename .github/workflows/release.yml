@@ -122,11 +122,9 @@ jobs:
         uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
         with:
           # CurseForge project, only for a tagged release so main's dev builds stay off CurseForge.
-          # -g tags the upload for Retail as well as Forever: the CurseForge app treats Forever
-          # installs as Retail and only offers files tagged for it. The TOCs stay Forever only.
           # -n names the zip and label after the version alone, without the "-forever" the
-          # packager would add.
-          args: ${{ env.TAG != '' && '-p 1721187 -g 12.1.0,12.0.7,12.0.5,12.0.1,12.0.0,1.60.1 -n {package-name}-{project-version}:{project-version}' || '-n {package-name}-{project-version}:{project-version}' }}
+          # packager adds when Forever is the only game in the TOCs.
+          args: ${{ env.TAG != '' && '-p 1721187 -n {package-name}-{project-version}:{project-version}' || '-n {package-name}-{project-version}:{project-version}' }}
 
       - name: Post changelog to Discord
         if: env.TAG != ''
