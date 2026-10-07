@@ -1,6 +1,153 @@
 # Changelog
 
-## Unreleased
+## 0.5.25-beta
+
+### Added
+- Hovering a guildmate in the Guild & Communities list, or a friend in the Friends list, shows their
+  Naowh Forever badge and Naowh Score, and for offline guildmates the last score seen with how long
+  ago
+- An Item Level in Bags toggle under the BiS List's Bag Marks, to hide item levels in your bags
+- Swing Timer: a Font and an Outline setting for the bar text, under Text on its Bars card.
+- Threat Meter: an Outline setting for the row text.
+- QoL > Combat Alert, Combat Timer, Stealth Reminder and Pet Tracker: an Outline option and a
+  Background (Card, Soft or None).
+- Talent Points, Durability and Restock Reminder: Font Size, Outline and Background; Talent Points
+  and Durability can also use the theme's colour.
+- AuraBuffs > Camp Nearby: Font, Outline and Background.
+- Focus Cast Bar: Outline, Bar Texture and Apply Theme to Bar Colours settings.
+- Co-Tank Frame: Outline and Bar Texture settings.
+- GCD Tracker: a Bar Texture setting for the activity bar.
+- Group XP: Font, Font Size, Outline, Bar Texture and Background Opacity settings.
+- XP Bar: Font, Font Size, Outline, Bar Texture and Background Opacity settings.
+- Flight Timer: Font, Outline, Bar Texture and Background Opacity settings.
+- Total Craft Timer: Font, Font Size, Outline, Bar Texture and Background Opacity settings, on its
+  card under Professions.
+- Bag Space: Font, Font Size and Outline, with the header and prices scaling to the size (QoL > Loot
+  & Items > Bag Space).
+- Loot Feed: an Outline choice, and a None style for lines without a background (QoL > Loot & Items
+  > Loot Feed).
+- Top Bar: Font and Outline for the FPS / MS readout and the button counts, and a Clock Outline (QoL
+  > Interface > Top Bar).
+- Buff Reminders, Low Health and the Tracking reminder: Font, Font Size and Outline for their text.
+- Campfire: Font and Outline for both the Round and Simple looks.
+- Blessing Bar: Font and Outline for its timers and labels, and Apply Theme to Status Colours.
+- Group Buttons: Button Width, Button Height, Font, Font Size, Outline and Background.
+- BiS List > Drop Alert: Font, Font Size and Outline for the on-screen alert.
+- Gear Set Bar: Spacing, and Show Always, In Combat or Out of Combat.
+- Smart Reminders: an Outline setting for the reminder displays and for the defensive alert, under
+  Text on their cards.
+- Smart Reminders: Bar Texture and Bar Background Opacity for the Bar display, and Circle Background
+  Opacity for the Circle display.
+- Smart Reminders: Apply Theme to Text for the reminder displays and Apply Theme to the Callout for
+  the defensive alert, which use your theme's text colour in place of white.
+- Threat Meter: Background Colour under Window, next to Background Opacity.
+- Food & Drink Bar: key bindings for the food and drink buttons, on its card and under Key Bindings
+  > Naowh Forever.
+- AuraBuffs > Settings > Buffs & Consumables: a switch per raid buff, to choose which ones remind
+  you.
+- HUD Editor: a dragged element lines up with the others and the screen centre on guides, which show
+  the gap to each element in pixels. Hold Alt to drag freely, or turn Guides off on the toolbar.
+- HUD Editor: an anchored element's tag picks the side it sits off (Top, Left, Right or Bottom) and
+  its gap in pixels, and the anchor is drawn on screen.
+- HUD Editor: an Elements panel lists every element by module, with a search. Click one to select
+  it, hide one to get it out of the way while you edit, or lock one in place.
+- HUD Editor: Undo (Ctrl + Z), Redo (Ctrl + Y) and Revert on the toolbar put back changes you made.
+- HUD Editor: Shift-click to select several elements, then drag or nudge them together, line them
+  up, space them evenly or by a gap you type, or lock them all.
+- HUD Editor: Layouts save where everything is under a name, to load again later with one click.
+  Undo takes a load back, and locked elements stay put.
+- HUD Editor: dragging lines an element up on even gaps with the others (between two, past a pair,
+  or mirrored about the screen centre) and shows the equal gaps.
+- HUD Editor: an anchored element's target shows a tab on each side; click one to anchor to that
+  side.
+- Naowh Inspect Panel: the inspect window in the BiS List's look, with their Naowh Score next to
+  yours, talents, a gear check (unenchanted and empty slots, item level, upgrades for you), guild,
+  your note and tag, and your history with them (QoL > Character > Inspect Panel).
+- Inspected players' slots show item level, Forever's mark, an upgrade arrow for you and a dot on
+  unenchanted gear; their BiS stars show when they run Naowh Forever.
+- Share Your BiS (on by default) lets players who inspect you with Naowh Forever see your BiS stars.
+- Player History (QoL > Questing & Group, off by default) remembers the players you group and chat
+  with: sessions, dungeon and raid runs, and your last whispers and group chat, stored only on your
+  computer.
+- Write a note and a tag (Great Tank, Great Healer, Great DPS, Friendly, Avoid) on a player, shown
+  on their tooltip.
+- Waypoint Pin (QoL > Travel, off by default): marks the spot you are heading to with its name,
+  distance and walking time, points the way from the screen's edge when it is off screen, and shows
+  a navigator bar you can move in Layout Mode.
+- Training Planner: the trainer waypoint takes you to your class trainer, then your professions'
+  trainers in the same town, one after the other.
+- Waypoint Pin: on a route, the navigator shows which stop you are on and the arrival names the next
+  one.
+- Group Inspect (Combat > Group Inspect, off by default): everyone in your party or raid with their
+  Naowh Score, item level, gear, talents and stats in one window. Open it with /nf group, the Top
+  Bar, the minimap button, a key binding or a party/raid member's right-click menu.
+- Group Inspect marks Naowh Forever users, and turns the mark orange when their version is older
+  than yours.
+
+### Changed
+- Lighter in combat and at idle: Buff Reminders, Threat Meter, Blessings, Swing Timer, GCD Tracker,
+  Focus Cast Bar and the Top Bar do less work
+- Naowh Forever's chat lines start with its logo, so they can't be faked
+- Importing a profile lists the settings that act for you (auto emotes, auto sell, auto quests) and
+  leaves them off unless you tick Also Import
+- Importing a scrap list names its items and warns about valuable ones; importing macros warns about
+  other addons' commands
+- `/nf bars delete` asks before removing a bar set
+- Options window: Search is a box at the top of the sidebar. What you type filters the window to the
+  matching settings, and modules and tabs show how many matches they hold.
+- New players with EllesmereUI get Naowh's character panel by default; others are asked once, with
+  Naowh's recommended
+- Threat Meter: Bar Texture lists every SharedMedia bar texture. Naowh Gradient and Flat stay as you
+  set them.
+- Swing Timer: its Bar Texture list includes Naowh Gradient.
+- Combat Timer's Show Background is now a Background choice; existing "on" keeps its black panel as
+  Card.
+- Move Elements: the Alerts group's Settings button opens the Durability card.
+- Focus Cast Bar, Co-Tank Frame and GCD Tracker: settings regrouped into Size, Text, Bar and
+  Colours, like the other HUD elements.
+- XP per Hour: Outlined Text is now an Outline choice with Shadow, Outline and Thick Outline; your
+  current pick is kept.
+- Bag Space, Loot Feed, XP per Hour and Top Bar settings are grouped the same way: Size, Text,
+  Background and Visibility.
+- Move Elements > Settings on the Library Books and Sleeping Bag trackers opens their own settings
+  card.
+- Smart Reminders: the Bar display always draws the Naowh Gradient by default, also without
+  NaowhUI_Media installed.
+- Smart Reminders: the font is also on the Reminder Displays card, and changing it updates the
+  displays straight away.
+- RestedXP: the Naowh Forever theme is now called Naowh instead of NaowhUI.
+- Move Elements is now called HUD Editor.
+- HUD Editor: elements have a black edge, so they are easier to line up.
+- HUD Editor: Smart Reminders' displays are no longer in it for now, and the Customize Anchors
+  button is gone.
+- Threat Meter: the window can be made narrower (160) and shorter (50).
+- Food & Drink Bar: moved from Macros to Quality of Life, Loot & Items, and works without the Macros
+  module. Your settings come along.
+- Food & Drink Bar: warriors and rogues get the food button only.
+- Raid buff reminders leave out Paladin Blessings by default, since the Blessings module covers
+  them. Switch them back on under Raid Buffs.
+- Waypoint Pin: the card and navigator show what a spot is (an entrance, a quest giver, a trainer's
+  title) and its icon from the module that placed it: your class for the trainer, the item for BiS,
+  the book for Discovery. With the pin on, waypoints use the game's own even when TomTom is loaded.
+- The Discord link at the bottom left of the settings window opens the Naowh Forever Discord.
+
+### Fixed
+- Professions no longer climbs in memory while you browse the Auction House, and redraws about 3x
+  faster
+- "AddOn blocked" when closing the profession window, disbanding or changing Buff Reminders in
+  combat
+- an error when a page redrew while you hovered a nameplate aura in combat
+- Pasted profiles, packs and lists can't freeze or crash the game, and names in them show as plain
+  text
+- Shared Naowh Scores, the Aim Trainer board and Group XP only accept a player's own data
+- Unexplored areas on the world map show their roads, towns and labels again, darkened, and the
+  slider now sets how dark they are
+- The Naowh Score card on the character panel no longer covers the Equipment Manager or Titles list
+- Quick Attach on the Send Mail tab now attaches every stack of the type you pick (it stopped after
+  two), and its menu counts stacks.
+- Threat Meter: the window border no longer shows when Background Opacity is 0%.
+- World map: right-clicking a zeppelin tower opens its second destination (QoL > Town Map Pins >
+  Boats & Zeppelins).
 
 ## 0.5.24-beta
 

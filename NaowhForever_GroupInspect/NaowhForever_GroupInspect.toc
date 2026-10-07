@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Group Inspect
 ## Notes: Everyone in your party or raid: Naowh Score, gear, talents and stats.
 ## Author: Naowh
-## Version: 0.5.24-beta
+## Version: 0.5.25-beta
 ## Dependencies: NaowhForever, NaowhForever_BiS
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
