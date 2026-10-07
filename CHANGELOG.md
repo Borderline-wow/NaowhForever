@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.0.5
+
+### Fixed
+- Naowh Score: no more error when your target's target changes gear.
+- Character Panel: no more error opening it while your stats are hidden; Defense shows as hidden.
+- CurseForge: updates show up in the CurseForge app again.
 
 ## 1.0.4
 
