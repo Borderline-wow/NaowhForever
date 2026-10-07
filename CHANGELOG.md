@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.0.4
+
+### Added
+- Credits: Ellesmere, creator of EllesmereUI, is thanked with his own badge.
+- Flight Timer: Flight Time on Map shows the flight time to each destination when you hover it on
+  the flight master's map (QoL > Travel > Flight Timer).
+
+### Changed
+- Credits: a shorter line for Santiago Reyes's maps.
+
+### Fixed
+- CurseForge lists Naowh Forever under WoW Forever only, not Retail.
 
 ## 1.0.3
 
