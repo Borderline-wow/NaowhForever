@@ -1,7 +1,12 @@
--- Loads NaowhForever_Macros.lua against stubbed macro, bag and item APIs and checks what
--- it writes. Run from the repo root: lua Tools/regression/test-macros.lua
-local f = assert(io.open(arg[1] or "NaowhForever_Macros/NaowhForever_Macros.lua", "rb"))
-local source = f:read("*a"); f:close()
+-- Loads QoL's Food & Drink Bar and NaowhForever_Macros.lua against stubbed macro, bag and item
+-- APIs and checks what they write. Run from the repo root: lua Tools/regression/test-macros.lua
+local function Read(path)
+    local f = assert(io.open(path, "rb"))
+    local text = f:read("*a"); f:close()
+    return text
+end
+local foodSource = Read("QoL/NaowhForever_FoodBar.lua")
+local source = Read(arg[1] or "NaowhForever_Macros/NaowhForever_Macros.lua")
 
 local FOOD, DRINK = "Food", "Drink"
 -- itemID -> { spell, required level }
@@ -16,6 +21,7 @@ local ITEMS = {
 
 local function Fixture(opts)
     local settings = opts.settings or {}
+    local qol = opts.qol or {}
     local bags = opts.bags or {}            -- flat list of item IDs, one per slot
     local macros, created, edited, deleted, printed = {}, 0, 0, 0, {}
     local account = {}
@@ -34,6 +40,8 @@ local function Fixture(opts)
         function fr:SetAttribute(k, v) self.attrs[k] = v end
         function fr:Show() self.shown = true end
         function fr:Hide() self.shown = false end
+        function fr:SetShown(v) self.shown = v end
+        function fr:SetSize(w, h) self.width, self.height = w, h end
         function fr:IsShown() return self.shown end
         function fr:SetTexture(v) self.texture = v end
         function fr:SetDesaturated(v) self.desaturated = v end
@@ -44,7 +52,18 @@ local function Fixture(opts)
     end
 
     local S = {}
+    local QOL_DEFAULTS = { enabled = true, foodBar = false, foodBarSize = 36 }
+    local Q = {}
+    function Q.Get(k)
+        if qol[k] ~= nil then return qol[k] end
+        return QOL_DEFAULTS[k]
+    end
+    function Q.Set(k, v) qol[k] = v end
+    function Q.DB() return qol end
+    local mover
     local ns = {
+        QoLSettings = Q,
+        SettingsRoot = function() return { macros = settings, qol = qol } end,
         HEALTHSTONES = { 9421, 5509 },
         HEALING_POTIONS = { 13446, 929 },
         Print = function(msg) printed[#printed + 1] = msg end,
@@ -56,7 +75,10 @@ local function Fixture(opts)
         Border = function() end,
         PixelInset = function() end,
         UI = {
-            AttachMover = function() return Frame() end,
+            AttachMover = function(_, label, _, page, feature)
+                mover = { label = label, page = page, feature = feature }
+                return Frame()
+            end,
             STATUS = setmetatable({}, { __index = function() return "" end }),
             ModuleSettings = function(_, defaults)
                 function S.Get(k)
@@ -82,6 +104,7 @@ local function Fixture(opts)
         Constants = { MacroConsts = consts },
         IsInRaid = function() return group == "raid" end,
         IsInGroup = function() return group ~= nil end,
+        UnitClass = function() return "Class", opts.class or "MAGE" end,
         C_Container = {
             GetContainerNumSlots = function() return #bags end,
             GetContainerItemID = function(_, slot) return bags[slot] end,
@@ -129,13 +152,15 @@ local function Fixture(opts)
     env._G = { NaowhForever = ns, SLASH_SAY1 = "/say", SLASH_CAST1 = "/cast", SLASH_SCRIPT1 = "/run",
         SLASH_TARGET_MARKER1 = "/tm", EMOTE1_CMD1 = "/wave" }
     setmetatable(env, { __index = _G })
-    local chunk
-    if setfenv then
-        chunk = assert(loadstring(source)); setfenv(chunk, env)
-    else
-        chunk = assert(load(source, "Macros", "t", env))
+    for _, text in ipairs({ foodSource, source }) do
+        local chunk
+        if setfenv then
+            chunk = assert(loadstring(text)); setfenv(chunk, env)
+        else
+            chunk = assert(load(text, "Macros", "t", env))
+        end
+        chunk()
     end
-    chunk()
 
     local t = { ns = ns }
     function t.Fire(event)
@@ -149,6 +174,9 @@ local function Fixture(opts)
         end
     end
     function t.Set(k, v) S.Set(k, v) end
+    function t.SetQoL(k, v) Q.Set(k, v) end
+    function t.Mover() return mover end
+    t.settings, t.qol = settings, qol
     function t.Listening(event)
         for _, fr in ipairs(frames) do
             if fr.events[event] then return true end
@@ -384,7 +412,7 @@ do
     local t = Fixture({ bags = { 1179, 8766, 5349, 4599 } })
     t.Fire("PLAYER_ENTERING_WORLD")
     Check("food bar not built while off", t.FoodBar(), nil)
-    t.Set("foodBar", true)
+    t.SetQoL("foodBar", true)
     local bar = t.FoodBar()
     local food, drink = bar.buttons[1], bar.buttons[2]
     Check("food bar shown", bar.shown, true)
@@ -393,6 +421,12 @@ do
     Check("food button uses an item", food.attrs.type1, "item")
     Check("drink icon", drink.icon.texture, "icon8766")
     Check("food count", food.count.text, 1)
+    Check("food button named for its binding", food.name, "NaowhForeverFoodBarFood")
+    Check("drink button named for its binding", drink.name, "NaowhForeverFoodBarDrink")
+    Check("drink shown", drink.shown, true)
+    Check("two buttons wide", bar.width, 36 * 2 + 4)
+    Check("HUD Editor opens QoL", t.Mover().page, "QoL/Loot & Items")
+    Check("HUD Editor opens its card", t.Mover().feature, "QoL/Loot & Items:foodBar")
 
     t.Combat(true)
     t.Bags({ 4599, 4599 })
@@ -405,11 +439,40 @@ do
     Check("no drink: button does nothing", drink.attrs.type1, nil)
     Check("no drink: icon greyed", drink.icon.desaturated, true)
 
-    t.Set("foodBar", false)
+    t.Set("enabled", false)
+    Check("Macros off leaves the bar up", bar.shown, true)
+    t.SetQoL("foodBar", false)
     Check("food bar hidden when off", bar.shown, false)
     t.Bags({ 1179 })
     t.Fire("BAG_UPDATE_DELAYED")
     Check("bag changes ignored while off", food.attrs.item1, "item:4599")
+end
+
+-- No mana (warriors and rogues): the food button alone, and the drink button does nothing.
+do
+    local t = Fixture({ class = "WARRIOR", qol = { foodBar = true }, bags = { 8766, 4599 } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    local bar = t.FoodBar()
+    local food, drink = bar.buttons[1], bar.buttons[2]
+    Check("no mana: food", food.attrs.item1, "item:4599")
+    Check("no mana: food shown", food.shown, true)
+    Check("no mana: drink hidden", drink.shown, false)
+    Check("no mana: drink not used", drink.attrs.type1, nil)
+    Check("no mana: one button wide", bar.width, 36)
+end
+
+-- Settings from when the bar was on the Macros page move to QoL once; QoL's own win.
+do
+    local pos = { point = "TOP", relPoint = "TOP", x = 1, y = 2 }
+    local t = Fixture({ settings = { foodBar = true, foodBarSize = 40, foodBarPos = pos },
+        qol = { foodBarSize = 50 }, bags = { 4599 } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    Check("switch moved", t.qol.foodBar, true)
+    Check("position moved", t.qol.foodBarPos, pos)
+    Check("QoL's own size kept", t.qol.foodBarSize, 50)
+    Check("old switch cleared", t.settings.foodBar, nil)
+    Check("old size cleared", t.settings.foodBarSize, nil)
+    Check("bar up after the move", t.FoodBar().shown, true)
 end
 
 -- Free while off: bag, macro, group and combat events only while a kept macro needs them.
@@ -445,7 +508,7 @@ end
 
 -- A bag change with NF Food, NF Health and the food bar on: no garbage.
 do
-    local t = Fixture({ settings = { food = true, health = true, foodBar = true },
+    local t = Fixture({ settings = { food = true, health = true }, qol = { foodBar = true },
         bags = { 1179, 8766, 5349, 4599, 929, 5509 } })
     t.Fire("PLAYER_ENTERING_WORLD")
     local Measure = dofile("Tools/regression/measure.lua")(function(label, ok) Check(label, ok, true) end)

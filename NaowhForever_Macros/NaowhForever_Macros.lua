@@ -12,8 +12,7 @@ local S = UI.ModuleSettings("macros", {
     mana = false, food = false, bandage = false,
     trinket1 = false, trinket2 = false,
     focus = false, focusMark = false, focusMarker = 8, focusAnnounce = false,
-    acceptPopup = false,
-    foodBar = false, foodBarSize = 36, windowAlpha = 1,
+    acceptPopup = false, windowAlpha = 1,
 })
 -- Authored definitions travel with shared packs; presentation settings stay in this module.
 local GetSetting, SetSetting = S.Get, S.Set
@@ -146,12 +145,6 @@ ns.MacroEntryIcon = EntryIcon
 -- Classic-era item IDs, best first.
 local MANA_POTIONS = { 13444, 13443, 6149, 3827, 3385, 2455 }
 local BANDAGES = { 14530, 14529, 8545, 8544, 6451, 6450, 3531, 3530, 2581, 1251 }
-local CONJURED = {
-    [8079] = true, [8078] = true, [8077] = true, [3772] = true, [2136] = true, [2288] = true,
-    [5350] = true, [22895] = true, [8076] = true, [8075] = true, [1487] = true, [1114] = true,
-    [1113] = true, [5349] = true,
-}
-local FOOD_SPELL, DRINK_SPELL = 433, 430
 
 local MACROS = {
     { key = "health", name = "NF Health" },
@@ -176,27 +169,6 @@ local function FirstCarried(list)
     end
 end
 
--- Best food and best drink in the bags: conjured first, then the highest required level.
-local function BestFoodAndDrink()
-    local foodName, drinkName = C_Spell.GetSpellName(FOOD_SPELL), C_Spell.GetSpellName(DRINK_SPELL)
-    local food, drink, foodScore, drinkScore
-    for bag = 0, NUM_BAG_SLOTS do
-        for slot = 1, C_Container.GetContainerNumSlots(bag) do
-            local id = C_Container.GetContainerItemID(bag, slot)
-            local spell = id and C_Item.GetItemSpell(id)
-            if spell and (spell == foodName or spell == drinkName) then
-                local s = (CONJURED[id] and 1000 or 0) + (select(5, C_Item.GetItemInfo(id)) or 0)
-                if spell == foodName then
-                    if not foodScore or s > foodScore then food, foodScore = id, s end
-                elseif not drinkScore or s > drinkScore then
-                    drink, drinkScore = id, s
-                end
-            end
-        end
-    end
-    return food, drink
-end
-
 local function UseLines(first, second)
     if first and second then return "#showtooltip\n" .. first .. "\n" .. second end
     local line = first or second
@@ -216,7 +188,7 @@ local BODIES = {
     end,
     mana = function() return UseLines(ItemLine(FirstCarried(MANA_POTIONS))) end,
     food = function()
-        local food, drink = BestFoodAndDrink()
+        local food, drink = ns.BestFoodAndDrink()
         return UseLines(ItemLine(food), ItemLine(drink))
     end,
     bandage = function() return UseLines(ItemLine(FirstCarried(BANDAGES), "[@player] ")) end,
@@ -236,8 +208,8 @@ local BODIES = {
     end,
 }
 
--- For Naowh's Forge: the Smart Macros, the text each would be written with now, and the bar's picks.
-ns.MacroSmart = { list = MACROS, Body = function(key) return BODIES[key]() end, BestFoodAndDrink = BestFoodAndDrink }
+-- For Naowh's Forge: the Smart Macros and the text each would be written with now.
+ns.MacroSmart = { list = MACROS, Body = function(key) return BODIES[key]() end }
 
 local function Write(m, body, perCharacter)
     local index = GetMacroIndexByName(m.name)
@@ -402,121 +374,6 @@ events:RegisterEvent("PLAYER_ENTERING_WORLD")
 hooksecurefunc(S, "Set", SettingChanged)
 hooksecurefunc(ns, "Apply", Reapply)
 
--------------------------------------------------------------------------------
---  Food & Drink bar: one button for the best food and one for the best drink.
--------------------------------------------------------------------------------
-local FOOD_BAR_EMPTY = { { icon = 133971, text = "No food in your bags" },
-    { icon = 132794, text = "No drink in your bags" } }
-local FOOD_BAR_GAP = 4
-local foodBar, foodBarMoving, foodBarPending
-local foodBarEvents = CreateFrame("Frame")
-
-local Look = {}
-
-function Look.NewButton(parent, template)
-    local button = CreateFrame("Button", nil, parent, template)
-    button.icon = button:CreateTexture(nil, "ARTWORK")
-    ns.PixelInset(button.icon, 1)
-    button.count = ns.Font(button, 12, "OUTLINE")
-    button.count:SetPoint("BOTTOMRIGHT", -2, 2)
-    ns.Border(button, { r = 0, g = 0, b = 0 })
-    return button
-end
-
-function Look.Layout(bar, size)
-    bar:SetSize(size * 2 + FOOD_BAR_GAP, size)
-    for i, button in ipairs(bar.buttons) do
-        button:SetSize(size, size)
-        button:ClearAllPoints()
-        button:SetPoint("LEFT", (i - 1) * (size + FOOD_BAR_GAP), 0)
-    end
-end
-
-function Look.Fill(button, i, icon, count)
-    button.icon:SetTexture(icon or FOOD_BAR_EMPTY[i].icon)
-    button.icon:SetDesaturated(not icon)
-    button.count:SetText(count or "")
-end
-
-local function FillFoodButton(button, i, id)
-    if id ~= button.itemID then
-        button.itemID = id
-        button:SetAttribute("type1", id and "item" or nil)
-        button:SetAttribute("item1", id and ("item:" .. id) or nil)
-    end
-    Look.Fill(button, i, id and (C_Item.GetItemIconByID(id) or FOOD_BAR_EMPTY[i].icon), id and C_Item.GetItemCount(id))
-end
-
-local function FillFoodBar()
-    local food, drink = BestFoodAndDrink()
-    FillFoodButton(foodBar.buttons[1], 1, food)
-    FillFoodButton(foodBar.buttons[2], 2, drink)
-end
-
--- The buttons are secure, so the bar is built, shown, hidden and pointed at items out of combat.
-local function ApplyFoodBar()
-    if InCombatLockdown() then
-        foodBarPending = true
-        foodBarEvents:RegisterEvent("PLAYER_REGEN_ENABLED")
-        return
-    end
-    foodBarPending = false
-    if not (S.Get("enabled") and S.Get("foodBar")) then
-        foodBarEvents:UnregisterAllEvents()
-        if foodBar then foodBar:Hide() end
-        return
-    end
-    foodBarEvents:RegisterEvent("BAG_UPDATE_DELAYED")
-    if not foodBar then
-        foodBar = CreateFrame("Frame", "NaowhForeverFoodBar", UIParent)
-        foodBar:SetMovable(true)
-        foodBar:SetClampedToScreen(true)
-        foodBar.buttons = {}
-        for i = 1, 2 do
-            local button = Look.NewButton(foodBar, "SecureActionButtonTemplate")
-            button:RegisterForClicks("AnyUp", "AnyDown")
-            button:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                if self.itemID then
-                    GameTooltip:SetItemByID(self.itemID)
-                else
-                    GameTooltip:SetText(FOOD_BAR_EMPTY[i].text)
-                end
-                GameTooltip:Show()
-            end)
-            button:SetScript("OnLeave", function() GameTooltip:Hide() end)
-            foodBar.buttons[i] = button
-        end
-        foodBar.mover = UI.AttachMover(foodBar, "Food & Drink", function(pos) S.Set("foodBarPos", pos) end, "Macros/Settings", "Macros/Settings:foodBar")
-    end
-    Look.Layout(foodBar, S.Get("foodBarSize"))
-    foodBar:ClearAllPoints()
-    local pos = S.Get("foodBarPos")
-    if pos then foodBar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
-    else foodBar:SetPoint("CENTER", UIParent, "CENTER", 0, -210) end
-    FillFoodBar()
-    foodBar.mover:SetShown(foodBarMoving == true)
-    foodBar:Show()
-end
-
-foodBarEvents:SetScript("OnEvent", function(_, event)
-    if event == "PLAYER_REGEN_ENABLED" then
-        foodBarEvents:UnregisterEvent("PLAYER_REGEN_ENABLED")
-        if not foodBarPending then return end
-    elseif event == "BAG_UPDATE_DELAYED" and foodBar and foodBar:IsShown() and not InCombatLockdown() then
-        FillFoodBar()
-        return
-    end
-    ApplyFoodBar()
-end)
-foodBarEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
-hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or (key:find("^foodBar") and key ~= "foodBarPos") then ApplyFoodBar() end
-end)
-hooksecurefunc(ns, "Apply", ApplyFoodBar)
-hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function() foodBarMoving = true; ApplyFoodBar() end)
-hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function() foodBarMoving = false; ApplyFoodBar() end)
-
 local function On() return S.Get("enabled") == true end
 
 local function Headline()
@@ -542,32 +399,7 @@ if not Settings then return end
 
 local Group = Settings.Group
 local MACROS_OFF = "Turn on Macros"
-local SAMPLE_COUNTS = { 12, 20 }
-local FOOD_STATES = {
-    { key = "stocked", label = "Stocked", tip = "Your best food and drink, with how many you carry." },
-    { key = "empty", label = "Nothing Carried", tip = "Greyed out while your bags hold no food or drink." },
-}
-
-local function NewFoodPreview(stage)
-    local preview = CreateFrame("Frame", nil, stage)
-    preview:SetPoint("CENTER")
-    preview.buttons = { Look.NewButton(preview), Look.NewButton(preview) }
-    return preview
-end
-
-local function PaintFoodPreview(preview, state)
-    Look.Layout(preview, S.Get("foodBarSize"))
-    local stocked = state == "stocked"
-    for i, button in ipairs(preview.buttons) do
-        Look.Fill(button, i, stocked and FOOD_BAR_EMPTY[i].icon or nil, stocked and SAMPLE_COUNTS[i] or nil)
-    end
-end
-
 local function MarkOn() return On() and S.Get("focusMark") == true end
-
-local function FoodSummary(store)
-    return ("%d px buttons"):format(store.Get("foodBarSize"))
-end
 
 local function HealthSummary(store)
     return HEALTH_ORDER_VALUES[store.Get("healthOrder")] or ""
@@ -620,18 +452,6 @@ page:Card({
           help = "Focuses your mouseover, or your target." },
         { key = "acceptPopup", label = "NF Accept", toggle = true, needs = On, why = MACROS_OFF,
           help = "Accepts the popup on screen: a summons, a resurrection, a group invite." },
-    },
-})
-
-page:Card({
-    id = "foodBar", name = "Food & Drink Bar", order = 10, switch = "foodBar",
-    help = "Two buttons: the best food and the best drink in your bags, conjured first. Click to eat or drink. "
-        .. "They update as your bags change, after combat. Move it in the HUD Editor.",
-    summary = FoodSummary,
-    studio = { height = 100, states = FOOD_STATES, new = NewFoodPreview, paint = PaintFoodPreview },
-    rows = {
-        { key = "foodBarSize", label = "Icon Size", slider = { 20, 70, 1 }, needs = On, why = MACROS_OFF,
-          help = "How big each of the two buttons is." },
     },
 })
 

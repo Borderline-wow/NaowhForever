@@ -97,6 +97,7 @@ QoL\NaowhForever_XPTicker.lua
 QoL\NaowhForever_XPBar.lua
 QoL\NaowhForever_GroupXP.lua
 QoL\NaowhForever_Restock.lua
+QoL\NaowhForever_FoodBar.lua
 QoL\NaowhForever_BagSpace.lua
 QoL\NaowhForever_ScrapMarker.lua
 QoL\NaowhForever_ScrapList.lua
