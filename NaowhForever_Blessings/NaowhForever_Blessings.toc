@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Blessings
 ## Notes: Paladin blessing assignments for the group.
 ## Author: Naowh
-## Version: 1.0.1
+## Version: 1.0.2
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga

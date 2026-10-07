@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.0.2
+
+### Changed
+- Top Bar: Training Planner and Discovery have their own icons, in the bar's style.
+- Minimalist setup starts with the Threat Meter off.
+- QoL > System > Defaults: hovering a setup also lists the modules it turns on or off.
+
+### Fixed
+- Welcome window: it comes back after a reload when another addon's setup reloads before you pick a
+  setup.
 
 ## 1.0.1
 
