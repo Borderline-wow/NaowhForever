@@ -53,8 +53,8 @@ end
 local function Join(list) return table.concat(list, ",") end
 local function Sides(layout) return Join(layout.left) .. " | " .. Join(layout.right) end
 
-check("the default is today's default bar: friends and guild left, Journal and BiS right",
-    Sides(defaultLayout) == "friends,guild | ldb:NaowhForeverJournal,ldb:NaowhForeverBiS")
+check("the default bar: Journal and Discovery left, BiS and Training right", Sides(defaultLayout)
+    == "ldb:NaowhForeverJournal,ldb:NaowhForeverDiscovery | ldb:NaowhForeverBiS,ldb:NaowhForeverTraining")
 
 -- A fresh profile keeps the default and only marks itself migrated.
 local db = {}

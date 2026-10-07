@@ -18,7 +18,8 @@ local S = UI.ModuleSettings("topBar", {
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
     hideInCombat = false, mouseover = false, mouseoverAlpha = 0,
     showSystem = false, systemTooltip = true, sysSize = 13, tooltipScale = 120,
-    layout = { left = { "friends", "guild" }, right = { "ldb:NaowhForeverJournal", "ldb:NaowhForeverBiS" } },
+    layout = { left = { "ldb:NaowhForeverJournal", "ldb:NaowhForeverDiscovery" },
+        right = { "ldb:NaowhForeverBiS", "ldb:NaowhForeverTraining" } },
 })
 ns.TopBarSettings = S
 
@@ -1444,8 +1445,8 @@ local ROWS = {
     { key = "use24h", label = "24-Hour Clock", toggle = true, needs = "showClock" },
     Group("Buttons"),
     { key = "layout", label = "Reset Layout", button = ResetLayout, buttonText = "Reset",
-      help = "Puts the bar's buttons back as they came: Friends and Guild on the left, the Dungeon "
-          .. "Journal and BiS List on the right." },
+      help = "Puts the bar's buttons back as they came: the Dungeon Journal and Discovery on the left, "
+          .. "the BiS List and Training Planner on the right." },
     Group("FPS / MS"),
     { key = "showSystem", label = "Show FPS / MS", toggle = true },
     { key = "systemTooltip", label = "Tooltip", toggle = true, needs = "showSystem",

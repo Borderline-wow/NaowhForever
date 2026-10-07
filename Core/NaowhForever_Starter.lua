@@ -233,14 +233,12 @@ ns.STARTER = {
             hideInCombat = true,
             layout = {
                 left = {
-                    [1] = "friends",
-                    [2] = "guild",
-                    [3] = "ldb:NaowhForeverDiscovery",
+                    [1] = "ldb:NaowhForeverJournal",
+                    [2] = "ldb:NaowhForeverDiscovery",
                 },
                 right = {
-                    [1] = "ldb:NaowhForeverTraining",
-                    [2] = "ldb:NaowhForeverJournal",
-                    [3] = "ldb:NaowhForeverBiS",
+                    [1] = "ldb:NaowhForeverBiS",
+                    [2] = "ldb:NaowhForeverTraining",
                 },
             },
             layoutMigrated = true,
