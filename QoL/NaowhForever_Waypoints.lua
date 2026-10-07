@@ -277,7 +277,7 @@ local function Build()
     nav:SetClampedToScreen(true)
     nav.mover = ns.UI.AttachMover(nav, "Waypoint Navigator", function(pos)
         S.Set("waypointNavPos", { point = pos.point, relPoint = pos.relPoint, x = pos.x, y = pos.y })
-    end, "QoL/Travel", "QoL/Travel:waypoints")
+    end, "QoL/Interface", "QoL/Interface:waypoints")
     nav:Hide()
     cue = CreateFrame("Frame", nil, UIParent)
     cue:SetSize(NAV_W, BEHIND_Y)
@@ -561,8 +561,8 @@ end
 
 local SHAPE_CHOICES = { { hex = "Hex", diamond = "Diamond", dot = "Dot" }, { "hex", "diamond", "dot" } }
 
-Settings.Page("QoL/Travel", S):Card({
-    id = "waypoints", name = "Waypoint Pin", order = 20, switch = "waypoints",
+Settings.Page("QoL/Interface", S):Card({
+    id = "waypoints", name = "Waypoint Pin", order = 42, switch = "waypoints",
     help = "Marks the spot you are heading to in the world, with its distance.",
     summary = function(store) return SHAPE_CHOICES[1][store.Get("waypointShape")] .. " pin" end,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
