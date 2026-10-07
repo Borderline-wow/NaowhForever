@@ -115,6 +115,7 @@ local S = UI.ModuleSettings("qol", {
     bisToastSource = false, bisToastGain = true, bisToastFont = "", bisToastFontSize = 13, bisToastOutline = "NONE",
     blessings = true, blessSpacing = 6, blessGroupSpacing = 6, blessTimerSize = 14, blessShowLabels = true, blessBarSize = 30, blessTimers = true, blessShowAura = true,
     blessShowFury = false, blessWindowAlpha = 1, blessFont = "", blessOutline = "OUTLINE", blessThemeColors = false,
+    blessLayout = "horizontal",
 
     durability = true, durabilityBelow = 25, durabilityFont = "",
     durabilityFontSize = 22, durabilityOutline = "OUTLINE", durabilityBackground = "none", durabilityTheme = false,
