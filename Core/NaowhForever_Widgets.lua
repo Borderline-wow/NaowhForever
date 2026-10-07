@@ -1397,7 +1397,7 @@ function ns.ImportModuleSettings(root, modules)
 end
 
 function UI.ModuleSettings(key, defaults)
-    local S = {}
+    local S = { key = key }
     local listeners = {}
     local known = moduleDefaults[key]
     if known then

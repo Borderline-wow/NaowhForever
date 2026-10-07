@@ -19,7 +19,7 @@ Locales\ruRU.lua [AllowLoadTextLocale ruRU]
 # Core first: theme, chrome primitives, the DB and profiles -- everything later files
 # hang off.
 Core\NaowhForever_Core.lua
-Core\NaowhForever_Starter.lua
+Core\NaowhForever_Presets.lua
 
 # ns.SenderIs: whether an addon message's sender is the player its GUID names. Needs the Core.
 Core\NaowhForever_Senders.lua
@@ -71,7 +71,6 @@ QoL\NaowhForever_DeathRelease.lua
 QoL\NaowhForever_StealthReminder.lua
 QoL\NaowhForever_CoTank.lua
 QoL\NaowhForever_DeleteConfirm.lua
-QoL\NaowhForever_EnchantReplace.lua
 QoL\NaowhForever_Durability.lua
 QoL\NaowhForever_TalentPoints.lua
 QoL\NaowhForever_CombatAlert.lua
@@ -92,6 +91,7 @@ QoL\NaowhForever_SummonEmote.lua
 QoL\NaowhForever_GcdTracker.lua
 QoL\NaowhForever_FocusCastBar.lua
 QoL\NaowhForever_Performance.lua
+QoL\NaowhForever_Defaults.lua
 QoL\NaowhForever_LootFeed.lua
 QoL\NaowhForever_AuctionPrices.lua
 QoL\NaowhForever_XPTicker.lua

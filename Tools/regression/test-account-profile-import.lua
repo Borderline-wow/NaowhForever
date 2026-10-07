@@ -205,12 +205,22 @@ Case("an account that already has settings never takes the starter", function()
     assert(e.ns.SettingsRoot().qol.fastLoot == false and e.db().account == nil)
 end)
 
-Case("the shipped starter carries no Smart Reminders", function()
+Case("the shipped presets carry no Smart Reminders, and a new install starts from Minimalist", function()
     local env = { NaowhForever = {} }; env._G = env
-    local chunk = assert(loadfile(arg[3] or "Core/NaowhForever_Starter.lua")); setfenv(chunk, env); chunk()
-    local starter = env.NaowhForever.STARTER
-    assert(type(starter.profile) == "table" and type(starter.account) == "table")
-    assert(starter.profile.tankReminder == nil and starter.profile.customReminders == nil)
+    local chunk = assert(loadfile(arg[3] or "Core/NaowhForever_Presets.lua")); setfenv(chunk, env); chunk()
+    local presets = env.NaowhForever.PRESETS
+    assert(presets.newInstall == "minimalist" and env.NaowhForever.STARTER == presets.minimalist)
+    assert(#presets.order >= 1 and presets.order[1] == "minimalist")
+    for _, key in ipairs(presets.order) do
+        local preset = presets[key]
+        assert(type(preset.name) == "string" and type(preset.about) == "string", key)
+        assert(type(preset.profile) == "table" and type(preset.account) == "table", key)
+        assert(preset.profile.tankReminder == nil and preset.profile.customReminders == nil, key)
+        local q = preset.profile.qol or {}
+        assert(q.characterPanelAsked == nil and q.characterPanelTookOver == nil
+            and q.inspectPanelAsked == nil and q.inspectPanelTookOver == nil,
+            key .. ": a player answers EllesmereUI's questions itself, as on a first run")
+    end
 end)
 
 -- The installer's public entry point, run against the real Core slice. InstallProfilePack and

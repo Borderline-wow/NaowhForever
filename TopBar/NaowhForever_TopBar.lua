@@ -570,16 +570,17 @@ function Look.PaintPills(frame, segs, left, right, clock, nLeft, nRight)
     local pill = ns.ThemeTint("bg", PILL_BG)
     for _, seg in ipairs(segs) do seg:SetColorTexture(pill.r, pill.g, pill.b, S.Get("bgAlpha") / 100) end
     local segL, segC, segR = segs[1], segs[2], segs[3]
+    local joined = not S.Get("showClock") and nLeft > 0 and nRight > 0
     segL:ClearAllPoints()
     segL:SetPoint("TOPLEFT", left, "TOPLEFT", -SEG_PAD, 0)
-    segL:SetPoint("BOTTOMRIGHT", left, "BOTTOMRIGHT", SEG_PAD, 0)
+    segL:SetPoint("BOTTOMRIGHT", joined and right or left, "BOTTOMRIGHT", SEG_PAD, 0)
     segL:SetShown(nLeft > 0)
     segL.line:SetShown(nLeft > 0)
     segR:ClearAllPoints()
     segR:SetPoint("TOPLEFT", right, "TOPLEFT", -SEG_PAD, 0)
     segR:SetPoint("BOTTOMRIGHT", right, "BOTTOMRIGHT", SEG_PAD, 0)
-    segR:SetShown(nRight > 0)
-    segR.line:SetShown(nRight > 0)
+    segR:SetShown(nRight > 0 and not joined)
+    segR.line:SetShown(nRight > 0 and not joined)
     segC:ClearAllPoints()
     segC:SetShown(S.Get("showClock"))
     segC.line:SetShown(S.Get("showClock"))
@@ -627,10 +628,10 @@ function Look.Fit(frame, left, right, clock, nLeft, nRight)
     left:ClearAllPoints()
     right:ClearAllPoints()
     if not S.Get("showClock") then
-        -- One row centred as a whole, the two pills as far apart as they sit beside the clock.
+        -- One row centred as a whole: the two groups in one pill, a button's gap apart.
         local leftW = nLeft > 0 and left:GetWidth() or 0
         local rightW = nRight > 0 and right:GetWidth() or 0
-        local gap = (nLeft > 0 and nRight > 0) and CLOCK_GAP or 0
+        local gap = (nLeft > 0 and nRight > 0) and GAP or 0
         frame:SetWidth(2 * EDGE + leftW + gap + rightW)
         left:SetPoint("LEFT", frame, "LEFT", EDGE, 0)
         right:SetPoint("RIGHT", frame, "RIGHT", -EDGE, 0)

@@ -941,7 +941,7 @@ local function DB()
     if type(sv) ~= "table" then
         -- Settings from before the rename. The client only loads them when the old
         -- NaowhSmartReminders.lua SavedVariables file is copied over as NaowhForever.lua.
-        -- A new install starts from Naowh's setup (NaowhForever_Starter.lua).
+        -- A new install starts from Naowh's Minimalist preset (NaowhForever_Presets.lua).
         sv = type(_G.NaowhUI_SmartRemindersDB) == "table" and _G.NaowhUI_SmartRemindersDB
             or { dbVersion = 1, profiles = { Default = ns.STARTER.profile }, account = ns.STARTER.account }
         _G.NaowhForeverDB = sv
@@ -1126,6 +1126,22 @@ specWatch:RegisterEvent("PLAYER_LOGIN")
 specWatch:RegisterEvent("PLAYER_ENTERING_WORLD")
 specWatch:RegisterUnitEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
 specWatch:SetScript("OnEvent", function() ns.ApplySpecProfile((ns.CurrentSpec())) end)
+
+local function ApplyNow() ns.Apply() end
+
+local reapplyEvents = CreateFrame("Frame")
+reapplyEvents:RegisterEvent("PLAYER_LOGIN")
+reapplyEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
+reapplyEvents:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+reapplyEvents:RegisterEvent("SPELLS_CHANGED")
+reapplyEvents:RegisterEvent("TRAIT_CONFIG_UPDATED")
+reapplyEvents:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_LOGIN" then
+        C_Timer.After(1, ApplyNow)
+    else
+        ns.QueueReapply()
+    end
+end)
 
 -- The spoken voice, picked on the Smart Reminders page and used by every module that speaks.
 -- "Game Default" stores no id and follows Blizzard's Text to Speech panel; an uninstalled
@@ -1398,8 +1414,9 @@ end
 -- Coalesced: one click can request several reapplies.
 local reapplyPending
 
--- Re-applies the active profile. Empty here: Smart Reminders and every module that needs it
--- hook it.
+-- Re-applies the active profile. Empty here: every module that needs it hooks it. Core calls
+-- it a second after login and queues it again on a new world, spec, spells or talents, so the
+-- modules paint without Smart Reminders, which used to call it and no longer ships.
 function ns.Apply() end
 
 function ns.QueueReapply()

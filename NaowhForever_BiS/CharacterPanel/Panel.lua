@@ -11,8 +11,10 @@
 --  off; either way after a reload, which EllesmereUI needs to swap its look. Should EllesmereUI's
 --  come back on by other means, Naowh's stands down. With both on, a player new to Naowh Forever
 --  (the welcome not seen yet) gets Naowh's from the next reload, told in chat; anyone else is
---  asked once. CP.Rival is that rule for any of the game's windows both style: the Naowh Inspect
---  Panel (InspectPanel/) uses it for the inspect window.
+--  asked once. A "took over" that EllesmereUI's own switch does not bear out (copied in with a
+--  profile, or EllesmereUI's turned back on since) is forgotten at login with its question, so
+--  the player is asked as on a first run. CP.Rival is that rule for any of the game's windows
+--  both style: the Naowh Inspect Panel (InspectPanel/) uses it for the inspect window.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -61,9 +63,11 @@ function CP.Rival(r)
             S.Set(tookOver, true)
             ns.ConfirmReload(RELOAD_OFF:format(r.name))
         elseif not on and S.Get(tookOver) then
-            db[r.dbKey] = true
             S.Set(tookOver, false)
-            ns.ConfirmReload(RELOAD_ON:format(r.name))
+            if db[r.dbKey] == false then
+                db[r.dbKey] = true
+                ns.ConfirmReload(RELOAD_ON:format(r.name))
+            end
         end
     end
 
@@ -79,6 +83,13 @@ function CP.Rival(r)
     local function KeepTheirs()
         S.Set(asked, true)
         S.Set(r.key, false)
+    end
+
+    function rival.Repair()
+        local db = _G.EllesmereUIDB
+        if type(db) ~= "table" or not S.Get(tookOver) or db[r.dbKey] == false then return end
+        S.Set(tookOver, false)
+        S.Set(asked, false)
     end
 
     function rival.Due()
@@ -114,6 +125,7 @@ CP.On = sheet.On
 local newcomer
 
 local function AskOnce()
+    for _, rival in ipairs(rivals) do rival.Repair() end
     if InCombatLockdown() then return end
     for _, rival in ipairs(rivals) do
         if rival.Due() then

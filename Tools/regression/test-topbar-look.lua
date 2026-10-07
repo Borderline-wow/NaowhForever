@@ -14,10 +14,12 @@ end
 local code = table.concat({
     "local S, Parts, UI, ns, Group, ResetLayout = ...",
     "local BADGE_SIZE, BTN_PAD, GAP, EDGE, CLOCK_GAP = 10, 8, 4, 14, 22",
+    "local SEG_PAD, PILL_BG = 6, 0.85",
     "local function Tone() return 1, 1, 1, 1 end",
     "local function IconColor() return 1, 1, 1 end",
     "local function BtnSize() return S.Get('iconSize') + BTN_PAD end",
     "local Look = {}",
+    Slice("function Look.PaintPills(", "\nfunction Look.ClockFont(clock)"),
     Slice("function Look.ClockFont(clock)", "\nfunction Look.ClockText()"),
     Slice("function Look.Row(group, list, n)", "\nfunction Look.Fit("),
     Slice("function Look.Fit(", "\nfunction Look.SystemFont("),
@@ -44,7 +46,8 @@ function Parts.HudFont(fs, font, size, outline, background)
     return fs
 end
 local UI = { FontPath = function(name) return "path:" .. name end }
-local ns = { UIFontPath = function() return "path:" end }
+local ns = { UIFontPath = function() return "path:" end,
+    ThemeTint = function() return { r = 0, g = 0, b = 0 } end }
 
 local function Text()
     return {
@@ -117,7 +120,7 @@ check("Hide In Combat and the mouseover fade under Visibility", groupOf.hideInCo
 check("the defaults are today's look", defaults.font == "" and defaults.outline == "OUTLINE"
     and defaults.clockOutline == "NONE")
 
--- Without the clock: one row centred as a whole, the two sides CLOCK_GAP apart.
+-- Without the clock: one row centred as a whole, the two sides a button's gap apart in one pill.
 local function Box(w)
     local b = { w = w, points = {} }
     function b.GetWidth(self) return self.w end
@@ -130,7 +133,7 @@ local frame, left, right = Box(0), Box(60), Box(90)
 local clockText = { GetStringWidth = function() return 70 end }
 check("the clock is off by default", source:find("enabled = true,%s+showClock = false,") ~= nil)
 Look.Fit(frame, left, right, clockText, 2, 3)
-check("no clock: the row is both sides and the gap", frame.w == 2 * 14 + 60 + 22 + 90
+check("no clock: the row is both sides and a button's gap, no clock-sized hole", frame.w == 2 * 14 + 60 + 4 + 90
     and left.points.LEFT == 14 and right.points.RIGHT == -14)
 Look.Fit(frame, left, Box(1), clockText, 2, 0)
 check("no clock, one side empty: that side alone, centred", frame.w == 2 * 14 + 60 and left.points.LEFT == 14)
@@ -138,6 +141,25 @@ settings.showClock = true
 Look.Fit(frame, left, right, clockText, 2, 3)
 check("with the clock: both sides the widest's width round it", frame.w == 2 * (14 + 90 + 22) + 78
     and left.points.LEFT == 14 + 90 - 60 and right.points.RIGHT == -14)
+settings.showClock = nil
+local function Seg()
+    local s = { line = {}, points = {} }
+    function s.SetColorTexture() end
+    function s.ClearAllPoints(self) self.points = {} end
+    function s.SetPoint(self, point, rel) self.points[point] = rel end
+    function s.SetShown(self, on) self.shown = on end
+    function s.line.SetShown(self, on) self.shown = on end
+    return s
+end
+defaults.bgAlpha = 85
+local segs = { Seg(), Seg(), Seg() }
+Look.PaintPills(frame, segs, left, right, clockText, 2, 3)
+check("no clock: one pill from the left buttons to the right ones", segs[1].shown == true
+    and segs[1].points.BOTTOMRIGHT == right and segs[3].shown == false and not segs[2].shown)
+settings.showClock = true
+Look.PaintPills(frame, segs, left, right, clockText, 2, 3)
+check("with the clock: a pill each side of it", segs[1].points.BOTTOMRIGHT == left and segs[3].shown == true
+    and segs[2].shown == true)
 settings.showClock = nil
 check("Show Clock heads the Clock group, its settings wait on it", groupOf.showClock == "Clock"
     and rows.use24h.needs == "showClock" and rows.clockFont.needs == "showClock"

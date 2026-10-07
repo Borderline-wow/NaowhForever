@@ -147,7 +147,7 @@ read_globals = {
 files["Tools/regression/"] = {
     globals = { "strmatch" },
 }
-files["Tools/build_starter.lua"] = { globals = { "strmatch" } }
+files["Tools/build_presets.lua"] = { globals = { "strmatch" } }
 
 -- Baseline: warnings that were already in the code when this config was added, silenced
 -- only where they are (file, warning code, name) so any new warning still fails. Remove

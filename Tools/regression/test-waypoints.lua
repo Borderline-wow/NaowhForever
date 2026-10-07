@@ -78,6 +78,10 @@ local ns = {
     Font = function(parent) return parent:CreateFontString() end,
     Solid = function(parent) return parent:CreateTexture() end,
     Print = function(msg) printed[#printed + 1] = msg end,
+    ClearWaypoint = function()
+        userWaypoint = nil
+        cleared, superCleared = cleared + 1, superCleared + 1
+    end,
     Apply = NOOP, ShowRaidReminderAnchorConfig = NOOP, HideRaidReminderAnchorConfig = NOOP,
     UI = {
         AttachMover = function(frame) return NewFrame("Mover", frame) end,

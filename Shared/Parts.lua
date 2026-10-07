@@ -25,7 +25,7 @@ local FOREVER_MIN, FOREVER_SHARE = 7, 0.32
 local MARK_SIZE, MARK_IN = 13, 2
 local SHADE_SHARE, SHADE_ALPHA = 0.5, 0.8
 -- The star 1px over the line's middle (a negative drop raises it), level with the item level's
--- outlined digits across the icon; a tooltip's 1px drop left it low (seen in game, 3 Oct 2026).
+-- outlined digits across the icon; 2px left it high beside a two-digit level (7 Oct 2026).
 local MARK_STAR_DROP = -1
 Parts.MARK_IN = MARK_IN
 local MARK_UP = 14   -- the upgrade arrow, square, in the top-right corner
