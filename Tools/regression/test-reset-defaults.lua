@@ -1,0 +1,121 @@
+-- Regression: QoL > System > Defaults is a Setup dropdown of the presets (ns.PRESETS). Picking one
+-- asks, then puts the profile in use to it: every module's settings and positions, keeping Smart
+-- Reminders and what this player answered about EllesmereUI's windows, telling the character and
+-- inspect panels so they swap back, remembering which it is, and offering the reload. Hovering
+-- it lists what each other preset turns on and off, read from the modules' and the feature
+-- cards' switches.
+-- Run from the repo root: lua5.1 Tools/regression/test-reset-defaults.lua
+local passed = 0
+local function check(name, ok)
+    if not ok then error("FAIL " .. name, 2) end
+    passed = passed + 1
+end
+
+local function Copy(t)
+    if type(t) ~= "table" then return t end
+    local out = {}
+    for k, v in pairs(t) do out[k] = Copy(v) end
+    return out
+end
+
+local root = {
+    qol = { characterPanel = true, fastLoot = false, characterPanelAsked = true, characterPanelTookOver = true,
+        lootFeedPos = { point = "TOP", x = 1, y = 2 } },
+    topBar = { use24h = false, extra = 5 },
+    tankReminder = { leadTime = 9 },
+    oldModule = { x = 1 },
+}
+local PRESETS = {
+    newInstall = "minimalist",
+    order = { "minimalist", "recommended" },
+    minimalist = { name = "Minimalist", about = "Almost everything off.", profile = {
+        qol = { characterPanel = false, lootFeed = false, preset = "minimalist",
+            lootFeedPos = { point = "CENTER", x = 0, y = -124 } },
+        topBar = { use24h = true },
+        threatMeter = { enabled = false },
+        auraBuffs = { iconSize = 48 },
+    }, account = {} },
+    recommended = { name = "Recommended", about = "Naowh's setup.", profile = {
+        qol = { lootFeed = true, preset = "recommended" },
+    }, account = {} },
+}
+local QOL_DEFAULTS = { characterPanel = true, inspectPanel = true, lootFeed = false }
+local sets = {}
+local S = { key = "qol" }
+function S.Get(k)
+    local v = root.qol and root.qol[k]
+    if v == nil then return QOL_DEFAULTS[k] end
+    return v
+end
+function S.Default(k) return QOL_DEFAULTS[k] end
+function S.Set(k, v)
+    root.qol[k] = v
+    sets[#sets + 1] = k .. "=" .. tostring(v)
+end
+local pages = { ["QoL/Character"] = { cards = {
+    characterPanel = { name = "Character Panel", switch = "characterPanel", store = S },
+    lootFeed = { name = "Loot Feed", switch = "lootFeed", store = S },
+    custom = { name = "Not A Switch", switch = { get = function() return true end }, store = S },
+} } }
+local T = { key = "threatMeter" }
+function T.Default(k) return k == "enabled" or nil end
+function T.Get(k)
+    local v = root.threatMeter and root.threatMeter[k]
+    if v == nil then return T.Default(k) end
+    return v
+end
+local card, asked, reload
+local ns = {
+    QoLSettings = S, PRESETS = PRESETS,
+    ModuleSwitches = function() return { { name = "Threat Meter", store = T, key = "enabled" } } end,
+    PROFILE_OWN = { qol = { "characterPanelAsked", "characterPanelTookOver", "inspectPanelAsked", "inspectPanelTookOver" } },
+    SettingsRoot = function() return root end,
+    Confirm = function(text, yes) asked = text; yes() end,
+    ConfirmReload = function(text) reload = text end,
+    Color = function(_, text) return text end,
+    Shared = { Settings = { pages = pages, Page = function(key)
+        return { Card = function(_, c) c.page = key; card = c end }
+    end } },
+}
+local env = setmetatable({ _G = { NaowhForever = ns }, CopyTable = Copy }, { __index = _G })
+local chunk = assert(loadfile("QoL/NaowhForever_Defaults.lua"))
+setfenv(chunk, env)
+chunk()
+
+local row = card and card.rows[1]
+check("the card sits on QoL > System with one Setup dropdown", card.page == "QoL/System" and #card.rows == 1
+    and row.label == "Setup" and row.always == true and row.choice[2] == PRESETS.order)
+check("its choices are the presets by name", row.choice[1].minimalist == "Minimalist"
+    and row.choice[1].recommended == "Recommended")
+check("a profile no preset was applied to reads Custom", row.get() == "custom" and card.summary() == "Custom")
+local tip = row.tip()
+check("hovering lists what each preset turns on and off against yours now, modules too",
+    tip:find("Minimalist turns off: Character Panel, Threat Meter", 1, true) ~= nil
+    and tip:find("Recommended turns on: Loot Feed", 1, true) ~= nil
+    and not tip:find("Not A Switch", 1, true))
+row.set("minimalist")
+check("picking one asks first, naming it", asked and asked:find("Minimalist", 1, true)
+    and asked:find("Cannot be undone", 1, true))
+check("every module to the preset", root.qol.fastLoot == nil and root.topBar.use24h == true
+    and root.topBar.extra == nil and root.auraBuffs.iconSize == 48 and root.oldModule == nil)
+check("positions too", root.qol.lootFeedPos.point == "CENTER" and root.qol.lootFeedPos.y == -124)
+check("Smart Reminders kept", root.tankReminder.leadTime == 9)
+check("what you answered about EllesmereUI's windows kept", root.qol.characterPanelAsked == true
+    and root.qol.characterPanelTookOver == true)
+check("the character panel told it changed, the inspect panel not", #sets == 1 and sets[1] == "characterPanel=false")
+check("a reload offered", reload and reload:find("Minimalist", 1, true))
+check("the dropdown and the card now read Minimalist", row.get() == "minimalist" and card.summary() == "Minimalist")
+check("and the hover leaves out the one you have", not row.tip():find("Minimalist", 1, true)
+    and row.tip():find("Recommended turns on: Loot Feed, Character Panel", 1, true) == nil
+    and row.tip():find("Recommended turns on: Character Panel, Loot Feed", 1, true) ~= nil)
+check("a module a preset left off reads as turned back on by the other",
+    row.tip():find("Loot Feed, Threat Meter", 1, true) ~= nil)
+root.qol.lootFeedPos.y = 5
+check("a copy: the preset itself untouched", PRESETS.minimalist.profile.qol.lootFeedPos.y == -124)
+row.set("recommended")
+check("another preset swaps it all again", root.qol.lootFeed == true and root.topBar == nil
+    and root.qol.lootFeedPos == nil and root.tankReminder.leadTime == 9 and row.get() == "recommended")
+check("and the character panel told it is back on", sets[#sets] == "characterPanel=true")
+check("a choice that is no preset does nothing", pcall(row.set, "custom") and row.get() == "recommended")
+
+print(("test-reset-defaults: %d checks passed"):format(passed))

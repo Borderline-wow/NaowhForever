@@ -6,9 +6,10 @@
 --  share of the best it is graded against, that best under its end, and with Both your level's
 --  goal as a gold tick on it (named in the tooltip) while short of the best in the game. Only
 --  the score: your BiS's is the BiS List's. Hover it for the score with your BiS, your level's
---  goal and the best in the game; click it for the BiS List. Shown only with the game's stats,
---  not its titles or gear sets, which take the same room. Painted when the panel opens and,
---  while it is open, when your gear changes.
+--  goal and the best in the game; click it for the BiS List. A child of the game's stats list
+--  (its fade ignored), so the game hides it with the list whenever its gear sets, titles or pet
+--  take that room, and it never sits over their rows. Painted when it shows and, while it is
+--  shown, when your gear changes.
 --  CP.ScoreCard and CP.PaintScoreCard draw the same card for another player on the Naowh
 --  Inspect Panel (InspectPanel/).
 -------------------------------------------------------------------------------
@@ -204,11 +205,11 @@ end
 CP.CARD_W, CP.LEGEND_SIZE, CP.LEGEND_GAP, CP.GOAL_RGB = CARD_W, LEGEND_SIZE, LEGEND_GAP, GOAL_RGB
 
 local function Build()
-    -- On the panel itself, not its right pane: the restyle fades the pane's own frames.
-    local right = CharacterFrame.RightPaneHost
-    badge = CP.ScoreCard(CharacterFrame)
+    local stats = CharacterStatsPaneScrollBox
+    badge = CP.ScoreCard(stats)
+    badge:SetIgnoreParentAlpha(true)
     badge:SetPoint("TOP", CharacterLevelText, "BOTTOM", 0, -GAP)
-    badge:SetFrameLevel(right:GetFrameLevel() + 20)
+    badge:SetFrameLevel(stats:GetFrameLevel() + 20)
     badge:SetScript("OnEnter", Enter)
     badge:SetScript("OnLeave", GameTooltip_Hide)
     badge:SetScript("OnClick", Clicked)
@@ -220,22 +221,12 @@ end
 
 local function Apply()
     local on = BadgeOn()
-    if on and not installed and CharacterFrame then
+    if on and not installed and CharacterStatsPaneScrollBox then
         installed = true
         Build()
-        local pane = CharacterLevelText:GetParent()
-        if pane then
-            pane:HookScript("OnShow", Apply)
-            pane:HookScript("OnHide", Apply)
-        end
-        if CharacterStatsPaneScrollBox then
-            CharacterStatsPaneScrollBox:HookScript("OnShow", Apply)
-            CharacterStatsPaneScrollBox:HookScript("OnHide", Apply)
-        end
     end
     if not installed then return end
-    local stats = CharacterStatsPaneScrollBox
-    badge:SetShown(on and CharacterLevelText:IsVisible() and (not stats or stats:IsVisible()))
+    badge:SetShown(on)
     if on and badge:IsVisible() then Paint() end
 end
 CP.ApplyScore = Apply

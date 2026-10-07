@@ -122,7 +122,7 @@ local S = UI.ModuleSettings("qol", {
     blessings = true, blessSpacing = 6, blessGroupSpacing = 6, blessTimerSize = 14, blessShowLabels = true, blessBarSize = 30, blessTimers = true, blessShowAura = true,
     blessShowFury = false, blessWindowAlpha = 1, blessFont = "", blessOutline = "OUTLINE", blessThemeColors = false,
 
-    durability = true, durabilityBelow = 14, durabilityFont = "",
+    durability = false, durabilityBelow = 14, durabilityFont = "",
     durabilityFontSize = 22, durabilityOutline = "OUTLINE", durabilityBackground = "none", durabilityTheme = false,
     talentPoints = false, talentPointsFont = "",
     talentPointsFontSize = 22, talentPointsOutline = "OUTLINE", talentPointsBackground = "none",
@@ -208,7 +208,7 @@ local S = UI.ModuleSettings("qol", {
     trainerPopup = true, trainerGlow = true, trainerRanks = true,
     trainerPos = { point = "TOP", relPoint = "TOP", x = -274, y = -77 },
 
-    flightTimer = true, flightTimerScale = 1, flightTimerAlpha = 1, flightEarlyLanding = true,
+    flightTimer = true, flightTimerScale = 1, flightTimerAlpha = 1, flightEarlyLanding = true, flightTimerMapTime = false,
     flightGame = "aim", quizCamp = true,
     quizPos = { point = "TOP", relPoint = "TOP", x = 0, y = -127 },
     flightTimerFont = "", flightTimerOutline = "NONE", flightTimerTexture = "",

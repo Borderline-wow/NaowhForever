@@ -351,7 +351,9 @@ events:SetScript("OnEvent", function(_, event, arg)
         if Readable(arg) then plates[arg] = nil end
     elseif event == "UNIT_INVENTORY_CHANGED" then
         -- A member's gear changed: an inspected score of theirs goes stale.
-        if not Readable(arg) or UnitIsUnit(arg, "player") then return end
+        if not Readable(arg) then return end
+        local isMe = UnitIsUnit(arg, "player")
+        if not Readable(isMe) or isMe then return end
         local guid = UnitGUID(arg)
         local entry = Readable(guid) and kept[guid]
         if entry and not entry.shared then entry.at = 0 end

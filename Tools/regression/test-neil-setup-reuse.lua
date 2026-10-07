@@ -52,7 +52,9 @@ function methods:GetEffectiveScale() return 1 end
 env._G = env
 setmetatable(env, { __index = _G })
 local function Eval(s) local f = assert(loadstring(s)); setfenv(f, env); return f() end
-Eval(Read("_Core")); Eval(Read("_Widgets"))
+Eval(Read("_Core"))
+env.NaowhForever.STARTER = { profile = {}, account = {} }
+Eval(Read("_Widgets"))
 local ns = env.NaowhForever
 ns.TTSVoiceChoices = function() return { [""] = "Default" }, { "" } end
 ns.WindowScalePercent = function() return 100 end

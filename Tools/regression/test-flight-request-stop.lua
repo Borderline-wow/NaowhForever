@@ -1,9 +1,9 @@
 -- Offline behavior checks for the Flight Timer's Request Stop fade, its display, and Flight Games
--- (what opens on a flight, and the one-time move from the old toggles), and its look; these do
--- not emulate client taint or rendering.
+-- (what opens on a flight, and the one-time move from the old toggles), its look, and the flight
+-- time on the flight master's map; these do not emulate client taint or rendering.
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
-local function fixture(settings)
+local function fixture(settings, extra)
     local s = { now = 0, frames = {}, tickers = {}, taxi = false, combat = false, settings = settings or {},
         offers = {}, dismissed = {} }
     local any = setmetatable({}, { __index = function(t) return function() return t end end })
@@ -35,7 +35,7 @@ local function fixture(settings)
     function leave:EnableMouse(v) self.mouse = v; self.mouseCalls = self.mouseCalls + 1 end
     s.leave = leave
     local defaults = { enabled = true, flightTimer = true, flightEarlyLanding = false, flightTimerScale = 1,
-        flightTimerAlpha = 1, flightGame = 'aim', flightTimerFont = '', flightTimerOutline = 'NONE', flightTimerTexture = '' }
+        flightTimerAlpha = 1, flightTimerMapTime = false, flightGame = 'aim', flightTimerFont = '', flightTimerOutline = 'NONE', flightTimerTexture = '' }
     local S = { Get = function(k) if s.settings[k] ~= nil then return s.settings[k] end return defaults[k] end,
         Set = function(k, v) s.settings[k] = v end, DB = function() return s.settings end,
         Raw = function(k) return s.settings[k] end }
@@ -74,13 +74,14 @@ local function fixture(settings)
         if type(t) == 'string' then t, k, fn = env, t, k end
         local old = t[k]; t[k] = function(...) old(...); fn(...) end
     end
+    for k, v in pairs(extra or {}) do env[k] = v end
     setmetatable(env, { __index = _G })
     local chunk = assert(loadfile('QoL/NaowhForever_Flight.lua')); setfenv(chunk, env); chunk()
     function s.fire(event)
         local all = {}; for i, f in ipairs(s.frames) do all[i] = f end
         for _, f in ipairs(all) do if f.events[event] then f.scripts.OnEvent(f, event) end end
     end
-    s.ns = ns
+    s.ns, s.env = ns, env
     function s.set(k, v) S.Set(k, v) end
     function s.board() s.taxi = true; s.fire('PLAYER_ENTERING_WORLD') end
     function s.land()
@@ -263,6 +264,43 @@ do -- the look: today's card by default, then Font, Outline, Bar Texture and Bac
     check('and loses it on a solid card', bar.time.shadow == false and bar.from.red == 0.5)
     s.set('flightTimerOutline', '')
     check('Shadow keeps one on a solid card', bar.time.shadow == 'card')
+end
+do -- Flight Time on Map: a destination's time joins its tooltip on the flight master's map
+    local tip = { lines = {} }
+    function tip:AddDoubleLine(left, right) self.lines[#self.lines + 1] = left .. ' ' .. right end
+    function tip:Show() self.shown = true end
+    local types = { 'CURRENT', 'REACHABLE', 'REACHABLE', 'UNREACHABLE' }
+    local names = { 'Ironforge', 'Thelsamar', 'Menethil Harbor', 'Far Away' }
+    local entered = 0
+    local s = fixture({}, { GameTooltip = tip, TaxiNodeOnButtonEnter = function() entered = entered + 1 end,
+        NumTaxiNodes = function() return #types end, TaxiNodeGetType = function(i) return types[i] end,
+        TaxiNodeName = function(i) return names[i] end, GetTaxiMapID = function() return 1 end,
+        C_TaxiMap = { GetAllTaxiNodes = function()
+            return { { slotIndex = 1, nodeID = 6 }, { slotIndex = 2, nodeID = 8 }, { slotIndex = 3, nodeID = 7 } }
+        end },
+        C_Traits = { GetConfigIDByTreeID = function() end }, GetNumRoutes = function() return 1 end,
+        TaxiGetNodeSlot = function(slot, _, source) return source and 1 or slot end })
+    local account = { flightTimes = { ['Ironforge|Menethil Harbor'] = 75 } }
+    s.ns.AccountSettings = function() return account end
+    s.ns.FLIGHT_ROUTES = { [60008] = 3040 }
+    local function hover(slot)
+        tip.lines, tip.shown = {}, false
+        s.env.TaxiNodeOnButtonEnter({ GetID = function() return slot end })
+        return tip.lines[1]
+    end
+    check('off by default: no line, and the map is not even hooked', hover(2) == nil and entered == 1
+        and s.env.TaxiNodeOnButtonEnter ~= nil and not tip.shown)
+    s.set('flightTimerMapTime', true)
+    check('a destination with route data shows its estimate', hover(2) == 'Flight Time 1:40' and tip.shown)
+    check('one without falls back to the learned time', hover(3) == 'Flight Time 1:15')
+    check('where you stand and what you cannot reach get none', hover(1) == nil and hover(4) == nil)
+    account.flightTimes = {}
+    check('no route data and nothing learned: no line', hover(3) == nil)
+    s.set('flightTimerMapTime', false)
+    check('Flight Time on Map off: no line', hover(2) == nil)
+    s.set('flightTimerMapTime', true)
+    s.set('flightTimer', false)
+    check('the Flight Timer off: no line', hover(2) == nil)
 end
 
 print(checks .. ' flight request-stop checks passed')

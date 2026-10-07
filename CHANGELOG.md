@@ -2,6 +2,86 @@
 
 ## Unreleased
 
+## 1.0.5
+
+### Fixed
+- Naowh Score: no more error when your target's target changes gear.
+- Character Panel: no more error opening it while your stats are hidden; Defense shows as hidden.
+- CurseForge: updates show up in the CurseForge app again.
+
+## 1.0.4
+
+### Added
+- Credits: Ellesmere, creator of EllesmereUI, is thanked with his own badge.
+- Flight Timer: Flight Time on Map shows the flight time to each destination when you hover it on
+  the flight master's map (QoL > Travel > Flight Timer).
+
+### Changed
+- Credits: a shorter line for Santiago Reyes's maps.
+
+### Fixed
+- CurseForge lists Naowh Forever under WoW Forever only, not Retail.
+
+## 1.0.3
+
+### Fixed
+- Welcome window: on some screens its buttons no longer cover the Recommended setup.
+
+## 1.0.2
+
+### Changed
+- Top Bar: Training Planner and Discovery have their own icons, in the bar's style.
+- Minimalist setup starts with the Threat Meter off.
+- QoL > System > Defaults: hovering a setup also lists the modules it turns on or off.
+
+### Fixed
+- Welcome window: it comes back after a reload when another addon's setup reloads before you pick a
+  setup.
+
+## 1.0.1
+
+### Added
+- Two setups by Naowh, Minimalist (almost everything off) and Recommended (the modules he uses on):
+  pick one in the welcome window, or switch any time from the Setup dropdown in QoL > System >
+  Defaults, whose tooltip lists what it turns on and off. Your BiS lists and notes stay.
+
+### Changed
+- A fresh install starts with the team's settings and HUD layout: Swing Timer, Threat Meter,
+  Training Planner, Dungeon Journal, Smart Macros and the quest, loot and repair helpers start on,
+  and every element starts in its place.
+- Town Map Pins is now Map Pins, and Waypoint Pin sits under it on QoL > Interface.
+- Export Profile and Reminder Pack exports copy as one unbroken line, so they paste cleanly into
+  other tools.
+- Smart Reminders is taken out for now while it is reworked for Forever.
+- A new install starts with Naowh's setup: his module settings and positions.
+- The durability warning starts off; turn it on under Quality of Life, Loot & Items.
+- On a new install the XP bar starts 20px lower.
+- The Top Bar's clock is off by default; turn it on with Show Clock in the Top Bar settings.
+- The Top Bar starts with the Dungeon Journal and Discovery on the left and the BiS List and
+  Training Planner on the right.
+- New installs start from Minimalist, with almost everything off to turn on as you like.
+- Item levels in your bags show in the item's quality color, so they no longer look like stack
+  counts.
+
+### Fixed
+- Waypoint Pin: no more Lua errors when the game hides your movement speed; the walking time keeps
+  using your last known speed.
+- Waypoint Pin: the pin stands above the spot with its ring on the ground, instead of its line
+  sinking into the ground.
+- The sidebar keeps Combat above Utilities when Gear & Trinkets or Blessings is switched off.
+- Clearing a waypoint with the navigator's X closes the navigator.
+- With the clock hidden, the Top Bar's buttons sit in one row with no gap where the clock was.
+- Imported profiles no longer bring someone else's answers about EllesmereUI's character and inspect
+  windows, and turning Naowh's panel off no longer turns EllesmereUI's sheet back on when you had it
+  off.
+- Applying an enchant or armor kit over an existing enchant is no longer blocked; Auto-Replace
+  Enchants is removed, as only you can confirm that popup.
+- Your Naowh Score on the character panel no longer covers your gear sets or titles, so their rows
+  can be clicked again.
+- Shift-clicking the game's waypoint pin on the world map to share it in chat works again after
+  placing a waypoint from Naowh Forever; a waypoint set while the map is open is placed when you
+  close it.
+
 ## 0.5.25-beta
 
 ### Added

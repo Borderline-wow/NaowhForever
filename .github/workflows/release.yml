@@ -12,24 +12,21 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: "Bump the newest tag: patch (0.5.16 -> 0.5.17), minor (-> 0.6.0) or major (-> 1.0.0)"
+        description: "Bump the newest tag: patch (1.0.1 -> 1.0.2), minor (-> 1.1.0) or major (-> 2.0.0)"
         type: choice
         options: [patch, minor, major]
         default: patch
-      beta:
-        description: "Beta release (adds -beta; untick for a full release such as 1.0.0)"
-        type: boolean
-        default: true
       version:
-        description: "Exact version instead, e.g. 0.5.17-beta (optional; overrides the two above)"
+        description: "Exact version instead, e.g. 1.0.2 (optional; overrides the bump)"
         required: false
         type: string
 
 permissions: {}
 
-# Never cancel a release halfway through publishing.
+# Never cancel a release halfway through publishing. One queue per tag, so a push to main
+# straight after a release can never replace the tag run still waiting to publish.
 concurrency:
-  group: release
+  group: release-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -55,14 +52,12 @@ jobs:
       - name: Release commit and tag
         env:
           BUMP: ${{ inputs.bump }}
-          BETA: ${{ inputs.beta }}
           VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_DEPLOY_KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
         run: |
-          args=(prepare --bump "$BUMP")
-          if [ "$BETA" = true ]; then args+=(--beta); else args+=(--no-beta); fi
+          args=(prepare --bump "$BUMP" --no-beta)
           if [ -n "$VERSION" ]; then args+=(--version "$VERSION"); fi
           version=$(python3 Tools/release.py "${args[@]}")
           git config user.name "github-actions[bot]"
@@ -127,7 +122,9 @@ jobs:
         uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
         with:
           # CurseForge project, only for a tagged release so main's dev builds stay off CurseForge.
-          args: ${{ env.TAG != '' && '-p 1721187' || '' }}
+          # -n names the zip and label after the version alone, without the "-forever" the
+          # packager adds when Forever is the only game in the TOCs.
+          args: ${{ env.TAG != '' && '-p 1721187 -n {package-name}-{project-version}:{project-version}' || '-n {package-name}-{project-version}:{project-version}' }}
 
       - name: Post changelog to Discord
         if: env.TAG != ''

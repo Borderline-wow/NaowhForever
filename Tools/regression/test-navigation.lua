@@ -235,9 +235,12 @@ Check(Text("Quality of Life / Interface") ~= nil and Head("Top Bar") ~= nil, "op
 Check(Text("ADVENTURE") and Text("COMBAT") and Text("UTILITIES"), "grouped navigation")
 Check(not Text("Close") and Button("Reload UI") ~= nil, "no footer: Reload UI sits in the header, closing is the X")
 Check(not Text("Custom Reminders"), "unfinished module is absent from navigation")
+Check(not Text("Smart Reminders"), "Smart Reminders is not shipped, so it is not listed")
+Check(disabled.NaowhForever_SmartReminders, "a Smart Reminders folder left from an old zip is switched off")
+disabled.NaowhForever_SmartReminders = nil
 Check(Button("Quality of Life").switch == nil, "navigation does not toggle modules")
 for _, name in ipairs({ "Quality of Life", "Dungeon Journal", "Discovery", "BiS List", "Professions",
-    "Gear & Trinkets", "Blessings", "AuraBuffs", "Threat Meter", "Swing Timer", "Smart Reminders",
+    "Gear & Trinkets", "Blessings", "AuraBuffs", "Threat Meter", "Swing Timer",
     "Macros", "Action Bars" }) do
     Check(Button(name).icon ~= nil, name .. " is listed with its glyph")
 end
@@ -663,6 +666,20 @@ for key, page in pairs(Settings.pages) do
         end
     end
 end
+-- With Gear & Trinkets and Blessings off, AuraBuffs is the first COMBAT module, listed after
+-- Macros; the group still sits above UTILITIES.
+missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = true, true
+local built = #frames
+Load("Core/NaowhForever_Window.lua")
+ns.OpenOptionsWindow(); Flush()
+local headY = {}
+for i = built + 1, #frames do
+    local f = frames[i]
+    if (f.text == "COMBAT" or f.text == "UTILITIES") and f.points.TOPLEFT then headY[f.text] = f.points.TOPLEFT[4] end
+end
+Check(headY.COMBAT and headY.UTILITIES and headY.COMBAT > headY.UTILITIES, "COMBAT stays above UTILITIES with its first modules off")
+missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = nil, nil
+
 print(cases .. " navigation checks passed")
 -- Available only to an offline renderer that loads this test environment.
 local capture = rawget(_G, "NAVIGATION_CAPTURE")

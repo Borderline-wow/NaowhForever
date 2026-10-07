@@ -5,6 +5,8 @@
 --  look. Import shows what a string holds, takes the parts left ticked into a new profile and
 --  switches to it; no existing profile changes. Any other Naowh Forever string pasted there
 --  goes to its own import: a Smart Reminders pack, Forge macros, a talent build, a BiS list.
+--  What one player answered about EllesmereUI's windows (ns.PROFILE_OWN) is never shared, so a
+--  profile from someone else asks as on a first run.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
@@ -23,6 +25,17 @@ local MAX_PICKS = 50
 
 -- The account's look: every profile shares it, so it travels as its own part.
 local LOOK = { "themePreset", "themeColors", "uiFont", "windowScale" }
+
+local OWN = { qol = { "characterPanelAsked", "characterPanelTookOver", "inspectPanelAsked", "inspectPanelTookOver" } }
+ns.PROFILE_OWN = OWN
+
+local function DropOwn(key, values)
+    local own = OWN[key]
+    if own and type(values) == "table" then
+        for i = 1, #own do values[own[i]] = nil end
+    end
+    return values
+end
 
 -- The parts, in the order the import and the Profiles page list them. help: what Import does
 -- with one; share: what the page's export says it is.
@@ -110,7 +123,7 @@ local function Collect()
     local settings = {}
     for key, values in pairs(root) do
         if key ~= "tankReminder" and key ~= "macros" and type(values) == "table" and ns.ModuleDefaults(key) then
-            settings[key] = Plain(values, 1, budget)
+            settings[key] = DropOwn(key, Plain(values, 1, budget))
         end
     end
     if next(settings) then parts.settings = settings end
@@ -296,7 +309,6 @@ local ACTING = {
     { module = "qol", key = "sellJunk", label = "Auto Sell Junk" },
     { module = "qol", key = "restockBuy", label = "Buy at Vendors" },
     { module = "qol", key = "lootConfirm", label = "Skip Loot Confirmations" },
-    { module = "qol", key = "enchantReplace", label = "Auto-Replace Enchants" },
     { module = "qol", key = "scrapMarker", label = "Scrap Marker, which sells what it marks", when = SellsScrap },
     { module = "journal", key = "acceptShared", label = "Accept Shared Dungeon Quests" },
 }
@@ -493,7 +505,7 @@ function ns.ImportProfile(payload, wanted, name, overwrite)
         for key, values in pairs(parts.settings) do
             local defaults = ns.ModuleDefaults(key)
             if defaults and key ~= "macros" and key ~= "tankReminder" and type(values) == "table" then
-                root[key] = Checked(values, defaults)
+                root[key] = DropOwn(key, Checked(values, defaults))
             end
         end
         if not wanted.acting then

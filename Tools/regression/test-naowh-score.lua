@@ -326,6 +326,24 @@ do
         state.rights[#state.lines].text == "...")
 end
 
+-- Reported on Forever: UNIT_INVENTORY_CHANGED for a compound unit (targettarget) answers
+-- UnitIsUnit with a secret, which the game will not let us test. Plain Lua cannot fail on it
+-- as the game does; this checks the outcome: nothing is reset and no scan is queued.
+do
+    local ns, state, env = Fixture()
+    local S = ns.QoLSettings
+    S.Set("naowhScore", true)
+    S.Set("naowhScoreScan", true)
+    state.RunTimers()
+    local real = env.UnitIsUnit
+    env.UnitIsUnit = function(a, b) if a == "targettarget" then return state.SECRET end return real(a, b) end
+    state.Fire("UNIT_INVENTORY_CHANGED", "targettarget")
+    check("a secret answer for a compound unit: no scan queued", #state.timers == 0)
+    state.Fire("UNIT_INVENTORY_CHANGED", "party1")
+    check("a group member's gear changing still queues one", #state.timers == 1)
+    env.UnitIsUnit = real
+end
+
 -------------------------------------------------------------------------------
 --  Your group, in the background
 -------------------------------------------------------------------------------

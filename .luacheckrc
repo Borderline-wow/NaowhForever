@@ -104,7 +104,7 @@ read_globals = {
     "ItemRefTooltipTextLeft1", "ITEM_QUALITY_COLORS", "LE_PARTY_CATEGORY_INSTANCE", "LibStub",
     "LOCALIZED_CLASS_NAMES_MALE", "LoggingCombat", "LootFrame", "LootSlot",
     "LOOT_ITEM_PUSHED_SELF", "LOOT_ITEM_PUSHED_SELF_MULTIPLE", "LOOT_ITEM_SELF",
-    "LOOT_ITEM_SELF_MULTIPLE", "MainMenuBarVehicleLeaveButton", "MapCanvasDataProviderMixin", "MapCanvasPinMixin",
+    "LOOT_ITEM_SELF_MULTIPLE", "MainMenuBarVehicleLeaveButton", "MapCanvasDataProviderMixin", "MapCanvasPinMixin", "FlightMap_FlightPointPinMixin",
     "GetMinimapShape", "GetPlayerFacing", "Minimap",
     "C_MapExplorationInfo", "CreateTexturePool",
     "MAX_PARTY_MEMBERS", "MAX_RAID_MEMBERS", "Menu", "MenuUtil", "MenuVariants",
@@ -122,7 +122,7 @@ read_globals = {
     "SHARE_QUEST", "ShoppingTooltip1", "ShoppingTooltip2", "SILVER_AMOUNT", "SOUNDKIT",
     "StaticPopup_FindVisible", "StaticPopup_Hide", "StaticPopup_Show", "StatusTrackingBarInfo",
     "StatusTrackingBarManager", "strlower", "strsplit", "strsub", "strtrim", "strupper",
-    "SubZoneTextFrame", "TaxiGetNodeSlot", "TaxiNodeGetType", "TaxiNodeName", "TaxiRequestEarlyLanding",
+    "SubZoneTextFrame", "TaxiGetNodeSlot", "TaxiNodeGetType", "TaxiNodeName", "TaxiNodeOnButtonEnter", "TaxiRequestEarlyLanding",
     "tContains", "TextToSpeech_GetSelectedVoice", "time", "ToggleCalendar", "TomTom",
     "TooltipDataProcessor", "TRADE_SKILLS", "TSM_API", "UIErrorsFrame", "UiMapPoint",
     "UIParent", "UNKNOWNOBJECT", "UnitAffectingCombat", "UnitAttackSpeed", "UnitCanAttack",
@@ -147,6 +147,7 @@ read_globals = {
 files["Tools/regression/"] = {
     globals = { "strmatch" },
 }
+files["Tools/build_presets.lua"] = { globals = { "strmatch" } }
 
 -- Baseline: warnings that were already in the code when this config was added, silenced
 -- only where they are (file, warning code, name) so any new warning still fails. Remove

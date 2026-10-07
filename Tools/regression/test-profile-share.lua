@@ -164,6 +164,21 @@ Case("import: unticked parts stay out", function()
     assert(w.db.account.themePreset == "midnight", "the look stays")
 end)
 
+Case("what you answered about EllesmereUI's windows stays home, both ways", function()
+    local w = World()
+    local q = w.db.profiles.Default.qol
+    q.characterPanelAsked, q.characterPanelTookOver, q.inspectPanelAsked, q.inspectPanelTookOver = true, true, true, true
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    local out = payload.parts.settings.qol
+    assert(out.fastLoot == true and out.characterPanelAsked == nil and out.characterPanelTookOver == nil
+        and out.inspectPanelAsked == nil and out.inspectPanelTookOver == nil, "export leaves them out")
+    out.characterPanelAsked, out.characterPanelTookOver, out.inspectPanelAsked, out.inspectPanelTookOver = true, true, true, true
+    w.ns.ImportProfile(payload, { settings = true }, "Theirs")
+    local p = w.db.profiles.Theirs.qol
+    assert(p.fastLoot == true and p.characterPanelAsked == nil and p.characterPanelTookOver == nil
+        and p.inspectPanelAsked == nil and p.inspectPanelTookOver == nil, "an older string's are not taken in")
+end)
+
 Case("Macros without Smart Reminders still brings the class macros", function()
     local w = World()
     local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
