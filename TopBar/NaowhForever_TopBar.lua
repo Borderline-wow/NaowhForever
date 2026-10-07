@@ -12,11 +12,11 @@ local Parts = ns.Shared.Parts
 local S = UI.ModuleSettings("topBar", {
     enabled = true,
     -- The clock font is EllesmereUI's, found through SharedMedia; without it the Addon Font.
-    iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", clockOutline = "NONE", use24h = true,
+    iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", clockOutline = "NONE", use24h = false,
     font = "", outline = "OUTLINE",
     bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
     hideInCombat = false, mouseover = false, mouseoverAlpha = 0,
-    showSystem = true, systemTooltip = true, sysSize = 13, tooltipScale = 120,
+    showSystem = false, systemTooltip = true, sysSize = 13, tooltipScale = 120,
     layout = { left = { "friends", "guild" }, right = { "ldb:NaowhForeverJournal", "ldb:NaowhForeverBiS" } },
 })
 ns.TopBarSettings = S

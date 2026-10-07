@@ -10,19 +10,20 @@ local T = ns.THEME
 local Parts = ns.Shared.Parts
 
 local S = UI.ModuleSettings("threatMeter", {
-    enabled = false,
-    width = 280, height = 240, barHeight = 24, maxBars = 40,
+    enabled = true,
+    width = 301, height = 206, barHeight = 22, maxBars = 40,
     source = "target", focusEnabled = false, visibility = "threat",
-    locked = true, barSpacing = 3, fontSize = 12, font = "", outline = "OUTLINE",
+    locked = false, barSpacing = 3, fontSize = 11, font = "", outline = "OUTLINE",
     showIcons = true, showRanks = true, highlightPlayer = true,
     backgroundAlpha = 0.94, backgroundColor = false, barAlpha = 0.72, texture = "", percentMode = "pull",
-    growUp = false, showHeader = true, ignorePets = false, statusPos = "bottom",
+    growUp = false, showHeader = true, ignorePets = false, statusPos = "top",
     showValue = true, showPercent = true,
     playerColorOn = false, playerColor = { r = 0.8, g = 0.1, b = 0.1 },
     tankColorOn = false, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
     pullBar = true, pullColor = { r = 0.0, g = 0.55, b = 0.0 },
     themeColors = false,
     warnSound = false, warnSoundKey = "none", warnAt = 80, warnSkipTank = true,
+    threatPos = { point = "BOTTOM", relPoint = "BOTTOM", x = 393, y = 0 },
 })
 ns.ThreatMeterSettings = S
 

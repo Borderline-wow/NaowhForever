@@ -48,7 +48,9 @@ local function Session(settings, opts)
     local S = {}
     local UI = {
         ModuleSettings = function(_, d)
-            defaults = d
+            -- Written against the timer's original defaults.
+            defaults = setmetatable({ enabled = false, texture = "", showOH = true, showR = true, sealColors = false,
+                swingWindow = false }, { __index = d })
             function S.Get(k) local v = settings[k]; if v == nil then return defaults[k] end; return v end
             function S.Set(k, v) settings[k] = v end
             return S

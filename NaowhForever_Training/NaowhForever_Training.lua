@@ -12,8 +12,8 @@
 local ns = _G.NaowhForever
 local UI = ns.UI
 
-local S = UI.ModuleSettings("training", { enabled = false, levelUpToast = true, trainerPanel = true,
-    showLearned = false, miniShown = false, windowAlpha = 1 })
+local S = UI.ModuleSettings("training", { enabled = true, levelUpToast = true, trainerPanel = true,
+    showLearned = true, miniShown = false, windowAlpha = 1 })
 ns.TrainingSettings = S
 
 local Training = {}

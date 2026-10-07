@@ -215,6 +215,10 @@ local function Fixture(settings)
         line = { r = 0.2, g = 0.2, b = 0.2 }, panel = { r = 0.1, g = 0.1, b = 0.1 },
         bg = { r = 0.05, g = 0.05, b = 0.05 }, grey = { r = 0.2, g = 0.2, b = 0.2 } }
     local values, defaults = settings or {}, {}
+    -- Written against the camp icon's original defaults.
+    for k, v in pairs({ campShowUnder = false, campIconSize = 64, campBuffSide = "below" }) do
+        if values[k] == nil then values[k] = v end
+    end
     local S = { Get = function(k) return values[k] end, Set = function(k, v) values[k] = v end,
         Raw = function(k) return values[k] end, Default = function(k) return defaults[k] end }
     local ns = {
@@ -739,8 +743,9 @@ do
     local fresh = Fixture({ campStyle = "simple" })
     fresh.fire("PLAYER_LOGIN")
     local ficon = fresh.named.NaowhForeverCampfire
-    check("no saved spot: the default fire is the Round icon's default centre, nothing saved",
-        fresh.S.Get("campPos") == nil and ficon.pt.LEFT + fresh.bar().campX == -260 and ficon.pty.LEFT == 120)
+    check("no saved spot: the fire lands on the default spot's centre",
+        fresh.S.Get("campPos").relPoint == "BOTTOMRIGHT" and ficon.pt.LEFT + fresh.bar().campX == -223
+        and ficon.pty.LEFT == 61)
 end
 
 -- The tooltip reader: every feature line of Camp Benefits' description, matched by name, with amounts.

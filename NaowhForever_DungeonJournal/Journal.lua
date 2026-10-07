@@ -71,7 +71,7 @@ local ns = _G.NaowhForever
 ---@field linked? JournalDungeon[] those dungeons, joined
 
 local S = ns.UI.ModuleSettings("journal", {
-    enabled = false,
+    enabled = true,
     mapPanel = true,
     mapFactions = false,
     usableOnly = true,
@@ -101,8 +101,6 @@ local S = ns.UI.ModuleSettings("journal", {
     showHorde = true,
     shareRequests = true,
     acceptShared = false,
-    -- On by default, an exception to off by default: the tracker is the Journal's own, and
-    -- the Journal itself starts off.
     trackerAuto = true,
     -- In a dungeon, the game's quest tracker faded while this one is open.
     hideGameTracker = false,

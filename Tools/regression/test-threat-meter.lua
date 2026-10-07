@@ -59,7 +59,10 @@ local function fixture(settings, withSettings)
             TexturePath=function(name,fallback) if name=='Solid' then return 'solid' end return fallback end,
             SoundPathFor=function() return 'sound' end,_PlayLSMSound=function() s.sounds=s.sounds+1 end},
     }
-    ns.UI.ModuleSettings=function(_, defaults)
+    ns.UI.ModuleSettings=function(_, given)
+        -- Written against the meter's original defaults.
+        local defaults=setmetatable({enabled=false,width=280,height=240,barHeight=24,locked=true,fontSize=12,
+            statusPos='bottom'},{__index=given})
         return {Get=function(k) if s.settings[k]~=nil then return s.settings[k] end return defaults[k] end,
             Set=function(k,v) s.settings[k]=v end, DB=function() return s.settings end}
     end

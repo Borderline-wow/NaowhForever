@@ -1462,8 +1462,8 @@ function UI.ModuleSettings(key, defaults)
     return S
 end
 
-ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { anchoredTo = {}, guides = true, hidden = {}, locked = {},
-    elementsPanel = true })
+ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { guides = true, hidden = {}, locked = {},
+    elementsPanel = true, anchoredTo = { ["Loot Feed"] = { target = "Alerts", side = "RIGHT", x = -300, y = 206 } } })
 
 -------------------------------------------------------------------------------
 --  Sounds

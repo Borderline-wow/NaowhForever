@@ -8,11 +8,11 @@ local UI = ns.UI
 
 local S = UI.ModuleSettings("macros", {
     enabled = true, classMacros = {},
-    health = false, healthOrder = "stone",
-    mana = false, food = false, bandage = false,
-    trinket1 = false, trinket2 = false,
-    focus = false, focusMark = false, focusMarker = 8, focusAnnounce = false,
-    acceptPopup = false, windowAlpha = 1,
+    health = true, healthOrder = "potion",
+    mana = true, food = true, bandage = true,
+    trinket1 = true, trinket2 = true,
+    focus = true, focusMark = true, focusMarker = 8, focusAnnounce = true,
+    acceptPopup = true, windowAlpha = 1,
 })
 -- Authored definitions travel with shared packs; presentation settings stay in this module.
 local GetSetting, SetSetting = S.Get, S.Set

@@ -14,11 +14,11 @@ local T = ns.THEME
 local Parts = ns.Shared.Parts
 
 local S = UI.ModuleSettings("swingTimer", {
-    enabled = false,
+    enabled = true,
     width = 220, rowHeight = 14, spacing = 2, textSize = 11, font = "", outline = "OUTLINE",
-    texture = "", bgAlpha = 0.6,
+    texture = "Naowh Gradient", bgAlpha = 0.6,
     visibility = "combat", hideWhenIdle = false,
-    showMH = true, showOH = true, showR = true,
+    showMH = true, showOH = false, showR = false,
     depleteFill = false, showTime = true, showLabel = true, showSpark = true,
     rangeCheck = true, outOfRangeAlpha = 0.4,
     classColored = false, themeColors = false,
@@ -28,7 +28,7 @@ local S = UI.ModuleSettings("swingTimer", {
     queueHighlight = true,
     queueColor = { r = 1, g = 0.70, b = 0.20 },
     cleaveColor = { r = 0.95, g = 0.35, b = 0.25 },
-    sealColors = false,
+    sealColors = true,
     sealRighteousColor = { r = 0.95, g = 0.85, b = 0.40 },
     sealCrusaderColor = { r = 0.95, g = 0.55, b = 0.20 },
     sealCommandColor = { r = 0.75, g = 0.35, b = 0.95 },
@@ -37,7 +37,7 @@ local S = UI.ModuleSettings("swingTimer", {
     sealWisdomColor = { r = 0.35, g = 0.65, b = 1 },
     sealFuryColor = { r = 0.95, g = 0.25, b = 0.20 },
     sealMartyrdomColor = { r = 0.90, g = 0.40, b = 0.70 },
-    swingWindow = false, swingWindowTime = 0.4,
+    swingWindow = true, swingWindowTime = 0.4,
     swingWindowColor = { r = 1, g = 1, b = 1, a = 0.35 },
     windowLatency = false,
     autoShotWindow = false,

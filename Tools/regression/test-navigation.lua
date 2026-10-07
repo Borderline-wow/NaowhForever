@@ -321,6 +321,8 @@ local function Setting(label)
     local text = Text(label)
     return text and text.parent.setting and text.parent or nil
 end
+-- Walked through from Co-Tank off with its debuffs on, the original defaults.
+S.Set("coTank", false); S.Set("coTankDebuffs", true); Flush()
 local coTank = Head("Co-Tank Frame")
 coTank.switch.scripts.OnClick(coTank.switch); Flush()
 Check(S.Get("coTank") and Setting("Max Icons") ~= nil, "turning a card on opens it")
@@ -343,7 +345,7 @@ Check(not S.Get("coTank") and Setting("Width").label.alpha < 1, "turned off, the
 coTank = Head("Co-Tank Frame")
 coTank.scripts.OnClick(coTank); Flush()
 Check(not Text("Max Icons"), "a click on its head closes it")
-Check(S.Get("coTankDebuffs"), "closing it keeps its settings")
+Check(not S.Get("coTank"), "closing it keeps its settings")
 UI.GoToSetting("QoL/Combat", "Out of Stealth Colour", "QoL/Combat:stealthReminder"); Flush()
 Check(Setting("Out of Stealth Colour") ~= nil, "a jump to a setting opens its card and shows the setting")
 ns.OpenOptionsWindow("QoL/Interface"); Flush()

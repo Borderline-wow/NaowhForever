@@ -309,6 +309,7 @@ end
 -- Apply Theme where the colour was fixed.
 do
     local s = Shown()
+    s.S.Set("durabilityBelow", 25)
     local talent = s.named.NaowhForeverTalentPoints
     check("Talent Points: gold by default", talent.text.r == 1 and talent.text.g == 0.82 and talent.text.b == 0)
     s.S.Set("talentPointsTheme", true)

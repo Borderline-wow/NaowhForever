@@ -93,7 +93,12 @@ end
 -------------------------------------------------------------------------------
 local function Anchors()
     local db = ns.UnlockModeSettings.DB()
-    if type(db.anchoredTo) ~= "table" then db.anchoredTo = {} end
+    if type(db.anchoredTo) ~= "table" then
+        db.anchoredTo = {}
+        for label, info in pairs(ns.UnlockModeSettings.Default("anchoredTo")) do
+            db.anchoredTo[label] = { target = info.target, side = info.side, x = info.x, y = info.y }
+        end
+    end
     return db.anchoredTo
 end
 

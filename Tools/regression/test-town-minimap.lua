@@ -128,6 +128,6 @@ Check(mini.scripts.OnUpdate == nil, "back on while standing still, nothing runs"
 settings.townMinimap = false
 boot.scripts.OnEvent()
 
-Check(Read("QoL/NaowhForever_QoL.lua"):find("townMinimap = false", 1, true), "Minimap pins start off")
+Check(Read("QoL/NaowhForever_QoL.lua"):find("townMinimap = true", 1, true), "Minimap pins start on")
 
 print(("test-town-minimap: %d checks passed"):format(checks))
