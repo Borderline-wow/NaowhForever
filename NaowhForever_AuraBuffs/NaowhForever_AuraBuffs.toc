@@ -1,4 +1,4 @@
-## Interface: 120000, 120001, 120005, 120007, 120100, 16001
+## Interface: 16001
 ## Title: |cff0091edNaowh|r Forever: AuraBuffs
 ## Notes: Buff, campfire and low health reminders.
 ## Author: Naowh

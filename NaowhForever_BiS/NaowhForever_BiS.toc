@@ -1,4 +1,4 @@
-## Interface: 120000, 120001, 120005, 120007, 120100, 16001
+## Interface: 16001
 ## Title: |cff0091edNaowh|r Forever: BiS List
 ## Notes: Best-in-slot lists, stat weights, Naowh Score, the character panel and the inspect window.
 ## Author: Naowh
