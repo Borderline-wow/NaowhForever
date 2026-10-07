@@ -332,6 +332,14 @@ Check(driver.scripts.OnUpdate ~= nil, "and its timer does nothing")
 -- The navigator's clear button clears the waypoint and the game's tracking.
 navBar.clear.click()
 Check(cleared == 1 and superCleared == 1, "the navigator clears the waypoint")
+-- The game can keep its navigation frame after a clear and send no NAVIGATION_FRAME_DESTROYED.
+tracking = nil
+events.scripts.OnEvent(events, "SUPER_TRACKING_CHANGED")
+Check(not navBar:IsShown() and not pin:IsShown() and driver.scripts.OnUpdate == nil,
+    "with nothing tracked the navigator goes, though the frame stayed")
+tracking = 1
+events.scripts.OnEvent(events, "SUPER_TRACKING_CHANGED")
+Check(navBar:IsShown() and driver.scripts.OnUpdate ~= nil, "tracking again on that frame brings it back")
 
 -- Off again: idle, and the game's marker back.
 S.Set("waypoints", false)
