@@ -666,6 +666,20 @@ for key, page in pairs(Settings.pages) do
         end
     end
 end
+-- With Gear & Trinkets and Blessings off, AuraBuffs is the first COMBAT module, listed after
+-- Macros; the group still sits above UTILITIES.
+missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = true, true
+local built = #frames
+Load("Core/NaowhForever_Window.lua")
+ns.OpenOptionsWindow(); Flush()
+local headY = {}
+for i = built + 1, #frames do
+    local f = frames[i]
+    if (f.text == "COMBAT" or f.text == "UTILITIES") and f.points.TOPLEFT then headY[f.text] = f.points.TOPLEFT[4] end
+end
+Check(headY.COMBAT and headY.UTILITIES and headY.COMBAT > headY.UTILITIES, "COMBAT stays above UTILITIES with its first modules off")
+missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = nil, nil
+
 print(cases .. " navigation checks passed")
 -- Available only to an offline renderer that loads this test environment.
 local capture = rawget(_G, "NAVIGATION_CAPTURE")

@@ -1243,8 +1243,8 @@ local function CreateWindow()
     searchBox:SetHeight(SEARCH.h)
     local nav = NavigationScroll(sidebar, SEARCH.top + SEARCH.h + SEARCH.gap, FOOTER_H_SIDEBAR + 6 + NAV_STEP * #SYSTEM_NAV,
         SIDEBAR_W)
-    -- Modules list in MODULES order under their group; one with only unfinished tabs, or whose
-    -- addon is switched off, is left out.
+    -- Modules list in MODULES order under their group, and the groups in a fixed order; one with
+    -- only unfinished tabs, or whose addon is switched off, is left out.
     local groups, grouped = {}, {}
     for _, mod in ipairs(MODULES) do
         local ready = false
@@ -1258,6 +1258,8 @@ local function CreateWindow()
             table.insert(grouped[group], mod)
         end
     end
+    local order = { [""] = 0, ADVENTURE = 1, COMBAT = 2, UTILITIES = 3 }
+    table.sort(groups, function(a, b) return order[a] < order[b] end)
     local ny = 0
     for _, group in ipairs(groups) do
         if group ~= "" then
