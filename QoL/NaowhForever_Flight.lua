@@ -3,7 +3,8 @@
 --  track you ride along with the stops marked on it, the next stop, and Land Early and Games.
 --  Also Flight Games (flightGame): the one choice of what opens by itself when a flight starts,
 --  the button only, the Quiz or the Aim Trainer (Off hides the button), migrated once from the old
---  quizFlight and aimAutoFlight.
+--  quizFlight and aimAutoFlight. And the flight time to each destination in the tooltip on the
+--  flight master's map (flightTimerMapTime).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -96,6 +97,39 @@ local function Route(slot)
     end
     local last = points[#points].at
     return points, last and last > 0 and last or nil
+end
+
+-------------------------------------------------------------------------------
+--  Flight time on the flight master's map
+-------------------------------------------------------------------------------
+-- The same time the timer starts from when the flight is bought: the route data's, else the
+-- time learned on that route. Only for a destination the flight master can fly you to.
+local function AddMapTime(slot)
+    if not (On() and S.Get("flightTimerMapTime")) or TaxiNodeGetType(slot) ~= "REACHABLE" then return end
+    local _, estimate = Route(slot)
+    local seconds = estimate or Times()[RouteKey(CurrentNodeName(), TaxiNodeName(slot))]
+    if not seconds then return end
+    GameTooltip:AddDoubleLine("Flight Time", Clock(seconds), 1, 0.82, 0, 1, 1, 1)
+    GameTooltip:Show()
+end
+
+-- Hooked the first time the setting is on, never before. The classic flight map's buttons share
+-- one global OnEnter; the newer Flight Map's pins take theirs from a mixin that exists once
+-- Blizzard_FlightMap loads (pins made before the hook keep the old one until a reload).
+local mapHooked = false
+local function HookMap()
+    if mapHooked or not (On() and S.Get("flightTimerMapTime")) then return end
+    mapHooked = true
+    if TaxiNodeOnButtonEnter then
+        hooksecurefunc("TaxiNodeOnButtonEnter", function(button) AddMapTime(button:GetID()) end)
+    end
+    if EventUtil and EventUtil.ContinueOnAddOnLoaded then
+        EventUtil.ContinueOnAddOnLoaded("Blizzard_FlightMap", function()
+            hooksecurefunc(FlightMap_FlightPointPinMixin, "OnMouseEnter", function(pin)
+                AddMapTime(pin.taxiNodeData.slotIndex)
+            end)
+        end)
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -662,6 +696,7 @@ local SAMPLE = { { name = "Ironforge", at = 0 }, { name = "Thorium Point", at = 
 
 function Apply()
     MigrateGame()
+    HookMap()
     if not bar then Build() end
     bar:SetScale(S.Get("flightTimerScale"))
     Look.Style(bar)
@@ -758,6 +793,8 @@ Settings.Page("QoL/Travel", S):Card({
     rows = {
         { key = "flightEarlyLanding", label = "Land Early Button", toggle = true,
           help = "A Land button that lands you at the next flight point." },
+        { key = "flightTimerMapTime", label = "Flight Time on Map", toggle = true,
+          help = "The flight time to each destination when you hover it on the flight master's map." },
         Settings.Group("Size"),
         { key = "flightTimerScale", label = "Scale", slider = { 50, 200, 5 }, unit = "%", scale = 0.01 },
         Settings.Look("flightTimer", { text = true, bar = "Flat", background = "alpha",
