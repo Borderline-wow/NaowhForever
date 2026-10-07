@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Skyborne Spots on the world map; the mixin is made once switched on -->
+    <Script file="NaowhForever_SkyborneSpots.lua"/>
+    <Button name="NaowhForeverSkybornePinTemplate" mixin="NaowhForeverSkybornePinMixin" enableMouse="true" registerForClicks="LeftButtonUp, RightButtonUp" virtual="true">
+        <Size x="20" y="20"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+        <Scripts><OnClick method="OnClick"/></Scripts>
+    </Button>
+</Ui>

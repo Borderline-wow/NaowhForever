@@ -113,6 +113,8 @@ QoL\NaowhForever_ZoneExits.lua
 QoL\NaowhForever_TownMap.xml
 QoL\NaowhForever_MapOverlays.lua
 QoL\NaowhForever_Unexplored.xml
+QoL\NaowhForever_SkyborneData.lua
+QoL\NaowhForever_SkyborneSpots.xml
 QoL\NaowhForever_Trainer.lua
 TopBar\NaowhForever_TopBar.lua
 QoL\NaowhForever_FlightData.lua
