@@ -1788,6 +1788,9 @@ do
     J.View.CloseBossLoot()
 
     local excavation = J.Get("ExcavationSite")
+    -- Saltspine's tip taken away for a while, for a boss with none.
+    local saltTip = J.Tips[260322]
+    J.Tips[260322] = nil
     J.OpenDungeonMap(excavation)
     local horror, guardian = RowFor("Highland Horror"), RowFor("Relic Guardian")
     check("Highland Horror is a quest boss", horror.boss.quest == true and not J.Numbered(horror.boss))
@@ -1804,6 +1807,7 @@ do
     end) == nil)
     check("and no gap for one: its columns right under its name",
         Section(pageView, "LOOT").top == saltTitle.top + saltTitle.h + 6)
+    J.Tips[260322] = saltTip
     horror.scripts.OnClick(horror)
     local quests = PageRow(pageView, function(made) return rawget(made, "chips") and rawget(made, "label") end)
     local horrorAbilities = Section(pageView, "ABILITIES")

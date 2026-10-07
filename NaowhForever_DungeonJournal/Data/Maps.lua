@@ -146,12 +146,12 @@ ns.Journal.Maps = {
     -- Santiago Reyes's recreation, as Ruins of Lordaeron's is.
     ExcavationSite = { image = "Interface\\AddOns\\NaowhForever\\Media\\Maps\\ExcavationSite",
         floors = 1,
-        entrance = { 1, 0.888, 0.258 },
+        entrance = { 1, 0.889, 0.262 },
         pins = {
-            [260322] = { 1, 0.486, 0.464 },   -- Saltspine
-            [260325] = { 1, 0.343, 0.464 },   -- Shadetooth
-            [260808] = { 1, 0.080, 0.460 },   -- Highland Horror
-            [260326] = { 1, 0.340, 0.665 },   -- Relic Guardian
+            [260322] = { 1, 0.552, 0.370 },   -- Saltspine
+            [260325] = { 1, 0.287, 0.451 },   -- Shadetooth
+            [260808] = { 1, 0.081, 0.374 },   -- Highland Horror
+            [260326] = { 1, 0.336, 0.685 },   -- Relic Guardian
         },
     },
     Gnomeregan = { art = "Gnomeregan", floors = 4,
